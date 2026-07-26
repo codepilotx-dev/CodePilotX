@@ -20,6 +20,19 @@ import type {
 
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
+  instructions: string
+  version: number
+}
+
+export type StoredProjectFolder = {
+  id: string
+  name: string
+  path: string
+  role: "primary" | "secondary"
+  availability: "available" | "missing"
+  order: number
+  createdAt: number
+  updatedAt: number
 }
 
 export type StoredEncryptedCredential = {
@@ -55,6 +68,10 @@ export type StoredCredentialHealth = {
 export type StoredProject = {
   id: string
   name: string
+  primaryFolderId: string
+  folders: StoredProjectFolder[]
+  removedAt: number | null
+  /** Internal compatibility alias for the primary folder. */
   rootPath: string
   lastOpenedAt: number
   createdAt: number
@@ -160,7 +177,14 @@ export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
 
 export type StoredThreadWorkspace =
-  | { kind: "project"; projectID: string; workspaceRoot: string; cwd: string; outputDirectory: null }
+  | {
+      kind: "project"
+      projectID: string
+      cwd: string
+      runtimeWorkspaceRoots: Array<{ folderId: string; path: string; role: "primary" | "secondary" }>
+      instructionSources: string[]
+      outputDirectory: null
+    }
   | { kind: "projectless"; projectID: null; workspaceRoot: string; cwd: string; outputDirectory: string }
 
 export type CreateThreadInput = {
@@ -211,9 +235,9 @@ const defaultThreadSettings = (): ThreadSettings => ({
   permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
 })
 
-import { CredentialRepositoryDatabase } from "./credential-repository"
+import { ProjectRepositoryDatabase } from "./project-repository"
 
-export abstract class WorkspaceRepositoryDatabase extends CredentialRepositoryDatabase {
+export abstract class WorkspaceRepositoryDatabase extends ProjectRepositoryDatabase {
   setSetting(key: string, value: unknown) {
       this.profileSqlite.query(`INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).run(key, stringify(value), now())
     }
@@ -225,76 +249,6 @@ export abstract class WorkspaceRepositoryDatabase extends CredentialRepositoryDa
 
   run(sql: string, ...params: SqlValue[]) {
       return this.sqlite.query(sql).run(...params)
-    }
-
-  private mapProject(row: { id: string; name: string; root_path: string; last_opened_at: number; created_at: number; updated_at: number }): StoredProject {
-      return {
-        id: row.id,
-        name: row.name,
-        rootPath: row.root_path,
-        lastOpenedAt: row.last_opened_at,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        settings: this.getProjectSettings(row.id),
-      }
-    }
-
-  protected requireProject(projectID: string) {
-      const project = this.getProject(projectID)
-      if (!project) throw new Error(`项目 ${projectID} 不存在`)
-      return project
-    }
-
-  createProject(input: { rootPath: string; name?: string }) {
-      const rootPath = resolve(input.rootPath)
-      const timestamp = now()
-      const existing = this.profileSqlite.query("SELECT id, name, root_path, last_opened_at, created_at, updated_at FROM projects WHERE root_path = ?").get(rootPath) as { id: string; name: string; root_path: string; last_opened_at: number; created_at: number; updated_at: number } | null
-      if (existing) {
-        this.profileSqlite.query("UPDATE projects SET last_opened_at = ?, updated_at = ? WHERE id = ?").run(timestamp, timestamp, existing.id)
-        return this.getProject(existing.id)!
-      }
-      const id = crypto.randomUUID()
-      const name = input.name?.trim() || basename(rootPath) || rootPath
-      this.profileSqlite.transaction(() => {
-        this.profileSqlite.query("INSERT INTO projects (id, name, root_path, created_at, updated_at, last_opened_at) VALUES (?, ?, ?, ?, ?, ?)").run(id, name, rootPath, timestamp, timestamp, timestamp)
-        this.profileSqlite.query("INSERT INTO project_settings (project_id, default_model, updated_at) VALUES (?, NULL, ?)").run(id, timestamp)
-      })()
-      return this.getProject(id)!
-    }
-
-  listProjects() {
-      const rows = this.profileSqlite.query("SELECT id, name, root_path, last_opened_at, created_at, updated_at FROM projects ORDER BY last_opened_at DESC, created_at DESC").all() as Array<{ id: string; name: string; root_path: string; last_opened_at: number; created_at: number; updated_at: number }>
-      return rows.map((row) => this.mapProject(row))
-    }
-
-  getProject(projectID: string) {
-      const row = this.profileSqlite.query("SELECT id, name, root_path, last_opened_at, created_at, updated_at FROM projects WHERE id = ?").get(projectID) as { id: string; name: string; root_path: string; last_opened_at: number; created_at: number; updated_at: number } | null
-      return row ? this.mapProject(row) : null
-    }
-
-  touchProject(projectID: string) {
-      this.requireProject(projectID)
-      const timestamp = now()
-      this.profileSqlite.query("UPDATE projects SET last_opened_at = ?, updated_at = ? WHERE id = ?").run(timestamp, timestamp, projectID)
-      return this.getProject(projectID)!
-    }
-
-  getProjectSettings(projectID: string): ProjectModelSettings {
-      const row = this.profileSqlite.query("SELECT default_model FROM project_settings WHERE project_id = ?").get(projectID) as { default_model: string | null } | null
-      return {
-        defaultModel: row?.default_model ? parse<ModelRef>(row.default_model) : null,
-      }
-    }
-
-  saveProjectSettings(projectID: string, settings: ProjectModelSettings) {
-      this.requireProject(projectID)
-      const timestamp = now()
-      this.profileSqlite.query(`INSERT INTO project_settings (project_id, default_model, updated_at) VALUES (?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET default_model = excluded.default_model, updated_at = excluded.updated_at`).run(
-        projectID,
-        settings.defaultModel ? stringify(settings.defaultModel) : null,
-        timestamp,
-      )
-      return this.getProjectSettings(projectID)
     }
 
   interactionOperation(operationID: string) {
@@ -326,11 +280,6 @@ export abstract class WorkspaceRepositoryDatabase extends CredentialRepositoryDa
       return this.interactionOperation(input.operationID)!
     }
 
-  resolveProjectModel(projectID: string, globalDefault: ModelRef | null) {
-      const settings = this.getProjectSettings(projectID)
-      return settings.defaultModel ?? globalDefault
-    }
-
   threadProjectID(threadID: string) {
       const row = this.sqlite.query("SELECT project_id FROM threads WHERE id = ?").get(threadID) as { project_id: string | null } | null
       if (!row) return null
@@ -339,20 +288,33 @@ export abstract class WorkspaceRepositoryDatabase extends CredentialRepositoryDa
 
   threadWorkspace(threadID: string): StoredThreadWorkspace | null {
       const row = this.sqlite.query(`
-        SELECT project_id, workspace_kind, workspace_root, workspace_cwd, output_directory
+        SELECT project_id, workspace_kind, workspace_root, workspace_cwd,
+          workspace_roots, instruction_sources, output_directory
         FROM threads WHERE id = ?
       `).get(threadID) as {
         project_id: string | null
         workspace_kind: string
         workspace_root: string | null
         workspace_cwd: string | null
+        workspace_roots: string | null
+        instruction_sources: string | null
         output_directory: string | null
       } | null
       if (!row || row.workspace_kind === "legacy") return null
       if (row.workspace_kind === "project" && row.project_id) {
         const project = this.getProject(row.project_id)
         if (!project) throw new AgentError("PROJECT_NOT_FOUND", `Thread ${threadID} 绑定的项目不存在`, 404)
-        return { kind: "project", projectID: row.project_id, workspaceRoot: project.rootPath, cwd: project.rootPath, outputDirectory: null }
+        const runtimeWorkspaceRoots = row.workspace_roots
+          ? parse<Array<{ folderId: string; path: string; role: "primary" | "secondary" }>>(row.workspace_roots)
+          : project.folders.map(({ id: folderId, path, role }) => ({ folderId, path, role }))
+        return {
+          kind: "project",
+          projectID: row.project_id,
+          cwd: row.workspace_cwd ?? project.rootPath,
+          runtimeWorkspaceRoots,
+          instructionSources: row.instruction_sources ? parse<string[]>(row.instruction_sources) : [],
+          outputDirectory: null,
+        }
       }
       if (
         row.workspace_kind === "projectless" &&
@@ -380,11 +342,19 @@ export abstract class WorkspaceRepositoryDatabase extends CredentialRepositoryDa
     }
 
   setThreadProject(threadID: string, projectID: string | null) {
-      if (projectID) this.requireProject(projectID)
+      const project = projectID ? this.requireProject(projectID) : null
       const result = this.sqlite.query(`UPDATE threads
-        SET project_id = ?, workspace_kind = ?, workspace_root = NULL, workspace_cwd = NULL,
-          output_directory = NULL, updated_at = ?
-        WHERE id = ?`).run(projectID, projectID ? "project" : "legacy", now(), threadID)
+        SET project_id = ?, workspace_kind = ?, workspace_root = NULL, workspace_cwd = ?,
+          workspace_roots = ?, instruction_sources = ?, output_directory = NULL, updated_at = ?
+        WHERE id = ?`).run(
+          projectID,
+          projectID ? "project" : "legacy",
+          project?.rootPath ?? null,
+          project ? stringify(project.folders.map(({ id: folderId, path, role }) => ({ folderId, path, role }))) : null,
+          project ? "[]" : null,
+          now(),
+          threadID,
+        )
       if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
     }
 
@@ -401,10 +371,31 @@ export abstract class WorkspaceRepositoryDatabase extends CredentialRepositoryDa
       }
       const result = this.sqlite.query(`UPDATE threads
         SET project_id = NULL, workspace_kind = 'projectless', workspace_root = ?, workspace_cwd = ?,
-          output_directory = ?, updated_at = ?
+          workspace_roots = NULL, instruction_sources = NULL, output_directory = ?, updated_at = ?
         WHERE id = ?`).run(workspaceRoot, cwd, outputDirectory, now(), threadID)
       if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
       return this.threadWorkspace(threadID)
+    }
+
+  refreshThreadProjectContext(input: {
+    threadID: string
+    runtimeWorkspaceRoots: Array<{ folderId: string; path: string; role: "primary" | "secondary" }>
+    instructionSources: string[]
+  }) {
+      const result = this.sqlite.query(`
+        UPDATE threads
+        SET workspace_roots = ?, instruction_sources = ?, updated_at = ?
+        WHERE id = ? AND workspace_kind = 'project'
+      `).run(
+        stringify(input.runtimeWorkspaceRoots),
+        stringify(input.instructionSources),
+        now(),
+        input.threadID,
+      )
+      if (result.changes === 0) {
+        throw new AgentError("THREAD_NOT_FOUND", "项目任务不存在", 404)
+      }
+      return this.threadWorkspace(input.threadID)
     }
 
   mapReviewComment(row: {

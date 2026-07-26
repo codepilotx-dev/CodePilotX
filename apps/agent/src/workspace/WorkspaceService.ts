@@ -45,6 +45,13 @@ export interface WorkspaceFileEntry {
   depth: number
 }
 
+export interface WorkspaceRoot {
+  folderId?: string
+  path: string
+  role: "primary" | "secondary"
+  writable?: boolean
+}
+
 export type ApplyPatchInput =
   | { operation: "update"; path: string; before: string; after: string }
   | { operation: "create"; path: string; content: string }
@@ -102,17 +109,60 @@ const unifiedDiff = (path: string, before: string | null, after: string | null, 
  */
 export class WorkspaceService {
   readonly rootPath: string
+  readonly roots: readonly string[]
+  readonly writableRoots: readonly string[]
+  readonly workspaceRoots: readonly WorkspaceRoot[]
   private readonly editorAliases = new Map<string, string>()
 
-  private constructor(rootPath: string) {
+  private constructor(rootPath: string, workspaceRoots: readonly WorkspaceRoot[]) {
     this.rootPath = rootPath
+    this.workspaceRoots = Object.freeze(workspaceRoots.map((root) => Object.freeze({ ...root })))
+    this.roots = Object.freeze(this.workspaceRoots.map((root) => root.path))
+    this.writableRoots = Object.freeze(this.workspaceRoots.filter((root) => root.writable !== false).map((root) => root.path))
   }
 
   static async open(rootPath: string) {
-    const resolved = await realpath(resolve(rootPath))
+    return this.openRoots({
+      primaryRoot: rootPath,
+      roots: [{ path: rootPath, role: "primary" }],
+    })
+  }
+
+  static async openRoots(input: { primaryRoot: string; roots: readonly WorkspaceRoot[] }) {
+    const primary = await this.canonicalDirectory(input.primaryRoot)
+    const candidates = input.roots.length > 0 ? input.roots : [{ path: primary, role: "primary" as const }]
+    const roots: WorkspaceRoot[] = []
+    const seen = new Set<string>()
+    for (const candidate of candidates) {
+      let path: string
+      try {
+        path = await this.canonicalDirectory(candidate.path)
+      } catch (cause) {
+        if (resolve(candidate.path) === resolve(input.primaryRoot)) throw cause
+        continue
+      }
+      const key = process.platform === "win32" ? path.toLowerCase() : path
+      if (seen.has(key)) continue
+      seen.add(key)
+      roots.push({
+        ...(candidate.folderId ? { folderId: candidate.folderId } : {}),
+        path,
+        role: path === primary ? "primary" : "secondary",
+        ...(candidate.writable === false ? { writable: false } : {}),
+      })
+    }
+    if (!roots.some((root) => root.path === primary)) roots.unshift({ path: primary, role: "primary" })
+    roots.sort((left, right) => Number(right.path === primary) - Number(left.path === primary))
+    return new WorkspaceService(primary, roots)
+  }
+
+  private static async canonicalDirectory(path: string) {
+    const resolved = await realpath(resolve(path)).catch(() => {
+      throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "工作区路径不存在或不可访问", 404)
+    })
     const metadata = await stat(resolved)
     if (!metadata.isDirectory()) throw new AgentError("WORKSPACE_NOT_DIRECTORY", "工作区路径必须是目录", 400)
-    return new WorkspaceService(resolved)
+    return resolved
   }
 
   grantEditorAlias(alias: "@codepilotx/config.toml", targetPath: string) {
@@ -127,29 +177,58 @@ export class WorkspaceService {
     return this.editorAliases.get(path)
   }
 
-  private displayPath(path: string) {
+  displayPath(path: string) {
     for (const [alias, target] of this.editorAliases) {
       if (resolve(path) === target) return alias
     }
+    const owner = this.rootForPath(path)
+    if (owner && owner.path !== this.rootPath) return resolve(path)
     const result = relative(this.rootPath, path)
     return result === "" ? "." : result.replaceAll("\\", "/")
   }
 
+  rootForPath(path: string) {
+    const candidate = resolve(path)
+    return [...this.workspaceRoots]
+      .sort((left, right) => right.path.length - left.path.length)
+      .find((root) => {
+        const child = relative(root.path, candidate)
+        return child === "" || (!child.startsWith("..") && !isAbsolute(child))
+      })
+  }
+
+  containsPath(path: string) {
+    return Boolean(this.rootForPath(path))
+  }
+
   private ensureWithinRoot(path: string) {
-    const result = relative(this.rootPath, path)
-    if (result === "" || (!result.startsWith("..") && !isAbsolute(result))) return
+    if (this.containsPath(path)) return
     throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区内", 403)
+  }
+
+  private ensureWritable(path: string) {
+    const owner = this.rootForPath(path)
+    if (owner?.writable !== false) return
+    throw new AgentError("WORKSPACE_FILE_READONLY", "当前工作区目录为只读", 403)
   }
 
   private requestedPath(path: string) {
     const alias = this.aliasTarget(path)
     if (alias) return alias
-    if (typeof path !== "string" || path.trim() === "" || isAbsolute(path) || path.split(/[\\/]+/).includes("..")) {
-      throw new AgentError("WORKSPACE_PATH_DENIED", "路径必须是工作区内的相对路径", 403)
+    if (typeof path !== "string" || path.trim() === "" || (!isAbsolute(path) && path.split(/[\\/]+/).includes(".."))) {
+      throw new AgentError("WORKSPACE_PATH_DENIED", "路径必须位于当前工作区内", 403)
     }
-    const requested = resolve(this.rootPath, path)
+    const requested = isAbsolute(path) ? resolve(path) : resolve(this.rootPath, path)
     this.ensureWithinRoot(requested)
     return requested
+  }
+
+  async resolveExistingPath(path: string) {
+    return this.existingPath(path)
+  }
+
+  async resolveDirectory(path = ".") {
+    return this.directory(path)
   }
 
   private async existingPath(path: string) {
@@ -201,6 +280,7 @@ export class WorkspaceService {
   }
 
   private async replaceAtomically(path: string, content: string, mode?: number, maxBytes = MAX_FILE_BYTES) {
+    this.ensureWritable(path)
     if (Buffer.byteLength(content, "utf8") > maxBytes) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${maxBytes} 字节上限`, 413)
     const temporary = resolve(dirname(path), `.codepilotx-${randomUUID()}.tmp`)
     try {
@@ -452,6 +532,7 @@ export class WorkspaceService {
       if (input.expectedSha256.toLowerCase() !== beforeSha256) {
         throw new AgentError("PATCH_SHA256_MISMATCH", "文件内容已变化，拒绝删除", 409)
       }
+      this.ensureWritable(canonical)
       await unlink(canonical)
       return {
         operation: input.operation,

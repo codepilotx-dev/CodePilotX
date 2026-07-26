@@ -62,7 +62,7 @@ describe("WorkspaceService.applyPatch", () => {
     expect(await readFile(join(root, "overlap.txt"), "utf8")).toBe("aaa")
   })
 
-  test("拒绝绝对路径、遍历和通过符号链接逃逸", async () => {
+  test("允许根内绝对路径，并拒绝遍历和通过符号链接逃逸", async () => {
     const parent = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
     paths.push(parent)
     const root = join(parent, "project")
@@ -73,7 +73,7 @@ describe("WorkspaceService.applyPatch", () => {
     await symlink(outside, join(root, "outside-link"), "dir")
     const service = await WorkspaceService.open(root)
 
-    await expect(service.applyPatch({ operation: "create", path: join(root, "absolute.txt"), content: "no" })).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
+    await expect(service.applyPatch({ operation: "create", path: join(root, "absolute.txt"), content: "yes" })).resolves.toMatchObject({ path: "absolute.txt" })
     await expect(service.applyPatch({ operation: "create", path: "sub/../traversal.txt", content: "no" })).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
     await expect(service.applyPatch({ operation: "update", path: "outside-link/secret.txt", before: "secret", after: "leaked" })).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
     await expect(service.applyPatch({ operation: "create", path: "outside-link/new.txt", content: "leaked" })).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
@@ -107,6 +107,49 @@ describe("WorkspaceService editor files", () => {
     await expect(linkedService.read("@codepilotx/config.toml")).rejects.toMatchObject({
       code: "WORKSPACE_PATH_DENIED",
     })
+  })
+
+  test("多根工作区允许附加目录读写，并用绝对显示路径消除歧义", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "codepilotx-multi-root-"))
+    paths.push(parent)
+    const primary = join(parent, "primary")
+    const secondary = join(parent, "secondary")
+    const outside = join(parent, "outside")
+    await Promise.all([mkdir(primary), mkdir(secondary), mkdir(outside)])
+    await writeFile(join(primary, "same.txt"), "primary", "utf8")
+    await writeFile(join(secondary, "same.txt"), "secondary", "utf8")
+    const service = await WorkspaceService.openRoots({
+      primaryRoot: primary,
+      roots: [
+        { folderId: "primary", path: primary, role: "primary" },
+        { folderId: "secondary", path: secondary, role: "secondary" },
+      ],
+    })
+
+    expect(service.roots).toEqual([primary, secondary])
+    expect((await service.readEditorFile("same.txt")).content).toBe("primary")
+    expect(await service.readEditorFile(join(secondary, "same.txt"))).toMatchObject({
+      path: join(secondary, "same.txt"),
+      content: "secondary",
+    })
+    await service.applyPatch({ operation: "update", path: join(secondary, "same.txt"), before: "secondary", after: "updated" })
+    expect(await readFile(join(secondary, "same.txt"), "utf8")).toBe("updated")
+    await expect(service.readEditorFile(join(outside, "same.txt"))).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
+
+    const isolated = await WorkspaceService.openRoots({
+      primaryRoot: primary,
+      roots: [
+        { path: primary, role: "primary" },
+        { path: secondary, role: "secondary", writable: false },
+      ],
+    })
+    expect((await isolated.readEditorFile(join(secondary, "same.txt"))).content).toBe("updated")
+    await expect(isolated.applyPatch({
+      operation: "update",
+      path: join(secondary, "same.txt"),
+      before: "updated",
+      after: "blocked",
+    })).rejects.toMatchObject({ code: "WORKSPACE_FILE_READONLY" })
   })
 
   test("只列出指定目录的直接子项并忽略目录与符号链接", async () => {

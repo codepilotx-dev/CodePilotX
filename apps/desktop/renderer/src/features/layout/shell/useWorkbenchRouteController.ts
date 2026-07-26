@@ -91,7 +91,7 @@ export function useWorkbenchRouteController(): WorkbenchRouteController {
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
   const settingsActiveTab =
-    /^\/settings\/([^/]+)$/.exec(location.pathname)?.[1] ?? 'general'
+    /^\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? 'general'
 
   useEffect(() => {
     if (!isSettingsRoute) {

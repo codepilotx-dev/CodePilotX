@@ -69,7 +69,62 @@ export type DesktopAuthStatus = {
   organizationName?: string | null
 }
 
+export type DesktopProjectFolder = {
+  id: string
+  name: string
+  path: string
+  role: 'primary' | 'secondary'
+  availability: 'available' | 'missing'
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type DesktopProjectSource =
+  | {
+      storage: 'managed'
+      id: string
+      projectId: string
+      kind: 'text' | 'image'
+      name: string
+      mediaType: string
+      sizeBytes: number
+      sha256: string
+      status: 'available'
+    }
+  | {
+      storage: 'workspace-file'
+      id: string
+      projectId: string
+      folderId: string
+      path: string
+      kind: 'text' | 'image'
+      name: string
+      status: 'available' | 'missing' | 'denied' | 'unsupported'
+      revision: DesktopFileRevision | null
+    }
+
+export type DesktopProjectSourceReadResult = {
+  source: DesktopProjectSource
+  data: string
+  encoding: 'utf8' | 'base64'
+  range: {
+    offset: number
+    length: number
+    total: number
+  }
+}
+
 export interface DesktopWorkspace extends AgentWorkspace {
+  projectId?: string
+  projectVersion?: number
+  primaryFolderId?: string
+  folders?: DesktopProjectFolder[]
+  projectSettings?: {
+    defaultModel: ModelRef | null
+    instructions: string
+    version: number
+  }
   pinnedAt?: string | null
 }
 
@@ -78,10 +133,16 @@ export type DesktopFileEntry = {
   path: string
   type: 'file' | 'directory'
   depth: number
+  folderId?: string
+  folderName?: string
+  rootPath?: string
 }
 
 export type DesktopFilePreview = {
   path: string
+  projectId?: string
+  folderId?: string
+  rootPath?: string
   content: string
   truncated: boolean
   sizeBytes: number
@@ -107,6 +168,8 @@ export type DesktopFileSaveResult =
 
 export type DesktopFileSaveInput = {
   workspacePath: string
+  projectId?: string
+  folderId?: string
   filePath: string
   content: string
   expectedRevision: DesktopFileRevision
@@ -816,6 +879,53 @@ export type DesktopPetSettings = {
 export type SidebarProductMode = 'coding' | 'working'
 export type SidebarSectionId = 'pinned' | 'projects' | 'recent'
 
+export type ProjectAppearanceColor =
+  | 'default'
+  | 'red'
+  | 'orange'
+  | 'yellow'
+  | 'green'
+  | 'blue'
+  | 'purple'
+  | 'pink'
+
+export type ProjectAppearanceIcon =
+  | 'folder'
+  | 'dollar'
+  | 'book'
+  | 'graduation'
+  | 'edit'
+  | 'writing'
+  | 'function'
+  | 'terminal'
+  | 'music'
+  | 'popcorn'
+  | 'customize'
+  | 'palette'
+  | 'stethoscope'
+  | 'health'
+  | 'plant'
+  | 'suitcase'
+  | 'chart'
+  | 'kettlebell'
+  | 'dumbbell'
+  | 'logs'
+  | 'scale'
+  | 'globe'
+  | 'wrench'
+  | 'paw'
+  | 'flask'
+  | 'brain'
+  | 'heart'
+  | 'flower'
+  | 'paintbrush'
+  | 'plane'
+
+export type ProjectAppearance = {
+  color: ProjectAppearanceColor
+  icon: ProjectAppearanceIcon
+}
+
 export type DesktopStoredSettings = {
   enableParetoCodeRouter?: boolean
   enableFusionRouter?: boolean
@@ -844,6 +954,7 @@ export type DesktopStoredSettings = {
   appendSystemPrompt: string
   additionalDirectories: string
   recentWorkspaces: DesktopWorkspace[]
+  projectAppearances: Record<string, ProjectAppearance>
   lastActiveWorkspacePath: string
   removedWorkspaces: DesktopRemovedWorkspace[]
   drawerTab: DesktopDrawerTab
@@ -1001,6 +1112,7 @@ export type DesktopContextUsage = AgentContextUsage
 
 export type DesktopSessionListItem = {
   id: string
+  projectId?: string | null
   appServerThreadId?: string | null
   sessionName: string | null
   aiTitle: string | null
@@ -1154,6 +1266,7 @@ export type DesktopWorkflowEvent = ThreadEvent
 export type CreateDesktopSessionOptions = {
   appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
+  projectId?: string
   workspacePath?: string
   /** First submitted text used to name/materialize a projectless workspace. */
   projectlessPrompt?: string
@@ -1677,8 +1790,47 @@ export type DesktopApi = {
   cloneGithubRepository(
     input: CloneGithubRepositoryInput,
   ): Promise<DesktopGithubCloneResult>
+  listProjects(folderPath?: string): Promise<DesktopWorkspace[]>
+  updateProject(input: {
+    projectId: string
+    name: string
+    expectedVersion: number
+  }): Promise<DesktopWorkspace>
+  removeProject(projectId: string): Promise<{ archivedThreadCount: number }>
+  addProjectFolder(projectId: string, path: string): Promise<DesktopWorkspace>
+  removeProjectFolder(projectId: string, folderId: string): Promise<DesktopWorkspace>
+  setPrimaryProjectFolder(projectId: string, folderId: string): Promise<DesktopWorkspace>
+  updateProjectSettings(input: {
+    projectId: string
+    instructions?: string
+    defaultModel?: ModelRef | null
+    expectedVersion: number
+  }): Promise<DesktopWorkspace>
+  listProjectSources(projectId: string): Promise<DesktopProjectSource[]>
+  importProjectSources(
+    projectId: string,
+    uploads: Array<{
+      kind: 'text' | 'image'
+      name: string
+      mediaType: string
+      encoding: 'utf8' | 'base64'
+      data: string
+    }>,
+  ): Promise<DesktopProjectSource[]>
+  addProjectSourceReference(
+    projectId: string,
+    folderId: string,
+    path: string,
+  ): Promise<DesktopProjectSource[]>
+  readProjectSource(
+    projectId: string,
+    sourceId: string,
+    range?: { offset: number; length: number },
+  ): Promise<DesktopProjectSourceReadResult>
+  removeProjectSource(projectId: string, sourceId: string): Promise<boolean>
+  chooseProjectFolder(): Promise<string | null>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
-  openWorkspace(workspacePath: string): Promise<DesktopWorkspace>
+  openWorkspace(workspacePath: string, projectId?: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>
   checkoutWorkspaceBranch(
     workspacePath: string,
@@ -1709,15 +1861,17 @@ export type DesktopApi = {
   applyWorkspaceReviewOperation(
     input: DesktopReviewOperationInput,
   ): Promise<DesktopReviewOperationResult>
-  listWorkspaceFiles(workspacePath: string, directoryPath?: string): Promise<DesktopFileEntry[]>
-  readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
+  listWorkspaceFiles(workspacePath: string, directoryPath?: string, folderId?: string, projectId?: string): Promise<DesktopFileEntry[]>
+  readWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<DesktopFilePreview>
   readOptionalWorkspaceFile(
     workspacePath: string,
     filePath: string,
+    folderId?: string,
+    projectId?: string,
   ): Promise<DesktopFilePreview | null>
   saveWorkspaceFile(input: DesktopFileSaveInput): Promise<DesktopFileSaveResult>
-  watchWorkspaceFile(workspacePath: string, filePath: string): Promise<void>
-  unwatchWorkspaceFile(workspacePath: string, filePath: string): Promise<void>
+  watchWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<void>
+  unwatchWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<void>
   chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
   authorizeComposerFilePaths(filePaths: string[]): Promise<void>
   readComposerFiles(filePaths: string[]): Promise<DesktopComposerAttachment[]>

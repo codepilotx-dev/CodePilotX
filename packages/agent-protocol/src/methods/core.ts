@@ -23,8 +23,20 @@ const CommonErrors = ["RATE_LIMITED", "INTERNAL_ERROR"] as const
 const InitializationErrors = ["PROTOCOL_VERSION_UNSUPPORTED", "CAPABILITY_REQUIRED", "UNAUTHORIZED", ...CommonErrors] as const
 const SubscriptionErrors = ["CURSOR_EXPIRED", "SUBSCRIPTION_NOT_FOUND", "SUBSCRIPTION_OVERFLOW", "CAPABILITY_REQUIRED", ...CommonErrors] as const
 const InteractionErrors = ["REQUEST_NOT_PENDING", "CONFLICT", "CHECKPOINT_UNAVAILABLE", "CAPABILITY_REQUIRED", ...CommonErrors] as const
-const ProjectErrors = ["PROJECT_NOT_FOUND", "PATH_DENIED", "CONFLICT", ...CommonErrors] as const
-const WorkspaceFileErrors = ["PROJECT_NOT_FOUND", "PATH_DENIED", "FILE_NOT_FOUND", "FILE_NOT_TEXT", "FILE_TOO_LARGE", "FILE_READONLY", "CONFLICT", ...CommonErrors] as const
+const ProjectErrors = [
+  "PROJECT_NOT_FOUND",
+  "PROJECT_BUSY",
+  "PROJECT_REMOVED",
+  "PROJECT_FOLDER_IN_USE",
+  "PROJECT_FOLDER_OVERLAP",
+  "PROJECT_FOLDER_NOT_FOUND",
+  "PROJECT_SOURCE_UNAVAILABLE",
+  "PROJECT_SETTINGS_CONFLICT",
+  "PATH_DENIED",
+  "CONFLICT",
+  ...CommonErrors,
+] as const
+const WorkspaceFileErrors = ["PROJECT_NOT_FOUND", "PROJECT_REMOVED", "PROJECT_FOLDER_NOT_FOUND", "PATH_DENIED", "FILE_NOT_FOUND", "FILE_NOT_TEXT", "FILE_TOO_LARGE", "FILE_READONLY", "CONFLICT", ...CommonErrors] as const
 const ThreadErrors = ["THREAD_NOT_FOUND", "TURN_NOT_FOUND", "CONFLICT", "CHECKPOINT_UNAVAILABLE", "MODEL_UNAVAILABLE", ...CommonErrors] as const
 const SandboxErrors = ["SANDBOX_UNAVAILABLE", "SANDBOX_BUSY", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const AttachmentErrors = ["ATTACHMENT_NOT_FOUND", "ATTACHMENT_LIMIT", "PERMISSION_DENIED", ...CommonErrors] as const
@@ -246,6 +258,7 @@ export const InteractionRespondResultSchema = Schema.Struct({
 export const ProjectListParamsSchema = Schema.Struct({
   cursor: Schema.optional(CursorSchema),
   limit: Schema.optional(LimitSchema),
+  folderPath: Schema.optional(NonEmptyStringSchema),
 })
 
 export const ProjectListResultSchema = Schema.Struct({
@@ -253,20 +266,84 @@ export const ProjectListResultSchema = Schema.Struct({
   nextCursor: NullableCursorSchema,
 })
 
+export const ProjectCreateParamsSchema = Schema.Struct({
+  name: Schema.optional(NonEmptyStringSchema),
+  primaryPath: NonEmptyStringSchema,
+  ...OperationParamsSchema.fields,
+})
+
+export const ProjectCreateResultSchema = Schema.Struct({ project: AgentThread.ProjectSchema })
+
 export const ProjectOpenParamsSchema = Schema.Struct({
-  rootPath: NonEmptyStringSchema,
+  projectId: OpaqueIDSchema,
   ...OperationParamsSchema.fields,
 })
 
 export const ProjectOpenResultSchema = Schema.Struct({ project: AgentThread.ProjectSchema })
 
+export const ProjectUpdateParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  name: NonEmptyStringSchema,
+  expectedVersion: SequenceSchema,
+  ...OperationParamsSchema.fields,
+})
+
+export const ProjectUpdateResultSchema = Schema.Struct({ project: AgentThread.ProjectSchema })
+
+export const ProjectRemoveParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  ...OperationParamsSchema.fields,
+})
+
+export const ProjectRemoveResultSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  removedAt: TimestampSchema,
+  archivedThreadCount: NonNegativeIntSchema,
+})
+
+export const ProjectContextReadParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+})
+
+export const ProjectContextReadResultSchema = Schema.Struct({
+  project: AgentThread.ProjectSchema,
+  sources: Schema.Array(AgentThread.ProjectSourceSchema),
+})
+
+const ProjectFolderMutationFields = {
+  projectId: OpaqueIDSchema,
+  ...OperationParamsSchema.fields,
+}
+
+export const ProjectFolderAddParamsSchema = Schema.Struct({
+  ...ProjectFolderMutationFields,
+  path: NonEmptyStringSchema,
+})
+
+export const ProjectFolderRemoveParamsSchema = Schema.Struct({
+  ...ProjectFolderMutationFields,
+  folderId: OpaqueIDSchema,
+})
+
+export const ProjectFolderSetPrimaryParamsSchema = Schema.Struct({
+  ...ProjectFolderMutationFields,
+  folderId: OpaqueIDSchema,
+})
+
+export const ProjectFolderMutationResultSchema = Schema.Struct({
+  project: AgentThread.ProjectSchema,
+  changed: Schema.Boolean,
+})
+
 export const ProjectSettingsPatchSchema = Schema.Struct({
   defaultModel: Schema.optional(Schema.NullOr(Model.Ref)),
+  instructions: Schema.optional(Schema.String),
 })
 
 export const ProjectSettingsUpdateParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
   settings: ProjectSettingsPatchSchema,
+  expectedVersion: SequenceSchema,
   ...OperationParamsSchema.fields,
 })
 
@@ -276,6 +353,82 @@ export const ProjectSettingsUpdateResultSchema = Schema.Struct({
   version: SequenceSchema,
 })
 
+export const ProjectSourceUploadSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("text"),
+    name: NonEmptyStringSchema,
+    mediaType: NonEmptyStringSchema,
+    encoding: Schema.Literals(["utf8", "base64"]),
+    data: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("image"),
+    name: NonEmptyStringSchema,
+    mediaType: NonEmptyStringSchema,
+    encoding: Schema.Literal("base64"),
+    data: NonEmptyStringSchema,
+  }),
+])
+
+export const ProjectSourceListParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  cursor: Schema.optional(CursorSchema),
+  limit: Schema.optional(LimitSchema),
+})
+
+export const ProjectSourceListResultSchema = Schema.Struct({
+  sources: Schema.Array(AgentThread.ProjectSourceSchema),
+  nextCursor: NullableCursorSchema,
+})
+
+export const ProjectSourceImportParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  uploads: Schema.Array(ProjectSourceUploadSchema),
+  ...OperationParamsSchema.fields,
+})
+
+export const ProjectSourceReferenceAddParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  folderId: OpaqueIDSchema,
+  path: NonEmptyStringSchema,
+  ...OperationParamsSchema.fields,
+})
+
+export const ProjectSourceMutationResultSchema = Schema.Struct({
+  sources: Schema.Array(AgentThread.ProjectSourceSchema),
+})
+
+export const ProjectSourceReadParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  sourceId: OpaqueIDSchema,
+  range: Schema.optional(Schema.Struct({
+    offset: NonNegativeIntSchema,
+    length: PositiveIntSchema,
+  })),
+})
+
+export const ProjectSourceReadResultSchema = Schema.Struct({
+  source: AgentThread.ProjectSourceSchema,
+  data: Schema.String,
+  encoding: Schema.Literals(["utf8", "base64"]),
+  range: Schema.Struct({
+    offset: NonNegativeIntSchema,
+    length: NonNegativeIntSchema,
+    total: NonNegativeIntSchema,
+  }),
+})
+
+export const ProjectSourceRemoveParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  sourceId: OpaqueIDSchema,
+  ...OperationParamsSchema.fields,
+})
+
+export const ProjectSourceRemoveResultSchema = Schema.Struct({
+  sourceId: OpaqueIDSchema,
+  removed: Schema.Boolean,
+})
+
 export const WorkspaceFileRevisionSchema = Schema.Struct({
   mtimeMs: NonNegativeNumberSchema,
   sha256: NonEmptyStringSchema,
@@ -283,6 +436,7 @@ export const WorkspaceFileRevisionSchema = Schema.Struct({
 
 export const WorkspaceFileListParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
+  folderId: OpaqueIDSchema,
   path: Schema.String,
 })
 
@@ -297,6 +451,7 @@ export const WorkspaceFileListResultSchema = Schema.Struct({
 
 export const WorkspaceFileReadParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
+  folderId: OpaqueIDSchema,
   path: NonEmptyStringSchema,
 })
 
@@ -311,6 +466,7 @@ export const WorkspaceFileReadResultSchema = Schema.Struct({
 
 export const WorkspaceFileSaveParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
+  folderId: OpaqueIDSchema,
   path: NonEmptyStringSchema,
   content: Schema.String,
   expectedRevision: WorkspaceFileRevisionSchema,
@@ -323,6 +479,7 @@ export const WorkspaceFileSaveResultSchema = Schema.Struct({
 
 export const WorkspaceFileWatchParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
+  folderId: OpaqueIDSchema,
   path: NonEmptyStringSchema,
 })
 
@@ -779,8 +936,20 @@ export const CoreRpcMethods = {
   "interaction/listPending": defineMethod({ params: InteractionListPendingParamsSchema, result: InteractionListPendingResultSchema, errors: InteractionErrors, capability: "interaction.recovery.v1", mutation: false }),
   "interaction/respond": defineMethod({ params: InteractionRespondParamsSchema, result: InteractionRespondResultSchema, errors: InteractionErrors, capability: "interactions.serverRequests.v1", mutation: true, exactParams: true }),
   "project/list": defineMethod({ params: ProjectListParamsSchema, result: ProjectListResultSchema, errors: ProjectErrors, capability: null, mutation: false }),
+  "project/create": defineMethod({ params: ProjectCreateParamsSchema, result: ProjectCreateResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
   "project/open": defineMethod({ params: ProjectOpenParamsSchema, result: ProjectOpenResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
-  "project/settings/update": defineMethod({ params: ProjectSettingsUpdateParamsSchema, result: ProjectSettingsUpdateResultSchema, errors: ProjectErrors, capability: null, mutation: true }),
+  "project/update": defineMethod({ params: ProjectUpdateParamsSchema, result: ProjectUpdateResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
+  "project/remove": defineMethod({ params: ProjectRemoveParamsSchema, result: ProjectRemoveResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
+  "project/context/read": defineMethod({ params: ProjectContextReadParamsSchema, result: ProjectContextReadResultSchema, errors: ProjectErrors, capability: null, mutation: false, exactParams: true }),
+  "project/folder/add": defineMethod({ params: ProjectFolderAddParamsSchema, result: ProjectFolderMutationResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
+  "project/folder/remove": defineMethod({ params: ProjectFolderRemoveParamsSchema, result: ProjectFolderMutationResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
+  "project/folder/set-primary": defineMethod({ params: ProjectFolderSetPrimaryParamsSchema, result: ProjectFolderMutationResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
+  "project/settings/update": defineMethod({ params: ProjectSettingsUpdateParamsSchema, result: ProjectSettingsUpdateResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
+  "project/source/list": defineMethod({ params: ProjectSourceListParamsSchema, result: ProjectSourceListResultSchema, errors: ProjectErrors, capability: null, mutation: false, exactParams: true }),
+  "project/source/import": defineMethod({ params: ProjectSourceImportParamsSchema, result: ProjectSourceMutationResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
+  "project/source/reference/add": defineMethod({ params: ProjectSourceReferenceAddParamsSchema, result: ProjectSourceMutationResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
+  "project/source/read": defineMethod({ params: ProjectSourceReadParamsSchema, result: ProjectSourceReadResultSchema, errors: ProjectErrors, capability: null, mutation: false, exactParams: true }),
+  "project/source/remove": defineMethod({ params: ProjectSourceRemoveParamsSchema, result: ProjectSourceRemoveResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
   "workspace/file/list": defineMethod({ params: WorkspaceFileListParamsSchema, result: WorkspaceFileListResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: false, exactParams: true, exactResult: true }),
   "workspace/file/read": defineMethod({ params: WorkspaceFileReadParamsSchema, result: WorkspaceFileReadResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: false, exactParams: true, exactResult: true }),
   "workspace/file/save": defineMethod({ params: WorkspaceFileSaveParamsSchema, result: WorkspaceFileSaveResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: true, exactParams: true, exactResult: true }),

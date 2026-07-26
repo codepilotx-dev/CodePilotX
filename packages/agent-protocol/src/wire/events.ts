@@ -74,6 +74,7 @@ export const EventManifest = {
   "workspace/file/changed": defineEvent({
     payload: Schema.Struct({
       projectId: OpaqueIDSchema,
+      folderId: OpaqueIDSchema,
       path: Schema.String.check(Schema.isMinLength(1)),
       changedAt: TimestampSchema,
     }),

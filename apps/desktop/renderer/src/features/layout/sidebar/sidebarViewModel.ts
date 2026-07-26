@@ -50,15 +50,19 @@ export function buildSidebarViewModel({
     removedWorkspaces,
   )
   const pinnedWorkspaces = allProjects
-    .filter(workspace => Boolean(workspace.pinnedAt))
-    .sort((left, right) => timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt))
-  const pinnedProjectPaths = new Set(pinnedWorkspaces.map(workspace => workspace.path))
-  const projectWorkspaces = allProjects
-    .filter(workspace => !pinnedProjectPaths.has(workspace.path))
+    .filter(project => Boolean(project.pinnedAt))
     .sort(
       (left, right) =>
-        latestProjectActivity(right.path, unpinnedSessions) -
-          latestProjectActivity(left.path, unpinnedSessions) ||
+        timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt) ||
+        left.name.localeCompare(right.name),
+    )
+  const pinnedProjectKeys = new Set(pinnedWorkspaces.map(projectKey))
+  const projectWorkspaces = allProjects
+    .filter(project => !pinnedProjectKeys.has(projectKey(project)))
+    .sort(
+      (left, right) =>
+        latestProjectActivity(right, unpinnedSessions) -
+          latestProjectActivity(left, unpinnedSessions) ||
         left.name.localeCompare(right.name),
     )
   const sessionStateById = Object.fromEntries(
@@ -99,36 +103,58 @@ function mergeProjectWorkspaces(
   removedWorkspaces: readonly DesktopRemovedWorkspace[],
 ): DesktopWorkspace[] {
   const removedPaths = new Set(removedWorkspaces.map(item => item.path))
-  const byPath = new Map<string, DesktopWorkspace>()
+  const byProject = new Map<string, DesktopWorkspace>()
   for (const workspace of recentWorkspaces) {
-    if (!removedPaths.has(workspace.path)) byPath.set(workspace.path, workspace)
+    if (!removedPaths.has(workspace.path)) {
+      byProject.set(projectKey(workspace), workspace)
+    }
   }
   for (const session of sessions) {
     if (
       session.standalone ||
       removedPaths.has(session.workspacePath) ||
-      byPath.has(session.workspacePath)
+      byProject.has(sessionProjectKey(session))
     ) {
       continue
     }
-    byPath.set(session.workspacePath, {
+    byProject.set(sessionProjectKey(session), {
+      projectId: session.projectId ?? undefined,
       name: session.workspaceName,
       path: session.workspacePath,
     })
   }
-  return [...byPath.values()]
+  return [...byProject.values()]
 }
 
 function latestProjectActivity(
-  projectPath: string,
+  project: DesktopWorkspace,
   sessions: readonly SessionListItem[],
 ): number {
-  let latest = 0
+  let latest = timestampMs(project.lastOpenedAt)
   for (const session of sessions) {
-    if (session.standalone || session.workspacePath !== projectPath) continue
+    if (
+      session.standalone ||
+      sessionProjectKey(session) !== projectKey(project)
+    ) continue
     latest = Math.max(latest, timestampMs(session.lastMessageAt ?? session.createdAt))
   }
   return latest
+}
+
+function projectKey(project: DesktopWorkspace): string {
+  return project.projectId
+    ? `id:${project.projectId}`
+    : `path:${normalizePath(project.path)}`
+}
+
+function sessionProjectKey(session: SessionListItem): string {
+  return session.projectId
+    ? `id:${session.projectId}`
+    : `path:${normalizePath(session.workspacePath)}`
+}
+
+function normalizePath(value: string): string {
+  return value.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
 }
 
 function timestampMs(value: string | null | undefined): number {

@@ -28,6 +28,7 @@ import { globalEventSequence, publishAgentEvent } from "../../storage/events/Eve
 import type { SandboxRuntimeAdapter } from "../../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../../subagent/SubagentService"
 import type { AttachmentService } from "../../subagent/AttachmentService"
+import type { ProjectSourceService } from "../../project/ProjectSourceService"
 import { WorkspaceService } from "../../workspace/WorkspaceService"
 import { InvalidThreadHistoryCursorError, ThreadProjection } from "../ThreadProjection"
 import { projectMemoryKey, type MemoryService } from "../../memory/MemoryService"
@@ -97,6 +98,7 @@ export type RpcRouterDependencies = {
   questions: QuestionService
   subagents: SubagentService
   attachments: AttachmentService
+  projectSources: ProjectSourceService
   providers: AgentModelCatalog
   integrations: IntegrationService
   apiKeys: ApiKeyService
@@ -164,8 +166,7 @@ export const resolveMemoryProjectKey = async (db: AgentDatabase, params: Record<
   const projectID = explicitProjectID ?? threadProjectID!
   const project = db.getProject(projectID)
   if (!project) throw new AgentError("PROJECT_NOT_FOUND", "项目不存在", 404)
-  const workspace = await WorkspaceService.open(project.rootPath)
-  return projectMemoryKey(workspace.rootPath)
+  return projectMemoryKey(projectID)
 }
 
 export const resolveMemoryProjectID = (db: AgentDatabase, params: Record<string, unknown>) => {

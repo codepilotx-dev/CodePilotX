@@ -9,13 +9,14 @@ import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "./QuestionService"
 import { SafeBoundaryInterrupt, type PiOrchestratorAdapter } from "../orchestration/PiOrchestratorAdapter"
 import type { AttachmentService } from "../subagent/AttachmentService"
+import type { ProjectSourceService } from "../project/ProjectSourceService"
 import type { SubagentService } from "../subagent/SubagentService"
 import { InstructionDiscoveryService, PromptComposer, SkillService, createPromptSections, type PromptSection } from "../prompt"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { secretScrubber } from "../security/SecretScrubber"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
-import { join } from "node:path"
+import { isAbsolute, join, relative, resolve } from "node:path"
 import { createHash } from "node:crypto"
 import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import { inferPromptCacheCapability } from "../prompt/PromptCache"
@@ -41,6 +42,15 @@ const configurationScopeSection = (): PromptSection => ({
     "持久作用域不明确时必须先询问用户；配置写入仍需遵守审批策略。",
   ].join("\n"),
 })
+
+const instructionCwd = (workspaceRoot: string, cwd: string) => {
+  const root = resolve(workspaceRoot)
+  const candidate = resolve(cwd)
+  const path = relative(root, candidate)
+  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
+    ? candidate
+    : root
+}
 
 export class ThreadService {
   private readonly controllers = new Map<string, AbortController>()
@@ -77,6 +87,7 @@ export class ThreadService {
     private readonly skillManagement?: SkillManagementService,
     private readonly mcp?: McpConnectionManager,
     private readonly configService?: ConfigService,
+    private readonly projectSources?: ProjectSourceService,
   ) {
     this.questions.setResumeHandler((threadID, turnID) => {
       const agent = this.db.agentForTurn(turnID)
@@ -246,8 +257,19 @@ export class ThreadService {
     const settings = snapshot.settings
     const stringSetting = (key: string) => typeof settings[key] === "string" && settings[key].trim() ? settings[key] as string : null
     const projectInstructions = runtime.kind === "project"
-      ? await new InstructionDiscoveryService().discover(runtime.workspaceRoot)
+      ? await new InstructionDiscoveryService().discover(
+          runtime.workspaceRoot,
+          instructionCwd(runtime.workspaceRoot, runtime.cwd),
+        )
       : { sources: [] }
+    const project = runtime.kind === "project"
+      ? this.db.getProject(runtime.projectID) as unknown as {
+          settings?: { instructions?: string }
+        } | null
+      : null
+    const projectSourceCatalog = runtime.kind === "project"
+      ? await this.projectSources?.catalog(runtime.projectID) ?? null
+      : null
     const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
     const skills = await skillService.scan({
       workspaceRoot: runtime.workspaceRoot,
@@ -257,12 +279,13 @@ export class ThreadService {
     })
     const latest = this.db.sqlite.query("SELECT content, model_ref FROM inputs WHERE thread_id = ? ORDER BY created_at DESC LIMIT 1").get(threadID) as { content: string; model_ref: string } | null
     const userMessage = latest?.content ?? ""
-    const memories = this.memory.recall({ query: userMessage, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}) })
+    const memories = this.memory.recall({ query: userMessage, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.projectID) } : {}) })
     const exposedTools = this.orchestrator.toolExposure({
       taskMode: thread.settings.taskMode,
       sandboxMode: thread.settings.permissionConfig.sandboxMode,
       profile: "main",
       hasSkillService: true,
+      ...(runtime.kind === "project" && this.projectSources ? { hasProjectSources: true } : {}),
     }).exposed
     const sections = createPromptSections({
       permissionInstructions: `Resolved permission config: ${JSON.stringify(thread.settings.permissionConfig)}.`,
@@ -272,8 +295,30 @@ export class ThreadService {
       appendPrompt: stringSetting("appendPrompt") ?? stringSetting("appendSystemPrompt"),
       environment: this.workspaceEnvironment(runtime),
       projectInstructions: projectInstructions.sources, skills: skills.skills,
-      memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`), userMessage,
+      memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`),
+      externalData: projectSourceCatalog && projectSourceCatalog.total > 0
+        ? [projectSourceCatalog.content]
+        : [],
+      userMessage,
     })
+    const projectSettingsInstructions = project?.settings?.instructions?.trim()
+    if (projectSettingsInstructions) {
+      const projectInstructionIndex = sections.findIndex(({ id }) =>
+        id.startsWith("project-instruction."),
+      )
+      sections.splice(
+        projectInstructionIndex >= 0 ? projectInstructionIndex : sections.length - 1,
+        0,
+        {
+          id: "project.settings.instructions",
+          role: "developer",
+          cache: "session-stable",
+          authority: "user",
+          source: { type: "setting", name: "projectInstructions" },
+          content: projectSettingsInstructions,
+        },
+      )
+    }
     sections.splice(sections.length - 1, 0, configurationScopeSection())
     const bundle = new PromptComposer().compose({ threadID, mode: thread.settings.taskMode, profile: "main", exposedTools, sections })
     let cacheMode = inferPromptCacheCapability("")
@@ -499,9 +544,29 @@ export class ThreadService {
       const hookFeedback = promptHookResults.flatMap(({ hook, result }) => (result.suggestions ?? []).map((suggestion) => `Hook ${hook.id} 建议：${suggestion}`))
       const desktopSettings = this.promptSettingsSnapshot(threadID).settings
       const defaultModeRequestUserInput = desktopSettings?.defaultModeRequestUserInput === true
+      const project = runtime.kind === "project"
+        ? this.db.getProject(runtime.projectID) as unknown as {
+            settings?: { instructions?: string }
+          } | null
+        : null
       const projectInstructions = runtime.kind === "project"
-        ? await new InstructionDiscoveryService().discover(runtime.workspaceRoot)
+        ? await new InstructionDiscoveryService().discover(
+            runtime.workspaceRoot,
+            instructionCwd(runtime.workspaceRoot, runtime.cwd),
+          )
         : { sources: [] }
+      if (runtime.kind === "project") {
+        const instructionSources = projectInstructions.sources.map((source) => source.path)
+        runtime.instructionSources.splice(0, runtime.instructionSources.length, ...instructionSources)
+        this.db.refreshThreadProjectContext({
+          threadID,
+          runtimeWorkspaceRoots: runtime.runtimeWorkspaceRoots,
+          instructionSources,
+        })
+      }
+      const projectSourceCatalog = runtime.kind === "project"
+        ? await this.projectSources?.catalog(runtime.projectID) ?? null
+        : null
       const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
       const skillCatalog = await skillService.scan({
         workspaceRoot: runtime.workspaceRoot,
@@ -512,7 +577,7 @@ export class ThreadService {
       mcpLease = await this.mcp?.acquire(runtime.workspaceRoot)
       const invokedSkill = skillService.resolveInvocation(content)
       const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
-      const memories = this.memory.recall({ query: content, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}) })
+      const memories = this.memory.recall({ query: content, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.projectID) } : {}) })
       const stringSetting = (key: string) => typeof desktopSettings?.[key] === "string" && desktopSettings[key].trim() ? desktopSettings[key] as string : null
       const effectiveMode = continueFromPlan ? "chat" as const : input.taskMode
       const exposedTools = this.orchestrator.toolExposure({
@@ -520,6 +585,7 @@ export class ThreadService {
         sandboxMode: input.permissionConfig.sandboxMode,
         profile: "main",
         hasSkillService: true,
+        ...(runtime.kind === "project" && this.projectSources ? { hasProjectSources: true } : {}),
         ...(continueFromPlan ? { continueFromPlan: true } : {}),
         ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
@@ -547,12 +613,33 @@ export class ThreadService {
         externalData: [
           ...hookFeedback,
           ...invokedSkillData,
+          ...(projectSourceCatalog && projectSourceCatalog.total > 0
+            ? [projectSourceCatalog.content]
+            : []),
           ...(sideEffectRecovery ? [
             `<untrusted_evidence type="side-effect-recovery">\n上一模型 attempt 在上下文超限前已完成以下副作用。它们只作为恢复证据；不要重复执行相同 tool call：\n${JSON.stringify(sideEffectRecovery.completed ?? [])}\n</untrusted_evidence>`,
           ] : []),
         ],
         userMessage: content,
       })
+      const projectSettingsInstructions = project?.settings?.instructions?.trim()
+      if (projectSettingsInstructions) {
+        const projectInstructionIndex = promptSections.findIndex(({ id }) =>
+          id.startsWith("project-instruction."),
+        )
+        promptSections.splice(
+          projectInstructionIndex >= 0 ? projectInstructionIndex : promptSections.length - 1,
+          0,
+          {
+            id: "project.settings.instructions",
+            role: "developer",
+            cache: "session-stable",
+            authority: "user",
+            source: { type: "setting", name: "projectInstructions" },
+            content: projectSettingsInstructions,
+          },
+        )
+      }
       promptSections.splice(
         promptSections.length - 1,
         0,
@@ -589,6 +676,15 @@ export class ThreadService {
         defaultModeRequestUserInput,
         promptSections,
         skillService,
+        ...(runtime.kind === "project" && this.projectSources ? {
+          projectSources: {
+            list: () => this.projectSources!.list(runtime.projectID),
+            read: (
+              sourceID: string,
+              range?: { offset: number; length: number },
+            ) => this.projectSources!.read(runtime.projectID, sourceID, range),
+          },
+        } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         onPromptComposed: async (bundle, context) => {
@@ -662,7 +758,7 @@ export class ThreadService {
         if (requeued) await this.emitAgent(requeued.agent)
         return
       }
-      const memoryJob = this.memory.enqueue({ threadID, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}), transcript: `用户任务：\n${content}\n\nAgent 结果：\n${result.output}` })
+      const memoryJob = this.memory.enqueue({ threadID, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.projectID) } : {}), transcript: `用户任务：\n${content}\n\nAgent 结果：\n${result.output}` })
       if (memoryJob) queueMicrotask(() => { void this.memory.drain() })
       if (projectID) {
         await this.review?.captureTurnSnapshot({

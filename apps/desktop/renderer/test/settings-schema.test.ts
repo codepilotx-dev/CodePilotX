@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import {
   createSidebarStateResetPatch,
+  DEFAULT_PROJECT_APPEARANCE,
   defaultDesktopStoredSettings,
   normalizeDesktopStoredSettings,
+  PROJECT_APPEARANCE_COLORS,
+  PROJECT_APPEARANCE_ICONS,
   SIDEBAR_STATE_VERSION,
 } from "../shared/settingsSchema"
 
@@ -88,7 +91,7 @@ describe("高级权限设置归一化", () => {
 })
 
 describe("侧边栏设置归一化", () => {
-  test("提供完整默认值并迁移旧的 recent 排序", () => {
+  test("提供固定侧栏默认值并丢弃旧排序设置", () => {
     const defaults = normalizeDesktopStoredSettings({})
     expect(defaults).toMatchObject({
       sidebarSort: "priority",
@@ -100,10 +103,11 @@ describe("侧边栏设置归一化", () => {
       collapsedSidebarSections: ["projects", "recent"],
     })
 
-    expect(normalizeDesktopStoredSettings({ sidebarSort: "recent" }).sidebarSort).toBe("updated")
-    expect(normalizeDesktopStoredSettings({ sidebarSort: "updated" }).sidebarSort).toBe("updated")
-    expect(normalizeDesktopStoredSettings({ sidebarSort: "created" }).sidebarSort).toBe("created")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "recent" }).sidebarSort).toBe("priority")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "updated" }).sidebarSort).toBe("priority")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "created" }).sidebarSort).toBe("priority")
     expect(normalizeDesktopStoredSettings({ sidebarSort: "invalid" }).sidebarSort).toBe("priority")
+    expect(normalizeDesktopStoredSettings({ sidebarOrganization: "flat" }).sidebarOrganization).toBe("projects")
   })
 
   test("规范化并过滤会话置顶与折叠项目路径", () => {
@@ -132,7 +136,7 @@ describe("侧边栏设置归一化", () => {
     ])
   })
 
-  test("过滤 section order 非法项与重复项并补齐缺失 section", () => {
+  test("丢弃旧 section order 并恢复固定区段顺序", () => {
     expect(
       normalizeDesktopStoredSettings({
         sidebarSectionOrder: [
@@ -143,10 +147,10 @@ describe("侧边栏设置归一化", () => {
           123,
         ],
       }).sidebarSectionOrder,
-    ).toEqual(["recent", "pinned", "projects"])
+    ).toEqual(["pinned", "projects", "recent"])
   })
 
-  test("手动会话顺序规范化 UTF-8 并去重非法值", () => {
+  test("丢弃旧手动会话顺序", () => {
     expect(
       normalizeDesktopStoredSettings({
         sidebarManualOrder: {
@@ -154,9 +158,7 @@ describe("侧边栏设置归一化", () => {
           invalid: "not-an-array",
         },
       }).sidebarManualOrder,
-    ).toEqual({
-      "projéct": ["séssion"],
-    })
+    ).toEqual({})
   })
 
   test("保留合法的产品模式并回退非法值", () => {
@@ -207,6 +209,57 @@ describe("侧边栏设置归一化", () => {
       path: "F:\\CodeProject\\CodePilotX",
       name: "CodePilotX",
       pinnedAt: null,
+    }])
+  })
+})
+
+describe("项目外观本地设置归一化", () => {
+  test("默认不为任何项目创建外观覆盖", () => {
+    expect(defaultDesktopStoredSettings().projectAppearances).toEqual({})
+    expect(PROJECT_APPEARANCE_COLORS).toContain("default")
+    expect(PROJECT_APPEARANCE_ICONS).toHaveLength(30)
+    expect(PROJECT_APPEARANCE_ICONS).toContain("folder")
+  })
+
+  test("保留合法语义 ID，并过滤空项目 ID 和非对象记录", () => {
+    const settings = normalizeDesktopStoredSettings({
+      projectAppearances: {
+        " project:one ": { color: "purple", icon: "plane" },
+        "": { color: "red", icon: "flask" },
+        "   ": { color: "blue", icon: "function" },
+        "project:invalid-record": "purple",
+      },
+    })
+
+    expect(settings.projectAppearances).toEqual({
+      "project:one": { color: "purple", icon: "plane" },
+    })
+  })
+
+  test("非法颜色和图标分别回退默认值，规范化项目 ID 后保留首项", () => {
+    const settings = normalizeDesktopStoredSettings({
+      projectAppearances: {
+        " proje\u0301ct:cafe ": { color: "not-a-color", icon: "not-an-icon" },
+        "projéct:cafe": { color: "green", icon: "flask" },
+        "project:color-only": { color: "blue", icon: 123 },
+        "project:icon-only": { color: null, icon: "terminal" },
+      },
+      recentWorkspaces: [{
+        projectId: "project:color-only",
+        path: "F:\\CodeProject\\ColorOnly",
+        name: "ColorOnly",
+        pinnedAt: "2026-07-25T01:00:00.000Z",
+      }],
+    })
+
+    expect(settings.projectAppearances).toEqual({
+      "projéct:cafe": DEFAULT_PROJECT_APPEARANCE,
+      "project:color-only": { color: "blue", icon: "folder" },
+      "project:icon-only": { color: "default", icon: "terminal" },
+    })
+    expect(settings.recentWorkspaces).toMatchObject([{
+      projectId: "project:color-only",
+      pinnedAt: "2026-07-25T01:00:00.000Z",
     }])
   })
 })

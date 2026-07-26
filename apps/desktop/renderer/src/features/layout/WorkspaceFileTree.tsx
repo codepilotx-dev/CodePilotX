@@ -38,6 +38,7 @@ export type WorkspaceFileTreeProps = {
   rootPath?: string | null
   searchable?: boolean
   workspace: DesktopWorkspace | null
+  folderId?: string
   onAddComposerFiles?: (filePaths: string[]) => void
   onEscape?: () => void
   onOpenFile: (
@@ -56,7 +57,66 @@ type FileTreeRow =
 
 const FILE_TREE_ROW_HEIGHT = 28
 
-export function WorkspaceFileTree({
+export function WorkspaceFileTree(
+  props: WorkspaceFileTreeProps,
+): React.ReactNode {
+  const projectFolders = props.workspace?.folders ?? []
+  if (!props.folderId && projectFolders.length > 0) {
+    return (
+      <div className={cx('workspace-file-tree-groups', props.className)}>
+        {projectFolders.map(folder => (
+          <section
+            className="workspace-file-tree-group"
+            data-folder-availability={folder.availability}
+            key={folder.id}
+          >
+            <header className="workspace-file-tree-group-header">
+              <FolderIcon
+                aria-hidden="true"
+                expanded
+                path={folder.path}
+                size={APP_ICON_SIZE}
+              />
+              <span>{folder.name}</span>
+              {folder.role === 'primary' ? <em>主目录</em> : null}
+            </header>
+            {folder.availability === 'missing' ? (
+              <div className="right-dock-tree-empty">目录当前不可用。</div>
+            ) : (
+              <WorkspaceFileTreeContent
+                {...props}
+                autoFocusSearch={false}
+                files={folder.role === 'primary' ? props.files : []}
+                folderId={folder.id}
+                rootPath="."
+                searchable={false}
+                workspace={{
+                  ...props.workspace!,
+                  path: folder.path,
+                  folders: undefined,
+                }}
+                onOpenFile={(file, options) =>
+                  props.onOpenFile(
+                    {
+                      ...file,
+                      folderId: folder.id,
+                      folderName: folder.name,
+                      rootPath: folder.path,
+                    },
+                    options,
+                  )
+                }
+              />
+            )}
+          </section>
+        ))}
+      </div>
+    )
+  }
+  return <WorkspaceFileTreeContent {...props} />
+}
+
+function WorkspaceFileTreeContent({
   activePath,
   autoFocusSearch = false,
   className,
@@ -65,6 +125,7 @@ export function WorkspaceFileTree({
   rootPath = null,
   searchable = true,
   workspace,
+  folderId,
   onAddComposerFiles,
   onEscape,
   onOpenFile,
@@ -112,7 +173,12 @@ export function WorkspaceFileTree({
       setLoadingDirectories(current => addSetValue(current, key))
       setDirectoryErrors(current => removeSetValue(current, key))
       const request = desktopClient
-        .listWorkspaceFiles(workspacePath, directoryPath)
+        .listWorkspaceFiles(
+          workspacePath,
+          directoryPath,
+          folderId,
+          workspace?.projectId,
+        )
         .then(children => {
           if (generationRef.current !== generation) return
           const normalizedChildren = children.map(child => ({
@@ -144,7 +210,7 @@ export function WorkspaceFileTree({
       loadingPromisesRef.current.set(key, request)
       return request
     },
-    [replaceEntries, workspace?.path],
+    [folderId, replaceEntries, workspace?.path, workspace?.projectId],
   )
 
   useEffect(() => {

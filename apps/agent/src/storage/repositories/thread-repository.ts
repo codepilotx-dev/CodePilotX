@@ -160,7 +160,7 @@ export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
 
 export type StoredThreadWorkspace =
-  | { kind: "project"; projectID: string; workspaceRoot: string; cwd: string; outputDirectory: null }
+  | { kind: "project"; projectID: string; cwd: string; runtimeWorkspaceRoots: Array<{ folderId: string; path: string; role: "primary" | "secondary" }>; instructionSources: string[]; outputDirectory: null }
   | { kind: "projectless"; projectID: null; workspaceRoot: string; cwd: string; outputDirectory: string }
 
 export type CreateThreadInput = {
@@ -307,11 +307,20 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
       let workspaceKind: "project" | "projectless" | "legacy" = "legacy"
       let workspaceRoot: string | null = null
       let workspaceCwd: string | null = null
+      let workspaceRoots: string | null = null
+      let instructionSources: string | null = null
       let outputDirectory: string | null = null
       if (input.workspace?.kind === "project") {
-        this.requireProject(input.workspace.projectID)
+        const project = this.requireProject(input.workspace.projectID)
         projectID = input.workspace.projectID
         workspaceKind = "project"
+        workspaceCwd = project.rootPath
+        workspaceRoots = stringify(project.folders.map(({ id: folderId, path, role }) => ({
+          folderId,
+          path,
+          role,
+        })))
+        instructionSources = "[]"
       } else if (input.workspace?.kind === "projectless") {
         workspaceRoot = resolve(input.workspace.workspaceRoot)
         workspaceCwd = resolve(input.workspace.cwd)
@@ -323,16 +332,19 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
       }
       return this.transaction(() => {
         this.sqlite.query(`INSERT INTO threads (
-          id, title, project_id, workspace_kind, workspace_root, workspace_cwd, output_directory,
+          id, title, project_id, workspace_kind, workspace_root, workspace_cwd,
+          workspace_roots, instruction_sources, output_directory,
           create_operation_id, create_request_hash,
           task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
           id,
           title,
           projectID,
           workspaceKind,
           workspaceRoot,
           workspaceCwd,
+          workspaceRoots,
+          instructionSources,
           outputDirectory,
           input.operationID ?? null,
           input.requestHash ?? null,

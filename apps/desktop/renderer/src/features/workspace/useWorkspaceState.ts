@@ -137,7 +137,12 @@ export function useWorkspaceState(
       try {
         const [nextContext, nextFiles, nextDiff, nextGitStatus] = await Promise.all([
           desktopClient.getWorkspaceContext(target.path),
-          desktopClient.listWorkspaceFiles(target.path),
+          desktopClient.listWorkspaceFiles(
+            target.path,
+            '.',
+            target.primaryFolderId,
+            target.projectId,
+          ),
           desktopClient.getWorkspaceDiff(target.path),
           desktopClient.getWorkspaceGitStatus(target.path),
         ])
@@ -187,6 +192,8 @@ export function useWorkspaceState(
       const preview = await desktopClient.readWorkspaceFile(
         target.path,
         currentSelectedFile.path,
+        currentSelectedFile.folderId,
+        target.projectId,
       )
       setSelectedFile(preview)
     } catch {
@@ -207,7 +214,10 @@ export function useWorkspaceState(
   const openRecentWorkspace = useCallback(
     async (target: DesktopWorkspace): Promise<DesktopWorkspace | null> => {
       try {
-        const selected = await desktopClient.openWorkspace(target.path)
+        const selected = await desktopClient.openWorkspace(
+          target.path,
+          target.projectId,
+        )
         return selected
       } catch (error) {
         if (isWorkspaceUnavailableError(error)) {
@@ -226,8 +236,10 @@ export function useWorkspaceState(
       if (!workspace || file.type !== 'file') return
       try {
         const preview = await desktopClient.readWorkspaceFile(
-          workspace.path,
+          file.rootPath ?? workspace.path,
           file.path,
+          file.folderId,
+          workspace.projectId,
         )
         setSelectedFile(preview)
       } catch (error) {

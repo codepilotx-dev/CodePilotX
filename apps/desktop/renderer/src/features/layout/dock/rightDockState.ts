@@ -37,6 +37,8 @@ export type WorkbenchTabDescriptor =
       id: `file:${string}`
       kind: 'file-preview'
       workspacePath: string
+      projectId?: string
+      folderId?: string
       relativePath: string
       preview: boolean
       markdownViewMode?: MarkdownFileViewMode

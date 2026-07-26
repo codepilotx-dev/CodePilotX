@@ -6,6 +6,7 @@ const AppearanceSettings = React.lazy(() => import('./AppearanceSettings.js').th
 const ArchivedConversationsSettings = React.lazy(() => import('./ArchivedConversationsSettings.js').then(module => ({ default: module.ArchivedConversationsSettings })))
 const BrowserSettings = React.lazy(() => import('./BrowserSettings.js').then(module => ({ default: module.BrowserSettings })))
 const ConfigSettings = React.lazy(() => import('./ConfigSettings.js').then(module => ({ default: module.ConfigSettings })))
+const EnvironmentSettings = React.lazy(() => import('./EnvironmentSettings.js').then(module => ({ default: module.EnvironmentSettings })))
 const GeneralSettings = React.lazy(() => import('./GeneralSettings.js').then(module => ({ default: module.GeneralSettings })))
 const GitSettings = React.lazy(() => import('./GitSettings.js').then(module => ({ default: module.GitSettings })))
 const KeyboardShortcutsSettings = React.lazy(() => import('./KeyboardShortcutsSettings.js').then(module => ({ default: module.KeyboardShortcutsSettings })))
@@ -50,6 +51,9 @@ export function SettingsPage({
     )
   }
   else if (resolvedTab === 'git') content = <GitSettings />
+  else if (resolvedTab === 'environment') {
+    content = <EnvironmentSettings onError={onError} onNotice={onNotice} />
+  }
   else if (resolvedTab === 'profile') content = <ProfileSettings />
   else if (resolvedTab === 'personalization') content = <PersonalizationSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'memory') content = <MemorySettings />

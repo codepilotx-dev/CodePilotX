@@ -1,7 +1,6 @@
-import { createHash, randomUUID } from "node:crypto"
-import { link, lstat, mkdir, readFile, realpath, unlink, writeFile } from "node:fs/promises"
-import { isAbsolute, join, relative, resolve } from "node:path"
+import { randomUUID } from "node:crypto"
 import { AgentError } from "../domain"
+import { ContentBlobStore, contentSha256 } from "../storage/ContentBlobStore"
 
 export const ATTACHMENT_LIMITS = {
   maxCount: 8,
@@ -18,7 +17,6 @@ const TEXT_APPLICATION_MIME_TYPES = new Set([
   "application/xml",
   "application/yaml",
 ])
-const SHA256 = /^[a-f\d]{64}$/
 const WINDOWS_RESERVED_NAME = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i
 
 export type AttachmentKind = "text" | "image"
@@ -143,11 +141,6 @@ export class InMemoryAttachmentCatalog implements AttachmentCatalog {
   }
 }
 
-const isWithin = (parent: string, child: string) => {
-  const result = relative(parent, child)
-  return result === "" || (!result.startsWith("..") && !isAbsolute(result))
-}
-
 const validateName = (name: string) => {
   if (
     !name || name.length > 255 || name === "." || name === ".." ||
@@ -172,7 +165,7 @@ const uniqueIDs = (ids: readonly string[]) => {
   }
 }
 
-const normalizeMimeType = (kind: AttachmentKind, value: string) => {
+export const normalizeAttachmentMimeType = (kind: AttachmentKind, value: string) => {
   const parts = value.toLowerCase().split(";").map((part) => part.trim())
   const mimeType = parts[0] ?? ""
   const charset = parts.find((part) => part.startsWith("charset="))?.slice("charset=".length).replaceAll('"', "")
@@ -202,7 +195,7 @@ const hasImageSignature = (mimeType: string, data: Uint8Array) => {
     new TextDecoder().decode(data.subarray(8, 12)) === "WEBP"
 }
 
-const attachmentBytes = (upload: AttachmentUpload, mimeType: string) => {
+export const attachmentUploadBytes = (upload: AttachmentUpload, mimeType: string) => {
   if (upload.kind === "image" && typeof upload.data === "string") {
     throw new AgentError("ATTACHMENT_IMAGE_BYTES_REQUIRED", "图片附件必须使用二进制数据", 400)
   }
@@ -219,37 +212,34 @@ const attachmentBytes = (upload: AttachmentUpload, mimeType: string) => {
   return data
 }
 
-const digest = (data: Uint8Array) => createHash("sha256").update(data).digest("hex")
+export const prepareAttachmentUpload = (upload: AttachmentUpload) => {
+  validateName(upload.name)
+  const mimeType = normalizeAttachmentMimeType(upload.kind, upload.mimeType)
+  const data = attachmentUploadBytes(upload, mimeType)
+  const limit = upload.kind === "text" ? ATTACHMENT_LIMITS.maxTextBytes : ATTACHMENT_LIMITS.maxImageBytes
+  if (data.byteLength > limit) {
+    throw new AgentError("ATTACHMENT_FILE_TOO_LARGE", `附件 ${upload.name} 超过 ${limit} 字节上限`, 413)
+  }
+  return { upload, mimeType, data, sha256: contentSha256(data) }
+}
 
 export class AttachmentService {
   private readonly catalog: AttachmentCatalog
-  private readonly blobsRoot: string
   private readonly now: () => number
   private readonly nextID: () => string
   private mutationQueue: Promise<void> = Promise.resolve()
 
-  private constructor(blobsRoot: string, options: AttachmentServiceOptions) {
-    this.blobsRoot = blobsRoot
+  private constructor(
+    private readonly blobs: ContentBlobStore,
+    options: AttachmentServiceOptions,
+  ) {
     this.catalog = options.catalog ?? new InMemoryAttachmentCatalog()
     this.now = options.now ?? Date.now
     this.nextID = options.id ?? randomUUID
   }
 
   static async open(dataDir: string, options: AttachmentServiceOptions = {}) {
-    const root = resolve(dataDir, "attachments")
-    await mkdir(root, { recursive: true })
-    const rootMetadata = await lstat(root)
-    if (!rootMetadata.isDirectory() || rootMetadata.isSymbolicLink()) {
-      throw new AgentError("ATTACHMENT_DATA_DIR_INVALID", "附件数据目录必须是普通目录", 400)
-    }
-    const canonicalRoot = await realpath(root)
-    const blobs = join(canonicalRoot, "blobs")
-    await mkdir(blobs, { recursive: true })
-    const blobsMetadata = await lstat(blobs)
-    if (!blobsMetadata.isDirectory() || blobsMetadata.isSymbolicLink()) {
-      throw new AgentError("ATTACHMENT_DATA_DIR_INVALID", "附件 Blob 目录必须是普通目录", 400)
-    }
-    return new AttachmentService(await realpath(blobs), options)
+    return new AttachmentService(await ContentBlobStore.open(dataDir), options)
   }
 
   private exclusive<T>(operation: () => Promise<T>) {
@@ -258,75 +248,12 @@ export class AttachmentService {
     return result
   }
 
-  private blobPath(sha256: string) {
-    if (!SHA256.test(sha256)) throw new AgentError("ATTACHMENT_SHA256_INVALID", "附件 SHA256 无效", 500)
-    const path = resolve(this.blobsRoot, sha256.slice(0, 2), sha256)
-    if (!isWithin(this.blobsRoot, path)) throw new AgentError("ATTACHMENT_PATH_DENIED", "附件存储路径越界", 403)
-    return path
-  }
-
-  private async shardDirectory(sha256: string) {
-    const directory = resolve(this.blobsRoot, sha256.slice(0, 2))
-    await mkdir(directory, { recursive: true })
-    const metadata = await lstat(directory)
-    const canonical = await realpath(directory)
-    if (!metadata.isDirectory() || metadata.isSymbolicLink() || !isWithin(this.blobsRoot, canonical)) {
-      throw new AgentError("ATTACHMENT_PATH_DENIED", "附件分片目录越界或不是普通目录", 403)
-    }
-    return canonical
-  }
-
-  private async verifyBlob(path: string, expectedSha256: string) {
-    const metadata = await lstat(path)
-    if (!metadata.isFile() || metadata.isSymbolicLink()) {
-      throw new AgentError("ATTACHMENT_BLOB_INVALID", "附件 Blob 不是普通文件", 500)
-    }
-    const data = await readFile(path)
-    if (digest(data) !== expectedSha256) throw new AgentError("ATTACHMENT_BLOB_CORRUPT", "附件 Blob 校验失败", 500)
-    return new Uint8Array(data)
-  }
-
-  private async putBlob(sha256: string, data: Uint8Array) {
-    const directory = await this.shardDirectory(sha256)
-    const destination = this.blobPath(sha256)
-    try {
-      await this.verifyBlob(destination, sha256)
-      return false
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
-    }
-
-    const temporary = join(directory, `.${sha256}.${randomUUID()}.tmp`)
-    try {
-      await writeFile(temporary, data, { flag: "wx" })
-      try {
-        await link(temporary, destination)
-        return true
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
-        await this.verifyBlob(destination, sha256)
-        return false
-      }
-    } finally {
-      await unlink(temporary).catch(() => undefined)
-    }
-  }
-
   async store(uploads: readonly AttachmentUpload[]) {
     return this.exclusive(async () => {
       if (uploads.length === 0 || uploads.length > ATTACHMENT_LIMITS.maxCount) {
         throw new AgentError("ATTACHMENT_COUNT_LIMIT", `每次必须包含 1 到 ${ATTACHMENT_LIMITS.maxCount} 个附件`, 413)
       }
-      const prepared = uploads.map((upload) => {
-        validateName(upload.name)
-        const mimeType = normalizeMimeType(upload.kind, upload.mimeType)
-        const data = attachmentBytes(upload, mimeType)
-        const limit = upload.kind === "text" ? ATTACHMENT_LIMITS.maxTextBytes : ATTACHMENT_LIMITS.maxImageBytes
-        if (data.byteLength > limit) {
-          throw new AgentError("ATTACHMENT_FILE_TOO_LARGE", `附件 ${upload.name} 超过 ${limit} 字节上限`, 413)
-        }
-        return { upload, mimeType, data, sha256: digest(data) }
-      })
+      const prepared = uploads.map(prepareAttachmentUpload)
       const total = prepared.reduce((sum, item) => sum + item.data.byteLength, 0)
       if (total > ATTACHMENT_LIMITS.maxTotalBytes) {
         throw new AgentError("ATTACHMENT_TOTAL_TOO_LARGE", `附件总量超过 ${ATTACHMENT_LIMITS.maxTotalBytes} 字节上限`, 413)
@@ -351,7 +278,11 @@ export class AttachmentService {
       let catalogInserted = false
       try {
         for (const item of prepared) {
-          if (await this.putBlob(item.sha256, item.data)) createdBlobs.add(item.sha256)
+          const stored = await this.blobs.put(item.data)
+          if (stored.sha256 !== item.sha256) {
+            throw new AgentError("ATTACHMENT_BLOB_CORRUPT", "附件 Blob 摘要不一致", 500)
+          }
+          if (stored.created) createdBlobs.add(item.sha256)
         }
         await this.catalog.insertMany(records)
         catalogInserted = true
@@ -360,7 +291,7 @@ export class AttachmentService {
         if (catalogInserted) await this.catalog.removeMany(records.map((record) => record.id)).catch(() => undefined)
         for (const hash of createdBlobs) {
           if (await this.catalog.countBySha256(hash).catch(() => 1) === 0) {
-            await unlink(this.blobPath(hash)).catch(() => undefined)
+            await this.blobs.remove(hash).catch(() => undefined)
           }
         }
         throw error
@@ -372,7 +303,7 @@ export class AttachmentService {
     return this.exclusive(async () => {
       const record = await this.catalog.get(id)
       if (!record) throw new AgentError("ATTACHMENT_NOT_FOUND", "附件不存在", 404)
-      return { record, data: await this.verifyBlob(this.blobPath(record.sha256), record.sha256) }
+      return { record, data: await this.blobs.read(record.sha256) }
     })
   }
 
@@ -419,12 +350,7 @@ export class AttachmentService {
       let deletedBlobs = 0
       for (const hash of hashes) {
         if (await this.catalog.countBySha256(hash) === 0) {
-          try {
-            await unlink(this.blobPath(hash))
-            deletedBlobs += 1
-          } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
-          }
+          if (await this.blobs.remove(hash)) deletedBlobs += 1
         }
       }
       return { removedRecords: removed.length, deletedBlobs }

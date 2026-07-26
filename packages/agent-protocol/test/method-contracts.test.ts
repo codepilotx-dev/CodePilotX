@@ -29,11 +29,22 @@ const threadSettings = {
 const project = {
   id: "project:1",
   name: "Fixture project",
-  rootPath: "F:\\fixture",
+  primaryFolderId: "folder:1",
+  folders: [{
+    id: "folder:1",
+    name: "fixture",
+    path: "F:\\fixture",
+    role: "primary",
+    availability: "available",
+    order: 0,
+    createdAt: 1,
+    updatedAt: 1,
+  }] as const,
+  removedAt: null,
   lastOpenedAt: 1,
   createdAt: 1,
   updatedAt: 1,
-  settings: { defaultModel: null },
+  settings: { defaultModel: null, instructions: "", version: 1 },
 }
 
 const threadListItem = {
@@ -43,8 +54,13 @@ const threadListItem = {
   workspace: {
     kind: "project",
     projectID: project.id,
-    workspaceRoot: project.rootPath,
-    cwd: project.rootPath,
+    cwd: project.folders[0].path,
+    runtimeWorkspaceRoots: [{
+      folderId: project.folders[0].id,
+      path: project.folders[0].path,
+      role: "primary",
+    }],
+    instructionSources: [],
     outputDirectory: null,
   } as const,
   title: "Fixture thread",
@@ -475,22 +491,104 @@ const fixtures = {
     resolvedAt: 2,
     response: { kind: "plan", decision: "continue" },
   }),
-  "project/list": methodFixture("project/list", { cursor: "cursor:1", limit: 20 }, { projects: [project], nextCursor: null }),
+  "project/list": methodFixture("project/list", { cursor: "cursor:1", limit: 20, folderPath: project.folders[0].path }, { projects: [project], nextCursor: null }),
+  "project/create": methodFixture("project/create", {
+    name: project.name,
+    primaryPath: project.folders[0].path,
+    operationId: "operation:project-create",
+  }, { project }),
   "project/open": methodFixture("project/open", {
-    rootPath: project.rootPath,
+    projectId: project.id,
     operationId: "operation:project-open",
   }, { project }),
+  "project/update": methodFixture("project/update", {
+    projectId: project.id,
+    name: project.name,
+    expectedVersion: project.updatedAt,
+    operationId: "operation:project-update",
+  }, { project }),
+  "project/remove": methodFixture("project/remove", {
+    projectId: project.id,
+    operationId: "operation:project-remove",
+  }, { projectId: project.id, removedAt: 2, archivedThreadCount: 1 }),
+  "project/context/read": methodFixture("project/context/read", {
+    projectId: project.id,
+  }, { project, sources: [] }),
+  "project/folder/add": methodFixture("project/folder/add", {
+    projectId: project.id,
+    path: "F:\\fixture-secondary",
+    operationId: "operation:folder-add",
+  }, { project, changed: true }),
+  "project/folder/remove": methodFixture("project/folder/remove", {
+    projectId: project.id,
+    folderId: "folder:2",
+    operationId: "operation:folder-remove",
+  }, { project, changed: true }),
+  "project/folder/set-primary": methodFixture("project/folder/set-primary", {
+    projectId: project.id,
+    folderId: project.primaryFolderId,
+    operationId: "operation:folder-primary",
+  }, { project, changed: false }),
   "project/settings/update": methodFixture("project/settings/update", {
     projectId: project.id,
-    settings: { defaultModel: modelRef },
+    settings: { defaultModel: modelRef, instructions: "Project instructions" },
+    expectedVersion: 1,
     operationId: "operation:project-settings",
   }, {
     projectId: project.id,
-    settings: { defaultModel: modelRef },
+    settings: { defaultModel: modelRef, instructions: "Project instructions", version: 2 },
     version: 2,
   }),
+  "project/source/list": methodFixture("project/source/list", {
+    projectId: project.id,
+    cursor: "offset:0",
+    limit: 20,
+  }, { sources: [], nextCursor: null }),
+  "project/source/import": methodFixture("project/source/import", {
+    projectId: project.id,
+    uploads: [{
+      kind: "text",
+      name: "context.md",
+      mediaType: "text/markdown",
+      encoding: "utf8",
+      data: "# Context",
+    }],
+    operationId: "operation:source-import",
+  }, { sources: [] }),
+  "project/source/reference/add": methodFixture("project/source/reference/add", {
+    projectId: project.id,
+    folderId: project.primaryFolderId,
+    path: "README.md",
+    operationId: "operation:source-reference",
+  }, { sources: [] }),
+  "project/source/read": methodFixture("project/source/read", {
+    projectId: project.id,
+    sourceId: "source:1",
+    range: { offset: 0, length: 100 },
+  }, {
+    source: {
+      storage: "managed",
+      id: "source:1",
+      projectId: project.id,
+      kind: "text",
+      name: "context.md",
+      mediaType: "text/markdown",
+      sizeBytes: 9,
+      sha256: "a".repeat(64),
+      status: "available",
+    },
+    data: "# Context",
+    encoding: "utf8",
+    range: { offset: 0, length: 9, total: 9 },
+  }),
+  "project/source/remove": methodFixture("project/source/remove", {
+    projectId: project.id,
+    sourceId: "source:1",
+    operationId: "operation:source-remove",
+  }, { sourceId: "source:1", removed: true }),
   "workspace/file/list": methodFixture("workspace/file/list", {
     projectId: project.id,
+    folderId: project.primaryFolderId,
     path: ".",
   }, {
     entries: [
@@ -500,6 +598,7 @@ const fixtures = {
   }),
   "workspace/file/read": methodFixture("workspace/file/read", {
     projectId: project.id,
+    folderId: project.primaryFolderId,
     path: "src/index.ts",
   }, {
     path: "src/index.ts",
@@ -511,6 +610,7 @@ const fixtures = {
   }),
   "workspace/file/save": methodFixture("workspace/file/save", {
     projectId: project.id,
+    folderId: project.primaryFolderId,
     path: "src/index.ts",
     content: "export {}",
     expectedRevision: { mtimeMs: 1, sha256: "a".repeat(64) },
@@ -520,6 +620,7 @@ const fixtures = {
   }),
   "workspace/file/watch": methodFixture("workspace/file/watch", {
     projectId: project.id,
+    folderId: project.primaryFolderId,
     path: "src/index.ts",
   }, {
     watching: true,
@@ -527,6 +628,7 @@ const fixtures = {
   }),
   "workspace/file/unwatch": methodFixture("workspace/file/unwatch", {
     projectId: project.id,
+    folderId: project.primaryFolderId,
     path: "src/index.ts",
   }, {
     watching: false,
@@ -1491,9 +1593,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 131 formal methods decodable", () => {
+  test("keeps valid params and results for all 143 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(131)
+    expect(methods).toHaveLength(143)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

@@ -18,6 +18,7 @@ import type { HookService } from "../hooks/HookService"
 import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
 import { createMcpInstructionSections } from "../mcp/McpPromptSections"
+import type { ProjectSourceService } from "../project/ProjectSourceService"
 
 const terminal = new Set(["completed", "failed", "stopped", "interrupted"])
 export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => kind === "permission" ? "waiting_permission" as const : "waiting_question" as const
@@ -63,6 +64,7 @@ export class SubagentService {
     private readonly hooks?: HookService,
     private readonly skillManagement?: SkillManagementService,
     private readonly mcp?: McpConnectionManager,
+    private readonly projectSources?: ProjectSourceService,
   ) {
     this.repository = new SubagentRepository(db)
     approvals.setAgentStatusHandler((agentID, status) => { void this.onApprovalStatus(agentID, status) })
@@ -370,7 +372,24 @@ export class SubagentService {
       const prepared = this.workspaces && needsIsolation ? await this.workspaces.prepare(task.id, rootPath, task.workspace.mode) : { rootPath, baselineRef: null }
       isolationPrepared = prepared.baselineRef !== null
       if (task.workspace.mode === "worktree" && !this.workspaces) throw new AgentError("WORKTREE_UNAVAILABLE", "worktree 服务未配置", 409)
-      const workspace = await WorkspaceService.open(prepared.rootPath)
+      const parentWorkspace = this.db.threadWorkspace(task.parentThreadId)
+      const project = parentWorkspace?.kind === "project" ? this.db.getProject(parentWorkspace.projectID) : null
+      const projectFolders = project?.folders?.filter((folder) => folder.availability !== "missing") ?? []
+      const primaryFolder = projectFolders.find((folder) => folder.id === project?.primaryFolderId)
+        ?? projectFolders.find((folder) => folder.role === "primary")
+      const workspace = primaryFolder
+        ? await WorkspaceService.openRoots({
+            primaryRoot: prepared.rootPath,
+            roots: projectFolders.map((folder) => folder.id === primaryFolder.id
+              ? { folderId: folder.id, path: prepared.rootPath, role: "primary" as const }
+              : {
+                  folderId: folder.id,
+                  path: folder.path,
+                  role: "secondary" as const,
+                  ...(task.workspace.mode === "worktree" ? { writable: false } : {}),
+                }),
+          })
+        : await WorkspaceService.open(prepared.rootPath)
       mcpLease = await this.mcp?.acquire(workspace.rootPath)
       const permissionConfig = await this.isGitWorkspace(workspace.rootPath)
         ? run.permissionConfig
@@ -401,7 +420,16 @@ export class SubagentService {
         : { skills: [], shadowed: [] }
       const invokedSkill = skillService.resolveInvocation(input.content)
       const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
-      const memories = this.memory?.recall({ query: input.content, projectKey: projectMemoryKey(rootPath), subagent: true }) ?? []
+      const projectSourceCatalog = parentWorkspace?.kind === "project"
+        ? await this.projectSources?.catalog(parentWorkspace.projectID) ?? null
+        : null
+      const memories = this.memory?.recall({
+        query: input.content,
+        ...(parentWorkspace?.kind === "project"
+          ? { projectKey: projectMemoryKey(parentWorkspace.projectID) }
+          : {}),
+        subagent: true,
+      }) ?? []
       const promptSections = createPromptSections({
         permissionInstructions: `子 Agent resolved sandbox=${permissionConfig.sandboxMode}; approval=${JSON.stringify(permissionConfig.approvalPolicy)}; reviewer=${permissionConfig.approvalsReviewer}。只能收紧，不能提升父任务 ceiling。`,
         mode: parentMode,
@@ -410,9 +438,32 @@ export class SubagentService {
         projectInstructions: instructionSources.sources,
         skills: skillCatalog.skills,
         memories: memories.map((entry) => `可能过期的项目参考记忆：${entry.content}`),
-        externalData: invokedSkillData,
+        externalData: [
+          ...invokedSkillData,
+          ...(projectSourceCatalog && projectSourceCatalog.total > 0
+            ? [projectSourceCatalog.content]
+            : []),
+        ],
         userMessage: input.content,
       })
+      const projectSettingsInstructions = project?.settings.instructions.trim()
+      if (projectSettingsInstructions) {
+        const projectInstructionIndex = promptSections.findIndex(({ id }) =>
+          id.startsWith("project-instruction."),
+        )
+        promptSections.splice(
+          projectInstructionIndex >= 0 ? projectInstructionIndex : promptSections.length - 1,
+          0,
+          {
+            id: "project.settings.instructions",
+            role: "developer",
+            cache: "session-stable",
+            authority: "user",
+            source: { type: "setting", name: "projectInstructions" },
+            content: projectSettingsInstructions,
+          },
+        )
+      }
       promptSections.splice(
         promptSections.length - 1,
         0,
@@ -430,6 +481,15 @@ export class SubagentService {
         permissionConfig, signal: controller.signal, workspace,
         promptSections,
         skillService,
+        ...(parentWorkspace?.kind === "project" && this.projectSources ? {
+          projectSources: {
+            list: () => this.projectSources!.list(parentWorkspace.projectID),
+            read: (
+              sourceID: string,
+              range?: { offset: number; length: number },
+            ) => this.projectSources!.read(parentWorkspace.projectID, sourceID, range),
+          },
+        } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         attachments,

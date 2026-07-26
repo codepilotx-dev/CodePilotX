@@ -92,6 +92,10 @@ const router = createHashRouter([
       },
       { path: 'automations', element: deferred(<AutomationView />) },
       { path: 'pets', element: deferred(<PetCatalogPage />) },
+      {
+        path: 'settings/environment/:projectId',
+        element: deferred(<SettingsLayout />),
+      },
       { path: 'settings/:tab', element: deferred(<SettingsLayout />) },
       { path: 'labs', element: deferred(<LabsPage />) },
       { path: '*', element: <NotFoundPage /> },

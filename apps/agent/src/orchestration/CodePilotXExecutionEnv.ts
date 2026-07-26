@@ -1,5 +1,5 @@
 import { ExecutionError, FileError, err, ok, type ExecutionEnv, type FileInfo, type Result } from "@codepilotx/pi-agent-core"
-import { isAbsolute, join, relative, resolve } from "node:path"
+import { isAbsolute, join, resolve } from "node:path"
 import type { WorkspaceService } from "../workspace/WorkspaceService"
 
 /**
@@ -12,8 +12,7 @@ export class CodePilotXExecutionEnv implements ExecutionEnv {
     private readonly workspace: WorkspaceService,
     defaultCwd = workspace.rootPath,
   ) {
-    const relativeCwd = relative(workspace.rootPath, defaultCwd)
-    if (relativeCwd.startsWith("..") || isAbsolute(relativeCwd)) {
+    if (!workspace.containsPath(defaultCwd)) {
       throw new FileError("permission_denied", "默认工作目录不在当前工作区内", defaultCwd)
     }
     this.cwd = resolve(defaultCwd)
@@ -21,10 +20,9 @@ export class CodePilotXExecutionEnv implements ExecutionEnv {
 
   private addressed(path: string) { return isAbsolute(path) ? resolve(path) : resolve(this.cwd, path) }
   private local(path: string) {
-    const value = relative(this.workspace.rootPath, this.addressed(path))
-    if (!value || value === ".") return "."
-    if (value.startsWith("..") || isAbsolute(value)) throw new FileError("permission_denied", "路径不在当前工作区内", path)
-    return value.replaceAll("\\", "/")
+    const addressed = this.addressed(path)
+    if (!this.workspace.containsPath(addressed)) throw new FileError("permission_denied", "路径不在当前工作区内", path)
+    return this.workspace.displayPath(addressed)
   }
   private async file<T>(path: string, operation: () => Promise<T>): Promise<Result<T, FileError>> {
     try { return ok(await operation()) }

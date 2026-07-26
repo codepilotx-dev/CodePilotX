@@ -191,6 +191,8 @@ const definitions: readonly WorkbenchTabDefinition[] = [
       tab.kind === 'file-preview' ? (
         <RightDockFilePreviewPanel
           expectedPath={tab.relativePath}
+          projectId={tab.projectId}
+          folderId={tab.folderId}
           files={context.files.files}
           workspacePath={tab.workspacePath}
           workspace={context.files.workspace}
@@ -208,7 +210,12 @@ const definitions: readonly WorkbenchTabDefinition[] = [
             context.files.onPreviewFile(file)
             if (!options.preview && file.type === 'file') {
               context.files.onPinFileTab(
-                createWorkspaceFileTabId(tab.workspacePath, file.path),
+                createWorkspaceFileTabId(
+                  file.rootPath ?? tab.workspacePath,
+                  file.path,
+                  tab.projectId,
+                  file.folderId ?? tab.folderId,
+                ),
               )
             }
           }}

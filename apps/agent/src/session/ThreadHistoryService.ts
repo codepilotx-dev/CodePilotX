@@ -90,6 +90,13 @@ export class ThreadHistoryService {
       values.push(title)
     }
     if (typeof patch.archived === "boolean") {
+      if (
+        patch.archived === false
+        && existing.projectID
+        && this.db.getProject(existing.projectID)?.removedAt
+      ) {
+        throw new AgentError("PROJECT_REMOVED", "已移除项目的归档任务不能恢复", 409)
+      }
       updates.push("archived_at = ?")
       values.push(patch.archived ? updatedAt : null)
     }

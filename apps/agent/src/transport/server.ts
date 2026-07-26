@@ -20,6 +20,7 @@ import type { ApiKeyService } from "../provider/ApiKeyService"
 import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
+import type { ProjectSourceService } from "../project/ProjectSourceService"
 import type { MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import type { GitReviewService } from "../review/GitReviewService"
@@ -42,6 +43,7 @@ export interface TransportDependencies {
   questions: QuestionService
   subagents: SubagentService
   attachments: AttachmentService
+  projectSources: ProjectSourceService
   providers: AgentModelCatalog
   integrations: IntegrationService
   apiKeys: ApiKeyService
@@ -89,21 +91,29 @@ const cookieValue = (header: string | null, name: string) => header?.split(";").
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 const DESKTOP_RUNTIME_SETTINGS_KEY = "desktop.runtime-state.v1"
+const DEPRECATED_DESKTOP_SIDEBAR_FIELDS = new Set([
+  "sidebarManualOrder",
+  "sidebarSectionOrder",
+])
 const DESKTOP_RUNTIME_FIELDS = new Set([
   "recentWorkspaces",
   "lastActiveWorkspacePath",
   "removedWorkspaces",
   "drawerTab",
   "sidebarStateVersion",
-  "sidebarManualOrder",
   "sidebarSessionPins",
   "collapsedSidebarProjectPaths",
-  "sidebarSectionOrder",
   "collapsedSidebarSections",
   "workspaceDependenciesMigrated",
 ])
 const desktopProjection = (config: Record<string, unknown>) => {
-  const desktop = isPlainObject(config.desktop) ? { ...config.desktop } : {}
+  const desktop = isPlainObject(config.desktop)
+    ? Object.fromEntries(
+      Object.entries(config.desktop).filter(
+        ([key]) => !DEPRECATED_DESKTOP_SIDEBAR_FIELDS.has(key),
+      ),
+    )
+    : {}
   const taskModels = isPlainObject(config.task_models) ? config.task_models : {}
   const features = isPlainObject(config.features) ? config.features : {}
   const sandbox = isPlainObject(config.sandbox_workspace_write) ? config.sandbox_workspace_write : {}
@@ -159,6 +169,10 @@ const desktopConfigEdits = (
   prefix: string[] = [],
 ): Array<{ keyPath: string[]; value: never }> =>
   Object.entries(value).flatMap(([key, child]) => {
+    if (
+      prefix.length === 0
+      && DEPRECATED_DESKTOP_SIDEBAR_FIELDS.has(key)
+    ) return []
     if (prefix.length === 0 && DESKTOP_RUNTIME_FIELDS.has(key)) return []
     if (prefix.length === 0 && key === "permissionConfig" && isPlainObject(child)) {
       return Object.entries(child).flatMap(([permissionKey, permissionValue]) => {
@@ -261,9 +275,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, mcp: dependencies.mcp })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, mcp: dependencies.mcp })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
@@ -536,7 +550,10 @@ export const createApp = (dependencies: TransportDependencies) => {
   app.get("/api/config/desktop-projection", async (context) => {
     const result = await dependencies.configService.read()
     const runtime = db.getSetting<Record<string, unknown>>(DESKTOP_RUNTIME_SETTINGS_KEY) ?? {}
-    return context.json({ ...desktopProjection(result.config), ...runtime })
+    const currentRuntime = Object.fromEntries(
+      Object.entries(runtime).filter(([key]) => DESKTOP_RUNTIME_FIELDS.has(key)),
+    )
+    return context.json({ ...desktopProjection(result.config), ...currentRuntime })
   })
 
   app.put("/api/config/desktop-projection", async (context) => {

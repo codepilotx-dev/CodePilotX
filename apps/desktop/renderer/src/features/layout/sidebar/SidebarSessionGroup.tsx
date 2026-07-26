@@ -7,7 +7,6 @@ import { sessionDisplayTitle, type SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
-import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
@@ -53,16 +52,10 @@ export function SidebarSessionGroup({
     string | null
   >(null);
   const [visibleLimit, setVisibleLimit] = useState(GROUP_LIMIT);
-  const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
   const [renameSession, setRenameSession] = useState<SessionListItem | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [renaming, setRenaming] = useState(false)
   const reducedMotion = usePrefersReducedMotion()
-  const {
-    sidebarSort,
-    sidebarManualOrder,
-    setSidebarManualOrder,
-  } = useDesktopSettings()
   const needsInputSessionIds = pendingPermissionSessionIds
   const unreadSessionIds = useMemo(
     () => new Set(sessions.filter(session => session.unreadAt).map(session => session.id)),
@@ -71,17 +64,15 @@ export function SidebarSessionGroup({
   const sortedSessions = useMemo(
     () =>
       sortSessionsForSidebar(sessions, {
-        sort: sidebarSort,
+        sort: 'priority',
         needsInputSessionIds,
         unreadSessionIds,
         scopeKey: groupKey,
-        manualOrderByScope: sidebarManualOrder,
+        manualOrderByScope: {},
       }),
     [
       groupKey,
       needsInputSessionIds,
-      sidebarManualOrder,
-      sidebarSort,
       sessions,
       unreadSessionIds,
     ],
@@ -155,35 +146,8 @@ export function SidebarSessionGroup({
         active={session.id === activeSessionId}
         as="li"
         className="sidebar-session-row"
-        draggable={sidebarSort === 'manual'}
         indent="session"
         key={session.id}
-        onDragOver={event => {
-          if (sidebarSort === 'manual') event.preventDefault()
-        }}
-        onDragStart={event => {
-          if (sidebarSort !== 'manual') return
-          setDraggedSessionId(session.id)
-          event.dataTransfer.effectAllowed = 'move'
-        }}
-        onDrop={event => {
-          event.preventDefault()
-          if (sidebarSort !== 'manual' || !draggedSessionId || draggedSessionId === session.id) {
-            setDraggedSessionId(null)
-            return
-          }
-          const order = sortedSessions.map(item => item.id)
-          const fromIndex = order.indexOf(draggedSessionId)
-          const toIndex = order.indexOf(session.id)
-          if (fromIndex < 0 || toIndex < 0) {
-            setDraggedSessionId(null)
-            return
-          }
-          order.splice(fromIndex, 1)
-          order.splice(toIndex, 0, draggedSessionId)
-          setSidebarManualOrder({ ...sidebarManualOrder, [groupKey]: order })
-          setDraggedSessionId(null)
-        }}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
           setHoveredSessionId((current) =>
@@ -197,22 +161,6 @@ export function SidebarSessionGroup({
         onBlurCapture={event => {
           if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
           setFocusedSessionId(current => current === session.id ? null : current)
-        }}
-        onKeyDown={event => {
-          if (
-            sidebarSort !== 'manual' ||
-            !event.altKey ||
-            (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
-          ) {
-            return
-          }
-          event.preventDefault()
-          const order = sortedSessions.map(item => item.id)
-          const currentIndex = order.indexOf(session.id)
-          const nextIndex = currentIndex + (event.key === 'ArrowUp' ? -1 : 1)
-          if (nextIndex < 0 || nextIndex >= order.length) return
-          ;[order[currentIndex], order[nextIndex]] = [order[nextIndex]!, order[currentIndex]!]
-          setSidebarManualOrder({ ...sidebarManualOrder, [groupKey]: order })
         }}
         trailing={
           <div className={metaClassName}>

@@ -427,6 +427,8 @@ function validateTabDescriptor(
       id: tab.id as `file:${string}`,
       kind: 'file-preview',
       workspacePath: tab.workspacePath,
+      ...(typeof tab.projectId === 'string' ? { projectId: tab.projectId } : {}),
+      ...(typeof tab.folderId === 'string' ? { folderId: tab.folderId } : {}),
       relativePath: tab.relativePath,
       preview: Boolean(tab.preview),
       ...(tab.markdownViewMode === 'rich' ||

@@ -492,6 +492,43 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       ok: false,
       error: '浏览器 mock 模式不会克隆仓库。',
     }),
+    listProjects: async folderPath =>
+      folderPath ? [{ ...mockWorkspace(folderPath), projectId: `mock:${folderPath}` }] : [],
+    updateProject: async input => ({
+      ...mockWorkspace(''),
+      projectId: input.projectId,
+      name: input.name,
+    }),
+    removeProject: async () => ({ archivedThreadCount: 0 }),
+    addProjectFolder: async (projectId, path) => ({
+      ...mockWorkspace(path),
+      projectId,
+    }),
+    removeProjectFolder: async projectId => ({
+      ...mockWorkspace(''),
+      projectId,
+    }),
+    setPrimaryProjectFolder: async projectId => ({
+      ...mockWorkspace(''),
+      projectId,
+    }),
+    updateProjectSettings: async input => ({
+      ...mockWorkspace(''),
+      projectId: input.projectId,
+      projectSettings: {
+        defaultModel: input.defaultModel ?? null,
+        instructions: input.instructions ?? '',
+        version: input.expectedVersion + 1,
+      },
+    }),
+    listProjectSources: async () => [],
+    importProjectSources: async () => [],
+    addProjectSourceReference: async () => [],
+    readProjectSource: async () => {
+      throw new Error('浏览器模拟模式没有可预览的项目来源。')
+    },
+    removeProjectSource: async () => false,
+    chooseProjectFolder: async () => null,
     chooseWorkspace: async () => null,
     openWorkspace: async workspacePath => mockWorkspace(workspacePath),
     getWorkspaceContext: async workspacePath => mockWorkspace(workspacePath),

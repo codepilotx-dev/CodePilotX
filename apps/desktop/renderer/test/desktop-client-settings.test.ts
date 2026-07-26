@@ -11,6 +11,17 @@ import {
 } from '../src/services/desktop-client/index.js'
 
 const now = 1_700_000_000_000
+const projectRootPath = 'F:\\CodeProject\\CodePilotX-Ts'
+const primaryFolder = {
+  id: 'folder-primary',
+  name: 'CodePilotX-Ts',
+  path: projectRootPath,
+  role: 'primary' as const,
+  availability: 'available' as const,
+  order: 0,
+  createdAt: now,
+  updatedAt: now,
+}
 const defaultSettings: ThreadSettings = {
   taskMode: 'chat',
   permissionConfig: {
@@ -22,22 +33,28 @@ const defaultSettings: ThreadSettings = {
 const project: Project = {
   id: 'project-1',
   name: 'CodePilotX-Ts',
-  rootPath: 'F:\\CodeProject\\CodePilotX-Ts',
+  primaryFolderId: primaryFolder.id,
+  folders: [primaryFolder],
+  removedAt: null,
   lastOpenedAt: now,
   createdAt: now,
   updatedAt: now,
   settings: {
     defaultModel: null,
-    plannerModel: null,
-    developerModel: null,
-    reviewerModel: null,
+    instructions: '',
+    version: 1,
   },
 }
 const projectWorkspace = {
   kind: 'project' as const,
   projectID: project.id,
-  workspaceRoot: project.rootPath,
-  cwd: project.rootPath,
+  cwd: projectRootPath,
+  runtimeWorkspaceRoots: [{
+    folderId: primaryFolder.id,
+    path: projectRootPath,
+    role: 'primary' as const,
+  }],
+  instructionSources: [],
   outputDirectory: null,
 }
 
@@ -209,7 +226,7 @@ describe('desktop thread settings client', () => {
     }
     const client = createDesktopClient({ fetch: fetcher })
     const created = await client.createSession({
-      workspacePath: project.rootPath,
+      workspacePath: projectRootPath,
       sessionName: 'Plan 会话',
       permissionConfig: settings.permissionConfig,
       planModeActive: true,
@@ -403,29 +420,29 @@ describe('desktop thread settings client', () => {
       },
     })
 
-    expect(await client.listMcpServers(project.rootPath)).toMatchObject([{
+    expect(await client.listMcpServers(projectRootPath)).toMatchObject([{
       name: 'fixture',
       scope: 'local',
       effective: true,
       diagnosticContext: true,
     }])
-    expect(await client.getMcpRuntimeStatus(project.rootPath)).toMatchObject({
+    expect(await client.getMcpRuntimeStatus(projectRootPath)).toMatchObject({
       servers: [{ name: 'fixture', state: 'connected', toolCount: 2 }],
     })
     await client.saveMcpServer({
       ...server,
-      workspacePath: project.rootPath,
+      workspacePath: projectRootPath,
       originalName: 'old-fixture',
     })
-    await client.setMcpServerEnabled('fixture', 'local', false, project.rootPath)
-    await client.removeMcpServer('fixture', 'local', project.rootPath)
-    await client.reloadMcpConfiguration(project.rootPath)
-    const oauth = await client.startMcpOAuth('fixture', 'local', project.rootPath)
+    await client.setMcpServerEnabled('fixture', 'local', false, projectRootPath)
+    await client.removeMcpServer('fixture', 'local', projectRootPath)
+    await client.reloadMcpConfiguration(projectRootPath)
+    const oauth = await client.startMcpOAuth('fixture', 'local', projectRootPath)
     expect(oauth.attemptId).toBe('oauth-attempt')
     expect(await client.getMcpOAuthStatus(oauth.attemptId)).toEqual({
       state: 'completed',
     })
-    expect(await client.logoutMcpOAuth('fixture', 'local', project.rootPath)).toEqual({
+    expect(await client.logoutMcpOAuth('fixture', 'local', projectRootPath)).toEqual({
       generation: 6,
     })
 
@@ -441,7 +458,7 @@ describe('desktop thread settings client', () => {
       'mcp/oauth/logout',
     ])
     for (const request of requests.filter(request => request.method !== 'mcp/oauth/status')) {
-      expect(request.params.workspace).toBe(project.rootPath)
+      expect(request.params.workspace).toBe(projectRootPath)
     }
     expect(requests[7]?.params).toEqual({ attemptId: 'oauth-attempt' })
     expect(requests[2]?.params).toMatchObject({
@@ -944,12 +961,12 @@ describe('desktop thread settings client', () => {
       overview: { user: { login: 'octocat' } },
     })
     expect(await client.pushWorkspaceBranch({
-      workspacePath: project.rootPath,
+      workspacePath: projectRootPath,
       setUpstream: true,
       forceWithLease: false,
     })).toMatchObject({ ok: true, status: { branchName: 'feature' } })
     expect(await client.createPullRequest({
-      workspacePath: project.rootPath,
+      workspacePath: projectRootPath,
       title: 'PR title',
       body: 'PR body',
       draft: true,

@@ -5,13 +5,14 @@ import { RepositoryDatabase } from "../repositories/RepositoryDatabase"
 import { credentialRepositoryDatabase } from "../repositories/credential-repository"
 import { executionRepository } from "../repositories/execution-repository"
 import { interactionRepository } from "../repositories/interaction-repository"
+import { projectRepository } from "../repositories/project-repository"
 import { reviewRepository } from "../repositories/review-repository"
 import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
 import { threadRepository } from "../repositories/thread-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
 import { recoverInterruptedRuns } from "../recovery/interrupted-run-recovery"
 import { configureConnection } from "./connection"
-import { initializeSchema } from "./schema-initializer"
+import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
 import { DATA_EPOCH } from "./schema"
 import { prepareStorage, type StoragePaths } from "./reset"
 
@@ -47,6 +48,7 @@ export class AgentDatabase extends RepositoryDatabase {
     try {
       initializeSchema(profileSqlite, "profile")
       initializeSchema(sqlite, "history")
+      backfillProjectThreadWorkspaces(sqlite, profileSqlite)
     } catch (cause) {
       sqlite.close()
       profileSqlite.close()
@@ -58,6 +60,7 @@ export class AgentDatabase extends RepositoryDatabase {
       executions: executionRepository(this),
       interactions: interactionRepository(this),
       subagents: subagentRepositoryDatabase(this),
+      projects: projectRepository(this),
       workspaces: workspaceRepository(this),
       reviews: reviewRepository(this),
       credentials: credentialRepositoryDatabase(this),

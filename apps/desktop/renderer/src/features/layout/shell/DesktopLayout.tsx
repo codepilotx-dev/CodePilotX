@@ -85,7 +85,6 @@ import type {
   SidebarSectionId,
 } from '../../../../shared/types.js'
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { upsertRecentWorkspace } from '../../../../shared/settings.js'
 import {
   QUICK_CHAT_PATH,
   sessionPath,
@@ -153,10 +152,15 @@ function hasOpenDialog(): boolean {
 function createFilePreviewTabId(
   workspacePath: string,
   relativePath: string,
+  projectId = '',
+  folderId = '',
 ): `file:${string}` {
   const normalizedWorkspace = workspacePath.replace(/\\/g, '/').toLowerCase()
   const normalizedFile = relativePath.replace(/\\/g, '/').toLowerCase()
-  return `file:${encodeURIComponent(`${normalizedWorkspace}\u0000${normalizedFile}`)}`
+  const scope = projectId || folderId
+    ? `${projectId}\u0000${folderId}\u0000`
+    : ''
+  return `file:${encodeURIComponent(`${scope}${normalizedWorkspace}\u0000${normalizedFile}`)}`
 }
 
 function resolveWorkspaceFileReference(
@@ -1823,22 +1827,36 @@ export function DesktopLayout(): React.ReactNode {
 	    ],
 	  )
 
-	  const handlePinWorkspace = useCallback(
-	    (target: DesktopWorkspace): void => {
-	      setRecentWorkspaces(current =>
-	        upsertRecentWorkspace(current, { ...target, pinnedAt: new Date().toISOString() }),
-	      )
-	    },
-	    [setRecentWorkspaces],
-	  )
-
-	  const handleUnpinWorkspace = useCallback(
-	    (target: DesktopWorkspace): void => {
-	      setRecentWorkspaces(current =>
-	        upsertRecentWorkspace(current, { ...target, pinnedAt: null }),
-	      )
-	    },
+  const setProjectPinnedAt = useCallback(
+    (target: DesktopWorkspace, pinnedAt: string | null): void => {
+      setRecentWorkspaces(current => {
+        const matchesTarget = (item: DesktopWorkspace): boolean =>
+          target.projectId
+            ? item.projectId === target.projectId
+            : !item.projectId && item.path === target.path
+        const nextProject = { ...target, pinnedAt }
+        const index = current.findIndex(matchesTarget)
+        if (index < 0) return [nextProject, ...current]
+        return current.map((item, itemIndex) =>
+          itemIndex === index ? nextProject : item,
+        )
+      })
+    },
     [setRecentWorkspaces],
+  )
+
+  const handlePinWorkspace = useCallback(
+    (target: DesktopWorkspace): void => {
+      setProjectPinnedAt(target, new Date().toISOString())
+    },
+    [setProjectPinnedAt],
+  )
+
+  const handleUnpinWorkspace = useCallback(
+    (target: DesktopWorkspace): void => {
+      setProjectPinnedAt(target, null)
+    },
+    [setProjectPinnedAt],
   )
 
   const handleToggleSidebarSection = useCallback(
@@ -1918,9 +1936,8 @@ export function DesktopLayout(): React.ReactNode {
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
-      onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
-      onRemoveWorkspace={handleRemoveWorkspace}
       onPinWorkspace={handlePinWorkspace}
+      onRemoveWorkspace={handleRemoveWorkspace}
       onUnpinWorkspace={handleUnpinWorkspace}
       collapsedSidebarSections={collapsedSidebarSections}
       onToggleSidebarSection={handleToggleSidebarSection}
@@ -2245,7 +2262,11 @@ export function DesktopLayout(): React.ReactNode {
           ? 'bottom'
           : null
       if (!target) return
-      void prefetchFileDocument(tab.workspacePath, tab.relativePath).catch(
+      void prefetchFileDocument(
+        tab.workspacePath,
+        tab.relativePath,
+        { projectId: tab.projectId, folderId: tab.folderId },
+      ).catch(
         error =>
           handleFileLoadError({
             error:
@@ -2262,12 +2283,22 @@ export function DesktopLayout(): React.ReactNode {
   const handleOpenFilePreview = useCallback(
     (target: WorkbenchPanelTarget, file: DesktopFileEntry): void => {
       if (file.type !== 'file' || !currentWorkspace) return
-      const tabId = createFilePreviewTabId(currentWorkspace.path, file.path)
+      const workspacePath = file.rootPath ?? currentWorkspace.path
+      const tabId = createFilePreviewTabId(
+        workspacePath,
+        file.path,
+        currentWorkspace.projectId,
+        file.folderId,
+      )
       retryExistingFileTab(tabId)
       openPanelTab(target, {
         id: tabId,
         kind: 'file-preview',
-        workspacePath: currentWorkspace.path,
+        workspacePath,
+        ...(currentWorkspace.projectId
+          ? { projectId: currentWorkspace.projectId }
+          : {}),
+        ...(file.folderId ? { folderId: file.folderId } : {}),
         relativePath: file.path,
         preview: true,
       })
@@ -2278,13 +2309,22 @@ export function DesktopLayout(): React.ReactNode {
   const handleOpenFileFromBrowser = useCallback(
     (target: WorkbenchPanelTarget, file: DesktopFileEntry): void => {
       if (file.type !== 'file' || !currentWorkspace) return
-      const workspacePath = currentWorkspace.path
-      const tabId = createFilePreviewTabId(workspacePath, file.path)
+      const workspacePath = file.rootPath ?? currentWorkspace.path
+      const tabId = createFilePreviewTabId(
+        workspacePath,
+        file.path,
+        currentWorkspace.projectId,
+        file.folderId,
+      )
       retryExistingFileTab(tabId)
       openPanelTab(target, {
         id: tabId,
         kind: 'file-preview',
         workspacePath,
+        ...(currentWorkspace.projectId
+          ? { projectId: currentWorkspace.projectId }
+          : {}),
+        ...(file.folderId ? { folderId: file.folderId } : {}),
         relativePath: file.path,
         preview: false,
       })
@@ -2355,7 +2395,12 @@ export function DesktopLayout(): React.ReactNode {
       // Asynchronously probe unknown paths to determine if directory or file
       const probeRequestId = ++directoryProbeRequestId
       desktopClient
-        .listWorkspaceFiles(currentWorkspace.path, resolved.relativePath)
+        .listWorkspaceFiles(
+          currentWorkspace.path,
+          resolved.relativePath,
+          currentWorkspace.primaryFolderId,
+          currentWorkspace.projectId,
+        )
         .then(() => {
           // Probe succeeded → it's a directory
           if (directoryProbeRequestId === probeRequestId) {
@@ -2387,12 +2432,20 @@ export function DesktopLayout(): React.ReactNode {
           const tabId = createFilePreviewTabId(
             currentWorkspace.path,
             resolved.relativePath,
+            currentWorkspace.projectId,
+            currentWorkspace.primaryFolderId,
           )
           retryExistingFileTab(tabId)
           openPanelTab('right', {
             id: tabId,
             kind: 'file-preview',
             workspacePath: currentWorkspace.path,
+            ...(currentWorkspace.projectId
+              ? { projectId: currentWorkspace.projectId }
+              : {}),
+            ...(currentWorkspace.primaryFolderId
+              ? { folderId: currentWorkspace.primaryFolderId }
+              : {}),
             relativePath: resolved.relativePath,
             preview: options.preview,
             ...(reference.line ? { line: reference.line } : {}),
@@ -2436,6 +2489,10 @@ export function DesktopLayout(): React.ReactNode {
         const document = await prefetchFileDocument(
           currentWorkspace.path,
           resolved.relativePath,
+          {
+            projectId: currentWorkspace.projectId,
+            folderId: currentWorkspace.primaryFolderId,
+          },
         )
         await navigator.clipboard.writeText(document.draftContent)
       } catch (error) {

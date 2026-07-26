@@ -160,7 +160,7 @@ export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
 
 export type StoredThreadWorkspace =
-  | { kind: "project"; projectID: string; workspaceRoot: string; cwd: string; outputDirectory: null }
+  | { kind: "project"; projectID: string; cwd: string; runtimeWorkspaceRoots: Array<{ folderId: string; path: string; role: "primary" | "secondary" }>; instructionSources: string[]; outputDirectory: null }
   | { kind: "projectless"; projectID: null; workspaceRoot: string; cwd: string; outputDirectory: string }
 
 export type CreateThreadInput = {

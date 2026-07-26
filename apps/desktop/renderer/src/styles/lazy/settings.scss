@@ -8,4 +8,5 @@
   @include meta.load-css('../features/settings-billing');
   @include meta.load-css('../features/settings-memory');
   @include meta.load-css('../features/settings-pet');
+  @include meta.load-css('../features/settings-environment');
 }

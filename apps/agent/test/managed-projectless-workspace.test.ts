@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, mkdir, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { basename, join } from "node:path"
+import { basename, join, resolve } from "node:path"
 import { ManagedProjectlessWorkspaceService, projectlessWorkspaceSlug } from "../src/workspace/ManagedProjectlessWorkspaceService"
 import { ThreadWorkspaceResolver } from "../src/workspace/ThreadWorkspaceResolver"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
@@ -83,5 +83,43 @@ describe("ManagedProjectlessWorkspaceService", () => {
     } finally {
       db.close()
     }
+  })
+
+  test("项目 resolver 保留持久 cwd，并刷新当前可用目录根", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-project-workspace-test-"))
+    roots.push(root)
+    const primary = join(root, "primary")
+    const secondary = join(root, "secondary")
+    const missing = join(root, "missing")
+    const cwd = join(secondary, "work")
+    await Promise.all([mkdir(primary), mkdir(cwd, { recursive: true })])
+    const db = {
+      threadWorkspace: () => ({
+        kind: "project" as const,
+        projectID: "project",
+        cwd,
+        runtimeWorkspaceRoots: [],
+        instructionSources: [join(primary, "AGENTS.md")],
+        outputDirectory: null,
+      }),
+      getProject: () => ({
+        id: "project",
+        primaryFolderId: "primary",
+        folders: [
+          { id: "primary", path: primary, role: "primary" as const, availability: "available" as const },
+          { id: "secondary", path: secondary, role: "secondary" as const, availability: "available" as const },
+          { id: "missing", path: missing, role: "secondary" as const, availability: "missing" as const },
+        ],
+      }),
+    }
+    const resolver = new ThreadWorkspaceResolver(db as never, null as never)
+
+    const resolved = await resolver.resolve("thread")
+
+    expect(resolved.cwd).toBe(resolve(cwd))
+    expect(resolved.workspaceRoot).toBe(resolve(primary))
+    expect(resolved.workspace.roots).toEqual([resolve(primary), resolve(secondary)])
+    expect(resolved.runtimeWorkspaceRoots.map(({ folderId }) => folderId)).toEqual(["primary", "secondary"])
+    expect(resolved.instructionSources).toEqual([join(primary, "AGENTS.md")])
   })
 })

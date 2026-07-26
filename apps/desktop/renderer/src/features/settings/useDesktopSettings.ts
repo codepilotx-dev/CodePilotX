@@ -28,6 +28,7 @@ import type {
   DesktopThinkingMode,
   DesktopWorkspace,
   ModelProviderID,
+  ProjectAppearance,
   SidebarProductMode,
   SidebarSectionId,
 } from '../../../shared/types.js'
@@ -66,6 +67,7 @@ export type UseDesktopSettingsResult = {
   appendSystemPrompt: string
   additionalDirectories: string
   recentWorkspaces: DesktopWorkspace[]
+  projectAppearances: Record<string, ProjectAppearance>
   drawerTab: DrawerTab
   selectedModelPreset: string
   providerID: ModelProviderID
@@ -124,6 +126,13 @@ export type UseDesktopSettingsResult = {
   setAdditionalDirectories: (value: string) => void
   setRecentWorkspaces: (
     value: DesktopWorkspace[] | ((current: DesktopWorkspace[]) => DesktopWorkspace[]),
+  ) => void
+  setProjectAppearances: (
+    value:
+      | Record<string, ProjectAppearance>
+      | ((
+          current: Record<string, ProjectAppearance>,
+        ) => Record<string, ProjectAppearance>),
   ) => void
   setDrawerTab: (value: DrawerTab) => void
   setSelectedModelPreset: (value: string) => void
@@ -344,6 +353,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [recentWorkspaces, setRecentWorkspaces] = useState<DesktopWorkspace[]>(
     initial.recentWorkspaces,
   )
+  const [projectAppearances, setProjectAppearances] = useState<
+    Record<string, ProjectAppearance>
+  >(initial.projectAppearances)
   const [lastActiveWorkspacePath, setLastActiveWorkspacePath] = useState(
     initial.lastActiveWorkspacePath,
   )
@@ -521,6 +533,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setAppendSystemPrompt(settings.appendSystemPrompt)
         setAdditionalDirectories(settings.additionalDirectories)
         setRecentWorkspaces(settings.recentWorkspaces)
+        setProjectAppearances(settings.projectAppearances)
         setLastActiveWorkspacePath(settings.lastActiveWorkspacePath)
         setRemovedWorkspaces(settings.removedWorkspaces)
         setDrawerTab(settings.drawerTab)
@@ -598,6 +611,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       appendSystemPrompt,
       additionalDirectories,
       recentWorkspaces,
+      projectAppearances,
       lastActiveWorkspacePath,
       removedWorkspaces,
       drawerTab,
@@ -662,6 +676,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       appendSystemPrompt,
       additionalDirectories,
       recentWorkspaces,
+      projectAppearances,
       lastActiveWorkspacePath,
       removedWorkspaces,
       drawerTab,
@@ -779,6 +794,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setAppendSystemPrompt(snapshot.appendSystemPrompt)
       setAdditionalDirectories(snapshot.additionalDirectories)
       setRecentWorkspaces(snapshot.recentWorkspaces)
+      setProjectAppearances(snapshot.projectAppearances)
       setLastActiveWorkspacePath(snapshot.lastActiveWorkspacePath)
       setRemovedWorkspaces(snapshot.removedWorkspaces)
       setDrawerTab(snapshot.drawerTab)
@@ -940,6 +956,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     appendSystemPrompt,
     additionalDirectories,
     recentWorkspaces,
+    projectAppearances,
     drawerTab,
     selectedModelPreset,
     providerID,
@@ -997,6 +1014,7 @@ defaultOpenTargetId,
     setAppendSystemPrompt,
     setAdditionalDirectories,
     setRecentWorkspaces,
+    setProjectAppearances,
     setDrawerTab,
     setSelectedModelPreset,
     setProviderID,
@@ -1048,6 +1066,12 @@ function cloneDesktopSettings(
     recentWorkspaces: settings.recentWorkspaces.map(workspace => ({
       ...workspace,
     })),
+    projectAppearances: Object.fromEntries(
+      Object.entries(settings.projectAppearances).map(([projectId, appearance]) => [
+        projectId,
+        { ...appearance },
+      ]),
+    ),
     removedWorkspaces: settings.removedWorkspaces.map(workspace => ({
       ...workspace,
     })),

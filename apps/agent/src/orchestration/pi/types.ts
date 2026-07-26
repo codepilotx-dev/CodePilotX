@@ -90,6 +90,17 @@ export interface PiToolAdapterOptions {
 export interface PiLifecycleCallbacks {
   skillList?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   skillRead?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
+  projectSourceList?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
+  projectSourceRead?(
+    input: { sourceId: string; offset?: number; length?: number },
+    toolCallID: string,
+    signal?: AbortSignal,
+  ): Promise<{
+    source: { id: string; name: string; kind: "text" | "image" }
+    data: Uint8Array
+    mediaType: string
+    range: { offset: number; length: number; total: number }
+  }>
   requestUserInput?(input: { question: string; options?: string[] }, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   requestPermissions?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   spawnAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>

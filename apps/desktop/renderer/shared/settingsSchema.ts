@@ -11,6 +11,9 @@ import type {
   DesktopFollowUpBehavior,
   DesktopPermissionMode,
   DesktopPersonality,
+  ProjectAppearance,
+  ProjectAppearanceColor,
+  ProjectAppearanceIcon,
   DesktopReviewView,
   DesktopSandboxMode,
   DesktopSidebarOrganization,
@@ -91,7 +94,59 @@ export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
 
 export const MAX_RECENT_WORKSPACES = 5
 export const MAX_REMOVED_WORKSPACES = 50
-export const SIDEBAR_STATE_VERSION = 1
+export const SIDEBAR_STATE_VERSION = 2
+
+export const PROJECT_APPEARANCE_COLORS: readonly ProjectAppearanceColor[] = [
+  'default',
+  'red',
+  'orange',
+  'yellow',
+  'green',
+  'blue',
+  'purple',
+  'pink',
+]
+
+export const PROJECT_APPEARANCE_ICONS: readonly ProjectAppearanceIcon[] = [
+  'folder',
+  'dollar',
+  'book',
+  'graduation',
+  'edit',
+  'writing',
+  'function',
+  'terminal',
+  'music',
+  'popcorn',
+  'customize',
+  'palette',
+  'stethoscope',
+  'health',
+  'plant',
+  'suitcase',
+  'chart',
+  'kettlebell',
+  'dumbbell',
+  'logs',
+  'scale',
+  'globe',
+  'wrench',
+  'paw',
+  'flask',
+  'brain',
+  'heart',
+  'flower',
+  'paintbrush',
+  'plane',
+]
+
+export const DEFAULT_PROJECT_APPEARANCE: ProjectAppearance = {
+  color: 'default',
+  icon: 'folder',
+}
+
+const PROJECT_APPEARANCE_COLOR_SET = new Set(PROJECT_APPEARANCE_COLORS)
+const PROJECT_APPEARANCE_ICON_SET = new Set(PROJECT_APPEARANCE_ICONS)
 
 export const VALID_SIDEBAR_SECTION_IDS: readonly SidebarSectionId[] = [
   'pinned',
@@ -120,6 +175,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     appendSystemPrompt: '',
     additionalDirectories: '',
     recentWorkspaces: [],
+    projectAppearances: {},
     drawerTab: 'files',
     selectedModelPreset: '',
     providerID: '',
@@ -180,7 +236,6 @@ export function normalizeDesktopStoredSettings(
       ? (value as Partial<DesktopStoredSettings>)
       : {}
   const defaults = defaultDesktopStoredSettings()
-  const rawSidebarSort = (parsed as { sidebarSort?: unknown }).sidebarSort
   const permissionMode = normalizeDesktopPermissionMode(parsed.permissionMode)
   const legacyPermissionProfile = normalizeDesktopPermissionProfile(parsed.permissionProfile, ':workspace')
   const sandboxMode = isDesktopSandboxMode(parsed.sandboxMode)
@@ -274,6 +329,7 @@ export function normalizeDesktopStoredSettings(
       defaults.additionalDirectories,
     ),
     recentWorkspaces: normalizeDesktopWorkspaces(parsed.recentWorkspaces),
+    projectAppearances: normalizeProjectAppearances(parsed.projectAppearances),
     drawerTab: isDesktopDrawerTab(parsed.drawerTab)
       ? parsed.drawerTab
       : defaults.drawerTab,
@@ -392,9 +448,7 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.rustSearchAndDiffKernels === 'boolean'
         ? parsed.rustSearchAndDiffKernels
         : defaults.rustSearchAndDiffKernels,
-    sidebarOrganization: isDesktopSidebarOrganization(parsed.sidebarOrganization)
-      ? parsed.sidebarOrganization
-      : defaults.sidebarOrganization,
+    sidebarOrganization: 'projects',
     sidebarProductMode: isSidebarProductMode(parsed.sidebarProductMode)
       ? parsed.sidebarProductMode
       : defaults.sidebarProductMode,
@@ -404,16 +458,8 @@ export function normalizeDesktopStoredSettings(
       && parsed.sidebarStateVersion >= 0
         ? parsed.sidebarStateVersion
         : 0,
-    sidebarSort:
-      rawSidebarSort === 'recent'
-        ? 'updated'
-        : isDesktopSidebarSort(rawSidebarSort)
-          ? rawSidebarSort
-          : defaults.sidebarSort,
-    sidebarManualOrder: normalizeSidebarManualOrder(
-      parsed.sidebarManualOrder,
-      defaults.sidebarManualOrder,
-    ),
+    sidebarSort: 'priority',
+    sidebarManualOrder: {},
     sidebarSessionPins: normalizeStringRecord(
       parsed.sidebarSessionPins,
       defaults.sidebarSessionPins,
@@ -422,9 +468,7 @@ export function normalizeDesktopStoredSettings(
       parsed.collapsedSidebarProjectPaths,
       defaults.collapsedSidebarProjectPaths,
     ),
-    sidebarSectionOrder: normalizeSidebarSectionOrder(
-      parsed.sidebarSectionOrder,
-    ),
+    sidebarSectionOrder: [...VALID_SIDEBAR_SECTION_IDS],
     browserAllowedSites: normalizeStringList(
       parsed.browserAllowedSites,
       defaults.browserAllowedSites,
@@ -614,8 +658,21 @@ export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {
     if (typeof workspace.path !== 'string') return []
       return [
         {
+          projectId:
+            typeof workspace.projectId === 'string'
+              ? workspace.projectId
+              : undefined,
           name: workspace.name,
           path: workspace.path,
+          ...(typeof workspace.lastOpenedAt === 'string'
+            ? { lastOpenedAt: workspace.lastOpenedAt }
+            : {}),
+          primaryFolderId:
+            typeof workspace.primaryFolderId === 'string'
+              ? workspace.primaryFolderId
+              : undefined,
+          folders: normalizeProjectFolders(workspace.folders),
+          projectSettings: normalizeProjectSettings(workspace.projectSettings),
           branchName:
             typeof workspace.branchName === 'string'
               ? workspace.branchName
@@ -683,7 +740,11 @@ export function upsertRecentWorkspace(
   workspace: DesktopWorkspace,
 ): DesktopWorkspace[] {
   if (workspace.isStandalone) return workspaces
-  const index = workspaces.findIndex(item => item.path === workspace.path)
+  const index = workspaces.findIndex(item =>
+    workspace.projectId
+      ? item.projectId === workspace.projectId
+      : !item.projectId && item.path === workspace.path,
+  )
   if (index >= 0) {
     // Update in-place without changing position
     const next = [...workspaces]
@@ -697,6 +758,51 @@ export function upsertRecentWorkspace(
   }
   // Append new workspace to the end
   return [...workspaces, workspace].slice(-MAX_RECENT_WORKSPACES)
+}
+
+function normalizeProjectFolders(
+  value: DesktopWorkspace['folders'] | undefined,
+): DesktopWorkspace['folders'] {
+  if (!Array.isArray(value)) return undefined
+  return value.flatMap(folder => {
+    if (
+      !folder ||
+      typeof folder.id !== 'string' ||
+      typeof folder.name !== 'string' ||
+      typeof folder.path !== 'string' ||
+      (folder.role !== 'primary' && folder.role !== 'secondary')
+    ) {
+      return []
+    }
+    return [{
+      id: folder.id,
+      name: folder.name,
+      path: folder.path,
+      role: folder.role,
+      availability:
+        folder.availability === 'missing' ? 'missing' as const : 'available' as const,
+      order: typeof folder.order === 'number' ? folder.order : 0,
+      createdAt: typeof folder.createdAt === 'number' ? folder.createdAt : 0,
+      updatedAt: typeof folder.updatedAt === 'number' ? folder.updatedAt : 0,
+    }]
+  })
+}
+
+function normalizeProjectSettings(
+  value: DesktopWorkspace['projectSettings'] | undefined,
+): DesktopWorkspace['projectSettings'] {
+  if (
+    !value ||
+    typeof value.instructions !== 'string' ||
+    typeof value.version !== 'number'
+  ) {
+    return undefined
+  }
+  return {
+    defaultModel: value.defaultModel ?? null,
+    instructions: value.instructions,
+    version: value.version,
+  }
 }
 
 export function mergeDesktopBrowserAllowedSites(
@@ -845,6 +951,35 @@ function normalizeStringRecord(
       continue
     }
     normalized[key] = new Date(timestamp).toISOString()
+  }
+  return normalized
+}
+
+export function normalizeProjectAppearances(
+  value: unknown,
+): Record<string, ProjectAppearance> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const normalized: Record<string, ProjectAppearance> = {}
+  for (const [rawProjectId, rawAppearance] of Object.entries(value)) {
+    const projectId = normalizeUtf8String(rawProjectId)
+    if (
+      !projectId ||
+      projectId in normalized ||
+      !rawAppearance ||
+      typeof rawAppearance !== 'object' ||
+      Array.isArray(rawAppearance)
+    ) {
+      continue
+    }
+    const appearance = rawAppearance as Record<string, unknown>
+    normalized[projectId] = {
+      color: PROJECT_APPEARANCE_COLOR_SET.has(appearance.color as ProjectAppearanceColor)
+        ? appearance.color as ProjectAppearanceColor
+        : DEFAULT_PROJECT_APPEARANCE.color,
+      icon: PROJECT_APPEARANCE_ICON_SET.has(appearance.icon as ProjectAppearanceIcon)
+        ? appearance.icon as ProjectAppearanceIcon
+        : DEFAULT_PROJECT_APPEARANCE.icon,
+    }
   }
   return normalized
 }

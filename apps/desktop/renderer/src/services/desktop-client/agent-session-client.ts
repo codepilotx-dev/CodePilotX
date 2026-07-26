@@ -86,6 +86,8 @@ import type {
   DesktopInstalledSkillDetails,
   DesktopMcpServerListItem,
   DesktopPullRequestResult,
+  DesktopProjectSource,
+  DesktopProjectSourceReadResult,
   DesktopSettingsChange,
   DesktopSessionStoreChange,
   DesktopSessionSnapshot,
@@ -641,18 +643,95 @@ export function createAgentSessionDesktopClient(
 
   async function loadProjectsById(refresh = false): Promise<Map<string, Project>> {
     if (projectsByIdCache && !refresh) return projectsByIdCache
-    const response = await rpc.call('project/list', {})
+    const response = await rpc.call<{ projects: Project[] }>('project/list', {})
     projectsByIdCache = new Map(response.projects.map(project => [project.id, project]))
     return projectsByIdCache
   }
 
   async function loadProjectForPath(rootPath: string): Promise<Project> {
-    const response = await rpc.call('project/open', {
-      rootPath,
-      operationId: crypto.randomUUID(),
-    })
+    const listed = await rpc.call<{ projects: Project[] }>(
+      'project/list',
+      { folderPath: rootPath },
+    )
+    if (listed.projects.length > 1) {
+      throw new Error('该目录属于多个项目，请先选择具体项目。')
+    }
+    const existing = listed.projects[0]
+    const response = existing
+      ? await rpc.call<{ project: Project }>('project/open', {
+          projectId: existing.id,
+          operationId: crypto.randomUUID(),
+        })
+      : await rpc.call<{ project: Project }>('project/create', {
+          primaryPath: rootPath,
+          operationId: crypto.randomUUID(),
+        })
     projectsByIdCache = null
     return response.project
+  }
+
+  async function chooseProjectForPath(rootPath: string): Promise<Project | null> {
+    const listed = await rpc.call<{ projects: Project[] }>(
+      'project/list',
+      { folderPath: rootPath },
+    )
+    if (listed.projects.length === 0) {
+      return (await rpc.call<{ project: Project }>('project/create', {
+        primaryPath: rootPath,
+        operationId: crypto.randomUUID(),
+      })).project
+    }
+
+    const choices = listed.projects
+      .map((project, index) => `${index + 1}. ${project.name}`)
+      .join('\n')
+    const selection = typeof window === 'undefined'
+      ? '1'
+      : window.prompt(
+          `该目录已属于以下项目：\n${choices}\n\n输入序号打开项目，输入 0 仍然创建新项目；取消则不打开。`,
+          '1',
+        )
+    if (selection === null) return null
+    if (selection.trim() === '0') {
+      return (await rpc.call<{ project: Project }>('project/create', {
+        primaryPath: rootPath,
+        operationId: crypto.randomUUID(),
+      })).project
+    }
+    const selectedIndex = Number(selection) - 1
+    const selected = listed.projects[selectedIndex]
+    if (!selected) throw new Error('项目选择无效。')
+    return (await rpc.call<{ project: Project }>('project/open', {
+      projectId: selected.id,
+      operationId: crypto.randomUUID(),
+    })).project
+  }
+
+  async function loadProjectById(projectId: string): Promise<Project> {
+    const cached = (await loadProjectsById()).get(projectId)
+    if (cached) return cached
+    const response = await rpc.call<{ project: Project }>('project/open', {
+      projectId,
+      operationId: crypto.randomUUID(),
+    })
+    projectsByIdCache = new Map([[response.project.id, response.project]])
+    return response.project
+  }
+
+  function projectFolderId(
+    project: Project,
+    requested?: string,
+    workspacePath?: string,
+  ): string {
+    if (requested) return requested
+    if (workspacePath) {
+      const normalized = workspacePath.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+      const matching = project.folders.find(folder =>
+        folder.path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase() === normalized
+      )
+      if (matching) return matching.id
+    }
+    return project.primaryFolderId
   }
 
   async function listAgentSessions(
@@ -1091,7 +1170,12 @@ export function createAgentSessionDesktopClient(
       environment.window?.codePilotXDesktop?.chooseDataLocation
         ? environment.window.codePilotXDesktop.chooseDataLocation(
             [...(await loadProjectsById()).values()]
-              .map(project => project.rootPath)
+              .map(
+                project =>
+                  project.folders.find(
+                    folder => folder.id === project.primaryFolderId,
+                  )?.path,
+              )
               .filter((path): path is string => typeof path === 'string'),
           )
         : mockClient.chooseDataLocation(),
@@ -1855,19 +1939,185 @@ export function createAgentSessionDesktopClient(
         'restoreSessionTurnChanges',
         () => mockClient.restoreSessionTurnChanges(input),
       ),
+    listProjects: folderPath =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ projects: Project[] }>('project/list', {
+            ...(folderPath ? { folderPath } : {}),
+            limit: 100,
+          })
+          return result.projects.map(project =>
+            projectToDesktopWorkspace(project, project.id),
+          )
+        },
+        () => mockClient.listProjects(folderPath),
+      ),
+    updateProject: input =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ project: Project }>('project/update', {
+            ...input,
+            operationId: crypto.randomUUID(),
+          })
+          projectsByIdCache = null
+          return projectToDesktopWorkspace(result.project, input.projectId)
+        },
+        () => mockClient.updateProject(input),
+      ),
+    removeProject: projectId =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ archivedThreadCount: number }>(
+            'project/remove',
+            {
+              projectId,
+              operationId: crypto.randomUUID(),
+            },
+          )
+          projectsByIdCache = null
+          return result
+        },
+        () => mockClient.removeProject(projectId),
+      ),
+    addProjectFolder: (projectId, path) =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ project: Project }>('project/folder/add', {
+            projectId,
+            path,
+            operationId: crypto.randomUUID(),
+          })
+          projectsByIdCache = null
+          return projectToDesktopWorkspace(result.project, projectId)
+        },
+        () => mockClient.addProjectFolder(projectId, path),
+      ),
+    removeProjectFolder: (projectId, folderId) =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ project: Project }>('project/folder/remove', {
+            projectId,
+            folderId,
+            operationId: crypto.randomUUID(),
+          })
+          projectsByIdCache = null
+          return projectToDesktopWorkspace(result.project, projectId)
+        },
+        () => mockClient.removeProjectFolder(projectId, folderId),
+      ),
+    setPrimaryProjectFolder: (projectId, folderId) =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ project: Project }>('project/folder/set-primary', {
+            projectId,
+            folderId,
+            operationId: crypto.randomUUID(),
+          })
+          projectsByIdCache = null
+          return projectToDesktopWorkspace(result.project, projectId)
+        },
+        () => mockClient.setPrimaryProjectFolder(projectId, folderId),
+      ),
+    updateProjectSettings: input =>
+      withAgentOrMock(
+        async () => {
+          const { projectId, expectedVersion, ...settings } = input
+          await rpc.call('project/settings/update', {
+            projectId,
+            settings,
+            expectedVersion,
+            operationId: crypto.randomUUID(),
+          })
+          projectsByIdCache = null
+          const project = await loadProjectById(projectId)
+          return projectToDesktopWorkspace(project, projectId)
+        },
+        () => mockClient.updateProjectSettings(input),
+      ),
+    listProjectSources: projectId =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ sources: DesktopProjectSource[] }>('project/source/list', {
+            projectId,
+            limit: 100,
+          })
+          return result.sources as DesktopProjectSource[]
+        },
+        () => mockClient.listProjectSources(projectId),
+      ),
+    importProjectSources: (projectId, uploads) =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ sources: DesktopProjectSource[] }>('project/source/import', {
+            projectId,
+            uploads,
+            operationId: crypto.randomUUID(),
+          })
+          return result.sources as DesktopProjectSource[]
+        },
+        () => mockClient.importProjectSources(projectId, uploads),
+      ),
+    addProjectSourceReference: (projectId, folderId, path) =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ sources: DesktopProjectSource[] }>('project/source/reference/add', {
+            projectId,
+            folderId,
+            path,
+            operationId: crypto.randomUUID(),
+          })
+          return result.sources as DesktopProjectSource[]
+        },
+        () => mockClient.addProjectSourceReference(projectId, folderId, path),
+      ),
+    readProjectSource: (projectId, sourceId, range) =>
+      withAgentOrMock(
+        async () =>
+          rpc.call<DesktopProjectSourceReadResult>('project/source/read', {
+            projectId,
+            sourceId,
+            ...(range ? { range } : {}),
+          }),
+        () => mockClient.readProjectSource(projectId, sourceId, range),
+      ),
+    removeProjectSource: (projectId, sourceId) =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ removed: boolean }>('project/source/remove', {
+            projectId,
+            sourceId,
+            operationId: crypto.randomUUID(),
+          })
+          return result.removed
+        },
+        () => mockClient.removeProjectSource(projectId, sourceId),
+      ),
+    chooseProjectFolder: async () => {
+      const picker = environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
+      return picker ? picker() : mockClient.chooseProjectFolder()
+    },
     chooseWorkspace: async () => {
       const picker = environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
       if (!picker) return mockClient.chooseWorkspace()
       const workspacePath = await picker()
       if (!workspacePath) return null
       return withAgentOrMock(
-        async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
+        async () => {
+          const project = await chooseProjectForPath(workspacePath)
+          return project ? projectToDesktopWorkspace(project, project.id) : null
+        },
         () => mockClient.openWorkspace(workspacePath),
       )
     },
-    openWorkspace: workspacePath =>
+    openWorkspace: (workspacePath, projectId) =>
       withAgentOrMock(
-        async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
+        async () => projectToDesktopWorkspace(
+          projectId
+            ? await loadProjectById(projectId)
+            : await chooseProjectForPath(workspacePath)
+              ?? (() => { throw new Error('已取消选择项目。') })(),
+          projectId ?? null,
+        ),
         () => mockClient.openWorkspace(workspacePath),
       ),
     getWorkspaceContext: workspacePath =>
@@ -1875,38 +2125,63 @@ export function createAgentSessionDesktopClient(
         async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
         () => mockClient.getWorkspaceContext(workspacePath),
       ),
-    listWorkspaceFiles: (workspacePath, directoryPath = '.') =>
+    listWorkspaceFiles: (workspacePath, directoryPath = '.', folderId, projectId) =>
       withAgentOrMock(
         async () => {
-          const project = await loadProjectForPath(workspacePath)
+          const project = projectId
+            ? await loadProjectById(projectId)
+            : await loadProjectForPath(workspacePath)
           const result = await rpc.call<{ entries: DesktopFileEntry[] }>(
             'workspace/file/list',
-            { projectId: project.id, path: directoryPath },
+            {
+              projectId: project.id,
+              folderId: projectFolderId(project, folderId, workspacePath),
+              path: directoryPath,
+            },
           )
           return result.entries
         },
         () => mockClient.listWorkspaceFiles(workspacePath, directoryPath),
       ),
-    readWorkspaceFile: (workspacePath, filePath) =>
+    readWorkspaceFile: (workspacePath, filePath, folderId, projectId) =>
       withAgentOrMock(
         async () => {
-          const project = await loadProjectForPath(workspacePath)
-          return rpc.call<DesktopFilePreview>('workspace/file/read', {
+          const project = projectId
+            ? await loadProjectById(projectId)
+            : await loadProjectForPath(workspacePath)
+          const preview = await rpc.call<DesktopFilePreview>('workspace/file/read', {
             projectId: project.id,
+            folderId: projectFolderId(project, folderId, workspacePath),
             path: filePath,
           })
+          return {
+            ...preview,
+            projectId: project.id,
+            folderId: projectFolderId(project, folderId, workspacePath),
+            rootPath: workspacePath,
+          }
         },
         () => mockClient.readWorkspaceFile(workspacePath, filePath),
       ),
-    readOptionalWorkspaceFile: (workspacePath, filePath) =>
+    readOptionalWorkspaceFile: (workspacePath, filePath, folderId, projectId) =>
       withAgentOrMock(
         async () => {
-          const project = await loadProjectForPath(workspacePath)
+          const project = projectId
+            ? await loadProjectById(projectId)
+            : await loadProjectForPath(workspacePath)
           try {
-            return await rpc.call<DesktopFilePreview>('workspace/file/read', {
+            const resolvedFolderId = projectFolderId(project, folderId, workspacePath)
+            const preview = await rpc.call<DesktopFilePreview>('workspace/file/read', {
               projectId: project.id,
+              folderId: resolvedFolderId,
               path: filePath,
             })
+            return {
+              ...preview,
+              projectId: project.id,
+              folderId: resolvedFolderId,
+              rootPath: workspacePath,
+            }
           } catch {
             return null
           }
@@ -1916,12 +2191,16 @@ export function createAgentSessionDesktopClient(
     saveWorkspaceFile: input =>
       withAgentOrMock(
         async (): Promise<DesktopFileSaveResult> => {
-          const project = await loadProjectForPath(input.workspacePath)
+          const project = input.projectId
+            ? await loadProjectById(input.projectId)
+            : await loadProjectForPath(input.workspacePath)
+          const folderId = projectFolderId(project, input.folderId, input.workspacePath)
           const result = await rpc.call<
             | { outcome: 'saved'; revision: DesktopFileRevision }
             | { outcome: 'conflict'; revision: DesktopFileRevision }
           >('workspace/file/save', {
             projectId: project.id,
+            folderId,
             path: input.filePath,
             content: input.content,
             expectedRevision: input.expectedRevision,
@@ -1929,7 +2208,7 @@ export function createAgentSessionDesktopClient(
           if (result.outcome === 'saved') return result
           const latest = await rpc.call<DesktopFilePreview>(
             'workspace/file/read',
-            { projectId: project.id, path: input.filePath },
+            { projectId: project.id, folderId, path: input.filePath },
           )
           return {
             outcome: 'conflict',
@@ -1939,23 +2218,29 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.saveWorkspaceFile(input),
       ),
-    watchWorkspaceFile: (workspacePath, filePath) =>
+    watchWorkspaceFile: (workspacePath, filePath, folderId, projectId) =>
       withAgentOrMock(
         async () => {
-          const project = await loadProjectForPath(workspacePath)
+          const project = projectId
+            ? await loadProjectById(projectId)
+            : await loadProjectForPath(workspacePath)
           await rpc.call('workspace/file/watch', {
             projectId: project.id,
+            folderId: projectFolderId(project, folderId, workspacePath),
             path: filePath,
           })
         },
         () => mockClient.watchWorkspaceFile(workspacePath, filePath),
       ),
-    unwatchWorkspaceFile: (workspacePath, filePath) =>
+    unwatchWorkspaceFile: (workspacePath, filePath, folderId, projectId) =>
       withAgentOrMock(
         async () => {
-          const project = await loadProjectForPath(workspacePath)
+          const project = projectId
+            ? await loadProjectById(projectId)
+            : await loadProjectForPath(workspacePath)
           await rpc.call('workspace/file/unwatch', {
             projectId: project.id,
+            folderId: projectFolderId(project, folderId, workspacePath),
             path: filePath,
           })
         },
@@ -2462,9 +2747,11 @@ export function createAgentSessionDesktopClient(
       withAgentOrMock<CreateDesktopSessionResult>(
         async () => {
           const workspacePath = options.workspacePath?.trim()
-          const project = workspacePath
-            ? await loadProjectForPath(workspacePath)
-            : null
+          const project = options.projectId
+            ? await loadProjectById(options.projectId)
+            : workspacePath
+              ? await loadProjectForPath(workspacePath)
+              : null
           const collaborationMode = resolveCodePilotXCollaborationMode({
             collaborationMode: options.collaborationMode,
             planModeActive: options.planModeActive,

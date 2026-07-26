@@ -4,8 +4,7 @@ import { WorkspaceService } from "../workspace/WorkspaceService"
 import type { PermissionConfig, SandboxMode } from "@codepilotx/shared/thread"
 import type { Model } from "@codepilotx/model-schema"
 import type { ToolExecutionMode as PiToolExecutionMode } from "@codepilotx/pi-agent-core"
-import { isAbsolute, relative, resolve, sep } from "node:path"
-import { realpath } from "node:fs/promises"
+import { isAbsolute, relative, resolve } from "node:path"
 import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
 import { nativeGlobWorkspace, nativeGrepWorkspace } from "./NativeWorkspaceSearch"
 
@@ -89,17 +88,27 @@ const shellSchema = z.object({
 }).strict()
 const shellInputSchema = jsonObject({ command: { type: "string", maxLength: 32_000 }, timeout: { type: "number", maximum: 600_000 }, description: { type: "string", maxLength: 2_000 } }, ["command"])
 
-const searchPath = async (context: ToolContext, value?: string) => {
-  const requested = value?.trim() || "."
-  const root = await realpath(context.workspace.rootPath)
+const searchPaths = async (context: ToolContext, value?: string) => {
+  if (!value?.trim()) {
+    return context.workspace.roots.map((root) => ({
+      root,
+      target: ".",
+      nativeTarget: root === context.workspace.rootPath ? "." : root,
+    }))
+  }
+  const requested = value.trim()
   if (!isAbsolute(requested) && requested.split(/[\\/]+/).includes("..")) {
     throw new AgentError("WORKSPACE_PATH_DENIED", "搜索路径不得通过 .. 越出工作区", 403)
   }
-  const canonical = await realpath(isAbsolute(requested) ? resolve(requested) : resolve(root, requested))
-    .catch(() => { throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "搜索路径不存在或不可访问", 404) })
-  const child = relative(root, canonical)
-  if (child === ".." || child.startsWith(`..${sep}`) || isAbsolute(child)) throw new AgentError("WORKSPACE_PATH_DENIED", "搜索路径不在当前工作区内", 403)
-  return { root, target: child ? child.replaceAll("\\", "/") : "." }
+  const canonical = await context.workspace.resolveDirectory(requested)
+  const owner = context.workspace.rootForPath(canonical)
+  if (!owner) throw new AgentError("WORKSPACE_PATH_DENIED", "搜索路径不在当前工作区内", 403)
+  const child = relative(owner.path, canonical)
+  return [{
+    root: owner.path,
+    target: child ? child.replaceAll("\\", "/") : ".",
+    nativeTarget: context.workspace.displayPath(canonical),
+  }]
 }
 
 const resolveRipgrep = async (context: ToolContext) => {
@@ -110,8 +119,8 @@ const resolveRipgrep = async (context: ToolContext) => {
   return resolution
 }
 
-const ripgrep = async (context: ToolContext, executable: string, args: readonly string[]) => {
-  const result = await (context.runToolProcess ?? runToolProcess)({ executable, args, cwd: context.workspace.rootPath, signal: context.signal, timeoutMs: 10_000, maxOutputBytes: 8 * 1024 * 1024 })
+const ripgrep = async (context: ToolContext, executable: string, args: readonly string[], cwd = context.workspace.rootPath) => {
+  const result = await (context.runToolProcess ?? runToolProcess)({ executable, args, cwd, signal: context.signal, timeoutMs: 10_000, maxOutputBytes: 8 * 1024 * 1024 })
   if (result.exitCode !== 0 && result.exitCode !== 1) throw new AgentError("WORKSPACE_SEARCH_FAILED", result.stderr || `ripgrep 退出码 ${result.exitCode}`, 400)
   return result
 }
@@ -119,9 +128,27 @@ const ripgrep = async (context: ToolContext, executable: string, args: readonly 
 type RgEvent = { type?: string; data?: { path?: { text?: string }; lines?: { text?: string }; line_number?: number | null; submatches?: unknown[] } }
 
 const grepWorkspace = async (input: any, context: ToolContext) => {
-  const { target } = await searchPath(context, input.path)
+  const targets = await searchPaths(context, input.path)
   const resolution = await resolveRipgrep(context)
-  if (!resolution.available) return nativeGrepWorkspace(input, context, target)
+  if (!resolution.available) {
+    const results = await Promise.all(targets.map((target) => nativeGrepWorkspace(
+      { ...input, offset: 0, head_limit: 1_000 },
+      context,
+      target.nativeTarget,
+    )))
+    const offset = input.offset ?? 0
+    const limit = input.head_limit ?? 200
+    if (input.output_mode === "files_with_matches") {
+      const files = results.flatMap((result) => "files" in result ? result.files : [])
+      return { files: files.slice(offset, offset + limit), truncated: results.some((result) => result.truncated) || files.length > offset + limit, engine: "native-fallback" as const }
+    }
+    if (input.output_mode === "count") {
+      const counts = results.flatMap((result) => "counts" in result ? result.counts : [])
+      return { counts: counts.slice(offset, offset + limit), truncated: results.some((result) => result.truncated) || counts.length > offset + limit, engine: "native-fallback" as const }
+    }
+    const matches = results.flatMap((result) => "matches" in result ? result.matches : [])
+    return { matches: matches.slice(offset, offset + limit), truncated: results.some((result) => result.truncated) || matches.length > offset + limit, engine: "native-fallback" as const }
+  }
   const before = input["-B"] ?? input["-C"] ?? input.context ?? 0
   const after = input["-A"] ?? input["-C"] ?? input.context ?? 0
   const args = ["--json", "--color", "never", "--no-messages", "--sort", "path"]
@@ -131,27 +158,34 @@ const grepWorkspace = async (input: any, context: ToolContext) => {
   if (after) args.push("--after-context", String(after))
   if (input.glob) args.push("--glob", input.glob)
   if (input.type) args.push("--type", input.type)
-  args.push("--", input.pattern, target)
-  const result = await ripgrep(context, resolution.path, args)
   const matches: Array<{ path: string; line?: number; text: string; before?: string[]; after?: string[] }> = []
   const counts = new Map<string, number>()
   const contexts = new Map<string, Map<number, string>>()
-  for (const raw of result.stdout.toString("utf8").split(/\r?\n/)) {
-    if (!raw) continue
-    let event: RgEvent
-    try { event = JSON.parse(raw) as RgEvent } catch { throw new AgentError("WORKSPACE_SEARCH_INVALID_OUTPUT", "ripgrep 返回了无法解析的输出", 502) }
-    const path = event.data?.path?.text?.replaceAll("\\", "/")
-    const text = event.data?.lines?.text?.replace(/\r?\n$/, "")
-    const line = event.data?.line_number ?? undefined
-    if (!path || text === undefined || line === undefined) continue
-    if (event.type === "context") {
-      const byLine = contexts.get(path) ?? new Map<number, string>()
-      byLine.set(line, text)
-      contexts.set(path, byLine)
-    } else if (event.type === "match") {
-      const occurrences = Math.max(1, event.data?.submatches?.length ?? 1)
-      counts.set(path, (counts.get(path) ?? 0) + occurrences)
-      for (let index = 0; index < occurrences; index += 1) matches.push({ path, ...(input["-n"] === false ? {} : { line }), text: text.slice(0, 8_000) })
+  const searches = await Promise.all(targets.map(async (target) => ({
+    target,
+    result: await ripgrep(context, resolution.path, [...args, "--", input.pattern, target.target], target.root),
+  })))
+  for (const { target, result } of searches) {
+    for (const raw of result.stdout.toString("utf8").split(/\r?\n/)) {
+      if (!raw) continue
+      let event: RgEvent
+      try { event = JSON.parse(raw) as RgEvent } catch { throw new AgentError("WORKSPACE_SEARCH_INVALID_OUTPUT", "ripgrep 返回了无法解析的输出", 502) }
+      const rawPath = event.data?.path?.text
+      const path = rawPath
+        ? context.workspace.displayPath(isAbsolute(rawPath) ? resolve(rawPath) : resolve(target.root, rawPath))
+        : undefined
+      const text = event.data?.lines?.text?.replace(/\r?\n$/, "")
+      const line = event.data?.line_number ?? undefined
+      if (!path || text === undefined || line === undefined) continue
+      if (event.type === "context") {
+        const byLine = contexts.get(path) ?? new Map<number, string>()
+        byLine.set(line, text)
+        contexts.set(path, byLine)
+      } else if (event.type === "match") {
+        const occurrences = Math.max(1, event.data?.submatches?.length ?? 1)
+        counts.set(path, (counts.get(path) ?? 0) + occurrences)
+        for (let index = 0; index < occurrences; index += 1) matches.push({ path, ...(input["-n"] === false ? {} : { line }), text: text.slice(0, 8_000) })
+      }
     }
   }
   for (const match of matches) {
@@ -239,12 +273,24 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     capabilities: { ...noCapabilities(), filesystem: "read", process: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
     progress: (input) => ({ message: `正在匹配 ${input.pattern}` }),
     execute: async (input, context) => {
-      const { target } = await searchPath(context, input.path)
+      const targets = await searchPaths(context, input.path)
       const limit = input.limit ?? 200
       const resolution = await resolveRipgrep(context)
-      if (!resolution.available) return nativeGlobWorkspace(input, context, target)
-      const result = await ripgrep(context, resolution.path, ["--files", "--null", "--color", "never", "--sort", "path", "--glob", input.pattern, "--", target])
-      const all = result.stdout.toString("utf8").split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/"))
+      if (!resolution.available) {
+        const results = await Promise.all(targets.map((target) => nativeGlobWorkspace({ ...input, limit: 500 }, context, target.nativeTarget)))
+        const all = results.flatMap((result) => result.matches).sort((left, right) => left.localeCompare(right))
+        return { matches: all.slice(0, limit), truncated: results.some((result) => result.truncated) || all.length > limit, visited: results.reduce((sum, result) => sum + result.visited, 0), engine: "native-fallback" as const }
+      }
+      const all: string[] = []
+      const searches = await Promise.all(targets.map(async (target) => ({
+        target,
+        result: await ripgrep(context, resolution.path, ["--files", "--null", "--color", "never", "--sort", "path", "--glob", input.pattern, "--", target.target], target.root),
+      })))
+      for (const { target, result } of searches) {
+        all.push(...result.stdout.toString("utf8").split("\0").filter(Boolean).map((path) =>
+          context.workspace.displayPath(isAbsolute(path) ? resolve(path) : resolve(target.root, path))))
+      }
+      all.sort((left, right) => left.localeCompare(right))
       return { matches: all.slice(0, limit), truncated: all.length > limit, visited: all.length, engine: "ripgrep" as const }
     },
   },

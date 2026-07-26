@@ -98,6 +98,7 @@ export async function createSessionForWorkspaceAction(
 ): Promise<string | null> {
   try {
     const session = await desktopClient.createSession({
+      projectId: target?.projectId,
       workspacePath: target?.path,
       projectlessPrompt: target ? undefined : projectlessPrompt,
       localRouterMode: settings.localRouterMode,

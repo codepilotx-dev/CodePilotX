@@ -5,10 +5,10 @@ import { createToolExposurePlan, type ToolExposureInput } from "./ToolExposurePl
 import { DEFAULT_PERMISSION_CONFIG, type PermissionConfig, type ShellInput } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { runHostCommand, type ProcessResult, type SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
-import { generateSandboxPolicy } from "../sandbox/SandboxPolicy"
+import { generateSandboxPolicy, pathContains } from "../sandbox/SandboxPolicy"
 import { mkdtemp, realpath, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { dirname, isAbsolute, join, relative, resolve } from "node:path"
+import { dirname, isAbsolute, join, resolve } from "node:path"
 import { PermissionDecisionEngine } from "../permission/PermissionDecisionEngine"
 import { analyzeShellRisk } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
@@ -295,9 +295,8 @@ export class ToolExecutor {
       : resolve(context.defaultCwd ?? workspaceRoot)
     const cwd = await realpath(requestedCwd).catch(() => { throw new AgentError("SHELL_CWD_NOT_FOUND", "Shell cwd 不存在或无法解析", 400) })
     if (permissionConfig.sandboxMode !== "danger-full-access") {
-      const relativePath = relative(workspaceRoot, cwd)
-      const outsideWorkspace = relativePath.startsWith("..") || isAbsolute(relativePath)
-      if (outsideWorkspace && !(shell.additionalPermissions?.readPaths ?? []).some((path) => path === cwd || cwd.startsWith(path + "\\"))) {
+      const outsideWorkspace = !context.workspace.containsPath(cwd)
+      if (outsideWorkspace && !(shell.additionalPermissions?.readPaths ?? []).some((path) => pathContains(path, cwd))) {
         throw new AgentError("SHELL_CWD_PERMISSION_REQUIRED", "工作区外 cwd 必须在 additionalPermissions.readPaths 中声明", 403)
       }
     }
@@ -350,6 +349,8 @@ export class ToolExecutor {
       return await this.withSandboxTemp(async (sessionTemp) => {
         const policy = generateSandboxPolicy({
           workspace: workspaceRoot,
+          workspaceRoots: context.workspace.roots,
+          writableWorkspaceRoots: context.workspace.writableRoots,
           sessionTemp,
           dataDir: options.dataDir,
           permissionConfig,
@@ -409,8 +410,7 @@ export class ToolExecutor {
       ...(shell.additionalPermissions.networkDomains ? { networkDomains: [...new Set(shell.additionalPermissions.networkDomains.map((domain) => domain.trim().toLowerCase()))] } : {}),
     } : undefined
     if (JSON.stringify(normalizedPermissions ?? {}) !== JSON.stringify(shell.additionalPermissions ?? {})) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation permissions 已变化", 409)
-    const relativeCwd = relative(workspaceRoot, cwd)
-    if ((relativeCwd.startsWith("..") || isAbsolute(relativeCwd)) && !(shell.additionalPermissions?.readPaths ?? []).some((path) => path === cwd || cwd.startsWith(path + "\\"))) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation cwd 不在已审批路径内", 409)
+    if (!context.workspace.containsPath(cwd) && !(shell.additionalPermissions?.readPaths ?? []).some((path) => pathContains(path, cwd))) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation cwd 不在已审批路径内", 409)
     const staticRisk = analyzeShellRisk({ command: shell.command, cwd, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), justification: "一次性 sandbox failure escalation" })
     if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
     const auditInvocation = secretScrubber.scrub({ ...escalation.invocation, id: crypto.randomUUID(), name: "shell.host-escalation", input: { ...input, escalationToken: token, failureSummary: escalation.failure } })

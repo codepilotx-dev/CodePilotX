@@ -6,6 +6,8 @@ import { SRT_PROXY_PORT_RANGE } from "./SandboxRuntimeManifest"
 
 export interface SandboxPolicyOptions {
   workspace: string
+  workspaceRoots?: readonly string[]
+  writableWorkspaceRoots?: readonly string[]
   sessionTemp: string
   dataDir: string
   permissionConfig: PermissionConfig
@@ -18,6 +20,7 @@ export interface SandboxPolicyOptions {
 export interface GeneratedSandboxPolicy {
   config: SandboxRuntimeConfig
   workspace: string
+  workspaceRoots: string[]
   sessionTemp: string
   protectedRead: string[]
   protectedWrite: string[]
@@ -103,6 +106,7 @@ function protectedWorkspacePaths(workspace: string) {
   return [
     join(workspace, ".git", "config"),
     join(workspace, ".git", "hooks"),
+    join(workspace, ".codepilotx", "config.toml"),
     join(workspace, ".codepilotx", "hooks.json"),
     join(workspace, ".codepilotx", "skills"),
     join(workspace, ".claude", "skills"),
@@ -139,28 +143,30 @@ const coveredByAny = (roots: readonly string[], candidate: string) =>
 
 export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedSandboxPolicy {
   const workspace = resolve(options.workspace)
+  const workspaceRoots = unique([workspace, ...(options.workspaceRoots ?? [])])
+  const writableWorkspaceRoots = unique(options.writableWorkspaceRoots ?? workspaceRoots)
   const sessionTemp = resolve(options.sessionTemp)
   const additional = options.additionalPermissions ?? {}
   const requestedRead = unique((additional.readPaths ?? []).map((path) => expandRequestedPath(workspace, path)))
   const requestedWrite = unique((additional.writePaths ?? []).map((path) => expandRequestedPath(workspace, path)))
   const requestedDomains = [...new Set((additional.networkDomains ?? []).map((domain) => domain.trim().toLowerCase()).filter(Boolean))]
   const immutableSecretPaths = userSecretPaths().map((path) => resolve(path))
-  const allowRead = unique([workspace, sessionTemp, ...(options.trustedReadPaths ?? []), ...requestedRead])
+  const allowRead = unique([...workspaceRoots, sessionTemp, ...(options.trustedReadPaths ?? []), ...requestedRead])
   const allowWrite = unique([
     sessionTemp,
-    ...(options.permissionConfig.sandboxMode === "workspace-write" ? [workspace] : []),
+    ...(options.permissionConfig.sandboxMode === "workspace-write" ? writableWorkspaceRoots : []),
     ...(options.permissionConfig.sandboxMode === "read-only" ? [] : requestedWrite),
   ])
   const protectedReadCandidates = unique([
     options.dataDir,
     ...immutableSecretPaths,
-    ...sensitiveWorkspaceReads(workspace),
+    ...workspaceRoots.flatMap(sensitiveWorkspaceReads),
   ]).filter((path) =>
     path === resolve(options.dataDir)
     || immutableSecretPaths.includes(path)
     || !requestedCovers(requestedRead, path))
   const protectedWriteCandidates = unique([
-    ...protectedWorkspacePaths(workspace),
+    ...workspaceRoots.flatMap(protectedWorkspacePaths),
   ]).filter((path) => !requestedCovers(requestedWrite, path)).concat(unique([
     options.dataDir,
     ...(process.env.APPDATA ? [process.env.APPDATA] : []),
@@ -205,6 +211,7 @@ export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedS
   return {
     config: base,
     workspace,
+    workspaceRoots,
     sessionTemp,
     protectedRead,
     protectedWrite,

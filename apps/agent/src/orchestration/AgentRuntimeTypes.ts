@@ -32,6 +32,27 @@ export interface DelegationController {
   stop(input: { taskID: string }): Promise<unknown>
 }
 
+export interface ProjectSourceRuntimeAccess {
+  list(): Promise<unknown>
+  read(
+    sourceID: string,
+    range?: { offset: number; length: number },
+  ): Promise<{
+    source: {
+      id: string
+      name: string
+      kind: "text" | "image"
+    }
+    data: Uint8Array
+    mediaType: string
+    range: {
+      offset: number
+      length: number
+      total: number
+    }
+  }>
+}
+
 export interface AgentRuntimeRequest {
   threadID: string
   turnID: string
@@ -53,6 +74,7 @@ export interface AgentRuntimeRequest {
   defaultModeRequestUserInput?: boolean
   promptSections?: PromptSection[]
   skillService?: SkillService
+  projectSources?: ProjectSourceRuntimeAccess
   allowedTools?: readonly string[]
   toolCatalog?: ToolCatalog
   onPromptComposed?: (bundle: PromptBundle, context: { budgetText: string }) => void | Promise<void>

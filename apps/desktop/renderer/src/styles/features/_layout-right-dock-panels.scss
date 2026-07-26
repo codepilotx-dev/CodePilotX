@@ -791,3 +791,48 @@
   padding-right: 6px;
   font-size: 13px;
 }
+.workspace-file-tree-groups {
+  min-height: 0;
+  overflow: auto;
+}
+
+.workspace-file-tree-group {
+  border-bottom: 1px solid var(--color-app-border);
+}
+
+.workspace-file-tree-group-header {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  height: 2rem;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--color-app-chrome);
+  padding: 0 0.625rem;
+  color: var(--color-app-text);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-label);
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    flex: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  em {
+    border-radius: 999px;
+    background: var(--color-app-panel);
+    padding: 0.125rem 0.4rem;
+    color: var(--color-app-accent);
+    font-size: 0.625rem;
+    font-style: normal;
+  }
+}
+
+.workspace-file-tree-group .workspace-file-tree {
+  min-height: 3rem;
+  max-height: 18rem;
+}

@@ -36,6 +36,7 @@
   @include meta.load-css('shell');
   @include meta.load-css('features/layout-chrome');
   @include meta.load-css('features/layout-sidebar');
+  @include meta.load-css('features/project-management');
   @include meta.load-css('features/layout-workbench');
   @include meta.load-css('features/layout-workspace-header');
   @include meta.load-css('features/layout-right-dock');

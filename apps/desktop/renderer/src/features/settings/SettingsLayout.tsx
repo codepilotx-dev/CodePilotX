@@ -14,8 +14,15 @@ import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutl
 import '../../styles/lazy/settings.scss'
 
 export function SettingsLayout(): React.ReactNode {
-  const { tab = '' } = useParams<{ tab: string }>()
-  const activeTab = decodeURIComponent(tab)
+  const { tab, projectId } = useParams<{
+    tab?: string
+    projectId?: string
+  }>()
+  const activeTab = tab
+    ? decodeURIComponent(tab)
+    : projectId
+      ? 'environment'
+      : ''
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const settings = useDesktopSettings()

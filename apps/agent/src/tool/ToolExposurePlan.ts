@@ -3,7 +3,8 @@ import type { SandboxMode } from "@codepilotx/shared/thread"
 import type { ToolCatalog } from "./ToolRegistry"
 
 export const PI_LIFECYCLE_TOOLS = [
-  "skill_list", "skill_read", "request_user_input", "request_permissions",
+  "skill_list", "skill_read", "project_source_list", "project_source_read",
+  "request_user_input", "request_permissions",
   "spawn_agents", "wait_agents", "send_agent", "stop_agent",
   "finalize_plan", "finalize_result",
 ] as const
@@ -13,6 +14,7 @@ export interface ToolExposureInput {
   sandboxMode: SandboxMode
   profile?: SubagentProfile
   hasSkillService?: boolean
+  hasProjectSources?: boolean
   continueFromPlan?: boolean
   defaultModeRequestUserInput?: boolean
   allowedTools?: readonly string[]
@@ -33,6 +35,7 @@ export function createToolExposurePlan(catalog: ToolCatalog, input: ToolExposure
   const deferredCandidates = definitions.filter((tool) => tool.visibility === "deferred").map((tool) => tool.sdkName)
   const lifecycle: string[] = []
   if (input.hasSkillService) lifecycle.push("skill_list", "skill_read")
+  if (input.hasProjectSources) lifecycle.push("project_source_list", "project_source_read")
   if (profile !== "main") lifecycle.push("finalize_result")
   else {
     if ((input.taskMode === "plan" && !input.continueFromPlan) || input.defaultModeRequestUserInput) lifecycle.push("request_user_input")

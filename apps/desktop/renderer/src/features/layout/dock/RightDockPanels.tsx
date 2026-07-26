@@ -304,6 +304,8 @@ export function RightDockFilesPanel({
 
 export function RightDockFilePreviewPanel({
   workspacePath,
+  projectId,
+  folderId,
   expectedPath,
   revealLine,
   previewTab,
@@ -318,6 +320,8 @@ export function RightDockFilePreviewPanel({
   onLoadError,
 }: {
   workspacePath: string
+  projectId?: string
+  folderId?: string
   expectedPath: string
   revealLine?: number
   previewTab: boolean
@@ -348,7 +352,8 @@ export function RightDockFilePreviewPanel({
   const layoutRef = useRef<HTMLDivElement | null>(null)
   const initialLoadKeyRef = useRef<string | null>(null)
   const onLoadErrorRef = useRef(onLoadError)
-  const document = useFileDocument(workspacePath, expectedPath)
+  const documentScope = { projectId, folderId }
+  const document = useFileDocument(workspacePath, expectedPath, documentScope)
   const language = resolveLanguageFromPath(expectedPath)
   const isMarkdown = isMarkdownFilePath(expectedPath)
   const resolvedMarkdownViewMode = isMarkdown
@@ -360,25 +365,34 @@ export function RightDockFilePreviewPanel({
   }, [onLoadError])
 
   useEffect(() => {
-    const loadKey = `${workspacePath}\u0000${expectedPath}`
+    const loadKey = `${projectId ?? ''}\u0000${folderId ?? ''}\u0000${workspacePath}\u0000${expectedPath}`
     if (initialLoadKeyRef.current === loadKey) return
     initialLoadKeyRef.current = loadKey
-    void prefetchFileDocument(workspacePath, expectedPath).catch(error => {
+    void prefetchFileDocument(
+      workspacePath,
+      expectedPath,
+      documentScope,
+    ).catch(error => {
       if (initialLoadKeyRef.current !== loadKey) return
       onLoadErrorRef.current?.(
         error instanceof Error ? error : new Error(String(error)),
         'initial',
       )
     })
-  }, [expectedPath, workspacePath])
+  }, [expectedPath, folderId, projectId, workspacePath])
 
   useEffect(() => {
     if (document.status !== 'ready') return
-    return startFileDocumentExternalChecks(workspacePath, expectedPath, {
-      onLoadError: error =>
-        onLoadErrorRef.current?.(error, 'external-sync'),
-    })
-  }, [document.status, expectedPath, workspacePath])
+    return startFileDocumentExternalChecks(
+      workspacePath,
+      expectedPath,
+      {
+        onLoadError: error =>
+          onLoadErrorRef.current?.(error, 'external-sync'),
+      },
+      documentScope,
+    )
+  }, [document.status, expectedPath, folderId, projectId, workspacePath])
 
   useEffect(() => {
     writeFileTreeViewState(workspacePath, {
@@ -464,7 +478,7 @@ export function RightDockFilePreviewPanel({
     try {
       if (
         document.dirty &&
-        !(await saveFileDocument(workspacePath, expectedPath))
+        !(await saveFileDocument(workspacePath, expectedPath, documentScope))
       ) {
         return
       }
@@ -562,13 +576,20 @@ export function RightDockFilePreviewPanel({
                     path={expectedPath}
                     saving={document.saving}
                     onChangeLocal={value =>
-                      updateFileDocument(workspacePath, expectedPath, value)
+                      updateFileDocument(
+                        workspacePath,
+                        expectedPath,
+                        value,
+                        documentScope,
+                      )
                     }
                     onKeepLocal={() =>
                       resolveFileDocumentConflict(
                         workspacePath,
                         expectedPath,
                         'local',
+                        undefined,
+                        documentScope,
                       )
                     }
                     onUseDisk={() =>
@@ -576,6 +597,8 @@ export function RightDockFilePreviewPanel({
                         workspacePath,
                         expectedPath,
                         'disk',
+                        undefined,
+                        documentScope,
                       )
                     }
                   />
@@ -597,10 +620,19 @@ export function RightDockFilePreviewPanel({
                     value={document.draftContent}
                     onChange={value => {
                       if (previewTab) onPinTab()
-                      updateFileDocument(workspacePath, expectedPath, value)
+                      updateFileDocument(
+                        workspacePath,
+                        expectedPath,
+                        value,
+                        documentScope,
+                      )
                     }}
                     onSave={async () => {
-                      await saveFileDocument(workspacePath, expectedPath)
+                      await saveFileDocument(
+                        workspacePath,
+                        expectedPath,
+                        documentScope,
+                      )
                     }}
                   />
                 )}

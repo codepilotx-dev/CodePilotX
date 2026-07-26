@@ -34,6 +34,8 @@ import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
 import { AttachmentService } from "./subagent/AttachmentService";
 import { SqliteAttachmentCatalog } from "./subagent/SqliteAttachmentCatalog";
+import { ProjectSourceService } from "./project/ProjectSourceService";
+import { ProjectService } from "./project/ProjectService";
 import { MemoryService } from "./memory/MemoryService";
 import { secretScrubber } from "./security/SecretScrubber";
 import { HookService } from "./hooks/HookService";
@@ -398,6 +400,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         catalog: new SqliteAttachmentCatalog(db),
       }),
     );
+    const projectSources = yield* Effect.promise(() =>
+      ProjectSourceService.open(config.dataDir, db),
+    );
+    yield* Effect.promise(() =>
+      new ProjectService(db, projectSources).recoverPendingRemovals(),
+    );
     const memory = new MemoryService(db, {
       enabled: () =>
         (configService.snapshot().features as Record<string, unknown> | undefined)
@@ -467,6 +475,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       hooks,
       skills,
       mcpConnections,
+      projectSources,
     );
     const threads = new ThreadService(
       db,
@@ -488,6 +497,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       skills,
       mcpConnections,
       configService,
+      projectSources,
     );
     const history = new ThreadHistoryService(db, hub);
     const app = createApp({
@@ -501,6 +511,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       questions,
       subagents,
       attachments,
+      projectSources,
       providers,
       integrations,
       apiKeys,

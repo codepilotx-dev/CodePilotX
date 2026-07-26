@@ -169,6 +169,42 @@ describe("沙箱与脱敏", () => {
     } finally { await rm(root, { recursive: true, force: true }) }
   })
 
+  test("多根工作区在 workspace-write 下全部可写且逐根保护配置", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-multi-root-policy-"))
+    try {
+      const primary = join(root, "primary")
+      const secondary = join(root, "secondary")
+      const sessionTemp = join(root, "temp")
+      const dataDir = join(root, "data")
+      await Promise.all([mkdir(primary), mkdir(secondary), mkdir(sessionTemp), mkdir(dataDir)])
+      const policy = generateSandboxPolicy({
+        workspace: primary,
+        workspaceRoots: [primary, secondary],
+        sessionTemp,
+        dataDir,
+        permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "never", approvalsReviewer: "user" },
+      })
+
+      expect(policy.config.filesystem?.allowRead).toEqual([resolve(primary), resolve(secondary), resolve(sessionTemp)])
+      expect(policy.config.filesystem?.allowWrite).toEqual([resolve(sessionTemp), resolve(primary), resolve(secondary)])
+      for (const workspace of [primary, secondary]) {
+        expect(policy.config.filesystem?.denyWrite).toContain(resolve(workspace, ".git", "config"))
+        expect(policy.config.filesystem?.denyWrite).toContain(resolve(workspace, ".codepilotx", "config.toml"))
+        expect(policy.config.filesystem?.denyWrite).toContain(resolve(workspace, ".codepilotx", "skills"))
+      }
+      const worktree = generateSandboxPolicy({
+        workspace: primary,
+        workspaceRoots: [primary, secondary],
+        writableWorkspaceRoots: [primary],
+        sessionTemp,
+        dataDir,
+        permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "never", approvalsReviewer: "user" },
+      })
+      expect(worktree.config.filesystem?.allowRead).toContain(resolve(secondary))
+      expect(worktree.config.filesystem?.allowWrite).not.toContain(resolve(secondary))
+    } finally { await rm(root, { recursive: true, force: true }) }
+  })
+
   test("命令、对象字段和输出凭据统一脱敏", () => {
     expect(secretScrubber.scrubText("Authorization: Bearer abc.def.ghi")).toContain("<redacted>")
     expect(secretScrubber.scrub({ command: "api_key=super-secret", stdout: "ghp_abcdefghijklmnopqrstuvwxyz", password: "raw" })).toEqual({ command: "api_key=<redacted>", stdout: "<redacted>", password: "<redacted>" })

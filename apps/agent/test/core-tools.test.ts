@@ -210,6 +210,27 @@ describe("核心工具面", () => {
     await expect(executor.execute("Glob", { pattern: "*.ts", path: "../outside" }, context)).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
   })
 
+  test("未指定路径时 Glob/Grep 搜索所有项目根并区分附加目录结果", async () => {
+    const resolveTooling: ToolingResolver = async () => ({ available: false, code: "SYSTEM_TOOL_NOT_FOUND", reason: "未找到 ripgrep" })
+    const { root, executor, context } = await fixture({ resolveTooling })
+    const secondary = await mkdtemp(join(tmpdir(), "codepilotx-core-tools-secondary-"))
+    temporary.push(secondary)
+    await Bun.write(join(root, "primary.ts"), "export const needle = 'primary'")
+    await Bun.write(join(secondary, "secondary.ts"), "export const needle = 'secondary'")
+    const workspace = await WorkspaceService.openRoots({
+      primaryRoot: root,
+      roots: [
+        { path: root, role: "primary" },
+        { path: secondary, role: "secondary" },
+      ],
+    })
+
+    const glob = await executor.execute<any>("Glob", { pattern: "*.ts" }, { ...context, workspace })
+    expect(glob.matches).toEqual(["primary.ts", join(secondary, "secondary.ts")].sort((left, right) => left.localeCompare(right)))
+    const grep = await executor.execute<any>("Grep", { pattern: "needle", output_mode: "files_with_matches" }, { ...context, workspace })
+    expect(grep.files).toEqual(["primary.ts", join(secondary, "secondary.ts")])
+  })
+
   test("ripgrep 不可用时 Glob/Grep 使用有界原生降级", async () => {
     const resolveTooling: ToolingResolver = async () => ({ available: false, code: "SYSTEM_TOOL_NOT_FOUND", reason: "未找到 ripgrep" })
     const runToolProcess: ToolProcessRunner = async () => { throw new Error("原生降级不得启动 ripgrep") }

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import type { DesktopFilePreview } from '../shared/types.js'
 import {
   checkFileDocumentForExternalChange,
+  fileDocumentKey,
   prefetchFileDocument,
   startFileDocumentExternalChecks,
 } from '../src/features/workspace/fileDocumentStore.js'
@@ -22,6 +23,23 @@ afterEach(() => {
 })
 
 describe('file document external checks', () => {
+  test('uses project and folder identity to isolate identical relative paths', () => {
+    const workspacePath = 'C:\\shared'
+    const path = 'README.md'
+    const first = fileDocumentKey(workspacePath, path, {
+      projectId: 'project-a',
+      folderId: 'folder-a',
+    })
+    expect(fileDocumentKey(workspacePath, path, {
+      projectId: 'project-b',
+      folderId: 'folder-a',
+    })).not.toBe(first)
+    expect(fileDocumentKey(workspacePath, path, {
+      projectId: 'project-a',
+      folderId: 'folder-b',
+    })).not.toBe(first)
+  })
+
   test('retries a prefetch after the first load promise rejects', async () => {
     const workspacePath = 'C:\\workspace\\prefetch-retry'
     const path = 'src\\retry.ts'

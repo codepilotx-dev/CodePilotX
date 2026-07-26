@@ -64,7 +64,13 @@ export class SqliteAttachmentCatalog implements AttachmentCatalog {
   }
 
   async countBySha256(sha256: string) {
-    return (this.db.sqlite.query("SELECT COUNT(*) AS count FROM input_attachments WHERE sha256 = ?").get(sha256) as { count: number }).count
+    const attachments = (this.db.sqlite.query(
+      "SELECT COUNT(*) AS count FROM input_attachments WHERE sha256 = ?",
+    ).get(sha256) as { count: number }).count
+    const projectSources = (this.db.profileSqlite.query(
+      "SELECT COUNT(*) AS count FROM project_sources WHERE storage_kind = 'managed' AND sha256 = ?",
+    ).get(sha256) as { count: number }).count
+    return attachments + projectSources
   }
 
   private row(id: string): AttachmentRecord | null {

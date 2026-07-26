@@ -12,6 +12,7 @@ import {
   Square,
   User,
   Gauge,
+  FolderKanban,
   PawPrint,
   type LucideIcon,
 } from 'lucide-react'
@@ -223,6 +224,19 @@ export const SETTINGS_GROUPS = [
     id: 'coding',
     title: '编码',
     items: [
+      {
+        id: 'environment',
+        routeId: 'environment',
+        label: '环境',
+        description: '管理项目上下文、默认模型、指令和共享来源',
+        icon: FolderKanban,
+        rows: [
+          row('项目', '查看和打开最近使用的项目环境'),
+          row('默认模型', '配置项目任务继承的默认模型'),
+          row('项目指令', '为项目中的任务设置共享指令'),
+          row('共享来源', '管理托管文件与工作区文件来源'),
+        ],
+      },
       {
         id: 'dependencies',
         routeId: 'dependencies',

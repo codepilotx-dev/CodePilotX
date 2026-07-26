@@ -20,6 +20,19 @@ import type {
 
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
+  instructions: string
+  version: number
+}
+
+export type StoredProjectFolder = {
+  id: string
+  name: string
+  path: string
+  role: "primary" | "secondary"
+  availability: "available" | "missing"
+  order: number
+  createdAt: number
+  updatedAt: number
 }
 
 export type StoredEncryptedCredential = {
@@ -55,6 +68,10 @@ export type StoredCredentialHealth = {
 export type StoredProject = {
   id: string
   name: string
+  primaryFolderId: string
+  folders: StoredProjectFolder[]
+  removedAt: number | null
+  /** Internal compatibility alias for the primary folder. */
   rootPath: string
   lastOpenedAt: number
   createdAt: number
@@ -160,7 +177,14 @@ export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
 
 export type StoredThreadWorkspace =
-  | { kind: "project"; projectID: string; workspaceRoot: string; cwd: string; outputDirectory: null }
+  | {
+      kind: "project"
+      projectID: string
+      cwd: string
+      runtimeWorkspaceRoots: Array<{ folderId: string; path: string; role: "primary" | "secondary" }>
+      instructionSources: string[]
+      outputDirectory: null
+    }
   | { kind: "projectless"; projectID: null; workspaceRoot: string; cwd: string; outputDirectory: string }
 
 export type CreateThreadInput = {

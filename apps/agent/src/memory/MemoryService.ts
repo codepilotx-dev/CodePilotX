@@ -31,7 +31,7 @@ const MAX_ENTRY_CHARS = 2_000
 const MAX_RECALL_CHARS = 16_000
 
 const hash = (value: string) => new Bun.CryptoHasher("sha256").update(value).digest("hex")
-export const projectMemoryKey = (workspacePath: string) => hash(workspacePath.replaceAll("\\", "/").replace(/\/$/, "").toLocaleLowerCase("en-US"))
+export const projectMemoryKey = (projectID: string) => `project:${projectID}`
 
 const words = (value: string) => new Set(value.toLocaleLowerCase().match(/[\p{L}\p{N}_-]{2,}/gu) ?? [])
 const parseEntry = (row: Record<string, string | number | null>): MemoryEntry => ({

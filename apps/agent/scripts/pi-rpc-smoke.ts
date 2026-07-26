@@ -54,7 +54,10 @@ try {
   if (!smokeProvider || !smokeIntegration || !smokeIntegration.methods.some((method) => method.type === "key")) {
     throw new Error(`Pi provider/integration catalog mismatch: provider=${JSON.stringify(smokeProvider)}, integration=${JSON.stringify(smokeIntegration)}`)
   }
-  const project = (await call("project/open", { rootPath: resolve(import.meta.dir, "../../.."), operationId: crypto.randomUUID() })).project
+  const project = (await call("project/create", {
+    primaryPath: resolve(import.meta.dir, "../../.."),
+    operationId: crypto.randomUUID(),
+  })).project
   const created = await call("thread/create", {
     workspace: { kind: "project", projectId: project.id },
     operationId: crypto.randomUUID(),

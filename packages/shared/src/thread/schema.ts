@@ -5,19 +5,67 @@ import { SendStrategySchema, TaskModeSchema, ThreadSettingsSchema } from "./sett
 
 export const ProjectSettingsSchema = Schema.Struct({
   defaultModel: Schema.NullOr(Model.Ref),
+  instructions: Schema.String,
+  version: Schema.Number,
 })
 export type ProjectSettings = typeof ProjectSettingsSchema.Type
+
+export const ProjectFolderSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  path: Schema.String,
+  role: Schema.Literals(["primary", "secondary"]),
+  availability: Schema.Literals(["available", "missing"]),
+  order: Schema.Number,
+  createdAt: Schema.Number,
+  updatedAt: Schema.Number,
+})
+export type ProjectFolder = typeof ProjectFolderSchema.Type
 
 export const ProjectSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
-  rootPath: Schema.String,
+  primaryFolderId: Schema.String,
+  folders: Schema.Array(ProjectFolderSchema),
+  removedAt: Schema.NullOr(Schema.Number),
   lastOpenedAt: Schema.Number,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
   settings: ProjectSettingsSchema,
 })
 export type Project = typeof ProjectSchema.Type
+
+export const ProjectSourceRevisionSchema = Schema.Struct({
+  mtimeMs: Schema.Number,
+  sha256: Schema.String,
+})
+export type ProjectSourceRevision = typeof ProjectSourceRevisionSchema.Type
+
+export const ProjectSourceSchema = Schema.Union([
+  Schema.Struct({
+    storage: Schema.Literal("managed"),
+    id: Schema.String,
+    projectId: Schema.String,
+    kind: Schema.Literals(["text", "image"]),
+    name: Schema.String,
+    mediaType: Schema.String,
+    sizeBytes: Schema.Number,
+    sha256: Schema.String,
+    status: Schema.Literal("available"),
+  }),
+  Schema.Struct({
+    storage: Schema.Literal("workspace-file"),
+    id: Schema.String,
+    projectId: Schema.String,
+    folderId: Schema.String,
+    path: Schema.String,
+    kind: Schema.Literals(["text", "image"]),
+    name: Schema.String,
+    status: Schema.Literals(["available", "missing", "denied", "unsupported"]),
+    revision: Schema.NullOr(ProjectSourceRevisionSchema),
+  }),
+])
+export type ProjectSource = typeof ProjectSourceSchema.Type
 
 export const TurnStatusSchema = Schema.Literals([
   "queued",
@@ -38,8 +86,13 @@ export const ThreadWorkspaceSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("project"),
     projectID: Schema.String,
-    workspaceRoot: Schema.String,
     cwd: Schema.String,
+    runtimeWorkspaceRoots: Schema.Array(Schema.Struct({
+      folderId: Schema.String,
+      path: Schema.String,
+      role: Schema.Literals(["primary", "secondary"]),
+    })),
+    instructionSources: Schema.Array(Schema.String),
     outputDirectory: Schema.Null,
   }),
   Schema.Struct({

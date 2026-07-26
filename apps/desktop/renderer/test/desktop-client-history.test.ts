@@ -4,6 +4,17 @@ import type { ThreadListItem, ThreadSnapshot } from '@codepilotx/shared/thread'
 import { createDesktopClient } from '../src/services/desktop-client/index.js'
 
 const now = 1_700_000_000_000
+const projectRootPath = 'F:\\CodeProject\\CodePilotX-Ts'
+const primaryFolder = {
+  id: 'folder-primary',
+  name: 'CodePilotX-Ts',
+  path: projectRootPath,
+  role: 'primary' as const,
+  availability: 'available' as const,
+  order: 0,
+  createdAt: now,
+  updatedAt: now,
+}
 const defaultThreadSettings = {
   taskMode: 'chat' as const,
   permissionConfig: {
@@ -16,22 +27,28 @@ const defaultThreadSettings = {
 const project: Project = {
   id: 'project-1',
   name: 'CodePilotX-Ts',
-  rootPath: 'F:\\CodeProject\\CodePilotX-Ts',
+  primaryFolderId: primaryFolder.id,
+  folders: [primaryFolder],
+  removedAt: null,
   lastOpenedAt: now,
   createdAt: now,
   updatedAt: now,
   settings: {
     defaultModel: null,
-    plannerModel: null,
-    developerModel: null,
-    reviewerModel: null,
+    instructions: '',
+    version: 1,
   },
 }
 const projectWorkspace = {
   kind: 'project' as const,
   projectID: project.id,
-  workspaceRoot: project.rootPath,
-  cwd: project.rootPath,
+  cwd: projectRootPath,
+  runtimeWorkspaceRoots: [{
+    folderId: primaryFolder.id,
+    path: projectRootPath,
+    role: 'primary' as const,
+  }],
+  instructionSources: [],
   outputDirectory: null,
 }
 
@@ -144,7 +161,7 @@ describe('desktop history client', () => {
       }
       if (rpcMethod === 'project/open') {
         expect(params).toEqual({
-          rootPath: project.rootPath,
+          projectId: project.id,
           operationId: expect.any(String),
         })
         return rpc(body.id, { project })
@@ -236,10 +253,10 @@ describe('desktop history client', () => {
     const client = createDesktopClient({ fetch: fetcher })
 
     const listed = await client.listSessions()
-    expect(listed[0]?.item.workspacePath).toBe(project.rootPath)
+    expect(listed[0]?.item.workspacePath).toBe(projectRootPath)
 
     const created = await client.createSession({
-      workspacePath: project.rootPath,
+      workspacePath: projectRootPath,
       sessionName: '新会话',
     })
     expect(created).toMatchObject({ sessionId: 'session-1', standalone: false })
@@ -284,8 +301,11 @@ describe('desktop history client', () => {
       const params = body?.params ?? {}
       if (body?.method === 'initialize') return rpc(body.id, initializedResult())
       if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'project/list') {
+        return rpc(body.id, { projects: [project], nextCursor: null })
+      }
       if (body?.method === 'project/open') {
-        openedPaths.push(params.rootPath)
+        openedPaths.push(params.projectId)
         return rpc(body.id, { project })
       }
       throw new Error(`Unhandled RPC method: ${body?.method}`)
@@ -294,7 +314,7 @@ describe('desktop history client', () => {
       fetch: fetcher,
       window: {
         codePilotXDesktop: {
-          pickWorkspaceDirectory: async () => project.rootPath,
+          pickWorkspaceDirectory: async () => projectRootPath,
           getDesktopSettings: async () => storedSettings,
           saveDesktopSettings: async settings => {
             storedSettings = settings
@@ -306,16 +326,23 @@ describe('desktop history client', () => {
 
     const selected = await client.chooseWorkspace()
     expect(selected).toEqual({
-      path: project.rootPath,
+      id: project.id,
+      path: projectRootPath,
       name: project.name,
       branchName: null,
+      lastOpenedAt: '2023-11-14T22:13:20.000Z',
+      projectId: project.id,
+      projectVersion: project.updatedAt,
+      primaryFolderId: primaryFolder.id,
+      folders: [primaryFolder],
+      projectSettings: project.settings,
     })
-    await client.openWorkspace(project.rootPath)
-    await client.getWorkspaceContext(project.rootPath)
+    await client.openWorkspace(projectRootPath)
+    await client.getWorkspaceContext(projectRootPath)
     expect(openedPaths).toEqual([
-      project.rootPath,
-      project.rootPath,
-      project.rootPath,
+      project.id,
+      project.id,
+      project.id,
     ])
 
     const defaults = await client.getDesktopSettings()
@@ -324,14 +351,21 @@ describe('desktop history client', () => {
     const saved = await client.saveDesktopSettings({
       ...defaults,
       recentWorkspaces: [selected!],
-      lastActiveWorkspacePath: project.rootPath,
+      lastActiveWorkspacePath: projectRootPath,
       defaultModeRequestUserInput: true,
     })
-    expect(saved.lastActiveWorkspacePath).toBe(project.rootPath)
+    expect(saved.lastActiveWorkspacePath).toBe(projectRootPath)
     expect(saved.defaultModeRequestUserInput).toBe(true)
     const restored = await client.getDesktopSettings()
     expect(restored.recentWorkspaces).toHaveLength(1)
-    expect(restored.recentWorkspaces[0]).toMatchObject(selected!)
+    expect(restored.recentWorkspaces[0]).toMatchObject({
+      path: projectRootPath,
+      name: project.name,
+      projectId: project.id,
+      primaryFolderId: primaryFolder.id,
+      folders: [primaryFolder],
+      projectSettings: project.settings,
+    })
     expect(restored.defaultModeRequestUserInput).toBe(true)
   })
 

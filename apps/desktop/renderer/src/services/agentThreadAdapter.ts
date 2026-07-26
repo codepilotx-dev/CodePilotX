@@ -79,6 +79,7 @@ export function agentThreadListItemToDesktop(
   const planModeActive = thread.settings.taskMode === 'plan'
   return {
     id: thread.id,
+    projectId: thread.projectID,
     sessionName: thread.title || null,
     aiTitle: null,
     firstPrompt: thread.firstUserMessage ?? thread.preview,
@@ -142,6 +143,7 @@ export function agentThreadSnapshotToDesktop(
   const events = snapshotEvents(snapshot)
   const item: DesktopSessionListItem = {
     id: snapshot.thread.id,
+    projectId: snapshot.thread.projectID,
     sessionName: snapshot.thread.title || null,
     aiTitle: null,
     firstPrompt: snapshot.inputs[0]?.content ?? null,
@@ -572,7 +574,48 @@ export function permissionModeFromPermissionConfig(config: PermissionConfig | un
 }
 
 export function projectToDesktopWorkspace(project: Project | null | undefined, projectID: string | null): DesktopWorkspace {
-  if (project) return { path: project.rootPath, name: project.name, branchName: null }
+  if (project) {
+    const value = project as Project & {
+      primaryFolderId?: string
+      folders?: Array<{
+        id: string
+        name: string
+        path: string
+        role: 'primary' | 'secondary'
+        availability: 'available' | 'missing'
+        order: number
+        createdAt: number
+        updatedAt: number
+      }>
+      rootPath?: string
+      settings?: {
+        defaultModel: import('@codepilotx/shared').ModelRef | null
+        instructions?: string
+        version?: number
+      }
+    }
+    const primaryFolder = value.folders?.find(
+      folder => folder.id === value.primaryFolderId || folder.role === 'primary',
+    )
+    return {
+      id: project.id,
+      projectId: project.id,
+      projectVersion: project.updatedAt,
+      path: primaryFolder?.path ?? value.rootPath ?? '',
+      name: project.name,
+      branchName: null,
+      lastOpenedAt: iso(project.lastOpenedAt),
+      primaryFolderId: value.primaryFolderId ?? primaryFolder?.id,
+      folders: value.folders,
+      projectSettings: value.settings
+        ? {
+            defaultModel: value.settings.defaultModel,
+            instructions: value.settings.instructions ?? '',
+            version: value.settings.version ?? 0,
+          }
+        : undefined,
+    }
+  }
   return { path: '', name: projectID ? `Project ${projectID}` : '未选择工作区', branchName: null }
 }
 

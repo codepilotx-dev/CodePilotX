@@ -1,4 +1,6 @@
 import { Database } from "bun:sqlite"
+import { createHash } from "node:crypto"
+import { resolve } from "node:path"
 
 import {
   PROFILE_APPLICATION_ID,
@@ -33,8 +35,11 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE patches (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        files TEXT NOT NULL,\n        additions INTEGER NOT NULL DEFAULT 0,\n        deletions INTEGER NOT NULL DEFAULT 0,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE \"pi_session_entries\" (\n          session_id TEXT NOT NULL REFERENCES \"pi_sessions\"(id) ON DELETE CASCADE,\n          sequence INTEGER NOT NULL,\n          id TEXT NOT NULL,\n          parent_id TEXT,\n          type TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY (session_id, sequence),\n          UNIQUE (session_id, id)\n        )",
   "CREATE TABLE \"pi_sessions\" (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          agent_id TEXT NOT NULL,\n          leaf_id TEXT,\n          name TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
-  "CREATE TABLE project_settings (\n        project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,\n        default_model TEXT,\n        updated_at INTEGER NOT NULL\n      )",
-  "CREATE TABLE projects (\n        id TEXT PRIMARY KEY,\n        name TEXT NOT NULL,\n        root_path TEXT NOT NULL UNIQUE,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        last_opened_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE project_settings (\n        project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,\n        default_model TEXT,\n        instructions TEXT NOT NULL DEFAULT '',\n        version INTEGER NOT NULL DEFAULT 1,\n        updated_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE projects (\n        id TEXT PRIMARY KEY,\n        name TEXT NOT NULL,\n        removed_at INTEGER,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        last_opened_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE project_folders (\n        id TEXT PRIMARY KEY,\n        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n        path TEXT NOT NULL,\n        path_key TEXT NOT NULL,\n        role TEXT NOT NULL CHECK(role IN ('primary', 'secondary')),\n        sort_order INTEGER NOT NULL DEFAULT 0,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        UNIQUE(project_id, path_key)\n      )",
+  "CREATE TABLE project_sources (\n        id TEXT PRIMARY KEY,\n        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n        storage_kind TEXT NOT NULL CHECK(storage_kind IN ('managed', 'workspace-file')),\n        content_kind TEXT NOT NULL CHECK(content_kind IN ('text', 'image')),\n        name TEXT NOT NULL,\n        media_type TEXT,\n        size_bytes INTEGER,\n        sha256 TEXT,\n        storage_path TEXT,\n        folder_id TEXT REFERENCES project_folders(id) ON DELETE CASCADE,\n        relative_path TEXT,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        CHECK((storage_kind = 'managed' AND media_type IS NOT NULL AND size_bytes IS NOT NULL AND sha256 IS NOT NULL AND storage_path IS NOT NULL AND folder_id IS NULL AND relative_path IS NULL) OR (storage_kind = 'workspace-file' AND folder_id IS NOT NULL AND relative_path IS NOT NULL AND storage_path IS NULL))\n      )",
+  "CREATE TABLE project_operations (\n        operation_id TEXT PRIMARY KEY,\n        project_id TEXT,\n        method TEXT NOT NULL,\n        request_hash TEXT NOT NULL,\n        status TEXT NOT NULL CHECK(status IN ('pending', 'completed')),\n        result TEXT,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE prompt_session_state (\n          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          baseline_version INTEGER NOT NULL DEFAULT 1,\n          prompt_version TEXT NOT NULL,\n          base_hash TEXT NOT NULL,\n          context_hash TEXT NOT NULL,\n          cache_key TEXT NOT NULL,\n          fragments TEXT NOT NULL DEFAULT '[]',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        , context_window_tokens INTEGER NOT NULL DEFAULT 0, usage_tokens INTEGER NOT NULL DEFAULT 0, usage_source TEXT NOT NULL DEFAULT 'estimated', usage_sample_id TEXT, needs_compaction INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE provider_settings (\n        provider_id TEXT PRIMARY KEY,\n        payload TEXT NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE question_requests (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        tool_call_id TEXT,\n        payload TEXT NOT NULL,\n        payload_version INTEGER NOT NULL DEFAULT 1,\n        status TEXT NOT NULL,\n        answer TEXT,\n        created_at INTEGER NOT NULL,\n        resolved_at INTEGER\n      )",
@@ -44,7 +49,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE subagent_controls (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,\n          run_id TEXT REFERENCES subagent_runs(id) ON DELETE CASCADE,\n          action TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          status TEXT NOT NULL,\n          result TEXT,\n          error TEXT,\n          created_at INTEGER NOT NULL,\n          applied_at INTEGER\n        )",
   "CREATE TABLE subagent_runs (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,\n          generation INTEGER NOT NULL,\n          status TEXT NOT NULL,\n          queue_reason TEXT,\n          model_ref TEXT NOT NULL,\n          permission_config TEXT NOT NULL,\n          result TEXT,\n          error TEXT,\n          created_at INTEGER NOT NULL,\n          started_at INTEGER,\n          finished_at INTEGER,\n          updated_at INTEGER NOT NULL,\n          UNIQUE(task_id, generation)\n        )",
   "CREATE TABLE subagent_tasks (\n          id TEXT PRIMARY KEY,\n          parent_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          parent_turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          parent_agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n          child_thread_id TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE,\n          display_name TEXT NOT NULL,\n          profile TEXT NOT NULL,\n          task TEXT NOT NULL,\n          permission_ceiling TEXT NOT NULL,\n          workspace_mode TEXT NOT NULL,\n          workspace_state TEXT NOT NULL DEFAULT '{}',\n          current_run_id TEXT,\n          status TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
-  "CREATE TABLE threads (\n        id TEXT PRIMARY KEY,\n        title TEXT NOT NULL,\n        kind TEXT NOT NULL DEFAULT 'main',\n        parent_thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,\n        task_mode TEXT NOT NULL DEFAULT 'chat',\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      , project_id TEXT REFERENCES projects(id) ON DELETE SET NULL, workspace_kind TEXT NOT NULL DEFAULT 'legacy', workspace_root TEXT, workspace_cwd TEXT, output_directory TEXT, create_operation_id TEXT, create_request_hash TEXT, archived_at INTEGER, preview TEXT, first_user_message TEXT, message_count INTEGER NOT NULL DEFAULT 0, prompt_settings TEXT NOT NULL DEFAULT '{}', queue_version INTEGER NOT NULL DEFAULT 0, queue_pause_reason TEXT, git_branch TEXT)",
+  "CREATE TABLE threads (\n        id TEXT PRIMARY KEY,\n        title TEXT NOT NULL,\n        kind TEXT NOT NULL DEFAULT 'main',\n        parent_thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,\n        task_mode TEXT NOT NULL DEFAULT 'chat',\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      , project_id TEXT REFERENCES projects(id) ON DELETE SET NULL, workspace_kind TEXT NOT NULL DEFAULT 'legacy', workspace_root TEXT, workspace_cwd TEXT, workspace_roots TEXT, instruction_sources TEXT, output_directory TEXT, create_operation_id TEXT, create_request_hash TEXT, archived_at INTEGER, preview TEXT, first_user_message TEXT, message_count INTEGER NOT NULL DEFAULT 0, prompt_settings TEXT NOT NULL DEFAULT '{}', queue_version INTEGER NOT NULL DEFAULT 0, queue_pause_reason TEXT, git_branch TEXT)",
   "CREATE TABLE tool_calls (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        tool_name TEXT NOT NULL,\n        input TEXT NOT NULL,\n        output TEXT,\n        status TEXT NOT NULL,\n        started_at INTEGER,\n        finished_at INTEGER,\n        error TEXT\n      )",
   "CREATE TABLE turn_git_snapshots (\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n          repository_root TEXT NOT NULL,\n          before_tree TEXT,\n          after_tree TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          PRIMARY KEY (thread_id, turn_id)\n        )",
   "CREATE TABLE turns (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        root_agent_id TEXT,\n        status TEXT NOT NULL,\n        mode TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        model_ref TEXT NOT NULL,\n        strategy TEXT NOT NULL,\n        started_at INTEGER,\n        finished_at INTEGER,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      , queue_position INTEGER)",
@@ -70,6 +75,11 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX pi_session_entries_type\n          ON pi_session_entries(session_id, type, sequence)",
   "CREATE INDEX pi_sessions_thread_agent\n          ON pi_sessions(thread_id, agent_id, updated_at DESC)",
   "CREATE INDEX projects_last_opened ON projects(last_opened_at DESC)",
+  "CREATE UNIQUE INDEX project_one_primary ON project_folders(project_id) WHERE role = 'primary'",
+  "CREATE INDEX project_folders_project_order ON project_folders(project_id, role, sort_order, created_at)",
+  "CREATE INDEX project_folders_path_key ON project_folders(path_key)",
+  "CREATE INDEX project_sources_project_created ON project_sources(project_id, created_at, id)",
+  "CREATE INDEX project_operations_status ON project_operations(status, created_at)",
   "CREATE INDEX review_comments_scope\n          ON review_comments(thread_id, project_id, source_key, updated_at)",
   "CREATE INDEX sandbox_escalations_turn_status ON sandbox_escalations(turn_id, status, created_at)",
   "CREATE INDEX subagent_controls_pending ON subagent_controls(run_id, status, created_at)",
@@ -83,14 +93,17 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX turns_queue_position ON turns(thread_id, status, queue_position, created_at)",
   "CREATE INDEX turns_thread_history ON turns(thread_id, created_at DESC, id DESC)",
   "CREATE INDEX turns_thread_status ON turns(thread_id, status, created_at)",
-  "CREATE TRIGGER threads_workspace_insert_valid\n        BEFORE INSERT ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END",
-  "CREATE TRIGGER threads_workspace_update_valid\n        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, output_directory ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END"
+  "CREATE TRIGGER threads_workspace_insert_valid\n        BEFORE INSERT ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END",
+  "CREATE TRIGGER threads_workspace_update_valid\n        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, workspace_roots, instruction_sources, output_directory ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END"
 ] as const
 
 const PROFILE_TABLES = new Set([
   "app_settings",
   "projects",
   "project_settings",
+  "project_folders",
+  "project_sources",
+  "project_operations",
   "provider_settings",
   "credentials",
   "credential_health",
@@ -255,6 +268,207 @@ const migrateHistory19To20 = (sqlite: Database) => {
   sqlite.exec("ALTER TABLE threads ADD COLUMN git_branch TEXT")
 }
 
+const legacyProjectMemoryKey = (workspacePath: string) =>
+  createHash("sha256")
+    .update(workspacePath.replaceAll("\\", "/").replace(/\/$/, "").toLocaleLowerCase("en-US"))
+    .digest("hex")
+
+const projectPathKey = (workspacePath: string) => {
+  const normalized = resolve(workspacePath).replaceAll("\\", "/").replace(/\/+$/, "")
+  return process.platform === "win32" ? normalized.toLocaleLowerCase("en-US") : normalized
+}
+
+const migrateProfile2To3 = (sqlite: Database) => {
+  const projects = sqlite.query(`
+    SELECT id, name, root_path, created_at, updated_at, last_opened_at
+    FROM projects
+  `).all() as Array<{
+    id: string
+    name: string
+    root_path: string
+    created_at: number
+    updated_at: number
+    last_opened_at: number
+  }>
+  const settings = sqlite.query(`
+    SELECT project_id, default_model, updated_at FROM project_settings
+  `).all() as Array<{ project_id: string; default_model: string | null; updated_at: number }>
+
+  sqlite.exec("ALTER TABLE project_settings RENAME TO project_settings_v2")
+  sqlite.exec("ALTER TABLE projects RENAME TO projects_v2")
+  sqlite.exec(`
+    CREATE TABLE projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      removed_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      last_opened_at INTEGER NOT NULL
+    );
+    CREATE TABLE project_settings (
+      project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+      default_model TEXT,
+      instructions TEXT NOT NULL DEFAULT '',
+      version INTEGER NOT NULL DEFAULT 1,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE project_folders (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      path TEXT NOT NULL,
+      path_key TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('primary', 'secondary')),
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(project_id, path_key)
+    );
+    CREATE TABLE project_sources (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      storage_kind TEXT NOT NULL CHECK(storage_kind IN ('managed', 'workspace-file')),
+      content_kind TEXT NOT NULL CHECK(content_kind IN ('text', 'image')),
+      name TEXT NOT NULL,
+      media_type TEXT,
+      size_bytes INTEGER,
+      sha256 TEXT,
+      storage_path TEXT,
+      folder_id TEXT REFERENCES project_folders(id) ON DELETE CASCADE,
+      relative_path TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      CHECK((storage_kind = 'managed' AND media_type IS NOT NULL AND size_bytes IS NOT NULL AND sha256 IS NOT NULL AND storage_path IS NOT NULL AND folder_id IS NULL AND relative_path IS NULL) OR (storage_kind = 'workspace-file' AND folder_id IS NOT NULL AND relative_path IS NOT NULL AND storage_path IS NULL))
+    );
+    CREATE TABLE project_operations (
+      operation_id TEXT PRIMARY KEY,
+      project_id TEXT,
+      method TEXT NOT NULL,
+      request_hash TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pending', 'completed')),
+      result TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `)
+  for (const project of projects) {
+    sqlite.query(`
+      INSERT INTO projects (id, name, removed_at, created_at, updated_at, last_opened_at)
+      VALUES (?, ?, NULL, ?, ?, ?)
+    `).run(project.id, project.name, project.created_at, project.updated_at, project.last_opened_at)
+    sqlite.query(`
+      INSERT INTO project_folders (
+        id, project_id, path, path_key, role, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'primary', 0, ?, ?)
+    `).run(
+      crypto.randomUUID(),
+      project.id,
+      resolve(project.root_path),
+      projectPathKey(project.root_path),
+      project.created_at,
+      project.updated_at,
+    )
+    sqlite.query(`
+      UPDATE memory_entries SET project_key = ?
+      WHERE scope = 'project' AND project_key = ?
+    `).run(`project:${project.id}`, legacyProjectMemoryKey(project.root_path))
+  }
+  for (const setting of settings) {
+    sqlite.query(`
+      INSERT INTO project_settings (
+        project_id, default_model, instructions, version, updated_at
+      ) VALUES (?, ?, '', 1, ?)
+    `).run(setting.project_id, setting.default_model, setting.updated_at)
+  }
+  sqlite.exec(`
+    DROP TABLE project_settings_v2;
+    DROP TABLE projects_v2;
+    CREATE INDEX projects_last_opened ON projects(last_opened_at DESC);
+    CREATE UNIQUE INDEX project_one_primary ON project_folders(project_id) WHERE role = 'primary';
+    CREATE INDEX project_folders_project_order ON project_folders(project_id, role, sort_order, created_at);
+    CREATE INDEX project_folders_path_key ON project_folders(path_key);
+    CREATE INDEX project_sources_project_created ON project_sources(project_id, created_at, id);
+    CREATE INDEX project_operations_status ON project_operations(status, created_at);
+  `)
+}
+
+const migrateHistory20To21 = (sqlite: Database) => {
+  sqlite.exec(`
+    DROP TRIGGER IF EXISTS threads_workspace_insert_valid;
+    DROP TRIGGER IF EXISTS threads_workspace_update_valid;
+    ALTER TABLE threads ADD COLUMN workspace_roots TEXT;
+    ALTER TABLE threads ADD COLUMN instruction_sources TEXT;
+    CREATE TRIGGER threads_workspace_insert_valid
+      BEFORE INSERT ON threads
+      WHEN NOT (
+        (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL
+          AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL
+          AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL
+          AND NEW.output_directory IS NULL)
+        OR
+        (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL
+          AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL
+          AND NEW.output_directory IS NOT NULL)
+        OR
+        (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL
+          AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL
+          AND NEW.output_directory IS NULL)
+      )
+      BEGIN
+        SELECT RAISE(ABORT, 'invalid thread workspace descriptor');
+      END;
+    CREATE TRIGGER threads_workspace_update_valid
+      BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd,
+        workspace_roots, instruction_sources, output_directory ON threads
+      WHEN NOT (
+        (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL
+          AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL
+          AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL
+          AND NEW.output_directory IS NULL)
+        OR
+        (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL
+          AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL
+          AND NEW.output_directory IS NOT NULL)
+        OR
+        (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL
+          AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL
+          AND NEW.output_directory IS NULL)
+      )
+      BEGIN
+        SELECT RAISE(ABORT, 'invalid thread workspace descriptor');
+      END;
+  `)
+}
+
+export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
+  const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
+  for (const { id } of projects) {
+    const folders = profile.query(`
+      SELECT id, path, role
+      FROM project_folders
+      WHERE project_id = ?
+      ORDER BY CASE role WHEN 'primary' THEN 0 ELSE 1 END, sort_order, created_at, id
+    `).all(id) as Array<{ id: string; path: string; role: "primary" | "secondary" }>
+    const primary = folders.find((folder) => folder.role === "primary")
+    if (!primary) continue
+    const roots = JSON.stringify(folders.map((folder) => ({
+      folderId: folder.id,
+      path: folder.path,
+      role: folder.role,
+    })))
+    history.query(`
+      UPDATE threads
+      SET workspace_cwd = COALESCE(workspace_cwd, ?),
+        workspace_roots = COALESCE(workspace_roots, ?),
+        instruction_sources = COALESCE(instruction_sources, '[]')
+      WHERE project_id = ? AND workspace_kind = 'project'
+    `).run(primary.path, roots, id)
+    history.query(`
+      UPDATE memory_jobs SET project_key = ?
+      WHERE project_key = ?
+    `).run(`project:${id}`, legacyProjectMemoryKey(primary.path))
+  }
+}
+
 export const PROFILE_SCHEMA = FINAL_SCHEMA
   .filter((statement) => {
     const table = tableName(statement) ?? indexTable(statement)
@@ -312,22 +526,30 @@ class SchemaInitializer {
           17: () => undefined,
           18: () => migrateHistory18To19(this.sqlite),
           19: () => migrateHistory19To20(this.sqlite),
+          20: () => migrateHistory20To21(this.sqlite),
         }
       : {
           // v2 moves durable preferences to config.toml. The file migration
           // runs after both profile/config paths are available in bootstrap.
           1: () => undefined,
+          2: () => migrateProfile2To3(this.sqlite),
         }
-    this.sqlite.transaction(() => {
-      let version = from
-      while (version < target) {
-        const migration = migrations[version]
-        if (!migration) throw new Error(`${this.kind} 数据库缺少 ${version} → ${version + 1} 迁移`)
-        migration()
-        version += 1
-        this.sqlite.exec(`PRAGMA user_version = ${version}`)
+    let version = from
+    while (version < target) {
+      const migration = migrations[version]
+      if (!migration) throw new Error(`${this.kind} 数据库缺少 ${version} → ${version + 1} 迁移`)
+      const rebuildsProfileProjects = this.kind === "profile" && version === 2
+      if (rebuildsProfileProjects) this.sqlite.exec("PRAGMA foreign_keys = OFF")
+      try {
+        this.sqlite.transaction(() => {
+          migration()
+          this.sqlite.exec(`PRAGMA user_version = ${version + 1}`)
+        })()
+      } finally {
+        if (rebuildsProfileProjects) this.sqlite.exec("PRAGMA foreign_keys = ON")
       }
-    })()
+      version += 1
+    }
   }
 }
 

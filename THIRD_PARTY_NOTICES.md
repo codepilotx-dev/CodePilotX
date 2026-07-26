@@ -1,8 +1,9 @@
 # Third-Party Notices
 
 CodePilotX includes source adapted from the OpenCode project, version 1.17.13.
-The copied model schema, provider aggregation, provider transforms, and plugin
-host code are licensed under the MIT License. See `third_party/opencode/LICENSE`.
+The copied model schema, provider aggregation, provider transforms, plugin
+host code, and project directory storage semantics are licensed under the MIT
+License. See `third_party/opencode/LICENSE`.
 
 CodePilotX distributes a model catalog snapshot derived from models.dev.
 The models.dev database is licensed under the MIT License. See

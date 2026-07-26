@@ -264,6 +264,7 @@ describe('sidebar view model', () => {
       sessions,
     })
     expect(model.pinnedSessions.map(item => item.id)).toEqual(['pinned'])
+    expect(model.pinnedWorkspaces).toEqual([])
     expect(model.unpinnedSessions.map(item => item.id)).toEqual([
       'project',
       'standalone',
@@ -351,6 +352,74 @@ describe('sidebar session hover card projection', () => {
       projectLabel: 'CodePilotX',
       gitBranch: 'codex/hover-card',
     })
+  })
+
+  test('项目环境是编码分组中的独立设置入口', () => {
+    const codingGroup = SETTINGS_GROUPS.find(group => group.id === 'coding')
+    const environment = SETTINGS_ITEMS.find(
+      item => item.routeId === 'environment',
+    )
+
+    expect(codingGroup?.items.some(item => item.routeId === 'environment')).toBe(
+      true,
+    )
+    expect(environment).toMatchObject({
+      id: 'environment',
+      label: '环境',
+    })
+  })
+
+  test('groups projects by stable project id even when folders share a path', () => {
+    const sharedPath = 'C:\\shared'
+    const model = buildSidebarViewModel({
+      pendingPermissionSessionIds: new Set(),
+      recentWorkspaces: [
+        { name: 'One', path: sharedPath, projectId: 'project-one' },
+        { name: 'Two', path: sharedPath, projectId: 'project-two' },
+      ],
+      removedWorkspaces: [],
+      sessionPins: {},
+      sessions: [
+        { ...session('one', sharedPath), projectId: 'project-one' },
+        { ...session('two', sharedPath), projectId: 'project-two' },
+      ],
+    })
+
+    expect(model.projectWorkspaces.map(item => item.projectId).sort()).toEqual([
+      'project-one',
+      'project-two',
+    ])
+  })
+
+  test('pins projects independently by stable project id', () => {
+    const sharedPath = 'C:\\shared'
+    const model = buildSidebarViewModel({
+      pendingPermissionSessionIds: new Set(),
+      recentWorkspaces: [
+        {
+          name: 'Pinned',
+          path: sharedPath,
+          projectId: 'project-pinned',
+          pinnedAt: '2026-07-18T08:00:00.000Z',
+        },
+        {
+          name: 'Regular',
+          path: sharedPath,
+          projectId: 'project-regular',
+          pinnedAt: null,
+        },
+      ],
+      removedWorkspaces: [],
+      sessionPins: {},
+      sessions: [],
+    })
+
+    expect(model.pinnedWorkspaces.map(item => item.projectId)).toEqual([
+      'project-pinned',
+    ])
+    expect(model.projectWorkspaces.map(item => item.projectId)).toEqual([
+      'project-regular',
+    ])
   })
 
   test('uses 会话 for standalone items and hides an empty branch', () => {

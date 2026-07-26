@@ -76,7 +76,7 @@ describe("数据库 Pi epoch", () => {
     ])
     expect(rows.map((row) => row.ordinal)).toEqual([0, 1, 2, 3])
     expect(rows.some((row) => row.id === "legacy-unproven")).toBe(true)
-    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 20 })
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     sqlite.close()
   })
 
@@ -105,7 +105,7 @@ describe("数据库 Pi epoch", () => {
     expect(sqlite.query("SELECT content FROM messages WHERE id = 'message-1'").get()).toEqual({
       content: "保留的消息",
     })
-    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 20 })
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     sqlite.close()
   })
 
@@ -202,10 +202,16 @@ describe("数据库 Pi epoch", () => {
       PRAGMA application_id = ${DATA_EPOCH};
       PRAGMA user_version = 17;
       INSERT INTO app_settings VALUES ('desktop.settings.v1', '{"theme":"dark"}', 1);
-      INSERT INTO projects VALUES ('project:1', '项目', 'F:\\workspace', 1, 1, 1);
-      INSERT INTO project_settings VALUES ('project:1', NULL, 1);
-      INSERT INTO threads (id, title, project_id, workspace_kind, created_at, updated_at)
-        VALUES ('thread:1', '保留的会话', 'project:1', 'project', 1, 1);
+      INSERT INTO projects VALUES ('project:1', '项目', NULL, 1, 1, 1);
+      INSERT INTO project_settings VALUES ('project:1', NULL, '', 1, 1);
+      INSERT INTO project_folders VALUES ('folder:1', 'project:1', 'F:\\workspace', 'f:/workspace', 'primary', 0, 1, 1);
+      INSERT INTO threads (
+        id, title, project_id, workspace_kind, workspace_cwd, workspace_roots,
+        instruction_sources, created_at, updated_at
+      ) VALUES (
+        'thread:1', '保留的会话', 'project:1', 'project', 'F:\\workspace',
+        '[{"folderId":"folder:1","path":"F:\\\\workspace","role":"primary"}]', '[]', 1, 1
+      );
       INSERT INTO memory_entries VALUES ('memory:1', 'user', '', '偏好深色主题', 'thread:1', 'hash:1', 1, 1);
     `)
     legacy.close()

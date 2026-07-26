@@ -28,6 +28,8 @@ export type FileDocumentExternalCheckOptions = {
 export type FileDocumentSnapshot = {
   key: string
   workspacePath: string
+  projectId?: string
+  folderId?: string
   path: string
   status: 'idle' | 'loading' | 'ready' | 'error'
   baseContent: string
@@ -50,8 +52,20 @@ const loadPromises = new Map<string, Promise<FileDocumentSnapshot>>()
 const savePromises = new Map<string, Promise<boolean>>()
 const autosaveTimers = new Map<string, number>()
 
-export function fileDocumentKey(workspacePath: string, path: string): string {
-  return `${workspacePath.replace(/\\/g, '/').toLowerCase()}\u0000${path
+export type FileDocumentScope = {
+  projectId?: string
+  folderId?: string
+}
+
+export function fileDocumentKey(
+  workspacePath: string,
+  path: string,
+  scope: FileDocumentScope = {},
+): string {
+  const prefix = scope.projectId || scope.folderId
+    ? `${scope.projectId ?? ''}\u0000${scope.folderId ?? ''}\u0000`
+    : ''
+  return `${prefix}${workspacePath.replace(/\\/g, '/').toLowerCase()}\u0000${path
     .replace(/\\/g, '/')
     .toLowerCase()}`
 }
@@ -59,10 +73,13 @@ export function fileDocumentKey(workspacePath: string, path: string): string {
 function initialSnapshot(
   workspacePath: string,
   path: string,
+  scope: FileDocumentScope = {},
 ): FileDocumentSnapshot {
   return {
-    key: fileDocumentKey(workspacePath, path),
+    key: fileDocumentKey(workspacePath, path, scope),
     workspacePath,
+    ...(scope.projectId ? { projectId: scope.projectId } : {}),
+    ...(scope.folderId ? { folderId: scope.folderId } : {}),
     path,
     status: 'idle',
     baseContent: '',
@@ -78,14 +95,18 @@ function initialSnapshot(
   }
 }
 
-function snapshotFor(workspacePath: string, path: string): FileDocumentSnapshot {
-  const key = fileDocumentKey(workspacePath, path)
+function snapshotFor(
+  workspacePath: string,
+  path: string,
+  scope: FileDocumentScope = {},
+): FileDocumentSnapshot {
+  const key = fileDocumentKey(workspacePath, path, scope)
   const existing = documents.get(key)
   if (existing) {
     return existing
   }
 
-  const initial = initialSnapshot(workspacePath, path)
+  const initial = initialSnapshot(workspacePath, path, scope)
   documents.set(key, initial)
   return initial
 }
@@ -120,20 +141,28 @@ function fromPreview(
 export function prefetchFileDocument(
   workspacePath: string,
   path: string,
+  scope: FileDocumentScope = {},
 ): Promise<FileDocumentSnapshot> {
-  const current = snapshotFor(workspacePath, path)
+  const current = snapshotFor(workspacePath, path, scope)
   if (current.status === 'ready') return Promise.resolve(current)
   const existing = loadPromises.get(current.key)
   if (existing) return existing
 
   publish({ ...current, status: 'loading', loadError: null })
-  const request = desktopClient
-    .readWorkspaceFile(workspacePath, path)
-    .then(preview => fromPreview(snapshotFor(workspacePath, path), preview))
+  const read = scope.projectId || scope.folderId
+    ? desktopClient.readWorkspaceFile(
+        workspacePath,
+        path,
+        scope.folderId,
+        scope.projectId,
+      )
+    : desktopClient.readWorkspaceFile(workspacePath, path)
+  const request = read
+    .then(preview => fromPreview(snapshotFor(workspacePath, path, scope), preview))
     .then(publish)
     .catch(error => {
       const failed = publish({
-        ...snapshotFor(workspacePath, path),
+        ...snapshotFor(workspacePath, path, scope),
         status: 'error',
         loadError: error instanceof Error ? error.message : String(error),
       })
@@ -148,8 +177,9 @@ export function updateFileDocument(
   workspacePath: string,
   path: string,
   content: string,
+  scope: FileDocumentScope = {},
 ): void {
-  const current = snapshotFor(workspacePath, path)
+  const current = snapshotFor(workspacePath, path, scope)
   if (current.status !== 'ready' || current.readonly) return
   const next = publish({
     ...current,
@@ -169,7 +199,7 @@ function scheduleAutosave(document: FileDocumentSnapshot): void {
   }
   const timer = window.setTimeout(() => {
     autosaveTimers.delete(document.key)
-    void saveFileDocument(document.workspacePath, document.path)
+    void saveFileDocument(document.workspacePath, document.path, document)
   }, AUTOSAVE_DELAY_MS)
   autosaveTimers.set(document.key, timer)
 }
@@ -177,12 +207,13 @@ function scheduleAutosave(document: FileDocumentSnapshot): void {
 export async function saveFileDocument(
   workspacePath: string,
   path: string,
+  scope: FileDocumentScope = {},
 ): Promise<boolean> {
-  const key = fileDocumentKey(workspacePath, path)
+  const key = fileDocumentKey(workspacePath, path, scope)
   const existing = savePromises.get(key)
   if (existing) return existing
 
-  const request = saveUntilClean(workspacePath, path).finally(() =>
+  const request = saveUntilClean(workspacePath, path, scope).finally(() =>
     savePromises.delete(key),
   )
   savePromises.set(key, request)
@@ -192,8 +223,9 @@ export async function saveFileDocument(
 async function saveUntilClean(
   workspacePath: string,
   path: string,
+  scope: FileDocumentScope,
 ): Promise<boolean> {
-  const current = snapshotFor(workspacePath, path)
+  const current = snapshotFor(workspacePath, path, scope)
   if (
     current.status !== 'ready' ||
     current.readonly ||
@@ -210,11 +242,13 @@ async function saveUntilClean(
   try {
     const result = await desktopClient.saveWorkspaceFile({
       workspacePath,
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      ...(scope.folderId ? { folderId: scope.folderId } : {}),
       filePath: path,
       content,
       expectedRevision,
     })
-    const latest = snapshotFor(workspacePath, path)
+    const latest = snapshotFor(workspacePath, path, scope)
     if (result.outcome === 'conflict') {
       publish({
         ...latest,
@@ -236,10 +270,10 @@ async function saveUntilClean(
       saveError: null,
       dirty: latest.draftContent !== content,
     })
-    return next.dirty ? saveUntilClean(workspacePath, path) : true
+    return next.dirty ? saveUntilClean(workspacePath, path, scope) : true
   } catch (error) {
     publish({
-      ...snapshotFor(workspacePath, path),
+      ...snapshotFor(workspacePath, path, scope),
       saving: false,
       saveError: error instanceof Error ? error.message : String(error),
     })
@@ -250,14 +284,22 @@ async function saveUntilClean(
 export async function checkFileDocumentForExternalChange(
   workspacePath: string,
   path: string,
+  scope: FileDocumentScope = {},
 ): Promise<FileDocumentExternalCheckResult> {
-  const before = snapshotFor(workspacePath, path)
+  const before = snapshotFor(workspacePath, path, scope)
   if (before.status !== 'ready' || before.saving || before.conflict) {
     return { status: 'skipped' }
   }
   try {
-    const disk = await desktopClient.readWorkspaceFile(workspacePath, path)
-    const current = snapshotFor(workspacePath, path)
+    const disk = scope.projectId || scope.folderId
+      ? await desktopClient.readWorkspaceFile(
+          workspacePath,
+          path,
+          scope.folderId,
+          scope.projectId,
+        )
+      : await desktopClient.readWorkspaceFile(workspacePath, path)
+    const current = snapshotFor(workspacePath, path, scope)
     if (current.status !== 'ready' || current.saving || current.conflict) {
       return { status: 'skipped' }
     }
@@ -291,8 +333,9 @@ export async function checkFileDocumentForExternalChange(
 export function useFileDocument(
   workspacePath: string,
   path: string,
+  scope: FileDocumentScope = {},
 ): FileDocumentSnapshot {
-  const key = fileDocumentKey(workspacePath, path)
+  const key = fileDocumentKey(workspacePath, path, scope)
   return useSyncExternalStore(
     listener => {
       const bucket = listeners.get(key) ?? new Set<Listener>()
@@ -303,8 +346,8 @@ export function useFileDocument(
         if (bucket.size === 0) listeners.delete(key)
       }
     },
-    () => snapshotFor(workspacePath, path),
-    () => snapshotFor(workspacePath, path),
+    () => snapshotFor(workspacePath, path, scope),
+    () => snapshotFor(workspacePath, path, scope),
   )
 }
 
@@ -312,6 +355,7 @@ export function startFileDocumentExternalChecks(
   workspacePath: string,
   path: string,
   options: FileDocumentExternalCheckOptions = {},
+  scope: FileDocumentScope = {},
 ): () => void {
   let stopped = false
   let unavailableNotified = false
@@ -325,6 +369,7 @@ export function startFileDocumentExternalChecks(
       checkPromise = checkFileDocumentForExternalChange(
         workspacePath,
         path,
+        scope,
       )
         .then(result => {
           if (stopped) return
@@ -344,16 +389,31 @@ export function startFileDocumentExternalChecks(
     }
   }
   const onChanged = (event: Event): void => {
-    const detail = (event as CustomEvent<{ path?: unknown }>).detail
+    const detail = (event as CustomEvent<{
+      path?: unknown
+      projectId?: unknown
+      folderId?: unknown
+    }>).detail
     if (
       typeof detail?.path === 'string' &&
+      (!scope.projectId || detail.projectId === scope.projectId) &&
+      (!scope.folderId || detail.folderId === scope.folderId) &&
       detail.path.replace(/\\/g, '/').toLowerCase() ===
         path.replace(/\\/g, '/').toLowerCase()
     ) {
       check()
     }
   }
-  void desktopClient.watchWorkspaceFile(workspacePath, path).catch(() => undefined)
+  const watch = scope.projectId || scope.folderId
+    ? desktopClient.watchWorkspaceFile(
+        workspacePath,
+        path,
+        scope.folderId,
+        scope.projectId,
+      )
+    : desktopClient.watchWorkspaceFile(workspacePath, path)
+  void watch
+    .catch(() => undefined)
   const timer = window.setInterval(check, EXTERNAL_CHECK_INTERVAL_MS)
   window.addEventListener('focus', check)
   window.addEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
@@ -362,8 +422,15 @@ export function startFileDocumentExternalChecks(
     window.clearInterval(timer)
     window.removeEventListener('focus', check)
     window.removeEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
-    void desktopClient
-      .unwatchWorkspaceFile(workspacePath, path)
+    const unwatch = scope.projectId || scope.folderId
+      ? desktopClient.unwatchWorkspaceFile(
+          workspacePath,
+          path,
+          scope.folderId,
+          scope.projectId,
+        )
+      : desktopClient.unwatchWorkspaceFile(workspacePath, path)
+    void unwatch
       .catch(() => undefined)
   }
 }
@@ -373,8 +440,9 @@ export function resolveFileDocumentConflict(
   path: string,
   resolution: 'disk' | 'local' | 'edit',
   mergedContent?: string,
+  scope: FileDocumentScope = {},
 ): void {
-  const current = snapshotFor(workspacePath, path)
+  const current = snapshotFor(workspacePath, path, scope)
   const conflict = current.conflict
   if (!conflict) return
 
@@ -403,7 +471,7 @@ export function resolveFileDocumentConflict(
     saveError: null,
   })
   if (resolution === 'local') {
-    void saveFileDocument(workspacePath, path)
+    void saveFileDocument(workspacePath, path, scope)
   } else {
     scheduleAutosave(next)
   }
@@ -413,7 +481,7 @@ export async function saveAllFileDocuments(): Promise<boolean> {
   const dirty = [...documents.values()].filter(document => document.dirty)
   const results = await Promise.all(
     dirty.map(document =>
-      saveFileDocument(document.workspacePath, document.path),
+      saveFileDocument(document.workspacePath, document.path, document),
     ),
   )
   return results.every(Boolean)
@@ -426,8 +494,9 @@ export function hasDirtyFileDocuments(): boolean {
 export function isFileDocumentDirty(
   workspacePath: string,
   path: string,
+  scope: FileDocumentScope = {},
 ): boolean {
-  return snapshotFor(workspacePath, path).dirty
+  return snapshotFor(workspacePath, path, scope).dirty
 }
 
 function toError(error: unknown): Error {

@@ -14,6 +14,7 @@ import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
 import { SidebarHeader, SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 import { buildSidebarViewModel } from './sidebar/sidebarViewModel.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 
 type Props = {
   activeSessionId: string | null;
@@ -27,9 +28,7 @@ type Props = {
   workspace: DesktopWorkspace | null;
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
-  onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinWorkspace: (workspace: DesktopWorkspace) => void;
-  onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
   onArchiveSessions: (sessionIds: readonly string[]) => Promise<{
@@ -37,6 +36,7 @@ type Props = {
     succeededSessionIds: string[]
   }>
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
+  onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
   onReport: (message: string) => void
   collapsedSidebarSections: SidebarSectionId[];
   onToggleSidebarSection: (section: SidebarSectionId) => void;
@@ -54,19 +54,19 @@ export function DesktopSidebar({
   workspace,
   onChooseWorkspace,
   onCreateSession,
-  onOpenWorkspace,
   onPinWorkspace,
-  onUnpinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
   onArchiveSessions,
   onRenameSession,
+  onUnpinWorkspace,
   onReport,
   collapsedSidebarSections,
   onToggleSidebarSection,
 }: Props): React.ReactNode {
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
+  const [catalogProjects, setCatalogProjects] = useState<DesktopWorkspace[]>([])
   const {
     collapsedSidebarProjectPaths,
     setCollapsedSidebarProjectPaths,
@@ -83,18 +83,40 @@ export function DesktopSidebar({
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false
+    void desktopClient
+      .listProjects()
+      .then(projects => {
+        if (!cancelled) setCatalogProjects(projects)
+      })
+      .catch(error => {
+        if (!cancelled) {
+          onReport(error instanceof Error ? error.message : String(error))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [onReport])
+
+  const mergedProjects = useMemo(
+    () => mergeCatalogProjects(catalogProjects, recentWorkspaces),
+    [catalogProjects, recentWorkspaces],
+  )
+
   const viewModel = useMemo(
     () =>
       buildSidebarViewModel({
         pendingPermissionSessionIds,
-        recentWorkspaces,
+        recentWorkspaces: mergedProjects,
         removedWorkspaces,
         sessionPins: sidebarSessionPins,
         sessions,
       }),
     [
       pendingPermissionSessionIds,
-      recentWorkspaces,
+      mergedProjects,
       removedWorkspaces,
       sessions,
       sidebarSessionPins,
@@ -182,19 +204,53 @@ export function DesktopSidebar({
         onArchiveSessions={archiveSessions}
         onChooseWorkspace={onChooseWorkspace}
         onCreateSession={onCreateSession}
-        onOpenWorkspace={onOpenWorkspace}
         onPinSession={pinSession}
         onPinWorkspace={onPinWorkspace}
-        onUnpinWorkspace={onUnpinWorkspace}
         collapsedSidebarSections={collapsedSidebarSections}
         onToggleSidebarSection={onToggleSidebarSection}
-        onRemoveWorkspace={onRemoveWorkspace}
+        onRemoveWorkspace={target => {
+          setCatalogProjects(current =>
+            current.filter(project =>
+              target.projectId
+                ? project.projectId !== target.projectId
+                : project.path !== target.path,
+            ),
+          )
+          onRemoveWorkspace(target)
+        }}
         onSelectSession={onSelectSession}
         onRenameSession={onRenameSession}
         onToggleProjectCollapsed={toggleProjectCollapsed}
         onUnpinSession={unpinSession}
+        onUnpinWorkspace={onUnpinWorkspace}
+        onReport={onReport}
       />
       <SidebarFooter />
     </div>
   );
+}
+
+function mergeCatalogProjects(
+  catalogProjects: readonly DesktopWorkspace[],
+  recentWorkspaces: readonly DesktopWorkspace[],
+): DesktopWorkspace[] {
+  const recentByKey = new Map(
+    recentWorkspaces.map(project => [projectKey(project), project]),
+  )
+  const merged = catalogProjects.map(project => {
+    const recent = recentByKey.get(projectKey(project))
+    recentByKey.delete(projectKey(project))
+    return {
+      ...recent,
+      ...project,
+      pinnedAt: recent?.pinnedAt ?? project.pinnedAt ?? null,
+    }
+  })
+  return [...merged, ...recentByKey.values()]
+}
+
+function projectKey(project: DesktopWorkspace): string {
+  return project.projectId
+    ? `id:${project.projectId}`
+    : `path:${project.path.replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase()}`
 }

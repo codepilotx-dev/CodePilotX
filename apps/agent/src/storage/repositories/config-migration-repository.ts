@@ -44,8 +44,10 @@ export class ConfigMigrationRepository {
       return payload ? [{ providerID: row.provider_id, payload }] : []
     })
     const projects = (this.sqlite.query(`
-      SELECT p.root_path, ps.default_model
+      SELECT pf.path AS root_path, ps.default_model
       FROM projects AS p
+      INNER JOIN project_folders AS pf
+        ON pf.project_id = p.id AND pf.role = 'primary'
       LEFT JOIN project_settings AS ps ON ps.project_id = p.id
     `).all() as Array<{ root_path: string; default_model: string | null }>).map((row) => ({
       rootPath: row.root_path,

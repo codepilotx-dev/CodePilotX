@@ -602,6 +602,21 @@ export class PiOrchestratorAdapter {
             throw new Error("当前 turn 未启用 SkillService");
           return request.skillService.read(String(input.name));
         },
+        projectSourceList: async () => {
+          if (!request.projectSources)
+            throw new Error("当前 turn 未启用项目来源");
+          return request.projectSources.list();
+        },
+        projectSourceRead: async (input) => {
+          if (!request.projectSources)
+            throw new Error("当前 turn 未启用项目来源");
+          return request.projectSources.read(
+            input.sourceId,
+            typeof input.offset === "number" && typeof input.length === "number"
+              ? { offset: input.offset, length: input.length }
+              : undefined,
+          );
+        },
         requestUserInput: async (input, toolCallID) => {
           await pause({
             kind: "clarification",
@@ -732,6 +747,7 @@ export class PiOrchestratorAdapter {
       sandboxMode: "permissionConfig" in request ? request.permissionConfig.sandboxMode : request.sandboxMode,
       ...(request.profile ? { profile: request.profile } : {}),
       ...(runtime.skillService ? { hasSkillService: true } : "hasSkillService" in request && request.hasSkillService ? { hasSkillService: true } : {}),
+      ...(runtime.projectSources ? { hasProjectSources: true } : "hasProjectSources" in request && request.hasProjectSources ? { hasProjectSources: true } : {}),
       ...(runtime.continueFromPlan ? { continueFromPlan: true } : "continueFromPlan" in request && request.continueFromPlan ? { continueFromPlan: true } : {}),
       ...(runtime.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : "defaultModeRequestUserInput" in request && request.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
@@ -761,8 +777,11 @@ export class PiOrchestratorAdapter {
     } | null;
     if (!row) throw new Error("Pi session 不存在，无法执行手动压缩");
     const project = row.project_id ? this.options.db.getProject(row.project_id) : null;
-    const rootPath = project?.rootPath ?? row.workspace_root;
-    const defaultCwd = row.workspace_cwd ?? project?.rootPath;
+    const projectFolders = project?.folders?.filter((folder) => folder.availability !== "missing") ?? [];
+    const primaryFolder = projectFolders.find((folder) => folder.id === project?.primaryFolderId)
+      ?? projectFolders.find((folder) => folder.role === "primary");
+    const rootPath = primaryFolder?.path ?? row.workspace_root;
+    const defaultCwd = row.workspace_cwd ?? rootPath;
     if (!rootPath || !defaultCwd) throw new Error("Pi session 绑定的项目或工作区不存在");
     const ref = JSON.parse(row.model_ref) as { providerID: string; id: string };
     const model = this.options.models.getModel(ref.providerID, ref.id);
@@ -770,7 +789,16 @@ export class PiOrchestratorAdapter {
     const session = await this.repo.openForThread(row.session_id, threadID);
     const storage = session.getStorage() as SqlitePiSessionStorage;
     const env = new CodePilotXExecutionEnv(
-      await WorkspaceService.open(rootPath),
+      project && primaryFolder
+        ? await WorkspaceService.openRoots({
+            primaryRoot: primaryFolder.path,
+            roots: projectFolders.map((folder) => ({
+              folderId: folder.id,
+              path: folder.path,
+              role: folder.role,
+            })),
+          })
+        : await WorkspaceService.open(rootPath),
       defaultCwd,
     );
     const harness = new AgentHarness({

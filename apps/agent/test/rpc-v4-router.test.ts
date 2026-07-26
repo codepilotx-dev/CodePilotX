@@ -440,6 +440,7 @@ describe("RPC v4 Router", () => {
 
     const missing = await call("workspace/file/read", {
       projectId: project.id,
+      folderId: project.primaryFolderId,
       path: "missing.txt",
     })
     expect(missing.error).toMatchObject({
@@ -449,6 +450,7 @@ describe("RPC v4 Router", () => {
     expect(missing.error.message).not.toBe("Agent 内部错误")
     expect((await call("workspace/file/read", {
       projectId: project.id,
+      folderId: project.primaryFolderId,
       path: "binary.bin",
     })).error).toMatchObject({
       code: -32000,
@@ -456,6 +458,7 @@ describe("RPC v4 Router", () => {
     })
     expect((await call("workspace/file/read", {
       projectId: project.id,
+      folderId: project.primaryFolderId,
       path: "too-large.txt",
     })).error).toMatchObject({
       code: -32000,
@@ -470,6 +473,7 @@ describe("RPC v4 Router", () => {
     })
     expect((await call("workspace/file/read", {
       projectId: project.id,
+      folderId: project.primaryFolderId,
       path: "../outside.txt",
     })).error).toMatchObject({
       code: -32000,

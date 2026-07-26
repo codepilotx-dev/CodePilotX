@@ -30,6 +30,11 @@ const DESKTOP_RUNTIME_KEYS = new Set([
   "settingsVersion",
   "workspaceDependenciesMigrated",
 ])
+const DEPRECATED_DESKTOP_RUNTIME_KEYS = new Set([
+  "manualSessionOrder",
+  "sidebarManualOrder",
+  "sidebarSectionOrder",
+])
 const DESKTOP_CORE_PATHS: Record<string, string[]> = {
   model: ["model"],
   providerID: ["model_provider"],
@@ -316,7 +321,11 @@ export class ConfigMigrationService {
       }
     }
     const runtimeState = Object.fromEntries(
-      Object.entries(legacy.desktop ?? {}).filter(([key]) => DESKTOP_RUNTIME_KEYS.has(key)),
+      Object.entries(legacy.desktop ?? {}).filter(
+        ([key]) =>
+          DESKTOP_RUNTIME_KEYS.has(key)
+          && !DEPRECATED_DESKTOP_RUNTIME_KEYS.has(key),
+      ),
     )
     const mcpRuntime = legacy.mcp
       ? { ...legacy.mcp, user: {}, local: {} }
