@@ -151,6 +151,21 @@ export function ApiKeyWorkspace({
     }
   }
 
+  async function testKey(key: DesktopApiKeySummary): Promise<void> {
+    setBusyId(key.id)
+    try {
+      const result = await desktopClient.testApiKey(key.id)
+      await refresh()
+      onNotice(result.message ?? (result.ok ? 'API Key 可用。' : 'API Key 测试失败。'))
+      window.dispatchEvent(new Event('desktop:model-provider-changed'))
+    } catch (error) {
+      await refresh().catch(() => undefined)
+      onError(error instanceof Error ? error.message : 'API Key 测试失败，请稍后重试。')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function saveEditor(value: ApiKeyEditorValue): Promise<boolean> {
     if (editingKey) {
       const replacement = value.key?.trim()
@@ -327,7 +342,7 @@ export function ApiKeyWorkspace({
                         <Button
                           disabled={busyId !== null}
                           title="测试会产生极少量费用"
-                          onClick={() => void mutate(key.id, () => desktopClient.testApiKey(key.id), '测试完成。')}
+                          onClick={() => void testKey(key)}
                         >测试</Button>
                         <Dropdown
                           align="end"

@@ -1734,7 +1734,7 @@ export type DesktopApi = {
   setActiveApiKey(providerId: ModelProviderID, credentialId: string): Promise<void>
   setApiKeyEnabled(credentialId: string, enabled: boolean): Promise<void>
   reorderApiKeys(providerId: ModelProviderID, orderedCredentialIds: string[]): Promise<void>
-  testApiKey(credentialId: string): Promise<void>
+  testApiKey(credentialId: string): Promise<ProviderTestResponse>
   deleteApiKey(credentialId: string): Promise<void>
   copyProviderApiKey(credentialId: string): Promise<{ clearAfterMs: 60000 }>
   testModelProvider(providerID: ModelProviderID): Promise<ProviderTestResponse>

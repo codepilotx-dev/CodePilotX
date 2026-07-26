@@ -156,6 +156,12 @@ export const ApiKeySummarySchema = Schema.Struct({
 
 const ApiKeyMutationResultSchema = Schema.Struct({ apiKey: ApiKeySummarySchema })
 
+const ApiKeyTestResultSchema = Schema.Struct({
+  apiKey: ApiKeySummarySchema,
+  ok: Schema.Boolean,
+  message: Schema.String,
+})
+
 const IntegrationAttemptStateSchema = Schema.Struct({
   attemptId: Integration.AttemptID,
   integrationId: Integration.ID,
@@ -473,8 +479,14 @@ export const ExtendedRpcMethods = {
 
   "apiKey/test": defineMethod({
     params: Schema.Struct({ credentialId: Credential.ID }),
-    result: ApiKeyMutationResultSchema,
-    errors: ["PROVIDER_UNAVAILABLE", "AUTHORIZATION_FAILED", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    result: ApiKeyTestResultSchema,
+    errors: [
+      "CREDENTIAL_NOT_FOUND",
+      "PROVIDER_UNAVAILABLE",
+      "AUTHORIZATION_FAILED",
+      "RATE_LIMITED",
+      "INTERNAL_ERROR",
+    ] as const,
     capability: null,
     mutation: false,
   }),

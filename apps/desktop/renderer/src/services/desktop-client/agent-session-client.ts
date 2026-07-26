@@ -2693,7 +2693,13 @@ export function createAgentSessionDesktopClient(
     testApiKey: credentialId =>
       withAgentOrMock(
         async () => {
-          await rpc.call<void>('apiKey/test', { credentialId })
+          const result = await rpc.call<RpcResult<'apiKey/test'>>('apiKey/test', {
+            credentialId,
+          })
+          return {
+            ok: result.ok,
+            message: result.message,
+          }
         },
         () => mockClient.testApiKey(credentialId),
       ),

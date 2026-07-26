@@ -6,6 +6,7 @@ import type {
   ApiKeySummary as StoredApiKeySummary,
   EncryptedCredentialRepository,
 } from "../auth/EncryptedCredentialRepository"
+import { secretScrubber } from "../security/SecretScrubber"
 import type { IntegrationService } from "./IntegrationService"
 import type { PiModelService } from "./pi"
 
@@ -42,10 +43,42 @@ const statusCode = (cause: unknown): number | undefined => {
 
 const failureCategory = (cause: unknown): FailureCategory => {
   const status = statusCode(cause)
+  const message = cause instanceof Error ? cause.message : ""
   if (status === 401 || status === 403) return "authentication"
   if (status === 429) return "rate-limit"
-  if (cause instanceof TypeError || /network|fetch|socket|connect|timeout/i.test(cause instanceof Error ? cause.message : "")) return "network"
+  if (
+    /\b(?:401|403)\b|unauthori[sz]ed|forbidden|authentication failed|(?:invalid|incorrect)[\s_-]+api[\s_-]*key|api[\s_-]*key[\s_-]+(?:invalid|incorrect)/i.test(message)
+  ) return "authentication"
+  if (/\b429\b|rate[\s_-]?limit/i.test(message)) return "rate-limit"
+  if (cause instanceof TypeError || /network|fetch|socket|dns|connect|timeout|timed?\s*out/i.test(message)) return "network"
   return "unknown"
+}
+
+const failurePrefix = (category: FailureCategory) => {
+  switch (category) {
+    case "authentication":
+      return "API Key 鉴权失败"
+    case "rate-limit":
+      return "API Key 当前受到限流"
+    case "network":
+      return "API Key 网络请求失败"
+    default:
+      return "API Key 测试失败"
+  }
+}
+
+const formatTestFailure = (category: FailureCategory, cause: unknown, apiKey: string) => {
+  const prefix = failurePrefix(category)
+  if (!(cause instanceof Error)) return prefix
+  const withoutCurrentKey = apiKey ? cause.message.split(apiKey).join("<redacted>") : cause.message
+  const detail = secretScrubber.scrubText(withoutCurrentKey).replace(/\s+/g, " ").trim().slice(0, 500)
+  return detail ? `${prefix}：${detail}` : prefix
+}
+
+export type PublicApiKeyTestResult = {
+  apiKey: PublicApiKeySummary
+  ok: boolean
+  message: string
 }
 
 export class ApiKeyService {
@@ -108,7 +141,7 @@ export class ApiKeyService {
     return this.credentials.listApiKeys(summary.integrationID).map((item) => this.publicSummary(item, providerID))
   }
 
-  async test(credentialID: string): Promise<PublicApiKeySummary> {
+  async test(credentialID: string): Promise<PublicApiKeyTestResult> {
     const summary = this.requiredSummary(credentialID)
     const stored = await Effect.runPromise(this.credentials.getById<Credential.Value>(credentialID))
     if (!stored || stored.kind !== "api-key" || !Schema.is(Credential.Key)(stored.value)) {
@@ -116,13 +149,19 @@ export class ApiKeyService {
     }
     const providerID = (await this.providerMappings()).get(summary.integrationID) ?? Provider.ID.make(summary.integrationID)
     const model = (await this.providers.models()).find((candidate) => candidate.providerID === providerID && candidate.enabled)
-    if (!model) throw new AgentError("PROVIDER_UNAVAILABLE", `Provider ${providerID} 没有可用模型`, 409)
+    if (!model) {
+      return {
+        apiKey: this.publicSummary(summary, providerID),
+        ok: false,
+        message: `配置不可用：Provider ${providerID} 没有可用模型`,
+      }
+    }
+    const piModel = await this.providers.getPiModel({
+      providerID,
+      id: model.id,
+    })
     const testedAt = Date.now()
     try {
-      const piModel = await this.providers.getPiModel({
-        providerID,
-        id: model.id,
-      })
       const response = await this.providers.pi.completeSimple(
         piModel,
         {
@@ -139,16 +178,9 @@ export class ApiKeyService {
           maxRetries: 0,
         },
       )
-      if (response.stopReason === "error") {
-        throw new Error(response.errorMessage ?? "API Key 测试请求失败")
+      if (response.stopReason === "error" || response.stopReason === "aborted") {
+        throw new Error(response.errorMessage ?? "")
       }
-      await Effect.runPromise(this.credentials.updateHealth(credentialID, {
-        status: "healthy",
-        lastTestedAt: testedAt,
-        lastUsedAt: testedAt,
-        lastErrorCategory: null,
-        cooldownUntil: null,
-      }))
     } catch (cause) {
       const category = failureCategory(cause)
       await Effect.runPromise(this.credentials.updateHealth(credentialID, {
@@ -157,13 +189,25 @@ export class ApiKeyService {
         lastErrorCategory: category,
         cooldownUntil: category === "rate-limit" ? testedAt + 60_000 : null,
       }))
-      throw new AgentError(
-        category === "authentication" ? "AUTHORIZATION_FAILED" : category === "rate-limit" ? "RATE_LIMITED" : "PROVIDER_UNAVAILABLE",
-        category === "authentication" ? "API Key 鉴权失败" : category === "rate-limit" ? "API Key 当前受到限流" : "API Key 测试请求失败",
-        category === "authentication" ? 401 : category === "rate-limit" ? 429 : 502,
-      )
+      const apiKey = (await this.list(String(providerID))).find((item) => item.id === credentialID)!
+      return {
+        apiKey,
+        ok: false,
+        message: formatTestFailure(category, cause, stored.value.key),
+      }
     }
-    return (await this.list(String(providerID))).find((item) => item.id === credentialID)!
+    await Effect.runPromise(this.credentials.updateHealth(credentialID, {
+      status: "healthy",
+      lastTestedAt: testedAt,
+      lastUsedAt: testedAt,
+      lastErrorCategory: null,
+      cooldownUntil: null,
+    }))
+    return {
+      apiKey: (await this.list(String(providerID))).find((item) => item.id === credentialID)!,
+      ok: true,
+      message: "API Key 可用。",
+    }
   }
 
   async copyMaterial(credentialID: string): Promise<string> {

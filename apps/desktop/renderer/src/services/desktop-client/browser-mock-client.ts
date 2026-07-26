@@ -429,7 +429,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     setActiveApiKey: async () => undefined,
     setApiKeyEnabled: async () => undefined,
     reorderApiKeys: async () => undefined,
-    testApiKey: async () => undefined,
+    testApiKey: async () => ({ ok: true, message: 'API Key 可用。' }),
     deleteApiKey: async () => undefined,
     copyProviderApiKey: async () => {
       throw new Error('安全复制仅在桌面应用中可用。')

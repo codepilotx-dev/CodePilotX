@@ -253,15 +253,9 @@ export const providerHandlers = {
       }
       case "apiKey/test": {
         const credentialID = stringParam(params, "credentialId")
-        try {
-          const apiKey = await apiKeys.test(credentialID)
-          await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(apiKey.providerId)))
-          return { apiKey }
-        } catch (cause) {
-          const summary = (await apiKeys.list()).find((item) => String(item.id) === credentialID)
-          if (summary) await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(summary.providerId)))
-          throw cause
-        }
+        const result = await apiKeys.test(credentialID)
+        await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(result.apiKey.providerId)))
+        return result
       }
       case "apiKey/delete": {
         const credentialID = stringParam(params, "credentialId")

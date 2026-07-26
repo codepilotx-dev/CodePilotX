@@ -1197,7 +1197,11 @@ const fixtures = {
     orderedCredentialIds: [credentialId],
     operationId: "operation:api-key-reorder",
   }, { apiKeys: [apiKeySummary] }),
-  "apiKey/test": methodFixture("apiKey/test", { credentialId }, { apiKey: apiKeySummary }),
+  "apiKey/test": methodFixture(
+    "apiKey/test",
+    { credentialId },
+    { apiKey: apiKeySummary, ok: true, message: "API Key 可用。" },
+  ),
   "apiKey/delete": methodFixture("apiKey/delete", {
     credentialId,
     operationId: "operation:api-key-delete",
