@@ -13,9 +13,9 @@ import {
   PROFILE_SCHEMA,
 } from "./schema-initializer"
 import {
-  DATA_EPOCH,
+  HISTORY_APPLICATION_ID,
+  LEGACY_HISTORY_APPLICATION_IDS,
   PROFILE_APPLICATION_ID,
-  PROFILE_SCHEMA_VERSION,
   SCHEMA_VERSION,
 } from "./schema"
 
@@ -55,6 +55,11 @@ const databaseMeta = (path: string) => {
     return {
       applicationID: (sqlite.query("PRAGMA application_id").get() as { application_id: number }).application_id,
       userVersion: (sqlite.query("PRAGMA user_version").get() as { user_version: number }).user_version,
+      userTableCount: (sqlite.query(`
+        SELECT COUNT(*) AS count
+        FROM sqlite_master
+        WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+      `).get() as { count: number }).count,
     }
   } finally {
     sqlite.close()
@@ -143,6 +148,9 @@ const buildMigratingDatabase = (
   try {
     configureConnection(sqlite)
     initializeSchema(sqlite, kind)
+    if (kind === "history") {
+      sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
+    }
     copyRecognizedTables(
       legacyPath,
       sqlite,
@@ -180,18 +188,35 @@ const backupLegacy = (paths: StoragePaths) => {
 
 const COPYFILE_EXCL = 1
 
-const prepareHistoryEpoch = (path: string) => {
+const isKnownHistoryApplicationID = (applicationID: number) =>
+  applicationID === HISTORY_APPLICATION_ID
+  || LEGACY_HISTORY_APPLICATION_IDS.has(applicationID)
+
+const prepareHistoryStorage = (path: string) => {
   if (!existsSync(path)) return
   const meta = databaseMeta(path)
-  if (meta.applicationID === DATA_EPOCH) return
+  if (meta.applicationID === HISTORY_APPLICATION_ID) return
+  if (meta.applicationID === 0 && meta.userVersion === 0 && meta.userTableCount === 0) return
+  if (
+    !LEGACY_HISTORY_APPLICATION_IDS.has(meta.applicationID)
+    || meta.userVersion < 17
+    || meta.userVersion > SCHEMA_VERSION
+  ) {
+    throw new Error("history.sqlite 不属于受支持的 CodePilotX 数据代际，已保留原文件并拒绝覆盖")
+  }
   checkpoint(path)
-  removeTemporaryDatabase(path)
+  const sqlite = new Database(path, { create: false, strict: true })
+  try {
+    sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
+  } finally {
+    sqlite.close()
+  }
 }
 
 const upgradeMixedHistoryV17 = (paths: StoragePaths) => {
   if (!existsSync(paths.historyPath)) return
   const meta = databaseMeta(paths.historyPath)
-  if (meta.applicationID !== DATA_EPOCH || meta.userVersion !== 17) return
+  if (!isKnownHistoryApplicationID(meta.applicationID) || meta.userVersion !== 17) return
 
   checkpoint(paths.historyPath)
   migrateOne(paths.historyPath, paths.profilePath, "profile")
@@ -201,6 +226,7 @@ const upgradeMixedHistoryV17 = (paths: StoragePaths) => {
   try {
     configureConnection(sqlite)
     initializeSchema(sqlite, "history")
+    sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
     copyRecognizedTables(paths.historyPath, sqlite, HISTORY_SCHEMA)
     validateDatabase(sqlite, "history")
     sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -223,9 +249,6 @@ const validateExistingProfile = (path: string) => {
   if (meta.applicationID !== PROFILE_APPLICATION_ID) {
     throw new Error("profile.sqlite 不属于当前应用，已保留原文件并拒绝覆盖")
   }
-  if (meta.userVersion > PROFILE_SCHEMA_VERSION) {
-    throw new Error(`profile.sqlite 来自更新版本 (${meta.userVersion})，拒绝降级`)
-  }
 }
 
 /**
@@ -235,7 +258,7 @@ const validateExistingProfile = (path: string) => {
  */
 export const prepareStorage = (paths: StoragePaths) => {
   upgradeMixedHistoryV17(paths)
-  prepareHistoryEpoch(paths.historyPath)
+  prepareHistoryStorage(paths.historyPath)
   validateExistingProfile(paths.profilePath)
 
   if (!existsSync(paths.legacyPath)) return
@@ -264,4 +287,4 @@ export const prepareStorage = (paths: StoragePaths) => {
 }
 
 /** Compatibility wrapper retained for callers outside the production bootstrap. */
-export const prepareDatabase = (path: string) => prepareHistoryEpoch(path)
+export const prepareDatabase = (path: string) => prepareHistoryStorage(path)

@@ -501,7 +501,10 @@ class SchemaInitializer {
     const currentVersion = (this.sqlite.query("PRAGMA user_version").get() as { user_version: number }).user_version
     if (currentVersion === expectedVersion) return
     if (currentVersion > expectedVersion) {
-      throw new Error(`${this.kind} 数据库来自更新版本 (${currentVersion})，拒绝降级`)
+      // Schema 21/profile 3 are forward-compatible baselines. A patched older
+      // client uses only its known tables and columns, leaving future additive
+      // storage untouched and preserving the newer user_version.
+      return
     }
     if (currentVersion !== 0) {
       this.migrate(currentVersion, expectedVersion)

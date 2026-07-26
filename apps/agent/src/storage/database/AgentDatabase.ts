@@ -13,10 +13,10 @@ import { workspaceRepository } from "../repositories/workspace-repository"
 import { recoverInterruptedRuns } from "../recovery/interrupted-run-recovery"
 import { configureConnection } from "./connection"
 import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
-import { DATA_EPOCH } from "./schema"
+import { HISTORY_APPLICATION_ID } from "./schema"
 import { prepareStorage, type StoragePaths } from "./reset"
 
-export { DATA_EPOCH, SCHEMA_VERSION } from "./schema"
+export { DATA_EPOCH, HISTORY_APPLICATION_ID, SCHEMA_VERSION } from "./schema"
 export * from "../repositories/RepositoryDatabase"
 
 export type AgentDatabasePaths = {
@@ -65,7 +65,7 @@ export class AgentDatabase extends RepositoryDatabase {
       reviews: reviewRepository(this),
       credentials: credentialRepositoryDatabase(this),
     }
-    sqlite.exec(`PRAGMA application_id = ${DATA_EPOCH}`)
+    sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
     recoverInterruptedRuns(this)
   }
 
