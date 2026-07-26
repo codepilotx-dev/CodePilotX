@@ -142,13 +142,29 @@
   color: var(--color-token-icon-foreground);
 }
 
-.pet-catalog-art img {
+.pet-catalog-art img,
+.pet-catalog-preview__image {
   display: block;
+  margin: auto;
   width: auto;
   max-width: 100%;
   height: auto;
   max-height: 100%;
   object-fit: scale-down;
+}
+
+.pet-catalog-preview {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.pet-catalog-preview > .ui-skeleton-block {
+  width: min(100%, 148px);
+  height: 100%;
+  border-radius: var(--radius-4);
 }
 
 .pet-catalog-art .pet-sprite {
@@ -224,6 +240,50 @@
 
 .pet-catalog-empty strong {
   color: var(--color-token-foreground);
+}
+
+.pet-catalog-skeleton-card {
+  pointer-events: none;
+}
+
+.pet-catalog-skeleton-art {
+  height: 132px;
+  border-radius: 0;
+}
+
+.pet-catalog-skeleton-title {
+  width: 62%;
+  height: 18px;
+  border-radius: var(--radius-2);
+}
+
+.pet-catalog-skeleton-author {
+  width: 44%;
+  height: 14px;
+  border-radius: var(--radius-2);
+}
+
+.pet-catalog-skeleton-description {
+  width: 100%;
+  height: 3.5em;
+  border-radius: var(--radius-3);
+}
+
+.pet-catalog-skeleton-tags {
+  display: flex;
+  gap: 6px;
+}
+
+.pet-catalog-skeleton-tags > * {
+  width: 58px;
+  height: 22px;
+  border-radius: var(--radius-full);
+}
+
+.pet-catalog-skeleton-action {
+  width: 100%;
+  height: var(--control-size-md);
+  border-radius: var(--radius-button);
 }
 
 .pet-license-confirmation {

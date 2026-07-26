@@ -12,6 +12,10 @@ import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
+import {
+  SkeletonBlock,
+  SkeletonRegion,
+} from '../../components/ui/Skeleton.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type {
@@ -124,7 +128,6 @@ export function PluginsView(): React.ReactNode {
       })
       .catch(error => {
         if (cancelled) return
-        setSkills([])
         setSkillsError(
           error instanceof Error ? error.message : '技能目录加载失败。',
         )
@@ -459,12 +462,14 @@ export function PluginsView(): React.ReactNode {
                 className="plugins-directory"
               >
                 {pluginsLoading ? (
-                  <div className="plugins-skeleton-grid" role="status">
-                    <span className="plugins-sr-status">正在加载插件目录</span>
+                  <SkeletonRegion
+                    className="plugins-skeleton-grid"
+                    label="正在加载插件目录"
+                  >
                     {Array.from({ length: 6 }).map((_, index) => (
-                      <div aria-hidden="true" className="plugins-skeleton" key={index} />
+                      <SkeletonBlock className="plugins-skeleton" key={index} />
                     ))}
-                  </div>
+                  </SkeletonRegion>
                 ) : visiblePlugins.length === 0 ? (
                   <div className="plugins-empty">
                     <Clock aria-hidden="true" size={APP_ICON_SIZE} />
@@ -525,6 +530,7 @@ export function PluginsView(): React.ReactNode {
           ) : (
             <div
               aria-labelledby="skills-tab"
+              aria-busy={skillsLoading || undefined}
               className="plugins-panel"
               id="skills-panel"
               role="tabpanel"
@@ -539,7 +545,7 @@ export function PluginsView(): React.ReactNode {
                 />
               </div>
 
-              {!skillsError && !skillsLoading && skillGroups.installed.length > 0 ? (
+              {skillGroups.installed.length > 0 ? (
                 <section className="plugins-source-group" aria-labelledby="installed-skills-title">
                   <header className="plugins-source-group__header">
                     <h2 id="installed-skills-title">已添加</h2>
@@ -573,7 +579,23 @@ export function PluginsView(): React.ReactNode {
                 ))}
               </div>
 
-              {skillsError ? (
+              {skillsError && skills.length > 0 ? (
+                <div className="plugins-callout" data-tone="danger" role="status">
+                  <AlertOctagon aria-hidden="true" size={APP_ICON_SIZE} />
+                  <div>
+                    <strong>技能目录刷新失败</strong>
+                    <p>{skillsError}</p>
+                  </div>
+                  <Button
+                    onClick={() => setSkillsReloadKey(current => current + 1)}
+                    size="sm"
+                  >
+                    重试
+                  </Button>
+                </div>
+              ) : null}
+
+              {skillsError && skills.length === 0 ? (
                 <div className="plugins-empty">
                   <AlertOctagon aria-hidden="true" size={APP_ICON_SIZE} />
                   <p>{skillsError}</p>
@@ -600,13 +622,26 @@ export function PluginsView(): React.ReactNode {
                     </Button>
                   </div>
                 </div>
-              ) : skillsLoading ? (
-                <div className="plugins-skeleton-grid" role="status">
-                  <span className="plugins-sr-status">正在加载 skills.sh 技能目录</span>
+              ) : skillsLoading && skills.length === 0 ? (
+                <SkeletonRegion
+                  className="plugins-skeleton-grid"
+                  label="正在加载 skills.sh 技能目录"
+                >
                   {Array.from({ length: 6 }).map((_, index) => (
-                    <div aria-hidden="true" className="plugins-skeleton" key={index} />
+                    <div
+                      aria-hidden="true"
+                      className="skill-catalog-row plugins-skill-skeleton"
+                      key={index}
+                    >
+                      <SkeletonBlock className="plugins-skill-skeleton__icon" />
+                      <span className="plugins-skill-skeleton__content">
+                        <SkeletonBlock className="plugins-skill-skeleton__title" />
+                        <SkeletonBlock className="plugins-skill-skeleton__meta" />
+                      </span>
+                      <SkeletonBlock className="plugins-skill-skeleton__action" />
+                    </div>
                   ))}
-                </div>
+                </SkeletonRegion>
               ) : skillGroups.installed.length === 0 && skillGroups.recommended.length === 0 ? (
                 <div className="plugins-empty">
                   <Clock aria-hidden="true" size={APP_ICON_SIZE} />

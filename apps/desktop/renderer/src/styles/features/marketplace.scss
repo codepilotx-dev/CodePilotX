@@ -598,27 +598,6 @@ button.plugins-card-title {
   min-height: calc(var(--control-size-lg) + var(--space-7));
   border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background:
-    linear-gradient(
-      90deg,
-      var(--color-token-list-active-selection-background),
-      var(--color-token-bg-fog),
-      var(--color-token-list-active-selection-background)
-    ),
-    var(--color-token-bg-secondary);
-  background-size: 200% 100%;
-  animation: plugins-skeleton-pulse var(--motion-emphasis) var(--ease-standard)
-    infinite alternate;
-}
-
-@keyframes plugins-skeleton-pulse {
-  from {
-    background-position: 100% 0;
-  }
-
-  to {
-    background-position: 0 0;
-  }
 }
 
 .plugins-skeleton-icon,
@@ -1596,6 +1575,41 @@ button.plugins-card-title:focus-visible,
   white-space: nowrap;
 }
 
+.plugins-skill-skeleton {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  pointer-events: none;
+}
+
+.plugins-skill-skeleton__icon {
+  width: var(--control-size-lg);
+  height: var(--control-size-lg);
+  border-radius: var(--radius-4);
+}
+
+.plugins-skill-skeleton__content {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.plugins-skill-skeleton__title {
+  width: min(12rem, 68%);
+  height: var(--space-4);
+  border-radius: var(--radius-2);
+}
+
+.plugins-skill-skeleton__meta {
+  width: min(9rem, 48%);
+  height: var(--space-3);
+  border-radius: var(--radius-2);
+}
+
+.plugins-skill-skeleton__action {
+  width: 4.25rem;
+  height: var(--control-size-sm);
+  border-radius: var(--radius-button);
+}
+
 .plugins-skill-owner-filter {
   display: inline-flex;
   width: fit-content;
@@ -1665,6 +1679,10 @@ button.plugins-card-title:focus-visible,
   .plugin-catalog-row__actions,
   .skill-catalog-row__installed,
   .skill-catalog-row__action {
+    grid-column: 2;
+  }
+
+  .plugins-skill-skeleton__action {
     grid-column: 2;
   }
 

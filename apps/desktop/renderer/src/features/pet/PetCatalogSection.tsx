@@ -10,6 +10,11 @@ import { ConfirmationDialog } from "../../components/ui/ConfirmationDialog.js";
 import { IconButton } from "../../components/ui/IconButton.js";
 import { SearchInput } from "../../components/ui/SearchInput.js";
 import { SegmentedControl } from "../../components/ui/SegmentedControl.js";
+import { RemoteImage } from "../../components/ui/RemoteImage.js";
+import {
+  SkeletonBlock,
+  SkeletonRegion,
+} from "../../components/ui/Skeleton.js";
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -67,9 +72,6 @@ export function PetCatalogSection({
   const [version, setVersion] = useState<PetCatalogVersionFilter>("all");
   const [tab, setTab] = useState<PetCatalogTab>(DEFAULT_PET_CATALOG_TAB);
   const [licensePet, setLicensePet] = useState<PetCatalogItem | null>(null);
-  const [previewFailures, setPreviewFailures] = useState<Set<string>>(
-    () => new Set(),
-  );
   const [showWakeAction, setShowWakeAction] = useState(false);
 
   const installedIds = useMemo(
@@ -265,14 +267,37 @@ export function PetCatalogSection({
 
           <div
             aria-labelledby={`pet-catalog-${tab}-tab`}
+            aria-busy={
+              (tab === "available" ? loading : installedPetsLoading) || undefined
+            }
             id="pet-catalog-panel"
             role="tabpanel"
           >
             {tab === "available" && loading && !catalog.pets.length ? (
-              <div className="pet-catalog-empty" role="status">
-                <span className="ui-button-spinner" />
-                正在载入社区宠物…
-              </div>
+              <SkeletonRegion
+                className="pet-catalog-grid pet-catalog-skeleton-grid"
+                label="正在载入社区宠物"
+              >
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <article
+                    aria-hidden="true"
+                    className="pet-catalog-card pet-catalog-skeleton-card"
+                    key={index}
+                  >
+                    <SkeletonBlock className="pet-catalog-skeleton-art" />
+                    <div className="pet-catalog-card-body">
+                      <SkeletonBlock className="pet-catalog-skeleton-title" />
+                      <SkeletonBlock className="pet-catalog-skeleton-author" />
+                      <SkeletonBlock className="pet-catalog-skeleton-description" />
+                      <div className="pet-catalog-skeleton-tags">
+                        <SkeletonBlock />
+                        <SkeletonBlock />
+                      </div>
+                      <SkeletonBlock className="pet-catalog-skeleton-action" />
+                    </div>
+                  </article>
+                ))}
+              </SkeletonRegion>
             ) : null}
             {tab === "installed" &&
             installedPetsLoading &&
@@ -349,18 +374,16 @@ export function PetCatalogSection({
                             spriteVersionNumber={pet.spriteVersionNumber}
                             spritesheetUrl={pet.spritesheetUrl}
                           />
-                        ) : pet.previewUrl && !previewFailures.has(pet.id) ? (
-                          <img
+                        ) : pet.previewUrl ? (
+                          <RemoteImage
                             alt=""
+                            className="pet-catalog-preview"
                             decoding="async"
+                            fallback={
+                              <PawPrint aria-hidden="true" size={34} />
+                            }
+                            imageClassName="pet-catalog-preview__image"
                             loading="lazy"
-                            onError={() => {
-                              setPreviewFailures((current) => {
-                                const next = new Set(current);
-                                next.add(pet.id);
-                                return next;
-                              });
-                            }}
                             src={pet.previewUrl}
                           />
                         ) : (

@@ -29,6 +29,10 @@ import {
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
+import {
+  SkeletonBlock,
+  SkeletonRegion,
+} from '../../components/ui/Skeleton.js'
 import { useSearchParams } from 'react-router-dom'
 import { ApiKeyWorkspace } from './ApiKeyWorkspace.js'
 import {
@@ -120,6 +124,7 @@ export function ModelCenterWorkbench({
     },
   })
   const {
+    initialLoadState,
     providers,
     providerState,
     integrations,
@@ -128,6 +133,15 @@ export function ModelCenterWorkbench({
     setApiKeys,
     refreshProviderContext,
   } = controller
+  const requestedView = searchParams.get('view') === 'keys' ? 'keys' : 'providers'
+  const requestedProvider = searchParams.get('provider')
+  const requestedSection = searchParams.get('section')
+  const initialSkeletonSection =
+    requestedSection === 'models' || requestedSection === 'router'
+      ? requestedSection
+      : 'connection'
+  const showInitialSkeleton =
+    initialLoadState === 'loading' && providers.length === 0
   const routeState = useMemo(
     () => parseModelCenterSearchParams(
       searchParams,
@@ -622,7 +636,7 @@ const nextState = await desktopClient.saveModelProvider({
         slot="right"
       >
         <div className="model-center-header-actions">
-          {workspaceView === 'providers' && !showingProviderDetail ? (
+          {!showInitialSkeleton && workspaceView === 'providers' && !showingProviderDetail ? (
             <Button
               aria-label="添加 API Key"
               onClick={() => openApiKeys(true)}
@@ -633,7 +647,7 @@ const nextState = await desktopClient.saveModelProvider({
               <span className="model-center-header-action-label">添加 API Key</span>
             </Button>
           ) : null}
-          {showingProviderDetail && providerSection === 'connection' ? (
+          {!showInitialSkeleton && showingProviderDetail && providerSection === 'connection' ? (
             <>
               <Button
                 aria-label="测试连接"
@@ -656,7 +670,7 @@ const nextState = await desktopClient.saveModelProvider({
               </Button>
             </>
           ) : null}
-          {showingProviderDetail && providerSection === 'models' ? (
+          {!showInitialSkeleton && showingProviderDetail && providerSection === 'models' ? (
             <>
               <Button
                 aria-label="刷新目录"
@@ -682,14 +696,23 @@ const nextState = await desktopClient.saveModelProvider({
         </div>
       </WorkspaceHeaderItem>
 
-      {!showingProviderDetail ? (
+      {!showInitialSkeleton && !showingProviderDetail ? (
         <header className="model-center-heading">
           <h1>{pageTitle}</h1>
           <p>{pageDescription}</p>
         </header>
       ) : null}
 
-      {workspaceView === 'providers' ? (
+      {showInitialSkeleton ? (
+        <ModelCenterInitialSkeleton
+          section={initialSkeletonSection}
+          view={requestedView === 'keys'
+            ? 'keys'
+            : requestedProvider
+              ? 'detail'
+              : 'catalog'}
+        />
+      ) : workspaceView === 'providers' ? (
         showingProviderDetail ? (
           <ProviderDetail
             activeTab={providerSection}
@@ -816,6 +839,120 @@ const nextState = await desktopClient.saveModelProvider({
         })} keys={apiKeys} selectedProviderId={providerID} createRequestToken={createKeyRequestToken} onSelectedProviderIdChange={selectProvider} onChanged={handleApiKeysChanged} onError={onError} onNotice={onNotice} />
       )}
     </div>
+  )
+}
+
+type ModelCenterInitialSkeletonProps = {
+  view: 'catalog' | 'detail' | 'keys'
+  section: 'connection' | 'models' | 'router'
+}
+
+function ModelCenterInitialSkeleton({
+  view,
+  section,
+}: ModelCenterInitialSkeletonProps): React.ReactNode {
+  if (view === 'keys') {
+    return (
+      <SkeletonRegion className="model-center-initial-skeleton" label="正在加载 API Keys">
+        <div className="model-center-heading model-center-skeleton-heading">
+          <SkeletonBlock className="model-center-skeleton-page-title" />
+          <SkeletonBlock className="model-center-skeleton-page-copy" />
+        </div>
+        <div className="model-center-skeleton-key-toolbar">
+          {Array.from({ length: 4 }, (_, index) => (
+            <SkeletonBlock className="model-center-skeleton-control" key={index} />
+          ))}
+        </div>
+        {Array.from({ length: 2 }, (_, groupIndex) => (
+          <section className="model-center-skeleton-key-group" key={groupIndex}>
+            <header>
+              <SkeletonBlock className="model-center-skeleton-logo" />
+              <SkeletonBlock className="model-center-skeleton-name" />
+              <SkeletonBlock className="model-center-skeleton-count" />
+            </header>
+            {Array.from({ length: 2 }, (_, rowIndex) => (
+              <div className="model-center-skeleton-key-row" key={rowIndex}>
+                <SkeletonBlock className="model-center-skeleton-key-order" />
+                <div>
+                  <SkeletonBlock className="model-center-skeleton-key-title" />
+                  <SkeletonBlock className="model-center-skeleton-key-meta" />
+                </div>
+                <SkeletonBlock className="model-center-skeleton-key-actions" />
+              </div>
+            ))}
+          </section>
+        ))}
+      </SkeletonRegion>
+    )
+  }
+
+  if (view === 'detail') {
+    return (
+      <SkeletonRegion className="model-center-initial-skeleton" label="正在加载 Provider 详情">
+        <header className="model-center-skeleton-provider-header">
+          <SkeletonBlock className="model-center-skeleton-back" />
+          <SkeletonBlock className="model-center-skeleton-provider-logo" />
+          <div>
+            <SkeletonBlock className="model-center-skeleton-provider-title" />
+            <SkeletonBlock className="model-center-skeleton-provider-copy" />
+          </div>
+        </header>
+        <div className="model-center-skeleton-tabs">
+          {Array.from({ length: 3 }, (_, index) => (
+            <SkeletonBlock className="model-center-skeleton-tab" key={index} />
+          ))}
+        </div>
+        {section === 'models' ? (
+          <>
+            <SkeletonBlock className="model-center-skeleton-search" />
+            <div className="model-center-skeleton-model-grid">
+              {Array.from({ length: 6 }, (_, index) => (
+                <SkeletonBlock className="model-center-skeleton-model-card" key={index} />
+              ))}
+            </div>
+          </>
+        ) : section === 'router' ? (
+          <div className="model-center-skeleton-router-list">
+            <SkeletonBlock />
+            <SkeletonBlock />
+          </div>
+        ) : (
+          <div className="model-center-skeleton-detail-sections">
+            <SkeletonBlock />
+            <SkeletonBlock />
+          </div>
+        )}
+      </SkeletonRegion>
+    )
+  }
+
+  return (
+    <SkeletonRegion className="model-center-initial-skeleton" label="正在加载 Provider 目录">
+      <div className="model-center-heading model-center-skeleton-heading">
+        <SkeletonBlock className="model-center-skeleton-page-title" />
+        <SkeletonBlock className="model-center-skeleton-page-copy" />
+      </div>
+      <div className="model-center-skeleton-catalog-header">
+        <div>
+          <SkeletonBlock className="model-center-skeleton-section-title" />
+          <SkeletonBlock className="model-center-skeleton-section-copy" />
+        </div>
+        <SkeletonBlock className="model-center-skeleton-count" />
+      </div>
+      <SkeletonBlock className="model-center-skeleton-search" />
+      <div className="model-center-skeleton-provider-grid">
+        {Array.from({ length: 6 }, (_, index) => (
+          <div className="model-center-skeleton-provider-card" key={index}>
+            <SkeletonBlock className="model-center-skeleton-logo" />
+            <div>
+              <SkeletonBlock className="model-center-skeleton-name" />
+              <SkeletonBlock className="model-center-skeleton-meta" />
+            </div>
+            <SkeletonBlock className="model-center-skeleton-status" />
+          </div>
+        ))}
+      </div>
+    </SkeletonRegion>
   )
 }
 

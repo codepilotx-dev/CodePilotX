@@ -13,6 +13,10 @@ import {
   type BillingProviderEntry,
 } from '../../utils/billingProviders.js'
 import { Button } from '../../components/ui/Button.js'
+import {
+  SkeletonBlock,
+  SkeletonRegion,
+} from '../../components/ui/Skeleton.js'
 
 type ConfiguredBillingProvider = {
   providerID: ModelProviderID
@@ -29,11 +33,12 @@ export function UsageBillingSettings(): React.ReactNode {
   const [hasConfiguredProvider, setHasConfiguredProvider] = useState<
     boolean | null
   >(null)
-  const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const refreshBalance = useCallback(async (): Promise<void> => {
-    setLoading(true)
+    setRefreshing(true)
     setError(null)
     try {
       const providers = await desktopClient.listModelProviders()
@@ -71,7 +76,8 @@ export function UsageBillingSettings(): React.ReactNode {
           : String(refreshError),
       )
     } finally {
-      setLoading(false)
+      setInitialLoading(false)
+      setRefreshing(false)
     }
   }, [])
 
@@ -86,14 +92,38 @@ export function UsageBillingSettings(): React.ReactNode {
         .join('、'),
     [configuredBillingProviders],
   )
+  const hasBalanceData = configuredBillingProviders.some(
+    ({ providerID }) => balances[providerID] !== undefined,
+  )
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner">
+      <div
+        aria-busy={refreshing || undefined}
+        className="settings-content-inner"
+      >
         <div className="settings-page-header">
           <h2 className="settings-page-title">使用情况和计费</h2>
         </div>
-        {hasConfiguredProvider === false ? (
+        {initialLoading ? (
+          <BillingLoadingSkeleton />
+        ) : error && !hasBalanceData ? (
+          <SettingsSection title="查询失败" description={error}>
+            <SettingsRow
+              title="连接状态"
+              description="无法读取提供商目录或账户用量，请稍后重试。"
+              control={
+                <Button
+                  disabled={refreshing}
+                  type="button"
+                  onClick={() => void refreshBalance()}
+                >
+                  重新检查
+                </Button>
+              }
+            />
+          </SettingsSection>
+        ) : hasConfiguredProvider === false ? (
           <SettingsSection
             title="暂未连接提供商"
             description="暂未连接提供商，无法获取使用情况和计费情况！"
@@ -103,7 +133,7 @@ export function UsageBillingSettings(): React.ReactNode {
               description="请先到模型中心连接模型提供商并保存 API Key。"
               control={
                 <Button
-                  disabled={loading}
+                  disabled={refreshing}
                   type="button"
                   onClick={() => void refreshBalance()}
                 >
@@ -122,7 +152,7 @@ export function UsageBillingSettings(): React.ReactNode {
               description="配置 DeepSeek 或 MiniMax API key 后，这里会显示余额或 Token Plan 用量。"
               control={
                 <Button
-                  disabled={loading}
+                  disabled={refreshing}
                   type="button"
                   onClick={() => void refreshBalance()}
                 >
@@ -140,7 +170,7 @@ export function UsageBillingSettings(): React.ReactNode {
                   description={configuredProviderLabels}
                   control={
                     <Button
-                      disabled={loading}
+                      disabled={refreshing}
                       type="button"
                       onClick={() => void refreshBalance()}
                     >
@@ -154,14 +184,14 @@ export function UsageBillingSettings(): React.ReactNode {
               entry.id === 'minimax' ? (
                 <MiniMaxUsageSection
                   key={providerID}
-                  loading={loading}
+                  loading={refreshing}
                   result={balances[providerID] ?? null}
                   onRefresh={refreshBalance}
                 />
               ) : (
                 <DeepSeekBalanceSection
                   key={providerID}
-                  loading={loading}
+                  loading={refreshing}
                   result={balances[providerID] ?? null}
                   onRefresh={refreshBalance}
                 />
@@ -171,6 +201,40 @@ export function UsageBillingSettings(): React.ReactNode {
         )}
       </div>
     </SettingsContentArea>
+  )
+}
+
+function BillingLoadingSkeleton(): React.ReactNode {
+  return (
+    <SkeletonRegion
+      className="billing-loading"
+      label="正在查询使用情况和计费信息"
+    >
+      {Array.from({ length: 2 }, (_, index) => (
+        <section aria-hidden="true" className="settings-section" key={index}>
+          <header className="settings-section-header">
+            <div className="settings-section-header-copy">
+              <SkeletonBlock className="billing-loading-title" />
+              <SkeletonBlock className="billing-loading-description" />
+            </div>
+            <div className="settings-section-header-actions">
+              <SkeletonBlock className="billing-loading-action" />
+              <SkeletonBlock className="billing-loading-action" />
+            </div>
+          </header>
+          <div className="settings-section-content settings-card">
+            <div className="billing-provider-panel">
+              <div className="billing-loading-summary">
+                <SkeletonBlock className="billing-loading-status" />
+                <SkeletonBlock className="billing-loading-value" />
+                <SkeletonBlock className="billing-loading-copy" />
+              </div>
+              <SkeletonBlock className="billing-loading-progress" />
+            </div>
+          </div>
+        </section>
+      ))}
+    </SkeletonRegion>
   )
 }
 

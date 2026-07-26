@@ -19,6 +19,11 @@ import type {
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
+import { RemoteImage } from '../../components/ui/RemoteImage.js'
+import {
+  SkeletonBlock,
+  SkeletonRegion,
+} from '../../components/ui/Skeleton.js'
 
 export function ProfileSettings(): React.ReactNode {
   const navigate = useNavigate()
@@ -76,6 +81,11 @@ export function ProfileSettings(): React.ReactNode {
   )
   const contributionWeeks = githubOverview?.contributions.weeks ?? []
   const currentStatus = githubOverview?.user.status ?? null
+  const showInitialSkeleton =
+    loading &&
+    githubAuth === null &&
+    githubOverview === null &&
+    githubOverviewError === null
 
   const openStatusEditor = (): void => {
     setStatusEmoji(statusEmojiName(currentStatus?.emoji) ?? 'speech_balloon')
@@ -148,14 +158,22 @@ export function ProfileSettings(): React.ReactNode {
           </div>
         </header>
 
-        {loading ? (
+        {showInitialSkeleton ? (
           <ProfileLoadingSkeleton />
         ) : (
           <>
             <section className="profile-hero">
               <div className="profile-avatar-wrap">
                 <div className="profile-avatar" aria-hidden="true">
-                  {user?.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <User />}
+                  {user?.avatarUrl ? (
+                    <RemoteImage
+                      alt=""
+                      fallback={<User />}
+                      src={user.avatarUrl}
+                    />
+                  ) : (
+                    <User />
+                  )}
                 </div>
                 {user ? (
                   <button
@@ -373,50 +391,36 @@ export function ProfileSettings(): React.ReactNode {
 
 function ProfileLoadingSkeleton(): React.ReactNode {
   return (
-    <div
-      aria-busy="true"
-      aria-label="正在读取 GitHub 资料"
+    <SkeletonRegion
       className="profile-loading"
+      label="正在读取 GitHub 资料"
     >
       <section className="profile-loading-hero">
-        <ProfileLoadingBlock className="profile-loading-avatar" />
-        <ProfileLoadingBlock className="profile-loading-name" />
-        <ProfileLoadingBlock className="profile-loading-identity" />
+        <SkeletonBlock className="profile-loading-avatar" />
+        <SkeletonBlock className="profile-loading-name" />
+        <SkeletonBlock className="profile-loading-identity" />
       </section>
       <section className="profile-loading-stats" aria-hidden="true">
         {Array.from({ length: 5 }, (_, index) => (
           <div key={index}>
-            <ProfileLoadingBlock />
-            <ProfileLoadingBlock />
+            <SkeletonBlock />
+            <SkeletonBlock />
           </div>
         ))}
       </section>
       <section className="profile-loading-activity" aria-hidden="true">
-        <ProfileLoadingBlock className="profile-loading-heading" />
+        <SkeletonBlock className="profile-loading-heading" />
         <div className="profile-loading-contributions">
           {Array.from({ length: 84 }, (_, index) => (
-            <ProfileLoadingBlock key={index} />
+            <SkeletonBlock key={index} />
           ))}
         </div>
       </section>
       <section className="profile-loading-lower" aria-hidden="true">
-        <div>{Array.from({ length: 5 }, (_, index) => <ProfileLoadingBlock key={index} />)}</div>
-        <div>{Array.from({ length: 5 }, (_, index) => <ProfileLoadingBlock key={index} />)}</div>
+        <div>{Array.from({ length: 5 }, (_, index) => <SkeletonBlock key={index} />)}</div>
+        <div>{Array.from({ length: 5 }, (_, index) => <SkeletonBlock key={index} />)}</div>
       </section>
-    </div>
-  )
-}
-
-function ProfileLoadingBlock({
-  className = '',
-}: {
-  className?: string
-}): React.ReactNode {
-  return (
-    <span
-      aria-hidden="true"
-      className={`profile-loading-block ${className}`.trim()}
-    />
+    </SkeletonRegion>
   )
 }
 

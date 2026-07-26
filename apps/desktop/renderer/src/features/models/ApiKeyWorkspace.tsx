@@ -19,6 +19,7 @@ import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import { Dropdown } from '../../components/ui/Dropdown.js'
 import { Input } from '../../components/ui/Input.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
+import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { fullErrorMessage } from '../../utils/errors.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
@@ -270,9 +271,14 @@ export function ApiKeyWorkspace({
             <section className="model-center-key-group" key={provider.providerID}>
               <header className="model-center-key-group-header">
                 <div>
-                  {provider.logoURL
-                    ? <img className="model-center-provider-logo" src={provider.logoURL} alt="" />
-                    : <KeyRound aria-hidden />}
+                  {provider.logoURL ? (
+                    <RemoteImage
+                      alt=""
+                      className="model-center-provider-logo"
+                      fallback={<KeyRound aria-hidden />}
+                      src={provider.logoURL}
+                    />
+                  ) : <KeyRound aria-hidden />}
                   <strong>{provider.displayName}</strong>
                 </div>
                 <span>{providerKeys.length} 条</span>

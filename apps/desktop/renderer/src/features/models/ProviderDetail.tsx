@@ -3,6 +3,7 @@ import type React from 'react'
 import { useId, useRef } from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
+import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -87,11 +88,28 @@ export function ProviderDetail({
         ) : null}
 
         <div className="model-center-provider-identity">
-          <span className="model-center-provider-identity-logo">
-            {provider.logoURL
-              ? <img alt="" src={provider.logoURL} />
-              : <Server aria-hidden size={APP_ICON_SIZE + 6} strokeWidth={APP_ICON_STROKE_WIDTH} />}
-          </span>
+          {provider.logoURL ? (
+            <RemoteImage
+              alt=""
+              className="model-center-provider-identity-logo"
+              fallback={(
+                <Server
+                  aria-hidden
+                  size={APP_ICON_SIZE + 6}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              )}
+              src={provider.logoURL}
+            />
+          ) : (
+            <span className="model-center-provider-identity-logo">
+              <Server
+                aria-hidden
+                size={APP_ICON_SIZE + 6}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            </span>
+          )}
           <div className="model-center-provider-identity-copy">
             <div className="model-center-provider-identity-heading">
               <h2 id={titleId}>{provider.name}</h2>

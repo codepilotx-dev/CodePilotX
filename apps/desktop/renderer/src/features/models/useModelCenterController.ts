@@ -20,7 +20,10 @@ type Options = {
   onError: (message: string) => void
 }
 
+export type ModelCenterInitialLoadState = 'loading' | 'ready' | 'error'
+
 export type ModelCenterController = {
+  initialLoadState: ModelCenterInitialLoadState
   providers: DesktopModelProviderSummary[]
   providerState: DesktopModelProviderState | null
   integrations: DesktopIntegration[]
@@ -37,6 +40,8 @@ export function useModelCenterController({
   onInitialProviderState,
   onError,
 }: Options): ModelCenterController {
+  const [initialLoadState, setInitialLoadState] =
+    useState<ModelCenterInitialLoadState>('loading')
   const [providers, setProviders] = useState<DesktopModelProviderSummary[]>([])
   const [providerState, setProviderState] = useState<DesktopModelProviderState | null>(null)
   const [integrations, setIntegrations] = useState<DesktopIntegration[]>([])
@@ -63,8 +68,10 @@ export function useModelCenterController({
       setIntegrations(nextIntegrations)
       setApiKeys(nextKeys)
       initialStateHandler.current(nextState)
+      setInitialLoadState('ready')
     }).catch(error => {
       if (!mounted) return
+      setInitialLoadState('error')
       errorHandler.current(fullErrorMessage(error))
     })
     return () => {
@@ -83,6 +90,7 @@ export function useModelCenterController({
   }, [])
 
   return {
+    initialLoadState,
     providers,
     providerState,
     integrations,

@@ -3,6 +3,7 @@ import type React from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
+import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -82,11 +83,28 @@ export function ProviderCatalog({
                 type="button"
                 onClick={() => onSelect(provider.id)}
               >
-                <span className="provider-card-logo">
-                  {provider.logoURL
-                    ? <img alt="" src={provider.logoURL} />
-                    : <Server aria-hidden size={APP_ICON_SIZE + 4} strokeWidth={APP_ICON_STROKE_WIDTH} />}
-                </span>
+                {provider.logoURL ? (
+                  <RemoteImage
+                    alt=""
+                    className="provider-card-logo"
+                    fallback={(
+                      <Server
+                        aria-hidden
+                        size={APP_ICON_SIZE + 4}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    )}
+                    src={provider.logoURL}
+                  />
+                ) : (
+                  <span className="provider-card-logo">
+                    <Server
+                      aria-hidden
+                      size={APP_ICON_SIZE + 4}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  </span>
+                )}
                 <span className="provider-card-copy">
                   <span className="provider-card-heading">
                     <strong>{provider.name}</strong>

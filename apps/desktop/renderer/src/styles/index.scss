@@ -26,6 +26,7 @@
   @include meta.load-css('components/switch');
   @include meta.load-css('components/menu-item');
   @include meta.load-css('components/scroll-area');
+  @include meta.load-css('components/skeleton');
   @include meta.load-css('markdown');
   @include meta.load-css('popover');
   @include meta.load-css('modal');
