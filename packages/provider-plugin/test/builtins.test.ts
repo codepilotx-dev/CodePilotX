@@ -60,7 +60,11 @@ describe("built-in provider plugins", () => {
 
     await Effect.runPromise(host.init())
     const integrations = await Effect.runPromise(host.integrations())
-    expect(integrations.map((integration) => String(integration.id))).toEqual(["openai", "github-copilot"])
+    expect(integrations.map((integration) => String(integration.id))).toEqual([
+      "openai",
+      "github-copilot",
+      "usage.anthropic.subscription",
+    ])
     expect(integrations.flatMap((integration) => integration.methods).every((method) => method.type === "oauth")).toBe(true)
 
     const registration = oauthRegistration(await Effect.runPromise(host.authRegistrations()), "openai")
@@ -161,6 +165,65 @@ describe("built-in provider plugins", () => {
       "https://api.github.example.test/copilot_internal/v2/token",
     ])
     expect(sleeps).toEqual([2_100, 9_100])
+  })
+
+  test("uses minimal Claude subscription scopes, validates state, refreshes, and bounds token responses", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = []
+    const responses = [
+      jsonResponse({ access_token: "claude-access", refresh_token: "claude-refresh", expires_in: 60, scope: "user:profile user:inference" }),
+      jsonResponse({ access_token: "claude-access-2", expires_in: 120, scope: "user:profile user:inference" }),
+      new Response(new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(700_000))
+          controller.enqueue(new Uint8Array(400_000))
+          controller.close()
+        },
+      })),
+    ]
+    const fetch: BuiltinFetch = async (input, init) => {
+      requests.push({ url: requestURL(input), init })
+      return responses.shift()!
+    }
+    const host = createPluginHost({
+      builtins: createBuiltinProviderPlugins({
+        fetch,
+        clock: { now: () => 1_000, sleep: async () => undefined },
+      }),
+    })
+    await Effect.runPromise(host.init())
+    const registration = oauthRegistration(
+      await Effect.runPromise(host.authRegistrations()),
+      "usage.anthropic.subscription",
+    )
+    const authorization = await Effect.runPromise(registration.authorize({}))
+    expect(authorization.mode).toBe("code")
+    const url = new URL(authorization.url)
+    expect(url.origin).toBe("https://claude.com")
+    expect(url.searchParams.get("scope")).toBe("user:profile user:inference")
+    expect(url.searchParams.get("redirect_uri")).toBe("https://platform.claude.com/oauth/code/callback")
+    if (authorization.mode !== "code") throw new Error("Expected code authorization")
+    await expect(Effect.runPromise(authorization.callback("code-without-state"))).rejects.toThrow()
+    const state = url.searchParams.get("state")
+    const credential = await Effect.runPromise(authorization.callback(`code#${state}`))
+    expect(credential).toMatchObject({
+      type: "oauth",
+      access: "claude-access",
+      refresh: "claude-refresh",
+      expires: 61_000,
+    })
+    if (credential.type !== "oauth" || !registration.refresh) throw new Error("Expected refreshable OAuth credential")
+    const refreshed = await Effect.runPromise(registration.refresh(credential))
+    expect(refreshed).toMatchObject({
+      access: "claude-access-2",
+      refresh: "claude-refresh",
+      expires: 121_000,
+    })
+    const next = await Effect.runPromise(registration.authorize({}))
+    if (next.mode !== "code") throw new Error("Expected code authorization")
+    const nextState = new URL(next.url).searchParams.get("state")
+    await expect(Effect.runPromise(next.callback(`code#${nextState}`))).rejects.toThrow("too large")
+    expect(requests.every((request) => request.url === "https://platform.claude.com/v1/oauth/token")).toBe(true)
+    expect(requests.every((request) => request.init?.redirect === "manual")).toBe(true)
   })
 })
 

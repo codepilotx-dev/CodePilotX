@@ -12,6 +12,7 @@ import {
   type SessionTreeEntry,
 } from "@codepilotx/pi-agent-core"
 import type { AgentDatabase } from "./database/AgentDatabase"
+import { parsePiSessionEntry } from "./pi-session-entry"
 
 export interface SqlitePiSessionMetadata extends SessionMetadata {
   threadID: string
@@ -51,18 +52,6 @@ const metadataFromRow = (row: SessionRow): SqlitePiSessionMetadata => ({
 
 const leafAfterEntry = (entry: SessionTreeEntry) => entry.type === "leaf" ? entry.targetId : entry.id
 
-const parseEntry = (row: EntryRow): SessionTreeEntry => {
-  try {
-    const value = JSON.parse(row.payload) as Partial<SessionTreeEntry>
-    if (value.id !== row.id || typeof value.type !== "string" || typeof value.timestamp !== "string") {
-      throw new Error("entry payload does not match its index columns")
-    }
-    return value as SessionTreeEntry
-  } catch (cause) {
-    throw new SessionError("invalid_session", `Invalid Pi session entry ${row.id}`, cause instanceof Error ? cause : undefined)
-  }
-}
-
 const usageFor = (entry: SessionTreeEntry) => {
   if (entry.type === "message" && entry.message.role === "assistant") return entry.message.usage
   if (entry.type === "compaction" || entry.type === "branch_summary") return entry.usage
@@ -99,7 +88,7 @@ export class SqlitePiSessionStorage implements SessionStorage<SqlitePiSessionMet
     this.byID.clear()
     this.labelsByID.clear()
     for (const row of rows) {
-      const entry = parseEntry(row)
+      const entry = parsePiSessionEntry(row)
       this.entries.push(entry)
       this.byID.set(entry.id, entry)
       this.updateLabel(entry)

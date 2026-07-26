@@ -2,12 +2,20 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { ChatInputDropdown } from './ChatInputDropdown.js'
-import { isBillingProviderID } from '../../../utils/billingProviders.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { clampPercent, formatRemainingWindow } from '../../../utils/providerBalanceUtils.js'
+import {
+  clampPercent,
+  criticalQuotaWindows,
+  formatCount,
+  formatResetTime,
+  protocolProviderId,
+  quotaRemainingPercent,
+  sourceForProvider,
+  type ProviderQuotaWindow,
+  type ProviderUsageSource,
+} from '../../../utils/usageFormatters.js'
 import type {
   DesktopContextUsage,
-  DesktopProviderBalanceResult,
   ModelProviderID,
 } from '../../../../shared/types.js'
 
@@ -21,33 +29,29 @@ type Props = {
   disableOutsideDismiss?: boolean
 }
 
-function renderQuotaRow(
-  label: string,
-  percent: number | null,
-  remainingCount: number | null,
-  endTime: number | null,
-): React.ReactNode {
+function renderQuotaRow(quota: ProviderQuotaWindow): React.ReactNode {
+  const percent = quotaRemainingPercent(quota)
   return (
-    <div className="composer-status-quota-row">
-      <div className="composer-status-label">{label}</div>
+    <div className="composer-status-quota-row" key={quota.id}>
+      <div className="composer-status-label">{quota.label}</div>
       <div className="composer-status-bar-track">
         <div
           className="composer-status-bar-fill"
           style={
-            { '--usage-ratio': clampPercent(percent ?? 0) / 100 } as React.CSSProperties
+            { '--usage-ratio': percent / 100 } as React.CSSProperties
           }
         />
       </div>
       <div className="composer-status-bar-meta">
         <span className="composer-status-bar-percent">
-          {clampPercent(percent ?? 0)}%
+          {quota.state === 'unlimited' ? '无限' : `${percent}%`}
         </span>
         <span className="composer-status-bar-detail">
-          {remainingCount != null
-            ? `剩余 ${remainingCount.toLocaleString()} tokens`
+          {quota.remaining !== undefined
+            ? `剩余 ${formatCount(quota.remaining)} ${quota.unit === 'tokens' ? 'Token' : '额度'}`
             : ''}
-          {endTime != null
-            ? ` · ${formatRemainingWindow(null, endTime)}`
+          {quota.resetsAt !== undefined
+            ? ` · ${formatResetTime(quota.resetsAt)}`
             : ''}
         </span>
       </div>
@@ -64,7 +68,7 @@ export function ComposerStatusOverlay({
   side = 'top',
   disableOutsideDismiss = false,
 }: Props): React.ReactNode {
-  const [balance, setBalance] = useState<DesktopProviderBalanceResult | null>(null)
+  const [usageSource, setUsageSource] = useState<ProviderUsageSource | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,20 +77,20 @@ export function ComposerStatusOverlay({
     let cancelled = false
     setLoading(true)
     setError(null)
-    setBalance(null)
-
-    if (!isBillingProviderID(selectedProviderID)) {
-      setLoading(false)
-      return
-    }
+    setUsageSource(null)
 
     desktopClient
-      .fetchProviderBalance({ providerID: selectedProviderID })
+      .queryProviderUsage({
+        range: '7d',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
+        providerIds: [protocolProviderId(selectedProviderID)],
+      })
       .then(result => {
         if (!cancelled) {
-          setBalance(result)
+          const source = sourceForProvider(result.sources, selectedProviderID) ?? null
+          setUsageSource(source)
           setLoading(false)
-          setError(result.error ?? null)
+          setError(source?.error?.message ?? null)
         }
       })
       .catch(err => {
@@ -102,6 +106,7 @@ export function ComposerStatusOverlay({
   }, [open, selectedProviderID])
 
   if (!open) return null
+  const quotas = criticalQuotaWindows(usageSource, 3)
 
   return (
     <ChatInputDropdown
@@ -165,33 +170,14 @@ export function ComposerStatusOverlay({
         {/* Quota section */}
         {selectedProviderID ? (
           <div className="composer-status-section">
-            {!isBillingProviderID(selectedProviderID) ? (
-              <div className="composer-status-empty">当前提供商不支持用量查询</div>
-            ) : loading ? (
+            {loading ? (
               <div className="composer-status-empty">正在查询用量...</div>
             ) : error ? (
               <div className="composer-status-empty composer-status-empty-error">
                 {error}
               </div>
-            ) : balance?.tokenPlanUsages?.length ? (
-              balance.tokenPlanUsages.map(usage => (
-                <div key={usage.modelName}>
-                  {renderQuotaRow(
-                    '5 小时限额',
-                    usage.currentIntervalRemainingPercent,
-                    usage.currentIntervalRemainingCount,
-                    usage.currentIntervalEndTime,
-                  )}
-                  {usage.currentWeeklyRemainingPercent != null
-                    ? renderQuotaRow(
-                        '7 天限额',
-                        usage.currentWeeklyRemainingPercent,
-                        usage.currentWeeklyRemainingCount,
-                        usage.weeklyEndTime,
-                      )
-                    : null}
-                </div>
-              ))
+            ) : quotas.length > 0 ? (
+              quotas.map(renderQuotaRow)
             ) : (
               <div className="composer-status-empty">
                 当前提供商未返回用量数据

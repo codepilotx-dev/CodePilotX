@@ -412,7 +412,6 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     listModelProviders: async () => [provider],
     getModelProviderState: async () => providerState(),
     fetchProviderModels: async () => ({ models: provider.defaultModels }),
-    fetchProviderBalance: async () => ({ isAvailable: false, balances: [] }),
     saveModelProvider: async options => {
       settings = {
         ...settings,

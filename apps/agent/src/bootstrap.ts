@@ -66,6 +66,8 @@ import { McpOAuthCoordinator } from "./mcp/McpOAuthCoordinator";
 import { McpOAuthService } from "./mcp/McpOAuthService";
 import { ThreadProjection } from "./transport/ThreadProjection";
 import { TaskSuggestionService } from "./suggestion/TaskSuggestionService";
+import { UsageService } from "./usage/UsageService";
+import { UsageRepository } from "./storage/repositories/usage-repository";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -256,6 +258,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const mcpConfigs = new McpConfigService(
       new McpSettingsRepository(db),
       configService,
+    );
+    const usage = new UsageService(
+      new UsageRepository(db),
+      providers,
+      integrations,
+      credentials,
     );
     const mcpOAuthCoordinator = new McpOAuthCoordinator(
       new McpOAuthCredentialRepository(credentials),
@@ -526,6 +534,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       skills,
       mcp,
       suggestions,
+      usage,
     });
     let disposed = false;
     const dispose = async () => {

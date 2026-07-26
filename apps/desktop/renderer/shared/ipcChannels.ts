@@ -58,7 +58,6 @@ export const DESKTOP_API_METHODS = [
   'listModelProviders',
   'getModelProviderState',
   'fetchProviderModels',
-  'fetchProviderBalance',
   'saveModelProvider',
   'saveProviderApiKey',
   'deleteProviderApiKey',

@@ -252,8 +252,28 @@ export type DesktopPetApi = {
   removePet(id: string): Promise<void>
 }
 
+export type DesktopUsageApi = {
+  getLocalUsage(
+    input: RpcParams<'usage/local/get'>,
+  ): Promise<RpcResult<'usage/local/get'>>
+  queryProviderUsage(
+    input: RpcParams<'usage/provider/query'>,
+  ): Promise<RpcResult<'usage/provider/query'>>
+  connectUsageCredential(
+    input: RpcParams<'usage/credential/connect'> extends infer Input
+      ? Input extends unknown
+        ? Omit<Input, 'operationId'>
+        : never
+      : never,
+  ): Promise<RpcResult<'usage/credential/connect'>>
+  disconnectUsageCredential(
+    input: Omit<RpcParams<'usage/credential/disconnect'>, 'operationId'>,
+  ): Promise<RpcResult<'usage/credential/disconnect'>>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
   DesktopToolingApi &
-  DesktopPetApi
+  DesktopPetApi &
+  DesktopUsageApi

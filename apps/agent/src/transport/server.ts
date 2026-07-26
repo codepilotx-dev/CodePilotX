@@ -31,6 +31,7 @@ import type { SkillManagementService } from "../prompt/SkillManagementService"
 import type { McpRuntimeService } from "../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../suggestion/TaskSuggestionService"
 import type { ConfigService } from "../config/ConfigService"
+import type { UsageService } from "../usage/UsageService"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -58,6 +59,7 @@ export interface TransportDependencies {
   mcp: McpRuntimeService
   suggestions: TaskSuggestionService
   logger: AgentLogger
+  usage: UsageService
 }
 
 export const resolveEventCursor = (
@@ -277,7 +279,7 @@ const eventNextNotification = (
 export const createApp = (dependencies: TransportDependencies) => {
   const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, mcp: dependencies.mcp })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

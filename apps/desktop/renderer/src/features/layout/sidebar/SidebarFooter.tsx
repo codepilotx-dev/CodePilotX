@@ -20,8 +20,6 @@ import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type {
   DesktopGithubUser,
-  DesktopProviderBalanceResult,
-  DesktopProviderTokenPlanUsageInfo,
   DesktopUpdateStatus,
   ModelProviderID,
 } from '../../../../shared/types.js'
@@ -29,8 +27,16 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
-import { isBillingProviderID } from '../../../utils/billingProviders.js'
-import { clampPercent, formatRemainingWindow } from '../../../utils/providerBalanceUtils.js'
+import {
+  allBalances,
+  criticalQuotaWindows,
+  formatAmount,
+  formatQuotaValue,
+  formatResetTime,
+  protocolProviderId,
+  sourceForProvider,
+  type ProviderUsageSource,
+} from '../../../utils/usageFormatters.js'
 import { cx } from '../../../utils/cx.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 
@@ -42,14 +48,14 @@ type PopoverUsageRow = {
 
 type ProviderUsageState = {
   providerID: ModelProviderID | null;
-  balance: DesktopProviderBalanceResult | null;
+  source: ProviderUsageSource | null;
   loading: boolean;
   error: string | null;
 };
 
 const EMPTY_USAGE: ProviderUsageState = {
   providerID: null,
-  balance: null,
+  source: null,
   loading: false,
   error: null,
 };
@@ -76,8 +82,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const [githubUser, setGithubUser] = useState<DesktopGithubUser | null>(null);
   const [petToggleBusy, setPetToggleBusy] = useState(false);
   const settingsActive = location.pathname.startsWith("/settings/");
-  const usageAvailable =
-    isBillingProviderID(configuredProviderID) && Boolean(model);
+  const usageAvailable = Boolean(configuredProviderID && model);
   const petEnabled = draft.values.pet.enabled;
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null)
 
@@ -91,21 +96,26 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     try {
       const providerState = await desktopClient.getModelProviderState();
       const providerID = providerState.selectedProviderID;
-      if (!isBillingProviderID(providerID) || !providerState.apiKeyConfigured) {
+      if (!providerID || !providerState.apiKeyConfigured) {
         setUsage({
           providerID,
-          balance: null,
+          source: null,
           loading: false,
           error: null,
         });
         return;
       }
-      const balance = await desktopClient.fetchProviderBalance({ providerID });
+      const result = await desktopClient.queryProviderUsage({
+        range: '7d',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
+        providerIds: [protocolProviderId(providerID)],
+      });
+      const source = sourceForProvider(result.sources, providerID) ?? null;
       setUsage({
         providerID,
-        balance,
+        source,
         loading: false,
-        error: balance.error ?? null,
+        error: source?.error?.message ?? null,
       });
     } catch (fetchError) {
       setUsage(previous => ({
@@ -427,93 +437,18 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 });
 
 function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
-  const { balance } = usage;
-  if (!balance) return [];
-  const providerID = usage.providerID;
-  if (providerID === "minimax") {
-    return buildMiniMaxRows(balance.tokenPlanUsages ?? []);
+  const quotas = criticalQuotaWindows(usage.source, 3)
+  if (quotas.length > 0) {
+    return quotas.map(quota => ({
+      label: quota.label,
+      usage: formatQuotaValue(quota),
+      reset: quota.state === 'unlimited' ? '' : formatResetTime(quota.resetsAt),
+    }))
   }
-  if (providerID === "deepseek") {
-    return buildDeepSeekRows(balance.balances);
-  }
-  return [];
-}
-
-function buildMiniMaxRows(
-  usages: DesktopProviderTokenPlanUsageInfo[],
-): PopoverUsageRow[] {
-  const primary = usages.find(item => item.modelName === "general") ?? usages[0];
-  if (!primary) return [];
-  const rows: PopoverUsageRow[] = [
-    {
-      label: "5 小时",
-      usage: formatUsageValue(
-        primary.currentIntervalRemainingPercent,
-        primary.currentIntervalRemainingCount,
-        primary.currentIntervalTotalCount,
-      ),
-      reset: formatRemainingWindow(
-        primary.currentIntervalRemainingTime,
-        primary.currentIntervalEndTime,
-      ),
-    },
-  ];
-  if (
-    primary.currentWeeklyRemainingPercent != null ||
-    primary.currentWeeklyRemainingCount != null ||
-    primary.currentWeeklyTotalCount != null ||
-    primary.weeklyRemainingTime != null ||
-    primary.weeklyEndTime != null
-  ) {
-    rows.push({
-      label: "1 周",
-      usage: formatUsageValue(
-        primary.currentWeeklyRemainingPercent,
-        primary.currentWeeklyRemainingCount,
-        primary.currentWeeklyTotalCount,
-      ),
-      reset: formatRemainingWindow(
-        primary.weeklyRemainingTime,
-        primary.weeklyEndTime,
-      ),
-    });
-  }
-  return rows;
-}
-
-function buildDeepSeekRows(
-  balances: DesktopProviderBalanceResult["balances"],
-): PopoverUsageRow[] {
-  if (balances.length === 0) return [];
-  return balances.map(item => ({
-    label: item.currency,
-    usage: `余额 ${item.totalBalance}`,
-    reset: "",
-  }));
-}
-
-function formatUsageValue(
-  remainingPercent: number | null,
-  remainingCount: number | null,
-  totalCount: number | null,
-): string {
-  const parts: string[] = [];
-  if (remainingPercent != null) {
-    parts.push(`${clampPercent(remainingPercent)}%`);
-  }
-  const count = formatCountPair(remainingCount, totalCount);
-  if (count !== "—") parts.push(count);
-  return parts.join(" · ") || "—";
-}
-
-function formatCountPair(
-  remaining: number | null,
-  total: number | null,
-): string {
-  if (remaining == null && (total == null || total <= 0)) return "—";
-  const remainingText =
-    remaining == null ? "—" : new Intl.NumberFormat("zh-CN").format(remaining);
-  if (total == null || total <= 0) return remainingText;
-  return `${remainingText} / ${new Intl.NumberFormat("zh-CN").format(total)}`;
+  return allBalances(usage.source).map(balance => ({
+    label: balance.currency,
+    usage: `余额 ${formatAmount(balance.currency, balance.total)}`,
+    reset: '',
+  }))
 }
 

@@ -40,6 +40,7 @@ import type { PetService } from "../../pet/PetService"
 import type { SkillManagementService } from "../../prompt/SkillManagementService"
 import type { McpRuntimeService } from "../../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../../suggestion/TaskSuggestionService"
+import type { UsageService } from "../../usage/UsageService"
 import type { ConfigService } from "../../config/ConfigService"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
@@ -112,6 +113,7 @@ export type RpcRouterDependencies = {
   skills?: SkillManagementService
   mcp?: McpRuntimeService
   suggestions?: TaskSuggestionService
+  usage: UsageService
 }
 
 export type { RpcRouterContext } from "./request-context"

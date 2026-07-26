@@ -3,8 +3,6 @@ export type {
   DesktopModelProviderKind,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
-  DesktopProviderBalanceInfo,
-  DesktopProviderBalanceResult,
   DesktopProviderModelListResult,
   ModelProviderID,
   SaveDesktopModelProviderOptions,

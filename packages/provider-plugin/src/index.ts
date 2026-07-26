@@ -8,10 +8,12 @@ export {
 } from "./catalog"
 export {
   createBuiltinProviderPlugins,
+  createAnthropicUsageBuiltin,
   createGitHubCopilotBuiltin,
   createOpenAICodexBuiltin,
   type BuiltinClock,
   type BuiltinFetch,
+  type AnthropicUsageBuiltinOptions,
   type BuiltinProviderPluginsOptions,
   type GitHubCopilotBuiltinOptions,
   type OpenAICodexBuiltinOptions,

@@ -1590,12 +1590,162 @@ const fixtures = {
     id: "sample-pet",
     removed: true,
   }),
+  "usage/local/get": methodFixture("usage/local/get", {
+    range: "30d",
+    timeZone: "Asia/Shanghai",
+  }, {
+    range: "30d",
+    timeZone: "Asia/Shanghai",
+    generatedAt: 1,
+    totals: {
+      inputTokens: 100,
+      outputTokens: 50,
+      cachedTokens: 25,
+      totalTokens: 175,
+      estimatedCostUsd: "0.0125",
+      rootTasks: 1,
+      modelResponses: 2,
+      providerCalls: 3,
+      activeDays: 1,
+      currentStreak: 1,
+      longestStreak: 1,
+    },
+    daily: [{
+      date: "2026-07-26",
+      totals: {
+        inputTokens: 100,
+        outputTokens: 50,
+        cachedTokens: 25,
+        totalTokens: 175,
+        estimatedCostUsd: "0.0125",
+      },
+      models: [{
+        providerId,
+        modelId,
+        displayName: "Fixture model",
+        inputTokens: 100,
+        outputTokens: 50,
+        cachedTokens: 25,
+        totalTokens: 175,
+        estimatedCostUsd: "0.0125",
+        modelResponses: 2,
+      }],
+    }],
+    models: [{
+      providerId,
+      modelId,
+      displayName: "Fixture model",
+      inputTokens: 100,
+      outputTokens: 50,
+      cachedTokens: 25,
+      totalTokens: 175,
+      estimatedCostUsd: "0.0125",
+      modelResponses: 2,
+      sharePercent: 100,
+    }],
+    heatmap: [{
+      date: "2026-07-26",
+      totalTokens: 175,
+      modelResponses: 2,
+    }],
+  }),
+  "usage/provider/query": methodFixture("usage/provider/query", {
+    range: "7d",
+    timeZone: "Asia/Shanghai",
+    providerIds: [providerId],
+    force: false,
+  }, {
+    range: "7d",
+    timeZone: "Asia/Shanghai",
+    generatedAt: 1,
+    sources: [{
+      sourceId: "fixture-key",
+      providerIds: [providerId],
+      displayName: "Fixture provider key",
+      scope: "api-key",
+      stability: "official",
+      status: "available",
+      checkedAt: 1,
+      connection: {
+        kind: "provider-key",
+        credentialId,
+        maskedValue: "••••test",
+        disconnectible: false,
+      },
+      groups: [{
+        id: "account:fixture",
+        label: "Fixture account",
+        balances: [{
+          currency: "USD",
+          total: "10.50",
+          components: [{ label: "赠送余额", amount: "2.50" }],
+        }],
+        quotaWindows: [{
+          id: "weekly",
+          label: "周额度",
+          unit: "tokens",
+          limit: 1_000,
+          used: 250,
+          remaining: 750,
+          remainingPercent: 75,
+          resetsAt: 2,
+          state: "normal",
+        }],
+        totals: {
+          inputTokens: 100,
+          outputTokens: 50,
+          cachedTokens: 25,
+          requests: 2,
+          costs: [{ currency: "USD", amount: "0.0125" }],
+        },
+        series: [{
+          date: "2026-07-26",
+          inputTokens: 100,
+          outputTokens: 50,
+          cachedTokens: 25,
+          requests: 2,
+          costs: [{ currency: "USD", amount: "0.0125" }],
+        }],
+        breakdown: [{
+          id: "model:fixture",
+          label: "Fixture model",
+          kind: "model",
+          inputTokens: 100,
+          outputTokens: 50,
+          cachedTokens: 25,
+          requests: 2,
+          costs: [{ currency: "USD", amount: "0.0125" }],
+        }],
+      }],
+    }],
+  }),
+  "usage/credential/connect": methodFixture("usage/credential/connect", {
+    sourceId: "xai-management",
+    key: "xai-management-key",
+    teamId: "team:fixture",
+    operationId: "operation:usage-connect",
+  }, {
+    sourceId: "xai-management",
+    connection: {
+      kind: "billing-key",
+      credentialId,
+      maskedValue: "••••test",
+      disconnectible: true,
+    },
+  }),
+  "usage/credential/disconnect": methodFixture("usage/credential/disconnect", {
+    sourceId: "xai-management",
+    operationId: "operation:usage-disconnect",
+  }, {
+    sourceId: "xai-management",
+    disconnected: true,
+  }),
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 143 formal methods decodable", () => {
+  test("keeps valid params and results for all 147 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(143)
+    expect(methods).toHaveLength(147)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

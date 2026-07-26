@@ -10,6 +10,7 @@ import { ReviewRpcMethods } from "./review"
 import { SkillRpcMethods } from "./skills"
 import { SuggestionRpcMethods } from "./suggestions"
 import { ToolingRpcMethods } from "./tooling"
+import { UsageRpcMethods } from "./usage"
 
 export const RpcMethods = {
   ...CoreRpcMethods,
@@ -22,6 +23,7 @@ export const RpcMethods = {
   ...SkillRpcMethods,
   ...SuggestionRpcMethods,
   ...ToolingRpcMethods,
+  ...UsageRpcMethods,
 } as const
 export const RpcMethodMap = RpcMethods
 
@@ -42,3 +44,4 @@ export * from "./review"
 export * from "./skills"
 export * from "./suggestions"
 export * from "./tooling"
+export * from "./usage"

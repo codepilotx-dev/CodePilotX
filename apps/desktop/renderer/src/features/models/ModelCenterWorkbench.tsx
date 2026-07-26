@@ -7,7 +7,6 @@ import type {
   DesktopModelMetadata,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
-  DesktopProviderBalanceResult,
   ModelProviderID,
 } from '../../../shared/types.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
@@ -47,6 +46,16 @@ import {
   updateModelCenterSearchParams,
 } from './modelCenterState.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
+import { useIntegrationOAuthAuthorization } from './useIntegrationOAuthAuthorization.js'
+import {
+  allBalances,
+  criticalQuotaWindows,
+  formatAmount,
+  formatQuotaValue,
+  protocolProviderId,
+  sourceForProvider,
+  type ProviderUsageSource,
+} from '../../utils/usageFormatters.js'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -106,10 +115,6 @@ export function ModelCenterWorkbench({
   const [model, setModel] = useState(settings.model)
   const [variant, setVariant] = useState('')
   const [oauthInputs, setOauthInputs] = useState<Record<string, string>>({})
-  const [oauthAttempt, setOauthAttempt] = useState<
-    Awaited<ReturnType<typeof desktopClient.authorizeIntegration>>['attempt'] | null
-  >(null)
-  const [oauthCode, setOauthCode] = useState('')
   const [modelError, setModelError] = useState<string | null>(null)
   const [balanceStatus, setBalanceStatus] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
@@ -156,7 +161,6 @@ export function ModelCenterWorkbench({
     () => providers.find(provider => provider.providerID === providerID),
     [providerID, providers],
   )
-  const isDeepSeek = providerID === 'deepseek'
   const isMiniMax = providerID === 'minimax'
   const selectedIntegration = integrations.find(
     integration => integration.id === selectedProvider?.integrationID,
@@ -164,6 +168,20 @@ export function ModelCenterWorkbench({
   const oauthMethod = selectedIntegration?.methods.find(
     method => method.type === 'oauth',
   )
+  const providerOAuth = useIntegrationOAuthAuthorization({
+    integrationID: selectedIntegration?.id ?? null,
+    methodID: oauthMethod?.id ?? null,
+    inputs: oauthInputs,
+    onComplete: async () => {
+      await refreshIntegrationState()
+      setStatus('授权连接已建立。')
+    },
+    onError: message => {
+      setModelError(message)
+      setStatus(null)
+      onError(message)
+    },
+  })
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null
   const providerModels = (
@@ -236,8 +254,7 @@ export function ModelCenterWorkbench({
     setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
     setVariant('')
-    setOauthAttempt(null)
-    setOauthCode('')
+    providerOAuth.reset()
     setOauthInputs({})
     setModelQuery('')
     setBalanceStatus(null)
@@ -292,79 +309,6 @@ export function ModelCenterWorkbench({
     applyProviderState(result.providerState)
   }
 
-  async function startOAuthAuthorization(): Promise<void> {
-    if (!selectedIntegration || !oauthMethod) return
-    setBusy(true)
-    setModelError(null)
-    setStatus('正在启动授权...')
-    try {
-      const result = await desktopClient.authorizeIntegration({
-        integrationID: selectedIntegration.id,
-        methodID: oauthMethod.id,
-        inputs: oauthInputs,
-      })
-      setOauthAttempt(result.attempt)
-      setStatus(result.attempt.instructions || '请在浏览器中完成授权。')
-      void pollOAuthAuthorization(result.attempt.attemptID)
-    } catch (error) {
-      showOperationError(error)
-      setBusy(false)
-    }
-  }
-
-  async function completeOAuthAuthorization(): Promise<void> {
-    if (!oauthAttempt || !oauthCode.trim()) return
-    setBusy(true)
-    setModelError(null)
-    try {
-      await desktopClient.completeIntegrationAuthorization({
-        attemptID: oauthAttempt.attemptID,
-        code: oauthCode.trim(),
-      })
-      setStatus('授权码已提交，正在确认连接状态...')
-    } catch (error) {
-      showOperationError(error)
-      setBusy(false)
-    }
-  }
-
-  async function pollOAuthAuthorization(
-    attemptID: Awaited<ReturnType<typeof desktopClient.authorizeIntegration>>['attempt']['attemptID'],
-  ): Promise<void> {
-    for (let attempts = 0; attempts < 150; attempts += 1) {
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      try {
-        const result = await desktopClient.getIntegrationAuthorizationStatus({
-          attemptID,
-        })
-        if (result.status.status === 'pending') continue
-        if (result.status.status === 'complete') {
-          await refreshIntegrationState()
-          setOauthAttempt(null)
-          setOauthCode('')
-          setStatus('授权连接已建立。')
-          setBusy(false)
-          return
-        }
-        const message =
-          result.status.status === 'failed'
-            ? result.status.message
-            : '授权已过期，请重新开始。'
-        setModelError(message)
-        setStatus(null)
-        setBusy(false)
-        return
-      } catch (error) {
-        showOperationError(error)
-        setBusy(false)
-        return
-      }
-    }
-    setModelError('等待授权超时，请重新开始。')
-    setStatus(null)
-    setBusy(false)
-  }
-
   async function disconnectOAuth(): Promise<void> {
     if (!selectedIntegration) return
     const credentials = selectedIntegration.connections.filter(
@@ -382,6 +326,7 @@ export function ModelCenterWorkbench({
         ),
       )
       await refreshIntegrationState()
+      providerOAuth.reset()
       setStatus('授权连接已断开。')
     } catch (error) {
       showOperationError(error)
@@ -399,8 +344,7 @@ export function ModelCenterWorkbench({
     setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
     setVariant('')
-    setOauthAttempt(null)
-    setOauthCode('')
+    providerOAuth.reset()
     setOauthInputs({})
     setModelQuery('')
     setBalanceStatus(null)
@@ -498,13 +442,24 @@ export function ModelCenterWorkbench({
     }
   }
 
-  async function fetchBalance(): Promise<DesktopProviderBalanceResult> {
-    const result = await desktopClient.fetchProviderBalance({
-      providerID,
-      baseURL: baseURL.trim() || undefined,
-    })
-    setBalanceStatus(formatBalanceStatus(result))
-    return result
+  async function fetchUsageSummary(): Promise<ProviderUsageSource | null> {
+    setBusy(true)
+    setModelError(null)
+    try {
+      const result = await desktopClient.queryProviderUsage({
+        range: '7d',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
+        providerIds: [protocolProviderId(providerID)],
+      })
+      const source = sourceForProvider(result.sources, providerID) ?? null
+      setBalanceStatus(formatUsageSummary(source))
+      return source
+    } catch (error) {
+      showOperationError(error)
+      return null
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function testConnection(): Promise<void> {
@@ -516,13 +471,9 @@ export function ModelCenterWorkbench({
     setModelError(null)
     setStatus('正在测试连接...')
     try {
-      const testRequest = desktopClient.testModelProvider(providerID)
-      const [testResult, balanceResult] = isDeepSeek
-        ? await Promise.all([testRequest, fetchBalance()])
-        : [await testRequest, null]
+      const testResult = await desktopClient.testModelProvider(providerID)
       const errors = [
         testResult.ok ? null : testResult.message ?? '连接测试失败。',
-        balanceResult?.error,
       ].filter(
         (item): item is string => Boolean(item),
       )
@@ -760,14 +711,14 @@ const nextState = await desktopClient.saveModelProvider({
                         </label>
                       ))}
                       <div className="model-center-inline-actions">
-                        <Button disabled={busy} onClick={() => void startOAuthAuthorization()}>{apiKeyConfigured ? '重新授权' : '开始授权'}</Button>
-                        <Button tone="danger" disabled={busy || !apiKeyConfigured} onClick={() => void disconnectOAuth()}>断开</Button>
+                        <Button disabled={busy} loading={providerOAuth.busy} onClick={() => void providerOAuth.start()}>{apiKeyConfigured ? '重新授权' : '开始授权'}</Button>
+                        <Button tone="danger" disabled={busy || providerOAuth.busy || !apiKeyConfigured} onClick={() => void disconnectOAuth()}>断开</Button>
                       </div>
-                      {oauthAttempt ? (
+                      {providerOAuth.attempt ? (
                         <div className="model-center-oauth-attempt">
-                          <p>{oauthAttempt.instructions}</p>
-                          {oauthAttempt.url ? <a href={oauthAttempt.url} rel="noreferrer" target="_blank" onClick={openExternalLink}>打开授权页面</a> : null}
-                          {oauthAttempt.mode === 'code' ? <div className="model-center-inline-actions"><Input className="model-center-mono" value={oauthCode} placeholder="输入授权返回码" onChange={event => setOauthCode(event.target.value)} /><Button disabled={!oauthCode.trim()} onClick={() => void completeOAuthAuthorization()}>提交</Button></div> : null}
+                          <p>{providerOAuth.attempt.instructions || providerOAuth.status}</p>
+                          {providerOAuth.attempt.url ? <a href={providerOAuth.attempt.url} rel="noreferrer" target="_blank" onClick={openExternalLink}>打开授权页面</a> : null}
+                          {providerOAuth.attempt.mode === 'code' ? <div className="model-center-inline-actions"><Input className="model-center-mono" value={providerOAuth.code} placeholder="输入授权返回码" onChange={event => providerOAuth.setCode(event.target.value)} /><Button disabled={!providerOAuth.code.trim()} loading={providerOAuth.submittingCode} onClick={() => void providerOAuth.submitCode()}>提交</Button></div> : null}
                         </div>
                       ) : null}
                     </div>
@@ -781,11 +732,9 @@ const nextState = await desktopClient.saveModelProvider({
                   )}
                 </section>
 
-                {isDeepSeek ? (
-                  <section className="model-center-detail-section">
-                    <header className="model-center-detail-section-heading"><div><h3>DeepSeek 账户</h3><p>{balanceStatus ?? '测试连接时会同步查询余额。'}</p></div><div className="model-center-detail-links"><a href="https://platform.deepseek.com/api_keys" onClick={openExternalLink} rel="noreferrer" target="_blank">API 密钥</a><a href="https://api-docs.deepseek.com/" onClick={openExternalLink} rel="noreferrer" target="_blank">文档</a></div></header>
-                  </section>
-                ) : null}
+                <section className="model-center-detail-section">
+                  <header className="model-center-detail-section-heading"><div><h3>账户与套餐</h3><p>{balanceStatus ?? '查询当前 Provider 的余额或套餐摘要；请求只发送到厂商官方接口。'}</p></div><div className="model-center-inline-actions"><Button disabled={busy || !apiKeyConfigured} onClick={() => void fetchUsageSummary()}>查询用量</Button></div></header>
+                </section>
                 {selectedProvider?.docURL ? <div className="model-center-detail-links"><a href={selectedProvider.docURL} onClick={openExternalLink} rel="noreferrer" target="_blank">查看 Provider 文档</a></div> : null}
               </div>
             ) : null}
@@ -1098,19 +1047,22 @@ function formatApiKeyHealth(key: DesktopApiKeySummary): string {
   return '未测试'
 }
 
-function formatBalanceStatus(result: DesktopProviderBalanceResult): string {
-  if (result.error) return result.error
-  if (result.balances.length === 0) {
-    return result.isAvailable
-      ? 'DeepSeek 账户可用，但未返回余额详情。'
-      : 'DeepSeek 账户当前不可用。'
+function formatUsageSummary(source: ProviderUsageSource | null): string {
+  if (!source) return '当前 Provider 暂无可查询的用量来源。'
+  if (source.error) return source.error.message
+  const quotas = criticalQuotaWindows(source, 2)
+  if (quotas.length > 0) {
+    return quotas.map(quota => `${quota.label} ${formatQuotaValue(quota)}`).join('；')
   }
-  const balanceText = result.balances
-    .map(balance => `${balance.currency} ${balance.totalBalance}`)
-    .join('；')
-  return result.isAvailable
-    ? `DeepSeek 账户可用。余额：${balanceText}`
-    : `DeepSeek 余额不足或账户不可用：${balanceText}`
+  const balances = allBalances(source)
+  if (balances.length > 0) {
+    return balances
+      .map(balance => `${balance.currency} ${formatAmount(balance.currency, balance.total)}`)
+      .join('；')
+  }
+  if (source.status === 'unsupported') return '当前 Provider 仅支持在官方控制台查看用量。'
+  if (source.status === 'not-connected') return '当前用量来源尚未连接。'
+  return '来源已连接，但当前没有返回余额或额度。'
 }
 
 function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {

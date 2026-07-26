@@ -34,8 +34,6 @@ import type {
   ModelProviderID as CoreModelProviderID,
   ModelProviderKind,
   ModelProviderSummary,
-  ProviderBalanceInfo,
-  ProviderTokenPlanUsageInfo,
 } from '@codepilotx/core/models/provider.js'
 import type {
   CatalogProvider,
@@ -618,16 +616,6 @@ export type DesktopApiKeySummary = {
   }
   createdAt: number
   updatedAt: number
-}
-
-export type DesktopProviderBalanceInfo = ProviderBalanceInfo
-export type DesktopProviderTokenPlanUsageInfo = ProviderTokenPlanUsageInfo
-
-export type DesktopProviderBalanceResult = {
-  isAvailable: boolean
-  balances: DesktopProviderBalanceInfo[]
-  tokenPlanUsages?: DesktopProviderTokenPlanUsageInfo[]
-  error?: string
 }
 
 export type DesktopCopilotAuthStatus = {
@@ -1722,11 +1710,6 @@ export type DesktopApi = {
     cursor?: string
     limit?: number
   }): Promise<DesktopProviderModelListResult>
-  fetchProviderBalance(options: {
-    providerID: ModelProviderID
-    apiKey?: string
-    baseURL?: string
-  }): Promise<DesktopProviderBalanceResult>
   saveModelProvider(
     options: SaveDesktopModelProviderOptions,
   ): Promise<DesktopModelProviderState>

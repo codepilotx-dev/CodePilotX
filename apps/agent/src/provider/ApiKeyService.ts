@@ -58,7 +58,9 @@ export class ApiKeyService {
   async list(providerID?: string): Promise<PublicApiKeySummary[]> {
     const mappings = await this.providerMappings()
     const integrationID = providerID ? await this.integrationID(providerID) : undefined
-    return this.credentials.listApiKeys(integrationID).map((summary) =>
+    return this.credentials.listApiKeys(integrationID)
+      .filter((summary) => !summary.integrationID.startsWith("usage."))
+      .map((summary) =>
       this.publicSummary(summary, mappings.get(summary.integrationID) ?? Provider.ID.make(summary.integrationID)))
   }
 
@@ -87,6 +89,7 @@ export class ApiKeyService {
   }
 
   async setEnabled(credentialID: string, enabled: boolean) {
+    this.requiredSummary(credentialID)
     const summary = await Effect.runPromise(this.credentials.setEnabled(credentialID, enabled))
     const providerID = (await this.providerMappings()).get(summary.integrationID) ?? Provider.ID.make(summary.integrationID)
     return this.publicSummary(summary, providerID)
@@ -164,6 +167,7 @@ export class ApiKeyService {
   }
 
   async copyMaterial(credentialID: string): Promise<string> {
+    this.requiredSummary(credentialID)
     const stored = await Effect.runPromise(this.credentials.getById<Credential.Value>(credentialID))
     if (!stored || stored.kind !== "api-key" || !Schema.is(Credential.Key)(stored.value)) {
       throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到可复制的 API Key", 404)
@@ -172,7 +176,8 @@ export class ApiKeyService {
   }
 
   private requiredSummary(credentialID: string) {
-    const summary = this.credentials.listApiKeys().find((item) => item.id === credentialID)
+    const summary = this.credentials.listApiKeys().find((item) =>
+      item.id === credentialID && !item.integrationID.startsWith("usage."))
     if (!summary) throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到 API Key", 404)
     return summary
   }

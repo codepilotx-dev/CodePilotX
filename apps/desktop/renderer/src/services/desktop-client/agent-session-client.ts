@@ -2486,6 +2486,42 @@ export function createAgentSessionDesktopClient(
         nextCursor: result.nextCursor,
       }
     },
+    getLocalUsage: input =>
+      withRequiredAgent(() => rpc.call('usage/local/get', input)),
+    queryProviderUsage: input =>
+      withRequiredAgent(() => rpc.call('usage/provider/query', input)),
+    connectUsageCredential: input =>
+      withRequiredAgent(() => {
+        const operationId = crypto.randomUUID()
+        if (input.sourceId === 'xai-management') {
+          return rpc.call('usage/credential/connect', {
+            sourceId: input.sourceId,
+            key: input.key,
+            teamId: input.teamId,
+            operationId,
+          })
+        }
+        if (input.sourceId === 'cloudflare-ai-gateway') {
+          return rpc.call('usage/credential/connect', {
+            sourceId: input.sourceId,
+            key: input.key,
+            accountId: input.accountId,
+            operationId,
+          })
+        }
+        return rpc.call('usage/credential/connect', {
+          sourceId: input.sourceId,
+          key: input.key,
+          operationId,
+        })
+      }),
+    disconnectUsageCredential: input =>
+      withRequiredAgent(() =>
+        rpc.call('usage/credential/disconnect', {
+          ...input,
+          operationId: crypto.randomUUID(),
+        }),
+      ),
     saveModelProvider: async options => {
       let directory = await loadProviderCatalog()
       let provider = directory.providers.find(item => item.id === options.providerID)
