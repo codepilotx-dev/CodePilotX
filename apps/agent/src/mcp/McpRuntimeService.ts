@@ -6,12 +6,13 @@ import type {
 import type { Schema } from "effect"
 import { McpConfigError, McpConfigService, isMcpSettingsConflict } from "./McpConfigService"
 import { McpConnectionManager } from "./McpConnectionManager"
+import { McpOAuthError, McpOAuthService } from "./McpOAuthService"
 
 type McpReloadResult = typeof McpReloadResultSchema.Type
 
 export class McpRuntimeError extends Error {
   constructor(
-    readonly code: "MCP_CONFIG_INVALID" | "MCP_SERVER_NOT_FOUND" | "MCP_UNAVAILABLE" | "PATH_DENIED" | "CONFLICT",
+    readonly code: "MCP_CONFIG_INVALID" | "MCP_SERVER_NOT_FOUND" | "MCP_OAUTH_UNAVAILABLE" | "MCP_UNAVAILABLE" | "PATH_DENIED" | "CONFLICT",
     message: string,
     readonly status: number,
   ) {
@@ -25,6 +26,7 @@ export class McpRuntimeService {
   constructor(
     private readonly configs: McpConfigService,
     readonly connections: McpConnectionManager,
+    readonly oauth?: McpOAuthService,
   ) {}
 
   list(input: { workspace?: string }) {
@@ -35,22 +37,50 @@ export class McpRuntimeService {
     return this.wrap(() => this.connections.status(input.workspace))
   }
 
-  save(input: {
+  async save(input: {
     workspace?: string
     originalName?: string
     server: McpServerDeclaration
     operationId: string
   }) {
-    return this.wrap(() => this.configs.save(input))
+    return this.wrap(async () => {
+      const existing = (await this.configs.list(input.workspace)).servers.find(
+        (item) =>
+          item.server.scope === input.server.scope
+          && item.server.name === (input.originalName ?? input.server.name),
+      )?.server
+      const result = await this.configs.save(input)
+      const changedIdentity = existing?.transport.type === "http"
+        && (
+          input.server.transport.type !== "http"
+          || existing.name !== input.server.name
+          || existing.transport.url !== input.server.transport.url
+        )
+      if (changedIdentity) {
+        await this.oauth?.invalidateDeclaration(existing, input.workspace)
+      }
+      return result
+    })
   }
 
-  remove(input: {
+  async remove(input: {
     workspace?: string
     scope: McpScope
     name: string
     operationId: string
   }) {
-    return this.wrap(() => this.configs.remove(input))
+    return this.wrap(async () => {
+      const existing = (await this.configs.list(input.workspace)).servers.find(
+        (item) =>
+          item.server.scope === input.scope
+          && item.server.name === input.name,
+      )?.server
+      const result = await this.configs.remove(input)
+      if (existing) {
+        await this.oauth?.invalidateDeclaration(existing, input.workspace)
+      }
+      return result
+    })
   }
 
   setEnabled(input: {
@@ -80,12 +110,58 @@ export class McpRuntimeService {
     return result
   }
 
+  oauthStart(input: {
+    workspace?: string
+    scope: McpScope
+    name: string
+    operationId: string
+  }) {
+    if (!this.oauth) {
+      throw new McpRuntimeError(
+        "MCP_OAUTH_UNAVAILABLE",
+        "MCP OAuth 服务未配置",
+        503,
+      )
+    }
+    return this.wrap(() => this.oauth!.start(input))
+  }
+
+  oauthStatus(input: { attemptId: string }) {
+    if (!this.oauth) {
+      throw new McpRuntimeError(
+        "MCP_OAUTH_UNAVAILABLE",
+        "MCP OAuth 服务未配置",
+        503,
+      )
+    }
+    return this.oauth.status(input)
+  }
+
+  oauthLogout(input: {
+    workspace?: string
+    scope: McpScope
+    name: string
+    operationId: string
+  }) {
+    if (!this.oauth) {
+      throw new McpRuntimeError(
+        "MCP_OAUTH_UNAVAILABLE",
+        "MCP OAuth 服务未配置",
+        503,
+      )
+    }
+    return this.wrap(() => this.oauth!.logout(input))
+  }
+
   private async wrap<T>(operation: () => Promise<T>): Promise<T> {
     try {
       return await operation()
     } catch (cause) {
       if (cause instanceof McpRuntimeError) throw cause
       if (cause instanceof McpConfigError) {
+        throw new McpRuntimeError(cause.code, cause.message, cause.status)
+      }
+      if (cause instanceof McpOAuthError) {
         throw new McpRuntimeError(cause.code, cause.message, cause.status)
       }
       if (isMcpSettingsConflict(cause)) {

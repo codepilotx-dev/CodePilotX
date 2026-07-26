@@ -1,5 +1,7 @@
 import {
   McpListParamsSchema,
+  McpOAuthServerParamsSchema,
+  McpOAuthStatusParamsSchema,
   McpReloadParamsSchema,
   McpRemoveParamsSchema,
   McpSaveParamsSchema,
@@ -20,6 +22,8 @@ const decodeSave = Schema.decodeUnknownSync(McpSaveParamsSchema)
 const decodeRemove = Schema.decodeUnknownSync(McpRemoveParamsSchema)
 const decodeEnabled = Schema.decodeUnknownSync(McpSetEnabledParamsSchema)
 const decodeReload = Schema.decodeUnknownSync(McpReloadParamsSchema)
+const decodeOAuthServer = Schema.decodeUnknownSync(McpOAuthServerParamsSchema)
+const decodeOAuthStatus = Schema.decodeUnknownSync(McpOAuthStatusParamsSchema)
 
 export const mcpHandlers = {
   name: "mcp",
@@ -30,6 +34,9 @@ export const mcpHandlers = {
     "mcp/remove",
     "mcp/setEnabled",
     "mcp/reload",
+    "mcp/oauth/start",
+    "mcp/oauth/status",
+    "mcp/oauth/logout",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, _context: RpcRouterContext): Promise<unknown> {
     const mcp = runtime.dependencies.mcp
@@ -86,6 +93,27 @@ export const mcpHandlers = {
             operationId: params.operationId,
             ...(params.workspace ? { workspace: params.workspace } : {}),
           })
+        }
+        case "mcp/oauth/start": {
+          const params = decodeOAuthServer(rawParams)
+          return mcp.oauthStart({
+            operationId: params.operationId,
+            scope: params.scope,
+            name: params.name,
+            ...(params.workspace ? { workspace: params.workspace } : {}),
+          })
+        }
+        case "mcp/oauth/status":
+          return mcp.oauthStatus(decodeOAuthStatus(rawParams))
+        case "mcp/oauth/logout": {
+          const params = decodeOAuthServer(rawParams)
+          const result = await mcp.oauthLogout({
+            operationId: params.operationId,
+            scope: params.scope,
+            name: params.name,
+            ...(params.workspace ? { workspace: params.workspace } : {}),
+          })
+          return result
         }
         default:
           return undefined

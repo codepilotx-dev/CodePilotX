@@ -15,6 +15,33 @@ import {
   ToolListChangedNotificationSchema,
 } from "@modelcontextprotocol/sdk/types.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
+import { secretScrubber } from "../security/SecretScrubber"
+import type { McpOAuthCoordinator } from "./McpOAuthCoordinator"
+
+export const MAX_MCP_SERVER_INSTRUCTIONS_BYTES = 16 * 1024
+
+export const truncateMcpInstructionsUtf8 = (value: string, maximumBytes: number) => {
+  const encoded = Buffer.from(value, "utf8")
+  if (encoded.byteLength <= maximumBytes) return value
+  const marker = "\n…"
+  const markerBytes = Buffer.byteLength(marker, "utf8")
+  let end = Math.max(0, maximumBytes - markerBytes)
+  const decoder = new TextDecoder("utf-8", { fatal: true })
+  while (end > 0) {
+    try {
+      return `${decoder.decode(encoded.subarray(0, end))}${marker}`
+    } catch {
+      end -= 1
+    }
+  }
+  return markerBytes <= maximumBytes ? marker : ""
+}
+
+export const sanitizeMcpServerInstructions = (value: string | undefined) => {
+  const scrubbed = secretScrubber.scrubText(value ?? "").trim()
+  if (!scrubbed) return undefined
+  return truncateMcpInstructionsUtf8(scrubbed, MAX_MCP_SERVER_INSTRUCTIONS_BYTES)
+}
 
 export type McpRawTool = Awaited<ReturnType<Client["listTools"]>>["tools"][number]
 export type McpToolResult = Awaited<ReturnType<Client["callTool"]>>
@@ -29,6 +56,7 @@ export type McpConnectedClient = {
   resources: McpResource[]
   resourceTemplates: McpResourceTemplate[]
   prompts: McpPrompt[]
+  instructions?: string
   transport: "stdio" | "http" | "sse"
   callTool(
     name: string,
@@ -58,7 +86,7 @@ const safeConnectionError = (cause: unknown): McpConnectionError => {
   ) {
     return new McpConnectionError({
       code: "MCP_AUTH_REQUIRED",
-      message: "MCP server 需要认证，请配置环境变量凭据",
+      message: "MCP server 需要认证，请使用 OAuth 或配置环境变量凭据",
       retryable: true,
     }, true)
   }
@@ -82,6 +110,10 @@ const shouldFallbackToSse = (cause: unknown) => {
   return false
 }
 
+const isAuthenticationFailure = (cause: unknown) =>
+  cause instanceof UnauthorizedError
+  || cause instanceof StreamableHTTPError && (cause.code === 401 || cause.code === 403)
+
 const inherited = (references: Record<string, string> | undefined) =>
   Object.fromEntries(
     Object.entries(references ?? {})
@@ -100,6 +132,14 @@ const requestHeaders = (server: McpServerDeclaration) => {
   if (token) headers.Authorization = `Bearer ${token}`
   return headers
 }
+
+const withoutAuthorization = (headers: Record<string, string>) =>
+  Object.fromEntries(
+    Object.entries(headers).filter(([name]) => name.toLowerCase() !== "authorization"),
+  )
+
+const hasAuthorization = (headers: Record<string, string>) =>
+  Object.keys(headers).some((name) => name.toLowerCase() === "authorization")
 
 const listAll = async <T>(
   first: (cursor?: string) => Promise<{ items: T[]; nextCursor?: string }>,
@@ -121,10 +161,16 @@ const page = <T>(items: T[], nextCursor: string | undefined) => ({
 })
 
 export class McpClientFactory {
+  constructor(private readonly oauth?: McpOAuthCoordinator) {}
+
   async connect(
     server: McpServerDeclaration,
     onCatalogChanged: () => void,
     onClosed: () => void = () => undefined,
+    context: {
+      workspaceHash?: string
+      onAuthenticationRequired?: () => void
+    } = {},
   ): Promise<McpConnectedClient> {
     const startupTimeout = server.startupTimeoutMs ?? 10_000
     try {
@@ -152,10 +198,16 @@ export class McpClientFactory {
 
       const url = new URL(server.transport.url)
       const headers = requestHeaders(server)
+      const oauthProvider = server.transport.auth === "none"
+        ? undefined
+        : await this.oauth?.provider(server, context.workspaceHash)
       const modern = this.client()
       try {
         await modern.connect(new StreamableHTTPClientTransport(url, {
           requestInit: { headers },
+          ...(!hasAuthorization(headers) && oauthProvider
+            ? { authProvider: oauthProvider }
+            : {}),
           reconnectionOptions: {
             initialReconnectionDelay: 500,
             maxReconnectionDelay: 5_000,
@@ -163,9 +215,28 @@ export class McpClientFactory {
             maxRetries: 2,
           },
         }) as Transport, { timeout: startupTimeout })
-        return await this.ready(modern, "http", server, onCatalogChanged, onClosed)
+        return await this.ready(modern, "http", server, onCatalogChanged, onClosed, context.onAuthenticationRequired)
       } catch (cause) {
         await modern.close().catch(() => undefined)
+        if (isAuthenticationFailure(cause) && hasAuthorization(headers) && oauthProvider) {
+          const authenticated = this.client()
+          try {
+            await authenticated.connect(new StreamableHTTPClientTransport(url, {
+              authProvider: oauthProvider,
+              requestInit: { headers: withoutAuthorization(headers) },
+              reconnectionOptions: {
+                initialReconnectionDelay: 500,
+                maxReconnectionDelay: 5_000,
+                reconnectionDelayGrowFactor: 1.5,
+                maxRetries: 2,
+              },
+            }) as Transport, { timeout: startupTimeout })
+            return await this.ready(authenticated, "http", server, onCatalogChanged, onClosed, context.onAuthenticationRequired)
+          } catch (oauthCause) {
+            await authenticated.close().catch(() => undefined)
+            throw oauthCause
+          }
+        }
         if (!shouldFallbackToSse(cause)) throw cause
       }
 
@@ -181,7 +252,7 @@ export class McpClientFactory {
             },
           },
         }), { timeout: startupTimeout })
-        return await this.ready(legacy, "sse", server, onCatalogChanged, onClosed)
+        return await this.ready(legacy, "sse", server, onCatalogChanged, onClosed, context.onAuthenticationRequired)
       } catch (cause) {
         await legacy.close().catch(() => undefined)
         throw cause
@@ -204,6 +275,7 @@ export class McpClientFactory {
     server: McpServerDeclaration,
     onCatalogChanged: () => void,
     onClosed: () => void,
+    onAuthenticationRequired?: () => void,
   ): Promise<McpConnectedClient> {
     client.onclose = onClosed
     client.setNotificationHandler(ToolListChangedNotificationSchema, onCatalogChanged)
@@ -234,22 +306,33 @@ export class McpClientFactory {
           return page(result.prompts, result.nextCursor)
         }).catch(() => [])
       : []
+    const instructions = sanitizeMcpServerInstructions(client.getInstructions())
     return {
       client,
       tools,
       resources,
       resourceTemplates,
       prompts,
+      ...(instructions ? { instructions } : {}),
       transport,
-      callTool: (name, args, signal, requestMeta) =>
-        client.callTool({
-          name,
-          arguments: args,
-          ...(requestMeta ? { _meta: requestMeta } : {}),
-        }, undefined, {
-          timeout,
-          ...(signal ? { signal } : {}),
-        }),
+      callTool: async (name, args, signal, requestMeta) => {
+        try {
+          return await client.callTool({
+            name,
+            arguments: args,
+            ...(requestMeta ? { _meta: requestMeta } : {}),
+          }, undefined, {
+            timeout,
+            ...(signal ? { signal } : {}),
+          })
+        } catch (cause) {
+          if (isAuthenticationFailure(cause)) {
+            onAuthenticationRequired?.()
+            throw safeConnectionError(cause)
+          }
+          throw cause
+        }
+      },
       listResources: (cursor) =>
         client.listResources(cursor ? { cursor } : undefined, { timeout }),
       readResource: (uri) => client.readResource({ uri }, { timeout }),

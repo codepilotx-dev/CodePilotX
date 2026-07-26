@@ -17,6 +17,7 @@ import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
+import { createMcpInstructionSections } from "../mcp/McpPromptSections"
 
 const terminal = new Set(["completed", "failed", "stopped", "interrupted"])
 export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => kind === "permission" ? "waiting_permission" as const : "waiting_question" as const
@@ -412,6 +413,11 @@ export class SubagentService {
         externalData: invokedSkillData,
         userMessage: input.content,
       })
+      promptSections.splice(
+        promptSections.length - 1,
+        0,
+        ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
+      )
       await this.resolveModel(run.model)
       const piModel = await this.providers.getModel(run.model)
       const contextManager = new ContextManager(this.db)

@@ -1,16 +1,24 @@
 import type {
   McpReloadResultSchema,
+  McpRuntimeServerAuth,
   McpRuntimeServerStatus,
   McpSanitizedError,
   McpServerDeclaration,
 } from "@codepilotx/agent-protocol"
 import type { Schema } from "effect"
 import { createHash } from "node:crypto"
+import { AgentError } from "../domain"
 import { TurnToolCatalog, type ToolCatalog, type ToolDefinition } from "../tool/ToolRegistry"
-import { McpClientFactory, McpConnectionError, type McpConnectedClient } from "./McpClientFactory"
+import {
+  McpClientFactory,
+  McpConnectionError,
+  truncateMcpInstructionsUtf8,
+  type McpConnectedClient,
+} from "./McpClientFactory"
 import { McpConfigService } from "./McpConfigService"
 import { McpToolAdapter } from "./McpToolAdapter"
 import type { McpDiagnosticContextProvider } from "./McpDiagnosticContextProvider"
+import type { McpOAuthCoordinator } from "./McpOAuthCoordinator"
 
 type McpReloadResult = typeof McpReloadResultSchema.Type
 
@@ -31,6 +39,8 @@ type RuntimeGeneration = {
   configGeneration: number
   handles: Map<string, ConnectionHandle>
   definitions: ToolDefinition[]
+  serverInstructions: McpServerInstruction[]
+  requiredServerNames: string[]
   leases: number
   retired: boolean
 }
@@ -45,18 +55,51 @@ type WorkspaceRuntime = {
 export type McpTurnLease = {
   generation: number
   definitions: readonly ToolDefinition[]
+  serverInstructions: readonly McpServerInstruction[]
   catalog: ToolCatalog
   release(): Promise<void>
+}
+
+export type McpServerInstruction = {
+  serverName: string
+  content: string
+}
+
+const MAX_MCP_GENERATION_INSTRUCTIONS_BYTES = 64 * 1024
+
+const requiresConnection = (server: McpServerDeclaration) => server.required === true
+
+const generationInstructions = (
+  handles: ReadonlyMap<string, ConnectionHandle>,
+): McpServerInstruction[] => {
+  const result: McpServerInstruction[] = []
+  let remaining = MAX_MCP_GENERATION_INSTRUCTIONS_BYTES
+  for (const handle of handles.values()) {
+    const content = handle.connected?.instructions
+    const hasUsableCapability = (handle.validToolCount ?? 0) > 0
+      || (handle.connected?.resources.length ?? 0) > 0
+      || (handle.connected?.resourceTemplates.length ?? 0) > 0
+    if (!content || !hasUsableCapability || remaining <= 0) continue
+    const bounded = truncateMcpInstructionsUtf8(content, remaining)
+    if (!bounded) continue
+    result.push({ serverName: handle.server.name, content: bounded })
+    remaining = Math.max(0, remaining - Buffer.byteLength(bounded, "utf8"))
+  }
+  return result
 }
 
 const fingerprint = (server: McpServerDeclaration) =>
   createHash("sha256").update(JSON.stringify(server)).digest("hex")
 
-const statusFor = (handle: ConnectionHandle): McpRuntimeServerStatus => ({
+const statusFor = (
+  handle: ConnectionHandle,
+  auth: McpRuntimeServerAuth,
+): McpRuntimeServerStatus => ({
   name: handle.server.name,
   scope: handle.server.scope,
   type: handle.server.transport.type,
   state: handle.state,
+  auth,
   ...(handle.error ? { error: handle.error } : {}),
   toolCount: handle.validToolCount ?? handle.connected?.tools.length ?? 0,
   resourceCount: (handle.connected?.resources.length ?? 0) + (handle.connected?.resourceTemplates.length ?? 0),
@@ -73,6 +116,7 @@ export class McpConnectionManager {
     private readonly factory = new McpClientFactory(),
     private readonly updated?: (generation: number) => void | Promise<void>,
     private readonly diagnosticContext?: McpDiagnosticContextProvider,
+    private readonly oauth?: McpOAuthCoordinator,
   ) {}
 
   async status(workspace?: string) {
@@ -80,13 +124,22 @@ export class McpConnectionManager {
     await this.ensure(runtime, false)
     const config = await this.configs.list(workspace)
     const current = runtime.current
-    const statuses: McpRuntimeServerStatus[] = config.servers.map((item) => {
+    const statuses: McpRuntimeServerStatus[] = await Promise.all(config.servers.map(async (item) => {
+      const auth = await this.oauth?.authSummary(item.server, runtime.key)
+        .catch(() => ({
+          source: "none" as const,
+          canLogin: item.server.transport.type === "http"
+            && item.server.transport.auth !== "none",
+          canLogout: false,
+        }))
+        ?? { source: "none" as const, canLogin: false, canLogout: false }
       if (!item.effective) {
         return {
           name: item.server.name,
           scope: item.server.scope,
           type: item.server.transport.type,
           state: "shadowed",
+          auth,
           toolCount: 0,
           resourceCount: 0,
           promptCount: 0,
@@ -98,22 +151,24 @@ export class McpConnectionManager {
           scope: item.server.scope,
           type: item.server.transport.type,
           state: "disabled",
+          auth,
           toolCount: 0,
           resourceCount: 0,
           promptCount: 0,
         }
       }
       const handle = current?.handles.get(item.server.name)
-      return handle ? statusFor(handle) : {
+      return handle ? statusFor(handle, auth) : {
         name: item.server.name,
         scope: item.server.scope,
         type: item.server.transport.type,
         state: "starting",
+        auth,
         toolCount: 0,
         resourceCount: 0,
         promptCount: 0,
       }
-    })
+    }))
     return {
       servers: statuses,
       totalTools: statuses.reduce((total, server) => total + server.toolCount, 0),
@@ -132,11 +187,22 @@ export class McpConnectionManager {
     const runtime = await this.runtime(workspace)
     await this.ensure(runtime, false)
     const generation = runtime.current!
+    const unavailable = generation.requiredServerNames.filter((name) =>
+      generation.handles.get(name)?.state !== "connected"
+    )
+    if (unavailable.length > 0) {
+      throw new AgentError(
+        "MCP_REQUIRED_SERVER_UNAVAILABLE",
+        `必要 MCP server 当前不可用：${unavailable.join("、")}`,
+        503,
+      )
+    }
     generation.leases += 1
     let released = false
     return {
       generation: generation.id,
       definitions: generation.definitions,
+      serverInstructions: generation.serverInstructions,
       catalog: new TurnToolCatalog(this.baseCatalog, generation.definitions),
       release: async () => {
         if (released) return
@@ -236,6 +302,12 @@ export class McpConnectionManager {
           server,
           () => { void this.catalogChanged(runtime, server.name) },
           () => { void this.connectionClosed(runtime, server.name, handle) },
+          {
+            workspaceHash: runtime.key,
+            onAuthenticationRequired: () => {
+              void this.authenticationRequired(runtime, server.name, handle)
+            },
+          },
         )
         handle.state = "connected"
       } catch (cause) {
@@ -260,6 +332,8 @@ export class McpConnectionManager {
       configGeneration,
       handles,
       definitions: [],
+      serverInstructions: [],
+      requiredServerNames: desired.filter(requiresConnection).map((server) => server.name),
       leases: 0,
       retired: false,
     }
@@ -268,6 +342,7 @@ export class McpConnectionManager {
       handles,
       this.diagnosticContext,
     ).definitions()
+    generation.serverInstructions = generationInstructions(handles)
     runtime.current = generation
     if (previous) {
       previous.retired = true
@@ -305,6 +380,24 @@ export class McpConnectionManager {
     handle.error = {
       code: "MCP_CONNECTION_CLOSED",
       message: "MCP server 连接已中断",
+      retryable: true,
+    }
+    handle.catalogDirty = true
+    current.configGeneration = -1
+    await this.updated?.(current.id)
+  }
+
+  private async authenticationRequired(
+    runtime: WorkspaceRuntime,
+    serverName: string,
+    handle: ConnectionHandle,
+  ) {
+    const current = runtime.current
+    if (current?.handles.get(serverName) !== handle) return
+    handle.state = "needs_auth"
+    handle.error = {
+      code: "MCP_AUTH_REQUIRED",
+      message: "MCP server 认证已失效，请重新认证",
       retryable: true,
     }
     handle.catalogDirty = true

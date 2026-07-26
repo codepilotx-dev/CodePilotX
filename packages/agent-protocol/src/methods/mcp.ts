@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { OperationParamsSchema, SequenceSchema } from "../wire/primitives"
+import { OperationParamsSchema, SequenceSchema, TimestampSchema } from "../wire/primitives"
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const StringMapSchema = Schema.Record(NonEmptyStringSchema, Schema.String)
@@ -9,6 +9,12 @@ const TimeoutSchema = Schema.Int.check(Schema.isBetween({ minimum: 100, maximum:
 
 export const McpScopeSchema = Schema.Literals(["user", "local"])
 export const McpTransportTypeSchema = Schema.Literals(["stdio", "http"])
+export const McpHttpAuthSchema = Schema.Literals(["oauth", "none"])
+export const McpToolApprovalModeSchema = Schema.Literals(["auto", "prompt", "writes", "approve"])
+
+export const McpToolPolicySchema = Schema.Struct({
+  approvalMode: McpToolApprovalModeSchema,
+})
 
 export const McpStdioTransportSchema = Schema.Struct({
   type: Schema.Literal("stdio"),
@@ -22,6 +28,9 @@ export const McpStdioTransportSchema = Schema.Struct({
 export const McpHttpTransportSchema = Schema.Struct({
   type: Schema.Literal("http"),
   url: NonEmptyStringSchema,
+  auth: Schema.optional(McpHttpAuthSchema),
+  scopes: Schema.optional(Schema.Array(Schema.String)),
+  oauthResource: Schema.optional(NonEmptyStringSchema),
   headers: Schema.optional(StringMapSchema),
   headerFromEnv: Schema.optional(EnvironmentReferenceMapSchema),
   bearerTokenEnvVar: Schema.optional(NonEmptyStringSchema),
@@ -40,6 +49,11 @@ export const McpServerDeclarationSchema = Schema.Struct({
   diagnosticContext: Schema.optional(Schema.Boolean),
   startupTimeoutMs: Schema.optional(TimeoutSchema),
   toolTimeoutMs: Schema.optional(TimeoutSchema),
+  required: Schema.optional(Schema.Boolean),
+  enabledTools: Schema.optional(Schema.Array(Schema.String)),
+  disabledTools: Schema.optional(Schema.Array(Schema.String)),
+  defaultToolsApprovalMode: Schema.optional(McpToolApprovalModeSchema),
+  tools: Schema.optional(Schema.Record(NonEmptyStringSchema, McpToolPolicySchema)),
 })
 
 export const McpServerListItemSchema = Schema.Struct({
@@ -72,11 +86,19 @@ export const McpSanitizedErrorSchema = Schema.Struct({
   retryable: Schema.Boolean,
 })
 
+export const McpRuntimeAuthSummarySchema = Schema.Struct({
+  source: Schema.Literals(["none", "environment", "oauth"]),
+  canLogin: Schema.Boolean,
+  canLogout: Schema.Boolean,
+})
+export const McpRuntimeServerAuthSchema = McpRuntimeAuthSummarySchema
+
 export const McpRuntimeServerStatusSchema = Schema.Struct({
   name: NonEmptyStringSchema,
   scope: McpScopeSchema,
   type: McpTransportTypeSchema,
   state: McpRuntimeStateSchema,
+  auth: McpRuntimeAuthSummarySchema,
   error: Schema.optional(McpSanitizedErrorSchema),
   toolCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   resourceCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
@@ -133,9 +155,36 @@ export const McpReloadResultSchema = Schema.Struct({
   failed: Schema.Array(McpReloadFailureSchema),
 })
 
+export const McpOAuthServerParamsSchema = Schema.Struct({
+  workspace: Schema.optional(NonEmptyStringSchema),
+  scope: McpScopeSchema,
+  name: NonEmptyStringSchema,
+  ...OperationParamsSchema.fields,
+})
+
+export const McpOAuthStartResultSchema = Schema.Struct({
+  attemptId: NonEmptyStringSchema,
+  authorizationUrl: NonEmptyStringSchema,
+  expiresAt: TimestampSchema,
+})
+
+export const McpOAuthStatusParamsSchema = Schema.Struct({
+  attemptId: NonEmptyStringSchema,
+})
+
+export const McpOAuthStatusResultSchema = Schema.Struct({
+  state: Schema.Literals(["pending", "completed", "failed", "expired"]),
+  error: Schema.optional(McpSanitizedErrorSchema),
+})
+
+export const McpOAuthLogoutResultSchema = Schema.Struct({
+  generation: SequenceSchema,
+})
+
 const McpErrors = [
   "MCP_CONFIG_INVALID",
   "MCP_SERVER_NOT_FOUND",
+  "MCP_OAUTH_UNAVAILABLE",
   "MCP_UNAVAILABLE",
   "PATH_DENIED",
   "CONFLICT",
@@ -197,13 +246,45 @@ export const McpRpcMethods = {
     exactParams: true,
     exactResult: true,
   }),
+  "mcp/oauth/start": defineMethod({
+    params: McpOAuthServerParamsSchema,
+    result: McpOAuthStartResultSchema,
+    errors: McpErrors,
+    capability: "mcp.oauth.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "mcp/oauth/status": defineMethod({
+    params: McpOAuthStatusParamsSchema,
+    result: McpOAuthStatusResultSchema,
+    errors: McpErrors,
+    capability: "mcp.oauth.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "mcp/oauth/logout": defineMethod({
+    params: McpOAuthServerParamsSchema,
+    result: McpOAuthLogoutResultSchema,
+    errors: McpErrors,
+    capability: "mcp.oauth.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
 } as const satisfies MethodMap
 
 export type McpScope = typeof McpScopeSchema.Type
 export type McpTransportType = typeof McpTransportTypeSchema.Type
+export type McpHttpAuth = typeof McpHttpAuthSchema.Type
+export type McpToolApprovalMode = typeof McpToolApprovalModeSchema.Type
+export type McpToolPolicy = typeof McpToolPolicySchema.Type
 export type McpTransportConfig = typeof McpTransportConfigSchema.Type
 export type McpServerDeclaration = typeof McpServerDeclarationSchema.Type
 export type McpServerListItem = typeof McpServerListItemSchema.Type
 export type McpRuntimeState = typeof McpRuntimeStateSchema.Type
+export type McpRuntimeAuthSummary = typeof McpRuntimeAuthSummarySchema.Type
+export type McpRuntimeServerAuth = typeof McpRuntimeServerAuthSchema.Type
 export type McpRuntimeServerStatus = typeof McpRuntimeServerStatusSchema.Type
 export type McpSanitizedError = typeof McpSanitizedErrorSchema.Type

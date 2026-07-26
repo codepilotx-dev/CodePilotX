@@ -3,9 +3,15 @@ import type { McpServerDeclaration } from "@codepilotx/agent-protocol"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
-import { McpClientFactory, McpConnectionError } from "../src/mcp/McpClientFactory"
+import {
+  MAX_MCP_SERVER_INSTRUCTIONS_BYTES,
+  McpClientFactory,
+  McpConnectionError,
+  sanitizeMcpServerInstructions,
+} from "../src/mcp/McpClientFactory"
 import { McpConnectionManager } from "../src/mcp/McpConnectionManager"
 import { McpConfigError, McpConfigService } from "../src/mcp/McpConfigService"
+import { createMcpInstructionSections } from "../src/mcp/McpPromptSections"
 import { McpToolAdapter } from "../src/mcp/McpToolAdapter"
 import {
   MCP_DIAGNOSTIC_CONTEXT_KEY,
@@ -188,6 +194,102 @@ describe("MCP configuration", () => {
       code: "MCP_CONFIG_INVALID",
     } satisfies Partial<McpConfigError>)
   })
+
+  test("normalizes and persists OAuth and tool policy declarations in settings v2", async () => {
+    const database = new MemorySettings()
+    const configs = new McpConfigService(new McpSettingsRepository(database))
+    await configs.save({
+      server: {
+        name: " policies ",
+        scope: "user",
+        enabled: true,
+        required: true,
+        enabledTools: [" read ", "", "read", "write"],
+        disabledTools: [" write ", "write", ""],
+        defaultToolsApprovalMode: "writes",
+        tools: {
+          " read ": { approvalMode: "approve" },
+          write: { approvalMode: "prompt" },
+        },
+        transport: {
+          type: "http",
+          url: "https://example.com/mcp",
+          auth: "oauth",
+          scopes: [" profile ", "", "profile", "email"],
+          oauthResource: " https://example.com/resource ",
+        },
+      },
+      operationId: "save-policy",
+    })
+
+    const restarted = new McpConfigService(new McpSettingsRepository(database))
+    expect((await restarted.list()).servers.find(({ server }) =>
+      server.name === "policies"
+    )?.server).toEqual({
+      name: "policies",
+      scope: "user",
+      enabled: true,
+      required: true,
+      enabledTools: ["read", "write"],
+      disabledTools: ["write"],
+      defaultToolsApprovalMode: "writes",
+      tools: {
+        read: { approvalMode: "approve" },
+        write: { approvalMode: "prompt" },
+      },
+      transport: {
+        type: "http",
+        url: "https://example.com/mcp",
+        auth: "oauth",
+        scopes: ["profile", "email"],
+        oauthResource: "https://example.com/resource",
+      },
+    })
+    expect(database.values.has("mcp.runtime.v1")).toBe(true)
+  })
+
+  test("normalizes valid policy data already stored in settings v2", async () => {
+    const database = new MemorySettings()
+    database.values.set("mcp.runtime.v1", {
+      version: 2,
+      generation: 7,
+      user: {
+        stored: {
+          name: "stored",
+          scope: "user",
+          enabled: true,
+          enabledTools: [" read ", "read", ""],
+          disabledTools: [" read ", ""],
+          tools: {
+            " read ": { approvalMode: "prompt" },
+          },
+          transport: {
+            type: "http",
+            url: "https://example.com/mcp",
+            auth: "oauth",
+            scopes: [" profile ", "profile", ""],
+            oauthResource: " https://example.com/resource ",
+          },
+        },
+      },
+      local: {},
+      operations: [],
+    })
+
+    expect((await new McpConfigService(
+      new McpSettingsRepository(database),
+    ).list()).servers[0]?.server).toMatchObject({
+      enabledTools: ["read"],
+      disabledTools: ["read"],
+      tools: {
+        read: { approvalMode: "prompt" },
+      },
+      transport: {
+        scopes: ["profile"],
+        oauthResource: "https://example.com/resource",
+      },
+    })
+  })
 })
 
 describe("MCP transports", () => {
@@ -208,6 +310,7 @@ describe("MCP transports", () => {
       expect(connection.tools.map((tool) => tool.name)).toContain("echo")
       expect(connection.resources.map((resource) => resource.uri)).toContain("fixture://resources/readme")
       expect(connection.prompts.map((prompt) => prompt.name)).toContain("fixture-greeting")
+      expect(connection.instructions).toContain("CodePilotX MCP 对话调试实验室")
       const result = await connection.callTool("echo", { text: "hello" })
       expect(result.structuredContent).toEqual({ echoed: "hello" })
       const resources = await connection.listResources()
@@ -271,6 +374,211 @@ describe("MCP transports", () => {
 })
 
 describe("MCP turn catalog", () => {
+  test("scrubs and bounds server instructions before exposing them as external context", () => {
+    const instructions = sanitizeMcpServerInstructions(
+      `api_key=super-secret\n${"工具说明🙂".repeat(8_000)}`,
+    )
+
+    expect(instructions).toBeDefined()
+    expect(instructions).toContain("<redacted>")
+    expect(instructions).not.toContain("super-secret")
+    expect(instructions).not.toContain("�")
+    expect(Buffer.byteLength(instructions!, "utf8")).toBeLessThanOrEqual(
+      MAX_MCP_SERVER_INSTRUCTIONS_BYTES,
+    )
+
+    expect(createMcpInstructionSections([{
+      serverName: "fixture",
+      content: instructions!,
+    }])[0]).toMatchObject({
+      role: "contextual-user",
+      cache: "dynamic",
+      authority: "external-data",
+      source: { type: "runtime", name: "mcp:fixture" },
+    })
+  })
+
+  test("filters tools and maps per-server approval modes without trusting annotations", () => {
+    const handle = {
+      server: {
+        ...server("policy", "user", true),
+        enabledTools: ["read", "write", "prompt", "auto", "danger", "blocked"],
+        disabledTools: ["blocked"],
+        defaultToolsApprovalMode: "writes",
+        tools: {
+          write: { approvalMode: "approve" },
+          prompt: { approvalMode: "prompt" },
+          auto: { approvalMode: "auto" },
+        },
+      } satisfies McpServerDeclaration,
+      fingerprint: "policy",
+      state: "connected",
+      owners: 1,
+      connected: {
+        client: {},
+        transport: "stdio",
+        tools: [
+          {
+            name: "read",
+            inputSchema: { type: "object" },
+            annotations: { readOnlyHint: true, destructiveHint: false },
+          },
+          {
+            name: "write",
+            inputSchema: { type: "object" },
+            annotations: { readOnlyHint: false },
+          },
+          {
+            name: "blocked",
+            inputSchema: { type: "object" },
+            annotations: { readOnlyHint: true },
+          },
+          {
+            name: "prompt",
+            inputSchema: { type: "object" },
+            annotations: { readOnlyHint: true },
+          },
+          {
+            name: "auto",
+            inputSchema: { type: "object" },
+            annotations: { readOnlyHint: false },
+          },
+          {
+            name: "danger",
+            inputSchema: { type: "object" },
+            annotations: { readOnlyHint: true, destructiveHint: true },
+          },
+          {
+            name: "not-allowed",
+            inputSchema: { type: "object" },
+          },
+        ],
+        resources: [],
+        resourceTemplates: [],
+        prompts: [],
+        callTool: async () => ({ content: [] }),
+        listResources: async () => ({ resources: [] }),
+        readResource: async () => ({ contents: [] }),
+        close: async () => undefined,
+      },
+    }
+
+    const tools = new McpToolAdapter(
+      1,
+      new Map([["policy", handle]]) as never,
+    ).definitions().filter((definition) => definition.origin?.kind === "mcp")
+    const byRawName = new Map(tools.map((definition) => [
+      definition.origin!.kind === "mcp" ? definition.origin!.rawToolName : "",
+      definition,
+    ]))
+
+    expect([...byRawName.keys()].sort()).toEqual([
+      "auto",
+      "danger",
+      "prompt",
+      "read",
+      "write",
+    ])
+    expect(byRawName.get("read")).toMatchObject({
+      approvalStrategy: "policy",
+      executionMode: "parallel",
+      capabilities: { externalState: false },
+    })
+    expect(byRawName.get("write")).toMatchObject({
+      approvalStrategy: "never-review",
+      executionMode: "sequential",
+      capabilities: { externalState: true },
+    })
+    expect(byRawName.get("prompt")?.approvalStrategy).toBe("always-review")
+    expect(byRawName.get("auto")?.approvalStrategy).toBe("policy")
+    expect(byRawName.get("danger")).toMatchObject({
+      approvalStrategy: "always-review",
+      executionMode: "sequential",
+      capabilities: { externalState: true },
+    })
+    expect((handle as typeof handle & { validToolCount?: number }).validToolCount).toBe(5)
+  })
+
+  test("bounds generation instructions and blocks turns when a required server is unavailable", async () => {
+    const declarations = ["one", "two", "three", "four", "five"].map((name) => ({
+      server: {
+        ...server(name, "user", true),
+      },
+      effective: true,
+    }))
+    const configs = {
+      workspace: async () => undefined,
+      list: async () => ({ generation: 1, servers: declarations }),
+    }
+    const factory = {
+      connect: async (declaration: McpServerDeclaration) => {
+        return {
+          client: {},
+          transport: "stdio",
+          tools: [],
+          resources: [{ uri: `debug://${declaration.name}`, name: declaration.name }],
+          resourceTemplates: [],
+          prompts: [],
+          instructions: `${declaration.name}:${"说明🙂".repeat(1_600)}`,
+          callTool: async () => ({ content: [] }),
+          listResources: async () => ({ resources: [] }),
+          readResource: async () => ({ contents: [] }),
+          close: async () => undefined,
+        }
+      },
+    }
+    const manager = new McpConnectionManager(
+      configs as never,
+      new ToolCatalog(),
+      factory as never,
+    )
+
+    const lease = await manager.acquire()
+    expect(lease.serverInstructions).not.toHaveLength(0)
+    expect(lease.serverInstructions.every((item) =>
+      Buffer.byteLength(item.content, "utf8") <= MAX_MCP_SERVER_INSTRUCTIONS_BYTES
+    )).toBe(true)
+    expect(Buffer.byteLength(
+      lease.serverInstructions.map((item) => item.content).join(""),
+      "utf8",
+    )).toBeLessThanOrEqual(64 * 1024)
+    await lease.release()
+    await manager.dispose()
+
+    const requiredManager = new McpConnectionManager(
+      {
+        workspace: async () => undefined,
+        list: async () => ({
+          generation: 1,
+          servers: [{
+            server: {
+              ...server("required", "user", true),
+              required: true,
+            },
+            effective: true,
+          }],
+        }),
+      } as never,
+      new ToolCatalog(),
+      {
+        connect: async () => {
+          throw new McpConnectionError({
+            code: "MCP_CONNECTION_FAILED",
+            message: "MCP server 连接失败",
+            retryable: true,
+          })
+        },
+      } as never,
+    )
+    expect((await requiredManager.reload()).failed.map((failure) => failure.name)).toEqual([
+      "required",
+    ])
+    await expect(requiredManager.acquire()).rejects.toMatchObject({
+      code: "MCP_REQUIRED_SERVER_UNAVAILABLE",
+    })
+    await requiredManager.dispose()
+  })
+
   test("keeps the active turn on its leased generation and retires connections after release", async () => {
     const configs = new McpConfigService(new McpSettingsRepository(new MemorySettings()))
     await configs.remove({

@@ -32,6 +32,18 @@ HTTP 固定监听 `127.0.0.1:43121`，并保持黑盒模式，不接收 CodePilo
 bun apps/agent/scripts/mcp-debug-server.ts --transport=http --port=0 --port-file=debug-mcp-port.txt
 ```
 
+调试 OAuth、动态客户端注册、PKCE 和 token refresh 时，使用：
+
+```powershell
+bun run debug:mcp:oauth
+bun run debug:mcp:config:oauth
+```
+
+把第二条命令输出的配置保存后，MCP 行会进入“需要认证”。点击“认证”后，调试授权页会
+立即通过 loopback callback 返回 CodePilotX。访问令牌、刷新令牌、授权码、PKCE verifier
+和 state 都不会写入终端或 `debug://` resource。该 OAuth 实现仅绑定 `127.0.0.1`，
+用于开发验证，不能作为生产授权服务器。
+
 ## 调试能力
 
 - `echo`、`structured_result`：验证文本、structured content 和 resource link。
@@ -71,3 +83,9 @@ fixture 同时保留 `--legacy-sse`、
 
 所有调用记录和频道都在重启时清空。Server 最多保存 200 条调用、32 个频道和
 1 MiB 状态，单个文本字段最多 16 KiB。
+
+Server 初始化响应包含一段固定 instructions，便于确认 CodePilotX 将远端说明作为
+`external-data` 注入，而不是提升为系统指令。还可以在高级配置中组合
+`enabledTools`、`disabledTools`、`required`、`defaultToolsApprovalMode` 和逐工具
+`tools` 覆盖，验证白名单、黑名单、必需连接和审批优先级。工具名必须填写 MCP 返回的
+原始名称，例如 `echo`，不能填写模型侧的 `mcp__codepilotx-debug__echo`。

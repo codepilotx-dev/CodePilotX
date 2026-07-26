@@ -1,9 +1,11 @@
+import type { McpServerDeclaration } from "@codepilotx/agent-protocol"
 import Ajv, { type ValidateFunction } from "ajv"
 import addFormats from "ajv-formats"
 import { createHash } from "node:crypto"
 import { z } from "zod"
 import { AgentError } from "../domain"
 import type { ToolDefinition } from "../tool/ToolRegistry"
+import type { ApprovalStrategy } from "../tool/ToolRegistry"
 import type { McpConnectionHandle } from "./McpConnectionManager"
 import {
   MCP_DIAGNOSTIC_CONTEXT_KEY,
@@ -13,6 +15,25 @@ import {
 const MAX_RESULT_BYTES = 128 * 1024
 const allModes = ["chat", "plan"] as const
 const allProfiles = ["main", "default", "explorer", "worker"] as const
+
+const toolEnabled = (policy: McpServerDeclaration, name: string) => {
+  if (policy.disabledTools?.includes(name)) return false
+  return !policy.enabledTools || policy.enabledTools.includes(name)
+}
+
+const approvalStrategy = (
+  policy: McpServerDeclaration,
+  toolName: string,
+  readOnly: boolean,
+): ApprovalStrategy => {
+  const mode = policy.tools?.[toolName]?.approvalMode
+    ?? policy.defaultToolsApprovalMode
+    ?? "auto"
+  if (mode === "prompt") return "always-review"
+  if (mode === "approve") return "never-review"
+  if (mode === "writes") return readOnly ? "policy" : "always-review"
+  return "policy"
+}
 
 const hashSuffix = (value: string) =>
   createHash("sha256").update(value).digest("hex").slice(0, 8)
@@ -93,8 +114,10 @@ export class McpToolAdapter {
     const used = new Set<string>(["mcp_list_resources", "mcp_read_resource"])
     for (const handle of this.handles.values()) {
       if (handle.state !== "connected" || !handle.connected) continue
+      const policy = handle.server
       handle.validToolCount = 0
       for (const tool of handle.connected.tools) {
+        if (!toolEnabled(policy, tool.name)) continue
         let validate: ValidateFunction
         try {
           validate = this.ajv.compile(tool.inputSchema)
@@ -108,6 +131,8 @@ export class McpToolAdapter {
         }
         handle.validToolCount += 1
         const sdkName = uniqueToolName(handle.server.name, tool.name, used)
+        const readOnly = tool.annotations?.readOnlyHint === true
+          && tool.annotations?.destructiveHint !== true
         definitions.push({
           sdkName,
           name: sdkName,
@@ -132,15 +157,14 @@ export class McpToolAdapter {
             filesystem: "none",
             network: handle.server.transport.type === "http" ? "declared" : "none",
             process: handle.server.transport.type === "stdio",
-            externalState: tool.annotations?.readOnlyHint !== true,
+            externalState: !readOnly,
             userInteraction: false,
           },
           allowedModes: allModes,
           allowedProfiles: allProfiles,
-          approvalStrategy: "policy",
+          approvalStrategy: approvalStrategy(policy, tool.name, readOnly),
           visibility: "deferred",
-          executionMode: tool.annotations?.readOnlyHint === true
-            && tool.annotations?.destructiveHint !== true
+          executionMode: readOnly
             ? "parallel"
             : "sequential",
           execute: async (input, context) => {
