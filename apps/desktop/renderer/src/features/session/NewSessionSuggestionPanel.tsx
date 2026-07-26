@@ -1,7 +1,6 @@
 import type React from "react";
 import {
   ArrowLeft,
-  ChevronRight,
   Bug,
   Hammer,
   ListChecks,
@@ -27,7 +26,6 @@ type NewSessionSuggestionPanelProps = {
     task: NewSessionSuggestionTask,
   ) => void;
   onShowAll: (category: NewSessionSuggestionCategory) => void;
-  onShowTemplates: () => void;
   onShowSuggestions: () => void;
 };
 
@@ -48,7 +46,6 @@ export function NewSessionSuggestions({
   onSelectCategory,
   onSelectTask,
   onShowAll,
-  onShowTemplates,
   onShowSuggestions,
 }: NewSessionSuggestionPanelProps): React.ReactNode {
   if (state.kind === "hidden") return null;
@@ -88,14 +85,6 @@ export function NewSessionSuggestions({
             );
           })}
         </div>
-        <button
-          className="new-session-suggestion-navigation"
-          type="button"
-          onClick={onShowTemplates}
-        >
-          查看全部模板
-          <ChevronRight aria-hidden size={14} />
-        </button>
       </section>
     );
   }

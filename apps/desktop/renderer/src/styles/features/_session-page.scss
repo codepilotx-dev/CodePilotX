@@ -231,7 +231,6 @@
 
 .new-session-suggestion-card,
 .new-session-suggestion-row,
-.new-session-suggestion-navigation,
 .new-session-suggestion-list-heading button {
   border: 0;
   font: inherit;
@@ -240,23 +239,6 @@
   &:focus-visible {
     outline: 1px solid var(--color-token-text-link-foreground);
     outline-offset: 2px;
-  }
-}
-
-.new-session-suggestion-navigation {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin: var(--space-3) 0 0 auto;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-4);
-  background: transparent;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-
-  &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
   }
 }
 
@@ -507,7 +489,6 @@
 
   .new-session-suggestion-card:focus-visible,
   .new-session-suggestion-row:focus-visible,
-  .new-session-suggestion-navigation:focus-visible,
   .new-session-suggestion-list-heading button:focus-visible,
   .quick-chat-hero .project-name:focus-visible {
     outline-color: Highlight;

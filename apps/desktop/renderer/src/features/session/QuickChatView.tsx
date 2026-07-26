@@ -166,11 +166,6 @@ export function QuickChatView(): React.ReactNode {
     [markInteracted, observedComposerValue, replaceComposerValue],
   );
 
-  const handleShowTemplates = useCallback(() => {
-    markInteracted();
-    setSuggestionState(showNewSessionSuggestionTemplates());
-  }, [markInteracted]);
-
   const handleShowSuggestions = useCallback(() => {
     markInteracted();
     setSuggestionState(showContextualNewSessionSuggestions());
@@ -306,7 +301,6 @@ export function QuickChatView(): React.ReactNode {
               onSelectCategory={handleSelectCategory}
               onSelectTask={handleSelectTask}
               onShowAll={handleShowAll}
-              onShowTemplates={handleShowTemplates}
               onShowSuggestions={handleShowSuggestions}
             />
           ) : null}
@@ -321,7 +315,6 @@ export function QuickChatView(): React.ReactNode {
               onSelectCategory={handleSelectCategory}
               onSelectTask={handleSelectTask}
               onShowAll={handleShowAll}
-              onShowTemplates={handleShowTemplates}
               onShowSuggestions={handleShowSuggestions}
             />
           ) : null}
