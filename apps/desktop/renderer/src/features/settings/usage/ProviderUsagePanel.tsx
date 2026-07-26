@@ -1,40 +1,35 @@
 import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button.js'
-import { Input } from '../../../components/ui/Input.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { SkeletonBlock, SkeletonRegion } from '../../../components/ui/Skeleton.js'
-import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
-  allBalances,
-  clampPercent,
   formatAmount,
   formatCheckedAt,
   formatCompactCount,
   formatCount,
-  formatQuotaValue,
-  formatResetTime,
-  type ProviderId,
-  quotaRemainingPercent,
-  sortProviderUsageSources,
+  sumDecimalAmounts,
   usageStatusLabel,
   type ProviderUsageSource,
 } from '../../../utils/usageFormatters.js'
-import { useIntegrationOAuthAuthorization } from '../../models/useIntegrationOAuthAuthorization.js'
 
 type ProviderRange = RpcParams<'usage/provider/query'>['range']
 type ProviderUsageResult = RpcResult<'usage/provider/query'>
-type BillingSourceId =
-  RpcParams<'usage/credential/disconnect'>['sourceId']
+type UsageSourceDescriptor = RpcResult<'usage/source/list'>['sources'][number]
 
 type Props = {
   data: ProviderUsageResult | null
+  descriptors: readonly UsageSourceDescriptor[]
   error: string | null
   loading: boolean
   range: ProviderRange
+  providerNames?: Readonly<Record<string, string>>
+  selectedProviderId?: string
+  selectedSourceId?: string
+  onClearFilter: () => void
   onRangeChange: (range: ProviderRange) => void
-  onRefresh: (providerIds?: readonly ProviderId[], force?: boolean) => void
-  onChanged: (providerIds: readonly ProviderId[]) => void
+  onRefresh: (sourceIds?: readonly string[], force?: boolean) => void
 }
 
 const RANGE_OPTIONS = [
@@ -43,91 +38,73 @@ const RANGE_OPTIONS = [
   { value: '30d', label: '30 天' },
 ] as const
 
-const BILLING_SOURCE_IDS = new Set<BillingSourceId>([
-  'openai-admin',
-  'anthropic-admin',
-  'openrouter-management',
-  'xai-management',
-  'cloudflare-ai-gateway',
-])
-
-const OTHER_PROVIDER_DETAILS: Readonly<Record<string, {
-  description: string
-  url: string
-}>> = {
-  'google-console': {
-    description: '普通推理 Key 没有稳定的账户余额或历史账务 API。',
-    url: 'https://aistudio.google.com/usage',
-  },
-  'groq-console': {
-    description: '普通推理 Key 没有稳定的账户余额或历史账务 API。',
-    url: 'https://console.groq.com/settings/usage',
-  },
-  'together-console': {
-    description: '普通推理 Key 没有稳定的账户余额或历史账务 API。',
-    url: 'https://api.together.ai/settings/billing',
-  },
-  'cerebras-console': {
-    description: '普通推理 Key 没有稳定的账户余额或历史账务 API。',
-    url: 'https://cloud.cerebras.ai/',
-  },
-  'huggingface-console': {
-    description: '普通推理 Token 没有稳定的账户余额或历史账务 API。',
-    url: 'https://huggingface.co/settings/billing',
-  },
-  'nvidia-console': {
-    description: '普通推理 Key 没有稳定的账户余额或历史账务 API。',
-    url: 'https://build.nvidia.com/settings/api-keys',
-  },
-  'bedrock-console': {
-    description: '用量依赖云 IAM 与 Cost Explorer，本次不连接云账户。',
-    url: 'https://console.aws.amazon.com/costmanagement/home',
-  },
-  'azure-openai-console': {
-    description: '用量依赖 Azure IAM 与 Cost Management，本次不连接云账户。',
-    url: 'https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/overview',
-  },
-  'alibaba-console': {
-    description: '管理数据需要云账号 AK/SK 或签名请求，本次不连接云账户。',
-    url: 'https://bailian.console.aliyun.com/',
-  },
-  'volcengine-console': {
-    description: '管理数据需要云账号 AK/SK 或签名请求，本次不连接云账户。',
-    url: 'https://console.volcengine.com/ark/',
-  },
-  'mistral-console': {
-    description: 'Admin Usage 目前面向 Enterprise/Preview，暂缓接入。',
-    url: 'https://console.mistral.ai/usage/',
-  },
-}
-
 export function ProviderUsagePanel({
   data,
+  descriptors,
   error,
   loading,
   range,
+  providerNames = {},
+  selectedProviderId,
+  selectedSourceId,
+  onClearFilter,
   onRangeChange,
   onRefresh,
-  onChanged,
 }: Props): React.ReactNode {
-  const sources = useMemo(
-    () => sortProviderUsageSources(data?.sources ?? []),
+  const descriptorById = useMemo(
+    () => new Map(descriptors.map(source => [source.sourceId, source])),
+    [descriptors],
+  )
+  const sourceById = useMemo(
+    () => new Map((data?.sources ?? []).map(source => [source.sourceId, source])),
     [data],
   )
-  const providerSources = sources.filter(source => source.status !== 'unsupported')
-  const directorySources = sources.filter(source => source.status === 'unsupported')
+  const analyticsDescriptors = useMemo(
+    () => descriptors.filter(source =>
+      source.availability === 'queryable' &&
+      source.capabilities.some(capability => capability === 'usage' || capability === 'cost'),
+    ),
+    [descriptors],
+  )
+  const unavailableDescriptors = useMemo(
+    () => descriptors.filter(source =>
+      source.availability === 'unsupported' ||
+      !source.capabilities.some(capability => capability === 'usage' || capability === 'cost'),
+    ),
+    [descriptors],
+  )
+  const visibleAnalytics = useMemo(
+    () => filterDescriptors(analyticsDescriptors, selectedProviderId, selectedSourceId),
+    [analyticsDescriptors, selectedProviderId, selectedSourceId],
+  )
+  const visibleUnavailable = useMemo(
+    () => filterDescriptors(unavailableDescriptors, selectedProviderId, selectedSourceId),
+    [selectedProviderId, selectedSourceId, unavailableDescriptors],
+  )
+  const visibleResults = useMemo(
+    () => visibleAnalytics
+      .map(descriptor => sourceById.get(descriptor.sourceId))
+      .filter((source): source is ProviderUsageSource => source !== undefined),
+    [sourceById, visibleAnalytics],
+  )
+  const totals = useMemo(() => summarizeSources(visibleResults), [visibleResults])
+  const hasFilter = Boolean(selectedProviderId || selectedSourceId)
+  const activeSource = selectedSourceId ? descriptorById.get(selectedSourceId) : undefined
+  const noMatchingFilter = hasFilter &&
+    visibleAnalytics.length === 0 &&
+    visibleUnavailable.length === 0
 
   return (
     <div
-      aria-labelledby="usage-providers-tab"
+      aria-labelledby="usage-accounts-tab"
       className="usage-panel"
-      id="usage-providers-panel"
+      id="usage-accounts-panel"
       role="tabpanel"
     >
       <div className="usage-panel-toolbar">
         <div>
-          <h3>账户与套餐</h3>
-          <p>按来源分别查询余额、组织用量、成本与套餐窗口；单个来源失败不会影响其他卡片。</p>
+          <h3>账户用量与成本</h3>
+          <p>汇总已配置账户的远端历史用量与成本；余额、套餐和凭据请到账户连接管理。</p>
         </div>
         <div className="usage-toolbar-actions">
           <SegmentedControl
@@ -136,44 +113,103 @@ export function ProviderUsagePanel({
             options={RANGE_OPTIONS}
             value={range}
           />
-          <Button loading={loading} onClick={() => onRefresh(undefined, true)}>
-            全部刷新
+          <Button
+            loading={loading}
+            onClick={() => onRefresh(visibleAnalytics.map(source => source.sourceId), true)}
+          >
+            刷新
           </Button>
         </div>
       </div>
 
-      {error ? <div className="usage-inline-error" role="status">{error}</div> : null}
-      {loading && !data ? <ProviderUsageSkeleton /> : null}
-      {!loading && providerSources.length === 0 && directorySources.length === 0 ? (
-        <div className="usage-empty-state" role="status">
-          <h3>尚未发现可查询来源</h3>
-          <p>连接模型 Provider 或管理凭据后，这里会显示账户与套餐信息。</p>
+      {hasFilter ? (
+        <div className="usage-active-filter" role="status">
+          <span>
+            当前筛选：
+            {activeSource?.displayName ?? selectedProviderId ?? selectedSourceId}
+          </span>
+          <Button onClick={onClearFilter}>清除筛选</Button>
         </div>
       ) : null}
 
+      {error ? <div className="usage-inline-error" role="status">{error}</div> : null}
+      {loading && !data ? <ProviderUsageSkeleton /> : null}
+
+      {!loading && descriptors.length === 0 ? (
+        <div className="usage-empty-state" role="status">
+          <h3>还没有已配置的厂商</h3>
+          <p>请先从供应商目录完成连接，这里只展示已配置账户的用量与成本。</p>
+          <Link className="usage-text-link" to="/models?view=providers">前往供应商</Link>
+        </div>
+      ) : null}
+
+      {!loading && noMatchingFilter ? (
+        <div className="usage-empty-state" role="status">
+          <h3>没有匹配的已配置来源</h3>
+          <p>当前深链筛选可能已失效，清除后可查看其他账户。</p>
+          <Button onClick={onClearFilter}>清除筛选</Button>
+        </div>
+      ) : null}
+
+      {visibleAnalytics.length > 0 ? (
+        <UsageSummary totals={totals} />
+      ) : null}
+
       <div className="provider-usage-list">
-        {providerSources.map(source => (
+        {visibleAnalytics.map(descriptor => (
           <ProviderUsageCard
-            key={source.sourceId}
+            descriptor={descriptor}
+            key={descriptor.sourceId}
             loading={loading}
-            onChanged={() => onChanged(source.providerIds)}
-            onRefresh={() => onRefresh(
-              source.providerIds.length > 0 ? [...source.providerIds] : undefined,
-              true,
-            )}
-            source={source}
+            onRefresh={() => onRefresh([descriptor.sourceId], true)}
+            providerName={
+              providerNames[String(descriptor.canonicalProviderId)] ??
+              String(descriptor.canonicalProviderId)
+            }
+            source={sourceById.get(descriptor.sourceId)}
           />
         ))}
       </div>
 
-      <OtherProviderDirectory sources={directorySources} />
+      {visibleUnavailable.length > 0 ? (
+        <UnavailableSources descriptors={visibleUnavailable} />
+      ) : null}
     </div>
+  )
+}
+
+function UsageSummary({
+  totals,
+}: {
+  totals: ReturnType<typeof summarizeSources>
+}): React.ReactNode {
+  return (
+    <dl className="usage-account-summary">
+      <div>
+        <dt>总 Token</dt>
+        <dd>{formatCompactCount(totals.tokens)}</dd>
+      </div>
+      <div>
+        <dt>请求数</dt>
+        <dd>{formatCount(totals.requests)}</dd>
+      </div>
+      <div>
+        <dt>有数据的来源</dt>
+        <dd>{formatCount(totals.sources)}</dd>
+      </div>
+      {totals.costs.map(cost => (
+        <div key={cost.currency}>
+          <dt>{cost.currency} 成本</dt>
+          <dd>{formatAmount(cost.currency, cost.amount)}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 
 function ProviderUsageSkeleton(): React.ReactNode {
   return (
-    <SkeletonRegion className="usage-loading" label="正在查询账户与套餐">
+    <SkeletonRegion className="usage-loading" label="正在查询账户用量与成本">
       {Array.from({ length: 3 }, (_, index) => (
         <SkeletonBlock className="usage-loading-provider" key={index} />
       ))}
@@ -182,97 +218,97 @@ function ProviderUsageSkeleton(): React.ReactNode {
 }
 
 function ProviderUsageCard({
+  descriptor,
+  providerName,
   source,
   loading,
   onRefresh,
-  onChanged,
 }: {
-  source: ProviderUsageSource
+  descriptor: UsageSourceDescriptor
+  providerName: string
+  source?: ProviderUsageSource
   loading: boolean
   onRefresh: () => void
-  onChanged: () => void
 }): React.ReactNode {
-  const isVercel = source.sourceId.toLowerCase().includes('vercel')
-  const isClaudeSubscription =
-    source.scope === 'subscription' &&
-    source.sourceId.toLowerCase().includes('anthropic')
-  const billingSourceId = BILLING_SOURCE_IDS.has(source.sourceId as BillingSourceId)
-    ? source.sourceId as BillingSourceId
-    : null
-  const balances = allBalances(source)
+  const providerId = String(descriptor.canonicalProviderId)
+  const status = source?.status ?? (descriptor.connection.kind === 'none'
+    ? 'not-connected'
+    : 'unavailable')
   return (
     <article
       className="provider-usage-card"
-      data-status={source.status}
-      data-stability={source.stability}
+      data-status={status}
+      data-stability={descriptor.stability}
     >
       <header className="provider-usage-header">
         <div>
           <div className="provider-usage-title">
-            <h3>{source.displayName}</h3>
-            <span className="usage-badge">{scopeLabel(source.scope)}</span>
-            <span className="usage-badge" data-stability={source.stability}>
-              {source.stability === 'official' ? '官方接口' : '实验性'}
+            <h3>
+              <Link
+                title="前往账户连接"
+                to={`/models?view=keys&provider=${encodeURIComponent(providerId)}`}
+              >
+                {descriptor.displayName}
+              </Link>
+            </h3>
+            <span className="usage-badge">{scopeLabel(descriptor.scope)}</span>
+            <span className="usage-badge" data-stability={descriptor.stability}>
+              {descriptor.stability === 'official' ? '官方接口' : '实验性'}
             </span>
-            <span className="usage-badge" data-status={source.status}>
-              {usageStatusLabel(source.status)}
+            <span className="usage-badge" data-status={status}>
+              {usageStatusLabel(status)}
             </span>
           </div>
           <p>
-            {connectionLabel(source)}
+            <Link
+              className="usage-text-link"
+              to={`/models?view=providers&provider=${encodeURIComponent(providerId)}`}
+            >
+              {providerName}
+            </Link>
             {' · '}
-            {formatCheckedAt(source.checkedAt)}
+            {connectionLabel(descriptor.connection)}
+            {' · '}
+            {formatCheckedAt(source?.checkedAt)}
           </p>
         </div>
-        <Button loading={loading} onClick={onRefresh}>刷新</Button>
+        <Button loading={loading} onClick={onRefresh}>刷新来源</Button>
       </header>
 
-      {isVercel ? (
+      {descriptor.queryPolicy === 'metered' ? (
         <div className="usage-cost-notice" role="note">
-          Vercel Reporting API 为计费查询，当前价格以官方为准；CodePilotX 使用一小时缓存且不会后台轮询。
+          Reporting API 为计费查询，价格以官方为准；CodePilotX 使用一小时缓存且不会后台轮询。
         </div>
       ) : null}
-      {source.stability === 'experimental' ? (
+      {descriptor.stability === 'experimental' ? (
         <div className="usage-experimental-note">
           实验性来源可能随官方客户端端点变化；失败只影响此卡片。
         </div>
       ) : null}
-      {source.error ? (
+      {source?.error ? (
         <div className="usage-source-error" role="status">
           <strong>{source.error.message}</strong>
           <span>{source.error.retryable ? '可以稍后重试。' : errorCategoryLabel(source.error.category)}</span>
+          <Link
+            className="usage-text-link"
+            to={`/models?view=keys&provider=${encodeURIComponent(providerId)}`}
+          >
+            修复账户连接
+          </Link>
         </div>
       ) : null}
 
-      {source.groups.length > 0 ? (
+      {source?.groups.length ? (
         <div className="provider-usage-groups">
           {source.groups.map(group => (
             <ProviderUsageGroupCard group={group} key={group.id} />
           ))}
         </div>
-      ) : balances.length === 0 && source.status === 'available' ? (
-        <p className="usage-chart-empty">来源已连接，但当前时间范围没有返回用量。</p>
-      ) : null}
-
-      {billingSourceId && (
-        source.connection.kind === 'none' ||
-        source.connection.kind === 'env' ||
-        source.connection.kind === 'billing-key'
-      ) ? (
-        <BillingCredentialForm
-          connected={source.connection.kind === 'billing-key'}
-          maskedValue={source.connection.maskedValue}
-          onChanged={onChanged}
-          sourceId={billingSourceId}
-        />
-      ) : null}
-      {isClaudeSubscription ? (
-        <ClaudeSubscriptionConnection
-          connected={source.connection.kind === 'oauth'}
-          credentialId={source.connection.credentialId}
-          onChanged={onChanged}
-        />
-      ) : null}
+      ) : (
+        <p className="usage-chart-empty">
+          {loading ? '正在查询此来源。' : '当前时间范围没有可展示的历史用量。'}
+        </p>
+      )}
     </article>
   )
 }
@@ -285,49 +321,6 @@ function ProviderUsageGroupCard({
   return (
     <section className="provider-usage-group">
       <h4>{group.label}</h4>
-      {group.balances.length > 0 ? (
-        <div className="provider-balance-grid">
-          {group.balances.map(balance => (
-            <div className="provider-balance" key={`${group.id}/${balance.currency}`}>
-              <span>{balance.currency} 余额</span>
-              <strong>{formatAmount(balance.currency, balance.total)}</strong>
-              {balance.components.map(component => (
-                <small key={component.label}>
-                  {component.label} {formatAmount(balance.currency, component.amount)}
-                </small>
-              ))}
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {group.quotaWindows.length > 0 ? (
-        <div className="provider-quota-grid">
-          {group.quotaWindows.map(quota => {
-            const percent = quotaRemainingPercent(quota)
-            return (
-              <div className="provider-quota" data-state={quota.state} key={quota.id}>
-                <div>
-                  <strong>{quota.label}</strong>
-                  <span>{formatQuotaValue(quota)}</span>
-                </div>
-                <div
-                  aria-label={`${quota.label}，${formatQuotaValue(quota)}`}
-                  className="provider-quota-track"
-                  role="progressbar"
-                  aria-valuemax={100}
-                  aria-valuemin={0}
-                  aria-valuenow={quota.state === 'unlimited' ? 100 : percent}
-                >
-                  <span style={{ '--quota-remaining': percent / 100 } as React.CSSProperties} />
-                </div>
-                <small>{quota.state === 'unlimited' ? '不受额度限制' : formatResetTime(quota.resetsAt)}</small>
-              </div>
-            )
-          })}
-        </div>
-      ) : null}
-
       {group.totals ? (
         <dl className="provider-totals">
           <div><dt>输入 Token</dt><dd>{formatCompactCount(group.totals.inputTokens)}</dd></div>
@@ -335,7 +328,10 @@ function ProviderUsageGroupCard({
           <div><dt>缓存 Token</dt><dd>{formatCompactCount(group.totals.cachedTokens)}</dd></div>
           <div><dt>请求数</dt><dd>{formatCount(group.totals.requests)}</dd></div>
           {group.totals.costs.map(cost => (
-            <div key={cost.currency}><dt>{cost.currency} 成本</dt><dd>{formatAmount(cost.currency, cost.amount)}</dd></div>
+            <div key={cost.currency}>
+              <dt>{cost.currency} 成本</dt>
+              <dd>{formatAmount(cost.currency, cost.amount)}</dd>
+            </div>
           ))}
         </dl>
       ) : null}
@@ -346,16 +342,17 @@ function ProviderUsageGroupCard({
         <ol className="provider-breakdown">
           {group.breakdown.map(item => (
             <li key={`${item.kind}/${item.id}`}>
-              <span><strong>{item.label}</strong><small>{item.kind === 'model' ? '模型' : '工具'}</small></span>
               <span>
-                {item.requests !== undefined ? `${formatCount(item.requests)} 次` : null}
-                {item.inputTokens !== undefined || item.outputTokens !== undefined
-                  ? ` · ${formatCompactCount((item.inputTokens ?? 0) + (item.outputTokens ?? 0) + (item.cachedTokens ?? 0))} Token`
-                  : null}
+                <strong>{item.label}</strong>
+                <small>{item.kind === 'model' ? '模型' : '工具'}</small>
               </span>
+              <span>{formatBreakdownUsage(item)}</span>
             </li>
           ))}
         </ol>
+      ) : null}
+      {!group.totals && !group.series?.length && !group.breakdown?.length ? (
+        <p className="usage-chart-empty">当前时间范围没有返回历史数据。</p>
       ) : null}
     </section>
   )
@@ -369,25 +366,35 @@ function ProviderSeries({
   const tokenValues = points.map(point =>
     point.inputTokens + point.outputTokens + point.cachedTokens,
   )
-  const costValues = points.map(point => point.costs.reduce((sum, cost) => {
-    const value = Number(cost.amount)
-    return sum + (Number.isFinite(value) && value >= 0 ? value : 0)
-  }, 0))
-  const mode = tokenValues.some(value => value > 0)
-    ? 'tokens'
-    : costValues.some(value => value > 0)
-      ? 'costs'
-      : 'requests'
+  const requestValues = points.map(point => point.requests)
+  const costCurrency = [...new Set(
+    points.flatMap(point => point.costs.map(cost => cost.currency)),
+  )].sort()[0]
+  const costValues = costCurrency
+    ? points.map(point => {
+        const amount = point.costs.find(cost => cost.currency === costCurrency)?.amount
+        const value = amount === undefined ? 0 : Number(amount)
+        return Number.isFinite(value) && value >= 0 ? value : 0
+      })
+    : points.map(() => 0)
+  const hasTokens = tokenValues.some(value => value > 0)
+  const hasRequests = requestValues.some(value => value > 0)
+  const mode = hasTokens ? 'tokens' : hasRequests ? 'requests' : 'costs'
   const values = mode === 'tokens'
     ? tokenValues
-    : mode === 'costs'
-      ? costValues
-      : points.map(point => point.requests)
+    : mode === 'requests'
+      ? requestValues
+      : costValues
   const max = Math.max(1, ...values)
   const width = Math.max(240, points.length * 18)
   return (
     <div className="provider-series">
-      <svg aria-label="来源每日用量趋势" preserveAspectRatio="none" role="img" viewBox={`0 0 ${width} 64`}>
+      <svg
+        aria-label="来源每日用量趋势"
+        preserveAspectRatio="none"
+        role="img"
+        viewBox={`0 0 ${width} 64`}
+      >
         {values.map((value, index) => (
           <rect
             fill="var(--usage-chart-1)"
@@ -398,11 +405,17 @@ function ProviderSeries({
             x={index * 18 + 3}
             y={60 - (value / max) * 56}
           >
-            <title>{mode === 'tokens'
-              ? `${points[index]?.date} · ${formatCount(value)} Token`
-              : mode === 'costs'
-                ? `${points[index]?.date} · ${(points[index]?.costs ?? []).map(cost => formatAmount(cost.currency, cost.amount)).join(' / ')}`
-                : `${points[index]?.date} · ${formatCount(value)} 次请求`}
+            <title>
+              {mode === 'tokens'
+                ? `${points[index]?.date} · ${formatCount(value)} Token`
+                : mode === 'requests'
+                  ? `${points[index]?.date} · ${formatCount(value)} 次请求`
+                  : `${points[index]?.date} · ${formatAmount(
+                    costCurrency ?? 'USD',
+                    points[index]?.costs.find(cost =>
+                      cost.currency === costCurrency
+                    )?.amount ?? '0',
+                  )}`}
             </title>
           </rect>
         ))}
@@ -411,299 +424,139 @@ function ProviderSeries({
   )
 }
 
-function BillingCredentialForm({
-  sourceId,
-  connected,
-  maskedValue,
-  onChanged,
+function UnavailableSources({
+  descriptors,
 }: {
-  sourceId: BillingSourceId
-  connected: boolean
-  maskedValue?: string
-  onChanged: () => void
+  descriptors: readonly UsageSourceDescriptor[]
 }): React.ReactNode {
-  const [key, setKey] = useState('')
-  const [teamId, setTeamId] = useState('')
-  const [accountId, setAccountId] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function connect(): Promise<void> {
-    if (!key.trim()) return
-    setBusy(true)
-    setError(null)
-    try {
-      if (sourceId === 'xai-management') {
-        await desktopClient.connectUsageCredential({
-          sourceId,
-          key: key.trim(),
-          teamId: teamId.trim(),
-        })
-      } else if (sourceId === 'cloudflare-ai-gateway') {
-        await desktopClient.connectUsageCredential({
-          sourceId,
-          key: key.trim(),
-          accountId: accountId.trim(),
-        })
-      } else {
-        await desktopClient.connectUsageCredential({ sourceId, key: key.trim() })
-      }
-      setKey('')
-      setTeamId('')
-      setAccountId('')
-      onChanged()
-    } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : String(connectError))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function disconnect(): Promise<void> {
-    setBusy(true)
-    setError(null)
-    try {
-      await desktopClient.disconnectUsageCredential({ sourceId })
-      onChanged()
-    } catch (disconnectError) {
-      setError(disconnectError instanceof Error ? disconnectError.message : String(disconnectError))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const auxiliaryMissing = sourceId === 'xai-management'
-    ? !teamId.trim()
-    : sourceId === 'cloudflare-ai-gateway'
-      ? !accountId.trim()
-      : false
   return (
-    <div className="usage-connection-form">
-      <div>
-        <h4>{connected ? '替换管理凭据' : '连接管理凭据'}</h4>
-        <p>
-          {connected && maskedValue
-            ? `已保存 ${maskedValue}；输入框不会回显现有密钥。`
-            : '凭据仅由 Agent 加密保存，不会进入推理 Key 池。'}
-        </p>
-      </div>
-      <div className="usage-connection-fields">
-        <Input
-          aria-label={`${sourceId} 管理密钥`}
-          autoComplete="off"
-          onChange={event => setKey(event.target.value)}
-          placeholder={connected ? '输入新密钥以替换' : '管理密钥'}
-          type="password"
-          value={key}
-        />
-        {sourceId === 'xai-management' ? (
-          <Input
-            aria-label="xAI Team ID"
-            onChange={event => setTeamId(event.target.value)}
-            placeholder="Team ID"
-            value={teamId}
-          />
-        ) : null}
-        {sourceId === 'cloudflare-ai-gateway' ? (
-          <Input
-            aria-label="Cloudflare Account ID"
-            onChange={event => setAccountId(event.target.value)}
-            placeholder="Account ID"
-            value={accountId}
-          />
-        ) : null}
-        <div className="usage-connection-actions">
-          <Button
-            disabled={!key.trim() || auxiliaryMissing}
-            loading={busy}
-            onClick={() => void connect()}
-          >
-            {connected ? '替换连接' : '连接'}
-          </Button>
-          {connected ? (
-            <Button loading={busy} onClick={() => void disconnect()} tone="danger">
-              断开
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      {error ? <p className="usage-form-error" role="status">{error}</p> : null}
-    </div>
-  )
-}
-
-function ClaudeSubscriptionConnection({
-  connected,
-  credentialId,
-  onChanged,
-}: {
-  connected: boolean
-  credentialId?: ProviderUsageSource['connection']['credentialId']
-  onChanged: () => void
-}): React.ReactNode {
-  type Integration =
-    Awaited<ReturnType<typeof desktopClient.listIntegrations>>[number]
-  type OAuthMethod = Extract<Integration['methods'][number], { type: 'oauth' }>
-  const [integrationMethod, setIntegrationMethod] = useState<{
-    integrationID: Integration['id']
-    methodID: OAuthMethod['id']
-  } | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const oauth = useIntegrationOAuthAuthorization({
-    integrationID: integrationMethod?.integrationID ?? null,
-    methodID: integrationMethod?.methodID ?? null,
-    onComplete: onChanged,
-    onError: setError,
-  })
-
-  useEffect(() => {
-    let cancelled = false
-    void desktopClient.listIntegrations().then(integrations => {
-      const integration = integrations.find(item => item.id === 'usage.anthropic.subscription')
-      const method = integration?.methods.find(item => item.type === 'oauth')
-      if (!cancelled && integration && method) {
-        setIntegrationMethod({
-          integrationID: integration.id,
-          methodID: method.id,
-        })
-      }
-    }).catch(loadError => {
-      if (!cancelled) {
-        setError(loadError instanceof Error ? loadError.message : String(loadError))
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  async function disconnect(): Promise<void> {
-    if (!credentialId) return
-    setError(null)
-    try {
-      await desktopClient.disconnectIntegration({
-        integrationID: integrationMethod?.integrationID
-          ?? (() => { throw new Error('Claude 订阅集成当前不可用。') })(),
-        credentialID: credentialId,
-      })
-      oauth.reset()
-      onChanged()
-    } catch (disconnectError) {
-      setError(disconnectError instanceof Error ? disconnectError.message : String(disconnectError))
-    }
-  }
-
-  return (
-    <div className="usage-connection-form">
-      <div>
-        <h4>Claude 订阅授权</h4>
-        <p>仅请求个人资料与推理用量权限，不会成为 Anthropic 推理凭据。</p>
-      </div>
-      <div className="usage-connection-actions">
-        <Button
-          disabled={!integrationMethod}
-          loading={oauth.busy}
-          onClick={() => void oauth.start()}
-        >
-          {connected ? '重新授权' : '浏览器授权'}
-        </Button>
-        {connected ? (
-          <Button
-            disabled={!credentialId}
-            loading={oauth.busy}
-            onClick={() => void disconnect()}
-            tone="danger"
-          >
-            断开
-          </Button>
-        ) : null}
-      </div>
-      {oauth.attempt ? (
-        <div className="usage-oauth-attempt">
-          <p>{oauth.attempt.instructions || oauth.status}</p>
-          {oauth.attempt.url ? (
-            <a
-              href={oauth.attempt.url}
-              onClick={openExternalLink}
-              rel="noreferrer"
-              target="_blank"
-            >
-              打开授权页面
-            </a>
-          ) : null}
-          {oauth.attempt.mode === 'code' ? (
-            <div className="usage-connection-fields">
-              <Input
-                aria-label="Claude 授权返回码"
-                onChange={event => oauth.setCode(event.target.value)}
-                placeholder="输入授权返回码"
-                value={oauth.code}
-              />
-              <Button
-                disabled={!oauth.code.trim()}
-                loading={oauth.submittingCode}
-                onClick={() => void oauth.submitCode()}
-              >
-                提交
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      ) : oauth.status ? <p className="usage-form-status">{oauth.status}</p> : null}
-      {error ? <p className="usage-form-error" role="status">{error}</p> : null}
-    </div>
-  )
-}
-
-function OtherProviderDirectory({
-  sources,
-}: {
-  sources: readonly ProviderUsageSource[]
-}): React.ReactNode {
-  if (sources.length === 0) return null
-  return (
-    <section className="usage-provider-directory">
+    <section className="usage-unavailable-sources">
       <header>
-        <h3>其他可连接厂商</h3>
-        <p>以下厂商暂不通过付费模型探针推测余额；请前往官方控制台查看。</p>
+        <h3>暂不可查询历史用量</h3>
+        <p>这些已配置厂商没有可用的历史用量或成本接口，连接仍会保留。</p>
       </header>
-      <div className="usage-provider-directory-grid">
-        {sources.map(source => {
-          const details = OTHER_PROVIDER_DETAILS[source.sourceId]
-          if (!details) return null
+      <ul>
+        {descriptors.map(descriptor => {
+          const providerId = String(descriptor.canonicalProviderId)
           return (
-          <article key={source.sourceId}>
-            <div><h4>{source.displayName}</h4><p>{details.description}</p></div>
-            <a
-              href={details.url}
-              onClick={openExternalLink}
-              rel="noreferrer"
-              target="_blank"
-            >
-              打开控制台
-            </a>
-          </article>
+            <li key={descriptor.sourceId}>
+              <span>
+                <strong>{descriptor.displayName}</strong>
+                <small>
+                  {descriptor.availability === 'unsupported'
+                    ? '厂商未提供稳定接口'
+                    : '当前来源仅支持余额或套餐查询'}
+                </small>
+              </span>
+              <span className="usage-unavailable-actions">
+                <Link to={`/models?view=providers&provider=${encodeURIComponent(providerId)}`}>
+                  供应商
+                </Link>
+                <Link to={`/models?view=keys&provider=${encodeURIComponent(providerId)}`}>
+                  账户连接
+                </Link>
+              </span>
+            </li>
           )
         })}
-      </div>
+      </ul>
     </section>
   )
 }
 
-function scopeLabel(scope: ProviderUsageSource['scope']): string {
+function filterDescriptors(
+  descriptors: readonly UsageSourceDescriptor[],
+  providerId: string | undefined,
+  sourceId: string | undefined,
+): UsageSourceDescriptor[] {
+  return descriptors
+    .filter(descriptor => !providerId || descriptor.providerIds.some(id => String(id) === providerId))
+    .filter(descriptor => !sourceId || descriptor.sourceId === sourceId)
+    .sort((left, right) => left.displayName.localeCompare(right.displayName, 'zh-CN'))
+}
+
+function summarizeSources(sources: readonly ProviderUsageSource[]): {
+  tokens: number
+  requests: number
+  sources: number
+  costs: Array<{ currency: string; amount: string }>
+} {
+  let tokens = 0
+  let requests = 0
+  let populatedSources = 0
+  const costs = new Map<string, string[]>()
+  for (const source of sources) {
+    let populated = false
+    for (const group of source.groups) {
+      if (!group.totals) continue
+      populated = true
+      tokens += group.totals.inputTokens +
+        group.totals.outputTokens +
+        group.totals.cachedTokens
+      requests += group.totals.requests
+      for (const cost of group.totals.costs) {
+        const values = costs.get(cost.currency) ?? []
+        values.push(cost.amount)
+        costs.set(cost.currency, values)
+      }
+    }
+    if (populated) populatedSources += 1
+  }
+  return {
+    tokens,
+    requests,
+    sources: populatedSources,
+    costs: [...costs]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([currency, values]) => ({
+        currency,
+        amount: sumDecimalAmounts(values),
+      })),
+  }
+}
+
+function formatBreakdownUsage(
+  item: NonNullable<ProviderUsageSource['groups'][number]['breakdown']>[number],
+): string {
+  const parts: string[] = []
+  if (item.requests !== undefined) {
+    parts.push(`${formatCount(item.requests)} 次`)
+  }
+  if (
+    item.inputTokens !== undefined ||
+    item.outputTokens !== undefined ||
+    item.cachedTokens !== undefined
+  ) {
+    parts.push(`${formatCompactCount(
+      (item.inputTokens ?? 0) +
+      (item.outputTokens ?? 0) +
+      (item.cachedTokens ?? 0),
+    )} Token`)
+  }
+  if (item.costs?.length) {
+    parts.push(item.costs
+      .map(cost => formatAmount(cost.currency, cost.amount))
+      .join(' / '))
+  }
+  return parts.join(' · ') || '暂无明细'
+}
+
+function scopeLabel(scope: UsageSourceDescriptor['scope']): string {
   if (scope === 'api-key') return '当前 Key'
   if (scope === 'account') return '账户'
   if (scope === 'organization') return '组织'
   return '订阅'
 }
 
-function connectionLabel(source: ProviderUsageSource): string {
-  if (source.connection.kind === 'provider-key') return '使用当前推理 Key'
-  if (source.connection.kind === 'billing-key') {
-    return `独立管理凭据${source.connection.maskedValue ? ` · ${source.connection.maskedValue}` : ''}`
+function connectionLabel(
+  connection: UsageSourceDescriptor['connection'],
+): string {
+  if (connection.kind === 'provider-key') return '使用活动推理 Key'
+  if (connection.kind === 'billing-key') {
+    return `独立管理凭据${connection.maskedValue ? ` · ${connection.maskedValue}` : ''}`
   }
-  if (source.connection.kind === 'oauth') return 'OAuth 已连接'
-  if (source.connection.kind === 'env') return '使用环境变量'
+  if (connection.kind === 'oauth') return 'OAuth 已连接'
+  if (connection.kind === 'env') return '使用环境变量'
   return '未连接'
 }
 
@@ -717,9 +570,4 @@ function errorCategoryLabel(
   if (category === 'network') return '暂时无法连接厂商接口。'
   if (category === 'invalid-response') return '厂商返回了无法识别的数据。'
   return '查询暂时失败。'
-}
-
-function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {
-  event.preventDefault()
-  void desktopClient.openExternalURL(event.currentTarget.href)
 }

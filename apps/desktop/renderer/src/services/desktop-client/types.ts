@@ -253,6 +253,7 @@ export type DesktopPetApi = {
 }
 
 export type DesktopUsageApi = {
+  listUsageSources(): Promise<RpcResult<'usage/source/list'>>
   getLocalUsage(
     input: RpcParams<'usage/local/get'>,
   ): Promise<RpcResult<'usage/local/get'>>

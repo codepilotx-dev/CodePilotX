@@ -23,7 +23,7 @@ const SETTINGS_TABS = [
   { id: 'personalization', label: '个性化' },
   { id: 'memory', label: '记忆' },
   { id: 'shortcuts', label: '键盘快捷键' },
-  { id: 'billing', label: '使用情况和计费' },
+  { id: 'billing', label: '用量与成本' },
   { id: 'plugins', label: '插件' },
   { id: 'browser', label: '浏览器' },
   { id: 'git', label: 'Git' },

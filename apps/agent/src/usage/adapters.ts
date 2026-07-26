@@ -1,4 +1,4 @@
-import type { Credential } from "@codepilotx/model-schema"
+import { Integration, type Credential } from "@codepilotx/model-schema"
 import { UsageRequestError } from "./safe-fetch"
 import {
   emptySource,
@@ -223,22 +223,52 @@ const nextReset = (period: unknown, now: number) => {
 type AdapterOptions = {
   sourceId: string
   providerIds: readonly string[]
+  canonicalProviderId?: string
   displayName: string
   scope?: ProviderUsageAdapter["scope"]
   stability?: ProviderUsageAdapter["stability"]
+  availability?: ProviderUsageAdapter["availability"]
+  capabilities: ProviderUsageAdapter["capabilities"]
+  queryPolicy?: ProviderUsageAdapter["queryPolicy"]
+  connectionMethod?: ProviderUsageAdapter["connectionMethod"]
+  credential?: {
+    kind: "provider" | "billing" | "none"
+    envNames?: readonly string[]
+  }
   cacheMs?: number
   query: (context: UsageQueryContext, adapter: ProviderUsageAdapter) => Promise<ProviderUsageSource>
 }
 
 const adapter = (options: AdapterOptions): ProviderUsageAdapter => ({
   sourceId: options.sourceId,
+  canonicalProviderId: options.canonicalProviderId ?? options.providerIds[0]!,
   providerIds: options.providerIds,
   displayName: options.displayName,
   scope: options.scope ?? "api-key",
   stability: options.stability ?? "official",
+  availability: options.availability ?? "queryable",
+  capabilities: options.capabilities,
+  queryPolicy: options.queryPolicy ?? "cached",
+  connectionMethod: options.connectionMethod ?? { kind: "provider-credential" },
   ...(options.cacheMs === undefined ? {} : { cacheMs: options.cacheMs }),
   matches(provider) {
     return this.providerIds.includes(String(provider.id))
+  },
+  resolveCredential(context) {
+    const credential = options.credential ?? { kind: "provider" as const }
+    return credential.kind === "none"
+      ? Promise.resolve(null)
+      : credential.kind === "provider"
+      ? context.credential(this.providerIds, credential.envNames)
+      : context.billingCredential(this.sourceId, credential.envNames)
+  },
+  resolveConnection(context) {
+    const credential = options.credential ?? { kind: "provider" as const }
+    return credential.kind === "none"
+      ? Promise.resolve({ kind: "none" as const, disconnectible: false })
+      : credential.kind === "provider"
+      ? context.connection(this.providerIds, credential.envNames)
+      : context.billingConnection(this.sourceId, credential.envNames)
   },
   query(context) {
     return options.query(context, this)
@@ -248,9 +278,8 @@ const adapter = (options: AdapterOptions): ProviderUsageAdapter => ({
 const providerCredential = async (
   context: UsageQueryContext,
   source: ProviderUsageAdapter,
-  envNames: readonly string[],
 ) => {
-  const credential = await context.credential(source.providerIds, envNames)
+  const credential = await source.resolveCredential(context)
   return credential ?? null
 }
 
@@ -258,8 +287,10 @@ const deepSeek = adapter({
   sourceId: "deepseek",
   providerIds: ["deepseek"],
   displayName: "DeepSeek 余额",
+  capabilities: ["balance"],
+  credential: { kind: "provider", envNames: ["DEEPSEEK_API_KEY"] },
   query: async (context, source) => {
-    const credential = await providerCredential(context, source, ["DEEPSEEK_API_KEY"])
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const value = requiredRecord(await context.request("https://api.deepseek.com/user/balance", { headers: bearer(credential) }), "DeepSeek")
     const group = emptyGroup("account", "账户余额")
@@ -290,12 +321,13 @@ const minimax = (region: "global" | "cn") => adapter({
     ? ["minimax-cn", "minimax-cn-coding-plan"]
     : ["minimax", "minimax-coding-plan"],
   displayName: region === "cn" ? "MiniMax CN Token Plan" : "MiniMax Token Plan",
+  capabilities: ["quota"],
+  credential: {
+    kind: "provider",
+    envNames: region === "cn" ? ["MINIMAX_CN_API_KEY", "MINIMAX_API_KEY"] : ["MINIMAX_API_KEY"],
+  },
   query: async (context, source) => {
-    const credential = await providerCredential(
-      context,
-      source,
-      region === "cn" ? ["MINIMAX_CN_API_KEY", "MINIMAX_API_KEY"] : ["MINIMAX_API_KEY"],
-    )
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const origin = region === "cn" ? "https://www.minimaxi.com" : "https://www.minimax.io"
     const value = requiredRecord(await context.request(`${origin}/v1/token_plan/remains`, { headers: bearer(credential) }), "MiniMax")
@@ -378,8 +410,10 @@ const moonshot = adapter({
   sourceId: "moonshot-balance",
   providerIds: ["moonshotai", "moonshotai-cn"],
   displayName: "Moonshot/Kimi 开放平台余额",
+  capabilities: ["balance"],
+  credential: { kind: "provider", envNames: ["MOONSHOT_API_KEY"] },
   query: async (context, source) => {
-    const credential = await providerCredential(context, source, ["MOONSHOT_API_KEY"])
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const root = requiredRecord(await context.request("https://api.moonshot.cn/v1/users/me/balance", { headers: bearer(credential) }), "Moonshot")
     const data = requiredRecord(root.data, "Moonshot")
@@ -405,8 +439,10 @@ const siliconFlow = (region: "global" | "cn") => adapter({
   sourceId: region === "cn" ? "siliconflow-cn-balance" : "siliconflow-balance",
   providerIds: [region === "cn" ? "siliconflow-cn" : "siliconflow"],
   displayName: region === "cn" ? "SiliconFlow CN 余额" : "SiliconFlow 余额",
+  capabilities: ["balance"],
+  credential: { kind: "provider", envNames: ["SILICONFLOW_API_KEY"] },
   query: async (context, source) => {
-    const credential = await providerCredential(context, source, ["SILICONFLOW_API_KEY"])
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const root = requiredRecord(await context.request(
       `${region === "cn" ? "https://api.siliconflow.cn" : "https://api.siliconflow.com"}/v1/user/info`,
@@ -433,8 +469,10 @@ const openRouterKey = adapter({
   sourceId: "openrouter-key",
   providerIds: ["openrouter"],
   displayName: "OpenRouter 当前 Key",
+  capabilities: ["quota", "usage"],
+  credential: { kind: "provider", envNames: ["OPENROUTER_API_KEY"] },
   query: async (context, source) => {
-    const credential = await providerCredential(context, source, ["OPENROUTER_API_KEY"])
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const root = requiredRecord(await context.request("https://openrouter.ai/api/v1/key", { headers: bearer(credential) }), "OpenRouter")
     const data = requiredRecord(root.data, "OpenRouter")
@@ -468,8 +506,10 @@ const fireworks = adapter({
   providerIds: ["fireworks-ai", "fireworks"],
   displayName: "Fireworks AI 账户额度",
   scope: "account",
+  capabilities: ["quota"],
+  credential: { kind: "provider", envNames: ["FIREWORKS_API_KEY"] },
   query: async (context, source) => {
-    const credential = await providerCredential(context, source, ["FIREWORKS_API_KEY"])
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const accounts: Json[] = []
     let pageToken: string | undefined
@@ -532,16 +572,25 @@ const fireworks = adapter({
 const managementCredential = (
   context: UsageQueryContext,
   source: ProviderUsageAdapter,
-  envNames: readonly string[],
-) => context.billingCredential(source.sourceId, envNames)
+) => source.resolveCredential(context)
 
 const cloudflare = adapter({
   sourceId: "cloudflare-ai-gateway",
   providerIds: ["cloudflare-ai-gateway"],
   displayName: "Cloudflare AI Gateway Billing",
   scope: "account",
+  capabilities: ["balance", "quota", "cost"],
+  connectionMethod: {
+    kind: "billing-key",
+    sourceId: "cloudflare-ai-gateway",
+    fields: [
+      { name: "key", label: "API Token", secret: true, required: true },
+      { name: "accountId", label: "Account ID", secret: false, required: true },
+    ],
+  },
+  credential: { kind: "billing", envNames: ["CLOUDFLARE_AI_GATEWAY_TOKEN"] },
   query: async (context, source) => {
-    const credential = await managementCredential(context, source, ["CLOUDFLARE_AI_GATEWAY_TOKEN"])
+    const credential = await managementCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const metadata = credential.value.metadata
     const accountId = typeof metadata?.accountId === "string" ? metadata.accountId : undefined
@@ -607,9 +656,13 @@ const vercel = adapter({
   providerIds: ["vercel", "vercel-ai-gateway", "ai-gateway"],
   displayName: "Vercel AI Gateway Reporting",
   scope: "account",
+  canonicalProviderId: "vercel-ai-gateway",
+  capabilities: ["usage", "cost"],
+  queryPolicy: "metered",
+  credential: { kind: "provider", envNames: ["AI_GATEWAY_API_KEY"] },
   cacheMs: 60 * 60_000,
   query: async (context, source) => {
-    const credential = await providerCredential(context, source, ["AI_GATEWAY_API_KEY"])
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const dates = queryDates(context)
     const url = new URL("https://ai-gateway.vercel.sh/v1/report")
@@ -685,8 +738,15 @@ const openAIAdmin = adapter({
   providerIds: ["openai"],
   displayName: "OpenAI 组织用量与成本",
   scope: "organization",
+  capabilities: ["usage", "cost"],
+  connectionMethod: {
+    kind: "billing-key",
+    sourceId: "openai-admin",
+    fields: [{ name: "key", label: "Admin Key", secret: true, required: true }],
+  },
+  credential: { kind: "billing", envNames: ["OPENAI_ADMIN_KEY"] },
   query: async (context, source) => {
-    const credential = await managementCredential(context, source, ["OPENAI_ADMIN_KEY"])
+    const credential = await managementCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const dates = queryDates(context)
     const headers = bearer(credential)
@@ -757,8 +817,15 @@ const anthropicAdmin = adapter({
   providerIds: ["anthropic"],
   displayName: "Anthropic Admin Usage/Cost",
   scope: "organization",
+  capabilities: ["usage", "cost"],
+  connectionMethod: {
+    kind: "billing-key",
+    sourceId: "anthropic-admin",
+    fields: [{ name: "key", label: "Admin Key", secret: true, required: true }],
+  },
+  credential: { kind: "billing", envNames: ["ANTHROPIC_ADMIN_KEY"] },
   query: async (context, source) => {
-    const credential = await managementCredential(context, source, ["ANTHROPIC_ADMIN_KEY"])
+    const credential = await managementCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const dates = queryDates(context)
     const headers = { "x-api-key": apiKey(credential), "anthropic-version": "2023-06-01" }
@@ -829,8 +896,18 @@ const xaiManagement = adapter({
   providerIds: ["xai"],
   displayName: "xAI Team Billing",
   scope: "organization",
+  capabilities: ["balance", "quota", "cost"],
+  connectionMethod: {
+    kind: "billing-key",
+    sourceId: "xai-management",
+    fields: [
+      { name: "key", label: "Management Key", secret: true, required: true },
+      { name: "teamId", label: "Team ID", secret: false, required: true },
+    ],
+  },
+  credential: { kind: "billing", envNames: ["XAI_MANAGEMENT_KEY"] },
   query: async (context, source) => {
-    const credential = await managementCredential(context, source, ["XAI_MANAGEMENT_KEY"])
+    const credential = await managementCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const teamId = typeof credential.value.metadata?.teamId === "string" ? credential.value.metadata.teamId : undefined
     if (!teamId) return emptySource(source, "not-connected", credential.connection)
@@ -925,8 +1002,15 @@ const openRouterManagement = adapter({
   providerIds: ["openrouter"],
   displayName: "OpenRouter Management Credits",
   scope: "organization",
+  capabilities: ["balance", "cost"],
+  connectionMethod: {
+    kind: "billing-key",
+    sourceId: "openrouter-management",
+    fields: [{ name: "key", label: "Management Key", secret: true, required: true }],
+  },
+  credential: { kind: "billing", envNames: ["OPENROUTER_MANAGEMENT_KEY"] },
   query: async (context, source) => {
-    const credential = await managementCredential(context, source, ["OPENROUTER_MANAGEMENT_KEY"])
+    const credential = await managementCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const root = requiredRecord(await context.request("https://openrouter.ai/api/v1/credits", { headers: bearer(credential) }), "OpenRouter credits")
     const data = requiredRecord(root.data, "OpenRouter credits")
@@ -954,8 +1038,15 @@ const claudeSubscription = adapter({
   displayName: "Claude 订阅额度",
   scope: "subscription",
   stability: "experimental",
+  capabilities: ["quota"],
+  connectionMethod: {
+    kind: "oauth",
+    integrationId: Integration.ID.make("usage.anthropic.subscription"),
+    methodId: Integration.MethodID.make("claude-subscription-browser"),
+  },
+  credential: { kind: "billing" },
   query: async (context, source) => {
-    const credential = await context.billingCredential("anthropic-subscription")
+    const credential = await source.resolveCredential(context)
     if (!credential) return emptySource(source, "not-connected")
     const root = requiredRecord(await context.request("https://api.anthropic.com/api/oauth/usage", {
       headers: { ...bearer(credential), "anthropic-beta": "oauth-2025-04-20" },
@@ -1007,8 +1098,10 @@ const kimiCode = adapter({
   displayName: "Kimi Code 用量",
   scope: "subscription",
   stability: "experimental",
+  capabilities: ["quota"],
+  credential: { kind: "provider", envNames: ["KIMI_API_KEY"] },
   query: async (context, source) => {
-    const credential = await providerCredential(context, source, ["KIMI_API_KEY"])
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const root = requiredRecord(await context.request("https://api.kimi.com/coding/v1/usages", { headers: bearer(credential) }), "Kimi Code")
     const limitItems = requiredList(root.limits, "Kimi Code")
@@ -1073,8 +1166,13 @@ const zhipuCoding = (region: "global" | "cn") => adapter({
   displayName: region === "cn" ? "智谱 Coding Plan" : "Z.ai Coding Plan",
   scope: "subscription",
   stability: "experimental",
+  capabilities: ["quota", "usage"],
+  credential: {
+    kind: "provider",
+    envNames: region === "cn" ? ["ZHIPU_API_KEY"] : ["ZAI_API_KEY"],
+  },
   query: async (context, source) => {
-    const credential = await providerCredential(context, source, region === "cn" ? ["ZHIPU_API_KEY"] : ["ZAI_API_KEY"])
+    const credential = await providerCredential(context, source)
     if (!credential) return emptySource(source, "not-connected")
     const host = region === "cn" ? "https://open.bigmodel.cn" : "https://api.z.ai"
     const dates = queryDates(context)
@@ -1155,10 +1253,15 @@ const unsupported = (
   sourceId: string,
   displayName: string,
   providerIds: readonly string[],
+  consoleUrl: string,
 ) => adapter({
   sourceId,
   providerIds,
   displayName,
+  availability: "unsupported",
+  capabilities: [],
+  connectionMethod: { kind: "external", consoleUrl },
+  credential: { kind: "none" },
   query: async (_context, source) => emptySource(source, "unsupported"),
 })
 
@@ -1181,15 +1284,15 @@ export const providerUsageAdapters: readonly ProviderUsageAdapter[] = [
   kimiCode,
   zhipuCoding("global"),
   zhipuCoding("cn"),
-  unsupported("google-console", "Google Gemini", ["google", "google-vertex"]),
-  unsupported("groq-console", "Groq", ["groq"]),
-  unsupported("together-console", "Together AI", ["togetherai", "together"]),
-  unsupported("cerebras-console", "Cerebras", ["cerebras"]),
-  unsupported("huggingface-console", "Hugging Face", ["huggingface"]),
-  unsupported("nvidia-console", "NVIDIA", ["nvidia"]),
-  unsupported("bedrock-console", "AWS Bedrock", ["amazon-bedrock"]),
-  unsupported("azure-openai-console", "Azure OpenAI", ["azure"]),
-  unsupported("alibaba-console", "阿里百炼", ["alibaba", "alibaba-cn"]),
-  unsupported("volcengine-console", "火山方舟", ["volcengine"]),
-  unsupported("mistral-console", "Mistral", ["mistral"]),
+  unsupported("google-console", "Google Gemini", ["google", "google-vertex"], "https://aistudio.google.com/usage"),
+  unsupported("groq-console", "Groq", ["groq"], "https://console.groq.com/settings/billing"),
+  unsupported("together-console", "Together AI", ["togetherai", "together"], "https://api.together.ai/settings/billing"),
+  unsupported("cerebras-console", "Cerebras", ["cerebras"], "https://cloud.cerebras.ai/"),
+  unsupported("huggingface-console", "Hugging Face", ["huggingface"], "https://huggingface.co/settings/billing"),
+  unsupported("nvidia-console", "NVIDIA", ["nvidia"], "https://build.nvidia.com/"),
+  unsupported("bedrock-console", "AWS Bedrock", ["amazon-bedrock"], "https://console.aws.amazon.com/costmanagement/"),
+  unsupported("azure-openai-console", "Azure OpenAI", ["azure"], "https://portal.azure.com/"),
+  unsupported("alibaba-console", "阿里百炼", ["alibaba", "alibaba-cn"], "https://bailian.console.aliyun.com/"),
+  unsupported("volcengine-console", "火山方舟", ["volcengine"], "https://console.volcengine.com/ark/"),
+  unsupported("mistral-console", "Mistral", ["mistral"], "https://console.mistral.ai/usage/"),
 ]

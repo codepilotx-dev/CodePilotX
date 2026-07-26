@@ -1,7 +1,11 @@
 import type {
   DailyUsagePoint,
   ModelOrToolUsage,
+  ProviderUsageConnection,
   ProviderUsageSource,
+  UsageConnectionMethod,
+  UsageSourceCapability,
+  UsageSourceDescriptor,
 } from "@codepilotx/agent-protocol"
 import { Provider, type Credential } from "@codepilotx/model-schema"
 
@@ -16,25 +20,37 @@ export type ResolvedUsageCredential = {
   connection: ProviderUsageSource["connection"]
 }
 
-export type UsageQueryContext = {
+export type UsageCredentialContext = {
+  providers: readonly Provider.Info[]
+  credential: (providerIds: readonly string[], envNames?: readonly string[]) => Promise<ResolvedUsageCredential | null>
+  billingCredential: (sourceId: string, envNames?: readonly string[]) => Promise<ResolvedUsageCredential | null>
+  connection: (providerIds: readonly string[], envNames?: readonly string[]) => Promise<ProviderUsageConnection>
+  billingConnection: (sourceId: string, envNames?: readonly string[]) => Promise<ProviderUsageConnection>
+}
+
+export type UsageQueryContext = UsageCredentialContext & {
   range: UsageRange
   timeZone: string
   force: boolean
   now: number
-  providers: readonly Provider.Info[]
-  credential: (providerIds: readonly string[], envNames?: readonly string[]) => Promise<ResolvedUsageCredential | null>
-  billingCredential: (sourceId: string, envNames?: readonly string[]) => Promise<ResolvedUsageCredential | null>
   request: (url: string, init?: RequestInit) => Promise<unknown>
 }
 
 export interface ProviderUsageAdapter {
   readonly sourceId: string
+  readonly canonicalProviderId: string
   readonly providerIds: readonly string[]
   readonly displayName: string
   readonly scope: ProviderUsageSource["scope"]
   readonly stability: ProviderUsageSource["stability"]
+  readonly availability: UsageSourceDescriptor["availability"]
+  readonly capabilities: readonly UsageSourceCapability[]
+  readonly queryPolicy: UsageSourceDescriptor["queryPolicy"]
+  readonly connectionMethod: UsageConnectionMethod
   readonly cacheMs?: number
   matches(provider: Provider.Info): boolean
+  resolveCredential(context: UsageCredentialContext): Promise<ResolvedUsageCredential | null>
+  resolveConnection(context: UsageCredentialContext): Promise<ProviderUsageConnection>
   query(context: UsageQueryContext): Promise<ProviderUsageSource>
 }
 

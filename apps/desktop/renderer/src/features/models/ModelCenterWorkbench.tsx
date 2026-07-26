@@ -1,9 +1,8 @@
 
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import type {
-  DesktopApiKeySummary,
   DesktopModelMetadata,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
@@ -19,7 +18,6 @@ import {
   Cable,
   Eye,
   Hammer,
-  KeyRound,
   RefreshCw,
   Save,
   Search,
@@ -32,7 +30,7 @@ import {
   SkeletonBlock,
   SkeletonRegion,
 } from '../../components/ui/Skeleton.js'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiKeyWorkspace } from './ApiKeyWorkspace.js'
 import {
   ProviderCatalog,
@@ -46,16 +44,13 @@ import {
   updateModelCenterSearchParams,
 } from './modelCenterState.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
-import { useIntegrationOAuthAuthorization } from './useIntegrationOAuthAuthorization.js'
+import { ProviderConnectionDialog } from './provider-management/ProviderConnectionDialog.js'
+import type { ApiKeyEditorValue } from './ApiKeyEditorDialog.js'
 import {
-  allBalances,
-  criticalQuotaWindows,
-  formatAmount,
-  formatQuotaValue,
-  protocolProviderId,
-  sourceForProvider,
-  type ProviderUsageSource,
-} from '../../utils/usageFormatters.js'
+  providerManagementStore,
+  selectConfiguredProviderGroups,
+  type ConfiguredProviderGroup,
+} from '../provider-management/index.js'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -106,6 +101,7 @@ export function ModelCenterWorkbench({
   onNotice,
 }: Props): React.ReactNode {
   const settings = useDesktopSettings()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [providerID, setProviderID] = useState<ModelProviderID>(
     settings.providerID,
@@ -114,13 +110,12 @@ export function ModelCenterWorkbench({
   const [baseURL, setBaseURL] = useState(settings.providerBaseURL)
   const [model, setModel] = useState(settings.model)
   const [variant, setVariant] = useState('')
-  const [oauthInputs, setOauthInputs] = useState<Record<string, string>>({})
   const [modelError, setModelError] = useState<string | null>(null)
-  const [balanceStatus, setBalanceStatus] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [providerSearch, setProviderSearch] = useState('')
-  const [createKeyRequestToken, setCreateKeyRequestToken] = useState(0)
+  const [connectionDialogProviderId, setConnectionDialogProviderId] =
+    useState<ModelProviderID | null>(null)
   const controller = useModelCenterController({
     onInitialProviderState: nextState => applyProviderState(nextState),
     onError: message => {
@@ -134,10 +129,23 @@ export function ModelCenterWorkbench({
     providerState,
     integrations,
     apiKeys,
+    snapshot,
     setProviderState,
-    setApiKeys,
-    refreshProviderContext,
   } = controller
+  const configuredGroups = useMemo(
+    () => selectConfiguredProviderGroups(snapshot),
+    [snapshot],
+  )
+  const configuredProviderIds = useMemo(
+    () => new Set(configuredGroups.map(group => group.provider.providerID)),
+    [configuredGroups],
+  )
+  const configuredGroupByProvider = useMemo(
+    () => new Map(
+      configuredGroups.map(group => [group.provider.providerID, group]),
+    ),
+    [configuredGroups],
+  )
   const requestedView = searchParams.get('view') === 'keys' ? 'keys' : 'providers'
   const requestedProvider = searchParams.get('provider')
   const requestedSection = searchParams.get('section')
@@ -165,23 +173,6 @@ export function ModelCenterWorkbench({
   const selectedIntegration = integrations.find(
     integration => integration.id === selectedProvider?.integrationID,
   )
-  const oauthMethod = selectedIntegration?.methods.find(
-    method => method.type === 'oauth',
-  )
-  const providerOAuth = useIntegrationOAuthAuthorization({
-    integrationID: selectedIntegration?.id ?? null,
-    methodID: oauthMethod?.id ?? null,
-    inputs: oauthInputs,
-    onComplete: async () => {
-      await refreshIntegrationState()
-      setStatus('授权连接已建立。')
-    },
-    onError: message => {
-      setModelError(message)
-      setStatus(null)
-      onError(message)
-    },
-  })
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null
   const providerModels = (
@@ -203,8 +194,7 @@ export function ModelCenterWorkbench({
       .sort((left, right) => left.priority - right.priority),
     [apiKeys, providerID],
   )
-  const activeApiKey = providerApiKeys.find(key => key.active)
-  const storedCredentialConfigured = providerApiKeys.some(key => key.enabled)
+  const storedCredentialConfigured = providerApiKeys.length > 0
     || Boolean(selectedIntegration?.connections.some(connection => connection.type === 'credential'))
   const apiKeyConfigured = Boolean(selectedProviderState?.apiKeyConfigured)
     || storedCredentialConfigured
@@ -227,6 +217,15 @@ export function ModelCenterWorkbench({
   const providerCatalogItems = useMemo<ProviderCatalogItem[]>(() => (
     providerDirectory.map(item => {
       const { connectionStatus, current, provider, sources } = item
+      const effectiveConnectionStatus =
+        connectionStatus === 'unconfigured'
+        && configuredProviderIds.has(provider.providerID)
+          ? 'configured'
+          : connectionStatus
+      const displayedStatus = providerCatalogConnectionStatus(
+        effectiveConnectionStatus,
+        configuredGroupByProvider.get(provider.providerID),
+      )
       return {
         id: provider.providerID,
         name: provider.displayName,
@@ -236,17 +235,11 @@ export function ModelCenterWorkbench({
         )).join(' + '),
         modelCount: provider.defaultModels.length,
         current,
-        status: {
-          label: providerStatusLabel(connectionStatus),
-          tone: connectionStatus === 'unconfigured' ? 'neutral' : 'positive',
-        },
+        canAddConnection: effectiveConnectionStatus === 'unconfigured',
+        status: displayedStatus,
       }
     })
-  ), [providerDirectory])
-  const handleApiKeysChanged = useCallback((next: DesktopApiKeySummary[]) => {
-    setApiKeys(next)
-    void refreshProviderContext().catch(error => onError(fullErrorMessage(error)))
-  }, [onError, refreshProviderContext, setApiKeys])
+  ), [configuredGroupByProvider, configuredProviderIds, providerDirectory])
 
   useEffect(() => {
     if (providerID === providerState?.selectedProviderID) return
@@ -254,10 +247,7 @@ export function ModelCenterWorkbench({
     setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
     setVariant('')
-    providerOAuth.reset()
-    setOauthInputs({})
     setModelQuery('')
-    setBalanceStatus(null)
     setStatus(null)
     setModelError(null)
   }, [providerID, providerState, selectedProvider])
@@ -299,42 +289,6 @@ export function ModelCenterWorkbench({
     updateLocation({ provider: null, section: null })
   }
 
-  function openApiKeys(create = false, nextProviderID = providerID): void {
-    updateLocation({ view: 'keys', provider: nextProviderID })
-    if (create) setCreateKeyRequestToken(value => value + 1)
-  }
-
-  async function refreshIntegrationState(): Promise<void> {
-    const result = await refreshProviderContext()
-    applyProviderState(result.providerState)
-  }
-
-  async function disconnectOAuth(): Promise<void> {
-    if (!selectedIntegration) return
-    const credentials = selectedIntegration.connections.filter(
-      connection => connection.type === 'credential',
-    )
-    setBusy(true)
-    setModelError(null)
-    try {
-      await Promise.all(
-        credentials.map(connection =>
-          desktopClient.disconnectIntegration({
-            integrationID: selectedIntegration.id,
-            credentialID: connection.id,
-          }),
-        ),
-      )
-      await refreshIntegrationState()
-      providerOAuth.reset()
-      setStatus('授权连接已断开。')
-    } catch (error) {
-      showOperationError(error)
-    } finally {
-      setBusy(false)
-    }
-  }
-
   function applyProviderSelection(
     nextProviderID: ModelProviderID,
     nextProvider: DesktopModelProviderSummary | undefined,
@@ -344,10 +298,7 @@ export function ModelCenterWorkbench({
     setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
     setVariant('')
-    providerOAuth.reset()
-    setOauthInputs({})
     setModelQuery('')
-    setBalanceStatus(null)
     setStatus(null)
     setModelError(null)
   }
@@ -442,26 +393,6 @@ export function ModelCenterWorkbench({
     }
   }
 
-  async function fetchUsageSummary(): Promise<ProviderUsageSource | null> {
-    setBusy(true)
-    setModelError(null)
-    try {
-      const result = await desktopClient.queryProviderUsage({
-        range: '7d',
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
-        providerIds: [protocolProviderId(providerID)],
-      })
-      const source = sourceForProvider(result.sources, providerID) ?? null
-      setBalanceStatus(formatUsageSummary(source))
-      return source
-    } catch (error) {
-      showOperationError(error)
-      return null
-    } finally {
-      setBusy(false)
-    }
-  }
-
   async function testConnection(): Promise<void> {
     if (requiresBaseURL && !baseURL.trim()) {
       setModelError('测试前请为该供应商配置兼容 OpenAI 的 Base URL。')
@@ -518,20 +449,25 @@ const nextState = await desktopClient.saveModelProvider({
     }
   }
 
-  async function selectActiveApiKey(credentialId: string): Promise<void> {
+  async function createProviderConnection(
+    value: ApiKeyEditorValue,
+  ): Promise<boolean> {
+    if (!value.key) return false
     setBusy(true)
     try {
-      await desktopClient.setActiveApiKey(providerID, credentialId)
-      const [nextKeys, nextState] = await Promise.all([
-        desktopClient.listApiKeys(),
-        desktopClient.getModelProviderState(),
-      ])
-      setApiKeys(nextKeys)
-      applyProviderState(nextState)
-      setStatus('当前 API Key 已切换。')
+      await providerManagementStore.createApiKey({
+        providerId: value.providerId,
+        label: value.label,
+        key: value.key,
+      })
+      setStatus('连接已安全保存。')
+      setConnectionDialogProviderId(null)
+      updateLocation({ view: 'keys', provider: value.providerId })
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
+      return true
     } catch (error) {
       showOperationError(error)
+      return false
     } finally {
       setBusy(false)
     }
@@ -546,15 +482,35 @@ const nextState = await desktopClient.saveModelProvider({
 
   const showingProviderDetail = workspaceView === 'providers' && routeState.providerId !== null
   const pageTitle = workspaceView === 'keys'
-    ? '管理 API Keys'
+    ? '账户连接'
     : showingProviderDetail
       ? selectedProvider?.displayName ?? providerID
-      : '配置模型 Provider'
+      : '供应商'
   const pageDescription = workspaceView === 'keys'
-    ? '集中管理模型 Provider 的命名密钥、优先级与健康状态。'
+    ? '按供应商统一管理推理 Key、OAuth、订阅与独立账务凭据。'
     : showingProviderDetail
       ? providerDescription(selectedProvider)
-      : '选择 Provider，配置连接、模型与 Router。'
+      : '浏览供应商目录，配置 Endpoint、模型与 Router。'
+  const connectionDialogProvider = connectionDialogProviderId
+    ? providers.find(provider => provider.providerID === connectionDialogProviderId) ?? null
+    : null
+  const connectionDialogIntegration = integrations.find(integration =>
+    integration.id === connectionDialogProvider?.integrationID
+  )
+  const connectionDialogSources = snapshot.usageSources.filter(source =>
+    source.providerIds.some(providerId =>
+      String(providerId) === String(connectionDialogProviderId)
+    )
+  )
+  const selectedConfiguredGroup = configuredGroups.find(
+    group => group.provider.providerID === providerID,
+  )
+  const connectionSummary = providerConnectionSummary({
+    apiKeySource,
+    integration: selectedIntegration,
+    providerKeys: providerApiKeys,
+    group: selectedConfiguredGroup,
+  })
 
   return (
     <div className="model-center-shell">
@@ -565,15 +521,15 @@ const nextState = await desktopClient.saveModelProvider({
         slot="left"
       >
         <SegmentedControl<'providers' | 'keys'>
-          ariaLabel="模型中心工作区"
+          ariaLabel="供应商与账户连接工作区"
           className="model-center-workspace-tabs"
           onChange={view => updateLocation({ view })}
           overflowMode="fit"
-          options={[
-            { value: 'providers', label: 'Provider' },
+            options={[
+            { value: 'providers', label: '供应商' },
             {
               value: 'keys',
-              label: <>API Keys <span>{apiKeys.length}</span></>,
+              label: <>账户连接 <span>{configuredGroups.length}</span></>,
             },
           ]}
           semantics="tabs"
@@ -587,16 +543,6 @@ const nextState = await desktopClient.saveModelProvider({
         slot="right"
       >
         <div className="model-center-header-actions">
-          {!showInitialSkeleton && workspaceView === 'providers' && !showingProviderDetail ? (
-            <Button
-              aria-label="添加 API Key"
-              onClick={() => openApiKeys(true)}
-              title="添加 API Key"
-            >
-              <KeyRound aria-hidden />
-              <span className="model-center-header-action-label">添加 API Key</span>
-            </Button>
-          ) : null}
           {!showInitialSkeleton && showingProviderDetail && providerSection === 'connection' ? (
             <>
               <Button
@@ -685,55 +631,26 @@ const nextState = await desktopClient.saveModelProvider({
 
             {providerSection === 'connection' ? (
               <div className="model-center-detail-body">
-                {!oauthMethod ? (
-                  <section className="model-center-detail-section">
-                    <header className="model-center-detail-section-heading"><div><h3>Endpoint</h3><p>{baseURLDescription(selectedProvider, isMiniMax)}</p></div><span>{baseURLEditable ? '自定义' : '目录提供'}</span></header>
-                    <label className="model-center-detail-field"><span>Base URL</span><Input className="model-center-mono" readOnly={!baseURLEditable} value={baseURL} placeholder={selectedProvider?.baseURL ?? 'https://.../v1'} onChange={event => setBaseURL(event.target.value)} /></label>
-                  </section>
-                ) : null}
-
                 <section className="model-center-detail-section">
-                  <header className="model-center-detail-section-heading"><div><h3>{oauthMethod ? oauthMethod.label : 'API Key'}</h3><p>{oauthMethod ? '完成授权并管理当前连接。' : '选择用于当前 Provider 的活动密钥。'}</p></div><span data-tone={apiKeyConfigured ? 'success' : 'warning'}>{apiKeyConfigured ? (oauthMethod ? '已授权' : '已配置') : '未配置'}</span></header>
-                  {oauthMethod && selectedIntegration ? (
-                    <div className="model-center-auth-fields">
-                      {oauthMethod.prompts?.filter(prompt => {
-                        if (!prompt.when) return true
-                        const matches = oauthInputs[prompt.when.key] === prompt.when.value
-                        return prompt.when.op === 'eq' ? matches : !matches
-                      }).map(prompt => (
-                        <label className="model-center-detail-field" key={prompt.key}>
-                          <span>{prompt.message}</span>
-                          {prompt.type === 'select' ? (
-                            <SettingsDropdown width={340} ariaLabel={prompt.message} value={oauthInputs[prompt.key] ?? ''} options={prompt.options.map(option => ({ value: option.value, label: option.label, detail: option.hint }))} onChange={value => setOauthInputs(current => ({ ...current, [prompt.key]: value }))} />
-                          ) : (
-                            <Input value={oauthInputs[prompt.key] ?? ''} placeholder={prompt.placeholder} onChange={event => setOauthInputs(current => ({ ...current, [prompt.key]: event.target.value }))} />
-                          )}
-                        </label>
-                      ))}
-                      <div className="model-center-inline-actions">
-                        <Button disabled={busy} loading={providerOAuth.busy} onClick={() => void providerOAuth.start()}>{apiKeyConfigured ? '重新授权' : '开始授权'}</Button>
-                        <Button tone="danger" disabled={busy || providerOAuth.busy || !apiKeyConfigured} onClick={() => void disconnectOAuth()}>断开</Button>
-                      </div>
-                      {providerOAuth.attempt ? (
-                        <div className="model-center-oauth-attempt">
-                          <p>{providerOAuth.attempt.instructions || providerOAuth.status}</p>
-                          {providerOAuth.attempt.url ? <a href={providerOAuth.attempt.url} rel="noreferrer" target="_blank" onClick={openExternalLink}>打开授权页面</a> : null}
-                          {providerOAuth.attempt.mode === 'code' ? <div className="model-center-inline-actions"><Input className="model-center-mono" value={providerOAuth.code} placeholder="输入授权返回码" onChange={event => providerOAuth.setCode(event.target.value)} /><Button disabled={!providerOAuth.code.trim()} loading={providerOAuth.submittingCode} onClick={() => void providerOAuth.submitCode()}>提交</Button></div> : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="model-center-detail-key-row">
-                      {providerApiKeys.length > 0 ? (
-                        <SettingsDropdown width={360} ariaLabel="当前 API Key" value={activeApiKey?.id ?? ''} options={providerApiKeys.filter(key => key.enabled).map(key => ({ value: key.id, label: key.label + ' · ' + key.maskedValue, detail: formatApiKeyHealth(key) }))} onChange={value => void selectActiveApiKey(value)} />
-                      ) : <p>尚未保存应用内 API Key；没有可用密钥时仍会使用现有环境变量。</p>}
-                      <div className="model-center-inline-actions"><Button onClick={() => openApiKeys(true)}>添加 Key</Button><Button onClick={() => openApiKeys()}>管理 Keys</Button></div>
-                    </div>
-                  )}
+                  <header className="model-center-detail-section-heading"><div><h3>Endpoint</h3><p>{baseURLDescription(selectedProvider, isMiniMax)}</p></div><span>{baseURLEditable ? '自定义' : '目录提供'}</span></header>
+                  <label className="model-center-detail-field"><span>Base URL</span><Input className="model-center-mono" readOnly={!baseURLEditable} value={baseURL} placeholder={selectedProvider?.baseURL ?? 'https://.../v1'} onChange={event => setBaseURL(event.target.value)} /></label>
                 </section>
 
                 <section className="model-center-detail-section">
-                  <header className="model-center-detail-section-heading"><div><h3>账户与套餐</h3><p>{balanceStatus ?? '查询当前 Provider 的余额或套餐摘要；请求只发送到厂商官方接口。'}</p></div><div className="model-center-inline-actions"><Button disabled={busy || !apiKeyConfigured} onClick={() => void fetchUsageSummary()}>查询用量</Button></div></header>
+                  <header className="model-center-detail-section-heading">
+                    <div>
+                      <h3>连接摘要</h3>
+                      <p>{connectionSummary}</p>
+                    </div>
+                    <div className="model-center-inline-actions">
+                      <Button onClick={() => updateLocation({
+                        view: 'keys',
+                        provider: providerID,
+                      })}>
+                        前往账户连接
+                      </Button>
+                    </div>
+                  </header>
                 </section>
                 {selectedProvider?.docURL ? <div className="model-center-detail-links"><a href={selectedProvider.docURL} onClick={openExternalLink} rel="noreferrer" target="_blank">查看 Provider 文档</a></div> : null}
               </div>
@@ -767,23 +684,61 @@ const nextState = await desktopClient.saveModelProvider({
           <ProviderCatalog
             providers={providerCatalogItems}
             query={providerSearch}
-            onAddKey={nextProviderID => {
-              applyProviderSelection(
-                nextProviderID,
-                providers.find(provider => provider.providerID === nextProviderID),
-              )
-              openApiKeys(true, nextProviderID)
+            onAddConnection={nextProviderID => setConnectionDialogProviderId(nextProviderID)}
+            onManageConnection={nextProviderID => {
+              updateLocation({ view: 'keys', provider: nextProviderID })
             }}
             onQueryChange={setProviderSearch}
             onSelect={selectProvider}
           />
         )
       ) : (
-        <ApiKeyWorkspace providers={providers.filter(provider => {
-          const integration = integrations.find(item => item.id === provider.integrationID)
-          return !integration?.methods.some(method => method.type === 'oauth')
-        })} keys={apiKeys} selectedProviderId={providerID} createRequestToken={createKeyRequestToken} onSelectedProviderIdChange={selectProvider} onChanged={handleApiKeysChanged} onError={onError} onNotice={onNotice} />
+        <ApiKeyWorkspace
+          expandedProviderId={routeState.providerId}
+          onError={onError}
+          onNotice={onNotice}
+          onOpenCatalog={() => updateLocation({
+            view: 'providers',
+            provider: null,
+            section: null,
+          })}
+          onOpenProvider={nextProviderID => {
+            applyProviderSelection(
+              nextProviderID,
+              providers.find(provider => provider.providerID === nextProviderID),
+            )
+            updateLocation({
+              view: 'providers',
+              provider: nextProviderID,
+              section: 'connection',
+            })
+          }}
+          onOpenUsage={nextProviderID => navigate(
+            `/settings/billing?view=accounts&provider=${encodeURIComponent(nextProviderID)}`,
+          )}
+        />
       )}
+      <ProviderConnectionDialog
+        busy={busy}
+        integration={connectionDialogIntegration}
+        integrations={integrations}
+        open={connectionDialogProviderId !== null}
+        provider={connectionDialogProvider}
+        sources={connectionDialogSources}
+        onKeySubmit={createProviderConnection}
+        onConnected={() => {
+          setConnectionDialogProviderId(null)
+          if (connectionDialogProvider) {
+            updateLocation({
+              view: 'keys',
+              provider: connectionDialogProvider.providerID,
+            })
+          }
+        }}
+        onOpenChange={open => {
+          if (!open) setConnectionDialogProviderId(null)
+        }}
+      />
     </div>
   )
 }
@@ -799,7 +754,7 @@ function ModelCenterInitialSkeleton({
 }: ModelCenterInitialSkeletonProps): React.ReactNode {
   if (view === 'keys') {
     return (
-      <SkeletonRegion className="model-center-initial-skeleton" label="正在加载 API Keys">
+      <SkeletonRegion className="model-center-initial-skeleton" label="正在加载账户连接">
         <div className="model-center-heading model-center-skeleton-heading">
           <SkeletonBlock className="model-center-skeleton-page-title" />
           <SkeletonBlock className="model-center-skeleton-page-copy" />
@@ -922,6 +877,27 @@ function providerStatusLabel(
   return '未配置'
 }
 
+function providerCatalogConnectionStatus(
+  status: 'stored-key' | 'oauth' | 'environment' | 'configured' | 'unconfigured',
+  group: ConfiguredProviderGroup | undefined,
+): ProviderCatalogItem['status'] {
+  const onlyInferenceKeys = Boolean(group)
+    && group.connections.every(connection => connection.kind === 'inference-key')
+  if (onlyInferenceKeys && group?.apiKeys.length) {
+    const enabledKeys = group.apiKeys.filter(key => key.enabled)
+    if (enabledKeys.length === 0) {
+      return { label: '已配置 · 已停用', tone: 'warning' }
+    }
+    if (enabledKeys.every(key => key.health.status === 'auth-failed')) {
+      return { label: '需要修复', tone: 'danger' }
+    }
+  }
+  return {
+    label: providerStatusLabel(status),
+    tone: status === 'unconfigured' ? 'neutral' : 'positive',
+  }
+}
+
 function baseURLDescription(
   provider: DesktopModelProviderSummary | undefined,
   isMiniMax: boolean,
@@ -1039,30 +1015,56 @@ function formatApiKeyState(source: string | null, configured: boolean): string {
   return source === 'secureStorage' ? '已配置' : '环境变量'
 }
 
-function formatApiKeyHealth(key: DesktopApiKeySummary): string {
-  if (key.health.status === 'healthy') return key.active ? '当前 · 健康' : '备用 · 健康'
-  if (key.health.status === 'auth-failed') return '鉴权失败'
-  if (key.health.status === 'rate-limited') return '限流冷却中'
-  if (key.health.status === 'error') return '测试异常'
-  return '未测试'
-}
-
-function formatUsageSummary(source: ProviderUsageSource | null): string {
-  if (!source) return '当前 Provider 暂无可查询的用量来源。'
-  if (source.error) return source.error.message
-  const quotas = criticalQuotaWindows(source, 2)
-  if (quotas.length > 0) {
-    return quotas.map(quota => `${quota.label} ${formatQuotaValue(quota)}`).join('；')
+function providerConnectionSummary({
+  apiKeySource,
+  integration,
+  providerKeys,
+  group,
+}: {
+  apiKeySource: string | null
+  integration: {
+    connections: readonly { type: string }[]
+  } | undefined
+  providerKeys: readonly {
+    active: boolean
+    enabled: boolean
+    health: { status: string }
+    label: string
+  }[]
+  group: ConfiguredProviderGroup | undefined
+}): string {
+  if (providerKeys.length > 0) {
+    const enabled = providerKeys.filter(key => key.enabled)
+    if (enabled.length === 0) {
+      return `已保存 ${providerKeys.length} 个推理 Key，当前均已停用。`
+    }
+    const active = providerKeys.find(key => key.active) ?? enabled[0]
+    const health = active?.health.status === 'auth-failed'
+      ? '鉴权失败'
+      : active?.health.status === 'rate-limited'
+        ? '限流冷却中'
+        : active?.health.status === 'healthy'
+          ? '健康'
+          : '尚未验证'
+    return `当前推理 Key：${active?.label ?? '已保存 Key'} · ${health}；共 ${providerKeys.length} 个连接。`
   }
-  const balances = allBalances(source)
-  if (balances.length > 0) {
-    return balances
-      .map(balance => `${balance.currency} ${formatAmount(balance.currency, balance.total)}`)
-      .join('；')
+  const activeConnection = group?.activeConnection
+  if (activeConnection?.kind === 'subscription') {
+    return `订阅授权：${activeConnection.label}；可在账户连接中管理。`
   }
-  if (source.status === 'unsupported') return '当前 Provider 仅支持在官方控制台查看用量。'
-  if (source.status === 'not-connected') return '当前用量来源尚未连接。'
-  return '来源已连接，但当前没有返回余额或额度。'
+  if (activeConnection?.kind === 'billing-key') {
+    return `管理凭据：${activeConnection.label}；仅用于余额和账务查询。`
+  }
+  if (
+    activeConnection?.kind === 'oauth'
+    || integration?.connections.some(connection => connection.type === 'credential')
+  ) {
+    return `OAuth 已连接${activeConnection?.label ? `：${activeConnection.label}` : ''}。`
+  }
+  if (activeConnection?.kind === 'env' || (apiKeySource && apiKeySource !== 'secureStorage')) {
+    return `当前凭据来自环境变量${activeConnection?.label ? `：${activeConnection.label}` : ''}。`
+  }
+  return '尚未建立账户连接；可前往账户连接页查看可用方式。'
 }
 
 function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {

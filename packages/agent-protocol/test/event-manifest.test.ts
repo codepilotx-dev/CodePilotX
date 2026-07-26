@@ -107,6 +107,27 @@ describe("event manifest invariants", () => {
     })).toThrow()
   })
 
+  test("publishes a minimal live usage source invalidation", () => {
+    expect(EventManifest["usage/source/updated"]).toMatchObject({
+      durability: "live",
+      stream: "global",
+      reconcilesWith: "usage/source/list",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["usage/source/updated"].payload,
+      { onExcessProperty: "error" },
+    )
+    expect(decode({ sourceId: "openai-admin", changedAt: 1 })).toEqual({
+      sourceId: "openai-admin",
+      changedAt: 1,
+    })
+    expect(() => decode({
+      sourceId: "openai-admin",
+      changedAt: 1,
+      key: "must-not-cross-event",
+    })).toThrow()
+  })
+
   test("keeps config update events path-, value-, and credential-free", () => {
     const decode = Schema.decodeUnknownSync(
       EventManifest["config/updated"].payload,

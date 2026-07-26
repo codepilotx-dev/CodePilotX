@@ -118,6 +118,18 @@ describe('model center Provider directory', () => {
     expect(projected[1]).toMatchObject({ current: false, connectionStatus: 'unconfigured' })
   })
 
+  test('keeps a provider configured when its saved Key is disabled', () => {
+    const projected = projectProviderDirectory(providers, {
+      apiKeys: [apiKey({
+        id: 'disabled',
+        providerId: 'openai',
+        enabled: false,
+      })],
+    })
+
+    expect(projected[0]?.connectionStatus).toBe('stored-key')
+  })
+
   test('distinguishes OAuth, environment and configured connections', () => {
     const oauthProvider = provider({ providerID: 'oauth', displayName: 'OAuth', integrationID: 'oauth-integration' })
     const envProvider = provider({ providerID: 'env', displayName: 'Environment' })

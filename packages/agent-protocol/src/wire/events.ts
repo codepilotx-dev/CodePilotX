@@ -21,6 +21,7 @@ import {
 } from "./interactions"
 import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./primitives"
 import { ToolingStatusSchema } from "../methods/tooling"
+import { UsageSourceIdSchema } from "../methods/usage"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -451,6 +452,17 @@ export const EventManifest = {
     stream: "global",
     capability: "events.live.v1",
     reconcilesWith: "integration/list",
+  }),
+  "usage/source/updated": defineEvent({
+    payload: Schema.Struct({
+      sourceId: UsageSourceIdSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "events.live.v1",
+    reconcilesWith: "usage/source/list",
   }),
   "integration/authorizationCompleted": defineEvent({
     payload: Schema.Struct({

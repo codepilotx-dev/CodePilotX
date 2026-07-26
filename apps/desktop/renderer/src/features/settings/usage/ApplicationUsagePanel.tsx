@@ -1,5 +1,6 @@
 import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
 import React, { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { SkeletonBlock, SkeletonRegion } from '../../../components/ui/Skeleton.js'
@@ -354,7 +355,15 @@ function ModelDistribution({
         {models.length === 0 ? <li>暂无模型用量</li> : models.map((model, index) => (
           <li key={`${model.providerId}/${model.modelId}`}>
             <i style={{ background: CHART_COLORS[Math.min(index, 5)] }} />
-            <span><strong>{model.displayName}</strong><small>{model.providerId}</small></span>
+            <span>
+              <Link
+                className="usage-provider-link"
+                to={`/models?view=providers&provider=${encodeURIComponent(String(model.providerId))}&section=models`}
+              >
+                {model.displayName}
+              </Link>
+              <small>{model.providerId}</small>
+            </span>
             <span>{model.sharePercent.toFixed(1)}%<small>{formatCompactCount(model.totalTokens)} Token</small></span>
           </li>
         ))}

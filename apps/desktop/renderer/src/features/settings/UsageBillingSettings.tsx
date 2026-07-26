@@ -1,12 +1,18 @@
 import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
+import {
+  providerManagementStore,
+  selectAnalyticsSources,
+  useProviderManagementSnapshot,
+} from '../provider-management/index.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { ApplicationUsagePanel } from './usage/ApplicationUsagePanel.js'
 import { ProviderUsagePanel } from './usage/ProviderUsagePanel.js'
 
-type UsageTab = 'application' | 'providers'
+type UsageTab = 'application' | 'accounts'
 type LocalRange = RpcParams<'usage/local/get'>['range']
 type ProviderRange = RpcParams<'usage/provider/query'>['range']
 type LocalUsageResult = RpcResult<'usage/local/get'>
@@ -14,7 +20,7 @@ type ProviderUsageResult = RpcResult<'usage/provider/query'>
 
 const TAB_OPTIONS = [
   { value: 'application', label: '应用用量' },
-  { value: 'providers', label: '账户与套餐' },
+  { value: 'accounts', label: '账户用量与成本' },
 ] as const
 
 function localTimeZone(): string {
@@ -22,18 +28,70 @@ function localTimeZone(): string {
 }
 
 export function UsageBillingSettings(): React.ReactNode {
-  const [tab, setTab] = useState<UsageTab>('application')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const providerManagement = useProviderManagementSnapshot()
+  const analyticsSources = selectAnalyticsSources(providerManagement)
+  const tab: UsageTab = searchParams.get('view') === 'accounts'
+    ? 'accounts'
+    : 'application'
+  const selectedProviderId = searchParams.get('provider') ?? undefined
+  const selectedSourceId = searchParams.get('source') ?? undefined
+  const querySourceIds = useMemo(() => analyticsSources
+    .map(source => source.descriptor)
+    .filter(source =>
+      source.availability === 'queryable' &&
+      source.capabilities.some(capability => capability === 'usage' || capability === 'cost'),
+    )
+    .filter(source =>
+      !selectedProviderId ||
+      source.providerIds.some(providerId => String(providerId) === selectedProviderId),
+    )
+    .filter(source => !selectedSourceId || source.sourceId === selectedSourceId)
+    .map(source => source.sourceId), [
+      analyticsSources,
+      selectedProviderId,
+      selectedSourceId,
+    ])
+  const querySourceIdsKey = JSON.stringify(querySourceIds)
+  const providerNames = useMemo(
+    () => Object.fromEntries(providerManagement.providers.map(provider => [
+      String(provider.providerID),
+      provider.displayName,
+    ])),
+    [providerManagement.providers],
+  )
   const [localRange, setLocalRange] = useState<LocalRange>('30d')
   const [providerRange, setProviderRange] = useState<ProviderRange>('7d')
   const [localData, setLocalData] = useState<LocalUsageResult | null>(null)
-  const [providerData, setProviderData] = useState<ProviderUsageResult | null>(null)
   const [localLoading, setLocalLoading] = useState(false)
-  const [providerLoading, setProviderLoading] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
-  const [providerError, setProviderError] = useState<string | null>(null)
   const localRequest = useRef(0)
-  const providerRequest = useRef(0)
   const timeZone = localTimeZone()
+  const providerData: ProviderUsageResult | null =
+    providerManagement.usageRange === providerRange &&
+    providerManagement.usageTimeZone === timeZone &&
+    providerManagement.usageGeneratedAt !== null
+      ? {
+          range: providerRange,
+          timeZone,
+          generatedAt: providerManagement.usageGeneratedAt,
+          sources: [...providerManagement.usageResults],
+        }
+      : null
+
+  const changeTab = useCallback((nextTab: UsageTab): void => {
+    setSearchParams(current => {
+      const next = new URLSearchParams(current)
+      if (nextTab === 'application') {
+        next.set('view', 'application')
+        next.delete('provider')
+        next.delete('source')
+      } else {
+        next.set('view', nextTab)
+      }
+      return next
+    })
+  }, [setSearchParams])
 
   const loadLocalUsage = useCallback(async (
     range: LocalRange,
@@ -55,41 +113,23 @@ export function UsageBillingSettings(): React.ReactNode {
 
   const loadProviderUsage = useCallback(async ({
     range,
-    providerIds,
+    sourceIds,
     force = false,
   }: {
     range: ProviderRange
-    providerIds?: RpcParams<'usage/provider/query'>['providerIds']
+    sourceIds: readonly string[]
     force?: boolean
   }): Promise<void> => {
-    const request = ++providerRequest.current
-    setProviderLoading(true)
-    setProviderError(null)
+    if (sourceIds.length === 0) return
     try {
-      const result = await desktopClient.queryProviderUsage({
+      await providerManagementStore.querySources({
         range,
         timeZone,
-        ...(providerIds && providerIds.length > 0 ? { providerIds } : {}),
+        sourceIds: [...sourceIds],
         ...(force ? { force: true } : {}),
       })
-      if (request !== providerRequest.current) return
-      setProviderData(previous => {
-        if (!providerIds || providerIds.length === 0 || !previous) return result
-        const refreshedIds = new Set(result.sources.map(source => source.sourceId))
-        return {
-          ...result,
-          sources: [
-            ...previous.sources.filter(source => !refreshedIds.has(source.sourceId)),
-            ...result.sources,
-          ],
-        }
-      })
-    } catch (error) {
-      if (request === providerRequest.current) {
-        setProviderError(error instanceof Error ? error.message : String(error))
-      }
-    } finally {
-      if (request === providerRequest.current) setProviderLoading(false)
+    } catch {
+      // The shared store keeps a safe error and the last successful result.
     }
   }, [timeZone])
 
@@ -98,28 +138,50 @@ export function UsageBillingSettings(): React.ReactNode {
   }, [loadLocalUsage, localRange])
 
   useEffect(() => {
-    if (tab !== 'providers') return
-    void loadProviderUsage({ range: providerRange })
-  }, [loadProviderUsage, providerRange, tab])
+    if (tab !== 'accounts') return
+    if (!providerManagement.loaded) return
+    void loadProviderUsage({ range: providerRange, sourceIds: querySourceIds })
+  }, [
+    loadProviderUsage,
+    providerManagement.loaded,
+    providerRange,
+    querySourceIdsKey,
+    tab,
+  ])
+
+  const clearProviderFilter = useCallback((): void => {
+    setSearchParams(current => {
+      const next = new URLSearchParams(current)
+      next.delete('provider')
+      next.delete('source')
+      next.set('view', 'accounts')
+      return next
+    })
+  }, [setSearchParams])
 
   return (
     <SettingsContentArea>
       <div
-        aria-busy={localLoading || providerLoading || undefined}
+        aria-busy={
+          localLoading ||
+          providerManagement.loading ||
+          providerManagement.refreshingSources ||
+          undefined
+        }
         className="settings-content-inner usage-billing-settings"
       >
         <div className="settings-page-header usage-page-header">
           <div>
-            <h2 className="settings-page-title">使用情况和计费</h2>
+            <h2 className="settings-page-title">用量与成本</h2>
             <p className="usage-page-description">
-              统一查看 CodePilotX 本机模型消耗，以及各厂商账户余额、成本和套餐额度。
+              查看 CodePilotX 本机模型消耗，以及已连接账户的远端用量和成本趋势。
             </p>
           </div>
           <SegmentedControl<UsageTab>
-            ariaLabel="使用情况和计费页签"
+            ariaLabel="用量与成本页签"
             getPanelId={value => `usage-${value}-panel`}
             getTabId={value => `usage-${value}-tab`}
-            onChange={value => setTab(value)}
+            onChange={changeTab}
             options={TAB_OPTIONS}
             semantics="tabs"
             value={tab}
@@ -138,20 +200,23 @@ export function UsageBillingSettings(): React.ReactNode {
         ) : (
           <ProviderUsagePanel
             data={providerData}
-            error={providerError}
-            loading={providerLoading}
-            onChanged={providerIds => void loadProviderUsage({
-              range: providerRange,
-              providerIds,
-              force: true,
-            })}
+            descriptors={analyticsSources.map(source => source.descriptor)}
+            error={providerManagement.error}
+            loading={
+              providerManagement.refreshingSources ||
+              providerManagement.loading
+            }
+            onClearFilter={clearProviderFilter}
             onRangeChange={setProviderRange}
-            onRefresh={(providerIds, force) => void loadProviderUsage({
+            onRefresh={(sourceIds, force) => void loadProviderUsage({
               range: providerRange,
-              providerIds,
+              sourceIds: sourceIds ?? analyticsSources.map(source => source.descriptor.sourceId),
               force,
             })}
+            providerNames={providerNames}
             range={providerRange}
+            selectedProviderId={selectedProviderId}
+            selectedSourceId={selectedSourceId}
           />
         )}
       </div>

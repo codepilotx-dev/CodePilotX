@@ -2486,6 +2486,8 @@ export function createAgentSessionDesktopClient(
         nextCursor: result.nextCursor,
       }
     },
+    listUsageSources: () =>
+      withRequiredAgent(() => rpc.call('usage/source/list', {})),
     getLocalUsage: input =>
       withRequiredAgent(() => rpc.call('usage/local/get', input)),
     queryProviderUsage: input =>

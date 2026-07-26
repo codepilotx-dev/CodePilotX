@@ -592,7 +592,7 @@ describe("RPC v4 Router", () => {
   })
 
   test("integration methods consume camelCase v4 params and return declared resources", async () => {
-    const integrationId = "integration:fixture"
+    const integrationId = "usage.anthropic.subscription"
     const attemptId = "attempt:fixture"
     const connection = {
       type: "credential",
@@ -604,6 +604,7 @@ describe("RPC v4 Router", () => {
       status: "pending",
       time: { created: 1, expires: 10_000 },
     }
+    const publishedEvents: unknown[] = []
     const integration = () => ({
       id: integrationId,
       name: "Fixture",
@@ -614,6 +615,11 @@ describe("RPC v4 Router", () => {
       connections: connected ? [connection] : [],
     })
     const { db, call, initialize } = await fixture({
+      hub: {
+        publish: (event: unknown) => Effect.sync(() => {
+          publishedEvents.push(event)
+        }),
+      } as unknown as RpcRouterDependencies["hub"],
       providers: {
         list: async () => [],
         models: async () => [],
@@ -687,6 +693,8 @@ describe("RPC v4 Router", () => {
       credentialId: connection.id,
       operationId: "operation:integration-disconnect",
     })).result.integration.connections).toHaveLength(0)
+    expect(publishedEvents.filter((event) =>
+      (event as { method?: string }).method === "usage/source/updated")).toHaveLength(3)
     db.close()
   })
 

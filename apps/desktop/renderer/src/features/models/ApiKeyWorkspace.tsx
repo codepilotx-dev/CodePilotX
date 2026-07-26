@@ -1,6 +1,7 @@
 import {
   ArrowDown,
   ArrowUp,
+  Cable,
   Copy,
   KeyRound,
   MoreHorizontal,
@@ -11,37 +12,43 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopApiKeyHealthStatus,
   DesktopApiKeySummary,
-  DesktopModelProviderSummary,
   ModelProviderID,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import { Dropdown } from '../../components/ui/Dropdown.js'
-import { Input } from '../../components/ui/Input.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
-import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { fullErrorMessage } from '../../utils/errors.js'
-import { SettingsDropdown } from '../settings/SettingsDropdown.js'
+import {
+  providerManagementStore,
+  selectConfiguredProviderGroups,
+  useProviderManagementSnapshot,
+  type ConfiguredProviderGroup,
+} from '../provider-management/index.js'
 import {
   ApiKeyEditorDialog,
   type ApiKeyEditorValue,
 } from './ApiKeyEditorDialog.js'
 import { getApiKeyDeleteConfirmation } from './modelCenterState.js'
+import {
+  AccountProviderGroup,
+  buildAccountGroupSummary,
+} from './provider-management/AccountProviderGroup.js'
+import {
+  BillingCredentialConnection,
+} from './provider-management/BillingCredentialConnection.js'
+import { OAuthConnection } from './provider-management/OAuthConnection.js'
 
 export type ApiKeyWorkspaceProps = {
-  providers: DesktopModelProviderSummary[]
-  keys: DesktopApiKeySummary[]
-  selectedProviderId: ModelProviderID
-  createRequestToken: number
-  onSelectedProviderIdChange: (providerId: ModelProviderID) => void
-  onChanged: (keys: DesktopApiKeySummary[]) => void | Promise<void>
+  expandedProviderId: ModelProviderID | null
+  onOpenCatalog: () => void
+  onOpenProvider: (providerId: ModelProviderID) => void
+  onOpenUsage: (providerId: ModelProviderID) => void
   onError: (message: string) => void
   onNotice: (message: string) => void
 }
-
-type HealthFilter = 'all' | DesktopApiKeyHealthStatus
 
 const HEALTH_LABELS: Record<DesktopApiKeyHealthStatus, string> = {
   untested: '未测试',
@@ -52,46 +59,96 @@ const HEALTH_LABELS: Record<DesktopApiKeyHealthStatus, string> = {
 }
 
 export function ApiKeyWorkspace({
-  providers,
-  keys,
-  selectedProviderId,
-  createRequestToken,
-  onSelectedProviderIdChange,
-  onChanged,
+  expandedProviderId,
+  onOpenCatalog,
+  onOpenProvider,
+  onOpenUsage,
   onError,
   onNotice,
 }: ApiKeyWorkspaceProps): React.ReactNode {
-  const apiKeyProviders = useMemo(
-    () => providers.filter(provider => provider.kind !== 'github-copilot'),
-    [providers],
+  const snapshot = useProviderManagementSnapshot()
+  const groups = useMemo(
+    () => selectConfiguredProviderGroups(snapshot),
+    [snapshot],
   )
-  const defaultProviderId = apiKeyProviders.some(provider => provider.providerID === selectedProviderId)
-    ? selectedProviderId
-    : apiKeyProviders[0]?.providerID
-  const [providerFilter, setProviderFilter] = useState<string>(selectedProviderId)
-  const [query, setQuery] = useState('')
-  const [healthFilter, setHealthFilter] = useState<HealthFilter>('all')
+  const [expandedIds, setExpandedIds] = useState<Set<ModelProviderID>>(
+    () => new Set(),
+  )
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [editorOpen, setEditorOpen] = useState(false)
+  const [editorProviderId, setEditorProviderId] =
+    useState<ModelProviderID | null>(null)
   const [editingKey, setEditingKey] = useState<DesktopApiKeySummary | null>(null)
   const [deleteKey, setDeleteKey] = useState<DesktopApiKeySummary | null>(null)
   const [, setClockTick] = useState(0)
-  const lastCreateRequestToken = useRef(createRequestToken)
+  const queriedSources = useRef('')
+  const cachedSources = useRef('')
+  const groupElements = useRef(new Map<ModelProviderID, HTMLElement>())
 
   useEffect(() => {
-    if (apiKeyProviders.some(provider => provider.providerID === selectedProviderId)) {
-      setProviderFilter(selectedProviderId)
-    } else {
-      setProviderFilter(apiKeyProviders[0]?.providerID ?? 'all')
+    if (!expandedProviderId) return
+    if (!groups.some(group => group.provider.providerID === expandedProviderId)) return
+    setExpandedIds(current => {
+      if (current.has(expandedProviderId)) return current
+      const next = new Set(current)
+      next.add(expandedProviderId)
+      return next
+    })
+  }, [expandedProviderId, groups])
+
+  useEffect(() => {
+    if (!expandedProviderId || !expandedIds.has(expandedProviderId)) return
+    const element = groupElements.current.get(expandedProviderId)
+    if (!element) return
+    element.focus({ preventScroll: true })
+    element.scrollIntoView({
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+      block: 'nearest',
+    })
+  }, [expandedIds, expandedProviderId])
+
+  useEffect(() => {
+    const eligibleSources = groups
+      .flatMap(group => group.usageSources)
+      .filter(source =>
+        source.availability === 'queryable'
+        && source.queryPolicy !== 'metered'
+        && source.connection.kind !== 'none'
+        && (
+          source.capabilities.includes('balance')
+          || source.capabilities.includes('quota')
+        )
+      )
+    const sources = [...new Map(
+      eligibleSources.map(source => [source.sourceId, source]),
+    ).values()].sort((left, right) => left.sourceId.localeCompare(right.sourceId))
+    const sourceIds = sources.map(source => source.sourceId)
+    const signature = sources.map(source => [
+      source.sourceId,
+      source.connection.kind,
+      source.connection.credentialId ?? '',
+      source.connection.maskedValue ?? '',
+    ].join(':')).join('|')
+    const allCached = sourceIds.every(sourceId =>
+      snapshot.usageResults.some(result => result.sourceId === sourceId)
+    )
+    if (!signature) return
+    if (allCached) {
+      cachedSources.current = signature
+      queriedSources.current = signature
+      return
     }
-  }, [apiKeyProviders, selectedProviderId])
-
-  useEffect(() => {
-    if (createRequestToken === lastCreateRequestToken.current) return
-    lastCreateRequestToken.current = createRequestToken
-    setEditingKey(null)
-    setEditorOpen(true)
-  }, [createRequestToken])
+    const cacheWasInvalidated = cachedSources.current === signature
+    if (queriedSources.current === signature && !cacheWasInvalidated) return
+    if (cacheWasInvalidated) cachedSources.current = ''
+    queriedSources.current = signature
+    void providerManagementStore.querySources({
+      range: '7d',
+      timeZone: resolvedTimeZone(),
+      sourceIds,
+    }).catch(error => onError(fullErrorMessage(error)))
+  }, [groups, onError, snapshot.usageResults])
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockTick(value => value + 1), 1_000)
@@ -100,50 +157,32 @@ export function ApiKeyWorkspace({
 
   const orderedKeysByProvider = useMemo(() => {
     const result = new Map<ModelProviderID, DesktopApiKeySummary[]>()
-    for (const provider of apiKeyProviders) {
+    for (const group of groups) {
       result.set(
-        provider.providerID,
-        keys
-          .filter(key => key.providerId === provider.providerID)
-          .sort((left, right) => left.priority - right.priority || left.createdAt - right.createdAt),
+        group.provider.providerID,
+        [...group.apiKeys].sort(
+          (left, right) =>
+            left.priority - right.priority || left.createdAt - right.createdAt,
+        ),
       )
     }
     return result
-  }, [apiKeyProviders, keys])
+  }, [groups])
 
-  const groups = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    return apiKeyProviders
-      .filter(provider => providerFilter === 'all' || provider.providerID === providerFilter)
-      .map(provider => ({
-        provider,
-        keys: (orderedKeysByProvider.get(provider.providerID) ?? []).filter(key => {
-          if (healthFilter !== 'all' && key.health.status !== healthFilter) return false
-          if (!normalized) return true
-          return `${key.label} ${key.maskedValue} ${HEALTH_LABELS[key.health.status]}`
-            .toLowerCase()
-            .includes(normalized)
-        }),
-      }))
-      .filter(group => group.keys.length > 0)
-  }, [apiKeyProviders, healthFilter, orderedKeysByProvider, providerFilter, query])
-
-  async function refresh(): Promise<DesktopApiKeySummary[]> {
-    const next = await desktopClient.listApiKeys()
-    await onChanged(next)
-    return next
-  }
-
-  async function mutate(id: string, action: () => Promise<void>, success: string): Promise<boolean> {
+  async function mutate(
+    id: string,
+    action: () => Promise<void>,
+    success: string,
+  ): Promise<boolean> {
     setBusyId(id)
     try {
       await action()
-      await refresh()
+      queriedSources.current = ''
+      cachedSources.current = ''
       onNotice(success)
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
       return true
     } catch (error) {
-      await refresh().catch(() => undefined)
       onError(fullErrorMessage(error))
       return false
     } finally {
@@ -154,12 +193,10 @@ export function ApiKeyWorkspace({
   async function testKey(key: DesktopApiKeySummary): Promise<void> {
     setBusyId(key.id)
     try {
-      const result = await desktopClient.testApiKey(key.id)
-      await refresh()
+      const result = await providerManagementStore.testApiKey(key.id)
       onNotice(result.message ?? (result.ok ? 'API Key 可用。' : 'API Key 测试失败。'))
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
     } catch (error) {
-      await refresh().catch(() => undefined)
       onError(error instanceof Error ? error.message : 'API Key 测试失败，请稍后重试。')
     } finally {
       setBusyId(null)
@@ -169,23 +206,24 @@ export function ApiKeyWorkspace({
   async function saveEditor(value: ApiKeyEditorValue): Promise<boolean> {
     if (editingKey) {
       const replacement = value.key?.trim()
-      return mutate(editingKey.id, () => desktopClient.updateApiKey({
+      return mutate(editingKey.id, () => providerManagementStore.updateApiKey({
         credentialId: editingKey.id,
         ...(value.label !== editingKey.label ? { label: value.label } : {}),
         ...(replacement ? { key: replacement } : {}),
       }), replacement ? 'API Key 已更换，健康状态已重置。' : '名称已更新。')
     }
     if (!value.key) return false
-    const saved = await mutate('create', () => desktopClient.createApiKey({
+    return mutate('create', () => providerManagementStore.createApiKey({
       providerId: value.providerId,
       label: value.label,
-      key: value.key as string,
+      key: value.key,
     }), 'API Key 已安全保存。')
-    if (saved) onSelectedProviderIdChange(value.providerId)
-    return saved
   }
 
-  async function moveKey(key: DesktopApiKeySummary, offset: -1 | 1): Promise<void> {
+  async function moveKey(
+    key: DesktopApiKeySummary,
+    offset: -1 | 1,
+  ): Promise<void> {
     const providerKeys = orderedKeysByProvider.get(key.providerId) ?? []
     const index = providerKeys.findIndex(item => item.id === key.id)
     const target = index + offset
@@ -194,10 +232,14 @@ export function ApiKeyWorkspace({
     const [item] = ordered.splice(index, 1)
     if (!item) return
     ordered.splice(target, 0, item)
-    await mutate(key.id, () => desktopClient.reorderApiKeys(
-      key.providerId,
-      ordered.map(candidate => candidate.id),
-    ), '接管优先级已更新。')
+    await mutate(
+      key.id,
+      () => providerManagementStore.reorderApiKeys(
+        key.providerId,
+        ordered.map(candidate => candidate.id),
+      ),
+      '接管优先级已更新。',
+    )
   }
 
   async function copyKey(key: DesktopApiKeySummary): Promise<void> {
@@ -212,164 +254,78 @@ export function ApiKeyWorkspace({
     }
   }
 
-  function openCreate(): void {
+  function openCreate(providerId: ModelProviderID): void {
     setEditingKey(null)
-    setEditorOpen(true)
+    setEditorProviderId(providerId)
   }
 
   function openEdit(key: DesktopApiKeySummary): void {
     setEditingKey(key)
-    setEditorOpen(true)
+    setEditorProviderId(key.providerId)
   }
 
+  const editorProvider = editorProviderId
+    ? snapshot.providers.find(provider => provider.providerID === editorProviderId)
+    : undefined
   const deleteConfirmation = deleteKey
     ? getApiKeyDeleteConfirmation(
         deleteKey,
-        keys,
-        providers.find(provider => provider.providerID === deleteKey.providerId)?.displayName,
+        [...snapshot.apiKeys],
+        snapshot.providers.find(
+          provider => provider.providerID === deleteKey.providerId,
+        )?.displayName,
       )
     : null
 
   return (
-    <section className="model-center-key-workspace" aria-label="API Keys">
-      <div className="model-center-key-toolbar">
-        <SettingsDropdown
-          ariaLabel="筛选 Provider"
-          searchable
-          searchPlaceholder="搜索 Provider"
-          width="var(--radix-select-trigger-width)"
-          value={providerFilter}
-          options={[
-            { value: 'all', label: '全部 Provider' },
-            ...apiKeyProviders.map(provider => ({
-              value: provider.providerID,
-              label: provider.displayName,
-              detail: provider.providerID,
-            })),
-          ]}
-          onChange={value => {
-            setProviderFilter(value)
-            if (value !== 'all') onSelectedProviderIdChange(value as ModelProviderID)
-          }}
-        />
-        <Input
-          aria-label="搜索 API Key"
-          placeholder="搜索名称或尾号"
-          value={query}
-          onChange={event => setQuery(event.target.value)}
-        />
-        <SettingsDropdown
-          ariaLabel="筛选健康状态"
-          width="var(--radix-select-trigger-width)"
-          value={healthFilter}
-          options={[
-            { value: 'all', label: '全部状态' },
-            ...Object.entries(HEALTH_LABELS).map(([value, label]) => ({ value, label })),
-          ]}
-          onChange={value => setHealthFilter(value as HealthFilter)}
-        />
-        <Button disabled={!defaultProviderId} onClick={openCreate}>
-          <Plus aria-hidden /> 新增 Key
-        </Button>
-      </div>
-
+    <section className="model-center-key-workspace" aria-label="账户连接">
       <div className="model-center-key-groups">
         {groups.length === 0 ? (
-          <div className="model-center-empty-state">
-            <KeyRound aria-hidden />
-            <strong>暂无匹配的 API Key</strong>
-            <span>调整筛选条件，或添加第一条密钥。</span>
-          </div>
-        ) : groups.map(({ provider, keys: visibleKeys }) => {
-          const providerKeys = orderedKeysByProvider.get(provider.providerID) ?? []
-          const enabledCount = providerKeys.filter(key => key.enabled).length
+          <AccountWorkspaceEmptyState onOpenCatalog={onOpenCatalog} />
+        ) : groups.map(group => {
+          const providerId = group.provider.providerID
+          const providerKeys = orderedKeysByProvider.get(providerId) ?? []
+          const expanded = expandedIds.has(providerId)
           return (
-            <section className="model-center-key-group" key={provider.providerID}>
-              <header className="model-center-key-group-header">
-                <div>
-                  {provider.logoURL ? (
-                    <RemoteImage
-                      alt=""
-                      className="model-center-provider-logo"
-                      fallback={<KeyRound aria-hidden />}
-                      src={provider.logoURL}
-                    />
-                  ) : <KeyRound aria-hidden />}
-                  <strong>{provider.displayName}</strong>
-                </div>
-                <span>{providerKeys.length} 条</span>
-              </header>
-              <div className="model-center-key-list">
-                {visibleKeys.map(key => {
-                  const index = providerKeys.findIndex(item => item.id === key.id)
-                  const onlyAvailableActive = key.active && key.enabled && enabledCount === 1
-                  return (
-                    <article className="model-center-key-row" data-disabled={!key.enabled || undefined} key={key.id}>
-                      <div className="model-center-key-order">
-                        <IconButton
-                          title={`上移 ${key.label}`}
-                          disabled={busyId !== null || index <= 0}
-                          onClick={() => void moveKey(key, -1)}
-                        ><ArrowUp aria-hidden /></IconButton>
-                        <IconButton
-                          title={`下移 ${key.label}`}
-                          disabled={busyId !== null || index === providerKeys.length - 1}
-                          onClick={() => void moveKey(key, 1)}
-                        ><ArrowDown aria-hidden /></IconButton>
-                      </div>
-                      <div className="model-center-key-main">
-                        <div className="model-center-key-title">
-                          <strong>{key.label}</strong>
-                          <code>{key.maskedValue}</code>
-                          <span className="model-center-key-badge" data-tone={key.active ? 'active' : 'neutral'}>
-                            {key.active ? '当前' : `备用 #${index + 1}`}
-                          </span>
-                          {!key.enabled ? <span className="model-center-key-badge" data-tone="warning">停用</span> : null}
-                          <span className="model-center-key-badge" data-tone={healthTone(key.health.status)}>
-                            {healthText(key)}
-                          </span>
-                        </div>
-                        <div className="model-center-key-meta">
-                          <span>优先级 {key.priority + 1}</span>
-                          <span>最近测试 {formatTime(key.health.lastTestedAt)}</span>
-                          <span>最近使用 {formatTime(key.health.lastUsedAt)}</span>
-                        </div>
-                      </div>
-                      <div className="model-center-key-actions">
-                        <Button disabled={busyId !== null} onClick={() => void copyKey(key)}>
-                          <Copy aria-hidden /> 复制
-                        </Button>
-                        <Button
-                          disabled={busyId !== null}
-                          title="测试会产生极少量费用"
-                          onClick={() => void testKey(key)}
-                        >测试</Button>
-                        <Dropdown
-                          align="end"
-                          trigger={(
-                            <IconButton title={`更多 ${key.label}`} disabled={busyId !== null}>
-                              <MoreHorizontal aria-hidden />
-                            </IconButton>
-                          )}
-                          width={190}
-                        >
-                          <PopoverItem
-                            disabled={key.active || !key.enabled || key.health.status === 'auth-failed'}
-                            onClick={() => void mutate(key.id, () => desktopClient.setActiveApiKey(key.providerId, key.id), '当前 API Key 已切换。')}
-                          >设为当前</PopoverItem>
-                          <PopoverItem
-                            disabled={onlyAvailableActive}
-                            onClick={() => void mutate(key.id, () => desktopClient.setApiKeyEnabled(key.id, !key.enabled), key.enabled ? 'API Key 已停用。' : 'API Key 已启用。')}
-                          >{key.enabled ? '停用' : '启用'}</PopoverItem>
-                          <PopoverItem onClick={() => openEdit(key)}>编辑 / 更换 Key</PopoverItem>
-                          <PopoverItem onClick={() => setDeleteKey(key)}>删除</PopoverItem>
-                        </Dropdown>
-                      </div>
-                    </article>
-                  )
-                })}
-              </div>
-            </section>
+            <AccountProviderGroup
+              expanded={expanded}
+              group={group}
+              key={providerId}
+              summary={buildAccountGroupSummary(group, snapshot.usageResults)}
+              containerRef={element => {
+                if (element) groupElements.current.set(providerId, element)
+                else groupElements.current.delete(providerId)
+              }}
+              onOpenProvider={() => onOpenProvider(providerId)}
+              onOpenUsage={() => onOpenUsage(providerId)}
+              onToggle={() => {
+                setExpandedIds(current => {
+                  const next = new Set(current)
+                  if (next.has(providerId)) next.delete(providerId)
+                  else next.add(providerId)
+                  return next
+                })
+              }}
+            >
+              <ProviderConnectionContents
+                busyId={busyId}
+                group={group}
+                integrations={snapshot.integrations}
+                keys={providerKeys}
+                onCopyKey={copyKey}
+                onDeleteKey={setDeleteKey}
+                onEditKey={openEdit}
+                onMoveKey={moveKey}
+                onMutate={mutate}
+                onNewKey={() => openCreate(providerId)}
+                onRefresh={async () => {
+                  queriedSources.current = ''
+                  cachedSources.current = ''
+                  await providerManagementStore.refreshConnections()
+                }}
+                onTestKey={testKey}
+              />
+            </AccountProviderGroup>
           )
         })}
       </div>
@@ -377,12 +333,13 @@ export function ApiKeyWorkspace({
       <ApiKeyEditorDialog
         apiKey={editingKey}
         busy={busyId !== null}
-        initialProviderId={defaultProviderId ?? selectedProviderId}
-        open={editorOpen}
-        providers={apiKeyProviders}
+        initialProviderId={editorProviderId ?? snapshot.providers[0]?.providerID ?? 'openai'}
+        open={editorProviderId !== null}
+        providers={editorProvider ? [editorProvider] : []}
         onOpenChange={open => {
-          setEditorOpen(open)
-          if (!open) setEditingKey(null)
+          if (open) return
+          setEditorProviderId(null)
+          setEditingKey(null)
         }}
         onSubmit={saveEditor}
       />
@@ -397,8 +354,13 @@ export function ApiKeyWorkspace({
         onAction={() => {
           if (!deleteKey) return
           const target = deleteKey
-          void mutate(target.id, () => desktopClient.deleteApiKey(target.id), 'API Key 已删除。')
-            .then(success => { if (success) setDeleteKey(null) })
+          void mutate(
+            target.id,
+            () => providerManagementStore.deleteApiKey(target.id),
+            'API Key 已删除。',
+          ).then(success => {
+            if (success) setDeleteKey(null)
+          })
         }}
         onCancel={() => setDeleteKey(null)}
       />
@@ -406,7 +368,337 @@ export function ApiKeyWorkspace({
   )
 }
 
-function healthTone(status: DesktopApiKeyHealthStatus): 'healthy' | 'neutral' | 'warning' {
+export function AccountWorkspaceEmptyState({
+  onOpenCatalog,
+}: {
+  onOpenCatalog: () => void
+}): React.ReactNode {
+  return (
+    <div className="model-center-empty-state">
+      <Cable aria-hidden />
+      <strong>尚未连接任何供应商</strong>
+      <span>先从供应商目录选择服务，再添加推理 Key 或完成 OAuth 授权。</span>
+      <Button onClick={onOpenCatalog}>前往供应商</Button>
+    </div>
+  )
+}
+
+type ProviderConnectionContentsProps = {
+  busyId: string | null
+  group: ConfiguredProviderGroup
+  integrations: ReturnType<typeof useProviderManagementSnapshot>['integrations']
+  keys: readonly DesktopApiKeySummary[]
+  onCopyKey: (key: DesktopApiKeySummary) => Promise<void>
+  onDeleteKey: (key: DesktopApiKeySummary) => void
+  onEditKey: (key: DesktopApiKeySummary) => void
+  onMoveKey: (key: DesktopApiKeySummary, offset: -1 | 1) => Promise<void>
+  onMutate: (
+    id: string,
+    action: () => Promise<void>,
+    success: string,
+  ) => Promise<boolean>
+  onNewKey: () => void
+  onRefresh: () => Promise<void>
+  onTestKey: (key: DesktopApiKeySummary) => Promise<void>
+}
+
+function ProviderConnectionContents({
+  busyId,
+  group,
+  integrations,
+  keys,
+  onCopyKey,
+  onDeleteKey,
+  onEditKey,
+  onMoveKey,
+  onMutate,
+  onNewKey,
+  onRefresh,
+  onTestKey,
+}: ProviderConnectionContentsProps): React.ReactNode {
+  const oauthMethod = group.integration?.methods.find(
+    method => method.type === 'oauth',
+  )
+  const supportsInferenceKeys =
+    group.provider.kind !== 'github-copilot' && !oauthMethod
+  const enabledCount = keys.filter(key => key.enabled).length
+  const renderedOAuthIntegrationIds = new Set<string>()
+  if (oauthMethod && group.integration) renderedOAuthIntegrationIds.add(group.integration.id)
+
+  return (
+    <>
+      {supportsInferenceKeys ? (
+        <section className="model-center-account-section">
+          <header>
+            <div>
+              <h3>推理 API Keys</h3>
+              <p>活动 Key 用于当前请求，其余已启用 Key 按优先级接管。</p>
+            </div>
+            <Button onClick={onNewKey}>
+              <Plus aria-hidden />
+              新增 Key
+            </Button>
+          </header>
+          {keys.length > 0 ? (
+            <div className="model-center-key-list">
+              {keys.map((key, index) => {
+                const onlyAvailableActive =
+                  key.active && key.enabled && enabledCount === 1
+                return (
+                  <ApiKeyRow
+                    busy={busyId !== null}
+                    index={index}
+                    key={key.id}
+                    keyItem={key}
+                    last={index === keys.length - 1}
+                    onlyAvailableActive={onlyAvailableActive}
+                    onCopy={() => void onCopyKey(key)}
+                    onDelete={() => onDeleteKey(key)}
+                    onEdit={() => onEditKey(key)}
+                    onMove={offset => void onMoveKey(key, offset)}
+                    onSetActive={() => void onMutate(
+                      key.id,
+                      () => providerManagementStore.setActiveApiKey(
+                        key.providerId,
+                        key.id,
+                      ),
+                      '当前 API Key 已切换。',
+                    )}
+                    onTest={() => void onTestKey(key)}
+                    onToggleEnabled={() => void onMutate(
+                      key.id,
+                      () => providerManagementStore.setApiKeyEnabled(
+                        key.id,
+                        !key.enabled,
+                      ),
+                      key.enabled ? 'API Key 已停用。' : 'API Key 已启用。',
+                    )}
+                  />
+                )
+              })}
+            </div>
+          ) : (
+            <p className="model-center-account-section-empty">
+              当前连接来自环境变量或账务凭据，尚未保存推理 Key。
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      {oauthMethod && group.integration ? (
+        <OAuthConnection
+          connected={group.integration.connections.some(
+            connection => connection.type === 'credential',
+          )}
+          description="此授权用于模型推理；令牌由 Agent 加密保存。"
+          integration={group.integration}
+          title={oauthMethod.label}
+          onChanged={onRefresh}
+        />
+      ) : null}
+
+      {group.usageSources.map(source => {
+        if (source.connectionMethod.kind === 'billing-key') {
+          return (
+            <BillingCredentialConnection
+              key={source.sourceId}
+              source={{
+                ...source,
+                connectionMethod: source.connectionMethod,
+              }}
+              onChanged={onRefresh}
+              onConnect={input =>
+                providerManagementStore.connectUsageCredential(input)
+              }
+              onDisconnect={sourceId =>
+                providerManagementStore.disconnectUsageCredential({ sourceId })
+              }
+            />
+          )
+        }
+        if (source.connectionMethod.kind === 'oauth') {
+          const integrationId = String(source.connectionMethod.integrationId)
+          if (renderedOAuthIntegrationIds.has(integrationId)) return null
+          renderedOAuthIntegrationIds.add(integrationId)
+          const integration = integrations.find(
+            item => String(item.id) === integrationId,
+          )
+          if (!integration) return null
+          return (
+            <OAuthConnection
+              connected={source.connection.kind !== 'none'}
+              description={
+                source.scope === 'subscription'
+                  ? '独立订阅授权仅用于读取套餐额度，不会成为 Anthropic 推理凭据。'
+                  : '此授权仅用于读取账户用量。'
+              }
+              integration={integration}
+              key={source.sourceId}
+              title={source.displayName}
+              onChanged={onRefresh}
+            />
+          )
+        }
+        return null
+      })}
+
+      <ReadOnlyConnections group={group} />
+    </>
+  )
+}
+
+function ReadOnlyConnections({
+  group,
+}: {
+  group: ConfiguredProviderGroup
+}): React.ReactNode {
+  const connections = group.connections.filter(
+    connection => connection.kind === 'env',
+  )
+  if (connections.length === 0) return null
+  return (
+    <section className="model-center-account-section">
+      <header>
+        <div>
+          <h3>环境连接</h3>
+          <p>这些凭据由运行环境提供，不会在页面中回显或修改。</p>
+        </div>
+      </header>
+      <div className="model-center-account-readonly-list">
+        {connections.map(connection => (
+          <div key={connection.id}>
+            <Cable aria-hidden />
+            <span>{connection.label}</span>
+            <strong>已连接</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+type ApiKeyRowProps = {
+  busy: boolean
+  index: number
+  keyItem: DesktopApiKeySummary
+  last: boolean
+  onlyAvailableActive: boolean
+  onCopy: () => void
+  onDelete: () => void
+  onEdit: () => void
+  onMove: (offset: -1 | 1) => void
+  onSetActive: () => void
+  onTest: () => void
+  onToggleEnabled: () => void
+}
+
+function ApiKeyRow({
+  busy,
+  index,
+  keyItem,
+  last,
+  onlyAvailableActive,
+  onCopy,
+  onDelete,
+  onEdit,
+  onMove,
+  onSetActive,
+  onTest,
+  onToggleEnabled,
+}: ApiKeyRowProps): React.ReactNode {
+  return (
+    <article
+      className="model-center-key-row"
+      data-disabled={!keyItem.enabled || undefined}
+    >
+      <div className="model-center-key-order">
+        <IconButton
+          disabled={busy || index <= 0}
+          onClick={() => onMove(-1)}
+          title={`上移 ${keyItem.label}`}
+        >
+          <ArrowUp aria-hidden />
+        </IconButton>
+        <IconButton
+          disabled={busy || last}
+          onClick={() => onMove(1)}
+          title={`下移 ${keyItem.label}`}
+        >
+          <ArrowDown aria-hidden />
+        </IconButton>
+      </div>
+      <div className="model-center-key-main">
+        <div className="model-center-key-title">
+          <strong>{keyItem.label}</strong>
+          <code>{keyItem.maskedValue}</code>
+          <span
+            className="model-center-key-badge"
+            data-tone={keyItem.active ? 'active' : 'neutral'}
+          >
+            {keyItem.active ? '当前' : `备用 #${index + 1}`}
+          </span>
+          {!keyItem.enabled ? (
+            <span className="model-center-key-badge" data-tone="warning">
+              停用
+            </span>
+          ) : null}
+          <span
+            className="model-center-key-badge"
+            data-tone={healthTone(keyItem.health.status)}
+          >
+            {healthText(keyItem)}
+          </span>
+        </div>
+        <div className="model-center-key-meta">
+          <span>优先级 {keyItem.priority + 1}</span>
+          <span>最近测试 {formatTime(keyItem.health.lastTestedAt)}</span>
+          <span>最近使用 {formatTime(keyItem.health.lastUsedAt)}</span>
+        </div>
+      </div>
+      <div className="model-center-key-actions">
+        <Button disabled={busy} onClick={onCopy}>
+          <Copy aria-hidden />
+          复制
+        </Button>
+        <Button disabled={busy} onClick={onTest} title="测试会产生极少量费用">
+          测试
+        </Button>
+        <Dropdown
+          align="end"
+          trigger={(
+            <IconButton disabled={busy} title={`更多 ${keyItem.label}`}>
+              <MoreHorizontal aria-hidden />
+            </IconButton>
+          )}
+          width={190}
+        >
+          <PopoverItem
+            disabled={
+              keyItem.active
+              || !keyItem.enabled
+              || keyItem.health.status === 'auth-failed'
+            }
+            onClick={onSetActive}
+          >
+            设为当前
+          </PopoverItem>
+          <PopoverItem
+            disabled={onlyAvailableActive}
+            onClick={onToggleEnabled}
+          >
+            {keyItem.enabled ? '停用' : '启用'}
+          </PopoverItem>
+          <PopoverItem onClick={onEdit}>编辑 / 更换 Key</PopoverItem>
+          <PopoverItem onClick={onDelete}>删除</PopoverItem>
+        </Dropdown>
+      </div>
+    </article>
+  )
+}
+
+function healthTone(
+  status: DesktopApiKeyHealthStatus,
+): 'healthy' | 'neutral' | 'warning' {
   if (status === 'healthy') return 'healthy'
   if (status === 'untested') return 'neutral'
   return 'warning'
@@ -421,5 +713,12 @@ function healthText(key: DesktopApiKeySummary): string {
 
 function formatTime(value: number | undefined): string {
   if (!value) return '暂无'
-  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(value)
+  return new Intl.DateTimeFormat('zh-CN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(value)
+}
+
+function resolvedTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
 }

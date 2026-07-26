@@ -19,6 +19,8 @@ const context = (
   providers: [],
   credential: async () => credential,
   billingCredential: async () => credential,
+  connection: async () => credential.connection,
+  billingConnection: async () => credential.connection,
   request: async (url, init) => {
     onRequest?.(url, init)
     return response

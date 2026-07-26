@@ -61,6 +61,27 @@ export function formatAmount(currency: string, amount: string): string {
   return `${currency} ${amount}`
 }
 
+export function sumDecimalAmounts(values: readonly string[]): string {
+  let scale = 0
+  const parsed = values.map(value => {
+    const [integer = '0', fraction = ''] = value.split('.')
+    scale = Math.max(scale, fraction.length)
+    return { integer, fraction }
+  })
+  if (parsed.length === 0) return '0'
+  const factor = 10n ** BigInt(scale)
+  const total = parsed.reduce((sum, value) => {
+    const integer = BigInt(value.integer || '0') * factor
+    const fraction = BigInt(value.fraction.padEnd(scale, '0') || '0')
+    return sum + integer + fraction
+  }, 0n)
+  if (scale === 0) return total.toString()
+  const raw = total.toString().padStart(scale + 1, '0')
+  const whole = raw.slice(0, -scale)
+  const fraction = raw.slice(-scale).replace(/0+$/, '')
+  return fraction ? `${whole}.${fraction}` : whole
+}
+
 export function formatDuration(milliseconds: number): string {
   const totalMinutes = Math.max(1, Math.ceil(milliseconds / 60_000))
   if (totalMinutes < 60) return `${totalMinutes} 分钟`

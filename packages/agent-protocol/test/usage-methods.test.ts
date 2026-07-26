@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { Provider } from "@codepilotx/model-schema"
+import { Integration, Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import {
   BillingCredentialInputSchema,
   LocalUsageResultSchema,
   ProviderUsageSourceSchema,
   RpcMethods,
+  UsageSourceDescriptorSchema,
 } from "../src/methods/index"
 
 const decodeExactParams = <M extends keyof typeof RpcMethods>(method: M, value: unknown) =>
@@ -34,6 +35,49 @@ const emptyLocalResult = {
 } as const
 
 describe("usage RPC method contracts", () => {
+  test("keeps source catalog params and result exact", () => {
+    expect(decodeExactParams("usage/source/list", {})).toEqual({})
+    expect(() => decodeExactParams("usage/source/list", { force: true })).toThrow()
+
+    const providerId = Provider.ID.make("provider:fixture")
+    const descriptor = {
+      sourceId: "openai-admin",
+      canonicalProviderId: providerId,
+      providerIds: [providerId],
+      displayName: "OpenAI Admin",
+      scope: "organization",
+      stability: "official",
+      availability: "queryable",
+      capabilities: ["usage", "cost"],
+      queryPolicy: "cached",
+      connection: { kind: "none", disconnectible: false },
+      connectionMethod: {
+        kind: "billing-key",
+        sourceId: "openai-admin",
+        fields: [{ name: "key", label: "Admin Key", secret: true, required: true }],
+      },
+    } as const
+    expect(Schema.decodeUnknownSync(UsageSourceDescriptorSchema, {
+      onExcessProperty: "error",
+    })(descriptor)).toEqual(descriptor)
+    expect(() => Schema.decodeUnknownSync(UsageSourceDescriptorSchema, {
+      onExcessProperty: "error",
+    })({ ...descriptor, envNames: ["OPENAI_ADMIN_KEY"] })).toThrow()
+    expect(() => Schema.decodeUnknownSync(UsageSourceDescriptorSchema)({
+      ...descriptor,
+      connectionMethod: { kind: "external", consoleUrl: "http://unsafe.example" },
+    })).toThrow()
+    expect(Schema.decodeUnknownSync(UsageSourceDescriptorSchema)({
+      ...descriptor,
+      sourceId: "anthropic-subscription",
+      connectionMethod: {
+        kind: "oauth",
+        integrationId: Integration.ID.make("usage.anthropic.subscription"),
+        methodId: Integration.MethodID.make("claude-subscription-browser"),
+      },
+    }).connectionMethod.kind).toBe("oauth")
+  })
+
   test("accepts valid ranges and IANA time zones", () => {
     expect(decodeExactParams("usage/local/get", {
       range: "all",
@@ -45,12 +89,19 @@ describe("usage RPC method contracts", () => {
     expect(decodeExactParams("usage/provider/query", {
       range: "today",
       timeZone: "Asia/Shanghai",
+      sourceIds: ["deepseek"],
       force: true,
     })).toEqual({
       range: "today",
       timeZone: "Asia/Shanghai",
+      sourceIds: ["deepseek"],
       force: true,
     })
+    expect(() => decodeExactParams("usage/provider/query", {
+      range: "7d",
+      timeZone: "UTC",
+      sourceIds: [],
+    })).toThrow()
   })
 
   test("rejects unknown or sensitive query params", () => {

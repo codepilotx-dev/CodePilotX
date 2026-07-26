@@ -1,4 +1,4 @@
-import { Credential, Model, Provider } from "@codepilotx/model-schema"
+import { Credential, Integration, Model, Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
 import { OperationParamsSchema, TimestampSchema } from "../wire/primitives"
@@ -31,6 +31,17 @@ const DecimalAmountSchema = Schema.String.check(
 const CurrencySchema = Schema.String.check(
   Schema.isMinLength(1),
   Schema.isMaxLength(16),
+)
+const HttpsUrlSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(2048),
+  Schema.makeFilter((value) => {
+    try {
+      return new URL(value).protocol === "https:"
+    } catch {
+      return false
+    }
+  }, { expected: "an HTTPS URL" }),
 )
 
 const isCalendarDate = (value: string): boolean => {
@@ -65,6 +76,12 @@ export const UsageTimeZoneSchema = Schema.String.check(
 )
 
 export const UsageDecimalAmountSchema = DecimalAmountSchema
+const UsageSourceListParamsSchema = Schema.Struct({}).check(
+  Schema.makeFilter(
+    (value) => Object.keys(value).length === 0,
+    { expected: "an empty object" },
+  ),
+)
 
 const UsageCostSchema = Schema.Struct({
   currency: CurrencySchema,
@@ -146,7 +163,7 @@ export const ModelOrToolUsageSchema = Schema.Struct({
   costs: Schema.optional(Schema.Array(UsageCostSchema)),
 })
 
-const ProviderUsageConnectionSchema = Schema.Struct({
+export const ProviderUsageConnectionSchema = Schema.Struct({
   kind: Schema.Literals(["provider-key", "billing-key", "oauth", "env", "none"]),
   credentialId: Schema.optional(Credential.ID),
   maskedValue: Schema.optional(NonEmptyStringSchema),
@@ -232,6 +249,67 @@ export const BillingCredentialSourceIdSchema = Schema.Literals([
   "cloudflare-ai-gateway",
 ])
 
+export const UsageSourceIdSchema = NonEmptyStringSchema
+
+export const UsageSourceCapabilitySchema = Schema.Literals([
+  "balance",
+  "quota",
+  "usage",
+  "cost",
+])
+
+export const UsageCredentialFieldSchema = Schema.Struct({
+  name: Schema.Literals(["key", "teamId", "accountId"]),
+  label: NonEmptyStringSchema,
+  secret: Schema.Boolean,
+  required: Schema.Boolean,
+})
+
+export const UsageConnectionMethodSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("provider-credential"),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("billing-key"),
+    sourceId: BillingCredentialSourceIdSchema,
+    fields: Schema.Array(UsageCredentialFieldSchema).check(
+      Schema.isMinLength(1),
+      Schema.isMaxLength(3),
+    ),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("oauth"),
+    integrationId: Integration.ID,
+    methodId: Integration.MethodID,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("external"),
+    consoleUrl: HttpsUrlSchema,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("none"),
+  }),
+])
+
+export const UsageSourceDescriptorSchema = Schema.Struct({
+  sourceId: UsageSourceIdSchema,
+  canonicalProviderId: Provider.ID,
+  providerIds: Schema.Array(Provider.ID).check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(100),
+  ),
+  displayName: NonEmptyStringSchema,
+  scope: Schema.Literals(["api-key", "account", "organization", "subscription"]),
+  stability: Schema.Literals(["official", "experimental"]),
+  availability: Schema.Literals(["queryable", "unsupported"]),
+  capabilities: Schema.Array(UsageSourceCapabilitySchema).check(
+    Schema.isMaxLength(4),
+  ),
+  queryPolicy: Schema.Literals(["cached", "metered"]),
+  connection: ProviderUsageConnectionSchema,
+  connectionMethod: UsageConnectionMethodSchema,
+})
+
 const SimpleBillingCredentialInputSchema = Schema.Struct({
   sourceId: Schema.Literals(["openai-admin", "anthropic-admin", "openrouter-management"]),
   key: NonBlankCredentialFieldSchema,
@@ -264,6 +342,18 @@ const BillingCredentialConnectionResultSchema = Schema.Struct({
 })
 
 export const UsageRpcMethods = {
+  "usage/source/list": defineMethod({
+    params: UsageSourceListParamsSchema,
+    result: Schema.Struct({
+      sources: Schema.Array(UsageSourceDescriptorSchema),
+    }),
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+
   "usage/local/get": defineMethod({
     params: Schema.Struct({
       range: Schema.Literals(["7d", "30d", "all"]),
@@ -283,6 +373,12 @@ export const UsageRpcMethods = {
       timeZone: UsageTimeZoneSchema,
       providerIds: Schema.optional(
         Schema.Array(Provider.ID).check(
+          Schema.isMinLength(1),
+          Schema.isMaxLength(100),
+        ),
+      ),
+      sourceIds: Schema.optional(
+        Schema.Array(UsageSourceIdSchema).check(
           Schema.isMinLength(1),
           Schema.isMaxLength(100),
         ),
@@ -338,5 +434,10 @@ export type LocalUsageResult = Schema.Schema.Type<typeof LocalUsageResultSchema>
 export type DailyUsagePoint = Schema.Schema.Type<typeof DailyUsagePointSchema>
 export type ModelOrToolUsage = Schema.Schema.Type<typeof ModelOrToolUsageSchema>
 export type ProviderUsageSource = Schema.Schema.Type<typeof ProviderUsageSourceSchema>
+export type ProviderUsageConnection = Schema.Schema.Type<typeof ProviderUsageConnectionSchema>
 export type BillingCredentialSourceId = Schema.Schema.Type<typeof BillingCredentialSourceIdSchema>
 export type BillingCredentialInput = Schema.Schema.Type<typeof BillingCredentialInputSchema>
+export type UsageSourceCapability = Schema.Schema.Type<typeof UsageSourceCapabilitySchema>
+export type UsageCredentialField = Schema.Schema.Type<typeof UsageCredentialFieldSchema>
+export type UsageConnectionMethod = Schema.Schema.Type<typeof UsageConnectionMethodSchema>
+export type UsageSourceDescriptor = Schema.Schema.Type<typeof UsageSourceDescriptorSchema>

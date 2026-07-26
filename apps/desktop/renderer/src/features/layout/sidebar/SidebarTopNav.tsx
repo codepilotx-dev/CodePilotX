@@ -55,7 +55,7 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     view: "models",
-    label: "模型中心",
+    label: "供应商",
     icon: <BrainCircuit size={APP_ICON_SIZE} />,
     path: "/models",
   },

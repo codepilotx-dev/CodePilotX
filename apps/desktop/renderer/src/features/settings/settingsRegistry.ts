@@ -178,13 +178,13 @@ export const SETTINGS_GROUPS = [
       {
         id: 'billing',
         routeId: 'billing',
-        label: '使用情况和计费',
-        description: '本机模型消耗、厂商余额、成本与套餐额度',
+        label: '用量与成本',
+        description: '本机模型消耗与已连接账户的历史用量、成本分析',
         icon: CreditCard,
         rows: [
           row('应用用量', '查看本机 Token、任务、成本与模型趋势'),
-          row('账户与套餐', '查询多厂商余额、组织用量和额度窗口'),
-          row('独立计费凭据', '连接管理 API 或 Claude 订阅授权'),
+          row('账户用量与成本', '分析已连接厂商的远端 Token、请求和成本趋势'),
+          row('账户连接', '余额、套餐和计费凭据统一前往账户连接管理'),
         ],
       },
     ],

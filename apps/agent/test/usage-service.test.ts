@@ -9,6 +9,7 @@ import { ApiKeyService } from "../src/provider/ApiKeyService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { UsageRepository } from "../src/storage/repositories/usage-repository"
 import { UsageService } from "../src/usage/UsageService"
+import { providerUsageAdapters } from "../src/usage/adapters"
 import { emptySource, type ProviderUsageAdapter } from "../src/usage/types"
 
 const roots: string[] = []
@@ -63,12 +64,19 @@ describe("UsageService", () => {
     let calls = 0
     const good: ProviderUsageAdapter = {
       sourceId: "good",
+      canonicalProviderId: "good",
       providerIds: ["good"],
       displayName: "Good",
       scope: "api-key",
       stability: "official",
+      availability: "queryable",
+      capabilities: ["usage"],
+      queryPolicy: "cached",
+      connectionMethod: { kind: "provider-credential" },
       cacheMs: 60_000,
       matches: () => false,
+      resolveCredential: async () => null,
+      resolveConnection: async () => ({ kind: "none", disconnectible: false }),
       query: async () => {
         calls += 1
         await Bun.sleep(5)
@@ -131,11 +139,18 @@ describe("UsageService", () => {
     let calls = 0
     const vercel: ProviderUsageAdapter = {
       sourceId: "vercel-ai-gateway",
+      canonicalProviderId: "vercel",
       providerIds: ["vercel"],
       displayName: "Vercel",
       scope: "account",
       stability: "official",
+      availability: "queryable",
+      capabilities: ["usage", "cost"],
+      queryPolicy: "metered",
+      connectionMethod: { kind: "provider-credential" },
       matches: () => false,
+      resolveCredential: async () => null,
+      resolveConnection: async () => ({ kind: "none", disconnectible: false }),
       query: async () => {
         calls += 1
         return { ...emptySource(vercel, "available"), checkedAt: 100 }
@@ -165,6 +180,84 @@ describe("UsageService", () => {
     expect(calls).toBe(2)
   })
 
+  test("sourceIds 与 providerIds 同时存在时取交集", async () => {
+    const { db, credentials } = await repository()
+    const selected = providerUsageAdapters.filter((adapter) =>
+      ["deepseek", "openrouter-key"].includes(adapter.sourceId))
+    const service = new UsageService(
+      new UsageRepository(db),
+      catalog as never,
+      integrations as never,
+      credentials,
+      { adapters: selected, env: {} },
+    )
+    expect((await service.providerUsage({
+      range: "7d",
+      timeZone: "UTC",
+      sourceIds: ["deepseek"],
+    })).sources.map((source) => source.sourceId)).toEqual(["deepseek"])
+    expect((await service.providerUsage({
+      range: "7d",
+      timeZone: "UTC",
+      providerIds: ["openrouter"],
+      sourceIds: ["deepseek"],
+    })).sources).toEqual([])
+  })
+
+  test("来源目录只解析本地连接状态且绝不触发外部请求或 OAuth 刷新", async () => {
+    const { db, credentials } = await repository()
+    let fetches = 0
+    let credentialRefreshes = 0
+    const service = new UsageService(
+      new UsageRepository(db),
+      {
+        ...catalog,
+        list: async () => [{
+          id: "deepseek",
+          integrationID: "deepseek",
+        }],
+      } as never,
+      {
+        ...integrations,
+        credentialSource: () => ({
+          get: async () => {
+            credentialRefreshes += 1
+            throw new Error("source list must not refresh credentials")
+          },
+        }),
+      } as never,
+      credentials,
+      {
+        adapters: providerUsageAdapters,
+        env: {},
+        fetch: async () => {
+          fetches += 1
+          throw new Error("source list must not fetch")
+        },
+      },
+    )
+    const result = await service.sourceList()
+    expect(result.sources.find((source) => source.sourceId === "deepseek")).toEqual(expect.objectContaining({
+      sourceId: "deepseek",
+      canonicalProviderId: "deepseek",
+      availability: "queryable",
+      capabilities: ["balance"],
+      queryPolicy: "cached",
+      connection: { kind: "none", disconnectible: false },
+      connectionMethod: { kind: "provider-credential" },
+    }))
+    expect(result.sources.find((source) => source.sourceId === "vercel-ai-gateway")).toEqual(
+      expect.objectContaining({ queryPolicy: "metered" }),
+    )
+    expect(result.sources.find((source) => source.sourceId === "anthropic-subscription")?.connectionMethod)
+      .toEqual(expect.objectContaining({ kind: "oauth" }))
+    expect(result.sources.find((source) => source.sourceId === "google-console")?.connectionMethod)
+      .toEqual(expect.objectContaining({ kind: "external" }))
+    expect(new Set(result.sources.map((source) => source.sourceId)).size).toBe(result.sources.length)
+    expect(fetches).toBe(0)
+    expect(credentialRefreshes).toBe(0)
+  })
+
   test("计费 Key 与 Team ID 只加密落库，并从推理 Key API 完全隔离", async () => {
     const { db, credentials } = await repository()
     const service = new UsageService(
@@ -172,7 +265,9 @@ describe("UsageService", () => {
       catalog as never,
       integrations as never,
       credentials,
-      { adapters: [] },
+      {
+        adapters: providerUsageAdapters.filter((adapter) => adapter.sourceId === "xai-management"),
+      },
     )
     const connected = await service.connect({
       sourceId: "xai-management",
@@ -204,6 +299,14 @@ describe("UsageService", () => {
     expect(await apiKeys.list()).toEqual([])
     await expect(apiKeys.copyMaterial(String(connected.connection.credentialId))).rejects.toThrow("未找到 API Key")
     await expect(apiKeys.setEnabled(String(connected.connection.credentialId), false)).rejects.toThrow("未找到 API Key")
+    expect((await service.sourceList()).sources[0]).toEqual(expect.objectContaining({
+      sourceId: "xai-management",
+      connection: expect.objectContaining({
+        kind: "billing-key",
+        credentialId: connected.connection.credentialId,
+        disconnectible: true,
+      }),
+    }))
     expect(await service.disconnect({ sourceId: "xai-management", operationId: "op-2" })).toEqual({
       sourceId: "xai-management",
       disconnected: true,

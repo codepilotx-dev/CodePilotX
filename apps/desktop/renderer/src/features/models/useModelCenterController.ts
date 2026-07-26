@@ -12,8 +12,11 @@ import type {
   DesktopModelProviderState,
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
-import { fullErrorMessage } from '../../utils/errors.js'
+import {
+  providerManagementStore,
+  useProviderManagementSnapshot,
+  type ProviderManagementSnapshot,
+} from '../provider-management/index.js'
 
 type Options = {
   onInitialProviderState: (state: DesktopModelProviderState) => void
@@ -28,6 +31,7 @@ export type ModelCenterController = {
   providerState: DesktopModelProviderState | null
   integrations: DesktopIntegration[]
   apiKeys: DesktopApiKeySummary[]
+  snapshot: ProviderManagementSnapshot
   setProviderState: Dispatch<SetStateAction<DesktopModelProviderState | null>>
   setApiKeys: Dispatch<SetStateAction<DesktopApiKeySummary[]>>
   refreshProviderContext: () => Promise<{
@@ -40,14 +44,16 @@ export function useModelCenterController({
   onInitialProviderState,
   onError,
 }: Options): ModelCenterController {
-  const [initialLoadState, setInitialLoadState] =
-    useState<ModelCenterInitialLoadState>('loading')
-  const [providers, setProviders] = useState<DesktopModelProviderSummary[]>([])
-  const [providerState, setProviderState] = useState<DesktopModelProviderState | null>(null)
-  const [integrations, setIntegrations] = useState<DesktopIntegration[]>([])
-  const [apiKeys, setApiKeys] = useState<DesktopApiKeySummary[]>([])
+  const snapshot = useProviderManagementSnapshot()
+  const [providerState, setProviderState] = useState<DesktopModelProviderState | null>(
+    snapshot.currentProviderState,
+  )
+  const [apiKeys, setApiKeys] = useState<DesktopApiKeySummary[]>([
+    ...snapshot.apiKeys,
+  ])
   const initialStateHandler = useRef(onInitialProviderState)
   const errorHandler = useRef(onError)
+  const initialStateApplied = useRef(false)
 
   useEffect(() => {
     initialStateHandler.current = onInitialProviderState
@@ -55,46 +61,47 @@ export function useModelCenterController({
   }, [onError, onInitialProviderState])
 
   useEffect(() => {
-    let mounted = true
-    void Promise.all([
-      desktopClient.listModelProviders(),
-      desktopClient.getModelProviderState(),
-      desktopClient.listIntegrations(),
-      desktopClient.listApiKeys(),
-    ]).then(([nextProviders, nextState, nextIntegrations, nextKeys]) => {
-      if (!mounted) return
-      setProviders(nextProviders)
-      setProviderState(nextState)
-      setIntegrations(nextIntegrations)
-      setApiKeys(nextKeys)
-      initialStateHandler.current(nextState)
-      setInitialLoadState('ready')
-    }).catch(error => {
-      if (!mounted) return
-      setInitialLoadState('error')
-      errorHandler.current(fullErrorMessage(error))
-    })
-    return () => {
-      mounted = false
+    if (snapshot.currentProviderState) {
+      setProviderState(snapshot.currentProviderState)
+      if (!initialStateApplied.current) {
+        initialStateApplied.current = true
+        initialStateHandler.current(snapshot.currentProviderState)
+      }
+    }
+    setApiKeys([...snapshot.apiKeys])
+  }, [snapshot.apiKeys, snapshot.currentProviderState])
+
+  useEffect(() => {
+    if (snapshot.error) errorHandler.current(snapshot.error)
+  }, [snapshot.error])
+
+  const refreshProviderContext = useCallback(async () => {
+    const nextSnapshot = await providerManagementStore.refresh()
+    const nextState = nextSnapshot.currentProviderState
+    if (!nextState) {
+      throw new Error('当前供应商状态暂时无法加载。')
+    }
+    setProviderState(nextState)
+    setApiKeys([...nextSnapshot.apiKeys])
+    return {
+      integrations: [...nextSnapshot.integrations],
+      providerState: nextState,
     }
   }, [])
 
-  const refreshProviderContext = useCallback(async () => {
-    const [nextIntegrations, nextState] = await Promise.all([
-      desktopClient.listIntegrations(),
-      desktopClient.getModelProviderState(),
-    ])
-    setIntegrations(nextIntegrations)
-    setProviderState(nextState)
-    return { integrations: nextIntegrations, providerState: nextState }
-  }, [])
+  const initialLoadState: ModelCenterInitialLoadState = !snapshot.loaded
+    ? 'loading'
+    : snapshot.error && snapshot.providers.length === 0
+      ? 'error'
+      : 'ready'
 
   return {
     initialLoadState,
-    providers,
+    providers: [...snapshot.providers],
     providerState,
-    integrations,
+    integrations: [...snapshot.integrations],
     apiKeys,
+    snapshot,
     setProviderState,
     setApiKeys,
     refreshProviderContext,

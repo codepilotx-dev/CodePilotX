@@ -3,8 +3,9 @@ import type {
   BillingCredentialSourceId,
   LocalUsageResult,
   ProviderUsageSource,
+  UsageSourceDescriptor,
 } from "@codepilotx/agent-protocol"
-import { ProviderUsageSourceSchema } from "@codepilotx/agent-protocol"
+import { ProviderUsageSourceSchema, UsageSourceDescriptorSchema } from "@codepilotx/agent-protocol"
 import { Credential, Provider } from "@codepilotx/model-schema"
 import { Effect, Schema } from "effect"
 import { createHash } from "node:crypto"
@@ -32,9 +33,12 @@ const BILLING_INTEGRATIONS: Readonly<Record<BillingCredentialSourceId, string>> 
 
 const SUBSCRIPTION_INTEGRATION = "usage.anthropic.subscription"
 const DEFAULT_CACHE_MS = 60_000
-const METERED_SOURCE_IDS = new Set(["vercel-ai-gateway"])
 const decodeProviderUsageSource = Schema.decodeUnknownSync(
   ProviderUsageSourceSchema,
+  { onExcessProperty: "error" },
+)
+const decodeUsageSourceDescriptor = Schema.decodeUnknownSync(
+  UsageSourceDescriptorSchema,
   { onExcessProperty: "error" },
 )
 
@@ -118,21 +122,24 @@ export class UsageService {
     range: UsageRange
     timeZone: string
     providerIds?: readonly string[]
+    sourceIds?: readonly string[]
     force?: boolean
   }) {
     const now = this.now()
     const providers = await this.providers.list()
-    const targeted = Boolean(input.providerIds?.length)
-    const selected = (targeted
-      ? this.adapters.filter((adapter) => adapter.providerIds.some((id) => input.providerIds!.includes(id)))
-      : this.adapters)
+    const providerTargeted = Boolean(input.providerIds?.length)
+    const sourceTargeted = Boolean(input.sourceIds?.length)
+    const selected = this.adapters
+      .filter((adapter) => !sourceTargeted || input.sourceIds!.includes(adapter.sourceId))
+      .filter((adapter) => !providerTargeted || adapter.providerIds.some((id) => input.providerIds!.includes(id)))
       // Targeted passive consumers (sidebar/composer) must not accidentally
       // trigger metered reports. The billing page queries the full catalog,
-      // while an explicit card refresh sets force=true.
+      // while source-targeted queries represent an explicit catalog selection.
       .filter((adapter) => !(
-        targeted
+        providerTargeted
+        && !sourceTargeted
         && input.force !== true
-        && METERED_SOURCE_IDS.has(adapter.sourceId)
+        && adapter.queryPolicy === "metered"
       ))
     const context: UsageQueryContext = {
       range: input.range,
@@ -142,10 +149,42 @@ export class UsageService {
       providers,
       credential: (providerIds, envNames) => this.providerCredential(providers, providerIds, envNames),
       billingCredential: (sourceId, envNames) => this.billingCredential(sourceId, envNames),
+      connection: (providerIds, envNames) => this.providerConnection(providers, providerIds, envNames),
+      billingConnection: (sourceId, envNames) => this.billingConnection(sourceId, envNames),
       request: this.request,
     }
     const sources = await Promise.all(selected.map((adapter) => this.queryAdapter(adapter, context)))
     return { range: input.range, timeZone: input.timeZone, generatedAt: now, sources }
+  }
+
+  async sourceList(): Promise<{ sources: UsageSourceDescriptor[] }> {
+    const providers = await this.providers.list()
+    const context = {
+      providers,
+      credential: (providerIds: readonly string[], envNames?: readonly string[]) =>
+        this.providerCredential(providers, providerIds, envNames),
+      billingCredential: (sourceId: string, envNames?: readonly string[]) =>
+        this.billingCredential(sourceId, envNames),
+      connection: (providerIds: readonly string[], envNames?: readonly string[]) =>
+        this.providerConnection(providers, providerIds, envNames),
+      billingConnection: (sourceId: string, envNames?: readonly string[]) =>
+        this.billingConnection(sourceId, envNames),
+    }
+    const sources = await Promise.all(this.adapters.map(async (adapter): Promise<UsageSourceDescriptor> =>
+      decodeUsageSourceDescriptor({
+        sourceId: adapter.sourceId,
+        canonicalProviderId: Provider.ID.make(adapter.canonicalProviderId),
+        providerIds: adapter.providerIds.map((id) => Provider.ID.make(id)),
+        displayName: adapter.displayName,
+        scope: adapter.scope,
+        stability: adapter.stability,
+        availability: adapter.availability,
+        capabilities: [...adapter.capabilities],
+        queryPolicy: adapter.queryPolicy,
+        connection: await adapter.resolveConnection(context),
+        connectionMethod: adapter.connectionMethod,
+      })))
+    return { sources }
   }
 
   async connect(input: BillingCredentialInput) {
@@ -301,6 +340,35 @@ export class UsageService {
     return null
   }
 
+  private async providerConnection(
+    providers: readonly Provider.Info[],
+    providerIds: readonly string[],
+    envNames: readonly string[] = [],
+  ): Promise<ProviderUsageSource["connection"]> {
+    let matchedProvider = false
+    for (const providerID of providerIds) {
+      const provider = providers.find((item) => String(item.id) === providerID)
+      if (!provider) continue
+      matchedProvider = true
+      const integrationID = String(provider.integrationID ?? provider.id)
+      const stored = await Effect.runPromise(this.credentials.get<Credential.Value>(integrationID))
+      if (!stored || !Schema.is(Credential.Value)(stored.value)) continue
+      const summary = this.credentials.listApiKeys(integrationID).find((item) => item.id === stored.id)
+      return {
+        kind: stored.value.type === "oauth" ? "oauth" : "provider-key",
+        credentialId: Credential.ID.make(stored.id),
+        ...(summary ? { maskedValue: summary.maskedValue } : {}),
+        disconnectible: false,
+      }
+    }
+    if (!matchedProvider) return { kind: "none", disconnectible: false }
+    for (const name of envNames) {
+      const key = this.env[name]?.trim()
+      if (key) return { kind: "env", maskedValue: mask(key), disconnectible: false }
+    }
+    return { kind: "none", disconnectible: false }
+  }
+
   private async billingCredential(
     sourceId: string,
     envNames: readonly string[] = [],
@@ -342,5 +410,34 @@ export class UsageService {
       }
     }
     return null
+  }
+
+  private async billingConnection(
+    sourceId: string,
+    envNames: readonly string[] = [],
+  ): Promise<ProviderUsageSource["connection"]> {
+    const integrationID = sourceId === "anthropic-subscription"
+      ? SUBSCRIPTION_INTEGRATION
+      : BILLING_INTEGRATIONS[sourceId as BillingCredentialSourceId]
+    if (integrationID) {
+      const stored = await Effect.runPromise(this.credentials.get<Credential.Value>(integrationID))
+      if (stored && Schema.is(Credential.Value)(stored.value)) {
+        const summary = this.credentials.listApiKeys(integrationID).find((item) => item.id === stored.id)
+        return {
+          kind: stored.value.type === "oauth" ? "oauth" : "billing-key",
+          credentialId: Credential.ID.make(stored.id),
+          ...(summary ? { maskedValue: summary.maskedValue } : {}),
+          disconnectible: true,
+        }
+      }
+    }
+    for (const name of envNames) {
+      const key = this.env[name]?.trim()
+      if (!key) continue
+      if (sourceId === "xai-management" && !this.env.XAI_TEAM_ID?.trim()) continue
+      if (sourceId === "cloudflare-ai-gateway" && !this.env.CLOUDFLARE_ACCOUNT_ID?.trim()) continue
+      return { kind: "env", maskedValue: mask(key), disconnectible: false }
+    }
+    return { kind: "none", disconnectible: false }
   }
 }

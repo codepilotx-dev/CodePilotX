@@ -224,7 +224,7 @@ function providerConnectionStatus(
   options: ProviderDirectoryOptions,
 ): ProviderConnectionStatus {
   if (options.apiKeys?.some(key => (
-    key.providerId === provider.providerID && key.enabled
+    key.providerId === provider.providerID
   ))) return 'stored-key'
 
   const integration = options.integrations?.find(candidate => (

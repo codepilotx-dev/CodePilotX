@@ -56,6 +56,15 @@ import {
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 
+const ANTHROPIC_USAGE_INTEGRATION_ID = "usage.anthropic.subscription"
+const emitUsageSourceUpdated = async (runtime: RpcRouter, integrationID: string) => {
+  if (integrationID !== ANTHROPIC_USAGE_INTEGRATION_ID) return
+  await runtime.emit("usage/source/updated", {
+    sourceId: "anthropic-subscription",
+    changedAt: Date.now(),
+  })
+}
+
 export const providerHandlers = {
   name: "provider",
   methods: [
@@ -295,6 +304,7 @@ export const providerHandlers = {
         })
         await providers.reload()
         await runtime.emitIntegration("integration/updated", integrationID)
+        await emitUsageSourceUpdated(runtime, integrationID)
         await runtime.publishCatalogUpdated()
         return { integration: await runtime.requiredIntegration(integrationID) }
       }
@@ -322,6 +332,7 @@ export const providerHandlers = {
           attemptId: completedAttemptID,
           integrationId: completedContext.integrationID,
         })
+        await emitUsageSourceUpdated(runtime, String(completedContext.integrationID))
         await runtime.publishCatalogUpdated()
         return {
           attempt: {
@@ -343,6 +354,7 @@ export const providerHandlers = {
             attemptId: attemptID,
             integrationId: context.integrationID,
           })
+          await emitUsageSourceUpdated(runtime, String(context.integrationID))
           await runtime.publishCatalogUpdated()
         }
         if (status.status === "failed") {
@@ -373,9 +385,11 @@ export const providerHandlers = {
         })
         await providers.reload()
         await runtime.emitIntegration("integration/updated", integrationID)
+        await emitUsageSourceUpdated(runtime, integrationID)
         await runtime.publishCatalogUpdated()
         return { integration: await runtime.requiredIntegration(integrationID) }
-      }      default:
+      }
+      default:
         throw new AgentError("METHOD_NOT_FOUND", `未知 RPC 方法：${method}`, 404)
     }
   },

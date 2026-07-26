@@ -1,8 +1,7 @@
-import { KeyRound, Plus, Search, Server } from 'lucide-react'
+import { Link2, Search, Server } from 'lucide-react'
 import type React from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import {
@@ -19,6 +18,7 @@ export type ProviderCatalogItem = {
   source: string
   modelCount: number
   current: boolean
+  canAddConnection: boolean
   status: {
     label: string
     tone: ProviderCatalogStatusTone
@@ -30,7 +30,8 @@ export type ProviderCatalogProps = {
   query: string
   onQueryChange: (query: string) => void
   onSelect: (providerId: ModelProviderID) => void
-  onAddKey: (providerId: ModelProviderID) => void
+  onAddConnection: (providerId: ModelProviderID) => void
+  onManageConnection: (providerId: ModelProviderID) => void
 }
 
 export function ProviderCatalog({
@@ -38,14 +39,15 @@ export function ProviderCatalog({
   query,
   onQueryChange,
   onSelect,
-  onAddKey,
+  onAddConnection,
+  onManageConnection,
 }: ProviderCatalogProps): React.ReactNode {
   return (
-    <section className="model-center-catalog" aria-label="Provider 目录">
+    <section className="model-center-catalog" aria-label="供应商目录">
       <header className="model-center-catalog-header">
         <div>
-          <h2>Provider</h2>
-          <p>选择供应商并管理连接、模型与 Router。</p>
+          <h2>供应商</h2>
+          <p>浏览完整目录，选择供应商并配置 Endpoint、模型与 Router。</p>
         </div>
         <span className="model-center-catalog-count">{providers.length} 个</span>
       </header>
@@ -123,14 +125,21 @@ export function ProviderCatalog({
                   {provider.status.label}
                 </span>
               </button>
-              <IconButton
-                className="provider-card-add-key"
-                title={`为 ${provider.name} 添加 API Key`}
-                onClick={() => onAddKey(provider.id)}
+              <Button
+                className="provider-card-connection-action"
+                onClick={() => (
+                  provider.canAddConnection
+                    ? onAddConnection(provider.id)
+                    : onManageConnection(provider.id)
+                )}
               >
-                <KeyRound aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                <Plus aria-hidden className="provider-card-add-mark" />
-              </IconButton>
+                <Link2
+                  aria-hidden
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+                {provider.canAddConnection ? '连接' : '账户连接'}
+              </Button>
             </article>
           ))}
         </div>

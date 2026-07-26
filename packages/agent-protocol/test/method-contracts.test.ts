@@ -1653,10 +1653,33 @@ const fixtures = {
       modelResponses: 2,
     }],
   }),
+  "usage/source/list": methodFixture("usage/source/list", {}, {
+    sources: [{
+      sourceId: "fixture-key",
+      canonicalProviderId: providerId,
+      providerIds: [providerId],
+      displayName: "Fixture provider key",
+      scope: "api-key",
+      stability: "official",
+      availability: "queryable",
+      capabilities: ["balance", "quota"],
+      queryPolicy: "cached",
+      connection: {
+        kind: "provider-key",
+        credentialId,
+        maskedValue: "••••test",
+        disconnectible: false,
+      },
+      connectionMethod: {
+        kind: "provider-credential",
+      },
+    }],
+  }),
   "usage/provider/query": methodFixture("usage/provider/query", {
     range: "7d",
     timeZone: "Asia/Shanghai",
     providerIds: [providerId],
+    sourceIds: ["fixture-key"],
     force: false,
   }, {
     range: "7d",
@@ -1747,9 +1770,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 147 formal methods decodable", () => {
+  test("keeps valid params and results for all 148 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(147)
+    expect(methods).toHaveLength(148)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

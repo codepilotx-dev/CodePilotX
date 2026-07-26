@@ -167,6 +167,52 @@ describe('desktop provider client', () => {
     expect(methods.filter(method => method === 'integration/list').length).toBeGreaterThanOrEqual(2)
     expect(methods).toContain('integration/disconnect')
   })
+
+  test('通过只读 source catalog 加载用量来源且不触发计费查询', async () => {
+    const methods: string[] = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      methods.push(body.method)
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult())
+      }
+      if (body.method === 'initialized') {
+        return new Response(null, { status: 204 })
+      }
+      if (body.method === 'usage/source/list') {
+        expect(body.params).toEqual({})
+        return rpc(body.id, {
+          sources: [{
+            sourceId: 'deepseek',
+            canonicalProviderId: 'deepseek',
+            providerIds: ['deepseek'],
+            displayName: 'DeepSeek 余额',
+            scope: 'api-key',
+            stability: 'official',
+            availability: 'queryable',
+            capabilities: ['balance'],
+            queryPolicy: 'cached',
+            connection: {
+              kind: 'provider-key',
+              credentialId: 'credential-deepseek',
+              maskedValue: '••••test',
+              disconnectible: false,
+            },
+            connectionMethod: { kind: 'provider-credential' },
+          }],
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+
+    const result = await createDesktopClient({ fetch: fetcher })
+      .listUsageSources()
+
+    expect(result.sources.map(source => source.sourceId)).toEqual(['deepseek'])
+    expect(methods).toContain('usage/source/list')
+    expect(methods).not.toContain('usage/provider/query')
+  })
 })
 
 function rpc(id: string | number, result: unknown): Response {
