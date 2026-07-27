@@ -12,13 +12,14 @@ import { createToolExposurePlan, type ToolExposureInput } from "./ToolExposurePl
 import { DEFAULT_PERMISSION_CONFIG, type AdditionalPermissions, type PermissionConfig, type PermissionGrantScope, type ShellInput } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { runHostCommand, type ProcessResult } from "./Shell/HostProcess"
+import { shellCommandSegments } from "./Shell/CommandSyntax"
 import { realpath } from "node:fs/promises"
 import { dirname, isAbsolute, normalize, relative, resolve } from "node:path"
 import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions } from "../permission/PermissionDecisionEngine"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
 import { PermissionGrantStore } from "../permission/PermissionGrantStore"
 import { pathContains } from "../permission/PathPermissions"
-import { analyzeShellRisk } from "../security/ShellRiskClassifier"
+import { analyzeShellRisk, type ShellSecurityLevel } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
 import { resolveManagedTool, resolveToolingEnvironment, runToolProcess, toolingPathOverride, type ToolingEnvironmentResolver, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
 import type { ManagedToolID, ToolingResolution } from "./ToolingManager"
@@ -38,24 +39,10 @@ const RUNTIME_COMMANDS: Readonly<Record<string, ManagedToolID>> = {
 /** 仅在 shell 命令片段的起始位置识别需要注入的运行时。 */
 export function shellRuntimeDependencies(command: string): ManagedToolID[] {
   const dependencies = new Set<ManagedToolID>()
-  const segments: string[] = []
-  let start = 0
-  let quote: "'" | '"' | null = null
-  let escaped = false
-  for (let index = 0; index < command.length; index += 1) {
-    const character = command[index]!
-    if (escaped) { escaped = false; continue }
-    if (character === "\\" || character === "`") { escaped = true; continue }
-    if (quote) { if (character === quote) quote = null; continue }
-    if (character === "'" || character === '"') { quote = character; continue }
-    if ("|;&\r\n(){}".includes(character)) { segments.push(command.slice(start, index)); start = index + 1 }
-  }
-  segments.push(command.slice(start))
-  for (const segment of segments) {
-    const candidate = segment.trim().replace(/^sudo\s+/i, "")
-    const raw = /^(?:"([^"]+)"|'([^']+)'|([^\s]+))/.exec(candidate)?.slice(1).find(Boolean)
-    if (!raw || raw.includes("/") || raw.includes("\\") || /^[a-z]:/i.test(raw)) continue
-    const dependency = RUNTIME_COMMANDS[raw.toLowerCase().replace(/\.(?:exe|cmd|bat)$/i, "")]
+  for (const segment of shellCommandSegments(command)) {
+    const dependency = segment.executable && !segment.executableIsPath
+      ? RUNTIME_COMMANDS[segment.executable]
+      : undefined
     if (dependency) dependencies.add(dependency)
   }
   return [...dependencies]
@@ -104,6 +91,7 @@ export interface ToolExecutorOptions {
   runHost?: typeof runHostCommand
   resolveTooling?: ToolingResolver
   resolveToolingEnvironment?: ToolingEnvironmentResolver
+  resolveShellSecurityLevel?: () => ShellSecurityLevel
   runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
   permissionGrants?: PermissionGrantStore
@@ -575,9 +563,22 @@ export class ToolExecutor {
     let hookDecision: "continue" | "ask" | "deny" | "skipped" = "skipped"
     let risk: PermissionDecision["risk"] | undefined
     try {
-      const staticRisk = analyzeShellRisk({ command: shell.command, cwd, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), ...(shell.justification ? { justification: shell.justification } : {}), ...(context.taskSummary ? { taskSummary: context.taskSummary } : {}) })
+      const staticRisk = analyzeShellRisk({
+        command: shell.command,
+        cwd,
+        securityLevel: options.resolveShellSecurityLevel?.() ?? "balanced",
+        ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}),
+        ...(shell.justification ? { justification: shell.justification } : {}),
+        ...(context.taskSummary ? { taskSummary: context.taskSummary } : {}),
+      })
       risk = staticRisk.risk
       if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
+      if (staticRisk.requiresApproval) {
+        invocation.input = {
+          ...invocation.input,
+          __ruleRequiresApproval: true,
+        }
+      }
       const resumedApproval = context.approvedToolCallID === invocation.id
       phase = "hook"
       const hookResults = context.skipHooks || resumedApproval ? [] : await this.options.hooks?.run("pre_tool_use", { input: invocation.input, staticRisk }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }) ?? []
