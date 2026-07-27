@@ -44,7 +44,6 @@ import {
   parseJsonRecord,
   positiveIntegerParam,
   providerFailureCategory,
-  providerSetting,
   resolveAiReviewSource,
   resolveMemoryProjectID,
   resolveMemoryProjectKey,
@@ -87,7 +86,7 @@ export const systemHandlers = {
     "event/unsubscribe",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, review, github } = runtime.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, providers, apiKeys, memory, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":

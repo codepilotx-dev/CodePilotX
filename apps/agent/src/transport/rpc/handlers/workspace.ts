@@ -44,7 +44,6 @@ import {
   parseJsonRecord,
   positiveIntegerParam,
   providerFailureCategory,
-  providerSetting,
   resolveAiReviewSource,
   resolveMemoryProjectID,
   resolveMemoryProjectKey,

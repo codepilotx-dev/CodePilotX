@@ -147,13 +147,18 @@ describe("可恢复审批 checkpoint", () => {
     databases.push(db)
     service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     expect(service.load(prepared.approvalID)?.status).toBe("pending")
-    db.sqlite.exec(`CREATE TRIGGER fail_resolved_outbox BEFORE INSERT ON events WHEN NEW.method = 'serverRequest/resolved' BEGIN SELECT RAISE(ABORT, 'outbox unavailable'); END`)
+    db.sqlite.exec(`CREATE TRIGGER fail_resolved_outbox BEFORE INSERT ON events WHEN NEW.method = 'interaction/resolved' BEGIN SELECT RAISE(ABORT, 'outbox unavailable'); END`)
     await expect(service.respond(prepared.approvalID, "allow")).rejects.toThrow("outbox unavailable")
     expect(service.load(prepared.approvalID)?.status).toBe("pending")
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "waiting_permission" })
     expect(db.sqlite.query("SELECT status FROM agent_executions WHERE id = ?").get(turn.agentID)).toEqual({ status: "waiting_permission" })
     db.sqlite.exec("DROP TRIGGER fail_resolved_outbox")
     await service.respond(prepared.approvalID, "allow")
+    const resolvedEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?").get(turn.turnID) as { params: string }
+    expect(JSON.parse(resolvedEvent.params)).toEqual({
+      result: { kind: "approval", decision: "allow-once" },
+      resolvedAt: expect.any(Number),
+    })
     const claimed = service.claimResume(turn.turnID)
     expect(claimed).toMatchObject({ status: "claimed", decision: "allow", toolCallID: "tool-1" })
     expect(service.claimResume(turn.turnID)).toBeNull()
@@ -178,6 +183,12 @@ describe("可恢复审批 checkpoint", () => {
     expect(db.sqlite.query("SELECT status FROM approval_requests WHERE id = 'legacy'").get()).toEqual({ status: "cancelled" })
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "interrupted" })
     expect(db.sqlite.query("SELECT method FROM events WHERE method = 'approval/cancelled' AND turn_id = ?").get(turn.turnID)).toEqual({ method: "approval/cancelled" })
+    const cancelledEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'approval/cancelled' AND turn_id = ?").get(turn.turnID) as { params: string }
+    expect(JSON.parse(cancelledEvent.params)).toEqual({
+      interactionId: "legacy",
+      reason: "审批缺少可恢复 checkpoint",
+      cancelledAt: expect.any(Number),
+    })
   })
 
   test("重启扫描会取消不完整审批并写入 durable event", async () => {
@@ -195,6 +206,12 @@ describe("可恢复审批 checkpoint", () => {
     expect(db.sqlite.query("SELECT status FROM approval_requests WHERE id = 'restart-legacy'").get()).toEqual({ status: "cancelled" })
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "interrupted" })
     expect(db.sqlite.query("SELECT method FROM events WHERE method = 'approval/cancelled' AND turn_id = ?").get(turn.turnID)).toEqual({ method: "approval/cancelled" })
+    const cancelledEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'approval/cancelled' AND turn_id = ?").get(turn.turnID) as { params: string }
+    expect(JSON.parse(cancelledEvent.params)).toEqual({
+      interactionId: "restart-legacy",
+      reason: "审批缺少完整且可恢复的 SDK checkpoint，已安全取消",
+      cancelledAt: expect.any(Number),
+    })
   })
 
   test("deny 跨重启恢复且只能 claim 一次", async () => {

@@ -17,13 +17,14 @@ import {
 import { Effect, Schema } from "effect"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { createHash } from "node:crypto"
-import type { ProviderConfig } from "@codepilotx/provider-runtime"
 import type { AgentModelCatalog } from "../../provider/AgentModelCatalog"
 import { AgentError, type SubmitMessage, type TaskMode } from "../../domain"
 import type { ApprovalService } from "../../permission/ApprovalService"
 import type { QuestionService } from "../../session/QuestionService"
-import type { IntegrationService } from "../../provider/IntegrationService"
 import type { ApiKeyService } from "../../provider/ApiKeyService"
+import type { ProviderCredentialService } from "../../provider/ProviderCredentialService"
+import type { PiModelService } from "../../provider/pi"
+import type { PiAuthSessionService } from "../../auth/PiAuthSessionService"
 import type { ThreadHistoryService } from "../../session/ThreadHistoryService"
 import type { ThreadService } from "../../session/ThreadService"
 import type { AgentDatabase } from "../../storage/database/AgentDatabase"
@@ -105,8 +106,10 @@ export type RpcRouterDependencies = {
   attachments: AttachmentService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
-  integrations: IntegrationService
+  piModels: PiModelService
   apiKeys: ApiKeyService
+  providerCredentials: ProviderCredentialService
+  authSessions: PiAuthSessionService
   memory: MemoryService
   hooks: HookService
   review: GitReviewService
@@ -852,25 +855,10 @@ export class RpcRouter {
     return catalog
   }
 
-  async requiredIntegration(integrationID: string) {
-    const integration = (await this.dependencies.integrations.list()).find((item) => item.id === integrationID)
-    if (!integration) throw new AgentError("INTEGRATION_NOT_FOUND", `未找到认证集成 ${integrationID}`, 404)
-    return integration
-  }
-
-  async providerIntegrationID(providerID: string) {
-    const provider = (await this.dependencies.providers.list()).find((item) => String(item.id) === providerID)
-    return String(provider?.integrationID ?? providerID)
-  }
-
   async emit(method: string, params: unknown) {
     await publishAgentEvent(this.dependencies.db, this.dependencies.hub, null, null, method, params)
   }
 
-  async emitIntegration(method: string, integrationID: string) {
-    const integration = (await this.dependencies.integrations.list()).find((item) => item.id === integrationID)
-    if (integration) await this.emit(method, { integrationId: integration.id })
-  }
 }
 
 const isInitializedNotification = (input: unknown): input is Record<string, unknown> =>
@@ -1059,44 +1047,6 @@ const safeErrorDetails = (value: unknown): JsonValue | undefined => {
     return []
   }))
   return Object.keys(safe).length ? safe as JsonValue : undefined
-}
-
-export const providerSetting = (params: Record<string, unknown>): { id: string; config: ProviderConfig } => {
-  const id = stringParam(params, "providerId")
-  const settings = record(params.settings, "settings")
-  if (Array.isArray(params.sensitiveHeaders) && params.sensitiveHeaders.length > 0) {
-    throw new AgentError(
-      "PROVIDER_UNAVAILABLE",
-      "敏感 Header 不能写入 Provider 设置，请通过对应 Integration 凭据配置",
-      409,
-    )
-  }
-  const headers = settings.headers && typeof settings.headers === "object" && !Array.isArray(settings.headers)
-    ? settings.headers as Record<string, string>
-    : undefined
-  const models = settings.models && typeof settings.models === "object" && !Array.isArray(settings.models)
-    ? settings.models as ProviderConfig["models"]
-    : undefined
-  return {
-    id,
-    config: {
-      ...(typeof settings.name === "string" ? { name: settings.name } : {}),
-      ...(typeof settings.disabled === "boolean" ? { disabled: settings.disabled } : {}),
-      ...(typeof settings.api === "string" ? { api: settings.api } : {}),
-      ...(typeof settings.npm === "string" ? { npm: settings.npm } : {}),
-      ...(Array.isArray(settings.env) ? { env: settings.env as string[] } : {}),
-      ...(settings.options && typeof settings.options === "object" && !Array.isArray(settings.options)
-        ? { options: settings.options as Record<string, unknown> }
-        : {}),
-      ...(settings.body && typeof settings.body === "object" && !Array.isArray(settings.body)
-        ? { body: settings.body as Record<string, unknown> }
-        : {}),
-      ...(headers && Object.keys(headers).length ? { headers } : {}),
-      ...(Array.isArray(settings.whitelist) ? { whitelist: settings.whitelist as string[] } : {}),
-      ...(Array.isArray(settings.blacklist) ? { blacklist: settings.blacklist as string[] } : {}),
-      ...(models ? { models } : {}),
-    },
-  }
 }
 
 export const providerFailureCategory = (

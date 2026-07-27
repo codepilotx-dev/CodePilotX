@@ -98,7 +98,10 @@ const fixture = async (
     subagents: null,
     attachments: null,
     providers: null,
-    integrations: null,
+    piModels: null,
+    providerCredentials: null,
+    authSessions: null,
+    apiKeys: null,
     memory: null,
     hooks: null,
     ...overrides,
@@ -668,10 +671,32 @@ describe("RPC v4 Router", () => {
         },
         refresh: async () => undefined,
       } as unknown as RpcRouterDependencies["providers"],
+      piModels: {
+        providerDefinitions: async () => [
+          {
+            kind: "builtin",
+            id: providerID,
+            enabled: true,
+            allowModels: [],
+            denyModels: [],
+            models: [],
+          },
+          {
+            kind: "builtin",
+            id: otherProviderID,
+            enabled: true,
+            allowModels: [],
+            denyModels: [],
+            models: [],
+          },
+        ],
+        configIssues: async () => [],
+      } as unknown as RpcRouterDependencies["piModels"],
     })
     await initialize()
 
     const providers = await call("provider/list", {})
+    expect(providers.error).toBeUndefined()
     expect(providers.result.providers).toHaveLength(2)
     const first = await call("model/list", { providerId: providerID, enabled: true, limit: 1 })
     expect(first.result).toMatchObject({ total: 2, catalogVersion: 1 })
@@ -736,114 +761,7 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
-  test("integration methods consume camelCase v4 params and return declared resources", async () => {
-    const integrationId = "usage.anthropic.subscription"
-    const attemptId = "attempt:fixture"
-    const connection = {
-      type: "credential",
-      id: "credential:fixture",
-      label: "Fixture",
-    }
-    let connected = false
-    let attemptStatus: Record<string, unknown> = {
-      status: "pending",
-      time: { created: 1, expires: 10_000 },
-    }
-    const publishedEvents: unknown[] = []
-    const integration = () => ({
-      id: integrationId,
-      name: "Fixture",
-      methods: [
-        { type: "key" },
-        { id: "oauth:fixture", type: "oauth", label: "OAuth" },
-      ],
-      connections: connected ? [connection] : [],
-    })
-    const { db, call, initialize } = await fixture({
-      hub: {
-        publish: (event: unknown) => Effect.sync(() => {
-          publishedEvents.push(event)
-        }),
-      } as unknown as RpcRouterDependencies["hub"],
-      providers: {
-        list: async () => [],
-        models: async () => [],
-        reload: async () => undefined,
-      } as unknown as RpcRouterDependencies["providers"],
-      integrations: {
-        list: async () => [integration()],
-        connect: async () => {
-          connected = true
-          return connection
-        },
-        authorize: async () => ({
-          attemptID: attemptId,
-          url: "https://example.com/authorize",
-          instructions: "Authorize",
-          mode: "code",
-          time: { created: 1, expires: 10_000 },
-        }),
-        complete: async () => {
-          connected = true
-          attemptStatus = {
-            status: "complete",
-            time: { created: 1, expires: 10_000 },
-          }
-          return connection
-        },
-        status: async () => attemptStatus,
-        attemptContext: () => ({
-          integrationID: integrationId,
-          ...(connected ? { connection } : {}),
-        }),
-        disconnect: async () => {
-          connected = false
-        },
-      } as unknown as RpcRouterDependencies["integrations"],
-    })
-    await initialize()
-
-    expect((await call("integration/connect", {
-      integrationId,
-      key: "fixture-key",
-      operationId: "operation:integration-connect",
-    })).result.integration.connections).toHaveLength(1)
-    expect((await call("integration/authorize", {
-      integrationId,
-      methodId: "oauth:fixture",
-      inputs: {},
-      operationId: "operation:integration-authorize",
-    })).result.attempt.attemptID).toBe(attemptId)
-    expect((await call("integration/authorizeStatus", {
-      attemptId,
-    })).result.attempt).toMatchObject({
-      attemptId,
-      integrationId,
-      status: { status: "pending" },
-    })
-    expect((await call("integration/authorizeComplete", {
-      attemptId,
-      code: "fixture-code",
-      operationId: "operation:integration-complete",
-    })).result).toMatchObject({
-      attempt: {
-        attemptId,
-        integrationId,
-        status: { status: "complete" },
-      },
-      integration: { id: integrationId },
-    })
-    expect((await call("integration/disconnect", {
-      integrationId,
-      credentialId: connection.id,
-      operationId: "operation:integration-disconnect",
-    })).result.integration.connections).toHaveLength(0)
-    expect(publishedEvents.filter((event) =>
-      (event as { method?: string }).method === "usage/source/updated")).toHaveLength(3)
-    db.close()
-  })
-
-  test("provider methods return the declared v4 health and summary shapes", async () => {
+  test("provider methods create canonical Pi v2 configuration", async () => {
     const provider = Provider.Info.empty(Provider.ID.make("provider:fixture"))
     const { db, configDocument, call, initialize } = await fixture({
       providers: {
@@ -851,9 +769,6 @@ describe("RPC v4 Router", () => {
         models: async () => [],
         reload: async () => undefined,
       } as unknown as RpcRouterDependencies["providers"],
-      integrations: {
-        list: async () => [],
-      } as unknown as RpcRouterDependencies["integrations"],
     })
     await initialize()
 
@@ -864,28 +779,33 @@ describe("RPC v4 Router", () => {
       status: "unavailable",
       category: "configuration",
     })
-    expect((await call("provider/updateSettings", {
-      providerId: provider.id,
-      settings: {
-        name: "Fixture provider",
-        api: "https://example.com/v1",
-      },
-      operationId: "operation:provider-settings",
-    })).result).toEqual({
-      provider: {
+    expect((await call("provider/create", {
+      definition: {
+        kind: "custom",
         id: provider.id,
-        name: provider.name,
-        disabled: false,
-        configured: true,
-        modelCount: 0,
+        name: "Fixture provider",
+        enabled: true,
+        baseUrl: "https://example.com/v1",
+        auth: "none",
+        env: [],
+        allowInsecureHttp: false,
+        headers: {},
+        models: [{
+          id: "fixture-model",
+          api: "openai-completions",
+        }],
       },
+      operationId: "operation:provider-create",
+    })).result).toEqual({
+      providerId: provider.id,
       catalogVersion: 2,
     })
     expect(
       (configDocument.model_providers as Record<string, unknown>)[provider.id],
     ).toMatchObject({
       name: "Fixture provider",
-      api: "https://example.com/v1",
+      base_url: "https://example.com/v1",
+      kind: "custom",
     })
     db.close()
   })

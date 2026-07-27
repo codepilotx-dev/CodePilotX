@@ -142,7 +142,7 @@ describe("问题 checkpoint", () => {
       options: ["A", "B"],
       checkpoint: { state: '{"version":1}', interruption: { name: "request_user_input" } },
     })
-    db.sqlite.exec(`CREATE TRIGGER fail_question_resolved BEFORE INSERT ON events WHEN NEW.method = 'serverRequest/resolved' BEGIN SELECT RAISE(ABORT, 'resolve outbox unavailable'); END`)
+    db.sqlite.exec(`CREATE TRIGGER fail_question_resolved BEFORE INSERT ON events WHEN NEW.method = 'interaction/resolved' BEGIN SELECT RAISE(ABORT, 'resolve outbox unavailable'); END`)
     await expect(questions.reply(id, "A")).rejects.toThrow("resolve outbox unavailable")
     expect(db.sqlite.query("SELECT status FROM question_requests WHERE id = ?").get(id)).toEqual({ status: "pending" })
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "waiting_question" })
@@ -151,7 +151,12 @@ describe("问题 checkpoint", () => {
     const operation = {
       operationID: "question:resolve:atomic",
       interactionID: id,
-      response: { kind: "question", status: "answered", answers: "A", resolution: "user" },
+      response: {
+        kind: "question",
+        status: "answered",
+        answers: [{ questionId: "question-tool", choiceIds: ["question-tool:0"] }],
+        resolution: "user",
+      },
       result: { interactionId: id, state: "resolved" },
     }
     db.sqlite.exec(`CREATE TRIGGER fail_interaction_operation BEFORE INSERT ON interaction_operations BEGIN SELECT RAISE(ABORT, 'operation unavailable'); END`)
@@ -162,5 +167,10 @@ describe("问题 checkpoint", () => {
 
     await questions.reply(id, "A", false, "user", false, operation)
     expect(db.interactionOperation(operation.operationID)?.result).toEqual(operation.result)
+    const resolvedEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?").get(turn.turnID) as { params: string }
+    expect(JSON.parse(resolvedEvent.params)).toEqual({
+      result: operation.response,
+      resolvedAt: expect.any(Number),
+    })
   })
 })

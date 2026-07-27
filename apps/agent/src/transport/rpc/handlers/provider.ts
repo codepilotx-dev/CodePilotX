@@ -1,100 +1,117 @@
 import type { RpcMethod } from "@codepilotx/agent-protocol"
+import {
+  PiProviderConfigValidationError,
+  serializePiProviderDefinition,
+} from "../../../provider/pi"
+import type { PiProviderDefinitionInput } from "../../../provider/pi"
 import type { RpcRouter } from "../RpcRouter"
 import type { RpcRouterContext } from "../request-context"
-import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
+import { optionalRpcRecord as optionalRecord } from "../decoders"
 import {
   AgentError,
-  Capabilities,
-  Effect,
-  Model,
-  WorkspaceService,
-  globalEventSequence,
-  secretScrubber,
-  aiReviewModel,
-  aiReviewPrompt,
-  aiReviewTitle,
-  attachmentView,
   booleanParam,
-  decodeOffsetCursor,
-  decodePermissionConfig,
-  decodeQueueInput,
-  decodeQueueResume,
-  decodeQueueUpdate,
-  decodeReviewAiStart,
-  decodeReviewApply,
-  decodeReviewBranches,
-  decodeReviewCommentID,
-  decodeReviewCommentList,
-  decodeReviewCommentSave,
-  decodeReviewCommit,
-  decodeReviewCommits,
-  decodeReviewFileDiff,
-  decodeReviewStatus,
-  decodeReviewSummary,
-  decodeSandboxUninstall,
-  decodeThreadSettings,
-  decodeThreadSettingsPatch,
-  encodeOffsetCursor,
-  enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRef,
   modelRefOrNull,
-  parseJsonRecord,
-  positiveIntegerParam,
   providerFailureCategory,
-  providerSetting,
-  resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
-  resolveProjectWorkspace,
   stringParam,
-  submitMessage,
-  supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 
-const ANTHROPIC_USAGE_INTEGRATION_ID = "usage.anthropic.subscription"
-const emitUsageSourceUpdated = async (runtime: RpcRouter, integrationID: string) => {
-  if (integrationID !== ANTHROPIC_USAGE_INTEGRATION_ID) return
-  await runtime.emit("usage/source/updated", {
-    sourceId: "anthropic-subscription",
-    changedAt: Date.now(),
-  })
+const providerMethods = [
+  "provider/list",
+  "model/list",
+  "model/refresh",
+  "model/setDefault",
+  "model/setReviewer",
+  "provider/test",
+  "provider/create",
+  "provider/update",
+  "provider/delete",
+  "provider/model/discover",
+  "provider/credential/list",
+  "provider/credential/setActive",
+  "provider/credential/setEnabled",
+  "provider/credential/delete",
+  "provider/apiKey/create",
+  "provider/apiKey/update",
+  "provider/apiKey/reorder",
+  "provider/apiKey/test",
+  "auth/session/start",
+  "auth/session/respond",
+  "auth/session/status",
+  "auth/session/cancel",
+] as const
+
+const object = (value: unknown, name: string): Record<string, unknown> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
+  }
+  return value as Record<string, unknown>
+}
+
+const stringArray = (value: unknown, name: string): string[] => {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
+  }
+  return value as string[]
+}
+
+const emitCredentialUpdated = async (runtime: RpcRouter, providerID: string) => {
+  await runtime.emit("provider/credential/updated", { providerId: providerID })
 }
 
 export const providerHandlers = {
   name: "provider",
-  methods: [
-    "provider/list",
-    "model/list",
-    "model/refresh",
-    "model/setDefault",
-    "model/setReviewer",
-    "provider/test",
-    "provider/updateSettings",
-    "apiKey/list",
-    "apiKey/create",
-    "apiKey/update",
-    "apiKey/setActive",
-    "apiKey/setEnabled",
-    "apiKey/reorder",
-    "apiKey/test",
-    "apiKey/delete",
-    "integration/list",
-    "integration/connect",
-    "integration/authorize",
-    "integration/authorizeComplete",
-    "integration/authorizeStatus",
-    "integration/disconnect",
-  ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { config, db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, review, github } = runtime.dependencies
+  methods: providerMethods,
+  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, _context: RpcRouterContext): Promise<unknown> {
+    const {
+      config,
+      providers,
+      piModels,
+      apiKeys,
+      providerCredentials,
+      authSessions,
+    } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
-      case "provider/list":
-        return runtime.providerList()
+      case "provider/list": {
+        const [result, definitions, issues] = await Promise.all([
+          runtime.providerList(),
+          piModels.providerDefinitions(),
+          piModels.configIssues(),
+        ])
+        const definitionsByID = new Map(
+          definitions.map((definition) => [definition.id, definition]),
+        )
+        return {
+          ...result,
+          providers: result.providers.map((provider) => {
+            const configured = definitionsByID.get(String(provider.id))
+            if (!configured && provider.source.kind === "custom") {
+              throw new AgentError(
+                "INTERNAL_ERROR",
+                "自定义 Provider 缺少可编辑配置",
+                500,
+              )
+            }
+            return {
+              ...provider,
+              config: configured ?? {
+                kind: "builtin",
+                id: provider.id,
+                enabled: provider.disabled !== true,
+                allowModels: [],
+                denyModels: [],
+                models: [],
+              },
+            }
+          }),
+          issues: issues.map((issue) => ({
+            providerId: issue.providerID,
+            path: issue.path,
+            code: issue.code,
+          })),
+        }
+      }
       case "model/list":
         return runtime.modelCatalog(params)
       case "model/refresh":
@@ -117,30 +134,22 @@ export const providerHandlers = {
               ],
         })
         const catalog = await runtime.publishCatalogUpdated(false)
-        return {
-          defaultModel: model,
-          settingsVersion: catalog.catalogVersion,
-        }
+        return { defaultModel: model, settingsVersion: catalog.catalogVersion }
       }
       case "model/setReviewer": {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
         await config.batchWrite({
-          edits: [
-            { keyPath: ["task_models", "reviewer"], value: model ? String(model.id) : null },
-          ],
+          edits: [{ keyPath: ["task_models", "reviewer"], value: model ? String(model.id) : null }],
         })
         const catalog = await runtime.publishCatalogUpdated(false)
-        return {
-          reviewerModel: model,
-          settingsVersion: catalog.catalogVersion,
-        }
+        return { reviewerModel: model, settingsVersion: catalog.catalogVersion }
       }
       case "provider/test": {
         const providerID = stringParam(params, "providerId")
         const testedAt = Date.now()
         const startedAt = performance.now()
-        const model = (await providers.models()).find((item) => item.providerID === providerID)
+        const model = (await providers.models()).find((item) => String(item.providerID) === providerID)
         if (!model) {
           return {
             providerId: providerID,
@@ -168,226 +177,199 @@ export const providerHandlers = {
           }
         }
       }
-      case "provider/updateSettings": {
-        const setting = providerSetting(params)
-        const flatten = (
-          value: Record<string, unknown>,
-          prefix: string[],
-        ): Array<{ keyPath: string[]; value: never }> =>
-          Object.entries(value).flatMap(([key, child]) =>
-            child && typeof child === "object" && !Array.isArray(child)
-              ? flatten(child as Record<string, unknown>, [...prefix, key])
-              : [{ keyPath: [...prefix, key], value: child as never }],
+      case "provider/create":
+      case "provider/update": {
+        const definition = object(params.definition, "definition")
+        const providerID = method === "provider/create"
+          ? stringParam(definition, "id")
+          : stringParam(params, "providerId")
+        if (stringParam(definition, "id") !== providerID) {
+          throw new AgentError("CONFLICT", "Provider ID 创建后不可修改", 409)
+        }
+        if (method === "provider/create" && definition.kind !== "custom") {
+          throw new AgentError("INVALID_REQUEST", "只能创建自定义 Provider", 400)
+        }
+        const configured = object(config.snapshot().model_providers ?? {}, "model_providers")
+        if (method === "provider/create" && providerID in configured) {
+          throw new AgentError("CONFLICT", `Provider ${providerID} 已存在`, 409)
+        }
+        let serialized: ReturnType<typeof serializePiProviderDefinition>
+        try {
+          serialized = serializePiProviderDefinition(
+            definition as unknown as PiProviderDefinitionInput,
           )
-        const edits = flatten(
-          setting.config as unknown as Record<string, unknown>,
-          ["model_providers", setting.id],
-        )
-        if (edits.length) await config.batchWrite({ edits })
+        } catch (cause) {
+          if (cause instanceof PiProviderConfigValidationError) {
+            throw new AgentError(
+              "INVALID_REQUEST",
+              "Provider 配置不合法",
+              400,
+              {
+                issues: cause.issues.map((issue) => ({
+                  providerId: issue.providerID,
+                  path: issue.path,
+                  code: issue.code,
+                })),
+              },
+            )
+          }
+          throw cause
+        }
+        await config.batchWrite({
+          edits: [
+            { keyPath: ["model_catalog", "schema_version"], value: 2 },
+            { keyPath: ["model_providers", providerID], value: serialized.value as never },
+          ],
+        })
         await providers.reload()
         const catalog = await runtime.publishCatalogUpdated()
-        const catalogProvider = catalog.providers.find(({ provider }) => provider.id === setting.id)
-        if (!catalogProvider) throw new AgentError("PROVIDER_UNAVAILABLE", `Provider ${setting.id} 当前不可用`, 409)
-        const integration = (await integrations.list()).find((item) => item.id === catalogProvider.provider.integrationID)
+        return { providerId: providerID, catalogVersion: catalog.catalogVersion }
+      }
+      case "provider/delete": {
+        const providerID = stringParam(params, "providerId")
+        const snapshot = config.snapshot()
+        const configured = object(snapshot.model_providers ?? {}, "model_providers")
+        if (!(providerID in configured)) {
+          throw new AgentError("PROVIDER_NOT_FOUND", `Provider ${providerID} 不存在`, 404)
+        }
+        const definition = object(configured[providerID], `model_providers.${providerID}`)
+        if (definition.kind !== "custom") {
+          throw new AgentError("CONFLICT", "只能删除自定义 Provider", 409)
+        }
+        const taskModels = snapshot.task_models && typeof snapshot.task_models === "object"
+          ? snapshot.task_models as Record<string, unknown>
+          : {}
+        const reviewerModelID = typeof taskModels.reviewer === "string"
+          ? taskModels.reviewer
+          : undefined
+        const reviewerReferencesProvider = reviewerModelID
+          ? (await providers.models()).some(
+              (model) =>
+                String(model.providerID) === providerID &&
+                String(model.id) === reviewerModelID,
+            )
+          : false
+        if (snapshot.model_provider === providerID || reviewerReferencesProvider) {
+          throw new AgentError("CONFLICT", "Provider 仍被默认模型或 Reviewer 模型引用", 409)
+        }
+        await config.batchWrite({
+          edits: [{ keyPath: ["model_providers", providerID], value: null }],
+        })
+        await providers.reload()
+        const catalog = await runtime.publishCatalogUpdated()
+        return { providerId: providerID, deleted: true, catalogVersion: catalog.catalogVersion }
+      }
+      case "provider/model/discover": {
+        const providerID = stringParam(params, "providerId")
+        const api = stringParam(params, "api") as
+          | "openai-completions"
+          | "openai-responses"
+          | "anthropic-messages"
+        if (api === "anthropic-messages") {
+          throw new AgentError("PROVIDER_UNAVAILABLE", "Anthropic 兼容端点不支持自动发现", 400)
+        }
+        const discovered = await piModels.discoverModels(providerID)
         return {
-          provider: {
-            id: catalogProvider.provider.id,
-            name: catalogProvider.provider.name,
-            disabled: catalogProvider.provider.disabled === true,
-            ...(catalogProvider.provider.integrationID
-              ? { integrationId: catalogProvider.provider.integrationID }
-              : {}),
-            configured: integration ? integration.connections.length > 0 : true,
-            modelCount: catalogProvider.models.length,
-          },
-          catalogVersion: catalog.catalogVersion,
+          models: discovered.map((model) => ({
+            id: model.id,
+            name: model.name,
+            api,
+            enabled: true,
+            contextWindow: 32_768,
+            maxTokens: 8_192,
+            reasoning: false,
+            input: ["text"],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          })),
         }
       }
-      case "apiKey/list": {
+      case "provider/credential/list":
         return {
-          apiKeys: await apiKeys.list(typeof params.providerId === "string" ? params.providerId : undefined),
+          credentials: await providerCredentials.list(
+            typeof params.providerId === "string" ? params.providerId : undefined,
+          ),
         }
+      case "provider/credential/setActive": {
+        const providerID = stringParam(params, "providerId")
+        const credential = await providerCredentials.setActive(
+          providerID,
+          stringParam(params, "credentialId"),
+        )
+        await providers.reload()
+        await emitCredentialUpdated(runtime, providerID)
+        await runtime.publishCatalogUpdated()
+        return { credential }
       }
-      case "apiKey/create": {
-        const apiKey = await apiKeys.create({
-          providerID: stringParam(params, "providerId"),
+      case "provider/credential/setEnabled": {
+        const credential = await providerCredentials.setEnabled(
+          stringParam(params, "credentialId"),
+          booleanParam(params, "enabled"),
+        )
+        await providers.reload()
+        await emitCredentialUpdated(runtime, String(credential.providerId))
+        await runtime.publishCatalogUpdated()
+        return { credential }
+      }
+      case "provider/credential/delete": {
+        const credentialID = stringParam(params, "credentialId")
+        const before = (await providerCredentials.list()).find((item) => String(item.id) === credentialID)
+        const credentials = await providerCredentials.delete(credentialID)
+        await providers.reload()
+        if (before) await emitCredentialUpdated(runtime, String(before.providerId))
+        await runtime.publishCatalogUpdated()
+        return { credentials }
+      }
+      case "provider/apiKey/create": {
+        const providerID = stringParam(params, "providerId")
+        const credential = await apiKeys.create({
+          providerID,
           label: stringParam(params, "label"),
           key: stringParam(params, "key"),
         })
         await providers.reload()
-        await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(apiKey.providerId)))
+        await emitCredentialUpdated(runtime, providerID)
         await runtime.publishCatalogUpdated()
-        return { apiKey }
+        return { credential }
       }
-      case "apiKey/update": {
-        const apiKey = await apiKeys.update({
+      case "provider/apiKey/update": {
+        const credential = await apiKeys.update({
           credentialID: stringParam(params, "credentialId"),
           ...(typeof params.label === "string" ? { label: params.label } : {}),
           ...(typeof params.key === "string" ? { key: params.key } : {}),
         })
         await providers.reload()
-        await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(apiKey.providerId)))
+        await emitCredentialUpdated(runtime, String(credential.providerId))
         await runtime.publishCatalogUpdated()
-        return { apiKey }
+        return { credential }
       }
-      case "apiKey/setActive": {
-        const apiKey = await apiKeys.setActive(
-          stringParam(params, "providerId"),
-          stringParam(params, "credentialId"),
-        )
-        await providers.reload()
-        await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(apiKey.providerId)))
-        await runtime.publishCatalogUpdated()
-        return { apiKey }
-      }
-      case "apiKey/setEnabled": {
-        const apiKey = await apiKeys.setEnabled(
-          stringParam(params, "credentialId"),
-          booleanParam(params, "enabled"),
-        )
-        await providers.reload()
-        await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(apiKey.providerId)))
-        await runtime.publishCatalogUpdated()
-        return { apiKey }
-      }
-      case "apiKey/reorder": {
-        if (!Array.isArray(params.orderedCredentialIds) || params.orderedCredentialIds.some((id) => typeof id !== "string")) {
-          throw new AgentError("INVALID_REQUEST", "orderedCredentialIds 参数无效", 400)
-        }
+      case "provider/apiKey/reorder": {
         const providerID = stringParam(params, "providerId")
-        const apiKeyList = await apiKeys.reorder(providerID, params.orderedCredentialIds as string[])
-        await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(providerID))
-        return { apiKeys: apiKeyList }
+        await apiKeys.reorder(
+          providerID,
+          stringArray(params.orderedCredentialIds, "orderedCredentialIds"),
+        )
+        await emitCredentialUpdated(runtime, providerID)
+        return { credentials: await providerCredentials.list(providerID) }
       }
-      case "apiKey/test": {
-        const credentialID = stringParam(params, "credentialId")
-        const result = await apiKeys.test(credentialID)
-        await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(result.apiKey.providerId)))
+      case "provider/apiKey/test": {
+        const result = await apiKeys.test(stringParam(params, "credentialId"))
+        await emitCredentialUpdated(runtime, String(result.credential.providerId))
         return result
       }
-      case "apiKey/delete": {
-        const credentialID = stringParam(params, "credentialId")
-        const before = (await apiKeys.list()).find((item) => String(item.id) === credentialID)
-        const apiKeyList = await apiKeys.delete(credentialID)
-        await providers.reload()
-        if (before) await runtime.emitIntegration("integration/updated", await runtime.providerIntegrationID(String(before.providerId)))
-        await runtime.publishCatalogUpdated()
-        return { apiKeys: apiKeyList }
-      }
-      case "integration/list": {
-        const listed = await integrations.list()
+      case "auth/session/start":
+        return { session: await authSessions.start(object(params.target, "target") as never) }
+      case "auth/session/respond":
         return {
-          integrations: listed.filter((integration) => {
-            if (
-              typeof params.kind === "string" &&
-              !integration.methods.some((method) => method.type === params.kind)
-            ) return false
-            if (
-              params.status === "connected" &&
-              integration.connections.length === 0
-            ) return false
-            if (
-              params.status === "disconnected" &&
-              integration.connections.length > 0
-            ) return false
-            return true
-          }),
+          session: await authSessions.respond(
+            stringParam(params, "sessionId"),
+            stringParam(params, "promptId"),
+            stringParam(params, "value"),
+          ),
         }
-      }
-      case "integration/connect": {
-        const integrationID = stringParam(params, "integrationId")
-        await integrations.connect({
-          integrationID,
-          key: stringParam(params, "key"),
-          ...(typeof params.label === "string" ? { label: params.label } : {}),
-        })
-        await providers.reload()
-        await runtime.emitIntegration("integration/updated", integrationID)
-        await emitUsageSourceUpdated(runtime, integrationID)
-        await runtime.publishCatalogUpdated()
-        return { integration: await runtime.requiredIntegration(integrationID) }
-      }
-      case "integration/authorize": {
-        const inputs = optionalRecord(params.inputs)
-        const values = Object.fromEntries(Object.entries(inputs).map(([key, value]) => {
-          if (typeof value !== "string") throw new AgentError("INVALID_REQUEST", `inputs.${key} 参数无效`, 400)
-          return [key, value]
-        }))
-        const attempt = await integrations.authorize({
-          integrationID: stringParam(params, "integrationId"),
-          methodID: stringParam(params, "methodId"),
-          inputs: values,
-          ...(typeof params.label === "string" ? { label: params.label } : {}),
-        })
-        return { attempt }
-      }
-      case "integration/authorizeComplete": {
-        const completedAttemptID = stringParam(params, "attemptId")
-        const connection = await integrations.complete({ attemptID: completedAttemptID, ...(typeof params.code === "string" ? { code: params.code } : {}) })
-        const completedContext = integrations.attemptContext(completedAttemptID)
-        const status = await integrations.status(completedAttemptID)
-        await providers.reload()
-        await runtime.emit("integration/authorizationCompleted", {
-          attemptId: completedAttemptID,
-          integrationId: completedContext.integrationID,
-        })
-        await emitUsageSourceUpdated(runtime, String(completedContext.integrationID))
-        await runtime.publishCatalogUpdated()
-        return {
-          attempt: {
-            attemptId: completedAttemptID,
-            integrationId: completedContext.integrationID,
-            status,
-            connection,
-          },
-          integration: await runtime.requiredIntegration(completedContext.integrationID),
-        }
-      }
-      case "integration/authorizeStatus": {
-        const attemptID = stringParam(params, "attemptId")
-        const status = await integrations.status(attemptID)
-        const context = integrations.attemptContext(attemptID)
-        if (status.status === "complete") {
-          await providers.reload()
-          await runtime.emit("integration/authorizationCompleted", {
-            attemptId: attemptID,
-            integrationId: context.integrationID,
-          })
-          await emitUsageSourceUpdated(runtime, String(context.integrationID))
-          await runtime.publishCatalogUpdated()
-        }
-        if (status.status === "failed") {
-          await runtime.emit("integration/authorizationFailed", {
-            attemptId: attemptID,
-            integrationId: context.integrationID,
-            error: {
-              code: "AUTHORIZATION_FAILED",
-              message: status.message,
-              retryable: false,
-            },
-          })
-        }
-        return {
-          attempt: {
-            attemptId: attemptID,
-            integrationId: context.integrationID,
-            status,
-            connection: context.connection ?? null,
-          },
-        }
-      }
-      case "integration/disconnect": {
-        const integrationID = stringParam(params, "integrationId")
-        await integrations.disconnect({
-          integrationID,
-          credentialID: stringParam(params, "credentialId"),
-        })
-        await providers.reload()
-        await runtime.emitIntegration("integration/updated", integrationID)
-        await emitUsageSourceUpdated(runtime, integrationID)
-        await runtime.publishCatalogUpdated()
-        return { integration: await runtime.requiredIntegration(integrationID) }
-      }
+      case "auth/session/status":
+        return { session: authSessions.status(stringParam(params, "sessionId")) }
+      case "auth/session/cancel":
+        return { session: await authSessions.cancel(stringParam(params, "sessionId")) }
       default:
         throw new AgentError("METHOD_NOT_FOUND", `未知 RPC 方法：${method}`, 404)
     }
