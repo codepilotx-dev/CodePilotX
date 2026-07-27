@@ -72,11 +72,28 @@ describe("AgentLogger", () => {
     logger.request({ method: "GET", path: "/api/ready", status: 200, durationMs: 1 })
     logger.request({ method: "POST", path: "/rpc", status: 200, durationMs: 20 })
     logger.request({ method: "POST", path: "/rpc", status: 404, durationMs: 5 })
-    logger.request({ method: "POST", path: "/rpc", status: 200, durationMs: 1_100 })
+    logger.request({ method: "GET", path: "/api/ready", status: 200, durationMs: 1_100 })
 
     expect((await records(root)).map(record => record.event)).toEqual([
       "http.request.failed",
       "http.request.slow",
     ])
+  })
+
+  test("RPC 使用适合模型调用的慢请求阈值", async () => {
+    const root = await makeRoot()
+    const logger = new AgentLogger(root)
+    logger.request({ method: "POST", path: "/rpc", status: 200, durationMs: 6_000 })
+    logger.request({ method: "POST", path: "/rpc", status: 200, durationMs: 10_000 })
+
+    const logged = await records(root)
+    expect(logged).toHaveLength(1)
+    expect(logged[0]?.event).toBe("http.request.slow")
+    expect(logged[0]?.details).toEqual({
+      method: "POST",
+      path: "/rpc",
+      status: 200,
+      durationMs: 10_000,
+    })
   })
 })

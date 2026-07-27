@@ -1,10 +1,11 @@
 import {
   contentText,
+  Type,
   type Api,
   type Model as PiModel,
   type Models,
 } from "@earendil-works/pi-ai";
-import type { z } from "zod";
+import { z } from "zod";
 
 const jsonPayload = (text: string) => {
   const trimmed = text.trim();
@@ -20,8 +21,6 @@ const jsonPayload = (text: string) => {
   }
 };
 
-/** Pi does not expose a provider-independent JSON-schema response mode, so the
- * boundary requests JSON and treats the existing Zod schema as authoritative. */
 export async function generatePiObject<TSchema extends z.ZodType>(input: {
   models: Models;
   model: PiModel<Api>;
@@ -31,13 +30,23 @@ export async function generatePiObject<TSchema extends z.ZodType>(input: {
   prompt: string;
   signal?: AbortSignal;
 }): Promise<z.output<TSchema>> {
+  const toolName = `submit_${input.schemaName}`;
   const response = await input.models.completeSimple(
     input.model,
     {
-      systemPrompt: `${input.system}\n只返回符合 ${input.schemaName} 的 JSON 对象，不要使用 Markdown 代码围栏。`,
+      systemPrompt: [
+        input.system,
+        `必须调用 ${toolName} 提交符合 ${input.schemaName} 的结果，不要返回说明文字。`,
+      ].join("\n"),
       messages: [
         { role: "user", content: input.prompt, timestamp: Date.now() },
       ],
+      tools: [{
+        name: toolName,
+        description: `提交符合 ${input.schemaName} schema 的结构化结果`,
+        parameters: Type.Unsafe(z.toJSONSchema(input.schema)),
+        constrainedSampling: { type: "json_schema", strict: "prefer" },
+      }],
     },
     {
       ...(input.signal ? { signal: input.signal } : {}),
@@ -46,5 +55,10 @@ export async function generatePiObject<TSchema extends z.ZodType>(input: {
   );
   if (response.stopReason === "error")
     throw new Error(response.errorMessage ?? "Pi 结构化模型调用失败");
+  const toolCall = response.content.find(
+    item => item.type === "toolCall" && item.name === toolName,
+  );
+  if (toolCall?.type === "toolCall")
+    return input.schema.parse(toolCall.arguments);
   return input.schema.parse(jsonPayload(contentText(response.content, "\n")));
 }

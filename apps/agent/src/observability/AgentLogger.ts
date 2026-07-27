@@ -5,6 +5,8 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024
 const MAX_FILES = 5
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_STRING_LENGTH = 2_000
+const SLOW_HTTP_REQUEST_MS = 1_000
+const SLOW_RPC_REQUEST_MS = 10_000
 const SENSITIVE_KEY = /authorization|token|api[-_]?key|password|secret|credential|cookie/i
 const BEARER_VALUE = /\bBearer\s+[^\s,;"']+/gi
 const OPENAI_KEY = /\bsk-[A-Za-z0-9_-]+\b/g
@@ -149,7 +151,10 @@ export class AgentLogger {
       this.write(level, "http.request.failed", { details: input })
       return
     }
-    if (input.durationMs >= 1_000) {
+    const slowRequestMs = input.path === "/rpc"
+      ? SLOW_RPC_REQUEST_MS
+      : SLOW_HTTP_REQUEST_MS
+    if (input.durationMs >= slowRequestMs) {
       this.write("warn", "http.request.slow", { details: input })
     }
   }
