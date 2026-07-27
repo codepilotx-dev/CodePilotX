@@ -13,6 +13,11 @@ import { execSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SEMVER_RE, compareSemver } from "./semver-utils.ts";
+import {
+  getChangelogSection,
+  hasChangelogEntry,
+  parseChangelogSections,
+} from "./changelog-utils.ts";
 
 /* ─────────────── 路径 ─────────────── */
 
@@ -54,16 +59,6 @@ function ok(msg: string) {
 
 function warn(msg: string) {
   console.warn(`  ⚠ ${msg}`);
-}
-
-/** 粗略解析 Changelog 的标题结构 */
-function parseChangelogHeadings(text: string): string[] {
-  const headings: string[] = [];
-  for (const line of text.split("\n")) {
-    const m = line.match(/^##\s+(.+)/);
-    if (m) headings.push(m[1].trim());
-  }
-  return headings;
 }
 
 /* ─────────────── 检查 ─────────────── */
@@ -140,13 +135,15 @@ function runCheck(opts: CheckOptions) {
     changelogText = "";
   }
   if (changelogText) {
-    const headings = parseChangelogHeadings(changelogText);
+    const headings = parseChangelogSections(changelogText).map(
+      (section) => section.heading,
+    );
     if (!headings.some((h) => h === "Unreleased")) {
       fail("CHANGELOG.md 缺少 ## Unreleased 区段");
     }
     // Check categories
-    const bodyAfterUnreleased = changelogText.split("## Unreleased")[1] ?? "";
-    const unreleasedSection = bodyAfterUnreleased.split("\n## ")[0];
+    const unreleasedSection =
+      getChangelogSection(changelogText, "Unreleased")?.body ?? "";
     const validCategories = [
       "### Added",
       "### Changed",
@@ -257,12 +254,11 @@ function runPrepare(newVersion: string, stable: boolean) {
 
   // 5. 检查 Unreleased 非空
   const changelogText = readFile(CHANGELOG);
-  const bodyAfterUnreleased = changelogText.split("## Unreleased")[1] ?? "";
-  const unreleasedSection = bodyAfterUnreleased.split("\n## ")[0];
-  const nonEmpty = unreleasedSection
-    .split("\n")
-    .some((l) => l.trim().startsWith("-"));
-  if (!nonEmpty) {
+  const unreleasedSection = getChangelogSection(
+    changelogText,
+    "Unreleased",
+  );
+  if (!unreleasedSection || !hasChangelogEntry(unreleasedSection)) {
     errExit("Unreleased 区段为空，无法升版；请先添加变更记录");
   }
   ok("Unreleased 区段非空");

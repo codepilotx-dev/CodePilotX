@@ -10,6 +10,12 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { SEMVER_RE, compareSemver, parseSemver } from "./semver-utils.ts";
+import {
+  extractArchivedReleaseNotes,
+  getChangelogSection,
+  parseChangelogSections,
+} from "./changelog-utils.ts";
+import { buildReleaseNotes } from "./write-release-notes.ts";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const CLI = `bun ${join(ROOT, "scripts", "version-policy.ts")}`;
@@ -108,6 +114,89 @@ describe("compareSemver", () => {
 
   it("rejects same version (not greater)", () => {
     expect(compareSemver("0.2.0-beta.1", "0.2.0-beta.1")).not.toBeGreaterThan(0);
+  });
+});
+
+/* ───────────── CHANGELOG 发布区段测试 ───────────── */
+
+const RELEASE_CHANGELOG = `# Changelog
+
+## Unreleased
+
+### Added
+
+- [desktop] 尚未发布
+
+## 0.2.0-beta.2 — 2026-07-27
+
+### Added
+
+- [desktop] 新增新特性页面
+
+### Fixed
+
+- [agent] 修复更新日志请求
+
+## 0.2.0-beta.1 — 2026-07-20
+
+### Fixed
+
+- [desktop] 修复旧问题
+`;
+
+describe("CHANGELOG release notes", () => {
+  it("parses sections and extracts only the requested archived version", () => {
+    expect(parseChangelogSections(RELEASE_CHANGELOG).map((item) => item.heading))
+      .toEqual([
+        "Unreleased",
+        "0.2.0-beta.2 — 2026-07-27",
+        "0.2.0-beta.1 — 2026-07-20",
+      ]);
+    expect(getChangelogSection(RELEASE_CHANGELOG, "Unreleased")?.body)
+      .toContain("尚未发布");
+
+    const notes = extractArchivedReleaseNotes(
+      RELEASE_CHANGELOG,
+      "0.2.0-beta.2",
+    );
+    expect(notes).toContain("新增新特性页面");
+    expect(notes).toContain("修复更新日志请求");
+    expect(notes).not.toContain("尚未发布");
+    expect(notes).not.toContain("修复旧问题");
+  });
+
+  it("rejects an unarchived, missing, or empty version", () => {
+    expect(() =>
+      extractArchivedReleaseNotes(RELEASE_CHANGELOG, "Unreleased")
+    ).toThrow("未找到已归档版本");
+    expect(() =>
+      extractArchivedReleaseNotes(RELEASE_CHANGELOG, "0.2.0-beta.3")
+    ).toThrow("未找到已归档版本");
+    expect(() =>
+      extractArchivedReleaseNotes(
+        "## Unreleased\n\n## 0.2.0-beta.2 — 2026-07-27\n\n### Added\n",
+        "0.2.0-beta.2",
+      )
+    ).toThrow("区段为空");
+  });
+
+  it("requires the tag, root version, and archived section to agree", () => {
+    expect(buildReleaseNotes({
+      tag: "v0.2.0-beta.2",
+      rootVersion: "0.2.0-beta.2",
+      changelogText: RELEASE_CHANGELOG,
+    })).toContain("新增新特性页面");
+
+    expect(() => buildReleaseNotes({
+      tag: "v0.2.0-beta.2",
+      rootVersion: "0.2.0-beta.1",
+      changelogText: RELEASE_CHANGELOG,
+    })).toThrow("与根版本");
+    expect(() => buildReleaseNotes({
+      tag: "0.2.0-beta.2",
+      rootVersion: "0.2.0-beta.2",
+      changelogText: RELEASE_CHANGELOG,
+    })).toThrow("必须以");
   });
 });
 

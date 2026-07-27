@@ -33,6 +33,8 @@ jobs:
   signed-release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -68,3 +70,49 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "NSIS silent install failed: $($process.ExitCode)" }
           bun scripts/verify-win-x64-package.ts "--unpacked=$installRoot" --require-signing
           bun scripts/smoke-win-x64.ts "--application=$installRoot/CodePilotX.exe"
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $expectedRepository = "codepilotx-dev/CodePilotX"
+          if ($env:GITHUB_REPOSITORY -cne $expectedRepository) {
+            throw "Release publishing is restricted to $expectedRepository; current repository is $env:GITHUB_REPOSITORY"
+          }
+
+          $tag = $env:GITHUB_REF_NAME
+          $notesPath = Join-Path $env:RUNNER_TEMP "codepilotx-release-notes.md"
+          bun scripts/write-release-notes.ts --tag $tag --output $notesPath
+          if ($LASTEXITCODE -ne 0) { throw "Failed to generate release notes for $tag" }
+
+          $installers = @(Get-ChildItem release/CodePilotX-*-x64.exe)
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one Windows x64 installer, found $($installers.Count)"
+          }
+          $installerPath = $installers[0].FullName
+
+          $isPrerelease = $tag -match '-(alpha|beta|rc)(?:[.-]|$)'
+          $payloadPath = Join-Path $env:RUNNER_TEMP "codepilotx-release-payload.json"
+          $payload = [ordered]@{
+            tag_name = $tag
+            name = "CodePilotX $tag"
+            body = [IO.File]::ReadAllText($notesPath)
+            draft = $false
+            prerelease = $isPrerelease
+          } | ConvertTo-Json -Depth 3
+          [IO.File]::WriteAllText(
+            $payloadPath,
+            $payload,
+            [Text.UTF8Encoding]::new($false)
+          )
+
+          $releaseId = gh api "repos/$expectedRepository/releases/tags/$tag" --jq ".id" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh api --method PATCH "repos/$expectedRepository/releases/$releaseId" --input $payloadPath
+          } else {
+            gh api --method POST "repos/$expectedRepository/releases" --input $payloadPath
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Failed to create or update GitHub Release $tag" }
+
+          gh release upload $tag $installerPath --clobber --repo $expectedRepository
+          if ($LASTEXITCODE -ne 0) { throw "Failed to upload installer for $tag" }
