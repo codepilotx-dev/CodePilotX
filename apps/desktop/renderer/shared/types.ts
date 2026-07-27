@@ -846,7 +846,6 @@ export type DesktopSidebarOrganization = 'projects' | 'flat'
 export type DesktopSidebarSort =
   | 'priority'
   | 'updated'
-  | 'created'
   | 'manual'
 
 export type DesktopRemovedWorkspace = {
@@ -978,6 +977,7 @@ gitBranchPrefix: string
   sidebarOrganization: DesktopSidebarOrganization
   sidebarProductMode: SidebarProductMode
   sidebarStateVersion: number
+  sidebarProjectSort: DesktopSidebarSort
   sidebarSort: DesktopSidebarSort
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>

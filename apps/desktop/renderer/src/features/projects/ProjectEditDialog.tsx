@@ -26,6 +26,7 @@ import {
   createProjectFolderSavePlan,
   type ProjectFolderSaveDraft,
 } from './projectEditModel.js'
+import { notifyProjectCatalogChanged } from './projectCatalogEvents.js'
 
 type DraftFolder = DesktopProjectFolder & ProjectFolderSaveDraft
 
@@ -62,9 +63,17 @@ export function ProjectEditDialog({
   useEffect(() => {
     if (!open) return
     setDraftName(project.name)
-    setDraftAppearance(appearance)
     setDraftFolders(createFolderDraft(project))
     setBusy(false)
+  }, [open, project])
+
+  useEffect(() => {
+    if (!open) return
+    setDraftAppearance(appearance)
+  }, [appearance, open])
+
+  useEffect(() => {
+    if (!open) return
     if (!projectId) return
     void desktopClient
       .listProjectSources(projectId)
@@ -77,7 +86,7 @@ export function ProjectEditDialog({
         setSourceCounts(counts)
       })
       .catch(error => onReport(errorMessage(error)))
-  }, [appearance, open, project, projectId, onReport])
+  }, [open, projectId, onReport])
 
   const primaryDraft = useMemo(
     () => draftFolders.find(folder => folder.role === 'primary') ?? null,
@@ -209,12 +218,13 @@ export function ProjectEditDialog({
         })
       }
 
-      onAppearanceChange(draftAppearance)
       onProjectChange(current)
+      notifyProjectCatalogChanged()
       onOpenChange(false)
       onReport('项目已保存。')
     } catch (error) {
       await refreshProject().catch(() => undefined)
+      notifyProjectCatalogChanged()
       onReport(
         `部分项目更改可能已经生效，已刷新实际状态。${errorMessage(error)}`,
       )
@@ -266,7 +276,10 @@ export function ProjectEditDialog({
                 <ProjectAppearancePicker
                   appearance={draftAppearance}
                   disabled={busy}
-                  onChange={setDraftAppearance}
+                  onChange={nextAppearance => {
+                    setDraftAppearance(nextAppearance)
+                    onAppearanceChange(nextAppearance)
+                  }}
                 />
                 <input
                   aria-label="项目名称"

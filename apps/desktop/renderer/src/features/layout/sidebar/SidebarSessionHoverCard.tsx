@@ -1,7 +1,12 @@
 import type React from 'react'
-import { Folder, GitBranch } from 'lucide-react'
-import { Tooltip } from '../../../components/ui/Tooltip.js'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { sessionDisplayTitle, type SessionListItem } from '../../../uiTypes.js'
+import { SidebarHoverCard } from './SidebarHoverCard.js'
+
+const SidebarSessionHoverCardOverlay = lazy(async () => {
+  const module = await import('./SidebarSessionHoverCardOverlay.js')
+  return { default: module.SidebarSessionHoverCardOverlay }
+})
 
 const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
@@ -53,10 +58,11 @@ export function buildSidebarSessionHoverCardModel(
 }
 
 type Props = {
-  children: React.ReactNode
+  children: React.ReactElement
   fallbackTitle: string | undefined
   now: number
   session: SessionListItem
+  onRename?: (title: string) => Promise<boolean>
 }
 
 export function SidebarSessionHoverCard({
@@ -64,36 +70,99 @@ export function SidebarSessionHoverCard({
   fallbackTitle,
   now,
   session,
+  onRename,
 }: Props): React.ReactNode {
   const model = buildSidebarSessionHoverCardModel(session, fallbackTitle, now)
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [renameValue, setRenameValue] = useState(model.title)
+  const [saving, setSaving] = useState(false)
+  const [focusRequest, setFocusRequest] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const savingRef = useRef(false)
+
+  useEffect(() => {
+    if (!editing) setRenameValue(model.title)
+  }, [editing, model.title])
+
+  function startRename(): void {
+    if (!onRename) return
+    setRenameValue(model.title)
+    setEditing(true)
+    setOpen(true)
+    setFocusRequest(current => current + 1)
+  }
+
+  function cancelRename(): void {
+    if (savingRef.current) return
+    setRenameValue(model.title)
+    setEditing(false)
+    setOpen(false)
+  }
+
+  async function saveRename(returnFocusToAnchor: () => void): Promise<void> {
+    const title = renameValue.trim()
+    if (!onRename || savingRef.current || !title) return
+    savingRef.current = true
+    setSaving(true)
+    try {
+      const success = await onRename(title)
+      if (!success) {
+        refocusRenameInput(inputRef)
+        return
+      }
+      setEditing(false)
+      setOpen(false)
+      returnFocusToAnchor()
+    } catch {
+      refocusRenameInput(inputRef)
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+    }
+  }
+
   return (
-    <Tooltip
-      align="center"
-      className="sidebar-session-hover-card"
-      content={(
-        <div className="sidebar-session-hover-card-content">
-          <div className="sidebar-session-hover-card-header">
-            <span className="sidebar-session-hover-card-title">{model.title}</span>
-            <span className="sidebar-session-hover-card-time">{model.relativeTime}</span>
-          </div>
-          <div className="sidebar-session-hover-card-row">
-            <Folder aria-hidden="true" size={16} />
-            <span>{model.projectLabel}</span>
-          </div>
-          {model.gitBranch ? (
-            <div className="sidebar-session-hover-card-row">
-              <GitBranch aria-hidden="true" size={16} />
-              <span>{model.gitBranch}</span>
-            </div>
-          ) : null}
-        </div>
+    <SidebarHoverCard
+      lockOpen={editing}
+      open={open}
+      onAnchorKeyDown={event => {
+        if (event.key !== 'F2' || !onRename) return
+        event.preventDefault()
+        startRename()
+      }}
+      onOpenChange={setOpen}
+      renderOverlay={interactionProps => (
+        <Suspense fallback={null}>
+          <SidebarSessionHoverCardOverlay
+            {...interactionProps}
+            editing={editing}
+            focusRequest={focusRequest}
+            inputRef={inputRef}
+            model={model}
+            renameValue={renameValue}
+            saving={saving}
+            onCancelRename={cancelRename}
+            onFocusRequestHandled={() => setFocusRequest(0)}
+            onRenameValueChange={setRenameValue}
+            onSaveRename={() => void saveRename(
+              interactionProps.returnFocusToAnchor,
+            )}
+            onStartRename={startRename}
+          />
+        </Suspense>
       )}
-      delayDuration={400}
-      side="right"
-      sideOffset={6}
-      variant="unstyled"
     >
       {children}
-    </Tooltip>
+    </SidebarHoverCard>
   )
+}
+
+function refocusRenameInput(
+  inputRef: React.RefObject<HTMLInputElement | null>,
+): void {
+  requestAnimationFrame(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  })
 }

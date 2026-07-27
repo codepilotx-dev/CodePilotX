@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Clock3,
   FlaskConical,
+  FolderKanban,
   GitPullRequest,
   Search,
   SquarePen,
@@ -67,8 +68,27 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   },
 ];
 
+export const PROJECTS_NAV_ITEM: SidebarNavItem = {
+  view: 'projects',
+  label: '项目',
+  icon: <FolderKanban size={APP_ICON_SIZE} />,
+  path: '/projects',
+}
+
+export function getSidebarTopNavItems(
+  showProjects: boolean,
+): SidebarNavItem[] {
+  if (!showProjects) return TOP_NAV_ITEMS
+  return [
+    TOP_NAV_ITEMS[0]!,
+    PROJECTS_NAV_ITEM,
+    ...TOP_NAV_ITEMS.slice(1),
+  ]
+}
+
 type Props = {
   isActiveView: (view: AppView) => boolean;
+  showProjects: boolean;
 };
 
 const PRODUCT_MODE_LABELS: Record<SidebarProductMode, string> = {
@@ -129,10 +149,13 @@ export function SidebarHeader(): React.ReactNode {
   )
 }
 
-export function SidebarTopNav({ isActiveView }: Props): React.ReactNode {
+export function SidebarTopNav({
+  isActiveView,
+  showProjects,
+}: Props): React.ReactNode {
   return (
     <nav className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5" aria-label="主要导航">
-      {TOP_NAV_ITEMS.map((item) => {
+      {getSidebarTopNavItems(showProjects).map((item) => {
         const active = isActiveView(item.view);
         return (
           <SidebarRow

@@ -15,7 +15,8 @@ import {
   SidebarContextMenu,
   type ContextMenuAction,
 } from "./SidebarContextMenu.js";
-import { SidebarSessionHoverCard } from "./SidebarSessionHoverCard.js";
+import type { DesktopSidebarSort } from '../../../../shared/types.js'
+import { SidebarSessionHoverCard } from './SidebarSessionHoverCard.js'
 
 const GROUP_LIMIT = 5;
 
@@ -26,10 +27,14 @@ type Props = {
   pendingPermissionSessionIds: ReadonlySet<string>;
   sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
+  sort?: DesktopSidebarSort
+  manualOrderByScope?: Record<string, string[]>
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
+  onManualOrderChange?: (scopeKey: string, order: string[]) => void
   onPinSession: (session: SessionListItem) => void;
   onSelectSession: (session: SessionListItem) => void;
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>;
+  onSortChange?: (sort: 'manual') => void
   onUnpinSession: (session: SessionListItem) => void;
 };
 
@@ -40,10 +45,14 @@ export function SidebarSessionGroup({
   pendingPermissionSessionIds,
   sessionFallbackTitles,
   sessions,
+  sort = 'priority',
+  manualOrderByScope = {},
   onArchiveSessions,
+  onManualOrderChange,
   onPinSession,
   onSelectSession,
   onRenameSession,
+  onSortChange,
   onUnpinSession,
 }: Props): React.ReactNode {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
@@ -55,6 +64,8 @@ export function SidebarSessionGroup({
   const [renameSession, setRenameSession] = useState<SessionListItem | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [renaming, setRenaming] = useState(false)
+  const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null)
+  const [dragOverSessionId, setDragOverSessionId] = useState<string | null>(null)
   const reducedMotion = usePrefersReducedMotion()
   const needsInputSessionIds = pendingPermissionSessionIds
   const unreadSessionIds = useMemo(
@@ -64,16 +75,18 @@ export function SidebarSessionGroup({
   const sortedSessions = useMemo(
     () =>
       sortSessionsForSidebar(sessions, {
-        sort: 'priority',
+        sort,
         needsInputSessionIds,
         unreadSessionIds,
         scopeKey: groupKey,
-        manualOrderByScope: {},
+        manualOrderByScope,
       }),
     [
       groupKey,
+      manualOrderByScope,
       needsInputSessionIds,
       sessions,
+      sort,
       unreadSessionIds,
     ],
   )
@@ -83,6 +96,89 @@ export function SidebarSessionGroup({
   useEffect(() => {
     setVisibleLimit(GROUP_LIMIT);
   }, [groupKey]);
+
+  function persistManualOrder(order: string[]): void {
+    if (!onManualOrderChange) return
+    onManualOrderChange(groupKey, order)
+    if (sort !== 'manual') onSortChange?.('manual')
+  }
+
+  function moveSessionByKeyboard(
+    sessionId: string,
+    offset: -1 | 1,
+  ): void {
+    if (!onManualOrderChange) return
+    const order = sortedSessions.map(session => session.id)
+    const currentIndex = order.indexOf(sessionId)
+    const nextIndex = currentIndex + offset
+    if (
+      currentIndex < 0 ||
+      nextIndex < 0 ||
+      nextIndex >= order.length
+    ) {
+      return
+    }
+    const [moved] = order.splice(currentIndex, 1)
+    if (!moved) return
+    order.splice(nextIndex, 0, moved)
+    setVisibleLimit(current => Math.max(current, nextIndex + 1))
+    persistManualOrder(order)
+  }
+
+  function handleDragStart(
+    event: React.DragEvent<HTMLElement>,
+    sessionId: string,
+  ): void {
+    if (!onManualOrderChange) {
+      event.preventDefault()
+      return
+    }
+    const target = event.target as Element
+    if (
+      target.closest(
+        '.sidebar-session-actions, .sidebar-session-confirm-archive-button',
+      )
+    ) {
+      event.preventDefault()
+      return
+    }
+    const order = sortedSessions.map(session => session.id)
+    onManualOrderChange(groupKey, order)
+    if (sort !== 'manual') onSortChange?.('manual')
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData(
+      'application/x-codepilotx-sidebar-session',
+      sessionId,
+    )
+    setDraggedSessionId(sessionId)
+  }
+
+  function handleDrop(
+    event: React.DragEvent<HTMLElement>,
+    targetSessionId: string,
+  ): void {
+    const sourceSessionId =
+      draggedSessionId ||
+      event.dataTransfer.getData(
+        'application/x-codepilotx-sidebar-session',
+      )
+    if (!sourceSessionId || sourceSessionId === targetSessionId) {
+      setDragOverSessionId(null)
+      return
+    }
+    event.preventDefault()
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const placeAfter = event.clientY >= bounds.top + bounds.height / 2
+    const order = reorderSessionIds(
+      sortedSessions,
+      sourceSessionId,
+      targetSessionId,
+      placeAfter,
+    )
+    if (order) persistManualOrder(order)
+    setDraggedSessionId(null)
+    setDragOverSessionId(null)
+  }
 
   function getSessionContextMenuActions(
     session: SessionListItem,
@@ -137,17 +233,77 @@ export function SidebarSessionGroup({
       "u-flex",
       "u-items-center",
       "u-justify-end",
+      "tw:gap-3",
       awaitingApproval ? "u-w-auto" : "u-w-full",
       awaitingApproval && "sidebar-session-meta--approval",
       confirmArchiveSessionId === session.id && "confirming-archive",
     );
+    const sessionButton = (
+      <button
+        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+        className="sidebar-session-button"
+        onClick={() => {
+          onSelectSession(session);
+        }}
+        onKeyDown={event => {
+          if (
+            !event.altKey ||
+            (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
+          ) {
+            return
+          }
+          event.preventDefault()
+          event.stopPropagation()
+          moveSessionByKeyboard(
+            session.id,
+            event.key === 'ArrowUp' ? -1 : 1,
+          )
+        }}
+        type="button"
+      >
+        <span className={cx('sidebar-session-title', 'u-min-w-0', 'u-truncate')}>
+          {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
+          {session.unreadAt ? (
+            <span aria-label="未读" className="sidebar-session-unread-dot" />
+          ) : null}
+        </span>
+      </button>
+    )
     const row = (
       <SidebarRow
         active={session.id === activeSessionId}
         as="li"
-        className="sidebar-session-row"
+        className={cx(
+          'sidebar-session-row',
+          draggedSessionId === session.id && 'is-dragging',
+          dragOverSessionId === session.id && 'is-drag-over',
+        )}
+        draggable={Boolean(onManualOrderChange)}
         indent="session"
         key={session.id}
+        onDragEnd={() => {
+          setDraggedSessionId(null)
+          setDragOverSessionId(null)
+        }}
+        onDragLeave={event => {
+          if (
+            event.relatedTarget instanceof Node &&
+            event.currentTarget.contains(event.relatedTarget)
+          ) {
+            return
+          }
+          setDragOverSessionId(current =>
+            current === session.id ? null : current,
+          )
+        }}
+        onDragOver={event => {
+          if (!draggedSessionId || draggedSessionId === session.id) return
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'move'
+          setDragOverSessionId(session.id)
+        }}
+        onDragStart={event => handleDragStart(event, session.id)}
+        onDrop={event => handleDrop(event, session.id)}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
           setHoveredSessionId((current) =>
@@ -225,21 +381,9 @@ export function SidebarSessionGroup({
           fallbackTitle={sessionFallbackTitles[session.id]}
           now={now}
           session={session}
+          onRename={title => onRenameSession(session.id, title)}
         >
-          <button
-            className="sidebar-session-button"
-            onClick={() => {
-              onSelectSession(session);
-            }}
-            type="button"
-          >
-            <span className={cx('sidebar-session-title', 'u-min-w-0', 'u-truncate')}>
-              {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
-              {session.unreadAt ? (
-                <span aria-label="未读" className="sidebar-session-unread-dot" />
-              ) : null}
-            </span>
-          </button>
+          {sessionButton}
         </SidebarSessionHoverCard>
       </SidebarRow>
     );
@@ -384,4 +528,20 @@ export function getSidebarSessionDisplayGroups<T>(
       : [],
     hasOverflow,
   };
+}
+
+function reorderSessionIds(
+  sessions: readonly SessionListItem[],
+  sourceSessionId: string,
+  targetSessionId: string,
+  placeAfter: boolean,
+): string[] | null {
+  const order = sessions.map(session => session.id)
+  const sourceIndex = order.indexOf(sourceSessionId)
+  if (sourceIndex < 0 || !order.includes(targetSessionId)) return null
+  const [source] = order.splice(sourceIndex, 1)
+  if (!source) return null
+  const targetIndex = order.indexOf(targetSessionId)
+  order.splice(targetIndex + (placeAfter ? 1 : 0), 0, source)
+  return order
 }

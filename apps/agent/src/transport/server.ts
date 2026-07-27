@@ -94,7 +94,6 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 const DESKTOP_RUNTIME_SETTINGS_KEY = "desktop.runtime-state.v1"
 const DEPRECATED_DESKTOP_SIDEBAR_FIELDS = new Set([
-  "sidebarManualOrder",
   "sidebarSectionOrder",
 ])
 const DESKTOP_RUNTIME_FIELDS = new Set([
@@ -103,6 +102,7 @@ const DESKTOP_RUNTIME_FIELDS = new Set([
   "removedWorkspaces",
   "drawerTab",
   "sidebarStateVersion",
+  "sidebarManualOrder",
   "sidebarSessionPins",
   "collapsedSidebarProjectPaths",
   "collapsedSidebarSections",

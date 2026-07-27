@@ -13,16 +13,24 @@ import { NotFoundPage } from '../routing/NotFoundPage.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
 import '../../styles/lazy/settings.scss'
 
-export function SettingsLayout(): React.ReactNode {
+type Props = {
+  activeTabOverride?: string
+}
+
+export function SettingsLayout({
+  activeTabOverride,
+}: Props = {}): React.ReactNode {
   const { tab, projectId } = useParams<{
     tab?: string
     projectId?: string
   }>()
-  const activeTab = tab
-    ? decodeURIComponent(tab)
-    : projectId
-      ? 'environment'
-      : ''
+  const activeTab =
+    activeTabOverride ??
+    (tab
+      ? decodeURIComponent(tab)
+      : projectId
+        ? 'environment'
+        : '')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const settings = useDesktopSettings()

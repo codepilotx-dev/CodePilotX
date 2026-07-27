@@ -2,7 +2,6 @@ import type React from 'react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import {
   Archive,
-  ChevronDown,
   FolderOpen,
   MoreHorizontal,
   Pin,
@@ -12,7 +11,10 @@ import {
   X,
 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import type { DesktopWorkspace } from '../../../../shared/types.js'
+import type {
+  DesktopSidebarSort,
+  DesktopWorkspace,
+} from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
@@ -30,6 +32,12 @@ import {
   DEFAULT_PROJECT_APPEARANCE,
   ProjectAppearanceGlyph,
 } from '../../projects/projectAppearance.js'
+import { notifyProjectCatalogChanged } from '../../projects/projectCatalogEvents.js'
+import {
+  normalizeSidebarPath,
+  sidebarProjectKey,
+} from './sidebarViewModel.js'
+import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
 
 const ProjectEditDialog = lazy(async () => {
   const module = await import('../../projects/ProjectEditDialog.js')
@@ -38,6 +46,7 @@ const ProjectEditDialog = lazy(async () => {
 
 type Props = {
   activeSessionId: string | null
+  allProjectSessions?: SessionListItem[]
   collapsedProjectPaths: Set<string>
   isUnavailable: boolean
   now: number
@@ -45,6 +54,8 @@ type Props = {
   project: DesktopWorkspace
   sessionFallbackTitles: Record<string, string>
   sessions: SessionListItem[]
+  sort?: DesktopSidebarSort
+  manualOrderByScope?: Record<string, string[]>
   workspace: DesktopWorkspace | null
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onCreateSession: (workspace?: DesktopWorkspace | null) => void
@@ -53,6 +64,8 @@ type Props = {
   onSelectSession: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
   onToggleProjectCollapsed: (projectKey: string) => void
+  onManualOrderChange?: (scopeKey: string, order: string[]) => void
+  onSortChange?: (sort: 'manual') => void
   onPinSession: (session: SessionListItem) => void
   onUnpinSession: (session: SessionListItem) => void
   onUnpinWorkspace: (workspace: DesktopWorkspace) => void
@@ -61,6 +74,7 @@ type Props = {
 
 export function SidebarProjectGroup({
   activeSessionId,
+  allProjectSessions,
   collapsedProjectPaths,
   isUnavailable,
   now,
@@ -68,6 +82,8 @@ export function SidebarProjectGroup({
   project,
   sessionFallbackTitles,
   sessions,
+  sort = 'priority',
+  manualOrderByScope = {},
   workspace,
   onArchiveSessions,
   onCreateSession,
@@ -76,6 +92,8 @@ export function SidebarProjectGroup({
   onSelectSession,
   onRenameSession,
   onToggleProjectCollapsed,
+  onManualOrderChange,
+  onSortChange,
   onPinSession,
   onUnpinSession,
   onUnpinWorkspace,
@@ -93,22 +111,31 @@ export function SidebarProjectGroup({
 
   useEffect(() => setManagedProject(project), [project])
 
-  const projectKey = managedProject.projectId
-    ? `id:${managedProject.projectId}`
-    : `path:${managedProject.path.replace(/\\/g, '/').toLowerCase()}`
+  const projectKey = sidebarProjectKey(managedProject)
+  const belongsToProject = (session: SessionListItem): boolean =>
+    !session.standalone &&
+    (managedProject.projectId
+      ? session.projectId === managedProject.projectId
+      : normalizeSidebarPath(session.workspacePath) ===
+        normalizeSidebarPath(managedProject.path))
   const projectSessions = sessions
-    .filter(
-      session =>
-        !session.standalone &&
-        (managedProject.projectId
-          ? session.projectId === managedProject.projectId
-          : session.workspacePath === managedProject.path),
-    )
+    .filter(belongsToProject)
     .sort(
       (left, right) =>
         sessionRecencyMs(right) - sessionRecencyMs(left) ||
         right.id.localeCompare(left.id),
     )
+  const countedProjectSessions = (allProjectSessions ?? sessions).filter(
+    belongsToProject,
+  )
+  const unreadCount = countedProjectSessions.filter(
+    session => Boolean(session.unreadAt),
+  ).length
+  const openCount = activeSessionId && countedProjectSessions.some(
+    session => session.id === activeSessionId,
+  )
+    ? 1
+    : 0
   const isExpanded =
     !collapsedProjectPaths.has(projectKey) &&
     !collapsedProjectPaths.has(managedProject.path)
@@ -118,7 +145,8 @@ export function SidebarProjectGroup({
   const isCurrent =
     workspace?.projectId && managedProject.projectId
       ? workspace.projectId === managedProject.projectId
-      : workspace?.path === managedProject.path
+      : normalizeSidebarPath(workspace?.path ?? '') ===
+        normalizeSidebarPath(managedProject.path)
   const actionsVisible = hovered || menuOpen
   const isPinned = Boolean(managedProject.pinnedAt)
   const appearance = managedProject.projectId
@@ -126,17 +154,9 @@ export function SidebarProjectGroup({
       ?? DEFAULT_PROJECT_APPEARANCE
     : DEFAULT_PROJECT_APPEARANCE
 
-  function openProject(): void {
-    if (projectSessions[0]) {
-      onSelectSession(projectSessions[0])
-    } else {
-      onCreateSession(managedProject)
-    }
-  }
-
   function archiveAll(): void {
     setProcessingAction('archive')
-    void onArchiveSessions(projectSessions).finally(() =>
+    void onArchiveSessions(countedProjectSessions).finally(() =>
       setProcessingAction(null),
     )
   }
@@ -153,7 +173,7 @@ export function SidebarProjectGroup({
     return [
       {
         kind: 'item',
-        label: isPinned ? '取消置顶' : '置顶项目',
+        label: isPinned ? '取消置顶项目' : '置顶项目',
         icon: isPinned
           ? <PinOff size={APP_ICON_SIZE} />
           : <Pin size={APP_ICON_SIZE} />,
@@ -161,10 +181,12 @@ export function SidebarProjectGroup({
       },
       {
         kind: 'item',
-        label: '新建任务',
-        icon: <SquarePen size={APP_ICON_SIZE} />,
+        label: '在资源管理器中打开',
+        icon: <FolderOpen size={APP_ICON_SIZE} />,
         disabled: isUnavailable,
-        onSelect: () => onCreateSession(managedProject),
+        onSelect: () => {
+          void desktopClient.openPathWithDefaultTarget(managedProject.path)
+        },
       },
       {
         kind: 'item',
@@ -172,32 +194,45 @@ export function SidebarProjectGroup({
         icon: <Settings2 size={APP_ICON_SIZE} />,
         onSelect: () => setManagerOpen(true),
       },
-      {
-        kind: 'item',
-        label: '在资源管理器中打开主目录',
-        icon: <FolderOpen size={APP_ICON_SIZE} />,
-        disabled: isUnavailable,
-        onSelect: () => {
-          void desktopClient.openPathWithDefaultTarget(managedProject.path)
-        },
-      },
       { kind: 'separator' },
       {
         kind: 'item',
-        label: '归档所有任务',
+        label: '归档任务',
         icon: <Archive size={APP_ICON_SIZE} />,
-        disabled: projectSessions.length === 0 || processingAction !== null,
+        disabled: countedProjectSessions.length === 0 || processingAction !== null,
         onSelect: archiveAll,
       },
       {
         kind: 'item',
-        label: '移除项目',
+        label: '移除',
         icon: <X size={APP_ICON_SIZE} />,
         color: 'red',
         onSelect: () => setConfirmRemoveOpen(true),
       },
     ]
   }
+
+  const projectButton = (
+    <button
+      aria-expanded={isExpanded}
+      aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown ArrowRight"
+      aria-label={`${managedProject.name}，${isExpanded ? '折叠项目任务' : '展开项目任务'}`}
+      className="sidebar-project-button"
+      data-current={isCurrent || undefined}
+      data-sidebar-project-key={projectKey}
+      type="button"
+    >
+      <span
+        className={cx(
+          'sidebar-project-title-text',
+          'u-min-w-0',
+          'u-truncate',
+        )}
+      >
+        {managedProject.name}
+      </span>
+    </button>
+  )
 
   return (
     <section
@@ -214,8 +249,6 @@ export function SidebarProjectGroup({
         width={240}
         trigger={
           <SidebarRow
-            aria-current={isCurrent ? 'page' : undefined}
-            aria-disabled={isUnavailable ? true : undefined}
             className={cx(
               'sidebar-project-header',
               isUnavailable && 'sidebar-project-header--unavailable',
@@ -227,19 +260,13 @@ export function SidebarProjectGroup({
                 className="project-appearance-marker"
               />
             }
-            onClick={openProject}
-            onKeyDown={event => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                openProject()
-              }
-            }}
+            onClick={() => onToggleProjectCollapsed(collapseKey)}
             onMouseEnter={() => setHovered(true)}
-            role="button"
-            tabIndex={0}
             trailing={
-              <div className={cx(
+              <div
+                className={cx(
                   'sidebar-project-actions',
+                  'tw:gap-3',
                   actionsVisible && 'is-visible',
                 )}
                 onClick={event => event.stopPropagation()}
@@ -248,6 +275,7 @@ export function SidebarProjectGroup({
                     className="popover-sidebar-project"
                     open={menuOpen}
                     side="bottom"
+                    triggerTabIndex={0}
                     width="auto"
                     trigger={
                       <button
@@ -260,51 +288,47 @@ export function SidebarProjectGroup({
                     }
                     onOpenChange={setMenuOpen}
                   >
-                  <PopoverItem
-                    icon={isPinned
-                      ? <PinOff size={APP_ICON_SIZE} />
-                      : <Pin size={APP_ICON_SIZE} />}
-                    onClick={togglePinned}
-                  >
-                    {isPinned ? '取消置顶' : '置顶项目'}
-                  </PopoverItem>
-                  <PopoverItem
-                    icon={<SquarePen size={APP_ICON_SIZE} />}
-                    onClick={() => onCreateSession(managedProject)}
-                  >
-                    新建任务
-                  </PopoverItem>
-                  <PopoverItem
-                    icon={<Settings2 size={APP_ICON_SIZE} />}
-                    onClick={() => setManagerOpen(true)}
-                  >
-                    编辑项目
-                  </PopoverItem>
-                  <PopoverItem
-                    icon={<FolderOpen size={APP_ICON_SIZE} />}
-                    onClick={() => {
-                      void desktopClient.openPathWithDefaultTarget(
-                        managedProject.path,
-                      )
-                    }}
-                  >
-                    在资源管理器中打开主目录
-                  </PopoverItem>
-                  <PopoverItem
-                    disabled={
-                      projectSessions.length === 0 || processingAction !== null
-                    }
-                    icon={<Archive size={APP_ICON_SIZE} />}
-                    onClick={archiveAll}
-                  >
-                    {processingAction === 'archive' ? '归档中…' : '归档所有任务'}
-                  </PopoverItem>
-                  <PopoverItem
-                    icon={<X size={APP_ICON_SIZE} />}
-                    onClick={() => setConfirmRemoveOpen(true)}
-                  >
-                    移除项目
-                  </PopoverItem>
+                    <PopoverItem
+                      icon={isPinned
+                        ? <PinOff size={APP_ICON_SIZE} />
+                        : <Pin size={APP_ICON_SIZE} />}
+                      onClick={togglePinned}
+                    >
+                      {isPinned ? '取消置顶项目' : '置顶项目'}
+                    </PopoverItem>
+                    <PopoverItem
+                      disabled={isUnavailable}
+                      icon={<FolderOpen size={APP_ICON_SIZE} />}
+                      onClick={() => {
+                        void desktopClient.openPathWithDefaultTarget(
+                          managedProject.path,
+                        )
+                      }}
+                    >
+                      在资源管理器中打开
+                    </PopoverItem>
+                    <PopoverItem
+                      icon={<Settings2 size={APP_ICON_SIZE} />}
+                      onClick={() => setManagerOpen(true)}
+                    >
+                      编辑项目
+                    </PopoverItem>
+                    <PopoverItem
+                      disabled={
+                        countedProjectSessions.length === 0 ||
+                        processingAction !== null
+                      }
+                      icon={<Archive size={APP_ICON_SIZE} />}
+                      onClick={archiveAll}
+                    >
+                      {processingAction === 'archive' ? '归档中…' : '归档任务'}
+                    </PopoverItem>
+                    <PopoverItem
+                      icon={<X size={APP_ICON_SIZE} />}
+                      onClick={() => setConfirmRemoveOpen(true)}
+                    >
+                      移除
+                    </PopoverItem>
                   </PopoverMenu>
                 <button
                   aria-label="新建任务"
@@ -318,33 +342,23 @@ export function SidebarProjectGroup({
               </div>
             }
           >
-            <span
-              className={cx(
-                'sidebar-project-title-text',
-                'u-min-w-0',
-                'u-truncate',
-              )}
-            >
-              {managedProject.name}
-            </span>
-            <button
-              aria-label={isExpanded ? '折叠项目任务' : '展开项目任务'}
-              aria-expanded={isExpanded}
-              className="icon-button sidebar-project-collapse-button"
-              type="button"
-              onClick={event => {
-                event.stopPropagation()
-                onToggleProjectCollapsed(collapseKey)
+            <SidebarProjectHoverCard
+              appearance={appearance}
+              conversationCount={countedProjectSessions.length}
+              openCount={openCount}
+              unreadCount={unreadCount}
+              isPinned={isPinned}
+              isUnavailable={isUnavailable}
+              project={managedProject}
+              projectKey={projectKey}
+              onEdit={() => setManagerOpen(true)}
+              onOpenFolder={path => {
+                void desktopClient.openPathWithDefaultTarget(path)
               }}
+              onTogglePinned={togglePinned}
             >
-              <ChevronDown
-                className={cx(
-                  'sidebar-project-chevron',
-                  isExpanded && 'is-expanded',
-                )}
-                size={APP_ICON_SIZE}
-              />
-            </button>
+              {projectButton}
+            </SidebarProjectHoverCard>
           </SidebarRow>
         }
       />
@@ -354,13 +368,17 @@ export function SidebarProjectGroup({
           activeSessionId={activeSessionId}
           pendingPermissionSessionIds={pendingPermissionSessionIds}
           groupKey={`project:${projectKey}`}
+          manualOrderByScope={manualOrderByScope}
           now={now}
           sessionFallbackTitles={sessionFallbackTitles}
           sessions={projectSessions}
+          sort={sort}
           onArchiveSessions={onArchiveSessions}
+          onManualOrderChange={onManualOrderChange}
           onPinSession={onPinSession}
           onSelectSession={onSelectSession}
           onRenameSession={onRenameSession}
+          onSortChange={onSortChange}
           onUnpinSession={onUnpinSession}
         />
       ) : null}
@@ -379,7 +397,7 @@ export function SidebarProjectGroup({
             ? desktopClient
                 .removeProject(managedProject.projectId)
                 .then(() => true)
-            : onArchiveSessions(projectSessions)
+            : onArchiveSessions(countedProjectSessions)
           )
             .then(success => {
               if (!success) return
@@ -394,6 +412,7 @@ export function SidebarProjectGroup({
                 })
               }
               onRemoveWorkspace(managedProject)
+              notifyProjectCatalogChanged()
             })
             .catch(error => onReport(
               error instanceof Error ? error.message : String(error),

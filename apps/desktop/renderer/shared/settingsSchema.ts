@@ -74,7 +74,6 @@ export const DESKTOP_SIDEBAR_ORGANIZATIONS = new Set<DesktopSidebarOrganization>
 export const DESKTOP_SIDEBAR_SORTS = new Set<DesktopSidebarSort>([
   'priority',
   'updated',
-  'created',
   'manual',
 ])
 
@@ -202,6 +201,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarOrganization: 'projects',
     sidebarProductMode: 'coding',
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
+    sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
     sidebarManualOrder: {},
     sidebarSessionPins: {},
@@ -436,7 +436,9 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.rustSearchAndDiffKernels === 'boolean'
         ? parsed.rustSearchAndDiffKernels
         : defaults.rustSearchAndDiffKernels,
-    sidebarOrganization: 'projects',
+    sidebarOrganization: isDesktopSidebarOrganization(parsed.sidebarOrganization)
+      ? parsed.sidebarOrganization
+      : defaults.sidebarOrganization,
     sidebarProductMode: isSidebarProductMode(parsed.sidebarProductMode)
       ? parsed.sidebarProductMode
       : defaults.sidebarProductMode,
@@ -446,8 +448,18 @@ export function normalizeDesktopStoredSettings(
       && parsed.sidebarStateVersion >= 0
         ? parsed.sidebarStateVersion
         : 0,
-    sidebarSort: 'priority',
-    sidebarManualOrder: {},
+    sidebarProjectSort: normalizeDesktopSidebarSort(
+      parsed.sidebarProjectSort,
+      defaults.sidebarProjectSort,
+    ),
+    sidebarSort: normalizeDesktopSidebarSort(
+      parsed.sidebarSort,
+      defaults.sidebarSort,
+    ),
+    sidebarManualOrder: normalizeSidebarManualOrder(
+      parsed.sidebarManualOrder,
+      defaults.sidebarManualOrder,
+    ),
     sidebarSessionPins: normalizeStringRecord(
       parsed.sidebarSessionPins,
       defaults.sidebarSessionPins,
@@ -488,6 +500,7 @@ export function createSidebarStateResetPatch(
     sidebarOrganization: 'projects',
     sidebarProductMode: settings.sidebarProductMode,
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
+    sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
     sidebarManualOrder: {},
     sidebarSessionPins: {},
@@ -721,6 +734,14 @@ export function isDesktopSidebarSort(
   value: unknown,
 ): value is DesktopSidebarSort {
   return DESKTOP_SIDEBAR_SORTS.has(value as DesktopSidebarSort)
+}
+
+function normalizeDesktopSidebarSort(
+  value: unknown,
+  fallback: DesktopSidebarSort,
+): DesktopSidebarSort {
+  if (value === 'recent' || value === 'created') return 'updated'
+  return isDesktopSidebarSort(value) ? value : fallback
 }
 
 export function upsertRecentWorkspace(

@@ -97,6 +97,7 @@ export type UseDesktopSettingsResult = {
   rustSearchAndDiffKernels: boolean
   sidebarOrganization: DesktopSidebarOrganization
   sidebarProductMode: SidebarProductMode
+  sidebarProjectSort: DesktopSidebarSort
   sidebarSort: DesktopSidebarSort
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
@@ -161,8 +162,13 @@ export type UseDesktopSettingsResult = {
   setRustSearchAndDiffKernels: (value: boolean) => void
   setSidebarOrganization: (value: DesktopSidebarOrganization) => void
   setSidebarProductMode: (value: SidebarProductMode) => void
+  setSidebarProjectSort: (value: DesktopSidebarSort) => void
   setSidebarSort: (value: DesktopSidebarSort) => void
-  setSidebarManualOrder: (value: Record<string, string[]>) => void
+  setSidebarManualOrder: (
+    value:
+      | Record<string, string[]>
+      | ((current: Record<string, string[]>) => Record<string, string[]>),
+  ) => void
   setSidebarSessionPins: (
     value:
       | Record<string, string>
@@ -443,6 +449,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     useState<DesktopSidebarOrganization>(initial.sidebarOrganization)
   const [sidebarProductMode, setSidebarProductMode] =
     useState<SidebarProductMode>(initial.sidebarProductMode)
+  const [sidebarProjectSort, setSidebarProjectSort] =
+    useState<DesktopSidebarSort>(initial.sidebarProjectSort)
   const [sidebarSort, setSidebarSort] = useState<DesktopSidebarSort>(
     initial.sidebarSort,
   )
@@ -561,6 +569,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setSidebarOrganization(settings.sidebarOrganization)
         setSidebarProductMode(settings.sidebarProductMode)
+        setSidebarProjectSort(settings.sidebarProjectSort)
         setSidebarSort(settings.sidebarSort)
         setSidebarManualOrder(settings.sidebarManualOrder)
         setSidebarSessionPins(settings.sidebarSessionPins)
@@ -638,6 +647,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarOrganization,
       sidebarProductMode,
       sidebarStateVersion: SIDEBAR_STATE_VERSION,
+      sidebarProjectSort,
       sidebarSort,
       sidebarManualOrder,
       sidebarSessionPins,
@@ -701,6 +711,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       diffMarkerStyle,
       sidebarOrganization,
       sidebarProductMode,
+      sidebarProjectSort,
       sidebarSort,
       sidebarManualOrder,
       sidebarSessionPins,
@@ -818,6 +829,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setDiffMarkerStyle(snapshot.diffMarkerStyle)
       setSidebarOrganization(snapshot.sidebarOrganization)
       setSidebarProductMode(snapshot.sidebarProductMode)
+      setSidebarProjectSort(snapshot.sidebarProjectSort)
       setSidebarSort(snapshot.sidebarSort)
       setSidebarManualOrder(snapshot.sidebarManualOrder)
       setSidebarSessionPins(snapshot.sidebarSessionPins)
@@ -976,6 +988,7 @@ defaultOpenTargetId,
       diffMarkerStyle,
     sidebarOrganization,
     sidebarProductMode,
+    sidebarProjectSort,
     sidebarSort,
     sidebarManualOrder,
     sidebarSessionPins,
@@ -1032,6 +1045,7 @@ defaultOpenTargetId,
     setDiffMarkerStyle,
     setSidebarOrganization,
     setSidebarProductMode,
+    setSidebarProjectSort,
     setSidebarSort,
     setSidebarManualOrder,
     setSidebarSessionPins,

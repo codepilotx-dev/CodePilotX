@@ -50,24 +50,6 @@
   padding: var(--space-5);
 }
 
-.search-input {
-  display: flex;
-  align-items: center;
-  gap: var(--control-gap);
-  padding: var(--control-padding-block)
-    var(--control-padding-inline);
-  border: 1px solid var(--color-token-border-light);
-  background: var(--color-token-main-surface-primary);
-  color: var(--color-token-icon-foreground);
-
-  input {
-    flex: 1;
-    padding: 0;
-    border: 0;
-    line-height: var(--control-line-height);
-  }
-}
-
 .search-input-row {
   width: 100%;
   display: flex;

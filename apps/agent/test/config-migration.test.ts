@@ -30,6 +30,7 @@ describe("ConfigMigrationService", () => {
     db.setSetting("desktop.settings.v1", {
       showContextUsage: false,
       recentWorkspaces: [{ path: workspace, name: "workspace" }],
+      sidebarManualOrder: { all: ["session-1"] },
       enableMemory: true,
     })
     db.setSetting("defaultModel", {
@@ -124,7 +125,11 @@ describe("ConfigMigrationService", () => {
     expect(db.getSetting<{ generation: number }>("mcp.runtime.v1")?.generation).toBe(4)
     expect(db.getSetting<Record<string, unknown>>("desktop.runtime-state.v1")).toMatchObject({
       recentWorkspaces: [{ path: workspace }],
+      sidebarManualOrder: { all: ["session-1"] },
     })
+    expect(await readFile(join(data, "config.toml"), "utf8")).not.toContain(
+      "sidebarManualOrder",
+    )
     expect(await readFile(
       join(workspace, ".codepilotx", "config.toml"),
       "utf8",

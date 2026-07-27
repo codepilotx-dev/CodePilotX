@@ -11,6 +11,7 @@ import type {
 
 export type AppView =
   | 'new'
+  | 'projects'
   | 'search'
   | 'models'
   | 'plugins'

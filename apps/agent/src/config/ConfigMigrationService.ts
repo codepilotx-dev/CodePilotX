@@ -32,7 +32,6 @@ const DESKTOP_RUNTIME_KEYS = new Set([
 ])
 const DEPRECATED_DESKTOP_RUNTIME_KEYS = new Set([
   "manualSessionOrder",
-  "sidebarManualOrder",
   "sidebarSectionOrder",
 ])
 const DESKTOP_CORE_PATHS: Record<string, string[]> = {

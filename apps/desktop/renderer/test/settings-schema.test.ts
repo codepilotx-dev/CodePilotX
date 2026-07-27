@@ -91,9 +91,11 @@ describe("高级权限设置归一化", () => {
 })
 
 describe("侧边栏设置归一化", () => {
-  test("提供固定侧栏默认值并丢弃旧排序设置", () => {
+  test("提供侧栏默认值并保留合法组织与排序设置", () => {
     const defaults = normalizeDesktopStoredSettings({})
     expect(defaults).toMatchObject({
+      sidebarOrganization: "projects",
+      sidebarProjectSort: "priority",
       sidebarSort: "priority",
       sidebarProductMode: "coding",
       sidebarStateVersion: 0,
@@ -103,11 +105,15 @@ describe("侧边栏设置归一化", () => {
       collapsedSidebarSections: ["projects", "recent"],
     })
 
-    expect(normalizeDesktopStoredSettings({ sidebarSort: "recent" }).sidebarSort).toBe("priority")
-    expect(normalizeDesktopStoredSettings({ sidebarSort: "updated" }).sidebarSort).toBe("priority")
-    expect(normalizeDesktopStoredSettings({ sidebarSort: "created" }).sidebarSort).toBe("priority")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "recent" }).sidebarSort).toBe("updated")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "updated" }).sidebarSort).toBe("updated")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "created" }).sidebarSort).toBe("updated")
     expect(normalizeDesktopStoredSettings({ sidebarSort: "invalid" }).sidebarSort).toBe("priority")
-    expect(normalizeDesktopStoredSettings({ sidebarOrganization: "flat" }).sidebarOrganization).toBe("projects")
+    expect(normalizeDesktopStoredSettings({ sidebarProjectSort: "recent" }).sidebarProjectSort).toBe("updated")
+    expect(normalizeDesktopStoredSettings({ sidebarProjectSort: "created" }).sidebarProjectSort).toBe("updated")
+    expect(normalizeDesktopStoredSettings({ sidebarProjectSort: "manual" }).sidebarProjectSort).toBe("manual")
+    expect(normalizeDesktopStoredSettings({ sidebarProjectSort: "invalid" }).sidebarProjectSort).toBe("priority")
+    expect(normalizeDesktopStoredSettings({ sidebarOrganization: "flat" }).sidebarOrganization).toBe("flat")
   })
 
   test("规范化并过滤会话置顶与折叠项目路径", () => {
@@ -150,7 +156,7 @@ describe("侧边栏设置归一化", () => {
     ).toEqual(["pinned", "projects", "recent"])
   })
 
-  test("丢弃旧手动会话顺序", () => {
+  test("规范化并保留手动顺序", () => {
     expect(
       normalizeDesktopStoredSettings({
         sidebarManualOrder: {
@@ -158,7 +164,9 @@ describe("侧边栏设置归一化", () => {
           invalid: "not-an-array",
         },
       }).sidebarManualOrder,
-    ).toEqual({})
+    ).toEqual({
+      "projéct": ["séssion"],
+    })
   })
 
   test("保留合法的产品模式并回退非法值", () => {
@@ -184,6 +192,7 @@ describe("侧边栏设置归一化", () => {
         pinnedAt: "2026-07-25T01:00:00.000Z",
       }],
       sidebarOrganization: "flat",
+      sidebarProjectSort: "updated",
       sidebarSort: "manual",
       sidebarManualOrder: { all: ["session-1"] },
       sidebarSessionPins: { "session-1": "2026-07-25T01:00:00.000Z" },
@@ -198,6 +207,7 @@ describe("侧边栏设置归一化", () => {
       sidebarProductMode: "working",
       sidebarStateVersion: SIDEBAR_STATE_VERSION,
       sidebarOrganization: "projects",
+      sidebarProjectSort: "priority",
       sidebarSort: "priority",
       sidebarManualOrder: {},
       sidebarSessionPins: {},

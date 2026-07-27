@@ -20,11 +20,20 @@ import {
   formatSidebarSessionRelativeTime,
 } from '../src/features/layout/sidebar/SidebarSessionHoverCard.js'
 import {
+  buildSidebarPinnedItems,
   buildSidebarViewModel,
   deriveSidebarSessionVisualState,
+  reorderSidebarPinnedItemKeys,
+  sidebarPinnedProjectKey,
+  sidebarPinnedSessionKey,
+  sidebarProjectKey,
+  sortProjectsForSidebar,
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
 import { sortSessionsForSidebar } from '../src/features/session/state/sessionSorting.js'
-import { TOP_NAV_ITEMS } from '../src/features/layout/sidebar/SidebarTopNav.js'
+import {
+  getSidebarTopNavItems,
+  TOP_NAV_ITEMS,
+} from '../src/features/layout/sidebar/SidebarTopNav.js'
 import {
   SETTINGS_GROUPS,
   SETTINGS_ITEMS,
@@ -42,6 +51,22 @@ describe('Codex 侧栏导航', () => {
     ])
     expect(TOP_NAV_ITEMS.some(item => item.path === '/search')).toBeFalse()
     expect(TOP_NAV_ITEMS.some(item => item.path === '/sites')).toBeFalse()
+    expect(getSidebarTopNavItems(false)).toEqual(TOP_NAV_ITEMS)
+    expect(
+      getSidebarTopNavItems(true).map(item => ({
+        view: item.view,
+        label: item.label,
+        path: item.path,
+      })),
+    ).toEqual([
+      { view: 'new', label: '新建任务', path: '/new' },
+      { view: 'projects', label: '项目', path: '/projects' },
+      ...TOP_NAV_ITEMS.slice(1).map(item => ({
+        view: item.view,
+        label: item.label,
+        path: item.path,
+      })),
+    ])
   })
 
   test('从设置目录移除旧 connections 标签', () => {
@@ -274,8 +299,121 @@ describe('sidebar view model', () => {
       'C:\\alpha',
     ])
     expect(model.standaloneSessions.map(item => item.id)).toEqual(['standalone'])
+    expect(model.recentSessions.map(item => item.id)).toEqual(['standalone'])
     expect(model.sessionStateById.project).toBe('needs-input')
     expect(model.sessionStateById.archived).toBeUndefined()
+  })
+
+  test('flat organization projects every unpinned task into recent', () => {
+    const model = buildSidebarViewModel({
+      organization: 'flat',
+      pendingPermissionSessionIds: new Set(),
+      recentWorkspaces: projects,
+      removedWorkspaces: removed,
+      sessionPins: { pinned: '2026-07-18T07:00:00.000Z' },
+      sessions,
+    })
+
+    expect(model.pinnedSessions.map(item => item.id)).toEqual(['pinned'])
+    expect(model.recentSessions.map(item => item.id)).toEqual([
+      'project',
+      'standalone',
+    ])
+  })
+
+  test('flat organization keeps pinned-project tasks only in the pinned group', () => {
+    const model = buildSidebarViewModel({
+      organization: 'flat',
+      pendingPermissionSessionIds: new Set(),
+      recentWorkspaces: [
+        {
+          name: 'Pinned',
+          path: 'C:\\pinned',
+          projectId: 'pinned-project',
+          pinnedAt: '2026-07-18T08:00:00.000Z',
+        },
+        {
+          name: 'Regular',
+          path: 'C:\\regular',
+          projectId: 'regular-project',
+        },
+      ],
+      removedWorkspaces: [],
+      sessionPins: {},
+      sessions: [
+        {
+          ...session('pinned-project-task', 'C:\\pinned'),
+          projectId: 'pinned-project',
+        },
+        {
+          ...session('regular-project-task', 'C:\\regular'),
+          projectId: 'regular-project',
+        },
+      ],
+    })
+
+    expect(model.pinnedWorkspaces.map(item => item.projectId)).toEqual([
+      'pinned-project',
+    ])
+    expect(model.recentSessions.map(item => item.id)).toEqual([
+      'regular-project-task',
+    ])
+  })
+
+  test('interleaves pinned tasks and projects with one cross-type manual order', () => {
+    const newerProject: DesktopWorkspace = {
+      name: 'Newer project',
+      path: 'C:\\newer',
+      projectId: 'newer',
+      pinnedAt: '2026-07-18T08:00:00.000Z',
+    }
+    const olderProject: DesktopWorkspace = {
+      name: 'Older project',
+      path: 'C:\\older',
+      projectId: 'older',
+      pinnedAt: '2026-07-18T06:00:00.000Z',
+    }
+    const pinnedSession = {
+      ...session('middle-session', 'C:\\alpha'),
+      pinnedAt: '2026-07-18T07:00:00.000Z',
+    }
+    const byPinnedAt = buildSidebarPinnedItems({
+      pinnedSessions: [pinnedSession],
+      pinnedWorkspaces: [olderProject, newerProject],
+      storedOrder: [],
+    })
+
+    expect(byPinnedAt.map(item => item.key)).toEqual([
+      sidebarPinnedProjectKey(newerProject),
+      sidebarPinnedSessionKey(pinnedSession),
+      sidebarPinnedProjectKey(olderProject),
+    ])
+
+    const manuallyOrdered = buildSidebarPinnedItems({
+      pinnedSessions: [pinnedSession],
+      pinnedWorkspaces: [olderProject, newerProject],
+      storedOrder: [
+        sidebarPinnedProjectKey(olderProject),
+        sidebarPinnedSessionKey(pinnedSession),
+        sidebarPinnedProjectKey(newerProject),
+      ],
+    })
+    expect(manuallyOrdered.map(item => item.key)).toEqual([
+      sidebarPinnedProjectKey(olderProject),
+      sidebarPinnedSessionKey(pinnedSession),
+      sidebarPinnedProjectKey(newerProject),
+    ])
+    expect(
+      reorderSidebarPinnedItemKeys(
+        manuallyOrdered,
+        sidebarPinnedProjectKey(olderProject),
+        sidebarPinnedSessionKey(pinnedSession),
+      ),
+    ).toEqual([
+      sidebarPinnedSessionKey(pinnedSession),
+      sidebarPinnedProjectKey(olderProject),
+      sidebarPinnedProjectKey(newerProject),
+    ])
   })
 
   test('derives stable visual state precedence', () => {
@@ -290,10 +428,10 @@ describe('sidebar view model', () => {
         { ...sessions[0]!, status: 'running', unreadAt: '2026-07-18T00:00:00Z' },
         new Set(),
       ),
-    ).toBe('running')
+    ).toBe('unread')
   })
 
-  test('supports updated, created, priority, and manual sorting', () => {
+  test('supports updated, priority, and manual task sorting', () => {
     const createdFirst = session(
       'created-first',
       'C:\\alpha',
@@ -321,17 +459,98 @@ describe('sidebar view model', () => {
       }).map(item => item.id),
     ).toEqual(['updated-first', 'created-first'])
     expect(
-      sortSessionsForSidebar([createdFirst, updatedFirst], {
-        ...options,
-        sort: 'created',
-      }).map(item => item.id),
-    ).toEqual(['created-first', 'updated-first'])
-    expect(
       sortSessionsForSidebar([updatedFirst, createdFirst], {
         ...options,
         sort: 'manual',
       }).map(item => item.id),
     ).toEqual(['created-first', 'updated-first'])
+    expect(
+      sortSessionsForSidebar([
+        createdFirst,
+        updatedFirst,
+        session(
+          'new-unordered',
+          'C:\\alpha',
+          '2026-07-18T07:00:00Z',
+        ),
+      ], {
+        ...options,
+        sort: 'manual',
+      }).map(item => item.id),
+    ).toEqual(['new-unordered', 'created-first', 'updated-first'])
+    expect(
+      sortSessionsForSidebar([
+        session('new-a', 'C:\\alpha', '2026-07-18T08:00:00Z'),
+        createdFirst,
+        session('new-b', 'C:\\alpha', '2026-07-18T05:00:00Z'),
+        updatedFirst,
+      ], {
+        ...options,
+        sort: 'manual',
+      }).map(item => item.id),
+    ).toEqual(['new-a', 'created-first', 'new-b', 'updated-first'])
+    expect(
+      sortSessionsForSidebar([
+        { ...createdFirst, id: 'idle' },
+        { ...createdFirst, id: 'running', status: 'running' },
+        {
+          ...createdFirst,
+          id: 'unread',
+          unreadAt: '2026-07-18T07:00:00Z',
+        },
+        { ...createdFirst, id: 'waiting', status: 'waiting' },
+      ], {
+        ...options,
+        sort: 'priority',
+        unreadSessionIds: new Set(['unread']),
+      }).map(item => item.id),
+    ).toEqual(['waiting', 'unread', 'running', 'idle'])
+  })
+
+  test('sorts projects by activity before applying stable stored order', () => {
+    const sortableProjects: DesktopWorkspace[] = [
+      { name: 'Alpha', path: 'C:\\alpha', projectId: 'alpha' },
+      { name: 'Beta', path: 'C:\\beta', projectId: 'beta' },
+    ]
+    const sortableSessions = [
+      session('alpha-session', 'C:\\alpha', '2026-07-18T01:00:00Z'),
+      {
+        ...session('beta-session', 'C:\\beta', '2026-07-18T02:00:00Z'),
+        projectId: 'beta',
+      },
+    ].map(item =>
+      item.id === 'alpha-session' ? { ...item, projectId: 'alpha' } : item,
+    )
+    const options = {
+      manualOrderByScope: {
+        projects: [
+          sidebarProjectKey(sortableProjects[0]!),
+          sidebarProjectKey(sortableProjects[1]!),
+        ],
+      },
+      scopeKey: 'projects',
+      sessions: sortableSessions,
+    }
+
+    expect(
+      sortProjectsForSidebar(sortableProjects, {
+        ...options,
+        manualOrderByScope: {},
+      }).map(project => project.projectId),
+    ).toEqual(['beta', 'alpha'])
+    expect(
+      sortProjectsForSidebar(sortableProjects, options).map(
+        project => project.projectId,
+      ),
+    ).toEqual(['alpha', 'beta'])
+    expect(
+      sortProjectsForSidebar([
+        ...sortableProjects,
+        { name: 'Gamma', path: 'C:\\gamma', projectId: 'gamma' },
+      ], {
+        ...options,
+      }).map(project => project.projectId),
+    ).toEqual(['gamma', 'alpha', 'beta'])
   })
 })
 

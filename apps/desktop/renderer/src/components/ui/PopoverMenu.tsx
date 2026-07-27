@@ -14,6 +14,7 @@ type Props = {
   trigger: React.ReactNode
   disableOutsideDismiss?: boolean
   textMode?: 'nowrap' | 'wrap'
+  triggerTabIndex?: number
   onOpenChange: (open: boolean) => void
 } & PopoverSizingProps
 
@@ -29,6 +30,7 @@ export function PopoverMenu({
   trigger,
   disableOutsideDismiss,
   textMode = 'nowrap',
+  triggerTabIndex = -1,
   width,
   maxWidth,
   onOpenChange,
@@ -45,6 +47,7 @@ export function PopoverMenu({
       avoidCollisions={avoidCollisions}
       textMode={textMode}
       trigger={trigger}
+      triggerTabIndex={triggerTabIndex}
       width={width}
       maxWidth={maxWidth}
       onOpenChange={onOpenChange}

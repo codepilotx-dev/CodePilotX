@@ -27,13 +27,6 @@ export function sortSessionsForSidebar<T extends SessionListItem>(
       compareSessionsByPriority(left, right, options),
     )
   }
-  if (options.sort === 'created') {
-    return [...sessions].sort(
-      (left, right) =>
-        timestampMs(right.createdAt) - timestampMs(left.createdAt) ||
-        right.id.localeCompare(left.id),
-    )
-  }
   return sortSessionsByRecency(sessions)
 }
 
@@ -75,21 +68,23 @@ function sortSessionsByManualOrder<T extends SessionListItem>(
     : []
   if (order.length === 0) return recentSessions
 
-  const positions = new Map<string, number>()
-  for (const [index, sessionId] of order.entries()) {
-    if (!positions.has(sessionId)) {
-      positions.set(sessionId, index)
-    }
+  const sessionById = new Map(
+    recentSessions.map(session => [session.id, session]),
+  )
+  const storedSessions: T[] = []
+  const storedIds = new Set<string>()
+  for (const sessionId of order) {
+    const session = sessionById.get(sessionId)
+    if (!session || storedIds.has(sessionId)) continue
+    storedIds.add(sessionId)
+    storedSessions.push(session)
   }
-  return recentSessions.sort((left, right) => {
-    const leftPosition = positions.get(left.id)
-    const rightPosition = positions.get(right.id)
-    if (leftPosition !== undefined && rightPosition !== undefined) {
-      return leftPosition - rightPosition
-    }
-    if (leftPosition !== undefined) return -1
-    if (rightPosition !== undefined) return 1
-    return 0
+  let storedIndex = 0
+  return recentSessions.map(session => {
+    if (!storedIds.has(session.id)) return session
+    const storedSession = storedSessions[storedIndex]
+    storedIndex += 1
+    return storedSession ?? session
   })
 }
 
@@ -100,9 +95,15 @@ function sessionPriorityRank(
     'needsInputSessionIds' | 'unreadSessionIds'
   >,
 ): number {
-  if (options.needsInputSessionIds.has(session.id)) return 0
+  if (
+    session.status === 'waiting' ||
+    options.needsInputSessionIds.has(session.id)
+  ) {
+    return 0
+  }
   if (options.unreadSessionIds.has(session.id)) return 1
-  return 2
+  if (session.status === 'running') return 2
+  return 3
 }
 
 function sessionRecencyMs(session: SessionListItem): number {

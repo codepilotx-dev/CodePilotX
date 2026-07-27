@@ -16,7 +16,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import type {
   DesktopProjectSource,
   DesktopProjectSourceReadResult,
@@ -33,6 +33,7 @@ import {
   DEFAULT_PROJECT_APPEARANCE,
   ProjectAppearanceGlyph,
 } from '../projects/projectAppearance.js'
+import { notifyProjectCatalogChanged } from '../projects/projectCatalogEvents.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsSection } from './SettingsSection.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
@@ -48,12 +49,25 @@ type Props = {
 
 export function EnvironmentSettings(props: Props): React.ReactNode {
   const { projectId } = useParams<{ projectId?: string }>()
+  const location = useLocation()
+  const routeBase = location.pathname.startsWith('/projects')
+    ? '/projects'
+    : '/settings/environment'
   return projectId
-    ? <EnvironmentDetail projectId={decodeURIComponent(projectId)} {...props} />
-    : <EnvironmentList {...props} />
+    ? (
+        <EnvironmentDetail
+          projectId={decodeURIComponent(projectId)}
+          routeBase={routeBase}
+          {...props}
+        />
+      )
+    : <EnvironmentList routeBase={routeBase} {...props} />
 }
 
-function EnvironmentList({ onError }: Props): React.ReactNode {
+function EnvironmentList({
+  onError,
+  routeBase,
+}: Props & { routeBase: string }): React.ReactNode {
   const navigate = useNavigate()
   const { projectAppearances } = useDesktopSettings()
   const [projects, setProjects] = useState<DesktopWorkspace[]>([])
@@ -80,8 +94,9 @@ function EnvironmentList({ onError }: Props): React.ReactNode {
     setAdding(true)
     try {
       const project = await desktopClient.chooseWorkspace()
+      if (project) notifyProjectCatalogChanged()
       if (project?.projectId) {
-        navigate(`/settings/environment/${encodeURIComponent(project.projectId)}`)
+        navigate(`${routeBase}/${encodeURIComponent(project.projectId)}`)
       } else if (project) {
         onError('所选工作区未返回稳定的项目标识。')
       }
@@ -134,7 +149,7 @@ function EnvironmentList({ onError }: Props): React.ReactNode {
                       return
                     }
                     navigate(
-                      `/settings/environment/${encodeURIComponent(project.projectId)}`,
+                      `${routeBase}/${encodeURIComponent(project.projectId)}`,
                     )
                   }}
                 >
@@ -174,9 +189,10 @@ function EnvironmentList({ onError }: Props): React.ReactNode {
 
 function EnvironmentDetail({
   projectId,
+  routeBase,
   onError,
   onNotice,
-}: Props & { projectId: string }): React.ReactNode {
+}: Props & { projectId: string; routeBase: string }): React.ReactNode {
   const navigate = useNavigate()
   const uploadRef = useRef<HTMLInputElement | null>(null)
   const [project, setProject] = useState<DesktopWorkspace | null>(null)
@@ -297,8 +313,10 @@ function EnvironmentDetail({
       setDraftName(next.name)
       setInstructions(next.projectSettings?.instructions ?? '')
       setDefaultModelKey(modelKey(next.projectSettings?.defaultModel ?? null))
+      notifyProjectCatalogChanged()
       onNotice?.('项目设置已保存。')
     } catch (error) {
+      notifyProjectCatalogChanged()
       if (isProjectSettingsConflict(error)) {
         try {
           await loadProject(true)
@@ -398,7 +416,7 @@ function EnvironmentDetail({
           <button
             className="environment-breadcrumb"
             type="button"
-            onClick={() => navigate('/settings/environment')}
+            onClick={() => navigate(routeBase)}
           >
             <ArrowLeft size={APP_ICON_SIZE} />
             返回环境
@@ -415,7 +433,7 @@ function EnvironmentDetail({
         <button
           className="environment-breadcrumb"
           type="button"
-          onClick={() => navigate('/settings/environment')}
+          onClick={() => navigate(routeBase)}
         >
           <ArrowLeft size={APP_ICON_SIZE} />
           环境

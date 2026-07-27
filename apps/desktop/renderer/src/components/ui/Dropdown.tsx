@@ -17,6 +17,7 @@ type Props = {
   collisionPadding?: number
   avoidCollisions?: boolean
   textMode?: 'nowrap' | 'wrap'
+  triggerTabIndex?: number
   onOpenChange?: (open: boolean) => void
 } & PopoverSizingProps
 
@@ -29,6 +30,7 @@ export function Dropdown({
   open,
   side = 'bottom',
   sideOffset = 6,
+  triggerTabIndex = -1,
   collisionPadding,
   avoidCollisions = true,
   textMode = 'nowrap',
@@ -39,7 +41,7 @@ export function Dropdown({
   const triggerElement = isValidElement<
     React.HTMLAttributes<HTMLElement>
   >(trigger)
-    ? cloneElement(trigger, { tabIndex: -1 })
+    ? cloneElement(trigger, { tabIndex: triggerTabIndex })
     : trigger
 
   return (

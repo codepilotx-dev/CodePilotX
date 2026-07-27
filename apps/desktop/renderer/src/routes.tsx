@@ -20,6 +20,11 @@ const PluginsView = lazy(() =>
     default: module.PluginsView,
   })),
 )
+const ProjectsView = lazy(() =>
+  import('./features/projects/ProjectsView.js').then(module => ({
+    default: module.ProjectsView,
+  })),
+)
 const PullRequestsPlaceholder = lazy(() =>
   import('./features/pull-requests/PullRequestsPlaceholder.js').then(module => ({
     default: module.PullRequestsPlaceholder,
@@ -83,6 +88,8 @@ const router = createHashRouter([
         path: 'threads/:threadId',
         element: deferred(<ConversationPage />),
       },
+      { path: 'projects', element: deferred(<ProjectsView />) },
+      { path: 'projects/:projectId', element: deferred(<ProjectsView />) },
       { path: 'search', element: deferred(<SearchView />) },
       { path: 'models', element: deferred(<ModelCenterView />) },
       { path: 'plugins', element: deferred(<PluginsView />) },
