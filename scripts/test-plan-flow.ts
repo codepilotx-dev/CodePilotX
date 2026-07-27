@@ -65,11 +65,6 @@ try {
       ...(live
         ? {}
         : { OPENAI_API_KEY: "codepilotx-plan-smoke-not-a-real-key" }),
-      CODEPILOTX_MODEL_SNAPSHOT: join(
-        repositoryRoot,
-        "resources",
-        "models.snapshot.json",
-      ),
       CODEPILOTX_STATIC_DIR: join(repositoryRoot, "dist", "renderer"),
       NO_PROXY: "127.0.0.1,localhost,::1",
       no_proxy: "127.0.0.1,localhost,::1",

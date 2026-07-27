@@ -13,7 +13,6 @@ import {
 const repositoryRoot = resolve(import.meta.dirname, "../../../..")
 const electronRoot = resolve(repositoryRoot, "apps/desktop/electron")
 const rendererDist = resolve(repositoryRoot, "dist/renderer")
-const modelSnapshot = resolve(repositoryRoot, "resources/models.snapshot.json")
 const isolatedRoot = requiredEnvironment("CODEPILOTX_PLAN_SMOKE_ROOT")
 const agentOrigin = requiredEnvironment("CODEPILOTX_AGENT_URL")
 const authToken = requiredEnvironment("CODEPILOTX_AUTH_TOKEN")
@@ -131,7 +130,6 @@ async function launchDesktop(): Promise<ElectronApplication> {
       CODEPILOTX_DATA_DIR: join(isolatedRoot, "agent"),
       CODEPILOTX_LOG_DIR: logDirectory,
       CODEPILOTX_STATIC_DIR: rendererDist,
-      CODEPILOTX_MODEL_SNAPSHOT: modelSnapshot,
       NO_PROXY: "127.0.0.1,localhost,::1",
       no_proxy: "127.0.0.1,localhost,::1",
     },

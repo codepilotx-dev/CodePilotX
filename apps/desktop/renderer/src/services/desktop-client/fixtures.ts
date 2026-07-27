@@ -20,14 +20,7 @@ import {
 } from '../../shims/core/agent/codepilotxSessionContract.js'
 import type {
   CatalogProvider,
-  IntegrationAuthorizeRequest,
-  IntegrationAuthorizeResponse,
-  IntegrationAuthorizeStatusResponse,
-  IntegrationConnectRequest,
-  IntegrationDisconnectRequest,
-  IntegrationListResponse,
   ModelRef,
-  OkResponse,
   Project,
 } from '@codepilotx/shared'
 import type {

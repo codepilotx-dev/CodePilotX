@@ -1,12 +1,7 @@
 import {
   AgentHarness,
-  ExecutionError,
-  FileError,
   InMemorySessionRepo,
   type AgentTool,
-  type ExecutionEnv,
-  type FileInfo,
-  type Result,
 } from "@codepilotx/pi-agent-core"
 import {
   Type,
@@ -18,54 +13,6 @@ import {
   type Context,
   type ImageContent,
 } from "@earendil-works/pi-ai"
-
-function ok<T, E extends Error = FileError>(value: T): Result<T, E> {
-  return { ok: true, value }
-}
-
-function missing(path: string): Result<never, FileError> {
-  return { ok: false, error: new FileError("not_found", `Not found: ${path}`, path) }
-}
-
-/**
- * Deliberately capability-free environment for the compatibility gate. The
- * harness must not require Node's filesystem or process adapters merely to run
- * a provider and application-owned tools under Bun.
- */
-function createSmokeEnv(): ExecutionEnv {
-  const info = (path: string): FileInfo => ({
-    name: path.split(/[\\/]/).at(-1) ?? path,
-    path,
-    kind: "file",
-    size: 0,
-    mtimeMs: 0,
-  })
-
-  return {
-    cwd: "C:\\codepilotx-smoke",
-    absolutePath: async (path) => ok(path),
-    joinPath: async (parts) => ok(parts.join("/")),
-    readTextFile: async (path) => missing(path),
-    readTextLines: async (path) => missing(path),
-    readBinaryFile: async (path) => missing(path),
-    writeFile: async () => ok(undefined),
-    appendFile: async () => ok(undefined),
-    fileInfo: async (path) => ok(info(path)),
-    listDir: async () => ok([]),
-    canonicalPath: async (path) => ok(path),
-    exists: async () => ok(false),
-    createDir: async () => ok(undefined),
-    remove: async () => ok(undefined),
-    createTempDir: async () => ok("C:\\codepilotx-smoke\\tmp"),
-    createTempFile: async () => ok("C:\\codepilotx-smoke\\tmp.txt"),
-    exec: async () => ok<{ stdout: string; stderr: string; exitCode: number }, ExecutionError>({
-      stdout: "",
-      stderr: "",
-      exitCode: 0,
-    }),
-    cleanup: async () => undefined,
-  }
-}
 
 async function createHarness(options?: {
   responses?: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0]
@@ -82,7 +29,6 @@ async function createHarness(options?: {
   const repo = new InMemorySessionRepo()
   const session = await repo.create({ id: crypto.randomUUID() })
   const harness = new AgentHarness({
-    env: createSmokeEnv(),
     session,
     models,
     model: faux.getModel(),

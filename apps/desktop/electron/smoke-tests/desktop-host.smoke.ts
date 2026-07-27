@@ -53,7 +53,6 @@ declare global {
 const repositoryRoot = resolve(import.meta.dirname, "../../../..")
 const electronRoot = resolve(repositoryRoot, "apps/desktop/electron")
 const rendererDist = resolve(repositoryRoot, "dist/renderer")
-const modelSnapshot = resolve(repositoryRoot, "resources/models.snapshot.json")
 
 test.describe("真实 Electron 宿主", () => {
   let userDataDirectory = ""
@@ -436,7 +435,6 @@ async function launchDesktop(
       CODEPILOTX_DATA_DIR: join(userDataDirectory, "agent-home"),
       CODEPILOTX_LOG_DIR: logDirectory,
       CODEPILOTX_STATIC_DIR: rendererDist,
-      CODEPILOTX_MODEL_SNAPSHOT: modelSnapshot,
       NO_PROXY: "127.0.0.1,localhost,::1",
       no_proxy: "127.0.0.1,localhost,::1",
     },

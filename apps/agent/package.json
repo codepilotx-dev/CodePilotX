@@ -16,8 +16,6 @@
     "@codepilotx/agent-protocol": "workspace:*",
     "@codepilotx/model-schema": "workspace:*",
     "@codepilotx/pi-agent-core": "workspace:*",
-    "@codepilotx/provider-plugin": "workspace:*",
-    "@codepilotx/provider-runtime": "workspace:*",
     "@codepilotx/shared": "workspace:*",
     "@earendil-works/pi-ai": "0.82.1",
     "@modelcontextprotocol/sdk": "1.29.0",

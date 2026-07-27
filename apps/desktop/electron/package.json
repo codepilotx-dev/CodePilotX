@@ -46,14 +46,6 @@
         "to": "agent/codepilotx-agent.exe"
       },
       {
-        "from": "../../../resources/models.snapshot.json",
-        "to": "agent/models.snapshot.json"
-      },
-      {
-        "from": "../../../resources/models.snapshot.meta.json",
-        "to": "agent/models.snapshot.meta.json"
-      },
-      {
         "from": "../../../dist/renderer",
         "to": "renderer"
       },

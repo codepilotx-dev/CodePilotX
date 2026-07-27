@@ -248,9 +248,6 @@ export class SidecarSupervisor {
               CODEPILOTX_RELOCATION_SOURCE_DIR: undefined,
               CODEPILOTX_RELOCATION_OPERATION_ID: undefined,
             }),
-        CODEPILOTX_MODEL_SNAPSHOT: app.isPackaged
-          ? join(process.resourcesPath, "agent", "models.snapshot.json")
-          : process.env.CODEPILOTX_MODEL_SNAPSHOT,
         CODEPILOTX_STATIC_DIR: app.isPackaged
           ? join(process.resourcesPath, "renderer")
           : process.env.CODEPILOTX_STATIC_DIR,
