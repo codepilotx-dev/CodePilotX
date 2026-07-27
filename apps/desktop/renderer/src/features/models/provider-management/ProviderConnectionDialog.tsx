@@ -10,7 +10,6 @@ import {
 import type React from 'react'
 import { useEffect, useId, useMemo, useState } from 'react'
 import type {
-  DesktopIntegration,
   DesktopModelProviderSummary,
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
@@ -32,8 +31,6 @@ export type ConnectionChoice =
 
 export type ProviderConnectionDialogProps = {
   busy: boolean
-  integration?: DesktopIntegration
-  integrations: readonly DesktopIntegration[]
   open: boolean
   provider: DesktopModelProviderSummary | null
   sources: readonly UsageSourceDescriptor[]
@@ -44,8 +41,6 @@ export type ProviderConnectionDialogProps = {
 
 export function ProviderConnectionDialog({
   busy,
-  integration,
-  integrations,
   open,
   provider,
   sources,
@@ -57,8 +52,8 @@ export function ProviderConnectionDialog({
   const descriptionId = useId()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const choices = useMemo(
-    () => provider ? getProviderConnectionChoices(integration, sources) : [],
-    [integration, provider, sources],
+    () => provider ? getProviderConnectionChoices(provider, sources) : [],
+    [provider, sources],
   )
   const selected = choices.find(choice => choice.id === selectedId) ?? null
 
@@ -83,14 +78,6 @@ export function ProviderConnectionDialog({
     )
   }
 
-  const selectedIntegration = selected?.kind === 'inference-oauth'
-    ? integration
-    : selected?.kind === 'usage-oauth'
-      ? integrations.find(item =>
-          selected.source.connectionMethod.kind === 'oauth'
-          && String(item.id) === String(selected.source.connectionMethod.integrationId)
-        )
-      : undefined
   const selectedSource = selected?.kind === 'billing'
     || selected?.kind === 'usage-oauth'
     ? selected.source
@@ -170,17 +157,20 @@ export function ProviderConnectionDialog({
               </div>
             ) : null}
 
-            {selected?.kind === 'inference-oauth' && selectedIntegration ? (
+            {selected?.kind === 'inference-oauth' ? (
               <OAuthConnection
                 connected={false}
                 description="此授权用于模型推理；令牌由 Agent 加密保存。"
-                integration={selectedIntegration}
+                target={{
+                  kind: 'provider',
+                  providerId: provider.providerID,
+                } as never}
                 title={choiceLabel(selected)}
                 onChanged={connected}
               />
             ) : null}
 
-            {selected?.kind === 'usage-oauth' && selectedIntegration && selectedSource ? (
+            {selected?.kind === 'usage-oauth' && selectedSource ? (
               <OAuthConnection
                 connected={false}
                 description={
@@ -188,7 +178,7 @@ export function ProviderConnectionDialog({
                     ? '独立订阅授权仅用于读取套餐额度，不会成为模型推理凭据。'
                     : '此授权仅用于读取账户用量。'
                 }
-                integration={selectedIntegration}
+                target={{ kind: 'usage', sourceId: selectedSource.sourceId }}
                 title={selectedSource.displayName}
                 onChanged={connected}
               />
@@ -218,10 +208,10 @@ export function ProviderConnectionDialog({
 }
 
 export function getProviderConnectionChoices(
-  integration: DesktopIntegration | undefined,
+  provider: DesktopModelProviderSummary,
   sources: readonly UsageSourceDescriptor[],
 ): ConnectionChoice[] {
-  const inferenceKind = integration?.methods.some(method => method.type === 'oauth')
+  const inferenceKind = provider.authMethods?.includes('oauth')
     ? 'inference-oauth' as const
     : 'inference-key' as const
   const result: ConnectionChoice[] = [{
@@ -246,7 +236,7 @@ function choiceLabel(choice: ConnectionChoice): string {
 }
 
 function choiceDescription(choice: ConnectionChoice): string {
-  if (choice.kind === 'inference-key') return '保存用于模型请求和故障接管的 API Key'
+  if (choice.kind === 'inference-key') return '保存用于模型请求的 API Key；活动凭据由你手动选择'
   if (choice.kind === 'inference-oauth') return '通过供应商官方 OAuth 授权模型推理'
   if (choice.kind === 'billing') return '独立管理凭据，仅用于余额和组织账务'
   return choice.source.scope === 'subscription'

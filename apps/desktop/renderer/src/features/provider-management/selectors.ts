@@ -1,9 +1,5 @@
 import type { UsageSourceDescriptor } from '@codepilotx/agent-protocol'
-import type {
-  DesktopIntegration,
-  DesktopModelProviderSummary,
-  ModelProviderID,
-} from '../../../shared/types.js'
+import type { ModelProviderID } from '../../../shared/types.js'
 import type {
   AnalyticsSource,
   ConfiguredProviderGroup,
@@ -11,33 +7,6 @@ import type {
   ProviderConnectionKind,
   ProviderManagementSnapshot,
 } from './types.js'
-
-const providerIdsForIntegration = (
-  providers: readonly DesktopModelProviderSummary[],
-  usageSources: readonly UsageSourceDescriptor[],
-  integration: DesktopIntegration,
-): ModelProviderID[] => {
-  const providerIds = new Set<ModelProviderID>()
-  for (const provider of providers) {
-    if (
-      provider.integrationID === integration.id
-      || provider.providerID === integration.id
-    ) {
-      providerIds.add(provider.providerID)
-    }
-  }
-  for (const source of usageSources) {
-    if (
-      source.connectionMethod.kind === 'oauth'
-      && source.connectionMethod.integrationId === integration.id
-    ) {
-      for (const providerId of source.providerIds) {
-        providerIds.add(providerId)
-      }
-    }
-  }
-  return [...providerIds]
-}
 
 const usageConnectionKind = (
   source: UsageSourceDescriptor,
@@ -64,59 +33,34 @@ const connectionIdentity = (connection: ProviderConnection): string =>
 export function selectProviderConnections(
   snapshot: ProviderManagementSnapshot,
 ): readonly ProviderConnection[] {
-  const connections: ProviderConnection[] = snapshot.apiKeys.map(key => ({
-    id: `api-key:${key.id}`,
-    kind: 'inference-key',
-    origin: 'api-key',
-    providerIds: [key.providerId],
-    label: key.label,
-    active: key.active,
-    enabled: key.enabled,
-    credentialId: key.id,
-  }))
+  const connections: ProviderConnection[] = snapshot.credentials.map(
+    credential => ({
+      id: `credential:${credential.id}`,
+      kind: credential.kind === 'oauth' ? 'oauth' : 'inference-key',
+      origin: 'credential',
+      providerIds: [credential.providerId],
+      label: credential.label,
+      active: credential.active,
+      enabled: credential.enabled,
+      credentialId: credential.id,
+    }),
+  )
   const identities = new Set(connections.map(connectionIdentity))
 
-  for (const integration of snapshot.integrations) {
-    const providerIds = providerIdsForIntegration(
-      snapshot.providers,
-      snapshot.usageSources,
-      integration,
-    )
-    if (providerIds.length === 0) continue
-    const usageSource = snapshot.usageSources.find(source =>
-      source.connectionMethod.kind === 'oauth'
-      && source.connectionMethod.integrationId === integration.id,
-    )
-    const credentialKind: ProviderConnectionKind = usageSource?.scope === 'subscription'
-      ? 'subscription'
-      : integration.methods.some(method => method.type === 'oauth')
-        ? 'oauth'
-        : 'inference-key'
-    for (const connection of integration.connections) {
-      const projected: ProviderConnection = connection.type === 'env'
-        ? {
-            id: `integration:${integration.id}:env:${connection.name}`,
-            kind: 'env',
-            origin: 'integration',
-            providerIds,
-            label: connection.name,
-            active: true,
-          }
-        : {
-            id: `integration:${integration.id}:credential:${connection.id}`,
-            kind: credentialKind,
-            origin: 'integration',
-            providerIds,
-            label: connection.label,
-            active: true,
-            enabled: true,
-            credentialId: connection.id,
-          }
-      const identity = connectionIdentity(projected)
-      if (identities.has(identity)) continue
-      identities.add(identity)
-      connections.push(projected)
+  for (const provider of snapshot.providers) {
+    const current = snapshot.currentProviderState?.selectedProviderID === provider.providerID
+    const source = current ? snapshot.currentProviderState?.apiKeySource : null
+    if (!source || source === 'secureStorage') continue
+    const projected: ProviderConnection = {
+      id: `env:${provider.providerID}:${source}`,
+      kind: 'env',
+      origin: 'credential',
+      providerIds: [provider.providerID],
+      label: source,
+      active: true,
+      enabled: true,
     }
+    connections.push(projected)
   }
 
   for (const source of snapshot.usageSources) {
@@ -146,7 +90,7 @@ export function selectProviderConnections(
 
 const connectionPriority = (connection: ProviderConnection): number => {
   if (connection.kind === 'inference-key' && connection.active) return 0
-  if (connection.kind === 'oauth' || connection.kind === 'subscription') return 1
+  if (connection.kind === 'oauth' && connection.active) return 1
   if (connection.kind === 'env') return 2
   if (connection.kind === 'inference-key') return 3
   return 4
@@ -162,9 +106,6 @@ export function selectConfiguredProviderGroups(
       .filter(connection => connection.providerIds.includes(provider.providerID))
       .sort((left, right) => connectionPriority(left) - connectionPriority(right))
     if (providerConnections.length === 0) return []
-    const integration = snapshot.integrations.find(item =>
-      item.id === provider.integrationID || item.id === provider.providerID,
-    ) ?? null
     const usageSources = snapshot.usageSources.filter(source =>
       source.providerIds.some(
         providerId => String(providerId) === String(provider.providerID),
@@ -175,10 +116,13 @@ export function selectConfiguredProviderGroups(
       current: provider.providerID === currentProviderId,
       configured: true as const,
       apiKeys: snapshot.apiKeys.filter(key => key.providerId === provider.providerID),
-      integration,
+      oauthAvailable: provider.authMethods?.includes('oauth') ?? false,
       usageSources,
       connections: providerConnections,
-      activeConnection: providerConnections.find(connection => connection.active) ?? providerConnections[0] ?? null,
+      activeConnection:
+        providerConnections.find(connection => connection.active)
+        ?? providerConnections[0]
+        ?? null,
     }]
   }).sort((left, right) =>
     Number(right.current) - Number(left.current)
@@ -219,5 +163,14 @@ export function selectAnalyticsSources(
       right.descriptor.displayName,
       'zh-CN',
     ),
+  )
+}
+
+export function providerCredentialsFor(
+  snapshot: ProviderManagementSnapshot,
+  providerId: ModelProviderID,
+) {
+  return snapshot.credentials.filter(
+    credential => credential.providerId === providerId,
   )
 }

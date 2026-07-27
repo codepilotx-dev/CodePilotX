@@ -37,16 +37,7 @@ import type {
 } from '@codepilotx/core/models/provider.js'
 import type {
   CatalogProvider,
-  IntegrationAuthorizeRequest,
-  IntegrationAuthorizeResponse,
-  IntegrationAuthorizeCompleteRequest,
-  IntegrationAuthorizeStatusRequest,
-  IntegrationAuthorizeStatusResponse,
-  IntegrationConnectRequest,
-  IntegrationDisconnectRequest,
-  IntegrationListResponse,
   ModelRef,
-  OkResponse,
   ProviderTestResponse,
 } from '@codepilotx/shared'
 import type { CodexHighlightThemeSlug } from './codexThemes/manifest.js'
@@ -562,10 +553,16 @@ export type DesktopModelProviderKind = ModelProviderKind
 
 export type DesktopModelMetadata = ModelMetadata & {
   variants?: string[]
+  providerApi?: 'openai-completions' | 'openai-responses' | 'anthropic-messages'
 }
 
 export type DesktopModelProviderSummary = Omit<ModelProviderSummary, 'modelMetadata'> & {
-  integrationID?: string
+  providerKind?: 'builtin' | 'custom'
+  enabled?: boolean
+  authMethods?: readonly ('api-key' | 'oauth')[]
+  providerApis?: readonly ('openai-completions' | 'openai-responses' | 'anthropic-messages')[]
+  config?: DesktopProviderDefinition
+  unresolvedMigrationIssues?: readonly string[]
   modelMetadata?: Record<string, DesktopModelMetadata>
 }
 
@@ -610,9 +607,7 @@ export type DesktopApiKeySummary = {
   health: {
     status: DesktopApiKeyHealthStatus
     lastTestedAt?: number
-    lastUsedAt?: number
     errorCategory?: 'authentication' | 'rate-limit' | 'network' | 'unknown'
-    cooldownUntil?: number
   }
   createdAt: number
   updatedAt: number
@@ -798,14 +793,15 @@ export type SaveDesktopModelProviderOptions = {
   baseURL?: string
 }
 
-export type DesktopIntegration = IntegrationListResponse['integrations'][number]
-export type DesktopIntegrationConnectRequest = IntegrationConnectRequest
-export type DesktopIntegrationAuthorizeRequest = IntegrationAuthorizeRequest
-export type DesktopIntegrationAuthorizeResponse = IntegrationAuthorizeResponse
-export type DesktopIntegrationAuthorizeCompleteRequest = IntegrationAuthorizeCompleteRequest
-export type DesktopIntegrationAuthorizeStatusRequest = IntegrationAuthorizeStatusRequest
-export type DesktopIntegrationAuthorizeStatusResponse = IntegrationAuthorizeStatusResponse
-export type DesktopIntegrationDisconnectRequest = IntegrationDisconnectRequest
+export type DesktopProviderDefinition = RpcParams<'provider/update'>['definition']
+export type DesktopCustomProviderDefinition =
+  RpcParams<'provider/create'>['definition']
+export type DesktopProviderModelDefinition =
+  DesktopCustomProviderDefinition['models'][number]
+export type DesktopProviderCredential =
+  RpcResult<'provider/credential/list'>['credentials'][number]
+export type DesktopAuthTarget = RpcParams<'auth/session/start'>['target']
+export type DesktopAuthSession = RpcResult<'auth/session/status'>['session']
 export type DesktopModelRef = ModelRef
 export type DesktopCatalogProvider = CatalogProvider
 
@@ -1719,38 +1715,51 @@ export type DesktopApi = {
   deleteProviderApiKey(
     providerID: ModelProviderID,
   ): Promise<DesktopModelProviderState>
-  listApiKeys(providerId?: ModelProviderID): Promise<DesktopApiKeySummary[]>
+  listProviderCredentials(providerId?: ModelProviderID): Promise<DesktopProviderCredential[]>
   createApiKey(input: {
     providerId: ModelProviderID
     label: string
     key: string
-  }): Promise<void>
+  }): Promise<DesktopProviderCredential>
   updateApiKey(input: {
     credentialId: string
     label?: string
     key?: string
-  }): Promise<void>
-  setActiveApiKey(providerId: ModelProviderID, credentialId: string): Promise<void>
-  setApiKeyEnabled(credentialId: string, enabled: boolean): Promise<void>
-  reorderApiKeys(providerId: ModelProviderID, orderedCredentialIds: string[]): Promise<void>
+  }): Promise<DesktopProviderCredential>
+  setActiveProviderCredential(
+    providerId: ModelProviderID,
+    credentialId: string,
+  ): Promise<DesktopProviderCredential>
+  setProviderCredentialEnabled(
+    credentialId: string,
+    enabled: boolean,
+  ): Promise<DesktopProviderCredential>
+  reorderApiKeys(
+    providerId: ModelProviderID,
+    orderedCredentialIds: string[],
+  ): Promise<DesktopProviderCredential[]>
   testApiKey(credentialId: string): Promise<ProviderTestResponse>
-  deleteApiKey(credentialId: string): Promise<void>
+  deleteProviderCredential(credentialId: string): Promise<DesktopProviderCredential[]>
   copyProviderApiKey(credentialId: string): Promise<{ clearAfterMs: 60000 }>
   testModelProvider(providerID: ModelProviderID): Promise<ProviderTestResponse>
-  listIntegrations(): Promise<DesktopIntegration[]>
-  connectIntegration(input: DesktopIntegrationConnectRequest): Promise<OkResponse>
-  authorizeIntegration(
-    input: DesktopIntegrationAuthorizeRequest,
-  ): Promise<DesktopIntegrationAuthorizeResponse>
-  completeIntegrationAuthorization(
-    input: DesktopIntegrationAuthorizeCompleteRequest,
-  ): Promise<OkResponse>
-  getIntegrationAuthorizationStatus(
-    input: DesktopIntegrationAuthorizeStatusRequest,
-  ): Promise<DesktopIntegrationAuthorizeStatusResponse>
-  disconnectIntegration(
-    input: DesktopIntegrationDisconnectRequest,
-  ): Promise<OkResponse>
+  createProvider(definition: DesktopCustomProviderDefinition): Promise<void>
+  updateProvider(
+    providerId: ModelProviderID,
+    definition: DesktopProviderDefinition,
+  ): Promise<void>
+  deleteProvider(providerId: ModelProviderID): Promise<void>
+  discoverProviderModels(
+    providerId: ModelProviderID,
+    api: DesktopProviderModelDefinition['api'],
+  ): Promise<DesktopProviderModelDefinition[]>
+  startAuthSession(target: DesktopAuthTarget): Promise<DesktopAuthSession>
+  respondAuthSession(
+    sessionId: string,
+    promptId: string,
+    value: string,
+  ): Promise<DesktopAuthSession>
+  getAuthSessionStatus(sessionId: string): Promise<DesktopAuthSession>
+  cancelAuthSession(sessionId: string): Promise<DesktopAuthSession>
   getCopilotAuthStatus(): Promise<DesktopCopilotAuthStatus>
   startCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   pollCopilotLogin(): Promise<DesktopCopilotLoginStatus>

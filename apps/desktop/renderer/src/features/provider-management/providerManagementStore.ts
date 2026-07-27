@@ -1,8 +1,10 @@
 import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
-import type {
-  CodePilotXDesktopClient,
-} from '../../services/desktop-client/index.js'
+import type { CodePilotXDesktopClient } from '../../services/desktop-client/index.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+import type {
+  DesktopApiKeySummary,
+  DesktopProviderCredential,
+} from '../../../shared/types.js'
 import type {
   ProviderManagementSnapshot,
   ProviderUsageQueryParams,
@@ -13,8 +15,7 @@ export type ProviderManagementClient = Pick<
   CodePilotXDesktopClient,
   | 'listModelProviders'
   | 'getModelProviderState'
-  | 'listIntegrations'
-  | 'listApiKeys'
+  | 'listProviderCredentials'
   | 'listUsageSources'
   | 'queryProviderUsage'
   | 'connectUsageCredential'
@@ -22,11 +23,10 @@ export type ProviderManagementClient = Pick<
   | 'createApiKey'
   | 'updateApiKey'
   | 'testApiKey'
-  | 'setActiveApiKey'
-  | 'setApiKeyEnabled'
+  | 'setActiveProviderCredential'
+  | 'setProviderCredentialEnabled'
   | 'reorderApiKeys'
-  | 'deleteApiKey'
-  | 'disconnectIntegration'
+  | 'deleteProviderCredential'
   | 'subscribeAgentEventEnvelopes'
 >
 
@@ -55,21 +55,18 @@ export type ProviderManagementStore = {
   testApiKey(
     credentialId: Parameters<ProviderManagementClient['testApiKey']>[0],
   ): ReturnType<ProviderManagementClient['testApiKey']>
-  setActiveApiKey(
-    ...input: Parameters<ProviderManagementClient['setActiveApiKey']>
-  ): ReturnType<ProviderManagementClient['setActiveApiKey']>
-  setApiKeyEnabled(
-    ...input: Parameters<ProviderManagementClient['setApiKeyEnabled']>
-  ): ReturnType<ProviderManagementClient['setApiKeyEnabled']>
+  setActiveCredential(
+    ...input: Parameters<ProviderManagementClient['setActiveProviderCredential']>
+  ): ReturnType<ProviderManagementClient['setActiveProviderCredential']>
+  setCredentialEnabled(
+    ...input: Parameters<ProviderManagementClient['setProviderCredentialEnabled']>
+  ): ReturnType<ProviderManagementClient['setProviderCredentialEnabled']>
   reorderApiKeys(
     ...input: Parameters<ProviderManagementClient['reorderApiKeys']>
   ): ReturnType<ProviderManagementClient['reorderApiKeys']>
-  deleteApiKey(
-    credentialId: Parameters<ProviderManagementClient['deleteApiKey']>[0],
-  ): ReturnType<ProviderManagementClient['deleteApiKey']>
-  disconnectIntegration(
-    input: Parameters<ProviderManagementClient['disconnectIntegration']>[0],
-  ): ReturnType<ProviderManagementClient['disconnectIntegration']>
+  deleteCredential(
+    credentialId: Parameters<ProviderManagementClient['deleteProviderCredential']>[0],
+  ): ReturnType<ProviderManagementClient['deleteProviderCredential']>
   invalidate(): void
 }
 
@@ -80,7 +77,7 @@ const INITIAL_SNAPSHOT: ProviderManagementSnapshot = {
   error: null,
   providers: [],
   currentProviderState: null,
-  integrations: [],
+  credentials: [],
   apiKeys: [],
   usageSources: [],
   usageResults: [],
@@ -88,6 +85,21 @@ const INITIAL_SNAPSHOT: ProviderManagementSnapshot = {
   usageRange: null,
   usageTimeZone: null,
 }
+
+const providerCredentialToApiKey = (
+  credential: DesktopProviderCredential,
+): DesktopApiKeySummary => ({
+  id: credential.id,
+  providerId: credential.providerId,
+  label: credential.label,
+  maskedValue: credential.maskedValue ?? '',
+  enabled: credential.enabled,
+  active: credential.active,
+  priority: credential.order,
+  health: credential.health ?? { status: 'untested' },
+  createdAt: credential.createdAt,
+  updatedAt: credential.updatedAt,
+})
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error && error.message.trim()
@@ -155,16 +167,18 @@ export function createProviderManagementStore(
     const pending = Promise.allSettled([
       client.listModelProviders(),
       client.getModelProviderState(),
-      client.listIntegrations(),
-      client.listApiKeys(),
+      client.listProviderCredentials(),
       client.listUsageSources(),
     ]).then(results => {
       const errors = results
         .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
         .map(result => errorMessage(result.reason))
-      const nextUsageSources = results[4]?.status === 'fulfilled'
-        ? [...results[4].value.sources]
+      const nextUsageSources = results[3]?.status === 'fulfilled'
+        ? [...results[3].value.sources]
         : snapshot.usageSources
+      const credentials = results[2]?.status === 'fulfilled'
+        ? [...results[2].value]
+        : snapshot.credentials
       return update({
         loaded: true,
         loading: false,
@@ -176,12 +190,14 @@ export function createProviderManagementStore(
           ? { currentProviderState: results[1].value }
           : {}),
         ...(results[2]?.status === 'fulfilled'
-          ? { integrations: [...results[2].value] }
+          ? {
+              credentials,
+              apiKeys: credentials
+                .filter(credential => credential.kind === 'api-key')
+                .map(providerCredentialToApiKey),
+            }
           : {}),
         ...(results[3]?.status === 'fulfilled'
-          ? { apiKeys: [...results[3].value] }
-          : {}),
-        ...(results[4]?.status === 'fulfilled'
           ? {
               usageSources: nextUsageSources,
               usageResults: reconcileUsageResults(
@@ -224,27 +240,31 @@ export function createProviderManagementStore(
   const refreshConnections = async (): Promise<ProviderManagementSnapshot> => {
     update({ refreshingSources: true, error: null })
     const results = await Promise.allSettled([
-      client.listIntegrations(),
-      client.listApiKeys(),
+      client.listProviderCredentials(),
       client.listUsageSources(),
     ])
     const errors = results
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
       .map(result => errorMessage(result.reason))
-    const nextUsageSources = results[2]?.status === 'fulfilled'
-      ? [...results[2].value.sources]
+    const nextUsageSources = results[1]?.status === 'fulfilled'
+      ? [...results[1].value.sources]
       : snapshot.usageSources
+    const credentials = results[0]?.status === 'fulfilled'
+      ? [...results[0].value]
+      : snapshot.credentials
     return update({
       loaded: true,
       refreshingSources: false,
       error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
       ...(results[0]?.status === 'fulfilled'
-        ? { integrations: [...results[0].value] }
+        ? {
+            credentials,
+            apiKeys: credentials
+              .filter(credential => credential.kind === 'api-key')
+              .map(providerCredentialToApiKey),
+          }
         : {}),
       ...(results[1]?.status === 'fulfilled'
-        ? { apiKeys: [...results[1].value] }
-        : {}),
-      ...(results[2]?.status === 'fulfilled'
         ? {
             usageSources: nextUsageSources,
             usageResults: reconcileUsageResults(
@@ -278,7 +298,13 @@ export function createProviderManagementStore(
 
   const refreshApiKeys = async (): Promise<void> => {
     try {
-      update({ apiKeys: [...await client.listApiKeys()] })
+      const credentials = [...await client.listProviderCredentials()]
+      update({
+        credentials,
+        apiKeys: credentials
+          .filter(credential => credential.kind === 'api-key')
+          .map(providerCredentialToApiKey),
+      })
     } catch (error) {
       update({ error: errorMessage(error) })
     }
@@ -301,18 +327,6 @@ export function createProviderManagementStore(
     })
   }
 
-  const invalidateIntegrationResults = (integrationId: string) => {
-    const sourceIds = new Set(snapshot.usageSources.filter(source =>
-      source.connectionMethod.kind === 'oauth'
-      && String(source.connectionMethod.integrationId) === integrationId,
-    ).map(source => source.sourceId))
-    update({
-      usageResults: snapshot.usageResults.filter(
-        result => !sourceIds.has(result.sourceId),
-      ),
-    })
-  }
-
   const ensureEventSubscription = () => {
     if (eventSubscription !== null) return
     eventSubscription = client.subscribeAgentEventEnvelopes({}, event => {
@@ -320,7 +334,7 @@ export function createProviderManagementStore(
         void refreshCatalog()
         return
       }
-      if (event.type === 'integration/updated') {
+      if (event.type === 'provider/credential/updated') {
         void refreshConnections()
         return
       }
@@ -447,17 +461,17 @@ export function createProviderManagementStore(
       await refreshApiKeys()
       return result
     },
-    async setActiveApiKey(...input) {
-      const result = await client.setActiveApiKey(...input)
+    async setActiveCredential(...input) {
+      const result = await client.setActiveProviderCredential(...input)
       invalidateProviderCredentialResults(String(input[0]))
       await refreshConnections()
       return result
     },
-    async setApiKeyEnabled(...input) {
+    async setCredentialEnabled(...input) {
       const providerId = snapshot.apiKeys.find(
         key => key.id === input[0],
       )?.providerId
-      const result = await client.setApiKeyEnabled(...input)
+      const result = await client.setProviderCredentialEnabled(...input)
       invalidateProviderCredentialResults(
         providerId === undefined ? undefined : String(providerId),
       )
@@ -469,20 +483,14 @@ export function createProviderManagementStore(
       await refreshApiKeys()
       return result
     },
-    async deleteApiKey(credentialId) {
+    async deleteCredential(credentialId) {
       const providerId = snapshot.apiKeys.find(
         key => key.id === credentialId,
       )?.providerId
-      const result = await client.deleteApiKey(credentialId)
+      const result = await client.deleteProviderCredential(credentialId)
       invalidateProviderCredentialResults(
         providerId === undefined ? undefined : String(providerId),
       )
-      await refreshConnections()
-      return result
-    },
-    async disconnectIntegration(input) {
-      const result = await client.disconnectIntegration(input)
-      invalidateIntegrationResults(String(input.integrationID))
       await refreshConnections()
       return result
     },

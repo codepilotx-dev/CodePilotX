@@ -1,24 +1,16 @@
 import type React from 'react'
-import { useMemo, useState } from 'react'
-import type {
-  DesktopIntegration,
-} from '../../../../shared/types.js'
+import { useEffect, useRef, useState } from 'react'
+import type { DesktopAuthTarget } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Input } from '../../../components/ui/Input.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { providerManagementStore } from '../../provider-management/index.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
-import { useIntegrationOAuthAuthorization } from '../useIntegrationOAuthAuthorization.js'
-
-type OAuthMethod = Extract<
-  DesktopIntegration['methods'][number],
-  { type: 'oauth' }
->
+import { useAuthSession } from '../../provider-management/useAuthSession.js'
 
 export type OAuthConnectionProps = {
   connected: boolean
   description: string
-  integration: DesktopIntegration
+  target: DesktopAuthTarget
   title: string
   onChanged: () => void | Promise<void>
 }
@@ -26,49 +18,28 @@ export type OAuthConnectionProps = {
 export function OAuthConnection({
   connected,
   description,
-  integration,
+  target,
   title,
   onChanged,
 }: OAuthConnectionProps): React.ReactNode {
-  const method = useMemo(
-    () => integration.methods.find(
-      (candidate): candidate is OAuthMethod => candidate.type === 'oauth',
-    ),
-    [integration.methods],
-  )
-  const credentials = integration.connections.filter(
-    connection => connection.type === 'credential',
-  )
-  const [inputs, setInputs] = useState<Record<string, string>>({})
-  const [disconnecting, setDisconnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const oauth = useIntegrationOAuthAuthorization({
-    integrationID: integration.id,
-    methodID: method?.id ?? null,
-    inputs,
+  const openedUrl = useRef<string | null>(null)
+  const auth = useAuthSession({
+    target,
     onComplete: onChanged,
     onError: setError,
   })
+  const prompt = auth.session?.prompt
+  const notices = auth.session?.notices ?? []
+  const authUrlNotice = [...notices].reverse().find(
+    notice => notice.type === 'auth_url',
+  )
 
-  async function disconnect(): Promise<void> {
-    if (credentials.length === 0) return
-    setDisconnecting(true)
-    setError(null)
-    try {
-      await Promise.all(credentials.map(connection =>
-        providerManagementStore.disconnectIntegration({
-          integrationID: integration.id,
-          credentialID: connection.id,
-        }),
-      ))
-      oauth.reset()
-      await onChanged()
-    } catch (disconnectError) {
-      setError(disconnectError instanceof Error ? disconnectError.message : String(disconnectError))
-    } finally {
-      setDisconnecting(false)
-    }
-  }
+  useEffect(() => {
+    if (!authUrlNotice || authUrlNotice.url === openedUrl.current) return
+    openedUrl.current = authUrlNotice.url
+    void desktopClient.openExternalURL(authUrlNotice.url)
+  }, [authUrlNotice])
 
   return (
     <section className="model-center-account-connection">
@@ -81,90 +52,85 @@ export function OAuthConnection({
           {connected ? '已授权' : '可授权'}
         </span>
       </header>
-      {method ? (
-        <div className="model-center-account-fields">
-          {method.prompts?.filter(prompt => {
-            if (!prompt.when) return true
-            const matches = inputs[prompt.when.key] === prompt.when.value
-            return prompt.when.op === 'eq' ? matches : !matches
-          }).map(prompt => (
-            <label className="model-center-account-field" key={prompt.key}>
-              <span>{prompt.message}</span>
-              {prompt.type === 'select' ? (
-                <SettingsDropdown
-                  ariaLabel={prompt.message}
-                  onChange={value => setInputs(current => ({
-                    ...current,
-                    [prompt.key]: value,
-                  }))}
-                  options={prompt.options.map(option => ({
-                    value: option.value,
-                    label: option.label,
-                    detail: option.hint,
-                  }))}
-                  value={inputs[prompt.key] ?? ''}
-                  width={340}
-                />
-              ) : (
-                <Input
-                  onChange={event => setInputs(current => ({
-                    ...current,
-                    [prompt.key]: event.target.value,
-                  }))}
-                  placeholder={prompt.placeholder}
-                  value={inputs[prompt.key] ?? ''}
-                />
-              )}
-            </label>
-          ))}
-          <div className="model-center-account-actions">
-            <Button loading={oauth.busy} onClick={() => void oauth.start()}>
-              {connected ? '重新授权' : '浏览器授权'}
-            </Button>
-            {connected ? (
-              <Button
-                loading={disconnecting}
-                onClick={() => void disconnect()}
-                tone="danger"
-              >
-                断开
-              </Button>
-            ) : null}
-          </div>
-          {oauth.attempt ? (
-            <div className="model-center-account-oauth">
-              <p>{oauth.attempt.instructions || oauth.status}</p>
-              {oauth.attempt.url ? (
+
+      <div className="model-center-account-fields">
+        <div className="model-center-account-actions">
+          <Button loading={auth.busy} onClick={() => void auth.start()}>
+            {connected ? '重新授权' : '开始授权'}
+          </Button>
+          {auth.session && ['running', 'waiting'].includes(auth.session.status) ? (
+            <Button onClick={() => void auth.cancel()}>取消</Button>
+          ) : null}
+        </div>
+
+        {notices.map((notice, index) => {
+          if (notice.type === 'auth_url') {
+            return (
+              <p key={`${notice.type}-${index}`}>
+                {notice.instructions ? `${notice.instructions} ` : null}
                 <a
-                  href={oauth.attempt.url}
+                  href={notice.url}
                   onClick={openExternalLink}
                   rel="noreferrer"
                   target="_blank"
                 >
                   打开授权页面
                 </a>
-              ) : null}
-              {oauth.attempt.mode === 'code' ? (
-                <div className="model-center-account-actions">
-                  <Input
-                    aria-label={`${title} 授权返回码`}
-                    onChange={event => oauth.setCode(event.target.value)}
-                    placeholder="输入授权返回码"
-                    value={oauth.code}
-                  />
-                  <Button
-                    disabled={!oauth.code.trim()}
-                    loading={oauth.submittingCode}
-                    onClick={() => void oauth.submitCode()}
-                  >
-                    提交
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : oauth.status ? <p>{oauth.status}</p> : null}
-        </div>
-      ) : <p>此连接当前没有可用的 OAuth 授权方式。</p>}
+              </p>
+            )
+          }
+          if (notice.type === 'device_code') {
+            return (
+              <div className="model-center-account-oauth" key={`${notice.type}-${index}`}>
+                <p>设备码：<code>{notice.userCode}</code></p>
+                <a
+                  href={notice.verificationUri}
+                  onClick={openExternalLink}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  打开设备授权页面
+                </a>
+              </div>
+            )
+          }
+          return <p key={`${notice.type}-${index}`}>{notice.message}</p>
+        })}
+
+        {prompt ? (
+          <label className="model-center-account-field">
+            <span>{prompt.message}</span>
+            {prompt.type === 'select' ? (
+              <SettingsDropdown
+                ariaLabel={prompt.message}
+                onChange={auth.setValue}
+                options={(prompt.options ?? []).map(option => ({
+                  value: option.id,
+                  label: option.label,
+                  detail: option.description,
+                }))}
+                value={auth.value}
+                width={340}
+              />
+            ) : (
+              <Input
+                aria-label={prompt.message}
+                onChange={event => auth.setValue(event.target.value)}
+                placeholder={prompt.placeholder}
+                type={prompt.type === 'secret' ? 'password' : 'text'}
+                value={auth.value}
+              />
+            )}
+            <Button
+              disabled={!auth.value.trim()}
+              loading={auth.busy}
+              onClick={() => void auth.respond()}
+            >
+              {prompt.type === 'manual_code' ? '提交授权码' : '继续'}
+            </Button>
+          </label>
+        ) : null}
+      </div>
       {error ? <p className="model-center-account-error" role="status">{error}</p> : null}
     </section>
   )

@@ -22,5 +22,5 @@ export type {
 } from './types.js'
 export { useProviderManagementSnapshot } from './useProviderManagementSnapshot.js'
 export {
-  useIntegrationOAuthAuthorization,
-} from './useIntegrationOAuthAuthorization.js'
+  useAuthSession,
+} from './useAuthSession.js'

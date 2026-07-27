@@ -6,7 +6,7 @@ import type {
 } from '@codepilotx/agent-protocol'
 import type {
   DesktopApiKeySummary,
-  DesktopIntegration,
+  DesktopProviderCredential,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
   ModelProviderID,
@@ -19,7 +19,7 @@ export type ProviderManagementSnapshot = {
   error: string | null
   providers: readonly DesktopModelProviderSummary[]
   currentProviderState: DesktopModelProviderState | null
-  integrations: readonly DesktopIntegration[]
+  credentials: readonly DesktopProviderCredential[]
   apiKeys: readonly DesktopApiKeySummary[]
   usageSources: readonly UsageSourceDescriptor[]
   usageResults: readonly ProviderUsageSource[]
@@ -38,7 +38,7 @@ export type ProviderConnectionKind =
 export type ProviderConnection = {
   id: string
   kind: ProviderConnectionKind
-  origin: 'api-key' | 'integration' | 'usage-source'
+  origin: 'credential' | 'usage-source'
   providerIds: readonly ModelProviderID[]
   label: string
   active: boolean
@@ -52,7 +52,7 @@ export type ConfiguredProviderGroup = {
   current: boolean
   configured: true
   apiKeys: readonly DesktopApiKeySummary[]
-  integration: DesktopIntegration | null
+  oauthAvailable: boolean
   usageSources: readonly UsageSourceDescriptor[]
   connections: readonly ProviderConnection[]
   activeConnection: ProviderConnection | null
