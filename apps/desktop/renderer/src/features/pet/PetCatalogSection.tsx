@@ -4,7 +4,7 @@ import type {
   PetCatalogResult,
   PetDescriptor,
 } from "@codepilotx/agent-protocol";
-import { Download, PawPrint, RefreshCw, SearchX, Sparkles } from "lucide-react";
+import { Download, PawPrint, RefreshCw, SearchX } from "lucide-react";
 import { Button } from "../../components/ui/Button.js";
 import { ConfirmationDialog } from "../../components/ui/ConfirmationDialog.js";
 import { IconButton } from "../../components/ui/IconButton.js";
@@ -258,7 +258,7 @@ export function PetCatalogSection({
                 }}
                 type="button"
               >
-                <Sparkles size={APP_ICON_SIZE} />
+                <PawPrint size={APP_ICON_SIZE} />
                 立即唤醒
               </Button>
             </div>
@@ -348,7 +348,7 @@ export function PetCatalogSection({
             catalog.cacheState !== "unavailable" &&
             !activePets.length ? (
               <div className="pet-catalog-empty">
-                <Sparkles size={28} />
+                <PawPrint size={28} />
                 <strong>社区宠物均已安装</strong>
                 <span>可以前往“已安装”切换当前使用的宠物。</span>
                 <Button onClick={() => setTab("installed")} type="button">

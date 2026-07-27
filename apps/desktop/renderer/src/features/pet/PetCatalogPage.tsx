@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type React from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { PetDescriptor } from '@codepilotx/agent-protocol'
-import { Settings } from 'lucide-react'
+import { PawPrint } from 'lucide-react'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { Button } from '../../components/ui/Button.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
@@ -53,7 +53,7 @@ export function PetCatalogPage(): React.ReactNode {
               onClick={() => navigate('/settings/pets')}
               type="button"
             >
-              <Settings size={APP_ICON_SIZE} />
+              <PawPrint size={APP_ICON_SIZE} />
               宠物设置
             </Button>
           </header>
