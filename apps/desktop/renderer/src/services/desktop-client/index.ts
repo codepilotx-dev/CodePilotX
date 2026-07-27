@@ -27,6 +27,7 @@ export type {
   DesktopAgentEventEnvelopeApi,
   DesktopAgentReviewApi,
   DesktopClientEnvironment,
+  DesktopReleaseNotesApi,
   DesktopUsageApi,
   DesktopReviewAgentComment,
   DesktopReviewAgentFileDiff,

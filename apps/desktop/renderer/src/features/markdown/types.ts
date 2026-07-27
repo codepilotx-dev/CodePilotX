@@ -50,6 +50,7 @@ export type MarkdownDirectiveRegistry = ReadonlyMap<
 
 export type MarkdownExternalResourcePolicy = {
   allowExternalLinks?: boolean
+  allowExternalUrl?: (url: string) => boolean
   allowRemoteMedia?: boolean
 }
 

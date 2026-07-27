@@ -147,7 +147,12 @@ const RENDERER_CAPABILITIES = [
   'mcp.oauth.v1',
   'config.manage.v1',
   'task-suggestions.v1',
+  'release-notes.read.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
+const CURRENT_APP_VERSION =
+  typeof __CODEPILOTX_VERSION__ === 'string'
+    ? __CODEPILOTX_VERSION__
+    : '0.0.0-dev'
 type PendingInteraction =
   RpcResult<'interaction/listPending'>['interactions'][number]
 
@@ -350,7 +355,8 @@ export function createAgentSessionDesktopClient(
       | 'mcp.manage.v1'
       | 'mcp.oauth.v1'
       | 'config.manage.v1'
-      | 'task-suggestions.v1',
+      | 'task-suggestions.v1'
+      | 'release-notes.read.v1',
     version = 1,
   ): void {
     const capabilities: Record<typeof name, string> = {
@@ -369,6 +375,7 @@ export function createAgentSessionDesktopClient(
       'mcp.oauth.v1': 'mcp.oauth.v1',
       'config.manage.v1': 'config.manage.v1',
       'task-suggestions.v1': 'task-suggestions.v1',
+      'release-notes.read.v1': 'release-notes.read.v1',
     }
     if (version <= 1 && agentCapabilities.has(capabilities[name])) return
     if (version === 2 && (name === 'prompt' || name === 'memory')) {
@@ -1262,6 +1269,22 @@ export function createAgentSessionDesktopClient(
         requireAgentCapability('pets.management.v1')
         return rpc.call('pet/catalog/list', { refresh })
       }),
+    listReleaseNotes: (options = {}) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('release-notes.read.v1')
+          return (
+            await import('./release-notes-client.js')
+          ).listAgentReleaseNotes(
+            rpc,
+            CURRENT_APP_VERSION,
+            options.refresh,
+          )
+        },
+        async () => (
+          await import('./release-notes-client.js')
+        ).mockReleaseNotes(CURRENT_APP_VERSION),
+      ),
     installCatalogPet: (slug, acceptedRestrictedLicense = false) =>
       withRequiredAgent(async () => {
         requireAgentCapability('pets.management.v1')

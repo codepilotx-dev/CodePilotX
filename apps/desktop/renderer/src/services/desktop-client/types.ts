@@ -272,9 +272,16 @@ export type DesktopUsageApi = {
   ): Promise<RpcResult<'usage/credential/disconnect'>>
 }
 
+export type DesktopReleaseNotesApi = {
+  listReleaseNotes(options?: {
+    refresh?: boolean
+  }): Promise<RpcResult<'release-notes/list'>>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
   DesktopToolingApi &
   DesktopPetApi &
-  DesktopUsageApi
+  DesktopUsageApi &
+  DesktopReleaseNotesApi

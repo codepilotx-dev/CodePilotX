@@ -8,6 +8,8 @@ import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-da
 import type { DesktopEditIpcBridge } from '@codepilotx/shared/desktop-edit-ipc'
 
 declare global {
+  const __CODEPILOTX_VERSION__: string
+
   interface Window {
     desktopApi: DesktopApi
     codePilotXDesktop?: {

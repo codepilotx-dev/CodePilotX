@@ -1,11 +1,15 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
 const NEW_ROUTE_GZIP_BUDGET = 360 * 1024
 const INITIAL_CSS_RAW_BUDGET = 460 * 1024
+const rootPackage = JSON.parse(
+  readFileSync(resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8'),
+) as { version: string }
 
 function routeBundleBudget(): Plugin {
   return {
@@ -102,6 +106,9 @@ function routeBundleBudget(): Plugin {
 
 export default defineConfig({
   plugins: [tailwindcss(), react(), routeBundleBudget()],
+  define: {
+    __CODEPILOTX_VERSION__: JSON.stringify(rootPackage.version),
+  },
   resolve: {
     alias: {
       '@codepilotx/core': resolve(__dirname, 'src/shims/core'),

@@ -74,7 +74,11 @@ type RenderContext = {
   allowWideBlocks: boolean
   cwd: string | null
   directives: MarkdownDirectiveRegistry
-  externalResourcePolicy: Required<MarkdownExternalResourcePolicy>
+  externalResourcePolicy: {
+    allowExternalLinks: boolean
+    allowExternalUrl: (url: string) => boolean
+    allowRemoteMedia: boolean
+  }
   onOpenFileReference:
     | ((
         reference: MarkdownFileReference,
@@ -119,6 +123,8 @@ export function MarkdownMessage({
       externalResourcePolicy: {
         allowExternalLinks:
           externalResourcePolicy?.allowExternalLinks ?? true,
+        allowExternalUrl:
+          externalResourcePolicy?.allowExternalUrl ?? (() => true),
         allowRemoteMedia:
           externalResourcePolicy?.allowRemoteMedia ?? true,
       },
@@ -134,6 +140,7 @@ export function MarkdownMessage({
       directiveRegistry,
       directives,
       externalResourcePolicy?.allowExternalLinks,
+      externalResourcePolicy?.allowExternalUrl,
       externalResourcePolicy?.allowRemoteMedia,
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
@@ -627,7 +634,10 @@ function renderLink(
   const children = renderTokens(link.tokens, context, `${key}-label`)
   const target = classifyMarkdownTarget(link.href)
   if (target.kind === 'external') {
-    if (!context.externalResourcePolicy.allowExternalLinks) {
+    if (
+      !context.externalResourcePolicy.allowExternalLinks ||
+      !context.externalResourcePolicy.allowExternalUrl(target.url)
+    ) {
       return <React.Fragment key={key}>{children}</React.Fragment>
     }
     return (
@@ -981,7 +991,10 @@ function resolveWorkspacePath(cwd: string | null, path: string): string | null {
 }
 
 function openExternal(context: RenderContext, url: string): void {
-  if (!context.externalResourcePolicy.allowExternalLinks) return
+  if (
+    !context.externalResourcePolicy.allowExternalLinks ||
+    !context.externalResourcePolicy.allowExternalUrl(url)
+  ) return
   void desktopClient.openExternalURL(url).catch(() => undefined)
 }
 

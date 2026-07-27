@@ -1,0 +1,236 @@
+.whats-new-page {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
+}
+
+.whats-new-scroll-region {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.whats-new-content {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  padding: 40px 44px 72px;
+}
+
+.whats-new-heading {
+  margin-bottom: 28px;
+}
+
+.whats-new-heading-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.whats-new-heading-icon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-token-border);
+  border-radius: 12px;
+  background: var(--color-token-bg-secondary);
+  color: var(--color-token-icon-foreground);
+}
+
+.whats-new-heading-icon > svg {
+  width: 19px;
+  height: 19px;
+}
+
+.whats-new-heading h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.whats-new-heading p {
+  margin: 8px 0 0;
+  color: var(--color-token-description-foreground);
+  font-size: var(--type-secondary);
+}
+
+.whats-new-release-list {
+  display: grid;
+  gap: 12px;
+}
+
+.whats-new-release {
+  overflow: hidden;
+  border: 1px solid var(--color-token-border);
+  border-radius: 12px;
+  background: var(--color-token-main-surface-primary);
+}
+
+.whats-new-release > summary {
+  display: grid;
+  gap: 7px;
+  padding: 15px 17px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.whats-new-release > summary::-webkit-details-marker {
+  display: none;
+}
+
+.whats-new-release > summary:hover {
+  background: var(--color-token-list-hover-background);
+}
+
+.whats-new-release > summary:focus-visible {
+  outline: 2px solid var(--color-token-text-link-foreground);
+  outline-offset: -2px;
+}
+
+.whats-new-release-heading,
+.whats-new-release-meta,
+.whats-new-release-badges {
+  display: flex;
+  align-items: center;
+}
+
+.whats-new-release-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.whats-new-release-heading strong {
+  min-width: 0;
+  font-size: var(--type-section-title);
+}
+
+.whats-new-release-badges {
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.whats-new-release-badges > span {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-description-foreground);
+  font-size: var(--type-caption);
+}
+
+.whats-new-release-badges > span[data-kind='current'] {
+  color: var(--color-token-text-link-foreground);
+}
+
+.whats-new-release-meta {
+  gap: 10px;
+  color: var(--color-token-description-foreground);
+  font-size: var(--type-caption);
+}
+
+.whats-new-release-meta code {
+  font-family: var(--font-family-mono);
+}
+
+.whats-new-release-body {
+  padding: 18px;
+  border-top: 1px solid var(--color-token-border-light);
+}
+
+.whats-new-release-body > .md-body {
+  max-width: none;
+}
+
+.whats-new-release-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.whats-new-empty-body,
+.whats-new-notice,
+.whats-new-source {
+  color: var(--color-token-description-foreground);
+  font-size: var(--type-secondary);
+}
+
+.whats-new-empty-body {
+  margin: 0;
+}
+
+.whats-new-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-token-list-hover-background);
+}
+
+.whats-new-source {
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+.whats-new-state {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 28px;
+  border: 1px solid var(--color-token-border);
+  border-radius: 12px;
+  background: var(--color-token-bg-secondary);
+}
+
+.whats-new-state p {
+  max-width: 620px;
+  margin: 0 0 8px;
+  color: var(--color-token-description-foreground);
+  line-height: 1.55;
+}
+
+.whats-new-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.whats-new-skeleton-card {
+  display: grid;
+  gap: 10px;
+  padding: 17px;
+  border: 1px solid var(--color-token-border);
+  border-radius: 12px;
+}
+
+.whats-new-skeleton-card > span {
+  display: block;
+  height: 13px;
+  border-radius: var(--radius-2);
+  background: var(--color-token-list-hover-background);
+  animation: whats-new-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.whats-new-skeleton-card > span:first-child {
+  width: 38%;
+  height: 18px;
+}
+
+.whats-new-skeleton-card > span:last-child {
+  width: 72%;
+}
+
+@keyframes whats-new-skeleton-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whats-new-skeleton-card > span {
+    animation: none;
+  }
+}

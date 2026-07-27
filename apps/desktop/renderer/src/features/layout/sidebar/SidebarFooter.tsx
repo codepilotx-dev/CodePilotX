@@ -13,6 +13,7 @@ import {
   Keyboard,
   LogOut,
   Settings2,
+  Sparkles,
 } from "lucide-react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
@@ -413,6 +414,15 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         }
         onOpenChange={setHelpMenuOpen}
       >
+        <PopoverItem
+          icon={<Sparkles size={APP_ICON_SIZE} />}
+          onClick={() => {
+            setHelpMenuOpen(false)
+            navigate('/whats-new')
+          }}
+        >
+          新特性
+        </PopoverItem>
         <PopoverItem
           icon={<Keyboard size={APP_ICON_SIZE} />}
           onClick={() => {
