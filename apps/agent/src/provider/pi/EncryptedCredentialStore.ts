@@ -3,13 +3,19 @@ import type {
   CredentialInfo,
   CredentialStore,
 } from "@earendil-works/pi-ai";
-import { Credential, Integration } from "@codepilotx/model-schema";
+import { Credential } from "@codepilotx/model-schema";
 import { Effect } from "effect";
 import type { EncryptedCredentialRepository } from "../../auth/EncryptedCredentialRepository";
 
 type CredentialRepository = Pick<
   EncryptedCredentialRepository,
-  "list" | "get" | "set" | "remove"
+  | "list"
+  | "get"
+  | "set"
+  | "createApiKey"
+  | "setProviderCredentialActive"
+  | "upsertOAuth"
+  | "deleteCredentialByID"
 >;
 
 export interface EncryptedCredentialStoreOptions {
@@ -55,9 +61,13 @@ const toStoredCredential = (
   oauthMethodID: (providerID: string) => string,
 ): Credential.Value => {
   if (value.type === "api_key") {
+    const key = value.key ?? (current?.type === "key" ? current.key : undefined);
+    if (!key) {
+      throw new Error("Pi API key credential cannot be persisted without key material");
+    }
     return Credential.Value.make({
       type: "key",
-      key: value.key ?? "",
+      key,
       ...(value.env ? { metadata: { env: value.env } } : {}),
     });
   }
@@ -74,7 +84,7 @@ const toStoredCredential = (
     current?.type === "oauth" ? String(current.methodID) : undefined;
   return Credential.Value.make({
     type: "oauth",
-    methodID: Integration.MethodID.make(
+    methodID: Credential.MethodID.make(
       typeof methodID === "string"
         ? methodID
         : (previousMethodID ?? oauthMethodID(providerID)),
@@ -150,25 +160,41 @@ export class EncryptedCredentialStore implements CredentialStore {
         stored?.value,
         this.oauthMethodID,
       );
-      await Effect.runPromise(
-        this.repository.set({
-          integrationID,
-          ...(value.type === "oauth"
-            ? { methodID: String(value.methodID) }
-            : {}),
-          label: stored?.label ?? "default",
+      if (value.type === "oauth") {
+        await Effect.runPromise(this.repository.upsertOAuth({
+          providerID: integrationID,
+          methodID: String(value.methodID),
+          label: stored?.kind === "oauth" ? stored.label : "OAuth",
           value,
-        }),
-      );
+        }));
+      } else if (stored?.kind === "api-key") {
+        await Effect.runPromise(this.repository.set({
+          integrationID,
+          label: stored.label,
+          value,
+        }));
+      } else {
+        const created = await Effect.runPromise(this.repository.createApiKey({
+          integrationID,
+          label: "default",
+          key: value.key,
+        }));
+        await Effect.runPromise(
+          this.repository.setProviderCredentialActive(integrationID, created.id),
+        );
+      }
       return next;
     });
   }
 
   async delete(providerID: string): Promise<void> {
     await this.enqueue(providerID, async () => {
-      await Effect.runPromise(
-        this.repository.remove(this.toIntegrationID(providerID)),
+      const stored = await Effect.runPromise(
+        this.repository.get(this.toIntegrationID(providerID)),
       );
+      if (stored) {
+        await Effect.runPromise(this.repository.deleteCredentialByID(stored.id));
+      }
     });
   }
 

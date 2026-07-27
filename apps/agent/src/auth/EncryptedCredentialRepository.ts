@@ -67,6 +67,21 @@ export type ApiKeySummary = {
   updatedAt: number
 }
 
+export type ProviderCredentialSummary = {
+  id: string
+  providerID: string
+  kind: "api-key" | "oauth"
+  methodID: string | null
+  label: string
+  maskedValue: string | null
+  enabled: boolean
+  active: boolean
+  order: number
+  health: ApiKeyHealth | null
+  createdAt: number
+  updatedAt: number
+}
+
 export type DecryptedCredential<T = unknown> = {
   id: string
   integrationID: string
@@ -111,6 +126,29 @@ export class EncryptedCredentialRepository {
       }))
   }
 
+  listProviderCredentials(providerID?: string): ProviderCredentialSummary[] {
+    return this.db.listEncryptedCredentials()
+      .filter((row) =>
+        !row.integrationID.startsWith("usage.")
+        && (!providerID || row.integrationID === providerID))
+      .map((row) => ({
+        id: row.id,
+        providerID: row.integrationID,
+        kind: row.kind,
+        methodID: row.methodID,
+        label: row.label,
+        maskedValue: row.kind === "api-key" ? `••••${row.keySuffix ?? ""}` : null,
+        enabled: row.enabled,
+        active: this.db.encryptedCredential(row.integrationID)?.id === row.id,
+        order: row.priority,
+        health: row.kind === "api-key"
+          ? healthSummary(this.db.credentialHealth(row.id))
+          : null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }))
+  }
+
   get<T = unknown>(integrationID: string) {
     return this.read<T>(() => this.db.encryptedCredential(integrationID))
   }
@@ -149,6 +187,46 @@ export class EncryptedCredentialRepository {
         return this.summary(row)
       },
       catch: (cause) => this.error("CREDENTIAL_WRITE_FAILED", "无法写入加密凭据", cause),
+    })
+  }
+
+  upsertOAuth(input: {
+    providerID: string
+    methodID: string
+    label?: string
+    value: unknown
+  }) {
+    return Effect.tryPromise({
+      try: async () => {
+        const existing = this.db.listEncryptedCredentials().find((row) =>
+          row.integrationID === input.providerID && row.kind === "oauth")
+        const id = existing?.id ?? `cred_${crypto.randomUUID()}`
+        const encrypted = await this.encrypt(id, input.providerID, input.value)
+        const row = this.db.upsertEncryptedCredential({
+          id,
+          integrationID: input.providerID,
+          kind: "oauth",
+          methodID: input.methodID,
+          label: input.label?.trim() || existing?.label || "OAuth",
+          keySuffix: null,
+          fingerprint: null,
+          enabled: true,
+          priority: existing?.priority
+            ?? this.db.listEncryptedCredentials()
+              .filter((candidate) => candidate.integrationID === input.providerID)
+              .length,
+          ...encrypted,
+          keyVersion: KEY_VERSION,
+        })
+        this.db.setActiveEncryptedCredential(input.providerID, row.id)
+        return this.listProviderCredentials(input.providerID)
+          .find((item) => item.id === row.id)!
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_WRITE_FAILED",
+        "无法写入 OAuth 凭据",
+        cause,
+      ),
     })
   }
 
@@ -230,9 +308,6 @@ export class EncryptedCredentialRepository {
     return Effect.try({
       try: () => {
         const row = this.apiKeyRow(credentialID)
-        if (this.db.credentialHealth(credentialID)?.status === "auth-failed") {
-          throw new AgentError("CONFLICT", "请先更换 API Key 或测试成功后再设为当前项", 409)
-        }
         if (row.integrationID !== integrationID || !this.db.setActiveEncryptedCredential(integrationID, credentialID)) {
           throw new AgentError("INVALID_CREDENTIAL", "API Key 不属于该 Provider 或已停用", 400)
         }
@@ -255,12 +330,9 @@ export class EncryptedCredentialRepository {
       try: () => {
         const row = this.apiKeyRow(credentialID)
         if (!enabled && this.db.encryptedCredential(row.integrationID)?.id === row.id) {
-          const replacement = this.db.listEncryptedCredentials().find((candidate) =>
-            candidate.integrationID === row.integrationID && candidate.kind === "api-key" && candidate.id !== row.id && candidate.enabled)
-          if (!replacement) throw new AgentError("CREDENTIAL_REQUIRED", "请先启用或新增备用 API Key", 409)
           this.db.profileSqlite.transaction(() => {
-            this.db.setActiveEncryptedCredential(row.integrationID, replacement.id)
             this.db.updateEncryptedCredential(row.id, { enabled: false })
+            this.db.clearActiveEncryptedCredential(row.integrationID, row.id)
           })()
         } else {
           this.db.updateEncryptedCredential(row.id, { enabled })
@@ -290,6 +362,93 @@ export class EncryptedCredentialRepository {
         return this.db.deleteEncryptedCredential(credentialID)
       },
       catch: (cause) => this.error("CREDENTIAL_DELETE_FAILED", "无法删除 API Key", cause),
+    })
+  }
+
+  setProviderCredentialActive(providerID: string, credentialID: string) {
+    return Effect.try({
+      try: () => {
+        const row = this.db.encryptedCredentialByID(credentialID)
+        if (
+          !row
+          || row.integrationID !== providerID
+          || !row.enabled
+          || !this.db.setActiveEncryptedCredential(providerID, credentialID)
+        ) {
+          throw new AgentError(
+            "INVALID_CREDENTIAL",
+            "凭据不属于该 Provider 或已停用",
+            400,
+          )
+        }
+        return this.listProviderCredentials(providerID)
+          .find((item) => item.id === credentialID)!
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_WRITE_FAILED",
+        "无法设置活动凭据",
+        cause,
+      ),
+    })
+  }
+
+  setProviderCredentialEnabled(credentialID: string, enabled: boolean) {
+    return Effect.try({
+      try: () => {
+        const row = this.db.encryptedCredentialByID(credentialID)
+        if (!row || row.integrationID.startsWith("usage.")) {
+          throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到 Provider 凭据", 404)
+        }
+        this.db.profileSqlite.transaction(() => {
+          this.db.updateEncryptedCredential(row.id, { enabled })
+          if (!enabled) {
+            this.db.clearActiveEncryptedCredential(row.integrationID, row.id)
+          }
+        })()
+        return this.listProviderCredentials(row.integrationID)
+          .find((item) => item.id === row.id)!
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_WRITE_FAILED",
+        "无法更新凭据状态",
+        cause,
+      ),
+    })
+  }
+
+  deleteProviderCredential(credentialID: string) {
+    return Effect.try({
+      try: () => {
+        const row = this.db.encryptedCredentialByID(credentialID)
+        if (!row || row.integrationID.startsWith("usage.")) {
+          throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到 Provider 凭据", 404)
+        }
+        if (!this.db.deleteEncryptedCredential(credentialID)) {
+          throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到 Provider 凭据", 404)
+        }
+        return this.listProviderCredentials(row.integrationID)
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_DELETE_FAILED",
+        "无法删除 Provider 凭据",
+        cause,
+      ),
+    })
+  }
+
+  deleteCredentialByID(credentialID: string) {
+    return Effect.try({
+      try: () => {
+        if (!this.db.deleteEncryptedCredential(credentialID)) {
+          throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到凭据", 404)
+        }
+        return true
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_DELETE_FAILED",
+        "无法删除凭据",
+        cause,
+      ),
     })
   }
 
