@@ -53,7 +53,6 @@ const createSettingsApp = () => {
     apiKeys: {},
     memory: {},
     hooks: {},
-    sandbox: {},
     review: {},
     github: {},
     tooling: {},

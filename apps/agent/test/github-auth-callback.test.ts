@@ -13,7 +13,7 @@ const callbackApp = (handleOAuthCallback: GithubService["handleOAuthCallback"]) 
     warn: () => undefined,
   } as unknown as AgentLogger,
   db: {}, hub: {}, threads: {}, history: {}, approvals: {}, questions: {}, subagents: {},
-  attachments: {}, providers: {}, integrations: {}, apiKeys: {}, memory: {}, hooks: {}, sandbox: {}, review: {},
+  attachments: {}, providers: {}, integrations: {}, apiKeys: {}, memory: {}, hooks: {}, review: {},
 } as unknown as TransportDependencies)
 
 describe("GitHub OAuth callback route", () => {

@@ -14,11 +14,9 @@ const unpacked = unpackedArgument
 
 const application = join(unpacked, "CodePilotX.exe")
 const agent = join(unpacked, "resources/agent/codepilotx-agent.exe")
-const srt = join(unpacked, "resources/srt-win/x64/srt-win.exe")
 const requiredFiles = [
   application,
   agent,
-  srt,
   join(unpacked, "resources/app.asar"),
   join(unpacked, "resources/renderer/index.html"),
   join(unpacked, "resources/agent/models.snapshot.json"),
@@ -33,7 +31,7 @@ const thirdPartyDirectory = join(unpacked, "resources/third_party")
 if (!existsSync(thirdPartyDirectory) || !(await stat(thirdPartyDirectory)).isDirectory()) {
   throw new Error(`Windows x64 包缺少第三方许可证目录：${thirdPartyDirectory}`)
 }
-for (const path of [application, agent, srt]) {
+for (const path of [application, agent]) {
   await assertWindowsX64PE(path)
 }
 await assertAgentBinaryHasNoStaticRiskFeatures(agent)

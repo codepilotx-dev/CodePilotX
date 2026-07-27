@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { AlertTriangle, Download, ExternalLink, RefreshCw, Trash2, Wrench } from 'lucide-react'
+import { AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import {
   CONFIG_UPDATED_EVENT,
@@ -18,16 +18,6 @@ import { SettingsDropdown } from './SettingsDropdown.js'
 import { TaskModelSelect } from './TaskModelSelect.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
-import {
-  SANDBOX_RUNTIME_STATUS_UNAVAILABLE,
-  installSandboxRuntime,
-  loadSandboxRuntimeStatus,
-  refreshSandboxRuntimeStatus,
-  repairSandboxRuntime,
-  sandboxRuntimeStateLabel,
-  uninstallSandboxRuntime,
-  type SandboxRuntimeStatus,
-} from '../../shared/sandboxRuntime.js'
 import { Button } from '../../components/ui/Button.js'
 
 function LearnMoreLink() {
@@ -49,9 +39,6 @@ export function ConfigSettings(): React.ReactNode {
     null,
   )
   const [changingLocation, setChangingLocation] = useState(false)
-  const [sandboxRuntimeStatus, setSandboxRuntimeStatus] = useState<SandboxRuntimeStatus>(SANDBOX_RUNTIME_STATUS_UNAVAILABLE)
-  const [sandboxRuntimeBusy, setSandboxRuntimeBusy] = useState(false)
-  const [sandboxRuntimeRefreshing, setSandboxRuntimeRefreshing] = useState(false)
   const [promptPreview, setPromptPreview] = useState<string | null>(null)
   const [configRead, setConfigRead] = useState<DesktopConfigReadResult | null>(null)
   const [projectTrust, setProjectTrust] = useState<DesktopProjectTrustReadResult | null>(null)
@@ -150,58 +137,6 @@ export function ConfigSettings(): React.ReactNode {
     }
   }, [])
 
-  useEffect(() => {
-    let mounted = true
-    void loadSandboxRuntimeStatus()
-      .then(status => {
-        if (mounted) setSandboxRuntimeStatus(status)
-      })
-      .catch(() => {
-        if (mounted) setSandboxRuntimeStatus(SANDBOX_RUNTIME_STATUS_UNAVAILABLE)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  const runSandboxRuntimeAction = async (action: () => Promise<SandboxRuntimeStatus>) => {
-    if (sandboxRuntimeBusy || sandboxRuntimeRefreshing) return
-    setSandboxRuntimeBusy(true)
-    setSandboxRuntimeStatus({ ...sandboxRuntimeStatus, state: 'installing', message: '正在处理 SRT 沙箱。' })
-    try {
-      setSandboxRuntimeStatus(await action())
-    } catch (error) {
-      setSandboxRuntimeStatus({
-        ...sandboxRuntimeStatus,
-        state: 'needs-repair',
-        message: error instanceof Error ? error.message : 'SRT 沙箱操作失败。',
-        canInstall: false,
-        canRepair: true,
-        canUninstall: sandboxRuntimeStatus.canUninstall,
-      })
-    } finally {
-      setSandboxRuntimeBusy(false)
-    }
-  }
-
-  const refreshSandboxRuntime = async (): Promise<void> => {
-    if (sandboxRuntimeBusy || sandboxRuntimeRefreshing) return
-    setSandboxRuntimeRefreshing(true)
-    try {
-      setSandboxRuntimeStatus(await refreshSandboxRuntimeStatus())
-    } catch (error) {
-      setSandboxRuntimeStatus(current => ({
-        ...current,
-        message:
-          error instanceof Error && error.message
-            ? error.message
-            : '无法重新扫描 SRT 沙箱状态。',
-      }))
-    } finally {
-      setSandboxRuntimeRefreshing(false)
-    }
-  }
-
   const handleChooseDataLocation = async (): Promise<void> => {
     if (changingLocation) return
     setChangingLocation(true)
@@ -225,7 +160,7 @@ export function ConfigSettings(): React.ReactNode {
         <div className="settings-page-header">
           <h2 className="settings-page-title">配置</h2>
           <p className="settings-page-desc">
-            配置审批策略和沙盒设置。
+            配置审批策略和命令执行范围。
             <LearnMoreLink />
           </p>
         </div>
@@ -365,106 +300,21 @@ export function ConfigSettings(): React.ReactNode {
         </SettingsSection>
 
         <SettingsSection
-          title="沙盒运行环境"
-          description={`SRT Windows ${sandboxRuntimeStatus.maturity.replace(/^./, value => value.toUpperCase())}，可并发运行 ${sandboxRuntimeStatus.maxConcurrentCommands} 条命令；负责隔离命令进程、文件访问和网络访问。`}
-          actions={
-            <Button
-              disabled={sandboxRuntimeBusy || sandboxRuntimeRefreshing}
-              onClick={() => void refreshSandboxRuntime()}
-              title={
-                sandboxRuntimeRefreshing
-                  ? '正在扫描沙盒运行环境'
-                  : '重新扫描'
-              }
-              type="button"
-            >
-              <RefreshCw size={APP_ICON_SIZE} />
-              {sandboxRuntimeRefreshing ? '扫描中…' : '重新扫描'}
-            </Button>
-          }
+          title="权限与命令执行"
+          description="结构化文件工具遵循所选范围；非计划模式 Shell 经安全规则和 Hook 后以当前 Windows 用户身份执行。"
         >
           <SettingsRow
-            title="状态"
-            description={sandboxRuntimeStatus.message}
-            control={
-              <span className="settings-row-status">
-                {sandboxRuntimeStateLabel(
-                  sandboxRuntimeStatus.state,
-                )}
-              </span>
-            }
-          />
-          <SettingsRow
-            title="安装沙盒运行环境"
-            description="首次安装会请求一次 Windows 管理员权限。"
-            control={
-              <Button
-                aria-label="安装沙盒运行环境"
-                disabled={
-                  sandboxRuntimeBusy ||
-                  sandboxRuntimeRefreshing ||
-                  !sandboxRuntimeStatus.canInstall
-                }
-                onClick={() => void runSandboxRuntimeAction(installSandboxRuntime)}
-                type="button"
-              >
-                <Download size={APP_ICON_SIZE} />
-                安装
-              </Button>
-            }
-          />
-          <SettingsRow
-            title="修复沙盒运行环境"
-            description="重新检查专用账户、helper，并将 WFP 回环端口范围更新为 60080–60095。"
-            control={
-              <Button
-                aria-label="修复沙盒运行环境"
-                disabled={
-                  sandboxRuntimeBusy ||
-                  sandboxRuntimeRefreshing ||
-                  !sandboxRuntimeStatus.canRepair
-                }
-                onClick={() => void runSandboxRuntimeAction(repairSandboxRuntime)}
-                type="button"
-              >
-                <Wrench size={APP_ICON_SIZE} />
-                修复
-              </Button>
-            }
-          />
-          <SettingsRow
-            title="卸载沙盒运行环境"
-            description="卸载会删除专用账户和 WFP 规则，必须单独确认。"
-            control={
-              <Button
-                aria-label="卸载沙盒运行环境"
-                disabled={
-                  sandboxRuntimeBusy ||
-                  sandboxRuntimeRefreshing ||
-                  !sandboxRuntimeStatus.canUninstall
-                }
-                onClick={() => {
-                  if (window.confirm('确认卸载 CodePilotX SRT 沙箱吗？')) void runSandboxRuntimeAction(uninstallSandboxRuntime)
-                }}
-                type="button"
-              >
-                <Trash2 size={APP_ICON_SIZE} />
-                卸载
-              </Button>
-            }
-          />
-          <SettingsRow
-            title="沙盒设置"
-            description="选择 CodePilotX 运行命令时可执行的操作范围。"
+            title="工具权限范围"
+            description="该范围约束结构化文件工具和审批信号，不是 Shell 子进程的操作系统隔离边界。"
             control={
               <SettingsDropdown
                 width={260}
-                ariaLabel="沙盒设置"
+                ariaLabel="工具权限范围"
                 value={draft.values.permissionConfig.sandboxMode === 'read-only' ? ':read-only' : draft.values.permissionConfig.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'}
                 options={[
-                  { value: ':read-only', label: '只读', detail: '只能读取文件，不能修改文件' },
-                  { value: ':workspace', label: '工作区写入', detail: '可以编辑文件，但仅限当前工作区' },
-                  { value: ':danger-full-access', label: '完全访问', detail: '可以编辑当前工作区之外的文件' },
+                  { value: ':read-only', label: '文件工具只读', detail: '结构化文件工具只读；非计划模式 Shell 仍在本机执行' },
+                  { value: ':workspace', label: '文件工具限工作区', detail: '结构化文件工具仅写工作区；Shell 没有 OS 文件边界' },
+                  { value: ':danger-full-access', label: '完全访问', detail: '所有工具以当前 Windows 用户权限执行（风险很高）' },
                 ]}
                 onChange={value => {
                   const sandboxMode = value === ':read-only' ? 'read-only' : value === ':danger-full-access' ? 'danger-full-access' : 'workspace-write'
@@ -521,7 +371,7 @@ export function ConfigSettings(): React.ReactNode {
           {typeof draft.values.permissionConfig.approvalPolicy === 'object' ? (
             <>
               {([
-                ['sandboxApproval', 'Sandbox 提升'],
+                ['sandboxApproval', '执行范围提升'],
                 ['rules', '规则审批'],
                 ['skillApproval', 'Skill 脚本'],
                 ['requestPermissions', '动态权限请求'],

@@ -73,7 +73,7 @@ export const reviewHandlers = {
     "review/ai/start",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, sandbox, review, github } = runtime.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "review/summary": {

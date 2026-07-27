@@ -81,15 +81,15 @@ export class PermissionDecisionEngine {
     if (tool.approvalStrategy === "never-review") return allow("工具声明为无需审批")
     if (tool.approvalStrategy === "always-review") return invocation.permissionConfig.approvalPolicy === "never" ? deny("never 策略禁止等待审批") : review("工具始终需要审批")
 
-    // sandboxMode is the thread's already-selected baseline. Only a per-call
-    // scope request is an elevation; danger-full-access is not re-approved on
-    // every call merely because it is broad.
+    // sandboxMode is retained as the thread's compatibility permission
+    // profile. It constrains structured tools and approval signals, but is not
+    // an OS boundary for host Shell child processes.
     const mutatingMcpTool = tool.origin?.kind === "mcp" && tool.capabilities.externalState
-    const elevated = hasRequestedPermissions(invocation.input) || invocation.authorizationScope?.ruleRequiresApproval === true || invocation.input.__hookRequiresApproval === true || invocation.input.__ruleRequiresApproval === true || invocation.input.__sandboxFailureEscalation === true || mutatingMcpTool
-    if (isGranularApprovalPolicy(policy)) return policy[approvalCapability(invocation, tool)] ? review("细粒度策略要求审批") : elevated ? deny("细粒度策略禁止此权限请求") : allow("细粒度策略允许当前沙箱内执行")
+    const elevated = hasRequestedPermissions(invocation.input) || invocation.authorizationScope?.ruleRequiresApproval === true || invocation.input.__hookRequiresApproval === true || invocation.input.__ruleRequiresApproval === true || mutatingMcpTool
+    if (isGranularApprovalPolicy(policy)) return policy[approvalCapability(invocation, tool)] ? review("细粒度策略要求审批") : elevated ? deny("细粒度策略禁止此权限请求") : allow("细粒度策略允许当前工具权限范围内执行")
     if (policy === "untrusted") return tool.capabilities.filesystem === "read" && !tool.capabilities.process && !elevated ? allow("可信纯读取操作") : review("untrusted 策略要求审批非纯读取操作")
-    if (policy === "on-failure") return elevated ? review("sandbox 失败后的提升需要审批") : allow("先在 sandbox 内执行")
-    if (policy === "on-request") return elevated ? review("额外路径、网络或沙箱逃逸需要审批") : allow("当前 sandbox 范围内执行")
-    return elevated ? deny("never 策略禁止权限提升") : allow("never 策略按当前 sandbox 执行")
+    if (policy === "on-failure") return elevated ? review("额外权限需要审批") : allow("按当前工具权限范围直接执行")
+    if (policy === "on-request") return elevated ? review("额外路径、网络或规则要求审批") : allow("当前工具权限范围内执行")
+    return elevated ? deny("never 策略禁止权限提升") : allow("never 策略按当前工具权限范围执行")
   }
 }

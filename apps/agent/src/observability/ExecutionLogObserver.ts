@@ -2,7 +2,6 @@ import { isAbsolute, normalize } from "node:path"
 import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import type { EventEnvelope } from "../domain"
 import type { EventHubSignal } from "../storage/events/EventHub"
-import { secretScrubber } from "../security/SecretScrubber"
 import type { AgentLogger, LogContext, LogLevel } from "./AgentLogger"
 
 type JsonObject = Record<string, unknown>
@@ -12,6 +11,10 @@ const object = (value: unknown): JsonObject =>
 
 const text = (value: unknown) => typeof value === "string" ? value : undefined
 const number = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : undefined
+const nonNegativeInteger = (value: unknown) => {
+  const parsed = number(value)
+  return parsed === undefined || parsed < 0 ? undefined : Math.trunc(parsed)
+}
 
 const contextFor = (event: EventEnvelope, params: JsonObject): LogContext => ({
   ...(event.threadId ? { threadId: event.threadId } : {}),
@@ -31,16 +34,106 @@ const modelDetails = (value: unknown) => {
 
 const safeRelativePath = (value: unknown) => {
   if (typeof value !== "string" || !value.trim()) return undefined
-  if (isAbsolute(value)) return "[outside-workspace]"
+  if (isAbsolute(value) || /^(?:[a-z]:|[\\/]{2}|[\\/])/i.test(value)) return "[outside-workspace]"
   const normalized = normalize(value).replaceAll("\\", "/")
   if (normalized === ".." || normalized.startsWith("../")) return "[outside-workspace]"
   return normalized.slice(0, 500)
 }
 
+const byteLength = (value: unknown) =>
+  typeof value === "string" ? Buffer.byteLength(value, "utf8") : undefined
+
+const cwdScope = (value: unknown) => {
+  if (typeof value !== "string" || !value.trim()) return "default"
+  if (isAbsolute(value) || /^(?:[a-z]:|[\\/]{2}|[\\/])/i.test(value)) return "absolute"
+  const normalized = normalize(value).replaceAll("\\", "/")
+  return normalized === ".." || normalized.startsWith("../")
+    ? "outside-workspace"
+    : "workspace-relative"
+}
+
+const affectedPaths = (value: unknown) => {
+  if (!Array.isArray(value)) return []
+  return value.slice(0, 100).flatMap((entry) => {
+    const record = object(entry)
+    const path = safeRelativePath(record.path)
+    if (!path) return []
+    const operation = text(record.operation)
+    return [{
+      path,
+      ...(operation === "create" || operation === "update" ? { operation } : {}),
+    }]
+  })
+}
+
+const toolDetails = (tool: string, input: JsonObject, data: JsonObject): Record<string, unknown> => {
+  const leaf = tool.toLowerCase().split(".").at(-1) ?? tool.toLowerCase()
+  if (/^(?:bash|powershell|pwsh|shell|command|exec)$/.test(leaf)) {
+    const command = text(input.command) ?? text(data.command)
+    const timeoutMs = nonNegativeInteger(input.timeoutMs ?? input.timeout)
+    return {
+      ...(command === undefined ? {} : { commandBytes: Buffer.byteLength(command, "utf8") }),
+      cwdScope: cwdScope(input.cwd ?? data.cwd),
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    }
+  }
+
+  if (leaf === "write") {
+    const path = safeRelativePath(input.file_path ?? input.path)
+    const contentBytes = byteLength(input.content)
+    return {
+      ...(path ? { path, fileCount: 1 } : {}),
+      ...(contentBytes === undefined ? {} : { contentBytes }),
+    }
+  }
+
+  if (leaf === "edit") {
+    const path = safeRelativePath(input.file_path ?? input.path)
+    const edits = Array.isArray(input.edits)
+      ? input.edits.map(object)
+      : []
+    const oldTextBytes = edits.reduce((total, edit) => total + (byteLength(edit.oldText) ?? 0), 0)
+    const newTextBytes = edits.reduce((total, edit) => total + (byteLength(edit.newText) ?? 0), 0)
+    return {
+      ...(path ? { path, fileCount: 1 } : {}),
+      editCount: edits.length,
+      oldTextBytes,
+      newTextBytes,
+    }
+  }
+
+  if (leaf === "apply_patch") {
+    const files = affectedPaths(input.affectedPaths)
+    const summary = object(input.summary)
+    const metric = (key: string) => nonNegativeInteger(input[key] ?? summary[key])
+    const fileCount = metric("fileCount") ?? files.length
+    const patchBytes = nonNegativeInteger(input.patchBytes)
+    const hunkCount = metric("hunkCount")
+    const additions = metric("additions")
+    const deletions = metric("deletions")
+    const createCount = metric("createCount")
+      ?? files.filter((file) => file.operation === "create").length
+    const updateCount = metric("updateCount")
+      ?? files.filter((file) => file.operation === "update").length
+    return {
+      ...(files.length ? { affectedPaths: files } : {}),
+      fileCount,
+      createCount,
+      updateCount,
+      ...(patchBytes === undefined ? {} : { patchBytes }),
+      ...(hunkCount === undefined ? {} : { hunkCount }),
+      ...(additions === undefined ? {} : { additions }),
+      ...(deletions === undefined ? {} : { deletions }),
+    }
+  }
+
+  const path = safeRelativePath(input.file_path ?? input.path)
+  return path ? { path } : {}
+}
+
 const toolRecord = (params: JsonObject): {
   context: LogContext
   details: Record<string, unknown>
-  development?: Record<string, unknown>
 } => {
   const item = object(params.item)
   const data = object(item.data)
@@ -52,21 +145,14 @@ const toolRecord = (params: JsonObject): {
     ...(text(item.agentID) ?? text(item.agentId) ? { agentId: (text(item.agentID) ?? text(item.agentId))! } : {}),
     ...(text(data.callID) ?? text(data.callId) ?? text(item.id) ? { toolCallId: (text(data.callID) ?? text(data.callId) ?? text(item.id))! } : {}),
   }
-  const command = text(input.command) ?? text(data.command)
-  const path = safeRelativePath(input.file_path ?? input.path)
-  const development = command && /^(bash|powershell)$/i.test(tool)
-    ? { command: secretScrubber.scrubText(command).replace(/\s+/g, " ").slice(0, 500) }
-    : path
-      ? { path }
-      : undefined
   return {
     context,
     details: {
       tool,
       ...(text(item.status) ? { status: text(item.status) } : {}),
       ...(durationMs === undefined ? {} : { durationMs }),
+      ...toolDetails(tool, input, data),
     },
-    ...(development ? { development } : {}),
   }
 }
 

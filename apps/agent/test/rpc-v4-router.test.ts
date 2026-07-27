@@ -101,7 +101,6 @@ const fixture = async (
     integrations: null,
     memory: null,
     hooks: null,
-    sandbox: null,
     ...overrides,
   } as unknown as RpcRouterDependencies, routerOptions)
   let id = 0
@@ -220,6 +219,42 @@ describe("RPC v4 Router", () => {
       limits: { maxSubscriptions: 16, maxStreamsPerSubscription: 64 },
     })
     expect(typeof response.result.connectionId).toBe("string")
+    db.close()
+  })
+
+  test("sandbox compatibility methods report the removed runtime without invoking a backend", async () => {
+    const { db, initialize, call } = await fixture()
+    await initialize()
+
+    for (const method of ["sandbox/status", "sandbox/refresh"]) {
+      expect((await call(method, {})).result).toEqual({
+        sandbox: {
+          state: "unsupported",
+          platform: process.platform,
+          architecture: process.arch,
+          runtimeVersion: "host-hook-v1",
+          maturity: "alpha",
+          maxConcurrentCommands: 1,
+          error: "内置命令沙箱已移除；Shell 经 Pi Hook 和权限检查后以当前用户身份在本机执行。",
+          operations: {
+            canInstall: false,
+            canRepair: false,
+            canUninstall: false,
+          },
+        },
+      })
+    }
+
+    for (const [method, params] of [
+      ["sandbox/install", { operationId: "sandbox:install" }],
+      ["sandbox/repair", { operationId: "sandbox:repair" }],
+      ["sandbox/uninstall", { operationId: "sandbox:uninstall", confirm: true }],
+    ] as const) {
+      expect((await call(method, params)).error).toMatchObject({
+        code: -32000,
+        data: { code: "SANDBOX_UNAVAILABLE", retryable: true },
+      })
+    }
     db.close()
   })
 

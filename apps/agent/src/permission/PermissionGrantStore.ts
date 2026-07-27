@@ -1,5 +1,5 @@
 import type { AdditionalPermissions, PermissionGrantScope } from "@codepilotx/shared/thread"
-import { pathContains } from "../sandbox/SandboxPolicy"
+import { pathContains } from "./PathPermissions"
 import type { RequestedPermissions } from "./PermissionDecisionEngine"
 
 export interface PermissionGrant {

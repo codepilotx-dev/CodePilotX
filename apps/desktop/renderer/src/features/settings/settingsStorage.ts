@@ -21,23 +21,23 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: "default",
     label: "默认权限",
-    detail: "CodePilotX 可自动读取；写入、命令、联网和 MCP 请求需要你授权。",
+    detail: "结构化文件工具限工作区；Shell 经安全规则和项目 Hook 后在本机执行，额外权限才请求批准。",
   },
   {
     value: "auto-review",
     label: "自动审查",
     detail:
-      "CodePilotX 将在沙盒中运行命令，并对需升级处理的请求进行自动审查。了解更多",
+      "Shell 经安全规则和项目 Hook 后在本机执行；需要审批的请求由 Guardian 自动审查。",
   },
   {
     value: "full-access",
     label: "完全访问权限",
-    detail: "命令不受 SRT 文件和网络边界保护，仅由审核 agent 拒绝灾难级操作（风险很高）",
+    detail: "所有工具以当前 Windows 用户权限执行，仅保留 hard-deny、规则和项目 Hook（风险很高）。",
   },
   {
     value: "custom",
     label: "CodePilotX 自定义策略",
-    detail: "使用配置页中的 sandbox、approval policy、reviewer 与 granular controls。",
+    detail: "使用配置页中的工具权限范围、approval policy、reviewer 与 granular controls。",
   },
 ];
 

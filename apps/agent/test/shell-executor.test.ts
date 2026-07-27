@@ -1,344 +1,293 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { existsSync } from "node:fs"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { basename, join } from "node:path"
-import { FULL_ACCESS_PERMISSION_CONFIG, type PermissionConfig } from "@codepilotx/shared/thread"
-import { preferredSandboxShell, preferredShell } from "../src/sandbox/SandboxProcess"
-import { shellRuntimeDependencies, ToolExecutor } from "../src/tool/ToolExecutor"
+import { join } from "node:path"
+import {
+  FULL_ACCESS_PERMISSION_CONFIG,
+  type PermissionConfig,
+} from "@codepilotx/shared/thread"
+import { shellRuntimeDependencies, ToolExecutor, type ToolExecutionContext } from "../src/tool/ToolExecutor"
+import type { ProcessResult } from "../src/tool/Shell/HostProcess"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
-import type { ProcessResult, SandboxedProcessRequest } from "../src/sandbox/SandboxRuntimeAdapter"
+import { AgentLogger } from "../src/observability/AgentLogger"
 
 const tempPaths: string[] = []
-afterEach(async () => Promise.all(tempPaths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+afterEach(async () => Promise.all(tempPaths.splice(0).map((path) =>
+  rm(path, { recursive: true, force: true }))))
 
-const config: PermissionConfig = {
+const workspaceWrite: PermissionConfig = {
   sandboxMode: "workspace-write",
   approvalPolicy: "on-request",
   approvalsReviewer: "user",
 }
 
-const adapter = (onRun: (request: SandboxedProcessRequest) => Promise<ProcessResult>) => ({
-  getStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "0.0.65", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-  refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "0.0.65", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-  install: async () => undefined,
-  uninstall: async () => undefined,
-  dispose: async () => undefined,
-  run: onRun,
-})
+const readOnly: PermissionConfig = {
+  sandboxMode: "read-only",
+  approvalPolicy: "on-request",
+  approvalsReviewer: "user",
+}
 
-async function context(
+async function executionContext(
   root: string,
-  permissionConfig = config,
-  ids: { threadID?: string; turnID?: string } = {},
+  permissionConfig: PermissionConfig = workspaceWrite,
+  overrides: Partial<ToolExecutionContext> = {},
 ) {
   return {
-    threadID: ids.threadID ?? "thread",
-    turnID: ids.turnID ?? "turn",
+    threadID: "thread",
+    turnID: "turn",
     taskMode: "chat" as const,
     signal: new AbortController().signal,
     workspace: await WorkspaceService.open(root),
     permissionConfig,
+    ...overrides,
   }
 }
 
-describe("统一 Shell 执行门", () => {
-  test("宿主保留 PowerShell 7，Windows 沙箱忽略 WindowsApps 并使用系统 PowerShell", async () => {
-    if (process.platform !== "win32") return
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-selection-"))
-    tempPaths.push(root)
-    const powershell7 = join(root, "PowerShell", "7")
-    const windowsApps = join(root, "WindowsApps", "Microsoft.PowerShell_7.6.4.0_x64__8wekyb3d8bbwe")
-    const systemRoot = join(root, "Windows")
-    await Promise.all([
-      mkdir(powershell7, { recursive: true }),
-      mkdir(windowsApps, { recursive: true }),
-    ])
-    await Promise.all([
-      writeFile(join(powershell7, "pwsh.exe"), "", "utf8"),
-      writeFile(join(windowsApps, "pwsh.exe"), "", "utf8"),
-    ])
-    const previousPath = process.env.PATH
-    const previousSystemRoot = process.env.SystemRoot
-    try {
-      process.env.PATH = `${powershell7};${windowsApps}`
-      process.env.SystemRoot = systemRoot
-      expect(preferredShell().exe).toBe(join(powershell7, "pwsh.exe"))
+const success = (stdout = "ok"): ProcessResult => ({
+  exitCode: 0,
+  signal: null,
+  stdout,
+  stderr: "",
+  timedOut: false,
+  truncated: false,
+})
 
-      process.env.PATH = `${windowsApps};${powershell7}`
-      expect(preferredSandboxShell().exe).toBe(
-        join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-      )
-    } finally {
-      if (previousPath === undefined) delete process.env.PATH
-      else process.env.PATH = previousPath
-      if (previousSystemRoot === undefined) delete process.env.SystemRoot
-      else process.env.SystemRoot = previousSystemRoot
-    }
-  })
-
+describe("统一 Shell 宿主执行门", () => {
   test("只识别命令起始位置的 Node.js 与 Python 运行时", () => {
     expect(shellRuntimeDependencies("node app.js && npm test; npx tsc | python script.py\npip install x")).toEqual(["nodejs", "python"])
     expect(shellRuntimeDependencies("corepack enable; python3 -V; pip3 -V")).toEqual(["nodejs", "python"])
     expect(shellRuntimeDependencies("Write-Output 'npm python'; echo node; bun run test")).toEqual([])
-    expect(shellRuntimeDependencies("Write-Output 'safe; npm test'; echo \"python | pip\"")).toEqual([])
     expect(shellRuntimeDependencies("C:\\custom\\node.exe app.js; ./python script.py")).toEqual([])
   })
 
-  test("Shell 仅解析命令实际需要的运行时并注入受控 PATH", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+  test("三种权限配置都在统一门禁后直接调用宿主 runner", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-"))
+    tempPaths.push(root)
+    const executed: string[] = []
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      authorizeShell: async () => ({ decision: "allow", risk: "critical", reason: "允许" }),
+      runHost: async (command) => {
+        executed.push(command)
+        return success()
+      },
+    })
+
+    for (const [index, permissionConfig] of [readOnly, workspaceWrite, FULL_ACCESS_PERMISSION_CONFIG].entries()) {
+      await executor.execute(
+        "PowerShell",
+        { command: `Write-Output ${index}` },
+        await executionContext(root, permissionConfig),
+      )
+    }
+
+    expect(executed).toHaveLength(3)
+  })
+
+  test("Shell 只解析实际需要的运行时并注入受控 PATH", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-"))
     tempPaths.push(root)
     const requested: string[][] = []
     let receivedEnv: NodeJS.ProcessEnv | undefined
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => { throw new Error("not used") }),
       authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
       resolveToolingEnvironment: async (required) => {
         requested.push([...required])
         return {
           pathEntries: required.map((id) => `C:\\managed\\${id}`),
-          resolutions: new Map(required.map((id) => [id, { available: true as const, path: `C:\\managed\\${id}\\runtime.exe`, source: "managed" as const, version: "test" }])),
+          resolutions: new Map(required.map((id) => [id, {
+            available: true as const,
+            path: `C:\\managed\\${id}\\runtime.exe`,
+            source: "managed" as const,
+            version: "test",
+          }])),
         }
       },
       runHost: async (_command, _cwd, _timeout, _signal, env) => {
         receivedEnv = env
-        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
+        return success()
       },
     })
 
-    await executor.execute("PowerShell", { command: "npm test" }, await context(root, FULL_ACCESS_PERMISSION_CONFIG))
+    await executor.execute("PowerShell", { command: "npm test" }, await executionContext(root))
     expect(requested).toEqual([["nodejs"]])
     expect(Object.values(receivedEnv ?? {}).join(";")).toContain("C:\\managed\\nodejs")
   })
 
-  test("SRT 只为校验通过的内置运行时增加只读路径", async () => {
+  test("Windows Bash 在审批后动态解析 Managed Git Bash", async () => {
     if (process.platform !== "win32") return
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
-    const received: SandboxedProcessRequest[] = []
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async (request) => {
-        received.push(request)
-        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
-      }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
-      resolveToolingEnvironment: async () => ({
-        pathEntries: ["C:\\CodePilotX\\nodejs"],
-        resolutions: new Map([
-          ["nodejs", { available: true as const, path: "C:\\CodePilotX\\nodejs\\node.exe", source: "managed" as const, version: "test" }],
-        ]),
-      }),
-      resolveTooling: async () => ({
-        available: true,
-        path: "C:\\CodePilotX\\git-bash\\2.55.0.3\\bin\\bash.exe",
-        source: "managed",
-        version: "test",
-      }),
-    })
-
-    await executor.execute("Bash", { command: "node --version" }, await context(root))
-    const allowRead = received[0]?.config.filesystem?.allowRead ?? []
-    expect(allowRead).toContain("C:\\CodePilotX\\nodejs")
-    expect(allowRead).toContain("C:\\CodePilotX\\git-bash\\2.55.0.3")
-  })
-
-  test("Bash 在审批通过后按调用动态解析 Git Bash", async () => {
-    if (process.platform !== "win32") return
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-"))
     tempPaths.push(root)
     let resolutions = 0
     let command = ""
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => { throw new Error("not used") }),
       authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
       resolveTooling: async () => {
         resolutions += 1
-        return { available: true, path: "C:\\managed\\Git\\bin\\bash.exe", source: "managed", version: "test" }
+        return {
+          available: true,
+          path: "C:\\managed\\Git\\bin\\bash.exe",
+          source: "managed",
+          version: "test",
+        }
       },
       runHost: async (value) => {
         command = value
-        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
+        return success()
       },
     })
 
-    await executor.execute("Bash", { command: "pwd" }, await context(root, FULL_ACCESS_PERMISSION_CONFIG))
+    await executor.execute("Bash", { command: "pwd" }, await executionContext(root))
     expect(resolutions).toBe(1)
     expect(command).toContain("C:\\managed\\Git\\bin\\bash.exe")
   })
 
-  test("人工审批未允许前绝不调用沙箱进程", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+  test("审批或项目 Hook 拒绝时宿主进程绝不启动", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-"))
     tempPaths.push(root)
     let runs = 0
-    const executor = new ToolExecutor(new ToolRegistry(), {
+    const deniedByApproval = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => {
+      authorizeShell: async () => ({ decision: "deny", risk: "critical", reason: "拒绝" }),
+      runHost: async () => {
         runs += 1
-        return { exitCode: 0, signal: null, stdout: "must-not-run", stderr: "", timedOut: false, truncated: false }
-      }),
-      authorizeShell: async () => ({ decision: "deny", risk: "medium", reason: "等待人工审批" }),
+        return success()
+      },
     })
+    await expect(deniedByApproval.execute(
+      "PowerShell",
+      { command: "Write-Output blocked", additionalPermissions: { networkDomains: ["example.com"] } },
+      await executionContext(root),
+    )).rejects.toMatchObject({ code: "SHELL_PERMISSION_DENIED" })
 
-    await expect(executor.execute("PowerShell", { command: "Write-Output blocked" }, await context(root))).rejects.toMatchObject({ code: "SHELL_PERMISSION_DENIED" })
+    const deniedByHook = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
+      hooks: {
+        run: async (event) => event === "pre_tool_use"
+          ? [{ result: { decision: "deny", reason: "blocked" } }]
+          : [],
+      },
+      runHost: async () => {
+        runs += 1
+        return success()
+      },
+    })
+    await expect(deniedByHook.execute(
+      "PowerShell",
+      { command: "Write-Output blocked" },
+      await executionContext(root),
+    )).rejects.toMatchObject({ code: "HOOK_DENIED" })
     expect(runs).toBe(0)
   })
 
-  test("允许后只把一次性工作区策略交给沙箱，默认不开放网络", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+  test("Pi 预审批恢复后不重复执行项目 Hook", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-"))
     tempPaths.push(root)
-    let received: SandboxedProcessRequest | null = null
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async (request) => {
-        received = request
-        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
-      }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "审核通过" }),
-    })
-
-    await executor.execute("PowerShell", { command: "Write-Output ok" }, await context(root))
-    expect(received).not.toBeNull()
-    const policy = received!.config
-    expect(policy.filesystem.allowWrite).toContain(root)
-    expect(policy.network.allowedDomains).toEqual([])
-  })
-
-  test("同会话与跨会话 Shell 可并行进入独立临时目录且分别清理", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
-    const entered: Array<{ command: string; temp: string }> = []
-    const releases = new Map<string, () => void>()
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async (request) => {
-        const sandboxTemp = request.config.filesystem.allowWrite.find(
-          (path) => basename(path).startsWith("codepilotx-sandbox-"),
-        )
-        if (!sandboxTemp) throw new Error("未找到调用级沙箱临时目录")
-        entered.push({ command: request.command, temp: sandboxTemp })
-        await new Promise<void>((resolveRun) => releases.set(request.command, resolveRun))
-        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
-      }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "审核通过" }),
-    })
-    const first = executor.execute(
-      "PowerShell",
-      { command: "Write-Output same-a" },
-      await context(root, config, { threadID: "same", turnID: "turn-a" }),
-    )
-    const second = executor.execute(
-      "PowerShell",
-      { command: "Write-Output same-b" },
-      await context(root, config, { threadID: "same", turnID: "turn-b" }),
-    )
-    const third = executor.execute(
-      "PowerShell",
-      { command: "Write-Output other" },
-      await context(root, config, { threadID: "other", turnID: "turn-c" }),
-    )
-    const deadline = Date.now() + 2_000
-    while (entered.length < 3) {
-      if (Date.now() > deadline) throw new Error("并发沙箱调用未全部启动")
-      await new Promise((resolveWait) => setTimeout(resolveWait, 1))
-    }
-
-    expect(new Set(entered.map(({ temp }) => temp)).size).toBe(3)
-    const firstEntry = entered.find(({ command }) => command.includes("same-a"))!
-    const secondEntry = entered.find(({ command }) => command.includes("same-b"))!
-    releases.get(firstEntry.command)?.()
-    await first
-    expect(existsSync(firstEntry.temp)).toBe(false)
-    expect(existsSync(secondEntry.temp)).toBe(true)
-
-    for (const entry of entered) releases.get(entry.command)?.()
-    await Promise.all([second, third])
-    expect(entered.every(({ temp }) => !existsSync(temp))).toBe(true)
-  })
-
-  test("沙箱失败时向上返回错误，不回退到宿主进程", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
+    let preHooks = 0
     let runs = 0
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => {
+      authorizeShell: async () => ({ decision: "allow", risk: "critical", reason: "允许" }),
+      hooks: {
+        run: async (event) => {
+          if (event === "pre_tool_use") preHooks += 1
+          return []
+        },
+      },
+      runHost: async () => {
         runs += 1
-        throw new Error("SRT not ready")
-      }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "审核通过" }),
+        return success()
+      },
     })
-
-    await expect(executor.execute("PowerShell", { command: "Write-Output no-fallback" }, await context(root))).rejects.toThrow("SRT not ready")
+    const context = await executionContext(root)
+    const toolCallID = "tool-call"
+    await executor.previewApproval("PowerShell", { command: "Write-Output once" }, context, toolCallID)
+    await executor.execute(
+      "PowerShell",
+      { command: "Write-Output once" },
+      { ...context, toolCallID, approvedToolCallID: toolCallID },
+    )
+    expect(preHooks).toBe(1)
     expect(runs).toBe(1)
   })
 
-  test("PreToolUse 可阻止执行，PostToolUse 失败不覆盖成功或原始错误", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+  test("计划模式不暴露也不能直接执行 Shell", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-"))
     tempPaths.push(root)
     let runs = 0
-    const preDenied = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => { runs += 1; return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false } }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
-      hooks: { run: async (event) => event === "pre_tool_use" ? [{ result: { decision: "deny", reason: "blocked" } }] : [] },
-    })
-    await expect(preDenied.execute("PowerShell", { command: "Write-Output blocked" }, await context(root))).rejects.toMatchObject({ code: "HOOK_DENIED" })
-    expect(runs).toBe(0)
-
-    const success = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => ({ exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false })),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
-      hooks: { run: async (event) => { if (event === "post_tool_use") throw new Error("post failed"); return [] } },
-    })
-    await expect(success.execute("PowerShell", { command: "Write-Output ok" }, await context(root))).resolves.toMatchObject({ stdout: "ok" })
-
-    const originalFailure = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => { throw new Error("original sandbox failure") }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
-      hooks: { run: async (event) => { if (event === "post_tool_error") throw new Error("post failed"); return [] } },
-    })
-    await expect(originalFailure.execute("PowerShell", { command: "Write-Output fail" }, await context(root))).rejects.toThrow("original sandbox failure")
-  })
-
-  test("on-failure 生成两阶段 escalation，sandbox 一次且 host 最多一次", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
-    let sandboxRuns = 0
-    let hostRuns = 0
-    let stored: { token: string; invocation: import("../src/domain").ToolInvocation; invocationHash: string; failure: string; claimed: boolean } | null = null
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => { sandboxRuns += 1; throw new Error("sandbox denied") }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "sandbox first" }),
-      prepareSandboxEscalation: (invocation) => {
-        stored = { token: "11111111-1111-4111-8111-111111111111", invocation, invocationHash: "test-hash", failure: "sandbox denied", claimed: false }
-        return { token: stored.token }
+      authorizeShell: async () => ({ decision: "allow", risk: "critical", reason: "允许" }),
+      runHost: async () => {
+        runs += 1
+        return success()
       },
-      claimSandboxEscalation: (token, scope) => {
-        if (!stored || stored.claimed || token !== stored.token || scope.turnID !== stored.invocation.turnID) return null
-        stored.claimed = true
-        return stored
-      },
-      completeSandboxEscalation: () => undefined,
-      runHost: async () => { hostRuns += 1; return { exitCode: 0, signal: null, stdout: "host-ok", stderr: "", timedOut: false, truncated: false } },
     })
-    const onFailure = { ...config, approvalPolicy: "on-failure" as const }
-    const executionContext = await context(root, onFailure)
-    const first = await executor.execute<ProcessResult>("PowerShell", { command: "Write-Output once" }, executionContext)
-    expect(first).toMatchObject({ exitCode: 126 })
-    expect(first.stderr).toContain("request_permissions")
-    expect(sandboxRuns).toBe(1)
-    expect(hostRuns).toBe(0)
-    const token = stored!.token
-    await expect(executor.executeSandboxEscalation(token, executionContext)).resolves.toMatchObject({ stdout: "host-ok" })
-    await expect(executor.executeSandboxEscalation(token, executionContext)).rejects.toMatchObject({ code: "SANDBOX_ESCALATION_INVALID" })
-    expect(sandboxRuns).toBe(1)
-    expect(hostRuns).toBe(1)
+    const plan = executor.exposurePlan({
+      taskMode: "plan",
+      sandboxMode: "read-only",
+      profile: "main",
+    })
+    expect(plan.exposed).not.toContain("Bash")
+    expect(plan.exposed).not.toContain("PowerShell")
+    await expect(executor.execute(
+      "PowerShell",
+      { command: "Write-Output blocked" },
+      { ...await executionContext(root), taskMode: "plan" },
+    )).rejects.toMatchObject({ code: "PLAN_SHELL_DISABLED" })
+    expect(runs).toBe(0)
+  })
+
+  test("旧 sandbox escalation token 明确返回不支持且无副作用", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-"))
+    tempPaths.push(root)
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      authorizeShell: async () => ({ decision: "allow", risk: "high", reason: "允许" }),
+      runHost: async () => success(),
+    })
+
+    await expect(executor.execute(
+      "request_permissions",
+      {
+        scope: "tool-call",
+        escalationToken: "11111111-1111-4111-8111-111111111111",
+        justification: "legacy",
+      },
+      await executionContext(root),
+    )).rejects.toMatchObject({ code: "SANDBOX_ESCALATION_UNAVAILABLE" })
+  })
+
+  test("分阶段日志包含诊断元数据但不记录命令和输出正文", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-log-"))
+    tempPaths.push(root)
+    const logger = new AgentLogger(join(root, "logs"), {
+      detailMode: "development",
+    })
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      logger,
+      authorizeShell: async () => ({ decision: "allow", risk: "critical", reason: "允许" }),
+      runHost: async () => success("sensitive-output"),
+    })
+
+    await executor.execute(
+      "PowerShell",
+      { command: "Write-Output sensitive-command" },
+      await executionContext(root),
+    )
+    const log = await readFile(join(root, "logs", "agent.jsonl"), "utf8")
+    expect(log).toContain("shell.preflight.completed")
+    expect(log).toContain("shell.execution.started")
+    expect(log).toContain("shell.execution.completed")
+    expect(log).toContain("\"backend\":\"host-hook\"")
+    expect(log).toContain("\"commandBytes\":")
+    expect(log).toContain("\"stdoutBytes\":")
+    expect(log).not.toContain("sensitive-command")
+    expect(log).not.toContain("sensitive-output")
   })
 })

@@ -29,7 +29,6 @@ import { AgentLogger } from "./observability/AgentLogger";
 import { ExecutionLogObserver, HarnessLogObserver } from "./observability/ExecutionLogObserver";
 import { IntegrationService } from "./provider/IntegrationService";
 import { ApiKeyService } from "./provider/ApiKeyService";
-import { AnthropicSandboxRuntimeAdapter } from "./sandbox/SandboxRuntimeAdapter";
 import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
 import { AttachmentService } from "./subagent/AttachmentService";
@@ -287,18 +286,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       mcpOAuthCoordinator,
     );
     const mcp = new McpRuntimeService(mcpConfigs, mcpConnections, mcpOAuth);
-    const sandbox = new AnthropicSandboxRuntimeAdapter({
-      helperPath: config.srtWinPath,
-      installationStore: {
-        get: () => db.getSetting("sandbox.installation.v1"),
-        set: (value) => db.setSetting("sandbox.installation.v1", value),
-      },
-    });
-    void sandbox.refreshStatus().catch(() =>
-      logger.warn("sandbox.status.warmup.failed", {
-        error: "SANDBOX_WARMUP_FAILED",
-      }),
-    );
     const reviewer = new ReviewerService(db, piModels, configService);
     const approvals = new ApprovalService(
       db,
@@ -369,8 +356,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       userConfigPath: config.storage.userConfig,
       validateConfigDocument: (text, scope) =>
         configService.validateDocument(text, scope),
-      sandbox,
-      helperPath: config.srtWinPath,
       resolveTooling: (id, resolveOptions) =>
         tooling.resolve(id, resolveOptions),
       resolveToolingEnvironment: (required, resolveOptions) =>
@@ -380,12 +365,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       recordToolCall: (invocation, status, output, error, startedAt) =>
         db.upsertToolCall(invocation, status, output, error, startedAt),
       completedToolCall: (toolCallID) => db.completedToolCall(toolCallID),
-      prepareSandboxEscalation: (invocation, failure) =>
-        approvals.prepareSandboxEscalation(invocation, failure),
-      claimSandboxEscalation: (token, scope) =>
-        approvals.claimSandboxEscalation(token, scope),
-      completeSandboxEscalation: (token, output) =>
-        approvals.completeSandboxEscalation(token, output),
+      logger,
       hooks,
       fileSaved: ({ workspaceRoot, filePath }) =>
         configService.notifyFileSaved(workspaceRoot, filePath),
@@ -526,7 +506,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       memory,
       hooks,
       logger,
-      sandbox,
       review,
       github,
       tooling,
@@ -544,12 +523,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeTooling();
       unsubscribeConfig();
       await configService.dispose();
-      await toolExecutor.dispose();
       await mcpConnections.dispose();
       await providers.dispose();
       await Effect.runPromise(pluginHost.dispose());
     };
-    return { config, db, app, logger, providers, sandbox, dispose };
+    return { config, db, app, logger, providers, dispose };
   });
 
 export const bootstrap = createBootstrap();

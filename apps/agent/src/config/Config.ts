@@ -15,7 +15,6 @@ export interface AgentConfig {
   legacyDatabasePath: string
   modelSnapshotPath: string
   modelCachePath: string
-  srtWinPath: string | null
   rendererDir: string | null
   rendererDevURL: string | null
   modelsDevURL: string
@@ -128,7 +127,6 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     legacyDatabasePath: storage.legacyDatabase,
     modelSnapshotPath: snapshot,
     modelCachePath: storage.modelCache,
-    srtWinPath: process.env.CODEPILOTX_SRT_WIN_PATH ? resolve(process.env.CODEPILOTX_SRT_WIN_PATH) : null,
     rendererDir: process.env.CODEPILOTX_RENDERER_DIST ? resolve(process.env.CODEPILOTX_RENDERER_DIST) : process.env.CODEPILOTX_STATIC_DIR ? resolve(process.env.CODEPILOTX_STATIC_DIR) : process.env.CODEPILOTX_RENDERER_DIR ? resolve(process.env.CODEPILOTX_RENDERER_DIR) : null,
     rendererDevURL: process.env.CODEPILOTX_RENDERER_DEV_URL ?? process.env.CODEPILOTX_RENDERER_URL ?? null,
     modelsDevURL: process.env.CODEPILOTX_MODELS_URL ?? "https://models.dev",

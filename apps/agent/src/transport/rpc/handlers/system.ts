@@ -54,7 +54,23 @@ import {
   supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
-import { requireAvailableSandbox, sandboxResult } from "../../../sandbox/SandboxStatusView"
+
+const unsupportedSandboxResult = () => ({
+  sandbox: {
+    state: "unsupported" as const,
+    platform: process.platform,
+    architecture: process.arch,
+    runtimeVersion: "host-hook-v1",
+    maturity: "alpha" as const,
+    maxConcurrentCommands: 1,
+    error: "内置命令沙箱已移除；Shell 经 Pi Hook 和权限检查后以当前用户身份在本机执行。",
+    operations: {
+      canInstall: false,
+      canRepair: false,
+      canUninstall: false,
+    },
+  },
+})
 
 export const systemHandlers = {
   name: "system",
@@ -71,7 +87,7 @@ export const systemHandlers = {
     "event/unsubscribe",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, sandbox, review, github } = runtime.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
@@ -103,19 +119,14 @@ export const systemHandlers = {
           connectionId,
         }
       case "sandbox/status":
-        return sandboxResult(await sandbox.getStatus())
       case "sandbox/refresh":
-        return sandboxResult(await sandbox.refreshStatus())
+        return unsupportedSandboxResult()
       case "sandbox/install":
-        await sandbox.install()
-        return requireAvailableSandbox(await sandbox.refreshStatus(), "安装")
       case "sandbox/repair":
-        await sandbox.install()
-        return requireAvailableSandbox(await sandbox.refreshStatus(), "修复")
+        throw new AgentError("SANDBOX_UNAVAILABLE", "CodePilotX 不再提供内置安全沙箱。", 503)
       case "sandbox/uninstall":
         decodeParams(decodeSandboxUninstall, rawParams, "sandbox/uninstall")
-        await sandbox.uninstall()
-        return sandboxResult(await sandbox.refreshStatus())
+        throw new AgentError("SANDBOX_UNAVAILABLE", "CodePilotX 不再提供内置安全沙箱。", 503)
       case "shutdown":
         if (process.env.CODEPILOTX_DESKTOP_MANAGED !== "1") throw new AgentError("SHUTDOWN_DENIED", "仅桌面托管的 Agent 可以通过 RPC 关闭", 403)
         setTimeout(() => process.emit("SIGTERM"), 25)

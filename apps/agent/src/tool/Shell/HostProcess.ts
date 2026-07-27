@@ -2,7 +2,7 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { spawn, spawnSync, type ChildProcessByStdio } from "node:child_process"
 import type { Readable } from "node:stream"
-import { AgentError } from "../domain"
+import { AgentError } from "../../domain"
 
 const MAX_OUTPUT_BYTES = 1024 * 1024
 const DEFAULT_TIMEOUT_MS = 120_000
@@ -24,66 +24,20 @@ export interface CommandShell {
   args: readonly string[]
 }
 
-const RESERVED_SANDBOX_ENV = new Set([
-  "http_proxy",
-  "https_proxy",
-  "all_proxy",
-  "no_proxy",
-  "http_proxy_auth",
-  "https_proxy_auth",
-  "node_extra_ca_certs",
-  "ssl_cert_file",
-  "curl_ca_bundle",
-  "git_ssl_cainfo",
-  "cargo_http_cainfo",
-])
-
 export function mergeProcessEnvironment(
   base: NodeJS.ProcessEnv,
   additions?: NodeJS.ProcessEnv,
-  options: { protectSandboxVariables?: boolean } = {},
 ): NodeJS.ProcessEnv {
   if (!additions) return { ...base }
   const merged = { ...base }
-  const protectedKeys = new Set(
-    options.protectSandboxVariables
-      ? Object.keys(base)
-        .map((key) => key.toLowerCase())
-        .filter((key) => RESERVED_SANDBOX_ENV.has(key))
-      : [],
-  )
   for (const [key, value] of Object.entries(additions)) {
     const normalized = key.toLowerCase()
-    if (protectedKeys.has(normalized)) continue
     for (const existing of Object.keys(merged)) {
       if (existing.toLowerCase() === normalized) delete merged[existing]
     }
     merged[key] = value
   }
   return merged
-}
-
-export function temporarilyApplyProcessEnvironment(additions?: NodeJS.ProcessEnv) {
-  if (!additions) return () => undefined
-  const originals = new Map<string, Array<[string, string | undefined]>>()
-  for (const [key, value] of Object.entries(additions)) {
-    const normalized = key.toLowerCase()
-    if (originals.has(normalized)) continue
-    const matches = Object.entries(process.env).filter(([existing]) => existing.toLowerCase() === normalized)
-    originals.set(normalized, matches)
-    for (const [existing] of matches) delete process.env[existing]
-    if (value !== undefined) process.env[key] = value
-  }
-  return () => {
-    for (const [normalized, matches] of originals) {
-      for (const existing of Object.keys(process.env)) {
-        if (existing.toLowerCase() === normalized) delete process.env[existing]
-      }
-      for (const [key, value] of matches) {
-        if (value !== undefined) process.env[key] = value
-      }
-    }
-  }
 }
 
 function findExecutable(names: readonly string[]) {

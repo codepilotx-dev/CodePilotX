@@ -11,19 +11,24 @@ import {
 import { createToolExposurePlan, type ToolExposureInput } from "./ToolExposurePlan"
 import { DEFAULT_PERMISSION_CONFIG, type AdditionalPermissions, type PermissionConfig, type PermissionGrantScope, type ShellInput } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
-import { runHostCommand, type ProcessResult, type SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
-import { generateSandboxPolicy, pathContains } from "../sandbox/SandboxPolicy"
-import { mkdtemp, realpath, rm } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { dirname, isAbsolute, join, resolve } from "node:path"
+import { runHostCommand, type ProcessResult } from "./Shell/HostProcess"
+import { realpath } from "node:fs/promises"
+import { dirname, isAbsolute, normalize, relative, resolve } from "node:path"
 import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions } from "../permission/PermissionDecisionEngine"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
 import { PermissionGrantStore } from "../permission/PermissionGrantStore"
+import { pathContains } from "../permission/PathPermissions"
 import { analyzeShellRisk } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
 import { resolveManagedTool, resolveToolingEnvironment, runToolProcess, toolingPathOverride, type ToolingEnvironmentResolver, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
 import type { ManagedToolID, ToolingResolution } from "./ToolingManager"
-import { applyEditText } from "./Edit/applyEditText"
+import { applyEditsText, type EditOperation } from "./Edit/applyEditText"
+import type { AgentLogger } from "../observability/AgentLogger"
+import { parseApplyPatch } from "./ApplyPatch/parseApplyPatch"
+
+type FileToolFailurePhase = "normalize" | "authorization" | "execute" | "post-hook"
+
+const isFileMutationTool = (name: string) => name === "Write" || name === "Edit" || name === "apply_patch"
 
 const RUNTIME_COMMANDS: Readonly<Record<string, ManagedToolID>> = {
   node: "nodejs", npm: "nodejs", npx: "nodejs", corepack: "nodejs",
@@ -54,14 +59,6 @@ export function shellRuntimeDependencies(command: string): ManagedToolID[] {
     if (dependency) dependencies.add(dependency)
   }
   return [...dependencies]
-}
-
-const managedToolReadPaths = (id: ManagedToolID, resolution: ToolingResolution | undefined): string[] => {
-  if (!resolution?.available || resolution.source !== "managed") return []
-  const executableDirectory = dirname(resolution.path)
-  if (id === "python") return [executableDirectory, join(executableDirectory, "Scripts")]
-  if (id === "git-bash") return [dirname(executableDirectory)]
-  return [executableDirectory]
 }
 
 export interface ToolExecutionContext {
@@ -98,31 +95,26 @@ export interface ToolExecutorOptions {
   dataDir: string
   userConfigPath?: string
   validateConfigDocument?: (text: string, scope: "user" | "project") => void
-  sandbox: SandboxRuntimeAdapter
   authorizeShell: (invocation: ToolInvocation, signal: AbortSignal) => Promise<PermissionDecision>
   recordToolCall?: (invocation: ToolInvocation, status: "running" | "completed" | "error" | "interrupted", output?: unknown, error?: string | null, startedAt?: number) => void
   completedToolCall?: (toolCallID: string) => { name: string; input: Record<string, unknown>; output: unknown } | null
-  helperPath?: string | null
   hooks?: {
     run(event: "pre_tool_use" | "post_tool_use" | "post_tool_error", evidence: unknown, context?: { threadID?: string; turnID?: string; toolCallID?: string; toolName?: string; workspaceRoot?: string }): Promise<Array<{ result: { decision: "continue" | "ask" | "deny"; reason?: string; narrowedInput?: Record<string, unknown> } }>>
   }
-  prepareSandboxEscalation?: (invocation: ToolInvocation, failure: string) => { token: string }
-  claimSandboxEscalation?: (token: string, scope: { threadID: string; turnID: string; agentID: string }) => { token: string; invocation: ToolInvocation; invocationHash: string; failure: string } | null
-  completeSandboxEscalation?: (token: string, output: unknown) => void
   runHost?: typeof runHostCommand
   resolveTooling?: ToolingResolver
   resolveToolingEnvironment?: ToolingEnvironmentResolver
   runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
   permissionGrants?: PermissionGrantStore
+  logger?: AgentLogger
 }
 
-/** The sole host-capability entrypoint. Later stages add approval and SRT gates here. */
+/** The sole host-capability entrypoint. Approval and Hook gates run before host execution. */
 export class ToolExecutor {
   private readonly decisions = new PermissionDecisionEngine()
   readonly permissionGrants: PermissionGrantStore
   private readonly readSnapshots = new Map<string, { mtimeMs: number; sha256: string }>()
-  private sandboxDisposed = false
   constructor(private readonly registry: ToolRegistry, private readonly options?: ToolExecutorOptions) {
     this.permissionGrants = options?.permissionGrants ?? new PermissionGrantStore()
   }
@@ -145,6 +137,7 @@ export class ToolExecutor {
 
   async execute<T = unknown>(name: string, input: Record<string, unknown>, context: ToolExecutionContext): Promise<T> {
     if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
+    const requestStartedAt = Date.now()
     context = {
       ...context,
       permissionConfig: resolveEffectivePermissionConfig(
@@ -156,7 +149,13 @@ export class ToolExecutor {
     const definition = catalog.get(name)
     if (context.allowedTools && !toolNameMatches(definition, context.allowedTools)) throw new AgentError("SKILL_TOOL_NOT_ALLOWED", `当前 Skill 不允许使用工具 ${definition.sdkName}`, 403)
     const parsed = definition.schema.safeParse(input)
-    if (!parsed.success) throw new AgentError("INVALID_TOOL_INPUT", parsed.error.message, 400)
+    if (!parsed.success) {
+      const error = new AgentError("INVALID_TOOL_INPUT", parsed.error.message, 400)
+      if (isFileMutationTool(definition.sdkName)) {
+        this.logFileToolFailure(definition.sdkName, input, context, "normalize", error, requestStartedAt)
+      }
+      throw error
+    }
     const canonicalName = definition.sdkName
     const parsedInput = parsed.data as Record<string, unknown>
     const normalized = canonicalName === "Bash" || canonicalName === "PowerShell"
@@ -172,6 +171,9 @@ export class ToolExecutor {
         : parsedInput
     if (context.taskMode === "plan" && canonicalName === "request_permissions") {
       throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "Plan 模式禁止请求或提升权限", 403)
+    }
+    if (canonicalName === "request_permissions" && typeof normalized.escalationToken === "string") {
+      throw new AgentError("SANDBOX_ESCALATION_UNAVAILABLE", "内置命令沙箱已移除，不再支持 sandbox escalation", 503)
     }
     if (context.toolCallID && !context.authorizationOnly) {
       const completed = this.options?.completedToolCall?.(context.toolCallID)
@@ -202,8 +204,33 @@ export class ToolExecutor {
   }
 
   private async executeRegistered<T>(name: string, input: Record<string, unknown>, context: ToolExecutionContext, catalog: ToolCatalog) {
+    if (!isFileMutationTool(name)) return this.executeRegisteredCore<T>(name, input, context, catalog)
+    const startedAt = Date.now()
+    let phase: FileToolFailurePhase = "normalize"
+    try {
+      return await this.executeRegisteredCore<T>(
+        name,
+        input,
+        context,
+        catalog,
+        (nextPhase) => { phase = nextPhase },
+      )
+    } catch (cause) {
+      this.logFileToolFailure(name, input, context, phase, cause, startedAt)
+      throw cause
+    }
+  }
+
+  private async executeRegisteredCore<T>(
+    name: string,
+    input: Record<string, unknown>,
+    context: ToolExecutionContext,
+    catalog: ToolCatalog,
+    setFilePhase?: (phase: FileToolFailurePhase) => void,
+  ) {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
+    const skipProjectHooks = context.skipHooks || context.taskMode === "plan"
     if (this.options?.userConfigPath) {
       context.workspace.grantEditorAlias("@codepilotx/config.toml", this.options.userConfigPath)
     }
@@ -242,9 +269,7 @@ export class ToolExecutor {
       let nextContent = typeof input.content === "string" ? input.content : undefined
       if (name === "Edit") {
         const current = await context.workspace.readEditorFile(String(pathValue))
-        const before = typeof input.old_string === "string" ? input.old_string : ""
-        const after = typeof input.new_string === "string" ? input.new_string : ""
-        nextContent = applyEditText(current.content, before, after, input.replace_all === true)
+        nextContent = applyEditsText(current.content, input.edits as EditOperation[])
       }
       if (nextContent !== undefined) {
         this.options.validateConfigDocument(
@@ -269,6 +294,7 @@ export class ToolExecutor {
       ...(authorizationScope ? { authorizationScope } : {}),
       ...(context.authorizationOnly ? { durableApproval: true } : {}),
     }
+    setFilePhase?.("authorization")
     const resolved = this.decisions.evaluate(invocation, definition)
     if (resolved.action === "deny") throw new AgentError("TOOL_PERMISSION_DENIED", resolved.reason, 403, resolved)
     const resumedApproval = context.approvedToolCallID === invocation.id
@@ -278,7 +304,21 @@ export class ToolExecutor {
     ) {
       throw new AgentError("APPROVAL_SCOPE_CHANGED", "工具输入或受影响文件范围已变化，需要重新审批", 409)
     }
-    const hookResults = context.skipHooks || resumedApproval ? [] : await this.options?.hooks?.run("pre_tool_use", {
+    if (context.taskMode === "plan" && this.options?.hooks) {
+      this.options.logger?.info("hook.skipped", {
+        context: {
+          threadId: context.threadID,
+          turnId: context.turnID,
+          ...(context.agentID ? { agentId: context.agentID } : {}),
+          toolCallId: invocation.id,
+        },
+        details: {
+          tool: name,
+          reason: "plan_mode_host_process_disabled",
+        },
+      })
+    }
+    const hookResults = skipProjectHooks || resumedApproval ? [] : await this.options?.hooks?.run("pre_tool_use", {
       input,
       resolved,
       ...(authorizationScope ? { authorizationScope } : {}),
@@ -311,11 +351,16 @@ export class ToolExecutor {
       } as T
     }
     if (authorization.decision !== "allow") throw new AgentError("TOOL_PERMISSION_DENIED", authorization.reason, 403, authorization)
+    setFilePhase?.("execute")
     const startedAt = Date.now()
     const auditInvocation = secretScrubber.scrub(invocation)
     this.options?.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
     try {
-      const filePath = typeof input.file_path === "string" ? input.file_path : null
+      const filePath = typeof input.file_path === "string"
+        ? input.file_path
+        : name === "Edit" && typeof input.path === "string"
+          ? input.path
+          : null
       const snapshotKey = await this.snapshotKey(context, filePath)
       const deferredTools = this.deferredDefinitions({
         taskMode: context.taskMode,
@@ -354,48 +399,142 @@ export class ToolExecutor {
           requestedPermissions: input,
           grantedPermissions: input,
         }, context)
-        const escalation = typeof input.escalationToken === "string"
-          ? await this.executeSandboxEscalation(input.escalationToken, context)
-          : undefined
         output = {
           ...(output && typeof output === "object" ? output : {}),
           grant: grantResult,
-          ...(escalation ? { escalation } : {}),
         }
       }
       if (filePath && ["Read", "Write", "Edit"].includes(name)) {
         const savedSnapshotKey = await this.snapshotKey(context, filePath)
         const revision = (output as { snapshot?: { mtimeMs: number; sha256: string }; revision?: { mtimeMs: number; sha256: string } }).snapshot ?? (output as { revision?: { mtimeMs: number; sha256: string } }).revision
-          ?? (await context.workspace.readEditorFile(String(input.file_path))).revision
+          ?? (await context.workspace.readEditorFile(filePath)).revision
         if (savedSnapshotKey) this.readSnapshots.set(savedSnapshotKey, revision)
       }
       const safeOutput = secretScrubber.scrub(output)
       this.options?.recordToolCall?.(auditInvocation, "completed", safeOutput, null, startedAt)
-      if (!context.skipHooks) await this.options?.hooks?.run("post_tool_use", { input, output: safeOutput }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
+      if (!skipProjectHooks) {
+        await this.options?.hooks?.run("post_tool_use", { input, output: safeOutput }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }).catch((cause) => {
+          if (isFileMutationTool(name)) this.logFileToolFailure(name, input, context, "post-hook", cause, startedAt)
+        })
+      }
       return output as T
     } catch (cause) {
       const error = secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause))
       this.options?.recordToolCall?.(auditInvocation, context.signal.aborted ? "interrupted" : "error", null, error, startedAt)
-      if (!context.skipHooks) await this.options?.hooks?.run("post_tool_error", { input, error }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
+      if (!skipProjectHooks) {
+        await this.options?.hooks?.run("post_tool_error", { input, error }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }).catch((hookCause) => {
+          if (isFileMutationTool(name)) this.logFileToolFailure(name, input, context, "post-hook", hookCause, startedAt)
+        })
+      }
       throw cause
     }
+  }
+
+  private logFileToolFailure(
+    name: string,
+    input: Record<string, unknown>,
+    context: ToolExecutionContext,
+    phase: FileToolFailurePhase,
+    cause: unknown,
+    startedAt: number,
+  ) {
+    const workspaceRoot = context.workspace.rootPath
+    const safePath = (value: unknown) => {
+      if (typeof value !== "string" || !value.trim()) return undefined
+      if (isAbsolute(value)) {
+        const absolute = resolve(value)
+        if (!pathContains(workspaceRoot, absolute)) return "[outside-workspace]"
+        const workspaceRelative = relative(workspaceRoot, absolute).replaceAll("\\", "/")
+        return workspaceRelative || "."
+      }
+      const normalized = normalize(value).replaceAll("\\", "/")
+      return normalized === ".." || normalized.startsWith("../")
+        ? "[outside-workspace]"
+        : normalized.slice(0, 500)
+    }
+    let inputBytes = 0
+    try {
+      inputBytes = Buffer.byteLength(JSON.stringify(input), "utf8")
+    } catch {
+      // Parsed tool input should be JSON-compatible; retain a safe zero if it is not.
+    }
+    const details: Record<string, unknown> = {
+      tool: name,
+      phase,
+      code: cause instanceof AgentError
+        ? cause.code
+        : context.signal.aborted
+          ? "RUN_ABORTED"
+          : "FILE_TOOL_FAILED",
+      inputBytes,
+      durationMs: Math.max(0, Date.now() - startedAt),
+    }
+    if (name === "Write" || name === "Edit") {
+      const path = safePath(input.file_path ?? input.path)
+      details.fileCount = path ? 1 : 0
+      if (path) details.path = path
+    } else if (name === "apply_patch") {
+      const patch = typeof input.patch === "string" ? input.patch : ""
+      details.patchBytes = Buffer.byteLength(patch, "utf8")
+      try {
+        const operations = parseApplyPatch(patch)
+        details.fileCount = operations.length
+        details.affectedPaths = operations.map((operation) => safePath(operation.path) ?? "[outside-workspace]")
+        details.hunkCount = operations.reduce((sum, operation) =>
+          sum + (operation.type === "update" ? operation.chunks.length : 0), 0)
+        details.additions = operations.reduce((sum, operation) => {
+          if (operation.type === "add") {
+            if (!operation.content) return sum
+            return sum + (operation.content.endsWith("\n")
+              ? operation.content.slice(0, -1).split("\n").length
+              : operation.content.split("\n").length)
+          }
+          return sum + operation.chunks.reduce((chunkSum, chunk) => chunkSum + chunk.additions, 0)
+        }, 0)
+        details.deletions = operations.reduce((sum, operation) =>
+          sum + (operation.type === "update"
+            ? operation.chunks.reduce((chunkSum, chunk) => chunkSum + chunk.deletions, 0)
+            : 0), 0)
+      } catch {
+        details.fileCount = 0
+      }
+    }
+    this.options?.logger?.warn("file-tool.execution.failed", {
+      context: {
+        threadId: context.threadID,
+        turnId: context.turnID,
+        ...(context.agentID ? { agentId: context.agentID } : {}),
+        ...(context.toolCallID ? { toolCallId: context.toolCallID } : {}),
+      },
+      details,
+    })
   }
 
   private async executeShell(shellTool: "Bash" | "PowerShell", input: Record<string, unknown>, context: ToolExecutionContext, catalog: ToolCatalog): Promise<ProcessResult | PermissionDecision> {
     const options = this.options
     if (!options) throw new AgentError("SHELL_EXECUTOR_REQUIRED", "Shell 执行器未配置", 500)
+    const logContext = {
+      threadId: context.threadID,
+      turnId: context.turnID,
+      ...(context.agentID ? { agentId: context.agentID } : {}),
+      ...(context.toolCallID ? { toolCallId: context.toolCallID } : {}),
+    }
+    if (context.taskMode === "plan") {
+      options.logger?.warn("shell.execution.failed", {
+        context: logContext,
+        details: {
+          shellTool,
+          backend: "host-hook",
+          phase: "task-mode",
+          code: "PLAN_SHELL_DISABLED",
+          durationMs: 0,
+        },
+      })
+      throw new AgentError("PLAN_SHELL_DISABLED", "Plan 模式禁止执行 Bash 或 PowerShell", 403)
+    }
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const parsedShell = this.parseShellInput(input)
-    if (
-      context.taskMode === "plan"
-      && (
-        (parsedShell.additionalPermissions?.writePaths?.length ?? 0) > 0
-        || (parsedShell.additionalPermissions?.networkDomains?.length ?? 0) > 0
-      )
-    ) {
-      throw new AgentError("PLAN_READ_ONLY_PERMISSION_DENIED", "Plan 模式的 Shell 只允许申请额外读取路径", 403)
-    }
     const workspaceRoot = await realpath(context.workspace.rootPath)
     const additionalPermissions = parsedShell.additionalPermissions ? {
       ...(parsedShell.additionalPermissions.readPaths ? { readPaths: await Promise.all(parsedShell.additionalPermissions.readPaths.map((path) => this.canonicalPath(workspaceRoot, path, false))) } : {}),
@@ -430,12 +569,26 @@ export class ToolExecutor {
       taskMode: context.taskMode,
       ...(context.authorizationOnly ? { durableApproval: true } : {}),
     }
+    const preflightStartedAt = Date.now()
+    const toolStartedAt = Date.now()
+    let phase = "risk"
+    let hookDecision: "continue" | "ask" | "deny" | "skipped" = "skipped"
+    let risk: PermissionDecision["risk"] | undefined
     try {
       const staticRisk = analyzeShellRisk({ command: shell.command, cwd, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), ...(shell.justification ? { justification: shell.justification } : {}), ...(context.taskSummary ? { taskSummary: context.taskSummary } : {}) })
+      risk = staticRisk.risk
       if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
       const resumedApproval = context.approvedToolCallID === invocation.id
+      phase = "hook"
       const hookResults = context.skipHooks || resumedApproval ? [] : await this.options.hooks?.run("pre_tool_use", { input: invocation.input, staticRisk }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }) ?? []
       const denied = hookResults.find(({ result }) => result.decision === "deny")
+      hookDecision = denied
+        ? "deny"
+        : hookResults.some(({ result }) => result.decision === "ask")
+          ? "ask"
+          : hookResults.length > 0
+            ? "continue"
+            : "skipped"
       if (denied) throw new AgentError("HOOK_DENIED", denied.result.reason ?? "PreToolUse Hook 拒绝执行", 403)
       const narrowed = hookResults.map(({ result }) => result.narrowedInput).filter((value): value is Record<string, unknown> => Boolean(value)).at(-1)
       if (narrowed && JSON.stringify(narrowed) !== JSON.stringify(input)) {
@@ -443,6 +596,7 @@ export class ToolExecutor {
         return this.executeShell(shellTool, { ...input, ...narrowed }, { ...context, hookDepth: (context.hookDepth ?? 0) + 1 }, catalog)
       }
       if (hookResults.some(({ result }) => result.decision === "ask")) invocation.input = { ...invocation.input, __hookRequiresApproval: true }
+      phase = "authorization"
       const grant = resumedApproval
         ? null
         : this.permissionGrantFor(invocation, catalog.get(shellTool), !context.authorizationOnly)
@@ -451,60 +605,72 @@ export class ToolExecutor {
         : grant
           ? { decision: "allow", risk: staticRisk.risk, reason: `已使用 ${grant.scope} 临时权限` } satisfies PermissionDecision
           : await this.options.authorizeShell(secretScrubber.scrub(invocation), context.signal)
+      options.logger?.info("shell.preflight.completed", {
+        context: logContext,
+        details: {
+          shellTool,
+          taskMode: context.taskMode,
+          permissionProfile: permissionConfig.sandboxMode,
+          risk: staticRisk.risk,
+          hookDecision,
+          permissionDecision: decision.decision,
+          cwdScope: context.workspace.containsPath(cwd) ? "workspace" : "outside-workspace",
+          commandBytes: Buffer.byteLength(shell.command, "utf8"),
+          durationMs: Date.now() - preflightStartedAt,
+        },
+      })
       if (context.authorizationOnly) return decision
       if (decision.decision !== "allow") throw new AgentError("SHELL_PERMISSION_DENIED", decision.reason, 403, decision)
+      phase = "runtime"
       const runtime = await this.commandForShell(shellTool, parsedShell.command, context.signal)
-      const startedAt = Date.now()
       const auditInvocation = secretScrubber.scrub(invocation)
-      this.options.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
-      if (permissionConfig.sandboxMode === "danger-full-access") {
-        const result = await (this.options.runHost ?? runHostCommand)(runtime.command, cwd, shell.timeoutMs, context.signal, runtime.env)
-        const safeResult = secretScrubber.scrub(result)
-        this.options.recordToolCall?.(auditInvocation, "completed", safeResult, null, startedAt)
-        if (!context.skipHooks) await this.options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
-        return result
-      }
-      return await this.withSandboxTemp(async (sessionTemp) => {
-        const policy = generateSandboxPolicy({
-          workspace: workspaceRoot,
-          workspaceRoots: context.workspace.roots,
-          writableWorkspaceRoots: context.workspace.writableRoots,
-          sessionTemp,
-          dataDir: options.dataDir,
-          permissionConfig,
-          ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}),
-          ...(options.helperPath ? { helperPath: options.helperPath } : {}),
-          trustedReadPaths: runtime.trustedReadPaths,
-        })
-        let result: ProcessResult
-        try {
-          result = await options.sandbox.run({
-            command: runtime.command,
-            cwd,
-            env: runtime.env,
-            ...(shell.timeoutMs === undefined ? {} : { timeoutMs: shell.timeoutMs }),
-            config: policy.config,
-            signal: context.signal,
-          })
-        } catch (sandboxCause) {
-          if (permissionConfig.approvalPolicy !== "on-failure") throw sandboxCause
-          if (!options.prepareSandboxEscalation) throw sandboxCause
-          const failure = sandboxCause instanceof Error ? sandboxCause.message : String(sandboxCause)
-          const escalation = options.prepareSandboxEscalation(invocation, failure)
-          result = {
-            exitCode: 126, signal: null, stdout: "", timedOut: false, truncated: false,
-            stderr: `SANDBOX_ESCALATION_REQUIRED ${JSON.stringify({ escalationToken: escalation.token, action: "call request_permissions", justification: "sandbox execution failed; request one-time host execution" })}`,
-          }
-        }
-        const safeResult = secretScrubber.scrub(result)
-        options.recordToolCall?.(auditInvocation, "completed", safeResult, null, startedAt)
-        if (!context.skipHooks) await options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
-        return result
+      this.options.recordToolCall?.(auditInvocation, "running", null, null, toolStartedAt)
+      options.logger?.info("shell.execution.started", {
+        context: logContext,
+        details: {
+          shellTool,
+          backend: "host-hook",
+          timeoutMs: shell.timeoutMs ?? 120_000,
+          managedRuntimeCount: runtime.managedRuntimeCount,
+        },
       })
+      phase = "execution"
+      const executionStartedAt = Date.now()
+      const result = await (this.options.runHost ?? runHostCommand)(runtime.command, cwd, shell.timeoutMs, context.signal, runtime.env)
+      const safeResult = secretScrubber.scrub(result)
+      this.options.recordToolCall?.(auditInvocation, "completed", safeResult, null, toolStartedAt)
+      options.logger?.info("shell.execution.completed", {
+        context: logContext,
+        details: {
+          shellTool,
+          backend: "host-hook",
+          exitCode: result.exitCode,
+          signal: result.signal,
+          timedOut: result.timedOut,
+          stdoutBytes: Buffer.byteLength(result.stdout, "utf8"),
+          stderrBytes: Buffer.byteLength(result.stderr, "utf8"),
+          outputTruncated: result.truncated,
+          durationMs: Date.now() - executionStartedAt,
+        },
+      })
+      if (!context.skipHooks) await this.options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
+      return result
     } catch (cause) {
+      options.logger?.warn("shell.execution.failed", {
+        context: logContext,
+        details: {
+          shellTool,
+          backend: "host-hook",
+          phase,
+          code: cause instanceof AgentError ? cause.code : context.signal.aborted ? "RUN_ABORTED" : "SHELL_EXECUTION_FAILED",
+          risk,
+          hookDecision,
+          timedOut: cause instanceof AgentError && cause.code === "INVALID_TIMEOUT",
+          durationMs: Date.now() - toolStartedAt,
+        },
+      })
       if (!context.authorizationOnly) {
-        const startedAt = Date.now()
-        this.options.recordToolCall?.(secretScrubber.scrub(invocation), context.signal.aborted ? "interrupted" : "error", null, secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)), startedAt)
+        this.options.recordToolCall?.(secretScrubber.scrub(invocation), context.signal.aborted ? "interrupted" : "error", null, secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)), toolStartedAt)
       }
       if (!context.skipHooks && !context.authorizationOnly) await this.options.hooks?.run("post_tool_error", { input: invocation.input, error: secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)) }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
       throw cause
@@ -542,44 +708,6 @@ export class ToolExecutor {
 
   clearThreadPermissionGrants(threadID: string) {
     this.permissionGrants.clearThread(threadID)
-  }
-
-  async executeSandboxEscalation(token: string, context: ToolExecutionContext): Promise<ProcessResult> {
-    if (context.taskMode === "plan") throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "Plan 模式禁止宿主执行升级", 403)
-    if (!this.options?.claimSandboxEscalation || !this.options.completeSandboxEscalation) throw new AgentError("SANDBOX_ESCALATION_UNAVAILABLE", "Sandbox escalation 服务未配置", 503)
-    const agentID = context.agentID ?? context.turnID
-    const escalation = this.options.claimSandboxEscalation(token, { threadID: context.threadID, turnID: context.turnID, agentID })
-    if (!escalation) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation 不存在、已消费、被篡改或作用域不匹配", 409)
-    const input = escalation.invocation.input
-    if (!["Bash", "PowerShell"].includes(escalation.invocation.name) || typeof input.command !== "string" || typeof input.cwd !== "string") throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation invocation 无效", 409)
-    const shell = this.parseShellInput(input)
-    const workspaceRoot = await realpath(context.workspace.rootPath)
-    const cwd = await realpath(input.cwd).catch(() => { throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation cwd 已失效", 409) })
-    if (cwd !== input.cwd) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation cwd 规范路径不匹配", 409)
-    const normalizedPermissions = shell.additionalPermissions ? {
-      ...(shell.additionalPermissions.readPaths ? { readPaths: await Promise.all(shell.additionalPermissions.readPaths.map((path) => this.canonicalPath(workspaceRoot, path, false))) } : {}),
-      ...(shell.additionalPermissions.writePaths ? { writePaths: await Promise.all(shell.additionalPermissions.writePaths.map((path) => this.canonicalPath(workspaceRoot, path, true))) } : {}),
-      ...(shell.additionalPermissions.networkDomains ? { networkDomains: [...new Set(shell.additionalPermissions.networkDomains.map((domain) => domain.trim().toLowerCase()))] } : {}),
-    } : undefined
-    if (JSON.stringify(normalizedPermissions ?? {}) !== JSON.stringify(shell.additionalPermissions ?? {})) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation permissions 已变化", 409)
-    if (!context.workspace.containsPath(cwd) && !(shell.additionalPermissions?.readPaths ?? []).some((path) => pathContains(path, cwd))) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation cwd 不在已审批路径内", 409)
-    const staticRisk = analyzeShellRisk({ command: shell.command, cwd, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), justification: "一次性 sandbox failure escalation" })
-    if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
-    const auditInvocation = secretScrubber.scrub({ ...escalation.invocation, id: crypto.randomUUID(), name: "shell.host-escalation", input: { ...input, escalationToken: token, failureSummary: escalation.failure } })
-    const startedAt = Date.now()
-    this.options.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
-    try {
-      const runtime = await this.commandForShell(escalation.invocation.name as "Bash" | "PowerShell", shell.command, context.signal)
-      const result = await (this.options.runHost ?? runHostCommand)(runtime.command, cwd, shell.timeoutMs, context.signal, runtime.env)
-      this.options.completeSandboxEscalation(token, result)
-      this.options.recordToolCall?.(auditInvocation, "completed", secretScrubber.scrub(result), null, startedAt)
-      return result
-    } catch (cause) {
-      const error = secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause))
-      this.options.completeSandboxEscalation(token, { error })
-      this.options.recordToolCall?.(auditInvocation, context.signal.aborted ? "interrupted" : "error", null, error, startedAt)
-      throw cause
-    }
   }
 
   private async snapshotKey(context: ToolExecutionContext, path: string | null) {
@@ -695,24 +823,6 @@ export class ToolExecutor {
     }
   }
 
-  async dispose(): Promise<void> {
-    if (this.sandboxDisposed) return
-    this.sandboxDisposed = true
-    await this.options?.sandbox.dispose()
-  }
-
-  private async withSandboxTemp<T>(operation: (sessionTemp: string) => Promise<T>): Promise<T> {
-    if (this.sandboxDisposed) throw new AgentError("SHELL_EXECUTOR_DISPOSED", "Shell 执行器已关闭", 503)
-    const sessionTemp = await mkdtemp(join(tmpdir(), "codepilotx-sandbox-"))
-    try {
-      return await operation(sessionTemp)
-    } finally {
-      // A command may already have produced side effects. Cleanup failure must
-      // not turn a successful command into a retryable tool failure.
-      await rm(sessionTemp, { recursive: true, force: true }).catch(() => undefined)
-    }
-  }
-
   private parseShellInput(input: Record<string, unknown>): ShellInput {
     if (typeof input.command !== "string" || !input.command.trim()) throw new AgentError("INVALID_TOOL_INPUT", "command 必须是非空字符串", 400)
     if (input.command.length > 32_000) throw new AgentError("COMMAND_TOO_LONG", "Shell 命令超过 32000 字符，拒绝审核和执行", 413)
@@ -815,7 +925,6 @@ export class ToolExecutor {
       }
     }
     const env = toolingPathOverride(environment.pathEntries)
-    const trustedReadPaths = required.flatMap((id) => managedToolReadPaths(id, environment.resolutions.get(id)))
     if (process.platform === "win32" && shellTool === "Bash") {
       const resolution = await (this.options?.resolveTooling ?? resolveManagedTool)("git-bash", { signal })
       if (!resolution.available) throw new AgentError("BASH_RUNTIME_UNAVAILABLE", resolution.reason, 503, { toolingID: "git-bash", reason: resolution.code })
@@ -823,13 +932,13 @@ export class ToolExecutor {
       return {
         command: `& '${executable}' -lc '${command.replaceAll("'", "''")}'`,
         env,
-        trustedReadPaths: [...trustedReadPaths, ...managedToolReadPaths("git-bash", resolution)],
+        managedRuntimeCount: required.length + 1,
       }
     }
     if (process.platform !== "win32" && shellTool === "PowerShell") {
-      return { command: `pwsh -NoProfile -NonInteractive -Command '${command.replaceAll("'", "'\\''")}'`, env, trustedReadPaths }
+      return { command: `pwsh -NoProfile -NonInteractive -Command '${command.replaceAll("'", "'\\''")}'`, env, managedRuntimeCount: required.length }
     }
-    return { command, env, trustedReadPaths }
+    return { command, env, managedRuntimeCount: required.length }
   }
 
   private async canonicalPath(workspaceRoot: string, value: string, allowMissingLeaf: boolean) {

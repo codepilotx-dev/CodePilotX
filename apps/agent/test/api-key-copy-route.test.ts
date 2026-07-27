@@ -14,7 +14,7 @@ const appWithCopyMaterial = (copyMaterial: (id: string) => Promise<string>) => c
     error: () => undefined,
   } as unknown as AgentLogger,
   db: {}, hub: {}, threads: {}, history: {}, approvals: {}, questions: {}, subagents: {},
-  attachments: {}, providers: {}, integrations: {}, memory: {}, hooks: {}, sandbox: {}, review: {}, github: {},
+  attachments: {}, providers: {}, integrations: {}, memory: {}, hooks: {}, review: {}, github: {},
 } as unknown as TransportDependencies)
 
 describe("API Key 安全复制路由", () => {

@@ -13,7 +13,6 @@
     "compile": "bun run build"
   },
   "dependencies": {
-    "@anthropic-ai/sandbox-runtime": "0.0.65",
     "@codepilotx/agent-protocol": "workspace:*",
     "@codepilotx/model-schema": "workspace:*",
     "@codepilotx/pi-agent-core": "workspace:*",

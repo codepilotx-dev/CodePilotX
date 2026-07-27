@@ -90,7 +90,7 @@ export const providerHandlers = {
     "integration/disconnect",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { config, db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, sandbox, review, github } = runtime.dependencies
+    const { config, db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "provider/list":

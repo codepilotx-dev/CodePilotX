@@ -106,14 +106,6 @@ describe("工具输入检查与范围绑定", () => {
       dataDir: join(parent, "data"),
       userConfigPath,
       validateConfigDocument: (content, scope) => validated.push({ content, scope }),
-      sandbox: {
-        getStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-        refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-        install: async () => undefined,
-        uninstall: async () => undefined,
-        dispose: async () => undefined,
-        run: async () => { throw new Error("not used") },
-      },
       authorizeShell: async (invocation) => {
         reviewed.push(invocation)
         return { decision: "allow", risk: "high", reason: "approved" }

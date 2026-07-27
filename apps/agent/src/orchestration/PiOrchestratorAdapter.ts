@@ -74,17 +74,35 @@ export const piToolTimelineInput = (
   if (tool.toLowerCase().split(".").at(-1) !== "apply_patch") return record;
   const patch = typeof record.patch === "string" ? record.patch : "";
   let affectedPaths: Array<{ path: string; operation: "create" | "update" }> = [];
+  let hunkCount = 0;
+  let additions = 0;
+  let deletions = 0;
   try {
-    affectedPaths = parseApplyPatch(patch).map((operation) => ({
+    const operations = parseApplyPatch(patch);
+    affectedPaths = operations.map((operation) => ({
       path: safeTimelinePatchPath(operation.path),
       operation: operation.type === "add" ? "create" : "update",
     }));
+    for (const operation of operations) {
+      if (operation.type === "add") {
+        additions += operation.content.endsWith("\n")
+          ? operation.content.slice(0, -1).split("\n").length
+          : operation.content.split("\n").length;
+        continue;
+      }
+      hunkCount += operation.chunks.length;
+      additions += operation.chunks.reduce((sum, chunk) => sum + chunk.additions, 0);
+      deletions += operation.chunks.reduce((sum, chunk) => sum + chunk.deletions, 0);
+    }
   } catch {
     // Invalid patches still get a safe timeline item; the tool result carries the actionable parse error.
   }
   return {
     operation: "apply_patch",
     patchBytes: Buffer.byteLength(patch, "utf8"),
+    hunkCount,
+    additions,
+    deletions,
     patch: "[补丁正文已隐藏]",
     ...(affectedPaths.length ? { affectedPaths } : {}),
   };

@@ -29,7 +29,6 @@ import type { ThreadService } from "../../session/ThreadService"
 import type { AgentDatabase } from "../../storage/database/AgentDatabase"
 import type { EventHub } from "../../storage/events/EventHub"
 import { globalEventSequence, publishAgentEvent } from "../../storage/events/EventPublisher"
-import type { SandboxRuntimeAdapter } from "../../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../../subagent/SubagentService"
 import type { AttachmentService } from "../../subagent/AttachmentService"
 import type { ProjectSourceService } from "../../project/ProjectSourceService"
@@ -109,7 +108,6 @@ export type RpcRouterDependencies = {
   apiKeys: ApiKeyService
   memory: MemoryService
   hooks: HookService
-  sandbox: SandboxRuntimeAdapter
   review: GitReviewService
   github: GithubService
   tooling: ToolingManager

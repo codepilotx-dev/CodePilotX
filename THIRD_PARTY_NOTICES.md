@@ -32,7 +32,3 @@ CodePilotX includes monochrome React components and file/folder associations
 derived from Material Icon Theme 5.37.0 under the MIT License. See
 `packages/material-icon-theme/LICENSE` and
 `packages/material-icon-theme/UPSTREAM.md`.
-
-CodePilotX distributes the precompiled Windows helper from
-`@anthropic-ai/sandbox-runtime@0.0.65` under the Apache License 2.0. See
-`third_party/sandbox-runtime/LICENSE`.

@@ -27,7 +27,7 @@ const fixture = async () => {
   const dependencies = {
     db, memory,
     hub: null, threads: null, history: null, approvals: null, questions: null, subagents: null,
-    attachments: null, providers: null, integrations: null, sandbox: null,
+    attachments: null, providers: null, integrations: null,
   } as unknown as RpcRouterDependencies
   const router = new RpcRouter(dependencies)
   let id = 0

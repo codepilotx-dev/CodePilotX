@@ -1,7 +1,6 @@
 import { mkdir, rename, rm } from "node:fs/promises"
 import { resolve } from "node:path"
 import { assertAgentBinaryHasNoStaticRiskFeatures } from "./agent-pe-signatures"
-import { verifySrtRuntimeManifest } from "./verify-srt-runtime-manifest"
 
 const root = resolve(import.meta.dir, "..")
 const agentRoot = resolve(root, "apps/agent")
@@ -10,7 +9,6 @@ const output = resolve(outputDirectory, "codepilotx-agent.exe")
 const temporaryOutput = `${output}.building.exe`
 const legacyOutput = resolve(agentRoot, "dist/codepilotx-agent.exe")
 
-await verifySrtRuntimeManifest(root)
 await mkdir(outputDirectory, { recursive: true })
 await rm(temporaryOutput, { force: true })
 

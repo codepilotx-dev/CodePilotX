@@ -83,7 +83,7 @@ export const threadHandlers = {
     "attachment/read",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, integrations, apiKeys, memory, sandbox, review, github } = runtime.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, integrations, apiKeys, memory, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "thread/list": {

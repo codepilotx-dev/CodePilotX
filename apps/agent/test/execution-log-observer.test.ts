@@ -29,7 +29,7 @@ const event = (method: string, params: unknown): EventEnvelope => ({
 })
 
 describe("execution log observers", () => {
-  test("只映射 allowlist 事件且工具详情不包含完整输入输出", async () => {
+  test("只映射 allowlist 事件，Shell 仅记录安全元数据且不包含完整输入输出", async () => {
     const { logger, read } = await setup()
     const observer = new ExecutionLogObserver(logger)
     observer.observeEvent(event("turn/started", {
@@ -44,7 +44,12 @@ describe("execution log observers", () => {
         status: "running",
         data: {
           tool: "PowerShell",
-          input: { command: "echo token=secret" },
+          input: {
+            command: "echo token=secret",
+            cwd: "C:\\Users\\private\\workspace",
+            timeout: 12_345,
+            env: { OPENAI_API_KEY: "sk-private" },
+          },
           output: "private output",
         },
       },
@@ -59,7 +64,125 @@ describe("execution log observers", () => {
     expect(serialized).not.toContain("private output")
     expect(serialized).not.toContain("private delta")
     expect(serialized).not.toContain("token=secret")
-    expect(serialized).toContain("token=[REDACTED]")
+    expect(serialized).not.toContain("echo")
+    expect(serialized).not.toContain("Users")
+    expect(serialized).not.toContain("OPENAI_API_KEY")
+    expect(serialized).not.toContain("sk-private")
+    expect(result[1]).not.toHaveProperty("development")
+    expect(result[1]!.details).toMatchObject({
+      tool: "PowerShell",
+      commandBytes: Buffer.byteLength("echo token=secret", "utf8"),
+      cwdScope: "absolute",
+      timeoutMs: 12_345,
+    })
+  })
+
+  test("Write、Edit 和 apply_patch 只投影安全路径、字节数与统计", async () => {
+    const { logger, read } = await setup()
+    const observer = new ExecutionLogObserver(logger)
+    observer.observeEvent(event("tool/callStarted", {
+      item: {
+        id: "write-1",
+        status: "running",
+        data: {
+          tool: "workspace.write",
+          input: {
+            file_path: "src/new.ts",
+            content: "const apiKey = 'sk-private'",
+          },
+        },
+      },
+    }))
+    observer.observeEvent(event("tool/callStarted", {
+      item: {
+        id: "edit-1",
+        status: "running",
+        data: {
+          tool: "Edit",
+          input: {
+            path: "C:\\Users\\private\\secret.ts",
+            edits: [
+              { oldText: "password=before", newText: "password=after" },
+              { oldText: "token=before", newText: "token=after" },
+            ],
+          },
+        },
+      },
+    }))
+    observer.observeEvent(event("tool/callCompleted", {
+      item: {
+        id: "patch-1",
+        status: "completed",
+        data: {
+          tool: "apply_patch",
+          durationMs: 42,
+          input: {
+            operation: "apply_patch",
+            patch: "[补丁正文已隐藏]",
+            patchBytes: 321,
+            affectedPaths: [
+              { path: "src/a.ts", operation: "update" },
+              { path: "C:\\Users\\private\\added.ts", operation: "create" },
+            ],
+            fileCount: 2,
+            hunkCount: 3,
+            additions: 7,
+            deletions: 2,
+          },
+          output: "private stdout",
+        },
+      },
+    }))
+
+    const result = await read()
+    expect(result.map(record => record.event)).toEqual([
+      "tool.started",
+      "tool.started",
+      "tool.completed",
+    ])
+    expect(result[0]!.details).toMatchObject({
+      tool: "workspace.write",
+      path: "src/new.ts",
+      fileCount: 1,
+      contentBytes: Buffer.byteLength("const apiKey = 'sk-private'", "utf8"),
+    })
+    expect(result[1]!.details).toMatchObject({
+      tool: "Edit",
+      path: "[outside-workspace]",
+      fileCount: 1,
+      editCount: 2,
+      oldTextBytes: Buffer.byteLength("password=beforetoken=before", "utf8"),
+      newTextBytes: Buffer.byteLength("password=aftertoken=after", "utf8"),
+    })
+    expect(result[2]!.details).toMatchObject({
+      tool: "apply_patch",
+      durationMs: 42,
+      affectedPaths: [
+        { path: "src/a.ts", operation: "update" },
+        { path: "[outside-workspace]", operation: "create" },
+      ],
+      fileCount: 2,
+      createCount: 1,
+      updateCount: 1,
+      patchBytes: 321,
+      hunkCount: 3,
+      additions: 7,
+      deletions: 2,
+    })
+    const serialized = JSON.stringify(result)
+    for (const forbidden of [
+      "const apiKey",
+      "sk-private",
+      "password=before",
+      "password=after",
+      "token=before",
+      "token=after",
+      "Users",
+      "补丁正文",
+      "private stdout",
+    ]) {
+      expect(serialized).not.toContain(forbidden)
+    }
   })
 
   test("provider 多响应递增 attempt，并记录 usage 而非内容", async () => {

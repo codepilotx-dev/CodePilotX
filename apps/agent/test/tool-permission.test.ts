@@ -17,7 +17,8 @@ describe("工作区工具", () => {
       sandboxMode: "danger-full-access",
       profile: "main",
     })
-    expect(plan.exposed).toContain("PowerShell")
+  expect(plan.exposed).not.toContain("PowerShell")
+  expect(plan.exposed).not.toContain("Bash")
     expect(plan.exposed).toContain("request_user_input")
     expect(plan.exposed).not.toContain("Write")
     expect(plan.exposed).not.toContain("request_permissions")
@@ -61,10 +62,16 @@ describe("工作区工具", () => {
     const context = { threadID: "thread", turnID: "turn", taskMode: "chat" as const, signal: new AbortController().signal, workspace }
 
     await executor.execute("Read", { file_path: "source.txt" }, context)
-    const patch = await executor.execute("Edit", { file_path: "source.txt", old_string: "before", new_string: "after", replace_all: false }, context)
+    const patch = await executor.execute("Edit", {
+      path: "source.txt",
+      edits: [{ oldText: "before", newText: "after" }],
+    }, context)
     expect(patch).toMatchObject({ operation: "edit", path: "source.txt" })
     expect(await Bun.file(file).text()).toBe("after")
-    await expect(executor.execute("Edit", { file_path: "source.txt", old_string: "after", new_string: "blocked", replace_all: false }, { ...context, taskMode: "plan" })).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
+    await expect(executor.execute("Edit", {
+      path: "source.txt",
+      edits: [{ oldText: "after", newText: "blocked" }],
+    }, { ...context, taskMode: "plan" })).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
     expect(await Bun.file(file).text()).toBe("after")
   })
 

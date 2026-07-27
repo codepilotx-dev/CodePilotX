@@ -17,7 +17,6 @@ import { proxyRendererRequest } from "./RendererProxy"
 import type { AgentLogger } from "../observability/AgentLogger"
 import type { IntegrationService } from "../provider/IntegrationService"
 import type { ApiKeyService } from "../provider/ApiKeyService"
-import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
@@ -50,7 +49,6 @@ export interface TransportDependencies {
   apiKeys: ApiKeyService
   memory: MemoryService
   hooks: HookService
-  sandbox: SandboxRuntimeAdapter
   review: GitReviewService
   github: GithubService
   tooling: ToolingManager
@@ -277,9 +275,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, review, github, tooling, pets, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, review, github, tooling, pets, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

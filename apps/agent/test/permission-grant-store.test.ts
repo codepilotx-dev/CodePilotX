@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join, resolve } from "node:path"
+import { join } from "node:path"
 import { PermissionGrantStore, intersectPermissionGrant } from "../src/permission/PermissionGrantStore"
-import type { SandboxedProcessRequest } from "../src/sandbox/SandboxRuntimeAdapter"
 import { ToolExecutor } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
@@ -59,20 +58,13 @@ describe("临时权限授权", () => {
     const outsideRoot = join(parent, "outside")
     await Promise.all([mkdir(workspaceRoot), mkdir(outsideRoot)])
     await writeFile(join(outsideRoot, "fixture.txt"), "fixture", "utf8")
-    const sandboxRequests: SandboxedProcessRequest[] = []
+    const hostCommands: string[] = []
     let approvals = 0
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(parent, "agent-data"),
-      sandbox: {
-        getStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-        refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-        install: async () => undefined,
-        uninstall: async () => undefined,
-        dispose: async () => undefined,
-        run: async (request) => {
-          sandboxRequests.push(request)
-          return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
-        },
+      runHost: async (command) => {
+        hostCommands.push(command)
+        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
       },
       authorizeShell: async () => {
         approvals += 1
@@ -98,9 +90,10 @@ describe("临时权限授权", () => {
     const shellInput = { command: "Write-Output ok", additionalPermissions: { readPaths: [outsideRoot] } }
     await executor.execute("PowerShell", shellInput, context)
     expect(approvals).toBe(0)
-    expect(sandboxRequests[0]?.config.filesystem?.allowRead).toContain(resolve(outsideRoot))
+    expect(hostCommands).toHaveLength(1)
 
     await executor.execute("PowerShell", shellInput, context)
     expect(approvals).toBe(1)
+    expect(hostCommands).toHaveLength(2)
   })
 })

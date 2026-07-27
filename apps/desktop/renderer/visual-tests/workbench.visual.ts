@@ -926,12 +926,12 @@ test('settings shell search and appearance source contracts', async ({
   await page.keyboard.press('Escape')
 
   await page.goto('/?visualCase=empty#/settings/config')
-  const sandboxDropdown = page.getByRole('combobox', { name: '沙盒设置' })
-  await sandboxDropdown.click()
-  const sandboxMenu = page.getByRole('listbox')
-  await expect(sandboxMenu).toBeVisible()
+  const permissionScopeDropdown = page.getByRole('combobox', { name: '工具权限范围' })
+  await permissionScopeDropdown.click()
+  const permissionScopeMenu = page.getByRole('listbox')
+  await expect(permissionScopeMenu).toBeVisible()
   await expect(
-    sandboxMenu.evaluate((menu) => {
+    permissionScopeMenu.evaluate((menu) => {
       const item = menu.querySelector<HTMLElement>('.settings-dropdown-item')
       const label = item?.querySelector<HTMLElement>(
         '.settings-dropdown-item-label',
