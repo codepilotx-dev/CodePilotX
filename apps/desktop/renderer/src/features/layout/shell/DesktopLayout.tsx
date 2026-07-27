@@ -1654,21 +1654,30 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleProviderSearch = useCallback(
-    (providerID: ModelProviderID, query: string): void => {
-      void desktopClient.fetchProviderModels({ providerID, query, limit: 100 })
-        .then(result => {
-          setModelProviders(current => current.map(provider =>
-            provider.providerID === providerID
-              ? {
-                  ...provider,
-                  defaultModels: result.models,
-                  modelMetadata: result.modelMetadata,
-                }
-              : provider,
-          ))
-        })
-        .catch(error => setErrorMessage(error instanceof Error ? error.message : String(error)))
-    },
+    (() => {
+      const generations = new Map<string, number>();
+      return (providerID: ModelProviderID, query: string): void => {
+        const generation = (generations.get(providerID) ?? 0) + 1;
+        generations.set(providerID, generation);
+        void desktopClient.fetchProviderModels({ providerID, query, limit: 100 })
+          .then(result => {
+            if (generations.get(providerID) !== generation) return;
+            setModelProviders(current => current.map(provider =>
+              provider.providerID === providerID
+                ? {
+                    ...provider,
+                    defaultModels: result.models,
+                    modelMetadata: result.modelMetadata,
+                  }
+                : provider,
+            ));
+          })
+          .catch(error => {
+            if (generations.get(providerID) !== generation) return;
+            setErrorMessage(error instanceof Error ? error.message : String(error));
+          });
+      };
+    })(),
     [setModelProviders],
   )
 

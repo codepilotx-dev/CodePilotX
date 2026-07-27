@@ -8,7 +8,6 @@ import {
 } from 'react'
 import type React from 'react'
 import { FolderIcon } from '@codepilotx/material-icon-theme'
-import { LoaderCircle, RotateCcw, Search } from 'lucide-react'
 import { VList, type VListHandle } from 'virtua'
 import type {
   DesktopFileEntry,
@@ -21,6 +20,7 @@ import {
 } from '../../components/ui/iconTokens.js'
 import { AppContextMenu } from '../../components/ui/AppContextMenu.js'
 import { Button } from '../../components/ui/Button.js'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { cx } from '../../utils/cx.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
@@ -542,26 +542,16 @@ function WorkspaceFileTreeContent({
       )}
     >
       {searchable ? (
-        <label className="right-dock-search">
-          <Search
-            aria-hidden="true"
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
-          <input
-            aria-label="筛选文件"
-            autoFocus={autoFocusSearch}
-            placeholder="筛选文件..."
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            onKeyDown={event => {
-              if (event.key !== 'Escape') return
-              event.preventDefault()
-              if (query) setQuery('')
-              else onEscape?.()
-            }}
-          />
-        </label>
+        <SearchInput
+          aria-label="筛选文件"
+          autoFocus={autoFocusSearch}
+          className="right-dock-search"
+          onChange={setQuery}
+          onEscapeEmpty={onEscape}
+          placeholder="筛选文件..."
+          value={query}
+          variant="compact"
+        />
       ) : null}
       {visibleRows.length > 0 ? (
         <VList

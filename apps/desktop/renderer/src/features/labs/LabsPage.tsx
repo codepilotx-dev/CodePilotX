@@ -1,7 +1,8 @@
 import React, { Suspense, useMemo, useState } from 'react'
-import { FlaskConical, Search } from 'lucide-react'
+import { FlaskConical } from 'lucide-react'
 import { LAB_CATEGORY_LABELS, LAB_DEMOS } from './labRegistry.js'
 import type { LabDemoDefinition } from './labTypes.js'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import '../../styles/lazy/labs.scss'
 
 export function LabsPage(): React.ReactNode {
@@ -28,11 +29,13 @@ export function LabsPage(): React.ReactNode {
             <p>构建产物驱动的交互式视觉原型</p>
           </div>
         </header>
-        <label className="labs-search">
-          <Search aria-hidden />
-          <span className="u-sr-only">搜索实验</span>
-          <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索 18 个表面…" />
-        </label>
+        <SearchInput
+          aria-label="搜索实验"
+          className="labs-search"
+          onChange={setQuery}
+          placeholder="搜索 18 个表面…"
+          value={query}
+        />
         <nav className="labs-list" aria-label="实验表面">
           {demos.map(demo => (
             <button

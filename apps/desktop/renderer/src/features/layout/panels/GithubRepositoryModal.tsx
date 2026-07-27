@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { GitFork, Lock, Search, Unlock } from 'lucide-react'
+import { GitFork, Lock, Unlock } from 'lucide-react'
 import {
   desktopClient,
   startGithubLoginFlow,
@@ -14,6 +14,7 @@ import type {
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 
@@ -249,14 +250,14 @@ export function GithubRepositoryModal({
               </div>
             ) : (
               <>
-                <label className="github-repository-search">
-                  <Search size={APP_ICON_SIZE} />
-                  <input
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                    placeholder="搜索仓库"
-                  />
-                </label>
+                <SearchInput
+                  aria-label="搜索仓库"
+                  className="github-repository-search"
+                  onChange={setSearch}
+                  placeholder="搜索仓库"
+                  value={search}
+                  variant="standard"
+                />
                 <div className="github-repository-list-scroll-area">
                   <div
                     className={cx(

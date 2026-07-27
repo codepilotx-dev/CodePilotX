@@ -34,7 +34,6 @@ import {
   Paperclip,
   Plus,
   Presentation,
-  Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -63,6 +62,7 @@ import type {
   ModelProviderID,
 } from "../../../../shared/types.js";
 import type { ModelPreset } from "../../../modelPresets.js";
+import { SearchInput } from "../../../components/ui/SearchInput.js";
 import { ChipButton } from "../../../components/ui/ChipButton.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { MetaChip } from "../../../components/ui/MetaChip.js";
@@ -1819,28 +1819,18 @@ export function ComposerCard({
                                 "min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))",
                             })}
                           >
-                            <div className="settings-model-search">
-                              <Search
-                                className="settings-model-search-icon"
-                                size={14}
-                              />
-                              <input
-                                aria-label={`搜索 ${provider.displayName} 模型`}
-                                className="settings-model-search-input"
-                                placeholder="搜索模型…"
-                                value={
-                                  providerSearchQueries[provider.providerID] ??
-                                  ""
-                                }
-                                onChange={(event) =>
-                                  queueProviderSearch(
-                                    provider.providerID,
-                                    event.target.value,
-                                  )
-                                }
-                                onKeyDown={(event) => event.stopPropagation()}
-                              />
-                            </div>
+                            <SearchInput
+                              aria-label={`搜索 ${provider.displayName} 模型`}
+                              onChange={(value) =>
+                                queueProviderSearch(
+                                  provider.providerID,
+                                  value,
+                                )
+                              }
+                              placeholder="搜索模型…"
+                              value={providerSearchQueries[provider.providerID] ?? ""}
+                              variant="compact"
+                            />
                             <div className="rm-model-submenu-scroll-content">
                               <div className="rm-section-header">模型</div>
                               {provider.modelPresets.length === 0 ? (

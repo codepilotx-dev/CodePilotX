@@ -1,8 +1,8 @@
-import { Link2, Search, Server } from 'lucide-react'
+import { Link2, Server } from 'lucide-react'
 import type React from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
-import { Input } from '../../components/ui/Input.js'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import {
   APP_ICON_SIZE,
@@ -52,19 +52,13 @@ export function ProviderCatalog({
         <span className="model-center-catalog-count">{providers.length} 个</span>
       </header>
 
-      <label className="model-center-catalog-search">
-        <Search
-          aria-hidden
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-        <Input
-          aria-label="搜索 Provider"
-          placeholder="搜索 Provider、ID、package 或目录来源"
-          value={query}
-          onChange={event => onQueryChange(event.target.value)}
-        />
-      </label>
+      <SearchInput
+        aria-label="搜索 Provider"
+        className="model-center-catalog-search"
+        onChange={onQueryChange}
+        placeholder="搜索 Provider、ID、package 或目录来源"
+        value={query}
+      />
 
       {providers.length === 0 ? (
         <div className="model-center-catalog-empty">

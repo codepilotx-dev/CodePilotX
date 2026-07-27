@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { SettingsContentArea } from './SettingsContentArea.js'
-import { Pencil, Search, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 
 type ShortcutRow = {
@@ -373,16 +374,14 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
         <div className="settings-page-header">
           <h2 className="settings-page-title">键盘快捷键</h2>
         </div>
-        <label className="keyboard-shortcuts-search">
-          <Search className="keyboard-shortcuts-search-icon" />
-          <input
-            aria-label="搜索键盘快捷键"
-            onChange={event => setQuery(event.target.value)}
-            placeholder="搜索快捷键"
-            type="search"
-            value={query}
-          />
-        </label>
+        <SearchInput
+          aria-label="搜索键盘快捷键"
+          className="keyboard-shortcuts-search"
+          onChange={setQuery}
+          placeholder="搜索快捷键"
+          value={query}
+          variant="standard"
+        />
         <section className="keyboard-shortcuts-card" aria-label="键盘快捷键列表">
           <div className="keyboard-shortcuts-header">
             <span>命令</span>

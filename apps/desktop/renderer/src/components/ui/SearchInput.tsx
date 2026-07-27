@@ -5,7 +5,7 @@ import { APP_ICON_SIZE } from './iconTokens.js'
 import { IconButton } from './IconButton.js'
 import { cx } from '../../utils/cx.js'
 
-type SearchInputVariant = 'standard' | 'compact' | 'embedded'
+export type SearchInputVariant = 'standard' | 'compact' | 'embedded'
 
 type SearchInputFilterMode = { mode?: 'filter' }
 
@@ -18,7 +18,7 @@ type SearchInputComboboxMode = {
 
 type SearchInputMode = SearchInputFilterMode | SearchInputComboboxMode
 
-type SearchInputProps = {
+export type SearchInputProps = {
   'aria-label': string
   clearLabel?: string
   onChange: (value: string) => void
@@ -34,7 +34,6 @@ type SearchInputProps = {
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
   function SearchInput(
     {
-      className,
       clearLabel = '清除搜索',
       onChange,
       onEscapeEmpty,
@@ -48,6 +47,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
       controls,
       expanded,
       activeDescendant,
+      className,
       // remaining input html attrs
       ...inputProps
     },
@@ -119,7 +119,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           {...inputProps}
           {...comboboxProps}
           ref={setRef}
-          aria-label={inputProps['aria-label'] ?? placeholder}
+          aria-label={inputProps['aria-label']}
           className="search-input-field"
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}

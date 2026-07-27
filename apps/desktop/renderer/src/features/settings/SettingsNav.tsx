@@ -6,7 +6,8 @@ import React, {
   useState,
 } from "react";
 import { ScrollArea } from "../../components/ui/ScrollArea.js";
-import { ArrowLeft, Search, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { SearchInput } from "../../components/ui/SearchInput.js";
 import { APP_ICON_SIZE } from "../../components/ui/iconTokens.js";
 import { SidebarRow } from "../layout/sidebar/SidebarRow.js";
 import {
@@ -116,37 +117,24 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
             <span>返回应用</span>
           </button>
         </SidebarRow>
-        <label className="settings-nav-search tw:relative tw:flex tw:w-full tw:items-center">
-          <Search className="settings-nav-search-icon tw:pointer-events-none tw:absolute tw:left-2.5 tw:size-4 tw:text-app-text-soft" />
-          <input
-            aria-label="搜索设置"
-            aria-activedescendant={
-              normalizedQuery && searchResults[activeResultIndex]
-                ? `settings-search-result-${activeResultIndex}`
-                : undefined
-            }
-            aria-controls="settings-search-results"
-            aria-expanded={Boolean(normalizedQuery)}
-            aria-haspopup="listbox"
-            className="tw:w-full tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:py-2 tw:pr-3 tw:pl-8.5 tw:text-app-text tw:outline-none tw:transition-colors tw:duration-[var(--motion-fast)] tw:placeholder:text-app-text-soft tw:focus:border-app-accent tw:focus:ring-1 tw:focus:ring-app-accent"
-            onChange={(event) => setSearchQuery(event.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="搜索设置..."
-            ref={searchInputRef}
-            type="search"
-            value={searchQuery}
-          />
-          {searchQuery ? (
-            <button
-              aria-label="清除搜索"
-              className="tw:absolute tw:right-1.5 tw:flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text"
-              onClick={clearSearch}
-              type="button"
-            >
-              <X size={APP_ICON_SIZE} />
-            </button>
-          ) : null}
-        </label>
+        <SearchInput
+          ref={searchInputRef}
+          aria-label="搜索设置"
+          className="settings-nav-search"
+          mode="combobox"
+          controls="settings-search-results"
+          expanded={Boolean(normalizedQuery)}
+          activeDescendant={
+            normalizedQuery && searchResults[activeResultIndex]
+              ? `settings-search-result-${activeResultIndex}`
+              : undefined
+          }
+          onChange={setSearchQuery}
+          onEscapeEmpty={() => searchInputRef.current?.blur()}
+          placeholder="搜索设置..."
+          value={searchQuery}
+          variant="standard"
+        />
       </div>
       <div className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:gap-4">
         {normalizedQuery ? (

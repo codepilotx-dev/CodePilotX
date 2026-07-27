@@ -1,6 +1,5 @@
 import type React from 'react'
-import { Search } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import { useSearchContext } from './SearchContext.js'
 import { sessionDisplayTitle } from '../../uiTypes.js'
 import { cx } from '../../utils/cx.js'
@@ -22,14 +21,12 @@ export function SearchView(): React.ReactNode {
         <h1>查找项目与对话</h1>
         <p>搜索当前内存中的最近项目、会话名称和会话时间。</p>
       </div>
-      <label className="search-input-row">
-        <Search size={APP_ICON_SIZE} />
-        <input
-          value={query}
-          onChange={event => onQueryChange(event.target.value)}
-          placeholder="搜索项目名、会话名或时间"
-        />
-      </label>
+      <SearchInput
+        aria-label="搜索项目名、会话名或时间"
+        onChange={onQueryChange}
+        placeholder="搜索项目名、会话名或时间"
+        value={query}
+      />
       <div className="utility-grid">
         <section className="utility-card">
           <h2 className={cx('u-type-body', 'u-font-label', 'u-text-primary')}>
