@@ -28,6 +28,10 @@
 
 ### Fixed
 
+- [renderer] 统一搜索与可搜索下拉控件的图标、清除、焦点和键盘行为，并修复模型菜单样式受设置页加载顺序影响及旧搜索响应覆盖新结果的问题
+- [renderer/desktop] 修复会话时间线 SCSS 截断导致的 Renderer 编译失败，并为桌面页面补充内容安全策略，避免启动时出现 CSP 安全警告
+- [Agent] 修复 Windows SRT 误选 Microsoft Store PowerShell 导致工具命令拒绝访问，并强化文件路径与 apply_patch 的模型调用契约，减少无效工具重试
+- [Agent] 修复 Windows 大型工作区因重复 Read/Write ACL 传播导致的 SRT 初始化超时，并将故障 worker 的 EPIPE 收敛为单次工具失败，避免 Agent 整体退出
 - [renderer] 将会话和项目尾部元素间距调整为 `gap-3`，统一审批状态与操作控件的布局
 - [renderer] 侧栏分组的操作按钮和折叠箭头默认隐藏，仅在悬停分组标题时显示；箭头展开状态即时响应
 - [agent] 修复 Windows CRLF 文件的多行 Edit 失配、普通源码写入被安全规则误拒和 SRT 故障 worker 被复用的问题，恢复工作区可靠写入并保留沙箱失败关闭
@@ -50,6 +54,10 @@
 
 ### Changed
 
+- [renderer] 将项目 Hover Card 最大宽度调整为 300px，保持紧凑布局并支持路径换行
+- [renderer] 将项目 Hover Card 最大宽度调整为 350px
+- [renderer] 将项目 Hover Card 最大宽度进一步收窄至 360px，减少短内容场景的空白
+- [renderer] 将项目 Hover Card 最大宽度调整为 450px，减少浮层对会话内容的遮挡
 - [renderer] 对齐侧栏整理菜单的分组标题与排序层级，匹配 Codex 的菜单结构
 - [renderer] 将侧栏整理菜单的选中勾移至菜单项左侧，贴合 Codex 的菜单布局
 - [renderer] 将项目 Hover Card 调整为 Codex 风格，显示完整会话统计和全部项目目录

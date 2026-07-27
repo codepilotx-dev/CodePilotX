@@ -32,6 +32,10 @@ by the repository typecheck workflow.
 
 The SQLite session backend and the `node:sqlite` adapter live in a separate package, `@earendil-works/pi-storage-sqlite-node`, so the core package does not pull in runtime builtins or native SQLite dependencies by default. The backend accepts a runtime-specific SQLite factory, allowing other storage backends to ship as their own packages in the future.
 
+> **Version note:** This local fork uses the `0.81` `streamFunction` API.
+> Upstream `main` and `0.82` examples use `streamFn` and cannot be copied
+> verbatim. CodePilotX production orchestration uses `AgentHarness`.
+
 ## Quick Start
 
 ```typescript
