@@ -202,7 +202,7 @@ export function FileBreadcrumbToolbar({
           </button>
           <PopoverMenu
             align="end"
-            className="file-breadcrumb-open-popover"
+            className="file-breadcrumb-open-popover popover-menu--grid"
             open={openTargetMenu}
             side="bottom"
             sideOffset={6}

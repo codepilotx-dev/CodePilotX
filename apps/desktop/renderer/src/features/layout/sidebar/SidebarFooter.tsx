@@ -195,7 +195,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
       ref={ref}
     >
       <PopoverMenu
-        className="popover-sidebar-footer"
+        className="popover-sidebar-footer popover-menu--grid"
         open={menuOpen}
         side="top"
         width={Math.max(0, sidebarWidth - 12)}
@@ -400,7 +400,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
       </PopoverMenu>
       <PopoverMenu
         align="end"
-        className="popover-sidebar-help"
+        className="popover-sidebar-help popover-menu--grid"
         open={helpMenuOpen}
         side="top"
         width={190}

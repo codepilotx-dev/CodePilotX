@@ -2006,7 +2006,7 @@ export function ReviewCommitSourceSubmenu({
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
           alignOffset={-6}
-          className="popover-surface popover popover-sub-content popover-review-commits"
+          className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex"
           sideOffset={16}
           style={buildPopoverSizingStyle({ width: 320 })}
         >

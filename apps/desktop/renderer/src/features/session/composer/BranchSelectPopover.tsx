@@ -33,7 +33,7 @@ export function BranchSelectPopover({
   return (
     <PopoverMenu
       align={align}
-      className={className}
+      className={`popover-menu--grid ${className}`}
       disableOutsideDismiss={disableOutsideDismiss}
       open={open}
       side={side}

@@ -272,7 +272,7 @@ export function SidebarProjectGroup({
                 onClick={event => event.stopPropagation()}
               >
                   <PopoverMenu
-                    className="popover-sidebar-project"
+                    className="popover-sidebar-project popover-menu--grid"
                     open={menuOpen}
                     side="bottom"
                     triggerTabIndex={0}

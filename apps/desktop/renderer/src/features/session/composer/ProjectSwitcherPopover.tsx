@@ -59,7 +59,7 @@ export function ProjectSwitcherPopover({
   return (
     <PopoverMenu
       align={align}
-      className={className}
+      className={`popover-menu--grid ${className}`}
       open={open}
       side={side}
       sideOffset={sideOffset}

@@ -636,13 +636,6 @@
     font-weight: var(--font-weight-label);
   }
 
-  .popover-item {
-    grid-template-columns: minmax(0, 1fr) var(--app-icon-size);
-  }
-
-  .popover-item-leading {
-    display: none;
-  }
 }
 
 @media (forced-colors: active) {

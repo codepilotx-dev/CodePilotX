@@ -2024,7 +2024,7 @@ export function ComposerCard({
 
               {threadGoal ? (
                 <PopoverMenu
-                  className="popover-goal"
+                  className="popover-goal popover-menu--grid"
                   disableOutsideDismiss={debugMode}
                   open={openDropdown === "goal"}
                   side="top"

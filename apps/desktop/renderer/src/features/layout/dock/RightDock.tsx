@@ -717,7 +717,7 @@ function WorkbenchTabsHeader({
       <PopoverMenu
         align="end"
         avoidCollisions={false}
-        className="popover-right-dock-add"
+        className="popover-right-dock-add popover-menu--grid"
         collisionPadding={44}
         open={menuOpen}
         side="bottom"

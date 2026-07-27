@@ -407,6 +407,7 @@ export function PluginsView(): React.ReactNode {
                 </div>
                 <PopoverMenu
                   align="end"
+                  className="popover-menu--flex"
                   onOpenChange={setStatusMenuOpen}
                   open={statusMenuOpen}
                   trigger={

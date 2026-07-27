@@ -693,7 +693,7 @@ export function ConversationPage(): React.ReactNode {
         </span>
         <PopoverMenu
           align="start"
-          className="popover-session-actions"
+          className="popover-session-actions popover-menu--grid"
           open={sessionMenuOpen}
           width={220}
           trigger={
@@ -906,7 +906,7 @@ export function ConversationPage(): React.ReactNode {
           </Tooltip>
           <PopoverMenu
             align="end"
-            className="popover-open-targets"
+            className="popover-open-targets popover-menu--grid"
             open={openTargetMenuOpen}
             sideOffset={4}
             width={220}
@@ -1481,7 +1481,7 @@ function SessionSubmenu({
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
           alignOffset={-6}
-          className="popover-surface popover popover-sub-content"
+          className="popover-surface popover popover-sub-content popover-menu--grid"
           sideOffset={16}
           style={buildPopoverSizingStyle({ width: "auto" })}
         >

@@ -42,13 +42,11 @@ export function PopoverItem({
     <DropdownMenu.Item
       className={[
         'popover-item',
-        'tw:grid',
         'tw:min-h-8',
         'tw:w-full',
         'tw:min-w-0',
         'tw:cursor-pointer',
         'tw:items-center',
-        'tw:gap-2',
         'tw:rounded-md',
         'tw:px-2',
         'tw:py-1.5',

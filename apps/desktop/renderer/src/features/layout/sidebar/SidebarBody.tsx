@@ -525,7 +525,7 @@ function SidebarOrganizeMenu({
   return (
     <PopoverMenu
       align="end"
-      className="popover-sidebar-organize"
+      className="popover-sidebar-organize popover-menu--flex"
       open={open}
       side="bottom"
       triggerTabIndex={0}

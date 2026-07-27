@@ -687,6 +687,7 @@ function ApiKeyRow({
         </Button>
         <Dropdown
           align="end"
+          className="popover-menu--flex"
           trigger={(
             <IconButton disabled={busy} title={`更多 ${keyItem.label}`}>
               <MoreHorizontal aria-hidden />

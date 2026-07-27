@@ -1451,7 +1451,7 @@ export function WorkspaceReviewSidebar({
           <PopoverMenu
             align="start"
             avoidCollisions={false}
-            className="popover-review-scope"
+            className="popover-review-scope popover-menu--flex"
             disableOutsideDismiss={debugMode}
             open={scopeMenuOpen}
             side="bottom"
@@ -1586,7 +1586,7 @@ export function WorkspaceReviewSidebar({
               <span aria-hidden="true">→</span>
               <PopoverMenu
                 align="start"
-                className="popover-review-branches"
+                className="popover-review-branches popover-menu--flex"
                 open={branchPickerOpen}
                 sideOffset={4}
                 width={240}
@@ -1643,7 +1643,7 @@ export function WorkspaceReviewSidebar({
         <div className="review-sidebar-actions">
           <PopoverMenu
             align="end"
-            className="popover-review-more"
+            className="popover-review-more popover-menu--grid"
             disableOutsideDismiss={debugMode}
             open={moreMenuOpen}
             sideOffset={4}

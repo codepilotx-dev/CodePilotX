@@ -108,6 +108,7 @@ export function SidebarHeader(): React.ReactNode {
     <header className="sidebar-header">
       <PopoverMenu
         align="start"
+        className="popover-menu--flex"
         open={modeMenuOpen}
         side="bottom"
         width={184}
