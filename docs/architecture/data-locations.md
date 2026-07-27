@@ -45,9 +45,9 @@ Electron `userData` 保存窗口位置、外观、宠物浮窗位置、Chromium 
 
 ## 安装资源与系统目录
 
-安装目录只包含随版本发布的只读资源：Agent 可执行文件、Renderer、模型快照、SRT helper、图标、许可证和 notices。运行时不得创建 `<安装目录>\.codepilotx`，CodePilotX 不提供默认或隐式便携模式。
+安装目录只包含随版本发布的只读资源：Agent 可执行文件、Renderer、模型快照、图标、许可证和 notices。运行时不得创建 `<安装目录>\.codepilotx`，CodePilotX 不提供默认或隐式便携模式。
 
-无项目任务的用户文档位于 `%USERPROFILE%\Documents\CodePilotX`。凭据主密钥、SRT 安装状态和操作系统临时文件分别由 Windows 凭据库、SRT 安装器和系统临时目录管理，不迁入任何 `.codepilotx`。
+无项目任务的用户文档位于 `%USERPROFILE%\Documents\CodePilotX`。凭据主密钥和操作系统临时文件分别由 Windows 凭据库和系统临时目录管理，不迁入任何 `.codepilotx`。
 
 ## 显式覆盖
 

@@ -28,6 +28,8 @@
 
 ### Fixed
 
+- [Agent/Desktop] 修复桌面启动导航竞态、Electron 控制台与 CSP 警告，并用 Pi 约束工具稳定任务建议结构化输出，避免正常模型 RPC 被误报为慢请求
+- [Agent] 支持标准 unified hunk 并强化文件工具调用约束，减少 apply_patch 上下文歧义和写文件失败
 - [renderer] 完成审阅、模型中心、记忆设置与可搜索下拉的统一搜索控件迁移，修复图标错位、键盘交互和 Renderer 类型检查失败
 - [renderer] 统一搜索与可搜索下拉控件的图标、清除、焦点和键盘行为，并修复模型菜单样式受设置页加载顺序影响及旧搜索响应覆盖新结果的问题
 - [renderer/desktop] 修复会话时间线 SCSS 截断导致的 Renderer 编译失败，并为桌面页面补充内容安全策略，避免启动时出现 CSP 安全警告
@@ -55,6 +57,8 @@
 
 ### Changed
 
+- [Agent] 文件编辑主链对齐 Pi 批量 Edit，并将 apply_patch 调整为按需约束工具，减少模型生成补丁格式失败
+- [Agent/Desktop] Windows 命令执行改为 Pi Hook 门禁后的本机直跑，移除 SRT 初始化与安装界面，并补充分阶段脱敏执行日志
 - [renderer] 统一弹层菜单选中勾的尾部右对齐布局，并调整侧栏工作模式与整理菜单的选中态排列
 - [renderer] 将项目 Hover Card 最大宽度调整为 300px，保持紧凑布局并支持路径换行
 - [renderer] 将项目 Hover Card 最大宽度调整为 350px
