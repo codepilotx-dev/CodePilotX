@@ -5,6 +5,11 @@ type MatchRange = {
   end: number
 }
 
+export type EditOperation = {
+  oldText: string
+  newText: string
+}
+
 type NormalizedText = {
   text: string
   rawOffsets: number[]
@@ -29,7 +34,6 @@ const normalizeLineEndings = (value: string): NormalizedText => {
 const findMatchRanges = (
   content: string,
   oldString: string,
-  replaceAll: boolean,
 ): MatchRange[] => {
   const findNext = (offset: number) => {
     let index = content.indexOf(oldString, offset)
@@ -41,41 +45,30 @@ const findMatchRanges = (
 
   const first = findNext(0)
   if (first < 0) return []
-  if (!replaceAll) {
-    if (findNext(first + 1) >= 0) {
-      throw new AgentError("PATCH_CONTEXT_AMBIGUOUS", "编辑上下文不唯一；如需全部替换请设置 replace_all", 409)
-    }
-    return [{ start: first, end: first + oldString.length }]
+  if (findNext(first + 1) >= 0) {
+    throw new AgentError("PATCH_CONTEXT_AMBIGUOUS", "编辑上下文不唯一；请提供更多唯一上下文", 409)
   }
-
-  const ranges: MatchRange[] = []
-  for (let offset = 0; offset <= content.length - oldString.length;) {
-    const index = findNext(offset)
-    if (index < 0) break
-    ranges.push({ start: index, end: index + oldString.length })
-    offset = index + oldString.length
-  }
-  return ranges
+  return [{ start: first, end: first + oldString.length }]
 }
 
-const resolveMatchRanges = (
+const resolveMatchRange = (
   content: string,
   oldString: string,
-  replaceAll: boolean,
-): MatchRange[] => {
-  const exact = findMatchRanges(content, oldString, replaceAll)
-  if (exact.length > 0) return exact
+): MatchRange => {
+  const exact = findMatchRanges(content, oldString)
+  if (exact.length > 0) return exact[0]!
 
   const normalizedContent = normalizeLineEndings(content)
   const normalizedOldString = normalizeLineEndings(oldString).text
-  const normalizedRanges = findMatchRanges(normalizedContent.text, normalizedOldString, replaceAll)
+  const normalizedRanges = findMatchRanges(normalizedContent.text, normalizedOldString)
   if (normalizedRanges.length === 0) {
     throw new AgentError("PATCH_CONTEXT_NOT_FOUND", "编辑上下文未找到", 409)
   }
-  return normalizedRanges.map(({ start, end }) => ({
-    start: normalizedContent.rawOffsets[start]!,
-    end: normalizedContent.rawOffsets[end]!,
-  }))
+  const normalizedRange = normalizedRanges[0]!
+  return {
+    start: normalizedContent.rawOffsets[normalizedRange.start]!,
+    end: normalizedContent.rawOffsets[normalizedRange.end]!,
+  }
 }
 
 const lineEndingAt = (content: string, lineFeedIndex: number): "\r\n" | "\n" =>
@@ -108,19 +101,39 @@ const adaptReplacementLineEndings = (
   return replacement.replace(/\r\n|\n/g, lineEnding)
 }
 
-export const applyEditText = (
+export const applyEditsText = (
   content: string,
-  oldString: string,
-  newString: string,
-  replaceAll = false,
+  edits: readonly EditOperation[],
 ) => {
-  if (!oldString) throw new AgentError("INVALID_TOOL_INPUT", "old_string 必须是非空字符串", 400)
-  const ranges = resolveMatchRanges(content, oldString, replaceAll)
+  if (edits.length === 0) throw new AgentError("INVALID_TOOL_INPUT", "edits 至少需要一项编辑", 400)
+  const resolved = edits
+    .map((edit, index) => {
+      if (!edit.oldText) throw new AgentError("INVALID_TOOL_INPUT", `第 ${index + 1} 项 oldText 必须是非空字符串`, 400)
+      const range = resolveMatchRange(content, edit.oldText)
+      return {
+        ...range,
+        index,
+        replacement: adaptReplacementLineEndings(content, range, edit.newText),
+      }
+    })
+    .sort((left, right) => left.start - right.start || left.end - right.end)
+
+  for (let index = 1; index < resolved.length; index += 1) {
+    const previous = resolved[index - 1]!
+    const current = resolved[index]!
+    if (current.start < previous.end) {
+      throw new AgentError(
+        "PATCH_OVERLAPPING_HUNKS",
+        `第 ${previous.index + 1} 项和第 ${current.index + 1} 项编辑范围重叠；请合并为一项唯一编辑`,
+        409,
+      )
+    }
+  }
+
   let updated = content
-  for (let index = ranges.length - 1; index >= 0; index -= 1) {
-    const range = ranges[index]!
-    const replacement = adaptReplacementLineEndings(content, range, newString)
-    updated = `${updated.slice(0, range.start)}${replacement}${updated.slice(range.end)}`
+  for (let index = resolved.length - 1; index >= 0; index -= 1) {
+    const edit = resolved[index]!
+    updated = `${updated.slice(0, edit.start)}${edit.replacement}${updated.slice(edit.end)}`
   }
   return updated
 }

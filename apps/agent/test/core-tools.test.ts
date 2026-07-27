@@ -8,6 +8,7 @@ import { ToolExecutor, type ToolExecutorOptions } from "../src/tool/ToolExecutor
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 import type { ToolingResolver, ToolProcessRunner } from "../src/tool/ToolingRuntime"
+import { adaptToolDefinition } from "../src/orchestration/pi/PiToolAdapter"
 
 const temporary: string[] = []
 afterEach(async () => Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
@@ -17,6 +18,8 @@ const fixture = async (runtime: {
   runToolProcess?: ToolProcessRunner
   authorizeShell?: ToolExecutorOptions["authorizeShell"]
   validateConfigDocument?: ToolExecutorOptions["validateConfigDocument"]
+  hooks?: ToolExecutorOptions["hooks"]
+  logger?: ToolExecutorOptions["logger"]
 } = {}) => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-core-tools-"))
   temporary.push(root)
@@ -28,14 +31,8 @@ const fixture = async (runtime: {
     ...(runtime.validateConfigDocument
       ? { validateConfigDocument: runtime.validateConfigDocument }
       : {}),
-    sandbox: {
-      getStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-      refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-      install: async () => undefined,
-      uninstall: async () => undefined,
-      dispose: async () => undefined,
-      run: async () => { throw new Error("not used") },
-    },
+    ...(runtime.hooks ? { hooks: runtime.hooks } : {}),
+    ...(runtime.logger ? { logger: runtime.logger } : {}),
     authorizeShell: runtime.authorizeShell
       ?? (async () => ({ decision: "allow", risk: "low", reason: "test" })),
     resolveTooling: runtime.resolveTooling ?? (async (id) => ({ available: true, path: `${id}.exe`, source: "system", version: "test" })),
@@ -119,9 +116,11 @@ describe("核心工具面", () => {
     await executor.execute(
       "Edit",
       {
-        file_path: "@codepilotx/config.toml",
-        old_string: 'model = "old"\nreasoning = "high"',
-        new_string: 'model = "new"\nreasoning = "medium"',
+        path: "@codepilotx/config.toml",
+        edits: [{
+          oldText: 'model = "old"\nreasoning = "high"',
+          newText: 'model = "new"\nreasoning = "medium"',
+        }],
       },
       {
         ...context,
@@ -178,12 +177,12 @@ describe("核心工具面", () => {
     expect(properties("Read")).toEqual(["file_path", "offset", "limit"])
     expect(properties("apply_patch")).toEqual(["patch"])
     expect(properties("Write")).toEqual(["file_path", "content"])
-    expect(properties("Edit")).toEqual(["file_path", "old_string", "new_string", "replace_all"])
+    expect(properties("Edit")).toEqual(["path", "edits"])
     expect(properties("PowerShell")).toEqual(["command", "cwd", "timeout", "description", "additionalPermissions"])
     expect(properties("ToolSearch")).toEqual(["query", "max_results"])
     expect(property("Read", "file_path")?.description).toContain("只接受文件")
     expect(property("Write", "file_path")?.description).toContain("必须先成功 Read")
-    expect(property("Edit", "file_path")?.description).toContain("必须先成功 Read")
+    expect(property("Edit", "path")?.description).toContain("必须先成功 Read")
     expect(property("Glob", "path")?.description).toContain("不得传文件路径")
     expect(property("Grep", "path")?.description).toContain("限制文件范围请使用 glob")
     expect(property("apply_patch", "patch")?.description).toContain("*** Begin Patch")
@@ -194,17 +193,22 @@ describe("核心工具面", () => {
     expect(() => executor.definition("workspace_read")).toThrow()
     expect(() => executor.definition("shell")).toThrow()
     const defaultPlan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main" })
-    expect(defaultPlan.eager).toContain("apply_patch")
-    expect(defaultPlan.eager).not.toContain("Edit")
-    expect(defaultPlan.deferred).toContain("Edit")
-    const legacySkillPlan = executor.exposurePlan({
+    expect(defaultPlan.eager).toContain("Edit")
+    expect(defaultPlan.eager).not.toContain("apply_patch")
+    expect(defaultPlan.deferred).toContain("apply_patch")
+    const editSkillPlan = executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
       profile: "main",
       allowedTools: ["Edit"],
     })
-    expect(legacySkillPlan.exposed).toContain("Edit")
-    expect(legacySkillPlan.exposed).not.toContain("apply_patch")
+    expect(editSkillPlan.exposed).toContain("Edit")
+    expect(editSkillPlan.exposed).not.toContain("apply_patch")
+    await expect(executor.execute("Edit", {
+      file_path: "legacy.txt",
+      old_string: "old",
+      new_string: "new",
+    }, context)).rejects.toMatchObject({ code: "INVALID_TOOL_INPUT" })
   })
 
   test("ToolSearch 返回延迟注册表激活提示，进度由定义回调统一上报", async () => {
@@ -233,6 +237,27 @@ describe("核心工具面", () => {
     expect(progress).toEqual([{ message: "正在读取 progress.txt" }])
   })
 
+  test("Pi 工具适配器归一化批量 Edit 参数并透传 apply_patch grammar", async () => {
+    const { executor } = await fixture()
+    const options = { executor, request: {} as never }
+    const edit = adaptToolDefinition(executor.definition("Edit"), options)
+    expect(edit.prepareArguments?.({
+      path: "source.txt",
+      edits: JSON.stringify([{ oldText: "before", newText: "after" }]),
+    })).toEqual({
+      path: "source.txt",
+      edits: [{ oldText: "before", newText: "after" }],
+    })
+
+    const patch = adaptToolDefinition(executor.definition("apply_patch"), options)
+    expect(patch.constrainedSampling).toMatchObject({
+      type: "grammar",
+      variants: {
+        openai_lark: expect.stringContaining('begin_patch: "*** Begin Patch" LF'),
+      },
+    })
+  })
+
   test("Read 返回快照，Write 和 Edit 拒绝陈旧快照", async () => {
     const { root, executor, context } = await fixture()
     await writeFile(join(root, "source.txt"), "before", "utf8")
@@ -241,33 +266,71 @@ describe("核心工具面", () => {
 
     await writeFile(join(root, "source.txt"), "changed elsewhere", "utf8")
     await expect(executor.execute("Write", { file_path: "source.txt", content: "overwrite" }, context)).rejects.toMatchObject({ code: "WORKSPACE_FILE_STALE" })
-    await expect(executor.execute("Edit", { file_path: "source.txt", old_string: "changed", new_string: "edited" }, context)).rejects.toMatchObject({ code: "WORKSPACE_FILE_STALE" })
+    await expect(executor.execute("Edit", {
+      path: "source.txt",
+      edits: [{ oldText: "changed", newText: "edited" }],
+    }, context)).rejects.toMatchObject({ code: "WORKSPACE_FILE_STALE" })
   })
 
-  test("Edit replace_all 使用执行器快照替换全部匹配", async () => {
+  test("Edit 基于同一原文原子应用多项编辑", async () => {
     const { root, executor, context } = await fixture()
-    await writeFile(join(root, "replace.txt"), "x x x", "utf8")
-    await executor.execute("Read", { file_path: "replace.txt" }, context)
-    await executor.execute("Edit", { file_path: "replace.txt", old_string: "x", new_string: "y", replace_all: true }, context)
-    expect(await Bun.file(join(root, "replace.txt")).text()).toBe("y y y")
+    const bom = Buffer.from([0xef, 0xbb, 0xbf])
+    const path = join(root, "batch.txt")
+    await writeFile(path, Buffer.concat([bom, Buffer.from("first middle last", "utf8")]))
+    await executor.execute("Read", { file_path: "batch.txt" }, context)
+    await executor.execute("Edit", {
+      path: "batch.txt",
+      edits: [
+        { oldText: "first", newText: "1" },
+        { oldText: "last", newText: "3" },
+      ],
+    }, context)
+    expect(await Bun.file(path).arrayBuffer().then((value) => Buffer.from(value))).toEqual(
+      Buffer.concat([bom, Buffer.from("1 middle 3", "utf8")]),
+    )
+  })
+
+  test("Edit 在上下文不唯一或编辑范围重叠时保持文件不变", async () => {
+    const { root, executor, context } = await fixture()
+    const ambiguousPath = join(root, "ambiguous.txt")
+    await writeFile(ambiguousPath, "same middle same", "utf8")
+    await executor.execute("Read", { file_path: "ambiguous.txt" }, context)
+    await expect(executor.execute("Edit", {
+      path: "ambiguous.txt",
+      edits: [{ oldText: "same", newText: "next" }],
+    }, context)).rejects.toMatchObject({ code: "PATCH_CONTEXT_AMBIGUOUS" })
+    expect(await Bun.file(ambiguousPath).text()).toBe("same middle same")
+
+    const overlapPath = join(root, "overlap.txt")
+    await writeFile(overlapPath, "abcdef", "utf8")
+    await executor.execute("Read", { file_path: "overlap.txt" }, context)
+    await expect(executor.execute("Edit", {
+      path: "overlap.txt",
+      edits: [
+        { oldText: "abc", newText: "left" },
+        { oldText: "bcd", newText: "right" },
+      ],
+    }, context)).rejects.toMatchObject({ code: "PATCH_OVERLAPPING_HUNKS" })
+    expect(await Bun.file(overlapPath).text()).toBe("abcdef")
   })
 
   test("Edit 将 Read 返回的换行上下文应用到 CRLF 文件并保持原换行", async () => {
     const { root, executor, context } = await fixture()
     const path = join(root, "crlf.txt")
-    await writeFile(path, "alpha\r\nbeta\r\n--\r\nalpha\r\nbeta\r\n", "utf8")
+    await writeFile(path, "first\r\nalpha\r\nbeta\r\n--\r\nsecond\r\nalpha\r\nbeta\r\n", "utf8")
     await executor.execute("Read", { file_path: "crlf.txt" }, context)
     await executor.execute(
       "Edit",
       {
-        file_path: "crlf.txt",
-        old_string: "alpha\nbeta",
-        new_string: "gamma\ndelta",
-        replace_all: true,
+        path: "crlf.txt",
+        edits: [
+          { oldText: "first\nalpha\nbeta", newText: "first\ngamma\ndelta" },
+          { oldText: "second\nalpha\nbeta", newText: "second\ngamma\ndelta" },
+        ],
       },
       context,
     )
-    expect(await Bun.file(path).text()).toBe("gamma\r\ndelta\r\n--\r\ngamma\r\ndelta\r\n")
+    expect(await Bun.file(path).text()).toBe("first\r\ngamma\r\ndelta\r\n--\r\nsecond\r\ngamma\r\ndelta\r\n")
   })
 
   test("Edit 不会把裸 LF 精确命中到 CRLF 的中间位置", async () => {
@@ -277,7 +340,7 @@ describe("核心工具面", () => {
     await executor.execute("Read", { file_path: "crlf-boundary.txt" }, context)
     await executor.execute(
       "Edit",
-      { file_path: "crlf-boundary.txt", old_string: "\nb", new_string: "\nc" },
+      { path: "crlf-boundary.txt", edits: [{ oldText: "\nb", newText: "\nc" }] },
       context,
     )
     expect(await Bun.file(path).text()).toBe("a\r\nc\r\n")
@@ -288,7 +351,10 @@ describe("核心工具面", () => {
     const path = join(root, "source.txt")
     await writeFile(path, "before", "utf8")
     await executor.execute("Read", { file_path: path }, context)
-    await executor.execute("Edit", { file_path: "source.txt", old_string: "before", new_string: "after" }, context)
+    await executor.execute("Edit", {
+      path: "source.txt",
+      edits: [{ oldText: "before", newText: "after" }],
+    }, context)
     expect(await Bun.file(path).text()).toBe("after")
   })
 
@@ -626,5 +692,65 @@ describe("核心工具面", () => {
       code: "WORKSPACE_SEARCH_TIMEOUT",
     })
     expect(processCalls).toBe(1)
+  })
+
+  test("文件修改失败日志记录安全阶段和统计且不包含路径或正文", async () => {
+    const warnings: Array<{ event: string; fields: Record<string, unknown> }> = []
+    const logger = {
+      debug: () => undefined,
+      info: () => undefined,
+      error: () => undefined,
+      warn: (event: string, fields: Record<string, unknown>) => warnings.push({ event, fields }),
+    } as unknown as NonNullable<ToolExecutorOptions["logger"]>
+    const hooks = {
+      run: async (event: string) => {
+        if (event.startsWith("post_tool_")) throw new Error("post hook secret")
+        return []
+      },
+    } as unknown as NonNullable<ToolExecutorOptions["hooks"]>
+    const { root, executor, context } = await fixture({ logger, hooks })
+
+    await expect(executor.execute("Write", {
+      file_path: "C:\\Users\\Alice\\private.txt",
+      content: 7,
+    }, context)).rejects.toMatchObject({ code: "INVALID_TOOL_INPUT" })
+
+    await expect(executor.execute("Write", {
+      file_path: "denied.txt",
+      content: "authorization-secret",
+    }, {
+      ...context,
+      permissionConfig: {
+        sandboxMode: "read-only",
+        approvalPolicy: "never",
+        approvalsReviewer: "user",
+      },
+    })).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
+
+    await writeFile(join(root, "existing.txt"), "old", "utf8")
+    await expect(executor.execute("Write", {
+      file_path: "existing.txt",
+      content: "execute-secret",
+    }, context)).rejects.toBeInstanceOf(AgentError)
+
+    await executor.execute("Write", {
+      file_path: "created.txt",
+      content: "post-hook-secret",
+    }, context)
+
+    const fileFailures = warnings.filter(({ event }) => event === "file-tool.execution.failed")
+    const phases = fileFailures.map(({ fields }) => (fields.details as { phase: string }).phase)
+    expect(phases).toContain("normalize")
+    expect(phases).toContain("authorization")
+    expect(phases).toContain("execute")
+    expect(phases).toContain("post-hook")
+    const serialized = JSON.stringify(fileFailures)
+    expect(serialized).not.toContain("Alice")
+    expect(serialized).not.toContain("authorization-secret")
+    expect(serialized).not.toContain("execute-secret")
+    expect(serialized).not.toContain("post-hook-secret")
+    expect(serialized).not.toContain("post hook secret")
+    expect(serialized).toContain("[outside-workspace]")
+    expect(serialized).toContain("\"inputBytes\":")
   })
 })

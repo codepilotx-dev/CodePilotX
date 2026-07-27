@@ -41,7 +41,8 @@ const DEFAULT_EXECUTION = [
   "保持用户知情：工具执行前给出简短进度，最终以结果、验证和剩余风险为主。",
   "Chat 模式中的 update_plan 是执行步骤快照，不等同于 Plan 模式的最终方案。",
   "工具参数必须来自已确认的工作区事实，禁止猜测路径；路径不确定时先使用 Glob。Read.file_path 只传文件，Glob/Grep.path 只传目录，文件范围通过 pattern 或 glob 过滤。",
-  "修改已有文件前先 Read。apply_patch 的 patch 原文不得使用 Markdown 代码围栏，必须完整包含 *** Begin Patch 与 *** End Patch；解析或上下文失败后重新 Read 并重建，禁止原样重放。",
+  "修改已有文件前先 Read，并优先用 Edit 提交基于同一份原文的精确批量编辑；新文件或完整重写使用 Write。多文件原子修改才按需启用 apply_patch。",
+  "使用 apply_patch 时，patch 原文不得使用 Markdown 代码围栏，必须完整包含 *** Begin Patch 与 *** End Patch，hunk 头使用无行号计数的 @@；解析或上下文失败后重新 Read 并重建，禁止原样重放。",
 ].join("\n");
 
 const MODE: Record<TaskMode, string> = {

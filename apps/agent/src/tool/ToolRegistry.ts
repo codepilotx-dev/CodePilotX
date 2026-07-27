@@ -12,10 +12,11 @@ import {
 import type { PermissionConfig, SandboxMode } from "@codepilotx/shared/thread"
 import type { Model } from "@codepilotx/model-schema"
 import type { ToolExecutionMode as PiToolExecutionMode } from "@codepilotx/pi-agent-core"
+import type { Tool as PiAiTool } from "@earendil-works/pi-ai"
 import { isAbsolute, relative, resolve } from "node:path"
 import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
 import { nativeGlobWorkspace, nativeGrepWorkspace } from "./NativeWorkspaceSearch"
-import { applyEditText } from "./Edit/applyEditText"
+import { applyEditsText } from "./Edit/applyEditText"
 import { applyPatchDefinition } from "./ApplyPatch/definition"
 
 export type ToolCapabilities = {
@@ -69,6 +70,10 @@ export interface ToolCatalogEntry<Input = unknown, Output = unknown> {
   visibility: ToolVisibility
   executionMode: ToolExecutionMode
   inputSchema: Record<string, unknown>
+  /** Normalizes provider-specific argument encodings before schema validation. */
+  prepareArguments?: (input: unknown) => unknown
+  /** Optional provider-side constrained sampling configuration. */
+  constrainedSampling?: PiAiTool["constrainedSampling"]
   /** Structured provenance used by permission and routing decisions. */
   origin?: ToolOrigin
   /** Host-only inspection performed before hooks, review, or execution. */
@@ -113,6 +118,24 @@ const allModes = ["chat", "plan"] as const
 const allProfiles = ["main", "default", "explorer", "worker"] as const
 const noCapabilities = (): ToolCapabilities => ({ filesystem: "none", network: "none", process: false, externalState: false, userInteraction: false })
 const jsonObject = (properties: Record<string, unknown>, required?: string[]) => ({ type: "object", properties, additionalProperties: false, ...(required ? { required } : {}) })
+const editOperationSchema = z.object({
+  oldText: z.string().min(1),
+  newText: z.string(),
+}).strict()
+const editInputSchema = z.object({
+  path: z.string().min(1),
+  edits: z.array(editOperationSchema).min(1),
+}).strict()
+const normalizePiEditInput = (input: unknown) => {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input
+  const edits = (input as Record<string, unknown>).edits
+  if (typeof edits !== "string") return input
+  try {
+    return { ...input, edits: JSON.parse(edits) }
+  } catch {
+    return input
+  }
+}
 const shellSchema = z.object({
   command: z.string().min(1).max(32_000),
   cwd: z.string().min(1).optional(),
@@ -301,16 +324,28 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     },
   },
   {
-    sdkName: "Edit", name: "workspace.edit", description: "编辑工作区文件。文件必须先 Read；replace_all 默认为 false。",
-    schema: z.object({ file_path: z.string().min(1), old_string: z.string().min(1), new_string: z.string(), replace_all: z.boolean().default(false) }).strict(),
-    inputSchema: jsonObject({ file_path: { type: "string", description: "已存在的工作区文件路径；必须先成功 Read 同一路径，并基于最新原文编辑。" }, old_string: { type: "string", minLength: 1 }, new_string: { type: "string" }, replace_all: { type: "boolean", default: false } }, ["file_path", "old_string", "new_string"]),
-    capabilities: { ...noCapabilities(), filesystem: "workspace-write", externalState: true }, allowedModes: ["chat"], allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "deferred", executionMode: "sequential",
-    progress: (input) => ({ message: `正在编辑 ${input.file_path}` }),
+    sdkName: "Edit", name: "workspace.edit", description: "对已 Read 的工作区文件执行一组精确且原子的文本编辑。每项 oldText 必须在原文件中唯一匹配，所有编辑均基于同一份原文定位。",
+    schema: editInputSchema,
+    inputSchema: jsonObject({
+      path: { type: "string", description: "已存在的工作区文件路径；必须先成功 Read 同一路径，并基于最新完整原文编辑。" },
+      edits: {
+        type: "array",
+        minItems: 1,
+        description: "要原子应用的编辑列表；每项 oldText 必须包含足够上下文以保证唯一匹配。",
+        items: jsonObject({
+          oldText: { type: "string", minLength: 1, description: "文件中精确且唯一存在的原文。" },
+          newText: { type: "string", description: "用于替换 oldText 的新文本；空字符串表示删除。" },
+        }, ["oldText", "newText"]),
+      },
+    }, ["path", "edits"]),
+    prepareArguments: normalizePiEditInput,
+    capabilities: { ...noCapabilities(), filesystem: "workspace-write", externalState: true }, allowedModes: ["chat"], allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "eager", executionMode: "sequential",
+    progress: (input) => ({ message: `正在编辑 ${input.path}`, completed: 0, total: input.edits.length }),
     execute: async (input, context) => {
-      const current = await context.workspace.readEditorFile(input.file_path)
+      const current = await context.workspace.readEditorFile(input.path)
       if (!context.readSnapshot || context.readSnapshot.sha256 !== current.revision.sha256 || context.readSnapshot.mtimeMs !== current.revision.mtimeMs) throw new AgentError("WORKSPACE_FILE_STALE", "文件内容已变化或缺少完整 Read 快照，拒绝编辑", 409, { currentRevision: current.revision })
-      const content = applyEditText(current.content, input.old_string, input.new_string, input.replace_all)
-      const saved = await context.workspace.saveEditorFile(input.file_path, content, context.readSnapshot)
+      const content = applyEditsText(current.content, input.edits)
+      const saved = await context.workspace.saveEditorFile(input.path, content, context.readSnapshot)
       if (saved.outcome === "conflict") throw new AgentError("WORKSPACE_FILE_STALE", "文件在编辑前发生变化，拒绝写入", 409, { currentRevision: saved.revision })
       await context.fileSaved?.({ filePath: current.path, content })
       return { operation: "edit", path: current.path, beforeSha256: current.revision.sha256, afterSha256: saved.revision.sha256, revision: saved.revision }
@@ -353,7 +388,9 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     execute: grepWorkspace,
   },
   ...(["Bash", "PowerShell"] as const).map((sdkName): ToolDefinition<any, any> => ({
-    sdkName, name: sdkName, description: sdkName === "Bash" ? "以工作区为默认 cwd，通过统一权限、Hook、幂等与沙箱边界执行 Bash 命令。禁止后台和绕过沙箱。" : "以工作区为默认 cwd，通过统一权限、Hook、幂等与沙箱边界执行 PowerShell 命令。禁止后台和绕过沙箱。",
+    sdkName, name: sdkName, description: sdkName === "Bash"
+      ? "以工作区为默认 cwd，经 Pi tool_call、统一权限、Hook、hard-deny 与幂等门禁后，以当前用户身份执行 Bash 命令。计划模式禁用；无 OS 文件或网络沙箱。"
+      : "以工作区为默认 cwd，经 Pi tool_call、统一权限、Hook、hard-deny 与幂等门禁后，以当前用户身份执行 PowerShell 命令。计划模式禁用；无 OS 文件或网络沙箱。",
     schema: shellSchema, inputSchema: shellInputSchema,
     capabilities: { filesystem: "host-write", network: "declared", process: true, externalState: true, userInteraction: false }, allowedModes: allModes, allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "eager", executionMode: "sequential",
     progress: () => ({ message: `正在执行 ${sdkName}` }),
@@ -393,7 +430,7 @@ export const toolMayMutate = (tool: ToolCatalogEntry) => tool.capabilities.files
 const isShell = (tool: ToolCatalogEntry) => tool.sdkName === "Bash" || tool.sdkName === "PowerShell"
 export const toolAllowedInTaskMode = (tool: ToolCatalogEntry, mode: TaskMode) =>
   tool.allowedModes.includes(mode)
-  && (mode !== "plan" || isShell(tool) || !toolMayMutate(tool))
+  && (mode !== "plan" || !toolMayMutate(tool))
 export const toolAllowedInSandbox = (tool: ToolCatalogEntry, mode: SandboxMode) =>
   mode !== "read-only"
   || isShell(tool)

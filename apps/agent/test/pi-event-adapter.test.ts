@@ -13,6 +13,9 @@ describe("PiEventAdapter", () => {
     expect(input).toEqual({
       operation: "apply_patch",
       patchBytes: expect.any(Number),
+      hunkCount: 1,
+      additions: 1,
+      deletions: 1,
       patch: "[补丁正文已隐藏]",
       affectedPaths: [{ path: "source.ts", operation: "update" }],
     })

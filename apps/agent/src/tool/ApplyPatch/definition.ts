@@ -28,6 +28,20 @@ const MAX_AFFECTED_FILES = 100
 const MAX_FILE_BYTES = 10 * 1024 * 1024
 const MAX_STAGED_BYTES = 50 * 1024 * 1024
 
+const APPLY_PATCH_LARK_GRAMMAR = String.raw`start: begin_patch operation+ end_patch
+begin_patch: "*** Begin Patch" LF
+end_patch: "*** End Patch" LF?
+operation: add_file | update_file
+add_file: "*** Add File: " filename LF add_line+
+update_file: "*** Update File: " filename LF change+
+filename: /(.+)/
+add_line: "+" /(.*)/ LF
+change: change_context change_line+ eof_line?
+change_context: ("@@" | "@@ " /(.+)/) LF
+change_line: ("+" | "-" | " ") /(.*)/ LF
+eof_line: "*** End of File" LF
+%import common.LF`
+
 const applyPatchInputSchema = z.object({
   patch: z.string().min(1).max(MAX_PATCH_BYTES),
 }).strict()
@@ -367,8 +381,9 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
   sdkName: "apply_patch",
   name: "workspace.apply_patch",
   description: [
-    "使用确定性的多文件补丁新增或更新工作区 UTF-8 文本文件。Update File 必须先 Read 每个目标文件。",
+    "按需使用确定性的多文件补丁新增或更新工作区 UTF-8 文本文件。普通单文件编辑应优先使用 Edit；Update File 必须先 Read 每个目标文件。",
     "格式必须以 *** Begin Patch 开始、以 *** End Patch 结束；支持 *** Add File: path、*** Update File: path、多个 @@ hunk 和 *** End of File。",
+    "新补丁的 hunk 头必须使用不含行号计数的 @@ 或 @@ <精确上下文>；不要生成 @@ -旧行,+新行 @@。",
     "上下文必须精确且唯一；只等价处理 LF/CRLF，不进行空白、缩进或 Unicode 模糊匹配。",
     "当前不支持 Delete File 或 Move to；Add File 的每一行必须以 + 开头。",
   ].join("\n"),
@@ -381,6 +396,7 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
         description: [
           "完整补丁原文。首行必须直接是 *** Begin Patch，禁止 Markdown 代码围栏；末行必须是 *** End Patch。",
           "最小示例：\n*** Begin Patch\n*** Add File: path/to/file.txt\n+content\n*** End Patch",
+          "Update 示例：\n*** Begin Patch\n*** Update File: path/to/file.txt\n@@\n-old\n+new\n*** End Patch",
           "Update File 必须基于刚刚 Read 的完整原文；解析或 context 失败后重新 Read 并重建补丁，禁止原样重放。",
         ].join("\n"),
         minLength: 1,
@@ -389,6 +405,12 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
     },
     required: ["patch"],
     additionalProperties: false,
+  },
+  constrainedSampling: {
+    type: "grammar",
+    variants: {
+      openai_lark: APPLY_PATCH_LARK_GRAMMAR,
+    },
   },
   capabilities: {
     filesystem: "workspace-write",
@@ -400,7 +422,7 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
   allowedModes: ["chat"],
   allowedProfiles: ["main", "default", "worker"],
   approvalStrategy: "policy",
-  visibility: "eager",
+  visibility: "deferred",
   executionMode: "sequential",
   inspectInput: async (input, context) => {
     const prepared = await preparePatch(input, context)

@@ -32,8 +32,13 @@ export function adaptToolDefinition(definition: ToolDefinition, options: PiToolA
     label: definition.sdkName,
     description: descriptionFor(definition, request),
     parameters: Type.Unsafe(definition.inputSchema),
+    ...(definition.constrainedSampling !== undefined
+      ? { constrainedSampling: definition.constrainedSampling }
+      : {}),
     executionMode: definition.executionMode,
-    prepareArguments: (input) => definition.schema.parse(input),
+    prepareArguments: (input) => definition.schema.parse(
+      definition.prepareArguments?.(input) ?? input,
+    ),
     execute: async (toolCallID, input, signal, onUpdate) => {
       const parsed = definition.schema.parse(input) as Record<string, unknown>
       const approvedAuthorizationFingerprint =
