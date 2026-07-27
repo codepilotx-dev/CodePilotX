@@ -17,14 +17,14 @@ const sourceName = (sourceId: string): string | undefined => {
 }
 
 export function rendererConsoleRecord(
-  level: number,
+  level: "info" | "warning" | "error" | "debug",
   message: string,
   line: number,
   sourceId: string,
 ): RendererConsoleRecord | null {
-  if (level < 2) return null
+  if (level !== "warning" && level !== "error") return null
   return {
-    level: level >= 3 ? "error" : "warning",
+    level,
     message,
     line,
     ...(sourceName(sourceId) ? { source: sourceName(sourceId) } : {}),

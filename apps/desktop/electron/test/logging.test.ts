@@ -45,14 +45,15 @@ describe("desktop logging", () => {
   })
 
   test("renderer 只保留 warning/error 且 source 仅保留文件名", () => {
-    expect(rendererConsoleRecord(1, "info", 1, "file:///C:/private/source.ts")).toBeNull()
-    expect(rendererConsoleRecord(2, "warning", 12, "file:///C:/private/source.ts")).toEqual({
+    expect(rendererConsoleRecord("info", "info", 1, "file:///C:/private/source.ts")).toBeNull()
+    expect(rendererConsoleRecord("debug", "debug", 1, "file:///C:/private/source.ts")).toBeNull()
+    expect(rendererConsoleRecord("warning", "warning", 12, "file:///C:/private/source.ts")).toEqual({
       level: "warning",
       message: "warning",
       line: 12,
       source: "source.ts",
     })
-    expect(rendererConsoleRecord(3, "error", 15, "http://localhost/src/page.tsx")).toEqual({
+    expect(rendererConsoleRecord("error", "error", 15, "http://localhost/src/page.tsx")).toEqual({
       level: "error",
       message: "error",
       line: 15,

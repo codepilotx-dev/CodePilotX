@@ -12,6 +12,7 @@ import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { rendererConsoleRecord } from "../logging/renderer-console.js"
 import {
   isAllowedApplicationUrl,
+  isApplicationOriginUrl,
   isSafeExternalUrl,
   normalizeOrigin,
 } from "../security/navigation.js"
@@ -107,7 +108,8 @@ export class WindowManager {
     const navigationGeneration = ++this.#navigationGeneration
     this.#startupPageActive = false
     const mainWindow = this.#ensureMainWindow()
-    this.#allowedApplicationOrigin = normalizeOrigin(agentOrigin)
+    const applicationOrigin = normalizeOrigin(agentOrigin)
+    this.#allowedApplicationOrigin = applicationOrigin
     this.#setThemeBackground(mainWindow)
     try {
       await new Promise<void>((resolveLoad, rejectLoad) => {
@@ -125,6 +127,14 @@ export class WindowManager {
           )
         }, APPLICATION_LOAD_TIMEOUT_MS)
         const onFinished = () => {
+          if (
+            !isApplicationOriginUrl(
+              mainWindow.webContents.getURL(),
+              applicationOrigin,
+            )
+          ) {
+            return
+          }
           cleanup()
           resolveLoad()
         }
@@ -136,6 +146,7 @@ export class WindowManager {
           isMainFrame: boolean,
         ) => {
           if (!isMainFrame) return
+          if (!isApplicationOriginUrl(validatedURL, applicationOrigin)) return
           cleanup()
           this.#logger.error("desktop.page-load-failed", {
             errorCode,
@@ -153,10 +164,10 @@ export class WindowManager {
           mainWindow.webContents.removeListener("did-finish-load", onFinished)
           mainWindow.webContents.removeListener("did-fail-load", onFailed)
         }
-        mainWindow.webContents.once("did-finish-load", onFinished)
+        mainWindow.webContents.on("did-finish-load", onFinished)
         mainWindow.webContents.on("did-fail-load", onFailed)
         void mainWindow
-          .loadURL(this.#allowedApplicationOrigin ?? agentOrigin)
+          .loadURL(applicationOrigin)
           .catch((error) => {
             cleanup()
             rejectLoad(error)
@@ -234,8 +245,13 @@ export class WindowManager {
     })
     mainWindow.webContents.on(
       "console-message",
-      (_event, level, message, line, sourceId) => {
-        const record = rendererConsoleRecord(level, message, line, sourceId)
+      (details) => {
+        const record = rendererConsoleRecord(
+          details.level,
+          details.message,
+          details.lineNumber,
+          details.sourceId,
+        )
         if (!record) return
         const write = record.level === "error"
           ? this.#logger.error.bind(this.#logger)
