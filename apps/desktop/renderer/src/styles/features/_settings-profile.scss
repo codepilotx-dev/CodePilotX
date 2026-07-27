@@ -874,10 +874,6 @@
   padding: 5px 8px;
 }
 
-.settings-dropdown-content .search-input--embedded {
-  width: 100%;
-}
-
 .settings-dropdown-scroll-area {
   display: grid;
   max-height: max(80px, calc(min(320px, calc(100vh - 96px)) - 12px));

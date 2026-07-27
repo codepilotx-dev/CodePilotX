@@ -1,3 +1,4 @@
+import { expect, test, type Locator } from '@playwright/test'
 import {
   COMPACT_VIEWPORT,
   DESKTOP_VIEWPORT,
@@ -5,45 +6,54 @@ import {
   waitForVisualPage,
 } from './visual-test-helpers.js'
 
-test('SearchInput — clear button and Escape behavior', async ({ page }) => {
-  await page.setViewportSize(DESKTOP_VIEWPORT)
-  await prepareVisualTheme(page, 'light', { reduceMotion: 'off' })
-  await page.goto('/?visualCase=empty#/settings/appearance')
+async function expectSearchFitsPopover(
+  surface: Locator,
+  searchInput: Locator,
+): Promise<void> {
+  const searchContainer = searchInput.locator('..')
+  const widthContainer = searchContainer.locator('..')
+  const measurements = await widthContainer.evaluate(container => {
+    const search = container.querySelector(':scope > .search-input')
+    if (!(search instanceof HTMLElement)) {
+      throw new Error('SearchInput container is not mounted')
+    }
+    const containerStyle = getComputedStyle(container)
+    const searchWidth = search.getBoundingClientRect().width
+    const availableWidth =
+      container.clientWidth -
+      Number.parseFloat(containerStyle.paddingLeft) -
+      Number.parseFloat(containerStyle.paddingRight)
 
-  // Navigate to general settings
-  await page.getByRole('button', { name: '搜索设置' }).first().click()
-  await page.getByRole('button', { name: '搜索设置' }).fill('语言')
-  const searchInput = page.getByRole('combobox', { name: '搜索设置' })
+    return {
+      availableWidth,
+      clientWidth: container.clientWidth,
+      scrollWidth: container.scrollWidth,
+      searchWidth,
+    }
+  })
+  const surfaceOverflow = await surface.evaluate(element => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
 
-  // Wait for search results to appear
-  const results = page.locator('#settings-search-results')
-  await expect(results).toBeVisible()
-
-  // Clear button appears
-  const clearButton = page.getByRole('button', { name: '清除搜索' })
-  await expect(clearButton).toBeVisible()
-
-  // Click clear → value is empty, input still focused
-  await clearButton.click()
-  await expect(searchInput).toHaveValue('')
-  await expect(searchInput).toBeFocused()
-
-  // Escape clears non-empty query
-  await searchInput.fill('general')
-  await page.keyboard.press('Escape')
-  await expect(searchInput).toHaveValue('')
-
-  // Escape on empty → input still focused (no crash)
-  await page.keyboard.press('Escape')
-  await expect(searchInput).toBeFocused()
-})
+  expect(measurements.searchWidth).toBeLessThanOrEqual(
+    measurements.availableWidth + 1,
+  )
+  expect(measurements.searchWidth).toBeGreaterThanOrEqual(
+    measurements.availableWidth - 3,
+  )
+  expect(measurements.scrollWidth).toBeLessThanOrEqual(measurements.clientWidth)
+  expect(surfaceOverflow.scrollWidth).toBeLessThanOrEqual(
+    surfaceOverflow.clientWidth,
+  )
+}
 
 test('SettingsDropdown searchable — combobox keyboard and clear behavior', async ({
   page,
 }) => {
   await page.setViewportSize(COMPACT_VIEWPORT)
   await prepareVisualTheme(page, 'light', { reduceMotion: 'off' })
-  await page.goto('/?visualCase=empty#/settings/appearance')
+  await page.goto('/?visualCase=empty#/settings/general')
 
   // Wait for general settings page
   const languageTrigger = page.getByRole('button', { name: '语言' })
@@ -53,7 +63,7 @@ test('SettingsDropdown searchable — combobox keyboard and clear behavior', asy
   await languageTrigger.click()
 
   // The search input should be focused
-  const searchField = page.getByRole('combobox', { name: /搜索/ })
+  const searchField = page.getByRole('combobox', { name: '搜索语言' })
   await expect(searchField).toBeVisible()
   await expect(searchField).toBeFocused()
 
@@ -66,20 +76,32 @@ test('SettingsDropdown searchable — combobox keyboard and clear behavior', asy
 
   // aria-expanded should be true when opened
   await expect(searchField).toHaveAttribute('aria-expanded', 'true')
+  await expectSearchFitsPopover(
+    page.locator('.settings-dropdown-content'),
+    searchField,
+  )
 
   // Filter items
   await searchField.fill('English')
   await expect(page.getByRole('option', { name: /English/ })).toBeVisible()
-  await expect(page.getByRole('option', { name: /Chinese/ })).not.toBeVisible()
+  await expect(page.getByRole('option', { name: /中文/ })).not.toBeVisible()
+
+  // Clear button resets the query and restores focus
+  const clearButton = page.getByRole('button', { name: '清除搜索' })
+  await clearButton.click()
+  await expect(searchField).toHaveValue('')
+  await expect(searchField).toBeFocused()
+
+  await searchField.fill('English')
 
   // ArrowDown + Enter selects first option
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('button', { name: /English/ })).toBeVisible()
+  await expect(languageTrigger).toContainText('English (US)')
 
   // Open again and test empty state
   await languageTrigger.click()
-  const searchField2 = page.getByRole('combobox', { name: /搜索/ })
+  const searchField2 = page.getByRole('combobox', { name: '搜索语言' })
   await searchField2.fill('zzzznotexist')
   // Empty state message
   await expect(page.getByText('未找到匹配项')).toBeVisible()
@@ -94,39 +116,40 @@ test('SettingsDropdown searchable — combobox keyboard and clear behavior', asy
   await expect(searchField2).not.toBeVisible()
 })
 
-test('SearchInput — forced-colors focus outline', async ({ page }) => {
-  await page.setViewportSize(COMPACT_VIEWPORT)
-  await page.emulateMedia({ forcedColors: 'active' })
-  await prepareVisualTheme(page, 'light', { reduceMotion: 'off' })
-  await page.goto('/?visualCase=empty#/search')
-
-  const searchInput = page.getByRole('searchbox', { name: /搜索/ })
-  await waitForVisualPage(page, 'light', searchInput)
-
-  // Focus the standard search input
-  await searchInput.focus()
-
-  // The outer container should have a visible focus style under forced-colors
-  const container = searchInput.locator('..')
-  await expect(container).toHaveCSS('outline-style', 'solid')
-})
-
-test('SearchInput — clearing restores focus in compact and embedded variants', async ({
+test('Popover SearchInput follows the available surface width', async ({
   page,
 }) => {
   await page.setViewportSize(DESKTOP_VIEWPORT)
   await prepareVisualTheme(page, 'light', { reduceMotion: 'off' })
   await page.goto('/?visualCase=empty#/new')
 
-  // The file tree search (compact variant)
-  const fileSearch = page.getByLabel('筛选文件')
-  await expect(fileSearch).toBeVisible()
+  const projectTrigger = page.getByTitle('选择项目')
+  await waitForVisualPage(page, 'light', projectTrigger)
+  await projectTrigger.click()
 
-  await fileSearch.fill('test')
-  const clearBtn = page.getByRole('button', { name: '清除搜索' })
-  await expect(clearBtn).toBeVisible()
+  const surface = page.locator('.popover-project[data-state="open"]')
+  const searchInput = surface.getByRole('searchbox', { name: '搜索项目' })
+  await expect(searchInput).toBeVisible()
+  await expectSearchFitsPopover(surface, searchInput)
 
-  await clearBtn.click()
-  await expect(fileSearch).toHaveValue('')
-  await expect(fileSearch).toBeFocused()
+  await searchInput.fill('一个不会改变弹层宽度的非常长的项目搜索关键词')
+  await expectSearchFitsPopover(surface, searchInput)
+})
+
+test('SearchInput — forced-colors focus outline', async ({ page }) => {
+  await page.setViewportSize(COMPACT_VIEWPORT)
+  await prepareVisualTheme(page, 'light', { reduceMotion: 'off' })
+  await page.emulateMedia({ forcedColors: 'active' })
+  await page.goto('/?visualCase=empty#/search')
+
+  const searchInput = page.getByRole('searchbox', { name: /搜索/ })
+  await waitForVisualPage(page, 'light', searchInput)
+
+  // Focus the standard search input
+  await page.keyboard.press('Tab')
+  await searchInput.focus()
+
+  // The outer container should have a visible focus style under forced-colors
+  const container = searchInput.locator('..')
+  await expect(container).toHaveCSS('outline-style', 'solid')
 })

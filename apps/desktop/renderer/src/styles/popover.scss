@@ -37,11 +37,16 @@
 }
 
 .popover-scroll-content {
-  min-width: 0;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   padding: var(--popover-surface-padding);
+  overflow-x: hidden;
 }
 
 .popover-surface .search-input {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   border-color: color-mix(in srgb, var(--color-token-foreground) 10%, transparent);
   background: color-mix(in srgb, var(--color-token-foreground) 4%, transparent);
 
