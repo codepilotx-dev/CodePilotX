@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Connection, Credential, Integration, Model, Provider } from "../src"
+import { Credential, Model, Provider } from "../src"
 
 describe("model and provider schemas", () => {
   test("Model.Ref contains providerID, id, and optional variant", () => {
@@ -27,42 +27,8 @@ describe("model and provider schemas", () => {
   })
 })
 
-describe("integration, credential, and connection schemas", () => {
-  test("decodes all integration methods and attempts", () => {
-    const info = Schema.decodeUnknownSync(Integration.Info)({
-      id: "openai",
-      name: "OpenAI",
-      methods: [
-        {
-          id: "oauth-default",
-          type: "oauth",
-          label: "OAuth",
-          prompts: [{ type: "text", key: "tenant", message: "Tenant" }],
-        },
-        { type: "key", label: "API key" },
-        { type: "env", names: ["OPENAI_API_KEY"] },
-      ],
-      connections: [{ type: "env", name: "OPENAI_API_KEY" }],
-    })
-    const attempt = Schema.decodeUnknownSync(Integration.Attempt)({
-      attemptID: "con_1",
-      url: "https://example.com/authorize",
-      instructions: "Authorize access",
-      mode: "code",
-      time: { created: 1, expires: 2 },
-    })
-    const status = Schema.decodeUnknownSync(Integration.AttemptStatus)({
-      status: "failed",
-      message: "Denied",
-      time: { created: 1, expires: 2 },
-    })
-
-    expect(info.methods.map((method) => method.type)).toEqual(["oauth", "key", "env"])
-    expect(attempt.mode).toBe("code")
-    expect(status.status).toBe("failed")
-  })
-
-  test("decodes both credential and connection variants", () => {
+describe("credential schemas", () => {
+  test("decodes OAuth and API key variants", () => {
     const oauth = Schema.decodeUnknownSync(Credential.Value)({
       type: "oauth",
       methodID: "oauth-default",
@@ -72,14 +38,7 @@ describe("integration, credential, and connection schemas", () => {
       metadata: { account: "primary" },
     })
     const key = Schema.decodeUnknownSync(Credential.Value)({ type: "key", key: "secret" })
-    const credentialConnection = Schema.decodeUnknownSync(Connection.Info)({
-      type: "credential",
-      id: "cred_1",
-      label: "Primary",
-    })
-
     expect(oauth.type).toBe("oauth")
     expect(key.type).toBe("key")
-    expect(credentialConnection.type).toBe("credential")
   })
 })

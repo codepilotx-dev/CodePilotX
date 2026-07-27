@@ -1,7 +1,6 @@
 export * as Provider from "./provider"
 
 import { Schema } from "effect"
-import { Integration } from "./integration"
 import { optional, statics } from "./schema"
 
 export const ID = Schema.String.pipe(
@@ -22,40 +21,27 @@ export const ID = Schema.String.pipe(
 )
 export type ID = typeof ID.Type
 
-export interface AISDK extends Schema.Schema.Type<typeof AISDK> {}
-export const AISDK = Schema.Struct({
-  type: Schema.Literal("aisdk"),
-  package: Schema.String,
-  url: optional(Schema.String),
-  settings: optional(Schema.Record(Schema.String, Schema.Unknown)),
-}).annotate({ identifier: "Provider.AISDK" })
+export interface Source extends Schema.Schema.Type<typeof Source> {}
+export const Source = Schema.Struct({
+  type: Schema.Literal("pi"),
+  kind: Schema.Literals(["builtin", "custom"]),
+  apis: Schema.Array(Schema.String),
+  baseUrl: optional(Schema.String),
+}).annotate({ identifier: "Provider.Source" })
 
-export interface Native extends Schema.Schema.Type<typeof Native> {}
-export const Native = Schema.Struct({
-  type: Schema.Literal("native"),
-  url: optional(Schema.String),
-  settings: Schema.Record(Schema.String, Schema.Unknown),
-}).annotate({ identifier: "Provider.Native" })
-
-export const Api = Schema.Union([AISDK, Native])
-  .pipe(Schema.toTaggedUnion("type"))
-  .annotate({ identifier: "Provider.Api" })
-export type Api = typeof Api.Type
-
-export interface Request extends Schema.Schema.Type<typeof Request> {}
-export const Request = Schema.Struct({
-  headers: Schema.Record(Schema.String, Schema.String),
-  body: Schema.Record(Schema.String, Schema.Json),
-}).annotate({ identifier: "Provider.Request" })
+export interface Auth extends Schema.Schema.Type<typeof Auth> {}
+export const Auth = Schema.Struct({
+  apiKey: Schema.Boolean,
+  oauth: Schema.Boolean,
+}).annotate({ identifier: "Provider.Auth" })
 
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
   id: ID,
-  integrationID: optional(Integration.ID),
   name: Schema.String,
   disabled: optional(Schema.Boolean),
-  api: Api,
-  request: Request,
+  source: Source,
+  auth: Auth,
 })
   .annotate({ identifier: "Provider.Info" })
   .pipe(
@@ -64,8 +50,8 @@ export const Info = Schema.Struct({
         schema.make({
           id,
           name: id,
-          api: { type: "native", settings: {} },
-          request: { headers: {}, body: {} },
+          source: { type: "pi", kind: "builtin", apis: [] },
+          auth: { apiKey: false, oauth: false },
         }),
     })),
   )

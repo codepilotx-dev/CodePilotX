@@ -1,16 +1,17 @@
 export * as Credential from "./credential"
 
 import { Schema } from "effect"
-import { IntegrationMethodID } from "./integration-id"
 import { NonNegativeInt, optional } from "./schema"
 
 export const ID = Schema.String.pipe(Schema.brand("Credential.ID"))
 export type ID = typeof ID.Type
+export const MethodID = Schema.String.pipe(Schema.brand("Credential.MethodID"))
+export type MethodID = typeof MethodID.Type
 
 export interface OAuth extends Schema.Schema.Type<typeof OAuth> {}
 export const OAuth = Schema.Struct({
   type: Schema.Literal("oauth"),
-  methodID: IntegrationMethodID,
+  methodID: MethodID,
   refresh: Schema.String,
   access: Schema.String,
   expires: NonNegativeInt,

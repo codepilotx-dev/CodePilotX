@@ -46,11 +46,9 @@ export const Cost = Schema.Struct({
 export const Api = Schema.Union([
   Schema.Struct({
     id: ID,
-    ...Provider.AISDK.fields,
-  }),
-  Schema.Struct({
-    id: ID,
-    ...Provider.Native.fields,
+    type: Schema.Literal("pi"),
+    name: Schema.String,
+    baseUrl: Schema.String,
   }),
 ])
   .pipe(Schema.toTaggedUnion("type"))
@@ -64,15 +62,11 @@ export const Info = Schema.Struct({
   family: optional(Family),
   name: Schema.String,
   api: Api,
+  variant: optional(Schema.String),
   capabilities: Capabilities,
-  request: Schema.Struct({
-    ...Provider.Request.fields,
-    variant: optional(Schema.String),
-  }),
   variants: Schema.Array(
     Schema.Struct({
       id: VariantID,
-      ...Provider.Request.fields,
     }),
   ),
   time: Schema.Struct({
@@ -95,9 +89,8 @@ export const Info = Schema.Struct({
           id: modelID,
           providerID,
           name: modelID,
-          api: { id: modelID, type: "native", settings: {} },
+          api: { id: modelID, type: "pi", name: "", baseUrl: "" },
           capabilities: { tools: false, input: [], output: [] },
-          request: { headers: {}, body: {} },
           variants: [],
           time: { released: 0 },
           cost: [],
