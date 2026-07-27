@@ -239,6 +239,29 @@ describe("ConfigService", () => {
     await service.dispose()
   })
 
+  test("Shell 安全级别仅允许用户级局部写入并保留未知配置", async () => {
+    const root = await temporaryRoot()
+    const filePath = join(root, "config.toml")
+    await writeFile(filePath, [
+      'unknown_future_key = "keep"',
+      "",
+    ].join("\n"), "utf8")
+    const service = new ConfigService(filePath)
+    await service.initialize()
+
+    await service.batchWrite({
+      edits: [{ keyPath: ["shell_security_level"], value: "relaxed" }],
+    })
+    const source = await readFile(filePath, "utf8")
+    expect(source).toContain('unknown_future_key = "keep"')
+    expect(source).toContain('shell_security_level = "relaxed"')
+    expect(() => service.validateDocument(
+      'shell_security_level = "strict"\n',
+      "project",
+    )).toThrow(ConfigServiceError)
+    await service.dispose()
+  })
+
   test("工作区出现后搬移未解析 MCP，并删除对应迁移 table", async () => {
     const root = await temporaryRoot()
     const workspace = join(root, "workspace")

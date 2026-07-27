@@ -80,6 +80,56 @@ describe("统一权限真值", () => {
     }
   })
 
+  test("Shell 静态规则审批服从 on-request、never 与 granular rules", () => {
+    const engine = new PermissionDecisionEngine()
+    const shell = new ToolRegistry().get("PowerShell")
+    const riskyInput = {
+      command: "winget uninstall fixture",
+      __ruleRequiresApproval: true,
+    }
+    expect(engine.evaluate(invocation({ input: riskyInput }), shell)).toMatchObject({
+      action: "review",
+      reviewer: "user",
+    })
+    expect(engine.evaluate(invocation({
+      input: riskyInput,
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: "never",
+        approvalsReviewer: "user",
+      },
+    }), shell)).toMatchObject({ action: "deny" })
+
+    const granular = {
+      type: "granular" as const,
+      sandboxApproval: true,
+      rules: false,
+      skillApproval: true,
+      requestPermissions: true,
+      mcpTools: true,
+      mcpElicitations: true,
+    }
+    expect(engine.evaluate(invocation({
+      input: riskyInput,
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: granular,
+        approvalsReviewer: "user",
+      },
+    }), shell)).toMatchObject({ action: "deny" })
+    expect(engine.evaluate(invocation({
+      input: riskyInput,
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: { ...granular, rules: true },
+        approvalsReviewer: "auto_review",
+      },
+    }), shell)).toMatchObject({
+      action: "review",
+      reviewer: "auto_review",
+    })
+  })
+
   test("granular 策略使用稳定 JSON 形状和编解码", () => {
     const policy = {
       type: "granular",

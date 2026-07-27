@@ -59,7 +59,7 @@ describe("加密凭据仓库", () => {
     db.close()
   })
 
-  test("同一集成可保存多条 API Key 并切换、排序和删除当前项", async () => {
+  test("同一 Provider 可保存多条 API Key，删除活动项后不自动切换", async () => {
     const { db, keys } = await setup()
     const repository = new EncryptedCredentialRepository(db, keys)
     const first = await Effect.runPromise(repository.createApiKey({ integrationID: "openai", label: "主 Key", key: "sk-first" }))
@@ -79,8 +79,35 @@ describe("加密凭据仓库", () => {
     expect(repository.listApiKeys("openai").find(item => item.active)?.id).toBe(second.id)
     await Effect.runPromise(repository.deleteApiKey(second.id))
     expect(repository.listApiKeys("openai")).toHaveLength(1)
-    expect(repository.listApiKeys("openai")[0]).toMatchObject({ id: first.id, active: true })
-    expect((await Effect.runPromise(repository.activeCredential<{ key: string }>("openai")))?.value.key).toBe("sk-first")
+    expect(repository.listApiKeys("openai")[0]).toMatchObject({ id: first.id, active: false })
+    expect(await Effect.runPromise(repository.activeCredential("openai"))).toBeNull()
+    db.close()
+  })
+
+  test("OAuth 登录保留已有 Key、成为活动项，并允许手动切回", async () => {
+    const { db, keys } = await setup()
+    const repository = new EncryptedCredentialRepository(db, keys)
+    const key = await Effect.runPromise(repository.createApiKey({
+      integrationID: "anthropic",
+      label: "API Key",
+      key: "sk-existing",
+    }))
+    const oauth = await Effect.runPromise(repository.upsertOAuth({
+      providerID: "anthropic",
+      methodID: "oauth",
+      value: {
+        type: "oauth",
+        methodID: "oauth",
+        refresh: "refresh",
+        access: "access",
+        expires: Date.now() + 60_000,
+      },
+    }))
+    expect(repository.listProviderCredentials("anthropic")).toHaveLength(2)
+    expect(oauth.active).toBeTrue()
+    await Effect.runPromise(repository.setProviderCredentialActive("anthropic", key.id))
+    expect(repository.listProviderCredentials("anthropic").find((item) => item.active)?.id)
+      .toBe(key.id)
     db.close()
   })
 
@@ -90,7 +117,7 @@ describe("加密凭据仓库", () => {
     const created = await Effect.runPromise(repository.createApiKey({ integrationID: "anthropic", label: "生产", key: "secret-old" }))
     const before = db.encryptedCredentialByID(created.id)!
     await Effect.runPromise(repository.updateHealth(created.id, { status: "auth-failed", lastErrorCategory: "authentication" }))
-    await expect(Effect.runPromise(repository.setActive("anthropic", created.id))).rejects.toMatchObject({ code: "CONFLICT" })
+    await expect(Effect.runPromise(repository.setActive("anthropic", created.id))).resolves.toMatchObject({ id: created.id })
     const replaced = await Effect.runPromise(repository.replaceApiKey(created.id, "secret-new"))
     const after = db.encryptedCredentialByID(created.id)!
 

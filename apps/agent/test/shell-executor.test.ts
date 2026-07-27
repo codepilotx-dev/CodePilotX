@@ -11,6 +11,7 @@ import type { ProcessResult } from "../src/tool/Shell/HostProcess"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 import { AgentLogger } from "../src/observability/AgentLogger"
+import type { ShellSecurityLevel } from "../src/security/ShellRiskClassifier"
 
 const tempPaths: string[] = []
 afterEach(async () => Promise.all(tempPaths.splice(0).map((path) =>
@@ -55,7 +56,7 @@ const success = (stdout = "ok"): ProcessResult => ({
 
 describe("统一 Shell 宿主执行门", () => {
   test("只识别命令起始位置的 Node.js 与 Python 运行时", () => {
-    expect(shellRuntimeDependencies("node app.js && npm test; npx tsc | python script.py\npip install x")).toEqual(["nodejs", "python"])
+    expect(shellRuntimeDependencies("node app.js && npm test; npx tsc | python script.py\npip install x & python3 -V")).toEqual(["nodejs", "python"])
     expect(shellRuntimeDependencies("corepack enable; python3 -V; pip3 -V")).toEqual(["nodejs", "python"])
     expect(shellRuntimeDependencies("Write-Output 'npm python'; echo node; bun run test")).toEqual([])
     expect(shellRuntimeDependencies("C:\\custom\\node.exe app.js; ./python script.py")).toEqual([])
@@ -182,6 +183,42 @@ describe("统一 Shell 宿主执行门", () => {
       await executionContext(root),
     )).rejects.toMatchObject({ code: "HOOK_DENIED" })
     expect(runs).toBe(0)
+  })
+
+  test("Shell 风险审批标记和安全级别热切换作用于同一执行器", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-host-shell-"))
+    tempPaths.push(root)
+    let securityLevel: ShellSecurityLevel = "balanced"
+    let receivedRuleApproval = false
+    let runs = 0
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      resolveShellSecurityLevel: () => securityLevel,
+      authorizeShell: async (invocation) => {
+        receivedRuleApproval = invocation.input.__ruleRequiresApproval === true
+        return { decision: "allow", risk: "high", reason: "允许" }
+      },
+      runHost: async () => {
+        runs += 1
+        return success()
+      },
+    })
+
+    await executor.execute(
+      "PowerShell",
+      { command: "winget uninstall fixture" },
+      await executionContext(root),
+    )
+    expect(receivedRuleApproval).toBe(true)
+    expect(runs).toBe(1)
+
+    securityLevel = "strict"
+    await expect(executor.execute(
+      "PowerShell",
+      { command: "winget uninstall fixture" },
+      await executionContext(root),
+    )).rejects.toMatchObject({ code: "SHELL_HARD_DENY" })
+    expect(runs).toBe(1)
   })
 
   test("Pi 预审批恢复后不重复执行项目 Hook", async () => {

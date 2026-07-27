@@ -8,7 +8,6 @@ import {
   EncryptedCredentialRepository,
   type MasterKeyStore,
 } from "../src/auth/EncryptedCredentialRepository"
-import type { IntegrationService } from "../src/provider/IntegrationService"
 import { ApiKeyService } from "../src/provider/ApiKeyService"
 import type { PiModelService } from "../src/provider/pi"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
@@ -67,7 +66,6 @@ const setup = async (
   } as unknown as PiModelService
   const service = new ApiKeyService(
     providers,
-    {} as IntegrationService,
     credentials,
   )
   return { credentials, key, service, credentialID: String(summary.id) }
@@ -87,7 +85,7 @@ describe("API Key 测试", () => {
     expect(result).toMatchObject({
       ok: false,
       message: "API Key 鉴权失败：401 unauthorized: invalid API key <redacted>",
-      apiKey: {
+      credential: {
         health: {
           status: "auth-failed",
           errorCategory: "authentication",
@@ -97,7 +95,7 @@ describe("API Key 测试", () => {
     expect(result.message).not.toContain(fixture.key)
   })
 
-  test("限流失败更新冷却状态并保留安全的厂商原因", async () => {
+  test("限流失败只记录显式测试结果，不建立自动冷却", async () => {
     const fixture = await setup(async () => {
       throw Object.assign(new Error("429 rate limit exceeded"), { status: 429 })
     })
@@ -106,11 +104,11 @@ describe("API Key 测试", () => {
 
     expect(result.ok).toBeFalse()
     expect(result.message).toBe("API Key 当前受到限流：429 rate limit exceeded")
-    expect(result.apiKey.health).toMatchObject({
+    expect(result.credential.health).toMatchObject({
       status: "rate-limited",
       errorCategory: "rate-limit",
     })
-    expect(result.apiKey.health.cooldownUntil).toBeGreaterThan(result.apiKey.health.lastTestedAt!)
+    expect(result.credential.health).not.toHaveProperty("cooldownUntil")
   })
 
   test("aborted 超时响应不会被标记为健康", async () => {
@@ -124,7 +122,7 @@ describe("API Key 测试", () => {
     expect(result).toMatchObject({
       ok: false,
       message: "API Key 网络请求失败：request timeout",
-      apiKey: {
+      credential: {
         health: {
           status: "error",
           errorCategory: "network",
@@ -141,9 +139,9 @@ describe("API Key 测试", () => {
     expect(result).toMatchObject({
       ok: true,
       message: "API Key 可用。",
-      apiKey: { health: { status: "healthy" } },
+      credential: { health: { status: "healthy" } },
     })
-    expect(result.apiKey.health.lastUsedAt).toBe(result.apiKey.health.lastTestedAt)
+    expect(result.credential.health).not.toHaveProperty("lastUsedAt")
   })
 
   test("没有可用模型时返回配置失败而不发起请求", async () => {
@@ -158,7 +156,7 @@ describe("API Key 测试", () => {
     expect(result).toMatchObject({
       ok: false,
       message: "配置不可用：Provider openai 没有可用模型",
-      apiKey: { health: { status: "untested" } },
+      credential: { health: { status: "untested" } },
     })
     expect(requests).toBe(0)
   })
