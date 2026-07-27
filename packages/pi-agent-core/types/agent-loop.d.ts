@@ -9,7 +9,7 @@ export type AgentEventSink = (event: AgentEvent) => Promise<void> | void;
  * Start an agent loop with a new prompt message.
  * The prompt is added to the context and events are emitted for it.
  */
-export declare function agentLoop(prompts: AgentMessage[], context: AgentContext, config: AgentLoopConfig, signal: AbortSignal | undefined, streamFunction: StreamFn): EventStream<AgentEvent, AgentMessage[]>;
+export declare function agentLoop(prompts: AgentMessage[], context: AgentContext, config: AgentLoopConfig, signal: AbortSignal | undefined, streamFn: StreamFn): EventStream<AgentEvent, AgentMessage[]>;
 /**
  * Continue an agent loop from the current context without adding a new message.
  * Used for retries - context already has user message or tool results.
@@ -18,7 +18,7 @@ export declare function agentLoop(prompts: AgentMessage[], context: AgentContext
  * via `convertToLlm`. If it doesn't, the LLM provider will reject the request.
  * This cannot be validated here since `convertToLlm` is only called once per turn.
  */
-export declare function agentLoopContinue(context: AgentContext, config: AgentLoopConfig, signal: AbortSignal | undefined, streamFunction: StreamFn): EventStream<AgentEvent, AgentMessage[]>;
-export declare function runAgentLoop(prompts: AgentMessage[], context: AgentContext, config: AgentLoopConfig, emit: AgentEventSink, signal: AbortSignal | undefined, streamFunction: StreamFn): Promise<AgentMessage[]>;
-export declare function runAgentLoopContinue(context: AgentContext, config: AgentLoopConfig, emit: AgentEventSink, signal: AbortSignal | undefined, streamFunction: StreamFn): Promise<AgentMessage[]>;
+export declare function agentLoopContinue(context: AgentContext, config: AgentLoopConfig, signal: AbortSignal | undefined, streamFn: StreamFn): EventStream<AgentEvent, AgentMessage[]>;
+export declare function runAgentLoop(prompts: AgentMessage[], context: AgentContext, config: AgentLoopConfig, emit: AgentEventSink, signal: AbortSignal | undefined, streamFn: StreamFn): Promise<AgentMessage[]>;
+export declare function runAgentLoopContinue(context: AgentContext, config: AgentLoopConfig, emit: AgentEventSink, signal: AbortSignal | undefined, streamFn: StreamFn): Promise<AgentMessage[]>;
 //# sourceMappingURL=agent-loop.d.ts.map

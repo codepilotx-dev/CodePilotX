@@ -1,4 +1,4 @@
-import { type Model, type Models, type Usage } from "@earendil-works/pi-ai";
+import { type AssistantMessage, type Context, type Model, type Models, type RetryCallbacks, type RetryPolicy, type SimpleStreamOptions, type Usage } from "@earendil-works/pi-ai";
 import type { AgentMessage, ThinkingLevel } from "../../types.ts";
 import { CompactionError, type Result, type SessionTreeEntry } from "../types.ts";
 import { type FileOperations } from "./utils.ts";
@@ -24,6 +24,7 @@ export interface CompactionResult<T = unknown> {
     /** Optional implementation-specific details stored with the compaction entry. */
     details?: T;
 }
+export declare function completeSimpleWithRetries(models: Models, model: Model<any>, context: Context, options: SimpleStreamOptions, retry?: RetryPolicy, callbacks?: RetryCallbacks): Promise<AssistantMessage>;
 /** Compaction thresholds and retention settings. */
 export interface CompactionSettings {
     /** Enable automatic compaction decisions. */
@@ -71,9 +72,9 @@ export interface CutPointResult {
 export declare function findCutPoint(entries: SessionTreeEntry[], startIndex: number, endIndex: number, keepRecentTokens: number): CutPointResult;
 export declare const SUMMARIZATION_SYSTEM_PROMPT = "You are a context summarization assistant. Your task is to read a conversation between a user and an AI assistant, then produce a structured summary following the exact format specified.\n\nDo NOT continue the conversation. Do NOT respond to any questions in the conversation. ONLY output the structured summary.";
 /** Generate or update a conversation summary for compaction. */
-export declare function generateSummary(currentMessages: AgentMessage[], models: Models, model: Model<any>, reserveTokens: number, signal?: AbortSignal, customInstructions?: string, previousSummary?: string, thinkingLevel?: ThinkingLevel): Promise<Result<string, CompactionError>>;
+export declare function generateSummary(currentMessages: AgentMessage[], models: Models, model: Model<any>, reserveTokens: number, signal?: AbortSignal, customInstructions?: string, previousSummary?: string, thinkingLevel?: ThinkingLevel, retry?: RetryPolicy, callbacks?: RetryCallbacks): Promise<Result<string, CompactionError>>;
 /** Generate or update a conversation summary and return its provider usage. */
-export declare function generateSummaryWithUsage(currentMessages: AgentMessage[], models: Models, model: Model<any>, reserveTokens: number, signal?: AbortSignal, customInstructions?: string, previousSummary?: string, thinkingLevel?: ThinkingLevel): Promise<Result<{
+export declare function generateSummaryWithUsage(currentMessages: AgentMessage[], models: Models, model: Model<any>, reserveTokens: number, signal?: AbortSignal, customInstructions?: string, previousSummary?: string, thinkingLevel?: ThinkingLevel, retry?: RetryPolicy, callbacks?: RetryCallbacks): Promise<Result<{
     text: string;
     usage: Usage;
 }, CompactionError>>;
@@ -102,5 +103,5 @@ export interface CompactionPreparation {
 export declare function prepareCompaction(pathEntries: SessionTreeEntry[], settings: CompactionSettings): Result<CompactionPreparation | undefined, CompactionError>;
 export { serializeConversation } from "./utils.ts";
 /** Generate compaction summary data from prepared session history. */
-export declare function compact(preparation: CompactionPreparation, models: Models, model: Model<any>, customInstructions?: string, signal?: AbortSignal, thinkingLevel?: ThinkingLevel): Promise<Result<CompactionResult, CompactionError>>;
+export declare function compact(preparation: CompactionPreparation, models: Models, model: Model<any>, customInstructions?: string, signal?: AbortSignal, thinkingLevel?: ThinkingLevel, retry?: RetryPolicy, callbacks?: RetryCallbacks): Promise<Result<CompactionResult, CompactionError>>;
 //# sourceMappingURL=compaction.d.ts.map

@@ -1,45 +1,21 @@
-# @codepilotx/pi-agent-core
+# @earendil-works/pi-agent-core
 
-CodePilotX-maintained fork of pi-agent-core: a stateful agent with tool
-execution, event streaming, durable sessions, and lazily activated tools. Built
-on `@earendil-works/pi-ai`.
+Stateful agent with tool execution and event streaming. Built on `@earendil-works/pi-ai`.
 
-This workspace package is based on upstream `0.81.0`. See
-[UPSTREAM.md](./UPSTREAM.md) for provenance and the manual update procedure.
+## Installation
 
-## Workspace usage
-
-This is a private CodePilotX workspace package. Consumers in this monorepo use
-`"@codepilotx/pi-agent-core": "workspace:*"`; it is not published to a package
-registry. Bun executes the TypeScript sources directly. Generated declarations
-under `types/` isolate consumers with stricter compiler options and are refreshed
-by the repository typecheck workflow.
-
-## CodePilotX extensions
-
-- `ToolExecutionMode` accepts a static mode or an async resolver. Resolvers are
-  called with the real input after `prepareArguments` and schema validation.
-- `AgentToolResult` accepts optional `structuredContent` and `progress`; text
-  content/details remain compatible with upstream tools.
-- `DeferredToolCatalog` searches metadata without loading implementations and
-  resolves or activates exact tool names on demand.
-- `AgentHarness.activateTools()` loads catalog tools, adds them to the active
-  set, and persists the existing `active_tools_change` session entry.
-- `save_point` events include `activeToolNames`; a new harness restores that
-  snapshot from the session before its next provider request.
+```bash
+npm install @earendil-works/pi-agent-core
+```
 
 ### SQLite session backends
 
 The SQLite session backend and the `node:sqlite` adapter live in a separate package, `@earendil-works/pi-storage-sqlite-node`, so the core package does not pull in runtime builtins or native SQLite dependencies by default. The backend accepts a runtime-specific SQLite factory, allowing other storage backends to ship as their own packages in the future.
 
-> **Version note:** This local fork uses the `0.81` `streamFunction` API.
-> Upstream `main` and `0.82` examples use `streamFn` and cannot be copied
-> verbatim. CodePilotX production orchestration uses `AgentHarness`.
-
 ## Quick Start
 
 ```typescript
-import { Agent } from "@codepilotx/pi-agent-core";
+import { Agent } from "@earendil-works/pi-agent-core";
 import { createModels } from "@earendil-works/pi-ai";
 import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
 
@@ -53,7 +29,7 @@ const agent = new Agent({
     systemPrompt: "You are a helpful assistant.",
     model,
   },
-  streamFunction: models.streamSimple.bind(models),
+  streamFn: models.streamSimple.bind(models),
 });
 
 agent.subscribe((event) => {
@@ -223,7 +199,7 @@ const agent = new Agent({
   followUpMode: "one-at-a-time",
 
   // Required stream function
-  streamFunction: models.streamSimple.bind(models),
+  streamFn: models.streamSimple.bind(models),
 
   // Session ID for provider caching
   sessionId: "session-123",
@@ -396,7 +372,7 @@ Follow-up messages are checked only when there are no more tool calls and no ste
 Extend `AgentMessage` via declaration merging:
 
 ```typescript
-declare module "@codepilotx/pi-agent-core" {
+declare module "@earendil-works/pi-agent-core" {
   interface CustomAgentMessages {
     notification: { role: "notification"; text: string; timestamp: number };
   }
@@ -410,7 +386,7 @@ Handle custom types in `convertToLlm`:
 
 ```typescript
 const agent = new Agent({
-  streamFunction: models.streamSimple.bind(models),
+  streamFn: models.streamSimple.bind(models),
   convertToLlm: (messages) => messages.flatMap(m => {
     if (m.role === "notification") return []; // Filter out
     return [m];
@@ -478,10 +454,10 @@ Return `terminate: true` from `execute()` or `afterToolCall` to hint that the ag
 For browser apps that proxy through a backend:
 
 ```typescript
-import { Agent, streamProxy } from "@codepilotx/pi-agent-core";
+import { Agent, streamProxy } from "@earendil-works/pi-agent-core";
 
 const agent = new Agent({
-  streamFunction: (model, context, options) =>
+  streamFn: (model, context, options) =>
     streamProxy(model, context, {
       ...options,
       authToken: "...",
@@ -495,7 +471,7 @@ const agent = new Agent({
 For direct control without the Agent class:
 
 ```typescript
-import { agentLoop, agentLoopContinue } from "@codepilotx/pi-agent-core";
+import { agentLoop, agentLoopContinue } from "@earendil-works/pi-agent-core";
 
 const context: AgentContext = {
   systemPrompt: "You are helpful.",
@@ -513,13 +489,13 @@ const config: AgentLoopConfig = {
 
 const userMessage = { role: "user", content: "Hello", timestamp: Date.now() };
 
-const streamFunction = models.streamSimple.bind(models);
-for await (const event of agentLoop([userMessage], context, config, undefined, streamFunction)) {
+const streamFn = models.streamSimple.bind(models);
+for await (const event of agentLoop([userMessage], context, config, undefined, streamFn)) {
   console.log(event.type);
 }
 
 // Continue from existing context
-for await (const event of agentLoopContinue(context, config, undefined, streamFunction)) {
+for await (const event of agentLoopContinue(context, config, undefined, streamFn)) {
   console.log(event.type);
 }
 ```

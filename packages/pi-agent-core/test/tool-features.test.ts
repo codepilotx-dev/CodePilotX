@@ -4,9 +4,8 @@ import {
 	AgentHarness,
 	DeferredToolCatalog,
 	InMemorySessionRepo,
+	type AgentHarnessTool,
 	type AgentTool,
-	type ExecutionEnv,
-	type FileInfo,
 } from "../src/index.ts";
 import {
 	Type,
@@ -16,32 +15,6 @@ import {
 	fauxToolCall,
 	type Context,
 } from "@earendil-works/pi-ai";
-
-const ok = <T>(value: T) => ({ ok: true as const, value });
-
-function createEnv(): ExecutionEnv {
-	const fileInfo = (path: string): FileInfo => ({ name: path, path, kind: "file", size: 0, mtimeMs: 0 });
-	return {
-		cwd: "C:\\codepilotx-pi-test",
-		absolutePath: async (path) => ok(path),
-		joinPath: async (parts) => ok(parts.join("/")),
-		readTextFile: async (path) => ({ ok: false, error: new Error(`Not found: ${path}`) as never }),
-		readTextLines: async (path) => ({ ok: false, error: new Error(`Not found: ${path}`) as never }),
-		readBinaryFile: async (path) => ({ ok: false, error: new Error(`Not found: ${path}`) as never }),
-		writeFile: async () => ok(undefined),
-		appendFile: async () => ok(undefined),
-		fileInfo: async (path) => ok(fileInfo(path)),
-		listDir: async () => ok([]),
-		canonicalPath: async (path) => ok(path),
-		exists: async () => ok(false),
-		createDir: async () => ok(undefined),
-		remove: async () => ok(undefined),
-		createTempDir: async () => ok("C:\\tmp"),
-		createTempFile: async () => ok("C:\\tmp\\file"),
-		exec: async () => ok({ stdout: "", stderr: "", exitCode: 0 }),
-		cleanup: async () => undefined,
-	};
-}
 
 function setupProvider(responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0]) {
 	const faux = fauxProvider({ models: [{ id: "test", input: ["text"], contextWindow: 64_000 }] });
@@ -81,7 +54,7 @@ describe("dynamic tool execution", () => {
 		]);
 		const agent = new Agent({
 			initialState: { model: faux.getModel(), tools },
-			streamFunction: models.streamSimple.bind(models),
+			streamFn: models.streamSimple.bind(models),
 			toolExecution: async (input) => {
 				resolverInputs.push(input);
 				return (input as { serial: boolean }).serial ? "sequential" : "parallel";
@@ -125,22 +98,27 @@ describe("DeferredToolCatalog", () => {
 
 describe("AgentHarness deferred activation", () => {
 	test("activates result tools, preserves progress/structured content, and restores from session", async () => {
-		const deferredTool: AgentTool = {
+		type ToolContext = { workspace: string };
+		let deferredToolContext: ToolContext | undefined;
+		const deferredTool: AgentHarnessTool<ToolContext> = {
 			name: "deferred",
 			label: "Deferred",
 			description: "Loaded on demand",
 			parameters: Type.Object({}),
-			execute: async () => ({ content: [], details: {} }),
+			execute: async (_id, _input, _signal, _update, context) => {
+				deferredToolContext = context;
+				return { content: [], details: {} };
+			},
 		};
-		const catalog = new DeferredToolCatalog<AgentTool>([
+		const catalog = new DeferredToolCatalog<AgentHarnessTool<ToolContext>>([
 			{ name: "deferred", label: "Deferred", description: "Loaded on demand", load: () => deferredTool },
 		]);
-		const discover: AgentTool = {
+		const discover: AgentHarnessTool<ToolContext> = {
 			name: "discover",
 			label: "Discover",
 			description: "Discovers deferred tools",
 			parameters: Type.Object({}),
-			execute: async (_id, _input, _signal, update) => {
+			execute: async (_id, _input, _signal, update, _context) => {
 				update?.({ progress: { current: 1, total: 2, message: "searching" }, structuredContent: { phase: 1 } });
 				return { structuredContent: { found: ["deferred"] }, addedToolNames: ["deferred"] };
 			},
@@ -152,12 +130,12 @@ describe("AgentHarness deferred activation", () => {
 		const repo = new InMemorySessionRepo();
 		const session = await repo.create({ id: crypto.randomUUID() });
 		const harness = new AgentHarness({
-			env: createEnv(),
 			session,
 			models: firstSetup.models,
 			model: firstSetup.faux.getModel(),
 			tools: [discover],
 			deferredToolCatalog: catalog,
+			toolContext: { workspace: "initial" },
 		});
 		const updates: unknown[] = [];
 		const savePoints: string[][] = [];
@@ -178,20 +156,22 @@ describe("AgentHarness deferred activation", () => {
 		const secondSetup = setupProvider([
 			(context: Context) => {
 				restoredProviderTools = context.tools?.map((tool) => tool.name) ?? [];
-				return fauxAssistantMessage("restored");
+				return fauxAssistantMessage(fauxToolCall("deferred", {}), { stopReason: "toolUse" });
 			},
+			fauxAssistantMessage("restored"),
 		]);
 		const restored = new AgentHarness({
-			env: createEnv(),
 			session,
 			models: secondSetup.models,
 			model: secondSetup.faux.getModel(),
 			tools: [discover],
 			deferredToolCatalog: catalog,
+			toolContext: { workspace: "restored" },
 		});
 		await restored.prompt("continue");
 		expect(restoredProviderTools).toEqual(["discover", "deferred"]);
 		expect(restored.getActiveToolNames()).toEqual(["discover", "deferred"]);
+		expect(deferredToolContext).toEqual({ workspace: "restored" });
 	});
 });
 
@@ -215,7 +195,6 @@ describe("AgentHarness live steering", () => {
 		const repo = new InMemorySessionRepo();
 		const session = await repo.create({ id: crypto.randomUUID() });
 		harness = new AgentHarness({
-			env: createEnv(),
 			session,
 			models: setup.models,
 			model: setup.faux.getModel(),

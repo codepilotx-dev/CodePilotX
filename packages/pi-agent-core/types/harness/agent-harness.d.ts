@@ -1,8 +1,7 @@
 import { type AssistantMessage, type ImageContent, type Model, type Models } from "@earendil-works/pi-ai";
-import type { AgentMessage, AgentTool, QueueMode, ThinkingLevel } from "../types.ts";
-import type { AbortResult, AgentHarnessEvent, AgentHarnessEventResultMap, AgentHarnessOptions, AgentHarnessOwnEvent, AgentHarnessResources, AgentHarnessStreamOptions, CompactResult, ExecutionEnv, NavigateTreeResult, PromptTemplate, Skill } from "./types.ts";
-export declare class AgentHarness<TSkill extends Skill = Skill, TPromptTemplate extends PromptTemplate = PromptTemplate, TTool extends AgentTool = AgentTool> {
-    readonly env: ExecutionEnv;
+import type { AgentMessage, QueueMode, ThinkingLevel } from "../types.ts";
+import type { AbortResult, AgentHarnessEvent, AgentHarnessEventResultMap, AgentHarnessOptions, AgentHarnessOwnEvent, AgentHarnessResources, AgentHarnessStreamOptions, AgentHarnessTool, CompactResult, NavigateTreeResult, PromptTemplate, Skill } from "./types.ts";
+export declare class AgentHarness<TContext extends object | undefined = undefined, TSkill extends Skill = Skill, TPromptTemplate extends PromptTemplate = PromptTemplate, TTool extends AgentHarnessTool<TContext> = AgentHarnessTool<TContext>> {
     private session;
     readonly models: Models;
     private phase;
@@ -12,7 +11,9 @@ export declare class AgentHarness<TSkill extends Skill = Skill, TPromptTemplate 
     private model;
     private thinkingLevel;
     private systemPrompt;
+    private toolContext;
     private streamOptions;
+    private retry;
     private resources;
     private tools;
     private activeToolNames;
@@ -27,15 +28,18 @@ export declare class AgentHarness<TSkill extends Skill = Skill, TPromptTemplate 
     private nextTurnQueue;
     private readonly queuedInputIds;
     private handlers;
-    constructor(options: AgentHarnessOptions<TSkill, TPromptTemplate, TTool>);
+    constructor(options: AgentHarnessOptions<TContext, TSkill, TPromptTemplate, TTool>);
     private getHandlers;
     private emitOwn;
     private emitAny;
     private emitHook;
+    private retryCallbacks;
     private emitBeforeProviderRequest;
     private emitBeforeProviderPayload;
     private emitQueueUpdate;
     private startRunPromise;
+    private resolveToolContext;
+    private bindToolContext;
     private createTurnState;
     private createContext;
     private createStreamFn;

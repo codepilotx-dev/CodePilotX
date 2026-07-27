@@ -4,6 +4,8 @@ import {
 	type ImageContent,
 	type Model,
 	type Models,
+	type RetryCallbacks,
+	type RetryPolicy,
 	type UserMessage,
 } from "@earendil-works/pi-ai";
 import { runAgentLoop } from "../agent-loop.ts";
@@ -32,8 +34,10 @@ import type {
 	AgentHarnessResources,
 	AgentHarnessStreamOptions,
 	AgentHarnessStreamOptionsPatch,
+	AgentHarnessSystemPrompt,
+	AgentHarnessTool,
+	AgentHarnessToolContextSource,
 	CompactResult,
-	ExecutionEnv,
 	NavigateTreeResult,
 	PendingSessionWrite,
 	PromptTemplate,
@@ -148,12 +152,14 @@ function normalizeHookError(error: unknown): AgentHarnessError {
 }
 
 interface AgentHarnessTurnState<
+	TContext extends object | undefined,
 	TSkill extends Skill = Skill,
 	TPromptTemplate extends PromptTemplate = PromptTemplate,
-	TTool extends AgentTool = AgentTool,
+	TTool extends AgentHarnessTool<TContext> = AgentHarnessTool<TContext>,
 > {
 	messages: AgentMessage[];
 	resources: AgentHarnessResources<TSkill, TPromptTemplate>;
+	toolContext: TContext;
 	streamOptions: AgentHarnessStreamOptions;
 	sessionId: string;
 	systemPrompt: string;
@@ -164,11 +170,11 @@ interface AgentHarnessTurnState<
 }
 
 export class AgentHarness<
+	TContext extends object | undefined = undefined,
 	TSkill extends Skill = Skill,
 	TPromptTemplate extends PromptTemplate = PromptTemplate,
-	TTool extends AgentTool = AgentTool,
+	TTool extends AgentHarnessTool<TContext> = AgentHarnessTool<TContext>,
 > {
-	readonly env: ExecutionEnv;
 	private session: Session;
 	readonly models: Models;
 	private phase: AgentHarnessPhase = "idle";
@@ -177,8 +183,10 @@ export class AgentHarness<
 	private pendingSessionWrites: PendingSessionWrite[] = [];
 	private model: Model<any>;
 	private thinkingLevel: ThinkingLevel;
-	private systemPrompt: AgentHarnessOptions<TSkill, TPromptTemplate, TTool>["systemPrompt"];
+	private systemPrompt: AgentHarnessSystemPrompt<TContext, TSkill, TPromptTemplate, TTool> | undefined;
+	private toolContext: AgentHarnessToolContextSource<TContext> | undefined;
 	private streamOptions: AgentHarnessStreamOptions;
+	private retry: RetryPolicy | undefined;
 	private resources: AgentHarnessResources<TSkill, TPromptTemplate>;
 	private tools = new Map<string, TTool>();
 	private activeToolNames: string[];
@@ -194,13 +202,14 @@ export class AgentHarness<
 	private readonly queuedInputIds = new WeakMap<AgentMessage, string>();
 	private handlers = new Map<string, Set<AgentHarnessHandler>>();
 
-	constructor(options: AgentHarnessOptions<TSkill, TPromptTemplate, TTool>) {
-		this.env = options.env;
+	constructor(options: AgentHarnessOptions<TContext, TSkill, TPromptTemplate, TTool>) {
 		this.session = options.session;
 		this.models = options.models;
 		this.resources = options.resources ?? {};
 		this.streamOptions = cloneStreamOptions(options.streamOptions);
+		this.retry = options.retry;
 		this.systemPrompt = options.systemPrompt;
+		this.toolContext = options.toolContext;
 		this.deferredToolCatalog = options.deferredToolCatalog;
 		this.toolExecution = options.toolExecution ?? "parallel";
 		this.validateUniqueNames(
@@ -269,6 +278,15 @@ export class AgentHarness<
 		return lastResult;
 	}
 
+	private retryCallbacks(operation: "compaction" | "branch_summary"): RetryCallbacks {
+		return {
+			onRetryScheduled: (attempt, maxAttempts, delayMs, errorMessage) =>
+				this.emitOwn({ type: "retry_scheduled", operation, attempt, maxAttempts, delayMs, errorMessage }),
+			onRetryAttemptStart: () => this.emitOwn({ type: "retry_attempt_start", operation }),
+			onRetryFinished: () => this.emitOwn({ type: "retry_finished", operation }),
+		};
+	}
+
 	private async emitBeforeProviderRequest(
 		model: Model<any>,
 		sessionId: string,
@@ -332,7 +350,21 @@ export class AgentHarness<
 		};
 	}
 
-	private async createTurnState(): Promise<AgentHarnessTurnState<TSkill, TPromptTemplate, TTool>> {
+	private async resolveToolContext(): Promise<TContext> {
+		if (typeof this.toolContext === "function") {
+			return await (this.toolContext as () => TContext | Promise<TContext>)();
+		}
+		return this.toolContext as TContext;
+	}
+
+	private bindToolContext(tool: TTool, context: TContext): AgentTool {
+		return {
+			...tool,
+			execute: (toolCallId, params, signal, onUpdate) => tool.execute(toolCallId, params, signal, onUpdate, context),
+		};
+	}
+
+	private async createTurnState(): Promise<AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>> {
 		const context = await this.session.buildContext();
 		if (!this.restoredActiveTools) {
 			const restoredNames = context.activeToolNames ?? this.activeToolNames;
@@ -355,6 +387,7 @@ export class AgentHarness<
 		}
 		const resources = this.getResources();
 		const sessionMetadata = await this.session.getMetadata();
+		const toolContext = await this.resolveToolContext();
 		const tools = [...this.tools.values()];
 		const activeTools = this.activeToolNames
 			.map((name) => this.tools.get(name))
@@ -364,7 +397,6 @@ export class AgentHarness<
 			systemPrompt = this.systemPrompt;
 		} else if (this.systemPrompt) {
 			systemPrompt = await this.systemPrompt({
-				env: this.env,
 				session: this.session,
 				model: this.model,
 				thinkingLevel: this.thinkingLevel,
@@ -375,6 +407,7 @@ export class AgentHarness<
 		return {
 			messages: context.messages,
 			resources,
+			toolContext,
 			streamOptions: cloneStreamOptions(this.streamOptions),
 			sessionId: sessionMetadata.id,
 			systemPrompt,
@@ -386,17 +419,19 @@ export class AgentHarness<
 	}
 
 	private createContext(
-		turnState: AgentHarnessTurnState<TSkill, TPromptTemplate, TTool>,
+		turnState: AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>,
 		systemPrompt?: string,
 	): AgentContext {
 		return {
 			systemPrompt: systemPrompt ?? turnState.systemPrompt,
 			messages: turnState.messages.slice(),
-			tools: turnState.activeTools.slice(),
+			tools: turnState.activeTools.map((tool) => this.bindToolContext(tool, turnState.toolContext)),
 		};
 	}
 
-	private createStreamFn(getTurnState: () => AgentHarnessTurnState<TSkill, TPromptTemplate, TTool>): StreamFn {
+	private createStreamFn(
+		getTurnState: () => AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>,
+	): StreamFn {
 		return async (model, context, streamOptions) => {
 			const turnState = getTurnState();
 			const snapshotOptions: AgentHarnessStreamOptions = { ...turnState.streamOptions };
@@ -446,8 +481,8 @@ export class AgentHarness<
 	}
 
 	private createLoopConfig(
-		getTurnState: () => AgentHarnessTurnState<TSkill, TPromptTemplate, TTool>,
-		setTurnState: (turnState: AgentHarnessTurnState<TSkill, TPromptTemplate, TTool>) => void,
+		getTurnState: () => AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>,
+		setTurnState: (turnState: AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>) => void,
 	): AgentLoopConfig {
 		const turnState = getTurnState();
 		return {
@@ -617,7 +652,7 @@ export class AgentHarness<
 	}
 
 	private async executeTurn(
-		turnState: AgentHarnessTurnState<TSkill, TPromptTemplate, TTool>,
+		turnState: AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>,
 		text: string,
 		options?: { images?: ImageContent[] },
 	): Promise<AssistantMessage> {
@@ -644,7 +679,7 @@ export class AgentHarness<
 
 		const abortController = new AbortController();
 		const getTurnState = () => activeTurnState;
-		const setTurnState = (nextTurnState: AgentHarnessTurnState<TSkill, TPromptTemplate, TTool>) => {
+		const setTurnState = (nextTurnState: AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>) => {
 			activeTurnState = nextTurnState;
 		};
 		this.runAbortController = abortController;
@@ -799,7 +834,16 @@ export class AgentHarness<
 			const provided = hookResult?.compaction;
 			const compactResult = provided
 				? { ok: true as const, value: provided }
-				: await compact(preparation, this.models, model, customInstructions, undefined, this.thinkingLevel);
+				: await compact(
+						preparation,
+						this.models,
+						model,
+						customInstructions,
+						undefined,
+						this.thinkingLevel,
+						this.retry,
+						this.retryCallbacks("compaction"),
+					);
 			if (!compactResult.ok) throw compactResult.error;
 			const result = compactResult.value;
 			const entryId = await this.session.appendCompaction(
@@ -861,6 +905,8 @@ export class AgentHarness<
 					signal: new AbortController().signal,
 					customInstructions: hookResult?.customInstructions ?? options?.customInstructions,
 					replaceInstructions: hookResult?.replaceInstructions ?? options?.replaceInstructions,
+					retry: this.retry,
+					callbacks: this.retryCallbacks("branch_summary"),
 				});
 				if (!branchSummary.ok) {
 					if (branchSummary.error.code === "aborted") return { cancelled: true };

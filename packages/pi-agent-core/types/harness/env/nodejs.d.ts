@@ -1,8 +1,9 @@
-import { type ExecutionEnv, ExecutionError, FileError, type FileInfo, type Result } from "../types.ts";
+import { type ExecutionEnv, ExecutionError, FileError, type FileInfo, type Result, type ShellExecOptions } from "../types.ts";
 export declare class NodeExecutionEnv implements ExecutionEnv {
     cwd: string;
     private shellPath?;
     private shellEnv?;
+    private activeChildPids;
     constructor(options: {
         cwd: string;
         shellPath?: string;
@@ -10,14 +11,7 @@ export declare class NodeExecutionEnv implements ExecutionEnv {
     });
     absolutePath(path: string): Promise<Result<string, FileError>>;
     joinPath(parts: string[]): Promise<Result<string, FileError>>;
-    exec(command: string, options?: {
-        cwd?: string;
-        env?: Record<string, string>;
-        timeout?: number;
-        abortSignal?: AbortSignal;
-        onStdout?: (chunk: string) => void;
-        onStderr?: (chunk: string) => void;
-    }): Promise<Result<{
+    exec(command: string, options?: ShellExecOptions): Promise<Result<{
         stdout: string;
         stderr: string;
         exitCode: number;

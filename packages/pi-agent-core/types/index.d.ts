@@ -15,9 +15,11 @@ export * from "./harness/session/repo-utils.ts";
 export * from "./harness/session/session.ts";
 export * from "./harness/skills.ts";
 export * from "./harness/system-prompt.ts";
+export * from "./harness/tools/index.ts";
 export * from "./harness/types.ts";
 export * from "./harness/utils/shell-output.ts";
 export * from "./harness/utils/truncate.ts";
 export * from "./proxy.ts";
+export { setDefaultStreamFn } from "./stream-fn.ts";
 export * from "./types.ts";
 //# sourceMappingURL=index.d.ts.map

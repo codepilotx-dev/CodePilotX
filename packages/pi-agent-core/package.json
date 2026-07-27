@@ -1,6 +1,6 @@
 {
   "name": "@codepilotx/pi-agent-core",
-  "version": "0.81.0-codepilotx.1",
+  "version": "0.82.1-codepilotx.1",
   "private": true,
   "description": "CodePilotX 内置的 pi-agent-core fork",
   "type": "module",
@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@earendil-works/pi-ai": "0.82.1",
+    "diff": "8.0.4",
     "ignore": "7.0.5",
     "typebox": "1.1.38",
     "yaml": "2.9.0"

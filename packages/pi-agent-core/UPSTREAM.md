@@ -2,17 +2,16 @@
 
 This repository is a CodePilotX-maintained fork of
 [`@earendil-works/pi-agent-core`](https://www.npmjs.com/package/@earendil-works/pi-agent-core),
-based on version `0.81.0` from the `earendil-works/pi` project.
+based on version `0.82.1` from the `earendil-works/pi` project.
 
-The initial TypeScript baseline was reconstructed from the UTF-8
-`sourcesContent` embedded in the JavaScript source maps distributed with the
-`@earendil-works/pi-agent-core@0.81.0` npm artifact. It was subsequently
-verified against the upstream Git tag `v0.81.0`, specifically
-`packages/agent/src`. Files outside the fork changes are byte-for-byte
-equivalent after line-ending normalization. The published npm artifact did not
-include the upstream test suite or repository-level build configuration, so
-focused fork tests and standalone build configuration are maintained by
-CodePilotX.
+The TypeScript baseline was synchronized from the upstream Git tag `v0.82.1`
+on 2026-07-27, specifically `packages/agent/src`, `packages/agent/README.md`,
+and the repository `LICENSE`. The tag resolves to commit
+`b4f293684bba718d59cc1157679bcf6157b3a7f5`; the Git tree checksum for
+`packages/agent/src` is `a5828df21c0bcecc9de28d65a6faa0ae589e2cf7`.
+Files outside the fork changes are byte-for-byte equivalent after line-ending
+normalization. Focused fork tests and standalone build configuration are
+maintained by CodePilotX.
 
 CodePilotX carries these changes as the private workspace package
 `@codepilotx/pi-agent-core`. It is not published to a package registry. The
@@ -29,9 +28,10 @@ tool restoration in `AgentHarness`.
    `index.ts`, and `harness/deferred-tool-catalog.ts` manually.
 4. Preserve dynamic execution-mode resolution, structured/progress results,
    deferred activation, and `activeToolNames` session restoration.
-5. Update the baseline version in this document and run the package and Agent
-   typechecks, regenerate declarations with `bun run build:types`, then run the
-   focused tests and Agent build.
+5. Record the exact upstream tag commit, the `packages/agent/src` Git tree
+   checksum, and the import date in this document.
+6. Run the package and Agent typechecks, regenerate declarations with
+   `bun run build:types`, then run the focused tests and Agent build.
 
 The upstream code and this fork are distributed under the MIT License. See
 `LICENSE`.

@@ -6,7 +6,7 @@ export interface AgentOptions {
     initialState?: Partial<Omit<AgentState, "pendingToolCalls" | "isStreaming" | "streamingMessage" | "errorMessage">>;
     convertToLlm?: (messages: AgentMessage[]) => Message[] | Promise<Message[]>;
     transformContext?: (messages: AgentMessage[], signal?: AbortSignal) => Promise<AgentMessage[]>;
-    streamFunction: StreamFn;
+    streamFn: StreamFn;
     getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined;
     onPayload?: SimpleStreamOptions["onPayload"];
     onResponse?: SimpleStreamOptions["onResponse"];

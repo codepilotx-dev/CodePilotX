@@ -1,14 +1,18 @@
 import type { AgentTool } from "../types.ts";
 
+interface NamedTool {
+	name: string;
+}
+
 export interface DeferredToolSummary {
 	name: string;
 	label: string;
 	description: string;
 }
 
-export type DeferredToolLoader<TTool extends AgentTool = AgentTool> = () => TTool | Promise<TTool>;
+export type DeferredToolLoader<TTool extends NamedTool = AgentTool> = () => TTool | Promise<TTool>;
 
-export interface DeferredToolCatalogEntry<TTool extends AgentTool = AgentTool> extends DeferredToolSummary {
+export interface DeferredToolCatalogEntry<TTool extends NamedTool = AgentTool> extends DeferredToolSummary {
 	load: DeferredToolLoader<TTool>;
 }
 
@@ -17,7 +21,7 @@ export interface DeferredToolCatalogEntry<TTool extends AgentTool = AgentTool> e
  * Search never loads tools. `resolve()` and `activate()` require exact names and
  * reject unknown entries so callers cannot silently expose the wrong tool.
  */
-export class DeferredToolCatalog<TTool extends AgentTool = AgentTool> {
+export class DeferredToolCatalog<TTool extends NamedTool = AgentTool> {
 	private readonly entries = new Map<string, DeferredToolCatalogEntry<TTool>>();
 	private readonly resolved = new Map<string, TTool>();
 	private readonly loading = new Map<string, Promise<TTool>>();

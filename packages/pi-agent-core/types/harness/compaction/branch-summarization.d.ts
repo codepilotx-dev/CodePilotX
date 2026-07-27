@@ -1,4 +1,4 @@
-import { type Model, type Models } from "@earendil-works/pi-ai";
+import { type Model, type Models, type RetryCallbacks, type RetryPolicy } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "../../types.ts";
 import type { BranchSummaryResult, Session, SessionTreeEntry } from "../types.ts";
 import { BranchSummaryError, type Result } from "../types.ts";
@@ -41,6 +41,10 @@ export interface GenerateBranchSummaryOptions {
     replaceInstructions?: boolean;
     /** Tokens reserved for prompt and model output. Defaults to 16384. */
     reserveTokens?: number;
+    /** Optional retry policy for transient summarization errors. */
+    retry?: RetryPolicy;
+    /** Optional callbacks for retry reporting. */
+    callbacks?: RetryCallbacks;
 }
 /** Collect entries that should be summarized before navigating to a different session tree entry. */
 export declare function collectEntriesForBranchSummary(session: Session, oldLeafId: string | null, targetId: string): Promise<CollectEntriesResult>;
