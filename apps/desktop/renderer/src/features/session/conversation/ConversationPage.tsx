@@ -986,6 +986,7 @@ export function ConversationPage(): React.ReactNode {
             changedFileCount={changedFileCount}
             deletions={composerDiffSummary.deletions}
             executionPlan={composerExecutionPlan}
+            failed={sessionStatus === "error"}
           />
         ) : null}
         {activePermissionRequest ? (

@@ -702,6 +702,30 @@
     color: var(--color-token-text-link-foreground);
   }
 
+  &__plan-icon--error {
+    color: var(--color-token-error-foreground);
+  }
+
+  &__plan-progress-ring {
+    display: block;
+    overflow: visible;
+    transform: rotate(-90deg);
+  }
+
+  &__plan-progress-track {
+    stroke: color-mix(
+      in srgb,
+      var(--color-token-description-foreground) 35%,
+      transparent
+    );
+  }
+
+  &__plan-progress-value {
+    stroke: currentcolor;
+    stroke-linecap: round;
+    transition: stroke-dashoffset var(--motion-standard) var(--ease-standard);
+  }
+
   &__separator {
     flex: 0 0 auto;
     color: var(--color-token-description-foreground);
@@ -722,5 +746,17 @@
   em {
     color: var(--color-token-git-decoration-deleted-resource-foreground);
     font-style: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-change-summary__plan-progress-value {
+    transition: none;
+  }
+}
+
+:root[data-reduce-motion="on"] {
+  .composer-change-summary__plan-progress-value {
+    transition: none;
   }
 }

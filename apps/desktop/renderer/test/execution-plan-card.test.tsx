@@ -92,6 +92,23 @@ describe("ExecutionPlanCard", () => {
         changedFileCount={5}
         deletions={155}
         executionPlan={executionPlanItem({ status: "interrupted" })}
+        failed={false}
+      />,
+    );
+    const progressedHtml = renderToStaticMarkup(
+      <ComposerChangeSummary
+        active
+        additions={0}
+        changedFileCount={0}
+        deletions={0}
+        executionPlan={executionPlanItem({
+          steps: [
+            { step: "更新协议", status: "completed" },
+            { step: "接入时间线", status: "completed" },
+            { step: "运行验证", status: "in_progress" },
+          ],
+        })}
+        failed={false}
       />,
     );
     const completedHtml = renderToStaticMarkup(
@@ -101,6 +118,7 @@ describe("ExecutionPlanCard", () => {
         changedFileCount={0}
         deletions={0}
         executionPlan={executionPlanItem({ status: "completed" })}
+        failed={false}
       />,
     );
     const interruptedHtml = renderToStaticMarkup(
@@ -110,6 +128,27 @@ describe("ExecutionPlanCard", () => {
         changedFileCount={0}
         deletions={0}
         executionPlan={executionPlanItem({ status: "interrupted" })}
+        failed={false}
+      />,
+    );
+    const failedHtml = renderToStaticMarkup(
+      <ComposerChangeSummary
+        active={false}
+        additions={0}
+        changedFileCount={0}
+        deletions={0}
+        executionPlan={executionPlanItem({ status: "interrupted" })}
+        failed
+      />,
+    );
+    const emptyPlanHtml = renderToStaticMarkup(
+      <ComposerChangeSummary
+        active
+        additions={0}
+        changedFileCount={0}
+        deletions={0}
+        executionPlan={executionPlanItem({ steps: [] })}
+        failed={false}
       />,
     );
     const fileOnlyHtml = renderToStaticMarkup(
@@ -119,7 +158,11 @@ describe("ExecutionPlanCard", () => {
         changedFileCount={1}
         deletions={3}
         executionPlan={null}
+        failed={false}
       />,
+    );
+    const completedSummaryHtml = completedHtml.slice(
+      completedHtml.indexOf("<button"),
     );
 
     expect(streamingHtml).toContain("第 2 / 3 步");
@@ -128,7 +171,13 @@ describe("ExecutionPlanCard", () => {
     expect(streamingHtml).toContain("-155");
     expect(streamingHtml).toContain("composer-change-summary__diff");
     expect(streamingHtml).toContain("composer-change-summary__separator");
-    expect(streamingHtml).toContain('aria-label="执行计划进行中"');
+    expect(streamingHtml).toContain(
+      'aria-label="执行计划进行中，已完成 1 / 3 步"',
+    );
+    expect(streamingHtml).toContain('data-progress="33.33"');
+    expect(streamingHtml).toContain('stroke-dashoffset="66.67"');
+    expect(progressedHtml).toContain('data-progress="66.67"');
+    expect(progressedHtml).toContain('stroke-dashoffset="33.33"');
     expect(streamingHtml).toContain("<button");
     expect(streamingHtml).toContain("ui-button");
     expect(streamingHtml).toContain('aria-expanded="false"');
@@ -136,9 +185,27 @@ describe("ExecutionPlanCard", () => {
     expect(streamingHtml).toContain('aria-hidden="true"');
     expect(streamingHtml).toContain("hidden=");
     expect(streamingHtml).not.toContain("composer-change-summary__chevron");
-    expect(completedHtml).toContain('aria-label="执行计划已完成"');
+    expect(completedHtml).toContain(
+      'aria-label="执行计划已完成，已完成 3 / 3 步"',
+    );
+    expect(completedHtml).toContain('data-progress="100"');
+    expect(completedHtml).toContain('stroke-dashoffset="0"');
+    expect(completedSummaryHtml).not.toContain("lucide-circle-check");
     expect(completedHtml).not.toContain("composer-change-summary__separator");
-    expect(interruptedHtml).toContain('aria-label="执行计划已中断"');
+    expect(interruptedHtml).toContain(
+      'aria-label="执行计划已中断，已完成 1 / 3 步"',
+    );
+    expect(interruptedHtml).toContain('data-progress="33.33"');
+    expect(failedHtml).toContain(
+      'aria-label="执行计划出错，已完成 1 / 3 步"',
+    );
+    expect(failedHtml).toContain("lucide-circle-x");
+    expect(failedHtml).not.toContain(
+      "composer-change-summary__plan-progress-ring",
+    );
+    expect(emptyPlanHtml).toContain('data-progress="0"');
+    expect(emptyPlanHtml).not.toContain("NaN");
+    expect(emptyPlanHtml).not.toContain("Infinity");
     expect(fileOnlyHtml).toContain("1 个文件已更改");
     expect(fileOnlyHtml).not.toContain("<button");
     expect(fileOnlyHtml).not.toContain("composer-change-summary__separator");

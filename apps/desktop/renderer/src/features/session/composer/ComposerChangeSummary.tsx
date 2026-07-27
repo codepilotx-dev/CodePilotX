@@ -1,5 +1,5 @@
 import React from "react";
-import { Circle, CircleCheck, LoaderCircle } from "lucide-react";
+import { CircleX } from "lucide-react";
 import type { ExecutionPlanItem } from "@codepilotx/shared/thread";
 
 import { Button } from "../../../components/ui/Button.js";
@@ -12,6 +12,7 @@ import { ExecutionPlanCard } from "../workflow/ExecutionPlanCard.js";
 type ComposerChangeSummaryProps = {
   executionPlan: ExecutionPlanItem | null;
   active: boolean;
+  failed: boolean;
   changedFileCount: number;
   additions: number;
   deletions: number;
@@ -20,6 +21,7 @@ type ComposerChangeSummaryProps = {
 export function ComposerChangeSummary({
   executionPlan,
   active,
+  failed,
   changedFileCount,
   additions,
   deletions,
@@ -41,6 +43,8 @@ export function ComposerChangeSummary({
       {executionPlan ? (
         <span className="composer-change-summary__plan">
           <ExecutionPlanStatusIcon
+            failed={failed}
+            steps={executionPlan.steps}
             status={active ? "streaming" : executionPlan.status}
           />
           第 {currentStep} / {executionPlan.steps.length} 步
@@ -126,12 +130,26 @@ export function executionPlanStepPosition(item: ExecutionPlanItem): number {
 }
 
 function ExecutionPlanStatusIcon({
+  failed,
+  steps,
   status,
 }: {
+  failed: boolean;
+  steps: ExecutionPlanItem["steps"];
   status: ExecutionPlanItem["status"];
 }): React.ReactNode {
-  const label =
-    status === "streaming"
+  const totalSteps = steps.length;
+  const completedSteps =
+    status === "completed"
+      ? totalSteps
+      : steps.filter((step) => step.status === "completed").length;
+  const progress =
+    totalSteps === 0
+      ? 0
+      : Math.round((completedSteps / totalSteps) * 10_000) / 100;
+  const lifecycleLabel = failed
+    ? "执行计划出错"
+    : status === "streaming"
       ? "执行计划进行中"
       : status === "completed"
         ? "执行计划已完成"
@@ -139,29 +157,48 @@ function ExecutionPlanStatusIcon({
 
   return (
     <span
-      aria-label={label}
-      className="composer-change-summary__plan-icon"
+      aria-label={`${lifecycleLabel}，已完成 ${completedSteps} / ${totalSteps} 步`}
+      className={`composer-change-summary__plan-icon${
+        failed ? " composer-change-summary__plan-icon--error" : ""
+      }`}
+      data-progress={failed ? undefined : progress}
       role="img"
     >
-      {status === "streaming" ? (
-        <LoaderCircle
-          aria-hidden="true"
-          className="canonical-spin"
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-      ) : status === "completed" ? (
-        <CircleCheck
+      {failed ? (
+        <CircleX
           aria-hidden="true"
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
       ) : (
-        <Circle
+        <svg
           aria-hidden="true"
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
+          className="composer-change-summary__plan-progress-ring"
+          height={APP_ICON_SIZE}
+          viewBox="0 0 20 20"
+          width={APP_ICON_SIZE}
+        >
+          <circle
+            className="composer-change-summary__plan-progress-track"
+            cx="10"
+            cy="10"
+            fill="none"
+            pathLength="100"
+            r="8"
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+          <circle
+            className="composer-change-summary__plan-progress-value"
+            cx="10"
+            cy="10"
+            fill="none"
+            pathLength="100"
+            r="8"
+            strokeDasharray="100"
+            strokeDashoffset={100 - progress}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        </svg>
       )}
     </span>
   );
