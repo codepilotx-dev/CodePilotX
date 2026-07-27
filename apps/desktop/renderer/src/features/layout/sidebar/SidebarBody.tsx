@@ -410,15 +410,15 @@ export function SidebarBody({
           <SidebarSection
             action={
               <SidebarSectionActions>
-                <IconButton onClick={onChooseWorkspace} title="添加项目">
-                  <Plus size={APP_ICON_SIZE} />
-                </IconButton>
                 <SidebarOrganizeMenu
                   organization={organization}
                   sort={projectSort}
                   onOrganizationChange={onOrganizationChange}
                   onSortChange={onProjectSortChange}
                 />
+                <IconButton onClick={onChooseWorkspace} title="添加项目">
+                  <Plus size={APP_ICON_SIZE} />
+                </IconButton>
               </SidebarSectionActions>
             }
             collapsed={collapsedSidebarSections.includes("projects")}
@@ -453,18 +453,18 @@ export function SidebarBody({
         <SidebarSection
           action={
             <SidebarSectionActions>
-              <IconButton
-                onClick={() => onCreateSession(null)}
-                title="新建无项目任务"
-              >
-                <SquarePen size={APP_ICON_SIZE} />
-              </IconButton>
               <SidebarOrganizeMenu
                 organization={organization}
                 sort={sessionSort}
                 onOrganizationChange={onOrganizationChange}
                 onSortChange={onSessionSortChange}
               />
+              <IconButton
+                onClick={() => onCreateSession(null)}
+                title="新建无项目任务"
+              >
+                <SquarePen size={APP_ICON_SIZE} />
+              </IconButton>
             </SidebarSectionActions>
           }
           collapsed={collapsedSidebarSections.includes("recent")}
