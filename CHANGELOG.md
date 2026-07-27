@@ -28,6 +28,7 @@
 
 ### Fixed
 
+- [renderer] 完成审阅、模型中心、记忆设置与可搜索下拉的统一搜索控件迁移，修复图标错位、键盘交互和 Renderer 类型检查失败
 - [renderer] 统一搜索与可搜索下拉控件的图标、清除、焦点和键盘行为，并修复模型菜单样式受设置页加载顺序影响及旧搜索响应覆盖新结果的问题
 - [renderer/desktop] 修复会话时间线 SCSS 截断导致的 Renderer 编译失败，并为桌面页面补充内容安全策略，避免启动时出现 CSP 安全警告
 - [Agent] 修复 Windows SRT 误选 Microsoft Store PowerShell 导致工具命令拒绝访问，并强化文件路径与 apply_patch 的模型调用契约，减少无效工具重试
@@ -54,6 +55,7 @@
 
 ### Changed
 
+- [renderer] 统一弹层菜单选中勾的尾部右对齐布局，并调整侧栏工作模式与整理菜单的选中态排列
 - [renderer] 将项目 Hover Card 最大宽度调整为 300px，保持紧凑布局并支持路径换行
 - [renderer] 将项目 Hover Card 最大宽度调整为 350px
 - [renderer] 将项目 Hover Card 最大宽度进一步收窄至 360px，减少短内容场景的空白

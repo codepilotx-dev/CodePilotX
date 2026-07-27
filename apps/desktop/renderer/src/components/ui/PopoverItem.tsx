@@ -42,7 +42,7 @@ export function PopoverItem({
     <DropdownMenu.Item
       className={[
         'popover-item',
-        'tw:flex',
+        'tw:grid',
         'tw:min-h-8',
         'tw:w-full',
         'tw:min-w-0',
