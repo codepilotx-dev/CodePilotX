@@ -27,7 +27,7 @@
 .appearance-mode-gallery {
   display: grid;
   width: 100%;
-  max-width: 32rem;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 16px;

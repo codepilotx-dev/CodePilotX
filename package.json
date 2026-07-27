@@ -25,8 +25,7 @@
     "debug:mcp:config:stdio": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=stdio",
     "debug:mcp:config:http": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=http",
     "debug:mcp:config:oauth": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=oauth",
-    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/provider-plugin typecheck && bun run --cwd packages/provider-runtime typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd packages/pi-agent-core typecheck && bun run --cwd packages/pi-agent-core build:types && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
-    "models:snapshot": "bun run scripts/update-model-snapshot.ts",
+    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd packages/pi-agent-core typecheck && bun run --cwd packages/pi-agent-core build:types && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:agent": "bun run --cwd apps/agent build",
     "build:desktop": "bun run --cwd apps/desktop/electron build",
@@ -43,8 +42,6 @@
     "typescript": "5.9.3"
   },
   "patchedDependencies": {
-    "@ai-sdk/google@3.0.73": "patches/@ai-sdk%2Fgoogle@3.0.73.patch",
-    "@ai-sdk/xai@3.0.82": "patches/@ai-sdk%2Fxai@3.0.82.patch",
     "effect@4.0.0-beta.83": "patches/effect@4.0.0-beta.83.patch",
     "gcp-metadata@8.1.2": "patches/gcp-metadata@8.1.2.patch"
   }

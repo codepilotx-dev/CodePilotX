@@ -9,7 +9,7 @@ CodePilotX 将持久化内容分为用户数据、工作区配置、Electron 状
 用户数据根包括：
 
 - `history.sqlite`、`profile.sqlite` 及其 WAL/SHM；
-- `models.cache.json`；
+- `pi-models.cache.json`（Pi 模型目录缓存；旧 `models.cache.json` 仅原样保留，不再读取）；
 - 全局 `hooks.json` 和 `skills`；
 - `attachments`、`pets`、`tooling`、`workspaces`；
 - Agent `logs`；

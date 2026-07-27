@@ -10,8 +10,8 @@ apps/
 └─ desktop/
    ├─ electron/           Electron composition root；sidecar、windows、ipc、security、settings 分目录
    └─ renderer/           React feature；session、review、layout 使用二级领域目录
-packages/                 共享契约、RPC v4、会话投影、模型与 Provider runtime
-resources/                内置 models.dev 精简快照
+packages/                 共享契约、RPC v4、会话投影、模型 schema 与 Pi Agent fork
+resources/                桌面应用的静态运行时资源
 scripts/                  开发与构建编排
 ```
 

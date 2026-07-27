@@ -45,7 +45,7 @@ rules are fixed here for review.
 | Sandbox and tools | `SANDBOX_UNAVAILABLE`, `PERMISSION_DENIED`, `CONFLICT` |
 | Attachment and memory | `ATTACHMENT_NOT_FOUND`, `ATTACHMENT_LIMIT`, `MEMORY_NOT_FOUND`, `MEMORY_REJECTED`, `PERMISSION_DENIED` |
 | Subagent and workspace operations | `SUBAGENT_NOT_FOUND`, `WORKSPACE_CONFLICT`, `PERMISSION_DENIED`, `CONFLICT` |
-| Model, provider, and integration | `MODEL_UNAVAILABLE`, `PROVIDER_UNAVAILABLE`, `INTEGRATION_NOT_FOUND`, `AUTHORIZATION_FAILED`, `CONFLICT` |
+| Model, provider, and auth | `MODEL_UNAVAILABLE`, `PROVIDER_NOT_FOUND`, `PROVIDER_UNAVAILABLE`, `CREDENTIAL_NOT_FOUND`, `AUTHORIZATION_FAILED`, `CONFLICT` |
 
 All families may return `RATE_LIMITED` or a sanitized `INTERNAL_ERROR`. Schema
 validation failures use JSON-RPC `-32602` instead of a domain error.
@@ -152,7 +152,7 @@ performed by a desktop-only API.
 | `subagent/worktree/discard` | `taskId`, `operationId` | `{ result }` | Keep workspace ownership checks. |
 | `subagent/workspace/restore` | `taskId`, `operationId` | `{ result }` | Keep baseline/ref validation. |
 
-## Model, provider, and integration methods
+## Model, provider, credential, and auth methods
 
 | Method | Params | Result | Notes |
 |---|---|---|---|
@@ -161,13 +161,22 @@ performed by a desktop-only API.
 | `model/setDefault` | model reference or null, `operationId` | effective default and settings version | Keep; validate model before commit. |
 | `model/setReviewer` | model reference or null, `operationId` | effective reviewer and settings version | Keep. |
 | `provider/test` | provider ID | typed test result | Keep; errors are scrubbed. |
-| `provider/updateSettings` | provider ID, typed public settings, write-only secrets, `operationId` | provider summary and catalog version | Keep; never echo secrets. |
-| `integration/list` | optional kind/status filter | `{ integrations }` | Keep. |
-| `integration/connect` | integration ID, key, label?, `operationId` | `{ integration }` | Keep. |
-| `integration/authorize` | integration ID, method ID, typed inputs, label?, `operationId` | `{ attempt }` | Keep. |
-| `integration/authorizeComplete` | attempt ID, code?, `operationId` | terminal attempt and connection summary | Keep. |
-| `integration/authorizeStatus` | attempt ID | typed attempt status | Keep; reconciliation source after disconnect. |
-| `integration/disconnect` | integration ID, credential ID, `operationId` | terminal integration summary | Keep. |
+| `provider/create` | complete custom Provider definition, `operationId` | provider ID and catalog version | Custom Provider IDs are immutable. |
+| `provider/update` | provider ID, complete builtin/custom definition, `operationId` | provider ID and catalog version | Built-ins only accept enablement and model filters. |
+| `provider/delete` | custom provider ID, `operationId` | deletion result and catalog version | Rejects default/reviewer references; credentials and historical references remain. |
+| `provider/model/discover` | provider ID and target API | bounded candidate list | OpenAI-compatible endpoints only; confirmation is separate. |
+| `provider/credential/list` | optional provider ID | safe API Key/OAuth summaries | Reconciliation authority for active credentials. |
+| `provider/credential/setActive` | provider ID and credential ID | updated summaries | Manual selection only; failures never switch credentials. |
+| `provider/credential/setEnabled` | credential ID and enabled flag | updated summaries | Disabling the active credential clears the binding. |
+| `provider/credential/delete` | credential ID, `operationId` | updated summaries | Deleting the active credential clears the binding. |
+| `provider/apiKey/create` | provider ID, label, write-only key, `operationId` | safe credential summary | Never echoes key material. |
+| `provider/apiKey/update` | credential ID, label and optional write-only key, `operationId` | safe credential summary | Preserves the active binding. |
+| `provider/apiKey/reorder` | provider ID and ordered credential IDs, `operationId` | safe summaries | Order is display-only, never request routing. |
+| `provider/apiKey/test` | credential ID | explicit test result | Test failures never change the active binding. |
+| `auth/session/start` | Provider or usage target, `operationId` | auth session snapshot | Pi owns the OAuth protocol and prompt flow. |
+| `auth/session/respond` | session ID, prompt ID and typed response | auth session snapshot | Secret responses are never persisted or emitted. |
+| `auth/session/status` | session ID | auth session snapshot | Reconciliation source after reconnect. |
+| `auth/session/cancel` | session ID, `operationId` | terminal auth session snapshot | Dialog/window closure cancels the session. |
 
 ## Server requests
 
@@ -233,16 +242,15 @@ stable across versions.
 | `approval/requested` | Thread | Durable | Audit/projection event paired with `approval/request`. |
 | `approval/cancelled` | Thread | Durable | Terminal cancellation and reason. |
 | `question/requested` | Thread | Durable | Audit/projection event paired with `question/request`. |
-| `interaction/resolved` | Thread | Durable | Replaces v2 `serverRequest/resolved`; typed kind and terminal result. |
+| `interaction/resolved` | Thread | Durable | Safe terminal `{ result, resolvedAt }`; hydrate/reconciliation remains authoritative. |
 | `context/compacted` | Thread | Durable | Old/new context baseline identity and compaction result. |
 | `context/recoveryRequired` | Thread | Durable | Side-effect evidence and recovery requirement, scrubbed. |
 | `hook/trust/requested` | Thread | Durable | Audit/projection event paired with `hookTrust/request`. |
 | `hook/trust/resolved` | Thread | Durable | Bound path/hash decision and resumed state. |
 | `queue/updated` | Thread | Durable | Complete queue projection, not only an incremental action. |
 | `catalog/updated` | Global | Live | Invalidation only; `model/list` plus catalog version reconciles. |
-| `integration/updated` | Global | Live | Invalidation only; `integration/list` reconciles. |
-| `integration/authorizationCompleted` | Global | Durable | Terminal authorization attempt identity and safe connection summary. |
-| `integration/authorizationFailed` | Global | Durable | Terminal attempt identity and sanitized failure. |
+| `provider/credential/updated` | Global | Live | Invalidation only; `provider/credential/list` reconciles. |
+| `auth/session/updated` | Global | Live | Safe auth-session invalidation/status; `auth/session/status` reconciles. |
 
 V2 `thread/snapshot` is removed from the event manifest. Snapshots are query
 results with a stream position, not historical events. V2 `heartbeat` is
@@ -269,6 +277,8 @@ The first v3 capability registry includes:
 - `agent.shutdown.v1`
 - `prompt.preview.sensitive.v1`
 - `prompt.refresh.v1`
+- `provider.config.pi.v1`
+- `provider.auth.pi.v1`
 
 Capabilities are negotiated, not inferred from client type. A method requiring
 an unavailable capability fails with `CAPABILITY_REQUIRED` before mutation.

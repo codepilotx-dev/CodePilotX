@@ -60,7 +60,7 @@
 - `@codepilotx/agent-protocol` 是 RPC method、event、wire error 和 capability schema 的唯一来源。
 - `@codepilotx/shared/thread` 只保存 thread 领域模型，不得重新引入 RPC 编排类型。
 - `session-view` 维护 canonical projection 和 thread projection，不新增旧 timeline 兼容层。
-- `provider-runtime` 的凭据解析、provider 构建、模型目录和 failover 必须保持为独立模块。
+- `pi-ai` 是 Provider、模型目录、请求和 OAuth 的唯一底层；CodePilotX 只维护 Pi 配置门面、加密活动凭据绑定和产品编排，不得恢复平行 Provider runtime 或自动 Key failover。
 - 不为生成型 `material-icon-theme` 或小型 `model-schema` 强行增加无意义目录层级。
 - 只允许包级公开入口和稳定模块门面使用 `index.ts`；禁止建立全仓 barrel。
 

@@ -7,8 +7,8 @@
 ## 包职责与依赖方向
 
 - `model-schema` 定义 provider、model、integration、connection 和 credential 的基础 schema。
-- `provider-plugin` 定义静态链接的内置插件及其有序生命周期。
-- `provider-runtime` 负责凭据解析、provider 构建、模型目录、variant、安全过滤、failover 和错误规范化。
+- `pi-agent-core` 保持上游同步，并承载 CodePilotX 的 deferred tools、动态执行、结构化结果和活动工具恢复补丁。
+- Provider、模型目录、请求与 OAuth 统一由 `pi-ai` 提供；禁止恢复独立 Provider plugin/runtime 或自动 Key failover。
 - `shared` 定义跨进程复用的应用领域模型；`shared/thread` 不拥有 RPC 编排类型。
 - `agent-protocol` 是 v4 method、event、wire error、capability 和 runtime dispatcher 的唯一协议来源。
 - `session-view` 只进行 canonical projection 和 thread projection 的纯转换。
@@ -24,7 +24,7 @@
 
 ## Provider 上游代码
 
-- 修改 `model-schema`、`provider-plugin` 或 `provider-runtime` 时遵守对应 `UPSTREAM.md`。
+- 修改 `model-schema` 或 `pi-agent-core` 时遵守对应 `UPSTREAM.md`。
 - 保留上游署名和许可证；优先复制或改造记录的上游实现。
 - 不得恢复运行时 npm 安装、任意文件插件、不受限动态 import 或外部插件执行。
 - 上游同步时更新来源、导入日期及 checksum/revision。
@@ -35,7 +35,7 @@
 - `shared/src/thread/` 按 permission、settings、items、queue、subagent 和 transport/domain boundary 维护。
 - `agent-protocol/src/` 按 `methods/`、`wire/`、`runtime/` 维护。
 - `session-view/src/` 保持 canonical 与 thread projection 分离。
-- `provider-runtime/src/runtime/` 保持 credential resolution、provider builder、model catalog 和 failover 分离。
+- Pi Provider 配置解析、自定义 Provider factory、模型缓存与凭据适配保持为独立模块。
 - 不为生成型 `material-icon-theme` 或小型 `model-schema` 强制增加无意义目录。
 
 ## 验证
