@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Integration, Provider } from "@codepilotx/model-schema"
+import { Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import {
   BillingCredentialInputSchema,
@@ -72,8 +72,7 @@ describe("usage RPC method contracts", () => {
       sourceId: "anthropic-subscription",
       connectionMethod: {
         kind: "oauth",
-        integrationId: Integration.ID.make("usage.anthropic.subscription"),
-        methodId: Integration.MethodID.make("claude-subscription-browser"),
+        sourceId: "anthropic-subscription",
       },
     }).connectionMethod.kind).toBe("oauth")
   })

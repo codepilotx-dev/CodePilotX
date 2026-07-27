@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { Credential, Integration, Model, Provider } from "@codepilotx/model-schema"
+import { Credential, Model, Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from "../src/methods/index"
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)("provider:test")
 const modelId = Schema.decodeUnknownSync(Model.ID)("model:test")
-const integrationId = Schema.decodeUnknownSync(Integration.ID)("integration:test")
-const integrationMethodId = Schema.decodeUnknownSync(Integration.MethodID)("method:test")
-const attemptId = Schema.decodeUnknownSync(Integration.AttemptID)("attempt:test")
 const credentialId = Schema.decodeUnknownSync(Credential.ID)("credential:test")
 
 const modelRef = {
@@ -221,29 +218,6 @@ const subagentCapabilities = {
   canRestoreWorkspace: true,
 }
 
-const integrationInfo = {
-  id: integrationId,
-  name: "Fixture integration",
-  methods: [],
-  connections: [],
-}
-
-const attemptTime = { created: 1, expires: 2 }
-const integrationAttempt = {
-  attemptID: attemptId,
-  url: "https://example.test/authorize",
-  instructions: "Authorize the fixture integration.",
-  mode: "code",
-  time: attemptTime,
-} as const
-
-const integrationAttemptState = {
-  attemptId,
-  integrationId,
-  status: { status: "pending", time: attemptTime },
-  connection: null,
-} as const
-
 const githubUser = {
   login: "octocat",
   id: 1,
@@ -354,17 +328,57 @@ const modelCatalog = {
   catalogVersion: 1,
 }
 
-const apiKeySummary = {
+const providerCatalog = {
+  ...modelCatalog,
+  issues: [],
+}
+
+const providerCredentialSummary = {
   id: credentialId,
   providerId,
+  kind: "api-key" as const,
   label: "Fixture API Key",
   maskedValue: "••••test",
   enabled: true,
   active: true,
-  priority: 0,
-  health: { status: "healthy" as const, lastTestedAt: 1, lastUsedAt: 2 },
+  order: 0,
+  health: { status: "healthy" as const, lastTestedAt: 1 },
   createdAt: 1,
   updatedAt: 2,
+}
+
+const customProviderDefinition = {
+  kind: "custom" as const,
+  id: providerId,
+  name: "Fixture provider",
+  enabled: true,
+  baseUrl: "https://example.test/v1",
+  auth: "api-key" as const,
+  env: ["FIXTURE_API_KEY"],
+  allowInsecureHttp: false,
+  headers: { "x-client-version": "0.1.0" },
+  models: [{
+    id: modelId,
+    name: "Fixture model",
+    api: "openai-completions" as const,
+    headers: { "x-model-profile": "fixture" },
+    thinkingLevelMap: { low: "low", max: null },
+    compat: { supportsStore: false },
+  }],
+}
+
+const authSession = {
+  id: "auth-session:1",
+  target: { kind: "provider" as const, providerId },
+  status: "waiting" as const,
+  prompt: {
+    id: "auth-prompt:1",
+    type: "manual_code" as const,
+    message: "Paste the authorization code.",
+  },
+  notices: [],
+  createdAt: 1,
+  expiresAt: 2,
 }
 
 const methodFixture = <M extends RpcMethod>(
@@ -1143,7 +1157,7 @@ const fixtures = {
     cursor: "model-cursor:1",
     limit: 100,
   }, modelCatalog),
-  "provider/list": methodFixture("provider/list", {}, modelCatalog),
+  "provider/list": methodFixture("provider/list", {}, providerCatalog),
   "model/refresh": methodFixture("model/refresh", { operationId: "operation:model-refresh" }, modelCatalog),
   "model/setDefault": methodFixture("model/setDefault", {
     model: modelRef,
@@ -1159,87 +1173,79 @@ const fixtures = {
     testedAt: 1,
     latencyMs: 12,
   }),
-  "provider/updateSettings": methodFixture("provider/updateSettings", {
+  "provider/create": methodFixture("provider/create", {
+    definition: customProviderDefinition,
+    operationId: "operation:provider-create",
+  }, { providerId, catalogVersion: 2 }),
+  "provider/update": methodFixture("provider/update", {
     providerId,
-    settings: {
-      name: "Fixture provider",
-      headers: { "x-client-version": "0.1.0" },
-      whitelist: [modelId],
-    },
-    sensitiveHeaders: [{ name: "authorization", value: "fixture-secret" }],
-    operationId: "operation:provider-settings",
-  }, {
-    provider: {
-      id: providerId,
-      name: "Fixture provider",
-      disabled: false,
-      configured: true,
-      modelCount: 1,
-    },
-    catalogVersion: 2,
+    definition: customProviderDefinition,
+    operationId: "operation:provider-update",
+  }, { providerId, catalogVersion: 2 }),
+  "provider/delete": methodFixture("provider/delete", {
+    providerId,
+    operationId: "operation:provider-delete",
+  }, { providerId, deleted: true, catalogVersion: 2 }),
+  "provider/model/discover": methodFixture("provider/model/discover", {
+    providerId,
+    api: "openai-completions",
+  }, { models: customProviderDefinition.models }),
+  "provider/credential/list": methodFixture("provider/credential/list", { providerId }, {
+    credentials: [providerCredentialSummary],
   }),
-  "apiKey/list": methodFixture("apiKey/list", { providerId }, { apiKeys: [apiKeySummary] }),
-  "apiKey/create": methodFixture("apiKey/create", {
+  "provider/credential/setActive": methodFixture("provider/credential/setActive", {
+    providerId,
+    credentialId,
+    operationId: "operation:credential-active",
+  }, { credential: providerCredentialSummary }),
+  "provider/credential/setEnabled": methodFixture("provider/credential/setEnabled", {
+    credentialId,
+    enabled: true,
+    operationId: "operation:credential-enabled",
+  }, { credential: providerCredentialSummary }),
+  "provider/credential/delete": methodFixture("provider/credential/delete", {
+    credentialId,
+    operationId: "operation:credential-delete",
+  }, { credentials: [] }),
+  "provider/apiKey/create": methodFixture("provider/apiKey/create", {
     providerId,
     label: "Fixture API Key",
     key: "fixture-secret",
     operationId: "operation:api-key-create",
-  }, { apiKey: apiKeySummary }),
-  "apiKey/update": methodFixture("apiKey/update", {
+  }, { credential: providerCredentialSummary }),
+  "provider/apiKey/update": methodFixture("provider/apiKey/update", {
     credentialId,
     label: "Updated API Key",
     key: "updated-secret",
     operationId: "operation:api-key-update",
-  }, { apiKey: { ...apiKeySummary, label: "Updated API Key" } }),
-  "apiKey/setActive": methodFixture("apiKey/setActive", {
-    providerId,
-    credentialId,
-    operationId: "operation:api-key-active",
-  }, { apiKey: apiKeySummary }),
-  "apiKey/setEnabled": methodFixture("apiKey/setEnabled", {
-    credentialId,
-    enabled: true,
-    operationId: "operation:api-key-enabled",
-  }, { apiKey: apiKeySummary }),
-  "apiKey/reorder": methodFixture("apiKey/reorder", {
+  }, { credential: { ...providerCredentialSummary, label: "Updated API Key" } }),
+  "provider/apiKey/reorder": methodFixture("provider/apiKey/reorder", {
     providerId,
     orderedCredentialIds: [credentialId],
     operationId: "operation:api-key-reorder",
-  }, { apiKeys: [apiKeySummary] }),
-  "apiKey/test": methodFixture(
-    "apiKey/test",
+  }, { credentials: [providerCredentialSummary] }),
+  "provider/apiKey/test": methodFixture(
+    "provider/apiKey/test",
     { credentialId },
-    { apiKey: apiKeySummary, ok: true, message: "API Key 可用。" },
+    { credential: providerCredentialSummary, ok: true, message: "API Key 可用。" },
   ),
-  "apiKey/delete": methodFixture("apiKey/delete", {
-    credentialId,
-    operationId: "operation:api-key-delete",
-  }, { apiKeys: [] }),
-  "integration/list": methodFixture("integration/list", { kind: "oauth", status: "connected" }, { integrations: [integrationInfo] }),
-  "integration/connect": methodFixture("integration/connect", {
-    integrationId,
-    key: "fixture-key",
-    label: "Fixture credential",
-    operationId: "operation:integration-connect",
-  }, { integration: integrationInfo }),
-  "integration/authorize": methodFixture("integration/authorize", {
-    integrationId,
-    methodId: integrationMethodId,
-    inputs: { tenant: "fixture" },
-    label: "Fixture OAuth",
-    operationId: "operation:integration-authorize",
-  }, { attempt: integrationAttempt }),
-  "integration/authorizeComplete": methodFixture("integration/authorizeComplete", {
-    attemptId,
-    code: "fixture-code",
-    operationId: "operation:integration-complete",
-  }, { attempt: integrationAttemptState, integration: integrationInfo }),
-  "integration/authorizeStatus": methodFixture("integration/authorizeStatus", { attemptId }, { attempt: integrationAttemptState }),
-  "integration/disconnect": methodFixture("integration/disconnect", {
-    integrationId,
-    credentialId,
-    operationId: "operation:integration-disconnect",
-  }, { integration: integrationInfo }),
+  "auth/session/start": methodFixture("auth/session/start", {
+    target: { kind: "provider", providerId },
+    operationId: "operation:auth-start",
+  }, { session: authSession }),
+  "auth/session/respond": methodFixture("auth/session/respond", {
+    sessionId: authSession.id,
+    promptId: authSession.prompt.id,
+    value: "fixture-code",
+    operationId: "operation:auth-respond",
+  }, { session: authSession }),
+  "auth/session/status": methodFixture("auth/session/status", {
+    sessionId: authSession.id,
+  }, { session: authSession }),
+  "auth/session/cancel": methodFixture("auth/session/cancel", {
+    sessionId: authSession.id,
+    operationId: "operation:auth-cancel",
+  }, { session: { ...authSession, status: "cancelled", prompt: undefined } }),
   "github/auth/status": methodFixture("github/auth/status", {}, githubAuth),
   "github/auth/start": methodFixture("github/auth/start", {
     mode: "device",
@@ -1798,9 +1804,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 148 formal methods decodable", () => {
+  test("keeps valid params and results for all 149 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(148)
+    expect(methods).toHaveLength(149)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2048,50 +2054,49 @@ describe("RPC method schema contracts", () => {
     })).toThrow()
   })
 
-  test("accepts provider secrets only through the write-only channel", () => {
+  test("rejects sensitive headers and keeps API key results secret-free", () => {
     expect(() => Schema.decodeUnknownSync(
-      RpcMethods["provider/updateSettings"].params,
+      RpcMethods["provider/create"].params,
       { onExcessProperty: "error" },
     )({
-      ...fixtures["provider/updateSettings"].params,
-      settings: { headers: { authorization: "fixture-secret" } },
-    })).toThrow()
-
-    expect(() => Schema.decodeUnknownSync(
-      RpcMethods["provider/updateSettings"].result,
-      { onExcessProperty: "error" },
-    )({
-      ...fixtures["provider/updateSettings"].result,
-      apiKey: "fixture-secret",
-      provider: {
-        ...fixtures["provider/updateSettings"].result.provider,
-        sensitiveHeaders: [{ name: "authorization", value: "fixture-secret" }],
+      ...fixtures["provider/create"].params,
+      definition: {
+        ...customProviderDefinition,
+        headers: { authorization: "fixture-secret" },
       },
     })).toThrow()
 
-    const createParams = Schema.decodeUnknownSync(
-      RpcMethods["apiKey/create"].params,
-      { onExcessProperty: "error" },
-    )(fixtures["apiKey/create"].params)
-    expect(createParams.key).toBe("fixture-secret")
     expect(() => Schema.decodeUnknownSync(
-      RpcMethods["apiKey/create"].result,
+      RpcMethods["provider/create"].result,
       { onExcessProperty: "error" },
     )({
-      ...fixtures["apiKey/create"].result,
+      ...fixtures["provider/create"].result,
+      apiKey: "fixture-secret",
+    })).toThrow()
+
+    const createParams = Schema.decodeUnknownSync(
+      RpcMethods["provider/apiKey/create"].params,
+      { onExcessProperty: "error" },
+    )(fixtures["provider/apiKey/create"].params)
+    expect(createParams.key).toBe("fixture-secret")
+    expect(() => Schema.decodeUnknownSync(
+      RpcMethods["provider/apiKey/create"].result,
+      { onExcessProperty: "error" },
+    )({
+      ...fixtures["provider/apiKey/create"].result,
       key: "fixture-secret",
     })).toThrow()
 
     const updateParams = Schema.decodeUnknownSync(
-      RpcMethods["apiKey/update"].params,
+      RpcMethods["provider/apiKey/update"].params,
       { onExcessProperty: "error" },
-    )(fixtures["apiKey/update"].params)
+    )(fixtures["provider/apiKey/update"].params)
     expect(updateParams.key).toBe("updated-secret")
     expect(() => Schema.decodeUnknownSync(
-      RpcMethods["apiKey/update"].result,
+      RpcMethods["provider/apiKey/update"].result,
       { onExcessProperty: "error" },
     )({
-      ...fixtures["apiKey/update"].result,
+      ...fixtures["provider/apiKey/update"].result,
       key: "updated-secret",
     })).toThrow()
   })

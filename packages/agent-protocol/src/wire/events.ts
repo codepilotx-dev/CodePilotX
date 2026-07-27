@@ -1,4 +1,4 @@
-import { Integration, Model } from "@codepilotx/model-schema"
+import { Model, Provider } from "@codepilotx/model-schema"
 import {
   AgentExecutionSchema,
   ExecutionPlanItemSchema,
@@ -24,6 +24,7 @@ import {
 import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./primitives"
 import { ToolingStatusSchema } from "../methods/tooling"
 import { UsageSourceIdSchema } from "../methods/usage"
+import { AuthSessionSchema } from "../methods/extended"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -457,13 +458,21 @@ export const EventManifest = {
     capability: "events.live.v1",
     reconcilesWith: "model/list",
   }),
-  "integration/updated": defineEvent({
-    payload: Schema.Struct({ integrationId: Integration.ID }),
+  "provider/credential/updated": defineEvent({
+    payload: Schema.Struct({ providerId: Provider.ID }),
     version: 1,
     durability: "live",
     stream: "global",
-    capability: "events.live.v1",
-    reconcilesWith: "integration/list",
+    capability: "provider.auth.pi.v1",
+    reconcilesWith: "provider/credential/list",
+  }),
+  "auth/session/updated": defineEvent({
+    payload: Schema.Struct({ session: AuthSessionSchema }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "provider.auth.pi.v1",
+    reconcilesWith: "auth/session/status",
   }),
   "usage/source/updated": defineEvent({
     payload: Schema.Struct({
@@ -475,28 +484,6 @@ export const EventManifest = {
     stream: "global",
     capability: "events.live.v1",
     reconcilesWith: "usage/source/list",
-  }),
-  "integration/authorizationCompleted": defineEvent({
-    payload: Schema.Struct({
-      attemptId: Integration.AttemptID,
-      integrationId: Integration.ID,
-      connection: Schema.optional(Integration.Ref),
-    }),
-    version: 1,
-    durability: "durable",
-    stream: "global",
-    capability: "events.replay.v1",
-  }),
-  "integration/authorizationFailed": defineEvent({
-    payload: Schema.Struct({
-      attemptId: Integration.AttemptID,
-      integrationId: Integration.ID,
-      error: SanitizedErrorSchema,
-    }),
-    version: 1,
-    durability: "durable",
-    stream: "global",
-    capability: "events.replay.v1",
   }),
 } as const
 

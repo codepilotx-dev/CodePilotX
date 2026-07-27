@@ -1,4 +1,4 @@
-import { Credential, Integration, Model, Provider } from "@codepilotx/model-schema"
+import { Credential, Model, Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
 import { OperationParamsSchema, TimestampSchema } from "../wire/primitives"
@@ -279,8 +279,7 @@ export const UsageConnectionMethodSchema = Schema.Union([
   }),
   Schema.Struct({
     kind: Schema.Literal("oauth"),
-    integrationId: Integration.ID,
-    methodId: Integration.MethodID,
+    sourceId: UsageSourceIdSchema,
   }),
   Schema.Struct({
     kind: Schema.Literal("external"),

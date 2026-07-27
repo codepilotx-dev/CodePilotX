@@ -1,4 +1,4 @@
-import { Connection, Credential, Integration, Model, Provider } from "@codepilotx/model-schema"
+import { Credential, Model, Provider } from "@codepilotx/model-schema"
 import {
   ModelCatalogSchema,
   PermissionConfigSchema,
@@ -65,13 +65,6 @@ const CatalogResultSchema = Schema.Struct({
   nextCursor: Schema.optional(CursorSchema),
 })
 
-const ProviderListResultSchema = Schema.Struct({
-  providers: Schema.Array(Provider.Info),
-  defaultModel: Schema.NullOr(Model.Ref),
-  reviewerModel: Schema.NullOr(Model.Ref),
-  catalogVersion: SequenceSchema,
-})
-
 const ModelPageLimitSchema = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 100 }))
 
 const SettingsVersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
@@ -82,39 +75,187 @@ const PublicHeaderNameSchema = Schema.String.check(
   Schema.isPattern(/^(?!(?:authorization|proxy-authorization|x-api-key|api-key|x-auth-token)$)[!#$%&'*+.^_`|~0-9A-Za-z-]+$/i),
 )
 const PublicHeadersSchema = Schema.Record(PublicHeaderNameSchema, Schema.String)
-const SensitiveHeaderNameSchema = Schema.Literals([
-  "authorization",
-  "proxy-authorization",
-  "x-api-key",
-  "api-key",
-  "x-auth-token",
+export const PiProviderApiSchema = Schema.Literals([
+  "openai-completions",
+  "openai-responses",
+  "anthropic-messages",
 ])
-const SensitiveHeaderWriteSchema = Schema.Struct({
-  name: SensitiveHeaderNameSchema,
-  value: Schema.NullOr(NonEmptyStringSchema),
+
+const ProviderModelCostSchema = Schema.Struct({
+  input: Schema.optional(NonNegativeIntSchema),
+  output: Schema.optional(NonNegativeIntSchema),
+  cacheRead: Schema.optional(NonNegativeIntSchema),
+  cacheWrite: Schema.optional(NonNegativeIntSchema),
 })
 
-const ProviderPublicSettingsSchema = Schema.Struct({
+const ThinkingLevelMapSchema = Schema.Struct({
+  off: Schema.optional(Schema.NullOr(Schema.String)),
+  minimal: Schema.optional(Schema.NullOr(Schema.String)),
+  low: Schema.optional(Schema.NullOr(Schema.String)),
+  medium: Schema.optional(Schema.NullOr(Schema.String)),
+  high: Schema.optional(Schema.NullOr(Schema.String)),
+  xhigh: Schema.optional(Schema.NullOr(Schema.String)),
+  max: Schema.optional(Schema.NullOr(Schema.String)),
+})
+
+export const ProviderModelDefinitionSchema = Schema.Struct({
+  id: Model.ID,
   name: Schema.optional(NonEmptyStringSchema),
-  disabled: Schema.optional(Schema.Boolean),
-  api: Schema.optional(NonEmptyStringSchema),
-  npm: Schema.optional(NonEmptyStringSchema),
-  env: Schema.optional(Schema.Array(NonEmptyStringSchema)),
-  options: Schema.optional(JsonValueSchema),
-  body: Schema.optional(JsonValueSchema),
+  api: PiProviderApiSchema,
+  enabled: Schema.optional(Schema.Boolean),
+  contextWindow: Schema.optional(
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 })),
+  ),
+  maxTokens: Schema.optional(
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 })),
+  ),
+  reasoning: Schema.optional(Schema.Boolean),
+  input: Schema.optional(
+    Schema.Array(Schema.Literals(["text", "image"])).check(
+      Schema.isMinLength(1),
+      Schema.isMaxLength(2),
+    ),
+  ),
+  cost: Schema.optional(ProviderModelCostSchema),
   headers: Schema.optional(PublicHeadersSchema),
-  whitelist: Schema.optional(Schema.Array(Model.ID)),
-  blacklist: Schema.optional(Schema.Array(Model.ID)),
-  models: Schema.optional(JsonValueSchema),
+  thinkingLevelMap: Schema.optional(ThinkingLevelMapSchema),
+  compat: Schema.optional(Schema.Record(Schema.String, JsonValueSchema)),
 })
 
-const ProviderSummarySchema = Schema.Struct({
+export const BuiltinProviderDefinitionSchema = Schema.Struct({
+  kind: Schema.Literal("builtin"),
   id: Provider.ID,
-  name: Schema.String,
-  disabled: Schema.Boolean,
-  integrationId: Schema.optional(Integration.ID),
-  configured: Schema.Boolean,
-  modelCount: NonNegativeIntSchema,
+  enabled: Schema.Boolean,
+  allowModels: Schema.Array(Model.ID),
+  denyModels: Schema.Array(Model.ID),
+  models: Schema.Array(Schema.Struct({
+    id: Model.ID,
+    enabled: Schema.Boolean,
+  })),
+})
+
+export const CustomProviderDefinitionSchema = Schema.Struct({
+  kind: Schema.Literal("custom"),
+  id: Provider.ID,
+  name: NonEmptyStringSchema,
+  enabled: Schema.Boolean,
+  baseUrl: NonEmptyStringSchema,
+  auth: Schema.Literals(["api-key", "none"]),
+  env: Schema.Array(NonEmptyStringSchema),
+  allowInsecureHttp: Schema.Boolean,
+  headers: PublicHeadersSchema,
+  models: Schema.Array(ProviderModelDefinitionSchema).check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(500),
+  ),
+})
+
+export const ProviderDefinitionSchema = Schema.Union([
+  BuiltinProviderDefinitionSchema,
+  CustomProviderDefinitionSchema,
+]).pipe(Schema.toTaggedUnion("kind"))
+
+const ProviderListEntrySchema = Schema.Struct({
+  ...Provider.Info.fields,
+  config: ProviderDefinitionSchema,
+})
+
+const ProviderConfigIssueSchema = Schema.Struct({
+  providerId: Provider.ID,
+  path: Schema.String,
+  code: Schema.Literals([
+    "INVALID_PROVIDER",
+    "INVALID_MODEL",
+    "UNSAFE_URL",
+    "SENSITIVE_HEADER",
+    "BUILTIN_OVERRIDE",
+    "UNSUPPORTED_SCHEMA",
+  ]),
+})
+
+const ProviderListResultSchema = Schema.Struct({
+  providers: Schema.Array(ProviderListEntrySchema),
+  issues: Schema.Array(ProviderConfigIssueSchema),
+  defaultModel: Schema.NullOr(Model.Ref),
+  reviewerModel: Schema.NullOr(Model.Ref),
+  catalogVersion: SequenceSchema,
+})
+
+export const ProviderCredentialHealthSchema = Schema.Struct({
+  status: Schema.Literals(["untested", "healthy", "auth-failed", "rate-limited", "error"]),
+  lastTestedAt: Schema.optional(TimestampSchema),
+  errorCategory: Schema.optional(Schema.Literals(["authentication", "rate-limit", "network", "unknown"])),
+})
+
+export const ProviderCredentialSummarySchema = Schema.Struct({
+  id: Credential.ID,
+  providerId: Provider.ID,
+  kind: Schema.Literals(["api-key", "oauth"]),
+  methodId: Schema.optional(Schema.String),
+  label: Schema.String,
+  maskedValue: Schema.optional(Schema.String),
+  enabled: Schema.Boolean,
+  active: Schema.Boolean,
+  order: NonNegativeIntSchema,
+  health: Schema.optional(ProviderCredentialHealthSchema),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+})
+
+const ProviderCredentialMutationResultSchema = Schema.Struct({
+  credential: ProviderCredentialSummarySchema,
+})
+
+export const AuthTargetSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("provider"), providerId: Provider.ID }),
+  Schema.Struct({ kind: Schema.Literal("usage"), sourceId: NonEmptyStringSchema }),
+]).pipe(Schema.toTaggedUnion("kind"))
+
+const AuthPromptSchema = Schema.Struct({
+  id: OpaqueIDSchema,
+  type: Schema.Literals(["text", "secret", "select", "manual_code"]),
+  message: Schema.String,
+  placeholder: Schema.optional(Schema.String),
+  options: Schema.optional(Schema.Array(Schema.Struct({
+    id: NonEmptyStringSchema,
+    label: Schema.String,
+    description: Schema.optional(Schema.String),
+  }))),
+})
+
+const AuthNoticeSchema = Schema.Union([
+  Schema.Struct({
+    type: Schema.Literal("info"),
+    message: Schema.String,
+    links: Schema.optional(Schema.Array(Schema.Struct({
+      url: NonEmptyStringSchema,
+      label: Schema.optional(Schema.String),
+    }))),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("auth_url"),
+    url: NonEmptyStringSchema,
+    instructions: Schema.optional(Schema.String),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("device_code"),
+    userCode: NonEmptyStringSchema,
+    verificationUri: NonEmptyStringSchema,
+    intervalSeconds: Schema.optional(NonNegativeIntSchema),
+    expiresInSeconds: Schema.optional(NonNegativeIntSchema),
+  }),
+  Schema.Struct({ type: Schema.Literal("progress"), message: Schema.String }),
+]).pipe(Schema.toTaggedUnion("type"))
+
+export const AuthSessionSchema = Schema.Struct({
+  id: OpaqueIDSchema,
+  target: AuthTargetSchema,
+  status: Schema.Literals(["running", "waiting", "complete", "failed", "cancelled", "expired"]),
+  prompt: Schema.optional(AuthPromptSchema),
+  notices: Schema.Array(AuthNoticeSchema),
+  error: Schema.optional(Schema.String),
+  createdAt: TimestampSchema,
+  expiresAt: TimestampSchema,
 })
 
 const ProviderTestResultSchema = Schema.Union([
@@ -133,40 +274,10 @@ const ProviderTestResultSchema = Schema.Union([
   }),
 ])
 
-export const ApiKeyHealthSchema = Schema.Struct({
-  status: Schema.Literals(["untested", "healthy", "auth-failed", "rate-limited", "error"]),
-  lastTestedAt: Schema.optional(TimestampSchema),
-  lastUsedAt: Schema.optional(TimestampSchema),
-  errorCategory: Schema.optional(Schema.Literals(["authentication", "rate-limit", "network", "unknown"])),
-  cooldownUntil: Schema.optional(TimestampSchema),
-})
-
-export const ApiKeySummarySchema = Schema.Struct({
-  id: Credential.ID,
-  providerId: Provider.ID,
-  label: Schema.String,
-  maskedValue: Schema.String,
-  enabled: Schema.Boolean,
-  active: Schema.Boolean,
-  priority: NonNegativeIntSchema,
-  health: ApiKeyHealthSchema,
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
-})
-
-const ApiKeyMutationResultSchema = Schema.Struct({ apiKey: ApiKeySummarySchema })
-
 const ApiKeyTestResultSchema = Schema.Struct({
-  apiKey: ApiKeySummarySchema,
+  credential: ProviderCredentialSummarySchema,
   ok: Schema.Boolean,
   message: Schema.String,
-})
-
-const IntegrationAttemptStateSchema = Schema.Struct({
-  attemptId: Integration.AttemptID,
-  integrationId: Integration.ID,
-  status: Integration.AttemptStatus,
-  connection: Schema.NullOr(Connection.Info),
 })
 
 const SUBAGENT_CAPABILITY = "subagents.v1"
@@ -385,99 +496,175 @@ export const ExtendedRpcMethods = {
     mutation: false,
   }),
 
-  "provider/updateSettings": defineMethod({
+  "provider/create": defineMethod({
     params: Schema.Struct({
-      providerId: Provider.ID,
-      settings: ProviderPublicSettingsSchema,
-      sensitiveHeaders: Schema.optional(Schema.Array(SensitiveHeaderWriteSchema)),
+      definition: CustomProviderDefinitionSchema,
       ...OperationParamsSchema.fields,
     }),
     result: Schema.Struct({
-      provider: ProviderSummarySchema,
+      providerId: Provider.ID,
       catalogVersion: SequenceSchema,
     }),
-    errors: ["PROVIDER_UNAVAILABLE", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+    errors: ["CONFLICT", "PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.config.pi.v1",
     exactParams: true,
     exactResult: true,
     mutation: true,
   }),
 
-  "apiKey/list": defineMethod({
-    params: Schema.Struct({ providerId: Schema.optional(Provider.ID) }),
-    result: Schema.Struct({ apiKeys: Schema.Array(ApiKeySummarySchema) }),
-    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+  "provider/update": defineMethod({
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      definition: ProviderDefinitionSchema,
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({
+      providerId: Provider.ID,
+      catalogVersion: SequenceSchema,
+    }),
+    errors: ["PROVIDER_NOT_FOUND", "CONFLICT", "PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.config.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "provider/delete": defineMethod({
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({
+      providerId: Provider.ID,
+      deleted: Schema.Literal(true),
+      catalogVersion: SequenceSchema,
+    }),
+    errors: ["PROVIDER_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.config.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "provider/model/discover": defineMethod({
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      api: PiProviderApiSchema,
+    }),
+    result: Schema.Struct({
+      models: Schema.Array(ProviderModelDefinitionSchema),
+    }),
+    errors: ["PROVIDER_NOT_FOUND", "PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.config.pi.v1",
+    exactParams: true,
+    exactResult: true,
     mutation: false,
   }),
 
-  "apiKey/create": defineMethod({
+  "provider/credential/list": defineMethod({
+    params: Schema.Struct({
+      providerId: Schema.optional(Provider.ID),
+    }),
+    result: Schema.Struct({
+      credentials: Schema.Array(ProviderCredentialSummarySchema),
+    }),
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: false,
+  }),
+
+  "provider/credential/setActive": defineMethod({
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      credentialId: Credential.ID,
+      ...OperationParamsSchema.fields,
+    }),
+    result: ProviderCredentialMutationResultSchema,
+    errors: ["PROVIDER_NOT_FOUND", "CREDENTIAL_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "provider/credential/setEnabled": defineMethod({
+    params: Schema.Struct({
+      credentialId: Credential.ID,
+      enabled: Schema.Boolean,
+      ...OperationParamsSchema.fields,
+    }),
+    result: ProviderCredentialMutationResultSchema,
+    errors: ["CREDENTIAL_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "provider/credential/delete": defineMethod({
+    params: Schema.Struct({
+      credentialId: Credential.ID,
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({
+      credentials: Schema.Array(ProviderCredentialSummarySchema),
+    }),
+    errors: ["CREDENTIAL_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "provider/apiKey/create": defineMethod({
     params: Schema.Struct({
       providerId: Provider.ID,
       label: NonEmptyStringSchema,
       key: NonEmptyStringSchema,
       ...OperationParamsSchema.fields,
     }),
-    result: ApiKeyMutationResultSchema,
-    errors: ["INTEGRATION_NOT_FOUND", "AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+    result: ProviderCredentialMutationResultSchema,
+    errors: ["PROVIDER_NOT_FOUND", "PROVIDER_UNAVAILABLE", "AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
     exactParams: true,
     exactResult: true,
     mutation: true,
   }),
 
-  "apiKey/update": defineMethod({
+  "provider/apiKey/update": defineMethod({
     params: Schema.Struct({
       credentialId: Credential.ID,
       label: Schema.optional(NonEmptyStringSchema),
       key: Schema.optional(NonEmptyStringSchema),
       ...OperationParamsSchema.fields,
     }),
-    result: ApiKeyMutationResultSchema,
-    errors: ["AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+    result: ProviderCredentialMutationResultSchema,
+    errors: ["CREDENTIAL_NOT_FOUND", "AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
     exactParams: true,
     exactResult: true,
     mutation: true,
   }),
 
-  "apiKey/setActive": defineMethod({
-    params: Schema.Struct({
-      providerId: Provider.ID,
-      credentialId: Credential.ID,
-      ...OperationParamsSchema.fields,
-    }),
-    result: ApiKeyMutationResultSchema,
-    errors: ["INTEGRATION_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
-    mutation: true,
-  }),
-
-  "apiKey/setEnabled": defineMethod({
-    params: Schema.Struct({
-      credentialId: Credential.ID,
-      enabled: Schema.Boolean,
-      ...OperationParamsSchema.fields,
-    }),
-    result: ApiKeyMutationResultSchema,
-    errors: ["CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
-    mutation: true,
-  }),
-
-  "apiKey/reorder": defineMethod({
+  "provider/apiKey/reorder": defineMethod({
     params: Schema.Struct({
       providerId: Provider.ID,
       orderedCredentialIds: Schema.Array(Credential.ID),
       ...OperationParamsSchema.fields,
     }),
-    result: Schema.Struct({ apiKeys: Schema.Array(ApiKeySummarySchema) }),
-    errors: ["INTEGRATION_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+    result: Schema.Struct({
+      credentials: Schema.Array(ProviderCredentialSummarySchema),
+    }),
+    errors: ["PROVIDER_NOT_FOUND", "CREDENTIAL_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
     mutation: true,
   }),
 
-  "apiKey/test": defineMethod({
+  "provider/apiKey/test": defineMethod({
     params: Schema.Struct({ credentialId: Credential.ID }),
     result: ApiKeyTestResultSchema,
     errors: [
@@ -487,91 +674,60 @@ export const ExtendedRpcMethods = {
       "RATE_LIMITED",
       "INTERNAL_ERROR",
     ] as const,
-    capability: null,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
     mutation: false,
   }),
 
-  "apiKey/delete": defineMethod({
-    params: Schema.Struct({ credentialId: Credential.ID, ...OperationParamsSchema.fields }),
-    result: Schema.Struct({ apiKeys: Schema.Array(ApiKeySummarySchema) }),
-    errors: ["CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+  "auth/session/start": defineMethod({
+    params: Schema.Struct({
+      target: AuthTargetSchema,
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({ session: AuthSessionSchema }),
+    errors: ["PROVIDER_NOT_FOUND", "PROVIDER_UNAVAILABLE", "AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
     mutation: true,
   }),
 
-  "integration/list": defineMethod({
+  "auth/session/respond": defineMethod({
     params: Schema.Struct({
-      kind: Schema.optional(Schema.Literals(["oauth", "key", "env"])),
-      status: Schema.optional(Schema.Literals(["connected", "disconnected"])),
+      sessionId: OpaqueIDSchema,
+      promptId: OpaqueIDSchema,
+      value: Schema.String,
+      ...OperationParamsSchema.fields,
     }),
-    result: Schema.Struct({ integrations: Schema.Array(Integration.Info) }),
-    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+    result: Schema.Struct({ session: AuthSessionSchema }),
+    errors: ["AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "auth/session/status": defineMethod({
+    params: Schema.Struct({ sessionId: OpaqueIDSchema }),
+    result: Schema.Struct({ session: AuthSessionSchema }),
+    errors: ["AUTHORIZATION_FAILED", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
     mutation: false,
   }),
 
-  "integration/connect": defineMethod({
+  "auth/session/cancel": defineMethod({
     params: Schema.Struct({
-      integrationId: Integration.ID,
-      key: NonEmptyStringSchema,
-      label: Schema.optional(NonEmptyStringSchema),
+      sessionId: OpaqueIDSchema,
       ...OperationParamsSchema.fields,
     }),
-    result: Schema.Struct({ integration: Integration.Info }),
-    errors: ["INTEGRATION_NOT_FOUND", "AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+    result: Schema.Struct({ session: AuthSessionSchema }),
+    errors: ["AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
     exactParams: true,
-    mutation: true,
-  }),
-
-  "integration/authorize": defineMethod({
-    params: Schema.Struct({
-      integrationId: Integration.ID,
-      methodId: Integration.MethodID,
-      inputs: Integration.Inputs,
-      label: Schema.optional(NonEmptyStringSchema),
-      ...OperationParamsSchema.fields,
-    }),
-    result: Schema.Struct({ attempt: Integration.Attempt }),
-    errors: ["INTEGRATION_NOT_FOUND", "AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
-    exactParams: true,
-    mutation: true,
-  }),
-
-  "integration/authorizeComplete": defineMethod({
-    params: Schema.Struct({
-      attemptId: Integration.AttemptID,
-      code: Schema.optional(NonEmptyStringSchema),
-      ...OperationParamsSchema.fields,
-    }),
-    result: Schema.Struct({
-      attempt: IntegrationAttemptStateSchema,
-      integration: Integration.Info,
-    }),
-    errors: ["INTEGRATION_NOT_FOUND", "AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
-    exactParams: true,
-    mutation: true,
-  }),
-
-  "integration/authorizeStatus": defineMethod({
-    params: Schema.Struct({ attemptId: Integration.AttemptID }),
-    result: Schema.Struct({ attempt: IntegrationAttemptStateSchema }),
-    errors: ["INTEGRATION_NOT_FOUND", "AUTHORIZATION_FAILED", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
-    mutation: false,
-  }),
-
-  "integration/disconnect": defineMethod({
-    params: Schema.Struct({
-      integrationId: Integration.ID,
-      credentialId: Credential.ID,
-      ...OperationParamsSchema.fields,
-    }),
-    result: Schema.Struct({ integration: Integration.Info }),
-    errors: ["INTEGRATION_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: null,
+    exactResult: true,
     mutation: true,
   }),
 } as const satisfies MethodMap
