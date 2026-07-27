@@ -64,8 +64,28 @@ Git 标签格式：`v<根 package.json 的 version>`。
 1. 确认 `Unreleased` 区段非空。
 2. 运行 `bun run version:prepare -- <新版本> [--stable]`。
 3. 人工检查产物（manifest、lockfile、CHANGELOG）。
-4. 人工创建提交和标签。
-5. CI 检测到匹配标签后自动构建与签名。
+4. 确认 `CHANGELOG.md` 已生成 `## <版本> — YYYY-MM-DD` 归档区段，且内容非空。
+5. 人工创建提交和 `v<版本>` 标签，并将提交与标签推送到 GitHub。
+6. CI 验证标签与根版本一致，构建、签名并完成安装冒烟测试。
+7. 所有验证成功后，CI 从对应的 CHANGELOG 归档区段生成正文，在 `codepilotx-dev/CodePilotX` 幂等创建或更新 GitHub Release，并上传 Windows x64 安装包。
+
+预发布标签（`alpha.N`、`beta.N`、`rc.N`）会创建 prerelease；无后缀版本会创建正式 Release。相同标签重跑时会更新 Release 正文并覆盖同名安装包，不需要人工删除已有 Release。
+
+> 桌面端运行时仅从 GitHub Releases 读取更新日志，不读取本地 `CHANGELOG.md`。CHANGELOG 只作为标签发布流水线生成 Release 正文的来源。
+
+## 迁移到组织仓库
+
+首次公开发布前，将当前仓库通过 GitHub Transfer 转移到 `codepilotx-dev/CodePilotX`，并逐项确认：
+
+- 本地 `origin` 已更新为组织仓库地址，拉取和推送均正常。
+- Actions 的 Workflow permissions 允许工作流使用 `contents: write` 创建 Release。
+- Windows 签名环境及 `WINDOWS_CERTIFICATE_BASE64`、`WINDOWS_CERTIFICATE_PASSWORD` secrets 已在组织仓库中重新配置并可用。
+- 分支保护、环境保护规则和必需检查与转移前一致。
+- `.github/workflows/windows-x64-package.yml` 在组织仓库中启用，标签触发权限未被组织策略禁用。
+- 仓库可见性符合发布阶段：调试期可保持私有，正式发布前再公开。
+- 使用非发布标签或手动检查验证工作流配置；以上项目全部确认前，不推送首个公开版本标签。
+
+发布工作流带有仓库身份保护，仅允许在 `codepilotx-dev/CodePilotX` 创建 Release，避免转移前误发到个人仓库。
 
 ## 常用命令
 
@@ -76,6 +96,7 @@ Git 标签格式：`v<根 package.json 的 version>`。
 | `bun run version:check -- --tag <v版本>` | 额外验证标签与 manifest 版本一致 |
 | `bun run version:prepare -- <新版本>` | 归档 `Unreleased`、同步 manifest、刷新 lockfile |
 | `bun run version:prepare -- <新版本> --stable` | 同上，但允许无预发布后缀的稳定版 |
+| `bun scripts/write-release-notes.ts --tag <v版本> --output <文件>` | 从对应的已归档 CHANGELOG 版本区段生成 Release 正文；标签、根版本或归档区段不一致时失败 |
 
 ## 示例
 
