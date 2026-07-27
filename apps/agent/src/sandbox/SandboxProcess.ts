@@ -97,13 +97,23 @@ function findExecutable(names: readonly string[]) {
   return null
 }
 
+const systemWindowsPowerShell = (): CommandShell => ({
+  exe: process.env.SystemRoot
+    ? join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+    : "powershell.exe",
+  args: ["-NoProfile", "-NonInteractive", "-Command"],
+})
+
 export function preferredShell(): CommandShell {
   const pwsh = findExecutable(["pwsh.exe", "pwsh"])
   if (pwsh) return { exe: pwsh, args: ["-NoProfile", "-NonInteractive", "-Command"] }
-  const powershell = process.env.SystemRoot
-    ? join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-    : "powershell.exe"
-  return { exe: powershell, args: ["-NoProfile", "-NonInteractive", "-Command"] }
+  return systemWindowsPowerShell()
+}
+
+export function preferredSandboxShell(): CommandShell {
+  return process.platform === "win32"
+    ? systemWindowsPowerShell()
+    : preferredShell()
 }
 
 export function killProcessTree(child: { pid?: number | undefined; kill(signal?: NodeJS.Signals): boolean }) {

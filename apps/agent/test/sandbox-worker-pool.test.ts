@@ -68,6 +68,7 @@ class FakeChild extends EventEmitter {
   readonly stdin = new PassThrough()
   readonly stdout = new PassThrough()
   readonly stderr = new PassThrough()
+  readonly requests: SandboxWorkerRequest[] = []
   pid: undefined
   private input = ""
   private exited = false
@@ -84,7 +85,11 @@ class FakeChild extends EventEmitter {
         if (newline < 0) break
         const line = this.input.slice(0, newline)
         this.input = this.input.slice(newline + 1)
-        if (line) this.onRequest(this, decodeSandboxWorkerRequest(JSON.parse(line)))
+        if (line) {
+          const message = decodeSandboxWorkerRequest(JSON.parse(line))
+          this.requests.push(message)
+          this.onRequest(this, message)
+        }
       }
     })
     if (ready) {
@@ -103,6 +108,10 @@ class FakeChild extends EventEmitter {
     if (this.exited) return
     this.exited = true
     queueMicrotask(() => this.emit("exit", code, null))
+  }
+
+  closeInputWithEpipe() {
+    this.stdin.destroy(Object.assign(new Error("write EPIPE"), { code: "EPIPE" }))
   }
 
   kill() {
@@ -134,6 +143,7 @@ class FakeWorkerFactory {
       result,
       recycle,
     })
+    if (recycle) run.child.exit(0)
   }
 
   fail(run: StartedRun, phase: SandboxWorkerPhase, recycle = true) {
@@ -147,6 +157,7 @@ class FakeWorkerFactory {
       ),
       recycle,
     })
+    if (recycle) run.child.exit(0)
   }
 }
 
@@ -368,6 +379,7 @@ describe("sandbox worker pool", () => {
     factory.complete(factory.started[0]!)
     await expect(job).resolves.toEqual(result)
     await pool.dispose()
+    expect(factory.children[0]!.requests.filter((message) => message.type === "shutdown")).toHaveLength(1)
   })
 
   test("释放一个 worker 后只启动 FIFO 队首任务", async () => {
@@ -434,6 +446,30 @@ describe("sandbox worker pool", () => {
     await pool.dispose()
   })
 
+  test("stdin 关闭产生 EPIPE 时只淘汰故障 worker，队首任务进入新 worker", async () => {
+    const factory = new FakeWorkerFactory()
+    const pool = new SandboxWorkerPool({
+      maxWorkers: 1,
+      idleTimeoutMs: 0,
+      spawnWorker: factory.spawn,
+    })
+    const failed = pool.run(request("broken-pipe"))
+    const next = pool.run(request("next"))
+    await waitFor(() => factory.started.length === 1)
+
+    factory.started[0]!.child.closeInputWithEpipe()
+    await expect(failed).rejects.toMatchObject({ code: "SANDBOX_WORKER_CRASHED" })
+    await waitFor(() => factory.started.length === 2)
+    expect(factory.started.map((run) => run.message.request.command)).toEqual([
+      "broken-pipe",
+      "next",
+    ])
+
+    factory.complete(factory.started[1]!)
+    await expect(next).resolves.toEqual(result)
+    await pool.dispose()
+  })
+
   test("recycle error 不复用故障 worker，替换 worker 继续队首任务", async () => {
     const factory = new FakeWorkerFactory()
     const pool = new SandboxWorkerPool({
@@ -458,6 +494,7 @@ describe("sandbox worker pool", () => {
     ])
     expect(factory.started[1]!.child).not.toBe(factory.started[0]!.child)
     expect(factory.children).toHaveLength(2)
+    expect(factory.children[0]!.requests.filter((message) => message.type === "shutdown")).toHaveLength(0)
 
     factory.complete(factory.started[1]!)
     await expect(next).resolves.toEqual(result)

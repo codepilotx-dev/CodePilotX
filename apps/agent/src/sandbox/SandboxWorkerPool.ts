@@ -49,6 +49,7 @@ type WorkerHandle = {
   decoder: SandboxWorkerFrameDecoder<SandboxWorkerResponse>
   state: WorkerState
   current: PendingJob | null
+  retirePromise: Promise<void> | null
   readyTimer: ReturnType<typeof setTimeout> | null
   idleTimer: ReturnType<typeof setTimeout> | null
   cancelTimer: ReturnType<typeof setTimeout> | null
@@ -105,6 +106,7 @@ export class SandboxWorkerPool {
   private readonly readyTimeoutMs: number
   private readonly cancelGraceMs: number
   private closing = false
+  private dispatching = false
 
   constructor(private readonly options: SandboxWorkerPoolOptions = {}) {
     this.maxWorkers = options.maxWorkers ?? SRT_MAX_CONCURRENT_COMMANDS
@@ -166,7 +168,7 @@ export class SandboxWorkerPool {
     for (const worker of workers) {
       try {
         if (worker.current) this.cancel(worker.current)
-        else this.send(worker, { type: "shutdown", protocol: SRT_WORKER_PROTOCOL_VERSION })
+        else if (worker.state !== "closing") void this.closeWorker(worker)
       } catch {
         killProcessTree(worker.child)
         this.removeWorker(worker)
@@ -183,17 +185,22 @@ export class SandboxWorkerPool {
   }
 
   private dispatch() {
-    if (this.closing) return
-    while (this.queue.length > 0) {
-      const idle = [...this.workers.values()].find((worker) => worker.state === "idle")
-      if (idle) {
-        this.assign(idle, this.queue.shift()!)
-        continue
+    if (this.closing || this.dispatching) return
+    this.dispatching = true
+    try {
+      while (this.queue.length > 0) {
+        const idle = [...this.workers.values()].find((worker) => worker.state === "idle")
+        if (idle) {
+          this.assign(idle, this.queue.shift()!)
+          continue
+        }
+        if (this.workers.size >= this.maxWorkers) return
+        const starting = [...this.workers.values()].filter((worker) => worker.state === "starting").length
+        if (starting >= this.queue.length) return
+        this.startWorker()
       }
-      if (this.workers.size >= this.maxWorkers) return
-      const starting = [...this.workers.values()].filter((worker) => worker.state === "starting").length
-      if (starting >= this.queue.length) return
-      this.startWorker()
+    } finally {
+      this.dispatching = false
     }
   }
 
@@ -214,11 +221,15 @@ export class SandboxWorkerPool {
       decoder: new SandboxWorkerFrameDecoder(decodeSandboxWorkerResponse),
       state: "starting",
       current: null,
+      retirePromise: null,
       readyTimer: null,
       idleTimer: null,
       cancelTimer: null,
     }
     this.workers.set(worker.id, worker)
+    child.stdin.on("error", () => {
+      this.onStdinError(worker)
+    })
     child.stderr.resume()
     worker.readyTimer = setTimeout(() => {
       this.failWorker(worker, new AgentError("SANDBOX_WORKER_TIMEOUT", "沙箱 worker 启动超时", 504))
@@ -235,6 +246,10 @@ export class SandboxWorkerPool {
     })
     child.once("exit", () => {
       if (!this.workers.has(worker.id)) return
+      if (worker.state === "closing") {
+        if (this.removeWorker(worker)) this.dispatch()
+        return
+      }
       const cause = worker.current?.signal?.aborted
         ? new AgentError("RUN_ABORTED", "任务已停止", 499)
         : new AgentError("SANDBOX_WORKER_CRASHED", "沙箱 worker 异常退出，命令不会自动重试", 503)
@@ -243,6 +258,7 @@ export class SandboxWorkerPool {
   }
 
   private onMessage(worker: WorkerHandle, message: SandboxWorkerResponse) {
+    if (!this.workers.has(worker.id)) return
     if (message.type === "ready") {
       if (worker.state !== "starting") return this.failWorker(worker, new AgentError("SANDBOX_WORKER_PROTOCOL", "沙箱 worker 重复就绪", 503))
       if (worker.readyTimer) clearTimeout(worker.readyTimer)
@@ -259,8 +275,8 @@ export class SandboxWorkerPool {
     if (worker.cancelTimer) clearTimeout(worker.cancelTimer)
     worker.cancelTimer = null
     worker.current = null
-    const shouldClose = this.closing || message.recycle
-    if (shouldClose) worker.state = "closing"
+    const shouldRetire = this.closing || message.recycle
+    if (shouldRetire) worker.state = "closing"
     if (message.type === "result") this.settle(job, null, message.result)
     else {
       this.settle(job, new AgentError(
@@ -270,8 +286,8 @@ export class SandboxWorkerPool {
         message.error.phase ? { phase: message.error.phase } : undefined,
       ))
     }
-    if (shouldClose) {
-      void this.closeWorker(worker)
+    if (shouldRetire) {
+      void this.retireWorker(worker, !message.recycle)
     } else {
       worker.state = "idle"
       this.scheduleIdle(worker)
@@ -323,10 +339,22 @@ export class SandboxWorkerPool {
   }
 
   private send(worker: WorkerHandle, message: SandboxWorkerRequest) {
-    if (worker.child.stdin.destroyed || !worker.child.stdin.writable) {
+    if (!this.workers.has(worker.id) || worker.child.stdin.destroyed || !worker.child.stdin.writable) {
       throw new AgentError("SANDBOX_WORKER_CRASHED", "沙箱 worker 通信已关闭", 503)
     }
-    worker.child.stdin.write(encodeSandboxWorkerFrame(message))
+    worker.child.stdin.write(encodeSandboxWorkerFrame(message), (cause) => {
+      if (cause) this.onStdinError(worker)
+    })
+  }
+
+  private onStdinError(worker: WorkerHandle) {
+    if (!this.workers.has(worker.id) || worker.state === "closing") return
+    this.failWorker(
+      worker,
+      worker.current?.signal?.aborted
+        ? new AgentError("RUN_ABORTED", "任务已停止", 499)
+        : new AgentError("SANDBOX_WORKER_CRASHED", "沙箱 worker 通信失败", 503),
+    )
   }
 
   private scheduleIdle(worker: WorkerHandle) {
@@ -338,20 +366,48 @@ export class SandboxWorkerPool {
   }
 
   private async closeWorker(worker: WorkerHandle) {
-    if (!this.workers.has(worker.id)) return
+    await this.retireWorker(worker, true)
+  }
+
+  private retireWorker(worker: WorkerHandle, requestShutdown: boolean) {
+    if (!this.workers.has(worker.id)) return Promise.resolve()
+    if (worker.retirePromise) return worker.retirePromise
     worker.state = "closing"
-    try {
-      this.send(worker, { type: "shutdown", protocol: SRT_WORKER_PROTOCOL_VERSION })
-    } catch {
-      killProcessTree(worker.child)
+    if (worker.idleTimer) clearTimeout(worker.idleTimer)
+    worker.idleTimer = null
+    worker.retirePromise = this.finishRetiringWorker(worker, requestShutdown)
+    return worker.retirePromise
+  }
+
+  private async finishRetiringWorker(worker: WorkerHandle, requestShutdown: boolean) {
+    if (!this.workers.has(worker.id)) return
+    if (requestShutdown) {
+      try {
+        this.send(worker, { type: "shutdown", protocol: SRT_WORKER_PROTOCOL_VERSION })
+      } catch {
+        killProcessTree(worker.child)
+      }
     }
-    await Promise.race([
-      new Promise<void>((resolveExit) => worker.child.once("exit", () => resolveExit())),
-      new Promise<void>((resolveWait) => setTimeout(resolveWait, this.cancelGraceMs)),
-    ])
+    await this.waitForWorkerExit(worker)
     if (this.workers.has(worker.id)) killProcessTree(worker.child)
-    this.removeWorker(worker)
-    this.dispatch()
+    if (this.removeWorker(worker)) this.dispatch()
+  }
+
+  private waitForWorkerExit(worker: WorkerHandle) {
+    return new Promise<void>((resolveExit) => {
+      let settled = false
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const finish = () => {
+        if (settled) return
+        settled = true
+        worker.child.removeListener("exit", finish)
+        if (timer) clearTimeout(timer)
+        resolveExit()
+      }
+      worker.child.once("exit", finish)
+      timer = setTimeout(finish, this.cancelGraceMs)
+      if (!this.workers.has(worker.id)) finish()
+    })
   }
 
   private failWorker(worker: WorkerHandle, cause: unknown) {
@@ -361,12 +417,13 @@ export class SandboxWorkerPool {
       const waiting = this.queue.shift()
       if (waiting) this.settle(waiting, cause)
     }
+    if (!this.removeWorker(worker)) return
     killProcessTree(worker.child)
-    this.removeWorker(worker)
     this.dispatch()
   }
 
   private removeWorker(worker: WorkerHandle) {
+    if (!this.workers.delete(worker.id)) return false
     if (worker.readyTimer) clearTimeout(worker.readyTimer)
     if (worker.idleTimer) clearTimeout(worker.idleTimer)
     if (worker.cancelTimer) clearTimeout(worker.cancelTimer)
@@ -374,7 +431,7 @@ export class SandboxWorkerPool {
     worker.idleTimer = null
     worker.cancelTimer = null
     worker.current = null
-    this.workers.delete(worker.id)
+    return true
   }
 
   private settle(job: PendingJob, cause: unknown | null, result?: ProcessResult) {

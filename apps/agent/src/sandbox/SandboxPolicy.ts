@@ -151,12 +151,19 @@ export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedS
   const requestedWrite = unique((additional.writePaths ?? []).map((path) => expandRequestedPath(workspace, path)))
   const requestedDomains = [...new Set((additional.networkDomains ?? []).map((domain) => domain.trim().toLowerCase()).filter(Boolean))]
   const immutableSecretPaths = userSecretPaths().map((path) => resolve(path))
-  const allowRead = unique([...workspaceRoots, sessionTemp, ...(options.trustedReadPaths ?? []), ...requestedRead])
+  const rawAllowRead = unique([...workspaceRoots, sessionTemp, ...(options.trustedReadPaths ?? []), ...requestedRead])
   const allowWrite = unique([
     sessionTemp,
     ...(options.permissionConfig.sandboxMode === "workspace-write" ? writableWorkspaceRoots : []),
     ...(options.permissionConfig.sandboxMode === "read-only" ? [] : requestedWrite),
   ])
+  // Windows materializes allowRead/allowWrite as inheritable ACL entries. A
+  // write grant already includes read/execute, so emitting both for the same
+  // subtree makes srt-win propagate two equivalent ACEs through large trees.
+  // Keep a broader read root when only one of its descendants is writable.
+  const allowRead = process.platform === "win32"
+    ? rawAllowRead.filter((path) => !coveredByAny(allowWrite, path))
+    : rawAllowRead
   const protectedReadCandidates = unique([
     options.dataDir,
     ...immutableSecretPaths,
@@ -173,15 +180,16 @@ export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedS
     ...(process.env.ProgramData ? [process.env.ProgramData] : []),
     ...(process.env.ProgramFiles ? [process.env.ProgramFiles] : []),
   ]))
+  const grantedPaths = [...allowRead, ...allowWrite]
   // srt-win materializes every allow/deny rule as an ACL entry. Windows system
   // locations already grant BUILTIN\Users read/execute and reject ACL writes
   // from the unelevated Agent, so only stamp denies that live inside a tree we
   // explicitly grant. Other platforms retain the existing deny list.
   const protectedRead = process.platform === "win32"
-    ? protectedReadCandidates.filter((path) => coveredByAny(allowRead, path))
+    ? protectedReadCandidates.filter((path) => coveredByAny(grantedPaths, path))
     : protectedReadCandidates
   const protectedWrite = process.platform === "win32"
-    ? protectedWriteCandidates.filter((path) => coveredByAny([...allowRead, ...allowWrite], path))
+    ? protectedWriteCandidates.filter((path) => coveredByAny(grantedPaths, path))
     : protectedWriteCandidates
   const base: SandboxRuntimeConfig = {
     filesystem: {

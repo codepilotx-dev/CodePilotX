@@ -3,12 +3,16 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { AnthropicSandboxRuntimeAdapter } from "../src/sandbox/SandboxRuntimeAdapter"
 import { generateSandboxPolicy } from "../src/sandbox/SandboxPolicy"
+import { SandboxWorkerPool } from "../src/sandbox/SandboxWorkerPool"
 
 const enabled = process.platform === "win32"
   && process.env.CODEPILOTX_RUN_SRT_E2E === "1"
 const windowsSrtTest = enabled ? test : test.skip
+const agentEntrypoint = fileURLToPath(new URL("../src/index.ts", import.meta.url))
+const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url))
 
 const permissionConfig = {
   sandboxMode: "workspace-write" as const,
@@ -31,7 +35,15 @@ windowsSrtTest("Windows SRT 真实并发、隔离、断网、取消及后续恢�
   const workspaceA = join(root, "workspace-a")
   const workspaceB = join(root, "workspace-b")
   const dataDir = join(root, "agent-data")
-  const adapter = new AnthropicSandboxRuntimeAdapter()
+  const adapter = new AnthropicSandboxRuntimeAdapter({
+    workerPool: new SandboxWorkerPool({
+      command: () => ({
+        executable: process.execPath,
+        args: [agentEntrypoint, "--sandbox-worker"],
+        cwd: repositoryRoot,
+      }),
+    }),
+  })
   await Promise.all([mkdir(workspaceA), mkdir(workspaceB), mkdir(dataDir)])
   await writeFile(join(workspaceB, "secret.txt"), "workspace-b-secret", "utf8")
 

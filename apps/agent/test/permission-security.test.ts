@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtemp, mkdir, rm, symlink } from "node:fs/promises"
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { decodeApprovalPolicy, encodeApprovalPolicy } from "@codepilotx/shared/thread"
@@ -197,7 +197,9 @@ describe("沙箱与脱敏", () => {
         permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "never", approvalsReviewer: "user" },
       })
 
-      expect(policy.config.filesystem?.allowRead).toEqual([resolve(primary), resolve(secondary), resolve(sessionTemp)])
+      expect(policy.config.filesystem?.allowRead).toEqual(process.platform === "win32"
+        ? []
+        : [resolve(primary), resolve(secondary), resolve(sessionTemp)])
       expect(policy.config.filesystem?.allowWrite).toEqual([resolve(sessionTemp), resolve(primary), resolve(secondary)])
       for (const workspace of [primary, secondary]) {
         expect(policy.config.filesystem?.denyWrite).toContain(resolve(workspace, ".git", "config"))
@@ -265,11 +267,9 @@ describe("沙箱与脱敏", () => {
         trustedReadPaths: [managedTool],
       })
       const allowRead = policy.config.filesystem?.allowRead ?? []
-      expect(allowRead).toEqual([
-        resolve(workspace),
-        resolve(sessionTemp),
-        resolve(managedTool),
-      ])
+      expect(allowRead).toEqual(process.platform === "win32"
+        ? [resolve(managedTool)]
+        : [resolve(workspace), resolve(sessionTemp), resolve(managedTool)])
       expect(allowRead.some((path) => /System32|WindowsPowerShell|OpenSSH|Git[\\/]cmd/i.test(path))).toBe(false)
       if (process.platform === "win32") {
         expect(policy.config.filesystem?.denyRead).not.toContain(resolve(dataDir))
@@ -283,6 +283,50 @@ describe("沙箱与脱敏", () => {
         }
       }
     } finally { await rm(root, { recursive: true, force: true }) }
+  })
+
+  test("Windows 可写根复用 Modify 读权限且保留敏感读取保护", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-windows-acl-dedupe-"))
+    try {
+      const workspace = join(root, "workspace")
+      const sessionTemp = join(root, "temp")
+      const dataDir = join(root, "data")
+      const writableChild = join(workspace, "writable")
+      await Promise.all([
+        mkdir(writableChild, { recursive: true }),
+        mkdir(sessionTemp),
+        mkdir(dataDir),
+      ])
+      await writeFile(join(workspace, ".env"), "TOKEN=secret\n", "utf8")
+
+      const policy = generateSandboxPolicy({
+        workspace,
+        sessionTemp,
+        dataDir,
+        permissionConfig: {
+          sandboxMode: "danger-full-access",
+          approvalPolicy: "never",
+          approvalsReviewer: "user",
+        },
+        additionalPermissions: {
+          readPaths: [writableChild],
+          writePaths: [writableChild],
+        },
+      })
+
+      if (process.platform === "win32") {
+        // The workspace read ancestor remains, while sessionTemp and its
+        // explicitly requested writable descendant do not get duplicate ACEs.
+        expect(policy.config.filesystem?.allowRead).toEqual([resolve(workspace)])
+        expect(policy.config.filesystem?.allowWrite).toEqual([
+          resolve(sessionTemp),
+          resolve(writableChild),
+        ])
+        expect(policy.config.filesystem?.denyRead).toContain(resolve(workspace, ".env"))
+      } else {
+        expect(policy.config.filesystem?.allowRead).toContain(resolve(writableChild))
+      }
+    } finally { await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }) }
   })
 
   test("路径包含判断具有目录边界且 Windows 大小写不敏感", () => {

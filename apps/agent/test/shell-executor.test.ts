@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { existsSync } from "node:fs"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, join } from "node:path"
 import { FULL_ACCESS_PERMISSION_CONFIG, type PermissionConfig } from "@codepilotx/shared/thread"
+import { preferredSandboxShell, preferredShell } from "../src/sandbox/SandboxProcess"
 import { shellRuntimeDependencies, ToolExecutor } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
@@ -43,6 +44,40 @@ async function context(
 }
 
 describe("统一 Shell 执行门", () => {
+  test("宿主保留 PowerShell 7，Windows 沙箱忽略 WindowsApps 并使用系统 PowerShell", async () => {
+    if (process.platform !== "win32") return
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-selection-"))
+    tempPaths.push(root)
+    const powershell7 = join(root, "PowerShell", "7")
+    const windowsApps = join(root, "WindowsApps", "Microsoft.PowerShell_7.6.4.0_x64__8wekyb3d8bbwe")
+    const systemRoot = join(root, "Windows")
+    await Promise.all([
+      mkdir(powershell7, { recursive: true }),
+      mkdir(windowsApps, { recursive: true }),
+    ])
+    await Promise.all([
+      writeFile(join(powershell7, "pwsh.exe"), "", "utf8"),
+      writeFile(join(windowsApps, "pwsh.exe"), "", "utf8"),
+    ])
+    const previousPath = process.env.PATH
+    const previousSystemRoot = process.env.SystemRoot
+    try {
+      process.env.PATH = `${powershell7};${windowsApps}`
+      process.env.SystemRoot = systemRoot
+      expect(preferredShell().exe).toBe(join(powershell7, "pwsh.exe"))
+
+      process.env.PATH = `${windowsApps};${powershell7}`
+      expect(preferredSandboxShell().exe).toBe(
+        join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+      )
+    } finally {
+      if (previousPath === undefined) delete process.env.PATH
+      else process.env.PATH = previousPath
+      if (previousSystemRoot === undefined) delete process.env.SystemRoot
+      else process.env.SystemRoot = previousSystemRoot
+    }
+  })
+
   test("只识别命令起始位置的 Node.js 与 Python 运行时", () => {
     expect(shellRuntimeDependencies("node app.js && npm test; npx tsc | python script.py\npip install x")).toEqual(["nodejs", "python"])
     expect(shellRuntimeDependencies("corepack enable; python3 -V; pip3 -V")).toEqual(["nodejs", "python"])

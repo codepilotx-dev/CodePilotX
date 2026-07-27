@@ -4,7 +4,7 @@ import {
   boundedTimeout,
   collectProcess,
   mergeProcessEnvironment,
-  preferredShell,
+  preferredSandboxShell,
   temporarilyApplyProcessEnvironment,
   type ProcessResult,
 } from "./SandboxProcess"
@@ -100,7 +100,7 @@ async function execute(request: SerializedSandboxRequest, signal: AbortSignal): 
         throw cause
       }
       initialized = true
-      const shell = preferredShell()
+      const shell = preferredSandboxShell()
       phase = "wrap"
       wrapped = await api.SandboxManager.wrapWithSandboxArgv(
         request.command,
