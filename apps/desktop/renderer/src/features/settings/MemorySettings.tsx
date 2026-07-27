@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Save, Trash2 } from 'lucide-react'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import type {
@@ -235,10 +236,11 @@ export function MemorySettings(): React.ReactNode {
           }
         >
           <div className="memory-settings-toolbar">
-            <Input
+            <SearchInput
+              aria-label="搜索记忆文件"
               className="memory-settings-search"
               value={query}
-              onChange={event => setQuery(event.target.value)}
+              onChange={setQuery}
               placeholder="搜索文件名或描述"
             />
             <select

@@ -31,9 +31,16 @@ export type SearchInputProps = {
 } & SearchInputMode &
   Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'aria-label'>
 
+/** Internal helper: strip discrimated-union fields not intended for <input> DOM. */
+function stripModeFields(props: Record<string, unknown>): Record<string, unknown> {
+  const { mode: _, controls: _c, expanded: _e, activeDescendant: _a, ...rest } = props
+  return rest
+}
+
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
   function SearchInput(
     {
+      'aria-label': ariaLabel,
       clearLabel = '清除搜索',
       onChange,
       onEscapeEmpty,
@@ -42,18 +49,15 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
       value,
       variant = 'standard',
       isComposing = false,
-      // mode props
-      mode,
-      controls,
-      expanded,
-      activeDescendant,
       className,
-      // remaining input html attrs
-      ...inputProps
+      ...rawRest
     },
     forwardedRef,
   ): React.ReactNode {
     const inputRef = useRef<HTMLInputElement | null>(null)
+    const isCombobox = rawRest.mode === 'combobox'
+    const isFilter = rawRest.mode === undefined || rawRest.mode === 'filter'
+    const safeInputProps = stripModeFields(rawRest)
 
     const setRef = useCallback(
       (node: HTMLInputElement | null) => {
@@ -66,13 +70,11 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
 
     const handleClear = useCallback((): void => {
       onChange('')
-      // Restore focus to input after clearing
       inputRef.current?.focus()
     }, [onChange])
 
     const handleKeyDown = useCallback(
       (event: React.KeyboardEvent<HTMLInputElement>): void => {
-        // IME composing — don't process Escape/arrow/Enter
         if (!isComposing) {
           if (event.key === 'Escape') {
             if (value.length > 0) {
@@ -81,26 +83,23 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
               onChange('')
               return
             }
-            // Empty value: let parent handle
             onEscapeEmpty?.()
           }
         }
-
         onKeyDown?.(event)
       },
       [isComposing, value, onChange, onEscapeEmpty, onKeyDown],
     )
 
-    const comboboxProps =
-      mode === 'combobox'
-        ? {
-            role: 'combobox' as const,
-            'aria-autocomplete': 'list' as const,
-            'aria-controls': controls,
-            'aria-expanded': expanded,
-            'aria-activedescendant': activeDescendant,
-          }
-        : {}
+    const comboboxProps = isCombobox
+      ? {
+          role: 'combobox' as const,
+          'aria-autocomplete': 'list' as const,
+          'aria-controls': rawRest.controls ?? '',
+          'aria-expanded': rawRest.expanded ?? false,
+          'aria-activedescendant': rawRest.activeDescendant,
+        }
+      : {}
 
     return (
       <div
@@ -116,11 +115,14 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           size={APP_ICON_SIZE}
         />
         <input
-          {...inputProps}
+          {...safeInputProps}
           {...comboboxProps}
           ref={setRef}
-          aria-label={inputProps['aria-label']}
+          aria-label={ariaLabel}
           className="search-input-field"
+          data-mode={
+            isCombobox ? 'combobox' : isFilter ? 'filter' : undefined
+          }
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}

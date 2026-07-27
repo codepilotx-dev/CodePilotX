@@ -70,6 +70,7 @@ export function ProjectSwitcherPopover({
       trigger={trigger}
     >
       <SearchInput
+        aria-label="搜索项目"
         value={search}
         onChange={setSearch}
         placeholder="搜索项目"

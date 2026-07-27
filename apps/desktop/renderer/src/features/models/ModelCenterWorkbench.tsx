@@ -20,9 +20,9 @@ import {
   Hammer,
   RefreshCw,
   Save,
-  Search,
   Workflow,
 } from 'lucide-react'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
@@ -658,7 +658,7 @@ const nextState = await desktopClient.saveModelProvider({
 
             {providerSection === 'models' ? (
               <div className="model-center-detail-body">
-                <div className="model-center-model-toolbar"><label className="model-center-search"><Search aria-hidden /><input value={modelQuery} placeholder="搜索模型、能力或目录来源" onChange={event => setModelQuery(event.target.value)} /></label></div>
+                <div className="model-center-model-toolbar"><SearchInput aria-label="搜索模型" className="model-center-search" onChange={setModelQuery} placeholder="搜索模型、能力或目录来源" value={modelQuery} variant="standard" /></div>
                 <div className="model-center-model-grid-wrapper">
                   {providerModels.length === 0 ? <div className="model-center-empty-state">暂无模型目录，请先刷新目录。</div> : filteredModelIds.length === 0 && !orphanModelId ? <div className="model-center-empty-state">{modelQuery.trim() ? '未搜索到匹配“' + modelQuery + '”的模型。' : '当前 Provider 暂无可用模型。'}</div> : (
                     <div className="model-card-grid">

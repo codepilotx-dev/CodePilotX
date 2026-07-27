@@ -1,13 +1,14 @@
 import React from 'react'
+import * as Popover from '@radix-ui/react-popover'
 import * as Select from '@radix-ui/react-select'
-import { Check, ChevronDown, Search } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import { preventOutsideDismissWhenDebug } from '../../components/ui/debugDropdown.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
 import { readDesktopBrowserDebugMode } from '../../services/desktop-client/index.js'
-import { Input } from '../../components/ui/Input.js'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 
 type Option = {
   value: string
@@ -32,45 +33,49 @@ type Props = {
 
 const EMPTY_VALUE = '__radix_empty_value__'
 
-export function SettingsDropdown({
+// ---------------------------------------------------------------------------
+// Shared option rendering (used by both Select and Searchable branches)
+// ---------------------------------------------------------------------------
+function renderOptionContent(
+  opt: Option,
+  showSelected: boolean,
+  selected: boolean,
+): React.ReactNode {
+  return (
+    <div className="settings-dropdown-item-inner">
+      {opt.icon}
+      <div className="settings-dropdown-item-copy">
+        <span className="settings-dropdown-item-label">{opt.label}</span>
+        {opt.detail ? (
+          <span className="settings-dropdown-item-detail">{opt.detail}</span>
+        ) : null}
+      </div>
+      {showSelected && selected ? (
+        <Check aria-hidden="true" size={14} className="settings-dropdown-item-indicator" />
+      ) : null}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Non-searchable branch — unchanged Radix Select
+// ---------------------------------------------------------------------------
+function SelectSettingsDropdown({
   value,
   options,
   onChange,
   ariaLabel,
-  disabled = false,
-  variant = 'default',
-  searchable = false,
-  searchPlaceholder = '搜索...',
-  disableOutsideDismiss = readDesktopBrowserDebugMode(),
-  showSelectedIndicator = false,
+  disabled,
+  variant,
+  showSelectedIndicator,
+  disableOutsideDismiss,
   width,
   maxWidth,
 }: Props) {
   const [open, setOpen] = React.useState(false)
-  const [searchQuery, setSearchQuery] = React.useState('')
-  const searchInputRef = React.useRef<HTMLInputElement | null>(null)
   const selectedOption = options.find((o) => o.value === value) || options[0]
   const radixValue = value === '' ? EMPTY_VALUE : value
   const isThemeVariant = variant === 'theme'
-  const normalizedQuery = searchQuery.trim().toLowerCase()
-  const visibleOptions = searchable
-    ? options.filter((option) => {
-        if (!normalizedQuery) return true
-        return (
-          option.label.toLowerCase().includes(normalizedQuery) ||
-          option.value.toLowerCase().includes(normalizedQuery) ||
-          option.detail?.toLowerCase().includes(normalizedQuery)
-        )
-      })
-    : options
-
-  React.useEffect(() => {
-    if (!open || !searchable) return
-    requestAnimationFrame(() => {
-      searchInputRef.current?.focus()
-      searchInputRef.current?.select()
-    })
-  }, [open, searchable])
 
   return (
     <Select.Root
@@ -116,31 +121,11 @@ export function SettingsDropdown({
           onPointerDownOutside={(event) => {
             preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
           }}
-          onCloseAutoFocus={() => {
-            setSearchQuery('')
-          }}
         >
-          {searchable ? (
-            <div className="settings-dropdown-search">
-              <Search
-                aria-hidden="true"
-                className="settings-dropdown-search-icon"
-              />
-              <Input
-                ref={searchInputRef}
-                className="settings-dropdown-search-input"
-                size="compact"
-                placeholder={searchPlaceholder}
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => event.stopPropagation()}
-              />
-            </div>
-          ) : null}
           <Select.Viewport className="settings-dropdown-scroll-area">
             <div className="settings-dropdown-scroll-content">
-              {visibleOptions.length ? (
-                visibleOptions.map((opt) => (
+              {options.length ? (
+                options.map((opt) => (
                   <Select.Item
                     className="settings-dropdown-item"
                     disabled={opt.disabled}
@@ -148,26 +133,7 @@ export function SettingsDropdown({
                     tabIndex={-1}
                     value={opt.value === '' ? EMPTY_VALUE : opt.value}
                   >
-                    <div className="settings-dropdown-item-inner">
-                      {opt.icon}
-                      <div className="settings-dropdown-item-copy">
-                        <Select.ItemText>
-                          <span className="settings-dropdown-item-label">
-                            {opt.label}
-                          </span>
-                        </Select.ItemText>
-                        {opt.detail ? (
-                          <span className="settings-dropdown-item-detail">
-                            {opt.detail}
-                          </span>
-                        ) : null}
-                      </div>
-                      {showSelectedIndicator ? (
-                        <Select.ItemIndicator className="settings-dropdown-item-indicator">
-                          <Check aria-hidden="true" size={14} />
-                        </Select.ItemIndicator>
-                      ) : null}
-                    </div>
+                    {renderOptionContent(opt, showSelectedIndicator ?? false, opt.value === value)}
                   </Select.Item>
                 ))
               ) : (
@@ -179,4 +145,233 @@ export function SettingsDropdown({
       </Select.Portal>
     </Select.Root>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Searchable branch — Radix Popover + SearchInput
+// ---------------------------------------------------------------------------
+function SearchableSettingsDropdown({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  disabled,
+  variant,
+  searchPlaceholder = '搜索...',
+  disableOutsideDismiss = readDesktopBrowserDebugMode(),
+  showSelectedIndicator = false,
+  width,
+  maxWidth,
+}: Props) {
+  const [open, setOpen] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [activeIndex, setActiveIndex] = React.useState(-1)
+  const searchRef = React.useRef<HTMLInputElement | null>(null)
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null)
+  const listboxId = React.useId()
+  const instanceId = React.useId()
+  const selectedOption = options.find((o) => o.value === value) || options[0]
+
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const visibleOptions = options.filter((opt) => {
+    if (!normalizedQuery) return true
+    return (
+      opt.label.toLowerCase().includes(normalizedQuery) ||
+      opt.value.toLowerCase().includes(normalizedQuery) ||
+      opt.detail?.toLowerCase().includes(normalizedQuery)
+    )
+  })
+
+  const activeDescendant =
+    activeIndex >= 0 && activeIndex < visibleOptions.length
+      ? `sd-option-${instanceId}-${visibleOptions[activeIndex].value}`
+      : undefined
+
+  // Open → focus search
+  React.useEffect(() => {
+    if (!open) return
+    requestAnimationFrame(() => {
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    })
+  }, [open])
+
+  function clearSearch(): void {
+    setSearchQuery('')
+    setActiveIndex(-1)
+    searchRef.current?.focus()
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === 'Escape') {
+      if (searchQuery) {
+        event.preventDefault()
+        clearSearch()
+      } else {
+        event.preventDefault()
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+      return
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      const enabledIndices = visibleOptions
+        .map((opt, idx) => (opt.disabled ? -1 : idx))
+        .filter((idx) => idx >= 0)
+      if (enabledIndices.length === 0) return
+      let next = activeIndex < 0 ? -1 : enabledIndices.indexOf(activeIndex)
+      next = (next + direction + enabledIndices.length) % enabledIndices.length
+      setActiveIndex(enabledIndices[next])
+      return
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault()
+      const firstEnabled = visibleOptions.findIndex((opt) => !opt.disabled)
+      if (firstEnabled >= 0) setActiveIndex(firstEnabled)
+      return
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault()
+      const lastEnabled = visibleOptions
+        .map((opt, idx) => (opt.disabled ? -1 : idx))
+        .filter((idx) => idx >= 0)
+        .pop()
+      if (lastEnabled !== undefined) setActiveIndex(lastEnabled)
+      return
+    }
+
+    if (event.key === 'Enter' && activeIndex >= 0 && activeIndex < visibleOptions.length) {
+      event.preventDefault()
+      const selected = visibleOptions[activeIndex]
+      if (selected && !selected.disabled) {
+        onChange(selected.value)
+        setOpen(false)
+      }
+    }
+  }
+
+  function selectOption(opt: Option): void {
+    if (opt.disabled) return
+    onChange(opt.value)
+    setOpen(false)
+  }
+
+  return (
+    <Popover.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          setSearchQuery('')
+          setActiveIndex(-1)
+        }
+        setOpen(next)
+      }}
+    >
+      <Popover.Trigger asChild>
+        <button
+          ref={triggerRef}
+          aria-label={ariaLabel}
+          className="settings-dropdown"
+          data-variant={variant}
+          disabled={disabled}
+          tabIndex={-1}
+          type="button"
+        >
+          <div className="settings-dropdown-value">
+            {selectedOption?.icon}
+            <span>{selectedOption?.label}</span>
+          </div>
+          <ChevronDown className="settings-dropdown-icon" />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          className="popover-surface settings-dropdown-content"
+          collisionPadding={6}
+          data-variant={variant}
+          side="bottom"
+          sideOffset={1}
+          style={buildPopoverSizingStyle({
+            width:
+              width ??
+              undefined,
+            maxWidth:
+              maxWidth ??
+              (variant === 'theme'
+                ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
+                : undefined),
+          })}
+          onPointerDownOutside={(event) => {
+            preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
+          }}
+        >
+          <div className="settings-dropdown-search">
+            <SearchInput
+              ref={searchRef}
+              aria-label={searchPlaceholder}
+              mode="combobox"
+              controls={listboxId}
+              expanded={open}
+              activeDescendant={activeDescendant}
+              className="settings-dropdown-search-input"
+              onChange={setSearchQuery}
+              onEscapeEmpty={undefined}
+              placeholder={searchPlaceholder}
+              value={searchQuery}
+              variant="embedded"
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+          <div
+            className="settings-dropdown-scroll-area"
+            id={listboxId}
+            role="listbox"
+          >
+            <div className="settings-dropdown-scroll-content">
+              {visibleOptions.length ? (
+                visibleOptions.map((opt) => {
+                  const idx = options.indexOf(opt)
+                  return (
+                    <button
+                      aria-selected={opt.value === value}
+                      className="settings-dropdown-item"
+                      data-disabled={opt.disabled || undefined}
+                      data-highlighted={idx === activeIndex || undefined}
+                      disabled={opt.disabled}
+                      id={`sd-option-${instanceId}-${opt.value}`}
+                      key={opt.value}
+                      onClick={() => selectOption(opt)}
+                      onMouseEnter={() => setActiveIndex(idx)}
+                      role="option"
+                      tabIndex={-1}
+                      type="button"
+                    >
+                      {renderOptionContent(opt, showSelectedIndicator, opt.value === value)}
+                    </button>
+                  )
+                })
+              ) : (
+                <div className="settings-dropdown-empty">未找到匹配项</div>
+              )}
+            </div>
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Public component — dispatches to Select or Searchable branch
+// ---------------------------------------------------------------------------
+export function SettingsDropdown(props: Props): React.ReactNode {
+  return props.searchable
+    ? <SearchableSettingsDropdown {...props} />
+    : <SelectSettingsDropdown {...props} />
 }

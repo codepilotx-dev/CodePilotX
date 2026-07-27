@@ -98,6 +98,7 @@ export function BranchSelectPopoverContent({
       listClassName="branch-popover-list-scroll"
       search={
         <SearchInput
+          aria-label="搜索分支"
           value={branchSearch}
           onChange={onBranchSearchChange}
           placeholder="搜索分支"

@@ -8,7 +8,7 @@ import {
 } from 'react'
 import type React from 'react'
 import { FolderIcon } from '@codepilotx/material-icon-theme'
-import { VList, type VListHandle } from 'virtua'
+import { LoaderCircle, RotateCcw } from 'lucide-react'
 import type {
   DesktopFileEntry,
   DesktopWorkspace,
@@ -21,6 +21,7 @@ import {
 import { AppContextMenu } from '../../components/ui/AppContextMenu.js'
 import { Button } from '../../components/ui/Button.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
+import { VList, type VListHandle } from 'virtua'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { cx } from '../../utils/cx.js'
 import { FileTypeIcon } from './FileTypeIcon.js'

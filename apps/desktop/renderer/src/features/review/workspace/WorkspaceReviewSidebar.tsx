@@ -24,7 +24,6 @@ import {
   RotateCcw,
   Rows2,
   Search,
-  Trash2,
   Type,
   Undo2,
   WrapText,
@@ -55,6 +54,7 @@ import { Button } from "../../../components/ui/Button.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
+import { SearchInput } from "../../../components/ui/SearchInput.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { buildReviewFileTree } from "./buildReviewFileTree.js";
@@ -1938,20 +1938,15 @@ export function WorkspaceReviewSidebar({
               className="review-file-tree-panel"
               aria-label="审查文件导航"
             >
-              <label className="review-file-search">
-                <Search
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-                <input
-                  ref={fileSearchInputRef}
-                  aria-label="筛选文件"
-                  placeholder="筛选文件..."
-                  type="text"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-              </label>
+              <SearchInput
+                ref={fileSearchInputRef}
+                aria-label="筛选文件"
+                className="review-file-search"
+                onChange={setSearch}
+                placeholder="筛选文件..."
+                value={search}
+                variant="embedded"
+              />
 
               <ScrollArea
                 className="review-file-tree-scroll"

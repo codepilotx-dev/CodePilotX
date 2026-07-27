@@ -139,27 +139,11 @@
 
 .model-center-catalog-search,
 .model-center-search {
-  position: relative;
   min-width: 0;
-  display: flex;
-  align-items: center;
+}
 
-  > svg {
-    position: absolute;
-    left: 12px;
-    z-index: 1;
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
-    color: var(--color-token-input-placeholder-foreground);
-    pointer-events: none;
-  }
-
-  input,
-  .settings-input {
-    min-width: 0;
-    width: 100%;
-    padding-left: 36px;
-  }
+.model-center-catalog-search {
+  width: 100%;
 }
 
 .model-center-catalog-search {
