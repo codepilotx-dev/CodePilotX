@@ -1,6 +1,5 @@
 import type {
   CatalogProvider,
-  IntegrationListResponse,
 } from '@codepilotx/shared'
 import type {
   DesktopModelMetadata,
@@ -9,7 +8,6 @@ import type {
 
 export function catalogProviderToDesktop(
   catalogProvider: CatalogProvider,
-  integration?: IntegrationListResponse['integrations'][number],
 ): DesktopModelProviderSummary {
   const { provider } = catalogProvider
   const models = catalogProvider.models.filter(model => model.enabled)
@@ -24,6 +22,7 @@ export function catalogProviderToDesktop(
         inputCost: cost?.input,
         outputCost: cost?.output,
         cacheReadCost: cost?.cache.read,
+        cacheWriteCost: cost?.cache.write,
         toolCall: model.capabilities.tools,
         structuredOutput: model.capabilities.output.some(
           output => output === 'json' || output === 'structured',
@@ -36,28 +35,39 @@ export function catalogProviderToDesktop(
         modelType: model.family,
         tags: [model.status],
         variants: model.variants.map(variant => variant.id),
+        providerApi: isProviderApi(model.api.name) ? model.api.name : undefined,
       }
       return [model.id, metadata]
     }),
   )
-  const configured = provider.integrationID
-    ? Boolean(integration?.connections.length)
-    : provider.disabled !== true
   return {
     providerID: provider.id,
-    integrationID: provider.integrationID,
-    kind: provider.id === 'github-copilot' ? 'github-copilot' : provider.api.type,
+    providerKind: provider.source.kind,
+    providerApis: provider.source.apis.filter(isProviderApi),
+    enabled: provider.disabled !== true,
+    authMethods: [
+      provider.auth.apiKey ? 'api-key' as const : null,
+      provider.auth.oauth ? 'oauth' as const : null,
+    ].filter((method): method is 'api-key' | 'oauth' => method !== null),
+    kind: provider.id === 'github-copilot'
+      ? 'github-copilot'
+      : provider.source.apis.includes('anthropic-messages')
+        ? 'anthropic'
+        : 'openai-compatible',
     displayName: provider.name,
-    baseURL: provider.api.url,
+    baseURL: provider.source.baseUrl,
     defaultModels: models.map(model => model.id),
     modelMetadata,
-    apiKeyConfigured: configured,
-    envVars: integration?.methods
-      .filter(method => method.type === 'env')
-      .flatMap(method => method.names),
-    npmPackage: provider.api.type === 'aisdk' ? provider.api.package : undefined,
-    logoURL: `https://models.dev/logos/${encodeURIComponent(provider.id)}.svg`,
-    modelsDevSource: true,
-    requiresBaseURL: provider.api.type === 'aisdk' && !provider.api.url,
+    apiKeyConfigured: provider.disabled !== true && !provider.auth.apiKey,
+    envVars: [],
+    requiresBaseURL: provider.source.kind === 'custom' && !provider.source.baseUrl,
   }
+}
+
+function isProviderApi(
+  value: string,
+): value is 'openai-completions' | 'openai-responses' | 'anthropic-messages' {
+  return value === 'openai-completions'
+    || value === 'openai-responses'
+    || value === 'anthropic-messages'
 }

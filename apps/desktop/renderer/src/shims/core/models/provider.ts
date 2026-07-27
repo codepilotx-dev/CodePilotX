@@ -15,6 +15,7 @@ export type ModelMetadata = {
   inputCost?: number
   outputCost?: number
   cacheReadCost?: number
+  cacheWriteCost?: number
   reasoning?: boolean
   toolCall?: boolean
   structuredOutput?: boolean
@@ -23,9 +24,8 @@ export type ModelMetadata = {
     input: string[]
     output: string[]
   }
-  catalogSources?: Array<'models.dev' | 'gateway'>
+  catalogSources?: Array<'pi' | 'gateway'>
   gatewayModelId?: string
-  modelsDevProviderId?: string
   modelType?: string
   tags?: string[]
   [key: string]: unknown
@@ -42,8 +42,6 @@ export type ModelProviderSummary = {
   envVars?: string[]
   docURL?: string
   logoURL?: string
-  npmPackage?: string
-  modelsDevSource?: boolean
   gatewaySource?: boolean
   requiresBaseURL?: boolean
   wireApi?: ProviderWireApi

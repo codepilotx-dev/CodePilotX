@@ -20,14 +20,7 @@ import {
 } from '../../shims/core/agent/codepilotxSessionContract.js'
 import type {
   CatalogProvider,
-  IntegrationAuthorizeRequest,
-  IntegrationAuthorizeResponse,
-  IntegrationAuthorizeStatusResponse,
-  IntegrationConnectRequest,
-  IntegrationDisconnectRequest,
-  IntegrationListResponse,
   ModelRef,
-  OkResponse,
   Project,
 } from '@codepilotx/shared'
 import type {
@@ -62,7 +55,7 @@ import type {
   DesktopModelSelection,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
-  DesktopApiKeySummary,
+  DesktopProviderCredential,
   DesktopModelMetadata,
   DesktopPermissionDecision,
   DesktopPermissionMode,
@@ -141,6 +134,8 @@ const RENDERER_CAPABILITIES = [
   'sandbox.management.v1',
   'prompt.preview.sensitive.v1',
   'model.catalog.paged.v1',
+  'provider.config.pi.v1',
+  'provider.auth.pi.v1',
   'tooling.management.v1',
   'skills.manage.v1',
   'mcp.manage.v1',
@@ -269,7 +264,7 @@ export function createAgentSessionDesktopClient(
   let providerCatalogRequest: Promise<RpcResult<'provider/list'>> | null = null
   const providerModelCache = new Map<string, CatalogProvider['models']>()
   const providerModelRequests = new Map<string, Promise<RpcResult<'model/list'>>>()
-  let integrationsCache: IntegrationListResponse['integrations'] | null = null
+  let providerCredentialsCache: DesktopProviderCredential[] | null = null
   const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
   const sessionPermissionConfigs = new Map<string, PermissionConfig>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
@@ -485,27 +480,14 @@ export function createAgentSessionDesktopClient(
     await isAgentAvailable()
     if (providerCatalogCache && !refresh) return providerCatalogCache
     if (providerCatalogRequest && !refresh) return providerCatalogRequest
-    if (agentCapabilities.has('model.catalog.paged.v1')) {
-      const pending = rpc.call('provider/list', {}).then(result => {
-        providerCatalogCache = result
-        return result
-      }).finally(() => {
-        if (providerCatalogRequest === pending) providerCatalogRequest = null
-      })
-      providerCatalogRequest = pending
-      return pending
-    }
-    const legacy = await loadModelCatalog(refresh)
-    providerCatalogCache = {
-      providers: legacy.providers.map(item => item.provider),
-      defaultModel: legacy.defaultModel,
-      reviewerModel: legacy.reviewerModel,
-      catalogVersion: legacy.catalogVersion,
-    }
-    for (const item of legacy.providers) {
-      providerModelCache.set(item.provider.id, [...item.models])
-    }
-    return providerCatalogCache
+    const pending = rpc.call('provider/list', {}).then(result => {
+      providerCatalogCache = result
+      return result
+    }).finally(() => {
+      if (providerCatalogRequest === pending) providerCatalogRequest = null
+    })
+    providerCatalogRequest = pending
+    return pending
   }
 
   async function loadProviderModelPage(options: {
@@ -570,21 +552,21 @@ export function createAgentSessionDesktopClient(
     return result
   }
 
-  async function loadIntegrations(
+  async function loadProviderCredentials(
     refresh = false,
-  ): Promise<IntegrationListResponse['integrations']> {
-    if (integrationsCache && !refresh) return integrationsCache
-    const response = await rpc.call('integration/list', {})
-    integrationsCache = response.integrations
-    return integrationsCache
+  ): Promise<DesktopProviderCredential[]> {
+    if (providerCredentialsCache && !refresh) return providerCredentialsCache
+    const response = await rpc.call('provider/credential/list', {})
+    providerCredentialsCache = [...response.credentials]
+    return providerCredentialsCache
   }
 
   async function providerState(
     preferredProviderID?: ModelProviderID,
   ): Promise<DesktopModelProviderState> {
-    const [directory, integrations, desktopSettings] = await Promise.all([
+    const [directory, credentials, desktopSettings] = await Promise.all([
       loadProviderCatalog(),
-      loadIntegrations(),
+      loadProviderCredentials(),
       mockClient.getDesktopSettings(),
     ])
     const selectedProviderID =
@@ -619,20 +601,23 @@ export function createAgentSessionDesktopClient(
       if (exact) models = [...models, exact]
     }
     const catalogProvider: CatalogProvider = { provider, models }
-    const integration = integrations.find(
-      item => item.id === provider.integrationID,
-    )
-    const summary = catalogProviderToDesktop(catalogProvider, integration)
+    const summary = {
+      ...catalogProviderToDesktop(catalogProvider),
+      config: provider.config,
+      unresolvedMigrationIssues: directory.issues
+        .filter(issue => issue.providerId === provider.id)
+        .map(issue => `${issue.code}:${issue.path}`),
+    }
     const model =
       selectedModel?.id ??
       models.find(item => item.enabled)?.id ??
       models[0]?.id ??
       ''
-    const credentialConnection = integration?.connections.find(
-      connection => connection.type === 'credential',
+    const activeCredential = credentials.find(
+      credential => credential.providerId === provider.id && credential.active,
     )
-    const envConnection = integration?.connections.find(
-      connection => connection.type === 'env',
+    const hasCredential = credentials.some(
+      credential => credential.providerId === provider.id && credential.enabled,
     )
     return {
       selectedProviderID: catalogProvider.provider.id,
@@ -640,48 +625,14 @@ export function createAgentSessionDesktopClient(
       model,
       variant: selectedModel?.variant,
       baseURL: summary.baseURL,
-      apiKeyConfigured: summary.apiKeyConfigured,
-      apiKeySource: credentialConnection
-        ? 'secureStorage'
-        : envConnection?.name ?? null,
-      modelConfigured: Boolean(model && summary.apiKeyConfigured),
-      configurationMessage: summary.apiKeyConfigured
+      apiKeyConfigured: hasCredential || summary.apiKeyConfigured,
+      apiKeySource: activeCredential ? 'secureStorage' : null,
+      modelConfigured: Boolean(model && (hasCredential || summary.apiKeyConfigured)),
+      configurationMessage: hasCredential || summary.apiKeyConfigured
         ? undefined
         : '未连接凭据，请先配置 API 密钥或完成授权。',
       models: summary.defaultModels,
       modelMetadata: summary.modelMetadata,
-    }
-  }
-
-  async function integrationForProvider(
-    providerID: ModelProviderID,
-    refreshIntegrations = false,
-  ) {
-    const [directory, integrations] = await Promise.all([
-      loadProviderCatalog(),
-      loadIntegrations(refreshIntegrations),
-    ])
-    const provider = directory.providers.find(item => item.id === providerID)
-    if (!provider) throw new Error(`未找到模型提供商：${providerID}`)
-    const integrationID = provider.integrationID
-    if (!integrationID) throw new Error(`模型提供商 ${providerID} 未声明凭据 Integration。`)
-    const integration = integrations.find(item => item.id === integrationID)
-    if (!integration) throw new Error(`未找到模型提供商 ${providerID} 的 Integration。`)
-    return { provider, integration }
-  }
-
-  async function openAuthorizationURL(url: string): Promise<void> {
-    if (!url) return
-    if (environment.openExternal) {
-      await environment.openExternal(url)
-      return
-    }
-    if (typeof window !== 'undefined') {
-      if (window.codePilotXDesktop) {
-        await window.codePilotXDesktop.openExternal(url)
-        return
-      }
-      window.open(url, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -860,7 +811,7 @@ export function createAgentSessionDesktopClient(
 
   function reconcileAgentSessionStore(): Promise<void> {
     if (sessionStoreReconcile) return sessionStoreReconcile
-    integrationsCache = null
+    providerCredentialsCache = null
     invalidateModelCatalog()
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
@@ -1095,15 +1046,19 @@ export function createAgentSessionDesktopClient(
       if (provider && model) return { providerID: provider.provider.id, id: model.id }
     }
     if (providers.defaultModel) return providers.defaultModel
-    const integrations = await loadIntegrations()
+    const credentials = await loadProviderCredentials()
     const provider =
       providers.providers.find(item => {
-        if (!item.provider.integrationID) return true
-        return integrations.some(
-          integration =>
-            integration.id === item.provider.integrationID &&
-            integration.connections.length > 0,
-        )
+        return item.provider.disabled !== true
+          && (
+            credentials.some(
+              credential =>
+                credential.providerId === item.provider.id
+                && credential.enabled
+                && credential.active,
+            )
+            || (!item.provider.auth.apiKey && !item.provider.auth.oauth)
+          )
       }) ?? providers.providers[0]
     const model = provider?.models[0]
     if (provider && model) {
@@ -2446,21 +2401,19 @@ export function createAgentSessionDesktopClient(
         })
       }),
     listModelProviders: async () => {
-      const [directory, integrations] = await Promise.all([
-        loadProviderCatalog(),
-        loadIntegrations(),
-      ])
-      return directory.providers.map(provider =>
-        catalogProviderToDesktop(
+      const directory = await loadProviderCatalog()
+      return directory.providers.map(provider => ({
+        ...catalogProviderToDesktop(
           {
             provider,
             models: providerModelCache.get(provider.id) ?? [],
           },
-          integrations.find(
-            integration => integration.id === provider.integrationID,
-          ),
         ),
-      )
+        config: provider.config,
+        unresolvedMigrationIssues: directory.issues
+          .filter(issue => issue.providerId === provider.id)
+          .map(issue => `${issue.code}:${issue.path}`),
+      }))
     },
     getModelProviderState: () => providerState(),
     fetchProviderModels: async options => {
@@ -2521,25 +2474,9 @@ export function createAgentSessionDesktopClient(
         }),
       ),
     saveModelProvider: async options => {
-      let directory = await loadProviderCatalog()
-      let provider = directory.providers.find(item => item.id === options.providerID)
+      const directory = await loadProviderCatalog()
+      const provider = directory.providers.find(item => item.id === options.providerID)
       if (!provider) throw new Error(`未找到模型提供商：${options.providerID}`)
-      if (
-        options.baseURL !== undefined &&
-        options.baseURL !== provider.api.url
-      ) {
-        await rpc.call('provider/updateSettings', {
-          providerId: provider.id,
-          settings: {
-            ...(options.baseURL ? { api: options.baseURL } : {}),
-          },
-          operationId: crypto.randomUUID(),
-        })
-        invalidateModelCatalog()
-        directory = await loadProviderCatalog()
-        provider = directory.providers.find(item => item.id === options.providerID)
-        if (!provider) throw new Error(`未找到模型提供商：${options.providerID}`)
-      }
       if (options.id) {
         const page = await loadProviderModelPage({
           providerID: options.providerID,
@@ -2569,130 +2506,126 @@ export function createAgentSessionDesktopClient(
       return providerState(options.providerID)
     },
     saveProviderApiKey: async (providerID, apiKey) => {
-      const { integration } = await integrationForProvider(providerID)
-      await rpc.call('integration/connect', {
-        integrationId: integration.id,
+      await rpc.call('provider/apiKey/create', {
+        providerId: providerID as RpcParams<'provider/apiKey/create'>['providerId'],
+        label: '默认密钥',
         key: apiKey,
         operationId: crypto.randomUUID(),
       })
-      integrationsCache = null
+      providerCredentialsCache = null
       invalidateModelCatalog()
       return providerState(providerID)
     },
     deleteProviderApiKey: async providerID => {
-      const { integration } = await integrationForProvider(providerID, true)
-      const credentials = integration.connections.filter(
-        connection => connection.type === 'credential',
+      const credentials = (await loadProviderCredentials(true)).filter(
+        credential =>
+          credential.providerId === providerID
+          && credential.kind === 'api-key',
       )
       if (credentials.length === 0) {
-        const environment = integration.connections.find(
-          connection => connection.type === 'env',
-        )
-        throw new Error(
-          environment
-            ? `当前凭据来自环境变量 ${environment.name}，不能在应用内删除。`
-            : '当前 Provider 没有可删除的应用内 API 密钥。',
-        )
+        throw new Error('当前 Provider 没有可删除的应用内 API 密钥。')
       }
-      for (const connection of credentials) {
-        await rpc.call('integration/disconnect', {
-          integrationId: integration.id,
-          credentialId: connection.id,
+      for (const credential of credentials) {
+        await rpc.call('provider/credential/delete', {
+          credentialId: credential.id,
           operationId: crypto.randomUUID(),
         })
       }
-      integrationsCache = null
+      providerCredentialsCache = null
       invalidateModelCatalog()
-      const nextState = await providerState(providerID)
-      const refreshedIntegration = (await loadIntegrations()).find(
-        item => item.id === integration.id,
-      )
-      if (
-        refreshedIntegration?.connections.some(
-          connection => connection.type === 'credential',
-        )
-      ) {
-        throw new Error('API 密钥删除后仍存在于安全存储中，请重试。')
-      }
-      return nextState
+      return providerState(providerID)
     },
-    listApiKeys: providerId =>
+    listProviderCredentials: providerId =>
       withAgentOrMock(
         async () => {
-          const result = await rpc.call<{ apiKeys: DesktopApiKeySummary[] }>(
-            'apiKey/list',
-            providerId ? { providerId } : {},
+          const result = await rpc.call(
+            'provider/credential/list',
+            providerId
+              ? {
+                  providerId: providerId as RpcParams<'provider/credential/list'>['providerId'],
+                }
+              : {},
           )
-          return result.apiKeys
+          if (!providerId) providerCredentialsCache = [...result.credentials]
+          return [...result.credentials]
         },
-        () => mockClient.listApiKeys(providerId),
+        () => mockClient.listProviderCredentials(providerId),
       ),
     createApiKey: input =>
       withAgentOrMock(
         async () => {
-          await rpc.call<void>('apiKey/create', {
+          const result = await rpc.call('provider/apiKey/create', {
             ...input,
+            providerId: input.providerId as RpcParams<'provider/apiKey/create'>['providerId'],
             operationId: crypto.randomUUID(),
           })
-          integrationsCache = null
+          providerCredentialsCache = null
           invalidateModelCatalog()
+          return result.credential
         },
         () => mockClient.createApiKey(input),
       ),
     updateApiKey: input =>
       withAgentOrMock(
         async () => {
-          await rpc.call<void>('apiKey/update', {
+          const result = await rpc.call('provider/apiKey/update', {
             ...input,
+            credentialId: input.credentialId as RpcParams<'provider/apiKey/update'>['credentialId'],
             operationId: crypto.randomUUID(),
           })
-          integrationsCache = null
+          providerCredentialsCache = null
           invalidateModelCatalog()
+          return result.credential
         },
         () => mockClient.updateApiKey(input),
       ),
-    setActiveApiKey: (providerId, credentialId) =>
+    setActiveProviderCredential: (providerId, credentialId) =>
       withAgentOrMock(
         async () => {
-          await rpc.call<void>('apiKey/setActive', {
-            providerId,
-            credentialId,
+          const result = await rpc.call('provider/credential/setActive', {
+            providerId: providerId as RpcParams<'provider/credential/setActive'>['providerId'],
+            credentialId: credentialId as RpcParams<'provider/credential/setActive'>['credentialId'],
             operationId: crypto.randomUUID(),
           })
-          integrationsCache = null
+          providerCredentialsCache = null
           invalidateModelCatalog()
+          return result.credential
         },
-        () => mockClient.setActiveApiKey(providerId, credentialId),
+        () => mockClient.setActiveProviderCredential(providerId, credentialId),
       ),
-    setApiKeyEnabled: (credentialId, enabled) =>
+    setProviderCredentialEnabled: (credentialId, enabled) =>
       withAgentOrMock(
         async () => {
-          await rpc.call<void>('apiKey/setEnabled', {
-            credentialId,
+          const result = await rpc.call('provider/credential/setEnabled', {
+            credentialId: credentialId as RpcParams<'provider/credential/setEnabled'>['credentialId'],
             enabled,
             operationId: crypto.randomUUID(),
           })
-          integrationsCache = null
+          providerCredentialsCache = null
           invalidateModelCatalog()
+          return result.credential
         },
-        () => mockClient.setApiKeyEnabled(credentialId, enabled),
+        () => mockClient.setProviderCredentialEnabled(credentialId, enabled),
       ),
     reorderApiKeys: (providerId, orderedCredentialIds) =>
       withAgentOrMock(
         async () => {
-          await rpc.call<void>('apiKey/reorder', {
-            providerId,
-            orderedCredentialIds,
+          const result = await rpc.call('provider/apiKey/reorder', {
+            providerId: providerId as RpcParams<'provider/apiKey/reorder'>['providerId'],
+            orderedCredentialIds:
+              orderedCredentialIds as unknown as RpcParams<'provider/apiKey/reorder'>['orderedCredentialIds'],
             operationId: crypto.randomUUID(),
           })
+          providerCredentialsCache = null
+          return [...result.credentials]
         },
         () => mockClient.reorderApiKeys(providerId, orderedCredentialIds),
       ),
     testApiKey: credentialId =>
       withAgentOrMock(
         async () => {
-          const result = await rpc.call<RpcResult<'apiKey/test'>>('apiKey/test', {
-            credentialId,
+          const result = await rpc.call('provider/apiKey/test', {
+            credentialId: credentialId as RpcParams<'provider/apiKey/test'>['credentialId'],
           })
           return {
             ok: result.ok,
@@ -2701,17 +2634,18 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.testApiKey(credentialId),
       ),
-    deleteApiKey: credentialId =>
+    deleteProviderCredential: credentialId =>
       withAgentOrMock(
         async () => {
-          await rpc.call<void>('apiKey/delete', {
-            credentialId,
+          const result = await rpc.call('provider/credential/delete', {
+            credentialId: credentialId as RpcParams<'provider/credential/delete'>['credentialId'],
             operationId: crypto.randomUUID(),
           })
-          integrationsCache = null
+          providerCredentialsCache = null
           invalidateModelCatalog()
+          return [...result.credentials]
         },
-        () => mockClient.deleteApiKey(credentialId),
+        () => mockClient.deleteProviderCredential(credentialId),
       ),
     copyProviderApiKey: credentialId => {
       const copy = environment.window?.codePilotXDesktop?.copyProviderApiKey
@@ -2735,52 +2669,62 @@ export function createAgentSessionDesktopClient(
             message: result.message,
           }
     },
-    listIntegrations: async () => [...await loadIntegrations(true)],
-    connectIntegration: async input => {
-      await rpc.call('integration/connect', {
-        integrationId: input.integrationID,
-        key: input.key,
-        ...(input.label ? { label: input.label } : {}),
+    createProvider: async definition => {
+      await rpc.call('provider/create', {
+        definition,
         operationId: crypto.randomUUID(),
       })
-      integrationsCache = null
       invalidateModelCatalog()
-      return { ok: true as const }
     },
-    authorizeIntegration: async input => {
-      const result = await rpc.call('integration/authorize', {
-        integrationId: input.integrationID,
-        methodId: input.methodID,
-        inputs: input.inputs,
-        ...(input.label ? { label: input.label } : {}),
+    updateProvider: async (providerId, definition) => {
+      await rpc.call('provider/update', {
+        providerId: providerId as RpcParams<'provider/update'>['providerId'],
+        definition,
         operationId: crypto.randomUUID(),
       })
-      await openAuthorizationURL(result.attempt.url)
-      return result
-    },
-    completeIntegrationAuthorization: async input => {
-      await rpc.call('integration/authorizeComplete', {
-        attemptId: input.attemptID,
-        ...(input.code ? { code: input.code } : {}),
-        operationId: crypto.randomUUID(),
-      })
-      integrationsCache = null
       invalidateModelCatalog()
-      return { ok: true as const }
     },
-    getIntegrationAuthorizationStatus: input =>
-      rpc.call('integration/authorizeStatus', {
-        attemptId: input.attemptID,
-      }).then(result => ({ status: result.attempt.status })),
-    disconnectIntegration: async input => {
-      await rpc.call('integration/disconnect', {
-        integrationId: input.integrationID,
-        credentialId: input.credentialID,
+    deleteProvider: async providerId => {
+      await rpc.call('provider/delete', {
+        providerId: providerId as RpcParams<'provider/delete'>['providerId'],
         operationId: crypto.randomUUID(),
       })
-      integrationsCache = null
       invalidateModelCatalog()
-      return { ok: true as const }
+    },
+    discoverProviderModels: async (providerId, api) => {
+      const result = await rpc.call('provider/model/discover', {
+        providerId: providerId as RpcParams<'provider/model/discover'>['providerId'],
+        api,
+      })
+      return [...result.models]
+    },
+    startAuthSession: async target => {
+      const result = await rpc.call('auth/session/start', {
+        target,
+        operationId: crypto.randomUUID(),
+      })
+      return result.session
+    },
+    respondAuthSession: async (sessionId, promptId, value) => {
+      const result = await rpc.call('auth/session/respond', {
+        sessionId,
+        promptId,
+        value,
+        operationId: crypto.randomUUID(),
+      })
+      return result.session
+    },
+    getAuthSessionStatus: async sessionId => {
+      const result = await rpc.call('auth/session/status', { sessionId })
+      return result.session
+    },
+    cancelAuthSession: async sessionId => {
+      const result = await rpc.call('auth/session/cancel', {
+        sessionId,
+        operationId: crypto.randomUUID(),
+      })
+      providerCredentialsCache = null
+      return result.session
     },
     createSession: async (options: CreateDesktopSessionOptions) =>
       withAgentOrMock<CreateDesktopSessionResult>(
@@ -3248,8 +3192,8 @@ export function createAgentSessionDesktopClient(
             window.dispatchEvent(new Event('desktop:model-provider-changed'))
           }
         }
-        if (notificationMethod === 'integration/updated') {
-          integrationsCache = null
+        if (notificationMethod === 'provider/credential/updated') {
+          providerCredentialsCache = null
           invalidateModelCatalog()
         }
         if (
