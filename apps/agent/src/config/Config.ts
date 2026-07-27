@@ -1,7 +1,6 @@
 import { Effect } from "effect"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
-import { existsSync } from "node:fs"
 
 export interface AgentConfig {
   host: string
@@ -13,11 +12,9 @@ export interface AgentConfig {
   historyDatabasePath: string
   profileDatabasePath: string
   legacyDatabasePath: string
-  modelSnapshotPath: string
-  modelCachePath: string
+  piModelCachePath: string
   rendererDir: string | null
   rendererDevURL: string | null
-  modelsDevURL: string
   githubAuthBrokerURL: string | null
   githubOAuthClientId: string | null
   petsDir: string
@@ -35,7 +32,7 @@ export interface AgentStorageLayout {
   historyDatabase: string
   profileDatabase: string
   legacyDatabase: string
-  modelCache: string
+  piModelCache: string
   hooksFile: string
   skillsRoot: string
   attachmentsRoot: string
@@ -92,7 +89,7 @@ export const resolveAgentStorageLayout = (
     historyDatabase: resolve(dataRoot, "history.sqlite"),
     profileDatabase: resolve(dataRoot, "profile.sqlite"),
     legacyDatabase: resolve(dataRoot, "agent.sqlite"),
-    modelCache: resolve(dataRoot, "models.cache.json"),
+    piModelCache: resolve(dataRoot, "pi-models.cache.json"),
     hooksFile: resolve(dataRoot, "hooks.json"),
     skillsRoot: resolve(dataRoot, "skills"),
     attachmentsRoot: resolve(dataRoot, "attachments"),
@@ -109,12 +106,6 @@ export const resolveAgentStorageLayout = (
 export const loadConfig = Effect.sync((): AgentConfig => {
   const storage = resolveAgentStorageLayout()
   const dataDir = storage.dataRoot
-  const workspaceSnapshot = resolve(import.meta.dir, "../../../../resources/models.snapshot.json")
-  const snapshot = process.env.CODEPILOTX_MODEL_SNAPSHOT
-    ? resolve(process.env.CODEPILOTX_MODEL_SNAPSHOT)
-    : existsSync(resolve("./resources/models.snapshot.json"))
-      ? resolve("./resources/models.snapshot.json")
-      : workspaceSnapshot
   return {
     host: "127.0.0.1",
     port: asPort(process.env.CODEPILOTX_PORT ?? process.env.PORT),
@@ -125,11 +116,9 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     historyDatabasePath: storage.historyDatabase,
     profileDatabasePath: storage.profileDatabase,
     legacyDatabasePath: storage.legacyDatabase,
-    modelSnapshotPath: snapshot,
-    modelCachePath: storage.modelCache,
+    piModelCachePath: storage.piModelCache,
     rendererDir: process.env.CODEPILOTX_RENDERER_DIST ? resolve(process.env.CODEPILOTX_RENDERER_DIST) : process.env.CODEPILOTX_STATIC_DIR ? resolve(process.env.CODEPILOTX_STATIC_DIR) : process.env.CODEPILOTX_RENDERER_DIR ? resolve(process.env.CODEPILOTX_RENDERER_DIR) : null,
     rendererDevURL: process.env.CODEPILOTX_RENDERER_DEV_URL ?? process.env.CODEPILOTX_RENDERER_URL ?? null,
-    modelsDevURL: process.env.CODEPILOTX_MODELS_URL ?? "https://models.dev",
     githubAuthBrokerURL:
       process.env.CODEPILOTX_GITHUB_AUTH_BROKER_URL?.trim()
       || "https://auth-staging.codepilotx.top",

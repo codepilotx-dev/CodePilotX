@@ -1,4 +1,5 @@
 import type { AgentDatabase } from "../database/AgentDatabase"
+import { approvalCancelledPayload } from "../events/interaction-event-payloads"
 
 export type InterruptedRunRecoveryStore = Pick<
   AgentDatabase,
@@ -47,12 +48,16 @@ export const recoverInterruptedRuns = (database: AgentDatabase) => {
     `).all() as Array<{ id: string; thread_id: string; turn_id: string; agent_id: string; tool_call_id: string }>
     for (const approval of ambiguousApprovals) {
       database.sqlite.query("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE id = ?").run(timestamp, approval.id)
-      database.insertEvent(approval.thread_id, approval.turn_id, "approval/cancelled", {
-        id: approval.id,
-        turnId: approval.turn_id,
-        itemId: approval.tool_call_id,
-        reason: "审批后的工具执行结果不确定，已按 fail-closed 中断",
-      })
+      database.insertEvent(
+        approval.thread_id,
+        approval.turn_id,
+        "approval/cancelled",
+        approvalCancelledPayload(
+          approval.id,
+          "审批后的工具执行结果不确定，已按 fail-closed 中断",
+          timestamp,
+        ),
+      )
     }
     const resumableQuestions = database.sqlite.query(`
       SELECT q.id, q.thread_id, q.turn_id, q.agent_id
@@ -67,7 +72,16 @@ export const recoverInterruptedRuns = (database: AgentDatabase) => {
       database.insertEvent(question.thread_id, question.turn_id, "agent/upserted", { agent: database.getAgentExecution(question.agent_id) })
     }
     for (const approval of invalidApprovals) {
-      database.insertEvent(approval.thread_id, approval.turn_id, "approval/cancelled", { id: approval.id, turnId: approval.turn_id, itemId: approval.tool_call_id, reason: "审批缺少完整且可恢复的 SDK checkpoint，已安全取消" })
+      database.insertEvent(
+        approval.thread_id,
+        approval.turn_id,
+        "approval/cancelled",
+        approvalCancelledPayload(
+          approval.id,
+          "审批缺少完整且可恢复的 SDK checkpoint，已安全取消",
+          timestamp,
+        ),
+      )
     }
     database.sqlite.query(`UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'preparing' OR id IN (SELECT r.id FROM approval_requests AS r LEFT JOIN approval_checkpoints AS c ON c.approval_id = r.id WHERE r.status = 'pending' AND (c.approval_id IS NULL OR c.version <> 1 OR json_type(c.payload, '$.runState') <> 'text' OR json_type(c.payload, '$.interruption') IS NULL))`).run(timestamp)
     const interruptedTurns = database.sqlite.query(`

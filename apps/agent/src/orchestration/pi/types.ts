@@ -4,7 +4,6 @@ import type {
   AgentHarnessResources,
   AgentTool,
   CompactResult,
-  ExecutionEnv,
   Session,
   ThinkingLevel,
 } from "@codepilotx/pi-agent-core"
@@ -47,7 +46,6 @@ export interface PiRuntimeRequest {
 
 export interface PiHarnessDependencies {
   models: Models
-  env: ExecutionEnv
   session: Session
   resources?: AgentHarnessResources
 }

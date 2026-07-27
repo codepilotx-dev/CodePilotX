@@ -73,15 +73,14 @@ async function validateLiveConfiguration(
   const provider = (await current.providers.list()).find(
     (candidate) => String(candidate.id) === providerID,
   )
-  const integrationID = provider?.integrationID
-  if (integrationID) {
+  if (provider?.auth.apiKey) {
     const credential = current.db.sqlite.query(`
       SELECT c.id
       FROM credentials c
       WHERE c.integration_id = ? AND c.enabled = 1
       ORDER BY c.priority, c.created_at
       LIMIT 1
-    `).get(integrationID)
+    `).get(providerID)
     if (!credential) {
       throw new Error(`真实模型测试缺少 ${providerID} 的有效凭据，请先在 CodePilotX 中连接该 Provider`)
     }

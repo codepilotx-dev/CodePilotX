@@ -5,6 +5,7 @@ import type {
 import { readFile, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { createHash } from "node:crypto"
+import { planPiProviderConfigMigration } from "../provider/pi/PiProviderConfigMigration"
 
 const DESKTOP_RUNTIME_KEYS = new Set([
   "recentWorkspaces",
@@ -182,7 +183,10 @@ export class ConfigMigrationService {
 
   async run() {
     const legacy = this.repository.read()
-    if (legacy.completed) return
+    if (legacy.completed) {
+      await this.migratePiProviderConfig()
+      return
+    }
     const read = await this.config.read({ includeLayers: true })
     const current = read.layers?.find((layer) => layer.kind === "user")?.config ?? {}
     const userVersion = read.layers?.find((layer) => layer.kind === "user")?.version
@@ -335,6 +339,23 @@ export class ConfigMigrationService {
     }
     if (migratedTooling && this.legacyToolingSettingsPath) {
       await rm(this.legacyToolingSettingsPath, { force: true })
+    }
+    await this.migratePiProviderConfig()
+  }
+
+  private async migratePiProviderConfig() {
+    const read = await this.config.read({ includeLayers: true })
+    const current = read.layers?.find((layer) => layer.kind === "user")?.config ?? {}
+    const userVersion = read.layers?.find((layer) => layer.kind === "user")?.version
+    const edits = planPiProviderConfigMigration(current)
+    if (edits.length === 0) return
+    await this.config.batchWrite({
+      edits,
+      ...(userVersion ? { expectedVersion: userVersion } : {}),
+    })
+    const verified = await this.config.read()
+    if (verified.diagnostics.some((item) => item.severity === "error")) {
+      throw new Error("Pi provider config migration verification failed")
     }
   }
 }

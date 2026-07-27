@@ -17,7 +17,6 @@ import {
   type PiRuntimeEventContext,
   type PiRuntimeEventSink,
 } from "./pi";
-import { CodePilotXExecutionEnv } from "./CodePilotXExecutionEnv";
 import {
   SqlitePiSessionRepo,
   type SqlitePiSessionStorage,
@@ -28,7 +27,6 @@ import type { ToolExecutor } from "../tool/ToolExecutor";
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan";
 import type { Item, SubagentResult } from "../domain";
 import { createLiveEvent } from "../storage/events/EventPublisher";
-import { WorkspaceService } from "../workspace/WorkspaceService";
 import { secretScrubber } from "../security/SecretScrubber";
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
 import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
@@ -744,7 +742,6 @@ export class PiOrchestratorAdapter {
         resolve: async () => ({
           models: this.options.models,
           model,
-          env: new CodePilotXExecutionEnv(request.workspace, request.defaultCwd),
           session,
         }),
       } as never,
@@ -1002,65 +999,40 @@ export class PiOrchestratorAdapter {
       workspace_cwd: string | null;
     } | null;
     if (!row) throw new Error("Pi session 不存在，无法执行手动压缩");
-    const project = row.project_id ? this.options.db.getProject(row.project_id) : null;
-    const projectFolders = project?.folders?.filter((folder) => folder.availability !== "missing") ?? [];
-    const primaryFolder = projectFolders.find((folder) => folder.id === project?.primaryFolderId)
-      ?? projectFolders.find((folder) => folder.role === "primary");
-    const rootPath = primaryFolder?.path ?? row.workspace_root;
-    const defaultCwd = row.workspace_cwd ?? rootPath;
-    if (!rootPath || !defaultCwd) throw new Error("Pi session 绑定的项目或工作区不存在");
     const ref = JSON.parse(row.model_ref) as { providerID: string; id: string };
     const model = this.options.models.getModel(ref.providerID, ref.id);
     if (!model) throw new Error(`Pi 模型 ${ref.providerID}/${ref.id} 不可用`);
     const session = await this.repo.openForThread(row.session_id, threadID);
     const storage = session.getStorage() as SqlitePiSessionStorage;
-    const env = new CodePilotXExecutionEnv(
-      project && primaryFolder
-        ? await WorkspaceService.openRoots({
-            primaryRoot: primaryFolder.path,
-            roots: projectFolders.map((folder) => ({
-              folderId: folder.id,
-              path: folder.path,
-              role: folder.role,
-            })),
-          })
-        : await WorkspaceService.open(rootPath),
-      defaultCwd,
-    );
     const harness = new AgentHarness({
-      env,
       session,
       models: this.options.models,
       model,
       tools: [],
       systemPrompt: "",
     });
-    try {
-      const beforeCount = (await session.getEntries()).length;
-      const result = await harness.compact(instructions);
-      const entryID = await storage.getLeafId();
-      const afterCount = (await session.getEntries()).length;
-      const compactionID = entryID ?? crypto.randomUUID();
-      let event!: ReturnType<AgentDatabase["insertEvent"]>;
-      this.options.db.transaction(() => {
-        storage.flush();
-        event = this.options.db.insertEvent(
-          threadID,
-          null,
-          "context/compacted",
-          piCompactionEventPayload({
-            compactionID,
-            beforeCount,
-            afterCount,
-            beforeTokens: result.tokensBefore,
-          }),
-        );
-      });
-      await this.publish(event);
-      return result;
-    } finally {
-      await env.cleanup();
-    }
+    const beforeCount = (await session.getEntries()).length;
+    const result = await harness.compact(instructions);
+    const entryID = await storage.getLeafId();
+    const afterCount = (await session.getEntries()).length;
+    const compactionID = entryID ?? crypto.randomUUID();
+    let event!: ReturnType<AgentDatabase["insertEvent"]>;
+    this.options.db.transaction(() => {
+      storage.flush();
+      event = this.options.db.insertEvent(
+        threadID,
+        null,
+        "context/compacted",
+        piCompactionEventPayload({
+          compactionID,
+          beforeCount,
+          afterCount,
+          beforeTokens: result.tokensBefore,
+        }),
+      );
+    });
+    await this.publish(event);
+    return result;
   }
 
   async steer(threadID: string, content: string, images?: import("@earendil-works/pi-ai").ImageContent[], inputID?: string) {

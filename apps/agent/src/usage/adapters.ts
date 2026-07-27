@@ -1,4 +1,4 @@
-import { Integration, type Credential } from "@codepilotx/model-schema"
+import type { Credential } from "@codepilotx/model-schema"
 import { UsageRequestError } from "./safe-fetch"
 import {
   emptySource,
@@ -1041,8 +1041,7 @@ const claudeSubscription = adapter({
   capabilities: ["quota"],
   connectionMethod: {
     kind: "oauth",
-    integrationId: Integration.ID.make("usage.anthropic.subscription"),
-    methodId: Integration.MethodID.make("claude-subscription-browser"),
+    sourceId: "anthropic-subscription",
   },
   credential: { kind: "billing" },
   query: async (context, source) => {

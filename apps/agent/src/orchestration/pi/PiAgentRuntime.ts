@@ -88,7 +88,6 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
       load: () => adaptToolDefinition(definition, { executor: this.options.toolExecutor, request }),
     })))
     const harness = new AgentHarness({
-      env: dependencies.env,
       session: dependencies.session,
       models: dependencies.models,
       ...(dependencies.resources ? { resources: dependencies.resources } : {}),
@@ -178,7 +177,6 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
     await Promise.allSettled(active.map(async ({ harness, unsubscribe }) => {
       unsubscribe()
       await harness.abort()
-      await harness.env.cleanup()
     }))
   }
 }

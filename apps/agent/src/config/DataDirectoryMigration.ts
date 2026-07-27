@@ -31,6 +31,7 @@ const RELOCATION_DIRECTORIES = [
 ] as const
 const RELOCATION_FILES = [
   "models.cache.json",
+  "pi-models.cache.json",
   "hooks.json",
   ".data-location-v1.json",
 ] as const
@@ -193,6 +194,10 @@ async function migrateDataRoot(
   await copyFileIfMissing(
     join(sourceRoot, "models.cache.json"),
     join(targetRoot, "models.cache.json"),
+  )
+  await copyFileIfMissing(
+    join(sourceRoot, "pi-models.cache.json"),
+    join(targetRoot, "pi-models.cache.json"),
   )
   await migratePets(join(sourceRoot, "pets"), join(targetRoot, "pets"))
   await migrateAgentLogs(join(sourceRoot, "logs"), join(targetRoot, "logs"))

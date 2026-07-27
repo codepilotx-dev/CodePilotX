@@ -807,7 +807,7 @@ export class ThreadService {
       const contextManager = new ContextManager(this.db)
       const configuredDefault = await this.effectiveDefaultModel(runtime.workspaceRoot)
       const selectedInfo = await this.resolveAvailableModel([activeModel, configuredDefault])
-      const selectedModel = Model.Ref.make({ providerID: selectedInfo.providerID, id: selectedInfo.id, ...(selectedInfo.request.variant ? { variant: Model.VariantID.make(selectedInfo.request.variant) } : {}) })
+      const selectedModel = Model.Ref.make({ providerID: selectedInfo.providerID, id: selectedInfo.id, ...(selectedInfo.variant ? { variant: Model.VariantID.make(selectedInfo.variant) } : {}) })
       const piModel = await this.providers.getModel(selectedModel)
       const attachments = await this.agentAttachments(input.id)
       let budgetText = ""

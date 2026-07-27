@@ -15,8 +15,10 @@ import type { QuestionService } from "../session/QuestionService"
 import { RpcRouter } from "./rpc/RpcRouter"
 import { proxyRendererRequest } from "./RendererProxy"
 import type { AgentLogger } from "../observability/AgentLogger"
-import type { IntegrationService } from "../provider/IntegrationService"
 import type { ApiKeyService } from "../provider/ApiKeyService"
+import type { ProviderCredentialService } from "../provider/ProviderCredentialService"
+import type { PiModelService } from "../provider/pi"
+import type { PiAuthSessionService } from "../auth/PiAuthSessionService"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
@@ -46,8 +48,10 @@ export interface TransportDependencies {
   attachments: AttachmentService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
-  integrations: IntegrationService
+  piModels: PiModelService
   apiKeys: ApiKeyService
+  providerCredentials: ProviderCredentialService
+  authSessions: PiAuthSessionService
   memory: MemoryService
   hooks: HookService
   review: GitReviewService
@@ -277,9 +281,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, review, github, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, authSessions, memory, hooks, review, github, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, integrations, apiKeys, memory, hooks, review, github, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, authSessions, memory, hooks, review, github, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

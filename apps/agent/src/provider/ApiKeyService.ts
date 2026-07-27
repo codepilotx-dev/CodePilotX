@@ -7,23 +7,21 @@ import type {
   EncryptedCredentialRepository,
 } from "../auth/EncryptedCredentialRepository"
 import { secretScrubber } from "../security/SecretScrubber"
-import type { IntegrationService } from "./IntegrationService"
 import type { PiModelService } from "./pi"
 
 export type PublicApiKeySummary = {
   id: Credential.ID
   providerId: Provider.ID
+  kind: "api-key"
   label: string
   maskedValue: string
   enabled: boolean
   active: boolean
-  priority: number
+  order: number
   health: {
     status: ApiKeyHealth["status"]
     lastTestedAt?: number
-    lastUsedAt?: number
     errorCategory?: NonNullable<ApiKeyHealth["errorCategory"]>
-    cooldownUntil?: number
   }
   createdAt: number
   updatedAt: number
@@ -76,7 +74,7 @@ const formatTestFailure = (category: FailureCategory, cause: unknown, apiKey: st
 }
 
 export type PublicApiKeyTestResult = {
-  apiKey: PublicApiKeySummary
+  credential: PublicApiKeySummary
   ok: boolean
   message: string
 }
@@ -84,21 +82,19 @@ export type PublicApiKeyTestResult = {
 export class ApiKeyService {
   constructor(
     private readonly providers: PiModelService,
-    private readonly integrations: IntegrationService,
     private readonly credentials: EncryptedCredentialRepository,
   ) {}
 
   async list(providerID?: string): Promise<PublicApiKeySummary[]> {
-    const mappings = await this.providerMappings()
-    const integrationID = providerID ? await this.integrationID(providerID) : undefined
-    return this.credentials.listApiKeys(integrationID)
+    if (providerID) await this.requiredProviderID(providerID)
+    return this.credentials.listApiKeys(providerID)
       .filter((summary) => !summary.integrationID.startsWith("usage."))
       .map((summary) =>
-      this.publicSummary(summary, mappings.get(summary.integrationID) ?? Provider.ID.make(summary.integrationID)))
+        this.publicSummary(summary, Provider.ID.make(summary.integrationID)))
   }
 
   async create(input: { providerID: string; label: string; key: string }) {
-    const integrationID = await this.integrationID(input.providerID, true)
+    const integrationID = await this.requiredProviderID(input.providerID, true)
     const summary = await Effect.runPromise(this.credentials.createApiKey({
       integrationID,
       label: input.label,
@@ -111,12 +107,12 @@ export class ApiKeyService {
     let summary = this.requiredSummary(input.credentialID)
     if (input.label !== undefined) summary = await Effect.runPromise(this.credentials.renameApiKey(input.credentialID, input.label))
     if (input.key !== undefined) summary = await Effect.runPromise(this.credentials.replaceApiKey(input.credentialID, input.key))
-    const providerID = (await this.providerMappings()).get(summary.integrationID) ?? Provider.ID.make(summary.integrationID)
+    const providerID = Provider.ID.make(summary.integrationID)
     return this.publicSummary(summary, providerID)
   }
 
   async setActive(providerID: string, credentialID: string) {
-    const integrationID = await this.integrationID(providerID, true)
+    const integrationID = await this.requiredProviderID(providerID, true)
     const summary = await Effect.runPromise(this.credentials.setActive(integrationID, credentialID))
     return this.publicSummary(summary, Provider.ID.make(providerID))
   }
@@ -124,12 +120,12 @@ export class ApiKeyService {
   async setEnabled(credentialID: string, enabled: boolean) {
     this.requiredSummary(credentialID)
     const summary = await Effect.runPromise(this.credentials.setEnabled(credentialID, enabled))
-    const providerID = (await this.providerMappings()).get(summary.integrationID) ?? Provider.ID.make(summary.integrationID)
+    const providerID = Provider.ID.make(summary.integrationID)
     return this.publicSummary(summary, providerID)
   }
 
   async reorder(providerID: string, credentialIDs: readonly string[]) {
-    const integrationID = await this.integrationID(providerID, true)
+    const integrationID = await this.requiredProviderID(providerID, true)
     const summaries = await Effect.runPromise(this.credentials.reorder(integrationID, credentialIDs))
     return summaries.map((summary) => this.publicSummary(summary, Provider.ID.make(providerID)))
   }
@@ -137,7 +133,7 @@ export class ApiKeyService {
   async delete(credentialID: string) {
     const summary = this.requiredSummary(credentialID)
     await Effect.runPromise(this.credentials.deleteApiKey(credentialID))
-    const providerID = (await this.providerMappings()).get(summary.integrationID) ?? Provider.ID.make(summary.integrationID)
+    const providerID = Provider.ID.make(summary.integrationID)
     return this.credentials.listApiKeys(summary.integrationID).map((item) => this.publicSummary(item, providerID))
   }
 
@@ -147,11 +143,11 @@ export class ApiKeyService {
     if (!stored || stored.kind !== "api-key" || !Schema.is(Credential.Key)(stored.value)) {
       throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到可测试的 API Key", 404)
     }
-    const providerID = (await this.providerMappings()).get(summary.integrationID) ?? Provider.ID.make(summary.integrationID)
+    const providerID = Provider.ID.make(summary.integrationID)
     const model = (await this.providers.models()).find((candidate) => candidate.providerID === providerID && candidate.enabled)
     if (!model) {
       return {
-        apiKey: this.publicSummary(summary, providerID),
+        credential: this.publicSummary(summary, providerID),
         ok: false,
         message: `配置不可用：Provider ${providerID} 没有可用模型`,
       }
@@ -187,11 +183,11 @@ export class ApiKeyService {
         status: category === "authentication" ? "auth-failed" : category === "rate-limit" ? "rate-limited" : "error",
         lastTestedAt: testedAt,
         lastErrorCategory: category,
-        cooldownUntil: category === "rate-limit" ? testedAt + 60_000 : null,
+        cooldownUntil: null,
       }))
-      const apiKey = (await this.list(String(providerID))).find((item) => item.id === credentialID)!
+      const credential = (await this.list(String(providerID))).find((item) => item.id === credentialID)!
       return {
-        apiKey,
+        credential,
         ok: false,
         message: formatTestFailure(category, cause, stored.value.key),
       }
@@ -199,12 +195,11 @@ export class ApiKeyService {
     await Effect.runPromise(this.credentials.updateHealth(credentialID, {
       status: "healthy",
       lastTestedAt: testedAt,
-      lastUsedAt: testedAt,
       lastErrorCategory: null,
       cooldownUntil: null,
     }))
     return {
-      apiKey: (await this.list(String(providerID))).find((item) => item.id === credentialID)!,
+      credential: (await this.list(String(providerID))).find((item) => item.id === credentialID)!,
       ok: true,
       message: "API Key 可用。",
     }
@@ -226,43 +221,29 @@ export class ApiKeyService {
     return summary
   }
 
-  private async providerMappings() {
-    const result = new Map<string, Provider.ID>()
-    for (const provider of await this.providers.list()) {
-      const integrationID = String(provider.integrationID ?? provider.id)
-      if (!result.has(integrationID)) result.set(integrationID, provider.id)
-    }
-    return result
-  }
-
-  private async integrationID(providerID: string, requireKeyMethod = false) {
+  private async requiredProviderID(providerID: string, requireKeyMethod = false) {
     const provider = (await this.providers.list()).find((item) => String(item.id) === providerID)
-    if (!provider) throw new AgentError("INTEGRATION_NOT_FOUND", `未找到 Provider ${providerID}`, 404)
-    const integrationID = String(provider.integrationID ?? provider.id)
-    if (requireKeyMethod) {
-      const integration = (await this.integrations.list()).find((item) => String(item.id) === integrationID)
-      if (!integration?.methods.some((method) => method.type === "key")) {
-        throw new AgentError("INTEGRATION_NOT_FOUND", `Provider ${providerID} 不支持 API Key`, 400)
-      }
+    if (!provider) throw new AgentError("PROVIDER_NOT_FOUND", `未找到 Provider ${providerID}`, 404)
+    if (requireKeyMethod && !provider.auth.apiKey) {
+      throw new AgentError("PROVIDER_UNAVAILABLE", `Provider ${providerID} 不支持 API Key`, 400)
     }
-    return integrationID
+    return providerID
   }
 
   private publicSummary(summary: StoredApiKeySummary, providerId: Provider.ID): PublicApiKeySummary {
     return {
       id: Credential.ID.make(summary.id),
       providerId,
+      kind: "api-key",
       label: summary.label,
       maskedValue: summary.maskedValue,
       enabled: summary.enabled,
       active: summary.active,
-      priority: summary.priority,
+      order: summary.priority,
       health: {
         status: summary.health.status,
         ...(summary.health.lastTestedAt === null ? {} : { lastTestedAt: summary.health.lastTestedAt }),
-        ...(summary.health.lastUsedAt === null ? {} : { lastUsedAt: summary.health.lastUsedAt }),
         ...(summary.health.errorCategory === null ? {} : { errorCategory: summary.health.errorCategory }),
-        ...(summary.health.cooldownUntil === null ? {} : { cooldownUntil: summary.health.cooldownUntil }),
       },
       createdAt: summary.createdAt,
       updatedAt: summary.updatedAt,

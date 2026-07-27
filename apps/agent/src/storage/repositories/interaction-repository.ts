@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
 import { Effect } from "effect"
 import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
-import type { ReviewComment } from "@codepilotx/agent-protocol"
+import type { ReviewComment, ServerRequestResponse } from "@codepilotx/agent-protocol"
 import type {
   EventEnvelope,
   AgentExecution,
@@ -17,6 +17,10 @@ import type {
   ToolInvocation,
   TurnStatus,
 } from "../../domain"
+import {
+  approvalCancelledPayload,
+  interactionResolvedPayload,
+} from "../events/interaction-event-payloads"
 
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
@@ -151,6 +155,85 @@ type SqlValue = string | number | boolean | Uint8Array | null
 const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+const permissionGrantPrefix = "__permission_grant_v1__:"
+const approvalInteractionResult = (
+  checkpoint: StoredApprovalCheckpoint,
+  decision: "allow" | "deny",
+  feedback: string | undefined,
+  operation: InteractionOperationInput | undefined,
+): ServerRequestResponse => {
+  if (operation) return operation.response as ServerRequestResponse
+  if (checkpoint.payload.invocation.name !== "request_permissions") {
+    return {
+      kind: "approval",
+      decision: decision === "allow" ? "allow-once" : "deny",
+      ...(feedback ? { feedback } : {}),
+    }
+  }
+  if (decision === "deny") return { kind: "permission", decision: "deny" }
+  if (feedback?.startsWith(permissionGrantPrefix)) {
+    const grant = record(parse<unknown>(feedback.slice(permissionGrantPrefix.length)))
+    return {
+      kind: "permission",
+      decision: "grant",
+      scope: grant.scope as "tool-call" | "turn" | "session",
+      grantedPermissions: record(grant.grantedPermissions),
+    }
+  }
+  return {
+    kind: "permission",
+    decision: "grant",
+    scope: "tool-call",
+    grantedPermissions: {},
+  }
+}
+const questionInteractionResult = (
+  interactionID: string,
+  payload: Record<string, unknown>,
+  answer: unknown,
+  ignored: boolean,
+  operation: InteractionOperationInput | undefined,
+): ServerRequestResponse => {
+  if (operation) return operation.response as ServerRequestResponse
+  if (ignored) return { kind: "question", status: "ignored" }
+  const stored = record(answer)
+  if (
+    (stored.resolution === "user" || stored.resolution === "auto")
+    && Array.isArray(stored.answers)
+  ) {
+    return {
+      kind: "question",
+      status: "answered",
+      resolution: stored.resolution,
+      answers: stored.answers as Array<{ questionId: string; choiceIds: string[]; text?: string }>,
+    }
+  }
+  const firstQuestion = Array.isArray(payload.questions)
+    ? record(payload.questions[0])
+    : {}
+  const questionID = typeof firstQuestion.id === "string"
+    ? firstQuestion.id
+    : interactionID
+  const matchingChoice = Array.isArray(firstQuestion.choices)
+    ? firstQuestion.choices
+      .map(record)
+      .find((choice) => choice.label === answer && typeof choice.id === "string")
+    : undefined
+  return {
+    kind: "question",
+    status: "answered",
+    resolution: "user",
+    answers: [{
+      questionId: questionID,
+      choiceIds: typeof matchingChoice?.id === "string" ? [matchingChoice.id] : [],
+      ...(matchingChoice ? {} : { text: typeof answer === "string" ? answer : stringify(answer) }),
+    }],
+  }
+}
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
 const containedPath = (root: string, candidate: string) => {
   const path = relative(root, candidate)
@@ -340,7 +423,15 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         this.updateTurnStatus(request.turn_id, "queued")
         this.updateAgentStatus(request.agent_id, "queued")
         events.push(this.insertEvent(request.thread_id, request.turn_id, "agent/upserted", { agent: this.getAgentExecution(request.agent_id) }))
-        events.push(this.insertEvent(request.thread_id, request.turn_id, "serverRequest/resolved", { id: approvalID, turnId: request.turn_id, kind: "approval", decision }))
+        events.push(this.insertEvent(
+          request.thread_id,
+          request.turn_id,
+          "interaction/resolved",
+          interactionResolvedPayload(
+            approvalInteractionResult(checkpoint, decision, feedback, operation),
+            timestamp,
+          ),
+        ))
         if (operation) this.saveInteractionOperation(operation)
       })
       return { state: "resolved", checkpoint: this.getApprovalCheckpoint(approvalID)!, events }
@@ -375,7 +466,12 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         if (updated.changes !== 1) return
         this.updateTurnStatus(row.turn_id, "interrupted")
         this.updateAgentStatus(row.agent_id, "interrupted", reason)
-        events.push(this.insertEvent(row.thread_id, row.turn_id, "approval/cancelled", { id: approvalID, turnId: row.turn_id, reason, cancelledAt: timestamp }))
+        events.push(this.insertEvent(
+          row.thread_id,
+          row.turn_id,
+          "approval/cancelled",
+          approvalCancelledPayload(approvalID, reason, timestamp),
+        ))
         events.push(this.insertEvent(row.thread_id, row.turn_id, "agent/upserted", { agent: this.getAgentExecution(row.agent_id) }))
         events.push(this.insertEvent(row.thread_id, row.turn_id, "turn/interrupted", { turnId: row.turn_id, rootAgentId: row.agent_id, reason: "invalid-approval-checkpoint", finishedAt: timestamp }))
       })
@@ -546,7 +642,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
     ignored = false,
     operation?: InteractionOperationInput,
   ) {
-      const row = this.sqlite.query("SELECT thread_id, turn_id, status FROM question_requests WHERE id = ?").get(id) as { thread_id: string; turn_id: string; status: string } | null
+      const row = this.sqlite.query("SELECT thread_id, turn_id, payload, status FROM question_requests WHERE id = ?").get(id) as { thread_id: string; turn_id: string; payload: string; status: string } | null
       if (!row || row.status !== "pending") return null
       const timestamp = now()
       return this.transaction(() => {
@@ -564,7 +660,15 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         if (item) this.upsertItem(row.thread_id, { ...item, status: "completed", data: { ...item.data, answer, ignored }, updatedAt: timestamp })
         const events = [
           this.insertEvent(row.thread_id, row.turn_id, "agent/upserted", { agent: this.getAgentExecution(checkpoint.agentID) }),
-          this.insertEvent(row.thread_id, row.turn_id, "serverRequest/resolved", { id, turnId: row.turn_id, kind: "question", answer, ignored }),
+          this.insertEvent(
+            row.thread_id,
+            row.turn_id,
+            "interaction/resolved",
+            interactionResolvedPayload(
+              questionInteractionResult(id, parse(row.payload), answer, ignored, operation),
+              timestamp,
+            ),
+          ),
         ]
         if (operation) this.saveInteractionOperation(operation)
         return { threadID: row.thread_id, turnID: row.turn_id, events }

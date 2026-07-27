@@ -81,25 +81,17 @@ try {
 
   const providers = (await call("provider/list", {})).providers as Array<{
     id: string
-    integrationID?: string
-  }>
-  const integrations = (await call("integration/list", {})).integrations as Array<{
-    id: string
-    methods: Array<{ type: string }>
+    auth: { apiKey: boolean; oauth: boolean }
   }>
   const smokeProvider = providers.find(
     (provider) => provider.id === fixture.model.provider,
   )
-  const smokeIntegration = integrations.find(
-    (integration) => integration.id === smokeProvider?.integrationID,
-  )
   if (
     !smokeProvider
-    || !smokeIntegration
-    || !smokeIntegration.methods.some((method) => method.type === "key")
+    || !smokeProvider.auth.apiKey
   ) {
     throw new Error(
-      `Pi provider/integration catalog mismatch: provider=${JSON.stringify(smokeProvider)}, integration=${JSON.stringify(smokeIntegration)}`,
+      `Pi provider catalog mismatch: provider=${JSON.stringify(smokeProvider)}`,
     )
   }
 

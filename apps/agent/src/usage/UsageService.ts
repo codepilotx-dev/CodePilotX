@@ -12,7 +12,8 @@ import { createHash } from "node:crypto"
 import type { EncryptedCredentialRepository } from "../auth/EncryptedCredentialRepository"
 import { AgentError } from "../domain"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
-import type { IntegrationService } from "../provider/IntegrationService"
+import type { PiModelService } from "../provider/pi"
+import type { Models } from "@earendil-works/pi-ai"
 import { UsageRepository, type LocalUsageRange } from "../storage/repositories/usage-repository"
 import { providerUsageAdapters } from "./adapters"
 import { createSafeUsageRequester, UsageRequestError, type UsageFetcher } from "./safe-fetch"
@@ -56,6 +57,7 @@ type UsageServiceOptions = {
   env?: Readonly<Record<string, string | undefined>>
   now?: () => number
   adapters?: readonly ProviderUsageAdapter[]
+  subscriptionModels?: Models
 }
 
 const safeError = (
@@ -97,6 +99,7 @@ export class UsageService {
   private readonly env: Readonly<Record<string, string | undefined>>
   private readonly now: () => number
   private readonly adapters: readonly ProviderUsageAdapter[]
+  private readonly subscriptionModels: Models | undefined
   private readonly cache = new Map<string, CachedSource>()
   private readonly inflight = new Map<string, Promise<ProviderUsageSource>>()
   private readonly operations = new Map<string, { fingerprint: string; result: unknown }>()
@@ -104,7 +107,7 @@ export class UsageService {
   constructor(
     private readonly local: UsageRepository,
     private readonly providers: AgentModelCatalog,
-    private readonly integrations: IntegrationService,
+    private readonly piModels: PiModelService,
     private readonly credentials: EncryptedCredentialRepository,
     options: UsageServiceOptions = {},
   ) {
@@ -112,6 +115,7 @@ export class UsageService {
     this.env = options.env ?? process.env
     this.now = options.now ?? Date.now
     this.adapters = options.adapters ?? providerUsageAdapters
+    this.subscriptionModels = options.subscriptionModels
   }
 
   localUsage(range: LocalUsageRange, timeZone: string): LocalUsageResult {
@@ -311,10 +315,11 @@ export class UsageService {
       const provider = providers.find((item) => String(item.id) === providerID)
       if (!provider) continue
       matchedProvider = true
-      const value = await this.integrations.credentialSource().get(provider.id)
-      if (!value || !Schema.is(Credential.Value)(value)) continue
-      const integrationID = String(provider.integrationID ?? provider.id)
+      const integrationID = String(provider.id)
+      await this.piModels.pi.getAuth(providerID)
       const stored = await Effect.runPromise(this.credentials.get<Credential.Value>(integrationID))
+      const value = stored?.value
+      if (!value || !Schema.is(Credential.Value)(value)) continue
       const summary = stored
         ? this.credentials.listApiKeys(integrationID).find((item) => item.id === stored.id)
         : undefined
@@ -350,7 +355,7 @@ export class UsageService {
       const provider = providers.find((item) => String(item.id) === providerID)
       if (!provider) continue
       matchedProvider = true
-      const integrationID = String(provider.integrationID ?? provider.id)
+      const integrationID = String(provider.id)
       const stored = await Effect.runPromise(this.credentials.get<Credential.Value>(integrationID))
       if (!stored || !Schema.is(Credential.Value)(stored.value)) continue
       const summary = this.credentials.listApiKeys(integrationID).find((item) => item.id === stored.id)
@@ -377,9 +382,12 @@ export class UsageService {
       ? SUBSCRIPTION_INTEGRATION
       : BILLING_INTEGRATIONS[sourceId as BillingCredentialSourceId]
     if (integrationID) {
-      const value = sourceId === "anthropic-subscription"
-        ? await this.integrations.credentialSource().get(Provider.ID.make(integrationID))
-        : (await Effect.runPromise(this.credentials.get<Credential.Value>(integrationID)))?.value
+      if (sourceId === "anthropic-subscription") {
+        await this.subscriptionModels?.getAuth("anthropic")
+      }
+      const value = (await Effect.runPromise(
+        this.credentials.get<Credential.Value>(integrationID),
+      ))?.value
       if (value && Schema.is(Credential.Value)(value)) {
         const stored = await Effect.runPromise(this.credentials.get<Credential.Value>(integrationID))
         const summary = stored
