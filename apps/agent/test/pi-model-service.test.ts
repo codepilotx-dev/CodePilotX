@@ -26,6 +26,7 @@ const repository = (initial: Stored[] = []) => {
       get: <T>(integrationID: string) => Effect.succeed((values.get(integrationID) ?? null) as ({
         id: string
         integrationID: string
+        kind: "api-key" | "oauth"
         methodID: string | null
         label: string
         value: T
@@ -40,6 +41,23 @@ const repository = (initial: Stored[] = []) => {
           value: input.value as Credential.Value,
         }
         values.set(input.integrationID, next)
+        return { ...next, keyVersion: 1, createdAt: 1, updatedAt: 1 }
+      }),
+      upsertOAuth: (input: {
+        providerID: string
+        methodID: string
+        label?: string
+        value: Credential.Value
+      }) => Effect.sync(() => {
+        const current = values.get(input.providerID)
+        const next: Stored = {
+          id: current?.id ?? `cred_${input.providerID}`,
+          integrationID: input.providerID,
+          methodID: input.methodID,
+          label: input.label ?? current?.label ?? "OAuth",
+          value: input.value,
+        }
+        values.set(input.providerID, next)
         return { ...next, keyVersion: 1, createdAt: 1, updatedAt: 1 }
       }),
       remove: (integrationID: string) => Effect.sync(() => values.delete(integrationID)),
@@ -104,7 +122,16 @@ describe("PiModelService", () => {
       value: { type: "key", key },
     }])
     const service = new PiModelService(fake.adapter, {
-      config: { enabledProviders: ["openai"] },
+      config: {
+        providers: {
+          openai: {
+            kind: "builtin",
+            enabled: true,
+            allow_models: [],
+            deny_models: [],
+          },
+        },
+      },
       env: {},
     })
     const piModel = service.pi.getModels("openai")[0]
@@ -116,7 +143,7 @@ describe("PiModelService", () => {
     })
 
     expect(String(resolved.providerID)).toBe("openai")
-    expect(resolved.api.type).toBe("native")
+    expect(resolved.api.type).toBe("pi")
     expect(resolved.capabilities.tools).toBe(true)
     expect(resolved.enabled).toBe(true)
     expect(JSON.stringify(resolved)).not.toContain(key)
@@ -131,7 +158,16 @@ describe("PiModelService", () => {
       value: { type: "key", key: "sk-test" },
     }])
     const service = new PiModelService(fake.adapter, {
-      config: { enabledProviders: ["openai"] },
+      config: {
+        providers: {
+          openai: {
+            kind: "builtin",
+            enabled: true,
+            allow_models: [],
+            deny_models: [],
+          },
+        },
+      },
       env: {},
     })
     const piModel = service.pi.getModels("openai").find((candidate) => candidate.reasoning)
@@ -144,7 +180,7 @@ describe("PiModelService", () => {
     })
 
     expect(info.variants.map((variant) => String(variant.id))).toContain("medium")
-    expect(info.request.variant).toBe("medium")
+    expect(info.variant).toBe("medium")
     expect(await service.getPiModel({
       providerID: piModel!.provider as never,
       id: Model.ID.make(piModel!.id),

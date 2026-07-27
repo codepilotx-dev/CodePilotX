@@ -54,8 +54,7 @@ const catalog = {
   dispose: async () => {},
 }
 const integrations = {
-  list: async () => [],
-  credentialSource: () => ({ get: async () => undefined }),
+  pi: { getAuth: async () => undefined },
 }
 
 describe("UsageService", () => {
@@ -219,12 +218,12 @@ describe("UsageService", () => {
       } as never,
       {
         ...integrations,
-        credentialSource: () => ({
-          get: async () => {
+        pi: {
+          getAuth: async () => {
             credentialRefreshes += 1
             throw new Error("source list must not refresh credentials")
           },
-        }),
+        },
       } as never,
       credentials,
       {
@@ -295,7 +294,7 @@ describe("UsageService", () => {
       key: "mgmt-super-secret",
       metadata: { teamId: "team-super-secret" },
     }))
-    const apiKeys = new ApiKeyService(catalog as never, integrations as never, credentials)
+    const apiKeys = new ApiKeyService(catalog as never, credentials)
     expect(await apiKeys.list()).toEqual([])
     await expect(apiKeys.copyMaterial(String(connected.connection.credentialId))).rejects.toThrow("未找到 API Key")
     await expect(apiKeys.setEnabled(String(connected.connection.credentialId), false)).rejects.toThrow("未找到 API Key")

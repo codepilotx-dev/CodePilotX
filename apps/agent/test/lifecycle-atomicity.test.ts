@@ -196,6 +196,12 @@ describe("Turn 生命周期事务", () => {
     expect(db.sqlite.query("SELECT status FROM approval_requests WHERE id = 'approval-running'").get()).toEqual({ status: "cancelled" })
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(ambiguousTurn.turnID)).toEqual({ status: "interrupted" })
     expect(db.sqlite.query("SELECT method FROM events WHERE method = 'approval/cancelled' AND turn_id = ?").get(ambiguousTurn.turnID)).toEqual({ method: "approval/cancelled" })
+    const cancelledEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'approval/cancelled' AND turn_id = ?").get(ambiguousTurn.turnID) as { params: string }
+    expect(JSON.parse(cancelledEvent.params)).toEqual({
+      interactionId: "approval-running",
+      reason: "审批后的工具执行结果不确定，已按 fail-closed 中断",
+      cancelledAt: expect.any(Number),
+    })
     expect(db.sqlite.query("SELECT method FROM events WHERE method = 'turn/interrupted' AND turn_id = ?").get(ambiguousTurn.turnID)).toEqual({ method: "turn/interrupted" })
   })
 })

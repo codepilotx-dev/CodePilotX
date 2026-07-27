@@ -7,6 +7,7 @@ import { ConfigService } from "../src/config/ConfigService"
 import { ConfigMigrationService } from "../src/config/ConfigMigrationService"
 import { ConfigMigrationRepository } from "../src/storage/repositories/config-migration-repository"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { planPiProviderConfigMigration } from "../src/provider/pi/PiProviderConfigMigration"
 
 const roots: string[] = []
 afterEach(async () => {
@@ -110,8 +111,19 @@ describe("ConfigMigrationService", () => {
       },
       model_providers: {
         openai: {
+          kind: "builtin",
+          enabled: false,
           api: "https://example.com/v1",
           apiKeyEnv: "OPENAI_API_KEY",
+        },
+      },
+      model_catalog: { schema_version: 2 },
+      migration: {
+        unresolved_providers: {
+          openai: {
+            provider_id: "openai",
+            fields: ["api", "apiKeyEnv"],
+          },
         },
       },
       mcp_servers: {
@@ -142,5 +154,50 @@ describe("ConfigMigrationService", () => {
     })
     await config.dispose()
     db.close()
+  })
+
+  test("将可识别的 Provider 配置迁移为 Pi v2，并停用无法映射的配置", () => {
+    const current = {
+      model_providers: {
+        local: {
+          name: "Local",
+          api: "http://127.0.0.1:11434/v1",
+          npm: "@ai-sdk/openai-compatible",
+          env: ["LOCAL_API_KEY"],
+          models: { chat: { name: "Chat", reasoning: true } },
+        },
+        unknown: {
+          api: "https://example.com/v1",
+          npm: "@ai-sdk/google",
+          models: { gemini: { name: "Gemini" } },
+        },
+      },
+    }
+    const edits = planPiProviderConfigMigration(current)
+    const byPath = new Map(edits.map((edit) => [edit.keyPath.join("."), edit.value]))
+
+    expect(byPath.get("model_catalog.schema_version")).toBe(2)
+    expect(byPath.get("model_providers.local.kind")).toBe("custom")
+    expect(byPath.get("model_providers.local.enabled")).toBe(true)
+    expect(byPath.get("model_providers.local.base_url")).toBe(
+      "http://127.0.0.1:11434/v1",
+    )
+    expect(byPath.get("model_providers.local.models.chat")).toBeUndefined()
+    expect(byPath.get("model_providers.local.models.chat.api")).toBe(
+      "openai-completions",
+    )
+    expect(byPath.get("model_providers.local.models.chat.context_window")).toBe(
+      32768,
+    )
+    expect(byPath.get("model_providers.unknown.enabled")).toBe(false)
+    expect(
+      byPath.get("migration.unresolved_providers.unknown"),
+    ).toMatchObject({
+      provider_id: "unknown",
+      fields: ["npm"],
+    })
+    expect(
+      byPath.has("migration.unresolved_providers.local"),
+    ).toBe(false)
   })
 })
