@@ -11,6 +11,7 @@ import type {
   DesktopConfigReadResult,
   DesktopDataLocationState,
   DesktopProjectTrustReadResult,
+  DesktopShellSecurityLevel,
 } from '../../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
@@ -303,6 +304,26 @@ export function ConfigSettings(): React.ReactNode {
           title="权限与命令执行"
           description="结构化文件工具遵循所选范围；非计划模式 Shell 经安全规则和 Hook 后以当前 Windows 用户身份执行。"
         >
+          <SettingsRow
+            title="Shell 安全级别"
+            description="调整 Shell 静态风险处理，不改变文件或网络权限范围；批准策略为“从不”时，需要审批的命令会直接拒绝。"
+            control={
+              <SettingsDropdown
+                width={260}
+                ariaLabel="Shell 安全级别"
+                value={draft.values.shellSecurityLevel}
+                options={[
+                  { value: 'strict', label: '严格', detail: '更多高风险特征直接拒绝，适合陌生仓库' },
+                  { value: 'balanced', label: '平衡', detail: '灾难级行为拒绝，可疑项转审批（推荐）' },
+                  { value: 'relaxed', label: '宽松', detail: '保留不可绕过底线，其余高风险尽量转审批' },
+                ]}
+                onChange={value => {
+                  draft.setValue('shellSecurityLevel', value as DesktopShellSecurityLevel)
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
           <SettingsRow
             title="工具权限范围"
             description="该范围约束结构化文件工具和审批信号，不是 Shell 子进程的操作系统隔离边界。"

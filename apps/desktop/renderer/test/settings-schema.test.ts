@@ -64,6 +64,17 @@ describe("宠物设置归一化", () => {
 })
 
 describe("高级权限设置归一化", () => {
+  test("Shell 安全级别默认平衡并只保留合法档位", () => {
+    expect(defaultDesktopStoredSettings().shellSecurityLevel).toBe("balanced")
+    for (const shellSecurityLevel of ["strict", "balanced", "relaxed"] as const) {
+      expect(normalizeDesktopStoredSettings({ shellSecurityLevel }).shellSecurityLevel)
+        .toBe(shellSecurityLevel)
+    }
+    expect(normalizeDesktopStoredSettings({
+      shellSecurityLevel: "future" as never,
+    }).shellSecurityLevel).toBe("balanced")
+  })
+
   test("完整保存并回填 granular PermissionConfig", () => {
     const granular = { type: "granular" as const, sandboxApproval: false, rules: true, skillApproval: false, requestPermissions: true, mcpTools: false, mcpElicitations: false }
     const settings = normalizeDesktopStoredSettings({

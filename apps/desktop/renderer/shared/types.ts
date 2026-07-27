@@ -861,6 +861,7 @@ export type DesktopPetSettings = {
 
 export type SidebarProductMode = 'coding' | 'working'
 export type SidebarSectionId = 'pinned' | 'projects' | 'recent'
+export type DesktopShellSecurityLevel = 'strict' | 'balanced' | 'relaxed'
 
 export type ProjectAppearanceColor =
   | 'default'
@@ -915,6 +916,7 @@ export type DesktopStoredSettings = {
   enableAutoReviewPermissionMode?: boolean
   enableFullAccessPermissionMode?: boolean
   permissionConfig: DesktopPermissionConfig
+  shellSecurityLevel: DesktopShellSecurityLevel
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   permissionProfile?: DesktopPermissionProfile
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */

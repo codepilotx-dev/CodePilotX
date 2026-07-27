@@ -15,6 +15,7 @@ import type {
   ProjectAppearanceIcon,
   DesktopReviewView,
   DesktopSandboxMode,
+  DesktopShellSecurityLevel,
   DesktopSidebarOrganization,
   DesktopSidebarSort,
   DesktopStoredSettings,
@@ -75,6 +76,12 @@ export const DESKTOP_SIDEBAR_SORTS = new Set<DesktopSidebarSort>([
   'priority',
   'updated',
   'manual',
+])
+
+export const DESKTOP_SHELL_SECURITY_LEVELS = new Set<DesktopShellSecurityLevel>([
+  'strict',
+  'balanced',
+  'relaxed',
 ])
 
 export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
@@ -154,6 +161,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     enableAutoReviewPermissionMode: false,
     enableFullAccessPermissionMode: false,
     permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
+    shellSecurityLevel: 'balanced',
     model: '',
     planExecutionModel: '',
     reviewModel: '',
@@ -272,6 +280,11 @@ export function normalizeDesktopStoredSettings(
           ? true
           : defaults.enableFullAccessPermissionMode,
     permissionConfig,
+    shellSecurityLevel: DESKTOP_SHELL_SECURITY_LEVELS.has(
+      parsed.shellSecurityLevel as DesktopShellSecurityLevel,
+    )
+      ? parsed.shellSecurityLevel as DesktopShellSecurityLevel
+      : defaults.shellSecurityLevel,
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
     planExecutionModel: stringOrDefault(
       parsed.planExecutionModel,
