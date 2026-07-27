@@ -11,6 +11,7 @@ import FolderIconComponent from "./icons/folder"
 import FolderOpenIconComponent from "./icons/folder-open"
 import FolderRootIconComponent from "./icons/folder-root"
 import FolderRootOpenIconComponent from "./icons/folder-root-open"
+import { loadCachedIconShard } from "./icon-shard-cache"
 import {
   resolveFileIconName,
   resolveFolderIconName,
@@ -54,15 +55,13 @@ function AsyncMaterialIcon({
     setIcon(() => Fallback)
     let active = true
     const shard = iconShard(name)
-    let loading = shardCache.get(shard)
-    if (!loading) {
-      loading = loadIconShard(name).then(components => {
+    const loading = loadCachedIconShard(shardCache, shard, () =>
+      loadIconShard(name).then(components => {
         for (const [iconName, component] of Object.entries(components)) {
           if (component) componentCache.set(iconName as IconName, component)
         }
-      })
-      shardCache.set(shard, loading)
-    }
+      }),
+    )
     void loading.then(() => {
       const loaded = componentCache.get(name)
       if (active && loaded) setIcon(() => loaded)
