@@ -17,6 +17,7 @@ export interface ApplyPatchChunk {
   readonly newLines: readonly string[]
   readonly additions: number
   readonly deletions: number
+  readonly oldStartLine?: number
   readonly changeContext?: string
   readonly endOfFile?: boolean
   readonly patchLine: number
@@ -29,6 +30,7 @@ const DELETE_PREFIX = "*** Delete File:"
 const UPDATE_PREFIX = "*** Update File:"
 const MOVE_PREFIX = "*** Move to:"
 const END_OF_FILE_MARKER = "*** End of File"
+const UNIFIED_HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?:[ \t].*)?$/
 
 const safePathLabel = (path: string) => {
   if (/^(?:[a-z]:[\\/]|[\\/]{2}|\/)/i.test(path)) {
@@ -79,11 +81,32 @@ const parseAdd = (lines: readonly string[], start: number, end: number) => {
   return { content: `${content.join("\n")}\n`, next: index }
 }
 
+const parseUnifiedHunkNumber = (value: string, line: number) => {
+  const parsed = Number(value)
+  if (!Number.isSafeInteger(parsed)) parseError(line, "unified hunk 头中的行号或行数超出安全整数范围")
+  return parsed
+}
+
 const parseUpdateChunk = (lines: readonly string[], start: number, end: number) => {
   const header = lines[start]!
   if (header !== "@@" && !header.startsWith("@@ ")) parseError(start + 1, "hunk 头必须是 @@ 或 @@ <精确上下文>")
-  const changeContext = header === "@@" ? undefined : header.slice(3).trim()
-  if (header !== "@@" && !changeContext) parseError(start + 1, "@@ 后的精确上下文不能为空")
+
+  const unifiedHeader = UNIFIED_HUNK_HEADER.exec(header)
+  let changeContext: string | undefined
+  let oldStartLine: number | undefined
+  let declaredOldLineCount: number | undefined
+  let declaredNewLineCount: number | undefined
+  if (unifiedHeader) {
+    oldStartLine = parseUnifiedHunkNumber(unifiedHeader[1]!, start + 1)
+    declaredOldLineCount = parseUnifiedHunkNumber(unifiedHeader[2] ?? "1", start + 1)
+    parseUnifiedHunkNumber(unifiedHeader[3]!, start + 1)
+    declaredNewLineCount = parseUnifiedHunkNumber(unifiedHeader[4] ?? "1", start + 1)
+  } else if (/^@@ -\d/.test(header)) {
+    parseError(start + 1, "unified hunk 头必须是 @@ -<旧起始行>[,<旧行数>] +<新起始行>[,<新行数>] @@")
+  } else if (header !== "@@") {
+    changeContext = header.slice(3).trim()
+    if (!changeContext) parseError(start + 1, "@@ 后的精确上下文不能为空")
+  }
 
   const oldLines: string[] = []
   const newLines: string[] = []
@@ -120,6 +143,12 @@ const parseUpdateChunk = (lines: readonly string[], start: number, end: number) 
   }
 
   if (diffLineCount === 0) parseError(start + 1, "hunk 至少需要一行上下文、删除或新增内容")
+  if (declaredOldLineCount !== undefined && oldLines.length !== declaredOldLineCount) {
+    parseError(start + 1, `unified hunk 头声明旧文件 ${declaredOldLineCount} 行，但内容实际为 ${oldLines.length} 行`)
+  }
+  if (declaredNewLineCount !== undefined && newLines.length !== declaredNewLineCount) {
+    parseError(start + 1, `unified hunk 头声明新文件 ${declaredNewLineCount} 行，但内容实际为 ${newLines.length} 行`)
+  }
   if (oldLines.length === 0 && !changeContext && !endOfFile) {
     parseError(start + 1, "仅新增内容的 hunk 必须通过 @@ <精确上下文> 或 *** End of File 指定插入位置")
   }
@@ -130,6 +159,7 @@ const parseUpdateChunk = (lines: readonly string[], start: number, end: number) 
       newLines,
       additions,
       deletions,
+      ...(oldStartLine !== undefined ? { oldStartLine } : {}),
       ...(changeContext ? { changeContext } : {}),
       ...(endOfFile ? { endOfFile: true } : {}),
       patchLine: start + 1,

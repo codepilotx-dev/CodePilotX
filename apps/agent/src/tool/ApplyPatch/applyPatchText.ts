@@ -74,6 +74,12 @@ const matchingOffsets = (
   return offsets
 }
 
+const disambiguateWithLineHint = (offsets: readonly number[], oldStartLine: number | undefined) => {
+  if (offsets.length <= 1 || oldStartLine === undefined || oldStartLine < 1) return offsets
+  const hintedOffset = oldStartLine - 1
+  return offsets.includes(hintedOffset) ? [hintedOffset] : offsets
+}
+
 const lineEndingNear = (lines: readonly SourceLine[], start: number, count: number): "\r\n" | "\n" => {
   for (let index = start; index < Math.min(lines.length, start + count); index += 1) {
     const eol = lines[index]?.eol
@@ -193,7 +199,12 @@ export const applyPatchText = (
           overlapError(path, replacements.at(-1)?.hunk ?? Math.max(1, hunk - 1), hunk)
         }
       }
-      startLine = uniqueOffset(path, hunk, "expected lines", candidates)
+      startLine = uniqueOffset(
+        path,
+        hunk,
+        "expected lines",
+        disambiguateWithLineHint(candidates, chunk.oldStartLine),
+      )
     }
 
     const endLine = startLine + chunk.oldLines.length

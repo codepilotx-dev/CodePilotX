@@ -378,6 +378,11 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
     properties: {
       patch: {
         type: "string",
+        description: [
+          "完整补丁原文。首行必须直接是 *** Begin Patch，禁止 Markdown 代码围栏；末行必须是 *** End Patch。",
+          "最小示例：\n*** Begin Patch\n*** Add File: path/to/file.txt\n+content\n*** End Patch",
+          "Update File 必须基于刚刚 Read 的完整原文；解析或 context 失败后重新 Read 并重建补丁，禁止原样重放。",
+        ].join("\n"),
         minLength: 1,
         maxLength: MAX_PATCH_BYTES,
       },

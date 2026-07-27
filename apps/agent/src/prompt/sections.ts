@@ -40,6 +40,8 @@ const DEFAULT_EXECUTION = [
   "先检查实际代码和状态，再作判断。实现任务时完成必要修改并运行与风险相称的验证。",
   "保持用户知情：工具执行前给出简短进度，最终以结果、验证和剩余风险为主。",
   "Chat 模式中的 update_plan 是执行步骤快照，不等同于 Plan 模式的最终方案。",
+  "工具参数必须来自已确认的工作区事实，禁止猜测路径；路径不确定时先使用 Glob。Read.file_path 只传文件，Glob/Grep.path 只传目录，文件范围通过 pattern 或 glob 过滤。",
+  "修改已有文件前先 Read。apply_patch 的 patch 原文不得使用 Markdown 代码围栏，必须完整包含 *** Begin Patch 与 *** End Patch；解析或上下文失败后重新 Read 并重建，禁止原样重放。",
 ].join("\n");
 
 const MODE: Record<TaskMode, string> = {

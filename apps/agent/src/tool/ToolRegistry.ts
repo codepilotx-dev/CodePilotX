@@ -265,7 +265,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: "Read", name: "workspace.read", description: "读取工作区内的 UTF-8 文本文件，并保存完整快照供后续写入使用。",
     schema: z.object({ file_path: z.string().min(1), offset: z.number().int().min(0).optional(), limit: z.number().int().min(1).max(10_000).optional() }).strict(),
-    inputSchema: jsonObject({ file_path: { type: "string" }, offset: { type: "number", minimum: 0 }, limit: { type: "number", minimum: 1, maximum: 10_000 } }, ["file_path"]),
+    inputSchema: jsonObject({ file_path: { type: "string", description: "已确认存在的工作区 UTF-8 文本文件路径；只接受文件，不接受目录或未经确认的猜测路径。" }, offset: { type: "number", minimum: 0 }, limit: { type: "number", minimum: 1, maximum: 10_000 } }, ["file_path"]),
     capabilities: { ...noCapabilities(), filesystem: "read" }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
     progress: (input) => ({ message: `正在读取 ${input.file_path}` }),
     execute: async (input, context) => {
@@ -280,7 +280,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: "Write", name: "workspace.write", description: "创建或完整覆写工作区文件。已有文件必须先 Read，快照由执行器自动维护。",
     schema: z.object({ file_path: z.string().min(1), content: z.string() }).strict(),
-    inputSchema: jsonObject({ file_path: { type: "string" }, content: { type: "string" } }, ["file_path", "content"]),
+    inputSchema: jsonObject({ file_path: { type: "string", description: "工作区文件路径；更新已有文件前必须先成功 Read 同一路径，创建新文件可直接写入。" }, content: { type: "string" } }, ["file_path", "content"]),
     capabilities: { ...noCapabilities(), filesystem: "workspace-write", externalState: true }, allowedModes: ["chat"], allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "eager", executionMode: "sequential",
     progress: (input) => ({ message: `正在写入 ${input.file_path}` }),
     execute: async (input, context) => {
@@ -303,7 +303,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: "Edit", name: "workspace.edit", description: "编辑工作区文件。文件必须先 Read；replace_all 默认为 false。",
     schema: z.object({ file_path: z.string().min(1), old_string: z.string().min(1), new_string: z.string(), replace_all: z.boolean().default(false) }).strict(),
-    inputSchema: jsonObject({ file_path: { type: "string" }, old_string: { type: "string", minLength: 1 }, new_string: { type: "string" }, replace_all: { type: "boolean", default: false } }, ["file_path", "old_string", "new_string"]),
+    inputSchema: jsonObject({ file_path: { type: "string", description: "已存在的工作区文件路径；必须先成功 Read 同一路径，并基于最新原文编辑。" }, old_string: { type: "string", minLength: 1 }, new_string: { type: "string" }, replace_all: { type: "boolean", default: false } }, ["file_path", "old_string", "new_string"]),
     capabilities: { ...noCapabilities(), filesystem: "workspace-write", externalState: true }, allowedModes: ["chat"], allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "deferred", executionMode: "sequential",
     progress: (input) => ({ message: `正在编辑 ${input.file_path}` }),
     execute: async (input, context) => {
@@ -319,7 +319,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: "Glob", name: "workspace.glob", description: "优先使用受管或本机 ripgrep 在工作区内按 glob 模式查找文件；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径。",
     schema: z.object({ pattern: z.string().min(1).max(1_000), path: z.string().optional(), limit: z.number().int().min(1).max(500).optional() }).strict(),
-    inputSchema: jsonObject({ pattern: { type: "string", maxLength: 1_000 }, path: { type: "string" }, limit: { type: "number", minimum: 1, maximum: 500 } }, ["pattern"]),
+    inputSchema: jsonObject({ pattern: { type: "string", maxLength: 1_000, description: "用于筛选文件名或相对路径的 glob 模式。" }, path: { type: "string", description: "可选的已存在工作区目录；不得传文件路径，文件筛选请写入 pattern。" }, limit: { type: "number", minimum: 1, maximum: 500 } }, ["pattern"]),
     capabilities: { ...noCapabilities(), filesystem: "read", process: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
     progress: (input) => ({ message: `正在匹配 ${input.pattern}` }),
     execute: async (input, context) => {
@@ -347,7 +347,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: "Grep", name: "workspace.grep", description: "优先使用受管或本机 ripgrep 在工作区内执行有界正则搜索；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径；支持文件过滤、上下文和多种输出模式。",
     schema: z.object({ pattern: z.string().min(1).max(10_000), path: z.string().optional(), glob: z.string().max(1_000).optional(), output_mode: z.enum(["content", "files_with_matches", "count"]).default("content"), "-A": z.number().int().min(0).max(100).optional(), "-B": z.number().int().min(0).max(100).optional(), "-C": z.number().int().min(0).max(100).optional(), context: z.number().int().min(0).max(100).optional(), "-n": z.boolean().optional(), "-i": z.boolean().optional(), type: z.string().max(100).optional(), head_limit: z.number().int().min(1).max(1_000).default(200), offset: z.number().int().min(0).default(0), multiline: z.boolean().default(false) }).strict(),
-    inputSchema: jsonObject({ pattern: { type: "string", maxLength: 10_000 }, path: { type: "string" }, glob: { type: "string", maxLength: 1_000 }, output_mode: { enum: ["content", "files_with_matches", "count"], default: "content" }, "-A": { type: "integer", minimum: 0, maximum: 100 }, "-B": { type: "integer", minimum: 0, maximum: 100 }, "-C": { type: "integer", minimum: 0, maximum: 100 }, context: { type: "integer", minimum: 0, maximum: 100 }, "-n": { type: "boolean" }, "-i": { type: "boolean" }, type: { type: "string", maxLength: 100 }, head_limit: { type: "integer", minimum: 1, maximum: 1_000, default: 200 }, offset: { type: "integer", minimum: 0, default: 0 }, multiline: { type: "boolean", default: false } }, ["pattern"]),
+    inputSchema: jsonObject({ pattern: { type: "string", maxLength: 10_000 }, path: { type: "string", description: "可选的已存在工作区目录；不得传文件路径，限制文件范围请使用 glob。" }, glob: { type: "string", maxLength: 1_000, description: "可选的文件 glob 过滤器；不要把文件路径传给 path。" }, output_mode: { enum: ["content", "files_with_matches", "count"], default: "content" }, "-A": { type: "integer", minimum: 0, maximum: 100 }, "-B": { type: "integer", minimum: 0, maximum: 100 }, "-C": { type: "integer", minimum: 0, maximum: 100 }, context: { type: "integer", minimum: 0, maximum: 100 }, "-n": { type: "boolean" }, "-i": { type: "boolean" }, type: { type: "string", maxLength: 100 }, head_limit: { type: "integer", minimum: 1, maximum: 1_000, default: 200 }, offset: { type: "integer", minimum: 0, default: 0 }, multiline: { type: "boolean", default: false } }, ["pattern"]),
     capabilities: { ...noCapabilities(), filesystem: "read", process: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
     progress: (input) => ({ message: `正在搜索 ${input.pattern}` }),
     execute: grepWorkspace,

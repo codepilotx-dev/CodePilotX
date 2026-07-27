@@ -82,6 +82,60 @@ describe("apply_patch parser", () => {
       "*** End Patch",
     ].join("\n"))).toThrow(expect.objectContaining({ code: "PATCH_PARSE_ERROR" }))
   })
+
+  test("parses a standard unified hunk header without treating its section as change context", () => {
+    const operation = parseApplyPatch([
+      "*** Begin Patch",
+      "*** Update File: source.txt",
+      "@@ -29,3 +29,2 @@ function section",
+      " before",
+      "-old",
+      " after",
+      "*** End Patch",
+    ].join("\n"))[0]
+
+    expect(operation).toEqual({
+      type: "update",
+      path: "source.txt",
+      chunks: [{
+        oldStartLine: 29,
+        oldLines: ["before", "old", "after"],
+        newLines: ["before", "after"],
+        additions: 0,
+        deletions: 1,
+        patchLine: 3,
+      }],
+    })
+    if (operation?.type !== "update") throw new Error("expected update")
+    expect(applyPatchText("source.txt", operation.chunks, "before\nold\nafter\n").content)
+      .toBe("before\nafter\n")
+  })
+
+  test("validates the old and new line counts declared by a unified hunk header", () => {
+    expect(() => parseApplyPatch([
+      "*** Begin Patch",
+      "*** Update File: source.txt",
+      "@@ -2,2 +2,1 @@",
+      "-old",
+      "+new",
+      "*** End Patch",
+    ].join("\n"))).toThrow(expect.objectContaining({
+      code: "PATCH_PARSE_ERROR",
+      message: expect.stringContaining("旧文件 2 行"),
+    }))
+
+    expect(() => parseApplyPatch([
+      "*** Begin Patch",
+      "*** Update File: source.txt",
+      "@@ -2 +2,2 @@",
+      "-old",
+      "+new",
+      "*** End Patch",
+    ].join("\n"))).toThrow(expect.objectContaining({
+      code: "PATCH_PARSE_ERROR",
+      message: expect.stringContaining("新文件 2 行"),
+    }))
+  })
 })
 
 describe("apply_patch deterministic matcher", () => {
@@ -122,6 +176,33 @@ describe("apply_patch deterministic matcher", () => {
 
   test("rejects ambiguous exact context instead of taking the first match", () => {
     expect(() => applyPatchText("source.txt", [{
+      oldLines: ["same"],
+      newLines: ["next"],
+      additions: 1,
+      deletions: 1,
+      patchLine: 1,
+    }], "same\nmiddle\nsame\n")).toThrow(expect.objectContaining({
+      code: "PATCH_CONTEXT_AMBIGUOUS",
+      message: expect.stringContaining("命中 2 处"),
+    }))
+  })
+
+  test("uses an exact unified old-line hint to disambiguate exact context matches", () => {
+    const result = applyPatchText("source.txt", [{
+      oldStartLine: 3,
+      oldLines: ["same"],
+      newLines: ["next"],
+      additions: 1,
+      deletions: 1,
+      patchLine: 1,
+    }], "same\nmiddle\nsame\n")
+
+    expect(result.content).toBe("same\nmiddle\nnext\n")
+  })
+
+  test("does not use an inexact unified line hint to choose an ambiguous match", () => {
+    expect(() => applyPatchText("source.txt", [{
+      oldStartLine: 2,
       oldLines: ["same"],
       newLines: ["next"],
       additions: 1,
