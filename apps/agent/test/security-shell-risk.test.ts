@@ -7,7 +7,8 @@ describe("Shell 静态风险分类与灾难级拒绝", () => {
     ["Remove-Item -Path C:\\Users -Recurse -Force", "destructive"],
     ["winget uninstall 7zip", "system_modification"],
     ["Set-MpPreference -DisableRealtimeMonitoring $true", "security_control"],
-    ["Remove-Item C:\\CodePilotX\\srt-sandbox -Force", "security_control"],
+    ["Remove-Item F:\\CodeProject\\CodePilotX\\.codepilotx\\hooks.json -Force", "security_control"],
+    ["net user srt-sandbox /delete", "security_control"],
     ["net user evil P@ssw0rd /add && net localgroup administrators evil /add", "privilege_escalation"],
     ["sc.exe create backdoor binPath= C:\\temp\\backdoor.exe", "persistence"],
     ["mimikatz privilege::debug sekurlsa::logonpasswords", "credential_access"],
@@ -34,6 +35,20 @@ describe("Shell 静态风险分类与灾难级拒绝", () => {
       risk: "high",
       categories: ["unknown_infrastructure", "irreversible_change"],
     })
+  })
+
+  test("普通 CodePilotX 源码写入不被误判为沙箱策略篡改", () => {
+    const workspaceRoot = "F:\\CodeProject\\CodePilotX"
+    const commands = [
+      "cd \"F:\\CodeProject\\CodePilotX\" && python -c \"content = open('apps/desktop/renderer/src/styles/features/_session-timeline.scss', 'r', encoding='utf-8').read(); open('apps/desktop/renderer/src/styles/features/_session-timeline.scss', 'w', encoding='utf-8').write(content)\"",
+      "Set-Content -LiteralPath \"F:\\CodeProject\\CodePilotX\\apps\\desktop\\renderer\\src\\styles\\components\\input.scss\" -Value $content -Encoding utf8",
+    ]
+
+    for (const command of commands) {
+      const result = analyzeShellRisk({ command, workspaceRoot })
+      expect(result.hardDenied).toBe(false)
+      expect(result.matchedRules).not.toContain("sandbox-policy-tamper")
+    }
   })
 
   test("无效或过宽的额外权限范围直接拒绝", () => {

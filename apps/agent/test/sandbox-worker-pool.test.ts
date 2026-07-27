@@ -17,6 +17,7 @@ import {
   encodeSandboxWorkerFrame,
   MAX_SANDBOX_WORKER_FRAME_BYTES,
   SandboxWorkerFrameDecoder,
+  type SandboxWorkerPhase,
   type SandboxWorkerRequest,
 } from "../src/sandbox/SandboxWorkerProtocol"
 import { SRT_WORKER_PROTOCOL_VERSION } from "../src/sandbox/SandboxRuntimeManifest"
@@ -134,6 +135,19 @@ class FakeWorkerFactory {
       recycle,
     })
   }
+
+  fail(run: StartedRun, phase: SandboxWorkerPhase, recycle = true) {
+    run.child.send({
+      type: "error",
+      protocol: SRT_WORKER_PROTOCOL_VERSION,
+      id: run.message.id,
+      error: sandboxWorkerSafeError(
+        new Error("spawnSync C:\\private\\srt-win.exe ETIMEDOUT"),
+        phase,
+      ),
+      recycle,
+    })
+  }
 }
 
 async function waitFor(predicate: () => boolean) {
@@ -169,8 +183,18 @@ describe("sandbox worker protocol", () => {
       type: "error",
       protocol: SRT_WORKER_PROTOCOL_VERSION,
       id: "run-1",
-      error: { code: "SANDBOX_UNAVAILABLE", message: "failed", status: 503 },
-    }).type).toBe("error")
+      error: {
+        code: "SANDBOX_RUNTIME_TIMEOUT",
+        message: "SRT 沙箱初始化超时",
+        status: 504,
+        phase: "initialize",
+      },
+      recycle: true,
+    })).toMatchObject({
+      type: "error",
+      error: { phase: "initialize" },
+      recycle: true,
+    })
     expect(() => decodeSandboxWorkerRequest({
       type: "cancel",
       protocol: SRT_WORKER_PROTOCOL_VERSION + 1,
@@ -226,6 +250,18 @@ describe("sandbox worker protocol", () => {
       result: { ...result, exitCode: {} },
       recycle: false,
     })).toThrow("process result")
+    expect(() => decodeSandboxWorkerResponse({
+      type: "error",
+      protocol: SRT_WORKER_PROTOCOL_VERSION,
+      id: "bad-stage",
+      error: {
+        code: "SANDBOX_RUNTIME_TIMEOUT",
+        message: "failed",
+        status: 504,
+        phase: "private-path",
+      },
+      recycle: true,
+    })).toThrow("worker error")
   })
 
   test("内部异常只返回脱敏错误，不泄漏命令、凭据或绝对路径", () => {
@@ -243,6 +279,25 @@ describe("sandbox worker protocol", () => {
       "C:\\private\\helper.exe",
       500,
     )).message).toBe("SRT 沙箱执行失败")
+
+    for (const [phase, message] of [
+      ["initialize", "SRT 沙箱初始化超时"],
+      ["wrap", "SRT 沙箱命令准备超时"],
+      ["run", "SRT 沙箱命令执行超时"],
+      ["reset", "SRT 沙箱清理超时"],
+    ] as const) {
+      const staged = sandboxWorkerSafeError(
+        new Error("spawnSync C:\\private\\srt-win.exe ETIMEDOUT"),
+        phase,
+      )
+      expect(staged).toEqual({
+        code: "SANDBOX_RUNTIME_TIMEOUT",
+        message,
+        status: 504,
+        phase,
+      })
+      expect(JSON.stringify(staged)).not.toContain("C:\\private")
+    }
   })
 })
 
@@ -374,6 +429,36 @@ describe("sandbox worker pool", () => {
     await waitFor(() => factory.started.length === 2)
     expect(factory.started.filter((run) => run.message.request.command === "side-effect")).toHaveLength(1)
     expect(factory.children).toHaveLength(2)
+    factory.complete(factory.started[1]!)
+    await expect(next).resolves.toEqual(result)
+    await pool.dispose()
+  })
+
+  test("recycle error 不复用故障 worker，替换 worker 继续队首任务", async () => {
+    const factory = new FakeWorkerFactory()
+    const pool = new SandboxWorkerPool({
+      maxWorkers: 1,
+      idleTimeoutMs: 0,
+      spawnWorker: factory.spawn,
+    })
+    const failed = pool.run(request("initialize-timeout"))
+    const next = pool.run(request("next"))
+    await waitFor(() => factory.started.length === 1)
+
+    factory.fail(factory.started[0]!, "initialize")
+    await expect(failed).rejects.toMatchObject({
+      code: "SANDBOX_RUNTIME_TIMEOUT",
+      message: "SRT 沙箱初始化超时",
+      details: { phase: "initialize" },
+    })
+    await waitFor(() => factory.started.length === 2)
+    expect(factory.started.map((run) => run.message.request.command)).toEqual([
+      "initialize-timeout",
+      "next",
+    ])
+    expect(factory.started[1]!.child).not.toBe(factory.started[0]!.child)
+    expect(factory.children).toHaveLength(2)
+
     factory.complete(factory.started[1]!)
     await expect(next).resolves.toEqual(result)
     await pool.dispose()

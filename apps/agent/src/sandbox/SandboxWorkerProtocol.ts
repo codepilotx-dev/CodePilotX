@@ -19,16 +19,19 @@ export type SandboxWorkerRequest =
   | { type: "cancel"; protocol: number; id: string }
   | { type: "shutdown"; protocol: number }
 
+export type SandboxWorkerPhase = "initialize" | "wrap" | "run" | "reset"
+
 export type SandboxWorkerError = {
   code: string
   message: string
   status: number
+  phase?: SandboxWorkerPhase
 }
 
 export type SandboxWorkerResponse =
   | { type: "ready"; protocol: number }
   | { type: "result"; protocol: number; id: string; result: ProcessResult; recycle: boolean }
-  | { type: "error"; protocol: number; id: string; error: SandboxWorkerError }
+  | { type: "error"; protocol: number; id: string; error: SandboxWorkerError; recycle: boolean }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value)
@@ -135,6 +138,9 @@ function validateProtocol(value: unknown) {
   }
 }
 
+const isSandboxWorkerPhase = (value: unknown): value is SandboxWorkerPhase =>
+  value === "initialize" || value === "wrap" || value === "run" || value === "reset"
+
 export function decodeSandboxWorkerRequest(raw: unknown): SandboxWorkerRequest {
   if (!isRecord(raw) || typeof raw.type !== "string") throw new Error("Sandbox worker 请求无效")
   if (raw.type === "run") {
@@ -190,13 +196,16 @@ export function decodeSandboxWorkerResponse(raw: unknown): SandboxWorkerResponse
     }
   }
   if (raw.type === "error") {
-    assertExactKeys(raw, ["type", "protocol", "id", "error"])
-    if (typeof raw.id !== "string" || !isRecord(raw.error)) throw new Error("Sandbox worker error 无效")
-    assertExactKeys(raw.error, ["code", "message", "status"])
+    assertExactKeys(raw, ["type", "protocol", "id", "error", "recycle"])
+    if (typeof raw.id !== "string" || !isRecord(raw.error) || typeof raw.recycle !== "boolean") {
+      throw new Error("Sandbox worker error 无效")
+    }
+    assertExactKeys(raw.error, ["code", "message", "status", "phase"])
     if (
       typeof raw.error.code !== "string"
       || typeof raw.error.message !== "string"
       || typeof raw.error.status !== "number"
+      || (raw.error.phase !== undefined && !isSandboxWorkerPhase(raw.error.phase))
     ) {
       throw new Error("Sandbox worker error 无效")
     }
@@ -205,6 +214,7 @@ export function decodeSandboxWorkerResponse(raw: unknown): SandboxWorkerResponse
       protocol: SRT_WORKER_PROTOCOL_VERSION,
       id: raw.id,
       error: raw.error as SandboxWorkerError,
+      recycle: raw.recycle,
     }
   }
   throw new Error("Sandbox worker 响应类型无效")

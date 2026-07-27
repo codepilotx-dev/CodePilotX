@@ -31,6 +31,6 @@ describe("SRT runtime manifest", () => {
     expect(SRT_WINDOWS_HELPER_SHA256).toEqual(verified.helperSha256)
     expect(SRT_WINDOWS_MATURITY).toBe("alpha")
     expect(SRT_INSTALL_GENERATION).toBe(2)
-    expect(SRT_WORKER_PROTOCOL_VERSION).toBe(1)
+    expect(SRT_WORKER_PROTOCOL_VERSION).toBe(2)
   })
 })

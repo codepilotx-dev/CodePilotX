@@ -42,6 +42,13 @@ interface HardRule {
   reason: string
 }
 
+const SANDBOX_POLICY_TARGET = /(?:\bsrt-sandbox\b|\bsandbox-runtime-users\b|(?:^|[\\/\s"'=])\.git[\\/](?:config|hooks)(?=$|[\\/\s"'`;|&])|(?:^|[\\/\s"'=])\.codepilotx[\\/](?:config\.toml|hooks\.json|skills)(?=$|[\\/\s"'`;|&])|(?:^|[\\/\s"'=])\.(?:claude|agents)[\\/]skills(?=$|[\\/\s"'`;|&]))/i
+const SANDBOX_POLICY_TAMPER_ACTION = /\b(?:remove|delete|disable|stop|uninstall|modify|alter|write|rename|set)\b/i
+const SANDBOX_POLICY_TAMPER = new RegExp(
+  `(?:${SANDBOX_POLICY_TARGET.source})[\\s\\S]*(?:${SANDBOX_POLICY_TAMPER_ACTION.source})|(?:${SANDBOX_POLICY_TAMPER_ACTION.source})[\\s\\S]*(?:${SANDBOX_POLICY_TARGET.source})`,
+  "i",
+)
+
 const HARD_RULES: readonly HardRule[] = [
   {
     name: "disk-or-boot-modification",
@@ -70,7 +77,7 @@ const HARD_RULES: readonly HardRule[] = [
   {
     name: "sandbox-policy-tamper",
     category: "security_control",
-    pattern: /(?:srt-sandbox|sandbox-runtime-users|codepilotx)[\s\S]*(?:remove|delete|disable|stop|uninstall|modify|alter|write|rename|set)|(?:remove|delete|disable|stop|uninstall|modify|alter|write|rename|set)[\s\S]*(?:srt-sandbox|sandbox-runtime-users|codepilotx)/i,
+    pattern: SANDBOX_POLICY_TAMPER,
     reason: "禁止删除或篡改 CodePilotX 审核策略、沙箱账户和过滤规则",
   },
   {

@@ -259,9 +259,18 @@ export class SandboxWorkerPool {
     if (worker.cancelTimer) clearTimeout(worker.cancelTimer)
     worker.cancelTimer = null
     worker.current = null
+    const shouldClose = this.closing || message.recycle
+    if (shouldClose) worker.state = "closing"
     if (message.type === "result") this.settle(job, null, message.result)
-    else this.settle(job, new AgentError(message.error.code, message.error.message, message.error.status))
-    if (this.closing || (message.type === "result" && message.recycle)) {
+    else {
+      this.settle(job, new AgentError(
+        message.error.code,
+        message.error.message,
+        message.error.status,
+        message.error.phase ? { phase: message.error.phase } : undefined,
+      ))
+    }
+    if (shouldClose) {
       void this.closeWorker(worker)
     } else {
       worker.state = "idle"

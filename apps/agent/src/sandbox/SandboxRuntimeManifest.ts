@@ -3,7 +3,7 @@ export const SRT_WINDOWS_MATURITY = "alpha" as const
 export const SRT_MAX_CONCURRENT_COMMANDS = 8
 export const SRT_PROXY_PORT_RANGE = [60080, 60095] as const
 export const SRT_INSTALL_GENERATION = 2
-export const SRT_WORKER_PROTOCOL_VERSION = 1
+export const SRT_WORKER_PROTOCOL_VERSION = 2
 export const SRT_WORKER_IDLE_TIMEOUT_MS = 120_000
 
 export const SRT_WINDOWS_HELPER_SHA256 = {
