@@ -29,6 +29,8 @@
 
 ### Fixed
 
+- [renderer] 补齐桌面 RPC 握手中的 Pi Provider 配置与认证 capability，恢复模型配置、凭据管理和 OAuth 会话调用
+- [Agent/Protocol] 修正审批、提问及中断恢复事件的 v4 载荷漂移，新的 durable event 与 SSE replay 统一通过 manifest 校验
 - [renderer] 统一侧栏账户菜单、命令面板、宠物商店与设置页的宠物图标，避免同一功能出现不同视觉符号
 - [renderer] 图标分片动态加载失败时保留通用文件或文件夹图标并清除失败缓存，避免打开会话时弹出全局错误且后续图标持续缺失
 - [renderer] 让弹层内搜索框自动填满可用内容宽度并禁止菜单横向溢出，修复项目切换弹层出现横向滚动条的问题
@@ -61,6 +63,7 @@
 
 ### Changed
 
+- [Agent] 将模型 Provider 配置升级为 Pi 原生 v2，支持三类兼容 API、自定义模型、安全端点发现和独立原子缓存，并对无法可靠迁移的旧配置停用后给出安全诊断
 - [Agent] 文件编辑主链对齐 Pi 批量 Edit，并将 apply_patch 调整为按需约束工具，减少模型生成补丁格式失败
 - [Agent/Desktop] Windows 命令执行改为 Pi Hook 门禁后的本机直跑，移除 SRT 初始化与安装界面，并补充分阶段脱敏执行日志
 - [renderer] 统一弹层菜单选中勾的尾部右对齐布局，并调整侧栏工作模式与整理菜单的选中态排列
@@ -114,6 +117,7 @@
 
 ### Security
 
+- [Agent/Desktop] Provider 仅暴露手动选择的单一活动凭据，禁用、删除或请求失败均不自动切换 Key，并隔离 Anthropic 订阅 OAuth 与推理凭据
 - [projects] 多根工作区统一执行 realpath、符号链接和沙盒边界校验，附加目录仅在显式项目范围内允许受控读写
 - [agent] 固化 SRT 0.0.65 安装代际与 WFP `60080–60095` 端口范围，并在 worker、协议或 ACL 清理异常时失败关闭且不自动重试命令
 - [github] OAuth 登录新增只读 `read:org` 授权与校验，修复组织资料查询因权限不足而失败的问题
@@ -123,6 +127,7 @@
 
 ### Removed
 
+- [Provider] 移除旧 `provider-runtime`、`provider-plugin`、AI SDK 依赖与 models.dev 快照资源，模型请求、目录和 OAuth 统一由 Pi 提供
 - [desktop] 移除玻璃表面、窗口 Acrylic、半透明侧边栏设置及主题导入导出，并将外观设置升级为 V6
 
 ## 0.2.0-beta.1 — 2026-07-25
