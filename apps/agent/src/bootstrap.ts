@@ -48,6 +48,7 @@ import type { Models } from "@earendil-works/pi-ai";
 import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
 import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver";
 import { PetService } from "./pet/PetService";
+import { ReleaseNotesService } from "./release-notes/ReleaseNotesService";
 import {
   migrateLegacyAgentData,
   relocateAgentDataRoot,
@@ -212,6 +213,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           ? `http://127.0.0.1:${config.port}/auth/github/callback`
           : null,
     });
+    const releaseNotes = new ReleaseNotesService();
     const review = new GitReviewService(
       db,
       async (projectId) => {
@@ -510,6 +512,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       github,
       tooling,
       pets,
+      releaseNotes,
       skills,
       mcp,
       suggestions,

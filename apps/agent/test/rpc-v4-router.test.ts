@@ -258,6 +258,43 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
+  test("release notes RPC requires its capability and delegates exact list params", async () => {
+    const calls: Array<{ currentVersion: string; refresh: boolean }> = []
+    const { db, call, initialize } = await fixture({
+      releaseNotes: {
+        list: async (currentVersion: string, refresh: boolean) => {
+          calls.push({ currentVersion, refresh })
+          return {
+            source: "github-releases",
+            repository: "codepilotx-dev/CodePilotX",
+            currentVersion,
+            currentReleaseFound: false,
+            fetchedAt: "2026-07-27T00:00:00.000Z",
+            truncated: false,
+            releases: [],
+          }
+        },
+      } as unknown as RpcRouterDependencies["releaseNotes"],
+    })
+    await initialize()
+
+    const response = await call("release-notes/list", {
+      currentVersion: "0.2.0-beta.1",
+      refresh: true,
+    })
+
+    expect(response.error).toBeUndefined()
+    expect(response.result).toMatchObject({
+      repository: "codepilotx-dev/CodePilotX",
+      currentVersion: "0.2.0-beta.1",
+    })
+    expect(calls).toEqual([{
+      currentVersion: "0.2.0-beta.1",
+      refresh: true,
+    }])
+    db.close()
+  })
+
   test("dispatches all MCP management methods through the typed runtime service", async () => {
     const calls: Array<{ method: string; input: unknown }> = []
     const server = {

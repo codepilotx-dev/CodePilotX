@@ -10,6 +10,7 @@ import { interactionHandlers } from "./handlers/interaction"
 import { memoryHandlers } from "./handlers/memory"
 import { mcpHandlers } from "./handlers/mcp"
 import { petHandlers } from "./handlers/pet"
+import { releaseNotesHandlers } from "./handlers/release-notes"
 import { permissionHandlers } from "./handlers/permission"
 import { providerHandlers } from "./handlers/provider"
 import { reviewHandlers } from "./handlers/review"
@@ -41,6 +42,7 @@ const groups: readonly RpcHandlerGroup[] = [
   threadHandlers,
   memoryHandlers,
   petHandlers,
+  releaseNotesHandlers,
   subagentHandlers,
   suggestionHandlers,
   providerHandlers,
