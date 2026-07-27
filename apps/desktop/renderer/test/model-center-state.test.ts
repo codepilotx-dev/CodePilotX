@@ -81,24 +81,22 @@ describe('model center Provider directory', () => {
     provider({
       providerID: 'openai',
       displayName: 'OpenAI',
-      npmPackage: '@ai-sdk/openai',
-      modelsDevSource: true,
+      providerKind: 'custom',
     }),
     provider({
       providerID: 'vercel',
       displayName: 'AI Gateway',
-      npmPackage: '@ai-sdk/gateway',
       gatewaySource: true,
     }),
     provider({ providerID: 'local', displayName: '本地模型' }),
   ]
 
-  test('searches name, id, npm package and catalog source', () => {
+  test('searches name, id and Pi catalog source', () => {
     expect(projectProviderDirectory(providers, { query: 'OpenAI' }).map(item => item.provider.providerID))
       .toEqual(['openai'])
-    expect(projectProviderDirectory(providers, { query: '@ai-sdk/gateway' }).map(item => item.provider.providerID))
+    expect(projectProviderDirectory(providers, { query: 'gateway' }).map(item => item.provider.providerID))
       .toEqual(['vercel'])
-    expect(projectProviderDirectory(providers, { query: 'models.dev' }).map(item => item.provider.providerID))
+    expect(projectProviderDirectory(providers, { query: '自定义' }).map(item => item.provider.providerID))
       .toEqual(['openai'])
     expect(projectProviderDirectory(providers, { query: '内置' }).map(item => item.provider.providerID))
       .toEqual(['local'])
@@ -131,26 +129,34 @@ describe('model center Provider directory', () => {
   })
 
   test('distinguishes OAuth, environment and configured connections', () => {
-    const oauthProvider = provider({ providerID: 'oauth', displayName: 'OAuth', integrationID: 'oauth-integration' })
+    const oauthProvider = provider({ providerID: 'oauth', displayName: 'OAuth' })
     const envProvider = provider({ providerID: 'env', displayName: 'Environment' })
     const configuredProvider = provider({ providerID: 'configured', displayName: 'Configured', apiKeyConfigured: true })
     const projected = projectProviderDirectory(
       [oauthProvider, envProvider, configuredProvider],
       {
-        integrations: [
+        credentials: [
           {
-            id: 'oauth-integration',
-            name: 'OAuth',
-            methods: [{ id: 'oauth', type: 'oauth', label: 'OAuth', prompts: [] }],
-            connections: [{ type: 'credential', id: 'credential', label: 'OAuth' }],
+            id: 'credential',
+            providerId: 'oauth',
+            kind: 'oauth',
+            label: 'OAuth',
+            enabled: true,
+            active: true,
+            order: 0,
+            createdAt: 1,
+            updatedAt: 1,
           },
-          {
-            id: 'env',
-            name: 'Environment',
-            methods: [],
-            connections: [{ type: 'env', name: 'ENV_API_KEY' }],
-          },
-        ],
+        ] as never,
+        currentProviderState: {
+          selectedProviderID: 'env',
+          provider: envProvider,
+          model: 'model',
+          apiKeyConfigured: true,
+          apiKeySource: 'ENV_API_KEY',
+          modelConfigured: true,
+          models: ['model'],
+        },
       },
     )
 
@@ -171,16 +177,16 @@ describe('model center API Key helpers', () => {
       .toEqual(['anthropic'])
   })
 
-  test('describes automatic takeover when deleting the active Key with a backup', () => {
+  test('does not auto-select a replacement when deleting the active Key', () => {
     const confirmation = getApiKeyDeleteConfirmation(keys[0]!, keys, 'OpenAI')
 
-    expect(confirmation.description).toContain('“备用 Key”将自动成为当前项')
+    expect(confirmation.description).toContain('不会自动切换其他凭据')
   })
 
   test('warns that provider becomes unconfigured without a backup', () => {
     const confirmation = getApiKeyDeleteConfirmation(keys[0]!, [keys[0]!], 'OpenAI')
 
-    expect(confirmation.description).toContain('Provider“OpenAI”将变为未配置')
+    expect(confirmation.description).toContain('等待你手动选择活动凭据')
   })
 })
 
@@ -205,9 +211,7 @@ function apiKey(
 function provider(overrides: {
   providerID: string
   displayName: string
-  integrationID?: string
-  npmPackage?: string
-  modelsDevSource?: boolean
+  providerKind?: 'builtin' | 'custom'
   gatewaySource?: boolean
   apiKeyConfigured?: boolean
 }) {

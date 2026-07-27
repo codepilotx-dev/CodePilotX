@@ -188,17 +188,25 @@ describe('desktop history client', () => {
               provider: {
                 id: 'openai',
                 name: 'OpenAI',
-                api: { type: 'native', settings: {} },
-                request: { headers: {}, body: {} },
+                source: {
+                  type: 'pi',
+                  kind: 'builtin',
+                  apis: ['openai-responses'],
+                },
+                auth: { apiKey: true, oauth: true },
               },
               models: [
                 {
                   id: 'gpt-5',
                   providerID: 'openai',
                   name: 'GPT-5',
-                  api: { id: 'gpt-5', type: 'native', settings: {} },
+                  api: {
+                    id: 'gpt-5',
+                    type: 'pi',
+                    name: 'openai-responses',
+                    baseUrl: 'https://api.openai.com/v1',
+                  },
                   capabilities: { tools: true, input: ['text'], output: ['text'] },
-                  request: { headers: {}, body: {} },
                   variants: [],
                   time: { released: now },
                   cost: [],

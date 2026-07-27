@@ -4,10 +4,7 @@ import type {
   UsageSourceDescriptor,
 } from '@codepilotx/agent-protocol'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type {
-  DesktopIntegration,
-  DesktopModelProviderSummary,
-} from '../shared/types.js'
+import type { DesktopModelProviderSummary } from '../shared/types.js'
 import {
   AccountWorkspaceEmptyState,
 } from '../src/features/models/ApiKeyWorkspace.js'
@@ -64,10 +61,13 @@ describe('model center account management', () => {
   })
 
   test('offers billing and OAuth choices while configured catalog cards link to accounts', () => {
-    const choices = getProviderConnectionChoices(oauthIntegration(), [
+    const choices = getProviderConnectionChoices(
+      { ...modelProvider('anthropic', 'Anthropic'), authMethods: ['oauth'] },
+      [
       billingSource(),
       subscriptionSource(),
-    ])
+      ],
+    )
     expect(choices.map(choice => choice.kind)).toEqual([
       'inference-oauth',
       'billing',
@@ -99,13 +99,13 @@ function configuredGroup(): ConfiguredProviderGroup {
     current: true,
     configured: true,
     apiKeys: [],
-    integration: null,
+    oauthAvailable: true,
     usageSources: [],
     connections: [
       {
         id: 'active-key',
         kind: 'inference-key',
-        origin: 'api-key',
+        origin: 'credential',
         providerIds: ['openai'],
         label: '生产 Key',
         active: true,
@@ -129,7 +129,7 @@ function configuredGroup(): ConfiguredProviderGroup {
       {
         id: 'oauth',
         kind: 'oauth',
-        origin: 'integration',
+        origin: 'credential',
         providerIds: ['openai'],
         label: 'OAuth',
         active: true,
@@ -138,7 +138,7 @@ function configuredGroup(): ConfiguredProviderGroup {
     activeConnection: {
       id: 'active-key',
       kind: 'inference-key',
-      origin: 'api-key',
+      origin: 'credential',
       providerIds: ['openai'],
       label: '生产 Key',
       active: true,
@@ -183,20 +183,6 @@ function quota(id: string, label: string, remainingPercent: number) {
     unit: 'tokens' as const,
     remainingPercent,
     state: 'normal' as const,
-  }
-}
-
-function oauthIntegration(): DesktopIntegration {
-  return {
-    id: 'anthropic',
-    name: 'Anthropic',
-    methods: [{
-      id: 'oauth',
-      type: 'oauth',
-      label: 'OAuth',
-      prompts: [],
-    }],
-    connections: [],
   }
 }
 
