@@ -34,6 +34,7 @@ import type { McpRuntimeService } from "../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../suggestion/TaskSuggestionService"
 import type { ConfigService } from "../config/ConfigService"
 import type { UsageService } from "../usage/UsageService"
+import { normalizeShellSecurityLevel } from "../security/ShellRiskClassifier"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -132,6 +133,7 @@ const desktopProjection = (config: Record<string, unknown>) => {
   return {
     ...desktop,
     ...(Object.keys(permissionConfig).length ? { permissionConfig } : {}),
+    shellSecurityLevel: normalizeShellSecurityLevel(config.shell_security_level),
     ...(typeof config.model === "string" ? { model: config.model } : {}),
     ...(typeof config.model_provider === "string" ? { providerID: config.model_provider } : {}),
     ...(typeof config.model_reasoning_effort === "string" ? { thinkingMode: config.model_reasoning_effort } : {}),
@@ -169,6 +171,7 @@ const desktopCorePath = (key: string): string[] | null => ({
   enableParetoCodeRouter: ["features", "pareto_code_router"],
   enableFusionRouter: ["features", "fusion_router"],
   allowNetworkAccess: ["sandbox_workspace_write", "network_access"],
+  shellSecurityLevel: ["shell_security_level"],
 } as Record<string, string[]>)[key] ?? null
 const desktopConfigEdits = (
   value: Record<string, unknown>,

@@ -86,6 +86,7 @@ const PROJECT_FORBIDDEN_ROOTS = new Set([
   "telemetry",
   "logging",
   "data_dir",
+  "shell_security_level",
 ])
 const ENVIRONMENT_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const STATIC_SECRET_HEADERS = new Set([

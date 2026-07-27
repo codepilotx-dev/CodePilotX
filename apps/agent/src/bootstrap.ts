@@ -1,9 +1,5 @@
 import { Effect } from "effect";
 import type { Model } from "@codepilotx/model-schema";
-import {
-  createBuiltinProviderPlugins,
-  createPluginHost,
-} from "@codepilotx/provider-plugin";
 import { loadConfig } from "./config/Config";
 import { ConfigService } from "./config/ConfigService";
 import { ConfigMigrationService } from "./config/ConfigMigrationService";
@@ -12,6 +8,7 @@ import { AgentDatabase } from "./storage/database/AgentDatabase";
 import { EventHub } from "./storage/events/EventHub";
 import { publishAgentEvent } from "./storage/events/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
+import { PiAuthSessionService } from "./auth/PiAuthSessionService";
 import { ToolRegistry } from "./tool/ToolRegistry";
 import { ToolExecutor } from "./tool/ToolExecutor";
 import { getToolingManager } from "./tool/ToolingManager";
@@ -21,14 +18,19 @@ import { QuestionService } from "./session/QuestionService";
 import { ThreadService } from "./session/ThreadService";
 import { ThreadHistoryService } from "./session/ThreadHistoryService";
 import { PiOrchestratorAdapter } from "./orchestration/PiOrchestratorAdapter";
-import { PiModelService } from "./provider/pi";
+import {
+  EncryptedCredentialStore,
+  PiModelService,
+  PiModelsFileStore,
+} from "./provider/pi";
 import { PiModelCatalogAdapter } from "./provider/PiModelCatalogAdapter";
 import { generatePiObject } from "./provider/pi/PiStructuredOutput";
 import { createApp } from "./transport/server";
 import { AgentLogger } from "./observability/AgentLogger";
 import { ExecutionLogObserver, HarnessLogObserver } from "./observability/ExecutionLogObserver";
-import { IntegrationService } from "./provider/IntegrationService";
+import { normalizeShellSecurityLevel } from "./security/ShellRiskClassifier";
 import { ApiKeyService } from "./provider/ApiKeyService";
+import { ProviderCredentialService } from "./provider/ProviderCredentialService";
 import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
 import { AttachmentService } from "./subagent/AttachmentService";
@@ -45,6 +47,7 @@ import { join } from "node:path";
 import { GitReviewService } from "./review/GitReviewService";
 import { GithubService } from "./github/GithubService";
 import type { Models } from "@earendil-works/pi-ai";
+import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
 import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver";
 import { PetService } from "./pet/PetService";
@@ -224,35 +227,97 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       (input) => github.preparePullRequestComparison(input),
     );
-    const pluginHost = createPluginHost({
-      builtins: createBuiltinProviderPlugins(),
-    });
-    yield* pluginHost.init();
     const piModels = new PiModelService(credentials, {
       ...(options.models ? { models: options.models } : {}),
-      config: () => ({
-        providers: Object.fromEntries(
-          Object.entries(
-            (configService.snapshot().model_providers as Record<string, Record<string, unknown>> | undefined)
+      modelsStore: new PiModelsFileStore(config.piModelCachePath),
+      config: () => {
+        const snapshot = configService.snapshot();
+        const modelCatalog = snapshot.model_catalog as
+          | Record<string, unknown>
+          | undefined;
+        const schemaVersion =
+          typeof modelCatalog?.schema_version === "number"
+            ? modelCatalog.schema_version
+            : undefined;
+        return {
+          ...(schemaVersion !== undefined ? { schemaVersion } : {}),
+          providers:
+            (snapshot.model_providers as Record<string, unknown> | undefined)
               ?? {},
-          ),
-        ),
-      }),
+        };
+      },
     });
     const providers = new PiModelCatalogAdapter(piModels);
-    const integrations = new IntegrationService(
-      providers,
-      pluginHost,
-      credentials,
-    );
     const apiKeys = new ApiKeyService(
       piModels,
-      integrations,
       credentials,
     );
+    const providerCredentials = new ProviderCredentialService(
+      piModels,
+      credentials,
+    );
+    const anthropicUsageModels = builtinModels({
+      credentials: new EncryptedCredentialStore(credentials, {
+        integrationID: () => "usage.anthropic.subscription",
+        providerID: (integrationID) =>
+          integrationID === "usage.anthropic.subscription"
+            ? "anthropic"
+            : undefined,
+        oauthMethodID: () => "anthropic:oauth",
+      }),
+      authContext: {
+        env: async () => undefined,
+        fileExists: async () => false,
+      },
+    });
+    const authSessions = new PiAuthSessionService({
+      resolveTarget: (target) => {
+        if (target.kind === "usage") {
+          if (
+            target.sourceId !== "anthropic-subscription"
+            && target.sourceId !== "usage.anthropic.subscription"
+          ) {
+            throw new Error(`Usage OAuth source ${target.sourceId} 尚未配置`);
+          }
+          return { models: anthropicUsageModels, providerID: "anthropic" };
+        }
+        return { models: piModels.pi, providerID: target.providerId };
+      },
+      onUpdated: async (session) => {
+        await publishAgentEvent(
+          db,
+          hub,
+          null,
+          null,
+          "auth/session/updated",
+          { session },
+        );
+      },
+      onCompleted: async (target) => {
+        if (target.kind === "provider") {
+          await providers.reload();
+          await publishAgentEvent(
+            db,
+            hub,
+            null,
+            null,
+            "provider/credential/updated",
+            { providerId: target.providerId },
+          );
+        } else {
+          await publishAgentEvent(
+            db,
+            hub,
+            null,
+            null,
+            "usage/source/updated",
+            { sourceId: "anthropic-subscription", changedAt: Date.now() },
+          );
+        }
+      },
+    });
     yield* Effect.promise(async () => {
       await providers.models();
-      await integrations.list();
       await providers.reload();
     });
     const tools = new ToolRegistry();
@@ -263,8 +328,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const usage = new UsageService(
       new UsageRepository(db),
       providers,
-      integrations,
+      piModels,
       credentials,
+      { subscriptionModels: anthropicUsageModels },
     );
     const mcpOAuthCoordinator = new McpOAuthCoordinator(
       new McpOAuthCredentialRepository(credentials),
@@ -362,6 +428,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         tooling.resolve(id, resolveOptions),
       resolveToolingEnvironment: (required, resolveOptions) =>
         tooling.resolveEnvironment(required, resolveOptions),
+      resolveShellSecurityLevel: () =>
+        normalizeShellSecurityLevel(
+          configService.snapshot().shell_security_level,
+        ),
       authorizeShell: (invocation, signal) =>
         approvals.authorize(invocation, signal),
       recordToolCall: (invocation, status, output, error, startedAt) =>
@@ -503,8 +573,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       attachments,
       projectSources,
       providers,
-      integrations,
+      piModels,
       apiKeys,
+      providerCredentials,
+      authSessions,
       memory,
       hooks,
       logger,
@@ -528,7 +600,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       await configService.dispose();
       await mcpConnections.dispose();
       await providers.dispose();
-      await Effect.runPromise(pluginHost.dispose());
     };
     return { config, db, app, logger, providers, dispose };
   });

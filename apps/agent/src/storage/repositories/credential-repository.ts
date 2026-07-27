@@ -320,6 +320,17 @@ export abstract class CredentialRepositoryDatabase extends SubagentRepositoryDat
       return true
     }
 
+  clearActiveEncryptedCredential(integrationID: string, expectedCredentialID?: string) {
+      const result = expectedCredentialID
+        ? this.profileSqlite.query(
+          "DELETE FROM integration_credential_bindings WHERE integration_id = ? AND credential_id = ?",
+        ).run(integrationID, expectedCredentialID)
+        : this.profileSqlite.query(
+          "DELETE FROM integration_credential_bindings WHERE integration_id = ?",
+        ).run(integrationID)
+      return result.changes > 0
+    }
+
   compareAndSetActiveEncryptedCredential(integrationID: string, expectedCredentialID: string, credentialID: string) {
       const row = this.encryptedCredentialByID(credentialID)
       if (!row || row.integrationID !== integrationID || !row.enabled) return false
@@ -350,15 +361,10 @@ export abstract class CredentialRepositoryDatabase extends SubagentRepositoryDat
   deleteEncryptedCredential(id: string) {
       const row = this.encryptedCredentialByID(id)
       if (!row) return false
-      this.profileSqlite.transaction(() => {
-        const active = this.encryptedCredential(row.integrationID)?.id === id
-        this.profileSqlite.query("DELETE FROM credentials WHERE id = ?").run(id)
-        if (active) {
-          const replacement = this.listEncryptedCredentials().find((candidate) =>
-            candidate.integrationID === row.integrationID && candidate.kind === row.kind && candidate.enabled)
-          if (replacement) this.setActiveEncryptedCredential(row.integrationID, replacement.id)
-        }
-      })()
+      // The binding row is removed by ON DELETE CASCADE when the active
+      // credential is deleted. Deliberately leave the provider unconfigured:
+      // choosing another credential is always an explicit user action.
+      this.profileSqlite.query("DELETE FROM credentials WHERE id = ?").run(id)
       return true
     }
 

@@ -37,6 +37,7 @@ const approvalCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) 
   if (tool.sdkName === "request_permissions") return "requestPermissions" as const
   if (invocation.input.__skillScript === true) return "skillApproval" as const
   if (tool.origin?.kind === "mcp") return "mcpTools" as const
+  if (invocation.input.__ruleRequiresApproval === true) return "rules" as const
   if (tool.capabilities.process || tool.capabilities.filesystem === "host-write") return "sandboxApproval" as const
   return "rules" as const
 }
