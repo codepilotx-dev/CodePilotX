@@ -12,6 +12,7 @@ export interface PlanCheckpoint {
   answer: string | null
   decision?: "allow" | "deny"
   toolCallID?: string
+  authorizationFingerprint?: string
   approvalID?: string
   checkpointID?: string
   permissionGrant?: {

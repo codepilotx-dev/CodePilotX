@@ -39,10 +39,24 @@ const configurationScopeSection = (): PromptSection => ({
   source: { type: "runtime", name: "configuration-scope" },
   content: [
     "持久配置以 config.toml 为唯一真源。",
-    "用户说“以后、默认、所有项目”时，先 Read 再 Edit @codepilotx/config.toml。",
-    "用户说“这个项目”时，先 Read 再 Edit .codepilotx/config.toml。",
+    "用户说“以后、默认、所有项目”时，先 Read，再用 apply_patch 更新 @codepilotx/config.toml。",
+    "用户说“这个项目”时，先 Read，再用 apply_patch 更新 .codepilotx/config.toml。",
     "用户说“当前任务、这次”时只使用当前任务设置，不写 config.toml。",
     "持久作用域不明确时必须先询问用户；配置写入仍需遵守审批策略。",
+  ].join("\n"),
+})
+
+const workspaceEditingSection = (): PromptSection => ({
+  id: "workspace-editing",
+  role: "developer",
+  cache: "global-stable",
+  authority: "builtin",
+  source: { type: "runtime", name: "workspace-editing" },
+  content: [
+    "修改已有工作区文件前，必须先用 Read 获取每个目标文件的完整快照，再用 apply_patch 提交确定性补丁。",
+    "新增文件可直接使用 apply_patch 的 Add File；Write 保留用于确有必要的完整文件写入。",
+    "Edit 仅用于旧会话、Skill 或显式延迟工具兼容，不是默认编辑入口。",
+    "不得改用 Python、sed、Bash 或 PowerShell 绕过 apply_patch、工作区边界、Read 快照或审批。",
   ].join("\n"),
 })
 
@@ -329,7 +343,12 @@ export class ThreadService {
         },
       )
     }
-    sections.splice(sections.length - 1, 0, configurationScopeSection())
+    sections.splice(
+      sections.length - 1,
+      0,
+      ...(exposedTools.includes("apply_patch") ? [workspaceEditingSection()] : []),
+      configurationScopeSection(),
+    )
     const bundle = new PromptComposer().compose({ threadID, mode: thread.settings.taskMode, profile: "main", exposedTools, sections })
     let cacheMode = inferPromptCacheCapability("")
     try {
@@ -621,6 +640,9 @@ export class ThreadService {
             : permissionCheckpoint.payload.resolution?.feedback ?? null,
           decision: permissionCheckpoint.decision,
           toolCallID: permissionCheckpoint.toolCallID,
+          ...(permissionCheckpoint.payload.invocation.authorizationScope
+            ? { authorizationFingerprint: permissionCheckpoint.payload.invocation.authorizationScope.fingerprint }
+            : {}),
           approvalID: permissionCheckpoint.approvalID,
           ...(permissionGrant ? { permissionGrant } : {}),
         } as const
@@ -774,6 +796,7 @@ export class ThreadService {
       promptSections.splice(
         promptSections.length - 1,
         0,
+        ...(exposedTools.includes("apply_patch") ? [workspaceEditingSection()] : []),
         configurationScopeSection(),
         ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
       )

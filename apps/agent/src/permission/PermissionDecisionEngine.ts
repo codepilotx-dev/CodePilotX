@@ -85,7 +85,7 @@ export class PermissionDecisionEngine {
     // scope request is an elevation; danger-full-access is not re-approved on
     // every call merely because it is broad.
     const mutatingMcpTool = tool.origin?.kind === "mcp" && tool.capabilities.externalState
-    const elevated = hasRequestedPermissions(invocation.input) || invocation.input.__hookRequiresApproval === true || invocation.input.__ruleRequiresApproval === true || invocation.input.__sandboxFailureEscalation === true || mutatingMcpTool
+    const elevated = hasRequestedPermissions(invocation.input) || invocation.authorizationScope?.ruleRequiresApproval === true || invocation.input.__hookRequiresApproval === true || invocation.input.__ruleRequiresApproval === true || invocation.input.__sandboxFailureEscalation === true || mutatingMcpTool
     if (isGranularApprovalPolicy(policy)) return policy[approvalCapability(invocation, tool)] ? review("细粒度策略要求审批") : elevated ? deny("细粒度策略禁止此权限请求") : allow("细粒度策略允许当前沙箱内执行")
     if (policy === "untrusted") return tool.capabilities.filesystem === "read" && !tool.capabilities.process && !elevated ? allow("可信纯读取操作") : review("untrusted 策略要求审批非纯读取操作")
     if (policy === "on-failure") return elevated ? review("sandbox 失败后的提升需要审批") : allow("先在 sandbox 内执行")

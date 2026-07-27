@@ -49,6 +49,8 @@ export function InlineApprovalCard({
   const [isCommandExpanded, setIsCommandExpanded] = React.useState(false)
   const command = buildInlineApprovalCommand(request)
   const approvalTitle = inlineApprovalTitle(request)
+  const previewLabel = inlineApprovalPreviewLabel(request)
+  const reviewSummary = inlineApprovalReviewSummary(request)
   const rememberOptions = request.rememberOptions ?? []
 
   if (request.toolName === 'AskUserQuestion') {
@@ -146,6 +148,9 @@ export function InlineApprovalCard({
           自动审查无法完成，已转为人工审批：{request.autoReviewFallbackReason}
         </p>
       ) : null}
+      {reviewSummary ? (
+        <p className="inline-approval-target">{reviewSummary}</p>
+      ) : null}
 
       <div className="inline-approval-summary">
         <div
@@ -156,7 +161,7 @@ export function InlineApprovalCard({
           }
         >
           <div className="inline-approval-command-preview-header">
-            <span>Shell</span>
+            <span>{previewLabel}</span>
             <button
               type="button"
               aria-expanded={isCommandExpanded}
@@ -240,7 +245,38 @@ export function InlineApprovalCard({
 
 function inlineApprovalTitle(request: DesktopPermissionRequest): string {
   if (isCommandPermission(request)) return '需要运行命令，是否允许？'
+  const affectedPaths = inlineApprovalAffectedPaths(request)
+  if (affectedPaths.length > 0) {
+    return `需要修改 ${affectedPaths.length} 个文件，是否允许？`
+  }
   return request.description
+}
+
+function inlineApprovalPreviewLabel(request: DesktopPermissionRequest): string {
+  if (isCommandPermission(request)) return 'Shell'
+  const affectedPaths = inlineApprovalAffectedPaths(request)
+  return affectedPaths.length > 0
+    ? `影响文件（${affectedPaths.length}）`
+    : request.toolName
+}
+
+function inlineApprovalReviewSummary(
+  request: DesktopPermissionRequest,
+): string | null {
+  const value = request.input.reviewSummary
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const summary = value as Record<string, unknown>
+  const fileCount = nonNegativeInteger(summary.fileCount)
+  const hunkCount = nonNegativeInteger(summary.hunkCount)
+  const additions = nonNegativeInteger(summary.additions)
+  const deletions = nonNegativeInteger(summary.deletions)
+  if (
+    fileCount === null ||
+    hunkCount === null ||
+    additions === null ||
+    deletions === null
+  ) return null
+  return `${fileCount} 个文件，${hunkCount} 个变更块，+${additions} -${deletions}`
 }
 
 function isCommandPermission(request: DesktopPermissionRequest): boolean {
@@ -331,6 +367,17 @@ export function buildInlineApprovalCommand(
 
 function formatCommandLine(request: DesktopPermissionRequest): string {
   const { toolName, input } = request
+  const affectedPaths = inlineApprovalAffectedPaths(request)
+  if (affectedPaths.length > 0) {
+    return affectedPaths
+      .map(({ path, operation }) =>
+        `${operation === 'create' ? '新增' : '修改'} ${path}`,
+      )
+      .join('\n')
+  }
+  if (toolName.toLowerCase() === 'apply_patch') {
+    return 'apply_patch（未提供可展示的文件范围）'
+  }
   const filePath = stringValue(input.file_path) ?? stringValue(input.filePath)
   const isFileTool =
     toolName === 'Edit' ||
@@ -372,4 +419,30 @@ function truncateCommand(value: string, maxLength: number): string {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
+}
+
+function nonNegativeInteger(value: unknown): number | null {
+  return typeof value === 'number'
+    && Number.isSafeInteger(value)
+    && value >= 0
+    ? value
+    : null
+}
+
+function inlineApprovalAffectedPaths(
+  request: DesktopPermissionRequest,
+): Array<{ path: string; operation: 'create' | 'update' }> {
+  const value = request.input.affectedPaths
+  if (!Array.isArray(value)) return []
+  return value.flatMap(candidate => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+      return []
+    }
+    const affected = candidate as Record<string, unknown>
+    const path = stringValue(affected.path)
+    const operation = affected.operation
+    return path && (operation === 'create' || operation === 'update')
+      ? [{ path, operation }]
+      : []
+  })
 }

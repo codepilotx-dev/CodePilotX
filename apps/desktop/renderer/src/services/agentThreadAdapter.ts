@@ -526,19 +526,44 @@ function toolToRequest(item: Extract<Item, { type: 'tool' }>): DesktopPermission
 }
 
 function approvalToRequest(approval: ApprovalRequest): DesktopPermissionRequest {
-  return { requestId: approval.id, toolName: approval.tool, toolUseId: approval.toolCallID, input: { command: approval.command, paths: approval.paths, risk: approval.risk }, description: approval.reason, requestKind: approval.command ? 'shell-command' : 'tool' }
+  return {
+    requestId: approval.id,
+    toolName: approval.tool,
+    toolUseId: approval.toolCallID,
+    input: {
+      command: approval.command,
+      paths: approval.paths,
+      risk: approval.risk,
+      ...(approval.affectedPaths ? { affectedPaths: approval.affectedPaths } : {}),
+      ...(approval.reviewSummary ? { reviewSummary: approval.reviewSummary } : {}),
+    },
+    description: approval.reason,
+    requestKind: approval.command ? 'shell-command' : 'tool',
+  }
 }
 
 function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermissionRequest {
   const originalInput = record(params.input)
+  const affectedPaths = Array.isArray(params.affectedPaths)
+    ? params.affectedPaths
+    : undefined
+  const reviewSummary = params.reviewSummary
+    && typeof params.reviewSummary === 'object'
+    && !Array.isArray(params.reviewSummary)
+    ? params.reviewSummary
+    : undefined
+  const paths = Array.isArray(params.paths) ? params.paths : undefined
   const command = stringValue(params.command)
     || stringValue(originalInput.command)
     || stringValue(originalInput.cmd)
   const cwd = stringValue(params.cwd) || stringValue(originalInput.cwd)
   const input = {
-    ...originalInput,
+    ...(affectedPaths ? {} : originalInput),
     ...(command ? { command } : {}),
     ...(cwd ? { cwd } : {}),
+    ...(paths ? { paths } : {}),
+    ...(affectedPaths ? { affectedPaths } : {}),
+    ...(reviewSummary ? { reviewSummary } : {}),
   }
   return {
     requestId: stringValue(params.interactionId) || stringValue(params.id),

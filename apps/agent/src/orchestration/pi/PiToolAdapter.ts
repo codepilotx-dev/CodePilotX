@@ -36,6 +36,8 @@ export function adaptToolDefinition(definition: ToolDefinition, options: PiToolA
     prepareArguments: (input) => definition.schema.parse(input),
     execute: async (toolCallID, input, signal, onUpdate) => {
       const parsed = definition.schema.parse(input) as Record<string, unknown>
+      const approvedAuthorizationFingerprint =
+        request.preapprovedToolCalls?.get(toolCallID)
       const toolContext = {
         signal: signal ?? request.signal,
         taskMode: request.taskMode,
@@ -57,7 +59,14 @@ export function adaptToolDefinition(definition: ToolDefinition, options: PiToolA
         model: request.policyModel,
         taskSummary: request.content,
         toolCallID,
-        ...(request.preapprovedToolCallIDs?.has(toolCallID) ? { approvedToolCallID: toolCallID } : {}),
+        ...(request.preapprovedToolCalls?.has(toolCallID)
+          ? {
+              approvedToolCallID: toolCallID,
+              ...(approvedAuthorizationFingerprint
+                ? { approvedAuthorizationFingerprint }
+                : {}),
+            }
+          : {}),
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
         ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
         onProgress: (progress) => onUpdate?.(textResult(progress)),

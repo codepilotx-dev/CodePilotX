@@ -128,6 +128,42 @@ describe("server request interactions", () => {
     expect(() => decode({ kind: "approval", decision: "deny", feedback: "调".repeat(4_001) })).toThrow()
   })
 
+  test("decodes optional multi-path approval scope without weakening old requests", () => {
+    const decode = Schema.decodeUnknownSync(ServerRequests["approval/request"].params)
+    const request = {
+      kind: "approval" as const,
+      interactionId: "approval-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      agentId: "agent-1",
+      createdAt: 1,
+      version: 1,
+      toolCallId: "tool-1",
+      tool: "apply_patch",
+      risk: "high" as const,
+      reason: "需要确认多文件修改",
+      affectedPaths: [
+        { path: "src/a.ts", operation: "update" as const },
+        { path: "src/b.ts", operation: "create" as const },
+      ],
+      reviewSummary: {
+        fileCount: 2,
+        hunkCount: 3,
+        additions: 8,
+        deletions: 2,
+      },
+      requestedPermissions: {},
+      allowedChoices: ["allow-once", "deny", "stop"] as const,
+    }
+    expect(decode(request)).toEqual(request)
+    const { affectedPaths: _affectedPaths, reviewSummary: _reviewSummary, ...legacy } = request
+    expect(decode(legacy)).toEqual(legacy)
+    expect(() => decode({
+      ...request,
+      affectedPaths: [{ path: "src/a.ts", operation: "delete" }],
+    })).toThrow()
+  })
+
   test("bounds rich questions and automatic resolution", () => {
     const decode = Schema.decodeUnknownSync(ServerRequests["question/request"].params)
     const question = {

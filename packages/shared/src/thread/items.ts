@@ -255,6 +255,20 @@ export const ItemSchema = Schema.Union([
 ])
 export type Item = typeof ItemSchema.Type
 
+export const ToolAffectedPathSchema = Schema.Struct({
+  path: Schema.String,
+  operation: Schema.Literals(["create", "update"]),
+})
+export type ToolAffectedPath = typeof ToolAffectedPathSchema.Type
+
+export const ToolReviewSummarySchema = Schema.Struct({
+  fileCount: Schema.Number,
+  hunkCount: Schema.Number,
+  additions: Schema.Number,
+  deletions: Schema.Number,
+})
+export type ToolReviewSummary = typeof ToolReviewSummarySchema.Type
+
 export const ApprovalRequestSchema = Schema.Struct({
   id: Schema.String,
   threadId: Schema.String,
@@ -265,6 +279,8 @@ export const ApprovalRequestSchema = Schema.Struct({
   command: Schema.NullOr(Schema.String),
   cwd: Schema.NullOr(Schema.String),
   paths: Schema.Array(Schema.String),
+  affectedPaths: Schema.optional(Schema.Array(ToolAffectedPathSchema)),
+  reviewSummary: Schema.optional(ToolReviewSummarySchema),
   requestedPermissions: AdditionalPermissionsSchema,
   review: Schema.NullOr(ShellReviewSchema),
   risk: Schema.Literals(["low", "medium", "high", "critical"]),

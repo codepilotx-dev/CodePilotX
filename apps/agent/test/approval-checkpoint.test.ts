@@ -45,6 +45,83 @@ describe("可恢复审批 checkpoint", () => {
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM approval_checkpoints").get()).toEqual({ count: 0 })
   })
 
+  test("多路径审批只向 Guardian 和人工请求投影安全范围，checkpoint 保留恢复输入", async () => {
+    const path = join(tmpdir(), `codepilotx-approval-scope-${crypto.randomUUID()}.sqlite`)
+    paths.push(path)
+    const db = new AgentDatabase(path)
+    databases.push(db)
+    const { thread, turn, input } = setup(db)
+    let guardianInvocation: ToolInvocation | undefined
+    const service = new ApprovalService(
+      db,
+      await Effect.runPromise(EventHub.make),
+      new ToolRegistry(),
+      async (invocation) => {
+        guardianInvocation = invocation
+        return { decision: "ask", risk: "high", reason: "需要人工确认" }
+      },
+    )
+    const authorizationScope = {
+      affectedPaths: [
+        { path: "src/a.ts", operation: "update" as const },
+        { path: "src/b.ts", operation: "create" as const },
+      ],
+      fingerprint: "a".repeat(64),
+      ruleRequiresApproval: true,
+      reviewSummary: {
+        fileCount: 2,
+        hunkCount: 3,
+        additions: 8,
+        deletions: 2,
+      },
+    }
+    const invocation: ToolInvocation = {
+      id: "scoped-tool",
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      name: "Write",
+      input: { patch: "raw-patch-body", __ruleRequiresApproval: true },
+      permissionConfig: { ...input.permissionConfig, approvalsReviewer: "auto_review" },
+      model: input.model,
+      taskMode: "chat",
+      authorizationScope,
+      durableApproval: true,
+    }
+    expect(await service.authorize(invocation, new AbortController().signal)).toMatchObject({
+      decision: "ask",
+    })
+    expect(guardianInvocation?.input).toEqual({
+      patchHash: authorizationScope.fingerprint,
+      affectedPaths: authorizationScope.affectedPaths,
+      summary: authorizationScope.reviewSummary,
+    })
+    const stored = db.approvalCheckpointForToolCall(invocation.id)
+    expect(stored?.payload.invocation.input.patch).toBe("raw-patch-body")
+    await service.attachRunState(
+      invocation.id,
+      JSON.stringify({ version: 1 }),
+      { name: invocation.name, callId: invocation.id },
+    )
+    const eventRow = db.sqlite.query(
+      "SELECT params FROM events WHERE method = 'approval/requested' AND turn_id = ?",
+    ).get(turn.turnID) as { params: string }
+    const eventParams = JSON.parse(eventRow.params)
+    expect(eventParams).toMatchObject({
+      affectedPaths: authorizationScope.affectedPaths,
+      reviewSummary: authorizationScope.reviewSummary,
+    })
+    expect(eventRow.params).not.toContain("raw-patch-body")
+    const requestRow = db.sqlite.query(
+      "SELECT request_payload FROM approval_requests WHERE tool_call_id = ?",
+    ).get(invocation.id) as { request_payload: string }
+    expect(JSON.parse(requestRow.request_payload)).toMatchObject({
+      affectedPaths: authorizationScope.affectedPaths,
+      reviewSummary: authorizationScope.reviewSummary,
+    })
+    expect(requestRow.request_payload).not.toContain("raw-patch-body")
+  })
+
   test("审批跨重启加载、响应并且只能 claim 一次", async () => {
     const path = join(tmpdir(), `codepilotx-approval-${crypto.randomUUID()}.sqlite`)
     paths.push(path)

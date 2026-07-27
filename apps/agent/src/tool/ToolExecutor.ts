@@ -1,6 +1,13 @@
-import { AgentError, type PermissionDecision, type SubagentProfile, type TaskMode, type ToolInvocation } from "../domain"
+import { AgentError, type PermissionDecision, type SubagentProfile, type TaskMode, type ToolAuthorizationScope, type ToolInvocation } from "../domain"
 import type { WorkspaceService } from "../workspace/WorkspaceService"
-import { toolNameMatches, type ToolCatalog, type ToolProgress, type ToolRegistry } from "./ToolRegistry"
+import {
+  toolNameMatches,
+  type ToolCatalog,
+  type ToolFileSnapshots,
+  type ToolInputInspection,
+  type ToolProgress,
+  type ToolRegistry,
+} from "./ToolRegistry"
 import { createToolExposurePlan, type ToolExposureInput } from "./ToolExposurePlan"
 import { DEFAULT_PERMISSION_CONFIG, type AdditionalPermissions, type PermissionConfig, type PermissionGrantScope, type ShellInput } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
@@ -16,6 +23,7 @@ import { analyzeShellRisk } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
 import { resolveManagedTool, resolveToolingEnvironment, runToolProcess, toolingPathOverride, type ToolingEnvironmentResolver, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
 import type { ManagedToolID, ToolingResolution } from "./ToolingManager"
+import { applyEditText } from "./Edit/applyEditText"
 
 const RUNTIME_COMMANDS: Readonly<Record<string, ManagedToolID>> = {
   node: "nodejs", npm: "nodejs", npx: "nodejs", corepack: "nodejs",
@@ -75,6 +83,8 @@ export interface ToolExecutionContext {
   toolCallID?: string
   /** Set only after a validated durable checkpoint has been claimed. */
   approvedToolCallID?: string
+  /** Host-derived scope fingerprint bound to the claimed approval. */
+  approvedAuthorizationFingerprint?: string
   /** Runs normalization, hard-deny, hooks and review without executing the tool. */
   authorizationOnly?: boolean
   /** Optional active Skill ceiling. It can only remove tools from the effective policy. */
@@ -194,6 +204,27 @@ export class ToolExecutor {
   private async executeRegistered<T>(name: string, input: Record<string, unknown>, context: ToolExecutionContext, catalog: ToolCatalog) {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
+    if (this.options?.userConfigPath) {
+      context.workspace.grantEditorAlias("@codepilotx/config.toml", this.options.userConfigPath)
+    }
+    const definition = catalog.get(name)
+    const fileSnapshots = this.fileSnapshots(context)
+    const inspection = definition.inspectInput
+      ? this.validateToolInputInspection(await definition.inspectInput(input, {
+          signal: context.signal,
+          taskMode: context.taskMode,
+          profile: context.profile ?? "main",
+          workspace: context.workspace,
+          permissionConfig,
+          model,
+          fileSnapshots,
+          ...(context.onProgress ? { onProgress: context.onProgress } : {}),
+        }))
+      : undefined
+    for (const configWrite of inspection?.configWrites ?? []) {
+      this.options?.validateConfigDocument?.(configWrite.content, configWrite.scope)
+    }
+    const authorizationScope = inspection?.authorizationScope
     const pathValue = typeof input.file_path === "string" ? input.file_path : input.path
     const relativeToolPath = typeof pathValue === "string" ? pathValue.replaceAll("\\", "/").toLowerCase() : ""
     if (
@@ -213,12 +244,7 @@ export class ToolExecutor {
         const current = await context.workspace.readEditorFile(String(pathValue))
         const before = typeof input.old_string === "string" ? input.old_string : ""
         const after = typeof input.new_string === "string" ? input.new_string : ""
-        if (!before || !current.content.includes(before)) {
-          throw new AgentError("PATCH_CONTEXT_NOT_FOUND", "编辑上下文未找到", 409)
-        }
-        nextContent = input.replace_all === true
-          ? current.content.split(before).join(after)
-          : current.content.replace(before, after)
+        nextContent = applyEditText(current.content, before, after, input.replace_all === true)
       }
       if (nextContent !== undefined) {
         this.options.validateConfigDocument(
@@ -227,15 +253,36 @@ export class ToolExecutor {
         )
       }
     }
-    const policyInput = sensitiveEnvironment || protectedGitWrite || protectedConfigWrite
+    const policyInput = sensitiveEnvironment || protectedGitWrite || protectedConfigWrite || authorizationScope?.ruleRequiresApproval
       ? { ...input, __ruleRequiresApproval: true }
       : input
-    const invocation: ToolInvocation = { id: context.toolCallID ?? crypto.randomUUID(), threadID: context.threadID, turnID: context.turnID, agentID: context.agentID ?? context.turnID, name, input: policyInput, permissionConfig, model, taskMode: context.taskMode, ...(context.authorizationOnly ? { durableApproval: true } : {}) }
-    const definition = catalog.get(name)
+    const invocation: ToolInvocation = {
+      id: context.toolCallID ?? crypto.randomUUID(),
+      threadID: context.threadID,
+      turnID: context.turnID,
+      agentID: context.agentID ?? context.turnID,
+      name,
+      input: policyInput,
+      permissionConfig,
+      model,
+      taskMode: context.taskMode,
+      ...(authorizationScope ? { authorizationScope } : {}),
+      ...(context.authorizationOnly ? { durableApproval: true } : {}),
+    }
     const resolved = this.decisions.evaluate(invocation, definition)
     if (resolved.action === "deny") throw new AgentError("TOOL_PERMISSION_DENIED", resolved.reason, 403, resolved)
     const resumedApproval = context.approvedToolCallID === invocation.id
-    const hookResults = context.skipHooks || resumedApproval ? [] : await this.options?.hooks?.run("pre_tool_use", { input, resolved }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }) ?? []
+    if (
+      resumedApproval
+      && invocation.authorizationScope?.fingerprint !== context.approvedAuthorizationFingerprint
+    ) {
+      throw new AgentError("APPROVAL_SCOPE_CHANGED", "工具输入或受影响文件范围已变化，需要重新审批", 409)
+    }
+    const hookResults = context.skipHooks || resumedApproval ? [] : await this.options?.hooks?.run("pre_tool_use", {
+      input,
+      resolved,
+      ...(authorizationScope ? { authorizationScope } : {}),
+    }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }) ?? []
     const denied = hookResults.find(({ result }) => result.decision === "deny")
     if (denied) throw new AgentError("HOOK_DENIED", denied.result.reason ?? "PreToolUse Hook 拒绝执行", 403)
     const narrowed = hookResults.map(({ result }) => result.narrowedInput).filter((value): value is Record<string, unknown> => Boolean(value)).at(-1)
@@ -257,19 +304,28 @@ export class ToolExecutor {
       if (!this.options) throw new AgentError("TOOL_REVIEW_REQUIRED", "工具需要审批但执行器未配置审批服务", 403)
       authorization = await this.options.authorizeShell(secretScrubber.scrub(invocation), context.signal)
     }
-    if (context.authorizationOnly) return authorization as T
+    if (context.authorizationOnly) {
+      return {
+        ...authorization,
+        ...(authorizationScope ? { authorizationFingerprint: authorizationScope.fingerprint } : {}),
+      } as T
+    }
     if (authorization.decision !== "allow") throw new AgentError("TOOL_PERMISSION_DENIED", authorization.reason, 403, authorization)
     const startedAt = Date.now()
     const auditInvocation = secretScrubber.scrub(invocation)
     this.options?.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
     try {
-      const snapshotKey = this.snapshotKey(context, typeof input.file_path === "string" ? input.file_path : null)
+      const filePath = typeof input.file_path === "string" ? input.file_path : null
+      const snapshotKey = await this.snapshotKey(context, filePath)
       const deferredTools = this.deferredDefinitions({
         taskMode: context.taskMode,
         sandboxMode: permissionConfig.sandboxMode,
         profile: context.profile ?? "main",
         ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
       }, catalog)
+      for (const configWrite of inspection?.configWrites ?? []) {
+        this.options?.validateConfigDocument?.(configWrite.content, configWrite.scope)
+      }
       let output = await catalog.execute(name, input, {
         signal: context.signal,
         taskMode: context.taskMode,
@@ -278,6 +334,8 @@ export class ToolExecutor {
         permissionConfig,
         model,
         deferredTools,
+        fileSnapshots,
+        ...(authorizationScope ? { authorizationScope } : {}),
         resolveTooling: this.options?.resolveTooling ?? resolveManagedTool,
         runToolProcess: this.options?.runToolProcess ?? runToolProcess,
         invocation: {
@@ -305,10 +363,11 @@ export class ToolExecutor {
           ...(escalation ? { escalation } : {}),
         }
       }
-      if (snapshotKey && ["Read", "Write", "Edit"].includes(name)) {
+      if (filePath && ["Read", "Write", "Edit"].includes(name)) {
+        const savedSnapshotKey = await this.snapshotKey(context, filePath)
         const revision = (output as { snapshot?: { mtimeMs: number; sha256: string }; revision?: { mtimeMs: number; sha256: string } }).snapshot ?? (output as { revision?: { mtimeMs: number; sha256: string } }).revision
           ?? (await context.workspace.readEditorFile(String(input.file_path))).revision
-        this.readSnapshots.set(snapshotKey, revision)
+        if (savedSnapshotKey) this.readSnapshots.set(savedSnapshotKey, revision)
       }
       const safeOutput = secretScrubber.scrub(output)
       this.options?.recordToolCall?.(auditInvocation, "completed", safeOutput, null, startedAt)
@@ -523,10 +582,117 @@ export class ToolExecutor {
     }
   }
 
-  private snapshotKey(context: ToolExecutionContext, path: string | null) {
+  private async snapshotKey(context: ToolExecutionContext, path: string | null) {
     if (!path) return null
-    const normalized = path.replaceAll("\\", "/")
+    let normalized: string
+    try {
+      normalized = await context.workspace.resolveEditorFilePath(path)
+    } catch (cause) {
+      if (cause instanceof AgentError && cause.code === "WORKSPACE_PATH_NOT_FOUND") return null
+      throw cause
+    }
+    normalized = normalized.replaceAll("\\", "/")
     return `${context.threadID}:${context.agentID ?? context.turnID}:${process.platform === "win32" ? normalized.toLowerCase() : normalized}`
+  }
+
+  private fileSnapshots(context: ToolExecutionContext): ToolFileSnapshots {
+    return {
+      get: async (path) => {
+        const key = await this.snapshotKey(context, path)
+        return key ? this.readSnapshots.get(key) : undefined
+      },
+      set: async (path, revision) => {
+        const key = await this.snapshotKey(context, path)
+        if (key) this.readSnapshots.set(key, revision)
+      },
+      invalidate: async (paths) => {
+        for (const path of paths) {
+          const key = await this.snapshotKey(context, path)
+          if (key) this.readSnapshots.delete(key)
+        }
+      },
+    }
+  }
+
+  private validateToolInputInspection(value: ToolInputInspection): ToolInputInspection {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new AgentError("INVALID_TOOL_INSPECTION", "工具输入检查结果无效", 500)
+    }
+    const scope = value.authorizationScope as ToolAuthorizationScope | undefined
+    if (
+      !scope
+      || typeof scope !== "object"
+      || !Array.isArray(scope.affectedPaths)
+      || scope.affectedPaths.length === 0
+      || scope.affectedPaths.length > 256
+      || !/^[a-f0-9]{64}$/.test(scope.fingerprint)
+      || typeof scope.ruleRequiresApproval !== "boolean"
+    ) {
+      throw new AgentError("INVALID_TOOL_INSPECTION", "工具授权范围无效", 500)
+    }
+    const affectedPaths = scope.affectedPaths.map((affected) => {
+      if (
+        !affected
+        || typeof affected !== "object"
+        || typeof affected.path !== "string"
+        || !affected.path.trim()
+        || affected.path.length > 1_024
+        || /[\0\r\n]/.test(affected.path)
+        || (affected.operation !== "create" && affected.operation !== "update")
+      ) {
+        throw new AgentError("INVALID_TOOL_INSPECTION", "工具授权路径无效", 500)
+      }
+      return { path: affected.path, operation: affected.operation }
+    })
+    const pathKeys = affectedPaths.map(({ path }) => process.platform === "win32" ? path.toLowerCase() : path)
+    if (new Set(pathKeys).size !== pathKeys.length) {
+      throw new AgentError("INVALID_TOOL_INSPECTION", "工具授权路径重复", 500)
+    }
+    const reviewSummary = scope.reviewSummary
+    if (reviewSummary) {
+      const values = [
+        reviewSummary.fileCount,
+        reviewSummary.hunkCount,
+        reviewSummary.additions,
+        reviewSummary.deletions,
+      ]
+      if (
+        values.some((item) => !Number.isSafeInteger(item) || item < 0)
+        || reviewSummary.fileCount !== affectedPaths.length
+      ) {
+        throw new AgentError("INVALID_TOOL_INSPECTION", "工具变更摘要无效", 500)
+      }
+    }
+    if (value.configWrites !== undefined && !Array.isArray(value.configWrites)) {
+      throw new AgentError("INVALID_TOOL_INSPECTION", "配置写入检查结果无效", 500)
+    }
+    const configWrites = value.configWrites?.map((write) => {
+      const pathKey = typeof write?.path === "string"
+        ? (process.platform === "win32" ? write.path.toLowerCase() : write.path)
+        : ""
+      if (
+        !write
+        || typeof write.path !== "string"
+        || !write.path.trim()
+        || write.path.length > 1_024
+        || /[\0\r\n]/.test(write.path)
+        || typeof write.content !== "string"
+        || (write.scope !== "user" && write.scope !== "project")
+        || !pathKeys.includes(pathKey)
+      ) {
+        throw new AgentError("INVALID_TOOL_INSPECTION", "配置写入检查结果无效", 500)
+      }
+      return { path: write.path, content: write.content, scope: write.scope }
+    })
+    return {
+      authorizationScope: {
+        affectedPaths,
+        fingerprint: scope.fingerprint,
+        ruleRequiresApproval: scope.ruleRequiresApproval,
+        ...(reviewSummary ? { reviewSummary: { ...reviewSummary } } : {}),
+      },
+      ...(configWrites ? { configWrites } : {}),
+    }
   }
 
   async dispose(): Promise<void> {

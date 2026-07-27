@@ -32,6 +32,7 @@ import { WorkspaceService } from "../workspace/WorkspaceService";
 import { secretScrubber } from "../security/SecretScrubber";
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
 import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
+import { parseApplyPatch } from "../tool/ApplyPatch/parseApplyPatch";
 
 export type {
   DelegationController,
@@ -53,6 +54,41 @@ type PendingTurn = {
 };
 
 const outputDelta = (value: unknown) => typeof value === "string" ? value : "";
+
+const safeTimelinePatchPath = (path: string) => {
+  const normalized = path.replaceAll("\\", "/").replace(/^\.\/+/, "");
+  const parts = normalized.split("/").filter(Boolean);
+  if (/^(?:[a-z]:\/|\/)/i.test(normalized) || parts.includes("..")) {
+    return parts.at(-1) ?? "<workspace-file>";
+  }
+  return normalized || "<workspace-file>";
+};
+
+export const piToolTimelineInput = (
+  tool: string,
+  input: unknown,
+): Record<string, unknown> => {
+  const record = input && typeof input === "object" && !Array.isArray(input)
+    ? input as Record<string, unknown>
+    : {};
+  if (tool.toLowerCase().split(".").at(-1) !== "apply_patch") return record;
+  const patch = typeof record.patch === "string" ? record.patch : "";
+  let affectedPaths: Array<{ path: string; operation: "create" | "update" }> = [];
+  try {
+    affectedPaths = parseApplyPatch(patch).map((operation) => ({
+      path: safeTimelinePatchPath(operation.path),
+      operation: operation.type === "add" ? "create" : "update",
+    }));
+  } catch {
+    // Invalid patches still get a safe timeline item; the tool result carries the actionable parse error.
+  }
+  return {
+    operation: "apply_patch",
+    patchBytes: Buffer.byteLength(patch, "utf8"),
+    patch: "[补丁正文已隐藏]",
+    ...(affectedPaths.length ? { affectedPaths } : {}),
+  };
+};
 
 const commandFromInput = (input: unknown) => input && typeof input === "object"
   && typeof (input as Record<string, unknown>).command === "string"
@@ -374,6 +410,7 @@ export class PiOrchestratorAdapter {
       },
       toolStarted: async (context, input) => {
         const timestamp = Date.now();
+        const timelineInput = piToolTimelineInput(input.tool, input.input);
         const item: Item = {
           id: input.toolCallID,
           turnID: context.turnID,
@@ -385,8 +422,8 @@ export class PiOrchestratorAdapter {
             tool: input.tool,
             title: input.tool,
             state: "running",
-            input: input.input,
-            command: commandFromInput(input.input),
+            input: timelineInput,
+            command: commandFromInput(timelineInput),
             output: null,
             error: null,
             startedAt: timestamp,
@@ -402,7 +439,7 @@ export class PiOrchestratorAdapter {
           "tool/callStarted",
           (stored: Item) => ({
             item: stored,
-            inputSummary: commandFromInput(input.input) ?? input.tool,
+            inputSummary: commandFromInput(timelineInput) ?? input.tool,
           }),
         );
         await this.publish(persisted.event);
@@ -617,6 +654,9 @@ export class PiOrchestratorAdapter {
               taskSummary: request.content,
               toolCallID: request.resume.toolCallID,
               approvedToolCallID: request.resume.toolCallID,
+              ...(request.resume.authorizationFingerprint
+                ? { approvedAuthorizationFingerprint: request.resume.authorizationFingerprint }
+                : {}),
             },
           );
           resolutionText = resumedToolResultText(resolution, toolCall.name);
@@ -662,7 +702,7 @@ export class PiOrchestratorAdapter {
       permissionConfig: effectivePermissionConfig,
     }).exposed;
     let paused = false;
-    const preapprovedToolCallIDs = new Set<string>();
+    const preapprovedToolCalls = new Map<string, string | undefined>();
     const pause = async (approval: PendingApproval) => {
       paused = true;
       await request.pause(approval);
@@ -701,7 +741,10 @@ export class PiOrchestratorAdapter {
           input.toolCallID,
         );
         if (decision.decision === "allow") {
-          preapprovedToolCallIDs.add(input.toolCallID);
+          preapprovedToolCalls.set(
+            input.toolCallID,
+            decision.authorizationFingerprint,
+          );
           return undefined;
         }
         if (decision.decision === "deny")
@@ -716,6 +759,9 @@ export class PiOrchestratorAdapter {
             }),
             interruption: input,
             toolCallID: input.toolCallID,
+            ...(decision.authorizationFingerprint
+              ? { authorizationFingerprint: decision.authorizationFingerprint }
+              : {}),
           },
         });
         return { block: true, reason: "等待用户审批", pause: true };
@@ -786,6 +832,9 @@ export class PiOrchestratorAdapter {
                 ...executionContext,
                 toolCallID,
                 approvedToolCallID: toolCallID,
+                ...(decision.authorizationFingerprint
+                  ? { approvedAuthorizationFingerprint: decision.authorizationFingerprint }
+                  : {}),
               },
             );
           }
@@ -799,6 +848,9 @@ export class PiOrchestratorAdapter {
               }),
               interruption: { toolCallID, input },
               toolCallID,
+              ...(decision.authorizationFingerprint
+                ? { authorizationFingerprint: decision.authorizationFingerprint }
+                : {}),
             },
           });
           return { __piPause: true, status: "waiting_for_permission" };
@@ -882,7 +934,7 @@ export class PiOrchestratorAdapter {
       exposedTools,
       promptSections: effectivePromptSections,
       ...(request.attachments ? { attachments: request.attachments } : {}),
-      preapprovedToolCallIDs,
+      preapprovedToolCalls,
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
       ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
       onPromptComposed: async (bundle) =>

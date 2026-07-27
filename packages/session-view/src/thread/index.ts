@@ -443,6 +443,14 @@ function approvalFromParams(
   if (!id || !turnId || !toolCallID || !agentId) return null
   const input = record(params.input)
   const requested = record(params.requestedPermissions)
+  const hasAffectedPaths = Array.isArray(params.affectedPaths)
+  const affectedPaths = affectedPathArray(params.affectedPaths)
+  const reviewSummary = reviewSummaryValue(params.reviewSummary)
+  const requestedPermissions = {
+    readPaths: stringArray(requested.readPaths),
+    writePaths: stringArray(requested.writePaths),
+    networkDomains: stringArray(requested.networkDomains),
+  }
   return {
     id,
     threadId,
@@ -450,14 +458,16 @@ function approvalFromParams(
     agentId,
     toolCallID,
     tool,
-    command: stringValue(input.command) ?? null,
-    cwd: stringValue(input.cwd) ?? null,
-    paths: stringArray(params.paths),
-    requestedPermissions: {
-      readPaths: stringArray(requested.readPaths),
-      writePaths: stringArray(requested.writePaths),
-      networkDomains: stringArray(requested.networkDomains),
-    },
+    command: stringValue(params.command) ?? stringValue(input.command) ?? null,
+    cwd: stringValue(params.cwd) ?? stringValue(input.cwd) ?? null,
+    paths: Array.isArray(params.paths)
+      ? stringArray(params.paths)
+      : hasAffectedPaths
+        ? affectedPaths.map(({ path }) => path)
+        : [...requestedPermissions.writePaths, ...requestedPermissions.readPaths],
+    ...(hasAffectedPaths ? { affectedPaths } : {}),
+    ...(reviewSummary ? { reviewSummary } : {}),
+    requestedPermissions,
     review: isShellReview(params.review) ? params.review : null,
     risk: riskValue(params.risk),
     reason: stringValue(params.reason) ?? "需要用户确认",
@@ -676,6 +686,32 @@ function numberValue(value: unknown): number | undefined {
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
+}
+
+function affectedPathArray(value: unknown): NonNullable<ApprovalRequest["affectedPaths"]> {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((candidate) => {
+    const affected = record(candidate)
+    const path = stringValue(affected.path)
+    const operation = affected.operation
+    return path && (operation === "create" || operation === "update")
+      ? [{ path, operation }]
+      : []
+  })
+}
+
+function reviewSummaryValue(value: unknown): ApprovalRequest["reviewSummary"] {
+  const summary = record(value)
+  const fileCount = numberValue(summary.fileCount)
+  const hunkCount = numberValue(summary.hunkCount)
+  const additions = numberValue(summary.additions)
+  const deletions = numberValue(summary.deletions)
+  return fileCount !== undefined
+    && hunkCount !== undefined
+    && additions !== undefined
+    && deletions !== undefined
+    ? { fileCount, hunkCount, additions, deletions }
+    : undefined
 }
 
 function answerText(value: unknown): string | null {

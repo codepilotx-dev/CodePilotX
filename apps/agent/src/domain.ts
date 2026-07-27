@@ -197,8 +197,31 @@ export interface ToolInvocation {
   permissionConfig: PermissionConfig
   model: Model.Ref
   taskMode: TaskMode
+  /** Host-derived mutation scope. Model input can never provide this value. */
+  authorizationScope?: ToolAuthorizationScope
   /** True only for an Agents SDK preflight that can be resumed from a RunState interruption. */
   durableApproval?: boolean
+}
+
+export interface ToolAffectedPath {
+  /** Workspace-safe display path produced after host path validation. */
+  path: string
+  operation: "create" | "update"
+}
+
+export interface ToolReviewSummary {
+  fileCount: number
+  hunkCount: number
+  additions: number
+  deletions: number
+}
+
+export interface ToolAuthorizationScope {
+  affectedPaths: readonly ToolAffectedPath[]
+  /** SHA-256 over the inspected input and its canonical mutation scope. */
+  fingerprint: string
+  ruleRequiresApproval: boolean
+  reviewSummary?: ToolReviewSummary
 }
 
 export interface PermissionDecision {
@@ -206,6 +229,8 @@ export interface PermissionDecision {
   risk: "low" | "medium" | "high" | "critical"
   reason: string
   review?: ShellReview
+  /** Returned only by authorization previews for scope-bound execution. */
+  authorizationFingerprint?: string
 }
 
 export class AgentError extends Error {

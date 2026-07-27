@@ -42,7 +42,7 @@ export interface PiRuntimeRequest {
   allowedTools?: readonly string[]
   toolCatalog?: ToolCatalog
   onPromptComposed?: (bundle: PromptBundle) => void | Promise<void>
-  preapprovedToolCallIDs?: ReadonlySet<string>
+  preapprovedToolCalls?: ReadonlyMap<string, string | undefined>
 }
 
 export interface PiHarnessDependencies {

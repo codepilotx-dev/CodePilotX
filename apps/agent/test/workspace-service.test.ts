@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
@@ -197,6 +197,135 @@ describe("WorkspaceService editor files", () => {
     const saved = await service.saveEditorFile("source.ts", "const value = 2\n", opened.revision)
     expect(saved.outcome).toBe("saved")
     expect(await readFile(join(root, "source.ts"), "utf8")).toBe("const value = 2\n")
+  })
+
+  test("只读检查变更路径并识别 UTF-8 BOM，且不会创建缺失目录", async () => {
+    const { root, service } = await workspace()
+    const bomContent = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("before\r\n", "utf8")])
+    await writeFile(join(root, "source.txt"), bomContent)
+
+    const existing = await service.inspectMutationPath("source.txt", "existing-file")
+    expect(existing).toMatchObject({
+      expectation: "existing-file",
+      path: "source.txt",
+      content: "before\r\n",
+      utf8Bom: true,
+      revision: {
+        sha256: hash("before\r\n"),
+        rawSha256: createHash("sha256").update(bomContent).digest("hex"),
+        utf8Bom: true,
+      },
+    })
+    if (existing.expectation !== "existing-file") throw new Error("expected existing-file inspection")
+    expect(existing.rawSha256).toBe(createHash("sha256").update(bomContent).digest("hex"))
+
+    const added = await service.inspectMutationPath("new.txt", "new-file")
+    expect(added).toMatchObject({ expectation: "new-file", path: "new.txt" })
+    expect(await Bun.file(join(root, "new.txt")).exists()).toBe(false)
+    await expect(service.inspectMutationPath("missing/new.txt", "new-file")).rejects.toMatchObject({
+      code: "WORKSPACE_PATH_NOT_FOUND",
+    })
+    expect(await Bun.file(join(root, "missing")).exists()).toBe(false)
+
+    const readSnapshot = (await service.readEditorFile("source.txt")).revision
+    await writeFile(join(root, "source.txt"), "before\r\n", "utf8")
+    const withoutBom = await service.inspectMutationPath("source.txt", "existing-file")
+    if (withoutBom.expectation !== "existing-file") throw new Error("expected existing-file inspection")
+    await expect(service.commitEditorMutations([{
+      operation: "update",
+      path: "source.txt",
+      content: "after\r\n",
+      expectedRevision: {
+        ...readSnapshot,
+        mtimeMs: withoutBom.revision.mtimeMs,
+      },
+    }])).rejects.toMatchObject({ code: "WORKSPACE_FILE_STALE" })
+    expect(await readFile(join(root, "source.txt"))).toEqual(Buffer.from("before\r\n", "utf8"))
+  })
+
+  test("批量提交在暂存前拒绝只读目标", async () => {
+    const { root, service } = await workspace()
+    const target = join(root, "readonly.txt")
+    await writeFile(target, "before\n", "utf8")
+    const revision = (await service.readEditorFile("readonly.txt")).revision
+    await chmod(target, 0o444)
+    try {
+      await expect(service.commitEditorMutations([{
+        operation: "update",
+        path: "readonly.txt",
+        content: "after\n",
+        expectedRevision: revision,
+      }])).rejects.toMatchObject({ code: "WORKSPACE_FILE_READONLY" })
+      expect(await readFile(target, "utf8")).toBe("before\n")
+    } finally {
+      await chmod(target, 0o666)
+    }
+  })
+
+  test("批量预检通过后保留 BOM 提交 update/create，任一 revision 失效时零写入", async () => {
+    const { root, service } = await workspace()
+    const bom = Buffer.from([0xef, 0xbb, 0xbf])
+    await writeFile(join(root, "first.txt"), Buffer.concat([bom, Buffer.from("first\r\n", "utf8")]))
+    await writeFile(join(root, "second.txt"), "second\n", "utf8")
+    const first = await service.inspectMutationPath("first.txt", "existing-file")
+    const second = await service.inspectMutationPath("second.txt", "existing-file")
+    if (first.expectation !== "existing-file" || second.expectation !== "existing-file") {
+      throw new Error("expected existing-file inspections")
+    }
+
+    const committed = await service.commitEditorMutations([
+      { operation: "update", path: "first.txt", content: "updated\r\n", expectedRevision: first.revision },
+      { operation: "create", path: "created.txt", content: "created\n" },
+    ])
+    expect(committed).toMatchObject({
+      outcome: "committed",
+      files: [
+        { operation: "update", path: "first.txt", beforeSha256: first.revision.sha256 },
+        { operation: "create", path: "created.txt", beforeSha256: null },
+      ],
+    })
+    expect(await readFile(join(root, "first.txt"))).toEqual(Buffer.concat([bom, Buffer.from("updated\r\n", "utf8")]))
+    expect(await readFile(join(root, "created.txt"), "utf8")).toBe("created\n")
+
+    const currentFirst = await service.inspectMutationPath("first.txt", "existing-file")
+    const currentSecond = await service.inspectMutationPath("second.txt", "existing-file")
+    if (currentFirst.expectation !== "existing-file" || currentSecond.expectation !== "existing-file") {
+      throw new Error("expected existing-file inspections")
+    }
+    await writeFile(join(root, "second.txt"), "external\n", "utf8")
+    await expect(service.commitEditorMutations([
+      { operation: "update", path: "first.txt", content: "must-not-write\r\n", expectedRevision: currentFirst.revision },
+      { operation: "update", path: "second.txt", content: "must-not-write\n", expectedRevision: currentSecond.revision },
+    ])).rejects.toMatchObject({ code: "WORKSPACE_FILE_STALE" })
+    expect(await readFile(join(root, "first.txt"))).toEqual(Buffer.concat([bom, Buffer.from("updated\r\n", "utf8")]))
+    expect(await readFile(join(root, "second.txt"), "utf8")).toBe("external\n")
+  })
+
+  test("同一 canonical 文件的并发批量更新串行化，后提交者看到 stale revision", async () => {
+    const { root, service } = await workspace()
+    await writeFile(join(root, "source.txt"), "before\n", "utf8")
+    const inspected = await service.inspectMutationPath("source.txt", "existing-file")
+    if (inspected.expectation !== "existing-file") throw new Error("expected existing-file inspection")
+
+    const settled = await Promise.allSettled([
+      service.commitEditorMutations([{
+        operation: "update",
+        path: "source.txt",
+        content: "first\n",
+        expectedRevision: inspected.revision,
+      }]),
+      service.commitEditorMutations([{
+        operation: "update",
+        path: join(root, "source.txt"),
+        content: "second\n",
+        expectedRevision: inspected.revision,
+      }]),
+    ])
+
+    expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(1)
+    const rejected = settled.find((result) => result.status === "rejected")
+    expect(rejected).toMatchObject({ status: "rejected", reason: { code: "WORKSPACE_FILE_STALE" } })
+    expect(["first\n", "second\n"]).toContain(await readFile(join(root, "source.txt"), "utf8"))
   })
 
   test("磁盘内容变化时返回 conflict 且不覆盖", async () => {

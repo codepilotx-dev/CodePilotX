@@ -114,6 +114,57 @@ describe("核心工具面", () => {
         },
       },
     )).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
+
+    await writeFile(join(root, "config.toml"), 'model = "old"\r\nreasoning = "high"\r\n', "utf8")
+    await executor.execute(
+      "Edit",
+      {
+        file_path: "@codepilotx/config.toml",
+        old_string: 'model = "old"\nreasoning = "high"',
+        new_string: 'model = "new"\nreasoning = "medium"',
+      },
+      {
+        ...context,
+        authorizationOnly: true,
+        permissionConfig: {
+          sandboxMode: "workspace-write",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+        },
+      },
+    )
+    expect(validated.at(-1)).toEqual({
+      text: 'model = "new"\r\nreasoning = "medium"\r\n',
+      scope: "user",
+    })
+
+    await executor.execute("Read", { file_path: "@codepilotx/config.toml" }, context)
+    await executor.execute(
+      "apply_patch",
+      {
+        patch: [
+          "*** Begin Patch",
+          "*** Update File: @codepilotx/config.toml",
+          "@@",
+          '-model = "old"',
+          '+model = "patched"',
+          "*** End Patch",
+        ].join("\n"),
+      },
+      {
+        ...context,
+        authorizationOnly: true,
+        permissionConfig: {
+          sandboxMode: "workspace-write",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+        },
+      },
+    )
+    expect(validated.at(-1)).toEqual({
+      text: 'model = "patched"\r\nreasoning = "high"\r\n',
+      scope: "user",
+    })
   })
 
   test("只暴露规范名称，并用同一计划收紧 Skill allowlist", async () => {
@@ -123,6 +174,7 @@ describe("核心工具面", () => {
     expect(executor.definition("workspace.read").sdkName).toBe("Read")
     const properties = (name: string) => Object.keys(executor.definition(name).inputSchema.properties as Record<string, unknown>)
     expect(properties("Read")).toEqual(["file_path", "offset", "limit"])
+    expect(properties("apply_patch")).toEqual(["patch"])
     expect(properties("Write")).toEqual(["file_path", "content"])
     expect(properties("Edit")).toEqual(["file_path", "old_string", "new_string", "replace_all"])
     expect(properties("PowerShell")).toEqual(["command", "cwd", "timeout", "description", "additionalPermissions"])
@@ -131,6 +183,18 @@ describe("核心工具面", () => {
     await expect(executor.execute<any>("workspace.read", { file_path: "internal.txt" }, context).then((result) => result.content)).resolves.toBe("internal")
     expect(() => executor.definition("workspace_read")).toThrow()
     expect(() => executor.definition("shell")).toThrow()
+    const defaultPlan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main" })
+    expect(defaultPlan.eager).toContain("apply_patch")
+    expect(defaultPlan.eager).not.toContain("Edit")
+    expect(defaultPlan.deferred).toContain("Edit")
+    const legacySkillPlan = executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      profile: "main",
+      allowedTools: ["Edit"],
+    })
+    expect(legacySkillPlan.exposed).toContain("Edit")
+    expect(legacySkillPlan.exposed).not.toContain("apply_patch")
   })
 
   test("ToolSearch 返回延迟注册表激活提示，进度由定义回调统一上报", async () => {
@@ -176,6 +240,272 @@ describe("核心工具面", () => {
     await executor.execute("Read", { file_path: "replace.txt" }, context)
     await executor.execute("Edit", { file_path: "replace.txt", old_string: "x", new_string: "y", replace_all: true }, context)
     expect(await Bun.file(join(root, "replace.txt")).text()).toBe("y y y")
+  })
+
+  test("Edit 将 Read 返回的换行上下文应用到 CRLF 文件并保持原换行", async () => {
+    const { root, executor, context } = await fixture()
+    const path = join(root, "crlf.txt")
+    await writeFile(path, "alpha\r\nbeta\r\n--\r\nalpha\r\nbeta\r\n", "utf8")
+    await executor.execute("Read", { file_path: "crlf.txt" }, context)
+    await executor.execute(
+      "Edit",
+      {
+        file_path: "crlf.txt",
+        old_string: "alpha\nbeta",
+        new_string: "gamma\ndelta",
+        replace_all: true,
+      },
+      context,
+    )
+    expect(await Bun.file(path).text()).toBe("gamma\r\ndelta\r\n--\r\ngamma\r\ndelta\r\n")
+  })
+
+  test("Edit 不会把裸 LF 精确命中到 CRLF 的中间位置", async () => {
+    const { root, executor, context } = await fixture()
+    const path = join(root, "crlf-boundary.txt")
+    await writeFile(path, "a\r\nb\r\n", "utf8")
+    await executor.execute("Read", { file_path: "crlf-boundary.txt" }, context)
+    await executor.execute(
+      "Edit",
+      { file_path: "crlf-boundary.txt", old_string: "\nb", new_string: "\nc" },
+      context,
+    )
+    expect(await Bun.file(path).text()).toBe("a\r\nc\r\n")
+  })
+
+  test("Read 与 Edit 使用同一文件的绝对和相对路径时共享快照", async () => {
+    const { root, executor, context } = await fixture()
+    const path = join(root, "source.txt")
+    await writeFile(path, "before", "utf8")
+    await executor.execute("Read", { file_path: path }, context)
+    await executor.execute("Edit", { file_path: "source.txt", old_string: "before", new_string: "after" }, context)
+    expect(await Bun.file(path).text()).toBe("after")
+  })
+
+  test("apply_patch 在一次调用中新增并更新文件，保留 BOM/CRLF 并刷新多文件快照", async () => {
+    const { root, executor, context } = await fixture()
+    const bom = Buffer.from([0xef, 0xbb, 0xbf])
+    const source = join(root, "source.txt")
+    await writeFile(source, Buffer.concat([bom, Buffer.from("alpha\r\nbefore\r\nomega\r\n", "utf8")]))
+    await executor.execute("Read", { file_path: "source.txt" }, context)
+
+    const result = await executor.execute<any>("apply_patch", {
+      patch: [
+        "*** Begin Patch",
+        "*** Update File: source.txt",
+        "@@",
+        "-before",
+        "+after",
+        "*** Add File: created.txt",
+        "+created",
+        "*** End Patch",
+      ].join("\n"),
+    }, context)
+
+    expect(result).toMatchObject({
+      operation: "apply_patch",
+      files: [
+        { operation: "update", path: "source.txt" },
+        { operation: "create", path: "created.txt" },
+      ],
+      summary: { fileCount: 2, hunkCount: 1, additions: 2, deletions: 1 },
+    })
+    expect(await Bun.file(source).arrayBuffer().then((value) => Buffer.from(value))).toEqual(
+      Buffer.concat([bom, Buffer.from("alpha\r\nafter\r\nomega\r\n", "utf8")]),
+    )
+    expect(await Bun.file(join(root, "created.txt")).text()).toBe("created\n")
+
+    await executor.execute("apply_patch", {
+      patch: [
+        "*** Begin Patch",
+        "*** Update File: source.txt",
+        "@@",
+        "-after",
+        "+again",
+        "*** End Patch",
+      ].join("\n"),
+    }, context)
+    expect(await Bun.file(source).arrayBuffer().then((value) => Buffer.from(value))).toEqual(
+      Buffer.concat([bom, Buffer.from("alpha\r\nagain\r\nomega\r\n", "utf8")]),
+    )
+  })
+
+  test("apply_patch 任一 Update 缺少 Read 快照时整批零写入", async () => {
+    const { root, executor, context } = await fixture()
+    await writeFile(join(root, "first.txt"), "first\n", "utf8")
+    await writeFile(join(root, "second.txt"), "second\n", "utf8")
+    await executor.execute("Read", { file_path: "first.txt" }, context)
+
+    await expect(executor.execute("apply_patch", {
+      patch: [
+        "*** Begin Patch",
+        "*** Update File: first.txt",
+        "@@",
+        "-first",
+        "+changed-first",
+        "*** Update File: second.txt",
+        "@@",
+        "-second",
+        "+changed-second",
+        "*** End Patch",
+      ].join("\n"),
+    }, context)).rejects.toMatchObject({ code: "WORKSPACE_FILE_STALE" })
+
+    expect(await Bun.file(join(root, "first.txt")).text()).toBe("first\n")
+    expect(await Bun.file(join(root, "second.txt")).text()).toBe("second\n")
+  })
+
+  test("apply_patch 任一受保护目标会让整批进入审批并投影全部安全路径", async () => {
+    const reviewed: any[] = []
+    const { root, executor, context } = await fixture({
+      authorizeShell: async (invocation) => {
+        reviewed.push(invocation)
+        return { decision: "allow", risk: "high", reason: "approved" }
+      },
+    })
+    await mkdir(join(root, ".git", "hooks"), { recursive: true })
+    await mkdir(join(root, "vendor", "repo", ".git", "hooks"), { recursive: true })
+
+    const result = await executor.execute<any>("apply_patch", {
+      patch: [
+        "*** Begin Patch",
+        "*** Add File: normal.txt",
+        "+normal",
+        "*** Add File: .git/hooks/pre-commit",
+        "+hook",
+        "*** Add File: vendor/repo/.git/hooks/pre-push",
+        "+nested-hook",
+        "*** End Patch",
+      ].join("\n"),
+    }, {
+      ...context,
+      authorizationOnly: true,
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+      },
+    })
+
+    expect(result).toMatchObject({
+      decision: "allow",
+      authorizationFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+    })
+    expect(reviewed.at(-1)?.authorizationScope).toMatchObject({
+      ruleRequiresApproval: true,
+      affectedPaths: [
+          { operation: "create", path: "normal.txt" },
+          { operation: "create", path: ".git/hooks/pre-commit" },
+          { operation: "create", path: "vendor/repo/.git/hooks/pre-push" },
+        ],
+    })
+    expect(await Bun.file(join(root, "normal.txt")).exists()).toBe(false)
+    expect(await Bun.file(join(root, ".git", "hooks", "pre-commit")).exists()).toBe(false)
+    expect(await Bun.file(join(root, "vendor", "repo", ".git", "hooks", "pre-push")).exists()).toBe(false)
+  })
+
+  test("apply_patch 在 .git 目录被用作工作区根时仍强制整批审批", async () => {
+    const reviewed: any[] = []
+    const { root, executor, context } = await fixture({
+      authorizeShell: async (invocation) => {
+        reviewed.push(invocation)
+        return { decision: "allow", risk: "high", reason: "approved" }
+      },
+    })
+    const gitRoot = join(root, ".git")
+    const hooksRoot = join(gitRoot, "hooks")
+    await mkdir(hooksRoot, { recursive: true })
+    const permissionConfig = {
+      sandboxMode: "workspace-write" as const,
+      approvalPolicy: "on-request" as const,
+      approvalsReviewer: "user" as const,
+    }
+
+    const gitWorkspace = await WorkspaceService.open(gitRoot)
+    await executor.execute("apply_patch", {
+      patch: [
+        "*** Begin Patch",
+        "*** Add File: normal.txt",
+        "+normal",
+        "*** Add File: hooks/pre-commit",
+        "+hook",
+        "*** End Patch",
+      ].join("\n"),
+    }, {
+      ...context,
+      workspace: gitWorkspace,
+      authorizationOnly: true,
+      permissionConfig,
+    })
+    expect(reviewed.at(-1)?.authorizationScope).toMatchObject({
+      ruleRequiresApproval: true,
+      affectedPaths: [
+        { operation: "create", path: "normal.txt" },
+        { operation: "create", path: "hooks/pre-commit" },
+      ],
+    })
+
+    const multiRootWorkspace = await WorkspaceService.openRoots({
+      primaryRoot: root,
+      roots: [
+        { path: root, role: "primary" },
+        { folderId: "git-hooks", path: hooksRoot, role: "secondary" },
+      ],
+    })
+    await executor.execute("apply_patch", {
+      patch: [
+        "*** Begin Patch",
+        "*** Add File: workspace-normal.txt",
+        "+normal",
+        `*** Add File: ${join(hooksRoot, "pre-push")}`,
+        "+hook",
+        "*** End Patch",
+      ].join("\n"),
+    }, {
+      ...context,
+      workspace: multiRootWorkspace,
+      authorizationOnly: true,
+      permissionConfig,
+    })
+    expect(reviewed.at(-1)?.authorizationScope).toMatchObject({
+      ruleRequiresApproval: true,
+      affectedPaths: [
+        { operation: "create", path: "workspace-normal.txt" },
+        { operation: "create", path: "@workspace/git-hooks/pre-push" },
+      ],
+    })
+  })
+
+  test("apply_patch 快照失效失败不会遮蔽原始部分提交错误", async () => {
+    const { root, workspace, executor, context } = await fixture()
+    const target = join(root, "source.txt")
+    await writeFile(target, "before\n", "utf8")
+    await executor.execute("Read", { file_path: "source.txt" }, context)
+    workspace.commitEditorMutations = async () => {
+      await rm(target, { force: true })
+      await mkdir(target)
+      throw new AgentError("PATCH_PARTIAL_COMMIT", "内部部分提交错误", 500, {
+        committed: ["source.txt"],
+        pending: [],
+      })
+    }
+
+    const error = await executor.execute("apply_patch", {
+      patch: [
+        "*** Begin Patch",
+        "*** Update File: source.txt",
+        "@@",
+        "-before",
+        "+after",
+        "*** End Patch",
+      ].join("\n"),
+    }, context).catch((cause) => cause)
+
+    expect(error).toBeInstanceOf(AgentError)
+    if (!(error instanceof AgentError)) throw error
+    expect(error.code).toBe("PATCH_PARTIAL_COMMIT")
+    expect(error.details).toEqual({ committed: ["source.txt"], pending: [] })
+    expect(error.message).not.toContain(root)
   })
 
   test("Glob 与 Grep 有界返回，Shell schema 禁止后台和绕过参数", async () => {

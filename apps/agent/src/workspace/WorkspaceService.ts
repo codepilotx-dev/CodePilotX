@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto"
 import { watch as watchFileSystem } from "node:fs"
-import { chmod, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
+import { chmod, link, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
 
@@ -14,8 +14,21 @@ const SEARCH_MAX_FILES = 10_000
 const SEARCH_MAX_BYTES = 50 * 1024 * 1024
 const SEARCH_TIMEOUT_MS = 10_000
 const decoder = new TextDecoder("utf-8", { fatal: true })
+const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
 const decodeUtf8 = (bytes: Uint8Array) => {
   try { return decoder.decode(bytes) } catch { throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件包含非法 UTF-8 字节", 400) }
+}
+const hasUtf8Bom = (bytes: Uint8Array) =>
+  bytes.length >= UTF8_BOM.length
+  && UTF8_BOM.every((value, index) => bytes[index] === value)
+const encodeUtf8 = (content: string, preserveBom: boolean) => {
+  const explicitBom = content.startsWith("\uFEFF")
+  const normalizedContent = explicitBom ? content.slice(1) : content
+  const bytes = Buffer.from(normalizedContent, "utf8")
+  return {
+    content: normalizedContent,
+    bytes: preserveBom || explicitBom ? Buffer.concat([UTF8_BOM, bytes]) : bytes,
+  }
 }
 
 export interface WorkspaceSearchResult {
@@ -27,7 +40,65 @@ export interface WorkspaceSearchResult {
 export interface WorkspaceFileRevision {
   mtimeMs: number
   sha256: string
+  /** Internal raw-byte guard used by editor mutations; older RPC clients may omit it. */
+  rawSha256?: string
+  /** Internal BOM guard used by editor mutations; older RPC clients may omit it. */
+  utf8Bom?: boolean
 }
+
+export type WorkspaceMutationExpectation = "existing-file" | "new-file"
+
+export type WorkspaceMutationPathInspection =
+  | {
+      expectation: "new-file"
+      path: string
+      canonicalPath: string
+    }
+  | {
+      expectation: "existing-file"
+      path: string
+      canonicalPath: string
+      content: string
+      sizeBytes: number
+      revision: WorkspaceFileRevision
+      utf8Bom: boolean
+      rawSha256: string
+    }
+
+export type EditorMutation =
+  | {
+      operation: "create"
+      path: string
+      content: string
+    }
+  | {
+      operation: "update"
+      path: string
+      content: string
+      expectedRevision: WorkspaceFileRevision
+    }
+
+export interface EditorMutationResult {
+  operation: EditorMutation["operation"]
+  path: string
+  beforeSha256: string | null
+  afterSha256: string
+  revision: WorkspaceFileRevision
+}
+
+export interface EditorMutationCommitResult {
+  outcome: "committed"
+  files: EditorMutationResult[]
+}
+
+type InternalMutationPathInspection =
+  | (Extract<WorkspaceMutationPathInspection, { expectation: "new-file" }> & {
+      key: string
+    })
+  | (Extract<WorkspaceMutationPathInspection, { expectation: "existing-file" }> & {
+      key: string
+      mode: number
+    })
 
 export interface WorkspaceEditorFile {
   path: string
@@ -70,6 +141,7 @@ export interface ApplyPatchResult {
 const lines = (value: string) => value === "" ? [] : value.replace(/\r?\n$/, "").split(/\r?\n/)
 const lineCount = (value: string) => lines(value).length
 const sha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex")
+const sha256Bytes = (value: Uint8Array) => createHash("sha256").update(value).digest("hex")
 
 const diffLines = (prefix: "+" | "-", value: string) =>
   lines(value).map((line) => `${prefix}${line}`)
@@ -113,6 +185,7 @@ export class WorkspaceService {
   readonly writableRoots: readonly string[]
   readonly workspaceRoots: readonly WorkspaceRoot[]
   private readonly editorAliases = new Map<string, string>()
+  private readonly mutationQueues = new Map<string, Promise<void>>()
 
   private constructor(rootPath: string, workspaceRoots: readonly WorkspaceRoot[]) {
     this.rootPath = rootPath
@@ -279,6 +352,154 @@ export class WorkspaceService {
     return canonical
   }
 
+  private mutationKey(path: string) {
+    const normalized = resolve(path)
+    return process.platform === "win32" ? normalized.toLowerCase() : normalized
+  }
+
+  private async inspectNewFilePath(path: string) {
+    const requested = this.requestedPath(path)
+    const alias = this.aliasTarget(path)
+    const parent = await realpath(dirname(requested)).catch(() => {
+      throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "目标文件的父目录不存在或不可访问", 404)
+    })
+    if (alias) {
+      if (parent !== dirname(alias)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名父目录无效", 403)
+    } else {
+      this.ensureWithinRoot(parent)
+    }
+    const metadata = await stat(parent)
+    if (!metadata.isDirectory()) throw new AgentError("WORKSPACE_NOT_DIRECTORY", "目标文件的父路径不是目录", 400)
+    const canonical = resolve(parent, basename(requested))
+    if (alias) {
+      if (canonical !== alias) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
+    } else {
+      this.ensureWithinRoot(canonical)
+    }
+    this.ensureWritable(canonical)
+    try {
+      await lstat(canonical)
+      throw new AgentError("WORKSPACE_PATH_EXISTS", "目标文件已存在", 409)
+    } catch (cause) {
+      if (cause instanceof AgentError) throw cause
+      if ((cause as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw new AgentError("WORKSPACE_PATH_UNREADABLE", "目标文件状态无法确认", 400)
+      }
+    }
+    return canonical
+  }
+
+  private async readMutationFileState(canonical: string) {
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if ((metadata.mode & 0o222) === 0) {
+      throw new AgentError("WORKSPACE_FILE_READONLY", "目标文件为只读文件，拒绝修改", 403)
+    }
+    if (metadata.size > EDITOR_WRITE_MAX_BYTES) {
+      throw new AgentError("WORKSPACE_FILE_READONLY", `超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件为只读`, 409, {
+        sizeBytes: metadata.size,
+        maxBytes: EDITOR_WRITE_MAX_BYTES,
+      })
+    }
+    const bytes = await readFile(canonical).catch(() => {
+      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法读取", 400)
+    })
+    const current = await stat(canonical)
+    if (!current.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (current.size !== bytes.byteLength || current.mtimeMs !== metadata.mtimeMs) {
+      throw new AgentError("WORKSPACE_FILE_STALE", "文件在读取时发生变化，请重新读取", 409)
+    }
+    const content = decodeUtf8(bytes)
+    return {
+      content,
+      metadata: current,
+      utf8Bom: hasUtf8Bom(bytes),
+      rawSha256: sha256Bytes(bytes),
+      revision: {
+        mtimeMs: current.mtimeMs,
+        sha256: sha256(content),
+        rawSha256: sha256Bytes(bytes),
+        utf8Bom: hasUtf8Bom(bytes),
+      },
+    }
+  }
+
+  private async inspectMutationPathInternal(
+    path: string,
+    expectation: WorkspaceMutationExpectation,
+  ): Promise<InternalMutationPathInspection> {
+    if (expectation === "new-file") {
+      const canonicalPath = await this.inspectNewFilePath(path)
+      return {
+        expectation,
+        path: this.displayPath(canonicalPath),
+        canonicalPath,
+        key: this.mutationKey(canonicalPath),
+      }
+    }
+    const canonicalPath = await this.existingPath(path)
+    this.ensureWritable(canonicalPath)
+    const state = await this.readMutationFileState(canonicalPath)
+    return {
+      expectation,
+      path: this.displayPath(canonicalPath),
+      canonicalPath,
+      key: this.mutationKey(canonicalPath),
+      content: state.content,
+      sizeBytes: Buffer.byteLength(state.content, "utf8"),
+      revision: state.revision,
+      utf8Bom: state.utf8Bom,
+      rawSha256: state.rawSha256,
+      mode: state.metadata.mode,
+    }
+  }
+
+  /** Resolves and validates a mutation target without creating directories or files. */
+  async inspectMutationPath(
+    path: string,
+    expectation: WorkspaceMutationExpectation,
+  ): Promise<WorkspaceMutationPathInspection> {
+    const inspected = await this.inspectMutationPathInternal(path, expectation)
+    if (inspected.expectation === "new-file") {
+      return {
+        expectation: inspected.expectation,
+        path: inspected.path,
+        canonicalPath: inspected.canonicalPath,
+      }
+    }
+    return {
+      expectation: inspected.expectation,
+      path: inspected.path,
+      canonicalPath: inspected.canonicalPath,
+      content: inspected.content,
+      sizeBytes: inspected.sizeBytes,
+      revision: inspected.revision,
+      utf8Bom: inspected.utf8Bom,
+      rawSha256: inspected.rawSha256,
+    }
+  }
+
+  private async withMutationLocks<T>(keys: readonly string[], execute: () => Promise<T>) {
+    const ordered = [...new Set(keys)].sort((left, right) => left.localeCompare(right))
+    const predecessors = ordered.map((key) => this.mutationQueues.get(key) ?? Promise.resolve())
+    const ready = Promise.all(predecessors.map((predecessor) => predecessor.catch(() => undefined))).then(() => undefined)
+    let release!: () => void
+    const gate = new Promise<void>((resolveGate) => {
+      release = resolveGate
+    })
+    const tail = ready.then(() => gate)
+    for (const key of ordered) this.mutationQueues.set(key, tail)
+    await ready
+    try {
+      return await execute()
+    } finally {
+      release()
+      for (const key of ordered) {
+        if (this.mutationQueues.get(key) === tail) this.mutationQueues.delete(key)
+      }
+    }
+  }
+
   private async replaceAtomically(path: string, content: string, mode?: number, maxBytes = MAX_FILE_BYTES) {
     this.ensureWritable(path)
     if (Buffer.byteLength(content, "utf8") > maxBytes) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${maxBytes} 字节上限`, 413)
@@ -366,9 +587,11 @@ export class WorkspaceService {
         maxBytes: EDITOR_READ_MAX_BYTES,
       })
     }
+    let bytes: Buffer
     let content: string
     try {
-      content = decodeUtf8(await readFile(canonical))
+      bytes = await readFile(canonical)
+      content = decodeUtf8(bytes)
     } catch (cause) {
       if (cause instanceof AgentError) throw cause
       throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
@@ -381,7 +604,12 @@ export class WorkspaceService {
       sizeBytes: Buffer.byteLength(content, "utf8"),
       readonly: current.size > EDITOR_WRITE_MAX_BYTES,
       truncated: false,
-      revision: { mtimeMs: current.mtimeMs, sha256: sha256(content) },
+      revision: {
+        mtimeMs: current.mtimeMs,
+        sha256: sha256(content),
+        rawSha256: sha256Bytes(bytes),
+        utf8Bom: hasUtf8Bom(bytes),
+      },
     }
   }
 
@@ -414,39 +642,237 @@ export class WorkspaceService {
     return this.displayPath(canonical)
   }
 
+  /**
+   * Preflights and stages every mutation before writing. Each target commit is
+   * atomic, but a cross-file commit can still fail partway and reports that
+   * state with PATCH_PARTIAL_COMMIT.
+   */
+  async commitEditorMutations(
+    mutations: readonly EditorMutation[],
+  ): Promise<EditorMutationCommitResult> {
+    if (mutations.length === 0) throw new AgentError("INVALID_REQUEST", "文件变更不能为空", 400)
+    for (const mutation of mutations) {
+      if (mutation.operation === "update") {
+        if (
+          !Number.isFinite(mutation.expectedRevision.mtimeMs)
+          || mutation.expectedRevision.mtimeMs < 0
+          || !/^[a-f\d]{64}$/i.test(mutation.expectedRevision.sha256)
+          || (
+            mutation.expectedRevision.rawSha256 !== undefined
+            && !/^[a-f\d]{64}$/i.test(mutation.expectedRevision.rawSha256)
+          )
+          || (
+            mutation.expectedRevision.utf8Bom !== undefined
+            && typeof mutation.expectedRevision.utf8Bom !== "boolean"
+          )
+        ) {
+          throw new AgentError("INVALID_REQUEST", "expectedRevision 参数无效", 400)
+        }
+      }
+      const normalized = encodeUtf8(mutation.content, false).content
+      if (Buffer.byteLength(normalized, "utf8") > EDITOR_WRITE_MAX_BYTES) {
+        throw new AgentError("WORKSPACE_FILE_READONLY", `编辑器只允许保存不超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件`, 413, {
+          sizeBytes: Buffer.byteLength(normalized, "utf8"),
+          maxBytes: EDITOR_WRITE_MAX_BYTES,
+        })
+      }
+    }
+
+    const initialInspections = await Promise.all(mutations.map((mutation) =>
+      this.inspectMutationPathInternal(
+        mutation.path,
+        mutation.operation === "create" ? "new-file" : "existing-file",
+      )))
+    const keys = initialInspections.map((inspection) => inspection.key)
+    if (new Set(keys).size !== keys.length) {
+      throw new AgentError("INVALID_REQUEST", "同一批次不能多次修改同一个文件", 400)
+    }
+
+    return this.withMutationLocks(keys, async () => {
+      type StagedMutation = {
+        index: number
+        key: string
+        mutation: EditorMutation
+        inspection: InternalMutationPathInspection
+        content: string
+        bytes: Buffer
+        temporaryPath: string | null
+      }
+
+      const staged: StagedMutation[] = []
+      const results: Array<EditorMutationResult | undefined> = Array.from({ length: mutations.length })
+      const committed = new Set<number>()
+      try {
+        for (let index = 0; index < mutations.length; index += 1) {
+          const mutation = mutations[index]!
+          const initial = initialInspections[index]!
+          const inspection = await this.inspectMutationPathInternal(
+            mutation.path,
+            mutation.operation === "create" ? "new-file" : "existing-file",
+          )
+          if (inspection.key !== initial.key) {
+            throw new AgentError("WORKSPACE_FILE_STALE", "文件路径在写入前发生变化，请重新读取", 409)
+          }
+          if (mutation.operation === "update") {
+            if (inspection.expectation !== "existing-file") {
+              throw new AgentError("WORKSPACE_FILE_STALE", "文件在写入前发生变化，请重新读取", 409)
+            }
+            const expectedSha256 = mutation.expectedRevision.sha256.toLowerCase()
+            if (
+              inspection.revision.mtimeMs !== mutation.expectedRevision.mtimeMs
+              || inspection.revision.sha256 !== expectedSha256
+              || (
+                mutation.expectedRevision.rawSha256 !== undefined
+                && inspection.rawSha256 !== mutation.expectedRevision.rawSha256.toLowerCase()
+              )
+              || (
+                mutation.expectedRevision.utf8Bom !== undefined
+                && inspection.utf8Bom !== mutation.expectedRevision.utf8Bom
+              )
+            ) {
+              throw new AgentError("WORKSPACE_FILE_STALE", "文件在写入前发生变化，拒绝覆写", 409, {
+                currentRevision: inspection.revision,
+              })
+            }
+          }
+          const encoded = encodeUtf8(
+            mutation.content,
+            inspection.expectation === "existing-file" && inspection.utf8Bom,
+          )
+          staged.push({
+            index,
+            key: inspection.key,
+            mutation,
+            inspection,
+            content: encoded.content,
+            bytes: encoded.bytes,
+            temporaryPath: resolve(dirname(inspection.canonicalPath), `.codepilotx-${randomUUID()}.tmp`),
+          })
+        }
+
+        for (const item of staged) {
+          await writeFile(item.temporaryPath!, item.bytes, { flag: "wx" })
+          if (item.inspection.expectation === "existing-file") {
+            await chmod(item.temporaryPath!, item.inspection.mode)
+          }
+        }
+
+        for (const item of staged) {
+          const current = await this.inspectMutationPathInternal(
+            item.mutation.path,
+            item.mutation.operation === "create" ? "new-file" : "existing-file",
+          )
+          if (current.key !== item.key) {
+            throw new AgentError("WORKSPACE_FILE_STALE", "文件路径在提交前发生变化，请重新读取", 409)
+          }
+          if (
+            current.expectation === "existing-file"
+            && item.inspection.expectation === "existing-file"
+            && (
+              current.rawSha256 !== item.inspection.rawSha256
+              || current.revision.mtimeMs !== item.inspection.revision.mtimeMs
+            )
+          ) {
+            throw new AgentError("WORKSPACE_FILE_STALE", "文件在提交前发生变化，拒绝覆写", 409, {
+              currentRevision: current.revision,
+            })
+          }
+        }
+
+        const commitOrder = [...staged].sort((left, right) => left.key.localeCompare(right.key))
+        for (const item of commitOrder) {
+          const current = await this.inspectMutationPathInternal(
+            item.mutation.path,
+            item.mutation.operation === "create" ? "new-file" : "existing-file",
+          )
+          if (current.key !== item.key) {
+            throw new AgentError("WORKSPACE_FILE_STALE", "文件路径在提交前发生变化，请重新读取", 409)
+          }
+          if (
+            current.expectation === "existing-file"
+            && item.inspection.expectation === "existing-file"
+            && (
+              current.rawSha256 !== item.inspection.rawSha256
+              || current.revision.mtimeMs !== item.inspection.revision.mtimeMs
+            )
+          ) {
+            throw new AgentError("WORKSPACE_FILE_STALE", "文件在提交前发生变化，拒绝覆写", 409, {
+              currentRevision: current.revision,
+            })
+          }
+          if (item.mutation.operation === "create") {
+            await link(item.temporaryPath!, item.inspection.canonicalPath)
+            committed.add(item.index)
+            await unlink(item.temporaryPath!)
+          } else {
+            await rename(item.temporaryPath!, item.inspection.canonicalPath)
+            committed.add(item.index)
+          }
+          item.temporaryPath = null
+          const saved = await stat(item.inspection.canonicalPath)
+          results[item.index] = {
+            operation: item.mutation.operation,
+            path: item.inspection.path,
+            beforeSha256: item.inspection.expectation === "existing-file"
+              ? item.inspection.revision.sha256
+              : null,
+            afterSha256: sha256(item.content),
+            revision: {
+              mtimeMs: saved.mtimeMs,
+              sha256: sha256(item.content),
+              rawSha256: sha256Bytes(item.bytes),
+              utf8Bom: hasUtf8Bom(item.bytes),
+            },
+          }
+        }
+      } catch (cause) {
+        await Promise.all(staged.map((item) =>
+          item.temporaryPath ? unlink(item.temporaryPath).catch(() => undefined) : Promise.resolve()))
+        if (committed.size > 0) {
+          throw new AgentError("PATCH_PARTIAL_COMMIT", "补丁仅部分写入，请重新读取相关文件后重试", 500, {
+            committed: staged
+              .filter((item) => committed.has(item.index))
+              .map((item) => item.inspection.path),
+            pending: staged
+              .filter((item) => !committed.has(item.index))
+              .map((item) => item.inspection.path),
+          })
+        }
+        if (cause instanceof AgentError) throw cause
+        throw new AgentError("WORKSPACE_WRITE_FAILED", "无法原子写入工作区文件", 500)
+      }
+      return {
+        outcome: "committed",
+        files: results.map((result) => result!),
+      }
+    })
+  }
+
   async saveEditorFile(path: string, content: string, expectedRevision: WorkspaceFileRevision) {
     if (!Number.isFinite(expectedRevision.mtimeMs) || expectedRevision.mtimeMs < 0 || !/^[a-f\d]{64}$/i.test(expectedRevision.sha256)) {
       throw new AgentError("INVALID_REQUEST", "expectedRevision 参数无效", 400)
     }
-    const contentBytes = Buffer.byteLength(content, "utf8")
-    if (contentBytes > EDITOR_WRITE_MAX_BYTES) {
-      throw new AgentError("WORKSPACE_FILE_READONLY", `编辑器只允许保存不超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件`, 413, {
-        sizeBytes: contentBytes,
-        maxBytes: EDITOR_WRITE_MAX_BYTES,
-      })
-    }
-    const canonical = await this.existingPath(path)
-    const metadata = await stat(canonical)
-    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
-    if (metadata.size > EDITOR_WRITE_MAX_BYTES) {
-      throw new AgentError("WORKSPACE_FILE_READONLY", `超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件为只读`, 409, {
-        sizeBytes: metadata.size,
-        maxBytes: EDITOR_WRITE_MAX_BYTES,
-      })
-    }
-    const current = await readFile(canonical).then(decodeUtf8).catch((cause) => {
-      if (cause instanceof AgentError) throw cause
-      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
-    })
-    const currentRevision = { mtimeMs: metadata.mtimeMs, sha256: sha256(current) }
-    if (currentRevision.mtimeMs !== expectedRevision.mtimeMs || currentRevision.sha256 !== expectedRevision.sha256.toLowerCase()) {
-      return { outcome: "conflict" as const, revision: currentRevision }
-    }
-    await this.replaceAtomically(canonical, content, metadata.mode, EDITOR_WRITE_MAX_BYTES)
-    const saved = await stat(canonical)
-    return {
-      outcome: "saved" as const,
-      revision: { mtimeMs: saved.mtimeMs, sha256: sha256(content) },
+    try {
+      const committed = await this.commitEditorMutations([{
+        operation: "update",
+        path,
+        content,
+        expectedRevision,
+      }])
+      return {
+        outcome: "saved" as const,
+        revision: committed.files[0]!.revision,
+      }
+    } catch (cause) {
+      if (cause instanceof AgentError && cause.code === "WORKSPACE_FILE_STALE") {
+        const currentRevision = (
+          cause.details
+          && typeof cause.details === "object"
+          && "currentRevision" in cause.details
+        ) ? (cause.details as { currentRevision: WorkspaceFileRevision }).currentRevision : null
+        if (currentRevision) return { outcome: "conflict" as const, revision: currentRevision }
+      }
+      throw cause
     }
   }
 

@@ -464,11 +464,21 @@ function approvalFromPayload(payload: {
   tool: string
   command?: string
   cwd?: string
+  affectedPaths?: readonly { path: string; operation: "create" | "update" }[]
+  reviewSummary?: {
+    fileCount: number
+    hunkCount: number
+    additions: number
+    deletions: number
+  }
   requestedPermissions: ApprovalRequest["requestedPermissions"]
   risk: ApprovalRequest["risk"]
   reason: string
   createdAt: number
 }): ApprovalRequest {
+  const affectedPaths = payload.affectedPaths === undefined
+    ? undefined
+    : payload.affectedPaths.map((affected) => ({ ...affected }))
   return {
     id: payload.interactionId,
     threadId: payload.threadId,
@@ -478,7 +488,11 @@ function approvalFromPayload(payload: {
     tool: payload.tool,
     command: payload.command ?? null,
     cwd: payload.cwd ?? null,
-    paths: [...(payload.requestedPermissions.writePaths ?? []), ...(payload.requestedPermissions.readPaths ?? [])],
+    paths: affectedPaths
+      ? affectedPaths.map(({ path }) => path)
+      : [...(payload.requestedPermissions.writePaths ?? []), ...(payload.requestedPermissions.readPaths ?? [])],
+    ...(affectedPaths ? { affectedPaths } : {}),
+    ...(payload.reviewSummary ? { reviewSummary: { ...payload.reviewSummary } } : {}),
     requestedPermissions: payload.requestedPermissions,
     review: null,
     risk: payload.risk,

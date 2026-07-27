@@ -1,12 +1,22 @@
 import { z, type ZodType } from "zod"
-import { AgentError, type SubagentProfile, type TaskMode } from "../domain"
-import { WorkspaceService } from "../workspace/WorkspaceService"
+import {
+  AgentError,
+  type SubagentProfile,
+  type TaskMode,
+  type ToolAuthorizationScope,
+} from "../domain"
+import {
+  WorkspaceService,
+  type WorkspaceFileRevision,
+} from "../workspace/WorkspaceService"
 import type { PermissionConfig, SandboxMode } from "@codepilotx/shared/thread"
 import type { Model } from "@codepilotx/model-schema"
 import type { ToolExecutionMode as PiToolExecutionMode } from "@codepilotx/pi-agent-core"
 import { isAbsolute, relative, resolve } from "node:path"
 import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
 import { nativeGlobWorkspace, nativeGrepWorkspace } from "./NativeWorkspaceSearch"
+import { applyEditText } from "./Edit/applyEditText"
+import { applyPatchDefinition } from "./ApplyPatch/definition"
 
 export type ToolCapabilities = {
   filesystem: "none" | "read" | "workspace-write" | "host-write"
@@ -22,6 +32,20 @@ export type ToolExecutionMode = PiToolExecutionMode
 export type ToolProgress = { message: string; completed?: number; total?: number; details?: unknown }
 export type ToolStructuredResult = { content: string; details: unknown; addedToolNames?: string[] }
 export type PromptFactory = string | ((context: ToolContext) => string)
+export type { ToolAffectedPath, ToolAuthorizationScope, ToolReviewSummary } from "../domain"
+export type ToolFileSnapshots = {
+  get(path: string): Promise<WorkspaceFileRevision | undefined>
+  set(path: string, revision: WorkspaceFileRevision): Promise<void>
+  invalidate(paths: readonly string[]): Promise<void>
+}
+export type ToolInputInspection = {
+  authorizationScope: ToolAuthorizationScope
+  configWrites?: readonly {
+    path: string
+    content: string
+    scope: "user" | "project"
+  }[]
+}
 export type ToolOrigin =
   | { kind: "builtin" }
   | {
@@ -47,6 +71,11 @@ export interface ToolCatalogEntry<Input = unknown, Output = unknown> {
   inputSchema: Record<string, unknown>
   /** Structured provenance used by permission and routing decisions. */
   origin?: ToolOrigin
+  /** Host-only inspection performed before hooks, review, or execution. */
+  inspectInput?: (
+    input: Input,
+    context: ToolContext,
+  ) => ToolInputInspection | Promise<ToolInputInspection>
   progress?: (input: Input, context: ToolContext) => ToolProgress | undefined
   formatResult?: (output: Output, context: ToolContext) => ToolStructuredResult
 }
@@ -61,6 +90,9 @@ export interface ToolContext {
   onProgress?: (progress: ToolProgress) => void
   deferredTools?: readonly ToolCatalogEntry[]
   readSnapshot?: { mtimeMs: number; sha256: string }
+  fileSnapshots?: ToolFileSnapshots
+  /** Host-inspected scope for the exact input being executed. */
+  authorizationScope?: ToolAuthorizationScope
   fileSaved?: (input: { filePath: string; content: string }) => Promise<void>
   resolveTooling?: ToolingResolver
   runToolProcess?: ToolProcessRunner
@@ -244,6 +276,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       return { path: file.path, content: lines.slice(offset, offset + limit).join("\n"), offset, lineCount: lines.length, truncated: offset + limit < lines.length, sizeBytes: file.sizeBytes, snapshot: file.revision }
     },
   },
+  applyPatchDefinition,
   {
     sdkName: "Write", name: "workspace.write", description: "创建或完整覆写工作区文件。已有文件必须先 Read，快照由执行器自动维护。",
     schema: z.object({ file_path: z.string().min(1), content: z.string() }).strict(),
@@ -271,15 +304,12 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     sdkName: "Edit", name: "workspace.edit", description: "编辑工作区文件。文件必须先 Read；replace_all 默认为 false。",
     schema: z.object({ file_path: z.string().min(1), old_string: z.string().min(1), new_string: z.string(), replace_all: z.boolean().default(false) }).strict(),
     inputSchema: jsonObject({ file_path: { type: "string" }, old_string: { type: "string", minLength: 1 }, new_string: { type: "string" }, replace_all: { type: "boolean", default: false } }, ["file_path", "old_string", "new_string"]),
-    capabilities: { ...noCapabilities(), filesystem: "workspace-write", externalState: true }, allowedModes: ["chat"], allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "eager", executionMode: "sequential",
+    capabilities: { ...noCapabilities(), filesystem: "workspace-write", externalState: true }, allowedModes: ["chat"], allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "deferred", executionMode: "sequential",
     progress: (input) => ({ message: `正在编辑 ${input.file_path}` }),
     execute: async (input, context) => {
       const current = await context.workspace.readEditorFile(input.file_path)
       if (!context.readSnapshot || context.readSnapshot.sha256 !== current.revision.sha256 || context.readSnapshot.mtimeMs !== current.revision.mtimeMs) throw new AgentError("WORKSPACE_FILE_STALE", "文件内容已变化或缺少完整 Read 快照，拒绝编辑", 409, { currentRevision: current.revision })
-      const first = current.content.indexOf(input.old_string)
-      if (first < 0) throw new AgentError("PATCH_CONTEXT_NOT_FOUND", "编辑上下文未找到", 409)
-      if (!input.replace_all && current.content.indexOf(input.old_string, first + 1) >= 0) throw new AgentError("PATCH_CONTEXT_AMBIGUOUS", "编辑上下文不唯一；如需全部替换请设置 replace_all", 409)
-      const content = input.replace_all ? current.content.split(input.old_string).join(input.new_string) : `${current.content.slice(0, first)}${input.new_string}${current.content.slice(first + input.old_string.length)}`
+      const content = applyEditText(current.content, input.old_string, input.new_string, input.replace_all)
       const saved = await context.workspace.saveEditorFile(input.file_path, content, context.readSnapshot)
       if (saved.outcome === "conflict") throw new AgentError("WORKSPACE_FILE_STALE", "文件在编辑前发生变化，拒绝写入", 409, { currentRevision: saved.revision })
       await context.fileSaved?.({ filePath: current.path, content })

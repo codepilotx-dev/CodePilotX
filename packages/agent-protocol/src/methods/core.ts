@@ -148,6 +148,8 @@ export const PendingApprovalInteractionSchema = Schema.Struct({
   reason: NonEmptyStringSchema,
   command: Schema.optional(Schema.String),
   cwd: Schema.optional(Schema.String),
+  affectedPaths: Schema.optional(Schema.Array(AgentThread.ToolAffectedPathSchema)),
+  reviewSummary: Schema.optional(AgentThread.ToolReviewSummarySchema),
   requestedPermissions: AgentThread.AdditionalPermissionsSchema,
   allowedChoices: Schema.Array(Schema.Literals(["allow-once", "deny", "stop"])),
 })

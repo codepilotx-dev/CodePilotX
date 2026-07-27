@@ -403,6 +403,9 @@ export class SubagentService {
             answer: permissionCheckpoint.payload.resolution?.feedback ?? null,
             decision: permissionCheckpoint.decision,
             toolCallID: permissionCheckpoint.toolCallID,
+            ...(permissionCheckpoint.payload.invocation.authorizationScope
+              ? { authorizationFingerprint: permissionCheckpoint.payload.invocation.authorizationScope.fingerprint }
+              : {}),
             approvalID: permissionCheckpoint.approvalID,
           } as const
         : undefined

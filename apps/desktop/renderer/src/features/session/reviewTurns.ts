@@ -26,6 +26,8 @@ const FILE_MUTATING_TOOL_NAMES = new Set([
   'Edit',
   'Write',
   'MultiEdit',
+  'apply_patch',
+  'ApplyPatch',
 ])
 
 function eventCreatedAtMs(event: DesktopSessionEvent): number {
@@ -79,13 +81,30 @@ function collectFilesFromPatchEvent(
   return []
 }
 
-function extractFilePathFromToolCall(
+function pathsFromUnknown(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(candidate => {
+    if (typeof candidate === 'string') return candidate ? [candidate] : []
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+      return []
+    }
+    const path = asString((candidate as Record<string, unknown>).path)
+    return path ? [path] : []
+  })
+}
+
+function extractFilePathsFromToolCall(
   event: DesktopSessionEvent,
-): string | null {
+): string[] {
   const meta = event.metadata ?? {}
   const input = (meta.input && typeof meta.input === 'object'
     ? (meta.input as Record<string, unknown>)
     : null)
+  const scope = meta.authorizationScope
+    && typeof meta.authorizationScope === 'object'
+    && !Array.isArray(meta.authorizationScope)
+    ? meta.authorizationScope as Record<string, unknown>
+    : null
   const candidates = [
     asString(meta.file_path),
     asString(meta.filePath),
@@ -93,10 +112,14 @@ function extractFilePathFromToolCall(
     input ? asString(input.filePath) : null,
     input ? asString(input.path) : null,
   ]
-  for (const candidate of candidates) {
-    if (candidate) return candidate
-  }
-  return null
+  return [...new Set([
+    ...candidates.filter((candidate): candidate is string => candidate !== null),
+    ...pathsFromUnknown(meta.paths),
+    ...pathsFromUnknown(meta.affectedPaths),
+    ...pathsFromUnknown(scope?.affectedPaths),
+    ...pathsFromUnknown(input?.paths),
+    ...pathsFromUnknown(input?.affectedPaths),
+  ])]
 }
 
 function isFileMutatingToolCall(event: DesktopSessionEvent): boolean {
@@ -177,16 +200,18 @@ export function deriveReviewTurns(
       continue
     }
     if (isFileMutatingToolCall(event)) {
-      const filePath = extractFilePathFromToolCall(event)
-      if (!filePath) continue
+      const filePaths = extractFilePathsFromToolCall(event)
+      if (filePaths.length === 0) continue
       currentTurn.toolCallEventIds.push(event.id)
       currentTurn.hasToolOnlyChanges =
         currentTurn.filePatchEventIds.length === 0
-      addFileToTurn(currentTurn, {
-        path: filePath,
-        additions: 0,
-        deletions: 0,
-      })
+      for (const path of filePaths) {
+        addFileToTurn(currentTurn, {
+          path,
+          additions: 0,
+          deletions: 0,
+        })
+      }
     }
   }
   finalizeTurn()

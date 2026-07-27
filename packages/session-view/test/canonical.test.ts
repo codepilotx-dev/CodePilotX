@@ -324,6 +324,72 @@ describe("canonical thread state", () => {
     expect(applyThreadEnvelope(next, { ...envelope, eventId: "different-id" })).toBe(next)
   })
 
+  test("projects affected approval paths and keeps legacy paths derived from the safe scope", () => {
+    const activeTurn = turn("turn-approval")
+    const rootAgent = agent("agent-approval", activeTurn.id)
+    const bundle = {
+      turn: activeTurn,
+      inputs: [input("input-approval", activeTurn.id, 1)],
+      messages: [],
+      agents: [rootAgent],
+      items: [],
+      approvals: [],
+    }
+    const payload = {
+      interactionId: "approval-scoped",
+      threadId: thread.id,
+      turnId: activeTurn.id,
+      agentId: rootAgent.id,
+      toolCallId: "tool-scoped",
+      tool: "apply_patch",
+      risk: "high" as const,
+      reason: "需要确认",
+      affectedPaths: [
+        { path: "src/a.ts", operation: "update" as const },
+        { path: "src/b.ts", operation: "create" as const },
+      ],
+      reviewSummary: {
+        fileCount: 2,
+        hunkCount: 2,
+        additions: 4,
+        deletions: 1,
+      },
+      requestedPermissions: { writePaths: ["legacy-only.ts"] },
+      createdAt: 20,
+    }
+    const state = createCanonicalThreadState(page([bundle]))
+    const projected = applyThreadEnvelope(
+      state,
+      durable(11, "approval/requested", payload),
+    )
+    expect(projected.approvalsById.get(payload.interactionId)).toMatchObject({
+      paths: ["src/a.ts", "src/b.ts"],
+      affectedPaths: payload.affectedPaths,
+      reviewSummary: payload.reviewSummary,
+    })
+
+    const snapshot = {
+      thread,
+      turns: [activeTurn],
+      agents: [rootAgent],
+      subagents: [],
+      inputs: bundle.inputs,
+      messages: [],
+      items: [],
+      approvals: [],
+    }
+    const legacyProjected = applyThreadEvent(snapshot, {
+      jsonrpc: "2.0",
+      method: "approval/requested",
+      params: payload,
+    })
+    expect(legacyProjected.approvals[0]).toMatchObject({
+      paths: ["src/a.ts", "src/b.ts"],
+      affectedPaths: payload.affectedPaths,
+      reviewSummary: payload.reviewSummary,
+    })
+  })
+
   test("keeps assistant text and separated process groups in ordinal order", () => {
     const activeTurn = turn("turn-ordered")
     const rootAgent = agent("agent-ordered", activeTurn.id)

@@ -3,9 +3,23 @@ import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { PiEventAdapter, piToolResultText } from "../src/orchestration/pi/PiEventAdapter"
-import { finishedPiToolItem, piCompactionEventPayload, piItemDeltaPayload, piToolItemPayload } from "../src/orchestration/PiOrchestratorAdapter"
+import { finishedPiToolItem, piCompactionEventPayload, piItemDeltaPayload, piToolItemPayload, piToolTimelineInput } from "../src/orchestration/PiOrchestratorAdapter"
 
 describe("PiEventAdapter", () => {
+  test("apply_patch 时间线输入隐藏补丁正文和其中的主机路径", () => {
+    const input = piToolTimelineInput("apply_patch", {
+      patch: "*** Begin Patch\n*** Update File: C:\\secret\\source.ts\n@@\n-old\n+new\n*** End Patch",
+    })
+    expect(input).toEqual({
+      operation: "apply_patch",
+      patchBytes: expect.any(Number),
+      patch: "[补丁正文已隐藏]",
+      affectedPaths: [{ path: "source.ts", operation: "update" }],
+    })
+    expect(JSON.stringify(input)).not.toContain("C:\\\\secret")
+    expect(JSON.stringify(input)).not.toContain("-old")
+  })
+
   test("routes live text and reasoning deltas without inventing durable events", async () => {
     const seen: string[] = []
     const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {

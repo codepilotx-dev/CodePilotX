@@ -294,7 +294,7 @@ function ToolItemView({ item }: { item: ItemOf<"tool"> }): React.ReactNode {
         {item.output ? <pre><code>{item.output}</code></pre> : null}
         {item.error ? <p className="canonical-item-error">{item.error}</p> : null}
         {!item.command && !item.output && !item.error ? (
-          <pre><code>{formatUnknown(item.input)}</code></pre>
+          <pre><code>{formatToolInputForDisplay(item.tool, item.input)}</code></pre>
         ) : null}
       </div>
     </details>
@@ -405,4 +405,20 @@ function formatUnknown(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+export function formatToolInputForDisplay(tool: string, input: unknown): string {
+  if (
+    tool.toLowerCase().split(".").at(-1) === "apply_patch"
+    && input
+    && typeof input === "object"
+    && !Array.isArray(input)
+  ) {
+    const { patch: _patch, ...safeInput } = input as Record<string, unknown>;
+    return formatUnknown({
+      ...safeInput,
+      patch: "[补丁正文已隐藏]",
+    });
+  }
+  return formatUnknown(input);
 }

@@ -46,6 +46,29 @@ const allowedPermissionScopes = (requested: unknown): Array<PermissionGrantResol
       ? ["tool-call", "turn"]
       : ["tool-call"]
 
+const reviewerInvocation = (invocation: ToolInvocation): ToolInvocation => {
+  const scope = invocation.authorizationScope
+  return scope
+    ? {
+        ...invocation,
+        input: {
+          patchHash: scope.fingerprint,
+          affectedPaths: scope.affectedPaths,
+          summary: scope.reviewSummary ?? null,
+        },
+      }
+    : invocation
+}
+
+const approvalScopePayload = (invocation: ToolInvocation) => invocation.authorizationScope
+  ? {
+      affectedPaths: invocation.authorizationScope.affectedPaths,
+      ...(invocation.authorizationScope.reviewSummary
+        ? { reviewSummary: invocation.authorizationScope.reviewSummary }
+        : {}),
+    }
+  : {}
+
 export class ApprovalService {
   private readonly decisions = new PermissionDecisionEngine()
   private agentStatusHandler?: (agentID: string, status: "waiting_permission" | "running") => void
@@ -74,7 +97,7 @@ export class ApprovalService {
     if (resolved.action !== "review") return { decision: resolved.decision, risk: resolved.risk, reason: resolved.reason }
     if (resolved.reviewer === "auto_review" && this.reviewer) {
       try {
-        const reviewed = await this.reviewer(safeInvocation, signal)
+        const reviewed = await this.reviewer(reviewerInvocation(safeInvocation), signal)
         await this.emit(invocation.threadID, invocation.turnID, "serverRequest/resolved", { itemId: invocation.id, turnId: invocation.turnID, kind: "approval-review", ...reviewed })
         if (reviewed.decision !== "ask") return reviewed
         return this.checkpointForHuman(safeInvocation, reviewed, resolved)
@@ -95,7 +118,21 @@ export class ApprovalService {
     const createdAt = Date.now()
     const base = { kind: "tool-approval" as const, invocation: safeInvocation, permissionSnapshot: safeInvocation.permissionConfig, sandbox: resolved.sandbox as unknown as Record<string, unknown>, reviewer: resolved.reviewer, review: secretScrubber.scrub(review) as unknown as Record<string, unknown> }
     const checkpoint: ApprovalCheckpointPayload = { ...base, invocationHash: checkpointHash(base, 1) }
-    return { approvalID: id, invocation: safeInvocation, review, requestPayload: { version: 1, command: safeInvocation.input.command ?? null, cwd: safeInvocation.input.cwd ?? null, requestedPermissions: requestedPermissions(safeInvocation.input) }, checkpoint, version: 1, createdAt }
+    return {
+      approvalID: id,
+      invocation: safeInvocation,
+      review,
+      requestPayload: {
+        version: 1,
+        command: safeInvocation.input.command ?? null,
+        cwd: safeInvocation.input.cwd ?? null,
+        requestedPermissions: requestedPermissions(safeInvocation.input),
+        ...approvalScopePayload(safeInvocation),
+      },
+      checkpoint,
+      version: 1,
+      createdAt,
+    }
   }
 
   persist(prepared: PreparedApprovalCheckpoint) {
@@ -159,6 +196,7 @@ export class ApprovalService {
           ...(typeof invocation.input.command === "string" ? { command: invocation.input.command } : {}),
           ...(typeof invocation.input.cwd === "string" ? { cwd: invocation.input.cwd } : {}),
           requestedPermissions: requestedPermissions(invocation.input),
+          ...approvalScopePayload(invocation),
           allowedChoices: ["allow-once", "deny", "stop"],
         }
     const { checkpoint, events } = this.db.activateApprovalCheckpoint(stored.approvalID, payload, requestedParams)
