@@ -420,7 +420,9 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
       for (const item of questionsFromPayload(payload)) state.itemsById.set(item.id, item)
       return
     case "interaction/resolved":
-      resolveInteraction(state, payload.result)
+      // The v4 event deliberately carries only the safe response payload. It does
+      // not contain an interaction identifier, so the canonical snapshot remains
+      // the source of truth for the resolved item during reconciliation.
       return
     case "queue/updated":
       applyQueueUpdate(state, payload)
@@ -521,27 +523,6 @@ function questionsFromPayload(payload: {
     answer: null,
     createdAt: payload.createdAt + index,
   }))
-}
-
-function resolveInteraction(state: CanonicalThreadState, result: {
-  interactionId: string
-  response: { kind: "approval" | "question" | "hookTrust"; [key: string]: unknown }
-}): void {
-  if (result.response.kind === "approval") {
-    const approval = state.approvalsById.get(result.interactionId)
-    if (approval) state.approvalsById.set(approval.id, { ...approval, status: result.response.decision === "allow-once" ? "allowed" : "denied" })
-    return
-  }
-  if (result.response.kind === "question") {
-    for (const [id, item] of state.itemsById) {
-      if (item.type !== "question" || item.messageID !== result.interactionId) continue
-      state.itemsById.set(id, {
-        ...item,
-        status: result.response.status === "ignored" ? "ignored" : "answered",
-        answer: result.response.status === "answered" ? JSON.stringify(result.response.answers) : null,
-      })
-    }
-  }
 }
 
 function applyQueueUpdate(state: CanonicalThreadState, payload: {
