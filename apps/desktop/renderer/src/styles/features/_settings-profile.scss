@@ -914,7 +914,6 @@
 .settings-dropdown-item-label,
 .settings-dropdown-item-detail {
   overflow: hidden;
-  font-size: var(--type-meta);
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -922,10 +921,12 @@
 
 .settings-dropdown-item-label {
   color: var(--color-token-foreground);
+  font-size: var(--type-control);
 }
 
 .settings-dropdown-item-detail {
   color: var(--color-token-description-foreground);
+  font-size: var(--type-meta);
 }
 
 .settings-dropdown-empty {

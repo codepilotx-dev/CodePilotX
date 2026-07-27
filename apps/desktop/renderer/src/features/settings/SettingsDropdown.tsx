@@ -34,7 +34,7 @@ type Props = {
 const EMPTY_VALUE = '__radix_empty_value__'
 
 // ---------------------------------------------------------------------------
-// Shared option rendering (used by both Select and Searchable branches)
+// Option rendering (used by Searchable branch only)
 // ---------------------------------------------------------------------------
 function renderOptionContent(
   opt: Option,
@@ -133,7 +133,22 @@ function SelectSettingsDropdown({
                     tabIndex={-1}
                     value={opt.value === '' ? EMPTY_VALUE : opt.value}
                   >
-                    {renderOptionContent(opt, showSelectedIndicator ?? false, opt.value === value)}
+                    <div className="settings-dropdown-item-inner">
+                      {opt.icon}
+                      <div className="settings-dropdown-item-copy">
+                        <Select.ItemText>
+                          <span className="settings-dropdown-item-label">{opt.label}</span>
+                        </Select.ItemText>
+                        {opt.detail ? (
+                          <span className="settings-dropdown-item-detail">{opt.detail}</span>
+                        ) : null}
+                      </div>
+                      {(showSelectedIndicator ?? false) && opt.value === value ? (
+                        <Select.ItemIndicator className="settings-dropdown-item-indicator">
+                          <Check aria-hidden="true" size={14} />
+                        </Select.ItemIndicator>
+                      ) : null}
+                    </div>
                   </Select.Item>
                 ))
               ) : (
