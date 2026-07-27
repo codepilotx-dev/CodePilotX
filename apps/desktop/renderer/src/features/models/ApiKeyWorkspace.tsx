@@ -171,7 +171,7 @@ export function ApiKeyWorkspace({
 
   async function mutate(
     id: string,
-    action: () => Promise<void>,
+    action: () => Promise<unknown>,
     success: string,
   ): Promise<boolean> {
     setBusyId(id)
@@ -238,7 +238,7 @@ export function ApiKeyWorkspace({
         key.providerId,
         ordered.map(candidate => candidate.id),
       ),
-      '接管优先级已更新。',
+      '显示顺序已更新。',
     )
   }
 
@@ -310,7 +310,6 @@ export function ApiKeyWorkspace({
               <ProviderConnectionContents
                 busyId={busyId}
                 group={group}
-                integrations={snapshot.integrations}
                 keys={providerKeys}
                 onCopyKey={copyKey}
                 onDeleteKey={setDeleteKey}
@@ -356,7 +355,7 @@ export function ApiKeyWorkspace({
           const target = deleteKey
           void mutate(
             target.id,
-            () => providerManagementStore.deleteApiKey(target.id),
+            () => providerManagementStore.deleteCredential(target.id),
             'API Key 已删除。',
           ).then(success => {
             if (success) setDeleteKey(null)
@@ -386,7 +385,6 @@ export function AccountWorkspaceEmptyState({
 type ProviderConnectionContentsProps = {
   busyId: string | null
   group: ConfiguredProviderGroup
-  integrations: ReturnType<typeof useProviderManagementSnapshot>['integrations']
   keys: readonly DesktopApiKeySummary[]
   onCopyKey: (key: DesktopApiKeySummary) => Promise<void>
   onDeleteKey: (key: DesktopApiKeySummary) => void
@@ -394,7 +392,7 @@ type ProviderConnectionContentsProps = {
   onMoveKey: (key: DesktopApiKeySummary, offset: -1 | 1) => Promise<void>
   onMutate: (
     id: string,
-    action: () => Promise<void>,
+    action: () => Promise<unknown>,
     success: string,
   ) => Promise<boolean>
   onNewKey: () => void
@@ -405,7 +403,6 @@ type ProviderConnectionContentsProps = {
 function ProviderConnectionContents({
   busyId,
   group,
-  integrations,
   keys,
   onCopyKey,
   onDeleteKey,
@@ -416,14 +413,12 @@ function ProviderConnectionContents({
   onRefresh,
   onTestKey,
 }: ProviderConnectionContentsProps): React.ReactNode {
-  const oauthMethod = group.integration?.methods.find(
-    method => method.type === 'oauth',
-  )
   const supportsInferenceKeys =
-    group.provider.kind !== 'github-copilot' && !oauthMethod
-  const enabledCount = keys.filter(key => key.enabled).length
-  const renderedOAuthIntegrationIds = new Set<string>()
-  if (oauthMethod && group.integration) renderedOAuthIntegrationIds.add(group.integration.id)
+    group.provider.authMethods?.includes('api-key')
+    ?? group.provider.kind !== 'github-copilot'
+  const oauthCredentials = group.connections.filter(
+    connection => connection.kind === 'oauth' && connection.origin === 'credential',
+  )
 
   return (
     <>
@@ -432,7 +427,7 @@ function ProviderConnectionContents({
           <header>
             <div>
               <h3>推理 API Keys</h3>
-              <p>活动 Key 用于当前请求，其余已启用 Key 按优先级接管。</p>
+              <p>每个 Provider 只有一个活动凭据；其他 Key 仅保留供手动切换。</p>
             </div>
             <Button onClick={onNewKey}>
               <Plus aria-hidden />
@@ -442,8 +437,6 @@ function ProviderConnectionContents({
           {keys.length > 0 ? (
             <div className="model-center-key-list">
               {keys.map((key, index) => {
-                const onlyAvailableActive =
-                  key.active && key.enabled && enabledCount === 1
                 return (
                   <ApiKeyRow
                     busy={busyId !== null}
@@ -451,14 +444,14 @@ function ProviderConnectionContents({
                     key={key.id}
                     keyItem={key}
                     last={index === keys.length - 1}
-                    onlyAvailableActive={onlyAvailableActive}
+                    onlyAvailableActive={false}
                     onCopy={() => void onCopyKey(key)}
                     onDelete={() => onDeleteKey(key)}
                     onEdit={() => onEditKey(key)}
                     onMove={offset => void onMoveKey(key, offset)}
                     onSetActive={() => void onMutate(
                       key.id,
-                      () => providerManagementStore.setActiveApiKey(
+                      () => providerManagementStore.setActiveCredential(
                         key.providerId,
                         key.id,
                       ),
@@ -467,7 +460,7 @@ function ProviderConnectionContents({
                     onTest={() => void onTestKey(key)}
                     onToggleEnabled={() => void onMutate(
                       key.id,
-                      () => providerManagementStore.setApiKeyEnabled(
+                      () => providerManagementStore.setCredentialEnabled(
                         key.id,
                         !key.enabled,
                       ),
@@ -485,16 +478,54 @@ function ProviderConnectionContents({
         </section>
       ) : null}
 
-      {oauthMethod && group.integration ? (
+      {group.oauthAvailable ? (
         <OAuthConnection
-          connected={group.integration.connections.some(
-            connection => connection.type === 'credential',
-          )}
+          connected={oauthCredentials.length > 0}
           description="此授权用于模型推理；令牌由 Agent 加密保存。"
-          integration={group.integration}
-          title={oauthMethod.label}
+          target={{
+            kind: 'provider',
+            providerId: group.provider.providerID,
+          } as never}
+          title={`${group.provider.displayName} OAuth`}
           onChanged={onRefresh}
         />
+      ) : null}
+
+      {oauthCredentials.length > 0 ? (
+        <section className="model-center-account-section">
+          <header><div><h3>OAuth 凭据</h3><p>OAuth 与 API Key 共用活动凭据选择。</p></div></header>
+          <div className="model-center-key-list">
+            {oauthCredentials.map(connection => (
+              <div className="model-center-key-row" key={connection.id}>
+                <div><strong>{connection.label}</strong><span>{connection.active ? '当前活动' : '未选择'}</span></div>
+                <div className="model-center-account-actions">
+                  {!connection.active && connection.credentialId ? (
+                    <Button onClick={() => void onMutate(
+                      connection.id,
+                      () => providerManagementStore.setActiveCredential(
+                        group.provider.providerID,
+                        connection.credentialId!,
+                      ).then(() => undefined),
+                      '活动凭据已切换为 OAuth。',
+                    )}>设为活动</Button>
+                  ) : null}
+                  {connection.credentialId ? (
+                    <Button
+                      tone="danger"
+                      onClick={() => void onMutate(
+                        connection.id,
+                        () => providerManagementStore.deleteCredential(
+                          connection.credentialId!,
+                        ).then(() => undefined),
+                        'OAuth 凭据已删除。',
+                      )}
+                    >删除</Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {group.usageSources.map(source => {
@@ -517,13 +548,6 @@ function ProviderConnectionContents({
           )
         }
         if (source.connectionMethod.kind === 'oauth') {
-          const integrationId = String(source.connectionMethod.integrationId)
-          if (renderedOAuthIntegrationIds.has(integrationId)) return null
-          renderedOAuthIntegrationIds.add(integrationId)
-          const integration = integrations.find(
-            item => String(item.id) === integrationId,
-          )
-          if (!integration) return null
           return (
             <OAuthConnection
               connected={source.connection.kind !== 'none'}
@@ -532,7 +556,7 @@ function ProviderConnectionContents({
                   ? '独立订阅授权仅用于读取套餐额度，不会成为 Anthropic 推理凭据。'
                   : '此授权仅用于读取账户用量。'
               }
-              integration={integration}
+              target={{ kind: 'usage', sourceId: source.sourceId }}
               key={source.sourceId}
               title={source.displayName}
               onChanged={onRefresh}
@@ -635,7 +659,7 @@ function ApiKeyRow({
             className="model-center-key-badge"
             data-tone={keyItem.active ? 'active' : 'neutral'}
           >
-            {keyItem.active ? '当前' : `备用 #${index + 1}`}
+            {keyItem.active ? '当前' : `未选择 #${index + 1}`}
           </span>
           {!keyItem.enabled ? (
             <span className="model-center-key-badge" data-tone="warning">
@@ -650,9 +674,7 @@ function ApiKeyRow({
           </span>
         </div>
         <div className="model-center-key-meta">
-          <span>优先级 {keyItem.priority + 1}</span>
           <span>最近测试 {formatTime(keyItem.health.lastTestedAt)}</span>
-          <span>最近使用 {formatTime(keyItem.health.lastUsedAt)}</span>
         </div>
       </div>
       <div className="model-center-key-actions">
@@ -674,9 +696,7 @@ function ApiKeyRow({
         >
           <PopoverItem
             disabled={
-              keyItem.active
-              || !keyItem.enabled
-              || keyItem.health.status === 'auth-failed'
+              keyItem.active || !keyItem.enabled
             }
             onClick={onSetActive}
           >
@@ -705,10 +725,7 @@ function healthTone(
 }
 
 function healthText(key: DesktopApiKeySummary): string {
-  const label = HEALTH_LABELS[key.health.status]
-  if (key.health.status !== 'rate-limited' || !key.health.cooldownUntil) return label
-  const seconds = Math.max(0, Math.ceil((key.health.cooldownUntil - Date.now()) / 1_000))
-  return seconds > 0 ? `${label} ${seconds}s` : '冷却结束'
+  return HEALTH_LABELS[key.health.status]
 }
 
 function formatTime(value: number | undefined): string {

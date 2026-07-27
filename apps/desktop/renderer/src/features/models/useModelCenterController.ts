@@ -8,7 +8,6 @@ import {
 } from 'react'
 import type {
   DesktopApiKeySummary,
-  DesktopIntegration,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
@@ -29,13 +28,11 @@ export type ModelCenterController = {
   initialLoadState: ModelCenterInitialLoadState
   providers: DesktopModelProviderSummary[]
   providerState: DesktopModelProviderState | null
-  integrations: DesktopIntegration[]
   apiKeys: DesktopApiKeySummary[]
   snapshot: ProviderManagementSnapshot
   setProviderState: Dispatch<SetStateAction<DesktopModelProviderState | null>>
   setApiKeys: Dispatch<SetStateAction<DesktopApiKeySummary[]>>
   refreshProviderContext: () => Promise<{
-    integrations: DesktopIntegration[]
     providerState: DesktopModelProviderState
   }>
 }
@@ -84,7 +81,6 @@ export function useModelCenterController({
     setProviderState(nextState)
     setApiKeys([...nextSnapshot.apiKeys])
     return {
-      integrations: [...nextSnapshot.integrations],
       providerState: nextState,
     }
   }, [])
@@ -99,7 +95,6 @@ export function useModelCenterController({
     initialLoadState,
     providers: [...snapshot.providers],
     providerState,
-    integrations: [...snapshot.integrations],
     apiKeys,
     snapshot,
     setProviderState,

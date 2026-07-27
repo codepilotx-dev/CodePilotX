@@ -56,7 +56,7 @@ export function ProviderCatalog({
         aria-label="搜索 Provider"
         className="model-center-catalog-search"
         onChange={onQueryChange}
-        placeholder="搜索 Provider、ID、package 或目录来源"
+        placeholder="搜索 Provider、ID 或配置来源"
         value={query}
       />
 

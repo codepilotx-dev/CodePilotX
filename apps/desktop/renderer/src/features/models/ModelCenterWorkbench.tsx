@@ -18,8 +18,11 @@ import {
   Cable,
   Eye,
   Hammer,
+  Pencil,
+  Plus,
   RefreshCw,
   Save,
+  Trash2,
   Workflow,
 } from 'lucide-react'
 import { SearchInput } from '../../components/ui/SearchInput.js'
@@ -45,6 +48,7 @@ import {
 } from './modelCenterState.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { ProviderConnectionDialog } from './provider-management/ProviderConnectionDialog.js'
+import { ProviderEditorDialog } from './provider-management/ProviderEditorDialog.js'
 import type { ApiKeyEditorValue } from './ApiKeyEditorDialog.js'
 import {
   providerManagementStore,
@@ -116,6 +120,9 @@ export function ModelCenterWorkbench({
   const [providerSearch, setProviderSearch] = useState('')
   const [connectionDialogProviderId, setConnectionDialogProviderId] =
     useState<ModelProviderID | null>(null)
+  const [providerEditorOpen, setProviderEditorOpen] = useState(false)
+  const [providerEditorProviderId, setProviderEditorProviderId] =
+    useState<ModelProviderID | null>(null)
   const controller = useModelCenterController({
     onInitialProviderState: nextState => applyProviderState(nextState),
     onError: message => {
@@ -127,7 +134,6 @@ export function ModelCenterWorkbench({
     initialLoadState,
     providers,
     providerState,
-    integrations,
     apiKeys,
     snapshot,
     setProviderState,
@@ -170,9 +176,6 @@ export function ModelCenterWorkbench({
     [providerID, providers],
   )
   const isMiniMax = providerID === 'minimax'
-  const selectedIntegration = integrations.find(
-    integration => integration.id === selectedProvider?.integrationID,
-  )
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null
   const providerModels = (
@@ -195,7 +198,9 @@ export function ModelCenterWorkbench({
     [apiKeys, providerID],
   )
   const storedCredentialConfigured = providerApiKeys.length > 0
-    || Boolean(selectedIntegration?.connections.some(connection => connection.type === 'credential'))
+    || snapshot.credentials.some(credential =>
+      credential.providerId === providerID && credential.enabled
+    )
   const apiKeyConfigured = Boolean(selectedProviderState?.apiKeyConfigured)
     || storedCredentialConfigured
   const apiKeySource = selectedProviderState?.apiKeySource
@@ -211,9 +216,9 @@ export function ModelCenterWorkbench({
       currentProviderId: providerState?.selectedProviderID,
       currentProviderState: providerState,
       apiKeys,
-      integrations,
+      credentials: snapshot.credentials,
     },
-  ), [apiKeys, integrations, providerSearch, providerState, providers])
+  ), [apiKeys, providerSearch, providerState, providers, snapshot.credentials])
   const providerCatalogItems = useMemo<ProviderCatalogItem[]>(() => (
     providerDirectory.map(item => {
       const { connectionStatus, current, provider, sources } = item
@@ -231,12 +236,14 @@ export function ModelCenterWorkbench({
         name: provider.displayName,
         logoURL: provider.logoURL,
         source: sources.map(source => (
-          source === 'gateway' ? 'Gateway' : source === 'models-dev' ? 'Models.dev' : '内置'
+          source === 'gateway' ? 'Gateway' : source === 'custom' ? '自定义' : 'Pi 内置'
         )).join(' + '),
         modelCount: provider.defaultModels.length,
         current,
         canAddConnection: effectiveConnectionStatus === 'unconfigured',
-        status: displayedStatus,
+        status: provider.unresolvedMigrationIssues?.length
+          ? { label: '需要人工修复', tone: 'danger' }
+          : displayedStatus,
       }
     })
   ), [configuredGroupByProvider, configuredProviderIds, providerDirectory])
@@ -480,6 +487,24 @@ const nextState = await desktopClient.saveModelProvider({
     onError(message)
   }
 
+  async function deleteCustomProvider(): Promise<void> {
+    if (!selectedProvider || selectedProvider.providerKind !== 'custom') return
+    if (!window.confirm(
+      `删除自定义 Provider“${selectedProvider.displayName}”？历史线程引用和凭据将保留。`,
+    )) return
+    setBusy(true)
+    try {
+      await desktopClient.deleteProvider(selectedProvider.providerID)
+      await providerManagementStore.refresh()
+      showProviderCatalog()
+      setStatus('自定义 Provider 已删除；历史引用和凭据已保留。')
+    } catch (error) {
+      showOperationError(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const showingProviderDetail = workspaceView === 'providers' && routeState.providerId !== null
   const pageTitle = workspaceView === 'keys'
     ? '账户连接'
@@ -490,13 +515,10 @@ const nextState = await desktopClient.saveModelProvider({
     ? '按供应商统一管理推理 Key、OAuth、订阅与独立账务凭据。'
     : showingProviderDetail
       ? providerDescription(selectedProvider)
-      : '浏览供应商目录，配置 Endpoint、模型与 Router。'
+      : '浏览 Pi 供应商目录，配置自定义 Endpoint、模型与 Router。'
   const connectionDialogProvider = connectionDialogProviderId
     ? providers.find(provider => provider.providerID === connectionDialogProviderId) ?? null
     : null
-  const connectionDialogIntegration = integrations.find(integration =>
-    integration.id === connectionDialogProvider?.integrationID
-  )
   const connectionDialogSources = snapshot.usageSources.filter(source =>
     source.providerIds.some(providerId =>
       String(providerId) === String(connectionDialogProviderId)
@@ -507,7 +529,6 @@ const nextState = await desktopClient.saveModelProvider({
   )
   const connectionSummary = providerConnectionSummary({
     apiKeySource,
-    integration: selectedIntegration,
     providerKeys: providerApiKeys,
     group: selectedConfiguredGroup,
   })
@@ -543,6 +564,34 @@ const nextState = await desktopClient.saveModelProvider({
         slot="right"
       >
         <div className="model-center-header-actions">
+          {!showInitialSkeleton && workspaceView === 'providers' && !showingProviderDetail ? (
+            <Button
+              onClick={() => {
+                setProviderEditorProviderId(null)
+                setProviderEditorOpen(true)
+              }}
+            >
+              <Plus aria-hidden />
+              <span className="model-center-header-action-label">新增自定义 Provider</span>
+            </Button>
+          ) : null}
+          {!showInitialSkeleton
+            && showingProviderDetail
+            && selectedProvider?.providerKind === 'custom' ? (
+              <>
+                <Button onClick={() => {
+                  setProviderEditorProviderId(selectedProvider.providerID)
+                  setProviderEditorOpen(true)
+                }}>
+                  <Pencil aria-hidden />
+                  <span className="model-center-header-action-label">编辑 Provider</span>
+                </Button>
+                <Button tone="danger" onClick={() => void deleteCustomProvider()}>
+                  <Trash2 aria-hidden />
+                  <span className="model-center-header-action-label">删除 Provider</span>
+                </Button>
+              </>
+            ) : null}
           {!showInitialSkeleton && showingProviderDetail && providerSection === 'connection' ? (
             <>
               <Button
@@ -631,10 +680,32 @@ const nextState = await desktopClient.saveModelProvider({
 
             {providerSection === 'connection' ? (
               <div className="model-center-detail-body">
+                {selectedProvider?.unresolvedMigrationIssues?.length ? (
+                  <section className="model-center-detail-section">
+                    <header className="model-center-detail-section-heading">
+                      <div>
+                        <h3>需要人工修复</h3>
+                        <p>旧 Provider 配置包含无法安全映射的字段，当前已停用且原配置保持不变。</p>
+                      </div>
+                      <span>迁移诊断</span>
+                    </header>
+                    <p>{selectedProvider.unresolvedMigrationIssues.join('；')}</p>
+                  </section>
+                ) : null}
                 <section className="model-center-detail-section">
                   <header className="model-center-detail-section-heading"><div><h3>Endpoint</h3><p>{baseURLDescription(selectedProvider, isMiniMax)}</p></div><span>{baseURLEditable ? '自定义' : '目录提供'}</span></header>
                   <label className="model-center-detail-field"><span>Base URL</span><Input className="model-center-mono" readOnly={!baseURLEditable} value={baseURL} placeholder={selectedProvider?.baseURL ?? 'https://.../v1'} onChange={event => setBaseURL(event.target.value)} /></label>
                 </section>
+                {selectedProvider?.config?.kind === 'builtin' ? (
+                  <BuiltinProviderSettings
+                    provider={selectedProvider}
+                    onError={showOperationError}
+                    onSaved={async () => {
+                      await providerManagementStore.refresh()
+                      setStatus('内置 Provider 配置已保存。')
+                    }}
+                  />
+                ) : null}
 
                 <section className="model-center-detail-section">
                   <header className="model-center-detail-section-heading">
@@ -720,8 +791,6 @@ const nextState = await desktopClient.saveModelProvider({
       )}
       <ProviderConnectionDialog
         busy={busy}
-        integration={connectionDialogIntegration}
-        integrations={integrations}
         open={connectionDialogProviderId !== null}
         provider={connectionDialogProvider}
         sources={connectionDialogSources}
@@ -737,6 +806,26 @@ const nextState = await desktopClient.saveModelProvider({
         }}
         onOpenChange={open => {
           if (!open) setConnectionDialogProviderId(null)
+        }}
+      />
+      <ProviderEditorDialog
+        open={providerEditorOpen}
+        provider={providerEditorProviderId
+          ? providers.find(item => item.providerID === providerEditorProviderId)
+          : undefined}
+        onOpenChange={setProviderEditorOpen}
+        onSaved={async savedProviderId => {
+          await providerManagementStore.refresh()
+          const nextId = savedProviderId as ModelProviderID
+          setProviderEditorProviderId(null)
+          applyProviderSelection(
+            nextId,
+            providerManagementStore.getSnapshot().providers.find(
+              item => item.providerID === nextId,
+            ),
+          )
+          updateLocation({ provider: nextId, section: 'connection' })
+          setStatus('Provider 配置已保存。')
         }}
       />
     </div>
@@ -860,7 +949,7 @@ function ModelCenterInitialSkeleton({
 function providerDescription(provider: DesktopModelProviderSummary | undefined): string {
   if (!provider) return '选择新会话使用的供应商。'
   const parts = [provider.providerID]
-  if (provider.npmPackage) parts.push(provider.npmPackage)
+  parts.push(provider.providerKind === 'custom' ? 'Pi 自定义' : 'Pi 内置')
   if (provider.requiresBaseURL && !BUILT_IN_PROVIDER_IDS.has(provider.providerID)) {
     parts.push('需要 Base URL')
   }
@@ -906,7 +995,7 @@ function baseURLDescription(
   if (provider.requiresBaseURL) return '该供应商需要兼容 OpenAI 的 Base URL。'
   if (provider.providerID === 'deepseek') return 'DeepSeek 使用内置的 OpenAI 兼容 endpoint。'
   if (isMiniMax) return 'MiniMax 使用内置的 Anthropic 兼容 endpoint。'
-  return 'Base URL 来自 Models.dev catalog。'
+  return 'Base URL 由 Pi 内置 Provider 提供。'
 }
 
 function modelSearchText(model: string, metadata: DesktopModelMetadata | undefined): string {
@@ -914,7 +1003,6 @@ function modelSearchText(model: string, metadata: DesktopModelMetadata | undefin
     model,
     metadata?.name,
     metadata?.description,
-    metadata?.modelsDevProviderId,
     metadata?.gatewayModelId,
     metadata?.modelType,
     ...(metadata?.tags ?? []),
@@ -995,6 +1083,102 @@ function ModelCard({
   )
 }
 
+function BuiltinProviderSettings({
+  provider,
+  onSaved,
+  onError,
+}: {
+  provider: DesktopModelProviderSummary
+  onSaved: () => void | Promise<void>
+  onError: (error: unknown) => void
+}): React.ReactNode {
+  const config = provider.config?.kind === 'builtin' ? provider.config : null
+  const [allowModels, setAllowModels] = useState('')
+  const [denyModels, setDenyModels] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    setAllowModels(config?.allowModels.join(', ') ?? '')
+    setDenyModels(config?.denyModels.join(', ') ?? '')
+  }, [config])
+
+  if (!config) return null
+
+  async function update(
+    patch: Partial<typeof config>,
+  ): Promise<void> {
+    setBusy(true)
+    try {
+      await desktopClient.updateProvider(provider.providerID, {
+        ...config,
+        ...patch,
+      })
+      await onSaved()
+    } catch (error) {
+      onError(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="model-center-detail-section">
+      <header className="model-center-detail-section-heading">
+        <div>
+          <h3>Pi 内置 Provider</h3>
+          <p>内置 Endpoint、认证和模型元数据不可覆盖。</p>
+        </div>
+        <ToggleSwitch
+          ariaLabel="启用内置 Provider"
+          checked={config.enabled}
+          onChange={enabled => void update({ enabled })}
+        />
+      </header>
+      <label className="model-center-detail-field">
+        <span>允许模型（逗号分隔，留空表示全部）</span>
+        <Input value={allowModels} onChange={event => setAllowModels(event.target.value)} />
+      </label>
+      <label className="model-center-detail-field">
+        <span>拒绝模型（逗号分隔）</span>
+        <Input value={denyModels} onChange={event => setDenyModels(event.target.value)} />
+      </label>
+      <div className="model-center-inline-actions">
+        <Button
+          disabled={busy}
+          onClick={() => void update({
+            allowModels: commaSeparatedModels(allowModels) as never,
+            denyModels: commaSeparatedModels(denyModels) as never,
+          })}
+        >
+          保存模型筛选
+        </Button>
+      </div>
+      {config.models.length > 0 ? (
+        <div className="model-center-key-list">
+          {config.models.map(modelConfig => (
+            <div className="model-center-key-row" key={String(modelConfig.id)}>
+              <div><strong>{String(modelConfig.id)}</strong></div>
+              <ToggleSwitch
+                ariaLabel={`启用模型 ${String(modelConfig.id)}`}
+                checked={modelConfig.enabled}
+                onChange={enabled => void update({
+                  models: config.models.map(model =>
+                    model.id === modelConfig.id ? { ...model, enabled } : model
+                  ),
+                })}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function commaSeparatedModels(value: string): string[] {
+  return [...new Set(value.split(',').map(item => item.trim()).filter(Boolean))]
+}
+
 function formatCapabilities(metadata: DesktopModelMetadata): string {
   return [
     metadata.reasoning ? '推理' : null,
@@ -1017,14 +1201,10 @@ function formatApiKeyState(source: string | null, configured: boolean): string {
 
 function providerConnectionSummary({
   apiKeySource,
-  integration,
   providerKeys,
   group,
 }: {
   apiKeySource: string | null
-  integration: {
-    connections: readonly { type: string }[]
-  } | undefined
   providerKeys: readonly {
     active: boolean
     enabled: boolean
@@ -1057,7 +1237,6 @@ function providerConnectionSummary({
   }
   if (
     activeConnection?.kind === 'oauth'
-    || integration?.connections.some(connection => connection.type === 'credential')
   ) {
     return `OAuth 已连接${activeConnection?.label ? `：${activeConnection.label}` : ''}。`
   }

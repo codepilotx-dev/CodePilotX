@@ -1,7 +1,7 @@
 import type {
   DesktopApiKeyHealthStatus,
   DesktopApiKeySummary,
-  DesktopIntegration,
+  DesktopProviderCredential,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
@@ -35,7 +35,7 @@ export type ApiKeyDeleteConfirmation = {
   description: string
 }
 
-export type ProviderCatalogSource = 'gateway' | 'models-dev' | 'builtin'
+export type ProviderCatalogSource = 'gateway' | 'custom' | 'builtin'
 export type ProviderConnectionStatus =
   | 'stored-key'
   | 'oauth'
@@ -57,7 +57,7 @@ export type ProviderDirectoryOptions = {
   currentProviderId?: string | null
   currentProviderState?: DesktopModelProviderState | null
   apiKeys?: readonly DesktopApiKeySummary[]
-  integrations?: readonly DesktopIntegration[]
+  credentials?: readonly DesktopProviderCredential[]
 }
 
 const isModelCenterView = (value: string | null): value is ModelCenterView =>
@@ -158,23 +158,10 @@ export function getApiKeyDeleteConfirmation(
     }
   }
 
-  const replacement = apiKeys
-    .filter(candidate => (
-      candidate.id !== apiKey.id
-      && candidate.providerId === apiKey.providerId
-      && candidate.enabled
-    ))
-    .sort(compareApiKeyPriority)[0]
-
-  return replacement
-    ? {
-        title,
-        description: `删除当前 API Key 后，“${replacement.label}”将自动成为当前项。此操作无法撤销。`,
-      }
-    : {
-        title,
-        description: `删除当前 API Key 后，Provider“${providerName}”将变为未配置。此操作无法撤销。`,
-      }
+  return {
+    title,
+    description: `删除当前 API Key 后不会自动切换其他凭据，Provider“${providerName}”将等待你手动选择活动凭据。此操作无法撤销。`,
+  }
 }
 
 function updateParam(
@@ -197,7 +184,7 @@ function compareApiKeyPriority(left: DesktopApiKeySummary, right: DesktopApiKeyS
 function providerSources(provider: DesktopModelProviderSummary): ProviderCatalogSource[] {
   const sources: ProviderCatalogSource[] = []
   if (provider.gatewaySource) sources.push('gateway')
-  if (provider.modelsDevSource) sources.push('models-dev')
+  if (provider.providerKind === 'custom') sources.push('custom')
   if (sources.length === 0) sources.push('builtin')
   return sources
 }
@@ -208,13 +195,12 @@ function providerSearchText(
 ): string {
   const sourceTerms = sources.flatMap(source => {
     if (source === 'gateway') return ['gateway', '网关']
-    if (source === 'models-dev') return ['models.dev', 'models dev', '目录']
+    if (source === 'custom') return ['custom', '自定义']
     return ['builtin', 'built-in', '内置']
   })
   return [
     provider.displayName,
     provider.providerID,
-    provider.npmPackage,
     ...sourceTerms,
   ].filter(Boolean).join(' ').toLocaleLowerCase()
 }
@@ -227,19 +213,15 @@ function providerConnectionStatus(
     key.providerId === provider.providerID
   ))) return 'stored-key'
 
-  const integration = options.integrations?.find(candidate => (
-    candidate.id === (provider.integrationID ?? provider.providerID)
-  ))
-  if (
-    integration?.methods.some(method => method.type === 'oauth')
-    && integration.connections.some(connection => connection.type === 'credential')
-  ) return 'oauth'
+  if (options.credentials?.some(credential => (
+    credential.providerId === provider.providerID
+    && credential.kind === 'oauth'
+  ))) return 'oauth'
 
   const isCurrentState = options.currentProviderState?.selectedProviderID === provider.providerID
   const currentSource = isCurrentState ? options.currentProviderState?.apiKeySource : null
   if (
-    integration?.connections.some(connection => connection.type === 'env')
-    || (isCurrentState && currentSource && currentSource !== 'secureStorage')
+    isCurrentState && currentSource && currentSource !== 'secureStorage'
   ) return 'environment'
 
   if (
