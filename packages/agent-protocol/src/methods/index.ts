@@ -6,6 +6,7 @@ import { ExtendedRpcMethods } from "./extended"
 import { GithubRpcMethods } from "./github"
 import { McpRpcMethods } from "./mcp"
 import { PetRpcMethods } from "./pet"
+import { ReleaseNotesRpcMethods } from "./release-notes"
 import { ReviewRpcMethods } from "./review"
 import { SkillRpcMethods } from "./skills"
 import { SuggestionRpcMethods } from "./suggestions"
@@ -19,6 +20,7 @@ export const RpcMethods = {
   ...GithubRpcMethods,
   ...McpRpcMethods,
   ...PetRpcMethods,
+  ...ReleaseNotesRpcMethods,
   ...ReviewRpcMethods,
   ...SkillRpcMethods,
   ...SuggestionRpcMethods,
@@ -40,6 +42,7 @@ export * from "./extended"
 export * from "./github"
 export * from "./mcp"
 export * from "./pet"
+export * from "./release-notes"
 export * from "./review"
 export * from "./skills"
 export * from "./suggestions"

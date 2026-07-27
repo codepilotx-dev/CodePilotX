@@ -28,6 +28,7 @@ export const Capabilities = [
   "prompt.refresh.v1",
   "model.catalog.paged.v1",
   "pets.management.v1",
+  "release-notes.read.v1",
   "skills.manage.v1",
   "mcp.manage.v1",
   "mcp.oauth.v1",

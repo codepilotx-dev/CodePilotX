@@ -1603,6 +1603,25 @@ const fixtures = {
     id: "sample-pet",
     removed: true,
   }),
+  "release-notes/list": methodFixture("release-notes/list", {
+    currentVersion: "0.2.0-beta.1",
+    refresh: true,
+  }, {
+    source: "github-releases",
+    repository: "codepilotx-dev/CodePilotX",
+    currentVersion: "0.2.0-beta.1",
+    currentReleaseFound: true,
+    fetchedAt: "2026-07-27T00:00:00.000Z",
+    truncated: false,
+    releases: [{
+      tagName: "v0.2.0-beta.1",
+      name: "CodePilotX 0.2.0 Beta 1",
+      body: "## Added\n\n- 新特性",
+      htmlUrl: "https://github.com/codepilotx-dev/CodePilotX/releases/tag/v0.2.0-beta.1",
+      publishedAt: "2026-07-27T00:00:00.000Z",
+      prerelease: true,
+    }],
+  }),
   "usage/local/get": methodFixture("usage/local/get", {
     range: "30d",
     timeZone: "Asia/Shanghai",
@@ -1779,9 +1798,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 147 formal methods decodable", () => {
+  test("keeps valid params and results for all 148 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(147)
+    expect(methods).toHaveLength(148)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
