@@ -4,7 +4,6 @@ import {
   renameSync,
   rmSync,
 } from "node:fs"
-import { configureConnection } from "./connection"
 import {
   HISTORY_SCHEMA,
   initializeSchema,
@@ -25,15 +24,23 @@ export type StoragePaths = {
 
 const sidecars = (path: string) => [`${path}-wal`, `${path}-shm`] as const
 
+const LOCKED_FILE_RETRY_LIMIT = 200
+
+const configureTemporaryConnection = (database: Database) => {
+  database.exec("PRAGMA journal_mode = DELETE")
+  database.exec("PRAGMA foreign_keys = ON")
+  database.exec("PRAGMA busy_timeout = 5000")
+}
+
 const retryLockedFile = (work: () => void) => {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < LOCKED_FILE_RETRY_LIMIT; attempt += 1) {
     try {
       work()
       return
     } catch (cause) {
       const locked = cause instanceof Error && "code" in cause &&
         (cause.code === "EBUSY" || cause.code === "EPERM")
-      if (!locked || attempt === 39) throw cause
+      if (!locked || attempt === LOCKED_FILE_RETRY_LIMIT - 1) throw cause
       Bun.gc(true)
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25)
     }
@@ -49,6 +56,15 @@ const removeDatabaseSidecars = (path: string) => {
 const removeTemporaryDatabase = (path: string) => {
   retryLockedFile(() => rmSync(path, { force: true }))
   removeDatabaseSidecars(path)
+}
+
+const removeTemporaryDatabaseAfterFailure = (path: string) => {
+  try {
+    removeTemporaryDatabase(path)
+  } catch {
+    // Preserve the migration error. A later startup retries stale temporary
+    // file cleanup before creating a new migration database.
+  }
 }
 
 const databaseMeta = (path: string) => {
@@ -148,7 +164,7 @@ const buildMigratingDatabase = (
   removeTemporaryDatabase(temporaryPath)
   const sqlite = new Database(temporaryPath, { create: true, strict: true })
   try {
-    configureConnection(sqlite)
+    configureTemporaryConnection(sqlite)
     initializeSchema(sqlite, kind)
     if (kind === "history") {
       sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
@@ -159,10 +175,9 @@ const buildMigratingDatabase = (
       kind === "history" ? HISTORY_SCHEMA : PROFILE_SCHEMA,
     )
     validateDatabase(sqlite, kind)
-    sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)")
   } catch (cause) {
     sqlite.close()
-    removeTemporaryDatabase(temporaryPath)
+    removeTemporaryDatabaseAfterFailure(temporaryPath)
     throw cause
   }
   sqlite.close()
@@ -215,15 +230,14 @@ const upgradeMixedHistoryV17 = (paths: StoragePaths) => {
   removeTemporaryDatabase(temporaryPath)
   const sqlite = new Database(temporaryPath, { create: true, strict: true })
   try {
-    configureConnection(sqlite)
+    configureTemporaryConnection(sqlite)
     initializeSchema(sqlite, "history")
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
     copyRecognizedTables(paths.historyPath, sqlite, HISTORY_SCHEMA)
     validateDatabase(sqlite, "history")
-    sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)")
   } catch (cause) {
     sqlite.close()
-    removeTemporaryDatabase(temporaryPath)
+    removeTemporaryDatabaseAfterFailure(temporaryPath)
     throw cause
   }
   sqlite.close()
@@ -260,8 +274,8 @@ export const prepareStorage = (paths: StoragePaths) => {
       retryLockedFile(() => renameSync(profileTemporary, paths.profilePath))
       retryLockedFile(() => renameSync(historyTemporary, paths.historyPath))
     } catch (cause) {
-      removeTemporaryDatabase(historyTemporary)
-      removeTemporaryDatabase(profileTemporary)
+      removeTemporaryDatabaseAfterFailure(historyTemporary)
+      removeTemporaryDatabaseAfterFailure(profileTemporary)
       throw cause
     }
   } else {

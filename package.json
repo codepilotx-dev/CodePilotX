@@ -25,6 +25,8 @@
     "debug:mcp:config:stdio": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=stdio",
     "debug:mcp:config:http": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=http",
     "debug:mcp:config:oauth": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=oauth",
+    "test:unit": "bun test --max-concurrency 1",
+    "security:audit": "bun scripts/security/security-audit.ts",
     "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd packages/pi-agent-core typecheck && bun run --cwd packages/pi-agent-core build:types && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:agent": "bun run --cwd apps/agent build",
@@ -40,6 +42,10 @@
   },
   "devDependencies": {
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8",
+    "fast-uri": "3.1.4"
   },
   "patchedDependencies": {
     "effect@4.0.0-beta.83": "patches/effect@4.0.0-beta.83.patch",

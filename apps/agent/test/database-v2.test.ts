@@ -442,6 +442,7 @@ describe("数据库兼容与迁移", () => {
     expect(names).toContain("history.sqlite")
     expect(names).toContain("profile.sqlite")
     expect(names.some((name) => name.endsWith(".bak"))).toBe(false)
+    expect(names.some((name) => name.includes(".migrating"))).toBe(false)
   })
 
   test("未知 history application ID 保留原库并阻止覆盖", async () => {

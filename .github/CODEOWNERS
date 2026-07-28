@@ -1,0 +1,10 @@
+# 默认由仓库维护者评审。
+* @xiaohai-ouyang
+
+# 安全、发布、依赖和治理边界需要维护者明确批准。
+/.github/** @xiaohai-ouyang
+/SECURITY.md @xiaohai-ouyang
+/LICENSE @xiaohai-ouyang
+/scripts/package-win.ts @xiaohai-ouyang
+/scripts/version-policy.ts @xiaohai-ouyang
+/apps/desktop/electron/** @xiaohai-ouyang
