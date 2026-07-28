@@ -92,13 +92,21 @@ test.describe("Plan 桌面全流程", () => {
     ].join(""))
     await composer.press("Enter")
 
+    const executionPlanToggle = page.getByRole("button", {
+      name: /执行计划已完成，已完成 2 \/ 2 步/,
+    })
+    await expect(executionPlanToggle).toBeVisible()
+    await executionPlanToggle.focus()
     const executionPlan = page.getByRole("article", { name: "执行计划" })
     await expect(executionPlan).toBeVisible()
     await expect(executionPlan).toContainText("验证计划正文")
     await expect(executionPlan).toContainText("验证持久化恢复")
-    await expect(
-      executionPlan.getByLabel("2 / 2 个步骤已完成"),
-    ).toBeVisible()
+    await expect(executionPlan.getByRole("listitem", {
+      name: "第 1 步，验证计划正文，已完成",
+    })).toBeVisible()
+    await expect(executionPlan.getByRole("listitem", {
+      name: "第 2 步，验证持久化恢复，已完成",
+    })).toBeVisible()
     if (!live) {
       await expect(page.getByText("两个步骤都已完成。")).toBeVisible()
     }
@@ -107,11 +115,19 @@ test.describe("Plan 桌面全流程", () => {
     await waitForApplication(page)
     await expect.poll(() => page!.url()).toBe(threadURL)
     await expect(page.locator(".workflow-plan-card").first()).toBeVisible()
+    const restoredExecutionPlanToggle = page.getByRole("button", {
+      name: /执行计划已完成，已完成 2 \/ 2 步/,
+    })
+    await expect(restoredExecutionPlanToggle).toBeVisible()
+    await restoredExecutionPlanToggle.focus()
     const restoredPlan = page.getByRole("article", { name: "执行计划" })
     await expect(restoredPlan).toContainText("验证计划正文")
-    await expect(
-      restoredPlan.getByLabel("2 / 2 个步骤已完成"),
-    ).toBeVisible()
+    await expect(restoredPlan.getByRole("listitem", {
+      name: "第 1 步，验证计划正文，已完成",
+    })).toBeVisible()
+    await expect(restoredPlan.getByRole("listitem", {
+      name: "第 2 步，验证持久化恢复，已完成",
+    })).toBeVisible()
   })
 })
 

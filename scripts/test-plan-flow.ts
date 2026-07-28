@@ -41,7 +41,11 @@ try {
 
     isolatedRoot = await mkdtemp(join(tmpdir(), "codepilotx-plan-flow-"))
     const agentDataDir = join(isolatedRoot, "agent")
-    await mkdir(agentDataDir, { recursive: true })
+    const documentsDir = join(isolatedRoot, "documents")
+    await Promise.all([
+      mkdir(agentDataDir, { recursive: true }),
+      mkdir(documentsDir, { recursive: true }),
+    ])
     if (live) {
       await prepareLiveProfile(agentDataDir)
       process.stdout.write("[plan-test] 已创建正式 profile 的在线快照；正式数据不会被修改\n")
@@ -57,7 +61,7 @@ try {
       ...process.env,
       CODEPILOTX_AUTH_TOKEN: token,
       CODEPILOTX_DATA_DIR: agentDataDir,
-      CODEPILOTX_DOCUMENTS_DIR: join(isolatedRoot, "documents"),
+      CODEPILOTX_DOCUMENTS_DIR: documentsDir,
       CODEPILOTX_LOG_DIR: join(isolatedRoot, "agent-logs"),
       CODEPILOTX_DESKTOP_MANAGED: "1",
       CODEPILOTX_PORT: "0",
