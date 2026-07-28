@@ -6,7 +6,7 @@
   overflow-wrap: anywhere;
 
   > :first-child {
-    margin-top: 0 !important;
+    margin-top: 0;
   }
 
   > :last-child {
@@ -38,7 +38,7 @@
 
   h2 {
     padding-bottom: 4px;
-  
+
     font-size: var(--type-title-md);
   }
 

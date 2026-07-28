@@ -557,5 +557,3 @@ function statusEmojiGlyph(value: string | null | undefined): string {
       return value ? '💬' : ''
   }
 }
-
-

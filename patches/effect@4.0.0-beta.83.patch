@@ -42,7 +42,8 @@ index f2920365cf0328146523ce2e2dba04d6a8809a4a..5482d635cdf01a72063ff683d244fab8
 @@ -449,6 +449,15 @@ export const StreamSse: {
    })
  }
- 
+-
++
 +const sseDataJsonSchema = (data: Schema.Constraint) => {
 +  const identifier = SchemaAST.resolveIdentifier(data.ast)
 +  return identifier === undefined ? Schema.fromJsonString(data) : Schema.fromJsonString(data).annotate({
