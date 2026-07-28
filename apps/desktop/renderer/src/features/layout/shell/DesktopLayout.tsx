@@ -65,6 +65,7 @@ import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import { NO_WORKSPACE_DIFF } from '../../workspace/useWorkspaceState.js'
 import { shouldRestoreLastWorkspace } from '../../workspace/lastWorkspaceRestore.js'
 import { useSessionState } from '../../session/state/useSessionState.js'
+import { useSessionTitleRegeneration } from '../../session/state/useSessionTitleRegeneration.js'
 import { useDesktopCommands } from '../../session/useDesktopCommands.js'
 import { useDesktopSearch } from '../../search/useDesktopSearch.js'
 import { withModelCatalogLoading } from '../../../hooks/useModelCatalogLoading.js'
@@ -342,6 +343,8 @@ export function DesktopLayout(): React.ReactNode {
   const handleErrorMessage = useCallback((message: string): void => {
     setErrorMessage(message || null)
   }, [])
+  const [titleLoadingIds, regenerateSessionTitle] =
+    useSessionTitleRegeneration()
   const {
     workspace,
     unavailableWorkspacePaths,
@@ -1774,11 +1777,7 @@ export function DesktopLayout(): React.ReactNode {
       .slice(0, 5)
       .map(item => ({
         id: item.id,
-        title:
-          item.sessionName ??
-          item.aiTitle ??
-          item.firstPrompt ??
-          '最近任务',
+        title: sessionDisplayTitle(item),
         firstPrompt: item.firstPrompt ?? null,
         status: item.status,
         updatedAt: Date.parse(
@@ -1812,6 +1811,9 @@ export function DesktopLayout(): React.ReactNode {
   const quickChatSessionTitle = activeSessionItem
     ? sessionDisplayTitle(activeSessionItem, activeSessionFallbackTitle)
     : activeSessionFallbackTitle
+  const regeneratingActiveSessionTitle = activeSessionItem
+    ? titleLoadingIds.has(activeSessionItem.id)
+    : false
   const sidebarSessionFallbackTitles = useMemo(() => {
     if (!sessionId || !activeSessionFallbackTitle) return sessionFallbackTitles
     if (sessionFallbackTitles[sessionId] === activeSessionFallbackTitle) {
@@ -1965,6 +1967,7 @@ export function DesktopLayout(): React.ReactNode {
       activeSessionId={sessionId}
       catalogStatus={catalogStatus}
       pendingPermissionSessionIds={pendingPermissionSessionIds}
+      titleLoadingIds={titleLoadingIds}
       recentWorkspaces={recentWorkspaces}
       removedWorkspaces={removedWorkspaces}
       sessionFallbackTitles={sidebarSessionFallbackTitles}
@@ -2711,6 +2714,7 @@ export function DesktopLayout(): React.ReactNode {
               ? sidebarSessionPins[activeSessionItem.id] ?? null
               : null,
             sessionTitle: quickChatSessionTitle,
+            titleRegenerating: regeneratingActiveSessionTitle,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
@@ -2740,6 +2744,10 @@ export function DesktopLayout(): React.ReactNode {
             onOpenSubagent: handleOpenSubagent,
             onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,
+            onRefreshSessionTitle: async () =>
+              activeSessionItem
+                ? regenerateSessionTitle(activeSessionItem.id)
+                : false,
             onToggleSidebar: toggleSidebarCollapsed,
             onToggleSessionPinned: () => {
               if (!activeSessionItem) return

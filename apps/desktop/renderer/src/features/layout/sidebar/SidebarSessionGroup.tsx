@@ -1,9 +1,13 @@
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Archive, Copy, LoaderCircle, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
-import { sessionDisplayTitle, type SessionListItem } from "../../../uiTypes.js";
+import {
+  sessionDisplayTitle,
+  sessionEditableTitle,
+  type SessionListItem,
+} from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
@@ -16,7 +20,11 @@ import {
   type ContextMenuAction,
 } from "./SidebarContextMenu.js";
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
-import { SidebarSessionHoverCard } from './SidebarSessionHoverCard.js'
+
+const SidebarSessionHoverCard = lazy(async () => {
+  const module = await import('./SidebarSessionHoverCard.js')
+  return { default: module.SidebarSessionHoverCard }
+})
 
 const GROUP_LIMIT = 5;
 
@@ -25,6 +33,7 @@ type Props = {
   groupKey: string;
   now: number;
   pendingPermissionSessionIds: ReadonlySet<string>;
+  titleLoadingIds: ReadonlySet<string>;
   sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
   sort?: DesktopSidebarSort
@@ -43,6 +52,7 @@ export function SidebarSessionGroup({
   groupKey,
   now,
   pendingPermissionSessionIds,
+  titleLoadingIds,
   sessionFallbackTitles,
   sessions,
   sort = 'priority',
@@ -190,7 +200,7 @@ export function SidebarSessionGroup({
         icon: <Pencil size={APP_ICON_SIZE} />,
         onSelect: () => {
           setRenameSession(session)
-          setRenameValue(sessionDisplayTitle(session, sessionFallbackTitles[session.id]))
+          setRenameValue(sessionEditableTitle(session, sessionFallbackTitles[session.id]))
         },
       },
       {
@@ -225,6 +235,7 @@ export function SidebarSessionGroup({
   }
 
   function renderSessionRow(session: SessionListItem): React.ReactNode {
+    const regeneratingTitle = titleLoadingIds.has(session.id)
     const awaitingApproval =
       session.status === "waiting" ||
       pendingPermissionSessionIds.has(session.id);
@@ -261,11 +272,25 @@ export function SidebarSessionGroup({
         }}
         type="button"
       >
-        <span className={cx('sidebar-session-title', 'u-min-w-0', 'u-truncate')}>
-          {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
-          {session.unreadAt ? (
-            <span aria-label="未读" className="sidebar-session-unread-dot" />
-          ) : null}
+        <span
+          aria-busy={regeneratingTitle}
+          aria-label={regeneratingTitle ? "正在更新会话标题" : undefined}
+          aria-live="polite"
+          className={cx(
+            'sidebar-session-title',
+            'u-min-w-0',
+            'u-truncate',
+            regeneratingTitle && 'ui-skeleton-block sidebar-session-title--loading',
+          )}
+        >
+          {regeneratingTitle ? null : (
+            <>
+              {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
+              {session.unreadAt ? (
+                <span aria-label="未读" className="sidebar-session-unread-dot" />
+              ) : null}
+            </>
+          )}
         </span>
       </button>
     )
@@ -378,14 +403,17 @@ export function SidebarSessionGroup({
           </div>
         }
       >
-        <SidebarSessionHoverCard
-          fallbackTitle={sessionFallbackTitles[session.id]}
-          now={now}
-          session={session}
-          onRename={title => onRenameSession(session.id, title)}
-        >
-          {sessionButton}
-        </SidebarSessionHoverCard>
+        <Suspense fallback={sessionButton}>
+          <SidebarSessionHoverCard
+            fallbackTitle={sessionFallbackTitles[session.id]}
+            now={now}
+            regeneratingTitle={regeneratingTitle}
+            session={session}
+            onRename={title => onRenameSession(session.id, title)}
+          >
+            {sessionButton}
+          </SidebarSessionHoverCard>
+        </Suspense>
       </SidebarRow>
     );
     return (
@@ -485,10 +513,10 @@ export function SidebarSessionGroup({
           value: renameValue,
           onChange: setRenameValue,
           maxLength: 160,
-          placeholder: '输入任务名称',
+          placeholder: '输入对话名称',
         }}
         open={renameSession !== null}
-        title="重命名任务"
+        title="重命名对话"
         onAction={() => {
           if (!renameSession || renaming) return
           setRenaming(true)

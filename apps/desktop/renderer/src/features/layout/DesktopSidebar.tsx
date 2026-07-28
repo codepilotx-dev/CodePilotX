@@ -25,6 +25,7 @@ type Props = {
   activeSessionId: string | null;
   catalogStatus: DesktopSessionCatalogStatus;
   pendingPermissionSessionIds: ReadonlySet<string>;
+  titleLoadingIds: ReadonlySet<string>;
   recentWorkspaces: DesktopWorkspace[];
   removedWorkspaces: DesktopRemovedWorkspace[];
   sessionFallbackTitles: Record<string, string>;
@@ -52,6 +53,7 @@ export function DesktopSidebar({
   activeSessionId,
   catalogStatus,
   pendingPermissionSessionIds,
+  titleLoadingIds,
   recentWorkspaces,
   removedWorkspaces,
   sessionFallbackTitles,
@@ -255,6 +257,7 @@ export function DesktopSidebar({
       <SidebarBody
         activeSessionId={activeSessionId}
         pendingPermissionSessionIds={pendingPermissionSessionIds}
+        titleLoadingIds={titleLoadingIds}
         allProjectSessions={viewModel.allProjectSessions}
         collapsedProjectPaths={collapsedProjectPaths}
         organization={sidebarOrganization}

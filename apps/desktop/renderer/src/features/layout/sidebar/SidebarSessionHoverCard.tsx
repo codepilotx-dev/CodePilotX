@@ -1,12 +1,12 @@
 import type React from 'react'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { sessionDisplayTitle, type SessionListItem } from '../../../uiTypes.js'
+import { useEffect, useRef, useState } from 'react'
+import {
+  sessionDisplayTitle,
+  sessionEditableTitle,
+  type SessionListItem,
+} from '../../../uiTypes.js'
 import { SidebarHoverCard } from './SidebarHoverCard.js'
-
-const SidebarSessionHoverCardOverlay = lazy(async () => {
-  const module = await import('./SidebarSessionHoverCardOverlay.js')
-  return { default: module.SidebarSessionHoverCardOverlay }
-})
+import { SidebarSessionHoverCardOverlay } from './SidebarSessionHoverCardOverlay.js'
 
 const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
@@ -61,6 +61,7 @@ type Props = {
   children: React.ReactElement
   fallbackTitle: string | undefined
   now: number
+  regeneratingTitle: boolean
   session: SessionListItem
   onRename?: (title: string) => Promise<boolean>
 }
@@ -69,10 +70,15 @@ export function SidebarSessionHoverCard({
   children,
   fallbackTitle,
   now,
+  regeneratingTitle,
   session,
   onRename,
 }: Props): React.ReactNode {
-  const model = buildSidebarSessionHoverCardModel(session, fallbackTitle, now)
+  const model = buildSidebarSessionHoverCardModel(
+    session,
+    fallbackTitle,
+    now,
+  )
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [renameValue, setRenameValue] = useState(model.title)
@@ -87,7 +93,7 @@ export function SidebarSessionHoverCard({
 
   function startRename(): void {
     if (!onRename) return
-    setRenameValue(model.title)
+    setRenameValue(sessionEditableTitle(session, fallbackTitle))
     setEditing(true)
     setOpen(true)
     setFocusRequest(current => current + 1)
@@ -133,24 +139,23 @@ export function SidebarSessionHoverCard({
       }}
       onOpenChange={setOpen}
       renderOverlay={interactionProps => (
-        <Suspense fallback={null}>
-          <SidebarSessionHoverCardOverlay
-            {...interactionProps}
-            editing={editing}
-            focusRequest={focusRequest}
-            inputRef={inputRef}
-            model={model}
-            renameValue={renameValue}
-            saving={saving}
-            onCancelRename={cancelRename}
-            onFocusRequestHandled={() => setFocusRequest(0)}
-            onRenameValueChange={setRenameValue}
-            onSaveRename={() => void saveRename(
-              interactionProps.returnFocusToAnchor,
-            )}
-            onStartRename={startRename}
-          />
-        </Suspense>
+        <SidebarSessionHoverCardOverlay
+          {...interactionProps}
+          editing={editing}
+          focusRequest={focusRequest}
+          inputRef={inputRef}
+          model={model}
+          regeneratingTitle={regeneratingTitle}
+          renameValue={renameValue}
+          saving={saving}
+          onCancelRename={cancelRename}
+          onFocusRequestHandled={() => setFocusRequest(0)}
+          onRenameValueChange={setRenameValue}
+          onSaveRename={() => void saveRename(
+            interactionProps.returnFocusToAnchor,
+          )}
+          onStartRename={startRename}
+        />
       )}
     >
       {children}

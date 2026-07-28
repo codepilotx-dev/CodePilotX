@@ -1,5 +1,6 @@
 import type React from 'react'
 import { Folder, GitBranch } from 'lucide-react'
+import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 import { SidebarHoverCardSurface } from './SidebarHoverCardSurface.js'
 import type { SidebarSessionHoverCardModel } from './SidebarSessionHoverCard.js'
@@ -9,6 +10,7 @@ type Props = SidebarHoverCardOverlayRenderProps & {
   focusRequest: number
   inputRef: React.RefObject<HTMLInputElement | null>
   model: SidebarSessionHoverCardModel
+  regeneratingTitle: boolean
   renameValue: string
   saving: boolean
   onCancelRename: () => void
@@ -23,6 +25,7 @@ export function SidebarSessionHoverCardOverlay({
   focusRequest,
   inputRef,
   model,
+  regeneratingTitle,
   renameValue,
   saving,
   onCancelRename,
@@ -67,11 +70,18 @@ export function SidebarSessionHoverCardOverlay({
             />
           ) : (
             <span
+              aria-busy={regeneratingTitle}
+              aria-live="polite"
               className="sidebar-session-hover-card-title"
               title="双击重命名"
               onDoubleClick={onStartRename}
             >
-              {model.title}
+              {regeneratingTitle ? (
+                <>
+                  <SkeletonBlock className="sidebar-session-hover-card-title__skeleton" />
+                  <span className="u-sr-only">正在更新会话标题</span>
+                </>
+              ) : model.title}
             </span>
           )}
           <span className="sidebar-session-hover-card-time">{model.relativeTime}</span>

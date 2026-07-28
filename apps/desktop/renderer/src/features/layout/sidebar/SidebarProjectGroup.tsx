@@ -51,6 +51,7 @@ type Props = {
   isUnavailable: boolean
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
+  titleLoadingIds: ReadonlySet<string>
   project: DesktopWorkspace
   sessionFallbackTitles: Record<string, string>
   sessions: SessionListItem[]
@@ -79,6 +80,7 @@ export function SidebarProjectGroup({
   isUnavailable,
   now,
   pendingPermissionSessionIds,
+  titleLoadingIds,
   project,
   sessionFallbackTitles,
   sessions,
@@ -369,6 +371,7 @@ export function SidebarProjectGroup({
         <SidebarSessionGroup
           activeSessionId={activeSessionId}
           pendingPermissionSessionIds={pendingPermissionSessionIds}
+          titleLoadingIds={titleLoadingIds}
           groupKey={`project:${projectKey}`}
           manualOrderByScope={manualOrderByScope}
           now={now}

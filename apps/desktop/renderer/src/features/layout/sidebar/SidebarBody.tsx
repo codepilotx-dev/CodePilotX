@@ -42,6 +42,7 @@ type Props = {
   organization: DesktopSidebarOrganization;
   now: number;
   pendingPermissionSessionIds: ReadonlySet<string>;
+  titleLoadingIds: ReadonlySet<string>;
   pinnedSessions: SessionListItem[];
   pinnedWorkspaces: DesktopWorkspace[];
   projectWorkspaces: DesktopWorkspace[];
@@ -80,6 +81,7 @@ export function SidebarBody({
   organization,
   now,
   pendingPermissionSessionIds,
+  titleLoadingIds,
   pinnedSessions,
   pinnedWorkspaces,
   projectWorkspaces,
@@ -186,6 +188,7 @@ export function SidebarBody({
         manualOrderByScope={manualOrderByScope}
         now={now}
         pendingPermissionSessionIds={pendingPermissionSessionIds}
+        titleLoadingIds={titleLoadingIds}
         project={project}
         sessionFallbackTitles={sessionFallbackTitles}
         sessions={unpinnedSessions}
@@ -376,6 +379,7 @@ export function SidebarBody({
             groupKey={`pinned-item:${item.session.id}`}
             now={now}
             pendingPermissionSessionIds={pendingPermissionSessionIds}
+            titleLoadingIds={titleLoadingIds}
             sessionFallbackTitles={sessionFallbackTitles}
             sessions={[item.session]}
             onArchiveSessions={onArchiveSessions}
@@ -483,6 +487,7 @@ export function SidebarBody({
               manualOrderByScope={manualOrderByScope}
               now={now}
               pendingPermissionSessionIds={pendingPermissionSessionIds}
+              titleLoadingIds={titleLoadingIds}
               sessionFallbackTitles={sessionFallbackTitles}
               sessions={recentSessions}
               sort={sessionSort}

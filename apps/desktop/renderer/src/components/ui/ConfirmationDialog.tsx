@@ -39,15 +39,16 @@ export function ConfirmationDialog({
   onAction,
 }: Props): React.ReactNode {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const hasInput = input !== undefined
 
   useEffect(() => {
-    if (!open || !input) return
+    if (!open || !hasInput) return
     const id = window.setTimeout(() => {
       inputRef.current?.focus()
       inputRef.current?.select()
     }, 0)
     return () => window.clearTimeout(id)
-  }, [open, input])
+  }, [hasInput, open])
 
   const trimmedActionDisabled =
     actionDisabled || (input ? input.value.trim().length === 0 : false)
