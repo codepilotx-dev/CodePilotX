@@ -58,6 +58,15 @@ const removeTemporaryDatabase = (path: string) => {
   removeDatabaseSidecars(path)
 }
 
+const removeTemporaryDatabaseAfterFailure = (path: string) => {
+  try {
+    removeTemporaryDatabase(path)
+  } catch {
+    // Preserve the migration error. A later startup retries stale temporary
+    // file cleanup before creating a new migration database.
+  }
+}
+
 const databaseMeta = (path: string) => {
   const sqlite = new Database(path, { create: false, strict: true })
   try {
@@ -168,7 +177,7 @@ const buildMigratingDatabase = (
     validateDatabase(sqlite, kind)
   } catch (cause) {
     sqlite.close()
-    removeTemporaryDatabase(temporaryPath)
+    removeTemporaryDatabaseAfterFailure(temporaryPath)
     throw cause
   }
   sqlite.close()
@@ -228,7 +237,7 @@ const upgradeMixedHistoryV17 = (paths: StoragePaths) => {
     validateDatabase(sqlite, "history")
   } catch (cause) {
     sqlite.close()
-    removeTemporaryDatabase(temporaryPath)
+    removeTemporaryDatabaseAfterFailure(temporaryPath)
     throw cause
   }
   sqlite.close()
@@ -265,8 +274,8 @@ export const prepareStorage = (paths: StoragePaths) => {
       retryLockedFile(() => renameSync(profileTemporary, paths.profilePath))
       retryLockedFile(() => renameSync(historyTemporary, paths.historyPath))
     } catch (cause) {
-      removeTemporaryDatabase(historyTemporary)
-      removeTemporaryDatabase(profileTemporary)
+      removeTemporaryDatabaseAfterFailure(historyTemporary)
+      removeTemporaryDatabaseAfterFailure(profileTemporary)
       throw cause
     }
   } else {
