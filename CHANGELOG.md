@@ -7,6 +7,10 @@
 
 ## Unreleased
 
+### Security
+
+- [dependencies] 将 MCP SDK、Hono、Wrangler、Electron、electron-builder 与 Vite 升级到包含安全修复的版本，并为暂不可升级的 React Router 公告增加有负责人和到期日的审计豁免
+
 ## 0.2.0-beta.2 — 2026-07-29
 
 ### Added
