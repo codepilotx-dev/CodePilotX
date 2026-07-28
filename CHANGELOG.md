@@ -21,6 +21,7 @@
 - [ci] 新增覆盖版本一致性、High/Critical 依赖审计、类型检查、单元测试、Renderer CSS 规则和全仓构建的 Windows CI，并通过最小权限、不可变 Actions 提交、禁用持久凭据、超时与并发取消降低供应链风险
 - [dependencies] 将 MCP SDK、Hono、Wrangler、Electron、electron-builder 与 Vite 升级到包含安全修复的版本，并为暂不可升级的 React Router 公告增加有负责人和到期日的审计豁免
 - [release] Beta 与稳定版安装包不再要求 Authenticode 代码签名，改由隔离的构建/发布权限、SHA-256 校验和、SPDX JSON SBOM、GitHub 构建来源与 SBOM attestation 提供来源和完整性证明；稳定版还需经过受保护环境批准
+- [governance] 明确私密漏洞报告的确认、初步评估与持续同步目标，让报告者能够预期安全响应节奏
 
 ## 0.2.0-beta.2 — 2026-07-29
 
