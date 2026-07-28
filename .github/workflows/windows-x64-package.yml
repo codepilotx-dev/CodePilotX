@@ -213,12 +213,18 @@ jobs:
             throw "Expected installer, checksum and SBOM release assets"
           }
 
-          $releases = @(
-            Invoke-RestMethod `
-              -Method Get `
-              -Uri "$apiBase/releases?per_page=100" `
-              -Headers $apiHeaders
-          )
+          $releases = @()
+          $page = 1
+          do {
+            $releasePage = @(
+              Invoke-RestMethod `
+                -Method Get `
+                -Uri "$apiBase/releases?per_page=100&page=$page" `
+                -Headers $apiHeaders
+            )
+            $releases += $releasePage
+            $page += 1
+          } while ($releasePage.Count -eq 100)
           $matchingReleases = @($releases | Where-Object { $_.tag_name -ceq $tag })
           $publishedReleases = @($matchingReleases | Where-Object { -not $_.draft })
           if ($publishedReleases.Count -ne 0) {
@@ -280,7 +286,9 @@ jobs:
             -Headers $apiHeaders
           $actualAssets = @($verifiedDraft.assets | ForEach-Object { $_.name })
           $expectedAssets = @($assets | ForEach-Object { Split-Path $_ -Leaf })
-          $assetDifference = @(Compare-Object $expectedAssets $actualAssets)
+          $assetDifference = @(
+            Compare-Object $expectedAssets $actualAssets -CaseSensitive
+          )
           if (-not $verifiedDraft.draft -or $assetDifference.Count -ne 0) {
             throw "Draft release assets for $tag do not exactly match the expected bundle"
           }
