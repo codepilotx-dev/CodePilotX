@@ -1082,6 +1082,7 @@ function FileReferenceButton({
           {
             kind: 'sub',
             label: '打开方式',
+            layout: 'grid',
             icon: (
               <Code2
                 aria-hidden="true"
@@ -1168,6 +1169,7 @@ function FileReferenceButton({
   return (
     <AppContextMenu
       actions={actions}
+      layout="grid"
       onOpenChange={open => {
         if (open) loadTargets()
       }}

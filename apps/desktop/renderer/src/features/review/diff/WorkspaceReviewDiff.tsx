@@ -1994,7 +1994,6 @@ export function ReviewCommitSourceSubmenu({
         className="popover-item popover-sub-trigger"
         tabIndex={-1}
       >
-        <span className="popover-item-leading" />
         <span className="popover-item-label">提交</span>
         <span className="popover-item-trailing">
           <ChevronRight

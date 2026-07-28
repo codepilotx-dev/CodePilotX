@@ -560,6 +560,7 @@ export function RightDockFilePreviewPanel({
                   ]
                 : []
             }
+            layout="flex"
             trigger={
               <div
                 className="right-dock-file-selection-target"

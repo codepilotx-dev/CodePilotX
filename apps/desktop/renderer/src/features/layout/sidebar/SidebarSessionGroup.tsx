@@ -281,6 +281,7 @@ export function SidebarSessionGroup({
         draggable={Boolean(onManualOrderChange)}
         indent="session"
         key={session.id}
+        layout="grid"
         onDragEnd={() => {
           setDraggedSessionId(null)
           setDragOverSessionId(null)
@@ -391,6 +392,7 @@ export function SidebarSessionGroup({
       <SidebarContextMenu
         key={session.id}
         actions={getSessionContextMenuActions(session)}
+        layout="grid"
         width={240}
         trigger={row}
       />

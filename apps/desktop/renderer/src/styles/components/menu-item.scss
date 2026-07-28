@@ -35,13 +35,6 @@
   overflow: hidden;
 }
 
-.sidebar-context-menu-item,
-.sidebar-context-menu-sub-trigger {
-  display: grid;
-  grid-template-columns: var(--app-icon-size) minmax(min-content, 1fr) max-content;
-  column-gap: var(--control-gap);
-}
-
 /* Menu layout belongs to the menu surface, not the item primitive. */
 .popover-menu--flex {
   .popover-item,
@@ -68,6 +61,37 @@
 .popover-menu--grid {
   .popover-item,
   .popover-sub-trigger {
+    display: grid;
+    grid-template-columns: var(--app-icon-size) minmax(min-content, 1fr) max-content;
+    column-gap: var(--control-gap);
+  }
+}
+
+.app-context-menu--flex {
+  .sidebar-context-menu-item,
+  .sidebar-context-menu-sub-trigger {
+    display: flex;
+    gap: var(--control-gap);
+  }
+
+  .sidebar-context-menu-leading {
+    display: none;
+  }
+
+  .sidebar-context-menu-label {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .sidebar-context-menu-trailing {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+}
+
+.app-context-menu--grid {
+  .sidebar-context-menu-item,
+  .sidebar-context-menu-sub-trigger {
     display: grid;
     grid-template-columns: var(--app-icon-size) minmax(min-content, 1fr) max-content;
     column-gap: var(--control-gap);

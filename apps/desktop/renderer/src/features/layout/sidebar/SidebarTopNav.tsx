@@ -165,6 +165,7 @@ export function SidebarTopNav({
             className={cx("sidebar-nav-link", active ? "active" : undefined)}
             key={item.view}
             labelClassName={cx('sidebar-item-label', 'u-min-w-0', 'u-truncate')}
+            layout="flex"
             leading={item.icon}
           >
             <Link aria-current={active ? 'page' : undefined} to={item.path}>

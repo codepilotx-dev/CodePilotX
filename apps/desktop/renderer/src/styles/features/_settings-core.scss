@@ -62,7 +62,6 @@
 
 .settings-nav-item {
   min-height: 31px;
-  grid-template-columns: 20px minmax(0, 1fr) var(--sidebar-trailing-width);
   gap: 8px;
   padding: 5px 8px;
   border-radius: 10px;

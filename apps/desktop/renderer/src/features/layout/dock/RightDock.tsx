@@ -614,6 +614,7 @@ function WorkbenchTabsHeader({
                         ),
                     },
                   ]}
+                  layout="grid"
                   trigger={
                     <div
                       className={`right-dock-tab-wrap${active ? ' active' : ''}${hasDivider ? ' has-divider' : ''}`}

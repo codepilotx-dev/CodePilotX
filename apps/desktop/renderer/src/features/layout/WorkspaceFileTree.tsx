@@ -528,6 +528,7 @@ function WorkspaceFileTreeContent({
             onSelect: () => onAddComposerFiles?.([sendablePath]),
           },
         ]}
+        layout="flex"
         trigger={treeItem}
         width={220}
       />

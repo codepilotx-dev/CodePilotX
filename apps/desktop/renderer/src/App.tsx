@@ -60,6 +60,7 @@ export function App(): React.ReactNode {
         <EditCommandProvider>
           <AppContextMenu
             actions={[]}
+            layout="flex"
             width={240}
             trigger={
               <div className="app-global-context-menu-trigger">

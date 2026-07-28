@@ -206,6 +206,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             asChild
             className="sidebar-settings-link"
             labelClassName={cx('sidebar-settings-label', 'u-min-w-0', 'u-truncate')}
+            layout="flex"
             leading={
               <span className="sidebar-settings-icon-wrap">
                 <Settings2 aria-hidden="true" size={APP_ICON_SIZE} />

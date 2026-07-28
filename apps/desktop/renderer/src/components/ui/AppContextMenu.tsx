@@ -17,6 +17,8 @@ export type AppContextMenuItemColor =
   | 'gray'
   | 'amber'
 
+export type AppContextMenuLayout = 'flex' | 'grid'
+
 export type AppContextMenuAction =
   | {
       kind: 'item'
@@ -33,11 +35,13 @@ export type AppContextMenuAction =
       label: string
       icon?: ReactNode
       children: AppContextMenuAction[]
+      layout: AppContextMenuLayout
     }
 
 export type AppContextMenuProps = {
   trigger: ReactNode
   actions: AppContextMenuAction[]
+  layout: AppContextMenuLayout
   size?: '1' | '2'
   variant?: 'solid' | 'soft'
   onOpenChange?: (open: boolean) => void
@@ -47,6 +51,7 @@ export type AppContextMenuProps = {
 export function AppContextMenu({
   trigger,
   actions,
+  layout,
   size = '1',
   variant = 'soft',
   width,
@@ -98,7 +103,7 @@ export function AppContextMenu({
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content
-          className="app-context-menu-content sidebar-context-menu-content"
+          className={`app-context-menu-content sidebar-context-menu-content app-context-menu--${layout}`}
           data-size={size}
           data-variant={variant}
           style={buildPopoverSizingStyle({ width })}
@@ -145,7 +150,7 @@ function renderAction(
           </ContextMenu.SubTrigger>
           <ContextMenu.Portal>
             <ContextMenu.SubContent
-              className="app-context-menu-content sidebar-context-menu-content"
+              className={`app-context-menu-content sidebar-context-menu-content app-context-menu--${action.layout}`}
               sideOffset={16}
               style={buildPopoverSizingStyle({ width })}
             >

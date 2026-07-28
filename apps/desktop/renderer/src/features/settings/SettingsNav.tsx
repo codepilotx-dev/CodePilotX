@@ -111,6 +111,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
         <SidebarRow
           asChild
           className="settings-back-btn"
+          layout="flex"
           leading={<ArrowLeft size={APP_ICON_SIZE} />}
         >
           <button onClick={onBack} type="button">
@@ -164,6 +165,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
                     asChild
                     key={item.id}
                     className="settings-nav-item"
+                    layout="flex"
                     leading={<item.icon className="settings-nav-icon" />}
                   >
                     <button

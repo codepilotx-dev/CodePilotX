@@ -161,10 +161,33 @@
 .sidebar-section-header,
 .sidebar-show-more-actions {
   width: 100%;
+  align-items: center;
+}
+
+.sidebar-row--grid,
+.sidebar-section-header,
+.sidebar-show-more-actions {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) var(--sidebar-trailing-width);
-  align-items: center;
   column-gap: var(--sidebar-item-gap);
+}
+
+.sidebar-row--flex {
+  display: flex;
+  gap: var(--sidebar-item-gap);
+
+  .sidebar-row-leading {
+    flex: 0 0 auto;
+  }
+
+  .sidebar-row-main {
+    flex: 1 1 auto;
+  }
+
+  .sidebar-row-trailing {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
 }
 
 .sidebar-show-more-actions {

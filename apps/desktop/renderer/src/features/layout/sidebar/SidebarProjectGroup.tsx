@@ -246,6 +246,7 @@ export function SidebarProjectGroup({
     >
       <SidebarContextMenu
         actions={contextActions()}
+        layout="grid"
         width={240}
         trigger={
           <SidebarRow
@@ -254,6 +255,7 @@ export function SidebarProjectGroup({
               isUnavailable && 'sidebar-project-header--unavailable',
             )}
             labelClassName="sidebar-project-name"
+            layout="grid"
             leading={
               <ProjectAppearanceGlyph
                 appearance={appearance}
