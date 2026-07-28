@@ -28,6 +28,7 @@ import type { ConfigService } from "../config/ConfigService"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
 import { TurnCoordinator, type TurnTerminalStatus } from "./TurnCoordinator"
 import { TurnRunner } from "./TurnRunner"
+import type { ThreadTitleService } from "./ThreadTitleService"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 type PromptStorageRoots = { dataRoot: string; userHome: string }
@@ -106,6 +107,7 @@ export class ThreadService {
     private readonly mcp?: McpConnectionManager,
     private readonly configService?: ConfigService,
     private readonly projectSources?: ProjectSourceService,
+    private readonly threadTitles?: ThreadTitleService,
   ) {
     this.runner = new TurnRunner(
       this.db,
@@ -274,6 +276,13 @@ export class ThreadService {
     return thread
   }
 
+  async regenerateTitle(threadID: string) {
+    if (!this.threadTitles) {
+      throw new AgentError("MODEL_UNAVAILABLE", "会话标题服务不可用", 503)
+    }
+    return this.threadTitles.regenerateFromLatest(threadID)
+  }
+
   async promptPreview(threadID: string) {
     const thread = this.get(threadID)
     const runtime = await this.workspaceResolver.resolve(threadID)
@@ -438,6 +447,7 @@ export class ThreadService {
         throw cause
       }
       await this.publishCreatedTurn(created)
+      void this.threadTitles?.generateForFirstMessage(threadID, input.content)
       this.coordinator.reserve(threadID, created.turnID)
       void this.executeTurn(threadID, created.turnID)
       return { disposition: "started" as const, turnID: created.turnID, inputID: created.inputID }
@@ -477,6 +487,7 @@ export class ThreadService {
         throw cause
       }
       await this.publishCreatedTurn(created)
+      void this.threadTitles?.generateForFirstMessage(threadID, input.content)
       const shouldStart = !active && !hadQueued && !this.db.queueStateMeta(threadID)?.pauseReason
       if (shouldStart) {
         this.coordinator.reserve(threadID, created.turnID)

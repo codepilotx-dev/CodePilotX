@@ -3,6 +3,7 @@ import { decodeApprovalPolicy, type ThreadListItem, type ThreadSettingsPatch } f
 import { AgentError } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
+import { normalizeThreadTitle } from "./ThreadTitleService"
 
 export type ThreadMetadataPatch = {
   title?: string | null
@@ -83,7 +84,9 @@ export class ThreadHistoryService {
     const values: Array<string | number | null> = []
     const updatedAt = Date.now()
     if ("title" in patch) {
-      const title = patch.title === null ? existing.firstUserMessage?.trim() || "新对话" : patch.title?.trim()
+      const title = patch.title === null
+        ? normalizeThreadTitle(existing.firstUserMessage ?? "")
+        : patch.title?.trim()
       if (!title) throw new AgentError("INVALID_REQUEST", "title 参数无效", 400)
       updates.push("title = ?")
       values.push(title)
@@ -109,6 +112,36 @@ export class ThreadHistoryService {
     const event = this.db.insertEvent(threadID, null, "thread/updated", { threadId: threadID, patch, updatedAt })
     await Effect.runPromise(this.hub.publish(event))
     return next
+  }
+
+  async patchTitleIfCurrent(
+    threadID: string,
+    expectedTitle: string,
+    nextTitle: string,
+  ) {
+    const normalizedTitle = nextTitle.trim()
+    if (!normalizedTitle) return null
+    const updatedAt = Date.now()
+    const result = this.db.transaction(() => {
+      const updated = this.db.updateThreadTitleIfCurrent({
+        threadID,
+        expectedTitle,
+        nextTitle: normalizedTitle,
+        updatedAt,
+      })
+      if (!updated) return null
+      const thread = this.getListItem(threadID)
+      if (!thread) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+      const event = this.db.insertEvent(threadID, null, "thread/updated", {
+        threadId: threadID,
+        patch: { title: normalizedTitle },
+        updatedAt,
+      })
+      return { thread, event }
+    })
+    if (!result) return null
+    await Effect.runPromise(this.hub.publish(result.event))
+    return result.thread
   }
 
   async patchSettings(threadID: string, patch: ThreadSettingsPatch) {

@@ -78,6 +78,10 @@ describe("Thread 历史", () => {
 
     const active = await history.patch(thread.id, { archived: false })
     expect(active.archivedAt).toBeNull()
+    db.createTurn(thread.id, input("# 这是一个用于验证重置行为的非常长的首条用户消息"))
+    const reset = await history.patch(thread.id, { title: null })
+    expect(reset.title).toBe("这是一个用于验证重置行为的非常长的首条…")
+    expect(Array.from(reset.title)).toHaveLength(20)
     const session = await new SqlitePiSessionRepo(db).create({ id: `${thread.id}:main`, threadID: thread.id, agentID: "creator" })
     await session.appendMessage({ role: "user", content: "private history", timestamp: Date.now() })
     ;(session.getStorage() as SqlitePiSessionStorage).flush()

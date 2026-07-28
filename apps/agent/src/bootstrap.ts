@@ -69,6 +69,7 @@ import { McpOAuthCoordinator } from "./mcp/McpOAuthCoordinator";
 import { McpOAuthService } from "./mcp/McpOAuthService";
 import { ThreadProjection } from "./transport/ThreadProjection";
 import { TaskSuggestionService } from "./suggestion/TaskSuggestionService";
+import { ThreadTitleService } from "./session/ThreadTitleService";
 import { UsageService } from "./usage/UsageService";
 import { UsageRepository } from "./storage/repositories/usage-repository";
 
@@ -514,6 +515,14 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       {},
       configService,
     );
+    const history = new ThreadHistoryService(db, hub);
+    const threadTitles = new ThreadTitleService(
+      db,
+      history,
+      piModels,
+      logger,
+      configService,
+    );
     const subagentWorkspaces = new SubagentWorkspaceCoordinator(
       db,
       config.storage.workspacesRoot,
@@ -558,8 +567,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       mcpConnections,
       configService,
       projectSources,
+      threadTitles,
     );
-    const history = new ThreadHistoryService(db, hub);
     const app = createApp({
       config,
       configService,

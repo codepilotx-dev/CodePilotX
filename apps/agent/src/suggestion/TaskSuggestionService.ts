@@ -1,5 +1,4 @@
 import type { Api, Model as PiModel } from "@earendil-works/pi-ai"
-import { Model, Provider } from "@codepilotx/model-schema"
 import type {
   TaskSuggestion,
   TaskSuggestionGenerateParams,
@@ -13,6 +12,7 @@ import { generatePiObject } from "../provider/pi/PiStructuredOutput"
 import { secretScrubber } from "../security/SecretScrubber"
 import type { AgentLogger } from "../observability/AgentLogger"
 import type { ConfigService } from "../config/ConfigService"
+import { resolveAuxiliaryPiModel } from "../provider/pi/PiAuxiliaryModelResolver"
 
 const MAX_CACHE_ENTRIES = 50
 const DEFAULT_TIMEOUT_MS = 8_000
@@ -218,59 +218,13 @@ export class TaskSuggestionService {
   }
 
   private async selectModel(projectId?: string) {
-    const config = this.configService?.snapshot() ?? {}
-    const taskModels = config.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
-      ? config.task_models as Record<string, unknown>
-      : {}
-    const providerID = typeof config.model_provider === "string"
-      ? config.model_provider.trim()
-      : ""
-    const refs: Model.Ref[] = []
-    if (providerID) {
-      for (const key of ["small_fast", "fast"] as const) {
-        const id = typeof taskModels[key] === "string" ? taskModels[key].trim() : ""
-        if (id) {
-          refs.push(Model.Ref.make({
-            providerID: Provider.ID.make(providerID),
-            id: Model.ID.make(id),
-          }))
-        }
-      }
-    }
-    if (projectId) {
-      const project = this.db.getProject(projectId)
-      const effective = project && this.configService
-        ? (await this.configService.read({ cwd: project.rootPath })).config
-        : null
-      const projectDefault = effective
-        && typeof effective.model_provider === "string"
-        && typeof effective.model === "string"
-        ? Model.Ref.make({
-            providerID: Provider.ID.make(effective.model_provider),
-            id: Model.ID.make(effective.model),
-          })
-        : null
-      if (projectDefault) refs.push(projectDefault)
-    }
-    const globalDefault = providerID && typeof config.model === "string" && config.model.trim()
-      ? Model.Ref.make({
-          providerID: Provider.ID.make(providerID),
-          id: Model.ID.make(config.model.trim()),
-        })
-      : null
-    if (globalDefault) refs.push(globalDefault)
-
-    const seen = new Set<string>()
-    for (const ref of refs) {
-      const key = `${ref.providerID}/${ref.id}/${ref.variant ?? ""}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      try {
-        return { ref, model: await this.models.getPiModel(ref) }
-      } catch {
-        // Continue through the configured fast/default fallback chain.
-      }
-    }
+    const selected = await resolveAuxiliaryPiModel({
+      db: this.db,
+      models: this.models,
+      ...(this.configService ? { configService: this.configService } : {}),
+      ...(projectId ? { projectId } : {}),
+    })
+    if (selected) return selected
     throw new TaskSuggestionServiceError(
       "configuration",
       "没有可用于生成任务建议的模型",

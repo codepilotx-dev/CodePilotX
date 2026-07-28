@@ -68,6 +68,7 @@ export const threadHandlers = {
     "prompt/refresh",
     "thread/compact",
     "thread/update",
+    "thread/title/regenerate",
     "thread/settings/update",
     "thread/delete",
     "turn/start",
@@ -148,6 +149,8 @@ export const threadHandlers = {
         const thread = await history.patch(threadId, { ...(title !== undefined ? { title } : {}), ...(archived !== undefined ? { archived } : {}) })
         return { thread }
       }
+      case "thread/title/regenerate":
+        return { thread: await threads.regenerateTitle(stringParam(params, "threadId")) }
       case "thread/settings/update": {
         const threadId = stringParam(params, "threadId")
         const settings = decodeParams(decodeThreadSettingsPatch, params.settings, "thread/settings/update.settings")

@@ -186,6 +186,20 @@ export type CreatedThreadRecord = {
   event: EventEnvelope
 }
 
+export type AutomaticTitleCandidate = {
+  title: string
+  kind: string
+  messageCount: number
+  projectID: string | null
+}
+
+export type LatestThreadTitleContext = AutomaticTitleCandidate & {
+  turnID: string | null
+  turnStatus: TurnStatus | null
+  userContent: string
+  assistantContent: string
+}
+
 type PermissionColumns = {
   sandbox_mode: PermissionConfig["sandboxMode"]
   approval_policy: string
@@ -428,6 +442,108 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
         SET git_branch = ?
         WHERE id = ? AND (git_branch IS NULL OR git_branch <> ?)
       `).run(normalized, threadID, normalized)
+      return result.changes > 0
+    }
+
+  automaticTitleCandidate(threadID: string): AutomaticTitleCandidate | null {
+      const row = this.sqlite.query(`
+        SELECT title, kind, message_count, project_id
+        FROM threads
+        WHERE id = ?
+      `).get(threadID) as {
+        title: string
+        kind: string
+        message_count: number
+        project_id: string | null
+      } | null
+      return row
+        ? {
+            title: row.title,
+            kind: row.kind,
+            messageCount: row.message_count,
+            projectID: row.project_id,
+          }
+        : null
+    }
+
+  latestThreadTitleContext(threadID: string): LatestThreadTitleContext | null {
+      const thread = this.automaticTitleCandidate(threadID)
+      if (!thread) return null
+      const turn = this.sqlite.query(`
+        SELECT id, root_agent_id, status
+        FROM turns
+        WHERE thread_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+      `).get(threadID) as {
+        id: string
+        root_agent_id: string | null
+        status: TurnStatus
+      } | null
+      if (!turn) {
+        return {
+          ...thread,
+          turnID: null,
+          turnStatus: null,
+          userContent: "",
+          assistantContent: "",
+        }
+      }
+      const inputs = this.sqlite.query(`
+        SELECT content
+        FROM inputs
+        WHERE thread_id = ? AND turn_id = ?
+        ORDER BY created_at, id
+      `).all(threadID, turn.id) as Array<{ content: string }>
+      const textItems = turn.root_agent_id
+        ? this.sqlite.query(`
+            SELECT data
+            FROM items
+            WHERE thread_id = ?
+              AND turn_id = ?
+              AND agent_id = ?
+              AND type = 'text'
+              AND status = 'completed'
+            ORDER BY ordinal, created_at, id
+          `).all(threadID, turn.id, turn.root_agent_id) as Array<{ data: string }>
+        : []
+      const assistantContent = textItems.flatMap((item) => {
+        try {
+          const data = parse<Record<string, unknown>>(item.data)
+          return data.placement === "result"
+            && typeof data.text === "string"
+            && data.text.trim()
+            ? [data.text.trim()]
+            : []
+        } catch {
+          return []
+        }
+      }).join("\n\n")
+      return {
+        ...thread,
+        turnID: turn.id,
+        turnStatus: turn.status,
+        userContent: inputs.map(input => input.content.trim()).filter(Boolean).join("\n\n"),
+        assistantContent,
+      }
+    }
+
+  updateThreadTitleIfCurrent(input: {
+    threadID: string
+    expectedTitle: string
+    nextTitle: string
+    updatedAt: number
+  }): boolean {
+      const result = this.sqlite.query(`
+        UPDATE threads
+        SET title = ?, updated_at = ?
+        WHERE id = ? AND title = ?
+      `).run(
+        input.nextTitle,
+        input.updatedAt,
+        input.threadID,
+        input.expectedTitle,
+      )
       return result.changes > 0
     }
 
