@@ -337,6 +337,7 @@ describe('agent RPC v4 client', () => {
 
     const unsubscribe = client.subscribe(
       {
+        liveEventTypes: ['catalog/updated', 'config/updated'],
         onReplayComplete: () => {
           replayCompleteCount += 1
         },
@@ -351,6 +352,7 @@ describe('agent RPC v4 client', () => {
     expect(subscribeRequests).toHaveLength(1)
     expect(subscribeRequests[0]?.params).toEqual({
       streams: [{ streamId: 'global', after: 'latest' }],
+      liveEventTypes: ['catalog/updated', 'config/updated'],
     })
 
     sources[0]?.emit({
@@ -375,7 +377,10 @@ describe('agent RPC v4 client', () => {
     expect(
       requests.filter(request => request.method === 'event/subscribe').at(-1)
         ?.params,
-    ).toEqual({ streams: [{ streamId: 'global', after: 'latest' }] })
+    ).toEqual({
+      streams: [{ streamId: 'global', after: 'latest' }],
+      liveEventTypes: ['catalog/updated', 'config/updated'],
+    })
     unsubscribe()
   })
 
@@ -538,7 +543,9 @@ describe('agent RPC v4 client', () => {
       },
     })
 
-    const unsubscribe = client.subscribe({}, () => {})
+    const unsubscribe = client.subscribe({
+      liveEventTypes: ['workspace/file/changed'],
+    }, () => {})
     await waitFor(() => sources.length === 1)
     sources[0]?.emit({
       jsonrpc: '2.0',
@@ -566,6 +573,7 @@ describe('agent RPC v4 client', () => {
     expect(serverGeneration).toBe(2)
     expect(acceptedSubscriptions.at(-1)?.body.params).toEqual({
       streams: [{ streamId: 'global', after: 12 }],
+      liveEventTypes: ['workspace/file/changed'],
     })
     expect(sources[1]?.url).toContain('connectionId=connection-2')
 
@@ -633,6 +641,7 @@ describe('agent RPC v4 client', () => {
     const unsubscribe = client.subscribe(
       {
         after: 5,
+        liveEventTypes: ['provider/credential/updated'],
         onReplayComplete: () => {
           replayCompleteCount += 1
         },
@@ -651,8 +660,14 @@ describe('agent RPC v4 client', () => {
     expect(
       subscribeRequests.map(request => request.params),
     ).toEqual([
-      { streams: [{ streamId: 'global', after: 5 }] },
-      { streams: [{ streamId: 'global', after: 19 }] },
+      {
+        streams: [{ streamId: 'global', after: 5 }],
+        liveEventTypes: ['provider/credential/updated'],
+      },
+      {
+        streams: [{ streamId: 'global', after: 19 }],
+        liveEventTypes: ['provider/credential/updated'],
+      },
     ])
     sources[0]?.emit({
       jsonrpc: '2.0',
@@ -664,6 +679,66 @@ describe('agent RPC v4 client', () => {
     })
     await waitFor(() => replayCompleteCount === 1)
     expect(cursorExpiredCount).toBe(1)
+    unsubscribe()
+  })
+
+  test('游标恢复失败时重试旧游标且不会跳到 latest', async () => {
+    const subscribeAfter: Array<number | 'latest'> = []
+    const sources: FakeEventSource[] = []
+    let recoveryAttempts = 0
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-cursor-retry'),
+      eventReconnectDelay: () => 0,
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+      fetch: async (_input, init) => {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>
+        if (body.method === 'initialize') {
+          return rpcResult(body.id, initializeResult('connection-1'))
+        }
+        if (body.method === 'initialized') {
+          return new Response(null, { status: 204 })
+        }
+        if (body.method === 'event/subscribe') {
+          const params = body.params as {
+            streams: Array<{ after: number | 'latest' }>
+          }
+          const after = params.streams[0]?.after ?? 'latest'
+          subscribeAfter.push(after)
+          if (after === 5) return rpcError(body.id, 'CURSOR_EXPIRED')
+          return rpcResult(body.id, {
+            subscriptionId: 'subscription-recovered',
+            highWatermarks: [{ streamId: 'global', sequence: 20 }],
+          })
+        }
+        if (body.method === 'event/unsubscribe') {
+          return rpcResult(body.id, { ok: true })
+        }
+        throw new Error(`Unhandled RPC method: ${String(body.method)}`)
+      },
+    })
+
+    const unsubscribe = client.subscribe(
+      {
+        after: 5,
+        liveEventTypes: ['config/updated'],
+        onCursorExpired: () => {
+          recoveryAttempts += 1
+          if (recoveryAttempts === 1) {
+            throw new Error('history hydration failed')
+          }
+          return 19
+        },
+      },
+      () => {},
+    )
+
+    await waitFor(() => sources.length === 1)
+    expect(subscribeAfter).toEqual([5, 5, 19])
+    expect(subscribeAfter).not.toContain('latest')
     unsubscribe()
   })
 })

@@ -78,10 +78,14 @@ describe('provider management store', () => {
 
   test('live credential events reconcile through provider/credential/list', async () => {
     let callback: ((event: EventEnvelope) => void) | undefined
+    let subscriptionOptions: Parameters<
+      ProviderManagementClient['subscribeAgentEventEnvelopes']
+    >[0] | undefined
     let credentials = [credential('key-1', 'api-key', true)]
     const client = createClient({
       listProviderCredentials: async () => credentials,
-      subscribeAgentEventEnvelopes: (_options, listener) => {
+      subscribeAgentEventEnvelopes: (options, listener) => {
+        subscriptionOptions = options
         callback = listener
         return () => {}
       },
@@ -89,6 +93,14 @@ describe('provider management store', () => {
     const store = createProviderManagementStore(client)
     const unsubscribe = store.subscribe(() => {})
     await store.ensureLoaded()
+    expect(subscriptionOptions).toEqual({
+      liveEventTypes: [
+        'catalog/updated',
+        'provider/credential/updated',
+        'usage/source/updated',
+      ],
+      diagnosticsScope: 'provider',
+    })
     credentials = [credential('oauth-1', 'oauth', true)]
 
     callback?.({

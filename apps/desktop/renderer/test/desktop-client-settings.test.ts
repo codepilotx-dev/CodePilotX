@@ -60,6 +60,7 @@ const projectWorkspace = {
 
 describe('desktop thread settings client', () => {
   test('routes tooling management and live updates through RPC v4', async () => {
+    let eventSubscribeParams: unknown
     const source = {
       onmessage: null as ((event: MessageEvent) => void) | null,
       onerror: null as (() => void) | null,
@@ -105,6 +106,7 @@ describe('desktop thread settings client', () => {
         return rpc(body.id, { status: toolingStatus })
       }
       if (body?.method === 'event/subscribe') {
+        eventSubscribeParams = body.params
         return rpc(body.id, {
           subscriptionId: 'tooling-subscription',
           highWatermarks: [{ streamId: 'global', sequence: 3 }],
@@ -138,6 +140,10 @@ describe('desktop thread settings client', () => {
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
+    expect(eventSubscribeParams).toEqual({
+      streams: [{ streamId: 'global', after: 'latest' }],
+      liveEventTypes: ['tooling/updated'],
+    })
     source.onmessage?.({
       data: JSON.stringify({
         method: 'event/next',
@@ -791,7 +797,16 @@ describe('desktop thread settings client', () => {
       if (body?.method === 'initialized') return new Response(null, { status: 204 })
       if (body?.method === 'initialize') return rpc(body.id, initializedResult())
       if (body?.method === 'event/subscribe') {
-        expect(params.streams).toEqual([{ streamId: 'global', after: 'latest' }])
+        expect(params).toEqual({
+          streams: [{ streamId: 'global', after: 'latest' }],
+          liveEventTypes: [
+            'catalog/updated',
+            'provider/credential/updated',
+            'config/updated',
+            'workspace/file/changed',
+            'workspace/git/changed',
+          ],
+        })
         return rpc(body.id, {
           subscriptionId: 'subscription-1',
           highWatermarks: [{ streamId: 'global', sequence: 12 }],

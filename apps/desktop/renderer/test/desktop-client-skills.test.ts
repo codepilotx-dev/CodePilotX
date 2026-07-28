@@ -121,6 +121,12 @@ describe('desktop runtime skills client', () => {
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
+    expect(
+      requests.find(item => item.method === 'event/subscribe')?.params,
+    ).toEqual({
+      streams: [{ streamId: 'global', after: 'latest' }],
+      liveEventTypes: ['skill/updated'],
+    })
     source.onmessage?.({
       data: JSON.stringify({
         method: 'event/next',
