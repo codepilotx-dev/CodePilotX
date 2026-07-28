@@ -6,11 +6,29 @@ import {
   type RpcError,
   type InitializedNotification,
   type EventEnvelope,
+  type LiveEventType,
   type RpcMethod,
   type RpcParams,
   type RpcResult,
   type RpcTransport,
 } from '@codepilotx/agent-protocol'
+import {
+  isPerformanceDiagnosticsEnabled,
+  recordFirstDelta,
+  recordSseEvent,
+  recordTurnStarted,
+  type PerformanceDiagnosticsSseScope,
+} from '../features/debug/performanceDiagnosticsBridge.js'
+
+const FIRST_DELTA_EVENT_TYPES = new Set<LiveEventType>([
+  'item/agentMessage/delta',
+  'reasoning/textDelta',
+  'reasoning/summaryPartAdded',
+  'reasoning/summaryTextDelta',
+  'plan/delta',
+  'tool/outputDelta',
+])
+const sseTextEncoder = new TextEncoder()
 
 export type AgentNotification = {
   jsonrpc: '2.0'
@@ -32,6 +50,8 @@ export type AgentRpcClientEnvironment = {
 export type AgentRpcSubscription = {
   threadId?: string
   after?: number
+  liveEventTypes?: readonly LiveEventType[]
+  diagnosticsScope?: PerformanceDiagnosticsSseScope
   onReplayComplete?: () => void | Promise<void>
   onCursorExpired?: () => number | void | Promise<number | void>
 }
@@ -225,6 +245,8 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     const factory = environment.eventSourceFactory ?? defaultEventSourceFactory()
     if (!factory) return () => {}
     const streamId = options.threadId ?? 'global'
+    const diagnosticsScope =
+      options.diagnosticsScope ?? (options.threadId ? 'canonical' : 'global')
     let disposed = false
     let source: EventSource | null = null
     let subscriptionId: string | null = null
@@ -280,24 +302,26 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
       const acknowledged = acknowledgedPositions.get(streamId)
       let after: number | 'latest' =
         !forceLatest && acknowledged !== undefined ? acknowledged : 'latest'
+      const subscribeParams = () => ({
+        streams: [{ streamId, after }],
+        ...(options.liveEventTypes
+          ? { liveEventTypes: [...options.liveEventTypes] }
+          : {}),
+      })
       let subscription: RpcResult<'event/subscribe'>
       try {
-        subscription = await call('event/subscribe', {
-          streams: [{ streamId, after }],
-        })
+        subscription = await call('event/subscribe', subscribeParams())
       } catch (error) {
         if (after !== 'latest' && isCursorExpiredError(error)) {
-          const recoveredAfter = await Promise.resolve(
-            options.onCursorExpired?.(),
-          ).catch(() => undefined)
+          const recoveredAfter = options.onCursorExpired
+            ? await Promise.resolve(options.onCursorExpired())
+            : undefined
           forceLatest = typeof recoveredAfter !== 'number'
           after = typeof recoveredAfter === 'number' ? recoveredAfter : 'latest'
           if (typeof recoveredAfter === 'number') {
             acknowledgedPositions.set(streamId, recoveredAfter)
           }
-          subscription = await call('event/subscribe', {
-            streams: [{ streamId, after }],
-          })
+          subscription = await call('event/subscribe', subscribeParams())
         } else {
           throw error
         }
@@ -329,6 +353,23 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
           if (notification.method === 'event/next') {
             const params = asRecord(notification.params)
             const event = decodeEventEnvelope(params.event)
+            if (isPerformanceDiagnosticsEnabled()) {
+              recordSseEvent({
+                eventType: event.type,
+                scope: diagnosticsScope,
+                bytes: sseTextEncoder.encode(message.data).byteLength,
+              })
+              if (diagnosticsScope === 'canonical') {
+                if (event.type === 'turn/started') {
+                  recordTurnStarted()
+                } else if (
+                  event.durability === 'live' &&
+                  FIRST_DELTA_EVENT_TYPES.has(event.type)
+                ) {
+                  recordFirstDelta()
+                }
+              }
+            }
             const sequence = event.durability === 'durable'
               ? event.sequence
               : event.afterSequence

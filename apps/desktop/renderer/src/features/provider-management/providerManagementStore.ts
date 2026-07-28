@@ -1,6 +1,7 @@
 import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
 import type { CodePilotXDesktopClient } from '../../services/desktop-client/index.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+import { AGENT_LIVE_EVENT_FILTERS } from '../../services/desktop-client/eventSubscriptionFilters.js'
 import type {
   DesktopApiKeySummary,
   DesktopProviderCredential,
@@ -329,7 +330,10 @@ export function createProviderManagementStore(
 
   const ensureEventSubscription = () => {
     if (eventSubscription !== null) return
-    eventSubscription = client.subscribeAgentEventEnvelopes({}, event => {
+    eventSubscription = client.subscribeAgentEventEnvelopes({
+      liveEventTypes: AGENT_LIVE_EVENT_FILTERS.provider,
+      diagnosticsScope: 'provider',
+    }, event => {
       if (event.type === 'catalog/updated') {
         void refreshCatalog()
         return

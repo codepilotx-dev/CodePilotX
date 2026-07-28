@@ -103,6 +103,7 @@ import {
   type AgentRpcSubscription,
 } from '../agentRpcClient.js'
 import { createAgentTurnQueueClient } from './agent-turn-queue-client.js'
+import { AGENT_LIVE_EVENT_FILTERS } from './eventSubscriptionFilters.js'
 
 export const WORKSPACE_FILE_CHANGED_EVENT =
   'codepilotx-workspace-file-changed'
@@ -1202,12 +1203,18 @@ export function createAgentSessionDesktopClient(
         () => mockClient.setRuntimeSkillEnabled(path, enabled),
       ),
     onRuntimeSkillsUpdated: callback =>
-      rpc.subscribeEnvelope({}, event => {
+      rpc.subscribeEnvelope({
+        liveEventTypes: AGENT_LIVE_EVENT_FILTERS.skills,
+        diagnosticsScope: 'skills',
+      }, event => {
         if (event.type !== 'skill/updated') return
         callback(event.payload.generation)
       }),
     onToolingUpdated: callback =>
-      rpc.subscribeEnvelope({}, event => {
+      rpc.subscribeEnvelope({
+        liveEventTypes: AGENT_LIVE_EVENT_FILTERS.tooling,
+        diagnosticsScope: 'tooling',
+      }, event => {
         if (event.type !== 'tooling/updated') return
         const payload = event.payload
         if (!payload || typeof payload !== 'object') return
@@ -3181,6 +3188,8 @@ export function createAgentSessionDesktopClient(
           : noop
       }
       return rpc.subscribe({
+        liveEventTypes: AGENT_LIVE_EVENT_FILTERS.global,
+        diagnosticsScope: 'global',
         onReplayComplete: () => {
           void reconcileAgentSessionStore().catch(() => {})
         },

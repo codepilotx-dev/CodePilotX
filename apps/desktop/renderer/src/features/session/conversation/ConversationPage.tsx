@@ -99,6 +99,7 @@ import {
   loadConversationUiState,
   saveConversationUiState,
 } from "../../layout/tabs/conversationUiState.js";
+import { recordReactCommit } from "../../debug/performanceDiagnosticsBridge.js";
 import { CanonicalThreadView } from "../timeline/CanonicalThreadView.js";
 import type { ThreadTimelineNavigationHandle } from "../timeline/SessionTimelineView.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
@@ -289,6 +290,12 @@ export function ConversationPage(): React.ReactNode {
     workflowEvents,
   });
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
+  const handleCanonicalRender = React.useCallback<React.ProfilerOnRenderCallback>(
+    (_id, _phase, actualDuration) => {
+      recordReactCommit(actualDuration);
+    },
+    [],
+  );
   const reduceMotion = usePrefersReducedMotion();
   const turnNavItems = React.useMemo<ConversationTurnNavItem[]>(
     () => deriveConversationTurnNavItems(canonicalConversation.turns),
@@ -1001,6 +1008,35 @@ export function ConversationPage(): React.ReactNode {
       </ComposerFrame>
     </div>
   ) : null;
+  const canonicalThreadView = activeSessionId ? (
+    <CanonicalThreadView
+      active={sessionStatus === "running" || sessionStatus === "waiting"}
+      error={canonicalConversation.error}
+      hasOlder={canonicalConversation.hasOlder}
+      initialScrollOffset={initialTimelineScrollTop}
+      listRef={timelineListRef}
+      navigationRef={timelineNavigationRef}
+      loading={canonicalConversation.loading}
+      loadingOlder={canonicalConversation.loadingOlder}
+      onLoadOlder={canonicalConversation.loadOlder}
+      onOpenPlanInRightDock={onOpenPlanInRightDock}
+      onOpenSubagent={onOpenSubagent}
+      onReload={canonicalConversation.reload}
+      onScroll={handleTimelineScroll}
+      rightDockPlanEventId={rightDockPlanEventId}
+      scrollRef={threadScrollRef}
+      threadId={activeSessionId}
+      turns={canonicalConversation.turns}
+    />
+  ) : null;
+  const measuredCanonicalThreadView =
+    debugMode && canonicalThreadView ? (
+      <React.Profiler id="canonical-thread" onRender={handleCanonicalRender}>
+        {canonicalThreadView}
+      </React.Profiler>
+    ) : (
+      canonicalThreadView
+    );
 
   return (
     <section
@@ -1068,6 +1104,7 @@ export function ConversationPage(): React.ReactNode {
                     ]
                   : []
               }
+              layout="flex"
               onOpenChange={(open) => {
                 if (!open) {
                   clearConversationSelectionHighlight();
@@ -1105,30 +1142,7 @@ export function ConversationPage(): React.ReactNode {
                               ))}
                             </div>
                           ) : null}
-                          {activeSessionId ? (
-                            <CanonicalThreadView
-                              active={
-                                sessionStatus === "running" ||
-                                sessionStatus === "waiting"
-                              }
-                              error={canonicalConversation.error}
-                              hasOlder={canonicalConversation.hasOlder}
-                              initialScrollOffset={initialTimelineScrollTop}
-                              listRef={timelineListRef}
-                              navigationRef={timelineNavigationRef}
-                              loading={canonicalConversation.loading}
-                              loadingOlder={canonicalConversation.loadingOlder}
-                              onLoadOlder={canonicalConversation.loadOlder}
-                              onOpenPlanInRightDock={onOpenPlanInRightDock}
-                              onOpenSubagent={onOpenSubagent}
-                              onReload={canonicalConversation.reload}
-                              onScroll={handleTimelineScroll}
-                              rightDockPlanEventId={rightDockPlanEventId}
-                              scrollRef={threadScrollRef}
-                              threadId={activeSessionId}
-                              turns={canonicalConversation.turns}
-                            />
-                          ) : null}
+                          {measuredCanonicalThreadView}
                         </>
                       )}
                   </div>

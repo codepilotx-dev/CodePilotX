@@ -33,6 +33,7 @@ import { PluginDetailsDialog } from '../../plugins/PluginDetailsDialog.js'
 import { PluginIcon } from '../../plugins/PluginIcon.js'
 import { useBuiltinPluginCatalog } from '../../plugins/useBuiltinPluginCatalog.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/eventSubscriptionFilters.js'
 import { SettingsContentArea } from '../SettingsContentArea.js'
 import { ExtensionManagementRow } from './ExtensionManagementRow.js'
 import { McpEditorDialog } from './McpEditorDialog.js'
@@ -177,7 +178,10 @@ export function PluginsSettingsPage({
   }, [workspacePath])
 
   useEffect(() => {
-    return desktopClient.subscribeAgentEventEnvelopes({}, event => {
+    return desktopClient.subscribeAgentEventEnvelopes({
+      liveEventTypes: AGENT_LIVE_EVENT_FILTERS.mcp,
+      diagnosticsScope: 'mcp',
+    }, event => {
       if (event.type === 'mcp/updated') void loadServers()
     })
     // Reconcile the currently selected workspace whenever the Agent catalog changes.
