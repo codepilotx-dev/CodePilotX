@@ -3,7 +3,13 @@ import type {
   DesktopRemovedWorkspace,
   DesktopWorkspace,
 } from '../shared/types.js'
-import type { SessionListItem } from '../src/uiTypes.js'
+import {
+  SESSION_TITLE_MAX_LENGTH,
+  sessionDisplayTitle,
+  sessionEditableTitle,
+  sessionResolvedTitle,
+  type SessionListItem,
+} from '../src/uiTypes.js'
 import {
   deriveSidebarShellMode,
   isSidebarEdgeHit,
@@ -571,6 +577,47 @@ describe('sidebar session hover card projection', () => {
       projectLabel: 'CodePilotX',
       gitBranch: 'codex/hover-card',
     })
+  })
+
+  test('统一解析完整标题并将展示标题限制为 20 个 Unicode 字符', () => {
+    const persistedTitle = '😀'.repeat(21)
+    const item = {
+      ...session('thread-title', 'F:\\CodeProject\\CodePilotX'),
+      sessionName: persistedTitle,
+      aiTitle: null,
+      firstPrompt: '临时首条消息',
+    }
+
+    expect(sessionResolvedTitle(item, '当前会话回退标题')).toBe(persistedTitle)
+    expect(sessionEditableTitle(item, '当前会话回退标题')).toBe(persistedTitle)
+
+    const displayTitle = sessionDisplayTitle(item, '当前会话回退标题')
+    expect(displayTitle).toBe(`${'😀'.repeat(19)}…`)
+    expect(Array.from(displayTitle)).toHaveLength(SESSION_TITLE_MAX_LENGTH)
+    expect(sessionDisplayTitle(null, `# ${persistedTitle}`)).toBe(
+      `# ${'😀'.repeat(17)}…`,
+    )
+  })
+
+  test('优先显示用户和 AI 标题，并保留展示标题中的 Markdown', () => {
+    const item = {
+      ...session('thread-priority', 'F:\\CodeProject\\CodePilotX'),
+      customTitle: null,
+      aiTitle: '## AI 生成标题',
+      sessionName: '数据库标题',
+      firstPrompt: '首条消息',
+    }
+
+    expect(sessionDisplayTitle(item, '当前会话回退标题')).toBe('## AI 生成标题')
+    expect(sessionDisplayTitle({
+      ...item,
+      customTitle: '> # 用户标题',
+    }, '当前会话回退标题')).toBe('> # 用户标题')
+    expect(sessionResolvedTitle({
+      ...item,
+      aiTitle: null,
+      sessionName: '新对话',
+    }, '当前会话回退标题')).toBe('当前会话回退标题')
   })
 
   test('项目环境是编码分组中的独立设置入口', () => {

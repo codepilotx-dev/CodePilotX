@@ -557,11 +557,19 @@
     color: var(--color-token-icon-foreground);
   }
 
-  span {
+  .chat-session-title__text {
+    display: inline-flex;
+    align-items: center;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .chat-session-title__skeleton {
+    width: clamp(6rem, 18vw, 11.25rem);
+    height: 1em;
+    border-radius: var(--radius-4);
   }
 }
 
@@ -663,7 +671,6 @@
     font-size: var(--type-body);
     font-weight: var(--font-weight-label);
     line-height: 1;
-    box-shadow: var(--shadow-resting);
 
     &.ui-button:hover:not(:disabled) {
       border-color: var(--color-token-border-light);
@@ -672,7 +679,6 @@
         var(--color-token-foreground) 4%,
         var(--color-token-bg-secondary)
       );
-      box-shadow: var(--shadow-resting);
     }
   }
 

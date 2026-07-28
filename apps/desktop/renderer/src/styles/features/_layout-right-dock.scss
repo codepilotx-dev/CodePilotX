@@ -638,8 +638,8 @@
       border-radius: var(--radius-3);
       background: color-mix(
         in srgb,
-        var(--color-token-text-preformat-background) 82%,
-        var(--color-token-border-light)
+        var(--color-token-foreground) 5%,
+        transparent
       );
       color: var(--color-token-foreground);
       font-size: var(--type-code);
@@ -657,7 +657,11 @@
     var(--color-token-button-foreground) 10%,
     transparent
   );
-  background: var(--color-token-bg-secondary);
+  background: color-mix(
+    in srgb,
+    var(--color-token-foreground) 5%,
+    transparent
+  );
   color: var(--color-token-button-foreground);
 }
 
@@ -666,13 +670,20 @@
 }
 
 .right-dock-plan-document .md-body :not(pre) > code {
-  border: 1px solid var(--color-token-border);
-  background: var(--color-token-text-preformat-background);
+  background: color-mix(
+    in srgb,
+    var(--color-token-foreground) 5%,
+    transparent
+  );
 }
 
 .right-dock-plan-document .md-body .md-code-block {
   border-color: var(--color-token-border);
-  background: var(--color-token-editor-background);
+  background: color-mix(
+    in srgb,
+    var(--color-token-foreground) 5%,
+    transparent
+  );
 }
 
 .right-dock-plan-document .md-body .md-code-header {

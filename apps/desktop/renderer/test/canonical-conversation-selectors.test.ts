@@ -5,6 +5,7 @@ import {
 } from '@codepilotx/session-view'
 
 import { selectCanonicalConversationAuxiliaryState } from '../src/features/session/conversation/canonicalConversationSelectors.js'
+import { canRegenerateConversationTitle } from '../src/features/session/conversation/conversationTitleActions.js'
 
 const permissionConfig = {
   sandboxMode: 'workspace-write',
@@ -170,6 +171,12 @@ describe('canonical conversation auxiliary selector', () => {
 
     expect(result.hasConversationMessages).toBe(true)
     expect(result.fallbackTitle).toBe('请分析这个链接')
+    expect(canRegenerateConversationTitle({
+      hasActiveSession: true,
+      hasFirstMessage: result.fallbackTitle !== null,
+      pending: false,
+      status: 'done',
+    })).toBe(true)
     expect(result.contextUsage).toMatchObject({
       usedTokens: 310,
       totalTokens: 330,
@@ -188,12 +195,84 @@ describe('canonical conversation auxiliary selector', () => {
   })
 
   test('returns an empty projection before canonical history is ready', () => {
-    expect(selectCanonicalConversationAuxiliaryState(null)).toEqual({
+    const result = selectCanonicalConversationAuxiliaryState(null)
+    expect(result).toEqual({
       hasConversationMessages: false,
       pendingPermissions: [],
       contextUsage: null,
       sourceLinks: [],
       fallbackTitle: null,
     })
+    expect(canRegenerateConversationTitle({
+      hasActiveSession: true,
+      hasFirstMessage: result.fallbackTitle !== null,
+      pending: false,
+      status: 'done',
+    })).toBe(false)
+  })
+
+  test('keeps the full first line for the shared display helper', () => {
+    const page: CanonicalThreadPage = {
+      thread: {
+        id: 'thread-long-title',
+        projectID: null,
+        title: null,
+        gitBranch: null,
+        workspace: {
+          kind: 'projectless',
+          projectID: null,
+          workspaceRoot: 'C:\\workspace',
+          cwd: 'C:\\workspace',
+          outputDirectory: null,
+        },
+        settings: { taskMode: 'chat', permissionConfig },
+        createdAt: 1,
+        updatedAt: 2,
+      },
+      subagents: [],
+      turns: [{
+        turn: {
+          id: 'turn-long-title',
+          threadId: 'thread-long-title',
+          sourceInputID: 'input-long-title',
+          status: 'completed',
+          mode: 'chat',
+          model,
+          permissionConfig,
+          rootAgentId: 'agent-1',
+          mergedInputIDs: [],
+          startedAt: 2,
+          finishedAt: 2,
+          elapsedSeconds: 0,
+          error: null,
+        },
+        inputs: [{
+          id: 'input-long-title',
+          threadId: 'thread-long-title',
+          turnId: 'turn-long-title',
+          content: '# 这是一个超过二十八个字符且不应在投影阶段提前截断的标题\n继续',
+          delivery: 'start',
+          mode: 'chat',
+          model,
+          permissionConfig,
+          state: 'active',
+          createdAt: 2,
+        }],
+        messages: [],
+        agents: [],
+        items: [],
+        approvals: [],
+        attachments: [],
+      }],
+      olderCursor: null,
+      hasOlder: false,
+      streamPosition: { streamId: 'thread:thread-long-title', sequence: 1 },
+    }
+
+    expect(
+      selectCanonicalConversationAuxiliaryState(
+        createCanonicalThreadState(page),
+      ).fallbackTitle,
+    ).toBe('# 这是一个超过二十八个字符且不应在投影阶段提前截断的标题')
   })
 })

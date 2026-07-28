@@ -627,9 +627,12 @@
 
   :not(pre) > code {
     padding: 1px 6px;
-    border: 1px solid var(--color-token-border-light);
     border-radius: 6px;
-    background: var(--color-token-text-preformat-background);
+    background: color-mix(
+      in srgb,
+      var(--color-token-foreground) 5%,
+      transparent
+    );
   }
 }
 
@@ -708,8 +711,13 @@
       margin: 5px 0;
       padding: 9px 10px;
       border-radius: 8px;
-      background: var(--color-token-text-preformat-background);
+      background: color-mix(
+        in srgb,
+        var(--color-token-foreground) 5%,
+        transparent
+      );
       overflow: auto;
+      font-family: var(--font-family-mono);
       white-space: pre-wrap;
     }
   }
@@ -843,11 +851,21 @@
       max-height: 440px;
       padding: 10px;
       border-radius: 8px;
-      background: var(--color-token-text-preformat-background);
+      background: color-mix(
+        in srgb,
+        var(--color-token-foreground) 5%,
+        transparent
+      );
       overflow: auto;
+      font-family: var(--font-family-mono);
       font-size: var(--type-code);
     }
   }
+}
+
+.canonical-process-card__body pre > code,
+.canonical-patch-card__files pre > code {
+  font-family: inherit;
 }
 
 .canonical-diff-add {

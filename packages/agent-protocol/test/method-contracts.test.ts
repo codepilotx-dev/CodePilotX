@@ -680,6 +680,10 @@ const fixtures = {
     operationId: "operation:thread-update",
     expectedVersion: 1,
   }, { thread: threadListItem }),
+  "thread/title/regenerate": methodFixture("thread/title/regenerate", {
+    threadId: threadListItem.id,
+    operationId: "operation:thread-title-regenerate",
+  }, { thread: threadListItem }),
   "thread/settings/update": methodFixture("thread/settings/update", {
     threadId: threadListItem.id,
     settings: { taskMode: "plan" },
@@ -1804,9 +1808,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 149 formal methods decodable", () => {
+  test("keeps valid params and results for all 150 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(149)
+    expect(methods).toHaveLength(150)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

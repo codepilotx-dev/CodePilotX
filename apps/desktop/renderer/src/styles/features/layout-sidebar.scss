@@ -411,6 +411,13 @@
   font-weight: var(--font-weight-label);
 }
 
+.sidebar-session-title--loading {
+  flex: 0 1 7.5rem;
+  width: min(7.5rem, 72%);
+  height: 0.75rem;
+  border-radius: var(--radius-4);
+}
+
 .sidebar-session-unread-dot {
   flex: 0 0 auto;
   width: 6px;
@@ -517,6 +524,12 @@
   font-weight: var(--font-weight-label);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sidebar-session-hover-card-title__skeleton {
+  width: 8.5rem;
+  height: 0.875rem;
+  border-radius: var(--radius-4);
 }
 
 .sidebar-session-hover-card-time {

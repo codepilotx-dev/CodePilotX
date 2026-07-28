@@ -248,6 +248,10 @@ describe('desktop history client', () => {
         }
         return rpc(body.id, { thread: currentItem })
       }
+      if (rpcMethod === 'thread/title/regenerate') {
+        currentItem = sessionItem({ title: '自动更新后的标题' })
+        return rpc(body.id, { thread: currentItem })
+      }
       if (rpcMethod === 'thread/delete') {
         currentItem = sessionItem({ id: 'deleted' })
         return rpc(body.id, {
@@ -279,6 +283,17 @@ describe('desktop history client', () => {
 
     const renamed = await client.renameSession('session-1', '改名后')
     expect(renamed.item.sessionName).toBe('改名后')
+
+    const regenerated = await client.regenerateSessionTitle('session-1')
+    expect(regenerated.item.sessionName).toBe('自动更新后的标题')
+    expect(
+      requests.map(request => request.body).find(
+        body => body?.method === 'thread/title/regenerate',
+      )?.params,
+    ).toMatchObject({
+      threadId: 'session-1',
+      operationId: expect.any(String),
+    })
 
     const archived = await client.updateSessionMetadata('session-1', {
       archivedAt: new Date(now + 3000).toISOString(),
