@@ -216,17 +216,35 @@ export function applyThreadEnvelope(
   state: CanonicalThreadState,
   envelope: ThreadEventEnvelopeLike,
 ): CanonicalThreadState {
-  if (envelope.threadId && envelope.threadId !== state.thread.id) return state
-  if (state.stream.appliedEventIds.has(envelope.eventId)) return state
-  if (envelope.streamId !== state.stream.streamId) return state
-  if (envelope.durability === "durable" && envelope.sequence <= state.stream.appliedSequence) return state
-  if (envelope.durability === "live" && envelope.afterSequence < state.stream.appliedSequence) return state
+  return applyThreadEnvelopes(state, [envelope])
+}
 
-  const next = cloneState(state)
-  next.stream.appliedEventIds.add(envelope.eventId)
-  if (envelope.durability === "durable") next.stream.appliedSequence = envelope.sequence
-  applyEnvelopePayload(next, envelope)
-  return next
+export function applyThreadEnvelopes(
+  state: CanonicalThreadState,
+  envelopes: readonly ThreadEventEnvelopeLike[],
+): CanonicalThreadState {
+  let next: CanonicalThreadState | null = null
+
+  for (const envelope of envelopes) {
+    const current = next ?? state
+    if (envelope.threadId && envelope.threadId !== current.thread.id) continue
+    if (envelope.streamId !== current.stream.streamId) continue
+    if (envelope.durability === "durable" && envelope.sequence <= current.stream.appliedSequence) continue
+    if (envelope.durability === "live") {
+      if (envelope.afterSequence < current.stream.appliedSequence) continue
+      if (current.stream.appliedEventIds.has(envelope.eventId)) continue
+    }
+
+    next ??= cloneState(state)
+    if (envelope.durability === "durable") {
+      next.stream.appliedSequence = envelope.sequence
+    } else {
+      rememberLiveEvent(next.stream.appliedEventIds, envelope.eventId)
+    }
+    applyEnvelopePayload(next, envelope)
+  }
+
+  return next ?? state
 }
 
 export function selectVisibleTurnEntries(
@@ -625,6 +643,17 @@ function cloneState(state: CanonicalThreadState): CanonicalThreadState {
     queue: { ...state.queue, turnIds: [...state.queue.turnIds], inputIds: [...state.queue.inputIds] },
     history: { ...state.history },
     stream: { ...state.stream, appliedEventIds: new Set(state.stream.appliedEventIds) },
+  }
+}
+
+const MAX_RECENT_LIVE_EVENT_IDS = 2_048
+
+function rememberLiveEvent(eventIds: Set<string>, eventId: string): void {
+  eventIds.add(eventId)
+  while (eventIds.size > MAX_RECENT_LIVE_EVENT_IDS) {
+    const oldestEventId = eventIds.values().next().value
+    if (oldestEventId === undefined) break
+    eventIds.delete(oldestEventId)
   }
 }
 

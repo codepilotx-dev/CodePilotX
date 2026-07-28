@@ -9,6 +9,7 @@ import type {
 } from "@codepilotx/shared/thread"
 import {
   applyThreadEnvelope,
+  applyThreadEnvelopes,
   createCanonicalThreadState,
   prependOlderThreadPage,
   selectRenderTurnEntries,
@@ -210,6 +211,116 @@ describe("canonical thread state", () => {
     }, 11)
     const protectedTerminal = applyThreadEnvelope(completed, sameAnchor)
     expect(protectedTerminal.itemsById.get(streaming.id)).toEqual(terminal)
+  })
+
+  test("applies an ordered envelope batch equivalently to individual updates", () => {
+    const activeTurn = turn("turn-batch")
+    const streaming = textItem("item-batch", activeTurn.id, "")
+    const state = createCanonicalThreadState(page([{
+      turn: activeTurn,
+      inputs: [],
+      messages: [],
+      agents: [agent("agent-turn-batch", activeTurn.id)],
+      items: [streaming],
+      approvals: [],
+    }]))
+    const envelopes = [
+      live("batch-live-1", "item/agentMessage/delta", {
+        itemId: streaming.id,
+        turnId: activeTurn.id,
+        agentId: streaming.agentId,
+        delta: "第一段",
+      }),
+      live("batch-live-2", "item/agentMessage/delta", {
+        itemId: streaming.id,
+        turnId: activeTurn.id,
+        agentId: streaming.agentId,
+        delta: "第二段",
+      }),
+      durable(11, "item/completed", {
+        item: textItem(streaming.id, activeTurn.id, "第一段第二段", "completed"),
+      }),
+    ]
+
+    const batched = applyThreadEnvelopes(state, envelopes)
+    const individual = envelopes.reduce(applyThreadEnvelope, state)
+
+    expect(batched).toEqual(individual)
+    expect(batched.itemsById.get(streaming.id)).toMatchObject({
+      text: "第一段第二段",
+      status: "completed",
+    })
+    expect(batched.stream.appliedEventIds).toEqual(new Set(["batch-live-1", "batch-live-2"]))
+  })
+
+  test("preserves live order and idempotency while protecting terminal items in a batch", () => {
+    const activeTurn = turn("turn-batch-terminal")
+    const streaming = textItem("item-batch-terminal", activeTurn.id, "")
+    const state = createCanonicalThreadState(page([{
+      turn: activeTurn,
+      inputs: [],
+      messages: [],
+      agents: [agent("agent-turn-batch-terminal", activeTurn.id)],
+      items: [streaming],
+      approvals: [],
+    }]))
+    const first = live("batch-duplicate", "item/agentMessage/delta", {
+      itemId: streaming.id,
+      turnId: activeTurn.id,
+      agentId: streaming.agentId,
+      delta: "A",
+    })
+    const terminal = textItem(streaming.id, activeTurn.id, "AB!", "completed")
+    const batched = applyThreadEnvelopes(state, [
+      first,
+      first,
+      live("batch-second", "item/agentMessage/delta", {
+        itemId: streaming.id,
+        turnId: activeTurn.id,
+        agentId: streaming.agentId,
+        delta: "B",
+      }),
+      durable(11, "item/completed", { item: terminal }),
+      live("batch-stale", "item/agentMessage/delta", {
+        itemId: streaming.id,
+        turnId: activeTurn.id,
+        agentId: streaming.agentId,
+        delta: " stale",
+      }, 10),
+      live("batch-terminal", "item/agentMessage/delta", {
+        itemId: streaming.id,
+        turnId: activeTurn.id,
+        agentId: streaming.agentId,
+        delta: " ignored",
+      }, 11),
+    ])
+
+    expect(batched.itemsById.get(streaming.id)).toEqual(terminal)
+    expect(batched.stream.appliedSequence).toBe(11)
+    expect(batched.stream.appliedEventIds).toEqual(new Set([
+      "batch-duplicate",
+      "batch-second",
+      "batch-terminal",
+    ]))
+  })
+
+  test("bounds recent live event ids and does not retain durable event ids", () => {
+    const state = createCanonicalThreadState(page([]))
+    const envelopes: ThreadEventEnvelopeLike[] = [
+      durable(11, "thread/updated", { thread: { ...thread, updatedAt: 11 } }),
+    ]
+    for (let index = 0; index < 5_000; index += 1) {
+      envelopes.push(live(`bounded-live-${index}`, "reasoning/summaryPartAdded", {}, 11))
+    }
+
+    const next = applyThreadEnvelopes(state, envelopes)
+
+    expect(next.stream.appliedEventIds.size).toBe(2_048)
+    expect(next.stream.appliedEventIds.has(envelopes[0]!.eventId)).toBe(false)
+    expect(next.stream.appliedEventIds.has("bounded-live-0")).toBe(false)
+    expect(next.stream.appliedEventIds.has("bounded-live-2951")).toBe(false)
+    expect(next.stream.appliedEventIds.has("bounded-live-2952")).toBe(true)
+    expect(next.stream.appliedEventIds.has("bounded-live-4999")).toBe(true)
   })
 
   test("projects final plans as content and upserts execution plan snapshots by item id", () => {

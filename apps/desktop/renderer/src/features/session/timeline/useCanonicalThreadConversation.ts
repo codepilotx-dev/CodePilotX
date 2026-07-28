@@ -1,7 +1,7 @@
 import React from "react";
 import type { EventEnvelope } from "@codepilotx/agent-protocol";
 import {
-  applyThreadEnvelope,
+  applyThreadEnvelopes,
   createCanonicalThreadState,
   prependOlderThreadPage,
   selectRenderTurnEntries,
@@ -12,8 +12,16 @@ import {
 } from "@codepilotx/session-view";
 
 import { desktopClient } from "../../../services/desktop-client/index.js";
+import { AGENT_LIVE_EVENT_FILTERS } from "../../../services/desktop-client/eventSubscriptionFilters.js";
+import {
+  recordCanonicalBatch,
+  recordCanonicalProjection,
+} from "../../debug/performanceDiagnosticsBridge.js";
 
 const INITIAL_TURN_PAGE_SIZE = 10;
+const MAX_ENVELOPES_PER_FLUSH = 256;
+const BACKGROUND_FLUSH_DELAY_MS = 50;
+const MAIN_CONVERSATION_SCOPE = { type: "main" } as const;
 
 export type CanonicalThreadConversation = {
   state: CanonicalThreadState | null;
@@ -28,7 +36,7 @@ export type CanonicalThreadConversation = {
 
 export function useCanonicalThreadConversation(
   threadId: string | null,
-  scope: ThreadConversationScope = { type: "main" },
+  scope: ThreadConversationScope = MAIN_CONVERSATION_SCOPE,
 ): CanonicalThreadConversation {
   const [state, setState] = React.useState<CanonicalThreadState | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -37,12 +45,41 @@ export function useCanonicalThreadConversation(
   const stateRef = React.useRef<CanonicalThreadState | null>(null);
   const generationRef = React.useRef(0);
   const unsubscribeRef = React.useRef<(() => void) | null>(null);
-  const reconcilingRef = React.useRef(false);
+  const pendingEnvelopesRef = React.useRef<EventEnvelope[]>([]);
+  const flushFrameRef = React.useRef<number | null>(null);
+  const flushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushPendingRef = React.useRef<() => void>(() => undefined);
 
   const commit = React.useCallback((next: CanonicalThreadState | null): void => {
     stateRef.current = next;
     setState(next);
   }, []);
+
+  const cancelScheduledFlush = React.useCallback((): void => {
+    if (flushFrameRef.current !== null) {
+      cancelAnimationFrame(flushFrameRef.current);
+      flushFrameRef.current = null;
+    }
+    if (flushTimerRef.current !== null) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+  }, []);
+
+  const clearPendingEnvelopes = React.useCallback((): void => {
+    cancelScheduledFlush();
+    pendingEnvelopesRef.current = [];
+  }, [cancelScheduledFlush]);
+
+  const scheduleFlush = React.useCallback((): void => {
+    if (flushFrameRef.current !== null || flushTimerRef.current !== null) return;
+    const run = (): void => {
+      cancelScheduledFlush();
+      flushPendingRef.current();
+    };
+    flushFrameRef.current = requestAnimationFrame(run);
+    flushTimerRef.current = setTimeout(run, BACKGROUND_FLUSH_DELAY_MS);
+  }, [cancelScheduledFlush]);
 
   const readLatest = React.useCallback(async (): Promise<ThreadHistoryPageLike | null> => {
     if (!threadId) return null;
@@ -54,6 +91,7 @@ export function useCanonicalThreadConversation(
 
   const reload = React.useCallback(async (): Promise<void> => {
     const generation = ++generationRef.current;
+    clearPendingEnvelopes();
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
     if (!threadId) {
@@ -73,7 +111,10 @@ export function useCanonicalThreadConversation(
         {
           threadId,
           after: page.streamPosition.sequence,
+          liveEventTypes: AGENT_LIVE_EVENT_FILTERS.canonical,
           onCursorExpired: async () => {
+            if (generation !== generationRef.current) return;
+            clearPendingEnvelopes();
             const replacement = await readLatest();
             if (!replacement || generation !== generationRef.current) return;
             commit(createCanonicalThreadState(replacement));
@@ -82,36 +123,8 @@ export function useCanonicalThreadConversation(
         },
         (envelope: EventEnvelope) => {
           if (generation !== generationRef.current) return;
-          const current = stateRef.current;
-          if (!current) return;
-          try {
-            const next = applyThreadEnvelope(current, envelope);
-            if (next !== current) commit(next);
-          } catch (cause) {
-            const message = cause instanceof Error ? cause.message : String(cause);
-            console.error("会话事件投影失败，正在从历史记录对账", {
-              eventId: envelope.eventId,
-              type: envelope.type,
-              cause,
-            });
-            setError(`会话事件投影失败：${message}`);
-            if (reconcilingRef.current) return;
-            reconcilingRef.current = true;
-            void readLatest()
-              .then((replacement) => {
-                if (!replacement || generation !== generationRef.current) return;
-                commit(createCanonicalThreadState(replacement));
-                setError(null);
-              })
-              .catch((reconcileCause) => {
-                if (generation !== generationRef.current) return;
-                const reconcileMessage = reconcileCause instanceof Error ? reconcileCause.message : String(reconcileCause);
-                setError(`会话事件投影失败且对账未完成：${reconcileMessage}`);
-              })
-              .finally(() => {
-                reconcilingRef.current = false;
-              });
-          }
+          pendingEnvelopesRef.current.push(envelope);
+          scheduleFlush();
         },
       );
     } catch (cause) {
@@ -121,16 +134,63 @@ export function useCanonicalThreadConversation(
     } finally {
       if (generation === generationRef.current) setLoading(false);
     }
-  }, [commit, readLatest, threadId]);
+  }, [
+    clearPendingEnvelopes,
+    commit,
+    readLatest,
+    scheduleFlush,
+    threadId,
+  ]);
+
+  const flushPending = React.useCallback((): void => {
+    const current = stateRef.current;
+    if (!current) {
+      pendingEnvelopesRef.current = [];
+      return;
+    }
+    const batch = pendingEnvelopesRef.current.splice(0, MAX_ENVELOPES_PER_FLUSH);
+    if (batch.length === 0) return;
+    try {
+      const applyStartedAt = performance.now();
+      const next = applyThreadEnvelopes(current, batch);
+      recordCanonicalBatch({
+        eventCount: batch.length,
+        applyMs: performance.now() - applyStartedAt,
+        liveEventIds: next.stream.appliedEventIds.size,
+      });
+      if (next !== current) commit(next);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      const first = batch[0];
+      console.error("会话事件投影失败，正在从历史记录对账", {
+        eventId: first?.eventId,
+        type: first?.type,
+        batchSize: batch.length,
+        cause,
+      });
+      setError(`会话事件投影失败：${message}`);
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+      clearPendingEnvelopes();
+      void reload();
+      return;
+    }
+    if (pendingEnvelopesRef.current.length > 0) scheduleFlush();
+  }, [clearPendingEnvelopes, commit, reload, scheduleFlush]);
+
+  React.useLayoutEffect(() => {
+    flushPendingRef.current = flushPending;
+  }, [flushPending]);
 
   React.useEffect(() => {
     void reload();
     return () => {
       generationRef.current += 1;
+      clearPendingEnvelopes();
       unsubscribeRef.current?.();
       unsubscribeRef.current = null;
     };
-  }, [reload]);
+  }, [clearPendingEnvelopes, reload]);
 
   const loadOlder = React.useCallback(async (): Promise<void> => {
     const current = stateRef.current;
@@ -155,14 +215,24 @@ export function useCanonicalThreadConversation(
     }
   }, [commit, loadingOlder, threadId]);
 
-  const turns = React.useMemo(
-    () => (state ? selectRenderTurnEntries(state, scope) : []),
+  const projection = React.useMemo(
+    () => {
+      const startedAt = performance.now();
+      const turns = state ? selectRenderTurnEntries(state, scope) : [];
+      return {
+        durationMs: state ? performance.now() - startedAt : 0,
+        turns,
+      };
+    },
     [scope, state],
   );
+  React.useEffect(() => {
+    if (state) recordCanonicalProjection(projection.durationMs);
+  }, [projection, state]);
 
   return {
     state,
-    turns,
+    turns: projection.turns,
     loading,
     loadingOlder,
     error,
