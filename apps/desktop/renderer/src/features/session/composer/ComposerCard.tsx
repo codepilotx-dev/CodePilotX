@@ -28,6 +28,7 @@ import {
   Hand,
   ListChecks,
   MessageSquare,
+  Mic,
   Monitor,
   Palette,
   Paperclip,
@@ -1871,43 +1872,16 @@ export function ComposerCard({
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
 
-            {routedSessionId ? (
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <IconButton
-                    aria-label="发送选项"
-                    className="composer-send-options"
-                    disabled={!canSubmit || submitting}
-                    title="发送选项"
-                  >
-                    <ChevronDown
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
-                  </IconButton>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content
-                    align="end"
-                    className="popover-surface rm-model-menu"
-                    onPointerDownOutside={(event) => {
-                      preventOutsideDismissWhenDebug(debugMode, event);
-                    }}
-                    side="top"
-                    sideOffset={6}
-                    style={buildPopoverSizingStyle({ width: 210 })}
-                  >
-                    <DropdownMenu.Item
-                      className="rm-menu-item"
-                      onSelect={() => onSubmit("follow-up")}
-                    >
-                      <span className="rm-item-label">排队到下一轮</span>
-                      <span className="shortcut">Ctrl+Enter</span>
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-            ) : null}
+            <IconButton
+              aria-label="语音输入"
+              className="composer-mic-button"
+              title="语音输入"
+            >
+              <Mic
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            </IconButton>
 
             <button
               aria-label={
