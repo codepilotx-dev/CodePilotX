@@ -113,6 +113,50 @@ describe('desktop provider client', () => {
     expect(requests.some(request => request.method === 'model/list' && Object.keys(request.params ?? {}).length === 0)).toBe(false)
   })
 
+  test('环境变量凭据使 Pi 已启用模型保持可发送状态', async () => {
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'model.catalog.paged.v1']))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        return rpc(body.id, {
+          providers: [provider.provider],
+          issues: [],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 7,
+        })
+      }
+      if (body.method === 'model/list') {
+        return rpc(body.id, {
+          providers: [provider],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 7,
+          total: 1,
+        })
+      }
+      if (body.method === 'provider/credential/list') {
+        return rpc(body.id, { credentials: [] })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+
+    const state = await createDesktopClient({ fetch: fetcher })
+      .getModelProviderState()
+
+    expect(state).toMatchObject({
+      model: 'MiniMax-M3',
+      modelConfigured: true,
+      apiKeyConfigured: true,
+      apiKeySource: 'environment',
+      provider: { apiKeyConfigured: true },
+    })
+  })
+
   test('删除 API 密钥后重新读取凭据，并返回真实未配置状态', async () => {
     const methods: string[] = []
     let credentials = [credential()]
@@ -127,12 +171,15 @@ describe('desktop provider client', () => {
         return new Response(null, { status: 204 })
       }
       if (body.method === 'model/list') {
+        const models = credentials.length > 0 ? provider.models : []
         return rpc(body.id, {
-          providers: [provider],
-          defaultModel: {
-            providerID: 'minimax-cn-coding-plan',
-            id: 'MiniMax-M3',
-          },
+          providers: [{ ...provider, models }],
+          defaultModel: credentials.length > 0
+            ? {
+                providerID: 'minimax-cn-coding-plan',
+                id: 'MiniMax-M3',
+              }
+            : null,
           reviewerModel: null,
           catalogVersion: 1,
         })
@@ -141,10 +188,12 @@ describe('desktop provider client', () => {
         return rpc(body.id, {
           providers: [provider.provider],
           issues: [],
-          defaultModel: {
-            providerID: 'minimax-cn-coding-plan',
-            id: 'MiniMax-M3',
-          },
+          defaultModel: credentials.length > 0
+            ? {
+                providerID: 'minimax-cn-coding-plan',
+                id: 'MiniMax-M3',
+              }
+            : null,
           reviewerModel: null,
           catalogVersion: 1,
         })

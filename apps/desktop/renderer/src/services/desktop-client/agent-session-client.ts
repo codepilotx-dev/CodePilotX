@@ -617,16 +617,27 @@ export function createAgentSessionDesktopClient(
     const hasCredential = credentials.some(
       credential => credential.providerId === provider.id && credential.enabled,
     )
+    const modelAvailable = Boolean(model)
+    const providerConfigured =
+      modelAvailable || hasCredential || summary.apiKeyConfigured
+    const apiKeySource = activeCredential
+      ? 'secureStorage'
+      : modelAvailable && provider.auth.apiKey
+        ? 'environment'
+        : null
     return {
       selectedProviderID: catalogProvider.provider.id,
-      provider: summary,
+      provider: {
+        ...summary,
+        apiKeyConfigured: providerConfigured,
+      },
       model,
       variant: selectedModel?.variant,
       baseURL: summary.baseURL,
-      apiKeyConfigured: hasCredential || summary.apiKeyConfigured,
-      apiKeySource: activeCredential ? 'secureStorage' : null,
-      modelConfigured: Boolean(model && (hasCredential || summary.apiKeyConfigured)),
-      configurationMessage: hasCredential || summary.apiKeyConfigured
+      apiKeyConfigured: providerConfigured,
+      apiKeySource,
+      modelConfigured: modelAvailable && providerConfigured,
+      configurationMessage: providerConfigured
         ? undefined
         : '未连接凭据，请先配置 API 密钥或完成授权。',
       models: summary.defaultModels,

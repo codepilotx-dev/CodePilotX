@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { basename, dirname, extname, join } from "node:path"
+import { dirname, join } from "node:path"
 import { randomUUID } from "node:crypto"
 import type {
   DesktopChromeTheme,
@@ -216,7 +216,7 @@ export class AppearanceSettingsStore {
         parsed = JSON.parse(source)
       } catch (error) {
         if (error instanceof SyntaxError) {
-          return this.#backupCorruptAndReset()
+          return this.#removeCorruptAndReset()
         }
         throw error
       }
@@ -238,16 +238,9 @@ export class AppearanceSettingsStore {
     return write
   }
 
-  async #backupCorruptAndReset(): Promise<DesktopThemeSettingsV6> {
-    const extension = extname(this.#filePath)
-    const stem = basename(this.#filePath, extension)
-    const timestamp = new Date().toISOString().replace(/\D/g, "")
-    const backupPath = join(
-      dirname(this.#filePath),
-      `${stem}.corrupt-${timestamp}-${randomUUID()}${extension || ".json"}`,
-    )
-    await rename(this.#filePath, backupPath)
-    this.#logger?.info("appearance-settings.corrupt-backed-up", { reason: "invalid-json" })
+  async #removeCorruptAndReset(): Promise<DesktopThemeSettingsV6> {
+    await rm(this.#filePath, { force: true })
+    this.#logger?.info("appearance-settings.corrupt-reset", { reason: "invalid-json" })
     const fallback = normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
     await this.save(fallback)
     return fallback

@@ -30,7 +30,7 @@ describe("Electron 外观设置存储", () => {
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(DEFAULT_APPEARANCE_SETTINGS)
   })
 
-  test("损坏 JSON 备份旧文件、记录无敏感信息的事件并恢复默认值", async () => {
+  test("损坏 JSON 删除旧文件、记录无敏感信息的事件并恢复默认值", async () => {
     const root = temporaryRoot()
     const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
     const store = new AppearanceSettingsStore(root, {
@@ -41,13 +41,9 @@ describe("Electron 外观设置存储", () => {
 
     expect(await store.load()).toEqual(DEFAULT_APPEARANCE_SETTINGS)
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(DEFAULT_APPEARANCE_SETTINGS)
-    const corruptFiles = (await readdir(root)).filter(
-      name => name.startsWith("appearance-settings.corrupt-") && name.endsWith(".json"),
-    )
-    expect(corruptFiles).toHaveLength(1)
-    expect(await readFile(join(root, corruptFiles[0]!), "utf8")).toBe("{not-json")
+    expect(await readdir(root)).toEqual(["appearance-settings.json"])
     expect(records).toEqual([{
-      event: "appearance-settings.corrupt-backed-up",
+      event: "appearance-settings.corrupt-reset",
       fields: { reason: "invalid-json" },
     }])
     expect(JSON.stringify(records)).not.toContain(root)
