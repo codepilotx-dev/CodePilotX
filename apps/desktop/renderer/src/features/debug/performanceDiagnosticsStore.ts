@@ -44,6 +44,16 @@ export type PerformanceDiagnosticsSnapshot = {
     totalBytes: number | null
     usedDeltaBytes: number | null
   }
+  conversationSwitch: {
+    skeletonMs: DistributionSnapshot
+    canonicalReadyMs: DistributionSnapshot
+    initialTurns: DistributionSnapshot
+    initialItems: DistributionSnapshot
+    threadReadsPerSwitch: DistributionSnapshot
+    historyReadsPerSwitch: DistributionSnapshot
+    workspaceRefreshesPerSwitch: DistributionSnapshot
+    longTasksPerSwitch: DistributionSnapshot
+  }
 }
 
 type TimedValue = {
@@ -75,6 +85,22 @@ type MutableState = {
     usedBytes: number
     totalBytes: number
   }>
+  conversationSwitch: {
+    startedAt: number
+    skeletonRecorded: boolean
+    threadReads: number
+    historyReads: number
+    workspaceRefreshes: number
+    longTasks: number
+  } | null
+  conversationSwitchSkeletonMs: TimedValue[]
+  conversationSwitchCanonicalReadyMs: TimedValue[]
+  conversationSwitchInitialTurns: TimedValue[]
+  conversationSwitchInitialItems: TimedValue[]
+  conversationSwitchThreadReads: TimedValue[]
+  conversationSwitchHistoryReads: TimedValue[]
+  conversationSwitchWorkspaceRefreshes: TimedValue[]
+  conversationSwitchLongTasks: TimedValue[]
 }
 
 const RATE_WINDOW_MS = 10_000
@@ -112,6 +138,15 @@ function createState(at = now()): MutableState {
     },
     longTasks: [],
     heapSamples: [],
+    conversationSwitch: null,
+    conversationSwitchSkeletonMs: [],
+    conversationSwitchCanonicalReadyMs: [],
+    conversationSwitchInitialTurns: [],
+    conversationSwitchInitialItems: [],
+    conversationSwitchThreadReads: [],
+    conversationSwitchHistoryReads: [],
+    conversationSwitchWorkspaceRefreshes: [],
+    conversationSwitchLongTasks: [],
   }
 }
 
@@ -179,6 +214,14 @@ function pruneState(at: number): void {
   pruneTimedSamples(state.canonicalProjectionMs, at)
   pruneTimedSamples(state.reactCommitMs, at)
   pruneTimedSamples(state.longTasks, at)
+  pruneTimedSamples(state.conversationSwitchSkeletonMs, at)
+  pruneTimedSamples(state.conversationSwitchCanonicalReadyMs, at)
+  pruneTimedSamples(state.conversationSwitchInitialTurns, at)
+  pruneTimedSamples(state.conversationSwitchInitialItems, at)
+  pruneTimedSamples(state.conversationSwitchThreadReads, at)
+  pruneTimedSamples(state.conversationSwitchHistoryReads, at)
+  pruneTimedSamples(state.conversationSwitchWorkspaceRefreshes, at)
+  pruneTimedSamples(state.conversationSwitchLongTasks, at)
 
   const oldestHeapSample = at - SAMPLE_WINDOW_MS
   while (
@@ -244,6 +287,24 @@ function createSnapshot(at = now()): PerformanceDiagnosticsSnapshot {
       usedDeltaBytes:
         firstHeap && lastHeap ? lastHeap.usedBytes - firstHeap.usedBytes : null,
     },
+    conversationSwitch: {
+      skeletonMs: distribution(state.conversationSwitchSkeletonMs),
+      canonicalReadyMs: distribution(
+        state.conversationSwitchCanonicalReadyMs,
+      ),
+      initialTurns: distribution(state.conversationSwitchInitialTurns),
+      initialItems: distribution(state.conversationSwitchInitialItems),
+      threadReadsPerSwitch: distribution(
+        state.conversationSwitchThreadReads,
+      ),
+      historyReadsPerSwitch: distribution(
+        state.conversationSwitchHistoryReads,
+      ),
+      workspaceRefreshesPerSwitch: distribution(
+        state.conversationSwitchWorkspaceRefreshes,
+      ),
+      longTasksPerSwitch: distribution(state.conversationSwitchLongTasks),
+    },
   }
 }
 
@@ -283,6 +344,10 @@ export function enablePerformanceDiagnostics(): () => void {
       recordCanonicalBatch,
       recordCanonicalProjection,
       recordReactCommit,
+      recordConversationSwitchStarted,
+      recordConversationSwitchSkeleton,
+      recordConversationSwitchCanonicalReady,
+      recordConversationSwitchRequest,
     })
   }
   snapshot = createSnapshot()
@@ -416,7 +481,90 @@ export function recordFrameWindow(
 export function recordLongTask(durationMs: number, at = now()): void {
   if (!isPerformanceDiagnosticsEnabled()) return
   appendTimedSample(state.longTasks, durationMs, at)
+  if (state.conversationSwitch && at >= state.conversationSwitch.startedAt) {
+    state.conversationSwitch.longTasks += 1
+  }
   emitChange()
+}
+
+export function recordConversationSwitchStarted(at = now()): void {
+  if (!isPerformanceDiagnosticsEnabled()) return
+  state.conversationSwitch = {
+    startedAt: at,
+    skeletonRecorded: false,
+    threadReads: 0,
+    historyReads: 0,
+    workspaceRefreshes: 0,
+    longTasks: 0,
+  }
+}
+
+export function recordConversationSwitchSkeleton(at = now()): void {
+  if (!isPerformanceDiagnosticsEnabled()) return
+  const current = state.conversationSwitch
+  if (!current || current.skeletonRecorded || at < current.startedAt) return
+  current.skeletonRecorded = true
+  appendTimedSample(
+    state.conversationSwitchSkeletonMs,
+    at - current.startedAt,
+    at,
+  )
+  emitChange()
+}
+
+export function recordConversationSwitchCanonicalReady(
+  {
+    turnCount,
+    itemCount,
+  }: {
+    turnCount: number
+    itemCount: number
+  },
+  at = now(),
+): void {
+  if (!isPerformanceDiagnosticsEnabled()) return
+  const current = state.conversationSwitch
+  if (!current || at < current.startedAt) return
+  appendTimedSample(
+    state.conversationSwitchCanonicalReadyMs,
+    at - current.startedAt,
+    at,
+  )
+  appendTimedSample(state.conversationSwitchInitialTurns, turnCount, at)
+  appendTimedSample(state.conversationSwitchInitialItems, itemCount, at)
+  appendTimedSample(
+    state.conversationSwitchThreadReads,
+    current.threadReads,
+    at,
+  )
+  appendTimedSample(
+    state.conversationSwitchHistoryReads,
+    current.historyReads,
+    at,
+  )
+  appendTimedSample(
+    state.conversationSwitchWorkspaceRefreshes,
+    current.workspaceRefreshes,
+    at,
+  )
+  appendTimedSample(
+    state.conversationSwitchLongTasks,
+    current.longTasks,
+    at,
+  )
+  state.conversationSwitch = null
+  emitChange()
+}
+
+export function recordConversationSwitchRequest(
+  kind: 'thread-read' | 'history-read' | 'workspace-refresh',
+): void {
+  if (!isPerformanceDiagnosticsEnabled()) return
+  const current = state.conversationSwitch
+  if (!current) return
+  if (kind === 'thread-read') current.threadReads += 1
+  if (kind === 'history-read') current.historyReads += 1
+  if (kind === 'workspace-refresh') current.workspaceRefreshes += 1
 }
 
 export function recordHeapSample({

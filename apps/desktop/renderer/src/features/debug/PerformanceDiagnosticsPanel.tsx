@@ -222,6 +222,31 @@ export function PerformanceDiagnosticsPanel(): React.ReactNode {
                 : formatSignedBytes(stats.heap.usedDeltaBytes)
             }
           />
+          <StatCard
+            icon={<Clock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+            label="切换骨架屏 p95"
+            value={formatMs(stats.conversationSwitch.skeletonMs.p95)}
+          />
+          <StatCard
+            icon={<Clock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+            label="切换就绪 p95"
+            value={formatMs(stats.conversationSwitch.canonicalReadyMs.p95)}
+          />
+          <StatCard
+            icon={<Activity size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+            label="切换初始 Turn/Item p95"
+            value={`${formatNumber(stats.conversationSwitch.initialTurns.p95)}/${formatNumber(stats.conversationSwitch.initialItems.p95)}`}
+          />
+          <StatCard
+            icon={<Activity size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+            label="切换请求 p95"
+            value={`read ${formatNumber(stats.conversationSwitch.threadReadsPerSwitch.p95)} · history ${formatNumber(stats.conversationSwitch.historyReadsPerSwitch.p95)} · workspace ${formatNumber(stats.conversationSwitch.workspaceRefreshesPerSwitch.p95)}`}
+          />
+          <StatCard
+            icon={<Timer size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+            label="切换 Long Task p95"
+            value={formatNumber(stats.conversationSwitch.longTasksPerSwitch.p95)}
+          />
         </div>
         <p className="performance-diagnostics-footnote">
           长帧阈值：{LONG_FRAME_MS}ms；当前窗口样本：{stats.frames.sampleCount} 帧。

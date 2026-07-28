@@ -4,6 +4,10 @@ import {
   getPerformanceDiagnosticsSnapshot,
   recordCanonicalBatch,
   recordCanonicalProjection,
+  recordConversationSwitchCanonicalReady,
+  recordConversationSwitchRequest,
+  recordConversationSwitchSkeleton,
+  recordConversationSwitchStarted,
   recordFirstDelta,
   recordHeapSample,
   recordLongTask,
@@ -152,5 +156,33 @@ describe('performance diagnostics store', () => {
     expect(serialized).not.toContain('sessionId')
     expect(serialized).not.toContain('content')
     expect(serialized).not.toContain('path')
+  })
+
+  test('collects aggregate conversation switch stages and request counts', () => {
+    disable = enablePerformanceDiagnostics()
+    resetPerformanceDiagnostics()
+    const base = performance.now()
+
+    recordConversationSwitchStarted(base)
+    recordConversationSwitchRequest('history-read')
+    recordConversationSwitchRequest('workspace-refresh')
+    recordConversationSwitchSkeleton(base + 12)
+    recordLongTask(60, base + 20)
+    recordConversationSwitchCanonicalReady(
+      { turnCount: 4, itemCount: 80 },
+      base + 48,
+    )
+
+    const switchStats = JSON.parse(
+      serializePerformanceDiagnosticsSnapshot(),
+    ).conversationSwitch
+    expect(switchStats.skeletonMs.p95).toBe(12)
+    expect(switchStats.canonicalReadyMs.p95).toBe(48)
+    expect(switchStats.initialTurns.p95).toBe(4)
+    expect(switchStats.initialItems.p95).toBe(80)
+    expect(switchStats.threadReadsPerSwitch.p95).toBe(0)
+    expect(switchStats.historyReadsPerSwitch.p95).toBe(1)
+    expect(switchStats.workspaceRefreshesPerSwitch.p95).toBe(1)
+    expect(switchStats.longTasksPerSwitch.p95).toBe(1)
   })
 })

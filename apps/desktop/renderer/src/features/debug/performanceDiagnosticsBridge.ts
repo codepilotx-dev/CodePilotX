@@ -22,6 +22,15 @@ export type PerformanceDiagnosticsRecorder = {
   }): void
   recordCanonicalProjection(durationMs: number): void
   recordReactCommit(durationMs: number): void
+  recordConversationSwitchStarted(): void
+  recordConversationSwitchSkeleton(): void
+  recordConversationSwitchCanonicalReady(input: {
+    turnCount: number
+    itemCount: number
+  }): void
+  recordConversationSwitchRequest(
+    kind: 'thread-read' | 'history-read' | 'workspace-refresh',
+  ): void
 }
 
 let recorder: PerformanceDiagnosticsRecorder | null = null
@@ -67,4 +76,25 @@ export function recordCanonicalProjection(durationMs: number): void {
 
 export function recordReactCommit(durationMs: number): void {
   recorder?.recordReactCommit(durationMs)
+}
+
+export function recordConversationSwitchStarted(): void {
+  recorder?.recordConversationSwitchStarted()
+}
+
+export function recordConversationSwitchSkeleton(): void {
+  recorder?.recordConversationSwitchSkeleton()
+}
+
+export function recordConversationSwitchCanonicalReady(input: {
+  turnCount: number
+  itemCount: number
+}): void {
+  recorder?.recordConversationSwitchCanonicalReady(input)
+}
+
+export function recordConversationSwitchRequest(
+  kind: 'thread-read' | 'history-read' | 'workspace-refresh',
+): void {
+  recorder?.recordConversationSwitchRequest(kind)
 }
