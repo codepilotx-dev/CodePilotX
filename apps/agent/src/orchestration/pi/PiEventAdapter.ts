@@ -22,6 +22,10 @@ const detailText = (details: unknown, key: string): string => {
   return typeof value === "string" ? value : ""
 }
 
+const resultDetails = (value: unknown): unknown => value && typeof value === "object"
+  ? (value as ToolResultLike).details
+  : undefined
+
 const usageNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, Math.trunc(value))
@@ -225,6 +229,7 @@ export class PiEventAdapter {
           toolCallID: event.toolCallId,
           tool: event.toolName,
           result: piToolResultText(event.result, { tool: event.toolName }),
+          details: resultDetails(event.result),
           isError: event.isError,
         })
         break

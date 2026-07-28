@@ -18,6 +18,7 @@ import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProc
 import { nativeGlobWorkspace, nativeGrepWorkspace } from "./NativeWorkspaceSearch"
 import { applyEditsText } from "./Edit/applyEditText"
 import { applyPatchDefinition } from "./ApplyPatch/definition"
+import { diffLines } from "diff"
 
 export type ToolCapabilities = {
   filesystem: "none" | "read" | "workspace-write" | "host-write"
@@ -284,6 +285,16 @@ const grepWorkspace = async (input: any, context: ToolContext) => {
   return { matches: matches.slice(offset, offset + limit), truncated: matches.length > offset + limit, engine: "ripgrep" as const }
 }
 
+export const lineChangeSummary = (before: string, after: string) => {
+  let additions = 0
+  let deletions = 0
+  for (const part of diffLines(before, after)) {
+    if (part.added) additions += part.count ?? 0
+    if (part.removed) deletions += part.count ?? 0
+  }
+  return { additions, deletions }
+}
+
 const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: "Read", name: "workspace.read", description: "读取工作区内的 UTF-8 文本文件，并保存完整快照供后续写入使用。",
@@ -314,14 +325,33 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       if (!current) {
         const created = await context.workspace.applyPatch({ operation: "create", path: input.file_path, content: input.content })
         await context.fileSaved?.({ filePath: input.file_path, content: input.content })
-        return created
+        return {
+          operation: "write" as const,
+          mutation: "create" as const,
+          path: created.path,
+          additions: created.additions,
+          deletions: created.deletions,
+          beforeSha256: created.beforeSha256,
+          afterSha256: created.afterSha256,
+        }
       }
       if (!context.readSnapshot || context.readSnapshot.sha256 !== current.revision.sha256 || context.readSnapshot.mtimeMs !== current.revision.mtimeMs) throw new AgentError("WORKSPACE_FILE_STALE", "文件内容已变化或缺少完整 Read 快照，拒绝覆写", 409, { currentRevision: current.revision })
       const saved = await context.workspace.saveEditorFile(input.file_path, input.content, context.readSnapshot)
       if (saved.outcome === "conflict") throw new AgentError("WORKSPACE_FILE_STALE", "文件在写入前发生变化，拒绝覆写", 409, { currentRevision: saved.revision })
       await context.fileSaved?.({ filePath: current.path, content: input.content })
-      return { operation: "write", path: current.path, beforeSha256: current.revision.sha256, afterSha256: saved.revision.sha256, revision: saved.revision }
+      const changes = lineChangeSummary(current.content, input.content)
+      return { operation: "write", mutation: "update", path: current.path, ...changes, beforeSha256: current.revision.sha256, afterSha256: saved.revision.sha256, revision: saved.revision }
     },
+    formatResult: (output) => ({
+      content: `已写入 ${output.path}（+${output.additions} -${output.deletions}）`,
+      details: {
+        operation: output.operation,
+        mutation: output.mutation,
+        path: output.path,
+        additions: output.additions,
+        deletions: output.deletions,
+      },
+    }),
   },
   {
     sdkName: "Edit", name: "workspace.edit", description: "对已 Read 的工作区文件执行一组精确且原子的文本编辑。每项 oldText 必须在原文件中唯一匹配，所有编辑均基于同一份原文定位。",
@@ -348,8 +378,18 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       const saved = await context.workspace.saveEditorFile(input.path, content, context.readSnapshot)
       if (saved.outcome === "conflict") throw new AgentError("WORKSPACE_FILE_STALE", "文件在编辑前发生变化，拒绝写入", 409, { currentRevision: saved.revision })
       await context.fileSaved?.({ filePath: current.path, content })
-      return { operation: "edit", path: current.path, beforeSha256: current.revision.sha256, afterSha256: saved.revision.sha256, revision: saved.revision }
+      const changes = lineChangeSummary(current.content, content)
+      return { operation: "edit", path: current.path, ...changes, beforeSha256: current.revision.sha256, afterSha256: saved.revision.sha256, revision: saved.revision }
     },
+    formatResult: (output) => ({
+      content: `已编辑 ${output.path}（+${output.additions} -${output.deletions}）`,
+      details: {
+        operation: output.operation,
+        path: output.path,
+        additions: output.additions,
+        deletions: output.deletions,
+      },
+    }),
   },
   {
     sdkName: "Glob", name: "workspace.glob", description: "优先使用受管或本机 ripgrep 在工作区内按 glob 模式查找文件；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径。",

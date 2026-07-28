@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { z } from "zod"
 import { AgentError } from "../src/domain"
 import { ToolExecutor, type ToolExecutorOptions } from "../src/tool/ToolExecutor"
-import { ToolRegistry } from "../src/tool/ToolRegistry"
+import { lineChangeSummary, ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 import type { ToolingResolver, ToolProcessRunner } from "../src/tool/ToolingRuntime"
 import { adaptToolDefinition } from "../src/orchestration/pi/PiToolAdapter"
@@ -290,6 +290,49 @@ describe("核心工具面", () => {
     )
   })
 
+  test("Write 和 Edit 返回准确的逐行增删统计及安全 Pi 摘要", async () => {
+    const { root, executor, context } = await fixture()
+    await writeFile(join(root, "source.txt"), "first\nbefore\nlast\n", "utf8")
+    await executor.execute("Read", { file_path: "source.txt" }, context)
+    const write = await executor.execute<{
+      additions: number
+      deletions: number
+    }>("Write", {
+      file_path: "source.txt",
+      content: "first\nafter\nnext\nlast\n",
+    }, context)
+    expect(write).toMatchObject({ additions: 2, deletions: 1 })
+
+    await executor.execute("Read", { file_path: "source.txt" }, context)
+    const edit = await executor.execute<{
+      additions: number
+      deletions: number
+    }>("Edit", {
+      path: "source.txt",
+      edits: [{ oldText: "after\nnext", newText: "done" }],
+    }, context)
+    expect(edit).toMatchObject({ additions: 1, deletions: 2 })
+    expect(lineChangeSummary("same\n", "same\n")).toEqual({ additions: 0, deletions: 0 })
+
+    const formatted = executor.definition("Edit").formatResult?.({
+      operation: "edit",
+      path: "source.txt",
+      additions: 1,
+      deletions: 2,
+      beforeSha256: "before-secret",
+      afterSha256: "after-secret",
+    }, {} as never)
+    expect(formatted).toEqual({
+      content: "已编辑 source.txt（+1 -2）",
+      details: {
+        operation: "edit",
+        path: "source.txt",
+        additions: 1,
+        deletions: 2,
+      },
+    })
+  })
+
   test("Edit 在上下文不唯一或编辑范围重叠时保持文件不变", async () => {
     const { root, executor, context } = await fixture()
     const ambiguousPath = join(root, "ambiguous.txt")
@@ -381,8 +424,8 @@ describe("核心工具面", () => {
     expect(result).toMatchObject({
       operation: "apply_patch",
       files: [
-        { operation: "update", path: "source.txt" },
-        { operation: "create", path: "created.txt" },
+        { operation: "update", path: "source.txt", additions: 1, deletions: 1 },
+        { operation: "create", path: "created.txt", additions: 1, deletions: 0 },
       ],
       summary: { fileCount: 2, hunkCount: 1, additions: 2, deletions: 1 },
     })

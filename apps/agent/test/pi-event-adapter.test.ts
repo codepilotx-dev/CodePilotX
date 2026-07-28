@@ -3,7 +3,16 @@ import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { PiEventAdapter, piToolResultText } from "../src/orchestration/pi/PiEventAdapter"
-import { finishedPiToolItem, PiOrchestratorAdapter, piCompactionEventPayload, piItemDeltaPayload, piToolItemPayload, piToolTimelineInput } from "../src/orchestration/PiOrchestratorAdapter"
+import {
+  finishedPiToolItem,
+  mergeTimelineMutationFiles,
+  PiOrchestratorAdapter,
+  piCompactionEventPayload,
+  piItemDeltaPayload,
+  piToolItemPayload,
+  piToolMutationFiles,
+  piToolTimelineInput,
+} from "../src/orchestration/PiOrchestratorAdapter"
 import type { PiRuntimeEventSink } from "../src/orchestration/pi/types"
 
 describe("PiEventAdapter", () => {
@@ -18,10 +27,37 @@ describe("PiEventAdapter", () => {
       additions: 1,
       deletions: 1,
       patch: "[补丁正文已隐藏]",
-      affectedPaths: [{ path: "source.ts", operation: "update" }],
+      affectedPaths: [{ path: "source.ts", operation: "update", additions: 1, deletions: 1 }],
     })
     expect(JSON.stringify(input)).not.toContain("C:\\\\secret")
     expect(JSON.stringify(input)).not.toContain("-old")
+  })
+
+  test("Write 和 Edit 时间线输入只保留安全文件元数据", () => {
+    const write = piToolTimelineInput("Write", {
+      file_path: "src/source.ts",
+      content: "const secret = 'private'",
+    })
+    const edit = piToolTimelineInput("workspace.edit", {
+      path: "src/source.ts",
+      edits: [{ oldText: "secret-old", newText: "secret-new" }],
+    })
+
+    expect(write).toEqual({
+      operation: "write",
+      file_path: "src/source.ts",
+      contentBytes: Buffer.byteLength("const secret = 'private'", "utf8"),
+      affectedPaths: [{ path: "src/source.ts" }],
+    })
+    expect(edit).toEqual({
+      operation: "edit",
+      path: "src/source.ts",
+      editCount: 1,
+      affectedPaths: [{ path: "src/source.ts" }],
+    })
+    expect(JSON.stringify(write)).not.toContain("private")
+    expect(JSON.stringify(edit)).not.toContain("secret-old")
+    expect(JSON.stringify(edit)).not.toContain("secret-new")
   })
 
   test("routes live text and reasoning deltas without inventing durable events", async () => {
@@ -269,6 +305,42 @@ describe("PiEventAdapter", () => {
     }])
   })
 
+  test("routes safe tool text together with structured result details", async () => {
+    const seen: unknown[] = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      toolFinished: async (_context, result) => { seen.push(result) },
+    })
+
+    await adapter.handle({
+      type: "tool_execution_end",
+      toolCallId: "call-1",
+      toolName: "Edit",
+      result: {
+        content: [{ type: "text", text: "已编辑 src/source.ts（+2 -1）" }],
+        details: {
+          operation: "edit",
+          path: "src/source.ts",
+          additions: 2,
+          deletions: 1,
+        },
+      },
+      isError: false,
+    } as unknown as AgentHarnessEvent)
+
+    expect(seen).toEqual([{
+      toolCallID: "call-1",
+      tool: "Edit",
+      result: "已编辑 src/source.ts（+2 -1）",
+      details: {
+        operation: "edit",
+        path: "src/source.ts",
+        additions: 2,
+        deletions: 1,
+      },
+      isError: false,
+    }])
+  })
+
   test("unwraps semantic progress and shell output instead of displaying AgentToolResult JSON", () => {
     expect(piToolResultText({
       content: [{ type: "text", text: "fallback" }],
@@ -330,6 +402,160 @@ describe("PiEventAdapter", () => {
       isError: true,
       timestamp: 150,
     })).toBeNull()
+  })
+
+  test("merges successful mutation details into one idempotent patch item", () => {
+    const items = new Map<string, {
+      id: string
+      turnID: string
+      agentID: string
+      type: "tool" | "patch"
+      status: "running" | "completed" | "interrupted"
+      data: Record<string, unknown>
+      ordinal?: number
+      createdAt: number
+      updatedAt: number
+    }>()
+    items.set("call-1", {
+      id: "call-1",
+      turnID: "turn",
+      agentID: "agent",
+      type: "tool",
+      status: "running",
+      data: {
+        tool: "apply_patch",
+        input: {
+          affectedPaths: [
+            { path: "src/source.ts", operation: "update" },
+            { path: "src/added.ts", operation: "create" },
+          ],
+        },
+      },
+      createdAt: 100,
+      updatedAt: 100,
+    })
+    let transactionCount = 0
+    let eventID = 0
+    const db = {
+      transaction: <T>(work: () => T) => {
+        transactionCount += 1
+        return work()
+      },
+      getItem: (id: string) => items.get(id) ?? null,
+      upsertItem: (_threadID: string, item: (typeof items extends Map<string, infer Value> ? Value : never)) => {
+        items.set(item.id, item)
+      },
+      insertEvent: (threadId: string, turnId: string, method: string, params: unknown) => ({
+        id: ++eventID,
+        threadId,
+        turnId,
+        method,
+        params,
+        createdAt: 200,
+      }),
+    }
+    const orchestrator = new PiOrchestratorAdapter({
+      db: db as never,
+      hub: {} as never,
+      models: {} as never,
+      toolExecutor: {} as never,
+    })
+    const persist = (orchestrator as unknown as {
+      persistFinishedTool(context: unknown, input: unknown): Array<{ method: string }>
+    }).persistFinishedTool.bind(orchestrator)
+    const input = {
+      toolCallID: "call-1",
+      tool: "apply_patch",
+      output: "完成",
+      details: {
+        operation: "apply_patch",
+        files: [
+          { path: "src/source.ts", additions: 3, deletions: 1 },
+          { path: "src/added.ts", additions: 2, deletions: 0 },
+        ],
+      },
+      isError: false,
+    }
+
+    expect(persist({ threadID: "thread", turnID: "turn", agentID: "agent" }, input).map((event) => event.method))
+      .toEqual(["tool/callCompleted", "item/completed"])
+    expect(items.get("call-1")?.data.input).toMatchObject({
+      affectedPaths: [
+        { path: "src/source.ts", operation: "update", additions: 3, deletions: 1 },
+        { path: "src/added.ts", operation: "create", additions: 2, deletions: 0 },
+      ],
+    })
+    expect(items.get("patch:turn")).toMatchObject({
+      type: "patch",
+      status: "completed",
+      data: {
+        files: [
+          { path: "src/source.ts", additions: 3, deletions: 1 },
+          { path: "src/added.ts", additions: 2, deletions: 0 },
+        ],
+        totalAdditions: 5,
+        totalDeletions: 1,
+      },
+    })
+    items.set("call-2", {
+      id: "call-2",
+      turnID: "turn",
+      agentID: "agent",
+      type: "tool",
+      status: "running",
+      data: { tool: "Edit", input: { path: "src/source.ts" } },
+      createdAt: 100,
+      updatedAt: 100,
+    })
+    expect(persist(
+      { threadID: "thread", turnID: "turn", agentID: "agent" },
+      {
+        toolCallID: "call-2",
+        tool: "Edit",
+        output: "失败",
+        details: { path: "src/source.ts", additions: 100, deletions: 100 },
+        isError: true,
+      },
+    ).map((event) => event.method)).toEqual(["tool/error"])
+    expect(items.get("patch:turn")?.data).toMatchObject({
+      totalAdditions: 5,
+      totalDeletions: 1,
+    })
+    items.set("call-3", {
+      id: "call-3",
+      turnID: "turn",
+      agentID: "agent",
+      type: "tool",
+      status: "interrupted",
+      data: { tool: "Write", input: { file_path: "src/other.ts" } },
+      createdAt: 100,
+      updatedAt: 100,
+    })
+    expect(persist(
+      { threadID: "thread", turnID: "turn", agentID: "agent" },
+      {
+        toolCallID: "call-3",
+        tool: "Write",
+        output: "中断",
+        details: { path: "src/other.ts", additions: 100, deletions: 0 },
+        isError: false,
+      },
+    )).toEqual([])
+    expect(persist({ threadID: "thread", turnID: "turn", agentID: "agent" }, input)).toEqual([])
+    expect(transactionCount).toBe(2)
+  })
+
+  test("normalizes mutation paths and accumulates repeated edits", () => {
+    expect(piToolMutationFiles("Write", {
+      path: "src\\source.ts",
+      additions: 2.8,
+      deletions: -1,
+      content: "must-not-survive",
+    })).toEqual([{ path: "src/source.ts", additions: 2, deletions: 0 }])
+    expect(mergeTimelineMutationFiles(
+      [{ path: "src/source.ts", additions: 1, deletions: 2 }],
+      [{ path: "src\\source.ts", additions: 3, deletions: 4 }],
+    )).toEqual([{ path: "src/source.ts", additions: 4, deletions: 6 }])
   })
 
   test("maps Pi compaction metadata to the existing protocol payload", () => {

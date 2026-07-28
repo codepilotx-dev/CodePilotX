@@ -62,6 +62,71 @@ const safeTimelinePatchPath = (path: string) => {
   return normalized || "<workspace-file>";
 };
 
+export type TimelineMutationFile = {
+  path: string;
+  additions: number;
+  deletions: number;
+};
+
+const timelineToolName = (tool: string) => tool.toLowerCase().split(".").at(-1) ?? "";
+
+const safeTimelineCount = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.trunc(value))
+    : 0;
+
+const mutationToolKind = (tool: string) => {
+  const name = timelineToolName(tool);
+  return name === "apply_patch" || name === "write" || name === "edit"
+    ? name
+    : null;
+};
+
+export const piToolMutationFiles = (
+  tool: string,
+  details: unknown,
+): TimelineMutationFile[] => {
+  const kind = mutationToolKind(tool);
+  if (!kind || !details || typeof details !== "object" || Array.isArray(details)) return [];
+  const record = details as Record<string, unknown>;
+  const candidates = kind === "apply_patch" && Array.isArray(record.files)
+    ? record.files
+    : [record];
+  return candidates.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+    const file = candidate as Record<string, unknown>;
+    if (typeof file.path !== "string" || !file.path.trim()) return [];
+    return [{
+      path: safeTimelinePatchPath(file.path),
+      additions: safeTimelineCount(file.additions),
+      deletions: safeTimelineCount(file.deletions),
+    }];
+  });
+};
+
+const timelinePathKey = (path: string) => {
+  const normalized = path.replaceAll("\\", "/").replace(/^\.\/+/, "");
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+};
+
+export const mergeTimelineMutationFiles = (
+  existing: readonly TimelineMutationFile[],
+  incoming: readonly TimelineMutationFile[],
+): TimelineMutationFile[] => {
+  const merged = new Map<string, TimelineMutationFile>();
+  for (const file of [...existing, ...incoming]) {
+    const path = safeTimelinePatchPath(file.path);
+    const key = timelinePathKey(path);
+    const current = merged.get(key);
+    merged.set(key, {
+      path: current?.path ?? path,
+      additions: (current?.additions ?? 0) + safeTimelineCount(file.additions),
+      deletions: (current?.deletions ?? 0) + safeTimelineCount(file.deletions),
+    });
+  }
+  return [...merged.values()];
+};
+
 export const piToolTimelineInput = (
   tool: string,
   input: unknown,
@@ -69,29 +134,66 @@ export const piToolTimelineInput = (
   const record = input && typeof input === "object" && !Array.isArray(input)
     ? input as Record<string, unknown>
     : {};
-  if (tool.toLowerCase().split(".").at(-1) !== "apply_patch") return record;
+  const kind = mutationToolKind(tool);
+  if (kind === "write") {
+    const path = typeof record.file_path === "string"
+      ? safeTimelinePatchPath(record.file_path)
+      : "<workspace-file>";
+    return {
+      operation: "write",
+      file_path: path,
+      ...(typeof record.content === "string"
+        ? { contentBytes: Buffer.byteLength(record.content, "utf8") }
+        : {}),
+      affectedPaths: [{ path }],
+    };
+  }
+  if (kind === "edit") {
+    const path = typeof record.path === "string"
+      ? safeTimelinePatchPath(record.path)
+      : "<workspace-file>";
+    return {
+      operation: "edit",
+      path,
+      ...(Array.isArray(record.edits) ? { editCount: record.edits.length } : {}),
+      affectedPaths: [{ path }],
+    };
+  }
+  if (kind !== "apply_patch") return record;
   const patch = typeof record.patch === "string" ? record.patch : "";
-  let affectedPaths: Array<{ path: string; operation: "create" | "update" }> = [];
+  let affectedPaths: Array<{
+    path: string;
+    operation: "create" | "update";
+    additions: number;
+    deletions: number;
+  }> = [];
   let hunkCount = 0;
   let additions = 0;
   let deletions = 0;
   try {
     const operations = parseApplyPatch(patch);
-    affectedPaths = operations.map((operation) => ({
-      path: safeTimelinePatchPath(operation.path),
-      operation: operation.type === "add" ? "create" : "update",
-    }));
-    for (const operation of operations) {
-      if (operation.type === "add") {
-        additions += operation.content.endsWith("\n")
+    affectedPaths = operations.map((operation) => {
+      const fileAdditions = operation.type === "add"
+        ? operation.content.endsWith("\n")
           ? operation.content.slice(0, -1).split("\n").length
-          : operation.content.split("\n").length;
-        continue;
-      }
-      hunkCount += operation.chunks.length;
-      additions += operation.chunks.reduce((sum, chunk) => sum + chunk.additions, 0);
-      deletions += operation.chunks.reduce((sum, chunk) => sum + chunk.deletions, 0);
-    }
+          : operation.content.split("\n").length
+        : operation.chunks.reduce((sum, chunk) => sum + chunk.additions, 0);
+      const fileDeletions = operation.type === "add"
+        ? 0
+        : operation.chunks.reduce((sum, chunk) => sum + chunk.deletions, 0);
+      return {
+        path: safeTimelinePatchPath(operation.path),
+        operation: operation.type === "add" ? "create" : "update",
+        additions: fileAdditions,
+        deletions: fileDeletions,
+      };
+    });
+    additions = affectedPaths.reduce((sum, file) => sum + file.additions, 0);
+    deletions = affectedPaths.reduce((sum, file) => sum + file.deletions, 0);
+    hunkCount = operations.reduce(
+      (sum, operation) => sum + (operation.type === "add" ? 0 : operation.chunks.length),
+      0,
+    );
   } catch {
     // Invalid patches still get a safe timeline item; the tool result carries the actionable parse error.
   }
@@ -242,35 +344,114 @@ export class PiOrchestratorAdapter {
     toolCallID: string;
     tool: string;
     output: string;
+    details: unknown;
     isError: boolean;
   }) {
-    const item = finishedPiToolItem({
+    let item = finishedPiToolItem({
       current: this.options.db.getItem(input.toolCallID),
       turnID: context.turnID,
       agentID: context.agentID,
       ...input,
       timestamp: Date.now(),
     });
-    if (!item) return null;
-    const persisted = this.options.db.upsertItemWithEvent(
-      context.threadID,
-      item,
-      input.isError ? "tool/error" : "tool/callCompleted",
-      (stored: Item) => input.isError
-        ? { item: stored, error: { code: "TOOL_EXECUTION_ERROR", message: input.output || "工具执行失败", retryable: false } }
-        : { item: stored },
-    );
-    return persisted.event;
+    if (!item) return [];
+    const mutationFiles = input.isError ? [] : piToolMutationFiles(input.tool, input.details);
+    if (mutationFiles.length) {
+      const timelineInput = item.data.input && typeof item.data.input === "object"
+        && !Array.isArray(item.data.input)
+        ? item.data.input as Record<string, unknown>
+        : {};
+      const priorPaths = Array.isArray(timelineInput.affectedPaths)
+        ? timelineInput.affectedPaths
+        : [];
+      const operationByPath = new Map(priorPaths.flatMap((value) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+        const record = value as Record<string, unknown>;
+        return typeof record.path === "string" && typeof record.operation === "string"
+          ? [[timelinePathKey(safeTimelinePatchPath(record.path)), record.operation] as const]
+          : [];
+      }));
+      item = {
+        ...item,
+        data: {
+          ...item.data,
+          input: {
+            ...timelineInput,
+            affectedPaths: mutationFiles.map((file) => ({
+              ...file,
+              ...(operationByPath.has(timelinePathKey(file.path))
+                ? { operation: operationByPath.get(timelinePathKey(file.path)) }
+                : {}),
+            })),
+          },
+        },
+      };
+    }
+    const durable: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
+    this.options.db.transaction(() => {
+      this.options.db.upsertItem(context.threadID, item);
+      const storedTool = this.options.db.getItem(item.id) ?? item;
+      durable.push(this.options.db.insertEvent(
+        context.threadID,
+        context.turnID,
+        input.isError ? "tool/error" : "tool/callCompleted",
+        input.isError
+          ? { item: storedTool, error: { code: "TOOL_EXECUTION_ERROR", message: input.output || "工具执行失败", retryable: false } }
+          : { item: storedTool },
+      ));
+      if (!mutationFiles.length) return;
+      const patchID = `patch:${context.turnID}`;
+      const existingPatch = this.options.db.getItem(patchID);
+      const existingFiles = Array.isArray(existingPatch?.data.files)
+        ? existingPatch.data.files.flatMap((value): TimelineMutationFile[] => {
+            if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+            const file = value as Record<string, unknown>;
+            if (typeof file.path !== "string") return [];
+            return [{
+              path: safeTimelinePatchPath(file.path),
+              additions: safeTimelineCount(file.additions),
+              deletions: safeTimelineCount(file.deletions),
+            }];
+          })
+        : [];
+      const files = mergeTimelineMutationFiles(existingFiles, mutationFiles);
+      const timestamp = item.updatedAt;
+      const patch: Item = {
+        id: patchID,
+        turnID: context.turnID,
+        agentID: context.agentID,
+        type: "patch",
+        status: "completed",
+        data: {
+          files,
+          totalAdditions: files.reduce((sum, file) => sum + file.additions, 0),
+          totalDeletions: files.reduce((sum, file) => sum + file.deletions, 0),
+        },
+        ...(existingPatch?.ordinal === undefined ? {} : { ordinal: existingPatch.ordinal }),
+        createdAt: existingPatch?.createdAt ?? timestamp,
+        updatedAt: timestamp,
+      };
+      this.options.db.upsertItem(context.threadID, patch);
+      const storedPatch = this.options.db.getItem(patchID) ?? patch;
+      durable.push(this.options.db.insertEvent(
+        context.threadID,
+        context.turnID,
+        "item/completed",
+        { item: storedPatch },
+      ));
+    });
+    return durable;
   }
 
   private async finishTool(context: PiRuntimeEventContext, input: {
     toolCallID: string;
     tool: string;
     output: string;
+    details: unknown;
     isError: boolean;
   }) {
-    const event = this.persistFinishedTool(context, input);
-    if (event) await this.publish(event);
+    const events = this.persistFinishedTool(context, input);
+    for (const event of events) await this.publish(event);
   }
 
   private eventSink(
@@ -476,8 +657,7 @@ export class PiOrchestratorAdapter {
         );
       },
       toolFinished: async (context, input) => {
-        const output = typeof input.result === "string" ? input.result : "";
-        await this.finishTool(context, { ...input, output });
+        await this.finishTool(context, { ...input, output: input.result });
       },
       queueConsumed: async (context, input) => {
         if (input.delivery !== "steer") return;
@@ -607,6 +787,7 @@ export class PiOrchestratorAdapter {
           ? `用户拒绝了此工具调用，并要求：${request.resume.answer}`
           : "用户拒绝了此工具调用，请改用其他方案。"
         : request.resume.answer ?? request.resume.decision ?? "continue";
+      let resolutionDetails: unknown;
       let isError = request.resume.decision === "deny";
       const lifecycleNames = new Set([
         "request_user_input",
@@ -642,6 +823,7 @@ export class PiOrchestratorAdapter {
             taskSummary: request.content,
             toolCallID: request.resume.toolCallID,
           });
+          resolutionDetails = secretScrubber.scrub(grant);
           resolutionText = resumedToolResultText(grant, toolCall.name);
         } catch (cause) {
           isError = true;
@@ -675,6 +857,7 @@ export class PiOrchestratorAdapter {
                 : {}),
             },
           );
+          resolutionDetails = secretScrubber.scrub(resolution);
           resolutionText = resumedToolResultText(resolution, toolCall.name);
         } catch (cause) {
           isError = true;
@@ -694,11 +877,11 @@ export class PiOrchestratorAdapter {
         isError,
         timestamp: Date.now(),
       });
-      let completedEvent: ReturnType<AgentDatabase["insertEvent"]> | null = null;
+      let completedEvents: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
       this.options.db.transaction(() => {
         storage.flush();
         if (request.resume?.checkpointID) this.options.db.completeQuestionResume(request.resume.checkpointID);
-        completedEvent = this.persistFinishedTool({
+        completedEvents = this.persistFinishedTool({
           threadID: request.threadID,
           turnID: request.turnID,
           agentID: request.agentID,
@@ -706,10 +889,11 @@ export class PiOrchestratorAdapter {
           toolCallID: request.resume!.toolCallID!,
           tool: toolCall.name,
           output: resolutionText,
+          details: resolutionDetails,
           isError,
         });
       });
-      if (completedEvent) await this.publish(completedEvent);
+      for (const event of completedEvents) await this.publish(event);
     }
     const previousRuntime = this.active.get(request.threadID);
     if (previousRuntime) await previousRuntime.dispose();

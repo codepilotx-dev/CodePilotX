@@ -99,7 +99,13 @@ export interface PiRuntimeEventSink {
   reasoningDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
   toolStarted?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; input: unknown }): void | Promise<void>
   toolUpdated?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; update: unknown }): void | Promise<void>
-  toolFinished?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; result: unknown; isError: boolean }): void | Promise<void>
+  toolFinished?(context: PiRuntimeEventContext, input: {
+    toolCallID: string
+    tool: string
+    result: string
+    details: unknown
+    isError: boolean
+  }): void | Promise<void>
   queueUpdated?(context: PiRuntimeEventContext, input: { steer: number; followUp: number; nextTurn: number }): void | Promise<void>
   queueConsumed?(context: PiRuntimeEventContext, input: { delivery: "steer" | "follow-up" | "next-turn"; inputIDs: string[] }): void | Promise<void>
   compacted?(context: PiRuntimeEventContext, input: { entryID: string; summary: string; tokensBefore: number; beforeCount: number }): void | Promise<void>

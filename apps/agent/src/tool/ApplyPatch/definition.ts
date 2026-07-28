@@ -74,6 +74,8 @@ export type ApplyPatchOutput = {
   files: readonly {
     operation: "create" | "update"
     path: string
+    additions: number
+    deletions: number
     beforeSha256: string | null
     afterSha256: string
     revision: WorkspaceFileRevision
@@ -479,6 +481,8 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
         return {
           operation: operation.operation,
           path: operation.path,
+          additions: operation.additions,
+          deletions: operation.deletions,
           beforeSha256: saved.beforeSha256,
           afterSha256: saved.afterSha256,
           revision: saved.revision,

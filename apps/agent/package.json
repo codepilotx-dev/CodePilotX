@@ -21,6 +21,7 @@
     "@modelcontextprotocol/sdk": "1.29.0",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
+    "diff": "8.0.4",
     "effect": "4.0.0-beta.83",
     "extract-zip": "2.0.1",
     "hono": "4.10.7",
