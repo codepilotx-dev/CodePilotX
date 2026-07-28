@@ -32,19 +32,45 @@ export type SessionListItem = DesktopSessionListItem
 
 export type ToolLogEntry = DesktopToolLogEntry
 
-export function sessionDisplayTitle(
+export const SESSION_TITLE_MAX_LENGTH = 20
+
+const DEFAULT_SESSION_TITLE = '新对话'
+
+export function sessionResolvedTitle(
   session: SessionListItem,
   fallbackTitle?: string | null,
 ): string {
+  const persistedTitle = session.sessionName
   return (
-    session.customTitle ??
-    fallbackTitle ??
-    session.aiTitle ??
-    session.firstPrompt ??
-    session.sessionName ??
-    session.workspaceName
+    session.customTitle ||
+    session.aiTitle ||
+    (persistedTitle && persistedTitle !== DEFAULT_SESSION_TITLE
+      ? persistedTitle
+      : '') ||
+    fallbackTitle ||
+    session.firstPrompt ||
+    persistedTitle ||
+    session.workspaceName ||
+    DEFAULT_SESSION_TITLE
   )
 }
+
+export function sessionDisplayTitle(
+  session: SessionListItem | null | undefined,
+  fallbackTitle?: string | null,
+): string {
+  const title = cleanSessionTitleForDisplay(
+    session
+      ? sessionResolvedTitle(session, fallbackTitle)
+      : fallbackTitle || DEFAULT_SESSION_TITLE,
+  )
+  const characters = [...title]
+  return characters.length > SESSION_TITLE_MAX_LENGTH
+    ? `${characters.slice(0, SESSION_TITLE_MAX_LENGTH - 1).join('')}…`
+    : title
+}
+
+export { sessionResolvedTitle as sessionEditableTitle }
 
 export type SessionViewState = {
   eventModelVersion?: 1
@@ -60,24 +86,23 @@ export type SessionViewState = {
 export function sessionViewFallbackTitle(
   view: Pick<SessionViewState, 'events' | 'messages'>,
 ): string | null {
-  const eventTitle = firstUserContent(
-    view.events as Array<{ role?: string; content?: string }>,
+  const event = view.events.find(event => event.role === 'user')
+  return sessionTitleFromContent(
+    event && 'content' in event && typeof event.content === 'string'
+      ? event.content
+      : view.messages.find(message => message.role === 'user')?.text,
   )
-  const messageTitle = firstUserContent(
-    view.messages.map(message => ({
-      role: message.role,
-      content: message.text,
-    })),
-  )
-  const title = eventTitle ?? messageTitle
-  if (!title) return null
-  return title.length > 28 ? `${title.slice(0, 28)}...` : title
 }
 
-function firstUserContent(
-  items: Array<{ role?: string; content?: string }>,
+export function sessionTitleFromContent(
+  content: string | null | undefined,
 ): string | null {
-  const content = items.find(item => item.role === 'user')?.content
   const title = content?.trim().split(/\r?\n/)[0]?.trim()
-  return title || null
+  return title ? cleanSessionTitleForDisplay(title) : null
+}
+
+function cleanSessionTitleForDisplay(value: string): string {
+  return value
+    .replace(/\s+/g, ' ')
+    .trim() || DEFAULT_SESSION_TITLE
 }

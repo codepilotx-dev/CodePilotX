@@ -207,7 +207,6 @@ import {
   mockThreadHistoryPage,
   permissionModeFromDesktopConfig,
 } from './fixtures.js'
-import { createBrowserMockDesktopClient } from './browser-mock-client.js'
 import { catalogProviderToDesktop } from './provider-adapters.js'
 import {
   desktopGitStatus,
@@ -222,8 +221,6 @@ import type {
   DesktopReviewAgentFileDiff,
   DesktopReviewAgentSummaryResult,
 } from './types.js'
-
-
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi,
@@ -1103,6 +1100,22 @@ export function createAgentSessionDesktopClient(
       (status.preference === 'managed' || status.preference === 'system') &&
       typeof status.pinnedVersion === 'string'
     )
+  }
+
+  const cacheThreadListItem = async (
+    thread: ThreadListItem,
+  ): Promise<DesktopSessionSnapshot> => {
+    const projectsById = await loadProjectsById()
+    const listSnapshot = agentThreadListItemToDesktopSnapshot(
+      thread,
+      thread.projectID ? projectsById.get(thread.projectID) : null,
+    )
+    const snapshot = sessionSnapshots.get(thread.id) ?? listSnapshot
+    snapshot.item = { ...snapshot.item, ...listSnapshot.item }
+    snapshot.updatedAt = listSnapshot.updatedAt
+    sessionSnapshots.set(thread.id, snapshot)
+    emitSessionStoreChange()
+    return snapshot
   }
 
   const client: CodePilotXDesktopClient = {
@@ -2860,31 +2873,17 @@ export function createAgentSessionDesktopClient(
     ) =>
       withAgentOrMock(
         async () => {
-          let snapshot =
-            sessionSnapshots.get(sessionId) ??
-            (await loadAgentSessionSnapshot(sessionId))
           if (patch.archivedAt !== undefined) {
             const response = await rpc.call('thread/update', {
               threadId: sessionId,
               patch: { archived: patch.archivedAt !== null },
               operationId: crypto.randomUUID(),
             })
-            const projectsById = await loadProjectsById()
-            const listSnapshot = agentThreadListItemToDesktopSnapshot(
-              response.thread,
-              response.thread.projectID
-                ? projectsById.get(response.thread.projectID)
-                : null,
-            )
-            snapshot = {
-              ...snapshot,
-              item: {
-                ...snapshot.item,
-                ...listSnapshot.item,
-              },
-              updatedAt: listSnapshot.updatedAt,
-            }
+            return cacheThreadListItem(response.thread)
           }
+          const snapshot =
+            sessionSnapshots.get(sessionId) ??
+            (await loadAgentSessionSnapshot(sessionId))
           sessionSnapshots.set(sessionId, snapshot)
           await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
           return snapshot
@@ -2899,26 +2898,19 @@ export function createAgentSessionDesktopClient(
             patch: { title: name },
             operationId: crypto.randomUUID(),
           })
-          const projectsById = await loadProjectsById()
-          const listSnapshot = agentThreadListItemToDesktopSnapshot(
-            response.thread,
-            response.thread.projectID
-              ? projectsById.get(response.thread.projectID)
-              : null,
-          )
-          const current =
-            sessionSnapshots.get(sessionId) ??
-            (await loadAgentSessionSnapshot(sessionId).catch(() => listSnapshot))
-          const snapshot = {
-            ...current,
-            item: { ...current.item, ...listSnapshot.item },
-            updatedAt: listSnapshot.updatedAt,
-          }
-          sessionSnapshots.set(sessionId, snapshot)
-          emitSessionStoreChange()
-          return snapshot
+          return cacheThreadListItem(response.thread)
         },
         () => mockClient.renameSession(sessionId, name),
+      ),
+    regenerateSessionTitle: (sessionId: string) =>
+      import('./session-title-client.js').then(module =>
+        module.regenerateSessionTitle(
+          sessionId,
+          withAgentOrMock,
+          rpc,
+          cacheThreadListItem,
+          mockClient,
+        ),
       ),
     saveSessionReviewComment: input =>
       withUnsupportedAgentFallback(

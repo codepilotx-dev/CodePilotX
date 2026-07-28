@@ -47,6 +47,7 @@ export type QuickChatContextValue = {
   gitStatus: DesktopGitStatus | null
   recentWorkspaces: DesktopWorkspace[]
   recentTasks: NewSessionRecentTask[]
+  titleRegenerating: boolean
   permissionMode: DesktopPermissionMode
   planModeActive: boolean
   providerModelOptions: ProviderModelOption[]
@@ -72,6 +73,7 @@ export type QuickChatContextValue = {
   onOpenSubagent: (taskId: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void
+  onRefreshSessionTitle: () => Promise<boolean>
   onToggleSidebar: () => void
   onToggleSessionPinned: () => void
   onCommitOrPush: () => void

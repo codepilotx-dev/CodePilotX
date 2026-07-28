@@ -16,6 +16,7 @@ import type {
   DesktopApi,
   DesktopGitStatus,
   DesktopReviewSource,
+  DesktopSessionSnapshot,
   DesktopStoredSettings,
   DesktopThemeSettings,
 } from '../../../shared/types.js'
@@ -229,6 +230,12 @@ export type DesktopAgentEventEnvelopeApi = {
   ): () => void
 }
 
+export type DesktopAgentThreadTitleApi = {
+  regenerateSessionTitle(
+    sessionId: string,
+  ): Promise<DesktopSessionSnapshot>
+}
+
 export type DesktopToolingApi = {
   listTooling(): Promise<readonly ToolingStatus[]>
   refreshTooling(): Promise<readonly ToolingStatus[]>
@@ -281,6 +288,7 @@ export type DesktopReleaseNotesApi = {
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
+  DesktopAgentThreadTitleApi &
   DesktopToolingApi &
   DesktopPetApi &
   DesktopUsageApi &

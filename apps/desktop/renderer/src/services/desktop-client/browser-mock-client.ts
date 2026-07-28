@@ -768,6 +768,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
         item: { ...snapshot.item, sessionName: name },
       }
       sessions.set(sessionId, next)
+      emitSessionStoreChange()
       return next
     },
     saveSessionReviewComment: async input => requireMockSession(sessions, input.sessionId),

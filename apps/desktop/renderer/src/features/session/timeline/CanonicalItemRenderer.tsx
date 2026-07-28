@@ -234,7 +234,7 @@ function ReasoningItemView({ item }: { item: ItemOf<"reasoning"> }): React.React
         <span>{streaming ? "正在思考" : "思考过程"}</span>
         <ChevronDown className="canonical-process-card__chevron" aria-hidden="true" />
       </summary>
-      <div className="canonical-process-card__body">
+      <div className="canonical-process-card__body tw:bg-app-chrome">
         <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${item.text}`}>
           <MarkdownMessage text={item.text || "正在整理思路…"} streaming={streaming} />
         </ConversationMarkdownErrorBoundary>
@@ -259,7 +259,7 @@ function ActivityItemView({ item }: { item: ItemOf<"activity"> }): React.ReactNo
         <ChevronDown className="canonical-process-card__chevron" aria-hidden="true" />
       </summary>
       {item.detail || item.commands?.length ? (
-        <div className="canonical-process-card__body">
+        <div className="canonical-process-card__body tw:bg-app-chrome">
           {item.detail ? <p>{item.detail}</p> : null}
           {item.commands?.map((command, index) => (
             <pre key={`${item.id}:command:${index}`}>
@@ -289,7 +289,7 @@ function ToolItemView({ item }: { item: ItemOf<"tool"> }): React.ReactNode {
         <small>{toolStateLabel(item.state)}</small>
         <ChevronDown className="canonical-process-card__chevron" aria-hidden="true" />
       </summary>
-      <div className="canonical-process-card__body">
+      <div className="canonical-process-card__body tw:bg-app-chrome">
         {item.command ? <pre><code>{item.command}</code></pre> : null}
         {item.output ? <pre><code>{item.output}</code></pre> : null}
         {item.error ? <p className="canonical-item-error">{item.error}</p> : null}

@@ -67,7 +67,10 @@ import {
 } from "../workflow/workflowConsistency.js";
 import { desktopClient } from "../../../services/desktop-client/index.js";
 import { deriveReviewTurns } from "../reviewTurns.js";
-import type { Message } from "../../../uiTypes.js";
+import {
+  sessionEditableTitle,
+  type Message,
+} from "../../../uiTypes.js";
 import { InlineApprovalCard } from "../approvals/InlineApprovalCard.js";
 import {
   WorkflowPlanCard,
@@ -95,6 +98,8 @@ import { AppContextMenu } from "../../../components/ui/AppContextMenu.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
+import { ConfirmationDialog } from "../../../components/ui/ConfirmationDialog.js";
+import { SkeletonBlock } from "../../../components/ui/Skeleton.js";
 import {
   loadConversationUiState,
   saveConversationUiState,
@@ -124,6 +129,10 @@ import {
 import { useCanonicalThreadConversation } from "../timeline/useCanonicalThreadConversation.js";
 import { TimelineSystemNotice } from "../timeline/TimelineItemView.js";
 import { selectCanonicalConversationAuxiliaryState } from "./canonicalConversationSelectors.js";
+import {
+  canRegenerateConversationTitle,
+  isRenameConversationShortcut,
+} from "./conversationTitleActions.js";
 import {
   deriveAssistantActionMessageIds,
   deriveTimelineSourceEvents,
@@ -206,6 +215,7 @@ export function ConversationPage(): React.ReactNode {
     activeSessionId,
     activeSessionPinnedAt,
     sessionTitle,
+    titleRegenerating,
     events,
     workflowEvents,
     messages,
@@ -220,6 +230,7 @@ export function ConversationPage(): React.ReactNode {
     onOpenAutomation,
     onOpenWorkspacePath,
     onRefreshDiff,
+    onRefreshSessionTitle,
     onToggleSessionPinned,
     onBranchSelect,
     onCommitOrPush,
@@ -323,6 +334,11 @@ export function ConversationPage(): React.ReactNode {
     [canonicalConversation.turns],
   );
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = React.useState(false);
+  const [renameValue, setRenameValue] = React.useState("");
+  const [renamingSession, setRenamingSession] = React.useState(false);
+  const activeSessionIdRef = React.useRef(activeSessionId);
+  activeSessionIdRef.current = activeSessionId;
   const [conversationSelectedText, setConversationSelectedText] =
     React.useState("");
   const [openTargetMenuOpen, setOpenTargetMenuOpen] = React.useState(false);
@@ -516,6 +532,12 @@ export function ConversationPage(): React.ReactNode {
   const renderedSessionTitle = sessionTitle ?? fallbackTitle;
   const hasActiveSession = Boolean(activeSessionId);
   const isSessionPinned = Boolean(activeSessionPinnedAt);
+  const canRegenerateSessionTitle = canRegenerateConversationTitle({
+    hasActiveSession,
+    hasFirstMessage: canonicalAuxiliary.fallbackTitle !== null,
+    pending: titleRegenerating,
+    status: sessionStatus,
+  });
   const selectedOpenTarget =
     openTargets.find((target) => target.id === defaultOpenTargetId) ??
     FALLBACK_OPEN_TARGETS[0];
@@ -594,6 +616,69 @@ export function ConversationPage(): React.ReactNode {
   function closeSessionMenu(): void {
     setSessionMenuOpen(false);
   }
+
+  const openRenameSessionDialog = React.useCallback((): void => {
+    if (!hasActiveSession || renameDialogOpen || renamingSession) return;
+    setSessionMenuOpen(false);
+    const requestedSessionId = activeSessionId!;
+    void desktopClient
+      .getSession(requestedSessionId)
+      .then(snapshot => {
+        if (activeSessionIdRef.current !== requestedSessionId) return;
+        setRenameValue(sessionEditableTitle(snapshot.item));
+        setRenameDialogOpen(true);
+      })
+      .catch(() => {
+        if (activeSessionIdRef.current !== requestedSessionId) return;
+        setRenameValue(renderedSessionTitle);
+        setRenameDialogOpen(true);
+      });
+  }, [
+    activeSessionId,
+    hasActiveSession,
+    renameDialogOpen,
+    renderedSessionTitle,
+    renamingSession,
+  ]);
+
+  async function submitSessionRename(): Promise<void> {
+    const title = renameValue.trim();
+    if (!activeSessionId || renamingSession || !title) return;
+    setRenamingSession(true);
+    try {
+      await desktopClient.renameSession(activeSessionId, title);
+      setRenameDialogOpen(false);
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent("desktop:error", { detail: error }));
+    } finally {
+      setRenamingSession(false);
+    }
+  }
+
+  const regenerateCurrentSessionTitle = React.useCallback(async (): Promise<void> => {
+    if (!canRegenerateSessionTitle) return;
+    setSessionMenuOpen(false);
+    try {
+      await onRefreshSessionTitle();
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent("desktop:error", { detail: error }));
+    }
+  }, [canRegenerateSessionTitle, onRefreshSessionTitle]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (!isRenameConversationShortcut(event) || !hasActiveSession) return;
+      event.preventDefault();
+      openRenameSessionDialog();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [hasActiveSession, openRenameSessionDialog]);
+
+  React.useEffect(() => {
+    setRenameDialogOpen(false);
+    setRenameValue("");
+  }, [activeSessionId]);
 
   function copyText(text: string): void {
     closeSessionMenu();
@@ -728,8 +813,19 @@ export function ConversationPage(): React.ReactNode {
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
-        <span>
-          {isConversationLoading ? "加载对话中" : renderedSessionTitle}
+        <span
+          aria-busy={titleRegenerating}
+          aria-live="polite"
+          className="chat-session-title__text"
+        >
+          {isConversationLoading ? (
+            "加载对话中"
+          ) : titleRegenerating ? (
+            <>
+              <SkeletonBlock className="chat-session-title__skeleton" />
+              <span className="u-sr-only">正在更新会话标题</span>
+            </>
+          ) : renderedSessionTitle}
         </span>
         <PopoverMenu
           align="start"
@@ -757,11 +853,19 @@ export function ConversationPage(): React.ReactNode {
             {isSessionPinned ? "取消置顶" : "置顶对话"}
           </PopoverItem>
           <PopoverItem
-            disabled
+            disabled={!hasActiveSession || renamingSession}
             icon={<Pencil size={APP_ICON_SIZE} />}
             shortcut="Ctrl+Alt+R"
+            onClick={openRenameSessionDialog}
           >
             重命名对话
+          </PopoverItem>
+          <PopoverItem
+            disabled={!canRegenerateSessionTitle}
+            icon={<Sparkles size={APP_ICON_SIZE} />}
+            onClick={() => void regenerateCurrentSessionTitle()}
+          >
+            {titleRegenerating ? "正在更新会话标题…" : "更新会话标题"}
           </PopoverItem>
           <PopoverItem
             disabled={!hasActiveSession}
@@ -868,11 +972,16 @@ export function ConversationPage(): React.ReactNode {
     ),
     [
       activeSessionId,
+      canRegenerateSessionTitle,
       debugMode,
       hasActiveSession,
       hasRealPendingPermission,
       isConversationLoading,
       isSessionPinned,
+      openRenameSessionDialog,
+      regenerateCurrentSessionTitle,
+      titleRegenerating,
+      renamingSession,
       renderedSessionTitle,
       sessionMenuOpen,
       workflowTimelineVisible,
@@ -1103,6 +1212,22 @@ export function ConversationPage(): React.ReactNode {
       >
         {workspaceHeaderActions}
       </WorkspaceHeaderItem>
+      <ConfirmationDialog
+        actionDisabled={renamingSession || renameValue.trim().length === 0}
+        actionLabel={renamingSession ? "重命名中…" : "重命名"}
+        input={{
+          value: renameValue,
+          onChange: setRenameValue,
+          maxLength: 160,
+          placeholder: "输入对话名称",
+        }}
+        open={renameDialogOpen}
+        title="重命名对话"
+        onAction={() => void submitSessionRename()}
+        onCancel={() => {
+          if (!renamingSession) setRenameDialogOpen(false);
+        }}
+      />
       <div
         className="workflow-page__body"
       >

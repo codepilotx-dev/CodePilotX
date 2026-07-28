@@ -75,9 +75,6 @@ export function CodeBlock({
   if (presentation.highlighted?.foreground) {
     codeStyle.color = presentation.highlighted.foreground
   }
-  const surfaceStyle: CSSProperties = presentation.highlighted?.background
-    ? { backgroundColor: presentation.highlighted.background }
-    : {}
 
   return (
     <figure
@@ -92,7 +89,6 @@ export function CodeBlock({
         'tw:rounded-lg',
         className,
       )}
-      style={surfaceStyle}
     >
       <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-base tw:text-app-text-soft">
         <span className="md-code-lang tw:font-mono">

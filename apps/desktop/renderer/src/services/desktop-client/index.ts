@@ -26,6 +26,7 @@ export type {
   CodePilotXDesktopClient,
   DesktopAgentEventEnvelopeApi,
   DesktopAgentReviewApi,
+  DesktopAgentThreadTitleApi,
   DesktopClientEnvironment,
   DesktopReleaseNotesApi,
   DesktopUsageApi,

@@ -545,6 +545,7 @@ function MarkdownTable({
       className={cx(
         'md-table-block',
         'md-code-block',
+        'tw:bg-app-chrome',
         'tw:mx-0',
         'tw:my-3',
         'tw:w-full',

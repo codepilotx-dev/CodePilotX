@@ -11,6 +11,7 @@ import {
   questionToRequest,
   toolToRequest,
 } from '../../../services/agentThreadAdapter.js'
+import { sessionTitleFromContent } from '../../../uiTypes.js'
 
 export type SourceLink = {
   label: string
@@ -113,9 +114,7 @@ function extractCanonicalSourceLinks(items: readonly Item[]): SourceLink[] {
 }
 
 function fallbackTitleFromInput(content: string | undefined): string | null {
-  const title = content?.trim().split(/\r?\n/u)[0]
-  if (!title) return null
-  return title.length > 28 ? `${title.slice(0, 28)}...` : title
+  return sessionTitleFromContent(content)
 }
 
 function compareCreatedAt(
