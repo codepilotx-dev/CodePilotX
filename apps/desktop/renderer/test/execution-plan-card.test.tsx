@@ -93,6 +93,7 @@ describe("ExecutionPlanCard", () => {
         deletions={155}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed={false}
+        onOpenReview={() => undefined}
       />,
     );
     const progressedHtml = renderToStaticMarkup(
@@ -109,6 +110,7 @@ describe("ExecutionPlanCard", () => {
           ],
         })}
         failed={false}
+        onOpenReview={() => undefined}
       />,
     );
     const completedHtml = renderToStaticMarkup(
@@ -119,6 +121,7 @@ describe("ExecutionPlanCard", () => {
         deletions={0}
         executionPlan={executionPlanItem({ status: "completed" })}
         failed={false}
+        onOpenReview={() => undefined}
       />,
     );
     const interruptedHtml = renderToStaticMarkup(
@@ -129,6 +132,7 @@ describe("ExecutionPlanCard", () => {
         deletions={0}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed={false}
+        onOpenReview={() => undefined}
       />,
     );
     const failedHtml = renderToStaticMarkup(
@@ -139,6 +143,7 @@ describe("ExecutionPlanCard", () => {
         deletions={0}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed
+        onOpenReview={() => undefined}
       />,
     );
     const emptyPlanHtml = renderToStaticMarkup(
@@ -149,6 +154,7 @@ describe("ExecutionPlanCard", () => {
         deletions={0}
         executionPlan={executionPlanItem({ steps: [] })}
         failed={false}
+        onOpenReview={() => undefined}
       />,
     );
     const fileOnlyHtml = renderToStaticMarkup(
@@ -159,6 +165,7 @@ describe("ExecutionPlanCard", () => {
         deletions={3}
         executionPlan={null}
         failed={false}
+        onOpenReview={() => undefined}
       />,
     );
     const completedSummaryHtml = completedHtml.slice(
@@ -179,11 +186,17 @@ describe("ExecutionPlanCard", () => {
     expect(progressedHtml).toContain('data-progress="66.67"');
     expect(progressedHtml).toContain('stroke-dashoffset="33.33"');
     expect(streamingHtml).toContain("<button");
+    expect(streamingHtml.match(/<button/g)).toHaveLength(2);
     expect(streamingHtml).toContain("ui-button");
+    expect(streamingHtml).toContain("composer-change-summary__plan");
+    expect(streamingHtml).toContain("composer-change-summary__changes");
     expect(streamingHtml).toContain('aria-expanded="false"');
     expect(streamingHtml).toContain("aria-controls=");
     expect(streamingHtml).toContain('aria-hidden="true"');
     expect(streamingHtml).toContain("hidden=");
+    expect(streamingHtml).toContain(
+      'aria-label="打开审阅面板，5 个文件已更改，新增 279 行，删除 155 行"',
+    );
     expect(streamingHtml).not.toContain("composer-change-summary__chevron");
     expect(completedHtml).toContain(
       'aria-label="执行计划已完成，已完成 3 / 3 步"',
@@ -207,7 +220,9 @@ describe("ExecutionPlanCard", () => {
     expect(emptyPlanHtml).not.toContain("NaN");
     expect(emptyPlanHtml).not.toContain("Infinity");
     expect(fileOnlyHtml).toContain("1 个文件已更改");
-    expect(fileOnlyHtml).not.toContain("<button");
+    expect(fileOnlyHtml).toContain("<button");
+    expect(fileOnlyHtml.match(/<button/g)).toHaveLength(1);
+    expect(fileOnlyHtml).not.toContain("composer-change-summary__plan");
     expect(fileOnlyHtml).not.toContain("composer-change-summary__separator");
     expect(fileOnlyHtml).toContain("composer-change-summary__diff");
   });

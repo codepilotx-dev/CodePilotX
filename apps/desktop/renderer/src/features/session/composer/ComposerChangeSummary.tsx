@@ -16,7 +16,10 @@ type ComposerChangeSummaryProps = {
   changedFileCount: number;
   additions: number;
   deletions: number;
+  onOpenReview: () => void;
 };
+
+const PLAN_PREVIEW_CLOSE_DELAY_MS = 120;
 
 export function ComposerChangeSummary({
   executionPlan,
@@ -25,78 +28,125 @@ export function ComposerChangeSummary({
   changedFileCount,
   additions,
   deletions,
+  onOpenReview,
 }: ComposerChangeSummaryProps): React.ReactNode {
   const planPanelId = React.useId();
   const [expandedPlanId, setExpandedPlanId] = React.useState<string | null>(
     null,
   );
+  const planButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const closeTimerRef = React.useRef<number | null>(null);
+
+  React.useEffect(
+    () => () => {
+      if (closeTimerRef.current === null) return;
+      window.clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
 
   if (!executionPlan && changedFileCount <= 0) return null;
+
+  function clearPlanPreviewCloseTimer(): void {
+    if (closeTimerRef.current === null) return;
+    window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+  }
+
+  function openPlanPreview(planId: string): void {
+    clearPlanPreviewCloseTimer();
+    setExpandedPlanId(planId);
+  }
+
+  function schedulePlanPreviewClose(): void {
+    clearPlanPreviewCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      setExpandedPlanId(null);
+    }, PLAN_PREVIEW_CLOSE_DELAY_MS);
+  }
+
+  function schedulePlanPreviewCloseUnlessFocused(): void {
+    if (document.activeElement === planButtonRef.current) return;
+    schedulePlanPreviewClose();
+  }
+
+  function openReview(): void {
+    clearPlanPreviewCloseTimer();
+    setExpandedPlanId(null);
+    onOpenReview();
+  }
 
   const currentStep = executionPlan
     ? executionPlanStepPosition(executionPlan)
     : 0;
   const planExpanded =
     executionPlan !== null && expandedPlanId === executionPlan.id;
-  const summaryContent = (
-    <>
-      {executionPlan ? (
-        <span className="composer-change-summary__plan">
-          <ExecutionPlanStatusIcon
-            failed={failed}
-            steps={executionPlan.steps}
-            status={active ? "streaming" : executionPlan.status}
-          />
-          第 {currentStep} / {executionPlan.steps.length} 步
-        </span>
-      ) : null}
-      {executionPlan && changedFileCount > 0 ? (
-        <span
-          aria-hidden="true"
-          className="composer-change-summary__separator"
-        >
-          ·
-        </span>
-      ) : null}
-      {changedFileCount > 0 ? (
-        <span className="composer-change-summary__changes">
-          {changedFileCount} 个文件已更改
-          <span className="composer-change-summary__diff">
-            <strong>+{formatSummaryNumber(additions)}</strong>
-            <em>-{formatSummaryNumber(deletions)}</em>
-          </span>
-        </span>
-      ) : null}
-    </>
-  );
+  const formattedAdditions = formatSummaryNumber(additions);
+  const formattedDeletions = formatSummaryNumber(deletions);
 
   return (
     <div className="composer-change-summary">
       {executionPlan ? (
         <div
           aria-hidden={!planExpanded}
-          id={planPanelId}
+          aria-label="执行计划"
+          className="composer-change-summary__plan-preview"
           hidden={!planExpanded}
+          id={planPanelId}
+          role="region"
+          onPointerEnter={clearPlanPreviewCloseTimer}
+          onPointerLeave={schedulePlanPreviewCloseUnlessFocused}
         >
           <ExecutionPlanCard item={executionPlan} />
         </div>
       ) : null}
-      {executionPlan ? (
-        <Button
-          aria-controls={planPanelId}
-          aria-expanded={planExpanded}
-          className="composer-change-summary__bar"
-          onClick={() => {
-            setExpandedPlanId((current) =>
-              current === executionPlan.id ? null : executionPlan.id,
-            );
-          }}
-        >
-          {summaryContent}
-        </Button>
-      ) : (
-        <div className="composer-change-summary__bar">{summaryContent}</div>
-      )}
+      <div
+        aria-label="任务变更摘要"
+        className="composer-change-summary__bar"
+        role="group"
+      >
+        {executionPlan ? (
+          <Button
+            aria-controls={planPanelId}
+            aria-expanded={planExpanded}
+            className="composer-change-summary__plan"
+            ref={planButtonRef}
+            onBlur={schedulePlanPreviewClose}
+            onFocus={() => openPlanPreview(executionPlan.id)}
+            onPointerEnter={() => openPlanPreview(executionPlan.id)}
+            onPointerLeave={schedulePlanPreviewCloseUnlessFocused}
+          >
+            <ExecutionPlanStatusIcon
+              failed={failed}
+              steps={executionPlan.steps}
+              status={active ? "streaming" : executionPlan.status}
+            />
+            第 {currentStep} / {executionPlan.steps.length} 步
+          </Button>
+        ) : null}
+        {executionPlan && changedFileCount > 0 ? (
+          <span
+            aria-hidden="true"
+            className="composer-change-summary__separator"
+          >
+            ·
+          </span>
+        ) : null}
+        {changedFileCount > 0 ? (
+          <Button
+            aria-label={`打开审阅面板，${changedFileCount} 个文件已更改，新增 ${formattedAdditions} 行，删除 ${formattedDeletions} 行`}
+            className="composer-change-summary__changes"
+            onClick={openReview}
+          >
+            {changedFileCount} 个文件已更改
+            <span aria-hidden="true" className="composer-change-summary__diff">
+              <strong>+{formattedAdditions}</strong>
+              <em>-{formattedDeletions}</em>
+            </span>
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

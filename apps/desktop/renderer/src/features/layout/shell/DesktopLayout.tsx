@@ -822,8 +822,12 @@ export function DesktopLayout(): React.ReactNode {
   }, [openRightDockTab])
 
   const handleOpenReview = useCallback((): void => {
+    if (bottomPanelState.tabIds.includes('review')) {
+      movePanelTab('bottom', 'right', 'review')
+      return
+    }
     openRightDockTab({ id: 'review', kind: 'review' })
-  }, [openRightDockTab])
+  }, [bottomPanelState.tabIds, movePanelTab, openRightDockTab])
 
   const handleStartAiReview = useCallback(
     async (
@@ -2730,8 +2734,7 @@ export function DesktopLayout(): React.ReactNode {
             onCreateBranch: handleCreateBranch,
             onOpenAutomation: () => navigate('/automations'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
-            onOpenRightDock: () =>
-              openRightDockTab({ id: 'review', kind: 'review' }),
+            onOpenRightDock: handleOpenReview,
             onOpenPlanInRightDock: handleOpenPlanDock,
             canCopyFileReferenceContents:
               canCopyMarkdownFileReferenceContents,

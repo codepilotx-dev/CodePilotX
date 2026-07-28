@@ -1136,6 +1136,7 @@ export function ConversationPage(): React.ReactNode {
             deletions={composerDiffSummary.deletions}
             executionPlan={composerExecutionPlan}
             failed={sessionStatus === "error"}
+            onOpenReview={openReviewSidebar}
           />
         ) : null}
         {activePermissionRequest ? (
