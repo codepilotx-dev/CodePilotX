@@ -3,6 +3,7 @@ import {
   Bot,
   Check,
   ChevronDown,
+  ChevronRight,
   CircleAlert,
   Copy,
   FileDiff,
@@ -28,8 +29,29 @@ import {
 } from "../workflow/WorkflowPlanCard.js";
 
 type ItemOf<T extends Item["type"]> = Extract<Item, { type: T }>;
+type ToolItem = ItemOf<"tool">;
+
+export type ToolItemDisplay = {
+  active: boolean;
+  canExpand: boolean;
+  collapsedLabel: string;
+  executionContent: string;
+  expandedLabel: string;
+  failed: boolean;
+  resultText: string | null;
+  showShellPrompt: boolean;
+  statusLabel: string;
+  toolLabel: string;
+};
+
+export type CanonicalItemDisclosure = {
+  id: string;
+  expanded: boolean;
+  onExpandedChange: (id: string, expanded: boolean) => void;
+};
 
 export type CanonicalItemRendererProps = {
+  disclosure?: CanonicalItemDisclosure;
   item: Item;
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
@@ -152,6 +174,7 @@ function formatBytes(bytes: number): string {
 }
 
 export function CanonicalItemRenderer({
+  disclosure,
   item,
   onOpenPlanInRightDock,
   onOpenSubagent,
@@ -166,7 +189,7 @@ export function CanonicalItemRenderer({
     case "activity":
       return <ActivityItemView item={item} />;
     case "tool":
-      return <ToolItemView item={item} />;
+      return <ToolItemView disclosure={disclosure} item={item} />;
     case "plan":
       return (
         <WorkflowPlanCard
@@ -272,32 +295,106 @@ function ActivityItemView({ item }: { item: ItemOf<"activity"> }): React.ReactNo
   );
 }
 
-function ToolItemView({ item }: { item: ItemOf<"tool"> }): React.ReactNode {
-  const active = item.state === "pending" || item.state === "running";
-  const failed = item.state === "error";
+export function ToolItemView({
+  disclosure,
+  item,
+}: {
+  disclosure?: CanonicalItemDisclosure;
+  item: ToolItem;
+}): React.ReactNode {
+  const view = buildToolItemDisplay(item);
+  const expanded = view.canExpand && Boolean(disclosure?.expanded);
+
+  React.useEffect(() => {
+    if (!view.canExpand && disclosure?.expanded) {
+      disclosure.onExpandedChange(disclosure.id, false);
+    }
+  }, [disclosure, view.canExpand]);
+
   return (
-    <details className="canonical-process-card canonical-tool" open={failed}>
-      <summary>
-        {active ? (
+    <details
+      className="canonical-process-card canonical-tool"
+      data-expandable={view.canExpand ? "true" : "false"}
+      data-state={item.state}
+      onToggle={(event) => {
+        if (!view.canExpand) {
+          if (event.currentTarget.open) event.currentTarget.open = false;
+          return;
+        }
+        disclosure?.onExpandedChange(disclosure.id, event.currentTarget.open);
+      }}
+      open={expanded}
+    >
+      <summary
+        aria-disabled={!view.canExpand}
+        onClick={(event) => {
+          if (!view.canExpand) event.preventDefault();
+        }}
+        title={view.executionContent}
+      >
+        {view.active ? (
           <LoaderCircle className="canonical-spin" aria-hidden="true" />
-        ) : failed ? (
+        ) : view.failed ? (
           <CircleAlert aria-hidden="true" />
         ) : (
           <SquareTerminal aria-hidden="true" />
         )}
-        <span>{item.title || item.tool}</span>
-        <small>{toolStateLabel(item.state)}</small>
-        <ChevronDown className="canonical-process-card__chevron" aria-hidden="true" />
+        <span className="canonical-tool__summary-label">
+          {expanded ? view.expandedLabel : view.collapsedLabel}
+        </span>
+        {expanded ? (
+          <ChevronDown className="canonical-process-card__chevron" aria-hidden="true" />
+        ) : (
+          <ChevronRight className="canonical-process-card__chevron" aria-hidden="true" />
+        )}
       </summary>
-      <div className="canonical-process-card__body tw:bg-app-chrome">
-        {item.command ? <pre><code>{item.command}</code></pre> : null}
-        {item.output ? <pre><code>{item.output}</code></pre> : null}
-        {item.error ? <p className="canonical-item-error">{item.error}</p> : null}
-        {!item.command && !item.output && !item.error ? (
-          <pre><code>{formatToolInputForDisplay(item.tool, item.input)}</code></pre>
-        ) : null}
-      </div>
+      {expanded ? <ToolExecutionCard item={item} view={view} /> : null}
     </details>
+  );
+}
+
+export function ToolExecutionCard({
+  item,
+  view,
+}: {
+  item: ToolItem;
+  view: ToolItemDisplay;
+}): React.ReactNode {
+  return (
+    <article className="canonical-command-shell" data-state={item.state}>
+      <header className="canonical-command-shell__header">{view.toolLabel}</header>
+      <section className="canonical-command-shell__section" aria-label="执行内容">
+        <CopyButton ariaLabel="复制执行内容" text={view.executionContent} />
+        <pre>
+          <code>
+            {view.showShellPrompt ? <span className="canonical-command-shell__prompt">$ </span> : null}
+            {view.executionContent}
+          </code>
+        </pre>
+      </section>
+      <section
+        className="canonical-command-shell__section canonical-command-shell__result"
+        aria-label="返回结果"
+        data-empty={view.resultText ? undefined : "true"}
+      >
+        {view.resultText ? (
+          <CopyButton ariaLabel="复制返回结果" text={view.resultText} />
+        ) : null}
+        <pre><code>{view.resultText ?? "无输出"}</code></pre>
+      </section>
+      <footer className="canonical-command-shell__footer">
+        <span className="canonical-command-shell__status">
+          {item.state === "completed" ? (
+            <Check aria-hidden="true" />
+          ) : item.state === "error" || item.state === "interrupted" ? (
+            <CircleAlert aria-hidden="true" />
+          ) : (
+            <LoaderCircle className="canonical-spin" aria-hidden="true" />
+          )}
+          {view.statusLabel}
+        </span>
+      </footer>
+    </article>
   );
 }
 
@@ -366,15 +463,22 @@ function SubagentItemView({
   );
 }
 
-function CopyButton({ text }: { text: string }): React.ReactNode {
+function CopyButton({
+  ariaLabel = "复制",
+  text,
+}: {
+  ariaLabel?: string;
+  text: string;
+}): React.ReactNode {
   const [copied, setCopied] = React.useState(false);
   return (
-    <Tooltip content={copied ? "已复制" : "复制"}>
+    <Tooltip content={copied ? "已复制" : ariaLabel}>
       <button
-        aria-label={copied ? "已复制" : "复制"}
+        aria-label={copied ? `${ariaLabel}：已复制` : ariaLabel}
         className="canonical-icon-button"
         type="button"
-        onClick={() => {
+        onClick={(event) => {
+          event.stopPropagation();
           void navigator.clipboard?.writeText(text).then(() => {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1400);
@@ -387,15 +491,90 @@ function CopyButton({ text }: { text: string }): React.ReactNode {
   );
 }
 
-function toolStateLabel(state: ItemOf<"tool">["state"]): string {
+function toolStateLabel(state: ToolItem["state"]): string {
   switch (state) {
     case "pending": return "等待";
     case "waiting-permission": return "等待授权";
     case "running": return "运行中";
-    case "completed": return "完成";
+    case "completed": return "成功";
     case "error": return "失败";
     case "interrupted": return "已中断";
   }
+}
+
+function nonBlank(value: string | null): string | null {
+  return value && value.trim() ? value : null;
+}
+
+function toolDurationMs(item: ToolItem): number | null {
+  if (item.durationMs !== null) return Math.max(0, item.durationMs);
+  if (item.startedAt === null || item.finishedAt === null) return null;
+  return Math.max(0, item.finishedAt - item.startedAt);
+}
+
+export function formatToolDuration(durationMs: number): string {
+  const seconds = Math.max(1, Math.ceil(Math.max(0, durationMs) / 1_000));
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.floor(seconds / 60);
+  const remainSec = seconds % 60;
+  return remainSec === 0
+    ? `${minutes} 分钟`
+    : `${minutes} 分 ${remainSec} 秒`;
+}
+
+function toolPreview(item: ToolItem): string {
+  const source = nonBlank(item.command) ?? (item.title.trim() || item.tool);
+  return source.replace(/\s+/g, " ").trim();
+}
+
+function displayToolName(toolName: string): string {
+  return toolName === "Bash" ? "Shell" : toolName;
+}
+
+export function buildToolItemDisplay(item: ToolItem): ToolItemDisplay {
+  const command = nonBlank(item.command);
+  const formattedInput = formatToolInputForDisplay(item.tool, item.input);
+  const safeInput = formattedInput.trim() && formattedInput.trim() !== "null"
+    ? formattedInput
+    : null;
+  const fallbackExecution = item.title.trim() || item.tool;
+  const executionContent = command
+    ?? safeInput
+    ?? fallbackExecution;
+  const output = nonBlank(item.output);
+  const error = nonBlank(item.error);
+  const resultText = output && error
+    ? `${output}\n${error}`
+    : output ?? error;
+  const active = (
+    item.state === "pending"
+    || item.state === "waiting-permission"
+    || item.state === "running"
+  );
+  const terminal = !active;
+  const durationMs = terminal ? toolDurationMs(item) : null;
+  const collapsedPrefix = item.state === "running"
+    ? "正在运行"
+    : active
+      ? "等待运行"
+      : "已运行";
+
+  return {
+    active,
+    canExpand: terminal || resultText !== null,
+    collapsedLabel: `${collapsedPrefix} ${toolPreview(item)}`,
+    executionContent,
+    expandedLabel: active
+      ? "命令正在运行"
+      : durationMs === null
+        ? "命令已运行"
+        : `命令运行了 ${formatToolDuration(durationMs)}`,
+    failed: item.state === "error" || item.state === "interrupted",
+    resultText,
+    showShellPrompt: command !== null,
+    statusLabel: toolStateLabel(item.state),
+    toolLabel: displayToolName(item.tool),
+  };
 }
 
 function formatUnknown(value: unknown): string {

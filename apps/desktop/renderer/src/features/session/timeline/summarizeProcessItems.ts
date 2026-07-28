@@ -1,36 +1,46 @@
 import type { Item, TurnStatus } from "@codepilotx/shared/thread";
 
+type ToolItem = Extract<Item, { type: "tool" }>;
+
 export type ProcessSummary = {
   active: boolean;
   failed: boolean;
   label: string;
 };
 
-/**
- * Classify a process item as "running", "completed", or "failed".
- */
-function itemActivity(
-  item: Item,
-): "running" | "completed" | "failed" {
+type ItemActivity = "running" | "completed" | "failed";
+
+function itemActivity(item: Item): ItemActivity {
   switch (item.type) {
     case "tool":
       if (item.state === "error" || item.state === "interrupted") return "failed";
-      if (item.state === "pending" || item.state === "waiting-permission" || item.state === "running") return "running";
+      if (
+        item.state === "pending"
+        || item.state === "waiting-permission"
+        || item.state === "running"
+      ) {
+        return "running";
+      }
       return "completed";
     case "reasoning":
       if (item.status === "interrupted") return "failed";
-      if (item.status === "streaming") return "running";
-      return "completed";
+      return item.status === "streaming" ? "running" : "completed";
     case "activity":
       if (item.status === "error" || item.status === "interrupted") return "failed";
-      if (item.status === "running") return "running";
-      return "completed";
+      return item.status === "running" ? "running" : "completed";
     case "text":
-      if (item.status === "streaming") return "running";
-      return "completed";
+      if (item.status === "interrupted") return "failed";
+      return item.status === "streaming" ? "running" : "completed";
     case "subagent":
       if (item.status === "stopped") return "failed";
-      if (item.status === "running" || item.status === "queued" || item.status === "preparing" || item.status === "steering") return "running";
+      if (
+        item.status === "running"
+        || item.status === "queued"
+        || item.status === "preparing"
+        || item.status === "steering"
+      ) {
+        return "running";
+      }
       return "completed";
     default:
       return "completed";
@@ -49,67 +59,115 @@ function isWaitingStatus(status: TurnStatus): boolean {
   );
 }
 
-/**
- * Format elapsed seconds into a concise Chinese label.
- */
-function formatElapsed(seconds: number): string {
-  if (seconds <= 0) return "";
-  if (seconds < 60) return `执行了 ${seconds} 秒`;
-  const minutes = Math.floor(seconds / 60);
-  const remainSec = seconds % 60;
-  if (remainSec === 0) return `执行了 ${minutes} 分钟`;
-  return `执行了 ${minutes} 分 ${remainSec} 秒`;
+function isRunningTool(item: ToolItem): boolean {
+  return (
+    item.state === "pending"
+    || item.state === "waiting-permission"
+    || item.state === "running"
+  );
+}
+
+function commandPreview(item: ToolItem): string {
+  const source = item.command?.trim() || item.title.trim() || item.tool;
+  return source.replace(/\s+/g, " ").trim();
+}
+
+export function formatProcessElapsed(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  if (totalSeconds <= 0) return "";
+
+  const hours = Math.floor(totalSeconds / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const remainSeconds = totalSeconds % 60;
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (remainSeconds > 0) parts.push(`${remainSeconds}s`);
+  return parts.join(" ");
+}
+
+function withElapsed(label: string, elapsedSeconds: number): string {
+  const elapsed = formatProcessElapsed(elapsedSeconds);
+  return elapsed ? `${label} ${elapsed}` : label;
+}
+
+export function summarizeTurnProcessItems(
+  items: readonly Item[],
+  turnStatus: TurnStatus,
+  elapsedSeconds: number,
+): ProcessSummary {
+  const activities = items.map(itemActivity);
+  const hasRunningItem = activities.includes("running");
+
+  if (isWaitingStatus(turnStatus)) {
+    return { active: true, failed: false, label: "等待操作" };
+  }
+  if (turnStatus === "running" || hasRunningItem) {
+    return { active: true, failed: false, label: "正在处理" };
+  }
+  if (turnStatus === "failed") {
+    return {
+      active: false,
+      failed: true,
+      label: withElapsed("处理失败", elapsedSeconds),
+    };
+  }
+  if (
+    turnStatus === "stopped"
+    || turnStatus === "interrupted"
+    || turnStatus === "cancelled"
+  ) {
+    return {
+      active: false,
+      failed: true,
+      label: withElapsed("已中断", elapsedSeconds),
+    };
+  }
+  return {
+    active: false,
+    failed: false,
+    label: withElapsed("已处理", elapsedSeconds),
+  };
 }
 
 /**
- * Summarise a turn's process items into a single state for CanonicalProcessGroup.
+ * Summarise one consecutive command group for CanonicalProcessGroup.
  *
  * @returns `active` – the group should be expanded automatically.
  *          `failed` – at least one item ended in error.
  *          `label`  – concise Chinese summary string.
  */
-export function summarizeProcessItems(
-  items: Item[],
+export function summarizeCommandItems(
+  items: readonly ToolItem[],
   turnStatus: TurnStatus,
-  elapsedSeconds: number,
 ): ProcessSummary {
   if (items.length === 0) {
-    // No process items – the turn may still be active (fallback thinking).
-    if (isWaitingStatus(turnStatus)) {
-      return { active: true, failed: false, label: "等待操作" };
-    }
     return { active: false, failed: false, label: "" };
   }
 
-  // Scan all items for the most severe state.
-  let hasRunning = false;
-  let hasFailed = false;
-  let hasCompleted = false;
-
-  for (const item of items) {
-    const act = itemActivity(item);
-    if (act === "failed") hasFailed = true;
-    else if (act === "running") hasRunning = true;
-    else hasCompleted = true;
-  }
+  const runningItems = items.filter(isRunningTool);
+  const hasFailed = items.some(
+    (item) => item.state === "error" || item.state === "interrupted",
+  );
 
   // Waiting states take priority — keep visible so the blocker is obvious.
   if (isWaitingStatus(turnStatus)) {
-    return { active: true, failed: false, label: "等待操作" };
+    return { active: true, failed: hasFailed, label: "等待操作" };
   }
 
-  if (hasFailed) {
-    return { active: false, failed: true, label: "执行出错" };
+  if (runningItems.length > 0) {
+    return {
+      active: true,
+      failed: hasFailed,
+      label: runningItems.length === 1
+        ? `正在运行 ${commandPreview(runningItems[0])}`
+        : `正在运行 ${runningItems.length} 条命令`,
+    };
   }
 
-  if (hasRunning) {
-    return { active: true, failed: false, label: "正在思考" };
-  }
-
-  // All completed — prefer elapsed time, fall back to item count.
-  const elapsed = formatElapsed(elapsedSeconds);
-  if (elapsed) {
-    return { active: false, failed: false, label: elapsed };
-  }
-  return { active: false, failed: false, label: `${items.length} 项活动` };
+  return {
+    active: false,
+    failed: hasFailed,
+    label: `运行了 ${items.length} 条命令`,
+  };
 }

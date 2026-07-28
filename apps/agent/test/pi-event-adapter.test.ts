@@ -3,7 +3,8 @@ import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { PiEventAdapter, piToolResultText } from "../src/orchestration/pi/PiEventAdapter"
-import { finishedPiToolItem, piCompactionEventPayload, piItemDeltaPayload, piToolItemPayload, piToolTimelineInput } from "../src/orchestration/PiOrchestratorAdapter"
+import { finishedPiToolItem, PiOrchestratorAdapter, piCompactionEventPayload, piItemDeltaPayload, piToolItemPayload, piToolTimelineInput } from "../src/orchestration/PiOrchestratorAdapter"
+import type { PiRuntimeEventSink } from "../src/orchestration/pi/types"
 
 describe("PiEventAdapter", () => {
   test("apply_patch 时间线输入隐藏补丁正文和其中的主机路径", () => {
@@ -57,6 +58,81 @@ describe("PiEventAdapter", () => {
     expect(new Set(started).size).toBe(2)
     expect(deltas).toEqual(started)
     expect(completed).toEqual(started)
+  })
+
+  test("marks streaming text as process and classifies completed tool-call messages as process", async () => {
+    const started: string[] = []
+    const completed: string[] = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      assistantMessageStarted: async (_context, input) => { started.push(input.placement) },
+      assistantMessageCompleted: async (_context, input) => { completed.push(input.placement) },
+    })
+    const assistant = (content: unknown[]) => ({ role: "assistant", content })
+
+    await adapter.handle({ type: "message_start", message: assistant([]) } as unknown as AgentHarnessEvent)
+    await adapter.handle({
+      type: "message_end",
+      message: assistant([
+        { type: "text", text: "开始检查" },
+        { type: "toolCall", id: "call-1", name: "read", arguments: {} },
+      ]),
+    } as unknown as AgentHarnessEvent)
+    await adapter.handle({ type: "message_start", message: assistant([]) } as unknown as AgentHarnessEvent)
+    await adapter.handle({
+      type: "message_end",
+      message: assistant([{ type: "text", text: "检查完成" }]),
+    } as unknown as AgentHarnessEvent)
+
+    expect(started).toEqual(["process", "process"])
+    expect(completed).toEqual(["process", "result"])
+  })
+
+  test("keeps the completion placement when building the durable text item", async () => {
+    const db = {
+      getItem: () => null,
+    }
+    const orchestrator = new PiOrchestratorAdapter({
+      db: db as never,
+      hub: {} as never,
+      models: {} as never,
+      toolExecutor: {} as never,
+    })
+    const sink = (orchestrator as unknown as {
+      eventSink(
+        storage: unknown,
+        runtimeModel: { provider: string; id: string; contextWindow: number },
+      ): PiRuntimeEventSink
+    }).eventSink({}, {
+      provider: "openai",
+      id: "model",
+      contextWindow: 128_000,
+    })
+
+    await sink.assistantMessageCompleted?.(
+      { threadID: "thread", turnID: "turn", agentID: "agent" },
+      {
+        textItemID: "text-1",
+        reasoningItemID: "reasoning-1",
+        planItemID: "plan-1",
+        placement: "process",
+        content: [{ type: "text", text: "继续调用工具" }],
+        provider: "openai",
+        api: "responses",
+        model: "model",
+        usage: {
+          input: 1,
+          output: 1,
+          cacheRead: 0,
+          cacheWrite: 0,
+          reasoning: 0,
+        },
+      },
+    )
+
+    const pending = (orchestrator as unknown as {
+      pending: Map<string, { items: Map<string, { data: Record<string, unknown> }> }>
+    }).pending.get("thread")
+    expect(pending?.items.get("text-1")?.data.placement).toBe("process")
   })
 
   test("normalizes standard Pi usage and prefers the actual response model", async () => {

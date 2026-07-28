@@ -1,5 +1,12 @@
 import React from "react";
-import { Check, ChevronDown, CircleAlert, LoaderCircle, RotateCcw } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  LoaderCircle,
+  RotateCcw,
+} from "lucide-react";
 import type { RenderBlocker, RenderTurnEntry } from "@codepilotx/session-view";
 import type { Item } from "@codepilotx/shared/thread";
 import type { VirtualizerHandle } from "virtua";
@@ -14,8 +21,31 @@ import {
   SessionTimelineView,
   type ThreadTimelineNavigationHandle,
 } from "./SessionTimelineView.js";
-import { summarizeProcessItems, type ProcessSummary } from "./summarizeProcessItems.js";
+import {
+  summarizeCommandItems,
+  summarizeTurnProcessItems,
+  type ProcessSummary,
+} from "./summarizeProcessItems.js";
+import {
+  loadTimelineDisclosureState,
+  setTimelineDisclosureExpanded,
+} from "./timelineDisclosureState.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
+
+type ToolItem = Extract<Item, { type: "tool" }>;
+type NonToolProcessItem = Exclude<Item, { type: "tool" }>;
+
+export type ProcessSegment =
+  | { kind: "commands"; id: string; items: ToolItem[] }
+  | { kind: "item"; id: string; item: NonToolProcessItem };
+
+export type TimelineDisclosureProps = ProcessSummary & {
+  children: React.ReactNode;
+  disclosureId: string;
+  expanded: boolean;
+  onExpandedChange: (id: string, expanded: boolean) => void;
+  variant: "turn" | "commands";
+};
 
 export type CanonicalThreadViewProps = {
   turns: RenderTurnEntry[];
@@ -38,40 +68,34 @@ export type CanonicalThreadViewProps = {
 };
 
 /**
- * Wraps a turn's process items (reasoning, activity, tool, process text,
- * subagent) into a single collapsible group.
- *
- * Behaviour depends on the aggregated state:
- *  - running  → auto-expanded, spinner, "正在思考"
- *  - failed   → auto-expanded, error icon, "执行出错"
- *  - waiting  → auto-expanded, so the blocker stays visible
- *  - done     → collapsed, check icon, elapsed time summary
+ * Controlled disclosure shared by the outer turn process and nested command
+ * groups. Active groups stay open without writing that forced state to storage.
  */
 export function CanonicalProcessGroup({
   active,
   failed,
   label,
   children,
-}: ProcessSummary & { children: React.ReactNode }): React.ReactNode {
-  const forcedOpen = active || failed;
-  const [userExpanded, setUserExpanded] = React.useState(false);
-  const expanded = forcedOpen || userExpanded;
-  const datastate = failed ? "failed" : active ? "active" : "completed";
-
-  React.useLayoutEffect(() => {
-    if (forcedOpen) setUserExpanded(false);
-  }, [forcedOpen]);
+  disclosureId,
+  expanded: persistedExpanded,
+  onExpandedChange,
+  variant,
+}: TimelineDisclosureProps): React.ReactNode {
+  const forcedOpen = active;
+  const expanded = forcedOpen || persistedExpanded;
+  const datastate = active ? "active" : failed ? "failed" : "completed";
 
   return (
     <details
-      className="canonical-process-group"
+      className={`canonical-process-group canonical-process-group--${variant}`}
       data-state={datastate}
+      data-disclosure-id={disclosureId}
       onToggle={(event) => {
         if (forcedOpen) {
           if (!event.currentTarget.open) event.currentTarget.open = true;
           return;
         }
-        setUserExpanded(event.currentTarget.open);
+        onExpandedChange(disclosureId, event.currentTarget.open);
       }}
       open={expanded}
     >
@@ -84,7 +108,11 @@ export function CanonicalProcessGroup({
           <Check aria-hidden="true" />
         )}
         <span>{label}</span>
-        <ChevronDown className="canonical-process-group__chevron" aria-hidden="true" />
+        {expanded ? (
+          <ChevronDown className="canonical-process-group__chevron" aria-hidden="true" />
+        ) : (
+          <ChevronRight className="canonical-process-group__chevron" aria-hidden="true" />
+        )}
       </summary>
       {expanded ? (
         <div className="canonical-process-group__items">
@@ -93,6 +121,61 @@ export function CanonicalProcessGroup({
       ) : null}
     </details>
   );
+}
+
+export function segmentProcessItems(items: readonly Item[]): ProcessSegment[] {
+  const segments: ProcessSegment[] = [];
+
+  for (const item of items) {
+    if (item.type !== "tool") {
+      segments.push({ kind: "item", id: `item:${item.id}`, item });
+      continue;
+    }
+
+    const previous = segments.at(-1);
+    if (previous?.kind === "commands") {
+      previous.items.push(item);
+      continue;
+    }
+    segments.push({
+      kind: "commands",
+      id: `commands:${item.id}`,
+      items: [item],
+    });
+  }
+
+  return segments;
+}
+
+export function useTimelineDisclosureState(threadId: string): {
+  expandedIds: ReadonlySet<string>;
+  onExpandedChange: (id: string, expanded: boolean) => void;
+} {
+  const [state, setState] = React.useState<{
+    threadId: string;
+    expandedIds: Set<string>;
+  }>(() => ({
+    threadId,
+    expandedIds: loadTimelineDisclosureState(threadId),
+  }));
+  const expandedIds = state.threadId === threadId
+    ? state.expandedIds
+    : loadTimelineDisclosureState(threadId);
+
+  React.useEffect(() => {
+    if (state.threadId === threadId) return;
+    setState({ threadId, expandedIds });
+  }, [expandedIds, state.threadId, threadId]);
+
+  const onExpandedChange = React.useCallback(
+    (id: string, expanded: boolean): void => {
+      const next = setTimelineDisclosureExpanded(threadId, id, expanded);
+      setState({ threadId, expandedIds: next });
+    },
+    [threadId],
+  );
+
+  return { expandedIds, onExpandedChange };
 }
 
 export function CanonicalThreadView({
@@ -114,6 +197,7 @@ export function CanonicalThreadView({
   onOpenSubagent,
   rightDockPlanEventId,
 }: CanonicalThreadViewProps): React.ReactNode {
+  const disclosureState = useTimelineDisclosureState(threadId);
   const loadOlderPreservingAnchor = React.useCallback(async (): Promise<void> => {
     const handle = listRef.current;
     const previousSize = handle?.scrollSize ?? 0;
@@ -184,6 +268,7 @@ export function CanonicalThreadView({
           >
             <ConversationTurnErrorBoundary turnId={entry.id}>
               <CanonicalConversationTurn
+                disclosureState={disclosureState}
                 entry={entry}
                 onOpenPlanInRightDock={onOpenPlanInRightDock}
                 onOpenSubagent={onOpenSubagent}
@@ -198,38 +283,54 @@ export function CanonicalThreadView({
 }
 
 export function CanonicalConversationTurn({
+  disclosureState,
   entry,
   onOpenPlanInRightDock,
   onOpenSubagent,
   rightDockPlanEventId,
 }: {
+  disclosureState: {
+    expandedIds: ReadonlySet<string>;
+    onExpandedChange: (id: string, expanded: boolean) => void;
+  };
   entry: RenderTurnEntry;
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
   rightDockPlanEventId: string | null;
 }): React.ReactNode {
-  const renderItem = (item: RenderTurnEntry["items"][number]) => (
+  const disclosure = (id: string) => ({
+    id,
+    expanded: disclosureState.expandedIds.has(id),
+    onExpandedChange: disclosureState.onExpandedChange,
+  });
+  const renderItem = (
+    item: RenderTurnEntry["items"][number],
+    options: {
+      disclosureId?: string;
+      presentation?: CanonicalItemRendererProps["presentation"];
+    } = {},
+  ) => (
     <CanonicalItemRenderer
+      disclosure={options.disclosureId ? disclosure(options.disclosureId) : undefined}
       item={item}
       key={item.id}
       onOpenPlanInRightDock={onOpenPlanInRightDock}
       onOpenSubagent={onOpenSubagent}
+      presentation={options.presentation}
       rightDockPlanEventId={rightDockPlanEventId}
     />
   );
   const active = isActiveTurn(entry.turn.status);
   const hasAssistantResult = entry.assistantResultItems.some((item) => item.text.trim());
-  const lastProcessIndex = entry.contentBlocks.findLastIndex((block) => block.kind === "process");
-
-  const renderGroupedItem = (item: Item) => (
-    <CanonicalItemRenderer
-      item={item}
-      key={item.id}
-      onOpenPlanInRightDock={onOpenPlanInRightDock}
-      onOpenSubagent={onOpenSubagent}
-      rightDockPlanEventId={rightDockPlanEventId}
-      presentation="grouped"
-    />
+  const segments = segmentProcessItems(entry.processItems);
+  const lastCommandSegmentIndex = segments.findLastIndex(
+    (segment) => segment.kind === "commands",
+  );
+  const turnProcessId = `turn-process:${entry.turn.id}`;
+  const turnProcessSummary = summarizeTurnProcessItems(
+    entry.processItems,
+    entry.turn.status,
+    entry.turn.elapsedSeconds,
   );
 
   return (
@@ -245,39 +346,45 @@ export function CanonicalConversationTurn({
           ))}
         </section>
       ) : null}
-      {entry.contentBlocks.map((block, index) => {
-        if (block.kind === "process") {
-          const summary = summarizeProcessItems(
-            block.items,
-            index === lastProcessIndex ? entry.turn.status : "completed",
-            entry.turn.elapsedSeconds,
-          );
-          return (
-            <section className="canonical-turn__process" aria-label="执行过程" key={block.id}>
-              <CanonicalProcessGroup {...summary}>
-                {block.items.map(renderGroupedItem)}
-              </CanonicalProcessGroup>
-            </section>
-          );
-        }
-        if (block.kind === "assistant") {
-          return (
-            <section className="canonical-turn__result" aria-label="助手回复" key={block.id}>
-              {block.items.map(renderItem)}
-            </section>
-          );
-        }
-        if (block.kind === "plan") {
-          return <section className="canonical-turn__plan" key={block.id}>{renderItem(block.item)}</section>;
-        }
-        if (block.kind === "patch") {
-          return <section className="canonical-turn__post" aria-label="文件更改" key={block.id}>{renderItem(block.item)}</section>;
-        }
-        if (block.kind === "execution-plan") {
-          return null;
-        }
-        return <section className="canonical-turn__post" key={block.id}>{renderItem(block.item)}</section>;
-      })}
+      {entry.processItems.length > 0 ? (
+        <section className="canonical-turn__process" aria-label="处理过程">
+          <CanonicalProcessGroup
+            {...turnProcessSummary}
+            disclosureId={turnProcessId}
+            expanded={disclosureState.expandedIds.has(turnProcessId)}
+            onExpandedChange={disclosureState.onExpandedChange}
+            variant="turn"
+          >
+            {segments.map((segment, segmentIndex) => {
+              if (segment.kind === "item") {
+                return renderItem(segment.item, { presentation: "grouped" });
+              }
+              const commandGroupId = `command-group:${entry.turn.id}:${segment.items[0].id}`;
+              const summary = summarizeCommandItems(
+                segment.items,
+                active && segmentIndex === lastCommandSegmentIndex
+                  ? entry.turn.status
+                  : "completed",
+              );
+              return (
+                <CanonicalProcessGroup
+                  {...summary}
+                  disclosureId={commandGroupId}
+                  expanded={disclosureState.expandedIds.has(commandGroupId)}
+                  key={segment.id}
+                  onExpandedChange={disclosureState.onExpandedChange}
+                  variant="commands"
+                >
+                  {segment.items.map((item) => renderItem(item, {
+                    disclosureId: `tool:${entry.turn.id}:${item.id}`,
+                    presentation: "grouped",
+                  }))}
+                </CanonicalProcessGroup>
+              );
+            })}
+          </CanonicalProcessGroup>
+        </section>
+      ) : null}
       {entry.blockers.length ? (
         <section className="canonical-turn__blockers" aria-label="等待处理">
           {entry.blockers.map((blocker) => (
@@ -287,6 +394,26 @@ export function CanonicalConversationTurn({
               renderItem={renderItem}
             />
           ))}
+        </section>
+      ) : null}
+      {entry.planItem ? (
+        <section className="canonical-turn__plan">
+          {renderItem(entry.planItem)}
+        </section>
+      ) : null}
+      {entry.assistantResultItems.length > 0 ? (
+        <section className="canonical-turn__result" aria-label="助手回复">
+          {entry.assistantResultItems.map((item) => renderItem(item))}
+        </section>
+      ) : null}
+      {entry.patchItems.length > 0 ? (
+        <section className="canonical-turn__post" aria-label="文件更改">
+          {entry.patchItems.map((item) => renderItem(item))}
+        </section>
+      ) : null}
+      {entry.postAssistantItems.length > 0 ? (
+        <section className="canonical-turn__post">
+          {entry.postAssistantItems.map((item) => renderItem(item))}
         </section>
       ) : null}
       {/* Only show fallback thinking when there are no process items to display it on */}

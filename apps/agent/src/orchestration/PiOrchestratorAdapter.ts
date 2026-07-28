@@ -297,7 +297,7 @@ export class PiOrchestratorAdapter {
           agentID: context.agentID,
           type: "text",
           status: "running",
-          data: { placement: "result", text: "" },
+          data: { placement: input.placement, text: "" },
           createdAt: timestamp,
           updatedAt: timestamp,
         }, "item/started");
@@ -378,7 +378,7 @@ export class PiOrchestratorAdapter {
             agentID: context.agentID,
             type: "text",
             status: "completed",
-            data: { placement: "result", text, usage },
+            data: { placement: input.placement, text, usage },
             ...(currentText?.ordinal === undefined ? {} : { ordinal: currentText.ordinal }),
             createdAt: currentText?.createdAt ?? timestamp,
             updatedAt: timestamp,

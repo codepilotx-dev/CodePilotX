@@ -297,11 +297,13 @@ export function selectRenderTurnEntries(
     const executionPlanItems: Array<Extract<Item, { type: "execution-plan" }>> = []
     const contentBlocks: RenderContentBlock[] = []
     let planItem: Extract<Item, { type: "plan" }> | null = null
+    const lastProcessItemIndex = findLastProcessItemIndex(entry.items)
+    const assistantResultIndex = findAssistantResultIndex(entry.items, lastProcessItemIndex)
 
-    for (const item of entry.items) {
+    for (const [itemIndex, item] of entry.items.entries()) {
       if (item.type === "text") {
         if (!item.text.trim()) continue
-        if (item.placement === "result") {
+        if (itemIndex === assistantResultIndex) {
           assistantResultItems.push(item)
           const previous = contentBlocks.at(-1)
           if (previous?.kind === "assistant") previous.items.push(item)
@@ -351,6 +353,40 @@ export function selectRenderTurnEntries(
       systemItems: [],
     }
   })
+}
+
+function findLastProcessItemIndex(items: readonly Item[]): number {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index]
+    if (!item) continue
+    if (item.type === "text") {
+      if (item.placement === "process" && item.text.trim()) return index
+      continue
+    }
+    if (
+      item.type !== "patch"
+      && item.type !== "plan"
+      && item.type !== "execution-plan"
+      && item.type !== "question"
+    ) {
+      return index
+    }
+  }
+  return -1
+}
+
+function findAssistantResultIndex(items: readonly Item[], lastProcessItemIndex: number): number {
+  for (let index = items.length - 1; index > lastProcessItemIndex; index -= 1) {
+    const item = items[index]
+    if (
+      item?.type === "text"
+      && item.placement === "result"
+      && item.text.trim()
+    ) {
+      return index
+    }
+  }
+  return -1
 }
 
 function appendProcessBlock(blocks: RenderContentBlock[], item: RenderItem): void {

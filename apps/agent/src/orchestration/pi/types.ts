@@ -60,6 +60,8 @@ export interface PiRuntimeEventContext {
   agentID: string
 }
 
+export type PiAssistantMessagePlacement = "process" | "result"
+
 /**
  * Persistence is deliberately outside the Pi adapter. The eventual Agent integration
  * must implement savePoint/settled with AgentDatabase transactions and publish only
@@ -67,11 +69,16 @@ export interface PiRuntimeEventContext {
  */
 export interface PiRuntimeEventSink {
   event?(context: PiRuntimeEventContext, event: AgentHarnessEvent): void | Promise<void>
-  assistantMessageStarted?(context: PiRuntimeEventContext, input: { textItemID: string; reasoningItemID: string }): void | Promise<void>
+  assistantMessageStarted?(context: PiRuntimeEventContext, input: {
+    textItemID: string
+    reasoningItemID: string
+    placement: PiAssistantMessagePlacement
+  }): void | Promise<void>
   assistantMessageCompleted?(context: PiRuntimeEventContext, input: {
     textItemID: string
     reasoningItemID: string
     planItemID: string
+    placement: PiAssistantMessagePlacement
     content: unknown
     text?: string
     plan?: string | null

@@ -27,6 +27,14 @@ const usageNumber = (value: unknown) =>
     ? Math.max(0, Math.trunc(value))
     : 0
 
+const assistantMessagePlacement = (content: unknown) =>
+  Array.isArray(content) && content.some(
+    (part) => part && typeof part === "object"
+      && (part as { type?: unknown }).type === "toolCall",
+  )
+    ? "process" as const
+    : "result" as const
+
 /** Converts Pi's AgentToolResult wrapper into user-facing semantic text. */
 export const piToolResultText = (value: unknown, options: { tool: string; progress?: boolean }): string => {
   if (typeof value === "string") return value
@@ -98,7 +106,10 @@ export class PiEventAdapter {
     const items = this.assistantItems ?? this.resetAssistantMessage()
     if (this.textStarted) return
     this.textStarted = true
-    await this.sink.assistantMessageStarted?.(this.context, items)
+    await this.sink.assistantMessageStarted?.(this.context, {
+      ...items,
+      placement: "process",
+    })
   }
 
   private async routeChunks(chunks: readonly ProposedPlanChunk[]) {
@@ -159,6 +170,7 @@ export class PiEventAdapter {
             ? event.message.usage as unknown as Record<string, unknown>
             : {}
           const completion = {
+            placement: assistantMessagePlacement(event.message.content),
             provider: typeof event.message.provider === "string" ? event.message.provider : "",
             api: typeof event.message.api === "string" ? event.message.api : "",
             model: typeof event.message.responseModel === "string"

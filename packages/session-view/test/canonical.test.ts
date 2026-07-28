@@ -501,7 +501,7 @@ describe("canonical thread state", () => {
     })
   })
 
-  test("keeps assistant text and separated process groups in ordinal order", () => {
+  test("keeps only the final result text after process items as the assistant result", () => {
     const activeTurn = turn("turn-ordered")
     const rootAgent = agent("agent-ordered", activeTurn.id)
     const first = { ...textItem("text-1", activeTurn.id, "开始检查"), ordinal: 0, createdAt: 30 }
@@ -523,7 +523,64 @@ describe("canonical thread state", () => {
 
     const [entry] = selectRenderTurnEntries(state)
     expect(entry?.items.map((item) => item.id)).toEqual(["text-1", "tool-1", "text-2"])
-    expect(entry?.contentBlocks.map((block) => block.kind)).toEqual(["assistant", "process", "assistant"])
+    expect(entry?.processItems.map((item) => item.id)).toEqual(["text-1", "tool-1"])
+    expect(entry?.assistantResultItems.map((item) => item.id)).toEqual(["text-2"])
+    expect(entry?.contentBlocks.map((block) => block.kind)).toEqual(["process", "assistant"])
+    expect(entry?.contentBlocks.flatMap((block) => block.kind === "process" || block.kind === "assistant"
+      ? block.items.map((item) => item.id)
+      : [])).toEqual(["text-1", "tool-1", "text-2"])
+  })
+
+  test("does not invent an assistant result when legacy result text precedes the final process item", () => {
+    const activeTurn = turn("turn-process-only")
+    const rootAgent = agent("agent-process-only", activeTurn.id)
+    const text = { ...textItem("text-before-tool", activeTurn.id, "开始检查"), ordinal: 0 }
+    const tool: Extract<Item, { type: "tool" }> = {
+      id: "tool-last", messageID: activeTurn.id, turnId: activeTurn.id, agentId: rootAgent.id,
+      type: "tool", callID: "tool-last", tool: "Read", title: "Read", state: "completed",
+      input: {}, command: null, output: "ok", error: null, startedAt: 10, finishedAt: 20,
+      durationMs: 10, ordinal: 1, createdAt: 21,
+    }
+    const state = createCanonicalThreadState(page([{
+      turn: activeTurn,
+      inputs: [input("input-process-only", activeTurn.id, 1)],
+      messages: [],
+      agents: [rootAgent],
+      items: [text, tool],
+      approvals: [],
+    }]))
+
+    const [entry] = selectRenderTurnEntries(state)
+    expect(entry?.processItems.map((item) => item.id)).toEqual(["text-before-tool", "tool-last"])
+    expect(entry?.assistantResultItems).toEqual([])
+    expect(entry?.contentBlocks.map((block) => block.kind)).toEqual(["process"])
+  })
+
+  test("always projects explicitly placed process text into the process slot", () => {
+    const activeTurn = turn("turn-explicit-process")
+    const rootAgent = agent("agent-explicit-process", activeTurn.id)
+    const processText = {
+      ...textItem("process-text", activeTurn.id, "正在检查"),
+      placement: "process" as const,
+      ordinal: 0,
+    }
+    const resultText = {
+      ...textItem("result-text", activeTurn.id, "检查完成", "completed"),
+      ordinal: 1,
+    }
+    const state = createCanonicalThreadState(page([{
+      turn: activeTurn,
+      inputs: [input("input-explicit-process", activeTurn.id, 1)],
+      messages: [],
+      agents: [rootAgent],
+      items: [processText, resultText],
+      approvals: [],
+    }]))
+
+    const [entry] = selectRenderTurnEntries(state)
+    expect(entry?.processItems.map((item) => item.id)).toEqual(["process-text"])
+    expect(entry?.assistantResultItems.map((item) => item.id)).toEqual(["result-text"])
+    expect(entry?.contentBlocks.map((block) => block.kind)).toEqual(["process", "assistant"])
   })
 
   test("projects semantic slots and filters subagent scope by run id", () => {
@@ -534,7 +591,11 @@ describe("canonical thread state", () => {
       id: "reasoning-1", messageID: "m-1", turnId: activeTurn.id, agentId: childAgent.id,
       type: "reasoning", text: "思考", status: "completed", createdAt: 21,
     }
-    const result = { ...textItem("result-1", activeTurn.id, "完成", "completed"), agentId: childAgent.id }
+    const result = {
+      ...textItem("result-1", activeTurn.id, "完成", "completed"),
+      agentId: childAgent.id,
+      createdAt: 21.5,
+    }
     const patch: Extract<Item, { type: "patch" }> = {
       id: "patch-1", messageID: "m-2", turnId: activeTurn.id, agentId: childAgent.id,
       type: "patch", files: [], totalAdditions: 1, totalDeletions: 0, createdAt: 22,
@@ -559,7 +620,7 @@ describe("canonical thread state", () => {
 
     const visible = selectVisibleTurnEntries(state, { type: "subagent", runId: "run-1" })
     expect(visible).toHaveLength(1)
-    expect(visible[0]?.items.map((item) => item.id)).toEqual(["result-1", "reasoning-1", "patch-1", "question-1"])
+    expect(visible[0]?.items.map((item) => item.id)).toEqual(["reasoning-1", "result-1", "patch-1", "question-1"])
 
     const [rendered] = selectRenderTurnEntries(state, { type: "subagent", runId: "run-1" })
     expect(rendered?.processItems.map((item) => item.id)).toEqual(["reasoning-1"])

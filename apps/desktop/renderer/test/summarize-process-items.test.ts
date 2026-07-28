@@ -1,19 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import type { Item, TurnStatus } from "@codepilotx/shared/thread";
-import { summarizeProcessItems } from "../src/features/session/timeline/summarizeProcessItems.js";
+import type { Item } from "@codepilotx/shared/thread";
 
-function toolItem(overrides: Partial<Record<string, unknown>> & { state: string }): Item {
+import {
+  formatProcessElapsed,
+  summarizeCommandItems,
+  summarizeTurnProcessItems,
+} from "../src/features/session/timeline/summarizeProcessItems.js";
+
+type ToolItem = Extract<Item, { type: "tool" }>;
+
+function toolItem(
+  overrides: Partial<ToolItem> & Pick<ToolItem, "state">,
+  id = "tool-1",
+): ToolItem {
   return {
-    id: "t1",
-    messageID: "t1",
-    turnId: "turn1",
-    agentId: "a1",
+    id,
+    messageID: id,
+    turnId: "turn-1",
+    agentId: "agent-1",
     type: "tool",
-    callID: "c1",
+    callID: `call-${id}`,
     tool: "Bash",
-    title: "run test",
+    title: "运行命令",
     input: null,
-    command: null,
+    command: "bun test",
     output: null,
     error: null,
     startedAt: null,
@@ -21,128 +31,141 @@ function toolItem(overrides: Partial<Record<string, unknown>> & { state: string 
     durationMs: null,
     createdAt: 0,
     ...overrides,
-  } as unknown as Item;
+  };
 }
 
-function reasoningItem(overrides: Partial<Record<string, unknown>> & { status: string }): Item {
-  return {
-    id: "r1",
-    messageID: "r1",
-    turnId: "turn1",
-    agentId: "a1",
-    type: "reasoning",
-    text: "thinking...",
-    createdAt: 0,
-    ...overrides,
-  } as unknown as Item;
-}
-
-function activityItem(overrides: Partial<Record<string, unknown>> & { status: string }): Item {
-  return {
-    id: "a1",
-    messageID: "a1",
-    turnId: "turn1",
-    agentId: "a1",
-    type: "activity",
-    activity: "build",
-    title: "Building",
-    createdAt: 0,
-    ...overrides,
-  } as unknown as Item;
-}
-
-describe("summarizeProcessItems", () => {
-  test("empty items with idle turn returns inactive + empty label", () => {
-    const r = summarizeProcessItems([], "completed", 0);
-    expect(r.active).toBe(false);
-    expect(r.failed).toBe(false);
-    expect(r.label).toBe("");
-  });
-
-  test("empty items with waiting turn returns active + waiting label", () => {
-    const r = summarizeProcessItems([], "waiting-permission", 0);
-    expect(r.active).toBe(true);
-    expect(r.failed).toBe(false);
-    expect(r.label).toBe("等待操作");
-  });
-
-  test("empty items with waiting-question returns active", () => {
-    const r = summarizeProcessItems([], "waiting-question", 5);
-    expect(r.active).toBe(true);
-    expect(r.label).toBe("等待操作");
-  });
-
-  test("running tool item returns active + thinking label", () => {
-    const r = summarizeProcessItems([toolItem({ state: "running" })], "running", 10);
-    expect(r.active).toBe(true);
-    expect(r.failed).toBe(false);
-    expect(r.label).toBe("正在思考");
-  });
-
-  test("streaming reasoning item returns active + thinking label", () => {
-    const r = summarizeProcessItems([reasoningItem({ status: "streaming" })], "running", 0);
-    expect(r.active).toBe(true);
-    expect(r.failed).toBe(false);
-  });
-
-  test("running activity item returns active", () => {
-    const r = summarizeProcessItems([activityItem({ status: "running" })], "running", 3);
-    expect(r.active).toBe(true);
-  });
-
-  test("failed tool item returns failed", () => {
-    const r = summarizeProcessItems([toolItem({ state: "error" })], "completed", 30);
-    expect(r.active).toBe(false);
-    expect(r.failed).toBe(true);
-    expect(r.label).toBe("执行出错");
-  });
-
-  test("interrupted tool item returns failed", () => {
-    const r = summarizeProcessItems([toolItem({ state: "interrupted" })], "completed", 0);
-    expect(r.failed).toBe(true);
-  });
-
-  test("all completed items with elapsed seconds returns duration label", () => {
-    const r = summarizeProcessItems(
-      [toolItem({ state: "completed" }), reasoningItem({ status: "completed" })],
+describe("summarizeCommandItems", () => {
+  test("completed command groups report command count instead of turn duration", () => {
+    const result = summarizeCommandItems(
+      [
+        toolItem({ state: "completed" }, "tool-1"),
+        toolItem({ state: "completed" }, "tool-2"),
+      ],
       "completed",
-      84,
     );
-    expect(r.active).toBe(false);
-    expect(r.failed).toBe(false);
-    expect(r.label).toBe("执行了 1 分 24 秒");
+
+    expect(result).toEqual({
+      active: false,
+      failed: false,
+      label: "运行了 2 条命令",
+    });
   });
 
-  test("completed items with zero elapsed returns count label", () => {
-    const r = summarizeProcessItems(
-      [toolItem({ state: "completed" }), reasoningItem({ status: "completed" })],
-      "completed",
-      0,
-    );
-    expect(r.active).toBe(false);
-    expect(r.label).toBe("2 项活动");
-  });
-
-  test("completed items with small elapsed returns seconds label", () => {
-    const r = summarizeProcessItems([reasoningItem({ status: "completed" })], "completed", 42);
-    expect(r.label).toBe("执行了 42 秒");
-  });
-
-  test("waiting-permission turn keeps group active even if all items completed", () => {
-    const r = summarizeProcessItems([toolItem({ state: "completed" })], "waiting-permission", 120);
-    expect(r.active).toBe(true);
-    expect(r.failed).toBe(false);
-    expect(r.label).toBe("等待操作");
-  });
-
-  test("failed item overrides running items", () => {
-    const r = summarizeProcessItems(
-      [toolItem({ state: "running" }), toolItem({ state: "error" })],
+  test("one running command uses a single-line command preview", () => {
+    const result = summarizeCommandItems(
+      [toolItem({ state: "running", command: "bun test\n--watch" })],
       "running",
-      10,
     );
-    expect(r.active).toBe(false);
-    expect(r.failed).toBe(true);
-    expect(r.label).toBe("执行出错");
+
+    expect(result).toEqual({
+      active: true,
+      failed: false,
+      label: "正在运行 bun test --watch",
+    });
+  });
+
+  test("concurrent running commands use the running command count", () => {
+    const result = summarizeCommandItems(
+      [
+        toolItem({ state: "running" }, "tool-1"),
+        toolItem({ state: "pending" }, "tool-2"),
+      ],
+      "running",
+    );
+
+    expect(result.label).toBe("正在运行 2 条命令");
+    expect(result.active).toBe(true);
+  });
+
+  test("terminal failures keep the command count and failed state", () => {
+    const result = summarizeCommandItems(
+      [
+        toolItem({ state: "completed" }, "tool-1"),
+        toolItem({ state: "error" }, "tool-2"),
+        toolItem({ state: "interrupted" }, "tool-3"),
+      ],
+      "completed",
+    );
+
+    expect(result).toEqual({
+      active: false,
+      failed: true,
+      label: "运行了 3 条命令",
+    });
+  });
+
+  test("waiting turns keep the blocker visible", () => {
+    const result = summarizeCommandItems(
+      [toolItem({ state: "waiting-permission" })],
+      "waiting-permission",
+    );
+
+    expect(result).toEqual({
+      active: true,
+      failed: false,
+      label: "等待操作",
+    });
+  });
+});
+
+describe("summarizeTurnProcessItems", () => {
+  test("formats compact elapsed time for completed turns", () => {
+    expect(formatProcessElapsed(12)).toBe("12s");
+    expect(formatProcessElapsed(300)).toBe("5m");
+    expect(formatProcessElapsed(359)).toBe("5m 59s");
+    expect(formatProcessElapsed(3_723)).toBe("1h 2m 3s");
+    expect(formatProcessElapsed(0)).toBe("");
+
+    expect(summarizeTurnProcessItems(
+      [toolItem({ state: "completed" })],
+      "completed",
+      359,
+    )).toEqual({
+      active: false,
+      failed: false,
+      label: "已处理 5m 59s",
+    });
+  });
+
+  test("keeps active and waiting turns visible", () => {
+    expect(summarizeTurnProcessItems(
+      [toolItem({ state: "running" })],
+      "running",
+      12,
+    )).toEqual({
+      active: true,
+      failed: false,
+      label: "正在处理",
+    });
+    expect(summarizeTurnProcessItems(
+      [toolItem({ state: "waiting-permission" })],
+      "waiting-permission",
+      12,
+    )).toEqual({
+      active: true,
+      failed: false,
+      label: "等待操作",
+    });
+  });
+
+  test("failed and interrupted turns remain terminal and collapsed by default", () => {
+    expect(summarizeTurnProcessItems(
+      [toolItem({ state: "error" })],
+      "failed",
+      84,
+    )).toEqual({
+      active: false,
+      failed: true,
+      label: "处理失败 1m 24s",
+    });
+    expect(summarizeTurnProcessItems(
+      [toolItem({ state: "interrupted" })],
+      "interrupted",
+      0,
+    )).toEqual({
+      active: false,
+      failed: true,
+      label: "已中断",
+    });
   });
 });

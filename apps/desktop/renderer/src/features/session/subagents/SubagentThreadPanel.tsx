@@ -36,7 +36,10 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { MarkdownMessage } from '../MarkdownMessage.js'
-import { CanonicalConversationTurn } from '../timeline/CanonicalThreadView.js'
+import {
+  CanonicalConversationTurn,
+  useTimelineDisclosureState,
+} from '../timeline/CanonicalThreadView.js'
 
 export interface SubagentThreadCapabilities {
   canSend: boolean
@@ -84,6 +87,7 @@ export function SubagentThreadPanel({
   composer,
 }: SubagentThreadPanelProps): React.ReactNode {
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  const disclosureState = useTimelineDisclosureState(task.childThreadId)
   const canonicalState = React.useMemo(
     () => createCanonicalThreadState(pageFromThreadSnapshot(snapshot)),
     [snapshot],
@@ -203,8 +207,9 @@ export function SubagentThreadPanel({
           {canonicalTurns.length > 0 ? (
             <div className="subagent-thread-panel__timeline">
               {canonicalTurns.map((turn) => (
-                <CanonicalConversationTurn
-                  entry={turn}
+                 <CanonicalConversationTurn
+                   disclosureState={disclosureState}
+                   entry={turn}
                   key={turn.id}
                   onOpenPlanInRightDock={() => undefined}
                   onOpenSubagent={(taskId) => {
