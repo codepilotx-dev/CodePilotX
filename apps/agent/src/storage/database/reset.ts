@@ -25,15 +25,17 @@ export type StoragePaths = {
 
 const sidecars = (path: string) => [`${path}-wal`, `${path}-shm`] as const
 
+const LOCKED_FILE_RETRY_LIMIT = 200
+
 const retryLockedFile = (work: () => void) => {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < LOCKED_FILE_RETRY_LIMIT; attempt += 1) {
     try {
       work()
       return
     } catch (cause) {
       const locked = cause instanceof Error && "code" in cause &&
         (cause.code === "EBUSY" || cause.code === "EPERM")
-      if (!locked || attempt === 39) throw cause
+      if (!locked || attempt === LOCKED_FILE_RETRY_LIMIT - 1) throw cause
       Bun.gc(true)
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25)
     }

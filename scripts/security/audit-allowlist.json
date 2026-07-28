@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "exceptions": {
+    "GHSA-qwww-vcr4-c8h2": {
+      "reason": "Renderer 仅使用 React Router 客户端路由，不启用受影响的 RSC action 执行模式；等待上游发布可用修复版本。",
+      "owner": "@xiaohai-ouyang",
+      "expires": "2026-08-29"
+    }
+  }
+}

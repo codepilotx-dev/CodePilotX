@@ -11,14 +11,26 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.key
+*.pem
+*.cer
+*.crt
+*.p12
+*.pfx
 .codepilotx
 data
 release
+coverage
 resources/tooling/
 apps/agent/catalog.cache.json
 .playwright-cli/
 apps/desktop/renderer/test-results/
 apps/desktop/renderer/playwright-report/
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*
