@@ -172,9 +172,57 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     modelMetadata: provider.modelMetadata,
   })
   const visualFixture = createBrowserVisualFixture()
+  const visualSessionReadDelayMs =
+    import.meta.env.DEV && typeof window !== 'undefined'
+      ? Math.min(
+          2_000,
+          Math.max(
+            0,
+            Number.parseInt(
+              new URLSearchParams(window.location.search).get(
+                'visualSessionReadDelayMs',
+              ) ?? '0',
+              10,
+            ) || 0,
+          ),
+        )
+      : 0
   if (visualFixture) {
     sessions.set(visualFixture.item.id, visualFixture)
     activeSessionId = visualFixture.item.id
+    if (
+      new URLSearchParams(window.location.search).get('visualSwitchTargets') ===
+      '1'
+    ) {
+      for (const [suffix, title, userText, replyText] of [
+        ['b', '切换目标 B', '这是会话 B', '会话 B 已加载。'],
+        ['c', '切换目标 C', '这是会话 C', '会话 C 已加载。'],
+      ] as const) {
+        const sessionId = `visual-switch-${suffix}`
+        const target = mockSessionSnapshot(sessionId, visualFixture.workspace, {
+          workspacePath: visualFixture.workspace.path,
+          sessionName: title,
+        })
+        const createdAt = new Date().toISOString()
+        target.view.messages = [
+          {
+            id: `${sessionId}-user`,
+            role: 'user',
+            text: userText,
+            createdAt,
+          },
+          {
+            id: `${sessionId}-assistant`,
+            role: 'assistant',
+            text: replyText,
+            createdAt,
+          },
+        ]
+        target.item.lastMessageAt = createdAt
+        target.updatedAt = createdAt
+        sessions.set(sessionId, target)
+      }
+    }
   }
 
   return {
@@ -686,6 +734,11 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     listSessions: async () => [...sessions.values()],
     getSessionCatalogStatus: async () => ({ state: 'ready', error: null }),
     getSession: async sessionId => {
+      if (visualSessionReadDelayMs > 0) {
+        await new Promise(resolve =>
+          window.setTimeout(resolve, visualSessionReadDelayMs),
+        )
+      }
       const snapshot = sessions.get(sessionId)
       if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
       return snapshot

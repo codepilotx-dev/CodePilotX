@@ -98,6 +98,7 @@ import {
 } from './useWorkbenchShellController.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
 import { useModelProviderController } from '../useModelProviderController.js'
+import { recordConversationSwitchStarted } from '../../debug/performanceDiagnosticsBridge.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
@@ -413,6 +414,7 @@ export function DesktopLayout(): React.ReactNode {
       void refreshWorkspace(target, {
         clearSelectedFile: false,
         expectedSessionId: sessionId,
+        force: true,
       })
     },
     onOpenDrawerPermissions: () => setDrawerTab('permissions'),
@@ -431,6 +433,7 @@ export function DesktopLayout(): React.ReactNode {
     queuedFollowUps,
     queuePauseReason,
     pendingPermissions,
+    legacyViewSessionId,
     pendingPermissionSessionIds,
     input,
     setInput,
@@ -440,6 +443,7 @@ export function DesktopLayout(): React.ReactNode {
     removeComposerAttachmentForDraft,
     clearComposerDraftIfUnchanged,
     activateSessionById,
+    hydrateSessionLegacyView,
     createSessionForWorkspace,
     submitToSession,
     interrupt,
@@ -494,6 +498,12 @@ export function DesktopLayout(): React.ReactNode {
     ? `session:${routedSessionId}`
     : 'home'
   const lastWorkspaceRestoreAttemptedRef = useRef(false)
+  const conversationSwitchTargetRef = useRef<string | null>(null)
+  const beginConversationSwitch = useCallback((targetSessionId: string) => {
+    if (conversationSwitchTargetRef.current === targetSessionId) return
+    conversationSwitchTargetRef.current = targetSessionId
+    recordConversationSwitchStarted()
+  }, [])
 
   useEffect(() => {
     if (!settingsLoaded) return
@@ -536,9 +546,15 @@ export function DesktopLayout(): React.ReactNode {
       return
     }
 
-    if (sessionId === routedSessionId) return
+    if (sessionId === routedSessionId) {
+      conversationSwitchTargetRef.current = null
+      return
+    }
 
-    const nextWorkspace = activateSessionById(routedSessionId)
+    beginConversationSwitch(routedSessionId)
+    const nextWorkspace = activateSessionById(routedSessionId, {
+      viewMode: 'canonical',
+    })
     if (!nextWorkspace) {
       setWorkspaceState(null)
       setDiffState('未选择项目。')
@@ -551,6 +567,7 @@ export function DesktopLayout(): React.ReactNode {
     })
   }, [
     activateSessionById,
+    beginConversationSwitch,
     navigate,
     refreshWorkspace,
     routedSessionId,
@@ -572,7 +589,7 @@ export function DesktopLayout(): React.ReactNode {
       setWorkspaceState(selected)
       setLastActiveWorkspacePath(selected.path)
       settings.syncExternalSettingsPatch({ lastActiveWorkspacePath: selected.path })
-      await refreshWorkspace(selected)
+      await refreshWorkspace(selected, { force: true })
       return selected
     },
     [
@@ -597,7 +614,7 @@ export function DesktopLayout(): React.ReactNode {
       setWorkspaceState(selected)
       setLastActiveWorkspacePath(selected.path)
       settings.syncExternalSettingsPatch({ lastActiveWorkspacePath: selected.path })
-      await refreshWorkspace(selected)
+      await refreshWorkspace(selected, { force: true })
       return selected
     },
     [
@@ -635,7 +652,7 @@ export function DesktopLayout(): React.ReactNode {
       setWorkspaceState(selected)
       setLastActiveWorkspacePath(selected.path)
       settings.syncExternalSettingsPatch({ lastActiveWorkspacePath: selected.path })
-      void refreshWorkspace(selected)
+      void refreshWorkspace(selected, { force: true })
     },
     [navigate, refreshWorkspace, setWorkspaceState, settings],
   )
@@ -712,7 +729,10 @@ export function DesktopLayout(): React.ReactNode {
           branch,
         )
         setWorkspaceState(nextWorkspace)
-        await refreshWorkspace(nextWorkspace, { clearSelectedFile: true })
+        await refreshWorkspace(nextWorkspace, {
+          clearSelectedFile: true,
+          force: true,
+        })
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -727,7 +747,10 @@ export function DesktopLayout(): React.ReactNode {
   const handleWorkspaceChanged = useCallback(
     async (nextWorkspace: DesktopWorkspace): Promise<void> => {
       setWorkspaceState(nextWorkspace)
-      await refreshWorkspace(nextWorkspace, { clearSelectedFile: true })
+      await refreshWorkspace(nextWorkspace, {
+        clearSelectedFile: true,
+        force: true,
+      })
     },
     [refreshWorkspace, setWorkspaceState],
   )
@@ -743,7 +766,10 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleRefreshDiff = useCallback((): void => {
     if (!currentWorkspace) return
-    void refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
+    void refreshWorkspace(currentWorkspace, {
+      clearSelectedFile: false,
+      force: true,
+    })
   }, [currentWorkspace, refreshWorkspace])
 
   const handleCreateBranch = useCallback((): void => {
@@ -986,7 +1012,7 @@ export function DesktopLayout(): React.ReactNode {
       void handleChooseWorkspace()
     },
     onRefreshWorkspace: () => {
-      void refreshWorkspace()
+      void refreshWorkspace(undefined, { force: true })
     },
     onOpenSettings: () => {
       navigate('/settings/general')
@@ -1603,7 +1629,10 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
-      const nextWorkspace = activateSessionById(sessionItem.id)
+      beginConversationSwitch(sessionItem.id)
+      const nextWorkspace = activateSessionById(sessionItem.id, {
+        viewMode: 'canonical',
+      })
       navigate(sessionPath(sessionItem.id))
       if (!nextWorkspace) {
         setWorkspaceState(null)
@@ -1616,6 +1645,7 @@ export function DesktopLayout(): React.ReactNode {
     },
     [
       activateSessionById,
+      beginConversationSwitch,
       navigate,
       refreshWorkspace,
       routedSessionId,
@@ -2020,7 +2050,7 @@ export function DesktopLayout(): React.ReactNode {
     isQuickChatPage || isConversationRoute
       ? {
           input,
-          messages,
+          messages: isConversationRoute ? [] : messages,
           placement: isQuickChatPage ? 'new-session' : 'thread',
           draftKey: mainComposerDraftKey,
           routedSessionId,
@@ -2048,7 +2078,7 @@ export function DesktopLayout(): React.ReactNode {
           deepSeekThinkingControls,
           debugMode: menubarDebugMode,
           showContextUsage,
-          contextUsage,
+          contextUsage: isConversationRoute ? null : contextUsage,
           modelPresets: selectedProviderModelPresets,
           providerOptions: providerModelOptions,
           recentWorkspaces,
@@ -2641,7 +2671,10 @@ export function DesktopLayout(): React.ReactNode {
         onError={message => setErrorMessage(message)}
         onRefreshWorkspace={async () => {
           if (currentWorkspace) {
-            await refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
+            await refreshWorkspace(currentWorkspace, {
+              clearSelectedFile: false,
+              force: true,
+            })
           }
         }}
         onWorkspaceChanged={handleWorkspaceChanged}
@@ -2746,12 +2779,31 @@ export function DesktopLayout(): React.ReactNode {
             permissionMode: effectivePermissionMode,
             planModeActive,
             providerModelOptions,
-            events: isQuickChatPage || isConversationLoading ? [] : events,
+            events:
+              isQuickChatPage ||
+              isConversationLoading ||
+              legacyViewSessionId !== sessionId
+                ? []
+                : events,
             workflowEvents:
-              isQuickChatPage || isConversationLoading ? [] : workflowEvents,
-            messages: isQuickChatPage || isConversationLoading ? [] : messages,
+              isQuickChatPage ||
+              isConversationLoading ||
+              legacyViewSessionId !== sessionId
+                ? []
+                : workflowEvents,
+            messages:
+              isQuickChatPage ||
+              isConversationLoading ||
+              legacyViewSessionId !== sessionId
+                ? []
+                : messages,
             pendingPermissions:
-              isQuickChatPage || isConversationLoading ? [] : pendingPermissions,
+              isQuickChatPage ||
+              isConversationLoading ||
+              legacyViewSessionId !== sessionId
+                ? []
+                : pendingPermissions,
+            onHydrateLegacySessionView: hydrateSessionLegacyView,
             sessionStatus,
             composerProps: isConversationLoading ? null : composerProps,
             composerDraft: {

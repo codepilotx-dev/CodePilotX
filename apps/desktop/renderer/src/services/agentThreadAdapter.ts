@@ -493,7 +493,7 @@ export function itemContextUsage(
   }
 }
 
-function latestItemContextUsage(
+export function latestItemContextUsage(
   items: readonly Item[],
   fallbackProvider?: string,
   fallbackModel?: string,
@@ -521,11 +521,11 @@ function itemToToolLog(item: Item): DesktopToolLogEntry[] {
   ]
 }
 
-function toolToRequest(item: Extract<Item, { type: 'tool' }>): DesktopPermissionRequest {
+export function toolToRequest(item: Extract<Item, { type: 'tool' }>): DesktopPermissionRequest {
   return { requestId: item.id, toolName: item.tool, toolUseId: item.callID, input: record(item.input), description: item.title, requestKind: item.command ? 'shell-command' : 'tool' }
 }
 
-function approvalToRequest(approval: ApprovalRequest): DesktopPermissionRequest {
+export function approvalToRequest(approval: ApprovalRequest): DesktopPermissionRequest {
   return {
     requestId: approval.id,
     toolName: approval.tool,
@@ -575,7 +575,7 @@ function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermis
   }
 }
 
-function questionToRequest(question: QuestionItem): DesktopPermissionRequest {
+export function questionToRequest(question: QuestionItem): DesktopPermissionRequest {
   const options = questionOptions(question.choices)
   return { requestId: agentQuestionRequestId(question.id), toolName: 'AskUserQuestion', toolUseId: question.id, input: { question: question.prompt, header: '问题', options, questions: [{ id: question.id, question: question.prompt, header: '问题', options }], answer: question.answer }, description: question.prompt, requestKind: 'tool' }
 }

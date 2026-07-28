@@ -133,6 +133,7 @@ export function SessionTimelineView({
       ) : null}
       <div className="session-timeline-virtualizer">
         <Virtualizer
+          key={sessionKey}
           ref={listHandle}
           scrollRef={scrollRef}
           onScroll={scrollController.handleScroll}

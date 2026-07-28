@@ -30,6 +30,7 @@
 
 ### Fixed
 
+- [renderer] 修复会话切换时旧时间线重复渲染、legacy 全量快照重复投影、折叠工具卡提前挂载及同工作区重复刷新的卡顿
 - [renderer] 修复多轮流式对话重复分发 token 事件、逐事件复制 canonical 状态和无界保留 live 去重 ID 导致的掉帧与内存增长
 - [Agent] 修复 Shell 风险分类把源码凭据命名中的 `nc` 子串误认作网络命令的问题，普通 Git 暂存、提交和源码搜索不再被误报为凭据外传
 - [renderer] 补齐桌面 RPC 握手中的 Pi Provider 配置与认证 capability，恢复模型配置、凭据管理和 OAuth 会话调用

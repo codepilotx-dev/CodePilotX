@@ -32,6 +32,7 @@ import {
 type ControllerOptions = {
   input: string
   messages: Message[]
+  hasConversationMessages?: boolean
   placement: ComposerPlacement
   draftKey: ComposerDraftKey
   routedSessionId: string | null
@@ -82,6 +83,7 @@ type ControllerOptions = {
 export function useDesktopComposerController({
   input,
   messages,
+  hasConversationMessages: hasConversationMessagesOverride,
   placement,
   draftKey,
   routedSessionId,
@@ -154,9 +156,9 @@ export function useDesktopComposerController({
   const effectivePermissionMode = permissionModeVisible
     ? permissionMode
     : 'default'
-  const hasConversationMessages = messages.some(
-    message => message.role !== 'system',
-  )
+  const hasConversationMessages =
+    hasConversationMessagesOverride ??
+    messages.some(message => message.role !== 'system')
 
   useEffect(() => {
     if (permissionModeVisible) return

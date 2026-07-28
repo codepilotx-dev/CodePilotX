@@ -53,9 +53,28 @@ export function CanonicalProcessGroup({
   label,
   children,
 }: ProcessSummary & { children: React.ReactNode }): React.ReactNode {
+  const forcedOpen = active || failed;
+  const [userExpanded, setUserExpanded] = React.useState(false);
+  const expanded = forcedOpen || userExpanded;
   const datastate = failed ? "failed" : active ? "active" : "completed";
+
+  React.useLayoutEffect(() => {
+    if (forcedOpen) setUserExpanded(false);
+  }, [forcedOpen]);
+
   return (
-    <details className="canonical-process-group" data-state={datastate} open={active || failed}>
+    <details
+      className="canonical-process-group"
+      data-state={datastate}
+      onToggle={(event) => {
+        if (forcedOpen) {
+          if (!event.currentTarget.open) event.currentTarget.open = true;
+          return;
+        }
+        setUserExpanded(event.currentTarget.open);
+      }}
+      open={expanded}
+    >
       <summary>
         {active ? (
           <LoaderCircle className="canonical-spin" aria-hidden="true" />
@@ -67,9 +86,11 @@ export function CanonicalProcessGroup({
         <span>{label}</span>
         <ChevronDown className="canonical-process-group__chevron" aria-hidden="true" />
       </summary>
-      <div className="canonical-process-group__items">
-        {children}
-      </div>
+      {expanded ? (
+        <div className="canonical-process-group__items">
+          {children}
+        </div>
+      ) : null}
     </details>
   );
 }
@@ -144,6 +165,7 @@ export function CanonicalThreadView({
         </div>
       ) : null}
       <SessionTimelineView
+        key={threadId}
         count={turns.length}
         initialScrollOffset={initialScrollOffset}
         listRef={listRef}

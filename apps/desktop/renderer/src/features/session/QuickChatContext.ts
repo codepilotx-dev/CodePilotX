@@ -95,6 +95,7 @@ export type QuickChatContextValue = {
   workflowEvents: DesktopWorkflowEvent[]
   messages: Message[]
   pendingPermissions: DesktopPermissionRequest[]
+  onHydrateLegacySessionView: (sessionId: string) => Promise<void>
   sessionStatus: DesktopSessionStatus
   composerProps: DesktopComposerProps | null
   composerDraft?: QuickChatComposerDraftBridge

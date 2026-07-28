@@ -16,6 +16,9 @@ import { AGENT_LIVE_EVENT_FILTERS } from "../../../services/desktop-client/event
 import {
   recordCanonicalBatch,
   recordCanonicalProjection,
+  recordConversationSwitchCanonicalReady,
+  recordConversationSwitchRequest,
+  recordConversationSwitchSkeleton,
 } from "../../debug/performanceDiagnosticsBridge.js";
 
 const INITIAL_TURN_PAGE_SIZE = 10;
@@ -34,21 +37,46 @@ export type CanonicalThreadConversation = {
   reload: () => Promise<void>;
 };
 
+export function selectVisibleCanonicalState(
+  state: CanonicalThreadState | null,
+  threadId: string | null,
+): CanonicalThreadState | null {
+  return state?.thread.id === threadId ? state : null;
+}
+
+export function isCurrentCanonicalThreadRequest(
+  activeThreadId: string | null,
+  currentGeneration: number,
+  requestedThreadId: string,
+  requestGeneration: number,
+): boolean {
+  return activeThreadId === requestedThreadId
+    && currentGeneration === requestGeneration;
+}
+
 export function useCanonicalThreadConversation(
   threadId: string | null,
   scope: ThreadConversationScope = MAIN_CONVERSATION_SCOPE,
 ): CanonicalThreadConversation {
   const [state, setState] = React.useState<CanonicalThreadState | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [loadingOlder, setLoadingOlder] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [loadingThreadId, setLoadingThreadId] = React.useState<string | null>(null);
+  const [loadingOlderThreadId, setLoadingOlderThreadId] = React.useState<string | null>(null);
+  const [errorState, setErrorState] = React.useState<{
+    threadId: string;
+    message: string;
+  } | null>(null);
   const stateRef = React.useRef<CanonicalThreadState | null>(null);
+  const activeThreadIdRef = React.useRef(threadId);
   const generationRef = React.useRef(0);
   const unsubscribeRef = React.useRef<(() => void) | null>(null);
   const pendingEnvelopesRef = React.useRef<EventEnvelope[]>([]);
   const flushFrameRef = React.useRef<number | null>(null);
   const flushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushPendingRef = React.useRef<() => void>(() => undefined);
+  const diagnosticsThreadIdRef = React.useRef<string | null>(null);
+  const diagnosticsReadyRef = React.useRef(false);
+
+  activeThreadIdRef.current = threadId;
 
   const commit = React.useCallback((next: CanonicalThreadState | null): void => {
     stateRef.current = next;
@@ -83,6 +111,7 @@ export function useCanonicalThreadConversation(
 
   const readLatest = React.useCallback(async (): Promise<ThreadHistoryPageLike | null> => {
     if (!threadId) return null;
+    recordConversationSwitchRequest("history-read");
     return desktopClient.readThreadHistoryPage({
       threadId,
       limit: INITIAL_TURN_PAGE_SIZE,
@@ -91,48 +120,119 @@ export function useCanonicalThreadConversation(
 
   const reload = React.useCallback(async (): Promise<void> => {
     const generation = ++generationRef.current;
+    const requestedThreadId = threadId;
     clearPendingEnvelopes();
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
-    if (!threadId) {
+    setLoadingOlderThreadId(null);
+    if (!requestedThreadId) {
       commit(null);
-      setError(null);
-      setLoading(false);
+      setErrorState(null);
+      setLoadingThreadId(null);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    setLoadingThreadId(requestedThreadId);
+    setErrorState(null);
     try {
       const page = await readLatest();
-      if (!page || generation !== generationRef.current) return;
-      commit(createCanonicalThreadState(page));
-      unsubscribeRef.current = desktopClient.subscribeAgentEventEnvelopes(
+      if (
+        !page
+        || !isCurrentCanonicalThreadRequest(
+          activeThreadIdRef.current,
+          generationRef.current,
+          requestedThreadId,
+          generation,
+        )
+      ) {
+        return;
+      }
+      const next = createCanonicalThreadState(page);
+      if (next.thread.id !== requestedThreadId) {
+        throw new Error("历史记录返回了不匹配的会话");
+      }
+      commit(next);
+      const unsubscribe = desktopClient.subscribeAgentEventEnvelopes(
         {
-          threadId,
+          threadId: requestedThreadId,
           after: page.streamPosition.sequence,
           liveEventTypes: AGENT_LIVE_EVENT_FILTERS.canonical,
           onCursorExpired: async () => {
-            if (generation !== generationRef.current) return;
+            if (!isCurrentCanonicalThreadRequest(
+              activeThreadIdRef.current,
+              generationRef.current,
+              requestedThreadId,
+              generation,
+            )) {
+              return;
+            }
             clearPendingEnvelopes();
             const replacement = await readLatest();
-            if (!replacement || generation !== generationRef.current) return;
-            commit(createCanonicalThreadState(replacement));
+            if (
+              !replacement
+              || !isCurrentCanonicalThreadRequest(
+                activeThreadIdRef.current,
+                generationRef.current,
+                requestedThreadId,
+                generation,
+              )
+            ) {
+              return;
+            }
+            const replacementState = createCanonicalThreadState(replacement);
+            if (replacementState.thread.id !== requestedThreadId) return;
+            commit(replacementState);
             return replacement.streamPosition.sequence;
           },
         },
         (envelope: EventEnvelope) => {
-          if (generation !== generationRef.current) return;
+          if (!isCurrentCanonicalThreadRequest(
+            activeThreadIdRef.current,
+            generationRef.current,
+            requestedThreadId,
+            generation,
+          )) {
+            return;
+          }
           pendingEnvelopesRef.current.push(envelope);
           scheduleFlush();
         },
       );
+      if (!isCurrentCanonicalThreadRequest(
+        activeThreadIdRef.current,
+        generationRef.current,
+        requestedThreadId,
+        generation,
+      )) {
+        unsubscribe();
+        return;
+      }
+      unsubscribeRef.current = unsubscribe;
     } catch (cause) {
-      if (generation !== generationRef.current) return;
-      setError(cause instanceof Error ? cause.message : String(cause));
+      if (!isCurrentCanonicalThreadRequest(
+        activeThreadIdRef.current,
+        generationRef.current,
+        requestedThreadId,
+        generation,
+      )) {
+        return;
+      }
+      setErrorState({
+        threadId: requestedThreadId,
+        message: cause instanceof Error ? cause.message : String(cause),
+      });
       commit(null);
     } finally {
-      if (generation === generationRef.current) setLoading(false);
+      if (isCurrentCanonicalThreadRequest(
+        activeThreadIdRef.current,
+        generationRef.current,
+        requestedThreadId,
+        generation,
+      )) {
+        setLoadingThreadId((currentThreadId) =>
+          currentThreadId === requestedThreadId ? null : currentThreadId
+        );
+      }
     }
   }, [
     clearPendingEnvelopes,
@@ -143,8 +243,10 @@ export function useCanonicalThreadConversation(
   ]);
 
   const flushPending = React.useCallback((): void => {
+    const expectedThreadId = activeThreadIdRef.current;
+    const generation = generationRef.current;
     const current = stateRef.current;
-    if (!current) {
+    if (!expectedThreadId || !current || current.thread.id !== expectedThreadId) {
       pendingEnvelopesRef.current = [];
       return;
     }
@@ -158,7 +260,18 @@ export function useCanonicalThreadConversation(
         applyMs: performance.now() - applyStartedAt,
         liveEventIds: next.stream.appliedEventIds.size,
       });
-      if (next !== current) commit(next);
+      if (
+        next !== current
+        && isCurrentCanonicalThreadRequest(
+          activeThreadIdRef.current,
+          generationRef.current,
+          expectedThreadId,
+          generation,
+        )
+        && next.thread.id === expectedThreadId
+      ) {
+        commit(next);
+      }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
       const first = batch[0];
@@ -168,7 +281,10 @@ export function useCanonicalThreadConversation(
         batchSize: batch.length,
         cause,
       });
-      setError(`会话事件投影失败：${message}`);
+      setErrorState({
+        threadId: expectedThreadId,
+        message: `会话事件投影失败：${message}`,
+      });
       unsubscribeRef.current?.();
       unsubscribeRef.current = null;
       clearPendingEnvelopes();
@@ -195,48 +311,113 @@ export function useCanonicalThreadConversation(
   const loadOlder = React.useCallback(async (): Promise<void> => {
     const current = stateRef.current;
     const cursor = current?.history.olderCursor;
-    if (!threadId || !current || !current.history.hasOlder || !cursor || loadingOlder) {
+    const requestedThreadId = threadId;
+    const generation = generationRef.current;
+    if (
+      !requestedThreadId
+      || !current
+      || current.thread.id !== requestedThreadId
+      || !current.history.hasOlder
+      || !cursor
+      || loadingOlderThreadId === requestedThreadId
+    ) {
       return;
     }
-    setLoadingOlder(true);
+    setLoadingOlderThreadId(requestedThreadId);
     try {
+      recordConversationSwitchRequest("history-read");
       const page = await desktopClient.readThreadHistoryPage({
-        threadId,
+        threadId: requestedThreadId,
         before: cursor,
         limit: INITIAL_TURN_PAGE_SIZE,
       });
       const latest = stateRef.current;
-      if (!latest || latest.thread.id !== threadId) return;
-      commit(prependOlderThreadPage(latest, page));
+      if (
+        !isCurrentCanonicalThreadRequest(
+          activeThreadIdRef.current,
+          generationRef.current,
+          requestedThreadId,
+          generation,
+        )
+        || !latest
+        || latest.thread.id !== requestedThreadId
+      ) {
+        return;
+      }
+      const next = prependOlderThreadPage(latest, page);
+      if (next.thread.id !== requestedThreadId) return;
+      commit(next);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      if (!isCurrentCanonicalThreadRequest(
+        activeThreadIdRef.current,
+        generationRef.current,
+        requestedThreadId,
+        generation,
+      )) {
+        return;
+      }
+      setErrorState({
+        threadId: requestedThreadId,
+        message: cause instanceof Error ? cause.message : String(cause),
+      });
     } finally {
-      setLoadingOlder(false);
+      setLoadingOlderThreadId((currentThreadId) =>
+        currentThreadId === requestedThreadId ? null : currentThreadId
+      );
     }
-  }, [commit, loadingOlder, threadId]);
+  }, [commit, loadingOlderThreadId, threadId]);
+
+  const visibleState = selectVisibleCanonicalState(state, threadId);
+  const visibleError =
+    errorState?.threadId === threadId ? errorState.message : null;
+  const visibleLoading = Boolean(
+    threadId
+    && !visibleState
+    && !visibleError
+  ) || loadingThreadId === threadId;
+  const visibleLoadingOlder = Boolean(
+    threadId && loadingOlderThreadId === threadId
+  );
 
   const projection = React.useMemo(
     () => {
       const startedAt = performance.now();
-      const turns = state ? selectRenderTurnEntries(state, scope) : [];
+      const turns = visibleState ? selectRenderTurnEntries(visibleState, scope) : [];
       return {
-        durationMs: state ? performance.now() - startedAt : 0,
+        durationMs: visibleState ? performance.now() - startedAt : 0,
         turns,
       };
     },
-    [scope, state],
+    [scope, visibleState],
   );
   React.useEffect(() => {
-    if (state) recordCanonicalProjection(projection.durationMs);
-  }, [projection, state]);
+    if (visibleState) recordCanonicalProjection(projection.durationMs);
+  }, [projection, visibleState]);
+
+  React.useLayoutEffect(() => {
+    if (diagnosticsThreadIdRef.current !== threadId) {
+      diagnosticsThreadIdRef.current = threadId;
+      diagnosticsReadyRef.current = false;
+      if (threadId && visibleLoading && !visibleState) {
+        recordConversationSwitchSkeleton();
+      }
+    }
+    if (visibleState && !diagnosticsReadyRef.current) {
+      diagnosticsReadyRef.current = true;
+      recordConversationSwitchCanonicalReady({
+        turnCount: visibleState.turnOrder.length,
+        itemCount: visibleState.itemsById.size,
+      });
+    }
+  }, [threadId, visibleLoading, visibleState]);
 
   return {
-    state,
+    state: visibleState,
     turns: projection.turns,
-    loading,
-    loadingOlder,
-    error,
-    hasOlder: Boolean(state?.history.hasOlder),
+    loading: visibleLoading,
+    loadingOlder: visibleLoadingOlder,
+    error: visibleError,
+    hasOlder: Boolean(visibleState?.history.hasOlder),
     loadOlder,
     reload,
   };

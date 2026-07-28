@@ -58,8 +58,8 @@ import {
   applySessionView,
   addToolLogEntry as addToolLogEntryToView,
   createEmptySessionView,
+  setSessionView,
   toggleToolLogEntry as toggleToolLogEntryInView,
-  updateSessionView as updateSessionViewState,
   type AddToolLogEntry,
   type SessionViewRefs,
   type SessionViewStateSetters,
@@ -70,6 +70,11 @@ import type {
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
 } from '../composer/composerTypes.js'
+import { recordConversationSwitchRequest } from '../../debug/performanceDiagnosticsBridge.js'
+
+export type SessionActivationOptions = {
+  viewMode?: 'canonical' | 'legacy'
+}
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
@@ -112,6 +117,7 @@ export type UseSessionStateResult = {
   workflowEvents: DesktopWorkflowEvent[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
+  legacyViewSessionId: string | null
   pendingPermissionSessionIds: ReadonlySet<string>
   contextUsage: DesktopContextUsage | null
   queuedFollowUps: DesktopQueuedFollowUp[]
@@ -141,7 +147,11 @@ export type UseSessionStateResult = {
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
   ) => boolean
-  activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
+  activateSessionById: (
+    targetSessionId: string | null,
+    options?: SessionActivationOptions,
+  ) => DesktopWorkspace | null
+  hydrateSessionLegacyView: (targetSessionId: string) => Promise<void>
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
@@ -246,6 +256,10 @@ export function useSessionState(
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
   >([])
+  const [legacyViewSessionId, setLegacyViewSessionId] = useState<string | null>(
+    null,
+  )
+  const legacyViewSessionIdRef = useRef<string | null>(null)
   const [pendingPermissionSessionIds, setPendingPermissionSessionIds] =
     useState<Set<string>>(() => new Set())
   const [contextUsage, setContextUsage] =
@@ -445,12 +459,16 @@ export function useSessionState(
 
   const updateSessionView = useCallback<UpdateSessionView>(
     (targetSessionId, updater) => {
-      updateSessionViewState(
-        viewRefs,
-        viewSetters,
-        targetSessionId,
-        updater,
+      const nextView = updater(
+        sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
       )
+      setSessionView(sessionViewsRef, targetSessionId, nextView)
+      if (
+        targetSessionId === activeSessionIdRef.current &&
+        legacyViewSessionIdRef.current === targetSessionId
+      ) {
+        applySessionView(nextView, viewSetters)
+      }
       syncPendingPermissionSessionIds()
       setSessionFallbackTitles(current =>
         updateSessionFallbackTitle(
@@ -542,6 +560,8 @@ export function useSessionState(
         setQueuedFollowUps(snapshot.queuedFollowUps ?? [])
         setQueuePauseReason(snapshot.queuePauseReason ?? null)
         applySessionView(nextView, viewSetters)
+        legacyViewSessionIdRef.current = snapshot.item.id
+        setLegacyViewSessionId(snapshot.item.id)
       }
     },
     [syncPendingPermissionSessionIds, viewSetters],
@@ -556,6 +576,7 @@ export function useSessionState(
       sessionHydrationStateRef.current[targetSessionId] = 'loading'
       const hydration = (async () => {
         try {
+          recordConversationSwitchRequest('thread-read')
           const snapshot = await desktopClient.getSession(targetSessionId)
           applyHydratedSessionSnapshot(snapshot)
           sessionHydrationStateRef.current[targetSessionId] = 'hydrated'
@@ -576,6 +597,25 @@ export function useSessionState(
       return hydration
     },
     [applyHydratedSessionSnapshot],
+  )
+
+  const hydrateSessionLegacyView = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      if (
+        sessionHydrationStateRef.current[targetSessionId] === 'hydrated' &&
+        activeSessionIdRef.current === targetSessionId
+      ) {
+        applySessionView(
+          sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
+          viewSetters,
+        )
+        legacyViewSessionIdRef.current = targetSessionId
+        setLegacyViewSessionId(targetSessionId)
+        return
+      }
+      await hydrateSessionDetails(targetSessionId)
+    },
+    [hydrateSessionDetails, viewSetters],
   )
 
   const toggleToolLogEntry = useCallback(
@@ -714,7 +754,9 @@ export function useSessionState(
       const currentSession = nextSessions.find(session => session.id === currentId)
       if (!currentSession || currentSession.archivedAt) {
         activeSessionIdRef.current = null
+        legacyViewSessionIdRef.current = null
         setSessionId(null)
+        setLegacyViewSessionId(null)
         setSessionStatus('idle')
         setQueuedFollowUps([])
         setQueuePauseReason(null)
@@ -729,7 +771,12 @@ export function useSessionState(
       const currentQueueState = nextQueueStates[currentId]
       setQueuedFollowUps(currentQueueState?.items ?? [])
       setQueuePauseReason(currentQueueState?.pauseReason ?? null)
-      applySessionView(nextViews[currentId] ?? createEmptySessionView(), viewSetters)
+      if (legacyViewSessionIdRef.current === currentId) {
+        applySessionView(
+          nextViews[currentId] ?? createEmptySessionView(),
+          viewSetters,
+        )
+      }
     })
     return () => {
       unsubscribe()
@@ -787,7 +834,9 @@ export function useSessionState(
         setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
         activeSessionIdRef.current = null
+        legacyViewSessionIdRef.current = null
         setSessionId(null)
+        setLegacyViewSessionId(null)
         setSessionStatus('idle')
         setQueuedFollowUps([])
         setQueuePauseReason(null)
@@ -900,12 +949,18 @@ export function useSessionState(
   )
 
   const activateSessionById = useCallback(
-    (targetSessionId: string | null): DesktopWorkspace | null => {
+    (
+      targetSessionId: string | null,
+      options: SessionActivationOptions = {},
+    ): DesktopWorkspace | null => {
+      const viewMode = options.viewMode ?? 'legacy'
       if (!targetSessionId) {
         activateSession(actionContext, null)
         setSessionStatus('idle')
         setQueuedFollowUps([])
         setQueuePauseReason(null)
+        legacyViewSessionIdRef.current = null
+        setLegacyViewSessionId(null)
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
         setComposerAttachments(
@@ -926,11 +981,18 @@ export function useSessionState(
       const queueState = queueStateBySessionRef.current[targetSessionId]
       setQueuedFollowUps(queueState?.items ?? [])
       setQueuePauseReason(queueState?.pauseReason ?? null)
-      applySessionView(
-        sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
-        viewSetters,
-      )
-      void hydrateSessionDetails(targetSessionId)
+      if (viewMode === 'legacy') {
+        applySessionView(
+          sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
+          viewSetters,
+        )
+        legacyViewSessionIdRef.current = targetSessionId
+        setLegacyViewSessionId(targetSessionId)
+        void hydrateSessionDetails(targetSessionId)
+      } else {
+        legacyViewSessionIdRef.current = null
+        setLegacyViewSessionId(null)
+      }
       setInput(inputBySessionRef.current[targetSessionId] ?? '')
       setComposerAttachments(
         attachmentsBySessionRef.current[targetSessionId] ?? [],
@@ -1128,6 +1190,7 @@ export function useSessionState(
     workflowEvents,
     toolLog,
     pendingPermissions,
+    legacyViewSessionId,
     pendingPermissionSessionIds,
     contextUsage,
     queuedFollowUps,
@@ -1145,6 +1208,7 @@ export function useSessionState(
     removeComposerAttachmentForDraft,
     clearComposerDraftIfUnchanged,
     activateSessionById,
+    hydrateSessionLegacyView,
     createSessionForWorkspace,
     submit,
     submitToSession,

@@ -123,6 +123,7 @@ import {
 } from "./turnNavigationModel.js";
 import { useCanonicalThreadConversation } from "../timeline/useCanonicalThreadConversation.js";
 import { TimelineSystemNotice } from "../timeline/TimelineItemView.js";
+import { selectCanonicalConversationAuxiliaryState } from "./canonicalConversationSelectors.js";
 import {
   deriveAssistantActionMessageIds,
   deriveTimelineSourceEvents,
@@ -230,7 +231,7 @@ export function ConversationPage(): React.ReactNode {
     onAppendSideChatText,
     onOpenSubagent,
     permissionMode,
-    pendingPermissions,
+    onHydrateLegacySessionView,
     composerProps,
     rightDockPlanEventId,
     debugMode,
@@ -260,36 +261,56 @@ export function ConversationPage(): React.ReactNode {
     };
   }, [activeSessionId]);
 
+  const [workflowTimelineVisible, setWorkflowTimelineVisible] =
+    React.useState(false);
+  React.useEffect(() => {
+    if (!workflowTimelineVisible || !activeSessionId) return;
+    void onHydrateLegacySessionView(activeSessionId);
+  }, [
+    activeSessionId,
+    onHydrateLegacySessionView,
+    workflowTimelineVisible,
+  ]);
   const conversationMessages = React.useMemo(
-    () => messages.filter((message) => message.role !== "system"),
-    [messages],
+    () =>
+      workflowTimelineVisible
+        ? messages.filter((message) => message.role !== "system")
+        : [],
+    [messages, workflowTimelineVisible],
   );
+  const visibleWorkflowEvents = workflowTimelineVisible ? workflowEvents : [];
+  const visibleLegacyEvents = workflowTimelineVisible ? events : [];
   const workflowConsistencyDiagnostics = React.useMemo(
     () =>
       deriveWorkflowConsistencyDiagnostics({
         activeSessionId,
         currentView: { messages },
-        workflowEvents,
+        workflowEvents: visibleWorkflowEvents,
       }),
-    [activeSessionId, messages, workflowEvents],
+    [activeSessionId, messages, visibleWorkflowEvents],
   );
+  const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
+  const canonicalAuxiliary = React.useMemo(
+    () =>
+      selectCanonicalConversationAuxiliaryState(canonicalConversation.state),
+    [canonicalConversation.state],
+  );
+  const pendingPermissions = canonicalAuxiliary.pendingPermissions;
   const {
     debugAskUserQuestionRequest,
     debugPlanCardSummary,
     setDebugAskUserQuestionRequest,
     setDebugPlanCardSummary,
-    timelineEvents,
     workflowDerivedState,
   } = useConversationController({
     activeSessionId,
     conversationMessages,
     debugMode,
-    events,
+    events: visibleLegacyEvents,
     pendingPermissions,
     sessionStatus,
-    workflowEvents,
+    workflowEvents: visibleWorkflowEvents,
   });
-  const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
   const handleCanonicalRender = React.useCallback<React.ProfilerOnRenderCallback>(
     (_id, _phase, actualDuration) => {
       recordReactCommit(actualDuration);
@@ -401,9 +422,17 @@ export function ConversationPage(): React.ReactNode {
   }, [activeSessionId]);
 
   React.useEffect(() => {
-    if (isConversationLoading || !activeSessionId) return;
+    if (
+      isConversationLoading ||
+      canonicalConversation.loading ||
+      canonicalConversation.state?.thread.id !== activeSessionId ||
+      !activeSessionId
+    ) {
+      return;
+    }
     if (scrollRestoredRef.current === activeSessionId) return;
     const saved = loadConversationUiState(activeSessionId);
+    if (saved?.mainScrollTop && !timelineListRef.current) return;
     scrollRestoredRef.current = activeSessionId;
     mainScrollTopRef.current = saved?.mainScrollTop ?? 0;
     if (saved?.mainScrollTop && timelineListRef.current) {
@@ -415,7 +444,12 @@ export function ConversationPage(): React.ReactNode {
         }
       });
     }
-  }, [isConversationLoading, activeSessionId]);
+  }, [
+    activeSessionId,
+    canonicalConversation.loading,
+    canonicalConversation.state,
+    isConversationLoading,
+  ]);
 
   const handleRefreshDiff = React.useCallback(() => {
     if (isRefreshingDiff) return;
@@ -426,19 +460,6 @@ export function ConversationPage(): React.ReactNode {
       window.setTimeout(() => setIsRefreshingDiff(false), 600);
     }
   }, [isRefreshingDiff, onRefreshDiff]);
-  const conversationMessagesForReview = React.useMemo(
-    () =>
-      messages
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({
-          role: m.role,
-          text: m.text,
-          createdAt: m.createdAt,
-        })),
-    [messages],
-  );
-  const [workflowTimelineVisible, setWorkflowTimelineVisible] =
-    React.useState(false);
   const changedFileCount = workspacePath ? (gitStatus?.files.length ?? 0) : 0;
   const composerExecutionPlan = findLatestExecutionPlan(
     canonicalConversation.turns,
@@ -448,9 +469,24 @@ export function ConversationPage(): React.ReactNode {
     changedFileCount,
   });
   const composerDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
-  const sourceLinks = React.useMemo(
-    () => extractSourceLinks(timelineEvents),
-    [timelineEvents],
+  const sourceLinks = canonicalAuxiliary.sourceLinks;
+  const canonicalSummaryEvents = React.useMemo<DesktopSessionEvent[]>(
+    () =>
+      canonicalConversation.turns.flatMap((turn) =>
+        turn.planItem
+          ? [
+              {
+                id: turn.planItem.id,
+                sessionId: activeSessionId ?? "canonical",
+                type: "proposed_plan" as const,
+                role: "assistant" as const,
+                content: turn.planItem.markdown,
+                createdAt: new Date(turn.planItem.createdAt).toISOString(),
+              },
+            ]
+          : [],
+      ),
+    [activeSessionId, canonicalConversation.turns],
   );
   const threadSummaryModel = React.useMemo(
     () =>
@@ -459,7 +495,7 @@ export function ConversationPage(): React.ReactNode {
         branchName,
         changedFileCount,
         deletions: composerDiffSummary.deletions,
-        events: timelineEvents,
+        events: canonicalSummaryEvents,
         sources: sourceLinks,
         subagents,
         workspacePath,
@@ -470,16 +506,13 @@ export function ConversationPage(): React.ReactNode {
       composerDiffSummary,
       sourceLinks,
       subagents,
-      timelineEvents,
+      canonicalSummaryEvents,
       workspacePath,
     ],
   );
   const workflowMainRef = React.useRef<HTMLElement>(null);
   const threadSummary = useThreadSummaryController(workflowMainRef);
-  const fallbackTitle = React.useMemo(
-    () => getConversationTitle(timelineEvents),
-    [timelineEvents],
-  );
+  const fallbackTitle = canonicalAuxiliary.fallbackTitle ?? "新对话";
   const renderedSessionTitle = sessionTitle ?? fallbackTitle;
   const hasActiveSession = Boolean(activeSessionId);
   const isSessionPinned = Boolean(activeSessionPinnedAt);
@@ -1003,7 +1036,14 @@ export function ConversationPage(): React.ReactNode {
             onDecide={decideInlinePermission}
           />
         ) : (
-          <DesktopComposer {...composerProps} />
+          <DesktopComposer
+            {...composerProps}
+            contextUsage={canonicalAuxiliary.contextUsage}
+            hasConversationMessages={
+              canonicalAuxiliary.hasConversationMessages
+            }
+            messages={[]}
+          />
         )}
       </ComposerFrame>
     </div>
@@ -2556,20 +2596,6 @@ function MessageActionButton({
   );
 }
 
-function getConversationTitle(
-  events: Array<{ role?: string; content?: string }>,
-): string {
-  const firstUserMessage = events.find((event) => event.role === "user");
-  const title = firstUserMessage?.content?.trim().split(/\r?\n/)[0] ?? "新对话";
-  return title.length > 28 ? `${title.slice(0, 28)}...` : title;
-}
-
-function truncateToWidth(text: string, max: number): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (normalized.length <= max) return normalized;
-  return `${normalized.slice(0, Math.max(1, max - 1))}…`;
-}
-
 function parseDiffPath(line: string): string {
   const match = /^diff --git a\/(.+?) b\/(.+)$/.exec(line);
   return match?.[2] ?? line.replace(/^diff --git\s+/, "").trim();
@@ -2580,127 +2606,6 @@ function fileBadge(path: string): string {
   const extension = fileName.includes(".") ? fileName.split(".").pop() : "";
   if (!extension) return "FILE";
   return extension.slice(0, 4).toUpperCase();
-}
-
-type SourceLink = {
-  label: string;
-  url: string;
-};
-
-function extractSourceLinks(events: DesktopSessionEvent[]): SourceLink[] {
-  const byUrl = new Map<string, SourceLink>();
-  for (const event of events) {
-    if (
-      event.type !== "message" &&
-      event.type !== "proposed_plan" &&
-      event.type !== "tool_result"
-    ) {
-      continue;
-    }
-    if (event.type === "message" && event.role !== "assistant") {
-      continue;
-    }
-    for (const source of extractLinksFromText(event.content ?? "")) {
-      addSourceLink(byUrl, source);
-    }
-    for (const source of extractLinksFromUnknown(event.metadata)) {
-      addSourceLink(byUrl, source);
-    }
-  }
-  return [...byUrl.values()];
-}
-
-function addSourceLink(
-  byUrl: Map<string, SourceLink>,
-  source: SourceLink,
-): void {
-  if (isLocalURL(source.url) || byUrl.has(source.url)) return;
-  byUrl.set(source.url, {
-    label: truncateToWidth(source.label || source.url, 42),
-    url: source.url,
-  });
-}
-
-function extractLinksFromText(text: string): SourceLink[] {
-  const links: SourceLink[] = [];
-  const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
-  for (const match of text.matchAll(markdownLinkPattern)) {
-    const label = match[1]?.trim();
-    const url = normalizeSourceURL(match[2] ?? "");
-    if (url) links.push({ label: label || sourceLabelFromURL(url), url });
-  }
-  const bareUrlPattern = /https?:\/\/[^\s<>)\]]+/g;
-  for (const match of text.matchAll(bareUrlPattern)) {
-    const url = normalizeSourceURL(match[0] ?? "");
-    if (url) links.push({ label: sourceLabelFromURL(url), url });
-  }
-  return links;
-}
-
-function extractLinksFromUnknown(value: unknown): SourceLink[] {
-  if (!value) return [];
-  if (typeof value === "string") {
-    return extractLinksFromText(value);
-  }
-  if (Array.isArray(value)) {
-    return value.flatMap(extractLinksFromUnknown);
-  }
-  if (typeof value !== "object") {
-    return [];
-  }
-  const record = value as Record<string, unknown>;
-  const directUrl =
-    typeof record.url === "string"
-      ? record.url
-      : typeof record.uri === "string"
-        ? record.uri
-        : typeof record.href === "string"
-          ? record.href
-          : null;
-  const directTitle =
-    typeof record.title === "string"
-      ? record.title
-      : typeof record.name === "string"
-        ? record.name
-        : typeof record.label === "string"
-          ? record.label
-          : null;
-  const direct = normalizeSourceURL(directUrl ?? "");
-  const nested = Object.values(record).flatMap(extractLinksFromUnknown);
-  return direct
-    ? [{ label: directTitle ?? sourceLabelFromURL(direct), url: direct }, ...nested]
-    : nested;
-}
-
-function normalizeSourceURL(value: string): string | null {
-  const normalized = value.trim().replace(/[.,;:!?]+$/, "");
-  if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
-    return null;
-  }
-  try {
-    return new URL(normalized).toString();
-  } catch {
-    return null;
-  }
-}
-
-function sourceLabelFromURL(url: string): string {
-  try {
-    const parsed = new URL(url);
-    const path = parsed.pathname.replace(/\/$/, "");
-    return path ? `${parsed.hostname}${path}` : parsed.hostname;
-  } catch {
-    return url;
-  }
-}
-
-function isLocalURL(url: string): boolean {
-  try {
-    const host = new URL(url).hostname;
-    return host === "localhost" || host === "127.0.0.1" || host === "::1";
-  } catch {
-    return false;
-  }
 }
 
 function subagentPanelStatus(status: string): string {

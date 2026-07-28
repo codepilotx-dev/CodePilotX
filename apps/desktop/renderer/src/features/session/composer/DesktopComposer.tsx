@@ -52,6 +52,7 @@ type ProviderModelOption = {
 export type DesktopComposerProps = {
   input: string
   messages: Message[]
+  hasConversationMessages?: boolean
   placement: ComposerPlacement
   draftKey: ComposerDraftKey
   capabilities?: Partial<ComposerCapabilities>
@@ -153,6 +154,7 @@ export type DesktopComposerProps = {
 export function DesktopComposer({
   input,
   messages,
+  hasConversationMessages: hasConversationMessagesOverride,
   placement,
   draftKey,
   capabilities,
@@ -250,6 +252,7 @@ export function DesktopComposer({
   } = useDesktopComposerController({
     input,
     messages,
+    hasConversationMessages: hasConversationMessagesOverride,
     placement,
     draftKey,
     routedSessionId,

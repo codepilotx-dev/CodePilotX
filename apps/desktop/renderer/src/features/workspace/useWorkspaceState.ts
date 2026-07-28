@@ -9,6 +9,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { upsertRecentWorkspace } from '../settings/settingsStorage.js'
+import { recordConversationSwitchRequest } from '../debug/performanceDiagnosticsBridge.js'
 
 export const NO_WORKSPACE_DIFF = '未选择项目。'
 
@@ -23,6 +24,62 @@ export type UseWorkspaceStateOptions = {
 export type RefreshWorkspaceOptions = {
   clearSelectedFile?: boolean
   expectedSessionId?: string | null
+  force?: boolean
+}
+
+type WorkspaceRefreshCoordinator<T> = {
+  load: (
+    target: DesktopWorkspace,
+    options?: { force?: boolean },
+  ) => Promise<T> | null
+  markApplied: (target: DesktopWorkspace) => void
+  reset: () => void
+}
+
+export function workspaceIdentity(workspace: DesktopWorkspace): string {
+  return [
+    workspace.projectId ?? '',
+    workspace.primaryFolderId ?? '',
+    normalizeWorkspacePath(workspace.path),
+  ].join(':')
+}
+
+export function createWorkspaceRefreshCoordinator<T>(
+  loader: (target: DesktopWorkspace) => Promise<T>,
+): WorkspaceRefreshCoordinator<T> {
+  let appliedIdentity: string | null = null
+  const inFlight = new Map<string, Promise<T>>()
+
+  return {
+    load(target, options = {}) {
+      const identity = workspaceIdentity(target)
+      const pending = inFlight.get(identity)
+      if (pending) return pending
+      if (!options.force && identity === appliedIdentity) return null
+
+      const request = loader(target).finally(() => {
+        if (inFlight.get(identity) === request) {
+          inFlight.delete(identity)
+        }
+      })
+      inFlight.set(identity, request)
+      return request
+    },
+    markApplied(target) {
+      appliedIdentity = workspaceIdentity(target)
+    },
+    reset() {
+      appliedIdentity = null
+      inFlight.clear()
+    },
+  }
+}
+
+type WorkspaceRefreshResult = {
+  context: DesktopWorkspace
+  files: DesktopFileEntry[]
+  diff: string
+  gitStatus: DesktopGitStatus | null
 }
 
 export type UseWorkspaceStateResult = {
@@ -68,6 +125,33 @@ export function useWorkspaceState(
   onWorkspaceUnavailableRef.current = options.onWorkspaceUnavailable
   const onRecentWorkspacesChangeRef = useRef(options.onRecentWorkspacesChange)
   onRecentWorkspacesChangeRef.current = options.onRecentWorkspacesChange
+  const refreshCoordinatorRef =
+    useRef<WorkspaceRefreshCoordinator<WorkspaceRefreshResult> | null>(null)
+  if (!refreshCoordinatorRef.current) {
+    refreshCoordinatorRef.current = createWorkspaceRefreshCoordinator(
+      async target => {
+        recordConversationSwitchRequest('workspace-refresh')
+        const [nextContext, nextFiles, nextDiff, nextGitStatus] =
+          await Promise.all([
+            desktopClient.getWorkspaceContext(target.path),
+            desktopClient.listWorkspaceFiles(
+              target.path,
+              '.',
+              target.primaryFolderId,
+              target.projectId,
+            ),
+            desktopClient.getWorkspaceDiff(target.path),
+            desktopClient.getWorkspaceGitStatus(target.path),
+          ])
+        return {
+          context: nextContext,
+          files: nextFiles,
+          diff: nextDiff.patch,
+          gitStatus: nextGitStatus.ok ? nextGitStatus.status : null,
+        }
+      },
+    )
+  }
 
   function setActiveSessionId(id: string | null): void {
     activeSessionIdRef.current = id
@@ -81,12 +165,16 @@ export function useWorkspaceState(
     [],
   )
 
-  const setWorkspace = useCallback((nextWorkspace: DesktopWorkspace | null): void => {
-    setWorkspaceState(nextWorkspace)
-    if (!nextWorkspace) {
-      setGitStatus(null)
-    }
-  }, [])
+  const setWorkspace = useCallback(
+    (nextWorkspace: DesktopWorkspace | null): void => {
+      setWorkspaceState(nextWorkspace)
+      if (!nextWorkspace) {
+        refreshCoordinatorRef.current?.reset()
+        setGitStatus(null)
+      }
+    },
+    [],
+  )
 
   const refreshRuntimeStatus = useCallback(async (): Promise<void> => {
     try {
@@ -135,17 +223,11 @@ export function useWorkspaceState(
         return
       }
       try {
-        const [nextContext, nextFiles, nextDiff, nextGitStatus] = await Promise.all([
-          desktopClient.getWorkspaceContext(target.path),
-          desktopClient.listWorkspaceFiles(
-            target.path,
-            '.',
-            target.primaryFolderId,
-            target.projectId,
-          ),
-          desktopClient.getWorkspaceDiff(target.path),
-          desktopClient.getWorkspaceGitStatus(target.path),
-        ])
+        const request = refreshCoordinatorRef.current?.load(target, {
+          force: refreshOptions.force,
+        })
+        if (!request) return
+        const result = await request
         if (
           refreshOptions.expectedSessionId !== undefined &&
           refreshOptions.expectedSessionId !== null &&
@@ -153,18 +235,19 @@ export function useWorkspaceState(
         ) {
           return
         }
-        setWorkspace(nextContext)
+        setWorkspace(result.context)
         onRecentWorkspacesChangeRef.current(current =>
-          upsertRecentWorkspace(current, nextContext),
+          upsertRecentWorkspace(current, result.context),
         )
-        setFiles(nextFiles)
-        setDiff(nextDiff.patch)
-        setGitStatus(nextGitStatus.ok ? nextGitStatus.status : null)
+        setFiles(result.files)
+        setDiff(result.diff)
+        setGitStatus(result.gitStatus)
+        refreshCoordinatorRef.current?.markApplied(result.context)
         if (refreshOptions.clearSelectedFile ?? true) {
           setSelectedFile(null)
         } else {
           await refreshSelectedFilePreview(
-            nextContext,
+            result.context,
             refreshOptions.expectedSessionId ?? activeSessionIdRef.current,
           )
         }
@@ -276,4 +359,8 @@ function errorMessageOf(error: unknown): string {
 function isWorkspaceUnavailableError(error: unknown): boolean {
   const message = errorMessageOf(error)
   return /\b(ENOENT|ENOTDIR|EACCES|EPERM)\b/.test(message)
+}
+
+function normalizeWorkspacePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
 }
