@@ -13,14 +13,23 @@
 
 ### Fixed
 
+- [release] Windows 打包校验会重试清理被短暂占用的临时目录，发布流程改用 Release ID 校验、上传和发布草稿，避免文件锁与草稿标签查询语义导致可信 beta 发布误失败
 - [agent] 数据迁移临时库使用 DELETE journal 并延长文件锁重试窗口，避免 Bun 在 Windows 上残留 WAL 句柄导致原子发布误失败。
 - [agent] 数据迁移失败后的临时库清理不再覆盖原始校验错误，残留临时文件会在下次启动前继续清理，避免 Windows 文件锁改变故障语义。
 
 ### Security
 
+- [ci] 安全 CI 仅在 PR 上运行，避免同一提交的 push 与 pull_request 使用相同检查上下文时，非门禁 push 抖动错误阻塞受保护分支合并；CodeQL 仍扫描受保护分支 push
 - [ci] 新增覆盖版本一致性、High/Critical 依赖审计、类型检查、单元测试、Renderer CSS 规则和全仓构建的 Windows CI，并通过最小权限、不可变 Actions 提交、禁用持久凭据、超时与并发取消降低供应链风险
 - [dependencies] 将 MCP SDK、Hono、Wrangler、Electron、electron-builder 与 Vite 升级到包含安全修复的版本，并为暂不可升级的 React Router 公告增加有负责人和到期日的审计豁免
 - [release] Beta 与稳定版安装包不再要求 Authenticode 代码签名，改由隔离的构建/发布权限、SHA-256 校验和、SPDX JSON SBOM、GitHub 构建来源与 SBOM attestation 提供来源和完整性证明；稳定版还需经过受保护环境批准
+- [governance] 明确私密漏洞报告的确认、初步评估与持续同步目标，让报告者能够预期安全响应节奏
+
+## 0.2.0-beta.3 — 2026-07-29
+
+### Fixed
+
+- [release] 修复 Windows 临时目录短暂占用和 GitHub 草稿 Release 无法按标签回读造成的发布失败，并将草稿校验、附件上传与发布切换为不可歧义的 Release ID 流程
 
 ## 0.2.0-beta.2 — 2026-07-29
 
