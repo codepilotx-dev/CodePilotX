@@ -13,7 +13,7 @@
 
 ### Fixed
 
-- [agent] 延长 Windows 数据迁移遇到临时文件锁时的重试窗口，降低杀毒扫描期间误失败的概率。
+- [agent] 数据迁移临时库使用 DELETE journal 并延长文件锁重试窗口，避免 Bun 在 Windows 上残留 WAL 句柄导致原子发布误失败。
 
 ### Security
 
