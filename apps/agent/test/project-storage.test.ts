@@ -141,12 +141,23 @@ describe("项目共享上下文存储", () => {
       CREATE TABLE threads (
         id TEXT PRIMARY KEY, project_id TEXT, workspace_kind TEXT NOT NULL,
         workspace_root TEXT, workspace_cwd TEXT, output_directory TEXT,
-        archived_at INTEGER, updated_at INTEGER NOT NULL
+        archived_at INTEGER, kind TEXT NOT NULL DEFAULT 'main',
+        created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE messages (
+        id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, created_at INTEGER NOT NULL
+      );
+      CREATE TABLE events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, thread_id TEXT, turn_id TEXT,
+        method TEXT NOT NULL, params TEXT NOT NULL, created_at INTEGER NOT NULL
       );
       CREATE TABLE memory_jobs (
         id TEXT PRIMARY KEY, project_key TEXT, status TEXT NOT NULL
       );
-      INSERT INTO threads VALUES (
+      INSERT INTO threads (
+        id, project_id, workspace_kind, workspace_root, workspace_cwd,
+        output_directory, archived_at, updated_at
+      ) VALUES (
         'thread:legacy', 'project:legacy', 'project', NULL, NULL, NULL, NULL, 1
       );
       INSERT INTO memory_jobs VALUES ('job:legacy', '${oldKey}', 'queued');

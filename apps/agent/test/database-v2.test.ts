@@ -370,7 +370,7 @@ describe("数据库兼容与迁移", () => {
     reopened.close()
   })
 
-  test("旧单库原子拆分为 history/profile 并保留来源与备份", async () => {
+  test("旧单库原子拆分为 history/profile 并保留来源且不创建备份", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-split-"))
     paths.push(root)
     const legacyPath = join(root, "agent.sqlite")
@@ -410,8 +410,38 @@ describe("数据库兼容与迁移", () => {
     db.close()
 
     const names = await readdir(root)
-    expect(names.some((name) => name.startsWith("agent.sqlite.epoch-") && name.endsWith(".bak"))).toBe(true)
+    expect(names.some((name) => name.endsWith(".bak"))).toBe(false)
     expect(names).toContain("agent.sqlite")
+  })
+
+  test("混合 history v17 原子拆分并保留会话与设置且不创建备份", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-split-history-v17-"))
+    paths.push(root)
+    const legacyPath = join(root, "agent.sqlite")
+    const historyPath = join(root, "history.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const mixed = new Database(historyPath, { create: true })
+    mixed.exec(FINAL_SCHEMA.join(";\n"))
+    mixed.exec(`
+      PRAGMA application_id = ${DATA_EPOCH};
+      PRAGMA user_version = 17;
+      INSERT INTO app_settings VALUES ('desktop.settings.v1', '{"theme":"dark"}', 1);
+      INSERT INTO threads (
+        id, title, workspace_kind, created_at, updated_at
+      ) VALUES ('thread:mixed', '混合库会话', 'legacy', 1, 1);
+    `)
+    mixed.close()
+
+    const db = new AgentDatabase({ legacyPath, historyPath, profilePath })
+    expect(db.getThread("thread:mixed")?.title).toBe("混合库会话")
+    expect(db.getSetting<{ theme: string }>("desktop.settings.v1")).toEqual({ theme: "dark" })
+    expect(db.sqlite.query("SELECT name FROM sqlite_master WHERE name = 'app_settings'").get()).toBeNull()
+    db.close()
+
+    const names = await readdir(root)
+    expect(names).toContain("history.sqlite")
+    expect(names).toContain("profile.sqlite")
+    expect(names.some((name) => name.endsWith(".bak"))).toBe(false)
   })
 
   test("未知 history application ID 保留原库并阻止覆盖", async () => {

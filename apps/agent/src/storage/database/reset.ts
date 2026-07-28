@@ -1,11 +1,9 @@
 import { Database } from "bun:sqlite"
 import {
-  copyFileSync,
   existsSync,
   renameSync,
   rmSync,
 } from "node:fs"
-import { basename, dirname, join } from "node:path"
 import { configureConnection } from "./connection"
 import {
   HISTORY_SCHEMA,
@@ -26,7 +24,6 @@ export type StoragePaths = {
 }
 
 const sidecars = (path: string) => [`${path}-wal`, `${path}-shm`] as const
-const timestamp = () => new Date().toISOString().replaceAll(/[:.]/g, "-")
 
 const retryLockedFile = (work: () => void) => {
   for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -43,10 +40,15 @@ const retryLockedFile = (work: () => void) => {
   }
 }
 
-const removeTemporaryDatabase = (path: string) => {
-  for (const target of [path, ...sidecars(path)]) {
+const removeDatabaseSidecars = (path: string) => {
+  for (const target of sidecars(path)) {
     retryLockedFile(() => rmSync(target, { force: true }))
   }
+}
+
+const removeTemporaryDatabase = (path: string) => {
+  retryLockedFile(() => rmSync(path, { force: true }))
+  removeDatabaseSidecars(path)
 }
 
 const databaseMeta = (path: string) => {
@@ -177,17 +179,6 @@ const migrateOne = (
   retryLockedFile(() => renameSync(temporaryPath, targetPath))
 }
 
-const backupLegacy = (paths: StoragePaths) => {
-  const meta = databaseMeta(paths.legacyPath)
-  const backup = join(
-    dirname(paths.legacyPath),
-    `${basename(paths.legacyPath)}.epoch-${meta.applicationID}.schema-${meta.userVersion}.${timestamp()}.bak`,
-  )
-  copyFileSync(paths.legacyPath, backup, COPYFILE_EXCL)
-}
-
-const COPYFILE_EXCL = 1
-
 const isKnownHistoryApplicationID = (applicationID: number) =>
   applicationID === HISTORY_APPLICATION_ID
   || LEGACY_HISTORY_APPLICATION_IDS.has(applicationID)
@@ -237,9 +228,7 @@ const upgradeMixedHistoryV17 = (paths: StoragePaths) => {
   }
   sqlite.close()
 
-  const backup = `${paths.historyPath}.schema-17.${timestamp()}.bak`
-  copyFileSync(paths.historyPath, backup, COPYFILE_EXCL)
-  removeTemporaryDatabase(paths.historyPath)
+  removeDatabaseSidecars(paths.historyPath)
   retryLockedFile(() => renameSync(temporaryPath, paths.historyPath))
 }
 
@@ -253,8 +242,7 @@ const validateExistingProfile = (path: string) => {
 
 /**
  * Prepares the two independent stores. A legacy monolithic database is copied
- * through validated temporary files; the source remains untouched and a
- * timestamped backup records successful completion.
+ * through validated temporary files; the source remains untouched.
  */
 export const prepareStorage = (paths: StoragePaths) => {
   upgradeMixedHistoryV17(paths)
@@ -263,7 +251,6 @@ export const prepareStorage = (paths: StoragePaths) => {
 
   if (!existsSync(paths.legacyPath)) return
   checkpoint(paths.legacyPath)
-  const hadBothTargets = existsSync(paths.historyPath) && existsSync(paths.profilePath)
   if (!existsSync(paths.historyPath) && !existsSync(paths.profilePath)) {
     const historyTemporary = `${paths.historyPath}.migrating`
     const profileTemporary = `${paths.profilePath}.migrating`
@@ -283,7 +270,6 @@ export const prepareStorage = (paths: StoragePaths) => {
     migrateOne(paths.legacyPath, paths.historyPath, "history")
     migrateOne(paths.legacyPath, paths.profilePath, "profile")
   }
-  if (!hadBothTargets) backupLegacy(paths)
 }
 
 /** Compatibility wrapper retained for callers outside the production bootstrap. */
