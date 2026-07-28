@@ -5,12 +5,21 @@ import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
+  CircleStop,
+  ClipboardCheck,
   Copy,
   FileDiff,
+  Hourglass,
   LoaderCircle,
+  MessageCircleQuestion,
+  NotepadText,
   Paperclip,
   Pencil,
+  Send,
+  Shield,
   SquareTerminal,
+  UserRoundPlus,
+  type LucideIcon,
 } from "lucide-react";
 import type { Attachment, Input, Item } from "@codepilotx/shared/thread";
 
@@ -31,6 +40,28 @@ import {
 type ItemOf<T extends Item["type"]> = Extract<Item, { type: T }>;
 type ToolItem = ItemOf<"tool">;
 
+export type FileChangeDisplay = {
+  additions: number | null;
+  deletions: number | null;
+  patch?: string | null;
+  path: string;
+};
+
+export type FileMutationDisplay = {
+  files: FileChangeDisplay[];
+  state: ToolItem["state"];
+  toolItemId: string;
+  totalAdditions: number | null;
+  totalDeletions: number | null;
+};
+
+export type PatchDisplay = {
+  files: FileChangeDisplay[];
+  id: string;
+  totalAdditions: number | null;
+  totalDeletions: number | null;
+};
+
 export type ToolItemDisplay = {
   active: boolean;
   canExpand: boolean;
@@ -41,6 +72,19 @@ export type ToolItemDisplay = {
   resultText: string | null;
   showShellPrompt: boolean;
   statusLabel: string;
+  toolLabel: string;
+};
+
+export type StructuredToolDetail = {
+  executionContent: string;
+  resultText: string | null;
+};
+
+export type LifecycleToolDisplay = {
+  active: boolean;
+  failed: boolean;
+  icon: LucideIcon;
+  label: string;
   toolLabel: string;
 };
 
@@ -56,6 +100,7 @@ export type CanonicalItemRendererProps = {
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
   rightDockPlanEventId: string | null;
+  showAssistantActions?: boolean;
   /** @default "standalone" — "grouped" applies tighter spacing inside a process group. */
   presentation?: "standalone" | "grouped";
 };
@@ -179,11 +224,12 @@ export function CanonicalItemRenderer({
   onOpenPlanInRightDock,
   onOpenSubagent,
   rightDockPlanEventId,
+  showAssistantActions = false,
   presentation = "standalone",
 }: CanonicalItemRendererProps): React.ReactNode {
   switch (item.type) {
     case "text":
-      return <TextItemView item={item} />;
+      return <TextItemView item={item} showAssistantActions={showAssistantActions} />;
     case "reasoning":
       return <ReasoningItemView item={item} />;
     case "activity":
@@ -211,7 +257,13 @@ export function CanonicalItemRenderer({
   }
 }
 
-function TextItemView({ item }: { item: ItemOf<"text"> }): React.ReactNode {
+function TextItemView({
+  item,
+  showAssistantActions,
+}: {
+  item: ItemOf<"text">;
+  showAssistantActions: boolean;
+}): React.ReactNode {
   const {
     canCopyFileReferenceContents,
     onCopyFileReferenceContents,
@@ -235,7 +287,7 @@ function TextItemView({ item }: { item: ItemOf<"text"> }): React.ReactNode {
           text={item.text}
         />
       </ConversationMarkdownErrorBoundary>
-      {item.placement === "result" && item.status !== "streaming" ? (
+      {showAssistantActions && item.status !== "streaming" ? (
         <div className="canonical-message-actions canonical-message-actions--assistant">
           <CopyButton text={item.text} />
         </div>
@@ -330,7 +382,7 @@ export function ToolItemView({
         onClick={(event) => {
           if (!view.canExpand) event.preventDefault();
         }}
-        title={view.executionContent}
+        title={view.collapsedLabel}
       >
         {view.active ? (
           <LoaderCircle className="canonical-spin" aria-hidden="true" />
@@ -416,27 +468,91 @@ function QuestionItemView({ item }: { item: ItemOf<"question"> }): React.ReactNo
 
 function PatchItemView({ item }: { item: ItemOf<"patch"> }): React.ReactNode {
   return (
+    <PatchSummaryView
+      patch={{
+        files: item.files.map((file) => ({
+          additions: file.additions,
+          deletions: file.deletions,
+          patch: file.patch,
+          path: file.path,
+        })),
+        id: item.id,
+        totalAdditions: item.totalAdditions,
+        totalDeletions: item.totalDeletions,
+      }}
+    />
+  );
+}
+
+export function PatchSummaryView({
+  patch,
+}: {
+  patch: PatchDisplay;
+}): React.ReactNode {
+  return (
     <details className="canonical-patch-card">
       <summary>
         <FileDiff aria-hidden="true" />
-        <strong>{item.files.length} 个文件已更改</strong>
-        <span className="canonical-diff-add">+{item.totalAdditions}</span>
-        <span className="canonical-diff-remove">-{item.totalDeletions}</span>
+        <strong>已编辑 {patch.files.length} 个文件</strong>
+        {patch.totalAdditions !== null ? (
+          <span className="canonical-diff-add">+{patch.totalAdditions}</span>
+        ) : null}
+        {patch.totalDeletions !== null ? (
+          <span className="canonical-diff-remove">-{patch.totalDeletions}</span>
+        ) : null}
         <ChevronDown aria-hidden="true" />
       </summary>
       <div className="canonical-patch-card__files">
-        {item.files.map((file) => (
+        {patch.files.map((file) => (
           <details key={file.path}>
             <summary>
               <span>{file.path}</span>
-              <small className="canonical-diff-add">+{file.additions}</small>
-              <small className="canonical-diff-remove">-{file.deletions}</small>
+              {file.additions !== null ? (
+                <small className="canonical-diff-add">+{file.additions}</small>
+              ) : null}
+              {file.deletions !== null ? (
+                <small className="canonical-diff-remove">-{file.deletions}</small>
+              ) : null}
             </summary>
             {file.patch ? <pre><code>{file.patch}</code></pre> : null}
           </details>
         ))}
       </div>
     </details>
+  );
+}
+
+export function FileMutationItemView({
+  item,
+}: {
+  item: ToolItem;
+}): React.ReactNode {
+  const mutation = fileMutationDisplay(item);
+  if (!mutation) return null;
+  const active = isActiveToolState(item.state);
+  const failed = item.state === "error" || item.state === "interrupted";
+
+  return (
+    <div className="canonical-file-mutation" data-state={item.state}>
+      {mutation.files.map((file) => (
+        <div className="canonical-file-mutation__row" key={`${item.id}:${file.path}`}>
+          {active ? (
+            <LoaderCircle className="canonical-spin" aria-hidden="true" />
+          ) : failed ? (
+            <CircleAlert aria-hidden="true" />
+          ) : (
+            <Pencil aria-hidden="true" />
+          )}
+          <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
+          {file.additions !== null ? (
+            <small className="canonical-diff-add">+{file.additions}</small>
+          ) : null}
+          {file.deletions !== null ? (
+            <small className="canonical-diff-remove">-{file.deletions}</small>
+          ) : null}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -506,12 +622,6 @@ function nonBlank(value: string | null): string | null {
   return value && value.trim() ? value : null;
 }
 
-function toolDurationMs(item: ToolItem): number | null {
-  if (item.durationMs !== null) return Math.max(0, item.durationMs);
-  if (item.startedAt === null || item.finishedAt === null) return null;
-  return Math.max(0, item.finishedAt - item.startedAt);
-}
-
 export function formatToolDuration(durationMs: number): string {
   const seconds = Math.max(1, Math.ceil(Math.max(0, durationMs) / 1_000));
   if (seconds < 60) return `${seconds} 秒`;
@@ -522,58 +632,729 @@ export function formatToolDuration(durationMs: number): string {
     : `${minutes} 分 ${remainSec} 秒`;
 }
 
-function toolPreview(item: ToolItem): string {
-  const source = nonBlank(item.command) ?? (item.title.trim() || item.tool);
-  return source.replace(/\s+/g, " ").trim();
-}
-
-function displayToolName(toolName: string): string {
-  return toolName === "Bash" ? "Shell" : toolName;
-}
-
 export function buildToolItemDisplay(item: ToolItem): ToolItemDisplay {
   const command = nonBlank(item.command);
+  const lifecycle = buildLifecycleToolDisplay(item);
+  if (lifecycle) {
+    return {
+      active: lifecycle.active,
+      canExpand: false,
+      collapsedLabel: lifecycle.label,
+      executionContent: lifecycle.label,
+      expandedLabel: lifecycle.label,
+      failed: lifecycle.failed,
+      resultText: null,
+      showShellPrompt: false,
+      statusLabel: toolStateLabel(item.state),
+      toolLabel: lifecycle.toolLabel,
+    };
+  }
+  const structuredDetail = buildStructuredToolDetail(item);
   const formattedInput = formatToolInputForDisplay(item.tool, item.input);
   const safeInput = formattedInput.trim() && formattedInput.trim() !== "null"
     ? formattedInput
     : null;
   const fallbackExecution = item.title.trim() || item.tool;
-  const executionContent = command
+  const executionContent = structuredDetail?.executionContent
+    ?? command
     ?? safeInput
     ?? fallbackExecution;
-  const output = nonBlank(item.output);
-  const error = nonBlank(item.error);
-  const resultText = output && error
-    ? `${output}\n${error}`
-    : output ?? error;
-  const active = (
-    item.state === "pending"
-    || item.state === "waiting-permission"
-    || item.state === "running"
-  );
+  const resultText = structuredDetail
+    ? structuredDetail.resultText
+    : appendToolError(nonBlank(item.output), nonBlank(item.error));
+  const active = isActiveToolState(item.state);
   const terminal = !active;
-  const durationMs = terminal ? toolDurationMs(item) : null;
-  const collapsedPrefix = item.state === "running"
-    ? "正在运行"
-    : active
-      ? "等待运行"
-      : "已运行";
+  const semanticSummary = buildToolSemanticSummary(item);
 
   return {
     active,
     canExpand: terminal || resultText !== null,
-    collapsedLabel: `${collapsedPrefix} ${toolPreview(item)}`,
+    collapsedLabel: semanticSummary.collapsedLabel,
     executionContent,
-    expandedLabel: active
-      ? "命令正在运行"
-      : durationMs === null
-        ? "命令已运行"
-        : `命令运行了 ${formatToolDuration(durationMs)}`,
+    expandedLabel: semanticSummary.expandedLabel,
     failed: item.state === "error" || item.state === "interrupted",
     resultText,
     showShellPrompt: command !== null,
     statusLabel: toolStateLabel(item.state),
-    toolLabel: displayToolName(item.tool),
+    toolLabel: semanticSummary.toolLabel,
+  };
+}
+
+type ToolSemanticSummary = {
+  collapsedLabel: string;
+  expandedLabel: string;
+  toolLabel: string;
+};
+
+type SemanticAction = {
+  completed: string;
+  error: string;
+  expandedCompleted: string;
+  expandedRunning: string;
+  interrupted: string;
+  running: string;
+  target: string | null;
+  toolLabel: string;
+};
+
+function isActiveToolState(state: ToolItem["state"]): boolean {
+  return (
+    state === "pending"
+    || state === "waiting-permission"
+    || state === "running"
+  );
+}
+
+function toolLeafName(tool: string): string {
+  return (tool ?? "").trim().split(/[./]/).at(-1)?.toLowerCase() ?? "";
+}
+
+function inputRecord(input: unknown): Record<string, unknown> {
+  return input && typeof input === "object" && !Array.isArray(input)
+    ? input as Record<string, unknown>
+    : {};
+}
+
+function inputText(input: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const value = input[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function safeDisplayPath(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value.replaceAll("\\", "/").replace(/^\.\/+/, "");
+  const parts = normalized.split("/").filter(Boolean);
+  if (/^(?:[a-z]:\/|\/)/i.test(normalized) || parts.includes("..")) {
+    return parts.at(-1) ?? null;
+  }
+  return normalized || null;
+}
+
+function oneLine(value: string | null): string | null {
+  return value?.replace(/\s+/g, " ").trim() || null;
+}
+
+function semanticLabel(
+  item: ToolItem,
+  action: SemanticAction,
+): ToolSemanticSummary {
+  const target = oneLine(action.target);
+  const suffix = target ? ` ${target}` : "";
+  const collapsedLabel = item.state === "completed"
+    ? `${action.completed}${suffix}`
+    : item.state === "error"
+      ? `${action.error}${suffix}`
+      : item.state === "interrupted"
+        ? `${action.interrupted}${suffix}`
+        : `${action.running}${suffix}`;
+  return {
+    collapsedLabel,
+    expandedLabel: isActiveToolState(item.state)
+      ? action.expandedRunning
+      : item.state === "completed"
+        ? action.expandedCompleted
+        : item.state === "error"
+          ? action.error
+          : action.interrupted,
+    toolLabel: action.toolLabel,
+  };
+}
+
+export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
+  const input = inputRecord(item.input);
+  const command = oneLine(nonBlank(item.command));
+  if (command) {
+    const prefix = item.state === "completed"
+      ? "Ran"
+      : item.state === "error"
+        ? "Command failed"
+        : item.state === "interrupted"
+          ? "Command interrupted"
+          : "Running";
+    return {
+      collapsedLabel: `${prefix} ${command}`,
+      expandedLabel: item.state === "completed"
+        ? "Ran command"
+        : item.state === "error"
+          ? "Command failed"
+          : item.state === "interrupted"
+            ? "Command interrupted"
+            : "Running command",
+      toolLabel: "Shell",
+    };
+  }
+  if (isToolSearchName(item.tool)) {
+    return semanticLabel(item, {
+      completed: "已搜索工具",
+      error: "搜索工具失败",
+      expandedCompleted: "已搜索工具",
+      expandedRunning: "正在搜索工具",
+      interrupted: "已中断搜索工具",
+      running: "正在搜索工具",
+      target: null,
+      toolLabel: "工具搜索",
+    });
+  }
+
+  switch (toolLeafName(item.tool)) {
+    case "read":
+      return semanticLabel(item, {
+        completed: "已读取",
+        error: "读取失败",
+        expandedCompleted: "已读取文件",
+        expandedRunning: "正在读取文件",
+        interrupted: "已中断读取",
+        running: "正在读取",
+        target: safeDisplayPath(inputText(input, "file_path", "filePath", "path")),
+        toolLabel: "文件读取",
+      });
+    case "grep":
+      return semanticLabel(item, {
+        completed: "已搜索",
+        error: "搜索失败",
+        expandedCompleted: "已搜索内容",
+        expandedRunning: "正在搜索内容",
+        interrupted: "已中断搜索",
+        running: "正在搜索",
+        target: inputText(input, "pattern", "query"),
+        toolLabel: "内容搜索",
+      });
+    case "glob":
+      return semanticLabel(item, {
+        completed: "已查找",
+        error: "查找失败",
+        expandedCompleted: "已查找文件",
+        expandedRunning: "正在查找文件",
+        interrupted: "已中断查找",
+        running: "正在查找",
+        target: inputText(input, "pattern", "glob"),
+        toolLabel: "文件查找",
+      });
+    case "toolsearch":
+    case "tool_search":
+      return semanticLabel(item, {
+        completed: "已搜索工具",
+        error: "搜索工具失败",
+        expandedCompleted: "已搜索工具",
+        expandedRunning: "正在搜索工具",
+        interrupted: "已中断搜索工具",
+        running: "正在搜索工具",
+        target: null,
+        toolLabel: "工具搜索",
+      });
+    case "update_plan":
+      return semanticLabel(item, {
+        completed: "已更新计划",
+        error: "更新计划失败",
+        expandedCompleted: "已更新计划",
+        expandedRunning: "正在更新计划",
+        interrupted: "已中断更新计划",
+        running: "正在更新计划",
+        target: null,
+        toolLabel: "更新计划",
+      });
+    case "skill_read":
+      return semanticLabel(item, {
+        completed: "已读取技能",
+        error: "读取技能失败",
+        expandedCompleted: "已读取技能",
+        expandedRunning: "正在读取技能",
+        interrupted: "已中断读取技能",
+        running: "正在读取技能",
+        target: inputText(input, "name"),
+        toolLabel: "技能读取",
+      });
+    default:
+      return semanticLabel(item, {
+        completed: "操作已完成",
+        error: "操作失败",
+        expandedCompleted: "操作已完成",
+        expandedRunning: "正在执行操作",
+        interrupted: "操作已中断",
+        running: "正在执行操作",
+        target: null,
+        toolLabel: "操作",
+      });
+  }
+}
+
+type LifecycleAction = {
+  completed: string;
+  error: string;
+  icon: LucideIcon;
+  interrupted: string;
+  running: string;
+  toolLabel: string;
+};
+
+const LIFECYCLE_ACTIONS: Readonly<Record<string, LifecycleAction>> = {
+  update_plan: {
+    completed: "已更新计划",
+    error: "更新计划失败",
+    icon: NotepadText,
+    interrupted: "已中断更新计划",
+    running: "正在更新计划",
+    toolLabel: "更新计划",
+  },
+  request_permissions: {
+    completed: "已请求权限",
+    error: "请求权限失败",
+    icon: Shield,
+    interrupted: "已中断请求权限",
+    running: "正在请求权限",
+    toolLabel: "请求权限",
+  },
+  request_user_input: {
+    completed: "已获得回答",
+    error: "提问失败",
+    icon: MessageCircleQuestion,
+    interrupted: "已中断提问",
+    running: "正在等待回答",
+    toolLabel: "提问",
+  },
+  spawn_agents: {
+    completed: "已创建子代理",
+    error: "创建子代理失败",
+    icon: UserRoundPlus,
+    interrupted: "已中断创建子代理",
+    running: "正在创建子代理",
+    toolLabel: "创建子代理",
+  },
+  wait_agents: {
+    completed: "子代理已返回",
+    error: "等待子代理失败",
+    icon: Hourglass,
+    interrupted: "已中断等待子代理",
+    running: "正在等待子代理",
+    toolLabel: "等待子代理",
+  },
+  send_agent: {
+    completed: "已通知子代理",
+    error: "通知子代理失败",
+    icon: Send,
+    interrupted: "已中断通知子代理",
+    running: "正在通知子代理",
+    toolLabel: "通知子代理",
+  },
+  stop_agent: {
+    completed: "已停止子代理",
+    error: "停止子代理失败",
+    icon: CircleStop,
+    interrupted: "已中断停止子代理",
+    running: "正在停止子代理",
+    toolLabel: "停止子代理",
+  },
+  finalize_result: {
+    completed: "已提交子代理结果",
+    error: "提交子代理结果失败",
+    icon: ClipboardCheck,
+    interrupted: "已中断提交子代理结果",
+    running: "正在提交子代理结果",
+    toolLabel: "提交子代理结果",
+  },
+};
+
+export function buildLifecycleToolDisplay(
+  item: ToolItem,
+): LifecycleToolDisplay | null {
+  const action = LIFECYCLE_ACTIONS[toolLeafName(item.tool)];
+  if (!action) return null;
+  const active = isActiveToolState(item.state);
+  return {
+    active,
+    failed: item.state === "error" || item.state === "interrupted",
+    icon: action.icon,
+    label: item.state === "completed"
+      ? action.completed
+      : item.state === "error"
+        ? action.error
+        : item.state === "interrupted"
+          ? action.interrupted
+          : action.running,
+    toolLabel: action.toolLabel,
+  };
+}
+
+type ParsedToolOutput = {
+  parsed: boolean;
+  text: string | null;
+  value: unknown;
+};
+
+function parsedToolOutput(output: string | null): ParsedToolOutput {
+  const text = nonBlank(output);
+  if (!text) return { parsed: false, text: null, value: null };
+  try {
+    return { parsed: true, text, value: JSON.parse(text) as unknown };
+  } catch {
+    return { parsed: false, text, value: text };
+  }
+}
+
+function appendToolError(
+  result: string | null,
+  error: string | null,
+): string | null {
+  if (result && error) return `${result}\n${error}`;
+  return result ?? error;
+}
+
+function isToolSearchName(tool: string): boolean {
+  const normalized = tool.trim().toLowerCase();
+  return normalized === "toolsearch"
+    || normalized === "tool_search"
+    || normalized === "tool.search";
+}
+
+function outputField(
+  output: ParsedToolOutput,
+  key: string,
+): unknown {
+  return output.parsed ? inputRecord(output.value)[key] : undefined;
+}
+
+function outputTextField(
+  output: ParsedToolOutput,
+  key: string,
+): string | null {
+  const value = outputField(output, key);
+  return typeof value === "string" ? value : null;
+}
+
+function projectedOutputArray(
+  output: ParsedToolOutput,
+  keys: readonly string[],
+  project: (value: unknown) => unknown | null,
+): string | null {
+  for (const key of keys) {
+    const value = outputField(output, key);
+    if (!Array.isArray(value)) continue;
+    return JSON.stringify(
+      value.flatMap((candidate) => {
+        const projected = project(candidate);
+        return projected === null ? [] : [projected];
+      }),
+      null,
+      2,
+    );
+  }
+  return null;
+}
+
+function projectSearchResult(value: unknown): unknown | null {
+  if (typeof value === "string") {
+    return safeDisplayPath(value) ?? "<workspace-path>";
+  }
+  const candidate = inputRecord(value);
+  const projected: Record<string, unknown> = {};
+  const path = inputText(candidate, "path", "file_path", "filePath");
+  if (path) projected.path = safeDisplayPath(path) ?? "<workspace-path>";
+  if (typeof candidate.line === "number" && Number.isFinite(candidate.line)) {
+    projected.line = candidate.line;
+  }
+  if (typeof candidate.count === "number" && Number.isFinite(candidate.count)) {
+    projected.count = candidate.count;
+  }
+  if (typeof candidate.text === "string") projected.text = candidate.text;
+  for (const key of ["before", "after"] as const) {
+    if (Array.isArray(candidate[key])) {
+      projected[key] = candidate[key].filter(
+        (line): line is string => typeof line === "string",
+      );
+    }
+  }
+  return Object.keys(projected).length ? projected : null;
+}
+
+function projectToolSearchResult(value: unknown): unknown | null {
+  const candidate = inputRecord(value);
+  if (typeof candidate.name !== "string" || !candidate.name.trim()) return null;
+  return {
+    name: candidate.name,
+    ...(typeof candidate.description === "string"
+      ? { description: candidate.description }
+      : {}),
+  };
+}
+
+function structuredResult(
+  output: ParsedToolOutput,
+  projected: string | null,
+  error: string | null,
+): string | null {
+  return appendToolError(
+    projected ?? (!output.parsed ? output.text : null),
+    error,
+  );
+}
+
+export function buildStructuredToolDetail(
+  item: ToolItem,
+): StructuredToolDetail | null {
+  const leaf = toolLeafName(item.tool);
+  const input = inputRecord(item.input);
+  const output = parsedToolOutput(item.output);
+  const error = nonBlank(item.error);
+
+  switch (leaf) {
+    case "read":
+      return {
+        executionContent: safeDisplayPath(
+          inputText(input, "file_path", "filePath", "path"),
+        ) ?? "未提供文件路径",
+        resultText: structuredResult(
+          output,
+          outputTextField(output, "content"),
+          error,
+        ),
+      };
+    case "grep":
+      return {
+        executionContent: inputText(input, "pattern", "query") ?? "未提供搜索条件",
+        resultText: structuredResult(
+          output,
+          projectedOutputArray(
+            output,
+            ["files", "matches", "counts"],
+            projectSearchResult,
+          ),
+          error,
+        ),
+      };
+    case "glob":
+      return {
+        executionContent: inputText(input, "pattern", "glob") ?? "未提供匹配条件",
+        resultText: structuredResult(
+          output,
+          projectedOutputArray(output, ["matches"], projectSearchResult),
+          error,
+        ),
+      };
+    case "toolsearch":
+    case "tool_search":
+      return {
+        executionContent: inputText(input, "query") ?? "未提供工具搜索条件",
+        resultText: structuredResult(
+          output,
+          projectedOutputArray(output, ["tools"], projectToolSearchResult),
+          error,
+        ),
+      };
+    case "skill_read":
+      return {
+        executionContent: inputText(input, "name") ?? "未提供技能名称",
+        resultText: structuredResult(
+          output,
+          outputTextField(output, "content"),
+          error,
+        ),
+      };
+    default:
+      if (!isToolSearchName(item.tool)) return null;
+      return {
+        executionContent: inputText(input, "query") ?? "未提供工具搜索条件",
+        resultText: structuredResult(
+          output,
+          projectedOutputArray(output, ["tools"], projectToolSearchResult),
+          error,
+        ),
+      };
+  }
+}
+
+export function isStandaloneLifecycleTool(item: ToolItem): boolean {
+  return buildLifecycleToolDisplay(item) !== null;
+}
+
+export function LifecycleToolItemView({
+  item,
+}: {
+  item: ToolItem;
+}): React.ReactNode {
+  const display = buildLifecycleToolDisplay(item);
+  if (!display) return null;
+  const LifecycleIcon = display.icon;
+  return (
+    <div
+      className="canonical-lifecycle-tool"
+      data-state={item.state}
+      role={display.active ? "status" : undefined}
+    >
+      {display.failed ? (
+        <CircleAlert aria-hidden="true" />
+      ) : (
+        <span className="canonical-lifecycle-tool__icon">
+          <LifecycleIcon aria-hidden="true" />
+          {display.active ? (
+            <LifecycleIcon
+              className="canonical-lifecycle-tool__icon-flash"
+              aria-hidden="true"
+            />
+          ) : null}
+        </span>
+      )}
+      <span>{display.label}</span>
+    </div>
+  );
+}
+
+export function isFileMutationTool(item: ToolItem): boolean {
+  const leaf = toolLeafName(item.tool);
+  return leaf === "apply_patch" || leaf === "write" || leaf === "edit";
+}
+
+function nonNegativeInteger(value: unknown): number | null {
+  return typeof value === "number"
+    && Number.isSafeInteger(value)
+    && value >= 0
+    ? value
+    : null;
+}
+
+function parsedOutputRecord(output: string | null): Record<string, unknown> {
+  if (!output?.trim()) return {};
+  try {
+    const parsed = JSON.parse(output) as unknown;
+    return inputRecord(parsed);
+  } catch {
+    return {};
+  }
+}
+
+function fileCandidates(value: unknown): FileChangeDisplay[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((candidate) => {
+    const record = inputRecord(candidate);
+    const path = safeDisplayPath(inputText(record, "path", "file_path", "filePath"));
+    return path
+      ? [{
+          additions: nonNegativeInteger(record.additions),
+          deletions: nonNegativeInteger(record.deletions),
+          path,
+        }]
+      : [];
+  });
+}
+
+function mergeFileCandidates(
+  preferred: readonly FileChangeDisplay[],
+  fallback: readonly FileChangeDisplay[],
+): FileChangeDisplay[] {
+  const files = new Map<string, FileChangeDisplay>();
+  for (const file of [...fallback, ...preferred]) {
+    const current = files.get(file.path);
+    files.set(file.path, {
+      additions: file.additions ?? current?.additions ?? null,
+      deletions: file.deletions ?? current?.deletions ?? null,
+      path: file.path,
+    });
+  }
+  return [...files.values()];
+}
+
+export function fileMutationDisplay(item: ToolItem): FileMutationDisplay | null {
+  if (!isFileMutationTool(item)) return null;
+  const input = inputRecord(item.input);
+  const output = parsedOutputRecord(item.output);
+  const outputSummary = inputRecord(output.summary);
+  const inputSummary = inputRecord(input.summary);
+  let files = mergeFileCandidates(
+    fileCandidates(output.files),
+    fileCandidates(input.affectedPaths ?? input.files),
+  );
+  if (files.length === 0) {
+    const path = safeDisplayPath(
+      inputText(output, "path", "file_path", "filePath")
+      ?? inputText(input, "file_path", "filePath", "path"),
+    );
+    if (path) files = [{ additions: null, deletions: null, path }];
+  }
+  if (files.length === 0) {
+    files = [{ additions: null, deletions: null, path: "文件" }];
+  }
+  const totalAdditions = nonNegativeInteger(
+    output.totalAdditions
+    ?? output.additions
+    ?? outputSummary.additions
+    ?? input.totalAdditions
+    ?? input.additions
+    ?? inputSummary.additions,
+  );
+  const totalDeletions = nonNegativeInteger(
+    output.totalDeletions
+    ?? output.deletions
+    ?? outputSummary.deletions
+    ?? input.totalDeletions
+    ?? input.deletions
+    ?? inputSummary.deletions,
+  );
+  if (files.length === 1) {
+    files = [{
+      additions: files[0].additions ?? totalAdditions,
+      deletions: files[0].deletions ?? totalDeletions,
+      path: files[0].path,
+    }];
+  }
+  return {
+    files,
+    state: item.state,
+    toolItemId: item.id,
+    totalAdditions,
+    totalDeletions,
+  };
+}
+
+function fileMutationLabel(state: ToolItem["state"], path: string): string {
+  if (state === "completed") return `已编辑 ${path}`;
+  if (state === "error") return `编辑失败 ${path}`;
+  if (state === "interrupted") return `已中断编辑 ${path}`;
+  return `正在编辑 ${path}`;
+}
+
+export function syntheticPatchDisplay(items: readonly Item[]): PatchDisplay | null {
+  const mutations = items.flatMap((item) => {
+    if (item.type !== "tool" || item.state !== "completed") return [];
+    const display = fileMutationDisplay(item);
+    if (!display) return [];
+    const files = display.files.filter((file) => file.path !== "文件");
+    return files.length ? [{ ...display, files }] : [];
+  });
+  if (mutations.length === 0) return null;
+
+  const files = new Map<string, FileChangeDisplay>();
+  for (const mutation of mutations) {
+    for (const file of mutation.files) {
+      const current = files.get(file.path);
+      files.set(file.path, {
+        additions: current?.additions !== null
+          && current?.additions !== undefined
+          && file.additions !== null
+          ? current.additions + file.additions
+          : current?.additions ?? file.additions,
+        deletions: current?.deletions !== null
+          && current?.deletions !== undefined
+          && file.deletions !== null
+          ? current.deletions + file.deletions
+          : current?.deletions ?? file.deletions,
+        path: file.path,
+      });
+    }
+  }
+  const totalsKnown = mutations.every(
+    (mutation) => mutation.totalAdditions !== null && mutation.totalDeletions !== null,
+  );
+  return {
+    files: [...files.values()],
+    id: "synthetic-tool-patch",
+    totalAdditions: totalsKnown
+      ? mutations.reduce((total, mutation) => total + mutation.totalAdditions!, 0)
+      : null,
+    totalDeletions: totalsKnown
+      ? mutations.reduce((total, mutation) => total + mutation.totalDeletions!, 0)
+      : null,
   };
 }
 
@@ -587,8 +1368,9 @@ function formatUnknown(value: unknown): string {
 }
 
 export function formatToolInputForDisplay(tool: string, input: unknown): string {
+  const leaf = toolLeafName(tool);
   if (
-    tool.toLowerCase().split(".").at(-1) === "apply_patch"
+    leaf === "apply_patch"
     && input
     && typeof input === "object"
     && !Array.isArray(input)
@@ -598,6 +1380,20 @@ export function formatToolInputForDisplay(tool: string, input: unknown): string 
       ...safeInput,
       patch: "[补丁正文已隐藏]",
     });
+  }
+  if (
+    (leaf === "read" || leaf === "grep" || leaf === "glob")
+    && input
+    && typeof input === "object"
+    && !Array.isArray(input)
+  ) {
+    const safeInput = { ...input as Record<string, unknown> };
+    for (const key of ["file_path", "filePath", "path"]) {
+      if (typeof safeInput[key] === "string") {
+        safeInput[key] = safeDisplayPath(safeInput[key]) ?? "<workspace-path>";
+      }
+    }
+    return formatUnknown(safeInput);
   }
   return formatUnknown(input);
 }

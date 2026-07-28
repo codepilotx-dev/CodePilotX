@@ -1,11 +1,11 @@
 import React from "react";
 import {
-  Check,
   ChevronDown,
   ChevronRight,
   CircleAlert,
   LoaderCircle,
   RotateCcw,
+  SquareTerminal,
 } from "lucide-react";
 import type { RenderBlocker, RenderTurnEntry } from "@codepilotx/session-view";
 import type { Item } from "@codepilotx/shared/thread";
@@ -14,6 +14,12 @@ import type { VirtualizerHandle } from "virtua";
 import {
   CanonicalItemRenderer,
   CanonicalUserInput,
+  FileMutationItemView,
+  isFileMutationTool,
+  isStandaloneLifecycleTool,
+  LifecycleToolItemView,
+  PatchSummaryView,
+  syntheticPatchDisplay,
   type CanonicalItemRendererProps,
 } from "./CanonicalItemRenderer.js";
 import { ConversationTurnErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
@@ -37,6 +43,8 @@ type NonToolProcessItem = Exclude<Item, { type: "tool" }>;
 
 export type ProcessSegment =
   | { kind: "commands"; id: string; items: ToolItem[] }
+  | { kind: "file-mutation"; id: string; item: ToolItem }
+  | { kind: "lifecycle-tool"; id: string; item: ToolItem }
   | { kind: "item"; id: string; item: NonToolProcessItem };
 
 export type TimelineDisclosureProps = ProcessSummary & {
@@ -104,9 +112,9 @@ export function CanonicalProcessGroup({
           <LoaderCircle className="canonical-spin" aria-hidden="true" />
         ) : failed ? (
           <CircleAlert aria-hidden="true" />
-        ) : (
-          <Check aria-hidden="true" />
-        )}
+        ) : variant === "commands" ? (
+          <SquareTerminal aria-hidden="true" />
+        ) : null}
         <span>{label}</span>
         {expanded ? (
           <ChevronDown className="canonical-process-group__chevron" aria-hidden="true" />
@@ -131,6 +139,22 @@ export function segmentProcessItems(items: readonly Item[]): ProcessSegment[] {
       segments.push({ kind: "item", id: `item:${item.id}`, item });
       continue;
     }
+    if (isStandaloneLifecycleTool(item)) {
+      segments.push({
+        kind: "lifecycle-tool",
+        id: `lifecycle-tool:${item.id}`,
+        item,
+      });
+      continue;
+    }
+    if (isFileMutationTool(item)) {
+      segments.push({
+        kind: "file-mutation",
+        id: `file-mutation:${item.id}`,
+        item,
+      });
+      continue;
+    }
 
     const previous = segments.at(-1);
     if (previous?.kind === "commands") {
@@ -145,6 +169,21 @@ export function segmentProcessItems(items: readonly Item[]): ProcessSegment[] {
   }
 
   return segments;
+}
+
+export function findActiveCommandSegmentIndex(
+  segments: readonly ProcessSegment[],
+  turnActive: boolean,
+): number {
+  if (!turnActive) return -1;
+  return segments.findLastIndex(
+    (segment) => segment.kind === "commands"
+      && segment.items.some(
+        (item) => item.state === "pending"
+          || item.state === "waiting-permission"
+          || item.state === "running",
+      ),
+  );
 }
 
 export function useTimelineDisclosureState(threadId: string): {
@@ -308,6 +347,7 @@ export function CanonicalConversationTurn({
     options: {
       disclosureId?: string;
       presentation?: CanonicalItemRendererProps["presentation"];
+      showAssistantActions?: boolean;
     } = {},
   ) => (
     <CanonicalItemRenderer
@@ -318,20 +358,22 @@ export function CanonicalConversationTurn({
       onOpenSubagent={onOpenSubagent}
       presentation={options.presentation}
       rightDockPlanEventId={rightDockPlanEventId}
+      showAssistantActions={options.showAssistantActions}
     />
   );
   const active = isActiveTurn(entry.turn.status);
   const hasAssistantResult = entry.assistantResultItems.some((item) => item.text.trim());
   const segments = segmentProcessItems(entry.processItems);
-  const lastCommandSegmentIndex = segments.findLastIndex(
-    (segment) => segment.kind === "commands",
-  );
+  const activeCommandSegmentIndex = findActiveCommandSegmentIndex(segments, active);
   const turnProcessId = `turn-process:${entry.turn.id}`;
   const turnProcessSummary = summarizeTurnProcessItems(
     entry.processItems,
     entry.turn.status,
     entry.turn.elapsedSeconds,
   );
+  const syntheticPatch = !active && entry.patchItems.length === 0
+    ? syntheticPatchDisplay(entry.processItems)
+    : null;
 
   return (
     <article className="canonical-turn" data-status={entry.turn.status}>
@@ -359,10 +401,26 @@ export function CanonicalConversationTurn({
               if (segment.kind === "item") {
                 return renderItem(segment.item, { presentation: "grouped" });
               }
+              if (segment.kind === "file-mutation") {
+                return (
+                  <FileMutationItemView
+                    item={segment.item}
+                    key={segment.id}
+                  />
+                );
+              }
+              if (segment.kind === "lifecycle-tool") {
+                return (
+                  <LifecycleToolItemView
+                    item={segment.item}
+                    key={segment.id}
+                  />
+                );
+              }
               const commandGroupId = `command-group:${entry.turn.id}:${segment.items[0].id}`;
               const summary = summarizeCommandItems(
                 segment.items,
-                active && segmentIndex === lastCommandSegmentIndex
+                segmentIndex === activeCommandSegmentIndex
                   ? entry.turn.status
                   : "completed",
               );
@@ -403,12 +461,19 @@ export function CanonicalConversationTurn({
       ) : null}
       {entry.assistantResultItems.length > 0 ? (
         <section className="canonical-turn__result" aria-label="助手回复">
-          {entry.assistantResultItems.map((item) => renderItem(item))}
+          {entry.assistantResultItems.map((item) => renderItem(item, {
+            showAssistantActions: true,
+          }))}
         </section>
       ) : null}
-      {entry.patchItems.length > 0 ? (
+      {!active && entry.patchItems.length > 0 ? (
         <section className="canonical-turn__post" aria-label="文件更改">
           {entry.patchItems.map((item) => renderItem(item))}
+        </section>
+      ) : null}
+      {syntheticPatch ? (
+        <section className="canonical-turn__post" aria-label="文件更改">
+          <PatchSummaryView patch={syntheticPatch} />
         </section>
       ) : null}
       {entry.postAssistantItems.length > 0 ? (

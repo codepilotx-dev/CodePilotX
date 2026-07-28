@@ -7,6 +7,7 @@ import type { Item } from "@codepilotx/shared/thread";
 import {
   CanonicalConversationTurn,
   CanonicalProcessGroup,
+  findActiveCommandSegmentIndex,
   segmentProcessItems,
 } from "../src/features/session/timeline/CanonicalThreadView.js";
 import { QuickChatContext } from "../src/features/session/QuickChatContext.js";
@@ -84,12 +85,16 @@ describe("canonical thread switch", () => {
     );
 
     expect(completed).not.toContain("expensive-tool-card");
+    expect(completed).not.toContain("lucide-check");
+    expect(completed).toContain("lucide-square-terminal");
     expect(completed).toContain("lucide-chevron-right");
     expect(completed).not.toContain("lucide-chevron-down");
     expect(active).toContain("active-tool-card");
+    expect(active).toContain("lucide-loader-circle");
     expect(active).toContain("lucide-chevron-down");
     expect(active).not.toContain("lucide-chevron-right");
     expect(failed).not.toContain("failed-tool-card");
+    expect(failed).toContain("lucide-circle-alert");
     expect(persisted).toContain("persisted-tool-card");
     expect(persisted).toContain("lucide-chevron-down");
   });
@@ -121,6 +126,71 @@ describe("canonical thread switch", () => {
     ]);
   });
 
+  test("separates file mutations and lifecycle tools from ordinary command groups", () => {
+    const tool = (
+      id: string,
+      name: string,
+      input: unknown = null,
+    ): Extract<Item, { type: "tool" }> => ({
+      id,
+      messageID: `message-${id}`,
+      turnId: "turn-1",
+      agentId: "agent-1",
+      type: "tool",
+      callID: `call-${id}`,
+      tool: name,
+      title: name,
+      state: "completed",
+      input,
+      command: name === "Bash" ? "bun test" : null,
+      output: null,
+      error: null,
+      startedAt: 1_000,
+      finishedAt: 2_000,
+      durationMs: 1_000,
+      createdAt: 1_000,
+    });
+    const segments = segmentProcessItems([
+      tool("tool-1", "Bash"),
+      tool("tool-2", "workspace.apply_patch", {
+        affectedPaths: [{ path: "src/main.ts", operation: "update" }],
+      }),
+      tool("tool-3", "update_plan"),
+      tool("tool-4", "Read", { file_path: "src/main.ts" }),
+      tool("tool-5", "request_permissions"),
+      tool("tool-6", "Grep", { pattern: "fallbackTitle" }),
+      tool("tool-7", "spawn_agents"),
+    ]);
+
+    expect(segments.map((segment) => (
+      segment.kind === "commands"
+        ? ["commands", ...segment.items.map((command) => command.id)]
+        : [segment.kind, segment.item.id]
+    ))).toEqual([
+      ["commands", "tool-1"],
+      ["file-mutation", "tool-2"],
+      ["lifecycle-tool", "tool-3"],
+      ["commands", "tool-4"],
+      ["lifecycle-tool", "tool-5"],
+      ["commands", "tool-6"],
+      ["lifecycle-tool", "tool-7"],
+    ]);
+
+    const mutationRunning = {
+      ...tool("tool-8", "workspace.apply_patch", {
+        affectedPaths: [{ path: "src/main.ts", operation: "update" }],
+      }),
+      state: "running" as const,
+      finishedAt: null,
+      durationMs: null,
+    };
+    const commandBeforeMutation = segmentProcessItems([
+      tool("tool-1", "Bash"),
+      mutationRunning,
+    ]);
+    expect(findActiveCommandSegmentIndex(commandBeforeMutation, true)).toBe(-1);
+  });
+
   test("renders process before the final answer and keeps file changes after it", () => {
     const processText = {
       id: "process-text-1",
@@ -128,7 +198,8 @@ describe("canonical thread switch", () => {
       turnId: "turn-1",
       agentId: "agent-1",
       type: "text",
-      placement: "process",
+      // Historical projection can classify an old result-placement item as process content.
+      placement: "result",
       text: "中间处理说明标记",
       status: "completed",
       createdAt: 500,
@@ -151,6 +222,20 @@ describe("canonical thread switch", () => {
       finishedAt: 2_000,
       durationMs: 1_000,
       createdAt: 1_000,
+    } as const;
+    const planTool = {
+      ...tool,
+      id: "tool-plan",
+      messageID: "message-plan-tool",
+      callID: "call-plan",
+      tool: "update_plan",
+      title: "update_plan",
+      input: {
+        plan: [{ step: "检查实现", status: "completed" }],
+      },
+      command: null,
+      output: JSON.stringify({ status: "updated" }),
+      createdAt: 750,
     } as const;
     const answer = {
       id: "answer-1",
@@ -187,10 +272,10 @@ describe("canonical thread switch", () => {
         elapsedSeconds: 359,
         error: null,
       },
-      items: [processText, tool, answer, patch],
+      items: [processText, planTool, tool, answer, patch],
       userItems: [],
       attachments: [],
-      processItems: [processText, tool],
+      processItems: [processText, planTool, tool],
       assistantResultItems: [answer],
       patchItems: [patch],
       postAssistantItems: [],
@@ -235,19 +320,46 @@ describe("canonical thread switch", () => {
         </TooltipProvider>
       </QuickChatContext.Provider>,
     );
+    const activeMarkup = renderToStaticMarkup(
+      <QuickChatContext.Provider
+        value={{} as React.ContextType<typeof QuickChatContext>}
+      >
+        <TooltipProvider>
+          <CanonicalConversationTurn
+            disclosureState={{
+              expandedIds: new Set(),
+              onExpandedChange: () => undefined,
+            }}
+            entry={{
+              ...entry,
+              turn: { ...entry.turn, status: "running" },
+            }}
+            onOpenPlanInRightDock={() => undefined}
+            onOpenSubagent={() => undefined}
+            rightDockPlanEventId={null}
+          />
+        </TooltipProvider>
+      </QuickChatContext.Provider>,
+    );
 
     const processIndex = markup.indexOf("已处理 5m 59s");
     const processTextIndex = markup.indexOf("中间处理说明标记");
+    const lifecycleIndex = markup.indexOf("已更新计划");
+    const commandsIndex = markup.indexOf("运行了 1 条命令");
     const answerIndex = markup.indexOf("最终回复标记");
-    const patchIndex = markup.indexOf("1 个文件已更改");
+    const patchIndex = markup.indexOf("已编辑 1 个文件");
     expect(processIndex).toBeGreaterThan(-1);
     expect(processTextIndex).toBeGreaterThan(processIndex);
-    expect(answerIndex).toBeGreaterThan(processTextIndex);
+    expect(lifecycleIndex).toBeGreaterThan(processTextIndex);
+    expect(commandsIndex).toBeGreaterThan(lifecycleIndex);
+    expect(answerIndex).toBeGreaterThan(commandsIndex);
     expect(answerIndex).toBeGreaterThan(processIndex);
     expect(patchIndex).toBeGreaterThan(answerIndex);
     expect(collapsedMarkup).not.toContain("中间处理说明标记");
     expect(collapsedMarkup).not.toContain("bun test");
     expect(collapsedMarkup).toContain("最终回复标记");
-    expect(collapsedMarkup).toContain("1 个文件已更改");
+    expect(collapsedMarkup).toContain("已编辑 1 个文件");
+    expect(activeMarkup).not.toContain("已编辑 1 个文件");
+    expect(markup.match(/canonical-message-actions--assistant/g)).toHaveLength(1);
   });
 });
