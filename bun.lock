@@ -10,7 +10,7 @@
     },
     "apps/agent": {
       "name": "@codepilotx/agent",
-      "version": "0.2.0-beta.2",
+      "version": "0.2.0-beta.3",
       "dependencies": {
         "@codepilotx/agent-protocol": "workspace:*",
         "@codepilotx/model-schema": "workspace:*",
@@ -43,7 +43,7 @@
     },
     "apps/desktop/electron": {
       "name": "@codepilotx/desktop-electron",
-      "version": "0.2.0-beta.2",
+      "version": "0.2.0-beta.3",
       "dependencies": {
         "smol-toml": "^1.7.0",
       },
@@ -58,7 +58,7 @@
     },
     "apps/desktop/renderer": {
       "name": "@codepilotx/renderer",
-      "version": "0.2.0-beta.2",
+      "version": "0.2.0-beta.3",
       "dependencies": {
         "@codemirror/autocomplete": "^6.20.3",
         "@codemirror/commands": "^6.10.4",

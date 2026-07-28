@@ -195,19 +195,14 @@ jobs:
           $repository = $env:GITHUB_REPOSITORY
           $tag = $env:GITHUB_REF_NAME
           $notesPath = Join-Path $PWD "release/RELEASE_NOTES.md"
-          $lookup = gh api "repos/$repository/releases/tags/$tag" --jq ".draft" 2>&1
-          $lookupExitCode = $LASTEXITCODE
-          $lookupText = ($lookup | Out-String).Trim()
-          if ($lookupExitCode -eq 0) {
-            if ($lookupText -ne "true") {
-              throw "Release $tag already exists and immutable releases must not be replaced"
-            }
-            $draftExists = $true
-          } elseif ($lookupText -match '\bHTTP 404\b') {
-            $draftExists = $false
-          } else {
-            throw "Unable to determine whether release $tag exists; refusing to publish"
+          $isPrerelease = $env:RELEASE_CHANNEL -eq "prerelease"
+          $apiHeaders = @{
+            Accept = "application/vnd.github+json"
+            Authorization = "Bearer $env:GH_TOKEN"
+            "User-Agent" = "CodePilotX-release"
+            "X-GitHub-Api-Version" = "2022-11-28"
           }
+          $apiBase = "https://api.github.com/repos/$repository"
 
           $assets = @(
             (Get-ChildItem release/CodePilotX-*-x64.exe).FullName
@@ -218,58 +213,84 @@ jobs:
             throw "Expected installer, checksum and SBOM release assets"
           }
 
-          $prereleaseArgs = @()
-          if ($env:RELEASE_CHANNEL -eq "prerelease") {
-            $prereleaseArgs += "--prerelease"
+          $releases = @(
+            Invoke-RestMethod `
+              -Method Get `
+              -Uri "$apiBase/releases?per_page=100" `
+              -Headers $apiHeaders
+          )
+          $matchingReleases = @($releases | Where-Object { $_.tag_name -ceq $tag })
+          $publishedReleases = @($matchingReleases | Where-Object { -not $_.draft })
+          if ($publishedReleases.Count -ne 0) {
+            throw "Release $tag already exists and immutable releases must not be replaced"
           }
 
-          if ($draftExists) {
-            $prereleaseValue = if ($env:RELEASE_CHANNEL -eq "prerelease") { "true" } else { "false" }
-            gh release edit $tag `
-              --repo $repository `
-              --title "CodePilotX $tag" `
-              --notes-file $notesPath `
-              --draft=true `
-              --prerelease=$prereleaseValue
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to refresh draft GitHub Release $tag"
-            }
+          $draftReleases = @($matchingReleases | Where-Object { $_.draft })
+          if ($draftReleases.Count -gt 1) {
+            throw "Multiple draft releases exist for $tag; refusing an ambiguous publish"
+          }
+
+          $releaseBody = @{
+            name = "CodePilotX $tag"
+            body = Get-Content -LiteralPath $notesPath -Raw
+            draft = $true
+            prerelease = $isPrerelease
+          }
+          if ($draftReleases.Count -eq 1) {
+            $release = Invoke-RestMethod `
+              -Method Patch `
+              -Uri "$apiBase/releases/$($draftReleases[0].id)" `
+              -Headers $apiHeaders `
+              -ContentType "application/json" `
+              -Body ($releaseBody | ConvertTo-Json)
           } else {
-            gh release create $tag `
-              --repo $repository `
-              --title "CodePilotX $tag" `
-              --notes-file $notesPath `
-              --draft `
-              @prereleaseArgs
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to create draft GitHub Release $tag"
-            }
+            $releaseBody.tag_name = $tag
+            $release = Invoke-RestMethod `
+              -Method Post `
+              -Uri "$apiBase/releases" `
+              -Headers $apiHeaders `
+              -ContentType "application/json" `
+              -Body ($releaseBody | ConvertTo-Json)
           }
 
-          $draftState = gh api "repos/$repository/releases/tags/$tag" --jq ".draft" 2>&1
-          if ($LASTEXITCODE -ne 0 -or ($draftState | Out-String).Trim() -ne "true") {
+          if (-not $release.draft -or $release.tag_name -cne $tag) {
             throw "Release $tag is not a confirmed draft; refusing to upload assets"
           }
-
-          gh release upload $tag @assets --clobber --repo $repository
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to upload draft release assets for $tag; the draft was retained for a safe retry"
+          if (@($release.assets).Count -ne 0) {
+            throw "Draft release $tag already contains assets; refusing to replace them"
           }
 
-          $actualAssets = @(gh api "repos/$repository/releases/tags/$tag" --jq ".assets[].name" 2>&1)
-          if ($LASTEXITCODE -ne 0) {
-            throw "Unable to verify draft release assets for $tag"
+          foreach ($asset in $assets) {
+            $assetName = Split-Path $asset -Leaf
+            $encodedAssetName = [Uri]::EscapeDataString($assetName)
+            $uploadedAsset = Invoke-RestMethod `
+              -Method Post `
+              -Uri "https://uploads.github.com/repos/$repository/releases/$($release.id)/assets?name=$encodedAssetName" `
+              -Headers $apiHeaders `
+              -ContentType "application/octet-stream" `
+              -InFile $asset
+            if ($uploadedAsset.name -cne $assetName) {
+              throw "GitHub returned an unexpected asset name while uploading $assetName"
+            }
           }
+
+          $verifiedDraft = Invoke-RestMethod `
+            -Method Get `
+            -Uri "$apiBase/releases/$($release.id)" `
+            -Headers $apiHeaders
+          $actualAssets = @($verifiedDraft.assets | ForEach-Object { $_.name })
           $expectedAssets = @($assets | ForEach-Object { Split-Path $_ -Leaf })
           $assetDifference = @(Compare-Object $expectedAssets $actualAssets)
-          if ($assetDifference.Count -ne 0) {
+          if (-not $verifiedDraft.draft -or $assetDifference.Count -ne 0) {
             throw "Draft release assets for $tag do not exactly match the expected bundle"
           }
 
-          gh release edit $tag --repo $repository --draft=false
-          if ($LASTEXITCODE -ne 0) {
-            $publishedState = gh api "repos/$repository/releases/tags/$tag" --jq ".draft" 2>&1
-            if ($LASTEXITCODE -ne 0 -or ($publishedState | Out-String).Trim() -ne "false") {
-              throw "Publishing release $tag returned an ambiguous result; no release was deleted"
-            }
+          $publishedRelease = Invoke-RestMethod `
+            -Method Patch `
+            -Uri "$apiBase/releases/$($release.id)" `
+            -Headers $apiHeaders `
+            -ContentType "application/json" `
+            -Body (@{ draft = $false } | ConvertTo-Json)
+          if ($publishedRelease.draft -or $publishedRelease.tag_name -cne $tag) {
+            throw "Publishing release $tag returned an ambiguous result; no release was deleted"
           }

@@ -22,7 +22,7 @@ body:
     attributes:
       label: CodePilotX 版本
       description: 可在应用关于或更新页面查看；源码构建请填写提交 SHA。
-      placeholder: 0.2.0-beta.2 或 abc1234
+      placeholder: 0.2.0-beta.3 或 abc1234
     validations:
       required: true
   - type: input
