@@ -217,12 +217,22 @@ async function assertPackagedPiCatalog(agentPath: string): Promise<void> {
         })
       })
     }
-    await rm(isolatedRoot, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 500,
-    })
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      try {
+        await rm(isolatedRoot, { recursive: true, force: true })
+        break
+      } catch (cause) {
+        if (
+          !(cause instanceof Error)
+          || !("code" in cause)
+          || !["EBUSY", "EPERM", "ENOTEMPTY"].includes(String(cause.code))
+          || attempt === 79
+        ) {
+          throw cause
+        }
+        await Bun.sleep(100)
+      }
+    }
   }
 }
 
