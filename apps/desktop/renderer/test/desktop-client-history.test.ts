@@ -283,9 +283,15 @@ describe('desktop history client', () => {
 
     const renamed = await client.renameSession('session-1', '改名后')
     expect(renamed.item.sessionName).toBe('改名后')
+    expect(renamed.item.lastMessageAt).toBe(
+      new Date(now + 1000).toISOString(),
+    )
 
     const regenerated = await client.regenerateSessionTitle('session-1')
     expect(regenerated.item.sessionName).toBe('自动更新后的标题')
+    expect(regenerated.item.lastMessageAt).toBe(
+      new Date(now + 1000).toISOString(),
+    )
     expect(
       requests.map(request => request.body).find(
         body => body?.method === 'thread/title/regenerate',

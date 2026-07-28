@@ -82,7 +82,8 @@ export class ThreadHistoryService {
 
     const updates: string[] = []
     const values: Array<string | number | null> = []
-    const updatedAt = Date.now()
+    const updatesActivity = typeof patch.archived === "boolean"
+    const updatedAt = updatesActivity ? Date.now() : existing.updatedAt
     if ("title" in patch) {
       const title = patch.title === null
         ? normalizeThreadTitle(existing.firstUserMessage ?? "")
@@ -104,12 +105,19 @@ export class ThreadHistoryService {
     }
     if (!updates.length) return existing
 
-    updates.push("updated_at = ?")
-    values.push(updatedAt, threadID)
+    if (updatesActivity) {
+      updates.push("updated_at = ?")
+      values.push(updatedAt)
+    }
+    values.push(threadID)
     this.db.sqlite.query(`UPDATE threads SET ${updates.join(", ")} WHERE id = ?`).run(...values)
     const next = this.getListItem(threadID)
     if (!next) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
-    const event = this.db.insertEvent(threadID, null, "thread/updated", { threadId: threadID, patch, updatedAt })
+    const event = this.db.insertEvent(threadID, null, "thread/updated", {
+      threadId: threadID,
+      patch,
+      updatedAt: next.updatedAt,
+    })
     await Effect.runPromise(this.hub.publish(event))
     return next
   }
@@ -121,13 +129,11 @@ export class ThreadHistoryService {
   ) {
     const normalizedTitle = nextTitle.trim()
     if (!normalizedTitle) return null
-    const updatedAt = Date.now()
     const result = this.db.transaction(() => {
       const updated = this.db.updateThreadTitleIfCurrent({
         threadID,
         expectedTitle,
         nextTitle: normalizedTitle,
-        updatedAt,
       })
       if (!updated) return null
       const thread = this.getListItem(threadID)
@@ -135,7 +141,7 @@ export class ThreadHistoryService {
       const event = this.db.insertEvent(threadID, null, "thread/updated", {
         threadId: threadID,
         patch: { title: normalizedTitle },
-        updatedAt,
+        updatedAt: thread.updatedAt,
       })
       return { thread, event }
     })

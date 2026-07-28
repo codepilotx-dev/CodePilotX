@@ -532,15 +532,13 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
     threadID: string
     expectedTitle: string
     nextTitle: string
-    updatedAt: number
   }): boolean {
       const result = this.sqlite.query(`
         UPDATE threads
-        SET title = ?, updated_at = ?
+        SET title = ?
         WHERE id = ? AND title = ?
       `).run(
         input.nextTitle,
-        input.updatedAt,
         input.threadID,
         input.expectedTitle,
       )

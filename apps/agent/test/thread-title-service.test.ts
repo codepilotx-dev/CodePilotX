@@ -86,6 +86,7 @@ describe("ThreadTitleService", () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread()
     addUserMessage(db, thread.id, "# 修复设置页下拉框文字消失并统一选项布局")
+    const activityAt = history.getListItem(thread.id)!.updatedAt
     const attemptedModels: string[] = []
     const models = {
       pi: {},
@@ -115,6 +116,7 @@ describe("ThreadTitleService", () => {
     expect(title.startsWith("#")).toBe(false)
     expect(Array.from(title)).toHaveLength(THREAD_TITLE_MAX_LENGTH)
     expect(title.endsWith("…")).toBe(true)
+    expect(history.getListItem(thread.id)?.updatedAt).toBe(activityAt)
   })
 
   test("persists a deterministic fallback when no auxiliary model is configured", async () => {
@@ -272,6 +274,7 @@ describe("ThreadTitleService", () => {
       updatedAt: timestamp + 1,
     })
     db.updateTurnStatus(latest.turnID, "completed")
+    const activityAt = history.getListItem(thread.id)!.updatedAt
     let receivedPrompt = ""
     const service = new ThreadTitleService(
       db,
@@ -297,6 +300,7 @@ describe("ThreadTitleService", () => {
     expect(receivedPrompt).toContain("已经完成会话标题刷新功能")
     expect(receivedPrompt).not.toContain("旧一轮内容")
     expect(receivedPrompt).not.toContain("工具输出")
+    expect(updated.updatedAt).toBe(activityAt)
     expect(db.eventsAfter(0).at(-1)?.method).toBe("thread/updated")
   })
 

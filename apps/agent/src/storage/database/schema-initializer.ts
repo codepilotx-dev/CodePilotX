@@ -439,6 +439,31 @@ const migrateHistory20To21 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory21To22 = (sqlite: Database) => {
+  sqlite.exec(`
+    UPDATE threads
+    SET updated_at = COALESCE(
+      (
+        SELECT MAX(messages.created_at)
+        FROM messages
+        WHERE messages.thread_id = threads.id
+      ),
+      threads.created_at
+    )
+    WHERE threads.kind = 'main'
+      AND EXISTS (
+        SELECT 1
+        FROM events
+        WHERE events.thread_id = threads.id
+          AND events.method = 'thread/updated'
+          AND json_valid(events.params)
+          AND json_type(events.params, '$.patch.title') IS NOT NULL
+          AND json_type(events.params, '$.patch.archived') IS NULL
+          AND CAST(json_extract(events.params, '$.updatedAt') AS INTEGER) = threads.updated_at
+      )
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -530,6 +555,7 @@ class SchemaInitializer {
           18: () => migrateHistory18To19(this.sqlite),
           19: () => migrateHistory19To20(this.sqlite),
           20: () => migrateHistory20To21(this.sqlite),
+          21: () => migrateHistory21To22(this.sqlite),
         }
       : {
           // v2 moves durable preferences to config.toml. The file migration

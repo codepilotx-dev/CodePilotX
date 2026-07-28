@@ -91,6 +91,35 @@ describe("Thread 历史", () => {
     expect(db.sqlite.query("SELECT 1 FROM pi_session_entries WHERE session_id = ?").get(`${thread.id}:main`)).toBeNull()
   })
 
+  test("纯标题更新保留活跃时间，归档混合更新仍推进活跃时间", async () => {
+    const { db, history } = await makeHistory()
+    const thread = db.createThread("原标题")
+    db.createTurn(thread.id, input("# 用于重置标题的首条消息"))
+    const activityAt = history.getListItem(thread.id)!.updatedAt
+    let cursor = db.eventsAfter(0).at(-1)?.id ?? 0
+
+    const renamed = await history.patch(thread.id, { title: "手工标题" })
+    expect(renamed.updatedAt).toBe(activityAt)
+    const renameEvent = db.eventsAfter(cursor).at(-1)
+    expect(renameEvent?.params).toMatchObject({
+      patch: { title: "手工标题" },
+      updatedAt: activityAt,
+    })
+    cursor = renameEvent?.id ?? cursor
+
+    const reset = await history.patch(thread.id, { title: null })
+    expect(reset.updatedAt).toBe(activityAt)
+    expect(db.eventsAfter(cursor).at(-1)?.params).toMatchObject({
+      patch: { title: null },
+      updatedAt: activityAt,
+    })
+
+    db.sqlite.query("UPDATE threads SET updated_at = 1 WHERE id = ?").run(thread.id)
+    const archived = await history.patch(thread.id, { title: "归档标题", archived: true })
+    expect(archived.updatedAt).toBeGreaterThan(1)
+    expect(archived.archivedAt).toBe(archived.updatedAt)
+  })
+
   test("父 Thread 删除会清理子 Agent Pi 历史，但拒绝删除活跃子 Thread", async () => {
     const { db, history } = await makeHistory()
     const parent = db.createThread("parent")

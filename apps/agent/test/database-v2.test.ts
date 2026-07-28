@@ -39,7 +39,15 @@ describe("数据库兼容与迁移", () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT, thread_id TEXT, turn_id TEXT,
         method TEXT NOT NULL, params TEXT NOT NULL, created_at INTEGER NOT NULL
       );
-      CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+      CREATE TABLE messages (
+        id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, created_at INTEGER NOT NULL
+      );
+      CREATE TABLE threads (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'main',
+        created_at INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL DEFAULT 0
+      );
       PRAGMA user_version = 18;
     `)
     const internalItem = (id: string, type: string, data: Record<string, unknown>, createdAt: number) => ({
@@ -91,14 +99,27 @@ describe("数据库兼容与迁移", () => {
   test("v19 到 v20 保留会话和消息并新增 nullable 工作分支", () => {
     const sqlite = new Database(":memory:")
     sqlite.exec(`
-      CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+      CREATE TABLE threads (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'main',
+        created_at INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL DEFAULT 0
+      );
       CREATE TABLE messages (
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL,
-        content TEXT NOT NULL
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT 0
       );
-      INSERT INTO threads VALUES ('thread-1', '保留的会话');
-      INSERT INTO messages VALUES ('message-1', 'thread-1', '保留的消息');
+      CREATE TABLE events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        thread_id TEXT,
+        method TEXT NOT NULL,
+        params TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      INSERT INTO threads (id, title) VALUES ('thread-1', '保留的会话');
+      INSERT INTO messages (id, thread_id, content) VALUES ('message-1', 'thread-1', '保留的消息');
       PRAGMA user_version = 19;
     `)
 
@@ -113,6 +134,62 @@ describe("数据库兼容与迁移", () => {
     expect(sqlite.query("SELECT content FROM messages WHERE id = 'message-1'").get()).toEqual({
       content: "保留的消息",
     })
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    sqlite.close()
+  })
+
+  test("v21 到 v22 只恢复被纯标题事件覆盖的会话活跃时间", () => {
+    const sqlite = new Database(":memory:")
+    sqlite.exec(HISTORY_SCHEMA.join(";\n"))
+    sqlite.exec("PRAGMA user_version = 21")
+    for (const [id, createdAt, updatedAt] of [
+      ["thread:title", 100, 900],
+      ["thread:empty", 150, 950],
+      ["thread:active-after-title", 200, 1_000],
+      ["thread:title-and-archive", 250, 800],
+    ] as const) {
+      sqlite.query("INSERT INTO threads (id, title, created_at, updated_at) VALUES (?, '标题', ?, ?)").run(
+        id,
+        createdAt,
+        updatedAt,
+      )
+    }
+    for (const [id, threadID, createdAt, ordinal] of [
+      ["message:title", "thread:title", 300, 0],
+      ["message:before-title", "thread:active-after-title", 400, 0],
+      ["message:after-title", "thread:active-after-title", 1_000, 1],
+      ["message:archive", "thread:title-and-archive", 500, 0],
+    ] as const) {
+      sqlite.query(`
+        INSERT INTO messages (id, thread_id, turn_id, role, content, created_at, ordinal)
+        VALUES (?, ?, NULL, 'user', '内容', ?, ?)
+      `).run(id, threadID, createdAt, ordinal)
+    }
+    for (const [threadID, patch, updatedAt] of [
+      ["thread:title", { title: "新标题" }, 900],
+      ["thread:empty", { title: null }, 950],
+      ["thread:active-after-title", { title: "旧标题" }, 900],
+      ["thread:title-and-archive", { title: "归档标题", archived: true }, 800],
+    ] as const) {
+      sqlite.query(`
+        INSERT INTO events (thread_id, turn_id, method, params, created_at)
+        VALUES (?, NULL, 'thread/updated', ?, ?)
+      `).run(threadID, JSON.stringify({ threadId: threadID, patch, updatedAt }), updatedAt)
+    }
+
+    initializeSchema(sqlite)
+    initializeSchema(sqlite)
+
+    const activityByThread = new Map(
+      (sqlite.query("SELECT id, updated_at FROM threads ORDER BY id").all() as Array<{
+        id: string
+        updated_at: number
+      }>).map(row => [row.id, row.updated_at]),
+    )
+    expect(activityByThread.get("thread:title")).toBe(300)
+    expect(activityByThread.get("thread:empty")).toBe(150)
+    expect(activityByThread.get("thread:active-after-title")).toBe(1_000)
+    expect(activityByThread.get("thread:title-and-archive")).toBe(800)
     expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     sqlite.close()
   })
