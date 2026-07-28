@@ -9,6 +9,7 @@
 
 ### Added
 
+- [renderer] 调试模式新增仅驻留内存的会话性能指标，展示 SSE 速率、流式投影耗时、React 提交、长任务与 JS 堆趋势且不记录会话内容
 - [desktop] 新增从 GitHub Releases 查看当前版本及历史更新日志的“新特性”页面，并在发布流水线中自动生成 Release
 - [Agent/Desktop] 新增本地用量统计、多厂商余额与套餐查询及独立加密计费凭据，使使用情况和计费页可统一查看应用消耗与账户额度
 - [Agent/Desktop] 新增 `test:plan`、`test:plan:rpc` 与显式付费的 `test:plan:live`，可在隔离数据目录中自动验证 Plan 桌面全流程、协议事件及刷新恢复
@@ -29,6 +30,7 @@
 
 ### Fixed
 
+- [renderer] 修复多轮流式对话重复分发 token 事件、逐事件复制 canonical 状态和无界保留 live 去重 ID 导致的掉帧与内存增长
 - [Agent] 修复 Shell 风险分类把源码凭据命名中的 `nc` 子串误认作网络命令的问题，普通 Git 暂存、提交和源码搜索不再被误报为凭据外传
 - [renderer] 补齐桌面 RPC 握手中的 Pi Provider 配置与认证 capability，恢复模型配置、凭据管理和 OAuth 会话调用
 - [Agent/Protocol] 修正审批、提问及中断恢复事件的 v4 载荷漂移，新的 durable event 与 SSE replay 统一通过 manifest 校验
@@ -65,6 +67,7 @@
 
 ### Changed
 
+- [renderer] 将右键菜单与侧栏行的 flex/grid 布局改为显式语义选择，移除纯文本菜单与简单导航的空列占位并保留图标菜单及项目、会话行的跨行对齐
 - [renderer] 互换侧栏“项目”分组的整理与添加按钮位置，使整理菜单位于添加项目按钮左侧
 - [renderer] 互换侧栏“最近”分组的整理与新建任务按钮位置，使整理菜单位于新建任务按钮左侧
 - [renderer] 菜单项布局改由菜单容器显式选择 flex 或 grid，纯文本选择菜单不再保留空图标列，带图标菜单继续保持多列对齐
