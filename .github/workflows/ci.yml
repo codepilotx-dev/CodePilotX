@@ -2,10 +2,6 @@ name: Security CI
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
-      - dev
 
 permissions:
   contents: read
@@ -45,11 +41,7 @@ jobs:
       - name: Whitespace check
         shell: pwsh
         run: |
-          if ($env:GITHUB_EVENT_NAME -eq "pull_request") {
-            $base = "${{ github.event.pull_request.base.sha }}"
-          } else {
-            $base = "${{ github.event.before }}"
-          }
+          $base = "${{ github.event.pull_request.base.sha }}"
           if (-not $base -or $base -match '^0+$') {
             $base = "HEAD^"
           }
