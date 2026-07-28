@@ -30,6 +30,16 @@
 
 ### Fixed
 
+- [Renderer] 修复会话 Hover Card 二级动态模块偶发加载失败并触发页面错误边界的问题
+- [Renderer] 修复重命名对话输入框在会话刷新或输入时反复全选的问题，恢复中文输入与正常提交
+- [renderer] 移除输入区变更摘要栏默认态与悬停态的阴影，保持界面视觉更轻量
+- [renderer] 统一 Markdown 行内代码、代码块与 canonical 工具输出的无边框 5% 前景色混合背景
+- [Renderer] 更新会话标题时在顶部、侧栏和 Hover Card 显示会话级 shimmer 加载反馈
+- [renderer] 修复 canonical 过程输出与文件补丁未跟随外观代码字体设置的问题
+- [renderer] 统一 Markdown 代码块、表格与 canonical 过程详情的侧栏主题背景，恢复内容区域的视觉层级
+- [Renderer] 修复 canonical 会话已有用户输入但 legacy 消息未加载时“更新会话标题”仍被禁用的问题
+- [Agent/Renderer] 补齐顶部会话重命名及快捷键，并支持根据最新完成内容重新生成短标题
+- [Agent/Renderer] 会话首条消息现在异步生成最多 20 字符的语义标题，并统一截短历史长标题展示，避免顶部与侧栏被超长标题占满
 - [renderer] 修复会话切换时旧时间线重复渲染、legacy 全量快照重复投影、折叠工具卡提前挂载及同工作区重复刷新的卡顿
 - [renderer] 修复多轮流式对话重复分发 token 事件、逐事件复制 canonical 状态和无界保留 live 去重 ID 导致的掉帧与内存增长
 - [Agent] 修复 Shell 风险分类把源码凭据命名中的 `nc` 子串误认作网络命令的问题，普通 Git 暂存、提交和源码搜索不再被误报为凭据外传
