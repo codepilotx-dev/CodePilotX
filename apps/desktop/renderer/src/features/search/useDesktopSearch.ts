@@ -1,0 +1,55 @@
+import { useMemo } from 'react'
+import type { SessionListItem } from '../../uiTypes.js'
+import type { DesktopWorkspace } from '../../../shared/types.js'
+
+export type UseDesktopSearchOptions = {
+  query: string
+  recentWorkspaces: DesktopWorkspace[]
+  sessions: SessionListItem[]
+}
+
+export type UseDesktopSearchResult = {
+  filteredWorkspaces: DesktopWorkspace[]
+  filteredSessions: SessionListItem[]
+}
+
+export function useDesktopSearch(
+  options: UseDesktopSearchOptions,
+): UseDesktopSearchResult {
+  const { query, recentWorkspaces, sessions } = options
+  const keyword = query.trim().toLowerCase()
+
+  const filteredWorkspaces = useMemo(() => {
+    if (!keyword) return recentWorkspaces
+    return recentWorkspaces.filter(item =>
+      [item.name, item.path, item.branchName ?? ''].join(' ').toLowerCase().includes(keyword),
+    )
+  }, [keyword, recentWorkspaces])
+
+  const filteredSessions = useMemo(() => {
+    const visibleSessions = sessions.filter(session => !session.archivedAt)
+    if (!keyword) return visibleSessions
+    return visibleSessions.filter(session =>
+      [
+        session.sessionName ?? '',
+        session.customTitle ?? '',
+        session.aiTitle ?? '',
+        session.tag ?? '',
+        session.gitBranch ?? '',
+        session.summary ?? '',
+        session.firstPrompt ?? '',
+        session.prRepository ?? '',
+        session.prUrl ?? '',
+        session.workspaceName,
+        session.workspacePath,
+        session.createdAt,
+        session.status,
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword),
+    )
+  }, [keyword, sessions])
+
+  return { filteredWorkspaces, filteredSessions }
+}

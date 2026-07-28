@@ -1,0 +1,5 @@
+@use 'sass:meta';
+
+@layer features {
+  @include meta.load-css('../features/pet-catalog');
+}

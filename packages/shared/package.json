@@ -1,0 +1,28 @@
+{
+  "name": "@codepilotx/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./src/api.ts",
+    "./events": "./src/llm-event.ts",
+    "./desktop-theme": "./src/desktop-theme.ts",
+    "./desktop-pet-overlay": "./src/desktop-pet-overlay.ts",
+    "./desktop-data-location-ipc": "./src/desktop-data-location-ipc.ts",
+    "./desktop-edit-ipc": "./src/desktop-edit-ipc.ts",
+    "./desktop-settings-ipc": "./src/desktop-settings-ipc.ts",
+    "./model": "./src/model.ts",
+    "./thread": "./src/thread/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@codepilotx/model-schema": "workspace:*",
+    "effect": "4.0.0-beta.83"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

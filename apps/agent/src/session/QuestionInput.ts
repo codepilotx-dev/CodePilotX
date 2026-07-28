@@ -1,0 +1,55 @@
+import { z } from "zod"
+
+export const questionOptionSchema = z.object({
+  label: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+}).strict()
+
+export const richQuestionSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+  header: z.string().trim().min(1).max(12),
+  question: z.string().trim().min(1),
+  options: z.array(questionOptionSchema).min(2).max(3),
+  multiSelect: z.boolean().optional(),
+}).strict()
+
+export const requestUserInputSchema = z.object({
+  questions: z.array(richQuestionSchema).min(1).max(3),
+  autoResolutionMs: z.number().int().min(60_000).max(240_000).optional(),
+}).strict()
+
+export type RichQuestion = z.infer<typeof richQuestionSchema>
+export type RequestUserInput = z.infer<typeof requestUserInputSchema>
+
+export interface InteractionQuestion {
+  id: string
+  header: string
+  prompt: string
+  choices: Array<{
+    id: string
+    label: string
+    description: string
+    recommended: boolean
+  }>
+  allowFreeform: true
+  required: true
+  minAnswers: number
+  maxAnswers: number
+}
+
+export const interactionQuestions = (questions: readonly RichQuestion[]): InteractionQuestion[] =>
+  questions.map((question) => ({
+    id: question.id,
+    header: question.header,
+    prompt: question.question,
+    choices: question.options.map((option, index) => ({
+      id: `${question.id}:${index}`,
+      label: option.label,
+      description: option.description,
+      recommended: index === 0,
+    })),
+    allowFreeform: true,
+    required: true,
+    minAnswers: 1,
+    maxAnswers: question.multiSelect ? question.options.length : 1,
+  }))

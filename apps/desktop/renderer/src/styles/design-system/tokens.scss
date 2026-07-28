@@ -1,0 +1,175 @@
+:root {
+  --workspace-fixed-controls-width: 0px;
+  --contrast: 0;
+
+  // Theme-provider foundation values. Pages consume --color-token-* instead.
+  --codex-base-accent: #339cff;
+  --codex-base-contrast: 0;
+  --codex-base-ink: #1a1c1f;
+  --codex-base-on-accent: #ffffff;
+  --codex-base-surface: #ffffff;
+  --color-accent-blue: var(--codex-base-accent);
+  --color-accent-purple: #924ff7;
+  --color-decoration-added: #00a240;
+  --color-decoration-deleted: #e02e2a;
+  --color-danger: var(--color-decoration-deleted);
+  --color-warning: #a05a00;
+
+  --shadow-resting:
+    0 1px 2px color-mix(in srgb, var(--color-token-foreground) 5%, transparent),
+    0 1px 0
+      color-mix(in srgb, var(--color-token-main-surface-primary) 70%, transparent)
+      inset;
+  --shadow-raised:
+    0 10px 28px
+      color-mix(in srgb, var(--color-token-foreground) 8%, transparent),
+    0 1px 2px color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
+  --shadow-float:
+    0 22px 60px
+      color-mix(in srgb, var(--color-token-foreground) 12%, transparent),
+    0 8px 24px color-mix(in srgb, var(--color-token-foreground) 8%, transparent);
+  --shadow-2: var(--shadow-raised);
+
+  --radius-button: 8px;
+  --radius-input: 8px;
+  --radius-panel: 12px;
+  --radius-card: 12px;
+  --radius-marquee: 16px;
+  --radius-base: 8px;
+  --layout-page-pad-x: 32px;
+  --layout-page-pad-y: 36px;
+  --layout-page-pad-bottom: 72px;
+  --layout-section-gap: 10px;
+  --layout-card-gap: 14px;
+  --layout-card-pad: 24px;
+  --layout-toolbar-gap: 12px;
+  --layout-composer-bottom: 26px;
+  --layout-composer-safe-pad: 78px;
+  --layout-sidebar-row-pad-y: 5px;
+  --layout-sidebar-row-pad-x: 5px;
+  --layout-sidebar-session-indent: 30px;
+  --layout-sidebar-section-gap: 18px;
+  --layout-content-w: 48rem;
+  --layout-bento-w: 840px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 30px;
+  --space-8: 36px;
+
+  --font-size-ui: 14px;
+  --font-size-code: 12px;
+  --font-size-11: calc(var(--font-size-ui) - 3px);
+  --font-size-12: calc(var(--font-size-ui) - 2px);
+  --font-size-13: calc(var(--font-size-ui) - 1px);
+  --font-size-14: var(--font-size-ui);
+  --font-size-15: calc(var(--font-size-ui) + 1px);
+  --font-size-16: calc(var(--font-size-ui) + 2px);
+  --font-size-17: calc(var(--font-size-ui) + 3px);
+  --font-size-18: calc(var(--font-size-ui) + 4px);
+  --font-size-20: calc(var(--font-size-ui) + 6px);
+  --font-size-24: calc(var(--font-size-ui) + 10px);
+  --font-size-26: calc(var(--font-size-ui) + 12px);
+
+  --control-line-height: 1.4;
+  --control-padding-block-compact: 0.4em;
+  --control-padding-block: 0.45em;
+  --control-padding-inline-compact: 0.6em;
+  --control-padding-inline: 0.7em;
+  --control-gap-compact: 0.35em;
+  --control-gap: 0.57em;
+  --control-size-sm: calc(var(--font-size-ui) + var(--font-size-ui));
+  --control-size-md: calc(
+    var(--font-size-ui) + var(--font-size-ui) + 6px
+  );
+  --control-size-lg: calc(
+    var(--font-size-ui) + var(--font-size-ui) + 12px
+  );
+
+  --type-body: var(--font-size-ui);
+  --type-control: var(--font-size-ui);
+  --type-message: var(--font-size-ui);
+  --type-secondary: max(10px, calc(var(--font-size-ui) - 1px));
+  --type-meta: max(10px, calc(var(--font-size-ui) - 2px));
+  --type-caption: max(10px, calc(var(--font-size-ui) - 3px));
+
+  --radius-1: 2px;
+  --radius-2: 4px;
+  --radius-3: 6px;
+  --radius-4: 8px;
+  --radius-5: 10px;
+  --radius-6: 12px;
+  --radius-7: 16px;
+  --radius-full: 9999px;
+  --radius-user-message: var(--radius-6);
+
+  --z-right-dock: 90;
+  --z-composer: 95;
+  --z-modal: 1200;
+  --z-popover: 1300;
+  --z-tooltip: 1400;
+  --z-toast: 10000;
+
+  --app-icon-size-sm: var(--font-size-ui);
+  --app-icon-size: calc(var(--font-size-ui) + 2px);
+  --app-icon-size-md: calc(var(--font-size-ui) + 4px);
+  --app-icon-stroke-width: 1.75;
+
+  --motion-fast: 150ms;
+  --motion-standard: 150ms;
+  --motion-emphasis: 300ms;
+  --motion-hover: var(--motion-fast);
+  --motion-enter: var(--motion-standard);
+  --motion-exit: var(--motion-fast);
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: ease-out;
+  --ease-in: ease-in;
+
+  --composer-width: 48rem;
+  --floating-composer-h: 142px;
+  --chrome-h: calc(
+    var(--font-size-ui) + var(--font-size-ui) + 7px
+  );
+  --menubar-h: var(--chrome-h);
+  --shadow-soft: var(--shadow-resting);
+  --shadow-card: var(--shadow-resting);
+  --shadow-card-lg: var(--shadow-raised);
+  --grid-gap: var(--layout-card-gap);
+  --plan-md-base-size: 0.9em;
+
+  --syntax-keyword: var(--color-text-accent);
+  --syntax-type: var(--syntax-keyword);
+  --syntax-property: var(--color-text-accent);
+  --syntax-string: var(--color-decoration-added);
+  --syntax-number: var(--color-accent-purple);
+  --syntax-operator: var(--syntax-number);
+  --syntax-comment: var(--color-token-description-foreground);
+  --syntax-variable: var(--color-token-text-tertiary);
+  --syntax-punctuation: var(--color-token-text-secondary);
+
+  --font-family-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-mono:
+    "JetBrains Mono", Consolas, monospace;
+  --type-card-title: var(--font-size-ui);
+  --type-section-title: calc(var(--font-size-ui));
+  --type-title-sm: calc(var(--font-size-ui) + 2px);
+  --type-title-md: calc(var(--font-size-ui) + 4px);
+  --type-title-lg: calc(var(--font-size-ui) + 6px);
+  --type-page-title: calc(var(--font-size-ui) + 12px);
+  --type-hero-title: calc(var(--font-size-ui) + 16px);
+  --type-code: var(--font-size-code);
+  --font-weight-body: 445;
+  --font-weight-label: 500;
+  --font-weight-heading: 560;
+  --font-weight-emphasis: 600;
+
+  --focus-ring: 0 0 0 3px
+    color-mix(in srgb, var(--color-token-focus-border) 24%, transparent);
+  --focus-ring-soft: 0 0 0 2px
+    color-mix(in srgb, var(--color-token-focus-border) 18%, transparent);
+}

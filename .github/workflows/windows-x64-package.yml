@@ -1,0 +1,118 @@
+name: Windows x64 package
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned-smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run package:win
+      - name: Silent install and installed-layout smoke
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem release/CodePilotX-*-x64.exe | Select-Object -First 1).FullName
+          $installRoot = Join-Path $PWD "release/installed"
+          $process = Start-Process -FilePath $installer -ArgumentList "/S", "/D=$installRoot" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "NSIS silent install failed: $($process.ExitCode)" }
+          bun scripts/verify-win-x64-package.ts "--unpacked=$installRoot"
+          bun scripts/smoke-win-x64.ts "--application=$installRoot/CodePilotX.exe"
+
+  signed-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Version policy check
+        shell: pwsh
+        run: |
+          bun run version:check -- --tag "$env:GITHUB_REF_NAME"
+      - name: Prepare signing certificate
+        shell: pwsh
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+        run: |
+          if (-not $env:CERTIFICATE_BASE64) { throw "WINDOWS_CERTIFICATE_BASE64 is required for release" }
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP/codepilotx-signing.pfx", [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
+      - name: Build, sign and verify release
+        shell: pwsh
+        env:
+          CODEPILOTX_REQUIRE_SIGNING: "1"
+          CODEPILOTX_WINDOWS_CERTIFICATE_PATH: ${{ runner.temp }}/codepilotx-signing.pfx
+          CODEPILOTX_WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          CSC_LINK: ${{ runner.temp }}/codepilotx-signing.pfx
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: bun run package:win
+      - name: Silent install and installed-layout smoke
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem release/CodePilotX-*-x64.exe | Select-Object -First 1).FullName
+          $installRoot = Join-Path $PWD "release/installed"
+          $process = Start-Process -FilePath $installer -ArgumentList "/S", "/D=$installRoot" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "NSIS silent install failed: $($process.ExitCode)" }
+          bun scripts/verify-win-x64-package.ts "--unpacked=$installRoot" --require-signing
+          bun scripts/smoke-win-x64.ts "--application=$installRoot/CodePilotX.exe"
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $expectedRepository = "codepilotx-dev/CodePilotX"
+          if ($env:GITHUB_REPOSITORY -cne $expectedRepository) {
+            throw "Release publishing is restricted to $expectedRepository; current repository is $env:GITHUB_REPOSITORY"
+          }
+
+          $tag = $env:GITHUB_REF_NAME
+          $notesPath = Join-Path $env:RUNNER_TEMP "codepilotx-release-notes.md"
+          bun scripts/write-release-notes.ts --tag $tag --output $notesPath
+          if ($LASTEXITCODE -ne 0) { throw "Failed to generate release notes for $tag" }
+
+          $installers = @(Get-ChildItem release/CodePilotX-*-x64.exe)
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one Windows x64 installer, found $($installers.Count)"
+          }
+          $installerPath = $installers[0].FullName
+
+          $isPrerelease = $tag -match '-(alpha|beta|rc)(?:[.-]|$)'
+          $payloadPath = Join-Path $env:RUNNER_TEMP "codepilotx-release-payload.json"
+          $payload = [ordered]@{
+            tag_name = $tag
+            name = "CodePilotX $tag"
+            body = [IO.File]::ReadAllText($notesPath)
+            draft = $false
+            prerelease = $isPrerelease
+          } | ConvertTo-Json -Depth 3
+          [IO.File]::WriteAllText(
+            $payloadPath,
+            $payload,
+            [Text.UTF8Encoding]::new($false)
+          )
+
+          $releaseId = gh api "repos/$expectedRepository/releases/tags/$tag" --jq ".id" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh api --method PATCH "repos/$expectedRepository/releases/$releaseId" --input $payloadPath
+          } else {
+            gh api --method POST "repos/$expectedRepository/releases" --input $payloadPath
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Failed to create or update GitHub Release $tag" }
+
+          gh release upload $tag $installerPath --clobber --repo $expectedRepository
+          if ($LASTEXITCODE -ne 0) { throw "Failed to upload installer for $tag" }

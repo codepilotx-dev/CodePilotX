@@ -1,0 +1,203 @@
+.empty-canvas-card {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+  max-width: 520px;
+  margin: auto;
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-token-text-secondary);
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 min(10vw, 128px);
+}
+
+.message-card.user {
+  align-self: flex-end;
+  background: var(--color-token-list-hover-background);
+}
+
+.message-card.assistant,
+.message-card.system {
+  align-self: flex-start;
+}
+
+.message-card span {
+  color: var(--color-token-description-foreground);
+  font-size: var(--type-meta);
+}
+
+.conversation-stream {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+  margin: 0 auto;
+}
+
+::highlight(conversation-action-selection) {
+  background: color-mix(in srgb, var(--color-token-text-link-foreground) 32%, transparent);
+  color: inherit;
+}
+
+.conversation-stream ::selection {
+  background: color-mix(in srgb, var(--color-token-text-link-foreground) 32%, transparent);
+  color: inherit;
+}
+
+.chat-message-row {
+  &.user {
+    > .message-action {
+      display: none;
+    }
+  }
+}
+
+.assistant-thinking {
+  align-items: flex-start;
+}
+
+.assistant-message-body p {
+  margin: 0 0 var(--space-3);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.subagent-timeline-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(760px, calc(100% - 32px));
+  margin: 8px auto;
+
+  button {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    border: 0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--color-token-foreground);
+    background: var(--color-token-text-preformat-background);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: var(--color-token-list-hover-background);
+  }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: var(--color-token-text-secondary);
+    white-space: nowrap;
+  }
+}
+
+.popover.popover-thread-summary-branch {
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(320px, calc(100vh - 96px));
+}
+
+.popover.popover-branch,
+.popover.popover-thread-summary-branch {
+  --popover-overflow-y: hidden;
+}
+
+.popover.popover-branch .popover-scroll-content,
+.popover.popover-thread-summary-branch .popover-scroll-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.popover.popover-branch .popover-scroll-content {
+  max-height: min(420px, calc(100vh - 32px));
+}
+
+.popover.popover-thread-summary-branch .popover-scroll-content {
+  max-height: min(320px, calc(100vh - 96px));
+}
+
+.branch-popover-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.environment-branch-label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  > span,
+  small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: var(--color-token-text-secondary);
+    font-size: var(--type-meta);
+    font-weight: 400;
+  }
+}
+
+.popover-turn-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  strong {
+    color: var(--color-token-foreground);
+    font-size: var(--type-body);
+    font-weight: var(--font-weight-label);
+  }
+
+  small {
+    color: var(--color-token-text-secondary);
+    font-size: var(--type-meta);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.popover-turn-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-token-text-tertiary);
+}
+
+.assistant-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.assistant-thinking {
+  color: var(--color-token-text-secondary);
+  font-size: var(--type-message);
+}
+
