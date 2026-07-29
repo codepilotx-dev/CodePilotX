@@ -5,6 +5,7 @@ export type ThemeVariableMap = Record<ThemeVariableName, string>
 
 type CodexRoles = {
   tokens: ThemeVariableMap
+  editorBackground: string
   raised: string
   codeInline: string
   hover: string
@@ -14,6 +15,13 @@ type CodexRoles = {
   textSecondary: string
   textTertiary: string
   textDisabled: string
+}
+
+type DerivedSemanticTone = {
+  foreground: string
+  indicator: string
+  lineBackground: string
+  textBackground: string
 }
 
 const CODEX_LIGHT_SYNTAX = {
@@ -48,6 +56,18 @@ export function deriveThemeVariables(
     dark,
     theme.contrast,
   )
+  const added = deriveSemanticTone({
+    hue: theme.semanticColors.diffAdded,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+    variant,
+  })
+  const removed = deriveSemanticTone({
+    hue: theme.semanticColors.diffRemoved,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+    variant,
+  })
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
   const shadowResting = dark
     ? '0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset'
@@ -69,6 +89,14 @@ export function deriveThemeVariables(
     '--color-accent-purple': theme.semanticColors.skill,
     '--color-decoration-added': theme.semanticColors.diffAdded,
     '--color-decoration-deleted': theme.semanticColors.diffRemoved,
+    '--color-diff-added-foreground': added.foreground,
+    '--color-diff-added-indicator': added.indicator,
+    '--color-diff-added-line-background': added.lineBackground,
+    '--color-diff-added-text-background': added.textBackground,
+    '--color-diff-removed-foreground': removed.foreground,
+    '--color-diff-removed-indicator': removed.indicator,
+    '--color-diff-removed-line-background': removed.lineBackground,
+    '--color-diff-removed-text-background': removed.textBackground,
     '--contrast': String(theme.contrast),
     '--color-danger': theme.semanticColors.diffRemoved,
     '--color-warning': dark ? '#f0a33b' : '#a05a00',
@@ -234,6 +262,7 @@ function deriveCodexRoles(
       '--color-text-foreground-secondary': palette.textForegroundSecondary,
       '--color-text-foreground-tertiary': palette.textForegroundTertiary,
     },
+    editorBackground: rgbString(editorBackground),
     raised: palette.elevatedSecondaryOpaque,
     codeInline: palette.buttonSecondaryBackground,
     hover: palette.buttonSecondaryBackgroundHover,
@@ -243,6 +272,37 @@ function deriveCodexRoles(
     textSecondary: palette.textForegroundSecondary,
     textTertiary: palette.textForegroundTertiary,
     textDisabled: palette.buttonPrimaryBackgroundInactive,
+  }
+}
+
+function deriveSemanticTone({
+  hue,
+  editorBackground,
+  ink,
+  variant,
+}: {
+  hue: string
+  editorBackground: string
+  ink: string
+  variant: 'light' | 'dark'
+}): DerivedSemanticTone {
+  const hueRgb = parseHex(hue)
+  const editorRgb = parseColor(editorBackground)
+  const inkRgb = parseHex(ink)
+
+  return {
+    foreground: ensureContrast(hueRgb, inkRgb, editorRgb, 4.5),
+    indicator: hue,
+    lineBackground: mixHex(
+      editorRgb,
+      hueRgb,
+      variant === 'dark' ? 0.18 : 0.12,
+    ),
+    textBackground: mixHex(
+      editorRgb,
+      hueRgb,
+      variant === 'dark' ? 0.34 : 0.24,
+    ),
   }
 }
 
@@ -441,6 +501,74 @@ function parseHex(value: string): Rgb {
     green: Number.parseInt(hex.slice(2, 4), 16),
     blue: Number.parseInt(hex.slice(4, 6), 16),
   }
+}
+
+function parseColor(value: string): Rgb {
+  if (value.startsWith('#')) return parseHex(value)
+  const channels = value.match(/\d+/g)
+  if (!channels || channels.length < 3) {
+    throw new Error(`Unsupported theme color: ${value}`)
+  }
+  return {
+    red: Number(channels[0]),
+    green: Number(channels[1]),
+    blue: Number(channels[2]),
+  }
+}
+
+function ensureContrast(
+  color: Rgb,
+  ink: Rgb,
+  background: Rgb,
+  minimumRatio: number,
+): string {
+  if (contrastRatio(color, background) >= minimumRatio) {
+    return hexString(color)
+  }
+
+  if (contrastRatio(ink, background) >= minimumRatio) {
+    let low = 0
+    let high = 1
+    for (let iteration = 0; iteration < 16; iteration += 1) {
+      const amount = (low + high) / 2
+      if (
+        contrastRatio(mixRgb(color, ink, amount), background) >=
+        minimumRatio
+      ) {
+        high = amount
+      } else {
+        low = amount
+      }
+    }
+    return mixHex(color, ink, high)
+  }
+
+  const black = { red: 0, green: 0, blue: 0 }
+  const white = { red: 255, green: 255, blue: 255 }
+  return contrastRatio(black, background) >=
+    contrastRatio(white, background)
+    ? hexString(black)
+    : hexString(white)
+}
+
+function contrastRatio(first: Rgb, second: Rgb): number {
+  const brightest = Math.max(relativeLuminance(first), relativeLuminance(second))
+  const darkest = Math.min(relativeLuminance(first), relativeLuminance(second))
+  return (brightest + 0.05) / (darkest + 0.05)
+}
+
+function relativeLuminance(color: Rgb): number {
+  const channel = (value: number): number => {
+    const normalized = value / 255
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4
+  }
+  return (
+    channel(color.red) * 0.2126 +
+    channel(color.green) * 0.7152 +
+    channel(color.blue) * 0.0722
+  )
 }
 
 function mixRgb(from: Rgb, to: Rgb, amount: number): Rgb {

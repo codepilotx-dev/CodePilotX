@@ -11,7 +11,7 @@
 
 .permission-modal {
   border: 1px solid var(--color-token-border);
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-elevated-background);
   box-shadow: var(--shadow-float);
 }
 
@@ -45,7 +45,7 @@
       var(--control-padding-inline);
     border: 1px solid var(--color-token-border-light);
     border-radius: var(--radius-4);
-    background: var(--color-token-main-surface-primary);
+    background: var(--color-token-control-background);
     line-height: var(--control-line-height);
 
     &:hover {
@@ -192,7 +192,7 @@
     padding: 0.57em var(--control-padding-inline);
     border: 1px solid var(--color-token-border);
     border-radius: var(--radius-4);
-    background: var(--color-token-main-surface-primary);
+    background: var(--color-token-control-background);
     color: var(--color-token-foreground);
     font: inherit;
     line-height: var(--control-line-height);
@@ -235,7 +235,7 @@
       var(--control-padding-inline-compact);
     border: 1px solid var(--color-token-border-light);
     border-radius: var(--radius-4);
-    background: var(--color-token-main-surface-primary);
+    background: var(--color-token-control-background);
     line-height: var(--control-line-height);
   }
 
@@ -314,7 +314,7 @@
     var(--control-padding-inline);
   border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-control-background);
 
   input {
     min-width: 0;
@@ -335,7 +335,7 @@
   overflow-y: auto;
   border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-control-background);
 }
 
 .github-repository-row {

@@ -6,7 +6,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
 }
 
 .right-dock-file-browser {
@@ -15,7 +15,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
   overflow: hidden;
 }
 
@@ -107,7 +107,7 @@
   gap: var(--space-2);
   padding: 0 var(--space-2);
   border-bottom: 1px solid var(--color-token-border-light);
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
   color: var(--color-token-text-secondary);
 }
 
@@ -315,7 +315,7 @@
 }
 
 .right-dock-open-file-layout {
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
 }
 
 .right-dock-open-file-empty {
@@ -403,7 +403,7 @@
 
 .workspace-file-tree--popover {
   padding: var(--space-2);
-  background: var(--color-token-editor-widget-background);
+  background: var(--color-token-elevated-background);
 }
 
 .workspace-file-tree--standalone {
@@ -555,7 +555,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
   overflow: hidden;
 }
 

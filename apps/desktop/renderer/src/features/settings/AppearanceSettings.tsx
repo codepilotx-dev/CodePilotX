@@ -25,6 +25,7 @@ import {
   loadChromeThemeSeed,
   mergeChromeThemeSeed,
 } from '../theme/codeThemeSeed.js'
+import { deriveThemeVariables } from '../theme/themeVariables.js'
 import { SegmentedControl } from './SegmentedControl.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -569,12 +570,25 @@ function ThemePreview({
     language: 'typescript',
     theme: codeThemeId,
   })
+  const variables = deriveThemeVariables({ codeThemeId, theme, variant })
   const style = {
-    '--appearance-preview-surface': theme.surface,
+    '--appearance-preview-surface':
+      variables['--color-background-editor-opaque'],
+    '--appearance-preview-panel': variables['--color-background-panel'],
     '--appearance-preview-ink': theme.ink,
     '--appearance-preview-accent': theme.accent,
-    '--appearance-preview-added': theme.semanticColors.diffAdded,
-    '--appearance-preview-removed': theme.semanticColors.diffRemoved,
+    '--appearance-preview-added':
+      variables['--color-diff-added-indicator'],
+    '--appearance-preview-added-line':
+      variables['--color-diff-added-line-background'],
+    '--appearance-preview-added-text':
+      variables['--color-diff-added-text-background'],
+    '--appearance-preview-removed':
+      variables['--color-diff-removed-indicator'],
+    '--appearance-preview-removed-line':
+      variables['--color-diff-removed-line-background'],
+    '--appearance-preview-removed-text':
+      variables['--color-diff-removed-text-background'],
   } as React.CSSProperties
 
   return (
@@ -636,16 +650,24 @@ function ThemePreviewSide({
               {tone === 'removed' ? '−' : tone === 'added' ? '+' : ''}
             </span>
             <code>
-              {tokens?.length
-                ? tokens.map((token, tokenIndex) => (
-                    <span
-                      key={`${lineIndex}:${tokenIndex}`}
-                      style={syntaxTokenStyle(token)}
-                    >
-                      {token.content}
-                    </span>
-                  ))
-                : line || ' '}
+              <span
+                className={
+                  tone !== 'context' && lineIndex === 1
+                    ? 'appearance-diff-word'
+                    : undefined
+                }
+              >
+                {tokens?.length
+                  ? tokens.map((token, tokenIndex) => (
+                      <span
+                        key={`${lineIndex}:${tokenIndex}`}
+                        style={syntaxTokenStyle(token)}
+                      >
+                        {token.content}
+                      </span>
+                    ))
+                  : line || ' '}
+              </span>
             </code>
           </div>
         )

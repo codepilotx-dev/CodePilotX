@@ -161,7 +161,7 @@
   border: 1px solid
     color-mix(in srgb, var(--appearance-preview-ink) 16%, transparent);
   border-radius: 12px;
-  background: var(--appearance-preview-surface);
+  background: var(--appearance-preview-panel);
   color: var(--appearance-preview-ink);
   font-family: var(--font-family-mono);
   font-size: var(--type-code);
@@ -175,6 +175,7 @@
 
 .appearance-diff-side {
   min-width: 270px;
+  background: var(--appearance-preview-surface);
 
   + .appearance-diff-side {
     border-left: 1px solid
@@ -189,19 +190,11 @@
   line-height: 22px;
 
   &[data-tone="removed"] {
-    background: color-mix(
-      in srgb,
-      var(--appearance-preview-removed) 15%,
-      transparent
-    );
+    background: var(--appearance-preview-removed-line);
   }
 
   &[data-tone="added"] {
-    background: color-mix(
-      in srgb,
-      var(--appearance-preview-added) 15%,
-      transparent
-    );
+    background: var(--appearance-preview-added-line);
   }
 
   code {
@@ -225,6 +218,7 @@
 }
 
 .appearance-diff-marker {
+  position: relative;
   color: color-mix(in srgb, var(--appearance-preview-ink) 58%, transparent);
   text-align: center;
   user-select: none;
@@ -232,6 +226,45 @@
 
 .appearance-diff-preview[data-marker-style="color"] .appearance-diff-marker {
   color: transparent;
+
+  &::before {
+    content: "";
+    width: 4px;
+    height: 100%;
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: currentColor;
+  }
+}
+
+:where(
+    .appearance-diff-preview[data-marker-style="color"]
+      .appearance-diff-line[data-tone="added"]
+  )
+  .appearance-diff-marker::before {
+  background: var(--appearance-preview-added);
+}
+
+:where(
+    .appearance-diff-preview[data-marker-style="color"]
+      .appearance-diff-line[data-tone="removed"]
+  )
+  .appearance-diff-marker::before {
+  background: var(--appearance-preview-removed);
+}
+
+.appearance-diff-line[data-tone="added"] .appearance-diff-word {
+  background: var(--appearance-preview-added-text);
+}
+
+.appearance-diff-line[data-tone="removed"] .appearance-diff-word {
+  background: var(--appearance-preview-removed-text);
+}
+
+.appearance-diff-word {
+  border-radius: var(--radius-2);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .appearance-theme-editor-rows {
