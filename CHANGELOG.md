@@ -9,10 +9,12 @@
 
 ### Added
 
+- [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
 - [governance] 采用 Apache License 2.0，并新增贡献指南、行为准则、安全披露策略、CODEOWNERS、Issue/PR 模板与 Dependabot 配置，明确公开协作和依赖维护边界
 
 ### Changed
 
+- [renderer] 会话与项目悬浮卡复用统一信息骨架，会话标题支持单击内联重命名，项目统计按活动任务计算
 - [renderer] 将 canonical 会话助手回复的复制按钮改为常驻显示，便于直接发现和使用
 - [renderer] 将“新特性”从一级页面调整为全局 Dialog，查看版本记录时保留当前工作上下文
 - [renderer] 将“新特性”Dialog 调整为版本列表与更新内容双滚动区，历史版本切换和长更新日志可独立浏览
@@ -20,6 +22,8 @@
 
 ### Fixed
 
+- [renderer] 修复侧栏可排序会话、项目和置顶项仅悬停时提前显示拖动光标的问题，改为实际拖拽期间显示
+- [Agent/renderer] 修复模型选择器遗漏已配置 Provider、误显示未登录 OAuth Provider 及历史会话 Provider 与模型错位的问题
 - [desktop] 稳定开发环境的 HMR 直连与动态模块加载失败恢复，避免瞬态更新导致持续白屏
 - [renderer] 修复重命名对话弹窗的受控输入值被原标题反复恢复的问题，并移除存在系统冲突的 `Ctrl+Alt+R` 快捷键
 - [renderer] 修复手工重命名已持久化但顶部和侧栏未立即显示的问题，统一所有入口的会话状态更新链路
