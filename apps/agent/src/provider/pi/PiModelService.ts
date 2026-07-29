@@ -197,6 +197,17 @@ export class PiModelService {
       .map(clone);
   }
 
+  async isAuthConfigured(providerID: string): Promise<boolean> {
+    this.assertActive();
+    await this.syncProviders();
+    const provider = this.pi
+      .getProviders()
+      .find((candidate) => candidate.id === providerID);
+    if (!provider) return false;
+    if (!provider.auth.apiKey && !provider.auth.oauth) return true;
+    return (await this.pi.checkAuth(providerID)) !== undefined;
+  }
+
   async providerDefinitions(): Promise<readonly PiProviderDefinitionInput[]> {
     this.assertActive();
     const config = await this.syncProviders();

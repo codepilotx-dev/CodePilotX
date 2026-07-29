@@ -235,6 +235,30 @@ const defaultThreadSettings = (): ThreadSettings => ({
 import { RepositoryCore } from "./repository-core"
 
 export abstract class ThreadRepositoryDatabase extends RepositoryCore {
+  markThreadUnread(threadID: string, unreadAt: number) {
+      this.sqlite.query(`
+        INSERT INTO thread_read_state (thread_id, read_at, unread_at, updated_at)
+        VALUES (?, 0, ?, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+          unread_at = MAX(COALESCE(thread_read_state.unread_at, 0), excluded.unread_at),
+          updated_at = MAX(thread_read_state.updated_at, excluded.updated_at)
+      `).run(threadID, unreadAt, unreadAt)
+    }
+
+  markThreadReadThrough(threadID: string, readThroughAt: number) {
+      this.sqlite.query(`
+        INSERT INTO thread_read_state (thread_id, read_at, unread_at, updated_at)
+        VALUES (?, ?, NULL, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+          read_at = MAX(thread_read_state.read_at, excluded.read_at),
+          unread_at = CASE
+            WHEN thread_read_state.unread_at <= excluded.read_at THEN NULL
+            ELSE thread_read_state.unread_at
+          END,
+          updated_at = MAX(thread_read_state.updated_at, excluded.updated_at)
+      `).run(threadID, readThroughAt, readThroughAt)
+    }
+
   getThreadSettings(threadID: string): ThreadSettings | null {
       const row = this.sqlite.query("SELECT task_mode, sandbox_mode, approval_policy, approvals_reviewer FROM threads WHERE id = ?").get(threadID) as ThreadSettingsColumns | null
       return row ? threadSettingsFromRow(row) : null

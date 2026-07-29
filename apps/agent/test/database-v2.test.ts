@@ -194,6 +194,29 @@ describe("数据库兼容与迁移", () => {
     sqlite.close()
   })
 
+  test("v22 到 v23 新增独立未读表并保留现有会话", () => {
+    const sqlite = new Database(":memory:")
+    sqlite.exec(HISTORY_SCHEMA
+      .filter((statement) => !statement.startsWith("CREATE TABLE thread_read_state"))
+      .join(";\n"))
+    sqlite.exec(`
+      PRAGMA user_version = 22;
+      INSERT INTO threads (id, title, created_at, updated_at)
+      VALUES ('thread:existing', '保留的会话', 1, 2);
+    `)
+
+    initializeSchema(sqlite)
+    initializeSchema(sqlite)
+
+    expect(sqlite.query("SELECT id, title FROM threads").get()).toEqual({
+      id: "thread:existing",
+      title: "保留的会话",
+    })
+    expect(sqlite.query("SELECT * FROM thread_read_state").all()).toEqual([])
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    sqlite.close()
+  })
+
   test("已知 history application ID 2 从 schema 19 原地升级并保留会话", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v19-"))
     paths.push(root)

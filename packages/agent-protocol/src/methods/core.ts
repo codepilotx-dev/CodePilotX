@@ -598,6 +598,16 @@ export const ThreadUpdateParamsSchema = Schema.Struct({
 
 export const ThreadUpdateResultSchema = Schema.Struct({ thread: AgentThread.ThreadListItemSchema })
 
+export const ThreadMarkReadParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  readThroughAt: TimestampSchema,
+  ...OperationParamsSchema.fields,
+})
+
+export const ThreadMarkReadResultSchema = Schema.Struct({
+  thread: AgentThread.ThreadListItemSchema,
+})
+
 export const ThreadTitleRegenerateParamsSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   ...OperationParamsSchema.fields,
@@ -1017,6 +1027,7 @@ export const CoreRpcMethods = {
   "thread/read": defineMethod({ params: ThreadReadParamsSchema, result: ThreadSnapshotResultSchema, errors: ThreadErrors, capability: null, mutation: false }),
   "thread/history/read": defineMethod({ params: ThreadHistoryReadParamsSchema, result: ThreadHistoryPageResultSchema, errors: ThreadErrors, capability: null, mutation: false, exactParams: true, exactResult: true }),
   "thread/update": defineMethod({ params: ThreadUpdateParamsSchema, result: ThreadUpdateResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
+  "thread/mark-read": defineMethod({ params: ThreadMarkReadParamsSchema, result: ThreadMarkReadResultSchema, errors: ThreadErrors, capability: null, mutation: true, exactParams: true, exactResult: true }),
   "thread/title/regenerate": defineMethod({ params: ThreadTitleRegenerateParamsSchema, result: ThreadTitleRegenerateResultSchema, errors: ThreadErrors, capability: null, mutation: true, exactParams: true, exactResult: true }),
   "thread/settings/update": defineMethod({ params: ThreadSettingsUpdateParamsSchema, result: ThreadSettingsUpdateResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/delete": defineMethod({ params: ThreadDeleteParamsSchema, result: ThreadDeleteResultSchema, errors: ThreadErrors, capability: null, mutation: true }),

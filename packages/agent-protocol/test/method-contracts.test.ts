@@ -66,6 +66,7 @@ const threadListItem = {
   messageCount: 0,
   latestTurnStatus: null,
   archivedAt: null,
+  unreadAt: 2,
   settings: threadSettings,
   createdAt: 1,
   updatedAt: 1,
@@ -330,6 +331,18 @@ const modelCatalog = {
 
 const providerCatalog = {
   ...modelCatalog,
+  providers: [{
+    ...Provider.Info.empty(providerId),
+    authConfigured: true,
+    config: {
+      kind: "builtin" as const,
+      id: providerId,
+      enabled: true,
+      allowModels: [],
+      denyModels: [],
+      models: [],
+    },
+  }],
   issues: [],
 }
 
@@ -680,6 +693,11 @@ const fixtures = {
     operationId: "operation:thread-update",
     expectedVersion: 1,
   }, { thread: threadListItem }),
+  "thread/mark-read": methodFixture("thread/mark-read", {
+    threadId: threadListItem.id,
+    readThroughAt: 2,
+    operationId: "operation:thread-mark-read",
+  }, { thread: { ...threadListItem, unreadAt: null } }),
   "thread/title/regenerate": methodFixture("thread/title/regenerate", {
     threadId: threadListItem.id,
     operationId: "operation:thread-title-regenerate",
@@ -1868,7 +1886,7 @@ const fixtures = {
 describe("RPC method schema contracts", () => {
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(155)
+    expect(methods).toHaveLength(156)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -1887,6 +1905,17 @@ describe("RPC method schema contracts", () => {
       expect(encodedParams as unknown, `${method} encoded params`).toEqual(fixture.params as unknown)
       expect(encodedResult as unknown, `${method} encoded result`).toEqual(fixture.result as unknown)
     }
+  })
+
+  test("thread list unread marker stays optional and nullable", () => {
+    const decode = Schema.decodeUnknownSync(RpcMethods["thread/list"].result)
+    const withoutUnread = structuredClone(fixtures["thread/list"].result)
+    delete (withoutUnread.threads[0] as { unreadAt?: number | null }).unreadAt
+    expect(decode(withoutUnread).threads[0]?.unreadAt).toBeUndefined()
+
+    const read = structuredClone(fixtures["thread/list"].result)
+    ;(read.threads[0] as { unreadAt?: number | null }).unreadAt = null
+    expect(decode(read).threads[0]?.unreadAt).toBeNull()
   })
 
   test("accepts bundled changelog as a release notes source", () => {
@@ -2004,6 +2033,22 @@ describe("RPC method schema contracts", () => {
         withoutCacheState,
       ), `${method} requires cacheState`).toThrow()
     }
+  })
+
+  test("requires provider auth status without exposing authentication material", () => {
+    const decode = Schema.decodeUnknownSync(
+      RpcMethods["provider/list"].result,
+      { onExcessProperty: "error" },
+    )
+    const result = structuredClone(fixtures["provider/list"].result)
+    const provider = result.providers[0] as Record<string, unknown>
+
+    delete provider.authConfigured
+    expect(() => decode(result)).toThrow()
+
+    provider.authConfigured = true
+    provider.apiKey = "sk-must-not-cross-rpc"
+    expect(() => decode(result)).toThrow()
   })
 
   test("uses explicit FIFO queue methods without reorder or queue-to-steer mutations", () => {

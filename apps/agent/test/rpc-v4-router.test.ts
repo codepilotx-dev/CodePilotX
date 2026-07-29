@@ -9,6 +9,7 @@ import { Capabilities } from "@codepilotx/agent-protocol"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { AgentError } from "../src/domain"
 import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcRouter"
+import { ThreadProjection } from "../src/transport/ThreadProjection"
 
 const roots: string[] = []
 const removeRoot = async (root: string) => {
@@ -480,6 +481,41 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
+  test("thread/mark-read 通过 read-through 清除持久化未读标记", async () => {
+    let database: AgentDatabase
+    const history = {
+      markRead: (threadID: string, readThroughAt: number) => {
+        database.markThreadReadThrough(threadID, readThroughAt)
+        return new ThreadProjection(database).list().find((item) => item.id === threadID)!
+      },
+    } as unknown as RpcRouterDependencies["history"]
+    const { db, initialize, call } = await fixture({ history })
+    database = db
+    await initialize()
+    const thread = db.createThread("未读 RPC")
+    db.markThreadUnread(thread.id, 100)
+
+    const stale = await call("thread/mark-read", {
+      threadId: thread.id,
+      readThroughAt: 90,
+      operationId: "operation:mark-read-stale",
+    })
+    expect(stale.error).toBeUndefined()
+    expect(stale.result.thread.unreadAt).toBe(100)
+
+    const read = await call("thread/mark-read", {
+      threadId: thread.id,
+      readThroughAt: 100,
+      operationId: "operation:mark-read",
+    })
+    expect(read.error).toBeUndefined()
+    expect(read.result.thread.unreadAt).toBeNull()
+    expect(db.sqlite.query(
+      "SELECT read_at, unread_at FROM thread_read_state WHERE thread_id = ?",
+    ).get(thread.id)).toEqual({ read_at: 100, unread_at: null })
+    db.close()
+  })
+
   test("RpcMethods is the only method allowlist and params are validated before services", async () => {
     const { db, call, counts, initialize } = await fixture()
     await initialize()
@@ -739,11 +775,15 @@ describe("RPC v4 Router", () => {
     ]
     let listCalls = 0
     let modelCalls = 0
+    const authConfiguredCalls: string[] = []
     const { db, call, initialize } = await fixture({
       providers: {
         list: async () => {
           listCalls += 1
-          return [Provider.Info.empty(providerID), Provider.Info.empty(otherProviderID)]
+          return [
+            Provider.Info.empty(providerID),
+            { ...Provider.Info.empty(otherProviderID), disabled: true },
+          ]
         },
         models: async () => {
           modelCalls += 1
@@ -771,6 +811,10 @@ describe("RPC v4 Router", () => {
           },
         ],
         configIssues: async () => [],
+        isAuthConfigured: async (candidateProviderID: string) => {
+          authConfiguredCalls.push(candidateProviderID)
+          return true
+        },
       } as unknown as RpcRouterDependencies["piModels"],
     })
     await initialize()
@@ -778,6 +822,10 @@ describe("RPC v4 Router", () => {
     const providers = await call("provider/list", {})
     expect(providers.error).toBeUndefined()
     expect(providers.result.providers).toHaveLength(2)
+    expect(providers.result.providers.map((provider: { authConfigured: boolean }) =>
+      provider.authConfigured
+    )).toEqual([true, false])
+    expect(authConfiguredCalls).toEqual([String(providerID)])
     const first = await call("model/list", { providerId: providerID, enabled: true, limit: 1 })
     expect(first.result).toMatchObject({ total: 2, catalogVersion: 1 })
     expect(first.result.providers[0].models.map((model: Model.Info) => model.id)).toEqual(["alpha"])
