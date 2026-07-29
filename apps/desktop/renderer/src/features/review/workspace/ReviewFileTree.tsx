@@ -118,7 +118,12 @@ function ReviewFileRow({
       type="button"
       onClick={() => onSelect(file.path)}
     >
-      <FileIcon aria-hidden="true" path={file.path} size={APP_ICON_SIZE} />
+      <FileIcon
+        aria-hidden="true"
+        associationMode="extension-only"
+        path={file.path}
+        size={APP_ICON_SIZE}
+      />
       <span className="review-file-path">{displayName}</span>
       {commentCount > 0 ? (
         <span className="review-comment-badge">

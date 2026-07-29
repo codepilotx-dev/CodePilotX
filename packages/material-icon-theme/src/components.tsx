@@ -41,18 +41,24 @@ function AsyncMaterialIcon({
   name,
   ...props
 }: MaterialIconProps & { fallback: ComponentType<MaterialSvgIconProps> }) {
+  const initialIcon = componentCache.get(name)
   const [Icon, setIcon] = useState<IconComponent>(() =>
-    componentCache.get(name) ?? Fallback,
+    initialIcon ?? Fallback,
+  )
+  const [resolvedName, setResolvedName] = useState<IconName | null>(() =>
+    initialIcon ? name : null,
   )
 
   useEffect(() => {
     const cached = componentCache.get(name)
     if (cached) {
       setIcon(() => cached)
+      setResolvedName(name)
       return
     }
 
     setIcon(() => Fallback)
+    setResolvedName(null)
     let active = true
     const shard = iconShard(name)
     const loading = loadCachedIconShard(shardCache, shard, () =>
@@ -64,14 +70,23 @@ function AsyncMaterialIcon({
     )
     void loading.then(() => {
       const loaded = componentCache.get(name)
-      if (active && loaded) setIcon(() => loaded)
+      if (active && loaded) {
+        setIcon(() => loaded)
+        setResolvedName(name)
+      }
     })
     return () => {
       active = false
     }
   }, [Fallback, name])
 
-  return <Icon {...props} />
+  return (
+    <Icon
+      data-material-icon-name={name}
+      data-material-icon-ready={resolvedName === name ? "true" : "false"}
+      {...props}
+    />
+  )
 }
 
 export interface FileIconProps
@@ -82,6 +97,7 @@ export interface FileIconProps
 
 export function FileIcon({
   path,
+  associationMode,
   language,
   languageId,
   parentPath,
@@ -89,6 +105,7 @@ export function FileIcon({
   ...props
 }: FileIconProps) {
   const name = resolveFileIconName(path ?? "", {
+    associationMode,
     language,
     languageId,
     parentPath,
