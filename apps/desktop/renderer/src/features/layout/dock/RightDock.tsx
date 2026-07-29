@@ -192,6 +192,7 @@ function WorkbenchPanelResizeController({
   const guideRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLDivElement>(null)
   const resizeBoundsRef = useRef<DOMRect | null>(null)
+  const resizeSkeletonTargetRef = useRef<HTMLElement | null>(null)
   const isBottom = target === 'bottom'
   const size = isBottom ? (height ?? minHeight ?? 160) : width
   const minSize = isBottom ? (minHeight ?? 160) : minWidth
@@ -199,25 +200,38 @@ function WorkbenchPanelResizeController({
     ? (maxHeight ?? minHeight ?? 160)
     : maxWidth
 
+  const clearResizeSkeletonTarget = useCallback((): void => {
+    resizeSkeletonTargetRef.current?.removeAttribute(
+      'data-resize-skeleton-active',
+    )
+    resizeSkeletonTargetRef.current = null
+  }, [])
+
+  useEffect(() => clearResizeSkeletonTarget, [clearResizeSkeletonTarget])
+
   const updateResizePhase = useCallback(
     (phase: ResizePhase): void => {
-      const content = contentRef.current
       const handle = handleRef.current
       if (phase === 'idle') {
-        if (content) {
-          content.style.removeProperty('filter')
-          content.style.removeProperty('will-change')
-        }
+        clearResizeSkeletonTarget()
         if (handle) delete handle.dataset.resizePhase
         return
       }
-      if (content) {
-        content.style.filter = 'blur(6px)'
-        content.style.willChange = 'filter'
+
+      if (phase === 'dragging') {
+        clearResizeSkeletonTarget()
+        const activeTarget = contentRef.current?.querySelector<HTMLElement>(
+          ':scope > .workbench-tab-panel:not([hidden]) ' +
+            '[data-resize-skeleton-target="dock-review-diff"]',
+        )
+        if (activeTarget) {
+          activeTarget.setAttribute('data-resize-skeleton-active', '')
+          resizeSkeletonTargetRef.current = activeTarget
+        }
       }
       if (handle) handle.dataset.resizePhase = phase
     },
-    [contentRef],
+    [clearResizeSkeletonTarget, contentRef],
   )
 
   const previewSize = useCallback(

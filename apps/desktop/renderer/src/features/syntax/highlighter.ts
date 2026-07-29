@@ -41,7 +41,11 @@ async function getHighlighter(): Promise<Highlighter> {
   if (highlighterPromise) return highlighterPromise
 
   highlighterPromise = loadShiki().then(shiki =>
-    shiki.getSingletonHighlighter({ langs: [], themes: [] }),
+    shiki.getSingletonHighlighter({
+      engine: shiki.createJavaScriptRegexEngine(),
+      langs: [],
+      themes: [],
+    }),
   )
   return highlighterPromise
 }

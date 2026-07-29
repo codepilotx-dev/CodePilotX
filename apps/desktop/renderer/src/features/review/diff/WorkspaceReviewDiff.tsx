@@ -56,6 +56,7 @@ import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
+import { ReviewResizeSkeleton } from "./ReviewResizeSkeleton.js";
 import { buildReviewFileTree } from "../workspace/buildReviewFileTree.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "../workspace/CommitPopover.js";
@@ -68,11 +69,20 @@ import {
   type ReviewTabUiState,
 } from "../../layout/tabs/conversationUiState.js";
 import { syntaxTokenStyle } from "../../syntax/CodeBlock.js";
-import { resolveLanguageFromPath } from "../../syntax/language.js";
+import {
+  normalizeSyntaxLanguage,
+  resolveLanguageFromPath,
+} from "../../syntax/language.js";
 import { resolveThemeId } from "../../syntax/theme.js";
 import type { SyntaxToken } from "../../syntax/types.js";
 import { useHighlightedCode } from "../../syntax/useHighlightedCode.js";
 import { useDesktopTheme } from "../../theme/themeContext.js";
+import {
+  alignReviewDiffLines,
+  buildReviewIntralineByLineId,
+  type ReviewIntralineByLineId,
+  type ReviewIntralineRange,
+} from "./reviewIntralineDiff.js";
 import {
   ReviewFileRequestCoordinator,
   reviewAgentClient,
@@ -141,6 +151,11 @@ export type CodexDiffPaneRow =
     };
 
 export type ReviewSyntaxByLineId = ReadonlyMap<string, readonly SyntaxToken[]>;
+export type ReviewDiffSyntaxState = "loading" | "ready" | "plain";
+export type ReviewDiffSyntax = {
+  byLineId: ReviewSyntaxByLineId;
+  state: ReviewDiffSyntaxState;
+};
 
 export const REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH = 340;
 export const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 240;
@@ -162,10 +177,11 @@ export const ListChevronsUpDown = createLucideIcon("list-chevrons-up-down", [
   ["path", { d: "m15 8 3-3 3 3", key: "bc4io6" }],
   ["path", { d: "m15 16 3 3 3-3", key: "9wmg1l" }],
 ]);
-export const FILE_HEADER_HEIGHT = 32;
+export const FILE_HEADER_HEIGHT = 38;
 export const HUNK_HEADER_HEIGHT = 28;
 export const DIFF_LINE_HEIGHT = 22;
 export const EMPTY_FILE_MIN_HEIGHT = 64;
+export const REVIEW_FILE_VIRTUALIZE_LINE_THRESHOLD = 800;
 
 export function estimateFilePreviewHeight(file: DesktopReviewDiffFile): number {
   let totalLines = 0;
@@ -280,13 +296,14 @@ export function ReviewDiffPreview({
   draft,
   fileLoadStates,
   files,
-  largeDiffMode,
+  largeWorkspaceMode,
   pending,
   scope,
   selectedPath,
   toggleCollapseDiff,
   viewportRef,
   view,
+  showWordDiff,
   wrapLines,
   workspacePath,
   onApplyOperation,
@@ -307,13 +324,14 @@ export function ReviewDiffPreview({
   draft: CommentDraft | null;
   fileLoadStates: ReadonlyMap<string, ReviewFileLoadState>;
   files: DesktopReviewDiffFile[];
-  largeDiffMode: boolean;
+  largeWorkspaceMode: boolean;
   pending: boolean;
   scope: DesktopReviewScope;
   selectedPath: string | null;
   toggleCollapseDiff: (path: string) => void;
   viewportRef: React.RefObject<HTMLDivElement | null>;
   view: DesktopReviewView;
+  showWordDiff: boolean;
   wrapLines: boolean;
   workspacePath: string | null;
   onApplyOperation: (
@@ -428,53 +446,69 @@ export function ReviewDiffPreview({
     <section
       className="review-diff-preview"
       aria-label="工作区 diff"
+      data-resize-skeleton-target="dock-review-diff"
       data-slot="review-diff-list"
     >
-      <ScrollArea
-        className="review-diff-scroll"
-        contentClassName="review-diff-scroll-content"
-        viewportRef={viewportRef}
-        onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
+      <div
+        className="review-diff-preview-content"
+        data-resize-skeleton-content="true"
       >
-        {files.map((file) => (
-          <ReviewDiffFilePreview
-            active={file.path === selectedPath}
-            attachedComments={attachedComments}
-            collapsedDiffPaths={collapsedDiffPaths}
-            diffMarkerStyle={diffMarkerStyle}
-            draft={draft}
-            file={file}
-            fileLoadState={
-              fileLoadStates.get(file.path) ??
-              (file.hunks.length > 0
-                ? { status: "loaded" }
-                : { status: "idle" })
-            }
-            key={file.path}
-            largeDiffMode={largeDiffMode}
-            pending={pending}
-            previewHeight={estimateFilePreviewHeight(file)}
-            renderBody={
-              file.path === selectedPath || windowedPaths.has(file.path)
-            }
-            scope={scope}
-            sectionRef={setFileSectionElement(file.path)}
-            toggleCollapseDiff={toggleCollapseDiff}
-            onRetryFile={onRetryFile}
-            view={view}
-            wrapLines={wrapLines}
-            workspacePath={workspacePath}
-            onApplyOperation={onApplyOperation}
-            onCancelDraft={onCancelDraft}
-            onCreateDraft={onCreateDraft}
-            onDeleteComment={onDeleteComment}
-            onDraftBodyChange={onDraftBodyChange}
-            onResolveComment={onResolveComment}
-            onSaveDraft={onSaveDraft}
-          />
-        ))}
-      </ScrollArea>
+        <ScrollArea
+          className="review-diff-scroll"
+          contentClassName="review-diff-scroll-content"
+          viewportRef={viewportRef}
+          onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
+        >
+          {files.map((file) => (
+            <ReviewDiffFilePreview
+              active={file.path === selectedPath}
+              attachedComments={attachedComments}
+              collapsedDiffPaths={collapsedDiffPaths}
+              diffMarkerStyle={diffMarkerStyle}
+              draft={draft}
+              file={file}
+              fileLoadState={
+                fileLoadStates.get(file.path) ??
+                (file.hunks.length > 0
+                  ? { status: "loaded" }
+                  : { status: "idle" })
+              }
+              key={file.path}
+              largeWorkspaceMode={largeWorkspaceMode}
+              pending={pending}
+              previewHeight={estimateFilePreviewHeight(file)}
+              renderBody={
+                file.path === selectedPath || windowedPaths.has(file.path)
+              }
+              scope={scope}
+              sectionRef={setFileSectionElement(file.path)}
+              toggleCollapseDiff={toggleCollapseDiff}
+              onRetryFile={onRetryFile}
+              view={view}
+              showWordDiff={showWordDiff}
+              wrapLines={wrapLines}
+              workspacePath={workspacePath}
+              onApplyOperation={onApplyOperation}
+              onCancelDraft={onCancelDraft}
+              onCreateDraft={onCreateDraft}
+              onDeleteComment={onDeleteComment}
+              onDraftBodyChange={onDraftBodyChange}
+              onResolveComment={onResolveComment}
+              onSaveDraft={onSaveDraft}
+            />
+          ))}
+        </ScrollArea>
+      </div>
+      <ReviewResizeSkeleton variant="diff" />
     </section>
+  );
+}
+
+export function shouldVirtualizeReviewFile(
+  file: DesktopReviewDiffFile,
+): boolean {
+  return (
+    countReviewDiffLines([file]) > REVIEW_FILE_VIRTUALIZE_LINE_THRESHOLD
   );
 }
 
@@ -486,7 +520,7 @@ export function ReviewDiffFilePreview({
   draft,
   file,
   fileLoadState,
-  largeDiffMode,
+  largeWorkspaceMode,
   pending,
   previewHeight,
   renderBody,
@@ -495,6 +529,7 @@ export function ReviewDiffFilePreview({
   onRetryFile,
   toggleCollapseDiff,
   view,
+  showWordDiff,
   wrapLines,
   workspacePath,
   onApplyOperation,
@@ -512,7 +547,7 @@ export function ReviewDiffFilePreview({
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
   fileLoadState: ReviewFileLoadState;
-  largeDiffMode: boolean;
+  largeWorkspaceMode: boolean;
   pending: boolean;
   previewHeight: number;
   renderBody: boolean;
@@ -521,6 +556,7 @@ export function ReviewDiffFilePreview({
   onRetryFile: (path: string) => void;
   toggleCollapseDiff: (path: string) => void;
   view: DesktopReviewView;
+  showWordDiff: boolean;
   wrapLines: boolean;
   workspacePath: string | null;
   onApplyOperation: (
@@ -542,12 +578,19 @@ export function ReviewDiffFilePreview({
 
   const virtualize = React.useMemo(() => {
     if (!renderBody || isCollapsed || !hasContent) return false;
-    return largeDiffMode;
-  }, [renderBody, isCollapsed, hasContent, largeDiffMode]);
+    return shouldVirtualizeReviewFile(file);
+  }, [renderBody, isCollapsed, hasContent, file]);
 
   const flattenedRows = React.useMemo(
     () => (virtualize ? flattenDiffRows(file, view) : []),
     [virtualize, file, view],
+  );
+  const intralineByLineId = React.useMemo(
+    () =>
+      buildReviewIntralineByLineId(file.hunks, {
+        enabled: showWordDiff,
+      }),
+    [file.hunks, showWordDiff],
   );
 
   let diffBody: React.ReactNode;
@@ -565,12 +608,12 @@ export function ReviewDiffFilePreview({
     diffBody = (
       <div
         className={
-          largeDiffMode
+          largeWorkspaceMode
             ? "review-diff-virtual-body fill-space"
             : "review-diff-virtual-body"
         }
         style={
-          !largeDiffMode
+          !largeWorkspaceMode
             ? { height: Math.min(previewHeight - FILE_HEADER_HEIGHT, 600) }
             : undefined
         }
@@ -581,6 +624,7 @@ export function ReviewDiffFilePreview({
           draft={draft}
           file={file}
           flattenedRows={flattenedRows}
+          intralineByLineId={intralineByLineId}
           pending={pending}
           scope={scope}
           view={view}
@@ -627,6 +671,7 @@ export function ReviewDiffFilePreview({
         diffMarkerStyle={diffMarkerStyle}
         draft={draft}
         file={file}
+        intralineByLineId={intralineByLineId}
         pending={pending}
         scope={scope}
         wrapLines={wrapLines}
@@ -646,6 +691,7 @@ export function ReviewDiffFilePreview({
         diffMarkerStyle={diffMarkerStyle}
         draft={draft}
         file={file}
+        intralineByLineId={intralineByLineId}
         pending={pending}
         scope={scope}
         wrapLines={wrapLines}
@@ -670,7 +716,7 @@ export function ReviewDiffFilePreview({
   return (
     <section
       className={
-        virtualize && largeDiffMode
+        virtualize && largeWorkspaceMode
           ? "review-diff-file-preview virtualized fill-space"
           : virtualize
             ? "review-diff-file-preview virtualized"
@@ -694,6 +740,7 @@ export function ReviewDiffFilePreview({
         onKeyDown={handleKeyDown}
       >
         <FileIcon
+          associationMode="extension-only"
           aria-hidden="true"
           className="review-file-icon"
           path={file.path}
@@ -817,6 +864,7 @@ export function ReviewVirtualDiffRows({
   draft,
   file,
   flattenedRows,
+  intralineByLineId,
   pending,
   scope,
   view,
@@ -833,6 +881,7 @@ export function ReviewVirtualDiffRows({
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
   flattenedRows: DiffVirtualRow[];
+  intralineByLineId: ReviewIntralineByLineId;
   pending: boolean;
   scope: DesktopReviewScope;
   view: DesktopReviewView;
@@ -849,73 +898,203 @@ export function ReviewVirtualDiffRows({
   onResolveComment: (commentId: string) => void;
   onSaveDraft: () => void;
 }): React.ReactNode {
-  const syntaxByLineId = useReviewDiffSyntax(file);
+  const syntax = useReviewDiffSyntax(file);
 
   return (
-    <VList
-      className="review-diff-vlist"
-      style={{ width: "100%", height: "100%" }}
+    <div
+      className="review-codex-diff review-codex-diff--virtual"
+      data-diff=""
+      data-diff-type={view === "split" ? "split" : "single"}
+      data-indicators={diffMarkerStyle === "symbol" ? "classic" : "bars"}
+      data-overflow="scroll"
+      data-review-syntax-state={syntax.state}
     >
-      {flattenedRows.map((row) =>
-        row.kind === "hunk-header" ? (
-          <div
-            className="review-diff-vlist-row"
-            key={`hunk-${row.hunk.id}`}
-          >
-            <ReviewHunkHeader
+      <VList
+        className="review-diff-vlist"
+        style={{ width: "100%", height: "100%" }}
+      >
+        {flattenedRows.map((row) =>
+          row.kind === "hunk-header" ? (
+            <VirtualDiffHunkRow
               file={file}
               hunk={row.hunk}
-              unmodifiedLines={row.unmodifiedLines}
+              key={`hunk-${row.hunk.id}`}
               pending={pending}
               scope={scope}
+              unmodifiedLines={row.unmodifiedLines}
               onApplyOperation={onApplyOperation}
             />
-          </div>
-        ) : view === "split" && row.kind === "split-row" ? (
-          <VirtualDiffSplitRow
-            key={row.rowId}
-            attachedComments={attachedComments}
-            diffMarkerStyle={diffMarkerStyle}
-            draft={draft}
+          ) : view === "split" && row.kind === "split-row" ? (
+            <VirtualDiffSplitRow
+              key={row.rowId}
+              attachedComments={attachedComments}
+              draft={draft}
+              file={file}
+              left={row.left}
+              right={row.right}
+              intralineByLineId={intralineByLineId}
+              syntaxByLineId={syntax.byLineId}
+              onCancelDraft={onCancelDraft}
+              onCreateDraft={onCreateDraft}
+              onDeleteComment={onDeleteComment}
+              onDraftBodyChange={onDraftBodyChange}
+              onResolveComment={onResolveComment}
+              onSaveDraft={onSaveDraft}
+            />
+          ) : row.kind === "inline-line" ? (
+            <VirtualDiffInlineRow
+              key={row.line.id}
+              attachedComments={attachedComments}
+              draft={draft}
+              file={file}
+              line={row.line}
+              intralineByLineId={intralineByLineId}
+              syntaxByLineId={syntax.byLineId}
+              onCancelDraft={onCancelDraft}
+              onCreateDraft={onCreateDraft}
+              onDeleteComment={onDeleteComment}
+              onDraftBodyChange={onDraftBodyChange}
+              onResolveComment={onResolveComment}
+              onSaveDraft={onSaveDraft}
+            />
+          ) : null,
+        )}
+      </VList>
+    </div>
+  );
+}
+
+export function VirtualDiffHunkRow({
+  file,
+  hunk,
+  unmodifiedLines,
+  pending,
+  scope,
+  onApplyOperation,
+}: {
+  file: DesktopReviewDiffFile;
+  hunk: DesktopReviewDiffHunk;
+  unmodifiedLines: number;
+  pending: boolean;
+  scope: DesktopReviewScope;
+  onApplyOperation: (
+    action: "stage" | "unstage" | "revert",
+    target: { type: "hunk"; path: string; hunkId: string },
+  ) => void;
+}): React.ReactNode {
+  return (
+    <div
+      className="review-codex-diff__virtual-row"
+      data-virtual-layout="hunk"
+    >
+      <div
+        className="review-codex-diff__hunk review-codex-diff__hunk--gutter"
+        data-separator="line-info"
+      />
+      <div
+        className="review-codex-diff__hunk review-codex-diff__hunk--content"
+        data-separator="line-info"
+      >
+        <div data-separator-wrapper="">
+          <span data-separator-content="">
+            {formatUnmodifiedLines(unmodifiedLines)}
+          </span>
+          <ReviewHunkActions
             file={file}
-            left={row.left}
-            right={row.right}
-            syntaxByLineId={syntaxByLineId}
-            onCancelDraft={onCancelDraft}
-            onCreateDraft={onCreateDraft}
-            onDeleteComment={onDeleteComment}
-            onDraftBodyChange={onDraftBodyChange}
-            onResolveComment={onResolveComment}
-            onSaveDraft={onSaveDraft}
+            hunk={hunk}
+            pending={pending}
+            scope={scope}
+            onApplyOperation={onApplyOperation}
           />
-        ) : row.kind === "inline-line" ? (
-          <VirtualDiffInlineRow
-            key={row.line.id}
-            attachedComments={attachedComments}
-            diffMarkerStyle={diffMarkerStyle}
-            draft={draft}
-            file={file}
-            line={row.line}
-            syntaxByLineId={syntaxByLineId}
-            onCancelDraft={onCancelDraft}
-            onCreateDraft={onCreateDraft}
-            onDeleteComment={onDeleteComment}
-            onDraftBodyChange={onDraftBodyChange}
-            onResolveComment={onResolveComment}
-            onSaveDraft={onSaveDraft}
-          />
-        ) : null,
-      )}
-    </VList>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ReviewDiffLineNumber({
+  anchor,
+  cellTone,
+  lineNumber,
+  syncRow,
+  onCreateDraft,
+}: {
+  anchor: CommentAnchor | null;
+  cellTone: ReviewCell["tone"];
+  lineNumber: number | null;
+  syncRow?: string;
+  onCreateDraft: (draft: CommentDraft) => void;
+}): React.ReactNode {
+  return (
+    <div
+      className="review-codex-diff__number"
+      data-column-number={lineNumber ?? ""}
+      data-diff-sync-row={syncRow}
+      data-line-type={codexDiffLineType(cellTone)}
+    >
+      <LineCommentButton
+        anchor={anchor}
+        disabled={!anchor}
+        onCreateDraft={onCreateDraft}
+      />
+      <span data-line-number-content="">{lineNumber ?? ""}</span>
+    </div>
+  );
+}
+
+export function ReviewDiffLineContent({
+  anchor,
+  cellTone,
+  children,
+  comments,
+  draft,
+  syncRow,
+  onCancelDraft,
+  onDeleteComment,
+  onDraftBodyChange,
+  onResolveComment,
+  onSaveDraft,
+}: {
+  anchor: CommentAnchor | null;
+  cellTone: ReviewCell["tone"];
+  children: React.ReactNode;
+  comments: DesktopReviewComment[];
+  draft: CommentDraft | null;
+  syncRow?: string;
+  onCancelDraft: () => void;
+  onDeleteComment: (commentId: string) => void;
+  onDraftBodyChange: (body: string) => void;
+  onResolveComment: (commentId: string) => void;
+  onSaveDraft: () => void;
+}): React.ReactNode {
+  return (
+    <div
+      className="review-codex-diff__line"
+      data-diff-sync-row={syncRow}
+      data-line=""
+      data-line-type={codexDiffLineType(cellTone)}
+    >
+      {children}
+      <LineComments
+        comments={comments}
+        draft={draft}
+        anchor={anchor}
+        onCancelDraft={onCancelDraft}
+        onDeleteComment={onDeleteComment}
+        onDraftBodyChange={onDraftBodyChange}
+        onResolveComment={onResolveComment}
+        onSaveDraft={onSaveDraft}
+      />
+    </div>
   );
 }
 
 export function VirtualDiffInlineRow({
   attachedComments,
-  diffMarkerStyle,
   draft,
   file,
   line,
+  intralineByLineId,
   syntaxByLineId,
   onCancelDraft,
   onCreateDraft,
@@ -925,10 +1104,10 @@ export function VirtualDiffInlineRow({
   onSaveDraft,
 }: {
   attachedComments: Map<string, DesktopReviewComment[]>;
-  diffMarkerStyle: DesktopDiffMarkerStyle;
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
   line: DesktopReviewDiffLine;
+  intralineByLineId: ReviewIntralineByLineId;
   syntaxByLineId: ReviewSyntaxByLineId;
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
@@ -945,53 +1124,47 @@ export function VirtualDiffInlineRow({
     : [];
 
   return (
-    <div className="review-diff-vlist-row">
-      <div
-        className="review-diff-row u-grid u-items-stretch"
-        data-marker-style={diffMarkerStyle}
-        data-line-type={line.type}
+    <div
+      className="review-codex-diff__virtual-row"
+      data-virtual-layout="single"
+    >
+      <ReviewDiffLineNumber
+        anchor={anchor}
+        cellTone={line.type}
+        lineNumber={lineNumber}
+        onCreateDraft={onCreateDraft}
+      />
+      <ReviewDiffLineContent
+        anchor={anchor}
+        comments={comments}
+        draft={draft}
+        cellTone={line.type}
+        onCancelDraft={onCancelDraft}
+        onDeleteComment={onDeleteComment}
+        onDraftBodyChange={onDraftBodyChange}
+        onResolveComment={onResolveComment}
+        onSaveDraft={onSaveDraft}
       >
-        <LineCommentButton
-          anchor={anchor}
-          disabled={!anchor}
-          onCreateDraft={onCreateDraft}
-        />
-        <span
-          className="review-diff-line-number u-text-right"
-          data-tone={line.type}
-        >
-          {lineNumber ?? ""}
-        </span>
-        <DiffMarker tone={line.type} />
-        <code className="review-diff-line-content">
+        <span className="review-codex-diff__line-text">
           <ReviewSyntaxText
             content={line.content}
             line={line}
+            ranges={intralineByLineId.get(line.id)}
             syntaxByLineId={syntaxByLineId}
           />
-        </code>
-        <LineComments
-          comments={comments}
-          draft={draft}
-          anchor={anchor}
-          onCancelDraft={onCancelDraft}
-          onDeleteComment={onDeleteComment}
-          onDraftBodyChange={onDraftBodyChange}
-          onResolveComment={onResolveComment}
-          onSaveDraft={onSaveDraft}
-        />
-      </div>
+        </span>
+      </ReviewDiffLineContent>
     </div>
   );
 }
 
 export function VirtualDiffSplitRow({
   attachedComments,
-  diffMarkerStyle,
   draft,
   file,
   left,
   right,
+  intralineByLineId,
   syntaxByLineId,
   onCancelDraft,
   onCreateDraft,
@@ -1001,11 +1174,11 @@ export function VirtualDiffSplitRow({
   onSaveDraft,
 }: {
   attachedComments: Map<string, DesktopReviewComment[]>;
-  diffMarkerStyle: DesktopDiffMarkerStyle;
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
   left: ReviewCell;
   right: ReviewCell;
+  intralineByLineId: ReviewIntralineByLineId;
   syntaxByLineId: ReviewSyntaxByLineId;
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
@@ -1015,13 +1188,11 @@ export function VirtualDiffSplitRow({
   onSaveDraft: () => void;
 }): React.ReactNode {
   return (
-    <div className="review-diff-vlist-row">
-      <div
-        className="review-diff-split-row u-grid u-min-w-0"
-        data-marker-style={diffMarkerStyle}
-        data-layout="paired"
-      >
-        {[left, right].map((cell) => {
+    <div
+      className="review-codex-diff__virtual-row"
+      data-virtual-layout="split"
+    >
+      {[left, right].map((cell) => {
           const anchor = buildAnchor(
             file.path,
             cell.side,
@@ -1033,47 +1204,46 @@ export function VirtualDiffSplitRow({
             : [];
           return (
             <div
-              className="review-diff-side u-grid u-min-w-0"
-              data-tone={cell.tone}
+              className="review-codex-diff__virtual-cell"
               key={cell.side}
             >
-              <LineCommentButton
+              <ReviewDiffLineNumber
                 anchor={anchor}
-                disabled={!anchor}
+                cellTone={cell.tone}
+                lineNumber={cell.number}
                 onCreateDraft={onCreateDraft}
               />
-              <span
-                className="review-diff-line-number u-text-right"
-                data-tone={cell.tone}
+              <ReviewDiffLineContent
+                anchor={anchor}
+                comments={comments}
+                draft={draft}
+                cellTone={cell.tone}
+                onCancelDraft={onCancelDraft}
+                onDeleteComment={onDeleteComment}
+                onDraftBodyChange={onDraftBodyChange}
+                onResolveComment={onResolveComment}
+                onSaveDraft={onSaveDraft}
               >
-                {cell.number ?? ""}
-              </span>
-              <DiffMarker tone={cell.tone} />
-              <code className="review-diff-line-content">
+                <span className="review-codex-diff__line-text">
                 {cell.tone === "empty" ? (
                   " "
                 ) : (
                   <ReviewSyntaxText
                     content={cell.content}
                     line={cell.line}
+                    ranges={
+                      cell.line
+                        ? intralineByLineId.get(cell.line.id)
+                        : undefined
+                    }
                     syntaxByLineId={syntaxByLineId}
                   />
                 )}
-              </code>
-              <LineComments
-                comments={comments}
-                draft={draft}
-                anchor={anchor}
-                onCancelDraft={onCancelDraft}
-                onDeleteComment={onDeleteComment}
-                onDraftBodyChange={onDraftBodyChange}
-                onResolveComment={onResolveComment}
-                onSaveDraft={onSaveDraft}
-              />
+                </span>
+              </ReviewDiffLineContent>
             </div>
           );
         })}
-      </div>
     </div>
   );
 }
@@ -1083,6 +1253,7 @@ export function ReviewDiffInline({
   diffMarkerStyle,
   draft,
   file,
+  intralineByLineId,
   pending,
   scope,
   wrapLines,
@@ -1095,7 +1266,7 @@ export function ReviewDiffInline({
   onSaveDraft,
 }: ReviewDiffBodyProps): React.ReactNode {
   const rows = buildUnifiedDiffRows(file);
-  const syntaxByLineId = useReviewDiffSyntax(file);
+  const syntax = useReviewDiffSyntax(file);
   return (
     <pre
       className="review-codex-diff"
@@ -1103,16 +1274,18 @@ export function ReviewDiffInline({
       data-diff-type="single"
       data-indicators={diffMarkerStyle === "symbol" ? "classic" : "bars"}
       data-overflow={wrapLines ? "wrap" : "scroll"}
+      data-review-syntax-state={syntax.state}
     >
       <ReviewDiffCodePane
         attachedComments={attachedComments}
         draft={draft}
         file={file}
+        intralineByLineId={intralineByLineId}
         pane="unified"
         pending={pending}
         rows={rows}
         scope={scope}
-        syntaxByLineId={syntaxByLineId}
+        syntaxByLineId={syntax.byLineId}
         onApplyOperation={onApplyOperation}
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
@@ -1130,6 +1303,7 @@ export function ReviewDiffSplit({
   diffMarkerStyle,
   draft,
   file,
+  intralineByLineId,
   pending,
   scope,
   wrapLines,
@@ -1146,7 +1320,7 @@ export function ReviewDiffSplit({
     () => buildSplitDiffRows(file),
     [file],
   );
-  const syntaxByLineId = useReviewDiffSyntax(file);
+  const syntax = useReviewDiffSyntax(file);
   useSyncCodexSplitRows(rootRef, !wrapLines, file);
 
   return (
@@ -1156,18 +1330,20 @@ export function ReviewDiffSplit({
       data-diff-type="split"
       data-indicators={diffMarkerStyle === "symbol" ? "classic" : "bars"}
       data-overflow={wrapLines ? "wrap" : "scroll"}
+      data-review-syntax-state={syntax.state}
       ref={rootRef}
     >
       <ReviewDiffCodePane
         attachedComments={attachedComments}
         draft={draft}
         file={file}
+        intralineByLineId={intralineByLineId}
         pane="deletions"
         pending={pending}
         rows={leftRows}
         scope={scope}
         syncRows={!wrapLines}
-        syntaxByLineId={syntaxByLineId}
+        syntaxByLineId={syntax.byLineId}
         onApplyOperation={onApplyOperation}
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
@@ -1180,12 +1356,13 @@ export function ReviewDiffSplit({
         attachedComments={attachedComments}
         draft={draft}
         file={file}
+        intralineByLineId={intralineByLineId}
         pane="additions"
         pending={pending}
         rows={rightRows}
         scope={scope}
         syncRows={!wrapLines}
-        syntaxByLineId={syntaxByLineId}
+        syntaxByLineId={syntax.byLineId}
         onApplyOperation={onApplyOperation}
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
@@ -1202,6 +1379,7 @@ export function ReviewDiffCodePane({
   attachedComments,
   draft,
   file,
+  intralineByLineId,
   pane,
   pending,
   rows,
@@ -1258,20 +1436,14 @@ export function ReviewDiffCodePane({
             cell.content,
           );
           return (
-            <div
-              className="review-codex-diff__number"
-              data-column-number={cell.number ?? ""}
-              data-diff-sync-row={syncRows ? row.id : undefined}
-              data-line-type={codexDiffLineType(cell.tone)}
+            <ReviewDiffLineNumber
+              anchor={anchor}
+              cellTone={cell.tone}
               key={`gutter-${row.id}`}
-            >
-              <LineCommentButton
-                anchor={anchor}
-                disabled={!anchor}
-                onCreateDraft={onCreateDraft}
-              />
-              <span data-line-number-content="">{cell.number ?? ""}</span>
-            </div>
+              lineNumber={cell.number}
+              syncRow={syncRows ? row.id : undefined}
+              onCreateDraft={onCreateDraft}
+            />
           );
         })}
       </div>
@@ -1315,12 +1487,18 @@ export function ReviewDiffCodePane({
             ? (attachedComments.get(commentKey(anchor)) ?? [])
             : [];
           return (
-            <div
-              className="review-codex-diff__line"
-              data-diff-sync-row={syncRows ? row.id : undefined}
-              data-line=""
-              data-line-type={codexDiffLineType(cell.tone)}
+            <ReviewDiffLineContent
+              anchor={anchor}
+              cellTone={cell.tone}
+              comments={comments}
+              draft={draft}
               key={`content-${row.id}`}
+              syncRow={syncRows ? row.id : undefined}
+              onCancelDraft={onCancelDraft}
+              onDeleteComment={onDeleteComment}
+              onDraftBodyChange={onDraftBodyChange}
+              onResolveComment={onResolveComment}
+              onSaveDraft={onSaveDraft}
             >
               <span className="review-codex-diff__line-text">
                 {cell.tone === "empty" ? (
@@ -1329,21 +1507,16 @@ export function ReviewDiffCodePane({
                   <ReviewSyntaxText
                     content={cell.content}
                     line={cell.line}
+                    ranges={
+                      cell.line
+                        ? intralineByLineId.get(cell.line.id)
+                        : undefined
+                    }
                     syntaxByLineId={syntaxByLineId}
                   />
                 )}
               </span>
-              <LineComments
-                comments={comments}
-                draft={draft}
-                anchor={anchor}
-                onCancelDraft={onCancelDraft}
-                onDeleteComment={onDeleteComment}
-                onDraftBodyChange={onDraftBodyChange}
-                onResolveComment={onResolveComment}
-                onSaveDraft={onSaveDraft}
-              />
-            </div>
+            </ReviewDiffLineContent>
           );
         })}
       </div>
@@ -1382,9 +1555,10 @@ export function buildUnifiedDiffRows(file: DesktopReviewDiffFile): CodexDiffPane
 
 export function useReviewDiffSyntax(
   file: DesktopReviewDiffFile,
-): ReviewSyntaxByLineId {
+): ReviewDiffSyntax {
   const { activeTheme, codeThemeId } = useDesktopTheme();
   const theme = resolveThemeId(codeThemeId, activeTheme.variant);
+  const language = normalizeSyntaxLanguage(resolveLanguageFromPath(file.path));
   const lines = React.useMemo(
     () => file.hunks.flatMap((hunk) => hunk.lines),
     [file.hunks],
@@ -1395,39 +1569,123 @@ export function useReviewDiffSyntax(
   );
   const presentation = useHighlightedCode({
     code,
-    language: resolveLanguageFromPath(file.path),
+    language,
     theme,
   });
 
   return React.useMemo(() => {
-    const tokens = presentation.highlighted?.tokens;
-    if (!tokens) return new Map<string, readonly SyntaxToken[]>();
+    const highlighted = presentation.highlighted;
+    const matchesRequest =
+      highlighted?.code === code &&
+      highlighted.requestedLanguage === language &&
+      highlighted.requestedTheme === theme;
+    if (!highlighted || !matchesRequest) {
+      return {
+        byLineId: new Map<string, readonly SyntaxToken[]>(),
+        state: "loading",
+      };
+    }
 
     const byLineId = new Map<string, readonly SyntaxToken[]>();
     for (const [index, line] of lines.entries()) {
-      byLineId.set(line.id, tokens[index] ?? []);
+      const lineTokens = highlighted.tokens[index] ?? [];
+      if (lineTokens.map((token) => token.content).join("") === line.content) {
+        byLineId.set(line.id, lineTokens);
+      }
     }
-    return byLineId;
-  }, [lines, presentation.highlighted]);
+    return {
+      byLineId,
+      state: highlighted.language === "text" ? "plain" : "ready",
+    };
+  }, [code, language, lines, presentation.highlighted, theme]);
 }
 
 export function ReviewSyntaxText({
   content,
   line,
+  ranges,
   syntaxByLineId,
 }: {
   content: string;
   line: DesktopReviewDiffLine | null;
+  ranges?: readonly ReviewIntralineRange[];
   syntaxByLineId: ReviewSyntaxByLineId;
 }): React.ReactNode {
   const tokens = line ? syntaxByLineId.get(line.id) : undefined;
-  if (!tokens || tokens.length === 0) return content || " ";
+  const syntaxTokens =
+    tokens?.length && tokens.map((token) => token.content).join("") === content
+      ? tokens
+      : undefined;
+  const validRanges = normalizeReviewIntralineRanges(ranges, content.length);
+  if (validRanges.length === 0) {
+    if (!syntaxTokens) return content || " ";
 
-  return tokens.map((token, index) => (
-    <span key={`${line.id}:${index}`} style={syntaxTokenStyle(token)}>
-      {token.content}
-    </span>
-  ));
+    return syntaxTokens.map((token, index) => (
+      <span
+        key={`${line?.id ?? "line"}:${index}`}
+        style={syntaxTokenStyle(token)}
+      >
+        {token.content}
+      </span>
+    ));
+  }
+
+  const segments: React.ReactNode[] = [];
+  let offset = 0;
+  const sourceSegments = syntaxTokens ?? [{ content }];
+
+  for (const [tokenIndex, token] of sourceSegments.entries()) {
+    const tokenStart = offset;
+    const tokenEnd = tokenStart + token.content.length;
+    offset = tokenEnd;
+    const boundaries = new Set([tokenStart, tokenEnd]);
+    for (const range of validRanges) {
+      if (range.start > tokenStart && range.start < tokenEnd) {
+        boundaries.add(range.start);
+      }
+      if (range.end > tokenStart && range.end < tokenEnd) {
+        boundaries.add(range.end);
+      }
+    }
+    const sortedBoundaries = [...boundaries].sort((left, right) => left - right);
+    for (let index = 0; index < sortedBoundaries.length - 1; index++) {
+      const start = sortedBoundaries[index] ?? tokenStart;
+      const end = sortedBoundaries[index + 1] ?? tokenEnd;
+      if (end <= start) continue;
+      const tone = validRanges.find(
+        (range) => start < range.end && end > range.start,
+      )?.tone;
+      segments.push(
+        <span
+          className={tone ? "review-diff-word" : undefined}
+          data-tone={tone}
+          key={`${line?.id ?? "line"}:${tokenIndex}:${start}`}
+          style={
+            syntaxTokens ? syntaxTokenStyle(token as SyntaxToken) : undefined
+          }
+        >
+          {token.content.slice(start - tokenStart, end - tokenStart)}
+        </span>,
+      );
+    }
+  }
+
+  return segments.length > 0 ? segments : content || " ";
+}
+
+export function normalizeReviewIntralineRanges(
+  ranges: readonly ReviewIntralineRange[] | undefined,
+  contentLength: number,
+): ReviewIntralineRange[] {
+  if (!ranges || contentLength <= 0) return [];
+  return ranges
+    .map((range) => ({
+      ...range,
+      start: Math.max(0, Math.min(contentLength, range.start)),
+      end: Math.max(0, Math.min(contentLength, range.end)),
+    }))
+    .filter((range) => range.end > range.start)
+    .sort((left, right) => left.start - right.start || left.end - right.end);
 }
 
 export function buildSplitDiffRows(file: DesktopReviewDiffFile): {
@@ -1542,6 +1800,7 @@ export type ReviewDiffBodyProps = {
   diffMarkerStyle: DesktopDiffMarkerStyle;
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
+  intralineByLineId: ReviewIntralineByLineId;
   pending: boolean;
   scope: DesktopReviewScope;
   wrapLines: boolean;
@@ -1558,55 +1817,6 @@ export type ReviewDiffBodyProps = {
   onResolveComment: (commentId: string) => void;
   onSaveDraft: () => void;
 };
-
-export function DiffMarker({
-  tone,
-}: {
-  tone: DesktopReviewDiffLine["type"] | ReviewCell["tone"];
-}): React.ReactNode {
-  return (
-    <span className="review-diff-marker" data-tone={tone} aria-hidden="true">
-      {tone === "added" ? "+" : tone === "removed" ? "-" : ""}
-    </span>
-  );
-}
-
-export function ReviewHunkHeader({
-  file,
-  hunk,
-  unmodifiedLines,
-  pending,
-  scope,
-  onApplyOperation,
-}: {
-  file: DesktopReviewDiffFile;
-  hunk: DesktopReviewDiffHunk;
-  unmodifiedLines: number;
-  pending: boolean;
-  scope: DesktopReviewScope;
-  onApplyOperation: (
-    action: "stage" | "unstage" | "revert",
-    target: { type: "hunk"; path: string; hunkId: string },
-  ) => void;
-}): React.ReactNode {
-  return (
-    <div
-      className="review-diff-row u-grid u-items-stretch"
-      data-line-type="hunk"
-    >
-      <span className="review-diff-line-content">
-        {formatUnmodifiedLines(unmodifiedLines)}
-      </span>
-      <ReviewHunkActions
-        file={file}
-        hunk={hunk}
-        pending={pending}
-        scope={scope}
-        onApplyOperation={onApplyOperation}
-      />
-    </div>
-  );
-}
 
 export function ReviewHunkActions({
   file,
@@ -1794,83 +2004,41 @@ export function ReviewComment({
 }
 
 export function splitDiffLines(lines: DesktopReviewDiffLine[]): ReviewSplitRow[] {
-  const rows: ReviewSplitRow[] = [];
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (!line) continue;
-    if (line.type === "removed" && lines[index + 1]?.type === "added") {
-      const next = lines[index + 1]!;
-      rows.push({
-        id: `${line.id}-${next.id}`,
-        left: {
-          line,
-          side: "left",
-          number: line.oldLine,
-          content: line.content,
-          tone: "removed",
-        },
-        right: {
-          line: next,
-          side: "right",
-          number: next.newLine,
-          content: next.content,
-          tone: "added",
-        },
+  return alignReviewDiffLines(lines).map((alignment) => {
+    if (alignment.kind === "unchanged") {
+      const { line } = alignment;
+      return {
+        id: line.id,
+        left: reviewCellFromLine(line, "left"),
+        right: reviewCellFromLine(line, "right"),
         paired: true,
-      });
-      index += 1;
-      continue;
+      };
     }
-    if (line.type === "removed") {
-      rows.push({
-        id: line.id,
-        left: {
-          line,
-          side: "left",
-          number: line.oldLine,
-          content: line.content,
-          tone: "removed",
-        },
-        right: emptyCell("right"),
-        paired: false,
-      });
-      continue;
-    }
-    if (line.type === "added") {
-      rows.push({
-        id: line.id,
-        left: emptyCell("left"),
-        right: {
-          line,
-          side: "right",
-          number: line.newLine,
-          content: line.content,
-          tone: "added",
-        },
-        paired: false,
-      });
-      continue;
-    }
-    rows.push({
-      id: line.id,
-      left: {
-        line,
-        side: "left",
-        number: line.oldLine,
-        content: line.content,
-        tone: "context",
-      },
-      right: {
-        line,
-        side: "right",
-        number: line.newLine,
-        content: line.content,
-        tone: "context",
-      },
-      paired: true,
-    });
-  }
-  return rows;
+
+    const { added, removed } = alignment;
+    return {
+      id:
+        removed && added
+          ? `${removed.id}-${added.id}`
+          : (removed?.id ?? added?.id ?? "empty-change"),
+      left: removed ? reviewCellFromLine(removed, "left") : emptyCell("left"),
+      right: added ? reviewCellFromLine(added, "right") : emptyCell("right"),
+      paired: Boolean(removed && added),
+    };
+  });
+}
+
+export function reviewCellFromLine(
+  line: DesktopReviewDiffLine,
+  side: DesktopReviewSide,
+): ReviewCell {
+  return {
+    line,
+    side,
+    number: side === "left" ? line.oldLine : line.newLine,
+    content: line.content,
+    tone: line.type,
+  };
 }
 
 export function emptyCell(side: DesktopReviewSide): ReviewCell {

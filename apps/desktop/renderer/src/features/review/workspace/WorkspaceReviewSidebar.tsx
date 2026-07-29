@@ -61,7 +61,9 @@ import { buildReviewFileTree } from "./buildReviewFileTree.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "./CommitPopover.js";
 import { PullRequestPopover } from "./PullRequestPopover.js";
+import { ReviewFileTreeResizeController } from "./ReviewFileTreeResizeController.js";
 import { ReviewFileTreeNode } from "./ReviewFileTree.js";
+import { ReviewResizeSkeleton } from "../diff/ReviewResizeSkeleton.js";
 import { formatReviewCount } from "../diff/reviewFormat.js";
 import {
   isReviewDiffExpanded,
@@ -100,9 +102,6 @@ import {
 import {
   ListChevronsDownUp,
   ListChevronsUpDown,
-  REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH,
-  REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP,
-  REVIEW_FILE_TREE_PANEL_MAX_WIDTH,
   REVIEW_FILE_TREE_PANEL_MIN_WIDTH,
   ReviewCommitSourceSubmenu,
   ReviewComment,
@@ -110,9 +109,7 @@ import {
   ReviewProjectEmptyState,
   attachComments,
   buildReviewComposerPrompt,
-  clampReviewFileTreePanelWidth,
   copyGitApplyCommand,
-  countReviewDiffLines,
   errorMessageOf,
   filterStatusForFile,
   formatPanelNumber,
@@ -251,8 +248,6 @@ function WorkspaceReviewSidebarImpl({
     },
     [onReviewTabStateChange],
   );
-  const [fileTreePanelResizing, setFileTreePanelResizing] =
-    React.useState(false);
   const [collapsedDirs, setCollapsedDirs] = React.useState<Set<string>>(
     () => new Set(),
   );
@@ -351,6 +346,7 @@ function WorkspaceReviewSidebarImpl({
   const commitButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const prButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const reviewMainRef = React.useRef<HTMLDivElement | null>(null);
+  const fileTreePanelRef = React.useRef<HTMLElement | null>(null);
   const reviewRootRef = React.useRef<HTMLElement | null>(null);
   const staleGitChangeRef = React.useRef(false);
   const summaryRef = React.useRef<ReviewSummarySnapshot | null>(null);
@@ -388,10 +384,6 @@ function WorkspaceReviewSidebarImpl({
   const scrollPersistTimerRef = React.useRef<number | null>(null);
   const onReviewTabStateChangeRef = React.useRef(onReviewTabStateChange);
   onReviewTabStateChangeRef.current = onReviewTabStateChange;
-  const fileTreePanelResizeCleanupRef = React.useRef<(() => void) | null>(null);
-  const resizeFrameRef = React.useRef<number | null>(null);
-  const fileTreeResizePreviewRef = React.useRef<HTMLDivElement | null>(null);
-
   const flushReviewScroll = React.useCallback((identity: string): void => {
     if (scrollPersistTimerRef.current !== null) {
       window.clearTimeout(scrollPersistTimerRef.current);
@@ -960,7 +952,6 @@ function WorkspaceReviewSidebarImpl({
         window.clearTimeout(scrollPersistTimerRef.current);
         scrollPersistTimerRef.current = null;
       }
-      fileTreePanelResizeCleanupRef.current?.();
     };
   }, []);
 
@@ -1062,9 +1053,7 @@ function WorkspaceReviewSidebarImpl({
       ),
     [files],
   );
-  const largeDiffMode =
-    summary?.largeDiffMode === true ||
-    countReviewDiffLines(visibleFiles) > 800;
+  const largeWorkspaceMode = summary?.largeDiffMode === true;
   const allCollapsed =
     files.length > 0 &&
     files.every((file) => collapsedDiffPaths.has(file.path));
@@ -1775,112 +1764,9 @@ function WorkspaceReviewSidebarImpl({
   function handleSelectFile(path: string): void {
     setSelectedPath(path);
     void loadFileDiff(path);
-    if (!largeDiffMode) {
+    if (!largeWorkspaceMode) {
       window.requestAnimationFrame(() => scrollToDiffFile(path));
     }
-  }
-
-  const setClampedFileTreePanelWidth = React.useCallback((next: number) => {
-    const containerWidth = reviewMainRef.current?.getBoundingClientRect().width;
-    setFileTreePanelWidth(clampReviewFileTreePanelWidth(next, containerWidth));
-  }, []);
-
-  function handleFileTreePanelResizeKey(
-    event: React.KeyboardEvent<HTMLDivElement>,
-  ): void {
-    if (event.key === "Home") {
-      event.preventDefault();
-      setClampedFileTreePanelWidth(REVIEW_FILE_TREE_PANEL_MIN_WIDTH);
-      return;
-    }
-    if (event.key === "End") {
-      event.preventDefault();
-      setClampedFileTreePanelWidth(REVIEW_FILE_TREE_PANEL_MAX_WIDTH);
-      return;
-    }
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    event.preventDefault();
-    const step = event.shiftKey
-      ? REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP * 3
-      : REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP;
-    setClampedFileTreePanelWidth(
-      fileTreePanelWidth + (event.key === "ArrowLeft" ? step : -step),
-    );
-  }
-
-  function startFileTreePanelResize(
-    event: React.PointerEvent<HTMLDivElement>,
-  ): void {
-    if (event.button !== 0) return;
-    event.preventDefault();
-
-    fileTreePanelResizeCleanupRef.current?.();
-
-    const startX = event.clientX;
-    const startWidth = fileTreePanelWidth;
-    const containerRect = reviewMainRef.current?.getBoundingClientRect();
-    const containerLeft = containerRect?.left ?? 0;
-    const containerWidth = containerRect?.width;
-    const previousCursor = document.body.style.cursor;
-    const previousUserSelect = document.body.style.userSelect;
-    let active = true;
-    let lastComputedWidth = startWidth;
-
-    const handlePointerMove = (moveEvent: PointerEvent): void => {
-      const nextWidth = startWidth + startX - moveEvent.clientX;
-      const clamped = clampReviewFileTreePanelWidth(nextWidth, containerWidth);
-      lastComputedWidth = clamped;
-
-      // Cancel pending frame, then move the preview line via transform (no layout)
-      if (resizeFrameRef.current !== null) {
-        window.cancelAnimationFrame(resizeFrameRef.current);
-      }
-      resizeFrameRef.current = window.requestAnimationFrame(() => {
-        resizeFrameRef.current = null;
-        const previewLeft = moveEvent.clientX - containerLeft;
-        const previewLine = fileTreeResizePreviewRef.current;
-        if (previewLine) {
-          previewLine.style.transform = `translateX(${previewLeft}px)`;
-        }
-      });
-    };
-
-    const stopResize = (): void => {
-      if (!active) return;
-      active = false;
-
-      // Cancel any pending rAF
-      if (resizeFrameRef.current !== null) {
-        window.cancelAnimationFrame(resizeFrameRef.current);
-        resizeFrameRef.current = null;
-      }
-
-      // Hide preview line
-      const previewLine = fileTreeResizePreviewRef.current;
-      if (previewLine) {
-        previewLine.style.transform = "";
-      }
-
-      setFileTreePanelResizing(false);
-      document.removeEventListener("pointermove", handlePointerMove);
-      document.removeEventListener("pointerup", stopResize);
-      document.removeEventListener("pointercancel", stopResize);
-      document.body.classList.remove("review-file-tree-is-resizing");
-      document.body.style.cursor = previousCursor;
-      document.body.style.userSelect = previousUserSelect;
-      fileTreePanelResizeCleanupRef.current = null;
-      // Commit final width to React state once — expensive layout happens here
-      setFileTreePanelWidth(lastComputedWidth);
-    };
-
-    setFileTreePanelResizing(true);
-    document.body.classList.add("review-file-tree-is-resizing");
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    document.addEventListener("pointermove", handlePointerMove);
-    document.addEventListener("pointerup", stopResize);
-    document.addEventListener("pointercancel", stopResize);
-    fileTreePanelResizeCleanupRef.current = stopResize;
   }
 
   return (
@@ -2098,15 +1984,14 @@ function WorkspaceReviewSidebarImpl({
             sideOffset={4}
             width={220}
             trigger={
-              <Tooltip content="更多">
-                <button
-                  aria-label="更多"
-                  className="message-action"
-                  type="button"
-                >
-                  <Ellipsis size={APP_ICON_SIZE} />
-                </button>
-              </Tooltip>
+              <button
+                aria-label="更多"
+                className="message-action"
+                title="更多"
+                type="button"
+              >
+                <Ellipsis size={APP_ICON_SIZE} />
+              </button>
             }
             onOpenChange={setMoreMenuOpen}
           >
@@ -2300,11 +2185,7 @@ function WorkspaceReviewSidebarImpl({
       ) : null}
 
       <div
-        className={
-          fileTreePanelResizing
-            ? "review-sidebar-main resizing-file-tree"
-            : "review-sidebar-main"
-        }
+        className="review-sidebar-main"
         ref={reviewMainRef}
         style={
           {
@@ -2324,15 +2205,16 @@ function WorkspaceReviewSidebarImpl({
             draft={draft}
             fileLoadStates={fileLoadStates}
             files={
-              largeDiffMode && selectedFile ? [selectedFile] : visibleFiles
+              largeWorkspaceMode && selectedFile ? [selectedFile] : visibleFiles
             }
-            largeDiffMode={largeDiffMode}
+            largeWorkspaceMode={largeWorkspaceMode}
             pending={reviewMutationPending}
             scope={scope}
             selectedPath={selectedFile?.path ?? null}
             toggleCollapseDiff={toggleCollapseDiff}
             viewportRef={diffScrollViewportRef}
             view={reviewView}
+            showWordDiff={textDiff}
             wrapLines={wordWrap}
             workspacePath={workspacePath}
             onApplyOperation={(action, target) =>
@@ -2355,97 +2237,88 @@ function WorkspaceReviewSidebarImpl({
 
         {!showProjectEmptyState && !hideFileList ? (
           <>
-            <div
-              aria-label="调整审查文件导航宽度"
-              aria-orientation="vertical"
-              aria-valuemax={REVIEW_FILE_TREE_PANEL_MAX_WIDTH}
-              aria-valuemin={REVIEW_FILE_TREE_PANEL_MIN_WIDTH}
-              aria-valuenow={fileTreePanelWidth}
-              className="review-file-tree-resize-handle"
-              data-resize-handle="true"
-              role="separator"
-              tabIndex={0}
-              title="拖拽调整文件导航宽度，双击恢复默认宽度"
-              onDoubleClick={() =>
-                setClampedFileTreePanelWidth(
-                  REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH,
-                )
-              }
-              onKeyDown={handleFileTreePanelResizeKey}
-              onPointerDown={startFileTreePanelResize}
-            />
-            <div
-              className="review-file-tree-resize-preview"
-              ref={fileTreeResizePreviewRef}
+            <ReviewFileTreeResizeController
+              containerRef={reviewMainRef}
+              panelRef={fileTreePanelRef}
+              width={fileTreePanelWidth}
+              onSetWidth={setFileTreePanelWidth}
             />
             <section
               className="review-file-tree-panel"
               aria-label="审查文件导航"
+              data-resize-skeleton-target="review-file-tree"
+              ref={fileTreePanelRef}
             >
-              <SearchInput
-                ref={fileSearchInputRef}
-                aria-label="筛选文件"
-                className="review-file-search"
-                onChange={setSearch}
-                placeholder="筛选文件..."
-                value={search}
-                variant="embedded"
-              />
-
-              <ScrollArea
-                className="review-file-tree-scroll"
-                contentClassName="review-file-tree"
-                role="tree"
+              <div
+                className="review-file-tree-panel-content"
+                data-resize-skeleton-content="true"
               >
-                {reviewTree.length > 0 ? (
-                  reviewTree.map((node) => (
-                    <ReviewFileTreeNode
-                      collapsedDirs={collapsedDirs}
-                      commentCountsByPath={commentCountsByPath}
-                      key={node.dirPath || "__root__"}
-                      node={node}
-                      onSelectFile={handleSelectFile}
-                      onToggleDir={toggleDir}
-                      selectedPath={selectedFile?.path ?? null}
-                    />
-                  ))
-                ) : (
-                  <div className="review-empty-state">
-                    {loadState === "loading" && !summary
-                      ? "正在加载变更…"
-                      : loadState === "not-repository" && !summary
-                        ? "当前工作区不是 Git 仓库。"
-                        : loadState === "unsupported" && !summary
-                          ? "当前 Agent 不支持代码审阅。"
-                          : !summary && files.length === 0
-                            ? "无法加载变更，请重试。"
-                            : files.length === 0
-                      ? scope === "staged"
-                        ? "暂无已暂存变更。"
-                        : "暂无未暂存变更。"
-                      : "当前筛选下没有匹配的文件。"}
-                  </div>
-                )}
-              </ScrollArea>
+                <SearchInput
+                  ref={fileSearchInputRef}
+                  aria-label="筛选文件"
+                  className="review-file-search"
+                  onChange={setSearch}
+                  placeholder="筛选文件..."
+                  value={search}
+                  variant="embedded"
+                />
 
-              {staleComments.length > 0 ? (
                 <ScrollArea
-                  className="review-stale-comments-scroll"
-                  contentClassName="review-stale-comments"
-                  aria-label="过期评论"
+                  className="review-file-tree-scroll"
+                  contentClassName="review-file-tree"
+                  role="tree"
                 >
-                  <div className="review-stale-title">过期评论</div>
-                  {staleComments.map((comment) => (
-                    <ReviewComment
-                      comment={comment}
-                      key={comment.id}
-                      stale
-                      onDelete={() => void deleteComment(comment.id)}
-                      onResolve={() => void resolveComment(comment.id)}
-                    />
-                  ))}
+                  {reviewTree.length > 0 ? (
+                    reviewTree.map((node) => (
+                      <ReviewFileTreeNode
+                        collapsedDirs={collapsedDirs}
+                        commentCountsByPath={commentCountsByPath}
+                        key={node.dirPath || "__root__"}
+                        node={node}
+                        onSelectFile={handleSelectFile}
+                        onToggleDir={toggleDir}
+                        selectedPath={selectedFile?.path ?? null}
+                      />
+                    ))
+                  ) : (
+                    <div className="review-empty-state">
+                      {loadState === "loading" && !summary
+                        ? "正在加载变更…"
+                        : loadState === "not-repository" && !summary
+                          ? "当前工作区不是 Git 仓库。"
+                          : loadState === "unsupported" && !summary
+                            ? "当前 Agent 不支持代码审阅。"
+                            : !summary && files.length === 0
+                              ? "无法加载变更，请重试。"
+                              : files.length === 0
+                        ? scope === "staged"
+                          ? "暂无已暂存变更。"
+                          : "暂无未暂存变更。"
+                        : "当前筛选下没有匹配的文件。"}
+                    </div>
+                  )}
                 </ScrollArea>
-              ) : null}
+
+                {staleComments.length > 0 ? (
+                  <ScrollArea
+                    className="review-stale-comments-scroll"
+                    contentClassName="review-stale-comments"
+                    aria-label="过期评论"
+                  >
+                    <div className="review-stale-title">过期评论</div>
+                    {staleComments.map((comment) => (
+                      <ReviewComment
+                        comment={comment}
+                        key={comment.id}
+                        stale
+                        onDelete={() => void deleteComment(comment.id)}
+                        onResolve={() => void resolveComment(comment.id)}
+                      />
+                    ))}
+                  </ScrollArea>
+                ) : null}
+              </div>
+              <ReviewResizeSkeleton variant="file-tree" />
             </section>
           </>
         ) : null}
