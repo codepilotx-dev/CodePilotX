@@ -80,6 +80,7 @@ import {
   pickDefaultReviewBaseBranch,
   retainCurrentReviewFileDiffs,
   reviewLoadStateForError,
+  reviewSourceKey,
   reviewSourceLabel,
   summaryFileToDesktop,
   type ReviewBranch,
@@ -88,6 +89,14 @@ import {
   type ReviewLoadState,
   type ReviewSummarySnapshot,
 } from "../source/reviewAgentClient.js";
+import {
+  createReviewCommentIdentity,
+  createReviewSummaryIdentity,
+  isReviewRequestCurrent,
+  reviewGitChangeMatchesProject,
+  ReviewRefreshCoordinator,
+  type ReviewRequestStamp,
+} from "../state/reviewRefreshCoordinator.js";
 import {
   ListChevronsDownUp,
   ListChevronsUpDown,
@@ -114,29 +123,14 @@ import {
   type ReviewFilter,
 } from "../diff/WorkspaceReviewDiff.js";
 
-export function WorkspaceReviewSidebar({
-  activeSessionId,
-  defaultBranch,
-  gitStatus,
-  debugMode = false,
-  isRefreshing,
-  diffMarkerStyle,
-  reviewView,
-  reviewTabState,
-  sessionStatus,
-  workspacePath,
-  onAppendComposerText,
-  onClose,
-  onCreateBranch,
-  onOpenWorkspacePath,
-  onRefreshDiff,
-  onReviewTabStateChange,
-  onToggleReviewView,
-}: {
+const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH =
+  REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260;
+
+export type WorkspaceReviewSidebarProps = {
   activeSessionId: string | null;
+  projectId: string | null;
   defaultBranch: string | null;
   gitStatus: DesktopGitStatus | null;
-  debugMode?: boolean;
   diffMarkerStyle: DesktopDiffMarkerStyle;
   isRefreshing: boolean;
   reviewView: DesktopReviewView;
@@ -154,16 +148,50 @@ export function WorkspaceReviewSidebar({
       | ((current: ReviewTabUiState) => ReviewTabUiState),
   ) => void;
   onToggleReviewView: () => void;
-}): React.ReactNode {
+};
+
+function WorkspaceReviewSidebarImpl({
+  activeSessionId,
+  projectId,
+  defaultBranch,
+  gitStatus,
+  isRefreshing,
+  diffMarkerStyle,
+  reviewView,
+  reviewTabState,
+  sessionStatus,
+  workspacePath,
+  onAppendComposerText,
+  onClose,
+  onCreateBranch,
+  onOpenWorkspacePath,
+  onRefreshDiff,
+  onReviewTabStateChange,
+  onToggleReviewView,
+}: WorkspaceReviewSidebarProps): React.ReactNode {
   const source = reviewTabState.source;
+  const summaryIdentity = createReviewSummaryIdentity(
+    projectId,
+    workspacePath,
+    source,
+  );
+  const commentIdentity = createReviewCommentIdentity(
+    summaryIdentity,
+    activeSessionId,
+  );
   const scope: DesktopReviewScope =
     source.kind === "staged" ? "staged" : "unstaged";
-  const [reviewDiff, setReviewDiff] = React.useState<Awaited<
+  const [reviewDiffState, setReviewDiff] = React.useState<Awaited<
     ReturnType<typeof desktopClient.getWorkspaceReviewDiff>
   > | null>(null);
-  const [summary, setSummary] = React.useState<ReviewSummarySnapshot | null>(
+  const [summaryState, setSummary] = React.useState<ReviewSummarySnapshot | null>(
     null,
   );
+  const summaryStateIdentityRef = React.useRef(summaryIdentity);
+  const summary =
+    summaryStateIdentityRef.current === summaryIdentity ? summaryState : null;
+  const reviewDiff =
+    summaryStateIdentityRef.current === summaryIdentity ? reviewDiffState : null;
   const [loadedDiffs, setLoadedDiffs] = React.useState<
     ReadonlyMap<string, ReviewFileDiff>
   >(() => new Map());
@@ -176,7 +204,10 @@ export function WorkspaceReviewSidebar({
     "idle" | "loading" | "ready" | "error"
   >("idle");
   const [sourceOptionsRetry, setSourceOptionsRetry] = React.useState(0);
-  const [comments, setComments] = React.useState<DesktopReviewComment[]>([]);
+  const [commentsState, setComments] = React.useState<DesktopReviewComment[]>([]);
+  const commentsStateIdentityRef = React.useRef(commentIdentity);
+  const comments =
+    commentsStateIdentityRef.current === commentIdentity ? commentsState : [];
   const selectedPath = reviewTabState.selectedFile;
   const setSelectedPath = React.useCallback(
     (value: string | null | ((current: string | null) => string | null)) => {
@@ -197,7 +228,8 @@ export function WorkspaceReviewSidebar({
     React.useState<ReviewLoadState>('loading');
   const [draft, setDraft] = React.useState<CommentDraft | null>(null);
 
-  const hideFileList = !reviewTabState.fileTreeVisible;
+  const [autoHideFileList, setAutoHideFileList] = React.useState(false);
+  const hideFileList = !reviewTabState.fileTreeVisible || autoHideFileList;
   const setHideFileList = React.useCallback(
     (value: boolean | ((current: boolean) => boolean)) => {
       onReviewTabStateChange((current) => {
@@ -322,6 +354,7 @@ export function WorkspaceReviewSidebar({
   const reviewRootRef = React.useRef<HTMLElement | null>(null);
   const staleGitChangeRef = React.useRef(false);
   const summaryRef = React.useRef<ReviewSummarySnapshot | null>(null);
+  const summaryCacheStateRef = React.useRef<"fresh" | "stale" | null>(null);
   const loadedDiffsRef = React.useRef<
     ReadonlyMap<string, ReviewFileDiff>
   >(new Map());
@@ -329,153 +362,291 @@ export function WorkspaceReviewSidebar({
   const fileRequestCoordinatorRef = React.useRef(
     new ReviewFileRequestCoordinator(2),
   );
-  const activeReviewKeyRef = React.useRef("");
-  const refreshRequestRef = React.useRef<{
-    key: string;
-    force: boolean;
-    promise: Promise<{
+  const fileRequestIdRef = React.useRef(0);
+  const activeFileRequestRef = React.useRef(
+    new Map<string, ReviewRequestStamp>(),
+  );
+  const expiredFilePathsRef = React.useRef(new Set<string>());
+  const refreshCoordinatorRef = React.useRef(
+    new ReviewRefreshCoordinator<{
       snapshot: ReviewSummarySnapshot;
       cacheState: "fresh" | "stale";
-    } | null>;
-  } | null>(null);
+    }>(),
+  );
+  const activeSummaryIdentityRef = React.useRef(summaryIdentity);
+  const activeCommentIdentityRef = React.useRef(commentIdentity);
+  activeSummaryIdentityRef.current = summaryIdentity;
+  activeCommentIdentityRef.current = commentIdentity;
   const diffScrollViewportRef = React.useRef<HTMLDivElement | null>(null);
   const diffFileSectionRefs = React.useRef(new Map<string, HTMLElement>());
   const fileSearchInputRef = React.useRef<HTMLInputElement | null>(null);
   const errorTimerRef = React.useRef<number | null>(null);
   const publishedGithubCommentIdsRef = React.useRef(new Set<string>());
+  const mutationRequestTokenRef = React.useRef(0);
+  const pendingScrollTopRef = React.useRef<number | null>(null);
+  const pendingScrollIdentityRef = React.useRef<string | null>(null);
+  const scrollPersistTimerRef = React.useRef<number | null>(null);
+  const onReviewTabStateChangeRef = React.useRef(onReviewTabStateChange);
+  onReviewTabStateChangeRef.current = onReviewTabStateChange;
   const fileTreePanelResizeCleanupRef = React.useRef<(() => void) | null>(null);
   const resizeFrameRef = React.useRef<number | null>(null);
   const fileTreeResizePreviewRef = React.useRef<HTMLDivElement | null>(null);
 
-  const refreshReviewDiff = React.useCallback((force = false) => {
-    const key = `${workspacePath ?? ""}\0${scope}\0${JSON.stringify(source)}`;
-    if (activeReviewKeyRef.current !== key) {
-      activeReviewKeyRef.current = key;
-      summaryRef.current = null;
-      loadedDiffsRef.current = new Map();
-      loadedDiffOptionsRef.current.clear();
-      setSummary(null);
-      setLoadedDiffs(new Map());
-      setFileLoadStates(new Map());
-      setReviewDiff(null);
+  const flushReviewScroll = React.useCallback((identity: string): void => {
+    if (scrollPersistTimerRef.current !== null) {
+      window.clearTimeout(scrollPersistTimerRef.current);
+      scrollPersistTimerRef.current = null;
     }
-    const activeRequest = refreshRequestRef.current;
+    const scrollTop = pendingScrollTopRef.current;
+    const pendingIdentity = pendingScrollIdentityRef.current;
+    pendingScrollTopRef.current = null;
+    pendingScrollIdentityRef.current = null;
     if (
-      activeRequest?.key === key &&
-      (!force || activeRequest.force)
-    ) return activeRequest.promise;
-    const execute = async (): Promise<{
-      snapshot: ReviewSummarySnapshot;
-      cacheState: "fresh" | "stale";
-    } | null> => {
-      if (!workspacePath) {
-        summaryRef.current = null;
-        loadedDiffsRef.current = new Map();
-        setSummary(null);
-        setLoadedDiffs(new Map());
-        setFileLoadStates(new Map());
-        setReviewDiff(null);
-        setLoadState('not-repository');
-        return null;
+      scrollTop === null ||
+      pendingIdentity !== identity ||
+      activeSummaryIdentityRef.current !== identity
+    ) {
+      return;
+    }
+    const sourceKey = reviewSourceKey(source);
+    onReviewTabStateChangeRef.current((current) =>
+      reviewSourceKey(current.source) === sourceKey
+        ? { ...current, scrollTop }
+        : current,
+    );
+  }, [source]);
+
+  const handleReviewScroll = React.useCallback(
+    (scrollTop: number): void => {
+      const identity = summaryIdentity;
+      pendingScrollTopRef.current = scrollTop;
+      pendingScrollIdentityRef.current = identity;
+      if (scrollPersistTimerRef.current !== null) {
+        window.clearTimeout(scrollPersistTimerRef.current);
       }
-      try {
-        setLoadState(current =>
-          summaryRef.current !== null ||
-          current === 'success' ||
-          current === 'empty' ||
-          current === 'large-diff'
-            ? 'stale'
-            : 'loading',
-        );
-        setError(null);
-        const result = await reviewAgentClient.summary(
-          workspacePath,
-          source,
-          force,
-        );
-        if (activeReviewKeyRef.current !== key) return null;
-        const nextSummary = result.snapshot;
-        const retainedDiffs = retainCurrentReviewFileDiffs(
-          nextSummary,
-          loadedDiffsRef.current,
-        );
-        const retainedPaths = new Set(retainedDiffs.keys());
-        for (const path of loadedDiffOptionsRef.current.keys()) {
-          if (!retainedPaths.has(path)) loadedDiffOptionsRef.current.delete(path);
+      scrollPersistTimerRef.current = window.setTimeout(
+        () => flushReviewScroll(identity),
+        150,
+      );
+    },
+    [flushReviewScroll, summaryIdentity],
+  );
+  const flushReviewScrollRef = React.useRef(flushReviewScroll);
+  flushReviewScrollRef.current = flushReviewScroll;
+
+  const refreshReviewDiff = React.useCallback((force = false) => {
+    const identity = summaryIdentity;
+    const request = refreshCoordinatorRef.current.request(
+      identity,
+      force,
+      async (refresh): Promise<{
+        snapshot: ReviewSummarySnapshot;
+        cacheState: "fresh" | "stale";
+      } | null> => {
+        if (!workspacePath) {
+          if (activeSummaryIdentityRef.current !== identity) return null;
+          summaryStateIdentityRef.current = identity;
+          summaryRef.current = null;
+          summaryCacheStateRef.current = null;
+          loadedDiffsRef.current = new Map();
+          setSummary(null);
+          setLoadedDiffs(new Map());
+          setFileLoadStates(new Map());
+          setReviewDiff(null);
+          setLoadState('not-repository');
+          return null;
         }
-        summaryRef.current = nextSummary;
-        loadedDiffsRef.current = retainedDiffs;
-        setSummary(nextSummary);
-        setLoadedDiffs(retainedDiffs);
+        try {
+          if (activeSummaryIdentityRef.current !== identity) return null;
+          setLoadState(current =>
+            summaryRef.current !== null ||
+            current === 'success' ||
+            current === 'empty' ||
+            current === 'large-diff'
+              ? 'stale'
+              : 'loading',
+          );
+          setError(null);
+          const result = await reviewAgentClient.summary(
+            workspacePath,
+            source,
+            refresh,
+          );
+          if (activeSummaryIdentityRef.current !== identity) return null;
+          const nextSummary = result.snapshot;
+          summaryCacheStateRef.current = result.cacheState;
+          const retainedDiffs = retainCurrentReviewFileDiffs(
+            nextSummary,
+            loadedDiffsRef.current,
+          );
+          const retainedPaths = new Set(retainedDiffs.keys());
+          for (const path of loadedDiffOptionsRef.current.keys()) {
+            if (!retainedPaths.has(path)) {
+              loadedDiffOptionsRef.current.delete(path);
+            }
+          }
+          summaryRef.current = nextSummary;
+          loadedDiffsRef.current = retainedDiffs;
+          summaryStateIdentityRef.current = identity;
+          setSummary(nextSummary);
+          setLoadedDiffs(retainedDiffs);
+          const expiredPaths =
+            result.cacheState === "fresh"
+              ? new Set(expiredFilePathsRef.current)
+              : new Set<string>();
+          if (result.cacheState === "fresh") {
+            expiredFilePathsRef.current.clear();
+          }
+          setFileLoadStates((current) => {
+            const next = new Map<string, ReviewFileLoadState>();
+            for (const file of nextSummary.files) {
+              if (retainedPaths.has(file.path)) {
+                next.set(file.path, { status: "loaded" });
+                continue;
+              }
+              const previous = current.get(file.path);
+              if (
+                previous?.status === "error" &&
+                !expiredPaths.has(file.path)
+              ) {
+                next.set(file.path, previous);
+              }
+            }
+            return next;
+          });
+          setReviewDiff({
+            activeScope: scope,
+            scopes: [
+              {
+                scope: "unstaged",
+                changedFiles:
+                  source.kind === "unstaged" ? nextSummary.totals.files : 0,
+                additions:
+                  source.kind === "unstaged" ? nextSummary.totals.additions : 0,
+                deletions:
+                  source.kind === "unstaged" ? nextSummary.totals.deletions : 0,
+              },
+              {
+                scope: "staged",
+                changedFiles:
+                  source.kind === "staged" ? nextSummary.totals.files : 0,
+                additions:
+                  source.kind === "staged" ? nextSummary.totals.additions : 0,
+                deletions:
+                  source.kind === "staged" ? nextSummary.totals.deletions : 0,
+              },
+            ],
+            files: nextSummary.files.map((file) =>
+              summaryFileToDesktop(file, retainedDiffs.get(file.path)),
+            ),
+            status:
+              gitStatus ?? {
+                branchName: null,
+                upstream: null,
+                ahead: 0,
+                behind: 0,
+                clean: nextSummary.files.length === 0,
+                files: [],
+              },
+          });
+          setLoadState(
+            result.cacheState === 'stale'
+              ? 'stale'
+              : nextSummary.largeDiffMode
+              ? 'large-diff'
+              : nextSummary.files.length === 0
+                ? 'empty'
+                : 'success',
+          );
+          return result;
+        } catch (refreshError) {
+          if (activeSummaryIdentityRef.current !== identity) return null;
+          if (summaryRef.current !== null) summaryCacheStateRef.current = "stale";
+          setFileLoadStates((current) => {
+            const next = new Map(current);
+            for (const [path, state] of next) {
+              if (state.status === "loading") next.delete(path);
+            }
+            return next;
+          });
+          setLoadState(reviewLoadStateForError(refreshError));
+          setError(errorMessageOf(refreshError));
+          return null;
+        }
+      },
+    );
+    return request.catch((refreshError: unknown) => {
+      if (activeSummaryIdentityRef.current === identity) {
+        if (summaryRef.current !== null) summaryCacheStateRef.current = "stale";
         setFileLoadStates((current) => {
-          const next = new Map<string, ReviewFileLoadState>();
-          for (const file of nextSummary.files) {
-            if (retainedPaths.has(file.path)) {
-              next.set(file.path, { status: "loaded" });
-              continue;
-            }
-            const previous = current.get(file.path);
-            if (previous?.status === "error") {
-              next.set(file.path, previous);
-            }
+          const next = new Map(current);
+          for (const [path, state] of next) {
+            if (state.status === "loading") next.delete(path);
           }
           return next;
         });
-        setReviewDiff({
-          activeScope: scope,
-          scopes: [
-            {
-              scope: "unstaged",
-              changedFiles: source.kind === "unstaged" ? nextSummary.totals.files : 0,
-              additions: source.kind === "unstaged" ? nextSummary.totals.additions : 0,
-              deletions: source.kind === "unstaged" ? nextSummary.totals.deletions : 0,
-            },
-            {
-              scope: "staged",
-              changedFiles: source.kind === "staged" ? nextSummary.totals.files : 0,
-              additions: source.kind === "staged" ? nextSummary.totals.additions : 0,
-              deletions: source.kind === "staged" ? nextSummary.totals.deletions : 0,
-            },
-          ],
-          files: nextSummary.files.map((file) =>
-            summaryFileToDesktop(file, retainedDiffs.get(file.path)),
-          ),
-          status:
-            gitStatus ?? {
-              branchName: null,
-              upstream: null,
-              ahead: 0,
-              behind: 0,
-              clean: nextSummary.files.length === 0,
-              files: [],
-            },
-        });
-        setLoadState(
-          result.cacheState === 'stale'
-            ? 'stale'
-            : nextSummary.largeDiffMode
-            ? 'large-diff'
-            : nextSummary.files.length === 0
-              ? 'empty'
-              : 'success',
-        );
-        return result;
-      } catch (refreshError) {
-        if (activeReviewKeyRef.current !== key) return null;
         setLoadState(reviewLoadStateForError(refreshError));
         setError(errorMessageOf(refreshError));
+      }
+      return null;
+    });
+  }, [gitStatus, scope, source, summaryIdentity, workspacePath]);
+
+  const recoverExpiredReview = React.useCallback(
+    async (
+      recoveryError: unknown,
+      identity: string,
+    ): Promise<{
+      snapshot: ReviewSummarySnapshot;
+      cacheState: "fresh";
+    } | null> => {
+      if (!reviewAgentClient.isSnapshotExpired(recoveryError)) return null;
+      const refreshed = await refreshReviewDiff(true);
+      if (
+        activeSummaryIdentityRef.current !== identity ||
+        refreshed?.cacheState !== "fresh"
+      ) {
         return null;
       }
-    };
-    const request = activeRequest
-      ? activeRequest.promise.then(execute, execute)
-      : execute();
-    refreshRequestRef.current = { key, force, promise: request };
-    void request.finally(() => {
-      if (refreshRequestRef.current?.promise === request) refreshRequestRef.current = null;
-    });
-    return request;
-  }, [gitStatus, scope, source, workspacePath]);
+      setError(null);
+      return {
+        snapshot: refreshed.snapshot,
+        cacheState: "fresh",
+      };
+    },
+    [refreshReviewDiff],
+  );
+
+  React.useEffect(() => {
+    refreshCoordinatorRef.current.invalidate();
+    fileRequestCoordinatorRef.current = new ReviewFileRequestCoordinator(2);
+    summaryRef.current = null;
+    summaryCacheStateRef.current = null;
+    loadedDiffsRef.current = new Map();
+    loadedDiffOptionsRef.current.clear();
+    activeFileRequestRef.current.clear();
+    expiredFilePathsRef.current.clear();
+    mutationRequestTokenRef.current += 1;
+    summaryStateIdentityRef.current = summaryIdentity;
+    setSummary(null);
+    setLoadedDiffs(new Map());
+    setFileLoadStates(new Map());
+    setReviewDiff(null);
+    setError(null);
+    setPending(false);
+    setCurrentPullRequestUrl(null);
+    if (errorTimerRef.current !== null) {
+      window.clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+  }, [summaryIdentity]);
+
+  React.useEffect(() => {
+    commentsStateIdentityRef.current = commentIdentity;
+    setComments([]);
+    setDraft(null);
+    publishedGithubCommentIdsRef.current.clear();
+  }, [commentIdentity]);
 
   const loadFileDiff = React.useCallback(
     async (
@@ -483,8 +654,16 @@ export function WorkspaceReviewSidebar({
       priority: "selected" | "prefetch" = "prefetch",
       retryExpired = true,
     ): Promise<void> => {
+      const identity = summaryIdentity;
+      if (activeSummaryIdentityRef.current !== identity) return;
       const currentSummary = summaryRef.current;
-      if (!workspacePath || !currentSummary) return;
+      if (
+        !workspacePath ||
+        !currentSummary ||
+        summaryCacheStateRef.current !== "fresh"
+      ) {
+        return;
+      }
       if (
         loadedDiffsRef.current.has(path) &&
         loadedDiffOptionsRef.current.get(path) === reviewTabState.hideWhitespace
@@ -502,17 +681,45 @@ export function WorkspaceReviewSidebar({
         if (current.get(path)?.status === "loading") return current;
         return new Map(current).set(path, { status: "loading" });
       });
-      const failLoad = (loadError: unknown): void => {
+      const beginRequest = (generation: string): ReviewRequestStamp => {
+        const request = {
+          identity,
+          generation,
+          requestId: ++fileRequestIdRef.current,
+        };
+        activeFileRequestRef.current.set(path, request);
+        return request;
+      };
+      const requestIsCurrent = (request: ReviewRequestStamp): boolean => {
+        const latestSummary = summaryRef.current;
+        return (
+          activeSummaryIdentityRef.current === identity &&
+          summaryCacheStateRef.current === "fresh" &&
+          latestSummary?.generation === request.generation &&
+          isReviewRequestCurrent(
+            request,
+            activeFileRequestRef.current.get(path),
+          )
+        );
+      };
+      const failLoad = (
+        request: ReviewRequestStamp,
+        loadError: unknown,
+        publishSharedError = true,
+      ): void => {
+        if (!requestIsCurrent(request)) return;
         const message = errorMessageOf(loadError);
-        setError(message);
+        if (publishSharedError) setError(message);
         setFileLoadStates((current) =>
           new Map(current).set(path, { status: "error", message }),
         );
       };
       const commitLoaded = (
+        request: ReviewRequestStamp,
         loaded: ReviewFileDiff,
         expectedSummary: ReviewSummarySnapshot,
       ): void => {
+        if (!requestIsCurrent(request)) return;
         const latestSummary = summaryRef.current;
         if (
           !latestSummary ||
@@ -530,6 +737,7 @@ export function WorkspaceReviewSidebar({
           path,
           reviewTabState.hideWhitespace,
         );
+        expiredFilePathsRef.current.delete(path);
         setLoadedDiffs(nextLoadedDiffs);
         setFileLoadStates((current) =>
           new Map(current).set(path, { status: "loaded" }),
@@ -557,6 +765,8 @@ export function WorkspaceReviewSidebar({
       return fileRequestCoordinatorRef.current.schedule(
         requestKey,
         async () => {
+          if (activeSummaryIdentityRef.current !== identity) return;
+          let request = beginRequest(currentSummary.generation);
           try {
             const loaded = await reviewAgentClient.fileDiff(
               workspacePath,
@@ -565,25 +775,31 @@ export function WorkspaceReviewSidebar({
               path,
               reviewTabState.hideWhitespace,
             );
-            commitLoaded(loaded, currentSummary);
+            commitLoaded(request, loaded, currentSummary);
           } catch (loadError) {
             if (
               retryExpired &&
               reviewAgentClient.isSnapshotExpired(loadError)
             ) {
+              expiredFilePathsRef.current.add(path);
               try {
-                const refreshed = await refreshReviewDiff(true);
-                if (!refreshed) {
-                  failLoad(loadError);
+                const refreshed = await recoverExpiredReview(loadError, identity);
+                if (
+                  !refreshed ||
+                  activeSummaryIdentityRef.current !== identity
+                ) {
+                  failLoad(request, loadError, false);
                   return;
                 }
                 const refreshedFile = refreshed.snapshot.files.find(
                   file => file.path === path,
                 );
                 if (!refreshedFile) {
-                  failLoad(new Error("刷新后找不到该文件差异"));
+                  request = beginRequest(refreshed.snapshot.generation);
+                  failLoad(request, new Error("刷新后找不到该文件差异"));
                   return;
                 }
+                request = beginRequest(refreshed.snapshot.generation);
                 const loaded = await reviewAgentClient.fileDiff(
                   workspacePath,
                   source,
@@ -591,13 +807,16 @@ export function WorkspaceReviewSidebar({
                   path,
                   reviewTabState.hideWhitespace,
                 );
-                commitLoaded(loaded, refreshed.snapshot);
+                commitLoaded(request, loaded, refreshed.snapshot);
               } catch (retryError) {
-                failLoad(retryError);
+                if (reviewAgentClient.isSnapshotExpired(retryError)) {
+                  expiredFilePathsRef.current.add(path);
+                }
+                failLoad(request, retryError);
               }
               return;
             }
-            failLoad(loadError);
+            failLoad(request, loadError);
           }
         },
         priority,
@@ -605,44 +824,49 @@ export function WorkspaceReviewSidebar({
     },
     [
       onReviewTabStateChange,
-      refreshReviewDiff,
+      recoverExpiredReview,
       reviewTabState.hideWhitespace,
       source,
-      summary,
+      summaryIdentity,
       workspacePath,
     ],
   );
 
   const refreshComments = React.useCallback(async () => {
+    const identity = commentIdentity;
     if (!activeSessionId) {
-      setComments([]);
+      if (activeCommentIdentityRef.current === identity) setComments([]);
       return;
     }
     try {
       if (!workspacePath) {
-        setComments([]);
+        if (activeCommentIdentityRef.current === identity) setComments([]);
         return;
       }
-      setComments(
-        await reviewAgentClient.listComments(
-          workspacePath,
-          activeSessionId,
-          source,
-        ),
+      const nextComments = await reviewAgentClient.listComments(
+        workspacePath,
+        activeSessionId,
+        source,
       );
+      if (activeCommentIdentityRef.current === identity) {
+        commentsStateIdentityRef.current = identity;
+        setComments(nextComments);
+      }
     } catch (refreshError) {
-      setError(errorMessageOf(refreshError));
+      if (activeCommentIdentityRef.current === identity) {
+        setError(errorMessageOf(refreshError));
+      }
     }
-  }, [activeSessionId, source, workspacePath]);
+  }, [activeSessionId, commentIdentity, source, workspacePath]);
 
   React.useEffect(() => {
-    void refreshReviewDiff().then((result) => {
-      if (result?.cacheState === "stale") void refreshReviewDiff(true);
-    });
+    void refreshReviewDiff();
   }, [refreshReviewDiff, isRefreshing]);
 
   React.useEffect(() => {
-    const handleGitChange = (): void => {
+    const handleGitChange = (event: Event): void => {
+      const detail = event instanceof CustomEvent ? event.detail : null;
+      if (!reviewGitChangeMatchesProject(detail, projectId)) return;
       if (reviewRootRef.current?.offsetParent !== null) {
         void refreshReviewDiff(true);
         return;
@@ -652,7 +876,7 @@ export function WorkspaceReviewSidebar({
     window.addEventListener(WORKSPACE_GIT_CHANGED_EVENT, handleGitChange);
     return () =>
       window.removeEventListener(WORKSPACE_GIT_CHANGED_EVENT, handleGitChange);
-  }, [refreshReviewDiff]);
+  }, [projectId, refreshReviewDiff]);
 
   React.useEffect(() => {
     const root = reviewRootRef.current;
@@ -701,10 +925,40 @@ export function WorkspaceReviewSidebar({
   }, [summary?.generation]);
 
   React.useEffect(() => {
+    const main = reviewMainRef.current;
+    if (!main || typeof ResizeObserver === "undefined") return;
+    const updateAutoHide = (width: number): void => {
+      const shouldHide =
+        width > 0 && width < REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH;
+      setAutoHideFileList((current) =>
+        current === shouldHide ? current : shouldHide,
+      );
+    };
+    updateAutoHide(main.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) updateAutoHide(entry.contentRect.width);
+    });
+    observer.observe(main);
+    return () => observer.disconnect();
+  }, []);
+
+  React.useEffect(() => {
+    const identity = summaryIdentity;
+    return () => flushReviewScroll(identity);
+  }, [flushReviewScroll, summaryIdentity]);
+
+  React.useEffect(() => {
     return () => {
+      refreshCoordinatorRef.current.dispose();
+      flushReviewScrollRef.current(activeSummaryIdentityRef.current);
       if (errorTimerRef.current !== null) {
         window.clearTimeout(errorTimerRef.current);
         errorTimerRef.current = null;
+      }
+      if (scrollPersistTimerRef.current !== null) {
+        window.clearTimeout(scrollPersistTimerRef.current);
+        scrollPersistTimerRef.current = null;
       }
       fileTreePanelResizeCleanupRef.current?.();
     };
@@ -721,7 +975,22 @@ export function WorkspaceReviewSidebar({
     }, 3000);
   }
 
+  function isMutationCurrent(
+    token: number,
+    expectedSummaryIdentity: string,
+    expectedCommentIdentity?: string,
+  ): boolean {
+    return (
+      mutationRequestTokenRef.current === token &&
+      activeSummaryIdentityRef.current === expectedSummaryIdentity &&
+      (expectedCommentIdentity === undefined ||
+        activeCommentIdentityRef.current === expectedCommentIdentity)
+    );
+  }
+
   const files = reviewDiff?.files ?? [];
+  const reviewMutationPending =
+    pending || summaryCacheStateRef.current !== "fresh";
   const allFilePaths = React.useMemo(
     () => files.map((file) => file.path),
     [files],
@@ -794,7 +1063,7 @@ export function WorkspaceReviewSidebar({
     [files],
   );
   const largeDiffMode =
-    summary?.largeDiffMode ??
+    summary?.largeDiffMode === true ||
     countReviewDiffLines(visibleFiles) > 800;
   const allCollapsed =
     files.length > 0 &&
@@ -855,6 +1124,10 @@ export function WorkspaceReviewSidebar({
       | { type: "hunk"; path: string; hunkId: string },
   ): Promise<void> {
     if (!workspacePath || !summary || pending) return;
+    if (summaryCacheStateRef.current !== "fresh") {
+      void refreshReviewDiff(true);
+      return;
+    }
     if (source.kind !== "unstaged" && source.kind !== "staged") {
       flashError("分支、提交、上轮对话和 PR 差异为只读来源");
       return;
@@ -867,6 +1140,8 @@ export function WorkspaceReviewSidebar({
     }
     const file = summary.files.find((candidate) => candidate.path === target.path);
     if (!file) return;
+    const operationIdentity = summaryIdentity;
+    const operationToken = ++mutationRequestTokenRef.current;
     setPending(true);
     try {
       await reviewAgentClient.apply(workspacePath, {
@@ -883,13 +1158,24 @@ export function WorkspaceReviewSidebar({
                 hunkId: target.hunkId,
               },
       });
+      if (!isMutationCurrent(operationToken, operationIdentity)) return;
       setError(null);
       await refreshReviewDiff(true);
-      onRefreshDiff();
+      if (isMutationCurrent(operationToken, operationIdentity)) {
+        onRefreshDiff();
+      }
     } catch (operationError) {
-      setError(errorMessageOf(operationError));
+      if (isMutationCurrent(operationToken, operationIdentity)) {
+        if (reviewAgentClient.isSnapshotExpired(operationError)) {
+          await recoverExpiredReview(operationError, operationIdentity);
+        } else {
+          setError(errorMessageOf(operationError));
+        }
+      }
     } finally {
-      setPending(false);
+      if (isMutationCurrent(operationToken, operationIdentity)) {
+        setPending(false);
+      }
     }
   }
 
@@ -907,6 +1193,8 @@ export function WorkspaceReviewSidebar({
       (candidate) => candidate.path === draft.filePath,
     );
     if (!file) return;
+    const operationIdentity = summaryIdentity;
+    const operationToken = ++mutationRequestTokenRef.current;
     setPending(true);
     try {
       const saved = await reviewAgentClient.saveComment(
@@ -921,25 +1209,42 @@ export function WorkspaceReviewSidebar({
           body: draft.body.trim(),
         },
       );
+      if (
+        !isMutationCurrent(
+          operationToken,
+          operationIdentity,
+          commentIdentity,
+        )
+      ) return;
       setComments((current) => [
         ...current.filter((comment) => comment.id !== saved.id),
         saved,
       ]);
       setDraft(null);
     } catch (commentError) {
-      setError(errorMessageOf(commentError));
+      if (
+        isMutationCurrent(operationToken, operationIdentity, commentIdentity)
+      ) {
+        setError(errorMessageOf(commentError));
+      }
     } finally {
-      setPending(false);
+      if (
+        isMutationCurrent(operationToken, operationIdentity, commentIdentity)
+      ) {
+        setPending(false);
+      }
     }
   }
 
   async function resolveComment(commentId: string): Promise<void> {
     if (!activeSessionId || !workspacePath) return;
+    const identity = commentIdentity;
     const resolved = await reviewAgentClient.resolveComment(
       workspacePath,
       activeSessionId,
       commentId,
     );
+    if (activeCommentIdentityRef.current !== identity) return;
     setComments((current) =>
       current.map((comment) =>
         comment.id === resolved.id ? resolved : comment,
@@ -949,11 +1254,13 @@ export function WorkspaceReviewSidebar({
 
   async function deleteComment(commentId: string): Promise<void> {
     if (!activeSessionId || !workspacePath) return;
+    const identity = commentIdentity;
     await reviewAgentClient.deleteComment(
       workspacePath,
       activeSessionId,
       commentId,
     );
+    if (activeCommentIdentityRef.current !== identity) return;
     setComments((current) =>
       current.filter((comment) => comment.id !== commentId),
     );
@@ -987,16 +1294,30 @@ export function WorkspaceReviewSidebar({
       flashError("请先添加至少一条行内评论");
       return;
     }
+    const reviewSource = source;
+    const reviewComments = [...openComments];
+    const operationSummaryIdentity = summaryIdentity;
+    const operationCommentIdentity = commentIdentity;
+    const operationToken = ++mutationRequestTokenRef.current;
     setPending(true);
     try {
-      for (const comment of openComments) {
+      for (const comment of reviewComments) {
+        if (
+          !isMutationCurrent(
+            operationToken,
+            operationSummaryIdentity,
+            operationCommentIdentity,
+          )
+        ) {
+          return;
+        }
         if (
           comment.githubCommentId ||
           publishedGithubCommentIdsRef.current.has(comment.id)
         ) {
           continue;
         }
-        const published = await reviewAgentClient.publishGithubComment(source, {
+        const published = await reviewAgentClient.publishGithubComment(reviewSource, {
           body: comment.body,
           path: comment.filePath,
           side: comment.side,
@@ -1004,14 +1325,32 @@ export function WorkspaceReviewSidebar({
           expectedHeadRevision,
           commitId: expectedHeadRevision,
         });
+        if (
+          !isMutationCurrent(
+            operationToken,
+            operationSummaryIdentity,
+            operationCommentIdentity,
+          )
+        ) {
+          return;
+        }
         publishedGithubCommentIdsRef.current.add(comment.id);
         if (workspacePath) {
           const linked = await reviewAgentClient.linkGithubComment(
             workspacePath,
-            source,
+            reviewSource,
             comment,
             published,
           );
+          if (
+            !isMutationCurrent(
+              operationToken,
+              operationSummaryIdentity,
+              operationCommentIdentity,
+            )
+          ) {
+            return;
+          }
           setComments((current) =>
             current.map((candidate) =>
               candidate.id === linked.id ? linked : candidate,
@@ -1020,18 +1359,42 @@ export function WorkspaceReviewSidebar({
         }
       }
       await reviewAgentClient.submitGithubReview(
-        source,
+        reviewSource,
         event,
         expectedHeadRevision,
         event === "APPROVE"
           ? undefined
-          : `CodePilotX 提交了 ${openComments.length} 条行内审阅评论。`,
+          : `CodePilotX 提交了 ${reviewComments.length} 条行内审阅评论。`,
       );
-      setError(null);
+      if (
+        isMutationCurrent(
+          operationToken,
+          operationSummaryIdentity,
+          operationCommentIdentity,
+        )
+      ) {
+        setError(null);
+      }
     } catch (reviewError) {
-      setError(errorMessageOf(reviewError));
+      if (
+        isMutationCurrent(
+          operationToken,
+          operationSummaryIdentity,
+          operationCommentIdentity,
+        )
+      ) {
+        setError(errorMessageOf(reviewError));
+      }
     } finally {
-      setPending(false);
+      if (
+        isMutationCurrent(
+          operationToken,
+          operationSummaryIdentity,
+          operationCommentIdentity,
+        )
+      ) {
+        setPending(false);
+      }
     }
   }
 
@@ -1054,6 +1417,8 @@ export function WorkspaceReviewSidebar({
       flashError("请输入提交信息");
       return false;
     }
+    const operationIdentity = summaryIdentity;
+    const operationToken = ++mutationRequestTokenRef.current;
     setPending(true);
     try {
       let commitPaths: string[] = [];
@@ -1073,15 +1438,37 @@ export function WorkspaceReviewSidebar({
         paths: commitPaths,
       });
       if (result.ok === false) throw new Error(result.error);
+      if (
+        activeSummaryIdentityRef.current !== operationIdentity ||
+        mutationRequestTokenRef.current !== operationToken
+      ) {
+        return false;
+      }
       setCommitPopoverOpen(false);
       await refreshReviewDiff(true);
+      if (
+        activeSummaryIdentityRef.current !== operationIdentity ||
+        mutationRequestTokenRef.current !== operationToken
+      ) {
+        return false;
+      }
       onRefreshDiff();
       return true;
     } catch (commitError) {
-      setError(errorMessageOf(commitError));
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setError(errorMessageOf(commitError));
+      }
       return false;
     } finally {
-      setPending(false);
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setPending(false);
+      }
     }
   }
 
@@ -1097,6 +1484,8 @@ export function WorkspaceReviewSidebar({
 
   async function handlePush(): Promise<void> {
     if (!workspacePath || pending) return;
+    const operationIdentity = summaryIdentity;
+    const operationToken = ++mutationRequestTokenRef.current;
     setPending(true);
     try {
       const result = await desktopClient.pushWorkspaceBranch({
@@ -1104,12 +1493,27 @@ export function WorkspaceReviewSidebar({
         setUpstream: !gitStatus?.upstream,
       });
       if (result.ok === false) throw new Error(result.error);
-      setCommitPopoverOpen(false);
-      onRefreshDiff();
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setCommitPopoverOpen(false);
+        onRefreshDiff();
+      }
     } catch (pushError) {
-      setError(errorMessageOf(pushError));
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setError(errorMessageOf(pushError));
+      }
     } finally {
-      setPending(false);
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setPending(false);
+      }
     }
   }
 
@@ -1124,6 +1528,8 @@ export function WorkspaceReviewSidebar({
       flashError("请输入 Pull Request 标题");
       return;
     }
+    const operationIdentity = summaryIdentity;
+    const operationToken = ++mutationRequestTokenRef.current;
     setPending(true);
     try {
       if (pushFirst) {
@@ -1140,6 +1546,12 @@ export function WorkspaceReviewSidebar({
         draft,
       });
       if (result.ok === false) throw new Error(result.error);
+      if (
+        activeSummaryIdentityRef.current !== operationIdentity ||
+        mutationRequestTokenRef.current !== operationToken
+      ) {
+        return;
+      }
       setCurrentPullRequestUrl(result.url);
       const identity = parseGithubPullRequestUrl(result.url);
       if (identity) {
@@ -1147,9 +1559,19 @@ export function WorkspaceReviewSidebar({
       }
       setPrPopoverOpen(false);
     } catch (pullRequestError) {
-      setError(errorMessageOf(pullRequestError));
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setError(errorMessageOf(pullRequestError));
+      }
     } finally {
-      setPending(false);
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setPending(false);
+      }
     }
   }
 
@@ -1222,50 +1644,79 @@ export function WorkspaceReviewSidebar({
     ) {
       return;
     }
-    const paths = summary?.files.map((file) => file.path) ?? [];
-    if (paths.length === 0) return;
+    const currentSummary = summary;
+    const itemList =
+      currentSummary?.files.map((file) => ({
+        path: file.path,
+        expectedRevision: file.revision,
+      })) ?? [];
+    const firstItem = itemList[0];
+    if (!currentSummary || !firstItem) return;
+    if (summaryCacheStateRef.current !== "fresh") {
+      void refreshReviewDiff(true);
+      return;
+    }
+    const items: [
+      { path: string; expectedRevision: string },
+      ...Array<{ path: string; expectedRevision: string }>,
+    ] = [firstItem, ...itemList.slice(1)];
     if (
       action === "revert" &&
-      !window.confirm(`确定要丢弃全部 ${paths.length} 个文件的变更吗？此操作无法撤销。`)
+      !window.confirm(`确定要丢弃全部 ${items.length} 个文件的变更吗？此操作无法撤销。`)
     ) {
       return;
     }
+    const operationIdentity = summaryIdentity;
+    const operationToken = ++mutationRequestTokenRef.current;
     setPending(true);
-    const failures: string[] = [];
     try {
-      for (const path of paths) {
-        try {
-          const current = await reviewAgentClient.summary(
-            workspacePath,
-            source,
-            true,
-          );
-          const file = current.snapshot.files.find(
-            (candidate) => candidate.path === path,
-          );
-          if (!file) continue;
-          await reviewAgentClient.apply(workspacePath, {
-            source,
-            generation: current.snapshot.generation,
-            expectedRevision: file.revision,
-            action,
-            target: { kind: "file", path },
-          });
-        } catch (operationError) {
-          failures.push(`${path}：${errorMessageOf(operationError)}`);
-        }
+      await reviewAgentClient.applyBatch(workspacePath, {
+        source,
+        generation: currentSummary.generation,
+        action,
+        items,
+      });
+      if (
+        activeSummaryIdentityRef.current !== operationIdentity ||
+        mutationRequestTokenRef.current !== operationToken
+      ) {
+        return;
       }
       await refreshReviewDiff(true);
-      onRefreshDiff();
-      if (failures.length > 0) {
-        flashError(
-          `已完成 ${paths.length - failures.length}/${paths.length} 项；失败：${failures
-            .slice(0, 3)
-            .join("；")}`,
-        );
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setError(null);
+        onRefreshDiff();
+      }
+    } catch (operationError) {
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        if (reviewAgentClient.isSnapshotExpired(operationError)) {
+          await recoverExpiredReview(operationError, operationIdentity);
+        } else if (reviewAgentClient.isBatchPartial(operationError)) {
+          const partialMessage = errorMessageOf(operationError);
+          await refreshReviewDiff(true);
+          if (
+            activeSummaryIdentityRef.current === operationIdentity &&
+            mutationRequestTokenRef.current === operationToken
+          ) {
+            setError(partialMessage);
+          }
+        } else {
+          setError(errorMessageOf(operationError));
+        }
       }
     } finally {
-      setPending(false);
+      if (
+        activeSummaryIdentityRef.current === operationIdentity &&
+        mutationRequestTokenRef.current === operationToken
+      ) {
+        setPending(false);
+      }
     }
   }
 
@@ -1452,7 +1903,6 @@ export function WorkspaceReviewSidebar({
             align="start"
             avoidCollisions={false}
             className="popover-review-scope popover-menu--flex"
-            disableOutsideDismiss={debugMode}
             open={scopeMenuOpen}
             side="bottom"
             sideOffset={4}
@@ -1644,7 +2094,6 @@ export function WorkspaceReviewSidebar({
           <PopoverMenu
             align="end"
             className="popover-review-more popover-menu--grid"
-            disableOutsideDismiss={debugMode}
             open={moreMenuOpen}
             sideOffset={4}
             width={220}
@@ -1878,7 +2327,7 @@ export function WorkspaceReviewSidebar({
               largeDiffMode && selectedFile ? [selectedFile] : visibleFiles
             }
             largeDiffMode={largeDiffMode}
-            pending={pending}
+            pending={reviewMutationPending}
             scope={scope}
             selectedPath={selectedFile?.path ?? null}
             toggleCollapseDiff={toggleCollapseDiff}
@@ -1900,12 +2349,7 @@ export function WorkspaceReviewSidebar({
             onFileSectionMount={setDiffFileSectionElement}
             onLoadFile={(path) => void loadFileDiff(path)}
             onRetryFile={(path) => void loadFileDiff(path, "selected")}
-            onScroll={(scrollTop) =>
-              onReviewTabStateChange((current) => ({
-                ...current,
-                scrollTop,
-              }))
-            }
+            onScroll={handleReviewScroll}
           />
         ) : null}
 
@@ -2014,13 +2458,20 @@ export function WorkspaceReviewSidebar({
           {scope === "unstaged" ? (
             <>
               <Tooltip content="还原所有未暂存变更">
-                <Button tone="danger" onClick={revertAll}>
+                <Button
+                  disabled={reviewMutationPending}
+                  tone="danger"
+                  onClick={revertAll}
+                >
                   <Undo2 size={APP_ICON_SIZE} />
                   还原全部
                 </Button>
               </Tooltip>
               <Tooltip content="暂存所有未暂存文件">
-                <Button onClick={stageAll}>
+                <Button
+                  disabled={reviewMutationPending}
+                  onClick={stageAll}
+                >
                   <Plus size={APP_ICON_SIZE} />
                   暂存全部
                 </Button>
@@ -2029,13 +2480,20 @@ export function WorkspaceReviewSidebar({
           ) : (
             <>
               <Tooltip content="取消暂存所有已暂存文件">
-                <Button onClick={unstageAll}>
+                <Button
+                  disabled={reviewMutationPending}
+                  onClick={unstageAll}
+                >
                   <Undo2 size={APP_ICON_SIZE} />
                   取消暂存全部
                 </Button>
               </Tooltip>
               <Tooltip content="还原已暂存变更">
-                <Button tone="danger" onClick={revertAll}>
+                <Button
+                  disabled={reviewMutationPending}
+                  tone="danger"
+                  onClick={revertAll}
+                >
                   <Undo2 size={APP_ICON_SIZE} />
                   还原全部
                 </Button>
@@ -2077,7 +2535,6 @@ export function WorkspaceReviewSidebar({
         anchorRef={commitButtonRef}
         branchName={gitStatus?.branchName ?? "HEAD"}
         deletions={totals.deletions}
-        disableOutsideDismiss={debugMode}
         open={commitPopoverOpen}
         width={420}
         onClose={() => setCommitPopoverOpen(false)}
@@ -2092,7 +2549,6 @@ export function WorkspaceReviewSidebar({
         branchName={gitStatus?.branchName ?? null}
         defaultBranch={defaultBranch}
         deletions={totals.deletions}
-        disableOutsideDismiss={debugMode}
         open={prPopoverOpen}
         width={420}
         onClose={() => setPrPopoverOpen(false)}
@@ -2103,3 +2559,6 @@ export function WorkspaceReviewSidebar({
     </aside>
   );
 }
+
+export const WorkspaceReviewSidebar = React.memo(WorkspaceReviewSidebarImpl);
+WorkspaceReviewSidebar.displayName = "WorkspaceReviewSidebar";

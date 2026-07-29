@@ -15,6 +15,7 @@ export const Capabilities = [
   "memory.v2",
   "workspace.editor.v1",
   "git.review.v1",
+  "git.workspace.v1",
   "ai.review.v1",
   "github.oauth.v1",
   "github.pullRequests.v1",

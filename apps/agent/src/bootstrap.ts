@@ -46,6 +46,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { GitReviewService } from "./review/GitReviewService";
 import { GithubService } from "./github/GithubService";
+import { GitWorkspaceService } from "./git/GitWorkspaceService";
 import type { Models } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
@@ -228,8 +229,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           changedAt: Date.now(),
         });
       },
-      (input) => github.preparePullRequestComparison(input),
+      (input) => github.preparedPullRequestComparison(input),
     );
+    const git = new GitWorkspaceService(db);
     const piModels = new PiModelService(credentials, {
       ...(options.models ? { models: options.models } : {}),
       modelsStore: new PiModelsFileStore(config.piModelCachePath),
@@ -517,7 +519,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       {},
       configService,
     );
-    const history = new ThreadHistoryService(db, hub);
+    const history = new ThreadHistoryService(
+      db,
+      hub,
+      (threadID) => review.prepareThreadSnapshotCleanup(threadID),
+    );
     const threadTitles = new ThreadTitleService(
       db,
       history,
@@ -593,6 +599,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       logger,
       review,
       github,
+      git,
       tooling,
       pets,
       releaseNotes,

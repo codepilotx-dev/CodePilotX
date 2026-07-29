@@ -6,6 +6,7 @@ import {
 } from "@codepilotx/agent-protocol"
 import { configHandlers } from "./handlers/config"
 import { githubHandlers } from "./handlers/github"
+import { gitHandlers } from "./handlers/git"
 import { interactionHandlers } from "./handlers/interaction"
 import { memoryHandlers } from "./handlers/memory"
 import { mcpHandlers } from "./handlers/mcp"
@@ -36,6 +37,7 @@ const groups: readonly RpcHandlerGroup[] = [
   permissionHandlers,
   workspaceHandlers,
   reviewHandlers,
+  gitHandlers,
   mcpHandlers,
   skillHandlers,
   githubHandlers,

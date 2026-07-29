@@ -9,29 +9,27 @@ type NameStatus = {
   status: ReviewFileSummary["status"]
 }
 
-const decoder = new TextDecoder("utf-8", { fatal: true })
-
 export const sha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex")
 export const normalizedPath = (path: string) => path.replaceAll("\\", "/")
 
-export const decodeGitOutput = (
-  bytes: ArrayBuffer,
-  stream: "stdout" | "stderr",
-  maxBytes: number,
-) => {
-  if (bytes.byteLength > maxBytes) {
-    throw new AgentError("REVIEW_OUTPUT_TOO_LARGE", `Git ${stream} 超过 ${maxBytes} 字节限制`, 413)
-  }
-  try {
-    return decoder.decode(bytes)
-  } catch {
-    throw new AgentError("REVIEW_INVALID_UTF8", `Git ${stream} 包含非法 UTF-8`, 400)
-  }
-}
-
 export const validateRelativePath = (path: string) => {
   const normalized = normalizedPath(path)
-  if (!normalized || isAbsolute(path) || normalized.split("/").includes("..") || normalized.includes("\0")) {
+  const segments = normalized.split("/")
+  const pathspecMagic = normalized.startsWith(":(")
+    || normalized.startsWith(":/")
+    || normalized.startsWith(":!")
+    || normalized.startsWith(":^")
+    || normalized.startsWith("::")
+  if (
+    !normalized
+    || normalized === "."
+    || isAbsolute(path)
+    || segments.includes("..")
+    || segments.includes(".")
+    || segments.includes("")
+    || normalized.includes("\0")
+    || pathspecMagic
+  ) {
     throw new AgentError("PATH_DENIED", "Review 文件路径必须是仓库内相对路径", 403)
   }
   return normalized

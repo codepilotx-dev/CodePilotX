@@ -85,6 +85,19 @@ export const ReviewSummaryResultSchema = Schema.Struct({
 })
 export type ReviewSummaryResult = typeof ReviewSummaryResultSchema.Type
 
+export const ReviewPullRequestPrepareParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  owner: NonEmptyStringSchema,
+  repository: NonEmptyStringSchema,
+  number: PositiveIntSchema,
+  force: Schema.optional(Schema.Boolean),
+})
+
+export const ReviewPullRequestPrepareResultSchema = Schema.Struct({
+  baseSha: NonEmptyStringSchema,
+  headSha: NonEmptyStringSchema,
+})
+
 export const ReviewHunkSchema = Schema.Struct({
   id: NonEmptyStringSchema,
   header: NonEmptyStringSchema,
@@ -136,6 +149,26 @@ export const ReviewApplyResultSchema = Schema.Struct({
   generation: NonEmptyStringSchema,
 })
 export type ReviewApplyResult = typeof ReviewApplyResultSchema.Type
+
+export const ReviewApplyBatchParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  source: ReviewSourceSchema,
+  generation: NonEmptyStringSchema,
+  action: Schema.Literals(["stage", "unstage", "revert"]),
+  items: Schema.Array(Schema.Struct({
+    path: NonEmptyStringSchema,
+    expectedRevision: NonEmptyStringSchema,
+  })).check(Schema.isMinLength(1)),
+})
+
+export const ReviewApplyBatchResultSchema = Schema.Struct({
+  ok: Schema.Literal(true),
+  action: Schema.Literals(["stage", "unstage", "revert"]),
+  paths: Schema.Array(NonEmptyStringSchema),
+  generation: NonEmptyStringSchema,
+  appliedCount: NonNegativeIntSchema,
+})
+export type ReviewApplyBatchResult = typeof ReviewApplyBatchResultSchema.Type
 
 export const ReviewBranchesParamsSchema = Schema.Struct({ projectId: OpaqueIDSchema })
 export const ReviewBranchesResultSchema = Schema.Struct({
@@ -277,16 +310,37 @@ const ReviewErrors = [
   "REPOSITORY_NOT_FOUND",
   "REVIEW_SOURCE_UNAVAILABLE",
   "REVIEW_SNAPSHOT_EXPIRED",
+  "REVIEW_REPOSITORY_BUSY",
+  "REVIEW_SOURCE_NOT_PREPARED",
+  "GIT_COMMAND_FAILED",
+  "GIT_OUTPUT_TOO_LARGE",
+  "GIT_OUTPUT_ENCODING_INVALID",
   "CONFLICT",
   "RATE_LIMITED",
   "INTERNAL_ERROR",
+] as const
+
+const ReviewMutationErrors = [
+  ...ReviewErrors,
+  "REVIEW_BATCH_PARTIAL",
+] as const
+
+const ReviewPullRequestPrepareErrors = [
+  ...ReviewErrors,
+  "GITHUB_AUTH_REQUIRED",
+  "GITHUB_AUTH_INVALID",
+  "GITHUB_API_FAILED",
+  "GITHUB_UNAVAILABLE",
+  "GITHUB_RATE_LIMITED",
 ] as const
 
 export const ReviewRpcMethods = {
   "review/summary": defineMethod({ params: ReviewSummaryParamsSchema, result: ReviewSummaryResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
   "review/fileDiff": defineMethod({ params: ReviewFileDiffParamsSchema, result: ReviewFileDiffResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
   "review/refresh": defineMethod({ params: ReviewSummaryParamsSchema, result: ReviewSummaryResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/apply": defineMethod({ params: ReviewApplyParamsSchema, result: ReviewApplyResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
+  "review/pullRequest/prepare": defineMethod({ params: ReviewPullRequestPrepareParamsSchema, result: ReviewPullRequestPrepareResultSchema, errors: ReviewPullRequestPrepareErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
+  "review/apply": defineMethod({ params: ReviewApplyParamsSchema, result: ReviewApplyResultSchema, errors: ReviewMutationErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
+  "review/applyBatch": defineMethod({ params: ReviewApplyBatchParamsSchema, result: ReviewApplyBatchResultSchema, errors: ReviewMutationErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
   "review/branches": defineMethod({ params: ReviewBranchesParamsSchema, result: ReviewBranchesResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
   "review/commits": defineMethod({ params: ReviewCommitsParamsSchema, result: ReviewCommitsResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
   "review/status": defineMethod({ params: ReviewStatusParamsSchema, result: ReviewStatusResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),

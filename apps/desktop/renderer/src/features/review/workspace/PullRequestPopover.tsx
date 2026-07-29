@@ -23,7 +23,6 @@ type Props = {
   branchName: string | null
   defaultBranch: string | null
   deletions: number
-  disableOutsideDismiss?: boolean
   open: boolean
   onClose: () => void
   onCreateDraftPR: (title: string, body: string, pushFirst: boolean) => void
@@ -37,7 +36,6 @@ export function PullRequestPopover({
   branchName,
   defaultBranch,
   deletions,
-  disableOutsideDismiss = false,
   open,
   width,
   maxWidth,
@@ -83,7 +81,6 @@ export function PullRequestPopover({
       if (!target) return
       if (panelRef.current?.contains(target)) return
       if (anchorRef.current?.contains(target)) return
-      if (disableOutsideDismiss) return
       onClose()
     }
     function handleKey(event: KeyboardEvent): void {
@@ -95,7 +92,7 @@ export function PullRequestPopover({
       document.removeEventListener('mousedown', handleClick)
       document.removeEventListener('keydown', handleKey)
     }
-  }, [anchorRef, disableOutsideDismiss, onClose, open])
+  }, [anchorRef, onClose, open])
 
   React.useEffect(() => {
     if (open) {

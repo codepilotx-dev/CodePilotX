@@ -635,6 +635,89 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   return snapshot
 }
 
+const VISUAL_REVIEW_GENERATION = 'visual-review-generation'
+const VISUAL_REVIEW_REVISION = 'visual-review-revision'
+const VISUAL_REVIEW_PATH =
+  'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx'
+
+export function isBrowserVisualReviewCase(): boolean {
+  return import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('visualCase') === 'review'
+}
+
+function createBrowserVisualReviewPatch(): string {
+  const changedPairs = 520
+  const lines = [`@@ -1,${changedPairs} +1,${changedPairs} @@`]
+  for (let line = 1; line <= changedPairs; line += 1) {
+    lines.push(`-const previousValue${line} = "before-${line}"`)
+    lines.push(`+const currentValue${line} = "after-${line}"`)
+  }
+  return lines.join('\n')
+}
+
+const VISUAL_REVIEW_PATCH = createBrowserVisualReviewPatch()
+
+export function browserVisualReviewSummary(
+  source: DesktopReviewSource,
+) {
+  if (!isBrowserVisualReviewCase()) return null
+  const changedLines = 1_040
+  return {
+    snapshot: {
+      projectId: 'visual-review-project',
+      generation: VISUAL_REVIEW_GENERATION,
+      source,
+      repositoryRoot: 'F:\\CodeProject\\CodePilotX-Ts',
+      headSha: '1111111111111111111111111111111111111111',
+      baseSha: null,
+      files: [{
+        path: VISUAL_REVIEW_PATH,
+        previousPath: null,
+        status: 'modified' as const,
+        additions: 520,
+        deletions: 520,
+        changedLines,
+        changedBytes: 48_000,
+        binary: false,
+        revision: VISUAL_REVIEW_REVISION,
+      }],
+      totals: {
+        files: 1,
+        additions: 520,
+        deletions: 520,
+        changedLines,
+        changedBytes: 48_000,
+      },
+      largeDiffMode: false,
+    },
+    cacheState: 'fresh' as const,
+  }
+}
+
+export function browserVisualReviewFileDiff(
+  source: DesktopReviewSource,
+  path: string,
+) {
+  if (!isBrowserVisualReviewCase() || path !== VISUAL_REVIEW_PATH) return null
+  return {
+    file: browserVisualReviewSummary(source)!.snapshot.files[0]!,
+    revision: VISUAL_REVIEW_REVISION,
+    patch: VISUAL_REVIEW_PATCH,
+    hunks: [{
+      id: 'visual-review-hunk',
+      header: '@@ -1,520 +1,520 @@',
+      oldStart: 1,
+      oldLines: 520,
+      newStart: 1,
+      newLines: 520,
+      patch: VISUAL_REVIEW_PATCH,
+    }],
+    renderable: true,
+    tooLargeReason: null,
+  }
+}
+
 export function requireMockSession(
   sessions: Map<string, DesktopSessionSnapshot>,
   sessionId: string,

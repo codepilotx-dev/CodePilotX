@@ -1,3 +1,4 @@
+import { AgentThread } from "@codepilotx/shared"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
 import { EmptyParamsSchema, OpaqueIDSchema } from "../wire/primitives"
@@ -188,6 +189,18 @@ export const GithubRpcMethods = {
   "github/profile": defineMethod({ params: EmptyParamsSchema, result: Schema.Struct({ user: GithubUserSchema }), errors: GithubErrors, capability: "github.oauth.v1", mutation: false, exactResult: true }),
   "github/profileOverview": defineMethod({ params: EmptyParamsSchema, result: Schema.Struct({ overview: GithubProfileOverviewSchema }), errors: GithubErrors, capability: "github.oauth.v1", mutation: false, exactResult: true }),
   "github/repositories": defineMethod({ params: EmptyParamsSchema, result: Schema.Struct({ repositories: Schema.Array(GithubRepositorySchema) }), errors: GithubErrors, capability: "github.oauth.v1", mutation: false, exactResult: true }),
+  "github/repository/clone": defineMethod({
+    params: Schema.Struct({
+      repositoryId: PositiveIntSchema,
+      targetParent: NonEmptyStringSchema,
+    }),
+    result: Schema.Struct({ project: AgentThread.ProjectSchema }),
+    errors: GithubErrors,
+    capability: "github.oauth.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
   "github/pullRequest/read": defineMethod({ params: Schema.Struct(GithubPullRequestIdentityFields), result: Schema.Struct({ pullRequest: GithubPullRequestSchema }), errors: GithubErrors, capability: "github.pullRequests.v1", mutation: false, exactParams: true, exactResult: true }),
   "github/pullRequest/create": defineMethod({
     params: Schema.Struct({ ...GithubRepositoryIdentityFields, title: NonEmptyStringSchema, head: NonEmptyStringSchema, base: NonEmptyStringSchema, body: Schema.optional(Schema.String), draft: Schema.optional(Schema.Boolean) }),

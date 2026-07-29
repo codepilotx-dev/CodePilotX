@@ -53,6 +53,7 @@ import {
   supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
+import { ProjectService } from "../../../project/ProjectService"
 
 export const githubHandlers = {
   name: "github",
@@ -64,6 +65,7 @@ export const githubHandlers = {
     "github/profile",
     "github/profileOverview",
     "github/repositories",
+    "github/repository/clone",
     "github/pullRequest/read",
     "github/pullRequest/create",
     "github/pullRequest/createForProject",
@@ -73,7 +75,7 @@ export const githubHandlers = {
     "github/push",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, apiKeys, memory, review, github } = runtime.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, projectSources, providers, apiKeys, memory, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "github/auth/status":
@@ -90,6 +92,17 @@ export const githubHandlers = {
         return github.profileOverview()
       case "github/repositories":
         return github.repositories()
+      case "github/repository/clone": {
+        const repositoryId = positiveIntegerParam(params, "repositoryId")
+        const { repositoryRoot } = await github.cloneRepository({
+          repositoryId,
+          targetParent: stringParam(params, "targetParent"),
+        })
+        return new ProjectService(db, projectSources).create({
+          primaryPath: repositoryRoot,
+          operationID: crypto.randomUUID(),
+        })
+      }
       case "github/pullRequest/read":
         return github.readPullRequest(githubPullRequestIdentity(params))
       case "github/pullRequest/create":

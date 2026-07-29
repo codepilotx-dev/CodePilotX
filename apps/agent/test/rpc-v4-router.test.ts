@@ -7,6 +7,7 @@ import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { Capabilities } from "@codepilotx/agent-protocol"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { AgentError } from "../src/domain"
 import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcRouter"
 
 const roots: string[] = []
@@ -57,6 +58,17 @@ const fixture = async (
         cacheState: "fresh" as const,
       }
     },
+    applyBatch: async (input: {
+      action: "stage" | "unstage" | "revert"
+      generation: string
+      items: Array<{ path: string }>
+    }) => ({
+      ok: true as const,
+      action: input.action,
+      paths: input.items.map((item) => item.path),
+      generation: input.generation,
+      appliedCount: input.items.length,
+    }),
   }
   const github = {
     authStatus: async () => {
@@ -514,10 +526,78 @@ describe("RPC v4 Router", () => {
       },
       cacheState: "fresh",
     })
+    const applied = await call("review/applyBatch", {
+      projectId: "project:1",
+      source: { kind: "unstaged" },
+      generation: "generation:1",
+      action: "stage",
+      items: [{ path: "src/index.ts", expectedRevision: "revision:1" }],
+    })
+    expect(applied.result).toEqual({
+      ok: true,
+      action: "stage",
+      paths: ["src/index.ts"],
+      generation: "generation:1",
+      appliedCount: 1,
+    })
     const github = await call("github/auth/status", {})
     expect(github.result).toEqual({ configured: false, authenticated: false, user: null })
     expect(counts()).toEqual({ reviewSummaryCalls: 1, githubStatusCalls: 1 })
     db.close()
+  })
+
+  test("Git 和 Review RPC 错误只公开允许的安全 details", async () => {
+    const gitFailure = await fixture({
+      review: {
+        summaryResult: async () => {
+          throw new AgentError("GIT_COMMAND_FAILED", "Git 操作失败", 409, {
+            stderr: "fatal: C:\\secret\\repository",
+            args: ["status", "--porcelain"],
+          })
+        },
+      } as never,
+    })
+    await gitFailure.initialize()
+    const failed = await gitFailure.call("review/summary", {
+      projectId: "project:git-error",
+      source: { kind: "unstaged" },
+    })
+    expect(failed.error.data).toEqual({
+      code: "GIT_COMMAND_FAILED",
+      retryable: false,
+    })
+    expect(JSON.stringify(failed)).not.toContain("secret")
+
+    const expiredFailure = await fixture({
+      review: {
+        summaryResult: async () => {
+          throw new AgentError(
+            "REVIEW_SNAPSHOT_EXPIRED",
+            "Review 快照已经过期，请刷新后重试",
+            409,
+            {
+              latestGeneration: "generation:latest",
+              retryable: true,
+              stderr: "fatal: C:\\secret\\repository",
+            },
+          )
+        },
+      } as never,
+    })
+    await expiredFailure.initialize()
+    const expired = await expiredFailure.call("review/summary", {
+      projectId: "project:review-expired",
+      source: { kind: "unstaged" },
+    })
+    expect(expired.error.data).toEqual({
+      code: "REVIEW_SNAPSHOT_EXPIRED",
+      retryable: false,
+      details: {
+        latestGeneration: "generation:latest",
+        retryable: true,
+      },
+    })
+    expect(JSON.stringify(expired)).not.toContain("secret")
   })
 
   test("task suggestion RPC resolves project scope and returns safe service output", async () => {

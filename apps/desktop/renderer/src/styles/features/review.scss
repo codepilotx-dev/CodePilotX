@@ -235,7 +235,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 3px;
+    left: 4px;
     width: 1px;
     background: var(--color-token-border-light);
   }
@@ -518,11 +518,15 @@
 }
 
 .review-diff-virtual-body {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-height: 0;
 }
 
 .review-diff-vlist {
+  flex: 1;
+  min-height: 0;
   overflow-x: hidden;
 }
 
@@ -541,6 +545,12 @@
 
 .review-diff-vlist-row .review-diff-row {
   grid-template-columns: 24px 42px 0 minmax(0, 1fr);
+}
+
+.review-diff-vlist-row
+  .review-diff-row:not([data-line-type="hunk"])
+  > .review-diff-line-content {
+  grid-column: 4;
 }
 
 .review-diff-vlist-row .review-diff-split-row {

@@ -22,7 +22,6 @@ import type {
 } from '../../../shared/types.js'
 
 type DesktopClientWindow = {
-  desktopApi?: DesktopApi
   codePilotXDesktop?: {
     pickWorkspaceDirectory(): Promise<string | null>
     getAppearanceSettings?(): Promise<DesktopThemeSettings>
@@ -161,6 +160,16 @@ export type DesktopAgentReviewApi = {
       | { kind: 'file'; path: string }
       | { kind: 'hunk'; path: string; hunkId: string }
   }): Promise<void>
+  applyAgentReviewBatch(input: {
+    workspacePath: string
+    source: DesktopReviewSource
+    generation: string
+    action: 'stage' | 'unstage' | 'revert'
+    items: [
+      { path: string; expectedRevision: string },
+      ...Array<{ path: string; expectedRevision: string }>,
+    ]
+  }): Promise<RpcResult<'review/applyBatch'>>
   getAgentReviewBranches(workspacePath: string): Promise<Array<{
     name: string
     sha: string

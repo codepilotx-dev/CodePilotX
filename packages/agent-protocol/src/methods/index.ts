@@ -3,6 +3,7 @@ import type { ParamsOf, ResultOf } from "../wire/definition"
 import { CoreRpcMethods } from "./core"
 import { ConfigRpcMethods } from "./config"
 import { ExtendedRpcMethods } from "./extended"
+import { GitRpcMethods } from "./git"
 import { GithubRpcMethods } from "./github"
 import { McpRpcMethods } from "./mcp"
 import { PetRpcMethods } from "./pet"
@@ -17,6 +18,7 @@ export const RpcMethods = {
   ...CoreRpcMethods,
   ...ConfigRpcMethods,
   ...ExtendedRpcMethods,
+  ...GitRpcMethods,
   ...GithubRpcMethods,
   ...McpRpcMethods,
   ...PetRpcMethods,
@@ -39,6 +41,7 @@ export type RpcResultSchema<M extends RpcMethod> = (typeof RpcMethods)[M]["resul
 export * from "./core"
 export * from "./config"
 export * from "./extended"
+export * from "./git"
 export * from "./github"
 export * from "./mcp"
 export * from "./pet"
