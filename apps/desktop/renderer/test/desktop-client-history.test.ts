@@ -275,14 +275,32 @@ describe('desktop history client', () => {
 
     const snapshot = await client.getSession('session-1')
     expect(snapshot.view.messages[0]?.text).toBe('第一条消息')
+    snapshot.item.customTitle = '旧手工标题'
+    snapshot.item.aiTitle = '旧 AI 标题'
 
     await client.sendUserMessage('session-1', { text: '继续推进' }, {
       providerID: 'openai',
       model: 'gpt-5',
     })
 
+    let renamedStoreItem:
+      | Awaited<ReturnType<typeof client.getSession>>['item']
+      | null = null
+    const unsubscribe = client.onSessionStoreChange(change => {
+      renamedStoreItem =
+        change.sessions.find(candidate => candidate.item.id === 'session-1')
+          ?.item ?? null
+    })
     const renamed = await client.renameSession('session-1', '改名后')
+    unsubscribe()
     expect(renamed.item.sessionName).toBe('改名后')
+    expect(renamed.item.customTitle).toBeNull()
+    expect(renamed.item.aiTitle).toBeNull()
+    expect(renamedStoreItem).toMatchObject({
+      sessionName: '改名后',
+      customTitle: null,
+      aiTitle: null,
+    })
     expect(renamed.item.lastMessageAt).toBe(
       new Date(now + 1000).toISOString(),
     )

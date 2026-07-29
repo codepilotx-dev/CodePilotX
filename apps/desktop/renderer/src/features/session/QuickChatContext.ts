@@ -39,6 +39,7 @@ export type QuickChatContextValue = {
   activeSessionId: string | null
   activeSessionPinnedAt: string | null
   sessionTitle: string | null
+  editableSessionTitle: string | null
   workspaceName: string | null
   workspacePath: string | null
   branchName: string | null
@@ -73,6 +74,7 @@ export type QuickChatContextValue = {
   onOpenSubagent: (taskId: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void
+  onRenameSession: (title: string) => Promise<boolean>
   onRefreshSessionTitle: () => Promise<boolean>
   onToggleSidebar: () => void
   onToggleSessionPinned: () => void

@@ -497,9 +497,8 @@ export function useSessionState(
         ...snapshot.item,
         sessionName:
           snapshot.item.sessionName ?? currentItem?.sessionName ?? null,
-        customTitle:
-          snapshot.item.customTitle ?? currentItem?.customTitle ?? null,
-        aiTitle: snapshot.item.aiTitle ?? currentItem?.aiTitle ?? null,
+        customTitle: snapshot.item.customTitle ?? null,
+        aiTitle: snapshot.item.aiTitle ?? null,
         firstPrompt:
           snapshot.item.firstPrompt ?? currentItem?.firstPrompt ?? null,
       }

@@ -14,18 +14,13 @@ export function canRegenerateConversationTitle(input: {
   )
 }
 
-export function isRenameConversationShortcut(
-  event: Pick<
-    KeyboardEvent,
-    'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'repeat' | 'shiftKey'
-  >,
-): boolean {
+export function shouldCloseConversationRenameDialog(input: {
+  activeSessionId: string | null
+  requestedSessionId: string
+  succeeded: boolean
+}): boolean {
   return (
-    event.ctrlKey &&
-    event.altKey &&
-    !event.metaKey &&
-    !event.repeat &&
-    !event.shiftKey &&
-    event.key.toLowerCase() === 'r'
+    input.succeeded &&
+    input.activeSessionId === input.requestedSessionId
   )
 }

@@ -55,6 +55,7 @@ import { QuickChatContext } from '../../session/QuickChatContext.js'
 import { SearchContext } from '../../search/SearchContext.js'
 import {
   sessionDisplayTitle,
+  sessionEditableTitle,
   sessionViewFallbackTitle,
   type SessionListItem,
 } from '../../../uiTypes.js'
@@ -1843,6 +1844,9 @@ export function DesktopLayout(): React.ReactNode {
   const quickChatSessionTitle = activeSessionItem
     ? sessionDisplayTitle(activeSessionItem, activeSessionFallbackTitle)
     : activeSessionFallbackTitle
+  const quickChatEditableSessionTitle = activeSessionItem
+    ? sessionEditableTitle(activeSessionItem, activeSessionFallbackTitle)
+    : activeSessionFallbackTitle
   const regeneratingActiveSessionTitle = activeSessionItem
     ? titleLoadingIds.has(activeSessionItem.id)
     : false
@@ -2771,6 +2775,7 @@ export function DesktopLayout(): React.ReactNode {
               ? sidebarSessionPins[activeSessionItem.id] ?? null
               : null,
             sessionTitle: quickChatSessionTitle,
+            editableSessionTitle: quickChatEditableSessionTitle,
             titleRegenerating: regeneratingActiveSessionTitle,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
@@ -2800,6 +2805,11 @@ export function DesktopLayout(): React.ReactNode {
             onOpenSubagent: handleOpenSubagent,
             onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,
+            onRenameSession: async title => {
+              const targetSessionId = activeSessionItem?.id
+              if (!targetSessionId) return false
+              return Boolean(await renameSession(targetSessionId, title))
+            },
             onRefreshSessionTitle: async () =>
               activeSessionItem
                 ? regenerateSessionTitle(activeSessionItem.id)

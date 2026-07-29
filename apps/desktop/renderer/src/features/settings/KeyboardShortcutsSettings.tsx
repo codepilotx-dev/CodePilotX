@@ -321,11 +321,6 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     description: 'Reload the active browser page',
     keys: ['Ctrl+R'],
   },
-  {
-    title: 'Rename chat',
-    description: 'Rename the current chat',
-    keys: ['Ctrl+Alt+R'],
-  },
   { title: 'Search Chats...', description: 'Search chats', keys: ['Ctrl+G'] },
   { title: 'Search Files...', description: 'Search files', keys: ['Ctrl+P'] },
   {

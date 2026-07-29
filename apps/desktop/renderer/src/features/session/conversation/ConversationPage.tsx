@@ -67,10 +67,7 @@ import {
 } from "../workflow/workflowConsistency.js";
 import { desktopClient } from "../../../services/desktop-client/index.js";
 import { deriveReviewTurns } from "../reviewTurns.js";
-import {
-  sessionEditableTitle,
-  type Message,
-} from "../../../uiTypes.js";
+import type { Message } from "../../../uiTypes.js";
 import { InlineApprovalCard } from "../approvals/InlineApprovalCard.js";
 import {
   WorkflowPlanCard,
@@ -131,7 +128,7 @@ import { TimelineSystemNotice } from "../timeline/TimelineItemView.js";
 import { selectCanonicalConversationAuxiliaryState } from "./canonicalConversationSelectors.js";
 import {
   canRegenerateConversationTitle,
-  isRenameConversationShortcut,
+  shouldCloseConversationRenameDialog,
 } from "./conversationTitleActions.js";
 import {
   deriveAssistantActionMessageIds,
@@ -215,6 +212,7 @@ export function ConversationPage(): React.ReactNode {
     activeSessionId,
     activeSessionPinnedAt,
     sessionTitle,
+    editableSessionTitle,
     titleRegenerating,
     events,
     workflowEvents,
@@ -230,6 +228,7 @@ export function ConversationPage(): React.ReactNode {
     onOpenAutomation,
     onOpenWorkspacePath,
     onRefreshDiff,
+    onRenameSession,
     onRefreshSessionTitle,
     onToggleSessionPinned,
     onBranchSelect,
@@ -620,21 +619,10 @@ export function ConversationPage(): React.ReactNode {
   const openRenameSessionDialog = React.useCallback((): void => {
     if (!hasActiveSession || renameDialogOpen || renamingSession) return;
     setSessionMenuOpen(false);
-    const requestedSessionId = activeSessionId!;
-    void desktopClient
-      .getSession(requestedSessionId)
-      .then(snapshot => {
-        if (activeSessionIdRef.current !== requestedSessionId) return;
-        setRenameValue(sessionEditableTitle(snapshot.item));
-        setRenameDialogOpen(true);
-      })
-      .catch(() => {
-        if (activeSessionIdRef.current !== requestedSessionId) return;
-        setRenameValue(renderedSessionTitle);
-        setRenameDialogOpen(true);
-      });
+    setRenameValue(editableSessionTitle ?? renderedSessionTitle);
+    setRenameDialogOpen(true);
   }, [
-    activeSessionId,
+    editableSessionTitle,
     hasActiveSession,
     renameDialogOpen,
     renderedSessionTitle,
@@ -644,12 +632,17 @@ export function ConversationPage(): React.ReactNode {
   async function submitSessionRename(): Promise<void> {
     const title = renameValue.trim();
     if (!activeSessionId || renamingSession || !title) return;
+    const requestedSessionId = activeSessionId;
     setRenamingSession(true);
     try {
-      await desktopClient.renameSession(activeSessionId, title);
-      setRenameDialogOpen(false);
-    } catch (error) {
-      window.dispatchEvent(new CustomEvent("desktop:error", { detail: error }));
+      const renamed = await onRenameSession(title);
+      if (shouldCloseConversationRenameDialog({
+        activeSessionId: activeSessionIdRef.current,
+        requestedSessionId,
+        succeeded: renamed,
+      })) {
+        setRenameDialogOpen(false);
+      }
     } finally {
       setRenamingSession(false);
     }
@@ -664,16 +657,6 @@ export function ConversationPage(): React.ReactNode {
       window.dispatchEvent(new CustomEvent("desktop:error", { detail: error }));
     }
   }, [canRegenerateSessionTitle, onRefreshSessionTitle]);
-
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (!isRenameConversationShortcut(event) || !hasActiveSession) return;
-      event.preventDefault();
-      openRenameSessionDialog();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasActiveSession, openRenameSessionDialog]);
 
   React.useEffect(() => {
     setRenameDialogOpen(false);
@@ -855,7 +838,6 @@ export function ConversationPage(): React.ReactNode {
           <PopoverItem
             disabled={!hasActiveSession || renamingSession}
             icon={<Pencil size={APP_ICON_SIZE} />}
-            shortcut="Ctrl+Alt+R"
             onClick={openRenameSessionDialog}
           >
             重命名对话

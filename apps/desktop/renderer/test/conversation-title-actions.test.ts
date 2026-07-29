@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   canRegenerateConversationTitle,
-  isRenameConversationShortcut,
+  shouldCloseConversationRenameDialog,
 } from '../src/features/session/conversation/conversationTitleActions.js'
 
 describe('conversation title actions', () => {
@@ -29,20 +29,22 @@ describe('conversation title actions', () => {
     }
   })
 
-  test('recognizes only Ctrl+Alt+R as the rename shortcut', () => {
-    const shortcut = {
-      altKey: true,
-      ctrlKey: true,
-      key: 'R',
-      metaKey: false,
-      repeat: false,
-      shiftKey: false,
+  test('closes rename only after a successful request for the active session', () => {
+    const completed = {
+      activeSessionId: 'session-1',
+      requestedSessionId: 'session-1',
+      succeeded: true,
     }
 
-    expect(isRenameConversationShortcut(shortcut)).toBe(true)
-    expect(isRenameConversationShortcut({ ...shortcut, altKey: false })).toBe(false)
-    expect(isRenameConversationShortcut({ ...shortcut, shiftKey: true })).toBe(false)
-    expect(isRenameConversationShortcut({ ...shortcut, repeat: true })).toBe(false)
-    expect(isRenameConversationShortcut({ ...shortcut, key: 'P' })).toBe(false)
+    expect(shouldCloseConversationRenameDialog(completed)).toBe(true)
+    expect(
+      shouldCloseConversationRenameDialog({ ...completed, succeeded: false }),
+    ).toBe(false)
+    expect(
+      shouldCloseConversationRenameDialog({
+        ...completed,
+        activeSessionId: 'session-2',
+      }),
+    ).toBe(false)
   })
 })
