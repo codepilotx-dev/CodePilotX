@@ -19,6 +19,7 @@ export type SidebarSessionHoverCardModel = {
   relativeTime: string
   projectLabel: string
   gitBranch: string | null
+  unread: boolean
 }
 
 export function formatSidebarSessionRelativeTime(
@@ -54,6 +55,7 @@ export function buildSidebarSessionHoverCardModel(
     ),
     projectLabel,
     gitBranch,
+    unread: Boolean(session.unreadAt),
   }
 }
 

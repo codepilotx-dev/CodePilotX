@@ -1,6 +1,7 @@
 import type React from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { useLayoutEffect, useMemo, useRef } from 'react'
+import { cx } from '../../../utils/cx.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 
 type VirtualAnchor = {
@@ -83,7 +84,7 @@ export function SidebarHoverCardSurface({
       <Popover.Portal>
         <Popover.Content
           align="center"
-          className={className}
+          className={cx('sidebar-hover-card-surface', className)}
           ref={contentRef}
           side="right"
           sideOffset={6}

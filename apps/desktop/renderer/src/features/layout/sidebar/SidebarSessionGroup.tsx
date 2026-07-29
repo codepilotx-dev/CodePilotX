@@ -291,12 +291,7 @@ export function SidebarSessionGroup({
           />
         ) : (
           <SidebarSessionTitle reducedMotion={reducedMotion}>
-            <>
-              {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
-              {session.unreadAt ? (
-                <span aria-label="未读" className="sidebar-session-unread-dot" />
-              ) : null}
-            </>
+            {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
           </SidebarSessionTitle>
         )}
       </button>
@@ -353,7 +348,16 @@ export function SidebarSessionGroup({
         }}
         trailing={
           <div className={metaClassName}>
-            {awaitingApproval ? (
+            {confirmArchiveSessionId === session.id ? (
+              <button
+                className="sidebar-session-confirm-archive-button"
+                onClick={() => void onArchiveSessions([session])}
+                title="确认归档"
+                type="button"
+              >
+                确认
+              </button>
+            ) : awaitingApproval ? (
               <>
                 <span className="sidebar-session-approval" title="等待审批">
                   等待审批
@@ -370,15 +374,6 @@ export function SidebarSessionGroup({
                 className="sidebar-session-spinner"
                 size={APP_ICON_SIZE}
               />
-            ) : confirmArchiveSessionId === session.id ? (
-              <button
-                className="sidebar-session-confirm-archive-button"
-                onClick={() => void onArchiveSessions([session])}
-                title="确认归档"
-                type="button"
-              >
-                确认
-              </button>
             ) : hoveredSessionId === session.id || focusedSessionId === session.id ? (
               <div className="sidebar-session-actions">
                 {session.pinnedAt ? (
@@ -406,6 +401,12 @@ export function SidebarSessionGroup({
                   <Archive size={APP_ICON_SIZE} />
                 </IconButton>
               </div>
+            ) : null}
+            {session.unreadAt && confirmArchiveSessionId !== session.id ? (
+              <span
+                aria-label="未读"
+                className="sidebar-session-unread-dot"
+              />
             ) : null}
           </div>
         }

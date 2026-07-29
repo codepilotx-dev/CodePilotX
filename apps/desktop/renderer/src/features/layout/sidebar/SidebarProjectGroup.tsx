@@ -37,7 +37,10 @@ import {
   normalizeSidebarPath,
   sidebarProjectKey,
 } from './sidebarViewModel.js'
-import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
+import {
+  countOpenProjectSessions,
+  SidebarProjectHoverCard,
+} from './SidebarProjectHoverCard.js'
 
 const ProjectEditDialog = lazy(async () => {
   const module = await import('../../projects/ProjectEditDialog.js')
@@ -133,11 +136,7 @@ export function SidebarProjectGroup({
   const unreadCount = countedProjectSessions.filter(
     session => Boolean(session.unreadAt),
   ).length
-  const openCount = activeSessionId && countedProjectSessions.some(
-    session => session.id === activeSessionId,
-  )
-    ? 1
-    : 0
+  const openCount = countOpenProjectSessions(countedProjectSessions)
   const isExpanded =
     !collapsedProjectPaths.has(projectKey) &&
     !collapsedProjectPaths.has(managedProject.path)

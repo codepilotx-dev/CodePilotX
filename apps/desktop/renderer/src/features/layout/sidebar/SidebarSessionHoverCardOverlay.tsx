@@ -2,6 +2,11 @@ import type React from 'react'
 import { Folder, GitBranch } from 'lucide-react'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
+import {
+  SidebarHoverCardFrame,
+  SidebarHoverCardHeader,
+  SidebarHoverCardRow,
+} from './SidebarHoverCardLayout.js'
 import { SidebarHoverCardSurface } from './SidebarHoverCardSurface.js'
 import type { SidebarSessionHoverCardModel } from './SidebarSessionHoverCard.js'
 
@@ -44,8 +49,8 @@ export function SidebarSessionHoverCardOverlay({
       onFocusRequestHandled={onFocusRequestHandled}
       positionOutsideSidebar
     >
-      <div className="sidebar-session-hover-card-content">
-        <div className="sidebar-session-hover-card-header">
+      <SidebarHoverCardFrame className="sidebar-session-hover-card-content">
+        <SidebarHoverCardHeader className="sidebar-session-hover-card-header">
           {editing ? (
             <input
               aria-label="任务名称"
@@ -73,8 +78,8 @@ export function SidebarSessionHoverCardOverlay({
               aria-busy={regeneratingTitle}
               aria-live="polite"
               className="sidebar-session-hover-card-title"
-              title="双击重命名"
-              onDoubleClick={onStartRename}
+              title="单击重命名"
+              onClick={onStartRename}
             >
               {regeneratingTitle ? (
                 <>
@@ -84,19 +89,29 @@ export function SidebarSessionHoverCardOverlay({
               ) : model.title}
             </span>
           )}
-          <span className="sidebar-session-hover-card-time">{model.relativeTime}</span>
-        </div>
-        <div className="sidebar-session-hover-card-row">
+          <span className="sidebar-session-hover-card-trailing">
+            <span className="sidebar-session-hover-card-time">
+              {model.relativeTime}
+            </span>
+            {model.unread ? (
+              <span
+                aria-hidden="true"
+                className="sidebar-session-unread-dot"
+              />
+            ) : null}
+          </span>
+        </SidebarHoverCardHeader>
+        <SidebarHoverCardRow className="sidebar-session-hover-card-row">
           <Folder aria-hidden="true" size={16} />
           <span>{model.projectLabel}</span>
-        </div>
+        </SidebarHoverCardRow>
         {model.gitBranch ? (
-          <div className="sidebar-session-hover-card-row">
+          <SidebarHoverCardRow className="sidebar-session-hover-card-row">
             <GitBranch aria-hidden="true" size={16} />
             <span>{model.gitBranch}</span>
-          </div>
+          </SidebarHoverCardRow>
         ) : null}
-      </div>
+      </SidebarHoverCardFrame>
     </SidebarHoverCardSurface>
   )
 }

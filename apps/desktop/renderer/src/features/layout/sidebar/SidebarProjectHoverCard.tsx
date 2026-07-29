@@ -4,6 +4,7 @@ import type {
   DesktopWorkspace,
   ProjectAppearance,
 } from '../../../../shared/types.js'
+import type { SessionListItem } from '../../../uiTypes.js'
 import { SidebarHoverCard } from './SidebarHoverCard.js'
 
 const SidebarProjectHoverCardOverlay = lazy(async () => {
@@ -77,4 +78,15 @@ export function SidebarProjectHoverCard({
       {children}
     </SidebarHoverCard>
   )
+}
+
+export function countOpenProjectSessions(
+  sessions: readonly SessionListItem[],
+): number {
+  return sessions.filter(
+    session =>
+      session.status === 'queued'
+      || session.status === 'waiting'
+      || session.status === 'running',
+  ).length
 }

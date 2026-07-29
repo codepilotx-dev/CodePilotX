@@ -26,6 +26,9 @@ import {
   formatSidebarSessionRelativeTime,
 } from '../src/features/layout/sidebar/SidebarSessionHoverCard.js'
 import {
+  countOpenProjectSessions,
+} from '../src/features/layout/sidebar/SidebarProjectHoverCard.js'
+import {
   buildSidebarPinnedItems,
   buildSidebarViewModel,
   deriveSidebarSessionVisualState,
@@ -576,7 +579,26 @@ describe('sidebar session hover card projection', () => {
       relativeTime: '19 分',
       projectLabel: 'CodePilotX',
       gitBranch: 'codex/hover-card',
+      unread: false,
     })
+  })
+
+  test('悬浮卡携带未读状态并按活动任务统计已开启数量', () => {
+    const unreadItem = {
+      ...session('thread-unread', 'F:\\CodeProject\\CodePilotX'),
+      unreadAt: '2026-07-18T00:18:00.000Z',
+    }
+    expect(buildSidebarSessionHoverCardModel(
+      unreadItem,
+      undefined,
+      new Date('2026-07-18T00:19:00.000Z').getTime(),
+    ).unread).toBe(true)
+    expect(countOpenProjectSessions([
+      { ...unreadItem, status: 'queued' },
+      { ...unreadItem, id: 'waiting', status: 'waiting' },
+      { ...unreadItem, id: 'running', status: 'running' },
+      { ...unreadItem, id: 'idle', status: 'idle' },
+    ])).toBe(3)
   })
 
   test('统一解析完整标题并将展示标题限制为 20 个 Unicode 字符', () => {
