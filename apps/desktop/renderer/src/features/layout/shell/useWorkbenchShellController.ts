@@ -16,17 +16,32 @@ import {
 } from '../dock/rightDockState.js'
 import type { OpenPlanInDockRequest } from '../../session/workflow/WorkflowPlanCard.js'
 import { useSidebarShellController } from '../sidebarShellState.js'
+import {
+  BOTTOM_PANEL_DEFAULT_HEIGHT,
+  BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
+  BOTTOM_PANEL_MIN_HEIGHT,
+  RIGHT_DOCK_MIN_WIDTH,
+  RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
+  bottomPanelHeightFromRatio,
+  bottomPanelHeightToRatio,
+  getBottomPanelMaxHeight,
+  getResponsiveRightDockDefaultWidth,
+  getRightDockMaxWidth,
+  reduceRightDockResponsiveState,
+  rightDockWidthFromRatio,
+  rightDockWidthToRatio,
+  type WorkbenchSize,
+} from './workbenchLayoutSizing.js'
 
-export const RIGHT_DOCK_MIN_WIDTH = 320
-export const RIGHT_DOCK_MAIN_MIN_WIDTH = 352
-export const RIGHT_DOCK_DEFAULT_WIDTH = 600
-export const BOTTOM_PANEL_MIN_HEIGHT = 160
-export const BOTTOM_PANEL_DEFAULT_HEIGHT = 280
-
-const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codepilotx.desktop.rightDockWidth'
-const BOTTOM_PANEL_HEIGHT_STORAGE_KEY =
-  'codepilotx.desktop.bottomPanelHeight'
-const RIGHT_DOCK_RESPONSIVE_BREAKPOINT = 960
+export {
+  BOTTOM_PANEL_DEFAULT_HEIGHT,
+  BOTTOM_PANEL_MIN_HEIGHT,
+  RIGHT_DOCK_MAIN_MIN_WIDTH,
+  RIGHT_DOCK_MIN_WIDTH,
+  getResponsiveRightDockDefaultWidth,
+  rightDockWidthFromRatio,
+  rightDockWidthToRatio,
+} from './workbenchLayoutSizing.js'
 
 export function useWorkbenchShellController(debugMode: boolean) {
   const layout = useDesktopLayout()
@@ -39,36 +54,42 @@ export function useWorkbenchShellController(debugMode: boolean) {
   } = layout
   const [workbenchPanelState, setWorkbenchPanelState] =
     useState<WorkbenchTabsState>(createDefaultWorkbenchTabsState)
-  const [rightDockViewport, setRightDockViewport] = useState(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  }))
-  const rightDockMainContentWidth = getRightDockMainContentWidth(
-    rightDockViewport.width,
-    sidebarCollapsed,
-    sidebarWidth,
-  )
-  const [rightDockWidthRatio, setRightDockWidthRatio] = useState(() =>
-    getInitialRightDockWidthRatio(
-      rightDockMainContentWidth,
-      rightDockViewport.height,
-    ),
-  )
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  const workspaceMeasuredRef = useRef(false)
+  const [workspaceSize, setWorkspaceSize] = useState<WorkbenchSize>({
+    width: 0,
+    height: 0,
+  })
+  const [rightDockWidthRatio, setRightDockWidthRatio] =
+    useState<number | null>(null)
   const rightDockWidth = rightDockWidthFromRatio(
-    rightDockWidthRatio,
-    rightDockMainContentWidth,
+    rightDockWidthRatio ?? 0,
+    workspaceSize.width,
   )
-  const [bottomPanelHeight, setBottomPanelHeight] = useState(
-    getInitialBottomPanelHeight,
+  const [bottomPanelHeightRatio, setBottomPanelHeightRatio] =
+    useState<number | null>(null)
+  const bottomPanelHeight = bottomPanelHeightFromRatio(
+    bottomPanelHeightRatio ?? 0,
+    workspaceSize.height,
   )
+  const [rightDockResponsiveState, setRightDockResponsiveState] = useState({
+    suppressed: true,
+    manualOverride: false,
+  })
   const sidebarShell = useSidebarShellController({
     desktopCollapsed: sidebarCollapsed,
     sidebarWidth,
     setDesktopCollapsed: setSidebarCollapsed,
   })
-  const autoCollapsedRightRef = useRef(false)
   const rightDockState = workbenchPanelState.right
   const bottomPanelState = workbenchPanelState.bottom
+  const rightDockVisible =
+    rightDockWidthRatio !== null &&
+    rightDockState.open &&
+    (!rightDockResponsiveState.suppressed ||
+      rightDockResponsiveState.manualOverride)
+  const rightDockMaxWidth = getRightDockMaxWidth(workspaceSize.width)
+  const bottomPanelMaxHeight = getBottomPanelMaxHeight(workspaceSize.height)
 
   const collapseSidebar = useCallback((): void => {
     setSidebarCollapsed(true)
@@ -83,16 +104,40 @@ export function useWorkbenchShellController(debugMode: boolean) {
     [debugMode],
   )
 
+  const updateRightDockManualState = useCallback(
+    (type: 'manualOpen' | 'manualClose'): void => {
+      setRightDockResponsiveState(current =>
+        reduceRightDockResponsiveState(current, {
+          type,
+          workspaceWidth: workspaceSize.width,
+        }),
+      )
+    },
+    [workspaceSize.width],
+  )
+
+  const moveRightDockFocusToMain = useCallback((): void => {
+    const activeElement = document.activeElement
+    if (
+      !(activeElement instanceof HTMLElement) ||
+      !activeElement.closest(
+        '[data-app-shell-tab-panel-controller="right"]',
+      )
+    ) return
+    activeElement.blur()
+    dispatchPanelAction({ type: 'focusPanel', target: 'main' })
+  }, [dispatchPanelAction])
+
   const openPanelTab = useCallback(
     (
       target: WorkbenchPanelTarget,
       tab: WorkbenchTabDescriptor,
       index?: number,
     ): void => {
-      if (target === 'right') autoCollapsedRightRef.current = false
+      if (target === 'right') updateRightDockManualState('manualOpen')
       dispatchPanelAction({ type: 'openTab', target, tab, index })
     },
-    [dispatchPanelAction],
+    [dispatchPanelAction, updateRightDockManualState],
   )
 
   const openRightDockTab = useCallback(
@@ -117,13 +162,25 @@ export function useWorkbenchShellController(debugMode: boolean) {
   )
 
   const closeRightDock = useCallback((): void => {
-    autoCollapsedRightRef.current = false
+    updateRightDockManualState('manualClose')
     dispatchPanelAction({ type: 'closePanel', target: 'right' })
-  }, [dispatchPanelAction])
+  }, [dispatchPanelAction, updateRightDockManualState])
 
   const togglePanel = useCallback(
     (target: WorkbenchPanelTarget): void => {
-      if (target === 'right') autoCollapsedRightRef.current = false
+      if (target === 'right' && rightDockState.open && !rightDockVisible) {
+        updateRightDockManualState('manualOpen')
+        focusPanelController('right')
+        return
+      }
+
+      if (target === 'right') {
+        if (rightDockState.open) {
+          updateRightDockManualState('manualClose')
+        } else {
+          updateRightDockManualState('manualOpen')
+        }
+      }
       setWorkbenchPanelState(current => {
         const opening = !current[target].open
         const next = applyWorkbenchTabsAction(
@@ -132,26 +189,25 @@ export function useWorkbenchShellController(debugMode: boolean) {
           { debugMode },
         )
         if (opening) {
-          requestAnimationFrame(() => {
-            document
-              .querySelector<HTMLElement>(
-                `[data-app-shell-tab-panel-controller="${target}"]`,
-              )
-              ?.focus({ preventScroll: true })
-          })
+          focusPanelController(target)
         }
         return next
       })
     },
-    [debugMode],
+    [
+      debugMode,
+      rightDockState.open,
+      rightDockVisible,
+      updateRightDockManualState,
+    ],
   )
 
   const closePanel = useCallback(
     (target: WorkbenchPanelTarget): void => {
-      if (target === 'right') autoCollapsedRightRef.current = false
+      if (target === 'right') updateRightDockManualState('manualClose')
       dispatchPanelAction({ type: 'closePanel', target })
     },
-    [dispatchPanelAction],
+    [dispatchPanelAction, updateRightDockManualState],
   )
 
   const movePanelTab = useCallback(
@@ -161,9 +217,10 @@ export function useWorkbenchShellController(debugMode: boolean) {
       tabId: WorkbenchTabId,
       index?: number,
     ): void => {
+      if (target === 'right') updateRightDockManualState('manualOpen')
       dispatchPanelAction({ type: 'moveTab', source, target, tabId, index })
     },
-    [dispatchPanelAction],
+    [dispatchPanelAction, updateRightDockManualState],
   )
 
   const reorderPanelTab = useCallback(
@@ -206,44 +263,48 @@ export function useWorkbenchShellController(debugMode: boolean) {
   )
 
   const toggleRightFullWidth = useCallback((): void => {
+    updateRightDockManualState('manualOpen')
     dispatchPanelAction({ type: 'toggleRightFullWidth' })
-  }, [dispatchPanelAction])
+  }, [dispatchPanelAction, updateRightDockManualState])
 
   const handleSetRightDockWidth = useCallback(
     (nextWidth: number): void => {
       setRightDockWidthRatio(
-        rightDockWidthToRatio(nextWidth, rightDockMainContentWidth),
+        rightDockWidthToRatio(nextWidth, workspaceSize.width),
       )
     },
-    [rightDockMainContentWidth],
+    [workspaceSize.width],
   )
 
   const handleResetRightDockWidth = useCallback((): void => {
     setRightDockWidthRatio(
       rightDockWidthToRatio(
         getResponsiveRightDockDefaultWidth(
-          rightDockMainContentWidth,
-          rightDockViewport.height,
+          workspaceSize.width,
+          workspaceSize.height,
         ),
-        rightDockMainContentWidth,
+        workspaceSize.width,
       ),
     )
-  }, [rightDockMainContentWidth, rightDockViewport.height])
+  }, [workspaceSize.height, workspaceSize.width])
 
   const handleSetBottomPanelHeight = useCallback(
     (nextHeight: number): void => {
-      if (nextHeight < BOTTOM_PANEL_MIN_HEIGHT) {
-        dispatchPanelAction({ type: 'closePanel', target: 'bottom' })
-        return
-      }
-      setBottomPanelHeight(clampBottomPanelHeight(nextHeight))
+      setBottomPanelHeightRatio(
+        bottomPanelHeightToRatio(nextHeight, workspaceSize.height),
+      )
     },
-    [dispatchPanelAction],
+    [workspaceSize.height],
   )
 
   const handleResetBottomPanelHeight = useCallback((): void => {
-    setBottomPanelHeight(clampBottomPanelHeight(BOTTOM_PANEL_DEFAULT_HEIGHT))
-  }, [])
+    setBottomPanelHeightRatio(
+      bottomPanelHeightToRatio(
+        BOTTOM_PANEL_DEFAULT_HEIGHT,
+        workspaceSize.height,
+      ),
+    )
+  }, [workspaceSize.height])
 
   const handleOpenPlanDock = useCallback(
     (plan: OpenPlanInDockRequest): void => {
@@ -258,50 +319,81 @@ export function useWorkbenchShellController(debugMode: boolean) {
   )
 
   useEffect(() => {
+    if (
+      rightDockWidthRatio === null ||
+      bottomPanelHeightRatio === null
+    ) return
     window.localStorage.setItem(
-      RIGHT_DOCK_WIDTH_STORAGE_KEY,
+      RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
       String(rightDockWidthRatio),
     )
-  }, [rightDockWidthRatio])
-
-  useEffect(() => {
     window.localStorage.setItem(
-      BOTTOM_PANEL_HEIGHT_STORAGE_KEY,
-      String(bottomPanelHeight),
+      BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
+      String(bottomPanelHeightRatio),
     )
-  }, [bottomPanelHeight])
+  }, [bottomPanelHeightRatio, rightDockWidthRatio])
 
   useEffect(() => {
-    const onResize = (): void => {
-      setRightDockViewport({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      })
-      setBottomPanelHeight(current => clampBottomPanelHeight(current))
-      if (window.innerWidth <= RIGHT_DOCK_RESPONSIVE_BREAKPOINT) {
-        setWorkbenchPanelState(current => {
-          if (!current.right.open) return current
-          autoCollapsedRightRef.current = true
-          return applyWorkbenchTabsAction(current, {
-            type: 'closePanel',
-            target: 'right',
-            responsive: true,
-          })
+    const workspaceElement = workspaceRef.current
+
+    const updateWorkspaceSize = (
+      width: number,
+      height: number,
+    ): void => {
+      if (width <= 0 || height <= 0) return
+      const nextSize = {
+        width: Math.round(width),
+        height: Math.round(height),
+      }
+      if (!workspaceMeasuredRef.current) {
+        workspaceMeasuredRef.current = true
+        void import('./workbenchLayoutStorage.js').then(module => {
+          const [rightRatio, bottomRatio] = module.default(
+            nextSize.width,
+            nextSize.height,
+          )
+          setRightDockWidthRatio(rightRatio)
+          setBottomPanelHeightRatio(bottomRatio)
         })
-      } else if (autoCollapsedRightRef.current) {
-        autoCollapsedRightRef.current = false
-        setWorkbenchPanelState(current =>
-          applyWorkbenchTabsAction(current, {
-            type: 'togglePanel',
-            target: 'right',
-          }),
+      }
+      setWorkspaceSize(nextSize)
+    }
+
+    if (!workspaceElement) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) {
+        updateWorkspaceSize(
+          entry.contentRect.width,
+          entry.contentRect.height,
         )
       }
-    }
-    window.addEventListener('resize', onResize)
-    onResize()
-    return () => window.removeEventListener('resize', onResize)
+    })
+    observer.observe(workspaceElement)
+    return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    setRightDockResponsiveState(current => {
+      const next = reduceRightDockResponsiveState(current, {
+        type: 'resize',
+        workspaceWidth: workspaceSize.width,
+      })
+      if (
+        rightDockState.open &&
+        !next.manualOverride &&
+        !current.suppressed &&
+        next.suppressed
+      ) moveRightDockFocusToMain()
+      return next.suppressed === current.suppressed &&
+        next.manualOverride === current.manualOverride
+        ? current
+        : next
+    })
+  }, [
+    moveRightDockFocusToMain,
+    rightDockState.open,
+    workspaceSize.width,
+  ])
 
   return {
     sidebarCollapsed,
@@ -317,7 +409,13 @@ export function useWorkbenchShellController(debugMode: boolean) {
     rightDockState,
     bottomPanelState,
     bottomPanelVisible: bottomPanelState.open,
+    workspaceRef,
+    rightDockVisible,
+    rightDockMinWidth: RIGHT_DOCK_MIN_WIDTH,
+    rightDockMaxWidth,
     rightDockWidth,
+    bottomPanelMinHeight: BOTTOM_PANEL_MIN_HEIGHT,
+    bottomPanelMaxHeight,
     bottomPanelHeight,
     openRightDockTab,
     openPanelTab,
@@ -342,105 +440,17 @@ export function useWorkbenchShellController(debugMode: boolean) {
   }
 }
 
-function getInitialRightDockWidthRatio(
-  mainContentWidth: number,
-  shellHeight: number,
-): number {
-  const storedValue = window.localStorage.getItem(RIGHT_DOCK_WIDTH_STORAGE_KEY)
-  const stored = storedValue == null ? Number.NaN : Number(storedValue)
-  if (Number.isFinite(stored) && stored >= 0 && stored <= 1) {
-    return clampUnitInterval(stored)
+function focusPanelController(target: WorkbenchPanelTarget): void {
+  let attempts = 0
+  const focusWhenMounted = (): void => {
+    const controller = document.querySelector<HTMLElement>(
+      `[data-app-shell-tab-panel-controller="${target}"]`,
+    )
+    if (controller) {
+      controller.focus({ preventScroll: true })
+      return
+    }
+    if (attempts++ < 60) requestAnimationFrame(focusWhenMounted)
   }
-  return rightDockWidthToRatio(
-    Number.isFinite(stored) && stored > 1
-      ? stored
-      : getResponsiveRightDockDefaultWidth(mainContentWidth, shellHeight),
-    mainContentWidth,
-  )
-}
-
-export function rightDockWidthFromRatio(
-  ratio: number,
-  mainContentWidth: number,
-): number {
-  const { minimum, maximum } = getRightDockWidthRange(mainContentWidth)
-  return Math.round(
-    minimum + clampUnitInterval(ratio) * (maximum - minimum),
-  )
-}
-
-export function rightDockWidthToRatio(
-  width: number,
-  mainContentWidth: number,
-): number {
-  const { minimum, maximum } = getRightDockWidthRange(mainContentWidth)
-  const range = maximum - minimum
-  if (range === 0) return 0
-  const safeWidth = Number.isFinite(width)
-    ? width
-    : RIGHT_DOCK_DEFAULT_WIDTH
-  return clampUnitInterval(
-    (Math.min(maximum, Math.max(minimum, safeWidth)) - minimum) / range,
-  )
-}
-
-function getRightDockWidthRange(mainContentWidth: number): {
-  minimum: number
-  maximum: number
-} {
-  const maximum = Math.max(
-    RIGHT_DOCK_MIN_WIDTH,
-    mainContentWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
-  )
-  return {
-    minimum: Math.min(RIGHT_DOCK_MIN_WIDTH, maximum),
-    maximum,
-  }
-}
-
-export function getResponsiveRightDockDefaultWidth(
-  mainContentWidth: number,
-  shellHeight: number,
-): number {
-  return Math.max(
-    RIGHT_DOCK_MIN_WIDTH,
-    Math.min(shellHeight * 1.6, mainContentWidth - 500),
-    Math.min(640, mainContentWidth - RIGHT_DOCK_MAIN_MIN_WIDTH),
-  )
-}
-
-function getRightDockMainContentWidth(
-  viewportWidth: number,
-  sidebarCollapsed: boolean,
-  sidebarWidth: number,
-): number {
-  return Math.max(
-    0,
-    viewportWidth - (sidebarCollapsed ? 0 : sidebarWidth),
-  )
-}
-
-function clampUnitInterval(value: number): number {
-  return Math.max(0, Math.min(1, value))
-}
-
-function getInitialBottomPanelHeight(): number {
-  const stored = Number(
-    window.localStorage.getItem(BOTTOM_PANEL_HEIGHT_STORAGE_KEY),
-  )
-  return clampBottomPanelHeight(stored || BOTTOM_PANEL_DEFAULT_HEIGHT)
-}
-
-function clampBottomPanelHeight(height: number): number {
-  const viewportMax = Math.max(
-    BOTTOM_PANEL_MIN_HEIGHT,
-    Math.floor(window.innerHeight * 0.5),
-  )
-  const safeHeight = Number.isFinite(height)
-    ? height
-    : BOTTOM_PANEL_DEFAULT_HEIGHT
-  return Math.min(
-    viewportMax,
-    Math.max(BOTTOM_PANEL_MIN_HEIGHT, Math.round(safeHeight)),
-  )
+  requestAnimationFrame(focusWhenMounted)
 }

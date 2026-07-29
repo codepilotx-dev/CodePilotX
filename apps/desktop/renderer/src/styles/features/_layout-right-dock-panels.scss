@@ -452,7 +452,7 @@
   overflow: hidden;
 
   > .right-dock-file-selection-target {
-    min-width: 320px;
+    min-width: 0;
     flex: 1 1 auto;
   }
 }
@@ -463,7 +463,7 @@
 
 .right-dock-open-file-empty {
   display: grid;
-  min-width: 200px;
+  min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
   align-content: center;
@@ -491,7 +491,7 @@
 
 .right-dock-editor-file-tree {
   width: min(var(--right-dock-editor-tree-width, 280px), 60%);
-  min-width: 200px;
+  min-width: 0;
   min-height: 0;
   flex: 0 0 min(var(--right-dock-editor-tree-width, 280px), 60%);
   overflow: hidden;

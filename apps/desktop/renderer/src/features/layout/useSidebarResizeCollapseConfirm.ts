@@ -44,11 +44,14 @@ type UseSidebarResizeCollapseConfirmInput = {
   minWidth: number
   width: number
   onCollapse: () => void
+  collapseEnabled?: boolean
+  onResetSize?: () => void
   onResizePreview?: (width: number) => void
   onSetWidth: (width: number) => void
   /** `'left'` (default): drag right edge to resize, pointer right = wider.
-   *  `'right'`: drag left edge to resize, pointer left = wider. */
-  direction?: 'left' | 'right'
+   *  `'right'`: drag left edge to resize, pointer left = wider.
+   *  `'bottom'`: drag top edge to resize, pointer up = taller. */
+  direction?: 'left' | 'right' | 'bottom'
 }
 
 export type UseSidebarResizeCollapseConfirmResult = {
@@ -110,6 +113,8 @@ export function useSidebarResizeCollapseConfirm({
   minWidth,
   width,
   onCollapse,
+  collapseEnabled = true,
+  onResetSize,
   onResizePreview,
   onSetWidth,
   direction = 'left',
@@ -192,10 +197,20 @@ export function useSidebarResizeCollapseConfirm({
     if (!resizing) return
 
     function handlePointerMove(event: PointerEvent): void {
+      const pointerPosition =
+        direction === 'bottom' ? event.clientY : event.clientX
       const rawWidth =
-        direction === 'right'
-          ? start.width + start.x - event.clientX
-          : start.width + event.clientX - start.x
+        direction === 'left'
+          ? start.width + pointerPosition - start.x
+          : start.width + start.x - pointerPosition
+      if (!collapseEnabled) {
+        const nextWidth = Math.min(
+          maxWidth,
+          Math.max(minWidth, rawWidth),
+        )
+        if (onResizePreview) queuePreview(nextWidth)
+        return
+      }
       const result = computeSidebarResizeCollapseConfirm({
         rawWidth,
         minWidth,
@@ -224,14 +239,22 @@ export function useSidebarResizeCollapseConfirm({
     document.addEventListener('pointermove', handlePointerMove)
     const handlePointerUp = (): void => stopResize(true)
     const handlePointerCancel = (): void => stopResize(false)
+    const handleWindowBlur = (): void => stopResize(false)
     document.addEventListener('pointerup', handlePointerUp)
     document.addEventListener('pointercancel', handlePointerCancel)
-    document.body.style.cursor = 'col-resize'
+    window.addEventListener('blur', handleWindowBlur)
+    if (direction === 'bottom') {
+      document.body.classList.add('bottom-panel-is-resizing')
+    }
+    document.body.style.cursor =
+      direction === 'bottom' ? 'row-resize' : 'col-resize'
     document.body.style.userSelect = 'none'
     return () => {
       document.removeEventListener('pointermove', handlePointerMove)
       document.removeEventListener('pointerup', handlePointerUp)
       document.removeEventListener('pointercancel', handlePointerCancel)
+      window.removeEventListener('blur', handleWindowBlur)
+      document.body.classList.remove('bottom-panel-is-resizing')
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
       clearHoldTimer()
@@ -243,6 +266,7 @@ export function useSidebarResizeCollapseConfirm({
   }, [
     clearCollapseConfirm,
     clearHoldTimer,
+    collapseEnabled,
     direction,
     minWidth,
     maxWidth,
@@ -263,18 +287,34 @@ export function useSidebarResizeCollapseConfirm({
   }, [collapsed, stopResize])
 
   function startResize(event: React.PointerEvent<HTMLDivElement>): void {
-    if (collapsed) return
+    if (collapsed || event.button !== 0) return
     event.preventDefault()
-    setStart({ x: event.clientX, width })
+    setStart({
+      x: direction === 'bottom' ? event.clientY : event.clientX,
+      width,
+    })
     previewWidthRef.current = width
     setResizing(true)
   }
 
   function handleResizeKey(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (collapsed) return
-    const step = event.shiftKey ? 32 : 8
-    const decreaseKey = direction === 'right' ? 'ArrowRight' : 'ArrowLeft'
-    const increaseKey = direction === 'right' ? 'ArrowLeft' : 'ArrowRight'
+    const step =
+      direction === 'bottom'
+        ? event.shiftKey
+          ? 40
+          : 10
+        : event.shiftKey
+          ? 32
+          : 8
+    const decreaseKey =
+      direction === 'left' ? 'ArrowLeft' : direction === 'right'
+        ? 'ArrowRight'
+        : 'ArrowDown'
+    const increaseKey =
+      direction === 'left' ? 'ArrowRight' : direction === 'right'
+        ? 'ArrowLeft'
+        : 'ArrowUp'
     if (event.key === decreaseKey) {
       event.preventDefault()
       onSetWidth(width - step)
@@ -283,7 +323,8 @@ export function useSidebarResizeCollapseConfirm({
       onSetWidth(width + step)
     } else if (event.key === 'Home') {
       event.preventDefault()
-      onSetWidth(minWidth)
+      if (onResetSize) onResetSize()
+      else onSetWidth(minWidth)
     } else if (event.key === 'End') {
       event.preventDefault()
       onSetWidth(maxWidth)

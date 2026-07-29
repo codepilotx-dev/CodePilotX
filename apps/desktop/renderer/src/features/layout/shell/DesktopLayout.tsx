@@ -17,11 +17,8 @@ import {
 import { composerDraftStore } from '../../session/composer/composerDraftStore.js'
 import type { ComposerDraftKey } from '../../session/composer/composerTypes.js'
 import { deriveWorkflowSessionState } from '../../../../shared/workflowReducer.js'
-import {
-  WorkspaceShellControls,
-  WorkbenchPanel,
-  type WorkbenchFileLoadErrorEvent,
-} from '../dock/RightDock.js'
+import type { WorkbenchFileLoadErrorEvent } from '../dock/RightDock.js'
+import { WorkspaceShellControls } from '../dock/WorkspaceShellControls.js'
 import {
   DesktopWorkspaceHeader,
   WorkspaceHeaderProvider,
@@ -92,11 +89,7 @@ import {
   useWorkbenchRouteController,
 } from './useWorkbenchRouteController.js'
 import type { DesktopLayoutOutletContextValue } from './desktopLayoutOutletContext.js'
-import {
-  RIGHT_DOCK_MAIN_MIN_WIDTH,
-  RIGHT_DOCK_MIN_WIDTH,
-  useWorkbenchShellController,
-} from './useWorkbenchShellController.js'
+import { useWorkbenchShellController } from './useWorkbenchShellController.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
 import { useModelProviderController } from '../useModelProviderController.js'
 import { recordConversationSwitchStarted } from '../../debug/performanceDiagnosticsBridge.js'
@@ -119,6 +112,7 @@ const GithubRepositoryModal = lazy(() => import('../panels/GithubRepositoryModal
 const SettingsSidebarContent = lazy(() => import('../../settings/SettingsSidebarContent.js').then(module => ({ default: module.SettingsSidebarContent })))
 const SubagentThreadPanel = lazy(() => import('../../session/subagents/SubagentThreadPanel.js').then(module => ({ default: module.SubagentThreadPanel })))
 const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
+const WorkbenchPanel = lazy(() => import('../dock/RightDock.js').then(module => ({ default: module.WorkbenchPanel })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -322,7 +316,13 @@ export function DesktopLayout(): React.ReactNode {
     rightDockState,
     bottomPanelState,
     bottomPanelVisible,
+    workspaceRef,
+    rightDockVisible,
+    rightDockMinWidth,
+    rightDockMaxWidth,
     rightDockWidth,
+    bottomPanelMinHeight,
+    bottomPanelMaxHeight,
     bottomPanelHeight,
     openRightDockTab,
     handleSetRightDockWidth,
@@ -344,6 +344,15 @@ export function DesktopLayout(): React.ReactNode {
     setFileMarkdownViewMode,
     toggleRightFullWidth,
   } = useWorkbenchShellController(menubarDebugMode)
+  const rightDockFullWidth =
+    rightDockVisible && workbenchPanelState.rightFullWidth
+  const visibleRightDockState = useMemo(
+    () => ({
+      ...rightDockState,
+      open: rightDockVisible,
+    }),
+    [rightDockState, rightDockVisible],
+  )
   const handleErrorMessage = useCallback((message: string): void => {
     setErrorMessage(message || null)
   }, [])
@@ -2228,16 +2237,21 @@ export function DesktopLayout(): React.ReactNode {
       />
     </Suspense>
   ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
-  const desktopWorkspaceRef = useRef<HTMLDivElement>(null)
   const rightDockPanelRef = useRef<HTMLDivElement>(null)
+  const bottomPanelRef = useRef<HTMLDivElement>(null)
   const handlePreviewRightDockWidth = useCallback((width: number): void => {
     if (rightDockPanelRef.current) {
       rightDockPanelRef.current.style.width = `${width}px`
     }
-    desktopWorkspaceRef.current?.style.setProperty(
+    workspaceRef.current?.style.setProperty(
       '--workspace-right-panel-live-width',
       `${width}px`,
     )
+  }, [workspaceRef])
+  const handlePreviewBottomPanelHeight = useCallback((height: number): void => {
+    if (bottomPanelRef.current) {
+      bottomPanelRef.current.style.height = `${height}px`
+    }
   }, [])
 
   const planContentByEventId = useMemo(() => {
@@ -2252,12 +2266,13 @@ export function DesktopLayout(): React.ReactNode {
   const rightDockPlanEventId = useMemo(() => {
     for (const target of ['right', 'bottom'] as const) {
       const panel = workbenchPanelState[target]
+      if (target === 'right' && !rightDockVisible) continue
       if (!panel.open || !panel.activeTabId) continue
       const tab = workbenchPanelState.tabsById[panel.activeTabId]
       if (tab?.kind === 'plan') return tab.eventId
     }
     return null
-  }, [workbenchPanelState])
+  }, [rightDockVisible, workbenchPanelState])
 
   const handledFileLoadErrorsRef = useRef(new WeakSet<Error>())
   const handleFileLoadError = useCallback(
@@ -2567,9 +2582,15 @@ export function DesktopLayout(): React.ReactNode {
   ): React.ReactNode => {
     const state =
       target === 'right' ? rightDockState : bottomPanelState
-    if (!state.open) return null
+    if (
+      !state.open ||
+      (target === 'right' && !rightDockVisible)
+    ) {
+      return null
+    }
     return (
-    <WorkbenchPanel
+    <Suspense fallback={null}>
+      <WorkbenchPanel
       target={target}
       state={state}
       tabsById={workbenchPanelState.tabsById}
@@ -2580,11 +2601,10 @@ export function DesktopLayout(): React.ReactNode {
       gitStatus={gitStatus}
       isRefreshingReview={false}
       diffMarkerStyle={diffMarkerStyle}
-      maxWidth={Math.max(
-        RIGHT_DOCK_MIN_WIDTH,
-        window.innerWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
-      )}
-      minWidth={RIGHT_DOCK_MIN_WIDTH}
+      maxWidth={rightDockMaxWidth}
+      minWidth={rightDockMinWidth}
+      maxHeight={bottomPanelMaxHeight}
+      minHeight={bottomPanelMinHeight}
       reviewView={reviewView}
       reviewTabState={reviewTabState}
       planContentByEventId={planContentByEventId}
@@ -2593,7 +2613,7 @@ export function DesktopLayout(): React.ReactNode {
       sessionStatus={sessionStatus}
       width={rightDockWidth}
       height={bottomPanelHeight}
-      rightFullWidth={workbenchPanelState.rightFullWidth}
+      rightFullWidth={rightDockFullWidth}
       workspace={currentWorkspace}
       onAppendBrowserAnnotation={handleBrowserAnnotation}
       onAppendComposerText={handleAppendComposerText}
@@ -2647,6 +2667,9 @@ export function DesktopLayout(): React.ReactNode {
       onResizePreviewWidth={
         target === 'right' ? handlePreviewRightDockWidth : undefined
       }
+      onResizePreviewHeight={
+        target === 'bottom' ? handlePreviewBottomPanelHeight : undefined
+      }
       onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
       onMoveTab={movePanelTab}
       onReorderTab={reorderPanelTab}
@@ -2662,7 +2685,8 @@ export function DesktopLayout(): React.ReactNode {
       sideChatFocusVersion={sideChatFocusVersion}
       activeSideTaskId={activeSideTaskId}
       sideTaskContent={subagentSideChatContent}
-    />
+      />
+    </Suspense>
     )
   }
 
@@ -2868,13 +2892,13 @@ export function DesktopLayout(): React.ReactNode {
             >
               <WorkspaceHeaderProvider routeScope={location.pathname}>
                 <div
-                  ref={desktopWorkspaceRef}
+                  ref={workspaceRef}
                   className="desktop-workspace"
                   style={
                     {
                       '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-                      '--workspace-right-panel-live-width': rightDockState.open
-                        ? workbenchPanelState.rightFullWidth
+                      '--workspace-right-panel-live-width': rightDockVisible
+                        ? rightDockFullWidth
                           ? '100%'
                           : `${rightDockWidth}px`
                         : '0px',
@@ -2882,11 +2906,11 @@ export function DesktopLayout(): React.ReactNode {
                   }
                 >
                   <DesktopWorkspaceHeader
-                    fullWidth={workbenchPanelState.rightFullWidth}
-                    rightDockOpen={rightDockState.open}
+                    fullWidth={rightDockFullWidth}
+                    rightDockOpen={rightDockVisible}
                     shellControls={
                       <WorkspaceShellControls
-                        rightDockState={rightDockState}
+                        rightDockState={visibleRightDockState}
                         bottomPanelVisible={bottomPanelVisible}
                         showBottomPanel={isQuickChatPage || isConversationRoute}
                         showRightPanel={
@@ -2903,8 +2927,8 @@ export function DesktopLayout(): React.ReactNode {
                       className="desktop-main-route"
                       style={
                         {
-                          flexBasis: workbenchPanelState.rightFullWidth ? 0 : undefined,
-                          width: workbenchPanelState.rightFullWidth ? 0 : undefined,
+                          flexBasis: rightDockFullWidth ? 0 : undefined,
+                          width: rightDockFullWidth ? 0 : undefined,
                         } as React.CSSProperties
                       }
                     >
@@ -2917,12 +2941,12 @@ export function DesktopLayout(): React.ReactNode {
                       <div
                         ref={rightDockPanelRef}
                         className={
-                          workbenchPanelState.rightFullWidth
+                          rightDockFullWidth
                             ? 'desktop-workspace-panel desktop-workspace-panel--right full-width'
                             : 'desktop-workspace-panel desktop-workspace-panel--right'
                         }
                         style={{
-                          width: workbenchPanelState.rightFullWidth
+                          width: rightDockFullWidth
                             ? '100%'
                             : `${rightDockWidth}px`,
                         }}
@@ -2933,6 +2957,7 @@ export function DesktopLayout(): React.ReactNode {
                   </div>
                   {bottomPanelNode ? (
                     <div
+                      ref={bottomPanelRef}
                       className="desktop-workspace-panel desktop-workspace-panel--bottom"
                       style={{ height: `${bottomPanelHeight}px` }}
                     >

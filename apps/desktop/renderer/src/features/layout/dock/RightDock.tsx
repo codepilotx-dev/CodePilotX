@@ -71,6 +71,8 @@ type Props = {
   diffMarkerStyle: DesktopDiffMarkerStyle
   maxWidth: number
   minWidth: number
+  maxHeight?: number
+  minHeight?: number
   reviewView: DesktopReviewView
   reviewTabState: ReviewTabUiState
   selectedFile: DesktopFilePreview | null
@@ -105,6 +107,7 @@ type Props = {
   onResetHeight?: () => void
   onSelectTab: (tabId: WorkbenchTabId) => void
   onResizePreviewWidth?: (width: number) => void
+  onResizePreviewHeight?: (height: number) => void
   onSetWidth: (width: number) => void
   onSetHeight?: (height: number) => void
   onMoveTab: (
@@ -156,6 +159,8 @@ export function WorkbenchPanel({
   diffMarkerStyle,
   maxWidth,
   minWidth,
+  maxHeight,
+  minHeight,
   reviewView,
   reviewTabState,
   selectedFile,
@@ -186,6 +191,7 @@ export function WorkbenchPanel({
   onResetHeight,
   onSelectTab,
   onResizePreviewWidth,
+  onResizePreviewHeight,
   onSetWidth,
   onSetHeight,
   onMoveTab,
@@ -217,44 +223,21 @@ export function WorkbenchPanel({
     direction: 'right',
   })
 
-  const startBottomResize = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>): void => {
-      if (target !== 'bottom' || !onSetHeight || height === undefined) return
-      event.preventDefault()
-      const startY = event.clientY
-      const startHeight = height
-      const onPointerMove = (moveEvent: PointerEvent): void => {
-        onSetHeight(startHeight + startY - moveEvent.clientY)
-      }
-      const onPointerUp = (): void => {
-        document.body.classList.remove('bottom-panel-is-resizing')
-        window.removeEventListener('pointermove', onPointerMove)
-        window.removeEventListener('pointerup', onPointerUp)
-      }
-      document.body.classList.add('bottom-panel-is-resizing')
-      window.addEventListener('pointermove', onPointerMove)
-      window.addEventListener('pointerup', onPointerUp)
-    },
-    [height, onSetHeight, target],
-  )
-
-  const handleBottomResizeKey = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>): void => {
-      if (target !== 'bottom' || !onSetHeight || height === undefined) return
-      const step = event.shiftKey ? 40 : 10
-      if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        onSetHeight(height + step)
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        onSetHeight(height - step)
-      } else if (event.key === 'Home') {
-        event.preventDefault()
-        onResetHeight?.()
-      }
-    },
-    [height, onResetHeight, onSetHeight, target],
-  )
+  const {
+    handleResizeKey: handleBottomResizeKey,
+    startResize: startBottomResize,
+  } = useSidebarResizeCollapseConfirm({
+    collapsed: target !== 'bottom',
+    collapseEnabled: false,
+    direction: 'bottom',
+    maxWidth: maxHeight ?? minHeight ?? 160,
+    minWidth: minHeight ?? 160,
+    onCollapse: onClose,
+    onResetSize: onResetHeight,
+    onResizePreview: onResizePreviewHeight,
+    onSetWidth: onSetHeight ?? onSetWidth,
+    width: height ?? minHeight ?? 160,
+  })
 
   const panelContext = useMemo<WorkbenchTabRenderContext>(
     () => ({
@@ -369,8 +352,8 @@ export function WorkbenchPanel({
           <div
             aria-label="调整底部面板高度"
             aria-orientation="horizontal"
-            aria-valuemax={Math.floor(window.innerHeight * 0.5)}
-            aria-valuemin={160}
+            aria-valuemax={maxHeight}
+            aria-valuemin={minHeight}
             aria-valuenow={height}
             className="bottom-panel-resize-handle"
             role="separator"
@@ -882,81 +865,4 @@ function readTabDragPayload(
 
 function domId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '-')
-}
-
-export type WorkspaceShellControlsProps = {
-  rightDockState: WorkbenchPanelSnapshot
-  bottomPanelVisible: boolean
-  showBottomPanel: boolean
-  showRightPanel: boolean
-  onToggleBottomPanel: () => void
-  onToggleRightPanel: () => void
-}
-
-export function WorkspaceShellControls({
-    rightDockState,
-    bottomPanelVisible,
-    showBottomPanel,
-    showRightPanel,
-  onToggleBottomPanel,
-  onToggleRightPanel,
-}: WorkspaceShellControlsProps): React.ReactNode {
-  if (!showBottomPanel && !showRightPanel) return null
-
-  return (
-    <div
-      className="workspace-shell-controls"
-    >
-      {showBottomPanel ? (
-        <IconButton
-          aria-label={bottomPanelVisible ? '隐藏底部面板' : '显示底部面板'}
-          aria-pressed={bottomPanelVisible}
-          className="workspace-shell-control-button"
-          title={bottomPanelVisible ? '隐藏底部面板' : '显示底部面板'}
-          variant="plain"
-          onClick={onToggleBottomPanel}
-        >
-          <BottomPanelToggleIcon open={bottomPanelVisible} />
-        </IconButton>
-      ) : null}
-      {showRightPanel ? (
-        <IconButton
-          aria-label={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
-          aria-pressed={rightDockState.open}
-          className="workspace-shell-control-button"
-          title={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
-          variant="plain"
-          onClick={onToggleRightPanel}
-        >
-          <RightPanelToggleIcon open={rightDockState.open} />
-        </IconButton>
-      ) : null}
-    </div>
-  )
-}
-
-function BottomPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
-  return (
-    <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 20 20" width="20">
-      <rect height="14" rx="2.5" stroke="currentColor" width="16" x="2" y="3" />
-      <path
-        d={open ? 'M2.5 12.25h15' : 'M7 12.9h6'}
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function RightPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
-  return (
-    <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 20 20" width="20">
-      <rect height="14" rx="2.5" stroke="currentColor" width="16" x="2" y="3" />
-      <path
-        d={open ? 'M12.25 3.5v13' : 'M12.9 7v6'}
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
 }

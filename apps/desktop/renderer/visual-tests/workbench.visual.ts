@@ -61,9 +61,7 @@ for (const viewport of VIEWPORTS) {
         await expect(
           page.getByText(scenario.readyText, { exact: true }),
         ).toBeVisible()
-        if (viewport.width > 960) {
-          await scenario.prepare?.(page)
-        }
+        await scenario.prepare?.(page)
         await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
         await expect(page.locator('html')).toHaveAttribute(
           'data-code-theme-id',
@@ -408,6 +406,164 @@ test('session header aligns with the right panel and bottom panel spans the work
   ).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(sessionMenuButton).toBeFocused()
+})
+
+test('right panel scales with its workspace and keeps a constrained manual override', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=review#/threads/visual-review')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await expect(rightPanel).toBeVisible()
+  await expect(
+    page.locator(
+      '[data-app-shell-tab-panel-controller="right"]',
+    ),
+  ).toBeFocused()
+  const initialWidth = (await rightPanel.boundingBox())?.width
+  expect(initialWidth).toBeGreaterThan(320)
+  const rightSeparator = page.getByRole('separator', {
+    name: '调整右侧面板宽度',
+  })
+  await expect(rightSeparator).toHaveAttribute('aria-valuemin', '320')
+  expect(
+    Number(await rightSeparator.getAttribute('aria-valuemax')),
+  ).toBeGreaterThan(320)
+  await rightSeparator.focus()
+  await page.keyboard.press('Shift+ArrowLeft')
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeGreaterThan(initialWidth!)
+  await rightSeparator.dblclick()
+
+  await page.setViewportSize({ width: 960, height: 640 })
+  await expect(rightPanel).toBeVisible()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeLessThan(initialWidth!)
+
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(initialWidth!, 0)
+
+  const sidebarSeparator = page.getByRole('separator', {
+    name: '调整任务侧栏宽度',
+  })
+  await sidebarSeparator.focus()
+  await page.keyboard.press('End')
+  await page.setViewportSize({ width: 960, height: 640 })
+  await expect(rightPanel).toHaveCount(0)
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const forcedRightPanel = page.getByRole('complementary', {
+    name: '右侧面板',
+  })
+  await expect(forcedRightPanel).toBeVisible()
+  await expect
+    .poll(
+      async () =>
+        (await page.locator('.desktop-main-route').boundingBox())?.width,
+    )
+    .toBeLessThan(352)
+
+  await page.setViewportSize({ width: 1000, height: 680 })
+  await expect(forcedRightPanel).toBeVisible()
+  await page.getByRole('button', { name: '关闭右侧面板' }).click()
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await expect(forcedRightPanel).toHaveCount(0)
+})
+
+test('bottom panel scales with workspace height while preserving the upper region', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '显示底部面板' }).click()
+  const bottomPanel = page.getByRole('complementary', { name: '底部面板' })
+  const initialHeight = (await bottomPanel.boundingBox())?.height
+  expect(initialHeight).toBeGreaterThanOrEqual(160)
+  const bottomSeparator = page.getByRole('separator', {
+    name: '调整底部面板高度',
+  })
+  await expect(bottomSeparator).toHaveAttribute('aria-valuemin', '160')
+  expect(
+    Number(await bottomSeparator.getAttribute('aria-valuemax')),
+  ).toBeGreaterThanOrEqual(initialHeight!)
+  await bottomSeparator.focus()
+  await page.keyboard.press('Shift+ArrowUp')
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeGreaterThan(initialHeight!)
+  await bottomSeparator.dblclick()
+
+  await page.setViewportSize({ width: 960, height: 640 })
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeLessThan(initialHeight!)
+  await expect
+    .poll(
+      async () =>
+        (await page.locator('.desktop-workspace__upper').boundingBox())?.height,
+    )
+    .toBeGreaterThanOrEqual(240)
+
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeCloseTo(initialHeight!, 0)
+})
+
+test('narrow file panel keeps the editor and file tree side by side', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 960, height: 640 })
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  const sidebarSeparator = page.getByRole('separator', {
+    name: '调整任务侧栏宽度',
+  })
+  await sidebarSeparator.focus()
+  await page.keyboard.press('End')
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel
+    .getByRole('button', { name: '打开文件 Ctrl+Shift+E' })
+    .click()
+
+  const editor = rightPanel.locator('.right-dock-open-file-empty')
+  const tree = rightPanel.getByRole('complementary', {
+    name: '工作区文件树',
+  })
+  await expect(editor).toBeVisible()
+  await expect(tree).toBeVisible()
+  const [editorBox, treeBox] = await Promise.all([
+    editor.boundingBox(),
+    tree.boundingBox(),
+  ])
+  expect(editorBox!.width).toBeGreaterThan(0)
+  expect(treeBox!.width).toBeGreaterThan(0)
+  expect(editorBox!.y).toBeCloseTo(treeBox!.y, 0)
+  const overflow = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }))
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
 })
 
 for (const mode of MODES) {
@@ -1253,7 +1409,7 @@ async function closeTransientErrorToast(
   const deadline = Date.now() + waitForMilliseconds
   do {
     if (await closeButton.isVisible().catch(() => false)) {
-      await closeButton.click()
+      await closeButton.click().catch(() => undefined)
     }
     if (Date.now() >= deadline) return
     await page.waitForTimeout(100)

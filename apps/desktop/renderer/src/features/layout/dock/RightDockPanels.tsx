@@ -31,10 +31,6 @@ import { createWorkspaceFileTabId } from '../tabs/workspaceFileTabId.js'
 
 const FILE_TREE_DEFAULT_WIDTH = 280
 const FILE_TREE_MIN_WIDTH = 200
-const FILE_TREE_LAYOUT_MIN_WIDTH = 528
-const OPEN_FILE_MAIN_MIN_WIDTH = 200
-const OPEN_FILE_TREE_LAYOUT_MIN_WIDTH =
-  OPEN_FILE_MAIN_MIN_WIDTH + FILE_TREE_MIN_WIDTH + 8
 
 export type FileDocumentLoadErrorPhase = 'initial' | 'external-sync'
 
@@ -101,7 +97,6 @@ export function RightDockFilesPanel({
   const [treeVisible, setTreeVisible] = useState(
     initialTreeState.current.visible,
   )
-  const [treeAvailable, setTreeAvailable] = useState(true)
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const layoutRef = useRef<HTMLDivElement | null>(null)
 
@@ -119,48 +114,11 @@ export function RightDockFilesPanel({
     })
   }, [treeVisible, treeWidth, workspacePath])
 
-  useEffect(() => {
-    if (!layoutRef.current) return
-    const layout = layoutRef.current
-    const clampToLayout = (): void => {
-      const layoutWidth = layout.getBoundingClientRect().width
-      const available = layoutWidth >= OPEN_FILE_TREE_LAYOUT_MIN_WIDTH
-      setTreeAvailable(available)
-      if (!available) {
-        setTreeVisible(false)
-        return
-      }
-      if (!treeVisible) return
-      setTreeWidth(current =>
-        Math.min(
-          Math.max(
-            FILE_TREE_MIN_WIDTH,
-            Math.min(
-              layoutWidth * 0.6,
-              layoutWidth - OPEN_FILE_MAIN_MIN_WIDTH - 8,
-            ),
-          ),
-          Math.max(FILE_TREE_MIN_WIDTH, Math.round(current)),
-        ),
-      )
-    }
-    clampToLayout()
-    const observer = new ResizeObserver(clampToLayout)
-    observer.observe(layout)
-    return () => observer.disconnect()
-  }, [treeVisible])
-
   function clampTreeWidth(width: number): number {
     const layoutWidth = layoutRef.current?.getBoundingClientRect().width ?? 0
     const maximum =
       layoutWidth > 0
-        ? Math.max(
-            FILE_TREE_MIN_WIDTH,
-            Math.min(
-              layoutWidth * 0.6,
-              layoutWidth - OPEN_FILE_MAIN_MIN_WIDTH - 8,
-            ),
-          )
+        ? Math.max(FILE_TREE_MIN_WIDTH, layoutWidth * 0.6)
         : 480
     return Math.min(
       maximum,
@@ -199,14 +157,7 @@ export function RightDockFilesPanel({
             aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
             aria-pressed={treeVisible}
             className="file-breadcrumb-toolbar__action"
-            disabled={!treeAvailable}
-            title={
-              treeAvailable
-                ? treeVisible
-                  ? '隐藏文件树'
-                  : '显示文件树'
-                : '面板过窄，无法显示文件树'
-            }
+            title={treeVisible ? '隐藏文件树' : '显示文件树'}
             type="button"
             onClick={() => setTreeVisible(current => !current)}
           >
@@ -248,13 +199,8 @@ export function RightDockFilesPanel({
               aria-valuemax={Math.round(
                 Math.max(
                   FILE_TREE_MIN_WIDTH,
-                  Math.min(
-                    (layoutRef.current?.getBoundingClientRect().width ?? 800) *
-                      0.6,
-                    (layoutRef.current?.getBoundingClientRect().width ?? 800) -
-                      OPEN_FILE_MAIN_MIN_WIDTH -
-                      8,
-                  ),
+                  (layoutRef.current?.getBoundingClientRect().width ?? 800) *
+                    0.6,
                 ),
               )}
               aria-valuemin={FILE_TREE_MIN_WIDTH}
@@ -346,7 +292,6 @@ export function RightDockFilePreviewPanel({
   const [treeVisible, setTreeVisible] = useState(
     initialTreeState.current.visible,
   )
-  const [treeAvailable, setTreeAvailable] = useState(true)
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const [switchingMarkdownMode, setSwitchingMarkdownMode] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
@@ -400,35 +345,6 @@ export function RightDockFilePreviewPanel({
       width: treeWidth,
     })
   }, [treeVisible, treeWidth, workspacePath])
-
-  useEffect(() => {
-    if (!layoutRef.current) return
-    const layout = layoutRef.current
-    const clampToLayout = (): void => {
-      const layoutWidth = layout.getBoundingClientRect().width
-      const available = layoutWidth >= FILE_TREE_LAYOUT_MIN_WIDTH
-      setTreeAvailable(available)
-      if (!available) {
-        setTreeVisible(false)
-        return
-      }
-      if (!treeVisible) return
-      const maximum = Math.max(
-        FILE_TREE_MIN_WIDTH,
-        layoutWidth * 0.6,
-      )
-      setTreeWidth(current =>
-        Math.min(
-          maximum,
-          Math.max(FILE_TREE_MIN_WIDTH, Math.round(current)),
-        ),
-      )
-    }
-    clampToLayout()
-    const observer = new ResizeObserver(clampToLayout)
-    observer.observe(layout)
-    return () => observer.disconnect()
-  }, [treeVisible])
 
   function sendSelectedTextToComposer(): void {
     if (!shouldShowSelectionSendAction(selectedText)) return
@@ -523,7 +439,7 @@ export function RightDockFilePreviewPanel({
         <FileBreadcrumbToolbar
           path={expectedPath}
           readonly={document.readonly}
-          treeAvailable={treeAvailable}
+          treeAvailable
           treeVisible={treeVisible}
           markdownViewMode={
             document.conflict ? undefined : resolvedMarkdownViewMode
