@@ -22,6 +22,8 @@
 
 ### Fixed
 
+- [renderer] 修复工作区总变更较大时小文件误用旧虚拟 Diff 的问题，统一普通与虚拟审阅渲染，并补齐 Codex 风格语法色、标记条、hunk 和文件图标
+- [renderer] 重构主题语义背景与 Review Diff 配色，Codex 主题的增删色现在派生可读的行级和文字级高亮，并补齐右侧面板背景
 - [renderer] 修复侧栏可排序会话、项目和置顶项仅悬停时提前显示拖动光标的问题，改为实际拖拽期间显示
 - [Agent/renderer] 修复模型选择器遗漏已配置 Provider、误显示未登录 OAuth Provider 及历史会话 Provider 与模型错位的问题
 - [desktop] 稳定开发环境的 HMR 直连与动态模块加载失败恢复，避免瞬态更新导致持续白屏
@@ -30,7 +32,8 @@
 - [Agent/Desktop] 修复 Electron 克隆仓库、创建分支和切换分支误用浏览器 mock 的问题，改由受 capability 约束的 Agent RPC 执行真实 Git 并返回最新工作区状态
 - [agent] 修复 Review 刷新竞态与 linked worktree Git 元数据漏监听，并新增批量暂存、取消暂存和还原能力，确保快照最终收敛且批量操作只刷新一次
 - [renderer] 修复 Review 跨工作区或 Pull Request 的异步数据串源、过期快照残留及大 Diff 拖动右栏或底栏卡顿，拖动期间仅移动预览线并在松手后提交尺寸
-- [renderer] 修复大 Diff 拖拽仍触发全局样式失效、完整 Diff 重排和预览线裁剪的问题，拖动时直接高斯模糊内容区域并在最终尺寸绘制后恢复
+- [renderer] 修复大 Diff 拖拽仍触发全局样式失效、完整 Diff 重排和预览线裁剪的问题，拖动期间隔离重型内容并在最终尺寸绘制后恢复
+- [renderer] 将 Review 外层面板与文件导航拖拽反馈改为定向 Shimmer 骨架，仅替换 Diff 或文件树目标区域并保持工具栏及相邻内容清晰可见
 - [agent] 更新会话标题时综合首轮目标与近期已完成对话，避免提交、推送等单次收尾操作覆盖会话主线
 - [Agent/renderer] 为“新特性”内置当前版本更新记录，并在 GitHub 限流或离线时回退显示，避免 Dialog 只剩错误状态
 - [renderer] 修复顶部帮助菜单“新特性”点击无响应的问题，使其可以打开版本更新记录 Dialog
