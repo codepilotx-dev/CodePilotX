@@ -58,7 +58,10 @@ export function catalogProviderToDesktop(
     baseURL: provider.source.baseUrl,
     defaultModels: models.map(model => model.id),
     modelMetadata,
-    apiKeyConfigured: provider.disabled !== true && !provider.auth.apiKey,
+    apiKeyConfigured:
+      provider.disabled !== true
+      && !provider.auth.apiKey
+      && !provider.auth.oauth,
     envVars: [],
     requiresBaseURL: provider.source.kind === 'custom' && !provider.source.baseUrl,
   }

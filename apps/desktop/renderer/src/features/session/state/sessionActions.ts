@@ -53,6 +53,7 @@ export type SessionSettingsSnapshot = {
 
 export type SessionActionContext = {
   activeSessionIdRef: MutableRefObject<string | null>
+  sessionsRef: MutableRefObject<SessionListItem[]>
   sessionViewsRef: MutableRefObject<Record<string, SessionViewState>>
   sessionWorkspacesRef: MutableRefObject<Record<string, DesktopWorkspace>>
   onErrorRef: MutableRefObject<(message: string) => void>
@@ -76,12 +77,52 @@ export function activateSession(
   context: SessionActionContext,
   nextSessionId: string | null,
 ): void {
+  const unreadAt = nextSessionId
+    ? context.sessionsRef.current.find(session => session.id === nextSessionId)
+      ?.unreadAt
+    : null
+  if (nextSessionId && unreadAt) {
+    markSessionReadThrough(context, nextSessionId, unreadAt)
+  }
   if (context.activeSessionIdRef.current === nextSessionId) {
     return
   }
   context.activeSessionIdRef.current = nextSessionId
   context.setSessionId(nextSessionId)
   void desktopClient.setActiveSession(nextSessionId).catch(error => {
+    context.onErrorRef.current(errorMessageOf(error))
+  })
+}
+
+export function markSessionReadThrough(
+  context: SessionActionContext,
+  sessionId: string,
+  readThroughAt: string,
+): void {
+  const shouldClearLocalUnread = context.sessionsRef.current.some(session =>
+    session.id === sessionId &&
+    session.unreadAt != null &&
+    Date.parse(session.unreadAt) <= Date.parse(readThroughAt),
+  )
+  if (shouldClearLocalUnread) {
+    context.sessionsRef.current = context.sessionsRef.current.map(session =>
+      session.id === sessionId &&
+      session.unreadAt &&
+      Date.parse(session.unreadAt) <= Date.parse(readThroughAt)
+        ? { ...session, unreadAt: null }
+        : session,
+    )
+    context.setSessions(current =>
+      current.map(session =>
+        session.id === sessionId &&
+        session.unreadAt &&
+        Date.parse(session.unreadAt) <= Date.parse(readThroughAt)
+          ? { ...session, unreadAt: null }
+          : session,
+      ),
+    )
+  }
+  void desktopClient.markSessionRead(sessionId, readThroughAt).catch(error => {
     context.onErrorRef.current(errorMessageOf(error))
   })
 }

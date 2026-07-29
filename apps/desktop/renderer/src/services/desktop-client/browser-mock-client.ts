@@ -748,6 +748,24 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       activeSessionId = sessionId
       emitSessionStoreChange()
     },
+    markSessionRead: async (sessionId, readThroughAt) => {
+      const snapshot = sessions.get(sessionId)
+      if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
+      const unreadAt = snapshot.item.unreadAt
+      if (
+        !unreadAt ||
+        Date.parse(unreadAt) > Date.parse(readThroughAt)
+      ) {
+        return snapshot.item
+      }
+      const next = {
+        ...snapshot,
+        item: { ...snapshot.item, unreadAt: null },
+      }
+      sessions.set(sessionId, next)
+      emitSessionStoreChange()
+      return next.item
+    },
     updateSessionMetadata: async (sessionId, patch) => {
       const snapshot = sessions.get(sessionId)
       if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)

@@ -1124,6 +1124,7 @@ export type DesktopSessionListItem = {
   permissionMode: DesktopPermissionMode
   collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
+  providerID?: ModelProviderID
   model: string | null
   effort?: string | null
   personality?: DesktopPersonality
@@ -1695,7 +1696,7 @@ export type DesktopApi = {
   openPathWithDefaultTarget(targetPath: string): Promise<void>
   revealPathInFolder(targetPath: string): Promise<void>
   listModelProviders(): Promise<DesktopModelProviderSummary[]>
-  getModelProviderState(): Promise<DesktopModelProviderState>
+  getModelProviderState(providerID?: ModelProviderID): Promise<DesktopModelProviderState>
   fetchProviderModels(options: {
     providerID: ModelProviderID
     apiKey?: string
@@ -1870,6 +1871,10 @@ export type DesktopApi = {
   getSession(sessionId: string): Promise<DesktopSessionSnapshot>
   getActiveSessionId(): Promise<string | null>
   setActiveSession(sessionId: string | null): Promise<void>
+  markSessionRead(
+    sessionId: string,
+    readThroughAt: string,
+  ): Promise<DesktopSessionListItem>
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,

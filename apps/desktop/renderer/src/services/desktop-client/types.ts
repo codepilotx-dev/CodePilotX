@@ -54,6 +54,7 @@ type DesktopClientWindow = {
     & Partial<DesktopDataLocationIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
+  dispatchEvent?: Window['dispatchEvent']
 }
 
 export type DesktopClientEnvironment = {

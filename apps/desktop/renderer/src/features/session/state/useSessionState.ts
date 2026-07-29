@@ -36,6 +36,7 @@ import {
   decidePermissionAction,
   interruptSessionAction,
   renameSessionAction,
+  markSessionReadThrough,
   setSessionLocalRouterModeAction,
   setSessionPermissionModeAction,
   setSessionPlanModeActiveAction,
@@ -304,6 +305,7 @@ export function useSessionState(
   const actionContext = useMemo<SessionActionContext>(
     () => ({
       activeSessionIdRef,
+      sessionsRef,
       sessionViewsRef,
       sessionWorkspacesRef,
       onErrorRef,
@@ -475,9 +477,16 @@ export function useSessionState(
         onDiffForActiveRef,
         onRefreshActiveWorkspaceRef,
         onOpenDrawerPermissionsRef,
+        markSessionReadThrough: (targetSessionId, readThroughAt) => {
+          markSessionReadThrough(
+            actionContext,
+            targetSessionId,
+            readThroughAt,
+          )
+        },
       })
     },
-    [addToolLogEntry, updateSessionView],
+    [actionContext, addToolLogEntry, updateSessionView],
   )
   const handleAgentEvent = useCallback(
     (event: DesktopAgentEvent): void => {

@@ -43,7 +43,7 @@ describe('agent thread adapter', () => {
       id: 'thread-1', projectID: project.id, gitBranch: 'codex/hover-card', workspace: projectWorkspace, title: '历史对话', preview: '预览',
       firstUserMessage: '第一条消息', messageCount: 3, latestTurnStatus: 'waiting-permission',
       settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' } },
-      archivedAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+      archivedAt: null, unreadAt: 1_700_000_000_500, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
     }
     const item = agentThreadListItemToDesktop(thread, project)
     expect(item.status).toBe('waiting')
@@ -52,6 +52,7 @@ describe('agent thread adapter', () => {
     expect(item.permissionMode).toBe('full-access')
     expect(item.planModeActive).toBe(true)
     expect(item.gitBranch).toBe('codex/hover-card')
+    expect(item.unreadAt).toBe('2023-11-14T22:13:20.500Z')
   })
 
   test('maps a projectless thread to a standalone session with its real cwd', () => {
@@ -96,26 +97,26 @@ describe('agent thread adapter', () => {
       thread: { id: 'thread-1', title: '历史对话', projectID: project.id, gitBranch: 'dev', workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
-        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
+        model: { providerID: 'deepseek', id: 'deepseek-chat' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
         mergedInputIDs: [], startedAt: 1_700_000_001_000,
         finishedAt: null, elapsedSeconds: 7, error: null,
       }],
       agents: [{
         id: 'agent-1', threadId: 'thread-1', turnId: 'turn-1', parentAgentId: null,
-        profile: 'main', task: '实现历史对话', model: { providerID: 'openai', id: 'gpt-5' },
+        profile: 'main', task: '实现历史对话', model: { providerID: 'deepseek', id: 'deepseek-chat' },
         sessionId: 'thread-1:main', depth: 0, status: 'running', error: null,
         createdAt: 1_700_000_001_000, updatedAt: 1_700_000_008_000,
       }],
       inputs: [{
         id: 'input-1', threadId: 'thread-1', turnId: 'turn-1', content: '实现历史对话', delivery: 'start',
-        mode: 'plan', model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' },
+        mode: 'plan', model: { providerID: 'deepseek', id: 'deepseek-chat' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' },
         state: 'active', createdAt: 1_700_000_001_000,
       }],
       messages: [],
       items: [
         {
           id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'text', placement: 'result', text: '可以开始。', status: 'completed',
-          usage: { provider: 'openai', model: 'gpt-5', contextWindow: 128_000, input: 2_000, output: 200, cacheRead: 6_000, cacheWrite: 400, reasoning: 50 },
+          usage: { provider: 'deepseek', model: 'deepseek-chat', contextWindow: 128_000, input: 2_000, output: 200, cacheRead: 6_000, cacheWrite: 400, reasoning: 50 },
           createdAt: 1_700_000_002_000,
         },
         { id: 'tool-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'tool', callID: 'tool-1', tool: 'powershell.exec', title: '运行 PowerShell', state: 'completed', input: { command: 'bun test' }, command: 'bun test', output: 'pass', error: null, startedAt: 1_700_000_003_000, finishedAt: 1_700_000_004_000, durationMs: 1000, createdAt: 1_700_000_003_000 },
@@ -128,6 +129,8 @@ describe('agent thread adapter', () => {
 
     const desktop = agentThreadSnapshotToDesktop(snapshot, project)
     expect(desktop.item.status).toBe('running')
+    expect(desktop.item.providerID).toBe('deepseek')
+    expect(desktop.item.model).toBe('deepseek-chat')
     expect(desktop.item.planModeActive).toBe(true)
     expect(desktop.item.permissionMode).toBe('auto-review')
     expect(desktop.view.messages.map(message => message.text)).toContain('实现历史对话')
@@ -295,6 +298,25 @@ describe('agent thread adapter', () => {
       },
     }
     expect(agentEventsFromNotification(notification)).toEqual([])
+  })
+
+  test('uses the persisted terminal timestamp for read-through events', () => {
+    const event = agentEventsFromNotification({
+      jsonrpc: '2.0',
+      method: 'turn/completed',
+      params: {
+        threadId: 'thread-1',
+        turn: {
+          finishedAt: 1_700_000_010_000,
+        },
+      },
+    } as AgentNotification)[0]
+
+    expect(event).toMatchObject({
+      type: 'done',
+      sessionId: 'thread-1',
+      createdAt: '2023-11-14T22:13:30.000Z',
+    })
   })
 
   test('projects stable Pi live deltas and nested terminal tool payloads', () => {

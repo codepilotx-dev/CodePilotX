@@ -271,6 +271,9 @@ export function createAgentSessionDesktopClient(
   const sessionPermissionConfigs = new Map<string, PermissionConfig>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  const confirmedReadThroughBySessionId = new Map<string, number>()
+  const pendingReadThroughBySessionId =
+    new Map<string, Map<string, number>>()
   const pendingSettingsUpdates = new Map<string, Promise<void>>()
   const pendingDesktopSettingsSaves = new Map<
     string,
@@ -462,6 +465,12 @@ export function createAgentSessionDesktopClient(
     providerModelRequests.clear()
   }
 
+  function notifyModelProviderChanged(): void {
+    environment.window?.dispatchEvent?.(
+      new Event('desktop:model-provider-changed'),
+    )
+  }
+
   async function loadModelCatalog(refresh = false): Promise<RpcResult<'model/list'>> {
     if (modelCatalogCache && !refresh) return modelCatalogCache
     const result = refresh
@@ -620,15 +629,11 @@ export function createAgentSessionDesktopClient(
     const activeCredential = credentials.find(
       credential => credential.providerId === provider.id && credential.active,
     )
-    const hasCredential = credentials.some(
-      credential => credential.providerId === provider.id && credential.enabled,
-    )
     const modelAvailable = Boolean(model)
-    const providerConfigured =
-      modelAvailable || hasCredential || summary.apiKeyConfigured
+    const providerConfigured = provider.authConfigured
     const apiKeySource = activeCredential
       ? 'secureStorage'
-      : modelAvailable && provider.auth.apiKey
+      : providerConfigured && provider.auth.apiKey
         ? 'environment'
         : null
     return {
@@ -759,6 +764,25 @@ export function createAgentSessionDesktopClient(
     return project.primaryFolderId
   }
 
+  function applySessionReadThrough(thread: ThreadListItem): ThreadListItem {
+    const pendingReadThrough = Math.max(
+      0,
+      ...(
+        pendingReadThroughBySessionId.get(thread.id)?.values() ?? []
+      ),
+    )
+    const readThroughAt = Math.max(
+      confirmedReadThroughBySessionId.get(thread.id) ?? 0,
+      pendingReadThrough,
+    )
+    return (
+      thread.unreadAt != null &&
+      thread.unreadAt <= readThroughAt
+    )
+      ? { ...thread, unreadAt: null }
+      : thread
+  }
+
   async function listAgentSessions(
     options?: { archived?: boolean },
   ): Promise<DesktopSessionSnapshot[]> {
@@ -770,7 +794,8 @@ export function createAgentSessionDesktopClient(
         limit: 100,
       }),
     ])
-    const snapshots = response.threads.map(item => {
+    const snapshots = response.threads.map(rawItem => {
+      const item = applySessionReadThrough(rawItem)
       const listSnapshot = agentThreadListItemToDesktopSnapshot(
         item,
         item.projectID ? projectsById.get(item.projectID) : null,
@@ -814,6 +839,7 @@ export function createAgentSessionDesktopClient(
       item: {
         ...snapshot.item,
         pinnedAt: cached?.item.pinnedAt ?? snapshot.item.pinnedAt,
+        unreadAt: cached?.item.unreadAt ?? null,
       },
     })
     return sessionSnapshots.get(sessionId)!
@@ -843,9 +869,7 @@ export function createAgentSessionDesktopClient(
     if (sessionStoreReconcile) return sessionStoreReconcile
     providerCredentialsCache = null
     invalidateModelCatalog()
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('desktop:model-provider-changed'))
-    }
+    notifyModelProviderChanged()
     sessionStoreReconcile = refreshAgentSessionStoreChange({ reloadActive: true })
       .finally(() => {
         sessionStoreReconcile = null
@@ -1135,8 +1159,9 @@ export function createAgentSessionDesktopClient(
   }
 
   const cacheThreadListItem = async (
-    thread: ThreadListItem,
+    rawThread: ThreadListItem,
   ): Promise<DesktopSessionSnapshot> => {
+    const thread = applySessionReadThrough(rawThread)
     const projectsById = await loadProjectsById()
     const listSnapshot = agentThreadListItemToDesktopSnapshot(
       thread,
@@ -2585,9 +2610,11 @@ export function createAgentSessionDesktopClient(
         unresolvedMigrationIssues: directory.issues
           .filter(issue => issue.providerId === provider.id)
           .map(issue => `${issue.code}:${issue.path}`),
+        apiKeyConfigured: provider.authConfigured,
       }))
     },
-    getModelProviderState: () => providerState(),
+    getModelProviderState: (providerID?: ModelProviderID) =>
+      providerState(providerID),
     fetchProviderModels: async options => {
       const result = await loadProviderModelPage({
         providerID: options.providerID,
@@ -3019,6 +3046,56 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.setActiveSession(sessionId),
       ),
+    markSessionRead: (sessionId: string, readThroughAt: string) =>
+      withAgentOrMock(
+        async () => {
+          const readThroughTimestamp = Date.parse(readThroughAt)
+          if (!Number.isFinite(readThroughTimestamp)) {
+            throw new Error('INVALID_READ_THROUGH_AT')
+          }
+          const requestId = crypto.randomUUID()
+          const pendingReadThrough =
+            pendingReadThroughBySessionId.get(sessionId) ?? new Map()
+          pendingReadThrough.set(requestId, readThroughTimestamp)
+          pendingReadThroughBySessionId.set(sessionId, pendingReadThrough)
+          const cached = sessionSnapshots.get(sessionId)
+          if (
+            cached?.item.unreadAt &&
+            Date.parse(cached.item.unreadAt) <= readThroughTimestamp
+          ) {
+            cached.item = { ...cached.item, unreadAt: null }
+            sessionSnapshots.set(sessionId, cached)
+            emitSessionStoreChange()
+          }
+          try {
+            const response = await rpc.call('thread/mark-read', {
+              threadId: sessionId,
+              readThroughAt: readThroughTimestamp,
+              operationId: requestId,
+            })
+            confirmedReadThroughBySessionId.set(
+              sessionId,
+              Math.max(
+                confirmedReadThroughBySessionId.get(sessionId) ?? 0,
+                readThroughTimestamp,
+              ),
+            )
+            pendingReadThrough.delete(requestId)
+            if (pendingReadThrough.size === 0) {
+              pendingReadThroughBySessionId.delete(sessionId)
+            }
+            return (await cacheThreadListItem(response.thread)).item
+          } catch (error) {
+            pendingReadThrough.delete(requestId)
+            if (pendingReadThrough.size === 0) {
+              pendingReadThroughBySessionId.delete(sessionId)
+            }
+            await refreshAgentSessionStoreChange().catch(() => {})
+            throw error
+          }
+        },
+        () => mockClient.markSessionRead(sessionId, readThroughAt),
+      ),
     updateSessionMetadata: async (
       sessionId: string,
       patch: DesktopSessionMetadataPatch,
@@ -3340,13 +3417,12 @@ export function createAgentSessionDesktopClient(
         const notificationMethod = notification.method as string
         if (notificationMethod === 'catalog/updated') {
           invalidateModelCatalog()
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('desktop:model-provider-changed'))
-          }
+          notifyModelProviderChanged()
         }
         if (notificationMethod === 'provider/credential/updated') {
           providerCredentialsCache = null
           invalidateModelCatalog()
+          notifyModelProviderChanged()
         }
         if (
           notificationMethod === 'config/updated' &&

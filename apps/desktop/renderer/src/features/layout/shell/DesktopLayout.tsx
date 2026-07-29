@@ -1348,6 +1348,7 @@ export function DesktopLayout(): React.ReactNode {
   const syncedSessionModelRef = useRef<string | null>(null)
   const modelRef = useRef(model)
   const activeSessionModelRef = useRef<string | null>(null)
+  const providerStateRequestIdRef = useRef(0)
   const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const openedProviderCatalogsRef = useRef<Set<ModelProviderID>>(new Set())
@@ -1384,7 +1385,9 @@ export function DesktopLayout(): React.ReactNode {
     },
     [modelProviders, providerState],
   )
-  const selectedProviderID = providerState?.selectedProviderID ?? providerID
+  const activeSessionProviderID = activeSessionItem?.providerID
+  const selectedProviderID =
+    activeSessionProviderID ?? providerState?.selectedProviderID ?? providerID
   const selectedProviderModelPresets =
     providerModelOptions.find(
       provider => provider.providerID === selectedProviderID,
@@ -1420,17 +1423,19 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     const activeModel = activeSessionItem?.model?.trim()
+    const activeProviderID = activeSessionItem?.providerID
     const syncKey =
       activeSessionItem?.id && activeModel
-        ? `${activeSessionItem.id}:${activeModel}`
+        ? [activeSessionItem.id, activeProviderID ?? '', activeModel].join('\0')
         : null
     if (!activeModel || !syncKey || syncedSessionModelRef.current === syncKey) {
       return
     }
     syncedSessionModelRef.current = syncKey
-    if (model !== activeModel) {
-      setModel(activeModel)
-    }
+    syncExternalSettingsPatch({
+      ...(activeProviderID ? { providerID: activeProviderID } : {}),
+      ...(model !== activeModel ? { model: activeModel } : {}),
+    })
     const nextPreset = resolveModelPresetId(
       activeModel,
       undefined,
@@ -1442,30 +1447,34 @@ export function DesktopLayout(): React.ReactNode {
   }, [
     activeSessionItem?.id,
     activeSessionItem?.model,
+    activeSessionItem?.providerID,
     model,
     selectedProviderModelPresets,
     selectedModelPreset,
-    setModel,
     setSelectedModelPreset,
+    syncExternalSettingsPatch,
   ])
 
   const refreshProviderState = useCallback(async (): Promise<void> => {
+    const requestId = ++providerStateRequestIdRef.current
     try {
       const [next, providers] = await Promise.all([
-        desktopClient.getModelProviderState(),
+        desktopClient.getModelProviderState(activeSessionProviderID),
         desktopClient.listModelProviders(),
       ])
+      if (requestId !== providerStateRequestIdRef.current) return
       setProviderState(next)
       setModelProviders(providers)
       const activeModel = activeSessionModelRef.current
       const shouldSyncModel = !activeModel && next.model !== modelRef.current
-      if (shouldSyncModel) {
-        setModel(next.model)
-      }
       syncExternalSettingsPatch({
         providerID: next.selectedProviderID,
         providerBaseURL: next.baseURL ?? '',
-        ...(shouldSyncModel ? { model: next.model } : {}),
+        ...(activeModel
+          ? { model: activeModel }
+          : shouldSyncModel
+            ? { model: next.model }
+            : {}),
       })
       if (
         next.selectedProviderID &&
@@ -1517,9 +1526,10 @@ export function DesktopLayout(): React.ReactNode {
           })
       }
     } catch (error) {
+      if (requestId !== providerStateRequestIdRef.current) return
       setErrorMessage(error instanceof Error ? error.message : String(error))
     }
-  }, [setModel, syncExternalSettingsPatch])
+  }, [activeSessionProviderID, syncExternalSettingsPatch])
 
   useEffect(() => {
     void refreshProviderState()

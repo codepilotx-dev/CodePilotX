@@ -25,6 +25,7 @@ export type SessionEventContext = {
   onDiffForActiveRef: MutableRefObject<(patch: string) => void>
   onRefreshActiveWorkspaceRef: MutableRefObject<(sessionId: string) => void>
   onOpenDrawerPermissionsRef: MutableRefObject<() => void>
+  markSessionReadThrough: (sessionId: string, readThroughAt: string) => void
 }
 
 export function handleSessionAgentEvent(
@@ -41,6 +42,7 @@ export function handleSessionAgentEvent(
     onDiffForActiveRef,
     onRefreshActiveWorkspaceRef,
     onOpenDrawerPermissionsRef,
+    markSessionReadThrough,
   } = context
 
   if (isInternalReviewerAgentEvent(event)) {
@@ -144,7 +146,11 @@ export function handleSessionAgentEvent(
     setSessions(current =>
       current.map(session =>
         session.id === event.sessionId
-          ? { ...session, model: event.usage.model }
+          ? {
+              ...session,
+              providerID: event.usage.provider ?? session.providerID,
+              model: event.usage.model ?? session.model,
+            }
           : session,
       ),
     )
@@ -204,17 +210,24 @@ export function handleSessionAgentEvent(
   }
 
   if (event.type === 'error') {
-    const createdAt = new Date().toISOString()
+    const createdAt = event.createdAt ?? new Date().toISOString()
+    const active = event.sessionId === activeSessionIdRef.current
     setSessions(current =>
       sortSessionsByRecency(
         current.map(session =>
           session.id === event.sessionId
-            ? { ...session, status: 'error', lastMessageAt: createdAt }
+            ? {
+                ...session,
+                status: 'error',
+                lastMessageAt: createdAt,
+                unreadAt: active ? null : createdAt,
+              }
             : session,
         ),
       ),
     )
-    if (event.sessionId === activeSessionIdRef.current) {
+    if (active) {
+      markSessionReadThrough(event.sessionId, createdAt)
       onErrorRef.current(event.message)
       onRefreshActiveWorkspaceRef.current(event.sessionId)
     }
@@ -237,15 +250,22 @@ export function handleSessionAgentEvent(
   }
 
   if (event.type === 'done') {
-    const createdAt = new Date().toISOString()
+    const createdAt = event.createdAt ?? new Date().toISOString()
+    const active = event.sessionId === activeSessionIdRef.current
     setSessions(current =>
       current.map(session =>
         session.id === event.sessionId
-          ? { ...session, status: 'done', lastMessageAt: createdAt }
+          ? {
+              ...session,
+              status: 'done',
+              lastMessageAt: createdAt,
+              unreadAt: active ? null : createdAt,
+            }
           : session,
       ),
     )
-    if (event.sessionId === activeSessionIdRef.current) {
+    if (active) {
+      markSessionReadThrough(event.sessionId, createdAt)
       setSessionStatus('done')
       onRefreshActiveWorkspaceRef.current(event.sessionId)
     }
