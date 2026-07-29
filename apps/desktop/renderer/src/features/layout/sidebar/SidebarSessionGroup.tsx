@@ -1,5 +1,13 @@
 import type React from "react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Archive, Copy, LoaderCircle, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
@@ -27,6 +35,8 @@ const SidebarSessionHoverCard = lazy(async () => {
 })
 
 const GROUP_LIMIT = 5;
+const TITLE_SCROLL_MIN_SECONDS = 2;
+const TITLE_SCROLL_PIXELS_PER_SECOND = 40;
 
 type Props = {
   activeSessionId: string | null;
@@ -244,8 +254,8 @@ export function SidebarSessionGroup({
       "u-flex",
       "u-items-center",
       "u-justify-end",
+      "u-w-auto",
       "tw:gap-3",
-      awaitingApproval ? "u-w-auto" : "u-w-full",
       awaitingApproval && "sidebar-session-meta--approval",
       confirmArchiveSessionId === session.id && "confirming-archive",
     );
@@ -272,26 +282,23 @@ export function SidebarSessionGroup({
         }}
         type="button"
       >
-        <span
-          aria-busy={regeneratingTitle}
-          aria-label={regeneratingTitle ? "正在更新会话标题" : undefined}
-          aria-live="polite"
-          className={cx(
-            'sidebar-session-title',
-            'u-min-w-0',
-            'u-truncate',
-            regeneratingTitle && 'ui-skeleton-block sidebar-session-title--loading',
-          )}
-        >
-          {regeneratingTitle ? null : (
+        {regeneratingTitle ? (
+          <span
+            aria-busy="true"
+            aria-label="正在更新会话标题"
+            aria-live="polite"
+            className="sidebar-session-title sidebar-session-title--loading ui-skeleton-block"
+          />
+        ) : (
+          <SidebarSessionTitle reducedMotion={reducedMotion}>
             <>
               {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
               {session.unreadAt ? (
                 <span aria-label="未读" className="sidebar-session-unread-dot" />
               ) : null}
             </>
-          )}
-        </span>
+          </SidebarSessionTitle>
+        )}
       </button>
     )
     const row = (
@@ -531,6 +538,74 @@ export function SidebarSessionGroup({
         }}
       />
     </>
+  );
+}
+
+function SidebarSessionTitle({
+  children,
+  reducedMotion,
+}: {
+  children: React.ReactNode;
+  reducedMotion: boolean;
+}): React.ReactNode {
+  const viewportRef = useRef<HTMLSpanElement>(null);
+  const trackRef = useRef<HTMLSpanElement>(null);
+  const [overflowDistance, setOverflowDistance] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const track = trackRef.current;
+    if (!viewport || !track) return;
+
+    const updateOverflowDistance = (): void => {
+      const distance =
+        viewport.clientWidth > 0
+          ? Math.max(0, Math.ceil(track.scrollWidth - viewport.clientWidth))
+          : 0;
+      const nextDistance = distance > 0 ? distance : null;
+      setOverflowDistance(current =>
+        current === nextDistance ? current : nextDistance,
+      );
+    };
+
+    updateOverflowDistance();
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(updateOverflowDistance);
+    observer.observe(viewport);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, []);
+
+  const scrolling = overflowDistance !== null && !reducedMotion;
+  const style =
+    overflowDistance === null
+      ? undefined
+      : ({
+          "--sidebar-title-scroll-distance": `${overflowDistance}px`,
+          "--sidebar-title-scroll-duration": `${Math.max(
+            TITLE_SCROLL_MIN_SECONDS,
+            overflowDistance / TITLE_SCROLL_PIXELS_PER_SECOND,
+          ).toFixed(2)}s`,
+        } as React.CSSProperties);
+
+  return (
+    <span
+      aria-live="polite"
+      className="sidebar-session-title"
+      data-overflowing={overflowDistance !== null || undefined}
+      data-scrolling={scrolling || undefined}
+      ref={viewportRef}
+      style={style}
+    >
+      <span
+        className="sidebar-session-title-track"
+        data-scrolling={scrolling || undefined}
+        ref={trackRef}
+      >
+        {children}
+      </span>
+    </span>
   );
 }
 
