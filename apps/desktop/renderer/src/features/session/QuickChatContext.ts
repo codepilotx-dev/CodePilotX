@@ -1,14 +1,11 @@
 import { createContext, useContext } from 'react'
-import type { Message } from '../../uiTypes.js'
 import type { ModelPreset } from '../../modelPresets.js'
 import type {
   DesktopGitStatus,
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopPermissionRequest,
-  DesktopSessionEvent,
   DesktopSessionStatus,
-  DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
@@ -95,18 +92,12 @@ export type QuickChatContextValue = {
       'rememberOptionId'
     >,
   ) => void
-  events: DesktopSessionEvent[]
-  workflowEvents: DesktopWorkflowEvent[]
-  messages: Message[]
-  pendingPermissions: DesktopPermissionRequest[]
-  onHydrateLegacySessionView: (sessionId: string) => Promise<void>
   sessionStatus: DesktopSessionStatus
   composerProps: DesktopComposerProps | null
   composerDraft?: QuickChatComposerDraftBridge
   bottomPanelVisible: boolean
   onToggleBottomPanel: () => void
   rightDockPlanEventId: string | null
-  debugMode: boolean
 }
 
 export const QuickChatContext = createContext<QuickChatContextValue | null>(null)

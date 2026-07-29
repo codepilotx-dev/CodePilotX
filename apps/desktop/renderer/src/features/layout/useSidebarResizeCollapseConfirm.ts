@@ -5,6 +5,8 @@ export const SIDEBAR_COLLAPSE_HOLD_MS = 600
 export const SIDEBAR_COLLAPSE_TARGET_SIZE = 72
 export const SIDEBAR_COLLAPSE_JITTER_TOLERANCE = 6
 
+export type ResizePhase = 'idle' | 'dragging' | 'settling'
+
 export type SidebarCollapseConfirmTarget = {
   x: number
   y: number
@@ -46,7 +48,8 @@ type UseSidebarResizeCollapseConfirmInput = {
   onCollapse: () => void
   collapseEnabled?: boolean
   onResetSize?: () => void
-  onResizePreview?: (width: number) => void
+  onResizePhaseChange?: (phase: ResizePhase) => void
+  onResizePreview?: (width: number | null) => void
   onSetWidth: (width: number) => void
   /** `'left'` (default): drag right edge to resize, pointer right = wider.
    *  `'right'`: drag left edge to resize, pointer left = wider.
@@ -115,6 +118,7 @@ export function useSidebarResizeCollapseConfirm({
   onCollapse,
   collapseEnabled = true,
   onResetSize,
+  onResizePhaseChange,
   onResizePreview,
   onSetWidth,
   direction = 'left',
@@ -129,19 +133,47 @@ export function useSidebarResizeCollapseConfirm({
   const holdTimerRef = useRef<number | null>(null)
   const previewFrameRef = useRef<number | null>(null)
   const previewWidthRef = useRef<number | null>(null)
+  const settlementFrameRef = useRef<number | null>(null)
+  const settlementPaintFrameRef = useRef<number | null>(null)
+  const resizePhaseRef = useRef<ResizePhase>('idle')
+  const onResizePhaseChangeRef = useRef(onResizePhaseChange)
+  const onResizePreviewRef = useRef(onResizePreview)
+
+  onResizePhaseChangeRef.current = onResizePhaseChange
+  onResizePreviewRef.current = onResizePreview
+
+  const setResizePhase = useCallback((phase: ResizePhase): void => {
+    if (resizePhaseRef.current === phase) return
+    resizePhaseRef.current = phase
+    onResizePhaseChangeRef.current?.(phase)
+  }, [])
 
   const clearHoldTimer = useCallback((): void => {
-    if (holdTimerRef.current) {
+    if (holdTimerRef.current !== null) {
       window.clearTimeout(holdTimerRef.current)
       holdTimerRef.current = null
     }
   }, [])
 
   const clearCollapseConfirm = useCallback((): void => {
+    const hadTimer = holdTimerRef.current !== null
+    const hadTarget = collapseConfirmTargetRef.current !== null
+    if (!hadTimer && !hadTarget) return
     clearHoldTimer()
     collapseConfirmTargetRef.current = null
-    setCollapseConfirmTarget(null)
+    if (hadTarget) setCollapseConfirmTarget(null)
   }, [clearHoldTimer])
+
+  const clearSettlementFrames = useCallback((): void => {
+    if (settlementFrameRef.current !== null) {
+      window.cancelAnimationFrame(settlementFrameRef.current)
+      settlementFrameRef.current = null
+    }
+    if (settlementPaintFrameRef.current !== null) {
+      window.cancelAnimationFrame(settlementPaintFrameRef.current)
+      settlementPaintFrameRef.current = null
+    }
+  }, [])
 
   const flushPreview = useCallback((): void => {
     if (previewFrameRef.current !== null) {
@@ -149,39 +181,69 @@ export function useSidebarResizeCollapseConfirm({
       previewFrameRef.current = null
     }
     if (previewWidthRef.current !== null) {
-      onResizePreview?.(previewWidthRef.current)
+      onResizePreviewRef.current?.(previewWidthRef.current)
     }
-  }, [onResizePreview])
+  }, [])
 
   const queuePreview = useCallback((nextWidth: number): void => {
     previewWidthRef.current = nextWidth
-    if (!onResizePreview || previewFrameRef.current !== null) return
+    if (!onResizePreviewRef.current || previewFrameRef.current !== null) return
     previewFrameRef.current = window.requestAnimationFrame(() => {
       previewFrameRef.current = null
       if (previewWidthRef.current !== null) {
-        onResizePreview(previewWidthRef.current)
+        onResizePreviewRef.current?.(previewWidthRef.current)
       }
     })
-  }, [onResizePreview])
+  }, [])
 
   const stopResize = useCallback((commit: boolean): void => {
+    if (resizePhaseRef.current !== 'dragging') {
+      if (!commit && resizePhaseRef.current === 'settling') {
+        clearSettlementFrames()
+        onResizePreviewRef.current?.(null)
+        setResizePhase('idle')
+      }
+      return
+    }
+
     const finalWidth = previewWidthRef.current
     flushPreview()
     previewWidthRef.current = null
     setResizing(false)
     clearCollapseConfirm()
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
-    if (onResizePreview) {
-      if (commit && finalWidth !== null) onSetWidth(finalWidth)
-      if (!commit) onResizePreview(width)
+    if (!onResizePreviewRef.current) {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
+
+    if (!onResizePreviewRef.current) {
+      setResizePhase('idle')
+      return
+    }
+
+    if (!commit || finalWidth === null) {
+      onResizePreviewRef.current(null)
+      setResizePhase('idle')
+      return
+    }
+
+    setResizePhase('settling')
+    onSetWidth(finalWidth)
+    clearSettlementFrames()
+    settlementFrameRef.current = window.requestAnimationFrame(() => {
+      settlementFrameRef.current = null
+      settlementPaintFrameRef.current = window.requestAnimationFrame(() => {
+        settlementPaintFrameRef.current = null
+        onResizePreviewRef.current?.(null)
+        setResizePhase('idle')
+      })
+    })
   }, [
     clearCollapseConfirm,
+    clearSettlementFrames,
     flushPreview,
-    onResizePreview,
     onSetWidth,
-    width,
+    setResizePhase,
   ])
 
   const scheduleCollapseHold = useCallback((): void => {
@@ -243,20 +305,25 @@ export function useSidebarResizeCollapseConfirm({
     document.addEventListener('pointerup', handlePointerUp)
     document.addEventListener('pointercancel', handlePointerCancel)
     window.addEventListener('blur', handleWindowBlur)
-    if (direction === 'bottom') {
+    const usesPreview = Boolean(onResizePreviewRef.current)
+    if (!usesPreview && direction === 'bottom') {
       document.body.classList.add('bottom-panel-is-resizing')
     }
-    document.body.style.cursor =
-      direction === 'bottom' ? 'row-resize' : 'col-resize'
-    document.body.style.userSelect = 'none'
+    if (!usesPreview) {
+      document.body.style.cursor =
+        direction === 'bottom' ? 'row-resize' : 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
     return () => {
       document.removeEventListener('pointermove', handlePointerMove)
       document.removeEventListener('pointerup', handlePointerUp)
       document.removeEventListener('pointercancel', handlePointerCancel)
       window.removeEventListener('blur', handleWindowBlur)
-      document.body.classList.remove('bottom-panel-is-resizing')
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
+      if (!usesPreview) {
+        document.body.classList.remove('bottom-panel-is-resizing')
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+      }
       clearHoldTimer()
       if (previewFrameRef.current !== null) {
         window.cancelAnimationFrame(previewFrameRef.current)
@@ -281,6 +348,18 @@ export function useSidebarResizeCollapseConfirm({
   ])
 
   useEffect(() => {
+    return () => {
+      clearSettlementFrames()
+      if (previewFrameRef.current !== null) {
+        window.cancelAnimationFrame(previewFrameRef.current)
+        previewFrameRef.current = null
+      }
+      onResizePreviewRef.current?.(null)
+      resizePhaseRef.current = 'idle'
+    }
+  }, [clearSettlementFrames])
+
+  useEffect(() => {
     if (collapsed) {
       stopResize(false)
     }
@@ -288,12 +367,16 @@ export function useSidebarResizeCollapseConfirm({
 
   function startResize(event: React.PointerEvent<HTMLDivElement>): void {
     if (collapsed || event.button !== 0) return
-    event.preventDefault()
+    if (!onResizePreview) event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    clearSettlementFrames()
     setStart({
       x: direction === 'bottom' ? event.clientY : event.clientX,
       width,
     })
     previewWidthRef.current = width
+    onResizePreview?.(width)
+    setResizePhase('dragging')
     setResizing(true)
   }
 

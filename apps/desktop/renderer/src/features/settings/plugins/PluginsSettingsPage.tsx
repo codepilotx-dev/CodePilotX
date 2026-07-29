@@ -180,7 +180,6 @@ export function PluginsSettingsPage({
   useEffect(() => {
     return desktopClient.subscribeAgentEventEnvelopes({
       liveEventTypes: AGENT_LIVE_EVENT_FILTERS.mcp,
-      diagnosticsScope: 'mcp',
     }, event => {
       if (event.type === 'mcp/updated') void loadServers()
     })

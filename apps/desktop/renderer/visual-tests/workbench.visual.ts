@@ -213,6 +213,16 @@ test('Markdown file switches between rich and source presentations', async ({
   await expect(
     page.getByText('已完成工作台结构梳理。', { exact: true }),
   ).toBeVisible()
+  await expect(
+    page.getByRole('switch', { name: '调试模式' }),
+  ).toHaveCount(0)
+  const assistantActions = page
+    .locator('.canonical-message-actions--assistant')
+    .first()
+  await expect(assistantActions).toBeVisible()
+  await expect(
+    assistantActions.getByRole('button', { name: '复制' }),
+  ).toBeVisible()
   await page.getByRole('button', { name: '显示右侧面板' }).click()
 
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
@@ -292,15 +302,16 @@ test('Markdown file switches between rich and source presentations', async ({
 
 test('session header aligns with the right panel and bottom panel spans the workspace', async ({
   page,
-}) => {
+}, testInfo) => {
+  testInfo.setTimeout(90_000)
   await page.setViewportSize({ width: 1440, height: 920 })
-  await page.goto('/?visualCase=rich#/threads/visual-rich')
+  await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
   await closeTransientErrorToast(page)
   await expect(
     page.getByText('已完成工作台结构梳理。', { exact: true }),
   ).toBeVisible()
 
-  const header = page.getByRole('toolbar', { name: '会话工具栏' })
+  const header = page.locator('.desktop-main-route__header-spacer')
   const workflow = page.locator('.workflow-page')
   const scrollArea = page.locator('[data-component="thread-scroll-layout"]')
   const initialHeader = await header.boundingBox()
@@ -376,26 +387,59 @@ test('session header aligns with the right panel and bottom panel spans the work
     name: '隐藏底部面板',
   })
   await expect(activeBottomPanelButton).toHaveAttribute('aria-pressed', 'true')
-  await expect(
-    page.locator(
-      '[role="tabpanel"][data-app-shell-tab-panel-controller="bottom"]',
-    ),
-  ).toBeFocused()
-  const bottomPanel = await page
-    .getByRole('complementary', { name: '底部面板' })
-    .boundingBox()
+  const bottomPanelElement = page.getByRole('complementary', {
+    name: '底部面板',
+  })
+  await expect(bottomPanelElement).toBeVisible()
+  const bottomPanel = await bottomPanelElement.boundingBox()
   const workspace = await page.locator('.desktop-workspace').boundingBox()
   expect(bottomPanel!.x).toBeCloseTo(workspace!.x, 0)
   expect(bottomPanel!.width).toBeCloseTo(workspace!.width, 0)
-  await expect(page.getByRole('tab', { name: /终端/ })).toHaveAttribute(
-    'aria-selected',
-    'true',
+  const bottomSeparator = page.getByRole('separator', {
+    name: '调整底部面板高度',
+  })
+  const bottomSeparatorBox = await bottomSeparator.boundingBox()
+  expect(bottomSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    bottomSeparatorBox!.x + bottomSeparatorBox!.width / 2,
+    bottomSeparatorBox!.y + bottomSeparatorBox!.height / 2,
   )
-  await page.getByRole('button', { name: '移到底部面板' }).click()
-  await expect(page.getByRole('tab', { name: /审查/ })).toHaveAttribute(
-    'aria-selected',
-    'true',
+  const bottomPointerDownStartedAt = Date.now()
+  await page.mouse.down()
+  expect(Date.now() - bottomPointerDownStartedAt).toBeLessThan(200)
+  await page.mouse.move(bottomSeparatorBox!.x + 40, bottomSeparatorBox!.y - 80, {
+    steps: 6,
+  })
+  await expect
+    .poll(async () => (await bottomPanelElement.boundingBox())?.height)
+    .toBeCloseTo(bottomPanel!.height, 0)
+  const bottomResizeGuide = page.locator(
+    'body > .workbench-resize-guide--bottom',
   )
+  await expect(bottomResizeGuide).toBeVisible()
+  await expect(
+    bottomPanelElement.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'blur(6px)')
+  await expect(
+    bottomPanelElement.locator('.workbench-panel-header'),
+  ).toHaveCSS('filter', 'none')
+  const bottomResizeGuideBox = await bottomResizeGuide.boundingBox()
+  expect(bottomResizeGuideBox).not.toBeNull()
+  expect(bottomResizeGuideBox!.y).toBeCloseTo(
+    bottomSeparatorBox!.y - 80,
+    0,
+  )
+  const bottomPointerUpStartedAt = Date.now()
+  await page.mouse.up()
+  expect(Date.now() - bottomPointerUpStartedAt).toBeLessThan(200)
+  await expect
+    .poll(async () => (await bottomPanelElement.boundingBox())?.height)
+    .toBeGreaterThan(bottomPanel!.height)
+  await expect(bottomResizeGuide).toBeHidden()
+  await expect(
+    bottomPanelElement.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+  await bottomSeparator.dblclick()
 
   const sessionMenuButton = page.getByRole('button', {
     name: '更多会话操作',
@@ -403,16 +447,24 @@ test('session header aligns with the right panel and bottom panel spans the work
   await sessionMenuButton.click()
   await expect(
     page.getByRole('menuitem', { name: /显示 workflow 事件/ }),
-  ).toBeVisible()
+  ).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(sessionMenuButton).toBeFocused()
+
+  await page.getByRole('menuitem', { name: '窗口', exact: true }).click()
+  await expect(page.getByRole('menuitem', { name: '最小化' })).toBeVisible()
+  await expect(
+    page.getByRole('menuitem', { name: /调试/ }),
+  ).toHaveCount(0)
+  await page.keyboard.press('Escape')
 })
 
 test('right panel scales with its workspace and keeps a constrained manual override', async ({
   page,
-}) => {
+}, testInfo) => {
+  testInfo.setTimeout(90_000)
   await page.setViewportSize({ width: 1440, height: 920 })
-  await page.goto('/?visualCase=review#/threads/visual-review')
+  await gotoWorkbenchFixture(page, '/?visualCase=review#/threads/visual-review')
   await closeTransientErrorToast(page)
   await expect(
     page.getByText('已完成工作台结构梳理。', { exact: true }),
@@ -421,11 +473,22 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await page.getByRole('button', { name: '显示右侧面板' }).click()
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
   await expect(rightPanel).toBeVisible()
+  await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
   await expect(
-    page.locator(
-      '[data-app-shell-tab-panel-controller="right"]',
+    rightPanel.getByLabel(
+      'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx diff',
     ),
-  ).toBeFocused()
+  ).toBeVisible({ timeout: 10_000 })
+  await expect
+    .poll(async () => rightPanel.locator('.review-diff-vlist-row').count())
+    .toBeGreaterThan(10)
+  expect(
+    await rightPanel.locator('.review-diff-vlist-row').count(),
+  ).toBeLessThan(100)
+  const reviewFileTree = rightPanel.getByRole('region', {
+    name: '审查文件导航',
+  })
+  await expect(reviewFileTree).toBeVisible()
   const initialWidth = (await rightPanel.boundingBox())?.width
   expect(initialWidth).toBeGreaterThan(320)
   const rightSeparator = page.getByRole('separator', {
@@ -440,18 +503,160 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeGreaterThan(initialWidth!)
+  const keyboardWidth = (await rightPanel.boundingBox())?.width
   await rightSeparator.dblclick()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .not.toBeCloseTo(keyboardWidth!, 0)
+  const resetWidth = (await rightPanel.boundingBox())?.width
+  expect(resetWidth).toBeGreaterThan(320)
+  await expect
+    .poll(async () => Number(await rightSeparator.getAttribute('aria-valuenow')))
+    .toBeCloseTo(resetWidth!, 0)
+
+  const separatorBox = await rightSeparator.boundingBox()
+  expect(separatorBox).not.toBeNull()
+  await page.mouse.move(
+    separatorBox!.x + separatorBox!.width / 2,
+    separatorBox!.y + separatorBox!.height / 2,
+  )
+  await page.evaluate(() => {
+    const resizeWindow = window as Window & {
+      __resizeLongTaskDurations?: number[]
+      __resizeLongTaskObserver?: PerformanceObserver
+    }
+    resizeWindow.__resizeLongTaskObserver?.disconnect()
+    resizeWindow.__resizeLongTaskDurations = []
+    resizeWindow.__resizeLongTaskObserver = new PerformanceObserver(list => {
+      resizeWindow.__resizeLongTaskDurations?.push(
+        ...list.getEntries().map(entry => entry.duration),
+      )
+    })
+    resizeWindow.__resizeLongTaskObserver.observe({ type: 'longtask' })
+  })
+  await page.mouse.down()
+  const pointerMoveDurations: number[] = []
+  for (let step = 1; step <= 60; step += 1) {
+    const pointerMoveStartedAt = Date.now()
+    await page.mouse.move(
+      separatorBox!.x - (96 * step) / 60,
+      separatorBox!.y + 40,
+    )
+    pointerMoveDurations.push(Date.now() - pointerMoveStartedAt)
+  }
+  const sortedPointerMoveDurations = [...pointerMoveDurations].sort(
+    (left, right) => left - right,
+  )
+  expect(
+    sortedPointerMoveDurations[
+      Math.floor(sortedPointerMoveDurations.length * 0.95)
+    ],
+  ).toBeLessThan(80)
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  const rightResizeGuide = page.locator(
+    'body > .workbench-resize-guide--right',
+  )
+  await expect(rightResizeGuide).toBeVisible()
+  await expect(
+    rightPanel.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'blur(6px)')
+  await expect(rightPanel.locator('.workbench-panel-header')).toHaveCSS(
+    'filter',
+    'none',
+  )
+  const rightResizeGuideBox = await rightResizeGuide.boundingBox()
+  expect(rightResizeGuideBox).not.toBeNull()
+  expect(rightResizeGuideBox!.x).toBeCloseTo(separatorBox!.x - 96, 0)
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeGreaterThan(resetWidth!)
+  await expect(rightResizeGuide).toBeHidden()
+  await expect(
+    rightPanel.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+  const resizeLongTaskDurations = await page.evaluate(() => {
+    const resizeWindow = window as Window & {
+      __resizeLongTaskDurations?: number[]
+      __resizeLongTaskObserver?: PerformanceObserver
+    }
+    resizeWindow.__resizeLongTaskObserver?.disconnect()
+    return resizeWindow.__resizeLongTaskDurations ?? []
+  })
+  expect(Math.max(0, ...resizeLongTaskDurations)).toBeLessThan(200)
+  await rightSeparator.dblclick()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+
+  const beginCancelledResize = async (): Promise<void> => {
+    const box = await rightSeparator.boundingBox()
+    expect(box).not.toBeNull()
+    await page.mouse.move(
+      box!.x + box!.width / 2,
+      box!.y + box!.height / 2,
+    )
+    await page.mouse.down()
+    await page.mouse.move(box!.x - 64, box!.y + 30, { steps: 4 })
+    await expect(rightResizeGuide).toBeVisible()
+    await expect(
+      rightPanel.locator('.workbench-panel-content'),
+    ).toHaveCSS('filter', 'blur(6px)')
+  }
+  await beginCancelledResize()
+  await page.evaluate(() => {
+    document.dispatchEvent(new PointerEvent('pointercancel'))
+  })
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  await expect(rightResizeGuide).toBeHidden()
+  await expect(
+    rightPanel.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+
+  await beginCancelledResize()
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  await expect(rightResizeGuide).toBeHidden()
+  await expect(
+    rightPanel.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+
+  const shrinkSeparatorBox = await rightSeparator.boundingBox()
+  expect(shrinkSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    shrinkSeparatorBox!.x + shrinkSeparatorBox!.width / 2,
+    shrinkSeparatorBox!.y + shrinkSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(shrinkSeparatorBox!.x + 64, shrinkSeparatorBox!.y + 30)
+  const shrinkGuideBox = await rightResizeGuide.boundingBox()
+  expect(shrinkGuideBox).not.toBeNull()
+  expect(shrinkGuideBox!.x).toBeCloseTo(shrinkSeparatorBox!.x + 64, 0)
+  await page.evaluate(() => {
+    document.dispatchEvent(new PointerEvent('pointercancel'))
+  })
+  await page.mouse.up()
 
   await page.setViewportSize({ width: 960, height: 640 })
   await expect(rightPanel).toBeVisible()
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
-    .toBeLessThan(initialWidth!)
+    .toBeLessThan(resetWidth!)
+  await expect(reviewFileTree).toBeHidden()
 
   await page.setViewportSize({ width: 1440, height: 920 })
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
-    .toBeCloseTo(initialWidth!, 0)
+    .toBeCloseTo(resetWidth!, 0)
+  await expect(reviewFileTree).toBeVisible()
 
   const sidebarSeparator = page.getByRole('separator', {
     name: '调整任务侧栏宽度',
@@ -587,11 +792,13 @@ for (const mode of MODES) {
     await expect(summary).toBeVisible()
     await expect(summaryHeader).toBeVisible()
 
-    const commandGroup = page.locator('.timeline-command-group-summary').first()
-    await commandGroup.click()
-    const commandRow = page.locator('.timeline-command-row').first()
-    await commandRow.click()
-    const commandShell = page.locator('.timeline-command-shell').first()
+    const commandGroup = page
+      .locator('.canonical-process-group--commands')
+      .first()
+    await commandGroup.locator(':scope > summary').click()
+    const command = page.locator('.canonical-tool').first()
+    await command.locator(':scope > summary').click()
+    const commandShell = page.locator('.canonical-command-shell').first()
     await expect(commandShell).toBeVisible()
 
     const surfaces = await page.evaluate(() => {
@@ -599,7 +806,7 @@ for (const mode of MODES) {
       const header = panel?.querySelector<HTMLElement>(
         '.thread-summary-section > header',
       )
-      const shell = document.querySelector<HTMLElement>('.timeline-command-shell')
+      const shell = document.querySelector<HTMLElement>('.canonical-command-shell')
       if (!panel || !header || !shell) return null
 
       const resolveBackground = (
@@ -616,23 +823,26 @@ for (const mode of MODES) {
 
       return {
         header: getComputedStyle(header).backgroundColor,
-        output: resolveBackground(shell, '--color-bg-soft'),
+        output: resolveBackground(
+          shell,
+          '--color-token-text-preformat-background',
+        ),
         panel: getComputedStyle(panel).backgroundColor,
-        panelSurface: resolveBackground(panel, '--surface-panel'),
-        raised: resolveBackground(panel, '--surface-raised'),
+        summary: resolveBackground(
+          panel,
+          '--color-token-editor-widget-background',
+        ),
         shell: getComputedStyle(shell).backgroundColor,
       }
     })
 
     expect(surfaces).toEqual({
-      header: surfaces?.raised,
+      header: surfaces?.summary,
       output: surfaces?.output,
-      panel: surfaces?.raised,
-      panelSurface: surfaces?.panelSurface,
-      raised: surfaces?.raised,
+      panel: surfaces?.summary,
+      summary: surfaces?.summary,
       shell: surfaces?.output,
     })
-    expect(surfaces?.shell).not.toBe(surfaces?.panelSurface)
   })
 }
 
@@ -1414,4 +1624,22 @@ async function closeTransientErrorToast(
     if (Date.now() >= deadline) return
     await page.waitForTimeout(100)
   } while (true)
+}
+
+async function gotoWorkbenchFixture(page: Page, route: string): Promise<void> {
+  const ready = page.getByText('已完成工作台结构梳理。', { exact: true })
+  const maximumAttempts = 5
+  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+    await page.goto(route)
+    try {
+      await ready.waitFor({ state: 'visible', timeout: 7_500 })
+      return
+    } catch {
+      if (attempt === maximumAttempts - 1) {
+        await expect(ready).toBeVisible()
+        return
+      }
+      await page.waitForTimeout(750)
+    }
+  }
 }

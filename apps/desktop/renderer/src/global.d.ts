@@ -1,5 +1,4 @@
 import type {
-  DesktopApi,
   DesktopStoredSettings,
   DesktopThemeSettings,
 } from '../shared/types.js'
@@ -11,7 +10,6 @@ declare global {
   const __CODEPILOTX_VERSION__: string
 
   interface Window {
-    desktopApi: DesktopApi
     codePilotXDesktop?: {
       minimize(): Promise<void>
       toggleMaximize(): Promise<boolean>

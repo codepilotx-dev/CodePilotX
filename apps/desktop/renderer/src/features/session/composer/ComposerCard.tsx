@@ -70,7 +70,6 @@ import { MetaChip } from "../../../components/ui/MetaChip.js";
 import { SessionFollowUpDock } from "../SessionFollowUpDock.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
-import { preventOutsideDismissWhenDebug } from "../../../components/ui/debugDropdown.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
@@ -306,7 +305,6 @@ type Props = {
   hasConversationMessages?: boolean;
   routedSessionId?: string | null;
   contextDropdownSide?: "top" | "bottom";
-  debugMode?: boolean;
   queuedFollowUps?: DesktopQueuedFollowUp[];
   queuePauseReason?: DesktopQueuePauseReason | null;
   onFollowUpEdit?: (followUpId: string, input: DesktopUserMessageInput) => void;
@@ -398,7 +396,6 @@ export function ComposerCard({
   hasConversationMessages = false,
   routedSessionId,
   contextDropdownSide: contextDropdownSideOverride,
-  debugMode = false,
   queuedFollowUps,
   queuePauseReason,
   onFollowUpEdit,
@@ -1308,7 +1305,6 @@ export function ComposerCard({
           side="bottom"
           width="100%"
           maxWidth="100%"
-          disableOutsideDismiss={debugMode}
           onClose={() => {
             setDismissedSlashInput(input);
           }}
@@ -1327,7 +1323,6 @@ export function ComposerCard({
           side="bottom"
           width="100%"
           maxWidth="100%"
-          disableOutsideDismiss={debugMode}
           onClose={() => setDismissedSkillInput(input)}
         >
           <UnifiedMenuContent
@@ -1344,7 +1339,6 @@ export function ComposerCard({
           side="bottom"
           width="100%"
           maxWidth="100%"
-          disableOutsideDismiss={debugMode}
           onClose={() => setReviewMenuRequested(false)}
         >
           <UnifiedMenuContent
@@ -1361,7 +1355,6 @@ export function ComposerCard({
           side="bottom"
           width="100%"
           maxWidth="100%"
-          disableOutsideDismiss={debugMode}
           onClose={() => {
             if (activeMention) setDismissedMention(activeMention.start);
           }}
@@ -1428,9 +1421,6 @@ export function ComposerCard({
                   side="bottom"
                   sideOffset={6}
                   style={buildPopoverSizingStyle({ width: 300 })}
-                  onPointerDownOutside={(event) => {
-                    preventOutsideDismissWhenDebug(debugMode, event);
-                  }}
                 >
                   <Select.Viewport className="permission-select-scroll-area">
                     <div className="permission-select-scroll-content">
@@ -1666,9 +1656,6 @@ export function ComposerCard({
                   side="top"
                   sideOffset={6}
                   style={buildPopoverSizingStyle({ width: 200 })}
-                  onPointerDownOutside={(event) => {
-                    preventOutsideDismissWhenDebug(debugMode, event);
-                  }}
                 >
                   <div className="rm-model-menu-scroll-content">
                     {showThinkingOptions ? (
@@ -1923,7 +1910,6 @@ export function ComposerCard({
         <ChatInputDropdown
           open={openDropdown === "context"}
           onClose={closeDropdown}
-          disableOutsideDismiss={debugMode}
           side={contextDropdownSide}
           width="100%"
           maxWidth="100%"
@@ -1943,7 +1929,6 @@ export function ComposerCard({
           contextUsage={contextUsage}
           selectedProviderID={selectedProviderID}
           side={contextDropdownSide}
-          disableOutsideDismiss={debugMode}
         />
       </div>
 
@@ -1961,7 +1946,6 @@ export function ComposerCard({
               open={openDropdown === "project"}
               width={200}
               onOpenChange={(open) => setOpenDropdown(open ? "project" : null)}
-              disableOutsideDismiss={debugMode}
               recentWorkspaces={recentWorkspaces}
               workspace={workspace}
               onOpenWorkspace={onOpenWorkspace}
@@ -1999,7 +1983,6 @@ export function ComposerCard({
               {threadGoal ? (
                 <PopoverMenu
                   className="popover-goal popover-menu--grid"
-                  disableOutsideDismiss={debugMode}
                   open={openDropdown === "goal"}
                   side="top"
                   width={200}
@@ -2086,7 +2069,6 @@ export function ComposerCard({
                 branches={branches}
                 className="popover-branch"
                 currentBranchName={branchName}
-                disableOutsideDismiss={debugMode}
                 open={openDropdown === "branch"}
                 side="top"
                 width={200}

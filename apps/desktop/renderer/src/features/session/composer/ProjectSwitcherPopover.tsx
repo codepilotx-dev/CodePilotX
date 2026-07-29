@@ -22,7 +22,6 @@ type Props = {
   side?: 'top' | 'bottom' | 'right' | 'left'
   align?: 'start' | 'center' | 'end'
   sideOffset?: number
-  disableOutsideDismiss?: boolean
 } & PopoverSizingProps
 
 export function ProjectSwitcherPopover({
@@ -39,7 +38,6 @@ export function ProjectSwitcherPopover({
   side,
   align,
   sideOffset,
-  disableOutsideDismiss = false,
   width,
   maxWidth,
 }: Props): React.ReactNode {
@@ -63,7 +61,6 @@ export function ProjectSwitcherPopover({
       open={open}
       side={side}
       sideOffset={sideOffset}
-      disableOutsideDismiss={disableOutsideDismiss}
       width={width}
       maxWidth={maxWidth}
       onOpenChange={onOpenChange}

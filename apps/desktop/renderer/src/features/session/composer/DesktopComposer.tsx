@@ -76,7 +76,6 @@ export type DesktopComposerProps = {
   selectedModelMetadata?: DesktopModelMetadata
   showThinkingOptions: boolean
   deepSeekThinkingControls: boolean
-  debugMode?: boolean
   showContextUsage: boolean
   contextUsage: DesktopContextUsage | null
   modelPresets: ModelPreset[]
@@ -178,7 +177,6 @@ export function DesktopComposer({
   selectedModelMetadata,
   showThinkingOptions,
   deepSeekThinkingControls,
-  debugMode = false,
   showContextUsage,
   contextUsage,
   modelPresets,
@@ -302,7 +300,6 @@ export function DesktopComposer({
       submitDisabledReason={unsupportedAttachmentReason ?? undefined}
       showThinkingOptions={showThinkingOptions}
       deepSeekThinkingControls={deepSeekThinkingControls}
-      debugMode={debugMode}
       showContextUsage={showContextUsage}
       contextUsage={contextUsage}
       modelPresets={modelPresets}

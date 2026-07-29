@@ -67,13 +67,3 @@
   color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
-
-/* --- Execution phase --- */
-.execution-phase {
-  width: 100%;
-  max-width: none;
-  display: flex;
-  flex-direction: column;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
-}

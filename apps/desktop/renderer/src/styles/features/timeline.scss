@@ -134,84 +134,8 @@
   container-type: inline-size;
 }
 
-.session-turn-row + .session-turn-row,
-.session-turn-row + .timeline-command-group,
-.session-turn-row + .execution-phase,
-.timeline-command-group + .session-turn-row,
-.execution-phase + .session-turn-row {
+.session-turn-row + .session-turn-row {
   margin-top: 8px;
-}
-
-/* ── Data-attribute turn slot styles ──────────────────── */
-
-[data-component="session-turn"] {
-  &[data-slot="user-message"] {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    padding-top: 12px;
-    padding-bottom: 12px;
-  }
-
-  &[data-slot="assistant-message"] {
-    padding-top: 14px;
-    padding-bottom: 14px;
-  }
-
-  &[data-slot="error"],
-  &[data-slot="permission_request"],
-  &[data-slot="system-message"],
-  &[data-slot="file_patch"],
-  &[data-slot="tool_group"],
-  &[data-slot="execution_phase"],
-  &[data-slot="proposed_plan"] {
-    padding-top: 16px;
-    padding-bottom: 16px;
-  }
-}
-
-[data-component="session-turn"][data-slot="user-message"] {
-  .chat-message-row.user {
-    max-width: 100%;
-  }
-
-
-}
-
-[data-component="session-turn"][data-slot="assistant-message"] {
-  .chat-message-row.assistant {
-    max-width: 100%;
-  }
-
-  .assistant-message-body {
-    max-width: none;
-  }
-}
-
-[data-component="session-turn"][data-slot="plan"] {
-  .chat-message-row.assistant {
-    max-width: 100%;
-  }
-
-  .workflow-plan-card {
-    width: 100%;
-    max-width: none;
-  }
-}
-
-[data-component="session-turn"][data-slot="thinking"] {
-  display: flex;
-  justify-content: flex-start;
-}
-
-[data-component="session-turn"][data-slot="error"] .timeline-system-event,
-[data-component="session-turn"][data-slot="system-message"] .timeline-system-event,
-[data-component="session-turn"][data-slot="permission_request"]
-  .timeline-system-event {
-  width: 100%;
-  max-width: none;
-  margin-top: 0;
-  margin-bottom: 0;
 }
 
 .session-timeline-bottom-sentinel {
@@ -266,84 +190,6 @@
   }
 }
 
-/* ── Turn divider ─────────────────────────────────────── */
-
-.session-turn-divider {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-top: 8px;
-  padding-bottom: 4px;
-}
-
-.turn-divider-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-label, 500);
-  user-select: none;
-
-  &::before,
-  &::after {
-    content: "";
-    display: block;
-    height: 1px;
-    width: 24px;
-    background: var(--color-token-border-light);
-  }
-
-  &::after {
-    width: 100%;
-    flex: 1;
-  }
-}
-
-/* ── Adapt existing classes to timeline layout ────────── */
-
-.session-timeline-container {
-  .conversation-stream {
-    margin: 0;
-    gap: 0;
-  }
-
-  .timeline-command-group,
-  .execution-phase,
-  .timeline-file-event {
-    margin: 0;
-    max-width: 100%;
-  }
-
-  .timeline-system-event,
-  .workflow-plan-card {
-    margin: 0;
-  }
-
-  .timeline-command-group-summary:hover,
-  .execution-phase-summary:hover {
-    background: transparent;
-  }
-
-  .assistant-message-actions {
-    opacity: 0;
-  }
-
-  :where(.chat-message-row.assistant:hover) .assistant-message-actions,
-  :where(.chat-message-row.assistant:focus-within) .assistant-message-actions {
-    opacity: 1;
-  }
-
-  :where(.chat-message-row.user:hover) .user-message-meta,
-  :where(.chat-message-row.user:focus-within) .user-message-meta {
-    opacity: 1;
-  }
-
-  .chat-thinking-pill {
-    margin: 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .session-timeline-return-button {
     transition: none;
@@ -352,14 +198,6 @@
 
 :root[data-reduce-motion="on"] .session-timeline-return-button {
   transition: none;
-}
-
-/* ── Workflow debug timeline stays visible above virtual list ── */
-
-.session-timeline-wrapper .workflow-debug-timeline {
-  flex-shrink: 0;
-  margin: 0 auto;
-  width: var(--session-content-w, min(var(--layout-content-w, 760px), 100%));
 }
 
 /* ── Responsive: narrower viewports ───────────────────── */

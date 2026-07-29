@@ -1,8 +1,4 @@
-import {
-  desktopClient,
-  readDesktopBrowserDebugMode,
-  writeDesktopBrowserDebugMode,
-} from '../../../services/desktop-client/index.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
   openPathWithPreferredExternalTarget,
   shouldFallbackToExternalOpen,
@@ -93,7 +89,6 @@ import type { DesktopLayoutOutletContextValue } from './desktopLayoutOutletConte
 import { useWorkbenchShellController } from './useWorkbenchShellController.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
 import { useModelProviderController } from '../useModelProviderController.js'
-import { recordConversationSwitchStarted } from '../../debug/performanceDiagnosticsBridge.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
@@ -293,9 +288,6 @@ export function DesktopLayout(): React.ReactNode {
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
   )
-  const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
-    readDesktopBrowserDebugMode(),
-  )
   const {
     providerState,
     setProviderState,
@@ -344,7 +336,7 @@ export function DesktopLayout(): React.ReactNode {
     pinTab,
     setFileMarkdownViewMode,
     toggleRightFullWidth,
-  } = useWorkbenchShellController(menubarDebugMode)
+  } = useWorkbenchShellController()
   const rightDockFullWidth =
     rightDockVisible && workbenchPanelState.rightFullWidth
   const visibleRightDockState = useMemo(
@@ -407,7 +399,6 @@ export function DesktopLayout(): React.ReactNode {
     localRouterMode: homeLocalRouterMode,
     providerID,
     providerBaseURL,
-    debugConversationDump: menubarDebugMode,
     model,
     planExecutionModel,
     reviewModel,
@@ -449,8 +440,6 @@ export function DesktopLayout(): React.ReactNode {
     contextUsage,
     queuedFollowUps,
     queuePauseReason,
-    pendingPermissions,
-    legacyViewSessionId,
     pendingPermissionSessionIds,
     input,
     setInput,
@@ -460,7 +449,6 @@ export function DesktopLayout(): React.ReactNode {
     removeComposerAttachmentForDraft,
     clearComposerDraftIfUnchanged,
     activateSessionById,
-    hydrateSessionLegacyView,
     createSessionForWorkspace,
     submitToSession,
     interrupt,
@@ -519,7 +507,6 @@ export function DesktopLayout(): React.ReactNode {
   const beginConversationSwitch = useCallback((targetSessionId: string) => {
     if (conversationSwitchTargetRef.current === targetSessionId) return
     conversationSwitchTargetRef.current = targetSessionId
-    recordConversationSwitchStarted()
   }, [])
 
   useEffect(() => {
@@ -569,9 +556,7 @@ export function DesktopLayout(): React.ReactNode {
     }
 
     beginConversationSwitch(routedSessionId)
-    const nextWorkspace = activateSessionById(routedSessionId, {
-      viewMode: 'canonical',
-    })
+    const nextWorkspace = activateSessionById(routedSessionId)
     if (!nextWorkspace) {
       setWorkspaceState(null)
       setDiffState('未选择项目。')
@@ -800,13 +785,6 @@ export function DesktopLayout(): React.ReactNode {
   const handleCreatePullRequest = useCallback((): void => {
     setGitWorkflowMode('pullRequest')
   }, [])
-
-  useEffect(() => {
-    writeDesktopBrowserDebugMode(undefined, menubarDebugMode)
-    if (menubarDebugMode) {
-      void desktopClient.openDevTools()
-    }
-  }, [menubarDebugMode])
 
   const refreshBrowserState = useCallback((): void => {
     void desktopClient
@@ -1102,9 +1080,7 @@ export function DesktopLayout(): React.ReactNode {
     if (currentId) {
       const saved = loadConversationUiState(currentId)
       if (saved) {
-        const validated = validateConversationUiState(saved, {
-          debugMode: menubarDebugMode,
-        })
+        const validated = validateConversationUiState(saved)
         setWorkbenchPanelState(validated.workbench)
         setSideChatInput(validated.sideChatInput)
         setSideChatAttachments(validated.sideChatAttachments)
@@ -1666,9 +1642,7 @@ export function DesktopLayout(): React.ReactNode {
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
       beginConversationSwitch(sessionItem.id)
-      const nextWorkspace = activateSessionById(sessionItem.id, {
-        viewMode: 'canonical',
-      })
+      const nextWorkspace = activateSessionById(sessionItem.id)
       navigate(sessionPath(sessionItem.id))
       if (!nextWorkspace) {
         setWorkspaceState(null)
@@ -1976,8 +1950,6 @@ export function DesktopLayout(): React.ReactNode {
       onToggleSidebar={toggleSidebarCollapsed}
       onSidebarTriggerPointerEnter={sidebarShell.onTriggerPointerEnter}
       onSidebarTriggerPointerLeave={sidebarShell.onTriggerPointerLeave}
-      isDebugMode={menubarDebugMode}
-      onDebugModeChange={setMenubarDebugMode}
       onClose={() => {
         void desktopClient.closeWindow()
       }}
@@ -2116,7 +2088,6 @@ export function DesktopLayout(): React.ReactNode {
           selectedModelMetadata,
           showThinkingOptions,
           deepSeekThinkingControls,
-          debugMode: menubarDebugMode,
           showContextUsage,
           contextUsage: isConversationRoute ? null : contextUsage,
           modelPresets: selectedProviderModelPresets,
@@ -2185,7 +2156,6 @@ export function DesktopLayout(): React.ReactNode {
         selectedModelMetadata={selectedModelMetadata}
         showThinkingOptions={showThinkingOptions}
         deepSeekThinkingControls={deepSeekThinkingControls}
-        debugMode={menubarDebugMode}
         showContextUsage={showContextUsage}
         contextUsage={contextUsage}
         modelPresets={selectedProviderModelPresets}
@@ -2241,23 +2211,6 @@ export function DesktopLayout(): React.ReactNode {
       />
     </Suspense>
   ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
-  const rightDockPanelRef = useRef<HTMLDivElement>(null)
-  const bottomPanelRef = useRef<HTMLDivElement>(null)
-  const handlePreviewRightDockWidth = useCallback((width: number): void => {
-    if (rightDockPanelRef.current) {
-      rightDockPanelRef.current.style.width = `${width}px`
-    }
-    workspaceRef.current?.style.setProperty(
-      '--workspace-right-panel-live-width',
-      `${width}px`,
-    )
-  }, [workspaceRef])
-  const handlePreviewBottomPanelHeight = useCallback((height: number): void => {
-    if (bottomPanelRef.current) {
-      bottomPanelRef.current.style.height = `${height}px`
-    }
-  }, [])
-
   const planContentByEventId = useMemo(() => {
     const result: Record<string, string> = {}
     for (const event of events) {
@@ -2599,7 +2552,6 @@ export function DesktopLayout(): React.ReactNode {
       state={state}
       tabsById={workbenchPanelState.tabsById}
       browserState={browserState}
-      debugMode={menubarDebugMode}
       defaultBranch={derivedDefaultBranch}
       files={workspaceFiles}
       gitStatus={gitStatus}
@@ -2668,12 +2620,6 @@ export function DesktopLayout(): React.ReactNode {
       onReviewTabStateChange={setReviewTabState}
       onResetHeight={handleResetBottomPanelHeight}
       onResetWidth={handleResetRightDockWidth}
-      onResizePreviewWidth={
-        target === 'right' ? handlePreviewRightDockWidth : undefined
-      }
-      onResizePreviewHeight={
-        target === 'bottom' ? handlePreviewBottomPanelHeight : undefined
-      }
       onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
       onMoveTab={movePanelTab}
       onReorderTab={reorderPanelTab}
@@ -2762,7 +2708,6 @@ export function DesktopLayout(): React.ReactNode {
       <WorkbenchShellView
         menuBar={menuBar}
         sidebar={sidebar}
-        debugMode={menubarDebugMode}
         appBodyRef={sidebarShell.appBodyRef}
       >
         <QuickChatContext.Provider
@@ -2853,31 +2798,6 @@ export function DesktopLayout(): React.ReactNode {
             permissionMode: effectivePermissionMode,
             planModeActive,
             providerModelOptions,
-            events:
-              isQuickChatPage ||
-              isConversationLoading ||
-              legacyViewSessionId !== sessionId
-                ? []
-                : events,
-            workflowEvents:
-              isQuickChatPage ||
-              isConversationLoading ||
-              legacyViewSessionId !== sessionId
-                ? []
-                : workflowEvents,
-            messages:
-              isQuickChatPage ||
-              isConversationLoading ||
-              legacyViewSessionId !== sessionId
-                ? []
-                : messages,
-            pendingPermissions:
-              isQuickChatPage ||
-              isConversationLoading ||
-              legacyViewSessionId !== sessionId
-                ? []
-                : pendingPermissions,
-            onHydrateLegacySessionView: hydrateSessionLegacyView,
             sessionStatus,
             composerProps: isConversationLoading ? null : composerProps,
             composerDraft: {
@@ -2887,7 +2807,6 @@ export function DesktopLayout(): React.ReactNode {
             bottomPanelVisible,
             onToggleBottomPanel: toggleBottomPanelVisible,
             rightDockPlanEventId,
-            debugMode: menubarDebugMode,
             }}
           >
             <SearchContext.Provider
@@ -2949,7 +2868,6 @@ export function DesktopLayout(): React.ReactNode {
                     </div>
                     {rightDockNode ? (
                       <div
-                        ref={rightDockPanelRef}
                         className={
                           rightDockFullWidth
                             ? 'desktop-workspace-panel desktop-workspace-panel--right full-width'
@@ -2967,7 +2885,6 @@ export function DesktopLayout(): React.ReactNode {
                   </div>
                   {bottomPanelNode ? (
                     <div
-                      ref={bottomPanelRef}
                       className="desktop-workspace-panel desktop-workspace-panel--bottom"
                       style={{ height: `${bottomPanelHeight}px` }}
                     >

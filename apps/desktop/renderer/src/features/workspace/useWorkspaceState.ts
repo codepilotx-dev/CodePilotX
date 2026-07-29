@@ -9,7 +9,6 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { upsertRecentWorkspace } from '../settings/settingsStorage.js'
-import { recordConversationSwitchRequest } from '../debug/performanceDiagnosticsBridge.js'
 
 export const NO_WORKSPACE_DIFF = '未选择项目。'
 
@@ -130,7 +129,6 @@ export function useWorkspaceState(
   if (!refreshCoordinatorRef.current) {
     refreshCoordinatorRef.current = createWorkspaceRefreshCoordinator(
       async target => {
-        recordConversationSwitchRequest('workspace-refresh')
         const [nextContext, nextFiles, nextDiff, nextGitStatus] =
           await Promise.all([
             desktopClient.getWorkspaceContext(target.path),

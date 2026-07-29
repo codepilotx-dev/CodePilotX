@@ -36,7 +36,6 @@ import {
   decidePermissionAction,
   interruptSessionAction,
   renameSessionAction,
-  selectSessionAction,
   setSessionLocalRouterModeAction,
   setSessionPermissionModeAction,
   setSessionPlanModeActiveAction,
@@ -70,11 +69,6 @@ import type {
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
 } from '../composer/composerTypes.js'
-import { recordConversationSwitchRequest } from '../../debug/performanceDiagnosticsBridge.js'
-
-export type SessionActivationOptions = {
-  viewMode?: 'canonical' | 'legacy'
-}
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
@@ -83,7 +77,6 @@ export type UseSessionStateOptions = {
   localRouterMode: LocalRouterMode
   providerID: ModelProviderID
   providerBaseURL: string
-  debugConversationDump: boolean
   model: string
   planExecutionModel: string
   reviewModel: string
@@ -117,7 +110,6 @@ export type UseSessionStateResult = {
   workflowEvents: DesktopWorkflowEvent[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
-  legacyViewSessionId: string | null
   pendingPermissionSessionIds: ReadonlySet<string>
   contextUsage: DesktopContextUsage | null
   queuedFollowUps: DesktopQueuedFollowUp[]
@@ -147,11 +139,7 @@ export type UseSessionStateResult = {
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
   ) => boolean
-  activateSessionById: (
-    targetSessionId: string | null,
-    options?: SessionActivationOptions,
-  ) => DesktopWorkspace | null
-  hydrateSessionLegacyView: (targetSessionId: string) => Promise<void>
+  activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
@@ -201,7 +189,6 @@ export type UseSessionStateResult = {
     targetSessionId: string,
     mode: LocalRouterMode,
   ) => Promise<SessionListItem | null>
-  selectSession: (session: SessionListItem) => DesktopWorkspace | null
   toggleToolLogEntry: (entryId: string) => void
 }
 
@@ -215,7 +202,6 @@ export function useSessionState(
     localRouterMode,
     providerID,
     providerBaseURL,
-    debugConversationDump,
     model,
     planExecutionModel,
     reviewModel,
@@ -256,10 +242,6 @@ export function useSessionState(
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
   >([])
-  const [legacyViewSessionId, setLegacyViewSessionId] = useState<string | null>(
-    null,
-  )
-  const legacyViewSessionIdRef = useRef<string | null>(null)
   const [pendingPermissionSessionIds, setPendingPermissionSessionIds] =
     useState<Set<string>>(() => new Set())
   const [contextUsage, setContextUsage] =
@@ -295,17 +277,6 @@ export function useSessionState(
     items: DesktopQueuedFollowUp[]
     pauseReason: DesktopQueuePauseReason | null
   }>>({})
-  const sessionHydrationStateRef = useRef<
-    Record<string, 'loading' | 'hydrated' | undefined>
-  >({})
-  const sessionHydrationPromisesRef = useRef<
-    Record<string, Promise<void> | undefined>
-  >({})
-  const bufferedAgentEventsBySessionRef = useRef<
-    Record<string, DesktopAgentEvent[] | undefined>
-  >({})
-  const applyAgentEventRef = useRef<(event: DesktopAgentEvent) => void>(() => {})
-
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
   const onDiffForActiveRef = useRef(onDiffForActive)
@@ -463,10 +434,7 @@ export function useSessionState(
         sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
       )
       setSessionView(sessionViewsRef, targetSessionId, nextView)
-      if (
-        targetSessionId === activeSessionIdRef.current &&
-        legacyViewSessionIdRef.current === targetSessionId
-      ) {
+      if (targetSessionId === activeSessionIdRef.current) {
         applySessionView(nextView, viewSetters)
       }
       syncPendingPermissionSessionIds()
@@ -486,135 +454,6 @@ export function useSessionState(
       addToolLogEntryToView(updateSessionView, targetSessionId, entry)
     },
     [updateSessionView],
-  )
-
-  const applyHydratedSessionSnapshot = useCallback(
-    (snapshot: Awaited<ReturnType<typeof desktopClient.getSession>>): void => {
-      const currentItem = sessionsRef.current.find(
-        session => session.id === snapshot.item.id,
-      )
-      const nextItem: SessionListItem = {
-        ...snapshot.item,
-        sessionName:
-          snapshot.item.sessionName ?? currentItem?.sessionName ?? null,
-        customTitle: snapshot.item.customTitle ?? null,
-        aiTitle: snapshot.item.aiTitle ?? null,
-        firstPrompt:
-          snapshot.item.firstPrompt ?? currentItem?.firstPrompt ?? null,
-      }
-      const snapshotView: SessionViewState = {
-        ...snapshot.view,
-        eventModelVersion: snapshot.eventModelVersion,
-        events: snapshot.events ?? [],
-        workflowEvents: dedupeWorkflowEvents(
-          sessionViewsRef.current[snapshot.item.id]?.workflowEvents ??
-            snapshot.workflowEvents ??
-            [],
-        ),
-        contextUsage: snapshot.view.contextUsage ?? null,
-        selectedFile:
-          sessionViewsRef.current[snapshot.item.id]?.selectedFile ?? null,
-      }
-      const nextView: SessionViewState = {
-        ...snapshotView,
-        ...deriveWorkflowViewPatch(
-          snapshotView.workflowEvents,
-          snapshotView,
-          snapshot.item.id,
-        ),
-      }
-      sessionViewsRef.current = {
-        ...sessionViewsRef.current,
-        [snapshot.item.id]: nextView,
-      }
-      syncPendingPermissionSessionIds()
-      setSessionFallbackTitles(current =>
-        updateSessionFallbackTitle(current, snapshot.item.id, nextView),
-      )
-      sessionWorkspacesRef.current = {
-        ...sessionWorkspacesRef.current,
-        [snapshot.item.id]: snapshot.workspace,
-      }
-      queueStateBySessionRef.current = {
-        ...queueStateBySessionRef.current,
-        [snapshot.item.id]: {
-          items: snapshot.queuedFollowUps ?? [],
-          pauseReason: snapshot.queuePauseReason ?? null,
-        },
-      }
-      sessionsRef.current = sortSessionsByRecency(
-        sessionsRef.current.map(session =>
-          session.id === snapshot.item.id ? nextItem : session,
-        ),
-      )
-      setSessions(current =>
-        sortSessionsByRecency(
-          current.map(session =>
-            session.id === snapshot.item.id ? nextItem : session,
-          ),
-        ),
-      )
-      if (activeSessionIdRef.current === snapshot.item.id) {
-        setSessionStatus(nextItem.status)
-        setQueuedFollowUps(snapshot.queuedFollowUps ?? [])
-        setQueuePauseReason(snapshot.queuePauseReason ?? null)
-        applySessionView(nextView, viewSetters)
-        legacyViewSessionIdRef.current = snapshot.item.id
-        setLegacyViewSessionId(snapshot.item.id)
-      }
-    },
-    [syncPendingPermissionSessionIds, viewSetters],
-  )
-
-  const hydrateSessionDetails = useCallback(
-    async (targetSessionId: string): Promise<void> => {
-      if (sessionHydrationStateRef.current[targetSessionId] === 'hydrated') return
-      const pending = sessionHydrationPromisesRef.current[targetSessionId]
-      if (pending) return pending
-
-      sessionHydrationStateRef.current[targetSessionId] = 'loading'
-      const hydration = (async () => {
-        try {
-          recordConversationSwitchRequest('thread-read')
-          const snapshot = await desktopClient.getSession(targetSessionId)
-          applyHydratedSessionSnapshot(snapshot)
-          sessionHydrationStateRef.current[targetSessionId] = 'hydrated'
-          const buffered =
-            bufferedAgentEventsBySessionRef.current[targetSessionId] ?? []
-          delete bufferedAgentEventsBySessionRef.current[targetSessionId]
-          for (const event of buffered) {
-            applyAgentEventRef.current(event)
-          }
-        } catch (error) {
-          delete sessionHydrationStateRef.current[targetSessionId]
-          onErrorRef.current(errorMessageOf(error))
-        } finally {
-          delete sessionHydrationPromisesRef.current[targetSessionId]
-        }
-      })()
-      sessionHydrationPromisesRef.current[targetSessionId] = hydration
-      return hydration
-    },
-    [applyHydratedSessionSnapshot],
-  )
-
-  const hydrateSessionLegacyView = useCallback(
-    async (targetSessionId: string): Promise<void> => {
-      if (
-        sessionHydrationStateRef.current[targetSessionId] === 'hydrated' &&
-        activeSessionIdRef.current === targetSessionId
-      ) {
-        applySessionView(
-          sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
-          viewSetters,
-        )
-        legacyViewSessionIdRef.current = targetSessionId
-        setLegacyViewSessionId(targetSessionId)
-        return
-      }
-      await hydrateSessionDetails(targetSessionId)
-    },
-    [hydrateSessionDetails, viewSetters],
   )
 
   const toggleToolLogEntry = useCallback(
@@ -640,18 +479,8 @@ export function useSessionState(
     },
     [addToolLogEntry, updateSessionView],
   )
-  applyAgentEventRef.current = applyAgentEvent
-
   const handleAgentEvent = useCallback(
     (event: DesktopAgentEvent): void => {
-      if (sessionHydrationStateRef.current[event.sessionId] === 'loading') {
-        const buffered = bufferedAgentEventsBySessionRef.current[event.sessionId] ?? []
-        bufferedAgentEventsBySessionRef.current[event.sessionId] = [
-          ...buffered.slice(-999),
-          event,
-        ]
-        return
-      }
       applyAgentEvent(event)
     },
     [applyAgentEvent],
@@ -753,9 +582,7 @@ export function useSessionState(
       const currentSession = nextSessions.find(session => session.id === currentId)
       if (!currentSession || currentSession.archivedAt) {
         activeSessionIdRef.current = null
-        legacyViewSessionIdRef.current = null
         setSessionId(null)
-        setLegacyViewSessionId(null)
         setSessionStatus('idle')
         setQueuedFollowUps([])
         setQueuePauseReason(null)
@@ -770,12 +597,10 @@ export function useSessionState(
       const currentQueueState = nextQueueStates[currentId]
       setQueuedFollowUps(currentQueueState?.items ?? [])
       setQueuePauseReason(currentQueueState?.pauseReason ?? null)
-      if (legacyViewSessionIdRef.current === currentId) {
-        applySessionView(
-          nextViews[currentId] ?? createEmptySessionView(),
-          viewSetters,
-        )
-      }
+      applySessionView(
+        nextViews[currentId] ?? createEmptySessionView(),
+        viewSetters,
+      )
     })
     return () => {
       unsubscribe()
@@ -833,9 +658,7 @@ export function useSessionState(
         setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
         activeSessionIdRef.current = null
-        legacyViewSessionIdRef.current = null
         setSessionId(null)
-        setLegacyViewSessionId(null)
         setSessionStatus('idle')
         setQueuedFollowUps([])
         setQueuePauseReason(null)
@@ -868,7 +691,6 @@ export function useSessionState(
       localRouterMode: effectiveLocalRouterMode,
       providerID,
       providerBaseURL,
-      debugConversationDump,
       model,
       planExecutionModel,
       reviewModel,
@@ -891,7 +713,6 @@ export function useSessionState(
       installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
-      debugConversationDump,
       fastModel,
       planExecutionModel,
       model,
@@ -950,16 +771,12 @@ export function useSessionState(
   const activateSessionById = useCallback(
     (
       targetSessionId: string | null,
-      options: SessionActivationOptions = {},
     ): DesktopWorkspace | null => {
-      const viewMode = options.viewMode ?? 'legacy'
       if (!targetSessionId) {
         activateSession(actionContext, null)
         setSessionStatus('idle')
         setQueuedFollowUps([])
         setQueuePauseReason(null)
-        legacyViewSessionIdRef.current = null
-        setLegacyViewSessionId(null)
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
         setComposerAttachments(
@@ -980,18 +797,10 @@ export function useSessionState(
       const queueState = queueStateBySessionRef.current[targetSessionId]
       setQueuedFollowUps(queueState?.items ?? [])
       setQueuePauseReason(queueState?.pauseReason ?? null)
-      if (viewMode === 'legacy') {
-        applySessionView(
-          sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
-          viewSetters,
-        )
-        legacyViewSessionIdRef.current = targetSessionId
-        setLegacyViewSessionId(targetSessionId)
-        void hydrateSessionDetails(targetSessionId)
-      } else {
-        legacyViewSessionIdRef.current = null
-        setLegacyViewSessionId(null)
-      }
+      applySessionView(
+        sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
+        viewSetters,
+      )
       setInput(inputBySessionRef.current[targetSessionId] ?? '')
       setComposerAttachments(
         attachmentsBySessionRef.current[targetSessionId] ?? [],
@@ -1004,7 +813,7 @@ export function useSessionState(
         path: targetSession.workspacePath,
       }
     },
-    [actionContext, hydrateSessionDetails, viewSetters],
+    [actionContext, viewSetters],
   )
 
   const canSubmit = useMemo(
@@ -1168,15 +977,6 @@ export function useSessionState(
     [actionContext, sessions],
   )
 
-  const selectSession = useCallback(
-    (session: SessionListItem): DesktopWorkspace | null => {
-      const workspace = selectSessionAction(actionContext, session)
-      void hydrateSessionDetails(session.id)
-      return workspace
-    },
-    [actionContext, hydrateSessionDetails],
-  )
-
   return {
     sessionId,
     sessionsHydrated,
@@ -1189,7 +989,6 @@ export function useSessionState(
     workflowEvents,
     toolLog,
     pendingPermissions,
-    legacyViewSessionId,
     pendingPermissionSessionIds,
     contextUsage,
     queuedFollowUps,
@@ -1207,7 +1006,6 @@ export function useSessionState(
     removeComposerAttachmentForDraft,
     clearComposerDraftIfUnchanged,
     activateSessionById,
-    hydrateSessionLegacyView,
     createSessionForWorkspace,
     submit,
     submitToSession,
@@ -1220,7 +1018,6 @@ export function useSessionState(
     setSessionPermissionMode,
     setSessionPlanModeActive,
     setSessionLocalRouterMode,
-    selectSession,
     toggleToolLogEntry,
   }
 }

@@ -1146,7 +1146,6 @@ export type DesktopSessionSettingsSnapshot = {
   planModeActive?: boolean
   providerID?: ModelProviderID
   providerBaseURL?: string
-  debugConversationDump?: boolean
   model?: string
   effort?: string | null
   personality?: DesktopPersonality
@@ -1256,7 +1255,6 @@ export type CreateDesktopSessionOptions = {
   planModeActive?: boolean
   providerID?: ModelProviderID
   providerBaseURL?: string
-  debugConversationDump?: boolean
   model?: string
   planExecutionModel?: string
   reviewModel?: string
@@ -1383,7 +1381,6 @@ export type DesktopModelSelection = {
   providerBaseURL?: string
   model?: string
   variant?: string
-  debugConversationDump?: boolean
   localRouterMode?: LocalRouterMode
 }
 
@@ -1902,7 +1899,6 @@ export type DesktopApi = {
     sessionId: string,
     mode: LocalRouterMode,
   ): Promise<DesktopSessionSnapshot>
-  readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   openExternalURL(url: string): Promise<void>
   sendUserMessage(
     sessionId: string,

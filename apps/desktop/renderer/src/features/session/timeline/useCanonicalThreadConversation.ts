@@ -13,13 +13,6 @@ import {
 
 import { desktopClient } from "../../../services/desktop-client/index.js";
 import { AGENT_LIVE_EVENT_FILTERS } from "../../../services/desktop-client/eventSubscriptionFilters.js";
-import {
-  recordCanonicalBatch,
-  recordCanonicalProjection,
-  recordConversationSwitchCanonicalReady,
-  recordConversationSwitchRequest,
-  recordConversationSwitchSkeleton,
-} from "../../debug/performanceDiagnosticsBridge.js";
 
 const INITIAL_TURN_PAGE_SIZE = 10;
 const MAX_ENVELOPES_PER_FLUSH = 256;
@@ -73,8 +66,6 @@ export function useCanonicalThreadConversation(
   const flushFrameRef = React.useRef<number | null>(null);
   const flushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushPendingRef = React.useRef<() => void>(() => undefined);
-  const diagnosticsThreadIdRef = React.useRef<string | null>(null);
-  const diagnosticsReadyRef = React.useRef(false);
 
   activeThreadIdRef.current = threadId;
 
@@ -111,7 +102,6 @@ export function useCanonicalThreadConversation(
 
   const readLatest = React.useCallback(async (): Promise<ThreadHistoryPageLike | null> => {
     if (!threadId) return null;
-    recordConversationSwitchRequest("history-read");
     return desktopClient.readThreadHistoryPage({
       threadId,
       limit: INITIAL_TURN_PAGE_SIZE,
@@ -253,13 +243,7 @@ export function useCanonicalThreadConversation(
     const batch = pendingEnvelopesRef.current.splice(0, MAX_ENVELOPES_PER_FLUSH);
     if (batch.length === 0) return;
     try {
-      const applyStartedAt = performance.now();
       const next = applyThreadEnvelopes(current, batch);
-      recordCanonicalBatch({
-        eventCount: batch.length,
-        applyMs: performance.now() - applyStartedAt,
-        liveEventIds: next.stream.appliedEventIds.size,
-      });
       if (
         next !== current
         && isCurrentCanonicalThreadRequest(
@@ -325,7 +309,6 @@ export function useCanonicalThreadConversation(
     }
     setLoadingOlderThreadId(requestedThreadId);
     try {
-      recordConversationSwitchRequest("history-read");
       const page = await desktopClient.readThreadHistoryPage({
         threadId: requestedThreadId,
         before: cursor,
@@ -379,41 +362,14 @@ export function useCanonicalThreadConversation(
     threadId && loadingOlderThreadId === threadId
   );
 
-  const projection = React.useMemo(
-    () => {
-      const startedAt = performance.now();
-      const turns = visibleState ? selectRenderTurnEntries(visibleState, scope) : [];
-      return {
-        durationMs: visibleState ? performance.now() - startedAt : 0,
-        turns,
-      };
-    },
+  const turns = React.useMemo(
+    () => visibleState ? selectRenderTurnEntries(visibleState, scope) : [],
     [scope, visibleState],
   );
-  React.useEffect(() => {
-    if (visibleState) recordCanonicalProjection(projection.durationMs);
-  }, [projection, visibleState]);
-
-  React.useLayoutEffect(() => {
-    if (diagnosticsThreadIdRef.current !== threadId) {
-      diagnosticsThreadIdRef.current = threadId;
-      diagnosticsReadyRef.current = false;
-      if (threadId && visibleLoading && !visibleState) {
-        recordConversationSwitchSkeleton();
-      }
-    }
-    if (visibleState && !diagnosticsReadyRef.current) {
-      diagnosticsReadyRef.current = true;
-      recordConversationSwitchCanonicalReady({
-        turnCount: visibleState.turnOrder.length,
-        itemCount: visibleState.itemsById.size,
-      });
-    }
-  }, [threadId, visibleLoading, visibleState]);
 
   return {
     state: visibleState,
-    turns: projection.turns,
+    turns,
     loading: visibleLoading,
     loadingOlder: visibleLoadingOlder,
     error: visibleError,

@@ -110,7 +110,6 @@ export const DESKTOP_API_METHODS = [
   'setSessionPermissionMode',
   'setSessionPlanModeActive',
   'setSessionLocalRouterMode',
-  'readWorkflowEventLog',
   'openExternalURL',
   'sendUserMessage',
   'respondToPermission',

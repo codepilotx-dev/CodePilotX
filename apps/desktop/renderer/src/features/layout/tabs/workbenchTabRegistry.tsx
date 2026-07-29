@@ -1,13 +1,10 @@
 import React, { Suspense, type ReactNode } from 'react'
 import {
   FileText,
-  Gauge,
   GitPullRequest,
   Globe2,
   ListChecks,
   MessageSquarePlus,
-  Search,
-  TestTube2,
 } from 'lucide-react'
 import type {
   DesktopBrowserState,
@@ -25,15 +22,11 @@ import { FileTypeIcon } from '../FileTypeIcon.js'
 import { createWorkspaceFileTabId } from './workspaceFileTabId.js'
 import type {
   MarkdownFileViewMode,
-  WorkbenchFlags,
   WorkbenchTabDescriptor,
   WorkbenchTabKind,
 } from '../dock/rightDockState.js'
 
 const DesktopBrowserPanel = React.lazy(() => import('../../browser/DesktopBrowserPanel.js').then(module => ({ default: module.DesktopBrowserPanel })))
-const ConfirmationDialogDebug = React.lazy(() => import('../../debug/ConfirmationDialogDebug.js').then(module => ({ default: module.ConfirmationDialogDebug })))
-const PerformanceDiagnosticsPanel = React.lazy(() => import('../../debug/PerformanceDiagnosticsPanel.js').then(module => ({ default: module.PerformanceDiagnosticsPanel })))
-const ToolProbePanel = React.lazy(() => import('../../debug/ToolProbePanel.js').then(module => ({ default: module.ToolProbePanel })))
 const WorkspaceReviewSidebar = React.lazy(() => import('../../review/workspace/WorkspaceReviewSidebar.js').then(module => ({ default: module.WorkspaceReviewSidebar })))
 const RightDockFilePreviewPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilePreviewPanel })))
 const RightDockFilesPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilesPanel })))
@@ -47,6 +40,7 @@ function deferred(element: ReactNode): ReactNode {
 export type WorkbenchTabRenderContext = {
   review: {
     activeSessionId: string | null
+    projectId: string | null
     defaultBranch: string | null
     gitStatus: DesktopGitStatus | null
     isRefreshing: boolean
@@ -102,7 +96,6 @@ export type WorkbenchTabRenderContext = {
     activeTaskId: string | null
     content?: ReactNode
   }
-  flags: WorkbenchFlags
 }
 
 export type WorkbenchTabDefinition = {
@@ -111,7 +104,6 @@ export type WorkbenchTabDefinition = {
   icon: ReactNode
   shortcut?: string
   launcher: boolean
-  enabled: (flags: WorkbenchFlags) => boolean
   getTitle: (tab: WorkbenchTabDescriptor) => string
   getIcon?: (tab: WorkbenchTabDescriptor) => ReactNode
   render: (
@@ -121,8 +113,6 @@ export type WorkbenchTabDefinition = {
 }
 
 const iconSize = 14
-const always = (): boolean => true
-const debugOnly = (flags: WorkbenchFlags): boolean => flags.debugMode
 
 const definitions: readonly WorkbenchTabDefinition[] = [
   {
@@ -131,13 +121,9 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <GitPullRequest size={iconSize} />,
     shortcut: 'Ctrl+Shift+G',
     launcher: true,
-    enabled: always,
     getTitle: () => '审阅',
     render: (_tab, context) => deferred(
-      <WorkspaceReviewSidebar
-        {...context.review}
-        debugMode={context.flags.debugMode}
-      />,
+      <WorkspaceReviewSidebar {...context.review} />,
     ),
   },
   {
@@ -146,7 +132,6 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <Globe2 size={iconSize} />,
     shortcut: 'Ctrl+T',
     launcher: true,
-    enabled: always,
     getTitle: () => '浏览器',
     render: (_tab, context) => deferred(<DesktopBrowserPanel {...context.browser} />),
   },
@@ -156,7 +141,6 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <FileText size={iconSize} />,
     shortcut: 'Ctrl+Shift+E',
     launcher: true,
-    enabled: always,
     getTitle: () => '打开文件',
     render: (tab, context) => {
       const directoryPath = tab.kind === 'file-browser' ? tab.directoryPath : undefined
@@ -176,7 +160,6 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     label: '文件预览',
     icon: <FileText size={iconSize} />,
     launcher: false,
-    enabled: always,
     getTitle: tab =>
       tab.kind === 'file-preview'
         ? basename(tab.relativePath)
@@ -230,7 +213,6 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     label: '计划',
     icon: <ListChecks size={iconSize} />,
     launcher: false,
-    enabled: always,
     getTitle: tab => (tab.kind === 'plan' ? tab.title : '计划'),
     render: (tab, context) => deferred(
       <RightDockPlanPanel
@@ -248,7 +230,6 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <MessageSquarePlus size={iconSize} />,
     shortcut: 'Ctrl+Alt+S',
     launcher: true,
-    enabled: always,
     getTitle: () => '侧边聊天',
     render: (_tab, context) =>
       context.sideChat.available ? (
@@ -268,7 +249,6 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     label: '子智能体',
     icon: <MessageSquarePlus size={iconSize} />,
     launcher: false,
-    enabled: always,
     getTitle: tab =>
       tab.kind === 'side-task' ? `子智能体 ${tab.taskId.slice(0, 8)}` : '子智能体',
     render: (tab, context) =>
@@ -283,33 +263,6 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           <span>选择此标签以恢复对应任务。</span>
         </div>
       ),
-  },
-  {
-    kind: 'tool-probe',
-    label: '工具探针',
-    icon: <Search size={iconSize} />,
-    launcher: true,
-    enabled: debugOnly,
-    getTitle: () => '工具探针',
-    render: () => deferred(<ToolProbePanel />),
-  },
-  {
-    kind: 'dialog-debug',
-    label: '对话框调试',
-    icon: <TestTube2 size={iconSize} />,
-    launcher: true,
-    enabled: debugOnly,
-    getTitle: () => '对话框调试',
-    render: () => deferred(<ConfirmationDialogDebug />),
-  },
-  {
-    kind: 'performance-diagnostics',
-    label: '性能诊断',
-    icon: <Gauge size={iconSize} />,
-    launcher: true,
-    enabled: debugOnly,
-    getTitle: () => '性能诊断',
-    render: () => deferred(<PerformanceDiagnosticsPanel />),
   },
 ]
 
@@ -326,12 +279,8 @@ export function getWorkbenchTabDefinition(
   return definition
 }
 
-export function getWorkbenchLauncherDefinitions(
-  flags: WorkbenchFlags,
-): readonly WorkbenchTabDefinition[] {
-  return definitions.filter(
-    definition => definition.launcher && definition.enabled(flags),
-  )
+export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefinition[] {
+  return definitions.filter(definition => definition.launcher)
 }
 
 export function createLauncherTab(
@@ -343,16 +292,6 @@ export function createLauncherTab(
     return { id: 'file-browser', kind: 'file-browser' }
   }
   if (kind === 'side-chat') return { id: 'side-chat', kind: 'side-chat' }
-  if (kind === 'tool-probe') return { id: 'tool-probe', kind: 'tool-probe' }
-  if (kind === 'dialog-debug') {
-    return { id: 'dialog-debug', kind: 'dialog-debug' }
-  }
-  if (kind === 'performance-diagnostics') {
-    return {
-      id: 'performance-diagnostics',
-      kind: 'performance-diagnostics',
-    }
-  }
   return null
 }
 

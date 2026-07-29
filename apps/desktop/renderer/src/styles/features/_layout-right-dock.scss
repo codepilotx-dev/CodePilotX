@@ -160,6 +160,7 @@
   width: 12px;
   cursor: col-resize;
   touch-action: none;
+  user-select: none;
 
   &::after {
     position: absolute;
@@ -173,7 +174,8 @@
 
   &:hover::after,
   &:focus-visible::after,
-  .right-dock.resizing &::after {
+  &[data-resize-phase="dragging"]::after,
+  &[data-resize-phase="settling"]::after {
     background: var(--color-token-border);
   }
 
@@ -191,6 +193,7 @@
   height: 12px;
   cursor: row-resize;
   touch-action: none;
+  user-select: none;
 
   &::after {
     position: absolute;
@@ -203,9 +206,29 @@
   }
 
   &:hover::after,
-  &:focus-visible::after {
+  &:focus-visible::after,
+  &[data-resize-phase="dragging"]::after,
+  &[data-resize-phase="settling"]::after {
     background: var(--color-token-border);
   }
+}
+
+.workbench-resize-guide {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: var(--color-token-text-link-foreground);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--color-token-main-surface-primary) 70%, transparent);
+  will-change: transform;
+}
+
+.workbench-resize-guide--right {
+  width: 3px;
+}
+
+.workbench-resize-guide--bottom {
+  height: 3px;
 }
 
 .right-dock-is-resizing,

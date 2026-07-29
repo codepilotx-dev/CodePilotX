@@ -10,6 +10,7 @@
     "themes:codex:generate": "bun run scripts/generate-codex-themes.ts",
     "themes:codex:check": "bun run scripts/generate-codex-themes.ts --check",
     "dev": "vite --host 127.0.0.1 --port 7788",
+    "dev:visual": "vite --host 127.0.0.1",
     "typecheck": "tsc -b",
     "test": "bun test test",
     "test:visual": "playwright test --config playwright.config.ts",

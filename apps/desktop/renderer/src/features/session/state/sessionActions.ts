@@ -34,7 +34,6 @@ export type SessionSettingsSnapshot = {
   localRouterMode: LocalRouterMode
   providerID: ModelProviderID
   providerBaseURL: string
-  debugConversationDump: boolean
   model: string
   planExecutionModel: string
   reviewModel: string
@@ -105,7 +104,6 @@ export async function createSessionForWorkspaceAction(
       planModeActive: settings.planModeActive,
       providerID: settings.providerID,
       providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
-      debugConversationDump: settings.debugConversationDump,
       model: normalizeOptionalText(settings.model),
       planExecutionModel: normalizeOptionalText(settings.planExecutionModel),
       reviewModel: normalizeOptionalText(settings.reviewModel),
@@ -218,7 +216,6 @@ export async function submitSessionMessageAction(
         providerID: settings.providerID,
         providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
         model: normalizeOptionalText(settings.model),
-        debugConversationDump: settings.debugConversationDump,
         localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
       },
       options?.inputId,
@@ -569,25 +566,6 @@ export async function setSessionPlanModeActiveAction(
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))
     return null
-  }
-}
-
-export function selectSessionAction(
-  context: SessionActionContext,
-  session: SessionListItem,
-): DesktopWorkspace | null {
-  activateSession(context, session.id)
-  context.setSessionStatus(session.status)
-  applySessionView(
-    context.sessionViewsRef.current[session.id] ?? createEmptySessionView(),
-    context.viewSetters,
-  )
-  if (session.standalone) {
-    return null
-  }
-  return context.sessionWorkspacesRef.current[session.id] ?? {
-    name: session.workspaceName,
-    path: session.workspacePath,
   }
 }
 

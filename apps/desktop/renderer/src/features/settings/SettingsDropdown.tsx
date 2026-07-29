@@ -2,12 +2,10 @@ import React from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import * as Select from '@radix-ui/react-select'
 import { Check, ChevronDown } from 'lucide-react'
-import { preventOutsideDismissWhenDebug } from '../../components/ui/debugDropdown.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
-import { readDesktopBrowserDebugMode } from '../../services/desktop-client/index.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 
 type Option = {
@@ -27,7 +25,6 @@ type Props = {
   variant?: 'default' | 'theme'
   searchable?: boolean
   searchPlaceholder?: string
-  disableOutsideDismiss?: boolean
   showSelectedIndicator?: boolean
 } & PopoverSizingProps
 
@@ -68,7 +65,6 @@ function SelectSettingsDropdown({
   disabled,
   variant,
   showSelectedIndicator,
-  disableOutsideDismiss,
   width,
   maxWidth,
 }: Props) {
@@ -118,9 +114,6 @@ function SelectSettingsDropdown({
                 ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
                 : undefined),
           })}
-          onPointerDownOutside={(event) => {
-            preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
-          }}
         >
           <Select.Viewport className="settings-dropdown-scroll-area">
             <div className="settings-dropdown-scroll-content">
@@ -173,7 +166,6 @@ function SearchableSettingsDropdown({
   disabled,
   variant,
   searchPlaceholder = '搜索...',
-  disableOutsideDismiss = readDesktopBrowserDebugMode(),
   showSelectedIndicator = false,
   width,
   maxWidth,
@@ -322,9 +314,6 @@ function SearchableSettingsDropdown({
                 ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
                 : undefined),
           })}
-          onPointerDownOutside={(event) => {
-            preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
-          }}
         >
           <div className="settings-dropdown-search">
             <SearchInput

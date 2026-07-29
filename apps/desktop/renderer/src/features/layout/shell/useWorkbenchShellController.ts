@@ -43,7 +43,7 @@ export {
   rightDockWidthToRatio,
 } from './workbenchLayoutSizing.js'
 
-export function useWorkbenchShellController(debugMode: boolean) {
+export function useWorkbenchShellController() {
   const layout = useDesktopLayout()
   const {
     sidebarCollapsed,
@@ -98,10 +98,10 @@ export function useWorkbenchShellController(debugMode: boolean) {
   const dispatchPanelAction = useCallback(
     (action: WorkbenchPanelAction): void => {
       setWorkbenchPanelState(current =>
-        applyWorkbenchTabsAction(current, action, { debugMode }),
+        applyWorkbenchTabsAction(current, action),
       )
     },
-    [debugMode],
+    [],
   )
 
   const updateRightDockManualState = useCallback(
@@ -186,7 +186,6 @@ export function useWorkbenchShellController(debugMode: boolean) {
         const next = applyWorkbenchTabsAction(
           current,
           { type: 'togglePanel', target },
-          { debugMode },
         )
         if (opening) {
           focusPanelController(target)
@@ -195,7 +194,6 @@ export function useWorkbenchShellController(debugMode: boolean) {
       })
     },
     [
-      debugMode,
       rightDockState.open,
       rightDockVisible,
       updateRightDockManualState,

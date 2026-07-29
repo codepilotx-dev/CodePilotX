@@ -813,7 +813,6 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       emitSessionStoreChange()
       return next
     },
-    readWorkflowEventLog: async () => [],
     openExternalURL: async url => {
       globalThis.open?.(url, '_blank', 'noopener,noreferrer')
     },

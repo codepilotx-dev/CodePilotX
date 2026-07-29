@@ -365,27 +365,51 @@ describe('workbench dynamic tab state', () => {
     expect(state.workbench.bottom.tabIds).toEqual([])
   })
 
-  test('resets v2 descriptors after the renderer data epoch change', () => {
+  test('drops removed debug tabs from persisted v4 state and preserves regular tabs', () => {
+    const fileTab = {
+      id: 'file:src/main.ts',
+      kind: 'file-preview',
+      workspacePath: 'F:\\project',
+      relativePath: 'src/main.ts',
+      preview: false,
+    } as const
+    const planTab = {
+      id: 'plan:event-1',
+      kind: 'plan',
+      eventId: 'event-1',
+      title: '实现计划',
+    } as const
+    const sideChat = { id: 'side-chat', kind: 'side-chat' } as const
     const state = validateConversationUiState(
       {
-        schemaVersion: 2,
+        schemaVersion: 4,
         workbench: {
           schemaVersion: 2,
           tabsById: {
             review,
-            browser,
+            [fileTab.id]: fileTab,
+            [planTab.id]: planTab,
+            [sideChat.id]: sideChat,
             'tool-probe': { id: 'tool-probe', kind: 'tool-probe' },
-            missing: { id: 'terminal', kind: 'terminal' },
+            'dialog-debug': { id: 'dialog-debug', kind: 'dialog-debug' },
+            'performance-diagnostics': {
+              id: 'performance-diagnostics',
+              kind: 'performance-diagnostics',
+            },
           },
           right: {
             open: true,
-            activeTabId: 'review',
-            tabIds: ['review', 'browser'],
+            activeTabId: planTab.id,
+            tabIds: ['review', fileTab.id, planTab.id, 'tool-probe'],
           },
           bottom: {
             open: true,
-            activeTabId: 'browser',
-            tabIds: ['browser', 'tool-probe'],
+            activeTabId: 'performance-diagnostics',
+            tabIds: [
+              sideChat.id,
+              'dialog-debug',
+              'performance-diagnostics',
+            ],
           },
           rightFullWidth: false,
           restoreRightFullWidthOnNextOpen: false,
@@ -395,13 +419,28 @@ describe('workbench dynamic tab state', () => {
         sideChatInput: '',
         sideChatAttachments: [],
       },
-      { debugMode: false },
+      {
+        validPlanEventIds: ['event-1'],
+        workspacePath: 'F:\\project',
+      },
     )
 
-    expect(state.workbench.right.tabIds).toEqual([])
-    expect(state.workbench.bottom.tabIds).toEqual([])
+    expect(state.workbench.right.tabIds).toEqual([
+      'review',
+      fileTab.id,
+      planTab.id,
+    ])
+    expect(state.workbench.right.activeTabId).toBe(planTab.id)
+    expect(state.workbench.bottom.tabIds).toEqual([sideChat.id])
+    expect(state.workbench.bottom.activeTabId).toBe(sideChat.id)
     expect(state.workbench.tabsById['tool-probe']).toBeUndefined()
-    expect(state.workbench.focusArea).toBe('main')
+    expect(state.workbench.tabsById).toEqual({
+      review,
+      [fileTab.id]: fileTab,
+      [planTab.id]: planTab,
+      [sideChat.id]: sideChat,
+    })
+    expect(state.workbench.focusArea).toBe('bottom-panel')
     expect(state.schemaVersion).toBe(4)
   })
 

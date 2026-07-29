@@ -10,7 +10,6 @@ import type { PopoverSizingProps } from '../../../components/ui/popoverSizing.js
 type BranchSelectPopoverProps = BranchSelectPopoverContentProps & {
   align?: 'start' | 'center' | 'end'
   className: string
-  disableOutsideDismiss?: boolean
   open: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
@@ -21,7 +20,6 @@ type BranchSelectPopoverProps = BranchSelectPopoverContentProps & {
 export function BranchSelectPopover({
   align,
   className,
-  disableOutsideDismiss,
   open,
   side,
   sideOffset,
@@ -34,7 +32,6 @@ export function BranchSelectPopover({
     <PopoverMenu
       align={align}
       className={`popover-menu--grid ${className}`}
-      disableOutsideDismiss={disableOutsideDismiss}
       open={open}
       side={side}
       sideOffset={sideOffset}

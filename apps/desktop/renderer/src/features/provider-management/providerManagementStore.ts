@@ -332,7 +332,6 @@ export function createProviderManagementStore(
     if (eventSubscription !== null) return
     eventSubscription = client.subscribeAgentEventEnvelopes({
       liveEventTypes: AGENT_LIVE_EVENT_FILTERS.provider,
-      diagnosticsScope: 'provider',
     }, event => {
       if (event.type === 'catalog/updated') {
         void refreshCatalog()
