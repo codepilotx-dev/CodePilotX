@@ -637,7 +637,9 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
 
 const VISUAL_REVIEW_GENERATION = 'visual-review-generation'
 const VISUAL_REVIEW_REVISION = 'visual-review-revision'
-const VISUAL_REVIEW_PATH =
+const VISUAL_REVIEW_SMALL_PATH =
+  'apps/desktop/renderer/test/codex-style-contracts.test.ts'
+const VISUAL_REVIEW_LARGE_PATH =
   'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx'
 
 export function isBrowserVisualReviewCase(): boolean {
@@ -646,7 +648,7 @@ export function isBrowserVisualReviewCase(): boolean {
     new URLSearchParams(window.location.search).get('visualCase') === 'review'
 }
 
-function createBrowserVisualReviewPatch(): string {
+function createBrowserVisualReviewLargePatch(): string {
   const changedPairs = 520
   const lines = [`@@ -1,${changedPairs} +1,${changedPairs} @@`]
   for (let line = 1; line <= changedPairs; line += 1) {
@@ -656,13 +658,67 @@ function createBrowserVisualReviewPatch(): string {
   return lines.join('\n')
 }
 
-const VISUAL_REVIEW_PATCH = createBrowserVisualReviewPatch()
+function createBrowserVisualReviewSmallPatch(): string {
+  const context = [
+    "import { LAB_DEMOS } from '../src/features/labs/labRegistry.js'",
+    '',
+    "describe('Codex semantic token contract', () => {",
+    "  test('exports semantic color tokens', async () => {",
+  ]
+  const removed = [
+    '    expect(tokens).toHaveLength(117)',
+    '    expect(new Set(tokens).size).toBe(117)',
+    '    expect(stylesheet).toContain("--color-decoration-added")',
+  ]
+  const added = [
+    '    expect(tokens).toHaveLength(121)',
+    '    expect(new Set(tokens).size).toBe(121)',
+    "    expect(tokens).toContain('--color-token-input-background')",
+    "    expect(tokens).toContain('--color-token-dropdown-background')",
+    "    expect(tokens).toContain('--color-token-main-surface-primary')",
+    "    expect(tokens).toContain('--color-token-panel-background')",
+    "    expect(tokens).toContain('--color-token-control-background')",
+    "    expect(tokens).toContain('--color-token-elevated-background')",
+    '  })',
+    '',
+    "  test('keeps diff backgrounds separate from raw decoration colors', async () => {",
+    '    const stylesheet = await Bun.file(',
+    '      new URL(',
+    "        '../src/styles/design-system/codex-semantic-tokens.scss',",
+    '        import.meta.url,',
+    '      ),',
+    '    ).text()',
+    '',
+    '    expect(stylesheet).toContain(',
+    "      '--vscode-diffEditor-insertedLineBackground: var(--color-diff-added-line-background)',",
+    '    )',
+    '    expect(stylesheet).toContain(',
+    "      '--vscode-diffEditor-insertedTextBackground: var(--color-diff-added-text-background)',",
+    '    )',
+    '    expect(stylesheet).toContain(',
+    "      '--vscode-diffEditor-removedLineBackground: var(--color-diff-removed-line-background)',",
+    '    )',
+    '    expect(stylesheet).toContain(',
+    "      '--vscode-diffEditor-removedTextBackground: var(--color-diff-removed-text-background)',",
+    '    )',
+    '  })',
+  ]
+  return [
+    '@@ -1,7 +1,35 @@',
+    ...context.map(line => ` ${line}`),
+    ...removed.map(line => `-${line}`),
+    ...added.map(line => `+${line}`),
+  ].join('\n')
+}
+
+const VISUAL_REVIEW_LARGE_PATCH = createBrowserVisualReviewLargePatch()
+const VISUAL_REVIEW_SMALL_PATCH = createBrowserVisualReviewSmallPatch()
 
 export function browserVisualReviewSummary(
   source: DesktopReviewSource,
 ) {
   if (!isBrowserVisualReviewCase()) return null
-  const changedLines = 1_040
+  const changedLines = 1_074
   return {
     snapshot: {
       projectId: 'visual-review-project',
@@ -671,23 +727,36 @@ export function browserVisualReviewSummary(
       repositoryRoot: 'F:\\CodeProject\\CodePilotX-Ts',
       headSha: '1111111111111111111111111111111111111111',
       baseSha: null,
-      files: [{
-        path: VISUAL_REVIEW_PATH,
-        previousPath: null,
-        status: 'modified' as const,
-        additions: 520,
-        deletions: 520,
-        changedLines,
-        changedBytes: 48_000,
-        binary: false,
-        revision: VISUAL_REVIEW_REVISION,
-      }],
+      files: [
+        {
+          path: VISUAL_REVIEW_SMALL_PATH,
+          previousPath: null,
+          status: 'modified' as const,
+          additions: 31,
+          deletions: 3,
+          changedLines: 34,
+          changedBytes: 2_400,
+          binary: false,
+          revision: VISUAL_REVIEW_REVISION,
+        },
+        {
+          path: VISUAL_REVIEW_LARGE_PATH,
+          previousPath: null,
+          status: 'modified' as const,
+          additions: 520,
+          deletions: 520,
+          changedLines: 1_040,
+          changedBytes: 48_000,
+          binary: false,
+          revision: VISUAL_REVIEW_REVISION,
+        },
+      ],
       totals: {
-        files: 1,
-        additions: 520,
-        deletions: 520,
+        files: 2,
+        additions: 551,
+        deletions: 523,
         changedLines,
-        changedBytes: 48_000,
+        changedBytes: 50_400,
       },
       largeDiffMode: false,
     },
@@ -699,19 +768,26 @@ export function browserVisualReviewFileDiff(
   source: DesktopReviewSource,
   path: string,
 ) {
-  if (!isBrowserVisualReviewCase() || path !== VISUAL_REVIEW_PATH) return null
+  if (!isBrowserVisualReviewCase()) return null
+  const summary = browserVisualReviewSummary(source)!
+  const file = summary.snapshot.files.find(candidate => candidate.path === path)
+  if (!file) return null
+  const smallFile = path === VISUAL_REVIEW_SMALL_PATH
+  const patch = smallFile
+    ? VISUAL_REVIEW_SMALL_PATCH
+    : VISUAL_REVIEW_LARGE_PATCH
   return {
-    file: browserVisualReviewSummary(source)!.snapshot.files[0]!,
+    file,
     revision: VISUAL_REVIEW_REVISION,
-    patch: VISUAL_REVIEW_PATCH,
+    patch,
     hunks: [{
-      id: 'visual-review-hunk',
-      header: '@@ -1,520 +1,520 @@',
+      id: smallFile ? 'visual-review-small-hunk' : 'visual-review-large-hunk',
+      header: smallFile ? '@@ -1,7 +1,35 @@' : '@@ -1,520 +1,520 @@',
       oldStart: 1,
-      oldLines: 520,
+      oldLines: smallFile ? 7 : 520,
       newStart: 1,
-      newLines: 520,
-      patch: VISUAL_REVIEW_PATCH,
+      newLines: smallFile ? 35 : 520,
+      patch,
     }],
     renderable: true,
     tooLargeReason: null,

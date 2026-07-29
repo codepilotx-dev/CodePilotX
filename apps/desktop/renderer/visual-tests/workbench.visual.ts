@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 type VisualScenario = {
   id: 'empty' | 'rich' | 'permission' | 'review'
@@ -419,7 +419,10 @@ test('session header aligns with the right panel and bottom panel spans the work
   await expect(bottomResizeGuide).toBeVisible()
   await expect(
     bottomPanelElement.locator('.workbench-panel-content'),
-  ).toHaveCSS('filter', 'blur(6px)')
+  ).toHaveCSS('filter', 'none')
+  await expect(
+    bottomPanelElement.locator('[data-resize-skeleton-active]'),
+  ).toHaveCount(0)
   await expect(
     bottomPanelElement.locator('.workbench-panel-header'),
   ).toHaveCSS('filter', 'none')
@@ -474,21 +477,101 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
   await expect(rightPanel).toBeVisible()
   await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
+  const smallDiffSection = rightPanel.getByLabel(
+    'apps/desktop/renderer/test/codex-style-contracts.test.ts diff',
+  )
+  await expect(smallDiffSection).toBeVisible({ timeout: 10_000 })
+  const regularDiff = smallDiffSection.locator(
+    '.review-codex-diff:not(.review-codex-diff--virtual)',
+  )
+  await expect(regularDiff).toBeVisible({ timeout: 10_000 })
+  await expect(regularDiff).toHaveAttribute(
+    'data-review-syntax-state',
+    'ready',
+    { timeout: 10_000 },
+  )
   await expect(
-    rightPanel.getByLabel(
-      'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx diff',
-    ),
-  ).toBeVisible({ timeout: 10_000 })
+    smallDiffSection.locator('.review-codex-diff--virtual'),
+  ).toHaveCount(0)
   await expect
-    .poll(async () => rightPanel.locator('.review-diff-vlist-row').count())
-    .toBeGreaterThan(10)
-  expect(
-    await rightPanel.locator('.review-diff-vlist-row').count(),
-  ).toBeLessThan(100)
+    .poll(async () => rightPanel.locator('.review-diff-word').count())
+    .toBeGreaterThan(0)
+
+  const addedRow = rightPanel
+    .locator(
+      '.review-codex-diff__line[data-line-type="change-addition"]',
+    )
+    .first()
+  await expect(addedRow).toBeVisible()
+  const diffColors = await addedRow.evaluate(row => {
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--color-decoration-added)'
+    document.body.append(probe)
+    const colors = {
+      lineBackground: getComputedStyle(row).backgroundColor,
+      rawAdded: getComputedStyle(probe).color,
+    }
+    probe.remove()
+    return colors
+  })
+  expect(diffColors.lineBackground).not.toBe(diffColors.rawAdded)
+
+  await rightPanel
+    .locator('.review-sidebar-actions')
+    .getByRole('button', { name: '更多' })
+    .click()
+  await page.getByRole('menuitem', { name: '禁用文字差异' }).click()
+  await expect(rightPanel.locator('.review-diff-word')).toHaveCount(0)
+  await smallDiffSection.locator('.preview-header').click()
+
   const reviewFileTree = rightPanel.getByRole('region', {
     name: '审查文件导航',
   })
   await expect(reviewFileTree).toBeVisible()
+  await reviewFileTree
+    .getByRole('button', { name: /WorkspaceReviewDiff\.tsx/ })
+    .click()
+  const largeDiffSection = rightPanel.getByLabel(
+    'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx diff',
+  )
+  await rightPanel.locator('.review-diff-scroll').evaluate(element => {
+    element.scrollTop = element.scrollHeight
+  })
+  await largeDiffSection.evaluate(element =>
+    element.scrollIntoView({ block: 'nearest' }),
+  )
+  await expect(largeDiffSection).toBeVisible({ timeout: 10_000 })
+  await expect
+    .poll(async () =>
+      rightPanel
+        .locator(
+          '.review-codex-diff--virtual .review-codex-diff__virtual-row',
+        )
+        .count(),
+    )
+    .toBeGreaterThan(10)
+  expect(
+    await rightPanel
+      .locator(
+        '.review-codex-diff--virtual .review-codex-diff__virtual-row',
+      )
+      .count(),
+  ).toBeLessThan(100)
+  const reviewDiffPreview = rightPanel.locator('.review-diff-preview')
+  const reviewDiffContent = reviewDiffPreview.locator(
+    ':scope > [data-resize-skeleton-content]',
+  )
+  const reviewDiffSkeleton = reviewDiffPreview.locator(
+    ':scope > [data-resize-skeleton-overlay]',
+  )
+  const reviewFileTreeContent = reviewFileTree.locator(
+    ':scope > [data-resize-skeleton-content]',
+  )
+  const reviewFileTreeSkeleton = reviewFileTree.locator(
+    ':scope > [data-resize-skeleton-overlay]',
+  )
+  await expect(reviewDiffSkeleton).toBeHidden()
+  await expect(reviewFileTreeSkeleton).toBeHidden()
   const initialWidth = (await rightPanel.boundingBox())?.width
   expect(initialWidth).toBeGreaterThan(320)
   const rightSeparator = page.getByRole('separator', {
@@ -559,9 +642,21 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     'body > .workbench-resize-guide--right',
   )
   await expect(rightResizeGuide).toBeVisible()
+  await expect(reviewDiffPreview).toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewDiffSkeleton).toBeVisible()
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'hidden')
+  await expect(reviewFileTree).not.toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
+  await expect(reviewFileTreeSkeleton).toBeHidden()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
-  ).toHaveCSS('filter', 'blur(6px)')
+  ).toHaveCSS('filter', 'none')
   await expect(rightPanel.locator('.workbench-panel-header')).toHaveCSS(
     'filter',
     'none',
@@ -574,6 +669,12 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeGreaterThan(resetWidth!)
   await expect(rightResizeGuide).toBeHidden()
+  await expect(reviewDiffPreview).not.toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewDiffSkeleton).toBeHidden()
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -601,9 +702,12 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     await page.mouse.down()
     await page.mouse.move(box!.x - 64, box!.y + 30, { steps: 4 })
     await expect(rightResizeGuide).toBeVisible()
-    await expect(
-      rightPanel.locator('.workbench-panel-content'),
-    ).toHaveCSS('filter', 'blur(6px)')
+    await expect(reviewDiffPreview).toHaveAttribute(
+      'data-resize-skeleton-active',
+      '',
+    )
+    await expect(reviewDiffSkeleton).toBeVisible()
+    await expect(reviewDiffContent).toHaveCSS('visibility', 'hidden')
   }
   await beginCancelledResize()
   await page.evaluate(() => {
@@ -614,6 +718,8 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeCloseTo(resetWidth!, 0)
   await expect(rightResizeGuide).toBeHidden()
+  await expect(reviewDiffSkeleton).toBeHidden()
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -625,9 +731,98 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeCloseTo(resetWidth!, 0)
   await expect(rightResizeGuide).toBeHidden()
+  await expect(reviewDiffSkeleton).toBeHidden()
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
+
+  const fileTreeSeparator = rightPanel.getByRole('separator', {
+    name: '调整审查文件导航宽度',
+  })
+  const fileTreePreview = rightPanel.locator(
+    '.review-file-tree-resize-preview',
+  )
+  const initialFileTreeWidth = (await reviewFileTree.boundingBox())?.width
+  const fileTreeSeparatorBox = await fileTreeSeparator.boundingBox()
+  expect(initialFileTreeWidth).toBeGreaterThan(239)
+  expect(fileTreeSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    fileTreeSeparatorBox!.x + fileTreeSeparatorBox!.width / 2,
+    fileTreeSeparatorBox!.y + fileTreeSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  const fileTreePointerMoveDurations: number[] = []
+  for (let step = 1; step <= 60; step += 1) {
+    const pointerMoveStartedAt = Date.now()
+    await page.mouse.move(
+      fileTreeSeparatorBox!.x - (72 * step) / 60,
+      fileTreeSeparatorBox!.y + 36,
+    )
+    fileTreePointerMoveDurations.push(Date.now() - pointerMoveStartedAt)
+  }
+  const sortedFileTreePointerMoveDurations = [
+    ...fileTreePointerMoveDurations,
+  ].sort((left, right) => left - right)
+  expect(
+    sortedFileTreePointerMoveDurations[
+      Math.floor(sortedFileTreePointerMoveDurations.length * 0.95)
+    ],
+  ).toBeLessThan(80)
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeCloseTo(initialFileTreeWidth!, 0)
+  await expect(reviewFileTree).toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewFileTreeSkeleton).toBeVisible()
+  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'hidden')
+  await expect(reviewDiffPreview).not.toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(fileTreePreview).toBeVisible()
+  const fileTreePreviewBox = await fileTreePreview.boundingBox()
+  expect(fileTreePreviewBox).not.toBeNull()
+  expect(fileTreePreviewBox!.x).toBeCloseTo(fileTreeSeparatorBox!.x - 72, 0)
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeGreaterThan(initialFileTreeWidth!)
+  await expect(fileTreePreview).toBeHidden()
+  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
+
+  await fileTreeSeparator.dblclick()
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeCloseTo(initialFileTreeWidth!, 0)
+  const cancelledFileTreeWidth = (await reviewFileTree.boundingBox())?.width
+  const cancelledFileTreeSeparatorBox = await fileTreeSeparator.boundingBox()
+  expect(cancelledFileTreeSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    cancelledFileTreeSeparatorBox!.x +
+      cancelledFileTreeSeparatorBox!.width / 2,
+    cancelledFileTreeSeparatorBox!.y +
+      cancelledFileTreeSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    cancelledFileTreeSeparatorBox!.x - 48,
+    cancelledFileTreeSeparatorBox!.y + 24,
+    { steps: 4 },
+  )
+  await expect(reviewFileTreeSkeleton).toBeVisible()
+  await fileTreeSeparator.dispatchEvent('pointercancel', { pointerId: 1 })
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeCloseTo(cancelledFileTreeWidth!, 0)
+  await expect(fileTreePreview).toBeHidden()
+  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
 
   const shrinkSeparatorBox = await rightSeparator.boundingBox()
   expect(shrinkSeparatorBox).not.toBeNull()
@@ -683,6 +878,78 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await page.getByRole('button', { name: '关闭右侧面板' }).click()
   await page.setViewportSize({ width: 1440, height: 920 })
   await expect(forcedRightPanel).toHaveCount(0)
+})
+
+test('Review uses the same targeted skeleton when moved to the bottom panel', async ({
+  page,
+}, testInfo) => {
+  testInfo.setTimeout(90_000)
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await gotoWorkbenchFixture(page, '/?visualCase=review#/threads/visual-review')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
+  await expect(rightPanel.locator('.review-diff-preview')).toBeVisible()
+  await rightPanel
+    .locator('[data-panel-tab="review"]')
+    .click({ button: 'right' })
+  await page.getByRole('menuitem', { name: '移到底部面板' }).click()
+
+  const bottomPanel = page.getByRole('complementary', { name: '底部面板' })
+  const bottomReviewDiff = bottomPanel.locator('.review-diff-preview')
+  const bottomReviewDiffSkeleton = bottomReviewDiff.locator(
+    ':scope > [data-resize-skeleton-overlay]',
+  )
+  const bottomReviewDiffContent = bottomReviewDiff.locator(
+    ':scope > [data-resize-skeleton-content]',
+  )
+  const bottomReviewFileTree = bottomPanel.getByRole('region', {
+    name: '审查文件导航',
+  })
+  await expect(bottomReviewDiff).toBeVisible()
+  await expect(bottomReviewFileTree).toBeVisible()
+
+  const bottomHeight = (await bottomPanel.boundingBox())?.height
+  const bottomSeparator = page.getByRole('separator', {
+    name: '调整底部面板高度',
+  })
+  const bottomSeparatorBox = await bottomSeparator.boundingBox()
+  expect(bottomHeight).toBeGreaterThan(160)
+  expect(bottomSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    bottomSeparatorBox!.x + bottomSeparatorBox!.width / 2,
+    bottomSeparatorBox!.y + bottomSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    bottomSeparatorBox!.x + 48,
+    bottomSeparatorBox!.y - 72,
+    { steps: 8 },
+  )
+  await expect(bottomReviewDiff).toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(bottomReviewDiffSkeleton).toBeVisible()
+  await expect(bottomReviewDiffContent).toHaveCSS('visibility', 'hidden')
+  await expect(bottomReviewFileTree).not.toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeCloseTo(bottomHeight!, 0)
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeGreaterThan(bottomHeight!)
+  await expect(bottomReviewDiffSkeleton).toBeHidden()
+  await expect(bottomReviewDiffContent).toHaveCSS('visibility', 'visible')
 })
 
 test('bottom panel scales with workspace height while preserving the upper region', async ({
@@ -866,8 +1133,8 @@ for (const mode of MODES) {
     const contrastRatio = await page.evaluate(() => {
       const styles = getComputedStyle(document.documentElement)
       return ratio(
-        styles.getPropertyValue('--color-text').trim(),
-        styles.getPropertyValue('--surface-canvas').trim(),
+        styles.getPropertyValue('--color-token-foreground').trim(),
+        styles.getPropertyValue('--color-token-main-surface-primary').trim(),
       )
 
       function ratio(foreground: string, background: string): number {
@@ -1173,10 +1440,18 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
       page.evaluate(() => {
         const root = getComputedStyle(document.documentElement)
         return {
-          canvas: root.getPropertyValue('--surface-canvas').trim(),
-          chrome: root.getPropertyValue('--surface-chrome').trim(),
-          panel: root.getPropertyValue('--surface-panel').trim(),
-          composer: root.getPropertyValue('--surface-composer').trim(),
+          canvas: root
+            .getPropertyValue('--color-token-main-surface-primary')
+            .trim(),
+          chrome: root
+            .getPropertyValue('--color-token-side-bar-background')
+            .trim(),
+          panel: root
+            .getPropertyValue('--color-token-panel-background')
+            .trim(),
+          composer: root
+            .getPropertyValue('--color-token-elevated-background')
+            .trim(),
         }
       }),
     )
@@ -1210,6 +1485,61 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
       animations: 'disabled',
       caret: 'hide',
       mask: [page.locator('.thread-summary-panel')],
+      scale: 'css',
+    },
+  )
+
+  await gotoWorkbenchFixture(page, '/?visualCase=review#/threads/visual-review')
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-code-theme-id',
+    'dracula',
+  )
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel.getByRole('button', { name: /^审阅/ }).click()
+  await expect(
+    rightPanel
+      .getByLabel(
+        'apps/desktop/renderer/test/codex-style-contracts.test.ts diff',
+      )
+      .locator('[data-review-syntax-state="ready"]'),
+  ).toBeVisible({ timeout: 10_000 })
+  await expect
+    .poll(async () => rightPanel.locator('.review-diff-word').count())
+    .toBeGreaterThan(0)
+  const syntaxColors = await rightPanel
+    .locator('.review-codex-diff__line-text span[style*="color"]')
+    .evaluateAll(nodes =>
+      Array.from(
+        new Set(nodes.map(node => getComputedStyle(node).color)),
+      ),
+    )
+  expect(syntaxColors.length).toBeGreaterThanOrEqual(3)
+  const draculaDiffColors = await page.evaluate(() => {
+    const styles = getComputedStyle(document.documentElement)
+    return {
+      added: styles.getPropertyValue('--color-decoration-added').trim(),
+      addedLine: styles
+        .getPropertyValue('--color-diff-added-line-background')
+        .trim(),
+      removed: styles.getPropertyValue('--color-decoration-deleted').trim(),
+      removedLine: styles
+        .getPropertyValue('--color-diff-removed-line-background')
+        .trim(),
+    }
+  })
+  expect(draculaDiffColors).toEqual({
+    added: '#50fa7b',
+    addedLine: '#3c5b4d',
+    removed: '#ff5555',
+    removedLine: '#5b3d46',
+  })
+  await waitForMaterialIcons(rightPanel)
+  await expect(rightPanel).toHaveScreenshot(
+    'desktop-dark-dracula-review.png',
+    {
+      animations: 'disabled',
+      caret: 'hide',
       scale: 'css',
     },
   )
@@ -1642,4 +1972,12 @@ async function gotoWorkbenchFixture(page: Page, route: string): Promise<void> {
       await page.waitForTimeout(750)
     }
   }
+}
+
+async function waitForMaterialIcons(root: Page | Locator) {
+  await expect
+    .poll(() =>
+      root.locator('[data-material-icon-ready="false"]').count(),
+    )
+    .toBe(0)
 }
