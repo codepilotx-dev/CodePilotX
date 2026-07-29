@@ -246,20 +246,32 @@ describe("ThreadTitleService", () => {
     expect(history.getListItem(multiple.id)?.title).toBe("新对话")
   })
 
-  test("regenerates from only the latest completed user and assistant content", async () => {
+  test("regenerates from the first task and recent completed conversation", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread("用户旧标题")
-    const previous = addUserMessage(db, thread.id, "旧一轮内容不应进入标题上下文")
-    db.updateTurnStatus(previous.turnID, "completed")
-    const latest = addUserMessage(db, thread.id, "根据最新完成内容更新标题")
-    const timestamp = Date.now()
+    const baseTimestamp = Date.now()
+    const addCompletedTurn = (content: string, ordinal: number) => {
+      const turn = addUserMessage(db, thread.id, content)
+      db.sqlite.query(
+        "UPDATE turns SET created_at = ?, updated_at = ? WHERE id = ?",
+      ).run(baseTimestamp + ordinal, baseTimestamp + ordinal, turn.turnID)
+      db.updateTurnStatus(turn.turnID, "completed")
+      return turn
+    }
+    addCompletedTurn("修复会话标题更新只关注最后一轮的问题", 1)
+    addCompletedTurn("窗口外的普通中间内容不应进入标题上下文", 2)
+    for (let index = 3; index <= 7; index += 1) {
+      addCompletedTurn(`继续完善会话标题主线识别 ${index}`, index)
+    }
+    const latest = addCompletedTurn("帮我上传代码到 Git", 8)
+    const timestamp = baseTimestamp + 100
     db.upsertItem(thread.id, {
       id: "latest-result",
       turnID: latest.turnID,
       agentID: latest.agentID,
       type: "text",
       status: "completed",
-      data: { placement: "result", text: "已经完成会话标题刷新功能" },
+      data: { placement: "result", text: "代码已经推送，但本次会话的主要成果是修复标题主线识别" },
       createdAt: timestamp,
       updatedAt: timestamp,
     })
@@ -273,9 +285,9 @@ describe("ThreadTitleService", () => {
       createdAt: timestamp + 1,
       updatedAt: timestamp + 1,
     })
-    db.updateTurnStatus(latest.turnID, "completed")
     const activityAt = history.getListItem(thread.id)!.updatedAt
     let receivedPrompt = ""
+    let receivedSystem = ""
     const service = new ThreadTitleService(
       db,
       history,
@@ -286,25 +298,31 @@ describe("ThreadTitleService", () => {
       logger,
       config,
       {
-        generate: async ({ prompt }) => {
+        generate: async ({ prompt, system }) => {
           receivedPrompt = prompt
-          return { title: "更新会话标题功能" }
+          receivedSystem = system
+          return { title: "修复标题主线识别" }
         },
       },
     )
 
-    const updated = await service.regenerateFromLatest(thread.id)
+    const updated = await service.regenerateFromConversation(thread.id)
 
-    expect(updated.title).toBe("更新会话标题功能")
-    expect(receivedPrompt).toContain("根据最新完成内容更新标题")
-    expect(receivedPrompt).toContain("已经完成会话标题刷新功能")
-    expect(receivedPrompt).not.toContain("旧一轮内容")
+    expect(updated.title).toBe("修复标题主线识别")
+    expect(receivedPrompt).toContain("首轮任务（主线锚点）")
+    expect(receivedPrompt).toContain("修复会话标题更新只关注最后一轮的问题")
+    expect(receivedPrompt).toContain("帮我上传代码到 Git")
+    expect(receivedPrompt).toContain("主要成果是修复标题主线识别")
+    expect(receivedPrompt).not.toContain("窗口外的普通中间内容")
     expect(receivedPrompt).not.toContain("工具输出")
+    expect(receivedSystem).toContain("整个会话贯穿始终的主要目标")
+    expect(receivedSystem).toContain("推送")
+    expect(receivedSystem).toContain("不得取代主任务成为标题")
     expect(updated.updatedAt).toBe(activityAt)
     expect(db.eventsAfter(0).at(-1)?.method).toBe("thread/updated")
   })
 
-  test("explicit regeneration uses fallback and does not overwrite a concurrent rename", async () => {
+  test("explicit regeneration keeps the current title on fallback and concurrent rename", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread("原手工标题")
     const turn = addUserMessage(db, thread.id, "# 最新用户内容用于确定性回退")
@@ -325,7 +343,7 @@ describe("ThreadTitleService", () => {
       { generate: async () => generated },
     )
 
-    const pending = service.regenerateFromLatest(thread.id)
+    const pending = service.regenerateFromConversation(thread.id)
     await history.patch(thread.id, { title: "并发手工标题" })
     resolveGenerated({ title: "模型刷新标题" })
     const updated = await pending
@@ -339,8 +357,10 @@ describe("ThreadTitleService", () => {
       { pi: {}, getPiModel: async () => { throw new Error("unavailable") } } as never,
       logger,
     )
-    const fallbackUpdated = await fallback.regenerateFromLatest(thread.id)
-    expect(fallbackUpdated.title).toBe("最新用户内容用于确定性回退")
+    const eventCount = db.eventsAfter(0).length
+    const fallbackUpdated = await fallback.regenerateFromConversation(thread.id)
+    expect(fallbackUpdated.title).toBe("并发手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCount)
   })
 
   test("rejects regeneration unless the latest turn completed successfully", async () => {
@@ -352,7 +372,7 @@ describe("ThreadTitleService", () => {
       logger,
     )
     const empty = db.createThread()
-    await expect(service.regenerateFromLatest(empty.id)).rejects.toMatchObject({
+    await expect(service.regenerateFromConversation(empty.id)).rejects.toMatchObject({
       code: "CONFLICT",
     })
 
@@ -360,7 +380,7 @@ describe("ThreadTitleService", () => {
       const thread = db.createThread(`状态 ${status}`)
       const turn = addUserMessage(db, thread.id, `状态 ${status}`)
       db.updateTurnStatus(turn.turnID, status)
-      await expect(service.regenerateFromLatest(thread.id)).rejects.toMatchObject({
+      await expect(service.regenerateFromConversation(thread.id)).rejects.toMatchObject({
         code: status === "queued" || status === "running" || status === "waiting_question"
           ? "TURN_ACTIVE"
           : "CONFLICT",

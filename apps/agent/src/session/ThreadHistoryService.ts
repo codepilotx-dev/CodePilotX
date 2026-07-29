@@ -40,6 +40,9 @@ export class ThreadHistoryService {
   constructor(
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
+    private readonly prepareThreadCleanup?: (
+      threadID: string,
+    ) => () => Promise<void>,
   ) {}
 
   getListItem(threadID: string): ThreadListItem | null {
@@ -160,6 +163,7 @@ export class ThreadHistoryService {
   async remove(threadID: string) {
     const existing = this.getListItem(threadID)
     if (!existing) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+    const cleanup = this.prepareThreadCleanup?.(threadID)
     const event = this.db.transaction(() => {
       const active = this.db.sqlite.query(`
         WITH RECURSIVE subtree(id) AS (
@@ -177,6 +181,10 @@ export class ThreadHistoryService {
       this.db.sqlite.query("DELETE FROM threads WHERE id = ?").run(threadID)
       return this.db.insertEvent(null, null, "thread/deleted", { threadId: threadID, deletedAt: Date.now() })
     })
-    await Effect.runPromise(this.hub.publish(event))
+    try {
+      await Effect.runPromise(this.hub.publish(event))
+    } finally {
+      await cleanup?.()
+    }
   }
 }

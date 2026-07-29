@@ -280,7 +280,7 @@ export class ThreadService {
     if (!this.threadTitles) {
       throw new AgentError("MODEL_UNAVAILABLE", "会话标题服务不可用", 503)
     }
-    return this.threadTitles.regenerateFromLatest(threadID)
+    return this.threadTitles.regenerateFromConversation(threadID)
   }
 
   async promptPreview(threadID: string) {
