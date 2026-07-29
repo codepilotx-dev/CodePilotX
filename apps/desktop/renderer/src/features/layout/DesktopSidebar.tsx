@@ -35,6 +35,7 @@ type Props = {
   workspace: DesktopWorkspace | null;
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
+  onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void;
   onPinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
@@ -63,6 +64,7 @@ export function DesktopSidebar({
   workspace,
   onChooseWorkspace,
   onCreateSession,
+  onOpenWhatsNew,
   onPinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
@@ -305,7 +307,11 @@ export function DesktopSidebar({
         onProjectSortChange={setSidebarProjectSort}
         onSessionSortChange={setSidebarSort}
       />
-      <SidebarFooter sidebarWidth={sidebarWidth} onReport={onReport} />
+      <SidebarFooter
+        sidebarWidth={sidebarWidth}
+        onOpenWhatsNew={onOpenWhatsNew}
+        onReport={onReport}
+      />
     </div>
   );
 }

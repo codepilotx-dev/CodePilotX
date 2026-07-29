@@ -36,7 +36,7 @@ export function releaseNotesErrorMessage(error: ReleaseNotesViewError): {
   if (error === 'rate-limited') {
     return {
       title: 'GitHub 暂时限制了访问',
-      description: '匿名请求已达到 GitHub 的访问上限，请稍后重试。',
+      description: 'GitHub 请求已达到访问上限，请稍后重试。',
     }
   }
   if (error === 'invalid-response') {

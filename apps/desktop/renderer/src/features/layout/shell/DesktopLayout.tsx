@@ -118,6 +118,7 @@ const GitWorkflowModal = lazy(() => import('../panels/GitWorkflowModal.js').then
 const GithubRepositoryModal = lazy(() => import('../panels/GithubRepositoryModal.js').then(module => ({ default: module.GithubRepositoryModal })))
 const SettingsSidebarContent = lazy(() => import('../../settings/SettingsSidebarContent.js').then(module => ({ default: module.SettingsSidebarContent })))
 const SubagentThreadPanel = lazy(() => import('../../session/subagents/SubagentThreadPanel.js').then(module => ({ default: module.SubagentThreadPanel })))
+const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -291,6 +292,9 @@ export function DesktopLayout(): React.ReactNode {
     useState<GitWorkflowMode | null>(null)
   const [githubRepositoryModalOpen, setGithubRepositoryModalOpen] =
     useState(false)
+  const [whatsNewDialogOpen, setWhatsNewDialogOpen] = useState(false)
+  const [whatsNewRestoreFocusElement, setWhatsNewRestoreFocusElement] =
+    useState<HTMLElement | null>(null)
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
   )
@@ -1328,9 +1332,24 @@ export function DesktopLayout(): React.ReactNode {
     [setIsWindowMaximized],
   )
 
-  const handleHelpMenuAction = useCallback(
-    (_action: HelpMenuAction): void => {},
+  const openWhatsNewDialog = useCallback(
+    (restoreFocusElement: HTMLElement | null): void => {
+      setWhatsNewRestoreFocusElement(restoreFocusElement)
+      setWhatsNewDialogOpen(true)
+    },
     [],
+  )
+
+  const handleHelpMenuAction = useCallback(
+    (
+      action: HelpMenuAction,
+      restoreFocusElement?: HTMLElement | null,
+    ): void => {
+      if (action === 'whatsNew') {
+        openWhatsNewDialog(restoreFocusElement ?? null)
+      }
+    },
+    [openWhatsNewDialog],
   )
 
   const modelPresets = useMemo(
@@ -1981,6 +2000,7 @@ export function DesktopLayout(): React.ReactNode {
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
+      onOpenWhatsNew={openWhatsNewDialog}
       onPinWorkspace={handlePinWorkspace}
       onRemoveWorkspace={handleRemoveWorkspace}
       onUnpinWorkspace={handleUnpinWorkspace}
@@ -2692,6 +2712,15 @@ export function DesktopLayout(): React.ReactNode {
         onError={message => setErrorMessage(message)}
         onWorkspaceCloned={handleGithubWorkspaceCloned}
       /></Suspense> : null}
+      {whatsNewDialogOpen ? (
+        <Suspense fallback={null}>
+          <WhatsNewDialog
+            open
+            restoreFocusElement={whatsNewRestoreFocusElement}
+            onOpenChange={setWhatsNewDialogOpen}
+          />
+        </Suspense>
+      ) : null}
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice
           onClose={() => setArchiveNoticeVisible(false)}

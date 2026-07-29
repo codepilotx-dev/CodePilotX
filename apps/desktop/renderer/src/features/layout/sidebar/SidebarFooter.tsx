@@ -1,5 +1,5 @@
 import type React from "react";
-import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -63,11 +63,12 @@ const EMPTY_USAGE: ProviderUsageState = {
 
 type SidebarFooterProps = {
   sidebarWidth: number;
+  onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void;
   onReport: (message: string) => void;
 };
 
 export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(function SidebarFooter(
-  { sidebarWidth, onReport },
+  { sidebarWidth, onOpenWhatsNew, onReport },
   ref,
 ): React.ReactNode {
   const location = useLocation();
@@ -79,6 +80,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   } = useDesktopSettings();
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const helpMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
   const [githubUser, setGithubUser] = useState<DesktopGithubUser | null>(null);
   const [petToggleBusy, setPetToggleBusy] = useState(false);
@@ -408,6 +410,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         trigger={
           <IconButton
             className="sidebar-help-button"
+            ref={helpMenuTriggerRef}
             title="帮助"
           >
             <HelpCircle size={APP_ICON_SIZE} />
@@ -419,7 +422,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           icon={<Sparkles size={APP_ICON_SIZE} />}
           onClick={() => {
             setHelpMenuOpen(false)
-            navigate('/whats-new')
+            onOpenWhatsNew(helpMenuTriggerRef.current)
           }}
         >
           新特性

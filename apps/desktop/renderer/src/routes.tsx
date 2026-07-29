@@ -60,12 +60,6 @@ const PetCatalogPage = lazy(() =>
     default: module.PetCatalogPage,
   })),
 )
-const WhatsNewPage = lazy(() =>
-  import('./features/whats-new/WhatsNewPage.js').then(module => ({
-    default: module.WhatsNewPage,
-  })),
-)
-
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
 }
@@ -104,7 +98,6 @@ const router = createHashRouter([
       },
       { path: 'automations', element: deferred(<AutomationView />) },
       { path: 'pets', element: deferred(<PetCatalogPage />) },
-      { path: 'whats-new', element: deferred(<WhatsNewPage />) },
       {
         path: 'settings/environment/:projectId',
         element: deferred(<SettingsLayout />),

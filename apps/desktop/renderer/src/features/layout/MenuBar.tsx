@@ -1,4 +1,5 @@
 import type React from 'react'
+import { useRef } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
 import {
@@ -85,7 +86,10 @@ type Props = {
   onEditMenuAction: (action: EditMenuAction) => void
   onViewMenuAction: (action: ViewMenuAction) => void
   onWindowMenuAction: (action: WindowMenuAction) => void
-  onHelpMenuAction: (action: HelpMenuAction) => void
+  onHelpMenuAction: (
+    action: HelpMenuAction,
+    restoreFocusElement?: HTMLElement | null,
+  ) => void
 }
 
 type MenuItemProps = {
@@ -158,6 +162,7 @@ type AppMenuProps = {
   contentClassName?: string
   disableOutsideDismiss?: boolean
   label: string
+  triggerRef?: React.Ref<HTMLButtonElement>
   value: string
 } & PopoverSizingProps
 
@@ -166,13 +171,16 @@ function AppMenu({
   contentClassName = '',
   disableOutsideDismiss = false,
   label,
+  triggerRef,
   value,
   width,
   maxWidth,
 }: AppMenuProps): React.ReactNode {
   return (
     <Menubar.Menu value={value}>
-      <Menubar.Trigger className="menubar-trigger">{label}</Menubar.Trigger>
+      <Menubar.Trigger className="menubar-trigger" ref={triggerRef}>
+        {label}
+      </Menubar.Trigger>
       <Menubar.Portal>
         <Menubar.Content
           align="start"
@@ -211,6 +219,8 @@ export function MenuBar({
   onWindowMenuAction,
   onHelpMenuAction,
 }: Props): React.ReactNode {
+  const helpMenuTriggerRef = useRef<HTMLButtonElement>(null)
+
   return (
     <div className="app-menubar" data-edit-command-preserve-target>
       <div className="menubar-titlebar">
@@ -461,13 +471,18 @@ export function MenuBar({
               contentClassName="menubar-content-help"
               disableOutsideDismiss={isDebugMode}
               label="帮助"
+              triggerRef={helpMenuTriggerRef}
               value="help"
               width={260}
             >
               <MenuItem onSelect={() => onHelpMenuAction('codepilotxDocumentation')}>
                 CodePilotX 文档
               </MenuItem>
-              <MenuItem onSelect={() => onHelpMenuAction('whatsNew')}>
+              <MenuItem
+                onSelect={() =>
+                  onHelpMenuAction('whatsNew', helpMenuTriggerRef.current)
+                }
+              >
                 新特性
               </MenuItem>
               <MenuItem onSelect={() => onHelpMenuAction('automations')}>
