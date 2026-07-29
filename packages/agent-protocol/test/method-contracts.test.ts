@@ -1831,6 +1831,17 @@ describe("RPC method schema contracts", () => {
     }
   })
 
+  test("accepts bundled changelog as a release notes source", () => {
+    const result = {
+      ...fixtures["release-notes/list"].result,
+      source: "bundled-changelog",
+    }
+    expect(Schema.decodeUnknownSync(
+      RpcMethods["release-notes/list"].result,
+      { onExcessProperty: "error" },
+    )(result).source).toBe("bundled-changelog")
+  })
+
   test("rejects invalid opaque IDs, limits, and enums", () => {
     expect(() => Schema.decodeUnknownSync(RpcMethods["thread/read"].params)({ threadId: "" })).toThrow()
     const decodeThreadHistory = Schema.decodeUnknownSync(RpcMethods["thread/history/read"].params)

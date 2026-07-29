@@ -1,7 +1,28 @@
 import { describe, expect, test } from "bun:test"
+import { bundledReleaseNotes } from "../src/release-notes/bundledReleaseNotes"
 import { ReleaseNotesService } from "../src/release-notes/ReleaseNotesService"
 
 const publishedAt = "2026-07-27T00:00:00.000Z"
+const bundledChangelog = `# Changelog
+
+## Unreleased
+
+### Added
+
+- [desktop] 尚未发布
+
+## 0.2.0-beta.1 — 2026-07-27
+
+### Added
+
+- [desktop] 内置当前版本记录
+
+## 0.1.0 — 2026-06-01
+
+### Fixed
+
+- [desktop] 更早版本记录
+`
 
 const release = (
   tagName: string,
@@ -30,6 +51,38 @@ const jsonResponse = (
 })
 
 describe("ReleaseNotesService", () => {
+  test("从内置 CHANGELOG 精确生成当前版本记录", () => {
+    const result = bundledReleaseNotes(
+      bundledChangelog,
+      "0.2.0-beta.1",
+      Date.parse(publishedAt),
+    )
+
+    expect(result).toMatchObject({
+      source: "bundled-changelog",
+      currentVersion: "0.2.0-beta.1",
+      currentReleaseFound: true,
+      truncated: false,
+      releases: [{
+        tagName: "v0.2.0-beta.1",
+        name: "CodePilotX 0.2.0-beta.1",
+        publishedAt,
+        prerelease: true,
+      }],
+    })
+    expect(result?.releases[0]?.body).toContain("内置当前版本记录")
+    expect(result?.releases[0]?.body).not.toContain("尚未发布")
+    expect(result?.releases[0]?.body).not.toContain("更早版本记录")
+    expect(result?.releases[0]?.htmlUrl).toBe(
+      "https://github.com/codepilotx-dev/CodePilotX/releases/tag/v0.2.0-beta.1",
+    )
+    expect(bundledReleaseNotes(
+      bundledChangelog,
+      "9.9.9",
+      Date.parse(publishedAt),
+    )).toBeNull()
+  })
+
   test("匿名分页读取 Release，并从当前版本开始返回历史记录", async () => {
     const requests: Array<{ url: URL; init?: RequestInit }> = []
     const firstPage = [
@@ -87,12 +140,30 @@ describe("ReleaseNotesService", () => {
     expect(result.releases.some(item => item.tagName === "v0.2.1")).toBe(false)
   })
 
-  test("当前标签缺失时不猜测版本顺序，也不展示可能的未来版本", async () => {
+  test("在线结果缺少当前标签时只回退到内置当前版本", async () => {
     const service = new ReleaseNotesService({
       fetch: (async () => jsonResponse([
         release("v0.3.0"),
         release("v0.1.0"),
       ])) as unknown as typeof globalThis.fetch,
+      bundledChangelog,
+    })
+
+    const result = await service.list("0.2.0-beta.1")
+
+    expect(result.source).toBe("bundled-changelog")
+    expect(result.releases.map(item => item.tagName)).toEqual([
+      "v0.2.0-beta.1",
+    ])
+  })
+
+  test("内置记录缺失时保留在线当前标签缺失状态", async () => {
+    const service = new ReleaseNotesService({
+      fetch: (async () => jsonResponse([
+        release("v0.3.0"),
+        release("v0.1.0"),
+      ])) as unknown as typeof globalThis.fetch,
+      bundledChangelog,
     })
 
     const result = await service.list("0.2.0")
@@ -145,6 +216,55 @@ describe("ReleaseNotesService", () => {
     const [firstResult, secondResult] = await Promise.all([first, second])
     expect(calls).toBe(1)
     expect(secondResult).toBe(firstResult)
+  })
+
+  test("优先使用 OAuth token，且 token 不进入返回结果", async () => {
+    const requests: RequestInit[] = []
+    const accessToken = "gho_release_notes_secret"
+    const service = new ReleaseNotesService({
+      getAccessToken: async () => accessToken,
+      fetch: (async (
+        _input: string | URL | Request,
+        init?: RequestInit,
+      ) => {
+        requests.push(init ?? {})
+        return jsonResponse([release("v0.2.0-beta.1")])
+      }) as unknown as typeof globalThis.fetch,
+    })
+
+    const result = await service.list("0.2.0-beta.1")
+
+    expect(requests).toHaveLength(1)
+    expect(new Headers(requests[0]?.headers).get("authorization")).toBe(
+      `Bearer ${accessToken}`,
+    )
+    expect(JSON.stringify(result)).not.toContain(accessToken)
+  })
+
+  test("OAuth token 返回 401 时仅匿名重试一次", async () => {
+    const authorizationHeaders: Array<string | null> = []
+    const service = new ReleaseNotesService({
+      getAccessToken: async () => "expired-token",
+      fetch: (async (
+        _input: string | URL | Request,
+        init?: RequestInit,
+      ) => {
+        const authorization =
+          new Headers(init?.headers).get("authorization")
+        authorizationHeaders.push(authorization)
+        return authorization
+          ? new Response(null, { status: 401 })
+          : jsonResponse([release("v0.2.0-beta.1")])
+      }) as unknown as typeof globalThis.fetch,
+    })
+
+    const result = await service.list("0.2.0-beta.1")
+
+    expect(authorizationHeaders).toEqual([
+      "Bearer expired-token",
+      null,
+    ])
+    expect(result.source).toBe("github-releases")
   })
 
   test("达到五百条分页上限时标记结果已截断", async () => {
@@ -219,6 +339,60 @@ describe("ReleaseNotesService", () => {
     await expect(timeoutService.list("0.2.0")).rejects.toMatchObject({
       code: "RELEASE_NOTES_UNAVAILABLE",
     })
+  })
+
+  test("声明的在线错误回退到内置记录并缓存，refresh 可恢复历史版本", async () => {
+    let calls = 0
+    const service = new ReleaseNotesService({
+      bundledChangelog,
+      fetch: (async () => {
+        calls += 1
+        if (calls === 1) {
+          return new Response(null, {
+            status: 403,
+            headers: { "x-ratelimit-remaining": "0" },
+          })
+        }
+        return jsonResponse([
+          release("v0.2.0-beta.1"),
+          release("v0.1.0"),
+        ])
+      }) as unknown as typeof globalThis.fetch,
+    })
+
+    const fallback = await service.list("0.2.0-beta.1")
+    const cached = await service.list("0.2.0-beta.1")
+    const refreshed = await service.list("0.2.0-beta.1", true)
+
+    expect(fallback.source).toBe("bundled-changelog")
+    expect(cached).toBe(fallback)
+    expect(refreshed.source).toBe("github-releases")
+    expect(refreshed.releases).toHaveLength(2)
+    expect(calls).toBe(2)
+  })
+
+  test("限流、网络和无效响应均回退到内置当前版本", async () => {
+    const failures = [
+      async () => new Response(null, {
+        status: 429,
+      }),
+      async () => {
+        throw new Error("private network detail")
+      },
+      async () => new Response("{"),
+    ]
+
+    for (const fetch of failures) {
+      const service = new ReleaseNotesService({
+        bundledChangelog,
+        fetch: fetch as unknown as typeof globalThis.fetch,
+      })
+      const result = await service.list("0.2.0-beta.1")
+      expect(result.source).toBe("bundled-changelog")
+      expect(result.releases.map(item => item.tagName)).toEqual([
+        "v0.2.0-beta.1",
+      ])
+    }
   })
 
   test("拒绝重定向、无效 JSON、异常字段和超大响应", async () => {

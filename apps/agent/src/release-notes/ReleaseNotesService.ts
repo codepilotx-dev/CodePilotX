@@ -3,6 +3,10 @@ import type {
   ReleaseNotesListResult,
 } from "@codepilotx/agent-protocol"
 import { AgentError } from "../domain"
+import {
+  bundledReleaseNotes,
+  DEFAULT_BUNDLED_CHANGELOG,
+} from "./bundledReleaseNotes"
 
 const REPOSITORY = "codepilotx-dev/CodePilotX" as const
 const RELEASES_API_URL =
@@ -17,6 +21,8 @@ const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/
 
 type ReleaseNotesServiceOptions = {
   fetch?: typeof globalThis.fetch
+  getAccessToken?: () => Promise<string | null>
+  bundledChangelog?: string
   now?: () => number
   timeoutMs?: number
 }
@@ -28,6 +34,8 @@ type CachedReleaseNotes = {
 
 export class ReleaseNotesService {
   private readonly fetch: typeof globalThis.fetch
+  private readonly getAccessToken: () => Promise<string | null>
+  private readonly bundledChangelog: string
   private readonly now: () => number
   private readonly timeoutMs: number
   private readonly cache = new Map<string, CachedReleaseNotes>()
@@ -38,6 +46,9 @@ export class ReleaseNotesService {
 
   constructor(options: ReleaseNotesServiceOptions = {}) {
     this.fetch = options.fetch ?? globalThis.fetch
+    this.getAccessToken = options.getAccessToken ?? (async () => null)
+    this.bundledChangelog =
+      options.bundledChangelog ?? DEFAULT_BUNDLED_CHANGELOG
     this.now = options.now ?? Date.now
     this.timeoutMs = options.timeoutMs ?? 15_000
   }
@@ -64,6 +75,17 @@ export class ReleaseNotesService {
 
     const request = this.download(currentVersion)
       .then((result) => {
+        if (result.currentReleaseFound) return result
+        return this.bundled(currentVersion) ?? result
+      })
+      .catch((cause: unknown) => {
+        const fallback = isReleaseNotesFetchError(cause)
+          ? this.bundled(currentVersion)
+          : null
+        if (fallback) return fallback
+        throw cause
+      })
+      .then((result) => {
         this.cache.set(currentVersion, {
           expiresAt: this.now() + CACHE_TTL_MS,
           result,
@@ -80,6 +102,7 @@ export class ReleaseNotesService {
   private async download(
     currentVersion: string,
   ): Promise<ReleaseNotesListResult> {
+    const accessToken = await this.optionalAccessToken()
     const releases: ReleaseNote[] = []
     const seenTags = new Set<string>()
     let totalBytes = 0
@@ -87,7 +110,7 @@ export class ReleaseNotesService {
     let truncated = false
 
     for (let page = 1; page <= MAX_RELEASES / RELEASES_PAGE_SIZE; page += 1) {
-      const response = await this.fetchPage(page)
+      const response = await this.fetchPage(page, accessToken)
       const bytes = await readLimitedBody(
         response,
         MAX_RESPONSE_BYTES - totalBytes,
@@ -131,7 +154,27 @@ export class ReleaseNotesService {
     }
   }
 
-  private async fetchPage(page: number): Promise<Response> {
+  private bundled(currentVersion: string): ReleaseNotesListResult | null {
+    return bundledReleaseNotes(
+      this.bundledChangelog,
+      currentVersion,
+      this.now(),
+    )
+  }
+
+  private async optionalAccessToken(): Promise<string | null> {
+    try {
+      const token = await this.getAccessToken()
+      return token?.trim() || null
+    } catch {
+      return null
+    }
+  }
+
+  private async fetchPage(
+    page: number,
+    accessToken: string | null,
+  ): Promise<Response> {
     const url = new URL(RELEASES_API_URL)
     url.searchParams.set("per_page", String(RELEASES_PAGE_SIZE))
     url.searchParams.set("page", String(page))
@@ -147,23 +190,9 @@ export class ReleaseNotesService {
       )
     }
 
-    let response: Response
-    try {
-      response = await this.fetch(url, {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          "User-Agent": "CodePilotX",
-        },
-        redirect: "manual",
-        signal: AbortSignal.timeout(this.timeoutMs),
-      })
-    } catch {
-      throw new AgentError(
-        "RELEASE_NOTES_UNAVAILABLE",
-        "暂时无法连接 GitHub 获取更新日志",
-        502,
-      )
+    let response = await this.requestPage(url, accessToken)
+    if (accessToken && response.status === 401) {
+      response = await this.requestPage(url, null)
     }
 
     if (REDIRECT_STATUSES.has(response.status)) {
@@ -182,12 +211,14 @@ export class ReleaseNotesService {
     }
     if (
       response.status === 429
-      || response.status === 403
-      || response.headers.get("x-ratelimit-remaining") === "0"
+      || (
+        response.status === 403
+        && response.headers.get("x-ratelimit-remaining") === "0"
+      )
     ) {
       throw new AgentError(
         "RELEASE_NOTES_RATE_LIMITED",
-        "GitHub 匿名请求已达到频率限制，请稍后重试",
+        "GitHub 请求已达到频率限制，请稍后重试",
         429,
       )
     }
@@ -199,6 +230,32 @@ export class ReleaseNotesService {
       )
     }
     return response
+  }
+
+  private async requestPage(
+    url: URL,
+    accessToken: string | null,
+  ): Promise<Response> {
+    try {
+      return await this.fetch(url, {
+        headers: {
+          Accept: "application/vnd.github+json",
+          ...(accessToken
+            ? { Authorization: `Bearer ${accessToken}` }
+            : {}),
+          "X-GitHub-Api-Version": "2022-11-28",
+          "User-Agent": "CodePilotX",
+        },
+        redirect: "manual",
+        signal: AbortSignal.timeout(this.timeoutMs),
+      })
+    } catch {
+      throw new AgentError(
+        "RELEASE_NOTES_UNAVAILABLE",
+        "暂时无法连接 GitHub 获取更新日志",
+        502,
+      )
+    }
   }
 }
 
@@ -331,5 +388,14 @@ function invalidResponse(message: string): AgentError {
     "RELEASE_NOTES_INVALID_RESPONSE",
     message,
     502,
+  )
+}
+
+function isReleaseNotesFetchError(cause: unknown): cause is AgentError {
+  return cause instanceof AgentError && (
+    cause.code === "RELEASE_NOTES_NOT_PUBLIC"
+    || cause.code === "RELEASE_NOTES_UNAVAILABLE"
+    || cause.code === "RELEASE_NOTES_RATE_LIMITED"
+    || cause.code === "RELEASE_NOTES_INVALID_RESPONSE"
   )
 }

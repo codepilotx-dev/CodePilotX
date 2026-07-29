@@ -14,6 +14,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SEMVER_RE, compareSemver } from "./semver-utils.ts";
 import {
+  extractArchivedReleaseNotes,
   getChangelogSection,
   hasChangelogEntry,
   parseChangelogSections,
@@ -140,6 +141,12 @@ function runCheck(opts: CheckOptions) {
     );
     if (!headings.some((h) => h === "Unreleased")) {
       fail("CHANGELOG.md 缺少 ## Unreleased 区段");
+    }
+    try {
+      extractArchivedReleaseNotes(changelogText, rootVersion);
+      ok(`CHANGELOG.md 包含当前版本 ${rootVersion} 的内置更新记录`);
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
     }
     // Check categories
     const unreleasedSection =

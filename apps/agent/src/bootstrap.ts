@@ -217,7 +217,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           ? `http://127.0.0.1:${config.port}/auth/github/callback`
           : null,
     });
-    const releaseNotes = new ReleaseNotesService();
+    const releaseNotes = new ReleaseNotesService({
+      getAccessToken: () => github.optionalAccessToken(),
+    });
     const review = new GitReviewService(
       db,
       async (projectId) => {

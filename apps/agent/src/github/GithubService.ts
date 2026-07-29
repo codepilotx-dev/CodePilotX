@@ -270,6 +270,10 @@ export class GithubService {
     return this.auth.logout()
   }
 
+  async optionalAccessToken(): Promise<string | null> {
+    return (await this.credential())?.accessToken ?? null
+  }
+
   async profile() {
     return { user: githubUserFromApi(await this.rest("GET", "/user")) }
   }
