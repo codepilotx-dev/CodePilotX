@@ -25,6 +25,8 @@ describe("Renderer 开发代理", () => {
     }), `http://127.0.0.1:${upstream.port}`)
 
     expect(response.status).toBe(426)
+    expect(response.headers.get("cache-control")).toBe("no-store")
+    expect(response.headers.get("x-codepilotx-renderer-proxy")).toBe("websocket-direct-only")
     expect(upstreamCalls).toBe(0)
   })
 
@@ -43,5 +45,49 @@ describe("Renderer 开发代理", () => {
 
     expect(response.status).toBe(200)
     expect(await response.text()).toBe("renderer-ready")
+  })
+
+  test("上游不可用时返回不泄露内部信息的安全响应", async () => {
+    const rendererDevURL = "http://127.0.0.1:1/private-renderer-path"
+    const response = await proxyRendererRequest(
+      new Request("http://127.0.0.1:9000/demo"),
+      rendererDevURL,
+    )
+    const body = await response.text()
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("cache-control")).toBe("no-store")
+    expect(response.headers.get("x-codepilotx-renderer-proxy")).toBe("upstream-unavailable")
+    expect(body).toBe("Renderer 开发服务暂不可用")
+    expect(body).not.toContain(rendererDevURL)
+    expect(body).not.toContain("127.0.0.1")
+  })
+
+  test("条件请求保留 Vite 的 ETag、304 和空响应体", async () => {
+    let receivedETag = ""
+    const upstream = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: (request) => {
+        receivedETag = request.headers.get("if-none-match") ?? ""
+        return new Response(null, {
+          status: 304,
+          headers: { ETag: "\"renderer-v1\"" },
+        })
+      },
+    })
+    servers.push(upstream)
+
+    const response = await proxyRendererRequest(
+      new Request("http://127.0.0.1:9000/src/App.tsx", {
+        headers: { "If-None-Match": "\"renderer-v1\"" },
+      }),
+      `http://127.0.0.1:${upstream.port}`,
+    )
+
+    expect(receivedETag).toBe("\"renderer-v1\"")
+    expect(response.status).toBe(304)
+    expect(response.headers.get("etag")).toBe("\"renderer-v1\"")
+    expect(await response.text()).toBe("")
   })
 })

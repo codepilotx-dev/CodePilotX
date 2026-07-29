@@ -4,6 +4,7 @@ import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
 import { NotFoundPage } from './features/routing/NotFoundPage.js'
+import { RouteErrorPage } from './features/routing/RouteErrorPage.js'
 
 const AutomationView = lazy(() =>
   import('./features/automation/AutomationView.js').then(module => ({
@@ -64,9 +65,12 @@ function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
 }
 
+const routeErrorElement = <RouteErrorPage />
+
 const router = createHashRouter([
   {
     path: '/pet-overlay',
+    errorElement: routeErrorElement,
     element: deferred(
       <DesktopSettingsProvider access="read-only">
         <PetOverlayPage />
@@ -75,6 +79,7 @@ const router = createHashRouter([
   },
   {
     path: '/',
+    errorElement: routeErrorElement,
     element: (
       <DesktopSettingsProvider access="read-write">
         <DesktopLayout />

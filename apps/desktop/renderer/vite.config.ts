@@ -126,6 +126,7 @@ export default defineConfig({
       ],
     },
     strictPort: true,
+    // 页面经动态端口的 Agent 提供，但 HMR WebSocket 必须直连固定的 Renderer 端口。
     hmr: {
       protocol: 'ws',
       host: '127.0.0.1',
