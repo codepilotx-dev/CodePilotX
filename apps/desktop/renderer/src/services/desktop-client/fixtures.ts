@@ -641,6 +641,10 @@ const VISUAL_REVIEW_SMALL_PATH =
   'apps/desktop/renderer/test/codex-style-contracts.test.ts'
 const VISUAL_REVIEW_LARGE_PATH =
   'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx'
+const VISUAL_REVIEW_ADDED_PATH =
+  'apps/desktop/renderer/src/features/review/status-added.ts'
+const VISUAL_REVIEW_DELETED_PATH =
+  'apps/desktop/renderer/src/features/review/status-deleted.ts'
 
 export function isBrowserVisualReviewCase(): boolean {
   return import.meta.env.DEV &&
@@ -750,13 +754,35 @@ export function browserVisualReviewSummary(
           binary: false,
           revision: VISUAL_REVIEW_REVISION,
         },
+        {
+          path: VISUAL_REVIEW_ADDED_PATH,
+          previousPath: null,
+          status: 'added' as const,
+          additions: 1,
+          deletions: 0,
+          changedLines: 1,
+          changedBytes: 32,
+          binary: false,
+          revision: VISUAL_REVIEW_REVISION,
+        },
+        {
+          path: VISUAL_REVIEW_DELETED_PATH,
+          previousPath: null,
+          status: 'deleted' as const,
+          additions: 0,
+          deletions: 1,
+          changedLines: 1,
+          changedBytes: 32,
+          binary: false,
+          revision: VISUAL_REVIEW_REVISION,
+        },
       ],
       totals: {
-        files: 2,
-        additions: 551,
-        deletions: 523,
-        changedLines,
-        changedBytes: 50_400,
+        files: 4,
+        additions: 552,
+        deletions: 524,
+        changedLines: changedLines + 2,
+        changedBytes: 50_464,
       },
       largeDiffMode: false,
     },
@@ -773,20 +799,32 @@ export function browserVisualReviewFileDiff(
   const file = summary.snapshot.files.find(candidate => candidate.path === path)
   if (!file) return null
   const smallFile = path === VISUAL_REVIEW_SMALL_PATH
+  const largeFile = path === VISUAL_REVIEW_LARGE_PATH
   const patch = smallFile
     ? VISUAL_REVIEW_SMALL_PATCH
-    : VISUAL_REVIEW_LARGE_PATCH
+    : largeFile
+      ? VISUAL_REVIEW_LARGE_PATCH
+      : path === VISUAL_REVIEW_ADDED_PATH
+        ? '@@ -0,0 +1 @@\n+export const added = true'
+        : '@@ -1 +0,0 @@\n-export const removed = true'
+  const header = smallFile
+    ? '@@ -1,7 +1,35 @@'
+    : largeFile
+      ? '@@ -1,520 +1,520 @@'
+      : path === VISUAL_REVIEW_ADDED_PATH
+        ? '@@ -0,0 +1 @@'
+        : '@@ -1 +0,0 @@'
   return {
     file,
     revision: VISUAL_REVIEW_REVISION,
     patch,
     hunks: [{
-      id: smallFile ? 'visual-review-small-hunk' : 'visual-review-large-hunk',
-      header: smallFile ? '@@ -1,7 +1,35 @@' : '@@ -1,520 +1,520 @@',
-      oldStart: 1,
-      oldLines: smallFile ? 7 : 520,
-      newStart: 1,
-      newLines: smallFile ? 35 : 520,
+      id: `visual-review-${file.status}-hunk`,
+      header,
+      oldStart: path === VISUAL_REVIEW_ADDED_PATH ? 0 : 1,
+      oldLines: smallFile ? 7 : largeFile ? 520 : file.status === 'deleted' ? 1 : 0,
+      newStart: path === VISUAL_REVIEW_DELETED_PATH ? 0 : 1,
+      newLines: smallFile ? 35 : largeFile ? 520 : file.status === 'added' ? 1 : 0,
       patch,
     }],
     renderable: true,

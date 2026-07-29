@@ -36,6 +36,12 @@ const SCENARIOS: readonly VisualScenario[] = [
         .getByRole('complementary', { name: '右侧面板' })
         .getByRole('button', { name: /^审阅/ })
         .click()
+      await expect(
+        page
+          .getByRole('complementary', { name: '右侧面板' })
+          .locator('[data-review-syntax-state="ready"]')
+          .first(),
+      ).toBeVisible({ timeout: 10_000 })
     },
   },
 ] as const
@@ -68,6 +74,7 @@ for (const viewport of VIEWPORTS) {
           mode === 'light' ? 'codex-light' : 'codex-dark',
         )
         await closeTransientErrorToast(page, 3_000)
+        await waitForMaterialIcons(page)
         await expect(page.locator('body')).toHaveScreenshot(
           `${viewport.id}-${mode}-${scenario.id}.png`,
           {
@@ -477,6 +484,9 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
   await expect(rightPanel).toBeVisible()
   await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
+  const sourceMenu = await openAndAssertReviewSourceMenu(page, rightPanel)
+  await page.keyboard.press('Escape')
+  await expect(sourceMenu).toBeHidden()
   const smallDiffSection = rightPanel.getByLabel(
     'apps/desktop/renderer/test/codex-style-contracts.test.ts diff',
   )
@@ -528,6 +538,51 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     name: '审查文件导航',
   })
   await expect(reviewFileTree).toBeVisible()
+  const searchRegion = reviewFileTree.locator('.review-file-search-region')
+  const searchInput = searchRegion.locator('.review-file-search')
+  await expect(searchRegion).toBeVisible()
+  await expect(searchInput).toHaveCSS('border-radius', '8px')
+  await expect(searchInput).toHaveCSS('border-top-width', '1px')
+  const [searchRegionBox, searchInputBox] = await Promise.all([
+    searchRegion.boundingBox(),
+    searchInput.boundingBox(),
+  ])
+  expect(searchRegionBox).not.toBeNull()
+  expect(searchInputBox).not.toBeNull()
+  expect(searchInputBox!.x - searchRegionBox!.x).toBeGreaterThanOrEqual(10)
+  await expect(
+    reviewFileTree.locator('[data-git-status="added"]'),
+  ).toBeVisible()
+  await expect(
+    reviewFileTree.locator('[data-git-status="modified"]').first(),
+  ).toBeVisible()
+  await expect(
+    reviewFileTree.locator('[data-git-status="deleted"]'),
+  ).toBeVisible()
+  await expect(
+    reviewFileTree.locator('.review-file-tree-directory-status').first(),
+  ).toBeVisible()
+  await expect(reviewFileTree.locator('.review-file-counts')).toHaveCount(0)
+  const [directoryStatusBox, fileStatusBox] = await Promise.all([
+    reviewFileTree
+      .locator('.review-file-tree-directory-status')
+      .first()
+      .boundingBox(),
+    reviewFileTree.locator('[data-git-status="added"]').boundingBox(),
+  ])
+  expect(directoryStatusBox).not.toBeNull()
+  expect(fileStatusBox).not.toBeNull()
+  expect(
+    directoryStatusBox!.x + directoryStatusBox!.width / 2,
+  ).toBeCloseTo(fileStatusBox!.x + fileStatusBox!.width / 2, 0)
+  const gitStatusColors = await reviewFileTree
+    .locator(
+      '[data-git-status="added"], [data-git-status="modified"], [data-git-status="deleted"]',
+    )
+    .evaluateAll(nodes =>
+      Array.from(new Set(nodes.map(node => getComputedStyle(node).color))),
+    )
+  expect(gitStatusColors).toHaveLength(3)
   await reviewFileTree
     .getByRole('button', { name: /WorkspaceReviewDiff\.tsx/ })
     .click()
@@ -1201,6 +1256,195 @@ test('sidebar keeps one mounted tree across docked and hover preview modes', asy
   await expect(sidebar).toHaveClass(/is-docked/)
 })
 
+test('sidebar exit and re-entry keep the workspace aligned', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.goto('/?visualCase=rich#/new')
+  await closeTransientErrorToast(page)
+
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const spacer = page.locator('.desktop-sidebar-spacer')
+  const main = page.locator('.desktop-main')
+  const initialSidebarBox = await sidebar.boundingBox()
+  const initialSpacerBox = await spacer.boundingBox()
+  expect(initialSidebarBox).not.toBeNull()
+  expect(initialSpacerBox).not.toBeNull()
+  expect(initialSpacerBox!.width).toBeCloseTo(initialSidebarBox!.width, 0)
+
+  const exitingState = await page.evaluate(async () => {
+    document.querySelector<HTMLElement>('[title="收起侧边栏"]')?.click()
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    const element = document.querySelector<HTMLElement>('aside.desktop-sidebar')
+    if (!element) return null
+    const style = getComputedStyle(element)
+    return {
+      ariaHidden: element.getAttribute('aria-hidden'),
+      inert: element.hasAttribute('inert'),
+      opacity: Number(style.opacity),
+      visibility: style.visibility,
+    }
+  })
+  expect(exitingState).not.toBeNull()
+  expect(exitingState).toMatchObject({
+    ariaHidden: 'true',
+    inert: true,
+    visibility: 'visible',
+  })
+
+  await expect(sidebar).toHaveCSS('visibility', 'hidden')
+  await expect
+    .poll(async () => (await spacer.boundingBox())?.width)
+    .toBeCloseTo(0, 0)
+
+  await page.locator('[data-app-shell-sidebar-trigger]').click()
+  await expect(sidebar).toHaveClass(/is-docked/)
+  await expect(sidebar).toHaveCSS('visibility', 'visible')
+  await expect
+    .poll(async () => (await spacer.boundingBox())?.width)
+    .toBeCloseTo(initialSidebarBox!.width, 0)
+
+  const [reopenedSidebarBox, reopenedMainBox] = await Promise.all([
+    sidebar.boundingBox(),
+    main.boundingBox(),
+  ])
+  expect(reopenedSidebarBox).not.toBeNull()
+  expect(reopenedMainBox).not.toBeNull()
+  expect(reopenedMainBox!.x).toBeCloseTo(
+    reopenedSidebarBox!.x + reopenedSidebarBox!.width,
+    0,
+  )
+  await expect(page.locator('aside.desktop-sidebar')).toHaveCount(1)
+})
+
+test('workbench panels remain present and layout-isolated while exiting', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightShell = page.locator('.desktop-workspace-panel--right')
+  const rightSurface = rightShell.locator('.desktop-workspace-panel__surface')
+  const main = page.locator('.desktop-main-route')
+  await expect(rightShell).toHaveAttribute(
+    'data-workbench-panel-presence',
+    'open',
+  )
+  await page.waitForTimeout(180)
+  const [rightBefore, surfaceBefore, mainBefore] = await Promise.all([
+    rightShell.boundingBox(),
+    rightSurface.boundingBox(),
+    main.boundingBox(),
+  ])
+  expect(rightBefore).not.toBeNull()
+  expect(surfaceBefore).not.toBeNull()
+  expect(mainBefore).not.toBeNull()
+
+  const rightExit = await page.evaluate(async () => {
+    document
+      .querySelector<HTMLElement>('[aria-label="关闭右侧面板"]')
+      ?.click()
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    const shell = document.querySelector<HTMLElement>(
+      '.desktop-workspace-panel--right',
+    )
+    const immediate = shell
+      ? {
+          ariaHidden: shell.getAttribute('aria-hidden'),
+          inert: shell.hasAttribute('inert'),
+          state: shell.dataset.workbenchPanelPresence,
+        }
+      : null
+    await new Promise(resolve => setTimeout(resolve, 40))
+    const surface = shell?.querySelector<HTMLElement>(
+      '.desktop-workspace-panel__surface',
+    )
+    const mainRoute = document.querySelector<HTMLElement>(
+      '.desktop-main-route',
+    )
+    return {
+      immediate,
+      mainWidth: mainRoute?.getBoundingClientRect().width ?? 0,
+      shellWidth: shell?.getBoundingClientRect().width ?? 0,
+      surfaceWidth: surface?.getBoundingClientRect().width ?? 0,
+    }
+  })
+  expect(rightExit.immediate).toEqual({
+    ariaHidden: 'true',
+    inert: true,
+    state: 'exiting',
+  })
+  expect(rightExit.shellWidth).toBeLessThan(rightBefore!.width)
+  expect(rightExit.shellWidth).toBeGreaterThan(0)
+  expect(rightExit.surfaceWidth).toBeCloseTo(surfaceBefore!.width, 0)
+  expect(rightExit.mainWidth).toBeGreaterThan(mainBefore!.width)
+  await expect(rightShell).toHaveCount(0)
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  await page.waitForTimeout(180)
+  await page.evaluate(async () => {
+    document
+      .querySelector<HTMLElement>('[aria-label="关闭右侧面板"]')
+      ?.click()
+    await new Promise(resolve => setTimeout(resolve, 24))
+    document
+      .querySelector<HTMLElement>('[aria-label="显示右侧面板"]')
+      ?.click()
+  })
+  await expect(rightShell).toHaveCount(1)
+  await expect(rightShell).toHaveAttribute(
+    'data-workbench-panel-presence',
+    'open',
+  )
+  await expect(
+    page.getByRole('complementary', { name: '右侧面板' }),
+  ).toHaveCount(1)
+
+  await page.getByRole('button', { name: '显示底部面板' }).click()
+  const bottomShell = page.locator('.desktop-workspace-panel--bottom')
+  const bottomSurface = bottomShell.locator(
+    '.desktop-workspace-panel__surface',
+  )
+  await page.waitForTimeout(180)
+  const [bottomBefore, bottomSurfaceBefore] = await Promise.all([
+    bottomShell.boundingBox(),
+    bottomSurface.boundingBox(),
+  ])
+  const bottomExit = await page.evaluate(async () => {
+    document
+      .querySelector<HTMLElement>('[aria-label="隐藏底部面板"]')
+      ?.click()
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    const shell = document.querySelector<HTMLElement>(
+      '.desktop-workspace-panel--bottom',
+    )
+    const immediateState = shell?.dataset.workbenchPanelPresence ?? null
+    await new Promise(resolve => setTimeout(resolve, 40))
+    const surface = shell?.querySelector<HTMLElement>(
+      '.desktop-workspace-panel__surface',
+    )
+    return {
+      immediateState,
+      shellHeight: shell?.getBoundingClientRect().height ?? 0,
+      surfaceHeight: surface?.getBoundingClientRect().height ?? 0,
+    }
+  })
+  expect(bottomExit.immediateState).toBe('exiting')
+  expect(bottomExit.shellHeight).toBeLessThan(bottomBefore!.height)
+  expect(bottomExit.shellHeight).toBeGreaterThan(0)
+  expect(bottomExit.surfaceHeight).toBeCloseTo(
+    bottomSurfaceBefore!.height,
+    0,
+  )
+  await expect(bottomShell).toHaveCount(0)
+})
+
 test('turn navigation preview matches Codex geometry and output limits', async ({
   page,
 }) => {
@@ -1497,6 +1741,16 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
   await page.getByRole('button', { name: '显示右侧面板' }).click()
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
   await rightPanel.getByRole('button', { name: /^审阅/ }).click()
+  const sourceMenu = await openAndAssertReviewSourceMenu(page, rightPanel)
+  await expect(sourceMenu).toHaveScreenshot(
+    'desktop-dark-review-source-menu.png',
+    {
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    },
+  )
+  await page.keyboard.press('Escape')
   await expect(
     rightPanel
       .getByLabel(
@@ -1980,4 +2234,19 @@ async function waitForMaterialIcons(root: Page | Locator) {
       root.locator('[data-material-icon-ready="false"]').count(),
     )
     .toBe(0)
+}
+
+async function openAndAssertReviewSourceMenu(
+  page: Page,
+  rightPanel: Locator,
+): Promise<Locator> {
+  await rightPanel.getByRole('button', { name: '切换变更范围' }).click()
+  const menu = page.locator('.popover-review-scope')
+  await expect(menu).toBeVisible()
+  await expect(menu.getByText('未提交', { exact: true })).toBeVisible()
+  await expect(menu.locator('.review-source-menu-separator')).toHaveCount(2)
+  expect(
+    await menu.getByRole('menuitem').allTextContents(),
+  ).toEqual(['上一轮', '未暂存', '已暂存', '提交', '分支'])
+  return menu
 }

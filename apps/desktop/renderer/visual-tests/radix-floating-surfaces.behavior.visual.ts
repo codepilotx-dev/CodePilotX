@@ -26,6 +26,31 @@ test('Radix dropdown stays anchored and uses a solid surface', async ({
   await expect(content).toHaveAttribute('data-side', 'bottom')
   await expectSolidSurface(content)
 
+  const item = content.locator('.popover-item').first()
+  const [itemBox, itemStyles, scrollStyles] = await Promise.all([
+    item.boundingBox(),
+    item.evaluate(element => {
+      const computed = getComputedStyle(element)
+      return {
+        fontSize: Number.parseFloat(computed.fontSize),
+        lineHeight: Number.parseFloat(computed.lineHeight),
+      }
+    }),
+    content.locator('.popover-scroll-content').evaluate(element => {
+      const computed = getComputedStyle(element)
+      return {
+        paddingBlockStart: Number.parseFloat(computed.paddingBlockStart),
+        paddingInlineStart: Number.parseFloat(computed.paddingInlineStart),
+      }
+    }),
+  ])
+  expect(itemBox).not.toBeNull()
+  expect(itemBox!.height).toBeCloseTo(27, 0)
+  expect(itemStyles.fontSize).toBeCloseTo(12, 1)
+  expect(itemStyles.lineHeight).toBeCloseTo(17, 1)
+  expect(scrollStyles.paddingBlockStart).toBeCloseTo(4, 1)
+  expect(scrollStyles.paddingInlineStart).toBeCloseTo(4, 1)
+
   const contentBox = await content.boundingBox()
   expect(contentBox).not.toBeNull()
   expect(contentBox!.y).toBeGreaterThanOrEqual(
@@ -49,6 +74,7 @@ test('Radix popover stays in the viewport and respects reduced motion', async ({
   const colorPopover = page.locator('.appearance-color-popover[data-side]')
   await expect(colorPopover).toBeVisible()
   await expectSolidSurface(colorPopover)
+  await expectSurfacePadding(colorPopover, 4)
 
   await page.keyboard.press('Escape')
   await page.locator('html').evaluate(root => {
@@ -118,10 +144,39 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   ).toBeVisible()
   await expect(content.getByText('复制', { exact: true })).toBeVisible()
 
-  const contentBox = await content.boundingBox()
+  const firstItem = content.locator('.sidebar-context-menu-item').first()
+  const [contentBox, firstItemBox, firstItemStyles] = await Promise.all([
+    content.boundingBox(),
+    firstItem.boundingBox(),
+    firstItem.evaluate(element => {
+      const computed = getComputedStyle(element)
+      return {
+        fontSize: Number.parseFloat(computed.fontSize),
+        lineHeight: Number.parseFloat(computed.lineHeight),
+      }
+    }),
+  ])
   expect(contentBox).not.toBeNull()
+  expect(contentBox!.width).toBeGreaterThanOrEqual(180)
+  expect(firstItemBox).not.toBeNull()
+  expect(firstItemBox!.height).toBeCloseTo(29, 0)
+  expect(firstItemStyles.fontSize).toBeCloseTo(12, 1)
+  expect(firstItemStyles.lineHeight).toBeCloseTo(17, 1)
   expect(Math.abs(contentBox!.x - pointer.x)).toBeLessThan(300)
   expect(Math.abs(contentBox!.y - pointer.y)).toBeLessThan(300)
+
+  const submenuMinWidth = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.className =
+      'sidebar-context-menu-content app-context-menu-sub-content'
+    probe.style.position = 'fixed'
+    probe.style.visibility = 'hidden'
+    document.body.append(probe)
+    const width = probe.getBoundingClientRect().width
+    probe.remove()
+    return width
+  })
+  expect(submenuMinWidth).toBeGreaterThanOrEqual(200)
 })
 
 test('global context menu exposes editor commands and skips blank areas', async ({
@@ -170,7 +225,9 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await editMenuTrigger.click()
   const editMenu = page.locator('.menubar-content[data-state="open"]')
   await editMenu.getByText('全选', { exact: true }).click()
+  await expect(editMenu).toHaveCount(0)
   await editMenuTrigger.click()
+  await expect(editMenu).toBeVisible()
   await page
     .locator('.menubar-content[data-state="open"]')
     .getByText('删除', { exact: true })
@@ -210,4 +267,19 @@ async function expectSolidSurface(content: Locator): Promise<void> {
   expect(styles.backdropFilter).toBe('none')
   expect(styles.backgroundColor).not.toMatch(/rgba\([^)]*,\s*0(?:\.0+)?\)$/)
   expect(styles.animationName).not.toBe('none')
+}
+
+async function expectSurfacePadding(
+  content: Locator,
+  expected: number,
+): Promise<void> {
+  const padding = await content.evaluate(element => {
+    const computed = getComputedStyle(element)
+    return {
+      blockStart: Number.parseFloat(computed.paddingBlockStart),
+      inlineStart: Number.parseFloat(computed.paddingInlineStart),
+    }
+  })
+  expect(padding.blockStart).toBeCloseTo(expected, 1)
+  expect(padding.inlineStart).toBeCloseTo(expected, 1)
 }
