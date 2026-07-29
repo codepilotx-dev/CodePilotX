@@ -891,10 +891,10 @@ function WorkbenchTabsHeader({
         align="end"
         avoidCollisions={false}
         className="popover-right-dock-add popover-menu--grid"
-        collisionPadding={44}
+        collisionPadding={6}
         open={menuOpen}
         side="bottom"
-        sideOffset={12}
+        sideOffset={4}
         width={220}
         trigger={
           <button

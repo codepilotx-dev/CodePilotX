@@ -211,8 +211,8 @@ function ColorControl({
           <Popover.Content
             align="end"
             className="popover-surface appearance-color-popover"
-            collisionPadding={12}
-            sideOffset={6}
+            collisionPadding={6}
+            sideOffset={4}
           >
             <ColorPalette
               value={normalizedValue}
@@ -793,7 +793,7 @@ function VariantThemeEditor({
             showSelectedIndicator
             value={codeThemeId}
             variant="theme"
-            width={176}
+            width={180}
             onChange={nextId => {
               const nextCodeThemeId =
                 nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]

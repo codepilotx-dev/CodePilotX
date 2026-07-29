@@ -162,6 +162,7 @@ function AppMenu({
         <Menubar.Content
           align="start"
           className={['popover-surface', 'menubar-content', contentClassName].join(' ')}
+          collisionPadding={6}
           data-edit-command-preserve-target
           sideOffset={4}
           style={buildPopoverSizingStyle({ width, maxWidth })}

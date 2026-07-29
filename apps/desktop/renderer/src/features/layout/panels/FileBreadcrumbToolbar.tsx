@@ -205,7 +205,7 @@ export function FileBreadcrumbToolbar({
             className="file-breadcrumb-open-popover popover-menu--grid"
             open={openTargetMenu}
             side="bottom"
-            sideOffset={6}
+            sideOffset={4}
             width={220}
             trigger={
               <button

@@ -172,7 +172,7 @@ export function ConfigSettings(): React.ReactNode {
           actions={
             <div className="settings-actions">
               <SettingsDropdown
-                width={150}
+                width={160}
                 ariaLabel="配置层"
                 value={configLayer}
                 options={[

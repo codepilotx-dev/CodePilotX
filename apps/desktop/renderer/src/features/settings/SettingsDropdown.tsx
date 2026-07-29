@@ -105,13 +105,13 @@ function SelectSettingsDropdown({
           data-variant={variant}
           position="popper"
           side="bottom"
-          sideOffset={1}
+          sideOffset={4}
           style={buildPopoverSizingStyle({
             width,
             maxWidth:
               maxWidth ??
               (isThemeVariant
-                ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
+                ? 'min(360px, calc(100vw - 16px))'
                 : undefined),
           })}
         >
@@ -303,7 +303,7 @@ function SearchableSettingsDropdown({
           collisionPadding={6}
           data-variant={variant}
           side="bottom"
-          sideOffset={1}
+          sideOffset={4}
           style={buildPopoverSizingStyle({
             width:
               width ??
@@ -311,7 +311,7 @@ function SearchableSettingsDropdown({
             maxWidth:
               maxWidth ??
               (variant === 'theme'
-                ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
+                ? 'min(360px, calc(100vw - 16px))'
                 : undefined),
           })}
         >

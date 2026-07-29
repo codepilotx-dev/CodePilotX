@@ -46,8 +46,35 @@
 }
 
 .popover.popover-thread-summary-branch {
+  --popover-surface-padding: 6px;
+  --menu-font-size: var(--type-control);
+  --menu-line-height: normal;
+  --menu-item-padding-block: 6px;
+  --menu-item-padding-inline: 8px;
+  --menu-item-gap: var(--control-gap);
+  --menu-icon-size: var(--app-icon-size);
+
   width: min(360px, calc(100vw - 32px));
   max-height: min(320px, calc(100vh - 96px));
+  padding: 4px;
+
+  .popover-item,
+  .popover-sub-trigger {
+    min-height: 32px;
+    border-radius: var(--radius-3);
+  }
+
+  .popover-section-title {
+    padding: var(--space-1) 10px 6px;
+    font-size: var(--type-caption);
+    line-height: normal;
+  }
+
+  .popover-empty {
+    padding: var(--space-3) 10px;
+    font-size: var(--type-secondary);
+    line-height: normal;
+  }
 }
 
 .popover.popover-branch,

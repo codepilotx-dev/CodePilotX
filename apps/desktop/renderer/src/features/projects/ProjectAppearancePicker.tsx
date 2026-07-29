@@ -52,9 +52,9 @@ export function ProjectAppearancePicker({
         <Popover.Content
           align="start"
           className="project-appearance-popover"
-          collisionPadding={12}
+          collisionPadding={6}
           side="bottom"
-          sideOffset={8}
+          sideOffset={4}
         >
           <div
             aria-label="项目颜色"

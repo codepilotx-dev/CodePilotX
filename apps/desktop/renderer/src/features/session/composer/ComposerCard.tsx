@@ -1416,10 +1416,10 @@ export function ComposerCard({
                 <Select.Content
                   align="start"
                   className="popover-surface permission-select-content"
-                  collisionPadding={12}
+                  collisionPadding={6}
                   position="popper"
                   side="bottom"
-                  sideOffset={6}
+                  sideOffset={4}
                   style={buildPopoverSizingStyle({ width: 300 })}
                 >
                   <Select.Viewport className="permission-select-scroll-area">
@@ -1653,8 +1653,9 @@ export function ComposerCard({
                 <DropdownMenu.Content
                   className="popover-surface rm-model-menu"
                   align="end"
+                  collisionPadding={6}
                   side="top"
-                  sideOffset={6}
+                  sideOffset={4}
                   style={buildPopoverSizingStyle({ width: 200 })}
                 >
                   <div className="rm-model-menu-scroll-content">
@@ -1799,8 +1800,9 @@ export function ComposerCard({
                         <DropdownMenu.Portal>
                           <DropdownMenu.SubContent
                             className="popover-surface rm-model-menu rm-model-submenu"
-                            alignOffset={-6}
-                            sideOffset={16}
+                            alignOffset={-4}
+                            collisionPadding={6}
+                            sideOffset={4}
                             style={buildPopoverSizingStyle({
                               width: "auto",
                               maxWidth:

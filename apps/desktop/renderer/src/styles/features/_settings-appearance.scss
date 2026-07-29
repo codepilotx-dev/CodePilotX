@@ -1,7 +1,7 @@
 /* Theme-aware settings controls and the Codex appearance editor. */
 .settings-dropdown[data-variant="theme"] {
-  width: 11rem;
-  min-width: 11rem;
+  width: 180px;
+  min-width: 180px;
   height: 36px;
   padding: 0 10px;
   border-radius: 8px;
@@ -11,7 +11,7 @@
   width: var(--popover-width, 11rem);
   max-width: var(
     --popover-max-width,
-    min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))
+    min(360px, calc(100vw - 16px))
   );
   max-height: min(320px, calc(100vh - 96px));
 
@@ -316,7 +316,7 @@
 
 .appearance-color-popover {
   width: auto;
-  padding: 12px;
+  padding: var(--menu-surface-padding);
 }
 
 .appearance-color-palette {

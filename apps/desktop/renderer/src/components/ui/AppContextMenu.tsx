@@ -46,7 +46,9 @@ export type AppContextMenuProps = {
   variant?: 'solid' | 'soft'
   onOpenChange?: (open: boolean) => void
   includeEditActions?: boolean
-} & PopoverSizingProps
+} & Omit<PopoverSizingProps, 'width'> & {
+    width?: PopoverSizingProps['width']
+  }
 
 export function AppContextMenu({
   trigger,
@@ -54,7 +56,8 @@ export function AppContextMenu({
   layout,
   size = '1',
   variant = 'soft',
-  width,
+  width = 'auto',
+  maxWidth,
   onOpenChange,
   includeEditActions = true,
 }: AppContextMenuProps): ReactNode {
@@ -103,13 +106,14 @@ export function AppContextMenu({
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content
-          className={`app-context-menu-content sidebar-context-menu-content app-context-menu--${layout}`}
+          className={`app-context-menu-content app-context-menu-root sidebar-context-menu-content app-context-menu--${layout}`}
+          collisionPadding={6}
           data-size={size}
           data-variant={variant}
-          style={buildPopoverSizingStyle({ width })}
+          style={buildPopoverSizingStyle({ width, maxWidth })}
         >
           {mergedActions.map((action, index) =>
-            renderAction(action, index, width),
+            renderAction(action, index),
           )}
         </ContextMenu.Content>
       </ContextMenu.Portal>
@@ -120,7 +124,6 @@ export function AppContextMenu({
 function renderAction(
   action: AppContextMenuAction,
   key: number,
-  width: PopoverSizingProps['width'],
 ): ReactNode {
   switch (action.kind) {
     case 'separator':
@@ -150,12 +153,14 @@ function renderAction(
           </ContextMenu.SubTrigger>
           <ContextMenu.Portal>
             <ContextMenu.SubContent
-              className={`app-context-menu-content sidebar-context-menu-content app-context-menu--${action.layout}`}
-              sideOffset={16}
-              style={buildPopoverSizingStyle({ width })}
+              alignOffset={-4}
+              className={`app-context-menu-content app-context-menu-sub-content sidebar-context-menu-content app-context-menu--${action.layout}`}
+              collisionPadding={6}
+              sideOffset={4}
+              style={buildPopoverSizingStyle({ width: 'auto' })}
             >
               {action.children.map((child, childKey) =>
-                renderAction(child, childKey, width),
+                renderAction(child, childKey),
               )}
             </ContextMenu.SubContent>
           </ContextMenu.Portal>

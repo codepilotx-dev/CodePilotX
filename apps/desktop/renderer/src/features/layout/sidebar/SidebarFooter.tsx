@@ -273,12 +273,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.SubContent
-                  alignOffset={-6}
+                  alignOffset={-4}
                   aria-label="剩余用量详情"
                   className="popover-surface popover popover-sub-content popover-usage-submenu"
-                  sideOffset={16}
+                  collisionPadding={6}
+                  sideOffset={4}
                   style={buildPopoverSizingStyle({
-                    width: 300,
+                    width: 280,
                     maxWidth: "calc(100vw - 16px)",
                   })}
                 >
@@ -406,7 +407,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         className="popover-sidebar-help popover-menu--grid"
         open={helpMenuOpen}
         side="top"
-        width={190}
+        width={180}
         trigger={
           <IconButton
             className="sidebar-help-button"

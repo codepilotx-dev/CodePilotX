@@ -693,7 +693,7 @@ function ApiKeyRow({
               <MoreHorizontal aria-hidden />
             </IconButton>
           )}
-          width={190}
+          width={180}
         >
           <PopoverItem
             disabled={

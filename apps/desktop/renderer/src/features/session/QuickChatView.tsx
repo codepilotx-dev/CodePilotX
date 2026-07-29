@@ -251,7 +251,7 @@ export function QuickChatView(): React.ReactNode {
                   open={projectMenuOpen}
                   recentWorkspaces={recentWorkspaces}
                   side="top"
-                  sideOffset={6}
+                  sideOffset={4}
                   trigger={
                     <button
                       aria-label="选择项目"

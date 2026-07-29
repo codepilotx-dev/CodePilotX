@@ -19,12 +19,12 @@
   position: relative;
   width: 100%;
   align-items: center;
-  padding: var(--control-padding-block)
-    var(--control-padding-inline-compact);
-  border-radius: 8px;
+  padding: var(--menu-item-padding-block)
+    var(--menu-item-padding-inline);
+  border-radius: var(--radius-5);
   color: var(--color-token-foreground);
-  font-size: var(--type-control);
-
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
   text-align: left;
   cursor: pointer;
   outline: none;
@@ -40,7 +40,7 @@
   .popover-item,
   .popover-sub-trigger {
     display: flex;
-    gap: var(--control-gap);
+    gap: var(--menu-item-gap);
   }
 
   .popover-item-leading {
@@ -62,8 +62,15 @@
   .popover-item,
   .popover-sub-trigger {
     display: grid;
-    grid-template-columns: var(--app-icon-size) minmax(min-content, 1fr) max-content;
-    column-gap: var(--control-gap);
+    grid-template-columns: var(--menu-icon-size) minmax(min-content, 1fr) max-content;
+    column-gap: var(--menu-item-gap);
+  }
+
+  .popover-item.rich {
+    grid-template-columns:
+      calc(var(--menu-icon-size) + 2px)
+      minmax(min-content, 1fr)
+      max-content;
   }
 }
 
@@ -71,7 +78,7 @@
   .sidebar-context-menu-item,
   .sidebar-context-menu-sub-trigger {
     display: flex;
-    gap: var(--control-gap);
+    gap: var(--menu-item-gap);
   }
 
   .sidebar-context-menu-leading {
@@ -93,15 +100,18 @@
   .sidebar-context-menu-item,
   .sidebar-context-menu-sub-trigger {
     display: grid;
-    grid-template-columns: var(--app-icon-size) minmax(min-content, 1fr) max-content;
-    column-gap: var(--control-gap);
+    grid-template-columns:
+      calc(var(--menu-icon-size) + 2px)
+      minmax(min-content, 1fr)
+      max-content;
+    column-gap: var(--menu-item-gap);
   }
 }
 
 .menubar-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
-  column-gap: calc(var(--control-gap) + var(--control-gap));
+  column-gap: calc(var(--menu-item-gap) + var(--menu-item-gap));
 }
 
 .popover-menu-heading,
@@ -110,7 +120,12 @@
 .rm-model-menu .rm-menu-item,
 .rm-model-menu .rm-sub-trigger {
   display: flex;
-  gap: var(--control-gap);
+  gap: var(--menu-item-gap);
+}
+
+.sidebar-context-menu-item,
+.sidebar-context-menu-sub-trigger {
+  padding: var(--context-menu-item-padding);
 }
 
 /* --- Disabled State --- */

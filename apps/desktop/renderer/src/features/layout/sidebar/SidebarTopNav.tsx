@@ -111,7 +111,7 @@ export function SidebarHeader(): React.ReactNode {
         className="popover-menu--flex"
         open={modeMenuOpen}
         side="bottom"
-        width={184}
+        width={180}
         trigger={
           <button
             aria-label={`切换工作模式，当前为 ${PRODUCT_MODE_LABELS[sidebarProductMode]}`}

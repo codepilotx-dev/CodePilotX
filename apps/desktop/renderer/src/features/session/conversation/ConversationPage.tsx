@@ -1117,9 +1117,10 @@ function SessionSubmenu({
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
-          alignOffset={-6}
+          alignOffset={-4}
           className="popover-surface popover popover-sub-content popover-menu--grid"
-          sideOffset={16}
+          collisionPadding={6}
+          sideOffset={4}
           style={buildPopoverSizingStyle({ width: "auto" })}
         >
           {children}

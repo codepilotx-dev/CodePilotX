@@ -23,7 +23,7 @@ export function PopoverMenu({
   className = '',
   open,
   side,
-  sideOffset = 6,
+  sideOffset = 4,
   collisionPadding,
   avoidCollisions,
   trigger,

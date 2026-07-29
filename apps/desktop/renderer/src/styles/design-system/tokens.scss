@@ -75,6 +75,16 @@
   --font-size-24: calc(var(--font-size-ui) + 10px);
   --font-size-26: calc(var(--font-size-ui) + 12px);
 
+  --menu-font-size: max(11px, calc(var(--font-size-ui) - 2px));
+  --menu-line-height: calc(var(--menu-font-size) + 5px);
+  --menu-detail-font-size: max(10px, calc(var(--font-size-ui) - 3px));
+  --menu-surface-padding: 4px;
+  --menu-item-padding-block: 5px;
+  --menu-item-padding-inline: 8px;
+  --menu-item-gap: 6px;
+  --menu-icon-size: calc(var(--menu-font-size) + 4px);
+  --context-menu-item-padding: 6px;
+
   --control-line-height: 1.4;
   --control-padding-block-compact: 0.4em;
   --control-padding-block: 0.45em;
