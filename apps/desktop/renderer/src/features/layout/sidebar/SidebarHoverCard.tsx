@@ -1,5 +1,6 @@
 import type React from 'react'
 import { cloneElement, useCallback, useEffect, useRef } from 'react'
+import { AnimatePresence } from 'motion/react'
 
 export type SidebarHoverCardOverlayRenderProps = {
   anchorRef: React.RefObject<HTMLElement | null>
@@ -110,17 +111,29 @@ export function SidebarHoverCard({
   return (
     <>
       {anchor}
-      {open
-        ? renderOverlay({
-            anchorRef,
-            closeAfterDelay,
-            keepOpen,
-            returnFocusToAnchor,
-            requestOpenChange,
-          })
-        : null}
+      <AnimatePresence initial={false}>
+        {open ? (
+          <SidebarHoverCardOverlayPresence key="sidebar-hover-card-overlay">
+            {renderOverlay({
+              anchorRef,
+              closeAfterDelay,
+              keepOpen,
+              returnFocusToAnchor,
+              requestOpenChange,
+            })}
+          </SidebarHoverCardOverlayPresence>
+        ) : null}
+      </AnimatePresence>
     </>
   )
+}
+
+function SidebarHoverCardOverlayPresence({
+  children,
+}: {
+  children: React.ReactNode
+}): React.ReactNode {
+  return children
 }
 
 export function focusSidebarHoverCardAnchor(

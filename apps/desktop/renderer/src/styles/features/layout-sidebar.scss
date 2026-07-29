@@ -12,10 +12,7 @@
   background: var(--color-token-side-bar-background);
   color: var(--color-token-foreground);
   user-select: none;
-  transition:
-    width var(--motion-emphasis) var(--ease-standard),
-    transform var(--motion-emphasis) var(--ease-standard),
-    opacity var(--motion-fast) var(--ease-out);
+  transition: width var(--motion-emphasis) var(--ease-standard);
 
   &.is-resizing {
     transition: none;
@@ -27,7 +24,6 @@
 
   &.is-collapsed {
     pointer-events: none;
-    visibility: hidden;
   }
 
   &.is-floating {
@@ -113,9 +109,9 @@
 }
 
 .desktop-sidebar-spacer {
-  width: var(--sidebar-current-width);
-  flex: 0 0 var(--sidebar-current-width);
-  transition: width var(--motion-emphasis) var(--ease-standard);
+  width: 0;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .sidebar-layout {
@@ -535,9 +531,9 @@
 
 .sidebar-hover-card-surface {
   z-index: var(--z-tooltip);
-  min-width: 224px;
+  min-width: 220px;
   max-width: min(320px, calc(100vw - 16px));
-  padding: 8px;
+  padding: 4px;
   border: 1px solid var(--color-token-menu-border);
   border-radius: var(--radius-6);
   color: var(--color-token-foreground);
@@ -558,8 +554,9 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 8px;
-  line-height: 20px;
+  gap: 6px;
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
 }
 
 .sidebar-hover-card-divider {
@@ -708,9 +705,10 @@
 
 .popover-sidebar-organize {
   .popover-sidebar-organize-heading {
-    padding: 8px 12px 4px;
+    padding: 4px 8px;
     color: var(--color-token-description-foreground);
-    font-size: var(--type-secondary);
+    font-size: var(--menu-detail-font-size);
+    line-height: var(--menu-line-height);
     font-weight: var(--font-weight-label);
   }
 
@@ -854,14 +852,14 @@
 
 .popover-account-row {
   .popover-item {
-    grid-template-columns: 22px minmax(min-content, 1fr) max-content;
+    grid-template-columns: 18px minmax(min-content, 1fr) max-content;
   }
 
   .popover-item-leading,
   .popover-item-icon,
   .popover-account-avatar {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
   }
 
   .popover-item-label {
@@ -895,7 +893,7 @@
 .popover-usage-submenu {
   --popover-overflow-y: hidden;
 
-  padding: 8px;
+  padding: var(--menu-surface-padding);
 }
 
 .popover-usage-content,
@@ -913,12 +911,12 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--control-gap);
-  padding: var(--control-padding-block) var(--control-padding-inline);
-  border-radius: var(--radius-4);
+  gap: var(--menu-item-gap);
+  padding: var(--menu-item-padding-block) var(--menu-item-padding-inline);
+  border-radius: 10px;
   color: var(--color-token-text-secondary);
-  font-size: var(--type-body);
-  line-height: 1.4;
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
 }
 
 .popover-usage-label {
@@ -932,14 +930,14 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: flex-end;
-  gap: 2px var(--control-gap);
+  gap: 2px var(--menu-item-gap);
   text-align: right;
 }
 
 .popover-usage-amount,
 .popover-usage-reset {
   color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
+  font-size: var(--menu-detail-font-size);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -956,10 +954,10 @@
 }
 
 .popover-usage-empty {
-  padding: 12px 10px;
+  padding: 8px;
   color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
-  line-height: 1.5;
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
   text-align: center;
 }
 
@@ -971,15 +969,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--control-gap);
+  gap: var(--menu-item-gap);
   width: 100%;
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--menu-item-padding-block) var(--menu-item-padding-inline);
   border: 0;
-  border-radius: var(--radius-4);
+  border-radius: 10px;
   background: transparent;
   color: var(--color-token-foreground);
-  font-size: var(--type-control);
-  line-height: var(--control-line-height);
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
   text-align: left;
   cursor: pointer;
   transition: background var(--motion-fast) var(--ease-out);

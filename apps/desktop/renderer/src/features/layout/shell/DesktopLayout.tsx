@@ -91,6 +91,7 @@ import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceControll
 import { useModelProviderController } from '../useModelProviderController.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
+import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
 import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
 import type {
   MarkdownFileOpenOptions,
@@ -310,6 +311,7 @@ export function DesktopLayout(): React.ReactNode {
     bottomPanelState,
     bottomPanelVisible,
     workspaceRef,
+    workspaceWidth,
     rightDockVisible,
     rightDockMinWidth,
     rightDockMaxWidth,
@@ -339,6 +341,7 @@ export function DesktopLayout(): React.ReactNode {
   } = useWorkbenchShellController()
   const rightDockFullWidth =
     rightDockVisible && workbenchPanelState.rightFullWidth
+  const mainRouteRef = useRef<HTMLDivElement>(null)
   const visibleRightDockState = useMemo(
     () => ({
       ...rightDockState,
@@ -2863,44 +2866,37 @@ export function DesktopLayout(): React.ReactNode {
                   />
                   <div className="desktop-workspace__upper">
                     <div
+                      ref={mainRouteRef}
                       className="desktop-main-route"
-                      style={
-                        {
-                          flexBasis: rightDockFullWidth ? 0 : undefined,
-                          width: rightDockFullWidth ? 0 : undefined,
-                        } as React.CSSProperties
-                      }
+                      tabIndex={-1}
                     >
                       <div aria-hidden="true" className="desktop-main-route__header-spacer" />
                       <div className="desktop-main-route__body">
                         <Outlet context={outletContext} />
                       </div>
                     </div>
-                    {rightDockNode ? (
-                      <div
-                        className={
-                          rightDockFullWidth
-                            ? 'desktop-workspace-panel desktop-workspace-panel--right full-width'
-                            : 'desktop-workspace-panel desktop-workspace-panel--right'
-                        }
-                        style={{
-                          width: rightDockFullWidth
-                            ? '100%'
-                            : `${rightDockWidth}px`,
-                        }}
-                      >
-                        {rightDockNode}
-                      </div>
-                    ) : null}
-                  </div>
-                  {bottomPanelNode ? (
-                    <div
-                      className="desktop-workspace-panel desktop-workspace-panel--bottom"
-                      style={{ height: `${bottomPanelHeight}px` }}
+                    <WorkbenchPanelPresence
+                      fullWidth={rightDockFullWidth}
+                      mainRouteRef={mainRouteRef}
+                      size={
+                        rightDockFullWidth
+                          ? Math.max(workspaceWidth, rightDockWidth)
+                          : rightDockWidth
+                      }
+                      target="right"
+                      visible={rightDockVisible}
                     >
-                      {bottomPanelNode}
-                    </div>
-                  ) : null}
+                      {rightDockNode}
+                    </WorkbenchPanelPresence>
+                  </div>
+                  <WorkbenchPanelPresence
+                    mainRouteRef={mainRouteRef}
+                    size={bottomPanelHeight}
+                    target="bottom"
+                    visible={bottomPanelVisible}
+                  >
+                    {bottomPanelNode}
+                  </WorkbenchPanelPresence>
                 </div>
               </WorkspaceHeaderProvider>
             </SearchContext.Provider>

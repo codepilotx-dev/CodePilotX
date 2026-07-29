@@ -408,6 +408,7 @@ export function useWorkbenchShellController() {
     bottomPanelState,
     bottomPanelVisible: bottomPanelState.open,
     workspaceRef,
+    workspaceWidth: workspaceSize.width,
     rightDockVisible,
     rightDockMinWidth: RIGHT_DOCK_MIN_WIDTH,
     rightDockMaxWidth,
