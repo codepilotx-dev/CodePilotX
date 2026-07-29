@@ -1,14 +1,25 @@
 import React from 'react'
 import { FileIcon, FolderIcon } from '@codepilotx/material-icon-theme'
-import { formatReviewCount } from '../diff/reviewFormat.js'
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   MessageSquare,
+  SquareArrowRight,
+  SquareDashed,
+  SquareDot,
+  SquareMinus,
+  SquarePlus,
+  type LucideIcon,
 } from 'lucide-react'
 import type { DesktopReviewDiffFile } from '../../../../shared/types.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import type { ReviewFileTreeNode } from './buildReviewFileTree.js'
+import {
+  normalizeReviewFileStatus,
+  reviewFileStatusLabel,
+  type ReviewFileStatusKind,
+} from './reviewFileStatus.js'
 
 type Props = {
   commentCountsByPath?: Readonly<Record<string, number>>
@@ -57,9 +68,15 @@ export function ReviewFileTreeNode({
             size={APP_ICON_SIZE}
           />
           <span className="review-file-tree-dir-label">{node.dirLabel}</span>
-          {dirCommentCount > 0 ? (
-            <span className="review-comment-badge">{dirCommentCount}</span>
-          ) : null}
+          <span className="review-file-tree-trailing">
+            {dirCommentCount > 0 ? (
+              <span className="review-comment-badge">{dirCommentCount}</span>
+            ) : null}
+            <span
+              aria-hidden="true"
+              className="review-file-tree-directory-status"
+            />
+          </span>
         </button>
       ) : null}
 
@@ -110,11 +127,13 @@ function ReviewFileRow({
   onSelect: (path: string) => void
 }): React.ReactNode {
   const displayName = basenameOf(file.path)
+  const status = normalizeReviewFileStatus(file)
+  const statusLabel = reviewFileStatusLabel(status)
   return (
     <button
       className={active ? 'review-file-tree-row active' : 'review-file-tree-row'}
       style={{ paddingLeft: `${12 + depth * 14}px` }}
-      title={file.path}
+      title={`${file.path} · ${statusLabel}`}
       type="button"
       onClick={() => onSelect(file.path)}
     >
@@ -125,22 +144,45 @@ function ReviewFileRow({
         size={APP_ICON_SIZE}
       />
       <span className="review-file-path">{displayName}</span>
-      {commentCount > 0 ? (
-        <span className="review-comment-badge">
-          <MessageSquare size={12} />
-          {commentCount}
-        </span>
-      ) : null}
-      <span className="review-file-counts">
-        <strong>+{formatPanelNumber(file.additions)}</strong>
-        <em>-{formatPanelNumber(file.deletions)}</em>
+      <span className="review-file-tree-trailing">
+        {commentCount > 0 ? (
+          <span className="review-comment-badge">
+            <MessageSquare size={12} />
+            {commentCount}
+          </span>
+        ) : null}
+        <ReviewFileStatusIcon status={status} />
       </span>
     </button>
   )
 }
 
-function formatPanelNumber(value: number): string {
-  return formatReviewCount(value)
+const REVIEW_FILE_STATUS_ICONS: Record<ReviewFileStatusKind, LucideIcon> = {
+  added: SquarePlus,
+  deleted: SquareMinus,
+  modified: SquareDot,
+  renamed: SquareArrowRight,
+  copied: Copy,
+  unknown: SquareDashed,
+}
+
+function ReviewFileStatusIcon({
+  status,
+}: {
+  status: ReviewFileStatusKind
+}): React.ReactNode {
+  const Icon = REVIEW_FILE_STATUS_ICONS[status]
+  const label = reviewFileStatusLabel(status)
+  return (
+    <span
+      aria-label={`Git 状态：${label}`}
+      className="review-file-tree-status"
+      data-git-status={status}
+      title={label}
+    >
+      <Icon aria-hidden="true" size={APP_ICON_SIZE} />
+    </span>
+  )
 }
 
 function basenameOf(path: string): string {

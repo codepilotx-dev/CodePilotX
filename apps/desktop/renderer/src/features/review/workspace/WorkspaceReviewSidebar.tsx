@@ -1,12 +1,10 @@
 import React from "react";
 import { FileIcon } from "@codepilotx/material-icon-theme";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { VList } from "virtua";
 import {
   Briefcase,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   Clipboard,
   Code2,
   Columns2,
@@ -53,7 +51,6 @@ import {
 import { Button } from "../../../components/ui/Button.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
-import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { SearchInput } from "../../../components/ui/SearchInput.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
@@ -79,11 +76,9 @@ import { useDesktopTheme } from "../../theme/themeContext.js";
 import {
   ReviewFileRequestCoordinator,
   reviewAgentClient,
-  pickDefaultReviewBaseBranch,
   retainCurrentReviewFileDiffs,
   reviewLoadStateForError,
   reviewSourceKey,
-  reviewSourceLabel,
   summaryFileToDesktop,
   type ReviewBranch,
   type ReviewCommit,
@@ -91,6 +86,7 @@ import {
   type ReviewLoadState,
   type ReviewSummarySnapshot,
 } from "../source/reviewAgentClient.js";
+import { ReviewSourceMenu } from "../source/ReviewSourceMenu.js";
 import {
   createReviewCommentIdentity,
   createReviewSummaryIdentity,
@@ -103,7 +99,6 @@ import {
   ListChevronsDownUp,
   ListChevronsUpDown,
   REVIEW_FILE_TREE_PANEL_MIN_WIDTH,
-  ReviewCommitSourceSubmenu,
   ReviewComment,
   ReviewDiffPreview,
   ReviewProjectEmptyState,
@@ -111,14 +106,15 @@ import {
   buildReviewComposerPrompt,
   copyGitApplyCommand,
   errorMessageOf,
-  filterStatusForFile,
   formatPanelNumber,
-  formatRelativeCommitTime,
   parseGithubPullRequestUrl,
   type CommentDraft,
   type ReviewFileLoadState,
-  type ReviewFilter,
 } from "../diff/WorkspaceReviewDiff.js";
+import {
+  filterStatusForFile,
+  type ReviewFilter,
+} from "./reviewFileStatus.js";
 
 const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH =
   REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260;
@@ -1785,118 +1781,19 @@ function WorkspaceReviewSidebarImpl({
         }
       >
         <div className="review-sidebar-title">
-          <PopoverMenu
-            align="start"
-            avoidCollisions={false}
-            className="popover-review-scope popover-menu--flex"
+          <ReviewSourceMenu
+            branches={branches}
+            commits={commits}
             open={scopeMenuOpen}
-            side="bottom"
-            sideOffset={4}
-            width={200}
-            trigger={
-              <button
-                aria-label="切换变更范围"
-                className="review-scope-trigger"
-                type="button"
-              >
-                <span className="review-scope-trigger-label">
-                  {reviewSourceLabel(source)}
-                </span>
-                <ChevronDown size={APP_ICON_SIZE} />
-              </button>
-            }
+            source={source}
+            sourceOptionsState={sourceOptionsState}
             onOpenChange={setScopeMenuOpen}
-          >
-            <PopoverItem
-              selected={source.kind === "unstaged"}
-              withCheck
-              onClick={() => {
-                selectSource({ kind: "unstaged" });
-              }}
-            >
-              未暂存
-            </PopoverItem>
-            <PopoverItem
-              selected={source.kind === "staged"}
-              withCheck
-              onClick={() => {
-                selectSource({ kind: "staged" });
-              }}
-            >
-              已暂存
-            </PopoverItem>
-            <ReviewCommitSourceSubmenu>
-              {sourceOptionsState === "loading" ? (
-                <div className="review-source-submenu-message">
-                  正在加载提交…
-                </div>
-              ) : sourceOptionsState === "error" ? (
-                <>
-                  <div className="review-source-submenu-message">
-                    无法加载提交记录
-                  </div>
-                  <PopoverItem
-                    onClick={() =>
-                      setSourceOptionsRetry((current) => current + 1)
-                    }
-                  >
-                    重试
-                  </PopoverItem>
-                </>
-              ) : commits.length === 0 ? (
-                <div className="review-source-submenu-message">
-                  分支上暂无提交记录
-                </div>
-              ) : (
-                <div className="review-source-commit-list">
-                  {commits.map((commit) => (
-                    <PopoverItem
-                      key={`commit:${commit.sha}`}
-                      selected={
-                        source.kind === "commit" &&
-                        source.commitSha === commit.sha
-                      }
-                      withCheck
-                      onClick={() =>
-                        selectSource({
-                          kind: "commit",
-                          commitSha: commit.sha,
-                        })
-                      }
-                    >
-                      <span
-                        className="review-source-commit-row"
-                        title={commit.subject || commit.shortSha}
-                      >
-                        <span>{commit.subject || "无提交信息"}</span>
-                        <small>{formatRelativeCommitTime(commit.authoredAt)}</small>
-                      </span>
-                    </PopoverItem>
-                  ))}
-                </div>
-              )}
-            </ReviewCommitSourceSubmenu>
-            <PopoverItem
-              disabled={pickDefaultReviewBaseBranch(branches) === null}
-              selected={source.kind === "branch"}
-              withCheck
-              onClick={() => {
-                const baseBranch = pickDefaultReviewBaseBranch(branches);
-                if (baseBranch) {
-                  selectSource({ kind: "branch", baseBranch });
-                }
-              }}
-            >
-              分支
-            </PopoverItem>
-            <PopoverItem
-              selected={source.kind === "last-turn"}
-              withCheck
-              onClick={() => void handleLastTurnScope()}
-            >
-              上一轮
-            </PopoverItem>
-          </PopoverMenu>
+            onRetry={() =>
+              setSourceOptionsRetry((current) => current + 1)
+            }
+            onSelectLastTurn={() => void handleLastTurnScope()}
+            onSelectSource={selectSource}
+          />
           {summary ? (
             totals.additions > 0 || totals.deletions > 0 ? (
               <span className="review-sidebar-counts">
@@ -2253,15 +2150,17 @@ function WorkspaceReviewSidebarImpl({
                 className="review-file-tree-panel-content"
                 data-resize-skeleton-content="true"
               >
-                <SearchInput
-                  ref={fileSearchInputRef}
-                  aria-label="筛选文件"
-                  className="review-file-search"
-                  onChange={setSearch}
-                  placeholder="筛选文件..."
-                  value={search}
-                  variant="embedded"
-                />
+                <div className="review-file-search-region">
+                  <SearchInput
+                    ref={fileSearchInputRef}
+                    aria-label="筛选文件"
+                    className="review-file-search"
+                    onChange={setSearch}
+                    placeholder="筛选文件..."
+                    value={search}
+                    variant="compact"
+                  />
+                </div>
 
                 <ScrollArea
                   className="review-file-tree-scroll"
@@ -2409,7 +2308,7 @@ function WorkspaceReviewSidebarImpl({
         branchName={gitStatus?.branchName ?? "HEAD"}
         deletions={totals.deletions}
         open={commitPopoverOpen}
-        width={420}
+        width={384}
         onClose={() => setCommitPopoverOpen(false)}
         onCommit={handleCommit}
         onCommitAndPush={handleCommitAndPush}
@@ -2423,7 +2322,7 @@ function WorkspaceReviewSidebarImpl({
         defaultBranch={defaultBranch}
         deletions={totals.deletions}
         open={prPopoverOpen}
-        width={420}
+        width={384}
         onClose={() => setPrPopoverOpen(false)}
         onCreateDraftPR={handleCreateDraftPR}
         onCreatePR={handleCreatePR}

@@ -1,6 +1,5 @@
 import React from "react";
 import { FileIcon } from "@codepilotx/material-icon-theme";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { VList } from "virtua";
 import {
   Briefcase,
@@ -53,7 +52,6 @@ import {
 } from "../../../components/ui/iconTokens.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
-import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { ReviewResizeSkeleton } from "./ReviewResizeSkeleton.js";
@@ -97,8 +95,6 @@ import {
   type ReviewLoadState,
   type ReviewSummarySnapshot,
 } from "../source/reviewAgentClient.js";
-
-export type ReviewFilter = "all" | "added" | "modified" | "removed";
 
 export type ReviewDisplayPath = {
   directory: string;
@@ -2130,60 +2126,6 @@ export function commentKey(anchor: CommentAnchor): string {
   return `${anchor.filePath}\u0000${anchor.side}\u0000${anchor.lineNumber}\u0000${anchor.lineContent}`;
 }
 
-export function filterStatusForFile(file: DesktopReviewDiffFile): ReviewFilter {
-  if (file.isUntracked) return "added";
-  const trimmed = file.status.trim();
-  if (trimmed.startsWith("A") || trimmed.startsWith("??")) return "added";
-  if (trimmed.startsWith("D")) return "removed";
-  return "modified";
-}
-
-export function reviewFilterLabel(filter: ReviewFilter): string {
-  switch (filter) {
-    case "added":
-      return "新增";
-    case "modified":
-      return "修改";
-    case "removed":
-      return "删除";
-    default:
-      return "全部";
-  }
-}
-
-export function ReviewCommitSourceSubmenu({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.ReactNode {
-  return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger
-        className="popover-item popover-sub-trigger"
-        tabIndex={-1}
-      >
-        <span className="popover-item-label">提交</span>
-        <span className="popover-item-trailing">
-          <ChevronRight
-            className="popover-item-arrow"
-            size={APP_ICON_SIZE}
-          />
-        </span>
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent
-          alignOffset={-6}
-          className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex"
-          sideOffset={16}
-          style={buildPopoverSizingStyle({ width: 320 })}
-        >
-          {children}
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
-  );
-}
-
 export function ReviewProjectEmptyState({
   source,
 }: {
@@ -2220,19 +2162,6 @@ export function ReviewProjectEmptyState({
       </div>
     </div>
   );
-}
-
-export function formatRelativeCommitTime(value: string): string {
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return "";
-  const elapsed = Math.max(0, Date.now() - timestamp);
-  const minute = 60_000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-  if (elapsed < minute) return "刚刚";
-  if (elapsed < hour) return `${Math.floor(elapsed / minute)} 分钟前`;
-  if (elapsed < day) return `${Math.floor(elapsed / hour)} 小时前`;
-  return `${Math.floor(elapsed / day)} 天前`;
 }
 
 export function scopeLabel(scope: DesktopReviewScope): string {

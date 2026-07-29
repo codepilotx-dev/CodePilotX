@@ -1171,11 +1171,28 @@
 
 .popover-review-turns {
   width: max-content;
-  max-width: min(calc(420px + var(--popover-width-extra)), calc(100vw - 32px));
+  max-width: min(360px, calc(100vw - 16px));
 }
 
 .popover.popover-review-scope {
   display: block;
+}
+
+.review-source-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--color-token-border-light);
+}
+
+.review-source-menu-label {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  color: var(--color-token-text-secondary);
+  font-size: var(--menu-detail-font-size);
+  line-height: var(--menu-line-height);
+  font-weight: 500;
+  outline: none;
 }
 
 .review-empty-state {
@@ -1303,9 +1320,10 @@
 }
 
 .review-source-submenu-message {
-  padding: 8px 10px;
+  padding: 8px;
   color: var(--color-token-text-secondary);
-  font-size: var(--type-control);
+  font-size: var(--menu-detail-font-size);
+  line-height: var(--menu-line-height);
 }
 
 .review-source-commit-row {
@@ -1313,7 +1331,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--menu-item-gap);
 
   > span {
     min-width: 0;
@@ -1325,7 +1343,7 @@
   small {
     flex: 0 0 auto;
     color: var(--color-token-text-secondary);
-    font-size: var(--type-caption);
+    font-size: var(--menu-detail-font-size);
     white-space: nowrap;
   }
 }
@@ -1360,9 +1378,17 @@
     border-left: 1px solid var(--color-token-border-light);
   }
 
+  .review-file-search-region {
+    flex: 0 0 auto;
+    padding: 12px 12px 8px;
+    background: var(--color-token-panel-background);
+  }
+
   .review-file-search {
-    padding: 6px 14px;
-    border-bottom: 1px solid var(--color-token-border-light);
+    width: 100%;
+    min-height: 32px;
+    border: 1px solid var(--color-token-border-light);
+    border-radius: 8px;
     background: var(--color-token-control-background);
   }
 
@@ -1388,6 +1414,7 @@
     gap: 6px;
     width: 100%;
     padding-top: 6px;
+    padding-right: 14px;
     padding-bottom: 6px;
     border: 0;
     background: transparent;
@@ -1405,6 +1432,14 @@
     svg {
       flex: 0 0 auto;
     }
+  }
+
+  .review-file-tree-dir-label {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .review-file-tree-row {
@@ -1428,8 +1463,69 @@
       color: var(--color-token-foreground);
     }
 
-    .review-file-counts {
-      margin-left: auto;
+    .review-file-path {
+      flex: 1 1 auto;
+      direction: ltr;
+    }
+  }
+
+  .review-file-tree-trailing {
+    min-width: 20px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .review-file-tree-directory-status {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    &::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-token-editor-warning-foreground);
+    }
+  }
+
+  .review-file-tree-status {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      width: var(--app-icon-size);
+      height: var(--app-icon-size);
+      stroke-width: var(--app-icon-stroke-width);
+    }
+
+    &[data-git-status="added"] {
+      color: var(--color-token-git-decoration-added-resource-foreground);
+    }
+
+    &[data-git-status="deleted"] {
+      color: var(--color-token-git-decoration-deleted-resource-foreground);
+    }
+
+    &[data-git-status="modified"],
+    &[data-git-status="renamed"],
+    &[data-git-status="copied"] {
+      color: var(--color-token-editor-warning-foreground);
+    }
+
+    &[data-git-status="unknown"] {
+      color: var(--color-token-text-tertiary);
     }
   }
 
@@ -1510,27 +1606,31 @@
   margin-left: 0;
 }
 
+.review-file-tree-trailing .review-comment-badge {
+  margin-left: 0;
+}
+
 /* --- Review popover --- */
 .review-popover {
   position: fixed;
   z-index: var(--z-popover);
   width: var(--popover-width, max-content);
-  min-width: min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px));
+  min-width: min(288px, calc(100vw - 16px));
   max-width: var(
     --popover-max-width,
-    min(calc(420px + var(--popover-width-extra)), calc(100vw - 32px))
+    min(384px, calc(100vw - 16px))
   );
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px;
   font-family: var(--font-family-sans);
 }
 
 .review-popover-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: var(--type-card-title);
   color: var(--color-token-foreground);
   font-weight: 600;
@@ -1609,7 +1709,7 @@
 .review-popover-field textarea,
 .review-popover-field input[type="text"] {
   width: 100%;
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: 5px 8px;
   border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-3);
   background: var(--color-token-text-preformat-background);
@@ -1620,7 +1720,7 @@
 }
 
 .review-popover-field textarea {
-  min-height: 5.385em;
+  min-height: 64px;
 }
 
 .review-popover-field input[type="text"] {
@@ -1647,16 +1747,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--control-gap);
+  gap: var(--menu-item-gap);
   width: 100%;
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--menu-item-padding-block) var(--menu-item-padding-inline);
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--color-token-foreground);
   font-family: inherit;
-  font-size: var(--type-control);
-  line-height: var(--control-line-height);
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
   text-align: left;
   cursor: pointer;
 
