@@ -35,6 +35,7 @@ import {
 } from '../projects/projectAppearance.js'
 import { notifyProjectCatalogChanged } from '../projects/projectCatalogEvents.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
+import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsSection } from './SettingsSection.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import {
@@ -467,23 +468,30 @@ function EnvironmentDetail({
               onChange={event => setDraftName(event.target.value)}
             />
           </label>
-          <label className="environment-field">
+          <div className="environment-field">
             <span>默认模型</span>
-            <select
+            <SettingsDropdown
+              ariaLabel="默认模型"
+              maxWidth="calc(100vw - 32px)"
+              options={[
+                {
+                  value: '',
+                  label: '继承全局默认模型',
+                },
+                ...modelOptions.map(model => ({
+                  value: `${model.providerID}\u0000${model.id}`,
+                  label: `${model.providerID} / ${model.id}`,
+                })),
+              ]}
+              searchable
+              searchPlaceholder="搜索模型"
+              showSelectedIndicator
+              triggerClassName="environment-settings-dropdown"
               value={defaultModelKey}
-              onChange={event => setDefaultModelKey(event.target.value)}
-            >
-              <option value="">继承全局默认模型</option>
-              {modelOptions.map(model => {
-                const value = `${model.providerID}\u0000${model.id}`
-                return (
-                  <option key={value} value={value}>
-                    {model.providerID} / {model.id}
-                  </option>
-                )
-              })}
-            </select>
-          </label>
+              width={360}
+              onChange={setDefaultModelKey}
+            />
+          </div>
           <label className="environment-field environment-field-textarea">
             <span>项目指令</span>
             <small>
@@ -535,17 +543,19 @@ function EnvironmentDetail({
             />
           </div>
           <div className="environment-source-reference">
-            <select
-              aria-label="来源所属目录"
+            <SettingsDropdown
+              ariaLabel="来源所属目录"
+              maxWidth="calc(100vw - 32px)"
+              options={(project.folders ?? []).map(folder => ({
+                value: folder.id,
+                label: `${folder.name}${folder.role === 'primary' ? '（主目录）' : ''}`,
+              }))}
+              showSelectedIndicator
+              triggerClassName="environment-settings-dropdown"
               value={sourceFolderId}
-              onChange={event => setSourceFolderId(event.target.value)}
-            >
-              {(project.folders ?? []).map(folder => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}{folder.role === 'primary' ? '（主目录）' : ''}
-                </option>
-              ))}
-            </select>
+              width={280}
+              onChange={setSourceFolderId}
+            />
             <input
               aria-label="工作区文件相对路径"
               placeholder="docs/overview.md"

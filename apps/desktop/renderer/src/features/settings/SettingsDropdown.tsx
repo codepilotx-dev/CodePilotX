@@ -6,6 +6,7 @@ import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
+import { cx } from '../../utils/cx.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 
 type Option = {
@@ -26,6 +27,7 @@ type Props = {
   searchable?: boolean
   searchPlaceholder?: string
   showSelectedIndicator?: boolean
+  triggerClassName?: string
 } & PopoverSizingProps
 
 const EMPTY_VALUE = '__radix_empty_value__'
@@ -65,6 +67,7 @@ function SelectSettingsDropdown({
   disabled,
   variant,
   showSelectedIndicator,
+  triggerClassName,
   width,
   maxWidth,
 }: Props) {
@@ -85,13 +88,14 @@ function SelectSettingsDropdown({
     >
       <Select.Trigger
         aria-label={ariaLabel}
-        className="settings-dropdown"
+        className={cx('settings-dropdown', triggerClassName)}
         data-variant={variant}
-        tabIndex={-1}
       >
         <div className="settings-dropdown-value">
           {selectedOption?.icon}
-          <Select.Value placeholder={selectedOption?.label} />
+          <Select.Value placeholder={selectedOption?.label}>
+            {selectedOption?.label}
+          </Select.Value>
         </div>
         <Select.Icon asChild>
           <ChevronDown className="settings-dropdown-icon" />
@@ -167,6 +171,7 @@ function SearchableSettingsDropdown({
   variant,
   searchPlaceholder = '搜索...',
   showSelectedIndicator = false,
+  triggerClassName,
   width,
   maxWidth,
 }: Props) {
@@ -191,7 +196,7 @@ function SearchableSettingsDropdown({
 
   const activeDescendant =
     activeIndex >= 0 && activeIndex < visibleOptions.length
-      ? `sd-option-${instanceId}-${visibleOptions[activeIndex].value}`
+      ? `sd-option-${instanceId}-${activeIndex}`
       : undefined
 
   // Open → focus search
@@ -283,10 +288,9 @@ function SearchableSettingsDropdown({
         <button
           ref={triggerRef}
           aria-label={ariaLabel}
-          className="settings-dropdown"
+          className={cx('settings-dropdown', triggerClassName)}
           data-variant={variant}
           disabled={disabled}
-          tabIndex={-1}
           type="button"
         >
           <div className="settings-dropdown-value">
@@ -324,7 +328,10 @@ function SearchableSettingsDropdown({
               expanded={open}
               activeDescendant={activeDescendant}
               className="settings-dropdown-search-input"
-              onChange={setSearchQuery}
+              onChange={(nextQuery) => {
+                setSearchQuery(nextQuery)
+                setActiveIndex(-1)
+              }}
               onEscapeEmpty={undefined}
               placeholder={searchPlaceholder}
               value={searchQuery}
@@ -339,27 +346,24 @@ function SearchableSettingsDropdown({
           >
             <div className="settings-dropdown-scroll-content">
               {visibleOptions.length ? (
-                visibleOptions.map((opt) => {
-                  const idx = options.indexOf(opt)
-                  return (
-                    <button
-                      aria-selected={opt.value === value}
-                      className="settings-dropdown-item"
-                      data-disabled={opt.disabled || undefined}
-                      data-highlighted={idx === activeIndex || undefined}
-                      disabled={opt.disabled}
-                      id={`sd-option-${instanceId}-${opt.value}`}
-                      key={opt.value}
-                      onClick={() => selectOption(opt)}
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      role="option"
-                      tabIndex={-1}
-                      type="button"
-                    >
-                      {renderOptionContent(opt, showSelectedIndicator, opt.value === value)}
-                    </button>
-                  )
-                })
+                visibleOptions.map((opt, visibleIndex) => (
+                  <button
+                    aria-selected={opt.value === value}
+                    className="settings-dropdown-item"
+                    data-disabled={opt.disabled || undefined}
+                    data-highlighted={visibleIndex === activeIndex || undefined}
+                    disabled={opt.disabled}
+                    id={`sd-option-${instanceId}-${visibleIndex}`}
+                    key={opt.value}
+                    onClick={() => selectOption(opt)}
+                    onMouseEnter={() => setActiveIndex(visibleIndex)}
+                    role="option"
+                    tabIndex={-1}
+                    type="button"
+                  >
+                    {renderOptionContent(opt, showSelectedIndicator, opt.value === value)}
+                  </button>
+                ))
               ) : (
                 <div className="settings-dropdown-empty">未找到匹配项</div>
               )}

@@ -679,7 +679,6 @@
   }
 }
 
-.profile-status-field select,
 .profile-status-field input {
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-token-border);
@@ -688,6 +687,14 @@
   color: var(--color-token-foreground);
   font-size: var(--type-control);
   line-height: var(--control-line-height);
+}
+
+.profile-status-select {
+  width: 100%;
+  height: 32px;
+  min-height: 32px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
+  background-color: var(--color-token-main-surface-primary);
 }
 
 .profile-status-checkbox {

@@ -24,6 +24,15 @@ import {
   SkeletonBlock,
   SkeletonRegion,
 } from '../../components/ui/Skeleton.js'
+import { SettingsDropdown } from './SettingsDropdown.js'
+
+const STATUS_EMOJI_OPTIONS = [
+  { value: 'palm_tree', label: '🌴 On vacation' },
+  { value: 'face_with_thermometer', label: '🤒 Out sick' },
+  { value: 'house', label: '🏠 Working from home' },
+  { value: 'dart', label: '🎯 Focusing' },
+  { value: 'speech_balloon', label: '💬 Custom' },
+]
 
 export function ProfileSettings(): React.ReactNode {
   const navigate = useNavigate()
@@ -331,27 +340,27 @@ export function ProfileSettings(): React.ReactNode {
                 ×
               </button>
             </div>
-            <label className="profile-status-field">
+            <div className="profile-status-field">
               <span>What's happening</span>
               <div>
-                <select
+                <SettingsDropdown
+                  ariaLabel="GitHub 状态 Emoji"
+                  options={STATUS_EMOJI_OPTIONS}
+                  showSelectedIndicator
+                  triggerClassName="profile-status-select"
                   value={statusEmoji}
-                  onChange={event => setStatusEmoji(event.target.value)}
-                >
-                  <option value="palm_tree">🌴 On vacation</option>
-                  <option value="face_with_thermometer">🤒 Out sick</option>
-                  <option value="house">🏠 Working from home</option>
-                  <option value="dart">🎯 Focusing</option>
-                  <option value="speech_balloon">💬 Custom</option>
-                </select>
+                  width={240}
+                  onChange={setStatusEmoji}
+                />
                 <input
+                  aria-label="GitHub 状态消息"
                   maxLength={80}
                   value={statusMessage}
                   onChange={event => setStatusMessage(event.target.value)}
                   placeholder="What are you up to?"
                 />
               </div>
-            </label>
+            </div>
             <label className="profile-status-checkbox">
               <input
                 type="checkbox"
