@@ -29,6 +29,8 @@ import type {
   DesktopDataLocationControlSource,
   DesktopDataLocationState,
 } from '@codepilotx/shared/desktop-data-location-ipc'
+import type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
+export type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
 import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
@@ -1449,14 +1451,6 @@ export type DesktopUiCommand =
   | 'refreshWorkspace'
   | 'openSettings'
   | 'logOut'
-
-export type DesktopUpdateStatus =
-  | { phase: 'checking' }
-  | { phase: 'available'; version: string }
-  | { phase: 'downloading'; percent: number }
-  | { phase: 'downloaded' }
-  | { phase: 'error'; message: string }
-  | { phase: 'no-update' }
 
 export type {
   DesktopDataLocationControlSource,
