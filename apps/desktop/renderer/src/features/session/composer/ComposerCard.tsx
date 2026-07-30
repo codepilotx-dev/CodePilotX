@@ -2073,7 +2073,7 @@ export function ComposerCard({
                 currentBranchName={branchName}
                 open={openDropdown === "branch"}
                 side="top"
-                width={200}
+                width={420}
                 onBranchSearchChange={setBranchSearch}
                 onBranchSelect={onBranchSelect}
                 onCreateBranch={onCreateBranch}

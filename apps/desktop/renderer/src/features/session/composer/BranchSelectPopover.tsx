@@ -127,11 +127,11 @@ export function BranchSelectPopoverContent({
               >
                 {currentBranchDetail && selected ? (
                   <span className="environment-branch-label">
-                    <span>{branch}</span>
+                    <span title={branch}>{branch}</span>
                     <small>{currentBranchDetail}</small>
                   </span>
                 ) : (
-                  branch
+                  <span title={branch}>{branch}</span>
                 )}
               </PopoverItem>
             )

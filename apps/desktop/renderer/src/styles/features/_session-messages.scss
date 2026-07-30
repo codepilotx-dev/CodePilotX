@@ -82,10 +82,19 @@
   --popover-overflow-y: hidden;
 }
 
+.popover.popover-branch {
+  --popover-max-width: calc(100vw - 32px);
+}
+
 .popover.popover-branch .popover-scroll-content,
 .popover.popover-thread-summary-branch .popover-scroll-content {
   display: flex;
   flex-direction: column;
+}
+
+.popover.popover-branch .popover-scroll-content > :not(.branch-popover-list-scroll),
+.popover.popover-thread-summary-branch .popover-scroll-content > :not(.branch-popover-list-scroll) {
+  flex: 0 0 auto;
 }
 
 .popover.popover-branch .popover-scroll-content {
