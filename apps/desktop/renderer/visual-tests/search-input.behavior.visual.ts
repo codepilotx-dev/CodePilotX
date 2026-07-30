@@ -128,7 +128,7 @@ test('Popover SearchInput follows the available surface width', async ({
   await projectTrigger.click()
 
   const surface = page.locator('.popover-project[data-state="open"]')
-  const searchInput = surface.getByRole('searchbox', { name: '搜索项目' })
+  const searchInput = surface.getByRole('combobox', { name: '搜索项目' })
   await expect(searchInput).toBeVisible()
   await expectSearchFitsPopover(surface, searchInput)
 
@@ -136,20 +136,18 @@ test('Popover SearchInput follows the available surface width', async ({
   await expectSearchFitsPopover(surface, searchInput)
 })
 
-test('SearchInput — forced-colors focus outline', async ({ page }) => {
+test('Command menu search — forced-colors focus outline', async ({ page }) => {
   await page.setViewportSize(COMPACT_VIEWPORT)
   await prepareVisualTheme(page, 'light', { reduceMotion: 'off' })
   await page.emulateMedia({ forcedColors: 'active' })
-  await page.goto('/?visualCase=empty#/search')
+  await page.goto('/?visualCase=empty#/new')
+  await waitForVisualPage(page, 'light', page.locator('main'))
+  await page.keyboard.press('Control+K')
 
-  const searchInput = page.getByRole('searchbox', { name: /搜索/ })
+  const searchInput = page.getByRole('searchbox', { name: '搜索任务' })
   await waitForVisualPage(page, 'light', searchInput)
 
-  // Focus the standard search input
-  await page.keyboard.press('Tab')
-  await searchInput.focus()
+  await expect(searchInput).toBeFocused()
 
-  // The outer container should have a visible focus style under forced-colors
-  const container = searchInput.locator('..')
-  await expect(container).toHaveCSS('outline-style', 'solid')
+  await expect(searchInput).toHaveCSS('outline-style', 'solid')
 })

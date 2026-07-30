@@ -35,6 +35,7 @@ type Props = {
   workspace: DesktopWorkspace | null;
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
+  onOpenCommandMenu: () => void;
   onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void;
   onPinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
@@ -64,6 +65,7 @@ export function DesktopSidebar({
   workspace,
   onChooseWorkspace,
   onCreateSession,
+  onOpenCommandMenu,
   onOpenWhatsNew,
   onPinWorkspace,
   onRemoveWorkspace,
@@ -244,7 +246,7 @@ export function DesktopSidebar({
 
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-chrome tw:py-2">
-      <SidebarHeader />
+      <SidebarHeader onOpenCommandMenu={onOpenCommandMenu} />
       <SidebarTopNav
         isActiveView={isActiveView}
         showProjects={sidebarOrganization === 'flat'}

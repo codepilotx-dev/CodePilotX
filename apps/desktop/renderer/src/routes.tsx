@@ -31,11 +31,6 @@ const PullRequestsPlaceholder = lazy(() =>
     default: module.PullRequestsPlaceholder,
   })),
 )
-const SearchView = lazy(() =>
-  import('./features/search/SearchView.js').then(module => ({
-    default: module.SearchView,
-  })),
-)
 const ModelCenterView = lazy(() =>
   import('./features/models/ModelCenterView.js').then(module => ({
     default: module.ModelCenterView,
@@ -94,7 +89,6 @@ const router = createHashRouter([
       },
       { path: 'projects', element: deferred(<ProjectsView />) },
       { path: 'projects/:projectId', element: deferred(<ProjectsView />) },
-      { path: 'search', element: deferred(<SearchView />) },
       { path: 'models', element: deferred(<ModelCenterView />) },
       { path: 'plugins', element: deferred(<PluginsView />) },
       {

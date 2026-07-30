@@ -57,6 +57,7 @@
   @include meta.load-css('features/session-timeline');
   @include meta.load-css('features/session-workflow');
   @include meta.load-css('features/session-elicitation');
+  @include meta.load-css('features/command-menu');
   @include meta.load-css('features/search');
   @include meta.load-css('features/browser');
   @include meta.load-css('features/review');

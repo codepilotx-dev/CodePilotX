@@ -48,7 +48,6 @@ import type {
   WindowMenuAction,
 } from '../MenuBar.js'
 import { QuickChatContext } from '../../session/QuickChatContext.js'
-import { SearchContext } from '../../search/SearchContext.js'
 import {
   sessionDisplayTitle,
   sessionEditableTitle,
@@ -61,7 +60,6 @@ import { shouldRestoreLastWorkspace } from '../../workspace/lastWorkspaceRestore
 import { useSessionState } from '../../session/state/useSessionState.js'
 import { useSessionTitleRegeneration } from '../../session/state/useSessionTitleRegeneration.js'
 import { useDesktopCommands } from '../../session/useDesktopCommands.js'
-import { useDesktopSearch } from '../../search/useDesktopSearch.js'
 import { withModelCatalogLoading } from '../../../hooks/useModelCatalogLoading.js'
 import {
   buildModelPresets,
@@ -110,6 +108,7 @@ const SettingsSidebarContent = lazy(() => import('../../settings/SettingsSidebar
 const SubagentThreadPanel = lazy(() => import('../../session/subagents/SubagentThreadPanel.js').then(module => ({ default: module.SubagentThreadPanel })))
 const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
 const WorkbenchPanel = lazy(() => import('../dock/RightDock.js').then(module => ({ default: module.WorkbenchPanel })))
+const CommandMenuDialog = lazy(() => import('../../search/CommandMenuDialog.js').then(module => ({ default: module.CommandMenuDialog })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -140,7 +139,9 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
 }
 
 function hasOpenDialog(): boolean {
-  return document.querySelector('[role="dialog"], dialog[open]') !== null
+  return document.querySelector(
+    '[role="dialog"], [role="alertdialog"], dialog[open]',
+  ) !== null
 }
 
 function createFilePreviewTabId(
@@ -211,6 +212,20 @@ function shouldOpenFileExternally(path: string): boolean {
   return extension ? EXTERNAL_FILE_EXTENSIONS.has(extension) : false
 }
 
+function routeAccessibilityLabel(pathname: string): string {
+  if (pathname === '/new') return '新对话'
+  if (pathname.startsWith('/threads/')) return '会话'
+  if (pathname.startsWith('/projects')) return '项目'
+  if (pathname === '/models') return '模型'
+  if (pathname === '/plugins') return '插件与技能'
+  if (pathname === '/pull-requests') return '拉取请求'
+  if (pathname === '/automations') return '自动化'
+  if (pathname === '/pets') return '宠物'
+  if (pathname.startsWith('/settings/')) return '设置'
+  if (pathname === '/labs') return '实验室'
+  return 'CodePilotX'
+}
+
 function normalizePathForCompare(path: string): string {
   return path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
 }
@@ -220,6 +235,7 @@ let directoryProbeRequestId = 0
 
 export function DesktopLayout(): React.ReactNode {
   const location = useLocation()
+  const routeLabel = routeAccessibilityLabel(location.pathname)
   const settings = useDesktopSettings()
   const {
     activeCapabilities: editMenuCapabilities,
@@ -277,8 +293,8 @@ export function DesktopLayout(): React.ReactNode {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const [_runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [gitWorkflowMode, setGitWorkflowMode] =
     useState<GitWorkflowMode | null>(null)
   const [githubRepositoryModalOpen, setGithubRepositoryModalOpen] =
@@ -342,6 +358,10 @@ export function DesktopLayout(): React.ReactNode {
   const rightDockFullWidth =
     rightDockVisible && workbenchPanelState.rightFullWidth
   const mainRouteRef = useRef<HTMLDivElement>(null)
+  const commandMenuInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    document.title = `${routeLabel} · CodePilotX`
+  }, [routeLabel])
   const visibleRightDockState = useMemo(
     () => ({
       ...rightDockState,
@@ -1123,7 +1143,52 @@ export function DesktopLayout(): React.ReactNode {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (!event.ctrlKey || event.metaKey || event.repeat) return
       const key = event.key.toLowerCase()
-      if (!event.shiftKey && !event.altKey && key === 'b') {
+      const commandShortcutAllowed =
+        !event.defaultPrevented
+        && !event.isComposing
+        && event.keyCode !== 229
+        && !event.altKey
+        && (commandMenuOpen || !hasOpenDialog())
+      if (
+        commandShortcutAllowed
+        && (
+          (!event.shiftKey && key === 'k')
+          || (event.shiftKey && key === 'p')
+        )
+      ) {
+        event.preventDefault()
+        if (commandMenuOpen) {
+          commandMenuInputRef.current?.focus()
+          commandMenuInputRef.current?.select()
+        } else {
+          setCommandMenuOpen(true)
+        }
+      } else if (
+        commandShortcutAllowed
+        && !event.shiftKey
+        && key === 'n'
+      ) {
+        event.preventDefault()
+        setCommandMenuOpen(false)
+        void handleCreateSession()
+      } else if (
+        commandShortcutAllowed
+        && !event.shiftKey
+        && key === 'o'
+      ) {
+        event.preventDefault()
+        setCommandMenuOpen(false)
+        void handleChooseWorkspace()
+      } else if (
+        commandShortcutAllowed
+        && !event.shiftKey
+        && key === 'p'
+        && currentWorkspace !== null
+      ) {
+        event.preventDefault()
+        setCommandMenuOpen(false)
+        handleOpenFilesDock()
+      } else if (!event.shiftKey && !event.altKey && key === 'b') {
         event.preventDefault()
         toggleSidebarCollapsed()
       } else if (!event.shiftKey && !event.altKey && key === 'j') {
@@ -1160,6 +1225,10 @@ export function DesktopLayout(): React.ReactNode {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [
+    commandMenuOpen,
+    currentWorkspace,
+    handleChooseWorkspace,
+    handleCreateSession,
     handleOpenBrowser,
     handleOpenFilesDock,
     handleOpenReview,
@@ -1662,7 +1731,6 @@ export function DesktopLayout(): React.ReactNode {
       navigate,
     ],
   )
-
   const handleProviderOpen = useCallback(
     (providerID: ModelProviderID): void => {
       if (openedProviderCatalogsRef.current.has(providerID)) return
@@ -1790,11 +1858,6 @@ export function DesktopLayout(): React.ReactNode {
       }))
   }, [currentWorkspace?.path, sessions])
 
-  const search = useDesktopSearch({
-    query: searchQuery,
-    recentWorkspaces,
-    sessions,
-  })
   const activeSessionFallbackTitle = useMemo(
     () => {
       const workflowTitleEvents = deriveWorkflowSessionState(
@@ -1982,6 +2045,7 @@ export function DesktopLayout(): React.ReactNode {
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
+      onOpenCommandMenu={() => setCommandMenuOpen(true)}
       onOpenWhatsNew={openWhatsNewDialog}
       onPinWorkspace={handlePinWorkspace}
       onRemoveWorkspace={handleRemoveWorkspace}
@@ -2642,6 +2706,20 @@ export function DesktopLayout(): React.ReactNode {
 
   return (
     <div className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
+      <a
+        className="skip-to-main"
+        href="#desktop-main-content"
+        onClick={event => {
+          event.preventDefault()
+          mainRouteRef.current?.focus()
+          mainRouteRef.current?.scrollIntoView({ block: 'start' })
+        }}
+      >
+        跳到主要内容
+      </a>
+      <span aria-atomic="true" aria-live="polite" className="u-sr-only">
+        已进入{routeLabel}
+      </span>
       <GlobalErrorModal
         message={errorMessage}
         onDismiss={() => {
@@ -2689,6 +2767,36 @@ export function DesktopLayout(): React.ReactNode {
             open
             restoreFocusElement={whatsNewRestoreFocusElement}
             onOpenChange={setWhatsNewDialogOpen}
+          />
+        </Suspense>
+      ) : null}
+      {commandMenuOpen ? (
+        <Suspense fallback={null}>
+          <CommandMenuDialog
+            catalogStatus={catalogStatus}
+            hasWorkspace={currentWorkspace !== null}
+            inputRef={commandMenuInputRef}
+            open
+            pendingPermissionSessionIds={pendingPermissionSessionIds}
+            sessions={sessions}
+            onCreateTask={() => {
+              setCommandMenuOpen(false)
+              void handleCreateSession()
+            }}
+            onOpenChange={setCommandMenuOpen}
+            onOpenFolder={() => {
+              setCommandMenuOpen(false)
+              void handleChooseWorkspace()
+            }}
+            onSearchFiles={() => {
+              if (currentWorkspace === null) return
+              setCommandMenuOpen(false)
+              handleOpenFilesDock()
+            }}
+            onSelectTask={task => {
+              setCommandMenuOpen(false)
+              handleSelectSession(task.session)
+            }}
           />
         </Suspense>
       ) : null}
@@ -2806,17 +2914,7 @@ export function DesktopLayout(): React.ReactNode {
             rightDockPlanEventId,
             }}
           >
-            <SearchContext.Provider
-              value={{
-              query: searchQuery,
-              workspaces: search.filteredWorkspaces,
-              sessions: search.filteredSessions,
-              onQueryChange: setSearchQuery,
-              onOpenWorkspace: handleOpenRecentWorkspace,
-              onSelectSession: handleSelectSession,
-              }}
-            >
-              <WorkspaceHeaderProvider routeScope={location.pathname}>
+            <WorkspaceHeaderProvider routeScope={location.pathname}>
                 <div
                   ref={workspaceRef}
                   className="desktop-workspace"
@@ -2850,9 +2948,12 @@ export function DesktopLayout(): React.ReactNode {
                   />
                   <div className="desktop-workspace__upper">
                     <div
+                      aria-label="主要内容"
                       ref={mainRouteRef}
                       className="desktop-main-route"
+                      id="desktop-main-content"
                       tabIndex={-1}
+                      role="region"
                     >
                       <div aria-hidden="true" className="desktop-main-route__header-spacer" />
                       <div className="desktop-main-route__body">
@@ -2882,8 +2983,7 @@ export function DesktopLayout(): React.ReactNode {
                     {bottomPanelNode}
                   </WorkbenchPanelPresence>
                 </div>
-              </WorkspaceHeaderProvider>
-            </SearchContext.Provider>
+            </WorkspaceHeaderProvider>
           </QuickChatContext.Provider>
       </WorkbenchShellView>
     </div>
