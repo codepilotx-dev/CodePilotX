@@ -300,7 +300,6 @@
       gap: 4px;
       padding: 6px 8px;
 
-      span,
       .permission-select-trigger-label,
       .composer-model-chip-thinking {
         display: none;
@@ -587,6 +586,7 @@
 }
 
 @container (max-width: 475px) {
+  .composer-utility-bar .meta-chip span,
   .composer .meta-chip span,
   .composer .composer-plan-mode-chip > span:last-child {
     display: none;
