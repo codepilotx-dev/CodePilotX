@@ -191,7 +191,8 @@
 }
 
 .sidebar-show-more-actions {
-  padding: var(--sidebar-row-pad-y) var(--sidebar-padding-x);
+  min-height: 31px;
+  padding: 5px var(--sidebar-padding-x);
   color: var(--color-token-foreground);
   font-size: var(--type-control);
 
@@ -750,12 +751,11 @@
 }
 
 .sidebar-show-more-button {
-  width: calc(100% - 16px);
-  min-height: 31px;
-  margin: 0 8px;
-  padding: 5px 8px 5px 32px;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-radius: 10px;
   background: transparent;
   color: var(--color-token-description-foreground);
   font: inherit;
