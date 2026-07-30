@@ -873,8 +873,16 @@
   min-width: max-content;
 }
 
-.settings-dropdown-search {
-  padding: 4px 8px;
+.settings-dropdown-content--searchable {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.settings-dropdown-content--searchable .settings-dropdown-scroll-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
 }
 
 .settings-dropdown-scroll-area {

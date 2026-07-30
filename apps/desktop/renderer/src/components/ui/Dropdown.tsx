@@ -1,12 +1,11 @@
 import type React from 'react'
-import { cloneElement, isValidElement } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
 
 type Props = {
   children: React.ReactNode
   className?: string
-  trigger: React.ReactNode
+  trigger: React.ReactElement
   align?: 'start' | 'center' | 'end'
   open?: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
@@ -14,7 +13,6 @@ type Props = {
   collisionPadding?: number
   avoidCollisions?: boolean
   textMode?: 'nowrap' | 'wrap'
-  triggerTabIndex?: number
   onOpenChange?: (open: boolean) => void
 } & PopoverSizingProps
 
@@ -26,7 +24,6 @@ export function Dropdown({
   open,
   side = 'bottom',
   sideOffset = 4,
-  triggerTabIndex = -1,
   collisionPadding = 6,
   avoidCollisions = true,
   textMode = 'nowrap',
@@ -34,16 +31,10 @@ export function Dropdown({
   maxWidth,
   onOpenChange,
 }: Props): React.ReactNode {
-  const triggerElement = isValidElement<
-    React.HTMLAttributes<HTMLElement>
-  >(trigger)
-    ? cloneElement(trigger, { tabIndex: triggerTabIndex })
-    : trigger
-
   return (
-    <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu.Root modal={false} open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
-        {triggerElement}
+        {trigger}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content

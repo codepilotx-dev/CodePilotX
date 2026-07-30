@@ -1,10 +1,11 @@
 import type React from 'react'
 import { useMemo, useState } from 'react'
-import { Folder, FolderPlus, FolderX, GitFork } from 'lucide-react'
+import { Check, Folder, FolderPlus, FolderX, GitFork } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import { PopoverItem } from '../../../components/ui/PopoverItem.js'
-import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { SearchInput } from '../../../components/ui/SearchInput.js'
+import {
+  SearchablePopoverAction,
+  SearchablePopoverContent,
+} from '../../../components/ui/SearchablePopoverContent.js'
 import type { PopoverSizingProps } from '../../../components/ui/popoverSizing.js'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 
@@ -17,7 +18,7 @@ type Props = {
   onChooseWorkspace: () => void
   onCloneGithub?: () => void
   onClearWorkspace: () => void
-  trigger: React.ReactNode
+  trigger: React.ReactElement
   className?: string
   side?: 'top' | 'bottom' | 'right' | 'left'
   align?: 'start' | 'center' | 'end'
@@ -52,80 +53,83 @@ export function ProjectSwitcherPopover({
         .includes(keyword),
     )
   }, [recentWorkspaces, search])
-  const isUnset = workspace === null
+  const options = useMemo(
+    () => [
+      ...filtered.map(item => ({ value: item.path, workspace: item })),
+      { value: '__no_workspace__', workspace: null },
+    ],
+    [filtered],
+  )
 
   return (
-    <PopoverMenu
+    <SearchablePopoverContent
       align={align}
-      className={`popover-menu--grid ${className}`}
-      open={open}
-      side={side}
-      sideOffset={sideOffset}
-      width={width}
-      maxWidth={maxWidth}
-      onOpenChange={onOpenChange}
-      trigger={trigger}
-    >
-      <SearchInput
-        aria-label="搜索项目"
-        value={search}
-        onChange={setSearch}
-        placeholder="搜索项目"
-      />
-      <div className="popover-section">
-        {filtered.length === 0 ? (
-          <div className="popover-empty">无匹配项目</div>
-        ) : (
-          filtered.map(item => (
-            <PopoverItem
-              icon={<Folder size={APP_ICON_SIZE} />}
-              key={item.path}
-              selected={item.path === workspace?.path}
-              withCheck
+      className={className}
+      contentLabel="切换项目"
+      emptyLabel="无匹配项目"
+      footer={(
+        <>
+          <SearchablePopoverAction
+            icon={<FolderPlus size={APP_ICON_SIZE} />}
+            withArrow
+            onClick={() => {
+              onChooseWorkspace()
+              onOpenChange(false)
+            }}
+          >
+            添加新项目
+          </SearchablePopoverAction>
+          {onCloneGithub ? (
+            <SearchablePopoverAction
+              icon={<GitFork size={APP_ICON_SIZE} />}
+              withArrow
               onClick={() => {
-                onOpenWorkspace(item)
+                onCloneGithub()
                 onOpenChange(false)
               }}
             >
-              {item.name}
-            </PopoverItem>
-          ))
-        )}
-      </div>
-      <div className="popover-divider" />
-      <PopoverItem
-        icon={<FolderPlus size={APP_ICON_SIZE} />}
-        withArrow
-        onClick={() => {
-          onChooseWorkspace()
-          onOpenChange(false)
-        }}
-      >
-        添加新项目
-      </PopoverItem>
-      {onCloneGithub ? (
-        <PopoverItem
-          icon={<GitFork size={APP_ICON_SIZE} />}
-          withArrow
-          onClick={() => {
-            onCloneGithub()
-            onOpenChange(false)
-          }}
-        >
-          从 GitHub 克隆
-        </PopoverItem>
-      ) : null}
-      <PopoverItem
-        icon={<FolderX size={APP_ICON_SIZE} />}
-        selected={isUnset}
-        withCheck={isUnset}
-        onClick={() => {
-          onClearWorkspace()
-          onOpenChange(false)
-        }}
-      >
-        不使用项目
-      </PopoverItem>
-    </PopoverMenu>
+              从 GitHub 克隆
+            </SearchablePopoverAction>
+          ) : null}
+        </>
+      )}
+      listClassName="popover-section"
+      listLabel="最近项目"
+      open={open}
+      options={options}
+      renderOption={(option, selected) => (
+        <>
+          <span className="popover-item-leading">
+            <span className="popover-item-icon">
+              {option.workspace
+                ? <Folder size={APP_ICON_SIZE} />
+                : <FolderX size={APP_ICON_SIZE} />}
+            </span>
+          </span>
+          <span className="popover-item-label">
+            {option.workspace?.name ?? '不使用项目'}
+          </span>
+          <span className="popover-item-trailing">
+            {selected ? <Check size={APP_ICON_SIZE} /> : null}
+          </span>
+        </>
+      )}
+      search={search}
+      searchLabel="搜索项目"
+      searchPlaceholder="搜索项目"
+      selectedValue={workspace?.path ?? '__no_workspace__'}
+      side={side}
+      sideOffset={sideOffset}
+      trigger={trigger}
+      width={width}
+      maxWidth={maxWidth}
+      onOpenChange={onOpenChange}
+      onSearchChange={setSearch}
+      onSelect={option => {
+        if (option.workspace) onOpenWorkspace(option.workspace)
+        else onClearWorkspace()
+        onOpenChange(false)
+      }}
+    />
   )
 }

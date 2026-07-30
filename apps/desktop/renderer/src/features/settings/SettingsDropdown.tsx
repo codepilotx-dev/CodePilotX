@@ -303,7 +303,12 @@ function SearchableSettingsDropdown({
       <Popover.Portal>
         <Popover.Content
           align="end"
-          className="popover-surface settings-dropdown-content"
+          aria-label={ariaLabel ?? '搜索选项'}
+          className={cx(
+            'popover-surface',
+            'settings-dropdown-content',
+            'settings-dropdown-content--searchable',
+          )}
           collisionPadding={6}
           data-variant={variant}
           side="bottom"
@@ -319,7 +324,7 @@ function SearchableSettingsDropdown({
                 : undefined),
           })}
         >
-          <div className="settings-dropdown-search">
+          <div className="popover-search-region settings-dropdown-search">
             <SearchInput
               ref={searchRef}
               aria-label={searchPlaceholder}
@@ -335,7 +340,7 @@ function SearchableSettingsDropdown({
               onEscapeEmpty={undefined}
               placeholder={searchPlaceholder}
               value={searchQuery}
-              variant="embedded"
+              variant="compact"
               onKeyDown={handleKeyDown}
             />
           </div>

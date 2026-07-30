@@ -179,12 +179,12 @@ export function InputDialog({
                 <input
                   aria-label={title}
                   className="confirmation-dialog-input tw:w-full tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-base tw:text-app-text tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-[160ms] tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                  defaultValue={input.value}
                   maxLength={input.maxLength}
-                  onChange={event => input.onChange(event.currentTarget.value)}
+                  onInput={event => input.onChange(event.currentTarget.value)}
                   placeholder={input.placeholder}
                   ref={inputRef}
                   type="text"
-                  value={input.value}
                 />
                 <div className="permission-modal-actions confirmation-dialog-actions tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
                   <Dialog.Close asChild>

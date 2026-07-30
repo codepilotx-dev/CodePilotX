@@ -258,7 +258,7 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-7);
-  background: var(--color-token-editor-widget-background);
+  background: var(--color-token-main-surface-primary);
   box-shadow: 0 0 0 0.5px var(--color-token-border);
   color: var(--color-token-foreground);
   text-align: left;
@@ -271,7 +271,7 @@
     box-shadow var(--motion-hover) var(--ease-standard);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--color-token-editor-widget-background);
     box-shadow:
       0 0 0 0.5px var(--color-token-border-heavy),
       var(--shadow-raised);

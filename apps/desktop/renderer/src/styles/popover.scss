@@ -57,6 +57,40 @@
   }
 }
 
+.popover.searchable-popover-content {
+  --popover-overflow-y: hidden;
+
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.popover-search-region {
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  background: var(--color-token-panel-background);
+}
+
+.popover-search-region .search-input {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid var(--color-token-border-light);
+  border-radius: var(--radius-input);
+  background: var(--color-token-control-background);
+}
+
+.searchable-popover-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.popover-footer-region {
+  flex: 0 0 auto;
+}
+
 .settings-dropdown-content,
 .permission-select-content {
   padding: var(--popover-surface-padding);

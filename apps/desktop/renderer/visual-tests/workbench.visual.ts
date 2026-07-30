@@ -1093,6 +1093,76 @@ test('narrow file panel keeps the editor and file tree side by side', async ({
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
 })
 
+test('wide workspace keeps the summary beside a 600px review panel', async ({
+  page,
+}) => {
+  const viewport = { width: 1919, height: 1033 }
+  await page.setViewportSize(viewport)
+  await page.emulateMedia({
+    colorScheme: 'dark',
+    forcedColors: 'none',
+    reducedMotion: 'reduce',
+  })
+  await page.addInitScript(
+    ({ ratio }) => {
+      localStorage.setItem(
+        'codepilotx.desktop.rightDockWidthRatio.v2',
+        String(ratio),
+      )
+    },
+    {
+      ratio: 600 / (viewport.width - 275 - 1),
+    },
+  )
+  await gotoWorkbenchFixture(
+    page,
+    '/?visualCase=review#/threads/visual-review',
+  )
+  await closeTransientErrorToast(page)
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel.getByRole('button', { name: /^审阅/ }).click()
+
+  const summary = page.locator('.thread-summary-inline')
+  const timeline = page.locator('.session-timeline-container')
+  const composer = page.locator('.workflow-page__composer-inner')
+  await expect(summary).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: '取消置顶摘要' }),
+  ).toBeVisible()
+
+  const [summaryBox, timelineBox, composerBox, rightPanelBox] =
+    await Promise.all([
+      summary.boundingBox(),
+      timeline.boundingBox(),
+      composer.boundingBox(),
+      rightPanel.boundingBox(),
+    ])
+  expect(summaryBox).not.toBeNull()
+  expect(timelineBox).not.toBeNull()
+  expect(composerBox).not.toBeNull()
+  expect(rightPanelBox).not.toBeNull()
+  if (!summaryBox || !timelineBox || !composerBox || !rightPanelBox) return
+
+  expect(summaryBox.width).toBeCloseTo(272, 0)
+  expect(timelineBox.width).toBeCloseTo(640, 0)
+  expect(composerBox.width).toBeCloseTo(640, 0)
+  expect(rightPanelBox.width).toBeCloseTo(600, 0)
+  expect(
+    summaryBox.x - (timelineBox.x + timelineBox.width),
+  ).toBeGreaterThanOrEqual(16)
+  expect(
+    rightPanelBox.x - (summaryBox.x + summaryBox.width),
+  ).toBeGreaterThanOrEqual(16)
+
+  const overflow = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }))
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
+})
+
 for (const mode of MODES) {
   test(`summary and command output use Codex surfaces in ${mode} mode`, async ({
     page,
@@ -1972,11 +2042,47 @@ test('settings shell search and appearance source contracts', async ({
   ).toHaveCount(1)
 
   const preview = page.locator('.appearance-diff-preview')
-  await expect(preview).toHaveAttribute('data-diff-style', 'split')
-  await expect(preview).toHaveAttribute('data-line-diff-type', 'none')
-  await expect(preview).toHaveAttribute('data-hunk-separators', 'line-info')
-  await expect(preview).toHaveAttribute('data-expansion-line-count', '8')
-  await expect(preview.locator('.appearance-diff-side')).toHaveCount(2)
+  const previewDiff = preview.locator(
+    '.review-codex-diff[data-diff-type="split"]',
+  )
+  await expect(previewDiff).toHaveCount(1)
+  await expect(previewDiff).toHaveAttribute('data-overflow', 'scroll')
+  await expect(previewDiff).toHaveAttribute('data-indicators', 'bars')
+  await expect(previewDiff).toHaveAttribute(
+    'aria-label',
+    '浅色主题差异代码',
+  )
+  await expect(previewDiff).toHaveAttribute(
+    'data-review-syntax-state',
+    'ready',
+    { timeout: 10_000 },
+  )
+  await expect(previewDiff.locator('[data-deletions]')).toHaveCount(1)
+  await expect(previewDiff.locator('[data-additions]')).toHaveCount(1)
+  await expect(previewDiff.locator('.review-line-comment-button')).toHaveCount(
+    0,
+  )
+  await expect(previewDiff.locator('.review-line-comments')).toHaveCount(0)
+  await expect(previewDiff.locator('.review-hunk-actions')).toHaveCount(0)
+  await expect(
+    previewDiff.locator(
+      '.review-codex-diff__hunk[data-separator="line-info"]',
+    ),
+  ).not.toHaveCount(0)
+  await expect(
+    previewDiff.locator('[data-line-type="buffer"]'),
+  ).not.toHaveCount(0)
+  await expect(previewDiff.locator('.review-diff-word')).not.toHaveCount(0)
+  await expect
+    .poll(() =>
+      previewDiff
+        .locator(
+          '.review-codex-diff__line[data-line-type^="change-"] ' +
+            '.review-codex-diff__line-text span[style*="color"]',
+        )
+        .count(),
+    )
+    .toBeGreaterThan(0)
 
   const structure = await page.evaluate(() => {
     const gallery = document.querySelector('.appearance-mode-gallery')!
@@ -2094,12 +2200,14 @@ test('settings shell search and appearance source contracts', async ({
   })
 
   const symbolButton = diffMarkerGroup.getByRole('button', { name: '+/-' })
+  const colorButton = diffMarkerGroup.getByRole('button', { name: '颜色' })
   const motionOffButton = reduceMotionGroup.getByRole('button', {
     name: '关闭',
   })
   await symbolButton.click()
   await motionOffButton.click()
   await expect(symbolButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(previewDiff).toHaveAttribute('data-indicators', 'classic')
   await expect(motionOffButton).toHaveAttribute('aria-pressed', 'true')
   await expect(
     motionOffButton.evaluate((button) => {
@@ -2147,6 +2255,10 @@ test('settings shell search and appearance source contracts', async ({
     thumbSize: [16, 16],
     thumbUsesForeground: true,
   })
+
+  await colorButton.click()
+  await expect(colorButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(previewDiff).toHaveAttribute('data-indicators', 'bars')
 
   const uiFontSizeInput = page.getByRole('spinbutton', { name: '界面字号' })
   await expect(
@@ -2196,6 +2308,71 @@ test('settings shell search and appearance source contracts', async ({
       .getByRole('button', { name: '关闭' }),
   ).toHaveAttribute('aria-pressed', 'true')
 })
+
+for (const mode of MODES) {
+  test(`appearance ${mode} diff preview matches the canonical review surface`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await page.emulateMedia({
+      colorScheme: mode,
+      forcedColors: 'none',
+      reducedMotion: 'reduce',
+    })
+    await page.goto('/?visualCase=empty#/settings/appearance')
+    await closeTransientErrorToast(page)
+
+    const variantLabel = mode === 'light' ? '浅色' : '深色'
+    await page
+      .getByRole('radiogroup', { name: '外观模式' })
+      .getByRole('radio', { name: variantLabel })
+      .click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const raw = localStorage.getItem('codepilotx.desktop.appearance.v6')
+          return raw ? JSON.parse(raw).mode : null
+        }),
+      )
+      .toBe(mode)
+
+    const previewDiff = page
+      .getByLabel(`${variantLabel}主题差异预览`)
+      .locator('.review-codex-diff[data-diff-type="split"]')
+    await expect(previewDiff).toHaveAttribute(
+      'data-review-syntax-state',
+      'ready',
+      { timeout: 10_000 },
+    )
+    await expect(previewDiff.locator('.review-diff-word')).not.toHaveCount(0)
+    const previewStyles = await readReviewDiffComputedStyles(previewDiff)
+
+    await gotoWorkbenchFixture(
+      page,
+      '/?visualCase=review#/threads/visual-review',
+    )
+    await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+    await rightPanel.getByRole('button', { name: /^审阅/ }).click()
+    const reviewDiff = rightPanel
+      .getByLabel(
+        'apps/desktop/renderer/test/codex-style-contracts.test.ts diff',
+      )
+      .locator('.review-codex-diff:not(.review-codex-diff--virtual)')
+    await expect(reviewDiff).toHaveAttribute(
+      'data-review-syntax-state',
+      'ready',
+      { timeout: 10_000 },
+    )
+    await expect(reviewDiff.locator('.review-diff-word')).not.toHaveCount(0)
+
+    await expect(
+      readReviewDiffComputedStyles(reviewDiff),
+    ).resolves.toEqual(previewStyles)
+  })
+}
 
 async function closeTransientErrorToast(
   page: Page,
@@ -2253,4 +2430,47 @@ async function openAndAssertReviewSourceMenu(
       .allTextContents(),
   ).toEqual(['上一轮', '未暂存', '已暂存', '提交', '分支'])
   return menu
+}
+
+async function readReviewDiffComputedStyles(diff: Locator) {
+  return diff.evaluate((root) => {
+    const requireElement = (selector: string): Element => {
+      const element = root.querySelector(selector)
+      if (!element) {
+        throw new Error(`Missing canonical review diff element: ${selector}`)
+      }
+      return element
+    }
+    const readBackground = (selector: string): string =>
+      getComputedStyle(requireElement(selector)).backgroundColor
+    const readColor = (selector: string): string =>
+      getComputedStyle(requireElement(selector)).color
+    const rootStyle = getComputedStyle(root)
+
+    return {
+      addedLineBackground: readBackground(
+        '.review-codex-diff__line[data-line-type="change-addition"]',
+      ),
+      addedNumberColor: readColor(
+        '.review-codex-diff__number[data-line-type="change-addition"]',
+      ),
+      addedWordBackground: readBackground(
+        '.review-diff-word[data-tone="added"]',
+      ),
+      editorBackground: rootStyle.backgroundColor,
+      editorForeground: rootStyle.color,
+      fontFamily: rootStyle.fontFamily,
+      fontSize: rootStyle.fontSize,
+      lineHeight: rootStyle.lineHeight,
+      removedLineBackground: readBackground(
+        '.review-codex-diff__line[data-line-type="change-deletion"]',
+      ),
+      removedNumberColor: readColor(
+        '.review-codex-diff__number[data-line-type="change-deletion"]',
+      ),
+      removedWordBackground: readBackground(
+        '.review-diff-word[data-tone="removed"]',
+      ),
+    }
+  })
 }

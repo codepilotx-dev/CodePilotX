@@ -159,112 +159,9 @@
   margin: 0 0 16px;
   overflow: hidden;
   border: 1px solid
-    color-mix(in srgb, var(--appearance-preview-ink) 16%, transparent);
+    color-mix(in srgb, var(--color-text-foreground) 16%, transparent);
   border-radius: 12px;
-  background: var(--appearance-preview-panel);
-  color: var(--appearance-preview-ink);
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
-}
-
-.appearance-diff-split {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  overflow-x: auto;
-}
-
-.appearance-diff-side {
-  min-width: 270px;
-  background: var(--appearance-preview-surface);
-
-  + .appearance-diff-side {
-    border-left: 1px solid
-      color-mix(in srgb, var(--appearance-preview-ink) 12%, transparent);
-  }
-}
-
-.appearance-diff-line {
-  display: grid;
-  grid-template-columns: 34px 16px minmax(max-content, 1fr);
-  min-height: 22px;
-  line-height: 22px;
-
-  &[data-tone="removed"] {
-    background: var(--appearance-preview-removed-line);
-  }
-
-  &[data-tone="added"] {
-    background: var(--appearance-preview-added-line);
-  }
-
-  code {
-    display: block;
-    min-width: max-content;
-    padding: 0 8px 0 4px;
-    color: inherit;
-    font: inherit;
-    white-space: pre;
-  }
-}
-
-.appearance-diff-line-number {
-  padding-right: 7px;
-  border-right: 1px solid
-    color-mix(in srgb, var(--appearance-preview-ink) 8%, transparent);
-  color: color-mix(in srgb, var(--appearance-preview-ink) 42%, transparent);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  user-select: none;
-}
-
-.appearance-diff-marker {
-  position: relative;
-  color: color-mix(in srgb, var(--appearance-preview-ink) 58%, transparent);
-  text-align: center;
-  user-select: none;
-}
-
-.appearance-diff-preview[data-marker-style="color"] .appearance-diff-marker {
-  color: transparent;
-
-  &::before {
-    content: "";
-    width: 4px;
-    height: 100%;
-    position: absolute;
-    inset: 0 auto 0 0;
-    background: currentColor;
-  }
-}
-
-:where(
-    .appearance-diff-preview[data-marker-style="color"]
-      .appearance-diff-line[data-tone="added"]
-  )
-  .appearance-diff-marker::before {
-  background: var(--appearance-preview-added);
-}
-
-:where(
-    .appearance-diff-preview[data-marker-style="color"]
-      .appearance-diff-line[data-tone="removed"]
-  )
-  .appearance-diff-marker::before {
-  background: var(--appearance-preview-removed);
-}
-
-.appearance-diff-line[data-tone="added"] .appearance-diff-word {
-  background: var(--appearance-preview-added-text);
-}
-
-.appearance-diff-line[data-tone="removed"] .appearance-diff-word {
-  background: var(--appearance-preview-removed-text);
-}
-
-.appearance-diff-word {
-  border-radius: var(--radius-2);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+  background: var(--color-token-editor-background);
 }
 
 .appearance-theme-editor-rows {
@@ -303,15 +200,32 @@
 }
 
 .appearance-color-swatch {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
-  margin-left: 8px;
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  margin: 2px 0 2px 8px;
   padding: 0;
-  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  border: 0;
   border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 10%, transparent);
+  box-shadow: none;
+
+  &::before {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+    border-radius: 50%;
+    background: var(--appearance-color-swatch-background);
+    box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 10%, transparent);
+    content: '';
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .appearance-color-popover {
@@ -336,6 +250,15 @@
     linear-gradient(to right, #fff, transparent), var(--appearance-picker-hue);
   cursor: crosshair;
   touch-action: none;
+
+  &:has(.appearance-color-axis-thumb:focus-visible) {
+    outline: 2px solid var(--color-token-focus-border);
+    outline-offset: 2px;
+  }
+}
+
+.appearance-color-axis-slider {
+  pointer-events: none;
 }
 
 .appearance-color-palette-thumb {
@@ -439,8 +362,7 @@
       appearance: none;
       border: 1px solid var(--color-token-border-light);
       border-radius: 50%;
-      background: var(--color-token-foreground);
-      box-shadow: var(--shadow-resting);
+      background: var(--appearance-slider-thumb);
     }
   }
 

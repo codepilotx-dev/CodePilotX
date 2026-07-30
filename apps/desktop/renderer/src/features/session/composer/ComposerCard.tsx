@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as Popover from "@radix-ui/react-popover";
 import * as Select from "@radix-ui/react-select";
 import {
   Activity,
@@ -19,7 +20,6 @@ import {
   Brain,
   Check,
   ChevronDown,
-  ChevronRight,
   Compass,
   FileText,
   Folder,
@@ -63,13 +63,13 @@ import type {
   ModelProviderID,
 } from "../../../../shared/types.js";
 import type { ModelPreset } from "../../../modelPresets.js";
-import { SearchInput } from "../../../components/ui/SearchInput.js";
 import { ChipButton } from "../../../components/ui/ChipButton.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { MetaChip } from "../../../components/ui/MetaChip.js";
 import { SessionFollowUpDock } from "../SessionFollowUpDock.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
+import { SearchablePopoverContent } from "../../../components/ui/SearchablePopoverContent.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
@@ -433,6 +433,8 @@ export function ComposerCard({
   const [providerSearchQueries, setProviderSearchQueries] = useState<
     Record<string, string>
   >({});
+  const [openModelProviderID, setOpenModelProviderID] =
+    useState<ModelProviderID | null>(null);
   const providerSearchTimersRef = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
@@ -1035,7 +1037,16 @@ export function ComposerCard({
     );
 
     if (visibleGroups.length === 0) {
-      return <div className="chat-input__dropdown-empty">无命令</div>;
+      return (
+        <div
+          aria-label="Composer 命令"
+          className="chat-input__dropdown-empty"
+          id={menuId}
+          role="listbox"
+        >
+          无命令
+        </div>
+      );
     }
 
     return (
@@ -1043,12 +1054,22 @@ export function ComposerCard({
         aria-label="Composer 命令"
         className="chat-input__dropdown-items"
         id={menuId}
-        role="menu"
+        role="listbox"
       >
-        {visibleGroups.map((group, gi) => (
-          <Fragment key={group}>
-            {gi > 0 ? <div className="chat-input__dropdown-separator" /> : null}
-            <div className="chat-input__dropdown-section-title">
+        {visibleGroups.map((group, gi) => {
+          const groupLabelId = `${menuId}-group-${group}`;
+          return (
+          <div aria-labelledby={groupLabelId} key={group} role="group">
+            {gi > 0 ? (
+              <div
+                aria-hidden="true"
+                className="chat-input__dropdown-separator"
+              />
+            ) : null}
+            <div
+              className="chat-input__dropdown-section-title"
+              id={groupLabelId}
+            >
               <span className="chat-input__dropdown-section-leading" />
               <span className="chat-input__dropdown-section-label">
                 {UNIFIED_GROUP_LABELS[group]}
@@ -1073,8 +1094,8 @@ export function ComposerCard({
                     if (!item.disabled) onItemSelect(item);
                   }}
                   onMouseEnter={() => onActiveIndexChange(itemIndex)}
-                  role="menuitem"
-                  tabIndex={itemIndex === activeIndex ? 0 : -1}
+                  role="option"
+                  tabIndex={-1}
                   type="button"
                 >
                   <span className="chat-input__dropdown-leading">
@@ -1093,8 +1114,8 @@ export function ComposerCard({
                 </button>
               );
             })}
-          </Fragment>
-        ))}
+          </div>
+        )})}
       </div>
     );
   }
@@ -1628,11 +1649,14 @@ export function ComposerCard({
                 </span>
               </span>
             ) : null}
-            <DropdownMenu.Root
+            <Popover.Root
               open={openDropdown === "model"}
-              onOpenChange={(open) => setOpenDropdown(open ? "model" : null)}
+              onOpenChange={(open) => {
+                if (!open) setOpenModelProviderID(null);
+                setOpenDropdown(open ? "model" : null);
+              }}
             >
-              <DropdownMenu.Trigger asChild>
+              <Popover.Trigger asChild>
                 <ChipButton
                   active={openDropdown === "model"}
                   className="subtle composer-model-chip"
@@ -1648,9 +1672,10 @@ export function ComposerCard({
                     </span>
                   ) : null}
                 </ChipButton>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content
+                  aria-label="模型与推理设置"
                   className="popover-surface rm-model-menu"
                   align="end"
                   collisionPadding={6}
@@ -1662,103 +1687,128 @@ export function ComposerCard({
                     {showThinkingOptions ? (
                       deepSeekThinkingControls ? (
                         <>
-                          <div className="rm-section-header">思考模式</div>
-                          <DropdownMenu.Item
-                            className="rm-menu-item"
-                            onSelect={() => {
-                              onThinkingChange("default");
-                            }}
+                          <div
+                            aria-label="思考模式"
+                            role="radiogroup"
                           >
-                            <span className="rm-item-label">启用</span>
-                            {thinkingMode !== "disabled" ? (
-                              <Check
-                                className="rm-item-check"
-                                size={APP_ICON_SIZE}
-                                strokeWidth={APP_ICON_STROKE_WIDTH}
-                              />
-                            ) : null}
-                          </DropdownMenu.Item>
-                          <DropdownMenu.Item
-                            className="rm-menu-item"
-                            onSelect={() => {
-                              onThinkingChange("disabled");
-                              closeDropdown();
-                            }}
-                          >
-                            <span className="rm-item-label">禁用</span>
-                            {thinkingMode === "disabled" ? (
-                              <Check
-                                className="rm-item-check"
-                                size={APP_ICON_SIZE}
-                                strokeWidth={APP_ICON_STROKE_WIDTH}
-                              />
-                            ) : null}
-                          </DropdownMenu.Item>
-                          {thinkingMode !== "disabled" ? (
-                            <>
-                              <div className="rm-divider" />
-                              <div className="rm-section-header">推理强度</div>
-                              <DropdownMenu.Item
-                                className="rm-menu-item"
-                                onSelect={() => {
-                                  onThinkingChange("default");
-                                  closeDropdown();
-                                }}
-                              >
-                                <span className="rm-item-label">高</span>
-                                {thinkingMode !== "enabled" ? (
-                                  <Check
-                                    className="rm-item-check"
-                                    size={APP_ICON_SIZE}
-                                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                                  />
-                                ) : null}
-                              </DropdownMenu.Item>
-                              <DropdownMenu.Item
-                                className="rm-menu-item"
-                                onSelect={() => {
-                                  onThinkingChange("enabled");
-                                  closeDropdown();
-                                }}
-                              >
-                                <span className="rm-item-label">超高</span>
-                                {thinkingMode === "enabled" ? (
-                                  <Check
-                                    className="rm-item-check"
-                                    size={APP_ICON_SIZE}
-                                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                                  />
-                                ) : null}
-                              </DropdownMenu.Item>
-                            </>
-                          ) : null}
-                          <div className="rm-divider" />
-                        </>
-                      ) : (
-                        <>
-                          <div className="rm-section-header">推理</div>
-                          {thinkingOptions.map((option) => (
-                            <DropdownMenu.Item
+                            <div className="rm-section-header">思考模式</div>
+                            <button
+                              aria-checked={thinkingMode !== "disabled"}
                               className="rm-menu-item"
-                              key={option.value}
-                              onSelect={() => {
-                                onThinkingChange(option.value);
-                                closeDropdown();
-                              }}
+                              onClick={() => onThinkingChange("default")}
+                              role="radio"
+                              type="button"
                             >
-                              <span className="rm-item-label">
-                                {option.label}
-                              </span>
-                              {option.value === thinkingMode ? (
+                              <span className="rm-item-label">启用</span>
+                              {thinkingMode !== "disabled" ? (
                                 <Check
                                   className="rm-item-check"
                                   size={APP_ICON_SIZE}
                                   strokeWidth={APP_ICON_STROKE_WIDTH}
                                 />
                               ) : null}
-                            </DropdownMenu.Item>
-                          ))}
-                          <div className="rm-divider" />
+                            </button>
+                            <button
+                              aria-checked={thinkingMode === "disabled"}
+                              className="rm-menu-item"
+                              onClick={() => {
+                                onThinkingChange("disabled");
+                                closeDropdown();
+                              }}
+                              role="radio"
+                              type="button"
+                            >
+                              <span className="rm-item-label">禁用</span>
+                              {thinkingMode === "disabled" ? (
+                                <Check
+                                  className="rm-item-check"
+                                  size={APP_ICON_SIZE}
+                                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                                />
+                              ) : null}
+                            </button>
+                          </div>
+                          {thinkingMode !== "disabled" ? (
+                            <>
+                              <div aria-hidden="true" className="rm-divider" />
+                              <div
+                                aria-label="推理强度"
+                                role="radiogroup"
+                              >
+                                <div className="rm-section-header">推理强度</div>
+                                <button
+                                  aria-checked={thinkingMode !== "enabled"}
+                                  className="rm-menu-item"
+                                  onClick={() => {
+                                    onThinkingChange("default");
+                                    closeDropdown();
+                                  }}
+                                  role="radio"
+                                  type="button"
+                                >
+                                  <span className="rm-item-label">高</span>
+                                  {thinkingMode !== "enabled" ? (
+                                    <Check
+                                      className="rm-item-check"
+                                      size={APP_ICON_SIZE}
+                                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                                    />
+                                  ) : null}
+                                </button>
+                                <button
+                                  aria-checked={thinkingMode === "enabled"}
+                                  className="rm-menu-item"
+                                  onClick={() => {
+                                    onThinkingChange("enabled");
+                                    closeDropdown();
+                                  }}
+                                  role="radio"
+                                  type="button"
+                                >
+                                  <span className="rm-item-label">超高</span>
+                                  {thinkingMode === "enabled" ? (
+                                    <Check
+                                      className="rm-item-check"
+                                      size={APP_ICON_SIZE}
+                                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                                    />
+                                  ) : null}
+                                </button>
+                              </div>
+                            </>
+                          ) : null}
+                          <div aria-hidden="true" className="rm-divider" />
+                        </>
+                      ) : (
+                        <>
+                          <div aria-label="推理强度" role="radiogroup">
+                            <div className="rm-section-header">推理</div>
+                            {thinkingOptions.map((option) => (
+                              <button
+                                aria-checked={option.value === thinkingMode}
+                                className="rm-menu-item"
+                                key={option.value}
+                                onClick={() => {
+                                  onThinkingChange(option.value);
+                                  closeDropdown();
+                                }}
+                                role="radio"
+                                type="button"
+                              >
+                                <span className="rm-item-label">
+                                  {option.label}
+                                </span>
+                                {option.value === thinkingMode ? (
+                                  <Check
+                                    className="rm-item-check"
+                                    size={APP_ICON_SIZE}
+                                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                                  />
+                                ) : null}
+                              </button>
+                            ))}
+                          </div>
+                          <div aria-hidden="true" className="rm-divider" />
                         </>
                       )
                     ) : null}
@@ -1767,99 +1817,98 @@ export function ComposerCard({
                       <div className="rm-empty">未配置模型</div>
                     ) : null}
                     {providerOptions.map((provider) => (
-                      <DropdownMenu.Sub key={provider.providerID}>
-                        <DropdownMenu.SubTrigger
-                          className={[
-                            "rm-sub-trigger",
-                            provider.providerID === selectedProviderID
-                              ? "selected"
-                              : "",
-                          ].join(" ")}
-                          onFocus={() => onProviderOpen?.(provider.providerID)}
-                          onPointerEnter={() =>
-                            onProviderOpen?.(provider.providerID)
-                          }
-                        >
-                          <span className="rm-sub-trigger-content">
-                            <span className="rm-item-label">
-                              {provider.displayName}
-                            </span>
-                            {provider.providerID === selectedProviderID ? (
+                      <SearchablePopoverContent
+                        key={provider.providerID}
+                        align="start"
+                        className="rm-model-menu rm-model-submenu"
+                        contentLabel={`${provider.displayName} 模型`}
+                        emptyLabel="加载模型中…"
+                        listClassName="rm-model-submenu-scroll-content"
+                        listLabel={`${provider.displayName} 模型`}
+                        maxWidth="min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))"
+                        open={openModelProviderID === provider.providerID}
+                        options={provider.modelPresets.map(preset => ({
+                          ...preset,
+                          value: preset.id,
+                        }))}
+                        renderOption={(preset, selected) => (
+                          <>
+                            <span className="rm-item-label">{preset.label}</span>
+                            {selected ? (
                               <Check
-                                className="rm-item-check rm-provider-check"
+                                className="rm-item-check"
                                 size={APP_ICON_SIZE}
                                 strokeWidth={APP_ICON_STROKE_WIDTH}
                               />
                             ) : null}
-                          </span>
-                          <ChevronRight
-                            className="rm-item-arrow"
-                            size={APP_ICON_SIZE}
-                          />
-                        </DropdownMenu.SubTrigger>
-                        <DropdownMenu.Portal>
-                          <DropdownMenu.SubContent
-                            className="popover-surface rm-model-menu rm-model-submenu"
-                            alignOffset={-4}
-                            collisionPadding={6}
-                            sideOffset={4}
-                            style={buildPopoverSizingStyle({
-                              width: "auto",
-                              maxWidth:
-                                "min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))",
-                            })}
+                          </>
+                        )}
+                        search={providerSearchQueries[provider.providerID] ?? ""}
+                        searchLabel={`搜索 ${provider.displayName} 模型`}
+                        searchPlaceholder="搜索模型…"
+                        selectedValue={
+                          provider.providerID === selectedProviderID
+                            ? selectedModelPreset
+                            : undefined
+                        }
+                        side="right"
+                        sideOffset={4}
+                        trigger={
+                          <button
+                            className={[
+                              "rm-sub-trigger",
+                              provider.providerID === selectedProviderID
+                                ? "selected"
+                                : "",
+                            ].join(" ")}
+                            onFocus={() =>
+                              onProviderOpen?.(provider.providerID)
+                            }
+                            onPointerEnter={() =>
+                              onProviderOpen?.(provider.providerID)
+                            }
+                            type="button"
                           >
-                            <SearchInput
-                              aria-label={`搜索 ${provider.displayName} 模型`}
-                              onChange={(value) =>
-                                queueProviderSearch(
-                                  provider.providerID,
-                                  value,
-                                )
-                              }
-                              placeholder="搜索模型…"
-                              value={providerSearchQueries[provider.providerID] ?? ""}
-                              variant="compact"
-                            />
-                            <div className="rm-model-submenu-scroll-content">
-                              <div className="rm-section-header">模型</div>
-                              {provider.modelPresets.length === 0 ? (
-                                <div className="rm-empty">加载模型中…</div>
+                            <span className="rm-sub-trigger-content">
+                              <span className="rm-item-label">
+                                {provider.displayName}
+                              </span>
+                              {provider.providerID === selectedProviderID ? (
+                                <Check
+                                  className="rm-item-check rm-provider-check"
+                                  size={APP_ICON_SIZE}
+                                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                                />
                               ) : null}
-                              {provider.modelPresets.map((preset) => (
-                                <DropdownMenu.Item
-                                  className="rm-menu-item"
-                                  key={preset.id}
-                                  onSelect={() => {
-                                    onProviderModelChange(
-                                      provider.providerID,
-                                      preset.id,
-                                    );
-                                    closeDropdown();
-                                  }}
-                                >
-                                  <span className="rm-item-label">
-                                    {preset.label}
-                                  </span>
-                                  {provider.providerID === selectedProviderID &&
-                                  preset.id === selectedModelPreset ? (
-                                    <Check
-                                      className="rm-item-check"
-                                      size={APP_ICON_SIZE}
-                                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                                    />
-                                  ) : null}
-                                </DropdownMenu.Item>
-                              ))}
-                            </div>
-                          </DropdownMenu.SubContent>
-                        </DropdownMenu.Portal>
-                      </DropdownMenu.Sub>
+                            </span>
+                            <span aria-hidden="true" className="rm-item-arrow">
+                              ›
+                            </span>
+                          </button>
+                        }
+                        width="auto"
+                        onOpenChange={nextOpen => {
+                          setOpenModelProviderID(
+                            nextOpen ? provider.providerID : null,
+                          );
+                          if (nextOpen) onProviderOpen?.(provider.providerID);
+                        }}
+                        onSearchChange={value =>
+                          queueProviderSearch(provider.providerID, value)
+                        }
+                        onSelect={preset => {
+                          onProviderModelChange(
+                            provider.providerID,
+                            preset.id,
+                          );
+                          closeDropdown();
+                        }}
+                      />
                     ))}
                   </div>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
 
             <IconButton
               aria-label="语音输入"

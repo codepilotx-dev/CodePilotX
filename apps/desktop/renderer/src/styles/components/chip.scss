@@ -104,17 +104,25 @@
   border-radius: 999px;
 }
 
-.chip-button:hover,
-.meta-chip:hover {
+.chip-button:hover {
   background: var(--color-token-list-hover-background);
   color: var(--color-token-foreground);
 }
 
+.meta-chip:hover {
+  background: var(--color-token-button-secondary-hover-background);
+  color: var(--color-token-foreground);
+}
+
 .chip-button[aria-expanded="true"],
-.chip-button[data-state="open"],
+.chip-button[data-state="open"] {
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-foreground);
+}
+
 .meta-chip[aria-expanded="true"],
 .meta-chip[data-state="open"] {
-  background: var(--color-token-list-hover-background);
+  background: var(--color-token-button-secondary-hover-background);
   color: var(--color-token-foreground);
 }
 
