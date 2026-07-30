@@ -100,17 +100,6 @@
   --popover-max-width: min(390px, calc(100vw - 32px));
 }
 
-.settings-dropdown-content {
-  margin: 1px;
-  padding: 4px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--color-token-menu-background);
-  box-shadow:
-    0 0 0 0.5px var(--color-token-border),
-    var(--shadow-float);
-}
-
 .popover {
   z-index: var(--z-popover);
   display: inline-block;

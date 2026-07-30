@@ -1351,20 +1351,9 @@
 /* --- Review sidebar context triggers --- */
 .review-sidebar {
   .review-scope-trigger {
+    width: auto;
     display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 8px;
-    border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-3);
-    background: var(--color-token-text-preformat-background);
-    color: var(--color-token-foreground);
-    font-size: var(--type-control);
     font-weight: 500;
-
-    &:hover {
-      background: var(--color-token-list-hover-background);
-    }
   }
 
   .review-scope-trigger-label {

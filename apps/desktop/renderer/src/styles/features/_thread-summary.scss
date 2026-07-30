@@ -206,24 +206,13 @@
 .thread-summary-row {
   width: calc(100% + 16px);
   min-width: 0;
-  min-height: 36px;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) max-content;
-  align-items: center;
-  gap: var(--space-3);
   margin: 0 -8px;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: var(--radius-4);
-  outline: none;
-  background: transparent;
-  color: var(--color-token-foreground);
-  font: inherit;
-  font-size: 14px;
+  font-family: inherit;
   font-weight: 500;
   text-align: left;
   text-decoration: none;
-  cursor: pointer;
 
   > svg:first-child {
     width: 16px;
@@ -245,21 +234,7 @@
     white-space: nowrap;
   }
 
-  &:hover {
-    background: var(--color-token-list-hover-background);
-  }
-
-  &[data-state="open"] {
-    background: var(--color-token-list-hover-background);
-  }
-
-  &:focus-visible {
-    outline: 1px solid var(--color-token-text-link-foreground);
-    outline-offset: 1px;
-  }
-
   &[aria-disabled="true"] {
-    color: var(--color-token-disabled-foreground);
     cursor: not-allowed;
 
     > svg:first-child {
@@ -270,37 +245,19 @@
 
 .thread-summary-row-group {
   width: calc(100% + 16px);
-  min-height: 36px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28px;
-  align-items: center;
   margin: 0 -8px;
-  padding: 0 8px;
-  border-radius: var(--radius-4);
-
-  &:hover,
-  &:focus-within {
-    background: var(--color-token-list-hover-background);
-  }
 }
 
 .thread-summary-row-group__main {
   min-width: 0;
-  min-height: 36px;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-3);
-  padding: 6px 0;
-  border: 0;
-  outline: none;
   background: transparent;
-  color: var(--color-token-foreground);
-  font: inherit;
-  font-size: 14px;
+  font-family: inherit;
   font-weight: 500;
   text-align: left;
-  cursor: pointer;
 
   > svg {
     width: 16px;
@@ -314,12 +271,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  &:focus-visible {
-    border-radius: var(--radius-4);
-    outline: 1px solid var(--color-token-text-link-foreground);
-    outline-offset: 1px;
   }
 }
 
@@ -515,30 +466,14 @@
 
   > a {
     min-width: 0;
-    min-height: 36px;
     display: grid;
     grid-template-columns: 16px minmax(0, 1fr);
-    align-items: center;
-    gap: var(--space-3);
-    padding: 6px 8px;
-    border-radius: var(--radius-4);
-    color: var(--color-token-foreground);
-    font-size: 14px;
     text-decoration: none;
 
     > span {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    &:hover {
-      background: var(--color-token-list-hover-background);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--color-token-text-link-foreground);
-      outline-offset: -2px;
     }
   }
 }

@@ -54,7 +54,7 @@ export function ReviewSourceMenu({
       trigger={
         <button
           aria-label="切换变更范围"
-          className="review-scope-trigger"
+          className="interactive-row interactive-row--toolbar review-scope-trigger"
           type="button"
         >
           <span className="review-scope-trigger-label">

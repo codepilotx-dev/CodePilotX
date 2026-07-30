@@ -898,14 +898,6 @@
   gap: 0;
 }
 
-.settings-dropdown-item {
-  padding: var(--menu-item-padding-block) var(--menu-item-padding-inline);
-  border-radius: 10px;
-  color: var(--color-token-foreground);
-  font-size: var(--menu-font-size);
-  line-height: var(--menu-line-height);
-}
-
 .settings-dropdown-item-inner {
   display: flex;
   align-items: center;

@@ -38,11 +38,12 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
   ref,
 ): ReactNode {
   const rowClassName = cx(
+    "interactive-row",
+    "interactive-row--nav",
     "sidebar-row",
     `sidebar-row--${layout}`,
-    "tw:min-h-[31px] tw:w-full tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-left tw:text-base tw:leading-[21px] tw:text-app-text tw:no-underline tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-[var(--color-token-list-hover-background)] tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent",
-    active ? "tw:bg-[var(--color-token-list-active-selection-background)] tw:text-app-text" : undefined,
     active ? "active" : undefined,
+    active ? "selected" : undefined,
     indent === "session" ? "sidebar-row--session" : undefined,
     className,
   );

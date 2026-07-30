@@ -1,7 +1,10 @@
 /* --- Permission chip --- */
 .chip-button.permission-chip {
+  --composer-permission-chip-open-bg: var(
+    --color-token-list-active-selection-background
+  );
+
   border: 1px solid var(--composer-permission-chip-border, transparent);
-  border-radius: var(--radius-button);
   background: var(--composer-permission-chip-bg, transparent);
   color: var(--composer-permission-chip-color, var(--color-token-description-foreground));
   transition:
@@ -20,6 +23,21 @@
   background: var(
     --composer-permission-chip-hover-bg,
     var(--color-token-list-hover-background)
+  );
+  color: var(
+    --composer-permission-chip-hover-color,
+    var(--composer-permission-chip-color, var(--color-token-foreground))
+  );
+}
+
+.chip-button.permission-chip.active,
+.permission-select-trigger[data-state="open"] {
+  border-color: var(
+    --composer-permission-chip-hover-border,
+    var(--composer-permission-chip-border, transparent)
+  );
+  background: var(
+    --composer-permission-chip-open-bg
   );
   color: var(
     --composer-permission-chip-hover-color,
@@ -82,10 +100,24 @@
   color: var(--color-token-text-secondary);
   position: relative;
 
-  &.active,
   &:hover {
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-text-link-foreground);
   }
+
+  &.active {
+    background: var(--color-token-list-active-selection-background);
+    color: var(--color-token-text-link-foreground);
+  }
+}
+
+.permission-select-trigger,
+.composer-plan-mode-chip {
+  min-height: var(--interactive-row-composer-height);
+  padding: 0 var(--interactive-row-composer-padding-inline);
+  border-radius: var(--interactive-row-composer-radius);
+  font-size: var(--interactive-row-composer-font-size);
+  line-height: var(--interactive-row-composer-line-height);
 }
 
 .composer-plan-mode-chip-icon {
@@ -298,7 +330,7 @@
 
     .meta-chip {
       gap: 4px;
-      padding: 6px 8px;
+      padding: 0 var(--interactive-row-composer-padding-inline);
 
       .permission-select-trigger-label,
       .composer-model-chip-thinking {
@@ -309,12 +341,12 @@
 
   .permission-select-trigger {
     gap: 4px;
-    padding-inline: 8px;
+    padding-inline: var(--interactive-row-composer-padding-inline);
   }
 
   .composer-model-chip {
     max-width: 96px;
-    padding-inline: 8px;
+    padding-inline: var(--interactive-row-composer-padding-inline);
   }
 }
 
@@ -544,22 +576,6 @@
 
 .composer-model-chip-label {
   color: var(--color-token-foreground);
-}
-
-.chip-button.permission-chip:hover,
-.permission-select-trigger:hover {
-  border-color: var(
-    --composer-permission-chip-hover-border,
-    var(--color-token-border)
-  );
-  background: var(
-    --composer-permission-chip-hover-bg,
-    var(--color-token-list-hover-background)
-  );
-  color: var(
-    --composer-permission-chip-hover-color,
-    var(--color-token-foreground)
-  );
 }
 
 /* Transparent placement frame; ComposerStack owns its nested surfaces. */

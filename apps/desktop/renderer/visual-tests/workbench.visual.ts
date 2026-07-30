@@ -530,7 +530,17 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .locator('.review-sidebar-actions')
     .getByRole('button', { name: '更多' })
     .click()
-  await page.getByRole('menuitemcheckbox', { name: '文字差异' }).click()
+  const textDiffCheckbox = page.getByRole('menuitemcheckbox', {
+    name: '文字差异',
+  })
+  await expectCompactInteractiveRow(textDiffCheckbox, {
+    borderRadius: '10px',
+    fontSize: '12px',
+    height: 27,
+    lineHeight: '17px',
+    paddingInline: '8px',
+  })
+  await textDiffCheckbox.click()
   await expect(rightPanel.locator('.review-diff-word')).toHaveCount(0)
   await smallDiffSection.locator('.preview-header').click()
 
@@ -1131,6 +1141,26 @@ test('wide workspace keeps the summary beside a 600px review panel', async ({
   await expect(
     page.getByRole('button', { name: '取消置顶摘要' }),
   ).toBeVisible()
+  const visibleSummaryRows = summary.locator(
+    '.interactive-row--adaptive:visible',
+  )
+  await expect(visibleSummaryRows.first()).toBeVisible()
+  const summaryRowGeometry = await visibleSummaryRows.evaluateAll((rows) =>
+    rows.map((row) => ({
+      height: row.getBoundingClientRect().height,
+      paddingInline: getComputedStyle(row).paddingInline,
+      radius: getComputedStyle(row).borderRadius,
+      verticallyClipped:
+        row instanceof HTMLElement &&
+        row.scrollHeight > row.clientHeight + 1,
+    })),
+  )
+  expect(summaryRowGeometry.every((row) => row.height >= 30)).toBe(true)
+  expect(summaryRowGeometry.every((row) => row.radius === '10px')).toBe(true)
+  expect(
+    summaryRowGeometry.every((row) => row.paddingInline === '8px'),
+  ).toBe(true)
+  expect(summaryRowGeometry.some((row) => row.verticallyClipped)).toBe(false)
 
   const [summaryBox, timelineBox, composerBox, rightPanelBox] =
     await Promise.all([
@@ -1633,6 +1663,45 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
   await expect(sidebar).toHaveClass(/is-preview/)
   await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
   await expect(sidebar).not.toHaveClass(/is-drawer/)
+  const primaryNavigationRow = page
+    .getByRole('navigation', { name: '主要导航' })
+    .getByRole('link', { name: '新建任务' })
+  await expect(primaryNavigationRow).toBeVisible()
+  await expectCompactInteractiveRow(primaryNavigationRow, {
+    borderRadius: '10px',
+    fontSize: '14px',
+    height: 30,
+    lineHeight: '20px',
+    paddingInline: '8px',
+  })
+
+  const composerUtilityRows = page.locator(
+    '.composer .meta-chip:visible, .composer .composer-model-chip:visible, .composer .permission-select-trigger:visible',
+  )
+  await expect(composerUtilityRows.first()).toBeVisible()
+  const composerRowStyles = await composerUtilityRows.evaluateAll((rows) =>
+    rows.map((row) => {
+      const style = getComputedStyle(row)
+      return {
+        borderRadius: style.borderRadius,
+        fontSize: style.fontSize,
+        height: row.getBoundingClientRect().height,
+        lineHeight: style.lineHeight,
+        paddingInline: style.paddingInline,
+      }
+    }),
+  )
+  expect(composerRowStyles.length).toBeGreaterThanOrEqual(2)
+  expect(
+    composerRowStyles.every(
+      (row) =>
+        row.borderRadius === '9999px' &&
+        row.fontSize === '12px' &&
+        row.height === 28 &&
+        row.lineHeight === '18px' &&
+        row.paddingInline === '6px',
+    ),
+  ).toBe(true)
 
   await page.getByTitle('展开侧边栏').click()
   await expect(sidebar).toHaveClass(/is-docked/)
@@ -1650,6 +1719,15 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   await expect(sidebar).toHaveAttribute('data-sidebar-content', 'settings')
   await expect(sidebar).toHaveAttribute('aria-label', '设置侧栏')
   await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
+  const settingsNavigationRow = page.locator('.settings-nav-item:visible').first()
+  await expect(settingsNavigationRow).toBeVisible()
+  await expectCompactInteractiveRow(settingsNavigationRow, {
+    borderRadius: '10px',
+    fontSize: '14px',
+    height: 30,
+    lineHeight: '20px',
+    paddingInline: '8px',
+  })
 
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-collapsed/)
@@ -1666,6 +1744,79 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
   await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
 })
+
+for (const mode of MODES) {
+  test(`settings dropdown follows the compact row contract in ${mode} mode`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 960, height: 640 })
+    await page.emulateMedia({
+      colorScheme: mode,
+      forcedColors: 'none',
+      reducedMotion: 'reduce',
+    })
+    await page.goto('/?visualCase=empty#/settings/general')
+    await closeTransientErrorToast(page)
+
+    await expectCompactInteractiveRow(
+      page.getByRole('combobox', { name: '默认打开目标' }),
+      {
+        borderRadius: '10px',
+        fontSize: '14px',
+        height: 28,
+        lineHeight: '18px',
+        paddingInline: '8px',
+      },
+    )
+
+    await page.getByRole('button', { name: '语言' }).click()
+    const surface = page.locator('.settings-dropdown-content--searchable')
+    await expect(surface).toBeVisible()
+    const surfaceContract = await surface.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const item = element.querySelector<HTMLElement>(
+        '.settings-dropdown-item',
+      )
+      const itemStyle = item ? getComputedStyle(item) : null
+      return {
+        backdropFilter: style.backdropFilter,
+        borderRadius: style.borderRadius,
+        borderTopWidth: style.borderTopWidth,
+        boxShadow: style.boxShadow,
+        itemBorderRadius: itemStyle?.borderRadius,
+        itemFontSize: itemStyle?.fontSize,
+        itemHeight: item?.getBoundingClientRect().height,
+        itemLineHeight: itemStyle?.lineHeight,
+        itemPaddingBlock: itemStyle?.paddingBlock,
+        itemPaddingInline: itemStyle?.paddingInline,
+        padding: style.padding,
+      }
+    })
+    expect(surfaceContract.itemHeight).toBeCloseTo(27, 0)
+    expect({
+      backdropFilter: surfaceContract.backdropFilter,
+      borderRadius: surfaceContract.borderRadius,
+      borderTopWidth: surfaceContract.borderTopWidth,
+      itemBorderRadius: surfaceContract.itemBorderRadius,
+      itemFontSize: surfaceContract.itemFontSize,
+      itemLineHeight: surfaceContract.itemLineHeight,
+      itemPaddingBlock: surfaceContract.itemPaddingBlock,
+      itemPaddingInline: surfaceContract.itemPaddingInline,
+      padding: surfaceContract.padding,
+    }).toEqual({
+      backdropFilter: 'none',
+      borderRadius: '12px',
+      borderTopWidth: '1px',
+      itemBorderRadius: '10px',
+      itemFontSize: '12px',
+      itemLineHeight: '17px',
+      itemPaddingBlock: '5px',
+      itemPaddingInline: '8px',
+      padding: '4px',
+    })
+    expect(surfaceContract.boxShadow).not.toBe('none')
+  })
+}
 
 test('sidebar trigger does not reopen the preview until the pointer leaves', async ({
   page,
@@ -1886,15 +2037,13 @@ test('settings shell search and appearance source contracts', async ({
       const style = getComputedStyle(trigger)
       const bounds = trigger.getBoundingClientRect()
       const probe = document.createElement('span')
-      probe.style.background =
-        'color-mix(in oklab, var(--color-text-strong) 2.5%, transparent)'
       probe.style.color = 'var(--color-text-strong)'
       document.body.append(probe)
-      const expectedBackgroundColor = getComputedStyle(probe).backgroundColor
       const expectedForeground = getComputedStyle(probe).color
       probe.remove()
       return {
-        backgroundMatchesFog: style.backgroundColor === expectedBackgroundColor,
+        backgroundIsTransparent:
+          style.backgroundColor === 'rgba(0, 0, 0, 0)',
         borderRadius: style.borderRadius,
         colorMatchesForeground: style.color === expectedForeground,
         fontSize: style.fontSize,
@@ -1904,45 +2053,51 @@ test('settings shell search and appearance source contracts', async ({
       }
     }),
   ).resolves.toEqual({
-    backgroundMatchesFog: true,
-    borderRadius: '8px',
+    backgroundIsTransparent: true,
+    borderRadius: '10px',
     colorMatchesForeground: true,
     fontSize: '14px',
     height: 28,
     lineHeight: '18px',
-    paddingInline: '12px',
+    paddingInline: '8px',
   })
 
-  const languageDropdown = page.getByRole('combobox', { name: '语言' })
+  const languageDropdown = page.getByRole('button', { name: '语言' })
   await languageDropdown.click()
   const languageMenu = page.getByRole('listbox')
+  const languageSurface = page.locator(
+    '.settings-dropdown-content--searchable',
+  )
   await expect(languageMenu).toBeVisible()
-  await expect(
-    languageMenu.evaluate((menu) => {
-      const style = getComputedStyle(menu)
-      const bounds = menu.getBoundingClientRect()
-      const firstItem = menu.querySelector<HTMLElement>(
-        '.settings-dropdown-item',
-      )
-      const firstItemStyle = firstItem ? getComputedStyle(firstItem) : null
-      return {
-        backdropFilter: style.backdropFilter,
-        borderRadius: style.borderRadius,
-        itemFontSize: firstItemStyle?.fontSize,
-        itemHeight: firstItem?.getBoundingClientRect().height,
-        itemLineHeight: firstItemStyle?.lineHeight,
-        padding: style.padding,
-        width: bounds.width,
-      }
-    }),
-  ).resolves.toEqual({
-    backdropFilter: 'blur(8px)',
+  await expect(languageSurface).toBeVisible()
+  const languageSurfaceStyles = await languageSurface.evaluate((surface) => {
+    const style = getComputedStyle(surface)
+    const firstItem = surface.querySelector<HTMLElement>(
+      '.settings-dropdown-item',
+    )
+    const firstItemStyle = firstItem ? getComputedStyle(firstItem) : null
+    return {
+      backdropFilter: style.backdropFilter,
+      borderRadius: style.borderRadius,
+      itemFontSize: firstItemStyle?.fontSize,
+      itemHeight: firstItem?.getBoundingClientRect().height,
+      itemLineHeight: firstItemStyle?.lineHeight,
+      padding: style.padding,
+    }
+  })
+  expect(languageSurfaceStyles.itemHeight).toBeCloseTo(27, 0)
+  expect({
+    backdropFilter: languageSurfaceStyles.backdropFilter,
+    borderRadius: languageSurfaceStyles.borderRadius,
+    itemFontSize: languageSurfaceStyles.itemFontSize,
+    itemLineHeight: languageSurfaceStyles.itemLineHeight,
+    padding: languageSurfaceStyles.padding,
+  }).toEqual({
+    backdropFilter: 'none',
     borderRadius: '12px',
     itemFontSize: '12px',
-    itemHeight: 28,
-    itemLineHeight: '18px',
+    itemLineHeight: '17px',
     padding: '4px',
-    width: 240,
   })
   await expect(page.getByRole('combobox', { name: '搜索语言' })).toBeVisible()
   await page.keyboard.press('Escape')
@@ -1962,9 +2117,10 @@ test('settings shell search and appearance source contracts', async ({
         '.settings-dropdown-item-detail',
       )
       const foregroundProbe = document.createElement('span')
-      foregroundProbe.style.color = 'var(--color-text-strong)'
+      foregroundProbe.style.color = 'var(--color-token-foreground)'
       const secondaryProbe = document.createElement('span')
-      secondaryProbe.style.color = 'var(--color-text-meta)'
+      secondaryProbe.style.color =
+        'var(--color-token-description-foreground)'
       menu.append(foregroundProbe, secondaryProbe)
       const expectedForeground = getComputedStyle(foregroundProbe).color
       const expectedSecondary = getComputedStyle(secondaryProbe).color
@@ -2419,9 +2575,30 @@ async function openAndAssertReviewSourceMenu(
   page: Page,
   rightPanel: Locator,
 ): Promise<Locator> {
-  await rightPanel.getByRole('button', { name: '切换变更范围' }).click()
+  const trigger = rightPanel.getByRole('button', { name: '切换变更范围' })
+  await expectCompactInteractiveRow(trigger, {
+    borderRadius: '10px',
+    fontSize: '14px',
+    height: 28,
+    lineHeight: '18px',
+    paddingInline: '8px',
+  })
+  await trigger.click()
   const menu = page.locator('.popover-review-scope')
   await expect(menu).toBeVisible()
+  await expect
+    .poll(() =>
+      trigger.evaluate(element => {
+        const probe = document.createElement('span')
+        probe.style.background =
+          'var(--color-token-list-active-selection-background)'
+        element.append(probe)
+        const expected = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return getComputedStyle(element).backgroundColor === expected
+      }),
+    )
+    .toBe(true)
   await expect(menu.getByText('未提交', { exact: true })).toBeVisible()
   await expect(menu.locator('.review-source-menu-separator')).toHaveCount(2)
   expect(
@@ -2429,7 +2606,71 @@ async function openAndAssertReviewSourceMenu(
       .locator('[role="menuitem"], [role="menuitemradio"]')
       .allTextContents(),
   ).toEqual(['上一轮', '未暂存', '已暂存', '提交', '分支'])
+  const menuRows = menu.locator(
+    '.popover-item:visible, .popover-sub-trigger:visible',
+  )
+  const menuRowStyles = await menuRows.evaluateAll((rows) =>
+    rows.map((row) => {
+      const style = getComputedStyle(row)
+      return {
+        borderRadius: style.borderRadius,
+        fontSize: style.fontSize,
+        height: row.getBoundingClientRect().height,
+        lineHeight: style.lineHeight,
+        paddingBlock: style.paddingBlock,
+        paddingInline: style.paddingInline,
+      }
+    }),
+  )
+  expect(menuRowStyles.length).toBeGreaterThanOrEqual(4)
+  expect(
+    menuRowStyles.every(
+      (row) =>
+        row.borderRadius === '10px' &&
+        row.fontSize === '12px' &&
+        row.lineHeight === '17px' &&
+        row.paddingBlock === '5px' &&
+        row.paddingInline === '8px',
+    ),
+  ).toBe(true)
+  expect(
+    menuRowStyles.every((row) => Math.abs(row.height - 27) < 0.5),
+  ).toBe(true)
   return menu
+}
+
+async function expectCompactInteractiveRow(
+  row: Locator,
+  expected: {
+    borderRadius: string
+    fontSize: string
+    height: number
+    lineHeight: string
+    paddingInline: string
+  },
+): Promise<void> {
+  const actual = await row.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      borderRadius: style.borderRadius,
+      fontSize: style.fontSize,
+      height: element.getBoundingClientRect().height,
+      lineHeight: style.lineHeight,
+      paddingInline: style.paddingInline,
+    }
+  })
+  expect(actual.height).toBeCloseTo(expected.height, 0)
+  expect({
+    borderRadius: actual.borderRadius,
+    fontSize: actual.fontSize,
+    lineHeight: actual.lineHeight,
+    paddingInline: actual.paddingInline,
+  }).toEqual({
+    borderRadius: expected.borderRadius,
+    fontSize: expected.fontSize,
+    lineHeight: expected.lineHeight,
+    paddingInline: expected.paddingInline,
+  })
 }
 
 async function readReviewDiffComputedStyles(diff: Locator) {

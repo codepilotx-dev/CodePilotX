@@ -88,7 +88,13 @@ function SelectSettingsDropdown({
     >
       <Select.Trigger
         aria-label={ariaLabel}
-        className={cx('settings-dropdown', triggerClassName)}
+        className={cx(
+          'interactive-row',
+          'interactive-row--toolbar',
+          'settings-dropdown',
+          'settings-dropdown-trigger',
+          triggerClassName,
+        )}
         data-variant={variant}
       >
         <div className="settings-dropdown-value">
@@ -288,7 +294,13 @@ function SearchableSettingsDropdown({
         <button
           ref={triggerRef}
           aria-label={ariaLabel}
-          className={cx('settings-dropdown', triggerClassName)}
+          className={cx(
+            'interactive-row',
+            'interactive-row--toolbar',
+            'settings-dropdown',
+            'settings-dropdown-trigger',
+            triggerClassName,
+          )}
           data-variant={variant}
           disabled={disabled}
           type="button"

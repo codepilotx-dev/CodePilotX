@@ -50,21 +50,13 @@ function buildItemClassName({
   selected?: boolean
 }): string {
   return [
+    'interactive-row',
+    'interactive-row--menu',
     'popover-item',
     'tw:w-full',
     'tw:min-w-0',
-    'tw:cursor-pointer',
     'tw:items-center',
     'tw:text-left',
-    'tw:text-app-text',
-    'tw:outline-none',
-    'tw:transition-colors',
-    'tw:duration-[120ms]',
-    'tw:hover:bg-app-panel',
-    'tw:focus-visible:ring-2',
-    'tw:focus-visible:ring-app-accent',
-    'tw:data-[disabled]:cursor-default',
-    'tw:data-[disabled]:opacity-50',
     hasRichContent ? 'rich' : '',
     active ? 'active' : '',
     selected ? 'selected' : '',

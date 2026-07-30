@@ -69,15 +69,86 @@
   --font-size-24: calc(var(--font-size-ui) + 10px);
   --font-size-26: calc(var(--font-size-ui) + 12px);
 
-  --menu-font-size: max(11px, calc(var(--font-size-ui) - 2px));
-  --menu-line-height: calc(var(--menu-font-size) + 5px);
+  --menu-font-size: var(--interactive-row-font-menu);
+  --menu-line-height: var(--interactive-row-line-menu);
   --menu-detail-font-size: max(10px, calc(var(--font-size-ui) - 3px));
   --menu-surface-padding: 4px;
-  --menu-item-padding-block: 5px;
-  --menu-item-padding-inline: 8px;
-  --menu-item-gap: 6px;
+  --menu-item-padding-block: var(--interactive-row-padding-block-menu);
+  --menu-item-padding-inline: var(--interactive-row-padding-inline);
+  --menu-item-gap: var(--interactive-row-gap);
   --menu-icon-size: calc(var(--menu-font-size) + 4px);
-  --context-menu-item-padding: 6px;
+
+  // Shared compact interactive-row profiles.
+  --interactive-row-height-nav: 30px;
+  --interactive-row-height-menu: 27px;
+  --interactive-row-height-toolbar: 28px;
+  --interactive-row-height-composer: 28px;
+  --interactive-row-radius: 10px;
+  --interactive-row-radius-pill: 9999px;
+  --interactive-row-padding-block-menu: 5px;
+  --interactive-row-padding-inline: 8px;
+  --interactive-row-padding-inline-composer: 6px;
+  --interactive-row-gap: 6px;
+  --interactive-row-font-nav: 14px;
+  --interactive-row-line-nav: 20px;
+  --interactive-row-font-menu: 12px;
+  --interactive-row-line-menu: 17px;
+  --interactive-row-line-compact: 18px;
+  --interactive-row-background: transparent;
+  --interactive-row-foreground: var(--color-token-foreground);
+  --interactive-row-hover-background: var(
+    --color-token-list-hover-background
+  );
+  --interactive-row-hover-foreground: var(--color-token-foreground);
+  --interactive-row-open-background: var(
+    --interactive-row-selected-background
+  );
+  --interactive-row-open-foreground: var(
+    --interactive-row-selected-foreground
+  );
+  --interactive-row-selected-background: var(
+    --color-token-list-active-selection-background
+  );
+  --interactive-row-selected-foreground: var(
+    --color-token-list-active-selection-foreground
+  );
+  --interactive-row-disabled-foreground: var(
+    --color-token-disabled-foreground
+  );
+  --interactive-row-disabled-opacity: 0.55;
+  --interactive-row-nav-height: var(--interactive-row-height-nav);
+  --interactive-row-nav-radius: var(--interactive-row-radius);
+  --interactive-row-nav-padding-inline: var(--interactive-row-padding-inline);
+  --interactive-row-nav-font-size: var(--interactive-row-font-nav);
+  --interactive-row-nav-line-height: var(--interactive-row-line-nav);
+  --interactive-row-menu-height: var(--interactive-row-height-menu);
+  --interactive-row-menu-radius: var(--interactive-row-radius);
+  --interactive-row-menu-padding-block: var(
+    --interactive-row-padding-block-menu
+  );
+  --interactive-row-menu-padding-inline: var(--interactive-row-padding-inline);
+  --interactive-row-menu-font-size: var(--interactive-row-font-menu);
+  --interactive-row-menu-line-height: var(--interactive-row-line-menu);
+  --interactive-row-toolbar-height: var(--interactive-row-height-toolbar);
+  --interactive-row-toolbar-radius: var(--interactive-row-radius);
+  --interactive-row-toolbar-padding-inline: var(
+    --interactive-row-padding-inline
+  );
+  --interactive-row-toolbar-font-size: 14px;
+  --interactive-row-toolbar-line-height: var(--interactive-row-line-compact);
+  --interactive-row-composer-height: var(--interactive-row-height-composer);
+  --interactive-row-composer-radius: var(--interactive-row-radius-pill);
+  --interactive-row-composer-padding-inline: var(
+    --interactive-row-padding-inline-composer
+  );
+  --interactive-row-composer-gap: var(--interactive-row-gap);
+  --interactive-row-composer-font-size: var(--interactive-row-font-menu);
+  --interactive-row-composer-line-height: var(--interactive-row-line-compact);
+  --interactive-row-adaptive-min-height: var(--interactive-row-height-nav);
+  --interactive-row-adaptive-radius: var(--interactive-row-radius);
+  --interactive-row-adaptive-padding-inline: var(
+    --interactive-row-padding-inline
+  );
 
   --control-line-height: 1.4;
   --control-padding-block-compact: 0.4em;

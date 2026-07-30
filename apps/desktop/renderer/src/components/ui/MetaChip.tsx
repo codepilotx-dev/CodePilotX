@@ -20,7 +20,7 @@ export const MetaChip = forwardRef<HTMLButtonElement, Props>(
         {...buttonProps}
         ref={ref}
         aria-expanded={active}
-        className="meta-chip"
+        className="interactive-row interactive-row--composer meta-chip"
         title={title}
         type={type}
       >
