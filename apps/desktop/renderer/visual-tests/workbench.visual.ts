@@ -162,7 +162,7 @@ for (const mode of MODES) {
     await expect(
       rightPanel.getByRole('button', { name: '隐藏文件树' }),
     ).toHaveAttribute('aria-pressed', 'true')
-    await expect(rightPanel.getByRole('textbox', { name: '筛选文件' })).toBeFocused()
+    await expect(rightPanel.getByRole('searchbox', { name: '筛选文件' })).toBeFocused()
     await expect(rightPanel.locator('.right-dock-header')).toHaveCSS(
       'height',
       '46px',
@@ -530,7 +530,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .locator('.review-sidebar-actions')
     .getByRole('button', { name: '更多' })
     .click()
-  await page.getByRole('menuitem', { name: '禁用文字差异' }).click()
+  await page.getByRole('menuitemcheckbox', { name: '文字差异' }).click()
   await expect(rightPanel.locator('.review-diff-word')).toHaveCount(0)
   await smallDiffSection.locator('.preview-header').click()
 
@@ -1178,7 +1178,9 @@ for (const mode of MODES) {
     await page.goto('/?visualCase=empty#/new')
     await closeTransientErrorToast(page)
     await expect(
-      page.getByText('我们该做什么？', { exact: true }),
+      page.getByRole('heading', {
+        name: /我们(?:该做什么|应该构建什么)？/,
+      }),
     ).toBeVisible()
     await expect(page.locator('html')).toHaveAttribute(
       'data-reduce-motion',
@@ -1577,13 +1579,13 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   const sidebar = page.locator('aside.desktop-sidebar')
   await expect(sidebar).toHaveAttribute('data-sidebar-content', 'settings')
   await expect(sidebar).toHaveAttribute('aria-label', '设置侧栏')
-  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
 
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-collapsed/)
   await page.mouse.move(6, 400)
   await expect(sidebar).toHaveClass(/is-preview/)
-  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
 
   await page.mouse.move(600, 400)
   await expect(sidebar).toHaveClass(/is-collapsed/)
@@ -1592,7 +1594,7 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   await page.mouse.move(6, 400)
   await expect(sidebar).toHaveClass(/is-preview/)
   await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
-  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
 })
 
 test('sidebar trigger does not reopen the preview until the pointer leaves', async ({
@@ -1621,7 +1623,7 @@ test('Escape closes the theme picker and restores focus', async ({ page }) => {
   await picker.click()
   await expect(page.getByRole('listbox')).toBeVisible()
   await expect(
-    page.getByRole('textbox', { name: '搜索代码主题…' }),
+    page.getByRole('combobox', { name: '搜索代码主题…' }),
   ).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(picker).toBeFocused()
@@ -1872,7 +1874,7 @@ test('settings shell search and appearance source contracts', async ({
     padding: '4px',
     width: 240,
   })
-  await expect(page.getByRole('textbox', { name: '搜索语言' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '搜索语言' })).toBeVisible()
   await page.keyboard.press('Escape')
 
   await page.goto('/?visualCase=empty#/settings/config')
@@ -1947,7 +1949,7 @@ test('settings shell search and appearance source contracts', async ({
   })
 
   await page.keyboard.press('Control+f')
-  const search = page.getByRole('searchbox', { name: '搜索设置' })
+  const search = page.getByRole('combobox', { name: '搜索设置' })
   await expect(search).toBeFocused()
   await search.fill('对比度')
   await expect(page.getByRole('option', { name: /对比度.*外观/ })).toBeVisible()
@@ -2035,7 +2037,7 @@ test('settings shell search and appearance source contracts', async ({
   await lightPicker.click()
   await expect(page.getByRole('option')).toHaveCount(16)
   await expect(
-    page.getByRole('textbox', { name: '搜索代码主题…' }),
+    page.getByRole('combobox', { name: '搜索代码主题…' }),
   ).toHaveCount(0)
   await page.keyboard.press('Escape')
 
@@ -2246,7 +2248,9 @@ async function openAndAssertReviewSourceMenu(
   await expect(menu.getByText('未提交', { exact: true })).toBeVisible()
   await expect(menu.locator('.review-source-menu-separator')).toHaveCount(2)
   expect(
-    await menu.getByRole('menuitem').allTextContents(),
+    await menu
+      .locator('[role="menuitem"], [role="menuitemradio"]')
+      .allTextContents(),
   ).toEqual(['上一轮', '未暂存', '已暂存', '提交', '分支'])
   return menu
 }

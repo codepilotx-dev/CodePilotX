@@ -21,6 +21,8 @@ import { BranchSelectPopover } from "../composer/BranchSelectPopover.js";
 import type { ThreadSummaryViewModel } from "./threadSummaryViewModel.js";
 import { previewThreadSummarySources } from "./threadSummaryViewModel.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
+import { IconButton } from "../../../components/ui/IconButton.js";
+import { useDialogFocusRestore } from "../../../components/ui/useDialogFocusRestore.js";
 
 type ThreadSummaryActions = {
   onBranchSelect: (branch: string) => Promise<void>;
@@ -352,18 +354,25 @@ function ThreadSummarySourcesPanel({
   sources: ThreadSummaryViewModel["sources"];
   onOpenChange: (open: boolean) => void;
 }): React.ReactNode {
+  const { onCloseAutoFocus } = useDialogFocusRestore(open);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="thread-summary-sources-overlay" />
-        <Dialog.Content className="thread-summary-sources-panel">
+        <Dialog.Content
+          className="thread-summary-sources-panel"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
           <header>
             <div>
               <Dialog.Title>来源</Dialog.Title>
               <span>{sources.length}</span>
             </div>
-            <Dialog.Close aria-label="关闭来源面板" type="button">
-              <X aria-hidden="true" size={APP_ICON_SIZE} />
+            <Dialog.Close asChild>
+              <IconButton title="关闭来源面板">
+                <X aria-hidden="true" size={APP_ICON_SIZE} />
+              </IconButton>
             </Dialog.Close>
           </header>
           <Dialog.Description>

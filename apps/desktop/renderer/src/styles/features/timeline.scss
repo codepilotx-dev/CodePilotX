@@ -454,9 +454,7 @@
   color: var(--color-token-foreground);
   font-size: 12px;
   line-height: 20px;
-  box-shadow:
-    0 8px 16px -4px
-    color-mix(in srgb, var(--color-token-foreground) 12%, transparent);
+  box-shadow: var(--shadow-float);
 }
 
 .preview-card-user-text {

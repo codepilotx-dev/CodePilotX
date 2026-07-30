@@ -778,8 +778,8 @@ export function ReviewDiffFilePreview({
           <Tooltip content="打开文件">
             <button
               aria-label="打开文件"
+              aria-disabled={!workspacePath}
               className="message-action review-file-open"
-              disabled={!workspacePath}
               type="button"
               onClick={() => {
                 if (!workspacePath) return;
@@ -802,12 +802,13 @@ export function ReviewDiffFilePreview({
           <Tooltip content={file.isUntracked ? "删除未跟踪文件" : "还原文件"}>
             <button
               aria-label={file.isUntracked ? "删除未跟踪文件" : "还原文件"}
+              aria-disabled={pending}
               className="message-action"
-              disabled={pending}
               type="button"
-              onClick={() =>
-                onApplyOperation("revert", { type: "file", path: file.path })
-              }
+              onClick={() => {
+                if (pending) return;
+                onApplyOperation("revert", { type: "file", path: file.path });
+              }}
             >
               {file.isUntracked ? (
                 <Trash2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
@@ -820,12 +821,13 @@ export function ReviewDiffFilePreview({
             <Tooltip content="暂存文件">
               <button
                 aria-label="暂存文件"
+                aria-disabled={pending}
                 className="message-action"
-                disabled={pending}
                 type="button"
-                onClick={() =>
-                  onApplyOperation("stage", { type: "file", path: file.path })
-                }
+                onClick={() => {
+                  if (pending) return;
+                  onApplyOperation("stage", { type: "file", path: file.path });
+                }}
               >
                 <Plus size={REVIEW_FILE_ACTION_ICON_SIZE} />
               </button>
@@ -834,12 +836,13 @@ export function ReviewDiffFilePreview({
             <Tooltip content="取消暂存文件">
               <button
                 aria-label="取消暂存文件"
+                aria-disabled={pending}
                 className="message-action"
-                disabled={pending}
                 type="button"
-                onClick={() =>
-                  onApplyOperation("unstage", { type: "file", path: file.path })
-                }
+                onClick={() => {
+                  if (pending) return;
+                  onApplyOperation("unstage", { type: "file", path: file.path });
+                }}
               >
                 <Minus size={REVIEW_FILE_ACTION_ICON_SIZE} />
               </button>

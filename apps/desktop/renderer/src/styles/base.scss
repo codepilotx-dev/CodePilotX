@@ -29,6 +29,25 @@ body {
   scrollbar-width: thin;
 }
 
+.skip-to-main {
+  position: fixed;
+  z-index: 10000;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-token-border);
+  border-radius: var(--radius-3);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-4)));
+  transition: transform var(--motion-fast);
+}
+
+.skip-to-main:focus-visible {
+  transform: translateY(0);
+}
+
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;

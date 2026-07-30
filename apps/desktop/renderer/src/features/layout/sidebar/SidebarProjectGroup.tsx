@@ -258,7 +258,6 @@ function SidebarProjectGroupComponent({
                     className="popover-sidebar-project popover-menu--grid"
                     open={menuOpen}
                     side="bottom"
-                    triggerTabIndex={0}
                     width="auto"
                     trigger={
                       <button

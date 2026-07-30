@@ -250,7 +250,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             </PopoverItem>
           </div>
         </div>
-        <div className="popover-divider" />
+        <DropdownMenu.Separator className="popover-divider" />
         <div className="popover-section">
           {usageAvailable ? (
             <DropdownMenu.Sub>

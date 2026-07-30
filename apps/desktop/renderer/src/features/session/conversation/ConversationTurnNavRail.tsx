@@ -132,43 +132,50 @@ function PreviewCard({
       className="conversation-turn-preview-card"
       data-thread-user-message-navigation-tooltip-preview
     >
-      <div className="preview-card-user-text">
-        {item.userText || "（无内容）"}
-      </div>
-      {assistantPreview ? (
-        <div className="preview-card-assistant-text">
-          <MarkdownMessage
-            allowWideBlocks={false}
-            externalResourcePolicy={{
-              allowExternalLinks: false,
-              allowRemoteMedia: false,
-            }}
-            text={item.assistantText ?? ""}
-          />
+      <span className="u-sr-only">
+        {`用户消息：${item.userText || "无内容"}${
+          assistantPreview ? `。助手回复：${assistantPreview}` : ""
+        }`}
+      </span>
+      <div aria-hidden="true" inert>
+        <div className="preview-card-user-text">
+          {item.userText || "（无内容）"}
         </div>
-      ) : null}
-      {displayedOutputs.length > 0 ? (
-        <div className="preview-card-outputs">
-          {displayedOutputs.map((output) => (
-            <span className="preview-card-output" key={`${output.type}:${output.path}`}>
-              <FileTypeIcon
-                aria-hidden="true"
-                className="preview-card-output-icon"
-                path={output.path}
-                size={18}
-              />
-              <span className="preview-card-output-label">
-                {output.label || fileName(output.path)}
+        {assistantPreview ? (
+          <div className="preview-card-assistant-text">
+            <MarkdownMessage
+              allowWideBlocks={false}
+              externalResourcePolicy={{
+                allowExternalLinks: false,
+                allowRemoteMedia: false,
+              }}
+              text={item.assistantText ?? ""}
+            />
+          </div>
+        ) : null}
+        {displayedOutputs.length > 0 ? (
+          <div className="preview-card-outputs">
+            {displayedOutputs.map((output) => (
+              <span className="preview-card-output" key={`${output.type}:${output.path}`}>
+                <FileTypeIcon
+                  aria-hidden="true"
+                  className="preview-card-output-icon"
+                  path={output.path}
+                  size={18}
+                />
+                <span className="preview-card-output-label">
+                  {output.label || fileName(output.path)}
+                </span>
               </span>
-            </span>
-          ))}
-          {item.outputs.length > displayedOutputs.length ? (
-            <span className="preview-card-output-more">
-              +{item.outputs.length - displayedOutputs.length}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+            ))}
+            {item.outputs.length > displayedOutputs.length ? (
+              <span className="preview-card-output-more">
+                +{item.outputs.length - displayedOutputs.length}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

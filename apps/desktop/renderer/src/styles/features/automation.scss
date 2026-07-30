@@ -34,13 +34,10 @@
   }
 
   a {
-    color: var(--color-token-text-link-foreground);
-    text-decoration: none;
+    color: var(--color-token-foreground);
+    text-decoration: underline;
+    text-underline-offset: 2px;
     margin-left: 4px;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }
 

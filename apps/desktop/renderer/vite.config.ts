@@ -113,6 +113,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       '@codepilotx/core': resolve(__dirname, 'src/shims/core'),
     },
+    dedupe: ['react', 'react-dom'],
   },
   build: {
     outDir: '../../../dist/renderer',

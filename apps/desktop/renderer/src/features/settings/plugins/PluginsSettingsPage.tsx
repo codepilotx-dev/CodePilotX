@@ -652,7 +652,7 @@ export function PluginsSettingsPage({
                   actions={
                     item.status === 'enabled' || item.status === 'disabled' ? (
                       <ToggleSwitch
-                        ariaLabel={`${item.status === 'enabled' ? '禁用' : '启用'} ${item.name}`}
+                        ariaLabel={item.name}
                         checked={item.status === 'enabled'}
                         disabled={busyPluginIds.has(item.id)}
                         onChange={enabled => void togglePlugin(item, enabled)}
@@ -688,7 +688,7 @@ export function PluginsSettingsPage({
                   }}
                   actions={
                     <ToggleSwitch
-                      ariaLabel={`${skill.enabled ? '禁用' : '启用'} ${skill.name}`}
+                      ariaLabel={skill.name}
                       checked={skill.enabled}
                       disabled={busySkillPaths.has(skill.path)}
                       onChange={enabled => void toggleSkill(skill, enabled)}
@@ -725,7 +725,7 @@ export function PluginsSettingsPage({
                       logout: () => void logoutMcpOAuth(server),
                     })}
                     <ToggleSwitch
-                      ariaLabel={`${server.enabled ? '禁用' : '启用'} ${server.name}`}
+                      ariaLabel={server.name}
                       checked={server.enabled}
                       disabled={!server.editable || busyMcpKeys.has(mcpKey(server))}
                       onChange={enabled => void toggleServer(server, enabled)}

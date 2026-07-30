@@ -49,7 +49,12 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
 import { Button } from "../../../components/ui/Button.js";
-import { PopoverItem } from "../../../components/ui/PopoverItem.js";
+import {
+  PopoverCheckboxItem,
+  PopoverItem,
+  PopoverRadioGroup,
+  PopoverRadioItem,
+} from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SearchInput } from "../../../components/ui/SearchInput.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
@@ -1852,22 +1857,25 @@ function WorkspaceReviewSidebarImpl({
                     </PopoverItem>
                   </>
                 ) : (
-                  branches.map((branch) => (
-                    <PopoverItem
-                      key={`base-branch:${branch.name}`}
-                      selected={source.baseBranch === branch.name}
-                      withCheck
-                      onClick={() => {
+                  <PopoverRadioGroup
+                    value={source.baseBranch}
+                    onValueChange={branchName => {
                         selectSource({
                           kind: "branch",
-                          baseBranch: branch.name,
+                          baseBranch: branchName,
                         });
                         setBranchPickerOpen(false);
                       }}
-                    >
-                      {branch.name}
-                    </PopoverItem>
-                  ))
+                  >
+                    {branches.map((branch) => (
+                      <PopoverRadioItem
+                        key={`base-branch:${branch.name}`}
+                        value={branch.name}
+                      >
+                        {branch.name}
+                      </PopoverRadioItem>
+                    ))}
+                  </PopoverRadioGroup>
                 )}
               </PopoverMenu>
             </div>
@@ -1920,17 +1928,16 @@ function WorkspaceReviewSidebarImpl({
             >
               打开 GitHub Pull Request…
             </PopoverItem>
-            <PopoverItem
+            <PopoverCheckboxItem
+              checked={wordWrap}
               icon={<WrapText size={APP_ICON_SIZE} />}
-              withCheck
-              selected={wordWrap}
-              onClick={() => {
-                setWordWrap((value) => !value);
+              onCheckedChange={checked => {
+                setWordWrap(checked);
                 setMoreMenuOpen(false);
               }}
             >
-              {wordWrap ? "禁用自动换行" : "启用自动换行"}
-            </PopoverItem>
+              自动换行
+            </PopoverCheckboxItem>
             <PopoverItem
               icon={<File size={APP_ICON_SIZE} />}
               onClick={() => {
@@ -1939,39 +1946,36 @@ function WorkspaceReviewSidebarImpl({
             >
               加载完整文件
             </PopoverItem>
-            <PopoverItem
+            <PopoverCheckboxItem
+              checked={richDiffPreview}
               icon={<Eye size={APP_ICON_SIZE} />}
-              withCheck
-              selected={richDiffPreview}
-              onClick={() => {
-                setRichDiffPreview((value) => !value);
+              onCheckedChange={checked => {
+                setRichDiffPreview(checked);
                 setMoreMenuOpen(false);
               }}
             >
-              {richDiffPreview ? "禁用富文本预览" : "启用富文本预览"}
-            </PopoverItem>
-            <PopoverItem
+              富文本预览
+            </PopoverCheckboxItem>
+            <PopoverCheckboxItem
+              checked={textDiff}
               icon={<Type size={APP_ICON_SIZE} />}
-              withCheck
-              selected={textDiff}
-              onClick={() => {
-                setTextDiff((value) => !value);
+              onCheckedChange={checked => {
+                setTextDiff(checked);
                 setMoreMenuOpen(false);
               }}
             >
-              {textDiff ? "禁用文字差异" : "启用文字差异"}
-            </PopoverItem>
-            <PopoverItem
+              文字差异
+            </PopoverCheckboxItem>
+            <PopoverCheckboxItem
+              checked={showWhitespace}
               icon={<Code2 size={APP_ICON_SIZE} />}
-              withCheck
-              selected={showWhitespace}
-              onClick={() => {
-                setShowWhitespace((value) => !value);
+              onCheckedChange={checked => {
+                setShowWhitespace(checked);
                 setMoreMenuOpen(false);
               }}
             >
-              {showWhitespace ? "隐藏空白字符" : "显示空白字符"}
-            </PopoverItem>
+              显示空白字符
+            </PopoverCheckboxItem>
             <PopoverItem
               icon={<Clipboard size={APP_ICON_SIZE} />}
               onClick={() => {
@@ -2231,9 +2235,11 @@ function WorkspaceReviewSidebarImpl({
             <>
               <Tooltip content="还原所有未暂存变更">
                 <Button
-                  disabled={reviewMutationPending}
+                  aria-disabled={reviewMutationPending}
                   tone="danger"
-                  onClick={revertAll}
+                  onClick={() => {
+                    if (!reviewMutationPending) revertAll();
+                  }}
                 >
                   <Undo2 size={APP_ICON_SIZE} />
                   还原全部
@@ -2241,8 +2247,10 @@ function WorkspaceReviewSidebarImpl({
               </Tooltip>
               <Tooltip content="暂存所有未暂存文件">
                 <Button
-                  disabled={reviewMutationPending}
-                  onClick={stageAll}
+                  aria-disabled={reviewMutationPending}
+                  onClick={() => {
+                    if (!reviewMutationPending) stageAll();
+                  }}
                 >
                   <Plus size={APP_ICON_SIZE} />
                   暂存全部
@@ -2253,8 +2261,10 @@ function WorkspaceReviewSidebarImpl({
             <>
               <Tooltip content="取消暂存所有已暂存文件">
                 <Button
-                  disabled={reviewMutationPending}
-                  onClick={unstageAll}
+                  aria-disabled={reviewMutationPending}
+                  onClick={() => {
+                    if (!reviewMutationPending) unstageAll();
+                  }}
                 >
                   <Undo2 size={APP_ICON_SIZE} />
                   取消暂存全部
@@ -2262,9 +2272,11 @@ function WorkspaceReviewSidebarImpl({
               </Tooltip>
               <Tooltip content="还原已暂存变更">
                 <Button
-                  disabled={reviewMutationPending}
+                  aria-disabled={reviewMutationPending}
                   tone="danger"
-                  onClick={revertAll}
+                  onClick={() => {
+                    if (!reviewMutationPending) revertAll();
+                  }}
                 >
                   <Undo2 size={APP_ICON_SIZE} />
                   还原全部

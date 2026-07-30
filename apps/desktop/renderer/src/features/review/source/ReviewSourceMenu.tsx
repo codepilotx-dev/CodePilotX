@@ -2,7 +2,11 @@ import type React from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { DesktopReviewSource } from "../../../../shared/types.js";
-import { PopoverItem } from "../../../components/ui/PopoverItem.js";
+import {
+  PopoverItem,
+  PopoverRadioGroup,
+  PopoverRadioItem,
+} from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
@@ -61,31 +65,29 @@ export function ReviewSourceMenu({
       }
       onOpenChange={onOpenChange}
     >
-      <PopoverItem
-        selected={source.kind === "last-turn"}
-        withCheck
-        onClick={onSelectLastTurn}
+      <PopoverRadioGroup
+        value={source.kind === "last-turn" ? "last-turn" : ""}
+        onValueChange={onSelectLastTurn}
       >
-        上一轮
-      </PopoverItem>
+        <PopoverRadioItem value="last-turn">上一轮</PopoverRadioItem>
+      </PopoverRadioGroup>
       <DropdownMenu.Separator className="review-source-menu-separator" />
       <DropdownMenu.Label className="review-source-menu-label">
         未提交
       </DropdownMenu.Label>
-      <PopoverItem
-        selected={source.kind === "unstaged"}
-        withCheck
-        onClick={() => onSelectSource({ kind: "unstaged" })}
+      <PopoverRadioGroup
+        value={
+          source.kind === "unstaged" || source.kind === "staged"
+            ? source.kind
+            : ""
+        }
+        onValueChange={kind =>
+          onSelectSource({ kind: kind as "unstaged" | "staged" })
+        }
       >
-        未暂存
-      </PopoverItem>
-      <PopoverItem
-        selected={source.kind === "staged"}
-        withCheck
-        onClick={() => onSelectSource({ kind: "staged" })}
-      >
-        已暂存
-      </PopoverItem>
+        <PopoverRadioItem value="unstaged">未暂存</PopoverRadioItem>
+        <PopoverRadioItem value="staged">已暂存</PopoverRadioItem>
+      </PopoverRadioGroup>
       <DropdownMenu.Separator className="review-source-menu-separator" />
       <ReviewCommitSourceSubmenu>
         {sourceOptionsState === "loading" ? (
@@ -98,49 +100,48 @@ export function ReviewSourceMenu({
         ) : commits.length === 0 ? (
           <div className="review-source-submenu-message">分支上暂无提交记录</div>
         ) : (
-          <div className="review-source-commit-list">
-            {commits.map((commit) => (
-              <PopoverItem
-                key={`commit:${commit.sha}`}
-                selected={
-                  source.kind === "commit" &&
-                  source.commitSha === commit.sha
-                }
-                withCheck
-                onClick={() =>
+          <PopoverRadioGroup
+            value={source.kind === "commit" ? source.commitSha : ""}
+            onValueChange={commitSha =>
                   onSelectSource({
                     kind: "commit",
-                    commitSha: commit.sha,
+                    commitSha,
                   })
                 }
-              >
-                <span
-                  className="review-source-commit-row"
-                  title={commit.subject || commit.shortSha}
+          >
+            <div className="review-source-commit-list">
+              {commits.map((commit) => (
+                <PopoverRadioItem
+                  key={`commit:${commit.sha}`}
+                  value={commit.sha}
                 >
-                  <span>{commit.subject || "无提交信息"}</span>
-                  <small>{formatRelativeCommitTime(commit.authoredAt)}</small>
-                </span>
-              </PopoverItem>
-            ))}
-          </div>
+                  <span
+                    className="review-source-commit-row"
+                    title={commit.subject || commit.shortSha}
+                  >
+                    <span>{commit.subject || "无提交信息"}</span>
+                    <small>{formatRelativeCommitTime(commit.authoredAt)}</small>
+                  </span>
+                </PopoverRadioItem>
+              ))}
+            </div>
+          </PopoverRadioGroup>
         )}
       </ReviewCommitSourceSubmenu>
-      <PopoverItem
-        disabled={defaultBaseBranch === null}
-        selected={source.kind === "branch"}
-        withCheck
-        onClick={() => {
-          if (defaultBaseBranch) {
-            onSelectSource({
-              kind: "branch",
-              baseBranch: defaultBaseBranch,
-            });
-          }
+      <PopoverRadioGroup
+        value={source.kind === "branch" ? "branch" : ""}
+        onValueChange={() => {
+          if (!defaultBaseBranch) return;
+          onSelectSource({ kind: "branch", baseBranch: defaultBaseBranch });
         }}
       >
-        分支
-      </PopoverItem>
+        <PopoverRadioItem
+          disabled={defaultBaseBranch === null}
+          value="branch"
+        >
+          分支
+        </PopoverRadioItem>
+      </PopoverRadioGroup>
     </PopoverMenu>
   );
 }

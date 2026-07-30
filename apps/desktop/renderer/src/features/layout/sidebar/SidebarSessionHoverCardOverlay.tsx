@@ -43,6 +43,7 @@ export function SidebarSessionHoverCardOverlay({
   return (
     <SidebarHoverCardSurface
       {...interactionProps}
+      ariaLabel="会话详情"
       className="sidebar-session-hover-card"
       focusRef={editing ? inputRef : undefined}
       focusRequest={editing ? focusRequest : 0}

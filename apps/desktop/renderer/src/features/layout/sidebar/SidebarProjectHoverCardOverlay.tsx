@@ -77,6 +77,7 @@ export function SidebarProjectHoverCardOverlay({
   return (
     <SidebarHoverCardSurface
       {...interactionProps}
+      ariaLabel="项目详情"
       className="sidebar-project-hover-card"
       focusRef={initialFocusRef}
       focusRequest={focusRequest}

@@ -23,6 +23,7 @@ import {
 } from '../ApiKeyEditorDialog.js'
 import { BillingCredentialConnection } from './BillingCredentialConnection.js'
 import { OAuthConnection } from './OAuthConnection.js'
+import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 
 export type ConnectionChoice =
   | { id: 'inference'; kind: 'inference-key' }
@@ -51,6 +52,7 @@ export function ProviderConnectionDialog({
   const titleId = useId()
   const descriptionId = useId()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const focusRestore = useDialogFocusRestore(open)
   const choices = useMemo(
     () => provider ? getProviderConnectionChoices(provider, sources) : [],
     [provider, sources],
@@ -69,6 +71,7 @@ export function ProviderConnectionDialog({
         initialProviderId={provider.providerID}
         open={open}
         providers={[provider]}
+        restoreFocusElement={focusRestore.restoreFocusElement}
         onOpenChange={nextOpen => {
           if (!nextOpen) setSelectedId(null)
           onOpenChange(nextOpen)
@@ -98,6 +101,7 @@ export function ProviderConnectionDialog({
             aria-describedby={descriptionId}
             aria-labelledby={titleId}
             className="model-center-key-dialog model-center-connection-dialog"
+            onCloseAutoFocus={focusRestore.onCloseAutoFocus}
           >
             <header className="model-center-key-dialog-header">
               <div className="model-center-key-dialog-heading">

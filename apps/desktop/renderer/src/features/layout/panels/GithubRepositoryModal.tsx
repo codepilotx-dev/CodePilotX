@@ -17,6 +17,7 @@ import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
+import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 
 type Props = {
   open: boolean
@@ -37,6 +38,7 @@ export function GithubRepositoryModal({
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [cloningRepo, setCloningRepo] = useState<string | null>(null)
+  const { onCloseAutoFocus } = useDialogFocusRestore(open)
 
   useEffect(() => {
     if (!open) return
@@ -161,6 +163,7 @@ export function GithubRepositoryModal({
           <Dialog.Content
             aria-describedby="github-repository-description"
             className="permission-modal github-repository-modal"
+            onCloseAutoFocus={onCloseAutoFocus}
           >
             <header
               className={cx(
@@ -339,13 +342,13 @@ export function GithubRepositoryModal({
                 'u-gap-3',
               )}
             >
-              <button onClick={onClose} type="button">
-                关闭
-              </button>
+              <Dialog.Close asChild>
+                <Button>关闭</Button>
+              </Dialog.Close>
               {auth?.authenticated ? (
-                <button onClick={() => void loadRepositories()} type="button">
+                <Button onClick={() => void loadRepositories()} type="button">
                   刷新
-                </button>
+                </Button>
               ) : null}
             </div>
           </Dialog.Content>

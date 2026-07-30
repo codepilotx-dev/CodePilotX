@@ -192,7 +192,11 @@ async function highlightCodeUncached({
       requestedLanguage,
       requestedTheme,
       theme: highlighted.themeName ?? theme,
-      tokens: highlighted.tokens.map(line => line.map(toSyntaxToken)),
+      tokens: highlighted.tokens.map(line =>
+        line.map(token =>
+          toSyntaxToken(token, highlighted.fg, highlighted.bg),
+        ),
+      ),
     }
   } catch {
     return plainTextResult({
@@ -223,13 +227,120 @@ function resolveCodexTheme(
     : 'codex-dark'
 }
 
-function toSyntaxToken(token: ThemedToken): SyntaxToken {
+function toSyntaxToken(
+  token: ThemedToken,
+  foreground: string | undefined,
+  background: string | undefined,
+): SyntaxToken {
   return {
     content: token.content,
-    color: token.color,
+    color: ensureSyntaxTokenContrast(
+      token.color,
+      foreground,
+      token.bgColor ?? background,
+    ),
     backgroundColor: token.bgColor,
     fontStyle: token.fontStyle,
   }
+}
+
+function ensureSyntaxTokenContrast(
+  color: string | undefined,
+  foreground: string | undefined,
+  background: string | undefined,
+): string | undefined {
+  if (!color || !background) return color
+  const tokenColor = parseHexColor(color)
+  const backgroundColor = parseHexColor(background)
+  if (!tokenColor || !backgroundColor) return color
+
+  // Code surfaces are commonly a subtle tint away from the theme's editor
+  // background, so keep a small margin above the WCAG AA text threshold.
+  const minimumRatio = 5
+  if (colorContrast(tokenColor, backgroundColor) >= minimumRatio) return color
+
+  const fallback =
+    (foreground && parseHexColor(foreground)) ??
+    pickHigherContrastMonochrome(backgroundColor)
+  let low = 0
+  let high = 1
+  for (let iteration = 0; iteration < 16; iteration += 1) {
+    const amount = (low + high) / 2
+    if (
+      colorContrast(mixColor(tokenColor, fallback, amount), backgroundColor) >=
+      minimumRatio
+    ) {
+      high = amount
+    } else {
+      low = amount
+    }
+  }
+  return colorToHex(mixColor(tokenColor, fallback, high))
+}
+
+type RgbColor = { red: number; green: number; blue: number }
+
+function parseHexColor(value: string): RgbColor | null {
+  const match = /^#([\da-f]{3}|[\da-f]{6})$/i.exec(value.trim())
+  if (!match) return null
+  const hex =
+    match[1].length === 3
+      ? [...match[1]].map(channel => `${channel}${channel}`).join('')
+      : match[1]
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16),
+    green: Number.parseInt(hex.slice(2, 4), 16),
+    blue: Number.parseInt(hex.slice(4, 6), 16),
+  }
+}
+
+function pickHigherContrastMonochrome(background: RgbColor): RgbColor {
+  const black = { red: 0, green: 0, blue: 0 }
+  const white = { red: 255, green: 255, blue: 255 }
+  return colorContrast(black, background) >= colorContrast(white, background)
+    ? black
+    : white
+}
+
+function mixColor(
+  from: RgbColor,
+  to: RgbColor,
+  amount: number,
+): RgbColor {
+  return {
+    red: Math.round(from.red + (to.red - from.red) * amount),
+    green: Math.round(from.green + (to.green - from.green) * amount),
+    blue: Math.round(from.blue + (to.blue - from.blue) * amount),
+  }
+}
+
+function colorContrast(first: RgbColor, second: RgbColor): number {
+  const brightest = Math.max(
+    colorLuminance(first),
+    colorLuminance(second),
+  )
+  const darkest = Math.min(colorLuminance(first), colorLuminance(second))
+  return (brightest + 0.05) / (darkest + 0.05)
+}
+
+function colorLuminance(color: RgbColor): number {
+  const channel = (value: number): number => {
+    const normalized = value / 255
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4
+  }
+  return (
+    channel(color.red) * 0.2126 +
+    channel(color.green) * 0.7152 +
+    channel(color.blue) * 0.0722
+  )
+}
+
+function colorToHex(color: RgbColor): string {
+  return `#${[color.red, color.green, color.blue]
+    .map(channel => channel.toString(16).padStart(2, '0'))
+    .join('')}`
 }
 
 function plainTextResult({

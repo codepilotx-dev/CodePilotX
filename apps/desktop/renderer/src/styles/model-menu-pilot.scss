@@ -85,3 +85,7 @@
   );
   max-height: min(360px, calc(100vh - 96px));
 }
+
+.rm-model-submenu-scroll-content .popover-item {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}

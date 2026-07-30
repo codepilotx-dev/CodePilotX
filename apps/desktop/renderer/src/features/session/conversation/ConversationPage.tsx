@@ -49,12 +49,18 @@ import {
   createConversationSelectionSnapshot,
   installConversationSelectionHighlight,
 } from "./conversationSelectionHighlight.js";
-import { PopoverItem } from "../../../components/ui/PopoverItem.js";
+import {
+  PopoverCheckboxItem,
+  PopoverItem,
+  PopoverRadioGroup,
+  PopoverRadioItem,
+  PopoverSeparator,
+} from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { AppContextMenu } from "../../../components/ui/AppContextMenu.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
-import { ConfirmationDialog } from "../../../components/ui/ConfirmationDialog.js";
+import { InputDialog } from "../../../components/ui/ConfirmationDialog.js";
 import { SkeletonBlock } from "../../../components/ui/Skeleton.js";
 import {
   loadConversationUiState,
@@ -698,14 +704,15 @@ export function ConversationPage(): React.ReactNode {
           }
           onOpenChange={setSessionMenuOpen}
         >
-          <PopoverItem
+          <PopoverCheckboxItem
+            checked={isSessionPinned}
             icon={<Pin size={APP_ICON_SIZE} />}
             shortcut="Ctrl+Alt+P"
             disabled={!hasActiveSession}
-            onClick={toggleSessionPinned}
+            onCheckedChange={toggleSessionPinned}
           >
-            {isSessionPinned ? "取消置顶" : "置顶对话"}
-          </PopoverItem>
+            置顶对话
+          </PopoverCheckboxItem>
           <PopoverItem
             disabled={!hasActiveSession || renamingSession}
             icon={<Pencil size={APP_ICON_SIZE} />}
@@ -728,7 +735,7 @@ export function ConversationPage(): React.ReactNode {
           >
             归档对话
           </PopoverItem>
-          <div className="popover-divider" />
+          <PopoverSeparator />
           <PopoverItem
             disabled
             icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
@@ -786,7 +793,7 @@ export function ConversationPage(): React.ReactNode {
           >
             添加自动化...
           </PopoverItem>
-          <div className="popover-divider" />
+          <PopoverSeparator />
           <PopoverItem disabled icon={<AppWindow size={APP_ICON_SIZE} />}>
             在新窗口中打开
           </PopoverItem>
@@ -865,8 +872,8 @@ export function ConversationPage(): React.ReactNode {
           <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
             <button
               aria-label={`用 ${selectedOpenTarget.label} 打开`}
+              aria-disabled={!workspacePath}
               className="message-action open-target-main"
-              disabled={!workspacePath}
               type="button"
               onClick={openWorkspaceWithDefaultTarget}
             >
@@ -894,17 +901,20 @@ export function ConversationPage(): React.ReactNode {
             }
             onOpenChange={setOpenTargetMenuOpen}
           >
-            {openTargets.map((target) => (
-              <PopoverItem
-                icon={renderOpenTargetIcon(target)}
-                key={target.id}
-                selected={target.id === defaultOpenTargetId}
-                withCheck
-                onClick={() => selectOpenTarget(target.id)}
-              >
-                {target.label}
-              </PopoverItem>
-            ))}
+            <PopoverRadioGroup
+              value={defaultOpenTargetId}
+              onValueChange={selectOpenTarget}
+            >
+              {openTargets.map((target) => (
+                <PopoverRadioItem
+                  icon={renderOpenTargetIcon(target)}
+                  key={target.id}
+                  value={target.id}
+                >
+                  {target.label}
+                </PopoverRadioItem>
+              ))}
+            </PopoverRadioGroup>
           </PopoverMenu>
         </div>
         {threadSummary.displayMode === "overlay" ? (
@@ -1045,9 +1055,10 @@ export function ConversationPage(): React.ReactNode {
       >
         {workspaceHeaderActions}
       </WorkspaceHeaderItem>
-      <ConfirmationDialog
+      <InputDialog
         actionDisabled={renamingSession || renameValue.trim().length === 0}
         actionLabel={renamingSession ? "重命名中…" : "重命名"}
+        description="输入新的对话名称。"
         input={{
           value: renameValue,
           onChange: setRenameValue,

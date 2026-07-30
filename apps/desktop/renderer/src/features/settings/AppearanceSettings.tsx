@@ -1121,6 +1121,7 @@ export function AppearanceSettings({
               description="在 macOS 上优化浅色文字边缘"
               control={
                 <ToggleSwitch
+                  ariaLabel="字体平滑"
                   checked={settings.fontSmoothingEnabled}
                   onChange={fontSmoothingEnabled =>
                     updateThemeSettings({ fontSmoothingEnabled })

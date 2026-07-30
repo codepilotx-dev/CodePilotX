@@ -14,7 +14,12 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
-import { PopoverItem } from '../../../components/ui/PopoverItem.js'
+import {
+  PopoverItem,
+  PopoverRadioGroup,
+  PopoverRadioItem,
+  PopoverSeparator,
+} from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
@@ -224,38 +229,40 @@ export function FileBreadcrumbToolbar({
             }
             onOpenChange={setOpenTargetMenu}
           >
-            {openTargets.map(target => (
-              <PopoverItem
-                icon={
-                  target.iconDataUrl ? (
-                    <img
-                      alt=""
-                      className="file-breadcrumb-open-target-icon"
-                      src={target.iconDataUrl}
-                    />
-                  ) : (
-                    <Code2
-                      aria-hidden="true"
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
-                  )
-                }
-                key={target.id}
-                selected={target.id === preferredOpenTarget?.id}
-                onClick={() => {
-                  if (!absolutePath) return
-                  openWithTarget(target)
-                  setOpenTargetMenu(false)
-                }}
-              >
-                {target.label}
-              </PopoverItem>
-            ))}
-            <div
-              aria-hidden="true"
-              className="sidebar-context-menu-separator"
-            />
+            <PopoverRadioGroup
+              value={preferredOpenTarget?.id ?? ''}
+              onValueChange={targetId => {
+                const target = openTargets.find(item => item.id === targetId)
+                if (!target || !absolutePath) return
+                openWithTarget(target)
+                setOpenTargetMenu(false)
+              }}
+            >
+              {openTargets.map(target => (
+                <PopoverRadioItem
+                  icon={
+                    target.iconDataUrl ? (
+                      <img
+                        alt=""
+                        className="file-breadcrumb-open-target-icon"
+                        src={target.iconDataUrl}
+                      />
+                    ) : (
+                      <Code2
+                        aria-hidden="true"
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    )
+                  }
+                  key={target.id}
+                  value={target.id}
+                >
+                  {target.label}
+                </PopoverRadioItem>
+              ))}
+            </PopoverRadioGroup>
+            <PopoverSeparator className="sidebar-context-menu-separator" />
             <PopoverItem
               icon={
                 <FolderOpen

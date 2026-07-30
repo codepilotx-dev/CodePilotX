@@ -37,7 +37,10 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import { PopoverItem } from '../../../components/ui/PopoverItem.js'
+import {
+  PopoverRadioGroup,
+  PopoverRadioItem,
+} from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import type {
   MarkdownFileViewMode,
@@ -908,27 +911,33 @@ function WorkbenchTabsHeader({
         }
         onOpenChange={setMenuOpen}
       >
-        {launchers.map(definition => {
-          const candidate = createLauncherTab(definition.kind)
-          if (!candidate) return null
-          const opened = state.tabIds.includes(candidate.id)
-          return (
-            <PopoverItem
-              key={definition.kind}
-              active={state.activeTabId === candidate.id}
+        <PopoverRadioGroup
+          value={
+            launchers.find(definition =>
+              createLauncherTab(definition.kind)?.id === state.activeTabId
+            )?.kind ?? ''
+          }
+          onValueChange={kind => {
+            const definition = launchers.find(item => item.kind === kind)
+            if (!definition) return
+            const candidate = createLauncherTab(definition.kind)
+            if (!candidate) return
+            if (state.tabIds.includes(candidate.id)) onSelectTab(candidate.id)
+            else onOpenTab(candidate)
+            setMenuOpen(false)
+          }}
+        >
+          {launchers.map(definition => (
+            <PopoverRadioItem
               icon={definition.icon}
-              selected={opened}
+              key={definition.kind}
               shortcut={definition.shortcut}
-              onClick={() => {
-                if (opened) onSelectTab(candidate.id)
-                else onOpenTab(candidate)
-                setMenuOpen(false)
-              }}
+              value={definition.kind}
             >
               {definition.label}
-            </PopoverItem>
-          )
-        })}
+            </PopoverRadioItem>
+          ))}
+        </PopoverRadioGroup>
       </PopoverMenu>
     </div>
   )

@@ -1,10 +1,11 @@
 import type React from 'react'
-import { cloneElement, useCallback, useEffect, useRef } from 'react'
+import { cloneElement, useCallback, useEffect, useId, useRef } from 'react'
 import { AnimatePresence } from 'motion/react'
 
 export type SidebarHoverCardOverlayRenderProps = {
   anchorRef: React.RefObject<HTMLElement | null>
   closeAfterDelay: () => void
+  contentId: string
   keepOpen: () => void
   returnFocusToAnchor: () => void
   requestOpenChange: (open: boolean) => void
@@ -35,6 +36,7 @@ export function SidebarHoverCard({
   renderOverlay,
 }: Props): React.ReactNode {
   const anchorRef = useRef<HTMLElement | null>(null)
+  const contentId = useId()
   const closeTimerRef = useRef<number | null>(null)
   const childRef = children.props.ref
   const setAnchorRef = useCallback((node: HTMLElement | null): void => {
@@ -80,6 +82,9 @@ export function SidebarHoverCard({
 
   const anchor = cloneElement(children, {
     ref: setAnchorRef,
+    'aria-controls': open ? contentId : undefined,
+    'aria-expanded': open,
+    'aria-haspopup': 'dialog',
     onBlur: event => {
       children.props.onBlur?.(event)
       if (!event.defaultPrevented) closeAfterDelay()
@@ -117,6 +122,7 @@ export function SidebarHoverCard({
             {renderOverlay({
               anchorRef,
               closeAfterDelay,
+              contentId,
               keepOpen,
               returnFocusToAnchor,
               requestOpenChange,

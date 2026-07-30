@@ -186,7 +186,7 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
   await page.goto('/?visualCase=rich#/threads/visual-rich')
 
-  const editor = page.getByRole('textbox', { name: '消息输入框' })
+  const editor = page.getByRole('combobox', { name: '消息输入框' })
   await waitForVisualPage(page, 'dark', editor)
   await editor.click()
   await editor.fill('context menu edit')
@@ -226,7 +226,8 @@ test('global context menu exposes editor commands and skips blank areas', async 
   const editMenu = page.locator('.menubar-content[data-state="open"]')
   await editMenu.getByText('全选', { exact: true }).click()
   await expect(editMenu).toHaveCount(0)
-  await editMenuTrigger.click()
+  await editMenuTrigger.focus()
+  await editMenuTrigger.press('ArrowDown')
   await expect(editMenu).toBeVisible()
   await page
     .locator('.menubar-content[data-state="open"]')

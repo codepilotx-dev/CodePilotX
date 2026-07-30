@@ -16,6 +16,7 @@ type VirtualAnchor = {
 }
 
 type Props = SidebarHoverCardOverlayRenderProps & {
+  ariaLabel: string
   children: React.ReactNode
   className: string
   focusRef?: React.RefObject<HTMLElement | null>
@@ -26,9 +27,11 @@ type Props = SidebarHoverCardOverlayRenderProps & {
 
 export function SidebarHoverCardSurface({
   anchorRef,
+  ariaLabel,
   children,
   className,
   closeAfterDelay,
+  contentId,
   focusRef,
   focusRequest = 0,
   keepOpen,
@@ -103,7 +106,9 @@ export function SidebarHoverCardSurface({
         <Popover.Content
           asChild
           align="center"
+          aria-label={ariaLabel}
           collisionPadding={6}
+          id={contentId}
           ref={contentRef}
           side="right"
           sideOffset={4}

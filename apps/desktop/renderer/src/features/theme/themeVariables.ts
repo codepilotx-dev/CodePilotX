@@ -69,15 +69,11 @@ export function deriveThemeVariables(
     variant,
   })
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
-  const shadowResting = dark
-    ? '0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset'
-    : '0 1px 2px color-mix(in srgb, #1a1c1f 5%, transparent), 0 1px 0 rgba(255, 255, 255, 0.7) inset'
-  const shadowRaised = dark
-    ? '0 12px 34px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22)'
-    : '0 10px 28px color-mix(in srgb, #1a1c1f 8%, transparent), 0 1px 2px color-mix(in srgb, #1a1c1f 5%, transparent)'
-  const shadowFloat = dark
-    ? '0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28)'
-    : '0 22px 60px color-mix(in srgb, #1a1c1f 12%, transparent), 0 8px 24px color-mix(in srgb, #1a1c1f 8%, transparent)'
+  const shadowResting = 'none'
+  const shadowRaised =
+    '0 2px 8px color-mix(in srgb, var(--color-token-foreground) 4%, transparent)'
+  const shadowFloat =
+    '0 8px 24px color-mix(in srgb, var(--color-token-foreground) 7%, transparent), 0 2px 6px color-mix(in srgb, var(--color-token-foreground) 4%, transparent)'
 
   return {
     '--codex-base-accent': theme.accent,

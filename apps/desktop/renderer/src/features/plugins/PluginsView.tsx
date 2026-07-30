@@ -8,7 +8,10 @@ import {
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
-import { PopoverItem } from '../../components/ui/PopoverItem.js'
+import {
+  PopoverRadioGroup,
+  PopoverRadioItem,
+} from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
@@ -427,16 +430,18 @@ export function PluginsView(): React.ReactNode {
                   }
                   width="13rem"
                 >
-                  {STATUS_OPTIONS.map(option => (
-                    <PopoverItem
-                      key={option.id}
-                      onClick={() => setPluginStatus(option.id)}
-                      selected={pluginStatus === option.id}
-                      withCheck
-                    >
-                      {option.label}
-                    </PopoverItem>
-                  ))}
+                  <PopoverRadioGroup
+                    value={pluginStatus}
+                    onValueChange={value =>
+                      setPluginStatus(value as typeof pluginStatus)
+                    }
+                  >
+                    {STATUS_OPTIONS.map(option => (
+                      <PopoverRadioItem key={option.id} value={option.id}>
+                        {option.label}
+                      </PopoverRadioItem>
+                    ))}
+                  </PopoverRadioGroup>
                 </PopoverMenu>
               </div>
 

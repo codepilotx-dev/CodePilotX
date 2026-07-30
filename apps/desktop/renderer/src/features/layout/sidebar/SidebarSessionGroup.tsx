@@ -22,7 +22,7 @@ import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { InputDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { cx } from "../../../utils/cx.js";
 import {
   SidebarContextMenu,
@@ -518,9 +518,10 @@ function SidebarSessionGroupComponent({
           />
         </div>
       ) : null}
-      <ConfirmationDialog
+      <InputDialog
         actionDisabled={renaming || renameValue.trim().length === 0}
         actionLabel={renaming ? '重命名中…' : '重命名'}
+        description="输入新的对话名称。"
         input={{
           value: renameValue,
           onChange: setRenameValue,
