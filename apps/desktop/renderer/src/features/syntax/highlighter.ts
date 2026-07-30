@@ -21,11 +21,24 @@ import type {
 } from './types.js'
 
 export const SYNTAX_HIGHLIGHT_CACHE_CAPACITY = 96
+export const SYNTAX_HIGHLIGHT_CACHE_MAX_WEIGHT = 8 * 1024 * 1024
+
+const textEncoder = new TextEncoder()
 
 const resultCache = new LruCache<string, SyntaxHighlightResult>(
   SYNTAX_HIGHLIGHT_CACHE_CAPACITY,
+  {
+    maxWeight: SYNTAX_HIGHLIGHT_CACHE_MAX_WEIGHT,
+    weigh: syntaxHighlightCacheWeight,
+  },
 )
-const pendingHighlights = new Map<string, Promise<SyntaxHighlightResult>>()
+const pendingHighlights = new Map<
+  string,
+  {
+    promise: Promise<SyntaxHighlightResult>
+    shouldCache: boolean
+  }
+>()
 
 type ShikiModule = typeof import('shiki')
 
@@ -64,21 +77,28 @@ export async function highlightCode(
   if (cached) return cached
 
   const pending = pendingHighlights.get(cacheKey)
-  if (pending) return pending
+  if (pending) {
+    if (!options.streaming) pending.shouldCache = true
+    return pending.promise
+  }
 
   const request = highlightCodeUncached({
     code: options.code,
     requestedLanguage,
     requestedTheme,
   })
-  pendingHighlights.set(cacheKey, request)
+  const pendingEntry = {
+    promise: request,
+    shouldCache: !options.streaming,
+  }
+  pendingHighlights.set(cacheKey, pendingEntry)
 
   try {
     const result = await request
-    resultCache.set(cacheKey, result)
+    if (pendingEntry.shouldCache) resultCache.set(cacheKey, result)
     return result
   } finally {
-    if (pendingHighlights.get(cacheKey) === request) {
+    if (pendingHighlights.get(cacheKey) === pendingEntry) {
       pendingHighlights.delete(cacheKey)
     }
   }
@@ -243,4 +263,19 @@ function highlightCacheKey(
   theme: string,
 ): string {
   return JSON.stringify([language, theme, code])
+}
+
+function syntaxHighlightCacheWeight(
+  key: string,
+  result: SyntaxHighlightResult,
+): number {
+  let weight =
+    textEncoder.encode(key).byteLength +
+    textEncoder.encode(result.code).byteLength
+  for (const line of result.tokens) {
+    for (const token of line) {
+      weight += textEncoder.encode(token.content).byteLength
+    }
+  }
+  return weight
 }

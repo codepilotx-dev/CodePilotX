@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   clearSyntaxHighlightCache,
   highlightCode,
+  peekHighlightedCode,
   resolveThemeId,
 } from '../src/features/syntax/index.js'
 
@@ -58,5 +59,20 @@ describe('Shiki highlighter', () => {
     expect(
       dracula.tokens.flat().map(token => token.color),
     ).not.toEqual(codexDark.tokens.flat().map(token => token.color))
+  })
+
+  test('does not retain intermediate streaming highlights', async () => {
+    clearSyntaxHighlightCache()
+    const request = {
+      code: 'const streaming = true',
+      language: 'typescript',
+      theme: 'codex-dark',
+    }
+
+    await highlightCode({ ...request, streaming: true })
+    expect(peekHighlightedCode(request)).toBeUndefined()
+
+    await highlightCode(request)
+    expect(peekHighlightedCode(request)).toBeDefined()
   })
 })

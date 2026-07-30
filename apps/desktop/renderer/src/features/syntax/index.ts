@@ -6,6 +6,7 @@ export {
   peekHighlightedCode,
   presentHighlightedCode,
   SYNTAX_HIGHLIGHT_CACHE_CAPACITY,
+  SYNTAX_HIGHLIGHT_CACHE_MAX_WEIGHT,
 } from './highlighter.js'
 export {
   formatSyntaxLanguageLabel,
