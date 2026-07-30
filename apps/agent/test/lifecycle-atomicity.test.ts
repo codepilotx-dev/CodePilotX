@@ -196,12 +196,27 @@ describe("Turn 生命周期事务", () => {
     const active = db.createTurn(thread.id, input)
     db.claimTurnExecution(active.turnID)
     db.upsertItem(thread.id, { id: "running-item", turnID: active.turnID, agentID: active.agentID, type: "tool", status: "running", data: {}, createdAt: Date.now(), updatedAt: Date.now() })
+    db.sqlite.query(`
+      INSERT INTO tool_calls
+        (id, thread_id, turn_id, agent_id, tool_name, input, status, started_at)
+      VALUES ('running-tool', ?, ?, ?, 'Shell', '{}', 'running', ?)
+    `).run(thread.id, active.turnID, active.agentID, Date.now())
     db.createTurn(thread.id, { ...input, content: "queued" })
     db.close()
 
     db = new AgentDatabase(path)
     databases.push(db)
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(active.turnID)).toEqual({ status: "interrupted" })
+    const interruptedTool = db.sqlite.query("SELECT status, finished_at, error FROM tool_calls WHERE id = 'running-tool'").get() as {
+      status: string
+      finished_at: number | null
+      error: string | null
+    }
+    expect(interruptedTool).toEqual({
+      status: "interrupted",
+      finished_at: expect.any(Number),
+      error: "Agent 重启时工具执行被中断",
+    })
     for (const method of ["turn/interrupted", "agent/upserted", "item/completed", "queue/updated"]) {
       expect((db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE method = ? AND (turn_id = ? OR thread_id = ?)").get(method, active.turnID, thread.id) as { count: number }).count).toBeGreaterThan(0)
     }
@@ -210,6 +225,7 @@ describe("Turn 生命周期事务", () => {
     db = new AgentDatabase(path)
     databases.push(db)
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE method = 'turn/interrupted' AND turn_id = ?").get(active.turnID)).toEqual({ count })
+    expect(db.sqlite.query("SELECT status, finished_at, error FROM tool_calls WHERE id = 'running-tool'").get()).toEqual(interruptedTool)
   })
 
   test("重启会安全重开纯数据 checkpoint，并对运行中的审批副作用 fail-closed", () => {
