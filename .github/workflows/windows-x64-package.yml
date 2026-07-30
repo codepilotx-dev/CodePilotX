@@ -60,7 +60,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          fetch-depth: 0
           persist-credentials: false
+      - name: Verify tag target belongs to main
+        shell: pwsh
+        run: |
+          git fetch --no-tags --force "https://github.com/$env:GITHUB_REPOSITORY.git" `
+            main:refs/remotes/origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to refresh origin/main"
+          }
+
+          $tagCommit = (git rev-parse "$env:GITHUB_REF^{commit}").Trim()
+          $checkedOutCommit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $tagCommit -cne $checkedOutCommit) {
+            throw "The checked out commit does not match the release tag target"
+          }
+
+          git merge-base --is-ancestor $tagCommit refs/remotes/origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release tag $env:GITHUB_REF_NAME does not point to a commit in main history"
+          }
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:

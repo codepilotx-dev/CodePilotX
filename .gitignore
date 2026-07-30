@@ -24,6 +24,8 @@ dist-ssr
 .codepilotx
 data
 release
+!docs/release/
+!docs/release/**
 coverage
 resources/tooling/
 apps/agent/catalog.cache.json
