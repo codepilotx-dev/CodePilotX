@@ -462,6 +462,97 @@ export function mockSessionSnapshot(
   }
 }
 
+const PERFORMANCE_TURN_COUNTS = new Set([10, 100, 250, 500])
+const PERFORMANCE_SESSION_COUNTS = new Set([10, 30, 50, 100])
+
+export type BrowserPerformanceFixture = {
+  activeSessionId: string
+  sessions: DesktopSessionSnapshot[]
+}
+
+export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | null {
+  if (
+    import.meta.env.MODE !== 'performance' ||
+    typeof window === 'undefined'
+  ) {
+    return null
+  }
+
+  const search = new URLSearchParams(window.location.search)
+  if (search.get('performanceCase') !== 'desktop-ux') return null
+
+  const turns = fixtureCount(
+    search.get('performanceTurns'),
+    PERFORMANCE_TURN_COUNTS,
+    250,
+  )
+  const sessionCount = fixtureCount(
+    search.get('performanceSessions'),
+    PERFORMANCE_SESSION_COUNTS,
+    30,
+  )
+  const baseTime = Date.UTC(2026, 6, 30, 8, 0, 0)
+  const sessions: DesktopSessionSnapshot[] = []
+
+  for (let sessionIndex = 0; sessionIndex < sessionCount; sessionIndex += 1) {
+    const sessionId = `performance-session-${String(sessionIndex + 1).padStart(3, '0')}`
+    const workspace = mockWorkspace(
+      `F:\\CodeProject\\PerformanceFixture\\project-${String(
+        Math.floor(sessionIndex / 20) + 1,
+      ).padStart(2, '0')}`,
+    )
+    const snapshot = mockSessionSnapshot(sessionId, workspace, {
+      sessionName: `性能会话 ${String(sessionIndex + 1).padStart(3, '0')}`,
+      thinkingMode: 'adaptive',
+    })
+    const sessionTurns = sessionIndex === 0 ? turns : Math.min(turns, 10)
+    const messages: DesktopSessionSnapshot['view']['messages'] = []
+
+    for (let turnIndex = 0; turnIndex < sessionTurns; turnIndex += 1) {
+      const createdAt = new Date(
+        baseTime + sessionIndex * 3_600_000 + turnIndex * 2_000,
+      ).toISOString()
+      messages.push(
+        {
+          id: `${sessionId}-user-${turnIndex}`,
+          role: 'user',
+          text: `第 ${turnIndex + 1} 轮：检查桌面端性能路径 ${sessionIndex + 1}。`,
+          createdAt,
+        },
+        {
+          id: `${sessionId}-assistant-${turnIndex}`,
+          role: 'assistant',
+          text:
+            `会话 ${sessionIndex + 1} 的第 ${turnIndex + 1} 轮完成。\n\n` +
+            '- 保持会话投影稳定\n' +
+            '- 验证侧栏与输入响应\n\n' +
+            '```ts\nconst fixture = "deterministic"\n```',
+          createdAt: new Date(Date.parse(createdAt) + 1_000).toISOString(),
+        },
+      )
+    }
+
+    snapshot.view.messages = messages
+    snapshot.item.lastMessageAt = messages.at(-1)?.createdAt ?? snapshot.item.createdAt
+    snapshot.updatedAt = snapshot.item.lastMessageAt
+    sessions.push(snapshot)
+  }
+
+  return {
+    activeSessionId: sessions[0]!.item.id,
+    sessions,
+  }
+}
+
+function fixtureCount(
+  raw: string | null,
+  allowed: ReadonlySet<number>,
+  fallback: number,
+): number {
+  const parsed = Number.parseInt(raw ?? '', 10)
+  return allowed.has(parsed) ? parsed : fallback
+}
+
 export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   if (!import.meta.env.DEV || typeof window === 'undefined') return null
   const visualCase = new URLSearchParams(window.location.search).get('visualCase')

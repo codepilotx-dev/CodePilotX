@@ -102,6 +102,7 @@ import {
 import type { DesktopClientEnvironment } from './types.js'
 import {
   cleanGitStatus,
+  createBrowserPerformanceFixture,
   createBrowserVisualFixture,
   emptyBrowserState,
   emptyReviewDiff,
@@ -172,6 +173,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     modelMetadata: provider.modelMetadata,
   })
   const visualFixture = createBrowserVisualFixture()
+  const performanceFixture = createBrowserPerformanceFixture()
   const visualSessionReadDelayMs =
     import.meta.env.DEV && typeof window !== 'undefined'
       ? Math.min(
@@ -223,6 +225,12 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
         sessions.set(sessionId, target)
       }
     }
+  }
+  if (performanceFixture) {
+    for (const snapshot of performanceFixture.sessions) {
+      sessions.set(snapshot.item.id, snapshot)
+    }
+    activeSessionId = performanceFixture.activeSessionId
   }
 
   return {

@@ -104,7 +104,7 @@ function routeBundleBudget(): Plugin {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [tailwindcss(), react(), routeBundleBudget()],
   define: {
     __CODEPILOTX_VERSION__: JSON.stringify(rootPackage.version),
@@ -127,11 +127,14 @@ export default defineConfig({
     },
     strictPort: true,
     // 页面经动态端口的 Agent 提供，但 HMR WebSocket 必须直连固定的 Renderer 端口。
-    hmr: {
-      protocol: 'ws',
-      host: '127.0.0.1',
-      port: 7788,
-      clientPort: 7788,
-    },
+    hmr:
+      mode === 'performance'
+        ? false
+        : {
+            protocol: 'ws',
+            host: '127.0.0.1',
+            port: 7788,
+            clientPort: 7788,
+          },
   },
-})
+}))
