@@ -12,6 +12,7 @@ import {
   Keyboard,
   LogOut,
   PawPrint,
+  RefreshCw,
   Settings2,
   Sparkles,
 } from "lucide-react";
@@ -28,6 +29,11 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
+import {
+  buildDesktopUpdateMenuModel,
+  runDesktopUpdateMenuAction,
+  startDesktopUpdateMonitoring,
+} from './desktopUpdateMenu.js'
 import {
   allBalances,
   criticalQuotaWindows,
@@ -88,10 +94,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const usageAvailable = Boolean(configuredProviderID && model);
   const petEnabled = draft.values.pet.enabled;
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null)
+  const updateMenu = buildDesktopUpdateMenuModel(updateStatus)
 
   useEffect(() => {
-    const unsubscribe = desktopClient.onUpdateStatusChange(setUpdateStatus)
-    return unsubscribe
+    return startDesktopUpdateMonitoring(desktopClient, setUpdateStatus)
   }, [])
 
   const refreshUsage = useCallback(async (): Promise<void> => {
@@ -371,26 +377,25 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           >
             设置
           </PopoverItem>
-          {(updateStatus?.phase === 'available' ||
-            updateStatus?.phase === 'downloading' ||
-            updateStatus?.phase === 'downloaded') ? (
-            <PopoverItem
-              icon={<Download size={APP_ICON_SIZE} />}
-              onClick={() => {
-                if (updateStatus.phase === 'downloaded') {
-                  void desktopClient.quitAndInstall()
-                } else if (updateStatus.phase === 'available') {
-                  void desktopClient.downloadUpdate()
-                }
-              }}
-            >
-              {updateStatus.phase === 'downloaded'
-                ? '重启安装'
-                : updateStatus.phase === 'downloading'
-                  ? `下载中 ${Math.round(updateStatus.percent)}%`
-                  : '安装更新'}
-            </PopoverItem>
-          ) : null}
+          <PopoverItem
+            disabled={updateMenu.disabled}
+            icon={
+              updateMenu.icon === 'download'
+                ? <Download size={APP_ICON_SIZE} />
+                : <RefreshCw size={APP_ICON_SIZE} />
+            }
+            onClick={() => {
+              void runDesktopUpdateMenuAction(desktopClient, updateMenu.action)
+                .catch(() => {
+                setUpdateStatus({
+                  phase: 'error',
+                  message: '更新操作失败，请稍后重试',
+                })
+              })
+            }}
+          >
+            {updateMenu.label}
+          </PopoverItem>
           <PopoverItem
             icon={<LogOut size={APP_ICON_SIZE} />}
             onClick={() => {

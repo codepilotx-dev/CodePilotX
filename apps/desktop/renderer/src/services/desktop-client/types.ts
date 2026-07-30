@@ -11,6 +11,7 @@ import type {
 } from '@codepilotx/agent-protocol'
 import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-overlay'
 import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
+import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-ipc'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
@@ -52,6 +53,7 @@ type DesktopClientWindow = {
     revealPathInFolder?(targetPath: string): Promise<void>
   } & Partial<DesktopPetOverlayBridge>
     & Partial<DesktopDataLocationIpcBridge>
+    & Partial<DesktopUpdateIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
   dispatchEvent?: Window['dispatchEvent']

@@ -4,7 +4,6 @@ import {
   DESKTOP_SETTINGS_CHANGE_CHANNEL,
   DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
   DESKTOP_UI_COMMAND_CHANNEL,
-  DESKTOP_UPDATE_STATUS_CHANNEL,
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
   type DesktopApiMethod,
 } from '../../../shared/ipcChannels.js'
@@ -85,7 +84,6 @@ import type {
   DesktopStoredSettings,
   DesktopThemeSettings,
   DesktopSubagentRead,
-  DesktopUpdateStatus,
   DesktopUserMessageInput,
   DesktopWorkspace,
   ModelProviderID,
@@ -1177,6 +1175,22 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    checkForUpdates: () =>
+      environment.window?.codePilotXDesktop?.checkForUpdates
+        ? environment.window.codePilotXDesktop.checkForUpdates()
+        : mockClient.checkForUpdates(),
+    downloadUpdate: () =>
+      environment.window?.codePilotXDesktop?.downloadUpdate
+        ? environment.window.codePilotXDesktop.downloadUpdate()
+        : mockClient.downloadUpdate(),
+    quitAndInstall: () =>
+      environment.window?.codePilotXDesktop?.quitAndInstall
+        ? environment.window.codePilotXDesktop.quitAndInstall()
+        : mockClient.quitAndInstall(),
+    onUpdateStatusChange: callback =>
+      environment.window?.codePilotXDesktop?.onUpdateStatusChange
+        ? environment.window.codePilotXDesktop.onUpdateStatusChange(callback)
+        : mockClient.onUpdateStatusChange(callback),
     getDataLocation: () =>
       environment.window?.codePilotXDesktop?.getDataLocation
         ? environment.window.codePilotXDesktop.getDataLocation()
