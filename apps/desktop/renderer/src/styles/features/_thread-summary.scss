@@ -4,13 +4,22 @@
   transition: transform var(--motion-emphasis) cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+.workflow-page__main[
+  data-thread-summary-mode="shift"
+][data-thread-summary-inline="true"] {
+  --session-content-w: min(
+    var(--thread-reading-width, 40rem),
+    calc(100% - (var(--session-content-inline-gutter) * 2))
+  );
+}
+
 .thread-summary-inline {
   position: absolute;
   z-index: 40;
   top: var(--space-4);
   right: var(--space-4);
   bottom: var(--space-4);
-  width: 300px;
+  width: 272px;
   min-height: 0;
   transform-origin: right center;
   animation: thread-summary-enter var(--motion-emphasis)
@@ -18,13 +27,13 @@
 }
 
 .thread-summary-popover {
-  width: 300px;
+  width: 272px;
   max-height: min(680px, calc(100vh - 80px));
 }
 
 .thread-summary-panel,
 .thread-summary-error {
-  width: 300px;
+  width: 272px;
   max-width: 100%;
   border: 1px solid
     color-mix(in srgb, var(--color-token-border-light) 52%, transparent);

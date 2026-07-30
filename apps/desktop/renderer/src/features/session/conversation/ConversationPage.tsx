@@ -954,7 +954,14 @@ export function ConversationPage(): React.ReactNode {
       <ComposerFrame
         ref={composerTransition.ref}
         className="workflow-page__composer-inner"
-        style={composerTransition.style}
+        style={{
+          ...composerTransition.style,
+          maxWidth:
+            threadSummary.displayMode === "shift" &&
+            threadSummary.shouldShowInline
+              ? "var(--session-content-w)"
+              : undefined,
+        }}
       >
         {showComposerStatusSummary ? (
           <ComposerChangeSummary
@@ -1078,6 +1085,10 @@ export function ConversationPage(): React.ReactNode {
         <main
           ref={workflowMainRef}
           className="workflow-page__main"
+          data-thread-summary-inline={
+            threadSummary.shouldShowInline || undefined
+          }
+          data-thread-summary-mode={threadSummary.displayMode}
           style={
             {
               "--thread-summary-content-shift": `${threadSummary.contentShift}px`,
