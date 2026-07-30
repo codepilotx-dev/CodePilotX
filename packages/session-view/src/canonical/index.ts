@@ -168,6 +168,64 @@ export function createCanonicalThreadState(page: CanonicalThreadPage): Canonical
   return hydrateLatestThreadPage(emptyState(page.thread), page)
 }
 
+export function reconcileLatestThreadPage(
+  cached: CanonicalThreadState,
+  page: CanonicalThreadPage,
+): CanonicalThreadState {
+  const fresh = createCanonicalThreadState(page)
+  fresh.history.generation = cached.history.generation + 1
+  if (
+    cached.thread.id !== page.thread.id
+    || cached.stream.streamId !== page.streamPosition.streamId
+  ) {
+    return fresh
+  }
+
+  const refreshedTurnIds = new Set([
+    ...page.turns.map((bundle) => bundle.turn.id),
+    ...(page.queue?.turns.map((turn) => turn.id) ?? []),
+  ])
+  const cachedQueuedTurnIds = new Set(cached.queue.turnIds)
+  const preservedTurnIds = cached.turnOrder.filter((turnId) =>
+    !refreshedTurnIds.has(turnId)
+    && !cachedQueuedTurnIds.has(turnId)
+    && cached.turnsById.has(turnId),
+  )
+  if (preservedTurnIds.length === 0) return fresh
+
+  const preservedTurnIdSet = new Set(preservedTurnIds)
+  for (const turnId of preservedTurnIds) {
+    const turn = cached.turnsById.get(turnId)
+    if (turn) fresh.turnsById.set(turnId, turn)
+  }
+  copyEntitiesForTurns(cached.inputsById, fresh.inputsById, preservedTurnIdSet)
+  copyEntitiesForTurns(cached.messagesById, fresh.messagesById, preservedTurnIdSet)
+  copyEntitiesForTurns(cached.agentsById, fresh.agentsById, preservedTurnIdSet)
+  copyEntitiesForTurns(cached.itemsById, fresh.itemsById, preservedTurnIdSet)
+  copyEntitiesForTurns(cached.approvalsById, fresh.approvalsById, preservedTurnIdSet)
+
+  const preservedAttachmentIds = new Set<string>()
+  for (const input of fresh.inputsById.values()) {
+    if (!input.turnId || !preservedTurnIdSet.has(input.turnId)) continue
+    for (const attachmentId of input.attachmentIds ?? []) {
+      preservedAttachmentIds.add(attachmentId)
+    }
+  }
+  for (const attachmentId of preservedAttachmentIds) {
+    if (fresh.attachmentsById.has(attachmentId)) continue
+    const attachment = cached.attachmentsById.get(attachmentId)
+    if (attachment) fresh.attachmentsById.set(attachmentId, attachment)
+  }
+
+  fresh.turnOrder = unique([...preservedTurnIds, ...fresh.turnOrder])
+  fresh.history = {
+    ...fresh.history,
+    olderCursor: cached.history.olderCursor,
+    hasOlder: cached.history.hasOlder,
+  }
+  return fresh
+}
+
 export function hydrateLatestThreadPage(
   _state: CanonicalThreadState,
   page: CanonicalThreadPage,
@@ -251,29 +309,45 @@ export function selectVisibleTurnEntries(
   state: CanonicalThreadState,
   scope: ThreadConversationScope = { type: "main" },
 ): VisibleTurnEntry[] {
-  const runAgentIds = scope.type === "subagent"
-    ? new Set([...state.agentsById.values()]
-        .filter((agent) => agent.subagentRunId === scope.runId)
-        .map((agent) => agent.id))
-    : null
+  const queueTurnIds = new Set(state.queue.turnIds)
+  const inputsByTurnId = groupSortedByTurn(state.inputsById.values())
+  const agentsByTurnId = new Map<string, AgentExecution[]>()
+  const allowedAgentIds = scope.type === "subagent" ? new Set<string>() : null
+  for (const agent of state.agentsById.values()) {
+    if (scope.type === "subagent" && agent.subagentRunId !== scope.runId) continue
+    appendGrouped(agentsByTurnId, agent.turnId, agent)
+    allowedAgentIds?.add(agent.id)
+  }
+  sortGrouped(agentsByTurnId, compareCreated)
+
+  const itemsByTurnId = new Map<string, Item[]>()
+  for (const item of state.itemsById.values()) {
+    if (allowedAgentIds && !allowedAgentIds.has(item.agentId)) continue
+    appendGrouped(itemsByTurnId, item.turnId, item)
+  }
+  sortGrouped(itemsByTurnId, compareOrdinal)
+
+  const approvalsByTurnId = new Map<string, ApprovalRequest[]>()
+  for (const approval of state.approvalsById.values()) {
+    if (allowedAgentIds && !allowedAgentIds.has(approval.agentId)) continue
+    appendGrouped(approvalsByTurnId, approval.turnId, approval)
+  }
+  sortGrouped(approvalsByTurnId, compareCreated)
 
   const entries: VisibleTurnEntry[] = []
   for (const turnId of state.turnOrder) {
     const turn = state.turnsById.get(turnId)
-    if (!turn || state.queue.turnIds.includes(turnId)) continue
-    const agents = sortedValues(state.agentsById, (agent) => agent.turnId === turnId && (!runAgentIds || runAgentIds.has(agent.id)))
-    const agentIds = new Set(agents.map((agent) => agent.id))
-    const items = sortedValues(state.itemsById, (item) => item.turnId === turnId && (!runAgentIds || agentIds.has(item.agentId))).sort(compareOrdinal)
-    const approvals = sortedValues(state.approvalsById, (approval) => approval.turnId === turnId && (!runAgentIds || agentIds.has(approval.agentId)))
-    const attachmentIds = new Set(
-      sortedValues(state.inputsById, (input) => input.turnId === turnId)
-        .flatMap((input) => input.attachmentIds ?? []),
-    )
-    if (runAgentIds && agents.length === 0 && items.length === 0 && approvals.length === 0) continue
+    if (!turn || queueTurnIds.has(turnId)) continue
+    const userInputs = inputsByTurnId.get(turnId) ?? []
+    const agents = agentsByTurnId.get(turnId) ?? []
+    const items = itemsByTurnId.get(turnId) ?? []
+    const approvals = approvalsByTurnId.get(turnId) ?? []
+    if (allowedAgentIds && agents.length === 0 && items.length === 0 && approvals.length === 0) continue
+    const attachmentIds = new Set(userInputs.flatMap((input) => input.attachmentIds ?? []))
     entries.push({
       id: turn.id,
       turn,
-      userInputs: sortedValues(state.inputsById, (input) => input.turnId === turnId),
+      userInputs,
       agents,
       items,
       approvals,
@@ -289,70 +363,109 @@ export function selectRenderTurnEntries(
   state: CanonicalThreadState,
   scope: ThreadConversationScope = { type: "main" },
 ): RenderTurnEntry[] {
-  return selectVisibleTurnEntries(state, scope).map((entry) => {
-    const processItems: Item[] = []
-    const assistantResultItems: Array<Extract<Item, { type: "text" }>> = []
-    const postAssistantItems: Item[] = []
-    const patchItems: Array<Extract<Item, { type: "patch" }>> = []
-    const executionPlanItems: Array<Extract<Item, { type: "execution-plan" }>> = []
-    const contentBlocks: RenderContentBlock[] = []
-    let planItem: Extract<Item, { type: "plan" }> | null = null
-    const lastProcessItemIndex = findLastProcessItemIndex(entry.items)
-    const assistantResultIndex = findAssistantResultIndex(entry.items, lastProcessItemIndex)
+  return selectVisibleTurnEntries(state, scope).map(buildRenderTurnEntry)
+}
 
-    for (const [itemIndex, item] of entry.items.entries()) {
-      if (item.type === "text") {
-        if (!item.text.trim()) continue
-        if (itemIndex === assistantResultIndex) {
-          assistantResultItems.push(item)
-          const previous = contentBlocks.at(-1)
-          if (previous?.kind === "assistant") previous.items.push(item)
-          else contentBlocks.push({ kind: "assistant", id: `assistant:${item.id}`, items: [item] })
-        } else {
-          processItems.push(item)
-          appendProcessBlock(contentBlocks, item)
-        }
-      } else if (item.type === "patch") {
-        patchItems.push(item)
-        contentBlocks.push({ kind: "patch", id: `patch:${item.id}`, item })
-      } else if (item.type === "plan") {
-        planItem = item
-        contentBlocks.push({ kind: "plan", id: `plan:${item.id}`, item })
-      } else if (item.type === "execution-plan") {
-        executionPlanItems.push(item)
-        contentBlocks.push({ kind: "execution-plan", id: `execution-plan:${item.id}`, item })
-      } else if (item.type === "question" && item.status !== "pending") {
-        postAssistantItems.push(item)
-        contentBlocks.push({ kind: "post", id: `post:${item.id}`, item })
-      } else if (item.type !== "question") {
+export type RenderTurnEntriesSelector = (
+  state: CanonicalThreadState,
+  scope?: ThreadConversationScope,
+) => RenderTurnEntry[]
+
+export function createRenderTurnEntriesSelector(): RenderTurnEntriesSelector {
+  let cacheKey = ""
+  let previousEntries: RenderTurnEntry[] = []
+  let previousByTurnId = new Map<string, RenderTurnEntry>()
+
+  return (
+    state: CanonicalThreadState,
+    scope: ThreadConversationScope = { type: "main" },
+  ): RenderTurnEntry[] => {
+    const nextCacheKey = `${state.thread.id}:${scope.type === "main" ? "main" : `subagent:${scope.runId}`}`
+    if (nextCacheKey !== cacheKey) {
+      cacheKey = nextCacheKey
+      previousEntries = []
+      previousByTurnId = new Map()
+    }
+
+    const visibleEntries = selectVisibleTurnEntries(state, scope)
+    const nextEntries = visibleEntries.map((entry) => {
+      const previous = previousByTurnId.get(entry.id)
+      return previous && hasSameVisibleSources(previous, entry)
+        ? previous
+        : buildRenderTurnEntry(entry)
+    })
+    const result = sameReferences(previousEntries, nextEntries)
+      ? previousEntries
+      : nextEntries
+    previousEntries = result
+    previousByTurnId = new Map(result.map((entry) => [entry.id, entry]))
+    return result
+  }
+}
+
+export function buildRenderTurnEntry(entry: VisibleTurnEntry): RenderTurnEntry {
+  const processItems: Item[] = []
+  const assistantResultItems: Array<Extract<Item, { type: "text" }>> = []
+  const postAssistantItems: Item[] = []
+  const patchItems: Array<Extract<Item, { type: "patch" }>> = []
+  const executionPlanItems: Array<Extract<Item, { type: "execution-plan" }>> = []
+  const contentBlocks: RenderContentBlock[] = []
+  let planItem: Extract<Item, { type: "plan" }> | null = null
+  const lastProcessItemIndex = findLastProcessItemIndex(entry.items)
+  const assistantResultIndex = findAssistantResultIndex(entry.items, lastProcessItemIndex)
+
+  for (const [itemIndex, item] of entry.items.entries()) {
+    if (item.type === "text") {
+      if (!item.text.trim()) continue
+      if (itemIndex === assistantResultIndex) {
+        assistantResultItems.push(item)
+        const previous = contentBlocks.at(-1)
+        if (previous?.kind === "assistant") previous.items.push(item)
+        else contentBlocks.push({ kind: "assistant", id: `assistant:${item.id}`, items: [item] })
+      } else {
         processItems.push(item)
         appendProcessBlock(contentBlocks, item)
       }
+    } else if (item.type === "patch") {
+      patchItems.push(item)
+      contentBlocks.push({ kind: "patch", id: `patch:${item.id}`, item })
+    } else if (item.type === "plan") {
+      planItem = item
+      contentBlocks.push({ kind: "plan", id: `plan:${item.id}`, item })
+    } else if (item.type === "execution-plan") {
+      executionPlanItems.push(item)
+      contentBlocks.push({ kind: "execution-plan", id: `execution-plan:${item.id}`, item })
+    } else if (item.type === "question" && item.status !== "pending") {
+      postAssistantItems.push(item)
+      contentBlocks.push({ kind: "post", id: `post:${item.id}`, item })
+    } else if (item.type !== "question") {
+      processItems.push(item)
+      appendProcessBlock(contentBlocks, item)
     }
+  }
 
-    const blockers: RenderBlocker[] = [
-      ...entry.approvals
-        .filter((approval) => approval.status === "pending")
-        .map((approval): RenderBlocker => ({ kind: "approval", id: `approval:${approval.id}`, createdAt: approval.createdAt, approval })),
-      ...entry.items
-        .filter((item): item is Extract<Item, { type: "question" }> => item.type === "question" && item.status === "pending")
-        .map((question): RenderBlocker => ({ kind: "question", id: `question:${question.id}`, createdAt: question.createdAt, question })),
-    ].sort(compareCreated)
+  const blockers: RenderBlocker[] = [
+    ...entry.approvals
+      .filter((approval) => approval.status === "pending")
+      .map((approval): RenderBlocker => ({ kind: "approval", id: `approval:${approval.id}`, createdAt: approval.createdAt, approval })),
+    ...entry.items
+      .filter((item): item is Extract<Item, { type: "question" }> => item.type === "question" && item.status === "pending")
+      .map((question): RenderBlocker => ({ kind: "question", id: `question:${question.id}`, createdAt: question.createdAt, question })),
+  ].sort(compareCreated)
 
-    return {
-      ...entry,
-      userItems: entry.userInputs,
-      processItems,
-      assistantResultItems,
-      postAssistantItems,
-      patchItems,
-      planItem,
-      executionPlanItems,
-      contentBlocks,
-      blockers,
-      systemItems: [],
-    }
-  })
+  return {
+    ...entry,
+    userItems: entry.userInputs,
+    processItems,
+    assistantResultItems,
+    postAssistantItems,
+    patchItems,
+    planItem,
+    executionPlanItems,
+    contentBlocks,
+    blockers,
+    systemItems: [],
+  }
 }
 
 function findLastProcessItemIndex(items: readonly Item[]): number {
@@ -697,8 +810,62 @@ function mapBy<T>(values: readonly T[], key: (value: T) => string): Map<string, 
   return new Map(values.map((value) => [key(value), value]))
 }
 
-function sortedValues<T extends { id: string; createdAt: number }>(map: Map<string, T>, predicate: (value: T) => boolean): T[] {
-  return [...map.values()].filter(predicate).sort(compareCreated)
+function copyEntitiesForTurns<T extends { id: string; turnId: string | null }>(
+  source: ReadonlyMap<string, T>,
+  target: Map<string, T>,
+  turnIds: ReadonlySet<string>,
+): void {
+  for (const entity of source.values()) {
+    if (entity.turnId && turnIds.has(entity.turnId)) target.set(entity.id, entity)
+  }
+}
+
+function appendGrouped<T>(
+  groups: Map<string, T[]>,
+  turnId: string,
+  value: T,
+): void {
+  const values = groups.get(turnId)
+  if (values) values.push(value)
+  else groups.set(turnId, [value])
+}
+
+function sortGrouped<T>(
+  groups: Map<string, T[]>,
+  compare: (left: T, right: T) => number,
+): void {
+  for (const values of groups.values()) values.sort(compare)
+}
+
+function groupSortedByTurn<T extends { turnId: string | null; id: string; createdAt: number }>(
+  values: Iterable<T>,
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>()
+  for (const value of values) {
+    if (value.turnId) appendGrouped(grouped, value.turnId, value)
+  }
+  sortGrouped(grouped, compareCreated)
+  return grouped
+}
+
+function hasSameVisibleSources(
+  previous: RenderTurnEntry,
+  next: VisibleTurnEntry,
+): boolean {
+  return previous.turn === next.turn
+    && sameReferences(previous.userInputs, next.userInputs)
+    && sameReferences(previous.agents, next.agents)
+    && sameReferences(previous.items, next.items)
+    && sameReferences(previous.approvals, next.approvals)
+    && sameReferences(previous.attachments, next.attachments)
+}
+
+function sameReferences<T>(
+  previous: readonly T[],
+  next: readonly T[],
+): boolean {
+  return previous.length === next.length
+    && previous.every((value, index) => value === next[index])
 }
 
 function compareCreated(left: { id: string; createdAt: number }, right: { id: string; createdAt: number }): number {

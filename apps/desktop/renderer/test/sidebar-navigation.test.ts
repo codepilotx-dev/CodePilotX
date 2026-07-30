@@ -28,8 +28,10 @@ import {
 import {
   countOpenProjectSessions,
 } from '../src/features/layout/sidebar/SidebarProjectHoverCard.js'
+import { getSidebarSessionDisplayGroups } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
 import {
   buildSidebarPinnedItems,
+  buildProjectSessionBuckets,
   buildSidebarViewModel,
   deriveSidebarSessionVisualState,
   reorderSidebarPinnedItemKeys,
@@ -311,6 +313,63 @@ describe('sidebar view model', () => {
     expect(model.recentSessions.map(item => item.id)).toEqual(['standalone'])
     expect(model.sessionStateById.project).toBe('needs-input')
     expect(model.sessionStateById.archived).toBeUndefined()
+  })
+
+  test('groups project sessions once while keeping pinned tasks in aggregate counts', () => {
+    const allSessions = [
+      {
+        ...session('pinned-running', 'C:\\alpha'),
+        projectId: 'alpha',
+        pinnedAt: '2026-07-18T08:00:00.000Z',
+        status: 'running' as const,
+        unreadAt: '2026-07-18T08:00:00.000Z',
+      },
+      {
+        ...session('recent', 'C:\\alpha', '2026-07-18T07:00:00.000Z'),
+        projectId: 'alpha',
+      },
+      {
+        ...session('older', 'C:\\alpha', '2026-07-18T06:00:00.000Z'),
+        projectId: 'alpha',
+        status: 'waiting' as const,
+      },
+      session('standalone', '', '2026-07-18T09:00:00.000Z', true),
+    ]
+    const buckets = buildProjectSessionBuckets(
+      allSessions.filter(item => !item.standalone),
+      allSessions.filter(item => !item.pinnedAt),
+    )
+    const bucket = buckets.get('id:alpha')
+
+    expect(bucket?.allSessions.map(item => item.id)).toEqual([
+      'pinned-running',
+      'recent',
+      'older',
+    ])
+    expect(bucket?.displaySessions.map(item => item.id)).toEqual([
+      'recent',
+      'older',
+    ])
+    expect(bucket?.openCount).toBe(2)
+    expect(bucket?.unreadCount).toBe(1)
+    expect([...buckets.keys()]).not.toContain('path:')
+  })
+
+  test('shows pinned items in batches of twenty', () => {
+    const items = Array.from({ length: 45 }, (_, index) => index)
+
+    expect(getSidebarSessionDisplayGroups(items, 20, 20)).toMatchObject({
+      baseSessions: items.slice(0, 20),
+      extraSessions: [],
+      canShowMore: true,
+      canCollapse: false,
+    })
+    expect(getSidebarSessionDisplayGroups(items, 40, 20)).toMatchObject({
+      baseSessions: items.slice(0, 20),
+      extraSessions: items.slice(20, 40),
+      canShowMore: true,
+      canCollapse: true,
+    })
   })
 
   test('flat organization projects every unpinned task into recent', () => {

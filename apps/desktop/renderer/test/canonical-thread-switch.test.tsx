@@ -11,11 +11,37 @@ import {
   segmentProcessItems,
 } from "../src/features/session/timeline/CanonicalThreadView.js";
 import { QuickChatContext } from "../src/features/session/QuickChatContext.js";
+import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
 import {
   isCurrentCanonicalThreadRequest,
   selectVisibleCanonicalState,
 } from "../src/features/session/timeline/useCanonicalThreadConversation.js";
+
+function CanonicalTestProviders({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.ReactNode {
+  return (
+    <QuickChatContext.Provider
+      value={{} as React.ContextType<typeof QuickChatContext>}
+    >
+      <ConversationItemContext.Provider
+        value={{
+          canCopyFileReferenceContents: () => false,
+          onCopyFileReferenceContents: () => undefined,
+          onOpenFileReference: () => undefined,
+          onSubmitEditedUserMessage: async () => undefined,
+          sessionStatus: "idle",
+          workspacePath: null,
+        }}
+      >
+        <TooltipProvider>{children}</TooltipProvider>
+      </ConversationItemContext.Provider>
+    </QuickChatContext.Provider>
+  );
+}
 
 describe("canonical thread switch", () => {
   const disclosureProps = {
@@ -285,10 +311,7 @@ describe("canonical thread switch", () => {
       contentBlocks: [],
     } as unknown as RenderTurnEntry;
     const markup = renderToStaticMarkup(
-      <QuickChatContext.Provider
-        value={{} as React.ContextType<typeof QuickChatContext>}
-      >
-        <TooltipProvider>
+      <CanonicalTestProviders>
           <CanonicalConversationTurn
             disclosureState={{
               expandedIds: new Set(["turn-process:turn-1"]),
@@ -299,14 +322,10 @@ describe("canonical thread switch", () => {
             onOpenSubagent={() => undefined}
             rightDockPlanEventId={null}
           />
-        </TooltipProvider>
-      </QuickChatContext.Provider>,
+      </CanonicalTestProviders>,
     );
     const collapsedMarkup = renderToStaticMarkup(
-      <QuickChatContext.Provider
-        value={{} as React.ContextType<typeof QuickChatContext>}
-      >
-        <TooltipProvider>
+      <CanonicalTestProviders>
           <CanonicalConversationTurn
             disclosureState={{
               expandedIds: new Set(),
@@ -317,14 +336,10 @@ describe("canonical thread switch", () => {
             onOpenSubagent={() => undefined}
             rightDockPlanEventId={null}
           />
-        </TooltipProvider>
-      </QuickChatContext.Provider>,
+      </CanonicalTestProviders>,
     );
     const activeMarkup = renderToStaticMarkup(
-      <QuickChatContext.Provider
-        value={{} as React.ContextType<typeof QuickChatContext>}
-      >
-        <TooltipProvider>
+      <CanonicalTestProviders>
           <CanonicalConversationTurn
             disclosureState={{
               expandedIds: new Set(),
@@ -338,8 +353,7 @@ describe("canonical thread switch", () => {
             onOpenSubagent={() => undefined}
             rightDockPlanEventId={null}
           />
-        </TooltipProvider>
-      </QuickChatContext.Provider>,
+      </CanonicalTestProviders>,
     );
 
     const processIndex = markup.indexOf("已处理 5m 59s");

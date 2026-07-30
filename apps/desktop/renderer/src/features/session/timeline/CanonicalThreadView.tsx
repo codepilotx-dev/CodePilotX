@@ -37,6 +37,7 @@ import {
   setTimelineDisclosureExpanded,
 } from "./timelineDisclosureState.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
+import type { RegisterConversationTurnRow } from "../conversation/useConversationTurnRowVisibility.js";
 
 type ToolItem = Extract<Item, { type: "tool" }>;
 type NonToolProcessItem = Exclude<Item, { type: "tool" }>;
@@ -72,6 +73,7 @@ export type CanonicalThreadViewProps = {
   onReload: () => Promise<void>;
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
+  registerTurnRow?: RegisterConversationTurnRow;
   rightDockPlanEventId: string | null;
 };
 
@@ -214,10 +216,13 @@ export function useTimelineDisclosureState(threadId: string): {
     [threadId],
   );
 
-  return { expandedIds, onExpandedChange };
+  return React.useMemo(
+    () => ({ expandedIds, onExpandedChange }),
+    [expandedIds, onExpandedChange],
+  );
 }
 
-export function CanonicalThreadView({
+function CanonicalThreadViewComponent({
   turns,
   threadId,
   active,
@@ -234,6 +239,7 @@ export function CanonicalThreadView({
   onReload,
   onOpenPlanInRightDock,
   onOpenSubagent,
+  registerTurnRow,
   rightDockPlanEventId,
 }: CanonicalThreadViewProps): React.ReactNode {
   const disclosureState = useTimelineDisclosureState(threadId);
@@ -274,7 +280,10 @@ export function CanonicalThreadView({
   }
 
   return (
-    <div className="canonical-thread-view">
+    <div
+      className="canonical-thread-view"
+      data-canonical-thread-id={threadId}
+    >
       {hasOlder ? (
         <div className="canonical-history-control">
           <button
@@ -299,29 +308,69 @@ export function CanonicalThreadView({
         sessionKey={threadId}
       >
         {turns.map((entry) => (
-          <div
-            className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:max-w-[48rem] tw:min-w-0"
-            data-component="conversation-turn"
-            data-turn-navigation-id={entry.id}
+          <CanonicalTurnRow
+            disclosureState={disclosureState}
+            entry={entry}
             key={entry.id}
-          >
-            <ConversationTurnErrorBoundary turnId={entry.id}>
-              <CanonicalConversationTurn
-                disclosureState={disclosureState}
-                entry={entry}
-                onOpenPlanInRightDock={onOpenPlanInRightDock}
-                onOpenSubagent={onOpenSubagent}
-                rightDockPlanEventId={rightDockPlanEventId}
-              />
-            </ConversationTurnErrorBoundary>
-          </div>
+            onOpenPlanInRightDock={onOpenPlanInRightDock}
+            onOpenSubagent={onOpenSubagent}
+            registerTurnRow={registerTurnRow}
+            rightDockPlanEventId={rightDockPlanEventId}
+          />
         ))}
       </SessionTimelineView>
     </div>
   );
 }
 
-export function CanonicalConversationTurn({
+export const CanonicalThreadView = React.memo(CanonicalThreadViewComponent);
+
+const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
+  disclosureState,
+  entry,
+  onOpenPlanInRightDock,
+  onOpenSubagent,
+  registerTurnRow,
+  rightDockPlanEventId,
+}: {
+  disclosureState: {
+    expandedIds: ReadonlySet<string>;
+    onExpandedChange: (id: string, expanded: boolean) => void;
+  };
+  entry: RenderTurnEntry;
+  onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
+  onOpenSubagent: (taskId: string) => void;
+  registerTurnRow?: RegisterConversationTurnRow;
+  rightDockPlanEventId: string | null;
+}): React.ReactNode {
+  const rowRef = React.useCallback(
+    (node: HTMLDivElement | null): void => {
+      registerTurnRow?.(entry.id, node);
+    },
+    [entry.id, registerTurnRow],
+  );
+
+  return (
+    <div
+      ref={rowRef}
+      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:max-w-[48rem] tw:min-w-0"
+      data-component="conversation-turn"
+      data-turn-navigation-id={entry.id}
+    >
+      <ConversationTurnErrorBoundary turnId={entry.id}>
+        <CanonicalConversationTurn
+          disclosureState={disclosureState}
+          entry={entry}
+          onOpenPlanInRightDock={onOpenPlanInRightDock}
+          onOpenSubagent={onOpenSubagent}
+          rightDockPlanEventId={rightDockPlanEventId}
+        />
+      </ConversationTurnErrorBoundary>
+    </div>
+  );
+});
+
+function CanonicalConversationTurnComponent({
   disclosureState,
   entry,
   onOpenPlanInRightDock,
@@ -497,6 +546,10 @@ export function CanonicalConversationTurn({
     </article>
   );
 }
+
+export const CanonicalConversationTurn = React.memo(
+  CanonicalConversationTurnComponent,
+);
 
 function CanonicalBlocker({
   blocker,

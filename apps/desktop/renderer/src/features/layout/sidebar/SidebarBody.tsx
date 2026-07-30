@@ -32,12 +32,15 @@ import {
   reorderSidebarPinnedItemKeys,
   sidebarProjectKey,
   type SidebarPinnedItem,
+  type SidebarProjectSessionBucket,
 } from "./sidebarViewModel.js";
 import { cx } from "../../../utils/cx.js";
 
+const PINNED_INITIAL_LIMIT = 20;
+const PINNED_LIMIT_STEP = 20;
+
 type Props = {
   activeSessionId: string | null;
-  allProjectSessions: SessionListItem[];
   collapsedProjectPaths: Set<string>;
   organization: DesktopSidebarOrganization;
   now: number;
@@ -45,6 +48,7 @@ type Props = {
   titleLoadingIds: ReadonlySet<string>;
   pinnedSessions: SessionListItem[];
   pinnedWorkspaces: DesktopWorkspace[];
+  projectSessionBuckets: ReadonlyMap<string, SidebarProjectSessionBucket>;
   projectWorkspaces: DesktopWorkspace[];
   projectSort: DesktopSidebarSort;
   recentSessions: SessionListItem[];
@@ -52,7 +56,6 @@ type Props = {
   sessionSort: DesktopSidebarSort;
   manualOrderByScope: Record<string, string[]>;
   unavailableWorkspacePaths: Set<string>;
-  unpinnedSessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
   onChooseWorkspace: () => void;
@@ -76,7 +79,6 @@ type Props = {
 
 export function SidebarBody({
   activeSessionId,
-  allProjectSessions,
   collapsedProjectPaths,
   organization,
   now,
@@ -84,6 +86,7 @@ export function SidebarBody({
   titleLoadingIds,
   pinnedSessions,
   pinnedWorkspaces,
+  projectSessionBuckets,
   projectWorkspaces,
   projectSort,
   recentSessions,
@@ -91,7 +94,6 @@ export function SidebarBody({
   sessionSort,
   manualOrderByScope,
   unavailableWorkspacePaths,
-  unpinnedSessions,
   workspace,
   onArchiveSessions,
   onChooseWorkspace,
@@ -113,6 +115,9 @@ export function SidebarBody({
   onSessionSortChange,
 }: Props): React.ReactNode {
   const [visibleProjectLimit, setVisibleProjectLimit] = useState(5);
+  const [visiblePinnedLimit, setVisiblePinnedLimit] = useState(
+    PINNED_INITIAL_LIMIT,
+  );
   const [draggingProject, setDraggingProject] = useState<{
     key: string;
     scopeKey: string;
@@ -152,6 +157,18 @@ export function SidebarBody({
       }),
     [manualOrderByScope, pinnedSessions, pinnedWorkspaces],
   );
+  const {
+    baseSessions: basePinnedItems,
+    canCollapse: canCollapsePinnedItems,
+    canShowMore: canShowMorePinnedItems,
+    extraSessions: extraPinnedItems,
+    hasOverflow: hasPinnedItemOverflow,
+  } = getSidebarSessionDisplayGroups(
+    pinnedItems,
+    visiblePinnedLimit,
+    PINNED_INITIAL_LIMIT,
+  );
+  const displayedPinnedItems = [...basePinnedItems, ...extraPinnedItems];
 
   useEffect(() => {
     setVisibleProjectLimit(5);
@@ -182,7 +199,10 @@ export function SidebarBody({
     return (
       <SidebarProjectGroup
         activeSessionId={activeSessionId}
-        allProjectSessions={allProjectSessions}
+        bucket={
+          projectSessionBuckets.get(sidebarProjectKey(project)) ??
+          EMPTY_PROJECT_SESSION_BUCKET
+        }
         collapsedProjectPaths={collapsedProjectPaths}
         isUnavailable={isUnavailable(project)}
         manualOrderByScope={manualOrderByScope}
@@ -191,7 +211,6 @@ export function SidebarBody({
         titleLoadingIds={titleLoadingIds}
         project={project}
         sessionFallbackTitles={sessionFallbackTitles}
-        sessions={unpinnedSessions}
         sort={projectSort}
         workspace={workspace}
         onArchiveSessions={onArchiveSessions}
@@ -406,7 +425,22 @@ export function SidebarBody({
             title="置顶"
             onToggle={onToggleSidebarSection}
           >
-            {pinnedItems.map(renderPinnedItem)}
+            {displayedPinnedItems.map(renderPinnedItem)}
+            {hasPinnedItemOverflow ? (
+              <SidebarShowMoreActions
+                canCollapse={canCollapsePinnedItems}
+                canShowMore={canShowMorePinnedItems}
+                onCollapse={() => setVisiblePinnedLimit(PINNED_INITIAL_LIMIT)}
+                onShowMore={() =>
+                  setVisiblePinnedLimit(current =>
+                    Math.min(
+                      current + PINNED_LIMIT_STEP,
+                      pinnedItems.length,
+                    ),
+                  )
+                }
+              />
+            ) : null}
           </SidebarSection>
         ) : null}
 
@@ -505,6 +539,13 @@ export function SidebarBody({
     </ScrollArea>
   );
 }
+
+const EMPTY_PROJECT_SESSION_BUCKET: SidebarProjectSessionBucket = {
+  allSessions: [],
+  displaySessions: [],
+  openCount: 0,
+  unreadCount: 0,
+};
 
 const SIDEBAR_SORT_OPTIONS: Array<{
   label: string;

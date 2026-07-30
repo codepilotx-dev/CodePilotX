@@ -1039,6 +1039,17 @@
   display: none;
 }
 
+.sidebar-resize-guide {
+  position: fixed;
+  z-index: 1000;
+  width: 3px;
+  pointer-events: none;
+  background: var(--color-token-text-link-foreground);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--color-token-main-surface-primary) 70%, transparent);
+  will-change: transform;
+}
+
 /* --- Collapse confirm target --- */
 .sidebar-collapse-confirm-target {
   --sidebar-collapse-progress: 0turn;

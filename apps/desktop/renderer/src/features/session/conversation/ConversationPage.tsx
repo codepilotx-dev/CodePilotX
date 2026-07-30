@@ -61,13 +61,14 @@ import {
   saveConversationUiState,
 } from "../../layout/tabs/conversationUiState.js";
 import { CanonicalThreadView } from "../timeline/CanonicalThreadView.js";
+import { ConversationItemContext } from "../timeline/ConversationItemContext.js";
 import type { ThreadTimelineNavigationHandle } from "../timeline/SessionTimelineView.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
 import {
   ConversationTurnNavRail,
   type TurnNavigationReason,
 } from "./ConversationTurnNavRail.js";
-import type { SubagentProjection } from "@codepilotx/shared/thread";
+import { useConversationTurnRowVisibility } from "./useConversationTurnRowVisibility.js";
 import {
   ThreadSummaryErrorBoundary,
   ThreadSummaryInline,
@@ -142,6 +143,10 @@ export function ConversationPage(): React.ReactNode {
     onDecidePermission,
     onOpenRightDock,
     onOpenPlanInRightDock,
+    canCopyFileReferenceContents,
+    onCopyFileReferenceContents,
+    onOpenFileReference,
+    onSubmitEditedUserMessage,
     onAppendComposerText,
     onAppendSideChatText,
     onOpenSubagent,
@@ -155,26 +160,13 @@ export function ConversationPage(): React.ReactNode {
     diffMarkerStyle,
     reviewView,
   } = useDesktopSettings();
-  const [subagents, setSubagents] = React.useState<SubagentProjection[]>([]);
-
-  React.useEffect(() => {
-    if (!activeSessionId || !desktopClient.listSubagents) {
-      setSubagents([]);
-      return;
-    }
-    let cancelled = false;
-    const refresh = () => desktopClient.listSubagents!(activeSessionId).then(value => {
-      if (!cancelled) setSubagents(value);
-    }).catch(() => undefined);
-    void refresh();
-    const timer = window.setInterval(refresh, 1000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [activeSessionId]);
-
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
+  const subagents = React.useMemo(
+    () => canonicalConversation.state
+      ? [...canonicalConversation.state.subagentsByTaskId.values()]
+      : [],
+    [canonicalConversation.state],
+  );
   const canonicalAuxiliary = React.useMemo(
     () =>
       selectCanonicalConversationAuxiliaryState(canonicalConversation.state),
@@ -212,6 +204,12 @@ export function ConversationPage(): React.ReactNode {
   const timelineNavigationRef =
     React.useRef<ThreadTimelineNavigationHandle | null>(null);
   const threadScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const turnNavItemIds = React.useMemo(
+    () => turnNavItems.map((item) => item.id),
+    [turnNavItems],
+  );
+  const { registerTurnRow, visibilityStore } =
+    useConversationTurnRowVisibility(turnNavItemIds, threadScrollRef);
   const threadFooterRef = React.useRef<HTMLElement | null>(null);
   const initialTimelineScrollTop = React.useMemo(
     () =>
@@ -405,6 +403,61 @@ export function ConversationPage(): React.ReactNode {
   ]);
 
   const workflowPageRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    let hiddenRoot: HTMLElement | null = null;
+    let observer: MutationObserver | null = null;
+    let revealTimeout: number | null = null;
+
+    const clearHiddenRoot = (): void => {
+      observer?.disconnect();
+      observer = null;
+      if (revealTimeout !== null) {
+        window.clearTimeout(revealTimeout);
+        revealTimeout = null;
+      }
+      hiddenRoot?.style.removeProperty("visibility");
+      hiddenRoot = null;
+    };
+    const hideUntilTimelineChanges = (): void => {
+      clearHiddenRoot();
+      const root = workflowPageRef.current?.querySelector<HTMLElement>(
+        ".canonical-thread-view",
+      );
+      if (!root) return;
+      const previousThreadId = root.dataset.canonicalThreadId;
+      hiddenRoot = root;
+      root.style.visibility = "hidden";
+      const revealReplacement = (): void => {
+        const current = workflowPageRef.current?.querySelector<HTMLElement>(
+          ".canonical-thread-view",
+        );
+        if (
+          !hiddenRoot?.isConnected ||
+          current !== hiddenRoot ||
+          current.dataset.canonicalThreadId !== previousThreadId
+        ) {
+          clearHiddenRoot();
+        }
+      };
+      observer = new MutationObserver(revealReplacement);
+      observer.observe(root, {
+        attributeFilter: ["data-canonical-thread-id"],
+        attributes: true,
+      });
+      if (root.parentElement) {
+        observer.observe(root.parentElement, {
+          childList: true,
+        });
+      }
+      revealTimeout = window.setTimeout(clearHiddenRoot, 1_000);
+    };
+
+    window.addEventListener("hashchange", hideUntilTimelineChanges);
+    return () => {
+      window.removeEventListener("hashchange", hideUntilTimelineChanges);
+      clearHiddenRoot();
+    };
+  }, []);
   React.useEffect(() => {
     const composerEl = composerTransition.ref.current;
     const pageEl = workflowPageRef.current;
@@ -925,26 +978,47 @@ export function ConversationPage(): React.ReactNode {
       </ComposerFrame>
     </div>
   ) : null;
+  const conversationItemContextValue = React.useMemo(
+    () => ({
+      canCopyFileReferenceContents,
+      onCopyFileReferenceContents,
+      onOpenFileReference,
+      onSubmitEditedUserMessage,
+      sessionStatus,
+      workspacePath,
+    }),
+    [
+      canCopyFileReferenceContents,
+      onCopyFileReferenceContents,
+      onOpenFileReference,
+      onSubmitEditedUserMessage,
+      sessionStatus,
+      workspacePath,
+    ],
+  );
   const canonicalThreadView = activeSessionId ? (
-    <CanonicalThreadView
-      active={sessionStatus === "running" || sessionStatus === "waiting"}
-      error={canonicalConversation.error}
-      hasOlder={canonicalConversation.hasOlder}
-      initialScrollOffset={initialTimelineScrollTop}
-      listRef={timelineListRef}
-      navigationRef={timelineNavigationRef}
-      loading={canonicalConversation.loading}
-      loadingOlder={canonicalConversation.loadingOlder}
-      onLoadOlder={canonicalConversation.loadOlder}
-      onOpenPlanInRightDock={onOpenPlanInRightDock}
-      onOpenSubagent={onOpenSubagent}
-      onReload={canonicalConversation.reload}
-      onScroll={handleTimelineScroll}
-      rightDockPlanEventId={rightDockPlanEventId}
-      scrollRef={threadScrollRef}
-      threadId={activeSessionId}
-      turns={canonicalConversation.turns}
-    />
+    <ConversationItemContext.Provider value={conversationItemContextValue}>
+      <CanonicalThreadView
+        active={sessionStatus === "running" || sessionStatus === "waiting"}
+        error={canonicalConversation.error}
+        hasOlder={canonicalConversation.hasOlder}
+        initialScrollOffset={initialTimelineScrollTop}
+        listRef={timelineListRef}
+        navigationRef={timelineNavigationRef}
+        loading={canonicalConversation.loading}
+        loadingOlder={canonicalConversation.loadingOlder}
+        onLoadOlder={canonicalConversation.loadOlder}
+        onOpenPlanInRightDock={onOpenPlanInRightDock}
+        onOpenSubagent={onOpenSubagent}
+        onReload={canonicalConversation.reload}
+        onScroll={handleTimelineScroll}
+        registerTurnRow={registerTurnRow}
+        rightDockPlanEventId={rightDockPlanEventId}
+        scrollRef={threadScrollRef}
+        threadId={activeSessionId}
+        turns={canonicalConversation.turns}
+      />
+    </ConversationItemContext.Provider>
   ) : null;
   return (
     <section
@@ -1003,7 +1077,7 @@ export function ConversationPage(): React.ReactNode {
             <ConversationTurnNavRail
               items={turnNavItems}
               onNavigate={handleTurnNavigate}
-              scrollRef={threadScrollRef}
+              visibilityStore={visibilityStore}
             />
             <ThreadScrollLayout
               className="workflow-main-scroll-area"

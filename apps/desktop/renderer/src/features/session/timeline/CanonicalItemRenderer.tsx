@@ -31,7 +31,7 @@ import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { MarkdownMessage } from "../MarkdownMessage.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
 import { CollapsibleUserMarkdown } from "../conversation/CollapsibleUserMarkdown.js";
-import { useQuickChatContext } from "../QuickChatContext.js";
+import { useConversationItemContext } from "./ConversationItemContext.js";
 import {
   WorkflowPlanCard,
   type OpenPlanInDockRequest,
@@ -119,7 +119,7 @@ export function CanonicalUserInput({
     onSubmitEditedUserMessage,
     sessionStatus,
     workspacePath,
-  } = useQuickChatContext();
+  } = useConversationItemContext();
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(input.content);
   const [submitting, setSubmitting] = React.useState(false);
@@ -269,7 +269,7 @@ function TextItemView({
     onCopyFileReferenceContents,
     onOpenFileReference,
     workspacePath,
-  } = useQuickChatContext();
+  } = useConversationItemContext();
 
   if (!item.text.trim()) return null;
   return (

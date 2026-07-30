@@ -26,6 +26,7 @@ import {
   type UpdateSessionView,
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
+import { canonicalThreadCache } from './canonicalThreadCache.js'
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
@@ -335,6 +336,7 @@ export async function closeSessionAction(
     context.onErrorRef.current(errorMessageOf(error))
     return null
   }
+  canonicalThreadCache.invalidate(targetSessionId)
 
   const remaining = sessions.filter(session => session.id !== targetSessionId)
   const {
@@ -399,6 +401,9 @@ export async function updateSessionMetadataAction(
     ),
   )
   context.setSessions(updatedSessions)
+  if (updatedSession.archivedAt) {
+    canonicalThreadCache.invalidate(targetSessionId)
+  }
 
   const archivedActiveSession =
     targetSessionId === context.activeSessionIdRef.current &&
@@ -477,6 +482,9 @@ export async function archiveSessionsAction(
     }
   }
   const succeededSessionIds = [...updatedById.keys()]
+  for (const sessionId of succeededSessionIds) {
+    canonicalThreadCache.invalidate(sessionId)
+  }
   context.setSessions(current =>
     sortSessionsByRecency(
       current.map(session => updatedById.get(session.id) ?? session),

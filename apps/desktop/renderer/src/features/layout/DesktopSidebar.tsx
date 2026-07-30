@@ -260,12 +260,12 @@ export function DesktopSidebar({
         activeSessionId={activeSessionId}
         pendingPermissionSessionIds={pendingPermissionSessionIds}
         titleLoadingIds={titleLoadingIds}
-        allProjectSessions={viewModel.allProjectSessions}
         collapsedProjectPaths={collapsedProjectPaths}
         organization={sidebarOrganization}
         now={relativeNow}
         pinnedSessions={viewModel.pinnedSessions}
         pinnedWorkspaces={viewModel.pinnedWorkspaces}
+        projectSessionBuckets={viewModel.projectSessionBuckets}
         projectWorkspaces={viewModel.projectWorkspaces}
         projectSort={sidebarProjectSort}
         sessionFallbackTitles={sessionFallbackTitles}
@@ -273,7 +273,6 @@ export function DesktopSidebar({
         sessionSort={sidebarSort}
         manualOrderByScope={sidebarManualOrder}
         unavailableWorkspacePaths={unavailableWorkspacePaths}
-        unpinnedSessions={viewModel.unpinnedSessions}
         workspace={workspace}
         onArchiveSessions={archiveSessions}
         onChooseWorkspace={onChooseWorkspace}

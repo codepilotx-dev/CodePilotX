@@ -5,6 +5,7 @@ import {
   markdownToTurnPreview,
   shouldShowTurnNavigation,
 } from '../src/features/session/conversation/ConversationTurnNavRail.js'
+import { ConversationTurnRowRegistry } from '../src/features/session/conversation/useConversationTurnRowVisibility.js'
 
 type NavTurn = Pick<
   RenderTurnEntry,
@@ -119,5 +120,30 @@ describe('canonical conversation navigation', () => {
       { id: 'turn-2', rowIndex: 1 },
       { id: 'turn-3', rowIndex: 2 },
     ])
+  })
+
+  test('observes and unobserves only explicitly registered turn rows', () => {
+    const observed: HTMLElement[] = []
+    const unobserved: HTMLElement[] = []
+    const unregistered: string[] = []
+    const registry = new ConversationTurnRowRegistry(id => unregistered.push(id))
+    const observer = {
+      observe: (node: HTMLElement) => observed.push(node),
+      unobserve: (node: HTMLElement) => unobserved.push(node),
+    }
+    const first = {} as HTMLElement
+    const replacement = {} as HTMLElement
+    const second = {} as HTMLElement
+
+    registry.setObserver(observer)
+    registry.register('turn-1', first, new Set(['turn-1', 'turn-2']))
+    registry.register('turn-2', second, new Set(['turn-1', 'turn-2']))
+    registry.register('turn-1', replacement, new Set(['turn-1', 'turn-2']))
+    registry.retain(new Set(['turn-1']))
+    registry.register('turn-1', null, new Set(['turn-1']))
+
+    expect(observed).toEqual([first, second, replacement])
+    expect(unobserved).toEqual([first, second, replacement])
+    expect(unregistered).toEqual(['turn-1', 'turn-2', 'turn-1'])
   })
 })

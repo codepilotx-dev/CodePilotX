@@ -1655,27 +1655,11 @@ export function DesktopLayout(): React.ReactNode {
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
       beginConversationSwitch(sessionItem.id)
-      const nextWorkspace = activateSessionById(sessionItem.id)
       navigate(sessionPath(sessionItem.id))
-      if (!nextWorkspace) {
-        setWorkspaceState(null)
-        setDiffState('未选择项目。')
-        setSelectedFile(null)
-        return
-      }
-      setWorkspaceState(nextWorkspace)
-      void refreshWorkspace(nextWorkspace, { expectedSessionId: sessionItem.id })
     },
     [
-      activateSessionById,
       beginConversationSwitch,
       navigate,
-      refreshWorkspace,
-      routedSessionId,
-      sessionId,
-      setDiffState,
-      setSelectedFile,
-      setWorkspaceState,
     ],
   )
 

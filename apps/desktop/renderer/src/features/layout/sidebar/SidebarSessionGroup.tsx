@@ -1,6 +1,7 @@
 import type React from "react";
 import {
   lazy,
+  memo,
   Suspense,
   useEffect,
   useLayoutEffect,
@@ -57,7 +58,7 @@ type Props = {
   onUnpinSession: (session: SessionListItem) => void;
 };
 
-export function SidebarSessionGroup({
+function SidebarSessionGroupComponent({
   activeSessionId,
   groupKey,
   now,
@@ -162,9 +163,6 @@ export function SidebarSessionGroup({
       event.preventDefault()
       return
     }
-    const order = sortedSessions.map(session => session.id)
-    onManualOrderChange(groupKey, order)
-    if (sort !== 'manual') onSortChange?.('manual')
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData(
       'application/x-codepilotx-sidebar-session',
@@ -290,7 +288,13 @@ export function SidebarSessionGroup({
             className="sidebar-session-title sidebar-session-title--loading ui-skeleton-block"
           />
         ) : (
-          <SidebarSessionTitle reducedMotion={reducedMotion}>
+          <SidebarSessionTitle
+            active={
+              hoveredSessionId === session.id ||
+              focusedSessionId === session.id
+            }
+            reducedMotion={reducedMotion}
+          >
             {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
           </SidebarSessionTitle>
         )}
@@ -542,10 +546,14 @@ export function SidebarSessionGroup({
   );
 }
 
+export const SidebarSessionGroup = memo(SidebarSessionGroupComponent);
+
 function SidebarSessionTitle({
+  active,
   children,
   reducedMotion,
 }: {
+  active: boolean;
   children: React.ReactNode;
   reducedMotion: boolean;
 }): React.ReactNode {
@@ -554,6 +562,10 @@ function SidebarSessionTitle({
   const [overflowDistance, setOverflowDistance] = useState<number | null>(null);
 
   useLayoutEffect(() => {
+    if (!active) {
+      setOverflowDistance(null);
+      return;
+    }
     const viewport = viewportRef.current;
     const track = trackRef.current;
     if (!viewport || !track) return;
@@ -576,7 +588,7 @@ function SidebarSessionTitle({
     observer.observe(viewport);
     observer.observe(track);
     return () => observer.disconnect();
-  }, []);
+  }, [active, children]);
 
   const scrolling = overflowDistance !== null && !reducedMotion;
   const style =
@@ -613,6 +625,7 @@ function SidebarSessionTitle({
 export function getSidebarSessionDisplayGroups<T>(
   sessions: readonly T[],
   visibleLimit: number,
+  baseLimit = GROUP_LIMIT,
 ): {
   baseSessions: T[];
   canCollapse: boolean;
@@ -620,17 +633,17 @@ export function getSidebarSessionDisplayGroups<T>(
   extraSessions: T[];
   hasOverflow: boolean;
 } {
-  const hasOverflow = sessions.length > GROUP_LIMIT;
+  const hasOverflow = sessions.length > baseLimit;
   const clampedVisibleLimit = Math.min(
-    Math.max(GROUP_LIMIT, visibleLimit),
+    Math.max(baseLimit, visibleLimit),
     sessions.length,
   );
   return {
-    baseSessions: sessions.slice(0, GROUP_LIMIT),
-    canCollapse: clampedVisibleLimit > GROUP_LIMIT,
+    baseSessions: sessions.slice(0, baseLimit),
+    canCollapse: clampedVisibleLimit > baseLimit,
     canShowMore: clampedVisibleLimit < sessions.length,
     extraSessions: hasOverflow
-      ? sessions.slice(GROUP_LIMIT, clampedVisibleLimit)
+      ? sessions.slice(baseLimit, clampedVisibleLimit)
       : [],
     hasOverflow,
   };

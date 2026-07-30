@@ -49,6 +49,16 @@ export function scrollOffsetForThreadBottomDistance(
   )
 }
 
+export function clampThreadScrollOffset(
+  metrics: Pick<ScrollMetrics, 'scrollSize' | 'viewportSize'>,
+  scrollOffset: number,
+): number {
+  return Math.min(
+    Math.max(0, metrics.scrollSize - metrics.viewportSize),
+    Math.max(0, scrollOffset),
+  )
+}
+
 export function resolveThreadScrollMode({
   mode,
   active,
@@ -88,13 +98,83 @@ type UseThreadScrollControllerOptions = {
   sessionKey?: string
 }
 
-type SavedThreadScrollState = {
+export type SavedThreadScrollState = {
   distanceFromBottom: number
   mode: ThreadScrollMode
   scrollOffset: number
 }
 
-const savedThreadScrollStates = new Map<string, SavedThreadScrollState>()
+export const THREAD_SCROLL_STATE_CACHE_CAPACITY = 4
+export const THREAD_SCROLL_STATE_CACHE_TTL_MS = 10 * 60 * 1_000
+
+export type ThreadScrollStateCache = {
+  clear(): void
+  get(sessionKey: string): SavedThreadScrollState | null
+  set(sessionKey: string, state: SavedThreadScrollState): void
+  size(): number
+}
+
+export function createThreadScrollStateCache(options: {
+  capacity?: number
+  now?: () => number
+  ttlMs?: number
+} = {}): ThreadScrollStateCache {
+  const capacity = Math.max(
+    1,
+    Math.floor(options.capacity ?? THREAD_SCROLL_STATE_CACHE_CAPACITY),
+  )
+  const now = options.now ?? Date.now
+  const ttlMs = Math.max(0, options.ttlMs ?? THREAD_SCROLL_STATE_CACHE_TTL_MS)
+  const entries = new Map<string, {
+    lastAccessAt: number
+    state: SavedThreadScrollState
+  }>()
+
+  function removeExpired(timestamp: number): void {
+    for (const [sessionKey, entry] of entries) {
+      if (timestamp - entry.lastAccessAt >= ttlMs) entries.delete(sessionKey)
+    }
+  }
+
+  return {
+    clear(): void {
+      entries.clear()
+    },
+    get(sessionKey: string): SavedThreadScrollState | null {
+      const timestamp = now()
+      const entry = entries.get(sessionKey)
+      if (!entry) {
+        removeExpired(timestamp)
+        return null
+      }
+      if (timestamp - entry.lastAccessAt >= ttlMs) {
+        entries.delete(sessionKey)
+        return null
+      }
+      entry.lastAccessAt = timestamp
+      entries.delete(sessionKey)
+      entries.set(sessionKey, entry)
+      return entry.state
+    },
+    set(sessionKey: string, state: SavedThreadScrollState): void {
+      const timestamp = now()
+      removeExpired(timestamp)
+      entries.delete(sessionKey)
+      entries.set(sessionKey, { lastAccessAt: timestamp, state })
+      while (entries.size > capacity) {
+        const oldestSessionKey = entries.keys().next().value
+        if (oldestSessionKey === undefined) break
+        entries.delete(oldestSessionKey)
+      }
+    },
+    size(): number {
+      removeExpired(now())
+      return entries.size
+    },
+  }
+}
+
+const savedThreadScrollStates = createThreadScrollStateCache()
 
 type ThreadScrollController = {
   beginProgrammaticScroll: (smooth: boolean) => boolean
@@ -310,7 +390,7 @@ export function useThreadScrollController({
     sessionKeyRef.current = sessionKey
     const savedState = sessionKey
       ? savedThreadScrollStates.get(sessionKey)
-      : undefined
+      : null
     const restoredOffset = savedState?.scrollOffset ?? initialScrollOffset
     const preserveHistoricalPosition = savedState
       ? savedState.distanceFromBottom > THREAD_BOTTOM_THRESHOLD_PX
@@ -331,11 +411,16 @@ export function useThreadScrollController({
     if (restoredOffset > 0) {
       programmaticScrollUntilRef.current = Date.now() + 180
       const frame = requestAnimationFrame(() => {
+        const currentMetrics = readMetrics(listRef.current, scrollRef.current)
+        const targetOffset = currentMetrics
+          ? clampThreadScrollOffset(currentMetrics, restoredOffset)
+          : Math.max(0, restoredOffset)
+        previousOffsetRef.current = targetOffset
         if (listRef.current) {
-          listRef.current.scrollTo(restoredOffset)
+          listRef.current.scrollTo(targetOffset)
           return
         }
-        if (scrollRef.current) scrollRef.current.scrollTop = restoredOffset
+        if (scrollRef.current) scrollRef.current.scrollTop = targetOffset
       })
       return () => cancelAnimationFrame(frame)
     }
