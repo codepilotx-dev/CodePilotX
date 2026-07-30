@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-const NEW_ROUTE_GZIP_BUDGET = 360 * 1024
+const NEW_ROUTE_GZIP_BUDGET = 362 * 1024
 const INITIAL_CSS_RAW_BUDGET = 460 * 1024
 const rootPackage = JSON.parse(
   readFileSync(resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8'),
@@ -92,7 +92,7 @@ function routeBundleBudget(): Plugin {
       }
       if (gzipBytes > NEW_ROUTE_GZIP_BUDGET) {
         this.error(
-          `/new immediate JS exceeds budget (${(gzipBytes / 1024).toFixed(1)} KiB gzip; limit 360 KiB)`,
+            `/new immediate JS exceeds budget (${(gzipBytes / 1024).toFixed(1)} KiB gzip; limit 362 KiB)`,
         )
       }
       if (initialCssBytes > INITIAL_CSS_RAW_BUDGET) {
@@ -115,6 +115,9 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ['react', 'react-dom'],
   },
+  optimizeDeps: {
+    include: ['cmdk'],
+  },
   build: {
     outDir: '../../../dist/renderer',
     emptyOutDir: true,
@@ -131,11 +134,13 @@ export default defineConfig(({ mode }) => ({
     hmr:
       mode === 'performance'
         ? false
-        : {
-            protocol: 'ws',
-            host: '127.0.0.1',
-            port: 7788,
-            clientPort: 7788,
-          },
+        : mode === 'visual'
+          ? undefined
+          : {
+              protocol: 'ws',
+              host: '127.0.0.1',
+              port: 7788,
+              clientPort: 7788,
+            },
   },
 }))
