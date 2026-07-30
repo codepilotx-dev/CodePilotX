@@ -55,6 +55,7 @@ jobs:
     timeout-minutes: 45
     outputs:
       channel: ${{ steps.release-metadata.outputs.channel }}
+      update-channel: ${{ steps.release-metadata.outputs.update-channel }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -78,15 +79,28 @@ jobs:
         shell: pwsh
         run: |
           $tag = $env:GITHUB_REF_NAME
-          if ($tag -match '^v\d+\.\d+\.\d+-[0-9A-Za-z.-]+$') {
+          if ($tag -match '^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$') {
             "channel=prerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "update-channel=$($Matches[1])" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           } elseif ($tag -match '^v\d+\.\d+\.\d+$') {
             "channel=stable" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "update-channel=latest" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           } else {
-            throw "Unsupported release tag '$tag'. Expected vX.Y.Z-prerelease or vX.Y.Z."
+            throw "Unsupported release tag '$tag'. Expected vX.Y.Z-(alpha|beta|rc).N or vX.Y.Z."
           }
       - name: Build unsigned release package
         run: bun run package:win
+      - name: Verify updater artifacts
+        shell: pwsh
+        env:
+          UPDATE_CHANNEL: ${{ steps.release-metadata.outputs.update-channel }}
+        run: |
+          $installers = @(Get-ChildItem release/CodePilotX-*-x64.exe)
+          $blockmaps = @(Get-ChildItem release/CodePilotX-*-x64.exe.blockmap)
+          $metadata = @(Get-Item "release/$env:UPDATE_CHANNEL.yml")
+          if ($installers.Count -ne 1 -or $blockmaps.Count -ne 1 -or $metadata.Count -ne 1) {
+            throw "Expected exactly one installer, blockmap and $env:UPDATE_CHANNEL.yml update metadata file"
+          }
       - name: Silent install and installed-layout smoke
         shell: pwsh
         run: |
@@ -136,6 +150,11 @@ jobs:
           name: windows-x64-release-${{ github.ref_name }}
           path: |
             release/CodePilotX-*-x64.exe
+            release/CodePilotX-*-x64.exe.blockmap
+            release/latest.yml
+            release/alpha.yml
+            release/beta.yml
+            release/rc.yml
             release/SHA256SUMS.txt
             release/codepilotx-windows-x64.spdx.json
             release/RELEASE_NOTES.md
@@ -191,6 +210,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_CHANNEL: ${{ needs.package-release.outputs.channel }}
+          UPDATE_CHANNEL: ${{ needs.package-release.outputs.update-channel }}
         run: |
           $repository = $env:GITHUB_REPOSITORY
           $tag = $env:GITHUB_REF_NAME
@@ -206,11 +226,13 @@ jobs:
 
           $assets = @(
             (Get-ChildItem release/CodePilotX-*-x64.exe).FullName
+            (Get-ChildItem release/CodePilotX-*-x64.exe.blockmap).FullName
+            (Resolve-Path "release/$env:UPDATE_CHANNEL.yml").Path
             (Resolve-Path release/SHA256SUMS.txt).Path
             (Resolve-Path release/codepilotx-windows-x64.spdx.json).Path
           )
-          if ($assets.Count -ne 3) {
-            throw "Expected installer, checksum and SBOM release assets"
+          if ($assets.Count -ne 5) {
+            throw "Expected installer, blockmap, update metadata, checksum and SBOM release assets"
           }
 
           $releases = @()

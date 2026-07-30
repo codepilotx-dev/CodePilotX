@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto"
 import { createReadStream, existsSync } from "node:fs"
-import { mkdtemp, readdir, rm, stat } from "node:fs/promises"
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { createInterface } from "node:readline"
 import { spawn, type ChildProcess } from "node:child_process"
 import { assertAgentBinaryHasNoStaticRiskFeatures } from "./agent-pe-signatures"
+import { parseSemver } from "./semver-utils"
 import { assertWindowsX64PE } from "./windows-pe"
 
 const root = resolve(import.meta.dir, "..")
@@ -22,9 +23,11 @@ const unpacked = unpackedArgument
 
 const application = join(unpacked, "CodePilotX.exe")
 const agent = join(unpacked, "resources/agent/codepilotx-agent.exe")
+const appUpdateConfiguration = join(unpacked, "resources/app-update.yml")
 const requiredFiles = [
   application,
   agent,
+  appUpdateConfiguration,
   join(unpacked, "resources/app.asar"),
   join(unpacked, "resources/renderer/index.html"),
   join(unpacked, "resources/THIRD_PARTY_NOTICES.md"),
@@ -43,17 +46,37 @@ for (const path of [application, agent]) {
 await assertAgentBinaryHasNoStaticRiskFeatures(agent)
 await assertPackagedPiCatalog(agent)
 
+const rootManifest = JSON.parse(
+  await readFile(resolve(root, "package.json"), "utf8"),
+) as { version?: unknown }
+if (typeof rootManifest.version !== "string") {
+  throw new Error("根 package.json 缺少字符串类型的 version")
+}
+const parsedVersion = parseSemver(rootManifest.version)
+if (!parsedVersion) {
+  throw new Error(`版本 "${rootManifest.version}" 不符合发布 SemVer 规则`)
+}
+const updateChannel = parsedVersion.prereleaseType ?? "latest"
 const releaseDirectory = resolve(root, "release")
-const artifacts = await readdir(releaseDirectory)
-const installerPaths = artifacts
-  .filter(name => /^CodePilotX-.*-x64\.exe$/i.test(name))
-  .map(name => resolve(releaseDirectory, name))
-const installers = await Promise.all(installerPaths.map(async path => ({
-  path,
-  modifiedAt: (await stat(path)).mtimeMs,
-})))
-const installer = installers.sort((left, right) => right.modifiedAt - left.modifiedAt)[0]?.path
-if (!installer) throw new Error("未找到 x64 NSIS 安装器")
+const installerName = `CodePilotX-${rootManifest.version}-x64.exe`
+const installer = resolve(releaseDirectory, installerName)
+const blockmap = `${installer}.blockmap`
+const updateMetadata = resolve(releaseDirectory, `${updateChannel}.yml`)
+for (const path of [installer, blockmap, updateMetadata]) {
+  if (!existsSync(path) || (await stat(path)).size === 0) {
+    throw new Error(`Windows x64 更新产物缺失或为空：${path}`)
+  }
+}
+await assertUpdaterConfiguration(
+  appUpdateConfiguration,
+  updateChannel,
+)
+await assertUpdaterMetadata(
+  updateMetadata,
+  rootManifest.version,
+  installerName,
+  (await stat(installer)).size,
+)
 
 if (requireSigning) {
   await assertAuthenticodeValid([application, agent, installer])
@@ -63,6 +86,59 @@ console.log(`[CodePilotX] Windows x64 package verified: ${unpacked}`)
 console.log(`[CodePilotX] Installer: ${installer}`)
 console.log(`[CodePilotX] Installer size: ${(await stat(installer)).size} bytes`)
 console.log(`[CodePilotX] Installer SHA-256: ${await sha256(installer)}`)
+
+async function assertUpdaterConfiguration(
+  path: string,
+  expectedChannel: string,
+): Promise<void> {
+  const configuration = await readFile(path, "utf8")
+  for (const [key, expected] of [
+    ["provider", "github"],
+    ["owner", "codepilotx-dev"],
+    ["repo", "CodePilotX"],
+    ["channel", expectedChannel],
+  ] as const) {
+    const match = configuration.match(
+      new RegExp(`^${key}:\\s*["']?([^"'\\r\\n]+)["']?\\s*$`, "m"),
+    )
+    if (match?.[1] !== expected) {
+      throw new Error(`app-update.yml 的 ${key} 配置无效`)
+    }
+  }
+}
+
+async function assertUpdaterMetadata(
+  path: string,
+  expectedVersion: string,
+  expectedInstallerName: string,
+  expectedInstallerSize: number,
+): Promise<void> {
+  const metadata = await readFile(path, "utf8")
+  const version = metadata.match(/^version:\s*["']?([^"' \r\n]+)["']?\s*$/m)?.[1]
+  if (version !== expectedVersion) {
+    throw new Error(`更新元数据版本无效：${version ?? "missing"}`)
+  }
+  const installerUrls = [...metadata.matchAll(
+    /^\s*-\s+url:\s*["']?([^"'\r\n]+\.exe)["']?\s*$/gmi,
+  )].map(match => match[1])
+  if (
+    installerUrls.length !== 1
+    || installerUrls[0] !== expectedInstallerName
+  ) {
+    throw new Error("更新元数据引用了非当前版本安装包")
+  }
+  const sha512Values = [...metadata.matchAll(
+    /^\s+sha512:\s*([A-Za-z0-9+/=]+)\s*$/gm,
+  )]
+  if (sha512Values.length < 1 || sha512Values.some(match => match[1].length < 44)) {
+    throw new Error("更新元数据缺少有效的 SHA-512")
+  }
+  const sizes = [...metadata.matchAll(/^\s+size:\s*(\d+)\s*$/gm)]
+    .map(match => Number(match[1]))
+  if (sizes.length < 1 || !sizes.includes(expectedInstallerSize)) {
+    throw new Error("更新元数据中的安装包大小无效")
+  }
+}
 
 async function sha256(path: string): Promise<string> {
   const hash = createHash("sha256")
