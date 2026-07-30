@@ -15,6 +15,10 @@ import type {
   DesktopEditAction,
   DesktopEditIpcBridge,
 } from "@codepilotx/shared/desktop-edit-ipc"
+import type {
+  DesktopUpdateIpcBridge,
+  DesktopUpdateStatus,
+} from "@codepilotx/shared/desktop-update-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -51,6 +55,13 @@ const DESKTOP_DATA_LOCATION_IPC_CHANNELS = {
 const DESKTOP_EDIT_IPC_CHANNELS = {
   perform: "desktop-edit:perform",
 } as const satisfies typeof import("@codepilotx/shared/desktop-edit-ipc").DESKTOP_EDIT_IPC_CHANNELS
+
+const DESKTOP_UPDATE_IPC_CHANNELS = {
+  check: "desktop-update:check",
+  download: "desktop-update:download",
+  quitAndInstall: "desktop-update:quit-and-install",
+  status: "desktop-update:status",
+} as const satisfies typeof import("@codepilotx/shared/desktop-update-ipc").DESKTOP_UPDATE_IPC_CHANNELS
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -114,6 +125,25 @@ const desktop = {
     ipcRenderer.on(DESKTOP_SETTINGS_IPC_CHANNELS.changed, handler)
     return () =>
       ipcRenderer.removeListener(DESKTOP_SETTINGS_IPC_CHANNELS.changed, handler)
+  },
+  checkForUpdates: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_UPDATE_IPC_CHANNELS.check),
+  downloadUpdate: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_UPDATE_IPC_CHANNELS.download),
+  quitAndInstall: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_UPDATE_IPC_CHANNELS.quitAndInstall),
+  onUpdateStatusChange: (
+    listener: (status: DesktopUpdateStatus) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      status: unknown,
+    ): void => {
+      if (isDesktopUpdateStatus(status)) listener(status)
+    }
+    ipcRenderer.on(DESKTOP_UPDATE_IPC_CHANNELS.status, handler)
+    return () =>
+      ipcRenderer.removeListener(DESKTOP_UPDATE_IPC_CHANNELS.status, handler)
   },
   copyProviderApiKey: (
     credentialId: string,
@@ -190,6 +220,7 @@ const desktop = {
   & DesktopSettingsIpcBridge
   & DesktopDataLocationIpcBridge
   & DesktopEditIpcBridge
+  & DesktopUpdateIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)
@@ -203,4 +234,31 @@ function isPetPresentation(value: unknown): value is DesktopPetPresentation {
     && (typeof value.selectedPetId === "string" || value.selectedPetId === null)
     && typeof value.size === "number"
     && Number.isFinite(value.size)
+}
+
+function isDesktopUpdateStatus(
+  value: unknown,
+): value is DesktopUpdateStatus {
+  if (!isRecord(value) || typeof value.phase !== "string") return false
+  switch (value.phase) {
+    case "checking":
+    case "downloaded":
+    case "no-update":
+      return true
+    case "available":
+      return typeof value.version === "string"
+        && value.version.length > 0
+        && value.version.length <= 64
+    case "downloading":
+      return typeof value.percent === "number"
+        && Number.isFinite(value.percent)
+        && value.percent >= 0
+        && value.percent <= 100
+    case "error":
+      return typeof value.message === "string"
+        && value.message.length > 0
+        && value.message.length <= 200
+    default:
+      return false
+  }
 }

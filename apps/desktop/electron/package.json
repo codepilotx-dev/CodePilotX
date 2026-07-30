@@ -9,8 +9,9 @@
     "build": "tsc -p tsconfig.json && bun build src/main.ts --target=node --format=esm --outdir=dist --external electron --sourcemap=external",
     "dev": "bun run build && electron .",
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
+    "test:performance": "playwright test --config playwright.performance.config.ts",
     "test:plan": "playwright test --config playwright.plan.config.ts",
-    "package:win": "electron-builder --win --x64"
+    "package:win": "electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
     "@codepilotx/shared": "workspace:*",
@@ -23,6 +24,11 @@
   "build": {
     "appId": "com.codepilotx.desktop",
     "productName": "CodePilotX",
+    "publish": {
+      "provider": "github",
+      "owner": "codepilotx-dev",
+      "repo": "CodePilotX"
+    },
     "asar": true,
     "directories": {
       "output": "../../../release",
@@ -74,6 +80,7 @@
     }
   },
   "dependencies": {
+    "electron-updater": "6.8.9",
     "smol-toml": "^1.7.0"
   }
 }
