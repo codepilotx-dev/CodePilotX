@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   ReviewSyntaxText,
   type ReviewSyntaxByLineId,
-} from "../src/features/review/diff/WorkspaceReviewDiff.js";
+} from "../src/features/review/diff/ReviewDiffSurface.js";
 import type { DesktopReviewDiffLine } from "../shared/types.js";
 
 const line: DesktopReviewDiffLine = {
@@ -55,5 +55,31 @@ describe("ReviewSyntaxText", () => {
 
     expect(html).toBe("const value = true");
     expect(html).not.toContain("#ff79c6");
+  });
+
+  test("行内差异范围与语法 token 同时生效", () => {
+    const syntaxByLineId: ReviewSyntaxByLineId = new Map([
+      [
+        line.id,
+        [
+          { content: "const", color: "#ff79c6" },
+          { content: " value = ", color: "#f8f8f2" },
+          { content: "true", color: "#50fa7b" },
+        ],
+      ],
+    ]);
+
+    const html = renderToStaticMarkup(
+      <ReviewSyntaxText
+        content={line.content}
+        line={line}
+        ranges={[{ start: 14, end: 18, tone: "added" }]}
+        syntaxByLineId={syntaxByLineId}
+      />,
+    );
+
+    expect(html).toContain('class="review-diff-word"');
+    expect(html).toContain('data-tone="added"');
+    expect(html).toContain("color:#50fa7b");
   });
 });
