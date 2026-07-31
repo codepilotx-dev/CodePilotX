@@ -11,6 +11,10 @@
 
 - [governance] 采用 Apache License 2.0，并新增贡献指南、行为准则、安全披露策略、CODEOWNERS、Issue/PR 模板与 Dependabot 配置，明确公开协作和依赖维护边界
 
+### Changed
+
+- [release] 将 main 的 0.2.0-beta.3 发布基线同步合入 dev，恢复双分支一致，避免发布自动化合并 PR 长期处于 BEHIND 状态
+
 ### Fixed
 
 - [release] Windows 打包校验会重试清理被短暂占用的临时目录，发布流程改用 Release ID 校验、上传和发布草稿，避免文件锁与草稿标签查询语义导致可信 beta 发布误失败
