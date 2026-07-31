@@ -1,7 +1,7 @@
 /* --- Permission chip --- */
 .chip-button.permission-chip {
   --composer-permission-chip-open-bg: var(
-    --color-token-list-active-selection-background
+    --color-token-list-hover-background
   );
 
   border: 1px solid var(--composer-permission-chip-border, transparent);
@@ -58,16 +58,8 @@
 }
 
 .permission-chip-auto {
-  --composer-permission-chip-bg: color-mix(
-    in srgb,
-    var(--color-token-text-link-foreground) 10%,
-    var(--color-token-main-surface-primary)
-  );
-  --composer-permission-chip-border: color-mix(
-    in srgb,
-    var(--color-token-text-link-foreground) 18%,
-    var(--color-token-border-light)
-  );
+  --composer-permission-chip-bg: transparent;
+  --composer-permission-chip-border: transparent;
   --composer-permission-chip-color: var(--color-token-foreground);
   --composer-permission-chip-hover-bg: var(--color-token-list-hover-background);
   --composer-permission-chip-hover-border: var(
@@ -77,16 +69,8 @@
 }
 
 .permission-chip-bypassPermissions {
-  --composer-permission-chip-bg: color-mix(
-    in srgb,
-    var(--color-token-editor-warning-foreground) 15%,
-    var(--color-token-main-surface-primary)
-  );
-  --composer-permission-chip-border: color-mix(
-    in srgb,
-    var(--color-token-editor-warning-foreground) 25%,
-    var(--color-token-border-light)
-  );
+  --composer-permission-chip-bg: transparent;
+  --composer-permission-chip-border: transparent;
   --composer-permission-chip-color: var(--color-token-editor-warning-foreground);
   --composer-permission-chip-hover-bg: var(--color-token-list-hover-background);
   --composer-permission-chip-hover-border: var(
@@ -109,15 +93,10 @@
     background: var(--color-token-list-active-selection-background);
     color: var(--color-token-text-link-foreground);
   }
-}
 
-.permission-select-trigger,
-.composer-plan-mode-chip {
-  min-height: var(--interactive-row-composer-height);
-  padding: 0 var(--interactive-row-composer-padding-inline);
-  border-radius: var(--interactive-row-composer-radius);
-  font-size: var(--interactive-row-composer-font-size);
-  line-height: var(--interactive-row-composer-line-height);
+  &.active:hover {
+    background: var(--color-token-list-hover-background);
+  }
 }
 
 .composer-plan-mode-chip-icon {

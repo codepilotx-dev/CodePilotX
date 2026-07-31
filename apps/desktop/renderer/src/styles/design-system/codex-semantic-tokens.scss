@@ -8,8 +8,10 @@
   --vscode-button-background: var(--color-background-button-secondary);
   --vscode-button-border: var(--color-border-light);
   --vscode-button-foreground: var(--color-text-foreground);
-  --vscode-button-secondaryHoverBackground: var(
-    --color-background-button-secondary-hover
+  --vscode-button-secondaryHoverBackground: color-mix(
+    in srgb,
+    var(--color-text-foreground) 5%,
+    transparent
   );
   --vscode-charts-blue: var(--color-accent-blue);
   --vscode-charts-green: var(--color-decoration-added);
@@ -58,11 +60,19 @@
   --vscode-inputValidation-infoBackground: var(--color-background-surface);
   --vscode-inputValidation-warningBackground: var(--color-warning);
   --vscode-inputValidation-warningBorder: var(--color-warning);
-  --vscode-list-activeSelectionBackground: var(--color-background-surface);
+  --vscode-list-activeSelectionBackground: color-mix(
+    in srgb,
+    var(--color-text-foreground) 5%,
+    transparent
+  );
   --vscode-list-activeSelectionForeground: var(--color-text-foreground);
   --vscode-list-activeSelectionIconForeground: var(--color-icon-primary);
   --vscode-list-focusOutline: var(--color-border);
-  --vscode-list-hoverBackground: var(--color-background-surface);
+  --vscode-list-hoverBackground: color-mix(
+    in srgb,
+    var(--color-text-foreground) 5%,
+    transparent
+  );
   --vscode-menu-background: var(--color-background-elevated-secondary-opaque);
   --vscode-menu-border: var(--color-border);
   --vscode-menubar-selectionBackground: var(--color-background-elevated-secondary-opaque);
@@ -97,7 +107,11 @@
   --vscode-textLink-foreground: var(--color-text-accent);
   --vscode-textPreformat-background: var(--color-background-surface);
   --vscode-textPreformat-foreground: var(--color-text-foreground);
-  --vscode-toolbar-hoverBackground: var(--color-background-surface);
+  --vscode-toolbar-hoverBackground: color-mix(
+    in srgb,
+    var(--color-text-foreground) 5%,
+    transparent
+  );
 
   // Product semantic token contract.
   --color-token-activity-bar-badge-background: var(--vscode-activityBarBadge-background);
@@ -221,4 +235,22 @@
   --color-token-text-secondary: color-mix(in srgb, var(--color-token-foreground) 65%, transparent);
   --color-token-text-tertiary: var(--color-token-description-foreground);
   --color-token-toolbar-hover-background: var(--vscode-toolbar-hoverBackground);
+}
+
+.electron-dark {
+  --vscode-button-secondaryHoverBackground: color-mix(
+    in srgb,
+    var(--color-text-foreground) 8%,
+    transparent
+  );
+  --vscode-list-hoverBackground: color-mix(
+    in srgb,
+    var(--color-text-foreground) 8%,
+    transparent
+  );
+  --vscode-toolbar-hoverBackground: color-mix(
+    in srgb,
+    var(--color-text-foreground) 8%,
+    transparent
+  );
 }

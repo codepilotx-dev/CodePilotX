@@ -1161,6 +1161,9 @@ test('wide workspace keeps the summary beside a 600px review panel', async ({
     summaryRowGeometry.every((row) => row.paddingInline === '8px'),
   ).toBe(true)
   expect(summaryRowGeometry.some((row) => row.verticallyClipped)).toBe(false)
+  await expectCodexHoverBackground(
+    summary.locator('button.interactive-row--adaptive').first(),
+  )
 
   const [summaryBox, timelineBox, composerBox, rightPanelBox] =
     await Promise.all([
@@ -1674,6 +1677,11 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
     lineHeight: '20px',
     paddingInline: '8px',
   })
+  await expectCodexHoverBackground(
+    page
+      .getByRole('navigation', { name: '主要导航' })
+      .getByRole('link', { name: '拉取请求' }),
+  )
 
   const composerUtilityRows = page.locator(
     '.composer .meta-chip:visible, .composer .composer-model-chip:visible, .composer .permission-select-trigger:visible',
@@ -1707,6 +1715,50 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
   await expect(sidebar).toHaveClass(/is-docked/)
   await page.setViewportSize({ width: 900, height: 800 })
   await expect(sidebar).toHaveClass(/is-docked/)
+})
+
+test('composer utility controls restore the Codex hover overlay', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.emulateMedia({
+    colorScheme: 'dark',
+    forcedColors: 'none',
+    reducedMotion: 'reduce',
+  })
+  await page.goto('/?visualCase=permission#/threads/visual-permission')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  const rows = [
+    page.locator('.permission-select-trigger:visible'),
+    page.locator('.composer-plan-mode-chip:visible'),
+    page.locator('.composer-model-chip:visible'),
+  ]
+  for (const row of rows) {
+    await expect(row).toBeVisible()
+    await expectCodexHoverBackground(row)
+  }
+})
+
+test('settings toolbar trigger restores the Codex hover overlay', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=empty#/settings/general')
+  await closeTransientErrorToast(page)
+
+  const trigger = page.getByRole('combobox', { name: '默认打开目标' })
+  await expectCompactInteractiveRow(trigger, {
+    borderRadius: '10px',
+    fontSize: '14px',
+    height: 28,
+    lineHeight: '18px',
+    paddingInline: '8px',
+  })
+  await expectCodexHoverBackground(trigger)
 })
 
 test('settings uses the shared full-label sidebar in desktop and narrow previews', async ({
@@ -2147,17 +2199,23 @@ test('settings shell search and appearance source contracts', async ({
     page.getByRole('button', { name: '导入' }).evaluate((button) => {
       const style = getComputedStyle(button)
       const bounds = button.getBoundingClientRect()
-      const probe = document.createElement('span')
-      probe.style.background =
-        'color-mix(in srgb, var(--color-text-strong) 5%, transparent)'
-      document.body.append(probe)
-      const expectedBackgroundColor = getComputedStyle(probe).backgroundColor
-      probe.remove()
+      const backgroundProbe = document.createElement('span')
+      backgroundProbe.style.background = 'var(--color-token-button-background)'
+      const borderProbe = document.createElement('span')
+      borderProbe.style.borderColor = 'var(--color-token-button-border)'
+      document.body.append(backgroundProbe, borderProbe)
+      const expectedBackgroundColor =
+        getComputedStyle(backgroundProbe).backgroundColor
+      const expectedBorderColor = getComputedStyle(borderProbe).borderColor
+      backgroundProbe.remove()
+      borderProbe.remove()
       return {
-        backgroundMatchesForegroundFivePercent:
+        backgroundMatchesButtonToken:
           style.backgroundColor === expectedBackgroundColor,
-        borderColor: style.borderColor,
+        borderMatchesButtonToken: style.borderColor === expectedBorderColor,
         borderRadius: style.borderRadius,
+        borderWidth: style.borderWidth,
+        boxShadow: style.boxShadow,
         fontSize: style.fontSize,
         height: bounds.height,
         lineHeight: style.lineHeight,
@@ -2165,22 +2223,39 @@ test('settings shell search and appearance source contracts', async ({
       }
     }),
   ).resolves.toEqual({
-    backgroundMatchesForegroundFivePercent: true,
-    borderColor: 'rgba(0, 0, 0, 0)',
+    backgroundMatchesButtonToken: true,
+    borderMatchesButtonToken: true,
     borderRadius: '8px',
+    borderWidth: '1px',
+    boxShadow: 'none',
     fontSize: '14px',
     height: 28,
-    lineHeight: '18px',
-    paddingInline: '8px',
+    lineHeight: '19.6px',
+    paddingInline: '9.8px',
   })
 
-  await page.keyboard.press('Control+f')
+  await page.keyboard.press('Control+F')
+  await page.keyboard.up('Control')
   const search = page.getByRole('combobox', { name: '搜索设置' })
   await expect(search).toBeFocused()
-  await search.fill('对比度')
+  await search.evaluate((element, value) => {
+    const input = element as HTMLInputElement
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )?.set
+    valueSetter?.call(input, value)
+    input.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      data: value,
+      inputType: 'insertText',
+    }))
+  }, '对比度')
+  await expect(search).toHaveValue('对比度')
+  await expect(search).toHaveAttribute('aria-expanded', 'true')
   await expect(page.getByRole('option', { name: /对比度.*外观/ })).toBeVisible()
   await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(/tab=appearance/)
+  await expect(page).toHaveURL(/#\/settings\/appearance$/)
   await expect(page.getByRole('heading', { name: '外观' })).toBeVisible()
 
   const modeGroup = page.getByRole('radiogroup', { name: '外观模式' })
@@ -2269,7 +2344,7 @@ test('settings shell search and appearance source contracts', async ({
   expect(structure).toMatchObject({
     diffAfterGallery: true,
     editorsAfterDiff: true,
-    galleryMaxWidth: '512px',
+    galleryMaxWidth: 'none',
     innerMaxWidth: '768px',
     innerPadding: '20px',
     cardRadius: '10px',
@@ -2379,7 +2454,7 @@ test('settings shell search and appearance source contracts', async ({
     }),
   ).resolves.toEqual({
     borderRadius: '9999px',
-    fontSize: '12px',
+    fontSize: '13px',
     height: 24,
     lineHeight: '18px',
     paddingBlock: '2px',
@@ -2394,22 +2469,21 @@ test('settings shell search and appearance source contracts', async ({
       const thumb = switchElement.querySelector<HTMLElement>('.toggle-knob')!
       const switchBounds = switchElement.getBoundingClientRect()
       const thumbBounds = thumb.getBoundingClientRect()
-      const foregroundProbe = document.createElement('span')
-      foregroundProbe.style.color = 'var(--color-text-strong)'
-      document.body.append(foregroundProbe)
-      const foreground = getComputedStyle(foregroundProbe).color
-      foregroundProbe.remove()
+      const thumbColorProbe = document.createElement('span')
+      thumbColorProbe.style.color = 'white'
+      document.body.append(thumbColorProbe)
+      const thumbColor = getComputedStyle(thumbColorProbe).color
+      thumbColorProbe.remove()
       return {
         switchSize: [switchBounds.width, switchBounds.height],
         thumbSize: [thumbBounds.width, thumbBounds.height],
-        thumbUsesForeground:
-          getComputedStyle(thumb).backgroundColor === foreground,
+        thumbUsesWhite: getComputedStyle(thumb).backgroundColor === thumbColor,
       }
     }),
   ).resolves.toMatchObject({
     switchSize: [32, 20],
     thumbSize: [16, 16],
-    thumbUsesForeground: true,
+    thumbUsesWhite: true,
   })
 
   await colorButton.click()
@@ -2424,8 +2498,8 @@ test('settings shell search and appearance source contracts', async ({
       const unit = input.parentElement?.querySelector('span')
       const unitStyle = unit ? getComputedStyle(unit) : null
       const probe = document.createElement('span')
-      probe.style.background = 'var(--color-background-control)'
-      probe.style.color = 'var(--color-text-foreground-secondary)'
+      probe.style.background = 'var(--color-token-input-background)'
+      probe.style.color = 'var(--color-token-text-secondary)'
       document.body.append(probe)
       const probeStyle = getComputedStyle(probe)
       const matches = {
@@ -2591,7 +2665,7 @@ async function openAndAssertReviewSourceMenu(
       trigger.evaluate(element => {
         const probe = document.createElement('span')
         probe.style.background =
-          'var(--color-token-list-active-selection-background)'
+          'var(--color-token-list-hover-background)'
         element.append(probe)
         const expected = getComputedStyle(probe).backgroundColor
         probe.remove()
@@ -2671,6 +2745,27 @@ async function expectCompactInteractiveRow(
     lineHeight: expected.lineHeight,
     paddingInline: expected.paddingInline,
   })
+}
+
+async function expectCodexHoverBackground(row: Locator): Promise<void> {
+  const expected = await row.evaluate((element) => {
+    const probe = document.createElement('span')
+    probe.style.background = 'var(--color-token-list-hover-background)'
+    element.append(probe)
+    const background = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return background
+  })
+  const before = await row.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  )
+  await row.hover()
+  await expect
+    .poll(() =>
+      row.evaluate((element) => getComputedStyle(element).backgroundColor),
+    )
+    .toBe(expected)
+  expect(expected).not.toBe(before)
 }
 
 async function readReviewDiffComputedStyles(diff: Locator) {

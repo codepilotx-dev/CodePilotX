@@ -49,6 +49,9 @@ export function deriveThemeVariables(
 ): ThemeVariableMap {
   const { theme, variant } = config
   const dark = variant === 'dark'
+  const interactionInk = parseHex(theme.ink)
+  const interactionHover = rgba(interactionInk, dark ? 0.08 : 0.05)
+  const interactionSelected = rgba(interactionInk, 0.05)
   const roles = deriveCodexRoles(
     theme.surface,
     theme.ink,
@@ -145,7 +148,11 @@ export function deriveThemeVariables(
     '--vscode-editorSuggestWidget-border': roles.borderControl,
     '--vscode-editorSuggestWidget-selectedForeground': theme.ink,
     '--vscode-editorSuggestWidget-selectedBackground': roles.selected,
+    '--vscode-button-secondaryHoverBackground': interactionHover,
     '--vscode-focusBorder': theme.accent,
+    '--vscode-list-activeSelectionBackground': interactionSelected,
+    '--vscode-list-hoverBackground': interactionHover,
+    '--vscode-toolbar-hoverBackground': interactionHover,
     '--syntax-keyword': syntax.keyword,
     '--syntax-type': syntax.keyword,
     '--syntax-property': syntax.property,

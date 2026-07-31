@@ -101,10 +101,10 @@
   );
   --interactive-row-hover-foreground: var(--color-token-foreground);
   --interactive-row-open-background: var(
-    --interactive-row-selected-background
+    --interactive-row-hover-background
   );
   --interactive-row-open-foreground: var(
-    --interactive-row-selected-foreground
+    --interactive-row-hover-foreground
   );
   --interactive-row-selected-background: var(
     --color-token-list-active-selection-background

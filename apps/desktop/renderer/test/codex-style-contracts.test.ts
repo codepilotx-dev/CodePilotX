@@ -49,6 +49,25 @@ describe('Codex semantic token contract', () => {
     )
   })
 
+  test('keeps the Codex hover overlays visible before runtime theme hydration', async () => {
+    const stylesheet = await Bun.file(
+      new URL(
+        '../src/styles/design-system/codex-semantic-tokens.scss',
+        import.meta.url,
+      ),
+    ).text()
+
+    expect(stylesheet).toMatch(
+      /--vscode-list-activeSelectionBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 5%,\s*transparent\s*\)/,
+    )
+    expect(stylesheet).toMatch(
+      /:root\s*\{[\s\S]*--vscode-list-hoverBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 5%,\s*transparent\s*\)/,
+    )
+    expect(stylesheet).toMatch(
+      /\.electron-dark\s*\{[\s\S]*--vscode-list-hoverBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 8%,\s*transparent\s*\)/,
+    )
+  })
+
   test('does not reintroduce removed theme compatibility aliases', async () => {
     const sources = await Promise.all(
       [

@@ -27,6 +27,15 @@ describe('fixed Codex UI themes', () => {
     expect(light['--color-border-light']).toBe('rgba(26, 28, 31, 0.049)')
     expect(light['--color-border']).toBe('rgba(26, 28, 31, 0.078)')
     expect(light['--color-border-heavy']).toBe('rgba(26, 28, 31, 0.117)')
+    expect(light['--vscode-list-hoverBackground']).toBe(
+      'rgba(26, 28, 31, 0.05)',
+    )
+    expect(light['--vscode-list-activeSelectionBackground']).toBe(
+      'rgba(26, 28, 31, 0.05)',
+    )
+    expect(light['--vscode-button-secondaryHoverBackground']).toBe(
+      'rgba(26, 28, 31, 0.05)',
+    )
     expect(light['--color-diff-added-line-background']).toBe('#e0f4e8')
     expect(light['--color-diff-added-text-background']).toBe('#c2e9d1')
 
@@ -49,6 +58,15 @@ describe('fixed Codex UI themes', () => {
     )
     expect(dark['--color-border-heavy']).toBe(
       'rgba(255, 255, 255, 0.156)',
+    )
+    expect(dark['--vscode-list-hoverBackground']).toBe(
+      'rgba(255, 255, 255, 0.08)',
+    )
+    expect(dark['--vscode-list-activeSelectionBackground']).toBe(
+      'rgba(255, 255, 255, 0.05)',
+    )
+    expect(dark['--vscode-button-secondaryHoverBackground']).toBe(
+      'rgba(255, 255, 255, 0.08)',
     )
     expect(dark['--codex-base-on-accent']).toBe('#ffffff')
   })
