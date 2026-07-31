@@ -136,6 +136,10 @@ describe("GitReviewService", () => {
       deletions: 1,
     })
     expect(snapshot.largeDiffMode).toBe(false)
+    expect(logs.find(record => record.event === "review.summary.started")).toMatchObject({
+      level: "info",
+      fields: { details: { sourceKind: "unstaged", refresh: true, cacheHit: false } },
+    })
     expect(logs.find(record => record.event === "review.summary.completed")).toMatchObject({
       level: "info",
       fields: {
@@ -184,6 +188,25 @@ describe("GitReviewService", () => {
         },
       },
     })
+    await expect(review.fileDiffs({
+      projectId: project.id,
+      source: { kind: "unstaged" },
+      generation: snapshot.generation,
+      paths: ["src/index.ts"],
+    })).rejects.toMatchObject({ code: "REVIEW_SNAPSHOT_EXPIRED" })
+    const batchFailure = logs.find(record => record.event === "review.file-diffs.failed")
+    expect(batchFailure).toMatchObject({
+      level: "error",
+      fields: {
+        details: {
+          sourceKind: "unstaged",
+          pathCount: 1,
+          code: "REVIEW_SNAPSHOT_EXPIRED",
+          status: 409,
+        },
+      },
+    })
+    expect(JSON.stringify(batchFailure)).not.toContain(root)
 
     await expect(review.summary(project.id, {
       kind: "branch",
@@ -291,7 +314,7 @@ describe("GitReviewService", () => {
     })
     expect(applied.paths).toHaveLength(128)
     expect(commands.filter((args) => args[0] === "add")).toHaveLength(1)
-    expect(commands.filter((args) => args.includes("--name-status"))).toHaveLength(1)
+    expect(commands.filter((args) => args.includes("--raw"))).toHaveLength(1)
 
     const staged = await review.summary(project.id, { kind: "staged" })
     commands.length = 0
@@ -383,52 +406,58 @@ describe("GitReviewService", () => {
     db.close()
   }, 30_000)
 
-  test("批量摘要的 Git 子进程数量不随文件数增长，文件加载不会重跑摘要", async () => {
+  test("1200 文件摘要只扫描元数据，不读取整仓 patch", async () => {
     const commands: string[][] = []
     const { root, db, project, review } = await fixture({
       onGitCommand: (args) => commands.push([...args]),
     })
-    for (let index = 0; index < 50; index += 1) {
-      await writeFile(
+    await Promise.all(Array.from({ length: 1_200 }, (_, index) =>
+      writeFile(
         join(root, "src", `bulk-${index}.ts`),
         `export const value${index} = ${index}\n`,
         "utf8",
-      )
-    }
+      )))
     await git(root, "add", ".")
     await git(root, "commit", "-m", "bulk fixture")
-    for (let index = 0; index < 50; index += 1) {
-      await writeFile(
+    await Promise.all(Array.from({ length: 1_200 }, (_, index) =>
+      writeFile(
         join(root, "src", `bulk-${index}.ts`),
         `export const value${index} = ${index + 1}\n`,
         "utf8",
-      )
-    }
+      )))
 
     commands.length = 0
     const snapshot = await review.summary(project.id, { kind: "unstaged" })
-    expect(snapshot.files).toHaveLength(50)
+    expect(snapshot.files).toHaveLength(1_200)
+    expect(snapshot.largeDiffMode).toBe(true)
     expect(commands.length).toBeLessThanOrEqual(8)
     expect(commands.filter((args) => args.includes("--numstat"))).toHaveLength(1)
-    expect(commands.filter((args) => args.includes("--name-status"))).toHaveLength(1)
-
-    const commandCountAfterSummary = commands.length
-    await Promise.all(snapshot.files.slice(0, 5).map((file) => review.fileDiff({
-      projectId: project.id,
-      source: { kind: "unstaged" },
-      generation: snapshot.generation,
-      path: file.path,
-    })))
-    expect(commands).toHaveLength(commandCountAfterSummary)
+    expect(commands.filter((args) => args.includes("--raw"))).toHaveLength(1)
+    expect(commands.some((args) => args.includes("--binary"))).toBe(false)
     db.close()
-  }, 30_000)
+  }, 60_000)
 
-  test("相同摘要刷新和文件 Diff 的并发请求会合并", async () => {
+  test("相同摘要刷新和批量 Diff 的并发请求会合并，单文件随后命中缓存", async () => {
     const commands: string[][] = []
+    const logs: ReviewLogRecord[] = []
     const { root, db, project, review } = await fixture({
       onGitCommand: (args) => commands.push([...args]),
+      logger: captureReviewLogger(logs),
     })
-    await writeFile(join(root, "src", "index.ts"), "export const value = 2\n", "utf8")
+    await Promise.all(Array.from({ length: 5 }, (_, index) =>
+      writeFile(
+        join(root, "src", `concurrent-${index}.ts`),
+        `export const value${index} = ${index}\n`,
+        "utf8",
+      )))
+    await git(root, "add", ".")
+    await git(root, "commit", "-m", "concurrent fixture")
+    await Promise.all(Array.from({ length: 5 }, (_, index) =>
+      writeFile(
+        join(root, "src", `concurrent-${index}.ts`),
+        `export const value${index} = ${index + 1}\n`,
+        "utf8",
+      )))
 
     const [first, second] = await Promise.all([
       review.summaryResult(project.id, { kind: "unstaged" }, true),
@@ -436,24 +465,104 @@ describe("GitReviewService", () => {
     ])
     expect(first.snapshot.generation).toBe(second.snapshot.generation)
     expect(first.cacheState).toBe("fresh")
-    expect(commands.filter((args) => args.includes("--name-status"))).toHaveLength(1)
+    expect(commands.filter((args) => args.includes("--raw"))).toHaveLength(1)
+    expect(logs.find(record => record.event === "review.snapshot.refresh.joined")).toMatchObject({
+      level: "info",
+      fields: { details: { sourceKind: "unstaged", ageMs: expect.any(Number) } },
+    })
 
     commands.length = 0
     const input = {
       projectId: project.id,
       source: { kind: "unstaged" } as const,
       generation: first.snapshot.generation,
-      path: "src/index.ts",
+      paths: first.snapshot.files.map((file) => file.path),
       hideWhitespace: true,
     }
-    const [firstDiff, secondDiff] = await Promise.all([
-      review.fileDiff(input),
-      review.fileDiff(input),
+    const [firstDiffs, secondDiffs] = await Promise.all([
+      review.fileDiffs(input),
+      review.fileDiffs(input),
     ])
-    expect(firstDiff).toEqual(secondDiff)
+    expect(firstDiffs).toEqual(secondDiffs)
     expect(commands.filter((args) => args[0] === "diff")).toHaveLength(1)
+    expect(logs.filter(record => record.event === "review.file-diffs.started")).toHaveLength(2)
+    expect(logs.filter(record => record.event === "review.file-diffs.completed")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          level: "info",
+          fields: {
+            details: expect.objectContaining({
+              sourceKind: "unstaged",
+              pathCount: 5,
+              resultType: "success",
+              changedBytes: expect.any(Number),
+              durationMs: expect.any(Number),
+            }),
+          },
+        }),
+      ]),
+    )
+    const commandCountAfterBatch = commands.length
+    await review.fileDiff({
+      projectId: project.id,
+      source: { kind: "unstaged" },
+      generation: first.snapshot.generation,
+      path: first.snapshot.files[0]!.path,
+      hideWhitespace: true,
+    })
+    expect(commands).toHaveLength(commandCountAfterBatch)
     db.close()
   }, 30_000)
+
+  test("批量、单文件和单行按字节与行数阈值分级", async () => {
+    const { root, db, project, review } = await fixture()
+    const paths = [
+      "src/changed-lines.ts",
+      "src/changed-bytes.ts",
+      "src/line-bytes.ts",
+      ...Array.from({ length: 7 }, (_, index) => `src/batch-${index}.ts`),
+    ]
+    await Promise.all(paths.map((path) => writeFile(join(root, path), "", "utf8")))
+    await git(root, "add", ".")
+    await git(root, "commit", "-m", "threshold fixture")
+    await writeFile(join(root, "src", "changed-lines.ts"), "line\n".repeat(15_001), "utf8")
+    await writeFile(
+      join(root, "src", "changed-bytes.ts"),
+      `${"x".repeat(4_096)}\n`.repeat(1_000),
+      "utf8",
+    )
+    await writeFile(join(root, "src", "line-bytes.ts"), `${"x".repeat(1_100_000)}\n`, "utf8")
+    await Promise.all(Array.from({ length: 7 }, (_, index) =>
+      writeFile(join(root, "src", `batch-${index}.ts`), `${"x".repeat(2_000_000)}\n`, "utf8")))
+
+    const snapshot = await review.summary(project.id, { kind: "unstaged" })
+    const single = async (path: string) => review.fileDiff({
+      projectId: project.id,
+      source: { kind: "unstaged" } as const,
+      generation: snapshot.generation,
+      path,
+    })
+    expect(await single("src/changed-lines.ts")).toMatchObject({
+      renderable: false,
+      tooLargeReason: "changed-lines",
+    })
+    expect(await single("src/changed-bytes.ts")).toMatchObject({
+      renderable: false,
+      tooLargeReason: "changed-bytes",
+    })
+    expect(await single("src/line-bytes.ts")).toMatchObject({
+      renderable: false,
+      tooLargeReason: "line-bytes",
+    })
+    expect(await review.fileDiffs({
+      projectId: project.id,
+      source: { kind: "unstaged" },
+      generation: snapshot.generation,
+      paths: Array.from({ length: 7 }, (_, index) => `src/batch-${index}.ts`),
+    })).toMatchObject({ type: "large", reason: "changed-bytes" })
+    review.dispose()
+    db.close()
+  }, 60_000)
 
   test("未暂存摘要遵循原生 git diff，未跟踪文件暂存后进入已暂存来源", async () => {
     const { root, db, project, review } = await fixture()

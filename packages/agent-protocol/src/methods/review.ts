@@ -127,6 +127,32 @@ export const ReviewFileDiffResultSchema = Schema.Struct({
 })
 export type ReviewFileDiffResult = typeof ReviewFileDiffResultSchema.Type
 
+export const ReviewFileDiffsParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  source: ReviewSourceSchema,
+  generation: NonEmptyStringSchema,
+  paths: Schema.Array(NonEmptyStringSchema).check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(128),
+  ),
+  hideWhitespace: Schema.optional(Schema.Boolean),
+})
+
+export const ReviewFileDiffsResultSchema = Schema.Union([
+  Schema.Struct({
+    type: Schema.Literal("success"),
+    generation: NonEmptyStringSchema,
+    files: Schema.Array(ReviewFileDiffResultSchema),
+    changedBytes: NonNegativeIntSchema,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("large"),
+    generation: NonEmptyStringSchema,
+    reason: Schema.Literal("changed-bytes"),
+  }),
+])
+export type ReviewFileDiffsResult = typeof ReviewFileDiffsResultSchema.Type
+
 export const ReviewMutationTargetSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("file"), path: NonEmptyStringSchema }),
   Schema.Struct({ kind: Schema.Literal("hunk"), path: NonEmptyStringSchema, hunkId: NonEmptyStringSchema }),
@@ -337,6 +363,7 @@ const ReviewPullRequestPrepareErrors = [
 export const ReviewRpcMethods = {
   "review/summary": defineMethod({ params: ReviewSummaryParamsSchema, result: ReviewSummaryResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
   "review/fileDiff": defineMethod({ params: ReviewFileDiffParamsSchema, result: ReviewFileDiffResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
+  "review/file-diffs": defineMethod({ params: ReviewFileDiffsParamsSchema, result: ReviewFileDiffsResultSchema, errors: ReviewErrors, capability: "git.review.batch.v1", mutation: false, exactParams: true, exactResult: true }),
   "review/refresh": defineMethod({ params: ReviewSummaryParamsSchema, result: ReviewSummaryResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
   "review/pullRequest/prepare": defineMethod({ params: ReviewPullRequestPrepareParamsSchema, result: ReviewPullRequestPrepareResultSchema, errors: ReviewPullRequestPrepareErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
   "review/apply": defineMethod({ params: ReviewApplyParamsSchema, result: ReviewApplyResultSchema, errors: ReviewMutationErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),

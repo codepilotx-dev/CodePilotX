@@ -24,6 +24,7 @@ export type AgentRpcClientEnvironment = {
   fetch?: (input: string, init?: RequestInit) => Promise<Response>
   eventSourceFactory?: (url: string) => EventSource
   eventReconnectDelay?: (attempt: number) => number
+  timeout?: (method: RpcMethod) => number | undefined
   handshake?: {
     initialize: RpcParams<'initialize'>
     initialized: InitializedNotification['params']
@@ -80,12 +81,9 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
 
   const transport: RpcTransport = {
     async request(message) {
-      const response = await fetcher('/rpc', {
-        method: 'POST',
-        credentials: 'include',
-        headers: rpcHeaders(connectionId),
-        body: JSON.stringify(message),
-      })
+      const response = await (
+        await import('./rpcFetch.js')
+      ).send(fetcher, message, connectionId, environment.timeout)
       if (!response.ok) throw new Error(await rpcHttpError(response))
       return response.json()
     },

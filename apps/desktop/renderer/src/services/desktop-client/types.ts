@@ -153,6 +153,13 @@ export type DesktopAgentReviewApi = {
     path: string
     hideWhitespace?: boolean
   }): Promise<DesktopReviewAgentFileDiff>
+  getAgentReviewFileDiffs(input: {
+    workspacePath: string
+    source: DesktopReviewSource
+    generation: string
+    paths: readonly string[]
+    hideWhitespace?: boolean
+  }): Promise<RpcResult<'review/file-diffs'>>
   applyAgentReviewOperation(input: {
     workspacePath: string
     source: DesktopReviewSource

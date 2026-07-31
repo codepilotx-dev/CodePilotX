@@ -1,4 +1,8 @@
-import type { RpcMethod } from "@codepilotx/agent-protocol"
+import {
+  ReviewFileDiffsParamsSchema,
+  type RpcMethod,
+} from "@codepilotx/agent-protocol"
+import { Schema } from "effect"
 import type { RpcRouter } from "../RpcRouter"
 import type { RpcRouterContext } from "../request-context"
 import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
@@ -55,6 +59,10 @@ import {
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 
+const decodeReviewFileDiffs = Schema.decodeUnknownSync(
+  ReviewFileDiffsParamsSchema,
+)
+
 export const reviewHandlers = {
   name: "review",
   methods: [
@@ -62,6 +70,7 @@ export const reviewHandlers = {
     "review/refresh",
     "review/pullRequest/prepare",
     "review/fileDiff",
+    "review/file-diffs",
     "review/apply",
     "review/applyBatch",
     "review/branches",
@@ -102,6 +111,10 @@ export const reviewHandlers = {
       case "review/fileDiff": {
         const input = decodeParams(decodeReviewFileDiff, rawParams, method)
         return review.fileDiff(input)
+      }
+      case "review/file-diffs": {
+        const input = decodeParams(decodeReviewFileDiffs, rawParams, method)
+        return review.fileDiffs(input)
       }
       case "review/apply": {
         const input = decodeParams(decodeReviewApply, rawParams, method)

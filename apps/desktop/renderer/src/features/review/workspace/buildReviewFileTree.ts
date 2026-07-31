@@ -7,6 +7,20 @@ export type ReviewFileTreeNode = {
   files: DesktopReviewDiffFile[]
 }
 
+export type ReviewFileTreeRow =
+  | {
+      kind: 'directory'
+      key: string
+      depth: number
+      node: ReviewFileTreeNode
+    }
+  | {
+      kind: 'file'
+      key: string
+      depth: number
+      file: DesktopReviewDiffFile
+    }
+
 const ROOT_DIR = ''
 
 export function buildReviewFileTree(
@@ -35,6 +49,40 @@ export function buildReviewFileTree(
 
   sortNode(root)
   return collapseSingleChildRoots(root)
+}
+
+export function flattenReviewFileTree(
+  nodes: readonly ReviewFileTreeNode[],
+  collapsedDirs: ReadonlySet<string>,
+): ReviewFileTreeRow[] {
+  const rows: ReviewFileTreeRow[] = []
+
+  const appendNode = (node: ReviewFileTreeNode, depth: number): void => {
+    const isRoot = node.dirPath === ROOT_DIR
+    if (!isRoot) {
+      rows.push({
+        kind: 'directory',
+        key: `directory:${node.dirPath}`,
+        depth,
+        node,
+      })
+    }
+    if (!isRoot && collapsedDirs.has(node.dirPath)) return
+
+    const childDepth = isRoot ? depth : depth + 1
+    for (const file of node.files) {
+      rows.push({
+        kind: 'file',
+        key: `file:${file.path}`,
+        depth: childDepth,
+        file,
+      })
+    }
+    for (const child of node.children) appendNode(child, childDepth)
+  }
+
+  for (const node of nodes) appendNode(node, 0)
+  return rows
 }
 
 function createNode(dirPath: string, dirLabel: string): ReviewFileTreeNode {

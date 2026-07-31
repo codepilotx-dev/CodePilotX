@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Credential, Model, Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from "../src/methods/index"
+import { Capabilities, ProtocolCapabilitySchema } from "../src/runtime/capabilities"
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)("provider:test")
 const modelId = Schema.decodeUnknownSync(Model.ID)("model:test")
@@ -1439,6 +1440,43 @@ const fixtures = {
     renderable: true,
     tooLargeReason: null,
   }),
+  "review/file-diffs": methodFixture("review/file-diffs", {
+    projectId: project.id,
+    source: { kind: "unstaged" },
+    generation: "generation:1",
+    paths: ["src/index.ts"],
+    hideWhitespace: false,
+  }, {
+    type: "success",
+    generation: "generation:1",
+    files: [{
+      file: {
+        path: "src/index.ts",
+        previousPath: null,
+        status: "modified",
+        additions: 1,
+        deletions: 1,
+        changedLines: 2,
+        changedBytes: 32,
+        binary: false,
+        revision: "revision:1",
+      },
+      revision: "revision:1",
+      patch: "@@ -1 +1 @@\n-old\n+new",
+      hunks: [{
+        id: "hunk:1",
+        header: "@@ -1 +1 @@",
+        oldStart: 1,
+        oldLines: 1,
+        newStart: 1,
+        newLines: 1,
+        patch: "@@ -1 +1 @@\n-old\n+new",
+      }],
+      renderable: true,
+      tooLargeReason: null,
+    }],
+    changedBytes: 23,
+  }),
   "review/refresh": methodFixture("review/refresh", {
     projectId: project.id,
     source: { kind: "staged" },
@@ -1884,9 +1922,22 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
+  test("批量 Review Diff 使用独立的向后兼容能力", () => {
+    expect(RpcMethods["review/file-diffs"].capability).toBe("git.review.batch.v1")
+    expect(Capabilities).toContain("git.review.batch.v1")
+    const capability = Schema.decodeUnknownSync(ProtocolCapabilitySchema)("git.review.batch.v1")
+    expect(Schema.encodeSync(ProtocolCapabilitySchema)(capability)).toBe("git.review.batch.v1")
+
+    const initialize = Schema.decodeUnknownSync(RpcMethods.initialize.params)({
+      ...fixtures.initialize.params,
+      capabilities: ["git.review.v1", "git.review.batch.v1"],
+    })
+    expect(initialize.capabilities).toEqual(["git.review.v1", "git.review.batch.v1"])
+  })
+
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(156)
+    expect(methods).toHaveLength(157)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

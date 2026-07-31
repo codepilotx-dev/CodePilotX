@@ -1,6 +1,7 @@
 import React from "react";
 import { FileIcon } from "@codepilotx/material-icon-theme";
-import { VList } from "virtua";
+import { motion } from "motion/react";
+import { VList, type VListHandle } from "virtua";
 import {
   Briefcase,
   CheckCircle2,
@@ -34,6 +35,7 @@ import type {
   DesktopReviewDiffFile,
   DesktopReviewDiffHunk,
   DesktopReviewDiffLine,
+  DesktopReviewDiffResult,
   DesktopReviewScope,
   DesktopReviewSource,
   DesktopReviewSide,
@@ -59,13 +61,17 @@ import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SearchInput } from "../../../components/ui/SearchInput.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
-import { buildReviewFileTree } from "./buildReviewFileTree.js";
+import { useLiveResizeValue } from "../../layout/useLiveResizeValue.js";
+import {
+  buildReviewFileTree,
+  flattenReviewFileTree,
+  type ReviewFileTreeRow as ReviewFileTreeRowModel,
+} from "./buildReviewFileTree.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "./CommitPopover.js";
 import { PullRequestPopover } from "./PullRequestPopover.js";
 import { ReviewFileTreeResizeController } from "./ReviewFileTreeResizeController.js";
-import { ReviewFileTreeNode } from "./ReviewFileTree.js";
-import { ReviewResizeSkeleton } from "../diff/ReviewResizeSkeleton.js";
+import { ReviewFileTreeRow } from "./ReviewFileTree.js";
 import { formatReviewCount } from "../diff/reviewFormat.js";
 import {
   isReviewDiffExpanded,
@@ -92,7 +98,12 @@ import {
   type ReviewSummarySnapshot,
 } from "../source/reviewAgentClient.js";
 import { ReviewSourceMenu } from "../source/ReviewSourceMenu.js";
-import { reportReviewDiagnostic } from "../source/reviewDiagnostics.js";
+import {
+  reportReviewDiagnostic,
+  startReviewDiagnosticTimer,
+  type ReviewDiagnosticContext,
+  type ReviewDiagnosticTimer,
+} from "../source/reviewDiagnostics.js";
 import {
   createReviewCommentIdentity,
   createReviewSummaryIdentity,
@@ -124,6 +135,53 @@ import {
 
 const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH =
   REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260;
+const REVIEW_FILE_TREE_ROW_HEIGHT = 29;
+
+const ReviewFileTreeList = React.memo(function ReviewFileTreeList({
+  collapsedDirs,
+  commentCountsByPath,
+  emptyMessage,
+  listRef,
+  rows,
+  selectedPath,
+  onSelectFile,
+  onToggleDir,
+}: {
+  collapsedDirs: Set<string>;
+  commentCountsByPath: Readonly<Record<string, number>>;
+  emptyMessage: string;
+  listRef: React.RefObject<VListHandle | null>;
+  rows: ReviewFileTreeRowModel[];
+  selectedPath: string | null;
+  onSelectFile: (path: string) => void;
+  onToggleDir: (path: string) => void;
+}): React.ReactNode {
+  if (rows.length === 0) {
+    return <div className="review-empty-state">{emptyMessage}</div>;
+  }
+
+  return (
+    <VList
+      className="review-file-tree-scroll review-file-tree-vlist"
+      data={rows}
+      itemSize={REVIEW_FILE_TREE_ROW_HEIGHT}
+      ref={listRef}
+      role="tree"
+    >
+      {(row) => (
+        <ReviewFileTreeRow
+          collapsedDirs={collapsedDirs}
+          commentCountsByPath={commentCountsByPath}
+          key={row.key}
+          row={row}
+          onSelectFile={onSelectFile}
+          onToggleDir={onToggleDir}
+          selectedPath={selectedPath}
+        />
+      )}
+    </VList>
+  );
+});
 
 export type WorkspaceReviewSidebarProps = {
   activeSessionId: string | null;
@@ -197,6 +255,9 @@ function WorkspaceReviewSidebarImpl({
   const [fileLoadStates, setFileLoadStates] = React.useState<
     ReadonlyMap<string, ReviewFileLoadState>
   >(() => new Map());
+  const [batchLargeModeKey, setBatchLargeModeKey] = React.useState<
+    string | null
+  >(null);
   const [branches, setBranches] = React.useState<ReviewBranch[]>([]);
   const [commits, setCommits] = React.useState<ReviewCommit[]>([]);
   const [sourceOptionsState, setSourceOptionsState] = React.useState<
@@ -240,13 +301,19 @@ function WorkspaceReviewSidebarImpl({
     [onReviewTabStateChange],
   );
   const fileTreePanelWidth = reviewTabState.fileTreeWidth;
+  const {
+    liveSizePixels: liveFileTreePanelWidthPixels,
+    previewSize: previewFileTreePanelWidth,
+  } = useLiveResizeValue(fileTreePanelWidth);
   const setFileTreePanelWidth = React.useCallback(
     (value: number | ((current: number) => number)) => {
-      onReviewTabStateChange((current) => ({
-        ...current,
-        fileTreeWidth:
-          typeof value === "function" ? value(current.fileTreeWidth) : value,
-      }));
+      React.startTransition(() => {
+        onReviewTabStateChange((current) => ({
+          ...current,
+          fileTreeWidth:
+            typeof value === "function" ? value(current.fileTreeWidth) : value,
+        }));
+      });
     },
     [onReviewTabStateChange],
   );
@@ -348,7 +415,6 @@ function WorkspaceReviewSidebarImpl({
   const commitButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const prButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const reviewMainRef = React.useRef<HTMLDivElement | null>(null);
-  const fileTreePanelRef = React.useRef<HTMLElement | null>(null);
   const reviewRootRef = React.useRef<HTMLElement | null>(null);
   const staleGitChangeRef = React.useRef(false);
   const summaryRef = React.useRef<ReviewSummarySnapshot | null>(null);
@@ -364,7 +430,39 @@ function WorkspaceReviewSidebarImpl({
   const activeFileRequestRef = React.useRef(
     new Map<string, ReviewRequestStamp>(),
   );
+  const activeFileDiffBatchRef = React.useRef<string | null>(null);
+  const diagnosticTimersRef = React.useRef(new Set<ReviewDiagnosticTimer>());
+  const activeDiffContextRef = React.useRef({
+    generation: null as string | null,
+    hideWhitespace: reviewTabState.hideWhitespace,
+  });
   const expiredFilePathsRef = React.useRef(new Set<string>());
+  const beginDiagnosticTimer = React.useCallback(
+    (eventPrefix: string, context: ReviewDiagnosticContext) => {
+      const timer = startReviewDiagnosticTimer(eventPrefix, context);
+      diagnosticTimersRef.current.add(timer);
+      const finish = (action: "succeed" | "fail" | "cancel") =>
+        (extraContext?: ReviewDiagnosticContext): void => {
+          if (action === "succeed") timer.succeed(extraContext);
+          else timer[action]();
+          diagnosticTimersRef.current.delete(timer);
+        };
+      return {
+        succeed: finish("succeed"),
+        fail: finish("fail"),
+        cancel: finish("cancel"),
+      };
+    },
+    [],
+  );
+
+  React.useEffect(
+    () => () => {
+      for (const timer of diagnosticTimersRef.current) timer.cancel();
+      diagnosticTimersRef.current.clear();
+    },
+    [summaryIdentity],
+  );
   const refreshCoordinatorRef = React.useRef(
     new ReviewRefreshCoordinator<{
       snapshot: ReviewSummarySnapshot;
@@ -378,6 +476,7 @@ function WorkspaceReviewSidebarImpl({
   const diffScrollViewportRef = React.useRef<HTMLDivElement | null>(null);
   const diffFileSectionRefs = React.useRef(new Map<string, HTMLElement>());
   const fileSearchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const reviewFileTreeListRef = React.useRef<VListHandle | null>(null);
   const errorTimerRef = React.useRef<number | null>(null);
   const publishedGithubCommentIdsRef = React.useRef(new Set<string>());
   const mutationRequestTokenRef = React.useRef(0);
@@ -463,11 +562,26 @@ function WorkspaceReviewSidebarImpl({
               : 'loading',
           );
           setError(null);
-          const result = await reviewAgentClient.summary(
-            workspacePath,
-            source,
-            refresh,
+          const diagnosticTimer = beginDiagnosticTimer(
+            "review.summary.load",
+            {
+              sourceKind: source.kind,
+              refresh,
+              hasCachedSummary: summaryRef.current !== null,
+            },
           );
+          let result: Awaited<ReturnType<typeof reviewAgentClient.summary>>;
+          try {
+            result = await reviewAgentClient.summary(
+              workspacePath,
+              source,
+              refresh,
+            );
+            diagnosticTimer.succeed({ cacheState: result.cacheState });
+          } catch (summaryError) {
+            diagnosticTimer.fail();
+            throw summaryError;
+          }
           if (activeSummaryIdentityRef.current !== identity) return null;
           const nextSummary = result.snapshot;
           summaryCacheStateRef.current = result.cacheState;
@@ -484,8 +598,6 @@ function WorkspaceReviewSidebarImpl({
           summaryRef.current = nextSummary;
           loadedDiffsRef.current = retainedDiffs;
           summaryStateIdentityRef.current = identity;
-          setSummary(nextSummary);
-          setLoadedDiffs(retainedDiffs);
           const expiredPaths =
             result.cacheState === "fresh"
               ? new Set(expiredFilePathsRef.current)
@@ -493,24 +605,7 @@ function WorkspaceReviewSidebarImpl({
           if (result.cacheState === "fresh") {
             expiredFilePathsRef.current.clear();
           }
-          setFileLoadStates((current) => {
-            const next = new Map<string, ReviewFileLoadState>();
-            for (const file of nextSummary.files) {
-              if (retainedPaths.has(file.path)) {
-                next.set(file.path, { status: "loaded" });
-                continue;
-              }
-              const previous = current.get(file.path);
-              if (
-                previous?.status === "error" &&
-                !expiredPaths.has(file.path)
-              ) {
-                next.set(file.path, previous);
-              }
-            }
-            return next;
-          });
-          setReviewDiff({
+          const nextReviewDiff: DesktopReviewDiffResult = {
             activeScope: scope,
             scopes: [
               {
@@ -544,16 +639,38 @@ function WorkspaceReviewSidebarImpl({
                 clean: nextSummary.files.length === 0,
                 files: [],
               },
-          });
-          setLoadState(
+          };
+          const nextLoadState =
             result.cacheState === 'stale'
               ? 'stale'
               : nextSummary.largeDiffMode
               ? 'large-diff'
               : nextSummary.files.length === 0
                 ? 'empty'
-                : 'success',
-          );
+                : 'success';
+          React.startTransition(() => {
+            setSummary(nextSummary);
+            setLoadedDiffs(retainedDiffs);
+            setFileLoadStates((current) => {
+              const next = new Map<string, ReviewFileLoadState>();
+              for (const file of nextSummary.files) {
+                if (retainedPaths.has(file.path)) {
+                  next.set(file.path, { status: "loaded" });
+                  continue;
+                }
+                const previous = current.get(file.path);
+                if (
+                  previous?.status === "error" &&
+                  !expiredPaths.has(file.path)
+                ) {
+                  next.set(file.path, previous);
+                }
+              }
+              return next;
+            });
+            setReviewDiff(nextReviewDiff);
+            setLoadState(nextLoadState);
+          });
           return result;
         } catch (refreshError) {
           if (activeSummaryIdentityRef.current !== identity) return null;
@@ -608,7 +725,14 @@ function WorkspaceReviewSidebarImpl({
       }
       return null;
     });
-  }, [gitStatus, scope, source, summaryIdentity, workspacePath]);
+  }, [
+    beginDiagnosticTimer,
+    gitStatus,
+    scope,
+    source,
+    summaryIdentity,
+    workspacePath,
+  ]);
 
   const recoverExpiredReview = React.useCallback(
     async (
@@ -643,12 +767,14 @@ function WorkspaceReviewSidebarImpl({
     loadedDiffsRef.current = new Map();
     loadedDiffOptionsRef.current.clear();
     activeFileRequestRef.current.clear();
+    activeFileDiffBatchRef.current = null;
     expiredFilePathsRef.current.clear();
     mutationRequestTokenRef.current += 1;
     summaryStateIdentityRef.current = summaryIdentity;
     setSummary(null);
     setLoadedDiffs(new Map());
     setFileLoadStates(new Map());
+    setBatchLargeModeKey(null);
     setReviewDiff(null);
     setError(null);
     setPending(false);
@@ -695,10 +821,6 @@ function WorkspaceReviewSidebarImpl({
         path,
         reviewTabState.hideWhitespace ? "hide-whitespace" : "standard",
       ].join("\0");
-      setFileLoadStates((current) => {
-        if (current.get(path)?.status === "loading") return current;
-        return new Map(current).set(path, { status: "loading" });
-      });
       const beginRequest = (generation: string): ReviewRequestStamp => {
         const request = {
           identity,
@@ -784,8 +906,22 @@ function WorkspaceReviewSidebarImpl({
         requestKey,
         async () => {
           if (activeSummaryIdentityRef.current !== identity) return;
+          setFileLoadStates((current) => {
+            if (current.get(path)?.status === "loading") return current;
+            return new Map(current).set(path, { status: "loading" });
+          });
           let request = beginRequest(currentSummary.generation);
           const initialStartedAt = performance.now();
+          const initialDiagnosticTimer = beginDiagnosticTimer(
+            "review.file-diff.load",
+            {
+              sourceKind: source.kind,
+              path,
+              priority,
+              hideWhitespace: reviewTabState.hideWhitespace,
+              stage: "initial",
+            },
+          );
           try {
             const loaded = await reviewAgentClient.fileDiff(
               workspacePath,
@@ -794,8 +930,10 @@ function WorkspaceReviewSidebarImpl({
               path,
               reviewTabState.hideWhitespace,
             );
+            initialDiagnosticTimer.succeed();
             commitLoaded(request, loaded, currentSummary);
           } catch (loadError) {
+            initialDiagnosticTimer.fail();
             if (
               retryExpired &&
               reviewAgentClient.isSnapshotExpired(loadError)
@@ -859,13 +997,30 @@ function WorkspaceReviewSidebarImpl({
                   return;
                 }
                 request = beginRequest(refreshed.snapshot.generation);
-                const loaded = await reviewAgentClient.fileDiff(
-                  workspacePath,
-                  source,
-                  refreshed.snapshot.generation,
-                  path,
-                  reviewTabState.hideWhitespace,
+                const retryDiagnosticTimer = beginDiagnosticTimer(
+                  "review.file-diff.load",
+                  {
+                    sourceKind: source.kind,
+                    path,
+                    priority,
+                    hideWhitespace: reviewTabState.hideWhitespace,
+                    stage: "retry",
+                  },
                 );
+                let loaded: ReviewFileDiff;
+                try {
+                  loaded = await reviewAgentClient.fileDiff(
+                    workspacePath,
+                    source,
+                    refreshed.snapshot.generation,
+                    path,
+                    reviewTabState.hideWhitespace,
+                  );
+                  retryDiagnosticTimer.succeed();
+                } catch (retryLoadError) {
+                  retryDiagnosticTimer.fail();
+                  throw retryLoadError;
+                }
                 commitLoaded(request, loaded, refreshed.snapshot);
               } catch (retryError) {
                 if (reviewAgentClient.isSnapshotExpired(retryError)) {
@@ -909,6 +1064,7 @@ function WorkspaceReviewSidebarImpl({
       );
     },
     [
+      beginDiagnosticTimer,
       onReviewTabStateChange,
       recoverExpiredReview,
       reviewTabState.hideWhitespace,
@@ -917,6 +1073,267 @@ function WorkspaceReviewSidebarImpl({
       workspacePath,
     ],
   );
+
+  const loadSmallWorkspaceDiffs = React.useCallback(async (): Promise<void> => {
+    const identity = summaryIdentity;
+    const initialSummary = summaryRef.current;
+    if (
+      !workspacePath ||
+      !initialSummary ||
+      initialSummary.largeDiffMode ||
+      summaryCacheStateRef.current !== "fresh" ||
+      activeSummaryIdentityRef.current !== identity
+    ) {
+      return;
+    }
+
+    const hideWhitespace = reviewTabState.hideWhitespace;
+    const pathsForSummary = (expectedSummary: ReviewSummarySnapshot): string[] =>
+      expectedSummary.files
+        .map((file) => file.path)
+        .filter(
+          (path) =>
+            !loadedDiffsRef.current.has(path) ||
+            loadedDiffOptionsRef.current.get(path) !== hideWhitespace,
+        );
+
+    const runBatch = async (
+      expectedSummary: ReviewSummarySnapshot,
+      retryExpired: boolean,
+    ): Promise<void> => {
+      const paths = pathsForSummary(expectedSummary);
+      if (paths.length === 0) return;
+      const requestKey = [
+        expectedSummary.generation,
+        hideWhitespace ? "hide-whitespace" : "standard",
+      ].join("\0");
+      if (activeFileDiffBatchRef.current) return;
+      activeFileDiffBatchRef.current = requestKey;
+      const requests = new Map(
+        paths.map((path) => {
+          const request = {
+            identity,
+            generation: expectedSummary.generation,
+            requestId: ++fileRequestIdRef.current,
+          };
+          activeFileRequestRef.current.set(path, request);
+          return [path, request] as const;
+        }),
+      );
+      setFileLoadStates((current) => {
+        const next = new Map(current);
+        for (const path of paths) next.set(path, { status: "loading" });
+        return next;
+      });
+
+      const startedAt = performance.now();
+      const diagnosticTimer = beginDiagnosticTimer(
+        "review.file-diffs.load",
+        {
+          sourceKind: source.kind,
+          pathCount: paths.length,
+          hideWhitespace,
+          retryExpired,
+        },
+      );
+      try {
+        const result = await reviewAgentClient.fileDiffs(
+          workspacePath,
+          source,
+          expectedSummary.generation,
+          paths,
+          hideWhitespace,
+        );
+        diagnosticTimer.succeed({ resultType: result.type });
+        if (
+          activeSummaryIdentityRef.current !== identity ||
+          summaryCacheStateRef.current !== "fresh" ||
+          summaryRef.current?.generation !== expectedSummary.generation ||
+          activeFileDiffBatchRef.current !== requestKey
+        ) {
+          return;
+        }
+        if (result.type === "large") {
+          setBatchLargeModeKey(requestKey);
+          setFileLoadStates((current) => {
+            const next = new Map(current);
+            for (const [path, request] of requests) {
+              if (
+                isReviewRequestCurrent(
+                  request,
+                  activeFileRequestRef.current.get(path),
+                ) &&
+                next.get(path)?.status === "loading"
+              ) {
+                next.delete(path);
+              }
+            }
+            return next;
+          });
+          return;
+        }
+
+        const latestSummary = summaryRef.current;
+        if (!latestSummary) return;
+        const summaryFiles = new Map(
+          latestSummary.files.map((file) => [file.path, file] as const),
+        );
+        const committed = new Map<string, ReviewFileDiff>();
+        for (const loaded of result.files) {
+          const request = requests.get(loaded.file.path);
+          const currentFile = summaryFiles.get(loaded.file.path);
+          if (
+            request &&
+            currentFile?.revision === loaded.revision &&
+            isReviewRequestCurrent(
+              request,
+              activeFileRequestRef.current.get(loaded.file.path),
+            )
+          ) {
+            committed.set(loaded.file.path, loaded);
+          }
+        }
+        const nextLoadedDiffs = new Map(loadedDiffsRef.current);
+        for (const [path, loaded] of committed) {
+          nextLoadedDiffs.set(path, loaded);
+          loadedDiffOptionsRef.current.set(path, hideWhitespace);
+          expiredFilePathsRef.current.delete(path);
+        }
+        loadedDiffsRef.current = nextLoadedDiffs;
+        setLoadedDiffs(nextLoadedDiffs);
+        setFileLoadStates((current) => {
+          const next = new Map(current);
+          for (const [path, request] of requests) {
+            if (
+              !isReviewRequestCurrent(
+                request,
+                activeFileRequestRef.current.get(path),
+              )
+            ) {
+              continue;
+            }
+            if (committed.has(path)) {
+              next.set(path, { status: "loaded" });
+            } else if (next.get(path)?.status === "loading") {
+              next.set(path, {
+                status: "error",
+                message: "批量差异响应不完整",
+              });
+            }
+          }
+          return next;
+        });
+        setReviewDiff((current) =>
+          current
+            ? {
+                ...current,
+                files: current.files.map((file) => {
+                  const loaded = committed.get(file.path);
+                  const currentFile = summaryFiles.get(file.path);
+                  return loaded && currentFile
+                    ? summaryFileToDesktop(currentFile, loaded)
+                    : file;
+                }),
+              }
+            : current,
+        );
+        if (committed.size > 0) {
+          onReviewTabStateChange((current) => {
+            const viewedRevisions = { ...current.viewedRevisions };
+            for (const [path, loaded] of committed) {
+              viewedRevisions[path] = loaded.revision;
+            }
+            return { ...current, viewedRevisions };
+          });
+        }
+      } catch (loadError) {
+        diagnosticTimer.fail();
+        if (reviewAgentClient.isBatchUnsupported(loadError)) {
+          reportReviewDiagnostic(
+            "warning",
+            "review.file-diffs.unsupported",
+            {
+              sourceKind: source.kind,
+              pathCount: paths.length,
+              hideWhitespace,
+              fallback: "single-file-queue",
+            },
+          );
+          activeFileDiffBatchRef.current = null;
+          await Promise.all(
+            paths.map((path) => loadFileDiff(path, "prefetch")),
+          );
+          return;
+        }
+        if (
+          retryExpired &&
+          reviewAgentClient.isSnapshotExpired(loadError)
+        ) {
+          reportReviewDiagnostic(
+            "warning",
+            "review.file-diffs.snapshot-expired",
+            {
+              sourceKind: source.kind,
+              pathCount: paths.length,
+              hideWhitespace,
+              durationMs: Math.round(performance.now() - startedAt),
+            },
+            loadError,
+          );
+          for (const path of paths) expiredFilePathsRef.current.add(path);
+          const refreshed = await recoverExpiredReview(loadError, identity);
+          if (refreshed) {
+            activeFileDiffBatchRef.current = null;
+            await runBatch(refreshed.snapshot, false);
+            return;
+          }
+        }
+        reportReviewDiagnostic(
+          "error",
+          "review.file-diffs.load.failed",
+          {
+            sourceKind: source.kind,
+            pathCount: paths.length,
+            hideWhitespace,
+            retryExpired,
+            durationMs: Math.round(performance.now() - startedAt),
+          },
+          loadError,
+        );
+        const message = errorMessageOf(loadError);
+        if (activeSummaryIdentityRef.current === identity) setError(message);
+        setFileLoadStates((current) => {
+          const next = new Map(current);
+          for (const [path, request] of requests) {
+            if (
+              isReviewRequestCurrent(
+                request,
+                activeFileRequestRef.current.get(path),
+              )
+            ) {
+              next.set(path, { status: "error", message });
+            }
+          }
+          return next;
+        });
+      } finally {
+        if (activeFileDiffBatchRef.current === requestKey) {
+          activeFileDiffBatchRef.current = null;
+        }
+      }
+    };
+
+    await runBatch(initialSummary, true);
+  }, [
+    onReviewTabStateChange,
+    beginDiagnosticTimer,
+    loadFileDiff,
+    recoverExpiredReview,
+    reviewTabState.hideWhitespace,
+    source,
+    summaryIdentity,
+    workspacePath,
+  ]);
 
   const refreshComments = React.useCallback(async () => {
     const identity = commentIdentity;
@@ -997,9 +1414,69 @@ function WorkspaceReviewSidebarImpl({
     );
   }, [reviewDiff]);
 
+  const largeWorkspaceMode =
+    summary?.largeDiffMode === true ||
+    (summary !== null &&
+      batchLargeModeKey ===
+        [
+          summary.generation,
+          reviewTabState.hideWhitespace
+            ? "hide-whitespace"
+            : "standard",
+        ].join("\0"));
+
   React.useEffect(() => {
-    if (selectedPath) void loadFileDiff(selectedPath, "selected");
-  }, [loadFileDiff, selectedPath]);
+    const nextContext = {
+      generation: summary?.generation ?? null,
+      hideWhitespace: reviewTabState.hideWhitespace,
+    };
+    const previousContext = activeDiffContextRef.current;
+    if (
+      previousContext.generation === nextContext.generation &&
+      previousContext.hideWhitespace === nextContext.hideWhitespace
+    ) {
+      return;
+    }
+    activeDiffContextRef.current = nextContext;
+    activeFileDiffBatchRef.current = null;
+    activeFileRequestRef.current.clear();
+    fileRequestCoordinatorRef.current = new ReviewFileRequestCoordinator(2);
+    setBatchLargeModeKey(null);
+    setFileLoadStates((current) => {
+      const next = new Map(current);
+      for (const [path, state] of next) {
+        if (state.status === "loading") next.delete(path);
+      }
+      return next;
+    });
+    if (
+      previousContext.hideWhitespace !== nextContext.hideWhitespace &&
+      summary
+    ) {
+      loadedDiffsRef.current = new Map();
+      loadedDiffOptionsRef.current.clear();
+      setLoadedDiffs(new Map());
+      setFileLoadStates(new Map());
+      setReviewDiff((current) =>
+        current
+          ? {
+              ...current,
+              files: summary.files.map((file) => summaryFileToDesktop(file)),
+            }
+          : current,
+      );
+    }
+  }, [reviewTabState.hideWhitespace, summary?.generation]);
+
+  React.useEffect(() => {
+    if (largeWorkspaceMode && selectedPath) {
+      void loadFileDiff(selectedPath, "selected");
+    }
+  }, [largeWorkspaceMode, loadFileDiff, selectedPath]);
+
+  React.useEffect(() => {
+    if (!largeWorkspaceMode && summary) void loadSmallWorkspaceDiffs();
+  }, [largeWorkspaceMode, loadSmallWorkspaceDiffs, summary?.generation]);
 
   React.useEffect(() => {
     if (!summary) return;
@@ -1113,6 +1590,21 @@ function WorkspaceReviewSidebarImpl({
     () => buildReviewFileTree(visibleFiles),
     [visibleFiles],
   );
+  const reviewTreeRows = React.useMemo(
+    () => flattenReviewFileTree(reviewTree, collapsedDirs),
+    [collapsedDirs, reviewTree],
+  );
+
+  React.useEffect(() => {
+    if (!selectedPath) return;
+    const selectedIndex = reviewTreeRows.findIndex(
+      (row) => row.kind === "file" && row.file.path === selectedPath,
+    );
+    if (selectedIndex < 0) return;
+    reviewFileTreeListRef.current?.scrollToIndex(selectedIndex, {
+      align: "nearest",
+    });
+  }, [reviewTreeRows, selectedPath]);
 
   React.useEffect(() => {
     if (!selectedPath) return;
@@ -1136,6 +1628,11 @@ function WorkspaceReviewSidebarImpl({
     visibleFiles.find((file) => file.path === selectedPath) ??
     visibleFiles[0] ??
     null;
+  const previewFiles = React.useMemo(
+    () =>
+      largeWorkspaceMode && selectedFile ? [selectedFile] : visibleFiles,
+    [largeWorkspaceMode, selectedFile, visibleFiles],
+  );
   const totals = React.useMemo(
     () =>
       files.reduce(
@@ -1147,7 +1644,6 @@ function WorkspaceReviewSidebarImpl({
       ),
     [files],
   );
-  const largeWorkspaceMode = summary?.largeDiffMode === true;
   const allCollapsed =
     files.length > 0 &&
     files.every((file) => collapsedDiffPaths.has(file.path));
@@ -1183,7 +1679,9 @@ function WorkspaceReviewSidebarImpl({
         path,
       ),
     }));
-    if (willExpand) void loadFileDiff(path, "selected");
+    if (willExpand && largeWorkspaceMode) {
+      void loadFileDiff(path, "selected");
+    }
   }
 
   function collapseAllDiffs(): void {
@@ -1857,7 +2355,7 @@ function WorkspaceReviewSidebarImpl({
 
   function handleSelectFile(path: string): void {
     setSelectedPath(path);
-    void loadFileDiff(path);
+    if (largeWorkspaceMode) void loadFileDiff(path, "selected");
     if (!largeWorkspaceMode) {
       window.requestAnimationFrame(() => scrollToDiffFile(path));
     }
@@ -2178,7 +2676,7 @@ function WorkspaceReviewSidebarImpl({
         </div>
       ) : null}
 
-      <div
+      <motion.div
         className="review-sidebar-main"
         ref={reviewMainRef}
         style={
@@ -2198,11 +2696,10 @@ function WorkspaceReviewSidebarImpl({
             diffMarkerStyle={diffMarkerStyle}
             draft={draft}
             fileLoadStates={fileLoadStates}
-            files={
-              largeWorkspaceMode && selectedFile ? [selectedFile] : visibleFiles
-            }
+            files={previewFiles}
             largeWorkspaceMode={largeWorkspaceMode}
             pending={reviewMutationPending}
+            summaryLoadState={loadState}
             scope={scope}
             selectedPath={selectedFile?.path ?? null}
             toggleCollapseDiff={toggleCollapseDiff}
@@ -2223,7 +2720,6 @@ function WorkspaceReviewSidebarImpl({
             onSaveDraft={() => void saveDraft()}
             onCancelDraft={() => setDraft(null)}
             onFileSectionMount={setDiffFileSectionElement}
-            onLoadFile={(path) => void loadFileDiff(path)}
             onRetryFile={(path) => void loadFileDiff(path, "selected")}
             onScroll={handleReviewScroll}
           />
@@ -2233,20 +2729,20 @@ function WorkspaceReviewSidebarImpl({
           <>
             <ReviewFileTreeResizeController
               containerRef={reviewMainRef}
-              panelRef={fileTreePanelRef}
+              liveWidthPixels={liveFileTreePanelWidthPixels}
               width={fileTreePanelWidth}
+              onResizePreview={previewFileTreePanelWidth}
               onSetWidth={setFileTreePanelWidth}
             />
-            <section
+            <motion.section
               className="review-file-tree-panel"
               aria-label="审查文件导航"
-              data-resize-skeleton-target="review-file-tree"
-              ref={fileTreePanelRef}
+              style={{
+                flexBasis: liveFileTreePanelWidthPixels,
+                width: liveFileTreePanelWidthPixels,
+              }}
             >
-              <div
-                className="review-file-tree-panel-content"
-                data-resize-skeleton-content="true"
-              >
+              <div className="review-file-tree-panel-content">
                 <div className="review-file-search-region">
                   <SearchInput
                     ref={fileSearchInputRef}
@@ -2259,41 +2755,30 @@ function WorkspaceReviewSidebarImpl({
                   />
                 </div>
 
-                <ScrollArea
-                  className="review-file-tree-scroll"
-                  contentClassName="review-file-tree"
-                  role="tree"
-                >
-                  {reviewTree.length > 0 ? (
-                    reviewTree.map((node) => (
-                      <ReviewFileTreeNode
-                        collapsedDirs={collapsedDirs}
-                        commentCountsByPath={commentCountsByPath}
-                        key={node.dirPath || "__root__"}
-                        node={node}
-                        onSelectFile={handleSelectFile}
-                        onToggleDir={toggleDir}
-                        selectedPath={selectedFile?.path ?? null}
-                      />
-                    ))
-                  ) : (
-                    <div className="review-empty-state">
-                      {loadState === "loading" && !summary
-                        ? "正在加载变更…"
-                        : loadState === "not-repository" && !summary
-                          ? "当前工作区不是 Git 仓库。"
-                          : loadState === "unsupported" && !summary
-                            ? "当前 Agent 不支持代码审阅。"
-                            : !summary && files.length === 0
-                              ? "无法加载变更，请重试。"
-                              : files.length === 0
-                        ? scope === "staged"
-                          ? "暂无已暂存变更。"
-                          : "暂无未暂存变更。"
-                        : "当前筛选下没有匹配的文件。"}
-                    </div>
-                  )}
-                </ScrollArea>
+                <ReviewFileTreeList
+                  collapsedDirs={collapsedDirs}
+                  commentCountsByPath={commentCountsByPath}
+                  emptyMessage={
+                    loadState === "loading" && !summary
+                      ? "正在加载变更…"
+                      : loadState === "not-repository" && !summary
+                        ? "当前工作区不是 Git 仓库。"
+                        : loadState === "unsupported" && !summary
+                          ? "当前 Agent 不支持代码审阅。"
+                          : !summary && files.length === 0
+                            ? "无法加载变更，请重试。"
+                            : files.length === 0
+                              ? scope === "staged"
+                                ? "暂无已暂存变更。"
+                                : "暂无未暂存变更。"
+                              : "当前筛选下没有匹配的文件。"
+                  }
+                  listRef={reviewFileTreeListRef}
+                  rows={reviewTreeRows}
+                  selectedPath={selectedFile?.path ?? null}
+                  onSelectFile={handleSelectFile}
+                  onToggleDir={toggleDir}
+                />
 
                 {staleComments.length > 0 ? (
                   <ScrollArea
@@ -2314,11 +2799,10 @@ function WorkspaceReviewSidebarImpl({
                   </ScrollArea>
                 ) : null}
               </div>
-              <ReviewResizeSkeleton variant="file-tree" />
-            </section>
+            </motion.section>
           </>
         ) : null}
-      </div>
+      </motion.div>
 
       {!hideFileList &&
       visibleFiles.length > 0 &&

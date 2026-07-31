@@ -71,6 +71,19 @@ export type ReviewFileDiff = {
   tooLargeReason: 'changed-lines' | 'changed-bytes' | 'line-bytes' | null
 }
 
+export type ReviewFileDiffsResult =
+  | {
+      type: 'success'
+      generation: string
+      files: ReviewFileDiff[]
+      changedBytes: number
+    }
+  | {
+      type: 'large'
+      generation: string
+      reason: 'changed-bytes'
+    }
+
 export type ReviewBranch = {
   name: string
   sha: string
@@ -145,6 +158,32 @@ export const reviewAgentClient = {
       action: input.action,
       target: input.target,
     })
+  },
+
+  async fileDiffs(
+    workspacePath: string,
+    source: DesktopReviewSource,
+    generation: string,
+    paths: readonly string[],
+    hideWhitespace: boolean,
+  ): Promise<ReviewFileDiffsResult> {
+    const result = await desktopClient.getAgentReviewFileDiffs({
+      workspacePath,
+      source,
+      generation,
+      paths,
+      hideWhitespace,
+    })
+    return result.type === 'large'
+      ? { ...result }
+      : {
+          ...result,
+          files: result.files.map(file => ({
+            ...file,
+            file: { ...file.file },
+            hunks: file.hunks.map(hunk => ({ ...hunk })),
+          })),
+        }
   },
 
   async applyBatch(
@@ -316,6 +355,15 @@ export const reviewAgentClient = {
     return (
       error instanceof AgentRpcError &&
       error.errorCode === 'REVIEW_BATCH_PARTIAL'
+    )
+  },
+
+  isBatchUnsupported(error: unknown): boolean {
+    return Boolean(
+      error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'AGENT_OPERATION_UNSUPPORTED',
     )
   },
 }

@@ -1,5 +1,6 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { AgentRpcError } from '../src/services/agentRpcClient.js'
+import { AgentRpcTimeoutError } from '../src/services/rpcFetch.js'
 import {
   pickDefaultReviewBaseBranch,
   retainCurrentReviewFileDiffs,
@@ -7,7 +8,17 @@ import {
   reviewLoadStateForError,
 } from '../src/features/review/source/reviewAgentClient.js'
 import { formatReviewCount } from '../src/features/review/diff/reviewFormat.js'
-import { reviewDiagnosticMessage } from '../src/features/review/source/reviewDiagnostics.js'
+import { reviewFileLoadMessage } from '../src/features/review/diff/WorkspaceReviewDiff.js'
+import {
+  reviewDiagnosticMessage,
+  startReviewDiagnosticTimer,
+} from '../src/features/review/source/reviewDiagnostics.js'
+import { createAgentReviewApi } from '../src/services/desktop-client/agent-review-api.js'
+import {
+  buildReviewFileTree,
+  flattenReviewFileTree,
+} from '../src/features/review/workspace/buildReviewFileTree.js'
+import type { DesktopReviewDiffFile } from '../shared/types.js'
 import type {
   ReviewFileDiff,
   ReviewFileSummary,
@@ -15,6 +26,32 @@ import type {
 } from '../src/features/review/source/reviewAgentClient.js'
 
 describe('review load state', () => {
+  test('文件树按固定虚拟行顺序扁平化并跳过折叠目录内容', () => {
+    const files = [
+      reviewTreeFile('root.ts'),
+      reviewTreeFile('src/a.ts'),
+      reviewTreeFile('src/nested/b.ts'),
+    ]
+    const tree = buildReviewFileTree(files)
+
+    expect(
+      flattenReviewFileTree(tree, new Set()).map(row => [
+        row.kind,
+        row.kind === 'file' ? row.file.path : row.node.dirPath,
+        row.depth,
+      ]),
+    ).toEqual([
+      ['file', 'root.ts', 0],
+      ['directory', 'src', 0],
+      ['file', 'src/a.ts', 1],
+      ['directory', 'src/nested', 1],
+      ['file', 'src/nested/b.ts', 2],
+    ])
+    expect(
+      flattenReviewFileTree(tree, new Set(['src'])).map(row => row.key),
+    ).toEqual(['file:root.ts', 'directory:src'])
+  })
+
   test('审阅统计使用精确千分位而不是截断为 999+', () => {
     expect(formatReviewCount(3344)).toBe('3,344')
     expect(formatReviewCount(626)).toBe('626')
@@ -185,6 +222,81 @@ describe('review diagnostics', () => {
     expect(message).not.toContain('generation-secret')
     expect(message).not.toContain('stack-secret')
   })
+
+  test('文件差异加载文案区分摘要刷新、真实请求与摘要失败', () => {
+    expect(reviewFileLoadMessage({ status: 'idle' }, 'stale')).toBe(
+      '正在刷新变更快照…',
+    )
+    expect(reviewFileLoadMessage({ status: 'loading' }, 'success')).toBe(
+      '正在加载文件差异…',
+    )
+    expect(reviewFileLoadMessage({ status: 'idle' }, 'error')).toBe(
+      '变更快照加载失败，请使用上方重试。',
+    )
+  })
+
+  test('慢请求恢复日志可搜索且超时错误只暴露安全字段', async () => {
+    const warning = spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const timer = startReviewDiagnosticTimer(
+        'review.file-diffs.load',
+        { sourceKind: 'unstaged', pathCount: 52, hideWhitespace: false },
+        0,
+        100,
+      )
+      await Bun.sleep(5)
+      timer.succeed({ resultType: 'success' })
+
+      const messages = warning.mock.calls.map(call => String(call[0]))
+      expect(messages.some(message => message.includes('review.file-diffs.load.slow'))).toBe(true)
+      expect(messages.some(message => message.includes('review.file-diffs.load.recovered'))).toBe(true)
+      expect(messages.join('\n')).not.toContain('generation')
+      expect(messages.join('\n')).not.toContain('C:\\private')
+
+      const timeout = reviewDiagnosticMessage(
+        'review.file-diffs.load.failed',
+        { sourceKind: 'unstaged', pathCount: 52 },
+        new AgentRpcTimeoutError('review/file-diffs'),
+      )
+      expect(timeout).toContain('REVIEW_REQUEST_TIMEOUT')
+      expect(timeout).not.toContain('stack')
+    } finally {
+      warning.mockRestore()
+    }
+  })
+})
+
+describe('review batch capability', () => {
+  test('旧 Agent 缺少批量能力时不会发送批量 RPC', async () => {
+    const calls: string[] = []
+    const api = createReviewApiForBatchTest(false, calls)
+
+    await expect(
+      api.getAgentReviewFileDiffs({
+        workspacePath: 'C:\\workspace',
+        source: { kind: 'unstaged' },
+        generation: 'generation-1',
+        paths: ['src/a.ts', 'src/b.ts'],
+        hideWhitespace: false,
+      }),
+    ).rejects.toMatchObject({ code: 'AGENT_OPERATION_UNSUPPORTED' })
+    expect(calls).toEqual([])
+  })
+
+  test('协商到批量能力时只发送一次批量 RPC', async () => {
+    const calls: string[] = []
+    const api = createReviewApiForBatchTest(true, calls)
+
+    await api.getAgentReviewFileDiffs({
+      workspacePath: 'C:\\workspace',
+      source: { kind: 'unstaged' },
+      generation: 'generation-1',
+      paths: ['src/a.ts', 'src/b.ts'],
+      hideWhitespace: false,
+    })
+
+    expect(calls).toEqual(['review/file-diffs'])
+  })
 })
 
 function reviewFileSummary(path: string, revision: string): ReviewFileSummary {
@@ -198,6 +310,17 @@ function reviewFileSummary(path: string, revision: string): ReviewFileSummary {
     changedBytes: 16,
     binary: false,
     revision,
+  }
+}
+
+function reviewTreeFile(path: string): DesktopReviewDiffFile {
+  return {
+    path,
+    status: 'modified',
+    additions: 1,
+    deletions: 1,
+    isUntracked: false,
+    hunks: [],
   }
 }
 
@@ -230,4 +353,38 @@ function reviewSummary(files: ReviewFileSummary[]): ReviewSummarySnapshot {
     },
     largeDiffMode: false,
   }
+}
+
+function createReviewApiForBatchTest(
+  supportsReviewBatch: boolean,
+  calls: string[],
+) {
+  return createAgentReviewApi({
+    rpc: {
+      ensureInitialized: async () => ({
+        capabilities: supportsReviewBatch
+          ? ['git.review.v1', 'git.review.batch.v1']
+          : ['git.review.v1'],
+      }),
+      call: async (method: string) => {
+        calls.push(method)
+        return {
+          type: 'success',
+          generation: 'generation-1',
+          files: [],
+          changedBytes: 0,
+        }
+      },
+    } as never,
+    loadProjectForPath: async () => ({ id: 'project-1' }) as never,
+    preparePullRequestReview: async () => {},
+    requireGithubPullRequestCapability: () => {},
+    requireReviewCapability: () => {},
+    unsupportedReviewOperation: () => {
+      const error = new Error('git.review.v1') as Error & { code: string }
+      error.code = 'AGENT_OPERATION_UNSUPPORTED'
+      throw error
+    },
+    withAgentOrMock: agentOperation => agentOperation(),
+  })
 }
