@@ -209,6 +209,28 @@ export function ConversationPage(): React.ReactNode {
   );
   const timelineNavigationRef =
     React.useRef<ThreadTimelineNavigationHandle | null>(null);
+  const [timelineBottomState, setTimelineBottomState] = React.useState<{
+    sessionId: string | null;
+    canReturnToBottom: boolean;
+  }>({
+    sessionId: null,
+    canReturnToBottom: false,
+  });
+  const canReturnTimelineToBottom =
+    timelineBottomState.sessionId === activeSessionId &&
+    timelineBottomState.canReturnToBottom;
+  const handleCanReturnToBottomChange = React.useCallback(
+    (canReturnToBottom: boolean): void => {
+      setTimelineBottomState({
+        sessionId: activeSessionId,
+        canReturnToBottom,
+      });
+    },
+    [activeSessionId],
+  );
+  const returnTimelineToBottom = React.useCallback((): void => {
+    timelineNavigationRef.current?.returnToBottom();
+  }, []);
   const threadScrollRef = React.useRef<HTMLDivElement | null>(null);
   const turnNavItemIds = React.useMemo(
     () => turnNavItems.map((item) => item.id),
@@ -969,11 +991,13 @@ export function ConversationPage(): React.ReactNode {
               sessionStatus === "running" || sessionStatus === "waiting"
             }
             additions={composerDiffSummary.additions}
+            canReturnToBottom={canReturnTimelineToBottom}
             changedFileCount={changedFileCount}
             deletions={composerDiffSummary.deletions}
             executionPlan={composerExecutionPlan}
             failed={sessionStatus === "error"}
             onOpenReview={openReviewSidebar}
+            onReturnToBottom={returnTimelineToBottom}
           />
         ) : null}
         {activePermissionRequest ? (
@@ -1024,6 +1048,7 @@ export function ConversationPage(): React.ReactNode {
         navigationRef={timelineNavigationRef}
         loading={canonicalConversation.loading}
         loadingOlder={canonicalConversation.loadingOlder}
+        onCanReturnToBottomChange={handleCanReturnToBottomChange}
         onLoadOlder={canonicalConversation.loadOlder}
         onOpenPlanInRightDock={onOpenPlanInRightDock}
         onOpenSubagent={onOpenSubagent}

@@ -1,17 +1,25 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  canReturnToThreadBottom,
   clampThreadScrollOffset,
   createThreadScrollStateCache,
   distanceFromThreadBottom,
   isProgrammaticScrollActive,
   LATEST_TURN_PLACEMENT_THRESHOLD_PX,
   resolveThreadScrollMode,
+  resolveThreadAtBottomDuringExplicitReturn,
   scrollOffsetForThreadBottomDistance,
   THREAD_BOTTOM_THRESHOLD_PX,
 } from '../src/features/session/conversation/useThreadScrollController.js'
 
 describe('thread scroll controller', () => {
+  test('shows return control only after measuring away from the bottom', () => {
+    expect(canReturnToThreadBottom(false, false)).toBe(false)
+    expect(canReturnToThreadBottom(true, true)).toBe(false)
+    expect(canReturnToThreadBottom(true, false)).toBe(true)
+  })
+
   test('computes and clamps distance from the bottom', () => {
     expect(
       distanceFromThreadBottom({
@@ -110,6 +118,33 @@ describe('thread scroll controller', () => {
         contentChanged: false,
       }),
     ).toEqual({ mode: 'prework_follow', hasNewContent: false })
+  })
+
+  test('keeps the return control hidden during an explicit smooth return', () => {
+    expect(
+      resolveThreadAtBottomDuringExplicitReturn({
+        actualAtBottom: false,
+        explicitReturnInProgress: true,
+        now: 1_000,
+        programmaticScrollUntil: 1_500,
+      }),
+    ).toBe(true)
+    expect(
+      resolveThreadAtBottomDuringExplicitReturn({
+        actualAtBottom: false,
+        explicitReturnInProgress: true,
+        now: 1_501,
+        programmaticScrollUntil: 1_500,
+      }),
+    ).toBe(false)
+    expect(
+      resolveThreadAtBottomDuringExplicitReturn({
+        actualAtBottom: true,
+        explicitReturnInProgress: false,
+        now: 1_501,
+        programmaticScrollUntil: 1_500,
+      }),
+    ).toBe(true)
   })
 
   test('keeps prework watch stable until placement is evaluated', () => {

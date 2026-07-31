@@ -5,8 +5,11 @@ import {
   useIsPresent,
 } from 'motion/react'
 import {
+  createContext,
+  useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -18,6 +21,7 @@ import {
   standardTween,
 } from '../../motion/motionTransitions.js'
 import type { WorkbenchPanelTarget } from '../dock/rightDockState.js'
+import { useLiveResizeValue } from '../useLiveResizeValue.js'
 
 type Props = {
   children: React.ReactNode
@@ -26,6 +30,21 @@ type Props = {
   size: number
   target: WorkbenchPanelTarget
   visible: boolean
+}
+
+type WorkbenchPanelResizePreviewContextValue = {
+  previewSize: (nextSize: number | null) => void
+  target: WorkbenchPanelTarget
+}
+
+const WorkbenchPanelResizePreviewContext =
+  createContext<WorkbenchPanelResizePreviewContextValue | null>(null)
+
+export function useWorkbenchPanelResizePreview(
+  target: WorkbenchPanelTarget,
+): ((nextSize: number | null) => void) | null {
+  const context = useContext(WorkbenchPanelResizePreviewContext)
+  return context?.target === target ? context.previewSize : null
 }
 
 export function WorkbenchPanelPresence({
@@ -71,6 +90,12 @@ function WorkbenchPanelPresenceItem({
   const shellRef = useRef<HTMLDivElement>(null)
   const [entryComplete, setEntryComplete] = useState(skipEnterAnimation)
   const isBottom = target === 'bottom'
+  const { liveSize, previewSize } = useLiveResizeValue(size)
+
+  const resizePreviewContext = useMemo(
+    () => ({ previewSize, target }),
+    [previewSize, target],
+  )
   const visibleState = isBottom
     ? { height: size, opacity: 1, y: 0 }
     : { opacity: 1, width: size, x: 0 }
@@ -96,40 +121,41 @@ function WorkbenchPanelPresenceItem({
   }, [isPresent, reducedMotion])
 
   return (
-    <motion.div
-      ref={shellRef}
-      aria-hidden={!isPresent ? true : undefined}
-      animate={visibleState}
-      className={[
-        'desktop-workspace-panel',
-        `desktop-workspace-panel--${target === 'right' ? 'right' : 'bottom'}`,
-        fullWidth ? 'full-width' : '',
-      ].filter(Boolean).join(' ')}
-      data-workbench-panel-presence={isPresent ? 'open' : 'exiting'}
-      exit={{
-        ...hiddenState,
-        transition: motionTransition(reducedMotion, fastTween),
-      }}
-      initial={skipEnterAnimation ? false : hiddenState}
-      inert={!isPresent ? true : undefined}
-      onAnimationComplete={() => {
-        if (isPresent) setEntryComplete(true)
-      }}
-      transition={motionTransition(
-        reducedMotion,
-        entryComplete ? instantTween : standardTween,
-      )}
-    >
-      <div
-        className="desktop-workspace-panel__surface"
-        style={
-          isBottom
-            ? { height: `${size}px` }
-            : { width: `${size}px` }
-        }
+    <WorkbenchPanelResizePreviewContext.Provider value={resizePreviewContext}>
+      <motion.div
+        ref={shellRef}
+        aria-hidden={!isPresent ? true : undefined}
+        animate={visibleState}
+        className={[
+          'desktop-workspace-panel',
+          `desktop-workspace-panel--${target === 'right' ? 'right' : 'bottom'}`,
+          fullWidth ? 'full-width' : '',
+        ].filter(Boolean).join(' ')}
+        data-workbench-panel-presence={isPresent ? 'open' : 'exiting'}
+        exit={{
+          ...hiddenState,
+          transition: motionTransition(reducedMotion, fastTween),
+        }}
+        initial={skipEnterAnimation ? false : hiddenState}
+        inert={!isPresent ? true : undefined}
+        onAnimationComplete={() => {
+          if (isPresent) setEntryComplete(true)
+        }}
+        style={isBottom ? { height: liveSize } : { width: liveSize }}
+        transition={motionTransition(
+          reducedMotion,
+          entryComplete ? instantTween : standardTween,
+        )}
       >
-        {children}
-      </div>
-    </motion.div>
+        <motion.div
+          className="desktop-workspace-panel__surface"
+          style={isBottom
+            ? { height: liveSize, minHeight: liveSize }
+            : { minWidth: liveSize, width: liveSize }}
+        >
+          {children}
+        </motion.div>
+      </motion.div>
+    </WorkbenchPanelResizePreviewContext.Provider>
   )
 }

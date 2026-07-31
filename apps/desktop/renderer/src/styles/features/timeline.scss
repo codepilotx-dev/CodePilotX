@@ -144,62 +144,6 @@
   pointer-events: none;
 }
 
-.session-timeline-floating-controls {
-  position: sticky;
-  z-index: 2;
-  top: calc(
-    var(--thread-scroll-viewport-height) -
-      var(--thread-scroll-padding-bottom) - 40px
-  );
-  display: flex;
-  justify-content: flex-end;
-  height: 0;
-  padding-inline: 16px;
-  pointer-events: none;
-}
-
-.session-timeline-return-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--control-size-sm);
-  padding: 5px 10px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: 999px;
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-card);
-  color: var(--color-token-foreground);
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-label);
-  cursor: pointer;
-  pointer-events: auto;
-  transition:
-    background 120ms ease-out,
-    border-color 120ms ease-out,
-    transform 120ms ease-out;
-
-  &:hover {
-    border-color: var(--color-token-border);
-    background: var(--color-token-bg-secondary);
-    transform: translateY(-1px);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-token-text-link-foreground);
-    outline-offset: 2px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .session-timeline-return-button {
-    transition: none;
-  }
-}
-
-:root[data-reduce-motion="on"] .session-timeline-return-button {
-  transition: none;
-}
-
 /* ── Responsive: narrower viewports ───────────────────── */
 
 /* ── Conversation turn navigation rail ───────────────────── */

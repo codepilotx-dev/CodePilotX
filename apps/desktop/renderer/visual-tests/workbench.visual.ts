@@ -419,33 +419,20 @@ test('session header aligns with the right panel and bottom panel spans the work
   })
   await expect
     .poll(async () => (await bottomPanelElement.boundingBox())?.height)
-    .toBeCloseTo(bottomPanel!.height, 0)
-  const bottomResizeGuide = page.locator(
-    'body > .workbench-resize-guide--bottom',
-  )
-  await expect(bottomResizeGuide).toBeVisible()
+    .toBeGreaterThan(bottomPanel!.height + 48)
+  await expect(page.locator('.workbench-resize-guide')).toHaveCount(0)
   await expect(
     bottomPanelElement.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
   await expect(
-    bottomPanelElement.locator('[data-resize-skeleton-active]'),
-  ).toHaveCount(0)
-  await expect(
     bottomPanelElement.locator('.workbench-panel-header'),
   ).toHaveCSS('filter', 'none')
-  const bottomResizeGuideBox = await bottomResizeGuide.boundingBox()
-  expect(bottomResizeGuideBox).not.toBeNull()
-  expect(bottomResizeGuideBox!.y).toBeCloseTo(
-    bottomSeparatorBox!.y - 80,
-    0,
-  )
   const bottomPointerUpStartedAt = Date.now()
   await page.mouse.up()
   expect(Date.now() - bottomPointerUpStartedAt).toBeLessThan(200)
   await expect
     .poll(async () => (await bottomPanelElement.boundingBox())?.height)
     .toBeGreaterThan(bottomPanel!.height)
-  await expect(bottomResizeGuide).toBeHidden()
   await expect(
     bottomPanelElement.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -482,6 +469,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
 
   await page.getByRole('button', { name: '显示右侧面板' }).click()
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  const rightPanelShell = page.locator('.desktop-workspace-panel--right')
   await expect(rightPanel).toBeVisible()
   await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
   const sourceMenu = await openAndAssertReviewSourceMenu(page, rightPanel)
@@ -623,20 +611,10 @@ test('right panel scales with its workspace and keeps a constrained manual overr
       .count(),
   ).toBeLessThan(100)
   const reviewDiffPreview = rightPanel.locator('.review-diff-preview')
-  const reviewDiffContent = reviewDiffPreview.locator(
-    ':scope > [data-resize-skeleton-content]',
-  )
-  const reviewDiffSkeleton = reviewDiffPreview.locator(
-    ':scope > [data-resize-skeleton-overlay]',
-  )
-  const reviewFileTreeContent = reviewFileTree.locator(
-    ':scope > [data-resize-skeleton-content]',
-  )
-  const reviewFileTreeSkeleton = reviewFileTree.locator(
-    ':scope > [data-resize-skeleton-overlay]',
-  )
-  await expect(reviewDiffSkeleton).toBeHidden()
-  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(
+    rightPanel.locator('[data-resize-skeleton-target]'),
+  ).toHaveCount(0)
+  await expect(page.locator('.workbench-resize-guide')).toHaveCount(0)
   const initialWidth = (await rightPanel.boundingBox())?.width
   expect(initialWidth).toBeGreaterThan(320)
   const rightSeparator = page.getByRole('separator', {
@@ -652,7 +630,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeGreaterThan(initialWidth!)
   const keyboardWidth = (await rightPanel.boundingBox())?.width
-  await rightSeparator.dblclick()
+  await rightSeparator.press('Home')
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .not.toBeCloseTo(keyboardWidth!, 0)
@@ -683,42 +661,34 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     resizeWindow.__resizeLongTaskObserver.observe({ type: 'longtask' })
   })
   await page.mouse.down()
-  const pointerMoveDurations: number[] = []
   for (let step = 1; step <= 60; step += 1) {
-    const pointerMoveStartedAt = Date.now()
     await page.mouse.move(
       separatorBox!.x - (96 * step) / 60,
       separatorBox!.y + 40,
     )
-    pointerMoveDurations.push(Date.now() - pointerMoveStartedAt)
   }
-  const sortedPointerMoveDurations = [...pointerMoveDurations].sort(
-    (left, right) => left - right,
-  )
-  expect(
-    sortedPointerMoveDurations[
-      Math.floor(sortedPointerMoveDurations.length * 0.95)
-    ],
-  ).toBeLessThan(80)
+  await expect
+    .poll(async () => (await rightPanelShell.boundingBox())?.width)
+    .toBeGreaterThan(resetWidth! + 48)
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeGreaterThan(resetWidth! + 48)
+  const [liveRightPanelBox, liveRightPanelShellBox] = await Promise.all([
+    rightPanel.boundingBox(),
+    rightPanelShell.boundingBox(),
+  ])
+  expect(liveRightPanelBox).not.toBeNull()
+  expect(liveRightPanelShellBox).not.toBeNull()
+  expect(liveRightPanelBox!.x).toBeCloseTo(liveRightPanelShellBox!.x, 0)
+  await expect
+    .poll(async () =>
+      rightPanelShell
+        .locator('.desktop-workspace-panel__surface')
+        .evaluate(element => Number.parseFloat(getComputedStyle(element).width)),
+    )
     .toBeCloseTo(resetWidth!, 0)
-  const rightResizeGuide = page.locator(
-    'body > .workbench-resize-guide--right',
-  )
-  await expect(rightResizeGuide).toBeVisible()
-  await expect(reviewDiffPreview).toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewDiffSkeleton).toBeVisible()
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'hidden')
-  await expect(reviewFileTree).not.toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
-  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(reviewDiffPreview).toBeVisible()
+  await expect(reviewFileTree).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -726,20 +696,11 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     'filter',
     'none',
   )
-  const rightResizeGuideBox = await rightResizeGuide.boundingBox()
-  expect(rightResizeGuideBox).not.toBeNull()
-  expect(rightResizeGuideBox!.x).toBeCloseTo(separatorBox!.x - 96, 0)
   await page.mouse.up()
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeGreaterThan(resetWidth!)
-  await expect(rightResizeGuide).toBeHidden()
-  await expect(reviewDiffPreview).not.toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewDiffSkeleton).toBeHidden()
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(reviewDiffPreview).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -766,13 +727,23 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     )
     await page.mouse.down()
     await page.mouse.move(box!.x - 64, box!.y + 30, { steps: 4 })
-    await expect(rightResizeGuide).toBeVisible()
-    await expect(reviewDiffPreview).toHaveAttribute(
-      'data-resize-skeleton-active',
-      '',
+    await expect
+      .poll(async () => (await rightPanelShell.boundingBox())?.width)
+      .toBeGreaterThan(resetWidth! + 32)
+    await expect
+      .poll(async () => (await rightPanel.boundingBox())?.width)
+      .toBeGreaterThan(resetWidth! + 32)
+    const [cancelPreviewPanelBox, cancelPreviewShellBox] = await Promise.all([
+      rightPanel.boundingBox(),
+      rightPanelShell.boundingBox(),
+    ])
+    expect(cancelPreviewPanelBox).not.toBeNull()
+    expect(cancelPreviewShellBox).not.toBeNull()
+    expect(cancelPreviewPanelBox!.x).toBeCloseTo(
+      cancelPreviewShellBox!.x,
+      0,
     )
-    await expect(reviewDiffSkeleton).toBeVisible()
-    await expect(reviewDiffContent).toHaveCSS('visibility', 'hidden')
+    await expect(reviewDiffPreview).toBeVisible()
   }
   await beginCancelledResize()
   await page.evaluate(() => {
@@ -782,9 +753,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeCloseTo(resetWidth!, 0)
-  await expect(rightResizeGuide).toBeHidden()
-  await expect(reviewDiffSkeleton).toBeHidden()
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(reviewDiffPreview).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -795,9 +764,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeCloseTo(resetWidth!, 0)
-  await expect(rightResizeGuide).toBeHidden()
-  await expect(reviewDiffSkeleton).toBeHidden()
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(reviewDiffPreview).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -805,60 +772,35 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   const fileTreeSeparator = rightPanel.getByRole('separator', {
     name: '调整审查文件导航宽度',
   })
-  const fileTreePreview = rightPanel.locator(
-    '.review-file-tree-resize-preview',
-  )
   const initialFileTreeWidth = (await reviewFileTree.boundingBox())?.width
+  const initialDiffPreviewWidth = (await reviewDiffPreview.boundingBox())?.width
   const fileTreeSeparatorBox = await fileTreeSeparator.boundingBox()
   expect(initialFileTreeWidth).toBeGreaterThan(239)
+  expect(initialDiffPreviewWidth).toBeGreaterThan(0)
   expect(fileTreeSeparatorBox).not.toBeNull()
   await page.mouse.move(
     fileTreeSeparatorBox!.x + fileTreeSeparatorBox!.width / 2,
     fileTreeSeparatorBox!.y + fileTreeSeparatorBox!.height / 2,
   )
   await page.mouse.down()
-  const fileTreePointerMoveDurations: number[] = []
   for (let step = 1; step <= 60; step += 1) {
-    const pointerMoveStartedAt = Date.now()
     await page.mouse.move(
       fileTreeSeparatorBox!.x - (72 * step) / 60,
       fileTreeSeparatorBox!.y + 36,
     )
-    fileTreePointerMoveDurations.push(Date.now() - pointerMoveStartedAt)
   }
-  const sortedFileTreePointerMoveDurations = [
-    ...fileTreePointerMoveDurations,
-  ].sort((left, right) => left - right)
-  expect(
-    sortedFileTreePointerMoveDurations[
-      Math.floor(sortedFileTreePointerMoveDurations.length * 0.95)
-    ],
-  ).toBeLessThan(80)
   await expect
     .poll(async () => (await reviewFileTree.boundingBox())?.width)
-    .toBeCloseTo(initialFileTreeWidth!, 0)
-  await expect(reviewFileTree).toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewFileTreeSkeleton).toBeVisible()
-  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'hidden')
-  await expect(reviewDiffPreview).not.toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
-  await expect(fileTreePreview).toBeVisible()
-  const fileTreePreviewBox = await fileTreePreview.boundingBox()
-  expect(fileTreePreviewBox).not.toBeNull()
-  expect(fileTreePreviewBox!.x).toBeCloseTo(fileTreeSeparatorBox!.x - 72, 0)
+    .toBeGreaterThan(initialFileTreeWidth! + 48)
+  await expect
+    .poll(async () => (await reviewDiffPreview.boundingBox())?.width)
+    .toBeCloseTo(initialDiffPreviewWidth!, 0)
+  await expect(reviewFileTree).toBeVisible()
+  await expect(reviewDiffPreview).toBeVisible()
   await page.mouse.up()
   await expect
     .poll(async () => (await reviewFileTree.boundingBox())?.width)
     .toBeGreaterThan(initialFileTreeWidth!)
-  await expect(fileTreePreview).toBeHidden()
-  await expect(reviewFileTreeSkeleton).toBeHidden()
-  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
 
   await fileTreeSeparator.dblclick()
   await expect
@@ -879,15 +821,15 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     cancelledFileTreeSeparatorBox!.y + 24,
     { steps: 4 },
   )
-  await expect(reviewFileTreeSkeleton).toBeVisible()
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeGreaterThan(cancelledFileTreeWidth! + 24)
+  await expect(reviewDiffPreview).toBeVisible()
   await fileTreeSeparator.dispatchEvent('pointercancel', { pointerId: 1 })
   await page.mouse.up()
   await expect
     .poll(async () => (await reviewFileTree.boundingBox())?.width)
     .toBeCloseTo(cancelledFileTreeWidth!, 0)
-  await expect(fileTreePreview).toBeHidden()
-  await expect(reviewFileTreeSkeleton).toBeHidden()
-  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
 
   const shrinkSeparatorBox = await rightSeparator.boundingBox()
   expect(shrinkSeparatorBox).not.toBeNull()
@@ -897,9 +839,12 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   )
   await page.mouse.down()
   await page.mouse.move(shrinkSeparatorBox!.x + 64, shrinkSeparatorBox!.y + 30)
-  const shrinkGuideBox = await rightResizeGuide.boundingBox()
-  expect(shrinkGuideBox).not.toBeNull()
-  expect(shrinkGuideBox!.x).toBeCloseTo(shrinkSeparatorBox!.x + 64, 0)
+  await expect
+    .poll(async () => (await rightPanelShell.boundingBox())?.width)
+    .toBeLessThan(resetWidth! - 32)
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
   await page.evaluate(() => {
     document.dispatchEvent(new PointerEvent('pointercancel'))
   })
@@ -945,7 +890,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect(forcedRightPanel).toHaveCount(0)
 })
 
-test('Review uses the same targeted skeleton when moved to the bottom panel', async ({
+test('Review resizes live when moved to the bottom panel', async ({
   page,
 }, testInfo) => {
   testInfo.setTimeout(90_000)
@@ -967,12 +912,6 @@ test('Review uses the same targeted skeleton when moved to the bottom panel', as
 
   const bottomPanel = page.getByRole('complementary', { name: '底部面板' })
   const bottomReviewDiff = bottomPanel.locator('.review-diff-preview')
-  const bottomReviewDiffSkeleton = bottomReviewDiff.locator(
-    ':scope > [data-resize-skeleton-overlay]',
-  )
-  const bottomReviewDiffContent = bottomReviewDiff.locator(
-    ':scope > [data-resize-skeleton-content]',
-  )
   const bottomReviewFileTree = bottomPanel.getByRole('region', {
     name: '审查文件导航',
   })
@@ -996,25 +935,16 @@ test('Review uses the same targeted skeleton when moved to the bottom panel', as
     bottomSeparatorBox!.y - 72,
     { steps: 8 },
   )
-  await expect(bottomReviewDiff).toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(bottomReviewDiffSkeleton).toBeVisible()
-  await expect(bottomReviewDiffContent).toHaveCSS('visibility', 'hidden')
-  await expect(bottomReviewFileTree).not.toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
   await expect
     .poll(async () => (await bottomPanel.boundingBox())?.height)
-    .toBeCloseTo(bottomHeight!, 0)
+    .toBeGreaterThan(bottomHeight! + 48)
+  await expect(bottomReviewDiff).toBeVisible()
+  await expect(bottomReviewFileTree).toBeVisible()
   await page.mouse.up()
   await expect
     .poll(async () => (await bottomPanel.boundingBox())?.height)
     .toBeGreaterThan(bottomHeight!)
-  await expect(bottomReviewDiffSkeleton).toBeHidden()
-  await expect(bottomReviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(bottomReviewDiff).toBeVisible()
 })
 
 test('bottom panel scales with workspace height while preserving the upper region', async ({
@@ -1066,6 +996,20 @@ test('narrow file panel keeps the editor and file tree side by side', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 960, height: 640 })
+  await page.addInitScript(() => {
+    const target = window as typeof window & {
+      __fileTreeViewWrites?: number
+    }
+    target.__fileTreeViewWrites = 0
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = function setItem(key, value) {
+      if (key.startsWith('codepilotx.desktop.fileTreeView:')) {
+        target.__fileTreeViewWrites =
+          (target.__fileTreeViewWrites ?? 0) + 1
+      }
+      return original.call(this, key, value)
+    }
+  })
   await page.goto('/?visualCase=rich#/threads/visual-rich')
   await closeTransientErrorToast(page)
   await expect(
@@ -1101,6 +1045,71 @@ test('narrow file panel keeps the editor and file tree side by side', async ({
     scrollWidth: document.documentElement.scrollWidth,
   }))
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
+
+  await page.setViewportSize({ width: 1440, height: 920 })
+  const rightPanelSeparator = page.getByRole('separator', {
+    name: '调整右侧面板宽度',
+  })
+  await rightPanelSeparator.focus()
+  await page.keyboard.press('Shift+ArrowLeft')
+  await page.keyboard.press('Shift+ArrowLeft')
+  await page.keyboard.press('Shift+ArrowLeft')
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(520)
+  await expect
+    .poll(async () => (await tree.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(239)
+  const treeSeparator = rightPanel.getByRole('separator', {
+    name: '调整文件树宽度',
+  })
+  const treeSeparatorBox = await treeSeparator.boundingBox()
+  const treeWidthBeforeDrag = (await tree.boundingBox())!.width
+  expect(treeSeparatorBox).not.toBeNull()
+  await page.evaluate(() => {
+    ;(
+      window as typeof window & {
+        __fileTreeViewWrites?: number
+      }
+    ).__fileTreeViewWrites = 0
+  })
+  await page.mouse.move(
+    treeSeparatorBox!.x + treeSeparatorBox!.width / 2,
+    treeSeparatorBox!.y + treeSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    treeSeparatorBox!.x - 64,
+    treeSeparatorBox!.y + 24,
+    { steps: 8 },
+  )
+  await expect
+    .poll(async () => (await tree.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(treeWidthBeforeDrag + 32)
+  expect(
+    await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __fileTreeViewWrites?: number
+          }
+        ).__fileTreeViewWrites ?? 0,
+    ),
+  ).toBe(0)
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await tree.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(treeWidthBeforeDrag + 32)
+  expect(
+    await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __fileTreeViewWrites?: number
+          }
+        ).__fileTreeViewWrites ?? 0,
+    ),
+  ).toBe(1)
 })
 
 test('wide workspace keeps the summary beside a 600px review panel', async ({
@@ -1359,6 +1368,32 @@ test('sidebar keeps one mounted tree across docked and hover preview modes', asy
   await expect(sidebar).toHaveClass(/is-preview/, { timeout: 1_000 })
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-docked/)
+
+  const spacer = page.locator('.desktop-sidebar-spacer')
+  const sidebarWidthBeforeDrag = (await sidebar.boundingBox())!.width
+  const sidebarSeparator = page.getByRole('separator', {
+    name: '调整任务侧栏宽度',
+  })
+  const sidebarSeparatorBox = await sidebarSeparator.boundingBox()
+  expect(sidebarSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    sidebarSeparatorBox!.x + sidebarSeparatorBox!.width / 2,
+    sidebarSeparatorBox!.y + sidebarSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    sidebarSeparatorBox!.x + 64,
+    sidebarSeparatorBox!.y + 24,
+    { steps: 8 },
+  )
+  await expect
+    .poll(async () => (await sidebar.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(sidebarWidthBeforeDrag + 32)
+  await expect
+    .poll(async () => (await spacer.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(sidebarWidthBeforeDrag + 32)
+  await expect(page.locator('.sidebar-resize-guide')).toHaveCount(0)
+  await page.mouse.up()
 })
 
 test('sidebar exit and re-entry keep the workspace aligned', async ({

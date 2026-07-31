@@ -16,12 +16,10 @@
   --color-warning: #a05a00;
 
   --shadow-resting: none;
-  --shadow-raised: 0 2px 8px
-    color-mix(in srgb, var(--color-token-foreground) 4%, transparent);
+  --shadow-raised: 0 1px 3px -1px rgb(0 0 0 / 14%);
   --shadow-float:
-    0 8px 24px
-      color-mix(in srgb, var(--color-token-foreground) 7%, transparent),
-    0 2px 6px color-mix(in srgb, var(--color-token-foreground) 4%, transparent);
+    0 8px 20px -8px rgb(0 0 0 / 28%),
+    0 2px 6px -3px rgb(0 0 0 / 18%);
   --shadow-2: var(--shadow-raised);
 
   --radius-button: 8px;

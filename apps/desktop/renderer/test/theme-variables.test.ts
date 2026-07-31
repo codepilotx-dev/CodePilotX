@@ -71,6 +71,45 @@ describe('fixed Codex UI themes', () => {
     expect(dark['--codex-base-on-accent']).toBe('#ffffff')
   })
 
+  test('uses the same restrained black elevation shadows in every theme', async () => {
+    const expectedRaised = '0 1px 3px -1px rgb(0 0 0 / 14%)'
+    const expectedFloat =
+      '0 8px 20px -8px rgb(0 0 0 / 28%), 0 2px 6px -3px rgb(0 0 0 / 18%)'
+    const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
+    const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
+
+    for (const variables of [light, dark]) {
+      expect(variables['--shadow-raised']).toBe(expectedRaised)
+      expect(variables['--shadow-float']).toBe(expectedFloat)
+    }
+    expect(dark['--shadow-raised']).toBe(light['--shadow-raised'])
+    expect(dark['--shadow-float']).toBe(light['--shadow-float'])
+
+    const stylesheet = await Bun.file(
+      new URL(
+        '../src/styles/design-system/tokens.scss',
+        import.meta.url,
+      ),
+    ).text()
+    const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
+    const shadowDeclarations =
+      normalizedStylesheet.match(
+        /--shadow-(?:raised|float):\s*[^;]+;/g,
+      ) ?? []
+
+    expect(normalizedStylesheet).toContain(
+      `--shadow-raised: ${expectedRaised};`,
+    )
+    expect(normalizedStylesheet).toContain(
+      `--shadow-float: ${expectedFloat};`,
+    )
+    expect(shadowDeclarations).toHaveLength(2)
+    expect(shadowDeclarations.join(' ')).not.toContain(
+      '--color-token-foreground',
+    )
+    expect(shadowDeclarations.join(' ')).not.toContain('color-mix')
+  })
+
   test('uses the recovered Codex runtime formulas for Dracula', () => {
     const variables = deriveThemeVariables({
       codeThemeId: 'dracula',

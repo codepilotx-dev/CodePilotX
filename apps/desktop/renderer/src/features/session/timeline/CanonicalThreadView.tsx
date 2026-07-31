@@ -69,6 +69,7 @@ export type CanonicalThreadViewProps = {
   navigationRef: React.Ref<ThreadTimelineNavigationHandle>;
   scrollRef: React.RefObject<HTMLElement | null>;
   onScroll?: (scrollTop: number) => void;
+  onCanReturnToBottomChange: (canReturnToBottom: boolean) => void;
   onLoadOlder: () => Promise<void>;
   onReload: () => Promise<void>;
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
@@ -235,6 +236,7 @@ function CanonicalThreadViewComponent({
   navigationRef,
   scrollRef,
   onScroll,
+  onCanReturnToBottomChange,
   onLoadOlder,
   onReload,
   onOpenPlanInRightDock,
@@ -257,6 +259,26 @@ function CanonicalThreadViewComponent({
       });
     });
   }, [listRef, onLoadOlder, scrollRef]);
+  const renderTurn = React.useCallback(
+    (entry: RenderTurnEntry): React.ReactElement => (
+      <CanonicalTurnRow
+        disclosureState={disclosureState}
+        entry={entry}
+        key={entry.id}
+        onOpenPlanInRightDock={onOpenPlanInRightDock}
+        onOpenSubagent={onOpenSubagent}
+        registerTurnRow={registerTurnRow}
+        rightDockPlanEventId={rightDockPlanEventId}
+      />
+    ),
+    [
+      disclosureState,
+      onOpenPlanInRightDock,
+      onOpenSubagent,
+      registerTurnRow,
+      rightDockPlanEventId,
+    ],
+  );
 
   if (loading && turns.length === 0) {
     return (
@@ -300,25 +322,16 @@ function CanonicalThreadViewComponent({
         key={threadId}
         count={turns.length}
         initialScrollOffset={initialScrollOffset}
+        items={turns}
         listRef={listRef}
         navigationRef={navigationRef}
+        onCanReturnToBottomChange={onCanReturnToBottomChange}
         onScroll={onScroll}
         scrollRef={scrollRef}
         scrollToBottom={active}
         sessionKey={threadId}
-      >
-        {turns.map((entry) => (
-          <CanonicalTurnRow
-            disclosureState={disclosureState}
-            entry={entry}
-            key={entry.id}
-            onOpenPlanInRightDock={onOpenPlanInRightDock}
-            onOpenSubagent={onOpenSubagent}
-            registerTurnRow={registerTurnRow}
-            rightDockPlanEventId={rightDockPlanEventId}
-          />
-        ))}
-      </SessionTimelineView>
+        renderItem={renderTurn}
+      />
     </div>
   );
 }

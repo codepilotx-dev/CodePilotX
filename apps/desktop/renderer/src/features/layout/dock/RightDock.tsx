@@ -63,6 +63,7 @@ import {
   SIDEBAR_COLLAPSE_TARGET_SIZE,
   useSidebarResizeCollapseConfirm,
 } from '../useSidebarResizeCollapseConfirm.js'
+import { useWorkbenchPanelResizePreview } from '../panels/WorkbenchPanelPresence.js'
 
 type Props = {
   target: WorkbenchPanelTarget
@@ -159,8 +160,6 @@ function useStableEvent<TArgs extends unknown[], TResult>(
 
 function WorkbenchPanelResizeController({
   target,
-  panelRef,
-  contentRef,
   rightFullWidth,
   maxWidth,
   minWidth,
@@ -188,104 +187,35 @@ function WorkbenchPanelResizeController({
   | 'onResetHeight'
   | 'onSetWidth'
   | 'onSetHeight'
-> & {
-  panelRef: React.RefObject<HTMLElement | null>
-  contentRef: React.RefObject<HTMLDivElement | null>
-}): React.ReactNode {
-  const guideRef = useRef<HTMLDivElement>(null)
+>): React.ReactNode {
   const handleRef = useRef<HTMLDivElement>(null)
-  const resizeBoundsRef = useRef<DOMRect | null>(null)
-  const resizeSkeletonTargetRef = useRef<HTMLElement | null>(null)
   const isBottom = target === 'bottom'
   const size = isBottom ? (height ?? minHeight ?? 160) : width
   const minSize = isBottom ? (minHeight ?? 160) : minWidth
   const maxSize = isBottom
     ? (maxHeight ?? minHeight ?? 160)
     : maxWidth
-
-  const clearResizeSkeletonTarget = useCallback((): void => {
-    resizeSkeletonTargetRef.current?.removeAttribute(
-      'data-resize-skeleton-active',
-    )
-    resizeSkeletonTargetRef.current = null
-  }, [])
-
-  useEffect(() => clearResizeSkeletonTarget, [clearResizeSkeletonTarget])
+  const previewSize = useWorkbenchPanelResizePreview(target)
 
   const updateResizePhase = useCallback(
     (phase: ResizePhase): void => {
       const handle = handleRef.current
       if (phase === 'idle') {
-        clearResizeSkeletonTarget()
         if (handle) delete handle.dataset.resizePhase
         return
       }
-
-      if (phase === 'dragging') {
-        clearResizeSkeletonTarget()
-        const activeTarget = contentRef.current?.querySelector<HTMLElement>(
-          ':scope > .workbench-tab-panel:not([hidden]) ' +
-            '[data-resize-skeleton-target="dock-review-diff"]',
-        )
-        if (activeTarget) {
-          activeTarget.setAttribute('data-resize-skeleton-active', '')
-          resizeSkeletonTargetRef.current = activeTarget
-        }
-      }
       if (handle) handle.dataset.resizePhase = phase
     },
-    [clearResizeSkeletonTarget, contentRef],
-  )
-
-  const previewSize = useCallback(
-    (nextSize: number | null): void => {
-      const guide = guideRef.current
-      if (!guide) return
-      if (nextSize === null) {
-        guide.hidden = true
-        guide.style.transform = ''
-        resizeBoundsRef.current = null
-        return
-      }
-
-      const bounds =
-        resizeBoundsRef.current ??
-        panelRef.current?.getBoundingClientRect() ??
-        null
-      if (!bounds) return
-      resizeBoundsRef.current = bounds
-      guide.hidden = false
-      const handleBounds = handleRef.current?.getBoundingClientRect()
-
-      if (isBottom) {
-        guide.style.left = `${bounds.left}px`
-        guide.style.top = `${
-          handleBounds
-            ? handleBounds.top + handleBounds.height / 2
-            : bounds.top
-        }px`
-        guide.style.width = `${bounds.width}px`
-        guide.style.height = ''
-        guide.style.transform = `translate3d(0, ${size - nextSize}px, 0)`
-        return
-      }
-
-      guide.style.left = `${
-        handleBounds
-          ? handleBounds.left + handleBounds.width / 2
-          : bounds.left
-      }px`
-      guide.style.top = `${bounds.top}px`
-      guide.style.width = ''
-      guide.style.height = `${bounds.height}px`
-      guide.style.transform = `translate3d(${size - nextSize}px, 0, 0)`
-    },
-    [isBottom, panelRef, size],
+    [],
   )
 
   const {
     collapseConfirmKey,
     collapseConfirmTarget,
+    handleLostPointerCapture,
+    handlePointerCancel,
+    handlePointerMove,
+    handlePointerUp,
     handleResizeKey,
     startResize,
   } = useSidebarResizeCollapseConfirm({
@@ -297,21 +227,12 @@ function WorkbenchPanelResizeController({
     onCollapse: onClose,
     onResetSize: isBottom ? onResetHeight : onResetWidth,
     onResizePhaseChange: updateResizePhase,
-    onResizePreview: previewSize,
+    onResizePreview: previewSize ?? undefined,
     onSetWidth: isBottom ? (onSetHeight ?? onSetWidth) : onSetWidth,
     width: size,
   })
 
   if (!isBottom && rightFullWidth) return null
-
-  const guide = (
-    <div
-      ref={guideRef}
-      aria-hidden="true"
-      className={`workbench-resize-guide workbench-resize-guide--${isBottom ? 'bottom' : 'right'}`}
-      hidden
-    />
-  )
 
   return (
     <>
@@ -336,9 +257,12 @@ function WorkbenchPanelResizeController({
         }
         onDoubleClick={isBottom ? onResetHeight : onResetWidth}
         onKeyDown={handleResizeKey}
+        onLostPointerCapture={handleLostPointerCapture}
+        onPointerCancel={handlePointerCancel}
         onPointerDown={startResize}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       />
-      {typeof document === 'undefined' ? null : createPortal(guide, document.body)}
       {collapseConfirmTarget && typeof document !== 'undefined'
         ? createPortal(
             <div
@@ -538,8 +462,6 @@ export function WorkbenchPanel({
     >
       <WorkbenchPanelResizeController
         target={target}
-        panelRef={panelRef}
-        contentRef={contentRef}
         rightFullWidth={rightFullWidth}
         maxWidth={maxWidth}
         minWidth={minWidth}

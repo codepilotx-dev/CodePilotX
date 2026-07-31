@@ -843,6 +843,59 @@
   color: var(--color-token-description-foreground);
 }
 
+.sidebar-footer-status-slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 56px;
+  width: 56px;
+  min-width: 56px;
+}
+
+.sidebar-update-indicator {
+  flex: 0 0 56px;
+  width: 56px;
+  min-width: 56px;
+  padding-inline: var(--control-padding-inline-compact);
+  border-radius: var(--radius-full);
+  font-variant-numeric: tabular-nums;
+
+  &[data-phase='available'],
+  &[data-phase='downloading'],
+  &[data-phase='downloaded'] {
+    border-color: color-mix(
+      in srgb,
+      var(--color-token-git-decoration-added-resource-foreground) 78%,
+      var(--color-token-foreground)
+    );
+    background: color-mix(
+      in srgb,
+      var(--color-token-git-decoration-added-resource-foreground) 72%,
+      var(--color-token-foreground)
+    );
+    color: var(--color-token-main-surface-primary);
+  }
+
+  &[data-phase='available']:hover:not(:disabled),
+  &[data-phase='downloaded']:hover:not(:disabled) {
+    border-color: color-mix(
+      in srgb,
+      var(--color-token-git-decoration-added-resource-foreground) 88%,
+      var(--color-token-foreground)
+    );
+    background: color-mix(
+      in srgb,
+      var(--color-token-git-decoration-added-resource-foreground) 82%,
+      var(--color-token-foreground)
+    );
+  }
+
+  &[data-phase='downloading']:disabled {
+    color: var(--color-token-main-surface-primary);
+    opacity: 1;
+  }
+}
+
 .sidebar-mobile-button {
   flex: 0 0 var(--control-size-md);
   width: var(--control-size-md);
@@ -1060,17 +1113,6 @@
   display: none;
 }
 
-.sidebar-resize-guide {
-  position: fixed;
-  z-index: 1000;
-  width: 3px;
-  pointer-events: none;
-  background: var(--color-token-text-link-foreground);
-  box-shadow: 0 0 0 1px
-    color-mix(in srgb, var(--color-token-main-surface-primary) 70%, transparent);
-  will-change: transform;
-}
-
 /* --- Collapse confirm target --- */
 .sidebar-collapse-confirm-target {
   --sidebar-collapse-progress: 0turn;
@@ -1160,22 +1202,4 @@
 .sidebar-brand-floating,
 .sidebar-history-watermark {
   color: var(--color-token-text-tertiary);
-}
-
-.sidebar-update-dot {
-  background: var(--color-token-editor-warning-foreground);
-}
-
-.sidebar-settings-icon-wrap {
-  position: relative;
-  display: inline-flex;
-}
-
-.sidebar-update-dot {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
 }

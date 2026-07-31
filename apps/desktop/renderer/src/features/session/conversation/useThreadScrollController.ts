@@ -39,6 +39,13 @@ export function distanceFromThreadBottom(metrics: ScrollMetrics): number {
   )
 }
 
+export function canReturnToThreadBottom(
+  hasMeasuredBottom: boolean,
+  isAtBottom: boolean,
+): boolean {
+  return hasMeasuredBottom && !isAtBottom
+}
+
 export function scrollOffsetForThreadBottomDistance(
   metrics: Pick<ScrollMetrics, 'scrollSize' | 'viewportSize'>,
   distanceFromBottom: number,
@@ -180,6 +187,7 @@ type ThreadScrollController = {
   beginProgrammaticScroll: (smooth: boolean) => boolean
   bottomSentinelRef: (node: HTMLDivElement | null) => void
   handleScroll: (scrollTop: number) => void
+  canReturnToBottom: boolean
   hasNewContent: boolean
   isAtBottom: boolean
   mode: ThreadScrollMode
@@ -191,6 +199,24 @@ export function isProgrammaticScrollActive(
   programmaticScrollUntil: number,
 ): boolean {
   return now <= programmaticScrollUntil
+}
+
+export function resolveThreadAtBottomDuringExplicitReturn({
+  actualAtBottom,
+  explicitReturnInProgress,
+  now,
+  programmaticScrollUntil,
+}: {
+  actualAtBottom: boolean
+  explicitReturnInProgress: boolean
+  now: number
+  programmaticScrollUntil: number
+}): boolean {
+  return (
+    actualAtBottom ||
+    (explicitReturnInProgress &&
+      isProgrammaticScrollActive(now, programmaticScrollUntil))
+  )
 }
 
 function readMetrics(
@@ -224,6 +250,7 @@ export function useThreadScrollController({
   const reducedMotion = usePrefersReducedMotion()
   const [mode, setModeState] = React.useState<ThreadScrollMode>('static')
   const [hasNewContent, setHasNewContent] = React.useState(false)
+  const [hasMeasuredBottom, setHasMeasuredBottom] = React.useState(false)
   const [isAtBottom, setIsAtBottom] = React.useState(false)
   const [bottomSentinel, setBottomSentinel] =
     React.useState<HTMLDivElement | null>(null)
@@ -237,6 +264,7 @@ export function useThreadScrollController({
   const previousOffsetRef = React.useRef(0)
   const previousScrollSizeRef = React.useRef(0)
   const programmaticScrollUntilRef = React.useRef(0)
+  const explicitReturnInProgressRef = React.useRef(false)
   const scrollFrameRef = React.useRef<number | null>(null)
   const sessionKeyRef = React.useRef(sessionKey)
 
@@ -249,10 +277,17 @@ export function useThreadScrollController({
   }, [])
 
   const updateAtBottom = React.useCallback((nextAtBottom: boolean): void => {
+    setHasMeasuredBottom(true)
     atBottomRef.current = nextAtBottom
     setIsAtBottom((current) =>
       current === nextAtBottom ? current : nextAtBottom,
     )
+  }, [])
+
+  const resetBottomMeasurement = React.useCallback((): void => {
+    atBottomRef.current = false
+    setHasMeasuredBottom(false)
+    setIsAtBottom(false)
   }, [])
 
   const beginProgrammaticScroll = React.useCallback(
@@ -266,7 +301,7 @@ export function useThreadScrollController({
   )
 
   const scrollToEnd = React.useCallback(
-    (smooth: boolean): void => {
+    (smooth: boolean, explicitReturn = false): void => {
       if (scrollFrameRef.current !== null) {
         cancelAnimationFrame(scrollFrameRef.current)
       }
@@ -275,9 +310,13 @@ export function useThreadScrollController({
         const handle = listRef.current
         const viewport = scrollRef.current
         const metrics = readMetrics(handle, viewport)
-        if (!handle || !metrics) return
+        if (!handle || !metrics) {
+          explicitReturnInProgressRef.current = false
+          return
+        }
         const target = Math.max(0, metrics.scrollSize - metrics.viewportSize)
         const useSmoothScroll = beginProgrammaticScroll(smooth)
+        explicitReturnInProgressRef.current = explicitReturn
         if (viewport) {
           viewport.scrollTo({
             top: target,
@@ -310,9 +349,18 @@ export function useThreadScrollController({
         ...metrics,
         scrollOffset: scrollTop,
       })
-      const atBottom =
+      const actualAtBottom =
         distance <= THREAD_BOTTOM_THRESHOLD_PX ||
         intersectionAtBottomRef.current
+      const atBottom = resolveThreadAtBottomDuringExplicitReturn({
+        actualAtBottom,
+        explicitReturnInProgress: explicitReturnInProgressRef.current,
+        now: Date.now(),
+        programmaticScrollUntil: programmaticScrollUntilRef.current,
+      })
+      if (actualAtBottom || !atBottom) {
+        explicitReturnInProgressRef.current = false
+      }
       const previousOffset = previousOffsetRef.current
       const userScrolledUp =
         scrollTop < previousOffset - 2 &&
@@ -383,7 +431,7 @@ export function useThreadScrollController({
         explicitFollow: true,
       }),
     )
-    scrollToEnd(true)
+    scrollToEnd(true, true)
   }, [applyDecision, scrollToEnd])
 
   React.useEffect(() => {
@@ -398,6 +446,7 @@ export function useThreadScrollController({
 
     setMode('static')
     setHasNewContent(false)
+    explicitReturnInProgressRef.current = false
     intersectionAtBottomRef.current = false
     previousActiveRef.current = preserveHistoricalPosition
       ? activeRef.current
@@ -406,7 +455,7 @@ export function useThreadScrollController({
     previousCountRef.current = itemCountRef.current
     previousOffsetRef.current = restoredOffset
     previousScrollSizeRef.current = metrics?.scrollSize ?? 0
-    updateAtBottom(false)
+    resetBottomMeasurement()
 
     if (restoredOffset > 0) {
       programmaticScrollUntilRef.current = Date.now() + 180
@@ -430,7 +479,7 @@ export function useThreadScrollController({
     scrollRef,
     sessionKey,
     setMode,
-    updateAtBottom,
+    resetBottomMeasurement,
   ])
 
   React.useEffect(() => {
@@ -519,7 +568,21 @@ export function useThreadScrollController({
       ([entry]) => {
         const visible = Boolean(entry?.isIntersecting)
         intersectionAtBottomRef.current = visible
-        if (visible) updateAtBottom(true)
+        const metrics = readMetrics(listRef.current, viewport)
+        const actualAtBottom =
+          visible ||
+          (metrics !== null &&
+            distanceFromThreadBottom(metrics) <= THREAD_BOTTOM_THRESHOLD_PX)
+        const atBottom = resolveThreadAtBottomDuringExplicitReturn({
+          actualAtBottom,
+          explicitReturnInProgress: explicitReturnInProgressRef.current,
+          now: Date.now(),
+          programmaticScrollUntil: programmaticScrollUntilRef.current,
+        })
+        if (actualAtBottom || !atBottom) {
+          explicitReturnInProgressRef.current = false
+        }
+        updateAtBottom(atBottom)
       },
       { root: viewport, threshold: 0.01 },
     )
@@ -528,7 +591,7 @@ export function useThreadScrollController({
       observer.disconnect()
       intersectionAtBottomRef.current = false
     }
-  }, [bottomSentinel, scrollRef, sessionKey, updateAtBottom])
+  }, [bottomSentinel, listRef, scrollRef, sessionKey, updateAtBottom])
 
   React.useEffect(
     () => () => {
@@ -542,6 +605,10 @@ export function useThreadScrollController({
   return {
     beginProgrammaticScroll,
     bottomSentinelRef: setBottomSentinel,
+    canReturnToBottom: canReturnToThreadBottom(
+      hasMeasuredBottom,
+      isAtBottom,
+    ),
     handleScroll,
     hasNewContent,
     isAtBottom,
