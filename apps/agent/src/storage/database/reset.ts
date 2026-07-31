@@ -32,6 +32,24 @@ const configureTemporaryConnection = (database: Database) => {
   database.exec("PRAGMA busy_timeout = 5000")
 }
 
+const queryOne = <T>(sqlite: Database, sql: string): T => {
+  const statement = sqlite.prepare(sql)
+  try {
+    return statement.get() as T
+  } finally {
+    statement.finalize()
+  }
+}
+
+const queryAll = <T>(sqlite: Database, sql: string): T[] => {
+  const statement = sqlite.prepare(sql)
+  try {
+    return statement.all() as T[]
+  } finally {
+    statement.finalize()
+  }
+}
+
 const retryLockedFile = (work: () => void) => {
   for (let attempt = 0; attempt < LOCKED_FILE_RETRY_LIMIT; attempt += 1) {
     try {
@@ -71,16 +89,16 @@ const databaseMeta = (path: string) => {
   const sqlite = new Database(path, { create: false, strict: true })
   try {
     return {
-      applicationID: (sqlite.query("PRAGMA application_id").get() as { application_id: number }).application_id,
-      userVersion: (sqlite.query("PRAGMA user_version").get() as { user_version: number }).user_version,
-      userTableCount: (sqlite.query(`
+      applicationID: queryOne<{ application_id: number }>(sqlite, "PRAGMA application_id").application_id,
+      userVersion: queryOne<{ user_version: number }>(sqlite, "PRAGMA user_version").user_version,
+      userTableCount: queryOne<{ count: number }>(sqlite, `
         SELECT COUNT(*) AS count
         FROM sqlite_master
         WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-      `).get() as { count: number }).count,
+      `).count,
     }
   } finally {
-    sqlite.close()
+    sqlite.close(true)
   }
 }
 
@@ -89,7 +107,7 @@ const checkpoint = (path: string) => {
   try {
     sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)")
   } finally {
-    sqlite.close()
+    sqlite.close(true)
   }
 }
 
@@ -100,7 +118,7 @@ const tableNames = (schema: readonly string[]) => schema.flatMap((statement) => 
 })
 
 const columns = (sqlite: Database, schema: string, table: string) =>
-  (sqlite.query(`PRAGMA ${schema}.table_info("${table.replaceAll('"', '""')}")`).all() as Array<{ name: string }>)
+  queryAll<{ name: string }>(sqlite, `PRAGMA ${schema}.table_info("${table.replaceAll('"', '""')}")`)
     .map(({ name }) => name)
 
 const copyRecognizedTables = (
@@ -113,7 +131,7 @@ const copyRecognizedTables = (
   target.exec(`ATTACH DATABASE '${escapedSourcePath}' AS legacy`)
   try {
     const sourceTables = new Set(
-      (target.query("SELECT name FROM legacy.sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>)
+      queryAll<{ name: string }>(target, "SELECT name FROM legacy.sqlite_master WHERE type = 'table'")
         .map(({ name }) => name),
     )
     target.transaction(() => {
@@ -124,9 +142,9 @@ const copyRecognizedTables = (
         if (shared.length === 0) continue
         const quoted = shared.map((name) => `"${name.replaceAll('"', '""')}"`).join(", ")
         const quotedTable = `"${table.replaceAll('"', '""')}"`
-        const sourceCount = (target.query(`SELECT COUNT(*) AS count FROM legacy.${quotedTable}`).get() as { count: number }).count
+        const sourceCount = queryOne<{ count: number }>(target, `SELECT COUNT(*) AS count FROM legacy.${quotedTable}`).count
         target.exec(`INSERT OR REPLACE INTO main.${quotedTable} (${quoted}) SELECT ${quoted} FROM legacy.${quotedTable}`)
-        const targetCount = (target.query(`SELECT COUNT(*) AS count FROM main.${quotedTable}`).get() as { count: number }).count
+        const targetCount = queryOne<{ count: number }>(target, `SELECT COUNT(*) AS count FROM main.${quotedTable}`).count
         if (targetCount !== sourceCount) {
           throw new Error(`${table} 迁移行数不一致 (${sourceCount} → ${targetCount})`)
         }
@@ -139,12 +157,12 @@ const copyRecognizedTables = (
 }
 
 const validateDatabase = (sqlite: Database, kind: "history" | "profile") => {
-  const integrity = sqlite.query("PRAGMA integrity_check").get() as { integrity_check: string }
+  const integrity = queryOne<{ integrity_check: string }>(sqlite, "PRAGMA integrity_check")
   if (integrity.integrity_check !== "ok") throw new Error(`${kind} 数据库完整性校验失败`)
-  const foreignKeyFailure = sqlite.query("PRAGMA foreign_key_check").get()
+  const foreignKeyFailure = queryOne<{ [key: string]: unknown }>(sqlite, "PRAGMA foreign_key_check")
   if (foreignKeyFailure) throw new Error(`${kind} 数据库外键校验失败`)
   if (kind === "profile") {
-    const settings = sqlite.query("SELECT key, value FROM app_settings").all() as Array<{ key: string; value: string }>
+    const settings = queryAll<{ key: string; value: string }>(sqlite, "SELECT key, value FROM app_settings")
     for (const setting of settings) {
       try {
         JSON.parse(setting.value)
@@ -176,11 +194,11 @@ const buildMigratingDatabase = (
     )
     validateDatabase(sqlite, kind)
   } catch (cause) {
-    sqlite.close()
+    sqlite.close(true)
     removeTemporaryDatabaseAfterFailure(temporaryPath)
     throw cause
   }
-  sqlite.close()
+  sqlite.close(true)
   return temporaryPath
 }
 
@@ -215,7 +233,7 @@ const prepareHistoryStorage = (path: string) => {
   try {
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
   } finally {
-    sqlite.close()
+    sqlite.close(true)
   }
 }
 
@@ -236,11 +254,11 @@ const upgradeMixedHistoryV17 = (paths: StoragePaths) => {
     copyRecognizedTables(paths.historyPath, sqlite, HISTORY_SCHEMA)
     validateDatabase(sqlite, "history")
   } catch (cause) {
-    sqlite.close()
+    sqlite.close(true)
     removeTemporaryDatabaseAfterFailure(temporaryPath)
     throw cause
   }
-  sqlite.close()
+  sqlite.close(true)
 
   removeDatabaseSidecars(paths.historyPath)
   retryLockedFile(() => renameSync(temporaryPath, paths.historyPath))
