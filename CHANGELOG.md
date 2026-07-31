@@ -9,6 +9,7 @@
 
 ### Added
 
+- [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
 - [release] 新增专用 Windows runner 驱动的两阶段 Beta 自动发布流程，在 main 静默期后自动升版、完整验证、创建 Release PR，并于远端 CI 通过后签名打标和发布 prerelease
 - [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
 - [governance] 采用 Apache License 2.0，并新增贡献指南、行为准则、安全披露策略、CODEOWNERS、Issue/PR 模板与 Dependabot 配置，明确公开协作和依赖维护边界
@@ -27,6 +28,9 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
+- [desktop/renderer/test] 更新 Settings 综合视觉用例对统一动作按钮契约的断言，避免继续校验已移除的旧无边框样式。
+- [desktop/renderer] 修复紧凑交互行悬停色被错误映射为主表面背景的问题，还原 Codex 的透明叠加层级，并让侧栏、Composer 与会话摘要获得清晰一致的 hover 反馈。
 - [renderer] 修复分支与项目搜索弹层底部动作区被列表压缩并落入 Composer 功能栏的问题
 - [Agent/Desktop] 修复 Windows 开发环境中文件原子覆盖失败及 Agent 自重启中断对话的问题，并在重启恢复时正确收尾运行中的工具调用
 - [renderer] 修复 Composer 功能栏与输入主体背景层级相同的问题，通过主题主表面与面板表面派生更深的功能栏层级
