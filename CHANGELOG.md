@@ -16,6 +16,7 @@
 
 ### Changed
 
+- [release] 发布机 workflow 不再依赖 setup-bun 在线下载，改用发布机预装 Bun 1.3.14（PATH 提供），避免受限网络下工具链下载失败
 - [desktop/renderer] 统一侧栏、菜单、Composer、设置、Review 与会话摘要的紧凑交互行规格和状态反馈，减少同类控件的尺寸、圆角与浮层效果漂移。
 - [renderer] 收紧会话摘要与中等宽度阅读区，并调整响应式断点，使约 1920px 窗口同时打开侧栏和 Review 时仍保留置顶摘要
 - [renderer] 移除共享动作按钮阴影，并降低卡片、弹窗与浮层的全局阴影层级
