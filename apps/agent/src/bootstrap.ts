@@ -77,6 +77,7 @@ import { UsageRepository } from "./storage/repositories/usage-repository";
 export interface BootstrapOptions {
   models?: Models;
   initializeDatabase?: (db: AgentDatabase) => void;
+  onReviewGitCommand?: (args: readonly string[]) => void;
 }
 
 export const createBootstrap = (options: BootstrapOptions = {}) =>
@@ -230,7 +231,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         });
       },
       (input) => github.preparedPullRequestComparison(input),
-      undefined,
+      options.onReviewGitCommand,
       logger,
     );
     const git = new GitWorkspaceService(db);

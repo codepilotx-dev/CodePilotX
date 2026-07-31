@@ -11,6 +11,7 @@
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "test:performance": "playwright test --config playwright.performance.config.ts",
     "test:plan": "playwright test --config playwright.plan.config.ts",
+    "test:review-concurrency": "playwright test --config playwright.review-concurrency.config.ts",
     "package:win": "electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
