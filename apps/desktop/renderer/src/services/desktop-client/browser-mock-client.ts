@@ -102,6 +102,7 @@ import {
 import type { DesktopClientEnvironment } from './types.js'
 import {
   cleanGitStatus,
+  createBrowserPerformanceFixture,
   createBrowserVisualFixture,
   emptyBrowserState,
   emptyReviewDiff,
@@ -172,6 +173,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     modelMetadata: provider.modelMetadata,
   })
   const visualFixture = createBrowserVisualFixture()
+  const performanceFixture = createBrowserPerformanceFixture()
   const visualSessionReadDelayMs =
     import.meta.env.DEV && typeof window !== 'undefined'
       ? Math.min(
@@ -223,6 +225,12 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
         sessions.set(sessionId, target)
       }
     }
+  }
+  if (performanceFixture) {
+    for (const snapshot of performanceFixture.sessions) {
+      sessions.set(snapshot.item.id, snapshot)
+    }
+    activeSessionId = performanceFixture.activeSessionId
   }
 
   return {
@@ -748,6 +756,24 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       activeSessionId = sessionId
       emitSessionStoreChange()
     },
+    markSessionRead: async (sessionId, readThroughAt) => {
+      const snapshot = sessions.get(sessionId)
+      if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
+      const unreadAt = snapshot.item.unreadAt
+      if (
+        !unreadAt ||
+        Date.parse(unreadAt) > Date.parse(readThroughAt)
+      ) {
+        return snapshot.item
+      }
+      const next = {
+        ...snapshot,
+        item: { ...snapshot.item, unreadAt: null },
+      }
+      sessions.set(sessionId, next)
+      emitSessionStoreChange()
+      return next.item
+    },
     updateSessionMetadata: async (sessionId, patch) => {
       const snapshot = sessions.get(sessionId)
       if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
@@ -813,7 +839,6 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       emitSessionStoreChange()
       return next
     },
-    readWorkflowEventLog: async () => [],
     openExternalURL: async url => {
       globalThis.open?.(url, '_blank', 'noopener,noreferrer')
     },

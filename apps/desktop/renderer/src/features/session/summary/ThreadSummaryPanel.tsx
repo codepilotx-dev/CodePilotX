@@ -21,6 +21,8 @@ import { BranchSelectPopover } from "../composer/BranchSelectPopover.js";
 import type { ThreadSummaryViewModel } from "./threadSummaryViewModel.js";
 import { previewThreadSummarySources } from "./threadSummaryViewModel.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
+import { IconButton } from "../../../components/ui/IconButton.js";
+import { useDialogFocusRestore } from "../../../components/ui/useDialogFocusRestore.js";
 
 type ThreadSummaryActions = {
   onBranchSelect: (branch: string) => Promise<void>;
@@ -166,7 +168,7 @@ export function ThreadSummaryPanel({
           actionLabel="暂不支持创建本地环境"
         >
           <button
-            className="thread-summary-row"
+            className="interactive-row interactive-row--adaptive thread-summary-row"
             title="打开变更审查"
             type="button"
             onClick={onOpenReview}
@@ -187,7 +189,7 @@ export function ThreadSummaryPanel({
             title={model.environment.workspacePath}
           >
             <button
-              className="thread-summary-row-group__main"
+              className="interactive-row interactive-row--adaptive thread-summary-row-group__main"
               type="button"
               onClick={onOpenWorkspacePath}
             >
@@ -215,7 +217,7 @@ export function ThreadSummaryPanel({
             onOpenChange={setBranchPopoverOpen}
             trigger={
               <button
-                className="thread-summary-row"
+                className="interactive-row interactive-row--adaptive thread-summary-row"
                 data-state={branchPopoverOpen ? "open" : "closed"}
                 title={model.environment.branchName ?? "未检测到 Git 分支"}
                 type="button"
@@ -254,7 +256,7 @@ export function ThreadSummaryPanel({
       {model.plan ? (
         <ThreadSummarySection title="计划">
           <button
-            className="thread-summary-row"
+            className="interactive-row interactive-row--adaptive thread-summary-row"
             type="button"
             onClick={() => onOpenPlan(model.plan!)}
           >
@@ -272,7 +274,7 @@ export function ThreadSummaryPanel({
         >
           {sourcePreview.items.map((source) => (
             <a
-              className="thread-summary-row"
+              className="interactive-row interactive-row--adaptive thread-summary-row"
               href={source.url}
               key={source.url}
               rel="noreferrer"
@@ -285,7 +287,7 @@ export function ThreadSummaryPanel({
           ))}
           <button
             aria-haspopup="dialog"
-            className="thread-summary-row thread-summary-source-toggle"
+            className="interactive-row interactive-row--adaptive thread-summary-row thread-summary-source-toggle"
             type="button"
             onClick={() => setSourcesPanelOpen(true)}
           >
@@ -325,7 +327,7 @@ function ThreadSummarySubagentsRow({
   return (
     <div
       aria-label={`子智能体：${label}`}
-      className="thread-summary-row thread-summary-subagents-summary"
+      className="interactive-row interactive-row--adaptive thread-summary-row thread-summary-subagents-summary"
       title={subagents.map((subagent) => subagent.name).join("、")}
     >
       <span className="thread-summary-subagents-summary__avatars">
@@ -352,18 +354,25 @@ function ThreadSummarySourcesPanel({
   sources: ThreadSummaryViewModel["sources"];
   onOpenChange: (open: boolean) => void;
 }): React.ReactNode {
+  const { onCloseAutoFocus } = useDialogFocusRestore(open);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="thread-summary-sources-overlay" />
-        <Dialog.Content className="thread-summary-sources-panel">
+        <Dialog.Content
+          className="thread-summary-sources-panel"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
           <header>
             <div>
               <Dialog.Title>来源</Dialog.Title>
               <span>{sources.length}</span>
             </div>
-            <Dialog.Close aria-label="关闭来源面板" type="button">
-              <X aria-hidden="true" size={APP_ICON_SIZE} />
+            <Dialog.Close asChild>
+              <IconButton title="关闭来源面板">
+                <X aria-hidden="true" size={APP_ICON_SIZE} />
+              </IconButton>
             </Dialog.Close>
           </header>
           <Dialog.Description>
@@ -372,6 +381,7 @@ function ThreadSummarySourcesPanel({
           <div className="thread-summary-sources-panel__list" role="list">
             {sources.map((source) => (
               <a
+                className="interactive-row interactive-row--adaptive"
                 href={source.url}
                 key={source.url}
                 rel="noreferrer"
@@ -492,7 +502,7 @@ function SummaryGitActionRow({
   const row = (
     <button
       aria-disabled={!enabled}
-      className="thread-summary-row"
+      className="interactive-row interactive-row--adaptive thread-summary-row"
       type="button"
       onClick={(event) => {
         if (!enabled) {

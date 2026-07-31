@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   deriveThreadSummaryState,
+  resolveThreadSummaryContentShift,
   resolveThreadSummaryDisplayMode,
   THREAD_SUMMARY_SHIFT_PX,
   toggleThreadSummaryPreference,
@@ -15,16 +16,16 @@ import {
 
 describe("thread summary state", () => {
   test("resolves the exact responsive boundaries", () => {
-    expect(resolveThreadSummaryDisplayMode(1095)).toBe("overlay");
-    expect(resolveThreadSummaryDisplayMode(1096)).toBe("shift");
+    expect(resolveThreadSummaryDisplayMode(959)).toBe("overlay");
+    expect(resolveThreadSummaryDisplayMode(960)).toBe("shift");
     expect(resolveThreadSummaryDisplayMode(1535)).toBe("shift");
     expect(resolveThreadSummaryDisplayMode(1536)).toBe("gutter");
     expect(resolveThreadSummaryDisplayMode(Number.NaN)).toBe("overlay");
   });
 
-  test("derives inline visibility and the Codex half-panel shift", () => {
+  test("derives inline visibility and a gap-aware content shift", () => {
     expect(
-      deriveThreadSummaryState(1096, {
+      deriveThreadSummaryState(960, {
         isPinned: true,
         isPopoverOpen: false,
       }),
@@ -33,7 +34,9 @@ describe("thread summary state", () => {
       shouldShowInline: true,
       contentShift: THREAD_SUMMARY_SHIFT_PX,
     });
-    expect(THREAD_SUMMARY_SHIFT_PX).toBe(-158);
+    expect(THREAD_SUMMARY_SHIFT_PX).toBe(-144);
+    expect(resolveThreadSummaryContentShift(1043)).toBe(-102.5);
+    expect(resolveThreadSummaryContentShift(1248)).toBe(0);
 
     expect(
       deriveThreadSummaryState(1536, {
@@ -46,7 +49,7 @@ describe("thread summary state", () => {
       contentShift: 0,
     });
     expect(
-      deriveThreadSummaryState(1096, {
+      deriveThreadSummaryState(960, {
         isPinned: false,
         isPopoverOpen: false,
       }),

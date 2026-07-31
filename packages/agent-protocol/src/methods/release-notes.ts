@@ -28,7 +28,10 @@ export const ReleaseNoteSchema = Schema.Struct({
 })
 
 export const ReleaseNotesListResultSchema = Schema.Struct({
-  source: Schema.Literal("github-releases"),
+  source: Schema.Literals([
+    "github-releases",
+    "bundled-changelog",
+  ]),
   repository: Schema.Literal("codepilotx-dev/CodePilotX"),
   currentVersion: VersionSchema,
   currentReleaseFound: Schema.Boolean,

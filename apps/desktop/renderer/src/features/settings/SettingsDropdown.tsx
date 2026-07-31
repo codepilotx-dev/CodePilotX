@@ -2,12 +2,11 @@ import React from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import * as Select from '@radix-ui/react-select'
 import { Check, ChevronDown } from 'lucide-react'
-import { preventOutsideDismissWhenDebug } from '../../components/ui/debugDropdown.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
-import { readDesktopBrowserDebugMode } from '../../services/desktop-client/index.js'
+import { cx } from '../../utils/cx.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 
 type Option = {
@@ -27,8 +26,8 @@ type Props = {
   variant?: 'default' | 'theme'
   searchable?: boolean
   searchPlaceholder?: string
-  disableOutsideDismiss?: boolean
   showSelectedIndicator?: boolean
+  triggerClassName?: string
 } & PopoverSizingProps
 
 const EMPTY_VALUE = '__radix_empty_value__'
@@ -68,7 +67,7 @@ function SelectSettingsDropdown({
   disabled,
   variant,
   showSelectedIndicator,
-  disableOutsideDismiss,
+  triggerClassName,
   width,
   maxWidth,
 }: Props) {
@@ -89,13 +88,20 @@ function SelectSettingsDropdown({
     >
       <Select.Trigger
         aria-label={ariaLabel}
-        className="settings-dropdown"
+        className={cx(
+          'interactive-row',
+          'interactive-row--toolbar',
+          'settings-dropdown',
+          'settings-dropdown-trigger',
+          triggerClassName,
+        )}
         data-variant={variant}
-        tabIndex={-1}
       >
         <div className="settings-dropdown-value">
           {selectedOption?.icon}
-          <Select.Value placeholder={selectedOption?.label} />
+          <Select.Value placeholder={selectedOption?.label}>
+            {selectedOption?.label}
+          </Select.Value>
         </div>
         <Select.Icon asChild>
           <ChevronDown className="settings-dropdown-icon" />
@@ -109,18 +115,15 @@ function SelectSettingsDropdown({
           data-variant={variant}
           position="popper"
           side="bottom"
-          sideOffset={1}
+          sideOffset={4}
           style={buildPopoverSizingStyle({
             width,
             maxWidth:
               maxWidth ??
               (isThemeVariant
-                ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
+                ? 'min(360px, calc(100vw - 16px))'
                 : undefined),
           })}
-          onPointerDownOutside={(event) => {
-            preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
-          }}
         >
           <Select.Viewport className="settings-dropdown-scroll-area">
             <div className="settings-dropdown-scroll-content">
@@ -173,8 +176,8 @@ function SearchableSettingsDropdown({
   disabled,
   variant,
   searchPlaceholder = '搜索...',
-  disableOutsideDismiss = readDesktopBrowserDebugMode(),
   showSelectedIndicator = false,
+  triggerClassName,
   width,
   maxWidth,
 }: Props) {
@@ -199,7 +202,7 @@ function SearchableSettingsDropdown({
 
   const activeDescendant =
     activeIndex >= 0 && activeIndex < visibleOptions.length
-      ? `sd-option-${instanceId}-${visibleOptions[activeIndex].value}`
+      ? `sd-option-${instanceId}-${activeIndex}`
       : undefined
 
   // Open → focus search
@@ -291,10 +294,15 @@ function SearchableSettingsDropdown({
         <button
           ref={triggerRef}
           aria-label={ariaLabel}
-          className="settings-dropdown"
+          className={cx(
+            'interactive-row',
+            'interactive-row--toolbar',
+            'settings-dropdown',
+            'settings-dropdown-trigger',
+            triggerClassName,
+          )}
           data-variant={variant}
           disabled={disabled}
-          tabIndex={-1}
           type="button"
         >
           <div className="settings-dropdown-value">
@@ -307,11 +315,16 @@ function SearchableSettingsDropdown({
       <Popover.Portal>
         <Popover.Content
           align="end"
-          className="popover-surface settings-dropdown-content"
+          aria-label={ariaLabel ?? '搜索选项'}
+          className={cx(
+            'popover-surface',
+            'settings-dropdown-content',
+            'settings-dropdown-content--searchable',
+          )}
           collisionPadding={6}
           data-variant={variant}
           side="bottom"
-          sideOffset={1}
+          sideOffset={4}
           style={buildPopoverSizingStyle({
             width:
               width ??
@@ -319,14 +332,11 @@ function SearchableSettingsDropdown({
             maxWidth:
               maxWidth ??
               (variant === 'theme'
-                ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
+                ? 'min(360px, calc(100vw - 16px))'
                 : undefined),
           })}
-          onPointerDownOutside={(event) => {
-            preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
-          }}
         >
-          <div className="settings-dropdown-search">
+          <div className="popover-search-region settings-dropdown-search">
             <SearchInput
               ref={searchRef}
               aria-label={searchPlaceholder}
@@ -335,11 +345,14 @@ function SearchableSettingsDropdown({
               expanded={open}
               activeDescendant={activeDescendant}
               className="settings-dropdown-search-input"
-              onChange={setSearchQuery}
+              onChange={(nextQuery) => {
+                setSearchQuery(nextQuery)
+                setActiveIndex(-1)
+              }}
               onEscapeEmpty={undefined}
               placeholder={searchPlaceholder}
               value={searchQuery}
-              variant="embedded"
+              variant="compact"
               onKeyDown={handleKeyDown}
             />
           </div>
@@ -350,27 +363,24 @@ function SearchableSettingsDropdown({
           >
             <div className="settings-dropdown-scroll-content">
               {visibleOptions.length ? (
-                visibleOptions.map((opt) => {
-                  const idx = options.indexOf(opt)
-                  return (
-                    <button
-                      aria-selected={opt.value === value}
-                      className="settings-dropdown-item"
-                      data-disabled={opt.disabled || undefined}
-                      data-highlighted={idx === activeIndex || undefined}
-                      disabled={opt.disabled}
-                      id={`sd-option-${instanceId}-${opt.value}`}
-                      key={opt.value}
-                      onClick={() => selectOption(opt)}
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      role="option"
-                      tabIndex={-1}
-                      type="button"
-                    >
-                      {renderOptionContent(opt, showSelectedIndicator, opt.value === value)}
-                    </button>
-                  )
-                })
+                visibleOptions.map((opt, visibleIndex) => (
+                  <button
+                    aria-selected={opt.value === value}
+                    className="settings-dropdown-item"
+                    data-disabled={opt.disabled || undefined}
+                    data-highlighted={visibleIndex === activeIndex || undefined}
+                    disabled={opt.disabled}
+                    id={`sd-option-${instanceId}-${visibleIndex}`}
+                    key={opt.value}
+                    onClick={() => selectOption(opt)}
+                    onMouseEnter={() => setActiveIndex(visibleIndex)}
+                    role="option"
+                    tabIndex={-1}
+                    type="button"
+                  >
+                    {renderOptionContent(opt, showSelectedIndicator, opt.value === value)}
+                  </button>
+                ))
               ) : (
                 <div className="settings-dropdown-empty">未找到匹配项</div>
               )}

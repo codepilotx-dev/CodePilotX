@@ -26,7 +26,6 @@ type Props = {
   contextUsage: DesktopContextUsage | null
   selectedProviderID?: ModelProviderID
   side?: 'top' | 'bottom'
-  disableOutsideDismiss?: boolean
 }
 
 function renderQuotaRow(quota: ProviderQuotaWindow): React.ReactNode {
@@ -66,7 +65,6 @@ export function ComposerStatusOverlay({
   contextUsage,
   selectedProviderID,
   side = 'top',
-  disableOutsideDismiss = false,
 }: Props): React.ReactNode {
   const [usageSource, setUsageSource] = useState<ProviderUsageSource | null>(null)
   const [loading, setLoading] = useState(false)
@@ -115,7 +113,6 @@ export function ComposerStatusOverlay({
       side={side}
       width="100%"
       maxWidth="100%"
-      disableOutsideDismiss={disableOutsideDismiss}
     >
       <div className="composer-status-content">
         {/* Header */}

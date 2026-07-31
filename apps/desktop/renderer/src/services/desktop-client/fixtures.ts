@@ -462,6 +462,97 @@ export function mockSessionSnapshot(
   }
 }
 
+const PERFORMANCE_TURN_COUNTS = new Set([10, 100, 250, 500])
+const PERFORMANCE_SESSION_COUNTS = new Set([10, 30, 50, 100])
+
+export type BrowserPerformanceFixture = {
+  activeSessionId: string
+  sessions: DesktopSessionSnapshot[]
+}
+
+export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | null {
+  if (
+    import.meta.env.MODE !== 'performance' ||
+    typeof window === 'undefined'
+  ) {
+    return null
+  }
+
+  const search = new URLSearchParams(window.location.search)
+  if (search.get('performanceCase') !== 'desktop-ux') return null
+
+  const turns = fixtureCount(
+    search.get('performanceTurns'),
+    PERFORMANCE_TURN_COUNTS,
+    250,
+  )
+  const sessionCount = fixtureCount(
+    search.get('performanceSessions'),
+    PERFORMANCE_SESSION_COUNTS,
+    30,
+  )
+  const baseTime = Date.UTC(2026, 6, 30, 8, 0, 0)
+  const sessions: DesktopSessionSnapshot[] = []
+
+  for (let sessionIndex = 0; sessionIndex < sessionCount; sessionIndex += 1) {
+    const sessionId = `performance-session-${String(sessionIndex + 1).padStart(3, '0')}`
+    const workspace = mockWorkspace(
+      `F:\\CodeProject\\PerformanceFixture\\project-${String(
+        Math.floor(sessionIndex / 20) + 1,
+      ).padStart(2, '0')}`,
+    )
+    const snapshot = mockSessionSnapshot(sessionId, workspace, {
+      sessionName: `性能会话 ${String(sessionIndex + 1).padStart(3, '0')}`,
+      thinkingMode: 'adaptive',
+    })
+    const sessionTurns = sessionIndex === 0 ? turns : Math.min(turns, 10)
+    const messages: DesktopSessionSnapshot['view']['messages'] = []
+
+    for (let turnIndex = 0; turnIndex < sessionTurns; turnIndex += 1) {
+      const createdAt = new Date(
+        baseTime + sessionIndex * 3_600_000 + turnIndex * 2_000,
+      ).toISOString()
+      messages.push(
+        {
+          id: `${sessionId}-user-${turnIndex}`,
+          role: 'user',
+          text: `第 ${turnIndex + 1} 轮：检查桌面端性能路径 ${sessionIndex + 1}。`,
+          createdAt,
+        },
+        {
+          id: `${sessionId}-assistant-${turnIndex}`,
+          role: 'assistant',
+          text:
+            `会话 ${sessionIndex + 1} 的第 ${turnIndex + 1} 轮完成。\n\n` +
+            '- 保持会话投影稳定\n' +
+            '- 验证侧栏与输入响应\n\n' +
+            '```ts\nconst fixture = "deterministic"\n```',
+          createdAt: new Date(Date.parse(createdAt) + 1_000).toISOString(),
+        },
+      )
+    }
+
+    snapshot.view.messages = messages
+    snapshot.item.lastMessageAt = messages.at(-1)?.createdAt ?? snapshot.item.createdAt
+    snapshot.updatedAt = snapshot.item.lastMessageAt
+    sessions.push(snapshot)
+  }
+
+  return {
+    activeSessionId: sessions[0]!.item.id,
+    sessions,
+  }
+}
+
+function fixtureCount(
+  raw: string | null,
+  allowed: ReadonlySet<number>,
+  fallback: number,
+): number {
+  const parsed = Number.parseInt(raw ?? '', 10)
+  return allowed.has(parsed) ? parsed : fallback
+}
+
 export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   if (!import.meta.env.DEV || typeof window === 'undefined') return null
   const visualCase = new URLSearchParams(window.location.search).get('visualCase')
@@ -633,6 +724,203 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   snapshot.item.lastMessageAt = events.at(-1)?.createdAt ?? createdAt
   snapshot.updatedAt = snapshot.item.lastMessageAt
   return snapshot
+}
+
+const VISUAL_REVIEW_GENERATION = 'visual-review-generation'
+const VISUAL_REVIEW_REVISION = 'visual-review-revision'
+const VISUAL_REVIEW_SMALL_PATH =
+  'apps/desktop/renderer/test/codex-style-contracts.test.ts'
+const VISUAL_REVIEW_LARGE_PATH =
+  'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx'
+const VISUAL_REVIEW_ADDED_PATH =
+  'apps/desktop/renderer/src/features/review/status-added.ts'
+const VISUAL_REVIEW_DELETED_PATH =
+  'apps/desktop/renderer/src/features/review/status-deleted.ts'
+
+export function isBrowserVisualReviewCase(): boolean {
+  return import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('visualCase') === 'review'
+}
+
+function createBrowserVisualReviewLargePatch(): string {
+  const changedPairs = 520
+  const lines = [`@@ -1,${changedPairs} +1,${changedPairs} @@`]
+  for (let line = 1; line <= changedPairs; line += 1) {
+    lines.push(`-const previousValue${line} = "before-${line}"`)
+    lines.push(`+const currentValue${line} = "after-${line}"`)
+  }
+  return lines.join('\n')
+}
+
+function createBrowserVisualReviewSmallPatch(): string {
+  const context = [
+    "import { LAB_DEMOS } from '../src/features/labs/labRegistry.js'",
+    '',
+    "describe('Codex semantic token contract', () => {",
+    "  test('exports semantic color tokens', async () => {",
+  ]
+  const removed = [
+    '    expect(tokens).toHaveLength(117)',
+    '    expect(new Set(tokens).size).toBe(117)',
+    '    expect(stylesheet).toContain("--color-decoration-added")',
+  ]
+  const added = [
+    '    expect(tokens).toHaveLength(121)',
+    '    expect(new Set(tokens).size).toBe(121)',
+    "    expect(tokens).toContain('--color-token-input-background')",
+    "    expect(tokens).toContain('--color-token-dropdown-background')",
+    "    expect(tokens).toContain('--color-token-main-surface-primary')",
+    "    expect(tokens).toContain('--color-token-panel-background')",
+    "    expect(tokens).toContain('--color-token-control-background')",
+    "    expect(tokens).toContain('--color-token-elevated-background')",
+    '  })',
+    '',
+    "  test('keeps diff backgrounds separate from raw decoration colors', async () => {",
+    '    const stylesheet = await Bun.file(',
+    '      new URL(',
+    "        '../src/styles/design-system/codex-semantic-tokens.scss',",
+    '        import.meta.url,',
+    '      ),',
+    '    ).text()',
+    '',
+    '    expect(stylesheet).toContain(',
+    "      '--vscode-diffEditor-insertedLineBackground: var(--color-diff-added-line-background)',",
+    '    )',
+    '    expect(stylesheet).toContain(',
+    "      '--vscode-diffEditor-insertedTextBackground: var(--color-diff-added-text-background)',",
+    '    )',
+    '    expect(stylesheet).toContain(',
+    "      '--vscode-diffEditor-removedLineBackground: var(--color-diff-removed-line-background)',",
+    '    )',
+    '    expect(stylesheet).toContain(',
+    "      '--vscode-diffEditor-removedTextBackground: var(--color-diff-removed-text-background)',",
+    '    )',
+    '  })',
+  ]
+  return [
+    '@@ -1,7 +1,35 @@',
+    ...context.map(line => ` ${line}`),
+    ...removed.map(line => `-${line}`),
+    ...added.map(line => `+${line}`),
+  ].join('\n')
+}
+
+const VISUAL_REVIEW_LARGE_PATCH = createBrowserVisualReviewLargePatch()
+const VISUAL_REVIEW_SMALL_PATCH = createBrowserVisualReviewSmallPatch()
+
+export function browserVisualReviewSummary(
+  source: DesktopReviewSource,
+) {
+  if (!isBrowserVisualReviewCase()) return null
+  const changedLines = 1_074
+  return {
+    snapshot: {
+      projectId: 'visual-review-project',
+      generation: VISUAL_REVIEW_GENERATION,
+      source,
+      repositoryRoot: 'F:\\CodeProject\\CodePilotX-Ts',
+      headSha: '1111111111111111111111111111111111111111',
+      baseSha: null,
+      files: [
+        {
+          path: VISUAL_REVIEW_SMALL_PATH,
+          previousPath: null,
+          status: 'modified' as const,
+          additions: 31,
+          deletions: 3,
+          changedLines: 34,
+          changedBytes: 2_400,
+          binary: false,
+          revision: VISUAL_REVIEW_REVISION,
+        },
+        {
+          path: VISUAL_REVIEW_LARGE_PATH,
+          previousPath: null,
+          status: 'modified' as const,
+          additions: 520,
+          deletions: 520,
+          changedLines: 1_040,
+          changedBytes: 48_000,
+          binary: false,
+          revision: VISUAL_REVIEW_REVISION,
+        },
+        {
+          path: VISUAL_REVIEW_ADDED_PATH,
+          previousPath: null,
+          status: 'added' as const,
+          additions: 1,
+          deletions: 0,
+          changedLines: 1,
+          changedBytes: 32,
+          binary: false,
+          revision: VISUAL_REVIEW_REVISION,
+        },
+        {
+          path: VISUAL_REVIEW_DELETED_PATH,
+          previousPath: null,
+          status: 'deleted' as const,
+          additions: 0,
+          deletions: 1,
+          changedLines: 1,
+          changedBytes: 32,
+          binary: false,
+          revision: VISUAL_REVIEW_REVISION,
+        },
+      ],
+      totals: {
+        files: 4,
+        additions: 552,
+        deletions: 524,
+        changedLines: changedLines + 2,
+        changedBytes: 50_464,
+      },
+      largeDiffMode: false,
+    },
+    cacheState: 'fresh' as const,
+  }
+}
+
+export function browserVisualReviewFileDiff(
+  source: DesktopReviewSource,
+  path: string,
+) {
+  if (!isBrowserVisualReviewCase()) return null
+  const summary = browserVisualReviewSummary(source)!
+  const file = summary.snapshot.files.find(candidate => candidate.path === path)
+  if (!file) return null
+  const smallFile = path === VISUAL_REVIEW_SMALL_PATH
+  const largeFile = path === VISUAL_REVIEW_LARGE_PATH
+  const patch = smallFile
+    ? VISUAL_REVIEW_SMALL_PATCH
+    : largeFile
+      ? VISUAL_REVIEW_LARGE_PATCH
+      : path === VISUAL_REVIEW_ADDED_PATH
+        ? '@@ -0,0 +1 @@\n+export const added = true'
+        : '@@ -1 +0,0 @@\n-export const removed = true'
+  const header = smallFile
+    ? '@@ -1,7 +1,35 @@'
+    : largeFile
+      ? '@@ -1,520 +1,520 @@'
+      : path === VISUAL_REVIEW_ADDED_PATH
+        ? '@@ -0,0 +1 @@'
+        : '@@ -1 +0,0 @@'
+  return {
+    file,
+    revision: VISUAL_REVIEW_REVISION,
+    patch,
+    hunks: [{
+      id: `visual-review-${file.status}-hunk`,
+      header,
+      oldStart: path === VISUAL_REVIEW_ADDED_PATH ? 0 : 1,
+      oldLines: smallFile ? 7 : largeFile ? 520 : file.status === 'deleted' ? 1 : 0,
+      newStart: path === VISUAL_REVIEW_DELETED_PATH ? 0 : 1,
+      newLines: smallFile ? 35 : largeFile ? 520 : file.status === 'added' ? 1 : 0,
+      patch,
+    }],
+    renderable: true,
+    tooLargeReason: null,
+  }
 }
 
 export function requireMockSession(

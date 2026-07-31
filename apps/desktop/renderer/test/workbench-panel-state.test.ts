@@ -11,10 +11,18 @@ import {
   validateConversationUiState,
 } from '../src/features/layout/tabs/conversationUiState.js'
 import {
+  bottomPanelHeightFromRatio,
+  bottomPanelHeightToRatio,
+  createRightDockResponsiveState,
   getResponsiveRightDockDefaultWidth,
+  reduceRightDockResponsiveState,
   rightDockWidthFromRatio,
   rightDockWidthToRatio,
-} from '../src/features/layout/shell/useWorkbenchShellController.js'
+} from '../src/features/layout/shell/workbenchLayoutSizing.js'
+import {
+  resolveInitialBottomPanelHeightRatio,
+  resolveInitialRightDockWidthRatio,
+} from '../src/features/layout/shell/workbenchLayoutStorage.js'
 
 const review = { id: 'review', kind: 'review' } as const
 const browser = { id: 'browser', kind: 'browser' } as const
@@ -357,27 +365,51 @@ describe('workbench dynamic tab state', () => {
     expect(state.workbench.bottom.tabIds).toEqual([])
   })
 
-  test('resets v2 descriptors after the renderer data epoch change', () => {
+  test('drops removed debug tabs from persisted v4 state and preserves regular tabs', () => {
+    const fileTab = {
+      id: 'file:src/main.ts',
+      kind: 'file-preview',
+      workspacePath: 'F:\\project',
+      relativePath: 'src/main.ts',
+      preview: false,
+    } as const
+    const planTab = {
+      id: 'plan:event-1',
+      kind: 'plan',
+      eventId: 'event-1',
+      title: '实现计划',
+    } as const
+    const sideChat = { id: 'side-chat', kind: 'side-chat' } as const
     const state = validateConversationUiState(
       {
-        schemaVersion: 2,
+        schemaVersion: 4,
         workbench: {
           schemaVersion: 2,
           tabsById: {
             review,
-            browser,
+            [fileTab.id]: fileTab,
+            [planTab.id]: planTab,
+            [sideChat.id]: sideChat,
             'tool-probe': { id: 'tool-probe', kind: 'tool-probe' },
-            missing: { id: 'terminal', kind: 'terminal' },
+            'dialog-debug': { id: 'dialog-debug', kind: 'dialog-debug' },
+            'performance-diagnostics': {
+              id: 'performance-diagnostics',
+              kind: 'performance-diagnostics',
+            },
           },
           right: {
             open: true,
-            activeTabId: 'review',
-            tabIds: ['review', 'browser'],
+            activeTabId: planTab.id,
+            tabIds: ['review', fileTab.id, planTab.id, 'tool-probe'],
           },
           bottom: {
             open: true,
-            activeTabId: 'browser',
-            tabIds: ['browser', 'tool-probe'],
+            activeTabId: 'performance-diagnostics',
+            tabIds: [
+              sideChat.id,
+              'dialog-debug',
+              'performance-diagnostics',
+            ],
           },
           rightFullWidth: false,
           restoreRightFullWidthOnNextOpen: false,
@@ -387,13 +419,28 @@ describe('workbench dynamic tab state', () => {
         sideChatInput: '',
         sideChatAttachments: [],
       },
-      { debugMode: false },
+      {
+        validPlanEventIds: ['event-1'],
+        workspacePath: 'F:\\project',
+      },
     )
 
-    expect(state.workbench.right.tabIds).toEqual([])
-    expect(state.workbench.bottom.tabIds).toEqual([])
+    expect(state.workbench.right.tabIds).toEqual([
+      'review',
+      fileTab.id,
+      planTab.id,
+    ])
+    expect(state.workbench.right.activeTabId).toBe(planTab.id)
+    expect(state.workbench.bottom.tabIds).toEqual([sideChat.id])
+    expect(state.workbench.bottom.activeTabId).toBe(sideChat.id)
     expect(state.workbench.tabsById['tool-probe']).toBeUndefined()
-    expect(state.workbench.focusArea).toBe('main')
+    expect(state.workbench.tabsById).toEqual({
+      review,
+      [fileTab.id]: fileTab,
+      [planTab.id]: planTab,
+      [sideChat.id]: sideChat,
+    })
+    expect(state.workbench.focusArea).toBe('bottom-panel')
     expect(state.schemaVersion).toBe(4)
   })
 
@@ -718,6 +765,113 @@ describe('workbench right panel sizing', () => {
 
     const ratio = rightDockWidthToRatio(700, 1_500)
     expect(rightDockWidthFromRatio(ratio, 1_500)).toBe(700)
-    expect(rightDockWidthFromRatio(ratio, 1_200)).toBe(562)
+    expect(rightDockWidthFromRatio(ratio, 1_200)).toBe(560)
+  })
+
+  test('临时窄工作区只夹紧右栏有效宽度并保留原始比例', () => {
+    const ratio = rightDockWidthToRatio(500, 1_165)
+
+    expect(rightDockWidthFromRatio(ratio, 1_165)).toBe(500)
+    expect(rightDockWidthFromRatio(ratio, 685)).toBe(320)
+    expect(rightDockWidthFromRatio(ratio, 1_165)).toBe(500)
+  })
+
+  test('底栏随工作区等比缩放并保护上下区域的最小高度', () => {
+    const ratio = bottomPanelHeightToRatio(280, 800)
+
+    expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(280)
+    expect(bottomPanelHeightFromRatio(ratio, 640)).toBe(224)
+    expect(bottomPanelHeightFromRatio(ratio, 380)).toBe(160)
+    expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(280)
+  })
+
+  test('右栏自动隐藏和恢复使用 672/696 回差', () => {
+    let state = createRightDockResponsiveState(800)
+    state = reduceRightDockResponsiveState(state, {
+      type: 'resize',
+      workspaceWidth: 671,
+    })
+    expect(state).toEqual({ suppressed: true, manualOverride: false })
+
+    state = reduceRightDockResponsiveState(state, {
+      type: 'resize',
+      workspaceWidth: 680,
+    })
+    expect(state).toEqual({ suppressed: true, manualOverride: false })
+
+    state = reduceRightDockResponsiveState(state, {
+      type: 'resize',
+      workspaceWidth: 696,
+    })
+    expect(state).toEqual({ suppressed: false, manualOverride: false })
+  })
+
+  test('受限状态手动打开后保持显示，主动关闭后恢复自动抑制', () => {
+    let state = createRightDockResponsiveState(660)
+    state = reduceRightDockResponsiveState(state, {
+      type: 'manualOpen',
+      workspaceWidth: 660,
+    })
+    expect(state).toEqual({ suppressed: true, manualOverride: true })
+
+    state = reduceRightDockResponsiveState(state, {
+      type: 'resize',
+      workspaceWidth: 600,
+    })
+    expect(state).toEqual({ suppressed: true, manualOverride: true })
+
+    state = reduceRightDockResponsiveState(state, {
+      type: 'manualClose',
+      workspaceWidth: 600,
+    })
+    expect(state).toEqual({ suppressed: true, manualOverride: false })
+  })
+
+  test('优先读取 v2 比例并兼容迁移旧比例和旧像素尺寸', () => {
+    expect(
+      resolveInitialRightDockWidthRatio('.4', '700', 1_165, 800),
+    ).toBe(0.4)
+
+    const migratedLegacyRatio = resolveInitialRightDockWidthRatio(
+      null,
+      '.5',
+      1_165,
+      800,
+    )
+    expect(rightDockWidthFromRatio(migratedLegacyRatio, 1_165)).toBe(567)
+
+    const migratedPixels = resolveInitialRightDockWidthRatio(
+      null,
+      '500',
+      1_165,
+      800,
+    )
+    expect(rightDockWidthFromRatio(migratedPixels, 1_165)).toBe(500)
+
+    expect(
+      resolveInitialBottomPanelHeightRatio('.3', '280', 800),
+    ).toBe(0.3)
+    expect(
+      resolveInitialBottomPanelHeightRatio(null, '280', 800),
+    ).toBe(0.35)
+  })
+
+  test('非法存储值回退到当前工作区默认尺寸', () => {
+    const rightRatio = resolveInitialRightDockWidthRatio(
+      'invalid',
+      '-1',
+      1_165,
+      800,
+    )
+    expect(rightDockWidthFromRatio(rightRatio, 1_165)).toBe(
+      getResponsiveRightDockDefaultWidth(1_165, 800),
+    )
+
+    const bottomRatio = resolveInitialBottomPanelHeightRatio(
+      '2',
+      'invalid',
+      800,
+    )
+    expect(bottomPanelHeightFromRatio(bottomRatio, 800)).toBe(280)
   })
 })

@@ -29,6 +29,8 @@ import type {
   DesktopDataLocationControlSource,
   DesktopDataLocationState,
 } from '@codepilotx/shared/desktop-data-location-ipc'
+import type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
+export type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
 import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
@@ -1124,6 +1126,7 @@ export type DesktopSessionListItem = {
   permissionMode: DesktopPermissionMode
   collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
+  providerID?: ModelProviderID
   model: string | null
   effort?: string | null
   personality?: DesktopPersonality
@@ -1146,7 +1149,6 @@ export type DesktopSessionSettingsSnapshot = {
   planModeActive?: boolean
   providerID?: ModelProviderID
   providerBaseURL?: string
-  debugConversationDump?: boolean
   model?: string
   effort?: string | null
   personality?: DesktopPersonality
@@ -1256,7 +1258,6 @@ export type CreateDesktopSessionOptions = {
   planModeActive?: boolean
   providerID?: ModelProviderID
   providerBaseURL?: string
-  debugConversationDump?: boolean
   model?: string
   planExecutionModel?: string
   reviewModel?: string
@@ -1383,7 +1384,6 @@ export type DesktopModelSelection = {
   providerBaseURL?: string
   model?: string
   variant?: string
-  debugConversationDump?: boolean
   localRouterMode?: LocalRouterMode
 }
 
@@ -1451,14 +1451,6 @@ export type DesktopUiCommand =
   | 'refreshWorkspace'
   | 'openSettings'
   | 'logOut'
-
-export type DesktopUpdateStatus =
-  | { phase: 'checking' }
-  | { phase: 'available'; version: string }
-  | { phase: 'downloading'; percent: number }
-  | { phase: 'downloaded' }
-  | { phase: 'error'; message: string }
-  | { phase: 'no-update' }
 
 export type {
   DesktopDataLocationControlSource,
@@ -1698,7 +1690,7 @@ export type DesktopApi = {
   openPathWithDefaultTarget(targetPath: string): Promise<void>
   revealPathInFolder(targetPath: string): Promise<void>
   listModelProviders(): Promise<DesktopModelProviderSummary[]>
-  getModelProviderState(): Promise<DesktopModelProviderState>
+  getModelProviderState(providerID?: ModelProviderID): Promise<DesktopModelProviderState>
   fetchProviderModels(options: {
     providerID: ModelProviderID
     apiKey?: string
@@ -1873,6 +1865,10 @@ export type DesktopApi = {
   getSession(sessionId: string): Promise<DesktopSessionSnapshot>
   getActiveSessionId(): Promise<string | null>
   setActiveSession(sessionId: string | null): Promise<void>
+  markSessionRead(
+    sessionId: string,
+    readThroughAt: string,
+  ): Promise<DesktopSessionListItem>
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
@@ -1902,7 +1898,6 @@ export type DesktopApi = {
     sessionId: string,
     mode: LocalRouterMode,
   ): Promise<DesktopSessionSnapshot>
-  readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
   openExternalURL(url: string): Promise<void>
   sendUserMessage(
     sessionId: string,

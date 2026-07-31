@@ -56,7 +56,14 @@ export function SettingsPage({
   }
   else if (resolvedTab === 'profile') content = <ProfileSettings />
   else if (resolvedTab === 'personalization') content = <PersonalizationSettings onError={onError} onNotice={onNotice} />
-  else if (resolvedTab === 'memory') content = <MemorySettings />
+  else if (resolvedTab === 'memory') {
+    content = (
+      <MemorySettings
+        key={workspacePath ?? 'no-workspace'}
+        workspacePath={workspacePath}
+      />
+    )
+  }
   else if (resolvedTab === 'pets') content = <PetSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'shortcuts') content = <KeyboardShortcutsSettings />
   else if (resolvedTab === 'archived') content = <ArchivedConversationsSettings />

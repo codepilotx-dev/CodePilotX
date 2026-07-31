@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
+import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
 
 export type ApiKeyEditorValue = {
   providerId: ModelProviderID
@@ -24,6 +25,7 @@ export type ApiKeyEditorDialogProps = {
   initialProviderId: ModelProviderID
   apiKey?: DesktopApiKeySummary | null
   busy?: boolean
+  restoreFocusElement?: HTMLElement | null
   onOpenChange: (open: boolean) => void
   onSubmit: (value: ApiKeyEditorValue) => Promise<boolean>
 }
@@ -34,6 +36,7 @@ export function ApiKeyEditorDialog({
   initialProviderId,
   apiKey = null,
   busy = false,
+  restoreFocusElement,
   onOpenChange,
   onSubmit,
 }: ApiKeyEditorDialogProps): React.ReactNode {
@@ -43,6 +46,10 @@ export function ApiKeyEditorDialog({
   const [label, setLabel] = useState('')
   const [secret, setSecret] = useState('')
   const editing = Boolean(apiKey)
+  const { onCloseAutoFocus } = useDialogFocusRestore(
+    open,
+    restoreFocusElement,
+  )
 
   useEffect(() => {
     if (!open) return
@@ -89,6 +96,7 @@ export function ApiKeyEditorDialog({
             aria-describedby={descriptionId}
             aria-labelledby={titleId}
             className="model-center-key-dialog"
+            onCloseAutoFocus={onCloseAutoFocus}
           >
             <form className="model-center-key-dialog-form" onSubmit={event => void handleSubmit(event)}>
               <header className="model-center-key-dialog-header">

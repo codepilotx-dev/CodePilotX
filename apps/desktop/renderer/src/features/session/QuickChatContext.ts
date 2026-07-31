@@ -1,14 +1,11 @@
 import { createContext, useContext } from 'react'
-import type { Message } from '../../uiTypes.js'
 import type { ModelPreset } from '../../modelPresets.js'
 import type {
   DesktopGitStatus,
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopPermissionRequest,
-  DesktopSessionEvent,
   DesktopSessionStatus,
-  DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
@@ -39,6 +36,7 @@ export type QuickChatContextValue = {
   activeSessionId: string | null
   activeSessionPinnedAt: string | null
   sessionTitle: string | null
+  editableSessionTitle: string | null
   workspaceName: string | null
   workspacePath: string | null
   branchName: string | null
@@ -73,6 +71,7 @@ export type QuickChatContextValue = {
   onOpenSubagent: (taskId: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void
+  onRenameSession: (title: string) => Promise<boolean>
   onRefreshSessionTitle: () => Promise<boolean>
   onToggleSidebar: () => void
   onToggleSessionPinned: () => void
@@ -93,18 +92,12 @@ export type QuickChatContextValue = {
       'rememberOptionId'
     >,
   ) => void
-  events: DesktopSessionEvent[]
-  workflowEvents: DesktopWorkflowEvent[]
-  messages: Message[]
-  pendingPermissions: DesktopPermissionRequest[]
-  onHydrateLegacySessionView: (sessionId: string) => Promise<void>
   sessionStatus: DesktopSessionStatus
   composerProps: DesktopComposerProps | null
   composerDraft?: QuickChatComposerDraftBridge
   bottomPanelVisible: boolean
   onToggleBottomPanel: () => void
   rightDockPlanEventId: string | null
-  debugMode: boolean
 }
 
 export const QuickChatContext = createContext<QuickChatContextValue | null>(null)

@@ -5,26 +5,26 @@ import React, {
   useState,
 } from 'react'
 import * as Popover from '@radix-ui/react-popover'
+import * as Slider from '@radix-ui/react-slider'
 
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import type {
   DesktopChromeTheme,
   DesktopDiffMarkerStyle,
+  DesktopReviewDiffFile,
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from '../../../shared/types.js'
-import {
-  syntaxTokenStyle,
-  useHighlightedCode,
-} from '../syntax/index.js'
+import { ReviewDiffReadOnlySplit } from '../review/diff/ReviewDiffSurface.js'
 import { getThemesForVariant } from '../syntax/theme.js'
 import { useDesktopTheme } from '../theme/themeContext.js'
 import {
   loadChromeThemeSeed,
   mergeChromeThemeSeed,
 } from '../theme/codeThemeSeed.js'
+import { deriveThemeVariables } from '../theme/themeVariables.js'
 import { SegmentedControl } from './SegmentedControl.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -202,16 +202,20 @@ function ColorControl({
           <button
             aria-label={`${ariaLabel}颜色选择器`}
             className="appearance-color-swatch"
-            style={{ backgroundColor: normalizedValue }}
+            style={{
+              '--appearance-color-swatch-background': normalizedValue,
+            } as React.CSSProperties}
             type="button"
           />
         </Popover.Trigger>
         <Popover.Portal>
           <Popover.Content
             align="end"
+            aria-label={`${ariaLabel}颜色选项`}
             className="popover-surface appearance-color-popover"
-            collisionPadding={12}
-            sideOffset={6}
+            collisionPadding={6}
+            role="dialog"
+            sideOffset={4}
           >
             <ColorPalette
               value={normalizedValue}
@@ -263,7 +267,7 @@ function getReadableColor(value: string): '#101010' | '#FFFFFF' {
     (0.2126 * linearColor(red) +
       0.7152 * linearColor(green) +
       0.0722 * linearColor(blue))
-  return luminance > 0.62 ? '#101010' : '#FFFFFF'
+  return luminance > 0.179 ? '#101010' : '#FFFFFF'
 }
 
 function linearColor(value: number): number {
@@ -363,11 +367,8 @@ function ColorPalette({
   return (
     <div className="appearance-color-palette">
       <div
-        aria-label="颜色饱和度与亮度"
         className="appearance-color-palette-square"
-        role="slider"
         style={{ '--appearance-picker-hue': hueColor } as React.CSSProperties}
-        tabIndex={0}
         onPointerDown={updateSaturation}
         onPointerMove={event => {
           if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -382,6 +383,50 @@ function ColorPalette({
             top: `${(1 - brightness) * 100}%`,
           }}
         />
+        <Slider.Root
+          className="appearance-color-axis-slider u-sr-only"
+          max={100}
+          min={0}
+          value={[Math.round(saturation * 100)]}
+          onValueChange={values => {
+            const nextSaturation = values[0]
+            if (nextSaturation === undefined) return
+            onChange(rgbToHex(
+              ...hsvToRgb(hue, nextSaturation / 100, brightness),
+            ))
+          }}
+        >
+          <Slider.Track>
+            <Slider.Range />
+          </Slider.Track>
+          <Slider.Thumb
+            aria-label="颜色饱和度"
+            aria-valuetext={`${Math.round(saturation * 100)}%`}
+            className="appearance-color-axis-thumb"
+          />
+        </Slider.Root>
+        <Slider.Root
+          className="appearance-color-axis-slider u-sr-only"
+          max={100}
+          min={0}
+          value={[Math.round(brightness * 100)]}
+          onValueChange={values => {
+            const nextBrightness = values[0]
+            if (nextBrightness === undefined) return
+            onChange(rgbToHex(
+              ...hsvToRgb(hue, saturation, nextBrightness / 100),
+            ))
+          }}
+        >
+          <Slider.Track>
+            <Slider.Range />
+          </Slider.Track>
+          <Slider.Thumb
+            aria-label="颜色亮度"
+            aria-valuetext={`${Math.round(brightness * 100)}%`}
+            className="appearance-color-axis-thumb"
+          />
+        </Slider.Root>
       </div>
       <input
         aria-label="色相"
@@ -532,21 +577,108 @@ function ThemeModePreview({
   )
 }
 
-const BEFORE_THEME_PREVIEW = [
-  'const themePreview: ThemeConfig = {',
-  '  surface: "sidebar",',
-  '  accent: "#2563eb",',
-  '  contrast: 42,',
-  '};',
-].join('\n')
-
-const AFTER_THEME_PREVIEW = [
-  'const themePreview: ThemeConfig = {',
-  '  surface: "sidebar-elevated",',
-  '  accent: "#0ea5e9",',
-  '  contrast: 68,',
-  '};',
-].join('\n')
+const THEME_PREVIEW_DIFF = {
+  path: 'theme-preview.ts',
+  status: 'modified',
+  additions: 4,
+  deletions: 3,
+  isUntracked: false,
+  hunks: [
+    {
+      id: 'theme-preview-hunk',
+      header: '@@ -201,5 +201,6 @@',
+      oldStart: 201,
+      oldLines: 5,
+      newStart: 201,
+      newLines: 6,
+      patch: [
+        ' const themePreview: ThemeConfig = {',
+        '-  surface: "sidebar",',
+        '-  accent: "#2563eb",',
+        '-  contrast: 42,',
+        '+  surface: "sidebar-elevated",',
+        '+  accent: "#0ea5e9",',
+        '+  contrast: 68,',
+        '+  density: "compact",',
+        ' };',
+      ].join('\n'),
+      lines: [
+        {
+          id: 'theme-preview-context-open',
+          type: 'context',
+          oldLine: 201,
+          newLine: 201,
+          content: 'const themePreview: ThemeConfig = {',
+          raw: ' const themePreview: ThemeConfig = {',
+        },
+        {
+          id: 'theme-preview-removed-surface',
+          type: 'removed',
+          oldLine: 202,
+          newLine: null,
+          content: '  surface: "sidebar",',
+          raw: '-  surface: "sidebar",',
+        },
+        {
+          id: 'theme-preview-removed-accent',
+          type: 'removed',
+          oldLine: 203,
+          newLine: null,
+          content: '  accent: "#2563eb",',
+          raw: '-  accent: "#2563eb",',
+        },
+        {
+          id: 'theme-preview-removed-contrast',
+          type: 'removed',
+          oldLine: 204,
+          newLine: null,
+          content: '  contrast: 42,',
+          raw: '-  contrast: 42,',
+        },
+        {
+          id: 'theme-preview-added-surface',
+          type: 'added',
+          oldLine: null,
+          newLine: 202,
+          content: '  surface: "sidebar-elevated",',
+          raw: '+  surface: "sidebar-elevated",',
+        },
+        {
+          id: 'theme-preview-added-accent',
+          type: 'added',
+          oldLine: null,
+          newLine: 203,
+          content: '  accent: "#0ea5e9",',
+          raw: '+  accent: "#0ea5e9",',
+        },
+        {
+          id: 'theme-preview-added-contrast',
+          type: 'added',
+          oldLine: null,
+          newLine: 204,
+          content: '  contrast: 68,',
+          raw: '+  contrast: 68,',
+        },
+        {
+          id: 'theme-preview-added-density',
+          type: 'added',
+          oldLine: null,
+          newLine: 205,
+          content: '  density: "compact",',
+          raw: '+  density: "compact",',
+        },
+        {
+          id: 'theme-preview-context-close',
+          type: 'context',
+          oldLine: 205,
+          newLine: 206,
+          content: '};',
+          raw: ' };',
+        },
+      ],
+    },
+  ],
+} satisfies DesktopReviewDiffFile
 
 function ThemePreview({
   variant,
@@ -559,97 +691,47 @@ function ThemePreview({
   codeThemeId: string
   markerStyle: DesktopDiffMarkerStyle
 }) {
-  const before = useHighlightedCode({
-    code: BEFORE_THEME_PREVIEW,
-    language: 'typescript',
-    theme: codeThemeId,
-  })
-  const after = useHighlightedCode({
-    code: AFTER_THEME_PREVIEW,
-    language: 'typescript',
-    theme: codeThemeId,
-  })
+  const variables = deriveThemeVariables({ codeThemeId, theme, variant })
   const style = {
-    '--appearance-preview-surface': theme.surface,
-    '--appearance-preview-ink': theme.ink,
-    '--appearance-preview-accent': theme.accent,
-    '--appearance-preview-added': theme.semanticColors.diffAdded,
-    '--appearance-preview-removed': theme.semanticColors.diffRemoved,
+    ...variables,
+    '--color-token-editor-background':
+      'var(--color-background-editor-opaque)',
+    '--color-token-editor-foreground': 'var(--color-text-foreground)',
+    '--color-token-foreground': 'var(--color-text-foreground)',
+    '--color-token-border-light': 'var(--color-border-light)',
+    '--color-token-text-tertiary':
+      'var(--color-text-foreground-tertiary)',
+    '--color-token-elevated-background':
+      'var(--color-background-elevated-secondary-opaque)',
+    '--color-token-diff-editor-inserted-line-background':
+      'var(--color-diff-added-line-background)',
+    '--color-token-diff-editor-inserted-text-background':
+      'var(--color-diff-added-text-background)',
+    '--color-token-diff-editor-removed-line-background':
+      'var(--color-diff-removed-line-background)',
+    '--color-token-diff-editor-removed-text-background':
+      'var(--color-diff-removed-text-background)',
+    '--color-token-git-decoration-added-resource-foreground':
+      'var(--color-diff-added-foreground)',
+    '--color-token-git-decoration-deleted-resource-foreground':
+      'var(--color-diff-removed-foreground)',
   } as React.CSSProperties
 
   return (
     <div
       aria-label={`${variant === 'light' ? '浅色' : '深色'}主题差异预览`}
       className="appearance-diff-preview"
-      data-diff-style="split"
-      data-expansion-line-count="8"
-      data-hunk-separators="line-info"
-      data-line-diff-type="none"
-      data-overflow="scroll"
-      data-marker-style={markerStyle}
       data-variant={variant}
       style={style}
     >
-      <div className="appearance-diff-split">
-        <ThemePreviewSide
-          changedLines={new Set([1, 2, 3])}
-          lineTone="removed"
-          presentation={before}
-          source={BEFORE_THEME_PREVIEW}
-        />
-        <ThemePreviewSide
-          changedLines={new Set([1, 2, 3])}
-          lineTone="added"
-          presentation={after}
-          source={AFTER_THEME_PREVIEW}
-        />
-      </div>
-    </div>
-  )
-}
-
-function ThemePreviewSide({
-  changedLines,
-  lineTone,
-  presentation,
-  source,
-}: {
-  changedLines: ReadonlySet<number>
-  lineTone: 'added' | 'removed'
-  presentation: ReturnType<typeof useHighlightedCode>
-  source: string
-}): React.ReactNode {
-  const fallbackLines = source.split('\n')
-  return (
-    <div className="appearance-diff-side">
-      {fallbackLines.map((line, lineIndex) => {
-        const tone = changedLines.has(lineIndex) ? lineTone : 'context'
-        const tokens = presentation.highlighted?.tokens[lineIndex]
-        return (
-          <div
-            className="appearance-diff-line"
-            data-tone={tone}
-            key={`${lineIndex}:${line}`}
-          >
-            <span className="appearance-diff-line-number">{lineIndex + 1}</span>
-            <span className="appearance-diff-marker" aria-hidden="true">
-              {tone === 'removed' ? '−' : tone === 'added' ? '+' : ''}
-            </span>
-            <code>
-              {tokens?.length
-                ? tokens.map((token, tokenIndex) => (
-                    <span
-                      key={`${lineIndex}:${tokenIndex}`}
-                      style={syntaxTokenStyle(token)}
-                    >
-                      {token.content}
-                    </span>
-                  ))
-                : line || ' '}
-            </code>
-          </div>
-        )
-      })}
+      <ReviewDiffReadOnlySplit
+        ariaLabel={`${variant === 'light' ? '浅色' : '深色'}主题差异代码`}
+        diffMarkerStyle={markerStyle}
+        file={THEME_PREVIEW_DIFF}
+        showWordDiff
+        syntaxThemeId={codeThemeId}
+        wrapLines={false}
+      />
     </div>
   )
 }
@@ -771,7 +853,7 @@ function VariantThemeEditor({
             showSelectedIndicator
             value={codeThemeId}
             variant="theme"
-            width={176}
+            width={180}
             onChange={nextId => {
               const nextCodeThemeId =
                 nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]
@@ -876,6 +958,8 @@ function VariantThemeEditor({
                 style={{
                   '--appearance-slider-accent': chromeTheme.accent,
                   '--appearance-slider-surface': chromeTheme.surface,
+                  '--appearance-slider-thumb':
+                    variant === 'light' ? '#000' : '#fff',
                 } as React.CSSProperties}
                 type="range"
                 value={chromeTheme.contrast}
@@ -1099,6 +1183,7 @@ export function AppearanceSettings({
               description="在 macOS 上优化浅色文字边缘"
               control={
                 <ToggleSwitch
+                  ariaLabel="字体平滑"
                   checked={settings.fontSmoothingEnabled}
                   onChange={fontSmoothingEnabled =>
                     updateThemeSettings({ fontSmoothingEnabled })

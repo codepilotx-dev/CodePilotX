@@ -66,6 +66,7 @@ export function useHighlightedCode({
       void highlightCode({
         code,
         language: requestedLanguage,
+        streaming,
         theme: requestedTheme,
       }).then(nextResult => {
         if (requestGenerationRef.current === requestGeneration) {

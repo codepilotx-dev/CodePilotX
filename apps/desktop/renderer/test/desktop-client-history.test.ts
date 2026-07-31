@@ -145,7 +145,7 @@ describe('desktop history client', () => {
 
   test('uses agent fetch for list, create, get, message, rename, archive, and delete', async () => {
     const requests: Array<{ path: string; method: string; body: unknown }> = []
-    let currentItem = sessionItem()
+    let currentItem = sessionItem({ unreadAt: now + 500 })
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       const method = init?.method ?? 'GET'
       const body = init?.body ? JSON.parse(String(init.body)) : null
@@ -248,6 +248,15 @@ describe('desktop history client', () => {
         }
         return rpc(body.id, { thread: currentItem })
       }
+      if (rpcMethod === 'thread/mark-read') {
+        expect(params).toEqual({
+          threadId: 'session-1',
+          readThroughAt: now + 500,
+          operationId: expect.any(String),
+        })
+        currentItem = { ...currentItem, unreadAt: null }
+        return rpc(body.id, { thread: currentItem })
+      }
       if (rpcMethod === 'thread/title/regenerate') {
         currentItem = sessionItem({ title: '自动更新后的标题' })
         return rpc(body.id, { thread: currentItem })
@@ -266,6 +275,17 @@ describe('desktop history client', () => {
 
     const listed = await client.listSessions()
     expect(listed[0]?.item.workspacePath).toBe(projectRootPath)
+    expect(listed[0]?.item.unreadAt).toBe(
+      new Date(now + 500).toISOString(),
+    )
+
+    const read = await client.markSessionRead(
+      'session-1',
+      new Date(now + 500).toISOString(),
+    )
+    expect(read.unreadAt).toBeNull()
+    currentItem = { ...currentItem, unreadAt: now + 500 }
+    expect((await client.listSessions())[0]?.item.unreadAt).toBeNull()
 
     const created = await client.createSession({
       workspacePath: projectRootPath,
@@ -275,14 +295,32 @@ describe('desktop history client', () => {
 
     const snapshot = await client.getSession('session-1')
     expect(snapshot.view.messages[0]?.text).toBe('第一条消息')
+    snapshot.item.customTitle = '旧手工标题'
+    snapshot.item.aiTitle = '旧 AI 标题'
 
     await client.sendUserMessage('session-1', { text: '继续推进' }, {
       providerID: 'openai',
       model: 'gpt-5',
     })
 
+    let renamedStoreItem:
+      | Awaited<ReturnType<typeof client.getSession>>['item']
+      | null = null
+    const unsubscribe = client.onSessionStoreChange(change => {
+      renamedStoreItem =
+        change.sessions.find(candidate => candidate.item.id === 'session-1')
+          ?.item ?? null
+    })
     const renamed = await client.renameSession('session-1', '改名后')
+    unsubscribe()
     expect(renamed.item.sessionName).toBe('改名后')
+    expect(renamed.item.customTitle).toBeNull()
+    expect(renamed.item.aiTitle).toBeNull()
+    expect(renamedStoreItem).toMatchObject({
+      sessionName: '改名后',
+      customTitle: null,
+      aiTitle: null,
+    })
     expect(renamed.item.lastMessageAt).toBe(
       new Date(now + 1000).toISOString(),
     )
@@ -319,6 +357,40 @@ describe('desktop history client', () => {
 
     expect(created.sessionId).toStartWith('browser-mock-')
     expect(created.standalone).toBe(true)
+  })
+
+  test('restores authoritative unread state when mark-read fails', async () => {
+    const unreadItem = sessionItem({ unreadAt: now + 500 })
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') {
+          return rpc(body.id, initializedResult())
+        }
+        if (body?.method === 'initialized') {
+          return new Response(null, { status: 204 })
+        }
+        if (body?.method === 'project/list') {
+          return rpc(body.id, { projects: [project], nextCursor: null })
+        }
+        if (body?.method === 'thread/list') {
+          return rpc(body.id, { threads: [unreadItem], nextCursor: null })
+        }
+        if (body?.method === 'thread/mark-read') {
+          return new Response('mark read failed', { status: 500 })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+    })
+
+    await client.listSessions()
+    await expect(client.markSessionRead(
+      'session-1',
+      new Date(now + 500).toISOString(),
+    )).rejects.toThrow()
+    expect((await client.listSessions())[0]?.item.unreadAt).toBe(
+      new Date(now + 500).toISOString(),
+    )
   })
 
   test('selects a workspace through preload and persists desktop settings', async () => {

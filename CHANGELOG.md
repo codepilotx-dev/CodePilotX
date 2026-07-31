@@ -9,16 +9,68 @@
 
 ### Added
 
+- [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
+- [release] 新增专用 Windows runner 驱动的两阶段 Beta 自动发布流程，在 main 静默期后自动升版、完整验证、创建 Release PR，并于远端 CI 通过后签名打标和发布 prerelease
+- [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
 - [governance] 采用 Apache License 2.0，并新增贡献指南、行为准则、安全披露策略、CODEOWNERS、Issue/PR 模板与 Dependabot 配置，明确公开协作和依赖维护边界
+
+### Changed
+
+- [desktop/renderer] 统一侧栏、菜单、Composer、设置、Review 与会话摘要的紧凑交互行规格和状态反馈，减少同类控件的尺寸、圆角与浮层效果漂移。
+- [renderer] 收紧会话摘要与中等宽度阅读区，并调整响应式断点，使约 1920px 窗口同时打开侧栏和 Review 时仍保留置顶摘要
+- [renderer] 移除共享动作按钮阴影，并降低卡片、弹窗与浮层的全局阴影层级
+- [renderer] 对齐 Codex Electron 的紧凑 Dropdown、Popover 与右键菜单密度，缩短菜单行、浮层留白和内容型弹层尺寸，同时保留摘要面板布局
+- [renderer] 会话与项目悬浮卡复用统一信息骨架，会话标题支持单击内联重命名，项目统计按活动任务计算
+- [renderer] 将 canonical 会话助手回复的复制按钮改为常驻显示，便于直接发现和使用
+- [renderer] 将“新特性”从一级页面调整为全局 Dialog，查看版本记录时保留当前工作上下文
+- [renderer] 将“新特性”Dialog 调整为版本列表与更新内容双滚动区，历史版本切换和长更新日志可独立浏览
+- [desktop] 重构工作台分栏为容器驱动的响应式比例布局，窗口缩放和多面板并排时保留用户尺寸偏好
+- [ci] Renderer 性能预算改为非阻塞观测：完整性能场景仍会执行并上传报告，共享 runner 的绝对时延不再直接阻塞合并，待样本稳定后再升级为同机相对门禁
 
 ### Fixed
 
+- [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
+- [desktop/renderer/test] 更新 Settings 综合视觉用例对统一动作按钮契约的断言，避免继续校验已移除的旧无边框样式。
+- [desktop/renderer] 修复紧凑交互行悬停色被错误映射为主表面背景的问题，还原 Codex 的透明叠加层级，并让侧栏、Composer 与会话摘要获得清晰一致的 hover 反馈。
+- [renderer] 修复分支与项目搜索弹层底部动作区被列表压缩并落入 Composer 功能栏的问题
+- [Agent/Desktop] 修复 Windows 开发环境中文件原子覆盖失败及 Agent 自重启中断对话的问题，并在重启恢复时正确收尾运行中的工具调用
+- [renderer] 修复 Composer 功能栏与输入主体背景层级相同的问题，通过主题主表面与面板表面派生更深的功能栏层级
+- [renderer] 修复 MetaChip 悬停和展开状态背景不明显的问题，使用主题化次级按钮状态增强交互辨识度
+- [renderer] 将任务命令面板蒙层统一为深色遮罩，避免深色主题下页面背景泛白
+- [renderer] 修复新任务建议卡片悬停时背景反向变暗的问题，使默认态与悬停态的表面层级和 Codex 保持一致
+- [renderer] 修复模型搜索子菜单的网格列错位，避免模型名称被挤压成单字符省略
+- [renderer] 全面修正 Radix 组件语义、键盘焦点和 WCAG 2.2 AA 无障碍问题
+- [renderer] 修复侧栏“展开显示”和“折叠显示”操作行高度大于任务行的问题，统一任务、项目与置顶列表的紧凑布局
+- [renderer] 补全任务/设置侧栏、右侧/底部工作台面板及会话/项目悬浮卡的退出动画，并隔离大 Diff 关闭过程中的逐帧重排，避免重开左侧栏后工作区错位
+- [renderer] 对齐 Codex 审阅来源分组与文件筛选区域，并在文件树展示新增、修改、删除等 Git 状态图标及目录变更标记
+- [renderer] 修复工作区总变更较大时小文件误用旧虚拟 Diff 的问题，统一普通与虚拟审阅渲染，并补齐 Codex 风格语法色、标记条、hunk 和文件图标
+- [renderer] 重构主题语义背景与 Review Diff 配色，Codex 主题的增删色现在派生可读的行级和文字级高亮，并补齐右侧面板背景
+- [renderer] 修复侧栏可排序会话、项目和置顶项仅悬停时提前显示拖动光标的问题，改为实际拖拽期间显示
+- [Agent/renderer] 修复模型选择器遗漏已配置 Provider、误显示未登录 OAuth Provider 及历史会话 Provider 与模型错位的问题
+- [desktop] 稳定开发环境的 HMR 直连与动态模块加载失败恢复，避免瞬态更新导致持续白屏
+- [renderer] 修复重命名对话弹窗的受控输入值被原标题反复恢复的问题，并移除存在系统冲突的 `Ctrl+Alt+R` 快捷键
+- [renderer] 修复手工重命名已持久化但顶部和侧栏未立即显示的问题，统一所有入口的会话状态更新链路
+- [Agent/Desktop] 修复 Electron 克隆仓库、创建分支和切换分支误用浏览器 mock 的问题，改由受 capability 约束的 Agent RPC 执行真实 Git 并返回最新工作区状态
+- [agent] 修复 Review 刷新竞态与 linked worktree Git 元数据漏监听，并新增批量暂存、取消暂存和还原能力，确保快照最终收敛且批量操作只刷新一次
+- [renderer] 修复 Review 跨工作区或 Pull Request 的异步数据串源、过期快照残留及大 Diff 拖动右栏或底栏卡顿，拖动期间仅移动预览线并在松手后提交尺寸
+- [renderer] 修复大 Diff 拖拽仍触发全局样式失效、完整 Diff 重排和预览线裁剪的问题，拖动期间隔离重型内容并在最终尺寸绘制后恢复
+- [renderer] 将 Review 外层面板与文件导航拖拽反馈改为定向 Shimmer 骨架，仅替换 Diff 或文件树目标区域并保持工具栏及相邻内容清晰可见
+- [agent] 更新会话标题时综合首轮目标与近期已完成对话，避免提交、推送等单次收尾操作覆盖会话主线
+- [Agent/renderer] 为“新特性”内置当前版本更新记录，并在 GitHub 限流或离线时回退显示，避免 Dialog 只剩错误状态
+- [renderer] 修复顶部帮助菜单“新特性”点击无响应的问题，使其可以打开版本更新记录 Dialog
 - [release] Windows 打包校验会重试清理被短暂占用的临时目录，发布流程改用 Release ID 校验、上传和发布草稿，避免文件锁与草稿标签查询语义导致可信 beta 发布误失败
 - [agent] 数据迁移临时库使用 DELETE journal 并延长文件锁重试窗口，避免 Bun 在 Windows 上残留 WAL 句柄导致原子发布误失败。
 - [agent] 数据迁移失败后的临时库清理不再覆盖原始校验错误，残留临时文件会在下次启动前继续清理，避免 Windows 文件锁改变故障语义。
+- [agent] 数据迁移与校验连接改用一次性查询助手并严格关闭，迁移期间不再缓存 Statement，彻底释放 Windows 上 SQLite 文件句柄，避免合并迁移偶发 EBUSY。
+- [renderer] 修复任务侧栏长标题硬截断和动作区固定占位问题，溢出标题改为渐隐并在悬停时滚动展示完整内容
+
+### Removed
+
+- [renderer] 移除不可达的旧会话渲染、workflow 事件调试入口及桌面调试模式，统一使用 canonical 会话与标准弹层行为
 
 ### Security
 
+- [agent] Git 命令统一采用字面 pathspec、流式输出限制和公开错误 allowlist，阻止批量 Review 路径扩展、未跟踪符号链接越界读取及 stderr 敏感信息泄露
 - [ci] 安全 CI 仅在 PR 上运行，避免同一提交的 push 与 pull_request 使用相同检查上下文时，非门禁 push 抖动错误阻塞受保护分支合并；CodeQL 仍扫描受保护分支 push
 - [ci] 新增覆盖版本一致性、High/Critical 依赖审计、类型检查、单元测试、Renderer CSS 规则和全仓构建的 Windows CI，并通过最小权限、不可变 Actions 提交、禁用持久凭据、超时与并发取消降低供应链风险
 - [dependencies] 将 MCP SDK、Hono、Wrangler、Electron、electron-builder 与 Vite 升级到包含安全修复的版本，并为暂不可升级的 React Router 公告增加有负责人和到期日的审计豁免

@@ -172,7 +172,7 @@ export function ConfigSettings(): React.ReactNode {
           actions={
             <div className="settings-actions">
               <SettingsDropdown
-                width={150}
+                width={160}
                 ariaLabel="配置层"
                 value={configLayer}
                 options={[
@@ -403,7 +403,7 @@ export function ConfigSettings(): React.ReactNode {
                   key={key}
                   title={label}
                   description="允许该类审批请求出现；关闭时需要该能力的调用会直接拒绝。"
-                  control={<ToggleSwitch checked={draft.values.permissionConfig.approvalPolicy[key]} onChange={checked => {
+                  control={<ToggleSwitch ariaLabel={label} checked={draft.values.permissionConfig.approvalPolicy[key]} onChange={checked => {
                     const policy = draft.values.permissionConfig.approvalPolicy
                     if (typeof policy !== 'object') return
                     const approvalPolicy = { ...policy, [key]: checked }

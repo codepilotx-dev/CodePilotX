@@ -4,6 +4,7 @@ import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
 import { NotFoundPage } from './features/routing/NotFoundPage.js'
+import { RouteErrorPage } from './features/routing/RouteErrorPage.js'
 
 const AutomationView = lazy(() =>
   import('./features/automation/AutomationView.js').then(module => ({
@@ -28,11 +29,6 @@ const ProjectsView = lazy(() =>
 const PullRequestsPlaceholder = lazy(() =>
   import('./features/pull-requests/PullRequestsPlaceholder.js').then(module => ({
     default: module.PullRequestsPlaceholder,
-  })),
-)
-const SearchView = lazy(() =>
-  import('./features/search/SearchView.js').then(module => ({
-    default: module.SearchView,
   })),
 )
 const ModelCenterView = lazy(() =>
@@ -60,19 +56,16 @@ const PetCatalogPage = lazy(() =>
     default: module.PetCatalogPage,
   })),
 )
-const WhatsNewPage = lazy(() =>
-  import('./features/whats-new/WhatsNewPage.js').then(module => ({
-    default: module.WhatsNewPage,
-  })),
-)
-
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
 }
 
+const routeErrorElement = <RouteErrorPage />
+
 const router = createHashRouter([
   {
     path: '/pet-overlay',
+    errorElement: routeErrorElement,
     element: deferred(
       <DesktopSettingsProvider access="read-only">
         <PetOverlayPage />
@@ -81,6 +74,7 @@ const router = createHashRouter([
   },
   {
     path: '/',
+    errorElement: routeErrorElement,
     element: (
       <DesktopSettingsProvider access="read-write">
         <DesktopLayout />
@@ -95,7 +89,6 @@ const router = createHashRouter([
       },
       { path: 'projects', element: deferred(<ProjectsView />) },
       { path: 'projects/:projectId', element: deferred(<ProjectsView />) },
-      { path: 'search', element: deferred(<SearchView />) },
       { path: 'models', element: deferred(<ModelCenterView />) },
       { path: 'plugins', element: deferred(<PluginsView />) },
       {
@@ -104,7 +97,6 @@ const router = createHashRouter([
       },
       { path: 'automations', element: deferred(<AutomationView />) },
       { path: 'pets', element: deferred(<PetCatalogPage />) },
-      { path: 'whats-new', element: deferred(<WhatsNewPage />) },
       {
         path: 'settings/environment/:projectId',
         element: deferred(<SettingsLayout />),

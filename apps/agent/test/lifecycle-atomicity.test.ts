@@ -51,6 +51,66 @@ describe("Turn 生命周期事务", () => {
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "running" })
     expect(db.sqlite.query("SELECT status FROM agent_executions WHERE id = ?").get(turn.agentID)).toEqual({ status: "running" })
     expect(db.getAgentTurnCheckpoint(turn.turnID)).not.toBeNull()
+    expect(db.sqlite.query("SELECT * FROM thread_read_state WHERE thread_id = ?").get(thread.id)).toBeNull()
+  })
+
+  test("完成和失败标记未读，中断不标记且 read-through 不清除更新标记", () => {
+    const path = join(tmpdir(), `codepilotx-unread-lifecycle-${crypto.randomUUID()}.sqlite`)
+    paths.push(path)
+    const db = new AgentDatabase(path)
+    databases.push(db)
+
+    const completedThread = db.createThread("完成")
+    const completed = db.createTurn(completedThread.id, input)
+    db.claimTurnExecution(completed.turnID)
+    db.finalizeTurn({
+      threadID: completedThread.id,
+      turnID: completed.turnID,
+      agentID: completed.agentID,
+      status: "completed",
+    })
+    const completedUnreadAt = (db.sqlite.query(
+      "SELECT unread_at FROM thread_read_state WHERE thread_id = ?",
+    ).get(completedThread.id) as { unread_at: number }).unread_at
+    expect(completedUnreadAt).toBeGreaterThan(0)
+
+    db.markThreadReadThrough(completedThread.id, completedUnreadAt)
+    expect(db.sqlite.query(
+      "SELECT unread_at FROM thread_read_state WHERE thread_id = ?",
+    ).get(completedThread.id)).toEqual({ unread_at: null })
+
+    const laterUnreadAt = completedUnreadAt + 10
+    db.markThreadUnread(completedThread.id, laterUnreadAt)
+    db.markThreadReadThrough(completedThread.id, completedUnreadAt)
+    expect(db.sqlite.query(
+      "SELECT unread_at FROM thread_read_state WHERE thread_id = ?",
+    ).get(completedThread.id)).toEqual({ unread_at: laterUnreadAt })
+
+    const failedThread = db.createThread("失败")
+    const failed = db.createTurn(failedThread.id, input)
+    db.claimTurnExecution(failed.turnID)
+    db.finalizeTurn({
+      threadID: failedThread.id,
+      turnID: failed.turnID,
+      agentID: failed.agentID,
+      status: "failed",
+    })
+    expect((db.sqlite.query(
+      "SELECT unread_at FROM thread_read_state WHERE thread_id = ?",
+    ).get(failedThread.id) as { unread_at: number }).unread_at).toBeGreaterThan(0)
+
+    const interruptedThread = db.createThread("中断")
+    const interrupted = db.createTurn(interruptedThread.id, input)
+    db.claimTurnExecution(interrupted.turnID)
+    db.finalizeTurn({
+      threadID: interruptedThread.id,
+      turnID: interrupted.turnID,
+      agentID: interrupted.agentID,
+      status: "interrupted",
+    })
+    expect(db.sqlite.query(
+      "SELECT * FROM thread_read_state WHERE thread_id = ?",
+    ).get(interruptedThread.id)).toBeNull()
   })
 
   test("interrupt outbox 失败时 claimed/resuming checkpoint 不会被提前消费", () => {
@@ -136,12 +196,27 @@ describe("Turn 生命周期事务", () => {
     const active = db.createTurn(thread.id, input)
     db.claimTurnExecution(active.turnID)
     db.upsertItem(thread.id, { id: "running-item", turnID: active.turnID, agentID: active.agentID, type: "tool", status: "running", data: {}, createdAt: Date.now(), updatedAt: Date.now() })
+    db.sqlite.query(`
+      INSERT INTO tool_calls
+        (id, thread_id, turn_id, agent_id, tool_name, input, status, started_at)
+      VALUES ('running-tool', ?, ?, ?, 'Shell', '{}', 'running', ?)
+    `).run(thread.id, active.turnID, active.agentID, Date.now())
     db.createTurn(thread.id, { ...input, content: "queued" })
     db.close()
 
     db = new AgentDatabase(path)
     databases.push(db)
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(active.turnID)).toEqual({ status: "interrupted" })
+    const interruptedTool = db.sqlite.query("SELECT status, finished_at, error FROM tool_calls WHERE id = 'running-tool'").get() as {
+      status: string
+      finished_at: number | null
+      error: string | null
+    }
+    expect(interruptedTool).toEqual({
+      status: "interrupted",
+      finished_at: expect.any(Number),
+      error: "Agent 重启时工具执行被中断",
+    })
     for (const method of ["turn/interrupted", "agent/upserted", "item/completed", "queue/updated"]) {
       expect((db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE method = ? AND (turn_id = ? OR thread_id = ?)").get(method, active.turnID, thread.id) as { count: number }).count).toBeGreaterThan(0)
     }
@@ -150,6 +225,7 @@ describe("Turn 生命周期事务", () => {
     db = new AgentDatabase(path)
     databases.push(db)
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE method = 'turn/interrupted' AND turn_id = ?").get(active.turnID)).toEqual({ count })
+    expect(db.sqlite.query("SELECT status, finished_at, error FROM tool_calls WHERE id = 'running-tool'").get()).toEqual(interruptedTool)
   })
 
   test("重启会安全重开纯数据 checkpoint，并对运行中的审批副作用 fail-closed", () => {

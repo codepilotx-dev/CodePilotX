@@ -24,6 +24,25 @@ describe("file icon resolution", () => {
       resolveFileIconName("unknown.extension", { language: "typescript" }),
     ).toBe("typescript")
   })
+
+  test("can restrict associations to the final extension", () => {
+    expect(resolveFileIconName("feature.test.ts")).toBe("test-ts")
+    expect(
+      resolveFileIconName("feature.test.ts", {
+        associationMode: "extension-only",
+      }),
+    ).toBe("typescript")
+    expect(
+      resolveFileIconName("models.generated.d.ts", {
+        associationMode: "extension-only",
+      }),
+    ).toBe("typescript")
+    expect(
+      resolveFileIconName("package.json", {
+        associationMode: "extension-only",
+      }),
+    ).toBe("json")
+  })
 })
 
 describe("folder icon resolution", () => {

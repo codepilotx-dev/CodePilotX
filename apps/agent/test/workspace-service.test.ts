@@ -10,6 +10,19 @@ const hash = (content: string) => createHash("sha256").update(content, "utf8").d
 
 afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
 
+const waitForFileContent = async (path: string, expected: string, timeoutMs = 5_000) => {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try {
+      if (await readFile(path, "utf8") === expected) return
+    } catch {
+      // The watched process has not published its ready marker yet.
+    }
+    await Bun.sleep(25)
+  }
+  throw new Error(`等待文件内容超时: ${path}`)
+}
+
 const workspace = async () => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
   paths.push(root)
@@ -327,6 +340,60 @@ describe("WorkspaceService editor files", () => {
     expect(rejected).toMatchObject({ status: "rejected", reason: { code: "WORKSPACE_FILE_STALE" } })
     expect(["first\n", "second\n"]).toContain(await readFile(join(root, "source.txt"), "utf8"))
   })
+
+  test("Windows 下可更新被 Bun watch 文本导入占用的文件", async () => {
+    if (process.platform !== "win32") return
+
+    const { root, service } = await workspace()
+    const target = join(root, "watched.txt")
+    const ready = join(root, "watch-ready.txt")
+    const entry = join(root, "watcher.ts")
+    await writeFile(target, "before", "utf8")
+    await writeFile(entry, [
+      'import watched from "./watched.txt" with { type: "text" }',
+      'await Bun.write("watch-ready.txt", watched)',
+      "setInterval(() => undefined, 1_000)",
+    ].join("\n"), "utf8")
+
+    const child = Bun.spawn([process.execPath, "--watch", entry], {
+      cwd: root,
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
+    })
+    try {
+      await waitForFileContent(ready, "before")
+      const inspected = await service.inspectMutationPath("watched.txt", "existing-file")
+      if (inspected.expectation !== "existing-file") throw new Error("expected existing-file inspection")
+
+      await expect(service.commitEditorMutations([{
+        operation: "update",
+        path: "watched.txt",
+        content: "after",
+        expectedRevision: inspected.revision,
+      }])).resolves.toMatchObject({
+        outcome: "committed",
+        files: [{ operation: "update", path: "watched.txt", afterSha256: hash("after") }],
+      })
+      expect(await readFile(target, "utf8")).toBe("after")
+
+      await waitForFileContent(ready, "after")
+      await expect(service.applyPatch({
+        operation: "update",
+        path: "watched.txt",
+        before: "after",
+        after: "final",
+      })).resolves.toMatchObject({
+        operation: "update",
+        path: "watched.txt",
+        afterSha256: hash("final"),
+      })
+      expect(await readFile(target)).toEqual(Buffer.from("final", "utf8"))
+    } finally {
+      child.kill()
+      await child.exited
+    }
+  }, 15_000)
 
   test("磁盘内容变化时返回 conflict 且不覆盖", async () => {
     const { root, service } = await workspace()

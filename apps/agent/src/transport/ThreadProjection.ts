@@ -537,10 +537,12 @@ export class ThreadProjection {
     const sql = `
       SELECT t.id, t.project_id, t.git_branch, t.title, t.preview, t.first_user_message, t.message_count,
         t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
+        read_state.unread_at,
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents') THEN 0 ELSE 1 END,
             u.created_at DESC LIMIT 1) AS latest_turn_status
       FROM threads AS t
+      LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY t.updated_at DESC, t.id DESC
       LIMIT ?
@@ -561,6 +563,7 @@ export class ThreadProjection {
       messageCount: Number(row.message_count ?? 0),
       latestTurnStatus: row.latest_turn_status == null ? null : turnStatus(String(row.latest_turn_status)),
       archivedAt: row.archived_at == null ? null : Number(row.archived_at),
+      unreadAt: row.unread_at == null ? null : Number(row.unread_at),
       settings: {
         taskMode: String(row.task_mode) as ThreadListItem["settings"]["taskMode"],
         permissionConfig: {

@@ -22,7 +22,6 @@ type Props = {
   anchorRef: React.RefObject<HTMLElement>
   branchName: string
   deletions: number
-  disableOutsideDismiss?: boolean
   open: boolean
   onClose: () => void
   onCommit: (message: string, includeUnstaged: boolean) => void
@@ -35,7 +34,6 @@ export function CommitPopover({
   anchorRef,
   branchName,
   deletions,
-  disableOutsideDismiss = false,
   open,
   width,
   maxWidth,
@@ -80,7 +78,6 @@ export function CommitPopover({
       if (!target) return
       if (panelRef.current?.contains(target)) return
       if (anchorRef.current?.contains(target)) return
-      if (disableOutsideDismiss) return
       onClose()
     }
     function handleKey(event: KeyboardEvent): void {
@@ -92,7 +89,7 @@ export function CommitPopover({
       document.removeEventListener('mousedown', handleClick)
       document.removeEventListener('keydown', handleKey)
     }
-  }, [anchorRef, disableOutsideDismiss, onClose, open])
+  }, [anchorRef, onClose, open])
 
   React.useEffect(() => {
     if (!open) {

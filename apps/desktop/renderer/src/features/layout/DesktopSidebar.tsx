@@ -35,6 +35,8 @@ type Props = {
   workspace: DesktopWorkspace | null;
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
+  onOpenCommandMenu: () => void;
+  onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void;
   onPinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
@@ -63,6 +65,8 @@ export function DesktopSidebar({
   workspace,
   onChooseWorkspace,
   onCreateSession,
+  onOpenCommandMenu,
+  onOpenWhatsNew,
   onPinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
@@ -242,7 +246,7 @@ export function DesktopSidebar({
 
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-chrome tw:py-2">
-      <SidebarHeader />
+      <SidebarHeader onOpenCommandMenu={onOpenCommandMenu} />
       <SidebarTopNav
         isActiveView={isActiveView}
         showProjects={sidebarOrganization === 'flat'}
@@ -258,12 +262,12 @@ export function DesktopSidebar({
         activeSessionId={activeSessionId}
         pendingPermissionSessionIds={pendingPermissionSessionIds}
         titleLoadingIds={titleLoadingIds}
-        allProjectSessions={viewModel.allProjectSessions}
         collapsedProjectPaths={collapsedProjectPaths}
         organization={sidebarOrganization}
         now={relativeNow}
         pinnedSessions={viewModel.pinnedSessions}
         pinnedWorkspaces={viewModel.pinnedWorkspaces}
+        projectSessionBuckets={viewModel.projectSessionBuckets}
         projectWorkspaces={viewModel.projectWorkspaces}
         projectSort={sidebarProjectSort}
         sessionFallbackTitles={sessionFallbackTitles}
@@ -271,7 +275,6 @@ export function DesktopSidebar({
         sessionSort={sidebarSort}
         manualOrderByScope={sidebarManualOrder}
         unavailableWorkspacePaths={unavailableWorkspacePaths}
-        unpinnedSessions={viewModel.unpinnedSessions}
         workspace={workspace}
         onArchiveSessions={archiveSessions}
         onChooseWorkspace={onChooseWorkspace}
@@ -305,7 +308,11 @@ export function DesktopSidebar({
         onProjectSortChange={setSidebarProjectSort}
         onSessionSortChange={setSidebarSort}
       />
-      <SidebarFooter sidebarWidth={sidebarWidth} onReport={onReport} />
+      <SidebarFooter
+        sidebarWidth={sidebarWidth}
+        onOpenWhatsNew={onOpenWhatsNew}
+        onReport={onReport}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import type {
 } from '@codepilotx/agent-protocol'
 import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-overlay'
 import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
+import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-ipc'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
@@ -22,7 +23,6 @@ import type {
 } from '../../../shared/types.js'
 
 type DesktopClientWindow = {
-  desktopApi?: DesktopApi
   codePilotXDesktop?: {
     pickWorkspaceDirectory(): Promise<string | null>
     getAppearanceSettings?(): Promise<DesktopThemeSettings>
@@ -53,8 +53,10 @@ type DesktopClientWindow = {
     revealPathInFolder?(targetPath: string): Promise<void>
   } & Partial<DesktopPetOverlayBridge>
     & Partial<DesktopDataLocationIpcBridge>
+    & Partial<DesktopUpdateIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
+  dispatchEvent?: Window['dispatchEvent']
 }
 
 export type DesktopClientEnvironment = {
@@ -161,6 +163,16 @@ export type DesktopAgentReviewApi = {
       | { kind: 'file'; path: string }
       | { kind: 'hunk'; path: string; hunkId: string }
   }): Promise<void>
+  applyAgentReviewBatch(input: {
+    workspacePath: string
+    source: DesktopReviewSource
+    generation: string
+    action: 'stage' | 'unstage' | 'revert'
+    items: [
+      { path: string; expectedRevision: string },
+      ...Array<{ path: string; expectedRevision: string }>,
+    ]
+  }): Promise<RpcResult<'review/applyBatch'>>
   getAgentReviewBranches(workspacePath: string): Promise<Array<{
     name: string
     sha: string

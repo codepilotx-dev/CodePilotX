@@ -8,14 +8,9 @@ import {
 type Props = {
   open: boolean
   onClose: () => void
-  disableOutsideDismiss?: boolean
   side?: 'top' | 'bottom'
   children: React.ReactNode
 } & PopoverSizingProps
-
-type ShouldCloseChatInputDropdownOptions = {
-  disableOutsideDismiss?: boolean
-}
 
 export type ComputeDropdownMaxHeightInput = {
   side: 'top' | 'bottom'
@@ -44,9 +39,7 @@ export function computeDropdownMaxHeight({
 
 export function shouldCloseChatInputDropdownForClick(
   target: HTMLElement,
-  { disableOutsideDismiss = false }: ShouldCloseChatInputDropdownOptions = {},
 ): boolean {
-  if (disableOutsideDismiss) return false
   const composerTop = target.closest('.composer-top')
   const dropdown = target.closest('.chat-input__dropdown')
   return !composerTop && !dropdown
@@ -55,7 +48,6 @@ export function shouldCloseChatInputDropdownForClick(
 export function ChatInputDropdown({
   open,
   onClose,
-  disableOutsideDismiss = false,
   side = 'top',
   width,
   maxWidth,
@@ -94,11 +86,7 @@ export function ChatInputDropdown({
     function onDocumentClick(e: MouseEvent) {
       const target = e.target as HTMLElement | null
       if (!target) return
-      if (
-        shouldCloseChatInputDropdownForClick(target, {
-          disableOutsideDismiss,
-        })
-      ) {
+      if (shouldCloseChatInputDropdownForClick(target)) {
         onClose()
       }
     }
@@ -115,7 +103,7 @@ export function ChatInputDropdown({
       document.removeEventListener('click', onDocumentClick, true)
       document.removeEventListener('keydown', onEscKey)
     }
-  }, [disableOutsideDismiss, open, onClose])
+  }, [open, onClose])
 
   if (!open) return null
 

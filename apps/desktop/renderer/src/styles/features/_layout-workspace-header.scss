@@ -116,7 +116,7 @@
   -webkit-app-region: no-drag;
 }
 
-@media (max-width: 767px) {
+@container desktop-workspace (max-width: 47.9375rem) {
   .desktop-workspace-header-center {
     visibility: hidden;
     pointer-events: none;

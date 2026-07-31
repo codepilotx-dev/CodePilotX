@@ -25,7 +25,6 @@ export function QuickChatView(): React.ReactNode {
     branchName,
     composerProps,
     composerDraft,
-    debugMode,
     gitStatus,
     recentTasks,
     recentWorkspaces,
@@ -248,12 +247,11 @@ export function QuickChatView(): React.ReactNode {
                 <ProjectSwitcherPopover
                   align="center"
                   className="popover-project quick-chat-project-popover"
-                  disableOutsideDismiss={debugMode}
                   maxWidth="min(420px, calc(100vw - 48px))"
                   open={projectMenuOpen}
                   recentWorkspaces={recentWorkspaces}
                   side="top"
-                  sideOffset={6}
+                  sideOffset={4}
                   trigger={
                     <button
                       aria-label="选择项目"

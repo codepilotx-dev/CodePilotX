@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { createDesktopClient } from '../src/services/desktop-client/index.js'
+import { catalogProviderToDesktop } from '../src/services/desktop-client/provider-adapters.js'
 
 const provider = {
   provider: {
@@ -57,6 +58,16 @@ const provider = {
 }
 
 describe('desktop provider client', () => {
+  test('仅支持 OAuth 的 provider 未认证时不会被 adapter 视为已配置', () => {
+    expect(catalogProviderToDesktop({
+      provider: {
+        ...provider.provider,
+        auth: { apiKey: false, oauth: true },
+      },
+      models: provider.models,
+    } as never).apiKeyConfigured).toBe(false)
+  })
+
   test('分页目录启动只加载 provider 摘要和当前 provider 首页', async () => {
     const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
@@ -69,7 +80,10 @@ describe('desktop provider client', () => {
       if (body.method === 'initialized') return new Response(null, { status: 204 })
       if (body.method === 'provider/list') {
         return rpc(body.id, {
-          providers: [provider.provider],
+          providers: [{
+            ...provider.provider,
+            authConfigured: true,
+          }],
           issues: [],
           defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3', variant: 'medium' },
           reviewerModel: null,
@@ -113,6 +127,235 @@ describe('desktop provider client', () => {
     expect(requests.some(request => request.method === 'model/list' && Object.keys(request.params ?? {}).length === 0)).toBe(false)
   })
 
+  test('provider 摘要使用 Agent 认证状态且仅按需加载当前 provider 模型', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const codexProvider = {
+      ...provider.provider,
+      id: 'openai-codex',
+      name: 'OpenAI Codex',
+      auth: { apiKey: false, oauth: true },
+      config: {
+        kind: 'builtin',
+        id: 'openai-codex',
+        enabled: true,
+        allowModels: [],
+        denyModels: [],
+        models: [],
+      },
+    }
+    const deepseekProvider = {
+      ...provider.provider,
+      id: 'deepseek',
+      name: 'DeepSeek',
+      auth: { apiKey: true, oauth: false },
+      config: {
+        ...provider.provider.config,
+        id: 'deepseek',
+        name: 'DeepSeek',
+        env: ['DEEPSEEK_API_KEY'],
+        models: [{
+          id: 'deepseek-chat',
+          api: 'openai-completions',
+          enabled: true,
+        }],
+      },
+    }
+    const modelPage = (
+      providerInfo: typeof codexProvider | typeof deepseekProvider,
+      modelID: string,
+    ) => ({
+      provider: providerInfo,
+      models: [{
+        ...provider.models[0],
+        id: modelID,
+        providerID: providerInfo.id,
+        name: modelID,
+        api: {
+          ...provider.models[0]!.api,
+          id: modelID,
+          name: providerInfo.id === 'openai-codex'
+            ? 'openai-responses'
+            : 'openai-completions',
+        },
+      }],
+    })
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'model.catalog.paged.v1']))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        return rpc(body.id, {
+          providers: [
+            { ...codexProvider, authConfigured: true },
+            { ...deepseekProvider, authConfigured: true },
+          ],
+          issues: [],
+          defaultModel: { providerID: 'openai-codex', id: 'gpt-5' },
+          reviewerModel: null,
+          catalogVersion: 8,
+        })
+      }
+      if (body.method === 'model/list') {
+        const selectedProvider = body.params.providerId === 'deepseek'
+          ? deepseekProvider
+          : codexProvider
+        const modelID = selectedProvider.id === 'deepseek'
+          ? 'deepseek-chat'
+          : 'gpt-5'
+        return rpc(body.id, {
+          providers: [modelPage(selectedProvider, modelID)],
+          defaultModel: { providerID: 'openai-codex', id: 'gpt-5' },
+          reviewerModel: null,
+          catalogVersion: 8,
+          total: 1,
+        })
+      }
+      if (body.method === 'provider/credential/list') {
+        return rpc(body.id, { credentials: [] })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+
+    const client = createDesktopClient({ fetch: fetcher })
+    const [state, providers] = await Promise.all([
+      client.getModelProviderState(),
+      client.listModelProviders(),
+    ])
+
+    expect(state).toMatchObject({
+      selectedProviderID: 'openai-codex',
+      model: 'gpt-5',
+      apiKeyConfigured: true,
+    })
+    expect(providers.map(item => ({
+      providerID: item.providerID,
+      apiKeyConfigured: item.apiKeyConfigured,
+    }))).toEqual([
+      { providerID: 'openai-codex', apiKeyConfigured: true },
+      { providerID: 'deepseek', apiKeyConfigured: true },
+    ])
+    expect(
+      requests.filter(request => request.method === 'model/list'),
+    ).toEqual([{
+      method: 'model/list',
+      params: {
+        providerId: 'openai-codex',
+        enabled: true,
+        limit: 100,
+      },
+    }])
+
+    expect(await client.getModelProviderState('deepseek')).toMatchObject({
+      selectedProviderID: 'deepseek',
+      model: 'deepseek-chat',
+      apiKeyConfigured: true,
+      apiKeySource: 'environment',
+    })
+  })
+
+  test('凭据更新事件会清理 provider 目录缓存并通知工作台刷新', async () => {
+    let authConfigured = false
+    let providerListRequests = 0
+    const source = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      onerror: null as (() => void) | null,
+      close: () => {},
+    }
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        providerListRequests += 1
+        return rpc(body.id, {
+          providers: [{
+            ...provider.provider,
+            authConfigured,
+          }],
+          issues: [],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: providerListRequests,
+        })
+      }
+      if (body.method === 'event/subscribe') {
+        return rpc(body.id, {
+          subscriptionId: 'subscription-1',
+          highWatermarks: [{ streamId: 'global', sequence: 0 }],
+        })
+      }
+      if (body.method === 'event/ack') {
+        return rpc(body.id, {
+          subscriptionId: body.params.subscriptionId,
+          acknowledged: body.params.positions,
+        })
+      }
+      if (body.method === 'event/unsubscribe') {
+        return rpc(body.id, { ok: true })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const eventTarget = new EventTarget()
+    let refreshEvents = 0
+    eventTarget.addEventListener('desktop:model-provider-changed', () => {
+      refreshEvents += 1
+    })
+    const globalObject = globalThis as typeof globalThis & {
+      window?: Window
+    }
+    const previousWindow = globalObject.window
+    globalObject.window = eventTarget as Window
+    let unsubscribe = () => {}
+    try {
+      const client = createDesktopClient({
+        fetch: fetcher,
+        window: eventTarget as Window,
+        eventSourceFactory: () => source as unknown as EventSource,
+      })
+      expect((await client.listModelProviders())[0]?.apiKeyConfigured).toBe(false)
+      unsubscribe = client.onAgentEvent(() => {})
+      for (let index = 0; index < 20 && !source.onmessage; index += 1) {
+        await new Promise(resolve => setTimeout(resolve, 0))
+      }
+      authConfigured = true
+      source.onmessage?.({
+        data: JSON.stringify({
+          method: 'event/next',
+          params: {
+            subscriptionId: 'subscription-1',
+            event: {
+              eventId: 'event-1',
+              streamId: 'global',
+              type: 'provider/credential/updated',
+              version: 1,
+              occurredAt: Date.now(),
+              durability: 'live',
+              sequence: null,
+              afterSequence: 0,
+              payload: { providerId: provider.provider.id },
+            },
+          },
+        }),
+      } as MessageEvent)
+      for (let index = 0; index < 20 && refreshEvents === 0; index += 1) {
+        await new Promise(resolve => setTimeout(resolve, 0))
+      }
+
+      expect(refreshEvents).toBe(1)
+      expect((await client.listModelProviders())[0]?.apiKeyConfigured).toBe(true)
+      expect(providerListRequests).toBe(2)
+    } finally {
+      unsubscribe()
+      if (previousWindow) globalObject.window = previousWindow
+      else delete globalObject.window
+    }
+  })
+
   test('环境变量凭据使 Pi 已启用模型保持可发送状态', async () => {
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
@@ -123,7 +366,10 @@ describe('desktop provider client', () => {
       if (body.method === 'initialized') return new Response(null, { status: 204 })
       if (body.method === 'provider/list') {
         return rpc(body.id, {
-          providers: [provider.provider],
+          providers: [{
+            ...provider.provider,
+            authConfigured: true,
+          }],
           issues: [],
           defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
           reviewerModel: null,
@@ -186,7 +432,10 @@ describe('desktop provider client', () => {
       }
       if (body.method === 'provider/list') {
         return rpc(body.id, {
-          providers: [provider.provider],
+          providers: [{
+            ...provider.provider,
+            authConfigured: credentials.length > 0,
+          }],
           issues: [],
           defaultModel: credentials.length > 0
             ? {

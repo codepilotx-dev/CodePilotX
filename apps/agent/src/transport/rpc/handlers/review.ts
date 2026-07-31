@@ -22,6 +22,7 @@ import {
   decodeQueueUpdate,
   decodeReviewAiStart,
   decodeReviewApply,
+  decodeReviewApplyBatch,
   decodeReviewBranches,
   decodeReviewCommentID,
   decodeReviewCommentList,
@@ -59,8 +60,10 @@ export const reviewHandlers = {
   methods: [
     "review/summary",
     "review/refresh",
+    "review/pullRequest/prepare",
     "review/fileDiff",
     "review/apply",
+    "review/applyBatch",
     "review/branches",
     "review/commits",
     "review/status",
@@ -83,6 +86,19 @@ export const reviewHandlers = {
         const input = decodeParams(decodeReviewSummary, rawParams, method)
         return review.summaryResult(input.projectId, input.source, true)
       }
+      case "review/pullRequest/prepare": {
+        const workspace = await resolveProjectWorkspace(
+          db,
+          stringParam(params, "projectId"),
+        )
+        return github.preparePullRequestComparison({
+          workspaceRoot: workspace.rootPath,
+          owner: stringParam(params, "owner"),
+          repository: stringParam(params, "repository"),
+          number: positiveIntegerParam(params, "number"),
+          ...(typeof params.force === "boolean" ? { force: params.force } : {}),
+        })
+      }
       case "review/fileDiff": {
         const input = decodeParams(decodeReviewFileDiff, rawParams, method)
         return review.fileDiff(input)
@@ -90,6 +106,10 @@ export const reviewHandlers = {
       case "review/apply": {
         const input = decodeParams(decodeReviewApply, rawParams, method)
         return review.apply(input)
+      }
+      case "review/applyBatch": {
+        const input = decodeParams(decodeReviewApplyBatch, rawParams, method)
+        return review.applyBatch(input)
       }
       case "review/branches": {
         const input = decodeParams(decodeReviewBranches, rawParams, method)

@@ -15,6 +15,9 @@ import {
   DESKTOP_EDIT_IPC_CHANNELS,
   type DesktopEditAction,
 } from "@codepilotx/shared/desktop-edit-ipc"
+import {
+  DESKTOP_UPDATE_IPC_CHANNELS,
+} from "@codepilotx/shared/desktop-update-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { isSafeExternalUrl } from "../security/navigation.js"
 import {
@@ -26,6 +29,7 @@ import type {
   SidecarSupervisor,
 } from "../sidecar/supervisor.js"
 import type { WindowManager } from "../windows/window-manager.js"
+import type { DesktopAutoUpdater } from "../update/desktop-auto-updater.js"
 import type { ExternalOpenTargetService } from "./external-open-targets.js"
 
 const API_KEY_CLIPBOARD_CLEAR_DELAY_MS = 60_000 as const
@@ -34,6 +38,7 @@ interface DesktopIpcDependencies {
   windows: WindowManager
   logger: DesktopLogger
   externalOpenTargets: ExternalOpenTargetService
+  updater: DesktopAutoUpdater
   getSupervisor: () => SidecarSupervisor | undefined
   getConnectionState: () => AgentConnectionState
   getLogDirectory: () => string
@@ -49,6 +54,7 @@ export function registerDesktopIpc(
     windows,
     logger,
     externalOpenTargets,
+    updater,
     getSupervisor,
     getConnectionState,
     getLogDirectory,
@@ -83,6 +89,18 @@ export function registerDesktopIpc(
   ipcMain.handle("agent:connection-state", event => {
     requireDesktopRendererSender(event, isDesktopRendererSender)
     return getConnectionState()
+  })
+  ipcMain.handle(DESKTOP_UPDATE_IPC_CHANNELS.check, async event => {
+    requireMainWindowSender(event, windows)
+    await updater.checkForUpdates()
+  })
+  ipcMain.handle(DESKTOP_UPDATE_IPC_CHANNELS.download, async event => {
+    requireMainWindowSender(event, windows)
+    await updater.downloadUpdate()
+  })
+  ipcMain.handle(DESKTOP_UPDATE_IPC_CHANNELS.quitAndInstall, async event => {
+    requireMainWindowSender(event, windows)
+    await updater.quitAndInstall()
   })
   ipcMain.handle(
     DESKTOP_EDIT_IPC_CHANNELS.perform,

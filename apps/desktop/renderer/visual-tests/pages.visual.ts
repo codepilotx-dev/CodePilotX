@@ -19,7 +19,6 @@ const FORMAL_ROUTES = [
     route: '/?visualCase=rich#/threads/visual-rich',
     ready: '.workflow-page',
   },
-  { id: 'search', route: '/?visualCase=empty#/search', ready: 'main' },
   { id: 'models', route: '/?visualCase=empty#/models', ready: '.model-center-shell' },
   { id: 'plugins', route: '/?visualCase=empty#/plugins', ready: '.plugins-view' },
   {

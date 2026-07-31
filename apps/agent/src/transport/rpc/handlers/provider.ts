@@ -84,7 +84,7 @@ export const providerHandlers = {
         )
         return {
           ...result,
-          providers: result.providers.map((provider) => {
+          providers: await Promise.all(result.providers.map(async (provider) => {
             const configured = definitionsByID.get(String(provider.id))
             if (!configured && provider.source.kind === "custom") {
               throw new AgentError(
@@ -95,6 +95,9 @@ export const providerHandlers = {
             }
             return {
               ...provider,
+              authConfigured:
+                provider.disabled !== true
+                && await piModels.isAuthConfigured(String(provider.id)),
               config: configured ?? {
                 kind: "builtin",
                 id: provider.id,
@@ -104,7 +107,7 @@ export const providerHandlers = {
                 models: [],
               },
             }
-          }),
+          })),
           issues: issues.map((issue) => ({
             providerId: issue.providerID,
             path: issue.path,

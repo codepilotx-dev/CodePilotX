@@ -7,6 +7,9 @@ import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
   type DesktopSettingsPayload,
 } from "@codepilotx/shared/desktop-settings-ipc"
+import {
+  DESKTOP_UPDATE_IPC_CHANNELS,
+} from "@codepilotx/shared/desktop-update-ipc"
 import { registerAppearanceIpc } from "./ipc/register-appearance-ipc.js"
 import { registerDataLocationIpc } from "./ipc/register-data-location-ipc.js"
 import { registerDesktopIpc } from "./ipc/register-desktop-ipc.js"
@@ -36,6 +39,8 @@ import { WindowManager } from "./windows/window-manager.js"
 import { registerPetOverlayIpc } from "./ipc/register-pet-overlay-ipc.js"
 import { PetOverlayWindowController } from "./windows/pet-overlay-window.js"
 import { PetOverlayWindowStateStore } from "./windows/pet-overlay-window-state.js"
+import { DesktopAutoUpdater } from "./update/desktop-auto-updater.js"
+import { electronAutoUpdater } from "./update/electron-updater-adapter.js"
 import { resolveStartupPageTheme } from "./windows/startup-page.js"
 import {
   type DesktopDisplayWorkArea,
@@ -145,11 +150,21 @@ async function startDesktop(): Promise<void> {
     spawnProcess: (executablePath, args, options) =>
       spawn(executablePath, [...args], options),
   })
+  const updater = new DesktopAutoUpdater({
+    packaged: app.isPackaged,
+    version: app.getVersion(),
+    logger,
+    updater: electronAutoUpdater(),
+    onStatusChange: status => {
+      windows?.send(DESKTOP_UPDATE_IPC_CHANNELS.status, status)
+    },
+  })
 
   registerDesktopIpc({
     windows,
     logger,
     externalOpenTargets,
+    updater,
     getSupervisor: () => supervisor,
     getConnectionState: () => connectionStatus.state,
     getLogDirectory: () => logger?.directory ?? logDirectory,

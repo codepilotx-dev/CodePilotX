@@ -1,0 +1,60 @@
+import { describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const repositoryRoot = resolve(import.meta.dir, "..");
+const prepareWorkflow = readWorkflow("prepare-beta-release.yml");
+const finalizeWorkflow = readWorkflow("finalize-beta-release.yml");
+const packageWorkflow = readWorkflow("windows-x64-package.yml");
+
+function readWorkflow(name: string): string {
+  return readFileSync(resolve(repositoryRoot, ".github", "workflows", name), "utf8");
+}
+
+function actionReferences(workflow: string): string[] {
+  return [...workflow.matchAll(/^\s*uses:\s*(\S+)/gm)].map((match) => match[1]);
+}
+
+describe("beta release workflows", () => {
+  test("self-hosted release workflows never accept pull request events", () => {
+    for (const workflow of [prepareWorkflow, finalizeWorkflow]) {
+      expect(workflow).toContain(
+        "runs-on: [self-hosted, windows, x64, codepilotx-release]",
+      );
+      expect(workflow).not.toMatch(/^\s{2}pull_request:/m);
+      expect(workflow).toContain("ref: main");
+      expect(workflow).toContain("persist-credentials: false");
+    }
+    const workflowDirectory = resolve(repositoryRoot, ".github", "workflows");
+    for (const name of readdirSync(workflowDirectory)) {
+      if (!/\.ya?ml$/i.test(name)) continue;
+      const workflow = readFileSync(resolve(workflowDirectory, name), "utf8");
+      if (/^\s{2}pull_request:/m.test(workflow)) {
+        expect(workflow).not.toContain("codepilotx-release");
+      }
+    }
+  });
+
+  test("all actions are pinned to full commit SHAs", () => {
+    for (const workflow of [
+      prepareWorkflow,
+      finalizeWorkflow,
+      packageWorkflow,
+    ]) {
+      const references = actionReferences(workflow);
+      expect(references.length).toBeGreaterThan(0);
+      for (const reference of references) {
+        expect(reference).toMatch(/^[^@\s]+@[0-9a-f]{40}$/);
+      }
+    }
+  });
+
+  test("tag publishing verifies that the tagged commit belongs to main", () => {
+    expect(packageWorkflow).toContain(
+      "git merge-base --is-ancestor $tagCommit refs/remotes/origin/main",
+    );
+    expect(packageWorkflow.indexOf("Verify tag target belongs to main")).toBeLessThan(
+      packageWorkflow.indexOf("Build unsigned release package"),
+    );
+  });
+});

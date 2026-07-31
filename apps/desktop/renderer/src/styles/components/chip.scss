@@ -4,49 +4,25 @@
 .chip-button {
   appearance: none;
   display: inline-flex;
+  width: auto;
   align-items: center;
-  gap: var(--control-gap-compact);
-  padding: calc(var(--control-padding-block-compact) + 0.05em)
-    var(--control-padding-inline);
+  padding: 0 var(--interactive-row-composer-padding-inline);
   border: 0;
-
-  background: transparent;
   color: var(--color-token-text-link-foreground);
-  font-size: calc(var(--type-control) - 1px);
-
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
 
   &.subtle {
     color: var(--color-token-foreground);
-
-    &:hover,
-    &.active {
-      background: var(--color-token-list-hover-background);
-      color: var(--color-token-foreground);
-    }
   }
 }
 
 /* --- Meta Chip --- */
 .meta-chip {
   display: inline-flex;
+  width: auto;
   align-items: center;
-  gap: var(--control-gap-compact);
   max-width: 220px;
-  padding: calc(var(--control-padding-block-compact) + 0.05em)
-    var(--control-padding-inline);
-  border-radius: var(--radius-4);
+  padding: 0 var(--interactive-row-composer-padding-inline);
   color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
-
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
 
   span {
     min-width: 0;
@@ -58,10 +34,8 @@
 }
 
 /* --- Chip & Meta-chip Hover / Active --- */
-.chip-button:hover,
-.meta-chip:hover,
 .composer .icon-button:hover,
-.message-action:hover,
+.message-action:hover:not([aria-disabled="true"]),
 .message-action[data-state="open"],
 .icon-button[data-variant="toolbar"]:hover,
 .menubar-trigger:hover,
@@ -71,10 +45,6 @@
   color: var(--color-token-foreground);
 }
 
-.chip-button[aria-expanded="true"],
-.chip-button[data-state="open"],
-.meta-chip[aria-expanded="true"],
-.meta-chip[data-state="open"],
 .message-action[data-state="open"],
 .menubar-trigger[data-state="open"],
 .menubar-trigger[data-highlighted] {
@@ -82,44 +52,13 @@
   color: var(--color-token-foreground);
 }
 
-.chip-button:hover,
-.meta-chip:hover {
-  background: var(--color-token-list-hover-background);
-}
-
 /* --- Accent-colored chips --- */
 .chip-button,
 .composer-plan-mode-chip.active,
 .composer-plan-mode-chip:hover,
-.settings-row-link,
 .automation-header-meta a,
 .profile-repository-row:hover .profile-repository-name,
 .plugins-hero-command,
 .chat-input__dropdown-check {
   color: var(--color-token-text-link-foreground);
-}
-
-/* --- Rounded chip controls --- */
-.chip-button,
-.meta-chip {
-  border-radius: 999px;
-}
-
-.chip-button:hover,
-.meta-chip:hover {
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-foreground);
-}
-
-.chip-button[aria-expanded="true"],
-.chip-button[data-state="open"],
-.meta-chip[aria-expanded="true"],
-.meta-chip[data-state="open"] {
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-foreground);
-}
-
-.chip-button:active,
-.meta-chip:active {
-  transform: translateY(1px);
 }

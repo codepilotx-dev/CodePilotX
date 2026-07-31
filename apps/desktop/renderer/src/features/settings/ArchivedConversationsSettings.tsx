@@ -7,6 +7,7 @@ import { sessionDisplayTitle, type SessionListItem } from '../../uiTypes.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js';
 import { Button } from '../../components/ui/Button.js'
+import { canonicalThreadCache } from '../session/state/canonicalThreadCache.js'
 
 export function ArchivedConversationsSettings(): React.ReactNode {
   const [sessions, setSessions] = useState<SessionListItem[]>([])
@@ -54,6 +55,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
   async function deleteSession(session: SessionListItem): Promise<void> {
     try {
       await desktopClient.disposeSession(session.id)
+      canonicalThreadCache.invalidate(session.id)
       setSessions(current => current.filter(item => item.id !== session.id))
       setError(null)
     } catch (deleteError) {

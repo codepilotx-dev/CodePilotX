@@ -20,9 +20,10 @@
   }
 
   .rm-section-header {
-    padding: var(--space-2) 10px var(--space-1);
+    padding: 4px 8px;
     color: var(--color-token-description-foreground);
-    font-size: var(--type-meta);
+    font-size: var(--menu-detail-font-size);
+    line-height: var(--menu-line-height);
     font-weight: 500;
   }
 
@@ -33,9 +34,10 @@
   }
 
   .rm-empty {
-    padding: var(--space-3) 10px;
+    padding: 8px;
     color: var(--color-token-input-placeholder-foreground);
-    font-size: var(--type-secondary);
+    font-size: var(--menu-detail-font-size);
+    line-height: var(--menu-line-height);
     text-align: center;
   }
 
@@ -65,7 +67,7 @@
   .rm-sub-trigger-content {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--menu-item-gap);
     flex: 1;
     min-width: 0;
   }
@@ -79,10 +81,11 @@
   width: var(--popover-width, max-content);
   max-width: var(
     --popover-max-width,
-    min(
-      calc(320px + var(--popover-width-extra)),
-      calc(100vw - 32px)
-    )
+    min(320px, calc(100vw - 16px))
   );
   max-height: min(360px, calc(100vh - 96px));
+}
+
+.rm-model-submenu-scroll-content .popover-item {
+  grid-template-columns: minmax(0, 1fr) max-content;
 }

@@ -1,8 +1,4 @@
-import {
-  desktopClient,
-  readDesktopBrowserDebugMode,
-  writeDesktopBrowserDebugMode,
-} from '../../../services/desktop-client/index.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
   openPathWithPreferredExternalTarget,
   shouldFallbackToExternalOpen,
@@ -17,11 +13,8 @@ import {
 import { composerDraftStore } from '../../session/composer/composerDraftStore.js'
 import type { ComposerDraftKey } from '../../session/composer/composerTypes.js'
 import { deriveWorkflowSessionState } from '../../../../shared/workflowReducer.js'
-import {
-  WorkspaceShellControls,
-  WorkbenchPanel,
-  type WorkbenchFileLoadErrorEvent,
-} from '../dock/RightDock.js'
+import type { WorkbenchFileLoadErrorEvent } from '../dock/RightDock.js'
+import { WorkspaceShellControls } from '../dock/WorkspaceShellControls.js'
 import {
   DesktopWorkspaceHeader,
   WorkspaceHeaderProvider,
@@ -55,9 +48,9 @@ import type {
   WindowMenuAction,
 } from '../MenuBar.js'
 import { QuickChatContext } from '../../session/QuickChatContext.js'
-import { SearchContext } from '../../search/SearchContext.js'
 import {
   sessionDisplayTitle,
+  sessionEditableTitle,
   sessionViewFallbackTitle,
   type SessionListItem,
 } from '../../../uiTypes.js'
@@ -67,7 +60,6 @@ import { shouldRestoreLastWorkspace } from '../../workspace/lastWorkspaceRestore
 import { useSessionState } from '../../session/state/useSessionState.js'
 import { useSessionTitleRegeneration } from '../../session/state/useSessionTitleRegeneration.js'
 import { useDesktopCommands } from '../../session/useDesktopCommands.js'
-import { useDesktopSearch } from '../../search/useDesktopSearch.js'
 import { withModelCatalogLoading } from '../../../hooks/useModelCatalogLoading.js'
 import {
   buildModelPresets,
@@ -92,16 +84,12 @@ import {
   useWorkbenchRouteController,
 } from './useWorkbenchRouteController.js'
 import type { DesktopLayoutOutletContextValue } from './desktopLayoutOutletContext.js'
-import {
-  RIGHT_DOCK_MAIN_MIN_WIDTH,
-  RIGHT_DOCK_MIN_WIDTH,
-  useWorkbenchShellController,
-} from './useWorkbenchShellController.js'
+import { useWorkbenchShellController } from './useWorkbenchShellController.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
 import { useModelProviderController } from '../useModelProviderController.js'
-import { recordConversationSwitchStarted } from '../../debug/performanceDiagnosticsBridge.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
+import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
 import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
 import type {
   MarkdownFileOpenOptions,
@@ -118,6 +106,9 @@ const GitWorkflowModal = lazy(() => import('../panels/GitWorkflowModal.js').then
 const GithubRepositoryModal = lazy(() => import('../panels/GithubRepositoryModal.js').then(module => ({ default: module.GithubRepositoryModal })))
 const SettingsSidebarContent = lazy(() => import('../../settings/SettingsSidebarContent.js').then(module => ({ default: module.SettingsSidebarContent })))
 const SubagentThreadPanel = lazy(() => import('../../session/subagents/SubagentThreadPanel.js').then(module => ({ default: module.SubagentThreadPanel })))
+const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
+const WorkbenchPanel = lazy(() => import('../dock/RightDock.js').then(module => ({ default: module.WorkbenchPanel })))
+const CommandMenuDialog = lazy(() => import('../../search/CommandMenuDialog.js').then(module => ({ default: module.CommandMenuDialog })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -148,7 +139,9 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
 }
 
 function hasOpenDialog(): boolean {
-  return document.querySelector('[role="dialog"], dialog[open]') !== null
+  return document.querySelector(
+    '[role="dialog"], [role="alertdialog"], dialog[open]',
+  ) !== null
 }
 
 function createFilePreviewTabId(
@@ -219,6 +212,20 @@ function shouldOpenFileExternally(path: string): boolean {
   return extension ? EXTERNAL_FILE_EXTENSIONS.has(extension) : false
 }
 
+function routeAccessibilityLabel(pathname: string): string {
+  if (pathname === '/new') return '新对话'
+  if (pathname.startsWith('/threads/')) return '会话'
+  if (pathname.startsWith('/projects')) return '项目'
+  if (pathname === '/models') return '模型'
+  if (pathname === '/plugins') return '插件与技能'
+  if (pathname === '/pull-requests') return '拉取请求'
+  if (pathname === '/automations') return '自动化'
+  if (pathname === '/pets') return '宠物'
+  if (pathname.startsWith('/settings/')) return '设置'
+  if (pathname === '/labs') return '实验室'
+  return 'CodePilotX'
+}
+
 function normalizePathForCompare(path: string): string {
   return path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
 }
@@ -228,6 +235,7 @@ let directoryProbeRequestId = 0
 
 export function DesktopLayout(): React.ReactNode {
   const location = useLocation()
+  const routeLabel = routeAccessibilityLabel(location.pathname)
   const settings = useDesktopSettings()
   const {
     activeCapabilities: editMenuCapabilities,
@@ -285,17 +293,17 @@ export function DesktopLayout(): React.ReactNode {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const [_runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [gitWorkflowMode, setGitWorkflowMode] =
     useState<GitWorkflowMode | null>(null)
   const [githubRepositoryModalOpen, setGithubRepositoryModalOpen] =
     useState(false)
+  const [whatsNewDialogOpen, setWhatsNewDialogOpen] = useState(false)
+  const [whatsNewRestoreFocusElement, setWhatsNewRestoreFocusElement] =
+    useState<HTMLElement | null>(null)
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
-  )
-  const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
-    readDesktopBrowserDebugMode(),
   )
   const {
     providerState,
@@ -318,7 +326,14 @@ export function DesktopLayout(): React.ReactNode {
     rightDockState,
     bottomPanelState,
     bottomPanelVisible,
+    workspaceRef,
+    workspaceWidth,
+    rightDockVisible,
+    rightDockMinWidth,
+    rightDockMaxWidth,
     rightDockWidth,
+    bottomPanelMinHeight,
+    bottomPanelMaxHeight,
     bottomPanelHeight,
     openRightDockTab,
     handleSetRightDockWidth,
@@ -339,7 +354,21 @@ export function DesktopLayout(): React.ReactNode {
     pinTab,
     setFileMarkdownViewMode,
     toggleRightFullWidth,
-  } = useWorkbenchShellController(menubarDebugMode)
+  } = useWorkbenchShellController()
+  const rightDockFullWidth =
+    rightDockVisible && workbenchPanelState.rightFullWidth
+  const mainRouteRef = useRef<HTMLDivElement>(null)
+  const commandMenuInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    document.title = `${routeLabel} · CodePilotX`
+  }, [routeLabel])
+  const visibleRightDockState = useMemo(
+    () => ({
+      ...rightDockState,
+      open: rightDockVisible,
+    }),
+    [rightDockState, rightDockVisible],
+  )
   const handleErrorMessage = useCallback((message: string): void => {
     setErrorMessage(message || null)
   }, [])
@@ -393,7 +422,6 @@ export function DesktopLayout(): React.ReactNode {
     localRouterMode: homeLocalRouterMode,
     providerID,
     providerBaseURL,
-    debugConversationDump: menubarDebugMode,
     model,
     planExecutionModel,
     reviewModel,
@@ -435,8 +463,6 @@ export function DesktopLayout(): React.ReactNode {
     contextUsage,
     queuedFollowUps,
     queuePauseReason,
-    pendingPermissions,
-    legacyViewSessionId,
     pendingPermissionSessionIds,
     input,
     setInput,
@@ -446,7 +472,6 @@ export function DesktopLayout(): React.ReactNode {
     removeComposerAttachmentForDraft,
     clearComposerDraftIfUnchanged,
     activateSessionById,
-    hydrateSessionLegacyView,
     createSessionForWorkspace,
     submitToSession,
     interrupt,
@@ -505,7 +530,6 @@ export function DesktopLayout(): React.ReactNode {
   const beginConversationSwitch = useCallback((targetSessionId: string) => {
     if (conversationSwitchTargetRef.current === targetSessionId) return
     conversationSwitchTargetRef.current = targetSessionId
-    recordConversationSwitchStarted()
   }, [])
 
   useEffect(() => {
@@ -555,9 +579,7 @@ export function DesktopLayout(): React.ReactNode {
     }
 
     beginConversationSwitch(routedSessionId)
-    const nextWorkspace = activateSessionById(routedSessionId, {
-      viewMode: 'canonical',
-    })
+    const nextWorkspace = activateSessionById(routedSessionId)
     if (!nextWorkspace) {
       setWorkspaceState(null)
       setDiffState('未选择项目。')
@@ -786,13 +808,6 @@ export function DesktopLayout(): React.ReactNode {
   const handleCreatePullRequest = useCallback((): void => {
     setGitWorkflowMode('pullRequest')
   }, [])
-
-  useEffect(() => {
-    writeDesktopBrowserDebugMode(undefined, menubarDebugMode)
-    if (menubarDebugMode) {
-      void desktopClient.openDevTools()
-    }
-  }, [menubarDebugMode])
 
   const refreshBrowserState = useCallback((): void => {
     void desktopClient
@@ -1088,9 +1103,7 @@ export function DesktopLayout(): React.ReactNode {
     if (currentId) {
       const saved = loadConversationUiState(currentId)
       if (saved) {
-        const validated = validateConversationUiState(saved, {
-          debugMode: menubarDebugMode,
-        })
+        const validated = validateConversationUiState(saved)
         setWorkbenchPanelState(validated.workbench)
         setSideChatInput(validated.sideChatInput)
         setSideChatAttachments(validated.sideChatAttachments)
@@ -1130,7 +1143,52 @@ export function DesktopLayout(): React.ReactNode {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (!event.ctrlKey || event.metaKey || event.repeat) return
       const key = event.key.toLowerCase()
-      if (!event.shiftKey && !event.altKey && key === 'b') {
+      const commandShortcutAllowed =
+        !event.defaultPrevented
+        && !event.isComposing
+        && event.keyCode !== 229
+        && !event.altKey
+        && (commandMenuOpen || !hasOpenDialog())
+      if (
+        commandShortcutAllowed
+        && (
+          (!event.shiftKey && key === 'k')
+          || (event.shiftKey && key === 'p')
+        )
+      ) {
+        event.preventDefault()
+        if (commandMenuOpen) {
+          commandMenuInputRef.current?.focus()
+          commandMenuInputRef.current?.select()
+        } else {
+          setCommandMenuOpen(true)
+        }
+      } else if (
+        commandShortcutAllowed
+        && !event.shiftKey
+        && key === 'n'
+      ) {
+        event.preventDefault()
+        setCommandMenuOpen(false)
+        void handleCreateSession()
+      } else if (
+        commandShortcutAllowed
+        && !event.shiftKey
+        && key === 'o'
+      ) {
+        event.preventDefault()
+        setCommandMenuOpen(false)
+        void handleChooseWorkspace()
+      } else if (
+        commandShortcutAllowed
+        && !event.shiftKey
+        && key === 'p'
+        && currentWorkspace !== null
+      ) {
+        event.preventDefault()
+        setCommandMenuOpen(false)
+        handleOpenFilesDock()
+      } else if (!event.shiftKey && !event.altKey && key === 'b') {
         event.preventDefault()
         toggleSidebarCollapsed()
       } else if (!event.shiftKey && !event.altKey && key === 'j') {
@@ -1167,6 +1225,10 @@ export function DesktopLayout(): React.ReactNode {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [
+    commandMenuOpen,
+    currentWorkspace,
+    handleChooseWorkspace,
+    handleCreateSession,
     handleOpenBrowser,
     handleOpenFilesDock,
     handleOpenReview,
@@ -1328,9 +1390,24 @@ export function DesktopLayout(): React.ReactNode {
     [setIsWindowMaximized],
   )
 
-  const handleHelpMenuAction = useCallback(
-    (_action: HelpMenuAction): void => {},
+  const openWhatsNewDialog = useCallback(
+    (restoreFocusElement: HTMLElement | null): void => {
+      setWhatsNewRestoreFocusElement(restoreFocusElement)
+      setWhatsNewDialogOpen(true)
+    },
     [],
+  )
+
+  const handleHelpMenuAction = useCallback(
+    (
+      action: HelpMenuAction,
+      restoreFocusElement?: HTMLElement | null,
+    ): void => {
+      if (action === 'whatsNew') {
+        openWhatsNewDialog(restoreFocusElement ?? null)
+      }
+    },
+    [openWhatsNewDialog],
   )
 
   const modelPresets = useMemo(
@@ -1343,6 +1420,7 @@ export function DesktopLayout(): React.ReactNode {
   const syncedSessionModelRef = useRef<string | null>(null)
   const modelRef = useRef(model)
   const activeSessionModelRef = useRef<string | null>(null)
+  const providerStateRequestIdRef = useRef(0)
   const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const openedProviderCatalogsRef = useRef<Set<ModelProviderID>>(new Set())
@@ -1379,7 +1457,9 @@ export function DesktopLayout(): React.ReactNode {
     },
     [modelProviders, providerState],
   )
-  const selectedProviderID = providerState?.selectedProviderID ?? providerID
+  const activeSessionProviderID = activeSessionItem?.providerID
+  const selectedProviderID =
+    activeSessionProviderID ?? providerState?.selectedProviderID ?? providerID
   const selectedProviderModelPresets =
     providerModelOptions.find(
       provider => provider.providerID === selectedProviderID,
@@ -1415,17 +1495,19 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     const activeModel = activeSessionItem?.model?.trim()
+    const activeProviderID = activeSessionItem?.providerID
     const syncKey =
       activeSessionItem?.id && activeModel
-        ? `${activeSessionItem.id}:${activeModel}`
+        ? [activeSessionItem.id, activeProviderID ?? '', activeModel].join('\0')
         : null
     if (!activeModel || !syncKey || syncedSessionModelRef.current === syncKey) {
       return
     }
     syncedSessionModelRef.current = syncKey
-    if (model !== activeModel) {
-      setModel(activeModel)
-    }
+    syncExternalSettingsPatch({
+      ...(activeProviderID ? { providerID: activeProviderID } : {}),
+      ...(model !== activeModel ? { model: activeModel } : {}),
+    })
     const nextPreset = resolveModelPresetId(
       activeModel,
       undefined,
@@ -1437,30 +1519,34 @@ export function DesktopLayout(): React.ReactNode {
   }, [
     activeSessionItem?.id,
     activeSessionItem?.model,
+    activeSessionItem?.providerID,
     model,
     selectedProviderModelPresets,
     selectedModelPreset,
-    setModel,
     setSelectedModelPreset,
+    syncExternalSettingsPatch,
   ])
 
   const refreshProviderState = useCallback(async (): Promise<void> => {
+    const requestId = ++providerStateRequestIdRef.current
     try {
       const [next, providers] = await Promise.all([
-        desktopClient.getModelProviderState(),
+        desktopClient.getModelProviderState(activeSessionProviderID),
         desktopClient.listModelProviders(),
       ])
+      if (requestId !== providerStateRequestIdRef.current) return
       setProviderState(next)
       setModelProviders(providers)
       const activeModel = activeSessionModelRef.current
       const shouldSyncModel = !activeModel && next.model !== modelRef.current
-      if (shouldSyncModel) {
-        setModel(next.model)
-      }
       syncExternalSettingsPatch({
         providerID: next.selectedProviderID,
         providerBaseURL: next.baseURL ?? '',
-        ...(shouldSyncModel ? { model: next.model } : {}),
+        ...(activeModel
+          ? { model: activeModel }
+          : shouldSyncModel
+            ? { model: next.model }
+            : {}),
       })
       if (
         next.selectedProviderID &&
@@ -1512,9 +1598,10 @@ export function DesktopLayout(): React.ReactNode {
           })
       }
     } catch (error) {
+      if (requestId !== providerStateRequestIdRef.current) return
       setErrorMessage(error instanceof Error ? error.message : String(error))
     }
-  }, [setModel, syncExternalSettingsPatch])
+  }, [activeSessionProviderID, syncExternalSettingsPatch])
 
   useEffect(() => {
     void refreshProviderState()
@@ -1637,32 +1724,13 @@ export function DesktopLayout(): React.ReactNode {
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
       beginConversationSwitch(sessionItem.id)
-      const nextWorkspace = activateSessionById(sessionItem.id, {
-        viewMode: 'canonical',
-      })
       navigate(sessionPath(sessionItem.id))
-      if (!nextWorkspace) {
-        setWorkspaceState(null)
-        setDiffState('未选择项目。')
-        setSelectedFile(null)
-        return
-      }
-      setWorkspaceState(nextWorkspace)
-      void refreshWorkspace(nextWorkspace, { expectedSessionId: sessionItem.id })
     },
     [
-      activateSessionById,
       beginConversationSwitch,
       navigate,
-      refreshWorkspace,
-      routedSessionId,
-      sessionId,
-      setDiffState,
-      setSelectedFile,
-      setWorkspaceState,
     ],
   )
-
   const handleProviderOpen = useCallback(
     (providerID: ModelProviderID): void => {
       if (openedProviderCatalogsRef.current.has(providerID)) return
@@ -1790,11 +1858,6 @@ export function DesktopLayout(): React.ReactNode {
       }))
   }, [currentWorkspace?.path, sessions])
 
-  const search = useDesktopSearch({
-    query: searchQuery,
-    recentWorkspaces,
-    sessions,
-  })
   const activeSessionFallbackTitle = useMemo(
     () => {
       const workflowTitleEvents = deriveWorkflowSessionState(
@@ -1814,6 +1877,9 @@ export function DesktopLayout(): React.ReactNode {
   )
   const quickChatSessionTitle = activeSessionItem
     ? sessionDisplayTitle(activeSessionItem, activeSessionFallbackTitle)
+    : activeSessionFallbackTitle
+  const quickChatEditableSessionTitle = activeSessionItem
+    ? sessionEditableTitle(activeSessionItem, activeSessionFallbackTitle)
     : activeSessionFallbackTitle
   const regeneratingActiveSessionTitle = activeSessionItem
     ? titleLoadingIds.has(activeSessionItem.id)
@@ -1944,8 +2010,6 @@ export function DesktopLayout(): React.ReactNode {
       onToggleSidebar={toggleSidebarCollapsed}
       onSidebarTriggerPointerEnter={sidebarShell.onTriggerPointerEnter}
       onSidebarTriggerPointerLeave={sidebarShell.onTriggerPointerLeave}
-      isDebugMode={menubarDebugMode}
-      onDebugModeChange={setMenubarDebugMode}
       onClose={() => {
         void desktopClient.closeWindow()
       }}
@@ -1981,6 +2045,8 @@ export function DesktopLayout(): React.ReactNode {
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
+      onOpenCommandMenu={() => setCommandMenuOpen(true)}
+      onOpenWhatsNew={openWhatsNewDialog}
       onPinWorkspace={handlePinWorkspace}
       onRemoveWorkspace={handleRemoveWorkspace}
       onUnpinWorkspace={handleUnpinWorkspace}
@@ -2083,7 +2149,6 @@ export function DesktopLayout(): React.ReactNode {
           selectedModelMetadata,
           showThinkingOptions,
           deepSeekThinkingControls,
-          debugMode: menubarDebugMode,
           showContextUsage,
           contextUsage: isConversationRoute ? null : contextUsage,
           modelPresets: selectedProviderModelPresets,
@@ -2152,7 +2217,6 @@ export function DesktopLayout(): React.ReactNode {
         selectedModelMetadata={selectedModelMetadata}
         showThinkingOptions={showThinkingOptions}
         deepSeekThinkingControls={deepSeekThinkingControls}
-        debugMode={menubarDebugMode}
         showContextUsage={showContextUsage}
         contextUsage={contextUsage}
         modelPresets={selectedProviderModelPresets}
@@ -2208,18 +2272,6 @@ export function DesktopLayout(): React.ReactNode {
       />
     </Suspense>
   ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
-  const desktopWorkspaceRef = useRef<HTMLDivElement>(null)
-  const rightDockPanelRef = useRef<HTMLDivElement>(null)
-  const handlePreviewRightDockWidth = useCallback((width: number): void => {
-    if (rightDockPanelRef.current) {
-      rightDockPanelRef.current.style.width = `${width}px`
-    }
-    desktopWorkspaceRef.current?.style.setProperty(
-      '--workspace-right-panel-live-width',
-      `${width}px`,
-    )
-  }, [])
-
   const planContentByEventId = useMemo(() => {
     const result: Record<string, string> = {}
     for (const event of events) {
@@ -2232,12 +2284,13 @@ export function DesktopLayout(): React.ReactNode {
   const rightDockPlanEventId = useMemo(() => {
     for (const target of ['right', 'bottom'] as const) {
       const panel = workbenchPanelState[target]
+      if (target === 'right' && !rightDockVisible) continue
       if (!panel.open || !panel.activeTabId) continue
       const tab = workbenchPanelState.tabsById[panel.activeTabId]
       if (tab?.kind === 'plan') return tab.eventId
     }
     return null
-  }, [workbenchPanelState])
+  }, [rightDockVisible, workbenchPanelState])
 
   const handledFileLoadErrorsRef = useRef(new WeakSet<Error>())
   const handleFileLoadError = useCallback(
@@ -2547,24 +2600,28 @@ export function DesktopLayout(): React.ReactNode {
   ): React.ReactNode => {
     const state =
       target === 'right' ? rightDockState : bottomPanelState
-    if (!state.open) return null
+    if (
+      !state.open ||
+      (target === 'right' && !rightDockVisible)
+    ) {
+      return null
+    }
     return (
-    <WorkbenchPanel
+    <Suspense fallback={null}>
+      <WorkbenchPanel
       target={target}
       state={state}
       tabsById={workbenchPanelState.tabsById}
       browserState={browserState}
-      debugMode={menubarDebugMode}
       defaultBranch={derivedDefaultBranch}
       files={workspaceFiles}
       gitStatus={gitStatus}
       isRefreshingReview={false}
       diffMarkerStyle={diffMarkerStyle}
-      maxWidth={Math.max(
-        RIGHT_DOCK_MIN_WIDTH,
-        window.innerWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
-      )}
-      minWidth={RIGHT_DOCK_MIN_WIDTH}
+      maxWidth={rightDockMaxWidth}
+      minWidth={rightDockMinWidth}
+      maxHeight={bottomPanelMaxHeight}
+      minHeight={bottomPanelMinHeight}
       reviewView={reviewView}
       reviewTabState={reviewTabState}
       planContentByEventId={planContentByEventId}
@@ -2573,7 +2630,7 @@ export function DesktopLayout(): React.ReactNode {
       sessionStatus={sessionStatus}
       width={rightDockWidth}
       height={bottomPanelHeight}
-      rightFullWidth={workbenchPanelState.rightFullWidth}
+      rightFullWidth={rightDockFullWidth}
       workspace={currentWorkspace}
       onAppendBrowserAnnotation={handleBrowserAnnotation}
       onAppendComposerText={handleAppendComposerText}
@@ -2624,9 +2681,6 @@ export function DesktopLayout(): React.ReactNode {
       onReviewTabStateChange={setReviewTabState}
       onResetHeight={handleResetBottomPanelHeight}
       onResetWidth={handleResetRightDockWidth}
-      onResizePreviewWidth={
-        target === 'right' ? handlePreviewRightDockWidth : undefined
-      }
       onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
       onMoveTab={movePanelTab}
       onReorderTab={reorderPanelTab}
@@ -2642,7 +2696,8 @@ export function DesktopLayout(): React.ReactNode {
       sideChatFocusVersion={sideChatFocusVersion}
       activeSideTaskId={activeSideTaskId}
       sideTaskContent={subagentSideChatContent}
-    />
+      />
+    </Suspense>
     )
   }
 
@@ -2651,6 +2706,20 @@ export function DesktopLayout(): React.ReactNode {
 
   return (
     <div className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
+      <a
+        className="skip-to-main"
+        href="#desktop-main-content"
+        onClick={event => {
+          event.preventDefault()
+          mainRouteRef.current?.focus()
+          mainRouteRef.current?.scrollIntoView({ block: 'start' })
+        }}
+      >
+        跳到主要内容
+      </a>
+      <span aria-atomic="true" aria-live="polite" className="u-sr-only">
+        已进入{routeLabel}
+      </span>
       <GlobalErrorModal
         message={errorMessage}
         onDismiss={() => {
@@ -2692,6 +2761,45 @@ export function DesktopLayout(): React.ReactNode {
         onError={message => setErrorMessage(message)}
         onWorkspaceCloned={handleGithubWorkspaceCloned}
       /></Suspense> : null}
+      {whatsNewDialogOpen ? (
+        <Suspense fallback={null}>
+          <WhatsNewDialog
+            open
+            restoreFocusElement={whatsNewRestoreFocusElement}
+            onOpenChange={setWhatsNewDialogOpen}
+          />
+        </Suspense>
+      ) : null}
+      {commandMenuOpen ? (
+        <Suspense fallback={null}>
+          <CommandMenuDialog
+            catalogStatus={catalogStatus}
+            hasWorkspace={currentWorkspace !== null}
+            inputRef={commandMenuInputRef}
+            open
+            pendingPermissionSessionIds={pendingPermissionSessionIds}
+            sessions={sessions}
+            onCreateTask={() => {
+              setCommandMenuOpen(false)
+              void handleCreateSession()
+            }}
+            onOpenChange={setCommandMenuOpen}
+            onOpenFolder={() => {
+              setCommandMenuOpen(false)
+              void handleChooseWorkspace()
+            }}
+            onSearchFiles={() => {
+              if (currentWorkspace === null) return
+              setCommandMenuOpen(false)
+              handleOpenFilesDock()
+            }}
+            onSelectTask={task => {
+              setCommandMenuOpen(false)
+              handleSelectSession(task.session)
+            }}
+          />
+        </Suspense>
+      ) : null}
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice
           onClose={() => setArchiveNoticeVisible(false)}
@@ -2705,7 +2813,6 @@ export function DesktopLayout(): React.ReactNode {
       <WorkbenchShellView
         menuBar={menuBar}
         sidebar={sidebar}
-        debugMode={menubarDebugMode}
         appBodyRef={sidebarShell.appBodyRef}
       >
         <QuickChatContext.Provider
@@ -2718,6 +2825,7 @@ export function DesktopLayout(): React.ReactNode {
               ? sidebarSessionPins[activeSessionItem.id] ?? null
               : null,
             sessionTitle: quickChatSessionTitle,
+            editableSessionTitle: quickChatEditableSessionTitle,
             titleRegenerating: regeneratingActiveSessionTitle,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
@@ -2747,6 +2855,11 @@ export function DesktopLayout(): React.ReactNode {
             onOpenSubagent: handleOpenSubagent,
             onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,
+            onRenameSession: async title => {
+              const targetSessionId = activeSessionItem?.id
+              if (!targetSessionId) return false
+              return Boolean(await renameSession(targetSessionId, title))
+            },
             onRefreshSessionTitle: async () =>
               activeSessionItem
                 ? regenerateSessionTitle(activeSessionItem.id)
@@ -2790,31 +2903,6 @@ export function DesktopLayout(): React.ReactNode {
             permissionMode: effectivePermissionMode,
             planModeActive,
             providerModelOptions,
-            events:
-              isQuickChatPage ||
-              isConversationLoading ||
-              legacyViewSessionId !== sessionId
-                ? []
-                : events,
-            workflowEvents:
-              isQuickChatPage ||
-              isConversationLoading ||
-              legacyViewSessionId !== sessionId
-                ? []
-                : workflowEvents,
-            messages:
-              isQuickChatPage ||
-              isConversationLoading ||
-              legacyViewSessionId !== sessionId
-                ? []
-                : messages,
-            pendingPermissions:
-              isQuickChatPage ||
-              isConversationLoading ||
-              legacyViewSessionId !== sessionId
-                ? []
-                : pendingPermissions,
-            onHydrateLegacySessionView: hydrateSessionLegacyView,
             sessionStatus,
             composerProps: isConversationLoading ? null : composerProps,
             composerDraft: {
@@ -2824,28 +2912,17 @@ export function DesktopLayout(): React.ReactNode {
             bottomPanelVisible,
             onToggleBottomPanel: toggleBottomPanelVisible,
             rightDockPlanEventId,
-            debugMode: menubarDebugMode,
             }}
           >
-            <SearchContext.Provider
-              value={{
-              query: searchQuery,
-              workspaces: search.filteredWorkspaces,
-              sessions: search.filteredSessions,
-              onQueryChange: setSearchQuery,
-              onOpenWorkspace: handleOpenRecentWorkspace,
-              onSelectSession: handleSelectSession,
-              }}
-            >
-              <WorkspaceHeaderProvider routeScope={location.pathname}>
+            <WorkspaceHeaderProvider routeScope={location.pathname}>
                 <div
-                  ref={desktopWorkspaceRef}
+                  ref={workspaceRef}
                   className="desktop-workspace"
                   style={
                     {
                       '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-                      '--workspace-right-panel-live-width': rightDockState.open
-                        ? workbenchPanelState.rightFullWidth
+                      '--workspace-right-panel-live-width': rightDockVisible
+                        ? rightDockFullWidth
                           ? '100%'
                           : `${rightDockWidth}px`
                         : '0px',
@@ -2853,11 +2930,11 @@ export function DesktopLayout(): React.ReactNode {
                   }
                 >
                   <DesktopWorkspaceHeader
-                    fullWidth={workbenchPanelState.rightFullWidth}
-                    rightDockOpen={rightDockState.open}
+                    fullWidth={rightDockFullWidth}
+                    rightDockOpen={rightDockVisible}
                     shellControls={
                       <WorkspaceShellControls
-                        rightDockState={rightDockState}
+                        rightDockState={visibleRightDockState}
                         bottomPanelVisible={bottomPanelVisible}
                         showBottomPanel={isQuickChatPage || isConversationRoute}
                         showRightPanel={
@@ -2871,48 +2948,42 @@ export function DesktopLayout(): React.ReactNode {
                   />
                   <div className="desktop-workspace__upper">
                     <div
+                      aria-label="主要内容"
+                      ref={mainRouteRef}
                       className="desktop-main-route"
-                      style={
-                        {
-                          flexBasis: workbenchPanelState.rightFullWidth ? 0 : undefined,
-                          width: workbenchPanelState.rightFullWidth ? 0 : undefined,
-                        } as React.CSSProperties
-                      }
+                      id="desktop-main-content"
+                      tabIndex={-1}
+                      role="region"
                     >
                       <div aria-hidden="true" className="desktop-main-route__header-spacer" />
                       <div className="desktop-main-route__body">
                         <Outlet context={outletContext} />
                       </div>
                     </div>
-                    {rightDockNode ? (
-                      <div
-                        ref={rightDockPanelRef}
-                        className={
-                          workbenchPanelState.rightFullWidth
-                            ? 'desktop-workspace-panel desktop-workspace-panel--right full-width'
-                            : 'desktop-workspace-panel desktop-workspace-panel--right'
-                        }
-                        style={{
-                          width: workbenchPanelState.rightFullWidth
-                            ? '100%'
-                            : `${rightDockWidth}px`,
-                        }}
-                      >
-                        {rightDockNode}
-                      </div>
-                    ) : null}
-                  </div>
-                  {bottomPanelNode ? (
-                    <div
-                      className="desktop-workspace-panel desktop-workspace-panel--bottom"
-                      style={{ height: `${bottomPanelHeight}px` }}
+                    <WorkbenchPanelPresence
+                      fullWidth={rightDockFullWidth}
+                      mainRouteRef={mainRouteRef}
+                      size={
+                        rightDockFullWidth
+                          ? Math.max(workspaceWidth, rightDockWidth)
+                          : rightDockWidth
+                      }
+                      target="right"
+                      visible={rightDockVisible}
                     >
-                      {bottomPanelNode}
-                    </div>
-                  ) : null}
+                      {rightDockNode}
+                    </WorkbenchPanelPresence>
+                  </div>
+                  <WorkbenchPanelPresence
+                    mainRouteRef={mainRouteRef}
+                    size={bottomPanelHeight}
+                    target="bottom"
+                    visible={bottomPanelVisible}
+                  >
+                    {bottomPanelNode}
+                  </WorkbenchPanelPresence>
                 </div>
-              </WorkspaceHeaderProvider>
-            </SearchContext.Provider>
+            </WorkspaceHeaderProvider>
           </QuickChatContext.Provider>
       </WorkbenchShellView>
     </div>

@@ -71,6 +71,7 @@ export function agentThreadListItemToDesktop(
     id: thread.id,
     projectId: thread.projectID,
     sessionName: thread.title || null,
+    customTitle: null,
     aiTitle: null,
     firstPrompt: thread.firstUserMessage ?? thread.preview,
     workspaceName: workspace.name,
@@ -88,6 +89,7 @@ export function agentThreadListItemToDesktop(
     hasAppendSystemPrompt: false,
     additionalDirectoryCount: 0,
     status: agentTurnStatusToDesktopStatus(thread.latestTurnStatus),
+    unreadAt: isoOrNull(thread.unreadAt),
     lastMessageAt: isoOrNull(thread.updatedAt),
     createdAt: iso(thread.createdAt),
   }
@@ -135,6 +137,7 @@ export function agentThreadSnapshotToDesktop(
     id: snapshot.thread.id,
     projectId: snapshot.thread.projectID,
     sessionName: snapshot.thread.title || null,
+    customTitle: null,
     aiTitle: null,
     firstPrompt: snapshot.inputs[0]?.content ?? null,
     workspaceName: workspace.name,
@@ -144,6 +147,7 @@ export function agentThreadSnapshotToDesktop(
     permissionMode: permissionModeFromPermissionConfig(snapshot.thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,
+    providerID: latestTurn?.model.providerID ?? latestInput?.model.providerID,
     model: latestTurn?.model.id ?? latestInput?.model.id ?? null,
     reviewModel: null,
     thinkingMode: 'default',
@@ -630,6 +634,8 @@ function eventTime(params: Record<string, unknown>): number {
   if (typeof params.createdAt === 'number') return params.createdAt
   const item = record(params.item)
   if (typeof item.createdAt === 'number') return item.createdAt
+  const turn = record(params.turn)
+  if (typeof turn.finishedAt === 'number') return turn.finishedAt
   if (typeof params.finishedAt === 'number') return params.finishedAt
   return Date.now()
 }

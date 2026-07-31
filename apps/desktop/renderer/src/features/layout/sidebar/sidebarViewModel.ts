@@ -25,10 +25,18 @@ export type SidebarPinnedItem =
       project: DesktopWorkspace
     }
 
+export type SidebarProjectSessionBucket = {
+  allSessions: SessionListItem[]
+  displaySessions: SessionListItem[]
+  openCount: number
+  unreadCount: number
+}
+
 export type SidebarViewModel = {
   allProjectSessions: SessionListItem[]
   pinnedSessions: SessionListItem[]
   pinnedWorkspaces: DesktopWorkspace[]
+  projectSessionBuckets: ReadonlyMap<string, SidebarProjectSessionBucket>
   projectWorkspaces: DesktopWorkspace[]
   recentSessions: SessionListItem[]
   standaloneSessions: SessionListItem[]
@@ -67,6 +75,10 @@ export function buildSidebarViewModel({
   const unpinnedSessions = visibleSessions.filter(session => !pinnedIds.has(session.id))
   const standaloneSessions = unpinnedSessions.filter(session => session.standalone)
   const allProjectSessions = visibleSessions.filter(session => !session.standalone)
+  const projectSessionBuckets = buildProjectSessionBuckets(
+    allProjectSessions,
+    unpinnedSessions,
+  )
   const allProjects = mergeProjectWorkspaces(
     recentWorkspaces,
     unpinnedSessions,
@@ -108,6 +120,7 @@ export function buildSidebarViewModel({
     allProjectSessions,
     pinnedSessions,
     pinnedWorkspaces,
+    projectSessionBuckets,
     projectWorkspaces,
     recentSessions,
     standaloneSessions,
@@ -115,6 +128,53 @@ export function buildSidebarViewModel({
     visibleSessions,
     sessionStateById,
   }
+}
+
+export function buildProjectSessionBuckets(
+  allProjectSessions: readonly SessionListItem[],
+  displaySessions: readonly SessionListItem[],
+): ReadonlyMap<string, SidebarProjectSessionBucket> {
+  const buckets = new Map<string, SidebarProjectSessionBucket>()
+  const ensureBucket = (projectKey: string): SidebarProjectSessionBucket => {
+    const existing = buckets.get(projectKey)
+    if (existing) return existing
+    const created: SidebarProjectSessionBucket = {
+      allSessions: [],
+      displaySessions: [],
+      openCount: 0,
+      unreadCount: 0,
+    }
+    buckets.set(projectKey, created)
+    return created
+  }
+
+  for (const session of allProjectSessions) {
+    if (session.standalone) continue
+    const bucket = ensureBucket(sessionProjectKey(session))
+    bucket.allSessions.push(session)
+    if (session.unreadAt) bucket.unreadCount += 1
+    if (isOpenProjectSession(session)) bucket.openCount += 1
+  }
+
+  for (const session of displaySessions) {
+    if (session.standalone) continue
+    ensureBucket(sessionProjectKey(session)).displaySessions.push(session)
+  }
+
+  for (const bucket of buckets.values()) {
+    bucket.displaySessions.sort(
+      (left, right) =>
+        sessionRecencyMs(right) - sessionRecencyMs(left) ||
+        right.id.localeCompare(left.id),
+    )
+  }
+  return buckets
+}
+
+export function countOpenProjectSessions(
+  sessions: readonly SessionListItem[],
+): number {
+  return sessions.filter(isOpenProjectSession).length
 }
 
 export function buildSidebarPinnedItems({
@@ -306,6 +366,16 @@ function timestampMs(value: string | null | undefined): number {
   if (!value) return 0
   const result = new Date(value).getTime()
   return Number.isNaN(result) ? 0 : result
+}
+
+function sessionRecencyMs(session: SessionListItem): number {
+  return timestampMs(session.lastMessageAt ?? session.createdAt)
+}
+
+function isOpenProjectSession(session: SessionListItem): boolean {
+  return session.status === 'queued'
+    || session.status === 'waiting'
+    || session.status === 'running'
 }
 
 function applyStoredProjectOrder(

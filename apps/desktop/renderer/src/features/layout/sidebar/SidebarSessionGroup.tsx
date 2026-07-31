@@ -1,5 +1,14 @@
 import type React from "react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Archive, Copy, LoaderCircle, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
@@ -13,7 +22,7 @@ import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { InputDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { cx } from "../../../utils/cx.js";
 import {
   SidebarContextMenu,
@@ -27,6 +36,8 @@ const SidebarSessionHoverCard = lazy(async () => {
 })
 
 const GROUP_LIMIT = 5;
+const TITLE_SCROLL_MIN_SECONDS = 2;
+const TITLE_SCROLL_PIXELS_PER_SECOND = 40;
 
 type Props = {
   activeSessionId: string | null;
@@ -47,7 +58,7 @@ type Props = {
   onUnpinSession: (session: SessionListItem) => void;
 };
 
-export function SidebarSessionGroup({
+function SidebarSessionGroupComponent({
   activeSessionId,
   groupKey,
   now,
@@ -152,9 +163,6 @@ export function SidebarSessionGroup({
       event.preventDefault()
       return
     }
-    const order = sortedSessions.map(session => session.id)
-    onManualOrderChange(groupKey, order)
-    if (sort !== 'manual') onSortChange?.('manual')
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData(
       'application/x-codepilotx-sidebar-session',
@@ -244,8 +252,8 @@ export function SidebarSessionGroup({
       "u-flex",
       "u-items-center",
       "u-justify-end",
+      "u-w-auto",
       "tw:gap-3",
-      awaitingApproval ? "u-w-auto" : "u-w-full",
       awaitingApproval && "sidebar-session-meta--approval",
       confirmArchiveSessionId === session.id && "confirming-archive",
     );
@@ -272,26 +280,24 @@ export function SidebarSessionGroup({
         }}
         type="button"
       >
-        <span
-          aria-busy={regeneratingTitle}
-          aria-label={regeneratingTitle ? "正在更新会话标题" : undefined}
-          aria-live="polite"
-          className={cx(
-            'sidebar-session-title',
-            'u-min-w-0',
-            'u-truncate',
-            regeneratingTitle && 'ui-skeleton-block sidebar-session-title--loading',
-          )}
-        >
-          {regeneratingTitle ? null : (
-            <>
-              {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
-              {session.unreadAt ? (
-                <span aria-label="未读" className="sidebar-session-unread-dot" />
-              ) : null}
-            </>
-          )}
-        </span>
+        {regeneratingTitle ? (
+          <span
+            aria-busy="true"
+            aria-label="正在更新会话标题"
+            aria-live="polite"
+            className="sidebar-session-title sidebar-session-title--loading ui-skeleton-block"
+          />
+        ) : (
+          <SidebarSessionTitle
+            active={
+              hoveredSessionId === session.id ||
+              focusedSessionId === session.id
+            }
+            reducedMotion={reducedMotion}
+          >
+            {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
+          </SidebarSessionTitle>
+        )}
       </button>
     )
     const row = (
@@ -346,7 +352,16 @@ export function SidebarSessionGroup({
         }}
         trailing={
           <div className={metaClassName}>
-            {awaitingApproval ? (
+            {confirmArchiveSessionId === session.id ? (
+              <button
+                className="sidebar-session-confirm-archive-button"
+                onClick={() => void onArchiveSessions([session])}
+                title="确认归档"
+                type="button"
+              >
+                确认
+              </button>
+            ) : awaitingApproval ? (
               <>
                 <span className="sidebar-session-approval" title="等待审批">
                   等待审批
@@ -363,15 +378,6 @@ export function SidebarSessionGroup({
                 className="sidebar-session-spinner"
                 size={APP_ICON_SIZE}
               />
-            ) : confirmArchiveSessionId === session.id ? (
-              <button
-                className="sidebar-session-confirm-archive-button"
-                onClick={() => void onArchiveSessions([session])}
-                title="确认归档"
-                type="button"
-              >
-                确认
-              </button>
             ) : hoveredSessionId === session.id || focusedSessionId === session.id ? (
               <div className="sidebar-session-actions">
                 {session.pinnedAt ? (
@@ -399,6 +405,12 @@ export function SidebarSessionGroup({
                   <Archive size={APP_ICON_SIZE} />
                 </IconButton>
               </div>
+            ) : null}
+            {session.unreadAt && confirmArchiveSessionId !== session.id ? (
+              <span
+                aria-label="未读"
+                className="sidebar-session-unread-dot"
+              />
             ) : null}
           </div>
         }
@@ -506,9 +518,10 @@ export function SidebarSessionGroup({
           />
         </div>
       ) : null}
-      <ConfirmationDialog
+      <InputDialog
         actionDisabled={renaming || renameValue.trim().length === 0}
         actionLabel={renaming ? '重命名中…' : '重命名'}
+        description="输入新的对话名称。"
         input={{
           value: renameValue,
           onChange: setRenameValue,
@@ -534,9 +547,86 @@ export function SidebarSessionGroup({
   );
 }
 
+export const SidebarSessionGroup = memo(SidebarSessionGroupComponent);
+
+function SidebarSessionTitle({
+  active,
+  children,
+  reducedMotion,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  reducedMotion: boolean;
+}): React.ReactNode {
+  const viewportRef = useRef<HTMLSpanElement>(null);
+  const trackRef = useRef<HTMLSpanElement>(null);
+  const [overflowDistance, setOverflowDistance] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!active) {
+      setOverflowDistance(null);
+      return;
+    }
+    const viewport = viewportRef.current;
+    const track = trackRef.current;
+    if (!viewport || !track) return;
+
+    const updateOverflowDistance = (): void => {
+      const distance =
+        viewport.clientWidth > 0
+          ? Math.max(0, Math.ceil(track.scrollWidth - viewport.clientWidth))
+          : 0;
+      const nextDistance = distance > 0 ? distance : null;
+      setOverflowDistance(current =>
+        current === nextDistance ? current : nextDistance,
+      );
+    };
+
+    updateOverflowDistance();
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(updateOverflowDistance);
+    observer.observe(viewport);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [active, children]);
+
+  const scrolling = overflowDistance !== null && !reducedMotion;
+  const style =
+    overflowDistance === null
+      ? undefined
+      : ({
+          "--sidebar-title-scroll-distance": `${overflowDistance}px`,
+          "--sidebar-title-scroll-duration": `${Math.max(
+            TITLE_SCROLL_MIN_SECONDS,
+            overflowDistance / TITLE_SCROLL_PIXELS_PER_SECOND,
+          ).toFixed(2)}s`,
+        } as React.CSSProperties);
+
+  return (
+    <span
+      aria-live="polite"
+      className="sidebar-session-title"
+      data-overflowing={overflowDistance !== null || undefined}
+      data-scrolling={scrolling || undefined}
+      ref={viewportRef}
+      style={style}
+    >
+      <span
+        className="sidebar-session-title-track"
+        data-scrolling={scrolling || undefined}
+        ref={trackRef}
+      >
+        {children}
+      </span>
+    </span>
+  );
+}
+
 export function getSidebarSessionDisplayGroups<T>(
   sessions: readonly T[],
   visibleLimit: number,
+  baseLimit = GROUP_LIMIT,
 ): {
   baseSessions: T[];
   canCollapse: boolean;
@@ -544,17 +634,17 @@ export function getSidebarSessionDisplayGroups<T>(
   extraSessions: T[];
   hasOverflow: boolean;
 } {
-  const hasOverflow = sessions.length > GROUP_LIMIT;
+  const hasOverflow = sessions.length > baseLimit;
   const clampedVisibleLimit = Math.min(
-    Math.max(GROUP_LIMIT, visibleLimit),
+    Math.max(baseLimit, visibleLimit),
     sessions.length,
   );
   return {
-    baseSessions: sessions.slice(0, GROUP_LIMIT),
-    canCollapse: clampedVisibleLimit > GROUP_LIMIT,
+    baseSessions: sessions.slice(0, baseLimit),
+    canCollapse: clampedVisibleLimit > baseLimit,
     canShowMore: clampedVisibleLimit < sessions.length,
     extraSessions: hasOverflow
-      ? sessions.slice(GROUP_LIMIT, clampedVisibleLimit)
+      ? sessions.slice(baseLimit, clampedVisibleLimit)
       : [],
     hasOverflow,
   };

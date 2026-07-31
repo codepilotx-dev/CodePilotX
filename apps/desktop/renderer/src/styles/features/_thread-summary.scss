@@ -4,13 +4,22 @@
   transition: transform var(--motion-emphasis) cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+.workflow-page__main[
+  data-thread-summary-mode="shift"
+][data-thread-summary-inline="true"] {
+  --session-content-w: min(
+    var(--thread-reading-width, 40rem),
+    calc(100% - (var(--session-content-inline-gutter) * 2))
+  );
+}
+
 .thread-summary-inline {
   position: absolute;
   z-index: 40;
   top: var(--space-4);
   right: var(--space-4);
   bottom: var(--space-4);
-  width: 300px;
+  width: 272px;
   min-height: 0;
   transform-origin: right center;
   animation: thread-summary-enter var(--motion-emphasis)
@@ -18,13 +27,13 @@
 }
 
 .thread-summary-popover {
-  width: 300px;
+  width: 272px;
   max-height: min(680px, calc(100vh - 80px));
 }
 
 .thread-summary-panel,
 .thread-summary-error {
-  width: 300px;
+  width: 272px;
   max-width: 100%;
   border: 1px solid
     color-mix(in srgb, var(--color-token-border-light) 52%, transparent);
@@ -197,24 +206,13 @@
 .thread-summary-row {
   width: calc(100% + 16px);
   min-width: 0;
-  min-height: 36px;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) max-content;
-  align-items: center;
-  gap: var(--space-3);
   margin: 0 -8px;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: var(--radius-4);
-  outline: none;
-  background: transparent;
-  color: var(--color-token-foreground);
-  font: inherit;
-  font-size: 14px;
+  font-family: inherit;
   font-weight: 500;
   text-align: left;
   text-decoration: none;
-  cursor: pointer;
 
   > svg:first-child {
     width: 16px;
@@ -236,21 +234,7 @@
     white-space: nowrap;
   }
 
-  &:hover {
-    background: var(--color-token-list-hover-background);
-  }
-
-  &[data-state="open"] {
-    background: var(--color-token-list-hover-background);
-  }
-
-  &:focus-visible {
-    outline: 1px solid var(--color-token-text-link-foreground);
-    outline-offset: 1px;
-  }
-
   &[aria-disabled="true"] {
-    color: var(--color-token-disabled-foreground);
     cursor: not-allowed;
 
     > svg:first-child {
@@ -261,37 +245,19 @@
 
 .thread-summary-row-group {
   width: calc(100% + 16px);
-  min-height: 36px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28px;
-  align-items: center;
   margin: 0 -8px;
-  padding: 0 8px;
-  border-radius: var(--radius-4);
-
-  &:hover,
-  &:focus-within {
-    background: var(--color-token-list-hover-background);
-  }
 }
 
 .thread-summary-row-group__main {
   min-width: 0;
-  min-height: 36px;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-3);
-  padding: 6px 0;
-  border: 0;
-  outline: none;
   background: transparent;
-  color: var(--color-token-foreground);
-  font: inherit;
-  font-size: 14px;
+  font-family: inherit;
   font-weight: 500;
   text-align: left;
-  cursor: pointer;
 
   > svg {
     width: 16px;
@@ -305,12 +271,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  &:focus-visible {
-    border-radius: var(--radius-4);
-    outline: 1px solid var(--color-token-text-link-foreground);
-    outline-offset: 1px;
   }
 }
 
@@ -506,30 +466,14 @@
 
   > a {
     min-width: 0;
-    min-height: 36px;
     display: grid;
     grid-template-columns: 16px minmax(0, 1fr);
-    align-items: center;
-    gap: var(--space-3);
-    padding: 6px 8px;
-    border-radius: var(--radius-4);
-    color: var(--color-token-foreground);
-    font-size: 14px;
     text-decoration: none;
 
     > span {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    &:hover {
-      background: var(--color-token-list-hover-background);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--color-token-text-link-foreground);
-      outline-offset: -2px;
     }
   }
 }

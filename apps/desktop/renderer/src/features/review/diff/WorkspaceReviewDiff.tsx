@@ -1,10 +1,8 @@
 import React from "react";
 import { FileIcon } from "@codepilotx/material-icon-theme";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { VList } from "virtua";
 import {
   Briefcase,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clipboard,
@@ -18,7 +16,6 @@ import {
   GitCommitHorizontal,
   GitFork,
   GitPullRequestArrow,
-  MessageSquarePlus,
   Minus,
   Plus,
   RotateCcw,
@@ -39,7 +36,6 @@ import type {
   DesktopReviewDiffLine,
   DesktopReviewScope,
   DesktopReviewSource,
-  DesktopReviewSide,
   DesktopReviewView,
   DesktopSessionStatus,
 } from "../../../../shared/types.js";
@@ -53,9 +49,9 @@ import {
 } from "../../../components/ui/iconTokens.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
-import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
+import { ReviewResizeSkeleton } from "./ReviewResizeSkeleton.js";
 import { buildReviewFileTree } from "../workspace/buildReviewFileTree.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "../workspace/CommitPopover.js";
@@ -67,12 +63,33 @@ import {
   toggleReviewDiffExpansion,
   type ReviewTabUiState,
 } from "../../layout/tabs/conversationUiState.js";
-import { syntaxTokenStyle } from "../../syntax/CodeBlock.js";
-import { resolveLanguageFromPath } from "../../syntax/language.js";
-import { resolveThemeId } from "../../syntax/theme.js";
-import type { SyntaxToken } from "../../syntax/types.js";
-import { useHighlightedCode } from "../../syntax/useHighlightedCode.js";
-import { useDesktopTheme } from "../../theme/themeContext.js";
+import {
+  buildReviewIntralineByLineId,
+  type ReviewIntralineByLineId,
+} from "./reviewIntralineDiff.js";
+import {
+  ReviewDiffInline,
+  ReviewDiffLineContent,
+  ReviewDiffLineNumber,
+  ReviewDiffSplit,
+  ReviewHunkActions,
+  ReviewSyntaxText,
+  buildAnchor,
+  commentKey,
+  countUnmodifiedLinesBeforeHunk,
+  formatUnmodifiedLines,
+  splitDiffLines,
+  useReviewDiffSyntax,
+  type CommentAnchor,
+  type CommentDraft,
+  type ReviewCell,
+  type ReviewSyntaxByLineId,
+} from "./ReviewDiffSurface.js";
+export {
+  ReviewComment,
+  type CommentAnchor,
+  type CommentDraft,
+} from "./ReviewDiffSurface.js";
 import {
   ReviewFileRequestCoordinator,
   reviewAgentClient,
@@ -88,8 +105,6 @@ import {
   type ReviewSummarySnapshot,
 } from "../source/reviewAgentClient.js";
 
-export type ReviewFilter = "all" | "added" | "modified" | "removed";
-
 export type ReviewDisplayPath = {
   directory: string;
   fileName: string;
@@ -100,47 +115,6 @@ export type ReviewFileLoadState =
   | { status: "loading" }
   | { status: "loaded" }
   | { status: "error"; message: string };
-
-export type CommentAnchor = {
-  filePath: string;
-  side: DesktopReviewSide;
-  lineNumber: number;
-  lineContent: string;
-};
-
-export type CommentDraft = CommentAnchor & {
-  body: string;
-};
-
-export type ReviewSplitRow = {
-  id: string;
-  left: ReviewCell;
-  right: ReviewCell;
-  paired: boolean;
-};
-
-export type ReviewCell = {
-  line: DesktopReviewDiffLine | null;
-  side: DesktopReviewSide;
-  number: number | null;
-  content: string;
-  tone: "removed" | "added" | "context" | "meta" | "empty";
-};
-
-export type CodexDiffPaneRow =
-  | {
-      id: string;
-      kind: "hunk";
-      hunk: DesktopReviewDiffHunk;
-      unmodifiedLines: number;
-    }
-  | {
-      id: string;
-      kind: "line";
-      cell: ReviewCell;
-    };
-
-export type ReviewSyntaxByLineId = ReadonlyMap<string, readonly SyntaxToken[]>;
 
 export const REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH = 340;
 export const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 240;
@@ -162,10 +136,11 @@ export const ListChevronsUpDown = createLucideIcon("list-chevrons-up-down", [
   ["path", { d: "m15 8 3-3 3 3", key: "bc4io6" }],
   ["path", { d: "m15 16 3 3 3-3", key: "9wmg1l" }],
 ]);
-export const FILE_HEADER_HEIGHT = 32;
+export const FILE_HEADER_HEIGHT = 38;
 export const HUNK_HEADER_HEIGHT = 28;
 export const DIFF_LINE_HEIGHT = 22;
 export const EMPTY_FILE_MIN_HEIGHT = 64;
+export const REVIEW_FILE_VIRTUALIZE_LINE_THRESHOLD = 800;
 
 export function estimateFilePreviewHeight(file: DesktopReviewDiffFile): number {
   let totalLines = 0;
@@ -247,32 +222,6 @@ export function flattenDiffRows(
   return rows;
 }
 
-export function countUnmodifiedLinesBeforeHunk(
-  hunk: DesktopReviewDiffHunk,
-  previousHunk: DesktopReviewDiffHunk | null,
-): number {
-  const previousOldEnd = previousHunk
-    ? previousHunk.oldStart + previousHunk.oldLines
-    : 1;
-  const previousNewEnd = previousHunk
-    ? previousHunk.newStart + previousHunk.newLines
-    : 1;
-  return Math.max(
-    0,
-    Math.min(
-      hunk.oldStart - previousOldEnd,
-      hunk.newStart - previousNewEnd,
-    ),
-  );
-}
-
-export function formatUnmodifiedLines(count: number): string {
-  return `${count.toLocaleString("en-US")} unmodified ${
-    count === 1 ? "line" : "lines"
-  }`;
-}
-
-
 export function ReviewDiffPreview({
   attachedComments,
   collapsedDiffPaths,
@@ -280,13 +229,14 @@ export function ReviewDiffPreview({
   draft,
   fileLoadStates,
   files,
-  largeDiffMode,
+  largeWorkspaceMode,
   pending,
   scope,
   selectedPath,
   toggleCollapseDiff,
   viewportRef,
   view,
+  showWordDiff,
   wrapLines,
   workspacePath,
   onApplyOperation,
@@ -307,13 +257,14 @@ export function ReviewDiffPreview({
   draft: CommentDraft | null;
   fileLoadStates: ReadonlyMap<string, ReviewFileLoadState>;
   files: DesktopReviewDiffFile[];
-  largeDiffMode: boolean;
+  largeWorkspaceMode: boolean;
   pending: boolean;
   scope: DesktopReviewScope;
   selectedPath: string | null;
   toggleCollapseDiff: (path: string) => void;
   viewportRef: React.RefObject<HTMLDivElement | null>;
   view: DesktopReviewView;
+  showWordDiff: boolean;
   wrapLines: boolean;
   workspacePath: string | null;
   onApplyOperation: (
@@ -428,53 +379,69 @@ export function ReviewDiffPreview({
     <section
       className="review-diff-preview"
       aria-label="工作区 diff"
+      data-resize-skeleton-target="dock-review-diff"
       data-slot="review-diff-list"
     >
-      <ScrollArea
-        className="review-diff-scroll"
-        contentClassName="review-diff-scroll-content"
-        viewportRef={viewportRef}
-        onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
+      <div
+        className="review-diff-preview-content"
+        data-resize-skeleton-content="true"
       >
-        {files.map((file) => (
-          <ReviewDiffFilePreview
-            active={file.path === selectedPath}
-            attachedComments={attachedComments}
-            collapsedDiffPaths={collapsedDiffPaths}
-            diffMarkerStyle={diffMarkerStyle}
-            draft={draft}
-            file={file}
-            fileLoadState={
-              fileLoadStates.get(file.path) ??
-              (file.hunks.length > 0
-                ? { status: "loaded" }
-                : { status: "idle" })
-            }
-            key={file.path}
-            largeDiffMode={largeDiffMode}
-            pending={pending}
-            previewHeight={estimateFilePreviewHeight(file)}
-            renderBody={
-              file.path === selectedPath || windowedPaths.has(file.path)
-            }
-            scope={scope}
-            sectionRef={setFileSectionElement(file.path)}
-            toggleCollapseDiff={toggleCollapseDiff}
-            onRetryFile={onRetryFile}
-            view={view}
-            wrapLines={wrapLines}
-            workspacePath={workspacePath}
-            onApplyOperation={onApplyOperation}
-            onCancelDraft={onCancelDraft}
-            onCreateDraft={onCreateDraft}
-            onDeleteComment={onDeleteComment}
-            onDraftBodyChange={onDraftBodyChange}
-            onResolveComment={onResolveComment}
-            onSaveDraft={onSaveDraft}
-          />
-        ))}
-      </ScrollArea>
+        <ScrollArea
+          className="review-diff-scroll"
+          contentClassName="review-diff-scroll-content"
+          viewportRef={viewportRef}
+          onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
+        >
+          {files.map((file) => (
+            <ReviewDiffFilePreview
+              active={file.path === selectedPath}
+              attachedComments={attachedComments}
+              collapsedDiffPaths={collapsedDiffPaths}
+              diffMarkerStyle={diffMarkerStyle}
+              draft={draft}
+              file={file}
+              fileLoadState={
+                fileLoadStates.get(file.path) ??
+                (file.hunks.length > 0
+                  ? { status: "loaded" }
+                  : { status: "idle" })
+              }
+              key={file.path}
+              largeWorkspaceMode={largeWorkspaceMode}
+              pending={pending}
+              previewHeight={estimateFilePreviewHeight(file)}
+              renderBody={
+                file.path === selectedPath || windowedPaths.has(file.path)
+              }
+              scope={scope}
+              sectionRef={setFileSectionElement(file.path)}
+              toggleCollapseDiff={toggleCollapseDiff}
+              onRetryFile={onRetryFile}
+              view={view}
+              showWordDiff={showWordDiff}
+              wrapLines={wrapLines}
+              workspacePath={workspacePath}
+              onApplyOperation={onApplyOperation}
+              onCancelDraft={onCancelDraft}
+              onCreateDraft={onCreateDraft}
+              onDeleteComment={onDeleteComment}
+              onDraftBodyChange={onDraftBodyChange}
+              onResolveComment={onResolveComment}
+              onSaveDraft={onSaveDraft}
+            />
+          ))}
+        </ScrollArea>
+      </div>
+      <ReviewResizeSkeleton variant="diff" />
     </section>
+  );
+}
+
+export function shouldVirtualizeReviewFile(
+  file: DesktopReviewDiffFile,
+): boolean {
+  return (
+    countReviewDiffLines([file]) > REVIEW_FILE_VIRTUALIZE_LINE_THRESHOLD
   );
 }
 
@@ -486,7 +453,7 @@ export function ReviewDiffFilePreview({
   draft,
   file,
   fileLoadState,
-  largeDiffMode,
+  largeWorkspaceMode,
   pending,
   previewHeight,
   renderBody,
@@ -495,6 +462,7 @@ export function ReviewDiffFilePreview({
   onRetryFile,
   toggleCollapseDiff,
   view,
+  showWordDiff,
   wrapLines,
   workspacePath,
   onApplyOperation,
@@ -512,7 +480,7 @@ export function ReviewDiffFilePreview({
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
   fileLoadState: ReviewFileLoadState;
-  largeDiffMode: boolean;
+  largeWorkspaceMode: boolean;
   pending: boolean;
   previewHeight: number;
   renderBody: boolean;
@@ -521,6 +489,7 @@ export function ReviewDiffFilePreview({
   onRetryFile: (path: string) => void;
   toggleCollapseDiff: (path: string) => void;
   view: DesktopReviewView;
+  showWordDiff: boolean;
   wrapLines: boolean;
   workspacePath: string | null;
   onApplyOperation: (
@@ -542,12 +511,19 @@ export function ReviewDiffFilePreview({
 
   const virtualize = React.useMemo(() => {
     if (!renderBody || isCollapsed || !hasContent) return false;
-    return largeDiffMode;
-  }, [renderBody, isCollapsed, hasContent, largeDiffMode]);
+    return shouldVirtualizeReviewFile(file);
+  }, [renderBody, isCollapsed, hasContent, file]);
 
   const flattenedRows = React.useMemo(
     () => (virtualize ? flattenDiffRows(file, view) : []),
     [virtualize, file, view],
+  );
+  const intralineByLineId = React.useMemo(
+    () =>
+      buildReviewIntralineByLineId(file.hunks, {
+        enabled: showWordDiff,
+      }),
+    [file.hunks, showWordDiff],
   );
 
   let diffBody: React.ReactNode;
@@ -565,12 +541,12 @@ export function ReviewDiffFilePreview({
     diffBody = (
       <div
         className={
-          largeDiffMode
+          largeWorkspaceMode
             ? "review-diff-virtual-body fill-space"
             : "review-diff-virtual-body"
         }
         style={
-          !largeDiffMode
+          !largeWorkspaceMode
             ? { height: Math.min(previewHeight - FILE_HEADER_HEIGHT, 600) }
             : undefined
         }
@@ -581,6 +557,7 @@ export function ReviewDiffFilePreview({
           draft={draft}
           file={file}
           flattenedRows={flattenedRows}
+          intralineByLineId={intralineByLineId}
           pending={pending}
           scope={scope}
           view={view}
@@ -627,6 +604,7 @@ export function ReviewDiffFilePreview({
         diffMarkerStyle={diffMarkerStyle}
         draft={draft}
         file={file}
+        intralineByLineId={intralineByLineId}
         pending={pending}
         scope={scope}
         wrapLines={wrapLines}
@@ -646,6 +624,7 @@ export function ReviewDiffFilePreview({
         diffMarkerStyle={diffMarkerStyle}
         draft={draft}
         file={file}
+        intralineByLineId={intralineByLineId}
         pending={pending}
         scope={scope}
         wrapLines={wrapLines}
@@ -670,7 +649,7 @@ export function ReviewDiffFilePreview({
   return (
     <section
       className={
-        virtualize && largeDiffMode
+        virtualize && largeWorkspaceMode
           ? "review-diff-file-preview virtualized fill-space"
           : virtualize
             ? "review-diff-file-preview virtualized"
@@ -694,6 +673,7 @@ export function ReviewDiffFilePreview({
         onKeyDown={handleKeyDown}
       >
         <FileIcon
+          associationMode="extension-only"
           aria-hidden="true"
           className="review-file-icon"
           path={file.path}
@@ -735,8 +715,8 @@ export function ReviewDiffFilePreview({
           <Tooltip content="打开文件">
             <button
               aria-label="打开文件"
+              aria-disabled={!workspacePath}
               className="message-action review-file-open"
-              disabled={!workspacePath}
               type="button"
               onClick={() => {
                 if (!workspacePath) return;
@@ -759,12 +739,13 @@ export function ReviewDiffFilePreview({
           <Tooltip content={file.isUntracked ? "删除未跟踪文件" : "还原文件"}>
             <button
               aria-label={file.isUntracked ? "删除未跟踪文件" : "还原文件"}
+              aria-disabled={pending}
               className="message-action"
-              disabled={pending}
               type="button"
-              onClick={() =>
-                onApplyOperation("revert", { type: "file", path: file.path })
-              }
+              onClick={() => {
+                if (pending) return;
+                onApplyOperation("revert", { type: "file", path: file.path });
+              }}
             >
               {file.isUntracked ? (
                 <Trash2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
@@ -777,12 +758,13 @@ export function ReviewDiffFilePreview({
             <Tooltip content="暂存文件">
               <button
                 aria-label="暂存文件"
+                aria-disabled={pending}
                 className="message-action"
-                disabled={pending}
                 type="button"
-                onClick={() =>
-                  onApplyOperation("stage", { type: "file", path: file.path })
-                }
+                onClick={() => {
+                  if (pending) return;
+                  onApplyOperation("stage", { type: "file", path: file.path });
+                }}
               >
                 <Plus size={REVIEW_FILE_ACTION_ICON_SIZE} />
               </button>
@@ -791,12 +773,13 @@ export function ReviewDiffFilePreview({
             <Tooltip content="取消暂存文件">
               <button
                 aria-label="取消暂存文件"
+                aria-disabled={pending}
                 className="message-action"
-                disabled={pending}
                 type="button"
-                onClick={() =>
-                  onApplyOperation("unstage", { type: "file", path: file.path })
-                }
+                onClick={() => {
+                  if (pending) return;
+                  onApplyOperation("unstage", { type: "file", path: file.path });
+                }}
               >
                 <Minus size={REVIEW_FILE_ACTION_ICON_SIZE} />
               </button>
@@ -817,6 +800,7 @@ export function ReviewVirtualDiffRows({
   draft,
   file,
   flattenedRows,
+  intralineByLineId,
   pending,
   scope,
   view,
@@ -833,6 +817,7 @@ export function ReviewVirtualDiffRows({
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
   flattenedRows: DiffVirtualRow[];
+  intralineByLineId: ReviewIntralineByLineId;
   pending: boolean;
   scope: DesktopReviewScope;
   view: DesktopReviewView;
@@ -849,729 +834,73 @@ export function ReviewVirtualDiffRows({
   onResolveComment: (commentId: string) => void;
   onSaveDraft: () => void;
 }): React.ReactNode {
-  const syntaxByLineId = useReviewDiffSyntax(file);
+  const syntax = useReviewDiffSyntax(file);
 
   return (
-    <VList
-      className="review-diff-vlist"
-      style={{ width: "100%", height: "100%" }}
+    <div
+      className="review-codex-diff review-codex-diff--virtual"
+      data-diff=""
+      data-diff-type={view === "split" ? "split" : "single"}
+      data-indicators={diffMarkerStyle === "symbol" ? "classic" : "bars"}
+      data-overflow="scroll"
+      data-review-syntax-state={syntax.state}
     >
-      {flattenedRows.map((row) =>
-        row.kind === "hunk-header" ? (
-          <div
-            className="review-diff-vlist-row"
-            key={`hunk-${row.hunk.id}`}
-          >
-            <ReviewHunkHeader
+      <VList
+        className="review-diff-vlist"
+        style={{ width: "100%", height: "100%" }}
+      >
+        {flattenedRows.map((row) =>
+          row.kind === "hunk-header" ? (
+            <VirtualDiffHunkRow
               file={file}
               hunk={row.hunk}
-              unmodifiedLines={row.unmodifiedLines}
+              key={`hunk-${row.hunk.id}`}
               pending={pending}
               scope={scope}
+              unmodifiedLines={row.unmodifiedLines}
               onApplyOperation={onApplyOperation}
             />
-          </div>
-        ) : view === "split" && row.kind === "split-row" ? (
-          <VirtualDiffSplitRow
-            key={row.rowId}
-            attachedComments={attachedComments}
-            diffMarkerStyle={diffMarkerStyle}
-            draft={draft}
-            file={file}
-            left={row.left}
-            right={row.right}
-            syntaxByLineId={syntaxByLineId}
-            onCancelDraft={onCancelDraft}
-            onCreateDraft={onCreateDraft}
-            onDeleteComment={onDeleteComment}
-            onDraftBodyChange={onDraftBodyChange}
-            onResolveComment={onResolveComment}
-            onSaveDraft={onSaveDraft}
-          />
-        ) : row.kind === "inline-line" ? (
-          <VirtualDiffInlineRow
-            key={row.line.id}
-            attachedComments={attachedComments}
-            diffMarkerStyle={diffMarkerStyle}
-            draft={draft}
-            file={file}
-            line={row.line}
-            syntaxByLineId={syntaxByLineId}
-            onCancelDraft={onCancelDraft}
-            onCreateDraft={onCreateDraft}
-            onDeleteComment={onDeleteComment}
-            onDraftBodyChange={onDraftBodyChange}
-            onResolveComment={onResolveComment}
-            onSaveDraft={onSaveDraft}
-          />
-        ) : null,
-      )}
-    </VList>
-  );
-}
-
-export function VirtualDiffInlineRow({
-  attachedComments,
-  diffMarkerStyle,
-  draft,
-  file,
-  line,
-  syntaxByLineId,
-  onCancelDraft,
-  onCreateDraft,
-  onDeleteComment,
-  onDraftBodyChange,
-  onResolveComment,
-  onSaveDraft,
-}: {
-  attachedComments: Map<string, DesktopReviewComment[]>;
-  diffMarkerStyle: DesktopDiffMarkerStyle;
-  draft: CommentDraft | null;
-  file: DesktopReviewDiffFile;
-  line: DesktopReviewDiffLine;
-  syntaxByLineId: ReviewSyntaxByLineId;
-  onCancelDraft: () => void;
-  onCreateDraft: (draft: CommentDraft) => void;
-  onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
-  onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
-}): React.ReactNode {
-  const side = line.type === "removed" ? "left" : "right";
-  const lineNumber = line.type === "removed" ? line.oldLine : line.newLine;
-  const anchor = buildAnchor(file.path, side, lineNumber, line.content);
-  const comments = anchor
-    ? (attachedComments.get(commentKey(anchor)) ?? [])
-    : [];
-
-  return (
-    <div className="review-diff-vlist-row">
-      <div
-        className="review-diff-row u-grid u-items-stretch"
-        data-marker-style={diffMarkerStyle}
-        data-line-type={line.type}
-      >
-        <LineCommentButton
-          anchor={anchor}
-          disabled={!anchor}
-          onCreateDraft={onCreateDraft}
-        />
-        <span
-          className="review-diff-line-number u-text-right"
-          data-tone={line.type}
-        >
-          {lineNumber ?? ""}
-        </span>
-        <DiffMarker tone={line.type} />
-        <code className="review-diff-line-content">
-          <ReviewSyntaxText
-            content={line.content}
-            line={line}
-            syntaxByLineId={syntaxByLineId}
-          />
-        </code>
-        <LineComments
-          comments={comments}
-          draft={draft}
-          anchor={anchor}
-          onCancelDraft={onCancelDraft}
-          onDeleteComment={onDeleteComment}
-          onDraftBodyChange={onDraftBodyChange}
-          onResolveComment={onResolveComment}
-          onSaveDraft={onSaveDraft}
-        />
-      </div>
+          ) : view === "split" && row.kind === "split-row" ? (
+            <VirtualDiffSplitRow
+              key={row.rowId}
+              attachedComments={attachedComments}
+              draft={draft}
+              file={file}
+              left={row.left}
+              right={row.right}
+              intralineByLineId={intralineByLineId}
+              syntaxByLineId={syntax.byLineId}
+              onCancelDraft={onCancelDraft}
+              onCreateDraft={onCreateDraft}
+              onDeleteComment={onDeleteComment}
+              onDraftBodyChange={onDraftBodyChange}
+              onResolveComment={onResolveComment}
+              onSaveDraft={onSaveDraft}
+            />
+          ) : row.kind === "inline-line" ? (
+            <VirtualDiffInlineRow
+              key={row.line.id}
+              attachedComments={attachedComments}
+              draft={draft}
+              file={file}
+              line={row.line}
+              intralineByLineId={intralineByLineId}
+              syntaxByLineId={syntax.byLineId}
+              onCancelDraft={onCancelDraft}
+              onCreateDraft={onCreateDraft}
+              onDeleteComment={onDeleteComment}
+              onDraftBodyChange={onDraftBodyChange}
+              onResolveComment={onResolveComment}
+              onSaveDraft={onSaveDraft}
+            />
+          ) : null,
+        )}
+      </VList>
     </div>
   );
 }
 
-export function VirtualDiffSplitRow({
-  attachedComments,
-  diffMarkerStyle,
-  draft,
-  file,
-  left,
-  right,
-  syntaxByLineId,
-  onCancelDraft,
-  onCreateDraft,
-  onDeleteComment,
-  onDraftBodyChange,
-  onResolveComment,
-  onSaveDraft,
-}: {
-  attachedComments: Map<string, DesktopReviewComment[]>;
-  diffMarkerStyle: DesktopDiffMarkerStyle;
-  draft: CommentDraft | null;
-  file: DesktopReviewDiffFile;
-  left: ReviewCell;
-  right: ReviewCell;
-  syntaxByLineId: ReviewSyntaxByLineId;
-  onCancelDraft: () => void;
-  onCreateDraft: (draft: CommentDraft) => void;
-  onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
-  onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
-}): React.ReactNode {
-  return (
-    <div className="review-diff-vlist-row">
-      <div
-        className="review-diff-split-row u-grid u-min-w-0"
-        data-marker-style={diffMarkerStyle}
-        data-layout="paired"
-      >
-        {[left, right].map((cell) => {
-          const anchor = buildAnchor(
-            file.path,
-            cell.side,
-            cell.number,
-            cell.content,
-          );
-          const comments = anchor
-            ? (attachedComments.get(commentKey(anchor)) ?? [])
-            : [];
-          return (
-            <div
-              className="review-diff-side u-grid u-min-w-0"
-              data-tone={cell.tone}
-              key={cell.side}
-            >
-              <LineCommentButton
-                anchor={anchor}
-                disabled={!anchor}
-                onCreateDraft={onCreateDraft}
-              />
-              <span
-                className="review-diff-line-number u-text-right"
-                data-tone={cell.tone}
-              >
-                {cell.number ?? ""}
-              </span>
-              <DiffMarker tone={cell.tone} />
-              <code className="review-diff-line-content">
-                {cell.tone === "empty" ? (
-                  " "
-                ) : (
-                  <ReviewSyntaxText
-                    content={cell.content}
-                    line={cell.line}
-                    syntaxByLineId={syntaxByLineId}
-                  />
-                )}
-              </code>
-              <LineComments
-                comments={comments}
-                draft={draft}
-                anchor={anchor}
-                onCancelDraft={onCancelDraft}
-                onDeleteComment={onDeleteComment}
-                onDraftBodyChange={onDraftBodyChange}
-                onResolveComment={onResolveComment}
-                onSaveDraft={onSaveDraft}
-              />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-export function ReviewDiffInline({
-  attachedComments,
-  diffMarkerStyle,
-  draft,
-  file,
-  pending,
-  scope,
-  wrapLines,
-  onApplyOperation,
-  onCancelDraft,
-  onCreateDraft,
-  onDeleteComment,
-  onDraftBodyChange,
-  onResolveComment,
-  onSaveDraft,
-}: ReviewDiffBodyProps): React.ReactNode {
-  const rows = buildUnifiedDiffRows(file);
-  const syntaxByLineId = useReviewDiffSyntax(file);
-  return (
-    <pre
-      className="review-codex-diff"
-      data-diff=""
-      data-diff-type="single"
-      data-indicators={diffMarkerStyle === "symbol" ? "classic" : "bars"}
-      data-overflow={wrapLines ? "wrap" : "scroll"}
-    >
-      <ReviewDiffCodePane
-        attachedComments={attachedComments}
-        draft={draft}
-        file={file}
-        pane="unified"
-        pending={pending}
-        rows={rows}
-        scope={scope}
-        syntaxByLineId={syntaxByLineId}
-        onApplyOperation={onApplyOperation}
-        onCancelDraft={onCancelDraft}
-        onCreateDraft={onCreateDraft}
-        onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
-        onResolveComment={onResolveComment}
-        onSaveDraft={onSaveDraft}
-      />
-    </pre>
-  );
-}
-
-export function ReviewDiffSplit({
-  attachedComments,
-  diffMarkerStyle,
-  draft,
-  file,
-  pending,
-  scope,
-  wrapLines,
-  onApplyOperation,
-  onCancelDraft,
-  onCreateDraft,
-  onDeleteComment,
-  onDraftBodyChange,
-  onResolveComment,
-  onSaveDraft,
-}: ReviewDiffBodyProps): React.ReactNode {
-  const rootRef = React.useRef<HTMLPreElement>(null);
-  const { leftRows, rightRows } = React.useMemo(
-    () => buildSplitDiffRows(file),
-    [file],
-  );
-  const syntaxByLineId = useReviewDiffSyntax(file);
-  useSyncCodexSplitRows(rootRef, !wrapLines, file);
-
-  return (
-    <pre
-      className="review-codex-diff"
-      data-diff=""
-      data-diff-type="split"
-      data-indicators={diffMarkerStyle === "symbol" ? "classic" : "bars"}
-      data-overflow={wrapLines ? "wrap" : "scroll"}
-      ref={rootRef}
-    >
-      <ReviewDiffCodePane
-        attachedComments={attachedComments}
-        draft={draft}
-        file={file}
-        pane="deletions"
-        pending={pending}
-        rows={leftRows}
-        scope={scope}
-        syncRows={!wrapLines}
-        syntaxByLineId={syntaxByLineId}
-        onApplyOperation={onApplyOperation}
-        onCancelDraft={onCancelDraft}
-        onCreateDraft={onCreateDraft}
-        onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
-        onResolveComment={onResolveComment}
-        onSaveDraft={onSaveDraft}
-      />
-      <ReviewDiffCodePane
-        attachedComments={attachedComments}
-        draft={draft}
-        file={file}
-        pane="additions"
-        pending={pending}
-        rows={rightRows}
-        scope={scope}
-        syncRows={!wrapLines}
-        syntaxByLineId={syntaxByLineId}
-        onApplyOperation={onApplyOperation}
-        onCancelDraft={onCancelDraft}
-        onCreateDraft={onCreateDraft}
-        onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
-        onResolveComment={onResolveComment}
-        onSaveDraft={onSaveDraft}
-      />
-    </pre>
-  );
-}
-
-export function ReviewDiffCodePane({
-  attachedComments,
-  draft,
-  file,
-  pane,
-  pending,
-  rows,
-  scope,
-  syncRows = false,
-  syntaxByLineId,
-  onApplyOperation,
-  onCancelDraft,
-  onCreateDraft,
-  onDeleteComment,
-  onDraftBodyChange,
-  onResolveComment,
-  onSaveDraft,
-}: Omit<ReviewDiffBodyProps, "diffMarkerStyle" | "wrapLines"> & {
-  pane: "unified" | "deletions" | "additions";
-  rows: CodexDiffPaneRow[];
-  syncRows?: boolean;
-  syntaxByLineId: ReviewSyntaxByLineId;
-}): React.ReactNode {
-  const rowSpan = Math.max(rows.length, 1);
-  const columnStyle = {
-    gridRow: `1 / span ${rowSpan}`,
-  } as React.CSSProperties;
-
-  return (
-    <code
-      className="review-codex-diff__code"
-      data-code=""
-      data-unified={pane === "unified" ? "" : undefined}
-      data-deletions={pane === "deletions" ? "" : undefined}
-      data-additions={pane === "additions" ? "" : undefined}
-      style={{
-        "--review-diff-row-count": rowSpan,
-      } as React.CSSProperties}
-    >
-      <div className="review-codex-diff__gutter" data-gutter="" style={columnStyle}>
-        {rows.map((row) => {
-          if (row.kind === "hunk") {
-            return (
-              <div
-                className="review-codex-diff__hunk review-codex-diff__hunk--gutter"
-                data-diff-sync-row={syncRows ? row.id : undefined}
-                data-separator="line-info"
-                key={`gutter-${row.id}`}
-              />
-            );
-          }
-
-          const { cell } = row;
-          const anchor = buildAnchor(
-            file.path,
-            cell.side,
-            cell.number,
-            cell.content,
-          );
-          return (
-            <div
-              className="review-codex-diff__number"
-              data-column-number={cell.number ?? ""}
-              data-diff-sync-row={syncRows ? row.id : undefined}
-              data-line-type={codexDiffLineType(cell.tone)}
-              key={`gutter-${row.id}`}
-            >
-              <LineCommentButton
-                anchor={anchor}
-                disabled={!anchor}
-                onCreateDraft={onCreateDraft}
-              />
-              <span data-line-number-content="">{cell.number ?? ""}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="review-codex-diff__content" data-content="" style={columnStyle}>
-        {rows.map((row) => {
-          if (row.kind === "hunk") {
-            return (
-              <div
-                className="review-codex-diff__hunk review-codex-diff__hunk--content"
-                data-diff-sync-row={syncRows ? row.id : undefined}
-                data-separator="line-info"
-                key={`content-${row.id}`}
-              >
-                <div data-separator-wrapper="">
-                  <span data-separator-content="">
-                    {formatUnmodifiedLines(row.unmodifiedLines)}
-                  </span>
-                  {pane === "additions" ? null : (
-                    <ReviewHunkActions
-                      file={file}
-                      hunk={row.hunk}
-                      pending={pending}
-                      scope={scope}
-                      onApplyOperation={onApplyOperation}
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          }
-
-          const { cell } = row;
-          const anchor = buildAnchor(
-            file.path,
-            cell.side,
-            cell.number,
-            cell.content,
-          );
-          const comments = anchor
-            ? (attachedComments.get(commentKey(anchor)) ?? [])
-            : [];
-          return (
-            <div
-              className="review-codex-diff__line"
-              data-diff-sync-row={syncRows ? row.id : undefined}
-              data-line=""
-              data-line-type={codexDiffLineType(cell.tone)}
-              key={`content-${row.id}`}
-            >
-              <span className="review-codex-diff__line-text">
-                {cell.tone === "empty" ? (
-                  " "
-                ) : (
-                  <ReviewSyntaxText
-                    content={cell.content}
-                    line={cell.line}
-                    syntaxByLineId={syntaxByLineId}
-                  />
-                )}
-              </span>
-              <LineComments
-                comments={comments}
-                draft={draft}
-                anchor={anchor}
-                onCancelDraft={onCancelDraft}
-                onDeleteComment={onDeleteComment}
-                onDraftBodyChange={onDraftBodyChange}
-                onResolveComment={onResolveComment}
-                onSaveDraft={onSaveDraft}
-              />
-            </div>
-          );
-        })}
-      </div>
-    </code>
-  );
-}
-
-export function buildUnifiedDiffRows(file: DesktopReviewDiffFile): CodexDiffPaneRow[] {
-  const rows: CodexDiffPaneRow[] = [];
-  let previousHunk: DesktopReviewDiffHunk | null = null;
-  for (const hunk of file.hunks) {
-    rows.push({
-      id: `hunk:${hunk.id}`,
-      kind: "hunk",
-      hunk,
-      unmodifiedLines: countUnmodifiedLinesBeforeHunk(hunk, previousHunk),
-    });
-    for (const line of hunk.lines) {
-      const side = line.type === "removed" ? "left" : "right";
-      rows.push({
-        id: `line:${line.id}`,
-        kind: "line",
-        cell: {
-          line,
-          side,
-          number: line.type === "removed" ? line.oldLine : line.newLine,
-          content: line.content,
-          tone: line.type,
-        },
-      });
-    }
-    previousHunk = hunk;
-  }
-  return rows;
-}
-
-export function useReviewDiffSyntax(
-  file: DesktopReviewDiffFile,
-): ReviewSyntaxByLineId {
-  const { activeTheme, codeThemeId } = useDesktopTheme();
-  const theme = resolveThemeId(codeThemeId, activeTheme.variant);
-  const lines = React.useMemo(
-    () => file.hunks.flatMap((hunk) => hunk.lines),
-    [file.hunks],
-  );
-  const code = React.useMemo(
-    () => lines.map((line) => line.content).join("\n"),
-    [lines],
-  );
-  const presentation = useHighlightedCode({
-    code,
-    language: resolveLanguageFromPath(file.path),
-    theme,
-  });
-
-  return React.useMemo(() => {
-    const tokens = presentation.highlighted?.tokens;
-    if (!tokens) return new Map<string, readonly SyntaxToken[]>();
-
-    const byLineId = new Map<string, readonly SyntaxToken[]>();
-    for (const [index, line] of lines.entries()) {
-      byLineId.set(line.id, tokens[index] ?? []);
-    }
-    return byLineId;
-  }, [lines, presentation.highlighted]);
-}
-
-export function ReviewSyntaxText({
-  content,
-  line,
-  syntaxByLineId,
-}: {
-  content: string;
-  line: DesktopReviewDiffLine | null;
-  syntaxByLineId: ReviewSyntaxByLineId;
-}): React.ReactNode {
-  const tokens = line ? syntaxByLineId.get(line.id) : undefined;
-  if (!tokens || tokens.length === 0) return content || " ";
-
-  return tokens.map((token, index) => (
-    <span key={`${line.id}:${index}`} style={syntaxTokenStyle(token)}>
-      {token.content}
-    </span>
-  ));
-}
-
-export function buildSplitDiffRows(file: DesktopReviewDiffFile): {
-  leftRows: CodexDiffPaneRow[];
-  rightRows: CodexDiffPaneRow[];
-} {
-  const leftRows: CodexDiffPaneRow[] = [];
-  const rightRows: CodexDiffPaneRow[] = [];
-  let previousHunk: DesktopReviewDiffHunk | null = null;
-  for (const hunk of file.hunks) {
-    const hunkId = `hunk:${hunk.id}`;
-    const unmodifiedLines = countUnmodifiedLinesBeforeHunk(
-      hunk,
-      previousHunk,
-    );
-    leftRows.push({
-      id: hunkId,
-      kind: "hunk",
-      hunk,
-      unmodifiedLines,
-    });
-    rightRows.push({
-      id: hunkId,
-      kind: "hunk",
-      hunk,
-      unmodifiedLines,
-    });
-    for (const row of splitDiffLines(hunk.lines)) {
-      const rowId = `line:${row.id}`;
-      leftRows.push({ id: rowId, kind: "line", cell: row.left });
-      rightRows.push({ id: rowId, kind: "line", cell: row.right });
-    }
-    previousHunk = hunk;
-  }
-  return { leftRows, rightRows };
-}
-
-export function codexDiffLineType(cell: ReviewCell["tone"]): string {
-  if (cell === "added") return "change-addition";
-  if (cell === "removed") return "change-deletion";
-  if (cell === "empty") return "buffer";
-  if (cell === "meta") return "metadata";
-  return "context";
-}
-
-export function useSyncCodexSplitRows(
-  rootRef: React.RefObject<HTMLPreElement | null>,
-  enabled: boolean,
-  revision: unknown,
-): void {
-  React.useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root || !enabled || typeof ResizeObserver === "undefined") return;
-
-    let frame = 0;
-    const sync = (): void => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const groups = new Map<string, HTMLElement[]>();
-        for (const node of root.querySelectorAll<HTMLElement>(
-          "[data-diff-sync-row]",
-        )) {
-          node.style.minHeight = "";
-          const key = node.dataset.diffSyncRow;
-          if (!key) continue;
-          const group = groups.get(key) ?? [];
-          group.push(node);
-          groups.set(key, group);
-        }
-        for (const group of groups.values()) {
-          const height = Math.max(
-            ...group.map((node) => node.getBoundingClientRect().height),
-          );
-          for (const node of group) node.style.minHeight = `${height}px`;
-        }
-      });
-    };
-
-    const observedHeights = new WeakMap<Element, number>();
-    const observer = new ResizeObserver((entries) => {
-      let blockSizeChanged = false;
-      for (const entry of entries) {
-        const nextHeight =
-          entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-        const previousHeight = observedHeights.get(entry.target);
-        observedHeights.set(entry.target, nextHeight);
-        if (
-          previousHeight === undefined ||
-          Math.abs(previousHeight - nextHeight) > 0.5
-        ) {
-          blockSizeChanged = true;
-        }
-      }
-      if (blockSizeChanged) sync();
-    });
-    observer.observe(root);
-    for (const node of root.querySelectorAll<HTMLElement>(
-      "[data-diff-sync-row]",
-    )) {
-      observer.observe(node);
-    }
-    sync();
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [enabled, revision, rootRef]);
-}
-
-export type ReviewDiffBodyProps = {
-  attachedComments: Map<string, DesktopReviewComment[]>;
-  diffMarkerStyle: DesktopDiffMarkerStyle;
-  draft: CommentDraft | null;
-  file: DesktopReviewDiffFile;
-  pending: boolean;
-  scope: DesktopReviewScope;
-  wrapLines: boolean;
-  onApplyOperation: (
-    action: "stage" | "unstage" | "revert",
-    target:
-      | { type: "file"; path: string }
-      | { type: "hunk"; path: string; hunkId: string },
-  ) => void;
-  onCancelDraft: () => void;
-  onCreateDraft: (draft: CommentDraft) => void;
-  onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
-  onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
-};
-
-export function DiffMarker({
-  tone,
-}: {
-  tone: DesktopReviewDiffLine["type"] | ReviewCell["tone"];
-}): React.ReactNode {
-  return (
-    <span className="review-diff-marker" data-tone={tone} aria-hidden="true">
-      {tone === "added" ? "+" : tone === "removed" ? "-" : ""}
-    </span>
-  );
-}
-
-export function ReviewHunkHeader({
+export function VirtualDiffHunkRow({
   file,
   hunk,
   unmodifiedLines,
@@ -1591,296 +920,191 @@ export function ReviewHunkHeader({
 }): React.ReactNode {
   return (
     <div
-      className="review-diff-row u-grid u-items-stretch"
-      data-line-type="hunk"
+      className="review-codex-diff__virtual-row"
+      data-virtual-layout="hunk"
     >
-      <span className="review-diff-line-content">
-        {formatUnmodifiedLines(unmodifiedLines)}
-      </span>
-      <ReviewHunkActions
-        file={file}
-        hunk={hunk}
-        pending={pending}
-        scope={scope}
-        onApplyOperation={onApplyOperation}
+      <div
+        className="review-codex-diff__hunk review-codex-diff__hunk--gutter"
+        data-separator="line-info"
       />
+      <div
+        className="review-codex-diff__hunk review-codex-diff__hunk--content"
+        data-separator="line-info"
+      >
+        <div data-separator-wrapper="">
+          <span data-separator-content="">
+            {formatUnmodifiedLines(unmodifiedLines)}
+          </span>
+          <ReviewHunkActions
+            file={file}
+            hunk={hunk}
+            pending={pending}
+            scope={scope}
+            onApplyOperation={onApplyOperation}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
-export function ReviewHunkActions({
-  file,
-  hunk,
-  pending,
-  scope,
-  onApplyOperation,
-}: {
-  file: DesktopReviewDiffFile;
-  hunk: DesktopReviewDiffHunk;
-  pending: boolean;
-  scope: DesktopReviewScope;
-  onApplyOperation: (
-    action: "stage" | "unstage" | "revert",
-    target: { type: "hunk"; path: string; hunkId: string },
-  ) => void;
-}): React.ReactNode {
-  return (
-    <div className="review-hunk-actions" role="toolbar" aria-label="Hunk 操作">
-      {scope === "unstaged" ? (
-        <>
-          <button
-            disabled={pending}
-            type="button"
-            onClick={() =>
-              onApplyOperation("stage", {
-                type: "hunk",
-                path: file.path,
-                hunkId: hunk.id,
-              })
-            }
-          >
-            暂存 hunk
-          </button>
-          <button
-            disabled={pending}
-            type="button"
-            onClick={() =>
-              onApplyOperation("revert", {
-                type: "hunk",
-                path: file.path,
-                hunkId: hunk.id,
-              })
-            }
-          >
-            还原
-          </button>
-        </>
-      ) : (
-        <button
-          disabled={pending}
-          type="button"
-          onClick={() =>
-            onApplyOperation("unstage", {
-              type: "hunk",
-              path: file.path,
-              hunkId: hunk.id,
-            })
-          }
-        >
-          取消暂存
-        </button>
-      )}
-    </div>
-  );
-}
-
-export function LineCommentButton({
-  anchor,
-  disabled,
-  onCreateDraft,
-}: {
-  anchor: CommentAnchor | null;
-  disabled: boolean;
-  onCreateDraft: (draft: CommentDraft) => void;
-}): React.ReactNode {
-  return (
-    <button
-      aria-label="添加行内评论"
-      className="review-line-comment-button"
-      disabled={disabled || !anchor}
-      type="button"
-      onClick={() => {
-        if (!anchor) return;
-        onCreateDraft({ ...anchor, body: "" });
-      }}
-    >
-      <MessageSquarePlus size={12} />
-    </button>
-  );
-}
-
-export function LineComments({
-  anchor,
-  comments,
+export function VirtualDiffInlineRow({
+  attachedComments,
   draft,
+  file,
+  line,
+  intralineByLineId,
+  syntaxByLineId,
   onCancelDraft,
+  onCreateDraft,
   onDeleteComment,
   onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
-  anchor: CommentAnchor | null;
-  comments: DesktopReviewComment[];
+  attachedComments: Map<string, DesktopReviewComment[]>;
   draft: CommentDraft | null;
+  file: DesktopReviewDiffFile;
+  line: DesktopReviewDiffLine;
+  intralineByLineId: ReviewIntralineByLineId;
+  syntaxByLineId: ReviewSyntaxByLineId;
   onCancelDraft: () => void;
+  onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
   onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
   onSaveDraft: () => void;
 }): React.ReactNode {
-  const draftMatches =
-    anchor && draft ? commentKey(anchor) === commentKey(draft) : false;
-  if (comments.length === 0 && !draftMatches) return null;
+  const side = line.type === "removed" ? "left" : "right";
+  const lineNumber = line.type === "removed" ? line.oldLine : line.newLine;
+  const anchor = buildAnchor(file.path, side, lineNumber, line.content);
+  const comments = anchor
+    ? (attachedComments.get(commentKey(anchor)) ?? [])
+    : [];
+
   return (
-    <div className="review-line-comments">
-      {comments.map((comment) => (
-        <ReviewComment
-          comment={comment}
-          key={comment.id}
-          onDelete={() => onDeleteComment(comment.id)}
-          onResolve={() => onResolveComment(comment.id)}
-        />
-      ))}
-      {draftMatches ? (
-        <div className="review-comment draft">
-          <textarea
-            autoFocus
-            placeholder="写下这行的问题或修改建议"
-            value={draft?.body ?? ""}
-            onChange={(event) => onDraftBodyChange(event.target.value)}
+    <div
+      className="review-codex-diff__virtual-row"
+      data-virtual-layout="single"
+    >
+      <ReviewDiffLineNumber
+        anchor={anchor}
+        cellTone={line.type}
+        lineNumber={lineNumber}
+        onCreateDraft={onCreateDraft}
+      />
+      <ReviewDiffLineContent
+        anchor={anchor}
+        comments={comments}
+        draft={draft}
+        cellTone={line.type}
+        onCancelDraft={onCancelDraft}
+        onDeleteComment={onDeleteComment}
+        onDraftBodyChange={onDraftBodyChange}
+        onResolveComment={onResolveComment}
+        onSaveDraft={onSaveDraft}
+      >
+        <span className="review-codex-diff__line-text">
+          <ReviewSyntaxText
+            content={line.content}
+            line={line}
+            ranges={intralineByLineId.get(line.id)}
+            syntaxByLineId={syntaxByLineId}
           />
-          <div className="review-comment-actions">
-            <button type="button" onClick={onCancelDraft}>
-              取消
-            </button>
-            <button
-              disabled={!draft?.body.trim()}
-              type="button"
-              onClick={onSaveDraft}
-            >
-              保存
-            </button>
-          </div>
-        </div>
-      ) : null}
+        </span>
+      </ReviewDiffLineContent>
     </div>
   );
 }
 
-export function ReviewComment({
-  comment,
-  stale = false,
-  onDelete,
-  onResolve,
+export function VirtualDiffSplitRow({
+  attachedComments,
+  draft,
+  file,
+  left,
+  right,
+  intralineByLineId,
+  syntaxByLineId,
+  onCancelDraft,
+  onCreateDraft,
+  onDeleteComment,
+  onDraftBodyChange,
+  onResolveComment,
+  onSaveDraft,
 }: {
-  comment: DesktopReviewComment;
-  stale?: boolean;
-  onDelete: () => void;
-  onResolve: () => void;
+  attachedComments: Map<string, DesktopReviewComment[]>;
+  draft: CommentDraft | null;
+  file: DesktopReviewDiffFile;
+  left: ReviewCell;
+  right: ReviewCell;
+  intralineByLineId: ReviewIntralineByLineId;
+  syntaxByLineId: ReviewSyntaxByLineId;
+  onCancelDraft: () => void;
+  onCreateDraft: (draft: CommentDraft) => void;
+  onDeleteComment: (commentId: string) => void;
+  onDraftBodyChange: (body: string) => void;
+  onResolveComment: (commentId: string) => void;
+  onSaveDraft: () => void;
 }): React.ReactNode {
   return (
-    <div className={`review-comment ${comment.status} ${stale ? "stale" : ""}`}>
-      <div className="review-comment-meta">
-        <span>
-          {comment.filePath}:{comment.lineNumber}
-        </span>
-        <span>{comment.side === "left" ? "旧行" : "新行"}</span>
-      </div>
-      <div className="review-comment-body">{comment.body}</div>
-      <div className="review-comment-actions">
-        {comment.status === "open" ? (
-          <button type="button" onClick={onResolve}>
-            <CheckCircle2 size={12} />
-            解决
-          </button>
-        ) : null}
-        <button type="button" onClick={onDelete}>
-          <Trash2 size={12} />
-          删除
-        </button>
-      </div>
+    <div
+      className="review-codex-diff__virtual-row"
+      data-virtual-layout="split"
+    >
+      {[left, right].map((cell) => {
+          const anchor = buildAnchor(
+            file.path,
+            cell.side,
+            cell.number,
+            cell.content,
+          );
+          const comments = anchor
+            ? (attachedComments.get(commentKey(anchor)) ?? [])
+            : [];
+          return (
+            <div
+              className="review-codex-diff__virtual-cell"
+              key={cell.side}
+            >
+              <ReviewDiffLineNumber
+                anchor={anchor}
+                cellTone={cell.tone}
+                lineNumber={cell.number}
+                onCreateDraft={onCreateDraft}
+              />
+              <ReviewDiffLineContent
+                anchor={anchor}
+                comments={comments}
+                draft={draft}
+                cellTone={cell.tone}
+                onCancelDraft={onCancelDraft}
+                onDeleteComment={onDeleteComment}
+                onDraftBodyChange={onDraftBodyChange}
+                onResolveComment={onResolveComment}
+                onSaveDraft={onSaveDraft}
+              >
+                <span className="review-codex-diff__line-text">
+                {cell.tone === "empty" ? (
+                  " "
+                ) : (
+                  <ReviewSyntaxText
+                    content={cell.content}
+                    line={cell.line}
+                    ranges={
+                      cell.line
+                        ? intralineByLineId.get(cell.line.id)
+                        : undefined
+                    }
+                    syntaxByLineId={syntaxByLineId}
+                  />
+                )}
+                </span>
+              </ReviewDiffLineContent>
+            </div>
+          );
+        })}
     </div>
   );
-}
-
-export function splitDiffLines(lines: DesktopReviewDiffLine[]): ReviewSplitRow[] {
-  const rows: ReviewSplitRow[] = [];
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (!line) continue;
-    if (line.type === "removed" && lines[index + 1]?.type === "added") {
-      const next = lines[index + 1]!;
-      rows.push({
-        id: `${line.id}-${next.id}`,
-        left: {
-          line,
-          side: "left",
-          number: line.oldLine,
-          content: line.content,
-          tone: "removed",
-        },
-        right: {
-          line: next,
-          side: "right",
-          number: next.newLine,
-          content: next.content,
-          tone: "added",
-        },
-        paired: true,
-      });
-      index += 1;
-      continue;
-    }
-    if (line.type === "removed") {
-      rows.push({
-        id: line.id,
-        left: {
-          line,
-          side: "left",
-          number: line.oldLine,
-          content: line.content,
-          tone: "removed",
-        },
-        right: emptyCell("right"),
-        paired: false,
-      });
-      continue;
-    }
-    if (line.type === "added") {
-      rows.push({
-        id: line.id,
-        left: emptyCell("left"),
-        right: {
-          line,
-          side: "right",
-          number: line.newLine,
-          content: line.content,
-          tone: "added",
-        },
-        paired: false,
-      });
-      continue;
-    }
-    rows.push({
-      id: line.id,
-      left: {
-        line,
-        side: "left",
-        number: line.oldLine,
-        content: line.content,
-        tone: "context",
-      },
-      right: {
-        line,
-        side: "right",
-        number: line.newLine,
-        content: line.content,
-        tone: "context",
-      },
-      paired: true,
-    });
-  }
-  return rows;
-}
-
-export function emptyCell(side: DesktopReviewSide): ReviewCell {
-  return {
-    line: null,
-    side,
-    number: null,
-    content: "",
-    tone: "empty",
-  };
 }
 
 export function clampReviewFileTreePanelWidth(
@@ -1948,74 +1172,6 @@ export function attachComments(
   return { attachedComments, staleComments };
 }
 
-export function buildAnchor(
-  filePath: string,
-  side: DesktopReviewSide,
-  lineNumber: number | null,
-  lineContent: string,
-): CommentAnchor | null {
-  if (lineNumber === null) return null;
-  return { filePath, side, lineNumber, lineContent };
-}
-
-export function commentKey(anchor: CommentAnchor): string {
-  return `${anchor.filePath}\u0000${anchor.side}\u0000${anchor.lineNumber}\u0000${anchor.lineContent}`;
-}
-
-export function filterStatusForFile(file: DesktopReviewDiffFile): ReviewFilter {
-  if (file.isUntracked) return "added";
-  const trimmed = file.status.trim();
-  if (trimmed.startsWith("A") || trimmed.startsWith("??")) return "added";
-  if (trimmed.startsWith("D")) return "removed";
-  return "modified";
-}
-
-export function reviewFilterLabel(filter: ReviewFilter): string {
-  switch (filter) {
-    case "added":
-      return "新增";
-    case "modified":
-      return "修改";
-    case "removed":
-      return "删除";
-    default:
-      return "全部";
-  }
-}
-
-export function ReviewCommitSourceSubmenu({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.ReactNode {
-  return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger
-        className="popover-item popover-sub-trigger"
-        tabIndex={-1}
-      >
-        <span className="popover-item-label">提交</span>
-        <span className="popover-item-trailing">
-          <ChevronRight
-            className="popover-item-arrow"
-            size={APP_ICON_SIZE}
-          />
-        </span>
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent
-          alignOffset={-6}
-          className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex"
-          sideOffset={16}
-          style={buildPopoverSizingStyle({ width: 320 })}
-        >
-          {children}
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
-  );
-}
-
 export function ReviewProjectEmptyState({
   source,
 }: {
@@ -2052,19 +1208,6 @@ export function ReviewProjectEmptyState({
       </div>
     </div>
   );
-}
-
-export function formatRelativeCommitTime(value: string): string {
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return "";
-  const elapsed = Math.max(0, Date.now() - timestamp);
-  const minute = 60_000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-  if (elapsed < minute) return "刚刚";
-  if (elapsed < hour) return `${Math.floor(elapsed / minute)} 分钟前`;
-  if (elapsed < day) return `${Math.floor(elapsed / hour)} 小时前`;
-  return `${Math.floor(elapsed / day)} 天前`;
 }
 
 export function scopeLabel(scope: DesktopReviewScope): string {

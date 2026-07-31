@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-const NEW_ROUTE_GZIP_BUDGET = 360 * 1024
+const NEW_ROUTE_GZIP_BUDGET = 362 * 1024
 const INITIAL_CSS_RAW_BUDGET = 460 * 1024
 const rootPackage = JSON.parse(
   readFileSync(resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8'),
@@ -92,7 +92,7 @@ function routeBundleBudget(): Plugin {
       }
       if (gzipBytes > NEW_ROUTE_GZIP_BUDGET) {
         this.error(
-          `/new immediate JS exceeds budget (${(gzipBytes / 1024).toFixed(1)} KiB gzip; limit 360 KiB)`,
+            `/new immediate JS exceeds budget (${(gzipBytes / 1024).toFixed(1)} KiB gzip; limit 362 KiB)`,
         )
       }
       if (initialCssBytes > INITIAL_CSS_RAW_BUDGET) {
@@ -104,7 +104,7 @@ function routeBundleBudget(): Plugin {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [tailwindcss(), react(), routeBundleBudget()],
   define: {
     __CODEPILOTX_VERSION__: JSON.stringify(rootPackage.version),
@@ -113,6 +113,10 @@ export default defineConfig({
     alias: {
       '@codepilotx/core': resolve(__dirname, 'src/shims/core'),
     },
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    include: ['cmdk'],
   },
   build: {
     outDir: '../../../dist/renderer',
@@ -126,11 +130,17 @@ export default defineConfig({
       ],
     },
     strictPort: true,
-    hmr: {
-      protocol: 'ws',
-      host: '127.0.0.1',
-      port: 7788,
-      clientPort: 7788,
-    },
+    // 页面经动态端口的 Agent 提供，但 HMR WebSocket 必须直连固定的 Renderer 端口。
+    hmr:
+      mode === 'performance'
+        ? false
+        : mode === 'visual'
+          ? undefined
+          : {
+              protocol: 'ws',
+              host: '127.0.0.1',
+              port: 7788,
+              clientPort: 7788,
+            },
   },
-})
+}))

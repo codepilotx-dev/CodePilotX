@@ -65,6 +65,20 @@ describe("Thread 历史", () => {
     expect(threads.find((thread) => thread.id === first.id)?.firstUserMessage).toBe("alpha 历史搜索目标")
   })
 
+  test("列表投影未读时间并通过 read-through 清除", async () => {
+    const { db, history, projection } = await makeHistory()
+    const thread = db.createThread("未读会话")
+    db.markThreadUnread(thread.id, 100)
+
+    expect(history.getListItem(thread.id)?.unreadAt).toBe(100)
+    expect(projection.list().find((item) => item.id === thread.id)?.unreadAt).toBe(100)
+
+    const stale = history.markRead(thread.id, 90)
+    expect(stale.unreadAt).toBe(100)
+    const read = history.markRead(thread.id, 100)
+    expect(read.unreadAt).toBeNull()
+  })
+
   test("支持重命名、归档、取消归档和删除", async () => {
     const { db, history, projection, root } = await makeHistory()
     const project = db.createProject({ rootPath: join(root, "project"), name: "测试项目" })

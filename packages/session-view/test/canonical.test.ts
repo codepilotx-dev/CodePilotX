@@ -11,7 +11,9 @@ import {
   applyThreadEnvelope,
   applyThreadEnvelopes,
   createCanonicalThreadState,
+  createRenderTurnEntriesSelector,
   prependOlderThreadPage,
+  reconcileLatestThreadPage,
   selectRenderTurnEntries,
   selectVisibleTurnEntries,
   type ThreadEventEnvelopeLike,
@@ -627,5 +629,113 @@ describe("canonical thread state", () => {
     expect(rendered?.assistantResultItems.map((item) => item.id)).toEqual(["result-1"])
     expect(rendered?.patchItems.map((item) => item.id)).toEqual(["patch-1"])
     expect(rendered?.blockers.map((blocker) => blocker.kind)).toEqual(["question", "approval"])
+  })
+
+  test("reuses unchanged render turn entries when one turn receives an update", () => {
+    const firstTurn = turn("turn-selector-1")
+    const secondTurn = turn("turn-selector-2")
+    const firstItem = textItem("item-selector-1", firstTurn.id, "first")
+    const secondItem = textItem("item-selector-2", secondTurn.id, "second")
+    const state = createCanonicalThreadState(page([
+      {
+        turn: firstTurn,
+        inputs: [input("input-selector-1", firstTurn.id, 1)],
+        messages: [],
+        agents: [agent("agent-turn-selector-1", firstTurn.id)],
+        items: [firstItem],
+        approvals: [],
+      },
+      {
+        turn: secondTurn,
+        inputs: [input("input-selector-2", secondTurn.id, 2)],
+        messages: [],
+        agents: [agent("agent-turn-selector-2", secondTurn.id)],
+        items: [secondItem],
+        approvals: [],
+      },
+    ]))
+    const selectEntries = createRenderTurnEntriesSelector()
+    const initial = selectEntries(state)
+    expect(selectEntries(state)).toBe(initial)
+
+    const updated = applyThreadEnvelope(state, durable(11, "item/completed", {
+      item: { ...secondItem, text: "second complete", status: "completed" },
+    }))
+    const next = selectEntries(updated)
+
+    expect(next).not.toBe(initial)
+    expect(next[0]).toBe(initial[0])
+    expect(next[1]).not.toBe(initial[1])
+    expect(next[1]?.assistantResultItems[0]?.text).toBe("second complete")
+  })
+
+  test("reconciles the latest page while preserving loaded older turns", () => {
+    const latestTurn = turn("turn-reconcile-2")
+    const initial = createCanonicalThreadState(page([{
+      turn: latestTurn,
+      inputs: [input("input-reconcile-2", latestTurn.id, 2)],
+      messages: [],
+      agents: [agent("agent-turn-reconcile-2", latestTurn.id)],
+      items: [textItem("item-reconcile-2", latestTurn.id, "stale")],
+      approvals: [],
+    }], 10))
+    const olderTurn = turn("turn-reconcile-1")
+    const cached = prependOlderThreadPage(initial, {
+      ...page([{
+        turn: olderTurn,
+        inputs: [input("input-reconcile-1", olderTurn.id, 1)],
+        messages: [],
+        agents: [agent("agent-turn-reconcile-1", olderTurn.id)],
+        items: [textItem("item-reconcile-1", olderTurn.id, "older", "completed")],
+        approvals: [],
+      }], 5),
+      olderCursor: null,
+      hasOlder: false,
+    })
+    cached.stream.appliedEventIds.add("old-live-event")
+    const refreshedTurn = { ...latestTurn, status: "completed" as const }
+    const reconciled = reconcileLatestThreadPage(cached, page([{
+      turn: refreshedTurn,
+      inputs: [input("input-reconcile-2", refreshedTurn.id, 2)],
+      messages: [],
+      agents: [agent("agent-turn-reconcile-2", refreshedTurn.id)],
+      items: [textItem("item-reconcile-2", refreshedTurn.id, "fresh", "completed")],
+      approvals: [],
+    }], 20))
+
+    expect(reconciled.turnOrder).toEqual([olderTurn.id, refreshedTurn.id])
+    expect(reconciled.turnsById.get(olderTurn.id)).toBe(cached.turnsById.get(olderTurn.id))
+    expect(reconciled.turnsById.get(refreshedTurn.id)).toBe(refreshedTurn)
+    expect(reconciled.itemsById.get("item-reconcile-2")).toMatchObject({ text: "fresh" })
+    expect(reconciled.history).toMatchObject({ olderCursor: null, hasOlder: false })
+    expect(reconciled.stream).toMatchObject({ streamId: "stream-1", appliedSequence: 20 })
+    expect(reconciled.stream.appliedEventIds.size).toBe(0)
+  })
+
+  test("drops cached history when the stream generation changes", () => {
+    const cachedTurn = turn("turn-old-stream")
+    const cached = createCanonicalThreadState(page([{
+      turn: cachedTurn,
+      inputs: [],
+      messages: [],
+      agents: [],
+      items: [],
+      approvals: [],
+    }]))
+    const freshTurn = turn("turn-new-stream")
+    const reconciled = reconcileLatestThreadPage(cached, {
+      ...page([{
+        turn: freshTurn,
+        inputs: [],
+        messages: [],
+        agents: [],
+        items: [],
+        approvals: [],
+      }], 1),
+      streamPosition: { streamId: "stream-2", sequence: 1 },
+    })
+
+    expect(reconciled.turnOrder).toEqual([freshTurn.id])
+    expect(reconciled.turnsById.has(cachedTurn.id)).toBe(false)
   })
 })

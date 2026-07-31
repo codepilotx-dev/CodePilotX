@@ -29,8 +29,23 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Version consistency check
         run: bun run version:check
+      - name: Automated release archive check
+        if: >-
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.event.pull_request.user.login == (vars.RELEASE_BOT_LOGIN || 'xiaohai-ouyang') &&
+          startsWith(github.event.pull_request.head.ref, 'automation/release-v')
+        shell: pwsh
+        run: |
+          $baseSha = "${{ github.event.pull_request.base.sha }}"
+          bun run version:check -- --release-pr --base $baseSha
       - name: Changelog Unreleased entry check
-        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        if: >-
+          github.event.pull_request.user.login != 'dependabot[bot]' &&
+          !(
+            github.event.pull_request.head.repo.full_name == github.repository &&
+            github.event.pull_request.user.login == (vars.RELEASE_BOT_LOGIN || 'xiaohai-ouyang') &&
+            startsWith(github.event.pull_request.head.ref, 'automation/release-v')
+          )
         shell: pwsh
         run: |
           $baseSha = "${{ github.event.pull_request.base.sha }}"

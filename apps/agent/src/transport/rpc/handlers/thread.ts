@@ -68,6 +68,7 @@ export const threadHandlers = {
     "prompt/refresh",
     "thread/compact",
     "thread/update",
+    "thread/mark-read",
     "thread/title/regenerate",
     "thread/settings/update",
     "thread/delete",
@@ -148,6 +149,14 @@ export const threadHandlers = {
         if (archived !== undefined && typeof archived !== "boolean") throw new AgentError("INVALID_REQUEST", "archived 参数无效", 400)
         const thread = await history.patch(threadId, { ...(title !== undefined ? { title } : {}), ...(archived !== undefined ? { archived } : {}) })
         return { thread }
+      }
+      case "thread/mark-read": {
+        const threadId = stringParam(params, "threadId")
+        const readThroughAt = params.readThroughAt
+        if (typeof readThroughAt !== "number" || !Number.isFinite(readThroughAt) || readThroughAt < 0) {
+          throw new AgentError("INVALID_REQUEST", "readThroughAt 参数无效", 400)
+        }
+        return { thread: history.markRead(threadId, readThroughAt) }
       }
       case "thread/title/regenerate":
         return { thread: await threads.regenerateTitle(stringParam(params, "threadId")) }

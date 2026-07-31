@@ -7,7 +7,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import type {
   DesktopProjectFolder,
@@ -15,6 +15,8 @@ import type {
   ProjectAppearance,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
+import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -58,7 +60,10 @@ export function ProjectEditDialog({
   )
   const [sourceCounts, setSourceCounts] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
   const projectId = project.projectId
+  const { onCloseAutoFocus } = useDialogFocusRestore(open)
 
   useEffect(() => {
     if (!open) return
@@ -242,29 +247,30 @@ export function ProjectEditDialog({
         <Dialog.Content
           aria-describedby={undefined}
           className="project-edit-dialog"
+          onCloseAutoFocus={onCloseAutoFocus}
           onOpenAutoFocus={event => {
             event.preventDefault()
-            requestAnimationFrame(() => {
-              document
-                .querySelector<HTMLInputElement>('.project-edit-name-input')
-                ?.focus()
-            })
+            const initialFocus = nameInputRef.current ?? closeButtonRef.current
+            initialFocus?.focus()
+            if (initialFocus === nameInputRef.current) {
+              nameInputRef.current?.select()
+            }
           }}
         >
           <header className="project-edit-header">
             <Dialog.Title>编辑项目</Dialog.Title>
             <Dialog.Close asChild>
-              <button
-                aria-label="关闭编辑项目"
+              <IconButton
                 className="project-edit-close"
                 disabled={busy}
-                type="button"
+                ref={closeButtonRef}
+                title="关闭编辑项目"
               >
                 <X
                   size={APP_ICON_SIZE + 2}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
-              </button>
+              </IconButton>
             </Dialog.Close>
           </header>
 
@@ -285,6 +291,7 @@ export function ProjectEditDialog({
                   aria-label="项目名称"
                   className="project-edit-name-input"
                   maxLength={120}
+                  ref={nameInputRef}
                   value={draftName}
                   onChange={event => setDraftName(event.target.value)}
                   onKeyDown={event => {

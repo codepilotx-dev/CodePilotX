@@ -26,6 +26,7 @@ import type { MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import type { GitReviewService } from "../review/GitReviewService"
 import type { GithubService } from "../github/GithubService"
+import type { GitWorkspaceService } from "../git/GitWorkspaceService"
 import type { ToolingManager } from "../tool/ToolingManager"
 import type { PetService } from "../pet/PetService"
 import type { ReleaseNotesService } from "../release-notes/ReleaseNotesService"
@@ -57,6 +58,7 @@ export interface TransportDependencies {
   hooks: HookService
   review: GitReviewService
   github: GithubService
+  git: GitWorkspaceService
   tooling: ToolingManager
   pets: PetService
   releaseNotes: ReleaseNotesService
@@ -284,9 +286,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, authSessions, memory, hooks, review, github, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, authSessions, memory, hooks, review, github, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

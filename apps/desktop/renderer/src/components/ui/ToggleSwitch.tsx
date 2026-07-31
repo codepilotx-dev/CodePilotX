@@ -4,7 +4,7 @@ import * as Switch from '@radix-ui/react-switch'
 type Props = {
   checked: boolean
   onChange: (checked: boolean) => void
-  ariaLabel?: string
+  ariaLabel: string
   disabled?: boolean
 }
 

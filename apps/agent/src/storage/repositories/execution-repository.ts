@@ -506,6 +506,9 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         this.deleteAgentTurnCheckpoint(input.turnID)
         this.updateTurnStatus(input.turnID, input.status)
         const agent = this.updateAgentStatus(input.agentID, input.status, input.message ?? null)
+        if (input.status === "completed" || input.status === "failed") {
+          this.markThreadUnread(input.threadID, timestamp)
+        }
         const terminalItemRows = (input.status === "interrupted"
           ? this.sqlite.query(
               "SELECT id FROM items WHERE turn_id = ? AND status IN ('pending', 'running') ORDER BY ordinal",

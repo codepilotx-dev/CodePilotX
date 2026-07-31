@@ -20,6 +20,7 @@ type ThreadRow = {
   message_count: number
   latest_turn_status: string | null
   archived_at: number | null
+  unread_at: number | null
   task_mode: ThreadListItem["settings"]["taskMode"]
   sandbox_mode: ThreadListItem["settings"]["permissionConfig"]["sandboxMode"]
   approval_policy: string
@@ -40,14 +41,19 @@ export class ThreadHistoryService {
   constructor(
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
+    private readonly prepareThreadCleanup?: (
+      threadID: string,
+    ) => () => Promise<void>,
   ) {}
 
   getListItem(threadID: string): ThreadListItem | null {
     const row = this.db.sqlite.query(`
       SELECT t.id, t.project_id, t.git_branch, t.title, t.preview, t.first_user_message, t.message_count, t.archived_at,
         t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
+        read_state.unread_at,
         (SELECT u.status FROM turns AS u WHERE u.thread_id = t.id ORDER BY u.created_at DESC, u.id DESC LIMIT 1) AS latest_turn_status
       FROM threads AS t
+      LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
       WHERE t.id = ?
     `).get(threadID) as ThreadRow | null
     if (!row) return null
@@ -63,6 +69,7 @@ export class ThreadHistoryService {
       messageCount: row.message_count,
       latestTurnStatus: turnStatus(row.latest_turn_status),
       archivedAt: row.archived_at,
+      unreadAt: row.unread_at,
       settings: {
         taskMode: row.task_mode,
         permissionConfig: {
@@ -74,6 +81,16 @@ export class ThreadHistoryService {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }
+  }
+
+  markRead(threadID: string, readThroughAt: number) {
+    return this.db.transaction(() => {
+      if (!this.getListItem(threadID)) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+      this.db.markThreadReadThrough(threadID, readThroughAt)
+      const thread = this.getListItem(threadID)
+      if (!thread) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+      return thread
+    })
   }
 
   async patch(threadID: string, patch: ThreadMetadataPatch) {
@@ -160,6 +177,7 @@ export class ThreadHistoryService {
   async remove(threadID: string) {
     const existing = this.getListItem(threadID)
     if (!existing) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+    const cleanup = this.prepareThreadCleanup?.(threadID)
     const event = this.db.transaction(() => {
       const active = this.db.sqlite.query(`
         WITH RECURSIVE subtree(id) AS (
@@ -177,6 +195,10 @@ export class ThreadHistoryService {
       this.db.sqlite.query("DELETE FROM threads WHERE id = ?").run(threadID)
       return this.db.insertEvent(null, null, "thread/deleted", { threadId: threadID, deletedAt: Date.now() })
     })
-    await Effect.runPromise(this.hub.publish(event))
+    try {
+      await Effect.runPromise(this.hub.publish(event))
+    } finally {
+      await cleanup?.()
+    }
   }
 }

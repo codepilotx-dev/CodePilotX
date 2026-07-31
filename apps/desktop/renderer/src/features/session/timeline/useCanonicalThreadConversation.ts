@@ -2,9 +2,10 @@ import React from "react";
 import type { EventEnvelope } from "@codepilotx/agent-protocol";
 import {
   applyThreadEnvelopes,
+  createRenderTurnEntriesSelector,
   createCanonicalThreadState,
   prependOlderThreadPage,
-  selectRenderTurnEntries,
+  reconcileLatestThreadPage,
   type CanonicalThreadState,
   type RenderTurnEntry,
   type ThreadConversationScope,
@@ -13,18 +14,13 @@ import {
 
 import { desktopClient } from "../../../services/desktop-client/index.js";
 import { AGENT_LIVE_EVENT_FILTERS } from "../../../services/desktop-client/eventSubscriptionFilters.js";
-import {
-  recordCanonicalBatch,
-  recordCanonicalProjection,
-  recordConversationSwitchCanonicalReady,
-  recordConversationSwitchRequest,
-  recordConversationSwitchSkeleton,
-} from "../../debug/performanceDiagnosticsBridge.js";
+import { canonicalThreadCache } from "../state/canonicalThreadCache.js";
 
 const INITIAL_TURN_PAGE_SIZE = 10;
 const MAX_ENVELOPES_PER_FLUSH = 256;
 const BACKGROUND_FLUSH_DELAY_MS = 50;
 const MAIN_CONVERSATION_SCOPE = { type: "main" } as const;
+const EMPTY_RENDER_TURNS = Object.freeze([]) as unknown as RenderTurnEntry[];
 
 export type CanonicalThreadConversation = {
   state: CanonicalThreadState | null;
@@ -59,7 +55,6 @@ export function useCanonicalThreadConversation(
   scope: ThreadConversationScope = MAIN_CONVERSATION_SCOPE,
 ): CanonicalThreadConversation {
   const [state, setState] = React.useState<CanonicalThreadState | null>(null);
-  const [loadingThreadId, setLoadingThreadId] = React.useState<string | null>(null);
   const [loadingOlderThreadId, setLoadingOlderThreadId] = React.useState<string | null>(null);
   const [errorState, setErrorState] = React.useState<{
     threadId: string;
@@ -73,13 +68,20 @@ export function useCanonicalThreadConversation(
   const flushFrameRef = React.useRef<number | null>(null);
   const flushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushPendingRef = React.useRef<() => void>(() => undefined);
-  const diagnosticsThreadIdRef = React.useRef<string | null>(null);
-  const diagnosticsReadyRef = React.useRef(false);
+  const renderTurnEntriesSelector = React.useMemo(
+    () => createRenderTurnEntriesSelector(),
+    [],
+  );
+  const cachedState = React.useMemo(
+    () => threadId ? canonicalThreadCache.get(threadId) : null,
+    [threadId],
+  );
 
   activeThreadIdRef.current = threadId;
 
   const commit = React.useCallback((next: CanonicalThreadState | null): void => {
     stateRef.current = next;
+    if (next) canonicalThreadCache.set(next);
     setState(next);
   }, []);
 
@@ -111,7 +113,6 @@ export function useCanonicalThreadConversation(
 
   const readLatest = React.useCallback(async (): Promise<ThreadHistoryPageLike | null> => {
     if (!threadId) return null;
-    recordConversationSwitchRequest("history-read");
     return desktopClient.readThreadHistoryPage({
       threadId,
       limit: INITIAL_TURN_PAGE_SIZE,
@@ -128,11 +129,11 @@ export function useCanonicalThreadConversation(
     if (!requestedThreadId) {
       commit(null);
       setErrorState(null);
-      setLoadingThreadId(null);
       return;
     }
 
-    setLoadingThreadId(requestedThreadId);
+    const cached = canonicalThreadCache.get(requestedThreadId);
+    if (cached) commit(cached);
     setErrorState(null);
     try {
       const page = await readLatest();
@@ -147,7 +148,10 @@ export function useCanonicalThreadConversation(
       ) {
         return;
       }
-      const next = createCanonicalThreadState(page);
+      const current = stateRef.current;
+      const next = current?.thread.id === requestedThreadId
+        ? reconcileLatestThreadPage(current, page)
+        : createCanonicalThreadState(page);
       if (next.thread.id !== requestedThreadId) {
         throw new Error("历史记录返回了不匹配的会话");
       }
@@ -179,7 +183,10 @@ export function useCanonicalThreadConversation(
             ) {
               return;
             }
-            const replacementState = createCanonicalThreadState(replacement);
+            const current = stateRef.current;
+            const replacementState = current?.thread.id === requestedThreadId
+              ? reconcileLatestThreadPage(current, replacement)
+              : createCanonicalThreadState(replacement);
             if (replacementState.thread.id !== requestedThreadId) return;
             commit(replacementState);
             return replacement.streamPosition.sequence;
@@ -221,18 +228,8 @@ export function useCanonicalThreadConversation(
         threadId: requestedThreadId,
         message: cause instanceof Error ? cause.message : String(cause),
       });
+      canonicalThreadCache.invalidate(requestedThreadId);
       commit(null);
-    } finally {
-      if (isCurrentCanonicalThreadRequest(
-        activeThreadIdRef.current,
-        generationRef.current,
-        requestedThreadId,
-        generation,
-      )) {
-        setLoadingThreadId((currentThreadId) =>
-          currentThreadId === requestedThreadId ? null : currentThreadId
-        );
-      }
     }
   }, [
     clearPendingEnvelopes,
@@ -253,13 +250,7 @@ export function useCanonicalThreadConversation(
     const batch = pendingEnvelopesRef.current.splice(0, MAX_ENVELOPES_PER_FLUSH);
     if (batch.length === 0) return;
     try {
-      const applyStartedAt = performance.now();
       const next = applyThreadEnvelopes(current, batch);
-      recordCanonicalBatch({
-        eventCount: batch.length,
-        applyMs: performance.now() - applyStartedAt,
-        liveEventIds: next.stream.appliedEventIds.size,
-      });
       if (
         next !== current
         && isCurrentCanonicalThreadRequest(
@@ -325,7 +316,6 @@ export function useCanonicalThreadConversation(
     }
     setLoadingOlderThreadId(requestedThreadId);
     try {
-      recordConversationSwitchRequest("history-read");
       const page = await desktopClient.readThreadHistoryPage({
         threadId: requestedThreadId,
         before: cursor,
@@ -367,53 +357,30 @@ export function useCanonicalThreadConversation(
     }
   }, [commit, loadingOlderThreadId, threadId]);
 
-  const visibleState = selectVisibleCanonicalState(state, threadId);
   const visibleError =
     errorState?.threadId === threadId ? errorState.message : null;
+  const visibleState = visibleError
+    ? null
+    : selectVisibleCanonicalState(state, threadId) ?? cachedState;
   const visibleLoading = Boolean(
     threadId
     && !visibleState
     && !visibleError
-  ) || loadingThreadId === threadId;
+  );
   const visibleLoadingOlder = Boolean(
     threadId && loadingOlderThreadId === threadId
   );
 
-  const projection = React.useMemo(
-    () => {
-      const startedAt = performance.now();
-      const turns = visibleState ? selectRenderTurnEntries(visibleState, scope) : [];
-      return {
-        durationMs: visibleState ? performance.now() - startedAt : 0,
-        turns,
-      };
-    },
-    [scope, visibleState],
+  const turns = React.useMemo(
+    () => visibleState
+      ? renderTurnEntriesSelector(visibleState, scope)
+      : EMPTY_RENDER_TURNS,
+    [renderTurnEntriesSelector, scope, visibleState],
   );
-  React.useEffect(() => {
-    if (visibleState) recordCanonicalProjection(projection.durationMs);
-  }, [projection, visibleState]);
-
-  React.useLayoutEffect(() => {
-    if (diagnosticsThreadIdRef.current !== threadId) {
-      diagnosticsThreadIdRef.current = threadId;
-      diagnosticsReadyRef.current = false;
-      if (threadId && visibleLoading && !visibleState) {
-        recordConversationSwitchSkeleton();
-      }
-    }
-    if (visibleState && !diagnosticsReadyRef.current) {
-      diagnosticsReadyRef.current = true;
-      recordConversationSwitchCanonicalReady({
-        turnCount: visibleState.turnOrder.length,
-        itemCount: visibleState.itemsById.size,
-      });
-    }
-  }, [threadId, visibleLoading, visibleState]);
 
   return {
     state: visibleState,
-    turns: projection.turns,
+    turns,
     loading: visibleLoading,
     loadingOlder: visibleLoadingOlder,
     error: visibleError,

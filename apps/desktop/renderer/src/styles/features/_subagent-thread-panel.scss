@@ -4,7 +4,7 @@
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
   color: var(--color-token-foreground);
   container-type: inline-size;
 }
@@ -347,7 +347,7 @@
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-button);
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-control-background);
   color: var(--color-token-foreground);
   font-size: var(--type-control);
   font-weight: var(--font-weight-label);
@@ -422,7 +422,7 @@
   border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
   outline: none;
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-control-background);
   color: var(--color-token-foreground);
   font: inherit;
 

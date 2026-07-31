@@ -1,4 +1,5 @@
 import * as Popover from '@radix-ui/react-popover'
+import * as RadioGroup from '@radix-ui/react-radio-group'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import type React from 'react'
@@ -51,59 +52,62 @@ export function ProjectAppearancePicker({
       <Popover.Portal>
         <Popover.Content
           align="start"
+          aria-label="项目图标和颜色"
           className="project-appearance-popover"
-          collisionPadding={12}
+          collisionPadding={6}
           side="bottom"
-          sideOffset={8}
+          sideOffset={4}
         >
-          <div
+          <RadioGroup.Root
             aria-label="项目颜色"
             className="project-appearance-colors"
-            role="radiogroup"
+            value={appearance.color}
+            onValueChange={value =>
+              selectColor(value as ProjectAppearanceColor)
+            }
           >
             {PROJECT_APPEARANCE_COLORS.map(color => (
-              <button
+              <RadioGroup.Item
                 aria-label={colorLabel(color)}
-                aria-checked={appearance.color === color}
                 className={cx(
                   'project-appearance-color',
                   appearance.color === color && 'is-selected',
                 )}
                 data-project-color={color}
                 key={color}
-                role="radio"
-                type="button"
-                onClick={() => selectColor(color)}
+                value={color}
               >
-                {appearance.color === color ? <Check size={14} /> : null}
-              </button>
+                <RadioGroup.Indicator>
+                  <Check aria-hidden="true" size={14} />
+                </RadioGroup.Indicator>
+              </RadioGroup.Item>
             ))}
-          </div>
-          <div
+          </RadioGroup.Root>
+          <RadioGroup.Root
             aria-label="项目图标"
             className="project-appearance-icons"
-            role="radiogroup"
+            value={appearance.icon}
+            onValueChange={value =>
+              selectIcon(value as ProjectAppearanceIcon)
+            }
           >
             {PROJECT_APPEARANCE_ICONS.map(icon => (
-              <button
+              <RadioGroup.Item
                 aria-label={iconLabel(icon)}
-                aria-checked={appearance.icon === icon}
                 className={cx(
                   'project-appearance-icon',
                   appearance.icon === icon && 'is-selected',
                 )}
                 key={icon}
-                role="radio"
-                type="button"
-                onClick={() => selectIcon(icon)}
+                value={icon}
               >
                 <ProjectAppearanceGlyph
                   appearance={{ ...appearance, icon }}
                   size={19}
                 />
-              </button>
+              </RadioGroup.Item>
             ))}
-          </div>
+          </RadioGroup.Root>
           <div className="project-appearance-footer">
             <Button onClick={() => setOpen(false)}>完成</Button>
           </div>

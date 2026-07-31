@@ -13,6 +13,12 @@ import {
   focusSidebarHoverCardAnchor,
   type SidebarHoverCardOverlayRenderProps,
 } from './SidebarHoverCard.js'
+import {
+  SidebarHoverCardDivider,
+  SidebarHoverCardFrame,
+  SidebarHoverCardHeader,
+  SidebarHoverCardRow,
+} from './SidebarHoverCardLayout.js'
 import { SidebarHoverCardSurface } from './SidebarHoverCardSurface.js'
 
 type Props = SidebarHoverCardOverlayRenderProps & {
@@ -71,17 +77,18 @@ export function SidebarProjectHoverCardOverlay({
   return (
     <SidebarHoverCardSurface
       {...interactionProps}
+      ariaLabel="项目详情"
       className="sidebar-project-hover-card"
       focusRef={initialFocusRef}
       focusRequest={focusRequest}
       onFocusRequestHandled={onFocusRequestHandled}
       positionOutsideSidebar
     >
-      <div
+      <SidebarHoverCardFrame
         className="sidebar-project-hover-card-content"
         onClick={event => event.stopPropagation()}
       >
-        <div className="sidebar-project-hover-card-header">
+        <SidebarHoverCardHeader className="sidebar-project-hover-card-header">
           <ProjectAppearanceGlyph appearance={appearance} size={18} />
           <strong title={project.name}>{project.name}</strong>
           <IconButton
@@ -100,8 +107,8 @@ export function SidebarProjectHoverCardOverlay({
               <Pin size={APP_ICON_SIZE} />
             )}
           </IconButton>
-        </div>
-        <div className="sidebar-project-hover-card-stats">
+        </SidebarHoverCardHeader>
+        <SidebarHoverCardRow className="sidebar-project-hover-card-stats">
           <span>
             <MessageSquare aria-hidden="true" size={APP_ICON_SIZE} />
             {conversationCount} 个对话
@@ -110,8 +117,8 @@ export function SidebarProjectHoverCardOverlay({
           <span>{unreadCount} 条未读</span>
           <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
           <span>{openCount} 个已开启</span>
-        </div>
-        <div aria-hidden="true" className="sidebar-project-hover-card-divider" role="separator" />
+        </SidebarHoverCardRow>
+        <SidebarHoverCardDivider className="sidebar-project-hover-card-divider" />
         <div className="sidebar-project-hover-card-folders">
           {folders.map(folder => (
             <Button
@@ -131,7 +138,7 @@ export function SidebarProjectHoverCardOverlay({
             </Button>
           ))}
         </div>
-        <div aria-hidden="true" className="sidebar-project-hover-card-divider" role="separator" />
+        <SidebarHoverCardDivider className="sidebar-project-hover-card-divider" />
         <Button
           className="sidebar-project-hover-card-edit"
           onClick={() => {
@@ -142,7 +149,7 @@ export function SidebarProjectHoverCardOverlay({
           <Settings2 aria-hidden="true" size={APP_ICON_SIZE} />
           编辑项目
         </Button>
-      </div>
+      </SidebarHoverCardFrame>
     </SidebarHoverCardSurface>
   )
 }

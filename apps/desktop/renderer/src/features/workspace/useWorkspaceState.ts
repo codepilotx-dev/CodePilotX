@@ -9,7 +9,6 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { upsertRecentWorkspace } from '../settings/settingsStorage.js'
-import { recordConversationSwitchRequest } from '../debug/performanceDiagnosticsBridge.js'
 
 export const NO_WORKSPACE_DIFF = '未选择项目。'
 
@@ -34,6 +33,11 @@ type WorkspaceRefreshCoordinator<T> = {
   ) => Promise<T> | null
   markApplied: (target: DesktopWorkspace) => void
   reset: () => void
+}
+
+type WorkspaceBranchRef = {
+  name: string
+  remote: boolean
 }
 
 export function workspaceIdentity(workspace: DesktopWorkspace): string {
@@ -72,6 +76,31 @@ export function createWorkspaceRefreshCoordinator<T>(
       appliedIdentity = null
       inFlight.clear()
     },
+  }
+}
+
+export function mergeWorkspaceGitProjection(
+  context: DesktopWorkspace,
+  gitStatus: DesktopGitStatus | null,
+  branchRefs: readonly WorkspaceBranchRef[],
+): DesktopWorkspace {
+  const branchName = gitStatus?.branchName ?? null
+  const branches = gitStatus
+    ? [
+        ...new Set([
+          ...(branchName ? [branchName] : []),
+          ...branchRefs
+            .filter(branch => !branch.remote)
+            .map(branch => branch.name),
+        ]),
+      ]
+    : []
+
+  return {
+    ...context,
+    branchName,
+    branches,
+    isGitRepo: gitStatus ? true : context.isGitRepo,
   }
 }
 
@@ -130,8 +159,13 @@ export function useWorkspaceState(
   if (!refreshCoordinatorRef.current) {
     refreshCoordinatorRef.current = createWorkspaceRefreshCoordinator(
       async target => {
-        recordConversationSwitchRequest('workspace-refresh')
-        const [nextContext, nextFiles, nextDiff, nextGitStatus] =
+        const [
+          nextContext,
+          nextFiles,
+          nextDiff,
+          nextGitStatus,
+          nextGitBranches,
+        ] =
           await Promise.all([
             desktopClient.getWorkspaceContext(target.path),
             desktopClient.listWorkspaceFiles(
@@ -142,12 +176,20 @@ export function useWorkspaceState(
             ),
             desktopClient.getWorkspaceDiff(target.path),
             desktopClient.getWorkspaceGitStatus(target.path),
+            desktopClient
+              .getAgentReviewBranches(target.path)
+              .catch(() => []),
           ])
+        const gitStatus = nextGitStatus.ok ? nextGitStatus.status : null
         return {
-          context: nextContext,
+          context: mergeWorkspaceGitProjection(
+            nextContext,
+            gitStatus,
+            nextGitBranches,
+          ),
           files: nextFiles,
           diff: nextDiff.patch,
-          gitStatus: nextGitStatus.ok ? nextGitStatus.status : null,
+          gitStatus,
         }
       },
     )

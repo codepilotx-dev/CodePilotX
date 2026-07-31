@@ -8,6 +8,7 @@ import type {
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
+import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 
 export type GitWorkflowMode = 'branch' | 'commitPush' | 'pullRequest'
 
@@ -53,6 +54,7 @@ export function GitWorkflowModal({
 
   const changedFiles = gitStatus?.files ?? EMPTY_CHANGES
   const open = mode !== null
+  const { onCloseAutoFocus } = useDialogFocusRestore(open)
   const title =
     mode === 'branch'
       ? '创建分支'
@@ -186,6 +188,7 @@ export function GitWorkflowModal({
             <Dialog.Content
               aria-describedby="git-workflow-description"
               className="permission-modal git-workflow-modal"
+              onCloseAutoFocus={onCloseAutoFocus}
             >
               <header
                 className={cx(
@@ -313,9 +316,9 @@ export function GitWorkflowModal({
                   'u-gap-3',
                 )}
               >
-                <Button onClick={onClose}>
-                  取消
-                </Button>
+                <Dialog.Close asChild>
+                  <Button>取消</Button>
+                </Dialog.Close>
                 {mode === 'commitPush' ? (
                   <>
                     <Button

@@ -66,6 +66,7 @@ const threadListItem = {
   messageCount: 0,
   latestTurnStatus: null,
   archivedAt: null,
+  unreadAt: 2,
   settings: threadSettings,
   createdAt: 1,
   updatedAt: 1,
@@ -330,6 +331,18 @@ const modelCatalog = {
 
 const providerCatalog = {
   ...modelCatalog,
+  providers: [{
+    ...Provider.Info.empty(providerId),
+    authConfigured: true,
+    config: {
+      kind: "builtin" as const,
+      id: providerId,
+      enabled: true,
+      allowModels: [],
+      denyModels: [],
+      models: [],
+    },
+  }],
   issues: [],
 }
 
@@ -680,6 +693,11 @@ const fixtures = {
     operationId: "operation:thread-update",
     expectedVersion: 1,
   }, { thread: threadListItem }),
+  "thread/mark-read": methodFixture("thread/mark-read", {
+    threadId: threadListItem.id,
+    readThroughAt: 2,
+    operationId: "operation:thread-mark-read",
+  }, { thread: { ...threadListItem, unreadAt: null } }),
   "thread/title/regenerate": methodFixture("thread/title/regenerate", {
     threadId: threadListItem.id,
     operationId: "operation:thread-title-regenerate",
@@ -1267,6 +1285,10 @@ const fixtures = {
   "github/repositories": methodFixture("github/repositories", {}, {
     repositories: [githubRepository],
   }),
+  "github/repository/clone": methodFixture("github/repository/clone", {
+    repositoryId: githubRepository.id,
+    targetParent: "F:\\Code",
+  }, { project }),
   "github/pullRequest/read": methodFixture("github/pullRequest/read", {
     owner: "octocat",
     repository: "fixture",
@@ -1339,6 +1361,35 @@ const fixtures = {
       files: [],
     },
   }),
+  "git/branch/create": methodFixture("git/branch/create", {
+    projectId: project.id,
+    branchName: "feature/review",
+    startPoint: "main",
+  }, {
+    project,
+    status: {
+      branchName: "feature/review",
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      clean: true,
+      files: [],
+    },
+  }),
+  "git/branch/checkout": methodFixture("git/branch/checkout", {
+    projectId: project.id,
+    branchName: "main",
+  }, {
+    project,
+    status: {
+      branchName: "main",
+      upstream: "origin/main",
+      ahead: 0,
+      behind: 0,
+      clean: true,
+      files: [],
+    },
+  }),
   "review/summary": methodFixture("review/summary", {
     projectId: project.id,
     source: { kind: "unstaged" },
@@ -1405,6 +1456,15 @@ const fixtures = {
     },
     cacheState: "fresh",
   }),
+  "review/pullRequest/prepare": methodFixture("review/pullRequest/prepare", {
+    projectId: project.id,
+    owner: "octocat",
+    repository: "fixture",
+    number: 7,
+  }, {
+    baseSha: "base-sha",
+    headSha: "head-sha",
+  }),
   "review/apply": methodFixture("review/apply", {
     projectId: project.id,
     source: { kind: "unstaged" },
@@ -1418,6 +1478,22 @@ const fixtures = {
     action: "stage",
     path: "src/index.ts",
     generation: "generation:2",
+  }),
+  "review/applyBatch": methodFixture("review/applyBatch", {
+    projectId: project.id,
+    source: { kind: "unstaged" },
+    generation: "generation:1",
+    action: "stage",
+    items: [
+      { path: "src/index.ts", expectedRevision: "revision:1" },
+      { path: "src/other.ts", expectedRevision: "revision:2" },
+    ],
+  }, {
+    ok: true,
+    action: "stage",
+    paths: ["src/index.ts", "src/other.ts"],
+    generation: "generation:2",
+    appliedCount: 2,
   }),
   "review/branches": methodFixture("review/branches", { projectId: project.id }, {
     current: "main",
@@ -1808,9 +1884,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 150 formal methods decodable", () => {
+  test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(150)
+    expect(methods).toHaveLength(156)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -1829,6 +1905,28 @@ describe("RPC method schema contracts", () => {
       expect(encodedParams as unknown, `${method} encoded params`).toEqual(fixture.params as unknown)
       expect(encodedResult as unknown, `${method} encoded result`).toEqual(fixture.result as unknown)
     }
+  })
+
+  test("thread list unread marker stays optional and nullable", () => {
+    const decode = Schema.decodeUnknownSync(RpcMethods["thread/list"].result)
+    const withoutUnread = structuredClone(fixtures["thread/list"].result)
+    delete (withoutUnread.threads[0] as { unreadAt?: number | null }).unreadAt
+    expect(decode(withoutUnread).threads[0]?.unreadAt).toBeUndefined()
+
+    const read = structuredClone(fixtures["thread/list"].result)
+    ;(read.threads[0] as { unreadAt?: number | null }).unreadAt = null
+    expect(decode(read).threads[0]?.unreadAt).toBeNull()
+  })
+
+  test("accepts bundled changelog as a release notes source", () => {
+    const result = {
+      ...fixtures["release-notes/list"].result,
+      source: "bundled-changelog",
+    }
+    expect(Schema.decodeUnknownSync(
+      RpcMethods["release-notes/list"].result,
+      { onExcessProperty: "error" },
+    )(result).source).toBe("bundled-changelog")
   })
 
   test("rejects invalid opaque IDs, limits, and enums", () => {
@@ -1857,6 +1955,10 @@ describe("RPC method schema contracts", () => {
     expect(() => Schema.decodeUnknownSync(RpcMethods["queue/add"].result)({
       ...fixtures["queue/add"].result,
       admission: "steered",
+    })).toThrow()
+    expect(() => Schema.decodeUnknownSync(RpcMethods["review/applyBatch"].params)({
+      ...fixtures["review/applyBatch"].params,
+      items: [],
     })).toThrow()
     const decodeMcpSave = Schema.decodeUnknownSync(
       RpcMethods["mcp/save"].params,
@@ -1931,6 +2033,22 @@ describe("RPC method schema contracts", () => {
         withoutCacheState,
       ), `${method} requires cacheState`).toThrow()
     }
+  })
+
+  test("requires provider auth status without exposing authentication material", () => {
+    const decode = Schema.decodeUnknownSync(
+      RpcMethods["provider/list"].result,
+      { onExcessProperty: "error" },
+    )
+    const result = structuredClone(fixtures["provider/list"].result)
+    const provider = result.providers[0] as Record<string, unknown>
+
+    delete provider.authConfigured
+    expect(() => decode(result)).toThrow()
+
+    provider.authConfigured = true
+    provider.apiKey = "sk-must-not-cross-rpc"
+    expect(() => decode(result)).toThrow()
   })
 
   test("uses explicit FIFO queue methods without reorder or queue-to-steer mutations", () => {

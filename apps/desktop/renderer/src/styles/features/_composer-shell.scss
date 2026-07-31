@@ -35,7 +35,11 @@
   border: 1px solid var(--color-token-border);
   border-bottom: 0;
   border-radius: 16px 16px 0 0;
-  background: var(--color-token-editor-widget-background);
+  background: color-mix(
+    in srgb,
+    var(--color-token-main-surface-primary) 70%,
+    var(--color-token-panel-background)
+  );
   box-shadow: var(--shadow-resting);
   scrollbar-width: none;
   white-space: nowrap;

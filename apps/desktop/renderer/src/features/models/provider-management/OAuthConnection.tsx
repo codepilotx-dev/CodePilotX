@@ -110,7 +110,7 @@ export function OAuthConnection({
                   detail: option.description,
                 }))}
                 value={auth.value}
-                width={340}
+                width={320}
               />
             ) : (
               <Input

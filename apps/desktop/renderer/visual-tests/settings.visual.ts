@@ -40,6 +40,7 @@ type ButtonVisualContract = {
   borderColor: string
   backgroundColor: string
   color: string
+  boxShadow: string
 }
 
 async function readButtonVisualContract(
@@ -57,6 +58,7 @@ async function readButtonVisualContract(
       borderColor: `${style.borderTopColor} ${style.borderRightColor} ${style.borderBottomColor} ${style.borderLeftColor}`,
       backgroundColor: style.backgroundColor,
       color: style.color,
+      boxShadow: style.boxShadow,
     }
   })
 }
@@ -129,7 +131,7 @@ for (const mode of VISUAL_MODES) {
       },
       {
         route: '/?visualCase=empty#/models',
-        name: '添加 API Key',
+        name: '新增自定义 Provider',
       },
     ] as const
 
@@ -146,7 +148,7 @@ for (const mode of VISUAL_MODES) {
     expect(contracts[2]).toEqual(contracts[0])
 
     const normalButton = page.getByRole('button', {
-      name: '添加 API Key',
+      name: '新增自定义 Provider',
       exact: true,
     })
     const neutralBackground = await resolveColorToken(
@@ -163,6 +165,7 @@ for (const mode of VISUAL_MODES) {
     )
     expect(contracts[2]?.backgroundColor).toBe(neutralBackground)
     expect(contracts[2]?.color).toBe(foreground)
+    expect(contracts[2]?.boxShadow).toBe('none')
     if (mode === 'light') {
       expect(contracts[2]?.backgroundColor).not.toBe(oldPrimaryBackground)
     }
@@ -172,7 +175,9 @@ for (const mode of VISUAL_MODES) {
     await expect
       .poll(async () => (await readButtonVisualContract(normalButton)).backgroundColor)
       .not.toBe(restingBackground)
-    expect((await readButtonVisualContract(normalButton)).color).toBe(foreground)
+    const hoverContract = await readButtonVisualContract(normalButton)
+    expect(hoverContract.color).toBe(foreground)
+    expect(hoverContract.boxShadow).toBe('none')
 
     await normalButton.focus()
     const focusOutline = await normalButton.evaluate(element => {
@@ -180,12 +185,16 @@ for (const mode of VISUAL_MODES) {
       return `${style.outlineStyle} ${style.outlineWidth}`
     })
     expect(focusOutline).not.toBe('none 0px')
-    expect((await readButtonVisualContract(normalButton)).color).toBe(foreground)
+    const focusContract = await readButtonVisualContract(normalButton)
+    expect(focusContract.color).toBe(foreground)
+    expect(focusContract.boxShadow).toBe('none')
 
     await normalButton.evaluate(element => {
       element.setAttribute('data-selected', 'true')
     })
-    expect((await readButtonVisualContract(normalButton)).color).toBe(foreground)
+    const selectedContract = await readButtonVisualContract(normalButton)
+    expect(selectedContract.color).toBe(foreground)
+    expect(selectedContract.boxShadow).toBe('none')
 
     await normalButton.evaluate(element => {
       element.removeAttribute('data-selected')
@@ -193,6 +202,7 @@ for (const mode of VISUAL_MODES) {
     })
     const dangerContract = await readButtonVisualContract(normalButton)
     expect(dangerContract.borderColor).not.toBe(contracts[2]?.borderColor)
+    expect(dangerContract.boxShadow).toBe('none')
 
     await normalButton.evaluate(element => {
       element.removeAttribute('data-tone')
@@ -202,6 +212,7 @@ for (const mode of VISUAL_MODES) {
       Number.parseFloat(getComputedStyle(element).opacity),
     )
     expect(disabledOpacity).toBeLessThan(1)
+    expect((await readButtonVisualContract(normalButton)).boxShadow).toBe('none')
   })
 }
 for (const mode of VISUAL_MODES) {

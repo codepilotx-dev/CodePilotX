@@ -1,81 +1,47 @@
 import React from 'react'
-import { GitBranch, Plus } from 'lucide-react'
-import { PopoverItem } from '../../../components/ui/PopoverItem.js'
-import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { SearchablePopoverContent } from '../../../components/ui/SearchablePopoverContent.js'
-import { SearchInput } from '../../../components/ui/SearchInput.js'
+import { Check, GitBranch, Plus } from 'lucide-react'
+import {
+  SearchablePopoverAction,
+  SearchablePopoverContent,
+} from '../../../components/ui/SearchablePopoverContent.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import type { PopoverSizingProps } from '../../../components/ui/popoverSizing.js'
 
-type BranchSelectPopoverProps = BranchSelectPopoverContentProps & {
+type BranchSelectPopoverProps = {
   align?: 'start' | 'center' | 'end'
+  branchSearch: string
+  branches: string[]
   className: string
-  disableOutsideDismiss?: boolean
+  currentBranchDetail?: string
+  currentBranchName: string
   open: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
-  trigger: React.ReactNode
+  trigger: React.ReactElement
+  onBranchSearchChange: (value: string) => void
+  onBranchSelect: (branch: string) => void | Promise<void>
+  onCreateBranch: () => void
   onOpenChange: (open: boolean) => void
 } & PopoverSizingProps
 
 export function BranchSelectPopover({
   align,
+  branchSearch,
+  branches,
   className,
-  disableOutsideDismiss,
+  currentBranchDetail,
+  currentBranchName,
   open,
   side,
   sideOffset,
   trigger,
   width,
-  onOpenChange,
-  ...contentProps
-}: BranchSelectPopoverProps): React.ReactNode {
-  return (
-    <PopoverMenu
-      align={align}
-      className={`popover-menu--grid ${className}`}
-      disableOutsideDismiss={disableOutsideDismiss}
-      open={open}
-      side={side}
-      sideOffset={sideOffset}
-      trigger={trigger}
-      width={width}
-      onOpenChange={onOpenChange}
-    >
-      <BranchSelectPopoverContent
-        {...contentProps}
-        onBranchSelect={(branch) => {
-          void contentProps.onBranchSelect(branch)
-          onOpenChange(false)
-        }}
-        onCreateBranch={() => {
-          contentProps.onCreateBranch()
-          onOpenChange(false)
-        }}
-      />
-    </PopoverMenu>
-  )
-}
-
-type BranchSelectPopoverContentProps = {
-  branchSearch: string
-  branches: string[]
-  currentBranchDetail?: string
-  currentBranchName: string
-  onBranchSearchChange: (value: string) => void
-  onBranchSelect: (branch: string) => void | Promise<void>
-  onCreateBranch: () => void
-}
-
-export function BranchSelectPopoverContent({
-  branchSearch,
-  branches,
-  currentBranchDetail,
-  currentBranchName,
+  maxWidth,
   onBranchSearchChange,
   onBranchSelect,
   onCreateBranch,
-}: BranchSelectPopoverContentProps): React.ReactNode {
+  onOpenChange,
+}: BranchSelectPopoverProps): React.ReactNode {
   const visibleBranches = React.useMemo(() => {
     const branchSet = new Set(branches)
     if (
@@ -92,55 +58,69 @@ export function BranchSelectPopoverContent({
       branch.toLowerCase().includes(keyword),
     )
   }, [branchSearch, branches, currentBranchName])
+  const options = React.useMemo(
+    () => visibleBranches.map(branch => ({ value: branch })),
+    [visibleBranches],
+  )
 
   return (
     <SearchablePopoverContent
-      listClassName="branch-popover-list-scroll"
-      search={
-        <SearchInput
-          aria-label="搜索分支"
-          value={branchSearch}
-          onChange={onBranchSearchChange}
-          placeholder="搜索分支"
-        />
-      }
-      footer={
-        <PopoverItem
+      align={align}
+      className={className}
+      contentLabel="切换 Git 分支"
+      emptyLabel="无匹配分支"
+      footer={(
+        <SearchablePopoverAction
           icon={<Plus size={APP_ICON_SIZE} />}
-          onClick={onCreateBranch}
+          onClick={() => {
+            onCreateBranch()
+            onOpenChange(false)
+          }}
         >
           创建并检出新分支...
-        </PopoverItem>
-      }
-    >
-      <div className="popover-section">
-        <div className="popover-section-title">分支</div>
-        {visibleBranches.length === 0 ? (
-          <div className="popover-empty">无匹配分支</div>
-        ) : (
-          visibleBranches.map((branch) => {
-            const selected = branch === currentBranchName
-            return (
-              <PopoverItem
-                icon={<GitBranch size={APP_ICON_SIZE} />}
-                key={branch}
-                selected={selected}
-                withCheck={selected}
-                onClick={() => onBranchSelect(branch)}
-              >
-                {currentBranchDetail && selected ? (
-                  <span className="environment-branch-label">
-                    <span>{branch}</span>
-                    <small>{currentBranchDetail}</small>
-                  </span>
-                ) : (
-                  branch
-                )}
-              </PopoverItem>
-            )
-          })
-        )}
-      </div>
-    </SearchablePopoverContent>
+        </SearchablePopoverAction>
+      )}
+      listClassName="branch-popover-list-scroll popover-section"
+      listLabel="Git 分支"
+      open={open}
+      options={options}
+      renderOption={(option, selected) => (
+        <>
+          <span className="popover-item-leading">
+            <span className="popover-item-icon">
+              <GitBranch size={APP_ICON_SIZE} />
+            </span>
+          </span>
+          <span className="popover-item-label">
+            {currentBranchDetail && selected ? (
+              <span className="environment-branch-label">
+                <span title={option.value}>{option.value}</span>
+                <small>{currentBranchDetail}</small>
+              </span>
+            ) : (
+              <span title={option.value}>{option.value}</span>
+            )}
+          </span>
+          <span className="popover-item-trailing">
+            {selected ? <Check size={APP_ICON_SIZE} /> : null}
+          </span>
+        </>
+      )}
+      search={branchSearch}
+      searchLabel="搜索分支"
+      searchPlaceholder="搜索分支"
+      selectedValue={currentBranchName}
+      side={side}
+      sideOffset={sideOffset}
+      trigger={trigger}
+      width={width}
+      maxWidth={maxWidth}
+      onOpenChange={onOpenChange}
+      onSearchChange={onBranchSearchChange}
+      onSelect={option => {
+        void onBranchSelect(option.value)
+        onOpenChange(false)
+      }}
+    />
   )
 }

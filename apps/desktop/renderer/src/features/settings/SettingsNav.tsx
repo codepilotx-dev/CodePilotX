@@ -132,6 +132,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
           }
           onChange={setSearchQuery}
           onEscapeEmpty={() => searchInputRef.current?.blur()}
+          onKeyDown={handleSearchKeyDown}
           placeholder="搜索设置..."
           value={searchQuery}
           variant="standard"

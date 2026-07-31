@@ -6,7 +6,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
 }
 
 .right-dock-file-browser {
@@ -15,7 +15,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
   overflow: hidden;
 }
 
@@ -75,149 +75,6 @@
   text-align: center;
 }
 
-.dialog-debug-panel {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  background: var(--color-token-main-surface-primary);
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.dialog-debug-panel-content {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-}
-
-.dialog-debug-header h3 {
-  margin: 0;
-  color: var(--color-token-foreground);
-  font-size: var(--type-section-title);
-  font-weight: 600;
-}
-
-.dialog-debug-summary {
-  margin: 6px 0 0;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-  line-height: 1.5;
-}
-
-.dialog-debug-list {
-  display: grid;
-  gap: 8px;
-}
-
-.dialog-debug-item {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
-  background: var(--color-token-main-surface-primary);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast) var(--ease-out),
-    border-color var(--motion-fast) var(--ease-out);
-
-  &:hover {
-    background: var(--color-token-list-hover-background);
-    border-color: var(--color-token-border);
-  }
-}
-
-.dialog-debug-item-label {
-  color: var(--color-token-foreground);
-  font-size: var(--type-card-title);
-  font-weight: 500;
-}
-
-.dialog-debug-item-desc {
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-  line-height: 1.45;
-}
-
-.dialog-debug-log {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: var(--radius-4);
-  background: var(--color-token-text-preformat-background);
-  color: var(--color-token-foreground);
-  font-size: var(--type-meta);
-}
-
-.dialog-debug-log-label {
-  color: var(--color-token-description-foreground);
-}
-
-.dialog-debug-log-value {
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
-  color: var(--color-token-foreground);
-  word-break: break-all;
-}
-
-.performance-diagnostics-panel {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  background: var(--color-token-main-surface-primary);
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.performance-diagnostics-panel-content {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-}
-
-.performance-diagnostics-summary,
-.performance-diagnostics-footnote {
-  margin: 6px 0 0;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-  line-height: 1.5;
-}
-
-.performance-diagnostics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.performance-diagnostics-stat {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
-  background: var(--color-token-text-preformat-background);
-}
-
-.performance-diagnostics-stat-icon {
-  color: var(--color-token-text-link-foreground);
-}
-
-.performance-diagnostics-stat-label {
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
-}
-
 .right-dock-file-document {
   .right-dock-file-code {
     min-height: 100%;
@@ -250,7 +107,7 @@
   gap: var(--space-2);
   padding: 0 var(--space-2);
   border-bottom: 1px solid var(--color-token-border-light);
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
   color: var(--color-token-text-secondary);
 }
 
@@ -452,18 +309,18 @@
   overflow: hidden;
 
   > .right-dock-file-selection-target {
-    min-width: 320px;
+    min-width: 0;
     flex: 1 1 auto;
   }
 }
 
 .right-dock-open-file-layout {
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
 }
 
 .right-dock-open-file-empty {
   display: grid;
-  min-width: 200px;
+  min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
   align-content: center;
@@ -491,7 +348,7 @@
 
 .right-dock-editor-file-tree {
   width: min(var(--right-dock-editor-tree-width, 280px), 60%);
-  min-width: 200px;
+  min-width: 0;
   min-height: 0;
   flex: 0 0 min(var(--right-dock-editor-tree-width, 280px), 60%);
   overflow: hidden;
@@ -546,7 +403,7 @@
 
 .workspace-file-tree--popover {
   padding: var(--space-2);
-  background: var(--color-token-editor-widget-background);
+  background: var(--color-token-elevated-background);
 }
 
 .workspace-file-tree--standalone {
@@ -698,7 +555,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--color-token-main-surface-primary);
+  background: var(--color-token-panel-background);
   overflow: hidden;
 }
 
@@ -709,18 +566,6 @@
   width: 100%;
   max-width: var(--composer-width);
   margin-inline: auto;
-}
-
-.app-shell.menubar-debug-mode .workflow-page__sidebar {
-  flex: 0 0 264px;
-  width: 264px;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--color-token-border-light);
-  background: color-mix(in srgb, var(--color-token-text-preformat-background) 72%, var(--color-token-main-surface-primary));
-  overflow-x: hidden;
-  overflow-y: auto;
 }
 
 .desktop-main-stage,

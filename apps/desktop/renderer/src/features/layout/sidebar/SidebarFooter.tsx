@@ -1,5 +1,5 @@
 import type React from "react";
-import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -12,6 +12,7 @@ import {
   Keyboard,
   LogOut,
   PawPrint,
+  RefreshCw,
   Settings2,
   Sparkles,
 } from "lucide-react";
@@ -28,6 +29,11 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
+import {
+  buildDesktopUpdateMenuModel,
+  runDesktopUpdateMenuAction,
+  startDesktopUpdateMonitoring,
+} from './desktopUpdateMenu.js'
 import {
   allBalances,
   criticalQuotaWindows,
@@ -63,11 +69,12 @@ const EMPTY_USAGE: ProviderUsageState = {
 
 type SidebarFooterProps = {
   sidebarWidth: number;
+  onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void;
   onReport: (message: string) => void;
 };
 
 export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(function SidebarFooter(
-  { sidebarWidth, onReport },
+  { sidebarWidth, onOpenWhatsNew, onReport },
   ref,
 ): React.ReactNode {
   const location = useLocation();
@@ -79,6 +86,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   } = useDesktopSettings();
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const helpMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
   const [githubUser, setGithubUser] = useState<DesktopGithubUser | null>(null);
   const [petToggleBusy, setPetToggleBusy] = useState(false);
@@ -86,10 +94,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const usageAvailable = Boolean(configuredProviderID && model);
   const petEnabled = draft.values.pet.enabled;
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null)
+  const updateMenu = buildDesktopUpdateMenuModel(updateStatus)
 
   useEffect(() => {
-    const unsubscribe = desktopClient.onUpdateStatusChange(setUpdateStatus)
-    return unsubscribe
+    return startDesktopUpdateMonitoring(desktopClient, setUpdateStatus)
   }, [])
 
   const refreshUsage = useCallback(async (): Promise<void> => {
@@ -248,7 +256,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             </PopoverItem>
           </div>
         </div>
-        <div className="popover-divider" />
+        <DropdownMenu.Separator className="popover-divider" />
         <div className="popover-section">
           {usageAvailable ? (
             <DropdownMenu.Sub>
@@ -271,12 +279,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.SubContent
-                  alignOffset={-6}
+                  alignOffset={-4}
                   aria-label="剩余用量详情"
                   className="popover-surface popover popover-sub-content popover-usage-submenu"
-                  sideOffset={16}
+                  collisionPadding={6}
+                  sideOffset={4}
                   style={buildPopoverSizingStyle({
-                    width: 300,
+                    width: 280,
                     maxWidth: "calc(100vw - 16px)",
                   })}
                 >
@@ -368,26 +377,25 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           >
             设置
           </PopoverItem>
-          {(updateStatus?.phase === 'available' ||
-            updateStatus?.phase === 'downloading' ||
-            updateStatus?.phase === 'downloaded') ? (
-            <PopoverItem
-              icon={<Download size={APP_ICON_SIZE} />}
-              onClick={() => {
-                if (updateStatus.phase === 'downloaded') {
-                  void desktopClient.quitAndInstall()
-                } else if (updateStatus.phase === 'available') {
-                  void desktopClient.downloadUpdate()
-                }
-              }}
-            >
-              {updateStatus.phase === 'downloaded'
-                ? '重启安装'
-                : updateStatus.phase === 'downloading'
-                  ? `下载中 ${Math.round(updateStatus.percent)}%`
-                  : '安装更新'}
-            </PopoverItem>
-          ) : null}
+          <PopoverItem
+            disabled={updateMenu.disabled}
+            icon={
+              updateMenu.icon === 'download'
+                ? <Download size={APP_ICON_SIZE} />
+                : <RefreshCw size={APP_ICON_SIZE} />
+            }
+            onClick={() => {
+              void runDesktopUpdateMenuAction(desktopClient, updateMenu.action)
+                .catch(() => {
+                setUpdateStatus({
+                  phase: 'error',
+                  message: '更新操作失败，请稍后重试',
+                })
+              })
+            }}
+          >
+            {updateMenu.label}
+          </PopoverItem>
           <PopoverItem
             icon={<LogOut size={APP_ICON_SIZE} />}
             onClick={() => {
@@ -404,10 +412,11 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         className="popover-sidebar-help popover-menu--grid"
         open={helpMenuOpen}
         side="top"
-        width={190}
+        width={180}
         trigger={
           <IconButton
             className="sidebar-help-button"
+            ref={helpMenuTriggerRef}
             title="帮助"
           >
             <HelpCircle size={APP_ICON_SIZE} />
@@ -419,7 +428,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           icon={<Sparkles size={APP_ICON_SIZE} />}
           onClick={() => {
             setHelpMenuOpen(false)
-            navigate('/whats-new')
+            onOpenWhatsNew(helpMenuTriggerRef.current)
           }}
         >
           新特性

@@ -9,6 +9,7 @@ import type {
   DesktopProjectMemoryContent,
 } from '../../../shared/types.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
+import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
@@ -20,13 +21,20 @@ const MEMORY_TYPES = ['all', 'user', 'feedback', 'project', 'reference'] as cons
 
 type MemoryTypeFilter = (typeof MEMORY_TYPES)[number]
 
-export function MemorySettings(): React.ReactNode {
+const MEMORY_TYPE_OPTIONS = MEMORY_TYPES.map(type => ({
+  value: type,
+  label: type === 'all' ? '全部类型' : type,
+}))
+
+type Props = {
+  workspacePath: string | null
+}
+
+export function MemorySettings({ workspacePath }: Props): React.ReactNode {
   const { draft } = useDesktopSettings()
-  const [workspacePath, setWorkspacePath] = useState(
-    draft.values.recentWorkspaces[0]?.path ?? '',
-  )
+  const normalizedWorkspacePath = workspacePath?.trim() ?? ''
+  const hasWorkspace = normalizedWorkspacePath.length > 0
   const [memories, setMemories] = useState<DesktopProjectMemory[]>([])
-  const [memoryDir, setMemoryDir] = useState('')
   const [recalls, setRecalls] = useState<DesktopMemoryRecallEvent[]>([])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [selectedMemory, setSelectedMemory] =
@@ -49,16 +57,15 @@ export function MemorySettings(): React.ReactNode {
   }, [memories, query, typeFilter])
 
   const refresh = async (): Promise<void> => {
-    if (!workspacePath.trim()) return
+    if (!hasWorkspace) return
     setBusy(true)
     setError(null)
     try {
       const [listing, recallListing] = await Promise.all([
-        desktopClient.listProjectMemories(workspacePath.trim()),
-        desktopClient.listProjectMemoryRecalls(workspacePath.trim()),
+        desktopClient.listProjectMemories(normalizedWorkspacePath),
+        desktopClient.listProjectMemoryRecalls(normalizedWorkspacePath),
       ])
       setMemories(listing.memories)
-      setMemoryDir(listing.memoryDir)
       setRecalls(recallListing.recalls)
       if (selectedPath) {
         const stillExists = listing.memories.some(
@@ -80,16 +87,19 @@ export function MemorySettings(): React.ReactNode {
     void refresh()
     // Refresh is intentionally not a dependency; it closes over UI state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspacePath])
+  }, [normalizedWorkspacePath])
 
   const openMemory = async (relativePath: string): Promise<void> => {
-    if (!workspacePath.trim()) return
+    if (!hasWorkspace) return
     setSelectedPath(relativePath)
     setBusy(true)
     setError(null)
     try {
       setSelectedMemory(
-        await desktopClient.readProjectMemory(workspacePath.trim(), relativePath),
+        await desktopClient.readProjectMemory(
+          normalizedWorkspacePath,
+          relativePath,
+        ),
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -99,12 +109,12 @@ export function MemorySettings(): React.ReactNode {
   }
 
   const saveSelected = async (): Promise<void> => {
-    if (!workspacePath.trim() || !selectedMemory) return
+    if (!hasWorkspace || !selectedMemory) return
     setBusy(true)
     setError(null)
     try {
       const saved = await desktopClient.saveProjectMemory({
-        workspacePath: workspacePath.trim(),
+        workspacePath: normalizedWorkspacePath,
         relativePath: selectedMemory.relativePath,
         content: selectedMemory.content,
       })
@@ -122,14 +132,14 @@ export function MemorySettings(): React.ReactNode {
   }
 
   const deleteSelected = async (): Promise<void> => {
-    if (!workspacePath.trim() || !selectedMemory) return
+    if (!hasWorkspace || !selectedMemory) return
     const confirmed = window.confirm(`删除记忆 ${selectedMemory.relativePath}？`)
     if (!confirmed) return
     setBusy(true)
     setError(null)
     try {
       await desktopClient.deleteProjectMemory({
-        workspacePath: workspacePath.trim(),
+        workspacePath: normalizedWorkspacePath,
         relativePath: selectedMemory.relativePath,
       })
       setSelectedPath(null)
@@ -143,7 +153,7 @@ export function MemorySettings(): React.ReactNode {
   }
 
   const resetMemories = async (includeRecallLog: boolean): Promise<void> => {
-    if (!workspacePath.trim()) return
+    if (!hasWorkspace) return
     const confirmed = window.confirm(
       includeRecallLog
         ? '删除此工作区所有自动记忆和召回时间线？'
@@ -154,7 +164,7 @@ export function MemorySettings(): React.ReactNode {
     setError(null)
     try {
       await desktopClient.resetProjectMemory({
-        workspacePath: workspacePath.trim(),
+        workspacePath: normalizedWorkspacePath,
         includeRecallLog,
       })
       setSelectedPath(null)
@@ -180,7 +190,7 @@ export function MemorySettings(): React.ReactNode {
         <SettingsSection title="记忆状态">
           <SettingsRow
             title="启用记忆"
-            description="新会话会读取和写入此工作区的自动记忆"
+            description="新会话会读取和写入自动记忆"
             autoSave
             control={
               <ToggleSwitch
@@ -195,12 +205,13 @@ export function MemorySettings(): React.ReactNode {
           />
           <SettingsRow
             title="工作区"
-            description={memoryDir || '选择或输入工作区路径后加载记忆'}
+            description="项目记忆按当前工作区隔离"
             control={
               <Input
-                value={workspacePath}
-                onChange={event => setWorkspacePath(event.target.value)}
-                placeholder="D:\\path\\to\\workspace"
+                aria-label="当前工作区"
+                disabled
+                value={normalizedWorkspacePath}
+                placeholder="未打开工作区"
               />
             }
           />
@@ -211,7 +222,7 @@ export function MemorySettings(): React.ReactNode {
           actions={
             <div className="settings-inline-actions">
               <Button
-                disabled={busy || !workspacePath.trim()}
+                disabled={busy || !hasWorkspace}
                 onClick={() => void refresh()}
                 type="button"
               >
@@ -219,14 +230,14 @@ export function MemorySettings(): React.ReactNode {
                 刷新
               </Button>
               <Button
-                disabled={busy || !workspacePath.trim()}
+                disabled={busy || !hasWorkspace}
                 onClick={() => void resetMemories(false)}
                 type="button"
               >
                 重置记忆
               </Button>
               <Button
-                disabled={busy || !workspacePath.trim()}
+                disabled={busy || !hasWorkspace}
                 onClick={() => void resetMemories(true)}
                 type="button"
               >
@@ -235,145 +246,156 @@ export function MemorySettings(): React.ReactNode {
             </div>
           }
         >
-          <div className="memory-settings-toolbar">
-            <SearchInput
-              aria-label="搜索记忆文件"
-              className="memory-settings-search"
-              value={query}
-              onChange={setQuery}
-              placeholder="搜索文件名或描述"
-            />
-            <select
-              className="settings-input memory-settings-filter"
-              value={typeFilter}
-              onChange={event =>
-                setTypeFilter(event.target.value as MemoryTypeFilter)
-              }
-            >
-              {MEMORY_TYPES.map(type => (
-                <option key={type} value={type}>
-                  {type === 'all' ? '全部类型' : type}
-                </option>
-              ))}
-            </select>
-            <span className="memory-settings-count">
-              {filteredMemories.length} 条
-            </span>
-          </div>
-          {error ? <p className="settings-row-error">{error}</p> : null}
-          <div className="memory-settings-grid">
-            <div className="memory-settings-panel">
-              <div className="memory-settings-panel-header">
-                <span>记忆列表</span>
-              </div>
-              <div className="memory-settings-list-scroll-area">
-                <div className="memory-settings-list-scroll-content">
-                  {filteredMemories.map(memory => (
-                    <button
-                      key={memory.relativePath}
-                      className={
-                        selectedPath === memory.relativePath
-                          ? 'memory-settings-item active'
-                          : 'memory-settings-item'
-                      }
-                      onClick={() => void openMemory(memory.relativePath)}
-                      type="button"
-                    >
-                      <span className="memory-settings-item-name">
-                        {memory.relativePath}
-                      </span>
-                      <span className="memory-settings-item-meta">
-                        <span className="memory-settings-item-type">
-                          {memory.type ?? 'unknown'}
-                        </span>
-                        <span className="memory-settings-item-desc">
-                          {memory.description ?? '无描述'}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                  {filteredMemories.length === 0 ? (
-                    <div className="settings-empty-state">暂无记忆</div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-            <div className="memory-settings-panel">
-              <div className="memory-settings-panel-header memory-settings-panel-header-editor">
-                <span className="memory-settings-editor-title">
-                  {selectedMemory
-                    ? selectedMemory.relativePath
-                    : '内容编辑'}
+          {hasWorkspace ? (
+            <>
+              <div className="memory-settings-toolbar">
+                <SearchInput
+                  aria-label="搜索记忆文件"
+                  className="memory-settings-search"
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="搜索文件名或描述"
+                />
+                <SettingsDropdown
+                  ariaLabel="记忆类型"
+                  options={MEMORY_TYPE_OPTIONS}
+                  showSelectedIndicator
+                  triggerClassName="memory-settings-filter"
+                  value={typeFilter}
+                  width={160}
+                  onChange={value =>
+                    setTypeFilter(value as MemoryTypeFilter)
+                  }
+                />
+                <span className="memory-settings-count">
+                  {filteredMemories.length} 条
                 </span>
-                {selectedMemory ? (
-                  <div className="memory-settings-editor-actions">
-                    <Button
-                      disabled={busy}
-                      onClick={() => void saveSelected()}
-                      type="button"
-                    >
-                      <Save size={APP_ICON_SIZE} />
-                      保存
-                    </Button>
-                    <Button
-                      tone="danger"
-                      disabled={busy}
-                      onClick={() => void deleteSelected()}
-                      type="button"
-                    >
-                      <Trash2 size={APP_ICON_SIZE} />
-                      删除
-                    </Button>
-                  </div>
-                ) : null}
               </div>
-              <div className="memory-settings-editor-scroll-area">
-                <div className="memory-settings-editor-scroll-content">
-                  {selectedMemory ? (
-                    <textarea
-                      className="settings-textarea memory-settings-editor-textarea"
-                      value={selectedMemory.content}
-                      onChange={event =>
-                        setSelectedMemory({
-                          ...selectedMemory,
-                          content: event.target.value,
-                        })
-                      }
-                    />
-                  ) : (
-                    <div className="settings-empty-state">
-                      选择一条记忆查看内容
+              {error ? <p className="settings-row-error">{error}</p> : null}
+              <div className="memory-settings-grid">
+                <div className="memory-settings-panel">
+                  <div className="memory-settings-panel-header">
+                    <span>记忆列表</span>
+                  </div>
+                  <div className="memory-settings-list-scroll-area">
+                    <div className="memory-settings-list-scroll-content">
+                      {filteredMemories.map(memory => (
+                        <button
+                          key={memory.relativePath}
+                          className={
+                            selectedPath === memory.relativePath
+                              ? 'memory-settings-item active'
+                              : 'memory-settings-item'
+                          }
+                          onClick={() => void openMemory(memory.relativePath)}
+                          type="button"
+                        >
+                          <span className="memory-settings-item-name">
+                            {memory.relativePath}
+                          </span>
+                          <span className="memory-settings-item-meta">
+                            <span className="memory-settings-item-type">
+                              {memory.type ?? 'unknown'}
+                            </span>
+                            <span className="memory-settings-item-desc">
+                              {memory.description ?? '无描述'}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                      {filteredMemories.length === 0 ? (
+                        <div className="settings-empty-state">暂无记忆</div>
+                      ) : null}
                     </div>
-                  )}
+                  </div>
+                </div>
+                <div className="memory-settings-panel">
+                  <div className="memory-settings-panel-header memory-settings-panel-header-editor">
+                    <span className="memory-settings-editor-title">
+                      {selectedMemory
+                        ? selectedMemory.relativePath
+                        : '内容编辑'}
+                    </span>
+                    {selectedMemory ? (
+                      <div className="memory-settings-editor-actions">
+                        <Button
+                          disabled={busy}
+                          onClick={() => void saveSelected()}
+                          type="button"
+                        >
+                          <Save size={APP_ICON_SIZE} />
+                          保存
+                        </Button>
+                        <Button
+                          tone="danger"
+                          disabled={busy}
+                          onClick={() => void deleteSelected()}
+                          type="button"
+                        >
+                          <Trash2 size={APP_ICON_SIZE} />
+                          删除
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="memory-settings-editor-scroll-area">
+                    <div className="memory-settings-editor-scroll-content">
+                      {selectedMemory ? (
+                        <textarea
+                          className="settings-textarea memory-settings-editor-textarea"
+                          value={selectedMemory.content}
+                          onChange={event =>
+                            setSelectedMemory({
+                              ...selectedMemory,
+                              content: event.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        <div className="settings-empty-state">
+                          选择一条记忆查看内容
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
+            </>
+          ) : (
+            <div className="settings-empty-state">
+              请先打开工作区后管理项目记忆
             </div>
-          </div>
+          )}
         </SettingsSection>
 
         <SettingsSection title="召回时间线">
           <div className="memory-recall-list-scroll-area">
             <div className="memory-recall-list-scroll-content">
-              {recalls.map((recall, index) => (
-                <article className="memory-recall-item" key={`${recall.createdAt}-${index}`}>
-                  <span className="memory-recall-time">
-                    {new Date(recall.createdAt).toLocaleString()}
-                  </span>
-                  <span className="memory-recall-summary">
-                    {recall.querySummary}
-                  </span>
-                  <span className="memory-recall-files">
-                    {recall.memories
-                      .map(memory =>
-                        `${memory.relativePath}${memory.truncated ? ' (截断)' : ''}`,
-                      )
-                      .join(', ')}
-                  </span>
-                </article>
-              ))}
-              {recalls.length === 0 ? (
+              {!hasWorkspace ? (
+                <div className="settings-empty-state">
+                  请先打开工作区后查看召回记录
+                </div>
+              ) : recalls.length === 0 ? (
                 <div className="settings-empty-state">暂无召回记录</div>
-              ) : null}
+              ) : (
+                recalls.map((recall, index) => (
+                  <article className="memory-recall-item" key={`${recall.createdAt}-${index}`}>
+                    <span className="memory-recall-time">
+                      {new Date(recall.createdAt).toLocaleString()}
+                    </span>
+                    <span className="memory-recall-summary">
+                      {recall.querySummary}
+                    </span>
+                    <span className="memory-recall-files">
+                      {recall.memories
+                        .map(memory =>
+                          `${memory.relativePath}${memory.truncated ? ' (截断)' : ''}`,
+                        )
+                        .join(', ')}
+                    </span>
+                  </article>
+                ))
+              )}
             </div>
           </div>
         </SettingsSection>

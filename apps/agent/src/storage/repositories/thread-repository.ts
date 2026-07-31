@@ -193,11 +193,17 @@ export type AutomaticTitleCandidate = {
   projectID: string | null
 }
 
-export type LatestThreadTitleContext = AutomaticTitleCandidate & {
-  turnID: string | null
-  turnStatus: TurnStatus | null
+export type ThreadTitleTurnContext = {
+  turnID: string
   userContent: string
   assistantContent: string
+}
+
+export type ThreadTitleRegenerationContext = AutomaticTitleCandidate & {
+  latestTurnID: string | null
+  latestTurnStatus: TurnStatus | null
+  firstUserContent: string
+  recentCompletedTurns: ThreadTitleTurnContext[]
 }
 
 type PermissionColumns = {
@@ -229,6 +235,30 @@ const defaultThreadSettings = (): ThreadSettings => ({
 import { RepositoryCore } from "./repository-core"
 
 export abstract class ThreadRepositoryDatabase extends RepositoryCore {
+  markThreadUnread(threadID: string, unreadAt: number) {
+      this.sqlite.query(`
+        INSERT INTO thread_read_state (thread_id, read_at, unread_at, updated_at)
+        VALUES (?, 0, ?, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+          unread_at = MAX(COALESCE(thread_read_state.unread_at, 0), excluded.unread_at),
+          updated_at = MAX(thread_read_state.updated_at, excluded.updated_at)
+      `).run(threadID, unreadAt, unreadAt)
+    }
+
+  markThreadReadThrough(threadID: string, readThroughAt: number) {
+      this.sqlite.query(`
+        INSERT INTO thread_read_state (thread_id, read_at, unread_at, updated_at)
+        VALUES (?, ?, NULL, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+          read_at = MAX(thread_read_state.read_at, excluded.read_at),
+          unread_at = CASE
+            WHEN thread_read_state.unread_at <= excluded.read_at THEN NULL
+            ELSE thread_read_state.unread_at
+          END,
+          updated_at = MAX(thread_read_state.updated_at, excluded.updated_at)
+      `).run(threadID, readThroughAt, readThroughAt)
+    }
+
   getThreadSettings(threadID: string): ThreadSettings | null {
       const row = this.sqlite.query("SELECT task_mode, sandbox_mode, approval_policy, approvals_reviewer FROM threads WHERE id = ?").get(threadID) as ThreadSettingsColumns | null
       return row ? threadSettingsFromRow(row) : null
@@ -466,10 +496,18 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
         : null
     }
 
-  latestThreadTitleContext(threadID: string): LatestThreadTitleContext | null {
+  threadTitleRegenerationContext(
+    threadID: string,
+    recentTurnLimit = 6,
+  ): ThreadTitleRegenerationContext | null {
       const thread = this.automaticTitleCandidate(threadID)
       if (!thread) return null
-      const turn = this.sqlite.query(`
+      const firstUser = this.sqlite.query(`
+        SELECT first_user_message
+        FROM threads
+        WHERE id = ?
+      `).get(threadID) as { first_user_message: string | null } | null
+      const latestTurn = this.sqlite.query(`
         SELECT id, root_agent_id, status
         FROM turns
         WHERE thread_id = ?
@@ -480,51 +518,89 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
         root_agent_id: string | null
         status: TurnStatus
       } | null
-      if (!turn) {
+      if (!latestTurn) {
         return {
           ...thread,
-          turnID: null,
-          turnStatus: null,
-          userContent: "",
-          assistantContent: "",
+          latestTurnID: null,
+          latestTurnStatus: null,
+          firstUserContent: firstUser?.first_user_message?.trim() ?? "",
+          recentCompletedTurns: [],
         }
       }
+      const completedTurns = (this.sqlite.query(`
+        SELECT id, root_agent_id
+        FROM turns
+        WHERE thread_id = ? AND status = 'completed'
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      `).all(threadID, recentTurnLimit) as Array<{
+        id: string
+        root_agent_id: string | null
+      }>).reverse()
+      if (!completedTurns.length) {
+        return {
+          ...thread,
+          latestTurnID: latestTurn.id,
+          latestTurnStatus: latestTurn.status,
+          firstUserContent: firstUser?.first_user_message?.trim() ?? "",
+          recentCompletedTurns: [],
+        }
+      }
+      const turnIDs = completedTurns.map(turn => turn.id)
+      const placeholders = turnIDs.map(() => "?").join(", ")
       const inputs = this.sqlite.query(`
-        SELECT content
+        SELECT turn_id, content
         FROM inputs
-        WHERE thread_id = ? AND turn_id = ?
-        ORDER BY created_at, id
-      `).all(threadID, turn.id) as Array<{ content: string }>
-      const textItems = turn.root_agent_id
-        ? this.sqlite.query(`
-            SELECT data
-            FROM items
-            WHERE thread_id = ?
-              AND turn_id = ?
-              AND agent_id = ?
-              AND type = 'text'
-              AND status = 'completed'
-            ORDER BY ordinal, created_at, id
-          `).all(threadID, turn.id, turn.root_agent_id) as Array<{ data: string }>
-        : []
-      const assistantContent = textItems.flatMap((item) => {
+        WHERE thread_id = ? AND turn_id IN (${placeholders})
+        ORDER BY turn_id, created_at, id
+      `).all(threadID, ...turnIDs) as Array<{ turn_id: string; content: string }>
+      const textItems = this.sqlite.query(`
+        SELECT items.turn_id, items.data
+        FROM items
+        JOIN turns ON turns.id = items.turn_id
+        WHERE items.thread_id = ?
+          AND items.turn_id IN (${placeholders})
+          AND items.agent_id = turns.root_agent_id
+          AND items.type = 'text'
+          AND items.status = 'completed'
+        ORDER BY items.turn_id, items.ordinal, items.created_at, items.id
+      `).all(threadID, ...turnIDs) as Array<{ turn_id: string; data: string }>
+      const inputsByTurn = new Map<string, string[]>()
+      for (const input of inputs) {
+        const content = input.content.trim()
+        if (!content) continue
+        const values = inputsByTurn.get(input.turn_id) ?? []
+        values.push(content)
+        inputsByTurn.set(input.turn_id, values)
+      }
+      const resultsByTurn = new Map<string, string[]>()
+      for (const item of textItems) {
         try {
           const data = parse<Record<string, unknown>>(item.data)
-          return data.placement === "result"
-            && typeof data.text === "string"
-            && data.text.trim()
-            ? [data.text.trim()]
-            : []
+          if (
+            data.placement !== "result"
+            || typeof data.text !== "string"
+            || !data.text.trim()
+          ) {
+            continue
+          }
+          const values = resultsByTurn.get(item.turn_id) ?? []
+          values.push(data.text.trim())
+          resultsByTurn.set(item.turn_id, values)
         } catch {
-          return []
+          continue
         }
-      }).join("\n\n")
+      }
       return {
         ...thread,
-        turnID: turn.id,
-        turnStatus: turn.status,
-        userContent: inputs.map(input => input.content.trim()).filter(Boolean).join("\n\n"),
-        assistantContent,
+        latestTurnID: latestTurn.id,
+        latestTurnStatus: latestTurn.status,
+        firstUserContent: firstUser?.first_user_message?.trim() ?? "",
+        recentCompletedTurns: completedTurns.map(turn => ({
+          turnID: turn.id,
+          userContent: (inputsByTurn.get(turn.id) ?? []).join("\n\n"),
+          assistantContent: (resultsByTurn.get(turn.id) ?? []).join("\n\n"),
+        })),
       }
     }
 

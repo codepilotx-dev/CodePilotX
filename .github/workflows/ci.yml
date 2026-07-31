@@ -36,6 +36,18 @@ jobs:
         run: bun run build:agent
       - name: Build renderer
         run: bun run build:renderer
+      - name: Performance statistics tests
+        run: bun run test:performance:stats
+      - name: Renderer performance observation
+        run: bun scripts/performance/run-suite.ts --suite=renderer
+      - name: Upload renderer performance report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: renderer-performance-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
+          path: performance-results/renderer/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Build desktop
         run: bun run build:desktop
       - name: Whitespace check

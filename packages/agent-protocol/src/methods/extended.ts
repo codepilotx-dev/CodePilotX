@@ -157,6 +157,7 @@ export const ProviderDefinitionSchema = Schema.Union([
 
 const ProviderListEntrySchema = Schema.Struct({
   ...Provider.Info.fields,
+  authConfigured: Schema.Boolean,
   config: ProviderDefinitionSchema,
 })
 

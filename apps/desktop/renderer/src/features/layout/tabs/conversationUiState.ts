@@ -4,7 +4,6 @@ import type {
 } from '../../../../shared/types.js'
 import {
   createDefaultWorkbenchTabsState,
-  isWorkbenchTabEnabled,
   type WorkbenchFocusArea,
   type WorkbenchPanelSnapshot,
   type WorkbenchPanelTarget,
@@ -83,7 +82,6 @@ export type ConversationUiStateV4 = {
 export type ConversationUiState = ConversationUiStateV4
 
 export type ConversationUiValidationOptions = {
-  debugMode?: boolean
   validPlanEventIds?: readonly string[]
   validSideTaskIds?: readonly string[]
   workspacePath?: string | null
@@ -477,39 +475,11 @@ function validateTabDescriptor(
     }
   }
 
-  const debugTab = readDebugTab(tab)
-  if (
-    debugTab &&
-    isWorkbenchTabEnabled(debugTab, { debugMode: Boolean(options.debugMode) })
-  ) {
-    return debugTab
-  }
   return null
 }
 
 function isPositiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) > 0
-}
-
-function readDebugTab(
-  value: Record<string, unknown>,
-): WorkbenchTabDescriptor | null {
-  if (value.id === 'tool-probe' && value.kind === 'tool-probe') {
-    return { id: 'tool-probe', kind: 'tool-probe' }
-  }
-  if (value.id === 'dialog-debug' && value.kind === 'dialog-debug') {
-    return { id: 'dialog-debug', kind: 'dialog-debug' }
-  }
-  if (
-    value.id === 'performance-diagnostics' &&
-    value.kind === 'performance-diagnostics'
-  ) {
-    return {
-      id: 'performance-diagnostics',
-      kind: 'performance-diagnostics',
-    }
-  }
-  return null
 }
 
 function validateFocusArea(

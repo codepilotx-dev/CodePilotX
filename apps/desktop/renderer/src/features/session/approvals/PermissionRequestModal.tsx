@@ -1,5 +1,5 @@
 import type React from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
+import * as AlertDialog from '@radix-ui/react-alert-dialog'
 import type {
   DesktopPermissionDecision,
   DesktopPermissionMode,
@@ -7,6 +7,7 @@ import type {
 } from '../../../../shared/types.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 import { Button } from '../../../components/ui/Button.js'
+import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 
 export type PermissionRequestModalProps = {
   request: DesktopPermissionRequest | null
@@ -25,25 +26,28 @@ export function PermissionRequestModal({
   currentPermissionMode,
   onDecide,
 }: PermissionRequestModalProps): React.ReactNode {
+  const open = Boolean(request)
+  const { onCloseAutoFocus } = useDialogFocusRestore(open)
+
   return (
-    <Dialog.Root open={Boolean(request)}>
-      <Dialog.Portal>
+    <AlertDialog.Root open={open}>
+      <AlertDialog.Portal>
         {request ? (
-          <Dialog.Overlay className="permission-modal-backdrop">
-            <Dialog.Content
+          <AlertDialog.Overlay className="permission-modal-backdrop">
+            <AlertDialog.Content
               className="permission-modal tw:grid tw:w-[min(38.75rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5 tw:text-app-text"
+              onCloseAutoFocus={onCloseAutoFocus}
               onEscapeKeyDown={event => event.preventDefault()}
-              onInteractOutside={event => event.preventDefault()}
             >
               <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <Dialog.Title asChild>
+                <AlertDialog.Title asChild>
                   <h2>权限请求</h2>
-                </Dialog.Title>
+                </AlertDialog.Title>
                 <span>{request.toolName}</span>
               </header>
-              <Dialog.Description asChild>
+              <AlertDialog.Description asChild>
                 <p>{request.description}</p>
-              </Dialog.Description>
+              </AlertDialog.Description>
               {request.autoReviewFallbackReason ? (
                 <p>
                   自动审查无法完成，已转为人工审批：
@@ -66,39 +70,50 @@ export function PermissionRequestModal({
                     </div>
                   </div>
                   <div className="permission-modal-actions tw:flex tw:items-center tw:justify-between tw:gap-3">
-                    <Button
-                      onClick={() => onDecide(request, 'allow')}
-                      type="button"
-                    >
-                      允许
-                    </Button>
-                    {(request.rememberOptions ?? []).map(option => (
+                    <AlertDialog.Action asChild>
                       <Button
-                        key={option.id}
+                        onClick={event => {
+                          event.preventDefault()
+                          onDecide(request, 'allow')
+                        }}
+                        type="button"
+                      >
+                        允许
+                      </Button>
+                    </AlertDialog.Action>
+                    {(request.rememberOptions ?? []).map(option => (
+                      <AlertDialog.Action asChild key={option.id}>
+                        <Button
+                          onClick={event => {
+                            event.preventDefault()
+                            onDecide(request, 'allow', false, undefined, {
+                              rememberOptionId: option.id,
+                            })
+                          }}
+                          type="button"
+                        >
+                          {option.label}
+                        </Button>
+                      </AlertDialog.Action>
+                    ))}
+                    <AlertDialog.Cancel asChild>
+                      <Button
+                        tone="danger"
                         onClick={() =>
-                          onDecide(request, 'allow', false, undefined, {
-                            rememberOptionId: option.id,
-                          })
+                          onDecide(request, 'deny')
                         }
                         type="button"
                       >
-                        {option.label}
+                        拒绝
                       </Button>
-                    ))}
-                    <Button
-                      tone="danger"
-                      onClick={() => onDecide(request, 'deny')}
-                      type="button"
-                    >
-                      拒绝
-                    </Button>
+                    </AlertDialog.Cancel>
                   </div>
                 </>
               )}
-            </Dialog.Content>
-          </Dialog.Overlay>
+            </AlertDialog.Content>
+          </AlertDialog.Overlay>
         ) : null}
-      </Dialog.Portal>
-    </Dialog.Root>
+      </AlertDialog.Portal>
+    </AlertDialog.Root>
   )
 }

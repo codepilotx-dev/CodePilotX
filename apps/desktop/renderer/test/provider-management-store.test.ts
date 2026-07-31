@@ -99,7 +99,6 @@ describe('provider management store', () => {
         'provider/credential/updated',
         'usage/source/updated',
       ],
-      diagnosticsScope: 'provider',
     })
     credentials = [credential('oauth-1', 'oauth', true)]
 

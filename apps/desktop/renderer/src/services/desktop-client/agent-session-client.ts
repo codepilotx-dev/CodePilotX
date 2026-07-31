@@ -4,7 +4,6 @@ import {
   DESKTOP_SETTINGS_CHANGE_CHANNEL,
   DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
   DESKTOP_UI_COMMAND_CHANNEL,
-  DESKTOP_UPDATE_STATUS_CHANNEL,
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
   type DesktopApiMethod,
 } from '../../../shared/ipcChannels.js'
@@ -85,7 +84,6 @@ import type {
   DesktopStoredSettings,
   DesktopThemeSettings,
   DesktopSubagentRead,
-  DesktopUpdateStatus,
   DesktopUserMessageInput,
   DesktopWorkspace,
   ModelProviderID,
@@ -126,6 +124,7 @@ const RENDERER_CAPABILITIES = [
   'pets.management.v1',
   'workspace.editor.v1',
   'git.review.v1',
+  'git.workspace.v1',
   'ai.review.v1',
   'github.oauth.v1',
   'github.pullRequests.v1',
@@ -203,7 +202,10 @@ function desktopMcpServer(
   }
 }
 import {
+  browserVisualReviewFileDiff,
+  browserVisualReviewSummary,
   githubLoginFailure,
+  isBrowserVisualReviewCase,
   mockThreadHistoryPage,
   permissionModeFromDesktopConfig,
 } from './fixtures.js'
@@ -267,6 +269,9 @@ export function createAgentSessionDesktopClient(
   const sessionPermissionConfigs = new Map<string, PermissionConfig>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  const confirmedReadThroughBySessionId = new Map<string, number>()
+  const pendingReadThroughBySessionId =
+    new Map<string, Map<string, number>>()
   const pendingSettingsUpdates = new Map<string, Promise<void>>()
   const pendingDesktopSettingsSaves = new Map<
     string,
@@ -339,6 +344,7 @@ export function createAgentSessionDesktopClient(
       | 'compact'
       | 'hookTrust'
       | 'git.review.v1'
+      | 'git.workspace.v1'
       | 'ai.review.v1'
       | 'github.oauth.v1'
       | 'github.pullRequests.v1'
@@ -358,6 +364,7 @@ export function createAgentSessionDesktopClient(
       compact: 'context.compact.v1',
       hookTrust: 'hooks.trust.v1',
       'git.review.v1': 'git.review.v1',
+      'git.workspace.v1': 'git.workspace.v1',
       'ai.review.v1': 'ai.review.v1',
       'github.oauth.v1': 'github.oauth.v1',
       'github.pullRequests.v1': 'github.pullRequests.v1',
@@ -454,6 +461,12 @@ export function createAgentSessionDesktopClient(
     providerCatalogRequest = null
     providerModelCache.clear()
     providerModelRequests.clear()
+  }
+
+  function notifyModelProviderChanged(): void {
+    environment.window?.dispatchEvent?.(
+      new Event('desktop:model-provider-changed'),
+    )
   }
 
   async function loadModelCatalog(refresh = false): Promise<RpcResult<'model/list'>> {
@@ -614,15 +627,11 @@ export function createAgentSessionDesktopClient(
     const activeCredential = credentials.find(
       credential => credential.providerId === provider.id && credential.active,
     )
-    const hasCredential = credentials.some(
-      credential => credential.providerId === provider.id && credential.enabled,
-    )
     const modelAvailable = Boolean(model)
-    const providerConfigured =
-      modelAvailable || hasCredential || summary.apiKeyConfigured
+    const providerConfigured = provider.authConfigured
     const apiKeySource = activeCredential
       ? 'secureStorage'
-      : modelAvailable && provider.auth.apiKey
+      : providerConfigured && provider.auth.apiKey
         ? 'environment'
         : null
     return {
@@ -722,6 +731,21 @@ export function createAgentSessionDesktopClient(
     return response.project
   }
 
+  async function preparePullRequestReview(
+    projectId: string,
+    source: DesktopReviewSource,
+    force = false,
+  ): Promise<void> {
+    if (source.kind !== 'pull-request') return
+    await rpc.call('review/pullRequest/prepare', {
+      projectId,
+      owner: source.owner,
+      repository: source.repository,
+      number: source.number,
+      ...(force ? { force: true } : {}),
+    })
+  }
+
   function projectFolderId(
     project: Project,
     requested?: string,
@@ -738,6 +762,25 @@ export function createAgentSessionDesktopClient(
     return project.primaryFolderId
   }
 
+  function applySessionReadThrough(thread: ThreadListItem): ThreadListItem {
+    const pendingReadThrough = Math.max(
+      0,
+      ...(
+        pendingReadThroughBySessionId.get(thread.id)?.values() ?? []
+      ),
+    )
+    const readThroughAt = Math.max(
+      confirmedReadThroughBySessionId.get(thread.id) ?? 0,
+      pendingReadThrough,
+    )
+    return (
+      thread.unreadAt != null &&
+      thread.unreadAt <= readThroughAt
+    )
+      ? { ...thread, unreadAt: null }
+      : thread
+  }
+
   async function listAgentSessions(
     options?: { archived?: boolean },
   ): Promise<DesktopSessionSnapshot[]> {
@@ -749,7 +792,8 @@ export function createAgentSessionDesktopClient(
         limit: 100,
       }),
     ])
-    const snapshots = response.threads.map(item => {
+    const snapshots = response.threads.map(rawItem => {
+      const item = applySessionReadThrough(rawItem)
       const listSnapshot = agentThreadListItemToDesktopSnapshot(
         item,
         item.projectID ? projectsById.get(item.projectID) : null,
@@ -793,6 +837,7 @@ export function createAgentSessionDesktopClient(
       item: {
         ...snapshot.item,
         pinnedAt: cached?.item.pinnedAt ?? snapshot.item.pinnedAt,
+        unreadAt: cached?.item.unreadAt ?? null,
       },
     })
     return sessionSnapshots.get(sessionId)!
@@ -822,9 +867,7 @@ export function createAgentSessionDesktopClient(
     if (sessionStoreReconcile) return sessionStoreReconcile
     providerCredentialsCache = null
     invalidateModelCatalog()
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('desktop:model-provider-changed'))
-    }
+    notifyModelProviderChanged()
     sessionStoreReconcile = refreshAgentSessionStoreChange({ reloadActive: true })
       .finally(() => {
         sessionStoreReconcile = null
@@ -1114,8 +1157,9 @@ export function createAgentSessionDesktopClient(
   }
 
   const cacheThreadListItem = async (
-    thread: ThreadListItem,
+    rawThread: ThreadListItem,
   ): Promise<DesktopSessionSnapshot> => {
+    const thread = applySessionReadThrough(rawThread)
     const projectsById = await loadProjectsById()
     const listSnapshot = agentThreadListItemToDesktopSnapshot(
       thread,
@@ -1131,6 +1175,22 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    checkForUpdates: () =>
+      environment.window?.codePilotXDesktop?.checkForUpdates
+        ? environment.window.codePilotXDesktop.checkForUpdates()
+        : mockClient.checkForUpdates(),
+    downloadUpdate: () =>
+      environment.window?.codePilotXDesktop?.downloadUpdate
+        ? environment.window.codePilotXDesktop.downloadUpdate()
+        : mockClient.downloadUpdate(),
+    quitAndInstall: () =>
+      environment.window?.codePilotXDesktop?.quitAndInstall
+        ? environment.window.codePilotXDesktop.quitAndInstall()
+        : mockClient.quitAndInstall(),
+    onUpdateStatusChange: callback =>
+      environment.window?.codePilotXDesktop?.onUpdateStatusChange
+        ? environment.window.codePilotXDesktop.onUpdateStatusChange(callback)
+        : mockClient.onUpdateStatusChange(callback),
     getDataLocation: () =>
       environment.window?.codePilotXDesktop?.getDataLocation
         ? environment.window.codePilotXDesktop.getDataLocation()
@@ -1229,7 +1289,6 @@ export function createAgentSessionDesktopClient(
     onRuntimeSkillsUpdated: callback =>
       rpc.subscribeEnvelope({
         liveEventTypes: AGENT_LIVE_EVENT_FILTERS.skills,
-        diagnosticsScope: 'skills',
       }, event => {
         if (event.type !== 'skill/updated') return
         callback(event.payload.generation)
@@ -1237,7 +1296,6 @@ export function createAgentSessionDesktopClient(
     onToolingUpdated: callback =>
       rpc.subscribeEnvelope({
         liveEventTypes: AGENT_LIVE_EVENT_FILTERS.tooling,
-        diagnosticsScope: 'tooling',
       }, event => {
         if (event.type !== 'tooling/updated') return
         const payload = event.payload
@@ -1392,6 +1450,46 @@ export function createAgentSessionDesktopClient(
         return { ok: false, error: operationError(error) }
       }
     },
+    cloneGithubRepository: async input => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('github.oauth.v1')
+          const picker =
+            environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
+          if (!picker) {
+            throw new Error('当前桌面环境不支持选择克隆目录。')
+          }
+          const targetParent = await picker()
+          if (!targetParent) {
+            return { ok: false as const, error: '已取消选择克隆目录。' }
+          }
+          const result = await rpc.call('github/repository/clone', {
+            repositoryId: input.repository.id,
+            targetParent,
+          })
+          projectsByIdCache = null
+          let branchName: string | null = null
+          try {
+            requireAgentCapability('git.review.v1')
+            const status = await rpc.call('review/status', {
+              projectId: result.project.id,
+            })
+            branchName = status.status.branchName
+          } catch {
+            // 克隆与项目注册已经成功，状态补充失败不应把成功结果伪装成失败。
+          }
+          return {
+            ok: true as const,
+            workspace: {
+              ...projectToDesktopWorkspace(result.project, result.project.id),
+              branchName,
+            },
+          }
+        })
+      } catch (error) {
+        return { ok: false as const, error: operationError(error) }
+      }
+    },
     getGithubProfileOverview: async (): Promise<DesktopGithubProfileOverviewResult> => {
       try {
         return await withRequiredAgent(async () => {
@@ -1473,6 +1571,46 @@ export function createAgentSessionDesktopClient(
         return { ok: false as const, error: operationError(error) }
       }
     },
+    checkoutWorkspaceBranch: async (workspacePath, branchName) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('git.workspace.v1')
+        const project = await loadProjectForPath(workspacePath)
+        const result = await rpc.call('git/branch/checkout', {
+          projectId: project.id,
+          branchName,
+        })
+        projectsByIdCache = null
+        return {
+          ...projectToDesktopWorkspace(result.project, result.project.id),
+          branchName: result.status.branchName,
+        }
+      }),
+    createWorkspaceBranch: async input => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('git.workspace.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call('git/branch/create', {
+            projectId: project.id,
+            branchName: input.branchName,
+            ...(input.startPoint === undefined
+              ? {}
+              : { startPoint: input.startPoint }),
+          })
+          projectsByIdCache = null
+          return {
+            ok: true as const,
+            workspace: {
+              ...projectToDesktopWorkspace(result.project, result.project.id),
+              branchName: result.status.branchName,
+            },
+            status: desktopGitStatus(result.status),
+          }
+        })
+      } catch (error) {
+        return { ok: false as const, error: operationError(error) }
+      }
+    },
     commitWorkspaceChanges: async input => {
       try {
         return await withRequiredAgent(async (): Promise<DesktopGitOperationResult> => {
@@ -1496,20 +1634,30 @@ export function createAgentSessionDesktopClient(
         return { ok: false, error: operationError(error) }
       }
     },
-    getAgentReviewSummary: input =>
-      withAgentOrMock(
+    getAgentReviewSummary: input => {
+      const visualFixture = browserVisualReviewSummary(input.source)
+      if (visualFixture) return Promise.resolve(visualFixture)
+      return withAgentOrMock(
         async () => {
           requireAgentCapability('git.review.v1')
           const project = await loadProjectForPath(input.workspacePath)
+          await preparePullRequestReview(
+            project.id,
+            input.source,
+            input.refresh === true,
+          )
           return rpc.call<DesktopReviewAgentSummaryResult>(
             input.refresh ? 'review/refresh' : 'review/summary',
             { projectId: project.id, source: input.source },
           )
         },
         async () => unsupportedAgentOperation('git.review.v1'),
-      ),
-    getAgentReviewFileDiff: input =>
-      withAgentOrMock(
+      )
+    },
+    getAgentReviewFileDiff: input => {
+      const visualFixture = browserVisualReviewFileDiff(input.source, input.path)
+      if (visualFixture) return Promise.resolve(visualFixture)
+      return withAgentOrMock(
         async () => {
           requireAgentCapability('git.review.v1')
           const project = await loadProjectForPath(input.workspacePath)
@@ -1522,26 +1670,54 @@ export function createAgentSessionDesktopClient(
           })
         },
         async () => unsupportedAgentOperation('git.review.v1'),
-      ),
+      )
+    },
     applyAgentReviewOperation: input =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          await rpc.call('review/apply', {
-            projectId: project.id,
-            source: input.source,
-            generation: input.generation,
-            expectedRevision: input.expectedRevision,
+      isBrowserVisualReviewCase()
+        ? Promise.resolve()
+        : withAgentOrMock(
+            async () => {
+              requireAgentCapability('git.review.v1')
+              const project = await loadProjectForPath(input.workspacePath)
+              await rpc.call('review/apply', {
+                projectId: project.id,
+                source: input.source,
+                generation: input.generation,
+                expectedRevision: input.expectedRevision,
+                action: input.action,
+                target: input.target,
+                atomic: true,
+              })
+            },
+            async () => unsupportedAgentOperation('git.review.v1'),
+          ),
+    applyAgentReviewBatch: input =>
+      isBrowserVisualReviewCase()
+        ? Promise.resolve({
+            ok: true as const,
             action: input.action,
-            target: input.target,
-            atomic: true,
+            paths: input.items.map(item => item.path),
+            generation: input.generation,
+            appliedCount: input.items.length,
           })
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
-      ),
+        : withAgentOrMock(
+            async () => {
+              requireAgentCapability('git.review.v1')
+              const project = await loadProjectForPath(input.workspacePath)
+              return rpc.call('review/applyBatch', {
+                projectId: project.id,
+                source: input.source,
+                generation: input.generation,
+                action: input.action,
+                items: input.items,
+              })
+            },
+            async () => unsupportedAgentOperation('git.review.v1'),
+          ),
     getAgentReviewBranches: workspacePath =>
-      withAgentOrMock(
+      isBrowserVisualReviewCase()
+        ? Promise.resolve([])
+        : withAgentOrMock(
         async () => {
           requireAgentCapability('git.review.v1')
           const project = await loadProjectForPath(workspacePath)
@@ -1558,7 +1734,9 @@ export function createAgentSessionDesktopClient(
         async () => unsupportedAgentOperation('git.review.v1'),
       ),
     getAgentReviewCommits: workspacePath =>
-      withAgentOrMock(
+      isBrowserVisualReviewCase()
+        ? Promise.resolve([])
+        : withAgentOrMock(
         async () => {
           requireAgentCapability('git.review.v1')
           const project = await loadProjectForPath(workspacePath)
@@ -1576,7 +1754,9 @@ export function createAgentSessionDesktopClient(
         async () => unsupportedAgentOperation('git.review.v1'),
       ),
     listAgentReviewComments: input =>
-      withAgentOrMock(
+      isBrowserVisualReviewCase()
+        ? Promise.resolve([])
+        : withAgentOrMock(
         async () => {
           requireAgentCapability('git.review.v1')
           const project = await loadProjectForPath(input.workspacePath)
@@ -2444,9 +2624,11 @@ export function createAgentSessionDesktopClient(
         unresolvedMigrationIssues: directory.issues
           .filter(issue => issue.providerId === provider.id)
           .map(issue => `${issue.code}:${issue.path}`),
+        apiKeyConfigured: provider.authConfigured,
       }))
     },
-    getModelProviderState: () => providerState(),
+    getModelProviderState: (providerID?: ModelProviderID) =>
+      providerState(providerID),
     fetchProviderModels: async options => {
       const result = await loadProviderModelPage({
         providerID: options.providerID,
@@ -2878,6 +3060,56 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.setActiveSession(sessionId),
       ),
+    markSessionRead: (sessionId: string, readThroughAt: string) =>
+      withAgentOrMock(
+        async () => {
+          const readThroughTimestamp = Date.parse(readThroughAt)
+          if (!Number.isFinite(readThroughTimestamp)) {
+            throw new Error('INVALID_READ_THROUGH_AT')
+          }
+          const requestId = crypto.randomUUID()
+          const pendingReadThrough =
+            pendingReadThroughBySessionId.get(sessionId) ?? new Map()
+          pendingReadThrough.set(requestId, readThroughTimestamp)
+          pendingReadThroughBySessionId.set(sessionId, pendingReadThrough)
+          const cached = sessionSnapshots.get(sessionId)
+          if (
+            cached?.item.unreadAt &&
+            Date.parse(cached.item.unreadAt) <= readThroughTimestamp
+          ) {
+            cached.item = { ...cached.item, unreadAt: null }
+            sessionSnapshots.set(sessionId, cached)
+            emitSessionStoreChange()
+          }
+          try {
+            const response = await rpc.call('thread/mark-read', {
+              threadId: sessionId,
+              readThroughAt: readThroughTimestamp,
+              operationId: requestId,
+            })
+            confirmedReadThroughBySessionId.set(
+              sessionId,
+              Math.max(
+                confirmedReadThroughBySessionId.get(sessionId) ?? 0,
+                readThroughTimestamp,
+              ),
+            )
+            pendingReadThrough.delete(requestId)
+            if (pendingReadThrough.size === 0) {
+              pendingReadThroughBySessionId.delete(sessionId)
+            }
+            return (await cacheThreadListItem(response.thread)).item
+          } catch (error) {
+            pendingReadThrough.delete(requestId)
+            if (pendingReadThrough.size === 0) {
+              pendingReadThroughBySessionId.delete(sessionId)
+            }
+            await refreshAgentSessionStoreChange().catch(() => {})
+            throw error
+          }
+        },
+        () => mockClient.markSessionRead(sessionId, readThroughAt),
+      ),
     updateSessionMetadata: async (
       sessionId: string,
       patch: DesktopSessionMetadataPatch,
@@ -3192,7 +3424,6 @@ export function createAgentSessionDesktopClient(
       }
       return rpc.subscribe({
         liveEventTypes: AGENT_LIVE_EVENT_FILTERS.global,
-        diagnosticsScope: 'global',
         onReplayComplete: () => {
           void reconcileAgentSessionStore().catch(() => {})
         },
@@ -3200,13 +3431,12 @@ export function createAgentSessionDesktopClient(
         const notificationMethod = notification.method as string
         if (notificationMethod === 'catalog/updated') {
           invalidateModelCatalog()
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('desktop:model-provider-changed'))
-          }
+          notifyModelProviderChanged()
         }
         if (notificationMethod === 'provider/credential/updated') {
           providerCredentialsCache = null
           invalidateModelCatalog()
+          notifyModelProviderChanged()
         }
         if (
           notificationMethod === 'config/updated' &&

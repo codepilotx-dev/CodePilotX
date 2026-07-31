@@ -1,6 +1,14 @@
 import type React from 'react'
 import * as Popover from '@radix-ui/react-popover'
+import { motion, useIsPresent } from 'motion/react'
 import { useLayoutEffect, useMemo, useRef } from 'react'
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import { cx } from '../../../utils/cx.js'
+import {
+  fastTween,
+  motionTransition,
+  standardTween,
+} from '../../motion/motionTransitions.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 
 type VirtualAnchor = {
@@ -8,6 +16,7 @@ type VirtualAnchor = {
 }
 
 type Props = SidebarHoverCardOverlayRenderProps & {
+  ariaLabel: string
   children: React.ReactNode
   className: string
   focusRef?: React.RefObject<HTMLElement | null>
@@ -18,9 +27,11 @@ type Props = SidebarHoverCardOverlayRenderProps & {
 
 export function SidebarHoverCardSurface({
   anchorRef,
+  ariaLabel,
   children,
   className,
   closeAfterDelay,
+  contentId,
   focusRef,
   focusRequest = 0,
   keepOpen,
@@ -30,6 +41,8 @@ export function SidebarHoverCardSurface({
   returnFocusToAnchor,
 }: Props): React.ReactNode {
   const contentRef = useRef<HTMLDivElement | null>(null)
+  const isPresent = useIsPresent()
+  const reducedMotion = usePrefersReducedMotion()
   const sidebarEdgeRef = useMemo<{ current: VirtualAnchor }>(
     () => ({
       current: {
@@ -71,6 +84,15 @@ export function SidebarHoverCardSurface({
     return () => cancelAnimationFrame(frame)
   }, [focusRef, focusRequest, onFocusRequestHandled])
 
+  useLayoutEffect(() => {
+    if (
+      isPresent
+      || !(document.activeElement instanceof HTMLElement)
+      || !contentRef.current?.contains(document.activeElement)
+    ) return
+    returnFocusToAnchor()
+  }, [isPresent, returnFocusToAnchor])
+
   return (
     <Popover.Root open onOpenChange={requestOpenChange}>
       <Popover.Anchor
@@ -82,11 +104,14 @@ export function SidebarHoverCardSurface({
       />
       <Popover.Portal>
         <Popover.Content
+          asChild
           align="center"
-          className={className}
+          aria-label={ariaLabel}
+          collisionPadding={6}
+          id={contentId}
           ref={contentRef}
           side="right"
-          sideOffset={6}
+          sideOffset={4}
           onBlur={event => {
             if (
               event.relatedTarget instanceof Node
@@ -126,7 +151,26 @@ export function SidebarHoverCardSurface({
           onPointerEnter={keepOpen}
           onPointerLeave={closeAfterDelay}
         >
-          {children}
+          <motion.div
+            aria-hidden={!isPresent ? true : undefined}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            className={cx('sidebar-hover-card-surface', className)}
+            exit={{
+              opacity: 0,
+              scale: 0.98,
+              transition: motionTransition(reducedMotion, fastTween),
+              x: -4,
+            }}
+            initial={{ opacity: 0, scale: 0.98, x: -4 }}
+            inert={!isPresent ? true : undefined}
+            style={{
+              pointerEvents: isPresent ? undefined : 'none',
+              transformOrigin: 'left center',
+            }}
+            transition={motionTransition(reducedMotion, standardTween)}
+          >
+            {children}
+          </motion.div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

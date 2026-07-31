@@ -12,17 +12,6 @@ export type WorkbenchTabKind =
   | 'plan'
   | 'side-chat'
   | 'side-task'
-  | 'tool-probe'
-  | 'dialog-debug'
-  | 'performance-diagnostics'
-
-export type DebugTabDescriptor =
-  | { id: 'tool-probe'; kind: 'tool-probe' }
-  | { id: 'dialog-debug'; kind: 'dialog-debug' }
-  | {
-      id: 'performance-diagnostics'
-      kind: 'performance-diagnostics'
-    }
 
 export type WorkbenchTabDescriptor =
   | { id: 'review'; kind: 'review' }
@@ -60,13 +49,8 @@ export type WorkbenchTabDescriptor =
       taskId: string
       childThreadId: string
     }
-  | DebugTabDescriptor
 
 export type WorkbenchTabId = WorkbenchTabDescriptor['id']
-
-export type WorkbenchFlags = {
-  debugMode: boolean
-}
 
 export type WorkbenchPanelSnapshot = {
   open: boolean
@@ -163,7 +147,6 @@ export const createDefaultWorkbenchTabsState =
 export function applyWorkbenchPanelAction(
   state: WorkbenchTabsState,
   action: WorkbenchPanelAction,
-  flags: WorkbenchFlags = { debugMode: false },
 ): WorkbenchTabsState {
   if (action.type === 'focusPanel') {
     const focusArea: WorkbenchFocusArea =
@@ -211,8 +194,6 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'openTab') {
-    if (!isWorkbenchTabEnabled(action.tab, flags)) return state
-
     const existingTarget = findTabTarget(state, action.tab.id)
     if (existingTarget) {
       const existing = state.tabsById[action.tab.id]
@@ -378,23 +359,6 @@ export function applyWorkbenchPanelAction(
 }
 
 export const applyWorkbenchTabsAction = applyWorkbenchPanelAction
-
-export function isDebugWorkbenchTab(
-  tab: WorkbenchTabDescriptor,
-): tab is DebugTabDescriptor {
-  return (
-    tab.kind === 'tool-probe' ||
-    tab.kind === 'dialog-debug' ||
-    tab.kind === 'performance-diagnostics'
-  )
-}
-
-export function isWorkbenchTabEnabled(
-  tab: WorkbenchTabDescriptor,
-  flags: WorkbenchFlags,
-): boolean {
-  return !isDebugWorkbenchTab(tab) || flags.debugMode
-}
 
 function createEmptyPanel(): WorkbenchPanelSnapshot {
   return {

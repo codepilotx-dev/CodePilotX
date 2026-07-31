@@ -26,6 +26,60 @@ test('Radix dropdown stays anchored and uses a solid surface', async ({
   await expect(content).toHaveAttribute('data-side', 'bottom')
   await expectSolidSurface(content)
 
+  const item = content.locator('.popover-item').first()
+  const [itemBox, itemStyles, scrollStyles] = await Promise.all([
+    item.boundingBox(),
+    item.evaluate(element => {
+      const computed = getComputedStyle(element)
+      return {
+        borderRadius: Number.parseFloat(computed.borderRadius),
+        fontSize: Number.parseFloat(computed.fontSize),
+        lineHeight: Number.parseFloat(computed.lineHeight),
+        paddingBlockStart: Number.parseFloat(computed.paddingBlockStart),
+        paddingInlineStart: Number.parseFloat(computed.paddingInlineStart),
+      }
+    }),
+    content.locator('.popover-scroll-content').evaluate(element => {
+      const computed = getComputedStyle(element)
+      return {
+        paddingBlockStart: Number.parseFloat(computed.paddingBlockStart),
+        paddingInlineStart: Number.parseFloat(computed.paddingInlineStart),
+      }
+    }),
+  ])
+  expect(itemBox).not.toBeNull()
+  expect(itemBox!.height).toBeCloseTo(27, 0)
+  expect(itemStyles.borderRadius).toBeCloseTo(10, 0)
+  expect(itemStyles.fontSize).toBeCloseTo(12, 1)
+  expect(itemStyles.lineHeight).toBeCloseTo(17, 1)
+  expect(itemStyles.paddingBlockStart).toBeCloseTo(5, 0)
+  expect(itemStyles.paddingInlineStart).toBeCloseTo(8, 0)
+  expect(scrollStyles.paddingBlockStart).toBeCloseTo(4, 1)
+  expect(scrollStyles.paddingInlineStart).toBeCloseTo(4, 1)
+  const selectedItem = content
+    .locator('.popover-item[data-state="checked"]')
+    .first()
+  await expect(selectedItem).toBeVisible()
+  await expect(
+    selectedItem.evaluate(element => {
+      const probe = document.createElement('span')
+      probe.style.background =
+        'var(--color-token-list-active-selection-background)'
+      element.append(probe)
+      const expected = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return getComputedStyle(element).backgroundColor === expected
+    }),
+  ).resolves.toBe(true)
+  await page.keyboard.press('ArrowDown')
+  const keyboardFocusedItem = content.locator('.popover-item:focus').first()
+  await expect(keyboardFocusedItem).toBeVisible()
+  await expect(
+    keyboardFocusedItem.evaluate(
+      element => getComputedStyle(element).boxShadow,
+    ),
+  ).resolves.not.toBe('none')
+
   const contentBox = await content.boundingBox()
   expect(contentBox).not.toBeNull()
   expect(contentBox!.y).toBeGreaterThanOrEqual(
@@ -49,6 +103,7 @@ test('Radix popover stays in the viewport and respects reduced motion', async ({
   const colorPopover = page.locator('.appearance-color-popover[data-side]')
   await expect(colorPopover).toBeVisible()
   await expectSolidSurface(colorPopover)
+  await expectSurfacePadding(colorPopover, 4)
 
   await page.keyboard.press('Escape')
   await page.locator('html').evaluate(root => {
@@ -117,11 +172,60 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
     content.getByText('在侧边聊天中提问', { exact: true }),
   ).toBeVisible()
   await expect(content.getByText('复制', { exact: true })).toBeVisible()
+  await expectSurfacePadding(content, 4)
 
-  const contentBox = await content.boundingBox()
+  const firstItem = content.locator('.sidebar-context-menu-item').first()
+  const [contentBox, firstItemBox, firstItemStyles] = await Promise.all([
+    content.boundingBox(),
+    firstItem.boundingBox(),
+    firstItem.evaluate(element => {
+      const computed = getComputedStyle(element)
+      return {
+        borderRadius: Number.parseFloat(computed.borderRadius),
+        fontSize: Number.parseFloat(computed.fontSize),
+        lineHeight: Number.parseFloat(computed.lineHeight),
+        paddingBlockStart: Number.parseFloat(computed.paddingBlockStart),
+        paddingInlineStart: Number.parseFloat(computed.paddingInlineStart),
+      }
+    }),
+  ])
   expect(contentBox).not.toBeNull()
+  expect(contentBox!.width).toBeGreaterThanOrEqual(180)
+  expect(firstItemBox).not.toBeNull()
+  expect(firstItemBox!.height).toBeCloseTo(27, 0)
+  expect(firstItemStyles.borderRadius).toBeCloseTo(10, 0)
+  expect(firstItemStyles.fontSize).toBeCloseTo(12, 1)
+  expect(firstItemStyles.lineHeight).toBeCloseTo(17, 1)
+  expect(firstItemStyles.paddingBlockStart).toBeCloseTo(5, 0)
+  expect(firstItemStyles.paddingInlineStart).toBeCloseTo(8, 0)
+  await firstItem.hover()
+  await expect
+    .poll(() =>
+      firstItem.evaluate(element => {
+        const probe = document.createElement('span')
+        probe.style.background = 'var(--color-token-list-hover-background)'
+        element.append(probe)
+        const expected = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return getComputedStyle(element).backgroundColor === expected
+      }),
+    )
+    .toBe(true)
   expect(Math.abs(contentBox!.x - pointer.x)).toBeLessThan(300)
   expect(Math.abs(contentBox!.y - pointer.y)).toBeLessThan(300)
+
+  const submenuMinWidth = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.className =
+      'sidebar-context-menu-content app-context-menu-sub-content'
+    probe.style.position = 'fixed'
+    probe.style.visibility = 'hidden'
+    document.body.append(probe)
+    const width = probe.getBoundingClientRect().width
+    probe.remove()
+    return width
+  })
+  expect(submenuMinWidth).toBeGreaterThanOrEqual(200)
 })
 
 test('global context menu exposes editor commands and skips blank areas', async ({
@@ -131,7 +235,7 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
   await page.goto('/?visualCase=rich#/threads/visual-rich')
 
-  const editor = page.getByRole('textbox', { name: '消息输入框' })
+  const editor = page.getByRole('combobox', { name: '消息输入框' })
   await waitForVisualPage(page, 'dark', editor)
   await editor.click()
   await editor.fill('context menu edit')
@@ -153,12 +257,32 @@ test('global context menu exposes editor commands and skips blank areas', async 
   ]) {
     await expect(content.getByText(label, { exact: true })).toBeVisible()
   }
-  await expect(
-    content.getByText('重做', { exact: true }).locator('..'),
-  ).toHaveAttribute('data-disabled')
+  const disabledRedoItem = content
+    .getByText('重做', { exact: true })
+    .locator('..')
+  await expect(disabledRedoItem).toHaveAttribute('data-disabled')
   await expect(
     content.getByText('全选', { exact: true }).locator('..'),
   ).toHaveAttribute('data-disabled')
+  await expect(
+    disabledRedoItem.evaluate(element => {
+      const style = getComputedStyle(element)
+      const probe = document.createElement('span')
+      probe.style.color = 'var(--color-token-disabled-foreground)'
+      element.append(probe)
+      const expectedColor = getComputedStyle(probe).color
+      probe.remove()
+      return {
+        colorMatchesDisabled: style.color === expectedColor,
+        cursor: style.cursor,
+        opacity: Number.parseFloat(style.opacity),
+      }
+    }),
+  ).resolves.toEqual({
+    colorMatchesDisabled: true,
+    cursor: 'not-allowed',
+    opacity: 0.55,
+  })
 
   await content.getByText('删除', { exact: true }).click()
   await expect(editor).not.toContainText('context menu edit')
@@ -170,7 +294,10 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await editMenuTrigger.click()
   const editMenu = page.locator('.menubar-content[data-state="open"]')
   await editMenu.getByText('全选', { exact: true }).click()
-  await editMenuTrigger.click()
+  await expect(editMenu).toHaveCount(0)
+  await editMenuTrigger.focus()
+  await editMenuTrigger.press('ArrowDown')
+  await expect(editMenu).toBeVisible()
   await page
     .locator('.menubar-content[data-state="open"]')
     .getByText('删除', { exact: true })
@@ -192,6 +319,9 @@ async function expectSolidSurface(content: Locator): Promise<void> {
         animationName: computed.animationName,
         backdropFilter: computed.backdropFilter,
         backgroundColor: computed.backgroundColor,
+        borderRadius: computed.borderRadius,
+        borderTopWidth: computed.borderTopWidth,
+        boxShadow: computed.boxShadow,
         position: computed.position,
       }
     }),
@@ -209,5 +339,23 @@ async function expectSolidSurface(content: Locator): Promise<void> {
   expect(styles.position).not.toBe('absolute')
   expect(styles.backdropFilter).toBe('none')
   expect(styles.backgroundColor).not.toMatch(/rgba\([^)]*,\s*0(?:\.0+)?\)$/)
+  expect(styles.borderRadius).toBe('12px')
+  expect(styles.borderTopWidth).toBe('1px')
+  expect(styles.boxShadow).not.toBe('none')
   expect(styles.animationName).not.toBe('none')
+}
+
+async function expectSurfacePadding(
+  content: Locator,
+  expected: number,
+): Promise<void> {
+  const padding = await content.evaluate(element => {
+    const computed = getComputedStyle(element)
+    return {
+      blockStart: Number.parseFloat(computed.paddingBlockStart),
+      inlineStart: Number.parseFloat(computed.paddingInlineStart),
+    }
+  })
+  expect(padding.blockStart).toBeCloseTo(expected, 1)
+  expect(padding.inlineStart).toBeCloseTo(expected, 1)
 }

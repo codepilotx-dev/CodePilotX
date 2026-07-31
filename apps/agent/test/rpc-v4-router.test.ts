@@ -7,7 +7,9 @@ import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { Capabilities } from "@codepilotx/agent-protocol"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { AgentError } from "../src/domain"
 import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcRouter"
+import { ThreadProjection } from "../src/transport/ThreadProjection"
 
 const roots: string[] = []
 const removeRoot = async (root: string) => {
@@ -57,6 +59,17 @@ const fixture = async (
         cacheState: "fresh" as const,
       }
     },
+    applyBatch: async (input: {
+      action: "stage" | "unstage" | "revert"
+      generation: string
+      items: Array<{ path: string }>
+    }) => ({
+      ok: true as const,
+      action: input.action,
+      paths: input.items.map((item) => item.path),
+      generation: input.generation,
+      appliedCount: input.items.length,
+    }),
   }
   const github = {
     authStatus: async () => {
@@ -468,6 +481,41 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
+  test("thread/mark-read 通过 read-through 清除持久化未读标记", async () => {
+    let database: AgentDatabase
+    const history = {
+      markRead: (threadID: string, readThroughAt: number) => {
+        database.markThreadReadThrough(threadID, readThroughAt)
+        return new ThreadProjection(database).list().find((item) => item.id === threadID)!
+      },
+    } as unknown as RpcRouterDependencies["history"]
+    const { db, initialize, call } = await fixture({ history })
+    database = db
+    await initialize()
+    const thread = db.createThread("未读 RPC")
+    db.markThreadUnread(thread.id, 100)
+
+    const stale = await call("thread/mark-read", {
+      threadId: thread.id,
+      readThroughAt: 90,
+      operationId: "operation:mark-read-stale",
+    })
+    expect(stale.error).toBeUndefined()
+    expect(stale.result.thread.unreadAt).toBe(100)
+
+    const read = await call("thread/mark-read", {
+      threadId: thread.id,
+      readThroughAt: 100,
+      operationId: "operation:mark-read",
+    })
+    expect(read.error).toBeUndefined()
+    expect(read.result.thread.unreadAt).toBeNull()
+    expect(db.sqlite.query(
+      "SELECT read_at, unread_at FROM thread_read_state WHERE thread_id = ?",
+    ).get(thread.id)).toEqual({ read_at: 100, unread_at: null })
+    db.close()
+  })
+
   test("RpcMethods is the only method allowlist and params are validated before services", async () => {
     const { db, call, counts, initialize } = await fixture()
     await initialize()
@@ -514,10 +562,78 @@ describe("RPC v4 Router", () => {
       },
       cacheState: "fresh",
     })
+    const applied = await call("review/applyBatch", {
+      projectId: "project:1",
+      source: { kind: "unstaged" },
+      generation: "generation:1",
+      action: "stage",
+      items: [{ path: "src/index.ts", expectedRevision: "revision:1" }],
+    })
+    expect(applied.result).toEqual({
+      ok: true,
+      action: "stage",
+      paths: ["src/index.ts"],
+      generation: "generation:1",
+      appliedCount: 1,
+    })
     const github = await call("github/auth/status", {})
     expect(github.result).toEqual({ configured: false, authenticated: false, user: null })
     expect(counts()).toEqual({ reviewSummaryCalls: 1, githubStatusCalls: 1 })
     db.close()
+  })
+
+  test("Git 和 Review RPC 错误只公开允许的安全 details", async () => {
+    const gitFailure = await fixture({
+      review: {
+        summaryResult: async () => {
+          throw new AgentError("GIT_COMMAND_FAILED", "Git 操作失败", 409, {
+            stderr: "fatal: C:\\secret\\repository",
+            args: ["status", "--porcelain"],
+          })
+        },
+      } as never,
+    })
+    await gitFailure.initialize()
+    const failed = await gitFailure.call("review/summary", {
+      projectId: "project:git-error",
+      source: { kind: "unstaged" },
+    })
+    expect(failed.error.data).toEqual({
+      code: "GIT_COMMAND_FAILED",
+      retryable: false,
+    })
+    expect(JSON.stringify(failed)).not.toContain("secret")
+
+    const expiredFailure = await fixture({
+      review: {
+        summaryResult: async () => {
+          throw new AgentError(
+            "REVIEW_SNAPSHOT_EXPIRED",
+            "Review 快照已经过期，请刷新后重试",
+            409,
+            {
+              latestGeneration: "generation:latest",
+              retryable: true,
+              stderr: "fatal: C:\\secret\\repository",
+            },
+          )
+        },
+      } as never,
+    })
+    await expiredFailure.initialize()
+    const expired = await expiredFailure.call("review/summary", {
+      projectId: "project:review-expired",
+      source: { kind: "unstaged" },
+    })
+    expect(expired.error.data).toEqual({
+      code: "REVIEW_SNAPSHOT_EXPIRED",
+      retryable: false,
+      details: {
+        latestGeneration: "generation:latest",
+        retryable: true,
+      },
+    })
+    expect(JSON.stringify(expired)).not.toContain("secret")
   })
 
   test("task suggestion RPC resolves project scope and returns safe service output", async () => {
@@ -659,11 +775,15 @@ describe("RPC v4 Router", () => {
     ]
     let listCalls = 0
     let modelCalls = 0
+    const authConfiguredCalls: string[] = []
     const { db, call, initialize } = await fixture({
       providers: {
         list: async () => {
           listCalls += 1
-          return [Provider.Info.empty(providerID), Provider.Info.empty(otherProviderID)]
+          return [
+            Provider.Info.empty(providerID),
+            { ...Provider.Info.empty(otherProviderID), disabled: true },
+          ]
         },
         models: async () => {
           modelCalls += 1
@@ -691,6 +811,10 @@ describe("RPC v4 Router", () => {
           },
         ],
         configIssues: async () => [],
+        isAuthConfigured: async (candidateProviderID: string) => {
+          authConfiguredCalls.push(candidateProviderID)
+          return true
+        },
       } as unknown as RpcRouterDependencies["piModels"],
     })
     await initialize()
@@ -698,6 +822,10 @@ describe("RPC v4 Router", () => {
     const providers = await call("provider/list", {})
     expect(providers.error).toBeUndefined()
     expect(providers.result.providers).toHaveLength(2)
+    expect(providers.result.providers.map((provider: { authConfigured: boolean }) =>
+      provider.authConfigured
+    )).toEqual([true, false])
+    expect(authConfiguredCalls).toEqual([String(providerID)])
     const first = await call("model/list", { providerId: providerID, enabled: true, limit: 1 })
     expect(first.result).toMatchObject({ total: 2, catalogVersion: 1 })
     expect(first.result.providers[0].models.map((model: Model.Info) => model.id)).toEqual(["alpha"])

@@ -39,6 +39,7 @@ import { projectMemoryKey, type MemoryService } from "../../memory/MemoryService
 import type { HookService } from "../../hooks/HookService"
 import type { GitReviewService } from "../../review/GitReviewService"
 import type { GithubService } from "../../github/GithubService"
+import type { GitWorkspaceService } from "../../git/GitWorkspaceService"
 import type { ToolingManager } from "../../tool/ToolingManager"
 import type { PetService } from "../../pet/PetService"
 import type { ReleaseNotesService } from "../../release-notes/ReleaseNotesService"
@@ -70,6 +71,7 @@ export {
   InvalidThreadHistoryCursorError,
 }
 import {
+  ReviewApplyBatchParamsSchema,
   ReviewApplyParamsSchema,
   ReviewAiStartParamsSchema,
   ReviewBranchesParamsSchema,
@@ -114,6 +116,7 @@ export type RpcRouterDependencies = {
   hooks: HookService
   review: GitReviewService
   github: GithubService
+  git: GitWorkspaceService
   tooling: ToolingManager
   pets: PetService
   releaseNotes: ReleaseNotesService
@@ -153,6 +156,7 @@ export const decodeSandboxUninstall = Schema.decodeUnknownSync(SandboxUninstallP
 export const decodeReviewSummary = Schema.decodeUnknownSync(ReviewSummaryParamsSchema)
 export const decodeReviewFileDiff = Schema.decodeUnknownSync(ReviewFileDiffParamsSchema)
 export const decodeReviewApply = Schema.decodeUnknownSync(ReviewApplyParamsSchema)
+export const decodeReviewApplyBatch = Schema.decodeUnknownSync(ReviewApplyBatchParamsSchema)
 export const decodeReviewAiStart = Schema.decodeUnknownSync(ReviewAiStartParamsSchema)
 export const decodeReviewBranches = Schema.decodeUnknownSync(ReviewBranchesParamsSchema)
 export const decodeReviewCommit = Schema.decodeUnknownSync(ReviewCommitParamsSchema)
@@ -638,7 +642,7 @@ export class RpcRouter {
       code,
       exposeMessage ? cause.message : "Agent 内部错误",
       cause.status === 429 || cause.status >= 500,
-      safeErrorDetails(cause.details),
+      safeErrorDetails(code, cause.details),
     )
   }
 
@@ -1036,12 +1040,43 @@ export const decodeOffsetCursor = (value: unknown) => {
   return Number(value.slice("offset:".length))
 }
 
-const safeErrorDetails = (value: unknown): JsonValue | undefined => {
+const safeErrorDetails = (
+  code: ApplicationErrorCode,
+  value: unknown,
+): JsonValue | undefined => {
+  if (code === "REVIEW_SNAPSHOT_EXPIRED") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+    const details = value as Record<string, unknown>
+    const safe = {
+      ...(typeof details.latestGeneration === "string"
+        ? { latestGeneration: details.latestGeneration }
+        : {}),
+      ...(typeof details.retryable === "boolean"
+        ? { retryable: details.retryable }
+        : {}),
+    }
+    return Object.keys(safe).length ? safe : undefined
+  }
+  if (code === "REVIEW_BATCH_PARTIAL") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+    const details = value as Record<string, unknown>
+    if (
+      typeof details.appliedCount !== "number"
+      || !Number.isInteger(details.appliedCount)
+      || typeof details.totalCount !== "number"
+      || !Number.isInteger(details.totalCount)
+    ) return undefined
+    return {
+      appliedCount: details.appliedCount,
+      totalCount: details.totalCount,
+    }
+  }
+  if (code.startsWith("GIT_") || code.startsWith("REVIEW_")) return undefined
   if (value === null || typeof value === "boolean" || typeof value === "number") return value
   if (typeof value === "string") return value.length <= 500 && !/token|authorization|secret|credential/i.test(value) ? value : undefined
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
   const safe = Object.fromEntries(Object.entries(value).flatMap(([key, entry]) => {
-    if (/token|authorization|secret|credential|environment|stack|path/i.test(key)) return []
+    if (/token|authorization|secret|credential|environment|stack|path|stderr|stdout|command|args/i.test(key)) return []
     if (entry === null || typeof entry === "boolean" || typeof entry === "number") return [[key, entry]]
     if (typeof entry === "string" && entry.length <= 500 && !/token|authorization|secret|credential/i.test(entry)) return [[key, entry]]
     return []

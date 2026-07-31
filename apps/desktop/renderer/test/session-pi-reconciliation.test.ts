@@ -45,6 +45,78 @@ describe('Pi session event reconciliation', () => {
       { id: 'call-1:tool-result', type: 'tool_result', content: 'done' },
     ])
   })
+
+  test('updates the session provider and model from context usage', () => {
+    let sessions = [{
+      id: 'thread-1',
+      providerID: 'openai',
+      model: 'gpt-5',
+    }] as never[]
+    const context = contextFor(
+      () => undefined,
+      updater => {
+        sessions = updater(sessions)
+      },
+    )
+
+    handleSessionAgentEvent({
+      type: 'context_usage',
+      sessionId: 'thread-1',
+      usage: {
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        usedTokens: 100,
+      },
+    }, context)
+
+    expect(sessions).toMatchObject([{
+      id: 'thread-1',
+      providerID: 'deepseek',
+      model: 'deepseek-chat',
+    }])
+  })
+
+  test('marks terminal background turns unread and reads through the active turn', () => {
+    let sessions = [{
+      id: 'thread-1',
+      status: 'running',
+      unreadAt: null,
+    }, {
+      id: 'thread-2',
+      status: 'running',
+      unreadAt: null,
+    }] as never[]
+    const readThrough: Array<[string, string]> = []
+    const context = contextFor(
+      () => undefined,
+      updater => {
+        sessions = updater(sessions)
+      },
+      (sessionId, readThroughAt) => {
+        readThrough.push([sessionId, readThroughAt])
+      },
+    )
+
+    handleSessionAgentEvent({
+      type: 'done',
+      sessionId: 'thread-2',
+      createdAt: '2026-07-29T10:00:00.000Z',
+    }, context)
+    handleSessionAgentEvent({
+      type: 'error',
+      sessionId: 'thread-1',
+      createdAt: '2026-07-29T10:01:00.000Z',
+      message: '失败',
+    }, context)
+
+    expect(sessions).toMatchObject([
+      { id: 'thread-1', unreadAt: null },
+      { id: 'thread-2', unreadAt: '2026-07-29T10:00:00.000Z' },
+    ])
+    expect(readThrough).toEqual([
+      ['thread-1', '2026-07-29T10:01:00.000Z'],
+    ])
+  })
 })
 
 function delta(itemId: string, kind: 'text' | 'reasoning', text: string) {
@@ -54,10 +126,15 @@ function delta(itemId: string, kind: 'text' | 'reasoning', text: string) {
   }
 }
 
-function contextFor(update: (updater: (view: ReturnType<typeof createEmptySessionView> & { eventModelVersion: 1 }) => ReturnType<typeof createEmptySessionView> & { eventModelVersion: 1 }) => void): SessionEventContext {
+function contextFor(
+  update: (updater: (view: ReturnType<typeof createEmptySessionView> & { eventModelVersion: 1 }) => ReturnType<typeof createEmptySessionView> & { eventModelVersion: 1 }) => void,
+  setSessions: SessionEventContext['setSessions'] = () => undefined,
+  markSessionReadThrough: SessionEventContext['markSessionReadThrough'] =
+    () => undefined,
+): SessionEventContext {
   return {
     activeSessionIdRef: { current: 'thread-1' },
-    setSessions: () => undefined,
+    setSessions,
     setSessionStatus: () => undefined,
     updateSessionView: (_sessionId, updater) => update(updater as never),
     addToolLogEntry: () => undefined,
@@ -65,5 +142,6 @@ function contextFor(update: (updater: (view: ReturnType<typeof createEmptySessio
     onDiffForActiveRef: { current: () => undefined },
     onRefreshActiveWorkspaceRef: { current: () => undefined },
     onOpenDrawerPermissionsRef: { current: () => undefined },
+    markSessionReadThrough,
   }
 }

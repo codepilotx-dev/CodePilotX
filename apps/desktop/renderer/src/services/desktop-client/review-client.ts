@@ -6,7 +6,7 @@ export type ReviewAgentGitStatus = {
   ahead: number
   behind: number
   clean: boolean
-  files: Array<{
+  files: ReadonlyArray<{
     path: string
     previousPath: string | null
     stagedStatus: string

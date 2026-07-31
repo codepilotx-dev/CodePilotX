@@ -1,9 +1,13 @@
 import { Effect } from "effect"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { lstat, mkdtemp, realpath, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { isAbsolute, join, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
 import type { EncryptedCredentialRepository } from "../auth/EncryptedCredentialRepository"
+import {
+  GitCommandRunner,
+  type GitCommandResult,
+} from "../git/GitCommandRunner"
 import {
   GithubAuthService,
   githubUserFromApi,
@@ -144,8 +148,6 @@ type GithubServiceOptions = GithubAuthServiceOptions & {
   gitTimeoutMs?: number
 }
 
-type GitResult = { code: number; stdout: string; stderr: string }
-
 const nonEmpty = (value: string, name: string) => {
   const normalized = value.trim()
   if (!normalized) throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
@@ -230,15 +232,22 @@ const profileRepositoryFromGraphql = (value: unknown): GithubProfileRepository =
 
 export class GithubService {
   private readonly fetch: Fetch
-  private readonly gitTimeoutMs: number
+  private readonly gitRunner: GitCommandRunner
   private readonly auth: GithubAuthService
+  private readonly preparedPullRequestComparisons = new Map<
+    string,
+    { baseSha: string; headSha: string }
+  >()
 
   constructor(
     private readonly credentials: CredentialRepository,
     options: GithubServiceOptions = {},
   ) {
     this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis)
-    this.gitTimeoutMs = options.gitTimeoutMs ?? DEFAULT_GIT_TIMEOUT_MS
+    this.gitRunner = new GitCommandRunner({
+      maxOutputBytes: MAX_GIT_OUTPUT_BYTES,
+      timeoutMs: options.gitTimeoutMs ?? DEFAULT_GIT_TIMEOUT_MS,
+    })
     this.auth = new GithubAuthService(credentials, options)
   }
 
@@ -268,6 +277,10 @@ export class GithubService {
 
   async logout() {
     return this.auth.logout()
+  }
+
+  async optionalAccessToken(): Promise<string | null> {
+    return (await this.credential())?.accessToken ?? null
   }
 
   async profile() {
@@ -437,6 +450,74 @@ export class GithubService {
     return { repositories: result.map(repositoryFromApi) }
   }
 
+  async cloneRepository(input: {
+    repositoryId: number
+    targetParent: string
+  }): Promise<{ repositoryRoot: string }> {
+    const repositoryId = positiveInteger(input.repositoryId, "repositoryId")
+    let targetParent: string
+    try {
+      targetParent = await realpath(nonEmpty(input.targetParent, "targetParent"))
+      if (!(await stat(targetParent)).isDirectory()) throw new Error("not a directory")
+    } catch {
+      throw new AgentError("PATH_DENIED", "克隆目标父目录不存在或不可访问", 400)
+    }
+
+    const repository = repositoryFromApi(
+      await this.rest("GET", `/repositories/${repositoryId}`),
+    )
+    validateGithubRepositorySlug(repository.owner, repository.name)
+    const repositoryRoot = join(targetParent, repository.name)
+    const nested = relative(targetParent, repositoryRoot)
+    if (nested === "" || nested.startsWith("..") || isAbsolute(nested)) {
+      throw new AgentError("PATH_DENIED", "克隆目标目录无效", 400)
+    }
+    if (await lstat(repositoryRoot).then(() => true).catch(() => false)) {
+      throw new AgentError("CONFLICT", "克隆目标目录已经存在", 409)
+    }
+
+    const credential = await this.requiredCredential()
+    const helperRoot = await mkdtemp(join(tmpdir(), "codepilotx-github-askpass-"))
+    let cloneStarted = false
+    try {
+      const helperPath = await writeAskPassHelper(helperRoot)
+      cloneStarted = true
+      const result = await this.git(
+        targetParent,
+        [
+          "-c",
+          "credential.helper=",
+          "-c",
+          "credential.useHttpPath=true",
+          "clone",
+          "--origin",
+          "origin",
+          "--",
+          `https://x-access-token@github.com/${repository.owner}/${repository.name}.git`,
+          repositoryRoot,
+        ],
+        {
+          GIT_ASKPASS: helperPath,
+          GIT_TERMINAL_PROMPT: "0",
+          CODEPILOTX_GITHUB_TOKEN: credential.accessToken,
+        },
+      )
+      if (result.code !== 0) {
+        throw new AgentError(
+          "GIT_COMMAND_FAILED",
+          "克隆 GitHub 仓库失败，请检查仓库权限和目标目录。",
+          409,
+        )
+      }
+      return { repositoryRoot: await realpath(repositoryRoot) }
+    } finally {
+      await rm(helperRoot, { recursive: true, force: true }).catch(() => undefined)
+      if (cloneStarted && !(await isGitRepository(repositoryRoot))) {
+        await rm(repositoryRoot, { recursive: true, force: true }).catch(() => undefined)
+      }
+    }
+  }
+
   async readPullRequest(input: { owner: string; repository: string; number: number }) {
     validateRepositoryInput(input)
     return {
@@ -583,9 +664,13 @@ export class GithubService {
     owner: string
     repository: string
     number: number
+    force?: boolean
   }): Promise<{ baseSha: string; headSha: string }> {
     const workspaceRoot = nonEmpty(input.workspaceRoot, "workspaceRoot")
     validateRepositoryInput(input)
+    const cacheKey = pullRequestComparisonKey(input)
+    const cached = this.preparedPullRequestComparisons.get(cacheKey)
+    if (cached && input.force !== true) return cached
     const pullRequest = (await this.readPullRequest(input)).pullRequest
     const missing = async (sha: string) => {
       const result = await this.git(workspaceRoot, ["cat-file", "-e", `${sha}^{commit}`])
@@ -613,7 +698,34 @@ export class GithubService {
     if (await missing(pullRequest.base.sha) || await missing(pullRequest.head.sha)) {
       throw new AgentError("REVIEW_SOURCE_UNAVAILABLE", "无法在本地解析 Pull Request 的提交对象", 409)
     }
-    return { baseSha: pullRequest.base.sha, headSha: pullRequest.head.sha }
+    const prepared = {
+      baseSha: pullRequest.base.sha,
+      headSha: pullRequest.head.sha,
+    }
+    this.preparedPullRequestComparisons.set(
+      cacheKey,
+      prepared,
+    )
+    return prepared
+  }
+
+  async preparedPullRequestComparison(input: {
+    workspaceRoot: string
+    owner: string
+    repository: string
+    number: number
+  }): Promise<{ baseSha: string; headSha: string }> {
+    const prepared = this.preparedPullRequestComparisons.get(
+      pullRequestComparisonKey(input),
+    )
+    if (!prepared) {
+      throw new AgentError(
+        "REVIEW_SOURCE_NOT_PREPARED",
+        "Pull Request Review 尚未准备，请刷新后重试",
+        409,
+      )
+    }
+    return prepared
   }
 
   async push(input: {
@@ -766,29 +878,17 @@ export class GithubService {
     )
   }
 
-  private async git(cwd: string, args: readonly string[], extraEnv: Record<string, string> = {}): Promise<GitResult> {
-    const child = Bun.spawn(["git", ...args], {
+  private git(
+    cwd: string,
+    args: readonly string[],
+    extraEnv: Record<string, string> = {},
+  ): Promise<GitCommandResult> {
+    return this.gitRunner.run({
       cwd,
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: { ...globalThis.process.env, ...extraEnv },
+      args,
+      env: extraEnv,
+      acceptedCodes: null,
     })
-    const timeout = setTimeout(() => child.kill(), this.gitTimeoutMs)
-    try {
-      const [stdoutBytes, stderrBytes, code] = await Promise.all([
-        readLimited(child.stdout, MAX_GIT_OUTPUT_BYTES, child),
-        readLimited(child.stderr, MAX_GIT_OUTPUT_BYTES, child),
-        child.exited,
-      ])
-      return {
-        code,
-        stdout: decodeUtf8(stdoutBytes),
-        stderr: decodeUtf8(stderrBytes),
-      }
-    } finally {
-      clearTimeout(timeout)
-    }
   }
 }
 
@@ -895,6 +995,26 @@ const validateGithubRepositorySlug = (owner: string, repository: string) => {
   return { owner, repository }
 }
 
+const pullRequestComparisonKey = (input: {
+  workspaceRoot: string
+  owner: string
+  repository: string
+  number: number
+}) => {
+  const workspace = resolve(input.workspaceRoot).replaceAll("\\", "/")
+  return [
+    process.platform === "win32" ? workspace.toLowerCase() : workspace,
+    input.owner.toLowerCase(),
+    input.repository.toLowerCase(),
+    positiveInteger(input.number, "number"),
+  ].join("\u0000")
+}
+
+const isGitRepository = async (root: string) =>
+  stat(join(root, ".git"))
+    .then((metadata) => metadata.isDirectory() || metadata.isFile())
+    .catch(() => false)
+
 const writeAskPassHelper = async (root: string) => {
   if (process.platform === "win32") {
     const path = join(root, "askpass.cmd")
@@ -912,51 +1032,8 @@ const writeAskPassHelper = async (root: string) => {
   return path
 }
 
-const readLimited = async (
-  stream: ReadableStream<Uint8Array>,
-  limit: number,
-  process: { kill(signal?: number | NodeJS.Signals): void },
-) => {
-  const reader = stream.getReader()
-  const chunks: Uint8Array[] = []
-  let size = 0
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      size += value.byteLength
-      if (size > limit) {
-        process.kill()
-        throw new AgentError("GIT_OUTPUT_TOO_LARGE", "Git 输出超过安全上限", 413)
-      }
-      chunks.push(value)
-    }
-  } finally {
-    reader.releaseLock()
-  }
-  const output = new Uint8Array(size)
-  let offset = 0
-  for (const chunk of chunks) {
-    output.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return output
-}
-
-const decodeUtf8 = (value: Uint8Array) => {
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(value)
-  } catch {
-    throw new AgentError("GIT_OUTPUT_ENCODING_INVALID", "Git 输出不是有效 UTF-8", 500)
-  }
-}
-
-const safeGitError = (value: string) => {
-  const firstLine = value.split(/\r?\n/).map((line) => line.trim()).find(Boolean)
-  return firstLine && !/authorization|token|password|credential/i.test(firstLine)
-    ? firstLine.slice(0, 500)
-    : "GitHub Push 失败，请检查分支权限和仓库设置。"
-}
+const safeGitError = (_value: string) =>
+  "Git 操作失败，请检查仓库权限、分支和网络设置。"
 
 const githubApiMessage = (value: unknown, status: number) => {
   if (value && typeof value === "object" && "message" in value && typeof value.message === "string") {

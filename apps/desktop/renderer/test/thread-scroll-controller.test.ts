@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  clampThreadScrollOffset,
+  createThreadScrollStateCache,
   distanceFromThreadBottom,
   isProgrammaticScrollActive,
   LATEST_TURN_PLACEMENT_THRESHOLD_PX,
@@ -41,6 +43,46 @@ describe('thread scroll controller', () => {
         900,
       ),
     ).toBe(0)
+    expect(
+      clampThreadScrollOffset(
+        { scrollSize: 1_000, viewportSize: 280 },
+        900,
+      ),
+    ).toBe(720)
+    expect(
+      clampThreadScrollOffset(
+        { scrollSize: 100, viewportSize: 280 },
+        20,
+      ),
+    ).toBe(0)
+  })
+
+  test('bounds saved thread positions by lru capacity and ttl', () => {
+    let timestamp = 0
+    const cache = createThreadScrollStateCache({
+      capacity: 2,
+      now: () => timestamp,
+      ttlMs: 100,
+    })
+    const saved = {
+      distanceFromBottom: 50,
+      mode: 'static' as const,
+      scrollOffset: 200,
+    }
+    cache.set('a', saved)
+    timestamp = 1
+    cache.set('b', saved)
+    expect(cache.get('a')).toBe(saved)
+    timestamp = 2
+    cache.set('c', saved)
+    expect(cache.get('b')).toBeNull()
+    expect(cache.size()).toBe(2)
+
+    timestamp = 101
+    expect(cache.get('a')).toBeNull()
+    expect(cache.get('c')).toBe(saved)
+    timestamp = 201
+    expect(cache.get('c')).toBeNull()
   })
 
   test('stops following when the user scrolls upward', () => {

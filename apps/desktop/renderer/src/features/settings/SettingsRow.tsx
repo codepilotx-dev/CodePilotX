@@ -1,8 +1,4 @@
 import React from 'react'
-import {
-  DESKTOP_BROWSER_DEBUG_MODE_EVENT,
-  readDesktopBrowserDebugMode,
-} from '../../services/desktop-client/index.js'
 
 type Props = {
   title: string
@@ -17,7 +13,6 @@ export function SettingsRow({
   title,
   description,
   control,
-  autoSave,
   id,
   size = 'default',
 }: Props) {
@@ -34,41 +29,8 @@ export function SettingsRow({
         ) : null}
       </div>
       {control && (
-        <div className="settings-row-control">
-          {autoSave ? <SettingsAutoSaveBadge /> : null}
-          {control}
-        </div>
+        <div className="settings-row-control">{control}</div>
       )}
     </div>
   )
-}
-
-export function SettingsAutoSaveBadge(): React.ReactNode {
-  const debugMode = useDesktopDebugMode()
-  if (!debugMode) return null
-  return <span className="settings-auto-save-badge">Auto-save</span>
-}
-
-function useDesktopDebugMode(): boolean {
-  const [debugMode, setDebugMode] = React.useState(() =>
-    readDesktopBrowserDebugMode(),
-  )
-
-  React.useEffect(() => {
-    const updateDebugMode = (): void => {
-      setDebugMode(readDesktopBrowserDebugMode())
-    }
-
-    window.addEventListener(DESKTOP_BROWSER_DEBUG_MODE_EVENT, updateDebugMode)
-    window.addEventListener('storage', updateDebugMode)
-    return () => {
-      window.removeEventListener(
-        DESKTOP_BROWSER_DEBUG_MODE_EVENT,
-        updateDebugMode,
-      )
-      window.removeEventListener('storage', updateDebugMode)
-    }
-  }, [])
-
-  return debugMode
 }

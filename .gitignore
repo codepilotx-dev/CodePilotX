@@ -24,12 +24,17 @@ dist-ssr
 .codepilotx
 data
 release
+!docs/release/
+!docs/release/**
 coverage
 resources/tooling/
 apps/agent/catalog.cache.json
 .playwright-cli/
 apps/desktop/renderer/test-results/
 apps/desktop/renderer/playwright-report/
+apps/desktop/electron/test-results/
+apps/desktop/electron/playwright-report/
+performance-results/
 *.tsbuildinfo
 
 # Editor directories and files

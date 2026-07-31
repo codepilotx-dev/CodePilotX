@@ -1,4 +1,5 @@
 import type React from 'react'
+import { useRef } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
 import {
@@ -13,8 +14,6 @@ import {
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { IconButton } from '../../components/ui/IconButton.js'
-import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { preventOutsideDismissWhenDebug } from '../../components/ui/debugDropdown.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -75,9 +74,7 @@ type Props = {
   onToggleSidebar: () => void
   onSidebarTriggerPointerEnter: () => void
   onSidebarTriggerPointerLeave: () => void
-  isDebugMode: boolean
   editMenuCapabilities: EditCommandCapabilities
-  onDebugModeChange: (checked: boolean) => void
   onMinimize: () => void
   onToggleMaximize: () => void
   onClose: () => void
@@ -85,7 +82,10 @@ type Props = {
   onEditMenuAction: (action: EditMenuAction) => void
   onViewMenuAction: (action: ViewMenuAction) => void
   onWindowMenuAction: (action: WindowMenuAction) => void
-  onHelpMenuAction: (action: HelpMenuAction) => void
+  onHelpMenuAction: (
+    action: HelpMenuAction,
+    restoreFocusElement?: HTMLElement | null,
+  ) => void
 }
 
 type MenuItemProps = {
@@ -132,23 +132,6 @@ function MenuItem({
   )
 }
 
-function DebugModeToggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-}): React.ReactNode {
-  return (
-    <label className="menubar-debug-mode">
-      <span className={cx('menubar-debug-mode-label', 'u-text-secondary', 'u-type-meta')}>
-        调试模式
-      </span>
-      <ToggleSwitch checked={checked} onChange={onChange} ariaLabel="调试模式" />
-    </label>
-  )
-}
-
 function MenuSeparator(): React.ReactNode {
   return <Menubar.Separator className="menubar-separator" />
 }
@@ -156,33 +139,33 @@ function MenuSeparator(): React.ReactNode {
 type AppMenuProps = {
   children: React.ReactNode
   contentClassName?: string
-  disableOutsideDismiss?: boolean
   label: string
+  triggerRef?: React.Ref<HTMLButtonElement>
   value: string
 } & PopoverSizingProps
 
 function AppMenu({
   children,
   contentClassName = '',
-  disableOutsideDismiss = false,
   label,
+  triggerRef,
   value,
   width,
   maxWidth,
 }: AppMenuProps): React.ReactNode {
   return (
     <Menubar.Menu value={value}>
-      <Menubar.Trigger className="menubar-trigger">{label}</Menubar.Trigger>
+      <Menubar.Trigger className="menubar-trigger" ref={triggerRef}>
+        {label}
+      </Menubar.Trigger>
       <Menubar.Portal>
         <Menubar.Content
           align="start"
           className={['popover-surface', 'menubar-content', contentClassName].join(' ')}
+          collisionPadding={6}
           data-edit-command-preserve-target
           sideOffset={4}
           style={buildPopoverSizingStyle({ width, maxWidth })}
-          onPointerDownOutside={event => {
-            preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
-          }}
         >
           {children}
         </Menubar.Content>
@@ -199,9 +182,7 @@ export function MenuBar({
   onToggleSidebar,
   onSidebarTriggerPointerEnter,
   onSidebarTriggerPointerLeave,
-  isDebugMode,
   editMenuCapabilities,
-  onDebugModeChange,
   onMinimize,
   onToggleMaximize,
   onClose,
@@ -211,6 +192,8 @@ export function MenuBar({
   onWindowMenuAction,
   onHelpMenuAction,
 }: Props): React.ReactNode {
+  const helpMenuTriggerRef = useRef<HTMLButtonElement>(null)
+
   return (
     <div className="app-menubar" data-edit-command-preserve-target>
       <div className="menubar-titlebar">
@@ -254,7 +237,7 @@ export function MenuBar({
             className="menubar-root"
             loop
           >
-            <AppMenu disableOutsideDismiss={isDebugMode} label="文件" value="file" width={240}>
+            <AppMenu label="文件" value="file" width={240}>
               <MenuItem shortcut="Ctrl+W" onSelect={() => onFileMenuAction('close')}>
                 关闭
               </MenuItem>
@@ -289,7 +272,7 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
 
-            <AppMenu disableOutsideDismiss={isDebugMode} label="编辑" value="edit" width={240}>
+            <AppMenu label="编辑" value="edit" width={240}>
               <MenuItem
                 disabled={!editMenuCapabilities.undo}
                 shortcut="Ctrl+Z"
@@ -343,7 +326,7 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
 
-            <AppMenu disableOutsideDismiss={isDebugMode} label="查看" value="view" width={260}>
+            <AppMenu label="查看" value="view" width={260}>
               <MenuItem
                 shortcut="Ctrl+B"
                 onSelect={() => onViewMenuAction('toggleSidebar')}
@@ -434,7 +417,6 @@ export function MenuBar({
 
             <AppMenu
               contentClassName="menubar-content-window"
-              disableOutsideDismiss={isDebugMode}
               label="窗口"
               value="window"
               width={240}
@@ -451,23 +433,23 @@ export function MenuBar({
               <MenuItem shortcut="Ctrl+W" onSelect={() => onWindowMenuAction('close')}>
                 关闭
               </MenuItem>
-              <MenuSeparator />
-              <MenuItem onSelect={() => {}}>
-                调试...
-              </MenuItem>
             </AppMenu>
 
             <AppMenu
               contentClassName="menubar-content-help"
-              disableOutsideDismiss={isDebugMode}
               label="帮助"
+              triggerRef={helpMenuTriggerRef}
               value="help"
               width={260}
             >
               <MenuItem onSelect={() => onHelpMenuAction('codepilotxDocumentation')}>
                 CodePilotX 文档
               </MenuItem>
-              <MenuItem onSelect={() => onHelpMenuAction('whatsNew')}>
+              <MenuItem
+                onSelect={() =>
+                  onHelpMenuAction('whatsNew', helpMenuTriggerRef.current)
+                }
+              >
                 新特性
               </MenuItem>
               <MenuItem onSelect={() => onHelpMenuAction('automations')}>
@@ -507,10 +489,6 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
           </Menubar.Root>
-          <DebugModeToggle
-            checked={isDebugMode}
-            onChange={onDebugModeChange}
-          />
         </div>
 
         <div className="window-controls">

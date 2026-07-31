@@ -72,7 +72,7 @@ export const EventManifest = {
     durability: "live",
     stream: "global",
     capability: "git.review.v1",
-    reconcilesWith: "review/summary",
+    reconcilesWith: "review/refresh",
   }),
   "workspace/file/changed": defineEvent({
     payload: Schema.Struct({

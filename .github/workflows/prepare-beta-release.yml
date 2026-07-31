@@ -1,0 +1,99 @@
+name: Prepare beta release
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run the full preparation without creating a branch or pull request"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-beta-release-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    if: >-
+      vars.BETA_RELEASE_AUTOMATION_ENABLED == 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.dry_run == true)
+    runs-on: [self-hosted, windows, x64, codepilotx-release]
+    timeout-minutes: 180
+    environment:
+      name: beta-release
+    steps:
+      - name: Checkout main candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - name: Resolve main candidate
+        id: candidate
+        shell: pwsh
+        run: |
+          git fetch --no-tags --force "https://github.com/$env:GITHUB_REPOSITORY.git" `
+            main:refs/remotes/origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to refresh origin/main"
+          }
+
+          if ($env:GITHUB_EVENT_NAME -eq "push") {
+            $mainSha = $env:GITHUB_SHA
+          } else {
+            $mainSha = (git rev-parse refs/remotes/origin/main).Trim()
+          }
+          if ($LASTEXITCODE -ne 0 -or $mainSha -notmatch '^[0-9a-f]{40}$') {
+            throw "Unable to resolve a valid main candidate SHA"
+          }
+          "sha=$mainSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare beta release
+        shell: pwsh
+        env:
+          RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          CONFIGURED_QUIET_MINUTES: ${{ vars.BETA_RELEASE_QUIET_MINUTES || '30' }}
+          RELEASE_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          $quietMinutes = 0
+          if ($env:GITHUB_EVENT_NAME -ne "workflow_dispatch") {
+            if (-not [int]::TryParse($env:CONFIGURED_QUIET_MINUTES, [ref]$quietMinutes) -or
+                $quietMinutes -lt 0 -or $quietMinutes -gt 1440) {
+              throw "BETA_RELEASE_QUIET_MINUTES must be an integer between 0 and 1440"
+            }
+          }
+
+          $arguments = @(
+            "scripts/beta-release.ts",
+            "prepare",
+            "--main-sha",
+            "${{ steps.candidate.outputs.sha }}",
+            "--quiet-minutes",
+            "$quietMinutes"
+          )
+          if ($env:RELEASE_DRY_RUN -eq "true") {
+            $arguments += "--dry-run"
+          }
+
+          & bun @arguments
+          if ($LASTEXITCODE -ne 0) {
+            throw "Beta release preparation failed"
+          }

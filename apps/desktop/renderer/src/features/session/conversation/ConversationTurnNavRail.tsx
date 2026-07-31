@@ -5,6 +5,7 @@ import { MarkdownMessage } from "../MarkdownMessage.js";
 import { parseMarkdown } from "../../markdown/parser.js";
 import type { MarkdownToken } from "../../markdown/types.js";
 import type { ConversationTurnNavItem } from "./turnNavigationModel.js";
+import type { ConversationTurnVisibilityStore } from "./useConversationTurnRowVisibility.js";
 
 export type TurnNavigationReason = "activate" | "scrub" | "shortcut";
 
@@ -14,7 +15,7 @@ type Props = {
     item: ConversationTurnNavItem,
     reason: TurnNavigationReason,
   ) => void;
-  scrollRef: React.RefObject<HTMLElement | null>;
+  visibilityStore: ConversationTurnVisibilityStore;
 };
 
 export const MIN_TURN_NAV_ITEMS = 4;
@@ -22,7 +23,6 @@ export const MIN_TURN_NAV_INLINE_CLEARANCE_PX = 48;
 export const TURN_NAV_HOVER_DELAY_MS = 250;
 export const TURN_NAV_HANDOFF_WINDOW_MS = 300;
 
-const TURN_NAV_ROW_SELECTOR = "[data-turn-navigation-id]";
 const TURN_NAV_BUTTON_SELECTOR = "[data-turn-navigation-item-id]";
 
 type ScrubSession = {
@@ -31,13 +31,6 @@ type ScrubSession = {
   moved: boolean;
   pointerId: number;
 };
-
-function cssEscape(value: string): string {
-  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
-    return CSS.escape(value);
-  }
-  return value.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"');
-}
 
 function fileName(path: string): string {
   const parts = path.replace(/\\/gu, "/").split("/");
@@ -139,43 +132,50 @@ function PreviewCard({
       className="conversation-turn-preview-card"
       data-thread-user-message-navigation-tooltip-preview
     >
-      <div className="preview-card-user-text">
-        {item.userText || "（无内容）"}
-      </div>
-      {assistantPreview ? (
-        <div className="preview-card-assistant-text">
-          <MarkdownMessage
-            allowWideBlocks={false}
-            externalResourcePolicy={{
-              allowExternalLinks: false,
-              allowRemoteMedia: false,
-            }}
-            text={item.assistantText ?? ""}
-          />
+      <span className="u-sr-only">
+        {`用户消息：${item.userText || "无内容"}${
+          assistantPreview ? `。助手回复：${assistantPreview}` : ""
+        }`}
+      </span>
+      <div aria-hidden="true" inert>
+        <div className="preview-card-user-text">
+          {item.userText || "（无内容）"}
         </div>
-      ) : null}
-      {displayedOutputs.length > 0 ? (
-        <div className="preview-card-outputs">
-          {displayedOutputs.map((output) => (
-            <span className="preview-card-output" key={`${output.type}:${output.path}`}>
-              <FileTypeIcon
-                aria-hidden="true"
-                className="preview-card-output-icon"
-                path={output.path}
-                size={18}
-              />
-              <span className="preview-card-output-label">
-                {output.label || fileName(output.path)}
+        {assistantPreview ? (
+          <div className="preview-card-assistant-text">
+            <MarkdownMessage
+              allowWideBlocks={false}
+              externalResourcePolicy={{
+                allowExternalLinks: false,
+                allowRemoteMedia: false,
+              }}
+              text={item.assistantText ?? ""}
+            />
+          </div>
+        ) : null}
+        {displayedOutputs.length > 0 ? (
+          <div className="preview-card-outputs">
+            {displayedOutputs.map((output) => (
+              <span className="preview-card-output" key={`${output.type}:${output.path}`}>
+                <FileTypeIcon
+                  aria-hidden="true"
+                  className="preview-card-output-icon"
+                  path={output.path}
+                  size={18}
+                />
+                <span className="preview-card-output-label">
+                  {output.label || fileName(output.path)}
+                </span>
               </span>
-            </span>
-          ))}
-          {item.outputs.length > displayedOutputs.length ? (
-            <span className="preview-card-output-more">
-              +{item.outputs.length - displayedOutputs.length}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+            ))}
+            {item.outputs.length > displayedOutputs.length ? (
+              <span className="preview-card-output-more">
+                +{item.outputs.length - displayedOutputs.length}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -183,11 +183,15 @@ function PreviewCard({
 export function ConversationTurnNavRail({
   items,
   onNavigate,
-  scrollRef,
+  visibilityStore,
 }: Props): React.ReactNode {
+  const visibleItemIds = visibilityStore.getSnapshot();
   const anchorRef = React.useRef<HTMLElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
   const buttonRefs = React.useRef(new Map<string, HTMLButtonElement>());
+  const currentItemIdRef = React.useRef<string | null>(null);
+  const itemsRef = React.useRef(items);
+  itemsRef.current = items;
   const hoverTimerRef = React.useRef<number | null>(null);
   const hoveredItemIdRef = React.useRef<string | null>(null);
   const focusedItemIdRef = React.useRef<string | null>(null);
@@ -196,20 +200,8 @@ export function ConversationTurnNavRail({
   const suppressClickRef = React.useRef(false);
   const lastPreviewCloseAtRef = React.useRef(Number.NEGATIVE_INFINITY);
   const [hasInlineClearance, setHasInlineClearance] = React.useState(false);
-  const [visibleItemIds, setVisibleItemIds] = React.useState<Set<string>>(
-    () => new Set(items.at(-1)?.id ? [items.at(-1)!.id] : []),
-  );
   const [previewItemId, setPreviewItemId] = React.useState<string | null>(null);
   const [scrubItemId, setScrubItemId] = React.useState<string | null>(null);
-  const itemIdsKey = React.useMemo(
-    () => items.map((item) => item.id).join("\0"),
-    [items],
-  );
-  const itemOrder = React.useMemo(
-    () => items.map((item) => item.id),
-    [itemIdsKey],
-  );
-
   const clearHoverTimer = React.useCallback((): void => {
     if (hoverTimerRef.current === null) return;
     window.clearTimeout(hoverTimerRef.current);
@@ -310,115 +302,39 @@ export function ConversationTurnNavRail({
     };
   }, [items.length]);
 
-  React.useEffect(() => {
-    const root = scrollRef.current;
-    const latestId = items.at(-1)?.id;
-    const itemIds = new Set(itemOrder);
-    setVisibleItemIds((current) => {
-      const retained = new Set([...current].filter((id) => itemIds.has(id)));
-      if (retained.size > 0) return retained;
-      return new Set(latestId ? [latestId] : []);
-    });
-    if (!root || items.length < MIN_TURN_NAV_ITEMS) {
-      setVisibleItemIds(new Set(latestId ? [latestId] : []));
-      return;
-    }
-    if (typeof IntersectionObserver === "undefined") {
-      setVisibleItemIds(new Set(latestId ? [latestId] : []));
-      return;
-    }
-
-    const visibleIds = new Set<string>();
-    const elementIds = new Map<Element, string>();
-    const observedElements = new Set<Element>();
-
-    const publishVisibleIds = (): void => {
-      const firstVisibleIndex = itemOrder.findIndex((id) => visibleIds.has(id));
-      if (firstVisibleIndex < 0) return;
-      const lastVisibleIndex = itemOrder.findLastIndex((id) =>
-        visibleIds.has(id),
-      );
-      const nextVisibleIds = new Set(
-        itemOrder.slice(firstVisibleIndex, lastVisibleIndex + 1),
-      );
-      setVisibleItemIds((current) => {
-        if (
-          current.size === nextVisibleIds.size &&
-          [...current].every((id) => nextVisibleIds.has(id))
-        ) {
-          return current;
-        }
-        return nextVisibleIds;
-      });
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const itemId = elementIds.get(entry.target);
-          if (!itemId) continue;
-          if (entry.isIntersecting) visibleIds.add(itemId);
-          else visibleIds.delete(itemId);
-        }
-        publishVisibleIds();
-      },
-      { root, rootMargin: "-16px 0px 0px 0px" },
-    );
-
-    const syncObservedRows = (): void => {
-      const mountedRows = new Set<Element>();
-      for (const row of root.querySelectorAll<HTMLElement>(
-        TURN_NAV_ROW_SELECTOR,
-      )) {
-        const itemId = row.dataset.turnNavigationId;
-        if (!itemId || !itemIds.has(itemId)) continue;
-        mountedRows.add(row);
-        elementIds.set(row, itemId);
-        if (!observedElements.has(row)) {
-          observedElements.add(row);
-          observer.observe(row);
-        }
-      }
-      for (const row of observedElements) {
-        if (mountedRows.has(row)) continue;
-        const itemId = elementIds.get(row);
-        if (itemId) visibleIds.delete(itemId);
-        observedElements.delete(row);
-        elementIds.delete(row);
-        observer.unobserve(row);
-      }
-      publishVisibleIds();
-    };
-
-    const mutationObserver = new MutationObserver(syncObservedRows);
-    mutationObserver.observe(root, { childList: true, subtree: true });
-    syncObservedRows();
-
-    return () => {
-      mutationObserver.disconnect();
-      observer.disconnect();
-    };
-  }, [itemIdsKey, itemOrder, scrollRef]);
-
-  const currentItemId =
-    items.find((item) => visibleItemIds.has(item.id))?.id ??
-    items.at(-1)?.id ??
-    null;
-
   React.useLayoutEffect(() => {
-    const list = listRef.current;
-    const button = currentItemId ? buttonRefs.current.get(currentItemId) : null;
-    if (!list || !button) return;
-    if (button.offsetTop < list.scrollTop) {
-      list.scrollTop = button.offsetTop;
-    } else if (
-      button.offsetTop + button.offsetHeight >
-      list.scrollTop + list.clientHeight
-    ) {
-      list.scrollTop =
-        button.offsetTop + button.offsetHeight - list.clientHeight + 1;
-    }
-  }, [currentItemId]);
+    const updateVisibleMarkers = (): void => {
+      const nextVisibleIds = visibilityStore.getSnapshot();
+      for (const [itemId, button] of buttonRefs.current) {
+        if (nextVisibleIds.has(itemId)) {
+          button.setAttribute("aria-current", "true");
+        } else {
+          button.removeAttribute("aria-current");
+        }
+      }
+      const currentItemId =
+        itemsRef.current.find((item) => nextVisibleIds.has(item.id))?.id ??
+        itemsRef.current.at(-1)?.id ??
+        null;
+      currentItemIdRef.current = currentItemId;
+      const list = listRef.current;
+      const button = currentItemId
+        ? buttonRefs.current.get(currentItemId)
+        : null;
+      if (!list || !button) return;
+      if (button.offsetTop < list.scrollTop) {
+        list.scrollTop = button.offsetTop;
+      } else if (
+        button.offsetTop + button.offsetHeight >
+        list.scrollTop + list.clientHeight
+      ) {
+        list.scrollTop =
+          button.offsetTop + button.offsetHeight - list.clientHeight + 1;
+      }
+    };
+    updateVisibleMarkers();
+    return visibilityStore.subscribe(updateVisibleMarkers);
+  }, [visibilityStore]);
 
   React.useEffect(() => {
     if (!hasInlineClearance || items.length < MIN_TURN_NAV_ITEMS) return;
@@ -435,7 +351,7 @@ export function ConversationTurnNavRail({
       }
       const currentIndex = Math.max(
         0,
-        items.findIndex((item) => item.id === currentItemId),
+        items.findIndex((item) => item.id === currentItemIdRef.current),
       );
       const nextIndex =
         event.key === "ArrowUp"
@@ -447,7 +363,7 @@ export function ConversationTurnNavRail({
     };
     document.addEventListener("keydown", handleShortcut, true);
     return () => document.removeEventListener("keydown", handleShortcut, true);
-  }, [currentItemId, hasInlineClearance, items, onNavigate]);
+  }, [hasInlineClearance, items, onNavigate]);
 
   const itemFromElement = React.useCallback(
     (element: Element | null): ConversationTurnNavItem | null => {

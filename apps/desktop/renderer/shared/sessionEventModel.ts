@@ -1,7 +1,6 @@
 import type {
   DesktopAgentEvent,
   DesktopSessionEvent,
-  DesktopSessionMessage,
 } from './types.js'
 
 export function desktopAgentEventToSessionEvent(
@@ -183,20 +182,6 @@ export function isInternalReviewerMessageText(text: string): boolean {
     isInternalReviewerPromptText(text) ||
     text.trim() === '{"error":"No permission request provided to review."}'
   )
-}
-
-export function legacyMessagesToSessionEvents(
-  sessionId: string,
-  messages: DesktopSessionMessage[],
-): DesktopSessionEvent[] {
-  return messages.map(message => ({
-    id: message.id,
-    sessionId,
-    type: message.streaming ? 'assistant_delta' : 'message',
-    role: message.role,
-    content: message.text,
-    createdAt: message.createdAt,
-  }))
 }
 
 function toolMetadata(

@@ -5,10 +5,17 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { SEMVER_RE, compareSemver, parseSemver } from "./semver-utils.ts";
 import {
   extractArchivedReleaseNotes,
@@ -16,6 +23,7 @@ import {
   parseChangelogSections,
 } from "./changelog-utils.ts";
 import { buildReleaseNotes } from "./write-release-notes.ts";
+import { runReleasePrCheck } from "./version-policy.ts";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const CLI = `bun ${join(ROOT, "scripts", "version-policy.ts")}`;
@@ -35,6 +43,128 @@ function runCLI(args: string) {
       stderr: e.stderr?.toString() ?? "",
     };
   }
+}
+
+const FIXTURE_MANIFESTS = [
+  "package.json",
+  "apps/agent/package.json",
+  "apps/desktop/electron/package.json",
+  "apps/desktop/renderer/package.json",
+] as const;
+
+function fixtureLock(version: string) {
+  return `{
+  "workspaces": {
+    "apps/agent": {
+      "name": "@codepilotx/agent",
+      "version": "${version}"
+    },
+    "apps/desktop/electron": {
+      "name": "@codepilotx/desktop",
+      "version": "${version}"
+    },
+    "apps/desktop/renderer": {
+      "name": "@codepilotx/renderer",
+      "version": "${version}"
+    }
+  }
+}
+`;
+}
+
+function writeFixtureVersion(root: string, version: string) {
+  for (const manifest of FIXTURE_MANIFESTS) {
+    const fullPath = join(root, manifest);
+    mkdirSync(dirname(fullPath), { recursive: true });
+    writeFileSync(
+      fullPath,
+      `${JSON.stringify({ name: manifest, version }, null, 2)}\n`,
+      "utf-8",
+    );
+  }
+  writeFileSync(join(root, "bun.lock"), fixtureLock(version), "utf-8");
+}
+
+interface ReleaseFixtureOptions {
+  headVersion?: string;
+  archivedEntry?: string;
+  extraFile?: boolean;
+  historicalEntry?: string;
+}
+
+function createReleaseFixture(options: ReleaseFixtureOptions = {}) {
+  const root = mkdtempSync(join(tmpdir(), "codepilotx-version-policy-"));
+  const baseVersion = "0.2.0-beta.3";
+  const headVersion = options.headVersion ?? "0.2.0-beta.4";
+  const unreleasedBody = `### Added
+
+- [desktop] 自动发布下一版 beta`;
+
+  execFileSync("git", ["init", "-b", "main"], { cwd: root });
+  execFileSync("git", ["config", "user.name", "Version Policy Test"], {
+    cwd: root,
+  });
+  execFileSync("git", ["config", "user.email", "version-policy@example.com"], {
+    cwd: root,
+  });
+  execFileSync("git", ["config", "core.autocrlf", "false"], { cwd: root });
+
+  writeFixtureVersion(root, baseVersion);
+  writeFileSync(
+    join(root, "CHANGELOG.md"),
+    `# Changelog
+
+## Unreleased
+
+${unreleasedBody}
+
+## ${baseVersion} — 2026-07-29
+
+### Fixed
+
+- [agent] 修复旧问题
+`,
+    "utf-8",
+  );
+  execFileSync("git", ["add", "."], { cwd: root });
+  execFileSync("git", ["commit", "-m", "base"], { cwd: root });
+  const baseSha = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf-8",
+  }).trim();
+
+  writeFixtureVersion(root, headVersion);
+  writeFileSync(
+    join(root, "CHANGELOG.md"),
+    `# Changelog
+
+## Unreleased
+
+## ${headVersion} — 2026-07-30
+
+${options.archivedEntry ?? unreleasedBody}
+
+## ${baseVersion} — 2026-07-29
+
+### Fixed
+
+${options.historicalEntry ?? "- [agent] 修复旧问题"}
+`,
+    "utf-8",
+  );
+  if (options.extraFile) {
+    writeFileSync(join(root, "unexpected.txt"), "not allowed\n", "utf-8");
+  }
+  execFileSync("git", ["add", "."], { cwd: root });
+  execFileSync("git", ["commit", "-m", "release"], { cwd: root });
+
+  return {
+    root,
+    baseSha,
+    headVersion,
+    headChangelog: readFileSync(join(root, "CHANGELOG.md"), "utf-8"),
+    dispose: () => rmSync(root, { recursive: true, force: true }),
+  };
 }
 
 /* ───────────── SemVer 工具函数测试 ───────────── */
@@ -208,6 +338,119 @@ describe("version:check (integration)", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("✅");
   });
+});
+
+describe("version:check --release-pr", () => {
+  it("accepts an exact beta increment and unchanged archive", () => {
+    const fixture = createReleaseFixture();
+    try {
+      const errors: string[] = [];
+      runReleasePrCheck(
+        fixture.baseSha,
+        fixture.headVersion,
+        fixture.headChangelog,
+        (...messages) => errors.push(...messages),
+        fixture.root,
+      );
+      expect(errors).toEqual([]);
+
+      const nonemptyErrors: string[] = [];
+      const nonemptyUnreleased = fixture.headChangelog.replace(
+        "## Unreleased\n\n##",
+        "## Unreleased\n\n### Added\n\n- [desktop] 未归档条目\n\n##",
+      );
+      runReleasePrCheck(
+        fixture.baseSha,
+        fixture.headVersion,
+        nonemptyUnreleased,
+        (...messages) => nonemptyErrors.push(...messages),
+        fixture.root,
+      );
+      expect(nonemptyErrors.join("\n")).toContain(
+        "head 的 Unreleased 区段必须为空",
+      );
+    } finally {
+      fixture.dispose();
+    }
+  }, 20_000);
+
+  it("rejects skipping a beta sequence number", () => {
+    const fixture = createReleaseFixture({
+      headVersion: "0.2.0-beta.5",
+    });
+    try {
+      const errors: string[] = [];
+      runReleasePrCheck(
+        fixture.baseSha,
+        fixture.headVersion,
+        fixture.headChangelog,
+        (...messages) => errors.push(...messages),
+        fixture.root,
+      );
+      expect(errors.join("\n")).toContain(
+        "只能递增同一版本线的一个 beta 序号",
+      );
+    } finally {
+      fixture.dispose();
+    }
+  }, 20_000);
+
+  it("rejects altered Unreleased content during archival", () => {
+    const fixture = createReleaseFixture({
+      archivedEntry: `### Added
+
+- [desktop] 被改写的发布说明`,
+    });
+    try {
+      const errors: string[] = [];
+      runReleasePrCheck(
+        fixture.baseSha,
+        fixture.headVersion,
+        fixture.headChangelog,
+        (...messages) => errors.push(...messages),
+        fixture.root,
+      );
+      expect(errors.join("\n")).toContain("归档内容必须与 base");
+    } finally {
+      fixture.dispose();
+    }
+  }, 20_000);
+
+  it("rejects files outside the release allowlist", () => {
+    const fixture = createReleaseFixture({ extraFile: true });
+    try {
+      const errors: string[] = [];
+      runReleasePrCheck(
+        fixture.baseSha,
+        fixture.headVersion,
+        fixture.headChangelog,
+        (...messages) => errors.push(...messages),
+        fixture.root,
+      );
+      expect(errors.join("\n")).toContain("unexpected.txt");
+    } finally {
+      fixture.dispose();
+    }
+  }, 20_000);
+
+  it("rejects unrelated CHANGELOG history edits", () => {
+    const fixture = createReleaseFixture({
+      historicalEntry: "- [agent] 偷改旧版本记录",
+    });
+    try {
+      const errors: string[] = [];
+      runReleasePrCheck(
+        fixture.baseSha,
+        fixture.headVersion,
+        fixture.headChangelog,
+        (...messages) => errors.push(...messages),
+        fixture.root,
+      );
+      expect(errors.join("\n")).toContain("不得改写 CHANGELOG 历史");
+    } finally {
+      fixture.dispose();
+    }
+  }, 20_000);
 });
 
 describe("CHANGELOG.md", () => {

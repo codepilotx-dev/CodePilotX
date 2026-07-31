@@ -147,6 +147,27 @@ export const reviewAgentClient = {
     })
   },
 
+  async applyBatch(
+    workspacePath: string,
+    input: {
+      source: DesktopReviewSource
+      generation: string
+      action: 'stage' | 'unstage' | 'revert'
+      items: [
+        { path: string; expectedRevision: string },
+        ...Array<{ path: string; expectedRevision: string }>,
+      ]
+    },
+  ): Promise<void> {
+    await desktopClient.applyAgentReviewBatch({
+      workspacePath,
+      source: input.source,
+      generation: input.generation,
+      action: input.action,
+      items: input.items,
+    })
+  },
+
   async branches(workspacePath: string): Promise<ReviewBranch[]> {
     return desktopClient.getAgentReviewBranches(workspacePath)
   },
@@ -288,6 +309,13 @@ export const reviewAgentClient = {
     return (
       error instanceof AgentRpcError &&
       error.errorCode === 'REVIEW_SNAPSHOT_EXPIRED'
+    )
+  },
+
+  isBatchPartial(error: unknown): boolean {
+    return (
+      error instanceof AgentRpcError &&
+      error.errorCode === 'REVIEW_BATCH_PARTIAL'
     )
   },
 }

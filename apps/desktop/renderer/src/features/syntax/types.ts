@@ -19,6 +19,7 @@ export type SyntaxHighlightResult = {
 export type HighlightCodeOptions = {
   code: string
   language?: string | null
+  streaming?: boolean
   theme: string
 }
 

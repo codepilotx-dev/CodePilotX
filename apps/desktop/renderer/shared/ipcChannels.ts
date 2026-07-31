@@ -1,4 +1,5 @@
 import type { DesktopApi } from './types.js'
+import { DESKTOP_UPDATE_IPC_CHANNELS } from '@codepilotx/shared/desktop-update-ipc'
 
 export type DesktopApiMethod = Exclude<
   keyof DesktopApi,
@@ -110,7 +111,6 @@ export const DESKTOP_API_METHODS = [
   'setSessionPermissionMode',
   'setSessionPlanModeActive',
   'setSessionLocalRouterMode',
-  'readWorkflowEventLog',
   'openExternalURL',
   'sendUserMessage',
   'respondToPermission',
@@ -157,4 +157,4 @@ export const DESKTOP_UI_COMMAND_CHANNEL = 'desktop:ui-command'
 export const DESKTOP_SESSION_STORE_CHANGE_CHANNEL =
   'desktop:session-store-change'
 export const DESKTOP_SETTINGS_CHANGE_CHANNEL = 'desktop:settings-change'
-export const DESKTOP_UPDATE_STATUS_CHANNEL = 'desktop:update-status'
+export const DESKTOP_UPDATE_STATUS_CHANNEL = DESKTOP_UPDATE_IPC_CHANNELS.status

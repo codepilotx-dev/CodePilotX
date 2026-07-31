@@ -12,6 +12,11 @@ import type { IconName } from "./icons"
 
 export interface ResolveFileIconOptions {
   /**
+   * Controls whether filename and compound-extension associations participate.
+   * `extension-only` only consults the basename's final extension.
+   */
+  associationMode?: "full" | "extension-only"
+  /**
    * VS Code language identifier. It is consulted after filename and extension
    * associations, matching VS Code icon-theme precedence.
    */
@@ -42,11 +47,18 @@ export function resolveFileIconName(
     filePath,
     options.parentPath ?? options.parentDirectory,
   )
-  const nameMatch = findPathAssociation(fileNames, path)
-  if (nameMatch) return nameMatch
+  const associationMode = options.associationMode ?? "full"
+  if (associationMode === "full") {
+    const nameMatch = findPathAssociation(fileNames, path)
+    if (nameMatch) return nameMatch
+  }
 
   const basename = path.split("/").at(-1) ?? path
-  for (const extension of extensionCandidates(basename)) {
+  const extensions =
+    associationMode === "extension-only"
+      ? finalExtensionCandidate(basename)
+      : extensionCandidates(basename)
+  for (const extension of extensions) {
     const extensionMatch = getAssociation(fileExtensions, extension)
     if (extensionMatch) return extensionMatch
   }
@@ -122,6 +134,13 @@ function extensionCandidates(basename: string): string[] {
     if (extension && !candidates.includes(extension)) candidates.push(extension)
   }
   return candidates.sort((left, right) => right.length - left.length)
+}
+
+function finalExtensionCandidate(basename: string): string[] {
+  const index = basename.lastIndexOf(".")
+  if (index < 0) return []
+  const extension = index === 0 ? basename : basename.slice(index + 1)
+  return extension ? [extension] : []
 }
 
 function getAssociation(

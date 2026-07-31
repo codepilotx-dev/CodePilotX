@@ -106,8 +106,8 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
         state,
         attributes: {
           'aria-label': '消息输入框',
-          role: 'textbox',
-          'aria-multiline': 'true',
+          role: 'combobox',
+          'aria-autocomplete': 'list',
           spellcheck: 'true',
           class: 'composer-editor-content',
         },

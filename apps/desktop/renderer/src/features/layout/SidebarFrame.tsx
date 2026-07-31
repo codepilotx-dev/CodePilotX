@@ -1,10 +1,15 @@
 import type React from "react";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Bot, History } from "lucide-react";
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { motion } from "motion/react";
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
-import { motionTransition, standardTween } from '../motion/motionTransitions.js'
+import {
+  fastTween,
+  motionTransition,
+  standardTween,
+} from '../motion/motionTransitions.js'
 import {
   SIDEBAR_COLLAPSE_HOLD_MS,
   SIDEBAR_COLLAPSE_TARGET_SIZE,
@@ -49,8 +54,44 @@ export function SidebarFrame({
   shell,
 }: Props): React.ReactNode {
   const sidebarRef = useRef<HTMLElement>(null);
+  const resizeGuideRef = useRef<HTMLDivElement>(null);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
+  const resizeBoundsRef = useRef<DOMRect | null>(null);
   const reducedMotion = usePrefersReducedMotion()
   const labels = getSidebarContentLabels(contentKind)
+
+  const previewWidth = useCallback(
+    (nextWidth: number | null): void => {
+      const guide = resizeGuideRef.current
+      if (!guide) return
+      if (nextWidth === null) {
+        guide.hidden = true
+        guide.style.transform = ''
+        resizeBoundsRef.current = null
+        return
+      }
+
+      const bounds =
+        resizeBoundsRef.current ??
+        sidebarRef.current?.getBoundingClientRect() ??
+        null
+      if (!bounds) return
+      resizeBoundsRef.current = bounds
+      const handleBounds = resizeHandleRef.current?.getBoundingClientRect()
+
+      guide.hidden = false
+      guide.style.left = `${
+        handleBounds
+          ? handleBounds.left + handleBounds.width / 2
+          : bounds.right
+      }px`
+      guide.style.top = `${bounds.top}px`
+      guide.style.height = `${bounds.height}px`
+      guide.style.transform = `translate3d(${nextWidth - width}px, 0, 0)`
+    },
+    [width],
+  )
+
   const {
     collapseConfirmKey,
     collapseConfirmTarget,
@@ -63,11 +104,29 @@ export function SidebarFrame({
     minWidth,
     width,
     onCollapse,
+    onResizePreview: previewWidth,
     onSetWidth,
   });
 
   const floating = shell.mode === 'preview'
   const hidden = shell.mode === 'collapsed'
+  const docked = shell.mode === 'docked'
+  const previousHiddenRef = useRef(hidden)
+
+  useLayoutEffect(() => {
+    const wasHidden = previousHiddenRef.current
+    previousHiddenRef.current = hidden
+    if (!hidden || wasHidden) return
+
+    const activeElement = document.activeElement
+    if (
+      !(activeElement instanceof HTMLElement)
+      || !sidebarRef.current?.contains(activeElement)
+    ) return
+    document
+      .querySelector<HTMLElement>('[data-app-shell-sidebar-trigger]')
+      ?.focus({ preventScroll: true })
+  }, [hidden])
 
   useEffect(() => {
     const active = floating && resizing
@@ -120,13 +179,16 @@ export function SidebarFrame({
 
   return (
     <>
-      {shell.mode === 'docked' ? (
-        <div
-          aria-hidden="true"
-          className="desktop-sidebar-spacer"
-          style={{ "--sidebar-current-width": `${width}px` } as React.CSSProperties}
-        />
-      ) : null}
+      <motion.div
+        aria-hidden="true"
+        animate={{ width: docked ? width : 0 }}
+        className="desktop-sidebar-spacer"
+        initial={false}
+        transition={motionTransition(
+          reducedMotion,
+          docked ? standardTween : fastTween,
+        )}
+      />
       <motion.aside
         ref={sidebarRef}
         aria-label={labels.sidebar}
@@ -138,16 +200,36 @@ export function SidebarFrame({
           floating ? "is-floating" : "",
           resizing ? "is-resizing" : "",
         ].join(" ")}
-        animate={{ opacity: hidden ? 0 : 1, x: hidden ? -8 : 0 }}
+        animate={
+          hidden
+            ? {
+                opacity: 0,
+                x: -8,
+                transitionEnd: { visibility: 'hidden' },
+              }
+            : {
+                opacity: 1,
+                visibility: 'visible',
+                x: 0,
+              }
+        }
         data-sidebar-content={contentKind}
-        initial={false}
+        initial={
+          hidden
+            ? { opacity: 0, visibility: 'hidden', x: -8 }
+            : false
+        }
         inert={hidden ? true : undefined}
         style={{ "--sidebar-current-width": `${width}px` } as React.CSSProperties}
-        transition={motionTransition(reducedMotion, standardTween)}
+        transition={motionTransition(
+          reducedMotion,
+          hidden ? fastTween : standardTween,
+        )}
       >
         {children}
 
         {shell.mode === 'docked' || shell.mode === 'preview' ? <div
+          ref={resizeHandleRef}
           aria-label={labels.resize}
           aria-orientation="vertical"
           aria-valuemax={maxWidth}
@@ -164,6 +246,17 @@ export function SidebarFrame({
         </div>
         <History className="icon-button sidebar-history-watermark" size={APP_ICON_SIZE} />
       </motion.aside>
+      {typeof document === 'undefined'
+        ? null
+        : createPortal(
+            <div
+              ref={resizeGuideRef}
+              aria-hidden="true"
+              className="sidebar-resize-guide"
+              hidden
+            />,
+            document.body,
+          )}
       {collapseConfirmTarget ? (
         <div
           key={collapseConfirmKey}

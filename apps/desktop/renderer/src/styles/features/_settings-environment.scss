@@ -135,7 +135,6 @@
   }
 
   input,
-  select,
   textarea {
     min-width: 0;
     width: 100%;
@@ -152,8 +151,7 @@
     }
   }
 
-  input,
-  select {
+  input {
     min-height: 34px;
     padding: 6px 9px;
   }
@@ -187,8 +185,7 @@
   padding: 14px 16px;
   border-bottom: 1px solid var(--color-token-border);
 
-  input,
-  select {
+  input {
     min-width: 0;
     min-height: 34px;
     padding: 6px 9px;
@@ -197,6 +194,11 @@
     background: var(--color-token-main-surface-primary);
     color: var(--color-token-foreground);
   }
+}
+
+.environment-settings-dropdown {
+  width: 100%;
+  background: var(--color-token-main-surface-primary);
 }
 
 .environment-source-file-tree {

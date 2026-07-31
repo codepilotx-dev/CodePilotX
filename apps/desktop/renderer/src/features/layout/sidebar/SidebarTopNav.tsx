@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Boxes,
   BrainCircuit,
@@ -16,7 +16,10 @@ import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import type { SidebarProductMode } from "../../../../shared/types.js";
 import type { AppView } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
-import { PopoverItem } from "../../../components/ui/PopoverItem.js";
+import {
+  PopoverRadioGroup,
+  PopoverRadioItem,
+} from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { cx } from "../../../utils/cx.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
@@ -96,8 +99,11 @@ const PRODUCT_MODE_LABELS: Record<SidebarProductMode, string> = {
   working: 'Working',
 }
 
-export function SidebarHeader(): React.ReactNode {
-  const navigate = useNavigate()
+export function SidebarHeader({
+  onOpenCommandMenu,
+}: {
+  onOpenCommandMenu: () => void
+}): React.ReactNode {
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
   const {
     sidebarProductMode,
@@ -111,7 +117,7 @@ export function SidebarHeader(): React.ReactNode {
         className="popover-menu--flex"
         open={modeMenuOpen}
         side="bottom"
-        width={184}
+        width={180}
         trigger={
           <button
             aria-label={`切换工作模式，当前为 ${PRODUCT_MODE_LABELS[sidebarProductMode]}`}
@@ -124,25 +130,21 @@ export function SidebarHeader(): React.ReactNode {
         }
         onOpenChange={setModeMenuOpen}
       >
-        <PopoverItem
-          selected={sidebarProductMode === 'coding'}
-          withCheck
-          onClick={() => setSidebarProductMode('coding')}
+        <PopoverRadioGroup
+          value={sidebarProductMode}
+          onValueChange={value =>
+            setSidebarProductMode(value as typeof sidebarProductMode)
+          }
         >
-          Coding
-        </PopoverItem>
-        <PopoverItem
-          selected={sidebarProductMode === 'working'}
-          withCheck
-          onClick={() => setSidebarProductMode('working')}
-        >
-          Working
-        </PopoverItem>
+          <PopoverRadioItem value="coding">Coding</PopoverRadioItem>
+          <PopoverRadioItem value="working">Working</PopoverRadioItem>
+        </PopoverRadioGroup>
       </PopoverMenu>
       <IconButton
+        aria-haspopup="dialog"
         className="sidebar-search-button"
-        onClick={() => navigate('/search')}
-        title="搜索"
+        onClick={onOpenCommandMenu}
+        title="搜索任务"
       >
         <Search size={APP_ICON_SIZE} />
       </IconButton>

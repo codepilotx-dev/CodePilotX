@@ -258,10 +258,8 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-7);
-  background: var(--color-token-editor-widget-background);
-  box-shadow:
-    0 0 0 0.5px var(--color-token-border),
-    var(--shadow-resting);
+  background: var(--color-token-main-surface-primary);
+  box-shadow: 0 0 0 0.5px var(--color-token-border);
   color: var(--color-token-foreground);
   text-align: left;
   animation: new-session-suggestion-card-enter 150ms
@@ -273,7 +271,7 @@
     box-shadow var(--motion-hover) var(--ease-standard);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--color-token-editor-widget-background);
     box-shadow:
       0 0 0 0.5px var(--color-token-border-heavy),
       var(--shadow-raised);
@@ -590,7 +588,7 @@
     border: 1px solid var(--color-token-border-light);
     background: var(--color-token-main-surface-primary);
 
-    &:hover,
+    &:hover:not([aria-disabled="true"]),
     &[data-state="open"] {
       background: var(--color-token-list-hover-background);
     }

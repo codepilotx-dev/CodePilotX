@@ -494,7 +494,7 @@ export function McpEditorDialog({
                     </FormRow>
                     <FormRow label="启用">
                       <ToggleSwitch
-                        ariaLabel={`${form.enabled ? '禁用' : '启用'} MCP server`}
+                        ariaLabel="MCP server"
                         checked={form.enabled}
                         onChange={enabled => update(current => ({ ...current, enabled }))}
                       />
@@ -502,7 +502,7 @@ export function McpEditorDialog({
                     <FormRow label="必需 Server">
                       <span className="tw:flex tw:items-center tw:gap-2">
                         <ToggleSwitch
-                          ariaLabel={`${form.required ? '关闭' : '开启'}必需 Server`}
+                          ariaLabel="必需 Server"
                           checked={form.required}
                           onChange={required => update(current => ({ ...current, required }))}
                         />
@@ -516,7 +516,7 @@ export function McpEditorDialog({
                         <FormRow label="OAuth">
                           <span className="tw:flex tw:items-center tw:gap-2">
                             <ToggleSwitch
-                              ariaLabel={`${form.httpAuth === 'oauth' ? '关闭' : '开启'} OAuth`}
+                              ariaLabel="OAuth"
                               checked={form.httpAuth === 'oauth'}
                               onChange={enabled => update(current => ({
                                 ...current,
@@ -586,7 +586,7 @@ export function McpEditorDialog({
                     {form.type === 'stdio' ? (
                       <FormRow label="传递会话诊断上下文">
                         <ToggleSwitch
-                          ariaLabel={`${form.diagnosticContext ? '关闭' : '开启'}会话诊断上下文`}
+                          ariaLabel="传递会话诊断上下文"
                           checked={form.diagnosticContext}
                           onChange={diagnosticContext => update(current => ({
                             ...current,

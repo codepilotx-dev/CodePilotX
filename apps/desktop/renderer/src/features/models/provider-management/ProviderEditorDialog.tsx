@@ -13,6 +13,7 @@ import { Input } from '../../../components/ui/Input.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
+import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 
 const API_OPTIONS = [
   { value: 'openai-completions', label: 'OpenAI Completions' },
@@ -55,6 +56,7 @@ export function ProviderEditorDialog({
 }: ProviderEditorDialogProps): React.ReactNode {
   const titleId = useId()
   const editing = provider?.providerKind === 'custom'
+  const { onCloseAutoFocus } = useDialogFocusRestore(open)
   const [id, setId] = useState('')
   const [name, setName] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
@@ -234,6 +236,7 @@ export function ProviderEditorDialog({
           <Dialog.Content
             aria-labelledby={titleId}
             className="model-center-key-dialog model-center-connection-dialog"
+            onCloseAutoFocus={onCloseAutoFocus}
           >
             <header className="model-center-key-dialog-header">
               <div className="model-center-key-dialog-heading">

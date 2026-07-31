@@ -5,6 +5,7 @@ import type {
   ProjectAppearance,
 } from '../../../../shared/types.js'
 import { SidebarHoverCard } from './SidebarHoverCard.js'
+export { countOpenProjectSessions } from './sidebarViewModel.js'
 
 const SidebarProjectHoverCardOverlay = lazy(async () => {
   const module = await import('./SidebarProjectHoverCardOverlay.js')

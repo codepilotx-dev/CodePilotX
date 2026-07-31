@@ -1,5 +1,5 @@
 import type React from 'react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, memo, Suspense, useEffect, useState } from 'react'
 import {
   Archive,
   FolderOpen,
@@ -34,8 +34,9 @@ import {
 } from '../../projects/projectAppearance.js'
 import { notifyProjectCatalogChanged } from '../../projects/projectCatalogEvents.js'
 import {
-  normalizeSidebarPath,
+  type SidebarProjectSessionBucket,
   sidebarProjectKey,
+  normalizeSidebarPath,
 } from './sidebarViewModel.js'
 import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
 
@@ -46,7 +47,7 @@ const ProjectEditDialog = lazy(async () => {
 
 type Props = {
   activeSessionId: string | null
-  allProjectSessions?: SessionListItem[]
+  bucket: SidebarProjectSessionBucket
   collapsedProjectPaths: Set<string>
   isUnavailable: boolean
   now: number
@@ -54,7 +55,6 @@ type Props = {
   titleLoadingIds: ReadonlySet<string>
   project: DesktopWorkspace
   sessionFallbackTitles: Record<string, string>
-  sessions: SessionListItem[]
   sort?: DesktopSidebarSort
   manualOrderByScope?: Record<string, string[]>
   workspace: DesktopWorkspace | null
@@ -73,9 +73,9 @@ type Props = {
   onReport?: (message: string) => void
 }
 
-export function SidebarProjectGroup({
+function SidebarProjectGroupComponent({
   activeSessionId,
-  allProjectSessions,
+  bucket,
   collapsedProjectPaths,
   isUnavailable,
   now,
@@ -83,7 +83,6 @@ export function SidebarProjectGroup({
   titleLoadingIds,
   project,
   sessionFallbackTitles,
-  sessions,
   sort = 'priority',
   manualOrderByScope = {},
   workspace,
@@ -114,30 +113,10 @@ export function SidebarProjectGroup({
   useEffect(() => setManagedProject(project), [project])
 
   const projectKey = sidebarProjectKey(managedProject)
-  const belongsToProject = (session: SessionListItem): boolean =>
-    !session.standalone &&
-    (managedProject.projectId
-      ? session.projectId === managedProject.projectId
-      : normalizeSidebarPath(session.workspacePath) ===
-        normalizeSidebarPath(managedProject.path))
-  const projectSessions = sessions
-    .filter(belongsToProject)
-    .sort(
-      (left, right) =>
-        sessionRecencyMs(right) - sessionRecencyMs(left) ||
-        right.id.localeCompare(left.id),
-    )
-  const countedProjectSessions = (allProjectSessions ?? sessions).filter(
-    belongsToProject,
-  )
-  const unreadCount = countedProjectSessions.filter(
-    session => Boolean(session.unreadAt),
-  ).length
-  const openCount = activeSessionId && countedProjectSessions.some(
-    session => session.id === activeSessionId,
-  )
-    ? 1
-    : 0
+  const projectSessions = bucket.displaySessions
+  const countedProjectSessions = bucket.allSessions
+  const unreadCount = bucket.unreadCount
+  const openCount = bucket.openCount
   const isExpanded =
     !collapsedProjectPaths.has(projectKey) &&
     !collapsedProjectPaths.has(managedProject.path)
@@ -279,7 +258,6 @@ export function SidebarProjectGroup({
                     className="popover-sidebar-project popover-menu--grid"
                     open={menuOpen}
                     side="bottom"
-                    triggerTabIndex={0}
                     width="auto"
                     trigger={
                       <button
@@ -454,8 +432,4 @@ export function SidebarProjectGroup({
   )
 }
 
-function sessionRecencyMs(session: SessionListItem): number {
-  const value = session.lastMessageAt ?? session.createdAt
-  const result = new Date(value).getTime()
-  return Number.isNaN(result) ? 0 : result
-}
+export const SidebarProjectGroup = memo(SidebarProjectGroupComponent)

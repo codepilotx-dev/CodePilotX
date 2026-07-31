@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 type VisualScenario = {
   id: 'empty' | 'rich' | 'permission' | 'review'
@@ -36,6 +36,12 @@ const SCENARIOS: readonly VisualScenario[] = [
         .getByRole('complementary', { name: '右侧面板' })
         .getByRole('button', { name: /^审阅/ })
         .click()
+      await expect(
+        page
+          .getByRole('complementary', { name: '右侧面板' })
+          .locator('[data-review-syntax-state="ready"]')
+          .first(),
+      ).toBeVisible({ timeout: 10_000 })
     },
   },
 ] as const
@@ -61,15 +67,14 @@ for (const viewport of VIEWPORTS) {
         await expect(
           page.getByText(scenario.readyText, { exact: true }),
         ).toBeVisible()
-        if (viewport.width > 960) {
-          await scenario.prepare?.(page)
-        }
+        await scenario.prepare?.(page)
         await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
         await expect(page.locator('html')).toHaveAttribute(
           'data-code-theme-id',
           mode === 'light' ? 'codex-light' : 'codex-dark',
         )
         await closeTransientErrorToast(page, 3_000)
+        await waitForMaterialIcons(page)
         await expect(page.locator('body')).toHaveScreenshot(
           `${viewport.id}-${mode}-${scenario.id}.png`,
           {
@@ -157,7 +162,7 @@ for (const mode of MODES) {
     await expect(
       rightPanel.getByRole('button', { name: '隐藏文件树' }),
     ).toHaveAttribute('aria-pressed', 'true')
-    await expect(rightPanel.getByRole('textbox', { name: '筛选文件' })).toBeFocused()
+    await expect(rightPanel.getByRole('searchbox', { name: '筛选文件' })).toBeFocused()
     await expect(rightPanel.locator('.right-dock-header')).toHaveCSS(
       'height',
       '46px',
@@ -214,6 +219,16 @@ test('Markdown file switches between rich and source presentations', async ({
   await closeTransientErrorToast(page)
   await expect(
     page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('switch', { name: '调试模式' }),
+  ).toHaveCount(0)
+  const assistantActions = page
+    .locator('.canonical-message-actions--assistant')
+    .first()
+  await expect(assistantActions).toBeVisible()
+  await expect(
+    assistantActions.getByRole('button', { name: '复制' }),
   ).toBeVisible()
   await page.getByRole('button', { name: '显示右侧面板' }).click()
 
@@ -294,15 +309,16 @@ test('Markdown file switches between rich and source presentations', async ({
 
 test('session header aligns with the right panel and bottom panel spans the workspace', async ({
   page,
-}) => {
+}, testInfo) => {
+  testInfo.setTimeout(90_000)
   await page.setViewportSize({ width: 1440, height: 920 })
-  await page.goto('/?visualCase=rich#/threads/visual-rich')
+  await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
   await closeTransientErrorToast(page)
   await expect(
     page.getByText('已完成工作台结构梳理。', { exact: true }),
   ).toBeVisible()
 
-  const header = page.getByRole('toolbar', { name: '会话工具栏' })
+  const header = page.locator('.desktop-main-route__header-spacer')
   const workflow = page.locator('.workflow-page')
   const scrollArea = page.locator('[data-component="thread-scroll-layout"]')
   const initialHeader = await header.boundingBox()
@@ -378,26 +394,62 @@ test('session header aligns with the right panel and bottom panel spans the work
     name: '隐藏底部面板',
   })
   await expect(activeBottomPanelButton).toHaveAttribute('aria-pressed', 'true')
-  await expect(
-    page.locator(
-      '[role="tabpanel"][data-app-shell-tab-panel-controller="bottom"]',
-    ),
-  ).toBeFocused()
-  const bottomPanel = await page
-    .getByRole('complementary', { name: '底部面板' })
-    .boundingBox()
+  const bottomPanelElement = page.getByRole('complementary', {
+    name: '底部面板',
+  })
+  await expect(bottomPanelElement).toBeVisible()
+  const bottomPanel = await bottomPanelElement.boundingBox()
   const workspace = await page.locator('.desktop-workspace').boundingBox()
   expect(bottomPanel!.x).toBeCloseTo(workspace!.x, 0)
   expect(bottomPanel!.width).toBeCloseTo(workspace!.width, 0)
-  await expect(page.getByRole('tab', { name: /终端/ })).toHaveAttribute(
-    'aria-selected',
-    'true',
+  const bottomSeparator = page.getByRole('separator', {
+    name: '调整底部面板高度',
+  })
+  const bottomSeparatorBox = await bottomSeparator.boundingBox()
+  expect(bottomSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    bottomSeparatorBox!.x + bottomSeparatorBox!.width / 2,
+    bottomSeparatorBox!.y + bottomSeparatorBox!.height / 2,
   )
-  await page.getByRole('button', { name: '移到底部面板' }).click()
-  await expect(page.getByRole('tab', { name: /审查/ })).toHaveAttribute(
-    'aria-selected',
-    'true',
+  const bottomPointerDownStartedAt = Date.now()
+  await page.mouse.down()
+  expect(Date.now() - bottomPointerDownStartedAt).toBeLessThan(200)
+  await page.mouse.move(bottomSeparatorBox!.x + 40, bottomSeparatorBox!.y - 80, {
+    steps: 6,
+  })
+  await expect
+    .poll(async () => (await bottomPanelElement.boundingBox())?.height)
+    .toBeCloseTo(bottomPanel!.height, 0)
+  const bottomResizeGuide = page.locator(
+    'body > .workbench-resize-guide--bottom',
   )
+  await expect(bottomResizeGuide).toBeVisible()
+  await expect(
+    bottomPanelElement.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+  await expect(
+    bottomPanelElement.locator('[data-resize-skeleton-active]'),
+  ).toHaveCount(0)
+  await expect(
+    bottomPanelElement.locator('.workbench-panel-header'),
+  ).toHaveCSS('filter', 'none')
+  const bottomResizeGuideBox = await bottomResizeGuide.boundingBox()
+  expect(bottomResizeGuideBox).not.toBeNull()
+  expect(bottomResizeGuideBox!.y).toBeCloseTo(
+    bottomSeparatorBox!.y - 80,
+    0,
+  )
+  const bottomPointerUpStartedAt = Date.now()
+  await page.mouse.up()
+  expect(Date.now() - bottomPointerUpStartedAt).toBeLessThan(200)
+  await expect
+    .poll(async () => (await bottomPanelElement.boundingBox())?.height)
+    .toBeGreaterThan(bottomPanel!.height)
+  await expect(bottomResizeGuide).toBeHidden()
+  await expect(
+    bottomPanelElement.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+  await bottomSeparator.dblclick()
 
   const sessionMenuButton = page.getByRole('button', {
     name: '更多会话操作',
@@ -405,9 +457,743 @@ test('session header aligns with the right panel and bottom panel spans the work
   await sessionMenuButton.click()
   await expect(
     page.getByRole('menuitem', { name: /显示 workflow 事件/ }),
-  ).toBeVisible()
+  ).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(sessionMenuButton).toBeFocused()
+
+  await page.getByRole('menuitem', { name: '窗口', exact: true }).click()
+  await expect(page.getByRole('menuitem', { name: '最小化' })).toBeVisible()
+  await expect(
+    page.getByRole('menuitem', { name: /调试/ }),
+  ).toHaveCount(0)
+  await page.keyboard.press('Escape')
+})
+
+test('right panel scales with its workspace and keeps a constrained manual override', async ({
+  page,
+}, testInfo) => {
+  testInfo.setTimeout(90_000)
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await gotoWorkbenchFixture(page, '/?visualCase=review#/threads/visual-review')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await expect(rightPanel).toBeVisible()
+  await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
+  const sourceMenu = await openAndAssertReviewSourceMenu(page, rightPanel)
+  await page.keyboard.press('Escape')
+  await expect(sourceMenu).toBeHidden()
+  const smallDiffSection = rightPanel.getByLabel(
+    'apps/desktop/renderer/test/codex-style-contracts.test.ts diff',
+  )
+  await expect(smallDiffSection).toBeVisible({ timeout: 10_000 })
+  const regularDiff = smallDiffSection.locator(
+    '.review-codex-diff:not(.review-codex-diff--virtual)',
+  )
+  await expect(regularDiff).toBeVisible({ timeout: 10_000 })
+  await expect(regularDiff).toHaveAttribute(
+    'data-review-syntax-state',
+    'ready',
+    { timeout: 10_000 },
+  )
+  await expect(
+    smallDiffSection.locator('.review-codex-diff--virtual'),
+  ).toHaveCount(0)
+  await expect
+    .poll(async () => rightPanel.locator('.review-diff-word').count())
+    .toBeGreaterThan(0)
+
+  const addedRow = rightPanel
+    .locator(
+      '.review-codex-diff__line[data-line-type="change-addition"]',
+    )
+    .first()
+  await expect(addedRow).toBeVisible()
+  const diffColors = await addedRow.evaluate(row => {
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--color-decoration-added)'
+    document.body.append(probe)
+    const colors = {
+      lineBackground: getComputedStyle(row).backgroundColor,
+      rawAdded: getComputedStyle(probe).color,
+    }
+    probe.remove()
+    return colors
+  })
+  expect(diffColors.lineBackground).not.toBe(diffColors.rawAdded)
+
+  await rightPanel
+    .locator('.review-sidebar-actions')
+    .getByRole('button', { name: '更多' })
+    .click()
+  const textDiffCheckbox = page.getByRole('menuitemcheckbox', {
+    name: '文字差异',
+  })
+  await expectCompactInteractiveRow(textDiffCheckbox, {
+    borderRadius: '10px',
+    fontSize: '12px',
+    height: 27,
+    lineHeight: '17px',
+    paddingInline: '8px',
+  })
+  await textDiffCheckbox.click()
+  await expect(rightPanel.locator('.review-diff-word')).toHaveCount(0)
+  await smallDiffSection.locator('.preview-header').click()
+
+  const reviewFileTree = rightPanel.getByRole('region', {
+    name: '审查文件导航',
+  })
+  await expect(reviewFileTree).toBeVisible()
+  const searchRegion = reviewFileTree.locator('.review-file-search-region')
+  const searchInput = searchRegion.locator('.review-file-search')
+  await expect(searchRegion).toBeVisible()
+  await expect(searchInput).toHaveCSS('border-radius', '8px')
+  await expect(searchInput).toHaveCSS('border-top-width', '1px')
+  const [searchRegionBox, searchInputBox] = await Promise.all([
+    searchRegion.boundingBox(),
+    searchInput.boundingBox(),
+  ])
+  expect(searchRegionBox).not.toBeNull()
+  expect(searchInputBox).not.toBeNull()
+  expect(searchInputBox!.x - searchRegionBox!.x).toBeGreaterThanOrEqual(10)
+  await expect(
+    reviewFileTree.locator('[data-git-status="added"]'),
+  ).toBeVisible()
+  await expect(
+    reviewFileTree.locator('[data-git-status="modified"]').first(),
+  ).toBeVisible()
+  await expect(
+    reviewFileTree.locator('[data-git-status="deleted"]'),
+  ).toBeVisible()
+  await expect(
+    reviewFileTree.locator('.review-file-tree-directory-status').first(),
+  ).toBeVisible()
+  await expect(reviewFileTree.locator('.review-file-counts')).toHaveCount(0)
+  const [directoryStatusBox, fileStatusBox] = await Promise.all([
+    reviewFileTree
+      .locator('.review-file-tree-directory-status')
+      .first()
+      .boundingBox(),
+    reviewFileTree.locator('[data-git-status="added"]').boundingBox(),
+  ])
+  expect(directoryStatusBox).not.toBeNull()
+  expect(fileStatusBox).not.toBeNull()
+  expect(
+    directoryStatusBox!.x + directoryStatusBox!.width / 2,
+  ).toBeCloseTo(fileStatusBox!.x + fileStatusBox!.width / 2, 0)
+  const gitStatusColors = await reviewFileTree
+    .locator(
+      '[data-git-status="added"], [data-git-status="modified"], [data-git-status="deleted"]',
+    )
+    .evaluateAll(nodes =>
+      Array.from(new Set(nodes.map(node => getComputedStyle(node).color))),
+    )
+  expect(gitStatusColors).toHaveLength(3)
+  await reviewFileTree
+    .getByRole('button', { name: /WorkspaceReviewDiff\.tsx/ })
+    .click()
+  const largeDiffSection = rightPanel.getByLabel(
+    'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx diff',
+  )
+  await rightPanel.locator('.review-diff-scroll').evaluate(element => {
+    element.scrollTop = element.scrollHeight
+  })
+  await largeDiffSection.evaluate(element =>
+    element.scrollIntoView({ block: 'nearest' }),
+  )
+  await expect(largeDiffSection).toBeVisible({ timeout: 10_000 })
+  await expect
+    .poll(async () =>
+      rightPanel
+        .locator(
+          '.review-codex-diff--virtual .review-codex-diff__virtual-row',
+        )
+        .count(),
+    )
+    .toBeGreaterThan(10)
+  expect(
+    await rightPanel
+      .locator(
+        '.review-codex-diff--virtual .review-codex-diff__virtual-row',
+      )
+      .count(),
+  ).toBeLessThan(100)
+  const reviewDiffPreview = rightPanel.locator('.review-diff-preview')
+  const reviewDiffContent = reviewDiffPreview.locator(
+    ':scope > [data-resize-skeleton-content]',
+  )
+  const reviewDiffSkeleton = reviewDiffPreview.locator(
+    ':scope > [data-resize-skeleton-overlay]',
+  )
+  const reviewFileTreeContent = reviewFileTree.locator(
+    ':scope > [data-resize-skeleton-content]',
+  )
+  const reviewFileTreeSkeleton = reviewFileTree.locator(
+    ':scope > [data-resize-skeleton-overlay]',
+  )
+  await expect(reviewDiffSkeleton).toBeHidden()
+  await expect(reviewFileTreeSkeleton).toBeHidden()
+  const initialWidth = (await rightPanel.boundingBox())?.width
+  expect(initialWidth).toBeGreaterThan(320)
+  const rightSeparator = page.getByRole('separator', {
+    name: '调整右侧面板宽度',
+  })
+  await expect(rightSeparator).toHaveAttribute('aria-valuemin', '320')
+  expect(
+    Number(await rightSeparator.getAttribute('aria-valuemax')),
+  ).toBeGreaterThan(320)
+  await rightSeparator.focus()
+  await page.keyboard.press('Shift+ArrowLeft')
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeGreaterThan(initialWidth!)
+  const keyboardWidth = (await rightPanel.boundingBox())?.width
+  await rightSeparator.dblclick()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .not.toBeCloseTo(keyboardWidth!, 0)
+  const resetWidth = (await rightPanel.boundingBox())?.width
+  expect(resetWidth).toBeGreaterThan(320)
+  await expect
+    .poll(async () => Number(await rightSeparator.getAttribute('aria-valuenow')))
+    .toBeCloseTo(resetWidth!, 0)
+
+  const separatorBox = await rightSeparator.boundingBox()
+  expect(separatorBox).not.toBeNull()
+  await page.mouse.move(
+    separatorBox!.x + separatorBox!.width / 2,
+    separatorBox!.y + separatorBox!.height / 2,
+  )
+  await page.evaluate(() => {
+    const resizeWindow = window as Window & {
+      __resizeLongTaskDurations?: number[]
+      __resizeLongTaskObserver?: PerformanceObserver
+    }
+    resizeWindow.__resizeLongTaskObserver?.disconnect()
+    resizeWindow.__resizeLongTaskDurations = []
+    resizeWindow.__resizeLongTaskObserver = new PerformanceObserver(list => {
+      resizeWindow.__resizeLongTaskDurations?.push(
+        ...list.getEntries().map(entry => entry.duration),
+      )
+    })
+    resizeWindow.__resizeLongTaskObserver.observe({ type: 'longtask' })
+  })
+  await page.mouse.down()
+  const pointerMoveDurations: number[] = []
+  for (let step = 1; step <= 60; step += 1) {
+    const pointerMoveStartedAt = Date.now()
+    await page.mouse.move(
+      separatorBox!.x - (96 * step) / 60,
+      separatorBox!.y + 40,
+    )
+    pointerMoveDurations.push(Date.now() - pointerMoveStartedAt)
+  }
+  const sortedPointerMoveDurations = [...pointerMoveDurations].sort(
+    (left, right) => left - right,
+  )
+  expect(
+    sortedPointerMoveDurations[
+      Math.floor(sortedPointerMoveDurations.length * 0.95)
+    ],
+  ).toBeLessThan(80)
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  const rightResizeGuide = page.locator(
+    'body > .workbench-resize-guide--right',
+  )
+  await expect(rightResizeGuide).toBeVisible()
+  await expect(reviewDiffPreview).toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewDiffSkeleton).toBeVisible()
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'hidden')
+  await expect(reviewFileTree).not.toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
+  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(
+    rightPanel.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+  await expect(rightPanel.locator('.workbench-panel-header')).toHaveCSS(
+    'filter',
+    'none',
+  )
+  const rightResizeGuideBox = await rightResizeGuide.boundingBox()
+  expect(rightResizeGuideBox).not.toBeNull()
+  expect(rightResizeGuideBox!.x).toBeCloseTo(separatorBox!.x - 96, 0)
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeGreaterThan(resetWidth!)
+  await expect(rightResizeGuide).toBeHidden()
+  await expect(reviewDiffPreview).not.toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewDiffSkeleton).toBeHidden()
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(
+    rightPanel.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+  const resizeLongTaskDurations = await page.evaluate(() => {
+    const resizeWindow = window as Window & {
+      __resizeLongTaskDurations?: number[]
+      __resizeLongTaskObserver?: PerformanceObserver
+    }
+    resizeWindow.__resizeLongTaskObserver?.disconnect()
+    return resizeWindow.__resizeLongTaskDurations ?? []
+  })
+  expect(Math.max(0, ...resizeLongTaskDurations)).toBeLessThan(200)
+  await rightSeparator.dblclick()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+
+  const beginCancelledResize = async (): Promise<void> => {
+    const box = await rightSeparator.boundingBox()
+    expect(box).not.toBeNull()
+    await page.mouse.move(
+      box!.x + box!.width / 2,
+      box!.y + box!.height / 2,
+    )
+    await page.mouse.down()
+    await page.mouse.move(box!.x - 64, box!.y + 30, { steps: 4 })
+    await expect(rightResizeGuide).toBeVisible()
+    await expect(reviewDiffPreview).toHaveAttribute(
+      'data-resize-skeleton-active',
+      '',
+    )
+    await expect(reviewDiffSkeleton).toBeVisible()
+    await expect(reviewDiffContent).toHaveCSS('visibility', 'hidden')
+  }
+  await beginCancelledResize()
+  await page.evaluate(() => {
+    document.dispatchEvent(new PointerEvent('pointercancel'))
+  })
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  await expect(rightResizeGuide).toBeHidden()
+  await expect(reviewDiffSkeleton).toBeHidden()
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(
+    rightPanel.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+
+  await beginCancelledResize()
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  await expect(rightResizeGuide).toBeHidden()
+  await expect(reviewDiffSkeleton).toBeHidden()
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(
+    rightPanel.locator('.workbench-panel-content'),
+  ).toHaveCSS('filter', 'none')
+
+  const fileTreeSeparator = rightPanel.getByRole('separator', {
+    name: '调整审查文件导航宽度',
+  })
+  const fileTreePreview = rightPanel.locator(
+    '.review-file-tree-resize-preview',
+  )
+  const initialFileTreeWidth = (await reviewFileTree.boundingBox())?.width
+  const fileTreeSeparatorBox = await fileTreeSeparator.boundingBox()
+  expect(initialFileTreeWidth).toBeGreaterThan(239)
+  expect(fileTreeSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    fileTreeSeparatorBox!.x + fileTreeSeparatorBox!.width / 2,
+    fileTreeSeparatorBox!.y + fileTreeSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  const fileTreePointerMoveDurations: number[] = []
+  for (let step = 1; step <= 60; step += 1) {
+    const pointerMoveStartedAt = Date.now()
+    await page.mouse.move(
+      fileTreeSeparatorBox!.x - (72 * step) / 60,
+      fileTreeSeparatorBox!.y + 36,
+    )
+    fileTreePointerMoveDurations.push(Date.now() - pointerMoveStartedAt)
+  }
+  const sortedFileTreePointerMoveDurations = [
+    ...fileTreePointerMoveDurations,
+  ].sort((left, right) => left - right)
+  expect(
+    sortedFileTreePointerMoveDurations[
+      Math.floor(sortedFileTreePointerMoveDurations.length * 0.95)
+    ],
+  ).toBeLessThan(80)
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeCloseTo(initialFileTreeWidth!, 0)
+  await expect(reviewFileTree).toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewFileTreeSkeleton).toBeVisible()
+  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'hidden')
+  await expect(reviewDiffPreview).not.toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(fileTreePreview).toBeVisible()
+  const fileTreePreviewBox = await fileTreePreview.boundingBox()
+  expect(fileTreePreviewBox).not.toBeNull()
+  expect(fileTreePreviewBox!.x).toBeCloseTo(fileTreeSeparatorBox!.x - 72, 0)
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeGreaterThan(initialFileTreeWidth!)
+  await expect(fileTreePreview).toBeHidden()
+  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
+
+  await fileTreeSeparator.dblclick()
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeCloseTo(initialFileTreeWidth!, 0)
+  const cancelledFileTreeWidth = (await reviewFileTree.boundingBox())?.width
+  const cancelledFileTreeSeparatorBox = await fileTreeSeparator.boundingBox()
+  expect(cancelledFileTreeSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    cancelledFileTreeSeparatorBox!.x +
+      cancelledFileTreeSeparatorBox!.width / 2,
+    cancelledFileTreeSeparatorBox!.y +
+      cancelledFileTreeSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    cancelledFileTreeSeparatorBox!.x - 48,
+    cancelledFileTreeSeparatorBox!.y + 24,
+    { steps: 4 },
+  )
+  await expect(reviewFileTreeSkeleton).toBeVisible()
+  await fileTreeSeparator.dispatchEvent('pointercancel', { pointerId: 1 })
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeCloseTo(cancelledFileTreeWidth!, 0)
+  await expect(fileTreePreview).toBeHidden()
+  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
+
+  const shrinkSeparatorBox = await rightSeparator.boundingBox()
+  expect(shrinkSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    shrinkSeparatorBox!.x + shrinkSeparatorBox!.width / 2,
+    shrinkSeparatorBox!.y + shrinkSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(shrinkSeparatorBox!.x + 64, shrinkSeparatorBox!.y + 30)
+  const shrinkGuideBox = await rightResizeGuide.boundingBox()
+  expect(shrinkGuideBox).not.toBeNull()
+  expect(shrinkGuideBox!.x).toBeCloseTo(shrinkSeparatorBox!.x + 64, 0)
+  await page.evaluate(() => {
+    document.dispatchEvent(new PointerEvent('pointercancel'))
+  })
+  await page.mouse.up()
+
+  await page.setViewportSize({ width: 960, height: 640 })
+  await expect(rightPanel).toBeVisible()
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeLessThan(resetWidth!)
+  await expect(reviewFileTree).toBeHidden()
+
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  await expect(reviewFileTree).toBeVisible()
+
+  const sidebarSeparator = page.getByRole('separator', {
+    name: '调整任务侧栏宽度',
+  })
+  await sidebarSeparator.focus()
+  await page.keyboard.press('End')
+  await page.setViewportSize({ width: 960, height: 640 })
+  await expect(rightPanel).toHaveCount(0)
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const forcedRightPanel = page.getByRole('complementary', {
+    name: '右侧面板',
+  })
+  await expect(forcedRightPanel).toBeVisible()
+  await expect
+    .poll(
+      async () =>
+        (await page.locator('.desktop-main-route').boundingBox())?.width,
+    )
+    .toBeLessThan(352)
+
+  await page.setViewportSize({ width: 1000, height: 680 })
+  await expect(forcedRightPanel).toBeVisible()
+  await page.getByRole('button', { name: '关闭右侧面板' }).click()
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await expect(forcedRightPanel).toHaveCount(0)
+})
+
+test('Review uses the same targeted skeleton when moved to the bottom panel', async ({
+  page,
+}, testInfo) => {
+  testInfo.setTimeout(90_000)
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await gotoWorkbenchFixture(page, '/?visualCase=review#/threads/visual-review')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
+  await expect(rightPanel.locator('.review-diff-preview')).toBeVisible()
+  await rightPanel
+    .locator('[data-panel-tab="review"]')
+    .click({ button: 'right' })
+  await page.getByRole('menuitem', { name: '移到底部面板' }).click()
+
+  const bottomPanel = page.getByRole('complementary', { name: '底部面板' })
+  const bottomReviewDiff = bottomPanel.locator('.review-diff-preview')
+  const bottomReviewDiffSkeleton = bottomReviewDiff.locator(
+    ':scope > [data-resize-skeleton-overlay]',
+  )
+  const bottomReviewDiffContent = bottomReviewDiff.locator(
+    ':scope > [data-resize-skeleton-content]',
+  )
+  const bottomReviewFileTree = bottomPanel.getByRole('region', {
+    name: '审查文件导航',
+  })
+  await expect(bottomReviewDiff).toBeVisible()
+  await expect(bottomReviewFileTree).toBeVisible()
+
+  const bottomHeight = (await bottomPanel.boundingBox())?.height
+  const bottomSeparator = page.getByRole('separator', {
+    name: '调整底部面板高度',
+  })
+  const bottomSeparatorBox = await bottomSeparator.boundingBox()
+  expect(bottomHeight).toBeGreaterThan(160)
+  expect(bottomSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    bottomSeparatorBox!.x + bottomSeparatorBox!.width / 2,
+    bottomSeparatorBox!.y + bottomSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    bottomSeparatorBox!.x + 48,
+    bottomSeparatorBox!.y - 72,
+    { steps: 8 },
+  )
+  await expect(bottomReviewDiff).toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect(bottomReviewDiffSkeleton).toBeVisible()
+  await expect(bottomReviewDiffContent).toHaveCSS('visibility', 'hidden')
+  await expect(bottomReviewFileTree).not.toHaveAttribute(
+    'data-resize-skeleton-active',
+    '',
+  )
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeCloseTo(bottomHeight!, 0)
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeGreaterThan(bottomHeight!)
+  await expect(bottomReviewDiffSkeleton).toBeHidden()
+  await expect(bottomReviewDiffContent).toHaveCSS('visibility', 'visible')
+})
+
+test('bottom panel scales with workspace height while preserving the upper region', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '显示底部面板' }).click()
+  const bottomPanel = page.getByRole('complementary', { name: '底部面板' })
+  const initialHeight = (await bottomPanel.boundingBox())?.height
+  expect(initialHeight).toBeGreaterThanOrEqual(160)
+  const bottomSeparator = page.getByRole('separator', {
+    name: '调整底部面板高度',
+  })
+  await expect(bottomSeparator).toHaveAttribute('aria-valuemin', '160')
+  expect(
+    Number(await bottomSeparator.getAttribute('aria-valuemax')),
+  ).toBeGreaterThanOrEqual(initialHeight!)
+  await bottomSeparator.focus()
+  await page.keyboard.press('Shift+ArrowUp')
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeGreaterThan(initialHeight!)
+  await bottomSeparator.dblclick()
+
+  await page.setViewportSize({ width: 960, height: 640 })
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeLessThan(initialHeight!)
+  await expect
+    .poll(
+      async () =>
+        (await page.locator('.desktop-workspace__upper').boundingBox())?.height,
+    )
+    .toBeGreaterThanOrEqual(240)
+
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await expect
+    .poll(async () => (await bottomPanel.boundingBox())?.height)
+    .toBeCloseTo(initialHeight!, 0)
+})
+
+test('narrow file panel keeps the editor and file tree side by side', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 960, height: 640 })
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  const sidebarSeparator = page.getByRole('separator', {
+    name: '调整任务侧栏宽度',
+  })
+  await sidebarSeparator.focus()
+  await page.keyboard.press('End')
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel
+    .getByRole('button', { name: '打开文件 Ctrl+Shift+E' })
+    .click()
+
+  const editor = rightPanel.locator('.right-dock-open-file-empty')
+  const tree = rightPanel.getByRole('complementary', {
+    name: '工作区文件树',
+  })
+  await expect(editor).toBeVisible()
+  await expect(tree).toBeVisible()
+  const [editorBox, treeBox] = await Promise.all([
+    editor.boundingBox(),
+    tree.boundingBox(),
+  ])
+  expect(editorBox!.width).toBeGreaterThan(0)
+  expect(treeBox!.width).toBeGreaterThan(0)
+  expect(editorBox!.y).toBeCloseTo(treeBox!.y, 0)
+  const overflow = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }))
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
+})
+
+test('wide workspace keeps the summary beside a 600px review panel', async ({
+  page,
+}) => {
+  const viewport = { width: 1919, height: 1033 }
+  await page.setViewportSize(viewport)
+  await page.emulateMedia({
+    colorScheme: 'dark',
+    forcedColors: 'none',
+    reducedMotion: 'reduce',
+  })
+  await page.addInitScript(
+    ({ ratio }) => {
+      localStorage.setItem(
+        'codepilotx.desktop.rightDockWidthRatio.v2',
+        String(ratio),
+      )
+    },
+    {
+      ratio: 600 / (viewport.width - 275 - 1),
+    },
+  )
+  await gotoWorkbenchFixture(
+    page,
+    '/?visualCase=review#/threads/visual-review',
+  )
+  await closeTransientErrorToast(page)
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel.getByRole('button', { name: /^审阅/ }).click()
+
+  const summary = page.locator('.thread-summary-inline')
+  const timeline = page.locator('.session-timeline-container')
+  const composer = page.locator('.workflow-page__composer-inner')
+  await expect(summary).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: '取消置顶摘要' }),
+  ).toBeVisible()
+  const visibleSummaryRows = summary.locator(
+    '.interactive-row--adaptive:visible',
+  )
+  await expect(visibleSummaryRows.first()).toBeVisible()
+  const summaryRowGeometry = await visibleSummaryRows.evaluateAll((rows) =>
+    rows.map((row) => ({
+      height: row.getBoundingClientRect().height,
+      paddingInline: getComputedStyle(row).paddingInline,
+      radius: getComputedStyle(row).borderRadius,
+      verticallyClipped:
+        row instanceof HTMLElement &&
+        row.scrollHeight > row.clientHeight + 1,
+    })),
+  )
+  expect(summaryRowGeometry.every((row) => row.height >= 30)).toBe(true)
+  expect(summaryRowGeometry.every((row) => row.radius === '10px')).toBe(true)
+  expect(
+    summaryRowGeometry.every((row) => row.paddingInline === '8px'),
+  ).toBe(true)
+  expect(summaryRowGeometry.some((row) => row.verticallyClipped)).toBe(false)
+  await expectCodexHoverBackground(
+    summary.locator('button.interactive-row--adaptive').first(),
+  )
+
+  const [summaryBox, timelineBox, composerBox, rightPanelBox] =
+    await Promise.all([
+      summary.boundingBox(),
+      timeline.boundingBox(),
+      composer.boundingBox(),
+      rightPanel.boundingBox(),
+    ])
+  expect(summaryBox).not.toBeNull()
+  expect(timelineBox).not.toBeNull()
+  expect(composerBox).not.toBeNull()
+  expect(rightPanelBox).not.toBeNull()
+  if (!summaryBox || !timelineBox || !composerBox || !rightPanelBox) return
+
+  expect(summaryBox.width).toBeCloseTo(272, 0)
+  expect(timelineBox.width).toBeCloseTo(640, 0)
+  expect(composerBox.width).toBeCloseTo(640, 0)
+  expect(rightPanelBox.width).toBeCloseTo(600, 0)
+  expect(
+    summaryBox.x - (timelineBox.x + timelineBox.width),
+  ).toBeGreaterThanOrEqual(16)
+  expect(
+    rightPanelBox.x - (summaryBox.x + summaryBox.width),
+  ).toBeGreaterThanOrEqual(16)
+
+  const overflow = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }))
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
 })
 
 for (const mode of MODES) {
@@ -431,11 +1217,13 @@ for (const mode of MODES) {
     await expect(summary).toBeVisible()
     await expect(summaryHeader).toBeVisible()
 
-    const commandGroup = page.locator('.timeline-command-group-summary').first()
-    await commandGroup.click()
-    const commandRow = page.locator('.timeline-command-row').first()
-    await commandRow.click()
-    const commandShell = page.locator('.timeline-command-shell').first()
+    const commandGroup = page
+      .locator('.canonical-process-group--commands')
+      .first()
+    await commandGroup.locator(':scope > summary').click()
+    const command = page.locator('.canonical-tool').first()
+    await command.locator(':scope > summary').click()
+    const commandShell = page.locator('.canonical-command-shell').first()
     await expect(commandShell).toBeVisible()
 
     const surfaces = await page.evaluate(() => {
@@ -443,7 +1231,7 @@ for (const mode of MODES) {
       const header = panel?.querySelector<HTMLElement>(
         '.thread-summary-section > header',
       )
-      const shell = document.querySelector<HTMLElement>('.timeline-command-shell')
+      const shell = document.querySelector<HTMLElement>('.canonical-command-shell')
       if (!panel || !header || !shell) return null
 
       const resolveBackground = (
@@ -460,23 +1248,26 @@ for (const mode of MODES) {
 
       return {
         header: getComputedStyle(header).backgroundColor,
-        output: resolveBackground(shell, '--color-bg-soft'),
+        output: resolveBackground(
+          shell,
+          '--color-token-text-preformat-background',
+        ),
         panel: getComputedStyle(panel).backgroundColor,
-        panelSurface: resolveBackground(panel, '--surface-panel'),
-        raised: resolveBackground(panel, '--surface-raised'),
+        summary: resolveBackground(
+          panel,
+          '--color-token-editor-widget-background',
+        ),
         shell: getComputedStyle(shell).backgroundColor,
       }
     })
 
     expect(surfaces).toEqual({
-      header: surfaces?.raised,
+      header: surfaces?.summary,
       output: surfaces?.output,
-      panel: surfaces?.raised,
-      panelSurface: surfaces?.panelSurface,
-      raised: surfaces?.raised,
+      panel: surfaces?.summary,
+      summary: surfaces?.summary,
       shell: surfaces?.output,
     })
-    expect(surfaces?.shell).not.toBe(surfaces?.panelSurface)
   })
 }
 
@@ -490,7 +1281,9 @@ for (const mode of MODES) {
     await page.goto('/?visualCase=empty#/new')
     await closeTransientErrorToast(page)
     await expect(
-      page.getByText('我们该做什么？', { exact: true }),
+      page.getByRole('heading', {
+        name: /我们(?:该做什么|应该构建什么)？/,
+      }),
     ).toBeVisible()
     await expect(page.locator('html')).toHaveAttribute(
       'data-reduce-motion',
@@ -500,8 +1293,8 @@ for (const mode of MODES) {
     const contrastRatio = await page.evaluate(() => {
       const styles = getComputedStyle(document.documentElement)
       return ratio(
-        styles.getPropertyValue('--color-text').trim(),
-        styles.getPropertyValue('--surface-canvas').trim(),
+        styles.getPropertyValue('--color-token-foreground').trim(),
+        styles.getPropertyValue('--color-token-main-surface-primary').trim(),
       )
 
       function ratio(foreground: string, background: string): number {
@@ -566,6 +1359,195 @@ test('sidebar keeps one mounted tree across docked and hover preview modes', asy
   await expect(sidebar).toHaveClass(/is-preview/, { timeout: 1_000 })
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-docked/)
+})
+
+test('sidebar exit and re-entry keep the workspace aligned', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.goto('/?visualCase=rich#/new')
+  await closeTransientErrorToast(page)
+
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const spacer = page.locator('.desktop-sidebar-spacer')
+  const main = page.locator('.desktop-main')
+  const initialSidebarBox = await sidebar.boundingBox()
+  const initialSpacerBox = await spacer.boundingBox()
+  expect(initialSidebarBox).not.toBeNull()
+  expect(initialSpacerBox).not.toBeNull()
+  expect(initialSpacerBox!.width).toBeCloseTo(initialSidebarBox!.width, 0)
+
+  const exitingState = await page.evaluate(async () => {
+    document.querySelector<HTMLElement>('[title="收起侧边栏"]')?.click()
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    const element = document.querySelector<HTMLElement>('aside.desktop-sidebar')
+    if (!element) return null
+    const style = getComputedStyle(element)
+    return {
+      ariaHidden: element.getAttribute('aria-hidden'),
+      inert: element.hasAttribute('inert'),
+      opacity: Number(style.opacity),
+      visibility: style.visibility,
+    }
+  })
+  expect(exitingState).not.toBeNull()
+  expect(exitingState).toMatchObject({
+    ariaHidden: 'true',
+    inert: true,
+    visibility: 'visible',
+  })
+
+  await expect(sidebar).toHaveCSS('visibility', 'hidden')
+  await expect
+    .poll(async () => (await spacer.boundingBox())?.width)
+    .toBeCloseTo(0, 0)
+
+  await page.locator('[data-app-shell-sidebar-trigger]').click()
+  await expect(sidebar).toHaveClass(/is-docked/)
+  await expect(sidebar).toHaveCSS('visibility', 'visible')
+  await expect
+    .poll(async () => (await spacer.boundingBox())?.width)
+    .toBeCloseTo(initialSidebarBox!.width, 0)
+
+  const [reopenedSidebarBox, reopenedMainBox] = await Promise.all([
+    sidebar.boundingBox(),
+    main.boundingBox(),
+  ])
+  expect(reopenedSidebarBox).not.toBeNull()
+  expect(reopenedMainBox).not.toBeNull()
+  expect(reopenedMainBox!.x).toBeCloseTo(
+    reopenedSidebarBox!.x + reopenedSidebarBox!.width,
+    0,
+  )
+  await expect(page.locator('aside.desktop-sidebar')).toHaveCount(1)
+})
+
+test('workbench panels remain present and layout-isolated while exiting', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightShell = page.locator('.desktop-workspace-panel--right')
+  const rightSurface = rightShell.locator('.desktop-workspace-panel__surface')
+  const main = page.locator('.desktop-main-route')
+  await expect(rightShell).toHaveAttribute(
+    'data-workbench-panel-presence',
+    'open',
+  )
+  await page.waitForTimeout(180)
+  const [rightBefore, surfaceBefore, mainBefore] = await Promise.all([
+    rightShell.boundingBox(),
+    rightSurface.boundingBox(),
+    main.boundingBox(),
+  ])
+  expect(rightBefore).not.toBeNull()
+  expect(surfaceBefore).not.toBeNull()
+  expect(mainBefore).not.toBeNull()
+
+  const rightExit = await page.evaluate(async () => {
+    document
+      .querySelector<HTMLElement>('[aria-label="关闭右侧面板"]')
+      ?.click()
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    const shell = document.querySelector<HTMLElement>(
+      '.desktop-workspace-panel--right',
+    )
+    const immediate = shell
+      ? {
+          ariaHidden: shell.getAttribute('aria-hidden'),
+          inert: shell.hasAttribute('inert'),
+          state: shell.dataset.workbenchPanelPresence,
+        }
+      : null
+    await new Promise(resolve => setTimeout(resolve, 40))
+    const surface = shell?.querySelector<HTMLElement>(
+      '.desktop-workspace-panel__surface',
+    )
+    const mainRoute = document.querySelector<HTMLElement>(
+      '.desktop-main-route',
+    )
+    return {
+      immediate,
+      mainWidth: mainRoute?.getBoundingClientRect().width ?? 0,
+      shellWidth: shell?.getBoundingClientRect().width ?? 0,
+      surfaceWidth: surface?.getBoundingClientRect().width ?? 0,
+    }
+  })
+  expect(rightExit.immediate).toEqual({
+    ariaHidden: 'true',
+    inert: true,
+    state: 'exiting',
+  })
+  expect(rightExit.shellWidth).toBeLessThan(rightBefore!.width)
+  expect(rightExit.shellWidth).toBeGreaterThan(0)
+  expect(rightExit.surfaceWidth).toBeCloseTo(surfaceBefore!.width, 0)
+  expect(rightExit.mainWidth).toBeGreaterThan(mainBefore!.width)
+  await expect(rightShell).toHaveCount(0)
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  await page.waitForTimeout(180)
+  await page.evaluate(async () => {
+    document
+      .querySelector<HTMLElement>('[aria-label="关闭右侧面板"]')
+      ?.click()
+    await new Promise(resolve => setTimeout(resolve, 24))
+    document
+      .querySelector<HTMLElement>('[aria-label="显示右侧面板"]')
+      ?.click()
+  })
+  await expect(rightShell).toHaveCount(1)
+  await expect(rightShell).toHaveAttribute(
+    'data-workbench-panel-presence',
+    'open',
+  )
+  await expect(
+    page.getByRole('complementary', { name: '右侧面板' }),
+  ).toHaveCount(1)
+
+  await page.getByRole('button', { name: '显示底部面板' }).click()
+  const bottomShell = page.locator('.desktop-workspace-panel--bottom')
+  const bottomSurface = bottomShell.locator(
+    '.desktop-workspace-panel__surface',
+  )
+  await page.waitForTimeout(180)
+  const [bottomBefore, bottomSurfaceBefore] = await Promise.all([
+    bottomShell.boundingBox(),
+    bottomSurface.boundingBox(),
+  ])
+  const bottomExit = await page.evaluate(async () => {
+    document
+      .querySelector<HTMLElement>('[aria-label="隐藏底部面板"]')
+      ?.click()
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    const shell = document.querySelector<HTMLElement>(
+      '.desktop-workspace-panel--bottom',
+    )
+    const immediateState = shell?.dataset.workbenchPanelPresence ?? null
+    await new Promise(resolve => setTimeout(resolve, 40))
+    const surface = shell?.querySelector<HTMLElement>(
+      '.desktop-workspace-panel__surface',
+    )
+    return {
+      immediateState,
+      shellHeight: shell?.getBoundingClientRect().height ?? 0,
+      surfaceHeight: surface?.getBoundingClientRect().height ?? 0,
+    }
+  })
+  expect(bottomExit.immediateState).toBe('exiting')
+  expect(bottomExit.shellHeight).toBeLessThan(bottomBefore!.height)
+  expect(bottomExit.shellHeight).toBeGreaterThan(0)
+  expect(bottomExit.surfaceHeight).toBeCloseTo(
+    bottomSurfaceBefore!.height,
+    0,
+  )
+  await expect(bottomShell).toHaveCount(0)
 })
 
 test('turn navigation preview matches Codex geometry and output limits', async ({
@@ -684,11 +1666,99 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
   await expect(sidebar).toHaveClass(/is-preview/)
   await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
   await expect(sidebar).not.toHaveClass(/is-drawer/)
+  const primaryNavigationRow = page
+    .getByRole('navigation', { name: '主要导航' })
+    .getByRole('link', { name: '新建任务' })
+  await expect(primaryNavigationRow).toBeVisible()
+  await expectCompactInteractiveRow(primaryNavigationRow, {
+    borderRadius: '10px',
+    fontSize: '14px',
+    height: 30,
+    lineHeight: '20px',
+    paddingInline: '8px',
+  })
+  await expectCodexHoverBackground(
+    page
+      .getByRole('navigation', { name: '主要导航' })
+      .getByRole('link', { name: '拉取请求' }),
+  )
+
+  const composerUtilityRows = page.locator(
+    '.composer .meta-chip:visible, .composer .composer-model-chip:visible, .composer .permission-select-trigger:visible',
+  )
+  await expect(composerUtilityRows.first()).toBeVisible()
+  const composerRowStyles = await composerUtilityRows.evaluateAll((rows) =>
+    rows.map((row) => {
+      const style = getComputedStyle(row)
+      return {
+        borderRadius: style.borderRadius,
+        fontSize: style.fontSize,
+        height: row.getBoundingClientRect().height,
+        lineHeight: style.lineHeight,
+        paddingInline: style.paddingInline,
+      }
+    }),
+  )
+  expect(composerRowStyles.length).toBeGreaterThanOrEqual(2)
+  expect(
+    composerRowStyles.every(
+      (row) =>
+        row.borderRadius === '9999px' &&
+        row.fontSize === '12px' &&
+        row.height === 28 &&
+        row.lineHeight === '18px' &&
+        row.paddingInline === '6px',
+    ),
+  ).toBe(true)
 
   await page.getByTitle('展开侧边栏').click()
   await expect(sidebar).toHaveClass(/is-docked/)
   await page.setViewportSize({ width: 900, height: 800 })
   await expect(sidebar).toHaveClass(/is-docked/)
+})
+
+test('composer utility controls restore the Codex hover overlay', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.emulateMedia({
+    colorScheme: 'dark',
+    forcedColors: 'none',
+    reducedMotion: 'reduce',
+  })
+  await page.goto('/?visualCase=permission#/threads/visual-permission')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  const rows = [
+    page.locator('.permission-select-trigger:visible'),
+    page.locator('.composer-plan-mode-chip:visible'),
+    page.locator('.composer-model-chip:visible'),
+  ]
+  for (const row of rows) {
+    await expect(row).toBeVisible()
+    await expectCodexHoverBackground(row)
+  }
+})
+
+test('settings toolbar trigger restores the Codex hover overlay', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=empty#/settings/general')
+  await closeTransientErrorToast(page)
+
+  const trigger = page.getByRole('combobox', { name: '默认打开目标' })
+  await expectCompactInteractiveRow(trigger, {
+    borderRadius: '10px',
+    fontSize: '14px',
+    height: 28,
+    lineHeight: '18px',
+    paddingInline: '8px',
+  })
+  await expectCodexHoverBackground(trigger)
 })
 
 test('settings uses the shared full-label sidebar in desktop and narrow previews', async ({
@@ -700,13 +1770,22 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   const sidebar = page.locator('aside.desktop-sidebar')
   await expect(sidebar).toHaveAttribute('data-sidebar-content', 'settings')
   await expect(sidebar).toHaveAttribute('aria-label', '设置侧栏')
-  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
+  const settingsNavigationRow = page.locator('.settings-nav-item:visible').first()
+  await expect(settingsNavigationRow).toBeVisible()
+  await expectCompactInteractiveRow(settingsNavigationRow, {
+    borderRadius: '10px',
+    fontSize: '14px',
+    height: 30,
+    lineHeight: '20px',
+    paddingInline: '8px',
+  })
 
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-collapsed/)
   await page.mouse.move(6, 400)
   await expect(sidebar).toHaveClass(/is-preview/)
-  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
 
   await page.mouse.move(600, 400)
   await expect(sidebar).toHaveClass(/is-collapsed/)
@@ -715,8 +1794,81 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   await page.mouse.move(6, 400)
   await expect(sidebar).toHaveClass(/is-preview/)
   await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
-  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
 })
+
+for (const mode of MODES) {
+  test(`settings dropdown follows the compact row contract in ${mode} mode`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 960, height: 640 })
+    await page.emulateMedia({
+      colorScheme: mode,
+      forcedColors: 'none',
+      reducedMotion: 'reduce',
+    })
+    await page.goto('/?visualCase=empty#/settings/general')
+    await closeTransientErrorToast(page)
+
+    await expectCompactInteractiveRow(
+      page.getByRole('combobox', { name: '默认打开目标' }),
+      {
+        borderRadius: '10px',
+        fontSize: '14px',
+        height: 28,
+        lineHeight: '18px',
+        paddingInline: '8px',
+      },
+    )
+
+    await page.getByRole('button', { name: '语言' }).click()
+    const surface = page.locator('.settings-dropdown-content--searchable')
+    await expect(surface).toBeVisible()
+    const surfaceContract = await surface.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const item = element.querySelector<HTMLElement>(
+        '.settings-dropdown-item',
+      )
+      const itemStyle = item ? getComputedStyle(item) : null
+      return {
+        backdropFilter: style.backdropFilter,
+        borderRadius: style.borderRadius,
+        borderTopWidth: style.borderTopWidth,
+        boxShadow: style.boxShadow,
+        itemBorderRadius: itemStyle?.borderRadius,
+        itemFontSize: itemStyle?.fontSize,
+        itemHeight: item?.getBoundingClientRect().height,
+        itemLineHeight: itemStyle?.lineHeight,
+        itemPaddingBlock: itemStyle?.paddingBlock,
+        itemPaddingInline: itemStyle?.paddingInline,
+        padding: style.padding,
+      }
+    })
+    expect(surfaceContract.itemHeight).toBeCloseTo(27, 0)
+    expect({
+      backdropFilter: surfaceContract.backdropFilter,
+      borderRadius: surfaceContract.borderRadius,
+      borderTopWidth: surfaceContract.borderTopWidth,
+      itemBorderRadius: surfaceContract.itemBorderRadius,
+      itemFontSize: surfaceContract.itemFontSize,
+      itemLineHeight: surfaceContract.itemLineHeight,
+      itemPaddingBlock: surfaceContract.itemPaddingBlock,
+      itemPaddingInline: surfaceContract.itemPaddingInline,
+      padding: surfaceContract.padding,
+    }).toEqual({
+      backdropFilter: 'none',
+      borderRadius: '12px',
+      borderTopWidth: '1px',
+      itemBorderRadius: '10px',
+      itemFontSize: '12px',
+      itemLineHeight: '17px',
+      itemPaddingBlock: '5px',
+      itemPaddingInline: '8px',
+      padding: '4px',
+    })
+    expect(surfaceContract.boxShadow).not.toBe('none')
+  })
+}
 
 test('sidebar trigger does not reopen the preview until the pointer leaves', async ({
   page,
@@ -744,7 +1896,7 @@ test('Escape closes the theme picker and restores focus', async ({ page }) => {
   await picker.click()
   await expect(page.getByRole('listbox')).toBeVisible()
   await expect(
-    page.getByRole('textbox', { name: '搜索代码主题…' }),
+    page.getByRole('combobox', { name: '搜索代码主题…' }),
   ).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(picker).toBeFocused()
@@ -807,10 +1959,18 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
       page.evaluate(() => {
         const root = getComputedStyle(document.documentElement)
         return {
-          canvas: root.getPropertyValue('--surface-canvas').trim(),
-          chrome: root.getPropertyValue('--surface-chrome').trim(),
-          panel: root.getPropertyValue('--surface-panel').trim(),
-          composer: root.getPropertyValue('--surface-composer').trim(),
+          canvas: root
+            .getPropertyValue('--color-token-main-surface-primary')
+            .trim(),
+          chrome: root
+            .getPropertyValue('--color-token-side-bar-background')
+            .trim(),
+          panel: root
+            .getPropertyValue('--color-token-panel-background')
+            .trim(),
+          composer: root
+            .getPropertyValue('--color-token-elevated-background')
+            .trim(),
         }
       }),
     )
@@ -847,6 +2007,71 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
       scale: 'css',
     },
   )
+
+  await gotoWorkbenchFixture(page, '/?visualCase=review#/threads/visual-review')
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-code-theme-id',
+    'dracula',
+  )
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel.getByRole('button', { name: /^审阅/ }).click()
+  const sourceMenu = await openAndAssertReviewSourceMenu(page, rightPanel)
+  await expect(sourceMenu).toHaveScreenshot(
+    'desktop-dark-review-source-menu.png',
+    {
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    },
+  )
+  await page.keyboard.press('Escape')
+  await expect(
+    rightPanel
+      .getByLabel(
+        'apps/desktop/renderer/test/codex-style-contracts.test.ts diff',
+      )
+      .locator('[data-review-syntax-state="ready"]'),
+  ).toBeVisible({ timeout: 10_000 })
+  await expect
+    .poll(async () => rightPanel.locator('.review-diff-word').count())
+    .toBeGreaterThan(0)
+  const syntaxColors = await rightPanel
+    .locator('.review-codex-diff__line-text span[style*="color"]')
+    .evaluateAll(nodes =>
+      Array.from(
+        new Set(nodes.map(node => getComputedStyle(node).color)),
+      ),
+    )
+  expect(syntaxColors.length).toBeGreaterThanOrEqual(3)
+  const draculaDiffColors = await page.evaluate(() => {
+    const styles = getComputedStyle(document.documentElement)
+    return {
+      added: styles.getPropertyValue('--color-decoration-added').trim(),
+      addedLine: styles
+        .getPropertyValue('--color-diff-added-line-background')
+        .trim(),
+      removed: styles.getPropertyValue('--color-decoration-deleted').trim(),
+      removedLine: styles
+        .getPropertyValue('--color-diff-removed-line-background')
+        .trim(),
+    }
+  })
+  expect(draculaDiffColors).toEqual({
+    added: '#50fa7b',
+    addedLine: '#3c5b4d',
+    removed: '#ff5555',
+    removedLine: '#5b3d46',
+  })
+  await waitForMaterialIcons(rightPanel)
+  await expect(rightPanel).toHaveScreenshot(
+    'desktop-dark-dracula-review.png',
+    {
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    },
+  )
 })
 
 test('settings shell search and appearance source contracts', async ({
@@ -864,15 +2089,13 @@ test('settings shell search and appearance source contracts', async ({
       const style = getComputedStyle(trigger)
       const bounds = trigger.getBoundingClientRect()
       const probe = document.createElement('span')
-      probe.style.background =
-        'color-mix(in oklab, var(--color-text-strong) 2.5%, transparent)'
       probe.style.color = 'var(--color-text-strong)'
       document.body.append(probe)
-      const expectedBackgroundColor = getComputedStyle(probe).backgroundColor
       const expectedForeground = getComputedStyle(probe).color
       probe.remove()
       return {
-        backgroundMatchesFog: style.backgroundColor === expectedBackgroundColor,
+        backgroundIsTransparent:
+          style.backgroundColor === 'rgba(0, 0, 0, 0)',
         borderRadius: style.borderRadius,
         colorMatchesForeground: style.color === expectedForeground,
         fontSize: style.fontSize,
@@ -882,47 +2105,53 @@ test('settings shell search and appearance source contracts', async ({
       }
     }),
   ).resolves.toEqual({
-    backgroundMatchesFog: true,
-    borderRadius: '8px',
+    backgroundIsTransparent: true,
+    borderRadius: '10px',
     colorMatchesForeground: true,
     fontSize: '14px',
     height: 28,
     lineHeight: '18px',
-    paddingInline: '12px',
+    paddingInline: '8px',
   })
 
-  const languageDropdown = page.getByRole('combobox', { name: '语言' })
+  const languageDropdown = page.getByRole('button', { name: '语言' })
   await languageDropdown.click()
   const languageMenu = page.getByRole('listbox')
+  const languageSurface = page.locator(
+    '.settings-dropdown-content--searchable',
+  )
   await expect(languageMenu).toBeVisible()
-  await expect(
-    languageMenu.evaluate((menu) => {
-      const style = getComputedStyle(menu)
-      const bounds = menu.getBoundingClientRect()
-      const firstItem = menu.querySelector<HTMLElement>(
-        '.settings-dropdown-item',
-      )
-      const firstItemStyle = firstItem ? getComputedStyle(firstItem) : null
-      return {
-        backdropFilter: style.backdropFilter,
-        borderRadius: style.borderRadius,
-        itemFontSize: firstItemStyle?.fontSize,
-        itemHeight: firstItem?.getBoundingClientRect().height,
-        itemLineHeight: firstItemStyle?.lineHeight,
-        padding: style.padding,
-        width: bounds.width,
-      }
-    }),
-  ).resolves.toEqual({
-    backdropFilter: 'blur(8px)',
+  await expect(languageSurface).toBeVisible()
+  const languageSurfaceStyles = await languageSurface.evaluate((surface) => {
+    const style = getComputedStyle(surface)
+    const firstItem = surface.querySelector<HTMLElement>(
+      '.settings-dropdown-item',
+    )
+    const firstItemStyle = firstItem ? getComputedStyle(firstItem) : null
+    return {
+      backdropFilter: style.backdropFilter,
+      borderRadius: style.borderRadius,
+      itemFontSize: firstItemStyle?.fontSize,
+      itemHeight: firstItem?.getBoundingClientRect().height,
+      itemLineHeight: firstItemStyle?.lineHeight,
+      padding: style.padding,
+    }
+  })
+  expect(languageSurfaceStyles.itemHeight).toBeCloseTo(27, 0)
+  expect({
+    backdropFilter: languageSurfaceStyles.backdropFilter,
+    borderRadius: languageSurfaceStyles.borderRadius,
+    itemFontSize: languageSurfaceStyles.itemFontSize,
+    itemLineHeight: languageSurfaceStyles.itemLineHeight,
+    padding: languageSurfaceStyles.padding,
+  }).toEqual({
+    backdropFilter: 'none',
     borderRadius: '12px',
     itemFontSize: '12px',
-    itemHeight: 28,
-    itemLineHeight: '18px',
+    itemLineHeight: '17px',
     padding: '4px',
-    width: 240,
   })
-  await expect(page.getByRole('textbox', { name: '搜索语言' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '搜索语言' })).toBeVisible()
   await page.keyboard.press('Escape')
 
   await page.goto('/?visualCase=empty#/settings/config')
@@ -940,9 +2169,10 @@ test('settings shell search and appearance source contracts', async ({
         '.settings-dropdown-item-detail',
       )
       const foregroundProbe = document.createElement('span')
-      foregroundProbe.style.color = 'var(--color-text-strong)'
+      foregroundProbe.style.color = 'var(--color-token-foreground)'
       const secondaryProbe = document.createElement('span')
-      secondaryProbe.style.color = 'var(--color-text-meta)'
+      secondaryProbe.style.color =
+        'var(--color-token-description-foreground)'
       menu.append(foregroundProbe, secondaryProbe)
       const expectedForeground = getComputedStyle(foregroundProbe).color
       const expectedSecondary = getComputedStyle(secondaryProbe).color
@@ -969,17 +2199,23 @@ test('settings shell search and appearance source contracts', async ({
     page.getByRole('button', { name: '导入' }).evaluate((button) => {
       const style = getComputedStyle(button)
       const bounds = button.getBoundingClientRect()
-      const probe = document.createElement('span')
-      probe.style.background =
-        'color-mix(in srgb, var(--color-text-strong) 5%, transparent)'
-      document.body.append(probe)
-      const expectedBackgroundColor = getComputedStyle(probe).backgroundColor
-      probe.remove()
+      const backgroundProbe = document.createElement('span')
+      backgroundProbe.style.background = 'var(--color-token-button-background)'
+      const borderProbe = document.createElement('span')
+      borderProbe.style.borderColor = 'var(--color-token-button-border)'
+      document.body.append(backgroundProbe, borderProbe)
+      const expectedBackgroundColor =
+        getComputedStyle(backgroundProbe).backgroundColor
+      const expectedBorderColor = getComputedStyle(borderProbe).borderColor
+      backgroundProbe.remove()
+      borderProbe.remove()
       return {
-        backgroundMatchesForegroundFivePercent:
+        backgroundMatchesButtonToken:
           style.backgroundColor === expectedBackgroundColor,
-        borderColor: style.borderColor,
+        borderMatchesButtonToken: style.borderColor === expectedBorderColor,
         borderRadius: style.borderRadius,
+        borderWidth: style.borderWidth,
+        boxShadow: style.boxShadow,
         fontSize: style.fontSize,
         height: bounds.height,
         lineHeight: style.lineHeight,
@@ -987,22 +2223,39 @@ test('settings shell search and appearance source contracts', async ({
       }
     }),
   ).resolves.toEqual({
-    backgroundMatchesForegroundFivePercent: true,
-    borderColor: 'rgba(0, 0, 0, 0)',
+    backgroundMatchesButtonToken: true,
+    borderMatchesButtonToken: true,
     borderRadius: '8px',
+    borderWidth: '1px',
+    boxShadow: 'none',
     fontSize: '14px',
     height: 28,
-    lineHeight: '18px',
-    paddingInline: '8px',
+    lineHeight: '19.6px',
+    paddingInline: '9.8px',
   })
 
-  await page.keyboard.press('Control+f')
-  const search = page.getByRole('searchbox', { name: '搜索设置' })
+  await page.keyboard.press('Control+F')
+  await page.keyboard.up('Control')
+  const search = page.getByRole('combobox', { name: '搜索设置' })
   await expect(search).toBeFocused()
-  await search.fill('对比度')
+  await search.evaluate((element, value) => {
+    const input = element as HTMLInputElement
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )?.set
+    valueSetter?.call(input, value)
+    input.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      data: value,
+      inputType: 'insertText',
+    }))
+  }, '对比度')
+  await expect(search).toHaveValue('对比度')
+  await expect(search).toHaveAttribute('aria-expanded', 'true')
   await expect(page.getByRole('option', { name: /对比度.*外观/ })).toBeVisible()
   await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(/tab=appearance/)
+  await expect(page).toHaveURL(/#\/settings\/appearance$/)
   await expect(page.getByRole('heading', { name: '外观' })).toBeVisible()
 
   const modeGroup = page.getByRole('radiogroup', { name: '外观模式' })
@@ -1020,11 +2273,47 @@ test('settings shell search and appearance source contracts', async ({
   ).toHaveCount(1)
 
   const preview = page.locator('.appearance-diff-preview')
-  await expect(preview).toHaveAttribute('data-diff-style', 'split')
-  await expect(preview).toHaveAttribute('data-line-diff-type', 'none')
-  await expect(preview).toHaveAttribute('data-hunk-separators', 'line-info')
-  await expect(preview).toHaveAttribute('data-expansion-line-count', '8')
-  await expect(preview.locator('.appearance-diff-side')).toHaveCount(2)
+  const previewDiff = preview.locator(
+    '.review-codex-diff[data-diff-type="split"]',
+  )
+  await expect(previewDiff).toHaveCount(1)
+  await expect(previewDiff).toHaveAttribute('data-overflow', 'scroll')
+  await expect(previewDiff).toHaveAttribute('data-indicators', 'bars')
+  await expect(previewDiff).toHaveAttribute(
+    'aria-label',
+    '浅色主题差异代码',
+  )
+  await expect(previewDiff).toHaveAttribute(
+    'data-review-syntax-state',
+    'ready',
+    { timeout: 10_000 },
+  )
+  await expect(previewDiff.locator('[data-deletions]')).toHaveCount(1)
+  await expect(previewDiff.locator('[data-additions]')).toHaveCount(1)
+  await expect(previewDiff.locator('.review-line-comment-button')).toHaveCount(
+    0,
+  )
+  await expect(previewDiff.locator('.review-line-comments')).toHaveCount(0)
+  await expect(previewDiff.locator('.review-hunk-actions')).toHaveCount(0)
+  await expect(
+    previewDiff.locator(
+      '.review-codex-diff__hunk[data-separator="line-info"]',
+    ),
+  ).not.toHaveCount(0)
+  await expect(
+    previewDiff.locator('[data-line-type="buffer"]'),
+  ).not.toHaveCount(0)
+  await expect(previewDiff.locator('.review-diff-word')).not.toHaveCount(0)
+  await expect
+    .poll(() =>
+      previewDiff
+        .locator(
+          '.review-codex-diff__line[data-line-type^="change-"] ' +
+            '.review-codex-diff__line-text span[style*="color"]',
+        )
+        .count(),
+    )
+    .toBeGreaterThan(0)
 
   const structure = await page.evaluate(() => {
     const gallery = document.querySelector('.appearance-mode-gallery')!
@@ -1055,7 +2344,7 @@ test('settings shell search and appearance source contracts', async ({
   expect(structure).toMatchObject({
     diffAfterGallery: true,
     editorsAfterDiff: true,
-    galleryMaxWidth: '512px',
+    galleryMaxWidth: 'none',
     innerMaxWidth: '768px',
     innerPadding: '20px',
     cardRadius: '10px',
@@ -1085,7 +2374,7 @@ test('settings shell search and appearance source contracts', async ({
   await lightPicker.click()
   await expect(page.getByRole('option')).toHaveCount(16)
   await expect(
-    page.getByRole('textbox', { name: '搜索代码主题…' }),
+    page.getByRole('combobox', { name: '搜索代码主题…' }),
   ).toHaveCount(0)
   await page.keyboard.press('Escape')
 
@@ -1142,12 +2431,14 @@ test('settings shell search and appearance source contracts', async ({
   })
 
   const symbolButton = diffMarkerGroup.getByRole('button', { name: '+/-' })
+  const colorButton = diffMarkerGroup.getByRole('button', { name: '颜色' })
   const motionOffButton = reduceMotionGroup.getByRole('button', {
     name: '关闭',
   })
   await symbolButton.click()
   await motionOffButton.click()
   await expect(symbolButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(previewDiff).toHaveAttribute('data-indicators', 'classic')
   await expect(motionOffButton).toHaveAttribute('aria-pressed', 'true')
   await expect(
     motionOffButton.evaluate((button) => {
@@ -1163,7 +2454,7 @@ test('settings shell search and appearance source contracts', async ({
     }),
   ).resolves.toEqual({
     borderRadius: '9999px',
-    fontSize: '12px',
+    fontSize: '13px',
     height: 24,
     lineHeight: '18px',
     paddingBlock: '2px',
@@ -1178,23 +2469,26 @@ test('settings shell search and appearance source contracts', async ({
       const thumb = switchElement.querySelector<HTMLElement>('.toggle-knob')!
       const switchBounds = switchElement.getBoundingClientRect()
       const thumbBounds = thumb.getBoundingClientRect()
-      const foregroundProbe = document.createElement('span')
-      foregroundProbe.style.color = 'var(--color-text-strong)'
-      document.body.append(foregroundProbe)
-      const foreground = getComputedStyle(foregroundProbe).color
-      foregroundProbe.remove()
+      const thumbColorProbe = document.createElement('span')
+      thumbColorProbe.style.color = 'white'
+      document.body.append(thumbColorProbe)
+      const thumbColor = getComputedStyle(thumbColorProbe).color
+      thumbColorProbe.remove()
       return {
         switchSize: [switchBounds.width, switchBounds.height],
         thumbSize: [thumbBounds.width, thumbBounds.height],
-        thumbUsesForeground:
-          getComputedStyle(thumb).backgroundColor === foreground,
+        thumbUsesWhite: getComputedStyle(thumb).backgroundColor === thumbColor,
       }
     }),
   ).resolves.toMatchObject({
     switchSize: [32, 20],
     thumbSize: [16, 16],
-    thumbUsesForeground: true,
+    thumbUsesWhite: true,
   })
+
+  await colorButton.click()
+  await expect(colorButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(previewDiff).toHaveAttribute('data-indicators', 'bars')
 
   const uiFontSizeInput = page.getByRole('spinbutton', { name: '界面字号' })
   await expect(
@@ -1204,8 +2498,8 @@ test('settings shell search and appearance source contracts', async ({
       const unit = input.parentElement?.querySelector('span')
       const unitStyle = unit ? getComputedStyle(unit) : null
       const probe = document.createElement('span')
-      probe.style.background = 'var(--color-background-control)'
-      probe.style.color = 'var(--color-text-foreground-secondary)'
+      probe.style.background = 'var(--color-token-input-background)'
+      probe.style.color = 'var(--color-token-text-secondary)'
       document.body.append(probe)
       const probeStyle = getComputedStyle(probe)
       const matches = {
@@ -1245,6 +2539,71 @@ test('settings shell search and appearance source contracts', async ({
   ).toHaveAttribute('aria-pressed', 'true')
 })
 
+for (const mode of MODES) {
+  test(`appearance ${mode} diff preview matches the canonical review surface`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await page.emulateMedia({
+      colorScheme: mode,
+      forcedColors: 'none',
+      reducedMotion: 'reduce',
+    })
+    await page.goto('/?visualCase=empty#/settings/appearance')
+    await closeTransientErrorToast(page)
+
+    const variantLabel = mode === 'light' ? '浅色' : '深色'
+    await page
+      .getByRole('radiogroup', { name: '外观模式' })
+      .getByRole('radio', { name: variantLabel })
+      .click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const raw = localStorage.getItem('codepilotx.desktop.appearance.v6')
+          return raw ? JSON.parse(raw).mode : null
+        }),
+      )
+      .toBe(mode)
+
+    const previewDiff = page
+      .getByLabel(`${variantLabel}主题差异预览`)
+      .locator('.review-codex-diff[data-diff-type="split"]')
+    await expect(previewDiff).toHaveAttribute(
+      'data-review-syntax-state',
+      'ready',
+      { timeout: 10_000 },
+    )
+    await expect(previewDiff.locator('.review-diff-word')).not.toHaveCount(0)
+    const previewStyles = await readReviewDiffComputedStyles(previewDiff)
+
+    await gotoWorkbenchFixture(
+      page,
+      '/?visualCase=review#/threads/visual-review',
+    )
+    await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+    await rightPanel.getByRole('button', { name: /^审阅/ }).click()
+    const reviewDiff = rightPanel
+      .getByLabel(
+        'apps/desktop/renderer/test/codex-style-contracts.test.ts diff',
+      )
+      .locator('.review-codex-diff:not(.review-codex-diff--virtual)')
+    await expect(reviewDiff).toHaveAttribute(
+      'data-review-syntax-state',
+      'ready',
+      { timeout: 10_000 },
+    )
+    await expect(reviewDiff.locator('.review-diff-word')).not.toHaveCount(0)
+
+    await expect(
+      readReviewDiffComputedStyles(reviewDiff),
+    ).resolves.toEqual(previewStyles)
+  })
+}
+
 async function closeTransientErrorToast(
   page: Page,
   waitForMilliseconds = 0,
@@ -1253,9 +2612,201 @@ async function closeTransientErrorToast(
   const deadline = Date.now() + waitForMilliseconds
   do {
     if (await closeButton.isVisible().catch(() => false)) {
-      await closeButton.click()
+      await closeButton.click().catch(() => undefined)
     }
     if (Date.now() >= deadline) return
     await page.waitForTimeout(100)
   } while (true)
+}
+
+async function gotoWorkbenchFixture(page: Page, route: string): Promise<void> {
+  const ready = page.getByText('已完成工作台结构梳理。', { exact: true })
+  const maximumAttempts = 5
+  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+    await page.goto(route)
+    try {
+      await ready.waitFor({ state: 'visible', timeout: 7_500 })
+      return
+    } catch {
+      if (attempt === maximumAttempts - 1) {
+        await expect(ready).toBeVisible()
+        return
+      }
+      await page.waitForTimeout(750)
+    }
+  }
+}
+
+async function waitForMaterialIcons(root: Page | Locator) {
+  await expect
+    .poll(() =>
+      root.locator('[data-material-icon-ready="false"]').count(),
+    )
+    .toBe(0)
+}
+
+async function openAndAssertReviewSourceMenu(
+  page: Page,
+  rightPanel: Locator,
+): Promise<Locator> {
+  const trigger = rightPanel.getByRole('button', { name: '切换变更范围' })
+  await expectCompactInteractiveRow(trigger, {
+    borderRadius: '10px',
+    fontSize: '14px',
+    height: 28,
+    lineHeight: '18px',
+    paddingInline: '8px',
+  })
+  await trigger.click()
+  const menu = page.locator('.popover-review-scope')
+  await expect(menu).toBeVisible()
+  await expect
+    .poll(() =>
+      trigger.evaluate(element => {
+        const probe = document.createElement('span')
+        probe.style.background =
+          'var(--color-token-list-hover-background)'
+        element.append(probe)
+        const expected = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return getComputedStyle(element).backgroundColor === expected
+      }),
+    )
+    .toBe(true)
+  await expect(menu.getByText('未提交', { exact: true })).toBeVisible()
+  await expect(menu.locator('.review-source-menu-separator')).toHaveCount(2)
+  expect(
+    await menu
+      .locator('[role="menuitem"], [role="menuitemradio"]')
+      .allTextContents(),
+  ).toEqual(['上一轮', '未暂存', '已暂存', '提交', '分支'])
+  const menuRows = menu.locator(
+    '.popover-item:visible, .popover-sub-trigger:visible',
+  )
+  const menuRowStyles = await menuRows.evaluateAll((rows) =>
+    rows.map((row) => {
+      const style = getComputedStyle(row)
+      return {
+        borderRadius: style.borderRadius,
+        fontSize: style.fontSize,
+        height: row.getBoundingClientRect().height,
+        lineHeight: style.lineHeight,
+        paddingBlock: style.paddingBlock,
+        paddingInline: style.paddingInline,
+      }
+    }),
+  )
+  expect(menuRowStyles.length).toBeGreaterThanOrEqual(4)
+  expect(
+    menuRowStyles.every(
+      (row) =>
+        row.borderRadius === '10px' &&
+        row.fontSize === '12px' &&
+        row.lineHeight === '17px' &&
+        row.paddingBlock === '5px' &&
+        row.paddingInline === '8px',
+    ),
+  ).toBe(true)
+  expect(
+    menuRowStyles.every((row) => Math.abs(row.height - 27) < 0.5),
+  ).toBe(true)
+  return menu
+}
+
+async function expectCompactInteractiveRow(
+  row: Locator,
+  expected: {
+    borderRadius: string
+    fontSize: string
+    height: number
+    lineHeight: string
+    paddingInline: string
+  },
+): Promise<void> {
+  const actual = await row.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      borderRadius: style.borderRadius,
+      fontSize: style.fontSize,
+      height: element.getBoundingClientRect().height,
+      lineHeight: style.lineHeight,
+      paddingInline: style.paddingInline,
+    }
+  })
+  expect(actual.height).toBeCloseTo(expected.height, 0)
+  expect({
+    borderRadius: actual.borderRadius,
+    fontSize: actual.fontSize,
+    lineHeight: actual.lineHeight,
+    paddingInline: actual.paddingInline,
+  }).toEqual({
+    borderRadius: expected.borderRadius,
+    fontSize: expected.fontSize,
+    lineHeight: expected.lineHeight,
+    paddingInline: expected.paddingInline,
+  })
+}
+
+async function expectCodexHoverBackground(row: Locator): Promise<void> {
+  const expected = await row.evaluate((element) => {
+    const probe = document.createElement('span')
+    probe.style.background = 'var(--color-token-list-hover-background)'
+    element.append(probe)
+    const background = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return background
+  })
+  const before = await row.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  )
+  await row.hover()
+  await expect
+    .poll(() =>
+      row.evaluate((element) => getComputedStyle(element).backgroundColor),
+    )
+    .toBe(expected)
+  expect(expected).not.toBe(before)
+}
+
+async function readReviewDiffComputedStyles(diff: Locator) {
+  return diff.evaluate((root) => {
+    const requireElement = (selector: string): Element => {
+      const element = root.querySelector(selector)
+      if (!element) {
+        throw new Error(`Missing canonical review diff element: ${selector}`)
+      }
+      return element
+    }
+    const readBackground = (selector: string): string =>
+      getComputedStyle(requireElement(selector)).backgroundColor
+    const readColor = (selector: string): string =>
+      getComputedStyle(requireElement(selector)).color
+    const rootStyle = getComputedStyle(root)
+
+    return {
+      addedLineBackground: readBackground(
+        '.review-codex-diff__line[data-line-type="change-addition"]',
+      ),
+      addedNumberColor: readColor(
+        '.review-codex-diff__number[data-line-type="change-addition"]',
+      ),
+      addedWordBackground: readBackground(
+        '.review-diff-word[data-tone="added"]',
+      ),
+      editorBackground: rootStyle.backgroundColor,
+      editorForeground: rootStyle.color,
+      fontFamily: rootStyle.fontFamily,
+      fontSize: rootStyle.fontSize,
+      lineHeight: rootStyle.lineHeight,
+      removedLineBackground: readBackground(
+        '.review-codex-diff__line[data-line-type="change-deletion"]',
+      ),
+      removedNumberColor: readColor(
+        '.review-codex-diff__number[data-line-type="change-deletion"]',
+      ),
+      removedWordBackground: readBackground(
+        '.review-diff-word[data-tone="removed"]',
+      ),
+    }
+  })
 }

@@ -11,7 +11,11 @@ import type {
 } from "../../../../shared/types.js";
 import type { SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
-import { PopoverItem } from "../../../components/ui/PopoverItem.js";
+import {
+  PopoverLabel,
+  PopoverRadioGroup,
+  PopoverRadioItem,
+} from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
@@ -32,12 +36,15 @@ import {
   reorderSidebarPinnedItemKeys,
   sidebarProjectKey,
   type SidebarPinnedItem,
+  type SidebarProjectSessionBucket,
 } from "./sidebarViewModel.js";
 import { cx } from "../../../utils/cx.js";
 
+const PINNED_INITIAL_LIMIT = 20;
+const PINNED_LIMIT_STEP = 20;
+
 type Props = {
   activeSessionId: string | null;
-  allProjectSessions: SessionListItem[];
   collapsedProjectPaths: Set<string>;
   organization: DesktopSidebarOrganization;
   now: number;
@@ -45,6 +52,7 @@ type Props = {
   titleLoadingIds: ReadonlySet<string>;
   pinnedSessions: SessionListItem[];
   pinnedWorkspaces: DesktopWorkspace[];
+  projectSessionBuckets: ReadonlyMap<string, SidebarProjectSessionBucket>;
   projectWorkspaces: DesktopWorkspace[];
   projectSort: DesktopSidebarSort;
   recentSessions: SessionListItem[];
@@ -52,7 +60,6 @@ type Props = {
   sessionSort: DesktopSidebarSort;
   manualOrderByScope: Record<string, string[]>;
   unavailableWorkspacePaths: Set<string>;
-  unpinnedSessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
   onChooseWorkspace: () => void;
@@ -76,7 +83,6 @@ type Props = {
 
 export function SidebarBody({
   activeSessionId,
-  allProjectSessions,
   collapsedProjectPaths,
   organization,
   now,
@@ -84,6 +90,7 @@ export function SidebarBody({
   titleLoadingIds,
   pinnedSessions,
   pinnedWorkspaces,
+  projectSessionBuckets,
   projectWorkspaces,
   projectSort,
   recentSessions,
@@ -91,7 +98,6 @@ export function SidebarBody({
   sessionSort,
   manualOrderByScope,
   unavailableWorkspacePaths,
-  unpinnedSessions,
   workspace,
   onArchiveSessions,
   onChooseWorkspace,
@@ -113,6 +119,9 @@ export function SidebarBody({
   onSessionSortChange,
 }: Props): React.ReactNode {
   const [visibleProjectLimit, setVisibleProjectLimit] = useState(5);
+  const [visiblePinnedLimit, setVisiblePinnedLimit] = useState(
+    PINNED_INITIAL_LIMIT,
+  );
   const [draggingProject, setDraggingProject] = useState<{
     key: string;
     scopeKey: string;
@@ -152,6 +161,18 @@ export function SidebarBody({
       }),
     [manualOrderByScope, pinnedSessions, pinnedWorkspaces],
   );
+  const {
+    baseSessions: basePinnedItems,
+    canCollapse: canCollapsePinnedItems,
+    canShowMore: canShowMorePinnedItems,
+    extraSessions: extraPinnedItems,
+    hasOverflow: hasPinnedItemOverflow,
+  } = getSidebarSessionDisplayGroups(
+    pinnedItems,
+    visiblePinnedLimit,
+    PINNED_INITIAL_LIMIT,
+  );
+  const displayedPinnedItems = [...basePinnedItems, ...extraPinnedItems];
 
   useEffect(() => {
     setVisibleProjectLimit(5);
@@ -182,7 +203,10 @@ export function SidebarBody({
     return (
       <SidebarProjectGroup
         activeSessionId={activeSessionId}
-        allProjectSessions={allProjectSessions}
+        bucket={
+          projectSessionBuckets.get(sidebarProjectKey(project)) ??
+          EMPTY_PROJECT_SESSION_BUCKET
+        }
         collapsedProjectPaths={collapsedProjectPaths}
         isUnavailable={isUnavailable(project)}
         manualOrderByScope={manualOrderByScope}
@@ -191,7 +215,6 @@ export function SidebarBody({
         titleLoadingIds={titleLoadingIds}
         project={project}
         sessionFallbackTitles={sessionFallbackTitles}
-        sessions={unpinnedSessions}
         sort={projectSort}
         workspace={workspace}
         onArchiveSessions={onArchiveSessions}
@@ -406,7 +429,22 @@ export function SidebarBody({
             title="置顶"
             onToggle={onToggleSidebarSection}
           >
-            {pinnedItems.map(renderPinnedItem)}
+            {displayedPinnedItems.map(renderPinnedItem)}
+            {hasPinnedItemOverflow ? (
+              <SidebarShowMoreActions
+                canCollapse={canCollapsePinnedItems}
+                canShowMore={canShowMorePinnedItems}
+                onCollapse={() => setVisiblePinnedLimit(PINNED_INITIAL_LIMIT)}
+                onShowMore={() =>
+                  setVisiblePinnedLimit(current =>
+                    Math.min(
+                      current + PINNED_LIMIT_STEP,
+                      pinnedItems.length,
+                    ),
+                  )
+                }
+              />
+            ) : null}
           </SidebarSection>
         ) : null}
 
@@ -506,6 +544,13 @@ export function SidebarBody({
   );
 }
 
+const EMPTY_PROJECT_SESSION_BUCKET: SidebarProjectSessionBucket = {
+  allSessions: [],
+  displaySessions: [],
+  openCount: 0,
+  unreadCount: 0,
+};
+
 const SIDEBAR_SORT_OPTIONS: Array<{
   label: string;
   value: DesktopSidebarSort;
@@ -533,7 +578,6 @@ function SidebarOrganizeMenu({
       className="popover-sidebar-organize popover-menu--flex"
       open={open}
       side="bottom"
-      triggerTabIndex={0}
       trigger={
         <IconButton title="整理侧栏">
           <Ellipsis size={APP_ICON_SIZE} />
@@ -542,32 +586,27 @@ function SidebarOrganizeMenu({
       width={208}
       onOpenChange={setOpen}
     >
-      <div className="popover-sidebar-organize-heading">整理</div>
-      <PopoverItem
-        selected={organization === "projects"}
-        withCheck
-        onClick={() => onOrganizationChange("projects")}
+      <PopoverLabel className="popover-sidebar-organize-heading">整理</PopoverLabel>
+      <PopoverRadioGroup
+        value={organization}
+        onValueChange={value =>
+          onOrganizationChange(value as DesktopSidebarOrganization)
+        }
       >
-        按项目
-      </PopoverItem>
-      <PopoverItem
-        selected={organization === "flat"}
-        withCheck
-        onClick={() => onOrganizationChange("flat")}
+        <PopoverRadioItem value="projects">按项目</PopoverRadioItem>
+        <PopoverRadioItem value="flat">在一个列表中</PopoverRadioItem>
+      </PopoverRadioGroup>
+      <PopoverLabel className="popover-sidebar-organize-heading">排序方式</PopoverLabel>
+      <PopoverRadioGroup
+        value={sort}
+        onValueChange={value => onSortChange(value as DesktopSidebarSort)}
       >
-        在一个列表中
-      </PopoverItem>
-      <div className="popover-sidebar-organize-heading">排序方式</div>
-      {SIDEBAR_SORT_OPTIONS.map((option) => (
-        <PopoverItem
-          key={option.value}
-          selected={sort === option.value}
-          withCheck
-          onClick={() => onSortChange(option.value)}
-        >
-          {option.label}
-        </PopoverItem>
-      ))}
+        {SIDEBAR_SORT_OPTIONS.map((option) => (
+          <PopoverRadioItem key={option.value} value={option.value}>
+            {option.label}
+          </PopoverRadioItem>
+        ))}
+      </PopoverRadioGroup>
     </PopoverMenu>
   );
 }
@@ -686,41 +725,35 @@ function SidebarSection({
   return (
     <section className="sidebar-section tw:grid tw:gap-1">
       <div
-        aria-expanded={!collapsed}
-        className="sidebar-section-header tw:rounded-md tw:px-2 tw:py-1.25 tw:text-sm tw:text-app-text-soft"
-        data-sidebar-section-id={sectionId}
-        role="button"
-        tabIndex={0}
-        onClick={() => onToggle(sectionId)}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault();
-          onToggle(sectionId);
-        }}
+        className="sidebar-section-header tw:rounded-md tw:px-2 tw:py-1.25 tw:text-sm"
       >
         <h2 className="sidebar-section-title">
-          <span
-            className={cx("sidebar-section-label", "u-min-w-0", "u-truncate")}
+          <button
+            aria-expanded={!collapsed}
+            className="sidebar-section-toggle"
+            data-sidebar-section-id={sectionId}
+            type="button"
+            onClick={() => onToggle(sectionId)}
           >
-            {title}
-          </span>
+            <span
+              className={cx("sidebar-section-label", "u-min-w-0", "u-truncate")}
+            >
+              {title}
+            </span>
+            <span className="sidebar-section-main">
+              <motion.span
+                aria-hidden="true"
+                animate={{ rotate: collapsed ? -90 : 0 }}
+                className="sidebar-section-chevron"
+                initial={false}
+                transition={motionTransition(reducedMotion, standardTween)}
+              >
+                <ChevronDown size={APP_ICON_SIZE} />
+              </motion.span>
+            </span>
+          </button>
         </h2>
-        <span className="sidebar-section-main">
-          <motion.span
-            aria-hidden="true"
-            animate={{ rotate: collapsed ? -90 : 0 }}
-            className="sidebar-section-chevron"
-            initial={false}
-            transition={motionTransition(reducedMotion, standardTween)}
-          >
-            <ChevronDown size={APP_ICON_SIZE} />
-          </motion.span>
-        </span>
-        <div
-          className="sidebar-section-trailing"
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => event.stopPropagation()}
-        >
+        <div className="sidebar-section-trailing">
           {action}
         </div>
       </div>

@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises"
+import { writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { GitCommandRunner } from "../src/git/GitCommandRunner"
+import type { AgentLogger } from "../src/observability/AgentLogger"
 import { GitReviewService } from "../src/review/GitReviewService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
@@ -31,9 +34,24 @@ const git = async (cwd: string, ...args: string[]) => {
   return stdout.trim()
 }
 
+type ReviewLogRecord = {
+  level: "info" | "warn" | "error"
+  event: string
+  fields: Record<string, unknown> | undefined
+}
+
+const captureReviewLogger = (
+  records: ReviewLogRecord[],
+): Pick<AgentLogger, "info" | "warn" | "error"> => ({
+  info: (event, fields) => records.push({ level: "info", event, fields }),
+  warn: (event, fields) => records.push({ level: "warn", event, fields }),
+  error: (event, fields) => records.push({ level: "error", event, fields }),
+})
+
 const fixture = async (options: {
   onChanged?: (projectId: string) => void | Promise<void>
   onGitCommand?: (args: readonly string[]) => void
+  logger?: Pick<AgentLogger, "info" | "warn" | "error">
   resolvePullRequest?: (input: {
     workspaceRoot: string
     owner: string
@@ -65,11 +83,35 @@ const fixture = async (options: {
       options.onChanged,
       options.resolvePullRequest,
       options.onGitCommand,
+      options.logger,
     ),
   }
 }
 
 describe("GitReviewService", () => {
+  test("Git runner 流式限制输出、严格解码且失败不暴露 stderr", async () => {
+    const { root, db, review } = await fixture()
+    const invalidPath = join(root, "invalid-utf8.bin")
+    await writeFile(invalidPath, new Uint8Array([0xff, 0xfe]))
+    const blob = await git(root, "hash-object", "-w", "invalid-utf8.bin")
+    const runner = new GitCommandRunner({ maxOutputBytes: 1_024, timeoutMs: 20_000 })
+    await expect(runner.run({
+      cwd: root,
+      args: ["cat-file", "blob", blob],
+    })).rejects.toMatchObject({ code: "GIT_OUTPUT_ENCODING_INVALID", details: undefined })
+    await expect(runner.run({
+      cwd: root,
+      args: ["rev-parse", "--verify", "refs/heads/does-not-exist"],
+    })).rejects.toMatchObject({ code: "GIT_COMMAND_FAILED", details: undefined })
+    const limited = new GitCommandRunner({ maxOutputBytes: 1, timeoutMs: 20_000 })
+    await expect(limited.run({
+      cwd: root,
+      args: ["rev-parse", "HEAD"],
+    })).rejects.toMatchObject({ code: "GIT_OUTPUT_TOO_LARGE", details: undefined })
+    review.dispose()
+    db.close()
+  }, 30_000)
+
   test("读取项目当前工作分支", async () => {
     const { root, db, project, review } = await fixture()
     await git(root, "switch", "-c", "codex/hover-card")
@@ -79,7 +121,10 @@ describe("GitReviewService", () => {
   })
 
   test("生成未暂存摘要和文件级 hunk，并保护过期快照", async () => {
-    const { root, db, project, review } = await fixture()
+    const logs: ReviewLogRecord[] = []
+    const { root, db, project, review } = await fixture({
+      logger: captureReviewLogger(logs),
+    })
     await writeFile(join(root, "src", "index.ts"), "export const value = 2\nexport const added = true\n", "utf8")
 
     const snapshot = await review.summary(project.id, { kind: "unstaged" })
@@ -91,6 +136,24 @@ describe("GitReviewService", () => {
       deletions: 1,
     })
     expect(snapshot.largeDiffMode).toBe(false)
+    expect(logs.find(record => record.event === "review.summary.completed")).toMatchObject({
+      level: "info",
+      fields: {
+        details: {
+          sourceKind: "unstaged",
+          refresh: true,
+          cacheHit: false,
+          cacheState: "fresh",
+          fileCount: 1,
+          largeDiffMode: false,
+          durationMs: expect.any(Number),
+        },
+      },
+    })
+    await review.summaryResult(project.id, { kind: "unstaged" })
+    expect(logs.filter(record => record.event === "review.summary.completed").at(-1)).toMatchObject({
+      fields: { details: { cacheHit: true, cacheState: "fresh", fileCount: 1 } },
+    })
 
     const diff = await review.fileDiff({
       projectId: project.id,
@@ -109,6 +172,29 @@ describe("GitReviewService", () => {
       generation: snapshot.generation,
       path: "src/index.ts",
     })).rejects.toMatchObject({ code: "REVIEW_SNAPSHOT_EXPIRED" })
+    const fileFailure = logs.find(record => record.event === "review.file-diff.failed")
+    expect(fileFailure).toMatchObject({
+      level: "error",
+      fields: {
+        details: {
+          sourceKind: "unstaged",
+          path: "src/index.ts",
+          code: "REVIEW_SNAPSHOT_EXPIRED",
+          status: 409,
+        },
+      },
+    })
+
+    await expect(review.summary(project.id, {
+      kind: "branch",
+      baseBranch: "missing-review-base",
+    })).rejects.toBeInstanceOf(Error)
+    const buildFailure = logs.find(record => record.event === "review.snapshot.build.failed")
+    expect(buildFailure).toMatchObject({
+      level: "error",
+      fields: { details: { sourceKind: "branch", attempt: 1, phase: "source" } },
+    })
+    expect(JSON.stringify([fileFailure, buildFailure])).not.toContain(root)
     db.close()
   }, 30_000)
 
@@ -165,6 +251,63 @@ describe("GitReviewService", () => {
       target: { kind: "file", path: "src/index.ts" },
     })
     expect((await Bun.file(join(root, "src", "index.ts")).text()).replaceAll("\r\n", "\n")).toBe("export const value = 1\n")
+    db.close()
+  }, 30_000)
+
+  test("批量暂存只构建一次最终摘要，并在任一 revision 过期时整体拒绝", async () => {
+    const commands: string[][] = []
+    const { root, db, project, review } = await fixture({
+      onGitCommand: (args) => commands.push([...args]),
+    })
+    for (let index = 0; index < 128; index += 1) {
+      await writeFile(
+        join(root, "src", `batch-${index}.ts`),
+        `export const value${index} = ${index}\n`,
+        "utf8",
+      )
+    }
+    await git(root, "add", ".")
+    await git(root, "commit", "-m", "batch fixture")
+    for (let index = 0; index < 128; index += 1) {
+      await writeFile(
+        join(root, "src", `batch-${index}.ts`),
+        `export const value${index} = ${index + 1}\n`,
+        "utf8",
+      )
+    }
+
+    const snapshot = await review.summary(project.id, { kind: "unstaged" })
+    const items = snapshot.files.map((file) => ({
+      path: file.path,
+      expectedRevision: file.revision,
+    }))
+    commands.length = 0
+    const applied = await review.applyBatch({
+      projectId: project.id,
+      source: { kind: "unstaged" },
+      generation: snapshot.generation,
+      action: "stage",
+      items,
+    })
+    expect(applied.paths).toHaveLength(128)
+    expect(commands.filter((args) => args[0] === "add")).toHaveLength(1)
+    expect(commands.filter((args) => args.includes("--name-status"))).toHaveLength(1)
+
+    const staged = await review.summary(project.id, { kind: "staged" })
+    commands.length = 0
+    await expect(review.applyBatch({
+      projectId: project.id,
+      source: { kind: "staged" },
+      generation: staged.generation,
+      action: "unstage",
+      items: staged.files.map((file, index) => ({
+        path: file.path,
+        expectedRevision: index === staged.files.length - 1 ? "expired" : file.revision,
+      })),
+    })).rejects.toMatchObject({ code: "REVIEW_SNAPSHOT_EXPIRED" })
+    expect(commands.some((args) => args[0] === "restore" || args[0] === "rm")).toBe(false)
+    expect((await review.summary(project.id, { kind: "staged" })).files).toHaveLength(128)
+    review.dispose()
     db.close()
   }, 30_000)
 
@@ -449,6 +592,141 @@ describe("GitReviewService", () => {
     db.close()
   }, 30_000)
 
+  test("仓库持续变化时有界重试并返回 busy", async () => {
+    let rootPath = ""
+    let statusCalls = 0
+    let mutate = true
+    const logs: ReviewLogRecord[] = []
+    const fixtureValue = await fixture({
+      logger: captureReviewLogger(logs),
+      onGitCommand: (args) => {
+        if (!mutate || !rootPath || !args.includes("--porcelain=v2")) return
+        statusCalls += 1
+        if (statusCalls % 2 === 0) {
+          writeFileSync(
+            join(rootPath, "src", "index.ts"),
+            `export const value = ${statusCalls}\n`,
+            "utf8",
+          )
+        }
+      },
+    })
+    rootPath = fixtureValue.root
+    await expect(fixtureValue.review.summary(
+      fixtureValue.project.id,
+      { kind: "unstaged" },
+    )).rejects.toMatchObject({ code: "REVIEW_REPOSITORY_BUSY", status: 503 })
+    expect(statusCalls).toBe(6)
+    expect(
+      logs
+        .filter(record => record.event === "review.snapshot.retry")
+        .map(record => (record.fields as { details: { attempt: number } }).details.attempt),
+    ).toEqual([1, 2, 3])
+    expect(logs.find(record => record.event === "review.summary.failed")).toMatchObject({
+      level: "error",
+      fields: {
+        details: {
+          sourceKind: "unstaged",
+          refresh: true,
+          code: "REVIEW_REPOSITORY_BUSY",
+          status: 503,
+        },
+      },
+    })
+
+    mutate = false
+    expect((await fixtureValue.review.summary(
+      fixtureValue.project.id,
+      { kind: "unstaged" },
+    )).files).toHaveLength(1)
+    fixtureValue.review.dispose()
+    fixtureValue.db.close()
+  }, 30_000)
+
+  test("字面 pathspec 不会扩展相似文件，仓库外 symlink 只读取链接元数据", async () => {
+    const { root, db, project, review } = await fixture()
+    await writeFile(join(root, "src", "literal[1].ts"), "export const selected = true\n", "utf8")
+    await writeFile(join(root, "src", "literal1.ts"), "export const untouched = true\n", "utf8")
+    await review.commit({
+      projectId: project.id,
+      message: "literal pathspec fixture",
+      paths: ["src/literal[1].ts"],
+    })
+    expect(await git(root, "ls-files", "src/literal[1].ts")).toBe("src/literal[1].ts")
+    expect(await git(root, "ls-files", "src/literal1.ts")).toBe("")
+
+    const outside = join(root, "..", "outside-secret.txt")
+    await writeFile(outside, "must-not-be-read\n", "utf8")
+    await symlink(outside, join(root, "outside-link.txt"), "file")
+    const branch = await review.summary(project.id, { kind: "branch", baseBranch: "main" })
+    const linked = branch.files.find((file) => file.path === "outside-link.txt")
+    expect(linked).toBeDefined()
+    const diff = await review.fileDiff({
+      projectId: project.id,
+      source: { kind: "branch", baseBranch: "main" },
+      generation: branch.generation,
+      path: "outside-link.txt",
+    })
+    expect(diff.patch).not.toContain("must-not-be-read")
+    expect(diff.patch).toContain("outside-secret.txt")
+    review.dispose()
+    db.close()
+  }, 30_000)
+
+  test("linked worktree 的外部提交会令旧摘要 stale 并收敛到最新状态", async () => {
+    let watchedProjectId: string | undefined
+    let resolveChanged: (() => void) | undefined
+    const changed = new Promise<void>((resolve) => {
+      resolveChanged = resolve
+    })
+    const { root, db, review } = await fixture({
+      onChanged: (projectId) => {
+        watchedProjectId = projectId
+        resolveChanged?.()
+      },
+    })
+    const linkedRoot = join(root, "..", "linked-worktree")
+    await git(root, "worktree", "add", "-b", "linked-review", linkedRoot)
+    const linkedProject = db.createProject({ rootPath: linkedRoot })
+    await writeFile(join(linkedRoot, "src", "index.ts"), "export const value = 2\n", "utf8")
+    const initial = await review.summaryResult(linkedProject.id, { kind: "unstaged" })
+    expect(initial.snapshot.files).toHaveLength(1)
+
+    await git(linkedRoot, "add", "--", "src/index.ts")
+    await git(linkedRoot, "commit", "-m", "linked worktree update")
+    await Promise.race([
+      changed,
+      Bun.sleep(3_000).then(() => {
+        throw new Error("等待 linked worktree Git metadata watcher 超时")
+      }),
+    ])
+
+    expect(watchedProjectId).toBe(linkedProject.id)
+    const stale = await review.summaryResult(linkedProject.id, { kind: "unstaged" })
+    expect(stale.cacheState).toBe("stale")
+    expect(stale.snapshot.generation).toBe(initial.snapshot.generation)
+    const refreshed = await review.summaryResult(linkedProject.id, { kind: "unstaged" }, true)
+    expect(refreshed.cacheState).toBe("fresh")
+    expect(refreshed.snapshot.files).toHaveLength(0)
+    review.dispose()
+    db.close()
+  }, 30_000)
+
+  test("dispose 会取消 watcher 尚未触发的 debounce 通知", async () => {
+    let changedCalls = 0
+    const { root, db, project, review } = await fixture({
+      onChanged: () => {
+        changedCalls += 1
+      },
+    })
+    await review.summaryResult(project.id, { kind: "unstaged" })
+    await writeFile(join(root, "src", "index.ts"), "export const value = 2\n", "utf8")
+    review.dispose()
+    await Bun.sleep(500)
+    expect(changedCalls).toBe(0)
+    db.close()
+  }, 30_000)
+
   test("评论按 Thread/项目隔离，并保存最近一轮 tree 快照", async () => {
     const { root, db, project, thread, review } = await fixture()
     const turn = db.createTurn(thread.id, {
@@ -500,6 +778,60 @@ describe("GitReviewService", () => {
     }).githubCommentId).toBe("123")
     expect(review.resolveComment({ id: comment.id, threadId: thread.id, projectId: project.id }).status).toBe("resolved")
     expect(review.deleteComment({ id: comment.id, threadId: thread.id, projectId: project.id })).toEqual({ ok: true })
+    db.close()
+  }, 30_000)
+
+  test("最近一轮快照由私有 ref 锚定且不能跨项目读取", async () => {
+    const { root, db, project, thread, review } = await fixture()
+    const turn = db.createTurn(thread.id, {
+      content: "snapshot fixture",
+      model: { providerID: "fixture" as never, id: "fixture" as never },
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+      },
+      strategy: "queue",
+      taskMode: "chat",
+    })
+    await review.captureTurnSnapshot({
+      projectId: project.id,
+      threadId: thread.id,
+      turnId: turn.turnID,
+      phase: "before",
+    })
+    await writeFile(join(root, "src", "index.ts"), "export const value = 2\n", "utf8")
+    await review.captureTurnSnapshot({
+      projectId: project.id,
+      threadId: thread.id,
+      turnId: turn.turnID,
+      phase: "after",
+    })
+    const refRoot = `refs/codepilotx/review/${thread.id}/${turn.turnID}`
+    expect(await git(root, "show-ref", "--verify", `${refRoot}/before`)).toContain(`${refRoot}/before`)
+    expect(await git(root, "show-ref", "--verify", `${refRoot}/after`)).toContain(`${refRoot}/after`)
+    await git(root, "gc", "--prune=now")
+    const source = { kind: "last-turn", threadId: thread.id, turnId: turn.turnID } as const
+    expect((await review.summary(project.id, source)).files).toHaveLength(1)
+
+    const otherRoot = join(root, "..", "other-repository")
+    await mkdir(otherRoot)
+    await git(otherRoot, "init", "-b", "main")
+    await git(otherRoot, "config", "user.name", "CodePilotX Test")
+    await git(otherRoot, "config", "user.email", "test@codepilotx.local")
+    await writeFile(join(otherRoot, "README.md"), "other\n", "utf8")
+    await git(otherRoot, "add", ".")
+    await git(otherRoot, "commit", "-m", "other")
+    const otherProject = db.createProject({ rootPath: otherRoot })
+    await expect(review.summary(otherProject.id, source)).rejects.toMatchObject({
+      code: "PROJECT_SCOPE_MISMATCH",
+    })
+    const cleanup = review.prepareThreadSnapshotCleanup(thread.id)
+    await cleanup()
+    expect(
+      await git(root, "for-each-ref", "--format=%(refname)", refRoot),
+    ).toBe("")
+    review.dispose()
     db.close()
   }, 30_000)
 })

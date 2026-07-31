@@ -1,6 +1,6 @@
 import type { DesktopApi } from '../../../shared/types.js'
 import { createAgentSessionDesktopClient } from './agent-session-client.js'
-import { createSwitchingBrowserDesktopClient } from './browser-debug-client.js'
+import { createBrowserMockDesktopClient } from './browser-mock-client.js'
 import { defaultDesktopClientEnvironment } from './environment.js'
 import type {
   CodePilotXDesktopClient,
@@ -14,13 +14,6 @@ export {
 } from './agent-session-client.js'
 export { startGithubLoginFlow } from './github-login.js'
 export type { GithubLoginClient } from './github-login.js'
-
-export {
-  readDesktopBrowserDebugMode,
-  writeDesktopBrowserDebugMode,
-  DESKTOP_BROWSER_DEBUG_MODE_EVENT,
-  DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY,
-} from './browser-debug-client.js'
 
 export type {
   CodePilotXDesktopClient,
@@ -40,14 +33,12 @@ export type {
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
 ): CodePilotXDesktopClient {
-  const productionClient = environment.window?.desktopApi
   const fallbackClient: DesktopApi =
-    productionClient ?? createSwitchingBrowserDesktopClient(environment)
+    createBrowserMockDesktopClient(environment.localStorage)
   return createAgentSessionDesktopClient(
     environment,
     fallbackClient,
-    productionClient === undefined &&
-      environment.window?.codePilotXDesktop === undefined,
+    environment.window?.codePilotXDesktop === undefined,
   )
 }
 

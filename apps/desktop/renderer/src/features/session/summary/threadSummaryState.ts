@@ -1,8 +1,9 @@
 import * as React from "react";
 
-export const THREAD_SUMMARY_PANEL_WIDTH = 300;
+export const THREAD_SUMMARY_PANEL_WIDTH = 272;
 export const THREAD_SUMMARY_PANEL_GAP = 16;
-export const THREAD_SUMMARY_OVERLAY_MAX_WIDTH = 1095;
+export const THREAD_SUMMARY_READING_WIDTH = 640;
+export const THREAD_SUMMARY_OVERLAY_MAX_WIDTH = 959;
 export const THREAD_SUMMARY_SHIFT_MAX_WIDTH = 1535;
 export const THREAD_SUMMARY_SHIFT_PX =
   -(THREAD_SUMMARY_PANEL_WIDTH + THREAD_SUMMARY_PANEL_GAP) / 2;
@@ -67,9 +68,23 @@ export function deriveThreadSummaryState(
     shouldShowInline: preference.isPinned && displayMode !== "overlay",
     contentShift:
       preference.isPinned && displayMode === "shift"
-        ? THREAD_SUMMARY_SHIFT_PX
+        ? resolveThreadSummaryContentShift(containerWidth)
         : 0,
   };
+}
+
+export function resolveThreadSummaryContentShift(
+  containerWidth: number,
+): number {
+  const centeredContentInset =
+    (containerWidth - THREAD_SUMMARY_READING_WIDTH) / 2;
+  const shiftForMinimumGap =
+    centeredContentInset -
+    (THREAD_SUMMARY_PANEL_WIDTH + THREAD_SUMMARY_PANEL_GAP * 2);
+  return Math.min(
+    0,
+    Math.max(THREAD_SUMMARY_SHIFT_PX, shiftForMinimumGap),
+  );
 }
 
 export function toggleThreadSummaryPreference(

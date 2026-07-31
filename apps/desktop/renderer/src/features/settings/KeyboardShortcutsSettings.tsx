@@ -314,19 +314,13 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
   {
     title: 'Open command menu',
     description: 'Open the command menu',
-    keys: ['Ctrl+E', 'Ctrl+Shift+P'],
+    keys: ['Ctrl+K', 'Ctrl+Shift+P'],
   },
   {
     title: 'Reload Browser Page',
     description: 'Reload the active browser page',
     keys: ['Ctrl+R'],
   },
-  {
-    title: 'Rename chat',
-    description: 'Rename the current chat',
-    keys: ['Ctrl+Alt+R'],
-  },
-  { title: 'Search Chats...', description: 'Search chats', keys: ['Ctrl+G'] },
   { title: 'Search Files...', description: 'Search files', keys: ['Ctrl+P'] },
   {
     title: '显示快捷键列表',

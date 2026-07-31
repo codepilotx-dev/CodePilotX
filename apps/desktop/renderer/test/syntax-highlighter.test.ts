@@ -2,8 +2,26 @@ import { describe, expect, test } from 'bun:test'
 import {
   clearSyntaxHighlightCache,
   highlightCode,
+  peekHighlightedCode,
   resolveThemeId,
 } from '../src/features/syntax/index.js'
+
+function contrastRatio(first: string, second: string): number {
+  const luminance = (value: string): number => {
+    const channels = value
+      .slice(1)
+      .match(/.{2}/g)!
+      .map(channel => Number.parseInt(channel, 16) / 255)
+      .map(channel =>
+        channel <= 0.04045
+          ? channel / 12.92
+          : ((channel + 0.055) / 1.055) ** 2.4,
+      )
+    return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+  }
+  const values = [luminance(first), luminance(second)].sort((a, b) => b - a)
+  return (values[0] + 0.05) / (values[1] + 0.05)
+}
 
 describe('Shiki highlighter', () => {
   test('lazily loads representative Codex themes and returns token colors', async () => {
@@ -58,5 +76,37 @@ describe('Shiki highlighter', () => {
     expect(
       dracula.tokens.flat().map(token => token.color),
     ).not.toEqual(codexDark.tokens.flat().map(token => token.color))
+  })
+
+  test('keeps syntax token colors readable against their code background', async () => {
+    for (const theme of ['codex-light', 'codex-dark', 'dracula'] as const) {
+      const result = await highlightCode({
+        code: 'const answer = condition ? "yes" : 42',
+        language: 'typescript',
+        theme,
+      })
+
+      for (const token of result.tokens.flat()) {
+        if (!token.color) continue
+        expect(
+          contrastRatio(token.color, token.backgroundColor ?? result.background),
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  test('does not retain intermediate streaming highlights', async () => {
+    clearSyntaxHighlightCache()
+    const request = {
+      code: 'const streaming = true',
+      language: 'typescript',
+      theme: 'codex-dark',
+    }
+
+    await highlightCode({ ...request, streaming: true })
+    expect(peekHighlightedCode(request)).toBeUndefined()
+
+    await highlightCode(request)
+    expect(peekHighlightedCode(request)).toBeDefined()
   })
 })

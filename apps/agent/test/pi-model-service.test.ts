@@ -112,6 +112,58 @@ describe("EncryptedCredentialStore", () => {
 })
 
 describe("PiModelService", () => {
+  test("reports configured API key, OAuth, environment, and auth-free providers", async () => {
+    const fake = repository([
+      {
+        id: "cred_deepseek",
+        integrationID: "deepseek",
+        methodID: null,
+        label: "DeepSeek",
+        value: { type: "key", key: "sk-deepseek-secret" },
+      },
+      {
+        id: "cred_openai_codex",
+        integrationID: "openai-codex",
+        methodID: null,
+        label: "OpenAI Codex",
+        value: {
+          type: "oauth",
+          methodID: "oauth-default" as never,
+          refresh: "oauth-refresh-secret",
+          access: "oauth-access-secret",
+          expires: Date.now() + 60_000,
+        },
+      },
+    ])
+    const service = new PiModelService(fake.adapter, {
+      env: { OPENAI_API_KEY: "sk-openai-environment-secret" },
+      config: {
+        schemaVersion: 2,
+        providers: {
+          local: {
+            kind: "custom",
+            name: "Local",
+            enabled: true,
+            base_url: "http://127.0.0.1:11434/v1",
+            auth: "none",
+            env: [],
+            allow_insecure_http: false,
+            models: {
+              chat: { api: "openai-completions" },
+            },
+          },
+        },
+      },
+    })
+
+    expect(await service.isAuthConfigured("deepseek")).toBe(true)
+    expect(await service.isAuthConfigured("openai-codex")).toBe(true)
+    expect(await service.isAuthConfigured("openai")).toBe(true)
+    expect(await service.isAuthConfigured("local")).toBe(true)
+    expect(await service.isAuthConfigured("anthropic")).toBe(false)
+    expect(await service.isAuthConfigured("missing")).toBe(false)
+  })
+
   test("maps Pi models to the existing RPC-facing model schema", async () => {
     const key = "sk-model-secret"
     const fake = repository([{

@@ -26,7 +26,12 @@ import {
   formatSidebarSessionRelativeTime,
 } from '../src/features/layout/sidebar/SidebarSessionHoverCard.js'
 import {
+  countOpenProjectSessions,
+} from '../src/features/layout/sidebar/SidebarProjectHoverCard.js'
+import { getSidebarSessionDisplayGroups } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
+import {
   buildSidebarPinnedItems,
+  buildProjectSessionBuckets,
   buildSidebarViewModel,
   deriveSidebarSessionVisualState,
   reorderSidebarPinnedItemKeys,
@@ -310,6 +315,63 @@ describe('sidebar view model', () => {
     expect(model.sessionStateById.archived).toBeUndefined()
   })
 
+  test('groups project sessions once while keeping pinned tasks in aggregate counts', () => {
+    const allSessions = [
+      {
+        ...session('pinned-running', 'C:\\alpha'),
+        projectId: 'alpha',
+        pinnedAt: '2026-07-18T08:00:00.000Z',
+        status: 'running' as const,
+        unreadAt: '2026-07-18T08:00:00.000Z',
+      },
+      {
+        ...session('recent', 'C:\\alpha', '2026-07-18T07:00:00.000Z'),
+        projectId: 'alpha',
+      },
+      {
+        ...session('older', 'C:\\alpha', '2026-07-18T06:00:00.000Z'),
+        projectId: 'alpha',
+        status: 'waiting' as const,
+      },
+      session('standalone', '', '2026-07-18T09:00:00.000Z', true),
+    ]
+    const buckets = buildProjectSessionBuckets(
+      allSessions.filter(item => !item.standalone),
+      allSessions.filter(item => !item.pinnedAt),
+    )
+    const bucket = buckets.get('id:alpha')
+
+    expect(bucket?.allSessions.map(item => item.id)).toEqual([
+      'pinned-running',
+      'recent',
+      'older',
+    ])
+    expect(bucket?.displaySessions.map(item => item.id)).toEqual([
+      'recent',
+      'older',
+    ])
+    expect(bucket?.openCount).toBe(2)
+    expect(bucket?.unreadCount).toBe(1)
+    expect([...buckets.keys()]).not.toContain('path:')
+  })
+
+  test('shows pinned items in batches of twenty', () => {
+    const items = Array.from({ length: 45 }, (_, index) => index)
+
+    expect(getSidebarSessionDisplayGroups(items, 20, 20)).toMatchObject({
+      baseSessions: items.slice(0, 20),
+      extraSessions: [],
+      canShowMore: true,
+      canCollapse: false,
+    })
+    expect(getSidebarSessionDisplayGroups(items, 40, 20)).toMatchObject({
+      baseSessions: items.slice(0, 20),
+      extraSessions: items.slice(20, 40),
+      canShowMore: true,
+      canCollapse: true,
+    })
+  })
+
   test('flat organization projects every unpinned task into recent', () => {
     const model = buildSidebarViewModel({
       organization: 'flat',
@@ -576,7 +638,26 @@ describe('sidebar session hover card projection', () => {
       relativeTime: '19 分',
       projectLabel: 'CodePilotX',
       gitBranch: 'codex/hover-card',
+      unread: false,
     })
+  })
+
+  test('悬浮卡携带未读状态并按活动任务统计已开启数量', () => {
+    const unreadItem = {
+      ...session('thread-unread', 'F:\\CodeProject\\CodePilotX'),
+      unreadAt: '2026-07-18T00:18:00.000Z',
+    }
+    expect(buildSidebarSessionHoverCardModel(
+      unreadItem,
+      undefined,
+      new Date('2026-07-18T00:19:00.000Z').getTime(),
+    ).unread).toBe(true)
+    expect(countOpenProjectSessions([
+      { ...unreadItem, status: 'queued' },
+      { ...unreadItem, id: 'waiting', status: 'waiting' },
+      { ...unreadItem, id: 'running', status: 'running' },
+      { ...unreadItem, id: 'idle', status: 'idle' },
+    ])).toBe(3)
   })
 
   test('统一解析完整标题并将展示标题限制为 20 个 Unicode 字符', () => {

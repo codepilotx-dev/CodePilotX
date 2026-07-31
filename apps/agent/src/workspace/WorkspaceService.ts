@@ -13,8 +13,16 @@ const LIST_LIMIT = 2_000
 const SEARCH_MAX_FILES = 10_000
 const SEARCH_MAX_BYTES = 50 * 1024 * 1024
 const SEARCH_TIMEOUT_MS = 10_000
+const WINDOWS_REPLACE_BLOCKED_CODES = new Set(["EPERM", "EACCES", "EBUSY"])
 const decoder = new TextDecoder("utf-8", { fatal: true })
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
+const isWindowsReplaceBlocked = (cause: unknown) =>
+  process.platform === "win32"
+  && typeof cause === "object"
+  && cause !== null
+  && "code" in cause
+  && typeof cause.code === "string"
+  && WINDOWS_REPLACE_BLOCKED_CODES.has(cause.code)
 const decodeUtf8 = (bytes: Uint8Array) => {
   try { return decoder.decode(bytes) } catch { throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件包含非法 UTF-8 字节", 400) }
 }
@@ -503,14 +511,33 @@ export class WorkspaceService {
   private async replaceAtomically(path: string, content: string, mode?: number, maxBytes = MAX_FILE_BYTES) {
     this.ensureWritable(path)
     if (Buffer.byteLength(content, "utf8") > maxBytes) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${maxBytes} 字节上限`, 413)
+    const bytes = Buffer.from(content, "utf8")
     const temporary = resolve(dirname(path), `.codepilotx-${randomUUID()}.tmp`)
     try {
-      await writeFile(temporary, content, { encoding: "utf8", flag: "wx" })
+      await writeFile(temporary, bytes, { flag: "wx" })
       if (mode !== undefined) await chmod(temporary, mode)
-      await rename(temporary, path)
-    } catch {
+      if (mode === undefined) await rename(temporary, path)
+      else await this.replaceExistingFile(path, temporary, bytes)
+    } catch (cause) {
       await unlink(temporary).catch(() => undefined)
+      if (cause instanceof AgentError) throw cause
       throw new AgentError("WORKSPACE_WRITE_FAILED", "无法原子写入工作区文件", 500)
+    }
+  }
+
+  private async replaceExistingFile(path: string, temporary: string, expectedBytes: Uint8Array) {
+    try {
+      await rename(temporary, path)
+      return
+    } catch (cause) {
+      if (!isWindowsReplaceBlocked(cause)) throw cause
+    }
+
+    await unlink(temporary).catch(() => undefined)
+    await writeFile(path, expectedBytes, { flag: "w", flush: true })
+    const persisted = await readFile(path)
+    if (sha256Bytes(persisted) !== sha256Bytes(expectedBytes)) {
+      throw new AgentError("WORKSPACE_WRITE_FAILED", "工作区文件写入后校验失败", 500)
     }
   }
 
@@ -805,7 +832,11 @@ export class WorkspaceService {
             committed.add(item.index)
             await unlink(item.temporaryPath!)
           } else {
-            await rename(item.temporaryPath!, item.inspection.canonicalPath)
+            await this.replaceExistingFile(
+              item.inspection.canonicalPath,
+              item.temporaryPath!,
+              item.bytes,
+            )
             committed.add(item.index)
           }
           item.temporaryPath = null
