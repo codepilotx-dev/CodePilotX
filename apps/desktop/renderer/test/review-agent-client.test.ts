@@ -7,6 +7,7 @@ import {
   reviewLoadStateForError,
 } from '../src/features/review/source/reviewAgentClient.js'
 import { formatReviewCount } from '../src/features/review/diff/reviewFormat.js'
+import { reviewDiagnosticMessage } from '../src/features/review/source/reviewDiagnostics.js'
 import type {
   ReviewFileDiff,
   ReviewFileSummary,
@@ -147,6 +148,42 @@ describe('review load state', () => {
       await Bun.sleep(0)
     }
     await Promise.all([first, duplicate, second, third, fourth, promoted])
+  })
+})
+
+describe('review diagnostics', () => {
+  test('保留相对文件路径并过滤 RPC details、绝对路径和凭据', () => {
+    const message = reviewDiagnosticMessage(
+      'review.file-diff.load.failed',
+      {
+        sourceKind: 'unstaged',
+        path: 'src/index.ts',
+        stage: 'initial',
+      },
+      new AgentRpcError(
+        '读取 C:\\private\\workspace\\src\\index.ts 失败 token=secret-value',
+        -32_000,
+        {
+          code: 'REVIEW_SNAPSHOT_EXPIRED',
+          status: 409,
+          details: {
+            latestGeneration: 'generation-secret',
+            stack: 'stack-secret',
+          },
+        },
+      ),
+    )
+
+    expect(message).toContain('[review] {')
+    expect(message).toContain('review.file-diff.load.failed')
+    expect(message).toContain('src/index.ts')
+    expect(message).toContain('REVIEW_SNAPSHOT_EXPIRED')
+    expect(message).toContain('"status":409')
+    expect(message).toContain('[PATH]')
+    expect(message).toContain('token=[REDACTED]')
+    expect(message).not.toContain('C:\\private')
+    expect(message).not.toContain('generation-secret')
+    expect(message).not.toContain('stack-secret')
   })
 })
 

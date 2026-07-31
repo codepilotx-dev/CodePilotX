@@ -230,6 +230,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         });
       },
       (input) => github.preparedPullRequestComparison(input),
+      undefined,
+      logger,
     );
     const git = new GitWorkspaceService(db);
     const piModels = new PiModelService(credentials, {

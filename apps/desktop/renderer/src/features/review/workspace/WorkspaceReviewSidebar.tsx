@@ -92,6 +92,7 @@ import {
   type ReviewSummarySnapshot,
 } from "../source/reviewAgentClient.js";
 import { ReviewSourceMenu } from "../source/ReviewSourceMenu.js";
+import { reportReviewDiagnostic } from "../source/reviewDiagnostics.js";
 import {
   createReviewCommentIdentity,
   createReviewSummaryIdentity,
@@ -429,6 +430,7 @@ function WorkspaceReviewSidebarImpl({
 
   const refreshReviewDiff = React.useCallback((force = false) => {
     const identity = summaryIdentity;
+    const cycleStartedAt = performance.now();
     const request = refreshCoordinatorRef.current.request(
       identity,
       force,
@@ -436,6 +438,7 @@ function WorkspaceReviewSidebarImpl({
         snapshot: ReviewSummarySnapshot;
         cacheState: "fresh" | "stale";
       } | null> => {
+        const startedAt = performance.now();
         if (!workspacePath) {
           if (activeSummaryIdentityRef.current !== identity) return null;
           summaryStateIdentityRef.current = identity;
@@ -554,6 +557,17 @@ function WorkspaceReviewSidebarImpl({
           return result;
         } catch (refreshError) {
           if (activeSummaryIdentityRef.current !== identity) return null;
+          reportReviewDiagnostic(
+            "error",
+            "review.summary.load.failed",
+            {
+              sourceKind: source.kind,
+              refresh,
+              hasCachedSummary: summaryRef.current !== null,
+              durationMs: Math.round(performance.now() - startedAt),
+            },
+            refreshError,
+          );
           if (summaryRef.current !== null) summaryCacheStateRef.current = "stale";
           setFileLoadStates((current) => {
             const next = new Map(current);
@@ -570,6 +584,17 @@ function WorkspaceReviewSidebarImpl({
     );
     return request.catch((refreshError: unknown) => {
       if (activeSummaryIdentityRef.current === identity) {
+        reportReviewDiagnostic(
+          "error",
+          "review.summary.refresh-cycle.failed",
+          {
+            sourceKind: source.kind,
+            force,
+            hasCachedSummary: summaryRef.current !== null,
+            durationMs: Math.round(performance.now() - cycleStartedAt),
+          },
+          refreshError,
+        );
         if (summaryRef.current !== null) summaryCacheStateRef.current = "stale";
         setFileLoadStates((current) => {
           const next = new Map(current);
@@ -760,6 +785,7 @@ function WorkspaceReviewSidebarImpl({
         async () => {
           if (activeSummaryIdentityRef.current !== identity) return;
           let request = beginRequest(currentSummary.generation);
+          const initialStartedAt = performance.now();
           try {
             const loaded = await reviewAgentClient.fileDiff(
               workspacePath,
@@ -774,13 +800,39 @@ function WorkspaceReviewSidebarImpl({
               retryExpired &&
               reviewAgentClient.isSnapshotExpired(loadError)
             ) {
+              reportReviewDiagnostic(
+                "warning",
+                "review.file-diff.snapshot-expired",
+                {
+                  sourceKind: source.kind,
+                  path,
+                  priority,
+                  hideWhitespace: reviewTabState.hideWhitespace,
+                  durationMs: Math.round(performance.now() - initialStartedAt),
+                },
+                loadError,
+              );
               expiredFilePathsRef.current.add(path);
+              const retryStartedAt = performance.now();
               try {
                 const refreshed = await recoverExpiredReview(loadError, identity);
                 if (
                   !refreshed ||
                   activeSummaryIdentityRef.current !== identity
                 ) {
+                  reportReviewDiagnostic(
+                    "error",
+                    "review.file-diff.retry.failed",
+                    {
+                      sourceKind: source.kind,
+                      path,
+                      priority,
+                      hideWhitespace: reviewTabState.hideWhitespace,
+                      stage: "summary-refresh",
+                      durationMs: Math.round(performance.now() - retryStartedAt),
+                    },
+                    loadError,
+                  );
                   failLoad(request, loadError, false);
                   return;
                 }
@@ -789,7 +841,21 @@ function WorkspaceReviewSidebarImpl({
                 );
                 if (!refreshedFile) {
                   request = beginRequest(refreshed.snapshot.generation);
-                  failLoad(request, new Error("刷新后找不到该文件差异"));
+                  const missingFileError = new Error("刷新后找不到该文件差异");
+                  reportReviewDiagnostic(
+                    "error",
+                    "review.file-diff.retry.failed",
+                    {
+                      sourceKind: source.kind,
+                      path,
+                      priority,
+                      hideWhitespace: reviewTabState.hideWhitespace,
+                      stage: "file-missing",
+                      durationMs: Math.round(performance.now() - retryStartedAt),
+                    },
+                    missingFileError,
+                  );
+                  failLoad(request, missingFileError);
                   return;
                 }
                 request = beginRequest(refreshed.snapshot.generation);
@@ -805,10 +871,37 @@ function WorkspaceReviewSidebarImpl({
                 if (reviewAgentClient.isSnapshotExpired(retryError)) {
                   expiredFilePathsRef.current.add(path);
                 }
+                reportReviewDiagnostic(
+                  "error",
+                  "review.file-diff.retry.failed",
+                  {
+                    sourceKind: source.kind,
+                    path,
+                    priority,
+                    hideWhitespace: reviewTabState.hideWhitespace,
+                    stage: "file-diff",
+                    durationMs: Math.round(performance.now() - retryStartedAt),
+                  },
+                  retryError,
+                );
                 failLoad(request, retryError);
               }
               return;
             }
+            reportReviewDiagnostic(
+              "error",
+              "review.file-diff.load.failed",
+              {
+                sourceKind: source.kind,
+                path,
+                priority,
+                hideWhitespace: reviewTabState.hideWhitespace,
+                retryExpired,
+                stage: "initial",
+                durationMs: Math.round(performance.now() - initialStartedAt),
+              },
+              loadError,
+            );
             failLoad(request, loadError);
           }
         },

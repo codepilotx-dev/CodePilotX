@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { GitCommandRunner } from "../src/git/GitCommandRunner"
+import type { AgentLogger } from "../src/observability/AgentLogger"
 import { GitReviewService } from "../src/review/GitReviewService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
@@ -33,9 +34,24 @@ const git = async (cwd: string, ...args: string[]) => {
   return stdout.trim()
 }
 
+type ReviewLogRecord = {
+  level: "info" | "warn" | "error"
+  event: string
+  fields: Record<string, unknown> | undefined
+}
+
+const captureReviewLogger = (
+  records: ReviewLogRecord[],
+): Pick<AgentLogger, "info" | "warn" | "error"> => ({
+  info: (event, fields) => records.push({ level: "info", event, fields }),
+  warn: (event, fields) => records.push({ level: "warn", event, fields }),
+  error: (event, fields) => records.push({ level: "error", event, fields }),
+})
+
 const fixture = async (options: {
   onChanged?: (projectId: string) => void | Promise<void>
   onGitCommand?: (args: readonly string[]) => void
+  logger?: Pick<AgentLogger, "info" | "warn" | "error">
   resolvePullRequest?: (input: {
     workspaceRoot: string
     owner: string
@@ -67,6 +83,7 @@ const fixture = async (options: {
       options.onChanged,
       options.resolvePullRequest,
       options.onGitCommand,
+      options.logger,
     ),
   }
 }
@@ -104,7 +121,10 @@ describe("GitReviewService", () => {
   })
 
   test("生成未暂存摘要和文件级 hunk，并保护过期快照", async () => {
-    const { root, db, project, review } = await fixture()
+    const logs: ReviewLogRecord[] = []
+    const { root, db, project, review } = await fixture({
+      logger: captureReviewLogger(logs),
+    })
     await writeFile(join(root, "src", "index.ts"), "export const value = 2\nexport const added = true\n", "utf8")
 
     const snapshot = await review.summary(project.id, { kind: "unstaged" })
@@ -116,6 +136,24 @@ describe("GitReviewService", () => {
       deletions: 1,
     })
     expect(snapshot.largeDiffMode).toBe(false)
+    expect(logs.find(record => record.event === "review.summary.completed")).toMatchObject({
+      level: "info",
+      fields: {
+        details: {
+          sourceKind: "unstaged",
+          refresh: true,
+          cacheHit: false,
+          cacheState: "fresh",
+          fileCount: 1,
+          largeDiffMode: false,
+          durationMs: expect.any(Number),
+        },
+      },
+    })
+    await review.summaryResult(project.id, { kind: "unstaged" })
+    expect(logs.filter(record => record.event === "review.summary.completed").at(-1)).toMatchObject({
+      fields: { details: { cacheHit: true, cacheState: "fresh", fileCount: 1 } },
+    })
 
     const diff = await review.fileDiff({
       projectId: project.id,
@@ -134,6 +172,29 @@ describe("GitReviewService", () => {
       generation: snapshot.generation,
       path: "src/index.ts",
     })).rejects.toMatchObject({ code: "REVIEW_SNAPSHOT_EXPIRED" })
+    const fileFailure = logs.find(record => record.event === "review.file-diff.failed")
+    expect(fileFailure).toMatchObject({
+      level: "error",
+      fields: {
+        details: {
+          sourceKind: "unstaged",
+          path: "src/index.ts",
+          code: "REVIEW_SNAPSHOT_EXPIRED",
+          status: 409,
+        },
+      },
+    })
+
+    await expect(review.summary(project.id, {
+      kind: "branch",
+      baseBranch: "missing-review-base",
+    })).rejects.toBeInstanceOf(Error)
+    const buildFailure = logs.find(record => record.event === "review.snapshot.build.failed")
+    expect(buildFailure).toMatchObject({
+      level: "error",
+      fields: { details: { sourceKind: "branch", attempt: 1, phase: "source" } },
+    })
+    expect(JSON.stringify([fileFailure, buildFailure])).not.toContain(root)
     db.close()
   }, 30_000)
 
@@ -535,7 +596,9 @@ describe("GitReviewService", () => {
     let rootPath = ""
     let statusCalls = 0
     let mutate = true
+    const logs: ReviewLogRecord[] = []
     const fixtureValue = await fixture({
+      logger: captureReviewLogger(logs),
       onGitCommand: (args) => {
         if (!mutate || !rootPath || !args.includes("--porcelain=v2")) return
         statusCalls += 1
@@ -554,6 +617,22 @@ describe("GitReviewService", () => {
       { kind: "unstaged" },
     )).rejects.toMatchObject({ code: "REVIEW_REPOSITORY_BUSY", status: 503 })
     expect(statusCalls).toBe(6)
+    expect(
+      logs
+        .filter(record => record.event === "review.snapshot.retry")
+        .map(record => (record.fields as { details: { attempt: number } }).details.attempt),
+    ).toEqual([1, 2, 3])
+    expect(logs.find(record => record.event === "review.summary.failed")).toMatchObject({
+      level: "error",
+      fields: {
+        details: {
+          sourceKind: "unstaged",
+          refresh: true,
+          code: "REVIEW_REPOSITORY_BUSY",
+          status: 503,
+        },
+      },
+    })
 
     mutate = false
     expect((await fixtureValue.review.summary(

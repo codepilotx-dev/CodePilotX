@@ -15,6 +15,7 @@ import type {
 } from "@codepilotx/agent-protocol"
 import { AgentError } from "../domain"
 import { GitCommandRunner, type GitCommandResult } from "../git/GitCommandRunner"
+import type { AgentLogger } from "../observability/AgentLogger"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import {
   normalizedPath,
@@ -66,6 +67,14 @@ type CachedReviewSnapshot = {
 type ProjectWatcher = {
   close: () => void
 }
+type ReviewLogger = Pick<AgentLogger, "info" | "warn" | "error">
+type ReviewSnapshotPhase =
+  | "repository"
+  | "source"
+  | "pre-scan"
+  | "diff-scan"
+  | "post-scan"
+  | "finalize"
 
 export class GitReviewService {
   private readonly watchers = new Map<string, ProjectWatcher>()
@@ -88,12 +97,25 @@ export class GitReviewService {
       number: number
     }) => Promise<{ baseSha: string; headSha: string }>) | undefined,
     private readonly onGitCommand?: ((args: readonly string[]) => void) | undefined,
+    private readonly logger?: ReviewLogger | undefined,
   ) {
     this.gitRunner = new GitCommandRunner({
       maxOutputBytes: MAX_GIT_OUTPUT_BYTES,
       timeoutMs: GIT_TIMEOUT_MS,
       onCommand: this.onGitCommand,
     })
+  }
+
+  private reviewFailureDetails(cause: unknown) {
+    const record = cause && typeof cause === "object"
+      ? cause as { code?: unknown; status?: unknown }
+      : null
+    return {
+      errorName: cause instanceof Error ? cause.name : "UnknownError",
+      code: typeof record?.code === "string" ? record.code : undefined,
+      status: typeof record?.status === "number" ? record.status : undefined,
+      message: cause instanceof Error ? cause.message : String(cause),
+    }
   }
 
   dispose() {
@@ -877,74 +899,106 @@ export class GitReviewService {
     return `${metadata.size}:${metadata.mtimeNs}:${metadata.ctimeNs}`
   }
 
-  private async buildSnapshotAttempt(projectId: string, source: ReviewSource): Promise<CachedReviewSnapshot> {
-    const epoch = this.projectEpochs.get(projectId) ?? 0
-    const { rootPath } = await this.repository(projectId)
-    const gitDirectory = await this.assertStableRepositoryState(rootPath)
-    const resolved = await this.resolveSource(projectId, rootPath, source)
-    const beforeFingerprint = await this.repositoryFingerprint(rootPath, gitDirectory)
-    const { files, patches } = await this.buildFileSummaries(rootPath, resolved)
-    await this.assertStableRepositoryState(rootPath, gitDirectory)
-    const worktreeStates = new Map(
-      await Promise.all(files.map(async (file) => [
-        file.path,
-        await this.worktreeState(rootPath, file.path),
-      ] as const)),
-    )
-    const additions = files.reduce((total, file) => total + (file.additions ?? 0), 0)
-    const deletions = files.reduce((total, file) => total + (file.deletions ?? 0), 0)
-    const changedBytes = files.reduce((total, file) => total + file.changedBytes, 0)
-    const changedLines = additions + deletions
-    const indexState = await fileState(resolve(gitDirectory, "index"))
-    const afterFingerprint = await this.repositoryFingerprint(rootPath, gitDirectory)
-    let sourceChanged = false
-    if (source.kind === "branch") {
-      const currentHead = await this.optionalGit(rootPath, ["rev-parse", "--verify", "HEAD"])
-      const currentBase = currentHead
-        ? await this.optionalGit(rootPath, ["merge-base", source.baseBranch, "HEAD"])
-        : null
-      sourceChanged = currentHead !== resolved.headSha || currentBase !== resolved.baseSha
-    }
-    const generation = sha256([
-      reviewSourceKey(source),
-      resolved.headSha ?? "",
-      resolved.baseSha ?? "",
-      ...files
-        .map((file) => `${file.path}\0${file.status}\0${file.revision}`)
-        .sort(),
-    ].join("\0"))
-    const snapshot: ReviewSummarySnapshot = {
-      projectId,
-      generation,
-      source,
-      repositoryRoot: rootPath,
-      headSha: resolved.headSha,
-      baseSha: resolved.baseSha,
-      files,
-      totals: { files: files.length, additions, deletions, changedLines, changedBytes },
-      largeDiffMode: files.length > LARGE_FILE_COUNT || changedLines > LARGE_CHANGED_LINES || changedBytes > LARGE_CHANGED_BYTES,
-    }
-    if (snapshot.largeDiffMode) patches.clear()
-    return {
-      rootPath,
-      gitDirectory,
-      resolved,
-      snapshot,
-      patches,
-      worktreeStates,
-      indexState,
-      fileDiffs: new Map(),
-      fileDiffRequests: new Map(),
-      stale: beforeFingerprint !== afterFingerprint
-        || sourceChanged
-        || (this.projectEpochs.get(projectId) ?? 0) !== epoch,
+  private async buildSnapshotAttempt(
+    projectId: string,
+    source: ReviewSource,
+    attempt: number,
+  ): Promise<CachedReviewSnapshot> {
+    const startedAt = performance.now()
+    let phase: ReviewSnapshotPhase = "repository"
+    try {
+      const epoch = this.projectEpochs.get(projectId) ?? 0
+      const { rootPath } = await this.repository(projectId)
+      const gitDirectory = await this.assertStableRepositoryState(rootPath)
+      phase = "source"
+      const resolved = await this.resolveSource(projectId, rootPath, source)
+      phase = "pre-scan"
+      const beforeFingerprint = await this.repositoryFingerprint(rootPath, gitDirectory)
+      phase = "diff-scan"
+      const { files, patches } = await this.buildFileSummaries(rootPath, resolved)
+      phase = "post-scan"
+      await this.assertStableRepositoryState(rootPath, gitDirectory)
+      const worktreeStates = new Map(
+        await Promise.all(files.map(async (file) => [
+          file.path,
+          await this.worktreeState(rootPath, file.path),
+        ] as const)),
+      )
+      const additions = files.reduce((total, file) => total + (file.additions ?? 0), 0)
+      const deletions = files.reduce((total, file) => total + (file.deletions ?? 0), 0)
+      const changedBytes = files.reduce((total, file) => total + file.changedBytes, 0)
+      const changedLines = additions + deletions
+      const indexState = await fileState(resolve(gitDirectory, "index"))
+      const afterFingerprint = await this.repositoryFingerprint(rootPath, gitDirectory)
+      phase = "finalize"
+      let sourceChanged = false
+      if (source.kind === "branch") {
+        const currentHead = await this.optionalGit(rootPath, ["rev-parse", "--verify", "HEAD"])
+        const currentBase = currentHead
+          ? await this.optionalGit(rootPath, ["merge-base", source.baseBranch, "HEAD"])
+          : null
+        sourceChanged = currentHead !== resolved.headSha || currentBase !== resolved.baseSha
+      }
+      const generation = sha256([
+        reviewSourceKey(source),
+        resolved.headSha ?? "",
+        resolved.baseSha ?? "",
+        ...files
+          .map((file) => `${file.path}\0${file.status}\0${file.revision}`)
+          .sort(),
+      ].join("\0"))
+      const snapshot: ReviewSummarySnapshot = {
+        projectId,
+        generation,
+        source,
+        repositoryRoot: rootPath,
+        headSha: resolved.headSha,
+        baseSha: resolved.baseSha,
+        files,
+        totals: { files: files.length, additions, deletions, changedLines, changedBytes },
+        largeDiffMode: files.length > LARGE_FILE_COUNT || changedLines > LARGE_CHANGED_LINES || changedBytes > LARGE_CHANGED_BYTES,
+      }
+      if (snapshot.largeDiffMode) patches.clear()
+      return {
+        rootPath,
+        gitDirectory,
+        resolved,
+        snapshot,
+        patches,
+        worktreeStates,
+        indexState,
+        fileDiffs: new Map(),
+        fileDiffRequests: new Map(),
+        stale: beforeFingerprint !== afterFingerprint
+          || sourceChanged
+          || (this.projectEpochs.get(projectId) ?? 0) !== epoch,
+      }
+    } catch (cause) {
+      this.logger?.error("review.snapshot.build.failed", {
+        details: {
+          sourceKind: source.kind,
+          attempt,
+          phase,
+          durationMs: Math.round(performance.now() - startedAt),
+          ...this.reviewFailureDetails(cause),
+        },
+      })
+      throw cause
     }
   }
 
   private async buildSnapshot(projectId: string, source: ReviewSource): Promise<CachedReviewSnapshot> {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const entry = await this.buildSnapshotAttempt(projectId, source)
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const entry = await this.buildSnapshotAttempt(projectId, source, attempt)
       if (!entry.stale) return entry
+      this.logger?.warn("review.snapshot.retry", {
+        details: {
+          sourceKind: source.kind,
+          attempt,
+          reason: "repository-changed",
+          willRetry: attempt < 3,
+        },
+      })
     }
     throw new AgentError(
       "REVIEW_REPOSITORY_BUSY",
@@ -983,19 +1037,47 @@ export class GitReviewService {
     source: ReviewSource,
     refresh = false,
   ): Promise<ReviewSummaryResult> {
+    const startedAt = performance.now()
     const key = this.cacheKey(projectId, source)
     const cached = this.snapshots.get(key)
-    if (!refresh && cached) {
-      if (cached.stale) void this.refreshSnapshot(projectId, source).catch(() => undefined)
-      return {
-        snapshot: cached.snapshot,
-        cacheState: cached.stale ? "stale" : "fresh",
+    const cacheHit = !refresh && cached !== undefined
+    try {
+      let result: ReviewSummaryResult
+      if (!refresh && cached) {
+        if (cached.stale) void this.refreshSnapshot(projectId, source).catch(() => undefined)
+        result = {
+          snapshot: cached.snapshot,
+          cacheState: cached.stale ? "stale" : "fresh",
+        }
+      } else {
+        const entry = await this.refreshSnapshot(projectId, source)
+        result = {
+          snapshot: entry.snapshot,
+          cacheState: entry.stale ? "stale" : "fresh",
+        }
       }
-    }
-    const entry = await this.refreshSnapshot(projectId, source)
-    return {
-      snapshot: entry.snapshot,
-      cacheState: entry.stale ? "stale" : "fresh",
+      this.logger?.info("review.summary.completed", {
+        details: {
+          sourceKind: source.kind,
+          refresh,
+          cacheHit,
+          cacheState: result.cacheState,
+          fileCount: result.snapshot.files.length,
+          largeDiffMode: result.snapshot.largeDiffMode,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      })
+      return result
+    } catch (cause) {
+      this.logger?.error("review.summary.failed", {
+        details: {
+          sourceKind: source.kind,
+          refresh,
+          durationMs: Math.round(performance.now() - startedAt),
+          ...this.reviewFailureDetails(cause),
+        },
+      })
+      throw cause
     }
   }
 
@@ -1040,49 +1122,64 @@ export class GitReviewService {
   }
 
   async fileDiff(input: { projectId: string; source: ReviewSource; generation: string; path: string; hideWhitespace?: boolean | undefined }): Promise<ReviewFileDiffResult> {
-    const path = validateRelativePath(input.path)
-    const entry = await this.snapshotForGeneration(input.projectId, input.source, input.generation, path)
-    const requestKey = `${path}\0${input.hideWhitespace === true ? "whitespace-hidden" : "standard"}`
-    const cached = entry.fileDiffs.get(requestKey)
-    if (cached) return cached
-    const active = entry.fileDiffRequests.get(requestKey)
-    if (active) return active
-    const request = (async () => {
-      const file = entry.snapshot.files.find((candidate) => candidate.path === path)
-      if (!file) throw new AgentError("REVIEW_SOURCE_UNAVAILABLE", "文件不在当前 Review 来源中", 404)
-      const patch = input.hideWhitespace === true
-        ? await this.rawPatch(entry.rootPath, entry.resolved, path, true)
-        : entry.patches.get(path) ?? await this.rawPatch(entry.rootPath, entry.resolved, path)
-      const revision = file.revision
-      const maximumLineBytes = patch.split("\n").reduce(
-        (maximum, line) => Math.max(maximum, Buffer.byteLength(line, "utf8")),
-        0,
-      )
-      const tooLargeReason = file.changedLines > UNRENDERABLE_CHANGED_LINES
-        ? "changed-lines" as const
-        : Buffer.byteLength(patch, "utf8") > UNRENDERABLE_CHANGED_BYTES
-          ? "changed-bytes" as const
-          : maximumLineBytes > UNRENDERABLE_LINE_BYTES
-            ? "line-bytes" as const
-            : null
-      const result: ReviewFileDiffResult = {
-        file: { ...file, revision },
-        revision,
-        patch,
-        hunks: tooLargeReason || file.binary ? [] : parseHunks(patch),
-        renderable: !tooLargeReason && !file.binary,
-        tooLargeReason,
-      }
-      entry.fileDiffs.set(requestKey, result)
-      return result
-    })()
-    entry.fileDiffRequests.set(requestKey, request)
+    const startedAt = performance.now()
+    let path: string | undefined
     try {
-      return await request
-    } finally {
-      if (entry.fileDiffRequests.get(requestKey) === request) {
-        entry.fileDiffRequests.delete(requestKey)
+      path = validateRelativePath(input.path)
+      const entry = await this.snapshotForGeneration(input.projectId, input.source, input.generation, path)
+      const requestKey = `${path}\0${input.hideWhitespace === true ? "whitespace-hidden" : "standard"}`
+      const cached = entry.fileDiffs.get(requestKey)
+      if (cached) return cached
+      const active = entry.fileDiffRequests.get(requestKey)
+      if (active) return active
+      const request = (async () => {
+        const file = entry.snapshot.files.find((candidate) => candidate.path === path)
+        if (!file) throw new AgentError("REVIEW_SOURCE_UNAVAILABLE", "文件不在当前 Review 来源中", 404)
+        const patch = input.hideWhitespace === true
+          ? await this.rawPatch(entry.rootPath, entry.resolved, path, true)
+          : entry.patches.get(path) ?? await this.rawPatch(entry.rootPath, entry.resolved, path)
+        const revision = file.revision
+        const maximumLineBytes = patch.split("\n").reduce(
+          (maximum, line) => Math.max(maximum, Buffer.byteLength(line, "utf8")),
+          0,
+        )
+        const tooLargeReason = file.changedLines > UNRENDERABLE_CHANGED_LINES
+          ? "changed-lines" as const
+          : Buffer.byteLength(patch, "utf8") > UNRENDERABLE_CHANGED_BYTES
+            ? "changed-bytes" as const
+            : maximumLineBytes > UNRENDERABLE_LINE_BYTES
+              ? "line-bytes" as const
+              : null
+        const result: ReviewFileDiffResult = {
+          file: { ...file, revision },
+          revision,
+          patch,
+          hunks: tooLargeReason || file.binary ? [] : parseHunks(patch),
+          renderable: !tooLargeReason && !file.binary,
+          tooLargeReason,
+        }
+        entry.fileDiffs.set(requestKey, result)
+        return result
+      })()
+      entry.fileDiffRequests.set(requestKey, request)
+      try {
+        return await request
+      } finally {
+        if (entry.fileDiffRequests.get(requestKey) === request) {
+          entry.fileDiffRequests.delete(requestKey)
+        }
       }
+    } catch (cause) {
+      this.logger?.error("review.file-diff.failed", {
+        details: {
+          sourceKind: input.source.kind,
+          path,
+          hideWhitespace: input.hideWhitespace === true,
+          durationMs: Math.round(performance.now() - startedAt),
+          ...this.reviewFailureDetails(cause),
+        },
+      })
+      throw cause
     }
   }
 
