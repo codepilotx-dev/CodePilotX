@@ -9,6 +9,7 @@
 
 ### Added
 
+- [desktop/renderer/test] 新增 1200 个真实修改文件、500 轮长会话、30 个任务与三个真实 Agent 会话并发写入时的 Electron 拖动性能验收
 - [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
 - [release] 新增专用 Windows runner 驱动的两阶段 Beta 自动发布流程，在 main 静默期后自动升版、完整验证、创建 Release PR，并于远端 CI 通过后签名打标和发布 prerelease
 - [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
@@ -16,6 +17,13 @@
 
 ### Changed
 
+- [renderer] 为 Composer 变更摘要增加严格顺序的胶囊位移与回底按钮进出动画，并在减少动态效果时立即完成切换
+- [renderer] 移除 Composer 变更摘要透明布局容器的额外内边距，并同步对齐计划预览宽度
+- [renderer] 移除 Composer 变更摘要外层装饰，统一状态胶囊与回底按钮高度，并仅在时间线离开底部时显示回底按钮
+- [renderer] 将应用更新入口从设置菜单移至侧栏底部状态胶囊，在检查、下载、安装和失败阶段替换帮助按钮并提供进度与重试反馈
+- [renderer] 将 Composer 变更摘要重构为状态胶囊与回到底部按钮，并保留计划预览、Review 入口及完成、失败和中断语义
+- [renderer] 将生产界面的浮层与抬升表面统一为克制的纯黑阴影，消除亮暗主题中的发光感
+- [renderer] 将侧栏、工作台及 Review 文件树调整为真实宽高与 flex 布局实时拖动，使相邻内容随指针自然重排并仅在结束时持久化尺寸
 - [desktop/renderer] 统一侧栏、菜单、Composer、设置、Review 与会话摘要的紧凑交互行规格和状态反馈，减少同类控件的尺寸、圆角与浮层效果漂移。
 - [renderer] 收紧会话摘要与中等宽度阅读区，并调整响应式断点，使约 1920px 窗口同时打开侧栏和 Review 时仍保留置顶摘要
 - [renderer] 移除共享动作按钮阴影，并降低卡片、弹窗与浮层的全局阴影层级
@@ -28,6 +36,8 @@
 
 ### Fixed
 
+- [Agent/renderer] 修复 Review 批量 Diff 在新 Renderer 与旧 Agent 版本错配时永久加载的问题，增加能力降级、读取超时及慢请求阶段诊断
+- [renderer] 修复平滑回到底部途中中间滚动事件重新显示按钮的问题，确保 Composer 摘要退出动画完整播放
 - [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
 - [desktop/renderer/test] 更新 Settings 综合视觉用例对统一动作按钮契约的断言，避免继续校验已移除的旧无边框样式。
 - [desktop/renderer] 修复紧凑交互行悬停色被错误映射为主表面背景的问题，还原 Codex 的透明叠加层级，并让侧栏、Composer 与会话摘要获得清晰一致的 hover 反馈。
@@ -51,9 +61,7 @@
 - [renderer] 修复手工重命名已持久化但顶部和侧栏未立即显示的问题，统一所有入口的会话状态更新链路
 - [Agent/Desktop] 修复 Electron 克隆仓库、创建分支和切换分支误用浏览器 mock 的问题，改由受 capability 约束的 Agent RPC 执行真实 Git 并返回最新工作区状态
 - [agent] 修复 Review 刷新竞态与 linked worktree Git 元数据漏监听，并新增批量暂存、取消暂存和还原能力，确保快照最终收敛且批量操作只刷新一次
-- [renderer] 修复 Review 跨工作区或 Pull Request 的异步数据串源、过期快照残留及大 Diff 拖动右栏或底栏卡顿，拖动期间仅移动预览线并在松手后提交尺寸
-- [renderer] 修复大 Diff 拖拽仍触发全局样式失效、完整 Diff 重排和预览线裁剪的问题，拖动期间隔离重型内容并在最终尺寸绘制后恢复
-- [renderer] 将 Review 外层面板与文件导航拖拽反馈改为定向 Shimmer 骨架，仅替换 Diff 或文件树目标区域并保持工具栏及相邻内容清晰可见
+- [desktop] Review 使用分级 Diff 加载和虚拟文件树，并在大规模会话与并发文件更新期间保持真实布局拖拽。
 - [agent] 更新会话标题时综合首轮目标与近期已完成对话，避免提交、推送等单次收尾操作覆盖会话主线
 - [Agent/renderer] 为“新特性”内置当前版本更新记录，并在 GitHub 限流或离线时回退显示，避免 Dialog 只剩错误状态
 - [renderer] 修复顶部帮助菜单“新特性”点击无响应的问题，使其可以打开版本更新记录 Dialog
