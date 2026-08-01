@@ -22,7 +22,7 @@ const createSettingsApp = () => {
     }),
     batchWrite: async ({ edits }: { edits: ConfigEdit[] }) => {
       writtenEdits = edits
-      return { status: "ok", version: "v1", filePath: "config.toml" }
+      return { status: "ok", version: "v1", filePath: "config.json" }
     },
   } as unknown as ConfigService
   const db = {
@@ -70,7 +70,7 @@ const createSettingsApp = () => {
 }
 
 describe("桌面侧栏运行时设置", () => {
-  test("手动顺序只写 runtime-state，并与 config.toml 投影合并读取", async () => {
+  test("手动顺序只写 runtime-state，并与 config.json 投影合并读取", async () => {
     const { app, runtimeSettings, writtenEdits } = createSettingsApp()
     const response = await app.request("/api/config/desktop-projection", {
       method: "PUT",

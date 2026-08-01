@@ -571,7 +571,7 @@ class SchemaInitializer {
           22: () => migrateHistory22To23(this.sqlite),
         }
       : {
-          // v2 moves durable preferences to config.toml. The file migration
+          // v2 moved durable preferences to the external configuration file. The file migration
           // runs after both profile/config paths are available in bootstrap.
           1: () => undefined,
           2: () => migrateProfile2To3(this.sqlite),

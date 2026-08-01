@@ -134,7 +134,7 @@ export const SETTINGS_GROUPS = [
           row('审批执行者', '选择由你或 Guardian 处理审批'),
           row('任务模型', '配置快速、默认、深度和计划执行模型'),
           row('数据位置', '更改 CodePilotX 配置和会话数据目录'),
-          row('自定义 config.toml 设置', '编辑底层 Codex 配置'),
+          row('自定义 config.json 设置', '编辑底层 CodePilotX 配置'),
           row('完整提示词诊断', '查看提示词来源、哈希与 token 估算'),
         ],
       },

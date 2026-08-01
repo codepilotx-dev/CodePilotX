@@ -23,6 +23,7 @@ import type { ApprovalService } from "../../permission/ApprovalService"
 import type { QuestionService } from "../../session/QuestionService"
 import type { ApiKeyService } from "../../provider/ApiKeyService"
 import type { ProviderCredentialService } from "../../provider/ProviderCredentialService"
+import type { ProviderCredentialStoreManager } from "../../auth/ProviderCredentialStoreManager"
 import type { PiModelService } from "../../provider/pi"
 import type { PiAuthSessionService } from "../../auth/PiAuthSessionService"
 import type { ThreadHistoryService } from "../../session/ThreadHistoryService"
@@ -111,6 +112,7 @@ export type RpcRouterDependencies = {
   piModels: PiModelService
   apiKeys: ApiKeyService
   providerCredentials: ProviderCredentialService
+  providerCredentialStore: ProviderCredentialStoreManager
   authSessions: PiAuthSessionService
   memory: MemoryService
   hooks: HookService

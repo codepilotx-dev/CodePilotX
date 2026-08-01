@@ -10,6 +10,7 @@ import { Credential, Provider } from "@codepilotx/model-schema"
 import { Effect, Schema } from "effect"
 import { createHash } from "node:crypto"
 import type { EncryptedCredentialRepository } from "../auth/EncryptedCredentialRepository"
+import type { ProviderCredentialRepository } from "../auth/ProviderCredentialRepository"
 import { AgentError } from "../domain"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import type { PiModelService } from "../provider/pi"
@@ -58,6 +59,7 @@ type UsageServiceOptions = {
   now?: () => number
   adapters?: readonly ProviderUsageAdapter[]
   subscriptionModels?: Models
+  providerCredentials?: ProviderCredentialRepository
 }
 
 const safeError = (
@@ -100,6 +102,7 @@ export class UsageService {
   private readonly now: () => number
   private readonly adapters: readonly ProviderUsageAdapter[]
   private readonly subscriptionModels: Models | undefined
+  private readonly providerCredentials: ProviderCredentialRepository
   private readonly cache = new Map<string, CachedSource>()
   private readonly inflight = new Map<string, Promise<ProviderUsageSource>>()
   private readonly operations = new Map<string, { fingerprint: string; result: unknown }>()
@@ -116,6 +119,7 @@ export class UsageService {
     this.now = options.now ?? Date.now
     this.adapters = options.adapters ?? providerUsageAdapters
     this.subscriptionModels = options.subscriptionModels
+    this.providerCredentials = options.providerCredentials ?? credentials
   }
 
   localUsage(range: LocalUsageRange, timeZone: string): LocalUsageResult {
@@ -317,11 +321,11 @@ export class UsageService {
       matchedProvider = true
       const integrationID = String(provider.id)
       await this.piModels.pi.getAuth(providerID)
-      const stored = await Effect.runPromise(this.credentials.get<Credential.Value>(integrationID))
+      const stored = await Effect.runPromise(this.providerCredentials.get<Credential.Value>(integrationID))
       const value = stored?.value
       if (!value || !Schema.is(Credential.Value)(value)) continue
       const summary = stored
-        ? this.credentials.listApiKeys(integrationID).find((item) => item.id === stored.id)
+        ? this.providerCredentials.listApiKeys(integrationID).find((item) => item.id === stored.id)
         : undefined
       return {
         value,
@@ -356,9 +360,9 @@ export class UsageService {
       if (!provider) continue
       matchedProvider = true
       const integrationID = String(provider.id)
-      const stored = await Effect.runPromise(this.credentials.get<Credential.Value>(integrationID))
+      const stored = await Effect.runPromise(this.providerCredentials.get<Credential.Value>(integrationID))
       if (!stored || !Schema.is(Credential.Value)(stored.value)) continue
-      const summary = this.credentials.listApiKeys(integrationID).find((item) => item.id === stored.id)
+      const summary = this.providerCredentials.listApiKeys(integrationID).find((item) => item.id === stored.id)
       return {
         kind: stored.value.type === "oauth" ? "oauth" : "provider-key",
         credentialId: Credential.ID.make(stored.id),

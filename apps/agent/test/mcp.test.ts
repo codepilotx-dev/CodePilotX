@@ -350,7 +350,7 @@ describe("MCP configuration", () => {
     const root = await mkdtemp(join(process.cwd(), ".codepilotx-mcp-trust-"))
     temporaryDirectories.push(root)
     const workspace = await mkdtemp(join(root, "workspace-"))
-    const configService = new ConfigService(join(root, "data", "config.toml"))
+    const configService = new ConfigService(join(root, "data", "config.json"))
     await configService.initialize()
     try {
       const database = new MemorySettings()
@@ -366,7 +366,7 @@ describe("MCP configuration", () => {
           url: "http://127.0.0.1:43123/mcp",
         },
       } satisfies McpServerDeclaration
-      const projectConfig = join(workspace, ".codepilotx", "config.toml")
+      const projectConfig = join(workspace, ".codepilotx", "config.json")
 
       await expect(configs.save({
         workspace,
@@ -397,7 +397,7 @@ describe("MCP configuration", () => {
       expect(repository.state().operations).toEqual([
         expect.objectContaining({ operationId: "save-local-debug", generation: 2 }),
       ])
-      expect(await readFile(projectConfig, "utf8")).toContain("[mcp_servers.codepilotx-debug")
+      expect(await readFile(projectConfig, "utf8")).toContain('"codepilotx-debug"')
       expect((await configService.read({ cwd: workspace })).config).toMatchObject({
         mcp_servers: {
           "codepilotx-debug": {
@@ -419,23 +419,23 @@ describe("MCP configuration", () => {
   test("maps config write failures safely and leaves prepared MCP state uncommitted", async () => {
     const cases = [
       {
-        cause: new ConfigServiceError("CONFIG_PROJECT_UNTRUSTED", "secret C:\\private\\config.toml"),
+        cause: new ConfigServiceError("CONFIG_PROJECT_UNTRUSTED", "secret C:\\private\\config.json"),
         expected: { code: "PATH_DENIED", status: 403 },
       },
       {
-        cause: new ConfigServiceError("CONFIG_LAYER_READONLY", "secret C:\\private\\config.toml"),
+        cause: new ConfigServiceError("CONFIG_LAYER_READONLY", "secret C:\\private\\config.json"),
         expected: { code: "PATH_DENIED", status: 403 },
       },
       {
-        cause: new ConfigServiceError("CONFIG_PATH_NOT_FOUND", "secret C:\\private\\config.toml"),
+        cause: new ConfigServiceError("CONFIG_PATH_NOT_FOUND", "secret C:\\private\\config.json"),
         expected: { code: "PATH_DENIED", status: 403 },
       },
       {
-        cause: new ConfigServiceError("CONFIG_VERSION_CONFLICT", "secret C:\\private\\config.toml"),
+        cause: new ConfigServiceError("CONFIG_VERSION_CONFLICT", "secret C:\\private\\config.json"),
         expected: { code: "CONFLICT", status: 409 },
       },
       {
-        cause: new ConfigServiceError("CONFIG_VALIDATION_ERROR", "secret C:\\private\\config.toml"),
+        cause: new ConfigServiceError("CONFIG_VALIDATION_ERROR", "secret C:\\private\\config.json"),
         expected: { code: "MCP_CONFIG_INVALID", status: 400 },
       },
     ] as const
@@ -517,7 +517,7 @@ describe("MCP configuration", () => {
   test("persists Context7 credential references as environment variable names", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-mcp-context7-"))
     temporaryDirectories.push(root)
-    const userConfig = join(root, "data", "config.toml")
+    const userConfig = join(root, "data", "config.json")
     const configService = new ConfigService(userConfig)
     await configService.initialize()
     try {
@@ -554,7 +554,7 @@ describe("MCP configuration", () => {
         },
       })
       const source = await readFile(userConfig, "utf8")
-      expect(source).toContain('CONTEXT7_API_KEY = "CONTEXT7_API_KEY"')
+      expect(source).toContain('"CONTEXT7_API_KEY": "CONTEXT7_API_KEY"')
       expect(source).not.toContain("headers")
     } finally {
       await configService.dispose()

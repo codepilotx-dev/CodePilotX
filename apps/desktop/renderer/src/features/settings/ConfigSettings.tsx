@@ -167,8 +167,8 @@ export function ConfigSettings(): React.ReactNode {
         </div>
 
         <SettingsSection
-          title="自定义 config.toml 设置"
-          description="设置页、外部编辑和自然语言配置共享同一个 TOML 真源。"
+          title="自定义 config.json 设置"
+          description="设置页、外部编辑和自然语言配置共享同一个 JSON/JSONC 真源。"
           actions={
             <div className="settings-actions">
               <SettingsDropdown
@@ -195,7 +195,7 @@ export function ConfigSettings(): React.ReactNode {
                 }}
               >
                 <ExternalLink size={APP_ICON_SIZE} />
-                打开 config.toml
+                打开 config.json
               </Button>
             </div>
           }
@@ -535,6 +535,32 @@ export function ConfigSettings(): React.ReactNode {
               </span>
             }
           />
+          <SettingsRow
+            title="配置文件"
+            description={
+              dataLocation
+                ? appendDataFile(dataLocation.currentDataDir, 'config.json')
+                : '加载中…'
+            }
+            control={<span className="settings-row-status">建议备份</span>}
+          />
+          <SettingsRow
+            title="Provider 凭据文件（可选）"
+            description={
+              dataLocation
+                ? appendDataFile(dataLocation.currentDataDir, 'auth.json')
+                : '加载中…'
+            }
+            control={
+              <span className="settings-row-status">
+                使用 auth.json 仓库时
+              </span>
+            }
+          />
+          <SettingsRow
+            title="快速恢复"
+            description="手动复制 config.json，以及启用 auth.json 仓库时的 auth.json。Skill 内容不包含在这两个文件中，需另行处理。"
+          />
           {dataLocation?.pendingDataDir ? (
             <SettingsRow
               title="待生效目录"
@@ -569,4 +595,9 @@ export function ConfigSettings(): React.ReactNode {
       </div>
     </SettingsContentArea>
   )
+}
+
+function appendDataFile(directory: string, fileName: string): string {
+  const separator = directory.includes('\\') ? '\\' : '/'
+  return `${directory.replace(/[\\/]+$/, '')}${separator}${fileName}`
 }

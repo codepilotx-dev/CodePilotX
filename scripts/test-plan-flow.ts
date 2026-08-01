@@ -196,10 +196,10 @@ async function prepareLiveProfile(targetDataDir: string): Promise<void> {
       || join(homedir(), ".codepilotx"),
   )
   const sourceProfile = join(sourceDataDir, "profile.sqlite")
-  const sourceConfig = join(sourceDataDir, "config.toml")
+  const sourceConfig = join(sourceDataDir, "config.json")
   if (!existsSync(sourceProfile) || !existsSync(sourceConfig)) {
     throw new Error(
-      `真实模型测试需要 ${sourceDataDir} 中的 profile.sqlite 和 config.toml`,
+      `真实模型测试需要 ${sourceDataDir} 中的 profile.sqlite 和 config.json`,
     )
   }
 
@@ -216,7 +216,7 @@ async function prepareLiveProfile(targetDataDir: string): Promise<void> {
     database.close()
   }
   await writeFile(
-    join(targetDataDir, "config.toml"),
+    join(targetDataDir, "config.json"),
     await readFile(sourceConfig),
   )
 }

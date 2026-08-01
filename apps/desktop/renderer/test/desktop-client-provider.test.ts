@@ -68,6 +68,59 @@ describe('desktop provider client', () => {
     } as never).apiKeyConfigured).toBe(false)
   })
 
+  test('读取并切换 Provider 凭据仓库时生成幂等操作 ID', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult([
+          'rpc.typed.v1',
+          'provider.auth.pi.v1',
+        ]))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/credential/store/read') {
+        expect(body.params).toEqual({})
+        return rpc(body.id, {
+          store: 'encrypted',
+          portable: false,
+          credentialCount: 2,
+          migrationRequired: true,
+        })
+      }
+      if (body.method === 'provider/credential/store/update') {
+        expect(body.params).toEqual({
+          store: 'auth-json',
+          operationId: expect.any(String),
+        })
+        return rpc(body.id, {
+          store: 'auth-json',
+          portable: true,
+          credentialCount: 2,
+          migrationRequired: false,
+          migratedCredentials: 2,
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+
+    const client = createDesktopClient({ fetch: fetcher })
+    expect(await client.readProviderCredentialStore()).toMatchObject({
+      store: 'encrypted',
+      migrationRequired: true,
+    })
+    expect(await client.updateProviderCredentialStore('auth-json')).toMatchObject({
+      store: 'auth-json',
+      migratedCredentials: 2,
+    })
+    expect(requests.map(request => request.method)).toEqual(expect.arrayContaining([
+      'provider/credential/store/read',
+      'provider/credential/store/update',
+    ]))
+  })
+
   test('分页目录启动只加载 provider 摘要和当前 provider 首页', async () => {
     const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {

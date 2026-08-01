@@ -82,6 +82,7 @@
   },
   "dependencies": {
     "electron-updater": "6.8.9",
+    "jsonc-parser": "3.3.1",
     "smol-toml": "^1.7.0"
   }
 }

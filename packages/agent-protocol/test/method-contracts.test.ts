@@ -418,7 +418,7 @@ const fixtures = {
     layers: [{
       kind: "user",
       displayName: "用户配置",
-      filePath: "C:/Users/example/.codepilotx/config.toml",
+      filePath: "C:/Users/example/.codepilotx/config.json",
       version: "a".repeat(64),
       writable: true,
       trusted: true,
@@ -433,7 +433,7 @@ const fixtures = {
   }, {
     status: "ok",
     version: "b".repeat(64),
-    filePath: "C:/Users/example/.codepilotx/config.toml",
+    filePath: "C:/Users/example/.codepilotx/config.json",
   }),
   "config/batchWrite": methodFixture("config/batchWrite", {
     edits: [
@@ -445,7 +445,7 @@ const fixtures = {
   }, {
     status: "ok-overridden",
     version: "c".repeat(64),
-    filePath: "C:/Users/example/.codepilotx/config.toml",
+    filePath: "C:/Users/example/.codepilotx/config.json",
     overridden: [{ keyPath: ["model"], by: "project" }],
   }),
   "project/trust/read": methodFixture("project/trust/read", {
@@ -462,7 +462,7 @@ const fixtures = {
   }, {
     status: "ok",
     version: "d".repeat(64),
-    filePath: "C:/Users/example/.codepilotx/config.toml",
+    filePath: "C:/Users/example/.codepilotx/config.json",
   }),
   initialize: methodFixture("initialize", {
     clientInfo: { name: "CodePilotX Desktop", version: "0.1.0", platform: "win32", instanceId: "client:1" },
@@ -1230,6 +1230,22 @@ const fixtures = {
     credentialId,
     operationId: "operation:credential-delete",
   }, { credentials: [] }),
+  "provider/credential/store/read": methodFixture("provider/credential/store/read", {}, {
+    store: "auth-json",
+    portable: true,
+    credentialCount: 1,
+    migrationRequired: false,
+  }),
+  "provider/credential/store/update": methodFixture("provider/credential/store/update", {
+    store: "encrypted",
+    operationId: "operation:credential-store",
+  }, {
+    store: "encrypted",
+    portable: false,
+    credentialCount: 1,
+    migrationRequired: false,
+    migratedCredentials: 1,
+  }),
   "provider/apiKey/create": methodFixture("provider/apiKey/create", {
     providerId,
     label: "Fixture API Key",
@@ -1937,7 +1953,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(157)
+    expect(methods).toHaveLength(159)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

@@ -103,6 +103,7 @@ async function startDesktop(): Promise<void> {
     pid: process.pid,
   })
   const appearanceSettings = await readStartupAppearanceConfig(
+    join(dataLocationLaunch.dataDir, "config.json"),
     join(dataLocationLaunch.dataDir, "config.toml"),
     join(app.getPath("userData"), "appearance-settings.json"),
   )

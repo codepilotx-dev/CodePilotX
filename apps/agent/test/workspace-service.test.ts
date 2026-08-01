@@ -100,24 +100,24 @@ describe("WorkspaceService editor files", () => {
     const parent = await mkdtemp(join(tmpdir(), "codepilotx-config-alias-"))
     paths.push(parent)
     const root = join(parent, "project")
-    const userConfig = join(parent, "config.toml")
-    const redirected = join(parent, "redirected.toml")
+    const userConfig = join(parent, "config.json")
+    const redirected = join(parent, "redirected.json")
     await mkdir(root)
-    await writeFile(userConfig, 'model = "gpt-5"\n', "utf8")
-    await writeFile(redirected, 'model = "other"\n', "utf8")
+    await writeFile(userConfig, '{ "model": "gpt-5" }\n', "utf8")
+    await writeFile(redirected, '{ "model": "other" }\n', "utf8")
     const service = await WorkspaceService.open(root)
-    service.grantEditorAlias("@codepilotx/config.toml", userConfig)
+    service.grantEditorAlias("@codepilotx/config.json", userConfig)
 
-    expect(await service.read("@codepilotx/config.toml")).toBe('model = "gpt-5"\n')
-    await expect(service.read("@codepilotx/other.toml")).rejects.toMatchObject({
+    expect(await service.read("@codepilotx/config.json")).toBe('{ "model": "gpt-5" }\n')
+    await expect(service.read("@codepilotx/other.json")).rejects.toMatchObject({
       code: "WORKSPACE_PATH_DENIED",
     })
 
-    const linkedConfig = join(parent, "linked-config.toml")
+    const linkedConfig = join(parent, "linked-config.json")
     await symlink(redirected, linkedConfig, "file")
     const linkedService = await WorkspaceService.open(root)
-    linkedService.grantEditorAlias("@codepilotx/config.toml", linkedConfig)
-    await expect(linkedService.read("@codepilotx/config.toml")).rejects.toMatchObject({
+    linkedService.grantEditorAlias("@codepilotx/config.json", linkedConfig)
+    await expect(linkedService.read("@codepilotx/config.json")).rejects.toMatchObject({
       code: "WORKSPACE_PATH_DENIED",
     })
   })

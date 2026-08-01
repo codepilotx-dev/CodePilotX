@@ -283,7 +283,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
             layers: [{
               kind: 'user' as const,
               displayName: '用户配置',
-              filePath: 'C:/Users/mock/.codepilotx/config.toml',
+              filePath: 'C:/Users/mock/.codepilotx/config.json',
               version: configVersion,
               writable: true,
               trusted: true,
@@ -309,7 +309,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       return {
         status: 'ok',
         version: configVersion,
-        filePath: params.filePath ?? 'C:/Users/mock/.codepilotx/config.toml',
+        filePath: params.filePath ?? 'C:/Users/mock/.codepilotx/config.json',
       }
     },
     readProjectTrust: async cwd => ({
@@ -320,7 +320,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     updateProjectTrust: async params => ({
       status: 'ok',
       version: configVersion,
-      filePath: 'C:/Users/mock/.codepilotx/config.toml',
+      filePath: 'C:/Users/mock/.codepilotx/config.json',
     }),
     getDesktopSettings: async () => settings,
     saveDesktopSettings: async next => {
@@ -523,6 +523,19 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     copyProviderApiKey: async () => {
       throw new Error('安全复制仅在桌面应用中可用。')
     },
+    readProviderCredentialStore: async () => ({
+      store: 'auth-json',
+      portable: true,
+      credentialCount: 1,
+      migrationRequired: false,
+    }),
+    updateProviderCredentialStore: async store => ({
+      store,
+      portable: store === 'auth-json',
+      credentialCount: 1,
+      migrationRequired: false,
+      migratedCredentials: 1,
+    }),
     testModelProvider: async () => ({ ok: true }),
     createProvider: async () => undefined,
     updateProvider: async () => undefined,

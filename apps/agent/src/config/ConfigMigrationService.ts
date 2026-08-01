@@ -280,11 +280,11 @@ export class ConfigMigrationService {
       })
       const verified = await this.config.read()
       if (verified.diagnostics.some((item) => item.severity === "error")) {
-        throw new Error("config.toml migration verification failed")
+        throw new Error("config.json migration verification failed")
       }
     }
     for (const project of legacy.projects) {
-      const projectFile = join(project.rootPath, ".codepilotx", "config.toml")
+      const projectFile = join(project.rootPath, ".codepilotx", "config.json")
       const projectRead = await this.config.read({
         includeLayers: true,
         cwd: project.rootPath,

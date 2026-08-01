@@ -1710,6 +1710,10 @@ export type DesktopApi = {
     providerID: ModelProviderID,
   ): Promise<DesktopModelProviderState>
   listProviderCredentials(providerId?: ModelProviderID): Promise<DesktopProviderCredential[]>
+  readProviderCredentialStore(): Promise<RpcResult<'provider/credential/store/read'>>
+  updateProviderCredentialStore(
+    store: RpcParams<'provider/credential/store/update'>['store'],
+  ): Promise<RpcResult<'provider/credential/store/update'>>
   createApiKey(input: {
     providerId: ModelProviderID
     label: string

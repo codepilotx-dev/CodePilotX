@@ -39,10 +39,10 @@ const configurationScopeSection = (): PromptSection => ({
   authority: "builtin",
   source: { type: "runtime", name: "configuration-scope" },
   content: [
-    "持久配置以 config.toml 为唯一真源。",
-    "用户说“以后、默认、所有项目”时，先 Read，再用 Edit 更新 @codepilotx/config.toml。",
-    "用户说“这个项目”时，先 Read，再用 Edit 更新 .codepilotx/config.toml。",
-    "用户说“当前任务、这次”时只使用当前任务设置，不写 config.toml。",
+    "持久配置以 config.json 为唯一真源；该文件同时接受严格 JSON 与 JSONC。",
+    "用户说“以后、默认、所有项目”时，先 Read，再用 Edit 更新 @codepilotx/config.json。",
+    "用户说“这个项目”时，先 Read，再用 Edit 更新 .codepilotx/config.json。",
+    "用户说“当前任务、这次”时只使用当前任务设置，不写 config.json。",
     "持久作用域不明确时必须先询问用户；配置写入仍需遵守审批策略。",
   ].join("\n"),
 })

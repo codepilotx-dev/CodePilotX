@@ -8,6 +8,8 @@ import { AgentDatabase } from "./storage/database/AgentDatabase";
 import { EventHub } from "./storage/events/EventHub";
 import { publishAgentEvent } from "./storage/events/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
+import { AuthJsonCredentialRepository } from "./auth/AuthJsonCredentialRepository";
+import { ProviderCredentialStoreManager } from "./auth/ProviderCredentialStoreManager";
 import { PiAuthSessionService } from "./auth/PiAuthSessionService";
 import { ToolRegistry } from "./tool/ToolRegistry";
 import { ToolExecutor } from "./tool/ToolExecutor";
@@ -211,6 +213,28 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const credentials = new EncryptedCredentialRepository(db);
     yield* credentials.validateAll();
     yield* credentials.backfillApiKeyMetadata();
+    const providerCredentialStore = new ProviderCredentialStoreManager(
+      db,
+      credentials,
+      new AuthJsonCredentialRepository(join(config.dataDir, "auth.json")),
+      {
+        read: () => {
+          const value = configService.snapshot().provider_credentials
+          if (!value || typeof value !== "object" || Array.isArray(value)) return null
+          const store = (value as Record<string, unknown>).store
+          return store === "auth-json" || store === "encrypted" ? store : null
+        },
+        write: async (store) => {
+          await configService.batchWrite({
+            edits: [{
+              keyPath: ["provider_credentials", "store"],
+              value: store,
+            }],
+          })
+        },
+      },
+    );
+    yield* providerCredentialStore.initialize();
     const github = new GithubService(credentials, {
       getConfiguredClientId: () => config.githubOAuthClientId,
       getBrokerURL: () => config.githubAuthBrokerURL,
@@ -235,7 +259,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       logger,
     );
     const git = new GitWorkspaceService(db);
-    const piModels = new PiModelService(credentials, {
+    const piModels = new PiModelService(providerCredentialStore, {
       ...(options.models ? { models: options.models } : {}),
       modelsStore: new PiModelsFileStore(config.piModelCachePath),
       config: () => {
@@ -258,11 +282,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const providers = new PiModelCatalogAdapter(piModels);
     const apiKeys = new ApiKeyService(
       piModels,
-      credentials,
+      providerCredentialStore,
     );
     const providerCredentials = new ProviderCredentialService(
       piModels,
-      credentials,
+      providerCredentialStore,
     );
     const anthropicUsageModels = builtinModels({
       credentials: new EncryptedCredentialStore(credentials, {
@@ -338,7 +362,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       providers,
       piModels,
       credentials,
-      { subscriptionModels: anthropicUsageModels },
+      {
+        subscriptionModels: anthropicUsageModels,
+        providerCredentials: providerCredentialStore,
+      },
     );
     const mcpOAuthCoordinator = new McpOAuthCoordinator(
       new McpOAuthCredentialRepository(credentials),
@@ -596,6 +623,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       piModels,
       apiKeys,
       providerCredentials,
+      providerCredentialStore,
       authSessions,
       memory,
       hooks,

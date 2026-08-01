@@ -1,8 +1,10 @@
 # Third-Party Notices
 
-CodePilotX includes source adapted from the OpenCode project, version 1.17.13.
-The copied model schema and project directory storage semantics are licensed
-under the MIT License. See `third_party/opencode/LICENSE`.
+CodePilotX includes source adapted from the OpenCode project. The copied model
+schema and project directory storage semantics originated from version
+1.17.13; the JSONC parsing and key-path patching approach was adapted from
+version 1.18.9. These portions are licensed under the MIT License. See
+`third_party/opencode/LICENSE`.
 
 Additional JavaScript dependencies retain the license terms distributed in
 their respective packages.

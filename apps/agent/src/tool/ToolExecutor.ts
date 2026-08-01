@@ -220,7 +220,7 @@ export class ToolExecutor {
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const skipProjectHooks = context.skipHooks || context.taskMode === "plan"
     if (this.options?.userConfigPath) {
-      context.workspace.grantEditorAlias("@codepilotx/config.toml", this.options.userConfigPath)
+      context.workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
     }
     const definition = catalog.get(name)
     const fileSnapshots = this.fileSnapshots(context)
@@ -244,15 +244,15 @@ export class ToolExecutor {
     const relativeToolPath = typeof pathValue === "string" ? pathValue.replaceAll("\\", "/").toLowerCase() : ""
     if (
       typeof pathValue === "string"
-      && pathValue === "@codepilotx/config.toml"
+      && pathValue === "@codepilotx/config.json"
       && this.options?.userConfigPath
     ) {
-      context.workspace.grantEditorAlias("@codepilotx/config.toml", this.options.userConfigPath)
+      context.workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
     }
     const sensitiveEnvironment = /^\.env(?:\..+)?$/.test(relativeToolPath) && !/^\.env\.(?:example|template)$/.test(relativeToolPath)
     const protectedGitWrite = (name === "Write" || name === "Edit") && (relativeToolPath === ".git/config" || relativeToolPath.startsWith(".git/hooks/"))
     const protectedConfigWrite = (name === "Write" || name === "Edit")
-      && (relativeToolPath === ".codepilotx/config.toml" || relativeToolPath === "@codepilotx/config.toml")
+      && (relativeToolPath === ".codepilotx/config.json" || relativeToolPath === "@codepilotx/config.json")
     if (protectedConfigWrite && this.options?.validateConfigDocument) {
       let nextContent = typeof input.content === "string" ? input.content : undefined
       if (name === "Edit") {

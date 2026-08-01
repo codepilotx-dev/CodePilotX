@@ -164,7 +164,7 @@ export function ProviderConnectionDialog({
             {selected?.kind === 'inference-oauth' ? (
               <OAuthConnection
                 connected={false}
-                description="此授权用于模型推理；令牌由 Agent 加密保存。"
+                description="此授权用于模型推理；令牌保存在当前 Provider 凭据仓库。"
                 target={{
                   kind: 'provider',
                   providerId: provider.providerID,

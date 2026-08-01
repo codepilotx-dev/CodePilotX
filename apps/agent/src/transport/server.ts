@@ -17,6 +17,7 @@ import { proxyRendererRequest } from "./RendererProxy"
 import type { AgentLogger } from "../observability/AgentLogger"
 import type { ApiKeyService } from "../provider/ApiKeyService"
 import type { ProviderCredentialService } from "../provider/ProviderCredentialService"
+import type { ProviderCredentialStoreManager } from "../auth/ProviderCredentialStoreManager"
 import type { PiModelService } from "../provider/pi"
 import type { PiAuthSessionService } from "../auth/PiAuthSessionService"
 import type { SubagentService } from "../subagent/SubagentService"
@@ -53,6 +54,7 @@ export interface TransportDependencies {
   piModels: PiModelService
   apiKeys: ApiKeyService
   providerCredentials: ProviderCredentialService
+  providerCredentialStore: ProviderCredentialStoreManager
   authSessions: PiAuthSessionService
   memory: MemoryService
   hooks: HookService
@@ -286,9 +288,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

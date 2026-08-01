@@ -86,7 +86,7 @@ describe("ConfigMigrationService", () => {
       preferences: { nodejs: "system", python: "managed" },
     }), "utf8")
 
-    const config = new ConfigService(join(data, "config.toml"))
+    const config = new ConfigService(join(data, "config.json"))
     await config.initialize()
     await config.writeValue({ keyPath: ["model"], value: "file-wins" })
     const migrate = () => new ConfigMigrationService(
@@ -134,24 +134,32 @@ describe("ConfigMigrationService", () => {
     expect(db.getSetting("desktop.settings.v1")).toBeNull()
     expect(db.getSetting("mcp.settings.v2")).toBeNull()
     expect(db.getSetting("skills.settings.v1")).toBeNull()
+    expect(
+      db.getSetting<{ completed: boolean }>("config.json.migration.v1")?.completed,
+    ).toBe(true)
     expect(db.getSetting<{ generation: number }>("mcp.runtime.v1")?.generation).toBe(4)
     expect(db.getSetting<Record<string, unknown>>("desktop.runtime-state.v1")).toMatchObject({
       recentWorkspaces: [{ path: workspace }],
       sidebarManualOrder: { all: ["session-1"] },
     })
-    expect(await readFile(join(data, "config.toml"), "utf8")).not.toContain(
+    expect(await readFile(join(data, "config.json"), "utf8")).not.toContain(
       "sidebarManualOrder",
     )
     expect(await readFile(
-      join(workspace, ".codepilotx", "config.toml"),
+      join(workspace, ".codepilotx", "config.json"),
       "utf8",
-    )).toContain('model = "project-model"')
+    )).toContain('"model": "project-model"')
     await expect(readFile(appearancePath, "utf8")).rejects.toMatchObject({
       code: "ENOENT",
     })
     await expect(readFile(toolingPath, "utf8")).rejects.toMatchObject({
       code: "ENOENT",
     })
+    db.profileSqlite.query(
+      "DELETE FROM app_settings WHERE key = 'config.json.migration.v1'",
+    ).run()
+    db.setSetting("config.toml.migration.v1", { completed: true })
+    expect(new ConfigMigrationRepository(db).read().completed).toBe(true)
     await config.dispose()
     db.close()
   })

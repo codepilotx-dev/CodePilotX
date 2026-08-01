@@ -1,9 +1,14 @@
 import { createHash, randomUUID } from "node:crypto"
 import { watch, type FSWatcher } from "node:fs"
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
-import { dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path"
-import { parse, stringify, type TomlTable } from "smol-toml"
-import { parseForESLint, type AST } from "toml-eslint-parser"
+import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path"
+import { parse as parseToml, type TomlTable } from "smol-toml"
+import {
+  JsoncDocumentError,
+  parseJsoncObject,
+  patchJsonc,
+  stringifyConfigJson,
+} from "./JsoncDocument"
 
 export type ConfigScope = "user" | "project"
 export type ConfigMergeStrategy = "replace" | "upsert"
@@ -76,10 +81,13 @@ type LoadedFile = {
   text: string
   version: string
   diagnostics: ConfigDiagnostic[]
+  fromLegacy?: boolean
 }
 
 const EMPTY_VERSION = createHash("sha256").update("").digest("hex")
-const PROJECT_CONFIG_PARTS = [".codepilotx", "config.toml"] as const
+const PROJECT_CONFIG_DIRECTORY = ".codepilotx"
+const CONFIG_FILE_NAME = "config.json"
+const LEGACY_CONFIG_FILE_NAME = "config.toml"
 const PROJECT_FORBIDDEN_ROOTS = new Set([
   "model_providers",
   "projects",
@@ -87,6 +95,7 @@ const PROJECT_FORBIDDEN_ROOTS = new Set([
   "logging",
   "data_dir",
   "shell_security_level",
+  "provider_credentials",
 ])
 const ENVIRONMENT_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const STATIC_SECRET_HEADERS = new Set([
@@ -179,144 +188,18 @@ const collectOrigins = (
 const findProjectConfig = async (cwd: string): Promise<string | null> => {
   let cursor = resolve(cwd)
   while (true) {
-    const candidate = join(cursor, ...PROJECT_CONFIG_PARTS)
-    try {
-      if ((await stat(candidate)).isFile()) return candidate
-    } catch {}
+    const configDirectory = join(cursor, PROJECT_CONFIG_DIRECTORY)
+    const candidate = join(configDirectory, CONFIG_FILE_NAME)
+    const legacyCandidate = join(configDirectory, LEGACY_CONFIG_FILE_NAME)
+    for (const existing of [candidate, legacyCandidate]) {
+      try {
+        if ((await stat(existing)).isFile()) return candidate
+      } catch {}
+    }
     const parent = dirname(cursor)
     if (parent === cursor || cursor === parsePath(cursor).root) return null
     cursor = parent
   }
-}
-
-const keyName = (key: AST.TOMLKey) =>
-  key.keys.map((part) => part.type === "TOMLBare" ? part.name : part.value)
-
-const fullKeyPath = (node: AST.TOMLKeyValue): string[] => {
-  const parent = node.parent
-  if (parent.type === "TOMLTable") {
-    return [...parent.resolvedKey.map(String), ...keyName(node.key)]
-  }
-  return keyName(node.key)
-}
-
-const locateKeyValue = (text: string, keyPath: readonly string[]) => {
-  if (!text.trim()) return undefined
-  const ast = parseForESLint(text, { tomlVersion: "1.0" }).ast
-  for (const item of ast.body[0].body) {
-    if (item.type === "TOMLKeyValue" && fullKeyPath(item).join("\0") === keyPath.join("\0")) return item
-    if (item.type === "TOMLTable") {
-      for (const entry of item.body) {
-        if (fullKeyPath(entry).join("\0") === keyPath.join("\0")) return entry
-      }
-    }
-  }
-  return undefined
-}
-
-const locateTables = (text: string, keyPath: readonly string[]) => {
-  if (!text.trim()) return []
-  const ast = parseForESLint(text, { tomlVersion: "1.0" }).ast
-  return ast.body[0].body.filter(
-    (item): item is AST.TOMLTable =>
-      item.type === "TOMLTable"
-      && item.resolvedKey.length >= keyPath.length
-      && keyPath.every((part, index) => String(item.resolvedKey[index]) === part),
-  )
-}
-
-const tomlKey = (key: string) =>
-  /^[A-Za-z0-9_-]+$/.test(key) ? key : JSON.stringify(key)
-
-const serializeValue = (value: Exclude<ConfigValue, null>): string => {
-  if (Array.isArray(value)) {
-    return `[${value.map((child) => {
-      if (child === null) {
-        throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "TOML 数组不支持 null")
-      }
-      return serializeValue(child)
-    }).join(", ")}]`
-  }
-  if (isObject(value)) {
-    const pairs = Object.entries(value).map(([key, child]) => {
-      if (child === null || isObject(child)) {
-        throw new ConfigServiceError(
-          "CONFIG_VALIDATION_ERROR",
-          "对象配置必须通过叶子 key path 写入",
-        )
-      }
-      return `${tomlKey(key)} = ${serializeValue(child as Exclude<ConfigValue, null>)}`
-    })
-    return `{ ${pairs.join(", ")} }`
-  }
-  const rendered = stringify({ value: value as never }).trim()
-  const equals = rendered.indexOf("=")
-  if (equals < 0) throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "无法序列化配置值")
-  return rendered.slice(equals + 1).trim()
-}
-
-const lineRange = (text: string, range: readonly [number, number]) => {
-  const start = text.lastIndexOf("\n", Math.max(0, range[0] - 1)) + 1
-  const next = text.indexOf("\n", range[1])
-  return [start, next < 0 ? text.length : next + 1] as const
-}
-
-const editToml = (source: string, edit: ConfigEdit): string => {
-  if (edit.keyPath.length === 0 || edit.keyPath.some((part) => !part.trim())) {
-    throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "配置 key path 无效")
-  }
-  const existing = locateKeyValue(source, edit.keyPath)
-  if (existing) {
-    if (edit.value === null) {
-      const [start, end] = lineRange(source, existing.range)
-      return source.slice(0, start) + source.slice(end)
-    }
-    const replacement = serializeValue(edit.value)
-    return source.slice(0, existing.value.range[0]) + replacement + source.slice(existing.value.range[1])
-  }
-  if (edit.value === null) {
-    return locateTables(source, edit.keyPath)
-      .sort((left, right) => right.range[0] - left.range[0])
-      .reduce((text, table) => {
-        const [start, end] = lineRange(text, table.range)
-        return text.slice(0, start) + text.slice(end)
-      }, source)
-  }
-
-  const tablePath = edit.keyPath.slice(0, -1)
-  const leaf = edit.keyPath.at(-1)!
-  const line = `${tomlKey(leaf)} = ${serializeValue(edit.value)}\n`
-  if (tablePath.length === 0) {
-    const ast = source.trim() ? parseForESLint(source, { tomlVersion: "1.0" }).ast : null
-    const firstTable = ast?.body[0].body.find((item) => item.type === "TOMLTable")
-    const insertion = firstTable?.range[0] ?? source.length
-    const prefix = insertion > 0 && !source.slice(0, insertion).endsWith("\n") ? "\n" : ""
-    return source.slice(0, insertion) + prefix + line + source.slice(insertion)
-  }
-
-  const ast = source.trim() ? parseForESLint(source, { tomlVersion: "1.0" }).ast : null
-  const table = ast?.body[0].body.find(
-    (item): item is AST.TOMLTable =>
-      item.type === "TOMLTable"
-      && item.kind === "standard"
-      && item.resolvedKey.map(String).join("\0") === tablePath.join("\0"),
-  )
-  if (table) {
-    const insertion = table.body.at(-1)?.range[1] ?? table.range[1]
-    const nextNewline = source.indexOf("\n", insertion)
-    const at = nextNewline < 0 ? source.length : nextNewline + 1
-    const prefix = at > 0 && !source.slice(0, at).endsWith("\n") ? "\n" : ""
-    return source.slice(0, at) + prefix + line + source.slice(at)
-  }
-
-  const prefix = source.length === 0
-    ? ""
-    : source.endsWith("\n\n")
-      ? ""
-      : source.endsWith("\n")
-        ? "\n"
-        : "\n\n"
-  return `${source}${prefix}[${tablePath.map(tomlKey).join(".")}]\n${line}`
 }
 
 const validateConfig = (config: ConfigObject, scope: ConfigScope) => {
@@ -348,6 +231,23 @@ const validateConfig = (config: ConfigObject, scope: ConfigScope) => {
     }
   }
   visit(config)
+  const providerCredentials = config.provider_credentials
+  if (
+    providerCredentials !== undefined
+    && (
+      !isObject(providerCredentials)
+      || (
+        providerCredentials.store !== undefined
+        && providerCredentials.store !== "auth-json"
+        && providerCredentials.store !== "encrypted"
+      )
+    )
+  ) {
+    throw new ConfigServiceError(
+      "CONFIG_VALIDATION_ERROR",
+      "配置 provider_credentials.store 仅支持 auth-json 或 encrypted",
+    )
+  }
   if (scope === "project") {
     for (const root of Object.keys(config)) {
       if (PROJECT_FORBIDDEN_ROOTS.has(root) || root === "desktop") {
@@ -366,25 +266,117 @@ const readConfigFile = async (
   previous?: LoadedFile,
 ): Promise<LoadedFile> => {
   let text = ""
+  let missing = false
   try {
     text = await readFile(filePath, "utf8")
   } catch (cause) {
     if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause
+    missing = true
+  }
+  if (missing && previous?.fromLegacy) {
+    return previous
   }
   try {
-    const config = asConfigObject(parse(text))
+    const config = parseJsoncObject(text)
     validateConfig(config, scope)
     return { config, text, version: sha256(text), diagnostics: [] }
-  } catch {
+  } catch (cause) {
     const diagnostic: ConfigDiagnostic = {
       severity: "error",
       code: "CONFIG_VALIDATION_ERROR",
-      message: `${scope === "user" ? "用户" : "项目"} config.toml 无效；继续使用上次有效配置`,
+      message: `${scope === "user" ? "用户" : "项目"} config.json 无效；继续使用上次有效配置${
+        cause instanceof JsoncDocumentError ? `：${cause.message}` : ""
+      }`,
       scope,
     }
     return previous
-      ? { ...previous, text, version: sha256(text), diagnostics: [diagnostic] }
+      ? {
+          ...previous,
+          text,
+          version: sha256(text),
+          diagnostics: [diagnostic],
+          fromLegacy: false,
+        }
       : { config: {}, text, version: sha256(text), diagnostics: [diagnostic] }
+  }
+}
+
+const fileExists = async (filePath: string) => {
+  try {
+    return (await stat(filePath)).isFile()
+  } catch (cause) {
+    if ((cause as NodeJS.ErrnoException).code === "ENOENT") return false
+    throw cause
+  }
+}
+
+const legacyConfigPath = (filePath: string) =>
+  join(dirname(filePath), LEGACY_CONFIG_FILE_NAME)
+
+const writeConfigAtomically = async (filePath: string, text: string) => {
+  await mkdir(dirname(filePath), { recursive: true })
+  const temporary = join(dirname(filePath), `.${randomUUID()}.config.tmp`)
+  try {
+    await writeFile(temporary, text, "utf8")
+    await rename(temporary, filePath)
+  } finally {
+    await rm(temporary, { force: true }).catch(() => undefined)
+  }
+}
+
+const migrateLegacyToml = async (
+  filePath: string,
+  scope: ConfigScope,
+): Promise<LoadedFile | undefined> => {
+  if (await fileExists(filePath)) return undefined
+  const legacyPath = legacyConfigPath(filePath)
+  if (!await fileExists(legacyPath)) return undefined
+
+  let config: ConfigObject
+  let text: string
+  try {
+    const legacyText = await readFile(legacyPath, "utf8")
+    config = asConfigObject(parseToml(legacyText))
+    text = stringifyConfigJson(config)
+    config = parseJsoncObject(text)
+    validateConfig(config, scope)
+  } catch {
+    return {
+      config: {},
+      text: "{}\n",
+      version: EMPTY_VERSION,
+      fromLegacy: true,
+      diagnostics: [{
+        severity: "error",
+        code: "CONFIG_VALIDATION_ERROR",
+        message: `${scope === "user" ? "用户" : "项目"} config.toml 无效；未生成 config.json`,
+        scope,
+      }],
+    }
+  }
+
+  try {
+    if (await fileExists(filePath)) return undefined
+    await writeConfigAtomically(filePath, text)
+    const verified = await readConfigFile(filePath, scope)
+    if (verified.diagnostics.some((item) => item.severity === "error")) {
+      await rm(filePath, { force: true })
+      throw new Error("config.json migration verification failed")
+    }
+    return verified
+  } catch {
+    return {
+      config,
+      text,
+      version: EMPTY_VERSION,
+      fromLegacy: true,
+      diagnostics: [{
+        severity: "warning",
+        code: "CONFIG_MIGRATION_DEFERRED",
+        message: `${scope === "user" ? "用户" : "项目"} config.toml 暂未迁移；当前继续使用旧配置`,
+        scope,
+      }],
+    }
   }
 }
 
@@ -421,12 +413,15 @@ export class ConfigService {
 
   async initialize() {
     await mkdir(dirname(this.userConfigPath), { recursive: true })
-    try {
-      await stat(this.userConfigPath)
-    } catch {
-      await writeFile(this.userConfigPath, "", { encoding: "utf8", flag: "wx" }).catch(() => undefined)
+    const migrated = await migrateLegacyToml(this.userConfigPath, "user")
+    if (!migrated && !await fileExists(this.userConfigPath)) {
+      await writeFile(this.userConfigPath, "{}\n", {
+        encoding: "utf8",
+        flag: "wx",
+      }).catch(() => undefined)
     }
-    this.user = await readConfigFile(this.userConfigPath, "user")
+    this.user = migrated
+      ?? await readConfigFile(this.userConfigPath, "user")
     this.watchFile(this.userConfigPath, "user")
   }
 
@@ -476,10 +471,15 @@ export class ConfigService {
 
   validateDocument(text: string, scope: ConfigScope) {
     try {
-      validateConfig(asConfigObject(parse(text)), scope)
+      validateConfig(parseJsoncObject(text), scope)
     } catch (cause) {
       if (cause instanceof ConfigServiceError) throw cause
-      throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "config.toml 语法无效")
+      throw new ConfigServiceError(
+        "CONFIG_VALIDATION_ERROR",
+        cause instanceof JsoncDocumentError
+          ? cause.message
+          : "config.json 语法无效",
+      )
     }
   }
 
@@ -497,7 +497,7 @@ export class ConfigService {
     if (this.watchers.has(filePath)) return
     try {
       const watcher = watch(directory, (_event, fileName) => {
-        if (fileName?.toString() !== filePath.slice(directory.length + 1)) return
+        if (fileName?.toString() !== basename(filePath)) return
         const oldTimer = this.refreshTimers.get(filePath)
         if (oldTimer) clearTimeout(oldTimer)
         this.refreshTimers.set(filePath, setTimeout(() => {
@@ -534,7 +534,11 @@ export class ConfigService {
       && isObject((userConfig.projects as ConfigObject)[resolve(projectRoot)])
       && ((userConfig.projects as ConfigObject)[resolve(projectRoot)] as ConfigObject).trust_level === "trusted"
     const previous = this.projects.get(filePath)
-    const loaded = await readConfigFile(filePath, "project", previous)
+    const migrated = trusted
+      ? await migrateLegacyToml(filePath, "project")
+      : undefined
+    const loaded = migrated
+      ?? await readConfigFile(filePath, "project", previous)
     this.projects.set(filePath, loaded)
     this.watchFile(filePath, "project")
     return { filePath, projectRoot, trusted, loaded }
@@ -558,7 +562,7 @@ export class ConfigService {
         diagnostics.push({
           severity: "warning",
           code: "CONFIG_PROJECT_UNTRUSTED",
-          message: "项目 config.toml 尚未信任，当前已忽略",
+          message: "项目 config.json 尚未信任，当前已忽略",
           scope: "project",
         })
       }
@@ -611,7 +615,7 @@ export class ConfigService {
     if (
       !project
       && cwd
-      && resolve(filePath) === resolve(cwd, ".codepilotx", "config.toml")
+      && resolve(filePath) === resolve(cwd, PROJECT_CONFIG_DIRECTORY, CONFIG_FILE_NAME)
     ) {
       const projectRoot = resolve(cwd)
       const projects = isObject(this.user?.config.projects)
@@ -657,29 +661,27 @@ export class ConfigService {
       target.scope === "user" ? this.user : this.projects.get(target.filePath),
     )
     if (input.expectedVersion && input.expectedVersion !== previous.version) {
-      throw new ConfigServiceError("CONFIG_VERSION_CONFLICT", "config.toml 已被其他编辑更新")
+      throw new ConfigServiceError("CONFIG_VERSION_CONFLICT", "config.json 已被其他编辑更新")
     }
     if (previous.diagnostics.some((item) => item.severity === "error")) {
-      throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "请先修复 config.toml 语法错误")
+      throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "请先修复 config.json 语法错误")
     }
-    let text = previous.text
-    for (const edit of input.edits) text = editToml(text, edit)
+    let text: string
     let parsed: ConfigObject
     try {
-      parsed = asConfigObject(parse(text))
+      text = patchJsonc(previous.text, input.edits)
+      parsed = parseJsoncObject(text)
       validateConfig(parsed, target.scope)
     } catch (cause) {
       if (cause instanceof ConfigServiceError) throw cause
-      throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "配置修改产生了无效 TOML")
+      throw new ConfigServiceError(
+        "CONFIG_VALIDATION_ERROR",
+        cause instanceof JsoncDocumentError
+          ? cause.message
+          : "配置修改产生了无效 JSONC",
+      )
     }
-    await mkdir(dirname(target.filePath), { recursive: true })
-    const temporary = join(dirname(target.filePath), `.${randomUUID()}.config.tmp`)
-    try {
-      await writeFile(temporary, text, "utf8")
-      await rename(temporary, target.filePath)
-    } finally {
-      await rm(temporary, { force: true }).catch(() => undefined)
-    }
+    await writeConfigAtomically(target.filePath, text)
     const loaded = await this.refreshFile(
       target.filePath,
       target.scope,
@@ -749,8 +751,20 @@ export class ConfigService {
       ["migration", "unresolved_mcp", hash],
     )
     if (!isObject(servers)) return false
-    const projectFile = join(projectRoot, ...PROJECT_CONFIG_PARTS)
-    const previous = await readConfigFile(
+    const projects = isObject(this.user?.config.projects)
+      ? this.user.config.projects as ConfigObject
+      : {}
+    const trust = isObject(projects[projectRoot])
+      ? (projects[projectRoot] as ConfigObject).trust_level
+      : undefined
+    if (trust !== "trusted") return false
+    const projectFile = join(
+      projectRoot,
+      PROJECT_CONFIG_DIRECTORY,
+      CONFIG_FILE_NAME,
+    )
+    const migrated = await migrateLegacyToml(projectFile, "project")
+    const previous = migrated ?? await readConfigFile(
       projectFile,
       "project",
       this.projects.get(projectFile),
@@ -801,20 +815,28 @@ export class ConfigService {
   async trustUpdate(cwd: string, trustLevel: "trusted" | "untrusted", expectedVersion?: string) {
     const project = await this.projectLayer(cwd)
     const projectRoot = resolve(project?.projectRoot ?? cwd)
-    return this.writeValue({
+    const result = await this.writeValue({
       keyPath: ["projects", projectRoot, "trust_level"],
       value: trustLevel,
       ...(expectedVersion ? { expectedVersion } : {}),
     })
+    if (trustLevel === "trusted" && project) {
+      await this.projectLayer(cwd)
+    }
+    return result
   }
 
   async notifyFileSaved(workspaceRoot: string, filePath: string) {
-    if (filePath === "@codepilotx/config.toml") {
+    if (filePath === "@codepilotx/config.json") {
       await this.refreshFile(this.userConfigPath, "user", [])
       return
     }
-    if (filePath.replaceAll("\\", "/").toLowerCase() !== ".codepilotx/config.toml") return
-    const target = resolve(workspaceRoot, ".codepilotx", "config.toml")
+    if (filePath.replaceAll("\\", "/").toLowerCase() !== ".codepilotx/config.json") return
+    const target = resolve(
+      workspaceRoot,
+      PROJECT_CONFIG_DIRECTORY,
+      CONFIG_FILE_NAME,
+    )
     await this.refreshFile(target, "project", [])
   }
 

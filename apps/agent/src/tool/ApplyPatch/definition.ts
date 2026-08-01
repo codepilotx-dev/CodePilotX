@@ -130,8 +130,8 @@ const protectedPath = (
   inspection: WorkspaceMutationPathInspection,
 ) => {
   const ownerPath = relativeOwnerPath(context, inspection.canonicalPath)
-  const userConfig = inspection.path === "@codepilotx/config.toml"
-  const projectConfig = ownerPath === ".codepilotx/config.toml"
+  const userConfig = inspection.path === "@codepilotx/config.json"
+  const projectConfig = ownerPath === ".codepilotx/config.json"
   return {
     requiresApproval:
       isSensitiveEnvironmentPath(ownerPath)

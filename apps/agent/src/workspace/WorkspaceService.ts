@@ -246,7 +246,7 @@ export class WorkspaceService {
     return resolved
   }
 
-  grantEditorAlias(alias: "@codepilotx/config.toml", targetPath: string) {
+  grantEditorAlias(alias: "@codepilotx/config.json", targetPath: string) {
     if (!isAbsolute(targetPath)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
     this.editorAliases.set(alias, resolve(targetPath))
   }
@@ -329,7 +329,7 @@ export class WorkspaceService {
   private async createPath(path: string) {
     const requested = this.requestedPath(path)
     const alias = this.aliasTarget(path)
-    if (!alias && path.replaceAll("\\", "/").toLowerCase() === ".codepilotx/config.toml") {
+    if (!alias && path.replaceAll("\\", "/").toLowerCase() === ".codepilotx/config.json") {
       await mkdir(dirname(requested), { recursive: true })
     }
     const parent = await realpath(dirname(requested)).catch(() => {

@@ -141,7 +141,7 @@ describe("event manifest invariants", () => {
     }
     expect(decode(payload)).toEqual(payload)
     for (const forbidden of [
-      { filePath: "C:/Users/example/.codepilotx/config.toml" },
+      { filePath: "C:/Users/example/.codepilotx/config.json" },
       { config: { apiKey: "secret" } },
       { value: "secret" },
       { token: "secret" },

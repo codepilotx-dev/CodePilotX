@@ -31,6 +31,8 @@ const providerMethods = [
   "provider/credential/setActive",
   "provider/credential/setEnabled",
   "provider/credential/delete",
+  "provider/credential/store/read",
+  "provider/credential/store/update",
   "provider/apiKey/create",
   "provider/apiKey/update",
   "provider/apiKey/reorder",
@@ -69,6 +71,7 @@ export const providerHandlers = {
       piModels,
       apiKeys,
       providerCredentials,
+      providerCredentialStore,
       authSessions,
     } = runtime.dependencies
     const params = optionalRecord(rawParams)
@@ -321,6 +324,24 @@ export const providerHandlers = {
         if (before) await emitCredentialUpdated(runtime, String(before.providerId))
         await runtime.publishCatalogUpdated()
         return { credentials }
+      }
+      case "provider/credential/store/read":
+        return providerCredentialStore.status()
+      case "provider/credential/store/update": {
+        const store = stringParam(params, "store")
+        if (store !== "auth-json" && store !== "encrypted") {
+          throw new AgentError("INVALID_REQUEST", "Provider 凭据仓库类型无效", 400)
+        }
+        const result = await providerCredentialStore.updateStore(
+          store,
+          stringParam(params, "operationId"),
+        )
+        await providers.reload()
+        for (const provider of await providers.list()) {
+          await emitCredentialUpdated(runtime, String(provider.id))
+        }
+        await runtime.publishCatalogUpdated()
+        return result
       }
       case "provider/apiKey/create": {
         const providerID = stringParam(params, "providerId")

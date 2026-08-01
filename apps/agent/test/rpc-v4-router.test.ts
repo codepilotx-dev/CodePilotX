@@ -96,7 +96,7 @@ const fixture = async (
         return {
           status: "ok",
           version: "a".repeat(64),
-          filePath: join(root, "config.toml"),
+          filePath: join(root, "config.json"),
         }
       },
     },
