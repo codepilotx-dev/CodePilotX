@@ -35,6 +35,11 @@ const MANIFESTS = [
 
 const LOCKFILE = "bun.lock";
 const CHANGELOG = "CHANGELOG.md";
+const LOCK_WS_MAP: Record<string, string> = {
+  "apps/agent/package.json": "apps/agent",
+  "apps/desktop/electron/package.json": "apps/desktop/electron",
+  "apps/desktop/renderer/package.json": "apps/desktop/renderer",
+};
 const RELEASE_PR_ALLOWED_FILES = new Set<string>([
   CHANGELOG,
   ...MANIFESTS,
@@ -277,14 +282,9 @@ function runCheck(opts: CheckOptions) {
   // 3. 检查 lockfile — 使用正则解析，因为 bun.lock 含尾逗号
   const lockRaw = readFile(LOCKFILE);
   const lockVersions = parseLockVersions(lockRaw);
-  const lockWsMap: Record<string, string> = {
-    "apps/agent/package.json": "apps/agent",
-    "apps/desktop/electron/package.json": "apps/desktop/electron",
-    "apps/desktop/renderer/package.json": "apps/desktop/renderer",
-  };
   for (const mf of MANIFESTS.slice(1)) {
     const pkg = readJson(mf);
-    const wsKey = lockWsMap[mf];
+    const wsKey = LOCK_WS_MAP[mf];
     if (!wsKey) continue;
     const lockVersion = lockVersions[wsKey];
     if (lockVersion === undefined) {
@@ -482,14 +482,9 @@ function runPrepare(newVersion: string, stable: boolean) {
     });
     // bun 不会把 workspace 版本变更写回 lockfile，这里按 parseLockVersions
     // 的同款格式把三个 workspace 条目的版本对齐到新版本
-    const lockWsMap: Record<string, string> = {
-      "apps/agent/package.json": "apps/agent",
-      "apps/desktop/electron/package.json": "apps/desktop/electron",
-      "apps/desktop/renderer/package.json": "apps/desktop/renderer",
-    };
     let lockRaw = readFile(LOCKFILE);
     for (const mf of MANIFESTS.slice(1)) {
-      const wsKey = lockWsMap[mf];
+      const wsKey = LOCK_WS_MAP[mf];
       if (!wsKey) continue;
       const pkg = readJson(mf);
       const entryRe = new RegExp(
