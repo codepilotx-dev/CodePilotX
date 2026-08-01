@@ -30,7 +30,7 @@
 
 ### Fixed
 
-- [release] 升版流程刷新 lockfile 时改用非冻结的 `bun install`，确保 workspace 版本变更同步写入 bun.lock，修复自动 Release PR 的版本一致性检查失败
+- [release] 修复自动 Release PR 的版本一致性检查失败：升版刷新 lockfile 改用非冻结的 `bun install`，并按其既有格式同步三个 workspace 条目的版本号（bun 不会把 workspace 版本变更写回 bun.lock）
 - [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
 - [desktop/renderer/test] 更新 Settings 综合视觉用例对统一动作按钮契约的断言，避免继续校验已移除的旧无边框样式。
 - [desktop/renderer] 修复紧凑交互行悬停色被错误映射为主表面背景的问题，还原 Codex 的透明叠加层级，并让侧栏、Composer 与会话摘要获得清晰一致的 hover 反馈。
