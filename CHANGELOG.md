@@ -16,9 +16,11 @@
 - [Agent/renderer] 新增可选的明文 `auth.json` Provider 凭据仓库与本机加密仓库切换流程，迁移会先验证目标再清理源，并明确提示便携性与明文风险
 - [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
 - [governance] 采用 Apache License 2.0，并新增贡献指南、行为准则、安全披露策略、CODEOWNERS、Issue/PR 模板与 Dependabot 配置，明确公开协作和依赖维护边界
+- [renderer] 新增可持久化的侧栏优先级聚焦视图，集中展示需关注任务并按最近一周自然日整理其余任务
 
 ### Changed
 
+- [Agent/renderer] 将会话工具行的展开指示器移至摘要内容后方，并支持按文件展开单次编辑产生的逐行 Diff，旧记录缺少完整证据时保持不可展开
 - [desktop/renderer] 将侧栏产品模式菜单扩展为 Coding、Working、Chat 三个可持久化占位入口，并补充 Codex 风格的两行功能说明
 - [renderer] 按 Codex 的信息层级重组配置来源、智能体默认设置和诊断区域，统一下拉框摆放并消除重复审批名称
 - [desktop/renderer] 桌面端导入或重开项目时自动信任项目配置来源，并移除仅适用于 CLI 的手动信任状态入口
@@ -46,6 +48,7 @@
 
 ### Fixed
 
+- [renderer] 修复新对话首条消息在路由切换间隙复用已消费 inputId 的问题，避免后续新任务提示“inputId 已被其他请求使用”。
 - [renderer] 修复 Composer 胶囊未按当前对话接入真实 Git Diff 统计，并移除单条命令的冗余命令组展示
 - [Agent/renderer] 修复开发态首次进入会话时 Vite 瞬时 504 被懒加载缓存为持续错误的问题，增加代理有限重试与单次自动重载兜底
 - [desktop] 修复 Electron 主进程打包 JSONC 解析器时遗留相对 require、导致开发启动无法加载 `./impl/format` 的问题
@@ -82,6 +85,7 @@
 - [agent] 数据迁移临时库使用 DELETE journal 并延长文件锁重试窗口，避免 Bun 在 Windows 上残留 WAL 句柄导致原子发布误失败。
 - [agent] 数据迁移失败后的临时库清理不再覆盖原始校验错误，残留临时文件会在下次启动前继续清理，避免 Windows 文件锁改变故障语义。
 - [renderer] 修复任务侧栏长标题硬截断和动作区固定占位问题，溢出标题改为渐隐并在悬停时滚动展示完整内容
+- [renderer] 修复 Composer 执行计划弹层被按胶囊内容收缩的定位包含块挤压到约 220px 的问题，改为相对完整摘要区域内容自适应居中（最小约 480px、最大 760px，不足时继续缩小）且不产生横向溢出，并保持胶囊尺寸与悬停/焦点关闭等现有行为不变
 
 ### Removed
 
