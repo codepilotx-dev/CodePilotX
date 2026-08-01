@@ -861,7 +861,7 @@ export type DesktopPetSettings = {
   notifyFailure: boolean
 }
 
-export type SidebarProductMode = 'coding' | 'working'
+export type SidebarProductMode = 'coding' | 'working' | 'chat'
 export type SidebarSectionId = 'pinned' | 'projects' | 'recent'
 export type DesktopShellSecurityLevel = 'strict' | 'balanced' | 'relaxed'
 

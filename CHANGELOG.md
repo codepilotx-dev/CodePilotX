@@ -18,6 +18,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将侧栏产品模式菜单扩展为 Coding、Working、Chat 三个可持久化占位入口，并补充 Codex 风格的两行功能说明
 - [renderer] 按 Codex 的信息层级重组配置来源、智能体默认设置和诊断区域，统一下拉框摆放并消除重复审批名称
 - [desktop/renderer] 桌面端导入或重开项目时自动信任项目配置来源，并移除仅适用于 CLI 的手动信任状态入口
 - [renderer] 统一移除共享交互行的文字装饰，避免链接型菜单项显示下划线

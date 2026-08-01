@@ -94,9 +94,28 @@ type Props = {
   showProjects: boolean;
 };
 
-const PRODUCT_MODE_LABELS: Record<SidebarProductMode, string> = {
-  coding: 'Coding',
-  working: 'Working',
+export const SIDEBAR_PRODUCT_MODE_ORDER: readonly SidebarProductMode[] = [
+  'coding',
+  'working',
+  'chat',
+]
+
+export const SIDEBAR_PRODUCT_MODE_META: Record<
+  SidebarProductMode,
+  { label: string; description: string }
+> = {
+  coding: {
+    label: 'Coding',
+    description: '构建、调试并发布',
+  },
+  working: {
+    label: 'Working',
+    description: '写作、分析和协作',
+  },
+  chat: {
+    label: 'Chat',
+    description: '创建、学习和探索',
+  },
 }
 
 export function SidebarHeader({
@@ -109,22 +128,24 @@ export function SidebarHeader({
     sidebarProductMode,
     setSidebarProductMode,
   } = useDesktopSettings()
+  const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
 
   return (
     <header className="sidebar-header">
       <PopoverMenu
         align="start"
-        className="popover-menu--flex"
+        className="popover-menu--flex sidebar-product-mode-menu"
+        maxWidth="calc(100vw - 24px)"
         open={modeMenuOpen}
         side="bottom"
-        width={180}
+        width={248}
         trigger={
           <button
-            aria-label={`切换工作模式，当前为 ${PRODUCT_MODE_LABELS[sidebarProductMode]}`}
+            aria-label={`切换工作模式，当前为 ${activeMode.label}`}
             className="sidebar-product-mode-trigger"
             type="button"
           >
-            <span>{PRODUCT_MODE_LABELS[sidebarProductMode]}</span>
+            <span>{activeMode.label}</span>
             <ChevronDown aria-hidden="true" size={14} />
           </button>
         }
@@ -136,8 +157,21 @@ export function SidebarHeader({
             setSidebarProductMode(value as typeof sidebarProductMode)
           }
         >
-          <PopoverRadioItem value="coding">Coding</PopoverRadioItem>
-          <PopoverRadioItem value="working">Working</PopoverRadioItem>
+          {SIDEBAR_PRODUCT_MODE_ORDER.map(value => {
+            const option = SIDEBAR_PRODUCT_MODE_META[value]
+            return (
+              <PopoverRadioItem key={value} value={value}>
+                <span className="sidebar-product-mode-option">
+                  <span className="sidebar-product-mode-option__label">
+                    {option.label}
+                  </span>
+                  <span className="sidebar-product-mode-option__description">
+                    {option.description}
+                  </span>
+                </span>
+              </PopoverRadioItem>
+            )
+          })}
         </PopoverRadioGroup>
       </PopoverMenu>
       <IconButton

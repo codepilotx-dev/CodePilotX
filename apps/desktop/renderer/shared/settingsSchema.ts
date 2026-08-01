@@ -524,7 +524,7 @@ export function createSidebarStateResetPatch(
 }
 
 function isSidebarProductMode(value: unknown): value is SidebarProductMode {
-  return value === 'coding' || value === 'working'
+  return value === 'coding' || value === 'working' || value === 'chat'
 }
 
 function normalizePetSettings(

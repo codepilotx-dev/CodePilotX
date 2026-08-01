@@ -43,6 +43,8 @@ import {
 import { sortSessionsForSidebar } from '../src/features/session/state/sessionSorting.js'
 import {
   getSidebarTopNavItems,
+  SIDEBAR_PRODUCT_MODE_META,
+  SIDEBAR_PRODUCT_MODE_ORDER,
   TOP_NAV_ITEMS,
 } from '../src/features/layout/sidebar/SidebarTopNav.js'
 import {
@@ -51,6 +53,19 @@ import {
 } from '../src/features/settings/settingsRegistry.js'
 
 describe('Codex 侧栏导航', () => {
+  test('产品模式按约定顺序展示名称和说明', () => {
+    expect(
+      SIDEBAR_PRODUCT_MODE_ORDER.map(value => ({
+        value,
+        ...SIDEBAR_PRODUCT_MODE_META[value],
+      })),
+    ).toEqual([
+      { value: 'coding', label: 'Coding', description: '构建、调试并发布' },
+      { value: 'working', label: 'Working', description: '写作、分析和协作' },
+      { value: 'chat', label: 'Chat', description: '创建、学习和探索' },
+    ])
+  })
+
   test('按产品入口优先顺序展示且搜索只保留在侧栏头部', () => {
     expect(TOP_NAV_ITEMS.map(item => ({ view: item.view, label: item.label, path: item.path }))).toEqual([
       { view: 'new', label: '新建任务', path: '/new' },

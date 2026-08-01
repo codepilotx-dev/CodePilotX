@@ -181,13 +181,15 @@ describe("侧边栏设置归一化", () => {
   })
 
   test("保留合法的产品模式并回退非法值", () => {
-    expect(normalizeDesktopStoredSettings({
-      sidebarProductMode: "working",
-      sidebarStateVersion: SIDEBAR_STATE_VERSION,
-    })).toMatchObject({
-      sidebarProductMode: "working",
-      sidebarStateVersion: SIDEBAR_STATE_VERSION,
-    })
+    for (const sidebarProductMode of ["coding", "working", "chat"] as const) {
+      expect(normalizeDesktopStoredSettings({
+        sidebarProductMode,
+        sidebarStateVersion: SIDEBAR_STATE_VERSION,
+      })).toMatchObject({
+        sidebarProductMode,
+        sidebarStateVersion: SIDEBAR_STATE_VERSION,
+      })
+    }
     expect(normalizeDesktopStoredSettings({
       sidebarProductMode: "invalid",
     }).sidebarProductMode).toBe("coding")
@@ -196,7 +198,7 @@ describe("侧边栏设置归一化", () => {
   test("一次性重置只替换侧边栏状态并保留工作空间和其他设置", () => {
     const settings = normalizeDesktopStoredSettings({
       model: "keep-model",
-      sidebarProductMode: "working",
+      sidebarProductMode: "chat",
       recentWorkspaces: [{
         path: "F:\\CodeProject\\CodePilotX",
         name: "CodePilotX",
@@ -215,7 +217,7 @@ describe("侧边栏设置归一化", () => {
     const reset = { ...settings, ...createSidebarStateResetPatch(settings) }
     expect(reset).toMatchObject({
       model: "keep-model",
-      sidebarProductMode: "working",
+      sidebarProductMode: "chat",
       sidebarStateVersion: SIDEBAR_STATE_VERSION,
       sidebarOrganization: "projects",
       sidebarProjectSort: "priority",
