@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises"
-import { parse as parseJsonc } from "jsonc-parser"
+import { parse as parseJsonc } from "jsonc-parser/lib/esm/main.js"
 import { parse } from "smol-toml"
 import {
   DEFAULT_APPEARANCE_SETTINGS,

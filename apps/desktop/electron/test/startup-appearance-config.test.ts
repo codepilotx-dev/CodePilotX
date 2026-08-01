@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { tmpdir } from "node:os"
 import {
   DEFAULT_APPEARANCE_SETTINGS,
@@ -15,6 +15,21 @@ afterEach(async () => {
 })
 
 describe("startup appearance config", () => {
+  test("Electron bundle 不保留 jsonc-parser 的未解析相对 require", async () => {
+    const result = await Bun.build({
+      entrypoints: [resolve(
+        import.meta.dir,
+        "../src/settings/startup-appearance-config.ts",
+      )],
+      format: "esm",
+      target: "node",
+    })
+    expect(result.success).toBe(true)
+    expect(result.outputs).toHaveLength(1)
+    const bundled = await result.outputs[0]!.text()
+    expect(bundled).not.toContain('require2("./impl/format")')
+  })
+
   test("优先读取支持注释和尾逗号的 config.json", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-startup-theme-"))
     roots.push(root)
