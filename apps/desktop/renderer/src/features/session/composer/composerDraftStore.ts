@@ -9,6 +9,11 @@ import { createComposerDocument } from './composerTypes.js'
 
 type CreateClientId = () => string
 
+type ComposerDraftHandoff = {
+  submitted: ComposerDraft
+  replacement: ComposerDraft
+}
+
 export class ComposerDraftStore {
   readonly #drafts = new Map<ComposerDraftKey, ComposerDraft>()
   readonly #submitOutcomes = new Map<ComposerDraftKey, ComposerSubmitOutcome>()
@@ -57,13 +62,20 @@ export class ComposerDraftStore {
     return next
   }
 
-  /** Move a HOME draft to its newly-created session without changing its id. */
-  move(from: ComposerDraftKey, to: ComposerDraftKey): ComposerDraft | undefined {
-    const draft = this.#drafts.get(from)
-    if (!draft) return undefined
-    this.#drafts.delete(from)
-    this.#drafts.set(to, draft)
-    return cloneDraft(draft)
+  /** Hand a draft to its new session and rotate the source identity atomically. */
+  handoff(
+    from: ComposerDraftKey,
+    to: ComposerDraftKey,
+  ): ComposerDraftHandoff | undefined {
+    const submitted = this.#drafts.get(from)
+    if (!submitted) return undefined
+    const replacement = createEmptyComposerDraft(this.#createClientId())
+    this.#drafts.set(to, submitted)
+    this.#drafts.set(from, replacement)
+    return {
+      submitted: cloneDraft(submitted),
+      replacement: cloneDraft(replacement),
+    }
   }
 
   clear(key: ComposerDraftKey): ComposerDraft {
