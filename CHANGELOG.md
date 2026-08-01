@@ -18,6 +18,10 @@
 
 ### Changed
 
+- [renderer] 按 Codex 的信息层级重组配置来源、智能体默认设置和诊断区域，统一下拉框摆放并消除重复审批名称
+- [desktop/renderer] 桌面端导入或重开项目时自动信任项目配置来源，并移除仅适用于 CLI 的手动信任状态入口
+- [renderer] 统一移除共享交互行的文字装饰，避免链接型菜单项显示下划线
+- [renderer] 精简供应商目录的信息层级，移除重复标题与说明，并将筛选结果数并入搜索工具栏
 - [renderer] 为 Composer 变更摘要增加严格顺序的胶囊位移与回底按钮进出动画，并在减少动态效果时立即完成切换
 - [renderer] 移除 Composer 变更摘要透明布局容器的额外内边距，并同步对齐计划预览宽度
 - [renderer] 移除 Composer 变更摘要外层装饰，统一状态胶囊与回底按钮高度，并仅在时间线离开底部时显示回底按钮
@@ -38,6 +42,7 @@
 
 ### Fixed
 
+- [desktop] 修复 Electron 主进程打包 JSONC 解析器时遗留相对 require、导致开发启动无法加载 `./impl/format` 的问题
 - [Agent/renderer] 修复 Review 批量 Diff 在新 Renderer 与旧 Agent 版本错配时永久加载的问题，增加能力降级、读取超时及慢请求阶段诊断
 - [renderer] 修复平滑回到底部途中中间滚动事件重新显示按钮的问题，确保 Composer 摘要退出动画完整播放
 - [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
