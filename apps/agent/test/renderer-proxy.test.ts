@@ -47,6 +47,76 @@ describe("Renderer 开发代理", () => {
     expect(await response.text()).toBe("renderer-ready")
   })
 
+  test("Vite 瞬时 504 会有限重试并恢复模块响应", async () => {
+    let upstreamCalls = 0
+    const upstream = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: () => {
+        upstreamCalls += 1
+        if (upstreamCalls < 3) return new Response(null, { status: 504 })
+        return new Response("module-ready")
+      },
+    })
+    servers.push(upstream)
+
+    const response = await proxyRendererRequest(
+      new Request("http://127.0.0.1:9000/src/ConversationPage.tsx"),
+      `http://127.0.0.1:${upstream.port}`,
+    )
+
+    expect(upstreamCalls).toBe(3)
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe("module-ready")
+  })
+
+  test("持续 504 最多尝试四次并保留最终响应", async () => {
+    let upstreamCalls = 0
+    const upstream = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: () => {
+        upstreamCalls += 1
+        return new Response("still-outdated", { status: 504 })
+      },
+    })
+    servers.push(upstream)
+
+    const response = await proxyRendererRequest(
+      new Request("http://127.0.0.1:9000/src/ConversationPage.tsx"),
+      `http://127.0.0.1:${upstream.port}`,
+    )
+
+    expect(upstreamCalls).toBe(4)
+    expect(response.status).toBe(504)
+    expect(await response.text()).toBe("still-outdated")
+  })
+
+  test("非幂等请求遇到 504 不会重试", async () => {
+    let upstreamCalls = 0
+    const upstream = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: async (request) => {
+        upstreamCalls += 1
+        expect(await request.text()).toBe("payload")
+        return new Response(null, { status: 504 })
+      },
+    })
+    servers.push(upstream)
+
+    const response = await proxyRendererRequest(
+      new Request("http://127.0.0.1:9000/demo", {
+        method: "POST",
+        body: "payload",
+      }),
+      `http://127.0.0.1:${upstream.port}`,
+    )
+
+    expect(upstreamCalls).toBe(1)
+    expect(response.status).toBe(504)
+  })
+
   test("上游不可用时返回不泄露内部信息的安全响应", async () => {
     const rendererDevURL = "http://127.0.0.1:1/private-renderer-path"
     const response = await proxyRendererRequest(

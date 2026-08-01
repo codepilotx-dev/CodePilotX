@@ -43,6 +43,7 @@
 
 ### Fixed
 
+- [Agent/renderer] 修复开发态首次进入会话时 Vite 瞬时 504 被懒加载缓存为持续错误的问题，增加代理有限重试与单次自动重载兜底
 - [desktop] 修复 Electron 主进程打包 JSONC 解析器时遗留相对 require、导致开发启动无法加载 `./impl/format` 的问题
 - [Agent/renderer] 修复 Review 批量 Diff 在新 Renderer 与旧 Agent 版本错配时永久加载的问题，增加能力降级、读取超时及慢请求阶段诊断
 - [renderer] 修复平滑回到底部途中中间滚动事件重新显示按钮的问题，确保 Composer 摘要退出动画完整播放
