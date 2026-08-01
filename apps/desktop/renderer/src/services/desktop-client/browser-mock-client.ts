@@ -312,16 +312,6 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
         filePath: params.filePath ?? 'C:/Users/mock/.codepilotx/config.json',
       }
     },
-    readProjectTrust: async cwd => ({
-      projectRoot: cwd,
-      trustLevel: 'untrusted',
-      hasProjectConfig: false,
-    }),
-    updateProjectTrust: async params => ({
-      status: 'ok',
-      version: configVersion,
-      filePath: 'C:/Users/mock/.codepilotx/config.json',
-    }),
     getDesktopSettings: async () => settings,
     saveDesktopSettings: async next => {
       settings = { ...settings, ...next }

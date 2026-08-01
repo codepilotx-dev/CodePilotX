@@ -559,6 +559,20 @@ export function createAgentSessionDesktopClient(
     return projectsByIdCache
   }
 
+  type AgentProjectTrust = ReturnType<
+    (typeof import('./agent-project-trust.js'))['createAgentProjectTrust']
+  >
+  let agentProjectTrustPromise: Promise<AgentProjectTrust> | null = null
+
+  async function ensureDesktopProjectTrusted(project: Project): Promise<Project> {
+    requireAgentCapability('config.manage.v1')
+    const controller = await (agentProjectTrustPromise ??=
+      import('./agent-project-trust.js').then(module =>
+        module.createAgentProjectTrust({ rpc }),
+      ))
+    return controller.ensure(project)
+  }
+
   async function loadProjectForPath(rootPath: string): Promise<Project> {
     const listed = await rpc.call<{ projects: Project[] }>(
       'project/list',
@@ -578,7 +592,7 @@ export function createAgentSessionDesktopClient(
           operationId: crypto.randomUUID(),
         })
     projectsByIdCache = null
-    return response.project
+    return ensureDesktopProjectTrusted(response.project)
   }
 
   async function chooseProjectForPath(rootPath: string): Promise<Project | null> {
@@ -587,10 +601,11 @@ export function createAgentSessionDesktopClient(
       { folderPath: rootPath },
     )
     if (listed.projects.length === 0) {
-      return (await rpc.call<{ project: Project }>('project/create', {
+      const created = await rpc.call<{ project: Project }>('project/create', {
         primaryPath: rootPath,
         operationId: crypto.randomUUID(),
-      })).project
+      })
+      return ensureDesktopProjectTrusted(created.project)
     }
 
     const choices = listed.projects
@@ -604,29 +619,31 @@ export function createAgentSessionDesktopClient(
         )
     if (selection === null) return null
     if (selection.trim() === '0') {
-      return (await rpc.call<{ project: Project }>('project/create', {
+      const created = await rpc.call<{ project: Project }>('project/create', {
         primaryPath: rootPath,
         operationId: crypto.randomUUID(),
-      })).project
+      })
+      return ensureDesktopProjectTrusted(created.project)
     }
     const selectedIndex = Number(selection) - 1
     const selected = listed.projects[selectedIndex]
     if (!selected) throw new Error('项目选择无效。')
-    return (await rpc.call<{ project: Project }>('project/open', {
+    const opened = await rpc.call<{ project: Project }>('project/open', {
       projectId: selected.id,
       operationId: crypto.randomUUID(),
-    })).project
+    })
+    return ensureDesktopProjectTrusted(opened.project)
   }
 
   async function loadProjectById(projectId: string): Promise<Project> {
     const cached = (await loadProjectsById()).get(projectId)
-    if (cached) return cached
+    if (cached) return ensureDesktopProjectTrusted(cached)
     const response = await rpc.call<{ project: Project }>('project/open', {
       projectId,
       operationId: crypto.randomUUID(),
     })
     projectsByIdCache = new Map([[response.project.id, response.project]])
-    return response.project
+    return ensureDesktopProjectTrusted(response.project)
   }
 
   async function preparePullRequestReview(
@@ -1092,6 +1109,7 @@ export function createAgentSessionDesktopClient(
           projectsByIdCache = null
         },
         loadProjectForPath,
+        ensureDesktopProjectTrusted,
         operationError,
         requireAgentCapability,
         rpc,
@@ -1470,7 +1488,8 @@ export function createAgentSessionDesktopClient(
             operationId: crypto.randomUUID(),
           })
           projectsByIdCache = null
-          return projectToDesktopWorkspace(result.project, projectId)
+          const project = await ensureDesktopProjectTrusted(result.project)
+          return projectToDesktopWorkspace(project, projectId)
         },
         () => mockClient.addProjectFolder(projectId, path),
       ),
@@ -1743,22 +1762,6 @@ export function createAgentSessionDesktopClient(
           return rpc.call('config/batchWrite', params)
         },
         () => mockClient.writeConfigBatch(params),
-      ),
-    readProjectTrust: cwd =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.manage.v1')
-          return rpc.call('project/trust/read', { cwd })
-        },
-        () => mockClient.readProjectTrust(cwd),
-      ),
-    updateProjectTrust: params =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.manage.v1')
-          return rpc.call('project/trust/update', params)
-        },
-        () => mockClient.updateProjectTrust(params),
       ),
     getDesktopSettings: async () => {
       const getter =
@@ -2649,15 +2652,15 @@ export function createAgentSessionDesktopClient(
           invalidateModelCatalog()
           notifyModelProviderChanged()
         }
-        if (
-          notificationMethod === 'config/updated' &&
-          typeof window !== 'undefined'
-        ) {
-          window.dispatchEvent(
-            new CustomEvent(CONFIG_UPDATED_EVENT, {
-              detail: notification.params,
-            }),
-          )
+        if (notificationMethod === 'config/updated') {
+          void agentProjectTrustPromise?.then(controller => controller.clear())
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent(CONFIG_UPDATED_EVENT, {
+                detail: notification.params,
+              }),
+            )
+          }
         }
         if (
           notificationMethod === 'workspace/file/changed' &&

@@ -40,6 +40,7 @@ type GitApi = Pick<CodePilotXDesktopClient, GitApiMethod>
 
 type Dependencies = {
   environment: DesktopClientEnvironment
+  ensureDesktopProjectTrusted: (project: Project) => Promise<Project>
   invalidateProjectCache: () => void
   loadProjectForPath: (workspacePath: string) => Promise<Project>
   operationError: (error: unknown) => string
@@ -56,6 +57,7 @@ type Dependencies = {
 
 export function createAgentGitApi({
   environment,
+  ensureDesktopProjectTrusted,
   invalidateProjectCache,
   loadProjectForPath,
   operationError,
@@ -178,6 +180,7 @@ export function createAgentGitApi({
             targetParent,
           })
           invalidateProjectCache()
+          await ensureDesktopProjectTrusted(result.project)
           let branchName: string | null = null
           try {
             requireAgentCapability('git.review.v1')

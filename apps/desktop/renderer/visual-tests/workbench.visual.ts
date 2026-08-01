@@ -2190,6 +2190,71 @@ test('settings shell search and appearance source contracts', async ({
   await page.keyboard.press('Escape')
 
   await page.goto('/?visualCase=empty#/settings/config')
+  const configSourceToolbar = page.locator('.config-settings-source-toolbar')
+  const configLayerDropdown = page.getByRole('combobox', { name: '配置层' })
+  const openConfigButton = page.getByRole('button', { name: '打开 config.json' })
+  await expect(configSourceToolbar).toBeVisible()
+  await expect(configLayerDropdown).toBeVisible()
+  await expect(openConfigButton).toBeVisible()
+  const [configLayerBounds, openConfigBounds] = await Promise.all([
+    configLayerDropdown.boundingBox(),
+    openConfigButton.boundingBox(),
+  ])
+  expect(configLayerBounds).not.toBeNull()
+  expect(openConfigBounds).not.toBeNull()
+  expect(openConfigBounds!.x).toBeGreaterThan(
+    configLayerBounds!.x + configLayerBounds!.width,
+  )
+  expect(
+    Math.abs(
+      configLayerBounds!.y + configLayerBounds!.height / 2 -
+      (openConfigBounds!.y + openConfigBounds!.height / 2),
+    ),
+  ).toBeLessThan(1)
+
+  const agentDefaultsHeading = page.getByRole('heading', {
+    exact: true,
+    name: '智能体默认设置',
+  })
+  await expect(agentDefaultsHeading).toHaveCount(1)
+  const agentDefaultsSection = agentDefaultsHeading.locator(
+    'xpath=ancestor::section[1]',
+  )
+  await expect(
+    page.getByRole('heading', {
+      exact: true,
+      name: '自定义 config.json 设置',
+    }),
+  ).toHaveCount(0)
+  await expect(
+    agentDefaultsSection.locator('.config-settings-source-toolbar'),
+  ).toHaveCount(1)
+  await expect(
+    agentDefaultsSection.locator('.settings-row-title').evaluateAll((titles) =>
+      titles.slice(0, 5).map(title => title.textContent?.trim()),
+    ),
+  ).resolves.toEqual([
+    '权限预设',
+    '工具权限范围',
+    'Shell 安全级别',
+    '审批时机',
+    '审批执行者',
+  ])
+  await expect(page.getByRole('heading', { exact: true, name: '批准策略' })).toHaveCount(0)
+
+  const diagnosticsSection = page
+    .getByRole('heading', { exact: true, name: '诊断' })
+    .locator('xpath=ancestor::section[1]')
+  await expect(
+    diagnosticsSection.getByRole('heading', {
+      exact: true,
+      name: '完整提示词诊断',
+    }),
+  ).toBeVisible()
+  await expect(
+    diagnosticsSection.getByRole('button', { name: '预览当前任务提示词' }),
+  ).toBeVisible()
+
   const permissionScopeDropdown = page.getByRole('combobox', { name: '工具权限范围' })
   await permissionScopeDropdown.click()
   const permissionScopeMenu = page.getByRole('listbox')
@@ -2227,6 +2292,19 @@ test('settings shell search and appearance source contracts', async ({
     labelMatchesForeground: true,
   })
   await page.keyboard.press('Escape')
+
+  await page.setViewportSize({ width: 560, height: 900 })
+  const [narrowConfigLayerBounds, narrowOpenConfigBounds] = await Promise.all([
+    configLayerDropdown.boundingBox(),
+    openConfigButton.boundingBox(),
+  ])
+  expect(narrowConfigLayerBounds).not.toBeNull()
+  expect(narrowOpenConfigBounds).not.toBeNull()
+  expect(narrowOpenConfigBounds!.y).toBeGreaterThanOrEqual(
+    narrowConfigLayerBounds!.y + narrowConfigLayerBounds!.height,
+  )
+
+  await page.setViewportSize({ width: 1440, height: 920 })
   await page.goto('/?visualCase=empty#/settings/general')
   await closeTransientErrorToast(page)
 

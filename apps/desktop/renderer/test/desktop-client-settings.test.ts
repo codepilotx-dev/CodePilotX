@@ -186,6 +186,13 @@ describe('desktop thread settings client', () => {
       if (body?.method === 'initialize') return rpc(body.id, initializedResult())
       if (body?.method === 'project/open') return rpc(body.id, { project })
       if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
+      if (body?.method === 'project/trust/read') {
+        return rpc(body.id, {
+          projectRoot: projectRootPath,
+          trustLevel: 'trusted',
+          hasProjectConfig: true,
+        })
+      }
       if (body?.method === 'thread/create') {
         expect(params).toEqual({
           workspace: { kind: 'project', projectId: project.id },
@@ -951,6 +958,12 @@ describe('desktop thread settings client', () => {
           return rpc(body.id, { projects: [project], nextCursor: null })
         case 'project/open':
           return rpc(body.id, { project })
+        case 'project/trust/read':
+          return rpc(body.id, {
+            projectRoot: projectRootPath,
+            trustLevel: 'trusted',
+            hasProjectConfig: true,
+          })
         case 'github/push':
           return rpc(body.id, {
             remote: 'origin',
@@ -1225,6 +1238,7 @@ function initializedResult() {
       'tooling.management.v1',
       'mcp.manage.v1',
       'mcp.oauth.v1',
+      'config.manage.v1',
     ],
     limits: {
       maxFrameBytes: 1024,
