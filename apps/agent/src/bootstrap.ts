@@ -75,6 +75,7 @@ import { TaskSuggestionService } from "./suggestion/TaskSuggestionService";
 import { ThreadTitleService } from "./session/ThreadTitleService";
 import { UsageService } from "./usage/UsageService";
 import { UsageRepository } from "./storage/repositories/usage-repository";
+import { TurnPatchService } from "./patch/TurnPatchService";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -126,6 +127,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       projectlessWorkspaces,
     );
     const hub = yield* EventHub.make;
+    const turnPatches = new TurnPatchService(
+      db,
+      hub,
+      async (threadID) => (await workspaceResolver.resolve(threadID)).workspace,
+    );
     const unsubscribeConfig = configService.subscribe(async (event) => {
       await publishAgentEvent(db, hub, null, null, "config/updated", {
         version: event.version,
@@ -476,6 +482,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       hooks,
       fileSaved: ({ workspaceRoot, filePath }) =>
         configService.notifyFileSaved(workspaceRoot, filePath),
+      recordMutation: (batch) =>
+        Promise.resolve(db.repositories.turnPatches.recordBatch(batch)),
+      discardMutationEvidence: ({ threadID, turnID }) =>
+        db.repositories.turnPatches.markIncomplete(threadID, turnID),
     });
     const questions = new QuestionService(db, hub);
     const orchestrator = new PiOrchestratorAdapter({
@@ -638,6 +648,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       mcp,
       suggestions,
       usage,
+      turnPatches,
     });
     let disposed = false;
     const dispose = async () => {

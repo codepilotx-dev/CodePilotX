@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { SubagentRepository } from "../src/subagent/SubagentRepository"
+import { canonicalSubagentChangedFiles } from "../src/subagent/SubagentService"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
 
 const paths: string[] = []
@@ -62,6 +63,42 @@ describe("子 Agent 持久化与调度", () => {
     expect((db.sqlite.query("SELECT COUNT(*) AS count FROM subagent_runs").get() as { count: number }).count).toBe(0)
     expect((db.sqlite.query("SELECT COUNT(*) AS count FROM threads").get() as { count: number }).count).toBe(0)
     db.close()
+  })
+
+  test("共享工作区 writer 可与父任务和其他 writer 并行 claim", () => {
+    const path = join(tmpdir(), `codepilotx-subagent-shared-${crypto.randomUUID()}.sqlite`)
+    paths.push(path)
+    const db = new AgentDatabase(path)
+    const thread = db.createThread()
+    const root = db.createTurn(thread.id, { content: "root", model, permissionConfig: permission, strategy: "queue", taskMode: "chat" })
+    db.updateTurnStatus(root.turnID, "running")
+    const repository = new SubagentRepository(db)
+    const created = Array.from({ length: 2 }, (_, index) => repository.create({
+      parentThreadID: thread.id, parentTurnID: root.turnID, parentAgentID: root.agentID,
+      displayName: `Worker ${index + 1}`, profile: "worker", task: `任务 ${index + 1}`, model,
+      permissionCeiling: permission, workspaceMode: "shared", workspaceRoot: "C:\\workspace",
+    }))
+
+    expect(repository.claim(created[0]!.run.id)).toMatchObject({ run: { status: "running" } })
+    expect(repository.claim(created[1]!.run.id)).toMatchObject({ run: { status: "running" } })
+    expect((db.sqlite.query("SELECT COUNT(*) AS count FROM workspace_writer_leases").get() as { count: number }).count).toBe(0)
+    db.close()
+  })
+
+  test("完成文件清单只接受 canonical patch 路径并复用匹配的模型说明", () => {
+    expect(canonicalSubagentChangedFiles(
+      [
+        { path: "src\\one.ts", summary: "更新入口" },
+        { path: "hallucinated.ts", summary: "不存在" },
+      ],
+      [
+        { data: { files: [{ path: "src/one.ts" }, { path: "src/two.ts" }] } },
+        { data: { files: [{ path: "src/one.ts" }] } },
+      ],
+    )).toEqual([
+      { path: "src/one.ts", summary: "更新入口" },
+      { path: "src/two.ts", summary: "由子 Agent 修改" },
+    ])
   })
 
   test("同一 child Thread 的 retry 创建下一 generation，steer 在同一 run 增加执行序号", () => {

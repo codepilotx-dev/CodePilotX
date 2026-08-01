@@ -1579,12 +1579,13 @@ function WorkspaceReviewSidebarImpl({
   React.useEffect(() => {
     if (
       !selectedPath ||
+      !summary ||
       visibleFiles.some((file) => file.path === selectedPath)
     ) {
       return;
     }
     setSelectedPath(visibleFiles[0]?.path ?? null);
-  }, [selectedPath, visibleFiles]);
+  }, [selectedPath, summary, visibleFiles]);
 
   const reviewTree = React.useMemo(
     () => buildReviewFileTree(visibleFiles),
@@ -1623,6 +1624,20 @@ function WorkspaceReviewSidebarImpl({
       return next ?? prev;
     });
   }, [selectedPath]);
+
+  React.useEffect(() => {
+    if (!selectedPath || largeWorkspaceMode) return;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        scrollToDiffFile(selectedPath);
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [largeWorkspaceMode, selectedPath, visibleFiles]);
 
   const selectedFile =
     visibleFiles.find((file) => file.path === selectedPath) ??

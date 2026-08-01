@@ -26,6 +26,7 @@ import type { ManagedToolID, ToolingResolution } from "./ToolingManager"
 import { applyEditsText, type EditOperation } from "./Edit/applyEditText"
 import type { AgentLogger } from "../observability/AgentLogger"
 import { parseApplyPatch } from "./ApplyPatch/parseApplyPatch"
+import type { TurnPatchMutationBatch } from "../patch/TurnPatchTypes"
 
 type FileToolFailurePhase = "normalize" | "authorization" | "execute" | "post-hook"
 
@@ -94,6 +95,8 @@ export interface ToolExecutorOptions {
   resolveShellSecurityLevel?: () => ShellSecurityLevel
   runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
+  recordMutation?: (batch: TurnPatchMutationBatch) => Promise<void>
+  discardMutationEvidence?: (input: { threadID: string; turnID: string }) => void
   permissionGrants?: PermissionGrantStore
   logger?: AgentLogger
 }
@@ -377,6 +380,50 @@ export class ToolExecutor {
           agentID: context.agentID ?? context.turnID,
           toolCallID: invocation.id,
         },
+        ...(this.options?.recordMutation ? {
+          recordMutation: async (files) => {
+            const batch = {
+              threadID: context.threadID,
+              turnID: context.turnID,
+              agentID: context.agentID ?? context.turnID,
+              toolCallID: invocation.id,
+              files,
+            }
+            if (JSON.stringify(secretScrubber.scrub(files)) !== JSON.stringify(files)) {
+              this.options?.discardMutationEvidence?.({
+                threadID: context.threadID,
+                turnID: context.turnID,
+              })
+              this.options?.logger?.warn("turn_patch.evidence.rejected", {
+                context: {
+                  threadId: context.threadID,
+                  turnId: context.turnID,
+                  agentId: context.agentID ?? context.turnID,
+                  toolCallId: invocation.id,
+                },
+                details: { reason: "sensitive_content" },
+              })
+              return
+            }
+            try {
+              await this.options!.recordMutation!(batch)
+            } catch {
+              this.options?.discardMutationEvidence?.({
+                threadID: context.threadID,
+                turnID: context.turnID,
+              })
+              this.options?.logger?.warn("turn_patch.evidence.failed", {
+                context: {
+                  threadId: context.threadID,
+                  turnId: context.turnID,
+                  agentId: context.agentID ?? context.turnID,
+                  toolCallId: invocation.id,
+                },
+                details: { reason: "persistence_failed" },
+              })
+            }
+          },
+        } : {}),
         ...(snapshotKey && this.readSnapshots.has(snapshotKey) ? { readSnapshot: this.readSnapshots.get(snapshotKey)! } : {}),
         ...(this.options?.fileSaved ? { fileSaved: (saved) => this.options!.fileSaved!({ workspaceRoot: context.workspace.rootPath, ...saved }) } : {}),
         ...(context.onProgress ? { onProgress: context.onProgress } : {}),

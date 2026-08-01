@@ -116,6 +116,20 @@ export function createDefaultReviewTabUiState(): ReviewTabUiState {
   }
 }
 
+export function openPatchReviewTabState(
+  current: ReviewTabUiState,
+  path?: string,
+): ReviewTabUiState {
+  return {
+    ...current,
+    source: { kind: 'unstaged' },
+    selectedFile: path ?? null,
+    selectedCommentId: null,
+    scrollTop: 0,
+    diffExpansion: { mode: 'all' },
+  }
+}
+
 export function saveConversationUiState(
   sessionId: string,
   state: ConversationUiState,

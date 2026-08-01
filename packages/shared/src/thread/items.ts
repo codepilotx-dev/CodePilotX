@@ -217,6 +217,9 @@ export const PatchItemSchema = Schema.Struct({
   files: Schema.Array(EditedFileSchema),
   totalAdditions: Schema.Number,
   totalDeletions: Schema.Number,
+  reversible: Schema.optional(Schema.Boolean),
+  applyState: Schema.optional(Schema.Literals(["applied", "undone"])),
+  actionVersion: Schema.optional(Schema.Number),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })

@@ -72,6 +72,7 @@ export const threadHandlers = {
     "thread/title/regenerate",
     "thread/settings/update",
     "thread/delete",
+    "thread/patch/apply",
     "turn/start",
     "turn/steer",
     "turn/interrupt",
@@ -84,7 +85,7 @@ export const threadHandlers = {
     "attachment/read",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, apiKeys, memory, review, github } = runtime.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, apiKeys, memory, review, github, turnPatches } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "thread/list": {
@@ -113,6 +114,27 @@ export const threadHandlers = {
       }
       case "thread/read":
         return runtime.threadSnapshotResult(stringParam(params, "threadId"))
+      case "thread/patch/apply": {
+        if (
+          typeof params.expectedVersion !== "number"
+          || !Number.isSafeInteger(params.expectedVersion)
+          || params.expectedVersion < 0
+        ) {
+          throw new AgentError("INVALID_REQUEST", "expectedVersion 参数无效", 400)
+        }
+        const stored = await turnPatches.apply({
+          threadID: stringParam(params, "threadId"),
+          itemID: stringParam(params, "itemId"),
+          action: enumValue(params.action, ["undo", "reapply"] as const, "action"),
+          expectedVersion: params.expectedVersion,
+          operationID: stringParam(params, "operationId"),
+        })
+        const item = runtime.projection.item(stored)
+        if (!item || item.type !== "patch") {
+          throw new AgentError("CONFLICT", "修改文件卡片不存在", 409)
+        }
+        return { item }
+      }
       case "thread/history/read": {
         const threadId = stringParam(params, "threadId")
         try {

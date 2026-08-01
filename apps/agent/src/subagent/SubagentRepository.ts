@@ -176,15 +176,6 @@ export class SubagentRepository {
       if (global.count >= 6) return this.keepQueued(task.id, runID, "global_limit")
       const parent = this.db.sqlite.query(`SELECT COUNT(*) AS count FROM subagent_tasks WHERE parent_agent_id = ? AND status IN (${activeStatuses.map(() => "?").join(",")})`).get(task.parentAgentId, ...activeStatuses) as { count: number }
       if (parent.count >= 4) return this.keepQueued(task.id, runID, "parent_limit")
-      const writable = task.profile !== "explorer" && run.permissionConfig.sandboxMode !== "read-only" && task.workspace.mode === "shared"
-      const workspaceKey = task.workspace.rootPath ?? task.parentThreadId
-      if (writable) {
-        const parentTurn = this.db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(task.parentTurnId) as { status: string } | null
-        if (parentTurn?.status === "running") return this.keepQueued(task.id, runID, "workspace_writer")
-        const lease = this.db.sqlite.query("SELECT run_id FROM workspace_writer_leases WHERE workspace_key = ?").get(workspaceKey) as { run_id: string } | null
-        if (lease && lease.run_id !== runID) return this.keepQueued(task.id, runID, "workspace_writer")
-        this.db.sqlite.query("INSERT OR REPLACE INTO workspace_writer_leases (workspace_key, task_id, run_id, acquired_at) VALUES (?, ?, ?, ?)").run(workspaceKey, task.id, runID, now())
-      }
       const agentRow = this.db.sqlite.query("SELECT id, turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runID) as { id: string; turn_id: string } | null
       if (!agentRow) throw new Error(`Subagent run ${runID} 没有 AgentExecution`)
       const timestamp = now()

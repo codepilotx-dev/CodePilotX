@@ -21,6 +21,7 @@ import {
   PatchSummaryView,
   syntheticPatchDisplay,
   type CanonicalItemRendererProps,
+  type PatchAction,
 } from "./CanonicalItemRenderer.js";
 import { ConversationTurnErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
 import {
@@ -72,6 +73,12 @@ export type CanonicalThreadViewProps = {
   onCanReturnToBottomChange: (canReturnToBottom: boolean) => void;
   onLoadOlder: () => Promise<void>;
   onReload: () => Promise<void>;
+  onApplyPatch?: (
+    itemId: string,
+    action: PatchAction,
+    expectedVersion: number,
+  ) => Promise<void>;
+  onOpenPatchReview?: (path?: string) => void;
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
   registerTurnRow?: RegisterConversationTurnRow;
@@ -239,6 +246,8 @@ function CanonicalThreadViewComponent({
   onCanReturnToBottomChange,
   onLoadOlder,
   onReload,
+  onApplyPatch,
+  onOpenPatchReview,
   onOpenPlanInRightDock,
   onOpenSubagent,
   registerTurnRow,
@@ -265,6 +274,8 @@ function CanonicalThreadViewComponent({
         disclosureState={disclosureState}
         entry={entry}
         key={entry.id}
+        onApplyPatch={onApplyPatch}
+        onOpenPatchReview={onOpenPatchReview}
         onOpenPlanInRightDock={onOpenPlanInRightDock}
         onOpenSubagent={onOpenSubagent}
         registerTurnRow={registerTurnRow}
@@ -273,6 +284,8 @@ function CanonicalThreadViewComponent({
     ),
     [
       disclosureState,
+      onApplyPatch,
+      onOpenPatchReview,
       onOpenPlanInRightDock,
       onOpenSubagent,
       registerTurnRow,
@@ -341,6 +354,8 @@ export const CanonicalThreadView = React.memo(CanonicalThreadViewComponent);
 const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   disclosureState,
   entry,
+  onApplyPatch,
+  onOpenPatchReview,
   onOpenPlanInRightDock,
   onOpenSubagent,
   registerTurnRow,
@@ -351,6 +366,8 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
     onExpandedChange: (id: string, expanded: boolean) => void;
   };
   entry: RenderTurnEntry;
+  onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
+  onOpenPatchReview?: CanonicalThreadViewProps["onOpenPatchReview"];
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
   registerTurnRow?: RegisterConversationTurnRow;
@@ -374,6 +391,8 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
         <CanonicalConversationTurn
           disclosureState={disclosureState}
           entry={entry}
+          onApplyPatch={onApplyPatch}
+          onOpenPatchReview={onOpenPatchReview}
           onOpenPlanInRightDock={onOpenPlanInRightDock}
           onOpenSubagent={onOpenSubagent}
           rightDockPlanEventId={rightDockPlanEventId}
@@ -386,6 +405,8 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
 function CanonicalConversationTurnComponent({
   disclosureState,
   entry,
+  onApplyPatch,
+  onOpenPatchReview,
   onOpenPlanInRightDock,
   onOpenSubagent,
   rightDockPlanEventId,
@@ -395,6 +416,8 @@ function CanonicalConversationTurnComponent({
     onExpandedChange: (id: string, expanded: boolean) => void;
   };
   entry: RenderTurnEntry;
+  onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
+  onOpenPatchReview?: CanonicalThreadViewProps["onOpenPatchReview"];
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
   rightDockPlanEventId: string | null;
@@ -416,6 +439,8 @@ function CanonicalConversationTurnComponent({
       disclosure={options.disclosureId ? disclosure(options.disclosureId) : undefined}
       item={item}
       key={item.id}
+      onApplyPatch={onApplyPatch}
+      onOpenPatchReview={onOpenPatchReview}
       onOpenPlanInRightDock={onOpenPlanInRightDock}
       onOpenSubagent={onOpenSubagent}
       presentation={options.presentation}
@@ -542,7 +567,10 @@ function CanonicalConversationTurnComponent({
       ) : null}
       {syntheticPatch ? (
         <section className="canonical-turn__post" aria-label="文件更改">
-          <PatchSummaryView patch={syntheticPatch} />
+          <PatchSummaryView
+            onOpenReview={onOpenPatchReview}
+            patch={syntheticPatch}
+          />
         </section>
       ) : null}
       {entry.postAssistantItems.length > 0 ? (

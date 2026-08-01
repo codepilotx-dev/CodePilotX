@@ -28,6 +28,7 @@ import {
 import {
   createDefaultConversationUiState,
   createDefaultReviewTabUiState,
+  openPatchReviewTabState,
   saveConversationUiState,
   loadConversationUiState,
   validateConversationUiState,
@@ -35,7 +36,6 @@ import {
   type ReviewTabUiState,
 } from '../tabs/conversationUiState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
-import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
 import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
@@ -103,6 +103,7 @@ import {
 } from '../../workspace/fileDocumentStore.js'
 
 const GitWorkflowModal = lazy(() => import('../panels/GitWorkflowModal.js').then(module => ({ default: module.GitWorkflowModal })))
+const GlobalErrorModal = lazy(() => import('../../../components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
 const GithubRepositoryModal = lazy(() => import('../panels/GithubRepositoryModal.js').then(module => ({ default: module.GithubRepositoryModal })))
 const SettingsSidebarContent = lazy(() => import('../../settings/SettingsSidebarContent.js').then(module => ({ default: module.SettingsSidebarContent })))
 const SubagentThreadPanel = lazy(() => import('../../session/subagents/SubagentThreadPanel.js').then(module => ({ default: module.SubagentThreadPanel })))
@@ -291,7 +292,6 @@ export function DesktopLayout(): React.ReactNode {
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
-  const [_runtimeWarningDismissed, setRuntimeWarningDismissed] = useState(false)
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
   const [commandMenuOpen, setCommandMenuOpen] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
@@ -843,6 +843,12 @@ export function DesktopLayout(): React.ReactNode {
     }
     openRightDockTab({ id: 'review', kind: 'review' })
   }, [bottomPanelState.tabIds, movePanelTab, openRightDockTab])
+
+  const handleOpenPatchReview = useCallback((path?: string): void => {
+    setReviewTabState(current => openPatchReviewTabState(current, path))
+    handleOpenReview()
+    handleRefreshDiff()
+  }, [handleOpenReview, handleRefreshDiff])
 
   const handleStartAiReview = useCallback(
     async (
@@ -2260,12 +2266,17 @@ export function DesktopLayout(): React.ReactNode {
         capabilities={selectedSubagent.capabilities}
         composer={sideChatComposer}
         callbacks={{
+        onPatchApplied: async () => {
+          await refreshSelectedSubagent()
+          handleRefreshDiff()
+        },
         onStop: task => { void desktopClient.stopSubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onRetry: task => { void desktopClient.retrySubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onApplyWorktree: task => { void desktopClient.applySubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onDiscardWorktree: task => { void desktopClient.discardSubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onRestoreWorkspace: task => { void desktopClient.restoreSubagentWorkspace?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onOpenSubagent: item => handleOpenSubagent(item.subagentTaskId),
+        onOpenPatchReview: handleOpenPatchReview,
         onApprovalRespond: (approval, decision) => { void desktopClient.respondSubagentApproval?.(approval, decision).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onQuestionRespond: (question, response) => { void desktopClient.respondSubagentQuestion?.(question.id, response.answer, response.ignored).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         }}
@@ -2720,21 +2731,23 @@ export function DesktopLayout(): React.ReactNode {
       <span aria-atomic="true" aria-live="polite" className="u-sr-only">
         已进入{routeLabel}
       </span>
-      <GlobalErrorModal
-        message={errorMessage}
-        onDismiss={() => {
-          if (errorMessage) {
-            setErrorMessage(null)
-            return
-          }
-          setRuntimeWarningDismissed(true)
-        }}
-      />
-      <GlobalErrorModal
-        message={noticeMessage}
-        tone="status"
-        onDismiss={() => setNoticeMessage(null)}
-      />
+      {errorMessage || noticeMessage ? (
+        <Suspense fallback={null}>
+          {errorMessage ? (
+            <GlobalErrorModal
+              message={errorMessage}
+              onDismiss={() => setErrorMessage(null)}
+            />
+          ) : null}
+          {noticeMessage ? (
+            <GlobalErrorModal
+              message={noticeMessage}
+              tone="status"
+              onDismiss={() => setNoticeMessage(null)}
+            />
+          ) : null}
+        </Suspense>
+      ) : null}
       {gitWorkflowMode ? <Suspense fallback={null}><GitWorkflowModal
         allowForcePush={allowForcePush}
         commitMessagePrompt={commitMessagePrompt}
@@ -2843,6 +2856,7 @@ export function DesktopLayout(): React.ReactNode {
             onOpenAutomation: () => navigate('/automations'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onOpenRightDock: handleOpenReview,
+            onOpenPatchReview: handleOpenPatchReview,
             onOpenPlanInRightDock: handleOpenPlanDock,
             canCopyFileReferenceContents:
               canCopyMarkdownFileReferenceContents,

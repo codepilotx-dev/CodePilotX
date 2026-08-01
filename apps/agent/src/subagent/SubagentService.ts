@@ -26,6 +26,7 @@ export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => ki
 export interface SubagentWorkspaceProvider {
   prepare(taskID: string, rootPath: string, mode: "shared" | "worktree"): Promise<{ rootPath: string; baselineRef: string | null }>
   finalize(taskID: string): Promise<unknown>
+  recoverLegacyWorktrees?(): Promise<Array<{ taskID: string; result: unknown }>>
   diff(taskID: string): Promise<unknown>
   apply(taskID: string): Promise<unknown>
   discard(taskID: string): Promise<unknown>
@@ -43,6 +44,46 @@ type RootContext = {
   projectless?: boolean
 }
 type PromptStorageRoots = { dataRoot: string; userHome: string }
+
+type CanonicalPatchItem = {
+  data?: {
+    files?: unknown
+  }
+}
+
+const subagentPathKey = (path: string) => {
+  const normalized = path.replaceAll("\\", "/").replace(/^\.\/+/, "")
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized
+}
+
+export const canonicalSubagentChangedFiles = (
+  reported: Array<{ path: string; summary: string }>,
+  patchItems: CanonicalPatchItem[],
+) => {
+  const summaries = new Map(
+    reported
+      .filter((file) => file.path.trim())
+      .map((file) => [subagentPathKey(file.path), file.summary.trim()] as const),
+  )
+  const files = new Map<string, { path: string; summary: string }>()
+  for (const item of patchItems) {
+    if (!Array.isArray(item.data?.files)) continue
+    for (const candidate of item.data.files) {
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue
+      const path = (candidate as Record<string, unknown>).path
+      if (typeof path !== "string" || !path.trim()) continue
+      const normalized = path.replaceAll("\\", "/").replace(/^\.\/+/, "")
+      const key = subagentPathKey(normalized)
+      if (!files.has(key)) {
+        files.set(key, {
+          path: normalized,
+          summary: summaries.get(key) || "由子 Agent 修改",
+        })
+      }
+    }
+  }
+  return [...files.values()]
+}
 
 export class SubagentService {
   readonly repository: SubagentRepository
@@ -68,9 +109,31 @@ export class SubagentService {
     this.repository = new SubagentRepository(db)
     approvals.setAgentStatusHandler((agentID, status) => { void this.onApprovalStatus(agentID, status) })
     queueMicrotask(() => {
-      void this.schedule()
-      void this.resumeSatisfiedParents()
+      void this.recoverLegacyWorktrees()
     })
+  }
+
+  private async recoverLegacyWorktrees() {
+    try {
+      const recovered = await this.workspaces?.recoverLegacyWorktrees?.().catch(() => [])
+      for (const entry of recovered ?? []) {
+        const task = this.repository.task(entry.taskID)
+        if (!task) continue
+        await this.emit(task.parentThreadId, task.parentTurnId, "subagent/workspaceUpdated", {
+          taskId: task.id,
+          workspace: task.workspace,
+          result: entry.result,
+        })
+        await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", {
+          task,
+          run: task.currentRun,
+          childThreadId: task.childThreadId,
+        })
+      }
+      await this.resumeSatisfiedParents()
+    } finally {
+      void this.schedule()
+    }
   }
 
   private async onApprovalStatus(agentID: string, status: "waiting_permission" | "running") {
@@ -176,9 +239,6 @@ export class SubagentService {
     const parent = this.db.getAgentExecution(root.agentID)
     if (!parent || parent.depth !== 0) throw new AgentError("SUBAGENT_DEPTH_EXCEEDED", "子 Agent 不能继续创建子 Agent", 409)
     if (agents.some((agent) => !agent.task.trim())) throw new AgentError("SUBAGENT_TASK_REQUIRED", "子 Agent 任务不能为空", 400)
-    if (root.projectless && agents.some((agent) => agent.workspaceMode === "worktree")) {
-      throw new AgentError("GIT_WORKSPACE_REQUIRED", "无项目会话不能创建 Git worktree 子 Agent，请使用 shared workspace", 409)
-    }
     const totals = this.db.sqlite.query("SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued FROM subagent_tasks WHERE parent_agent_id = ?").get(root.agentID) as { total: number; queued: number | null }
     if (totals.total + agents.length > 64 || (totals.queued ?? 0) + agents.length > 24) {
       throw new AgentError("SUBAGENT_QUEUE_LIMIT", "该主 Agent 的子任务总量或排队量已达上限", 409)
@@ -198,7 +258,9 @@ export class SubagentService {
         parentThreadID: root.threadID, parentTurnID: root.turnID, parentAgentID: root.agentID,
         displayName, profile, task: requested.task.trim(), model,
         permissionCeiling: root.permissionConfig,
-        workspaceMode: root.projectless ? "shared" : requested.workspaceMode ?? (profile === "worker" ? "worktree" : "shared"),
+        // New subagents always share the parent's live workspace. The
+        // persisted worktree mode remains readable for legacy tasks only.
+        workspaceMode: "shared",
         workspaceRoot: root.workspaceRoot,
         taskMode: root.taskMode,
       }
@@ -365,9 +427,7 @@ export class SubagentService {
     try {
       const rootPath = task.workspace.rootPath
       if (!rootPath) throw new AgentError("WORKSPACE_REQUIRED", "子 Agent 没有工作区", 409)
-      const sourceIsGit = await this.isGitWorkspace(rootPath)
-      const needsWritableBaseline = task.profile !== "explorer" && run.permissionConfig.sandboxMode !== "read-only" && sourceIsGit
-      const needsIsolation = task.workspace.mode === "worktree" || needsWritableBaseline
+      const needsIsolation = task.workspace.mode === "worktree"
       const prepared = this.workspaces && needsIsolation ? await this.workspaces.prepare(task.id, rootPath, task.workspace.mode) : { rootPath, baselineRef: null }
       isolationPrepared = prepared.baselineRef !== null
       if (task.workspace.mode === "worktree" && !this.workspaces) throw new AgentError("WORKTREE_UNAVAILABLE", "worktree 服务未配置", 409)
@@ -390,9 +450,7 @@ export class SubagentService {
           })
         : await WorkspaceService.open(prepared.rootPath)
       mcpLease = await this.mcp?.acquire(workspace.rootPath)
-      const permissionConfig = await this.isGitWorkspace(workspace.rootPath)
-        ? run.permissionConfig
-        : { ...run.permissionConfig, sandboxMode: "read-only" as const }
+      const permissionConfig = run.permissionConfig
       const input = this.db.getTurnInput(agent.turnID)
       if (!input) throw new Error(`Subagent turn ${agent.turnID} 没有输入`)
       const permissionCheckpoint = this.approvals.claimResume(agent.turnID)
@@ -436,7 +494,7 @@ export class SubagentService {
         permissionInstructions: `子 Agent resolved sandbox=${permissionConfig.sandboxMode}; approval=${JSON.stringify(permissionConfig.approvalPolicy)}; reviewer=${permissionConfig.approvalsReviewer}。只能收紧，不能提升父任务 ceiling。`,
         mode: parentMode,
         profile: task.profile,
-        environment: `隔离工作区：${workspace.rootPath}`,
+        environment: `工作区：${workspace.rootPath}`,
         projectInstructions: instructionSources.sources,
         skills: skillCatalog.skills,
         memories: memories.map((entry) => `可能过期的项目参考记忆：${entry.content}`),
@@ -556,7 +614,11 @@ export class SubagentService {
       const structured = result.status === "completed" ? result.result : undefined
       if (!structured) throw new AgentError("SUBAGENT_RESULT_INVALID", "子 Agent 未返回合法的结构化结果", 422)
       if (isolationPrepared) await this.workspaces?.finalize(taskID)
-      const finished = this.repository.finish(runID, "completed", structured, null)
+      const canonicalResult = {
+        ...structured,
+        changedFiles: this.canonicalChangedFiles(runID, structured.changedFiles),
+      }
+      const finished = this.repository.finish(runID, "completed", canonicalResult, null)
       if (finished) await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", finished)
       await this.emit(task.childThreadId, agent.turnID, "turn/completed", { turnId: agent.turnID, rootAgentId: agent.id, finishedAt: Date.now() })
     } catch (cause) {
@@ -584,6 +646,20 @@ export class SubagentService {
       await this.resumeSatisfiedParents()
       void this.schedule()
     }
+  }
+
+  private canonicalChangedFiles(runID: string, reported: Array<{ path: string; summary: string }>) {
+    const turns = this.db.sqlite.query(`
+      SELECT turn_id
+      FROM agent_executions
+      WHERE subagent_run_id = ?
+      ORDER BY run_sequence, created_at
+    `).all(runID) as Array<{ turn_id: string }>
+    const patches = turns.flatMap(({ turn_id }) => {
+      const item = this.db.getItem(`patch:${turn_id}`)
+      return item?.type === "patch" ? [item] : []
+    })
+    return canonicalSubagentChangedFiles(reported, patches)
   }
 
   async resumeTurn(threadID: string, turnID: string) {
@@ -680,8 +756,4 @@ export class SubagentService {
     }))
   }
 
-  private async isGitWorkspace(rootPath: string) {
-    const process = Bun.spawn(["git", "rev-parse", "--is-inside-work-tree"], { cwd: rootPath, stdin: "ignore", stdout: "ignore", stderr: "ignore" })
-    return await process.exited === 0
-  }
 }

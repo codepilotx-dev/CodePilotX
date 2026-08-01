@@ -10,6 +10,7 @@
 ### Added
 
 - [desktop/renderer/test] 新增 1200 个真实修改文件、500 轮长会话、30 个任务与三个真实 Agent 会话并发写入时的 Electron 拖动性能验收
+- [Agent/renderer] 修改文件卡片新增三文件折叠、Review 文件定位及基于精确文件状态校验的撤销与重新应用
 - [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
 - [release] 新增专用 Windows runner 驱动的两阶段 Beta 自动发布流程，在 main 静默期后自动升版、完整验证、创建 Release PR，并于远端 CI 通过后签名打标和发布 prerelease
 - [Agent/renderer] 新增可选的明文 `auth.json` Provider 凭据仓库与本机加密仓库切换流程，迁移会先验证目标再清理源，并明确提示便携性与明文风险
@@ -30,6 +31,8 @@
 - [renderer] 将 Composer 变更摘要重构为状态胶囊与回到底部按钮，并保留计划预览、Review 入口及完成、失败和中断语义
 - [renderer] 将生产界面的浮层与抬升表面统一为克制的纯黑阴影，消除亮暗主题中的发光感
 - [renderer] 将侧栏、工作台及 Review 文件树调整为真实宽高与 flex 布局实时拖动，使相邻内容随指针自然重排并仅在结束时持久化尺寸
+- [Agent/renderer] 子代理改为共享工作区并行执行，并在完成后按真实工具修改立即向父任务上报状态与文件
+- [renderer] 将全局错误详情格式化与提示组件改为异常发生时按需加载，避免非错误路径占用 `/new` 首屏预算
 - [desktop/renderer] 统一侧栏、菜单、Composer、设置、Review 与会话摘要的紧凑交互行规格和状态反馈，减少同类控件的尺寸、圆角与浮层效果漂移。
 - [renderer] 收紧会话摘要与中等宽度阅读区，并调整响应式断点，使约 1920px 窗口同时打开侧栏和 Review 时仍保留置顶摘要
 - [renderer] 移除共享动作按钮阴影，并降低卡片、弹窗与浮层的全局阴影层级

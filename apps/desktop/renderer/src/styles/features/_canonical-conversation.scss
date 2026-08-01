@@ -1109,60 +1109,139 @@
 }
 
 .canonical-patch-card {
-  > summary,
-  &__files details > summary {
+  padding: 0;
+  overflow: hidden;
+
+  &__header {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 30px;
-    cursor: pointer;
-    list-style: none;
+    min-height: 54px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--color-token-border-light);
+  }
 
-    &::-webkit-details-marker {
-      display: none;
+  &__icon {
+    display: inline-grid;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border-radius: 9px;
+    background: color-mix(
+      in srgb,
+      var(--color-token-foreground) 5%,
+      transparent
+    );
+
+    svg {
+      width: 17px;
+      height: 17px;
     }
   }
 
-  > summary svg:last-child {
-    margin-left: auto;
+  &__summary {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    gap: 2px;
+
+    > span {
+      display: flex;
+      gap: 4px;
+      font-size: var(--type-caption);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__action.ui-button {
+    min-height: 30px;
+    padding-inline: 10px;
+    gap: 5px;
   }
 
   &__files {
     display: grid;
-    gap: 5px;
-    margin-top: 10px;
+    padding: 4px 12px;
+  }
 
-    details {
-      padding-top: 7px;
-      border-top: 1px solid var(--color-token-border-light);
+  &__file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 34px;
+    padding: 5px 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-token-foreground);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background: color-mix(
+        in srgb,
+        var(--color-token-foreground) 4%,
+        transparent
+      );
     }
 
-    summary span {
+    &:focus-visible {
+      outline: 2px solid var(--color-token-focus-border);
+      outline-offset: 2px;
+    }
+
+    > span {
       flex: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+  }
 
-    pre {
-      max-height: 440px;
-      padding: 10px;
-      border-radius: 8px;
-      background: color-mix(
-        in srgb,
-        var(--color-token-foreground) 5%,
-        transparent
-      );
-      overflow: auto;
-      font-family: var(--font-family-mono);
-      font-size: var(--type-code);
+  &__disclosure.ui-button {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 36px;
+    padding-inline: 12px;
+    border: 0;
+    border-top: 1px solid var(--color-token-border-light);
+    border-radius: 0;
+    background: color-mix(
+      in srgb,
+      var(--color-token-foreground) 2%,
+      transparent
+    );
+
+    svg {
+      width: 15px;
+      height: 15px;
+      transition: transform 120ms ease;
     }
+  }
+
+  &__error {
+    margin: 0;
+    padding: 8px 12px;
+    border-top: 1px solid var(--color-token-border-light);
+    color: var(--color-token-error-foreground);
+    font-size: var(--type-caption);
   }
 }
 
-.canonical-process-card__body pre > code,
-.canonical-patch-card__files pre > code {
+.canonical-patch-card__disclosure.ui-button svg.is-expanded {
+  transform: rotate(180deg);
+}
+
+.canonical-process-card__body pre > code {
   font-family: inherit;
 }
 
@@ -1189,6 +1268,13 @@
   background: var(--color-token-bg-secondary);
   color: var(--color-token-foreground);
   text-align: left;
+
+  &__files {
+    overflow: hidden;
+    color: var(--color-token-text-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   cursor: pointer;
   transition:
     background 180ms ease-out,
@@ -1280,6 +1366,7 @@
   .canonical-process-group > summary,
   .canonical-process-card > summary,
   .canonical-process-card__chevron,
+  .canonical-patch-card__disclosure svg,
   .canonical-subagent-card {
     transition: none;
   }
@@ -1302,6 +1389,7 @@
   .canonical-process-group > summary,
   .canonical-process-card > summary,
   .canonical-process-card__chevron,
+  .canonical-patch-card__disclosure svg,
   .canonical-subagent-card {
     transition: none;
   }

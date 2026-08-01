@@ -6,7 +6,9 @@ import {
 } from '../src/features/layout/dock/rightDockState.js'
 import { getWorkbenchTabDefinition } from '../src/features/layout/tabs/workbenchTabRegistry.js'
 import {
+  createDefaultReviewTabUiState,
   isReviewDiffExpanded,
+  openPatchReviewTabState,
   toggleReviewDiffExpansion,
   validateConversationUiState,
 } from '../src/features/layout/tabs/conversationUiState.js'
@@ -539,6 +541,25 @@ describe('workbench dynamic tab state', () => {
       expandedFiles: ['src/a.ts'],
     })
     expect(all).toEqual({ mode: 'all' })
+  })
+
+  test('opens a patch file in the current workspace Review source', () => {
+    const current = {
+      ...createDefaultReviewTabUiState(),
+      source: { kind: 'branch', branch: 'main' } as const,
+      selectedFile: 'src/old.ts',
+      selectedCommentId: 'comment-1',
+      scrollTop: 480,
+      diffExpansion: { mode: 'none' } as const,
+    }
+
+    expect(openPatchReviewTabState(current, 'src/new.ts')).toMatchObject({
+      source: { kind: 'unstaged' },
+      selectedFile: 'src/new.ts',
+      selectedCommentId: null,
+      scrollTop: 0,
+      diffExpansion: { mode: 'all' },
+    })
   })
 
   test('restores only valid Markdown view modes from session UI state', () => {

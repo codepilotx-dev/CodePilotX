@@ -2617,6 +2617,12 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.interruptSession(sessionId),
       ),
+    applyThreadPatch: params => withRequiredAgent(() =>
+        rpc.call('thread/patch/apply', {
+          ...params,
+          operationId: crypto.randomUUID(),
+        }),
+      ),
     readThreadHistoryPage: params =>
       withAgentOrMock(
         () => rpc.call('thread/history/read', params),

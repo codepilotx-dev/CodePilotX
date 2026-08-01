@@ -240,6 +240,9 @@ export type DesktopAgentReviewApi = {
 }
 
 export type DesktopAgentEventEnvelopeApi = {
+  applyThreadPatch(
+    params: Omit<RpcParams<'thread/patch/apply'>, 'operationId'>,
+  ): Promise<RpcResult<'thread/patch/apply'>>
   readThreadHistoryPage(
     params: RpcParams<'thread/history/read'>,
   ): Promise<RpcResult<'thread/history/read'>>

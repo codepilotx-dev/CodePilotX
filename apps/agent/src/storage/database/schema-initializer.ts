@@ -33,6 +33,9 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE memory_jobs (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          project_key TEXT,\n          status TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          result TEXT,\n          error TEXT,\n          created_at INTEGER NOT NULL,\n          started_at INTEGER,\n          finished_at INTEGER,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE messages (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        role TEXT NOT NULL,\n        content TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      , ordinal INTEGER)",
   "CREATE TABLE patches (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        files TEXT NOT NULL,\n        additions INTEGER NOT NULL DEFAULT 0,\n        deletions INTEGER NOT NULL DEFAULT 0,\n        created_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE turn_patch_sets (\n        turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        item_id TEXT NOT NULL UNIQUE,\n        apply_state TEXT NOT NULL DEFAULT 'applied' CHECK(apply_state IN ('applied', 'undone')),\n        action_version INTEGER NOT NULL DEFAULT 0,\n        evidence_complete INTEGER NOT NULL DEFAULT 1 CHECK(evidence_complete IN (0, 1)),\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE turn_patch_batches (\n        turn_id TEXT NOT NULL REFERENCES turn_patch_sets(turn_id) ON DELETE CASCADE,\n        ordinal INTEGER NOT NULL,\n        tool_call_id TEXT NOT NULL UNIQUE,\n        files TEXT NOT NULL,\n        created_at INTEGER NOT NULL,\n        PRIMARY KEY (turn_id, ordinal)\n      )",
+  "CREATE TABLE turn_patch_operations (\n        operation_id TEXT PRIMARY KEY,\n        turn_id TEXT NOT NULL REFERENCES turn_patch_sets(turn_id) ON DELETE CASCADE,\n        request_hash TEXT NOT NULL,\n        result TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE \"pi_session_entries\" (\n          session_id TEXT NOT NULL REFERENCES \"pi_sessions\"(id) ON DELETE CASCADE,\n          sequence INTEGER NOT NULL,\n          id TEXT NOT NULL,\n          parent_id TEXT,\n          type TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY (session_id, sequence),\n          UNIQUE (session_id, id)\n        )",
   "CREATE TABLE \"pi_sessions\" (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          agent_id TEXT NOT NULL,\n          leaf_id TEXT,\n          name TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE project_settings (\n        project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,\n        default_model TEXT,\n        instructions TEXT NOT NULL DEFAULT '',\n        version INTEGER NOT NULL DEFAULT 1,\n        updated_at INTEGER NOT NULL\n      )",
@@ -476,6 +479,36 @@ const migrateHistory22To23 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory23To24 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS turn_patch_sets (
+      turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      item_id TEXT NOT NULL UNIQUE,
+      apply_state TEXT NOT NULL DEFAULT 'applied' CHECK(apply_state IN ('applied', 'undone')),
+      action_version INTEGER NOT NULL DEFAULT 0,
+      evidence_complete INTEGER NOT NULL DEFAULT 1 CHECK(evidence_complete IN (0, 1)),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS turn_patch_batches (
+      turn_id TEXT NOT NULL REFERENCES turn_patch_sets(turn_id) ON DELETE CASCADE,
+      ordinal INTEGER NOT NULL,
+      tool_call_id TEXT NOT NULL UNIQUE,
+      files TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (turn_id, ordinal)
+    );
+    CREATE TABLE IF NOT EXISTS turn_patch_operations (
+      operation_id TEXT PRIMARY KEY,
+      turn_id TEXT NOT NULL REFERENCES turn_patch_sets(turn_id) ON DELETE CASCADE,
+      request_hash TEXT NOT NULL,
+      result TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -569,6 +602,7 @@ class SchemaInitializer {
           20: () => migrateHistory20To21(this.sqlite),
           21: () => migrateHistory21To22(this.sqlite),
           22: () => migrateHistory22To23(this.sqlite),
+          23: () => migrateHistory23To24(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

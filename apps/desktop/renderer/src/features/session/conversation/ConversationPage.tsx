@@ -68,6 +68,8 @@ import {
   saveConversationUiState,
 } from "../../layout/tabs/conversationUiState.js";
 import { CanonicalThreadView } from "../timeline/CanonicalThreadView.js";
+import { normalizePatchActionError } from "../timeline/patchActionError.js";
+import { subagentStatusLabel } from "../subagents/subagentStatusLabel.js";
 import { ConversationItemContext } from "../timeline/ConversationItemContext.js";
 import type { ThreadTimelineNavigationHandle } from "../timeline/SessionTimelineView.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
@@ -140,6 +142,7 @@ export function ConversationPage(): React.ReactNode {
     onCreateBranch,
     onOpenAutomation,
     onOpenWorkspacePath,
+    onOpenPatchReview,
     onRefreshDiff,
     onRenameSession,
     onRefreshSessionTitle,
@@ -665,6 +668,33 @@ export function ConversationPage(): React.ReactNode {
     onOpenRightDock("review");
   }, [onOpenRightDock, onRefreshDiff]);
 
+  const applyThreadPatch = React.useCallback(
+    async (
+      itemId: string,
+      action: "undo" | "reapply",
+      expectedVersion: number,
+    ): Promise<void> => {
+      if (!activeSessionId) return;
+      try {
+        await desktopClient.applyThreadPatch({
+          threadId: activeSessionId,
+          itemId,
+          action,
+          expectedVersion,
+        });
+        await canonicalConversation.reload();
+        onRefreshDiff();
+      } catch (error) {
+        throw normalizePatchActionError(error, action);
+      }
+    },
+    [
+      activeSessionId,
+      canonicalConversation,
+      onRefreshDiff,
+    ],
+  );
+
   function handleConversationContextMenu(): void {
     clearConversationSelectionHighlight();
     const snapshot = createConversationSelectionSnapshot(window.getSelection());
@@ -1056,7 +1086,9 @@ export function ConversationPage(): React.ReactNode {
         loading={canonicalConversation.loading}
         loadingOlder={canonicalConversation.loadingOlder}
         onCanReturnToBottomChange={handleCanReturnToBottomChange}
+        onApplyPatch={applyThreadPatch}
         onLoadOlder={canonicalConversation.loadOlder}
+        onOpenPatchReview={onOpenPatchReview}
         onOpenPlanInRightDock={onOpenPlanInRightDock}
         onOpenSubagent={onOpenSubagent}
         onReload={canonicalConversation.reload}
@@ -1178,7 +1210,7 @@ export function ConversationPage(): React.ReactNode {
                                 <button key={task.id} type="button" onClick={() => onOpenSubagent(task.id)}>
                                   <Bot size={14} />
                                   <span>{task.displayName}</span>
-                                  <small>{subagentPanelStatus(currentRun?.status ?? "interrupted")}</small>
+                                  <small>{subagentStatusLabel(currentRun?.status ?? "interrupted")}</small>
                                 </button>
                               ))}
                             </div>
@@ -1294,18 +1326,6 @@ export function shouldShowComposerStatusSummary({
   changedFileCount: number;
 }): boolean {
   return hasPlan || changedFileCount > 0;
-}
-
-function subagentPanelStatus(status: string): string {
-  if (status === "completed") return "已完成";
-  if (status === "failed") return "失败";
-  if (status === "stopped") return "已停止";
-  if (status === "interrupted") return "已中断";
-  if (status === "queued") return "排队中";
-  if (status === "waiting-question") return "等待回答";
-  if (status === "waiting-permission") return "等待审批";
-  if (status === "steering") return "调整中";
-  return "运行中";
 }
 
 function summarizeDiff(diff: string): { additions: number; deletions: number } {

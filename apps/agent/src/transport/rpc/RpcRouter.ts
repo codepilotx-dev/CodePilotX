@@ -49,6 +49,7 @@ import type { McpRuntimeService } from "../../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../../suggestion/TaskSuggestionService"
 import type { UsageService } from "../../usage/UsageService"
 import type { ConfigService } from "../../config/ConfigService"
+import type { TurnPatchService } from "../../patch/TurnPatchService"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
@@ -126,6 +127,7 @@ export type RpcRouterDependencies = {
   mcp?: McpRuntimeService
   suggestions?: TaskSuggestionService
   usage: UsageService
+  turnPatches: TurnPatchService
 }
 
 export type { RpcRouterContext } from "./request-context"

@@ -639,7 +639,34 @@ export class ThreadProjection {
       const options = Array.isArray(item.data.options) ? item.data.options.filter((value): value is string => typeof value === "string") : []
       return { id: item.id, messageID, turnId: item.turnID, agentId, type: "question", prompt: asText(item.data.question) ?? "需要你的选择", choices: options.map((label, index) => ({ id: String(index), label, recommended: index === 0 })), status: item.status === "pending" ? "pending" : item.status === "interrupted" ? "cancelled" : "answered", answer: asText(item.data.answer), ...order, createdAt: item.createdAt }
     }
-    if (item.type === "patch") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "patch", files: Array.isArray(item.data.files) ? item.data.files as Extract<Item, { type: "patch" }>["files"] : [], totalAdditions: Number(item.data.totalAdditions ?? item.data.additions ?? 0), totalDeletions: Number(item.data.totalDeletions ?? item.data.deletions ?? 0), ...order, createdAt: item.createdAt }
+    if (item.type === "patch") {
+      const patchState = this.db.repositories.turnPatches.getByTurn(item.turnID)
+      return {
+        id: item.id,
+        messageID,
+        turnId: item.turnID,
+        agentId,
+        type: "patch",
+        files: Array.isArray(item.data.files) ? item.data.files as Extract<Item, { type: "patch" }>["files"] : [],
+        totalAdditions: Number(item.data.totalAdditions ?? item.data.additions ?? 0),
+        totalDeletions: Number(item.data.totalDeletions ?? item.data.deletions ?? 0),
+        ...(patchState
+          ? patchState.evidenceComplete ? { reversible: true } : {}
+          : item.data.reversible === true ? { reversible: true } : {}),
+        ...(patchState
+          ? { applyState: patchState.applyState }
+          : item.data.applyState === "applied" || item.data.applyState === "undone"
+            ? { applyState: item.data.applyState }
+            : {}),
+        ...(patchState
+          ? { actionVersion: patchState.actionVersion }
+          : typeof item.data.actionVersion === "number"
+            ? { actionVersion: item.data.actionVersion }
+            : {}),
+        ...order,
+        createdAt: item.createdAt,
+      }
+    }
     if (item.type === "subagent") {
       const rawStatus = String(item.data.status).replaceAll("_", "-")
       const subagentStatus = ["queued", "preparing", "running", "steering", "waiting-question", "waiting-permission", "completed", "failed", "stopped", "interrupted"].includes(rawStatus)

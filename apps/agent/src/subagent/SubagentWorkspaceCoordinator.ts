@@ -35,13 +35,17 @@ export class SubagentWorkspaceCoordinator implements SubagentWorkspaceProvider {
       await service.adoptBaseline(stored.isolation, mode === "worktree" ? taskID : undefined)
       return { rootPath: stored.isolation.workspacePath, baselineRef: stored.isolation.ref }
     }
-    if (service.repository.kind !== "git") {
-      if (mode === "worktree") throw new AgentError("NON_GIT_WRITE_UNAVAILABLE", "非 Git 工作区不能创建可写子 Agent worktree", 409)
+    if (mode === "worktree") {
+      // A legacy task may have been persisted before its worktree was
+      // actually created. Resume it in the source workspace; never create a
+      // new worktree after the shared-workspace rollout.
+      this.migrateToShared(taskID, service.repository.rootPath, "ready")
       return { rootPath: service.repository.rootPath, baselineRef: null }
     }
-    const baseline = mode === "worktree"
-      ? await service.createWorktree(taskID)
-      : await service.captureSharedBaseline()
+    if (service.repository.kind !== "git") {
+      return { rootPath: service.repository.rootPath, baselineRef: null }
+    }
+    const baseline = await service.captureSharedBaseline()
     this.update(taskID, { mode, state: "ready", rootPath: baseline.workspacePath, baselineRef: baseline.ref, isolation: baseline })
     return { rootPath: baseline.workspacePath, baselineRef: baseline.ref }
   }
@@ -50,7 +54,35 @@ export class SubagentWorkspaceCoordinator implements SubagentWorkspaceProvider {
     const { service, baseline } = await this.context(taskID)
     const diff = await service.diff(baseline)
     this.update(taskID, { ...this.workspace(taskID), outputPatchSha256: diff.sha256 })
-    return diff
+    if (baseline.mode !== "worktree") return diff
+    return this.applyWorktree(taskID, service, baseline, diff, false)
+  }
+
+  async recoverLegacyWorktrees() {
+    const rows = this.db.sqlite.query(`
+      SELECT id
+      FROM subagent_tasks
+      WHERE workspace_mode = 'worktree'
+      ORDER BY created_at
+    `).all() as Array<{ id: string }>
+    const recovered: Array<{ taskID: string; result: unknown }> = []
+    for (const row of rows) {
+      try {
+        const stored = this.workspace(row.id)
+        if (!stored.isolation || stored.state === "applied" || stored.state === "discarded") {
+          const rootPath = stored.isolation?.sourceRoot ?? stored.rootPath
+          if (!rootPath) continue
+          this.migrateToShared(row.id, rootPath, stored.state === "discarded" ? "discarded" : stored.state === "applied" ? "applied" : "ready")
+          recovered.push({ taskID: row.id, result: { status: "migrated-to-shared" } })
+          continue
+        }
+        recovered.push({ taskID: row.id, result: await this.finalize(row.id) })
+      } catch {
+        // Missing/corrupt legacy isolation metadata is kept intact for the
+        // existing manual recovery controls. Never guess or delete it.
+      }
+    }
+    return recovered
   }
 
   async diff(taskID: string) {
@@ -62,19 +94,46 @@ export class SubagentWorkspaceCoordinator implements SubagentWorkspaceProvider {
     const { service, baseline } = await this.context(taskID)
     if (baseline.mode !== "worktree") throw new AgentError("WORKTREE_UNAVAILABLE", "shared 子 Agent 不能使用 worktree apply", 409)
     const diff = await service.diff(baseline)
+    return this.applyWorktree(taskID, service, baseline, diff, true)
+  }
+
+  private async applyWorktree(
+    taskID: string,
+    service: WorkspaceIsolationService,
+    baseline: BaselineMetadata,
+    diff: WorkspaceDiff,
+    throwOnConflict: boolean,
+  ) {
+    const stored = { ...this.workspace(taskID), outputPatchSha256: diff.sha256 }
+    this.update(taskID, stored)
+    if (diff.empty) {
+      const cleanup = await service.complete(taskID)
+      this.migrateToShared(taskID, baseline.sourceRoot, "applied")
+      return { status: "applied" as const, empty: true, cleanup }
+    }
     const preflight = await service.preflightThreeWay(diff.patch)
     if (preflight.status === "conflict") {
-      this.update(taskID, { ...this.workspace(taskID), state: "conflict" })
-      throw new AgentError("WORKTREE_CONFLICT", "子 Agent 变更与父工作区冲突，父工作区未修改", 409, preflight)
+      this.update(taskID, { ...stored, state: "conflict" })
+      if (throwOnConflict) {
+        throw new AgentError("WORKTREE_CONFLICT", "子 Agent 变更与父工作区冲突，父工作区未修改", 409, preflight)
+      }
+      return { status: "conflict" as const, workspaceUnchanged: true }
     }
     const applied = await service.applyThreeWay(preflight.token)
     if (applied.status !== "applied") {
+      this.update(taskID, { ...stored, state: "conflict" })
+      if (!throwOnConflict) {
+        return {
+          status: "conflict" as const,
+          workspaceUnchanged: applied.status === "failed" ? applied.workspaceUnchanged : applied.status === "stale",
+        }
+      }
       const code = applied.status === "stale" ? "WORKTREE_CONFLICT" : "WORKTREE_APPLY_FAILED"
       throw new AgentError(code, applied.status === "stale" ? "父工作区在预检后发生变化，未应用子 Agent 变更" : "子 Agent 变更应用失败", 409, applied)
     }
     const cleanup = await service.complete(taskID)
-    this.update(taskID, { ...this.workspace(taskID), state: "applied", rootPath: baseline.sourceRoot })
-    return { applied, cleanup }
+    this.migrateToShared(taskID, baseline.sourceRoot, "applied")
+    return { status: "applied" as const, applied, cleanup }
   }
 
   async discard(taskID: string) {
@@ -82,7 +141,8 @@ export class SubagentWorkspaceCoordinator implements SubagentWorkspaceProvider {
     const cleanup = baseline.mode === "worktree"
       ? await service.discard(taskID)
       : await service.releaseSharedBaseline(baseline).then(() => ({ workspaceID: taskID, disposition: "discarded" as const, path: baseline.workspacePath }))
-    this.update(taskID, { ...this.workspace(taskID), state: "discarded", rootPath: baseline.sourceRoot })
+    if (baseline.mode === "worktree") this.migrateToShared(taskID, baseline.sourceRoot, "discarded")
+    else this.update(taskID, { ...this.workspace(taskID), state: "discarded", rootPath: baseline.sourceRoot })
     return cleanup
   }
 
@@ -115,6 +175,14 @@ export class SubagentWorkspaceCoordinator implements SubagentWorkspaceProvider {
 
   private update(taskID: string, value: PersistedWorkspace) {
     this.db.sqlite.query("UPDATE subagent_tasks SET workspace_state = ?, updated_at = ? WHERE id = ?").run(JSON.stringify(value), Date.now(), taskID)
+  }
+
+  private migrateToShared(taskID: string, rootPath: string, state: PersistedWorkspace["state"]) {
+    this.db.sqlite.query("UPDATE subagent_tasks SET workspace_mode = 'shared', workspace_state = ?, updated_at = ? WHERE id = ?").run(
+      JSON.stringify({ mode: "shared", state, rootPath, baselineRef: null }),
+      Date.now(),
+      taskID,
+    )
   }
 
   private service(rootPath: string) {

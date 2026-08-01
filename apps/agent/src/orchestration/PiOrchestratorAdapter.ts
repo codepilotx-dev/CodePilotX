@@ -416,6 +416,7 @@ export class PiOrchestratorAdapter {
         : [];
       const files = mergeTimelineMutationFiles(existingFiles, mutationFiles);
       const timestamp = item.updatedAt;
+      const reversible = this.options.db.repositories.turnPatches.getByTurn(context.turnID);
       const patch: Item = {
         id: patchID,
         turnID: context.turnID,
@@ -426,6 +427,11 @@ export class PiOrchestratorAdapter {
           files,
           totalAdditions: files.reduce((sum, file) => sum + file.additions, 0),
           totalDeletions: files.reduce((sum, file) => sum + file.deletions, 0),
+          ...(reversible?.evidenceComplete ? {
+            reversible: true,
+            applyState: reversible.applyState,
+            actionVersion: reversible.actionVersion,
+          } : {}),
         },
         ...(existingPatch?.ordinal === undefined ? {} : { ordinal: existingPatch.ordinal }),
         createdAt: existingPatch?.createdAt ?? timestamp,
