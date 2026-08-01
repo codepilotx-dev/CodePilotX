@@ -2919,3 +2919,101 @@ async function readReviewDiffComputedStyles(diff: Locator) {
     }
   })
 }
+
+test('execution plan popover is content-adaptive and never overflows', async ({
+  page,
+}) => {
+  const route = '/?visualCase=execution-plan#/threads/visual-execution-plan'
+  await page.emulateMedia({
+    colorScheme: 'dark',
+    forcedColors: 'none',
+    reducedMotion: 'reduce',
+  })
+
+  async function loadDesktop(): Promise<void> {
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await gotoWorkbenchFixture(page, route)
+    await expect(
+      page.locator('.composer-change-summary__plan'),
+    ).toBeVisible()
+  }
+
+  await loadDesktop()
+
+  const capsule = page.locator('.composer-change-summary__bar')
+  const planTrigger = page.locator('.composer-change-summary__plan')
+  const capsuleBefore = await capsule.boundingBox()
+  expect(capsuleBefore).not.toBeNull()
+
+  await planTrigger.focus()
+  const planCard = page.locator('.composer-change-summary__plan-preview .execution-plan-card')
+  await expect(planCard).toBeVisible()
+  await expect(planCard).toHaveCSS('position', 'absolute')
+
+  const cardBox = await planCard.boundingBox()
+  expect(cardBox).not.toBeNull()
+  expect(cardBox!.width).toBeGreaterThanOrEqual(480)
+  expect(cardBox!.width).toBeLessThanOrEqual(760)
+  expect(cardBox!.width).toBeGreaterThan(capsuleBefore!.width)
+
+  // Capule metrics must not change while the popover is open.
+  const capsuleAfter = await capsule.boundingBox()
+  expect(capsuleAfter!.width).toBeCloseTo(capsuleBefore!.width, 0)
+  expect(capsuleAfter!.x).toBeCloseTo(capsuleBefore!.x, 0)
+  expect(capsuleAfter!.y).toBeCloseTo(capsuleBefore!.y, 0)
+
+  // Long step text wraps instead of overflowing its row.
+  const stepText = page
+    .locator('.execution-plan-card__step-text')
+    .filter({ hasText: '解耦' })
+    .first()
+  const wraps = await stepText.evaluate((element: HTMLElement) => ({
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+    lineHeight: parseFloat(getComputedStyle(element).lineHeight),
+  }))
+  expect(wraps.scrollHeight).toBeLessThanOrEqual(wraps.clientHeight + 1)
+  expect(wraps.clientHeight).toBeGreaterThan(wraps.lineHeight)
+
+  // Steps list remains vertically scrollable.
+  await expect(page.locator('.execution-plan-card__steps')).toHaveCSS(
+    'overflow-y',
+    'auto',
+  )
+
+  // No horizontal page overflow with the popover open.
+  const overflowing = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }))
+  expect(overflowing.scrollWidth).toBeLessThanOrEqual(overflowing.clientWidth)
+
+  // Narrow viewport: the popover shrinks to the available body width and stays
+  // inside the session column.
+  await page.setViewportSize({ width: 560, height: 760 })
+  await expect
+    .poll(() => capsule.boundingBox())
+    .not.toBeNull()
+  await expect(planCard).toBeVisible()
+  const narrowCard = await planCard.boundingBox()
+  expect(narrowCard).not.toBeNull()
+  const narrowContent = await page
+    .locator('.conversation-page, .quick-chat-content')
+    .first()
+    .boundingBox()
+  expect(narrowContent).not.toBeNull()
+  expect(narrowCard!.width).toBeGreaterThan(0)
+  expect(narrowCard!.width).toBeLessThanOrEqual(narrowContent!.width)
+  expect(narrowCard!.x).toBeGreaterThanOrEqual(narrowContent!.x - 1)
+  expect(narrowCard!.x + narrowCard!.width).toBeLessThanOrEqual(
+    narrowContent!.x + narrowContent!.width + 1,
+  )
+
+  const narrowOverflow = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }))
+  expect(narrowOverflow.scrollWidth).toBeLessThanOrEqual(
+    narrowOverflow.clientWidth,
+  )
+})

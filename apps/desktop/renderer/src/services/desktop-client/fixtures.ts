@@ -376,6 +376,21 @@ export function mockThreadHistoryPage(
         createdAt: eventCreatedAt,
       })
     }
+
+    if (event.type === 'execution-plan') {
+      const metadata = (event as any).metadata ?? {}
+      current.items.push({
+        id: `${event.id}`,
+        messageID: `${event.id}`,
+        turnId,
+        agentId,
+        type: 'execution-plan',
+        explanation: event.content ?? null,
+        steps: metadata.steps ?? [],
+        status: metadata.status ?? 'completed',
+        createdAt: eventCreatedAt,
+      })
+    }
   }
 
   // If there are tool items with no matching output delta, leave them as running
@@ -560,7 +575,8 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     visualCase !== 'rich' &&
     visualCase !== 'permission' &&
     visualCase !== 'review' &&
-    visualCase !== 'turn-nav'
+    visualCase !== 'turn-nav' &&
+    visualCase !== 'execution-plan'
   ) {
     return null
   }
@@ -576,7 +592,9 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           ? '权限与计划'
           : visualCase === 'turn-nav'
             ? '用户消息导航'
-            : 'Review 与 Diff',
+            : visualCase === 'execution-plan'
+              ? '执行计划弹层'
+              : 'Review 与 Diff',
     collaborationMode: {
       mode: visualCase === 'permission' ? 'plan' : 'default',
     },
@@ -650,6 +668,39 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           { path: 'apps/desktop/renderer/src/features/session/ConversationTurnNavRail.tsx' },
           { path: 'apps/desktop/renderer/src/styles/features/timeline.scss' },
           { path: 'apps/desktop/renderer/src/components/ui/Tooltip.tsx' },
+        ],
+      },
+    })
+  }
+
+  if (visualCase === 'execution-plan') {
+    events.push({
+      id: `${sessionId}-execution-plan`,
+      sessionId,
+      type: 'execution-plan',
+      content: '按序完成主题重构并接入工作台。',
+      createdAt: timestamp(3_000),
+      metadata: {
+        steps: [
+          { step: '把会话正文改造成 Codex 语义表面，并固定主题色板与圆角基线。', status: 'completed' },
+          { step: '将计划弹层从胶囊包含块解耦，改为相对完整摘要区域自适应居中。', status: 'in_progress' },
+          { step: '验证窄窗口下弹层按可用正文宽度收缩、长步骤文本正常换行且无横向溢出。', status: 'pending' },
+        ],
+        status: 'streaming',
+      },
+    })
+    events.push({
+      id: `${sessionId}-patch`,
+      sessionId,
+      type: 'file_patch',
+      content: '重构主题与工作台样式',
+      createdAt: timestamp(5_000),
+      metadata: {
+        turnScoped: true,
+        files: [
+          { path: 'apps/desktop/renderer/shared/theme.ts' },
+          { path: 'apps/desktop/renderer/src/styles/features/_session-page.scss' },
+          { path: 'apps/desktop/renderer/src/styles/features/_session-workflow.scss' },
         ],
       },
     })

@@ -662,9 +662,10 @@
   align-self: center;
   display: flex;
   position: relative;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   box-sizing: border-box;
   border-radius: var(--radius-7);
@@ -672,8 +673,8 @@
 
   &__bar-shell {
     display: flex;
-    position: relative;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    width: fit-content;
     min-width: 0;
     max-width: 100%;
   }
@@ -900,8 +901,11 @@
   }
 
   &__plan-preview .execution-plan-card {
-    left: 0;
-    width: 100%;
+    left: 50%;
+    width: max-content;
+    max-width: 100%;
+    min-width: min(30rem, 100%);
+    translate: -50% 0;
   }
 
   strong {
