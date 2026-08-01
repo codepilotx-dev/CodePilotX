@@ -922,14 +922,10 @@ function ModelCenterInitialSkeleton({
         <SkeletonBlock className="model-center-skeleton-page-title" />
         <SkeletonBlock className="model-center-skeleton-page-copy" />
       </div>
-      <div className="model-center-skeleton-catalog-header">
-        <div>
-          <SkeletonBlock className="model-center-skeleton-section-title" />
-          <SkeletonBlock className="model-center-skeleton-section-copy" />
-        </div>
+      <div className="model-center-catalog-toolbar">
+        <SkeletonBlock className="model-center-skeleton-search" />
         <SkeletonBlock className="model-center-skeleton-count" />
       </div>
-      <SkeletonBlock className="model-center-skeleton-search" />
       <div className="model-center-skeleton-provider-grid">
         {Array.from({ length: 6 }, (_, index) => (
           <div className="model-center-skeleton-provider-card" key={index}>
