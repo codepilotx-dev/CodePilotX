@@ -3,9 +3,11 @@ import type {
   DesktopGitStatus,
   DesktopWorkspace,
 } from '../shared/types.js'
+import type { DesktopReviewAgentSummary } from '../src/services/desktop-client/types.js'
 import {
   createWorkspaceRefreshCoordinator,
   mergeWorkspaceGitProjection,
+  mergeWorkspaceReviewFileStats,
   workspaceIdentity,
 } from '../src/features/workspace/useWorkspaceState.js'
 
@@ -131,6 +133,38 @@ describe('workspace refresh coordination', () => {
     expect(projected.branches).toEqual([])
     expect(projected.isGitRepo).toBe(false)
   })
+
+  test('merges staged and unstaged review stats by normalized path', () => {
+    const status = gitStatus('dev', [
+      gitFile('SRC\\Main.ts'),
+      gitFile('assets/logo.png'),
+      gitFile('src/unavailable.ts'),
+    ])
+    const merged = mergeWorkspaceReviewFileStats(status, [
+      reviewSummary([
+        reviewFile('src/main.ts', 4, 2),
+        reviewFile('assets/logo.png', null, null, true),
+      ]),
+      reviewSummary([reviewFile('src/main.ts', 3, 1)]),
+    ])
+
+    expect(merged?.files).toEqual([
+      { ...gitFile('SRC\\Main.ts'), additions: 7, deletions: 3 },
+      { ...gitFile('assets/logo.png'), additions: 0, deletions: 0 },
+      gitFile('src/unavailable.ts'),
+    ])
+  })
+
+  test('does not publish partial line stats when either review summary fails', () => {
+    const status = gitStatus('dev', [gitFile('src/main.ts')])
+    const merged = mergeWorkspaceReviewFileStats(status, [
+      reviewSummary([reviewFile('src/main.ts', 4, 2)]),
+      null,
+    ])
+
+    expect(merged).toBe(status)
+    expect(merged?.files[0]).toMatchObject({ additions: null, deletions: null })
+  })
 })
 
 function workspace(
@@ -143,13 +177,53 @@ function workspace(
   }
 }
 
-function gitStatus(branchName: string | null): DesktopGitStatus {
+function gitStatus(
+  branchName: string | null,
+  files: DesktopGitStatus['files'] = [],
+): DesktopGitStatus {
   return {
     branchName,
     upstream: null,
     ahead: 0,
     behind: 0,
     clean: true,
-    files: [],
+    files,
+  }
+}
+
+function gitFile(path: string): DesktopGitStatus['files'][number] {
+  return {
+    path,
+    status: ' M',
+    stagedStatus: ' ',
+    unstagedStatus: 'M',
+    additions: null,
+    deletions: null,
+    isUntracked: false,
+  }
+}
+
+function reviewSummary(
+  files: DesktopReviewAgentSummary['files'],
+): Pick<DesktopReviewAgentSummary, 'files'> {
+  return { files }
+}
+
+function reviewFile(
+  path: string,
+  additions: number | null,
+  deletions: number | null,
+  binary = false,
+): DesktopReviewAgentSummary['files'][number] {
+  return {
+    path,
+    previousPath: null,
+    status: 'modified',
+    additions,
+    deletions,
+    changedLines: (additions ?? 0) + (deletions ?? 0),
+    changedBytes: 0,
+    binary,
+    revision: `revision:${path}`,
   }
 }

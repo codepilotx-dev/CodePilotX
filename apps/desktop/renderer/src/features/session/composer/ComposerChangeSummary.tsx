@@ -23,8 +23,8 @@ type ComposerChangeSummaryProps = {
   active: boolean;
   failed: boolean;
   changedFileCount: number;
-  additions: number;
-  deletions: number;
+  additions: number | null;
+  deletions: number | null;
   canReturnToBottom: boolean;
   onOpenReview: () => void;
   onReturnToBottom: () => void;
@@ -99,8 +99,9 @@ export function ComposerChangeSummary({
     : 0;
   const planExpanded =
     executionPlan !== null && expandedPlanId === executionPlan.id;
-  const formattedAdditions = formatSummaryNumber(additions);
-  const formattedDeletions = formatSummaryNumber(deletions);
+  const diffStatsAvailable = additions !== null && deletions !== null;
+  const formattedAdditions = formatSummaryNumber(additions ?? 0);
+  const formattedDeletions = formatSummaryNumber(deletions ?? 0);
   const running = active && !failed;
   const planLifecycle: ComposerPlanLifecycle = failed
     ? "failed"
@@ -172,18 +173,22 @@ export function ComposerChangeSummary({
           ) : null}
           {changedFileCount > 0 ? (
             <Button
-              aria-label={`打开审阅面板，${changedFileCount} 个文件已更改，新增 ${formattedAdditions} 行，删除 ${formattedDeletions} 行`}
+              aria-label={diffStatsAvailable
+                ? `打开审阅面板，${changedFileCount} 个文件已更改，新增 ${formattedAdditions} 行，删除 ${formattedDeletions} 行`
+                : `打开审阅面板，${changedFileCount} 个文件已更改，增删行数统计暂不可用`}
               className="composer-change-summary__changes"
               onClick={openReview}
             >
               {changedFileCount} 个文件已更改
-              <span
-                aria-hidden="true"
-                className="composer-change-summary__diff"
-              >
-                <strong>+{formattedAdditions}</strong>
-                <em>-{formattedDeletions}</em>
-              </span>
+              {diffStatsAvailable ? (
+                <span
+                  aria-hidden="true"
+                  className="composer-change-summary__diff"
+                >
+                  <strong>+{formattedAdditions}</strong>
+                  <em>-{formattedDeletions}</em>
+                </span>
+              ) : null}
             </Button>
           ) : null}
         </div>

@@ -1,4 +1,7 @@
-import { desktopClient } from '../../services/desktop-client/index.js'
+import {
+  desktopClient,
+  type DesktopReviewAgentSummary,
+} from '../../services/desktop-client/index.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   DesktopAuthStatus,
@@ -104,6 +107,34 @@ export function mergeWorkspaceGitProjection(
   }
 }
 
+export function mergeWorkspaceReviewFileStats(
+  gitStatus: DesktopGitStatus,
+  summaries: readonly (Pick<DesktopReviewAgentSummary, 'files'> | null)[],
+): DesktopGitStatus {
+  if (summaries.some(summary => summary === null)) return gitStatus
+
+  const statsByPath = new Map<string, { additions: number; deletions: number }>()
+  for (const summary of summaries) {
+    if (!summary) continue
+    for (const file of summary.files) {
+      const key = normalizeWorkspacePath(file.path)
+      const current = statsByPath.get(key)
+      statsByPath.set(key, {
+        additions: (current?.additions ?? 0) + (file.additions ?? 0),
+        deletions: (current?.deletions ?? 0) + (file.deletions ?? 0),
+      })
+    }
+  }
+
+  return {
+    ...gitStatus,
+    files: gitStatus.files.map(file => {
+      const stats = statsByPath.get(normalizeWorkspacePath(file.path))
+      return stats ? { ...file, ...stats } : file
+    }),
+  }
+}
+
 type WorkspaceRefreshResult = {
   context: DesktopWorkspace
   files: DesktopFileEntry[]
@@ -165,6 +196,8 @@ export function useWorkspaceState(
           nextDiff,
           nextGitStatus,
           nextGitBranches,
+          nextUnstagedSummary,
+          nextStagedSummary,
         ] =
           await Promise.all([
             desktopClient.getWorkspaceContext(target.path),
@@ -179,8 +212,23 @@ export function useWorkspaceState(
             desktopClient
               .getAgentReviewBranches(target.path)
               .catch(() => []),
+            desktopClient.getAgentReviewSummary({
+              workspacePath: target.path,
+              source: { kind: 'unstaged' },
+              refresh: true,
+            }).catch(() => null),
+            desktopClient.getAgentReviewSummary({
+              workspacePath: target.path,
+              source: { kind: 'staged' },
+              refresh: true,
+            }).catch(() => null),
           ])
-        const gitStatus = nextGitStatus.ok ? nextGitStatus.status : null
+        const gitStatus = nextGitStatus.ok
+          ? mergeWorkspaceReviewFileStats(nextGitStatus.status, [
+              nextUnstagedSummary?.snapshot ?? null,
+              nextStagedSummary?.snapshot ?? null,
+            ])
+          : null
         return {
           context: mergeWorkspaceGitProjection(
             nextContext,

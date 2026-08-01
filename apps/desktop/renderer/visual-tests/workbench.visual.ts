@@ -1226,10 +1226,6 @@ for (const mode of MODES) {
     await expect(summary).toBeVisible()
     await expect(summaryHeader).toBeVisible()
 
-    const commandGroup = page
-      .locator('.canonical-process-group--commands')
-      .first()
-    await commandGroup.locator(':scope > summary').click()
     const command = page.locator('.canonical-tool').first()
     await command.locator(':scope > summary').click()
     const commandShell = page.locator('.canonical-command-shell').first()

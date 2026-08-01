@@ -355,11 +355,38 @@ describe("canonical thread switch", () => {
           />
       </CanonicalTestProviders>,
     );
+    const secondTool = {
+      ...tool,
+      id: "tool-2",
+      messageID: "message-tool-2",
+      callID: "call-2",
+      command: "bun run typecheck",
+      createdAt: 1_100,
+    } as const;
+    const multiCommandMarkup = renderToStaticMarkup(
+      <CanonicalTestProviders>
+        <CanonicalConversationTurn
+          disclosureState={{
+            expandedIds: new Set(["turn-process:turn-1"]),
+            onExpandedChange: () => undefined,
+          }}
+          entry={{
+            ...entry,
+            items: [tool, secondTool, answer],
+            processItems: [tool, secondTool],
+            patchItems: [],
+          }}
+          onOpenPlanInRightDock={() => undefined}
+          onOpenSubagent={() => undefined}
+          rightDockPlanEventId={null}
+        />
+      </CanonicalTestProviders>,
+    );
 
     const processIndex = markup.indexOf("已处理 5m 59s");
     const processTextIndex = markup.indexOf("中间处理说明标记");
     const lifecycleIndex = markup.indexOf("已更新计划");
-    const commandsIndex = markup.indexOf("运行了 1 条命令");
+    const commandsIndex = markup.indexOf("Ran bun test");
     const answerIndex = markup.indexOf("最终回复标记");
     const patchIndex = markup.indexOf("已编辑 1 个文件");
     expect(processIndex).toBeGreaterThan(-1);
@@ -369,6 +396,11 @@ describe("canonical thread switch", () => {
     expect(answerIndex).toBeGreaterThan(commandsIndex);
     expect(answerIndex).toBeGreaterThan(processIndex);
     expect(patchIndex).toBeGreaterThan(answerIndex);
+    expect(markup).not.toContain("运行了 1 条命令");
+    expect(markup).not.toContain("canonical-process-group--commands");
+    expect(markup).toContain("canonical-tool");
+    expect(multiCommandMarkup).toContain("运行了 2 条命令");
+    expect(multiCommandMarkup).toContain("canonical-process-group--commands");
     expect(collapsedMarkup).not.toContain("中间处理说明标记");
     expect(collapsedMarkup).not.toContain("bun test");
     expect(collapsedMarkup).toContain("最终回复标记");

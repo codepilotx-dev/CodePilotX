@@ -479,6 +479,13 @@ function CanonicalConversationTurnComponent({
                   />
                 );
               }
+              const [singleCommand] = segment.items;
+              if (segment.items.length === 1 && singleCommand) {
+                return renderItem(singleCommand, {
+                  disclosureId: `tool:${entry.turn.id}:${singleCommand.id}`,
+                  presentation: "grouped",
+                });
+              }
               const commandGroupId = `command-group:${entry.turn.id}:${segment.items[0].id}`;
               const summary = summarizeCommandItems(
                 segment.items,

@@ -43,6 +43,7 @@ import {
   ComposerChangeSummary,
   findLatestExecutionPlan,
 } from "../composer/ComposerChangeSummary.js";
+import { deriveConversationChangeSummary } from "../composer/conversationChangeSummary.js";
 import { DesktopComposer } from "../composer/DesktopComposer.js";
 import {
   clearConversationSelectionHighlight,
@@ -355,15 +356,21 @@ export function ConversationPage(): React.ReactNode {
       window.setTimeout(() => setIsRefreshingDiff(false), 600);
     }
   }, [isRefreshingDiff, onRefreshDiff]);
-  const changedFileCount = workspacePath ? (gitStatus?.files.length ?? 0) : 0;
+  const workspaceChangedFileCount = workspacePath
+    ? (gitStatus?.files.length ?? 0)
+    : 0;
   const composerExecutionPlan = findLatestExecutionPlan(
     canonicalConversation.turns,
   );
+  const conversationChangeSummary = React.useMemo(
+    () => deriveConversationChangeSummary(canonicalConversation.turns, gitStatus),
+    [canonicalConversation.turns, gitStatus],
+  );
   const showComposerStatusSummary = shouldShowComposerStatusSummary({
     hasPlan: composerExecutionPlan !== null,
-    changedFileCount,
+    changedFileCount: conversationChangeSummary.changedFileCount,
   });
-  const composerDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
+  const workspaceDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
   const sourceLinks = canonicalAuxiliary.sourceLinks;
   const canonicalSummaryEvents = React.useMemo<DesktopSessionEvent[]>(
     () =>
@@ -386,10 +393,10 @@ export function ConversationPage(): React.ReactNode {
   const threadSummaryModel = React.useMemo(
     () =>
       deriveThreadSummaryViewModel({
-        additions: composerDiffSummary.additions,
+        additions: workspaceDiffSummary.additions,
         branchName,
-        changedFileCount,
-        deletions: composerDiffSummary.deletions,
+        changedFileCount: workspaceChangedFileCount,
+        deletions: workspaceDiffSummary.deletions,
         events: canonicalSummaryEvents,
         sources: sourceLinks,
         subagents,
@@ -397,8 +404,8 @@ export function ConversationPage(): React.ReactNode {
       }),
     [
       branchName,
-      changedFileCount,
-      composerDiffSummary,
+      workspaceChangedFileCount,
+      workspaceDiffSummary,
       sourceLinks,
       subagents,
       canonicalSummaryEvents,
@@ -990,10 +997,10 @@ export function ConversationPage(): React.ReactNode {
             active={
               sessionStatus === "running" || sessionStatus === "waiting"
             }
-            additions={composerDiffSummary.additions}
+            additions={conversationChangeSummary.additions}
             canReturnToBottom={canReturnTimelineToBottom}
-            changedFileCount={changedFileCount}
-            deletions={composerDiffSummary.deletions}
+            changedFileCount={conversationChangeSummary.changedFileCount}
+            deletions={conversationChangeSummary.deletions}
             executionPlan={composerExecutionPlan}
             failed={sessionStatus === "error"}
             onOpenReview={openReviewSidebar}

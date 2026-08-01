@@ -195,6 +195,19 @@ describe("ExecutionPlanCard", () => {
         onReturnToBottom={() => undefined}
       />,
     );
+    const unavailableDiffHtml = renderToStaticMarkup(
+      <ComposerChangeSummary
+        active={false}
+        additions={null}
+        canReturnToBottom={false}
+        changedFileCount={1}
+        deletions={null}
+        executionPlan={null}
+        failed={false}
+        onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
+      />,
+    );
 
     expect(streamingHtml).toContain("第 2 / 3 步");
     expect(streamingHtml).toContain("5 个文件已更改");
@@ -234,6 +247,10 @@ describe("ExecutionPlanCard", () => {
     expect(streamingHtml).toContain(
       'aria-label="打开审阅面板，5 个文件已更改，新增 279 行，删除 155 行"',
     );
+    expect(unavailableDiffHtml).toContain(
+      'aria-label="打开审阅面板，1 个文件已更改，增删行数统计暂不可用"',
+    );
+    expect(unavailableDiffHtml).not.toContain("composer-change-summary__diff");
     expect(streamingHtml).not.toContain("composer-change-summary__chevron");
     expect(completedHtml).toContain(
       'aria-label="执行计划已完成，已完成 3 / 3 步"',
