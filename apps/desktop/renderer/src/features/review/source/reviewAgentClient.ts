@@ -2,9 +2,9 @@ import type {
   DesktopReviewComment,
   DesktopReviewDiffFile,
   DesktopReviewDiffHunk,
-  DesktopReviewDiffLine,
   DesktopReviewSource,
 } from '../../../../shared/types.js'
+import { unifiedPatchToDesktopHunks } from '../diff/reviewDiffAdapter.js'
 import { AgentRpcError } from '../../../services/agentRpcClient.js'
 import {
   desktopClient,
@@ -552,57 +552,7 @@ export function summaryFileToDesktop(
 
 function parseReviewFileDiff(diff: ReviewFileDiff): DesktopReviewDiffHunk[] {
   if (!diff.renderable) return []
-  const parsedByHeader = parsePatchLines(diff.patch)
-  return diff.hunks.map((hunk, index) => {
-    const parsed = parsedByHeader[index]
-    return {
-      id: hunk.id,
-      header: hunk.header,
-      oldStart: hunk.oldStart,
-      oldLines: hunk.oldLines,
-      newStart: hunk.newStart,
-      newLines: hunk.newLines,
-      patch: hunk.patch,
-      lines: parsed?.lines ?? [],
-    }
-  })
-}
-
-function parsePatchLines(
-  patch: string,
-): Array<{ header: string; lines: DesktopReviewDiffLine[] }> {
-  const result: Array<{ header: string; lines: DesktopReviewDiffLine[] }> = []
-  let current: { header: string; lines: DesktopReviewDiffLine[] } | null = null
-  let oldLine = 0
-  let newLine = 0
-
-  for (const raw of patch.split(/\r?\n/u)) {
-    const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/u.exec(raw)
-    if (match) {
-      oldLine = Number(match[1])
-      newLine = Number(match[2])
-      current = { header: raw, lines: [] }
-      result.push(current)
-      continue
-    }
-    if (!current || raw.startsWith('\\ No newline')) continue
-    const prefix = raw[0]
-    if (prefix !== ' ' && prefix !== '+' && prefix !== '-') continue
-    const type =
-      prefix === '+' ? 'added' : prefix === '-' ? 'removed' : 'context'
-    const line: DesktopReviewDiffLine = {
-      id: `${result.length}:${current.lines.length}`,
-      type,
-      oldLine: prefix === '+' ? null : oldLine,
-      newLine: prefix === '-' ? null : newLine,
-      content: raw.slice(1),
-      raw,
-    }
-    current.lines.push(line)
-    if (prefix !== '+') oldLine += 1
-    if (prefix !== '-') newLine += 1
-  }
-  return result
+  return unifiedPatchToDesktopHunks(diff.patch, diff.hunks)
 }
 
 function toDesktopComment(comment: DesktopReviewAgentComment): DesktopReviewComment {

@@ -833,6 +833,7 @@ export function ReviewVirtualDiffRows({
   pending,
   scope,
   view,
+  readOnly = false,
   onApplyOperation,
   onCancelDraft,
   onCreateDraft,
@@ -850,6 +851,7 @@ export function ReviewVirtualDiffRows({
   pending: boolean;
   scope: DesktopReviewScope;
   view: DesktopReviewView;
+  readOnly?: boolean;
   onApplyOperation: (
     action: "stage" | "unstage" | "revert",
     target:
@@ -888,6 +890,7 @@ export function ReviewVirtualDiffRows({
               hunk={row.hunk}
               key={`hunk-${row.hunk.id}`}
               pending={pending}
+              readOnly={readOnly}
               scope={scope}
               unmodifiedLines={row.unmodifiedLines}
               onApplyOperation={onApplyOperation}
@@ -917,6 +920,7 @@ export function ReviewVirtualDiffRows({
               file={file}
               line={row.line}
               intralineByLineId={intralineByLineId}
+              readOnly={readOnly}
               syntaxByLineId={syntax.byLineId}
               onCancelDraft={onCancelDraft}
               onCreateDraft={onCreateDraft}
@@ -938,6 +942,7 @@ export function VirtualDiffHunkRow({
   unmodifiedLines,
   pending,
   scope,
+  readOnly = false,
   onApplyOperation,
 }: {
   file: DesktopReviewDiffFile;
@@ -945,6 +950,7 @@ export function VirtualDiffHunkRow({
   unmodifiedLines: number;
   pending: boolean;
   scope: DesktopReviewScope;
+  readOnly?: boolean;
   onApplyOperation: (
     action: "stage" | "unstage" | "revert",
     target: { type: "hunk"; path: string; hunkId: string },
@@ -967,13 +973,15 @@ export function VirtualDiffHunkRow({
           <span data-separator-content="">
             {formatUnmodifiedLines(unmodifiedLines)}
           </span>
-          <ReviewHunkActions
-            file={file}
-            hunk={hunk}
-            pending={pending}
-            scope={scope}
-            onApplyOperation={onApplyOperation}
-          />
+          {readOnly ? null : (
+            <ReviewHunkActions
+              file={file}
+              hunk={hunk}
+              pending={pending}
+              scope={scope}
+              onApplyOperation={onApplyOperation}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -987,6 +995,7 @@ export function VirtualDiffInlineRow({
   line,
   intralineByLineId,
   syntaxByLineId,
+  readOnly = false,
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
@@ -1000,6 +1009,7 @@ export function VirtualDiffInlineRow({
   line: DesktopReviewDiffLine;
   intralineByLineId: ReviewIntralineByLineId;
   syntaxByLineId: ReviewSyntaxByLineId;
+  readOnly?: boolean;
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
@@ -1020,16 +1030,18 @@ export function VirtualDiffInlineRow({
       data-virtual-layout="single"
     >
       <ReviewDiffLineNumber
-        anchor={anchor}
+        anchor={readOnly ? null : anchor}
         cellTone={line.type}
         lineNumber={lineNumber}
+        readOnly={readOnly}
         onCreateDraft={onCreateDraft}
       />
       <ReviewDiffLineContent
-        anchor={anchor}
-        comments={comments}
-        draft={draft}
+        anchor={readOnly ? null : anchor}
+        comments={readOnly ? [] : comments}
+        draft={readOnly ? null : draft}
         cellTone={line.type}
+        readOnly={readOnly}
         onCancelDraft={onCancelDraft}
         onDeleteComment={onDeleteComment}
         onDraftBodyChange={onDraftBodyChange}

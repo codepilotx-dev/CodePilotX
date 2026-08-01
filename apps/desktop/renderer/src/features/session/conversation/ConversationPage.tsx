@@ -1078,6 +1078,7 @@ export function ConversationPage(): React.ReactNode {
     <ConversationItemContext.Provider value={conversationItemContextValue}>
       <CanonicalThreadView
         active={sessionStatus === "running" || sessionStatus === "waiting"}
+        diffMarkerStyle={diffMarkerStyle}
         error={canonicalConversation.error}
         hasOlder={canonicalConversation.hasOlder}
         initialScrollOffset={initialTimelineScrollTop}
@@ -1095,6 +1096,7 @@ export function ConversationPage(): React.ReactNode {
         onScroll={handleTimelineScroll}
         registerTurnRow={registerTurnRow}
         rightDockPlanEventId={rightDockPlanEventId}
+        readThreadPatchDiff={desktopClient.readThreadPatchDiff}
         scrollRef={threadScrollRef}
         threadId={activeSessionId}
         turns={canonicalConversation.turns}

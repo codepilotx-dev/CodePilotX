@@ -236,6 +236,8 @@ export function SubagentThreadPanel({
                     if (item) callbacks.onOpenSubagent?.(item)
                   }}
                   rightDockPlanEventId={null}
+                  readThreadPatchDiff={desktopClient.readThreadPatchDiff}
+                  threadId={task.childThreadId}
                 />
               ))}
             </div>

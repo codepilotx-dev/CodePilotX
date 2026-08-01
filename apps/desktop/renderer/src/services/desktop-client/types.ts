@@ -246,6 +246,9 @@ export type DesktopAgentEventEnvelopeApi = {
   readThreadHistoryPage(
     params: RpcParams<'thread/history/read'>,
   ): Promise<RpcResult<'thread/history/read'>>
+  readThreadPatchDiff(
+    params: RpcParams<'thread/patch/diff'>,
+  ): Promise<RpcResult<'thread/patch/diff'>>
   subscribeAgentEventEnvelopes(
     options: AgentRpcSubscription,
     callback: (event: EventEnvelope) => void,

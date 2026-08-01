@@ -781,8 +781,9 @@
 
 .canonical-tool {
   > summary {
-    grid-template-columns: 18px minmax(0, 1fr) 18px;
-    width: 100%;
+    grid-template-columns: 18px minmax(0, auto) 18px;
+    width: fit-content;
+    max-width: 100%;
   }
 
   &__summary-label {
@@ -949,11 +950,122 @@
   color: var(--color-token-text-secondary);
   font-size: var(--type-control);
 
-  &__row {
-    display: grid;
-    grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  &__item {
+    min-width: 0;
+
+    > summary {
+      display: grid;
+      grid-template-columns: 18px minmax(0, auto) auto 18px;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      max-width: 100%;
+      min-height: 28px;
+      padding: 1px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    &[data-expandable="false"] > summary {
+      grid-template-columns: 18px minmax(0, auto) auto;
+      cursor: default;
+    }
+  }
+
+  &__item > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  &__item > summary:hover {
+    background: color-mix(
+      in srgb,
+      var(--color-token-foreground) 5%,
+      transparent
+    );
+    color: var(--color-token-foreground);
+  }
+
+  &__item > summary:focus-visible {
+    outline: 1px solid var(--color-token-focus-border);
+    outline-offset: 1px;
+  }
+
+  &__item > summary > span:not(.canonical-file-mutation__stats) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__item[data-expandable="false"] > summary:hover {
+    background: transparent;
+    color: inherit;
+  }
+
+  &__item > summary > svg,
+  &__message > svg {
+    width: 15px;
+    height: 15px;
+    stroke-width: var(--app-icon-stroke-width);
+  }
+
+  &__stats {
+    display: inline-flex;
+    flex: none;
     align-items: center;
     gap: 6px;
+
+    > small {
+      font-size: var(--type-meta);
+    }
+  }
+
+  &__chevron {
+    flex: none;
+  }
+
+  &__diff {
+    width: 100%;
+    max-height: 420px;
+    margin: 4px 0 6px;
+    overflow: auto;
+    border: 1px solid var(--color-token-border-light);
+    border-radius: 8px;
+    background: var(--color-token-bg-secondary);
+
+    > .review-codex-diff {
+      margin: 0;
+    }
+  }
+
+  &__virtual-diff {
+    height: 420px;
+    min-height: 180px;
+  }
+
+  &__message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 72px;
+    padding: 12px;
+    color: var(--color-token-text-secondary);
+
+    > .button {
+      flex: none;
+    }
+  }
+
+  /* Kept for patch summary compatibility outside the canonical timeline. */
+  &__row {
+    display: grid;
+    grid-template-columns: 18px minmax(0, auto) auto;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    max-width: 100%;
     min-height: 28px;
     padding: 1px 4px;
 

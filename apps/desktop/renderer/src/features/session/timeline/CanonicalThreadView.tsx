@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { RenderBlocker, RenderTurnEntry } from "@codepilotx/session-view";
 import type { Item } from "@codepilotx/shared/thread";
+import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 import type { VirtualizerHandle } from "virtua";
 
 import {
@@ -22,6 +23,7 @@ import {
   syntheticPatchDisplay,
   type CanonicalItemRendererProps,
   type PatchAction,
+  type ReadThreadPatchDiff,
 } from "./CanonicalItemRenderer.js";
 import { ConversationTurnErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
 import {
@@ -83,6 +85,8 @@ export type CanonicalThreadViewProps = {
   onOpenSubagent: (taskId: string) => void;
   registerTurnRow?: RegisterConversationTurnRow;
   rightDockPlanEventId: string | null;
+  diffMarkerStyle?: DesktopDiffMarkerStyle;
+  readThreadPatchDiff?: ReadThreadPatchDiff;
 };
 
 /**
@@ -252,6 +256,8 @@ function CanonicalThreadViewComponent({
   onOpenSubagent,
   registerTurnRow,
   rightDockPlanEventId,
+  diffMarkerStyle = "color",
+  readThreadPatchDiff,
 }: CanonicalThreadViewProps): React.ReactNode {
   const disclosureState = useTimelineDisclosureState(threadId);
   const loadOlderPreservingAnchor = React.useCallback(async (): Promise<void> => {
@@ -271,6 +277,7 @@ function CanonicalThreadViewComponent({
   const renderTurn = React.useCallback(
     (entry: RenderTurnEntry): React.ReactElement => (
       <CanonicalTurnRow
+        diffMarkerStyle={diffMarkerStyle}
         disclosureState={disclosureState}
         entry={entry}
         key={entry.id}
@@ -280,16 +287,21 @@ function CanonicalThreadViewComponent({
         onOpenSubagent={onOpenSubagent}
         registerTurnRow={registerTurnRow}
         rightDockPlanEventId={rightDockPlanEventId}
+        readThreadPatchDiff={readThreadPatchDiff}
+        threadId={threadId}
       />
     ),
     [
       disclosureState,
+      diffMarkerStyle,
       onApplyPatch,
       onOpenPatchReview,
       onOpenPlanInRightDock,
       onOpenSubagent,
       registerTurnRow,
       rightDockPlanEventId,
+      readThreadPatchDiff,
+      threadId,
     ],
   );
 
@@ -353,6 +365,7 @@ export const CanonicalThreadView = React.memo(CanonicalThreadViewComponent);
 
 const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   disclosureState,
+  diffMarkerStyle,
   entry,
   onApplyPatch,
   onOpenPatchReview,
@@ -360,18 +373,23 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   onOpenSubagent,
   registerTurnRow,
   rightDockPlanEventId,
+  readThreadPatchDiff,
+  threadId,
 }: {
   disclosureState: {
     expandedIds: ReadonlySet<string>;
     onExpandedChange: (id: string, expanded: boolean) => void;
   };
   entry: RenderTurnEntry;
+  diffMarkerStyle: DesktopDiffMarkerStyle;
   onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
   onOpenPatchReview?: CanonicalThreadViewProps["onOpenPatchReview"];
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
   registerTurnRow?: RegisterConversationTurnRow;
   rightDockPlanEventId: string | null;
+  readThreadPatchDiff?: ReadThreadPatchDiff;
+  threadId: string;
 }): React.ReactNode {
   const rowRef = React.useCallback(
     (node: HTMLDivElement | null): void => {
@@ -390,12 +408,15 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
       <ConversationTurnErrorBoundary turnId={entry.id}>
         <CanonicalConversationTurn
           disclosureState={disclosureState}
+          diffMarkerStyle={diffMarkerStyle}
           entry={entry}
           onApplyPatch={onApplyPatch}
           onOpenPatchReview={onOpenPatchReview}
           onOpenPlanInRightDock={onOpenPlanInRightDock}
           onOpenSubagent={onOpenSubagent}
           rightDockPlanEventId={rightDockPlanEventId}
+          readThreadPatchDiff={readThreadPatchDiff}
+          threadId={threadId}
         />
       </ConversationTurnErrorBoundary>
     </div>
@@ -404,23 +425,29 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
 
 function CanonicalConversationTurnComponent({
   disclosureState,
+  diffMarkerStyle = "color",
   entry,
   onApplyPatch,
   onOpenPatchReview,
   onOpenPlanInRightDock,
   onOpenSubagent,
   rightDockPlanEventId,
+  readThreadPatchDiff,
+  threadId,
 }: {
   disclosureState: {
     expandedIds: ReadonlySet<string>;
     onExpandedChange: (id: string, expanded: boolean) => void;
   };
   entry: RenderTurnEntry;
+  diffMarkerStyle?: DesktopDiffMarkerStyle;
   onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
   onOpenPatchReview?: CanonicalThreadViewProps["onOpenPatchReview"];
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
   rightDockPlanEventId: string | null;
+  readThreadPatchDiff?: ReadThreadPatchDiff;
+  threadId?: string;
 }): React.ReactNode {
   const disclosure = (id: string) => ({
     id,
@@ -491,8 +518,12 @@ function CanonicalConversationTurnComponent({
               if (segment.kind === "file-mutation") {
                 return (
                   <FileMutationItemView
+                    diffMarkerStyle={diffMarkerStyle}
+                    disclosureState={disclosureState}
                     item={segment.item}
                     key={segment.id}
+                    readThreadPatchDiff={readThreadPatchDiff}
+                    threadId={threadId}
                   />
                 );
               }

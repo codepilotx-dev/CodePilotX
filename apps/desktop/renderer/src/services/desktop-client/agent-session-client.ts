@@ -2630,6 +2630,8 @@ export function createAgentSessionDesktopClient(
           await mockClient.getSession(params.threadId),
         ),
     ),
+    readThreadPatchDiff: params =>
+      withRequiredAgent(() => rpc.call('thread/patch/diff', params)),
     subscribeAgentEventEnvelopes: (options, callback) => {
       const makeEventSource = eventSourceFactory()
       if (!makeEventSource) return noop

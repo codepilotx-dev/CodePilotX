@@ -23,6 +23,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Attachment, Input, Item } from "@codepilotx/shared/thread";
+import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
+import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 
 import {
   APP_ICON_SIZE,
@@ -39,6 +41,11 @@ import {
   WorkflowPlanCard,
   type OpenPlanInDockRequest,
 } from "../workflow/WorkflowPlanCard.js";
+
+const LazyExpandableFileMutationRow = React.lazy(async () => {
+  const module = await import("./ExpandableFileMutationRow.js");
+  return { default: module.ExpandableFileMutationRow };
+});
 
 type ItemOf<T extends Item["type"]> = Extract<Item, { type: T }>;
 type ToolItem = ItemOf<"tool">;
@@ -108,6 +115,10 @@ export type CanonicalItemDisclosure = {
   expanded: boolean;
   onExpandedChange: (id: string, expanded: boolean) => void;
 };
+
+export type ReadThreadPatchDiff = (
+  params: RpcParams<"thread/patch/diff">,
+) => Promise<RpcResult<"thread/patch/diff">>;
 
 export type CanonicalItemRendererProps = {
   disclosure?: CanonicalItemDisclosure;
@@ -652,9 +663,20 @@ export function PatchSummaryView({
 }
 
 export function FileMutationItemView({
+  diffMarkerStyle = "color",
+  disclosureState,
   item,
+  readThreadPatchDiff,
+  threadId,
 }: {
+  diffMarkerStyle?: DesktopDiffMarkerStyle;
+  disclosureState?: {
+    expandedIds: ReadonlySet<string>;
+    onExpandedChange: (id: string, expanded: boolean) => void;
+  };
   item: ToolItem;
+  readThreadPatchDiff?: ReadThreadPatchDiff;
+  threadId?: string;
 }): React.ReactNode {
   const mutation = fileMutationDisplay(item);
   if (!mutation) return null;
@@ -663,26 +685,77 @@ export function FileMutationItemView({
 
   return (
     <div className="canonical-file-mutation" data-state={item.state}>
-      {mutation.files.map((file) => (
-        <div className="canonical-file-mutation__row" key={`${item.id}:${file.path}`}>
-          {active ? (
-            <LoaderCircle className="canonical-spin" aria-hidden="true" />
-          ) : failed ? (
-            <CircleAlert aria-hidden="true" />
-          ) : (
-            <Pencil aria-hidden="true" />
-          )}
-          <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
-          {file.additions !== null ? (
-            <small className="canonical-diff-add">+{file.additions}</small>
-          ) : null}
-          {file.deletions !== null ? (
-            <small className="canonical-diff-remove">-{file.deletions}</small>
-          ) : null}
-        </div>
-      ))}
+      {mutation.files.map((file, fileIndex) => {
+        const disclosureId = `file-mutation:${item.id}:${fileIndex}`;
+        const canExpand =
+          item.state === "completed" &&
+          Boolean(threadId) &&
+          Boolean(readThreadPatchDiff) &&
+          item.mutationDiffPaths?.some((path) => sameMutationPath(path, file.path)) === true;
+        if (!canExpand || !readThreadPatchDiff || !threadId) {
+          return (
+            <div
+              className="canonical-file-mutation__row"
+              key={`${item.id}:${file.path}`}
+            >
+              {active ? (
+                <LoaderCircle className="canonical-spin" aria-hidden="true" />
+              ) : failed ? (
+                <CircleAlert aria-hidden="true" />
+              ) : (
+                <Pencil aria-hidden="true" />
+              )}
+              <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
+              <span className="canonical-file-mutation__stats">
+                {file.additions !== null ? (
+                  <small className="canonical-diff-add">+{file.additions}</small>
+                ) : null}
+                {file.deletions !== null ? (
+                  <small className="canonical-diff-remove">-{file.deletions}</small>
+                ) : null}
+              </span>
+            </div>
+          );
+        }
+        const disclosure = {
+          id: disclosureId,
+          expanded: Boolean(disclosureState?.expandedIds.has(disclosureId)),
+          onExpandedChange:
+            disclosureState?.onExpandedChange ?? (() => undefined),
+        };
+        return (
+          <React.Suspense
+            fallback={(
+              <div className="canonical-file-mutation__row">
+                <Pencil aria-hidden="true" />
+                <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
+                <span className="canonical-file-mutation__stats">
+                  {file.additions !== null ? <small className="canonical-diff-add">+{file.additions}</small> : null}
+                  {file.deletions !== null ? <small className="canonical-diff-remove">-{file.deletions}</small> : null}
+                </span>
+              </div>
+            )}
+            key={`${item.id}:${file.path}`}
+          >
+            <LazyExpandableFileMutationRow
+              diffMarkerStyle={diffMarkerStyle}
+              disclosure={disclosure}
+              file={file}
+              item={item}
+              readThreadPatchDiff={readThreadPatchDiff}
+              threadId={threadId}
+            />
+          </React.Suspense>
+        );
+      })}
     </div>
   );
+}
+
+function sameMutationPath(left: string, right: string): boolean {
+  if (left === right) return true;
+  const normalize = (value: string): string => value.replaceAll("\\", "/").toLocaleLowerCase("en-US");
+  return normalize(left) === normalize(right);
 }
 
 function SubagentItemView({
@@ -1443,7 +1516,7 @@ export function fileMutationDisplay(item: ToolItem): FileMutationDisplay | null 
   };
 }
 
-function fileMutationLabel(state: ToolItem["state"], path: string): string {
+export function fileMutationLabel(state: ToolItem["state"], path: string): string {
   if (state === "completed") return `已编辑 ${path}`;
   if (state === "error") return `编辑失败 ${path}`;
   if (state === "interrupted") return `已中断编辑 ${path}`;
