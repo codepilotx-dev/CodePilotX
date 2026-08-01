@@ -475,7 +475,7 @@ function runPrepare(newVersion: string, stable: boolean) {
   // 8. 刷新 lockfile
   console.log("\n⏳ 刷新 lockfile...");
   try {
-    execSync("bun install --frozen-lockfile", {
+    execSync("bun install", {
       cwd: ROOT,
       stdio: "inherit",
       timeout: 120_000,
