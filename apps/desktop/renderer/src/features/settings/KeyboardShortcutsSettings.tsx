@@ -117,6 +117,11 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     keys: ['Ctrl+B'],
   },
   {
+    title: '切换侧栏优先级筛选',
+    description: 'Focus the sidebar on priority tasks and the last week of conversations',
+    keys: ['Ctrl+Alt+U'],
+  },
+  {
     title: '环境动作 1',
     description: 'Run the environment action in this shortcut slot',
     keys: ['Ctrl+Alt+1'],

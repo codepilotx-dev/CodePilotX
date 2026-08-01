@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Boxes,
+  BellDot,
   BrainCircuit,
   ChevronDown,
   Clock3,
@@ -16,6 +17,7 @@ import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import type { SidebarProductMode } from "../../../../shared/types.js";
 import type { AppView } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
+import { Tooltip } from "../../../components/ui/Tooltip.js";
 import {
   PopoverRadioGroup,
   PopoverRadioItem,
@@ -127,8 +129,16 @@ export function SidebarHeader({
   const {
     sidebarProductMode,
     setSidebarProductMode,
+    sidebarPriorityFilterEnabled,
+    setSidebarPriorityFilterEnabled,
   } = useDesktopSettings()
   const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
+  const priorityToggleLabel = sidebarPriorityFilterEnabled
+    ? "关闭优先级筛选器"
+    : "按优先级筛选"
+  const priorityToggleTitle = sidebarPriorityFilterEnabled
+    ? "关闭优先级筛选器 (Ctrl+Alt+U)"
+    : "按优先级筛选 (Ctrl+Alt+U)"
 
   return (
     <header className="sidebar-header">
@@ -174,14 +184,29 @@ export function SidebarHeader({
           })}
         </PopoverRadioGroup>
       </PopoverMenu>
-      <IconButton
-        aria-haspopup="dialog"
-        className="sidebar-search-button"
-        onClick={onOpenCommandMenu}
-        title="搜索任务"
-      >
-        <Search size={APP_ICON_SIZE} />
-      </IconButton>
+      <div className="sidebar-header-actions">
+        <IconButton
+          aria-haspopup="dialog"
+          className="sidebar-search-button"
+          onClick={onOpenCommandMenu}
+          title="搜索任务"
+        >
+          <Search size={APP_ICON_SIZE} />
+        </IconButton>
+        <Tooltip content={priorityToggleTitle} side="bottom">
+          <IconButton
+            aria-label={priorityToggleLabel}
+            aria-keyshortcuts="Control+Alt+U"
+            aria-pressed={sidebarPriorityFilterEnabled}
+            active={sidebarPriorityFilterEnabled}
+            className="sidebar-priority-filter-button"
+            onClick={() => setSidebarPriorityFilterEnabled(v => !v)}
+            title={priorityToggleTitle}
+          >
+            <BellDot size={APP_ICON_SIZE} />
+          </IconButton>
+        </Tooltip>
+      </div>
     </header>
   )
 }

@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Ellipsis, Plus, SquarePen } from "lucide-react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
@@ -35,6 +35,7 @@ import {
   normalizeSidebarPath,
   reorderSidebarPinnedItemKeys,
   sidebarProjectKey,
+  type SidebarFocusSection,
   type SidebarPinnedItem,
   type SidebarProjectSessionBucket,
 } from "./sidebarViewModel.js";
@@ -47,6 +48,7 @@ type Props = {
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
   organization: DesktopSidebarOrganization;
+  focusSections?: SidebarFocusSection[] | null;
   now: number;
   pendingPermissionSessionIds: ReadonlySet<string>;
   titleLoadingIds: ReadonlySet<string>;
@@ -85,6 +87,7 @@ export function SidebarBody({
   activeSessionId,
   collapsedProjectPaths,
   organization,
+  focusSections,
   now,
   pendingPermissionSessionIds,
   titleLoadingIds,
@@ -135,6 +138,15 @@ export function SidebarBody({
   const [dragOverPinnedItemKey, setDragOverPinnedItemKey] = useState<
     string | null
   >(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null)
+  const previousFocusModeRef = useRef<boolean>(focusSections !== null)
+  useEffect(() => {
+    const focusMode = focusSections !== null
+    if (focusMode !== previousFocusModeRef.current) {
+      previousFocusModeRef.current = focusMode
+      scrollViewportRef.current?.scrollTo({ top: 0 })
+    }
+  }, [focusSections])
   const unavailablePaths = useMemo(
     () =>
       new Set(
@@ -420,7 +432,23 @@ export function SidebarBody({
     <ScrollArea
       className="sidebar-scroll-area tw:mt-4.5 tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
       contentClassName="sidebar-scroll-content"
+      viewportRef={scrollViewportRef}
     >
+      {focusSections ? (
+        <FocusSections
+          activeSessionId={activeSessionId}
+          focusSections={focusSections}
+          now={now}
+          pendingPermissionSessionIds={pendingPermissionSessionIds}
+          titleLoadingIds={titleLoadingIds}
+          sessionFallbackTitles={sessionFallbackTitles}
+          onArchiveSessions={onArchiveSessions}
+          onPinSession={onPinSession}
+          onSelectSession={onSelectSession}
+          onRenameSession={onRenameSession}
+          onUnpinSession={onUnpinSession}
+        />
+      ) : (
       <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
         {pinnedItems.length > 0 ? (
           <SidebarSection
@@ -540,8 +568,116 @@ export function SidebarBody({
           )}
         </SidebarSection>
       </div>
+      )}
     </ScrollArea>
   );
+}
+
+function FocusSections({
+  activeSessionId,
+  focusSections,
+  now,
+  pendingPermissionSessionIds,
+  titleLoadingIds,
+  sessionFallbackTitles,
+  onArchiveSessions,
+  onPinSession,
+  onSelectSession,
+  onRenameSession,
+  onUnpinSession,
+}: {
+  activeSessionId: string | null
+  focusSections: readonly SidebarFocusSection[]
+  now: number
+  pendingPermissionSessionIds: ReadonlySet<string>
+  titleLoadingIds: ReadonlySet<string>
+  sessionFallbackTitles: Record<string, string>
+  onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
+  onPinSession: (session: SessionListItem) => void
+  onSelectSession: (session: SessionListItem) => void
+  onRenameSession: (sessionId: string, title: string) => Promise<boolean>
+  onUnpinSession: (session: SessionListItem) => void
+}): React.ReactNode {
+  if (focusSections.length === 0) {
+    return (
+      <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
+        <SidebarEmptyRow>最近一周暂无任务</SidebarEmptyRow>
+      </div>
+    )
+  }
+  return (
+    <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
+      {focusSections.map(section => (
+        <FocusSectionGroup
+          activeSessionId={activeSessionId}
+          key={section.id}
+          label={section.label}
+          now={now}
+          pendingPermissionSessionIds={pendingPermissionSessionIds}
+          titleLoadingIds={titleLoadingIds}
+          sessionFallbackTitles={sessionFallbackTitles}
+          sessions={section.sessions}
+          onArchiveSessions={onArchiveSessions}
+          onPinSession={onPinSession}
+          onSelectSession={onSelectSession}
+          onRenameSession={onRenameSession}
+          onUnpinSession={onUnpinSession}
+        />
+      ))}
+    </div>
+  )
+}
+
+function FocusSectionGroup({
+  activeSessionId,
+  label,
+  now,
+  pendingPermissionSessionIds,
+  titleLoadingIds,
+  sessionFallbackTitles,
+  sessions,
+  onArchiveSessions,
+  onPinSession,
+  onSelectSession,
+  onRenameSession,
+  onUnpinSession,
+}: {
+  activeSessionId: string | null
+  label: string
+  now: number
+  pendingPermissionSessionIds: ReadonlySet<string>
+  titleLoadingIds: ReadonlySet<string>
+  sessionFallbackTitles: Record<string, string>
+  sessions: SessionListItem[]
+  onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
+  onPinSession: (session: SessionListItem) => void
+  onSelectSession: (session: SessionListItem) => void
+  onRenameSession: (sessionId: string, title: string) => Promise<boolean>
+  onUnpinSession: (session: SessionListItem) => void
+}): React.ReactNode {
+  return (
+    <section className="sidebar-section tw:grid tw:gap-1">
+      <div className="sidebar-focus-section-header">
+        <h3 className="sidebar-focus-section-title">{label}</h3>
+      </div>
+      <SidebarSessionGroup
+        activeSessionId={activeSessionId}
+        groupKey={`focus:${label}`}
+        now={now}
+        pagination="all"
+        pendingPermissionSessionIds={pendingPermissionSessionIds}
+        presentation="workspace-meta"
+        titleLoadingIds={titleLoadingIds}
+        sessionFallbackTitles={sessionFallbackTitles}
+        sessions={sessions}
+        onArchiveSessions={onArchiveSessions}
+        onPinSession={onPinSession}
+        onSelectSession={onSelectSession}
+        onRenameSession={onRenameSession}
+        onUnpinSession={onUnpinSession}
+      />
+    </section>
+  )
 }
 
 const EMPTY_PROJECT_SESSION_BUCKET: SidebarProjectSessionBucket = {

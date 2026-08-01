@@ -979,6 +979,7 @@ gitBranchPrefix: string
   sidebarStateVersion: number
   sidebarProjectSort: DesktopSidebarSort
   sidebarSort: DesktopSidebarSort
+  sidebarPriorityFilterEnabled: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]

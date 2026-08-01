@@ -9,9 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { Archive, Copy, LoaderCircle, Pencil, Pin, PinOff } from "lucide-react";
+import { Archive, Copy, Folder, LoaderCircle, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
+import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
 import {
   sessionDisplayTitle,
   sessionEditableTitle,
@@ -49,6 +50,8 @@ type Props = {
   sessions: SessionListItem[];
   sort?: DesktopSidebarSort
   manualOrderByScope?: Record<string, string[]>
+  presentation?: 'compact' | 'workspace-meta'
+  pagination?: 'incremental' | 'all'
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
   onManualOrderChange?: (scopeKey: string, order: string[]) => void
   onPinSession: (session: SessionListItem) => void;
@@ -68,6 +71,8 @@ function SidebarSessionGroupComponent({
   sessions,
   sort = 'priority',
   manualOrderByScope = {},
+  presentation = 'compact',
+  pagination = 'incremental',
   onArchiveSessions,
   onManualOrderChange,
   onPinSession,
@@ -280,6 +285,7 @@ function SidebarSessionGroupComponent({
         }}
         type="button"
       >
+        <span className={cx('sidebar-session-button-lines', presentation === 'workspace-meta' && 'sidebar-session-button-lines--meta')}>
         {regeneratingTitle ? (
           <span
             aria-busy="true"
@@ -298,6 +304,10 @@ function SidebarSessionGroupComponent({
             {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
           </SidebarSessionTitle>
         )}
+        {presentation === 'workspace-meta' ? (
+          <SidebarSessionWorkspaceMeta session={session} />
+        ) : null}
+        </span>
       </button>
     )
     const row = (
@@ -442,8 +452,10 @@ function SidebarSessionGroupComponent({
   return (
     <>
       <ul className="sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
-        {baseSessions.map(renderSessionRow)}
+        {(pagination === 'all' ? sortedSessions : baseSessions).map(renderSessionRow)}
       </ul>
+      {pagination !== 'all' ? (
+      <>
       <AnimatePresence initial={false}>
         {extraSessions.length > 0 ? (
           <motion.ul
@@ -517,6 +529,8 @@ function SidebarSessionGroupComponent({
             )}
           />
         </div>
+      ) : null}
+      </>
       ) : null}
       <InputDialog
         actionDisabled={renaming || renameValue.trim().length === 0}
@@ -648,6 +662,42 @@ export function getSidebarSessionDisplayGroups<T>(
       : [],
     hasOverflow,
   };
+}
+
+function SidebarSessionWorkspaceMeta({
+  session,
+}: {
+  session: SessionListItem
+}): React.ReactNode {
+  if (session.standalone) {
+    return (
+      <span className="sidebar-session-workspace-meta">
+        <MessageSquare className="sidebar-session-workspace-meta__icon" size={12} />
+        <span className="sidebar-session-workspace-meta__name">会话</span>
+      </span>
+    )
+  }
+  if (session.projectId) {
+    return (
+      <span className="sidebar-session-workspace-meta">
+        <ProjectAppearanceGlyph
+          className="sidebar-session-workspace-meta__glyph"
+          size={12}
+        />
+        <span className="sidebar-session-workspace-meta__name">
+          {session.workspaceName}
+        </span>
+      </span>
+    )
+  }
+  return (
+    <span className="sidebar-session-workspace-meta">
+      <Folder className="sidebar-session-workspace-meta__icon" size={12} />
+      <span className="sidebar-session-workspace-meta__name">
+        {session.workspaceName}
+      </span>
+    </span>
+  )
 }
 
 function reorderSessionIds(

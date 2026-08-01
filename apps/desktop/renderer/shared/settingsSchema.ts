@@ -211,6 +211,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
     sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
+    sidebarPriorityFilterEnabled: false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
     collapsedSidebarProjectPaths: [],
@@ -469,6 +470,10 @@ export function normalizeDesktopStoredSettings(
       parsed.sidebarSort,
       defaults.sidebarSort,
     ),
+    sidebarPriorityFilterEnabled:
+      typeof parsed.sidebarPriorityFilterEnabled === 'boolean'
+        ? parsed.sidebarPriorityFilterEnabled
+        : defaults.sidebarPriorityFilterEnabled,
     sidebarManualOrder: normalizeSidebarManualOrder(
       parsed.sidebarManualOrder,
       defaults.sidebarManualOrder,
@@ -515,6 +520,7 @@ export function createSidebarStateResetPatch(
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
     sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
+    sidebarPriorityFilterEnabled: false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
     collapsedSidebarProjectPaths: [],

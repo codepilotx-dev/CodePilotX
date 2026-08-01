@@ -14,6 +14,7 @@ import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
 import { SidebarHeader, SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 import {
   buildSidebarViewModel,
+  buildSidebarFocusSections,
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
 } from './sidebar/sidebarViewModel.js'
@@ -93,6 +94,7 @@ export function DesktopSidebar({
     sidebarProjectSort,
     sidebarSort,
     setSidebarSort,
+    sidebarPriorityFilterEnabled,
   } = useDesktopSettings()
   const collapsedProjectPaths = useMemo(
     () => new Set(collapsedSidebarProjectPaths),
@@ -154,6 +156,23 @@ export function DesktopSidebar({
       sidebarManualOrder,
       sidebarOrganization,
       sidebarSessionPins,
+    ],
+  )
+
+  const focusSections = useMemo(
+    () =>
+      sidebarPriorityFilterEnabled
+        ? buildSidebarFocusSections({
+            now: relativeNow,
+            sessions: viewModel.visibleSessions,
+            sessionStateById: viewModel.sessionStateById,
+          })
+        : null,
+    [
+      relativeNow,
+      sidebarPriorityFilterEnabled,
+      viewModel.sessionStateById,
+      viewModel.visibleSessions,
     ],
   )
 
@@ -264,6 +283,7 @@ export function DesktopSidebar({
         titleLoadingIds={titleLoadingIds}
         collapsedProjectPaths={collapsedProjectPaths}
         organization={sidebarOrganization}
+        focusSections={focusSections}
         now={relativeNow}
         pinnedSessions={viewModel.pinnedSessions}
         pinnedWorkspaces={viewModel.pinnedWorkspaces}

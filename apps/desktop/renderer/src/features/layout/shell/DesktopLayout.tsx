@@ -288,6 +288,7 @@ export function DesktopLayout(): React.ReactNode {
 	    setCollapsedSidebarSections,
 	    sidebarSessionPins,
 	    setSidebarSessionPins,
+	    setSidebarPriorityFilterEnabled,
 	    syncExternalSettingsPatch,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -1212,6 +1213,17 @@ export function DesktopLayout(): React.ReactNode {
       } else if (!event.shiftKey && event.altKey && key === 's') {
         event.preventDefault()
         handleOpenSideChat()
+      } else if (
+        !event.defaultPrevented
+        && !event.isComposing
+        && event.keyCode !== 229
+        && !hasOpenDialog()
+        && !event.shiftKey
+        && event.altKey
+        && key === 'u'
+      ) {
+        event.preventDefault()
+        setSidebarPriorityFilterEnabled(current => !current)
       } else if (
         !event.shiftKey &&
         !event.altKey &&
