@@ -96,7 +96,7 @@ export interface ToolExecutorOptions {
   runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
   recordMutation?: (batch: TurnPatchMutationBatch) => Promise<void>
-  discardMutationEvidence?: (input: { threadID: string; turnID: string }) => void
+  discardMutationEvidence?: (input: { threadID: string; turnID: string }) => Promise<void>
   permissionGrants?: PermissionGrantStore
   logger?: AgentLogger
 }
@@ -390,7 +390,7 @@ export class ToolExecutor {
               files,
             }
             if (JSON.stringify(secretScrubber.scrub(files)) !== JSON.stringify(files)) {
-              this.options?.discardMutationEvidence?.({
+              await this.options?.discardMutationEvidence?.({
                 threadID: context.threadID,
                 turnID: context.turnID,
               })
@@ -408,7 +408,7 @@ export class ToolExecutor {
             try {
               await this.options!.recordMutation!(batch)
             } catch {
-              this.options?.discardMutationEvidence?.({
+              await this.options?.discardMutationEvidence?.({
                 threadID: context.threadID,
                 turnID: context.turnID,
               })

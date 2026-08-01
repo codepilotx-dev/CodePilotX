@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto"
+import type { RpcResult } from "@codepilotx/agent-protocol"
+import { createTwoFilesPatch } from "diff"
 import { Effect } from "effect"
 import { AgentError, type Item } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
@@ -13,6 +15,12 @@ import type {
   TurnPatchApplyState,
   TurnPatchMutationFile,
 } from "./TurnPatchTypes"
+import { parseHunks } from "../review/diff/parsers"
+import {
+  UNRENDERABLE_CHANGED_BYTES,
+  UNRENDERABLE_CHANGED_LINES,
+  UNRENDERABLE_LINE_BYTES,
+} from "../review/diff/limits"
 
 type ApplyAction = "undo" | "reapply"
 
@@ -22,6 +30,12 @@ type ApplyInput = {
   action: ApplyAction
   expectedVersion: number
   operationID: string
+}
+
+type ReadDiffInput = {
+  threadID: string
+  toolCallID: string
+  path: string
 }
 
 type Endpoint = {
@@ -120,6 +134,64 @@ export class TurnPatchService {
     } finally {
       release()
       if (this.locks.get(key) === queued) this.locks.delete(key)
+    }
+  }
+
+  readDiff(input: ReadDiffInput): RpcResult<"thread/patch/diff"> {
+    const file = this.db.repositories.turnPatches.diffFileForToolCall(
+      input.threadID,
+      input.toolCallID,
+      input.path,
+    )
+    if (!file) {
+      throw new AgentError("CHECKPOINT_UNAVAILABLE", "该文件缺少可显示的编辑证据", 409)
+    }
+    try {
+      verifyEvidenceFile(file)
+    } catch {
+      throw new AgentError("CHECKPOINT_UNAVAILABLE", "该文件缺少可显示的编辑证据", 409)
+    }
+
+    const oldFileName = file.operation === "create" ? "/dev/null" : `a/${file.path}`
+    const newFileName = file.operation === "delete" ? "/dev/null" : `b/${file.path}`
+    const patch = createTwoFilesPatch(
+      oldFileName,
+      newFileName,
+      file.beforeContent ?? "",
+      file.afterContent ?? "",
+      undefined,
+      undefined,
+      { context: 3 },
+    )
+    const lines = patch.split("\n")
+    const changedLines = lines.reduce(
+      (total, line) => total + (
+        (line.startsWith("+") && !line.startsWith("+++"))
+        || (line.startsWith("-") && !line.startsWith("---"))
+          ? 1
+          : 0
+      ),
+      0,
+    )
+    const changedBytes = Buffer.byteLength(patch, "utf8")
+    const maximumLineBytes = lines.reduce(
+      (maximum, line) => Math.max(maximum, Buffer.byteLength(line, "utf8")),
+      0,
+    )
+    const tooLargeReason = changedLines > UNRENDERABLE_CHANGED_LINES
+      ? "changed-lines" as const
+      : changedBytes > UNRENDERABLE_CHANGED_BYTES
+        ? "changed-bytes" as const
+        : maximumLineBytes > UNRENDERABLE_LINE_BYTES
+          ? "line-bytes" as const
+          : null
+    return {
+      path: file.path,
+      operation: file.operation,
+      patch: tooLargeReason ? "" : patch,
+      hunks: tooLargeReason ? [] : parseHunks(patch),
+      renderable: tooLargeReason === null,
+      tooLargeReason,
     }
   }
 

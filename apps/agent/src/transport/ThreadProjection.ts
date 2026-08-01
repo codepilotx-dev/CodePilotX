@@ -67,6 +67,8 @@ const modelUsage = (value: unknown): Extract<Item, { type: "text" }>["usage"] =>
   }
 }
 const activityCommandStatus = (value: unknown): "success" | "running" | "error" | "interrupted" | undefined => value === "success" || value === "running" || value === "error" || value === "interrupted" ? value : undefined
+const toolLeaf = (tool: string) => tool.toLowerCase().split(".").at(-1) ?? tool.toLowerCase()
+const isFileMutationTool = (tool: string) => ["edit", "write", "apply_patch"].includes(toolLeaf(tool))
 const activityCommands = (value: unknown): Extract<Item, { type: "activity" }>["commands"] => {
   if (!Array.isArray(value)) return undefined
   const commands = value.flatMap((entry) => {
@@ -608,7 +610,14 @@ export class ThreadProjection {
       const toolName = asText(item.data.tool ?? item.data.toolName) ?? "tool"
       const input = item.data.input ?? item.data.inputText ?? null
       const terminal = item.status === "completed" || item.status === "error" || item.status === "interrupted"
-      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID: asText(item.data.callID) ?? item.id, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: asText(item.data.command), output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, ...order, createdAt: item.createdAt }
+      const callID = asText(item.data.callID) ?? item.id
+      const execution = item.status === "completed" && isFileMutationTool(toolName)
+        ? this.db.getAgentExecution(item.agentID)
+        : null
+      const mutationDiffPaths = execution
+        ? this.db.repositories.turnPatches.diffPathsForToolCall(execution.threadID, callID)
+        : []
+      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: asText(item.data.command), output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, ...(mutationDiffPaths.length ? { mutationDiffPaths } : {}), ...order, createdAt: item.createdAt }
     }
     if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
     if (item.type === "execution-plan") {

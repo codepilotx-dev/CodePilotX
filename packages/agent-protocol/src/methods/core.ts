@@ -639,6 +639,31 @@ export const ThreadDeleteResultSchema = Schema.Struct({
   deletedAt: TimestampSchema,
 })
 
+export const ThreadPatchDiffParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  toolCallId: OpaqueIDSchema,
+  path: NonEmptyStringSchema,
+})
+
+export const ThreadPatchDiffHunkSchema = Schema.Struct({
+  id: NonEmptyStringSchema,
+  header: NonEmptyStringSchema,
+  oldStart: NonNegativeIntSchema,
+  oldLines: NonNegativeIntSchema,
+  newStart: NonNegativeIntSchema,
+  newLines: NonNegativeIntSchema,
+  patch: Schema.String,
+})
+
+export const ThreadPatchDiffResultSchema = Schema.Struct({
+  path: NonEmptyStringSchema,
+  operation: Schema.Literals(["create", "update", "delete"]),
+  patch: Schema.String,
+  hunks: Schema.Array(ThreadPatchDiffHunkSchema),
+  renderable: Schema.Boolean,
+  tooLargeReason: Schema.NullOr(Schema.Literals(["changed-lines", "changed-bytes", "line-bytes"])),
+})
+
 export const PromptSourceSchema = Schema.Union([
   Schema.Struct({ type: Schema.Literal("builtin"), name: NonEmptyStringSchema }),
   Schema.Struct({ type: Schema.Literal("setting"), name: NonEmptyStringSchema }),
@@ -1031,6 +1056,15 @@ export const CoreRpcMethods = {
   "thread/title/regenerate": defineMethod({ params: ThreadTitleRegenerateParamsSchema, result: ThreadTitleRegenerateResultSchema, errors: ThreadErrors, capability: null, mutation: true, exactParams: true, exactResult: true }),
   "thread/settings/update": defineMethod({ params: ThreadSettingsUpdateParamsSchema, result: ThreadSettingsUpdateResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/delete": defineMethod({ params: ThreadDeleteParamsSchema, result: ThreadDeleteResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
+  "thread/patch/diff": defineMethod({
+    params: ThreadPatchDiffParamsSchema,
+    result: ThreadPatchDiffResultSchema,
+    errors: ThreadErrors,
+    capability: null,
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
   "thread/patch/apply": defineMethod({
     params: Schema.Struct({ threadId: OpaqueIDSchema, itemId: OpaqueIDSchema, action: Schema.Literals(["undo", "reapply"]), expectedVersion: NonNegativeIntSchema, ...OperationParamsSchema.fields }),
     result: Schema.Struct({ item: AgentThread.PatchItemSchema }),

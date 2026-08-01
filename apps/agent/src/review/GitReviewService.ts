@@ -30,6 +30,11 @@ import {
   textFilePatch,
   validateRelativePath,
 } from "./diff/parsers"
+import {
+  UNRENDERABLE_CHANGED_BYTES,
+  UNRENDERABLE_CHANGED_LINES,
+  UNRENDERABLE_LINE_BYTES,
+} from "./diff/limits"
 import { fileState } from "./state/file-state"
 import { reviewSourceKey } from "./source/source-key"
 
@@ -37,9 +42,6 @@ const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
 const GIT_TIMEOUT_MS = 20_000
 const LARGE_FILE_COUNT = 128
 const LARGE_CHANGED_LINES = 9_000
-const UNRENDERABLE_CHANGED_LINES = 15_000
-const UNRENDERABLE_CHANGED_BYTES = 3 * 1024 * 1024
-const UNRENDERABLE_LINE_BYTES = 1 * 1024 * 1024
 const MAX_BATCH_DIFF_BYTES = 12 * 1024 * 1024
 const MAX_BATCH_DIFF_PATHS = 128
 const REVIEW_SLOW_MS = 3_000

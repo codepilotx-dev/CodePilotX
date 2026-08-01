@@ -72,6 +72,7 @@ export const threadHandlers = {
     "thread/title/regenerate",
     "thread/settings/update",
     "thread/delete",
+    "thread/patch/diff",
     "thread/patch/apply",
     "turn/start",
     "turn/steer",
@@ -114,6 +115,12 @@ export const threadHandlers = {
       }
       case "thread/read":
         return runtime.threadSnapshotResult(stringParam(params, "threadId"))
+      case "thread/patch/diff":
+        return turnPatches.readDiff({
+          threadID: stringParam(params, "threadId"),
+          toolCallID: stringParam(params, "toolCallId"),
+          path: stringParam(params, "path"),
+        })
       case "thread/patch/apply": {
         if (
           typeof params.expectedVersion !== "number"

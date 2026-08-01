@@ -31,3 +31,8 @@ export type StoredTurnPatchBatch = {
   toolCallID: string
   files: TurnPatchMutationFile[]
 }
+
+export type StoredTurnPatchToolBatch = StoredTurnPatchBatch & {
+  threadID: string
+  turnID: string
+}

@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto"
+import { isAbsolute } from "node:path"
 import { AgentError } from "../../domain"
 import type {
   StoredTurnPatchBatch,
   StoredTurnPatchSet,
+  StoredTurnPatchToolBatch,
   TurnPatchApplyState,
   TurnPatchMutationBatch,
+  TurnPatchMutationFile,
 } from "../../patch/TurnPatchTypes"
 import type { RepositoryDatabase } from "./RepositoryDatabase"
 
@@ -30,6 +33,45 @@ const patchSet = (row: PatchSetRow): StoredTurnPatchSet => ({
   actionVersion: row.action_version,
   evidenceComplete: row.evidence_complete === 1,
 })
+
+const pathKey = (path: string) => {
+  const normalized = path.replaceAll("\\", "/")
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized
+}
+
+const isSafeDiffPath = (path: string) => {
+  const normalized = path.replaceAll("\\", "/")
+  const segments = normalized.split("/")
+  return Boolean(normalized)
+    && !isAbsolute(path)
+    && !/^[A-Za-z]:\//.test(normalized)
+    && !normalized.startsWith("//")
+    && !segments.includes("")
+    && !segments.includes(".")
+    && !segments.includes("..")
+    && !normalized.includes("\0")
+}
+
+const hasCompleteContentEvidence = (value: unknown): value is TurnPatchMutationFile => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false
+  const file = value as Partial<TurnPatchMutationFile>
+  if (
+    typeof file.path !== "string"
+    || !isSafeDiffPath(file.path)
+    || !["create", "update", "delete"].includes(String(file.operation))
+    || !(
+      (typeof file.beforeContent === "string" && typeof file.beforeSha256 === "string")
+      || (file.beforeContent === null && file.beforeSha256 === null)
+    )
+    || !(
+      (typeof file.afterContent === "string" && typeof file.afterSha256 === "string")
+      || (file.afterContent === null && file.afterSha256 === null)
+    )
+  ) return false
+  return (file.operation === "create" && file.beforeContent === null && file.afterContent !== null)
+    || (file.operation === "update" && file.beforeContent !== null && file.afterContent !== null)
+    || (file.operation === "delete" && file.beforeContent !== null && file.afterContent === null)
+}
 
 export class TurnPatchRepository {
   constructor(private readonly db: RepositoryDatabase) {}
@@ -82,15 +124,35 @@ export class TurnPatchRepository {
 
   markIncomplete(threadID: string, turnID: string) {
     const timestamp = Date.now()
-    this.db.sqlite.query(`
-      INSERT INTO turn_patch_sets (
-        turn_id, thread_id, item_id, apply_state, action_version,
-        evidence_complete, created_at, updated_at
-      ) VALUES (?, ?, ?, 'applied', 0, 0, ?, ?)
-      ON CONFLICT(turn_id) DO UPDATE SET
-        evidence_complete = 0,
-        updated_at = excluded.updated_at
-    `).run(turnID, threadID, `patch:${turnID}`, timestamp, timestamp)
+    return this.db.transaction(() => {
+      this.db.sqlite.query(`
+        INSERT INTO turn_patch_sets (
+          turn_id, thread_id, item_id, apply_state, action_version,
+          evidence_complete, created_at, updated_at
+        ) VALUES (?, ?, ?, 'applied', 0, 0, ?, ?)
+        ON CONFLICT(turn_id) DO UPDATE SET
+          evidence_complete = 0,
+          updated_at = excluded.updated_at
+      `).run(turnID, threadID, `patch:${turnID}`, timestamp, timestamp)
+
+      const rows = this.db.sqlite.query(`
+        SELECT batches.tool_call_id
+        FROM turn_patch_batches AS batches
+        INNER JOIN items ON items.id = batches.tool_call_id
+        WHERE batches.turn_id = ?
+          AND items.thread_id = ?
+          AND items.turn_id = ?
+          AND items.type = 'tool'
+          AND items.status = 'completed'
+        ORDER BY batches.ordinal
+      `).all(turnID, threadID, turnID) as Array<{ tool_call_id: string }>
+      return rows.flatMap(({ tool_call_id }) => {
+        const item = this.db.getItem(tool_call_id)
+        return item
+          ? [this.db.insertEvent(threadID, turnID, "tool/callCompleted", { item })]
+          : []
+      })
+    })
   }
 
   getByItem(threadID: string, itemID: string): StoredTurnPatchSet | null {
@@ -126,6 +188,58 @@ export class TurnPatchRepository {
       toolCallID: row.tool_call_id,
       files: parse(row.files),
     }))
+  }
+
+  batchForToolCall(threadID: string, toolCallID: string): StoredTurnPatchToolBatch | null {
+    const row = this.db.sqlite.query(`
+      SELECT sets.thread_id, batches.turn_id, batches.ordinal, batches.tool_call_id, batches.files
+      FROM turn_patch_batches AS batches
+      INNER JOIN turn_patch_sets AS sets ON sets.turn_id = batches.turn_id
+      WHERE sets.thread_id = ?
+        AND sets.evidence_complete = 1
+        AND batches.tool_call_id = ?
+    `).get(threadID, toolCallID) as {
+      thread_id: string
+      turn_id: string
+      ordinal: number
+      tool_call_id: string
+      files: string
+    } | null
+    if (!row) return null
+    let parsedFiles: unknown
+    try {
+      parsedFiles = parse(row.files)
+    } catch {
+      return null
+    }
+    if (!Array.isArray(parsedFiles) || !parsedFiles.every(hasCompleteContentEvidence)) return null
+    const files = parsedFiles
+    return {
+      threadID: row.thread_id,
+      turnID: row.turn_id,
+      ordinal: row.ordinal,
+      toolCallID: row.tool_call_id,
+      files,
+    }
+  }
+
+  diffPathsForToolCall(threadID: string, toolCallID: string): string[] {
+    const batch = this.batchForToolCall(threadID, toolCallID)
+    if (!batch) return []
+    const paths = new Map<string, string>()
+    for (const file of batch.files) paths.set(pathKey(file.path), file.path)
+    return [...paths.values()]
+  }
+
+  diffFileForToolCall(
+    threadID: string,
+    toolCallID: string,
+    path: string,
+  ): StoredTurnPatchBatch["files"][number] | null {
+    const batch = this.batchForToolCall(threadID, toolCallID)
+    if (!batch) return null
+    const key = pathKey(path)
+    return batch.files.find((file) => pathKey(file.path) === key) ?? null
   }
 
   completedOperation(

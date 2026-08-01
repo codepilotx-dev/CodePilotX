@@ -484,8 +484,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         configService.notifyFileSaved(workspaceRoot, filePath),
       recordMutation: (batch) =>
         Promise.resolve(db.repositories.turnPatches.recordBatch(batch)),
-      discardMutationEvidence: ({ threadID, turnID }) =>
-        db.repositories.turnPatches.markIncomplete(threadID, turnID),
+      discardMutationEvidence: async ({ threadID, turnID }) => {
+        const events = db.repositories.turnPatches.markIncomplete(threadID, turnID)
+        for (const event of events) await Effect.runPromise(hub.publish(event))
+      },
     });
     const questions = new QuestionService(db, hub);
     const orchestrator = new PiOrchestratorAdapter({

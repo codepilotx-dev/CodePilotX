@@ -717,6 +717,26 @@ const fixtures = {
     threadId: threadListItem.id,
     operationId: "operation:thread-delete",
   }, { threadId: threadListItem.id, deletedAt: 2 }),
+  "thread/patch/diff": methodFixture("thread/patch/diff", {
+    threadId: threadListItem.id,
+    toolCallId: "tool:edit-1",
+    path: "src/index.ts",
+  }, {
+    path: "src/index.ts",
+    operation: "update",
+    patch: "--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n",
+    hunks: [{
+      id: "hunk:1",
+      header: "@@ -1,1 +1,1 @@",
+      oldStart: 1,
+      oldLines: 1,
+      newStart: 1,
+      newLines: 1,
+      patch: "--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n",
+    }],
+    renderable: true,
+    tooLargeReason: null,
+  }),
   "thread/patch/apply": methodFixture("thread/patch/apply", {
     threadId: threadListItem.id,
     itemId: "patch:turn:1",
@@ -1995,9 +2015,29 @@ describe("RPC method schema contracts", () => {
     expect(() => decode({ ...valid, diff: "arbitrary patch content" })).toThrow()
   })
 
+  test("thread/patch/diff 使用精确的只读请求与安全结果 envelope", () => {
+    const definition = RpcMethods["thread/patch/diff"]
+    expect(definition.mutation).toBe(false)
+    expect(definition.exactParams).toBe(true)
+    expect(definition.exactResult).toBe(true)
+    const decodeParams = Schema.decodeUnknownSync(
+      definition.params,
+      { onExcessProperty: "error" },
+    )
+    const valid = fixtures["thread/patch/diff"].params
+
+    expect(decodeParams(valid)).toEqual(valid)
+    expect(() => decodeParams({ ...valid, path: "" })).toThrow()
+    expect(() => decodeParams({ ...valid, beforeContent: "secret" })).toThrow()
+    expect(() => Schema.decodeUnknownSync(
+      definition.result,
+      { onExcessProperty: "error" },
+    )({ ...fixtures["thread/patch/diff"].result, afterContent: "secret" })).toThrow()
+  })
+
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(160)
+    expect(methods).toHaveLength(161)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
