@@ -30,6 +30,7 @@
 
 ### Fixed
 
+- [release] 发布机 workflow 的脚本步骤显式设置 TEMP/TMP 为 runner 工作区临时目录，避免服务账户系统 TEMP（C:\Windows\TEMP）与磁盘真实目录大小写不一致导致路径断言类单元测试失败
 - [release] 修复自动 Release PR 的版本一致性检查失败：升版刷新 lockfile 改用非冻结的 `bun install`，并按其既有格式同步三个 workspace 条目的版本号（bun 不会把 workspace 版本变更写回 bun.lock）
 - [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
 - [desktop/renderer/test] 更新 Settings 综合视觉用例对统一动作按钮契约的断言，避免继续校验已移除的旧无边框样式。

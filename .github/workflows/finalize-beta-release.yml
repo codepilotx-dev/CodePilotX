@@ -47,6 +47,8 @@ jobs:
           RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
           BETA_RELEASE_QUIET_MINUTES: ${{ vars.BETA_RELEASE_QUIET_MINUTES || '30' }}
           RELEASE_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: |
           if ($env:GITHUB_EVENT_NAME -eq "push") {
             $arguments = @(
