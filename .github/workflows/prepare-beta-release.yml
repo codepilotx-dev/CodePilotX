@@ -1,5 +1,10 @@
 name: Prepare beta release
 
+run-name: >-
+  Prepare beta release /
+  ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'dry-run' || 'live') || github.event_name }} /
+  ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || github.sha }}
+
 on:
   push:
     branches:
@@ -8,6 +13,10 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
+      main_sha:
+        description: "Exact 40-character main SHA approved for this run"
+        required: true
+        type: string
       dry_run:
         description: "Run the full preparation without creating a branch or pull request"
         required: true
@@ -24,8 +33,11 @@ concurrency:
 jobs:
   prepare:
     if: >-
-      vars.BETA_RELEASE_AUTOMATION_ENABLED == 'true' ||
-      (github.event_name == 'workflow_dispatch' && inputs.dry_run == true)
+      github.ref == 'refs/heads/main' &&
+      (
+        vars.BETA_RELEASE_AUTOMATION_ENABLED == 'true' ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: [self-hosted, windows, x64, codepilotx-release]
     timeout-minutes: 180
     environment:
@@ -34,7 +46,7 @@ jobs:
       - name: Checkout main candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || (github.event_name == 'push' && github.sha || 'main') }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -46,6 +58,8 @@ jobs:
       - name: Resolve main candidate
         id: candidate
         shell: pwsh
+        env:
+          MANUAL_MAIN_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || '' }}
         run: |
           git fetch --no-tags --force "https://github.com/$env:GITHUB_REPOSITORY.git" `
             main:refs/remotes/origin/main
@@ -53,10 +67,23 @@ jobs:
             throw "Failed to refresh origin/main"
           }
 
-          if ($env:GITHUB_EVENT_NAME -eq "push") {
+          $currentMainSha = (git rev-parse refs/remotes/origin/main).Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $currentMainSha -notmatch '^[0-9a-f]{40}$') {
+            throw "Unable to resolve the current origin/main SHA"
+          }
+
+          if ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") {
+            $mainSha = $env:MANUAL_MAIN_SHA.Trim().ToLowerInvariant()
+            if ($mainSha -notmatch '^[0-9a-f]{40}$') {
+              throw "main_sha must be an exact 40-character commit SHA"
+            }
+            if ($mainSha -ne $currentMainSha) {
+              throw "The approved main_sha no longer matches origin/main"
+            }
+          } elseif ($env:GITHUB_EVENT_NAME -eq "push") {
             $mainSha = $env:GITHUB_SHA
           } else {
-            $mainSha = (git rev-parse refs/remotes/origin/main).Trim()
+            $mainSha = $currentMainSha
           }
           if ($LASTEXITCODE -ne 0 -or $mainSha -notmatch '^[0-9a-f]{40}$') {
             throw "Unable to resolve a valid main candidate SHA"

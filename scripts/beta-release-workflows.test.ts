@@ -22,7 +22,9 @@ describe("beta release workflows", () => {
         "runs-on: [self-hosted, windows, x64, codepilotx-release]",
       );
       expect(workflow).not.toMatch(/^\s{2}pull_request:/m);
-      expect(workflow).toContain("ref: main");
+      expect(workflow).toContain(
+        "ref: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha",
+      );
       expect(workflow).toContain("persist-credentials: false");
     }
     const workflowDirectory = resolve(repositoryRoot, ".github", "workflows");
@@ -33,6 +35,49 @@ describe("beta release workflows", () => {
         expect(workflow).not.toContain("codepilotx-release");
       }
     }
+  });
+
+  test("manual release dispatch is main-only while automatic triggers stay opt-in", () => {
+    for (const workflow of [prepareWorkflow, finalizeWorkflow]) {
+      expect(workflow).toContain("github.ref == 'refs/heads/main'");
+      expect(workflow).toContain(
+        "vars.BETA_RELEASE_AUTOMATION_ENABLED == 'true'",
+      );
+      expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
+      expect(workflow).not.toContain(
+        "github.event_name == 'workflow_dispatch' && inputs.dry_run == true",
+      );
+      expect(workflow).toMatch(
+        /main_sha:\s+description:[^\n]+\s+required: true\s+type: string/,
+      );
+      expect(workflow).toMatch(
+        /run-name:[\s\S]*inputs\.dry_run[\s\S]*inputs\.main_sha/,
+      );
+    }
+  });
+
+  test("manual prepare stays locked to the approved current main SHA", () => {
+    expect(prepareWorkflow).toContain(
+      '$mainSha = $env:MANUAL_MAIN_SHA.Trim().ToLowerInvariant()',
+    );
+    expect(prepareWorkflow).toContain(
+      'if ($mainSha -ne $currentMainSha)',
+    );
+    expect(prepareWorkflow).toContain(
+      '"${{ steps.candidate.outputs.sha }}"',
+    );
+  });
+
+  test("manual finalize targets one merge SHA and only schedules reconcile", () => {
+    expect(finalizeWorkflow).toContain(
+      'if ($env:GITHUB_EVENT_NAME -eq "schedule")',
+    );
+    expect(finalizeWorkflow).toContain(
+      '$arguments = @("scripts/beta-release.ts", "reconcile")',
+    );
+    expect(finalizeWorkflow).toMatch(
+      /else \{\s+\$arguments = @\(\s+"scripts\/beta-release\.ts",\s+"finalize",\s+"--main-sha",\s+"\$\{\{ steps\.candidate\.outputs\.sha \}\}"/,
+    );
   });
 
   test("all actions are pinned to full commit SHAs", () => {
