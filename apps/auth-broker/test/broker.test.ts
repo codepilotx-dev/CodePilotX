@@ -211,13 +211,22 @@ describe("auth broker", () => {
       redirectUri,
     }
 
-    const [first, replay] = await Promise.all([
+    const responses = await Promise.all([
       broker.fetch(post("/v1/github/oauth/exchange", requestBody), env),
       broker.fetch(post("/v1/github/oauth/exchange", requestBody), env),
     ])
 
-    expect(first.status).toBe(200)
-    expect(await first.json()).toEqual({
+    const success = responses.find((response) => response.status === 200)
+    const replay = responses.find((response) => response.status !== 200)
+
+    if (!success) {
+      throw new Error("并发 PKCE 交换缺少成功响应")
+    }
+    if (!replay) {
+      throw new Error("并发 PKCE 交换缺少重放响应")
+    }
+    expect(success.status).toBe(200)
+    expect(await success.json()).toEqual({
       accessToken: "gho_sensitive",
       tokenType: "bearer",
       scope: "repo,read:user,read:org",
