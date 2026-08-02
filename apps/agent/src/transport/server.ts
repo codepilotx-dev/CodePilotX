@@ -37,6 +37,14 @@ import type { TaskSuggestionService } from "../suggestion/TaskSuggestionService"
 import type { ConfigService } from "../config/ConfigService"
 import type { UsageService } from "../usage/UsageService"
 import type { TurnPatchService } from "../patch/TurnPatchService"
+import type { TerminalContextService } from "../terminal/TerminalContextService"
+import type { TerminalOutputMirror } from "../terminal/TerminalOutputMirror"
+import type { LocalEnvironmentService } from "../local-environment/LocalEnvironmentService"
+import type { ManagedWorktreeService } from "../worktree/ManagedWorktreeService"
+import type { HandoffService } from "../handoff/HandoffService"
+import type { TaskExecutionBindingService } from "../worktree/TaskExecutionBindingService"
+import type { WorktreeRepository } from "../worktree/WorktreeRepository"
+import type { EnvironmentDeltaStore } from "../local-environment/EnvironmentDeltaStore"
 import { normalizeShellSecurityLevel } from "../security/ShellRiskClassifier"
 
 export interface TransportDependencies {
@@ -71,6 +79,14 @@ export interface TransportDependencies {
   logger: AgentLogger
   usage: UsageService
   turnPatches: TurnPatchService
+  terminalContext: TerminalContextService
+  terminalOutput: TerminalOutputMirror
+  localEnvironment: LocalEnvironmentService
+  worktrees: ManagedWorktreeService
+  handoff: HandoffService
+  executionBindings: TaskExecutionBindingService
+  worktreeRepository: WorktreeRepository
+  environmentDeltas: EnvironmentDeltaStore
 }
 
 export const resolveEventCursor = (
@@ -101,9 +117,20 @@ export const deliverAnchoredLive = async (
 }
 
 const cookieValue = (header: string | null, name: string) => header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1)
+export const rpcTransportAuthority = (
+  authorizationHeader: string | null,
+  cookieHeader: string | null,
+  authToken: string | null | undefined,
+): "desktop-host" | "renderer" | undefined => {
+  if (!authToken) return undefined
+  const bearer = authorizationHeader?.replace(/^Bearer\s+/i, "")
+  if (bearer === authToken) return "desktop-host"
+  return cookieValue(cookieHeader, "codepilotx_session") === authToken ? "renderer" : undefined
+}
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 const DESKTOP_RUNTIME_SETTINGS_KEY = "desktop.runtime-state.v1"
+const DESKTOP_TERMINAL_SETTINGS_KEY = "desktop.terminal-settings.v1"
 const DEPRECATED_DESKTOP_SIDEBAR_FIELDS = new Set([
   "sidebarSectionOrder",
 ])
@@ -189,6 +216,7 @@ const desktopConfigEdits = (
       && DEPRECATED_DESKTOP_SIDEBAR_FIELDS.has(key)
     ) return []
     if (prefix.length === 0 && DESKTOP_RUNTIME_FIELDS.has(key)) return []
+    if (prefix.length === 0 && key === "terminalProfileId") return []
     if (prefix.length === 0 && key === "permissionConfig" && isPlainObject(child)) {
       return Object.entries(child).flatMap(([permissionKey, permissionValue]) => {
         const path = permissionKey === "approvalPolicy"
@@ -292,7 +320,7 @@ const eventNextNotification = (
 export const createApp = (dependencies: TransportDependencies) => {
   const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
@@ -397,7 +425,15 @@ export const createApp = (dependencies: TransportDependencies) => {
   app.post("/rpc", async (context) => {
     const body = await context.req.json().catch(() => null)
     const connectionId = context.req.header("x-codepilotx-connection-id")
-    const result = await rpc.handle(body, connectionId ? { connectionId } : {})
+    const transportAuthority = rpcTransportAuthority(
+      context.req.header("Authorization") ?? null,
+      context.req.header("Cookie") ?? null,
+      config.authToken,
+    )
+    const result = await rpc.handle(body, {
+      ...(connectionId ? { connectionId } : {}),
+      ...(transportAuthority ? { transportAuthority } : {}),
+    })
     if (Array.isArray(result)) return context.json(result.filter(Boolean))
     if (!result) return new Response(null, { status: 204 })
     return context.json(result)
@@ -411,7 +447,12 @@ export const createApp = (dependencies: TransportDependencies) => {
     }
     const subscription = rpc.subscriptions.get(subscriptionId, connectionId)
     if (!subscription) throw new AgentError("SUBSCRIPTION_NOT_FOUND", "事件订阅不存在或不属于当前连接", 404)
-    if (!rpc.touchConnection(connectionId)) throw new AgentError("UNAUTHORIZED", "RPC 连接已过期", 401)
+    const transportAuthority = rpcTransportAuthority(
+      context.req.header("Authorization") ?? null,
+      context.req.header("Cookie") ?? null,
+      config.authToken,
+    )
+    if (!rpc.touchConnection(connectionId, transportAuthority)) throw new AgentError("UNAUTHORIZED", "RPC 连接已过期或认证来源已变化", 401)
     const cursors = new Map(subscription.acknowledged)
     if (cursors.size === 1) {
       const lastEventId = Number(context.req.header("Last-Event-ID"))
@@ -547,7 +588,7 @@ export const createApp = (dependencies: TransportDependencies) => {
               }),
             })
             heartbeatAt = Date.now()
-            if (!rpc.touchConnection(connectionId)) return
+            if (!rpc.touchConnection(connectionId, transportAuthority)) return
           }
           await stream.sleep(delivered ? 10 : 100)
         }
@@ -568,18 +609,35 @@ export const createApp = (dependencies: TransportDependencies) => {
     const currentRuntime = Object.fromEntries(
       Object.entries(runtime).filter(([key]) => DESKTOP_RUNTIME_FIELDS.has(key)),
     )
-    return context.json({ ...desktopProjection(result.config), ...currentRuntime })
+    const terminalSettings = db.getSetting<Record<string, unknown>>(DESKTOP_TERMINAL_SETTINGS_KEY) ?? {}
+    const terminalProfileId = terminalSettings.terminalProfileId
+    return context.json({
+      ...desktopProjection(result.config),
+      ...currentRuntime,
+      ...(terminalProfileId === null || typeof terminalProfileId === "string"
+        ? { terminalProfileId }
+        : {}),
+    })
   })
 
   app.put("/api/config/desktop-projection", async (context) => {
     const settings = await context.req.json().catch(() => null)
     if (!isPlainObject(settings)) throw new AgentError("INVALID_REQUEST", "桌面设置参数无效", 400)
+    const hasTerminalProfileId = Object.prototype.hasOwnProperty.call(settings, "terminalProfileId")
+    const terminalProfileId = settings.terminalProfileId
+    if (hasTerminalProfileId && terminalProfileId !== null && typeof terminalProfileId !== "string") {
+      throw new AgentError("INVALID_REQUEST", "终端 profile 设置无效", 400)
+    }
     db.setSetting(
       DESKTOP_RUNTIME_SETTINGS_KEY,
       Object.fromEntries(
         Object.entries(settings).filter(([key]) => DESKTOP_RUNTIME_FIELDS.has(key)),
       ),
     )
+    if (hasTerminalProfileId) {
+      const current = db.getSetting<Record<string, unknown>>(DESKTOP_TERMINAL_SETTINGS_KEY) ?? {}
+      db.setSetting(DESKTOP_TERMINAL_SETTINGS_KEY, { ...current, terminalProfileId })
+    }
     const read = await dependencies.configService.read({ includeLayers: true })
     const version = read.layers?.find((layer) => layer.kind === "user")?.version
     const edits = desktopConfigEdits(settings)

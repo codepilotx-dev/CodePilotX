@@ -12,6 +12,11 @@ import type {
   ConfigValue,
 } from "./ConfigService"
 
+export type JsoncPathSegment = string | number
+export type JsoncEdit = Omit<ConfigEdit, "keyPath"> & {
+  keyPath: readonly JsoncPathSegment[]
+}
+
 export class JsoncDocumentError extends Error {
   constructor(message: string) {
     super(message)
@@ -38,12 +43,17 @@ const mergeObject = (
 
 const valueAtPath = (
   config: ConfigObject,
-  keyPath: readonly string[],
+  keyPath: readonly JsoncPathSegment[],
 ): ConfigValue | undefined => {
   let current: ConfigValue | ConfigObject = config
   for (const key of keyPath) {
-    if (!isObject(current) || !(key in current)) return undefined
-    current = current[key]!
+    if (typeof key === "number") {
+      if (!Array.isArray(current) || key >= current.length) return undefined
+      current = current[key]!
+    } else {
+      if (!isObject(current) || !(key in current)) return undefined
+      current = current[key]!
+    }
   }
   return current as ConfigValue
 }
@@ -91,8 +101,13 @@ const detectFormatting = (source: string): FormattingOptions => {
   }
 }
 
-const assertKeyPath = (keyPath: readonly string[]) => {
-  if (keyPath.length === 0 || keyPath.some((part) => !part.trim())) {
+const assertKeyPath = (keyPath: readonly JsoncPathSegment[]) => {
+  if (
+    keyPath.length === 0
+    || keyPath.some((part) => typeof part === "string"
+      ? !part.trim()
+      : !Number.isSafeInteger(part) || part < 0)
+  ) {
     throw new JsoncDocumentError("配置 key path 无效")
   }
 }
@@ -104,7 +119,7 @@ const assertKeyPath = (keyPath: readonly string[]) => {
  */
 export const patchJsonc = (
   source: string,
-  edits: readonly ConfigEdit[],
+  edits: readonly JsoncEdit[],
 ): string => {
   const { bom, body: originalBody } = withoutBom(source)
   let body = originalBody.trim() ? originalBody : "{}\n"

@@ -1,49 +1,46 @@
 import type { Schema } from "effect"
 import type { ParamsOf, ResultOf } from "../wire/definition"
-import { CoreRpcMethods } from "./core"
-import { ConfigRpcMethods } from "./config"
-import { ExtendedRpcMethods } from "./extended"
-import { GitRpcMethods } from "./git"
-import { GithubRpcMethods } from "./github"
-import { McpRpcMethods } from "./mcp"
-import { PetRpcMethods } from "./pet"
-import { ReleaseNotesRpcMethods } from "./release-notes"
-import { ReviewRpcMethods } from "./review"
-import { SkillRpcMethods } from "./skills"
-import { SuggestionRpcMethods } from "./suggestions"
-import { ToolingRpcMethods } from "./tooling"
-import { UsageRpcMethods } from "./usage"
+import { BaseRpcMethods } from "./base"
+import { HandoffRpcMethods } from "./handoff"
+import { LocalEnvironmentRpcMethods } from "./local-environment"
+import { WorktreeRpcMethods } from "./worktree"
+import type { TerminalRpcMethodMap } from "./terminal"
+import type { LocalEnvironmentHostRpcMethodMap } from "./local-environment"
 
 export const RpcMethods = {
-  ...CoreRpcMethods,
-  ...ConfigRpcMethods,
-  ...ExtendedRpcMethods,
-  ...GitRpcMethods,
-  ...GithubRpcMethods,
-  ...McpRpcMethods,
-  ...PetRpcMethods,
-  ...ReleaseNotesRpcMethods,
-  ...ReviewRpcMethods,
-  ...SkillRpcMethods,
-  ...SuggestionRpcMethods,
-  ...ToolingRpcMethods,
-  ...UsageRpcMethods,
+  ...BaseRpcMethods,
+  ...HandoffRpcMethods,
+  ...LocalEnvironmentRpcMethods,
+  ...WorktreeRpcMethods,
 } as const
+export { BaseRpcMethods } from "./base"
 export const RpcMethodMap = RpcMethods
 
-export type RpcMethod = keyof typeof RpcMethods
-export type RpcParams<M extends RpcMethod> = ParamsOf<(typeof RpcMethods)[M]>
-export type RpcResult<M extends RpcMethod> = ResultOf<(typeof RpcMethods)[M]>
-export type RpcErrors<M extends RpcMethod> = (typeof RpcMethods)[M]["errors"][number]
-export type RpcParamsSchema<M extends RpcMethod> = (typeof RpcMethods)[M]["params"] & Schema.Top
-export type RpcResultSchema<M extends RpcMethod> = (typeof RpcMethods)[M]["result"] & Schema.Top
+export type PublicRpcMethod = keyof typeof RpcMethods
+export type RpcMethod = PublicRpcMethod | keyof TerminalRpcMethodMap | keyof LocalEnvironmentHostRpcMethodMap
+type RpcDefinition<M extends RpcMethod> = M extends PublicRpcMethod
+  ? (typeof RpcMethods)[M]
+  : M extends keyof TerminalRpcMethodMap
+    ? TerminalRpcMethodMap[M]
+    : M extends keyof LocalEnvironmentHostRpcMethodMap
+      ? LocalEnvironmentHostRpcMethodMap[M]
+      : never
+export type RpcParams<M extends RpcMethod> = ParamsOf<RpcDefinition<M>>
+export type RpcResult<M extends RpcMethod> = ResultOf<RpcDefinition<M>>
+export type RpcErrors<M extends RpcMethod> = RpcDefinition<M>["errors"][number]
+export type RpcParamsSchema<M extends RpcMethod> = RpcDefinition<M>["params"] & Schema.Top
+export type RpcResultSchema<M extends RpcMethod> = RpcDefinition<M>["result"] & Schema.Top
+export type PublicRpcParams<M extends PublicRpcMethod> = ParamsOf<(typeof RpcMethods)[M]>
+export type PublicRpcResult<M extends PublicRpcMethod> = ResultOf<(typeof RpcMethods)[M]>
 
 export * from "./core"
 export * from "./config"
 export * from "./extended"
 export * from "./git"
 export * from "./github"
+export * from "./handoff"
 export * from "./mcp"
+export * from "./local-environment"
 export * from "./pet"
 export * from "./release-notes"
 export * from "./review"
@@ -51,3 +48,4 @@ export * from "./skills"
 export * from "./suggestions"
 export * from "./tooling"
 export * from "./usage"
+export * from "./worktree"

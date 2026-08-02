@@ -12,6 +12,7 @@
     "./desktop-data-location-ipc": "./src/desktop-data-location-ipc.ts",
     "./desktop-edit-ipc": "./src/desktop-edit-ipc.ts",
     "./desktop-settings-ipc": "./src/desktop-settings-ipc.ts",
+    "./desktop-terminal-ipc": "./src/desktop-terminal-ipc.ts",
     "./desktop-update-ipc": "./src/desktop-update-ipc.ts",
     "./model": "./src/model.ts",
     "./thread": "./src/thread/index.ts"

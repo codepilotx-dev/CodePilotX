@@ -165,6 +165,62 @@ export function removeConversationUiState(sessionId: string): void {
   }
 }
 
+export function transferConversationUiStateForHandoff(input: {
+  sourceThreadId: string
+  targetThreadId: string
+  sourceWorkspacePath: string
+}): { transferred: boolean; warning?: 'LOCAL_STORAGE_UNAVAILABLE' } {
+  try {
+    const source = loadConversationUiState(input.sourceThreadId)
+    if (!source) return { transferred: false }
+    const tabsById = Object.fromEntries(
+      Object.entries(source.workbench.tabsById).filter(([, tab]) =>
+        tab?.kind !== 'plan' &&
+        tab?.kind !== 'side-task' &&
+        tab?.kind !== 'file-preview'),
+    )
+    const transferableIds = new Set(Object.keys(tabsById))
+    const filterPanel = (panel: WorkbenchPanelSnapshot): WorkbenchPanelSnapshot => {
+      const tabIds = panel.tabIds.filter(tabId => transferableIds.has(tabId))
+      return {
+        ...panel,
+        tabIds,
+        activeTabId: panel.activeTabId && transferableIds.has(panel.activeTabId)
+          ? panel.activeTabId
+          : (tabIds.at(-1) ?? null),
+      }
+    }
+    const candidate: ConversationUiState = {
+      ...source,
+      sideChatAttachments: source.sideChatAttachments.filter(attachment =>
+        !isPathInside(attachment.path, input.sourceWorkspacePath)),
+      review: {
+        ...source.review,
+        source: source.review.source.kind === 'last-turn'
+          ? { kind: 'unstaged' }
+          : source.review.source,
+      },
+      workbench: {
+        ...source.workbench,
+        tabsById,
+        right: filterPanel(source.workbench.right),
+        bottom: filterPanel(source.workbench.bottom),
+      },
+    }
+    const transferred = validateConversationUiState(candidate, {
+      validPlanEventIds: [],
+      validSideTaskIds: [],
+    })
+    window.localStorage.setItem(
+      STORAGE_PREFIX + input.targetThreadId,
+      JSON.stringify(transferred),
+    )
+    return { transferred: true }
+  } catch {
+    return { transferred: false, warning: 'LOCAL_STORAGE_UNAVAILABLE' }
+  }
+}
+
 export function validateConversationUiState(
   state: unknown,
   options: ConversationUiValidationOptions = {},
@@ -427,6 +483,9 @@ function validateTabDescriptor(
   if (tab.id === 'side-chat' && tab.kind === 'side-chat') {
     return { id: 'side-chat', kind: 'side-chat' }
   }
+  if (tab.id === 'terminal' && tab.kind === 'terminal') {
+    return { id: 'terminal', kind: 'terminal' }
+  }
   if (
     tab.kind === 'file-preview' &&
     typeof tab.id === 'string' &&
@@ -527,4 +586,10 @@ function toFiniteNonNegativeNumber(value: unknown): number {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isPathInside(candidate: string, root: string): boolean {
+  const normalizedCandidate = candidate.replaceAll('\\', '/').toLowerCase()
+  const normalizedRoot = root.replaceAll('\\', '/').replace(/\/$/, '').toLowerCase()
+  return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
 }

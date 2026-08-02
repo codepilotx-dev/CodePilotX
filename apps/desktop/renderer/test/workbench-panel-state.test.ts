@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'bun:test'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import {
   applyWorkbenchPanelAction,
   createDefaultWorkbenchTabsState,
   type WorkbenchTabDescriptor,
 } from '../src/features/layout/dock/rightDockState.js'
-import { getWorkbenchTabDefinition } from '../src/features/layout/tabs/workbenchTabRegistry.js'
+import {
+  getWorkbenchTabDefinition,
+  getWorkbenchTabDisplayTitle,
+} from '../src/features/layout/tabs/workbenchTabRegistry.js'
 import {
   createDefaultReviewTabUiState,
   isReviewDiffExpanded,
@@ -13,6 +18,9 @@ import {
   validateConversationUiState,
 } from '../src/features/layout/tabs/conversationUiState.js'
 import {
+  BOTTOM_PANEL_DEFAULT_HEIGHT,
+  BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
+  RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
   bottomPanelHeightFromRatio,
   bottomPanelHeightToRatio,
   createRightDockResponsiveState,
@@ -25,6 +33,8 @@ import {
   resolveInitialBottomPanelHeightRatio,
   resolveInitialRightDockWidthRatio,
 } from '../src/features/layout/shell/workbenchLayoutStorage.js'
+import { resolveIntegratedTerminalToggleAction } from '../src/features/layout/shell/useIntegratedTerminalController.js'
+import { WorkbenchTabsHeader } from '../src/features/layout/dock/RightDock.js'
 
 const review = { id: 'review', kind: 'review' } as const
 const browser = { id: 'browser', kind: 'browser' } as const
@@ -63,6 +73,72 @@ describe('workbench dynamic tab state', () => {
     })
     expect(state.tabsById).toEqual({})
     expect(state.focusArea).toBe('bottom-panel')
+  })
+
+  test('persists only the canonical terminal descriptor', () => {
+    const terminal = { id: 'terminal', kind: 'terminal' } as const
+    const opened = open(createDefaultWorkbenchTabsState(), terminal, 'bottom')
+    const restored = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: opened,
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    })
+
+    expect(getWorkbenchTabDefinition(terminal).label).toBe('终端')
+    expect(restored.workbench.tabsById.terminal).toEqual(terminal)
+    expect(restored.workbench.bottom.tabIds).toEqual(['terminal'])
+  })
+
+  test('terminal title uses the in-memory display path with a stable fallback', () => {
+    const terminal = { id: 'terminal', kind: 'terminal' } as const
+
+    expect(getWorkbenchTabDisplayTitle(terminal, 'C:\\repo')).toBe('C:\\repo')
+    expect(getWorkbenchTabDisplayTitle(terminal, '')).toBe('终端')
+    expect(getWorkbenchTabDisplayTitle(terminal, null)).toBe('终端')
+    expect(getWorkbenchTabDisplayTitle(browser, 'C:\\repo')).toBe('浏览器')
+  })
+
+  test('bottom header keeps add after tabs, spacer next, and panel close last', () => {
+    const markup = renderToStaticMarkup(createElement(WorkbenchTabsHeader, {
+      target: 'bottom',
+      state: { open: true, activeTabId: 'terminal', tabIds: ['terminal'] },
+      tabsById: { terminal: { id: 'terminal', kind: 'terminal' } },
+      terminalDisplayPath: 'C:\\repo',
+      onClosePanel: () => undefined,
+      onCloseTab: () => undefined,
+      onCloseOtherTabs: () => undefined,
+      onCloseTabsToRight: () => undefined,
+      onOpenTab: () => undefined,
+      onSelectTab: () => undefined,
+      onMoveTab: () => undefined,
+      onReorderTab: () => undefined,
+      onPinTab: () => undefined,
+    }))
+    const terminalTab = markup.indexOf('data-panel-tab="terminal"')
+    const addButton = markup.indexOf('aria-label="添加标签"')
+    const spacer = markup.indexOf('class="right-dock-tab-empty"')
+    const closePanel = markup.indexOf('title="关闭底部面板"')
+
+    expect(markup).toContain('title="C:\\repo"')
+    expect(markup).toContain('aria-label="关闭 C:\\repo"')
+    expect(markup).toContain('aria-label="关闭底部面板"')
+    expect(terminalTab).toBeGreaterThanOrEqual(0)
+    expect(addButton).toBeGreaterThan(terminalTab)
+    expect(spacer).toBeGreaterThan(addButton)
+    expect(closePanel).toBeGreaterThan(spacer)
+  })
+
+  test('resolves terminal button behavior from its current panel location', () => {
+    const initial = createDefaultWorkbenchTabsState()
+    const bottom = open(initial, { id: 'terminal', kind: 'terminal' }, 'bottom')
+    const right = open(initial, { id: 'terminal', kind: 'terminal' }, 'right')
+
+    expect(resolveIntegratedTerminalToggleAction(null, initial)).toBe('unavailable')
+    expect(resolveIntegratedTerminalToggleAction('thread-1', initial)).toBe('open-bottom')
+    expect(resolveIntegratedTerminalToggleAction('thread-1', bottom)).toBe('hide-bottom')
+    expect(resolveIntegratedTerminalToggleAction('thread-1', right)).toBe('move-to-bottom')
   })
 
   test('reopening a singleton activates its existing host', () => {
@@ -798,12 +874,12 @@ describe('workbench right panel sizing', () => {
   })
 
   test('底栏随工作区等比缩放并保护上下区域的最小高度', () => {
-    const ratio = bottomPanelHeightToRatio(280, 800)
+    const ratio = bottomPanelHeightToRatio(220, 800)
 
-    expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(280)
-    expect(bottomPanelHeightFromRatio(ratio, 640)).toBe(224)
+    expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(220)
+    expect(bottomPanelHeightFromRatio(ratio, 640)).toBe(176)
     expect(bottomPanelHeightFromRatio(ratio, 380)).toBe(160)
-    expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(280)
+    expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(220)
   })
 
   test('右栏自动隐藏和恢复使用 672/696 回差', () => {
@@ -848,7 +924,11 @@ describe('workbench right panel sizing', () => {
     expect(state).toEqual({ suppressed: true, manualOverride: false })
   })
 
-  test('优先读取 v2 比例并兼容迁移旧比例和旧像素尺寸', () => {
+  test('保留右栏 v2 比例 key，并用底栏 v3 重置旧高度', () => {
+    expect(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY).toEndWith('.v2')
+    expect(BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY).toEndWith('.v3')
+    expect(BOTTOM_PANEL_DEFAULT_HEIGHT).toBe(220)
+
     expect(
       resolveInitialRightDockWidthRatio('.4', '700', 1_165, 800),
     ).toBe(0.4)
@@ -870,11 +950,11 @@ describe('workbench right panel sizing', () => {
     expect(rightDockWidthFromRatio(migratedPixels, 1_165)).toBe(500)
 
     expect(
-      resolveInitialBottomPanelHeightRatio('.3', '280', 800),
+      resolveInitialBottomPanelHeightRatio('.3', 800),
     ).toBe(0.3)
     expect(
-      resolveInitialBottomPanelHeightRatio(null, '280', 800),
-    ).toBe(0.35)
+      resolveInitialBottomPanelHeightRatio(null, 800),
+    ).toBe(0.275)
   })
 
   test('非法存储值回退到当前工作区默认尺寸', () => {
@@ -890,9 +970,8 @@ describe('workbench right panel sizing', () => {
 
     const bottomRatio = resolveInitialBottomPanelHeightRatio(
       '2',
-      'invalid',
       800,
     )
-    expect(bottomPanelHeightFromRatio(bottomRatio, 800)).toBe(280)
+    expect(bottomPanelHeightFromRatio(bottomRatio, 800)).toBe(220)
   })
 })

@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,
@@ -99,6 +100,12 @@ import {
 export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
 export type { ConversationTurnNavItem } from "./turnNavigationModel.js";
 
+const ConversationEnvironmentControls = React.lazy(() =>
+  import("../workflow/ConversationEnvironmentControls.js").then((module) => ({
+    default: module.ConversationEnvironmentControls,
+  }))
+);
+
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
     id: "default-app",
@@ -125,6 +132,7 @@ function escapeCssAttributeValue(value: string): string {
 }
 
 export function ConversationPage(): React.ReactNode {
+  const navigate = useNavigate();
   const {
     isConversationLoading,
     activeSessionId,
@@ -169,6 +177,8 @@ export function ConversationPage(): React.ReactNode {
     setDefaultOpenTargetId,
     diffMarkerStyle,
     reviewView,
+    draft: settingsDraft,
+    setSidebarSessionPins,
   } = useDesktopSettings();
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
   const subagents = React.useMemo(
@@ -927,6 +937,30 @@ export function ConversationPage(): React.ReactNode {
 
       return (
         <div className="chat-session-actions">
+          {activeSessionId && workspacePath ? (
+            <React.Suspense fallback={null}>
+            <ConversationEnvironmentControls
+              terminalProfileId={settingsDraft.values.terminalProfileId}
+              threadId={activeSessionId}
+              workspacePath={workspacePath}
+              onOpenEnvironmentSettings={() => {
+                navigate(`/settings/local-environment?threadId=${encodeURIComponent(activeSessionId)}`)
+              }}
+              onOpenWorktreeSettings={projectId => {
+                navigate(`/settings/worktrees?projectId=${encodeURIComponent(projectId)}`)
+              }}
+              onTransferAuxiliaryState={targetThreadId => {
+                setSidebarSessionPins(current => {
+                  const pinnedAt = current[activeSessionId]
+                  return pinnedAt ? { ...current, [targetThreadId]: pinnedAt } : current
+                })
+              }}
+              onNavigateTarget={targetThreadId => {
+                navigate(`/threads/${encodeURIComponent(targetThreadId)}`)
+              }}
+            />
+            </React.Suspense>
+          ) : null}
         <div className="open-target-split-button">
           <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
             <button
@@ -992,6 +1026,7 @@ export function ConversationPage(): React.ReactNode {
     },
     [
       branches,
+      activeSessionId,
       defaultOpenTargetId,
       onBranchSelect,
       onCommitOrPush,
@@ -1002,9 +1037,13 @@ export function ConversationPage(): React.ReactNode {
       onOpenWorkspacePath,
       openTargetMenuOpen,
       openTargets,
+      navigate,
       selectedOpenTarget,
+      settingsDraft.values.terminalProfileId,
+      setSidebarSessionPins,
       threadSummary,
       threadSummaryModel,
+      workspacePath,
     ],
   );
 

@@ -101,6 +101,20 @@ describe("高级权限设置归一化", () => {
   })
 })
 
+describe("集成终端设置归一化", () => {
+  test("默认自动选择 Shell，并只保留字符串 profile ID", () => {
+    expect(defaultDesktopStoredSettings().terminalProfileId).toBeNull()
+    expect(
+      normalizeDesktopStoredSettings({ terminalProfileId: "windows-pwsh" })
+        .terminalProfileId,
+    ).toBe("windows-pwsh")
+    expect(
+      normalizeDesktopStoredSettings({ terminalProfileId: 42 as never })
+        .terminalProfileId,
+    ).toBeNull()
+  })
+})
+
 describe("侧边栏设置归一化", () => {
   test("提供侧栏默认值并保留合法组织与排序设置", () => {
     const defaults = normalizeDesktopStoredSettings({})

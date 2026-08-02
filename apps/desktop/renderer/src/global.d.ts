@@ -6,6 +6,7 @@ import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-ove
 import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
 import type { DesktopEditIpcBridge } from '@codepilotx/shared/desktop-edit-ipc'
 import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-ipc'
+import type { DesktopTerminalIpcBridge } from '@codepilotx/shared/desktop-terminal-ipc'
 
 declare global {
   const __CODEPILOTX_VERSION__: string
@@ -49,6 +50,7 @@ declare global {
     } & DesktopPetOverlayBridge
       & DesktopDataLocationIpcBridge
       & DesktopEditIpcBridge
+      & DesktopTerminalIpcBridge
       & DesktopUpdateIpcBridge
   }
 }

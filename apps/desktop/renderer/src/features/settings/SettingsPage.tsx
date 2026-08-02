@@ -17,6 +17,8 @@ const PersonalizationSettings = React.lazy(() => import('./PersonalizationSettin
 const ProfileSettings = React.lazy(() => import('./ProfileSettings.js').then(module => ({ default: module.ProfileSettings })))
 const UsageBillingSettings = React.lazy(() => import('./UsageBillingSettings.js').then(module => ({ default: module.UsageBillingSettings })))
 const WorkspaceDependenciesSettings = React.lazy(() => import('./WorkspaceDependenciesSettings.js').then(module => ({ default: module.WorkspaceDependenciesSettings })))
+const LocalEnvironmentSettings = React.lazy(() => import('./local-environment/LocalEnvironmentSettings.js').then(module => ({ default: module.LocalEnvironmentSettings })))
+const WorktreeSettings = React.lazy(() => import('../worktree/WorktreeSettings.js').then(module => ({ default: module.WorktreeSettings })))
 
 type Props = {
   activeTab: string
@@ -54,6 +56,8 @@ export function SettingsPage({
   else if (resolvedTab === 'environment') {
     content = <EnvironmentSettings onError={onError} onNotice={onNotice} />
   }
+  else if (resolvedTab === 'local-environment') content = <LocalEnvironmentSettings onError={onError} onNotice={onNotice} />
+  else if (resolvedTab === 'worktrees') content = <WorktreeSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'profile') content = <ProfileSettings />
   else if (resolvedTab === 'personalization') content = <PersonalizationSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'memory') {

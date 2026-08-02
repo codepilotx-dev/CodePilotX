@@ -1,6 +1,5 @@
 import { Schema } from "effect"
-import type { RpcMethod, RpcParams, RpcResult } from "../methods/index"
-import { RpcMethods } from "../methods/index"
+import type { PublicRpcMethod, PublicRpcParams, PublicRpcResult } from "../methods/index"
 import {
   InitializedNotificationSchema,
   RpcResponseSchema,
@@ -22,8 +21,21 @@ export class RpcRemoteError extends Error {
 }
 
 export type RpcClient = {
-  call<M extends RpcMethod>(method: M, params: RpcParams<M>): Promise<RpcResult<M>>
+  call<M extends PublicRpcMethod>(method: M, params: PublicRpcParams<M>): Promise<PublicRpcResult<M>>
   initialized(params: InitializedNotification["params"]): Promise<void>
+}
+
+type RpcDefinition = {
+  params: Schema.Top
+  result: Schema.Top
+  exactParams?: boolean
+  exactResult?: boolean
+}
+
+const definitionFor = async (method: PublicRpcMethod): Promise<RpcDefinition> => {
+  const definition = (await import("../methods/index")).RpcMethods[method]
+  if (definition) return definition
+  throw new Error(`Unknown RPC method: ${method}`)
 }
 
 export function createRpcClient(transport: RpcTransport, options: { idPrefix?: string } = {}): RpcClient {
@@ -31,10 +43,10 @@ export function createRpcClient(transport: RpcTransport, options: { idPrefix?: s
   let ordinal = 0
 
   return {
-    async call<M extends RpcMethod>(method: M, params: RpcParams<M>): Promise<RpcResult<M>> {
-      const definition = RpcMethods[method]
+    async call<M extends PublicRpcMethod>(method: M, params: PublicRpcParams<M>): Promise<PublicRpcResult<M>> {
+      const definition = await definitionFor(method)
       const encodedParams = Schema.encodeSync(
-        definition.params,
+        definition.params as Schema.Encoder<unknown, never>,
         definition.exactParams ? { onExcessProperty: "error" } : undefined,
       )(params) as JsonValue
       const id: RpcID = `${idPrefix}:${++ordinal}`
@@ -43,9 +55,9 @@ export function createRpcClient(transport: RpcTransport, options: { idPrefix?: s
       if (response.id !== id) throw new Error(`RPC response id mismatch: expected ${id}, received ${String(response.id)}`)
       if ("error" in response) throw new RpcRemoteError(response.error)
       return Schema.decodeUnknownSync(
-        definition.result,
+        definition.result as Schema.Decoder<unknown, never>,
         definition.exactResult ? { onExcessProperty: "error" } : undefined,
-      )(response.result) as RpcResult<M>
+      )(response.result) as PublicRpcResult<M>
     },
 
     async initialized(params) {

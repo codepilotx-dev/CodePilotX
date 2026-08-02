@@ -1,16 +1,20 @@
 import {
   createRpcClient,
-  decodeEventEnvelope,
   RpcRemoteError,
   type RpcClient,
-  type RpcError,
-  type InitializedNotification,
+  type RpcTransport,
+} from '@codepilotx/agent-protocol/client'
+import {
+  decodeEventEnvelope,
   type EventEnvelope,
   type LiveEventType,
-  type RpcMethod,
-  type RpcParams,
-  type RpcResult,
-  type RpcTransport,
+} from '@codepilotx/agent-protocol/events'
+import type {
+  RpcError,
+  InitializedNotification,
+  PublicRpcMethod,
+  PublicRpcParams,
+  PublicRpcResult,
 } from '@codepilotx/agent-protocol'
 
 export type AgentNotification = {
@@ -24,9 +28,9 @@ export type AgentRpcClientEnvironment = {
   fetch?: (input: string, init?: RequestInit) => Promise<Response>
   eventSourceFactory?: (url: string) => EventSource
   eventReconnectDelay?: (attempt: number) => number
-  timeout?: (method: RpcMethod) => number | undefined
+  timeout?: (method: PublicRpcMethod) => number | undefined
   handshake?: {
-    initialize: RpcParams<'initialize'>
+    initialize: PublicRpcParams<'initialize'>
     initialized: InitializedNotification['params']
   }
 }
@@ -73,10 +77,10 @@ export class AgentRpcError extends Error {
 export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
   const fetcher = environment.fetch ?? fetch
   let connectionId: string | null = null
-  let initializeParams: RpcParams<'initialize'> | null = null
+  let initializeParams: PublicRpcParams<'initialize'> | null = null
   let initializedParams: InitializedNotification['params'] | null = null
-  let initializeResult: RpcResult<'initialize'> | null = null
-  let handshakePromise: Promise<RpcResult<'initialize'>> | null = null
+  let initializeResult: PublicRpcResult<'initialize'> | null = null
+  let handshakePromise: Promise<PublicRpcResult<'initialize'>> | null = null
   let recoveryPromise: Promise<void> | null = null
 
   const transport: RpcTransport = {
@@ -104,15 +108,15 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
   const typedClient = createRpcClient(transport, { idPrefix: 'renderer' })
 
   async function call<M>(
-    method: M extends RpcMethod
+    method: M extends PublicRpcMethod
       ? M
       : M extends string
         ? never
-        : RpcMethod,
-    params?: M extends RpcMethod ? RpcParams<M> : unknown,
-  ): Promise<M extends RpcMethod ? RpcResult<M> : M> {
-    const methodName = method as RpcMethod
-    const requestParams = (params ?? {}) as RpcParams<RpcMethod>
+        : PublicRpcMethod,
+    params?: M extends PublicRpcMethod ? PublicRpcParams<M> : unknown,
+  ): Promise<M extends PublicRpcMethod ? PublicRpcResult<M> : M> {
+    const methodName = method as PublicRpcMethod
+    const requestParams = (params ?? {}) as PublicRpcParams<PublicRpcMethod>
     if (methodName !== 'initialize' && environment.handshake) {
       await ensureInitialized()
     }
@@ -120,10 +124,10 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     try {
       const result = await typedClient.call(methodName, requestParams as never)
       if (methodName === 'initialize') {
-        initializeParams = requestParams as RpcParams<'initialize'>
-        initializeResult = result as RpcResult<'initialize'>
+        initializeParams = requestParams as PublicRpcParams<'initialize'>
+        initializeResult = result as PublicRpcResult<'initialize'>
       }
-      return result as M extends RpcMethod ? RpcResult<M> : M
+      return result as M extends PublicRpcMethod ? PublicRpcResult<M> : M
     } catch (error) {
       if (
         methodName !== 'initialize' &&
@@ -134,7 +138,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
           return await typedClient.call(
             methodName,
             requestParams as never,
-          ) as M extends RpcMethod ? RpcResult<M> : M
+          ) as M extends PublicRpcMethod ? PublicRpcResult<M> : M
         } catch (retryError) {
           throw normalizeRpcError(retryError)
         }
@@ -154,7 +158,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
   }
 
-  async function ensureInitialized(): Promise<RpcResult<'initialize'>> {
+  async function ensureInitialized(): Promise<PublicRpcResult<'initialize'>> {
     if (initializeResult && initializedParams && connectionId) {
       return initializeResult
     }
@@ -286,7 +290,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
           ? { liveEventTypes: [...options.liveEventTypes] }
           : {}),
       })
-      let subscription: RpcResult<'event/subscribe'>
+      let subscription: PublicRpcResult<'event/subscribe'>
       try {
         subscription = await call('event/subscribe', subscribeParams())
       } catch (error) {

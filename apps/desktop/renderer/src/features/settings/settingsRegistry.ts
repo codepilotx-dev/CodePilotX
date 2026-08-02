@@ -14,6 +14,8 @@ import {
   Gauge,
   FolderKanban,
   PawPrint,
+  SquareTerminal,
+  Trees,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -238,6 +240,32 @@ export const SETTINGS_GROUPS = [
           row('默认模型', '配置项目任务继承的默认模型'),
           row('项目指令', '为项目中的任务设置共享指令'),
           row('共享来源', '管理托管文件与工作区文件来源'),
+        ],
+      },
+      {
+        id: 'local-environment',
+        routeId: 'local-environment',
+        label: 'Local environment',
+        description: '管理 setup、cleanup、Actions 与脚本执行信任',
+        icon: SquareTerminal,
+        rows: [
+          row('环境名称', '编辑 environment.jsonc 中的 name'),
+          row('Setup 与 Cleanup', '按平台配置初始化和清理脚本'),
+          row('Actions', '配置可在集成终端中运行的项目动作'),
+          row('执行信任', '确认或撤销当前配置 hash 的执行权限'),
+        ],
+      },
+      {
+        id: 'worktrees',
+        routeId: 'worktrees',
+        label: '托管 Worktrees',
+        description: '创建、恢复、保留和清理 CodePilotX 工作树',
+        icon: Trees,
+        rows: [
+          row('创建 Worktree', '从分支或当前 working tree 创建隔离工作区'),
+          row('Setup 进度', '查看输出并在失败后重试或跳过'),
+          row('永久保留', '避免自动清理重要工作树'),
+          row('删除与恢复', '通过安全快照清理或恢复工作树'),
         ],
       },
       {

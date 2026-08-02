@@ -176,7 +176,14 @@ export class ThreadService {
     title?: string
     settings?: ThreadSettings
     operationID: string
-    workspace: { kind: "project"; projectID: string } | { kind: "projectless"; prompt?: string }
+    bindExecution?: (threadID: string) => void
+    workspace:
+      | {
+          kind: "project"
+          projectID: string
+          execution?: { kind: "local" } | { kind: "worktree"; worktreeId: string }
+        }
+      | { kind: "projectless"; prompt?: string }
   }) {
     const requestHash = createHash("sha256").update(JSON.stringify({
       title: input.title ?? null,
@@ -189,12 +196,17 @@ export class ThreadService {
       return { id: duplicate.threadID }
     }
     if (input.workspace.kind === "project") {
-      const created = this.db.createThread({
-        title: input.title,
-        settings: input.settings,
-        workspace: { kind: "project", projectID: input.workspace.projectID },
-        operationID: input.operationID,
-        requestHash,
+      const projectID = input.workspace.projectID
+      const created = this.db.transaction(() => {
+        const record = this.db.createThread({
+          title: input.title,
+          settings: input.settings,
+          workspace: { kind: "project", projectID },
+          operationID: input.operationID,
+          requestHash,
+        })
+        input.bindExecution?.(record.id)
+        return record
       })
       this.refreshPromptSettings(created.id)
       return created

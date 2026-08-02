@@ -1,9 +1,9 @@
-import type { RpcMethod } from '@codepilotx/agent-protocol'
+import type { PublicRpcMethod } from '@codepilotx/agent-protocol'
 
 export class AgentRpcTimeoutError extends Error {
   readonly code = 'REVIEW_REQUEST_TIMEOUT'
 
-  constructor(method: RpcMethod) {
+  constructor(method: PublicRpcMethod) {
     super(
       method === 'review/summary' || method === 'review/refresh'
         ? '加载变更摘要超时，请重试。'
@@ -17,9 +17,9 @@ export async function send(
   fetcher: (input: string, init?: RequestInit) => Promise<Response>,
   message: { method: string },
   connectionId: string | null,
-  timeoutOverride?: (method: RpcMethod) => number | undefined,
+  timeoutOverride?: (method: PublicRpcMethod) => number | undefined,
 ): Promise<Response> {
-  const method = message.method as RpcMethod
+  const method = message.method as PublicRpcMethod
   const timeoutMs = timeoutOverride?.(method)
     ?? (method === 'review/summary' || method === 'review/refresh'
       ? 60_000

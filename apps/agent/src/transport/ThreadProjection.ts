@@ -527,7 +527,18 @@ export class ThreadProjection {
   }
 
   list(params: { projectID?: string; archived?: boolean; limit?: number } = {}) {
-    const where: string[] = ["t.kind = 'main'"]
+    const where: string[] = [
+      "t.kind = 'main'",
+      "(t.archived_at IS NULL OR t.archived_at <> -1)",
+      `NOT EXISTS (
+        SELECT 1
+        FROM thread_forks AS pending_fork
+        JOIN thread_handoff_operations AS pending_handoff
+          ON pending_handoff.operation_id = pending_fork.operation_id
+        WHERE pending_fork.target_thread_id = t.id
+          AND pending_handoff.status <> 'completed'
+      )`,
+    ]
     const values: Array<string | number | null> = []
     if (params.projectID !== undefined) {
       where.push("t.project_id = ?")

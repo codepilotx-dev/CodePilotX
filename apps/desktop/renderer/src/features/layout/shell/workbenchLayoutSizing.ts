@@ -5,13 +5,13 @@ export const RIGHT_DOCK_CONSTRAINED_WIDTH = 672
 export const RIGHT_DOCK_REOPEN_WIDTH = 696
 
 export const BOTTOM_PANEL_MIN_HEIGHT = 160
-export const BOTTOM_PANEL_DEFAULT_HEIGHT = 280
+export const BOTTOM_PANEL_DEFAULT_HEIGHT = 220
 export const BOTTOM_PANEL_UPPER_MIN_HEIGHT = 240
 
 export const RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY =
   'codepilotx.desktop.rightDockWidthRatio.v2'
 export const BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY =
-  'codepilotx.desktop.bottomPanelHeightRatio.v2'
+  'codepilotx.desktop.bottomPanelHeightRatio.v3'
 export interface WorkbenchSize {
   width: number
   height: number

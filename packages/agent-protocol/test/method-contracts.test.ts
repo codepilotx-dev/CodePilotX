@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Credential, Model, Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from "../src/methods/index"
+import { AllRpcMethods } from "../src/methods/host"
 import { Capabilities, ProtocolCapabilitySchema } from "../src/runtime/capabilities"
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)("provider:test")
@@ -1863,6 +1864,233 @@ const fixtures = {
       modelResponses: 2,
     }],
   }),
+  "local-environment/read": methodFixture("local-environment/read", {
+    threadId: "thread:1",
+  }, {
+    exists: true,
+    filePath: "F:\\fixture\\.codepilotx\\environments\\environment.jsonc",
+    gitRoot: "F:\\fixture",
+    revision: "a".repeat(64),
+    configHash: "a".repeat(64),
+    config: { schema_version: 1, name: "fixture", actions: [] },
+    executionTrusted: false,
+  }),
+  "local-environment/update": methodFixture("local-environment/update", {
+    threadId: "thread:1",
+    expectedRevision: "a".repeat(64),
+    edits: [{ keyPath: ["name"], value: "Fixture" }],
+  }, {
+    filePath: "F:\\fixture\\.codepilotx\\environments\\environment.jsonc",
+    revision: "b".repeat(64),
+    configHash: "b".repeat(64),
+    executionTrusted: false,
+  }),
+  "local-environment/action/list": methodFixture("local-environment/action/list", {
+    threadId: "thread:1",
+  }, {
+    revision: "a".repeat(64),
+    actions: [{ name: "Dev", icon: "play", availability: "available" }],
+  }),
+  "worktree/create": methodFixture("worktree/create", {
+    projectId: "project:1",
+    startingState: { type: "branch", branchName: "feature/fixture" },
+    operationId: "operation:worktree-create",
+  }, {
+    worktree: {
+      id: "worktree:1", projectId: "project:1", status: "ready", branchName: "feature/fixture",
+      baseCommit: "abc123", headCommit: "abc123", permanent: false, pinned: false,
+      setupStatus: "succeeded", continuedWithoutSetup: false,
+      createdAt: 1, updatedAt: 1, lastUsedAt: 1, deletedAt: null,
+    },
+    operation: {
+      operationId: "operation:worktree-create", worktreeId: "worktree:1", projectId: "project:1",
+      kind: "create", step: "complete", status: "completed", revision: 2,
+      errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: 2,
+    },
+  }),
+  "worktree/list": methodFixture("worktree/list", { projectId: "project:1" }, { worktrees: [] }),
+  "worktree/read": methodFixture("worktree/read", { worktreeId: "worktree:1" }, {
+    id: "worktree:1", projectId: "project:1", status: "ready", branchName: "feature/fixture",
+    baseCommit: "abc123", headCommit: "abc123", permanent: false, pinned: false,
+    setupStatus: "succeeded", continuedWithoutSetup: false,
+    createdAt: 1, updatedAt: 1, lastUsedAt: 1, deletedAt: null,
+  }),
+  "worktree/retry-setup": methodFixture("worktree/retry-setup", {
+    worktreeId: "worktree:1", operationId: "operation:worktree-retry",
+  }, {
+    worktree: {
+      id: "worktree:1", projectId: "project:1", status: "ready", branchName: "feature/fixture",
+      baseCommit: "abc123", headCommit: "abc123", permanent: false, pinned: false,
+      setupStatus: "succeeded", continuedWithoutSetup: false,
+      createdAt: 1, updatedAt: 2, lastUsedAt: 2, deletedAt: null,
+    },
+    operation: {
+      operationId: "operation:worktree-retry", worktreeId: "worktree:1", projectId: "project:1",
+      kind: "retry-setup", step: "complete", status: "completed", revision: 2,
+      errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: 2,
+    },
+  }),
+  "worktree/continue-without-setup": methodFixture("worktree/continue-without-setup", {
+    worktreeId: "worktree:1", operationId: "operation:worktree-continue",
+  }, {
+    worktree: {
+      id: "worktree:1", projectId: "project:1", status: "ready", branchName: "feature/fixture",
+      baseCommit: "abc123", headCommit: "abc123", permanent: false, pinned: false,
+      setupStatus: "skipped", continuedWithoutSetup: true,
+      createdAt: 1, updatedAt: 2, lastUsedAt: 2, deletedAt: null,
+    },
+    operation: {
+      operationId: "operation:worktree-continue", worktreeId: "worktree:1", projectId: "project:1",
+      kind: "continue-without-setup", step: "complete", status: "completed", revision: 2,
+      errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: 2,
+    },
+  }),
+  "worktree/set-permanent": methodFixture("worktree/set-permanent", {
+    worktreeId: "worktree:1", permanent: true, operationId: "operation:worktree-permanent",
+  }, {
+    worktree: {
+      id: "worktree:1", projectId: "project:1", status: "ready", branchName: "feature/fixture",
+      baseCommit: "abc123", headCommit: "abc123", permanent: true, pinned: false,
+      setupStatus: "succeeded", continuedWithoutSetup: false,
+      createdAt: 1, updatedAt: 2, lastUsedAt: 2, deletedAt: null,
+    },
+    operation: {
+      operationId: "operation:worktree-permanent", worktreeId: "worktree:1", projectId: "project:1",
+      kind: "set-permanent", step: "complete", status: "completed", revision: 2,
+      errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: 2,
+    },
+  }),
+  "worktree/delete": methodFixture("worktree/delete", {
+    worktreeId: "worktree:1", operationId: "operation:worktree-delete",
+  }, {
+    worktree: {
+      id: "worktree:1", projectId: "project:1", status: "cleaned", branchName: "feature/fixture",
+      baseCommit: "abc123", headCommit: "abc123", permanent: false, pinned: false,
+      setupStatus: "succeeded", continuedWithoutSetup: false,
+      createdAt: 1, updatedAt: 2, lastUsedAt: 1, deletedAt: 2,
+    },
+    operation: {
+      operationId: "operation:worktree-delete", worktreeId: "worktree:1", projectId: "project:1",
+      kind: "delete", step: "complete", status: "completed", revision: 2,
+      errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: 2,
+    },
+  }),
+  "worktree/restore": methodFixture("worktree/restore", {
+    worktreeId: "worktree:1", operationId: "operation:worktree-restore",
+  }, {
+    worktree: {
+      id: "worktree:1", projectId: "project:1", status: "ready", branchName: "feature/fixture",
+      baseCommit: "abc123", headCommit: "abc123", permanent: false, pinned: false,
+      setupStatus: "succeeded", continuedWithoutSetup: false,
+      createdAt: 1, updatedAt: 3, lastUsedAt: 3, deletedAt: null,
+    },
+    operation: {
+      operationId: "operation:worktree-restore", worktreeId: "worktree:1", projectId: "project:1",
+      kind: "restore", step: "complete", status: "completed", revision: 2,
+      errorCode: null, warnings: [], createdAt: 2, updatedAt: 3, completedAt: 3,
+    },
+  }),
+  "worktree/operation/status": methodFixture("worktree/operation/status", {
+    operationId: "operation:worktree-create", afterOutputCursor: 0,
+  }, {
+    operation: {
+      operationId: "operation:worktree-create", worktreeId: "worktree:1", projectId: "project:1",
+      kind: "create", step: "complete", status: "completed", revision: 2,
+      errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: 2,
+    },
+    output: { cursor: 1, data: "setup complete\r\n", truncated: false, complete: true },
+  }),
+  "thread/handoff/start": methodFixture("thread/handoff/start", {
+    operationId: "operation:handoff", sourceThreadId: "thread:1",
+    destination: { kind: "worktree", worktreeId: "worktree:1" },
+  }, {
+    operation: {
+      operationId: "operation:handoff", sourceThreadId: "thread:1", targetThreadId: "thread:2",
+      direction: "local-to-worktree", status: "await-client-transfer", step: "await-client-transfer",
+      revision: 10, errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: null,
+    },
+  }),
+  "thread/handoff/status": methodFixture("thread/handoff/status", {
+    operationId: "operation:handoff", afterRevision: 9, waitMs: 100,
+  }, {
+    operation: {
+      operationId: "operation:handoff", sourceThreadId: "thread:1", targetThreadId: "thread:2",
+      direction: "local-to-worktree", status: "await-client-transfer", step: "await-client-transfer",
+      revision: 10, errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: null,
+    },
+    changed: true,
+  }),
+  "thread/handoff/pending": methodFixture("thread/handoff/pending", {
+    sourceThreadId: "thread:1",
+  }, {
+    operation: {
+      operationId: "operation:handoff", sourceThreadId: "thread:1", targetThreadId: "thread:2",
+      direction: "local-to-worktree", status: "await-client-transfer", step: "await-client-transfer",
+      revision: 10, errorCode: null, warnings: [], createdAt: 1, updatedAt: 2, completedAt: null,
+    },
+  }),
+  "thread/handoff/ack-client-transfer": methodFixture("thread/handoff/ack-client-transfer", {
+    operationId: "operation:handoff", revision: 10,
+  }, {
+    operation: {
+      operationId: "operation:handoff", sourceThreadId: "thread:1", targetThreadId: "thread:2",
+      direction: "local-to-worktree", status: "completed", step: "complete",
+      revision: 12, errorCode: null, warnings: [], createdAt: 1, updatedAt: 3, completedAt: 3,
+    },
+  }),
+  "terminal/host/context": methodFixture("terminal/host/context", {
+    threadId: "thread:1",
+  }, {
+    threadId: "thread:1",
+    bindingId: "terminal-binding:fixture",
+    contextVersion: "context:1",
+    workspaceKind: "project",
+    target: { kind: "local", cwd: "F:\\fixture" },
+  }),
+  "terminal/host/output/reset": methodFixture("terminal/host/output/reset", {
+    threadId: "thread:1",
+    terminalId: "terminal:1",
+    instanceId: "instance:1",
+    oldestSequence: 0,
+    nextSequence: 1,
+    chunks: [{
+      terminalId: "terminal:1",
+      instanceId: "instance:1",
+      sequence: 0,
+      data: "ready\r\n",
+    }],
+    state: "running",
+    exitCode: null,
+  }, { ok: true }),
+  "terminal/host/output/append": methodFixture("terminal/host/output/append", {
+    threadId: "thread:1",
+    chunk: {
+      terminalId: "terminal:1",
+      instanceId: "instance:1",
+      sequence: 1,
+      data: "done\r\n",
+    },
+  }, { ok: true }),
+  "terminal/host/output/clear": methodFixture("terminal/host/output/clear", {
+    threadId: "thread:1",
+    terminalId: "terminal:1",
+    instanceId: "instance:1",
+  }, { ok: true }),
+  "terminal/host/environment": methodFixture("terminal/host/environment", {
+    threadId: "thread:1",
+  }, {
+    revision: 1,
+    set: { PATH: "F:\\fixture\\bin" },
+    unset: ["OLD_PATH"],
+  }),
+  "terminal/host/action/resolve": methodFixture("terminal/host/action/resolve", {
+    threadId: "thread:1",
+    actionName: "Dev",
+  }, {
+    contextVersion: "context:1",
+    environmentRevision: 1,
+    command: "bun run dev",
+  }),
   "usage/source/list": methodFixture("usage/source/list", {}, {
     sources: [{
       sourceId: "fixture-key",
@@ -2036,12 +2264,12 @@ describe("RPC method schema contracts", () => {
   })
 
   test("keeps valid params and results for every formal method decodable", () => {
-    const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(161)
+    const methods = Object.keys(AllRpcMethods) as RpcMethod[]
+    expect(methods).toHaveLength(183)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
-      const definition = RpcMethods[method]
+      const definition = AllRpcMethods[method]
       const fixture = fixtures[method]
       const params = Schema.decodeUnknownSync(
         definition.params,
@@ -2245,12 +2473,25 @@ describe("RPC method schema contracts", () => {
       ...common,
       workspace: { kind: "project", projectId: project.id },
     })
+    expect(decode({
+      ...common,
+      workspace: {
+        kind: "project",
+        projectId: project.id,
+        execution: { kind: "worktree", worktreeId: "worktree:1" },
+      },
+    }).workspace).toEqual({
+      kind: "project",
+      projectId: project.id,
+      execution: { kind: "worktree", worktreeId: "worktree:1" },
+    })
     expect(decode({ ...common, workspace: { kind: "projectless", prompt: "整理需求" } })).toEqual({
       ...common,
       workspace: { kind: "projectless", prompt: "整理需求" },
     })
     expect(() => decode(common)).toThrow()
     expect(() => decode({ ...common, projectId: project.id })).toThrow()
+    expect(() => decode({ ...common, workspace: { kind: "projectless", execution: { kind: "local" } } })).toThrow()
   })
 
   test("accepts numeric and latest event cursors while rejecting unknown cursor modes", () => {
@@ -2266,15 +2507,21 @@ describe("RPC method schema contracts", () => {
   })
 
   test("rejects excess fields for every security-sensitive exact params schema", () => {
-    const exactMethods = (Object.keys(RpcMethods) as RpcMethod[]).filter((method) => RpcMethods[method].exactParams)
+    const exactMethods = (Object.keys(AllRpcMethods) as RpcMethod[]).filter((method) => AllRpcMethods[method].exactParams)
     expect(exactMethods.length).toBeGreaterThan(0)
 
     for (const method of exactMethods) {
-      expect(() => Schema.decodeUnknownSync(RpcMethods[method].params, { onExcessProperty: "error" })({
+      expect(() => Schema.decodeUnknownSync(AllRpcMethods[method].params, { onExcessProperty: "error" })({
         ...fixtures[method].params,
         unexpectedSensitiveField: "must-not-pass",
       }), method).toThrow()
     }
+  })
+
+  test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
+    expect(Object.keys(RpcMethods)).toHaveLength(177)
+    expect("terminal/host/context" in RpcMethods).toBe(false)
+    expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
 
   test("requires authorized projectId instead of internal projectKey for project memory", () => {

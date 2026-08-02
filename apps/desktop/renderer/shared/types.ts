@@ -919,6 +919,7 @@ export type DesktopStoredSettings = {
   enableFullAccessPermissionMode?: boolean
   permissionConfig: DesktopPermissionConfig
   shellSecurityLevel: DesktopShellSecurityLevel
+  terminalProfileId: string | null
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   permissionProfile?: DesktopPermissionProfile
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */

@@ -20,7 +20,7 @@ import {
 } from "../wire/primitives"
 
 const CommonErrors = ["RATE_LIMITED", "INTERNAL_ERROR"] as const
-const InitializationErrors = ["PROTOCOL_VERSION_UNSUPPORTED", "CAPABILITY_REQUIRED", "UNAUTHORIZED", ...CommonErrors] as const
+const InitializationErrors = ["PROTOCOL_VERSION_UNSUPPORTED", "CAPABILITY_REQUIRED", "UNAUTHORIZED", "PERMISSION_DENIED", ...CommonErrors] as const
 const SubscriptionErrors = ["CURSOR_EXPIRED", "SUBSCRIPTION_NOT_FOUND", "SUBSCRIPTION_OVERFLOW", "CAPABILITY_REQUIRED", ...CommonErrors] as const
 const InteractionErrors = ["REQUEST_NOT_PENDING", "CONFLICT", "CHECKPOINT_UNAVAILABLE", "CAPABILITY_REQUIRED", ...CommonErrors] as const
 const ProjectErrors = [
@@ -45,6 +45,11 @@ const ThreadErrors = [
   "CONFLICT",
   "CHECKPOINT_UNAVAILABLE",
   "MODEL_UNAVAILABLE",
+  "OPERATION_ID_CONFLICT",
+  "HANDOFF_IN_PROGRESS",
+  "WORKTREE_NOT_FOUND",
+  "WORKTREE_NOT_READY",
+  "WORKTREE_SETUP_REQUIRED",
   ...CommonErrors,
 ] as const
 const SandboxErrors = ["SANDBOX_UNAVAILABLE", "SANDBOX_BUSY", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
@@ -63,6 +68,7 @@ export const ClientInfoSchema = Schema.Struct({
   version: NonEmptyStringSchema,
   platform: Schema.optional(NonEmptyStringSchema),
   instanceId: Schema.optional(OpaqueIDSchema),
+  authority: Schema.optional(Schema.Literal("desktop-host")),
 })
 
 export const InitializeParamsSchema = Schema.Struct({
@@ -539,7 +545,14 @@ export const ThreadListResultSchema = Schema.Struct({
 })
 
 export const ThreadCreateWorkspaceSchema = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("project"), projectId: OpaqueIDSchema }),
+  Schema.Struct({
+    kind: Schema.Literal("project"),
+    projectId: OpaqueIDSchema,
+    execution: Schema.optional(Schema.Union([
+      Schema.Struct({ kind: Schema.Literal("local") }),
+      Schema.Struct({ kind: Schema.Literal("worktree"), worktreeId: OpaqueIDSchema }),
+    ])),
+  }),
   Schema.Struct({
     kind: Schema.Literal("projectless"),
     prompt: Schema.optional(Schema.String),

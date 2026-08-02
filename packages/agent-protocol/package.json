@@ -10,7 +10,11 @@
     "./dispatcher": "./src/runtime/dispatcher.ts",
     "./events": "./src/wire/events.ts",
     "./interactions": "./src/wire/interactions.ts",
-    "./methods": "./src/methods/index.ts"
+    "./methods": "./src/methods/index.ts",
+    "./host": "./src/methods/host.ts",
+    "./local-environment": "./src/methods/local-environment.ts",
+    "./terminal": "./src/methods/terminal.ts",
+    "./worktree": "./src/methods/worktree.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

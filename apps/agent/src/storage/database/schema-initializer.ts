@@ -31,6 +31,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE items (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        type TEXT NOT NULL,\n        status TEXT NOT NULL,\n        data TEXT NOT NULL,\n        ordinal INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE memory_entries (\n          id TEXT PRIMARY KEY,\n          scope TEXT NOT NULL,\n          project_key TEXT NOT NULL DEFAULT '',\n          content TEXT NOT NULL,\n          source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          content_hash TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          UNIQUE(scope, project_key, content_hash)\n        )",
   "CREATE TABLE memory_jobs (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          project_key TEXT,\n          status TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          result TEXT,\n          error TEXT,\n          created_at INTEGER NOT NULL,\n          started_at INTEGER,\n          finished_at INTEGER,\n          updated_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE managed_worktrees (\n          id TEXT PRIMARY KEY,\n          project_id TEXT NOT NULL,\n          repository_root TEXT NOT NULL,\n          path TEXT NOT NULL UNIQUE,\n          status TEXT NOT NULL CHECK(status IN ('creating','ready','ready-with-setup-error','deleting','cleaned','restoring','restore-conflict')),\n          branch_name TEXT,\n          base_commit TEXT NOT NULL,\n          head_commit TEXT NOT NULL,\n          permanent INTEGER NOT NULL DEFAULT 0 CHECK(permanent IN (0,1)),\n          pinned INTEGER NOT NULL DEFAULT 0 CHECK(pinned IN (0,1)),\n          bound_once INTEGER NOT NULL DEFAULT 0 CHECK(bound_once IN (0,1)),\n          setup_status TEXT NOT NULL CHECK(setup_status IN ('pending','succeeded','failed','skipped')),\n          environment_revision INTEGER NOT NULL DEFAULT 0,\n          continued_without_setup INTEGER NOT NULL DEFAULT 0 CHECK(continued_without_setup IN (0,1)),\n          restore_snapshot_path TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          last_used_at INTEGER NOT NULL,\n          deleted_at INTEGER\n        )",
   "CREATE TABLE messages (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        role TEXT NOT NULL,\n        content TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      , ordinal INTEGER)",
   "CREATE TABLE patches (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        files TEXT NOT NULL,\n        additions INTEGER NOT NULL DEFAULT 0,\n        deletions INTEGER NOT NULL DEFAULT 0,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE turn_patch_sets (\n        turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        item_id TEXT NOT NULL UNIQUE,\n        apply_state TEXT NOT NULL DEFAULT 'applied' CHECK(apply_state IN ('applied', 'undone')),\n        action_version INTEGER NOT NULL DEFAULT 0,\n        evidence_complete INTEGER NOT NULL DEFAULT 1 CHECK(evidence_complete IN (0, 1)),\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
@@ -53,11 +54,15 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE subagent_runs (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,\n          generation INTEGER NOT NULL,\n          status TEXT NOT NULL,\n          queue_reason TEXT,\n          model_ref TEXT NOT NULL,\n          permission_config TEXT NOT NULL,\n          result TEXT,\n          error TEXT,\n          created_at INTEGER NOT NULL,\n          started_at INTEGER,\n          finished_at INTEGER,\n          updated_at INTEGER NOT NULL,\n          UNIQUE(task_id, generation)\n        )",
   "CREATE TABLE subagent_tasks (\n          id TEXT PRIMARY KEY,\n          parent_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          parent_turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          parent_agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n          child_thread_id TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE,\n          display_name TEXT NOT NULL,\n          profile TEXT NOT NULL,\n          task TEXT NOT NULL,\n          permission_ceiling TEXT NOT NULL,\n          workspace_mode TEXT NOT NULL,\n          workspace_state TEXT NOT NULL DEFAULT '{}',\n          current_run_id TEXT,\n          status TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE threads (\n        id TEXT PRIMARY KEY,\n        title TEXT NOT NULL,\n        kind TEXT NOT NULL DEFAULT 'main',\n        parent_thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,\n        task_mode TEXT NOT NULL DEFAULT 'chat',\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      , project_id TEXT REFERENCES projects(id) ON DELETE SET NULL, workspace_kind TEXT NOT NULL DEFAULT 'legacy', workspace_root TEXT, workspace_cwd TEXT, workspace_roots TEXT, instruction_sources TEXT, output_directory TEXT, create_operation_id TEXT, create_request_hash TEXT, archived_at INTEGER, preview TEXT, first_user_message TEXT, message_count INTEGER NOT NULL DEFAULT 0, prompt_settings TEXT NOT NULL DEFAULT '{}', queue_version INTEGER NOT NULL DEFAULT 0, queue_pause_reason TEXT, git_branch TEXT)",
+  "CREATE TABLE thread_execution_bindings (\n          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          binding_id TEXT NOT NULL UNIQUE,\n          kind TEXT NOT NULL CHECK(kind IN ('local','worktree')),\n          project_id TEXT,\n          cwd TEXT NOT NULL,\n          worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE RESTRICT,\n          revision INTEGER NOT NULL DEFAULT 1,\n          environment_revision INTEGER NOT NULL DEFAULT 0,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          CHECK((kind = 'local' AND worktree_id IS NULL) OR (kind = 'worktree' AND project_id IS NOT NULL AND worktree_id IS NOT NULL))\n        )",
+  "CREATE TABLE thread_handoff_operations (\n          operation_id TEXT PRIMARY KEY,\n          source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          target_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          source_binding_id TEXT,\n          target_binding_id TEXT,\n          destination_kind TEXT CHECK(destination_kind IN ('local','worktree')),\n          destination_worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          direction TEXT NOT NULL CHECK(direction IN ('local-to-worktree','worktree-to-local')),\n          request_hash TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('running','await-client-transfer','completed','failed','rollback-failed')),\n          step TEXT NOT NULL,\n          revision INTEGER NOT NULL DEFAULT 1,\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          rollback_journal TEXT NOT NULL DEFAULT '{}',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
+  "CREATE TABLE thread_forks (\n          target_thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE RESTRICT,\n          operation_id TEXT NOT NULL UNIQUE REFERENCES thread_handoff_operations(operation_id) ON DELETE RESTRICT,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE thread_read_state (\n        thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n        read_at INTEGER NOT NULL DEFAULT 0,\n        unread_at INTEGER,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE tool_calls (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        tool_name TEXT NOT NULL,\n        input TEXT NOT NULL,\n        output TEXT,\n        status TEXT NOT NULL,\n        started_at INTEGER,\n        finished_at INTEGER,\n        error TEXT\n      )",
   "CREATE TABLE turn_git_snapshots (\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n          repository_root TEXT NOT NULL,\n          before_tree TEXT,\n          after_tree TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          PRIMARY KEY (thread_id, turn_id)\n        )",
   "CREATE TABLE turns (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        root_agent_id TEXT,\n        status TEXT NOT NULL,\n        mode TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        model_ref TEXT NOT NULL,\n        strategy TEXT NOT NULL,\n        started_at INTEGER,\n        finished_at INTEGER,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      , queue_position INTEGER)",
   "CREATE TABLE workspace_writer_leases (\n          workspace_key TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,\n          run_id TEXT NOT NULL REFERENCES subagent_runs(id) ON DELETE CASCADE,\n          acquired_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE worktree_operations (\n          operation_id TEXT PRIMARY KEY,\n          worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          project_id TEXT NOT NULL,\n          kind TEXT NOT NULL CHECK(kind IN ('create','retry-setup','continue-without-setup','set-permanent','delete','restore','auto-cleanup')),\n          request_hash TEXT NOT NULL,\n          step TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('pending','running','completed','failed')),\n          revision INTEGER NOT NULL DEFAULT 1,\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -93,10 +98,15 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX threads_parent_kind ON threads(parent_thread_id, kind, updated_at DESC)",
   "CREATE INDEX threads_project_archive_updated ON threads(project_id, archived_at, updated_at DESC, id DESC)",
   "CREATE INDEX threads_project_updated ON threads(project_id, updated_at DESC)",
+  "CREATE INDEX idx_thread_execution_worktree ON thread_execution_bindings(worktree_id, updated_at DESC)",
+  "CREATE INDEX idx_thread_handoff_source_status ON thread_handoff_operations(source_thread_id, status)",
+  "CREATE INDEX idx_thread_forks_source ON thread_forks(source_thread_id, created_at)",
   "CREATE INDEX turn_git_snapshots_project\n          ON turn_git_snapshots(project_id, updated_at DESC)",
   "CREATE INDEX turns_queue_position ON turns(thread_id, status, queue_position, created_at)",
   "CREATE INDEX turns_thread_history ON turns(thread_id, created_at DESC, id DESC)",
   "CREATE INDEX turns_thread_status ON turns(thread_id, status, created_at)",
+  "CREATE INDEX idx_managed_worktrees_project_status ON managed_worktrees(project_id, status, last_used_at)",
+  "CREATE INDEX idx_worktree_operations_status ON worktree_operations(status, created_at)",
   "CREATE TRIGGER threads_workspace_insert_valid\n        BEFORE INSERT ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END",
   "CREATE TRIGGER threads_workspace_update_valid\n        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, workspace_roots, instruction_sources, output_directory ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END"
 ] as const
@@ -509,6 +519,91 @@ const migrateHistory23To24 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory24To25 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS managed_worktrees (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      repository_root TEXT NOT NULL,
+      path TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL CHECK(status IN ('creating','ready','ready-with-setup-error','deleting','cleaned','restoring','restore-conflict')),
+      branch_name TEXT,
+      base_commit TEXT NOT NULL,
+      head_commit TEXT NOT NULL,
+      permanent INTEGER NOT NULL DEFAULT 0 CHECK(permanent IN (0,1)),
+      pinned INTEGER NOT NULL DEFAULT 0 CHECK(pinned IN (0,1)),
+      bound_once INTEGER NOT NULL DEFAULT 0 CHECK(bound_once IN (0,1)),
+      setup_status TEXT NOT NULL CHECK(setup_status IN ('pending','succeeded','failed','skipped')),
+      environment_revision INTEGER NOT NULL DEFAULT 0,
+      continued_without_setup INTEGER NOT NULL DEFAULT 0 CHECK(continued_without_setup IN (0,1)),
+      restore_snapshot_path TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      last_used_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS thread_execution_bindings (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+      binding_id TEXT NOT NULL UNIQUE,
+      kind TEXT NOT NULL CHECK(kind IN ('local','worktree')),
+      project_id TEXT,
+      cwd TEXT NOT NULL,
+      worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE RESTRICT,
+      revision INTEGER NOT NULL DEFAULT 1,
+      environment_revision INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      CHECK((kind = 'local' AND worktree_id IS NULL) OR (kind = 'worktree' AND project_id IS NOT NULL AND worktree_id IS NOT NULL))
+    );
+    CREATE TABLE IF NOT EXISTS worktree_operations (
+      operation_id TEXT PRIMARY KEY,
+      worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,
+      project_id TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN ('create','retry-setup','continue-without-setup','set-permanent','delete','restore','auto-cleanup')),
+      request_hash TEXT NOT NULL,
+      step TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pending','running','completed','failed')),
+      revision INTEGER NOT NULL DEFAULT 1,
+      error_code TEXT,
+      warnings TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      completed_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS thread_handoff_operations (
+      operation_id TEXT PRIMARY KEY,
+      source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      target_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
+      source_binding_id TEXT,
+      target_binding_id TEXT,
+      destination_kind TEXT CHECK(destination_kind IN ('local','worktree')),
+      destination_worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,
+      direction TEXT NOT NULL CHECK(direction IN ('local-to-worktree','worktree-to-local')),
+      request_hash TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('running','await-client-transfer','completed','failed','rollback-failed')),
+      step TEXT NOT NULL,
+      revision INTEGER NOT NULL DEFAULT 1,
+      error_code TEXT,
+      warnings TEXT NOT NULL DEFAULT '[]',
+      rollback_journal TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      completed_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS thread_forks (
+      target_thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+      source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE RESTRICT,
+      operation_id TEXT NOT NULL UNIQUE REFERENCES thread_handoff_operations(operation_id) ON DELETE RESTRICT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_managed_worktrees_project_status ON managed_worktrees(project_id, status, last_used_at);
+    CREATE INDEX IF NOT EXISTS idx_thread_execution_worktree ON thread_execution_bindings(worktree_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_worktree_operations_status ON worktree_operations(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_thread_handoff_source_status ON thread_handoff_operations(source_thread_id,status);
+    CREATE INDEX IF NOT EXISTS idx_thread_forks_source ON thread_forks(source_thread_id,created_at);
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -603,6 +698,7 @@ class SchemaInitializer {
           21: () => migrateHistory21To22(this.sqlite),
           22: () => migrateHistory22To23(this.sqlite),
           23: () => migrateHistory23To24(this.sqlite),
+          24: () => migrateHistory24To25(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

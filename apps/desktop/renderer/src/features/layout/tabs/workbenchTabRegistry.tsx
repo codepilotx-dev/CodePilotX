@@ -5,6 +5,7 @@ import {
   Globe2,
   ListChecks,
   MessageSquarePlus,
+  SquareTerminal,
 } from 'lucide-react'
 import type {
   DesktopBrowserState,
@@ -32,6 +33,7 @@ const RightDockFilePreviewPanel = React.lazy(() => import('../dock/RightDockPane
 const RightDockFilesPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilesPanel })))
 const RightDockPlanPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockPlanPanel })))
 const RightDockSideChatPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockSideChatPanel })))
+const TerminalPanel = React.lazy(() => import('../../terminal/TerminalPanel.js').then(module => ({ default: module.TerminalPanel })))
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
@@ -95,6 +97,10 @@ export type WorkbenchTabRenderContext = {
   sideTask: {
     activeTaskId: string | null
     content?: ReactNode
+  }
+  terminal: {
+    threadId: string | null
+    onDisplayPathChange: (displayPath: string | null) => void
   }
 }
 
@@ -245,6 +251,28 @@ const definitions: readonly WorkbenchTabDefinition[] = [
       ),
   },
   {
+    kind: 'terminal',
+    label: '终端',
+    icon: <SquareTerminal size={iconSize} />,
+    shortcut: 'Ctrl+`',
+    launcher: true,
+    getTitle: () => '终端',
+    render: (_tab, context) =>
+      context.terminal.threadId ? (
+        deferred(
+          <TerminalPanel
+            threadId={context.terminal.threadId}
+            onDisplayPathChange={context.terminal.onDisplayPathChange}
+          />,
+        )
+      ) : (
+        <div className="right-dock-empty-state">
+          <strong>请先创建任务</strong>
+          <span>集成终端会绑定到当前任务的工作目录。</span>
+        </div>
+      ),
+  },
+  {
     kind: 'side-task',
     label: '子智能体',
     icon: <MessageSquarePlus size={iconSize} />,
@@ -279,6 +307,16 @@ export function getWorkbenchTabDefinition(
   return definition
 }
 
+export function getWorkbenchTabDisplayTitle(
+  tab: WorkbenchTabDescriptor,
+  terminalDisplayPath: string | null,
+): string {
+  if (tab.kind === 'terminal' && terminalDisplayPath?.trim()) {
+    return terminalDisplayPath
+  }
+  return getWorkbenchTabDefinition(tab).getTitle(tab)
+}
+
 export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefinition[] {
   return definitions.filter(definition => definition.launcher)
 }
@@ -292,6 +330,7 @@ export function createLauncherTab(
     return { id: 'file-browser', kind: 'file-browser' }
   }
   if (kind === 'side-chat') return { id: 'side-chat', kind: 'side-chat' }
+  if (kind === 'terminal') return { id: 'terminal', kind: 'terminal' }
   return null
 }
 

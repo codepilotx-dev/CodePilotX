@@ -168,6 +168,7 @@ const agent = spawn([bunExecutable, "apps/agent/src/index.ts"], {
   PORT: String(agentPort),
   CODEPILOTX_PORT: String(agentPort),
   CODEPILOTX_AUTH_TOKEN: authToken,
+  CODEPILOTX_DESKTOP_MANAGED: "1",
   CODEPILOTX_DATA_DIR: agentDataDir,
   CODEPILOTX_PETS_DIR: join(agentDataDir, "pets"),
   CODEPILOTX_TOOLING_HOME: join(agentDataDir, "tooling"),

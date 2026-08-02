@@ -162,6 +162,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     enableFullAccessPermissionMode: false,
     permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
     shellSecurityLevel: 'balanced',
+    terminalProfileId: null,
     model: '',
     planExecutionModel: '',
     reviewModel: '',
@@ -286,6 +287,11 @@ export function normalizeDesktopStoredSettings(
     )
       ? parsed.shellSecurityLevel as DesktopShellSecurityLevel
       : defaults.shellSecurityLevel,
+    terminalProfileId:
+      parsed.terminalProfileId === null ||
+      typeof parsed.terminalProfileId === 'string'
+        ? parsed.terminalProfileId
+        : defaults.terminalProfileId,
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
     planExecutionModel: stringOrDefault(
       parsed.planExecutionModel,

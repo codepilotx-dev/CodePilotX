@@ -54,6 +54,7 @@ import {
   createLauncherTab,
   getWorkbenchLauncherDefinitions,
   getWorkbenchTabDefinition,
+  getWorkbenchTabDisplayTitle,
   type WorkbenchTabRenderContext,
 } from '../tabs/workbenchTabRegistry.js'
 import type { FileDocumentLoadErrorPhase } from './RightDockPanels.js'
@@ -343,6 +344,27 @@ export function WorkbenchPanel({
 }: Props): React.ReactNode {
   const panelRef = useRef<HTMLElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const [terminalDisplayPathState, setTerminalDisplayPathState] = useState<{
+    sessionId: string | null
+    displayPath: string | null
+  }>({ sessionId, displayPath: null })
+  const terminalDisplayPath =
+    terminalDisplayPathState.sessionId === sessionId
+      ? terminalDisplayPathState.displayPath
+      : null
+  const handleTerminalDisplayPathChange = useCallback(
+    (displayPath: string | null) => {
+      setTerminalDisplayPathState({ sessionId, displayPath })
+    },
+    [sessionId],
+  )
+  useEffect(() => {
+    setTerminalDisplayPathState(current =>
+      current.sessionId === sessionId
+        ? current
+        : { sessionId, displayPath: null },
+    )
+  }, [sessionId])
   const stableOnAppendBrowserAnnotation = useStableEvent(
     onAppendBrowserAnnotation,
   )
@@ -416,6 +438,10 @@ export function WorkbenchPanel({
         activeTaskId: activeSideTaskId,
         content: sideTaskContent,
       },
+      terminal: {
+        threadId: sessionId,
+        onDisplayPathChange: handleTerminalDisplayPathChange,
+      },
     }),
     [
       browserState,
@@ -423,6 +449,7 @@ export function WorkbenchPanel({
       diffMarkerStyle,
       files,
       gitStatus,
+      handleTerminalDisplayPathChange,
       isRefreshingReview,
       planContentByEventId,
       reviewView,
@@ -480,6 +507,8 @@ export function WorkbenchPanel({
             state={state}
             tabsById={tabsById}
             target={target}
+            terminalDisplayPath={terminalDisplayPath}
+            onClosePanel={target === 'bottom' ? stableOnClose : undefined}
             onCloseOtherTabs={onCloseOtherTabs}
             onCloseTab={onCloseTab}
             onCloseTabsToRight={onCloseTabsToRight}
@@ -573,10 +602,12 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
   )
 })
 
-function WorkbenchTabsHeader({
+export function WorkbenchTabsHeader({
   target,
   state,
   tabsById,
+  terminalDisplayPath,
+  onClosePanel,
   onCloseTab,
   onCloseOtherTabs,
   onCloseTabsToRight,
@@ -589,6 +620,8 @@ function WorkbenchTabsHeader({
   target: WorkbenchPanelTarget
   state: WorkbenchPanelSnapshot
   tabsById: WorkbenchTabsState['tabsById']
+  terminalDisplayPath: string | null
+  onClosePanel?: () => void
   onCloseTab: (tabId: WorkbenchTabId) => void
   onCloseOtherTabs: (tabId: WorkbenchTabId) => void
   onCloseTabsToRight: (tabId: WorkbenchTabId) => void
@@ -656,6 +689,10 @@ function WorkbenchTabsHeader({
             if (!tab) return null
             const definition = getWorkbenchTabDefinition(tab)
             const tabIcon = definition.getIcon?.(tab) ?? definition.icon
+            const tabTitle = getWorkbenchTabDisplayTitle(
+              tab,
+              terminalDisplayPath,
+            )
             const active = state.activeTabId === tab.id
             const canCloseRight = index < state.tabIds.length - 1
             const hasDivider =
@@ -751,7 +788,7 @@ function WorkbenchTabsHeader({
                         id={`workbench-tab-${target}-${domId(tab.id)}`}
                         role="tab"
                         tabIndex={active ? 0 : -1}
-                        title={definition.getTitle(tab)}
+                        title={tabTitle}
                         type="button"
                         onClick={() => onSelectTab(tab.id)}
                         onDoubleClick={() => {
@@ -771,13 +808,13 @@ function WorkbenchTabsHeader({
                       >
                         <span className="right-dock-tab-icon">{tabIcon}</span>
                         <span className="right-dock-tab-title">
-                          {definition.getTitle(tab)}
+                          {tabTitle}
                         </span>
                       </button>
                       <IconButton
-                        aria-label={`关闭 ${definition.getTitle(tab)}`}
+                        aria-label={`关闭 ${tabTitle}`}
                         className="right-dock-tab-close"
-                        title={`关闭 ${definition.getTitle(tab)}`}
+                        title={`关闭 ${tabTitle}`}
                         variant="plain"
                         onMouseDown={event => {
                           event.preventDefault()
@@ -798,6 +835,55 @@ function WorkbenchTabsHeader({
               </Fragment>
             )
           })}
+          <PopoverMenu
+            align="end"
+            avoidCollisions={false}
+            className="popover-right-dock-add popover-menu--grid"
+            collisionPadding={6}
+            open={menuOpen}
+            side="bottom"
+            sideOffset={4}
+            width={220}
+            trigger={
+              <button
+                aria-label="添加标签"
+                className="right-dock-add-button"
+                title="添加标签"
+                type="button"
+              >
+                <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </button>
+            }
+            onOpenChange={setMenuOpen}
+          >
+            <PopoverRadioGroup
+              value={
+                launchers.find(definition =>
+                  createLauncherTab(definition.kind)?.id === state.activeTabId
+                )?.kind ?? ''
+              }
+              onValueChange={kind => {
+                const definition = launchers.find(item => item.kind === kind)
+                if (!definition) return
+                const candidate = createLauncherTab(definition.kind)
+                if (!candidate) return
+                if (state.tabIds.includes(candidate.id)) onSelectTab(candidate.id)
+                else onOpenTab(candidate)
+                setMenuOpen(false)
+              }}
+            >
+              {launchers.map(definition => (
+                <PopoverRadioItem
+                  icon={definition.icon}
+                  key={definition.kind}
+                  shortcut={definition.shortcut}
+                  value={definition.kind}
+                >
+                  {definition.label}
+                </PopoverRadioItem>
+              ))}
+            </PopoverRadioGroup>
+          </PopoverMenu>
           <span
             aria-hidden="true"
             className="right-dock-tab-empty"
@@ -812,55 +898,17 @@ function WorkbenchTabsHeader({
           />
         </div>
       </div>
-      <PopoverMenu
-        align="end"
-        avoidCollisions={false}
-        className="popover-right-dock-add popover-menu--grid"
-        collisionPadding={6}
-        open={menuOpen}
-        side="bottom"
-        sideOffset={4}
-        width={220}
-        trigger={
-          <button
-            aria-label="添加标签"
-            className="right-dock-add-button"
-            title="添加标签"
-            type="button"
-          >
-            <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </button>
-        }
-        onOpenChange={setMenuOpen}
-      >
-        <PopoverRadioGroup
-          value={
-            launchers.find(definition =>
-              createLauncherTab(definition.kind)?.id === state.activeTabId
-            )?.kind ?? ''
-          }
-          onValueChange={kind => {
-            const definition = launchers.find(item => item.kind === kind)
-            if (!definition) return
-            const candidate = createLauncherTab(definition.kind)
-            if (!candidate) return
-            if (state.tabIds.includes(candidate.id)) onSelectTab(candidate.id)
-            else onOpenTab(candidate)
-            setMenuOpen(false)
-          }}
+      {target === 'bottom' && onClosePanel ? (
+        <IconButton
+          aria-label="关闭底部面板"
+          className="bottom-panel-close"
+          title="关闭底部面板"
+          variant="plain"
+          onClick={onClosePanel}
         >
-          {launchers.map(definition => (
-            <PopoverRadioItem
-              icon={definition.icon}
-              key={definition.kind}
-              shortcut={definition.shortcut}
-              value={definition.kind}
-            >
-              {definition.label}
-            </PopoverRadioItem>
-          ))}
-        </PopoverRadioGroup>
-      </PopoverMenu>
+          <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </IconButton>
+      ) : null}
     </div>
   )
 }

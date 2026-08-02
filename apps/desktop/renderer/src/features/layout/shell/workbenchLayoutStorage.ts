@@ -11,8 +11,6 @@ import {
 
 const LEGACY_RIGHT_DOCK_WIDTH_STORAGE_KEY =
   'codepilotx.desktop.rightDockWidth'
-const LEGACY_BOTTOM_PANEL_HEIGHT_STORAGE_KEY =
-  'codepilotx.desktop.bottomPanelHeight'
 
 export default function resolveStoredWorkbenchRatios(
   workspaceWidth: number,
@@ -27,7 +25,6 @@ export default function resolveStoredWorkbenchRatios(
     ),
     resolveInitialBottomPanelHeightRatio(
       window.localStorage.getItem(BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY),
-      window.localStorage.getItem(LEGACY_BOTTOM_PANEL_HEIGHT_STORAGE_KEY),
       workspaceHeight,
     ),
   ]
@@ -62,16 +59,10 @@ export function resolveInitialRightDockWidthRatio(
 
 export function resolveInitialBottomPanelHeightRatio(
   storedRatioValue: string | null,
-  legacyStoredHeightValue: string | null,
   workspaceHeight: number,
 ): number {
   const storedRatio = parseUnitInterval(storedRatioValue)
   if (storedRatio != null) return storedRatio
-
-  const legacyStoredHeight = parseFiniteNumber(legacyStoredHeightValue)
-  if (legacyStoredHeight != null && legacyStoredHeight > 0) {
-    return bottomPanelHeightToRatio(legacyStoredHeight, workspaceHeight)
-  }
 
   return bottomPanelHeightToRatio(
     BOTTOM_PANEL_DEFAULT_HEIGHT,

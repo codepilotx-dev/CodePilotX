@@ -1,4 +1,7 @@
-import { desktopClient } from '../../../services/desktop-client/index.js'
+import {
+  desktopClient,
+  loadDesktopTerminalClient,
+} from '../../../services/desktop-client/index.js'
 import {
   openPathWithPreferredExternalTarget,
   shouldFallbackToExternalOpen,
@@ -85,6 +88,10 @@ import {
 } from './useWorkbenchRouteController.js'
 import type { DesktopLayoutOutletContextValue } from './desktopLayoutOutletContext.js'
 import { useWorkbenchShellController } from './useWorkbenchShellController.js'
+import {
+  isTerminalKeyboardTarget,
+  useIntegratedTerminalController,
+} from './useIntegratedTerminalController.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
 import { useModelProviderController } from '../useModelProviderController.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
@@ -488,6 +495,17 @@ export function DesktopLayout(): React.ReactNode {
     localRouterMode: effectiveLocalRouterMode,
   } = session
   const isBrowserMockSession = sessionId?.startsWith('browser-mock-') === true
+  const {
+    terminalAvailable,
+    terminalVisible,
+    toggleIntegratedTerminal,
+  } = useIntegratedTerminalController({
+    threadId: sessionId,
+    state: workbenchPanelState,
+    openPanelTab,
+    movePanelTab,
+    togglePanel,
+  })
   const localRouterAvailable = !sessionId || isBrowserMockSession
 
   const {
@@ -1157,6 +1175,24 @@ export function DesktopLayout(): React.ReactNode {
         && !event.altKey
         && (commandMenuOpen || !hasOpenDialog())
       if (
+        commandShortcutAllowed &&
+        !event.shiftKey &&
+        !event.altKey &&
+        event.code === 'Backquote'
+      ) {
+        event.preventDefault()
+        toggleIntegratedTerminal()
+        return
+      }
+      if (
+        isTerminalKeyboardTarget(event.target) &&
+        !(
+          commandShortcutAllowed &&
+          ((!event.shiftKey && key === 'k') ||
+            (event.shiftKey && key === 'p'))
+        )
+      ) return
+      if (
         commandShortcutAllowed
         && (
           (!event.shiftKey && key === 'k')
@@ -1254,6 +1290,7 @@ export function DesktopLayout(): React.ReactNode {
     navigateBack,
     navigateForward,
     togglePanel,
+    toggleIntegratedTerminal,
     toggleSidebarCollapsed,
   ])
 
@@ -1808,6 +1845,16 @@ export function DesktopLayout(): React.ReactNode {
     async (targetSessionIds: readonly string[]) => {
       const result = await archiveSessions(targetSessionIds)
       if (result.succeededSessionIds.length > 0) {
+        try {
+          const terminalClient = await loadDesktopTerminalClient()
+          await Promise.all(
+            result.succeededSessionIds.map(targetSessionId =>
+              terminalClient.closeThreadTerminal(targetSessionId, 'task-close'),
+            ),
+          )
+        } catch (error) {
+          setErrorMessage(error instanceof Error ? error.message : String(error))
+        }
         setArchiveNoticeVisible(true)
         const archivedIds = new Set(result.succeededSessionIds)
         setSidebarSessionPins(current =>
@@ -2607,6 +2654,18 @@ export function DesktopLayout(): React.ReactNode {
     async (tabIds: readonly WorkbenchTabId[]): Promise<boolean> => {
       for (const tabId of tabIds) {
         const tab = workbenchPanelState.tabsById[tabId]
+        if (tab?.kind === 'terminal' && sessionId) {
+          try {
+            const terminalClient = await loadDesktopTerminalClient()
+            await terminalClient.closeThreadTerminal(sessionId)
+          } catch (error) {
+            setErrorMessage(
+              error instanceof Error ? error.message : String(error),
+            )
+            return false
+          }
+          continue
+        }
         if (tab?.kind !== 'file-preview') continue
         if (!(await saveFileDocument(tab.workspacePath, tab.relativePath))) {
           setErrorMessage(`无法关闭 ${tab.relativePath}：文件尚未保存。`)
@@ -2615,7 +2674,7 @@ export function DesktopLayout(): React.ReactNode {
       }
       return true
     },
-    [workbenchPanelState.tabsById],
+    [sessionId, workbenchPanelState.tabsById],
   )
 
   const renderWorkbenchPanel = (
@@ -2961,13 +3020,14 @@ export function DesktopLayout(): React.ReactNode {
                     shellControls={
                       <WorkspaceShellControls
                         rightDockState={visibleRightDockState}
-                        bottomPanelVisible={bottomPanelVisible}
+                        terminalAvailable={terminalAvailable}
+                        terminalVisible={terminalVisible}
                         showBottomPanel={isQuickChatPage || isConversationRoute}
                         showRightPanel={
                           isQuickChatPage ||
                           isConversationRoute
                         }
-                        onToggleBottomPanel={toggleBottomPanelVisible}
+                        onToggleTerminal={toggleIntegratedTerminal}
                         onToggleRightPanel={() => togglePanel('right')}
                       />
                     }

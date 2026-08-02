@@ -151,6 +151,13 @@
   height: var(--control-size-sm);
 }
 
+.bottom-panel-close {
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
+  flex: 0 0 var(--control-size-sm);
+  margin-left: var(--space-1);
+}
+
 .right-dock-resize-handle {
   position: absolute;
   z-index: 5;
@@ -292,12 +299,12 @@
     color var(--motion-standard) var(--ease-standard);
 
   &.active {
-    background: color-mix(in srgb, var(--color-token-foreground) 5%, var(--color-token-main-surface-primary));
+    background: var(--color-token-list-active-selection-background);
     color: var(--color-token-foreground);
   }
 
   &:not(.active):hover,
-  &:focus-within {
+  &:not(.active):focus-within {
     background: color-mix(in srgb, var(--color-token-foreground) 5%, var(--color-token-main-surface-primary));
     color: var(--color-token-text-secondary);
   }

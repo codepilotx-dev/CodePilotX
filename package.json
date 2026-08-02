@@ -10,7 +10,8 @@
     "packages/*"
   ],
   "trustedDependencies": [
-    "electron"
+    "electron",
+    "node-pty"
   ],
   "scripts": {
     "desktop:css:check": "bun run --cwd apps/desktop/renderer css:check",

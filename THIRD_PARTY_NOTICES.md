@@ -9,6 +9,10 @@ version 1.18.9. These portions are licensed under the MIT License. See
 Additional JavaScript dependencies retain the license terms distributed in
 their respective packages.
 
+CodePilotX uses Microsoft node-pty to provide native pseudoterminal support,
+including Windows ConPTY integration. node-pty is licensed under the MIT
+License; its license notice is distributed with the packaged dependency.
+
 CodePilotX includes the `@codepilotx/pi-agent-core` workspace fork of
 pi-agent-core 0.82.1
 under the MIT License. The fork preserves upstream attribution and contains

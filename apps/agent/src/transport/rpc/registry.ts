@@ -1,9 +1,5 @@
-import {
-  RpcMethods,
-  defineRpcHandlers,
-  type RpcHandlers,
-  type RpcMethod,
-} from "@codepilotx/agent-protocol"
+import { type RpcHandlers, type RpcMethod } from "@codepilotx/agent-protocol"
+import { AllRpcMethods as RpcMethods } from "@codepilotx/agent-protocol/host"
 import { configHandlers } from "./handlers/config"
 import { githubHandlers } from "./handlers/github"
 import { gitHandlers } from "./handlers/git"
@@ -19,6 +15,10 @@ import { skillHandlers } from "./handlers/skills"
 import { subagentHandlers } from "./handlers/subagent"
 import { suggestionHandlers } from "./handlers/suggestions"
 import { systemHandlers } from "./handlers/system"
+import { terminalHandlers } from "./handlers/terminal"
+import { localEnvironmentHandlers } from "./handlers/local-environment"
+import { worktreeHandlers } from "./handlers/worktree"
+import { handoffHandlers } from "./handlers/handoff"
 import { threadHandlers } from "./handlers/thread"
 import { toolingHandlers } from "./handlers/tooling"
 import { usageHandlers } from "./handlers/usage"
@@ -47,6 +47,10 @@ const groups: readonly RpcHandlerGroup[] = [
   releaseNotesHandlers,
   subagentHandlers,
   suggestionHandlers,
+  terminalHandlers,
+  localEnvironmentHandlers,
+  worktreeHandlers,
+  handoffHandlers,
   providerHandlers,
   toolingHandlers,
   usageHandlers,
@@ -76,7 +80,7 @@ export const createRpcHandlerRegistry = (
   runtime: RpcRouter,
   mapError: MapRpcError,
 ): RpcHandlers<RpcRouterContext> =>
-  defineRpcHandlers(Object.fromEntries(
+  Object.fromEntries(
     registeredMethods.map((method) => [
       method,
       async (params: unknown, context: RpcRouterContext) => {
@@ -87,4 +91,4 @@ export const createRpcHandlerRegistry = (
         }
       },
     ]),
-  ) as unknown as RpcHandlers<RpcRouterContext>)
+  ) as unknown as RpcHandlers<RpcRouterContext>

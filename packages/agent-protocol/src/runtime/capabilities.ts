@@ -37,6 +37,10 @@ export const Capabilities = [
   "mcp.manage.v1",
   "mcp.oauth.v1",
   "task-suggestions.v1",
+  "terminal.host.v1",
+  "local-environment.manage.v1",
+  "thread.handoff.v1",
+  "worktree.manage.v1",
 ] as const
 
 export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)

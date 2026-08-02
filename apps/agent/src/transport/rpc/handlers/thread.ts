@@ -88,6 +88,17 @@ export const threadHandlers = {
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
     const { db, threads, history, approvals, questions, subagents, attachments, apiKeys, memory, review, github, turnPatches } = runtime.dependencies
     const params = optionalRecord(rawParams)
+    if (([
+      "turn/start",
+      "turn/steer",
+      "turn/resume",
+      "queue/add",
+      "queue/update",
+      "queue/remove",
+      "queue/resume",
+    ] as readonly RpcMethod[]).includes(method)) {
+      runtime.dependencies.handoff.assertAdmissionOpen(stringParam(params, "threadId"))
+    }
     switch (method) {
       case "thread/list": {
         const projectID = typeof params.projectID === "string" ? params.projectID : typeof params.projectId === "string" ? params.projectId : undefined
@@ -96,8 +107,22 @@ export const threadHandlers = {
       }
       case "thread/create": {
         const workspaceValue = record(params.workspace, "workspace")
+        const executionValue = workspaceValue.kind === "project" && workspaceValue.execution !== undefined
+          ? record(workspaceValue.execution, "workspace.execution")
+          : undefined
+        const execution = executionValue
+          ? executionValue.kind === "local"
+            ? { kind: "local" as const }
+            : executionValue.kind === "worktree"
+              ? { kind: "worktree" as const, worktreeId: stringParam(executionValue, "worktreeId") }
+              : (() => { throw new AgentError("INVALID_REQUEST", "workspace.execution.kind 参数无效", 400) })()
+          : undefined
         const workspace = workspaceValue.kind === "project"
-          ? { kind: "project" as const, projectID: stringParam(workspaceValue, "projectId") }
+          ? {
+              kind: "project" as const,
+              projectID: stringParam(workspaceValue, "projectId"),
+              ...(execution ? { execution } : {}),
+            }
           : workspaceValue.kind === "projectless"
             ? { kind: "projectless" as const, ...(typeof workspaceValue.prompt === "string" ? { prompt: workspaceValue.prompt } : {}) }
             : (() => { throw new AgentError("INVALID_REQUEST", "workspace.kind 参数无效", 400) })()
@@ -105,12 +130,86 @@ export const threadHandlers = {
           ? undefined
           : decodeParams(decodeThreadSettings, params.settings, "thread/create.settings")
         if (settings) supportedPermissionConfig(settings.permissionConfig)
-        const created = await threads.create({
-          ...(typeof params.title === "string" ? { title: params.title } : {}),
-          ...(settings ? { settings } : {}),
-          workspace,
-          operationID: stringParam(params, "operationId"),
-        })
+        let bindExecution: ((threadID: string) => void) | undefined
+        let copiedEnvironmentBindingId: string | undefined
+        if (workspace.kind === "project" && execution?.kind === "worktree") {
+          const worktree = runtime.dependencies.executionBindings.validateWorktree(
+            workspace.projectID,
+            execution.worktreeId,
+          )
+          const bindingId = runtime.dependencies.executionBindings.allocateBindingId()
+          const environment = await runtime.dependencies.environmentDeltas.copy(
+            worktree.id,
+            bindingId,
+            worktree.environmentRevision,
+          )
+          copiedEnvironmentBindingId = bindingId
+          bindExecution = (threadID) => {
+            runtime.dependencies.executionBindings.bindWorktree({
+              threadId: threadID,
+              projectId: workspace.projectID,
+              worktreeId: worktree.id,
+              bindingId,
+              environmentRevision: environment.revision,
+            })
+          }
+        } else if (workspace.kind === "project" && execution?.kind === "local") {
+          const bindingId = runtime.dependencies.executionBindings.allocateBindingId()
+          bindExecution = (threadID) => {
+            const descriptor = db.threadWorkspace(threadID)
+            if (!descriptor || descriptor.kind !== "project") {
+              throw new AgentError("CONFLICT", "项目任务工作区不可用", 409)
+            }
+            runtime.dependencies.executionBindings.bindLocal({
+              threadId: threadID,
+              projectId: workspace.projectID,
+              cwd: descriptor.cwd,
+              bindingId,
+              environmentRevision: 0,
+            })
+          }
+        }
+        let created: Awaited<ReturnType<typeof threads.create>>
+        try {
+          created = await threads.create({
+            ...(typeof params.title === "string" ? { title: params.title } : {}),
+            ...(settings ? { settings } : {}),
+            workspace,
+            operationID: stringParam(params, "operationId"),
+            ...(bindExecution ? { bindExecution } : {}),
+          })
+        } catch (cause) {
+          if (copiedEnvironmentBindingId) {
+            await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
+          }
+          throw cause
+        }
+        if (workspace.kind === "project" && execution) {
+          const existingBinding = runtime.dependencies.executionBindings.read(created.id)
+          const matches = execution.kind === "local"
+            ? existingBinding?.kind === "local"
+            : existingBinding?.kind === "worktree" && existingBinding.worktreeId === execution.worktreeId
+          if (matches) {
+            if (copiedEnvironmentBindingId && existingBinding?.bindingId !== copiedEnvironmentBindingId) {
+              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
+            }
+            return runtime.threadSnapshotResult(created.id)
+          }
+          if (existingBinding) {
+            if (copiedEnvironmentBindingId) {
+              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
+            }
+            throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已绑定其他执行位置", 409)
+          }
+          try {
+            bindExecution?.(created.id)
+          } catch (cause) {
+            if (copiedEnvironmentBindingId) {
+              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
+            }
+            throw cause
+          }
+        }
         return runtime.threadSnapshotResult(created.id)
       }
       case "thread/read":
