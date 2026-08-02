@@ -50,11 +50,16 @@ export const EventManifest = {
     payload: Schema.Struct({
       version: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
       changedKeyPaths: Schema.Array(Schema.Array(Schema.String.check(Schema.isMinLength(1)))),
-      scope: Schema.Literals(["user", "project"]),
+      scope: Schema.Literals(["user", "profile", "project"]),
       diagnostics: Schema.Array(Schema.Struct({
         severity: Schema.Literals(["warning", "error"]),
         code: Schema.String.check(Schema.isMinLength(1)),
         message: Schema.String.check(Schema.isMinLength(1)),
+      })),
+      profileState: Schema.optional(Schema.Struct({
+        activeProfile: Schema.NullOr(Schema.String),
+        selectedProfile: Schema.NullOr(Schema.String),
+        restartRequired: Schema.Boolean,
       })),
     }),
     version: 1,

@@ -4,8 +4,11 @@ import { JsonValueSchema } from "../wire/primitives"
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const Sha256Schema = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
-const ConfigScopeSchema = Schema.Literals(["user", "project"])
-const ConfigLayerKindSchema = Schema.Literals(["defaults", "user", "project"])
+const ConfigProfileIdSchema = Schema.String.check(
+  Schema.isPattern(/^[a-z0-9][a-z0-9_-]{0,63}$/),
+)
+const ConfigScopeSchema = Schema.Literals(["user", "profile", "project"])
+const ConfigLayerKindSchema = Schema.Literals(["defaults", "user", "profile", "project"])
 const ConfigObjectSchema = Schema.Record(Schema.String, JsonValueSchema)
 const ConfigKeyPathSchema = Schema.Array(NonEmptyStringSchema).check(Schema.isMinLength(1))
 
@@ -32,6 +35,31 @@ export const ConfigEditSchema = Schema.Struct({
   mergeStrategy: Schema.optional(Schema.Literals(["replace", "upsert"])),
 })
 
+export const ConfigWriteTargetSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("user") }),
+  Schema.Struct({
+    kind: Schema.Literal("profile"),
+    profileId: NonEmptyStringSchema,
+  }),
+  Schema.Struct({ kind: Schema.Literal("project") }),
+])
+
+export const ConfigProfileStateSchema = Schema.Struct({
+  activeProfile: Schema.NullOr(ConfigProfileIdSchema),
+  selectedProfile: Schema.NullOr(ConfigProfileIdSchema),
+  restartRequired: Schema.Boolean,
+})
+
+export const ConfigProfileSummarySchema = Schema.Struct({
+  id: ConfigProfileIdSchema,
+  displayName: NonEmptyStringSchema,
+  description: Schema.optional(Schema.String),
+  filePath: NonEmptyStringSchema,
+  version: Sha256Schema,
+  valid: Schema.Boolean,
+  diagnostics: Schema.Array(ConfigDiagnosticSchema),
+})
+
 export const ConfigReadParamsSchema = Schema.Struct({
   includeLayers: Schema.optional(Schema.Boolean),
   cwd: Schema.optional(NonEmptyStringSchema),
@@ -42,6 +70,7 @@ export const ConfigReadResultSchema = Schema.Struct({
   origins: Schema.Record(Schema.String, ConfigLayerKindSchema),
   layers: Schema.optional(Schema.Array(ConfigLayerSchema)),
   diagnostics: Schema.Array(ConfigDiagnosticSchema),
+  profileState: ConfigProfileStateSchema,
 })
 
 export const ConfigWriteResultSchema = Schema.Struct({
@@ -59,6 +88,7 @@ export const ConfigValueWriteParamsSchema = Schema.Struct({
   filePath: Schema.optional(NonEmptyStringSchema),
   cwd: Schema.optional(NonEmptyStringSchema),
   expectedVersion: Schema.optional(Sha256Schema),
+  target: Schema.optional(ConfigWriteTargetSchema),
 })
 
 export const ConfigBatchWriteParamsSchema = Schema.Struct({
@@ -67,6 +97,22 @@ export const ConfigBatchWriteParamsSchema = Schema.Struct({
   cwd: Schema.optional(NonEmptyStringSchema),
   expectedVersion: Schema.optional(Sha256Schema),
   reloadUserConfig: Schema.optional(Schema.Boolean),
+  target: Schema.optional(ConfigWriteTargetSchema),
+})
+
+export const ConfigProfileSelectParamsSchema = Schema.Struct({
+  profileId: Schema.NullOr(ConfigProfileIdSchema),
+})
+
+export const ConfigProfileListResultSchema = Schema.Struct({
+  profileState: ConfigProfileStateSchema,
+  profiles: Schema.Array(ConfigProfileSummarySchema),
+  profilesDirectory: NonEmptyStringSchema,
+})
+
+export const ConfigProfileSelectResultSchema = Schema.Struct({
+  ...ConfigWriteResultSchema.fields,
+  profileState: ConfigProfileStateSchema,
 })
 
 export const ProjectTrustReadParamsSchema = Schema.Struct({
@@ -89,6 +135,8 @@ const ConfigReadErrors = [
   "CONFIG_PATH_NOT_FOUND",
   "CONFIG_PROJECT_UNTRUSTED",
   "CONFIG_VALIDATION_ERROR",
+  "CONFIG_PROFILE_INVALID",
+  "CONFIG_PROFILE_NOT_FOUND",
 ] as const
 
 const ConfigWriteErrors = [
@@ -97,6 +145,8 @@ const ConfigWriteErrors = [
   "CONFIG_VALIDATION_ERROR",
   "CONFIG_PATH_NOT_FOUND",
   "CONFIG_PROJECT_UNTRUSTED",
+  "CONFIG_PROFILE_INVALID",
+  "CONFIG_PROFILE_NOT_FOUND",
 ] as const
 
 export const ConfigRpcMethods = {
@@ -127,6 +177,24 @@ export const ConfigRpcMethods = {
     exactParams: true,
     exactResult: true,
   }),
+  "config/profile/list": defineMethod({
+    params: Schema.Record(Schema.String, Schema.Never),
+    result: ConfigProfileListResultSchema,
+    errors: ConfigReadErrors,
+    capability: "config.profiles.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "config/profile/select": defineMethod({
+    params: ConfigProfileSelectParamsSchema,
+    result: ConfigProfileSelectResultSchema,
+    errors: ConfigWriteErrors,
+    capability: "config.profiles.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
   "project/trust/read": defineMethod({
     params: ProjectTrustReadParamsSchema,
     result: ProjectTrustReadResultSchema,
@@ -150,3 +218,5 @@ export const ConfigRpcMethods = {
 export type ConfigDiagnostic = typeof ConfigDiagnosticSchema.Type
 export type ConfigLayer = typeof ConfigLayerSchema.Type
 export type ConfigEdit = typeof ConfigEditSchema.Type
+export type ConfigProfileState = typeof ConfigProfileStateSchema.Type
+export type ConfigProfileSummary = typeof ConfigProfileSummarySchema.Type
