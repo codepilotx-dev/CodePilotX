@@ -10,6 +10,7 @@ const createSettingsApp = () => {
   const configService = {
     read: async () => ({
       config: {
+        model: "profile-model",
         desktop: {
           sidebarOrganization: "flat",
           sidebarProjectSort: "updated",
@@ -19,6 +20,11 @@ const createSettingsApp = () => {
       origins: {},
       diagnostics: [],
       layers: [],
+      profileState: {
+        activeProfile: null,
+        selectedProfile: null,
+        restartRequired: false,
+      },
     }),
     batchWrite: async ({ edits }: { edits: ConfigEdit[] }) => {
       writtenEdits = edits
@@ -76,6 +82,7 @@ describe("桌面侧栏运行时设置", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        model: "profile-model",
         sidebarOrganization: "flat",
         sidebarProjectSort: "updated",
         sidebarSort: "manual",
@@ -87,11 +94,7 @@ describe("桌面侧栏运行时设置", () => {
     expect(runtimeSettings.get("desktop.runtime-state.v1")).toEqual({
       sidebarManualOrder: { all: ["session-1"] },
     })
-    expect(writtenEdits().map(edit => edit.keyPath)).toEqual([
-      ["desktop", "sidebarOrganization"],
-      ["desktop", "sidebarProjectSort"],
-      ["desktop", "sidebarSort"],
-    ])
+    expect(writtenEdits()).toEqual([])
 
     const readResponse = await app.request("/api/config/desktop-projection")
     expect(readResponse.status).toBe(200)

@@ -182,6 +182,7 @@ const desktopCorePath = (key: string): string[] | null => ({
 const desktopConfigEdits = (
   value: Record<string, unknown>,
   prefix: string[] = [],
+  current: Record<string, unknown> = {},
 ): Array<{ keyPath: string[]; value: never }> =>
   Object.entries(value).flatMap(([key, child]) => {
     if (
@@ -191,6 +192,10 @@ const desktopConfigEdits = (
     if (prefix.length === 0 && DESKTOP_RUNTIME_FIELDS.has(key)) return []
     if (prefix.length === 0 && key === "permissionConfig" && isPlainObject(child)) {
       return Object.entries(child).flatMap(([permissionKey, permissionValue]) => {
+        const currentPermission = isPlainObject(current.permissionConfig)
+          ? current.permissionConfig[permissionKey]
+          : undefined
+        if (JSON.stringify(permissionValue) === JSON.stringify(currentPermission)) return []
         const path = permissionKey === "approvalPolicy"
           ? ["approval_policy"]
           : permissionKey === "approvalsReviewer"
@@ -204,8 +209,14 @@ const desktopConfigEdits = (
     const corePath = prefix.length === 0 ? desktopCorePath(key) : null
     const path = corePath ?? ["desktop", ...prefix, key]
     return isPlainObject(child)
-      ? desktopConfigEdits(child, [...prefix, key])
-      : [{ keyPath: path, value: child as never }]
+      ? desktopConfigEdits(
+          child,
+          [...prefix, key],
+          isPlainObject(current[key]) ? current[key] : {},
+        )
+      : JSON.stringify(child) === JSON.stringify(current[key])
+        ? []
+        : [{ keyPath: path, value: child as never }]
   })
 const githubCallbackPage = (completed: boolean) => new Response(
   [
@@ -574,15 +585,22 @@ export const createApp = (dependencies: TransportDependencies) => {
   app.put("/api/config/desktop-projection", async (context) => {
     const settings = await context.req.json().catch(() => null)
     if (!isPlainObject(settings)) throw new AgentError("INVALID_REQUEST", "桌面设置参数无效", 400)
+    const read = await dependencies.configService.read({ includeLayers: true })
+    const currentRuntime = db.getSetting<Record<string, unknown>>(DESKTOP_RUNTIME_SETTINGS_KEY) ?? {}
+    const currentSettings = {
+      ...desktopProjection(read.config),
+      ...Object.fromEntries(
+        Object.entries(currentRuntime).filter(([key]) => DESKTOP_RUNTIME_FIELDS.has(key)),
+      ),
+    }
     db.setSetting(
       DESKTOP_RUNTIME_SETTINGS_KEY,
       Object.fromEntries(
         Object.entries(settings).filter(([key]) => DESKTOP_RUNTIME_FIELDS.has(key)),
       ),
     )
-    const read = await dependencies.configService.read({ includeLayers: true })
     const version = read.layers?.find((layer) => layer.kind === "user")?.version
-    const edits = desktopConfigEdits(settings)
+    const edits = desktopConfigEdits(settings, [], currentSettings)
     if (edits.length === 0) return context.json(settings)
     await dependencies.configService.batchWrite({
       edits,
