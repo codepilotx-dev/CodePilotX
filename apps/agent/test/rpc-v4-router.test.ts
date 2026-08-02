@@ -81,7 +81,16 @@ const fixture = async (
   const router = new RpcRouter({
     config: {
       snapshot: () => configDocument,
-      read: async () => ({ config: configDocument, origins: {}, diagnostics: [] }),
+      read: async () => ({
+        config: configDocument,
+        origins: {},
+        diagnostics: [],
+        profileState: {
+          activeProfile: null,
+          selectedProfile: null,
+          restartRequired: false,
+        },
+      }),
       batchWrite: async ({ edits }: { edits: Array<{ keyPath: string[]; value: unknown }> }) => {
         for (const edit of edits) {
           let cursor = configDocument

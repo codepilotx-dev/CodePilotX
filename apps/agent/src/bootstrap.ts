@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import type { Model } from "@codepilotx/model-schema";
 import { loadConfig } from "./config/Config";
 import { ConfigService } from "./config/ConfigService";
+import { SqliteProjectTrustStore } from "./config/ProjectTrustStore";
 import { ConfigMigrationService } from "./config/ConfigMigrationService";
 import { ConfigMigrationRepository } from "./storage/repositories/config-migration-repository";
 import { AgentDatabase } from "./storage/database/AgentDatabase";
@@ -109,7 +110,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       legacyPath: config.legacyDatabasePath,
     });
     options.initializeDatabase?.(db);
-    const configService = new ConfigService(config.storage.userConfig);
+    const configService = new ConfigService(
+      config.storage.userConfig,
+      {},
+      new SqliteProjectTrustStore(db),
+    );
     yield* Effect.promise(() => configService.initialize());
     yield* Effect.promise(() =>
       new ConfigMigrationService(
@@ -142,6 +147,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           code,
           message,
         })),
+        ...(event.profileState ? { profileState: event.profileState } : {}),
       });
     });
     const executionLogs = new ExecutionLogObserver(logger);

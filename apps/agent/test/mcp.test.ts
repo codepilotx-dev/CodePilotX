@@ -489,6 +489,11 @@ describe("MCP configuration", () => {
             "mcp_servers.fixture.name": "user",
           },
           diagnostics: [],
+          profileState: {
+            activeProfile: null,
+            selectedProfile: null,
+            restartRequired: false,
+          },
         }),
         batchWrite: async () => {
           throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "invalid")
