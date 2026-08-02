@@ -21,6 +21,178 @@ afterEach(async () => {
 })
 
 describe("ConfigService", () => {
+  test("活动 Profile 作为独立 JSONC 层覆盖用户配置且项目配置优先", async () => {
+    const root = await temporaryRoot()
+    const userConfig = join(root, "config.json")
+    const profileDirectory = join(root, "profiles")
+    const workspace = join(root, "workspace")
+    const projectConfig = join(workspace, ".codepilotx", "config.json")
+    await mkdir(profileDirectory, { recursive: true })
+    await mkdir(join(workspace, ".codepilotx"), { recursive: true })
+    await writeFile(userConfig, JSON.stringify({
+      profile: "deep-review",
+      model: "user-model",
+      approval_policy: "on-request",
+    }, null, 2), "utf8")
+    await writeFile(join(profileDirectory, "deep-review.json"), [
+      "{",
+      "  // JSONC profile",
+      '  "display_name": "深度审查",',
+      '  "model": "profile-model",',
+      '  "approval_policy": "never",',
+      "}",
+      "",
+    ].join("\n"), "utf8")
+    await writeFile(projectConfig, '{"model":"project-model"}\n', "utf8")
+    const service = new ConfigService(userConfig)
+    await service.initialize()
+    await service.trustUpdate(workspace, "trusted")
+
+    const read = await service.read({ cwd: workspace, includeLayers: true })
+    expect(read.config).toMatchObject({
+      model: "project-model",
+      approval_policy: "never",
+    })
+    expect(read.origins.model).toBe("project")
+    expect(read.origins.approval_policy).toBe("profile")
+    expect(read.layers?.map((layer) => layer.kind)).toEqual([
+      "defaults",
+      "user",
+      "profile",
+      "project",
+    ])
+    expect(read.profileState).toEqual({
+      activeProfile: "deep-review",
+      selectedProfile: "deep-review",
+      restartRequired: false,
+    })
+    await service.dispose()
+  })
+
+  test("切换或编辑 Profile 只标记待重启并保持启动快照", async () => {
+    const root = await temporaryRoot()
+    const userConfig = join(root, "config.json")
+    const profileDirectory = join(root, "profiles")
+    await mkdir(profileDirectory, { recursive: true })
+    await writeFile(userConfig, '{"profile":"balanced"}\n', "utf8")
+    await writeFile(join(profileDirectory, "balanced.json"), '{"model":"balanced"}\n', "utf8")
+    await writeFile(join(profileDirectory, "deep.json"), '{"model":"deep"}\n', "utf8")
+    const service = new ConfigService(userConfig)
+    await service.initialize()
+
+    await service.writeValue({
+      keyPath: ["model"],
+      value: "balanced-updated",
+      target: { kind: "profile", profileId: "balanced" },
+    })
+    expect(service.snapshot().model).toBe("balanced")
+    expect(service.profileState().restartRequired).toBe(true)
+
+    const selected = await service.profileSelect("deep")
+    expect(selected.profileState).toEqual({
+      activeProfile: "balanced",
+      selectedProfile: "deep",
+      restartRequired: true,
+    })
+    expect(service.snapshot().model).toBe("balanced")
+    await service.dispose()
+
+    const restarted = new ConfigService(userConfig)
+    await restarted.initialize()
+    expect(restarted.snapshot().model).toBe("deep")
+    expect(restarted.profileState().restartRequired).toBe(false)
+    await restarted.dispose()
+  })
+
+  test("已选择的 Profile 缺失或包含全局设施时阻止启动", async () => {
+    const root = await temporaryRoot()
+    const userConfig = join(root, "config.json")
+    const profileDirectory = join(root, "profiles")
+    await mkdir(profileDirectory, { recursive: true })
+    await writeFile(userConfig, '{"profile":"missing"}\n', "utf8")
+    await expect(new ConfigService(userConfig).initialize()).rejects.toMatchObject({
+      code: "CONFIG_PROFILE_NOT_FOUND",
+    })
+
+    await writeFile(join(profileDirectory, "missing.json"), JSON.stringify({
+      mcp_servers: { unsafe: { enabled: true } },
+    }), "utf8")
+    await expect(new ConfigService(userConfig).initialize()).rejects.toMatchObject({
+      code: "CONFIG_PROFILE_INVALID",
+    })
+  })
+
+  test("旧项目可信状态迁入机器本地仓库并从可迁移配置删除", async () => {
+    const root = await temporaryRoot()
+    const userConfig = join(root, "config.json")
+    const workspace = join(root, "workspace")
+    const trust = new Map<string, "trusted" | "untrusted">()
+    await mkdir(join(workspace, ".codepilotx"), { recursive: true })
+    await writeFile(join(workspace, ".codepilotx", "config.json"), "{}\n", "utf8")
+    await writeFile(userConfig, JSON.stringify({
+      projects: {
+        [workspace]: { trust_level: "trusted" },
+      },
+      future_setting: { keep: true },
+    }, null, 2), "utf8")
+    const service = new ConfigService(userConfig, {}, {
+      read: projectRoot => trust.get(resolve(projectRoot)) ?? null,
+      write: (projectRoot, trustLevel) => trust.set(resolve(projectRoot), trustLevel),
+      import: entries => {
+        for (const [projectRoot, trustLevel] of Object.entries(entries)) {
+          trust.set(resolve(projectRoot), trustLevel)
+        }
+      },
+    })
+
+    await service.initialize()
+
+    expect((await service.trustRead(workspace)).trustLevel).toBe("trusted")
+    const persisted = JSON.parse(await readFile(userConfig, "utf8"))
+    expect(persisted.projects).toBeUndefined()
+    expect(persisted.future_setting).toEqual({ keep: true })
+    await service.dispose()
+  })
+
+  test("项目向上查找不会把用户 config.json 当成项目配置", async () => {
+    const root = await temporaryRoot()
+    const home = join(root, "home")
+    const userConfig = join(home, ".codepilotx", "config.json")
+    const workspace = join(home, "workspace")
+    await mkdir(join(home, ".codepilotx"), { recursive: true })
+    await mkdir(workspace, { recursive: true })
+    await writeFile(userConfig, "{}\n", "utf8")
+    const service = new ConfigService(userConfig)
+
+    await service.initialize()
+
+    expect(await service.trustRead(workspace)).toEqual({
+      projectRoot: resolve(workspace),
+      trustLevel: "untrusted",
+      hasProjectConfig: false,
+    })
+    await service.dispose()
+  })
+
+  test("启动时遇到无效用户 JSONC 不执行迁移写入或覆盖原文件", async () => {
+    const root = await temporaryRoot()
+    const userConfig = join(root, "config.json")
+    const invalid = '{\n  // 等待用户修复\n  "model":\n}\n'
+    await writeFile(userConfig, invalid, "utf8")
+    const service = new ConfigService(userConfig)
+
+    await service.initialize()
+
+    expect((await service.read()).diagnostics).toContainEqual(
+      expect.objectContaining({
+        severity: "error",
+        scope: "user",
+      }),
+    )
+    expect(await readFile(userConfig, "utf8")).toBe(invalid)
+    await service.dispose()
+  })
+
   test("局部写入 JSONC 时保留注释、尾逗号、顺序和未知字段", async () => {
     const root = await temporaryRoot()
     const filePath = join(root, "config.json")

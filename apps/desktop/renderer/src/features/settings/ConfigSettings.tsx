@@ -9,6 +9,7 @@ import { useDesktopSettings } from './useDesktopSettings.js'
 import { PERMISSION_MODE_OPTIONS, permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
 import type {
   DesktopConfigReadResult,
+  DesktopConfigProfileListResult,
   DesktopDataLocationState,
   DesktopShellSecurityLevel,
 } from '../../../shared/types.js'
@@ -41,30 +42,38 @@ export function ConfigSettings(): React.ReactNode {
   const [changingLocation, setChangingLocation] = useState(false)
   const [promptPreview, setPromptPreview] = useState<string | null>(null)
   const [configRead, setConfigRead] = useState<DesktopConfigReadResult | null>(null)
-  const [configLayer, setConfigLayer] = useState<'user' | 'project'>('user')
+  const [configLayer, setConfigLayer] = useState<'user' | 'profile' | 'project'>('user')
+  const [configProfiles, setConfigProfiles] = useState<DesktopConfigProfileListResult | null>(null)
   const configCwd = draft.values.lastActiveWorkspacePath || undefined
 
-  const reloadConfig = async () => {
+  const readConfigState = async () => {
     const read = await desktopClient.readConfig({
       includeLayers: true,
       ...(configCwd ? { cwd: configCwd } : {}),
     })
+    const profiles = await desktopClient.listConfigProfiles().catch(() => null)
+    return { read, profiles }
+  }
+
+  const reloadConfig = async () => {
+    const { read, profiles } = await readConfigState()
     setConfigRead(read)
+    setConfigProfiles(profiles)
     if (configLayer === 'project' && !read.layers?.some(layer => layer.kind === 'project')) {
+      setConfigLayer('user')
+    }
+    if (configLayer === 'profile' && !read.layers?.some(layer => layer.kind === 'profile')) {
       setConfigLayer('user')
     }
   }
 
   useEffect(() => {
     let mounted = true
-    void desktopClient
-      .readConfig({
-        includeLayers: true,
-        ...(configCwd ? { cwd: configCwd } : {}),
-      })
-      .then(read => {
+    void readConfigState()
+      .then(({ read, profiles }) => {
         if (mounted) {
           setConfigRead(read)
+          setConfigProfiles(profiles)
         }
       })
       .catch(() => {
@@ -136,34 +145,80 @@ export function ConfigSettings(): React.ReactNode {
             description="配置权限预设、工具范围、Shell 风险处理和审批方式。"
           />
           <div className="config-settings-source-toolbar">
-            <SettingsDropdown
-              width={160}
-              ariaLabel="配置层"
-              value={configLayer}
-              options={[
-                { value: 'user', label: '用户配置' },
-                ...(configRead?.layers?.some(layer => layer.kind === 'project')
-                  ? [{ value: 'project', label: '项目配置' }]
-                  : []),
-              ]}
-              onChange={value => setConfigLayer(value as 'user' | 'project')}
-            />
-            <Button
-              type="button"
-              disabled={!selectedConfigLayer?.filePath}
-              onClick={() => {
-                if (selectedConfigLayer?.filePath) {
-                  void desktopClient.openPathWithDefaultTarget(
-                    selectedConfigLayer.filePath,
-                  )
-                }
-              }}
-            >
-              <ExternalLink size={APP_ICON_SIZE} />
-              打开 config.json
-            </Button>
+            <div className="config-settings-source-controls">
+              <SettingsDropdown
+                width={180}
+                ariaLabel="活动 Profile"
+                disabled={!configProfiles}
+                value={configRead?.profileState.selectedProfile ?? ''}
+                options={[
+                  { value: '', label: '基础配置' },
+                  ...(configProfiles?.profiles ?? []).map(profile => ({
+                    value: profile.id,
+                    label: profile.displayName,
+                    detail: profile.valid ? profile.description : '配置无效',
+                    disabled: !profile.valid,
+                  })),
+                ]}
+                onChange={value => {
+                  void desktopClient.selectConfigProfile(value || null)
+                    .then(() => reloadConfig())
+                    .catch(error => window.alert(error instanceof Error ? error.message : String(error)))
+                }}
+              />
+              <SettingsDropdown
+                width={160}
+                ariaLabel="配置层"
+                value={configLayer}
+                options={[
+                  { value: 'user', label: '用户配置' },
+                  ...(configRead?.layers?.some(layer => layer.kind === 'profile')
+                    ? [{ value: 'profile', label: '活动 Profile' }]
+                    : []),
+                  ...(configRead?.layers?.some(layer => layer.kind === 'project')
+                    ? [{ value: 'project', label: '项目配置' }]
+                    : []),
+                ]}
+                onChange={value => setConfigLayer(value as 'user' | 'profile' | 'project')}
+              />
+            </div>
+            <div className="config-settings-source-actions">
+              <Button
+                type="button"
+                disabled={!configProfiles?.profilesDirectory}
+                onClick={() => {
+                  if (configProfiles?.profilesDirectory) {
+                    void desktopClient.openPathWithDefaultTarget(configProfiles.profilesDirectory)
+                  }
+                }}
+              >
+                <ExternalLink size={APP_ICON_SIZE} />
+                打开 Profiles 目录
+              </Button>
+              <Button
+                type="button"
+                disabled={!selectedConfigLayer?.filePath}
+                onClick={() => {
+                  if (selectedConfigLayer?.filePath) {
+                    void desktopClient.openPathWithDefaultTarget(
+                      selectedConfigLayer.filePath,
+                    )
+                  }
+                }}
+              >
+                <ExternalLink size={APP_ICON_SIZE} />
+                打开配置文件
+              </Button>
+            </div>
           </div>
           <SettingsSection.Content>
+            {configRead?.profileState.restartRequired ? (
+              <SettingsRow
+                title="Profile 等待重启"
+                description="关闭所有 CodePilotX 桌面端和 CLI/TUI 后重新打开，新的 Profile 才会应用；当前任务不会被切换。"
+                control={<span className="settings-row-status">待重启</span>}
+              />
+            ) : null}
             <SettingsRow
               title="权限预设"
               description="快速选择默认权限、自动审查、完全访问或自定义策略。"

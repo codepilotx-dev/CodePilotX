@@ -59,6 +59,59 @@ const projectWorkspace = {
 }
 
 describe('desktop thread settings client', () => {
+  test('routes shared Profile listing and selection through RPC v4', async () => {
+    const calls: Array<{ method: string; params: unknown }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      calls.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'config/profile/list') {
+        return rpc(body.id, {
+          profileState: {
+            activeProfile: null,
+            selectedProfile: null,
+            restartRequired: false,
+          },
+          profiles: [{
+            id: 'deep-review',
+            displayName: '深度审查',
+            filePath: 'C:/Users/example/.codepilotx/profiles/deep-review.json',
+            version: 'a'.repeat(64),
+            valid: true,
+            diagnostics: [],
+          }],
+          profilesDirectory: 'C:/Users/example/.codepilotx/profiles',
+        })
+      }
+      if (body.method === 'config/profile/select') {
+        return rpc(body.id, {
+          status: 'ok',
+          version: 'b'.repeat(64),
+          filePath: 'C:/Users/example/.codepilotx/config.json',
+          profileState: {
+            activeProfile: null,
+            selectedProfile: 'deep-review',
+            restartRequired: true,
+          },
+        })
+      }
+      throw new Error(`Unhandled method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    const listed = await client.listConfigProfiles()
+    const selected = await client.selectConfigProfile('deep-review')
+
+    expect(listed.profiles[0]?.displayName).toBe('深度审查')
+    expect(selected.profileState.restartRequired).toBe(true)
+    expect(calls).toEqual(expect.arrayContaining([
+      { method: 'config/profile/list', params: {} },
+      { method: 'config/profile/select', params: { profileId: 'deep-review' } },
+    ]))
+  })
+
   test('routes tooling management and live updates through RPC v4', async () => {
     let eventSubscribeParams: unknown
     const source = {
@@ -1239,6 +1292,7 @@ function initializedResult() {
       'mcp.manage.v1',
       'mcp.oauth.v1',
       'config.manage.v1',
+      'config.profiles.v1',
     ],
     limits: {
       maxFrameBytes: 1024,

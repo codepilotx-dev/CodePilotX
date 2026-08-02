@@ -67,6 +67,24 @@ export class ConfigMigrationRepository {
     }
   }
 
+  mergeDesktopRuntimeState(runtimeState: Record<string, unknown>) {
+    if (Object.keys(runtimeState).length === 0) return
+    this.sqlite.transaction(() => {
+      const existing = parseObject(
+        (this.sqlite.query(
+          "SELECT value FROM app_settings WHERE key = ?",
+        ).get("desktop.runtime-state.v1") as { value: string } | null)?.value,
+      ) ?? {}
+      this.sqlite.query(
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+      ).run(
+        "desktop.runtime-state.v1",
+        JSON.stringify({ ...runtimeState, ...existing }),
+        Date.now(),
+      )
+    })()
+  }
+
   commit(
     runtimeState: Record<string, unknown>,
     mcpRuntime: Record<string, unknown> | null,

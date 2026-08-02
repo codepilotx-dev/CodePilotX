@@ -7,6 +7,14 @@
   margin-bottom: 12px;
 }
 
+.config-settings-source-controls,
+.config-settings-source-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .config-settings-prompt-preview {
   max-height: min(32rem, 60vh);
   padding: 14px 16px;
@@ -28,5 +36,11 @@
   .config-settings-source-toolbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .config-settings-source-controls,
+  .config-settings-source-actions {
+    width: 100%;
+    flex-wrap: wrap;
   }
 }

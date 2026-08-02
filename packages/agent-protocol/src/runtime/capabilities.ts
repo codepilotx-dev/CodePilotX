@@ -2,6 +2,7 @@ import { Schema } from "effect"
 
 export const Capabilities = [
   "config.manage.v1",
+  "config.profiles.v1",
   "rpc.typed.v1",
   "events.replay.v1",
   "events.live.v1",

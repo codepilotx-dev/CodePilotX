@@ -2187,9 +2187,11 @@ test('settings shell search and appearance source contracts', async ({
 
   await page.goto('/?visualCase=empty#/settings/config')
   const configSourceToolbar = page.locator('.config-settings-source-toolbar')
+  const profileDropdown = page.getByRole('combobox', { name: '活动 Profile' })
   const configLayerDropdown = page.getByRole('combobox', { name: '配置层' })
-  const openConfigButton = page.getByRole('button', { name: '打开 config.json' })
+  const openConfigButton = page.getByRole('button', { name: '打开配置文件' })
   await expect(configSourceToolbar).toBeVisible()
+  await expect(profileDropdown).toBeVisible()
   await expect(configLayerDropdown).toBeVisible()
   await expect(openConfigButton).toBeVisible()
   const [configLayerBounds, openConfigBounds] = await Promise.all([

@@ -130,6 +130,7 @@ const RENDERER_CAPABILITIES = [
   'mcp.manage.v1',
   'mcp.oauth.v1',
   'config.manage.v1',
+  'config.profiles.v1',
   'task-suggestions.v1',
   'release-notes.read.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
@@ -1762,6 +1763,22 @@ export function createAgentSessionDesktopClient(
           return rpc.call('config/batchWrite', params)
         },
         () => mockClient.writeConfigBatch(params),
+      ),
+    listConfigProfiles: () =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('config.profiles.v1')
+          return rpc.call('config/profile/list', {})
+        },
+        () => mockClient.listConfigProfiles(),
+      ),
+    selectConfigProfile: profileId =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('config.profiles.v1')
+          return rpc.call('config/profile/select', { profileId })
+        },
+        () => mockClient.selectConfigProfile(profileId),
       ),
     getDesktopSettings: async () => {
       const getter =

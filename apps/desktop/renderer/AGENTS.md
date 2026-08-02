@@ -13,6 +13,15 @@
 - 复用现有 `agentRpcClient`、`agentThreadAdapter`、desktop client 和 session-view projection；禁止创建第二套 transport 或状态协议。
 - 保留 desktop-first 布局；除非任务明确要求，不新增移动端或窄视口行为。
 
+## 桌面端产品定位
+
+- Renderer 优先提供多项目、多聊天、Review、Artifact、Visualization、Worktree、Scheduled task、通知和系统能力的可视化工作台。
+- 所有共享行为继续经过 `desktop-client`、Agent RPC 和 `session-view`；禁止在组件、Hook 或状态仓库内复制 CLI/Agent 逻辑。
+- Review pane、文件预览、行级评论和项目导航属于桌面交互层；其数据真源和变更操作仍由共享 service/contract 提供。
+- 不在 renderer 中模拟 `codex exec`、Shell 管道、JSONL 或 CI runner；若桌面需要相同底层能力，应通过 Agent service 增加可复用接口并提供桌面交互。
+- 跨端功能根据协议 capability 显示、降级或隐藏；不得根据 User-Agent、应用版本字符串或失败结果猜测能力。
+- 保留桌面优先布局，不为尚未建立的 CLI/TUI 引入 renderer 兼容分支。
+
 ## 数据代际
 
 - Renderer 数据代际只清理明确列出的 CodePilotX localStorage/sessionStorage 键和前缀。

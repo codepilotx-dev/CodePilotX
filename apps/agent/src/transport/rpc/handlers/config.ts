@@ -1,5 +1,6 @@
 import {
   ConfigBatchWriteParamsSchema,
+  ConfigProfileSelectParamsSchema,
   ConfigReadParamsSchema,
   ConfigValueWriteParamsSchema,
   ProjectTrustReadParamsSchema,
@@ -17,6 +18,7 @@ import { dirname, isAbsolute, relative, resolve } from "node:path"
 const decodeRead = Schema.decodeUnknownSync(ConfigReadParamsSchema)
 const decodeValueWrite = Schema.decodeUnknownSync(ConfigValueWriteParamsSchema)
 const decodeBatchWrite = Schema.decodeUnknownSync(ConfigBatchWriteParamsSchema)
+const decodeProfileSelect = Schema.decodeUnknownSync(ConfigProfileSelectParamsSchema)
 const decodeTrustRead = Schema.decodeUnknownSync(ProjectTrustReadParamsSchema)
 const decodeTrustUpdate = Schema.decodeUnknownSync(ProjectTrustUpdateParamsSchema)
 
@@ -38,7 +40,7 @@ const requireKnownWorkspace = (runtime: RpcRouter, cwd: string | undefined) => {
 
 const mapConfigError = (cause: unknown): never => {
   if (cause instanceof ConfigServiceError) {
-    const status = cause.code === "CONFIG_PATH_NOT_FOUND"
+    const status = cause.code === "CONFIG_PATH_NOT_FOUND" || cause.code === "CONFIG_PROFILE_NOT_FOUND"
       ? 404
       : cause.code === "CONFIG_VERSION_CONFLICT"
         ? 409
@@ -56,6 +58,8 @@ export const configHandlers = {
     "config/read",
     "config/value/write",
     "config/batchWrite",
+    "config/profile/list",
+    "config/profile/select",
     "project/trust/read",
     "project/trust/update",
   ],
@@ -99,6 +103,12 @@ export const configHandlers = {
             }
             return await config.batchWrite(params as never)
           }
+        case "config/profile/list":
+          return await config.profileList()
+        case "config/profile/select": {
+          const params = decodeProfileSelect(rawParams)
+          return await config.profileSelect(params.profileId)
+        }
         case "project/trust/read": {
           const params = decodeTrustRead(rawParams)
           requireKnownWorkspace(runtime, params.cwd)

@@ -131,6 +131,7 @@ export const SETTINGS_GROUPS = [
         icon: Sliders,
         rows: [
           row('智能体默认设置', '配置用户或项目 config.json、权限预设、工具范围、Shell 风险处理和审批方式'),
+          row('Profile', '选择跨桌面端和 CLI/TUI 共享的启动配置；切换后关闭所有客户端再重新打开'),
           row('权限预设', '快速选择默认权限、自动审查、完全访问或自定义批准策略'),
           row('工具权限范围', '设置结构化文件工具范围和审批信号'),
           row('Shell 安全级别', '调整宿主 Shell 的静态风险处理'),
@@ -139,7 +140,7 @@ export const SETTINGS_GROUPS = [
           row('诊断', '查看配置告警和当前任务完整提示词'),
           row('任务模型', '配置快速、默认、深度和计划执行模型'),
           row('数据位置', '更改 CodePilotX 配置和会话数据目录'),
-          row('配置层', '选择用户配置或项目配置，并打开 config.json'),
+          row('配置层', '选择用户配置、活动 Profile 或项目配置，并打开 JSON/JSONC 配置文件'),
           row('完整提示词诊断', '查看提示词来源、哈希与 token 估算'),
         ],
       },

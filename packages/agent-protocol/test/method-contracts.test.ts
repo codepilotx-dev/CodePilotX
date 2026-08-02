@@ -426,6 +426,11 @@ const fixtures = {
       config: { model: "gpt-5.6" },
     }],
     diagnostics: [],
+    profileState: {
+      activeProfile: null,
+      selectedProfile: null,
+      restartRequired: false,
+    },
   }),
   "config/value/write": methodFixture("config/value/write", {
     keyPath: ["desktop", "showContextUsage"],
@@ -448,6 +453,35 @@ const fixtures = {
     version: "c".repeat(64),
     filePath: "C:/Users/example/.codepilotx/config.json",
     overridden: [{ keyPath: ["model"], by: "project" }],
+  }),
+  "config/profile/list": methodFixture("config/profile/list", {}, {
+    profileState: {
+      activeProfile: "deep-review",
+      selectedProfile: "deep-review",
+      restartRequired: false,
+    },
+    profiles: [{
+      id: "deep-review",
+      displayName: "深度审查",
+      description: "高推理强度",
+      filePath: "C:/Users/example/.codepilotx/profiles/deep-review.json",
+      version: "d".repeat(64),
+      valid: true,
+      diagnostics: [],
+    }],
+    profilesDirectory: "C:/Users/example/.codepilotx/profiles",
+  }),
+  "config/profile/select": methodFixture("config/profile/select", {
+    profileId: "deep-review",
+  }, {
+    status: "ok",
+    version: "e".repeat(64),
+    filePath: "C:/Users/example/.codepilotx/config.json",
+    profileState: {
+      activeProfile: null,
+      selectedProfile: "deep-review",
+      restartRequired: true,
+    },
   }),
   "project/trust/read": methodFixture("project/trust/read", {
     cwd: "F:/CodeProject/example",
@@ -2265,7 +2299,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(183)
+    expect(methods).toHaveLength(185)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2318,6 +2352,9 @@ describe("RPC method schema contracts", () => {
     const decodeProjectList = Schema.decodeUnknownSync(RpcMethods["project/list"].params)
     expect(() => decodeProjectList({ limit: 0 })).toThrow()
     expect(() => decodeProjectList({ limit: 501 })).toThrow()
+    expect(() => Schema.decodeUnknownSync(RpcMethods["config/profile/select"].params)({
+      profileId: "包含 空格",
+    })).toThrow()
 
     expect(() => Schema.decodeUnknownSync(RpcMethods.initialize.params)({
       ...fixtures.initialize.params,
@@ -2519,7 +2556,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(177)
+    expect(Object.keys(RpcMethods)).toHaveLength(179)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
