@@ -17,7 +17,7 @@
     "@codepilotx/model-schema": "workspace:*",
     "@codepilotx/pi-agent-core": "workspace:*",
     "@codepilotx/shared": "workspace:*",
-    "@earendil-works/pi-ai": "0.82.1",
+    "@earendil-works/pi-ai": "0.83.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",

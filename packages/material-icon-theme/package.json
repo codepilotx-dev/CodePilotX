@@ -15,10 +15,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "react": "19.2.3"
+    "react": "19.2.8"
   },
   "devDependencies": {
-    "@types/react": "19.2.7",
+    "@types/react": "19.2.17",
     "material-icon-theme": "5.37.0",
     "typescript": "5.9.3"
   }
