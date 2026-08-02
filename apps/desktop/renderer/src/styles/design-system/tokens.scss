@@ -225,7 +225,9 @@
   --syntax-punctuation: var(--color-token-text-secondary);
 
   --font-family-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
   --font-family-mono:
     "JetBrains Mono", Consolas, monospace;
   --type-card-title: var(--font-size-ui);
@@ -236,9 +238,9 @@
   --type-page-title: calc(var(--font-size-ui) + 12px);
   --type-hero-title: calc(var(--font-size-ui) + 16px);
   --type-code: var(--font-size-code);
-  --font-weight-body: 445;
+  --font-weight-body: 400;
   --font-weight-label: 500;
-  --font-weight-heading: 560;
+  --font-weight-heading: 600;
   --font-weight-emphasis: 600;
 
   --focus-ring: 0 0 0 3px
