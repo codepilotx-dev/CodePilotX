@@ -31,6 +31,7 @@ import { secretScrubber } from "../security/SecretScrubber";
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
 import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
 import { parseApplyPatch } from "../tool/ApplyPatch/parseApplyPatch";
+import { TurnPiBoundaryRepository } from "../storage/repositories/turn-pi-boundary-repository";
 
 export type {
   DelegationController,
@@ -49,6 +50,7 @@ type PendingTurn = {
   items: Map<string, Item>;
   storage: SqlitePiSessionStorage;
   consumedInputIDs: Set<string>;
+  piBoundary?: { sessionID: string; entryID: string };
 };
 
 const outputDelta = (value: unknown) => typeof value === "string" ? value : "";
@@ -329,11 +331,13 @@ export interface PiOrchestratorAdapterOptions {
 /** Adapts the existing product lifecycle to Pi without exposing Pi types to RPC. */
 export class PiOrchestratorAdapter {
   private readonly repo: SqlitePiSessionRepo;
+  private readonly turnPiBoundaries: TurnPiBoundaryRepository;
   private readonly active = new Map<string, PiAgentRuntime>();
   private readonly pending = new Map<string, PendingTurn>();
 
   constructor(private readonly options: PiOrchestratorAdapterOptions) {
     this.repo = new SqlitePiSessionRepo(options.db);
+    this.turnPiBoundaries = new TurnPiBoundaryRepository(options.db);
   }
 
   private async publish(event: ReturnType<AgentDatabase["insertEvent"]>) {
@@ -463,12 +467,13 @@ export class PiOrchestratorAdapter {
   private eventSink(
     storage: SqlitePiSessionStorage,
     runtimeModel: PiModel<Api>,
+    sessionID: string,
     onUsage?: AgentRuntimeRequest["onUsage"],
   ): PiRuntimeEventSink {
     const pendingFor = (context: PiRuntimeEventContext) => {
       const existing = this.pending.get(context.threadID);
       if (existing) return existing;
-      const created = { storage, items: new Map<string, Item>(), consumedInputIDs: new Set<string>() };
+      const created: PendingTurn = { storage, items: new Map<string, Item>(), consumedInputIDs: new Set<string>() };
       this.pending.set(context.threadID, created);
       return created;
     };
@@ -544,6 +549,9 @@ export class PiOrchestratorAdapter {
       assistantMessageCompleted: async (context, input) => {
         const timestamp = Date.now();
         const pending = pendingFor(context);
+        if (input.placement === "result" && input.sessionEntryID) {
+          pending.piBoundary = { sessionID, entryID: input.sessionEntryID };
+        }
         const text = input.text === undefined
           ? contentText(input.content as never, "\n").trim()
           : input.text.trim();
@@ -676,6 +684,13 @@ export class PiOrchestratorAdapter {
         this.options.db.transaction(() => {
           storage.flush();
           if (pending) {
+            if (pending.piBoundary) {
+              this.turnPiBoundaries.upsert({
+                turnID: context.turnID,
+                sessionID: pending.piBoundary.sessionID,
+                entryID: pending.piBoundary.entryID,
+              });
+            }
             for (const item of pending.items.values()) {
               this.options.db.upsertItem(context.threadID, item);
               const persisted = this.options.db.getItem(item.id) ?? item;
@@ -935,7 +950,7 @@ export class PiOrchestratorAdapter {
           session,
         }),
       } as never,
-      eventSink: this.eventSink(storage, model, request.onUsage),
+      eventSink: this.eventSink(storage, model, request.sessionID, request.onUsage),
       beforeToolCall: async (_runtimeRequest, input) => {
         if ((PI_LIFECYCLE_TOOLS as readonly string[]).includes(input.tool))
           return undefined;

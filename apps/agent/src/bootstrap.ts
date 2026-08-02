@@ -99,6 +99,10 @@ import {
   HandoffService,
   ThreadForkRepository,
 } from "./handoff";
+import { ConversationHistoryForkRepository } from "./session/fork/ConversationHistoryForkRepository";
+import { ThreadForkWorkspaceService } from "./session/fork/ThreadForkWorkspaceService";
+import { ThreadMessageForkRepository } from "./session/fork/ThreadMessageForkRepository";
+import { ThreadMessageForkService } from "./session/fork/ThreadMessageForkService";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -707,6 +711,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         async (threadId) => terminalOutput.read({ threadId }) === null,
       ),
     );
+    const threadForkOperations = new ThreadMessageForkRepository(db);
+    const threadFork = new ThreadMessageForkService(
+      threadForkOperations,
+      new ConversationHistoryForkRepository(db),
+      new ThreadForkWorkspaceService(
+        workspaceResolver,
+        executionBindings,
+        worktreeRepository,
+        environmentDeltas,
+      ),
+      worktrees,
+      worktreeRepository,
+    );
     yield* Effect.promise(async () => {
       for (const operationId of handoffOperations.runningOperationIDs()) {
         await handoff.recover(operationId).catch(() => undefined);
@@ -714,6 +731,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       for (const operationId of handoffOperations.pendingFinalizationIDs()) {
         const operation = handoffOperations.get(operationId);
         await handoff.acknowledgeClientTransfer(operationId, operation.revision).catch(() => undefined);
+      }
+      for (const operationId of threadForkOperations.runningOperationIDs()) {
+        await threadFork.recover(operationId).catch(() => undefined);
       }
     });
     const app = createApp({
@@ -753,6 +773,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       localEnvironment,
       worktrees,
       handoff,
+      threadFork,
       executionBindings,
       worktreeRepository,
       environmentDeltas,

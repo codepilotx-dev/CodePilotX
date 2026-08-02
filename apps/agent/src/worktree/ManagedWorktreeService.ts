@@ -68,6 +68,9 @@ export type CreateManagedWorktreeInput = {
   projectId: string
   startingState: { type: "branch"; branchName: string } | { type: "working-tree" }
   operationId: string
+  /** Agent-internal authoritative source. Never accepted from public RPC. */
+  sourceWorkspacePath?: string
+  snapshotMode?: "head" | "working-tree"
 }
 
 /** Windows-first owner of Git worktrees rooted exclusively below the configured managed directory. */
@@ -266,6 +269,25 @@ export class ManagedWorktreeService {
     return canonical
   }
 
+  private async sourceRepository(repositoryRoot: string, requested?: string) {
+    if (!requested) return repositoryRoot
+    const source = await realpath(requested).catch(() => {
+      throw new AgentError("WORKTREE_PATH_UNSAFE", "worktree 源目录不可用", 409)
+    })
+    const sourceTopLevel = await realpath(await this.requireGit(source, ["rev-parse", "--show-toplevel"], "WORKTREE_GIT_FAILED"))
+    if (pathKey(sourceTopLevel) !== pathKey(source)) {
+      throw new AgentError("WORKTREE_PATH_UNSAFE", "worktree 源目录必须是 Git 根目录", 409)
+    }
+    const [sourceCommon, repositoryCommon] = await Promise.all([
+      this.requireGit(source, ["rev-parse", "--path-format=absolute", "--git-common-dir"], "WORKTREE_GIT_FAILED"),
+      this.requireGit(repositoryRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"], "WORKTREE_GIT_FAILED"),
+    ])
+    if (pathKey(resolve(source, sourceCommon)) !== pathKey(resolve(repositoryRoot, repositoryCommon))) {
+      throw new AgentError("WORKTREE_PATH_DENIED", "worktree 源目录不属于当前项目仓库", 403)
+    }
+    return source
+  }
+
   private targetPath(repositoryRoot: string, id: string, suffix = "") {
     const repositoryHash = createHash("sha256").update(pathKey(repositoryRoot), "utf8").digest("hex").slice(0, 16)
     const target = resolve(this.managedRoot, `${repositoryHash}-${id}${suffix}`)
@@ -285,7 +307,11 @@ export class ManagedWorktreeService {
       projectId: input.projectId,
       worktreeId: null,
       kind: "create",
-      request: input,
+      request: {
+        projectId: input.projectId,
+        startingState: input.startingState,
+        snapshotMode: input.snapshotMode ?? "working-tree",
+      },
     })
     if (started.replay) {
       if (!started.operation.worktreeId) {
@@ -300,6 +326,7 @@ export class ManagedWorktreeService {
     let worktree: ManagedWorktree | null = null
     try {
       const repositoryRoot = await this.projectRepository(input.projectId)
+      const sourceRoot = await this.sourceRepository(repositoryRoot, input.sourceWorkspacePath)
       const worktreeId = this.id()
       const target = this.targetPath(repositoryRoot, worktreeId)
       await this.assertNewTarget(target)
@@ -309,8 +336,10 @@ export class ManagedWorktreeService {
       if (input.startingState.type === "branch") {
         branchName = input.startingState.branchName
         baseCommit = await this.requireGit(repositoryRoot, ["rev-parse", "--verify", `${branchName}^{commit}`], "WORKTREE_BRANCH_NOT_FOUND")
+      } else if (input.snapshotMode === "head") {
+        baseCommit = await this.requireGit(sourceRoot, ["rev-parse", "--verify", "HEAD^{commit}"], "WORKTREE_GIT_FAILED")
       } else {
-        const isolation = await WorkspaceIsolationService.open(repositoryRoot, this.stateRoot)
+        const isolation = await WorkspaceIsolationService.open(sourceRoot, this.stateRoot)
         layers = await isolation.captureWorkingTreeLayers()
         baseCommit = layers.headCommit
       }
@@ -356,15 +385,18 @@ export class ManagedWorktreeService {
           if (checked.code !== 0) throw new AgentError("WORKTREE_APPLY_CONFLICT", "working tree unstaged 快照无法无冲突应用", 409)
           await this.requireGit(canonical, ["apply", "--binary", "--whitespace=nowarn", "-"], "WORKTREE_APPLY_CONFLICT", layers.unstagedPatch)
         }
-        await this.includeService().copyRegularFiles(repositoryRoot, canonical, layers.untrackedFiles)
+        await this.includeService().copyRegularFiles(sourceRoot, canonical, layers.untrackedFiles)
       }
-      const copyResult = await this.includeService().copy(repositoryRoot, canonical)
+      const copyResult = input.snapshotMode === "head"
+        ? { copied: 0, skipped: 0 }
+        : await this.includeService().copy(sourceRoot, canonical)
       const warnings = copyResult.skipped > 0 ? ["部分 worktree include 文件因安全边界或目标已存在而跳过"] : []
       this.updateOperation(input.operationId, { step: "setup", warnings })
       const setup = await this.environment.setup({
         operationId: input.operationId,
         projectId: input.projectId,
         worktreeId,
+        sourceWorkspacePath: sourceRoot,
         workspacePath: canonical,
         onOutput: (chunk) => this.output.append(input.operationId, chunk),
       }).catch((): WorktreeSetupResult => ({ status: "failed", environmentRevision: 0 }))
@@ -422,9 +454,14 @@ export class ManagedWorktreeService {
     }
   }
 
-  async retrySetup(input: { worktreeId: string; operationId: string }) {
+  async retrySetup(input: { worktreeId: string; operationId: string; sourceWorkspacePath?: string }) {
     let worktree = this.requireWorktree(input.worktreeId)
-    const started = this.startOperation({ ...input, projectId: worktree.projectId, kind: "retry-setup", request: input })
+    const started = this.startOperation({
+      ...input,
+      projectId: worktree.projectId,
+      kind: "retry-setup",
+      request: { worktreeId: input.worktreeId },
+    })
     if (started.replay) return this.result(worktree.id, input.operationId)
     this.claimWorktreeOperation(started.operation, worktree.id)
     worktree = this.requireWorktree(input.worktreeId)
@@ -434,6 +471,7 @@ export class ManagedWorktreeService {
         operationId: input.operationId,
         projectId: worktree.projectId,
         worktreeId: worktree.id,
+        sourceWorkspacePath: input.sourceWorkspacePath ?? worktree.repositoryRoot,
         workspacePath: worktree.path,
         onOutput: (chunk) => this.output.append(input.operationId, chunk),
       }).catch((): WorktreeSetupResult => ({ status: "failed", environmentRevision: 0 }))

@@ -12,6 +12,14 @@ export type EnvironmentDomainClient = ReturnType<typeof createEnvironmentDomainC
 
 export function createEnvironmentDomainClient(rpc: Rpc) {
   return {
+    async supportsThreadFork(): Promise<boolean> {
+      try {
+        const initialized = await rpc.ensureInitialized()
+        return initialized.capabilities.includes('thread.fork.v1')
+      } catch {
+        return false
+      }
+    },
     readEnvironment: (threadId: string) =>
       rpc.call('local-environment/read', { threadId }),
     updateEnvironment: (params: RpcParams<'local-environment/update'>) =>
@@ -48,6 +56,33 @@ export function createEnvironmentDomainClient(rpc: Rpc) {
       rpc.call('thread/handoff/pending', { sourceThreadId }),
     ackHandoff: (operationId: string, revision: number) =>
       rpc.call('thread/handoff/ack-client-transfer', { operationId, revision }),
+    startThreadFork: (params: RpcParams<'thread/fork/start'>) =>
+      rpc.call('thread/fork/start', params),
+    threadForkStatus: (
+      operationId: string,
+      afterRevision?: number,
+      afterOutputCursor?: number,
+    ) => rpc.call('thread/fork/status', {
+      operationId,
+      ...(afterRevision === undefined ? {} : { afterRevision }),
+      ...(afterOutputCursor === undefined ? {} : { afterOutputCursor }),
+      waitMs: 30_000,
+    }),
+    pendingThreadFork: (
+      sourceThreadId: string,
+      lastTurnId: string,
+      sourceItemId: string,
+    ) => rpc.call('thread/fork/pending', {
+      sourceThreadId,
+      lastTurnId,
+      sourceItemId,
+    }),
+    retryThreadForkSetup: (operationId: string, revision: number) =>
+      rpc.call('thread/fork/retry-setup', { operationId, revision }),
+    continueThreadForkWithoutSetup: (operationId: string, revision: number) =>
+      rpc.call('thread/fork/continue-without-setup', { operationId, revision }),
+    abandonThreadFork: (operationId: string, revision: number) =>
+      rpc.call('thread/fork/abandon', { operationId, revision }),
     async projectForThread(threadId: string): Promise<string | null> {
       const result = await rpc.call('thread/list', { limit: 500 })
       const thread = result.threads.find(candidate => candidate.id === threadId)
@@ -78,6 +113,7 @@ export function environmentDomainClient(): EnvironmentDomainClient {
           'local-environment.manage.v1',
           'worktree.manage.v1',
           'thread.handoff.v1',
+          'thread.fork.v1',
         ],
         interactionDelivery: 'observe',
       },

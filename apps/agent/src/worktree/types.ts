@@ -78,6 +78,7 @@ export interface WorktreeEnvironmentLifecycle {
     operationId: string
     projectId: string
     worktreeId: string
+    sourceWorkspacePath: string
     workspacePath: string
     onOutput: (chunk: string) => void
   }): Promise<WorktreeSetupResult>

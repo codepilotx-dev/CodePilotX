@@ -39,6 +39,37 @@ afterEach(async () => {
 })
 
 describe("LocalEnvironmentService", () => {
+  test("worktree setup 仅向创建期脚本注入权威源目录与目标目录变量", async () => {
+    let lifecycleInput: Record<string, unknown> | null = null
+    const lifecycle = new LocalEnvironmentWorktreeLifecycle({
+      runLifecycle: async (input: Record<string, unknown>) => {
+        lifecycleInput = input
+        return { status: "succeeded" }
+      },
+      operationOutput: () => null,
+      hostEnvironmentForBinding: async () => ({ revision: 0, set: {}, unset: [] }),
+    } as never)
+
+    await lifecycle.setup({
+      operationId: "setup",
+      projectId: "project",
+      worktreeId: "worktree",
+      sourceWorkspacePath: "C:\\source",
+      workspacePath: "C:\\managed",
+      onOutput: () => undefined,
+    })
+
+    expect(lifecycleInput).toMatchObject({
+      cwd: "C:\\managed",
+      bindingId: "worktree",
+      kind: "setup",
+      environment: {
+        CODEPILOTX_SOURCE_TREE_PATH: "C:\\source",
+        CODEPILOTX_WORKTREE_PATH: "C:\\managed",
+      },
+    })
+  })
+
   test("环境 delta copy 校验预期 revision，cleanup 失败不会被降级成可继续警告", async () => {
     const { deltas } = await fixture()
     await deltas.replace("source", { set: { SAFE_ENV: "value" }, unset: [] })
@@ -196,8 +227,16 @@ describe("LocalEnvironmentService", () => {
     }, null, 2), "utf8")
     const loaded = await service.read(root)
     await service.confirmExecution(root, loaded.configHash)
-    const operation = await service.runLifecycle({ cwd: root, bindingId: "binding", kind: "setup", operationId: "setup-1" })
+    const streamed: string[] = []
+    const operation = await service.runLifecycle({
+      cwd: root,
+      bindingId: "binding",
+      kind: "setup",
+      operationId: "setup-1",
+      onOutput: (chunk) => streamed.push(chunk),
+    })
     expect(operation).toMatchObject({ status: "succeeded", errorCode: null })
+    expect(streamed.join("")).not.toHaveLength(0)
     expect((await deltas.read("binding")).set.LOCAL_ENV_TEST_DELTA).toBe("updated")
     expect((await deltas.read("binding")).set.CODEPILOTX_SECRET_CONTROL).toBeUndefined()
     const output = runner.output("setup-1")!

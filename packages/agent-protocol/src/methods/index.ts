@@ -3,6 +3,7 @@ import type { ParamsOf, ResultOf } from "../wire/definition"
 import { BaseRpcMethods } from "./base"
 import { HandoffRpcMethods } from "./handoff"
 import { LocalEnvironmentRpcMethods } from "./local-environment"
+import { ThreadForkRpcMethods } from "./thread-fork"
 import { WorktreeRpcMethods } from "./worktree"
 import type { TerminalRpcMethodMap } from "./terminal"
 import type { LocalEnvironmentHostRpcMethodMap } from "./local-environment"
@@ -11,6 +12,7 @@ export const RpcMethods = {
   ...BaseRpcMethods,
   ...HandoffRpcMethods,
   ...LocalEnvironmentRpcMethods,
+  ...ThreadForkRpcMethods,
   ...WorktreeRpcMethods,
 } as const
 export { BaseRpcMethods } from "./base"
@@ -47,5 +49,6 @@ export * from "./review"
 export * from "./skills"
 export * from "./suggestions"
 export * from "./tooling"
+export * from "./thread-fork"
 export * from "./usage"
 export * from "./worktree"

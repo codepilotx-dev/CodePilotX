@@ -2718,11 +2718,17 @@ export function createAgentSessionDesktopClient(
           notification.params && typeof notification.params === 'object'
             ? notification.params
             : null
+        const changedThreadId = typeof params?.threadId === 'string'
+          ? params.threadId
+          : notificationMethod === 'thread/forked' && typeof params?.targetThreadId === 'string'
+            ? params.targetThreadId
+            : null
         if (
-          typeof params?.threadId === 'string' &&
+          changedThreadId &&
           [
             'thread/snapshot',
             'thread/updated',
+            'thread/forked',
             'thread/settings/updated',
             'turn/queued',
             'queue/updated',
@@ -2737,7 +2743,7 @@ export function createAgentSessionDesktopClient(
             'question/requested',
           ].includes(notificationMethod)
         ) {
-          scheduleSessionRefresh(params.threadId)
+          scheduleSessionRefresh(changedThreadId)
         }
       })
     },

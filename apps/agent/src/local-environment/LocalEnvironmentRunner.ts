@@ -29,6 +29,7 @@ export type LocalEnvironmentRunInput = {
   command: string
   environment?: Readonly<Record<string, string | undefined>> | undefined
   signal?: AbortSignal | undefined
+  onOutput?: ((chunk: string) => void) | undefined
 }
 
 type SpawnResult = {
@@ -63,7 +64,7 @@ export class LocalEnvironmentRunner {
     this.operations.set(operationId, operation)
     const baseEnvironment = { ...process.env, ...input.environment }
     try {
-      const result = await this.spawnWrapper(input.cwd, input.command, baseEnvironment, operation, input.signal)
+      const result = await this.spawnWrapper(input.cwd, input.command, baseEnvironment, operation, input.signal, input.onOutput)
       operation.exitCode = result.exitCode
       if (result.exitCode !== 0) {
         operation.status = "failed"
@@ -130,6 +131,7 @@ export class LocalEnvironmentRunner {
       operation.outputBytes += first.bytes
       break
     }
+    return data
   }
 
   private async spawnWrapper(
@@ -138,6 +140,7 @@ export class LocalEnvironmentRunner {
     environment: NodeJS.ProcessEnv,
     operation: InternalOperation,
     signal?: AbortSignal,
+    onOutput?: (chunk: string) => void,
   ): Promise<SpawnResult> {
     const temporaryRoot = await mkdtemp(join(tmpdir(), "codepilotx-local-environment-"))
     const environmentPath = join(temporaryRoot, "environment.capture")
@@ -183,8 +186,8 @@ export class LocalEnvironmentRunner {
         windows ? ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", wrapperPath] : [wrapperPath],
         { cwd, env: environment, shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
       )
-      child.stdout.on("data", (chunk: Buffer) => this.append(operation, chunk))
-      child.stderr.on("data", (chunk: Buffer) => this.append(operation, chunk))
+      child.stdout.on("data", (chunk: Buffer) => onOutput?.(this.append(operation, chunk)))
+      child.stderr.on("data", (chunk: Buffer) => onOutput?.(this.append(operation, chunk)))
       let timedOut = false
       const stop = () => killProcessTree(child)
       signal?.addEventListener("abort", stop, { once: true })

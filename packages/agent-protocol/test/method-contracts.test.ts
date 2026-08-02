@@ -2072,6 +2072,69 @@ const fixtures = {
       revision: 12, errorCode: null, warnings: [], createdAt: 1, updatedAt: 3, completedAt: 3,
     },
   }),
+  "thread/fork/start": methodFixture("thread/fork/start", {
+    operationId: "operation:fork", sourceThreadId: "thread:1", lastTurnId: "turn:1",
+    sourceItemId: "item:result", destination: { kind: "new-worktree" },
+  }, {
+    operation: {
+      operationId: "operation:fork", sourceThreadId: "thread:1", sourceTurnId: "turn:1",
+      sourceItemId: "item:result", targetThreadId: null, targetWorktreeId: "worktree:2",
+      destinationKind: "new-worktree", snapshotMode: "working-tree", status: "running",
+      step: "setup", revision: 2, errorCode: null, warnings: [], createdAt: 1,
+      updatedAt: 2, completedAt: null,
+    },
+  }),
+  "thread/fork/status": methodFixture("thread/fork/status", {
+    operationId: "operation:fork", afterRevision: 1, afterOutputCursor: 0, waitMs: 100,
+  }, {
+    operation: {
+      operationId: "operation:fork", sourceThreadId: "thread:1", sourceTurnId: "turn:1",
+      sourceItemId: "item:result", targetThreadId: null, targetWorktreeId: "worktree:2",
+      destinationKind: "new-worktree", snapshotMode: "working-tree", status: "running",
+      step: "setup", revision: 2, errorCode: null, warnings: [], createdAt: 1,
+      updatedAt: 2, completedAt: null,
+    },
+    changed: true,
+    output: { cursor: 1, data: "setup running\r\n", truncated: false, complete: false },
+  }),
+  "thread/fork/pending": methodFixture("thread/fork/pending", {
+    sourceThreadId: "thread:1", lastTurnId: "turn:1", sourceItemId: "item:result",
+  }, {
+    operation: null,
+  }),
+  "thread/fork/retry-setup": methodFixture("thread/fork/retry-setup", {
+    operationId: "operation:fork", revision: 2,
+  }, {
+    operation: {
+      operationId: "operation:fork", sourceThreadId: "thread:1", sourceTurnId: "turn:1",
+      sourceItemId: "item:result", targetThreadId: null, targetWorktreeId: "worktree:2",
+      destinationKind: "new-worktree", snapshotMode: "working-tree", status: "running",
+      step: "setup", revision: 3, errorCode: null, warnings: [], createdAt: 1,
+      updatedAt: 3, completedAt: null,
+    },
+  }),
+  "thread/fork/continue-without-setup": methodFixture("thread/fork/continue-without-setup", {
+    operationId: "operation:fork", revision: 2,
+  }, {
+    operation: {
+      operationId: "operation:fork", sourceThreadId: "thread:1", sourceTurnId: "turn:1",
+      sourceItemId: "item:result", targetThreadId: "thread:2", targetWorktreeId: "worktree:2",
+      destinationKind: "new-worktree", snapshotMode: "working-tree", status: "completed",
+      step: "complete", revision: 4, errorCode: null, warnings: ["setup-skipped"], createdAt: 1,
+      updatedAt: 4, completedAt: 4,
+    },
+  }),
+  "thread/fork/abandon": methodFixture("thread/fork/abandon", {
+    operationId: "operation:fork", revision: 2,
+  }, {
+    operation: {
+      operationId: "operation:fork", sourceThreadId: "thread:1", sourceTurnId: "turn:1",
+      sourceItemId: "item:result", targetThreadId: null, targetWorktreeId: null,
+      destinationKind: "new-worktree", snapshotMode: "working-tree", status: "abandoned",
+      step: "complete", revision: 4, errorCode: null, warnings: [], createdAt: 1,
+      updatedAt: 4, completedAt: 4,
+    },
+  }),
   "terminal/host/context": methodFixture("terminal/host/context", {
     threadId: "thread:1",
   }, {
@@ -2299,7 +2362,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(185)
+    expect(methods).toHaveLength(191)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2556,7 +2619,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(179)
+    expect(Object.keys(RpcMethods)).toHaveLength(185)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

@@ -173,7 +173,9 @@ export class LocalEnvironmentService {
     bindingId: string
     kind: LocalEnvironmentOperationKind
     operationId?: string | undefined
+    environment?: Readonly<Record<string, string | undefined>> | undefined
     signal?: AbortSignal | undefined
+    onOutput?: ((chunk: string) => void) | undefined
   }) {
     const loaded = await this.load(input.cwd)
     const definition = input.kind === "setup" ? loaded.config.setup : loaded.config.cleanup

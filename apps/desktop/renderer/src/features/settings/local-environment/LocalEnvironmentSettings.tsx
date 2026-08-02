@@ -1,6 +1,8 @@
 import React from 'react'
 import { useSearchParams } from 'react-router-dom'
+import * as Popover from '@radix-ui/react-popover'
 import { Button } from '../../../components/ui/Button.js'
+import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
 import { environmentDomainClient, type EnvironmentReadResult } from '../../../services/desktop-client/environment-domain-client.js'
 import { SettingsContentArea } from '../SettingsContentArea.js'
 import { SettingsSection } from '../SettingsSection.js'
@@ -15,6 +17,17 @@ import {
 
 type Props = { onError: (message: string) => void; onNotice?: (message: string) => void }
 type PlatformCommand = EnvironmentPlatformCommand
+
+export const WORKTREE_SETUP_VARIABLES = [
+  {
+    name: 'CODEPILOTX_SOURCE_TREE_PATH',
+    description: '源任务的权威工作区路径',
+  },
+  {
+    name: 'CODEPILOTX_WORKTREE_PATH',
+    description: '新托管工作树的路径',
+  },
+] as const
 
 export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.ReactNode {
   const [params] = useSearchParams()
@@ -81,6 +94,15 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         actions={<Button loading={saving} onClick={() => void save()}>保存</Button>}
       >
         <SettingsRow title="名称" control={<input className="confirmation-dialog-input" value={name} onChange={event => setName(event.target.value)} />} />
+        <div className="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:p-3">
+          <div>
+            <strong>Setup</strong>
+            <p className="tw:m-0 tw:text-xs tw:text-app-text-soft">
+              创建托管工作树时在新工作树目录下运行。
+            </p>
+          </div>
+          <SetupVariablesPopover />
+        </div>
         <CommandRows label="Setup" value={setup} onChange={setSetup} />
         <CommandRows label="Cleanup" value={cleanup} onChange={setCleanup} />
         <div className="tw:grid tw:gap-2 tw:p-3">
@@ -117,6 +139,53 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         />
       </SettingsSection>
     </SettingsContentArea>
+  )
+}
+
+function SetupVariablesPopover(): React.ReactNode {
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <Button>变量</Button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          className="popover-surface popover tw:grid tw:gap-3 tw:p-3 tw:text-app-text"
+          collisionPadding={8}
+          sideOffset={6}
+          style={buildPopoverSizingStyle({ width: 320, maxWidth: 'calc(100vw - 2rem)' })}
+        >
+          <div>
+            <strong className="tw:text-sm">设置脚本环境变量</strong>
+            <p className="tw:m-0 tw:mt-1 tw:text-xs tw:text-app-text-soft">
+              创建托管工作树时由 Agent 注入；这里只显示变量名，不显示路径值。
+            </p>
+          </div>
+          {WORKTREE_SETUP_VARIABLES.map(variable => (
+            <EnvironmentVariable {...variable} key={variable.name} />
+          ))}
+          <Popover.Arrow className="popover-arrow" />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  )
+}
+
+function EnvironmentVariable({
+  description,
+  name,
+}: {
+  description: string
+  name: string
+}): React.ReactNode {
+  return (
+    <div className="tw:grid tw:gap-1">
+      <span className="tw:text-xs tw:text-app-text-soft">{description}</span>
+      <code className="tw:rounded-md tw:bg-app-canvas tw:px-2 tw:py-1 tw:font-mono tw:text-xs">
+        {name}
+      </code>
+    </div>
   )
 }
 

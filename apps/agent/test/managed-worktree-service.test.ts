@@ -94,27 +94,51 @@ describe("ManagedWorktreeService", () => {
   test("operation output 仅保留 64KiB 内存 tail 并在完成十分钟后过期", () => {
     let now = 1_000
     const output = new WorktreeOperationOutputBuffer(() => now)
-    output.append("operation", "x".repeat(70_000))
+    output.append("operation", "x\n".repeat(35_000))
     expect(output.read("operation", 0)).toMatchObject({ cursor: 70_000, truncated: true, complete: false })
-    expect(output.read("operation", 0).data).toHaveLength(65_536)
-    output.append("unicode", "你".repeat(30_000))
+    expect(Buffer.byteLength(output.read("operation", 0).data, "utf8")).toBe(65_536)
+    output.append("unicode", "你\n".repeat(30_000))
     const unicode = output.read("unicode", 0)
     expect(Buffer.byteLength(unicode.data, "utf8")).toBeLessThanOrEqual(65_536)
     expect(unicode.data.includes("�")).toBe(false)
+    output.append("sanitized", "\u001b[31mauth_token=super-secret-value\u001b[0m\n")
+    const sanitized = output.read("sanitized", 0).data
+    expect(sanitized).not.toContain("\u001b")
+    expect(sanitized).not.toContain("super-secret-value")
+    expect(sanitized).toContain("auth_token=<redacted>")
+    output.append("split-secret", "sk-abcdefghijkl")
+    expect(output.read("split-secret", 0).data).toBe("")
+    output.append("split-secret", "mnopqrstuv\n")
+    const splitSecret = output.read("split-secret", 0).data
+    expect(splitSecret).not.toContain("sk-abcdefghijklmnopqrstuv")
+    expect(splitSecret).toContain("<redacted>")
+    output.append("split-secret-on-complete", "auth_token=super-")
+    output.append("split-secret-on-complete", "secret-value")
+    output.complete("split-secret-on-complete")
+    const completedSecret = output.read("split-secret-on-complete", 0).data
+    expect(completedSecret).not.toContain("super-secret-value")
+    expect(completedSecret).toContain("auth_token=<redacted>")
+    output.append("oversized-line", "x".repeat(70_000))
+    expect(output.read("oversized-line", 0)).toMatchObject({ cursor: 70_000, data: "", truncated: true })
+    output.append("oversized-line", "\nsafe\n")
+    expect(output.read("oversized-line", 70_000)).toMatchObject({ cursor: 70_006, data: "safe\n", truncated: true })
     output.complete("operation")
     now += 10 * 60 * 1000
     expect(output.read("operation", 70_000)).toEqual({ cursor: 70_000, data: "", truncated: false, complete: true })
   })
 
-  test("history 24 原地迁移为 25 并只增加可忽略的独立表", () => {
+  test("history 24 逐代迁移到 26 并只增加可忽略的独立表", () => {
     const sqlite = new Database(":memory:")
-    const newObjects = /(?:managed_worktrees|thread_execution_bindings|worktree_operations|thread_handoff_operations|thread_forks)/
+    const newObjects = /(?:managed_worktrees|thread_execution_bindings|worktree_operations|thread_handoff_operations|thread_forks|thread_message_fork_operations|thread_message_forks|turn_pi_boundaries)/
     sqlite.exec(HISTORY_SCHEMA.filter((statement) => !newObjects.test(statement)).join(";\n"))
     sqlite.exec("PRAGMA user_version = 24")
     initializeSchema(sqlite, "history")
-    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 25 })
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 26 })
     const tables = new Set((sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map(({ name }) => name))
     for (const table of ["managed_worktrees", "thread_execution_bindings", "worktree_operations", "thread_handoff_operations", "thread_forks"]) {
+      expect(tables.has(table)).toBe(true)
+    }
+    for (const table of ["thread_message_fork_operations", "thread_message_forks", "turn_pi_boundaries"]) {
       expect(tables.has(table)).toBe(true)
     }
     sqlite.close()

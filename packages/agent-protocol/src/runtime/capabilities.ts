@@ -41,6 +41,7 @@ export const Capabilities = [
   "terminal.host.v1",
   "local-environment.manage.v1",
   "thread.handoff.v1",
+  "thread.fork.v1",
   "worktree.manage.v1",
 ] as const
 

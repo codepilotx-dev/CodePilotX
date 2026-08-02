@@ -97,6 +97,7 @@ import {
   canRegenerateConversationTitle,
   shouldCloseConversationRenameDialog,
 } from "./conversationTitleActions.js";
+import { useConversationForkController } from "../workflow/fork/useConversationForkController.js";
 export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
 export type { ConversationTurnNavItem } from "./turnNavigationModel.js";
 
@@ -192,6 +193,15 @@ export function ConversationPage(): React.ReactNode {
       selectCanonicalConversationAuxiliaryState(canonicalConversation.state),
     [canonicalConversation.state],
   );
+  const navigateToForkTarget = React.useCallback((targetThreadId: string) => {
+    navigate(`/threads/${encodeURIComponent(targetThreadId)}`);
+  }, [navigate]);
+  const conversationFork = useConversationForkController({
+    canUseNewWorktree: Boolean(workspacePath && (branchName || gitStatus)),
+    sourceRunning: sessionStatus === "running" || sessionStatus === "waiting" || sessionStatus === "queued",
+    sourceThreadId: activeSessionId,
+    onNavigateTarget: navigateToForkTarget,
+  });
   const pendingPermissions = canonicalAuxiliary.pendingPermissions;
   const reduceMotion = usePrefersReducedMotion();
   const turnNavItems = React.useMemo<ConversationTurnNavItem[]>(
@@ -1100,6 +1110,7 @@ export function ConversationPage(): React.ReactNode {
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
       onOpenFileReference,
+      onForkFromMessage: conversationFork.onForkFromMessage,
       onSubmitEditedUserMessage,
       sessionStatus,
       workspacePath,
@@ -1108,6 +1119,7 @@ export function ConversationPage(): React.ReactNode {
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
       onOpenFileReference,
+      conversationFork.onForkFromMessage,
       onSubmitEditedUserMessage,
       sessionStatus,
       workspacePath,
@@ -1184,6 +1196,7 @@ export function ConversationPage(): React.ReactNode {
           if (!renamingSession) setRenameDialogOpen(false);
         }}
       />
+      {conversationFork.dialog}
       <div
         className="workflow-page__body"
       >

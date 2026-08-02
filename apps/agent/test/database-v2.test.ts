@@ -217,6 +217,44 @@ describe("数据库兼容与迁移", () => {
     sqlite.close()
   })
 
+  test("v25 到 v26 只新增消息分叉表并保留既有会话 schema", () => {
+    const sqlite = new Database(":memory:")
+    sqlite.exec(HISTORY_SCHEMA.join(";\n"))
+    sqlite.exec(`
+      DROP TABLE turn_pi_boundaries;
+      DROP TABLE thread_message_forks;
+      DROP TABLE thread_message_fork_operations;
+      PRAGMA user_version = 25;
+      INSERT INTO threads (id, title, created_at, updated_at)
+      VALUES ('thread:existing', '保留的会话', 1, 2);
+    `)
+    const threadSqlBefore = sqlite.query(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'threads'",
+    ).get() as { sql: string }
+
+    initializeSchema(sqlite)
+    initializeSchema(sqlite)
+
+    const tables = new Set((sqlite.query(
+      "SELECT name FROM sqlite_master WHERE type = 'table'",
+    ).all() as Array<{ name: string }>).map(({ name }) => name))
+    expect(tables.has("thread_message_fork_operations")).toBe(true)
+    expect(tables.has("thread_message_forks")).toBe(true)
+    expect(tables.has("turn_pi_boundaries")).toBe(true)
+    expect(sqlite.query("SELECT id, title FROM threads").get()).toEqual({
+      id: "thread:existing",
+      title: "保留的会话",
+    })
+    expect(sqlite.query(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'threads'",
+    ).get()).toEqual(threadSqlBefore)
+    expect((sqlite.query("PRAGMA table_info(thread_message_fork_operations)").all() as Array<{
+      name: string
+    }>).map(({ name }) => name)).toContain("worktree_operation_id")
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    sqlite.close()
+  })
+
   test("已知 history application ID 2 从 schema 19 原地升级并保留会话", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v19-"))
     paths.push(root)

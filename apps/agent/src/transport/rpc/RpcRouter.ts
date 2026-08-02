@@ -58,6 +58,7 @@ import type { HandoffService } from "../../handoff/HandoffService"
 import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBindingService"
 import type { WorktreeRepository } from "../../worktree/WorktreeRepository"
 import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
+import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
@@ -141,6 +142,7 @@ export type RpcRouterDependencies = {
   localEnvironment: LocalEnvironmentService
   worktrees: ManagedWorktreeService
   handoff: HandoffService
+  threadFork: ThreadMessageForkService
   executionBindings: TaskExecutionBindingService
   worktreeRepository: WorktreeRepository
   environmentDeltas: EnvironmentDeltaStore

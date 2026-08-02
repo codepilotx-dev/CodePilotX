@@ -11,8 +11,12 @@ export class LocalEnvironmentWorktreeLifecycle implements WorktreeEnvironmentLif
       bindingId: input.worktreeId,
       kind: "setup",
       operationId: input.operationId,
+      environment: {
+        CODEPILOTX_SOURCE_TREE_PATH: input.sourceWorkspacePath,
+        CODEPILOTX_WORKTREE_PATH: input.workspacePath,
+      },
+      onOutput: input.onOutput,
     })
-    this.forwardOutput(input.operationId, input.onOutput)
     const environment = await this.environments.hostEnvironmentForBinding(input.worktreeId)
     return {
       status: operation?.status === "failed" ? "failed" as const : "succeeded" as const,
@@ -26,14 +30,9 @@ export class LocalEnvironmentWorktreeLifecycle implements WorktreeEnvironmentLif
       bindingId: input.worktreeId,
       kind: "cleanup",
       operationId: input.operationId,
+      onOutput: input.onOutput,
     })
-    this.forwardOutput(input.operationId, input.onOutput)
     if (operation?.status === "failed") throw new Error("WORKTREE_CLEANUP_FAILED")
     return {}
-  }
-
-  private forwardOutput(operationId: string, onOutput: (chunk: string) => void) {
-    const page = this.environments.operationOutput(operationId)
-    for (const chunk of page?.chunks ?? []) onOutput(chunk.data)
   }
 }

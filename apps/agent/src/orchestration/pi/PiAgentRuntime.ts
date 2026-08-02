@@ -128,7 +128,10 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
     const adapter = new PiEventAdapter(
       { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID },
       this.options.eventSink ?? {},
-      { parseProposedPlan: request.taskMode === "plan" },
+      {
+        parseProposedPlan: request.taskMode === "plan",
+        resolveSessionEntryID: () => dependencies.session.getLeafId(),
+      },
     )
     const unsubscribe = harness.subscribe((event) => adapter.handle(event))
     this.harnesses.set(request.threadID, { harness, unsubscribe })

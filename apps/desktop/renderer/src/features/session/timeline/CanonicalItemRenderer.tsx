@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   Copy,
   FileDiff,
+  GitFork,
   Hourglass,
   LoaderCircle,
   MessageCircleQuestion,
@@ -308,6 +309,7 @@ function TextItemView({
     canCopyFileReferenceContents,
     onCopyFileReferenceContents,
     onOpenFileReference,
+    onForkFromMessage,
     workspacePath,
   } = useConversationItemContext();
 
@@ -330,6 +332,26 @@ function TextItemView({
       {showAssistantActions && item.status !== "streaming" ? (
         <div className="canonical-message-actions canonical-message-actions--assistant">
           <CopyButton text={item.text} />
+          {item.placement === "result" && item.status === "completed" && onForkFromMessage ? (
+            <Tooltip content="在新聊天中继续">
+              <button
+                aria-label="在新聊天中继续"
+                className="canonical-icon-button"
+                title="在新聊天中继续"
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  onForkFromMessage({ itemId: item.id, turnId: item.turnId });
+                }}
+              >
+                <GitFork
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              </button>
+            </Tooltip>
+          ) : null}
         </div>
       ) : null}
     </article>
