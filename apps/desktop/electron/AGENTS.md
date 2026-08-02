@@ -15,6 +15,13 @@
 - 设置契约与持久化放在 `src/settings/`，日志放在 `src/logging/`。
 - 禁止把 provider、session、SQLite 或其他 Agent 业务状态移入 Electron。
 
+## 桌面端定位
+
+- Electron 只承载桌面壳与 OS 集成，包括窗口、托盘、通知、深链、剪贴板，以及 Browser、Computer Use、Voice、Appshots 等需要系统能力的 adapter。
+- 桌面端业务能力继续通过 Agent sidecar 和 typed bridge 获取；不得通过启动 CLI 子进程复制 Agent 调用链。
+- Desktop 专属能力可以有 Electron 实现，但其会话状态、审批、权限、工具结果和持久业务数据仍归 Agent 与共享契约所有。
+- 新增系统能力时先定义集中式 IPC contract，再由 preload 暴露最小、类型化接口；renderer 不得获得任意命令、文件系统或 IPC 能力。
+
 ## 安全与 IPC
 
 - 保持 `contextIsolation: true`、renderer 禁用 Node，并使用 sandbox。

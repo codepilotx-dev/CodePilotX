@@ -14,6 +14,15 @@
 - 实际 SQL 必须位于领域 repository；`AgentDatabase` 只做连接、最终 schema、装配和恢复。
 - 所有 repository 复用同一连接和事务状态。业务状态与 outbox event 必须在同一 transaction 中提交。
 
+## 多客户端能力边界
+
+- Agent 实现所有跨客户端业务能力，禁止把共享业务放入 Electron、renderer 或未来 CLI。
+- RPC handler 和 service 默认保持 surface-neutral；只有浏览器、窗口、剪贴板、系统通知等真实 OS 集成才允许通过明确的 adapter/capability 区分。
+- Agent 向客户端输出稳定的状态、进度、审批、问题、Review 和工具结果，不输出依赖 React、DOM 或 TUI 的展示结构。
+- Desktop 与未来 CLI 必须复用同一权限、沙箱、工具执行、checkpoint、中断恢复、Git 和存储语义。
+- 禁止为了 CLI 自动化新增平行 Provider runtime、会话存储、审批引擎或直接 SQL 路径。
+- 未来 CLI 的进程部署方式留给单独架构决策，但其领域能力必须复用 Agent service/runtime 和 v4 协议。
+
 ## RPC v4
 
 - `@codepilotx/agent-protocol` 是 RPC method、event、wire error 和 capability 的唯一来源。

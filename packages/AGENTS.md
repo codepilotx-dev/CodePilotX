@@ -14,6 +14,14 @@
 - `session-view` 只进行 canonical projection 和 thread projection 的纯转换。
 - 依赖必须沿公开契约流动，禁止复制底层 schema 或制造循环依赖。
 
+## 多客户端共享契约
+
+- `agent-protocol` 是 Desktop、CLI/TUI 的唯一 RPC method、event、wire error 和 capability 来源。
+- `session-view` 是所有交互客户端的唯一 canonical/thread projection；客户端只能在投影结果上附加自身的操作和展示，不得重新解释 durable snapshot 或 transport event。
+- `shared`、`agent-protocol` 和 `session-view` 不得依赖 Electron、DOM、React、终端渲染库或具体 CLI 参数解析器。
+- 表面差异通过 capability、可选字段和客户端 adapter 表达；禁止复制协议类型或建立 desktop/CLI 两套事件。
+- 公共契约变化必须验证现有 Agent、Electron 和 renderer 消费者；未来 CLI 加入后也必须纳入同一验证范围。
+
 ## 公开接口与兼容策略
 
 - 公共 API 通过包级 `src/index.ts` 或明确的 `package.json` export 暴露；消费者禁止 deep import 内部文件。

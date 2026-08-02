@@ -19,6 +19,18 @@
 - `apps/desktop/renderer/` 负责 React + Vite renderer。
 - `packages/` 负责共享领域契约、RPC 协议、view projection、模型 schema、provider 插件与 runtime。
 
+## CLI 与桌面端产品边界
+
+- `apps/agent/` 与 `packages/` 承载所有客户端共享的会话、存储、Provider、模型、工具、权限、审批、编排、Git、Review、Skills、Plugins、MCP、配置、事件、RPC 和 projection 核心能力。
+- Desktop、未来 CLI/TUI 必须通过 `@codepilotx/agent-protocol`、`@codepilotx/shared` 和 `@codepilotx/session-view` 使用共享能力；禁止客户端直接读取 SQLite、解析原始 transport event 或复制领域状态机。
+- Desktop 与未来 CLI 默认共享本地项目操作、聊天、模型与推理设置、权限与沙箱、`AGENTS.md`/config、Skills、Plugins、MCP、Web Search、图片、Review、Goal、Subagent 和云端协作能力。
+- 桌面端默认定位为 GUI 工作台，优先建设 Projects、多文件夹、多聊天和活动管理、Scheduled tasks、Browser、Computer Use、Voice、Appshots、文件与 Visualization/Artifact 预览批注、Review pane、行级评论、Git 操作、托管 worktree、Handoff、通知、Pets 和集成终端。
+- 未来 CLI 默认定位为终端与自动化入口，优先建设交互式 TUI、启动参数与子命令、单次运行权限控制、非交互执行、stdin/stdout/stderr、JSONL、结构化输出、Shell 管道、脚本、CI、completion、keymap、主题、状态栏、终端会话、后台命令和诊断控制。
+- 上述定位是默认产品方向，不是永久禁止能力跨端；需要跨端时先在共享层补齐 service/contract，再分别实现符合各端交互习惯的 UI/TUI adapter。
+- 某能力当前只存在于一端，不能成为在客户端内复制 Provider、会话、权限、工具、Git、存储、协议或事件实现的理由。
+- 当前仓库没有独立 CLI workspace；创建、删除或重新划分 CLI workspace 仍需单独、明确的架构决策，本节不构成创建授权。
+- 不要求桌面端与 CLI 的每个版本严格同步；版本和功能差异必须通过 capability negotiation、可选能力和向前兼容协议处理。
+
 ## 当前目录约定
 
 ### Agent
