@@ -9,6 +9,8 @@
 
 ### Added
 
+- [desktop] 支持从已完成的 Assistant 回复分叉到共享当前工作树或隔离托管 worktree 的新聊天
+- [desktop] 在 Local environment 编辑器中说明 worktree setup 可用的源目录与目标目录变量
 - [desktop/Agent/renderer] 新增 Windows-first 集成终端，每个任务拥有一个 ConPTY/PTY 会话，支持 shell profile、主题、回放、尺寸同步、任务关闭清理及经审批的有界终端输出读取
 - [Agent/renderer] 新增基于 `.codepilotx/environments/environment.jsonc` 的 Local environment 与 Actions，可保留 JSONC 注释和未知键，并在确定的任务工作目录与环境中重建集成终端运行 Action
 - [Agent/renderer] 新增托管 Git worktree 的 branch/working-tree 创建、setup 重试或跳过、永久保留、受保护清理及分层快照恢复
@@ -18,6 +20,7 @@
 - [Agent/renderer] 修改文件卡片新增三文件折叠、Review 文件定位及基于精确文件状态校验的撤销与重新应用
 - [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
 - [release] 新增专用 Windows runner 驱动的两阶段 Beta 自动发布流程，在 main 静默期后自动升版、完整验证、创建 Release PR，并于远端 CI 通过后签名打标和发布 prerelease
+- [release] 新增 OpenCode 手动 Beta 发布 Skill，仅使用 dev 已提交内容创建 main PR，并在一次正式确认后复用完整验证、Release PR、签名标签及 prerelease 发布流程
 - [Agent/renderer] 新增可选的明文 `auth.json` Provider 凭据仓库与本机加密仓库切换流程，迁移会先验证目标再清理源，并明确提示便携性与明文风险
 - [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
 - [governance] 采用 Apache License 2.0，并新增贡献指南、行为准则、安全披露策略、CODEOWNERS、Issue/PR 模板与 Dependabot 配置，明确公开协作和依赖维护边界
@@ -114,6 +117,7 @@
 
 ### Security
 
+- [agent] 分叉 setup 路径变量和输出仅用于受信任的有界内存执行链路，不写入历史、事件、日志或环境增量
 - [Agent/desktop] 集成终端输出默认进入有界脱敏内存镜像，`terminal.read` 遵循任务全局权限策略，且输出继续禁止写入 SQLite、事件或日志
 - [Agent/desktop] Local environment 脚本按项目与配置摘要显式信任，setup 环境增量采用受限原子文件保存，Action 命令、环境值和原始输出不进入 renderer RPC、SQLite、事件或日志
 - [Agent/desktop] 托管 worktree 的复制、恢复和删除验证受管根目录、普通文件及 symlink/reparse 边界；终端输出仅在内存中有界保留并经审批、控制字符过滤和敏感信息清理后提供给 Agent
