@@ -3,7 +3,7 @@ import { spawn } from "node:child_process"
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { killProcessTree } from "../tool/Shell/HostProcess"
+import { killProcessTree, preferredShell } from "../tool/Shell/HostProcess"
 import { environmentDelta, EnvironmentDeltaStore } from "./EnvironmentDeltaStore"
 import type { EnvironmentDelta, LocalEnvironmentOperation, LocalEnvironmentOperationKind } from "./types"
 
@@ -181,8 +181,9 @@ export class LocalEnvironmentRunner {
       await chmod(environmentPath, 0o600).catch(() => undefined)
       await writeFile(wrapperPath, wrapper, { encoding: "utf8", mode: 0o700 })
       await chmod(wrapperPath, 0o700).catch(() => undefined)
+      const windowsShell = windows ? preferredShell().exe : null
       const child = spawn(
-        windows ? "powershell.exe" : "/bin/sh",
+        windows ? windowsShell! : "/bin/sh",
         windows ? ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", wrapperPath] : [wrapperPath],
         { cwd, env: environment, shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
       )
