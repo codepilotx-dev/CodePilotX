@@ -787,7 +787,7 @@
   min-width: var(--review-diffs-min-number-column-width);
   padding-inline: 2ch 1ch;
   border-right: 2px solid var(--color-token-editor-background);
-  color: var(--color-token-text-tertiary);
+  color: var(--color-token-text-secondary);
   text-align: right;
   user-select: none;
   font-variant-numeric: tabular-nums;
@@ -843,7 +843,7 @@
 
 .review-codex-diff [data-line-type="metadata"] {
   background: var(--color-token-text-preformat-background);
-  color: var(--color-token-text-tertiary);
+  color: var(--color-token-text-secondary);
 }
 
 .review-codex-diff [data-line-type="buffer"] {
@@ -929,7 +929,7 @@
   height: 32px;
   margin-block: var(--review-diffs-gap-block);
   background: var(--color-token-elevated-background);
-  color: var(--color-token-text-tertiary);
+  color: var(--color-token-text-secondary);
   font-family: var(--font-family-sans);
   font-size: var(--type-caption);
   user-select: none;

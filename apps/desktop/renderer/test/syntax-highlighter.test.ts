@@ -5,6 +5,8 @@ import {
   peekHighlightedCode,
   resolveThemeId,
 } from '../src/features/syntax/index.js'
+import { deriveThemeVariables } from '../src/features/theme/themeVariables.js'
+import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../shared/theme.js'
 
 function contrastRatio(first: string, second: string): number {
   const luminance = (value: string): number => {
@@ -91,6 +93,33 @@ describe('Shiki highlighter', () => {
         expect(
           contrastRatio(token.color, token.backgroundColor ?? result.background),
         ).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  test('keeps Codex syntax token colors readable against diff backgrounds', async () => {
+    for (const [theme, config] of [
+      ['codex-light', DEFAULT_LIGHT_THEME],
+      ['codex-dark', DEFAULT_DARK_THEME],
+    ] as const) {
+      const result = await highlightCode({
+        code: 'const answer = condition ? "yes" : 42',
+        language: 'typescript',
+        theme,
+      })
+      const variables = deriveThemeVariables(config)
+      const backgrounds = [
+        variables['--color-diff-added-line-background'],
+        variables['--color-diff-added-text-background'],
+        variables['--color-diff-removed-line-background'],
+        variables['--color-diff-removed-text-background'],
+      ]
+
+      for (const token of result.tokens.flat()) {
+        if (!token.color) continue
+        for (const background of backgrounds) {
+          expect(contrastRatio(token.color, background)).toBeGreaterThanOrEqual(4.5)
+        }
       }
     }
   })
