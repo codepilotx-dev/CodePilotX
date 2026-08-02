@@ -107,6 +107,7 @@
 
 ### Removed
 
+- [renderer/test] 移除不应入库的 Workbench 视觉截图基线并忽略后续本地产物，避免二进制快照污染仓库历史
 - [renderer] 移除不可达的旧会话渲染、workflow 事件调试入口及桌面调试模式，统一使用 canonical 会话与标准弹层行为
 
 ### Security
