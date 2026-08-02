@@ -51,6 +51,7 @@
 - [renderer] 将侧栏、工作台及 Review 文件树调整为真实宽高与 flex 布局实时拖动，使相邻内容随指针自然重排并仅在结束时持久化尺寸
 - [Agent/renderer] 子代理改为共享工作区并行执行，并在完成后按真实工具修改立即向父任务上报状态与文件
 - [renderer] 将全局错误详情格式化与提示组件改为异常发生时按需加载，避免非错误路径占用 `/new` 首屏预算
+- [release] 发布机 workflow 不再依赖 setup-bun 在线下载，改用发布机预装 Bun 1.3.14（PATH 提供），避免受限网络下工具链下载失败
 - [desktop/renderer] 统一侧栏、菜单、Composer、设置、Review 与会话摘要的紧凑交互行规格和状态反馈，减少同类控件的尺寸、圆角与浮层效果漂移。
 - [renderer] 收紧会话摘要与中等宽度阅读区，并调整响应式断点，使约 1920px 窗口同时打开侧栏和 Review 时仍保留置顶摘要
 - [renderer] 移除共享动作按钮阴影，并降低卡片、弹窗与浮层的全局阴影层级
@@ -61,6 +62,7 @@
 - [renderer] 将“新特性”从一级页面调整为全局 Dialog，查看版本记录时保留当前工作上下文
 - [renderer] 将“新特性”Dialog 调整为版本列表与更新内容双滚动区，历史版本切换和长更新日志可独立浏览
 - [desktop] 重构工作台分栏为容器驱动的响应式比例布局，窗口缩放和多面板并排时保留用户尺寸偏好
+- [ci] Renderer 性能预算改为非阻塞观测：完整性能场景仍会执行并上传报告，共享 runner 的绝对时延不再直接阻塞合并，待样本稳定后再升级为同机相对门禁
 
 ### Fixed
 
@@ -77,6 +79,8 @@
 - [desktop] 修复 Electron 主进程打包 JSONC 解析器时遗留相对 require、导致开发启动无法加载 `./impl/format` 的问题
 - [Agent/renderer] 修复 Review 批量 Diff 在新 Renderer 与旧 Agent 版本错配时永久加载的问题，增加能力降级、读取超时及慢请求阶段诊断
 - [renderer] 修复平滑回到底部途中中间滚动事件重新显示按钮的问题，确保 Composer 摘要退出动画完整播放
+- [release] 发布机 workflow 的脚本步骤显式设置 TEMP/TMP 为 runner 工作区临时目录，避免服务账户系统 TEMP（C:\Windows\TEMP）与磁盘真实目录大小写不一致导致路径断言类单元测试失败
+- [release] 修复自动 Release PR 的版本一致性检查失败：升版刷新 lockfile 改用非冻结的 `bun install`，并按其既有格式同步三个 workspace 条目的版本号（bun 不会把 workspace 版本变更写回 bun.lock）
 - [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
 - [desktop/renderer/test] 更新 Settings 综合视觉用例对统一动作按钮契约的断言，避免继续校验已移除的旧无边框样式。
 - [desktop/renderer] 修复紧凑交互行悬停色被错误映射为主表面背景的问题，还原 Codex 的透明叠加层级，并让侧栏、Composer 与会话摘要获得清晰一致的 hover 反馈。
@@ -107,6 +111,7 @@
 - [release] Windows 打包校验会重试清理被短暂占用的临时目录，发布流程改用 Release ID 校验、上传和发布草稿，避免文件锁与草稿标签查询语义导致可信 beta 发布误失败
 - [agent] 数据迁移临时库使用 DELETE journal 并延长文件锁重试窗口，避免 Bun 在 Windows 上残留 WAL 句柄导致原子发布误失败。
 - [agent] 数据迁移失败后的临时库清理不再覆盖原始校验错误，残留临时文件会在下次启动前继续清理，避免 Windows 文件锁改变故障语义。
+- [agent] 数据迁移与校验连接改用一次性查询助手并严格关闭，迁移期间不再缓存 Statement，彻底释放 Windows 上 SQLite 文件句柄，避免合并迁移偶发 EBUSY。
 - [renderer] 修复任务侧栏长标题硬截断和动作区固定占位问题，溢出标题改为渐隐并在悬停时滚动展示完整内容
 - [renderer] 修复 Composer 执行计划弹层被按胶囊内容收缩的定位包含块挤压到约 220px 的问题，改为相对完整摘要区域内容自适应居中（最小约 480px、最大 760px，不足时继续缩小）且不产生横向溢出，并保持胶囊尺寸与悬停/焦点关闭等现有行为不变
 
