@@ -62,7 +62,7 @@ describe("Provider 凭据双仓库", () => {
     expect(await readFile(path, "utf8")).toContain("foreign")
   })
 
-  test("auth.json 使用进程内密钥指纹拒绝覆盖外部修改", async () => {
+  test("auth.json 使用精确内存快照拒绝覆盖外部修改", async () => {
     const { root, authJson } = await setup()
     const path = join(root, "auth.json")
     await Effect.runPromise(authJson.initialize())
