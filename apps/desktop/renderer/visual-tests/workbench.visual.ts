@@ -52,6 +52,225 @@ const VIEWPORTS = [
   { id: 'compact', width: 960, height: 640 },
 ] as const
 
+const MARKDOWN_TYPOGRAPHY_CASES = [
+  { id: 'desktop-light', mode: 'light', width: 1440, height: 920 },
+  { id: 'compact-dark', mode: 'dark', width: 960, height: 640 },
+] as const
+
+for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
+  test(`Markdown typography follows the Claude-like rhythm in ${visualCase.id}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: visualCase.width,
+      height: visualCase.height,
+    })
+    await page.emulateMedia({
+      colorScheme: visualCase.mode,
+      forcedColors: 'none',
+      reducedMotion: 'reduce',
+    })
+    await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+    await closeTransientErrorToast(page)
+    await expect(
+      page.getByText('已完成工作台结构梳理。', { exact: true }),
+    ).toBeVisible()
+
+    const markdown = page.locator('.canonical-text-item--result > .md-body').first()
+    await expect(markdown.getByRole('heading', { level: 1 })).toHaveText(
+      'Markdown 阅读排版',
+    )
+    await expect(markdown.getByRole('heading', { level: 2 })).toHaveText(
+      '阅读节奏',
+    )
+    await expect(markdown.getByRole('heading', { level: 3 })).toHaveText(
+      '结构清单',
+    )
+    await expect(markdown.locator('blockquote')).toBeVisible()
+    await expect(markdown.locator('.md-table-block table')).toBeVisible()
+    await expect(
+      markdown.locator('.md-code-block:not(.md-table-block)'),
+    ).toBeVisible()
+
+    const metrics = await markdown.evaluate(element => {
+      const select = <T extends HTMLElement>(selector: string): T => {
+        const target = element.querySelector<T>(selector)
+        if (!target) throw new Error(`Missing Markdown fixture element: ${selector}`)
+        return target
+      }
+      const style = (selector: string): CSSStyleDeclaration =>
+        getComputedStyle(select(selector))
+      const px = (value: string): number => Number.parseFloat(value)
+      const rootSize = px(getComputedStyle(document.documentElement).fontSize)
+      const body = getComputedStyle(element)
+      const bodySize = px(body.fontSize)
+      const paragraph = style('p')
+      const h1 = style('h1')
+      const h2 = style('h2')
+      const h3 = style('h3')
+      const quote = style('blockquote')
+      const strong = style('strong')
+      const inlineCode = style('p code')
+      const list = style('ul')
+      const listItem = style('li')
+      const spacedListItem = style('ul > li + li')
+      const codeBlock = style('.md-code-block:not(.md-table-block)')
+      const codePre = style('.md-code-block:not(.md-table-block) .md-code-pre')
+      const table = style('.md-table-block table')
+      const tableHeading = style('.md-table-block th')
+      const lastTableHeading = style('.md-table-block th:last-child')
+      const tableCell = style('.md-table-block td')
+      const lastTableCell = style('.md-table-block td:last-child')
+      const leadDescription = select<HTMLElement>('.md-lead-description')
+      const leadTitle = style('.md-lead-description__title')
+      const leadDetailElement = select<HTMLElement>(
+        '.md-lead-description__detail',
+      )
+      const leadDetail = getComputedStyle(leadDetailElement)
+      const normalSoftBreak = Array.from(element.querySelectorAll('p')).find(
+        paragraphElement =>
+          paragraphElement.textContent?.includes(
+            '普通软换行继续保留 breaks: true',
+          ),
+      )
+      if (!normalSoftBreak) {
+        throw new Error('Missing ordinary soft-break Markdown fixture paragraph')
+      }
+
+      return {
+        bodyFontWeight: body.fontWeight,
+        bodyLineHeightRatio: px(body.lineHeight) / bodySize,
+        codeBlockBorderRadius: codeBlock.borderTopLeftRadius,
+        codeBlockMarginBottom: px(codeBlock.marginBottom),
+        codeBlockMarginTop: px(codeBlock.marginTop),
+        codePreFontSize: codePre.fontSize,
+        codePreLineHeightRatio: px(codePre.lineHeight) / px(codePre.fontSize),
+        codePrePaddingBottomRatio: px(codePre.paddingBottom) / rootSize,
+        codePrePaddingInlineRatio: px(codePre.paddingLeft) / rootSize,
+        codePrePaddingTopRatio: px(codePre.paddingTop) / rootSize,
+        documentClientWidth: document.documentElement.clientWidth,
+        documentScrollWidth: document.documentElement.scrollWidth,
+        h1BorderBottomWidth: h1.borderBottomWidth,
+        h1FontSizeRatio: px(h1.fontSize) / bodySize,
+        h1PaddingBottom: px(h1.paddingBottom),
+        h2FontSizeRatio: px(h2.fontSize) / bodySize,
+        h2MarginBottomRatio: px(h2.marginBottom) / rootSize,
+        h2MarginTopRatio: px(h2.marginTop) / rootSize,
+        h3FontSizeRatio: px(h3.fontSize) / bodySize,
+        inlineCodeBorderRadius: inlineCode.borderTopLeftRadius,
+        inlineCodeBorderWidth: inlineCode.borderTopWidth,
+        inlineCodeFontSizeRatio: px(inlineCode.fontSize) / bodySize,
+        leadDescriptionChildCount: leadDescription.children.length,
+        leadDescriptionDirectBreakCount: Array.from(
+          leadDescription.children,
+        ).filter(child => child.tagName === 'BR').length,
+        leadDetailBreakCount: leadDetailElement.querySelectorAll('br').length,
+        leadDetailDisplay: leadDetail.display,
+        leadDetailMarginTopRatio: px(leadDetail.marginTop) / bodySize,
+        leadTitleDisplay: leadTitle.display,
+        listItemMarginBottom: px(listItem.marginBottom),
+        listItemMarginTop: px(listItem.marginTop),
+        listItemSiblingMarginTopRatio:
+          px(spacedListItem.marginTop) / bodySize,
+        listPaddingRatio: px(list.paddingLeft) / rootSize,
+        paragraphMarginRatio: px(paragraph.marginTop) / bodySize,
+        normalSoftBreakCount: normalSoftBreak.querySelectorAll('br').length,
+        normalSoftBreakLeadDescriptionCount: normalSoftBreak.classList.contains(
+          'md-lead-description',
+        )
+          ? 1
+          : 0,
+        quoteBorderRadius: quote.borderTopLeftRadius,
+        quoteBorderWidth: quote.borderLeftWidth,
+        quotePaddingBlockRatio: px(quote.paddingTop) / rootSize,
+        quotePaddingInlineRatio: px(quote.paddingLeft) / rootSize,
+        strongFontWeight: strong.fontWeight,
+        tableBorderRightWidth: tableCell.borderRightWidth,
+        tableFontSizeRatio: px(table.fontSize) / bodySize,
+        tableHeadingPaddingBottom: px(tableHeading.paddingBottom),
+        tableHeadingPaddingLeft: px(tableHeading.paddingLeft),
+        tableHeadingPaddingRight: px(tableHeading.paddingRight),
+        tableHeadingPaddingTop: px(tableHeading.paddingTop),
+        tableHeadingFontWeight: tableHeading.fontWeight,
+        tableHeadingLineHeightRatio:
+          px(tableHeading.lineHeight) / px(tableHeading.fontSize),
+        tableHeadingTextAlign: tableHeading.textAlign,
+        tableHeadingVerticalAlign: tableHeading.verticalAlign,
+        tableLastHeadingPaddingRight: px(lastTableHeading.paddingRight),
+        tableLastCellPaddingRight: px(lastTableCell.paddingRight),
+        tableLineHeightRatio: px(tableCell.lineHeight) / px(tableCell.fontSize),
+        tablePaddingBottom: px(tableCell.paddingBottom),
+        tablePaddingLeft: px(tableCell.paddingLeft),
+        tablePaddingRight: px(tableCell.paddingRight),
+        tablePaddingTop: px(tableCell.paddingTop),
+        tableTextAlign: tableCell.textAlign,
+        tableVerticalAlign: tableCell.verticalAlign,
+      }
+    })
+
+    expect(metrics.bodyFontWeight).toBe('400')
+    expect(metrics.bodyLineHeightRatio).toBeCloseTo(1.62, 2)
+    expect(metrics.paragraphMarginRatio).toBeCloseTo(0.78, 2)
+    expect(metrics.h1FontSizeRatio).toBeCloseTo(1.84, 2)
+    expect(metrics.h1BorderBottomWidth).toBe('0px')
+    expect(metrics.h1PaddingBottom).toBe(0)
+    expect(metrics.h2FontSizeRatio).toBeCloseTo(1.48, 2)
+    expect(metrics.h2MarginTopRatio).toBeCloseTo(1.45, 2)
+    expect(metrics.h2MarginBottomRatio).toBeCloseTo(0.7, 2)
+    expect(metrics.h3FontSizeRatio).toBeCloseTo(1.24, 2)
+    expect(metrics.strongFontWeight).toBe('600')
+    expect(metrics.listPaddingRatio).toBeCloseTo(1.45, 2)
+    expect(metrics.listItemMarginTop).toBe(0)
+    expect(metrics.listItemMarginBottom).toBe(0)
+    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(0.5, 2)
+    expect(metrics.quoteBorderWidth).toBe('2px')
+    expect(metrics.quoteBorderRadius).toBe('10px')
+    expect(metrics.quotePaddingBlockRatio).toBeCloseTo(0.55, 2)
+    expect(metrics.quotePaddingInlineRatio).toBeCloseTo(1, 2)
+    expect(metrics.inlineCodeBorderWidth).toBe('1px')
+    expect(metrics.inlineCodeBorderRadius).toBe('999px')
+    expect(metrics.inlineCodeFontSizeRatio).toBeCloseTo(0.9, 2)
+    expect(metrics.leadDescriptionChildCount).toBe(2)
+    expect(metrics.leadDescriptionDirectBreakCount).toBe(0)
+    expect(metrics.leadTitleDisplay).toBe('block')
+    expect(metrics.leadDetailDisplay).toBe('block')
+    expect(metrics.leadDetailBreakCount).toBe(1)
+    expect(metrics.leadDetailMarginTopRatio).toBeCloseTo(0.3, 2)
+    expect(metrics.normalSoftBreakCount).toBe(1)
+    expect(metrics.normalSoftBreakLeadDescriptionCount).toBe(0)
+    expect(metrics.codeBlockMarginTop).toBe(14)
+    expect(metrics.codeBlockMarginBottom).toBe(18)
+    expect(metrics.codeBlockBorderRadius).toBe('8px')
+    expect(metrics.codePreLineHeightRatio).toBeCloseTo(1.55, 2)
+    expect(metrics.codePrePaddingTopRatio).toBeCloseTo(0.9, 2)
+    expect(metrics.codePrePaddingInlineRatio).toBeCloseTo(1, 2)
+    expect(metrics.codePrePaddingBottomRatio).toBeCloseTo(0.85, 2)
+    expect(metrics.codePreFontSize).toBe('12px')
+    expect(metrics.tableFontSizeRatio).toBeCloseTo(0.93, 2)
+    expect(metrics.tableBorderRightWidth).toBe('0px')
+    expect(metrics.tableHeadingFontWeight).toBe('600')
+    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(1.48, 2)
+    expect(metrics.tableHeadingPaddingTop).toBe(12)
+    expect(metrics.tableHeadingPaddingRight).toBe(18)
+    expect(metrics.tableHeadingPaddingBottom).toBe(12)
+    expect(metrics.tableHeadingPaddingLeft).toBe(18)
+    expect(metrics.tableHeadingTextAlign).toBe('center')
+    expect(metrics.tableHeadingVerticalAlign).toBe('middle')
+    expect(metrics.tableLastHeadingPaddingRight).toBe(18)
+    expect(metrics.tableLineHeightRatio).toBeCloseTo(1.56, 2)
+    expect(metrics.tablePaddingTop).toBe(12)
+    expect(metrics.tablePaddingRight).toBe(18)
+    expect(metrics.tablePaddingBottom).toBe(12)
+    expect(metrics.tablePaddingLeft).toBe(18)
+    expect(metrics.tableLastCellPaddingRight).toBe(18)
+    expect(metrics.tableTextAlign).toBe('center')
+    expect(metrics.tableVerticalAlign).toBe('middle')
+    expect(metrics.documentScrollWidth).toBeLessThanOrEqual(
+      metrics.documentClientWidth,
+    )
+  })
+}
+
 for (const viewport of VIEWPORTS) {
   for (const mode of MODES) {
     for (const scenario of SCENARIOS) {
@@ -1623,6 +1842,11 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect(
     preview.locator('.preview-card-assistant-text'),
   ).toHaveCSS('-webkit-line-clamp', '3')
+  const previewListItems = preview.locator(
+    '.preview-card-assistant-text .md-body li',
+  )
+  await expect(previewListItems).toHaveCount(3)
+  await expect(previewListItems.nth(1)).toHaveCSS('margin-top', '0px')
 
   await expect(preview.locator('.preview-card-output')).toHaveCount(2)
   await expect(preview.locator('.preview-card-output-more')).toHaveText('+1')

@@ -605,6 +605,41 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   const timestamp = (offsetMs: number): string =>
     new Date(baseTime + offsetMs).toISOString()
   const createdAt = timestamp(0)
+  const richAssistantMarkdown = [
+    '# Markdown 阅读排版',
+    '',
+    '## 阅读节奏',
+    '',
+    '正文段落使用舒展的行高与稳定的块间距，让较长回复保持清晰。',
+    '',
+    '第二段包含 **强调文字**、`theme token` 和连续内容，用于核对中英文混排。',
+    '',
+    '普通软换行继续保留 breaks: true，',
+    '第二行不会获得标题与说明的分组间距。',
+    '',
+    '**1. 粗体标题与提交标识** `3efbbd978`',
+    '说明内容与标题分组显示，并继续允许在窄容器中自然折行。',
+    '后续说明仍按 breaks: true 保留普通换行。',
+    '',
+    '> 引用内容保留 CodePilotX 主题色，同时采用更柔和的留白和圆角。',
+    '',
+    '### 结构清单',
+    '',
+    '- 固定 Codex 语义表面',
+    '  - 紧凑摘要继续使用三行适配',
+    '- 高亮主题按需加载',
+    '',
+    '| 排版元素 | 处理方式 |',
+    '| --- | --- |',
+    '| 正文 | 统一行高和段距 |',
+    '| 表格 | 保留窄容器横向滚动 |',
+    '',
+    '```ts',
+    'const theme = mode === "dark" ? "codex-dark" : "codex-light"',
+    '```',
+    '',
+    '已完成工作台结构梳理。',
+  ].join('\n')
   const events: DesktopSessionEvent[] = [
     {
       id: `${sessionId}-user`,
@@ -627,7 +662,7 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
       content:
         visualCase === 'turn-nav'
           ? '第一轮已完成。'
-          : '已完成工作台结构梳理。\n\n```ts\nconst theme = mode === \"dark\" ? \"codex-dark\" : \"codex-light\"\n```\n\n- 固定 Codex 语义表面\n- 高亮主题按需加载',
+          : richAssistantMarkdown,
       createdAt: timestamp(2_000),
     },
   ]
