@@ -13,15 +13,16 @@ import { planPiProviderConfigMigration } from "../src/provider/pi/PiProviderConf
 const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(async (root) => {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
       try {
         await rm(root, { recursive: true, force: true })
         return
       } catch (cause) {
-        if ((cause as NodeJS.ErrnoException).code !== "EBUSY" || attempt === 4) {
+        if ((cause as NodeJS.ErrnoException).code !== "EBUSY" || attempt === 199) {
           throw cause
         }
-        await delay(25 * (attempt + 1))
+        Bun.gc(true)
+        await delay(25)
       }
     }
   }))

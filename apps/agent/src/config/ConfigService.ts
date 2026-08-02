@@ -1275,8 +1275,13 @@ export class ConfigService {
 
   async dispose() {
     for (const timer of this.refreshTimers.values()) clearTimeout(timer)
-    for (const watcher of this.watchers.values()) watcher.close()
+    this.refreshTimers.clear()
+    const watchers = [...this.watchers.values()]
     this.watchers.clear()
+    await Promise.all(watchers.map((watcher) => new Promise<void>((resolve) => {
+      watcher.once("close", resolve)
+      watcher.close()
+    })))
     this.listeners.clear()
   }
 }
