@@ -918,7 +918,6 @@ async function prepare(
   const branch = releaseBranch(state.nextVersion, mainSha);
   const worktree = await createTemporaryWorktree(mainSha);
   try {
-    await git(["switch", "-c", branch], worktree.path);
     await configureSigning(worktree.path);
     await run("bun", [
       "scripts/version-policy.ts",
