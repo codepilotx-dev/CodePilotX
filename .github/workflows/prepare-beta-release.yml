@@ -28,7 +28,7 @@ permissions:
 
 concurrency:
   group: prepare-beta-release-${{ github.repository }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 jobs:
   prepare:

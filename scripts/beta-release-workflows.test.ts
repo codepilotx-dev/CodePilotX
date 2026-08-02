@@ -72,6 +72,12 @@ describe("beta release workflows", () => {
     );
   });
 
+  test("scheduled prepare never cancels an active manual candidate", () => {
+    expect(prepareWorkflow).toContain(
+      "cancel-in-progress: ${{ github.event_name != 'schedule' }}",
+    );
+  });
+
   test("prepare keeps release commits detached until the remote branch is pushed", () => {
     expect(betaReleaseScript).not.toContain(
       'git(["switch", "-c", branch]',
