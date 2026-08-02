@@ -122,6 +122,8 @@
 
 ### Security
 
+- [Agent] auth.json 的外部修改检测改用带进程内随机密钥的 HMAC 指纹，避免对凭据内容生成可离线猜测的无密钥摘要
+
 - [agent] 分叉 setup 路径变量和输出仅用于受信任的有界内存执行链路，不写入历史、事件、日志或环境增量
 - [Agent/desktop] 集成终端输出默认进入有界脱敏内存镜像，`terminal.read` 遵循任务全局权限策略，且输出继续禁止写入 SQLite、事件或日志
 - [Agent/desktop] Local environment 脚本按项目与配置摘要显式信任，setup 环境增量采用受限原子文件保存，Action 命令、环境值和原始输出不进入 renderer RPC、SQLite、事件或日志

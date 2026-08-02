@@ -62,6 +62,23 @@ describe("Provider 凭据双仓库", () => {
     expect(await readFile(path, "utf8")).toContain("foreign")
   })
 
+  test("auth.json 使用进程内密钥指纹拒绝覆盖外部修改", async () => {
+    const { root, authJson } = await setup()
+    const path = join(root, "auth.json")
+    await Effect.runPromise(authJson.initialize())
+    const created = await Effect.runPromise(authJson.createApiKey({
+      integrationID: "openai",
+      label: "primary",
+      key: "sk-original",
+    }))
+    const externallyModified = `${await readFile(path, "utf8")}\n`
+    await writeFile(path, externallyModified, "utf8")
+
+    await expect(Effect.runPromise(authJson.replaceApiKey(created.id, "sk-replacement")))
+      .rejects.toMatchObject({ code: "CONFLICT" })
+    expect(await readFile(path, "utf8")).toBe(externallyModified)
+  })
+
   test("切换只迁移 Provider 凭据并保留加密的 GitHub、MCP 与 usage 凭据", async () => {
     const { root, db, encrypted, authJson } = await setup()
     await Effect.runPromise(encrypted.createApiKey({

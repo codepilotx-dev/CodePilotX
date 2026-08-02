@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto"
+import { createHmac, randomBytes, randomUUID } from "node:crypto"
 import { existsSync, lstatSync, readFileSync } from "node:fs"
 import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
@@ -52,7 +52,8 @@ const emptyDocument = (): AuthDocument => ({
 })
 
 const keySuffix = (key: string) => key.slice(-4)
-const hash = (value: string) => createHash("sha256").update(value, "utf8").digest("hex")
+const fingerprint = (key: Buffer, value: string) =>
+  createHmac("sha256", key).update(value, "utf8").digest("hex")
 const healthDefault = (): ApiKeyHealth => ({
   status: "untested",
   lastTestedAt: null,
@@ -91,7 +92,8 @@ const optionalMetadata = (value: unknown) =>
 
 export class AuthJsonCredentialRepository implements ProviderCredentialRepository {
   private document: AuthDocument = emptyDocument()
-  private sourceHash: string | null = null
+  private readonly fingerprintKey = randomBytes(32)
+  private sourceFingerprint: string | null = null
   private initialized = false
   private chain = Promise.resolve()
   private readonly health = new Map<string, ApiKeyHealth>()
@@ -546,7 +548,7 @@ export class AuthJsonCredentialRepository implements ProviderCredentialRepositor
   private async reload() {
     if (!existsSync(this.path)) {
       this.document = emptyDocument()
-      this.sourceHash = null
+      this.sourceFingerprint = null
       return
     }
     const stats = lstatSync(this.path)
@@ -559,18 +561,18 @@ export class AuthJsonCredentialRepository implements ProviderCredentialRepositor
     }
     const text = await readFile(this.path, "utf8")
     this.document = this.decodeDocument(text)
-    this.sourceHash = hash(text)
+    this.sourceFingerprint = fingerprint(this.fingerprintKey, text)
   }
 
   private async assertUnchanged() {
     if (!existsSync(this.path)) {
-      if (this.sourceHash !== null) {
+      if (this.sourceFingerprint !== null) {
         throw new AgentError("CONFLICT", "auth.json 已被外部删除，请重启后重试", 409)
       }
       return
     }
     const text = await readFile(this.path, "utf8")
-    if (hash(text) !== this.sourceHash) {
+    if (fingerprint(this.fingerprintKey, text) !== this.sourceFingerprint) {
       throw new AgentError("CONFLICT", "auth.json 已被外部修改，请重启后重试", 409)
     }
   }
@@ -603,7 +605,7 @@ export class AuthJsonCredentialRepository implements ProviderCredentialRepositor
     } catch {
       // Best effort on platforms without POSIX permissions.
     }
-    this.sourceHash = hash(text)
+    this.sourceFingerprint = fingerprint(this.fingerprintKey, text)
   }
 
   private decodeDocument(text: string): AuthDocument {
