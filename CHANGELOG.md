@@ -66,7 +66,7 @@
 
 ### Fixed
 
-- [renderer/release] Visual 与 a11y Playwright 测试通过配置白名单启动器动态分配严格回环端口并正确传递失败状态，同时提高 Review diff 小字号文本及增删高亮背景的 WCAG AA 对比度，避免持久 Windows runner 残留进程或假绿结果阻断 Beta 发布
+- [renderer/release] Visual 与 a11y Playwright 测试通过配置白名单启动器动态分配严格回环端口并正确传递失败状态，a11y 单场景为 Windows 首次 Vite 冷启动保留 60 秒预算，同时提高 Review diff 小字号文本及增删高亮背景的 WCAG AA 对比度，避免持久 Windows runner 残留进程、冷启动误报或假绿结果阻断 Beta 发布
 - [Auth Broker/test] 并发 PKCE 交换测试按响应状态识别并显式验证唯一成功与重放请求，不再假定 Promise.all 中第一个请求必定先取得 attempt，避免不同 runner 调度顺序造成误报
 - [Agent/release] Local environment 生命周期在 Windows 复用 Agent 既有的 PowerShell 可执行文件解析，优先使用可用的 pwsh 并以 SystemRoot 下 Windows PowerShell 回退，避免 release runner 的服务 PATH 缺少 powershell.exe 时 setup 误报失败
 - [release] Prepare 在 detached worktree 中直接创建并推送签名提交，不再于持久 Windows runner 留下本地发布分支，避免 dry-run 失败后重试及后续正式发布被同名分支阻断
