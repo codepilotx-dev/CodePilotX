@@ -66,6 +66,7 @@
 
 ### Fixed
 
+- [release] Prepare 在 detached worktree 中直接创建并推送签名提交，不再于持久 Windows runner 留下本地发布分支，避免 dry-run 失败后重试及后续正式发布被同名分支阻断
 - [Agent/test] ConfigService 关闭时等待文件 watcher 完成释放，配置迁移测试复用数据库 reset 的 GC 辅助有界 EBUSY 重试，避免 Windows 句柄滞留误报失败
 - [desktop/release] 修复 Windows 打包重复从源码编译已提供官方 N-API 预构建产物的 node-pty、导致缺少本机 Spectre C++ 组件时无法产出安装包的问题，并保留打包态 ConPTY 实际运行校验
 - [Agent/desktop/renderer] 修复 Handoff 重放与崩溃恢复、托管 worktree 并发变更、终端 Action 换代接入、PTY 单实例及输出镜像积压问题，并让 Local environment 结构化编辑保留嵌套 JSONC 注释和未知键

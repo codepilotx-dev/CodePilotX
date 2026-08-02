@@ -6,6 +6,10 @@ const repositoryRoot = resolve(import.meta.dir, "..");
 const prepareWorkflow = readWorkflow("prepare-beta-release.yml");
 const finalizeWorkflow = readWorkflow("finalize-beta-release.yml");
 const packageWorkflow = readWorkflow("windows-x64-package.yml");
+const betaReleaseScript = readFileSync(
+  resolve(repositoryRoot, "scripts", "beta-release.ts"),
+  "utf8",
+);
 
 function readWorkflow(name: string): string {
   return readFileSync(resolve(repositoryRoot, ".github", "workflows", name), "utf8");
@@ -65,6 +69,15 @@ describe("beta release workflows", () => {
     );
     expect(prepareWorkflow).toContain(
       '"${{ steps.candidate.outputs.sha }}"',
+    );
+  });
+
+  test("prepare keeps release commits detached until the remote branch is pushed", () => {
+    expect(betaReleaseScript).not.toContain(
+      'git(["switch", "-c", branch]',
+    );
+    expect(betaReleaseScript).toContain(
+      'gitPush(["origin", `HEAD:refs/heads/${branch}`]',
     );
   });
 
