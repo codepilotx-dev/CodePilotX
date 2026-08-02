@@ -14,9 +14,9 @@
     "dev:visual": "vite --mode visual --host 127.0.0.1",
     "typecheck": "tsc -b",
     "test": "bun test test",
-    "test:a11y": "playwright test --config playwright.a11y.config.ts",
+    "test:a11y": "bun run scripts/run-playwright.ts playwright.a11y.config.ts",
     "test:performance": "playwright test --config playwright.performance.config.ts",
-    "test:visual": "playwright test --config playwright.config.ts",
+    "test:visual": "bun run scripts/run-playwright.ts playwright.config.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },

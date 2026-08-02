@@ -254,9 +254,11 @@ function ensureSyntaxTokenContrast(
   const backgroundColor = parseHexColor(background)
   if (!tokenColor || !backgroundColor) return color
 
-  // Code surfaces are commonly a subtle tint away from the theme's editor
-  // background, so keep a small margin above the WCAG AA text threshold.
-  const minimumRatio = 5
+  // Review surfaces can be lighter than a dark syntax theme's own editor
+  // background and add a subtle diff tint, so dark themes need more margin
+  // above the WCAG AA text threshold.
+  const minimumRatio =
+    colorLuminance(backgroundColor) < 0.18 ? 6.5 : 5
   if (colorContrast(tokenColor, backgroundColor) >= minimumRatio) return color
 
   const fallback =

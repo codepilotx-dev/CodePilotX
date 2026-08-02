@@ -64,13 +64,11 @@ export function deriveThemeVariables(
     hue: theme.semanticColors.diffAdded,
     editorBackground: roles.editorBackground,
     ink: theme.ink,
-    variant,
   })
   const removed = deriveSemanticTone({
     hue: theme.semanticColors.diffRemoved,
     editorBackground: roles.editorBackground,
     ink: theme.ink,
-    variant,
   })
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
   const shadowResting = 'none'
@@ -278,30 +276,27 @@ function deriveSemanticTone({
   hue,
   editorBackground,
   ink,
-  variant,
 }: {
   hue: string
   editorBackground: string
   ink: string
-  variant: 'light' | 'dark'
 }): DerivedSemanticTone {
   const hueRgb = parseHex(hue)
   const editorRgb = parseColor(editorBackground)
   const inkRgb = parseHex(ink)
+  const lineBackground = mixHex(editorRgb, hueRgb, 0.02)
+  const textBackground = mixHex(editorRgb, hueRgb, 0.04)
 
   return {
-    foreground: ensureContrast(hueRgb, inkRgb, editorRgb, 4.5),
+    foreground: ensureContrast(
+      hueRgb,
+      inkRgb,
+      parseHex(textBackground),
+      4.5,
+    ),
     indicator: hue,
-    lineBackground: mixHex(
-      editorRgb,
-      hueRgb,
-      variant === 'dark' ? 0.18 : 0.12,
-    ),
-    textBackground: mixHex(
-      editorRgb,
-      hueRgb,
-      variant === 'dark' ? 0.34 : 0.24,
-    ),
+    lineBackground,
+    textBackground,
   }
 }
 

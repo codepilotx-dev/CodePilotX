@@ -98,7 +98,7 @@ test('WCAG 2.2 AA: dropdown and menubar open states', async ({
   await modeTrigger.click()
   await expect(page.getByRole('menu')).toBeVisible()
   const modeOptions = page.getByRole('menuitemradio')
-  await expect(modeOptions).toHaveCount(2)
+  await expect(modeOptions).toHaveCount(3)
   await expect(page.getByRole('menuitemradio', { checked: true })).toHaveCount(1)
   await expectNoWcagViolations(page, testInfo)
   await page.keyboard.press('Escape')

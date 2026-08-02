@@ -75,8 +75,8 @@ describe('fixed Codex UI themes', () => {
     expect(light['--vscode-button-secondaryHoverBackground']).toBe(
       'rgba(26, 28, 31, 0.05)',
     )
-    expect(light['--color-diff-added-line-background']).toBe('#e0f4e8')
-    expect(light['--color-diff-added-text-background']).toBe('#c2e9d1')
+    expect(light['--color-diff-added-line-background']).toBe('#fafdfb')
+    expect(light['--color-diff-added-text-background']).toBe('#f5fbf7')
 
     expect(DEFAULT_DARK_THEME.codeThemeId).toBe('codex-dark')
     expect(dark['--color-background-surface-under']).toBe('#141414')
@@ -180,11 +180,11 @@ describe('fixed Codex UI themes', () => {
     expect(variables['--color-decoration-deleted']).toBe('#ff5555')
     expect(variables['--color-diff-added-foreground']).toBe('#50fa7b')
     expect(variables['--color-diff-added-indicator']).toBe('#50fa7b')
-    expect(variables['--color-diff-added-line-background']).toBe('#3c5b4d')
-    expect(variables['--color-diff-added-text-background']).toBe('#407a56')
+    expect(variables['--color-diff-added-line-background']).toBe('#383c44')
+    expect(variables['--color-diff-added-text-background']).toBe('#384045')
     expect(variables['--color-diff-removed-indicator']).toBe('#ff5555')
-    expect(variables['--color-diff-removed-line-background']).toBe('#5b3d46')
-    expect(variables['--color-diff-removed-text-background']).toBe('#7b4249')
+    expect(variables['--color-diff-removed-line-background']).toBe('#3b3943')
+    expect(variables['--color-diff-removed-text-background']).toBe('#3f3944')
     expect(variables['--color-diff-added-line-background']).not.toBe(
       variables['--color-decoration-added'],
     )
@@ -202,20 +202,17 @@ describe('fixed Codex UI themes', () => {
   test('keeps semantic foregrounds readable against editor surfaces', () => {
     for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
       const variables = deriveThemeVariables(config)
-      const editor = variables['--color-background-editor-opaque']
-
-      expect(
-        contrastRatio(
-          variables['--color-diff-added-foreground'],
-          editor,
-        ),
-      ).toBeGreaterThanOrEqual(4.5)
-      expect(
-        contrastRatio(
-          variables['--color-diff-removed-foreground'],
-          editor,
-        ),
-      ).toBeGreaterThanOrEqual(4.5)
+      for (const tone of ['added', 'removed'] as const) {
+        const foreground = variables[`--color-diff-${tone}-foreground`]
+        const backgrounds = [
+          variables['--color-background-editor-opaque'],
+          variables[`--color-diff-${tone}-line-background`],
+          variables[`--color-diff-${tone}-text-background`],
+        ]
+        for (const background of backgrounds) {
+          expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5)
+        }
+      }
     }
   })
 
