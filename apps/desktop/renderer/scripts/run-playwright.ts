@@ -25,7 +25,9 @@ async function allocateLoopbackPort() {
 
 const configFile = process.argv[2]?.trim()
 if (!configFile || !allowedConfigs.has(configFile)) {
-  throw new Error('Playwright 配置必须是 visual 或 a11y 配置')
+  throw new Error(
+    'Playwright 配置必须是 playwright.config.ts 或 playwright.a11y.config.ts，且只接受文件名',
+  )
 }
 
 const port = await allocateLoopbackPort()
