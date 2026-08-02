@@ -13,6 +13,7 @@ import {
 import { registerAppearanceIpc } from "./ipc/register-appearance-ipc.js"
 import { registerDataLocationIpc } from "./ipc/register-data-location-ipc.js"
 import { registerDesktopIpc } from "./ipc/register-desktop-ipc.js"
+import { registerTerminalIpc } from "./ipc/register-terminal-ipc.js"
 import { ExternalOpenTargetService } from "./ipc/external-open-targets.js"
 import {
   createDesktopLogger,
@@ -46,6 +47,13 @@ import {
   type DesktopDisplayWorkArea,
   WindowStateStore,
 } from "./windows/window-state.js"
+import {
+  TerminalManager,
+} from "./terminal/terminal-manager.js"
+import { TerminalHostRpcClient } from "./terminal/terminal-host-rpc-client.js"
+import { stopTerminalsBeforeSupervisor } from "./terminal/terminal-shutdown.js"
+import { runPackagedTerminalSmoke } from "./terminal/packaged-terminal-smoke.js"
+import { DESKTOP_TERMINAL_IPC_CHANNELS } from "@codepilotx/shared/desktop-terminal-ipc"
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const configuredUserDataDirectory =
@@ -67,22 +75,37 @@ let connectionStatus: ConnectionStatus = {
 let connectionTask: Promise<void> | undefined
 let dataLocationStore: DataLocationStore | undefined
 let dataLocationLaunch: DataLocationLaunch | undefined
+let terminalManager: TerminalManager | undefined
+let terminalHost: TerminalHostRpcClient | undefined
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock()
-if (!hasSingleInstanceLock) {
-  app.quit()
+const packagedTerminalSmokeResult = process.env.CODEPILOTX_PACKAGED_TERMINAL_SMOKE_RESULT?.trim()
+const packagedTerminalSmokeRequested = process.argv.includes("--codepilotx-packaged-terminal-smoke")
+if (
+  app.isPackaged
+  && process.platform === "win32"
+  && packagedTerminalSmokeRequested
+  && packagedTerminalSmokeResult
+) {
+  app.whenReady()
+    .then(() => runPackagedTerminalSmoke(packagedTerminalSmokeResult))
+    .then(() => app.exit(0), () => app.exit(1))
 } else {
-  app.on("second-instance", () => {
-    windows?.focus(connectionStatus.state === "connected")
-  })
-  app.whenReady().then(startDesktop).catch((error: unknown) => {
-    logger?.error("desktop.startup-failed", { error })
-    windows?.showStartupStatus(
-      "启动流程异常",
-      formatError(error),
-      "terminal-error",
-    )
-  })
+  const hasSingleInstanceLock = app.requestSingleInstanceLock()
+  if (!hasSingleInstanceLock) {
+    app.quit()
+  } else {
+    app.on("second-instance", () => {
+      windows?.focus(connectionStatus.state === "connected")
+    })
+    app.whenReady().then(startDesktop).catch((error: unknown) => {
+      logger?.error("desktop.startup-failed", { error })
+      windows?.showStartupStatus(
+        "启动流程异常",
+        formatError(error),
+        "terminal-error",
+      )
+    })
+  }
 }
 
 async function startDesktop(): Promise<void> {
@@ -103,6 +126,7 @@ async function startDesktop(): Promise<void> {
     pid: process.pid,
   })
   const appearanceSettings = await readStartupAppearanceConfig(
+    join(dataLocationLaunch.dataDir, "config.json"),
     join(dataLocationLaunch.dataDir, "config.toml"),
     join(app.getPath("userData"), "appearance-settings.json"),
   )
@@ -175,6 +199,19 @@ async function startDesktop(): Promise<void> {
     broadcastDesktopSettingsChanged: settings => {
       broadcastDesktopSettingsChanged(settings)
     },
+  })
+  terminalHost = new TerminalHostRpcClient(() => supervisor, logger)
+  terminalManager = new TerminalManager({
+    contextResolver: terminalHost,
+    actionResolver: terminalHost,
+    mirrorSink: terminalHost,
+    onEvent: event => {
+      windows?.send(DESKTOP_TERMINAL_IPC_CHANNELS.event, event)
+    },
+  })
+  registerTerminalIpc({
+    manager: terminalManager,
+    isMainWindowSender: sender => windows?.isMainSender(sender) === true,
   })
   registerAppearanceIpc(appearanceSettings, appearance)
   registerDataLocationIpc({
@@ -271,6 +308,7 @@ async function runConnectionCycle(token: string): Promise<void> {
         windows?.showReconnectWindow()
         windows?.send("agent:connection-changed", "disconnected")
         supervisor?.invalidate()
+        terminalHost?.invalidate()
         void connectAndLoad(token)
       })
       return
@@ -313,8 +351,15 @@ app.on("before-quit", (event) => {
   if (quitting) return
   quitting = true
   event.preventDefault()
+  const stopTerminalAndAgent = stopTerminalsBeforeSupervisor({
+    manager: terminalManager,
+    stopSupervisor: async () => {
+      terminalHost?.invalidate()
+      await supervisor?.stop()
+    },
+  })
   void Promise.allSettled([
-    Promise.resolve(supervisor?.stop()),
+    stopTerminalAndAgent,
     windows?.flushWindowState() ?? Promise.resolve(),
     petOverlay?.flushState() ?? Promise.resolve(),
   ]).finally(() => app.exit(0))

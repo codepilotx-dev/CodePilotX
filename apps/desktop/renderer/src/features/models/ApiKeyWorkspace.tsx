@@ -40,6 +40,9 @@ import {
   BillingCredentialConnection,
 } from './provider-management/BillingCredentialConnection.js'
 import { OAuthConnection } from './provider-management/OAuthConnection.js'
+import {
+  ProviderCredentialStoreSection,
+} from './ProviderCredentialStoreSection.js'
 
 export type ApiKeyWorkspaceProps = {
   expandedProviderId: ModelProviderID | null
@@ -217,7 +220,7 @@ export function ApiKeyWorkspace({
       providerId: value.providerId,
       label: value.label,
       key: value.key,
-    }), 'API Key 已安全保存。')
+    }), 'API Key 已保存。')
   }
 
   async function moveKey(
@@ -279,6 +282,13 @@ export function ApiKeyWorkspace({
 
   return (
     <section className="model-center-key-workspace" aria-label="账户连接">
+      <ProviderCredentialStoreSection
+        onChanged={() =>
+          providerManagementStore.refreshConnections().then(() => undefined)
+        }
+        onError={onError}
+        onNotice={onNotice}
+      />
       <div className="model-center-key-groups">
         {groups.length === 0 ? (
           <AccountWorkspaceEmptyState onOpenCatalog={onOpenCatalog} />
@@ -481,7 +491,7 @@ function ProviderConnectionContents({
       {group.oauthAvailable ? (
         <OAuthConnection
           connected={oauthCredentials.length > 0}
-          description="此授权用于模型推理；令牌由 Agent 加密保存。"
+          description="此授权用于模型推理；令牌保存在当前 Provider 凭据仓库。"
           target={{
             kind: 'provider',
             providerId: group.provider.providerID,

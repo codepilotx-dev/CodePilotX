@@ -20,7 +20,7 @@ import {
 } from "../wire/primitives"
 
 const CommonErrors = ["RATE_LIMITED", "INTERNAL_ERROR"] as const
-const InitializationErrors = ["PROTOCOL_VERSION_UNSUPPORTED", "CAPABILITY_REQUIRED", "UNAUTHORIZED", ...CommonErrors] as const
+const InitializationErrors = ["PROTOCOL_VERSION_UNSUPPORTED", "CAPABILITY_REQUIRED", "UNAUTHORIZED", "PERMISSION_DENIED", ...CommonErrors] as const
 const SubscriptionErrors = ["CURSOR_EXPIRED", "SUBSCRIPTION_NOT_FOUND", "SUBSCRIPTION_OVERFLOW", "CAPABILITY_REQUIRED", ...CommonErrors] as const
 const InteractionErrors = ["REQUEST_NOT_PENDING", "CONFLICT", "CHECKPOINT_UNAVAILABLE", "CAPABILITY_REQUIRED", ...CommonErrors] as const
 const ProjectErrors = [
@@ -45,6 +45,11 @@ const ThreadErrors = [
   "CONFLICT",
   "CHECKPOINT_UNAVAILABLE",
   "MODEL_UNAVAILABLE",
+  "OPERATION_ID_CONFLICT",
+  "HANDOFF_IN_PROGRESS",
+  "WORKTREE_NOT_FOUND",
+  "WORKTREE_NOT_READY",
+  "WORKTREE_SETUP_REQUIRED",
   ...CommonErrors,
 ] as const
 const SandboxErrors = ["SANDBOX_UNAVAILABLE", "SANDBOX_BUSY", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
@@ -63,6 +68,7 @@ export const ClientInfoSchema = Schema.Struct({
   version: NonEmptyStringSchema,
   platform: Schema.optional(NonEmptyStringSchema),
   instanceId: Schema.optional(OpaqueIDSchema),
+  authority: Schema.optional(Schema.Literal("desktop-host")),
 })
 
 export const InitializeParamsSchema = Schema.Struct({
@@ -539,7 +545,14 @@ export const ThreadListResultSchema = Schema.Struct({
 })
 
 export const ThreadCreateWorkspaceSchema = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("project"), projectId: OpaqueIDSchema }),
+  Schema.Struct({
+    kind: Schema.Literal("project"),
+    projectId: OpaqueIDSchema,
+    execution: Schema.optional(Schema.Union([
+      Schema.Struct({ kind: Schema.Literal("local") }),
+      Schema.Struct({ kind: Schema.Literal("worktree"), worktreeId: OpaqueIDSchema }),
+    ])),
+  }),
   Schema.Struct({
     kind: Schema.Literal("projectless"),
     prompt: Schema.optional(Schema.String),
@@ -637,6 +650,31 @@ export const ThreadDeleteParamsSchema = Schema.Struct({
 export const ThreadDeleteResultSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   deletedAt: TimestampSchema,
+})
+
+export const ThreadPatchDiffParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  toolCallId: OpaqueIDSchema,
+  path: NonEmptyStringSchema,
+})
+
+export const ThreadPatchDiffHunkSchema = Schema.Struct({
+  id: NonEmptyStringSchema,
+  header: NonEmptyStringSchema,
+  oldStart: NonNegativeIntSchema,
+  oldLines: NonNegativeIntSchema,
+  newStart: NonNegativeIntSchema,
+  newLines: NonNegativeIntSchema,
+  patch: Schema.String,
+})
+
+export const ThreadPatchDiffResultSchema = Schema.Struct({
+  path: NonEmptyStringSchema,
+  operation: Schema.Literals(["create", "update", "delete"]),
+  patch: Schema.String,
+  hunks: Schema.Array(ThreadPatchDiffHunkSchema),
+  renderable: Schema.Boolean,
+  tooLargeReason: Schema.NullOr(Schema.Literals(["changed-lines", "changed-bytes", "line-bytes"])),
 })
 
 export const PromptSourceSchema = Schema.Union([
@@ -1031,6 +1069,24 @@ export const CoreRpcMethods = {
   "thread/title/regenerate": defineMethod({ params: ThreadTitleRegenerateParamsSchema, result: ThreadTitleRegenerateResultSchema, errors: ThreadErrors, capability: null, mutation: true, exactParams: true, exactResult: true }),
   "thread/settings/update": defineMethod({ params: ThreadSettingsUpdateParamsSchema, result: ThreadSettingsUpdateResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/delete": defineMethod({ params: ThreadDeleteParamsSchema, result: ThreadDeleteResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
+  "thread/patch/diff": defineMethod({
+    params: ThreadPatchDiffParamsSchema,
+    result: ThreadPatchDiffResultSchema,
+    errors: ThreadErrors,
+    capability: null,
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "thread/patch/apply": defineMethod({
+    params: Schema.Struct({ threadId: OpaqueIDSchema, itemId: OpaqueIDSchema, action: Schema.Literals(["undo", "reapply"]), expectedVersion: NonNegativeIntSchema, ...OperationParamsSchema.fields }),
+    result: Schema.Struct({ item: AgentThread.PatchItemSchema }),
+    errors: ThreadErrors,
+    capability: null,
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
   "prompt/preview": defineMethod({ params: PromptPreviewParamsSchema, result: PromptPreviewResultSchema, errors: ThreadErrors, capability: "prompt.preview.sensitive.v1", mutation: false }),
   "prompt/refresh": defineMethod({ params: PromptRefreshParamsSchema, result: PromptRefreshResultSchema, errors: ThreadErrors, capability: "prompt.refresh.v1", mutation: true }),
   "thread/compact": defineMethod({ params: ThreadCompactParamsSchema, result: ThreadCompactResultSchema, errors: ThreadErrors, capability: "context.compact.v1", mutation: true, exactResult: true }),

@@ -13,6 +13,7 @@ import {
   type RpcResponse,
 } from "../wire/messages"
 import type { ApplicationErrorCode, JsonValue, RpcID } from "../wire/primitives"
+import type { MethodDefinition } from "../wire/definition"
 
 export class RpcApplicationError extends Error {
   constructor(
@@ -54,6 +55,15 @@ export async function dispatchRpcMessage<Context extends RpcHandlerContext>(
   handlers: RpcHandlers<Context>,
   context: Context,
 ): Promise<RpcResponse> {
+  return dispatchRpcMessageWithMethods(input, RpcMethods, handlers, context)
+}
+
+export async function dispatchRpcMessageWithMethods<Context extends RpcHandlerContext>(
+  input: unknown,
+  methods: Readonly<Record<string, MethodDefinition>>,
+  handlers: Readonly<Record<string, (params: never, context: Context) => unknown>>,
+  context: Context,
+): Promise<RpcResponse> {
   if (Array.isArray(input)) return failure(null, RPC_INVALID_REQUEST, "RPC v4 does not support batch messages")
 
   let request: RpcRequest
@@ -63,20 +73,20 @@ export async function dispatchRpcMessage<Context extends RpcHandlerContext>(
     return failure(null, RPC_INVALID_REQUEST, "Invalid JSON-RPC request")
   }
 
-  if (!(request.method in RpcMethods)) return failure(request.id, RPC_METHOD_NOT_FOUND, `Unknown RPC method: ${request.method}`)
-  const method = request.method as RpcMethod
-  const definition = RpcMethods[method]
+  if (!(request.method in methods)) return failure(request.id, RPC_METHOD_NOT_FOUND, `Unknown RPC method: ${request.method}`)
+  const method = request.method
+  const definition = methods[method]!
   const handler = handlers[method]
   if (typeof handler !== "function") {
     return failure(request.id, RPC_INTERNAL_ERROR, `Missing RPC handler for ${method}`)
   }
 
-  let params: RpcParams<typeof method>
+  let params: unknown
   try {
     params = Schema.decodeUnknownSync(
-      definition.params,
+      definition.params as Schema.Decoder<unknown, never>,
       definition.exactParams ? { onExcessProperty: "error" } : undefined,
-    )(request.params) as RpcParams<typeof method>
+    )(request.params)
   } catch {
     return failure(request.id, RPC_INVALID_PARAMS, `Invalid params for ${method}`)
   }
@@ -84,7 +94,7 @@ export async function dispatchRpcMessage<Context extends RpcHandlerContext>(
   try {
     const result = await handler(params as never, context)
     const encoded = Schema.encodeSync(
-      definition.result,
+      definition.result as Schema.Encoder<unknown, never>,
       definition.exactResult ? { onExcessProperty: "error" } : undefined,
     )(result)
     return { jsonrpc: "2.0", id: request.id, result: encoded as never }

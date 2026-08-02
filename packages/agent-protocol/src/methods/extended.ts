@@ -207,6 +207,18 @@ const ProviderCredentialMutationResultSchema = Schema.Struct({
   credential: ProviderCredentialSummarySchema,
 })
 
+export const ProviderCredentialStoreSchema = Schema.Literals([
+  "auth-json",
+  "encrypted",
+])
+
+export const ProviderCredentialStoreStatusSchema = Schema.Struct({
+  store: ProviderCredentialStoreSchema,
+  portable: Schema.Boolean,
+  credentialCount: NonNegativeIntSchema,
+  migrationRequired: Schema.Boolean,
+})
+
 export const AuthTargetSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("provider"), providerId: Provider.ID }),
   Schema.Struct({ kind: Schema.Literal("usage"), sourceId: NonEmptyStringSchema }),
@@ -613,6 +625,42 @@ export const ExtendedRpcMethods = {
       credentials: Schema.Array(ProviderCredentialSummarySchema),
     }),
     errors: ["CREDENTIAL_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "provider/credential/store/read": defineMethod({
+    params: Schema.Record(Schema.String, Schema.Never),
+    result: ProviderCredentialStoreStatusSchema,
+    errors: [
+      "CREDENTIAL_STORE_UNAVAILABLE",
+      "RATE_LIMITED",
+      "INTERNAL_ERROR",
+    ] as const,
+    capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: false,
+  }),
+
+  "provider/credential/store/update": defineMethod({
+    params: Schema.Struct({
+      store: ProviderCredentialStoreSchema,
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({
+      ...ProviderCredentialStoreStatusSchema.fields,
+      migratedCredentials: NonNegativeIntSchema,
+    }),
+    errors: [
+      "CREDENTIAL_STORE_UNAVAILABLE",
+      "CREDENTIAL_STORE_MIGRATION_FAILED",
+      "CONFLICT",
+      "RATE_LIMITED",
+      "INTERNAL_ERROR",
+    ] as const,
     capability: "provider.auth.pi.v1",
     exactParams: true,
     exactResult: true,

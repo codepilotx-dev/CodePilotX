@@ -33,6 +33,21 @@ export interface WorkspaceDiff {
   readonly empty: boolean
 }
 
+export interface WorkingTreeSnapshot {
+  readonly headCommit: string
+  readonly snapshotCommit: string
+  readonly patch: string
+  readonly sha256: string
+  readonly empty: boolean
+}
+
+export interface WorkingTreeLayers {
+  readonly headCommit: string
+  readonly stagedPatch: string
+  readonly unstagedPatch: string
+  readonly untrackedFiles: readonly string[]
+}
+
 export type ThreeWayPreflightResult =
   | {
       readonly status: "ready"
@@ -329,6 +344,64 @@ export class WorkspaceIsolationService {
       return baseline
     }
     return this.persistBaseline("shared", this.repository.rootPath)
+  }
+
+  /**
+   * Produces a binary patch from HEAD to the current index/worktree snapshot.
+   * The temporary index preserves staged, unstaged and untracked regular Git
+   * content without mutating the user's real index.
+   */
+  async captureWorkingTreeSnapshot(): Promise<WorkingTreeSnapshot> {
+    const repository = this.gitRepository()
+    const snapshot = await this.snapshotCurrent(repository.rootPath, "CodePilotX working-tree snapshot")
+    const patch = await this.requireGitOutput(
+      repository.rootPath,
+      ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", snapshot.parent, snapshot.commit, "--"],
+      "SUBAGENT_DIFF_FAILED",
+    )
+    return {
+      headCommit: snapshot.parent,
+      snapshotCommit: snapshot.commit,
+      patch,
+      sha256: sha256(patch),
+      empty: patch.length === 0,
+    }
+  }
+
+  /** Captures Git layers without following or materializing untracked links. */
+  async captureWorkingTreeLayers(): Promise<WorkingTreeLayers> {
+    const repository = this.gitRepository()
+    const [stagedPatch, unstagedPatch, untrackedOutput] = await Promise.all([
+      this.requireGitOutput(
+        repository.rootPath,
+        ["diff", "--cached", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", repository.headCommit!, "--"],
+        "SUBAGENT_DIFF_FAILED",
+      ),
+      this.requireGitOutput(
+        repository.rootPath,
+        ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--"],
+        "SUBAGENT_DIFF_FAILED",
+      ),
+      this.requireGitOutput(
+        repository.rootPath,
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+        "SUBAGENT_DIFF_FAILED",
+      ),
+    ])
+    const candidates = untrackedOutput.split("\0").filter(Boolean)
+    const untrackedFiles: string[] = []
+    for (const relativePath of candidates) {
+      const target = resolve(repository.rootPath, relativePath)
+      if (!isWithin(repository.rootPath, target)) continue
+      const metadata = await lstat(target).catch(() => null)
+      if (metadata?.isFile() && !metadata.isSymbolicLink()) untrackedFiles.push(relativePath.replaceAll("\\", "/"))
+    }
+    return {
+      headCommit: repository.headCommit!,
+      stagedPatch,
+      unstagedPatch,
+      untrackedFiles: untrackedFiles.sort(),
+    }
   }
 
   async createWorktree(workspaceID: string): Promise<BaselineMetadata> {

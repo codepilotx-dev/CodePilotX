@@ -4,6 +4,7 @@ import type {
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import type { SessionListItem } from '../../../uiTypes.js'
+import { sortSessionsByRecency } from '../../session/state/sessionSorting.js'
 
 export type SidebarSessionVisualState =
   | 'needs-input'
@@ -43,6 +44,111 @@ export type SidebarViewModel = {
   unpinnedSessions: SessionListItem[]
   visibleSessions: SessionListItem[]
   sessionStateById: Record<string, SidebarSessionVisualState>
+}
+
+export type SidebarFocusSectionId =
+  | 'priority'
+  | `day-${number}`
+
+export type SidebarFocusSection = {
+  id: SidebarFocusSectionId
+  label: string
+  sessions: SessionListItem[]
+}
+
+export function buildSidebarFocusSections(input: {
+  now: number
+  sessions: readonly SessionListItem[]
+  sessionStateById: Readonly<Record<string, SidebarSessionVisualState>>
+}): SidebarFocusSection[] {
+  const priority: SessionListItem[] = []
+  const priorityRankById = new Map<string, number>()
+  const dayBuckets = new Map<number, SessionListItem[]>()
+
+  for (const session of input.sessions) {
+    const state = input.sessionStateById[session.id]
+    const priorityRank = sidebarPriorityRank(state)
+    if (priorityRank >= 0) {
+      priority.push(session)
+      priorityRankById.set(session.id, priorityRank)
+      continue
+    }
+    const activityMs = sessionRecencyMs(session)
+    if (activityMs <= 0) {
+      // 时间无效的普通任务不进入聚焦视图
+      continue
+    }
+    let offset = localDayOrdinal(input.now) - localDayOrdinal(activityMs)
+    if (offset < 0) offset = 0
+    if (offset > 6) continue
+    const bucket = dayBuckets.get(offset)
+    if (bucket) {
+      bucket.push(session)
+    } else {
+      dayBuckets.set(offset, [session])
+    }
+  }
+
+  const sections: SidebarFocusSection[] = []
+  if (priority.length > 0) {
+    sections.push({
+      id: 'priority',
+      label: '优先级',
+      sessions: sortPrioritySessions(priority, priorityRankById),
+    })
+  }
+
+  for (const offset of [...dayBuckets.keys()].sort((a, b) => a - b)) {
+    const sessions = dayBuckets.get(offset) ?? []
+    if (sessions.length === 0) continue
+    const dayDate = new Date(input.now)
+    dayDate.setDate(dayDate.getDate() - offset)
+    sections.push({
+      id: `day-${offset}`,
+      label: labelForDayOffset(offset, dayDate),
+      sessions: sortSessionsByRecency(sessions),
+    })
+  }
+  return sections
+}
+
+export function labelForDayOffset(offset: number, date: Date): string {
+  if (offset === 0) return '今天'
+  if (offset === 1) return '昨天'
+  return `星期${['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}`
+}
+
+export function localDayOrdinal(timestamp: number): number {
+  const date = new Date(timestamp)
+  return Date.UTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  ) / 86_400_000
+}
+
+function sortPrioritySessions(
+  sessions: readonly SessionListItem[],
+  priorityRankById: ReadonlyMap<string, number>,
+): SessionListItem[] {
+  return [...sessions].sort((left, right) => {
+    const leftRank = priorityRankById.get(left.id) ?? 3
+    const rightRank = priorityRankById.get(right.id) ?? 3
+    return (
+      leftRank - rightRank ||
+      sessionRecencyMs(right) - sessionRecencyMs(left) ||
+      right.id.localeCompare(left.id)
+    )
+  })
+}
+
+function sidebarPriorityRank(
+  state: SidebarSessionVisualState | undefined,
+): number {
+  if (state === 'needs-input') return 0
+  if (state === 'unread') return 1
+  if (state === 'running') return 2
+  return -1
 }
 
 export function buildSidebarViewModel({

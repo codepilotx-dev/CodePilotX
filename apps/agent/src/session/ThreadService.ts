@@ -39,10 +39,10 @@ const configurationScopeSection = (): PromptSection => ({
   authority: "builtin",
   source: { type: "runtime", name: "configuration-scope" },
   content: [
-    "持久配置以 config.toml 为唯一真源。",
-    "用户说“以后、默认、所有项目”时，先 Read，再用 Edit 更新 @codepilotx/config.toml。",
-    "用户说“这个项目”时，先 Read，再用 Edit 更新 .codepilotx/config.toml。",
-    "用户说“当前任务、这次”时只使用当前任务设置，不写 config.toml。",
+    "持久配置以 config.json 为唯一真源；该文件同时接受严格 JSON 与 JSONC。",
+    "用户说“以后、默认、所有项目”时，先 Read，再用 Edit 更新 @codepilotx/config.json。",
+    "用户说“这个项目”时，先 Read，再用 Edit 更新 .codepilotx/config.json。",
+    "用户说“当前任务、这次”时只使用当前任务设置，不写 config.json。",
     "持久作用域不明确时必须先询问用户；配置写入仍需遵守审批策略。",
   ].join("\n"),
 })
@@ -176,7 +176,14 @@ export class ThreadService {
     title?: string
     settings?: ThreadSettings
     operationID: string
-    workspace: { kind: "project"; projectID: string } | { kind: "projectless"; prompt?: string }
+    bindExecution?: (threadID: string) => void
+    workspace:
+      | {
+          kind: "project"
+          projectID: string
+          execution?: { kind: "local" } | { kind: "worktree"; worktreeId: string }
+        }
+      | { kind: "projectless"; prompt?: string }
   }) {
     const requestHash = createHash("sha256").update(JSON.stringify({
       title: input.title ?? null,
@@ -189,12 +196,17 @@ export class ThreadService {
       return { id: duplicate.threadID }
     }
     if (input.workspace.kind === "project") {
-      const created = this.db.createThread({
-        title: input.title,
-        settings: input.settings,
-        workspace: { kind: "project", projectID: input.workspace.projectID },
-        operationID: input.operationID,
-        requestHash,
+      const projectID = input.workspace.projectID
+      const created = this.db.transaction(() => {
+        const record = this.db.createThread({
+          title: input.title,
+          settings: input.settings,
+          workspace: { kind: "project", projectID },
+          operationID: input.operationID,
+          requestHash,
+        })
+        input.bindExecution?.(record.id)
+        return record
       })
       this.refreshPromptSettings(created.id)
       return created

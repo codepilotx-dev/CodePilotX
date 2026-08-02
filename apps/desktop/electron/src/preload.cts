@@ -19,6 +19,19 @@ import type {
   DesktopUpdateIpcBridge,
   DesktopUpdateStatus,
 } from "@codepilotx/shared/desktop-update-ipc"
+import type {
+  AttachDesktopTerminalInput,
+  CloseDesktopTerminalForThreadInput,
+  CloseDesktopTerminalInput,
+  DesktopTerminalEvent,
+  DesktopTerminalIpcBridge,
+  DesktopTerminalProfile,
+  DesktopTerminalSnapshot,
+  EnsureDesktopTerminalInput,
+  ResizeDesktopTerminalInput,
+  RunDesktopTerminalActionInput,
+  WriteDesktopTerminalInput,
+} from "@codepilotx/shared/desktop-terminal-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -62,6 +75,18 @@ const DESKTOP_UPDATE_IPC_CHANNELS = {
   quitAndInstall: "desktop-update:quit-and-install",
   status: "desktop-update:status",
 } as const satisfies typeof import("@codepilotx/shared/desktop-update-ipc").DESKTOP_UPDATE_IPC_CHANNELS
+
+const DESKTOP_TERMINAL_IPC_CHANNELS = {
+  listProfiles: "desktop-terminal:list-profiles",
+  ensure: "desktop-terminal:ensure",
+  attach: "desktop-terminal:attach",
+  write: "desktop-terminal:write",
+  resize: "desktop-terminal:resize",
+  close: "desktop-terminal:close",
+  closeThread: "desktop-terminal:close-thread",
+  runAction: "desktop-terminal:run-action",
+  event: "desktop-terminal:event",
+} as const satisfies typeof import("@codepilotx/shared/desktop-terminal-ipc").DESKTOP_TERMINAL_IPC_CHANNELS
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -145,6 +170,45 @@ const desktop = {
     return () =>
       ipcRenderer.removeListener(DESKTOP_UPDATE_IPC_CHANNELS.status, handler)
   },
+  listTerminalProfiles: (): Promise<readonly DesktopTerminalProfile[]> =>
+    ipcRenderer.invoke(DESKTOP_TERMINAL_IPC_CHANNELS.listProfiles),
+  ensureTerminal: (
+    input: EnsureDesktopTerminalInput,
+  ): Promise<DesktopTerminalSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_TERMINAL_IPC_CHANNELS.ensure, input),
+  attachTerminal: (
+    input: AttachDesktopTerminalInput,
+  ): Promise<DesktopTerminalSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_TERMINAL_IPC_CHANNELS.attach, input),
+  writeTerminal: (input: WriteDesktopTerminalInput): void =>
+    ipcRenderer.send(DESKTOP_TERMINAL_IPC_CHANNELS.write, input),
+  resizeTerminal: (input: ResizeDesktopTerminalInput): void =>
+    ipcRenderer.send(DESKTOP_TERMINAL_IPC_CHANNELS.resize, input),
+  closeTerminal: (
+    input: CloseDesktopTerminalInput,
+  ): Promise<DesktopTerminalSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_TERMINAL_IPC_CHANNELS.close, input),
+  closeTerminalForThread: (
+    input: CloseDesktopTerminalForThreadInput,
+  ): Promise<{ closed: boolean }> =>
+    ipcRenderer.invoke(DESKTOP_TERMINAL_IPC_CHANNELS.closeThread, input),
+  runTerminalAction: (
+    input: RunDesktopTerminalActionInput,
+  ): Promise<DesktopTerminalSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_TERMINAL_IPC_CHANNELS.runAction, input),
+  onTerminalEvent: (
+    listener: (event: DesktopTerminalEvent) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      event: unknown,
+    ): void => {
+      if (isDesktopTerminalEvent(event)) listener(event)
+    }
+    ipcRenderer.on(DESKTOP_TERMINAL_IPC_CHANNELS.event, handler)
+    return () =>
+      ipcRenderer.removeListener(DESKTOP_TERMINAL_IPC_CHANNELS.event, handler)
+  },
   copyProviderApiKey: (
     credentialId: string,
   ): Promise<{ clearAfterMs: 60000 }> =>
@@ -221,6 +285,7 @@ const desktop = {
   & DesktopDataLocationIpcBridge
   & DesktopEditIpcBridge
   & DesktopUpdateIpcBridge
+  & DesktopTerminalIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)
@@ -261,4 +326,47 @@ function isDesktopUpdateStatus(
     default:
       return false
   }
+}
+
+function isDesktopTerminalEvent(value: unknown): value is DesktopTerminalEvent {
+  if (!isRecord(value) || typeof value.type !== "string") return false
+  if (value.type === "output") return isDesktopTerminalChunk(value.chunk)
+  if (value.type !== "state") return false
+  return isIdentifier(value.terminalId)
+    && isIdentifier(value.instanceId)
+    && isTerminalState(value.state)
+    && (value.exitCode === null || Number.isSafeInteger(value.exitCode))
+    && isTerminalExitReason(value.exitReason)
+}
+
+function isDesktopTerminalChunk(value: unknown): boolean {
+  return isRecord(value)
+    && isIdentifier(value.terminalId)
+    && isIdentifier(value.instanceId)
+    && Number.isSafeInteger(value.sequence)
+    && Number(value.sequence) >= 0
+    && typeof value.data === "string"
+    && new TextEncoder().encode(value.data).byteLength <= 1_048_576
+}
+
+function isIdentifier(value: unknown): value is string {
+  return typeof value === "string"
+    && value.length >= 1
+    && value.length <= 200
+    && /^[A-Za-z0-9._:-]+$/.test(value)
+}
+
+function isTerminalState(value: unknown): boolean {
+  return ["starting", "running", "closing", "exited", "failed"].includes(String(value))
+}
+
+function isTerminalExitReason(value: unknown): boolean {
+  return value === null || [
+    "process-exit",
+    "user-close",
+    "task-close",
+    "workspace-delete",
+    "app-quit",
+    "launch-failed",
+  ].includes(String(value))
 }

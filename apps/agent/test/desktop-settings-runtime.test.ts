@@ -10,6 +10,7 @@ const createSettingsApp = () => {
   const configService = {
     read: async () => ({
       config: {
+        model: "profile-model",
         desktop: {
           sidebarOrganization: "flat",
           sidebarProjectSort: "updated",
@@ -19,10 +20,15 @@ const createSettingsApp = () => {
       origins: {},
       diagnostics: [],
       layers: [],
+      profileState: {
+        activeProfile: null,
+        selectedProfile: null,
+        restartRequired: false,
+      },
     }),
     batchWrite: async ({ edits }: { edits: ConfigEdit[] }) => {
       writtenEdits = edits
-      return { status: "ok", version: "v1", filePath: "config.toml" }
+      return { status: "ok", version: "v1", filePath: "config.json" }
     },
   } as unknown as ConfigService
   const db = {
@@ -70,12 +76,13 @@ const createSettingsApp = () => {
 }
 
 describe("桌面侧栏运行时设置", () => {
-  test("手动顺序只写 runtime-state，并与 config.toml 投影合并读取", async () => {
+  test("手动顺序只写 runtime-state，并与 config.json 投影合并读取", async () => {
     const { app, runtimeSettings, writtenEdits } = createSettingsApp()
     const response = await app.request("/api/config/desktop-projection", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        model: "profile-model",
         sidebarOrganization: "flat",
         sidebarProjectSort: "updated",
         sidebarSort: "manual",
@@ -87,11 +94,7 @@ describe("桌面侧栏运行时设置", () => {
     expect(runtimeSettings.get("desktop.runtime-state.v1")).toEqual({
       sidebarManualOrder: { all: ["session-1"] },
     })
-    expect(writtenEdits().map(edit => edit.keyPath)).toEqual([
-      ["desktop", "sidebarOrganization"],
-      ["desktop", "sidebarProjectSort"],
-      ["desktop", "sidebarSort"],
-    ])
+    expect(writtenEdits()).toEqual([])
 
     const readResponse = await app.request("/api/config/desktop-projection")
     expect(readResponse.status).toBe(200)
@@ -100,6 +103,33 @@ describe("桌面侧栏运行时设置", () => {
       sidebarProjectSort: "updated",
       sidebarSort: "manual",
       sidebarManualOrder: { all: ["session-1"] },
+    })
+  })
+
+  test("终端 profile 使用独立 machine-local key，旧客户端省略字段时保留", async () => {
+    const { app, runtimeSettings, writtenEdits } = createSettingsApp()
+    const terminalResponse = await app.request("/api/config/desktop-projection", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ terminalProfileId: "powershell" }),
+    })
+    expect(terminalResponse.status).toBe(200)
+    expect(runtimeSettings.get("desktop.terminal-settings.v1")).toEqual({
+      terminalProfileId: "powershell",
+    })
+    expect(runtimeSettings.get("desktop.runtime-state.v1")).toEqual({})
+    expect(writtenEdits()).toEqual([])
+
+    await app.request("/api/config/desktop-projection", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sidebarSort: "manual" }),
+    })
+    expect(runtimeSettings.get("desktop.terminal-settings.v1")).toEqual({
+      terminalProfileId: "powershell",
+    })
+    expect(await (await app.request("/api/config/desktop-projection")).json()).toMatchObject({
+      terminalProfileId: "powershell",
     })
   })
 })

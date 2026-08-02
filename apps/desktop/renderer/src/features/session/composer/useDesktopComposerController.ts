@@ -339,10 +339,16 @@ export function useDesktopComposerController({
         : undefined,
       // Keep navigation before submission so the routed page owns all
       // streaming state from the first response event onward.
-      navigateToSession: nextSessionId =>
-        {
-          composerDraftStore.move(sourceDraftKey, `session:${nextSessionId}`)
-          navigate(sessionPath(nextSessionId))
+      navigateToSession: nextSessionId => {
+        const targetDraftKey: ComposerDraftKey = `session:${nextSessionId}`
+        const handoff = composerDraftStore.handoff(
+          sourceDraftKey,
+          targetDraftKey,
+        )
+        if (handoff && activeDraftKeyRef.current === sourceDraftKey) {
+          draftClientIdRef.current = handoff.replacement.clientId
+        }
+        navigate(sessionPath(nextSessionId))
       },
       submitToSession: async (targetSessionId, value, metadata) => {
         const result = await submitToSession(targetSessionId, value, {

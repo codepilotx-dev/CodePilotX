@@ -119,7 +119,7 @@ export class HookService {
     const projectLayer = layers.find((layer) => layer.kind === "project" && layer.trusted)
     const userHooks = [
       ...(input.userConfigPath && existsSync(input.userConfigPath) ? readConfig(input.userConfigPath).definitions : []),
-      ...(userLayer ? inlineHooks(userLayer.config, userLayer.filePath ?? "用户 config.toml") : []),
+      ...(userLayer ? inlineHooks(userLayer.config, userLayer.filePath ?? "用户 config.json") : []),
     ]
     const projectHooks: HookDefinition[] = []
     let projectConfig: ReturnType<typeof readConfig> | null = null
@@ -132,7 +132,7 @@ export class HookService {
       }
     }
     const projectInlineHooks = input.includeProjectHooks !== false && projectLayer
-      ? inlineHooks(projectLayer.config, projectLayer.filePath ?? "项目 config.toml")
+      ? inlineHooks(projectLayer.config, projectLayer.filePath ?? "项目 config.json")
       : []
     projectHooks.push(...projectInlineHooks)
     const combinedProjectHash = projectInlineHooks.length

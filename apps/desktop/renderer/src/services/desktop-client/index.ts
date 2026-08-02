@@ -13,6 +13,20 @@ export {
   WORKSPACE_GIT_CHANGED_EVENT,
 } from './agent-session-client.js'
 export { startGithubLoginFlow } from './github-login.js'
+export type { DesktopTerminalClient } from './terminal-client.js'
+
+let terminalClientPromise:
+  | Promise<import('./terminal-client.js').DesktopTerminalClient>
+  | null = null
+
+export function loadDesktopTerminalClient(): Promise<
+  import('./terminal-client.js').DesktopTerminalClient
+> {
+  terminalClientPromise ??= import('./terminal-client.js').then(
+    module => module.terminalClient,
+  )
+  return terminalClientPromise
+}
 export type { GithubLoginClient } from './github-login.js'
 
 export type {

@@ -1,5 +1,9 @@
+import { createHash } from "node:crypto"
+import { isAbsolute, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
+import type { TaskExecutionBindingService } from "../worktree/TaskExecutionBindingService"
+import type { TaskExecutionBinding } from "../worktree/types"
 import { ManagedProjectlessWorkspaceService } from "./ManagedProjectlessWorkspaceService"
 import type { AllocateManagedProjectlessWorkspaceInput, ManagedProjectlessWorkspaceAllocation } from "./ManagedProjectlessWorkspaceService"
 import { WorkspaceService } from "./WorkspaceService"
@@ -14,6 +18,7 @@ type ResolvedWorkspaceBase = {
   }>
   instructionSources: string[]
   workspace: WorkspaceService
+  executionBinding: TaskExecutionBinding
 }
 
 export type ResolvedThreadWorkspace =
@@ -49,7 +54,29 @@ export class ThreadWorkspaceResolver {
   constructor(
     private readonly db: AgentDatabase,
     private readonly projectless: ManagedProjectlessWorkspaceService,
+    private readonly bindings?: TaskExecutionBindingService,
   ) {}
+
+  private resolveExecutionBinding(
+    threadID: string,
+    descriptor: Parameters<TaskExecutionBindingService["resolve"]>[1],
+  ): TaskExecutionBinding {
+    if (this.bindings) return this.bindings.resolve(threadID, descriptor)
+    const cwd = resolve(descriptor.cwd)
+    const digest = createHash("sha256").update(`${threadID}\0${descriptor.kind}\0${cwd}`, "utf8").digest("hex")
+    return {
+      threadId: threadID,
+      bindingId: `local:${digest}`,
+      kind: "local",
+      projectId: descriptor.projectID,
+      cwd,
+      worktreeId: null,
+      revision: 1,
+      environmentRevision: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+  }
 
   allocateProjectless(input: AllocateManagedProjectlessWorkspaceInput) {
     return this.projectless.allocate(input)
@@ -67,6 +94,7 @@ export class ThreadWorkspaceResolver {
     const descriptor = this.db.threadWorkspace(threadID)
     if (!descriptor) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
     if (descriptor.kind === "project") {
+      const executionBinding = this.resolveExecutionBinding(threadID, descriptor)
       const project = this.db.getProject(descriptor.projectID) as RuntimeProject | null
       if (!project) throw new AgentError("PROJECT_NOT_FOUND", "当前项目不存在", 404)
       if (project.removedAt) throw new AgentError("PROJECT_REMOVED", "当前项目已被移除，归档任务不能继续执行", 409)
@@ -75,19 +103,31 @@ export class ThreadWorkspaceResolver {
         ?? folders.find((folder) => folder.role === "primary")
       const primaryPath = primary?.path ?? project.rootPath
       if (!primaryPath) throw new AgentError("PROJECT_FOLDER_NOT_FOUND", "项目主目录不存在", 409)
+      const executionPrimary = executionBinding.kind === "worktree" ? executionBinding.cwd : primaryPath
       const workspace = await WorkspaceService.openRoots({
-        primaryRoot: primaryPath,
+        primaryRoot: executionPrimary,
         roots: folders.length > 0
-          ? folders.map((folder) => ({ folderId: folder.id, path: folder.path, role: folder.role }))
-          : [{ path: primaryPath, role: "primary" }],
+          ? folders.map((folder) => ({
+              folderId: folder.id,
+              path: folder.id === primary?.id ? executionPrimary : folder.path,
+              role: folder.role,
+            }))
+          : [{ path: executionPrimary, role: "primary" }],
       })
       const saved = descriptor as typeof descriptor & ProjectWorkspaceDescriptor
-      const requestedCwd = saved.cwd ?? workspace.rootPath
+      const requestedCwd = executionBinding.kind === "worktree" ? executionBinding.cwd : executionBinding.cwd ?? saved.cwd ?? workspace.rootPath
       const cwd = await workspace.resolveDirectory(requestedCwd).catch((cause) => {
         if (requestedCwd !== workspace.rootPath) {
           throw new AgentError("THREAD_WORKSPACE_UNAVAILABLE", "Thread 持久化 cwd 已不在当前项目目录内或不可访问", 409)
         }
         throw cause
+      })
+      const instructionSources = (saved.instructionSources ?? []).map((source) => {
+        if (executionBinding.kind !== "worktree") return source
+        const sourceRelative = relative(primaryPath, source)
+        return sourceRelative === "" || (!sourceRelative.startsWith("..") && !isAbsolute(sourceRelative))
+          ? resolve(executionPrimary, sourceRelative)
+          : source
       })
       return {
         kind: "project",
@@ -99,9 +139,10 @@ export class ThreadWorkspaceResolver {
           path: root.path,
           role: root.role,
         })),
-        instructionSources: [...(saved.instructionSources ?? [])],
+        instructionSources,
         outputDirectory: null,
         workspace,
+        executionBinding,
       }
     }
     try {
@@ -112,6 +153,7 @@ export class ThreadWorkspaceResolver {
         outputDirectory: descriptor.outputDirectory,
       })
       const workspace = await WorkspaceService.open(validated.sessionRoot)
+      const executionBinding = this.resolveExecutionBinding(threadID, descriptor)
       return {
         kind: "projectless",
         projectID: null,
@@ -121,6 +163,7 @@ export class ThreadWorkspaceResolver {
         instructionSources: [],
         outputDirectory: validated.outputDirectory,
         workspace,
+        executionBinding,
       }
     } catch (cause) {
       if (cause instanceof AgentError && cause.code === "THREAD_NOT_FOUND") throw cause

@@ -101,6 +101,20 @@ describe("高级权限设置归一化", () => {
   })
 })
 
+describe("集成终端设置归一化", () => {
+  test("默认自动选择 Shell，并只保留字符串 profile ID", () => {
+    expect(defaultDesktopStoredSettings().terminalProfileId).toBeNull()
+    expect(
+      normalizeDesktopStoredSettings({ terminalProfileId: "windows-pwsh" })
+        .terminalProfileId,
+    ).toBe("windows-pwsh")
+    expect(
+      normalizeDesktopStoredSettings({ terminalProfileId: 42 as never })
+        .terminalProfileId,
+    ).toBeNull()
+  })
+})
+
 describe("侧边栏设置归一化", () => {
   test("提供侧栏默认值并保留合法组织与排序设置", () => {
     const defaults = normalizeDesktopStoredSettings({})
@@ -181,13 +195,15 @@ describe("侧边栏设置归一化", () => {
   })
 
   test("保留合法的产品模式并回退非法值", () => {
-    expect(normalizeDesktopStoredSettings({
-      sidebarProductMode: "working",
-      sidebarStateVersion: SIDEBAR_STATE_VERSION,
-    })).toMatchObject({
-      sidebarProductMode: "working",
-      sidebarStateVersion: SIDEBAR_STATE_VERSION,
-    })
+    for (const sidebarProductMode of ["coding", "working", "chat"] as const) {
+      expect(normalizeDesktopStoredSettings({
+        sidebarProductMode,
+        sidebarStateVersion: SIDEBAR_STATE_VERSION,
+      })).toMatchObject({
+        sidebarProductMode,
+        sidebarStateVersion: SIDEBAR_STATE_VERSION,
+      })
+    }
     expect(normalizeDesktopStoredSettings({
       sidebarProductMode: "invalid",
     }).sidebarProductMode).toBe("coding")
@@ -196,7 +212,7 @@ describe("侧边栏设置归一化", () => {
   test("一次性重置只替换侧边栏状态并保留工作空间和其他设置", () => {
     const settings = normalizeDesktopStoredSettings({
       model: "keep-model",
-      sidebarProductMode: "working",
+      sidebarProductMode: "chat",
       recentWorkspaces: [{
         path: "F:\\CodeProject\\CodePilotX",
         name: "CodePilotX",
@@ -215,7 +231,7 @@ describe("侧边栏设置归一化", () => {
     const reset = { ...settings, ...createSidebarStateResetPatch(settings) }
     expect(reset).toMatchObject({
       model: "keep-model",
-      sidebarProductMode: "working",
+      sidebarProductMode: "chat",
       sidebarStateVersion: SIDEBAR_STATE_VERSION,
       sidebarOrganization: "projects",
       sidebarProjectSort: "priority",
@@ -231,6 +247,48 @@ describe("侧边栏设置归一化", () => {
       name: "CodePilotX",
       pinnedAt: null,
     }])
+  })
+  test("在默认设置中聚焦筛选默认关闭", () => {
+    expect(normalizeDesktopStoredSettings({}).sidebarPriorityFilterEnabled).toBe(
+      false,
+    )
+  })
+
+  test("旧设置缺字段时默认关闭，非法值回退关闭", () => {
+    expect(
+      normalizeDesktopStoredSettings({}).sidebarPriorityFilterEnabled,
+    ).toBe(false)
+    expect(
+      normalizeDesktopStoredSettings({
+        sidebarPriorityFilterEnabled: "yes",
+      }).sidebarPriorityFilterEnabled,
+    ).toBe(false)
+    expect(
+      normalizeDesktopStoredSettings({
+        sidebarPriorityFilterEnabled: 1,
+      }).sidebarPriorityFilterEnabled,
+    ).toBe(false)
+  })
+
+  test("true 能通过归一化并保留保存快照", () => {
+    const settings = normalizeDesktopStoredSettings({
+      sidebarPriorityFilterEnabled: true,
+    })
+    expect(settings.sidebarPriorityFilterEnabled).toBe(true)
+    expect(
+      normalizeDesktopStoredSettings(settings).sidebarPriorityFilterEnabled,
+    ).toBe(true)
+  })
+
+  test("重置侧栏状态会关闭聚焦筛选视图", () => {
+    const settings = normalizeDesktopStoredSettings({
+      sidebarPriorityFilterEnabled: true,
+    })
+    const reset = {
+      ...settings,
+      ...createSidebarStateResetPatch(settings),
+    }
+    expect(reset.sidebarPriorityFilterEnabled).toBe(false)
   })
 })
 

@@ -235,7 +235,7 @@ export class McpConfigService {
   private target(identity: McpWorkspaceIdentity | null, scope: McpScope) {
     return scope === "local" && identity
       ? {
-          filePath: join(identity.root, ".codepilotx", "config.toml"),
+          filePath: join(identity.root, ".codepilotx", "config.json"),
           cwd: identity.root,
         }
       : {}
@@ -329,7 +329,10 @@ export class McpConfigService {
         case "CONFIG_VERSION_CONFLICT":
           throw new McpConfigError("CONFLICT", "MCP 配置已被其他操作更新，请重试", 409)
         case "CONFIG_VALIDATION_ERROR":
+        case "CONFIG_PROFILE_INVALID":
           throw new McpConfigError("MCP_CONFIG_INVALID", "MCP 配置无效，请检查设置后重试", 400)
+        case "CONFIG_PROFILE_NOT_FOUND":
+          throw new McpConfigError("PATH_DENIED", "Profile 配置不存在", 404)
       }
     }
   }

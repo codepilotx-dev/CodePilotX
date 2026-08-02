@@ -1,9 +1,9 @@
 import { Credential, Provider } from "@codepilotx/model-schema"
 import { Effect } from "effect"
 import type {
-  EncryptedCredentialRepository,
   ProviderCredentialSummary as StoredCredentialSummary,
-} from "../auth/EncryptedCredentialRepository"
+  ProviderCredentialRepository,
+} from "../auth/ProviderCredentialRepository"
 import { AgentError } from "../domain"
 import type { PiModelService } from "./pi"
 
@@ -40,7 +40,7 @@ export type PublicProviderCredentialSummary = {
 export class ProviderCredentialService {
   constructor(
     private readonly providers: PiModelService,
-    private readonly credentials: EncryptedCredentialRepository,
+    private readonly credentials: ProviderCredentialRepository,
   ) {}
 
   async methods(providerID: string): Promise<ProviderAuthMethodSummary[]> {

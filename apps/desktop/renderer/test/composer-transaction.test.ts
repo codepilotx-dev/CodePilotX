@@ -22,7 +22,7 @@ function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
 }
 
 describe('composer submit transaction', () => {
-  test('keeps draft buckets isolated and preserves the id when moving HOME', () => {
+  test('hands off a HOME draft and atomically rotates the source id', () => {
     let nextId = 0
     const store = new ComposerDraftStore(() => `draft-${++nextId}`)
     store.update('home', current => ({
@@ -30,11 +30,59 @@ describe('composer submit transaction', () => {
       document: createComposerDocument('首页草稿'),
     }))
 
-    expect(store.get('session:existing').document.text).toBe('')
-    const moved = store.move('home', 'session:created')
-    expect(moved?.clientId).toBe('draft-1')
-    expect(moved?.document.text).toBe('首页草稿')
-    expect(store.peek('home')).toBeUndefined()
+    const handoff = store.handoff('home', 'session:created')
+    expect(handoff?.submitted.clientId).toBe('draft-1')
+    expect(handoff?.submitted.document.text).toBe('首页草稿')
+    expect(handoff?.replacement.clientId).toBe('draft-2')
+    expect(handoff?.replacement.document.text).toBe('')
+    expect(store.get('session:created').clientId).toBe('draft-1')
+    expect(store.get('home').clientId).toBe('draft-2')
+    expect(store.get('home').document.text).toBe('')
+  })
+
+  test('does not restore a consumed id when the old route syncs after handoff', async () => {
+    let nextId = 0
+    const store = new ComposerDraftStore(() => `draft-${++nextId}`)
+    store.update('home', current => ({
+      ...current,
+      document: createComposerDocument('第一条消息'),
+    }))
+    const firstDraft = store.get('home')
+    const submittedIds: string[] = []
+
+    await executeComposerSubmitTransaction({
+      draft: firstDraft,
+      createSession: async () => 'session-1',
+      navigateToSession: sessionId => {
+        const handoff = store.handoff('home', `session:${sessionId}`)
+        expect(handoff?.replacement.clientId).toBe('draft-2')
+        store.update('home', current => ({
+          ...current,
+          clientId: handoff?.replacement.clientId ?? current.clientId,
+          document: createComposerDocument('路由切换期间的旧页面回写'),
+        }))
+      },
+      submitToSession: async (_sessionId, _input, metadata) => {
+        submittedIds.push(metadata.inputId)
+        return 'sent'
+      },
+    })
+
+    const replacementDraft = store.get('home')
+    expect(store.get('session:session-1').clientId).toBe('draft-1')
+    expect(replacementDraft.clientId).toBe('draft-2')
+    expect(replacementDraft.clientId).not.toBe(firstDraft.clientId)
+
+    await executeComposerSubmitTransaction({
+      draft: replacementDraft,
+      targetSessionId: 'session-2',
+      submitToSession: async (_sessionId, _input, metadata) => {
+        submittedIds.push(metadata.inputId)
+        return 'sent'
+      },
+    })
+
+    expect(submittedIds).toEqual(['draft-1', 'draft-2'])
   })
 
   test('publishes an externally selected skill invocation to the active composer', () => {
@@ -108,15 +156,27 @@ describe('composer submit transaction', () => {
 
   test('navigates before the first send and reports a recoverable send failure', async () => {
     const events: string[] = []
-    const source = draft()
+    let nextId = 0
+    const store = new ComposerDraftStore(() => `draft-${++nextId}`)
+    store.update('home', current => ({
+      ...current,
+      document: createComposerDocument('检查当前改动'),
+    }))
+    const source = store.get('home')
+    let submittedInputId: string | null = null
     const outcome = await executeComposerSubmitTransaction({
       draft: source,
       createSession: async () => {
         events.push('create')
         return 'session-1'
       },
-      navigateToSession: sessionId => events.push(`navigate:${sessionId}`),
-      submitToSession: async sessionId => {
+      navigateToSession: sessionId => {
+        const handoff = store.handoff('home', `session:${sessionId}`)
+        expect(handoff?.replacement.clientId).toBe('draft-2')
+        events.push(`navigate:${sessionId}`)
+      },
+      submitToSession: async (sessionId, _input, metadata) => {
+        submittedInputId = metadata.inputId
         events.push(`send:${sessionId}`)
         throw new Error('发送失败')
       },
@@ -133,7 +193,12 @@ describe('composer submit transaction', () => {
       message: '发送失败',
       sessionId: 'session-1',
     })
+    expect(submittedInputId).toBe('draft-1')
     expect(source.document.text).toBe('检查当前改动')
+    expect(store.get('session:session-1').clientId).toBe('draft-1')
+    expect(store.get('session:session-1').document.text).toBe('检查当前改动')
+    expect(store.get('home').clientId).toBe('draft-2')
+    expect(store.get('home').document.text).toBe('')
   })
 
   test('passes the first submitted text when creating a new session', async () => {
@@ -156,7 +221,13 @@ describe('composer submit transaction', () => {
 
   test('keeps a new-session draft on the source route when creation fails', async () => {
     const events: string[] = []
-    const source = draft()
+    let nextId = 0
+    const store = new ComposerDraftStore(() => `draft-${++nextId}`)
+    store.update('home', current => ({
+      ...current,
+      document: createComposerDocument('检查当前改动'),
+    }))
+    const source = store.get('home')
     const outcome = await executeComposerSubmitTransaction({
       draft: source,
       createSession: async () => {
@@ -177,6 +248,8 @@ describe('composer submit transaction', () => {
       sessionId: undefined,
     })
     expect(source.document.text).toBe('检查当前改动')
+    expect(store.get('home').clientId).toBe('draft-1')
+    expect(store.get('home').document.text).toBe('检查当前改动')
   })
 
   test('preserves the queued delivery outcome', async () => {

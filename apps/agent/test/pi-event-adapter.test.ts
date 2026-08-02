@@ -437,6 +437,11 @@ describe("PiEventAdapter", () => {
     let transactionCount = 0
     let eventID = 0
     const db = {
+      repositories: {
+        turnPatches: {
+          getByTurn: () => null,
+        },
+      },
       transaction: <T>(work: () => T) => {
         transactionCount += 1
         return work()

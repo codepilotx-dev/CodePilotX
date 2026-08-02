@@ -10,6 +10,8 @@ import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { AgentError } from "../src/domain"
 import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcRouter"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
+import { TerminalOutputMirror } from "../src/terminal/TerminalOutputMirror"
+import { rpcTransportAuthority } from "../src/transport/server"
 
 const roots: string[] = []
 const removeRoot = async (root: string) => {
@@ -81,7 +83,16 @@ const fixture = async (
   const router = new RpcRouter({
     config: {
       snapshot: () => configDocument,
-      read: async () => ({ config: configDocument, origins: {}, diagnostics: [] }),
+      read: async () => ({
+        config: configDocument,
+        origins: {},
+        diagnostics: [],
+        profileState: {
+          activeProfile: null,
+          selectedProfile: null,
+          restartRequired: false,
+        },
+      }),
       batchWrite: async ({ edits }: { edits: Array<{ keyPath: string[]; value: unknown }> }) => {
         for (const edit of edits) {
           let cursor = configDocument
@@ -96,7 +107,7 @@ const fixture = async (
         return {
           status: "ok",
           version: "a".repeat(64),
-          filePath: join(root, "config.toml"),
+          filePath: join(root, "config.json"),
         }
       },
     },
@@ -117,28 +128,42 @@ const fixture = async (
     apiKeys: null,
     memory: null,
     hooks: null,
+    handoff: { assertAdmissionOpen: () => undefined },
     ...overrides,
   } as unknown as RpcRouterDependencies, routerOptions)
   let id = 0
   let connectionId: string | null = null
+  let transportAuthority: "desktop-host" | "renderer" | undefined
   const call = (method: string, params: Record<string, unknown>) =>
     router.handle(
       { jsonrpc: "2.0", id: `test:${++id}`, method, params },
-      connectionId ? { connectionId } : {},
+      {
+        ...(connectionId ? { connectionId } : {}),
+        ...(transportAuthority ? { transportAuthority } : {}),
+      },
     ) as Promise<any>
-  const initialize = async (capabilities: readonly string[] = Capabilities) => {
+  const initialize = async (
+    capabilities: readonly string[] = Capabilities,
+    clientInfo: Record<string, unknown> = {},
+    authority?: "desktop-host" | "renderer",
+  ) => {
+    transportAuthority = authority
     const response = await call("initialize", {
-      clientInfo: { name: "test", version: "1.0.0", platform: "win32" },
+      clientInfo: { name: "test", version: "1.0.0", platform: "win32", ...clientInfo },
       protocols: ["thread-rpc-v4"],
       capabilities: [...capabilities],
       interactionDelivery: "active",
     })
+    if (!response.result) return response
     connectionId = response.result.connectionId
     await router.handle({
       jsonrpc: "2.0",
       method: "initialized",
       params: { protocol: "thread-rpc-v4" },
-    }, { connectionId: connectionId! })
+    }, {
+      connectionId: connectionId!,
+      ...(transportAuthority ? { transportAuthority } : {}),
+    })
     return response
   }
   return {
@@ -147,11 +172,19 @@ const fixture = async (
     router,
     call,
     initialize,
+    setTransportAuthority: (authority?: "desktop-host" | "renderer") => { transportAuthority = authority },
     counts: () => ({ reviewSummaryCalls, githubStatusCalls }),
   }
 }
 
 describe("RPC v4 Router", () => {
+  test("/rpc 仅从认证来源派生 transport authority", () => {
+    expect(rpcTransportAuthority("Bearer desktop-token", null, "desktop-token")).toBe("desktop-host")
+    expect(rpcTransportAuthority(null, "codepilotx_session=desktop-token", "desktop-token")).toBe("renderer")
+    expect(rpcTransportAuthority(null, null, "desktop-token")).toBeUndefined()
+    expect(rpcTransportAuthority("Bearer desktop-token", null, undefined)).toBeUndefined()
+  })
+
   test("Chat admission 使用独立 start、steer、queue/add 和精确 interrupt 入口", async () => {
     const calls: Array<{ method: string; args: unknown[] }> = []
     const threads = {
@@ -238,6 +271,70 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
+  test("terminal host RPC 同时要求 capability、桌面 authority 与托管进程", async () => {
+    const previousManaged = process.env.CODEPILOTX_DESKTOP_MANAGED
+    process.env.CODEPILOTX_DESKTOP_MANAGED = "1"
+    try {
+      const denied = await fixture({
+        terminalContext: { resolve: async () => null } as never,
+        terminalOutput: new TerminalOutputMirror(),
+      })
+      await denied.initialize()
+      expect((await denied.call("terminal/host/context", { threadId: "thread:1" })).error.data.code).toBe("PERMISSION_DENIED")
+      denied.db.close()
+
+      const rendererClaim = await fixture({
+        terminalContext: { resolve: async () => null } as never,
+        terminalOutput: new TerminalOutputMirror(),
+      })
+      expect((await rendererClaim.initialize(
+        Capabilities,
+        { authority: "desktop-host" },
+        "renderer",
+      )).error.data.code).toBe("PERMISSION_DENIED")
+      rendererClaim.db.close()
+
+      const terminalOutput = new TerminalOutputMirror()
+      const allowed = await fixture({
+        terminalContext: {
+          resolve: async (threadId: string) => ({
+            threadId,
+            bindingId: "terminal-binding:1",
+            contextVersion: "context:1",
+            workspaceKind: "project" as const,
+            target: { kind: "local" as const, cwd: "F:\\fixture" },
+          }),
+        } as never,
+        terminalOutput,
+      })
+      await allowed.initialize(Capabilities, { authority: "desktop-host" }, "desktop-host")
+      expect((await allowed.call("terminal/host/context", { threadId: "thread:1" })).result).toEqual({
+        threadId: "thread:1",
+        bindingId: "terminal-binding:1",
+        contextVersion: "context:1",
+        workspaceKind: "project",
+        target: { kind: "local", cwd: "F:\\fixture" },
+      })
+      expect((await allowed.call("terminal/host/output/reset", {
+        threadId: "thread:1",
+        terminalId: "terminal:1",
+        instanceId: "instance:1",
+        oldestSequence: 0,
+        nextSequence: 1,
+        chunks: [{ terminalId: "terminal:1", instanceId: "instance:1", sequence: 0, data: "ready" }],
+        state: "running",
+        exitCode: null,
+      })).result).toEqual({ ok: true })
+      expect(terminalOutput.read({ threadId: "thread:1" })?.content).toBe("ready")
+      allowed.setTransportAuthority("renderer")
+      expect((await allowed.call("terminal/host/context", { threadId: "thread:1" })).error.data.code).toBe("UNAUTHORIZED")
+      allowed.db.close()
+    } finally {
+      if (previousManaged === undefined) delete process.env.CODEPILOTX_DESKTOP_MANAGED
+      else process.env.CODEPILOTX_DESKTOP_MANAGED = previousManaged
+    }
+  })
+
   test("sandbox compatibility methods report the removed runtime without invoking a backend", async () => {
     const { db, initialize, call } = await fixture()
     await initialize()
@@ -271,6 +368,73 @@ describe("RPC v4 Router", () => {
         data: { code: "SANDBOX_UNAVAILABLE", retryable: true },
       })
     }
+    db.close()
+  })
+
+  test("Local environment、worktree 与 Handoff 方法经独立 handler 注册且保持公开边界", async () => {
+    const operation = {
+      operationId: "operation:handoff",
+      sourceThreadId: "thread:1",
+      targetThreadId: "thread:2",
+      direction: "local-to-worktree" as const,
+      status: "await-client-transfer" as const,
+      step: "await-client-transfer" as const,
+      revision: 10,
+      errorCode: null,
+      warnings: [],
+      createdAt: 1,
+      updatedAt: 2,
+      completedAt: null,
+    }
+    const { db, initialize, call } = await fixture({
+      localEnvironment: {
+        actionListForThread: async () => ({
+          revision: "a".repeat(64),
+          actions: [{ name: "Dev", availability: "available" as const }],
+        }),
+      } as unknown as RpcRouterDependencies["localEnvironment"],
+      worktrees: {
+        list: () => ({ worktrees: [] }),
+      } as unknown as RpcRouterDependencies["worktrees"],
+      handoff: {
+        assertAdmissionOpen: () => undefined,
+        pending: () => operation,
+        status: async () => ({ operation, changed: true }),
+      } as unknown as RpcRouterDependencies["handoff"],
+    })
+    await initialize()
+    expect((await call("local-environment/action/list", { threadId: "thread:1" })).result.actions).toEqual([
+      { name: "Dev", availability: "available" },
+    ])
+    expect((await call("worktree/list", { projectId: "project:1" })).result).toEqual({ worktrees: [] })
+    expect((await call("thread/handoff/status", { operationId: operation.operationId })).result).toEqual({
+      operation,
+      changed: true,
+    })
+    expect((await call("thread/handoff/pending", { sourceThreadId: operation.sourceThreadId })).result).toEqual({
+      operation,
+    })
+    db.close()
+  })
+
+  test("Handoff 持久锁在 admission 前返回稳定错误", async () => {
+    const { db, initialize, call } = await fixture({
+      handoff: {
+        assertAdmissionOpen: () => {
+          throw new AgentError("HANDOFF_IN_PROGRESS", "任务正在 Handoff", 409)
+        },
+      } as unknown as RpcRouterDependencies["handoff"],
+    })
+    await initialize()
+    const response = await call("turn/start", {
+      threadId: "thread:locked",
+      inputId: "input:locked",
+      content: "blocked",
+      model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }),
+      permissionConfig: DEFAULT_PERMISSION_CONFIG,
+      taskMode: "chat",
+    })
+    expect(response.error.data.code).toBe("HANDOFF_IN_PROGRESS")
     db.close()
   })
 

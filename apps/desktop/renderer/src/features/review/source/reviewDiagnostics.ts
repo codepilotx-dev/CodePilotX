@@ -32,8 +32,11 @@ function reviewDiagnosticError(error: unknown): Record<string, unknown> {
     }
   }
   if (error instanceof Error) {
+    const record = error as Error & { code?: unknown; status?: unknown }
     return {
       errorName: error.name,
+      errorCode: typeof record.code === 'string' ? record.code : undefined,
+      status: typeof record.status === 'number' ? record.status : undefined,
       message: sanitizeDiagnosticString(error.message),
     }
   }
@@ -64,4 +67,64 @@ export function reportReviewDiagnostic(
   const message = reviewDiagnosticMessage(event, context, error)
   if (level === 'warning') console.warn(message)
   else console.error(message)
+}
+
+export type ReviewDiagnosticTimer = {
+  succeed: (context?: ReviewDiagnosticContext) => void
+  fail: () => void
+  cancel: () => void
+}
+
+export function startReviewDiagnosticTimer(
+  eventPrefix: string,
+  context: ReviewDiagnosticContext,
+  slowMs = 3_000,
+  stalledMs = 15_000,
+): ReviewDiagnosticTimer {
+  const startedAt = performance.now()
+  let settled = false
+  let slow = false
+  const slowTimer = setTimeout(() => {
+    if (settled) return
+    slow = true
+    reportReviewDiagnostic('warning', `${eventPrefix}.slow`, {
+      ...context,
+      durationMs: Math.round(performance.now() - startedAt),
+    })
+  }, slowMs)
+  const stalledTimer = setTimeout(() => {
+    if (settled) return
+    reportReviewDiagnostic('warning', `${eventPrefix}.stalled`, {
+      ...context,
+      durationMs: Math.round(performance.now() - startedAt),
+    })
+  }, stalledMs)
+
+  const clear = (): void => {
+    clearTimeout(slowTimer)
+    clearTimeout(stalledTimer)
+  }
+  const settle = (): boolean => {
+    if (settled) return false
+    settled = true
+    clear()
+    return true
+  }
+
+  return {
+    succeed(extraContext = {}) {
+      if (!settle() || !slow) return
+      reportReviewDiagnostic('warning', `${eventPrefix}.recovered`, {
+        ...context,
+        ...extraContext,
+        durationMs: Math.round(performance.now() - startedAt),
+      })
+    },
+    fail() {
+      settle()
+    },
+    cancel() {
+      settle()
+    },
+  }
 }

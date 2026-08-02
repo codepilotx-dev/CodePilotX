@@ -10,7 +10,8 @@
     "packages/*"
   ],
   "trustedDependencies": [
-    "electron"
+    "electron",
+    "node-pty"
   ],
   "scripts": {
     "desktop:css:check": "bun run --cwd apps/desktop/renderer css:check",
@@ -38,6 +39,7 @@
     "test:plan": "bun scripts/test-plan-flow.ts",
     "test:plan:rpc": "bun scripts/test-plan-flow.ts --rpc",
     "test:plan:live": "bun scripts/test-plan-flow.ts --live",
+    "test:review-concurrency": "bun scripts/test-review-concurrency.ts",
     "build": "bun run scripts/build.ts",
     "package:win": "bun scripts/package-win.ts --x64",
     "version:check": "bun scripts/version-policy.ts version:check",

@@ -184,6 +184,7 @@ export class ConfigMigrationService {
   async run() {
     const legacy = this.repository.read()
     if (legacy.completed) {
+      await this.migratePortableDesktopRuntimeState()
       await this.migratePiProviderConfig()
       return
     }
@@ -280,11 +281,11 @@ export class ConfigMigrationService {
       })
       const verified = await this.config.read()
       if (verified.diagnostics.some((item) => item.severity === "error")) {
-        throw new Error("config.toml migration verification failed")
+        throw new Error("config.json migration verification failed")
       }
     }
     for (const project of legacy.projects) {
-      const projectFile = join(project.rootPath, ".codepilotx", "config.toml")
+      const projectFile = join(project.rootPath, ".codepilotx", "config.json")
       const projectRead = await this.config.read({
         includeLayers: true,
         cwd: project.rootPath,
@@ -340,7 +341,35 @@ export class ConfigMigrationService {
     if (migratedTooling && this.legacyToolingSettingsPath) {
       await rm(this.legacyToolingSettingsPath, { force: true })
     }
+    await this.migratePortableDesktopRuntimeState()
     await this.migratePiProviderConfig()
+  }
+
+  private async migratePortableDesktopRuntimeState() {
+    const read = await this.config.read({ includeLayers: true })
+    if (read.diagnostics.some((item) =>
+      item.scope === "user" && item.severity === "error")) return
+    const user = read.layers?.find((layer) => layer.kind === "user")
+    const desktop = isObject(user?.config.desktop)
+      ? user.config.desktop as Record<string, unknown>
+      : null
+    if (!desktop) return
+    const runtimeState = Object.fromEntries(
+      Object.entries(desktop).filter(([key]) =>
+        DESKTOP_RUNTIME_KEYS.has(key)
+        && !DEPRECATED_DESKTOP_RUNTIME_KEYS.has(key)),
+    )
+    const runtimeKeys = Object.keys(desktop).filter((key) =>
+      DESKTOP_RUNTIME_KEYS.has(key))
+    if (runtimeKeys.length === 0) return
+    this.repository.mergeDesktopRuntimeState(runtimeState)
+    await this.config.batchWrite({
+      edits: runtimeKeys.map((key) => ({
+        keyPath: ["desktop", key],
+        value: null,
+      })),
+      ...(user?.version ? { expectedVersion: user.version } : {}),
+    })
   }
 
   private async migratePiProviderConfig() {

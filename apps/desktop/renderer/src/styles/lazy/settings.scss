@@ -2,6 +2,7 @@
 
 @layer features {
   @include meta.load-css('../features/settings-core');
+  @include meta.load-css('../features/settings-config');
   @include meta.load-css('../features/settings-profile');
   @include meta.load-css('../features/settings-appearance');
   @include meta.load-css('../features/settings-connections');

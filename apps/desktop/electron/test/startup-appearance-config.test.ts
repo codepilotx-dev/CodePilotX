@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { tmpdir } from "node:os"
 import {
   DEFAULT_APPEARANCE_SETTINGS,
@@ -15,12 +15,70 @@ afterEach(async () => {
 })
 
 describe("startup appearance config", () => {
-  test("优先读取 config.toml 的 desktop.appearance", async () => {
+  test("Electron bundle 不保留 jsonc-parser 的未解析相对 require", async () => {
+    const result = await Bun.build({
+      entrypoints: [resolve(
+        import.meta.dir,
+        "../src/settings/startup-appearance-config.ts",
+      )],
+      format: "esm",
+      target: "node",
+    })
+    expect(result.success).toBe(true)
+    expect(result.outputs).toHaveLength(1)
+    const bundled = await result.outputs[0]!.text()
+    expect(bundled).not.toContain('require2("./impl/format")')
+  })
+
+  test("优先读取支持注释和尾逗号的 config.json", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-startup-theme-"))
     roots.push(root)
-    const configPath = join(root, "config.toml")
+    const configPath = join(root, "config.json")
+    const legacyConfigPath = join(root, "config.toml")
     const legacyPath = join(root, "appearance-settings.json")
     await writeFile(configPath, [
+      "{",
+      "  // JSONC 注释必须被接受",
+      '  "desktop": {',
+      '    "appearance": {',
+      '      "version": 6,',
+      '      "mode": "dark",',
+      '      "iconTheme": "system",',
+      '      "codeTheme": "system",',
+      '      "chromeTheme": "default",',
+      '      "pointerCursorEnabled": true,',
+      '      "fontSmoothingEnabled": true,',
+      "    },",
+      "  },",
+      "}",
+    ].join("\n"), "utf8")
+    await writeFile(legacyConfigPath, [
+      "[desktop.appearance]",
+      "version = 6",
+      'mode = "light"',
+    ].join("\n"), "utf8")
+    await writeFile(
+      legacyPath,
+      JSON.stringify({ ...DEFAULT_APPEARANCE_SETTINGS, mode: "light" }),
+      "utf8",
+    )
+    expect(await readStartupAppearanceConfig(
+      configPath,
+      legacyConfigPath,
+      legacyPath,
+    )).toMatchObject({
+      version: 6,
+      mode: "dark",
+    })
+  })
+
+  test("config.json 不存在时回退读取 config.toml", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-startup-theme-"))
+    roots.push(root)
+    const configPath = join(root, "config.json")
+    const legacyConfigPath = join(root, "config.toml")
+    const legacyPath = join(root, "appearance-settings.json")
+    await writeFile(legacyConfigPath, [
       "[desktop.appearance]",
       "version = 6",
       'mode = "dark"',
@@ -29,31 +87,43 @@ describe("startup appearance config", () => {
       'chromeTheme = "default"',
       "pointerCursorEnabled = true",
       "fontSmoothingEnabled = true",
-      "",
     ].join("\n"), "utf8")
     await writeFile(
       legacyPath,
       JSON.stringify({ ...DEFAULT_APPEARANCE_SETTINGS, mode: "light" }),
       "utf8",
     )
-    expect(await readStartupAppearanceConfig(configPath, legacyPath)).toMatchObject({
-      version: 6,
+    expect(await readStartupAppearanceConfig(
+      configPath,
+      legacyConfigPath,
+      legacyPath,
+    )).toMatchObject({
       mode: "dark",
     })
   })
 
-  test("无效或缺失 TOML 只读回退旧文件，不创建新旧设置文件", async () => {
+  test("config.json 已存在但无效时不回退 config.toml", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-startup-theme-"))
     roots.push(root)
-    const configPath = join(root, "config.toml")
+    const configPath = join(root, "config.json")
+    const legacyConfigPath = join(root, "config.toml")
     const legacyPath = join(root, "appearance-settings.json")
-    await writeFile(configPath, "desktop = [", "utf8")
+    await writeFile(configPath, '{"desktop":', "utf8")
+    await writeFile(legacyConfigPath, [
+      "[desktop.appearance]",
+      "version = 6",
+      'mode = "dark"',
+    ].join("\n"), "utf8")
     await writeFile(
       legacyPath,
       JSON.stringify({ ...DEFAULT_APPEARANCE_SETTINGS, mode: "light" }),
       "utf8",
     )
-    expect(await readStartupAppearanceConfig(configPath, legacyPath)).toMatchObject({
+    expect(await readStartupAppearanceConfig(
+      configPath,
+      legacyConfigPath,
+      legacyPath,
+    )).toMatchObject({
       mode: "light",
     })
   })

@@ -34,7 +34,6 @@ import type {
   ProtocolCapability,
   RpcParams,
   RpcResult,
-  ToolingStatus,
 } from '@codepilotx/agent-protocol'
 import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
@@ -64,18 +63,7 @@ import type {
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
   DesktopRuntimeStatus,
-  DesktopGithubAuthMode,
-  DesktopGithubAuthStatus,
-  DesktopGithubLoginStatus,
-  DesktopGithubProfileOverviewResult,
-  DesktopGithubRepositoryListResult,
-  DesktopGitStatus,
-  DesktopGitOperationResult,
   GenerateDesktopTaskSuggestionsInput,
-  DesktopInstalledSkill,
-  DesktopInstalledSkillDetails,
-  DesktopMcpServerListItem,
-  DesktopPullRequestResult,
   DesktopProjectSource,
   DesktopProjectSourceReadResult,
   DesktopSettingsChange,
@@ -124,6 +112,7 @@ const RENDERER_CAPABILITIES = [
   'pets.management.v1',
   'workspace.editor.v1',
   'git.review.v1',
+  'git.review.batch.v1',
   'git.workspace.v1',
   'ai.review.v1',
   'github.oauth.v1',
@@ -141,9 +130,17 @@ const RENDERER_CAPABILITIES = [
   'mcp.manage.v1',
   'mcp.oauth.v1',
   'config.manage.v1',
+  'config.profiles.v1',
   'task-suggestions.v1',
   'release-notes.read.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
+const CAPABILITY_ALIASES = {
+  prompt: 'prompt.preview.sensitive.v1',
+  memory: 'memory.v2',
+  compact: 'context.compact.v1',
+  hookTrust: 'hooks.trust.v1',
+} as const satisfies Record<string, ProtocolCapability>
+type AgentCapabilityName = keyof typeof CAPABILITY_ALIASES | ProtocolCapability
 const CURRENT_APP_VERSION =
   typeof __CODEPILOTX_VERSION__ === 'string'
     ? __CODEPILOTX_VERSION__
@@ -151,77 +148,14 @@ const CURRENT_APP_VERSION =
 type PendingInteraction =
   RpcResult<'interaction/listPending'>['interactions'][number]
 
-type AgentManagedSkill = RpcResult<'skill/list'>['skills'][number]
-
-function desktopInstalledSkill(skill: AgentManagedSkill): DesktopInstalledSkill {
-  return {
-    name: skill.name,
-    description: skill.description,
-    path: skill.path,
-    scope: skill.scope === 'workspace' ? 'repo' : 'user',
-    source: skill.scope,
-    format: skill.format,
-    enabled: skill.enabled,
-  }
-}
-
-function desktopMcpServer(
-  item: RpcResult<'mcp/list'>['servers'][number],
-): DesktopMcpServerListItem {
-  const server = item.server
-  const summary = server.transport.type === 'stdio'
-    ? [server.transport.command, ...(server.transport.args ?? [])].join(' ')
-    : server.transport.url
-  return {
-    name: server.name,
-    scope: server.scope,
-    type: server.transport.type,
-    summary,
-    enabled: server.enabled,
-    diagnosticContext: server.diagnosticContext ?? false,
-    effective: item.effective,
-    ...(item.shadowedByScope
-      ? { shadowedByScope: item.shadowedByScope }
-      : {}),
-    editable: true,
-    removable: true,
-    transport: server.transport,
-    ...(server.startupTimeoutMs
-      ? { startupTimeoutMs: server.startupTimeoutMs }
-      : {}),
-    ...(server.toolTimeoutMs
-      ? { toolTimeoutMs: server.toolTimeoutMs }
-      : {}),
-    ...(server.required !== undefined ? { required: server.required } : {}),
-    ...(server.enabledTools ? { enabledTools: [...server.enabledTools] } : {}),
-    ...(server.disabledTools ? { disabledTools: [...server.disabledTools] } : {}),
-    ...(server.defaultToolsApprovalMode
-      ? { defaultToolsApprovalMode: server.defaultToolsApprovalMode }
-      : {}),
-    ...(server.tools ? { tools: { ...server.tools } } : {}),
-  }
-}
 import {
-  browserVisualReviewFileDiff,
-  browserVisualReviewSummary,
-  githubLoginFailure,
-  isBrowserVisualReviewCase,
   mockThreadHistoryPage,
   permissionModeFromDesktopConfig,
 } from './fixtures.js'
 import { catalogProviderToDesktop } from './provider-adapters.js'
-import {
-  desktopGitStatus,
-  type ReviewAgentGitStatus,
-} from './review-client.js'
 import type {
   CodePilotXDesktopClient,
-  DesktopAgentEventEnvelopeApi,
-  DesktopAgentReviewApi,
   DesktopClientEnvironment,
-  DesktopReviewAgentComment,
-  DesktopReviewAgentFileDiff,
-  DesktopReviewAgentSummaryResult,
 } from './types.js'
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
@@ -254,8 +188,6 @@ export function createAgentSessionDesktopClient(
   let activeSessionId: string | null = null
   let agentReady = false
   let agentCapabilities = new Set<string>()
-  let activeGithubLoginId: string | null = null
-  let activeGithubLoginMode: DesktopGithubAuthMode = 'browser'
   let readyProbe: Promise<boolean> | null = null
   let readinessError: unknown = null
   let projectsByIdCache: Map<string, Project> | null = null
@@ -338,48 +270,15 @@ export function createAgentSessionDesktopClient(
   }
 
   function requireAgentCapability(
-    name:
-      | 'prompt'
-      | 'memory'
-      | 'compact'
-      | 'hookTrust'
-      | 'git.review.v1'
-      | 'git.workspace.v1'
-      | 'ai.review.v1'
-      | 'github.oauth.v1'
-      | 'github.pullRequests.v1'
-      | 'tooling.management.v1'
-      | 'pets.management.v1'
-      | 'skills.manage.v1'
-      | 'mcp.manage.v1'
-      | 'mcp.oauth.v1'
-      | 'config.manage.v1'
-      | 'task-suggestions.v1'
-      | 'release-notes.read.v1',
+    name: AgentCapabilityName,
     version = 1,
   ): void {
-    const capabilities: Record<typeof name, string> = {
-      prompt: 'prompt.preview.sensitive.v1',
-      memory: 'memory.v2',
-      compact: 'context.compact.v1',
-      hookTrust: 'hooks.trust.v1',
-      'git.review.v1': 'git.review.v1',
-      'git.workspace.v1': 'git.workspace.v1',
-      'ai.review.v1': 'ai.review.v1',
-      'github.oauth.v1': 'github.oauth.v1',
-      'github.pullRequests.v1': 'github.pullRequests.v1',
-      'tooling.management.v1': 'tooling.management.v1',
-      'pets.management.v1': 'pets.management.v1',
-      'skills.manage.v1': 'skills.manage.v1',
-      'mcp.manage.v1': 'mcp.manage.v1',
-      'mcp.oauth.v1': 'mcp.oauth.v1',
-      'config.manage.v1': 'config.manage.v1',
-      'task-suggestions.v1': 'task-suggestions.v1',
-      'release-notes.read.v1': 'release-notes.read.v1',
-    }
-    if (version <= 1 && agentCapabilities.has(capabilities[name])) return
+    const capability = name in CAPABILITY_ALIASES
+      ? CAPABILITY_ALIASES[name as keyof typeof CAPABILITY_ALIASES]
+      : name as ProtocolCapability
+    if (version <= 1 && agentCapabilities.has(capability)) return
     if (version === 2 && (name === 'prompt' || name === 'memory')) {
-      if (agentCapabilities.has(capabilities[name])) return
+      if (agentCapabilities.has(capability)) return
     }
     unsupportedAgentOperation(`${name} v${version}`)
   }
@@ -661,6 +560,20 @@ export function createAgentSessionDesktopClient(
     return projectsByIdCache
   }
 
+  type AgentProjectTrust = ReturnType<
+    (typeof import('./agent-project-trust.js'))['createAgentProjectTrust']
+  >
+  let agentProjectTrustPromise: Promise<AgentProjectTrust> | null = null
+
+  async function ensureDesktopProjectTrusted(project: Project): Promise<Project> {
+    requireAgentCapability('config.manage.v1')
+    const controller = await (agentProjectTrustPromise ??=
+      import('./agent-project-trust.js').then(module =>
+        module.createAgentProjectTrust({ rpc }),
+      ))
+    return controller.ensure(project)
+  }
+
   async function loadProjectForPath(rootPath: string): Promise<Project> {
     const listed = await rpc.call<{ projects: Project[] }>(
       'project/list',
@@ -680,7 +593,7 @@ export function createAgentSessionDesktopClient(
           operationId: crypto.randomUUID(),
         })
     projectsByIdCache = null
-    return response.project
+    return ensureDesktopProjectTrusted(response.project)
   }
 
   async function chooseProjectForPath(rootPath: string): Promise<Project | null> {
@@ -689,10 +602,11 @@ export function createAgentSessionDesktopClient(
       { folderPath: rootPath },
     )
     if (listed.projects.length === 0) {
-      return (await rpc.call<{ project: Project }>('project/create', {
+      const created = await rpc.call<{ project: Project }>('project/create', {
         primaryPath: rootPath,
         operationId: crypto.randomUUID(),
-      })).project
+      })
+      return ensureDesktopProjectTrusted(created.project)
     }
 
     const choices = listed.projects
@@ -706,29 +620,31 @@ export function createAgentSessionDesktopClient(
         )
     if (selection === null) return null
     if (selection.trim() === '0') {
-      return (await rpc.call<{ project: Project }>('project/create', {
+      const created = await rpc.call<{ project: Project }>('project/create', {
         primaryPath: rootPath,
         operationId: crypto.randomUUID(),
-      })).project
+      })
+      return ensureDesktopProjectTrusted(created.project)
     }
     const selectedIndex = Number(selection) - 1
     const selected = listed.projects[selectedIndex]
     if (!selected) throw new Error('项目选择无效。')
-    return (await rpc.call<{ project: Project }>('project/open', {
+    const opened = await rpc.call<{ project: Project }>('project/open', {
       projectId: selected.id,
       operationId: crypto.randomUUID(),
-    })).project
+    })
+    return ensureDesktopProjectTrusted(opened.project)
   }
 
   async function loadProjectById(projectId: string): Promise<Project> {
     const cached = (await loadProjectsById()).get(projectId)
-    if (cached) return cached
+    if (cached) return ensureDesktopProjectTrusted(cached)
     const response = await rpc.call<{ project: Project }>('project/open', {
       projectId,
       operationId: crypto.randomUUID(),
     })
     projectsByIdCache = new Map([[response.project.id, response.project]])
-    return response.project
+    return ensureDesktopProjectTrusted(response.project)
   }
 
   async function preparePullRequestReview(
@@ -1143,19 +1059,6 @@ export function createAgentSessionDesktopClient(
   const operationError = (error: unknown) =>
     error instanceof Error ? error.message : String(error)
 
-  const isToolingStatus = (value: unknown): value is ToolingStatus => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
-    const status = value as Partial<ToolingStatus>
-    return (
-      (status.id === 'nodejs' ||
-        status.id === 'python' ||
-        status.id === 'git-bash' ||
-        status.id === 'ripgrep') &&
-      (status.preference === 'managed' || status.preference === 'system') &&
-      typeof status.pinnedVersion === 'string'
-    )
-  }
-
   const cacheThreadListItem = async (
     rawThread: ThreadListItem,
   ): Promise<DesktopSessionSnapshot> => {
@@ -1171,6 +1074,111 @@ export function createAgentSessionDesktopClient(
     sessionSnapshots.set(thread.id, snapshot)
     emitSessionStoreChange()
     return snapshot
+  }
+
+  type AgentReviewApi = ReturnType<
+    (typeof import('./agent-review-api.js'))['createAgentReviewApi']
+  >
+  let agentReviewApiPromise: Promise<AgentReviewApi> | null = null
+  const loadAgentReviewApi = (): Promise<AgentReviewApi> => {
+    agentReviewApiPromise ??= import('./agent-review-api.js').then(module =>
+      module.createAgentReviewApi({
+        rpc,
+        loadProjectForPath,
+        preparePullRequestReview,
+        requireGithubPullRequestCapability: () =>
+          requireAgentCapability('github.pullRequests.v1'),
+        requireReviewCapability: () =>
+          requireAgentCapability('git.review.v1'),
+        unsupportedReviewOperation: () =>
+          unsupportedAgentOperation('git.review.v1'),
+        withAgentOrMock,
+      }),
+    )
+    return agentReviewApiPromise
+  }
+
+  type AgentGitApi = ReturnType<
+    (typeof import('./agent-git-api.js'))['createAgentGitApi']
+  >
+  let agentGitApiPromise: Promise<AgentGitApi> | null = null
+  const loadAgentGitApi = (): Promise<AgentGitApi> => {
+    agentGitApiPromise ??= import('./agent-git-api.js').then(module =>
+      module.createAgentGitApi({
+        environment,
+        invalidateProjectCache: () => {
+          projectsByIdCache = null
+        },
+        loadProjectForPath,
+        ensureDesktopProjectTrusted,
+        operationError,
+        requireAgentCapability,
+        rpc,
+        withRequiredAgent,
+      }),
+    )
+    return agentGitApiPromise
+  }
+
+  type AgentMcpApi = ReturnType<
+    (typeof import('./agent-mcp-api.js'))['createAgentMcpApi']
+  >
+  let agentMcpApiPromise: Promise<AgentMcpApi> | null = null
+  const loadAgentMcpApi = (): Promise<AgentMcpApi> => {
+    agentMcpApiPromise ??= import('./agent-mcp-api.js').then(module =>
+      module.createAgentMcpApi({
+        mockClient,
+        requireMcpManagementCapability: () =>
+          requireAgentCapability('mcp.manage.v1'),
+        requireMcpOAuthCapability: () =>
+          requireAgentCapability('mcp.oauth.v1'),
+        rpc,
+        withAgentOrMock,
+      }),
+    )
+    return agentMcpApiPromise
+  }
+
+  type AgentToolingApi = ReturnType<
+    (typeof import('./agent-tooling-api.js'))['createAgentToolingApi']
+  >
+  let agentToolingApiPromise: Promise<AgentToolingApi> | null = null
+  const loadAgentToolingApi = (): Promise<AgentToolingApi> => {
+    agentToolingApiPromise ??= import('./agent-tooling-api.js').then(module =>
+      module.createAgentToolingApi({
+        currentAppVersion: CURRENT_APP_VERSION,
+        mockClient,
+        requireAgentCapability,
+        rpc,
+        withAgentOrMock,
+        withRequiredAgent,
+      }),
+    )
+    return agentToolingApiPromise
+  }
+
+  type AgentProviderCredentialApi = ReturnType<
+    (typeof import('./agent-provider-credential-api.js'))['createAgentProviderCredentialApi']
+  >
+  let agentProviderCredentialApiPromise: Promise<AgentProviderCredentialApi> | null = null
+  const loadAgentProviderCredentialApi = (): Promise<AgentProviderCredentialApi> => {
+    agentProviderCredentialApiPromise ??= import(
+      './agent-provider-credential-api.js'
+    ).then(module =>
+      module.createAgentProviderCredentialApi({
+        invalidateModelCatalog,
+        loadProviderCredentials,
+        mockClient,
+        providerState,
+        requireAgentCapability,
+        rpc,
+        setProviderCredentialsCache: credentials => {
+          providerCredentialsCache = credentials
+        },
+        withAgentOrMock,
+      }),
+    )
+    return agentProviderCredentialApiPromise
   }
 
   const client: CodePilotXDesktopClient = {
@@ -1208,671 +1216,132 @@ export function createAgentSessionDesktopClient(
               .filter((path): path is string => typeof path === 'string'),
           )
         : mockClient.chooseDataLocation(),
-    listTooling: async () =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('tooling.management.v1')
-        return (await rpc.call('tooling/list', {})).statuses
-      }),
-    refreshTooling: async () =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('tooling.management.v1')
-        return (await rpc.call('tooling/refresh', {})).statuses
-      }),
-    setToolingPreference: async (id, preference) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('tooling.management.v1')
-        return (
-          await rpc.call('tooling/setPreference', {
-            id,
-            preference,
-            operationId: crypto.randomUUID(),
-          })
-        ).status
-      }),
-    installTooling: async (id, force = false) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('tooling.management.v1')
-        return (
-          await rpc.call('tooling/install', {
-            id,
-            force,
-            operationId: crypto.randomUUID(),
-          })
-        ).status
-      }),
+    listTooling: () =>
+      loadAgentToolingApi().then(api => api.listTooling()),
+    refreshTooling: () =>
+      loadAgentToolingApi().then(api => api.refreshTooling()),
+    setToolingPreference: (id, preference) =>
+      loadAgentToolingApi().then(api =>
+        api.setToolingPreference(id, preference),
+      ),
+    installTooling: (id, force = false) =>
+      loadAgentToolingApi().then(api => api.installTooling(id, force)),
     listRuntimeSkills: (workspacePath, options) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('skills.manage.v1')
-          const result = await rpc.call('skill/list', {
-            ...(workspacePath ? { workspace: workspacePath } : {}),
-            ...(options?.forceReload === undefined
-              ? {}
-              : { forceReload: options.forceReload }),
-          })
-          return {
-            state: 'ready' as const,
-            data: result.skills.map(desktopInstalledSkill),
-            updatedAt: new Date(result.updatedAt).toISOString(),
-          }
-        },
-        () => mockClient.listRuntimeSkills(workspacePath, options),
+      loadAgentToolingApi().then(api =>
+        api.listRuntimeSkills(workspacePath, options),
       ),
     readRuntimeSkill: (path, workspacePath) =>
-      withAgentOrMock(
-        async (): Promise<DesktopInstalledSkillDetails> => {
-          requireAgentCapability('skills.manage.v1')
-          const result = await rpc.call('skill/read', {
-            path,
-            ...(workspacePath ? { workspace: workspacePath } : {}),
-          })
-          return {
-            ...desktopInstalledSkill(result.skill),
-            content: result.content,
-          }
-        },
-        () => mockClient.readRuntimeSkill(path, workspacePath),
+      loadAgentToolingApi().then(api =>
+        api.readRuntimeSkill(path, workspacePath),
       ),
     setRuntimeSkillEnabled: (path, enabled) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('skills.manage.v1')
-          const result = await rpc.call('skill/setEnabled', {
-            path,
-            enabled,
-            operationId: crypto.randomUUID(),
-          })
-          return desktopInstalledSkill(result.skill)
-        },
-        () => mockClient.setRuntimeSkillEnabled(path, enabled),
+      loadAgentToolingApi().then(api =>
+        api.setRuntimeSkillEnabled(path, enabled),
       ),
-    onRuntimeSkillsUpdated: callback =>
-      rpc.subscribeEnvelope({
-        liveEventTypes: AGENT_LIVE_EVENT_FILTERS.skills,
-      }, event => {
-        if (event.type !== 'skill/updated') return
-        callback(event.payload.generation)
-      }),
-    onToolingUpdated: callback =>
-      rpc.subscribeEnvelope({
-        liveEventTypes: AGENT_LIVE_EVENT_FILTERS.tooling,
-      }, event => {
-        if (event.type !== 'tooling/updated') return
-        const payload = event.payload
-        if (!payload || typeof payload !== 'object') return
-        const status = (payload as { status?: unknown }).status
-        if (isToolingStatus(status)) callback(status)
-      }),
+    onRuntimeSkillsUpdated: callback => {
+      let disposed = false
+      let dispose = () => {}
+      void loadAgentToolingApi().then(api => {
+        if (disposed) return
+        dispose = api.onRuntimeSkillsUpdated(callback)
+      })
+      return () => {
+        disposed = true
+        dispose()
+      }
+    },
+    onToolingUpdated: callback => {
+      let disposed = false
+      let dispose = () => {}
+      void loadAgentToolingApi().then(api => {
+        if (disposed) return
+        dispose = api.onToolingUpdated(callback)
+      })
+      return () => {
+        disposed = true
+        dispose()
+      }
+    },
     listPets: () =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('pets.management.v1')
-        return (await rpc.call('pet/list', {})).pets
-      }),
+      loadAgentToolingApi().then(api => api.listPets()),
     listPetCatalog: (refresh = false) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('pets.management.v1')
-        return rpc.call('pet/catalog/list', { refresh })
-      }),
+      loadAgentToolingApi().then(api => api.listPetCatalog(refresh)),
     listReleaseNotes: (options = {}) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('release-notes.read.v1')
-          return (
-            await import('./release-notes-client.js')
-          ).listAgentReleaseNotes(
-            rpc,
-            CURRENT_APP_VERSION,
-            options.refresh,
-          )
-        },
-        async () => (
-          await import('./release-notes-client.js')
-        ).mockReleaseNotes(CURRENT_APP_VERSION),
-      ),
+      loadAgentToolingApi().then(api => api.listReleaseNotes(options)),
     installCatalogPet: (slug, acceptedRestrictedLicense = false) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('pets.management.v1')
-        return (
-          await rpc.call('pet/catalog/install', {
-            slug,
-            acceptedRestrictedLicense,
-            operationId: crypto.randomUUID(),
-          })
-        ).pet
-      }),
+      loadAgentToolingApi().then(api =>
+        api.installCatalogPet(slug, acceptedRestrictedLicense),
+      ),
     previewPetInstall: url =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('pets.management.v1')
-        return rpc.call('pet/install/preview', { url })
-      }),
+      loadAgentToolingApi().then(api => api.previewPetInstall(url)),
     installPet: url =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('pets.management.v1')
-        return (
-          await rpc.call('pet/install', {
-            url,
-            operationId: crypto.randomUUID(),
-          })
-        ).pet
-      }),
+      loadAgentToolingApi().then(api => api.installPet(url)),
     removePet: id =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('pets.management.v1')
-        await rpc.call('pet/remove', {
-          id,
-          operationId: crypto.randomUUID(),
-        })
-      }),
-    getGithubAuthStatus: async (): Promise<DesktopGithubAuthStatus> => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('github.oauth.v1')
-          return rpc.call<DesktopGithubAuthStatus>('github/auth/status')
-        })
-      } catch (error) {
-        return {
-          configured: false,
-          authenticated: false,
-          user: null,
-          error: operationError(error),
-        }
-      }
-    },
-    startGithubLogin: async input => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('github.oauth.v1')
-          const status = await rpc.call('github/auth/start', {
-            mode: input.mode,
-          })
-          activeGithubLoginId = status.loginId
-          activeGithubLoginMode = status.mode
-          return status
-        })
-      } catch (error) {
-        return githubLoginFailure(
-          operationError(error),
-          activeGithubLoginId,
-          input.mode,
-        )
-      }
-    },
-    pollGithubLogin: async () => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('github.oauth.v1')
-          if (!activeGithubLoginId) {
-            throw new Error('当前没有可轮询的 GitHub 登录请求，请重新开始登录。')
-          }
-          const status = await rpc.call('github/auth/poll', {
-            loginId: activeGithubLoginId,
-          })
-          if (status.state === 'completed' || status.state === 'failed') {
-            activeGithubLoginId = null
-          }
-          return status
-        })
-      } catch (error) {
-        return githubLoginFailure(
-          operationError(error),
-          activeGithubLoginId,
-          activeGithubLoginMode,
-        )
-      }
-    },
-    logoutGithub: async (): Promise<DesktopGithubAuthStatus> => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('github.oauth.v1')
-          const status = await rpc.call<DesktopGithubAuthStatus>('github/auth/logout')
-          activeGithubLoginId = null
-          return status
-        })
-      } catch (error) {
-        return {
-          configured: false,
-          authenticated: false,
-          user: null,
-          error: operationError(error),
-        }
-      }
-    },
-    listGithubRepositories: async (): Promise<DesktopGithubRepositoryListResult> => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('github.oauth.v1')
-          const result = await rpc.call<{
-            repositories: Extract<DesktopGithubRepositoryListResult, { ok: true }>['repositories']
-          }>('github/repositories')
-          return { ok: true, repositories: result.repositories }
-        })
-      } catch (error) {
-        return { ok: false, error: operationError(error) }
-      }
-    },
-    cloneGithubRepository: async input => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('github.oauth.v1')
-          const picker =
-            environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
-          if (!picker) {
-            throw new Error('当前桌面环境不支持选择克隆目录。')
-          }
-          const targetParent = await picker()
-          if (!targetParent) {
-            return { ok: false as const, error: '已取消选择克隆目录。' }
-          }
-          const result = await rpc.call('github/repository/clone', {
-            repositoryId: input.repository.id,
-            targetParent,
-          })
-          projectsByIdCache = null
-          let branchName: string | null = null
-          try {
-            requireAgentCapability('git.review.v1')
-            const status = await rpc.call('review/status', {
-              projectId: result.project.id,
-            })
-            branchName = status.status.branchName
-          } catch {
-            // 克隆与项目注册已经成功，状态补充失败不应把成功结果伪装成失败。
-          }
-          return {
-            ok: true as const,
-            workspace: {
-              ...projectToDesktopWorkspace(result.project, result.project.id),
-              branchName,
-            },
-          }
-        })
-      } catch (error) {
-        return { ok: false as const, error: operationError(error) }
-      }
-    },
-    getGithubProfileOverview: async (): Promise<DesktopGithubProfileOverviewResult> => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('github.oauth.v1')
-          const result = await rpc.call<{
-            overview: Extract<DesktopGithubProfileOverviewResult, { ok: true }>['overview']
-          }>('github/profileOverview')
-          return { ok: true, overview: result.overview }
-        })
-      } catch (error) {
-        return { ok: false, error: operationError(error) }
-      }
-    },
-    setGithubUserStatus: async () => ({
-      ok: false,
-      error: 'GitHub 用户状态编辑尚未接入 Agent。',
-    }),
-    clearGithubUserStatus: async () => ({
-      ok: false,
-      error: 'GitHub 用户状态编辑尚未接入 Agent。',
-    }),
-    pushWorkspaceBranch: async input => {
-      try {
-        return await withRequiredAgent(async (): Promise<DesktopGitOperationResult> => {
-          requireAgentCapability('github.pullRequests.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          const result = await rpc.call<{
-            repositoryUrl: string
-            status: Extract<DesktopGitOperationResult, { ok: true }>['status']
-          }>('github/push', {
-            projectId: project.id,
-            setUpstream: input.setUpstream === true,
-            forceWithLease: input.forceWithLease === true,
-          })
-          return {
-            ok: true,
-            status: result.status,
-            output: `已推送到 ${result.repositoryUrl}`,
-          }
-        })
-      } catch (error) {
-        return { ok: false, error: operationError(error) }
-      }
-    },
-    createPullRequest: async input => {
-      try {
-        return await withRequiredAgent(async (): Promise<DesktopPullRequestResult> => {
-          requireAgentCapability('github.pullRequests.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          const result = await rpc.call<{
-            pullRequest: { htmlUrl: string; number: number }
-          }>('github/pullRequest/createForProject', {
-            projectId: project.id,
-            title: input.title,
-            ...(input.body === undefined ? {} : { body: input.body }),
-            ...(input.draft === undefined ? {} : { draft: input.draft }),
-          })
-          return {
-            ok: true,
-            url: result.pullRequest.htmlUrl,
-            output: `已创建 Pull Request #${result.pullRequest.number}`,
-          }
-        })
-      } catch (error) {
-        return { ok: false, error: operationError(error) }
-      }
-    },
-    getWorkspaceGitStatus: async workspacePath => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(workspacePath)
-          const result = await rpc.call<{
-            status: ReviewAgentGitStatus
-          }>('review/status', { projectId: project.id })
-          return { ok: true as const, status: desktopGitStatus(result.status) }
-        })
-      } catch (error) {
-        return { ok: false as const, error: operationError(error) }
-      }
-    },
-    checkoutWorkspaceBranch: async (workspacePath, branchName) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('git.workspace.v1')
-        const project = await loadProjectForPath(workspacePath)
-        const result = await rpc.call('git/branch/checkout', {
-          projectId: project.id,
-          branchName,
-        })
-        projectsByIdCache = null
-        return {
-          ...projectToDesktopWorkspace(result.project, result.project.id),
-          branchName: result.status.branchName,
-        }
-      }),
-    createWorkspaceBranch: async input => {
-      try {
-        return await withRequiredAgent(async () => {
-          requireAgentCapability('git.workspace.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          const result = await rpc.call('git/branch/create', {
-            projectId: project.id,
-            branchName: input.branchName,
-            ...(input.startPoint === undefined
-              ? {}
-              : { startPoint: input.startPoint }),
-          })
-          projectsByIdCache = null
-          return {
-            ok: true as const,
-            workspace: {
-              ...projectToDesktopWorkspace(result.project, result.project.id),
-              branchName: result.status.branchName,
-            },
-            status: desktopGitStatus(result.status),
-          }
-        })
-      } catch (error) {
-        return { ok: false as const, error: operationError(error) }
-      }
-    },
-    commitWorkspaceChanges: async input => {
-      try {
-        return await withRequiredAgent(async (): Promise<DesktopGitOperationResult> => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          const result = await rpc.call<{
-            output: string
-            status: ReviewAgentGitStatus
-          }>('review/commit', {
-            projectId: project.id,
-            message: input.message,
-            paths: input.paths,
-          })
-          return {
-            ok: true,
-            status: desktopGitStatus(result.status),
-            output: result.output,
-          }
-        })
-      } catch (error) {
-        return { ok: false, error: operationError(error) }
-      }
-    },
-    getAgentReviewSummary: input => {
-      const visualFixture = browserVisualReviewSummary(input.source)
-      if (visualFixture) return Promise.resolve(visualFixture)
-      return withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          await preparePullRequestReview(
-            project.id,
-            input.source,
-            input.refresh === true,
-          )
-          return rpc.call<DesktopReviewAgentSummaryResult>(
-            input.refresh ? 'review/refresh' : 'review/summary',
-            { projectId: project.id, source: input.source },
-          )
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
-      )
-    },
-    getAgentReviewFileDiff: input => {
-      const visualFixture = browserVisualReviewFileDiff(input.source, input.path)
-      if (visualFixture) return Promise.resolve(visualFixture)
-      return withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          return rpc.call<DesktopReviewAgentFileDiff>('review/fileDiff', {
-            projectId: project.id,
-            source: input.source,
-            generation: input.generation,
-            path: input.path,
-            hideWhitespace: input.hideWhitespace,
-          })
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
-      )
-    },
+      loadAgentToolingApi().then(api => api.removePet(id)),
+    getGithubAuthStatus: () =>
+      loadAgentGitApi().then(api => api.getGithubAuthStatus()),
+    startGithubLogin: input =>
+      loadAgentGitApi().then(api => api.startGithubLogin(input)),
+    pollGithubLogin: () =>
+      loadAgentGitApi().then(api => api.pollGithubLogin()),
+    logoutGithub: () =>
+      loadAgentGitApi().then(api => api.logoutGithub()),
+    listGithubRepositories: () =>
+      loadAgentGitApi().then(api => api.listGithubRepositories()),
+    cloneGithubRepository: input =>
+      loadAgentGitApi().then(api => api.cloneGithubRepository(input)),
+    getGithubProfileOverview: () =>
+      loadAgentGitApi().then(api => api.getGithubProfileOverview()),
+    setGithubUserStatus: input =>
+      loadAgentGitApi().then(api => api.setGithubUserStatus(input)),
+    clearGithubUserStatus: () =>
+      loadAgentGitApi().then(api => api.clearGithubUserStatus()),
+    pushWorkspaceBranch: input =>
+      loadAgentGitApi().then(api => api.pushWorkspaceBranch(input)),
+    createPullRequest: input =>
+      loadAgentGitApi().then(api => api.createPullRequest(input)),
+    getWorkspaceGitStatus: workspacePath =>
+      loadAgentGitApi().then(api => api.getWorkspaceGitStatus(workspacePath)),
+    checkoutWorkspaceBranch: (workspacePath, branchName) =>
+      loadAgentGitApi().then(api =>
+        api.checkoutWorkspaceBranch(workspacePath, branchName),
+      ),
+    createWorkspaceBranch: input =>
+      loadAgentGitApi().then(api => api.createWorkspaceBranch(input)),
+    commitWorkspaceChanges: input =>
+      loadAgentGitApi().then(api => api.commitWorkspaceChanges(input)),
+    getAgentReviewSummary: input =>
+      loadAgentReviewApi().then(api => api.getAgentReviewSummary(input)),
+    getAgentReviewFileDiff: input =>
+      loadAgentReviewApi().then(api => api.getAgentReviewFileDiff(input)),
+    getAgentReviewFileDiffs: input =>
+      loadAgentReviewApi().then(api => api.getAgentReviewFileDiffs(input)),
     applyAgentReviewOperation: input =>
-      isBrowserVisualReviewCase()
-        ? Promise.resolve()
-        : withAgentOrMock(
-            async () => {
-              requireAgentCapability('git.review.v1')
-              const project = await loadProjectForPath(input.workspacePath)
-              await rpc.call('review/apply', {
-                projectId: project.id,
-                source: input.source,
-                generation: input.generation,
-                expectedRevision: input.expectedRevision,
-                action: input.action,
-                target: input.target,
-                atomic: true,
-              })
-            },
-            async () => unsupportedAgentOperation('git.review.v1'),
-          ),
+      loadAgentReviewApi().then(api => api.applyAgentReviewOperation(input)),
     applyAgentReviewBatch: input =>
-      isBrowserVisualReviewCase()
-        ? Promise.resolve({
-            ok: true as const,
-            action: input.action,
-            paths: input.items.map(item => item.path),
-            generation: input.generation,
-            appliedCount: input.items.length,
-          })
-        : withAgentOrMock(
-            async () => {
-              requireAgentCapability('git.review.v1')
-              const project = await loadProjectForPath(input.workspacePath)
-              return rpc.call('review/applyBatch', {
-                projectId: project.id,
-                source: input.source,
-                generation: input.generation,
-                action: input.action,
-                items: input.items,
-              })
-            },
-            async () => unsupportedAgentOperation('git.review.v1'),
-          ),
+      loadAgentReviewApi().then(api => api.applyAgentReviewBatch(input)),
     getAgentReviewBranches: workspacePath =>
-      isBrowserVisualReviewCase()
-        ? Promise.resolve([])
-        : withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(workspacePath)
-          const result = await rpc.call<{
-            branches: Array<{
-              name: string
-              sha: string
-              current: boolean
-              remote: boolean
-            }>
-          }>('review/branches', { projectId: project.id })
-          return result.branches
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
+      loadAgentReviewApi().then(api =>
+        api.getAgentReviewBranches(workspacePath),
       ),
     getAgentReviewCommits: workspacePath =>
-      isBrowserVisualReviewCase()
-        ? Promise.resolve([])
-        : withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(workspacePath)
-          const result = await rpc.call<{
-            commits: Array<{
-              sha: string
-              shortSha: string
-              subject: string
-              author: string
-              authoredAt: string
-            }>
-          }>('review/commits', { projectId: project.id, limit: 20 })
-          return result.commits
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
+      loadAgentReviewApi().then(api =>
+        api.getAgentReviewCommits(workspacePath),
       ),
     listAgentReviewComments: input =>
-      isBrowserVisualReviewCase()
-        ? Promise.resolve([])
-        : withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          const result = await rpc.call<{
-            comments: DesktopReviewAgentComment[]
-          }>('review/comment/list', {
-            projectId: project.id,
-            threadId: input.threadId,
-            sourceKey: input.sourceKey,
-          })
-          return result.comments
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
-      ),
+      loadAgentReviewApi().then(api => api.listAgentReviewComments(input)),
     saveAgentReviewComment: input =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          const result = await rpc.call<{
-            comment: DesktopReviewAgentComment
-          }>('review/comment/save', {
-            ...(input.id ? { id: input.id } : {}),
-            projectId: project.id,
-            threadId: input.threadId,
-            sourceKey: input.sourceKey,
-            path: input.path,
-            side: input.side,
-            line: input.line,
-            hunkId: input.hunkId,
-            revision: input.revision,
-            body: input.body,
-            ...(input.githubCommentId
-              ? { githubCommentId: input.githubCommentId }
-              : {}),
-            ...(input.githubThreadId
-              ? { githubThreadId: input.githubThreadId }
-              : {}),
-          })
-          return result.comment
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
-      ),
+      loadAgentReviewApi().then(api => api.saveAgentReviewComment(input)),
     resolveAgentReviewComment: input =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          const result = await rpc.call<{
-            comment: DesktopReviewAgentComment
-          }>('review/comment/resolve', {
-            projectId: project.id,
-            threadId: input.threadId,
-            id: input.id,
-          })
-          return result.comment
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
-      ),
+      loadAgentReviewApi().then(api => api.resolveAgentReviewComment(input)),
     deleteAgentReviewComment: input =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(input.workspacePath)
-          await rpc.call('review/comment/delete', {
-            projectId: project.id,
-            threadId: input.threadId,
-            id: input.id,
-          })
-        },
-        async () => unsupportedAgentOperation('git.review.v1'),
-      ),
+      loadAgentReviewApi().then(api => api.deleteAgentReviewComment(input)),
     publishAgentGithubReviewComment: input =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('github.pullRequests.v1')
-          const result = await rpc.call<{
-            comment: {
-              id: number
-              nodeId: string
-              htmlUrl: string
-              body: string
-            }
-          }>('github/pullRequest/comment', {
-            owner: input.source.owner,
-            repository: input.source.repository,
-            number: input.source.number,
-            body: input.body,
-            path: input.path,
-            side: input.side,
-            line: input.line,
-            expectedHeadRevision: input.expectedHeadRevision,
-            ...(input.commitId ? { commitId: input.commitId } : {}),
-          })
-          return result.comment
-        },
-        async () => unsupportedAgentOperation('github.pullRequests.v1'),
+      loadAgentReviewApi().then(api =>
+        api.publishAgentGithubReviewComment(input),
       ),
     submitAgentGithubReview: input =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('github.pullRequests.v1')
-          const result = await rpc.call<{
-            review: { id: number; state: string; htmlUrl: string }
-          }>('github/pullRequest/submitReview', {
-            owner: input.source.owner,
-            repository: input.source.repository,
-            number: input.source.number,
-            event: input.event,
-            expectedHeadRevision: input.expectedHeadRevision,
-            ...(input.body ? { body: input.body } : {}),
-          })
-          return result.review
-        },
-        async () => unsupportedAgentOperation('github.pullRequests.v1'),
-      ),
+      loadAgentReviewApi().then(api => api.submitAgentGithubReview(input)),
     listExternalOpenTargets: async targetPath => {
       const listTargets =
         environment.window?.codePilotXDesktop?.listExternalOpenTargets
@@ -1941,169 +1410,30 @@ export function createAgentSessionDesktopClient(
       return mockClient.revealPathInFolder(targetPath)
     },
     listMcpServers: workspacePath =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.manage.v1')
-          const result = await rpc.call<RpcResult<'mcp/list'>>(
-            'mcp/list',
-            workspacePath ? { workspace: workspacePath } : {},
-          )
-          return result.servers.map(desktopMcpServer)
-        },
-        () => mockClient.listMcpServers(workspacePath),
-      ),
+      loadAgentMcpApi().then(api => api.listMcpServers(workspacePath)),
     getMcpRuntimeStatus: workspacePath =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.manage.v1')
-          return rpc.call<RpcResult<'mcp/status'>>(
-            'mcp/status',
-            workspacePath ? { workspace: workspacePath } : {},
-          )
-        },
-        () => mockClient.getMcpRuntimeStatus(workspacePath),
-      ),
+      loadAgentMcpApi().then(api => api.getMcpRuntimeStatus(workspacePath)),
     saveMcpServer: options =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.manage.v1')
-          const result = await rpc.call<RpcResult<'mcp/save'>>(
-            'mcp/save',
-            {
-              operationId: crypto.randomUUID(),
-              server: {
-                name: options.name,
-                scope: options.scope,
-                enabled: options.enabled,
-                ...(options.diagnosticContext
-                  ? { diagnosticContext: true }
-                  : {}),
-                transport: options.transport,
-                ...(options.startupTimeoutMs
-                  ? { startupTimeoutMs: options.startupTimeoutMs }
-                  : {}),
-                ...(options.toolTimeoutMs
-                  ? { toolTimeoutMs: options.toolTimeoutMs }
-                  : {}),
-                ...(options.required !== undefined
-                  ? { required: options.required }
-                  : {}),
-                ...(options.enabledTools?.length
-                  ? { enabledTools: options.enabledTools }
-                  : {}),
-                ...(options.disabledTools?.length
-                  ? { disabledTools: options.disabledTools }
-                  : {}),
-                ...(options.defaultToolsApprovalMode
-                  ? { defaultToolsApprovalMode: options.defaultToolsApprovalMode }
-                  : {}),
-                ...(options.tools && Object.keys(options.tools).length
-                  ? { tools: options.tools }
-                  : {}),
-              },
-              ...(options.originalName
-                ? { originalName: options.originalName }
-                : {}),
-              ...(options.workspacePath
-                ? { workspace: options.workspacePath }
-                : {}),
-            },
-          )
-          return result.servers.map(desktopMcpServer)
-        },
-        () => mockClient.saveMcpServer(options),
-      ),
+      loadAgentMcpApi().then(api => api.saveMcpServer(options)),
     removeMcpServer: (name, scope, workspacePath) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.manage.v1')
-          const result = await rpc.call<RpcResult<'mcp/remove'>>(
-            'mcp/remove',
-            {
-              name,
-              scope,
-              operationId: crypto.randomUUID(),
-              ...(workspacePath ? { workspace: workspacePath } : {}),
-            },
-          )
-          return result.servers.map(desktopMcpServer)
-        },
-        () => mockClient.removeMcpServer(name, scope, workspacePath),
+      loadAgentMcpApi().then(api =>
+        api.removeMcpServer(name, scope, workspacePath),
       ),
     setMcpServerEnabled: (name, scope, enabled, workspacePath) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.manage.v1')
-          const result = await rpc.call<RpcResult<'mcp/setEnabled'>>(
-            'mcp/setEnabled',
-            {
-              name,
-              scope,
-              enabled,
-              operationId: crypto.randomUUID(),
-              ...(workspacePath ? { workspace: workspacePath } : {}),
-            },
-          )
-          return result.servers.map(desktopMcpServer)
-        },
-        () => mockClient.setMcpServerEnabled(name, scope, enabled, workspacePath),
+      loadAgentMcpApi().then(api =>
+        api.setMcpServerEnabled(name, scope, enabled, workspacePath),
       ),
     reloadMcpConfiguration: workspacePath =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.manage.v1')
-          return rpc.call<RpcResult<'mcp/reload'>>(
-            'mcp/reload',
-            {
-              operationId: crypto.randomUUID(),
-              ...(workspacePath ? { workspace: workspacePath } : {}),
-            },
-          )
-        },
-        () => mockClient.reloadMcpConfiguration(workspacePath),
-      ),
+      loadAgentMcpApi().then(api => api.reloadMcpConfiguration(workspacePath)),
     startMcpOAuth: (name, scope, workspacePath) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.oauth.v1')
-          return rpc.call<RpcResult<'mcp/oauth/start'>>(
-            'mcp/oauth/start',
-            {
-              name,
-              scope,
-              operationId: crypto.randomUUID(),
-              ...(workspacePath ? { workspace: workspacePath } : {}),
-            },
-          )
-        },
-        () => mockClient.startMcpOAuth(name, scope, workspacePath),
+      loadAgentMcpApi().then(api =>
+        api.startMcpOAuth(name, scope, workspacePath),
       ),
     getMcpOAuthStatus: attemptId =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.oauth.v1')
-          return rpc.call<RpcResult<'mcp/oauth/status'>>(
-            'mcp/oauth/status',
-            { attemptId },
-          )
-        },
-        () => mockClient.getMcpOAuthStatus(attemptId),
-      ),
+      loadAgentMcpApi().then(api => api.getMcpOAuthStatus(attemptId)),
     logoutMcpOAuth: (name, scope, workspacePath) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('mcp.oauth.v1')
-          return rpc.call<RpcResult<'mcp/oauth/logout'>>(
-            'mcp/oauth/logout',
-            {
-              name,
-              scope,
-              operationId: crypto.randomUUID(),
-              ...(workspacePath ? { workspace: workspacePath } : {}),
-            },
-          )
-        },
-        () => mockClient.logoutMcpOAuth(name, scope, workspacePath),
+      loadAgentMcpApi().then(api =>
+        api.logoutMcpOAuth(name, scope, workspacePath),
       ),
     restoreSessionTurnChanges: input =>
       withUnsupportedAgentFallback(
@@ -2159,7 +1489,8 @@ export function createAgentSessionDesktopClient(
             operationId: crypto.randomUUID(),
           })
           projectsByIdCache = null
-          return projectToDesktopWorkspace(result.project, projectId)
+          const project = await ensureDesktopProjectTrusted(result.project)
+          return projectToDesktopWorkspace(project, projectId)
         },
         () => mockClient.addProjectFolder(projectId, path),
       ),
@@ -2433,21 +1764,21 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.writeConfigBatch(params),
       ),
-    readProjectTrust: cwd =>
+    listConfigProfiles: () =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('config.manage.v1')
-          return rpc.call('project/trust/read', { cwd })
+          requireAgentCapability('config.profiles.v1')
+          return rpc.call('config/profile/list', {})
         },
-        () => mockClient.readProjectTrust(cwd),
+        () => mockClient.listConfigProfiles(),
       ),
-    updateProjectTrust: params =>
+    selectConfigProfile: profileId =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('config.manage.v1')
-          return rpc.call('project/trust/update', params)
+          requireAgentCapability('config.profiles.v1')
+          return rpc.call('config/profile/select', { profileId })
         },
-        () => mockClient.updateProjectTrust(params),
+        () => mockClient.selectConfigProfile(profileId),
       ),
     getDesktopSettings: async () => {
       const getter =
@@ -2718,147 +2049,47 @@ export function createAgentSessionDesktopClient(
       invalidateModelCatalog()
       return providerState(options.providerID)
     },
-    saveProviderApiKey: async (providerID, apiKey) => {
-      await rpc.call('provider/apiKey/create', {
-        providerId: providerID as RpcParams<'provider/apiKey/create'>['providerId'],
-        label: '默认密钥',
-        key: apiKey,
-        operationId: crypto.randomUUID(),
-      })
-      providerCredentialsCache = null
-      invalidateModelCatalog()
-      return providerState(providerID)
-    },
-    deleteProviderApiKey: async providerID => {
-      const credentials = (await loadProviderCredentials(true)).filter(
-        credential =>
-          credential.providerId === providerID
-          && credential.kind === 'api-key',
-      )
-      if (credentials.length === 0) {
-        throw new Error('当前 Provider 没有可删除的应用内 API 密钥。')
-      }
-      for (const credential of credentials) {
-        await rpc.call('provider/credential/delete', {
-          credentialId: credential.id,
-          operationId: crypto.randomUUID(),
-        })
-      }
-      providerCredentialsCache = null
-      invalidateModelCatalog()
-      return providerState(providerID)
-    },
+    saveProviderApiKey: (providerID, apiKey) =>
+      loadAgentProviderCredentialApi().then(api =>
+        api.saveProviderApiKey(providerID, apiKey),
+      ),
+    deleteProviderApiKey: providerID =>
+      loadAgentProviderCredentialApi().then(api =>
+        api.deleteProviderApiKey(providerID),
+      ),
     listProviderCredentials: providerId =>
-      withAgentOrMock(
-        async () => {
-          const result = await rpc.call(
-            'provider/credential/list',
-            providerId
-              ? {
-                  providerId: providerId as RpcParams<'provider/credential/list'>['providerId'],
-                }
-              : {},
-          )
-          if (!providerId) providerCredentialsCache = [...result.credentials]
-          return [...result.credentials]
-        },
-        () => mockClient.listProviderCredentials(providerId),
+      loadAgentProviderCredentialApi().then(api =>
+        api.listProviderCredentials(providerId),
+      ),
+    readProviderCredentialStore: () =>
+      loadAgentProviderCredentialApi().then(api =>
+        api.readProviderCredentialStore(),
+      ),
+    updateProviderCredentialStore: store =>
+      loadAgentProviderCredentialApi().then(api =>
+        api.updateProviderCredentialStore(store),
       ),
     createApiKey: input =>
-      withAgentOrMock(
-        async () => {
-          const result = await rpc.call('provider/apiKey/create', {
-            ...input,
-            providerId: input.providerId as RpcParams<'provider/apiKey/create'>['providerId'],
-            operationId: crypto.randomUUID(),
-          })
-          providerCredentialsCache = null
-          invalidateModelCatalog()
-          return result.credential
-        },
-        () => mockClient.createApiKey(input),
-      ),
+      loadAgentProviderCredentialApi().then(api => api.createApiKey(input)),
     updateApiKey: input =>
-      withAgentOrMock(
-        async () => {
-          const result = await rpc.call('provider/apiKey/update', {
-            ...input,
-            credentialId: input.credentialId as RpcParams<'provider/apiKey/update'>['credentialId'],
-            operationId: crypto.randomUUID(),
-          })
-          providerCredentialsCache = null
-          invalidateModelCatalog()
-          return result.credential
-        },
-        () => mockClient.updateApiKey(input),
-      ),
+      loadAgentProviderCredentialApi().then(api => api.updateApiKey(input)),
     setActiveProviderCredential: (providerId, credentialId) =>
-      withAgentOrMock(
-        async () => {
-          const result = await rpc.call('provider/credential/setActive', {
-            providerId: providerId as RpcParams<'provider/credential/setActive'>['providerId'],
-            credentialId: credentialId as RpcParams<'provider/credential/setActive'>['credentialId'],
-            operationId: crypto.randomUUID(),
-          })
-          providerCredentialsCache = null
-          invalidateModelCatalog()
-          return result.credential
-        },
-        () => mockClient.setActiveProviderCredential(providerId, credentialId),
+      loadAgentProviderCredentialApi().then(api =>
+        api.setActiveProviderCredential(providerId, credentialId),
       ),
     setProviderCredentialEnabled: (credentialId, enabled) =>
-      withAgentOrMock(
-        async () => {
-          const result = await rpc.call('provider/credential/setEnabled', {
-            credentialId: credentialId as RpcParams<'provider/credential/setEnabled'>['credentialId'],
-            enabled,
-            operationId: crypto.randomUUID(),
-          })
-          providerCredentialsCache = null
-          invalidateModelCatalog()
-          return result.credential
-        },
-        () => mockClient.setProviderCredentialEnabled(credentialId, enabled),
+      loadAgentProviderCredentialApi().then(api =>
+        api.setProviderCredentialEnabled(credentialId, enabled),
       ),
     reorderApiKeys: (providerId, orderedCredentialIds) =>
-      withAgentOrMock(
-        async () => {
-          const result = await rpc.call('provider/apiKey/reorder', {
-            providerId: providerId as RpcParams<'provider/apiKey/reorder'>['providerId'],
-            orderedCredentialIds:
-              orderedCredentialIds as unknown as RpcParams<'provider/apiKey/reorder'>['orderedCredentialIds'],
-            operationId: crypto.randomUUID(),
-          })
-          providerCredentialsCache = null
-          return [...result.credentials]
-        },
-        () => mockClient.reorderApiKeys(providerId, orderedCredentialIds),
+      loadAgentProviderCredentialApi().then(api =>
+        api.reorderApiKeys(providerId, orderedCredentialIds),
       ),
     testApiKey: credentialId =>
-      withAgentOrMock(
-        async () => {
-          const result = await rpc.call('provider/apiKey/test', {
-            credentialId: credentialId as RpcParams<'provider/apiKey/test'>['credentialId'],
-          })
-          return {
-            ok: result.ok,
-            message: result.message,
-          }
-        },
-        () => mockClient.testApiKey(credentialId),
-      ),
+      loadAgentProviderCredentialApi().then(api => api.testApiKey(credentialId)),
     deleteProviderCredential: credentialId =>
-      withAgentOrMock(
-        async () => {
-          const result = await rpc.call('provider/credential/delete', {
-            credentialId: credentialId as RpcParams<'provider/credential/delete'>['credentialId'],
-            operationId: crypto.randomUUID(),
-          })
-          providerCredentialsCache = null
-          invalidateModelCatalog()
-          return [...result.credentials]
-        },
-        () => mockClient.deleteProviderCredential(credentialId),
+      loadAgentProviderCredentialApi().then(api =>
+        api.deleteProviderCredential(credentialId),
       ),
     copyProviderApiKey: credentialId => {
       const copy = environment.window?.codePilotXDesktop?.copyProviderApiKey
@@ -3403,13 +2634,21 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.interruptSession(sessionId),
       ),
+    applyThreadPatch: params => withRequiredAgent(() =>
+        rpc.call('thread/patch/apply', {
+          ...params,
+          operationId: crypto.randomUUID(),
+        }),
+      ),
     readThreadHistoryPage: params =>
       withAgentOrMock(
         () => rpc.call('thread/history/read', params),
         async () => mockThreadHistoryPage(
           await mockClient.getSession(params.threadId),
         ),
-      ),
+    ),
+    readThreadPatchDiff: params =>
+      withRequiredAgent(() => rpc.call('thread/patch/diff', params)),
     subscribeAgentEventEnvelopes: (options, callback) => {
       const makeEventSource = eventSourceFactory()
       if (!makeEventSource) return noop
@@ -3438,15 +2677,15 @@ export function createAgentSessionDesktopClient(
           invalidateModelCatalog()
           notifyModelProviderChanged()
         }
-        if (
-          notificationMethod === 'config/updated' &&
-          typeof window !== 'undefined'
-        ) {
-          window.dispatchEvent(
-            new CustomEvent(CONFIG_UPDATED_EVENT, {
-              detail: notification.params,
-            }),
-          )
+        if (notificationMethod === 'config/updated') {
+          void agentProjectTrustPromise?.then(controller => controller.clear())
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent(CONFIG_UPDATED_EVENT, {
+                detail: notification.params,
+              }),
+            )
+          }
         }
         if (
           notificationMethod === 'workspace/file/changed' &&
@@ -3479,11 +2718,17 @@ export function createAgentSessionDesktopClient(
           notification.params && typeof notification.params === 'object'
             ? notification.params
             : null
+        const changedThreadId = typeof params?.threadId === 'string'
+          ? params.threadId
+          : notificationMethod === 'thread/forked' && typeof params?.targetThreadId === 'string'
+            ? params.targetThreadId
+            : null
         if (
-          typeof params?.threadId === 'string' &&
+          changedThreadId &&
           [
             'thread/snapshot',
             'thread/updated',
+            'thread/forked',
             'thread/settings/updated',
             'turn/queued',
             'queue/updated',
@@ -3498,7 +2743,7 @@ export function createAgentSessionDesktopClient(
             'question/requested',
           ].includes(notificationMethod)
         ) {
-          scheduleSessionRefresh(params.threadId)
+          scheduleSessionRefresh(changedThreadId)
         }
       })
     },

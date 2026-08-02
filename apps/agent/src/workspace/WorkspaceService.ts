@@ -85,13 +85,18 @@ export type EditorMutation =
       content: string
       expectedRevision: WorkspaceFileRevision
     }
+  | {
+      operation: "delete"
+      path: string
+      expectedRevision: WorkspaceFileRevision
+    }
 
 export interface EditorMutationResult {
   operation: EditorMutation["operation"]
   path: string
   beforeSha256: string | null
-  afterSha256: string
-  revision: WorkspaceFileRevision
+  afterSha256: string | null
+  revision: WorkspaceFileRevision | null
 }
 
 export interface EditorMutationCommitResult {
@@ -246,7 +251,7 @@ export class WorkspaceService {
     return resolved
   }
 
-  grantEditorAlias(alias: "@codepilotx/config.toml", targetPath: string) {
+  grantEditorAlias(alias: "@codepilotx/config.json", targetPath: string) {
     if (!isAbsolute(targetPath)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
     this.editorAliases.set(alias, resolve(targetPath))
   }
@@ -329,7 +334,7 @@ export class WorkspaceService {
   private async createPath(path: string) {
     const requested = this.requestedPath(path)
     const alias = this.aliasTarget(path)
-    if (!alias && path.replaceAll("\\", "/").toLowerCase() === ".codepilotx/config.toml") {
+    if (!alias && path.replaceAll("\\", "/").toLowerCase() === ".codepilotx/config.json") {
       await mkdir(dirname(requested), { recursive: true })
     }
     const parent = await realpath(dirname(requested)).catch(() => {
@@ -679,7 +684,7 @@ export class WorkspaceService {
   ): Promise<EditorMutationCommitResult> {
     if (mutations.length === 0) throw new AgentError("INVALID_REQUEST", "文件变更不能为空", 400)
     for (const mutation of mutations) {
-      if (mutation.operation === "update") {
+      if (mutation.operation === "update" || mutation.operation === "delete") {
         if (
           !Number.isFinite(mutation.expectedRevision.mtimeMs)
           || mutation.expectedRevision.mtimeMs < 0
@@ -696,12 +701,14 @@ export class WorkspaceService {
           throw new AgentError("INVALID_REQUEST", "expectedRevision 参数无效", 400)
         }
       }
-      const normalized = encodeUtf8(mutation.content, false).content
-      if (Buffer.byteLength(normalized, "utf8") > EDITOR_WRITE_MAX_BYTES) {
-        throw new AgentError("WORKSPACE_FILE_READONLY", `编辑器只允许保存不超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件`, 413, {
-          sizeBytes: Buffer.byteLength(normalized, "utf8"),
-          maxBytes: EDITOR_WRITE_MAX_BYTES,
-        })
+      if (mutation.operation !== "delete") {
+        const normalized = encodeUtf8(mutation.content, false).content
+        if (Buffer.byteLength(normalized, "utf8") > EDITOR_WRITE_MAX_BYTES) {
+          throw new AgentError("WORKSPACE_FILE_READONLY", `编辑器只允许保存不超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件`, 413, {
+            sizeBytes: Buffer.byteLength(normalized, "utf8"),
+            maxBytes: EDITOR_WRITE_MAX_BYTES,
+          })
+        }
       }
     }
 
@@ -721,8 +728,8 @@ export class WorkspaceService {
         key: string
         mutation: EditorMutation
         inspection: InternalMutationPathInspection
-        content: string
-        bytes: Buffer
+        content: string | null
+        bytes: Buffer | null
         temporaryPath: string | null
       }
 
@@ -740,7 +747,7 @@ export class WorkspaceService {
           if (inspection.key !== initial.key) {
             throw new AgentError("WORKSPACE_FILE_STALE", "文件路径在写入前发生变化，请重新读取", 409)
           }
-          if (mutation.operation === "update") {
+          if (mutation.operation === "update" || mutation.operation === "delete") {
             if (inspection.expectation !== "existing-file") {
               throw new AgentError("WORKSPACE_FILE_STALE", "文件在写入前发生变化，请重新读取", 409)
             }
@@ -762,25 +769,31 @@ export class WorkspaceService {
               })
             }
           }
-          const encoded = encodeUtf8(
-            mutation.content,
-            inspection.expectation === "existing-file" && inspection.utf8Bom,
-          )
+          const encoded = mutation.operation === "delete"
+            ? null
+            : encodeUtf8(
+                mutation.content,
+                inspection.expectation === "existing-file" && inspection.utf8Bom,
+              )
           staged.push({
             index,
             key: inspection.key,
             mutation,
             inspection,
-            content: encoded.content,
-            bytes: encoded.bytes,
-            temporaryPath: resolve(dirname(inspection.canonicalPath), `.codepilotx-${randomUUID()}.tmp`),
+            content: encoded?.content ?? null,
+            bytes: encoded?.bytes ?? null,
+            temporaryPath: encoded
+              ? resolve(dirname(inspection.canonicalPath), `.codepilotx-${randomUUID()}.tmp`)
+              : null,
           })
         }
 
         for (const item of staged) {
-          await writeFile(item.temporaryPath!, item.bytes, { flag: "wx" })
-          if (item.inspection.expectation === "existing-file") {
-            await chmod(item.temporaryPath!, item.inspection.mode)
+          if (item.temporaryPath && item.bytes) {
+            await writeFile(item.temporaryPath, item.bytes, { flag: "wx" })
+            if (item.inspection.expectation === "existing-file") {
+              await chmod(item.temporaryPath, item.inspection.mode)
+            }
           }
         }
 
@@ -827,7 +840,10 @@ export class WorkspaceService {
               currentRevision: current.revision,
             })
           }
-          if (item.mutation.operation === "create") {
+          if (item.mutation.operation === "delete") {
+            await unlink(item.inspection.canonicalPath)
+            committed.add(item.index)
+          } else if (item.mutation.operation === "create") {
             await link(item.temporaryPath!, item.inspection.canonicalPath)
             committed.add(item.index)
             await unlink(item.temporaryPath!)
@@ -835,11 +851,23 @@ export class WorkspaceService {
             await this.replaceExistingFile(
               item.inspection.canonicalPath,
               item.temporaryPath!,
-              item.bytes,
+              item.bytes!,
             )
             committed.add(item.index)
           }
           item.temporaryPath = null
+          if (item.mutation.operation === "delete") {
+            results[item.index] = {
+              operation: "delete",
+              path: item.inspection.path,
+              beforeSha256: item.inspection.expectation === "existing-file"
+                ? item.inspection.revision.sha256
+                : null,
+              afterSha256: null,
+              revision: null,
+            }
+            continue
+          }
           const saved = await stat(item.inspection.canonicalPath)
           results[item.index] = {
             operation: item.mutation.operation,
@@ -847,12 +875,12 @@ export class WorkspaceService {
             beforeSha256: item.inspection.expectation === "existing-file"
               ? item.inspection.revision.sha256
               : null,
-            afterSha256: sha256(item.content),
+            afterSha256: sha256(item.content!),
             revision: {
               mtimeMs: saved.mtimeMs,
-              sha256: sha256(item.content),
-              rawSha256: sha256Bytes(item.bytes),
-              utf8Bom: hasUtf8Bom(item.bytes),
+              sha256: sha256(item.content!),
+              rawSha256: sha256Bytes(item.bytes!),
+              utf8Bom: hasUtf8Bom(item.bytes!),
             },
           }
         }

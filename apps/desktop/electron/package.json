@@ -6,11 +6,12 @@
   "main": "dist/main.js",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "tsc -p tsconfig.json && bun build src/main.ts --target=node --format=esm --outdir=dist --external electron --sourcemap=external",
+    "build": "tsc -p tsconfig.json && bun build src/main.ts --target=node --format=esm --outdir=dist --external electron --external node-pty --sourcemap=external",
     "dev": "bun run build && electron .",
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "test:performance": "playwright test --config playwright.performance.config.ts",
     "test:plan": "playwright test --config playwright.plan.config.ts",
+    "test:review-concurrency": "playwright test --config playwright.review-concurrency.config.ts",
     "package:win": "electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
@@ -30,6 +31,10 @@
       "repo": "CodePilotX"
     },
     "asar": true,
+    "npmRebuild": false,
+    "asarUnpack": [
+      "node_modules/node-pty/**"
+    ],
     "directories": {
       "output": "../../../release",
       "buildResources": "../build"
@@ -81,6 +86,8 @@
   },
   "dependencies": {
     "electron-updater": "6.8.9",
+    "jsonc-parser": "3.3.1",
+    "node-pty": "1.1.0",
     "smol-toml": "^1.7.0"
   }
 }

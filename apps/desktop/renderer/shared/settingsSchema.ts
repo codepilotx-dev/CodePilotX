@@ -162,6 +162,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     enableFullAccessPermissionMode: false,
     permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
     shellSecurityLevel: 'balanced',
+    terminalProfileId: null,
     model: '',
     planExecutionModel: '',
     reviewModel: '',
@@ -211,6 +212,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
     sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
+    sidebarPriorityFilterEnabled: false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
     collapsedSidebarProjectPaths: [],
@@ -285,6 +287,11 @@ export function normalizeDesktopStoredSettings(
     )
       ? parsed.shellSecurityLevel as DesktopShellSecurityLevel
       : defaults.shellSecurityLevel,
+    terminalProfileId:
+      parsed.terminalProfileId === null ||
+      typeof parsed.terminalProfileId === 'string'
+        ? parsed.terminalProfileId
+        : defaults.terminalProfileId,
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
     planExecutionModel: stringOrDefault(
       parsed.planExecutionModel,
@@ -469,6 +476,10 @@ export function normalizeDesktopStoredSettings(
       parsed.sidebarSort,
       defaults.sidebarSort,
     ),
+    sidebarPriorityFilterEnabled:
+      typeof parsed.sidebarPriorityFilterEnabled === 'boolean'
+        ? parsed.sidebarPriorityFilterEnabled
+        : defaults.sidebarPriorityFilterEnabled,
     sidebarManualOrder: normalizeSidebarManualOrder(
       parsed.sidebarManualOrder,
       defaults.sidebarManualOrder,
@@ -515,6 +526,7 @@ export function createSidebarStateResetPatch(
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
     sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
+    sidebarPriorityFilterEnabled: false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
     collapsedSidebarProjectPaths: [],
@@ -524,7 +536,7 @@ export function createSidebarStateResetPatch(
 }
 
 function isSidebarProductMode(value: unknown): value is SidebarProductMode {
-  return value === 'coding' || value === 'working'
+  return value === 'coding' || value === 'working' || value === 'chat'
 }
 
 function normalizePetSettings(

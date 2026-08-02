@@ -9,17 +9,53 @@
 
 ### Added
 
+- [desktop] 支持从已完成的 Assistant 回复分叉到共享当前工作树或隔离托管 worktree 的新聊天
+- [desktop] 在 Local environment 编辑器中说明 worktree setup 可用的源目录与目标目录变量
+- [desktop/Agent/renderer] 新增 Windows-first 集成终端，每个任务拥有一个 ConPTY/PTY 会话，支持 shell profile、主题、回放、尺寸同步、任务关闭清理及经审批的有界终端输出读取
+- [Agent/renderer] 新增基于 `.codepilotx/environments/environment.jsonc` 的 Local environment 与 Actions，可保留 JSONC 注释和未知键，并在确定的任务工作目录与环境中重建集成终端运行 Action
+- [Agent/renderer] 新增托管 Git worktree 的 branch/working-tree 创建、setup 重试或跳过、永久保留、受保护清理及分层快照恢复
+- [Agent/renderer] 新增 Codex 式 Local 与托管 worktree 双向 Handoff，通过完整 Conversation fork、Git 回滚日志和客户端状态确认创建目标任务并在成功后归档源任务
+- [Agent/desktop/renderer] 新增共享的 JSON/JSONC Profile v1 分层、结构化写入目标及 Profile 列表/选择 RPC，让桌面端和后续 CLI/TUI 使用同一配置真源并明确提示重启生效
+- [desktop/renderer/test] 新增 1200 个真实修改文件、500 轮长会话、30 个任务与三个真实 Agent 会话并发写入时的 Electron 拖动性能验收
+- [Agent/renderer] 修改文件卡片新增三文件折叠、Review 文件定位及基于精确文件状态校验的撤销与重新应用
 - [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
 - [release] 新增专用 Windows runner 驱动的两阶段 Beta 自动发布流程，在 main 静默期后自动升版、完整验证、创建 Release PR，并于远端 CI 通过后签名打标和发布 prerelease
+- [release] 新增 OpenCode 手动 Beta 发布 Skill，仅使用 dev 已提交内容创建 main PR，并在一次正式确认后复用完整验证、Release PR、签名标签及 prerelease 发布流程
+- [Agent/renderer] 新增可选的明文 `auth.json` Provider 凭据仓库与本机加密仓库切换流程，迁移会先验证目标再清理源，并明确提示便携性与明文风险
 - [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
 - [governance] 采用 Apache License 2.0，并新增贡献指南、行为准则、安全披露策略、CODEOWNERS、Issue/PR 模板与 Dependabot 配置，明确公开协作和依赖维护边界
+- [renderer] 新增可持久化的侧栏优先级聚焦视图，集中展示需关注任务并按最近一周自然日整理其余任务
 
 ### Changed
 
+- [docs] 重写开源项目 README，补充产品截图、Beta 下载、功能概览与公开协作入口，并移除过时的能力限制和数据恢复说明
+- [renderer] 参照 Claude-like 阅读节奏统一 Markdown 标题、段落、列表项间距、引用、表格与代码排版，优化粗体标题说明分组及表格单元格的均匀内边距与居中对齐，同时保留紧凑摘要及工作台响应式布局
+- [renderer] 工作台激活标签统一使用列表选中态主题背景，并在聚焦或悬停时保持激活视觉
+- [desktop/renderer] 集成终端跟随外观中的代码字体与字号，以实际工作目录命名标签，移除正常运行工具栏，并采用 220px 默认底栏及标签后添加、右侧关闭的紧凑布局
+- [renderer] 将默认 UI 字体切换为 Codex 风格的 system-ui/Segoe UI Variable 回退链，统一语义字重并移除未使用的 MiSans 资源，改善中英混排清晰度并减小 Renderer 资源体积
+- [renderer] 收紧侧栏底部“设置/帮助”区域高度，减少纵向留白并为侧栏内容释放更多空间
+- [架构] 明确桌面端与后续 CLI 的共享核心、产品定位和能力复用边界，避免多客户端重复实现协议、状态与业务逻辑
+- [Agent] 将旧项目可信记录和桌面运行状态从可迁移 `config.json` 幂等搬入机器本地 SQLite，并保留 JSONC 注释、未知字段与多端并发写入语义
+- [Agent/renderer] 将会话工具行的展开指示器移至摘要内容后方，并支持按文件展开单次编辑产生的逐行 Diff，旧记录缺少完整证据时保持不可展开
+- [desktop/renderer] 将侧栏产品模式菜单扩展为 Coding、Working、Chat 三个可持久化占位入口，并补充 Codex 风格的两行功能说明
+- [renderer] 按 Codex 的信息层级重组配置来源、智能体默认设置和诊断区域，统一下拉框摆放并消除重复审批名称
+- [desktop/renderer] 桌面端导入或重开项目时自动信任项目配置来源，并移除仅适用于 CLI 的手动信任状态入口
+- [renderer] 统一移除共享交互行的文字装饰，避免链接型菜单项显示下划线
+- [renderer] 精简供应商目录的信息层级，移除重复标题与说明，并将筛选结果数并入搜索工具栏
+- [renderer] 为 Composer 变更摘要增加严格顺序的胶囊位移与回底按钮进出动画，并在减少动态效果时立即完成切换
+- [renderer] 移除 Composer 变更摘要透明布局容器的额外内边距，并同步对齐计划预览宽度
+- [renderer] 移除 Composer 变更摘要外层装饰，统一状态胶囊与回底按钮高度，并仅在时间线离开底部时显示回底按钮
+- [renderer] 将应用更新入口从设置菜单移至侧栏底部状态胶囊，在检查、下载、安装和失败阶段替换帮助按钮并提供进度与重试反馈
+- [renderer] 将 Composer 变更摘要重构为状态胶囊与回到底部按钮，并保留计划预览、Review 入口及完成、失败和中断语义
+- [renderer] 将生产界面的浮层与抬升表面统一为克制的纯黑阴影，消除亮暗主题中的发光感
+- [renderer] 将侧栏、工作台及 Review 文件树调整为真实宽高与 flex 布局实时拖动，使相邻内容随指针自然重排并仅在结束时持久化尺寸
+- [Agent/renderer] 子代理改为共享工作区并行执行，并在完成后按真实工具修改立即向父任务上报状态与文件
+- [renderer] 将全局错误详情格式化与提示组件改为异常发生时按需加载，避免非错误路径占用 `/new` 首屏预算
 - [release] 发布机 workflow 不再依赖 setup-bun 在线下载，改用发布机预装 Bun 1.3.14（PATH 提供），避免受限网络下工具链下载失败
 - [desktop/renderer] 统一侧栏、菜单、Composer、设置、Review 与会话摘要的紧凑交互行规格和状态反馈，减少同类控件的尺寸、圆角与浮层效果漂移。
 - [renderer] 收紧会话摘要与中等宽度阅读区，并调整响应式断点，使约 1920px 窗口同时打开侧栏和 Review 时仍保留置顶摘要
 - [renderer] 移除共享动作按钮阴影，并降低卡片、弹窗与浮层的全局阴影层级
+- [配置] 将用户与项目持久配置真源改为支持 JSONC 的 `config.json`，升级时从旧 `config.toml` 一次迁移且保留原文件，便于手动备份和换机恢复
 - [renderer] 对齐 Codex Electron 的紧凑 Dropdown、Popover 与右键菜单密度，缩短菜单行、浮层留白和内容型弹层尺寸，同时保留摘要面板布局
 - [renderer] 会话与项目悬浮卡复用统一信息骨架，会话标题支持单击内联重命名，项目统计按活动任务计算
 - [renderer] 将 canonical 会话助手回复的复制按钮改为常驻显示，便于直接发现和使用
@@ -30,6 +66,20 @@
 
 ### Fixed
 
+- [Agent/test] ConfigService 关闭时等待文件 watcher 完成释放，配置迁移测试复用数据库 reset 的 GC 辅助有界 EBUSY 重试，避免 Windows 句柄滞留误报失败
+- [desktop/release] 修复 Windows 打包重复从源码编译已提供官方 N-API 预构建产物的 node-pty、导致缺少本机 Spectre C++ 组件时无法产出安装包的问题，并保留打包态 ConPTY 实际运行校验
+- [Agent/desktop/renderer] 修复 Handoff 重放与崩溃恢复、托管 worktree 并发变更、终端 Action 换代接入、PTY 单实例及输出镜像积压问题，并让 Local environment 结构化编辑保留嵌套 JSONC 注释和未知键
+- [desktop] 修复集成终端 desktop-host RPC 空闲租约过期后持续复用旧连接的问题，遇到明确未授权响应时重新握手并限次重试
+- [renderer] 修复集成终端按内容固有宽度收缩、未横向铺满整个底部面板的问题
+- [desktop] 修复开发编排器未将 Agent 标记为桌面托管进程、导致集成终端无法建立 desktop-host RPC 连接的问题，并为初始化拒绝增加安全错误码日志
+- [renderer] 修复侧栏底部“设置”入口的悬停背景被局部透明样式覆盖的问题，恢复统一的圆角反馈
+- [Agent/desktop] 桌面设置保存只写相对有效配置真正变化的叶子，避免修改侧栏或外观时把 Profile 覆盖值物化回用户配置
+- [renderer] 修复新对话首条消息在路由切换间隙复用已消费 inputId 的问题，避免后续新任务提示“inputId 已被其他请求使用”。
+- [renderer] 修复 Composer 胶囊未按当前对话接入真实 Git Diff 统计，并移除单条命令的冗余命令组展示
+- [Agent/renderer] 修复开发态首次进入会话时 Vite 瞬时 504 被懒加载缓存为持续错误的问题，增加代理有限重试与单次自动重载兜底
+- [desktop] 修复 Electron 主进程打包 JSONC 解析器时遗留相对 require、导致开发启动无法加载 `./impl/format` 的问题
+- [Agent/renderer] 修复 Review 批量 Diff 在新 Renderer 与旧 Agent 版本错配时永久加载的问题，增加能力降级、读取超时及慢请求阶段诊断
+- [renderer] 修复平滑回到底部途中中间滚动事件重新显示按钮的问题，确保 Composer 摘要退出动画完整播放
 - [release] 发布机 workflow 的脚本步骤显式设置 TEMP/TMP 为 runner 工作区临时目录，避免服务账户系统 TEMP（C:\Windows\TEMP）与磁盘真实目录大小写不一致导致路径断言类单元测试失败
 - [release] 修复自动 Release PR 的版本一致性检查失败：升版刷新 lockfile 改用非冻结的 `bun install`，并按其既有格式同步三个 workspace 条目的版本号（bun 不会把 workspace 版本变更写回 bun.lock）
 - [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
@@ -55,9 +105,7 @@
 - [renderer] 修复手工重命名已持久化但顶部和侧栏未立即显示的问题，统一所有入口的会话状态更新链路
 - [Agent/Desktop] 修复 Electron 克隆仓库、创建分支和切换分支误用浏览器 mock 的问题，改由受 capability 约束的 Agent RPC 执行真实 Git 并返回最新工作区状态
 - [agent] 修复 Review 刷新竞态与 linked worktree Git 元数据漏监听，并新增批量暂存、取消暂存和还原能力，确保快照最终收敛且批量操作只刷新一次
-- [renderer] 修复 Review 跨工作区或 Pull Request 的异步数据串源、过期快照残留及大 Diff 拖动右栏或底栏卡顿，拖动期间仅移动预览线并在松手后提交尺寸
-- [renderer] 修复大 Diff 拖拽仍触发全局样式失效、完整 Diff 重排和预览线裁剪的问题，拖动期间隔离重型内容并在最终尺寸绘制后恢复
-- [renderer] 将 Review 外层面板与文件导航拖拽反馈改为定向 Shimmer 骨架，仅替换 Diff 或文件树目标区域并保持工具栏及相邻内容清晰可见
+- [desktop] Review 使用分级 Diff 加载和虚拟文件树，并在大规模会话与并发文件更新期间保持真实布局拖拽。
 - [agent] 更新会话标题时综合首轮目标与近期已完成对话，避免提交、推送等单次收尾操作覆盖会话主线
 - [Agent/renderer] 为“新特性”内置当前版本更新记录，并在 GitHub 限流或离线时回退显示，避免 Dialog 只剩错误状态
 - [renderer] 修复顶部帮助菜单“新特性”点击无响应的问题，使其可以打开版本更新记录 Dialog
@@ -66,13 +114,22 @@
 - [agent] 数据迁移失败后的临时库清理不再覆盖原始校验错误，残留临时文件会在下次启动前继续清理，避免 Windows 文件锁改变故障语义。
 - [agent] 数据迁移与校验连接改用一次性查询助手并严格关闭，迁移期间不再缓存 Statement，彻底释放 Windows 上 SQLite 文件句柄，避免合并迁移偶发 EBUSY。
 - [renderer] 修复任务侧栏长标题硬截断和动作区固定占位问题，溢出标题改为渐隐并在悬停时滚动展示完整内容
+- [renderer] 修复 Composer 执行计划弹层被按胶囊内容收缩的定位包含块挤压到约 220px 的问题，改为相对完整摘要区域内容自适应居中（最小约 480px、最大 760px，不足时继续缩小）且不产生横向溢出，并保持胶囊尺寸与悬停/焦点关闭等现有行为不变
 
 ### Removed
 
+- [renderer/test] 移除不应入库的 Workbench 视觉截图基线并忽略后续本地产物，避免二进制快照污染仓库历史
 - [renderer] 移除不可达的旧会话渲染、workflow 事件调试入口及桌面调试模式，统一使用 canonical 会话与标准弹层行为
 
 ### Security
 
+- [Agent] auth.json 的外部修改检测改用仅驻留进程内的精确快照，避免对凭据内容生成可离线猜测的摘要
+
+- [agent] 分叉 setup 路径变量和输出仅用于受信任的有界内存执行链路，不写入历史、事件、日志或环境增量
+- [Agent/desktop] 集成终端输出默认进入有界脱敏内存镜像，`terminal.read` 遵循任务全局权限策略，且输出继续禁止写入 SQLite、事件或日志
+- [Agent/desktop] Local environment 脚本按项目与配置摘要显式信任，setup 环境增量采用受限原子文件保存，Action 命令、环境值和原始输出不进入 renderer RPC、SQLite、事件或日志
+- [Agent/desktop] 托管 worktree 的复制、恢复和删除验证受管根目录、普通文件及 symlink/reparse 边界；终端输出仅在内存中有界保留并经审批、控制字符过滤和敏感信息清理后提供给 Agent
+- [Agent] Profile 禁止保存 Provider 凭据、MCP、Hook 和机器设施配置，项目向上查找同时排除用户 `config.json`，避免可移植文件携带秘密或被误判为项目来源
 - [agent] Git 命令统一采用字面 pathspec、流式输出限制和公开错误 allowlist，阻止批量 Review 路径扩展、未跟踪符号链接越界读取及 stderr 敏感信息泄露
 - [ci] 安全 CI 仅在 PR 上运行，避免同一提交的 push 与 pull_request 使用相同检查上下文时，非门禁 push 抖动错误阻塞受保护分支合并；CodeQL 仍扫描受保护分支 push
 - [ci] 新增覆盖版本一致性、High/Critical 依赖审计、类型检查、单元测试、Renderer CSS 规则和全仓构建的 Windows CI，并通过最小权限、不可变 Actions 提交、禁用持久凭据、超时与并发取消降低供应链风险

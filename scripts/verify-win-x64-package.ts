@@ -24,6 +24,17 @@ const unpacked = unpackedArgument
 const application = join(unpacked, "CodePilotX.exe")
 const agent = join(unpacked, "resources/agent/codepilotx-agent.exe")
 const appUpdateConfiguration = join(unpacked, "resources/app-update.yml")
+const nodePtyDirectory = join(
+  unpacked,
+  "resources/app.asar.unpacked/node_modules/node-pty",
+)
+const nodePtyManifest = join(nodePtyDirectory, "package.json")
+const nodePtyLicense = join(nodePtyDirectory, "LICENSE")
+const nodePtyNativeFiles = [
+  join(nodePtyDirectory, "prebuilds/win32-x64/conpty.node"),
+  join(nodePtyDirectory, "prebuilds/win32-x64/conpty_console_list.node"),
+  join(nodePtyDirectory, "prebuilds/win32-x64/pty.node"),
+]
 const requiredFiles = [
   application,
   agent,
@@ -31,6 +42,9 @@ const requiredFiles = [
   join(unpacked, "resources/app.asar"),
   join(unpacked, "resources/renderer/index.html"),
   join(unpacked, "resources/THIRD_PARTY_NOTICES.md"),
+  nodePtyManifest,
+  nodePtyLicense,
+  ...nodePtyNativeFiles,
 ]
 for (const path of requiredFiles) {
   if (!existsSync(path)) throw new Error(`Windows x64 包缺少文件：${path}`)
@@ -42,6 +56,19 @@ if (!existsSync(thirdPartyDirectory) || !(await stat(thirdPartyDirectory)).isDir
 }
 for (const path of [application, agent]) {
   await assertWindowsX64PE(path)
+}
+for (const path of nodePtyNativeFiles) {
+  await assertWindowsX64PE(path)
+}
+const nodePtyPackage = JSON.parse(
+  await readFile(nodePtyManifest, "utf8"),
+) as { name?: unknown; version?: unknown; license?: unknown }
+if (
+  nodePtyPackage.name !== "node-pty"
+  || nodePtyPackage.version !== "1.1.0"
+  || nodePtyPackage.license !== "MIT"
+) {
+  throw new Error("Windows x64 包中的 node-pty 版本或许可证无效")
 }
 await assertAgentBinaryHasNoStaticRiskFeatures(agent)
 await assertPackagedPiCatalog(agent)

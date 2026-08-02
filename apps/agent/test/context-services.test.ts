@@ -67,19 +67,21 @@ describe("v8 上下文存储", () => {
 })
 
 describe("Hooks 与记忆", () => {
-  test("合并 hooks.json 与用户 config.toml 内联 Hook", async () => {
+  test("合并 hooks.json 与用户 config.json 内联 Hook", async () => {
     const { root, db } = await fixture()
     const userHooks = join(root, "hooks.json")
-    const configPath = join(root, "config.toml")
+    const configPath = join(root, "config.json")
     await writeFile(userHooks, JSON.stringify({
       hooks: [{ id: "json", event: "pre_tool_use", command: "json-hook" }],
     }), "utf8")
-    await writeFile(configPath, [
-      "[hooks.inline]",
-      'event = "pre_tool_use"',
-      'command = "inline-hook"',
-      "",
-    ].join("\n"), "utf8")
+    await writeFile(configPath, JSON.stringify({
+      hooks: {
+        inline: {
+          event: "pre_tool_use",
+          command: "inline-hook",
+        },
+      },
+    }, null, 2), "utf8")
     const config = new ConfigService(configPath)
     await config.initialize()
     const called: string[] = []

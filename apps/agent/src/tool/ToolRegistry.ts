@@ -18,6 +18,7 @@ import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProc
 import { nativeGlobWorkspace, nativeGrepWorkspace } from "./NativeWorkspaceSearch"
 import { applyEditsText } from "./Edit/applyEditText"
 import { applyPatchDefinition } from "./ApplyPatch/definition"
+import type { TurnPatchMutationFile } from "../patch/TurnPatchTypes"
 import { diffLines } from "diff"
 
 export type ToolCapabilities = {
@@ -100,6 +101,8 @@ export interface ToolContext {
   /** Host-inspected scope for the exact input being executed. */
   authorizationScope?: ToolAuthorizationScope
   fileSaved?: (input: { filePath: string; content: string }) => Promise<void>
+  /** Persists host-only reversible evidence after a successful managed file mutation. */
+  recordMutation?: (files: readonly TurnPatchMutationFile[]) => Promise<void>
   resolveTooling?: ToolingResolver
   runToolProcess?: ToolProcessRunner
   /** Host-owned identity for this invocation. It is never derived from model input. */
@@ -324,6 +327,14 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       }
       if (!current) {
         const created = await context.workspace.applyPatch({ operation: "create", path: input.file_path, content: input.content })
+        await context.recordMutation?.([{
+          operation: "create",
+          path: created.path,
+          beforeContent: null,
+          afterContent: input.content.startsWith("\uFEFF") ? input.content.slice(1) : input.content,
+          beforeSha256: null,
+          afterSha256: created.afterSha256,
+        }]).catch(() => undefined)
         await context.fileSaved?.({ filePath: input.file_path, content: input.content })
         return {
           operation: "write" as const,
@@ -338,9 +349,17 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       if (!context.readSnapshot || context.readSnapshot.sha256 !== current.revision.sha256 || context.readSnapshot.mtimeMs !== current.revision.mtimeMs) throw new AgentError("WORKSPACE_FILE_STALE", "文件内容已变化或缺少完整 Read 快照，拒绝覆写", 409, { currentRevision: current.revision })
       const saved = await context.workspace.saveEditorFile(input.file_path, input.content, context.readSnapshot)
       if (saved.outcome === "conflict") throw new AgentError("WORKSPACE_FILE_STALE", "文件在写入前发生变化，拒绝覆写", 409, { currentRevision: saved.revision })
+      await context.recordMutation?.([{
+        operation: "update",
+        path: current.path,
+        beforeContent: current.content,
+        afterContent: input.content.startsWith("\uFEFF") ? input.content.slice(1) : input.content,
+        beforeSha256: current.revision.sha256,
+        afterSha256: saved.revision!.sha256,
+      }]).catch(() => undefined)
       await context.fileSaved?.({ filePath: current.path, content: input.content })
       const changes = lineChangeSummary(current.content, input.content)
-      return { operation: "write", mutation: "update", path: current.path, ...changes, beforeSha256: current.revision.sha256, afterSha256: saved.revision.sha256, revision: saved.revision }
+      return { operation: "write", mutation: "update", path: current.path, ...changes, beforeSha256: current.revision.sha256, afterSha256: saved.revision!.sha256, revision: saved.revision! }
     },
     formatResult: (output) => ({
       content: `已写入 ${output.path}（+${output.additions} -${output.deletions}）`,
@@ -377,9 +396,17 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       const content = applyEditsText(current.content, input.edits)
       const saved = await context.workspace.saveEditorFile(input.path, content, context.readSnapshot)
       if (saved.outcome === "conflict") throw new AgentError("WORKSPACE_FILE_STALE", "文件在编辑前发生变化，拒绝写入", 409, { currentRevision: saved.revision })
+      await context.recordMutation?.([{
+        operation: "update",
+        path: current.path,
+        beforeContent: current.content,
+        afterContent: content,
+        beforeSha256: current.revision.sha256,
+        afterSha256: saved.revision!.sha256,
+      }]).catch(() => undefined)
       await context.fileSaved?.({ filePath: current.path, content })
       const changes = lineChangeSummary(current.content, content)
-      return { operation: "edit", path: current.path, ...changes, beforeSha256: current.revision.sha256, afterSha256: saved.revision.sha256, revision: saved.revision }
+      return { operation: "edit", path: current.path, ...changes, beforeSha256: current.revision.sha256, afterSha256: saved.revision!.sha256, revision: saved.revision! }
     },
     formatResult: (output) => ({
       content: `已编辑 ${output.path}（+${output.additions} -${output.deletions}）`,

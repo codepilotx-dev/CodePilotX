@@ -9,6 +9,7 @@ import { projectRepository } from "../repositories/project-repository"
 import { reviewRepository } from "../repositories/review-repository"
 import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
 import { threadRepository } from "../repositories/thread-repository"
+import { TurnPatchRepository } from "../repositories/turn-patch-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
 import { recoverInterruptedRuns } from "../recovery/interrupted-run-recovery"
 import { configureConnection } from "./connection"
@@ -64,6 +65,7 @@ export class AgentDatabase extends RepositoryDatabase {
       workspaces: workspaceRepository(this),
       reviews: reviewRepository(this),
       credentials: credentialRepositoryDatabase(this),
+      turnPatches: new TurnPatchRepository(this),
     }
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
     recoverInterruptedRuns(this)

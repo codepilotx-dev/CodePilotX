@@ -85,6 +85,8 @@ export interface PiRuntimeEventSink {
     provider: string
     api: string
     model: string
+    /** Final assistant message entry in the private Pi session tree. */
+    sessionEntryID?: string
     usage: {
       input: number
       output: number

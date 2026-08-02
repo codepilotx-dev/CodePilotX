@@ -54,6 +54,7 @@ export type QuickChatContextValue = {
   onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
   onOpenRightDock: (tool: 'review') => void
+  onOpenPatchReview: (path?: string) => void
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void
   onOpenFileReference: (
     reference: MarkdownFileReference,

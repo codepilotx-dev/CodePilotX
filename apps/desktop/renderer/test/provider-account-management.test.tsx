@@ -87,6 +87,9 @@ describe('model center account management', () => {
         onSelect={() => {}}
       />,
     )
+    expect(html).not.toContain('<h2>供应商</h2>')
+    expect(html).not.toContain('浏览完整目录')
+    expect(html).toContain('2 个')
     expect(html).toContain('账户连接')
     expect(html).toContain('>连接<')
   })

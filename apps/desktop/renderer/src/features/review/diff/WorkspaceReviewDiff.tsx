@@ -51,12 +51,9 @@ import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
-import { ReviewResizeSkeleton } from "./ReviewResizeSkeleton.js";
-import { buildReviewFileTree } from "../workspace/buildReviewFileTree.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "../workspace/CommitPopover.js";
 import { PullRequestPopover } from "../workspace/PullRequestPopover.js";
-import { ReviewFileTreeNode } from "../workspace/ReviewFileTree.js";
 import { formatReviewCount } from "../diff/reviewFormat.js";
 import {
   isReviewDiffExpanded,
@@ -115,6 +112,21 @@ export type ReviewFileLoadState =
   | { status: "loading" }
   | { status: "loaded" }
   | { status: "error"; message: string };
+
+export function reviewFileLoadMessage(
+  fileLoadState: ReviewFileLoadState,
+  summaryLoadState: ReviewLoadState,
+): string | null {
+  if (fileLoadState.status === "loading") return "正在加载文件差异…";
+  if (fileLoadState.status !== "idle") return null;
+  if (summaryLoadState === "loading" || summaryLoadState === "stale") {
+    return "正在刷新变更快照…";
+  }
+  if (summaryLoadState === "error") {
+    return "变更快照加载失败，请使用上方重试。";
+  }
+  return "等待加载文件差异…";
+}
 
 export const REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH = 340;
 export const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 240;
@@ -222,7 +234,7 @@ export function flattenDiffRows(
   return rows;
 }
 
-export function ReviewDiffPreview({
+export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   attachedComments,
   collapsedDiffPaths,
   diffMarkerStyle,
@@ -231,6 +243,7 @@ export function ReviewDiffPreview({
   files,
   largeWorkspaceMode,
   pending,
+  summaryLoadState,
   scope,
   selectedPath,
   toggleCollapseDiff,
@@ -245,7 +258,6 @@ export function ReviewDiffPreview({
   onDeleteComment,
   onDraftBodyChange,
   onFileSectionMount,
-  onLoadFile,
   onRetryFile,
   onResolveComment,
   onSaveDraft,
@@ -259,6 +271,7 @@ export function ReviewDiffPreview({
   files: DesktopReviewDiffFile[];
   largeWorkspaceMode: boolean;
   pending: boolean;
+  summaryLoadState: ReviewLoadState;
   scope: DesktopReviewScope;
   selectedPath: string | null;
   toggleCollapseDiff: (path: string) => void;
@@ -278,7 +291,6 @@ export function ReviewDiffPreview({
   onDeleteComment: (commentId: string) => void;
   onDraftBodyChange: (body: string) => void;
   onFileSectionMount: (path: string, element: HTMLElement | null) => void;
-  onLoadFile: (path: string) => void;
   onRetryFile: (path: string) => void;
   onScroll: (scrollTop: number) => void;
   onResolveComment: (commentId: string) => void;
@@ -332,7 +344,6 @@ export function ReviewDiffPreview({
             if (!path) continue;
 
             if (entry.isIntersecting) {
-              if (!collapsedDiffPaths.has(path)) onLoadFile(path);
               if (!next.has(path)) {
                 next.add(path);
                 changed = true;
@@ -361,7 +372,7 @@ export function ReviewDiffPreview({
     }
 
     return () => observer.disconnect();
-  }, [collapsedDiffPaths, filePaths, onLoadFile, viewportRef]);
+  }, [filePaths, viewportRef]);
 
   const setFileSectionElement = React.useCallback(
     (path: string) => (element: HTMLElement | null) => {
@@ -379,13 +390,9 @@ export function ReviewDiffPreview({
     <section
       className="review-diff-preview"
       aria-label="工作区 diff"
-      data-resize-skeleton-target="dock-review-diff"
       data-slot="review-diff-list"
     >
-      <div
-        className="review-diff-preview-content"
-        data-resize-skeleton-content="true"
-      >
+      <div className="review-diff-preview-content">
         <ScrollArea
           className="review-diff-scroll"
           contentClassName="review-diff-scroll-content"
@@ -409,6 +416,7 @@ export function ReviewDiffPreview({
               key={file.path}
               largeWorkspaceMode={largeWorkspaceMode}
               pending={pending}
+              summaryLoadState={summaryLoadState}
               previewHeight={estimateFilePreviewHeight(file)}
               renderBody={
                 file.path === selectedPath || windowedPaths.has(file.path)
@@ -432,10 +440,26 @@ export function ReviewDiffPreview({
           ))}
         </ScrollArea>
       </div>
-      <ReviewResizeSkeleton variant="diff" />
     </section>
   );
-}
+}, (previous, next) =>
+  previous.attachedComments === next.attachedComments &&
+  previous.collapsedDiffPaths === next.collapsedDiffPaths &&
+  previous.diffMarkerStyle === next.diffMarkerStyle &&
+  previous.draft === next.draft &&
+  previous.fileLoadStates === next.fileLoadStates &&
+  previous.files === next.files &&
+  previous.largeWorkspaceMode === next.largeWorkspaceMode &&
+  previous.pending === next.pending &&
+  previous.summaryLoadState === next.summaryLoadState &&
+  previous.scope === next.scope &&
+  previous.selectedPath === next.selectedPath &&
+  previous.viewportRef === next.viewportRef &&
+  previous.view === next.view &&
+  previous.showWordDiff === next.showWordDiff &&
+  previous.wrapLines === next.wrapLines &&
+  previous.workspacePath === next.workspacePath
+);
 
 export function shouldVirtualizeReviewFile(
   file: DesktopReviewDiffFile,
@@ -455,6 +479,7 @@ export function ReviewDiffFilePreview({
   fileLoadState,
   largeWorkspaceMode,
   pending,
+  summaryLoadState,
   previewHeight,
   renderBody,
   scope,
@@ -482,6 +507,7 @@ export function ReviewDiffFilePreview({
   fileLoadState: ReviewFileLoadState;
   largeWorkspaceMode: boolean;
   pending: boolean;
+  summaryLoadState: ReviewLoadState;
   previewHeight: number;
   renderBody: boolean;
   scope: DesktopReviewScope;
@@ -571,13 +597,16 @@ export function ReviewDiffFilePreview({
         />
       </div>
     );
-  } else if (
-    fileLoadState.status === "idle" ||
-    fileLoadState.status === "loading"
-  ) {
+  } else if (fileLoadState.status === "loading") {
     diffBody = (
       <div className="review-empty-state review-file-load-state" role="status">
-        正在加载文件差异…
+        {reviewFileLoadMessage(fileLoadState, summaryLoadState)}
+      </div>
+    );
+  } else if (fileLoadState.status === "idle") {
+    diffBody = (
+      <div className="review-empty-state review-file-load-state" role="status">
+        {reviewFileLoadMessage(fileLoadState, summaryLoadState)}
       </div>
     );
   } else if (fileLoadState.status === "error") {
@@ -804,6 +833,7 @@ export function ReviewVirtualDiffRows({
   pending,
   scope,
   view,
+  readOnly = false,
   onApplyOperation,
   onCancelDraft,
   onCreateDraft,
@@ -821,6 +851,7 @@ export function ReviewVirtualDiffRows({
   pending: boolean;
   scope: DesktopReviewScope;
   view: DesktopReviewView;
+  readOnly?: boolean;
   onApplyOperation: (
     action: "stage" | "unstage" | "revert",
     target:
@@ -846,16 +877,20 @@ export function ReviewVirtualDiffRows({
       data-review-syntax-state={syntax.state}
     >
       <VList
+        bufferSize={64}
         className="review-diff-vlist"
+        data={flattenedRows}
+        itemSize={20}
         style={{ width: "100%", height: "100%" }}
       >
-        {flattenedRows.map((row) =>
+        {(row) =>
           row.kind === "hunk-header" ? (
             <VirtualDiffHunkRow
               file={file}
               hunk={row.hunk}
               key={`hunk-${row.hunk.id}`}
               pending={pending}
+              readOnly={readOnly}
               scope={scope}
               unmodifiedLines={row.unmodifiedLines}
               onApplyOperation={onApplyOperation}
@@ -885,6 +920,7 @@ export function ReviewVirtualDiffRows({
               file={file}
               line={row.line}
               intralineByLineId={intralineByLineId}
+              readOnly={readOnly}
               syntaxByLineId={syntax.byLineId}
               onCancelDraft={onCancelDraft}
               onCreateDraft={onCreateDraft}
@@ -893,8 +929,8 @@ export function ReviewVirtualDiffRows({
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             />
-          ) : null,
-        )}
+          ) : null
+        }
       </VList>
     </div>
   );
@@ -906,6 +942,7 @@ export function VirtualDiffHunkRow({
   unmodifiedLines,
   pending,
   scope,
+  readOnly = false,
   onApplyOperation,
 }: {
   file: DesktopReviewDiffFile;
@@ -913,6 +950,7 @@ export function VirtualDiffHunkRow({
   unmodifiedLines: number;
   pending: boolean;
   scope: DesktopReviewScope;
+  readOnly?: boolean;
   onApplyOperation: (
     action: "stage" | "unstage" | "revert",
     target: { type: "hunk"; path: string; hunkId: string },
@@ -935,13 +973,15 @@ export function VirtualDiffHunkRow({
           <span data-separator-content="">
             {formatUnmodifiedLines(unmodifiedLines)}
           </span>
-          <ReviewHunkActions
-            file={file}
-            hunk={hunk}
-            pending={pending}
-            scope={scope}
-            onApplyOperation={onApplyOperation}
-          />
+          {readOnly ? null : (
+            <ReviewHunkActions
+              file={file}
+              hunk={hunk}
+              pending={pending}
+              scope={scope}
+              onApplyOperation={onApplyOperation}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -955,6 +995,7 @@ export function VirtualDiffInlineRow({
   line,
   intralineByLineId,
   syntaxByLineId,
+  readOnly = false,
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
@@ -968,6 +1009,7 @@ export function VirtualDiffInlineRow({
   line: DesktopReviewDiffLine;
   intralineByLineId: ReviewIntralineByLineId;
   syntaxByLineId: ReviewSyntaxByLineId;
+  readOnly?: boolean;
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
@@ -988,16 +1030,18 @@ export function VirtualDiffInlineRow({
       data-virtual-layout="single"
     >
       <ReviewDiffLineNumber
-        anchor={anchor}
+        anchor={readOnly ? null : anchor}
         cellTone={line.type}
         lineNumber={lineNumber}
+        readOnly={readOnly}
         onCreateDraft={onCreateDraft}
       />
       <ReviewDiffLineContent
-        anchor={anchor}
-        comments={comments}
-        draft={draft}
+        anchor={readOnly ? null : anchor}
+        comments={readOnly ? [] : comments}
+        draft={readOnly ? null : draft}
         cellTone={line.type}
+        readOnly={readOnly}
         onCancelDraft={onCancelDraft}
         onDeleteComment={onDeleteComment}
         onDraftBodyChange={onDraftBodyChange}

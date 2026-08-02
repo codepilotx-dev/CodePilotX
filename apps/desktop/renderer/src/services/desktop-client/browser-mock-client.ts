@@ -137,6 +137,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     desktop: { ...settings } as unknown as JsonValue,
   }
   let configVersion = '0'.repeat(64)
+  let selectedProfile: string | null = null
   let themeSettings: DesktopThemeSettings = readBrowserThemeSettings(storage)
   let browserState: DesktopBrowserState = emptyBrowserState()
   let githubLoginMode: DesktopGithubAuthMode = 'browser'
@@ -283,7 +284,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
             layers: [{
               kind: 'user' as const,
               displayName: '用户配置',
-              filePath: 'C:/Users/mock/.codepilotx/config.toml',
+              filePath: 'C:/Users/mock/.codepilotx/config.json',
               version: configVersion,
               writable: true,
               trusted: true,
@@ -292,6 +293,11 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
           }
         : {}),
       diagnostics: [],
+      profileState: {
+        activeProfile: null,
+        selectedProfile,
+        restartRequired: selectedProfile !== null,
+      },
     }),
     writeConfigBatch: async params => {
       for (const edit of params.edits) {
@@ -309,19 +315,34 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       return {
         status: 'ok',
         version: configVersion,
-        filePath: params.filePath ?? 'C:/Users/mock/.codepilotx/config.toml',
+        filePath: params.filePath ?? 'C:/Users/mock/.codepilotx/config.json',
       }
     },
-    readProjectTrust: async cwd => ({
-      projectRoot: cwd,
-      trustLevel: 'untrusted',
-      hasProjectConfig: false,
+    listConfigProfiles: async () => ({
+      profileState: {
+        activeProfile: null,
+        selectedProfile,
+        restartRequired: selectedProfile !== null,
+      },
+      profiles: [],
+      profilesDirectory: 'C:/Users/mock/.codepilotx/profiles',
     }),
-    updateProjectTrust: async params => ({
-      status: 'ok',
-      version: configVersion,
-      filePath: 'C:/Users/mock/.codepilotx/config.toml',
-    }),
+    selectConfigProfile: async profileId => {
+      selectedProfile = profileId
+      if (profileId === null) delete configDocument.profile
+      else configDocument.profile = profileId
+      configVersion = (configVersion[0] === '0' ? '1' : '0').repeat(64)
+      return {
+        status: 'ok',
+        version: configVersion,
+        filePath: 'C:/Users/mock/.codepilotx/config.json',
+        profileState: {
+          activeProfile: null,
+          selectedProfile,
+          restartRequired: selectedProfile !== null,
+        },
+      }
+    },
     getDesktopSettings: async () => settings,
     saveDesktopSettings: async next => {
       settings = { ...settings, ...next }
@@ -523,6 +544,19 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     copyProviderApiKey: async () => {
       throw new Error('安全复制仅在桌面应用中可用。')
     },
+    readProviderCredentialStore: async () => ({
+      store: 'auth-json',
+      portable: true,
+      credentialCount: 1,
+      migrationRequired: false,
+    }),
+    updateProviderCredentialStore: async store => ({
+      store,
+      portable: store === 'auth-json',
+      credentialCount: 1,
+      migrationRequired: false,
+      migratedCredentials: 1,
+    }),
     testModelProvider: async () => ({ ok: true }),
     createProvider: async () => undefined,
     updateProvider: async () => undefined,

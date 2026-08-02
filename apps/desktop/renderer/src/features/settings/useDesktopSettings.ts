@@ -99,6 +99,7 @@ export type UseDesktopSettingsResult = {
   sidebarProductMode: SidebarProductMode
   sidebarProjectSort: DesktopSidebarSort
   sidebarSort: DesktopSidebarSort
+  sidebarPriorityFilterEnabled: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
@@ -164,6 +165,9 @@ export type UseDesktopSettingsResult = {
   setSidebarProductMode: (value: SidebarProductMode) => void
   setSidebarProjectSort: (value: DesktopSidebarSort) => void
   setSidebarSort: (value: DesktopSidebarSort) => void
+  setSidebarPriorityFilterEnabled: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
   setSidebarManualOrder: (
     value:
       | Record<string, string[]>
@@ -454,6 +458,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [sidebarSort, setSidebarSort] = useState<DesktopSidebarSort>(
     initial.sidebarSort,
   )
+  const [sidebarPriorityFilterEnabled, setSidebarPriorityFilterEnabled] =
+    useState<boolean>(initial.sidebarPriorityFilterEnabled ?? false)
   const [sidebarManualOrder, setSidebarManualOrder] = useState<
     Record<string, string[]>
   >(initial.sidebarManualOrder)
@@ -571,6 +577,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setSidebarProductMode(settings.sidebarProductMode)
         setSidebarProjectSort(settings.sidebarProjectSort)
         setSidebarSort(settings.sidebarSort)
+        setSidebarPriorityFilterEnabled(settings.sidebarPriorityFilterEnabled)
         setSidebarManualOrder(settings.sidebarManualOrder)
         setSidebarSessionPins(settings.sidebarSessionPins)
         setCollapsedSidebarProjectPaths(settings.collapsedSidebarProjectPaths)
@@ -600,6 +607,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       enableFullAccessPermissionMode,
       permissionConfig: draftValues.permissionConfig,
       shellSecurityLevel: draftValues.shellSecurityLevel,
+      terminalProfileId: draftValues.terminalProfileId,
       model,
       planExecutionModel,
       reviewModel,
@@ -650,6 +658,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarStateVersion: SIDEBAR_STATE_VERSION,
       sidebarProjectSort,
       sidebarSort,
+      sidebarPriorityFilterEnabled,
       sidebarManualOrder,
       sidebarSessionPins,
       collapsedSidebarProjectPaths,
@@ -666,6 +675,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
       draftValues.shellSecurityLevel,
+      draftValues.terminalProfileId,
       model,
       planExecutionModel,
       reviewModel,
@@ -715,6 +725,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarProductMode,
       sidebarProjectSort,
       sidebarSort,
+      sidebarPriorityFilterEnabled,
       sidebarManualOrder,
       sidebarSessionPins,
       collapsedSidebarProjectPaths,
@@ -833,6 +844,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setSidebarProductMode(snapshot.sidebarProductMode)
       setSidebarProjectSort(snapshot.sidebarProjectSort)
       setSidebarSort(snapshot.sidebarSort)
+      setSidebarPriorityFilterEnabled(snapshot.sidebarPriorityFilterEnabled)
       setSidebarManualOrder(snapshot.sidebarManualOrder)
       setSidebarSessionPins(snapshot.sidebarSessionPins)
       setCollapsedSidebarProjectPaths(snapshot.collapsedSidebarProjectPaths)
@@ -992,6 +1004,7 @@ defaultOpenTargetId,
     sidebarProductMode,
     sidebarProjectSort,
     sidebarSort,
+    sidebarPriorityFilterEnabled,
     sidebarManualOrder,
     sidebarSessionPins,
     collapsedSidebarProjectPaths,
@@ -1049,6 +1062,7 @@ defaultOpenTargetId,
     setSidebarProductMode,
     setSidebarProjectSort,
     setSidebarSort,
+    setSidebarPriorityFilterEnabled,
     setSidebarManualOrder,
     setSidebarSessionPins,
     setCollapsedSidebarProjectPaths,

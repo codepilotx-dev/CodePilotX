@@ -27,7 +27,7 @@ const fixture = async (runtime: {
   const toolingCalls: string[][] = []
   const executor = new ToolExecutor(new ToolRegistry(), {
     dataDir: join(root, ".agent-data"),
-    userConfigPath: join(root, "config.toml"),
+    userConfigPath: join(root, "config.json"),
     ...(runtime.validateConfigDocument
       ? { validateConfigDocument: runtime.validateConfigDocument }
       : {}),
@@ -62,11 +62,11 @@ describe("核心工具面", () => {
       },
       validateConfigDocument: (text, scope) => validated.push({ text, scope }),
     })
-    await writeFile(join(root, "config.toml"), 'model = "old"\n', "utf8")
+    await writeFile(join(root, "config.json"), '{\n  "model": "old"\n}\n', "utf8")
 
     const userAuthorization = await executor.execute<{ decision: string }>(
       "Write",
-      { file_path: "@codepilotx/config.toml", content: 'model = "new"\n' },
+      { file_path: "@codepilotx/config.json", content: '{\n  "model": "new"\n}\n' },
       {
         ...context,
         authorizationOnly: true,
@@ -80,13 +80,13 @@ describe("核心工具面", () => {
     expect(userAuthorization.decision).toBe("allow")
     expect(reviewed.at(-1)?.__ruleRequiresApproval).toBe(true)
     expect(validated.at(-1)).toEqual({
-      text: 'model = "new"\n',
+      text: '{\n  "model": "new"\n}\n',
       scope: "user",
     })
 
     await executor.execute<{ decision: string }>(
       "Write",
-      { file_path: ".codepilotx/config.toml", content: 'model = "project"\n' },
+      { file_path: ".codepilotx/config.json", content: '{\n  "model": "project"\n}\n' },
       {
         ...context,
         authorizationOnly: true,
@@ -100,7 +100,7 @@ describe("核心工具面", () => {
     expect(validated.at(-1)?.scope).toBe("project")
     await expect(executor.execute(
       "Write",
-      { file_path: "@codepilotx/config.toml", content: 'model = "blocked"\n' },
+      { file_path: "@codepilotx/config.json", content: '{\n  "model": "blocked"\n}\n' },
       {
         ...context,
         authorizationOnly: true,
@@ -112,14 +112,14 @@ describe("核心工具面", () => {
       },
     )).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
 
-    await writeFile(join(root, "config.toml"), 'model = "old"\r\nreasoning = "high"\r\n', "utf8")
+    await writeFile(join(root, "config.json"), '{\r\n  "model": "old",\r\n  "reasoning": "high"\r\n}\r\n', "utf8")
     await executor.execute(
       "Edit",
       {
-        path: "@codepilotx/config.toml",
+        path: "@codepilotx/config.json",
         edits: [{
-          oldText: 'model = "old"\nreasoning = "high"',
-          newText: 'model = "new"\nreasoning = "medium"',
+          oldText: '  "model": "old",\n  "reasoning": "high"',
+          newText: '  "model": "new",\n  "reasoning": "medium"',
         }],
       },
       {
@@ -133,20 +133,20 @@ describe("核心工具面", () => {
       },
     )
     expect(validated.at(-1)).toEqual({
-      text: 'model = "new"\r\nreasoning = "medium"\r\n',
+      text: '{\r\n  "model": "new",\r\n  "reasoning": "medium"\r\n}\r\n',
       scope: "user",
     })
 
-    await executor.execute("Read", { file_path: "@codepilotx/config.toml" }, context)
+    await executor.execute("Read", { file_path: "@codepilotx/config.json" }, context)
     await executor.execute(
       "apply_patch",
       {
         patch: [
           "*** Begin Patch",
-          "*** Update File: @codepilotx/config.toml",
+          "*** Update File: @codepilotx/config.json",
           "@@",
-          '-model = "old"',
-          '+model = "patched"',
+          '-  "model": "old",',
+          '+  "model": "patched",',
           "*** End Patch",
         ].join("\n"),
       },
@@ -161,7 +161,7 @@ describe("核心工具面", () => {
       },
     )
     expect(validated.at(-1)).toEqual({
-      text: 'model = "patched"\r\nreasoning = "high"\r\n',
+      text: '{\r\n  "model": "patched",\r\n  "reasoning": "high"\r\n}\r\n',
       scope: "user",
     })
   })

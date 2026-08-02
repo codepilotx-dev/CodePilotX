@@ -12,6 +12,7 @@ export type WorkbenchTabKind =
   | 'plan'
   | 'side-chat'
   | 'side-task'
+  | 'terminal'
 
 export type WorkbenchTabDescriptor =
   | { id: 'review'; kind: 'review' }
@@ -43,6 +44,7 @@ export type WorkbenchTabDescriptor =
       title: string
     }
   | { id: 'side-chat'; kind: 'side-chat' }
+  | { id: 'terminal'; kind: 'terminal' }
   | {
       id: `side-task:${string}`
       kind: 'side-task'

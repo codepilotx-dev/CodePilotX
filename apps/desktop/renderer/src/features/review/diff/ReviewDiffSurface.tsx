@@ -108,10 +108,17 @@ export type ReviewDiffBodyProps = {
 export type ReviewDiffReadOnlySplitProps = {
   file: DesktopReviewDiffFile;
   diffMarkerStyle: DesktopDiffMarkerStyle;
-  syntaxThemeId: string;
+  syntaxThemeId?: string;
   showWordDiff: boolean;
   wrapLines: boolean;
   ariaLabel: string;
+};
+
+export type ReviewDiffReadOnlyInlineProps = Omit<
+  ReviewDiffReadOnlySplitProps,
+  "ariaLabel"
+> & {
+  ariaLabel?: string;
 };
 
 const EMPTY_COMMENTS = new Map<string, DesktopReviewComment[]>();
@@ -164,7 +171,48 @@ export function ReviewDiffReadOnlySplit({
   );
 }
 
+export function ReviewDiffReadOnlyInline({
+  file,
+  diffMarkerStyle,
+  syntaxThemeId,
+  showWordDiff,
+  wrapLines,
+  ariaLabel,
+}: ReviewDiffReadOnlyInlineProps): React.ReactNode {
+  const intralineByLineId = React.useMemo(
+    () =>
+      buildReviewIntralineByLineId(file.hunks, {
+        enabled: showWordDiff,
+      }),
+    [file.hunks, showWordDiff],
+  );
+
+  return (
+    <ReviewDiffInline
+      ariaLabel={ariaLabel}
+      attachedComments={EMPTY_COMMENTS}
+      diffMarkerStyle={diffMarkerStyle}
+      draft={null}
+      file={file}
+      intralineByLineId={intralineByLineId}
+      pending={false}
+      readOnly
+      scope="unstaged"
+      syntaxThemeId={syntaxThemeId}
+      wrapLines={wrapLines}
+      onApplyOperation={NOOP_OPERATION}
+      onCancelDraft={NOOP}
+      onCreateDraft={NOOP_DRAFT}
+      onDeleteComment={NOOP}
+      onDraftBodyChange={NOOP}
+      onResolveComment={NOOP}
+      onSaveDraft={NOOP}
+    />
+  );
+}
+
 export function ReviewDiffInline({
+  ariaLabel,
   attachedComments,
   diffMarkerStyle,
   draft,
@@ -181,11 +229,16 @@ export function ReviewDiffInline({
   onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
-}: ReviewDiffBodyProps): React.ReactNode {
+  readOnly = false,
+}: ReviewDiffBodyProps & {
+  ariaLabel?: string;
+  readOnly?: boolean;
+}): React.ReactNode {
   const rows = buildUnifiedDiffRows(file);
   const syntax = useReviewDiffSyntax(file, syntaxThemeId);
   return (
     <pre
+      aria-label={ariaLabel}
       className="review-codex-diff"
       data-diff=""
       data-diff-type="single"
@@ -200,6 +253,7 @@ export function ReviewDiffInline({
         intralineByLineId={intralineByLineId}
         pane="unified"
         pending={pending}
+        readOnly={readOnly}
         rows={rows}
         scope={scope}
         syntaxByLineId={syntax.byLineId}

@@ -17,6 +17,7 @@ export type ConversationItemContextValue = {
     reference: MarkdownFileReference,
     options: MarkdownFileOpenOptions,
   ) => void;
+  onForkFromMessage?: (request: { itemId: string; turnId: string }) => void;
   onSubmitEditedUserMessage: (text: string) => Promise<void>;
   sessionStatus: DesktopSessionStatus;
   workspacePath: string | null;

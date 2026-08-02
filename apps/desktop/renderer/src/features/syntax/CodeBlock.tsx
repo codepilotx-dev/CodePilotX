@@ -82,11 +82,9 @@ export function CodeBlock({
       className={cx(
         'md-code-block',
         'tw:mx-0',
-        'tw:my-3',
         'tw:w-full',
         'tw:max-w-full',
         'tw:overflow-hidden',
-        'tw:rounded-lg',
         className,
       )}
     >
@@ -127,11 +125,7 @@ export function CodeBlock({
           'md-code-pre',
           'tw:m-0',
           'tw:max-w-full',
-          'tw:px-3',
-          'tw:py-2',
           'tw:font-mono',
-          'tw:text-sm',
-          'tw:leading-5',
           'tw:overflow-x-auto',
           'tw:whitespace-pre',
         )}

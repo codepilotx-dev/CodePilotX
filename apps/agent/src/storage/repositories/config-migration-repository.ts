@@ -34,7 +34,7 @@ export class ConfigMigrationRepository {
   read(): LegacyConfigSnapshot {
     const settings = new Map(
       (this.sqlite.query(
-        "SELECT key, value FROM app_settings WHERE key IN ('config.toml.migration.v1', 'desktop.settings.v1', 'defaultModel', 'reviewerModel', 'mcp.settings.v2', 'skills.settings.v1')",
+        "SELECT key, value FROM app_settings WHERE key IN ('config.json.migration.v1', 'config.toml.migration.v1', 'desktop.settings.v1', 'defaultModel', 'reviewerModel', 'mcp.settings.v2', 'skills.settings.v1')",
       ).all() as Array<{ key: string; value: string }>).map((row) => [row.key, row.value]),
     )
     const providerSettings = (this.sqlite.query(
@@ -54,7 +54,9 @@ export class ConfigMigrationRepository {
       defaultModel: parseObject(row.default_model),
     }))
     return {
-      completed: parseObject(settings.get("config.toml.migration.v1"))?.completed === true,
+      completed:
+        parseObject(settings.get("config.json.migration.v1"))?.completed === true
+        || parseObject(settings.get("config.toml.migration.v1"))?.completed === true,
       desktop: parseObject(settings.get("desktop.settings.v1")),
       defaultModel: parseObject(settings.get("defaultModel")),
       reviewerModel: parseObject(settings.get("reviewerModel")),
@@ -63,6 +65,24 @@ export class ConfigMigrationRepository {
       mcp: parseObject(settings.get("mcp.settings.v2")),
       skills: parseObject(settings.get("skills.settings.v1")),
     }
+  }
+
+  mergeDesktopRuntimeState(runtimeState: Record<string, unknown>) {
+    if (Object.keys(runtimeState).length === 0) return
+    this.sqlite.transaction(() => {
+      const existing = parseObject(
+        (this.sqlite.query(
+          "SELECT value FROM app_settings WHERE key = ?",
+        ).get("desktop.runtime-state.v1") as { value: string } | null)?.value,
+      ) ?? {}
+      this.sqlite.query(
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+      ).run(
+        "desktop.runtime-state.v1",
+        JSON.stringify({ ...runtimeState, ...existing }),
+        Date.now(),
+      )
+    })()
   }
 
   commit(
@@ -100,7 +120,7 @@ export class ConfigMigrationRepository {
       this.sqlite.query(
         "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
       ).run(
-        "config.toml.migration.v1",
+        "config.json.migration.v1",
         JSON.stringify({ completed: true, migratedAt: Date.now() }),
         Date.now(),
       )

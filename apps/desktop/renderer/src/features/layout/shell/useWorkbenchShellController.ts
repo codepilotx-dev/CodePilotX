@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import {
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
@@ -265,17 +271,39 @@ export function useWorkbenchShellController() {
     dispatchPanelAction({ type: 'toggleRightFullWidth' })
   }, [dispatchPanelAction, updateRightDockManualState])
 
+  const commitRightDockWidthRatio = useCallback(
+    (nextRatio: number): void => {
+      startTransition(() => setRightDockWidthRatio(nextRatio))
+      window.localStorage.setItem(
+        RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
+        String(nextRatio),
+      )
+    },
+    [],
+  )
+
+  const commitBottomPanelHeightRatio = useCallback(
+    (nextRatio: number): void => {
+      startTransition(() => setBottomPanelHeightRatio(nextRatio))
+      window.localStorage.setItem(
+        BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
+        String(nextRatio),
+      )
+    },
+    [],
+  )
+
   const handleSetRightDockWidth = useCallback(
     (nextWidth: number): void => {
-      setRightDockWidthRatio(
+      commitRightDockWidthRatio(
         rightDockWidthToRatio(nextWidth, workspaceSize.width),
       )
     },
-    [workspaceSize.width],
+    [commitRightDockWidthRatio, workspaceSize.width],
   )
 
   const handleResetRightDockWidth = useCallback((): void => {
-    setRightDockWidthRatio(
+    commitRightDockWidthRatio(
       rightDockWidthToRatio(
         getResponsiveRightDockDefaultWidth(
           workspaceSize.width,
@@ -284,25 +312,29 @@ export function useWorkbenchShellController() {
         workspaceSize.width,
       ),
     )
-  }, [workspaceSize.height, workspaceSize.width])
+  }, [
+    commitRightDockWidthRatio,
+    workspaceSize.height,
+    workspaceSize.width,
+  ])
 
   const handleSetBottomPanelHeight = useCallback(
     (nextHeight: number): void => {
-      setBottomPanelHeightRatio(
+      commitBottomPanelHeightRatio(
         bottomPanelHeightToRatio(nextHeight, workspaceSize.height),
       )
     },
-    [workspaceSize.height],
+    [commitBottomPanelHeightRatio, workspaceSize.height],
   )
 
   const handleResetBottomPanelHeight = useCallback((): void => {
-    setBottomPanelHeightRatio(
+    commitBottomPanelHeightRatio(
       bottomPanelHeightToRatio(
         BOTTOM_PANEL_DEFAULT_HEIGHT,
         workspaceSize.height,
       ),
     )
-  }, [workspaceSize.height])
+  }, [commitBottomPanelHeightRatio, workspaceSize.height])
 
   const handleOpenPlanDock = useCallback(
     (plan: OpenPlanInDockRequest): void => {
@@ -315,21 +347,6 @@ export function useWorkbenchShellController() {
     },
     [openRightDockTab],
   )
-
-  useEffect(() => {
-    if (
-      rightDockWidthRatio === null ||
-      bottomPanelHeightRatio === null
-    ) return
-    window.localStorage.setItem(
-      RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
-      String(rightDockWidthRatio),
-    )
-    window.localStorage.setItem(
-      BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
-      String(bottomPanelHeightRatio),
-    )
-  }, [bottomPanelHeightRatio, rightDockWidthRatio])
 
   useEffect(() => {
     const workspaceElement = workspaceRef.current

@@ -15,6 +15,16 @@ const primaryFolder = {
   createdAt: now,
   updatedAt: now,
 }
+const secondaryFolder = {
+  id: 'folder-secondary',
+  name: 'CodePilotX-Docs',
+  path: 'F:\\CodeProject\\CodePilotX-Docs',
+  role: 'secondary' as const,
+  availability: 'available' as const,
+  order: 1,
+  createdAt: now,
+  updatedAt: now,
+}
 const defaultThreadSettings = {
   taskMode: 'chat' as const,
   permissionConfig: {
@@ -268,6 +278,13 @@ describe('desktop history client', () => {
           deletedAt: now + 4000,
         })
       }
+      if (rpcMethod === 'project/trust/read') {
+        return rpc(body.id, {
+          projectRoot: projectRootPath,
+          trustLevel: 'trusted',
+          hasProjectConfig: true,
+        })
+      }
       throw new Error(`Unhandled RPC method: ${rpcMethod}`)
     }
 
@@ -393,8 +410,9 @@ describe('desktop history client', () => {
     )
   })
 
-  test('selects a workspace through preload and persists desktop settings', async () => {
+  test('selects a workspace through preload, trusts imported folders and persists desktop settings', async () => {
     const openedPaths: string[] = []
+    const trustRequests: Array<{ method: string; cwd: string }> = []
     let storedSettings: unknown = null
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
@@ -408,6 +426,28 @@ describe('desktop history client', () => {
       if (body?.method === 'project/open') {
         openedPaths.push(params.projectId)
         return rpc(body.id, { project })
+      }
+      if (body?.method === 'project/trust/read') {
+        trustRequests.push({ method: body.method, cwd: params.cwd })
+        return rpc(body.id, {
+          projectRoot: params.cwd,
+          trustLevel: 'untrusted',
+          hasProjectConfig: false,
+        })
+      }
+      if (body?.method === 'project/trust/update') {
+        trustRequests.push({ method: body.method, cwd: params.cwd })
+        return rpc(body.id, {
+          status: 'ok',
+          version: 'a'.repeat(64),
+          filePath: 'F:\\CodeProject\\config.json',
+        })
+      }
+      if (body?.method === 'project/folder/add') {
+        return rpc(body.id, {
+          project: { ...project, folders: [primaryFolder, secondaryFolder] },
+          changed: true,
+        })
       }
       throw new Error(`Unhandled RPC method: ${body?.method}`)
     }
@@ -440,10 +480,17 @@ describe('desktop history client', () => {
     })
     await client.openWorkspace(projectRootPath)
     await client.getWorkspaceContext(projectRootPath)
+    await client.addProjectFolder(project.id, secondaryFolder.path)
     expect(openedPaths).toEqual([
       project.id,
       project.id,
       project.id,
+    ])
+    expect(trustRequests).toEqual([
+      { method: 'project/trust/read', cwd: primaryFolder.path },
+      { method: 'project/trust/update', cwd: primaryFolder.path },
+      { method: 'project/trust/read', cwd: secondaryFolder.path },
+      { method: 'project/trust/update', cwd: secondaryFolder.path },
     ])
 
     const defaults = await client.getDesktopSettings()
@@ -468,6 +515,78 @@ describe('desktop history client', () => {
       projectSettings: project.settings,
     })
     expect(restored.defaultModeRequestUserInput).toBe(true)
+  })
+
+  test('does not rewrite a project source that is already trusted', async () => {
+    const methods: string[] = []
+    const client = createDesktopClient({
+      fetch: async (path, init) => {
+        if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        methods.push(body.method)
+        if (body?.method === 'project/list') {
+          return rpc(body.id, { projects: [project], nextCursor: null })
+        }
+        if (body?.method === 'project/open') return rpc(body.id, { project })
+        if (body?.method === 'project/trust/read') {
+          return rpc(body.id, {
+            projectRoot: projectRootPath,
+            trustLevel: 'trusted',
+            hasProjectConfig: true,
+          })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+      window: {
+        codePilotXDesktop: {
+          pickWorkspaceDirectory: async () => projectRootPath,
+        },
+      },
+    })
+
+    await expect(client.chooseWorkspace()).resolves.toMatchObject({
+      projectId: project.id,
+    })
+    expect(methods).not.toContain('project/trust/update')
+  })
+
+  test('does not return a newly registered project when automatic trust fails', async () => {
+    const methods: string[] = []
+    const client = createDesktopClient({
+      fetch: async (path, init) => {
+        if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        methods.push(body.method)
+        if (body?.method === 'project/list') {
+          return rpc(body.id, { projects: [], nextCursor: null })
+        }
+        if (body?.method === 'project/create') return rpc(body.id, { project })
+        if (body?.method === 'project/trust/read') {
+          return rpc(body.id, {
+            projectRoot: projectRootPath,
+            trustLevel: 'untrusted',
+            hasProjectConfig: false,
+          })
+        }
+        if (body?.method === 'project/trust/update') {
+          return new Response('trust write failed', { status: 500 })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+      window: {
+        codePilotXDesktop: {
+          pickWorkspaceDirectory: async () => projectRootPath,
+        },
+      },
+    })
+
+    await expect(client.chooseWorkspace()).rejects.toThrow()
+    expect(methods).toContain('project/create')
+    expect(methods).not.toContain('project/remove')
   })
 
   test('coalesces identical desktop settings saves and serializes distinct snapshots', async () => {
@@ -560,7 +679,7 @@ function initializedResult() {
   return {
     protocol: 'thread-rpc-v4',
     serverInfo: { name: 'test-agent', version: '1.0.0' },
-    capabilities: ['rpc.typed.v1'],
+    capabilities: ['rpc.typed.v1', 'config.manage.v1'],
     limits: {
       maxFrameBytes: 1024,
       maxSubscriptions: 8,

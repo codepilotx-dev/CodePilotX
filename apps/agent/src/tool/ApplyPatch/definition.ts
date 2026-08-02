@@ -55,6 +55,7 @@ type PreparedOperation = {
   workspacePath: string
   canonicalPath: string
   content: string
+  beforeContent: string | null
   expectedRevision?: WorkspaceFileRevision
   additions: number
   deletions: number
@@ -130,8 +131,8 @@ const protectedPath = (
   inspection: WorkspaceMutationPathInspection,
 ) => {
   const ownerPath = relativeOwnerPath(context, inspection.canonicalPath)
-  const userConfig = inspection.path === "@codepilotx/config.toml"
-  const projectConfig = ownerPath === ".codepilotx/config.toml"
+  const userConfig = inspection.path === "@codepilotx/config.json"
+  const projectConfig = ownerPath === ".codepilotx/config.json"
   return {
     requiresApproval:
       isSensitiveEnvironmentPath(ownerPath)
@@ -247,6 +248,7 @@ const preparePatch = async (
       canonicalPaths.set(key, path)
 
       let content: string
+      let beforeContent: string | null = null
       let expectedRevision: WorkspaceFileRevision | undefined
       if (operation.type === "add") {
         content = operation.content
@@ -271,6 +273,7 @@ const preparePatch = async (
           staleError(path)
         }
         content = applyPatchText(path, operation.chunks, inspection.content).content
+        beforeContent = inspection.content
         expectedRevision = snapshot
       }
 
@@ -308,6 +311,7 @@ const preparePatch = async (
         workspacePath: inspection.path,
         canonicalPath: inspection.canonicalPath,
         content,
+        beforeContent,
         ...(expectedRevision ? { expectedRevision } : {}),
         ...stats,
       })
@@ -471,7 +475,7 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
       ]))
       const files = prepared.operations.map((operation) => {
         const saved = resultByPath.get(canonicalKey(operation.workspacePath))
-        if (!saved) {
+        if (!saved || !saved.afterSha256 || !saved.revision) {
           throw new AgentError(
             "PATCH_PARTIAL_COMMIT",
             "补丁写入结果不完整。请重新 Read 所有受影响文件后再继续",
@@ -488,6 +492,20 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
           revision: saved.revision,
         }
       })
+      const evidence = prepared.operations.map((operation, index) => {
+        const file = files[index]!
+        return {
+          operation: operation.operation,
+          path: operation.path,
+          beforeContent: operation.beforeContent,
+          afterContent: operation.content.startsWith("\uFEFF")
+            ? operation.content.slice(1)
+            : operation.content,
+          beforeSha256: file.beforeSha256,
+          afterSha256: file.afterSha256,
+        }
+      })
+      await context.recordMutation?.(evidence).catch(() => undefined)
       for (let index = 0; index < prepared.operations.length; index += 1) {
         const operation = prepared.operations[index]!
         const file = files[index]!

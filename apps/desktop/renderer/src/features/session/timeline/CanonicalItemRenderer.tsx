@@ -9,12 +9,14 @@ import {
   ClipboardCheck,
   Copy,
   FileDiff,
+  GitFork,
   Hourglass,
   LoaderCircle,
   MessageCircleQuestion,
   NotepadText,
   Paperclip,
   Pencil,
+  RotateCcw,
   Send,
   Shield,
   SquareTerminal,
@@ -22,20 +24,29 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Attachment, Input, Item } from "@codepilotx/shared/thread";
+import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
+import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
+import { Button } from "../../../components/ui/Button.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { MarkdownMessage } from "../MarkdownMessage.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
 import { CollapsibleUserMarkdown } from "../conversation/CollapsibleUserMarkdown.js";
+import { subagentStatusLabel } from "../subagents/subagentStatusLabel.js";
 import { useConversationItemContext } from "./ConversationItemContext.js";
 import {
   WorkflowPlanCard,
   type OpenPlanInDockRequest,
 } from "../workflow/WorkflowPlanCard.js";
+
+const LazyExpandableFileMutationRow = React.lazy(async () => {
+  const module = await import("./ExpandableFileMutationRow.js");
+  return { default: module.ExpandableFileMutationRow };
+});
 
 type ItemOf<T extends Item["type"]> = Extract<Item, { type: T }>;
 type ToolItem = ItemOf<"tool">;
@@ -56,11 +67,23 @@ export type FileMutationDisplay = {
 };
 
 export type PatchDisplay = {
+  actionVersion?: number;
+  applyState?: "applied" | "undone";
   files: FileChangeDisplay[];
   id: string;
+  reversible?: boolean;
   totalAdditions: number | null;
   totalDeletions: number | null;
 };
+
+export type PatchAction = "undo" | "reapply";
+
+export function patchFilesForDisplay(
+  files: readonly FileChangeDisplay[],
+  expanded: boolean,
+): readonly FileChangeDisplay[] {
+  return expanded ? files : files.slice(0, 3);
+}
 
 export type ToolItemDisplay = {
   active: boolean;
@@ -94,9 +117,19 @@ export type CanonicalItemDisclosure = {
   onExpandedChange: (id: string, expanded: boolean) => void;
 };
 
+export type ReadThreadPatchDiff = (
+  params: RpcParams<"thread/patch/diff">,
+) => Promise<RpcResult<"thread/patch/diff">>;
+
 export type CanonicalItemRendererProps = {
   disclosure?: CanonicalItemDisclosure;
   item: Item;
+  onApplyPatch?: (
+    itemId: string,
+    action: PatchAction,
+    expectedVersion: number,
+  ) => Promise<void>;
+  onOpenPatchReview?: (path?: string) => void;
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onOpenSubagent: (taskId: string) => void;
   rightDockPlanEventId: string | null;
@@ -221,6 +254,8 @@ function formatBytes(bytes: number): string {
 export function CanonicalItemRenderer({
   disclosure,
   item,
+  onApplyPatch,
+  onOpenPatchReview,
   onOpenPlanInRightDock,
   onOpenSubagent,
   rightDockPlanEventId,
@@ -251,7 +286,13 @@ export function CanonicalItemRenderer({
     case "question":
       return <QuestionItemView item={item} />;
     case "patch":
-      return <PatchItemView item={item} />;
+      return (
+        <PatchItemView
+          item={item}
+          onApplyPatch={onApplyPatch}
+          onOpenReview={onOpenPatchReview}
+        />
+      );
     case "subagent":
       return <SubagentItemView item={item} onOpen={onOpenSubagent} />;
   }
@@ -268,6 +309,7 @@ function TextItemView({
     canCopyFileReferenceContents,
     onCopyFileReferenceContents,
     onOpenFileReference,
+    onForkFromMessage,
     workspacePath,
   } = useConversationItemContext();
 
@@ -290,6 +332,26 @@ function TextItemView({
       {showAssistantActions && item.status !== "streaming" ? (
         <div className="canonical-message-actions canonical-message-actions--assistant">
           <CopyButton text={item.text} />
+          {item.placement === "result" && item.status === "completed" && onForkFromMessage ? (
+            <Tooltip content="在新聊天中继续">
+              <button
+                aria-label="在新聊天中继续"
+                className="canonical-icon-button"
+                title="在新聊天中继续"
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  onForkFromMessage({ itemId: item.id, turnId: item.turnId });
+                }}
+              >
+                <GitFork
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              </button>
+            </Tooltip>
+          ) : null}
         </div>
       ) : null}
     </article>
@@ -466,10 +528,22 @@ function QuestionItemView({ item }: { item: ItemOf<"question"> }): React.ReactNo
   );
 }
 
-function PatchItemView({ item }: { item: ItemOf<"patch"> }): React.ReactNode {
+function PatchItemView({
+  item,
+  onApplyPatch,
+  onOpenReview,
+}: {
+  item: ItemOf<"patch">;
+  onApplyPatch?: CanonicalItemRendererProps["onApplyPatch"];
+  onOpenReview?: CanonicalItemRendererProps["onOpenPatchReview"];
+}): React.ReactNode {
   return (
     <PatchSummaryView
+      onApplyPatch={onApplyPatch}
+      onOpenReview={onOpenReview}
       patch={{
+        actionVersion: item.actionVersion,
+        applyState: item.applyState,
         files: item.files.map((file) => ({
           additions: file.additions,
           deletions: file.deletions,
@@ -477,6 +551,7 @@ function PatchItemView({ item }: { item: ItemOf<"patch"> }): React.ReactNode {
           path: file.path,
         })),
         id: item.id,
+        reversible: item.reversible,
         totalAdditions: item.totalAdditions,
         totalDeletions: item.totalDeletions,
       }}
@@ -485,47 +560,145 @@ function PatchItemView({ item }: { item: ItemOf<"patch"> }): React.ReactNode {
 }
 
 export function PatchSummaryView({
+  onApplyPatch,
+  onOpenReview,
   patch,
 }: {
+  onApplyPatch?: CanonicalItemRendererProps["onApplyPatch"];
+  onOpenReview?: CanonicalItemRendererProps["onOpenPatchReview"];
   patch: PatchDisplay;
 }): React.ReactNode {
+  const [filesExpanded, setFilesExpanded] = React.useState(false);
+  const [pendingAction, setPendingAction] = React.useState<PatchAction | null>(
+    null,
+  );
+  const [actionError, setActionError] = React.useState<string | null>(null);
+  const hiddenFileCount = Math.max(0, patch.files.length - 3);
+  const visibleFiles = patchFilesForDisplay(patch.files, filesExpanded);
+  const patchAction: PatchAction =
+    patch.applyState === "undone" ? "reapply" : "undo";
+  const canApplyPatch = patch.reversible === true && Boolean(onApplyPatch);
+
+  React.useEffect(() => {
+    if (hiddenFileCount === 0 && filesExpanded) setFilesExpanded(false);
+  }, [filesExpanded, hiddenFileCount]);
+
+  const applyPatch = async (): Promise<void> => {
+    if (!onApplyPatch || pendingAction) return;
+    setPendingAction(patchAction);
+    setActionError(null);
+    try {
+      await onApplyPatch(patch.id, patchAction, patch.actionVersion ?? 0);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : patchAction === "undo"
+            ? "无法撤销文件修改"
+            : "无法重新应用文件修改",
+      );
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
   return (
-    <details className="canonical-patch-card">
-      <summary>
-        <FileDiff aria-hidden="true" />
-        <strong>已编辑 {patch.files.length} 个文件</strong>
-        {patch.totalAdditions !== null ? (
-          <span className="canonical-diff-add">+{patch.totalAdditions}</span>
-        ) : null}
-        {patch.totalDeletions !== null ? (
-          <span className="canonical-diff-remove">-{patch.totalDeletions}</span>
-        ) : null}
-        <ChevronDown aria-hidden="true" />
-      </summary>
+    <article className="canonical-patch-card">
+      <header className="canonical-patch-card__header">
+        <span className="canonical-patch-card__icon" aria-hidden="true">
+          <FileDiff />
+        </span>
+        <span className="canonical-patch-card__summary">
+          <strong>已编辑 {patch.files.length} 个文件</strong>
+          <span>
+            {patch.totalAdditions !== null ? (
+              <span className="canonical-diff-add">+{patch.totalAdditions}</span>
+            ) : null}
+            {patch.totalDeletions !== null ? (
+              <span className="canonical-diff-remove">-{patch.totalDeletions}</span>
+            ) : null}
+          </span>
+        </span>
+        <span className="canonical-patch-card__actions">
+          {canApplyPatch ? (
+            <Button
+              className="canonical-patch-card__action"
+              loading={pendingAction === patchAction}
+              onClick={() => void applyPatch()}
+            >
+              <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} />
+              {patchAction === "undo" ? "撤销" : "重新应用"}
+            </Button>
+          ) : null}
+          {onOpenReview ? (
+            <Button
+              className="canonical-patch-card__action"
+              onClick={() =>
+                onOpenReview(patch.files.length === 1 ? patch.files[0]?.path : undefined)
+              }
+            >
+              审核
+            </Button>
+          ) : null}
+        </span>
+      </header>
       <div className="canonical-patch-card__files">
-        {patch.files.map((file) => (
-          <details key={file.path}>
-            <summary>
-              <span>{file.path}</span>
-              {file.additions !== null ? (
-                <small className="canonical-diff-add">+{file.additions}</small>
-              ) : null}
-              {file.deletions !== null ? (
-                <small className="canonical-diff-remove">-{file.deletions}</small>
-              ) : null}
-            </summary>
-            {file.patch ? <pre><code>{file.patch}</code></pre> : null}
-          </details>
+        {visibleFiles.map((file) => (
+          <button
+            className="canonical-patch-card__file"
+            key={file.path}
+            onClick={() => onOpenReview?.(file.path)}
+            title={file.path}
+            type="button"
+          >
+            <span>{file.path}</span>
+            {file.additions !== null ? (
+              <small className="canonical-diff-add">+{file.additions}</small>
+            ) : null}
+            {file.deletions !== null ? (
+              <small className="canonical-diff-remove">-{file.deletions}</small>
+            ) : null}
+          </button>
         ))}
       </div>
-    </details>
+      {hiddenFileCount > 0 ? (
+        <Button
+          aria-expanded={filesExpanded}
+          className="canonical-patch-card__disclosure"
+          onClick={() => setFilesExpanded((expanded) => !expanded)}
+        >
+          {filesExpanded ? "收起文件" : `再显示 ${hiddenFileCount} 个文件`}
+          {filesExpanded ? (
+            <ChevronDown aria-hidden="true" className="is-expanded" />
+          ) : (
+            <ChevronDown aria-hidden="true" />
+          )}
+        </Button>
+      ) : null}
+      {actionError ? (
+        <p className="canonical-patch-card__error" role="alert">
+          {actionError}
+        </p>
+      ) : null}
+    </article>
   );
 }
 
 export function FileMutationItemView({
+  diffMarkerStyle = "color",
+  disclosureState,
   item,
+  readThreadPatchDiff,
+  threadId,
 }: {
+  diffMarkerStyle?: DesktopDiffMarkerStyle;
+  disclosureState?: {
+    expandedIds: ReadonlySet<string>;
+    onExpandedChange: (id: string, expanded: boolean) => void;
+  };
   item: ToolItem;
+  readThreadPatchDiff?: ReadThreadPatchDiff;
+  threadId?: string;
 }): React.ReactNode {
   const mutation = fileMutationDisplay(item);
   if (!mutation) return null;
@@ -534,26 +707,77 @@ export function FileMutationItemView({
 
   return (
     <div className="canonical-file-mutation" data-state={item.state}>
-      {mutation.files.map((file) => (
-        <div className="canonical-file-mutation__row" key={`${item.id}:${file.path}`}>
-          {active ? (
-            <LoaderCircle className="canonical-spin" aria-hidden="true" />
-          ) : failed ? (
-            <CircleAlert aria-hidden="true" />
-          ) : (
-            <Pencil aria-hidden="true" />
-          )}
-          <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
-          {file.additions !== null ? (
-            <small className="canonical-diff-add">+{file.additions}</small>
-          ) : null}
-          {file.deletions !== null ? (
-            <small className="canonical-diff-remove">-{file.deletions}</small>
-          ) : null}
-        </div>
-      ))}
+      {mutation.files.map((file, fileIndex) => {
+        const disclosureId = `file-mutation:${item.id}:${fileIndex}`;
+        const canExpand =
+          item.state === "completed" &&
+          Boolean(threadId) &&
+          Boolean(readThreadPatchDiff) &&
+          item.mutationDiffPaths?.some((path) => sameMutationPath(path, file.path)) === true;
+        if (!canExpand || !readThreadPatchDiff || !threadId) {
+          return (
+            <div
+              className="canonical-file-mutation__row"
+              key={`${item.id}:${file.path}`}
+            >
+              {active ? (
+                <LoaderCircle className="canonical-spin" aria-hidden="true" />
+              ) : failed ? (
+                <CircleAlert aria-hidden="true" />
+              ) : (
+                <Pencil aria-hidden="true" />
+              )}
+              <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
+              <span className="canonical-file-mutation__stats">
+                {file.additions !== null ? (
+                  <small className="canonical-diff-add">+{file.additions}</small>
+                ) : null}
+                {file.deletions !== null ? (
+                  <small className="canonical-diff-remove">-{file.deletions}</small>
+                ) : null}
+              </span>
+            </div>
+          );
+        }
+        const disclosure = {
+          id: disclosureId,
+          expanded: Boolean(disclosureState?.expandedIds.has(disclosureId)),
+          onExpandedChange:
+            disclosureState?.onExpandedChange ?? (() => undefined),
+        };
+        return (
+          <React.Suspense
+            fallback={(
+              <div className="canonical-file-mutation__row">
+                <Pencil aria-hidden="true" />
+                <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
+                <span className="canonical-file-mutation__stats">
+                  {file.additions !== null ? <small className="canonical-diff-add">+{file.additions}</small> : null}
+                  {file.deletions !== null ? <small className="canonical-diff-remove">-{file.deletions}</small> : null}
+                </span>
+              </div>
+            )}
+            key={`${item.id}:${file.path}`}
+          >
+            <LazyExpandableFileMutationRow
+              diffMarkerStyle={diffMarkerStyle}
+              disclosure={disclosure}
+              file={file}
+              item={item}
+              readThreadPatchDiff={readThreadPatchDiff}
+              threadId={threadId}
+            />
+          </React.Suspense>
+        );
+      })}
     </div>
   );
+}
+
+function sameMutationPath(left: string, right: string): boolean {
+  if (left === right) return true;
+  const normalize = (value: string): string => value.replaceAll("\\", "/").toLocaleLowerCase("en-US");
+  return normalize(left) === normalize(right);
 }
 
 function SubagentItemView({
@@ -563,6 +787,7 @@ function SubagentItemView({
   item: ItemOf<"subagent">;
   onOpen: (taskId: string) => void;
 }): React.ReactNode {
+  const changedFiles = item.result?.changedFiles ?? [];
   return (
     <button
       className="canonical-subagent-card"
@@ -573,8 +798,14 @@ function SubagentItemView({
       <span>
         <strong>{item.displayName}</strong>
         <small>{item.task}</small>
+        {changedFiles.length > 0 ? (
+          <small className="canonical-subagent-card__files">
+            修改 {changedFiles.length} 个文件：
+            {changedFiles.map((file) => file.path).join("、")}
+          </small>
+        ) : null}
       </span>
-      <em>{item.status}</em>
+      <em>{subagentStatusLabel(item.status)}</em>
     </button>
   );
 }
@@ -1307,7 +1538,7 @@ export function fileMutationDisplay(item: ToolItem): FileMutationDisplay | null 
   };
 }
 
-function fileMutationLabel(state: ToolItem["state"], path: string): string {
+export function fileMutationLabel(state: ToolItem["state"], path: string): string {
   if (state === "completed") return `已编辑 ${path}`;
   if (state === "error") return `编辑失败 ${path}`;
   if (state === "interrupted") return `已中断编辑 ${path}`;

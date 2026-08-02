@@ -376,6 +376,21 @@ export function mockThreadHistoryPage(
         createdAt: eventCreatedAt,
       })
     }
+
+    if (event.type === 'execution-plan') {
+      const metadata = (event as any).metadata ?? {}
+      current.items.push({
+        id: `${event.id}`,
+        messageID: `${event.id}`,
+        turnId,
+        agentId,
+        type: 'execution-plan',
+        explanation: event.content ?? null,
+        steps: metadata.steps ?? [],
+        status: metadata.status ?? 'completed',
+        createdAt: eventCreatedAt,
+      })
+    }
   }
 
   // If there are tool items with no matching output delta, leave them as running
@@ -560,7 +575,8 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     visualCase !== 'rich' &&
     visualCase !== 'permission' &&
     visualCase !== 'review' &&
-    visualCase !== 'turn-nav'
+    visualCase !== 'turn-nav' &&
+    visualCase !== 'execution-plan'
   ) {
     return null
   }
@@ -576,7 +592,9 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           ? '权限与计划'
           : visualCase === 'turn-nav'
             ? '用户消息导航'
-            : 'Review 与 Diff',
+            : visualCase === 'execution-plan'
+              ? '执行计划弹层'
+              : 'Review 与 Diff',
     collaborationMode: {
       mode: visualCase === 'permission' ? 'plan' : 'default',
     },
@@ -587,6 +605,41 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   const timestamp = (offsetMs: number): string =>
     new Date(baseTime + offsetMs).toISOString()
   const createdAt = timestamp(0)
+  const richAssistantMarkdown = [
+    '# Markdown 阅读排版',
+    '',
+    '## 阅读节奏',
+    '',
+    '正文段落使用舒展的行高与稳定的块间距，让较长回复保持清晰。',
+    '',
+    '第二段包含 **强调文字**、`theme token` 和连续内容，用于核对中英文混排。',
+    '',
+    '普通软换行继续保留 breaks: true，',
+    '第二行不会获得标题与说明的分组间距。',
+    '',
+    '**1. 粗体标题与提交标识** `3efbbd978`',
+    '说明内容与标题分组显示，并继续允许在窄容器中自然折行。',
+    '后续说明仍按 breaks: true 保留普通换行。',
+    '',
+    '> 引用内容保留 CodePilotX 主题色，同时采用更柔和的留白和圆角。',
+    '',
+    '### 结构清单',
+    '',
+    '- 固定 Codex 语义表面',
+    '  - 紧凑摘要继续使用三行适配',
+    '- 高亮主题按需加载',
+    '',
+    '| 排版元素 | 处理方式 |',
+    '| --- | --- |',
+    '| 正文 | 统一行高和段距 |',
+    '| 表格 | 保留窄容器横向滚动 |',
+    '',
+    '```ts',
+    'const theme = mode === "dark" ? "codex-dark" : "codex-light"',
+    '```',
+    '',
+    '已完成工作台结构梳理。',
+  ].join('\n')
   const events: DesktopSessionEvent[] = [
     {
       id: `${sessionId}-user`,
@@ -609,7 +662,7 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
       content:
         visualCase === 'turn-nav'
           ? '第一轮已完成。'
-          : '已完成工作台结构梳理。\n\n```ts\nconst theme = mode === \"dark\" ? \"codex-dark\" : \"codex-light\"\n```\n\n- 固定 Codex 语义表面\n- 高亮主题按需加载',
+          : richAssistantMarkdown,
       createdAt: timestamp(2_000),
     },
   ]
@@ -650,6 +703,39 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           { path: 'apps/desktop/renderer/src/features/session/ConversationTurnNavRail.tsx' },
           { path: 'apps/desktop/renderer/src/styles/features/timeline.scss' },
           { path: 'apps/desktop/renderer/src/components/ui/Tooltip.tsx' },
+        ],
+      },
+    })
+  }
+
+  if (visualCase === 'execution-plan') {
+    events.push({
+      id: `${sessionId}-execution-plan`,
+      sessionId,
+      type: 'execution-plan',
+      content: '按序完成主题重构并接入工作台。',
+      createdAt: timestamp(3_000),
+      metadata: {
+        steps: [
+          { step: '把会话正文改造成 Codex 语义表面，并固定主题色板与圆角基线。', status: 'completed' },
+          { step: '将计划弹层从胶囊包含块解耦，改为相对完整摘要区域自适应居中。', status: 'in_progress' },
+          { step: '验证窄窗口下弹层按可用正文宽度收缩、长步骤文本正常换行且无横向溢出。', status: 'pending' },
+        ],
+        status: 'streaming',
+      },
+    })
+    events.push({
+      id: `${sessionId}-patch`,
+      sessionId,
+      type: 'file_patch',
+      content: '重构主题与工作台样式',
+      createdAt: timestamp(5_000),
+      metadata: {
+        turnScoped: true,
+        files: [
+          { path: 'apps/desktop/renderer/shared/theme.ts' },
+          { path: 'apps/desktop/renderer/src/styles/features/_session-page.scss' },
+          { path: 'apps/desktop/renderer/src/styles/features/_session-workflow.scss' },
         ],
       },
     })

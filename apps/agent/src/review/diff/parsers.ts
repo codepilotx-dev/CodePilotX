@@ -9,6 +9,13 @@ type NameStatus = {
   status: ReviewFileSummary["status"]
 }
 
+export type RawDiffEntry = NameStatus & {
+  oldMode: string
+  newMode: string
+  oldOid: string
+  newOid: string
+}
+
 export const sha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex")
 export const normalizedPath = (path: string) => path.replaceAll("\\", "/")
 
@@ -65,6 +72,57 @@ export const parseNameStatus = (value: string): NameStatus[] => {
     }
   }
   return result
+}
+
+export const parseRawDiff = (value: string): RawDiffEntry[] => {
+  const fields = value.split("\0")
+  const result: RawDiffEntry[] = []
+  for (let index = 0; index < fields.length;) {
+    const header = fields[index++]
+    if (!header?.startsWith(":")) continue
+    const [oldMode, newMode, oldOid, newOid, rawStatus] = header.slice(1).split(" ")
+    if (!oldMode || !newMode || !oldOid || !newOid || !rawStatus) continue
+    const firstPath = fields[index++]
+    if (!firstPath) continue
+    if (rawStatus.startsWith("R") || rawStatus.startsWith("C")) {
+      const destination = fields[index++]
+      if (!destination) continue
+      result.push({
+        path: validateRelativePath(destination),
+        previousPath: validateRelativePath(firstPath),
+        status: mapStatus(rawStatus),
+        oldMode,
+        newMode,
+        oldOid,
+        newOid,
+      })
+    } else {
+      result.push({
+        path: validateRelativePath(firstPath),
+        previousPath: null,
+        status: mapStatus(rawStatus),
+        oldMode,
+        newMode,
+        oldOid,
+        newOid,
+      })
+    }
+  }
+  return result
+}
+
+export const parseRawNumstatDiff = (value: string) => {
+  const fields = value.split("\0")
+  let index = 0
+  while (fields[index]?.startsWith(":")) {
+    const header = fields[index++]!
+    const rawStatus = header.slice(1).split(" ")[4] ?? ""
+    index += rawStatus.startsWith("R") || rawStatus.startsWith("C") ? 2 : 1
+  }
+  return {
+    rawEntries: parseRawDiff(value),
+    numstats: parseNumstats(fields.slice(index).join("\0")),
+  }
 }
 
 export const parsePorcelainStatus = (value: string) => {

@@ -861,7 +861,7 @@ export type DesktopPetSettings = {
   notifyFailure: boolean
 }
 
-export type SidebarProductMode = 'coding' | 'working'
+export type SidebarProductMode = 'coding' | 'working' | 'chat'
 export type SidebarSectionId = 'pinned' | 'projects' | 'recent'
 export type DesktopShellSecurityLevel = 'strict' | 'balanced' | 'relaxed'
 
@@ -919,6 +919,7 @@ export type DesktopStoredSettings = {
   enableFullAccessPermissionMode?: boolean
   permissionConfig: DesktopPermissionConfig
   shellSecurityLevel: DesktopShellSecurityLevel
+  terminalProfileId: string | null
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   permissionProfile?: DesktopPermissionProfile
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
@@ -979,6 +980,7 @@ gitBranchPrefix: string
   sidebarStateVersion: number
   sidebarProjectSort: DesktopSidebarSort
   sidebarSort: DesktopSidebarSort
+  sidebarPriorityFilterEnabled: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
@@ -992,7 +994,8 @@ gitBranchPrefix: string
 export type DesktopConfigReadResult = RpcResult<'config/read'>
 export type DesktopConfigBatchWriteParams = RpcParams<'config/batchWrite'>
 export type DesktopConfigWriteResult = RpcResult<'config/batchWrite'>
-export type DesktopProjectTrustReadResult = RpcResult<'project/trust/read'>
+export type DesktopConfigProfileListResult = RpcResult<'config/profile/list'>
+export type DesktopConfigProfileSelectResult = RpcResult<'config/profile/select'>
 
 export type DesktopMcpScope = McpScope
 export type DesktopEditableMcpScope = McpScope
@@ -1630,10 +1633,8 @@ export type DesktopApi = {
   deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   readConfig(params?: RpcParams<'config/read'>): Promise<DesktopConfigReadResult>
   writeConfigBatch(params: DesktopConfigBatchWriteParams): Promise<DesktopConfigWriteResult>
-  readProjectTrust(cwd: string): Promise<DesktopProjectTrustReadResult>
-  updateProjectTrust(
-    params: RpcParams<'project/trust/update'>,
-  ): Promise<RpcResult<'project/trust/update'>>
+  listConfigProfiles(): Promise<DesktopConfigProfileListResult>
+  selectConfigProfile(profileId: string | null): Promise<DesktopConfigProfileSelectResult>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
   listProjectMemories(workspacePath: string): Promise<DesktopProjectMemoryListing>
@@ -1710,6 +1711,10 @@ export type DesktopApi = {
     providerID: ModelProviderID,
   ): Promise<DesktopModelProviderState>
   listProviderCredentials(providerId?: ModelProviderID): Promise<DesktopProviderCredential[]>
+  readProviderCredentialStore(): Promise<RpcResult<'provider/credential/store/read'>>
+  updateProviderCredentialStore(
+    store: RpcParams<'provider/credential/store/update'>['store'],
+  ): Promise<RpcResult<'provider/credential/store/update'>>
   createApiKey(input: {
     providerId: ModelProviderID
     label: string

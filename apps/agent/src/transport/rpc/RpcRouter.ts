@@ -23,6 +23,7 @@ import type { ApprovalService } from "../../permission/ApprovalService"
 import type { QuestionService } from "../../session/QuestionService"
 import type { ApiKeyService } from "../../provider/ApiKeyService"
 import type { ProviderCredentialService } from "../../provider/ProviderCredentialService"
+import type { ProviderCredentialStoreManager } from "../../auth/ProviderCredentialStoreManager"
 import type { PiModelService } from "../../provider/pi"
 import type { PiAuthSessionService } from "../../auth/PiAuthSessionService"
 import type { ThreadHistoryService } from "../../session/ThreadHistoryService"
@@ -48,6 +49,16 @@ import type { McpRuntimeService } from "../../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../../suggestion/TaskSuggestionService"
 import type { UsageService } from "../../usage/UsageService"
 import type { ConfigService } from "../../config/ConfigService"
+import type { TurnPatchService } from "../../patch/TurnPatchService"
+import type { TerminalContextService } from "../../terminal/TerminalContextService"
+import type { TerminalOutputMirror } from "../../terminal/TerminalOutputMirror"
+import type { LocalEnvironmentService } from "../../local-environment/LocalEnvironmentService"
+import type { ManagedWorktreeService } from "../../worktree/ManagedWorktreeService"
+import type { HandoffService } from "../../handoff/HandoffService"
+import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBindingService"
+import type { WorktreeRepository } from "../../worktree/WorktreeRepository"
+import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
+import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
@@ -84,10 +95,9 @@ import {
   ReviewStatusParamsSchema,
   ReviewSummaryParamsSchema,
   Capabilities,
-  RpcMethods,
   RpcApplicationError,
   InitializedNotificationSchema,
-  dispatchRpcMessage,
+  dispatchRpcMessageWithMethods,
   type ApplicationErrorCode,
   type JsonValue,
   type RpcHandlers,
@@ -95,6 +105,7 @@ import {
   type ReviewAiTarget,
   type ReviewSource,
 } from "@codepilotx/agent-protocol"
+import { AllRpcMethods as RpcMethods } from "@codepilotx/agent-protocol/host"
 
 export type RpcRouterDependencies = {
   config: ConfigService
@@ -111,6 +122,7 @@ export type RpcRouterDependencies = {
   piModels: PiModelService
   apiKeys: ApiKeyService
   providerCredentials: ProviderCredentialService
+  providerCredentialStore: ProviderCredentialStoreManager
   authSessions: PiAuthSessionService
   memory: MemoryService
   hooks: HookService
@@ -124,6 +136,16 @@ export type RpcRouterDependencies = {
   mcp?: McpRuntimeService
   suggestions?: TaskSuggestionService
   usage: UsageService
+  turnPatches: TurnPatchService
+  terminalContext: TerminalContextService
+  terminalOutput: TerminalOutputMirror
+  localEnvironment: LocalEnvironmentService
+  worktrees: ManagedWorktreeService
+  handoff: HandoffService
+  threadFork: ThreadMessageForkService
+  executionBindings: TaskExecutionBindingService
+  worktreeRepository: WorktreeRepository
+  environmentDeltas: EnvironmentDeltaStore
 }
 
 export type { RpcRouterContext } from "./request-context"
@@ -247,6 +269,8 @@ export class RpcRouter {
     createdAt: number
     lastSeenAt: number
     capabilities: ReadonlySet<string>
+    authority?: "desktop-host"
+    transportAuthority?: "desktop-host" | "renderer"
   }>()
   private readonly connectionLeaseMs: number
   readonly now: () => number
@@ -266,7 +290,9 @@ export class RpcRouter {
   }
 
   async handle(input: unknown, context: RpcRouterContext = {}) {
-    if (context.connectionId) this.touchConnection(context.connectionId)
+    if (context.connectionId && !this.touchConnection(context.connectionId, context.transportAuthority)) {
+      return unauthorizedRequestResponse(input)
+    }
     else this.reapExpiredConnections()
     if (isInitializedNotification(input)) {
       const notification = Schema.decodeUnknownSync(InitializedNotificationSchema)(input)
@@ -276,7 +302,7 @@ export class RpcRouter {
       connection.initialized = true
       return null
     }
-    if (isRpcMethod(input, "initialize")) return dispatchRpcMessage(input, this.handlers, context)
+    if (isRpcMethod(input, "initialize")) return dispatchRpcMessageWithMethods(input, RpcMethods, this.handlers, context)
     const connection = context.connectionId ? this.connections.get(context.connectionId) : undefined
     if (!connection?.initialized) return unauthorizedRequestResponse(input)
     const requestedMethod = rpcMethodOf(input)
@@ -284,7 +310,7 @@ export class RpcRouter {
     if (capability && !connection.capabilities.has(capability)) {
       return capabilityRequiredResponse(input, capability)
     }
-    return dispatchRpcMessage(input, this.handlers, context)
+    return dispatchRpcMessageWithMethods(input, RpcMethods, this.handlers, context)
   }
 
   listPendingInteractions(rawParams: Record<string, unknown>) {
@@ -654,11 +680,25 @@ export class RpcRouter {
     return connectionId
   }
 
-  touchConnection(connectionId: string) {
+  requireDesktopHost(context: RpcRouterContext) {
+    const connectionId = this.requireConnection(context)
+    const connection = this.connections.get(connectionId)
+    if (
+      process.env.CODEPILOTX_DESKTOP_MANAGED !== "1"
+      || connection?.authority !== "desktop-host"
+      || connection.transportAuthority !== "desktop-host"
+    ) {
+      throw new AgentError("PERMISSION_DENIED", "该 RPC 方法仅允许桌面宿主调用", 403)
+    }
+    return connectionId
+  }
+
+  touchConnection(connectionId: string, transportAuthority?: "desktop-host" | "renderer") {
     const now = this.now()
     this.reapExpiredConnections(now)
     const connection = this.connections.get(connectionId)
     if (!connection) return false
+    if (connection.transportAuthority !== transportAuthority) return false
     connection.lastSeenAt = now
     return true
   }

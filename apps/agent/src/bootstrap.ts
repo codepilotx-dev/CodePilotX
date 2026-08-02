@@ -2,12 +2,15 @@ import { Effect } from "effect";
 import type { Model } from "@codepilotx/model-schema";
 import { loadConfig } from "./config/Config";
 import { ConfigService } from "./config/ConfigService";
+import { SqliteProjectTrustStore } from "./config/ProjectTrustStore";
 import { ConfigMigrationService } from "./config/ConfigMigrationService";
 import { ConfigMigrationRepository } from "./storage/repositories/config-migration-repository";
 import { AgentDatabase } from "./storage/database/AgentDatabase";
 import { EventHub } from "./storage/events/EventHub";
 import { publishAgentEvent } from "./storage/events/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
+import { AuthJsonCredentialRepository } from "./auth/AuthJsonCredentialRepository";
+import { ProviderCredentialStoreManager } from "./auth/ProviderCredentialStoreManager";
 import { PiAuthSessionService } from "./auth/PiAuthSessionService";
 import { ToolRegistry } from "./tool/ToolRegistry";
 import { ToolExecutor } from "./tool/ToolExecutor";
@@ -73,10 +76,38 @@ import { TaskSuggestionService } from "./suggestion/TaskSuggestionService";
 import { ThreadTitleService } from "./session/ThreadTitleService";
 import { UsageService } from "./usage/UsageService";
 import { UsageRepository } from "./storage/repositories/usage-repository";
+import { TurnPatchService } from "./patch/TurnPatchService";
+import { TerminalContextService } from "./terminal/TerminalContextService";
+import { TerminalOutputMirror } from "./terminal/TerminalOutputMirror";
+import { createTerminalReadDefinition } from "./tool/TerminalRead/definition";
+import { GitCommandRunner } from "./git/GitCommandRunner";
+import {
+  EnvironmentDeltaStore,
+  FileProjectTrustStore,
+  LocalEnvironmentDiscovery,
+  LocalEnvironmentRunner,
+  LocalEnvironmentService,
+  LocalEnvironmentWorktreeLifecycle,
+} from "./local-environment";
+import { WorktreeRepository } from "./worktree/WorktreeRepository";
+import { TaskExecutionBindingService } from "./worktree/TaskExecutionBindingService";
+import { ManagedWorktreeService } from "./worktree/ManagedWorktreeService";
+import {
+  BindingHandoffWorkspace,
+  HandoffLifecycle,
+  HandoffRepository,
+  HandoffService,
+  ThreadForkRepository,
+} from "./handoff";
+import { ConversationHistoryForkRepository } from "./session/fork/ConversationHistoryForkRepository";
+import { ThreadForkWorkspaceService } from "./session/fork/ThreadForkWorkspaceService";
+import { ThreadMessageForkRepository } from "./session/fork/ThreadMessageForkRepository";
+import { ThreadMessageForkService } from "./session/fork/ThreadMessageForkService";
 
 export interface BootstrapOptions {
   models?: Models;
   initializeDatabase?: (db: AgentDatabase) => void;
+  onReviewGitCommand?: (args: readonly string[]) => void;
 }
 
 export const createBootstrap = (options: BootstrapOptions = {}) =>
@@ -105,7 +136,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       legacyPath: config.legacyDatabasePath,
     });
     options.initializeDatabase?.(db);
-    const configService = new ConfigService(config.storage.userConfig);
+    const configService = new ConfigService(
+      config.storage.userConfig,
+      {},
+      new SqliteProjectTrustStore(db),
+    );
     yield* Effect.promise(() => configService.initialize());
     yield* Effect.promise(() =>
       new ConfigMigrationService(
@@ -118,11 +153,57 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const projectlessWorkspaces = new ManagedProjectlessWorkspaceService(
       config.documentsDir,
     );
+    const worktreeRepository = new WorktreeRepository(db.sqlite);
+    const executionBindings = new TaskExecutionBindingService(worktreeRepository);
     const workspaceResolver = new ThreadWorkspaceResolver(
       db,
       projectlessWorkspaces,
+      executionBindings,
     );
+    const terminalContext = new TerminalContextService(workspaceResolver);
+    const terminalOutput = new TerminalOutputMirror();
+    const environmentDeltas = new EnvironmentDeltaStore(config.dataDir);
+    const localEnvironmentRunner = new LocalEnvironmentRunner(environmentDeltas);
+    const localEnvironment = new LocalEnvironmentService(
+      new LocalEnvironmentDiscovery(new GitCommandRunner({
+        maxOutputBytes: 64 * 1024,
+        timeoutMs: 20_000,
+      })),
+      new FileProjectTrustStore(config.dataDir),
+      localEnvironmentRunner,
+      async (threadId) => {
+        const context = await terminalContext.resolve(threadId);
+        return {
+          bindingId: context.bindingId,
+          contextVersion: context.contextVersion,
+          cwd: context.target.cwd,
+          workspaceKind: context.workspaceKind,
+        };
+      },
+    );
+    const worktrees = yield* Effect.promise(() => ManagedWorktreeService.open({
+      repository: worktreeRepository,
+      managedRoot: join(config.dataDir, "managed-worktrees"),
+      stateRoot: join(config.dataDir, "managed-worktree-state"),
+      resolveProjectRoot: (projectId) => db.getProject(projectId)?.rootPath ?? null,
+      environment: new LocalEnvironmentWorktreeLifecycle(localEnvironment),
+      autoDeletePolicy: () => {
+        const desktop = configService.snapshot().desktop as Record<string, unknown> | undefined;
+        const rawLimit = desktop?.gitAutoDeleteWorktreeLimit;
+        return {
+          enabled: desktop?.gitAutoDeleteWorktree !== false,
+          limit: typeof rawLimit === "number" && Number.isSafeInteger(rawLimit)
+            ? Math.min(100, Math.max(1, rawLimit))
+            : 15,
+        };
+      },
+    }));
     const hub = yield* EventHub.make;
+    const turnPatches = new TurnPatchService(
+      db,
+      hub,
+      async (threadID) => (await workspaceResolver.resolve(threadID)).workspace,
+    );
     const unsubscribeConfig = configService.subscribe(async (event) => {
       await publishAgentEvent(db, hub, null, null, "config/updated", {
         version: event.version,
@@ -133,6 +214,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           code,
           message,
         })),
+        ...(event.profileState ? { profileState: event.profileState } : {}),
       });
     });
     const executionLogs = new ExecutionLogObserver(logger);
@@ -210,6 +292,28 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const credentials = new EncryptedCredentialRepository(db);
     yield* credentials.validateAll();
     yield* credentials.backfillApiKeyMetadata();
+    const providerCredentialStore = new ProviderCredentialStoreManager(
+      db,
+      credentials,
+      new AuthJsonCredentialRepository(join(config.dataDir, "auth.json")),
+      {
+        read: () => {
+          const value = configService.snapshot().provider_credentials
+          if (!value || typeof value !== "object" || Array.isArray(value)) return null
+          const store = (value as Record<string, unknown>).store
+          return store === "auth-json" || store === "encrypted" ? store : null
+        },
+        write: async (store) => {
+          await configService.batchWrite({
+            edits: [{
+              keyPath: ["provider_credentials", "store"],
+              value: store,
+            }],
+          })
+        },
+      },
+    );
+    yield* providerCredentialStore.initialize();
     const github = new GithubService(credentials, {
       getConfiguredClientId: () => config.githubOAuthClientId,
       getBrokerURL: () => config.githubAuthBrokerURL,
@@ -230,11 +334,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         });
       },
       (input) => github.preparedPullRequestComparison(input),
-      undefined,
+      options.onReviewGitCommand,
       logger,
     );
     const git = new GitWorkspaceService(db);
-    const piModels = new PiModelService(credentials, {
+    const piModels = new PiModelService(providerCredentialStore, {
       ...(options.models ? { models: options.models } : {}),
       modelsStore: new PiModelsFileStore(config.piModelCachePath),
       config: () => {
@@ -257,11 +361,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const providers = new PiModelCatalogAdapter(piModels);
     const apiKeys = new ApiKeyService(
       piModels,
-      credentials,
+      providerCredentialStore,
     );
     const providerCredentials = new ProviderCredentialService(
       piModels,
-      credentials,
+      providerCredentialStore,
     );
     const anthropicUsageModels = builtinModels({
       credentials: new EncryptedCredentialStore(credentials, {
@@ -328,6 +432,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       await providers.reload();
     });
     const tools = new ToolRegistry();
+    tools.register(createTerminalReadDefinition(terminalOutput));
     const mcpConfigs = new McpConfigService(
       new McpSettingsRepository(db),
       configService,
@@ -337,7 +442,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       providers,
       piModels,
       credentials,
-      { subscriptionModels: anthropicUsageModels },
+      {
+        subscriptionModels: anthropicUsageModels,
+        providerCredentials: providerCredentialStore,
+      },
     );
     const mcpOAuthCoordinator = new McpOAuthCoordinator(
       new McpOAuthCredentialRepository(credentials),
@@ -448,6 +556,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       hooks,
       fileSaved: ({ workspaceRoot, filePath }) =>
         configService.notifyFileSaved(workspaceRoot, filePath),
+      recordMutation: (batch) =>
+        Promise.resolve(db.repositories.turnPatches.recordBatch(batch)),
+      discardMutationEvidence: async ({ threadID, turnID }) => {
+        const events = db.repositories.turnPatches.markIncomplete(threadID, turnID)
+        for (const event of events) await Effect.runPromise(hub.publish(event))
+      },
     });
     const questions = new QuestionService(db, hub);
     const orchestrator = new PiOrchestratorAdapter({
@@ -579,6 +693,49 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       projectSources,
       threadTitles,
     );
+    const handoffOperations = new HandoffRepository(db);
+    const handoff = new HandoffService(
+      handoffOperations,
+      new ThreadForkRepository(db),
+      new BindingHandoffWorkspace(
+        db,
+        workspaceResolver,
+        executionBindings,
+        worktreeRepository,
+        handoffOperations,
+        environmentDeltas,
+      ),
+      new HandoffLifecycle(
+        db,
+        threads,
+        async (threadId) => terminalOutput.read({ threadId }) === null,
+      ),
+    );
+    const threadForkOperations = new ThreadMessageForkRepository(db);
+    const threadFork = new ThreadMessageForkService(
+      threadForkOperations,
+      new ConversationHistoryForkRepository(db),
+      new ThreadForkWorkspaceService(
+        workspaceResolver,
+        executionBindings,
+        worktreeRepository,
+        environmentDeltas,
+      ),
+      worktrees,
+      worktreeRepository,
+    );
+    yield* Effect.promise(async () => {
+      for (const operationId of handoffOperations.runningOperationIDs()) {
+        await handoff.recover(operationId).catch(() => undefined);
+      }
+      for (const operationId of handoffOperations.pendingFinalizationIDs()) {
+        const operation = handoffOperations.get(operationId);
+        await handoff.acknowledgeClientTransfer(operationId, operation.revision).catch(() => undefined);
+      }
+      for (const operationId of threadForkOperations.runningOperationIDs()) {
+        await threadFork.recover(operationId).catch(() => undefined);
+      }
+    });
     const app = createApp({
       config,
       configService,
@@ -595,6 +752,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       piModels,
       apiKeys,
       providerCredentials,
+      providerCredentialStore,
       authSessions,
       memory,
       hooks,
@@ -609,6 +767,16 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       mcp,
       suggestions,
       usage,
+      turnPatches,
+      terminalContext,
+      terminalOutput,
+      localEnvironment,
+      worktrees,
+      handoff,
+      threadFork,
+      executionBindings,
+      worktreeRepository,
+      environmentDeltas,
     });
     let disposed = false;
     const dispose = async () => {

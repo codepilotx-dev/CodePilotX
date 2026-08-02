@@ -54,6 +54,7 @@ import {
   createLauncherTab,
   getWorkbenchLauncherDefinitions,
   getWorkbenchTabDefinition,
+  getWorkbenchTabDisplayTitle,
   type WorkbenchTabRenderContext,
 } from '../tabs/workbenchTabRegistry.js'
 import type { FileDocumentLoadErrorPhase } from './RightDockPanels.js'
@@ -63,6 +64,7 @@ import {
   SIDEBAR_COLLAPSE_TARGET_SIZE,
   useSidebarResizeCollapseConfirm,
 } from '../useSidebarResizeCollapseConfirm.js'
+import { useWorkbenchPanelResizePreview } from '../panels/WorkbenchPanelPresence.js'
 
 type Props = {
   target: WorkbenchPanelTarget
@@ -159,8 +161,6 @@ function useStableEvent<TArgs extends unknown[], TResult>(
 
 function WorkbenchPanelResizeController({
   target,
-  panelRef,
-  contentRef,
   rightFullWidth,
   maxWidth,
   minWidth,
@@ -188,104 +188,35 @@ function WorkbenchPanelResizeController({
   | 'onResetHeight'
   | 'onSetWidth'
   | 'onSetHeight'
-> & {
-  panelRef: React.RefObject<HTMLElement | null>
-  contentRef: React.RefObject<HTMLDivElement | null>
-}): React.ReactNode {
-  const guideRef = useRef<HTMLDivElement>(null)
+>): React.ReactNode {
   const handleRef = useRef<HTMLDivElement>(null)
-  const resizeBoundsRef = useRef<DOMRect | null>(null)
-  const resizeSkeletonTargetRef = useRef<HTMLElement | null>(null)
   const isBottom = target === 'bottom'
   const size = isBottom ? (height ?? minHeight ?? 160) : width
   const minSize = isBottom ? (minHeight ?? 160) : minWidth
   const maxSize = isBottom
     ? (maxHeight ?? minHeight ?? 160)
     : maxWidth
-
-  const clearResizeSkeletonTarget = useCallback((): void => {
-    resizeSkeletonTargetRef.current?.removeAttribute(
-      'data-resize-skeleton-active',
-    )
-    resizeSkeletonTargetRef.current = null
-  }, [])
-
-  useEffect(() => clearResizeSkeletonTarget, [clearResizeSkeletonTarget])
+  const previewSize = useWorkbenchPanelResizePreview(target)
 
   const updateResizePhase = useCallback(
     (phase: ResizePhase): void => {
       const handle = handleRef.current
       if (phase === 'idle') {
-        clearResizeSkeletonTarget()
         if (handle) delete handle.dataset.resizePhase
         return
       }
-
-      if (phase === 'dragging') {
-        clearResizeSkeletonTarget()
-        const activeTarget = contentRef.current?.querySelector<HTMLElement>(
-          ':scope > .workbench-tab-panel:not([hidden]) ' +
-            '[data-resize-skeleton-target="dock-review-diff"]',
-        )
-        if (activeTarget) {
-          activeTarget.setAttribute('data-resize-skeleton-active', '')
-          resizeSkeletonTargetRef.current = activeTarget
-        }
-      }
       if (handle) handle.dataset.resizePhase = phase
     },
-    [clearResizeSkeletonTarget, contentRef],
-  )
-
-  const previewSize = useCallback(
-    (nextSize: number | null): void => {
-      const guide = guideRef.current
-      if (!guide) return
-      if (nextSize === null) {
-        guide.hidden = true
-        guide.style.transform = ''
-        resizeBoundsRef.current = null
-        return
-      }
-
-      const bounds =
-        resizeBoundsRef.current ??
-        panelRef.current?.getBoundingClientRect() ??
-        null
-      if (!bounds) return
-      resizeBoundsRef.current = bounds
-      guide.hidden = false
-      const handleBounds = handleRef.current?.getBoundingClientRect()
-
-      if (isBottom) {
-        guide.style.left = `${bounds.left}px`
-        guide.style.top = `${
-          handleBounds
-            ? handleBounds.top + handleBounds.height / 2
-            : bounds.top
-        }px`
-        guide.style.width = `${bounds.width}px`
-        guide.style.height = ''
-        guide.style.transform = `translate3d(0, ${size - nextSize}px, 0)`
-        return
-      }
-
-      guide.style.left = `${
-        handleBounds
-          ? handleBounds.left + handleBounds.width / 2
-          : bounds.left
-      }px`
-      guide.style.top = `${bounds.top}px`
-      guide.style.width = ''
-      guide.style.height = `${bounds.height}px`
-      guide.style.transform = `translate3d(${size - nextSize}px, 0, 0)`
-    },
-    [isBottom, panelRef, size],
+    [],
   )
 
   const {
     collapseConfirmKey,
     collapseConfirmTarget,
+    handleLostPointerCapture,
+    handlePointerCancel,
+    handlePointerMove,
+    handlePointerUp,
     handleResizeKey,
     startResize,
   } = useSidebarResizeCollapseConfirm({
@@ -297,21 +228,12 @@ function WorkbenchPanelResizeController({
     onCollapse: onClose,
     onResetSize: isBottom ? onResetHeight : onResetWidth,
     onResizePhaseChange: updateResizePhase,
-    onResizePreview: previewSize,
+    onResizePreview: previewSize ?? undefined,
     onSetWidth: isBottom ? (onSetHeight ?? onSetWidth) : onSetWidth,
     width: size,
   })
 
   if (!isBottom && rightFullWidth) return null
-
-  const guide = (
-    <div
-      ref={guideRef}
-      aria-hidden="true"
-      className={`workbench-resize-guide workbench-resize-guide--${isBottom ? 'bottom' : 'right'}`}
-      hidden
-    />
-  )
 
   return (
     <>
@@ -336,9 +258,12 @@ function WorkbenchPanelResizeController({
         }
         onDoubleClick={isBottom ? onResetHeight : onResetWidth}
         onKeyDown={handleResizeKey}
+        onLostPointerCapture={handleLostPointerCapture}
+        onPointerCancel={handlePointerCancel}
         onPointerDown={startResize}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       />
-      {typeof document === 'undefined' ? null : createPortal(guide, document.body)}
       {collapseConfirmTarget && typeof document !== 'undefined'
         ? createPortal(
             <div
@@ -419,6 +344,27 @@ export function WorkbenchPanel({
 }: Props): React.ReactNode {
   const panelRef = useRef<HTMLElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const [terminalDisplayPathState, setTerminalDisplayPathState] = useState<{
+    sessionId: string | null
+    displayPath: string | null
+  }>({ sessionId, displayPath: null })
+  const terminalDisplayPath =
+    terminalDisplayPathState.sessionId === sessionId
+      ? terminalDisplayPathState.displayPath
+      : null
+  const handleTerminalDisplayPathChange = useCallback(
+    (displayPath: string | null) => {
+      setTerminalDisplayPathState({ sessionId, displayPath })
+    },
+    [sessionId],
+  )
+  useEffect(() => {
+    setTerminalDisplayPathState(current =>
+      current.sessionId === sessionId
+        ? current
+        : { sessionId, displayPath: null },
+    )
+  }, [sessionId])
   const stableOnAppendBrowserAnnotation = useStableEvent(
     onAppendBrowserAnnotation,
   )
@@ -492,6 +438,10 @@ export function WorkbenchPanel({
         activeTaskId: activeSideTaskId,
         content: sideTaskContent,
       },
+      terminal: {
+        threadId: sessionId,
+        onDisplayPathChange: handleTerminalDisplayPathChange,
+      },
     }),
     [
       browserState,
@@ -499,6 +449,7 @@ export function WorkbenchPanel({
       diffMarkerStyle,
       files,
       gitStatus,
+      handleTerminalDisplayPathChange,
       isRefreshingReview,
       planContentByEventId,
       reviewView,
@@ -538,8 +489,6 @@ export function WorkbenchPanel({
     >
       <WorkbenchPanelResizeController
         target={target}
-        panelRef={panelRef}
-        contentRef={contentRef}
         rightFullWidth={rightFullWidth}
         maxWidth={maxWidth}
         minWidth={minWidth}
@@ -558,6 +507,8 @@ export function WorkbenchPanel({
             state={state}
             tabsById={tabsById}
             target={target}
+            terminalDisplayPath={terminalDisplayPath}
+            onClosePanel={target === 'bottom' ? stableOnClose : undefined}
             onCloseOtherTabs={onCloseOtherTabs}
             onCloseTab={onCloseTab}
             onCloseTabsToRight={onCloseTabsToRight}
@@ -651,10 +602,12 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
   )
 })
 
-function WorkbenchTabsHeader({
+export function WorkbenchTabsHeader({
   target,
   state,
   tabsById,
+  terminalDisplayPath,
+  onClosePanel,
   onCloseTab,
   onCloseOtherTabs,
   onCloseTabsToRight,
@@ -667,6 +620,8 @@ function WorkbenchTabsHeader({
   target: WorkbenchPanelTarget
   state: WorkbenchPanelSnapshot
   tabsById: WorkbenchTabsState['tabsById']
+  terminalDisplayPath: string | null
+  onClosePanel?: () => void
   onCloseTab: (tabId: WorkbenchTabId) => void
   onCloseOtherTabs: (tabId: WorkbenchTabId) => void
   onCloseTabsToRight: (tabId: WorkbenchTabId) => void
@@ -734,6 +689,10 @@ function WorkbenchTabsHeader({
             if (!tab) return null
             const definition = getWorkbenchTabDefinition(tab)
             const tabIcon = definition.getIcon?.(tab) ?? definition.icon
+            const tabTitle = getWorkbenchTabDisplayTitle(
+              tab,
+              terminalDisplayPath,
+            )
             const active = state.activeTabId === tab.id
             const canCloseRight = index < state.tabIds.length - 1
             const hasDivider =
@@ -829,7 +788,7 @@ function WorkbenchTabsHeader({
                         id={`workbench-tab-${target}-${domId(tab.id)}`}
                         role="tab"
                         tabIndex={active ? 0 : -1}
-                        title={definition.getTitle(tab)}
+                        title={tabTitle}
                         type="button"
                         onClick={() => onSelectTab(tab.id)}
                         onDoubleClick={() => {
@@ -849,13 +808,13 @@ function WorkbenchTabsHeader({
                       >
                         <span className="right-dock-tab-icon">{tabIcon}</span>
                         <span className="right-dock-tab-title">
-                          {definition.getTitle(tab)}
+                          {tabTitle}
                         </span>
                       </button>
                       <IconButton
-                        aria-label={`关闭 ${definition.getTitle(tab)}`}
+                        aria-label={`关闭 ${tabTitle}`}
                         className="right-dock-tab-close"
-                        title={`关闭 ${definition.getTitle(tab)}`}
+                        title={`关闭 ${tabTitle}`}
                         variant="plain"
                         onMouseDown={event => {
                           event.preventDefault()
@@ -876,6 +835,55 @@ function WorkbenchTabsHeader({
               </Fragment>
             )
           })}
+          <PopoverMenu
+            align="end"
+            avoidCollisions={false}
+            className="popover-right-dock-add popover-menu--grid"
+            collisionPadding={6}
+            open={menuOpen}
+            side="bottom"
+            sideOffset={4}
+            width={220}
+            trigger={
+              <button
+                aria-label="添加标签"
+                className="right-dock-add-button"
+                title="添加标签"
+                type="button"
+              >
+                <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </button>
+            }
+            onOpenChange={setMenuOpen}
+          >
+            <PopoverRadioGroup
+              value={
+                launchers.find(definition =>
+                  createLauncherTab(definition.kind)?.id === state.activeTabId
+                )?.kind ?? ''
+              }
+              onValueChange={kind => {
+                const definition = launchers.find(item => item.kind === kind)
+                if (!definition) return
+                const candidate = createLauncherTab(definition.kind)
+                if (!candidate) return
+                if (state.tabIds.includes(candidate.id)) onSelectTab(candidate.id)
+                else onOpenTab(candidate)
+                setMenuOpen(false)
+              }}
+            >
+              {launchers.map(definition => (
+                <PopoverRadioItem
+                  icon={definition.icon}
+                  key={definition.kind}
+                  shortcut={definition.shortcut}
+                  value={definition.kind}
+                >
+                  {definition.label}
+                </PopoverRadioItem>
+              ))}
+            </PopoverRadioGroup>
+          </PopoverMenu>
           <span
             aria-hidden="true"
             className="right-dock-tab-empty"
@@ -890,55 +898,17 @@ function WorkbenchTabsHeader({
           />
         </div>
       </div>
-      <PopoverMenu
-        align="end"
-        avoidCollisions={false}
-        className="popover-right-dock-add popover-menu--grid"
-        collisionPadding={6}
-        open={menuOpen}
-        side="bottom"
-        sideOffset={4}
-        width={220}
-        trigger={
-          <button
-            aria-label="添加标签"
-            className="right-dock-add-button"
-            title="添加标签"
-            type="button"
-          >
-            <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </button>
-        }
-        onOpenChange={setMenuOpen}
-      >
-        <PopoverRadioGroup
-          value={
-            launchers.find(definition =>
-              createLauncherTab(definition.kind)?.id === state.activeTabId
-            )?.kind ?? ''
-          }
-          onValueChange={kind => {
-            const definition = launchers.find(item => item.kind === kind)
-            if (!definition) return
-            const candidate = createLauncherTab(definition.kind)
-            if (!candidate) return
-            if (state.tabIds.includes(candidate.id)) onSelectTab(candidate.id)
-            else onOpenTab(candidate)
-            setMenuOpen(false)
-          }}
+      {target === 'bottom' && onClosePanel ? (
+        <IconButton
+          aria-label="关闭底部面板"
+          className="bottom-panel-close"
+          title="关闭底部面板"
+          variant="plain"
+          onClick={onClosePanel}
         >
-          {launchers.map(definition => (
-            <PopoverRadioItem
-              icon={definition.icon}
-              key={definition.kind}
-              shortcut={definition.shortcut}
-              value={definition.kind}
-            >
-              {definition.label}
-            </PopoverRadioItem>
-          ))}
-        </PopoverRadioGroup>
-      </PopoverMenu>
+          <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </IconButton>
+      ) : null}
     </div>
   )
 }

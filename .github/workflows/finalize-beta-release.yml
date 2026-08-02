@@ -1,5 +1,10 @@
 name: Finalize beta release
 
+run-name: >-
+  Finalize beta release /
+  ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'dry-run' || 'live') || github.event_name }} /
+  ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || github.sha }}
+
 on:
   push:
     branches:
@@ -8,8 +13,12 @@ on:
     - cron: "47 * * * *"
   workflow_dispatch:
     inputs:
+      main_sha:
+        description: "Exact 40-character Release PR merge SHA to finalize"
+        required: true
+        type: string
       dry_run:
-        description: "Reconcile release state without creating a tag, release, or issue"
+        description: "Validate the selected Release PR merge without creating a tag, release, or issue"
         required: true
         type: boolean
         default: true
@@ -24,8 +33,11 @@ concurrency:
 jobs:
   finalize:
     if: >-
-      vars.BETA_RELEASE_AUTOMATION_ENABLED == 'true' ||
-      (github.event_name == 'workflow_dispatch' && inputs.dry_run == true)
+      github.ref == 'refs/heads/main' &&
+      (
+        vars.BETA_RELEASE_AUTOMATION_ENABLED == 'true' ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: [self-hosted, windows, x64, codepilotx-release]
     timeout-minutes: 180
     environment:
@@ -34,10 +46,30 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || (github.event_name == 'push' && github.sha || 'main') }}
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Resolve finalize target
+        id: candidate
+        shell: pwsh
+        env:
+          MANUAL_MAIN_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || '' }}
+        run: |
+          if ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") {
+            $mainSha = $env:MANUAL_MAIN_SHA.Trim().ToLowerInvariant()
+          } elseif ($env:GITHUB_EVENT_NAME -eq "push") {
+            $mainSha = $env:GITHUB_SHA
+          } else {
+            $mainSha = ""
+          }
+
+          if ($env:GITHUB_EVENT_NAME -ne "schedule") {
+            if ($mainSha -notmatch '^[0-9a-f]{40}$') {
+              throw "main_sha must be an exact 40-character commit SHA"
+            }
+            "sha=$mainSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -50,15 +82,15 @@ jobs:
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}
         run: |
-          if ($env:GITHUB_EVENT_NAME -eq "push") {
+          if ($env:GITHUB_EVENT_NAME -eq "schedule") {
+            $arguments = @("scripts/beta-release.ts", "reconcile")
+          } else {
             $arguments = @(
               "scripts/beta-release.ts",
               "finalize",
               "--main-sha",
-              "$env:GITHUB_SHA"
+              "${{ steps.candidate.outputs.sha }}"
             )
-          } else {
-            $arguments = @("scripts/beta-release.ts", "reconcile")
           }
 
           if ($env:RELEASE_DRY_RUN -eq "true") {

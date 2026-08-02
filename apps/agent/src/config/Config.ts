@@ -85,7 +85,7 @@ export const resolveAgentStorageLayout = (
   const dataRoot = resolveAgentDataDirectory(environment, userHome)
   return {
     dataRoot,
-    userConfig: resolve(dataRoot, "config.toml"),
+    userConfig: resolve(dataRoot, "config.json"),
     historyDatabase: resolve(dataRoot, "history.sqlite"),
     profileDatabase: resolve(dataRoot, "profile.sqlite"),
     legacyDatabase: resolve(dataRoot, "agent.sqlite"),

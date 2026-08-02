@@ -97,6 +97,11 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     keys: ['Ctrl+Shift+G'],
   },
   {
+    title: '切换集成终端',
+    description: 'Open, focus, or hide the terminal for the current task',
+    keys: ['Ctrl+`'],
+  },
+  {
     title: '切换右侧面板',
     description: 'Show or hide the right dock',
     keys: ['Ctrl+J'],
@@ -115,6 +120,11 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     title: '切换边栏',
     description: 'Show or hide the sidebar',
     keys: ['Ctrl+B'],
+  },
+  {
+    title: '切换侧栏优先级筛选',
+    description: 'Focus the sidebar on priority tasks and the last week of conversations',
+    keys: ['Ctrl+Alt+U'],
   },
   {
     title: '环境动作 1',

@@ -3,11 +3,27 @@ import { Effect } from "effect"
 import { AgentError } from "../domain"
 import type {
   AgentDatabase,
-  CredentialErrorCategory,
-  CredentialHealthStatus,
   StoredCredentialHealth,
   StoredEncryptedCredential,
 } from "../storage/database/AgentDatabase"
+import {
+  isProviderCredentialIntegration,
+  type ApiKeyHealth,
+  type ApiKeySummary,
+  type CredentialSummary,
+  type DecryptedCredential,
+  type PortableProviderCredential,
+  type ProviderCredentialRepository,
+  type ProviderCredentialSummary,
+} from "./ProviderCredentialRepository"
+
+export type {
+  ApiKeyHealth,
+  ApiKeySummary,
+  CredentialSummary,
+  DecryptedCredential,
+  ProviderCredentialSummary,
+} from "./ProviderCredentialRepository"
 
 const SERVICE = "com.codepilotx.credentials"
 const MASTER_KEY_NAME = "master-key-v1"
@@ -33,64 +49,6 @@ const aad = (id: string, integrationID: string) => new TextEncoder().encode(`cre
 const fingerprint = async (key: string) => encodeBase64(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)))
 const keySuffix = (key: string) => key.slice(-4)
 
-export type CredentialSummary = {
-  id: string
-  integrationID: string
-  kind: "api-key" | "oauth"
-  methodID: string | null
-  label: string
-  keyVersion: number
-  enabled: boolean
-  priority: number
-  createdAt: number
-  updatedAt: number
-}
-
-export type ApiKeyHealth = {
-  status: CredentialHealthStatus
-  lastTestedAt: number | null
-  lastUsedAt: number | null
-  errorCategory: CredentialErrorCategory | null
-  cooldownUntil: number | null
-}
-
-export type ApiKeySummary = {
-  id: string
-  integrationID: string
-  label: string
-  maskedValue: string
-  enabled: boolean
-  active: boolean
-  priority: number
-  health: ApiKeyHealth
-  createdAt: number
-  updatedAt: number
-}
-
-export type ProviderCredentialSummary = {
-  id: string
-  providerID: string
-  kind: "api-key" | "oauth"
-  methodID: string | null
-  label: string
-  maskedValue: string | null
-  enabled: boolean
-  active: boolean
-  order: number
-  health: ApiKeyHealth | null
-  createdAt: number
-  updatedAt: number
-}
-
-export type DecryptedCredential<T = unknown> = {
-  id: string
-  integrationID: string
-  kind: "api-key" | "oauth"
-  methodID: string | null
-  label: string
-  value: T
-}
-
 const healthSummary = (health: StoredCredentialHealth | null): ApiKeyHealth => ({
   status: health?.status ?? "untested",
   lastTestedAt: health?.lastTestedAt ?? null,
@@ -99,7 +57,7 @@ const healthSummary = (health: StoredCredentialHealth | null): ApiKeyHealth => (
   cooldownUntil: health?.cooldownUntil ?? null,
 })
 
-export class EncryptedCredentialRepository {
+export class EncryptedCredentialRepository implements ProviderCredentialRepository {
   constructor(
     private readonly db: AgentDatabase,
     private readonly keyStore: MasterKeyStore = systemMasterKeyStore,
@@ -129,7 +87,7 @@ export class EncryptedCredentialRepository {
   listProviderCredentials(providerID?: string): ProviderCredentialSummary[] {
     return this.db.listEncryptedCredentials()
       .filter((row) =>
-        !row.integrationID.startsWith("usage.")
+        isProviderCredentialIntegration(row.integrationID)
         && (!providerID || row.integrationID === providerID))
       .map((row) => ({
         id: row.id,
@@ -371,6 +329,7 @@ export class EncryptedCredentialRepository {
         const row = this.db.encryptedCredentialByID(credentialID)
         if (
           !row
+          || !isProviderCredentialIntegration(row.integrationID)
           || row.integrationID !== providerID
           || !row.enabled
           || !this.db.setActiveEncryptedCredential(providerID, credentialID)
@@ -396,7 +355,7 @@ export class EncryptedCredentialRepository {
     return Effect.try({
       try: () => {
         const row = this.db.encryptedCredentialByID(credentialID)
-        if (!row || row.integrationID.startsWith("usage.")) {
+        if (!row || !isProviderCredentialIntegration(row.integrationID)) {
           throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到 Provider 凭据", 404)
         }
         this.db.profileSqlite.transaction(() => {
@@ -420,7 +379,7 @@ export class EncryptedCredentialRepository {
     return Effect.try({
       try: () => {
         const row = this.db.encryptedCredentialByID(credentialID)
-        if (!row || row.integrationID.startsWith("usage.")) {
+        if (!row || !isProviderCredentialIntegration(row.integrationID)) {
           throw new AgentError("CREDENTIAL_NOT_FOUND", "未找到 Provider 凭据", 404)
         }
         if (!this.db.deleteEncryptedCredential(credentialID)) {
@@ -479,6 +438,145 @@ export class EncryptedCredentialRepository {
         return updated
       },
       catch: (cause) => this.error("CREDENTIAL_READ_FAILED", "无法补齐 API Key 元数据", cause),
+    })
+  }
+
+  exportProviderCredentials() {
+    return Effect.tryPromise({
+      try: async (): Promise<PortableProviderCredential[]> => {
+        const activeByIntegration = new Map<string, string>()
+        for (const row of this.db.listEncryptedCredentials()) {
+          if (!isProviderCredentialIntegration(row.integrationID)) continue
+          const active = this.db.encryptedCredential(row.integrationID)
+          if (active) activeByIntegration.set(row.integrationID, active.id)
+        }
+        const exported: PortableProviderCredential[] = []
+        for (const row of this.db.listEncryptedCredentials()) {
+          if (!isProviderCredentialIntegration(row.integrationID)) continue
+          exported.push({
+            id: row.id,
+            integrationID: row.integrationID,
+            kind: row.kind,
+            methodID: row.methodID,
+            label: row.label,
+            value: await this.decrypt(row),
+            enabled: row.enabled,
+            priority: row.priority,
+            active: activeByIntegration.get(row.integrationID) === row.id,
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+            health: row.kind === "api-key"
+              ? healthSummary(this.db.credentialHealth(row.id))
+              : null,
+          })
+        }
+        return exported
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_READ_FAILED",
+        "无法读取 Provider 凭据",
+        cause,
+      ),
+    })
+  }
+
+  replaceProviderCredentials(credentials: readonly PortableProviderCredential[]) {
+    return Effect.tryPromise({
+      try: async () => {
+        const prepared = await Promise.all(credentials.map(async (credential) => {
+          const value = this.apiKeyValue(credential.value)
+          return {
+            credential,
+            value,
+            fingerprint: value ? await fingerprint(value) : null,
+            encrypted: await this.encrypt(
+              credential.id,
+              credential.integrationID,
+              credential.value,
+            ),
+          }
+        }))
+        this.db.profileSqlite.transaction(() => {
+          for (const row of this.db.listEncryptedCredentials()) {
+            if (isProviderCredentialIntegration(row.integrationID)) {
+              this.db.deleteEncryptedCredential(row.id)
+            }
+          }
+          for (const { credential, encrypted, fingerprint: keyFingerprint, value } of prepared) {
+            this.db.upsertEncryptedCredential({
+              id: credential.id,
+              integrationID: credential.integrationID,
+              kind: credential.kind,
+              methodID: credential.methodID,
+              label: credential.label,
+              keySuffix: value ? keySuffix(value) : null,
+              fingerprint: keyFingerprint,
+              enabled: credential.enabled,
+              priority: credential.priority,
+              ...encrypted,
+              keyVersion: KEY_VERSION,
+            })
+          }
+          for (const credential of credentials) {
+            if (credential.active && credential.enabled) {
+              this.db.setActiveEncryptedCredential(
+                credential.integrationID,
+                credential.id,
+              )
+            }
+            if (credential.health) {
+              this.db.updateCredentialHealth(credential.id, {
+                status: credential.health.status,
+                lastTestedAt: credential.health.lastTestedAt,
+                lastUsedAt: credential.health.lastUsedAt,
+                lastErrorCategory: credential.health.errorCategory,
+                cooldownUntil: credential.health.cooldownUntil,
+              })
+            }
+          }
+        })()
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_WRITE_FAILED",
+        "无法写入 Provider 凭据",
+        cause,
+      ),
+    })
+  }
+
+  clearProviderCredentials() {
+    return Effect.try({
+      try: () => {
+        this.db.profileSqlite.transaction(() => {
+          for (const row of this.db.listEncryptedCredentials()) {
+            if (isProviderCredentialIntegration(row.integrationID)) {
+              this.db.deleteEncryptedCredential(row.id)
+            }
+          }
+        })()
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_DELETE_FAILED",
+        "无法清理 Provider 凭据",
+        cause,
+      ),
+    })
+  }
+
+  validateProviderCredentials() {
+    return Effect.tryPromise({
+      try: async () => {
+        for (const row of this.db.listEncryptedCredentials()) {
+          if (isProviderCredentialIntegration(row.integrationID)) {
+            await this.decrypt(row)
+          }
+        }
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_READ_FAILED",
+        "无法验证 Provider 凭据",
+        cause,
+      ),
     })
   }
 

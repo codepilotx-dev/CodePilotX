@@ -97,6 +97,16 @@ export const systemHandlers = {
         if (!Array.isArray(params.capabilities) || !params.capabilities.includes("rpc.typed.v1")) {
           throw new AgentError("CAPABILITY_REQUIRED", "客户端缺少 rpc.typed.v1 capability", 409)
         }
+        const requestedAuthority = record(params.clientInfo, "clientInfo").authority
+        if (
+          requestedAuthority === "desktop-host"
+          && (
+            context.transportAuthority !== "desktop-host"
+            || process.env.CODEPILOTX_DESKTOP_MANAGED !== "1"
+          )
+        ) {
+          throw new AgentError("PERMISSION_DENIED", "桌面宿主 authority 与传输认证来源不匹配", 403)
+        }
         const connectionId = crypto.randomUUID()
         const createdAt = runtime.now()
         runtime.connections.set(connectionId, {
@@ -104,6 +114,10 @@ export const systemHandlers = {
           createdAt,
           lastSeenAt: createdAt,
           capabilities: new Set(params.capabilities as string[]),
+          ...(context.transportAuthority ? { transportAuthority: context.transportAuthority } : {}),
+          ...(requestedAuthority === "desktop-host"
+            ? { authority: "desktop-host" as const }
+            : {}),
         })
         return {
           protocol: "thread-rpc-v4",

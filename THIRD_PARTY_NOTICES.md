@@ -1,11 +1,17 @@
 # Third-Party Notices
 
-CodePilotX includes source adapted from the OpenCode project, version 1.17.13.
-The copied model schema and project directory storage semantics are licensed
-under the MIT License. See `third_party/opencode/LICENSE`.
+CodePilotX includes source adapted from the OpenCode project. The copied model
+schema and project directory storage semantics originated from version
+1.17.13; the JSONC parsing and key-path patching approach was adapted from
+version 1.18.9. These portions are licensed under the MIT License. See
+`third_party/opencode/LICENSE`.
 
 Additional JavaScript dependencies retain the license terms distributed in
 their respective packages.
+
+CodePilotX uses Microsoft node-pty to provide native pseudoterminal support,
+including Windows ConPTY integration. node-pty is licensed under the MIT
+License; its license notice is distributed with the packaged dependency.
 
 CodePilotX includes the `@codepilotx/pi-agent-core` workspace fork of
 pi-agent-core 0.82.1

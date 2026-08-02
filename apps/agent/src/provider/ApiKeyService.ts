@@ -4,8 +4,8 @@ import { AgentError } from "../domain"
 import type {
   ApiKeyHealth,
   ApiKeySummary as StoredApiKeySummary,
-  EncryptedCredentialRepository,
-} from "../auth/EncryptedCredentialRepository"
+  ProviderCredentialRepository,
+} from "../auth/ProviderCredentialRepository"
 import { secretScrubber } from "../security/SecretScrubber"
 import type { PiModelService } from "./pi"
 
@@ -82,7 +82,7 @@ export type PublicApiKeyTestResult = {
 export class ApiKeyService {
   constructor(
     private readonly providers: PiModelService,
-    private readonly credentials: EncryptedCredentialRepository,
+    private readonly credentials: ProviderCredentialRepository,
   ) {}
 
   async list(providerID?: string): Promise<PublicApiKeySummary[]> {

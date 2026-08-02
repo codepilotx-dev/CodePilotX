@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import type { DesktopReviewDiffFile } from '../../../../shared/types.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import type { ReviewFileTreeNode } from './buildReviewFileTree.js'
+import type { ReviewFileTreeRow as ReviewFileTreeRowModel } from './buildReviewFileTree.js'
 import {
   normalizeReviewFileStatus,
   reviewFileStatusLabel,
@@ -23,93 +23,68 @@ import {
 
 type Props = {
   commentCountsByPath?: Readonly<Record<string, number>>
-  depth?: number
-  node: ReviewFileTreeNode
+  row: ReviewFileTreeRowModel
   collapsedDirs: Set<string>
   onSelectFile: (path: string) => void
   onToggleDir: (path: string) => void
   selectedPath: string | null
 }
 
-export function ReviewFileTreeNode({
+export function ReviewFileTreeRow({
   commentCountsByPath,
-  depth = 0,
-  node,
+  row,
   collapsedDirs,
   onSelectFile,
   onToggleDir,
   selectedPath,
 }: Props): React.ReactNode {
-  const isRoot = node.dirPath === ''
-  const collapsed = !isRoot && collapsedDirs.has(node.dirPath)
-  const dirCommentCount = !isRoot
-    ? (commentCountsByPath?.[node.dirPath] ?? 0)
-    : 0
+  if (row.kind === 'file') {
+    return (
+      <ReviewFileRow
+        active={row.file.path === selectedPath}
+        commentCount={commentCountsByPath?.[row.file.path] ?? 0}
+        depth={row.depth}
+        file={row.file}
+        onSelect={onSelectFile}
+      />
+    )
+  }
 
+  const { node } = row
+  const collapsed = collapsedDirs.has(node.dirPath)
+  const dirCommentCount = commentCountsByPath?.[node.dirPath] ?? 0
   return (
-    <React.Fragment>
-      {!isRoot ? (
-        <button
-          aria-expanded={!collapsed}
-          className="review-file-tree-dir"
-          style={{ paddingLeft: `${12 + depth * 14}px` }}
-          type="button"
-          onClick={() => onToggleDir(node.dirPath)}
-        >
-          {collapsed ? (
-            <ChevronRight size={APP_ICON_SIZE} />
-          ) : (
-            <ChevronDown size={APP_ICON_SIZE} />
-          )}
-          <FolderIcon
-            aria-hidden="true"
-            expanded={!collapsed}
-            path={node.dirPath}
-            size={APP_ICON_SIZE}
-          />
-          <span className="review-file-tree-dir-label">{node.dirLabel}</span>
-          <span className="review-file-tree-trailing">
-            {dirCommentCount > 0 ? (
-              <span className="review-comment-badge">{dirCommentCount}</span>
-            ) : null}
-            <span
-              aria-hidden="true"
-              className="review-file-tree-directory-status"
-            />
-          </span>
-        </button>
-      ) : null}
-
-      {!collapsed && node.files.length > 0 ? (
-        <div className="review-file-tree-files">
-          {node.files.map(file => (
-            <ReviewFileRow
-              active={file.path === selectedPath}
-              commentCount={commentCountsByPath?.[file.path] ?? 0}
-              depth={isRoot ? depth : depth + 1}
-              file={file}
-              key={file.path}
-              onSelect={onSelectFile}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {!collapsed && node.children.length > 0
-        ? node.children.map(child => (
-            <ReviewFileTreeNode
-              collapsedDirs={collapsedDirs}
-              commentCountsByPath={commentCountsByPath}
-              depth={isRoot ? depth : depth + 1}
-              key={child.dirPath}
-              node={child}
-              onSelectFile={onSelectFile}
-              onToggleDir={onToggleDir}
-              selectedPath={selectedPath}
-            />
-          ))
-        : null}
-    </React.Fragment>
+    <button
+      aria-expanded={!collapsed}
+      aria-level={row.depth + 1}
+      className="review-file-tree-dir"
+      role="treeitem"
+      style={{ paddingLeft: `${12 + row.depth * 14}px` }}
+      type="button"
+      onClick={() => onToggleDir(node.dirPath)}
+    >
+      {collapsed ? (
+        <ChevronRight size={APP_ICON_SIZE} />
+      ) : (
+        <ChevronDown size={APP_ICON_SIZE} />
+      )}
+      <FolderIcon
+        aria-hidden="true"
+        expanded={!collapsed}
+        path={node.dirPath}
+        size={APP_ICON_SIZE}
+      />
+      <span className="review-file-tree-dir-label">{node.dirLabel}</span>
+      <span className="review-file-tree-trailing">
+        {dirCommentCount > 0 ? (
+          <span className="review-comment-badge">{dirCommentCount}</span>
+        ) : null}
+        <span
+          aria-hidden="true"
+          className="review-file-tree-directory-status"
+        />
+      </span>
+    </button>
   )
 }
 
@@ -131,7 +106,10 @@ function ReviewFileRow({
   const statusLabel = reviewFileStatusLabel(status)
   return (
     <button
+      aria-level={depth + 1}
+      aria-selected={active}
       className={active ? 'review-file-tree-row active' : 'review-file-tree-row'}
+      role="treeitem"
       style={{ paddingLeft: `${12 + depth * 14}px` }}
       title={`${file.path} · ${statusLabel}`}
       type="button"

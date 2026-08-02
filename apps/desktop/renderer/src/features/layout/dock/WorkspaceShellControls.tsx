@@ -1,22 +1,29 @@
 import type React from 'react'
+import { SquareTerminal } from 'lucide-react'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from '../../../components/ui/iconTokens.js'
 import type { WorkbenchPanelSnapshot } from './rightDockState.js'
 
 export type WorkspaceShellControlsProps = {
   rightDockState: WorkbenchPanelSnapshot
-  bottomPanelVisible: boolean
+  terminalAvailable: boolean
+  terminalVisible: boolean
   showBottomPanel: boolean
   showRightPanel: boolean
-  onToggleBottomPanel: () => void
+  onToggleTerminal: () => void
   onToggleRightPanel: () => void
 }
 
 export function WorkspaceShellControls({
   rightDockState,
-  bottomPanelVisible,
+  terminalAvailable,
+  terminalVisible,
   showBottomPanel,
   showRightPanel,
-  onToggleBottomPanel,
+  onToggleTerminal,
   onToggleRightPanel,
 }: WorkspaceShellControlsProps): React.ReactNode {
   if (!showBottomPanel && !showRightPanel) return null
@@ -25,14 +32,20 @@ export function WorkspaceShellControls({
     <div className="workspace-shell-controls">
       {showBottomPanel ? (
         <IconButton
-          aria-label={bottomPanelVisible ? '隐藏底部面板' : '显示底部面板'}
-          aria-pressed={bottomPanelVisible}
+          aria-label={terminalVisible ? '隐藏集成终端' : '打开集成终端'}
+          aria-pressed={terminalVisible}
           className="workspace-shell-control-button"
-          title={bottomPanelVisible ? '隐藏底部面板' : '显示底部面板'}
+          disabled={!terminalAvailable}
+          title={terminalAvailable
+            ? terminalVisible ? '隐藏集成终端' : '打开集成终端 (Ctrl+`)'
+            : '创建任务后可使用集成终端'}
           variant="plain"
-          onClick={onToggleBottomPanel}
+          onClick={onToggleTerminal}
         >
-          <BottomPanelToggleIcon open={bottomPanelVisible} />
+          <SquareTerminal
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         </IconButton>
       ) : null}
       {showRightPanel ? (
@@ -48,19 +61,6 @@ export function WorkspaceShellControls({
         </IconButton>
       ) : null}
     </div>
-  )
-}
-
-function BottomPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
-  return (
-    <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 20 20" width="20">
-      <rect height="14" rx="2.5" stroke="currentColor" width="16" x="2" y="3" />
-      <path
-        d={open ? 'M2.5 12.25h15' : 'M7 12.9h6'}
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-    </svg>
   )
 }
 

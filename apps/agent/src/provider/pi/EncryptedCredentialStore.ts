@@ -5,10 +5,10 @@ import type {
 } from "@earendil-works/pi-ai";
 import { Credential } from "@codepilotx/model-schema";
 import { Effect } from "effect";
-import type { EncryptedCredentialRepository } from "../../auth/EncryptedCredentialRepository";
+import type { ProviderCredentialRepository } from "../../auth/ProviderCredentialRepository";
 
 type CredentialRepository = Pick<
-  EncryptedCredentialRepository,
+  ProviderCredentialRepository,
   | "list"
   | "get"
   | "set"
@@ -97,11 +97,11 @@ const toStoredCredential = (
 };
 
 /**
- * Pi credential storage backed exclusively by CodePilotX's encrypted repository.
+ * Pi credential storage backed by CodePilotX's selected Provider repository.
  *
  * The adapter never reads or writes Pi's auth.json. Writes are serialized per
  * provider so OAuth refreshes cannot overwrite each other inside the Agent
- * process. The encrypted repository remains the only persistent source.
+ * process. Pi never discovers or writes its own auth file.
  */
 export class EncryptedCredentialStore implements CredentialStore {
   private readonly chains = new Map<string, Promise<void>>();

@@ -75,7 +75,10 @@ export class PiEventAdapter {
   constructor(
     private readonly context: PiRuntimeEventContext,
     private readonly sink: PiRuntimeEventSink,
-    private readonly options: { parseProposedPlan?: boolean } = {},
+    private readonly options: {
+      parseProposedPlan?: boolean
+      resolveSessionEntryID?: () => string | null | Promise<string | null>
+    } = {},
   ) {}
 
   private newAssistantItems() {
@@ -190,6 +193,12 @@ export class PiEventAdapter {
               reasoning: usageNumber(usage.reasoning),
             },
           }
+          const resolvedEntryID = completion.placement === "result"
+            ? await this.options.resolveSessionEntryID?.()
+            : null
+          const sessionEntry = typeof resolvedEntryID === "string" && resolvedEntryID
+            ? { sessionEntryID: resolvedEntryID }
+            : {}
           if (this.parser) {
             if (!this.receivedTextDelta) await this.routeChunks(this.parser.push(textContent(event.message.content)))
             const parsed = this.parser.finish()
@@ -200,6 +209,7 @@ export class PiEventAdapter {
               content: event.message.content,
               text: parsed.text,
               plan: parsed.plan,
+              ...sessionEntry,
               ...completion,
             })
           } else {
@@ -207,6 +217,7 @@ export class PiEventAdapter {
             await this.sink.assistantMessageCompleted?.(this.context, {
               ...items,
               content: event.message.content,
+              ...sessionEntry,
               ...completion,
             })
           }

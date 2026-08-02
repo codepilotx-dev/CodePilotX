@@ -1,5 +1,5 @@
+import { createReadStream, watch as watchFileSystem, type FSWatcher } from "node:fs"
 import { createHash } from "node:crypto"
-import { watch as watchFileSystem, type FSWatcher } from "node:fs"
 import { lstat, mkdtemp, readlink, realpath, rm, stat, unlink } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { isAbsolute, join, relative, resolve } from "node:path"
@@ -8,6 +8,7 @@ import type {
   ReviewApplyResult,
   ReviewComment,
   ReviewFileDiffResult,
+  ReviewFileDiffsResult,
   ReviewFileSummary,
   ReviewSource,
   ReviewSummaryResult,
@@ -22,12 +23,18 @@ import {
   parseHunks,
   parseNameStatus,
   parseNumstat,
-  parseNumstats,
+  parseRawDiff,
+  parseRawNumstatDiff,
   parsePorcelainStatus,
   sha256,
   textFilePatch,
   validateRelativePath,
 } from "./diff/parsers"
+import {
+  UNRENDERABLE_CHANGED_BYTES,
+  UNRENDERABLE_CHANGED_LINES,
+  UNRENDERABLE_LINE_BYTES,
+} from "./diff/limits"
 import { fileState } from "./state/file-state"
 import { reviewSourceKey } from "./source/source-key"
 
@@ -35,10 +42,10 @@ const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
 const GIT_TIMEOUT_MS = 20_000
 const LARGE_FILE_COUNT = 128
 const LARGE_CHANGED_LINES = 9_000
-const LARGE_CHANGED_BYTES = 12 * 1024 * 1024
-const UNRENDERABLE_CHANGED_LINES = 15_000
-const UNRENDERABLE_CHANGED_BYTES = 3 * 1024 * 1024
-const UNRENDERABLE_LINE_BYTES = 1 * 1024 * 1024
+const MAX_BATCH_DIFF_BYTES = 12 * 1024 * 1024
+const MAX_BATCH_DIFF_PATHS = 128
+const REVIEW_SLOW_MS = 3_000
+const REVIEW_STALLED_MS = 15_000
 const EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 const decoder = new TextDecoder("utf-8", { fatal: true })
 type ResolvedSource = {
@@ -47,21 +54,16 @@ type ResolvedSource = {
   headSha: string | null
   baseSha: string | null
 }
-type PatchScanSection = {
-  patch: string | null
-  revision: string
-  changedBytes: number
-}
 type CachedReviewSnapshot = {
   rootPath: string
   gitDirectory: string
   resolved: ResolvedSource
   snapshot: ReviewSummarySnapshot
-  patches: Map<string, string>
   worktreeStates: Map<string, string>
   indexState: string
   fileDiffs: Map<string, ReviewFileDiffResult>
   fileDiffRequests: Map<string, Promise<ReviewFileDiffResult>>
+  fileDiffBatchRequests: Map<string, Promise<ReviewFileDiffsResult>>
   stale: boolean
 }
 type ProjectWatcher = {
@@ -81,6 +83,7 @@ export class GitReviewService {
   private readonly watcherRequests = new Map<string, Promise<void>>()
   private readonly snapshots = new Map<string, CachedReviewSnapshot>()
   private readonly snapshotRequests = new Map<string, Promise<CachedReviewSnapshot>>()
+  private readonly snapshotRequestStartedAt = new Map<string, number>()
   private readonly projectEpochs = new Map<string, number>()
   private readonly repositoryRoots = new Map<string, string>()
   private readonly dirtyProjects = new Set<string>()
@@ -132,6 +135,7 @@ export class GitReviewService {
     acceptedCodes: readonly number[] = [0],
     env?: Readonly<Record<string, string>>,
     literalPathspecs = false,
+    maxOutputBytes?: number,
   ): Promise<GitCommandResult> {
     return this.gitRunner.run({
       cwd,
@@ -140,57 +144,8 @@ export class GitReviewService {
       acceptedCodes,
       env,
       literalPathspecs,
+      maxOutputBytes,
     })
-  }
-
-  private async scanPatch(cwd: string, args: readonly string[]): Promise<PatchScanSection[]> {
-    const sections: PatchScanSection[] = []
-    let retainPatches = true
-    let totalBytes = 0
-    let current: {
-      chunks: string[]
-      hash: ReturnType<typeof createHash>
-      changedBytes: number
-    } | null = null
-
-    const finalize = () => {
-      if (!current) return
-      sections.push({
-        patch: retainPatches ? current.chunks.join("") : null,
-        revision: current.hash.digest("hex"),
-        changedBytes: current.changedBytes,
-      })
-      current = null
-    }
-    const consume = (value: string) => {
-      if (value.startsWith("diff --git ")) {
-        finalize()
-        current = {
-          chunks: [],
-          hash: createHash("sha256"),
-          changedBytes: 0,
-        }
-      }
-      if (!current) return
-      const byteLength = Buffer.byteLength(value, "utf8")
-      totalBytes += byteLength
-      current.changedBytes += byteLength
-      current.hash.update(value, "utf8")
-      if (retainPatches && totalBytes <= LARGE_CHANGED_BYTES) {
-        current.chunks.push(value)
-      } else if (retainPatches) {
-        retainPatches = false
-        current.chunks.length = 0
-        for (const section of sections) section.patch = null
-      }
-    }
-
-    const output = await this.git(cwd, args, undefined, [0, 1])
-    for (const line of output.stdout.match(/[^\n]*\n|[^\n]+$/g) ?? []) {
-      consume(line)
-    }
-    finalize()
-    return sections
   }
 
   private async repository(projectId: string) {
@@ -596,23 +551,6 @@ export class GitReviewService {
     throw new AgentError("REVIEW_SOURCE_UNAVAILABLE", "未知 Review 来源", 400)
   }
 
-  private async rawPatch(rootPath: string, resolved: ResolvedSource, path: string, hideWhitespace = false) {
-    const common = ["diff", "--binary", "--no-ext-diff", "--no-color", "--full-index", ...(hideWhitespace ? ["-w"] : [])]
-    const tracked = await this.git(
-      rootPath,
-      [...common, ...resolved.args, "--", path],
-      undefined,
-      [0, 1],
-      undefined,
-      true,
-    )
-    if (tracked.stdout) return tracked.stdout
-    if (resolved.source.kind === "branch") {
-      return (await this.untrackedFile(rootPath, path))?.patch ?? ""
-    }
-    return ""
-  }
-
   private async safeUntrackedEntry(rootPath: string, path: string) {
     const absolute = resolve(rootPath, validateRelativePath(path))
     const containment = relative(rootPath, absolute)
@@ -693,150 +631,146 @@ export class GitReviewService {
     return { ...generated, binary: false }
   }
 
-  private async scanUntrackedFile(rootPath: string, path: string) {
+  private async hashWorktreeFiles(rootPath: string, paths: readonly string[]) {
+    const hashable: string[] = []
+    for (const path of paths) {
+      const metadata = await lstat(resolve(rootPath, path)).catch((cause) => {
+        if (cause && typeof cause === "object" && "code" in cause && cause.code === "ENOENT") return null
+        throw cause
+      })
+      if (metadata?.isFile() || metadata?.isSymbolicLink()) hashable.push(path)
+    }
+    const hashes = new Map<string, string>()
+    const regularPaths = hashable.filter((path) => !/[\r\n]/.test(path))
+    if (regularPaths.length > 0) {
+      const output = await this.git(
+        rootPath,
+        ["hash-object", "--no-filters", "--stdin-paths"],
+        `${regularPaths.join("\n")}\n`,
+        [0],
+      )
+      const oids = output.stdout.trim().split(/\r?\n/)
+      regularPaths.forEach((path, index) => hashes.set(path, oids[index] ?? ""))
+    }
+    for (const path of hashable) {
+      if (!/[\r\n]/.test(path)) continue
+      const entry = await this.safeUntrackedEntry(rootPath, path)
+      if (!entry) continue
+      const hash = createHash("sha1")
+      if (entry.kind === "symlink") {
+        const bytes = Buffer.from(entry.target, "utf8")
+        hash.update(`blob ${bytes.byteLength}\0`, "utf8")
+        hash.update(bytes)
+      } else {
+        const metadata = await stat(entry.path)
+        hash.update(`blob ${metadata.size}\0`, "utf8")
+        for await (const chunk of createReadStream(entry.path)) hash.update(chunk)
+      }
+      hashes.set(path, hash.digest("hex"))
+    }
+    return hashes
+  }
+
+  private async untrackedSummaryStats(rootPath: string, path: string) {
     const entry = await this.safeUntrackedEntry(rootPath, path)
-    if (!entry) return null
-    if (entry.kind === "symlink") return this.symlinkPatch(path, entry.target)
-    const file = Bun.file(entry.path)
-    const reader = file.stream().getReader()
-    const contentHash = createHash("sha256")
-    const streamDecoder = new TextDecoder("utf-8", { fatal: true })
-    const chunks: string[] = []
-    let binary = false
-    let retainContent = true
-    let byteLength = 0
-    let newlineCount = 0
-    let endsWithNewline = false
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        byteLength += value.byteLength
-        contentHash.update(value)
-        if (value.includes(0)) binary = true
-        if (binary) {
-          retainContent = false
-          chunks.length = 0
-          continue
-        }
-        try {
-          const text = streamDecoder.decode(value, { stream: true })
-          newlineCount += text.match(/\n/g)?.length ?? 0
-          if (text.length > 0) endsWithNewline = text.endsWith("\n")
-          if (retainContent && byteLength <= LARGE_CHANGED_BYTES) chunks.push(text)
-          else {
-            retainContent = false
-            chunks.length = 0
-          }
-        } catch {
-          binary = true
-          retainContent = false
-          chunks.length = 0
-        }
-      }
-      if (!binary) {
-        try {
-          const tail = streamDecoder.decode()
-          if (tail) {
-            newlineCount += tail.match(/\n/g)?.length ?? 0
-            endsWithNewline = tail.endsWith("\n")
-            if (retainContent) chunks.push(tail)
-          }
-        } catch {
-          binary = true
-          retainContent = false
-          chunks.length = 0
-        }
-      }
-    } finally {
-      reader.releaseLock()
-    }
-    const revision = contentHash.digest("hex")
-    if (binary) {
+    if (!entry) return { additions: 0, deletions: 0, binary: false }
+    if (entry.kind === "symlink") {
+      const normalized = entry.target.replaceAll("\r\n", "\n")
       return {
-        patch: null,
-        additions: null,
-        binary: true,
-        changedBytes: byteLength,
-        revision,
+        additions: normalized.length === 0 ? 0 : normalized.split("\n").length,
+        deletions: 0,
+        binary: false,
       }
     }
-    const additions = newlineCount + (byteLength > 0 && !endsWithNewline ? 1 : 0)
-    const patch = retainContent ? textFilePatch(path, chunks.join("")).patch : null
-    return {
-      patch,
-      additions,
-      binary: false,
-      changedBytes: patch === null ? byteLength : Buffer.byteLength(patch, "utf8"),
-      revision,
+    let lines = 0
+    let bytes = 0
+    let lastByte = -1
+    let binary = false
+    for await (const chunk of createReadStream(entry.path)) {
+      bytes += chunk.byteLength
+      if (!binary && chunk.includes(0)) binary = true
+      for (const byte of chunk) {
+        if (byte === 0x0a) lines += 1
+        lastByte = byte
+      }
     }
+    if (binary) return { additions: null, deletions: null, binary: true }
+    if (bytes > 0 && lastByte !== 0x0a) lines += 1
+    return { additions: lines, deletions: 0, binary: false }
   }
 
   private async buildFileSummaries(rootPath: string, resolved: ResolvedSource) {
-    const common = ["diff", "--binary", "--no-ext-diff", "--no-color", "--full-index"]
-    const names = parseNameStatus(
-      (await this.git(rootPath, ["diff", "--name-status", "-z", "--find-renames", ...resolved.args])).stdout,
+    const metadata = parseRawNumstatDiff(
+      (await this.git(rootPath, [
+        "diff",
+        "--raw",
+        "--numstat",
+        "-z",
+        "--no-abbrev",
+        "--find-renames",
+        ...resolved.args,
+      ])).stdout,
     )
-    const trackedEntries = [...names]
-    const numstats = parseNumstats(
-      (await this.git(rootPath, ["diff", "--numstat", "-z", ...resolved.args])).stdout,
-    )
-    const patchSections = await this.scanPatch(rootPath, [...common, ...resolved.args])
-    const patches = new Map<string, string>()
-    const patchMetadata = new Map<string, PatchScanSection>()
-    for (const [index, entry] of trackedEntries.entries()) {
-      const section = patchSections[index] ?? {
-        patch: "",
-        revision: sha256(""),
-        changedBytes: 0,
-      }
-      patchMetadata.set(entry.path, section)
-      if (section.patch !== null) patches.set(entry.path, section.patch)
-    }
+    const rawEntries = metadata.rawEntries
+    const numstats = metadata.numstats
 
     if (resolved.source.kind === "branch") {
       const untracked = (await this.git(rootPath, ["ls-files", "--others", "--exclude-standard", "-z"])).stdout.split("\0").filter(Boolean)
       for (const path of untracked) {
         const normalized = validateRelativePath(path)
-        if (!names.some((entry) => entry.path === normalized)) {
-          names.push({ path: normalized, previousPath: null, status: "untracked" })
+        if (!rawEntries.some((entry) => entry.path === normalized)) {
+          rawEntries.push({
+            path: normalized,
+            previousPath: null,
+            status: "untracked",
+            oldMode: "000000",
+            newMode: "100644",
+            oldOid: "0".repeat(40),
+            newOid: "0".repeat(40),
+          })
         }
       }
     }
 
+    const worktreeHashes = resolved.source.kind === "unstaged" || resolved.source.kind === "branch"
+      ? await this.hashWorktreeFiles(rootPath, rawEntries.map((entry) => entry.path))
+      : new Map<string, string>()
     const files: ReviewFileSummary[] = []
-    for (const entry of names) {
-      let patch = patches.get(entry.path) ?? ""
-      let changedBytes = patchMetadata.get(entry.path)?.changedBytes ?? 0
-      let revision = patchMetadata.get(entry.path)?.revision ?? sha256("")
+    for (const entry of rawEntries) {
       let stats: { additions: number | null; deletions: number | null; binary: boolean }
       if (entry.status === "untracked") {
-        const untracked = await this.scanUntrackedFile(rootPath, entry.path)
-        patch = untracked?.patch ?? ""
-        if (untracked?.patch !== null && untracked?.patch !== undefined) {
-          patches.set(entry.path, untracked.patch)
-        }
-        changedBytes = untracked?.changedBytes ?? 0
-        revision = untracked?.revision ?? sha256("")
-        stats = untracked?.binary
-          ? { additions: null, deletions: null, binary: true }
-          : { additions: untracked?.additions ?? 0, deletions: 0, binary: false }
+        stats = await this.untrackedSummaryStats(rootPath, entry.path)
       } else {
         stats = numstats.get(entry.path) ?? parseNumstat("")
       }
       const additions = stats.additions
       const deletions = stats.deletions
+      const revision = sha256([
+        reviewSourceKey(resolved.source),
+        resolved.headSha ?? "",
+        resolved.baseSha ?? "",
+        entry.path,
+        entry.previousPath ?? "",
+        entry.status,
+        entry.oldMode,
+        entry.newMode,
+        entry.oldOid,
+        entry.newOid,
+        worktreeHashes.get(entry.path) ?? "",
+      ].join("\0"))
       files.push({
-        ...entry,
+        path: entry.path,
+        previousPath: entry.previousPath,
+        status: entry.status,
         additions,
         deletions,
         changedLines: (additions ?? 0) + (deletions ?? 0),
-        changedBytes,
+        changedBytes: 0,
         binary: stats.binary,
         revision,
       })
     }
-    return { files, patches }
+    return files
   }
 
   private cacheKey(projectId: string, source: ReviewSource) {
@@ -906,6 +840,26 @@ export class GitReviewService {
   ): Promise<CachedReviewSnapshot> {
     const startedAt = performance.now()
     let phase: ReviewSnapshotPhase = "repository"
+    const slowTimer = setTimeout(() => {
+      this.logger?.warn("review.snapshot.build.slow", {
+        details: {
+          sourceKind: source.kind,
+          attempt,
+          phase,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      })
+    }, REVIEW_SLOW_MS)
+    const stalledTimer = setTimeout(() => {
+      this.logger?.warn("review.snapshot.build.stalled", {
+        details: {
+          sourceKind: source.kind,
+          attempt,
+          phase,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      })
+    }, REVIEW_STALLED_MS)
     try {
       const epoch = this.projectEpochs.get(projectId) ?? 0
       const { rootPath } = await this.repository(projectId)
@@ -915,20 +869,21 @@ export class GitReviewService {
       phase = "pre-scan"
       const beforeFingerprint = await this.repositoryFingerprint(rootPath, gitDirectory)
       phase = "diff-scan"
-      const { files, patches } = await this.buildFileSummaries(rootPath, resolved)
+      const summaryFiles = await this.buildFileSummaries(rootPath, resolved)
       phase = "post-scan"
       await this.assertStableRepositoryState(rootPath, gitDirectory)
       const worktreeStates = new Map(
-        await Promise.all(files.map(async (file) => [
+        await Promise.all(summaryFiles.map(async (file) => [
           file.path,
           await this.worktreeState(rootPath, file.path),
         ] as const)),
       )
+      const indexState = await fileState(resolve(gitDirectory, "index"))
+      const files = summaryFiles
       const additions = files.reduce((total, file) => total + (file.additions ?? 0), 0)
       const deletions = files.reduce((total, file) => total + (file.deletions ?? 0), 0)
       const changedBytes = files.reduce((total, file) => total + file.changedBytes, 0)
       const changedLines = additions + deletions
-      const indexState = await fileState(resolve(gitDirectory, "index"))
       const afterFingerprint = await this.repositoryFingerprint(rootPath, gitDirectory)
       phase = "finalize"
       let sourceChanged = false
@@ -956,19 +911,18 @@ export class GitReviewService {
         baseSha: resolved.baseSha,
         files,
         totals: { files: files.length, additions, deletions, changedLines, changedBytes },
-        largeDiffMode: files.length > LARGE_FILE_COUNT || changedLines > LARGE_CHANGED_LINES || changedBytes > LARGE_CHANGED_BYTES,
+        largeDiffMode: files.length > LARGE_FILE_COUNT || changedLines > LARGE_CHANGED_LINES,
       }
-      if (snapshot.largeDiffMode) patches.clear()
       return {
         rootPath,
         gitDirectory,
         resolved,
         snapshot,
-        patches,
         worktreeStates,
         indexState,
         fileDiffs: new Map(),
         fileDiffRequests: new Map(),
+        fileDiffBatchRequests: new Map(),
         stale: beforeFingerprint !== afterFingerprint
           || sourceChanged
           || (this.projectEpochs.get(projectId) ?? 0) !== epoch,
@@ -984,6 +938,9 @@ export class GitReviewService {
         },
       })
       throw cause
+    } finally {
+      clearTimeout(slowTimer)
+      clearTimeout(stalledTimer)
     }
   }
 
@@ -1011,11 +968,22 @@ export class GitReviewService {
   private refreshSnapshot(projectId: string, source: ReviewSource) {
     const key = this.cacheKey(projectId, source)
     const active = this.snapshotRequests.get(key)
-    if (active) return active
+    if (active) {
+      this.logger?.info("review.snapshot.refresh.joined", {
+        details: {
+          sourceKind: source.kind,
+          ageMs: Math.round(
+            performance.now() - (this.snapshotRequestStartedAt.get(key) ?? performance.now()),
+          ),
+        },
+      })
+      return active
+    }
     // Starting reconciliation acknowledges the previous dirty notification.
     // A filesystem change racing this refresh may therefore emit exactly one
     // trailing notification and the epoch check keeps the result stale.
     this.dirtyProjects.delete(projectId)
+    this.snapshotRequestStartedAt.set(key, performance.now())
     const request = this.buildSnapshot(projectId, source).then((entry) => {
       this.snapshots.set(key, entry)
       return entry
@@ -1023,10 +991,16 @@ export class GitReviewService {
     this.snapshotRequests.set(key, request)
     void request.then(
       () => {
-        if (this.snapshotRequests.get(key) === request) this.snapshotRequests.delete(key)
+        if (this.snapshotRequests.get(key) === request) {
+          this.snapshotRequests.delete(key)
+          this.snapshotRequestStartedAt.delete(key)
+        }
       },
       () => {
-        if (this.snapshotRequests.get(key) === request) this.snapshotRequests.delete(key)
+        if (this.snapshotRequests.get(key) === request) {
+          this.snapshotRequests.delete(key)
+          this.snapshotRequestStartedAt.delete(key)
+        }
       },
     )
     return request
@@ -1041,6 +1015,23 @@ export class GitReviewService {
     const key = this.cacheKey(projectId, source)
     const cached = this.snapshots.get(key)
     const cacheHit = !refresh && cached !== undefined
+    this.logger?.info("review.summary.started", {
+      details: {
+        sourceKind: source.kind,
+        refresh,
+        cacheHit,
+      },
+    })
+    const slowTimer = setTimeout(() => {
+      this.logger?.warn("review.summary.slow", {
+        details: {
+          sourceKind: source.kind,
+          refresh,
+          cacheHit,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      })
+    }, REVIEW_SLOW_MS)
     try {
       let result: ReviewSummaryResult
       if (!refresh && cached) {
@@ -1078,6 +1069,8 @@ export class GitReviewService {
         },
       })
       throw cause
+    } finally {
+      clearTimeout(slowTimer)
     }
   }
 
@@ -1121,49 +1114,251 @@ export class GitReviewService {
     return entry
   }
 
-  async fileDiff(input: { projectId: string; source: ReviewSource; generation: string; path: string; hideWhitespace?: boolean | undefined }): Promise<ReviewFileDiffResult> {
+  private fileDiffRequestKey(path: string, hideWhitespace: boolean) {
+    return `${path}\0${hideWhitespace ? "whitespace-hidden" : "standard"}`
+  }
+
+  private defensiveFileDiff(
+    file: ReviewFileSummary,
+    reason: "changed-lines" | "changed-bytes" | "line-bytes",
+    measuredChangedBytes = file.changedBytes,
+  ): ReviewFileDiffResult {
+    return {
+      file: { ...file, changedBytes: measuredChangedBytes },
+      revision: file.revision,
+      patch: "",
+      hunks: [],
+      renderable: false,
+      tooLargeReason: reason,
+    }
+  }
+
+  private fileDiffFromPatch(
+    file: ReviewFileSummary,
+    patch: string,
+  ): ReviewFileDiffResult {
+    const patchBytes = Buffer.byteLength(patch, "utf8")
+    const measuredFile = { ...file, changedBytes: patchBytes }
+    const maximumLineBytes = patch.split("\n").reduce(
+      (maximum, line) => Math.max(maximum, Buffer.byteLength(line, "utf8")),
+      0,
+    )
+    const tooLargeReason = file.changedLines > UNRENDERABLE_CHANGED_LINES
+      ? "changed-lines" as const
+      : patchBytes > UNRENDERABLE_CHANGED_BYTES
+        ? "changed-bytes" as const
+        : maximumLineBytes > UNRENDERABLE_LINE_BYTES
+          ? "line-bytes" as const
+          : null
+    if (tooLargeReason) {
+      return this.defensiveFileDiff(measuredFile, tooLargeReason, patchBytes)
+    }
+    return {
+      file: measuredFile,
+      revision: file.revision,
+      patch,
+      hunks: file.binary ? [] : parseHunks(patch),
+      renderable: !file.binary,
+      tooLargeReason: null,
+    }
+  }
+
+  private splitPatchSections(patch: string): string[] {
+    const starts = [...patch.matchAll(/^diff --git /gm)].map((match) => match.index!)
+    return starts.map((start, index) =>
+      patch.slice(start, starts[index + 1] ?? patch.length))
+  }
+
+  private async trackedPatches(
+    entry: CachedReviewSnapshot,
+    files: readonly ReviewFileSummary[],
+    hideWhitespace: boolean,
+    maxOutputBytes: number,
+  ): Promise<Map<string, string>> {
+    if (files.length === 0) return new Map()
+    const whitespaceArgs = hideWhitespace ? ["-w"] : []
+    const requestedPaths = new Set(files.map((file) => file.path))
+    const orderedFiles = entry.snapshot.files.filter((file) =>
+      file.status !== "untracked" && requestedPaths.has(file.path))
+    const paths = orderedFiles.map((file) => file.path)
+    const output = await this.git(
+      entry.rootPath,
+      [
+        "diff",
+        "--binary",
+        "--no-ext-diff",
+        "--no-color",
+        "--full-index",
+        ...whitespaceArgs,
+        ...entry.resolved.args,
+        "--",
+        ...paths,
+      ],
+      undefined,
+      [0, 1],
+      undefined,
+      true,
+      maxOutputBytes,
+    )
+    const sections = this.splitPatchSections(output.stdout)
+    return new Map(orderedFiles.map((file, index) => [
+      file.path,
+      sections[index] ?? "",
+    ]))
+  }
+
+  private async loadFileDiffs(
+    entry: CachedReviewSnapshot,
+    files: readonly ReviewFileSummary[],
+    hideWhitespace: boolean,
+    maxOutputBytes: number,
+  ): Promise<void> {
+    const tracked: ReviewFileSummary[] = []
+    let remainingBytes = maxOutputBytes
+    for (const file of files) {
+      const requestKey = this.fileDiffRequestKey(file.path, hideWhitespace)
+      if (entry.fileDiffs.has(requestKey)) continue
+      if (file.changedLines > UNRENDERABLE_CHANGED_LINES) {
+        entry.fileDiffs.set(
+          requestKey,
+          this.defensiveFileDiff(file, "changed-lines"),
+        )
+        continue
+      }
+      if (
+        file.status === "untracked"
+      ) {
+        const untracked = await this.safeUntrackedEntry(entry.rootPath, file.path)
+        if (untracked?.kind === "file" && Bun.file(untracked.path).size > UNRENDERABLE_CHANGED_BYTES) {
+          entry.fileDiffs.set(
+            requestKey,
+            this.defensiveFileDiff(file, "changed-bytes", Bun.file(untracked.path).size),
+          )
+          continue
+        }
+      }
+      if (file.status !== "untracked") {
+        tracked.push(file)
+        continue
+      }
+      const patch = (await this.untrackedFile(entry.rootPath, file.path))?.patch ?? ""
+      const result = this.fileDiffFromPatch(file, patch)
+      entry.fileDiffs.set(requestKey, result)
+      remainingBytes -= Buffer.byteLength(result.patch, "utf8")
+      if (remainingBytes < 0) {
+        throw new AgentError(
+          "GIT_OUTPUT_TOO_LARGE",
+          "批量 Review Diff 超过安全上限",
+          413,
+        )
+      }
+    }
+
+    const patches = await this.trackedPatches(
+      entry,
+      tracked,
+      hideWhitespace,
+      remainingBytes,
+    )
+    for (const file of tracked) {
+      const result = this.fileDiffFromPatch(
+        file,
+        patches.get(file.path) ?? "",
+      )
+      entry.fileDiffs.set(
+        this.fileDiffRequestKey(file.path, hideWhitespace),
+        result,
+      )
+    }
+  }
+
+  private isGitOutputTooLarge(cause: unknown) {
+    return cause instanceof AgentError && cause.code === "GIT_OUTPUT_TOO_LARGE"
+  }
+
+  async fileDiff(input: {
+    projectId: string
+    source: ReviewSource
+    generation: string
+    path: string
+    hideWhitespace?: boolean | undefined
+  }): Promise<ReviewFileDiffResult> {
     const startedAt = performance.now()
     let path: string | undefined
+    let phase = "validate"
+    let succeeded = false
+    let slow = false
+    const slowTimer = setTimeout(() => {
+      slow = true
+      this.logger?.warn("review.file-diff.slow", {
+        details: {
+          sourceKind: input.source.kind,
+          path,
+          hideWhitespace: input.hideWhitespace === true,
+          phase,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      })
+    }, REVIEW_SLOW_MS)
+    const stalledTimer = setTimeout(() => {
+      this.logger?.warn("review.file-diff.stalled", {
+        details: {
+          sourceKind: input.source.kind,
+          path,
+          hideWhitespace: input.hideWhitespace === true,
+          phase,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      })
+    }, REVIEW_STALLED_MS)
     try {
       path = validateRelativePath(input.path)
+      phase = "snapshot"
       const entry = await this.snapshotForGeneration(input.projectId, input.source, input.generation, path)
-      const requestKey = `${path}\0${input.hideWhitespace === true ? "whitespace-hidden" : "standard"}`
+      const hideWhitespace = input.hideWhitespace === true
+      const requestKey = this.fileDiffRequestKey(path, hideWhitespace)
+      phase = "cache"
       const cached = entry.fileDiffs.get(requestKey)
-      if (cached) return cached
+      if (cached) {
+        succeeded = true
+        return cached
+      }
       const active = entry.fileDiffRequests.get(requestKey)
-      if (active) return active
+      if (active) {
+        phase = "join-existing"
+        const result = await active
+        succeeded = true
+        return result
+      }
+      phase = "load"
       const request = (async () => {
         const file = entry.snapshot.files.find((candidate) => candidate.path === path)
         if (!file) throw new AgentError("REVIEW_SOURCE_UNAVAILABLE", "文件不在当前 Review 来源中", 404)
-        const patch = input.hideWhitespace === true
-          ? await this.rawPatch(entry.rootPath, entry.resolved, path, true)
-          : entry.patches.get(path) ?? await this.rawPatch(entry.rootPath, entry.resolved, path)
-        const revision = file.revision
-        const maximumLineBytes = patch.split("\n").reduce(
-          (maximum, line) => Math.max(maximum, Buffer.byteLength(line, "utf8")),
-          0,
-        )
-        const tooLargeReason = file.changedLines > UNRENDERABLE_CHANGED_LINES
-          ? "changed-lines" as const
-          : Buffer.byteLength(patch, "utf8") > UNRENDERABLE_CHANGED_BYTES
-            ? "changed-bytes" as const
-            : maximumLineBytes > UNRENDERABLE_LINE_BYTES
-              ? "line-bytes" as const
-              : null
-        const result: ReviewFileDiffResult = {
-          file: { ...file, revision },
-          revision,
-          patch,
-          hunks: tooLargeReason || file.binary ? [] : parseHunks(patch),
-          renderable: !tooLargeReason && !file.binary,
-          tooLargeReason,
+        try {
+          await this.loadFileDiffs(
+            entry,
+            [file],
+            hideWhitespace,
+            UNRENDERABLE_CHANGED_BYTES,
+          )
+        } catch (cause) {
+          if (!this.isGitOutputTooLarge(cause)) throw cause
+          entry.fileDiffs.set(
+            requestKey,
+            this.defensiveFileDiff(
+              file,
+              "changed-bytes",
+              UNRENDERABLE_CHANGED_BYTES + 1,
+            ),
+          )
         }
-        entry.fileDiffs.set(requestKey, result)
-        return result
+        return entry.fileDiffs.get(requestKey)!
       })()
       entry.fileDiffRequests.set(requestKey, request)
       try {
-        return await request
+        const result = await request
+        succeeded = true
+        return result
       } finally {
         if (entry.fileDiffRequests.get(requestKey) === request) {
           entry.fileDiffRequests.delete(requestKey)
@@ -1180,6 +1375,214 @@ export class GitReviewService {
         },
       })
       throw cause
+    } finally {
+      clearTimeout(slowTimer)
+      clearTimeout(stalledTimer)
+      if (succeeded && slow) {
+        this.logger?.info("review.file-diff.recovered", {
+          details: {
+            sourceKind: input.source.kind,
+            path,
+            hideWhitespace: input.hideWhitespace === true,
+            phase,
+            durationMs: Math.round(performance.now() - startedAt),
+          },
+        })
+      }
+    }
+  }
+
+  async fileDiffs(input: {
+    projectId: string
+    source: ReviewSource
+    generation: string
+    paths: readonly string[]
+    hideWhitespace?: boolean | undefined
+  }): Promise<ReviewFileDiffsResult> {
+    const startedAt = performance.now()
+    const hideWhitespace = input.hideWhitespace === true
+    let phase = "validate"
+    let pathCount = input.paths.length
+    let cachedFileCount = 0
+    let resultType: ReviewFileDiffsResult["type"] | undefined
+    let changedBytes: number | undefined
+    let succeeded = false
+    this.logger?.info("review.file-diffs.started", {
+      details: {
+        sourceKind: input.source.kind,
+        pathCount,
+        hideWhitespace,
+      },
+    })
+    const slowTimer = setTimeout(() => {
+      this.logger?.warn("review.file-diffs.slow", {
+        details: {
+          sourceKind: input.source.kind,
+          pathCount,
+          hideWhitespace,
+          phase,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      })
+    }, REVIEW_SLOW_MS)
+    const stalledTimer = setTimeout(() => {
+      this.logger?.warn("review.file-diffs.stalled", {
+        details: {
+          sourceKind: input.source.kind,
+          pathCount,
+          hideWhitespace,
+          phase,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      })
+    }, REVIEW_STALLED_MS)
+    try {
+      const paths = [...new Set(input.paths.map(validateRelativePath))]
+      pathCount = paths.length
+      if (paths.length === 0 || paths.length > MAX_BATCH_DIFF_PATHS) {
+        throw new AgentError(
+          "INVALID_REQUEST",
+          "批量 Review Diff 路径数量必须在 1 到 128 之间",
+          400,
+        )
+      }
+      phase = "snapshot"
+      const entry = await this.snapshotForGeneration(
+        input.projectId,
+        input.source,
+        input.generation,
+        paths,
+      )
+      const batchKey = [
+        hideWhitespace ? "whitespace-hidden" : "standard",
+        ...paths,
+      ].join("\0")
+      const active = entry.fileDiffBatchRequests.get(batchKey)
+      let result: ReviewFileDiffsResult
+      if (active) {
+        phase = "join-existing"
+        result = await active
+      } else {
+        const request = (async (): Promise<ReviewFileDiffsResult> => {
+          phase = "resolve-files"
+          const filesByPath = new Map(
+            entry.snapshot.files.map((file) => [file.path, file]),
+          )
+          const files = paths.map((path) => {
+            const file = filesByPath.get(path)
+            if (!file) {
+              throw new AgentError(
+                "REVIEW_SOURCE_UNAVAILABLE",
+                "文件不在当前 Review 来源中",
+                404,
+              )
+            }
+            return file
+          })
+          phase = "join-file-requests"
+          await Promise.all(files.flatMap((file) => {
+            const activeFile = entry.fileDiffRequests.get(
+              this.fileDiffRequestKey(file.path, hideWhitespace),
+            )
+            return activeFile ? [activeFile] : []
+          }))
+          const cachedResults = files.map((file) =>
+            entry.fileDiffs.get(
+              this.fileDiffRequestKey(file.path, hideWhitespace),
+            ))
+          cachedFileCount = cachedResults.filter(Boolean).length
+          const cachedBytes = cachedResults.reduce(
+            (total, cached) => total + (cached ? Buffer.byteLength(cached.patch, "utf8") : 0),
+            0,
+          )
+          if (cachedBytes > MAX_BATCH_DIFF_BYTES) {
+            return {
+              type: "large",
+              generation: entry.snapshot.generation,
+              reason: "changed-bytes",
+            }
+          }
+          phase = "load"
+          try {
+            await this.loadFileDiffs(
+              entry,
+              files,
+              hideWhitespace,
+              MAX_BATCH_DIFF_BYTES - cachedBytes,
+            )
+          } catch (cause) {
+            if (!this.isGitOutputTooLarge(cause)) throw cause
+            return {
+              type: "large",
+              generation: entry.snapshot.generation,
+              reason: "changed-bytes",
+            }
+          }
+          phase = "finalize"
+          const results = files.map((file) =>
+            entry.fileDiffs.get(
+              this.fileDiffRequestKey(file.path, hideWhitespace),
+            )!)
+          const totalChangedBytes = results.reduce(
+            (total, fileResult) => total + Buffer.byteLength(fileResult.patch, "utf8"),
+            0,
+          )
+          if (totalChangedBytes > MAX_BATCH_DIFF_BYTES) {
+            return {
+              type: "large",
+              generation: entry.snapshot.generation,
+              reason: "changed-bytes",
+            }
+          }
+          return {
+            type: "success",
+            generation: entry.snapshot.generation,
+            files: results,
+            changedBytes: totalChangedBytes,
+          }
+        })()
+        entry.fileDiffBatchRequests.set(batchKey, request)
+        try {
+          result = await request
+        } finally {
+          if (entry.fileDiffBatchRequests.get(batchKey) === request) {
+            entry.fileDiffBatchRequests.delete(batchKey)
+          }
+        }
+      }
+      resultType = result.type
+      changedBytes = result.type === "success" ? result.changedBytes : undefined
+      succeeded = true
+      return result
+    } catch (cause) {
+      this.logger?.error("review.file-diffs.failed", {
+        details: {
+          sourceKind: input.source.kind,
+          pathCount,
+          hideWhitespace,
+          phase,
+          durationMs: Math.round(performance.now() - startedAt),
+          ...this.reviewFailureDetails(cause),
+        },
+      })
+      throw cause
+    } finally {
+      clearTimeout(slowTimer)
+      clearTimeout(stalledTimer)
+      if (succeeded) {
+        this.logger?.info("review.file-diffs.completed", {
+          details: {
+            sourceKind: input.source.kind,
+            pathCount,
+            hideWhitespace,
+            cachedFileCount,
+            resultType,
+            changedBytes,
+            phase,
+            durationMs: Math.round(performance.now() - startedAt),
+          },
+        })
+      }
     }
   }
 

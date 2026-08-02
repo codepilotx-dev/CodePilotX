@@ -2,6 +2,7 @@ import { Schema } from "effect"
 
 export const Capabilities = [
   "config.manage.v1",
+  "config.profiles.v1",
   "rpc.typed.v1",
   "events.replay.v1",
   "events.live.v1",
@@ -15,6 +16,7 @@ export const Capabilities = [
   "memory.v2",
   "workspace.editor.v1",
   "git.review.v1",
+  "git.review.batch.v1",
   "git.workspace.v1",
   "ai.review.v1",
   "github.oauth.v1",
@@ -36,6 +38,11 @@ export const Capabilities = [
   "mcp.manage.v1",
   "mcp.oauth.v1",
   "task-suggestions.v1",
+  "terminal.host.v1",
+  "local-environment.manage.v1",
+  "thread.handoff.v1",
+  "thread.fork.v1",
+  "worktree.manage.v1",
 ] as const
 
 export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)

@@ -2,9 +2,9 @@ import type {
   DesktopReviewComment,
   DesktopReviewDiffFile,
   DesktopReviewDiffHunk,
-  DesktopReviewDiffLine,
   DesktopReviewSource,
 } from '../../../../shared/types.js'
+import { unifiedPatchToDesktopHunks } from '../diff/reviewDiffAdapter.js'
 import { AgentRpcError } from '../../../services/agentRpcClient.js'
 import {
   desktopClient,
@@ -70,6 +70,19 @@ export type ReviewFileDiff = {
   renderable: boolean
   tooLargeReason: 'changed-lines' | 'changed-bytes' | 'line-bytes' | null
 }
+
+export type ReviewFileDiffsResult =
+  | {
+      type: 'success'
+      generation: string
+      files: ReviewFileDiff[]
+      changedBytes: number
+    }
+  | {
+      type: 'large'
+      generation: string
+      reason: 'changed-bytes'
+    }
 
 export type ReviewBranch = {
   name: string
@@ -145,6 +158,32 @@ export const reviewAgentClient = {
       action: input.action,
       target: input.target,
     })
+  },
+
+  async fileDiffs(
+    workspacePath: string,
+    source: DesktopReviewSource,
+    generation: string,
+    paths: readonly string[],
+    hideWhitespace: boolean,
+  ): Promise<ReviewFileDiffsResult> {
+    const result = await desktopClient.getAgentReviewFileDiffs({
+      workspacePath,
+      source,
+      generation,
+      paths,
+      hideWhitespace,
+    })
+    return result.type === 'large'
+      ? { ...result }
+      : {
+          ...result,
+          files: result.files.map(file => ({
+            ...file,
+            file: { ...file.file },
+            hunks: file.hunks.map(hunk => ({ ...hunk })),
+          })),
+        }
   },
 
   async applyBatch(
@@ -316,6 +355,15 @@ export const reviewAgentClient = {
     return (
       error instanceof AgentRpcError &&
       error.errorCode === 'REVIEW_BATCH_PARTIAL'
+    )
+  },
+
+  isBatchUnsupported(error: unknown): boolean {
+    return Boolean(
+      error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'AGENT_OPERATION_UNSUPPORTED',
     )
   },
 }
@@ -504,57 +552,7 @@ export function summaryFileToDesktop(
 
 function parseReviewFileDiff(diff: ReviewFileDiff): DesktopReviewDiffHunk[] {
   if (!diff.renderable) return []
-  const parsedByHeader = parsePatchLines(diff.patch)
-  return diff.hunks.map((hunk, index) => {
-    const parsed = parsedByHeader[index]
-    return {
-      id: hunk.id,
-      header: hunk.header,
-      oldStart: hunk.oldStart,
-      oldLines: hunk.oldLines,
-      newStart: hunk.newStart,
-      newLines: hunk.newLines,
-      patch: hunk.patch,
-      lines: parsed?.lines ?? [],
-    }
-  })
-}
-
-function parsePatchLines(
-  patch: string,
-): Array<{ header: string; lines: DesktopReviewDiffLine[] }> {
-  const result: Array<{ header: string; lines: DesktopReviewDiffLine[] }> = []
-  let current: { header: string; lines: DesktopReviewDiffLine[] } | null = null
-  let oldLine = 0
-  let newLine = 0
-
-  for (const raw of patch.split(/\r?\n/u)) {
-    const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/u.exec(raw)
-    if (match) {
-      oldLine = Number(match[1])
-      newLine = Number(match[2])
-      current = { header: raw, lines: [] }
-      result.push(current)
-      continue
-    }
-    if (!current || raw.startsWith('\\ No newline')) continue
-    const prefix = raw[0]
-    if (prefix !== ' ' && prefix !== '+' && prefix !== '-') continue
-    const type =
-      prefix === '+' ? 'added' : prefix === '-' ? 'removed' : 'context'
-    const line: DesktopReviewDiffLine = {
-      id: `${result.length}:${current.lines.length}`,
-      type,
-      oldLine: prefix === '+' ? null : oldLine,
-      newLine: prefix === '-' ? null : newLine,
-      content: raw.slice(1),
-      raw,
-    }
-    current.lines.push(line)
-    if (prefix !== '+') oldLine += 1
-    if (prefix !== '-') newLine += 1
-  }
-  return result
+  return unifiedPatchToDesktopHunks(diff.patch, diff.hunks)
 }
 
 function toDesktopComment(comment: DesktopReviewAgentComment): DesktopReviewComment {

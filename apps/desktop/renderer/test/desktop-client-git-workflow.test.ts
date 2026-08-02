@@ -63,6 +63,7 @@ describe('desktop git workflow client', () => {
               'github.oauth.v1',
               'git.review.v1',
               'git.workspace.v1',
+              'config.manage.v1',
             ],
             limits: {
               maxFrameBytes: 1024,
@@ -79,6 +80,20 @@ describe('desktop git workflow client', () => {
         requests.push({ method: body.method, params })
         if (body.method === 'github/repository/clone') {
           return rpc(body.id, { project })
+        }
+        if (body.method === 'project/trust/read') {
+          return rpc(body.id, {
+            projectRoot: workspacePath,
+            trustLevel: 'untrusted',
+            hasProjectConfig: false,
+          })
+        }
+        if (body.method === 'project/trust/update') {
+          return rpc(body.id, {
+            status: 'ok',
+            version: 'a'.repeat(64),
+            filePath: 'F:\\CodeProject\\config.json',
+          })
         }
         if (body.method === 'project/list') {
           return rpc(body.id, { projects: [project], nextCursor: null })
@@ -122,6 +137,12 @@ describe('desktop git workflow client', () => {
       ok: true,
       workspace: { path: workspacePath, branchName: status.branchName },
     })
+    expect(requests.slice(0, 4).map(item => item.method)).toEqual([
+      'github/repository/clone',
+      'project/trust/read',
+      'project/trust/update',
+      'review/status',
+    ])
 
     const created = await client.createWorkspaceBranch({
       workspacePath,
@@ -163,5 +184,79 @@ describe('desktop git workflow client', () => {
         },
       },
     ])
+  })
+
+  test('GitHub clone reports failure without removing the project when trust cannot be persisted', async () => {
+    const requests: string[] = []
+    const client = createDesktopClient({
+      window: {
+        codePilotXDesktop: {
+          pickWorkspaceDirectory: async () => 'F:\\CodeProject\\clones',
+        },
+      },
+      fetch: async (_path, init) => {
+        const body = JSON.parse(String(init?.body))
+        if (body.method === 'initialize') {
+          return rpc(body.id, {
+            protocol: 'thread-rpc-v4',
+            serverInfo: { name: 'test-agent', version: '1.0.0' },
+            capabilities: [
+              'rpc.typed.v1',
+              'github.oauth.v1',
+              'config.manage.v1',
+            ],
+            limits: {
+              maxFrameBytes: 1024,
+              maxSubscriptions: 8,
+              maxStreamsPerSubscription: 8,
+              maxPendingRequests: 32,
+            },
+            connectionId: 'connection-git-trust-failure',
+          })
+        }
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        requests.push(body.method)
+        if (body.method === 'github/repository/clone') return rpc(body.id, { project })
+        if (body.method === 'project/trust/read') {
+          return rpc(body.id, {
+            projectRoot: workspacePath,
+            trustLevel: 'untrusted',
+            hasProjectConfig: false,
+          })
+        }
+        if (body.method === 'project/trust/update') {
+          return new Response('trust write failed', { status: 500 })
+        }
+        throw new Error(`Unexpected RPC method: ${body.method}`)
+      },
+    })
+
+    const cloned = await client.cloneGithubRepository({
+      repository: {
+        id: 42,
+        name: 'fixture',
+        fullName: 'codepilotx/fixture',
+        owner: 'codepilotx',
+        private: false,
+        fork: false,
+        archived: false,
+        disabled: false,
+        cloneUrl: 'https://should-not-be-sent.example/fixture.git',
+        sshUrl: 'git@example.invalid:fixture.git',
+        htmlUrl: 'https://example.invalid/fixture',
+        description: null,
+        defaultBranch: 'main',
+        pushedAt: null,
+        updatedAt: null,
+      },
+    })
+
+    expect(cloned).toMatchObject({ ok: false })
+    expect(requests).toEqual([
+      'github/repository/clone',
+      'project/trust/read',
+      'project/trust/update',
+    ])
+    expect(requests).not.toContain('project/remove')
   })
 })

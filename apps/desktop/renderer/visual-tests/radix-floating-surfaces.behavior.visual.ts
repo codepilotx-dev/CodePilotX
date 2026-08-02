@@ -322,6 +322,15 @@ async function expectSolidSurface(content: Locator): Promise<void> {
         borderRadius: computed.borderRadius,
         borderTopWidth: computed.borderTopWidth,
         boxShadow: computed.boxShadow,
+        shadowColors: Array.from(
+          computed.boxShadow.matchAll(/rgba?\(([^)]+)\)/g),
+          match =>
+            match[1]
+              .split(/[,\s/]+/)
+              .filter(Boolean)
+              .slice(0, 3)
+              .map(Number),
+        ),
         position: computed.position,
       }
     }),
@@ -342,6 +351,10 @@ async function expectSolidSurface(content: Locator): Promise<void> {
   expect(styles.borderRadius).toBe('12px')
   expect(styles.borderTopWidth).toBe('1px')
   expect(styles.boxShadow).not.toBe('none')
+  expect(styles.shadowColors.length).toBeGreaterThan(0)
+  for (const color of styles.shadowColors) {
+    expect(color).toEqual([0, 0, 0])
+  }
   expect(styles.animationName).not.toBe('none')
 }
 

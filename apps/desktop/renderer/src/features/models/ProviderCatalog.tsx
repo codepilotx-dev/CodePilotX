@@ -44,21 +44,16 @@ export function ProviderCatalog({
 }: ProviderCatalogProps): React.ReactNode {
   return (
     <section className="model-center-catalog" aria-label="供应商目录">
-      <header className="model-center-catalog-header">
-        <div>
-          <h2>供应商</h2>
-          <p>浏览完整目录，选择供应商并配置 Endpoint、模型与 Router。</p>
-        </div>
+      <div className="model-center-catalog-toolbar">
+        <SearchInput
+          aria-label="搜索 Provider"
+          className="model-center-catalog-search"
+          onChange={onQueryChange}
+          placeholder="搜索 Provider、ID 或配置来源"
+          value={query}
+        />
         <span className="model-center-catalog-count">{providers.length} 个</span>
-      </header>
-
-      <SearchInput
-        aria-label="搜索 Provider"
-        className="model-center-catalog-search"
-        onChange={onQueryChange}
-        placeholder="搜索 Provider、ID 或配置来源"
-        value={query}
-      />
+      </div>
 
       {providers.length === 0 ? (
         <div className="model-center-catalog-empty">

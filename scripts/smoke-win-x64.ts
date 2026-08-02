@@ -18,6 +18,12 @@ await assertWindowsX64PE(agent)
 const isolatedRoot = await mkdtemp(join(tmpdir(), "codepilotx-win-smoke-"))
 const logDirectory = join(isolatedRoot, "logs")
 const token = crypto.randomUUID().replaceAll("-", "")
+try {
+  await assertPackagedTerminal(application, isolatedRoot)
+} catch (cause) {
+  await rm(isolatedRoot, { recursive: true, force: true }).catch(() => undefined)
+  throw cause
+}
 const child = Bun.spawn([application, `--user-data-dir=${join(isolatedRoot, "profile")}`], {
   cwd: dirname(application),
   env: {
@@ -51,6 +57,60 @@ try {
     await cleanup.exited
   }
   await rm(isolatedRoot, { recursive: true, force: true }).catch(() => undefined)
+}
+
+async function assertPackagedTerminal(applicationPath: string, isolatedRoot: string): Promise<void> {
+  const resultPath = join(isolatedRoot, "terminal-smoke-result.json")
+  const child = Bun.spawn([
+    applicationPath,
+    `--user-data-dir=${join(isolatedRoot, "terminal-profile")}`,
+    "--codepilotx-packaged-terminal-smoke",
+  ], {
+    cwd: dirname(applicationPath),
+    env: {
+      ...process.env,
+      APPDATA: join(isolatedRoot, "terminal-appdata"),
+      LOCALAPPDATA: join(isolatedRoot, "terminal-localappdata"),
+      CODEPILOTX_USER_DATA_DIR: join(isolatedRoot, "terminal-user-data"),
+      CODEPILOTX_PACKAGED_TERMINAL_SMOKE_RESULT: resultPath,
+    },
+    stdin: "ignore",
+    stdout: "ignore",
+    stderr: "ignore",
+    windowsHide: true,
+  })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const exitCode = await Promise.race([
+      child.exited,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("打包 ConPTY 冒烟在 30 秒内未完成")), 30_000)
+      }),
+    ])
+    if (exitCode !== 0) throw new Error(`打包 Electron ConPTY 冒烟退出码异常：${exitCode}`)
+    const result = JSON.parse(await readFile(resultPath, "utf8")) as Record<string, unknown>
+    if (
+      result.ok !== true
+      || result.nodePtyLoaded !== true
+      || result.conptyOutput !== true
+      || result.exitCode !== 23
+      || result.processTreeCleaned !== true
+    ) {
+      throw new Error("打包 Electron ConPTY 冒烟结果无效")
+    }
+    console.log("[CodePilotX] packaged node-pty/ConPTY output, exit and process cleanup smoke passed")
+  } finally {
+    if (timer) clearTimeout(timer)
+    child.kill()
+    if (process.platform === "win32" && child.pid) {
+      const cleanup = Bun.spawn(["taskkill.exe", "/PID", String(child.pid), "/T", "/F"], {
+        stdout: "ignore",
+        stderr: "ignore",
+        windowsHide: true,
+      })
+      await cleanup.exited
+    }
+  }
 }
 
 async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<{ origin: string }> {

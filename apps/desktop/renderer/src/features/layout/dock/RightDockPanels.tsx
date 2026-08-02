@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { Folder, FolderOpen, ListChecks } from 'lucide-react'
+import { motion, useMotionValue, useTransform } from 'motion/react'
 import type {
   DesktopFileEntry,
   DesktopWorkspace,
@@ -31,6 +32,8 @@ import { createWorkspaceFileTabId } from '../tabs/workspaceFileTabId.js'
 
 const FILE_TREE_DEFAULT_WIDTH = 280
 const FILE_TREE_MIN_WIDTH = 200
+const FILE_TREE_FALLBACK_MAX_WIDTH = 480
+const FILE_TREE_MAX_WIDTH_RATIO = 0.6
 
 export type FileDocumentLoadErrorPhase = 'initial' | 'external-sync'
 
@@ -99,6 +102,11 @@ export function RightDockFilesPanel({
   )
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const layoutRef = useRef<HTMLDivElement | null>(null)
+  const treeResize = useEditorFileTreeResize({
+    committedWidth: treeWidth,
+    layoutRef,
+    onCommitWidth: setTreeWidth,
+  })
 
   useEffect(() => {
     const next = readFileTreeViewState(workspacePath, true)
@@ -113,35 +121,6 @@ export function RightDockFilesPanel({
       width: treeWidth,
     })
   }, [treeVisible, treeWidth, workspacePath])
-
-  function clampTreeWidth(width: number): number {
-    const layoutWidth = layoutRef.current?.getBoundingClientRect().width ?? 0
-    const maximum =
-      layoutWidth > 0
-        ? Math.max(FILE_TREE_MIN_WIDTH, layoutWidth * 0.6)
-        : 480
-    return Math.min(
-      maximum,
-      Math.max(FILE_TREE_MIN_WIDTH, Math.round(width)),
-    )
-  }
-
-  function startTreeResize(event: React.PointerEvent<HTMLDivElement>): void {
-    event.preventDefault()
-    const startX = event.clientX
-    const startWidth = treeWidth
-    const onPointerMove = (moveEvent: PointerEvent): void => {
-      setTreeWidth(clampTreeWidth(startWidth + startX - moveEvent.clientX))
-    }
-    const onPointerUp = (): void => {
-      window.document.body.classList.remove('file-tree-is-resizing')
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
-    }
-    window.document.body.classList.add('file-tree-is-resizing')
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-  }
 
   return (
     <section className="right-dock-file-browser" aria-label="打开文件">
@@ -169,18 +148,14 @@ export function RightDockFilesPanel({
           </button>
         </div>
       </header>
-      <div
+      <motion.div
         ref={layoutRef}
         className={cx(
           'right-dock-file-editor-layout',
           'right-dock-open-file-layout',
           treeVisible && 'has-file-tree',
         )}
-        style={
-          {
-            '--right-dock-editor-tree-width': `${treeWidth}px`,
-          } as React.CSSProperties
-        }
+        style={treeResize.layoutStyle}
       >
         <div className="right-dock-open-file-empty">
           <Folder aria-hidden="true" size={48} strokeWidth={1.5} />
@@ -196,34 +171,16 @@ export function RightDockFilesPanel({
             <div
               aria-label="调整文件树宽度"
               aria-orientation="vertical"
-              aria-valuemax={Math.round(
-                Math.max(
-                  FILE_TREE_MIN_WIDTH,
-                  (layoutRef.current?.getBoundingClientRect().width ?? 800) *
-                    0.6,
-                ),
-              )}
+              aria-valuemax={treeResize.maximumWidth}
               aria-valuemin={FILE_TREE_MIN_WIDTH}
               aria-valuenow={treeWidth}
               className="right-dock-editor-tree-resize-handle"
               role="separator"
               tabIndex={0}
               title="拖拽调整文件树宽度，双击恢复默认宽度"
-              onDoubleClick={() => setTreeWidth(FILE_TREE_DEFAULT_WIDTH)}
-              onKeyDown={event => {
-                const step = event.shiftKey ? 40 : 10
-                if (event.key === 'ArrowLeft') {
-                  event.preventDefault()
-                  setTreeWidth(current => clampTreeWidth(current + step))
-                } else if (event.key === 'ArrowRight') {
-                  event.preventDefault()
-                  setTreeWidth(current => clampTreeWidth(current - step))
-                } else if (event.key === 'Home') {
-                  event.preventDefault()
-                  setTreeWidth(FILE_TREE_DEFAULT_WIDTH)
-                }
-              }}
-              onPointerDown={startTreeResize}
+              onDoubleClick={treeResize.resetWidth}
+              onKeyDown={treeResize.handleKeyDown}
+              onPointerDown={treeResize.startResize}
             />
             <aside
               aria-label="工作区文件树"
@@ -243,7 +200,7 @@ export function RightDockFilesPanel({
             </aside>
           </>
         ) : null}
-      </div>
+      </motion.div>
     </section>
   )
 }
@@ -295,6 +252,11 @@ export function RightDockFilePreviewPanel({
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const [switchingMarkdownMode, setSwitchingMarkdownMode] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
+  const treeResize = useEditorFileTreeResize({
+    committedWidth: treeWidth,
+    layoutRef,
+    onCommitWidth: setTreeWidth,
+  })
   const initialLoadKeyRef = useRef<string | null>(null)
   const onLoadErrorRef = useRef(onLoadError)
   const documentScope = { projectId, folderId }
@@ -355,35 +317,6 @@ export function RightDockFilePreviewPanel({
       }),
     )
     setSelectedText('')
-  }
-
-  function clampTreeWidth(width: number): number {
-    const layoutWidth = layoutRef.current?.getBoundingClientRect().width ?? 0
-    const maximum =
-      layoutWidth > 0
-        ? Math.max(FILE_TREE_MIN_WIDTH, layoutWidth * 0.6)
-        : 480
-    return Math.min(
-      maximum,
-      Math.max(FILE_TREE_MIN_WIDTH, Math.round(width)),
-    )
-  }
-
-  function startTreeResize(event: React.PointerEvent<HTMLDivElement>): void {
-    event.preventDefault()
-    const startX = event.clientX
-    const startWidth = treeWidth
-    const onPointerMove = (moveEvent: PointerEvent): void => {
-      setTreeWidth(clampTreeWidth(startWidth + startX - moveEvent.clientX))
-    }
-    const onPointerUp = (): void => {
-      window.document.body.classList.remove('file-tree-is-resizing')
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
-    }
-    window.document.body.classList.add('file-tree-is-resizing')
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
   }
 
   async function toggleMarkdownViewMode(): Promise<void> {
@@ -452,17 +385,13 @@ export function RightDockFilePreviewPanel({
             void toggleMarkdownViewMode()
           }}
         />
-        <div
+        <motion.div
           ref={layoutRef}
           className={cx(
             'right-dock-file-editor-layout',
             treeVisible && 'has-file-tree',
           )}
-          style={
-            {
-              '--right-dock-editor-tree-width': `${treeWidth}px`,
-            } as React.CSSProperties
-          }
+          style={treeResize.layoutStyle}
         >
           <AppContextMenu
             actions={
@@ -562,34 +491,16 @@ export function RightDockFilePreviewPanel({
               <div
                 aria-label="调整文件树宽度"
                 aria-orientation="vertical"
-                aria-valuemax={Math.round(
-                  Math.max(
-                    FILE_TREE_MIN_WIDTH,
-                    (layoutRef.current?.getBoundingClientRect().width ?? 800) *
-                      0.6,
-                  ),
-                )}
+                aria-valuemax={treeResize.maximumWidth}
                 aria-valuemin={FILE_TREE_MIN_WIDTH}
                 aria-valuenow={treeWidth}
                 className="right-dock-editor-tree-resize-handle"
                 role="separator"
                 tabIndex={0}
                 title="拖拽调整文件树宽度，双击恢复默认宽度"
-                onDoubleClick={() => setTreeWidth(FILE_TREE_DEFAULT_WIDTH)}
-                onKeyDown={event => {
-                  const step = event.shiftKey ? 40 : 10
-                  if (event.key === 'ArrowLeft') {
-                    event.preventDefault()
-                    setTreeWidth(current => clampTreeWidth(current + step))
-                  } else if (event.key === 'ArrowRight') {
-                    event.preventDefault()
-                    setTreeWidth(current => clampTreeWidth(current - step))
-                  } else if (event.key === 'Home') {
-                    event.preventDefault()
-                    setTreeWidth(FILE_TREE_DEFAULT_WIDTH)
-                  }
-                }}
-                onPointerDown={startTreeResize}
+                onDoubleClick={treeResize.resetWidth}
+                onKeyDown={treeResize.handleKeyDown}
+                onPointerDown={treeResize.startResize}
               />
               <aside
                 aria-label="当前文件的工作区文件树"
@@ -606,7 +517,7 @@ export function RightDockFilePreviewPanel({
               </aside>
             </>
           ) : null}
-        </div>
+        </motion.div>
       </article>
     </section>
   )
@@ -688,6 +599,186 @@ export { createWorkspaceFileTabId }
 type FileTreeViewState = {
   visible: boolean
   width: number
+}
+
+type ActiveFileTreeResize = {
+  finish: (outcome: 'commit' | 'restore') => void
+}
+
+function resolveFileTreeMaximumWidth(
+  layout: HTMLDivElement | null,
+): number {
+  const layoutWidth = layout?.getBoundingClientRect().width ?? 0
+  return Math.round(
+    layoutWidth > 0
+      ? Math.max(
+          FILE_TREE_MIN_WIDTH,
+          layoutWidth * FILE_TREE_MAX_WIDTH_RATIO,
+        )
+      : FILE_TREE_FALLBACK_MAX_WIDTH,
+  )
+}
+
+function clampFileTreeWidth(
+  width: number,
+  layout: HTMLDivElement | null,
+): number {
+  return Math.min(
+    resolveFileTreeMaximumWidth(layout),
+    Math.max(FILE_TREE_MIN_WIDTH, Math.round(width)),
+  )
+}
+
+function useEditorFileTreeResize({
+  committedWidth,
+  layoutRef,
+  onCommitWidth,
+}: {
+  committedWidth: number
+  layoutRef: React.RefObject<HTMLDivElement | null>
+  onCommitWidth: React.Dispatch<React.SetStateAction<number>>
+}): {
+  handleKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
+  layoutStyle: React.CSSProperties
+  maximumWidth: number
+  resetWidth: () => void
+  startResize: (event: React.PointerEvent<HTMLDivElement>) => void
+} {
+  const liveWidth = useMotionValue(committedWidth)
+  const liveWidthPixels = useTransform(
+    liveWidth,
+    width => `${Math.round(width)}px`,
+  )
+  const committedWidthRef = useRef(committedWidth)
+  const activeResizeRef = useRef<ActiveFileTreeResize | null>(null)
+
+  useLayoutEffect(() => {
+    committedWidthRef.current = committedWidth
+    if (!activeResizeRef.current) {
+      liveWidth.set(committedWidth)
+    }
+  }, [committedWidth, liveWidth])
+
+  useEffect(
+    () => () => {
+      activeResizeRef.current?.finish('restore')
+    },
+    [],
+  )
+
+  function commitWidth(width: number): void {
+    const nextWidth = clampFileTreeWidth(width, layoutRef.current)
+    committedWidthRef.current = nextWidth
+    liveWidth.set(nextWidth)
+    onCommitWidth(nextWidth)
+  }
+
+  function startResize(
+    event: React.PointerEvent<HTMLDivElement>,
+  ): void {
+    if (event.button !== 0) return
+    event.preventDefault()
+    activeResizeRef.current?.finish('restore')
+
+    const handle = event.currentTarget
+    const pointerId = event.pointerId
+    const startX = event.clientX
+    const startWidth = committedWidthRef.current
+    let pendingWidth = startWidth
+    let frameId: number | null = null
+    let finished = false
+
+    const flushPreview = (): void => {
+      frameId = null
+      liveWidth.set(pendingWidth)
+    }
+    const queuePreview = (width: number): void => {
+      pendingWidth = clampFileTreeWidth(width, layoutRef.current)
+      if (frameId !== null) return
+      frameId = window.requestAnimationFrame(flushPreview)
+    }
+    const removeListeners = (): void => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerCancel)
+      window.removeEventListener('blur', onWindowBlur)
+      handle.removeEventListener('lostpointercapture', onLostPointerCapture)
+    }
+    const finish = (outcome: 'commit' | 'restore'): void => {
+      if (finished) return
+      finished = true
+      removeListeners()
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId)
+        frameId = null
+      }
+      window.document.body.classList.remove('file-tree-is-resizing')
+      activeResizeRef.current = null
+      if (outcome === 'commit') {
+        committedWidthRef.current = pendingWidth
+        liveWidth.set(pendingWidth)
+        onCommitWidth(pendingWidth)
+      } else {
+        liveWidth.set(committedWidthRef.current)
+      }
+      if (handle.hasPointerCapture(pointerId)) {
+        handle.releasePointerCapture(pointerId)
+      }
+    }
+    const onPointerMove = (moveEvent: PointerEvent): void => {
+      if (moveEvent.pointerId !== pointerId) return
+      queuePreview(startWidth + startX - moveEvent.clientX)
+    }
+    const onPointerUp = (upEvent: PointerEvent): void => {
+      if (upEvent.pointerId !== pointerId) return
+      pendingWidth = clampFileTreeWidth(
+        startWidth + startX - upEvent.clientX,
+        layoutRef.current,
+      )
+      finish('commit')
+    }
+    const onPointerCancel = (cancelEvent: PointerEvent): void => {
+      if (cancelEvent.pointerId !== pointerId) return
+      finish('restore')
+    }
+    const onWindowBlur = (): void => finish('restore')
+    const onLostPointerCapture = (): void => finish('restore')
+
+    activeResizeRef.current = { finish }
+    window.document.body.classList.add('file-tree-is-resizing')
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerCancel)
+    window.addEventListener('blur', onWindowBlur)
+    handle.addEventListener('lostpointercapture', onLostPointerCapture)
+    handle.setPointerCapture(pointerId)
+  }
+
+  function handleKeyDown(
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ): void {
+    const step = event.shiftKey ? 40 : 10
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      commitWidth(committedWidthRef.current + step)
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      commitWidth(committedWidthRef.current - step)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      commitWidth(FILE_TREE_DEFAULT_WIDTH)
+    }
+  }
+
+  return {
+    handleKeyDown,
+    layoutStyle: {
+      '--right-dock-editor-tree-width': liveWidthPixels,
+    } as React.CSSProperties,
+    maximumWidth: resolveFileTreeMaximumWidth(layoutRef.current),
+    resetWidth: () => commitWidth(FILE_TREE_DEFAULT_WIDTH),
+    startResize,
+  }
 }
 
 function fileTreeViewStorageKey(workspacePath: string): string {

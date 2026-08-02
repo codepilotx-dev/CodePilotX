@@ -151,6 +151,7 @@ export const ToolItemSchema = Schema.Struct({
   startedAt: Schema.NullOr(Schema.Number),
   finishedAt: Schema.NullOr(Schema.Number),
   durationMs: Schema.NullOr(Schema.Number),
+  mutationDiffPaths: Schema.optional(Schema.Array(Schema.String)),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
@@ -217,6 +218,9 @@ export const PatchItemSchema = Schema.Struct({
   files: Schema.Array(EditedFileSchema),
   totalAdditions: Schema.Number,
   totalDeletions: Schema.Number,
+  reversible: Schema.optional(Schema.Boolean),
+  applyState: Schema.optional(Schema.Literals(["applied", "undone"])),
+  actionVersion: Schema.optional(Schema.Number),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })

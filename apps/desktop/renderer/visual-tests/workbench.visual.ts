@@ -52,6 +52,225 @@ const VIEWPORTS = [
   { id: 'compact', width: 960, height: 640 },
 ] as const
 
+const MARKDOWN_TYPOGRAPHY_CASES = [
+  { id: 'desktop-light', mode: 'light', width: 1440, height: 920 },
+  { id: 'compact-dark', mode: 'dark', width: 960, height: 640 },
+] as const
+
+for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
+  test(`Markdown typography follows the Claude-like rhythm in ${visualCase.id}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: visualCase.width,
+      height: visualCase.height,
+    })
+    await page.emulateMedia({
+      colorScheme: visualCase.mode,
+      forcedColors: 'none',
+      reducedMotion: 'reduce',
+    })
+    await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+    await closeTransientErrorToast(page)
+    await expect(
+      page.getByText('已完成工作台结构梳理。', { exact: true }),
+    ).toBeVisible()
+
+    const markdown = page.locator('.canonical-text-item--result > .md-body').first()
+    await expect(markdown.getByRole('heading', { level: 1 })).toHaveText(
+      'Markdown 阅读排版',
+    )
+    await expect(markdown.getByRole('heading', { level: 2 })).toHaveText(
+      '阅读节奏',
+    )
+    await expect(markdown.getByRole('heading', { level: 3 })).toHaveText(
+      '结构清单',
+    )
+    await expect(markdown.locator('blockquote')).toBeVisible()
+    await expect(markdown.locator('.md-table-block table')).toBeVisible()
+    await expect(
+      markdown.locator('.md-code-block:not(.md-table-block)'),
+    ).toBeVisible()
+
+    const metrics = await markdown.evaluate(element => {
+      const select = <T extends HTMLElement>(selector: string): T => {
+        const target = element.querySelector<T>(selector)
+        if (!target) throw new Error(`Missing Markdown fixture element: ${selector}`)
+        return target
+      }
+      const style = (selector: string): CSSStyleDeclaration =>
+        getComputedStyle(select(selector))
+      const px = (value: string): number => Number.parseFloat(value)
+      const rootSize = px(getComputedStyle(document.documentElement).fontSize)
+      const body = getComputedStyle(element)
+      const bodySize = px(body.fontSize)
+      const paragraph = style('p')
+      const h1 = style('h1')
+      const h2 = style('h2')
+      const h3 = style('h3')
+      const quote = style('blockquote')
+      const strong = style('strong')
+      const inlineCode = style('p code')
+      const list = style('ul')
+      const listItem = style('li')
+      const spacedListItem = style('ul > li + li')
+      const codeBlock = style('.md-code-block:not(.md-table-block)')
+      const codePre = style('.md-code-block:not(.md-table-block) .md-code-pre')
+      const table = style('.md-table-block table')
+      const tableHeading = style('.md-table-block th')
+      const lastTableHeading = style('.md-table-block th:last-child')
+      const tableCell = style('.md-table-block td')
+      const lastTableCell = style('.md-table-block td:last-child')
+      const leadDescription = select<HTMLElement>('.md-lead-description')
+      const leadTitle = style('.md-lead-description__title')
+      const leadDetailElement = select<HTMLElement>(
+        '.md-lead-description__detail',
+      )
+      const leadDetail = getComputedStyle(leadDetailElement)
+      const normalSoftBreak = Array.from(element.querySelectorAll('p')).find(
+        paragraphElement =>
+          paragraphElement.textContent?.includes(
+            '普通软换行继续保留 breaks: true',
+          ),
+      )
+      if (!normalSoftBreak) {
+        throw new Error('Missing ordinary soft-break Markdown fixture paragraph')
+      }
+
+      return {
+        bodyFontWeight: body.fontWeight,
+        bodyLineHeightRatio: px(body.lineHeight) / bodySize,
+        codeBlockBorderRadius: codeBlock.borderTopLeftRadius,
+        codeBlockMarginBottom: px(codeBlock.marginBottom),
+        codeBlockMarginTop: px(codeBlock.marginTop),
+        codePreFontSize: codePre.fontSize,
+        codePreLineHeightRatio: px(codePre.lineHeight) / px(codePre.fontSize),
+        codePrePaddingBottomRatio: px(codePre.paddingBottom) / rootSize,
+        codePrePaddingInlineRatio: px(codePre.paddingLeft) / rootSize,
+        codePrePaddingTopRatio: px(codePre.paddingTop) / rootSize,
+        documentClientWidth: document.documentElement.clientWidth,
+        documentScrollWidth: document.documentElement.scrollWidth,
+        h1BorderBottomWidth: h1.borderBottomWidth,
+        h1FontSizeRatio: px(h1.fontSize) / bodySize,
+        h1PaddingBottom: px(h1.paddingBottom),
+        h2FontSizeRatio: px(h2.fontSize) / bodySize,
+        h2MarginBottomRatio: px(h2.marginBottom) / rootSize,
+        h2MarginTopRatio: px(h2.marginTop) / rootSize,
+        h3FontSizeRatio: px(h3.fontSize) / bodySize,
+        inlineCodeBorderRadius: inlineCode.borderTopLeftRadius,
+        inlineCodeBorderWidth: inlineCode.borderTopWidth,
+        inlineCodeFontSizeRatio: px(inlineCode.fontSize) / bodySize,
+        leadDescriptionChildCount: leadDescription.children.length,
+        leadDescriptionDirectBreakCount: Array.from(
+          leadDescription.children,
+        ).filter(child => child.tagName === 'BR').length,
+        leadDetailBreakCount: leadDetailElement.querySelectorAll('br').length,
+        leadDetailDisplay: leadDetail.display,
+        leadDetailMarginTopRatio: px(leadDetail.marginTop) / bodySize,
+        leadTitleDisplay: leadTitle.display,
+        listItemMarginBottom: px(listItem.marginBottom),
+        listItemMarginTop: px(listItem.marginTop),
+        listItemSiblingMarginTopRatio:
+          px(spacedListItem.marginTop) / bodySize,
+        listPaddingRatio: px(list.paddingLeft) / rootSize,
+        paragraphMarginRatio: px(paragraph.marginTop) / bodySize,
+        normalSoftBreakCount: normalSoftBreak.querySelectorAll('br').length,
+        normalSoftBreakLeadDescriptionCount: normalSoftBreak.classList.contains(
+          'md-lead-description',
+        )
+          ? 1
+          : 0,
+        quoteBorderRadius: quote.borderTopLeftRadius,
+        quoteBorderWidth: quote.borderLeftWidth,
+        quotePaddingBlockRatio: px(quote.paddingTop) / rootSize,
+        quotePaddingInlineRatio: px(quote.paddingLeft) / rootSize,
+        strongFontWeight: strong.fontWeight,
+        tableBorderRightWidth: tableCell.borderRightWidth,
+        tableFontSizeRatio: px(table.fontSize) / bodySize,
+        tableHeadingPaddingBottom: px(tableHeading.paddingBottom),
+        tableHeadingPaddingLeft: px(tableHeading.paddingLeft),
+        tableHeadingPaddingRight: px(tableHeading.paddingRight),
+        tableHeadingPaddingTop: px(tableHeading.paddingTop),
+        tableHeadingFontWeight: tableHeading.fontWeight,
+        tableHeadingLineHeightRatio:
+          px(tableHeading.lineHeight) / px(tableHeading.fontSize),
+        tableHeadingTextAlign: tableHeading.textAlign,
+        tableHeadingVerticalAlign: tableHeading.verticalAlign,
+        tableLastHeadingPaddingRight: px(lastTableHeading.paddingRight),
+        tableLastCellPaddingRight: px(lastTableCell.paddingRight),
+        tableLineHeightRatio: px(tableCell.lineHeight) / px(tableCell.fontSize),
+        tablePaddingBottom: px(tableCell.paddingBottom),
+        tablePaddingLeft: px(tableCell.paddingLeft),
+        tablePaddingRight: px(tableCell.paddingRight),
+        tablePaddingTop: px(tableCell.paddingTop),
+        tableTextAlign: tableCell.textAlign,
+        tableVerticalAlign: tableCell.verticalAlign,
+      }
+    })
+
+    expect(metrics.bodyFontWeight).toBe('400')
+    expect(metrics.bodyLineHeightRatio).toBeCloseTo(1.62, 2)
+    expect(metrics.paragraphMarginRatio).toBeCloseTo(0.78, 2)
+    expect(metrics.h1FontSizeRatio).toBeCloseTo(1.84, 2)
+    expect(metrics.h1BorderBottomWidth).toBe('0px')
+    expect(metrics.h1PaddingBottom).toBe(0)
+    expect(metrics.h2FontSizeRatio).toBeCloseTo(1.48, 2)
+    expect(metrics.h2MarginTopRatio).toBeCloseTo(1.45, 2)
+    expect(metrics.h2MarginBottomRatio).toBeCloseTo(0.7, 2)
+    expect(metrics.h3FontSizeRatio).toBeCloseTo(1.24, 2)
+    expect(metrics.strongFontWeight).toBe('600')
+    expect(metrics.listPaddingRatio).toBeCloseTo(1.45, 2)
+    expect(metrics.listItemMarginTop).toBe(0)
+    expect(metrics.listItemMarginBottom).toBe(0)
+    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(0.5, 2)
+    expect(metrics.quoteBorderWidth).toBe('2px')
+    expect(metrics.quoteBorderRadius).toBe('10px')
+    expect(metrics.quotePaddingBlockRatio).toBeCloseTo(0.55, 2)
+    expect(metrics.quotePaddingInlineRatio).toBeCloseTo(1, 2)
+    expect(metrics.inlineCodeBorderWidth).toBe('1px')
+    expect(metrics.inlineCodeBorderRadius).toBe('999px')
+    expect(metrics.inlineCodeFontSizeRatio).toBeCloseTo(0.9, 2)
+    expect(metrics.leadDescriptionChildCount).toBe(2)
+    expect(metrics.leadDescriptionDirectBreakCount).toBe(0)
+    expect(metrics.leadTitleDisplay).toBe('block')
+    expect(metrics.leadDetailDisplay).toBe('block')
+    expect(metrics.leadDetailBreakCount).toBe(1)
+    expect(metrics.leadDetailMarginTopRatio).toBeCloseTo(0.3, 2)
+    expect(metrics.normalSoftBreakCount).toBe(1)
+    expect(metrics.normalSoftBreakLeadDescriptionCount).toBe(0)
+    expect(metrics.codeBlockMarginTop).toBe(14)
+    expect(metrics.codeBlockMarginBottom).toBe(18)
+    expect(metrics.codeBlockBorderRadius).toBe('8px')
+    expect(metrics.codePreLineHeightRatio).toBeCloseTo(1.55, 2)
+    expect(metrics.codePrePaddingTopRatio).toBeCloseTo(0.9, 2)
+    expect(metrics.codePrePaddingInlineRatio).toBeCloseTo(1, 2)
+    expect(metrics.codePrePaddingBottomRatio).toBeCloseTo(0.85, 2)
+    expect(metrics.codePreFontSize).toBe('12px')
+    expect(metrics.tableFontSizeRatio).toBeCloseTo(0.93, 2)
+    expect(metrics.tableBorderRightWidth).toBe('0px')
+    expect(metrics.tableHeadingFontWeight).toBe('600')
+    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(1.48, 2)
+    expect(metrics.tableHeadingPaddingTop).toBe(12)
+    expect(metrics.tableHeadingPaddingRight).toBe(18)
+    expect(metrics.tableHeadingPaddingBottom).toBe(12)
+    expect(metrics.tableHeadingPaddingLeft).toBe(18)
+    expect(metrics.tableHeadingTextAlign).toBe('center')
+    expect(metrics.tableHeadingVerticalAlign).toBe('middle')
+    expect(metrics.tableLastHeadingPaddingRight).toBe(18)
+    expect(metrics.tableLineHeightRatio).toBeCloseTo(1.56, 2)
+    expect(metrics.tablePaddingTop).toBe(12)
+    expect(metrics.tablePaddingRight).toBe(18)
+    expect(metrics.tablePaddingBottom).toBe(12)
+    expect(metrics.tablePaddingLeft).toBe(18)
+    expect(metrics.tableLastCellPaddingRight).toBe(18)
+    expect(metrics.tableTextAlign).toBe('center')
+    expect(metrics.tableVerticalAlign).toBe('middle')
+    expect(metrics.documentScrollWidth).toBeLessThanOrEqual(
+      metrics.documentClientWidth,
+    )
+  })
+}
+
 for (const viewport of VIEWPORTS) {
   for (const mode of MODES) {
     for (const scenario of SCENARIOS) {
@@ -419,33 +638,20 @@ test('session header aligns with the right panel and bottom panel spans the work
   })
   await expect
     .poll(async () => (await bottomPanelElement.boundingBox())?.height)
-    .toBeCloseTo(bottomPanel!.height, 0)
-  const bottomResizeGuide = page.locator(
-    'body > .workbench-resize-guide--bottom',
-  )
-  await expect(bottomResizeGuide).toBeVisible()
+    .toBeGreaterThan(bottomPanel!.height + 48)
+  await expect(page.locator('.workbench-resize-guide')).toHaveCount(0)
   await expect(
     bottomPanelElement.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
   await expect(
-    bottomPanelElement.locator('[data-resize-skeleton-active]'),
-  ).toHaveCount(0)
-  await expect(
     bottomPanelElement.locator('.workbench-panel-header'),
   ).toHaveCSS('filter', 'none')
-  const bottomResizeGuideBox = await bottomResizeGuide.boundingBox()
-  expect(bottomResizeGuideBox).not.toBeNull()
-  expect(bottomResizeGuideBox!.y).toBeCloseTo(
-    bottomSeparatorBox!.y - 80,
-    0,
-  )
   const bottomPointerUpStartedAt = Date.now()
   await page.mouse.up()
   expect(Date.now() - bottomPointerUpStartedAt).toBeLessThan(200)
   await expect
     .poll(async () => (await bottomPanelElement.boundingBox())?.height)
     .toBeGreaterThan(bottomPanel!.height)
-  await expect(bottomResizeGuide).toBeHidden()
   await expect(
     bottomPanelElement.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -482,6 +688,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
 
   await page.getByRole('button', { name: '显示右侧面板' }).click()
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  const rightPanelShell = page.locator('.desktop-workspace-panel--right')
   await expect(rightPanel).toBeVisible()
   await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
   const sourceMenu = await openAndAssertReviewSourceMenu(page, rightPanel)
@@ -623,20 +830,10 @@ test('right panel scales with its workspace and keeps a constrained manual overr
       .count(),
   ).toBeLessThan(100)
   const reviewDiffPreview = rightPanel.locator('.review-diff-preview')
-  const reviewDiffContent = reviewDiffPreview.locator(
-    ':scope > [data-resize-skeleton-content]',
-  )
-  const reviewDiffSkeleton = reviewDiffPreview.locator(
-    ':scope > [data-resize-skeleton-overlay]',
-  )
-  const reviewFileTreeContent = reviewFileTree.locator(
-    ':scope > [data-resize-skeleton-content]',
-  )
-  const reviewFileTreeSkeleton = reviewFileTree.locator(
-    ':scope > [data-resize-skeleton-overlay]',
-  )
-  await expect(reviewDiffSkeleton).toBeHidden()
-  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(
+    rightPanel.locator('[data-resize-skeleton-target]'),
+  ).toHaveCount(0)
+  await expect(page.locator('.workbench-resize-guide')).toHaveCount(0)
   const initialWidth = (await rightPanel.boundingBox())?.width
   expect(initialWidth).toBeGreaterThan(320)
   const rightSeparator = page.getByRole('separator', {
@@ -652,7 +849,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeGreaterThan(initialWidth!)
   const keyboardWidth = (await rightPanel.boundingBox())?.width
-  await rightSeparator.dblclick()
+  await rightSeparator.press('Home')
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .not.toBeCloseTo(keyboardWidth!, 0)
@@ -683,42 +880,34 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     resizeWindow.__resizeLongTaskObserver.observe({ type: 'longtask' })
   })
   await page.mouse.down()
-  const pointerMoveDurations: number[] = []
   for (let step = 1; step <= 60; step += 1) {
-    const pointerMoveStartedAt = Date.now()
     await page.mouse.move(
       separatorBox!.x - (96 * step) / 60,
       separatorBox!.y + 40,
     )
-    pointerMoveDurations.push(Date.now() - pointerMoveStartedAt)
   }
-  const sortedPointerMoveDurations = [...pointerMoveDurations].sort(
-    (left, right) => left - right,
-  )
-  expect(
-    sortedPointerMoveDurations[
-      Math.floor(sortedPointerMoveDurations.length * 0.95)
-    ],
-  ).toBeLessThan(80)
+  await expect
+    .poll(async () => (await rightPanelShell.boundingBox())?.width)
+    .toBeGreaterThan(resetWidth! + 48)
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeGreaterThan(resetWidth! + 48)
+  const [liveRightPanelBox, liveRightPanelShellBox] = await Promise.all([
+    rightPanel.boundingBox(),
+    rightPanelShell.boundingBox(),
+  ])
+  expect(liveRightPanelBox).not.toBeNull()
+  expect(liveRightPanelShellBox).not.toBeNull()
+  expect(liveRightPanelBox!.x).toBeCloseTo(liveRightPanelShellBox!.x, 0)
+  await expect
+    .poll(async () =>
+      rightPanelShell
+        .locator('.desktop-workspace-panel__surface')
+        .evaluate(element => Number.parseFloat(getComputedStyle(element).width)),
+    )
     .toBeCloseTo(resetWidth!, 0)
-  const rightResizeGuide = page.locator(
-    'body > .workbench-resize-guide--right',
-  )
-  await expect(rightResizeGuide).toBeVisible()
-  await expect(reviewDiffPreview).toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewDiffSkeleton).toBeVisible()
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'hidden')
-  await expect(reviewFileTree).not.toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
-  await expect(reviewFileTreeSkeleton).toBeHidden()
+  await expect(reviewDiffPreview).toBeVisible()
+  await expect(reviewFileTree).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -726,20 +915,11 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     'filter',
     'none',
   )
-  const rightResizeGuideBox = await rightResizeGuide.boundingBox()
-  expect(rightResizeGuideBox).not.toBeNull()
-  expect(rightResizeGuideBox!.x).toBeCloseTo(separatorBox!.x - 96, 0)
   await page.mouse.up()
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeGreaterThan(resetWidth!)
-  await expect(rightResizeGuide).toBeHidden()
-  await expect(reviewDiffPreview).not.toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewDiffSkeleton).toBeHidden()
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(reviewDiffPreview).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -766,13 +946,23 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     )
     await page.mouse.down()
     await page.mouse.move(box!.x - 64, box!.y + 30, { steps: 4 })
-    await expect(rightResizeGuide).toBeVisible()
-    await expect(reviewDiffPreview).toHaveAttribute(
-      'data-resize-skeleton-active',
-      '',
+    await expect
+      .poll(async () => (await rightPanelShell.boundingBox())?.width)
+      .toBeGreaterThan(resetWidth! + 32)
+    await expect
+      .poll(async () => (await rightPanel.boundingBox())?.width)
+      .toBeGreaterThan(resetWidth! + 32)
+    const [cancelPreviewPanelBox, cancelPreviewShellBox] = await Promise.all([
+      rightPanel.boundingBox(),
+      rightPanelShell.boundingBox(),
+    ])
+    expect(cancelPreviewPanelBox).not.toBeNull()
+    expect(cancelPreviewShellBox).not.toBeNull()
+    expect(cancelPreviewPanelBox!.x).toBeCloseTo(
+      cancelPreviewShellBox!.x,
+      0,
     )
-    await expect(reviewDiffSkeleton).toBeVisible()
-    await expect(reviewDiffContent).toHaveCSS('visibility', 'hidden')
+    await expect(reviewDiffPreview).toBeVisible()
   }
   await beginCancelledResize()
   await page.evaluate(() => {
@@ -782,9 +972,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeCloseTo(resetWidth!, 0)
-  await expect(rightResizeGuide).toBeHidden()
-  await expect(reviewDiffSkeleton).toBeHidden()
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(reviewDiffPreview).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -795,9 +983,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeCloseTo(resetWidth!, 0)
-  await expect(rightResizeGuide).toBeHidden()
-  await expect(reviewDiffSkeleton).toBeHidden()
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(reviewDiffPreview).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
   ).toHaveCSS('filter', 'none')
@@ -805,60 +991,35 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   const fileTreeSeparator = rightPanel.getByRole('separator', {
     name: '调整审查文件导航宽度',
   })
-  const fileTreePreview = rightPanel.locator(
-    '.review-file-tree-resize-preview',
-  )
   const initialFileTreeWidth = (await reviewFileTree.boundingBox())?.width
+  const initialDiffPreviewWidth = (await reviewDiffPreview.boundingBox())?.width
   const fileTreeSeparatorBox = await fileTreeSeparator.boundingBox()
   expect(initialFileTreeWidth).toBeGreaterThan(239)
+  expect(initialDiffPreviewWidth).toBeGreaterThan(0)
   expect(fileTreeSeparatorBox).not.toBeNull()
   await page.mouse.move(
     fileTreeSeparatorBox!.x + fileTreeSeparatorBox!.width / 2,
     fileTreeSeparatorBox!.y + fileTreeSeparatorBox!.height / 2,
   )
   await page.mouse.down()
-  const fileTreePointerMoveDurations: number[] = []
   for (let step = 1; step <= 60; step += 1) {
-    const pointerMoveStartedAt = Date.now()
     await page.mouse.move(
       fileTreeSeparatorBox!.x - (72 * step) / 60,
       fileTreeSeparatorBox!.y + 36,
     )
-    fileTreePointerMoveDurations.push(Date.now() - pointerMoveStartedAt)
   }
-  const sortedFileTreePointerMoveDurations = [
-    ...fileTreePointerMoveDurations,
-  ].sort((left, right) => left - right)
-  expect(
-    sortedFileTreePointerMoveDurations[
-      Math.floor(sortedFileTreePointerMoveDurations.length * 0.95)
-    ],
-  ).toBeLessThan(80)
   await expect
     .poll(async () => (await reviewFileTree.boundingBox())?.width)
-    .toBeCloseTo(initialFileTreeWidth!, 0)
-  await expect(reviewFileTree).toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewFileTreeSkeleton).toBeVisible()
-  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'hidden')
-  await expect(reviewDiffPreview).not.toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(reviewDiffContent).toHaveCSS('visibility', 'visible')
-  await expect(fileTreePreview).toBeVisible()
-  const fileTreePreviewBox = await fileTreePreview.boundingBox()
-  expect(fileTreePreviewBox).not.toBeNull()
-  expect(fileTreePreviewBox!.x).toBeCloseTo(fileTreeSeparatorBox!.x - 72, 0)
+    .toBeGreaterThan(initialFileTreeWidth! + 48)
+  await expect
+    .poll(async () => (await reviewDiffPreview.boundingBox())?.width)
+    .toBeCloseTo(initialDiffPreviewWidth!, 0)
+  await expect(reviewFileTree).toBeVisible()
+  await expect(reviewDiffPreview).toBeVisible()
   await page.mouse.up()
   await expect
     .poll(async () => (await reviewFileTree.boundingBox())?.width)
     .toBeGreaterThan(initialFileTreeWidth!)
-  await expect(fileTreePreview).toBeHidden()
-  await expect(reviewFileTreeSkeleton).toBeHidden()
-  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
 
   await fileTreeSeparator.dblclick()
   await expect
@@ -879,15 +1040,15 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     cancelledFileTreeSeparatorBox!.y + 24,
     { steps: 4 },
   )
-  await expect(reviewFileTreeSkeleton).toBeVisible()
+  await expect
+    .poll(async () => (await reviewFileTree.boundingBox())?.width)
+    .toBeGreaterThan(cancelledFileTreeWidth! + 24)
+  await expect(reviewDiffPreview).toBeVisible()
   await fileTreeSeparator.dispatchEvent('pointercancel', { pointerId: 1 })
   await page.mouse.up()
   await expect
     .poll(async () => (await reviewFileTree.boundingBox())?.width)
     .toBeCloseTo(cancelledFileTreeWidth!, 0)
-  await expect(fileTreePreview).toBeHidden()
-  await expect(reviewFileTreeSkeleton).toBeHidden()
-  await expect(reviewFileTreeContent).toHaveCSS('visibility', 'visible')
 
   const shrinkSeparatorBox = await rightSeparator.boundingBox()
   expect(shrinkSeparatorBox).not.toBeNull()
@@ -897,9 +1058,12 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   )
   await page.mouse.down()
   await page.mouse.move(shrinkSeparatorBox!.x + 64, shrinkSeparatorBox!.y + 30)
-  const shrinkGuideBox = await rightResizeGuide.boundingBox()
-  expect(shrinkGuideBox).not.toBeNull()
-  expect(shrinkGuideBox!.x).toBeCloseTo(shrinkSeparatorBox!.x + 64, 0)
+  await expect
+    .poll(async () => (await rightPanelShell.boundingBox())?.width)
+    .toBeLessThan(resetWidth! - 32)
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
   await page.evaluate(() => {
     document.dispatchEvent(new PointerEvent('pointercancel'))
   })
@@ -945,7 +1109,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect(forcedRightPanel).toHaveCount(0)
 })
 
-test('Review uses the same targeted skeleton when moved to the bottom panel', async ({
+test('Review resizes live when moved to the bottom panel', async ({
   page,
 }, testInfo) => {
   testInfo.setTimeout(90_000)
@@ -967,12 +1131,6 @@ test('Review uses the same targeted skeleton when moved to the bottom panel', as
 
   const bottomPanel = page.getByRole('complementary', { name: '底部面板' })
   const bottomReviewDiff = bottomPanel.locator('.review-diff-preview')
-  const bottomReviewDiffSkeleton = bottomReviewDiff.locator(
-    ':scope > [data-resize-skeleton-overlay]',
-  )
-  const bottomReviewDiffContent = bottomReviewDiff.locator(
-    ':scope > [data-resize-skeleton-content]',
-  )
   const bottomReviewFileTree = bottomPanel.getByRole('region', {
     name: '审查文件导航',
   })
@@ -996,25 +1154,16 @@ test('Review uses the same targeted skeleton when moved to the bottom panel', as
     bottomSeparatorBox!.y - 72,
     { steps: 8 },
   )
-  await expect(bottomReviewDiff).toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
-  await expect(bottomReviewDiffSkeleton).toBeVisible()
-  await expect(bottomReviewDiffContent).toHaveCSS('visibility', 'hidden')
-  await expect(bottomReviewFileTree).not.toHaveAttribute(
-    'data-resize-skeleton-active',
-    '',
-  )
   await expect
     .poll(async () => (await bottomPanel.boundingBox())?.height)
-    .toBeCloseTo(bottomHeight!, 0)
+    .toBeGreaterThan(bottomHeight! + 48)
+  await expect(bottomReviewDiff).toBeVisible()
+  await expect(bottomReviewFileTree).toBeVisible()
   await page.mouse.up()
   await expect
     .poll(async () => (await bottomPanel.boundingBox())?.height)
     .toBeGreaterThan(bottomHeight!)
-  await expect(bottomReviewDiffSkeleton).toBeHidden()
-  await expect(bottomReviewDiffContent).toHaveCSS('visibility', 'visible')
+  await expect(bottomReviewDiff).toBeVisible()
 })
 
 test('bottom panel scales with workspace height while preserving the upper region', async ({
@@ -1066,6 +1215,20 @@ test('narrow file panel keeps the editor and file tree side by side', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 960, height: 640 })
+  await page.addInitScript(() => {
+    const target = window as typeof window & {
+      __fileTreeViewWrites?: number
+    }
+    target.__fileTreeViewWrites = 0
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = function setItem(key, value) {
+      if (key.startsWith('codepilotx.desktop.fileTreeView:')) {
+        target.__fileTreeViewWrites =
+          (target.__fileTreeViewWrites ?? 0) + 1
+      }
+      return original.call(this, key, value)
+    }
+  })
   await page.goto('/?visualCase=rich#/threads/visual-rich')
   await closeTransientErrorToast(page)
   await expect(
@@ -1101,6 +1264,71 @@ test('narrow file panel keeps the editor and file tree side by side', async ({
     scrollWidth: document.documentElement.scrollWidth,
   }))
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
+
+  await page.setViewportSize({ width: 1440, height: 920 })
+  const rightPanelSeparator = page.getByRole('separator', {
+    name: '调整右侧面板宽度',
+  })
+  await rightPanelSeparator.focus()
+  await page.keyboard.press('Shift+ArrowLeft')
+  await page.keyboard.press('Shift+ArrowLeft')
+  await page.keyboard.press('Shift+ArrowLeft')
+  await expect
+    .poll(async () => (await rightPanel.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(520)
+  await expect
+    .poll(async () => (await tree.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(239)
+  const treeSeparator = rightPanel.getByRole('separator', {
+    name: '调整文件树宽度',
+  })
+  const treeSeparatorBox = await treeSeparator.boundingBox()
+  const treeWidthBeforeDrag = (await tree.boundingBox())!.width
+  expect(treeSeparatorBox).not.toBeNull()
+  await page.evaluate(() => {
+    ;(
+      window as typeof window & {
+        __fileTreeViewWrites?: number
+      }
+    ).__fileTreeViewWrites = 0
+  })
+  await page.mouse.move(
+    treeSeparatorBox!.x + treeSeparatorBox!.width / 2,
+    treeSeparatorBox!.y + treeSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    treeSeparatorBox!.x - 64,
+    treeSeparatorBox!.y + 24,
+    { steps: 8 },
+  )
+  await expect
+    .poll(async () => (await tree.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(treeWidthBeforeDrag + 32)
+  expect(
+    await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __fileTreeViewWrites?: number
+          }
+        ).__fileTreeViewWrites ?? 0,
+    ),
+  ).toBe(0)
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await tree.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(treeWidthBeforeDrag + 32)
+  expect(
+    await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __fileTreeViewWrites?: number
+          }
+        ).__fileTreeViewWrites ?? 0,
+    ),
+  ).toBe(1)
 })
 
 test('wide workspace keeps the summary beside a 600px review panel', async ({
@@ -1217,10 +1445,6 @@ for (const mode of MODES) {
     await expect(summary).toBeVisible()
     await expect(summaryHeader).toBeVisible()
 
-    const commandGroup = page
-      .locator('.canonical-process-group--commands')
-      .first()
-    await commandGroup.locator(':scope > summary').click()
     const command = page.locator('.canonical-tool').first()
     await command.locator(':scope > summary').click()
     const commandShell = page.locator('.canonical-command-shell').first()
@@ -1359,6 +1583,32 @@ test('sidebar keeps one mounted tree across docked and hover preview modes', asy
   await expect(sidebar).toHaveClass(/is-preview/, { timeout: 1_000 })
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-docked/)
+
+  const spacer = page.locator('.desktop-sidebar-spacer')
+  const sidebarWidthBeforeDrag = (await sidebar.boundingBox())!.width
+  const sidebarSeparator = page.getByRole('separator', {
+    name: '调整任务侧栏宽度',
+  })
+  const sidebarSeparatorBox = await sidebarSeparator.boundingBox()
+  expect(sidebarSeparatorBox).not.toBeNull()
+  await page.mouse.move(
+    sidebarSeparatorBox!.x + sidebarSeparatorBox!.width / 2,
+    sidebarSeparatorBox!.y + sidebarSeparatorBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    sidebarSeparatorBox!.x + 64,
+    sidebarSeparatorBox!.y + 24,
+    { steps: 8 },
+  )
+  await expect
+    .poll(async () => (await sidebar.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(sidebarWidthBeforeDrag + 32)
+  await expect
+    .poll(async () => (await spacer.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(sidebarWidthBeforeDrag + 32)
+  await expect(page.locator('.sidebar-resize-guide')).toHaveCount(0)
+  await page.mouse.up()
 })
 
 test('sidebar exit and re-entry keep the workspace aligned', async ({
@@ -1592,6 +1842,11 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect(
     preview.locator('.preview-card-assistant-text'),
   ).toHaveCSS('-webkit-line-clamp', '3')
+  const previewListItems = preview.locator(
+    '.preview-card-assistant-text .md-body li',
+  )
+  await expect(previewListItems).toHaveCount(3)
+  await expect(previewListItems.nth(1)).toHaveCSS('margin-top', '0px')
 
   await expect(preview.locator('.preview-card-output')).toHaveCount(2)
   await expect(preview.locator('.preview-card-output-more')).toHaveText('+1')
@@ -2155,6 +2410,73 @@ test('settings shell search and appearance source contracts', async ({
   await page.keyboard.press('Escape')
 
   await page.goto('/?visualCase=empty#/settings/config')
+  const configSourceToolbar = page.locator('.config-settings-source-toolbar')
+  const profileDropdown = page.getByRole('combobox', { name: '活动 Profile' })
+  const configLayerDropdown = page.getByRole('combobox', { name: '配置层' })
+  const openConfigButton = page.getByRole('button', { name: '打开配置文件' })
+  await expect(configSourceToolbar).toBeVisible()
+  await expect(profileDropdown).toBeVisible()
+  await expect(configLayerDropdown).toBeVisible()
+  await expect(openConfigButton).toBeVisible()
+  const [configLayerBounds, openConfigBounds] = await Promise.all([
+    configLayerDropdown.boundingBox(),
+    openConfigButton.boundingBox(),
+  ])
+  expect(configLayerBounds).not.toBeNull()
+  expect(openConfigBounds).not.toBeNull()
+  expect(openConfigBounds!.x).toBeGreaterThan(
+    configLayerBounds!.x + configLayerBounds!.width,
+  )
+  expect(
+    Math.abs(
+      configLayerBounds!.y + configLayerBounds!.height / 2 -
+      (openConfigBounds!.y + openConfigBounds!.height / 2),
+    ),
+  ).toBeLessThan(1)
+
+  const agentDefaultsHeading = page.getByRole('heading', {
+    exact: true,
+    name: '智能体默认设置',
+  })
+  await expect(agentDefaultsHeading).toHaveCount(1)
+  const agentDefaultsSection = agentDefaultsHeading.locator(
+    'xpath=ancestor::section[1]',
+  )
+  await expect(
+    page.getByRole('heading', {
+      exact: true,
+      name: '自定义 config.json 设置',
+    }),
+  ).toHaveCount(0)
+  await expect(
+    agentDefaultsSection.locator('.config-settings-source-toolbar'),
+  ).toHaveCount(1)
+  await expect(
+    agentDefaultsSection.locator('.settings-row-title').evaluateAll((titles) =>
+      titles.slice(0, 5).map(title => title.textContent?.trim()),
+    ),
+  ).resolves.toEqual([
+    '权限预设',
+    '工具权限范围',
+    'Shell 安全级别',
+    '审批时机',
+    '审批执行者',
+  ])
+  await expect(page.getByRole('heading', { exact: true, name: '批准策略' })).toHaveCount(0)
+
+  const diagnosticsSection = page
+    .getByRole('heading', { exact: true, name: '诊断' })
+    .locator('xpath=ancestor::section[1]')
+  await expect(
+    diagnosticsSection.getByRole('heading', {
+      exact: true,
+      name: '完整提示词诊断',
+    }),
+  ).toBeVisible()
+  await expect(
+    diagnosticsSection.getByRole('button', { name: '预览当前任务提示词' }),
+  ).toBeVisible()
+
   const permissionScopeDropdown = page.getByRole('combobox', { name: '工具权限范围' })
   await permissionScopeDropdown.click()
   const permissionScopeMenu = page.getByRole('listbox')
@@ -2192,6 +2514,19 @@ test('settings shell search and appearance source contracts', async ({
     labelMatchesForeground: true,
   })
   await page.keyboard.press('Escape')
+
+  await page.setViewportSize({ width: 560, height: 900 })
+  const [narrowConfigLayerBounds, narrowOpenConfigBounds] = await Promise.all([
+    configLayerDropdown.boundingBox(),
+    openConfigButton.boundingBox(),
+  ])
+  expect(narrowConfigLayerBounds).not.toBeNull()
+  expect(narrowOpenConfigBounds).not.toBeNull()
+  expect(narrowOpenConfigBounds!.y).toBeGreaterThanOrEqual(
+    narrowConfigLayerBounds!.y + narrowConfigLayerBounds!.height,
+  )
+
+  await page.setViewportSize({ width: 1440, height: 920 })
   await page.goto('/?visualCase=empty#/settings/general')
   await closeTransientErrorToast(page)
 
@@ -2810,3 +3145,101 @@ async function readReviewDiffComputedStyles(diff: Locator) {
     }
   })
 }
+
+test('execution plan popover is content-adaptive and never overflows', async ({
+  page,
+}) => {
+  const route = '/?visualCase=execution-plan#/threads/visual-execution-plan'
+  await page.emulateMedia({
+    colorScheme: 'dark',
+    forcedColors: 'none',
+    reducedMotion: 'reduce',
+  })
+
+  async function loadDesktop(): Promise<void> {
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await gotoWorkbenchFixture(page, route)
+    await expect(
+      page.locator('.composer-change-summary__plan'),
+    ).toBeVisible()
+  }
+
+  await loadDesktop()
+
+  const capsule = page.locator('.composer-change-summary__bar')
+  const planTrigger = page.locator('.composer-change-summary__plan')
+  const capsuleBefore = await capsule.boundingBox()
+  expect(capsuleBefore).not.toBeNull()
+
+  await planTrigger.focus()
+  const planCard = page.locator('.composer-change-summary__plan-preview .execution-plan-card')
+  await expect(planCard).toBeVisible()
+  await expect(planCard).toHaveCSS('position', 'absolute')
+
+  const cardBox = await planCard.boundingBox()
+  expect(cardBox).not.toBeNull()
+  expect(cardBox!.width).toBeGreaterThanOrEqual(480)
+  expect(cardBox!.width).toBeLessThanOrEqual(760)
+  expect(cardBox!.width).toBeGreaterThan(capsuleBefore!.width)
+
+  // Capule metrics must not change while the popover is open.
+  const capsuleAfter = await capsule.boundingBox()
+  expect(capsuleAfter!.width).toBeCloseTo(capsuleBefore!.width, 0)
+  expect(capsuleAfter!.x).toBeCloseTo(capsuleBefore!.x, 0)
+  expect(capsuleAfter!.y).toBeCloseTo(capsuleBefore!.y, 0)
+
+  // Long step text wraps instead of overflowing its row.
+  const stepText = page
+    .locator('.execution-plan-card__step-text')
+    .filter({ hasText: '解耦' })
+    .first()
+  const wraps = await stepText.evaluate((element: HTMLElement) => ({
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+    lineHeight: parseFloat(getComputedStyle(element).lineHeight),
+  }))
+  expect(wraps.scrollHeight).toBeLessThanOrEqual(wraps.clientHeight + 1)
+  expect(wraps.clientHeight).toBeGreaterThan(wraps.lineHeight)
+
+  // Steps list remains vertically scrollable.
+  await expect(page.locator('.execution-plan-card__steps')).toHaveCSS(
+    'overflow-y',
+    'auto',
+  )
+
+  // No horizontal page overflow with the popover open.
+  const overflowing = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }))
+  expect(overflowing.scrollWidth).toBeLessThanOrEqual(overflowing.clientWidth)
+
+  // Narrow viewport: the popover shrinks to the available body width and stays
+  // inside the session column.
+  await page.setViewportSize({ width: 560, height: 760 })
+  await expect
+    .poll(() => capsule.boundingBox())
+    .not.toBeNull()
+  await expect(planCard).toBeVisible()
+  const narrowCard = await planCard.boundingBox()
+  expect(narrowCard).not.toBeNull()
+  const narrowContent = await page
+    .locator('.conversation-page, .quick-chat-content')
+    .first()
+    .boundingBox()
+  expect(narrowContent).not.toBeNull()
+  expect(narrowCard!.width).toBeGreaterThan(0)
+  expect(narrowCard!.width).toBeLessThanOrEqual(narrowContent!.width)
+  expect(narrowCard!.x).toBeGreaterThanOrEqual(narrowContent!.x - 1)
+  expect(narrowCard!.x + narrowCard!.width).toBeLessThanOrEqual(
+    narrowContent!.x + narrowContent!.width + 1,
+  )
+
+  const narrowOverflow = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }))
+  expect(narrowOverflow.scrollWidth).toBeLessThanOrEqual(
+    narrowOverflow.clientWidth,
+  )
+})

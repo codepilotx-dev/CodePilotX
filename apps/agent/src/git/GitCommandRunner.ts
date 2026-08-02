@@ -19,6 +19,7 @@ type RunGitCommandOptions = {
   acceptedCodes?: readonly number[] | null | undefined
   env?: Readonly<Record<string, string>> | undefined
   literalPathspecs?: boolean | undefined
+  maxOutputBytes?: number | undefined
 }
 
 const decodeUtf8 = (value: Uint8Array) => {
@@ -71,6 +72,7 @@ export class GitCommandRunner {
     acceptedCodes = [0],
     env,
     literalPathspecs = false,
+    maxOutputBytes = this.options.maxOutputBytes,
   }: RunGitCommandOptions): Promise<GitCommandResult> {
     this.options.onCommand?.(args)
     const child = Bun.spawn(
@@ -95,8 +97,8 @@ export class GitCommandRunner {
     }, this.options.timeoutMs)
     try {
       const [stdoutBytes, stderrBytes, code] = await Promise.all([
-        readLimited(child.stdout, this.options.maxOutputBytes, child),
-        readLimited(child.stderr, this.options.maxOutputBytes, child),
+        readLimited(child.stdout, maxOutputBytes, child),
+        readLimited(child.stderr, maxOutputBytes, child),
         child.exited,
       ])
       if (timedOut) {

@@ -22,10 +22,10 @@ describe("工具输入检查与范围绑定", () => {
     const parent = await mkdtemp(join(tmpdir(), "codepilotx-tool-inspection-"))
     temporary.push(parent)
     const root = join(parent, "workspace")
-    const userConfigPath = join(parent, "config.toml")
+    const userConfigPath = join(parent, "config.json")
     await mkdir(root)
     await writeFile(join(root, "target.txt"), "before", "utf8")
-    await writeFile(userConfigPath, 'model = "old"\n', "utf8")
+    await writeFile(userConfigPath, '{ "model": "old" }\n', "utf8")
     const workspace = await WorkspaceService.open(root)
     const registry = new ToolRegistry()
     const inspected: Array<{ alias: string; hasSnapshot: boolean }> = []
@@ -60,14 +60,14 @@ describe("工具输入检查与范围绑定", () => {
       executionMode: "sequential",
       inspectInput: async (input, context) => {
         inspected.push({
-          alias: await context.workspace.resolveEditorFilePath("@codepilotx/config.toml"),
+          alias: await context.workspace.resolveEditorFilePath("@codepilotx/config.json"),
           hasSnapshot: Boolean(await context.fileSnapshots?.get("target.txt")),
         })
         return {
           authorizationScope: {
             affectedPaths: [
               { path: "target.txt", operation: "update" },
-              { path: "@codepilotx/config.toml", operation: "update" },
+              { path: "@codepilotx/config.json", operation: "update" },
             ],
             fingerprint: fingerprintFor(input.patch),
             ruleRequiresApproval: true,
@@ -79,7 +79,7 @@ describe("工具输入检查与范围绑定", () => {
             },
           },
           configWrites: [{
-            path: "@codepilotx/config.toml",
+            path: "@codepilotx/config.json",
             content: input.config,
             scope: "user",
           }],
@@ -131,7 +131,7 @@ describe("工具输入检查与范围绑定", () => {
       },
     }
     await executor.execute("Read", { file_path: "target.txt" }, context)
-    const input = { patch: "first patch", config: 'model = "new"\n' }
+    const input = { patch: "first patch", config: '{ "model": "new" }\n' }
     const preview = await executor.previewApproval(
       "inspected_write",
       input,
@@ -143,7 +143,7 @@ describe("工具输入检查与范围绑定", () => {
       authorizationFingerprint: fingerprintFor(input.patch),
     })
     expect(inspected.at(-1)).toEqual({
-      alias: "@codepilotx/config.toml",
+      alias: "@codepilotx/config.json",
       hasSnapshot: true,
     })
     expect(validated.at(-1)).toEqual({
@@ -154,7 +154,7 @@ describe("工具输入检查与范围绑定", () => {
       authorizationScope: {
         affectedPaths: [
           { path: "target.txt", operation: "update" },
-          { path: "@codepilotx/config.toml", operation: "update" },
+          { path: "@codepilotx/config.json", operation: "update" },
         ],
       },
     })

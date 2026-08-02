@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react'
+import { AlertTriangle, ExternalLink } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import {
   CONFIG_UPDATED_EVENT,
@@ -9,8 +9,8 @@ import { useDesktopSettings } from './useDesktopSettings.js'
 import { PERMISSION_MODE_OPTIONS, permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
 import type {
   DesktopConfigReadResult,
+  DesktopConfigProfileListResult,
   DesktopDataLocationState,
-  DesktopProjectTrustReadResult,
   DesktopShellSecurityLevel,
 } from '../../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -42,49 +42,43 @@ export function ConfigSettings(): React.ReactNode {
   const [changingLocation, setChangingLocation] = useState(false)
   const [promptPreview, setPromptPreview] = useState<string | null>(null)
   const [configRead, setConfigRead] = useState<DesktopConfigReadResult | null>(null)
-  const [projectTrust, setProjectTrust] = useState<DesktopProjectTrustReadResult | null>(null)
-  const [configLayer, setConfigLayer] = useState<'user' | 'project'>('user')
-  const [configBusy, setConfigBusy] = useState(false)
+  const [configLayer, setConfigLayer] = useState<'user' | 'profile' | 'project'>('user')
+  const [configProfiles, setConfigProfiles] = useState<DesktopConfigProfileListResult | null>(null)
   const configCwd = draft.values.lastActiveWorkspacePath || undefined
 
+  const readConfigState = async () => {
+    const read = await desktopClient.readConfig({
+      includeLayers: true,
+      ...(configCwd ? { cwd: configCwd } : {}),
+    })
+    const profiles = await desktopClient.listConfigProfiles().catch(() => null)
+    return { read, profiles }
+  }
+
   const reloadConfig = async () => {
-    const [read, trust] = await Promise.all([
-      desktopClient.readConfig({
-        includeLayers: true,
-        ...(configCwd ? { cwd: configCwd } : {}),
-      }),
-      configCwd
-        ? desktopClient.readProjectTrust(configCwd)
-        : Promise.resolve(null),
-    ])
+    const { read, profiles } = await readConfigState()
     setConfigRead(read)
-    setProjectTrust(trust)
+    setConfigProfiles(profiles)
     if (configLayer === 'project' && !read.layers?.some(layer => layer.kind === 'project')) {
+      setConfigLayer('user')
+    }
+    if (configLayer === 'profile' && !read.layers?.some(layer => layer.kind === 'profile')) {
       setConfigLayer('user')
     }
   }
 
   useEffect(() => {
     let mounted = true
-    void Promise.all([
-      desktopClient.readConfig({
-        includeLayers: true,
-        ...(configCwd ? { cwd: configCwd } : {}),
-      }),
-      configCwd
-        ? desktopClient.readProjectTrust(configCwd)
-        : Promise.resolve(null),
-    ])
-      .then(([read, trust]) => {
+    void readConfigState()
+      .then(({ read, profiles }) => {
         if (mounted) {
           setConfigRead(read)
-          setProjectTrust(trust)
+          setConfigProfiles(profiles)
         }
       })
       .catch(() => {
         if (mounted) {
           setConfigRead(null)
-          setProjectTrust(null)
         }
       })
     return () => {
@@ -101,27 +95,6 @@ export function ConfigSettings(): React.ReactNode {
   const selectedConfigLayer = configRead?.layers?.find(
     layer => layer.kind === configLayer,
   )
-
-  const trustCurrentProject = async (): Promise<void> => {
-    if (!configCwd || configBusy) return
-    setConfigBusy(true)
-    try {
-      const userVersion = configRead?.layers?.find(
-        layer => layer.kind === 'user',
-      )?.version
-      await desktopClient.updateProjectTrust({
-        cwd: configCwd,
-        trustLevel: 'trusted',
-        ...(userVersion ? { expectedVersion: userVersion } : {}),
-      })
-      await reloadConfig()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      window.alert(`信任当前工作区失败：${message}`)
-    } finally {
-      setConfigBusy(false)
-    }
-  }
 
   useEffect(() => {
     let mounted = true
@@ -166,26 +139,65 @@ export function ConfigSettings(): React.ReactNode {
           </p>
         </div>
 
-        <SettingsSection
-          title="自定义 config.toml 设置"
-          description="设置页、外部编辑和自然语言配置共享同一个 TOML 真源。"
-          actions={
-            <div className="settings-actions">
+        <SettingsSection>
+          <SettingsSection.Header
+            title="智能体默认设置"
+            description="配置权限预设、工具范围、Shell 风险处理和审批方式。"
+          />
+          <div className="config-settings-source-toolbar">
+            <div className="config-settings-source-controls">
+              <SettingsDropdown
+                width={180}
+                ariaLabel="活动 Profile"
+                disabled={!configProfiles}
+                value={configRead?.profileState.selectedProfile ?? ''}
+                options={[
+                  { value: '', label: '基础配置' },
+                  ...(configProfiles?.profiles ?? []).map(profile => ({
+                    value: profile.id,
+                    label: profile.displayName,
+                    detail: profile.valid ? profile.description : '配置无效',
+                    disabled: !profile.valid,
+                  })),
+                ]}
+                onChange={value => {
+                  void desktopClient.selectConfigProfile(value || null)
+                    .then(() => reloadConfig())
+                    .catch(error => window.alert(error instanceof Error ? error.message : String(error)))
+                }}
+              />
               <SettingsDropdown
                 width={160}
                 ariaLabel="配置层"
                 value={configLayer}
                 options={[
                   { value: 'user', label: '用户配置' },
+                  ...(configRead?.layers?.some(layer => layer.kind === 'profile')
+                    ? [{ value: 'profile', label: '活动 Profile' }]
+                    : []),
                   ...(configRead?.layers?.some(layer => layer.kind === 'project')
                     ? [{ value: 'project', label: '项目配置' }]
                     : []),
                 ]}
-                onChange={value => setConfigLayer(value as 'user' | 'project')}
+                onChange={value => setConfigLayer(value as 'user' | 'profile' | 'project')}
               />
+            </div>
+            <div className="config-settings-source-actions">
               <Button
                 type="button"
-                disabled={!selectedConfigLayer?.filePath || configBusy}
+                disabled={!configProfiles?.profilesDirectory}
+                onClick={() => {
+                  if (configProfiles?.profilesDirectory) {
+                    void desktopClient.openPathWithDefaultTarget(configProfiles.profilesDirectory)
+                  }
+                }}
+              >
+                <ExternalLink size={APP_ICON_SIZE} />
+                打开 Profiles 目录
+              </Button>
+              <Button
+                type="button"
+                disabled={!selectedConfigLayer?.filePath}
                 onClick={() => {
                   if (selectedConfigLayer?.filePath) {
                     void desktopClient.openPathWithDefaultTarget(
@@ -195,11 +207,153 @@ export function ConfigSettings(): React.ReactNode {
                 }}
               >
                 <ExternalLink size={APP_ICON_SIZE} />
-                打开 config.toml
+                打开配置文件
               </Button>
             </div>
-          }
-        >
+          </div>
+          <SettingsSection.Content>
+            {configRead?.profileState.restartRequired ? (
+              <SettingsRow
+                title="Profile 等待重启"
+                description="关闭所有 CodePilotX 桌面端和 CLI/TUI 后重新打开，新的 Profile 才会应用；当前任务不会被切换。"
+                control={<span className="settings-row-status">待重启</span>}
+              />
+            ) : null}
+            <SettingsRow
+              title="权限预设"
+              description="快速选择默认权限、自动审查、完全访问或自定义策略。"
+              control={
+                <SettingsDropdown
+                  width={260}
+                  ariaLabel="权限预设"
+                  value={permissionModeForConfig(draft.values.permissionConfig)}
+                  options={PERMISSION_MODE_OPTIONS.map(option => ({
+                    value: option.value,
+                    label: option.label,
+                    detail: option.detail,
+                  }))}
+                  onChange={value => {
+                    const mode = value as Parameters<typeof permissionConfigForMode>[0]
+                    if (mode !== 'custom') draft.setValue('permissionConfig', permissionConfigForMode(mode))
+                    draft.autoSave()
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              title="工具权限范围"
+              description="该范围约束结构化文件工具和审批信号，不是 Shell 子进程的操作系统隔离边界。"
+              control={
+                <SettingsDropdown
+                  width={260}
+                  ariaLabel="工具权限范围"
+                  value={draft.values.permissionConfig.sandboxMode === 'read-only' ? ':read-only' : draft.values.permissionConfig.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'}
+                  options={[
+                    { value: ':read-only', label: '文件工具只读', detail: '结构化文件工具只读；非计划模式 Shell 仍在本机执行' },
+                    { value: ':workspace', label: '文件工具限工作区', detail: '结构化文件工具仅写工作区；Shell 没有 OS 文件边界' },
+                    { value: ':danger-full-access', label: '完全访问', detail: '所有工具以当前 Windows 用户权限执行（风险很高）' },
+                  ]}
+                  onChange={value => {
+                    const sandboxMode = value === ':read-only' ? 'read-only' : value === ':danger-full-access' ? 'danger-full-access' : 'workspace-write'
+                    draft.setValue('permissionConfig', { ...draft.values.permissionConfig, sandboxMode })
+                    draft.autoSave()
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              title="Shell 安全级别"
+              description="调整 Shell 静态风险处理，不改变文件或网络权限范围；审批时机为“从不”时，需要审批的命令会直接拒绝。"
+              control={
+                <SettingsDropdown
+                  width={260}
+                  ariaLabel="Shell 安全级别"
+                  value={draft.values.shellSecurityLevel}
+                  options={[
+                    { value: 'strict', label: '严格', detail: '更多高风险特征直接拒绝，适合陌生仓库' },
+                    { value: 'balanced', label: '平衡', detail: '灾难级行为拒绝，可疑项转审批（推荐）' },
+                    { value: 'relaxed', label: '宽松', detail: '保留不可绕过底线，其余高风险尽量转审批' },
+                  ]}
+                  onChange={value => {
+                    draft.setValue('shellSecurityLevel', value as DesktopShellSecurityLevel)
+                    draft.autoSave()
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              title="审批时机"
+              description="选择 CodePilotX 何时请求批准。"
+              control={
+                <SettingsDropdown
+                  width={260}
+                  ariaLabel="审批时机"
+                  value={typeof draft.values.permissionConfig.approvalPolicy === 'object'
+                    ? 'granular'
+                    : draft.values.permissionConfig.approvalPolicy === 'on-failure'
+                      ? 'on-request'
+                      : draft.values.permissionConfig.approvalPolicy}
+                  options={[
+                    { value: 'untrusted', label: '不可信', detail: '执行不受信任的操作前请求批准' },
+                    { value: 'on-request', label: '按请求', detail: '需要提升权限时请求批准' },
+                    { value: 'granular', label: '精细控制', detail: '分别控制不同类别的审批请求' },
+                    { value: 'never', label: '从不', detail: '运行操作时不请求批准' },
+                  ]}
+                  onChange={value => {
+                    const approvalPolicy = value === 'granular'
+                      ? { type: 'granular' as const, sandboxApproval: true, rules: true, skillApproval: true, requestPermissions: true, mcpTools: true, mcpElicitations: true }
+                      : value as 'untrusted' | 'on-request' | 'never'
+                    draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
+                    draft.autoSave()
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              title="审批执行者"
+              description="选择由你还是独立 Guardian 处理需要审批的操作。"
+              control={
+                <SettingsDropdown
+                  width={260}
+                  ariaLabel="审批执行者"
+                  value={draft.values.permissionConfig.approvalsReviewer}
+                  options={[
+                    { value: 'user', label: '用户', detail: '由你确认或拒绝审批请求' },
+                    { value: 'auto_review', label: 'Guardian 自动审查', detail: '由独立 Guardian 模型处理审批请求' },
+                  ]}
+                  onChange={value => { const approvalsReviewer = value as 'user' | 'auto_review'; draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalsReviewer }); draft.autoSave() }}
+                />
+              }
+            />
+            {typeof draft.values.permissionConfig.approvalPolicy === 'object' ? (
+              <>
+                {([
+                  ['sandboxApproval', '执行范围提升'],
+                  ['rules', '规则审批'],
+                  ['skillApproval', 'Skill 脚本'],
+                  ['requestPermissions', '动态权限请求'],
+                  ['mcpTools', 'MCP 工具调用'],
+                  ['mcpElicitations', 'MCP 交互请求'],
+                ] as const).map(([key, label]) => (
+                  <SettingsRow
+                    key={key}
+                    title={label}
+                    description="允许该类审批请求出现；关闭时需要该能力的调用会直接拒绝。"
+                    control={<ToggleSwitch ariaLabel={label} checked={draft.values.permissionConfig.approvalPolicy[key]} onChange={checked => {
+                      const policy = draft.values.permissionConfig.approvalPolicy
+                      if (typeof policy !== 'object') return
+                      const approvalPolicy = { ...policy, [key]: checked }
+                      draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
+                      draft.autoSave()
+                    }} />}
+                  />
+                ))}
+              </>
+            ) : null}
+          </SettingsSection.Content>
+        </SettingsSection>
+
+        <SettingsSection title="诊断">
           {configRead?.diagnostics.map(diagnostic => (
             <SettingsRow
               key={`${diagnostic.scope}:${diagnostic.code}`}
@@ -212,207 +366,34 @@ export function ConfigSettings(): React.ReactNode {
             />
           ))}
           <SettingsRow
-            title="项目配置信任"
-            description={
-              !configCwd
-                ? '请先打开一个工作空间'
-                : projectTrust?.trustLevel === 'trusted'
-                  ? '当前工作区已信任，可以保存项目级配置'
-                  : '当前工作区未信任；保存 local MCP 前请先显式信任'
-            }
-            control={
-              configCwd && projectTrust?.trustLevel === 'untrusted' ? (
-                <Button
-                  type="button"
-                  disabled={configBusy}
-                  onClick={() => void trustCurrentProject()}
-                >
-                  信任当前工作区
-                </Button>
-              ) : undefined
-            }
-          />
-          <SettingsRow
-            title="当前来源"
-            description={
-              selectedConfigLayer
-                ? `${selectedConfigLayer.displayName} · ${selectedConfigLayer.trusted ? '已信任' : '未信任'}`
-                : '当前工作区没有项目配置'
-            }
+            title="完整提示词诊断"
+            description="仅在你主动请求时读取当前任务的 system/developer/contextual-user sections、来源、hash、token 估算和缓存分类；内容不会写入日志或遥测。"
             control={
               <Button
                 type="button"
-                disabled={configBusy}
-                onClick={() => void reloadConfig()}
+                onClick={() => void (async () => {
+                  try {
+                    const sessionId = await desktopClient.getActiveSessionId()
+                    if (!sessionId) throw new Error('当前没有活动任务')
+                    const preview = await desktopClient.getSessionPromptPreview(sessionId)
+                    setPromptPreview(JSON.stringify(preview, null, 2))
+                  } catch (error) {
+                    window.alert(error instanceof Error ? error.message : String(error))
+                  }
+                })()}
               >
-                <RefreshCw size={APP_ICON_SIZE} />
-                刷新
+                预览当前任务提示词
               </Button>
             }
           />
-        </SettingsSection>
-
-        <SettingsSection title="审批">
-          <SettingsRow
-            title="批准策略"
-            description="选择 CodePilotX 何时请求批准"
-            control={
-              <SettingsDropdown
-                width={260}
-                ariaLabel="批准策略"
-                value={permissionModeForConfig(draft.values.permissionConfig)}
-                options={PERMISSION_MODE_OPTIONS.map(option => ({
-                  value: option.value,
-                  label: option.label,
-                  detail: option.detail,
-                }))}
-                onChange={value => {
-                  const mode = value as Parameters<typeof permissionConfigForMode>[0]
-                  if (mode !== 'custom') draft.setValue('permissionConfig', permissionConfigForMode(mode))
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-        </SettingsSection>
-
-        <SettingsSection
-          title="完整提示词诊断"
-          description="仅在你主动请求时读取当前任务的 system/developer/contextual-user sections、来源、hash、token 估算和缓存分类；内容不会写入日志或遥测。"
-          actions={
-            <Button
-              type="button"
-              onClick={() => void (async () => {
-                try {
-                  const sessionId = await desktopClient.getActiveSessionId()
-                  if (!sessionId) throw new Error('当前没有活动任务')
-                  const preview = await desktopClient.getSessionPromptPreview(sessionId)
-                  setPromptPreview(JSON.stringify(preview, null, 2))
-                } catch (error) {
-                  window.alert(error instanceof Error ? error.message : String(error))
-                }
-              })()}
+          {promptPreview ? (
+            <div
+              aria-label="当前任务完整提示词"
+              className="config-settings-prompt-preview"
+              role="region"
             >
-              预览当前任务提示词
-            </Button>
-          }
-        >
-          {promptPreview ? <pre className="settings-code-block">{promptPreview}</pre> : null}
-        </SettingsSection>
-
-        <SettingsSection
-          title="权限与命令执行"
-          description="结构化文件工具遵循所选范围；非计划模式 Shell 经安全规则和 Hook 后以当前 Windows 用户身份执行。"
-        >
-          <SettingsRow
-            title="Shell 安全级别"
-            description="调整 Shell 静态风险处理，不改变文件或网络权限范围；批准策略为“从不”时，需要审批的命令会直接拒绝。"
-            control={
-              <SettingsDropdown
-                width={260}
-                ariaLabel="Shell 安全级别"
-                value={draft.values.shellSecurityLevel}
-                options={[
-                  { value: 'strict', label: '严格', detail: '更多高风险特征直接拒绝，适合陌生仓库' },
-                  { value: 'balanced', label: '平衡', detail: '灾难级行为拒绝，可疑项转审批（推荐）' },
-                  { value: 'relaxed', label: '宽松', detail: '保留不可绕过底线，其余高风险尽量转审批' },
-                ]}
-                onChange={value => {
-                  draft.setValue('shellSecurityLevel', value as DesktopShellSecurityLevel)
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="工具权限范围"
-            description="该范围约束结构化文件工具和审批信号，不是 Shell 子进程的操作系统隔离边界。"
-            control={
-              <SettingsDropdown
-                width={260}
-                ariaLabel="工具权限范围"
-                value={draft.values.permissionConfig.sandboxMode === 'read-only' ? ':read-only' : draft.values.permissionConfig.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'}
-                options={[
-                  { value: ':read-only', label: '文件工具只读', detail: '结构化文件工具只读；非计划模式 Shell 仍在本机执行' },
-                  { value: ':workspace', label: '文件工具限工作区', detail: '结构化文件工具仅写工作区；Shell 没有 OS 文件边界' },
-                  { value: ':danger-full-access', label: '完全访问', detail: '所有工具以当前 Windows 用户权限执行（风险很高）' },
-                ]}
-                onChange={value => {
-                  const sandboxMode = value === ':read-only' ? 'read-only' : value === ':danger-full-access' ? 'danger-full-access' : 'workspace-write'
-                  draft.setValue('permissionConfig', { ...draft.values.permissionConfig, sandboxMode })
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="批准策略"
-            description="选择 CodePilotX 何时请求批准。"
-            control={
-              <SettingsDropdown
-                width={260}
-                ariaLabel="批准策略"
-                value={typeof draft.values.permissionConfig.approvalPolicy === 'object'
-                  ? 'granular'
-                  : draft.values.permissionConfig.approvalPolicy === 'on-failure'
-                    ? 'on-request'
-                    : draft.values.permissionConfig.approvalPolicy}
-                options={[
-                  { value: 'untrusted', label: '不可信', detail: '执行不受信任的操作前请求批准' },
-                  { value: 'on-request', label: '按请求', detail: '需要提升权限时请求批准' },
-                  { value: 'granular', label: '精细控制', detail: '分别控制不同类别的审批请求' },
-                  { value: 'never', label: '从不', detail: '运行操作时不请求批准' },
-                ]}
-                onChange={value => {
-                  const approvalPolicy = value === 'granular'
-                    ? { type: 'granular' as const, sandboxApproval: true, rules: true, skillApproval: true, requestPermissions: true, mcpTools: true, mcpElicitations: true }
-                    : value as 'untrusted' | 'on-request' | 'never'
-                  draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="审批执行者"
-            description="选择由你还是独立 Guardian 处理需要审批的操作。"
-            control={
-              <SettingsDropdown
-                width={260}
-                ariaLabel="审批执行者"
-                value={draft.values.permissionConfig.approvalsReviewer}
-                options={[
-                  { value: 'user', label: '用户', detail: '由你确认或拒绝审批请求' },
-                  { value: 'auto_review', label: 'Guardian 自动审查', detail: '由独立 Guardian 模型处理审批请求' },
-                ]}
-                onChange={value => { const approvalsReviewer = value as 'user' | 'auto_review'; draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalsReviewer }); draft.autoSave() }}
-              />
-            }
-          />
-          {typeof draft.values.permissionConfig.approvalPolicy === 'object' ? (
-            <>
-              {([
-                ['sandboxApproval', '执行范围提升'],
-                ['rules', '规则审批'],
-                ['skillApproval', 'Skill 脚本'],
-                ['requestPermissions', '动态权限请求'],
-                ['mcpTools', 'MCP 工具调用'],
-                ['mcpElicitations', 'MCP 交互请求'],
-              ] as const).map(([key, label]) => (
-                <SettingsRow
-                  key={key}
-                  title={label}
-                  description="允许该类审批请求出现；关闭时需要该能力的调用会直接拒绝。"
-                  control={<ToggleSwitch ariaLabel={label} checked={draft.values.permissionConfig.approvalPolicy[key]} onChange={checked => {
-                    const policy = draft.values.permissionConfig.approvalPolicy
-                    if (typeof policy !== 'object') return
-                    const approvalPolicy = { ...policy, [key]: checked }
-                    draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
-                    draft.autoSave()
-                  }} />}
-                />
-              ))}
-            </>
+              <pre className="settings-code-block">{promptPreview}</pre>
+            </div>
           ) : null}
         </SettingsSection>
 
@@ -535,6 +516,32 @@ export function ConfigSettings(): React.ReactNode {
               </span>
             }
           />
+          <SettingsRow
+            title="配置文件"
+            description={
+              dataLocation
+                ? appendDataFile(dataLocation.currentDataDir, 'config.json')
+                : '加载中…'
+            }
+            control={<span className="settings-row-status">建议备份</span>}
+          />
+          <SettingsRow
+            title="Provider 凭据文件（可选）"
+            description={
+              dataLocation
+                ? appendDataFile(dataLocation.currentDataDir, 'auth.json')
+                : '加载中…'
+            }
+            control={
+              <span className="settings-row-status">
+                使用 auth.json 仓库时
+              </span>
+            }
+          />
+          <SettingsRow
+            title="快速恢复"
+            description="手动复制 config.json，以及启用 auth.json 仓库时的 auth.json。Skill 内容不包含在这两个文件中，需另行处理。"
+          />
           {dataLocation?.pendingDataDir ? (
             <SettingsRow
               title="待生效目录"
@@ -569,4 +576,9 @@ export function ConfigSettings(): React.ReactNode {
       </div>
     </SettingsContentArea>
   )
+}
+
+function appendDataFile(directory: string, fileName: string): string {
+  const separator = directory.includes('\\') ? '\\' : '/'
+  return `${directory.replace(/[\\/]+$/, '')}${separator}${fileName}`
 }

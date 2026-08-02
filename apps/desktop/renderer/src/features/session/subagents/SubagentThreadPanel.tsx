@@ -36,10 +36,13 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { MarkdownMessage } from '../MarkdownMessage.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
   CanonicalConversationTurn,
   useTimelineDisclosureState,
 } from '../timeline/CanonicalThreadView.js'
+import { normalizePatchActionError } from '../timeline/patchActionError.js'
+import { subagentStatusLabel } from './subagentStatusLabel.js'
 
 export interface SubagentThreadCapabilities {
   canSend: boolean
@@ -53,12 +56,14 @@ export interface SubagentThreadCapabilities {
 }
 
 export interface SubagentThreadCallbacks {
+  onPatchApplied?: () => Promise<void>
   onStop?: (task: SubagentTask, run: SubagentRun) => void
   onRetry?: (task: SubagentTask, run: SubagentRun) => void
   onApplyWorktree?: (task: SubagentTask, run: SubagentRun) => void
   onDiscardWorktree?: (task: SubagentTask, run: SubagentRun) => void
   onRestoreWorkspace?: (task: SubagentTask, run: SubagentRun) => void
   onOpenSubagent?: (item: Extract<Item, { type: 'subagent' }>) => void
+  onOpenPatchReview?: (path?: string) => void
   onApprovalRespond?: (
     approval: ApprovalRequest,
     decision: 'allow-once' | 'deny' | 'stop',
@@ -211,12 +216,28 @@ export function SubagentThreadPanel({
                    disclosureState={disclosureState}
                    entry={turn}
                   key={turn.id}
+                  onApplyPatch={async (itemId, action, expectedVersion) => {
+                    try {
+                      await desktopClient.applyThreadPatch({
+                        threadId: task.childThreadId,
+                        itemId,
+                        action,
+                        expectedVersion,
+                      })
+                      await callbacks.onPatchApplied?.()
+                    } catch (error) {
+                      throw normalizePatchActionError(error, action)
+                    }
+                  }}
+                  onOpenPatchReview={callbacks.onOpenPatchReview}
                   onOpenPlanInRightDock={() => undefined}
                   onOpenSubagent={(taskId) => {
                     const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
                     if (item) callbacks.onOpenSubagent?.(item)
                   }}
                   rightDockPlanEventId={null}
+                  readThreadPatchDiff={desktopClient.readThreadPatchDiff}
+                  threadId={task.childThreadId}
                 />
               ))}
             </div>
@@ -645,22 +666,6 @@ function profileLabel(profile: SubagentTask['profile']): string {
   if (profile === 'explorer') return '探索'
   if (profile === 'worker') return '执行'
   return '默认'
-}
-
-function subagentStatusLabel(status: SubagentRun['status'] | Extract<Item, { type: 'subagent' }>['status']): string {
-  const labels: Record<string, string> = {
-    queued: '排队中',
-    preparing: '准备中',
-    running: '运行中',
-    steering: '调整中',
-    'waiting-question': '等待回答',
-    'waiting-permission': '等待审批',
-    completed: '已完成',
-    failed: '失败',
-    stopped: '已停止',
-    interrupted: '已中断',
-  }
-  return labels[status] ?? status
 }
 
 function queueReasonLabel(reason: NonNullable<SubagentRun['queueReason']>): string {

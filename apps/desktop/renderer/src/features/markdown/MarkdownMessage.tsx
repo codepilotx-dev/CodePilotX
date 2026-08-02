@@ -262,6 +262,27 @@ function renderToken(
     case 'paragraph': {
       const media = renderMediaGrid(token.tokens, context, key)
       if (media) return media
+      const leadDescription = splitLeadDescriptionTokens(token.tokens)
+      if (leadDescription) {
+        return (
+          <p className="md-lead-description" key={key}>
+            <span className="md-lead-description__title">
+              {renderTokens(
+                leadDescription.title,
+                context,
+                `${key}-paragraph-title`,
+              )}
+            </span>
+            <span className="md-lead-description__detail">
+              {renderTokens(
+                leadDescription.detail,
+                context,
+                `${key}-paragraph-detail`,
+              )}
+            </span>
+          </p>
+        )
+      }
       return (
         <p key={key}>
           {renderTokens(token.tokens, context, `${key}-paragraph`)}
@@ -346,6 +367,32 @@ function renderToken(
     default:
       return renderGenericToken(token, context, key)
   }
+}
+
+function splitLeadDescriptionTokens(
+  tokens: Token[],
+): { title: Token[]; detail: Token[] } | null {
+  const firstVisibleToken = tokens.find(hasVisibleInlineContent)
+  if (firstVisibleToken?.type !== 'strong') return null
+
+  const breakIndex = tokens.findIndex(token => token.type === 'br')
+  if (breakIndex < 0) return null
+
+  const title = tokens.slice(0, breakIndex)
+  const detail = tokens.slice(breakIndex + 1)
+  if (!title.some(hasVisibleInlineContent) || !detail.some(hasVisibleInlineContent)) {
+    return null
+  }
+
+  return { title, detail }
+}
+
+function hasVisibleInlineContent(token: Token): boolean {
+  return (
+    token.type !== 'br' &&
+    token.type !== 'space' &&
+    token.raw.trim().length > 0
+  )
 }
 
 function renderCode(
@@ -547,11 +594,9 @@ function MarkdownTable({
         'md-code-block',
         'tw:bg-app-chrome',
         'tw:mx-0',
-        'tw:my-3',
         'tw:w-full',
         'tw:max-w-full',
         'tw:overflow-hidden',
-        'tw:rounded-lg',
       )}
     >
       <figcaption className="md-table-toolbar md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-base tw:text-app-text-soft">

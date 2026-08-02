@@ -89,17 +89,20 @@ describe("ExecutionPlanCard", () => {
       <ComposerChangeSummary
         active
         additions={279}
+        canReturnToBottom
         changedFileCount={5}
         deletions={155}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed={false}
         onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
       />,
     );
     const progressedHtml = renderToStaticMarkup(
       <ComposerChangeSummary
         active
         additions={0}
+        canReturnToBottom={false}
         changedFileCount={0}
         deletions={0}
         executionPlan={executionPlanItem({
@@ -111,65 +114,99 @@ describe("ExecutionPlanCard", () => {
         })}
         failed={false}
         onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
       />,
     );
     const completedHtml = renderToStaticMarkup(
       <ComposerChangeSummary
         active={false}
         additions={0}
+        canReturnToBottom
         changedFileCount={0}
         deletions={0}
         executionPlan={executionPlanItem({ status: "completed" })}
         failed={false}
         onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
       />,
     );
     const interruptedHtml = renderToStaticMarkup(
       <ComposerChangeSummary
         active={false}
         additions={0}
+        canReturnToBottom
         changedFileCount={0}
         deletions={0}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed={false}
         onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
       />,
     );
     const failedHtml = renderToStaticMarkup(
       <ComposerChangeSummary
         active={false}
         additions={0}
+        canReturnToBottom={false}
         changedFileCount={0}
         deletions={0}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed
         onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
       />,
     );
     const emptyPlanHtml = renderToStaticMarkup(
       <ComposerChangeSummary
         active
         additions={0}
+        canReturnToBottom={false}
         changedFileCount={0}
         deletions={0}
         executionPlan={executionPlanItem({ steps: [] })}
         failed={false}
         onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
       />,
     );
     const fileOnlyHtml = renderToStaticMarkup(
       <ComposerChangeSummary
         active={false}
         additions={12}
+        canReturnToBottom
         changedFileCount={1}
         deletions={3}
         executionPlan={null}
         failed={false}
         onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
       />,
     );
-    const completedSummaryHtml = completedHtml.slice(
-      completedHtml.indexOf("<button"),
+    const fileOnlyAtBottomHtml = renderToStaticMarkup(
+      <ComposerChangeSummary
+        active={false}
+        additions={12}
+        canReturnToBottom={false}
+        changedFileCount={1}
+        deletions={3}
+        executionPlan={null}
+        failed={false}
+        onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
+      />,
+    );
+    const unavailableDiffHtml = renderToStaticMarkup(
+      <ComposerChangeSummary
+        active={false}
+        additions={null}
+        canReturnToBottom={false}
+        changedFileCount={1}
+        deletions={null}
+        executionPlan={null}
+        failed={false}
+        onOpenReview={() => undefined}
+        onReturnToBottom={() => undefined}
+      />,
     );
 
     expect(streamingHtml).toContain("第 2 / 3 步");
@@ -182,14 +219,27 @@ describe("ExecutionPlanCard", () => {
       'aria-label="执行计划进行中，已完成 1 / 3 步"',
     );
     expect(streamingHtml).toContain('data-progress="33.33"');
-    expect(streamingHtml).toContain('stroke-dashoffset="66.67"');
+    expect(streamingHtml).toContain("lucide-loader-circle");
+    expect(streamingHtml).toContain("composer-change-summary__thinking-dots");
+    expect(streamingHtml).toContain("composer-change-summary__down-arrow");
+    expect(streamingHtml).toContain('data-running="true"');
     expect(progressedHtml).toContain('data-progress="66.67"');
-    expect(progressedHtml).toContain('stroke-dashoffset="33.33"');
+    expect(progressedHtml).not.toContain(
+      "composer-change-summary__return",
+    );
+    expect(progressedHtml).not.toContain(
+      "composer-change-summary__return-presence",
+    );
     expect(streamingHtml).toContain("<button");
-    expect(streamingHtml.match(/<button/g)).toHaveLength(2);
+    expect(streamingHtml.match(/<button/g)).toHaveLength(3);
     expect(streamingHtml).toContain("ui-button");
     expect(streamingHtml).toContain("composer-change-summary__plan");
     expect(streamingHtml).toContain("composer-change-summary__changes");
+    expect(streamingHtml).toContain(
+      "composer-change-summary__return-presence",
+    );
+    expect(streamingHtml).toContain("composer-change-summary__return");
+    expect(streamingHtml).toContain('aria-label="回到底部"');
     expect(streamingHtml).toContain('aria-expanded="false"');
     expect(streamingHtml).toContain("aria-controls=");
     expect(streamingHtml).toContain('aria-hidden="true"');
@@ -197,34 +247,60 @@ describe("ExecutionPlanCard", () => {
     expect(streamingHtml).toContain(
       'aria-label="打开审阅面板，5 个文件已更改，新增 279 行，删除 155 行"',
     );
+    expect(unavailableDiffHtml).toContain(
+      'aria-label="打开审阅面板，1 个文件已更改，增删行数统计暂不可用"',
+    );
+    expect(unavailableDiffHtml).not.toContain("composer-change-summary__diff");
     expect(streamingHtml).not.toContain("composer-change-summary__chevron");
     expect(completedHtml).toContain(
       'aria-label="执行计划已完成，已完成 3 / 3 步"',
     );
     expect(completedHtml).toContain('data-progress="100"');
-    expect(completedHtml).toContain('stroke-dashoffset="0"');
-    expect(completedSummaryHtml).not.toContain("lucide-circle-check");
+    expect(completedHtml).toContain("已全部完成");
+    expect(completedHtml).toContain("lucide-check");
+    expect(completedHtml).not.toContain(
+      "composer-change-summary__thinking-dots",
+    );
+    expect(completedHtml).not.toContain('data-running="true"');
     expect(completedHtml).not.toContain("composer-change-summary__separator");
+    expect(completedHtml).toContain("composer-change-summary__down-arrow");
+    expect(completedHtml.match(/<button/g)).toHaveLength(2);
     expect(interruptedHtml).toContain(
       'aria-label="执行计划已中断，已完成 1 / 3 步"',
     );
+    expect(interruptedHtml).toContain("执行已中断");
     expect(interruptedHtml).toContain('data-progress="33.33"');
+    expect(interruptedHtml).toContain(
+      "composer-change-summary__plan-progress-ring",
+    );
+    expect(interruptedHtml).toContain("composer-change-summary__return");
+    expect(interruptedHtml).toContain("composer-change-summary__down-arrow");
     expect(failedHtml).toContain(
       'aria-label="执行计划出错，已完成 1 / 3 步"',
     );
+    expect(failedHtml).toContain("执行出错");
     expect(failedHtml).toContain("lucide-circle-x");
     expect(failedHtml).not.toContain(
       "composer-change-summary__plan-progress-ring",
     );
+    expect(failedHtml).not.toContain("composer-change-summary__return");
     expect(emptyPlanHtml).toContain('data-progress="0"');
     expect(emptyPlanHtml).not.toContain("NaN");
     expect(emptyPlanHtml).not.toContain("Infinity");
     expect(fileOnlyHtml).toContain("1 个文件已更改");
     expect(fileOnlyHtml).toContain("<button");
-    expect(fileOnlyHtml.match(/<button/g)).toHaveLength(1);
+    expect(fileOnlyHtml.match(/<button/g)).toHaveLength(2);
     expect(fileOnlyHtml).not.toContain("composer-change-summary__plan");
     expect(fileOnlyHtml).not.toContain("composer-change-summary__separator");
     expect(fileOnlyHtml).toContain("composer-change-summary__diff");
+    expect(fileOnlyHtml).toContain("composer-change-summary__return");
+    expect(fileOnlyAtBottomHtml.match(/<button/g)).toHaveLength(1);
+    expect(fileOnlyAtBottomHtml).not.toContain(
+      "composer-change-summary__return",
+    );
+    expect(fileOnlyAtBottomHtml).not.toContain(
+      "composer-change-summary__return-presence",
+    );
   });
 });
 

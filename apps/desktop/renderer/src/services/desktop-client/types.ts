@@ -12,6 +12,7 @@ import type {
 import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-overlay'
 import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
 import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-ipc'
+import type { DesktopTerminalIpcBridge } from '@codepilotx/shared/desktop-terminal-ipc'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
@@ -53,6 +54,7 @@ type DesktopClientWindow = {
     revealPathInFolder?(targetPath: string): Promise<void>
   } & Partial<DesktopPetOverlayBridge>
     & Partial<DesktopDataLocationIpcBridge>
+    & Partial<DesktopTerminalIpcBridge>
     & Partial<DesktopUpdateIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
@@ -153,6 +155,13 @@ export type DesktopAgentReviewApi = {
     path: string
     hideWhitespace?: boolean
   }): Promise<DesktopReviewAgentFileDiff>
+  getAgentReviewFileDiffs(input: {
+    workspacePath: string
+    source: DesktopReviewSource
+    generation: string
+    paths: readonly string[]
+    hideWhitespace?: boolean
+  }): Promise<RpcResult<'review/file-diffs'>>
   applyAgentReviewOperation(input: {
     workspacePath: string
     source: DesktopReviewSource
@@ -233,9 +242,15 @@ export type DesktopAgentReviewApi = {
 }
 
 export type DesktopAgentEventEnvelopeApi = {
+  applyThreadPatch(
+    params: Omit<RpcParams<'thread/patch/apply'>, 'operationId'>,
+  ): Promise<RpcResult<'thread/patch/apply'>>
   readThreadHistoryPage(
     params: RpcParams<'thread/history/read'>,
   ): Promise<RpcResult<'thread/history/read'>>
+  readThreadPatchDiff(
+    params: RpcParams<'thread/patch/diff'>,
+  ): Promise<RpcResult<'thread/patch/diff'>>
   subscribeAgentEventEnvelopes(
     options: AgentRpcSubscription,
     callback: (event: EventEnvelope) => void,

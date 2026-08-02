@@ -1,4 +1,7 @@
-import { desktopClient } from '../../services/desktop-client/index.js'
+import {
+  desktopClient,
+  loadDesktopTerminalClient,
+} from '../../services/desktop-client/index.js'
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Code,
@@ -21,6 +24,7 @@ import type {
   DesktopReviewView,
 } from '../../../shared/types.js';
 import { Button } from '../../components/ui/Button.js'
+import type { DesktopTerminalProfile } from '@codepilotx/shared/desktop-terminal-ipc'
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -38,13 +42,6 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
     label: 'Terminal',
     kind: 'terminal',
   },
-];
-
-const TERMINAL_SHELL_OPTIONS = [
-  { value: 'powershell', label: 'PowerShell' },
-  { value: 'cmd', label: 'Command Prompt' },
-  { value: 'bash', label: 'Bash' },
-  { value: 'pwsh', label: 'PowerShell Core' },
 ];
 
 const LANGUAGE_OPTIONS = [
@@ -122,6 +119,7 @@ export function GeneralSettings({
     enableFullAccessPermissionMode,
     showContextUsage,
     defaultOpenTargetId,
+    terminalProfileId,
     reviewView,
     reviewDelivery,
     rustSearchAndDiffKernels,
@@ -134,7 +132,10 @@ export function GeneralSettings({
   const [openTargets, setOpenTargets] =
     useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
   const [openTargetsLoaded, setOpenTargetsLoaded] = useState(false);
-  const [terminalShell, setTerminalShell] = useState('powershell');
+  const [terminalProfiles, setTerminalProfiles] = useState<
+    readonly DesktopTerminalProfile[]
+  >([])
+  const [terminalProfilesLoaded, setTerminalProfilesLoaded] = useState(false)
   const [language, setLanguage] = useState('zh-CN');
   const [longPromptShortcut, setLongPromptShortcut] = useState(false);
   const [speed, setSpeed] = useState('standard');
@@ -156,6 +157,13 @@ export function GeneralSettings({
   const setDefaultOpenTargetId = useCallback(
     (value: string) => {
       draft.setValue('defaultOpenTargetId', value)
+      draft.autoSave()
+    },
+    [draft],
+  )
+  const setTerminalProfileId = useCallback(
+    (value: string) => {
+      draft.setValue('terminalProfileId', value === 'auto' ? null : value)
       draft.autoSave()
     },
     [draft],
@@ -242,6 +250,25 @@ export function GeneralSettings({
     };
   }, [defaultOpenTargetId, setDefaultOpenTargetId]);
 
+  useEffect(() => {
+    let mounted = true
+    void loadDesktopTerminalClient()
+      .then(client => client.listTerminalProfiles())
+      .then(profiles => {
+        if (!mounted) return
+        setTerminalProfiles(profiles)
+        setTerminalProfilesLoaded(true)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setTerminalProfiles([])
+        setTerminalProfilesLoaded(true)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   const displayedOpenTargets =
     !openTargetsLoaded &&
     !openTargets.some((target) => target.id === defaultOpenTargetId)
@@ -260,7 +287,22 @@ export function GeneralSettings({
     label: target.label,
     icon: renderOpenTargetIcon(target),
   }));
-
+  const terminalProfileOptions = [
+    { value: 'auto', label: '自动检测' },
+    ...terminalProfiles.map(profile => ({
+      value: profile.id,
+      label: profile.isDefault ? `${profile.label}（默认）` : profile.label,
+      disabled: !profile.available,
+    })),
+    ...(terminalProfileId &&
+    !terminalProfiles.some(profile => profile.id === terminalProfileId)
+      ? [{
+          value: terminalProfileId,
+          label: terminalProfilesLoaded ? '已保存的 Shell（当前不可用）' : '正在加载…',
+          disabled: true,
+        }]
+      : []),
+  ]
   return (
     <SettingsContentArea className="">
       <div className='settings-content-inner'>
@@ -340,9 +382,9 @@ export function GeneralSettings({
             control={
               <SettingsDropdown
                 width={220}
-                value={terminalShell}
-                options={TERMINAL_SHELL_OPTIONS}
-                onChange={setTerminalShell}
+                value={terminalProfileId ?? 'auto'}
+                options={terminalProfileOptions}
+                onChange={setTerminalProfileId}
                 ariaLabel='集成终端 Shell'
               />
             }

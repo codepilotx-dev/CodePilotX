@@ -30,19 +30,25 @@ import {
 } from '../src/features/layout/sidebar/SidebarProjectHoverCard.js'
 import { getSidebarSessionDisplayGroups } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
 import {
+  buildSidebarFocusSections,
   buildSidebarPinnedItems,
   buildProjectSessionBuckets,
   buildSidebarViewModel,
   deriveSidebarSessionVisualState,
+  labelForDayOffset,
+  localDayOrdinal,
   reorderSidebarPinnedItemKeys,
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
   sidebarProjectKey,
   sortProjectsForSidebar,
+  type SidebarSessionVisualState,
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
 import { sortSessionsForSidebar } from '../src/features/session/state/sessionSorting.js'
 import {
   getSidebarTopNavItems,
+  SIDEBAR_PRODUCT_MODE_META,
+  SIDEBAR_PRODUCT_MODE_ORDER,
   TOP_NAV_ITEMS,
 } from '../src/features/layout/sidebar/SidebarTopNav.js'
 import {
@@ -51,6 +57,19 @@ import {
 } from '../src/features/settings/settingsRegistry.js'
 
 describe('Codex 侧栏导航', () => {
+  test('产品模式按约定顺序展示名称和说明', () => {
+    expect(
+      SIDEBAR_PRODUCT_MODE_ORDER.map(value => ({
+        value,
+        ...SIDEBAR_PRODUCT_MODE_META[value],
+      })),
+    ).toEqual([
+      { value: 'coding', label: 'Coding', description: '构建、调试并发布' },
+      { value: 'working', label: 'Working', description: '写作、分析和协作' },
+      { value: 'chat', label: 'Chat', description: '创建、学习和探索' },
+    ])
+  })
+
   test('按产品入口优先顺序展示且搜索只保留在侧栏头部', () => {
     expect(TOP_NAV_ITEMS.map(item => ({ view: item.view, label: item.label, path: item.path }))).toEqual([
       { view: 'new', label: '新建任务', path: '/new' },
@@ -808,3 +827,181 @@ function session(
     unreadAt: null,
   } as SessionListItem
 }
+
+describe('侧栏聚焦视图投影', () => {
+  // 假定当前日期 2026-08-01（星期六）
+  const NOW = new Date('2026-08-01T12:00:00.000Z').getTime()
+
+  function focusSession(
+    id: string,
+    lastMessageAt: string | null | undefined,
+    state: SidebarSessionVisualState = 'idle',
+    extras: Partial<SessionListItem> = {},
+  ): SessionListItem {
+    return {
+      ...session(id, `C:\\${id}`, lastMessageAt ?? undefined),
+      ...extras,
+    }
+  }
+
+  function focus(
+    sessions: SessionListItem[],
+    sessionStateById: Record<string, SidebarSessionVisualState>,
+  ) {
+    return buildSidebarFocusSections({
+      now: NOW,
+      sessions,
+      sessionStateById,
+    })
+  }
+
+  test('等待输入、未读、运行中进入优先级，且不受日期窗口限制', () => {
+    const sections = focus(
+      [
+        focusSession('needs', '2026-05-01T00:00:00.000Z', 'needs-input'),
+        focusSession('unread', '2026-05-02T00:00:00.000Z', 'unread'),
+        focusSession('running', '2026-05-03T00:00:00.000Z', 'running'),
+      ],
+      {
+        needs: 'needs-input',
+        unread: 'unread',
+        running: 'running',
+      },
+    )
+    expect(sections.map(s => s.id)).toEqual(['priority'])
+    expect(sections[0]!.sessions.map(s => s.id)).toEqual([
+      'needs',
+      'unread',
+      'running',
+    ])
+  })
+
+  test('优先级任务不会在日期组重复出现', () => {
+    const sections = focus(
+      [
+        focusSession('needs', '2026-08-01T00:00:00.000Z', 'needs-input'),
+        focusSession('normal', '2026-08-01T00:00:00.000Z', 'idle'),
+      ],
+      { needs: 'needs-input', normal: 'idle' },
+    )
+    expect(sections.map(s => s.id)).toEqual(['priority', 'day-0'])
+    const priorityIds = sections[0]!.sessions.map(s => s.id)
+    const dayIds = sections[1]!.sessions.map(s => s.id)
+    expect(priorityIds).toEqual(['needs'])
+    expect(dayIds).toEqual(['normal'])
+  })
+
+  test('今天和昨天标签正确', () => {
+    const today = new Date('2026-08-01T10:00:00.000Z').getTime()
+    const yesterday = new Date('2026-07-31T10:00:00.000Z').getTime()
+    expect(labelForDayOffset(0, new Date(today))).toBe('今天')
+    expect(labelForDayOffset(1, new Date(yesterday))).toBe('昨天')
+  })
+
+  test('假定星期六时偏移 2 至 6 分别得到星期四到星期日', () => {
+    expect(labelForDayOffset(2, new Date('2026-07-30T00:00:00.000Z'))).toBe('星期四')
+    expect(labelForDayOffset(3, new Date('2026-07-29T00:00:00.000Z'))).toBe('星期三')
+    expect(labelForDayOffset(4, new Date('2026-07-28T00:00:00.000Z'))).toBe('星期二')
+    expect(labelForDayOffset(5, new Date('2026-07-27T00:00:00.000Z'))).toBe('星期一')
+    expect(labelForDayOffset(6, new Date('2026-07-26T00:00:00.000Z'))).toBe('星期日')
+  })
+
+  test('没有任务的星期二不会生成空分组，日期组按偏移 0→6 排列', () => {
+    const sections = focus(
+      [
+        focusSession('today', '2026-08-01T00:00:00.000Z', 'idle'),
+        focusSession('thu', '2026-07-30T00:00:00.000Z', 'idle'),
+        focusSession('wed', '2026-07-29T00:00:00.000Z', 'idle'),
+        focusSession('mon', '2026-07-27T00:00:00.000Z', 'idle'),
+        focusSession('sun', '2026-07-26T00:00:00.000Z', 'idle'),
+        focusSession('fri', '2026-07-31T00:00:00.000Z', 'idle'),
+      ],
+      {
+        today: 'idle',
+        thu: 'idle',
+        wed: 'idle',
+        mon: 'idle',
+        sun: 'idle',
+        fri: 'idle',
+      },
+    )
+    expect(sections.map(s => s.id)).toEqual([
+      'day-0',
+      'day-1',
+      'day-2',
+      'day-3',
+      'day-5',
+      'day-6',
+    ])
+    expect(sections.map(s => s.label)).toEqual([
+      '今天',
+      '昨天',
+      '星期四',
+      '星期三',
+      '星期一',
+      '星期日',
+    ])
+  })
+
+  test('第 6 天任务仍显示，第 7 天及更早任务被隐藏', () => {
+    const sections = focus(
+      [
+        focusSession('day6', '2026-07-26T00:00:00.000Z', 'idle'),
+        focusSession('day7', '2026-07-25T00:00:00.000Z', 'idle'),
+      ],
+      { day6: 'idle', day7: 'idle' },
+    )
+    expect(sections.flatMap(s => s.sessions).map(s => s.id)).toEqual(['day6'])
+  })
+
+  test('跨月和跨年时仍按自然日分组', () => {
+    // 当前为 2026-08-01，前 6 天跨越 7 月；再测一个跨年场景
+    const sections = focus(
+      [
+        focusSession('end-july', '2026-07-26T23:00:00.000Z', 'idle'),
+      ],
+      { 'end-july': 'idle' },
+    )
+    expect(sections[0]!.id).toBe('day-6')
+    // 跨年：当前 2026-01-01，前 6 天跨越 2025
+    const nyeSections = buildSidebarFocusSections({
+      now: new Date('2026-01-01T12:00:00.000Z').getTime(),
+      sessions: [focusSession('old-year', '2025-12-30T00:00:00.000Z', 'idle')],
+      sessionStateById: { 'old-year': 'idle' },
+    })
+    expect(nyeSections[0]!.id).toBe('day-2')
+  })
+
+  test('日期组内按最近活动时间倒序', () => {
+    const sections = focus(
+      [
+        focusSession('older', '2026-08-01T01:00:00.000Z', 'idle'),
+        focusSession('newer', '2026-08-01T12:00:00.000Z', 'idle'),
+      ],
+      { older: 'idle', newer: 'idle' },
+    )
+    expect(sections[0]!.sessions.map(s => s.id)).toEqual(['newer', 'older'])
+  })
+
+  test('无效时间的普通任务被隐藏，但无效时间的优先级任务仍显示', () => {
+    const sections = focus(
+      [
+        focusSession('bad-normal', '__bad__', 'idle', {
+          createdAt: '__invalid__',
+        }),
+        focusSession('bad-priority', '__bad__', 'running', {
+          createdAt: '__invalid__',
+        }),
+      ],
+      { 'bad-normal': 'idle', 'bad-priority': 'running' },
+    )
+    expect(sections.flatMap(s => s.sessions).map(s => s.id)).toEqual([
+      'bad-priority',
+    ])
+  })
+
+  test('所有分组为空时返回空投影', () => {
+    const sections = focus([], {})
+    expect(sections).toEqual([])
+  })
+})

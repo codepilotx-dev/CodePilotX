@@ -17,6 +17,11 @@ import {
   ToolExecutionCard,
 } from "../src/features/session/timeline/CanonicalItemRenderer.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
+import { threadPatchDiffToDesktopFile } from "../src/features/session/timeline/FileMutationDiffContent.js";
+import {
+  createThreadPatchDiffLoader,
+  ExpandableFileMutationRow,
+} from "../src/features/session/timeline/ExpandableFileMutationRow.js";
 
 type ToolItem = Extract<Item, { type: "tool" }>;
 
@@ -429,6 +434,169 @@ describe("canonical tool item display", () => {
     expect(markup).toContain("已编辑 src/b.ts");
     expect(markup).toContain("+2");
     expect(markup).not.toContain("+0</small><small");
+  });
+
+  test("only exposes completed file mutations backed by diff evidence", () => {
+    const completed = toolItem({
+      command: null,
+      input: { additions: 1, deletions: 0, file_path: "src/a.ts" },
+      mutationDiffPaths: ["src\\a.ts"],
+      output: null,
+      tool: "Edit",
+    });
+    const expandableMarkup = renderToStaticMarkup(
+      <ExpandableFileMutationRow
+        diffMarkerStyle="color"
+        disclosure={{
+          id: "file-mutation:tool-1:0",
+          expanded: true,
+          onExpandedChange: () => undefined,
+        }}
+        file={{ additions: 1, deletions: 0, path: "src/a.ts" }}
+        item={completed}
+        readThreadPatchDiff={async () => {
+          throw new Error("not called during server render");
+        }}
+        threadId="thread-1"
+      />,
+    );
+    const legacyMarkup = renderToStaticMarkup(
+      <FileMutationItemView item={{ ...completed, mutationDiffPaths: undefined }} />,
+    );
+    const runningMarkup = renderToStaticMarkup(
+      <FileMutationItemView
+        disclosureState={{
+          expandedIds: new Set(["file-mutation:tool-1:0"]),
+          onExpandedChange: () => undefined,
+        }}
+        item={{ ...completed, state: "running" }}
+        readThreadPatchDiff={async () => {
+          throw new Error("not called during server render");
+        }}
+        threadId="thread-1"
+      />,
+    );
+
+    expect(expandableMarkup).toContain('data-expandable="true"');
+    expect(expandableMarkup).toContain("lucide-chevron-down");
+    expect(expandableMarkup).toContain("正在加载差异");
+    expect(legacyMarkup).toContain('class="canonical-file-mutation__row"');
+    expect(legacyMarkup).not.toContain("<details");
+    expect(legacyMarkup).not.toContain("<summary");
+    expect(legacyMarkup).not.toContain("lucide-chevron");
+    expect(runningMarkup).not.toContain("<details");
+    expect(runningMarkup).not.toContain("lucide-chevron");
+  });
+
+  test("loads a thread patch with exact params and reuses a successful result", async () => {
+    const calls: unknown[] = [];
+    let resolveRequest!: (value: Awaited<ReturnType<Parameters<typeof createThreadPatchDiffLoader>[0]>>) => void;
+    const result = {
+      path: "src/a.ts",
+      operation: "update" as const,
+      patch: "",
+      hunks: [],
+      renderable: true,
+      tooLargeReason: null,
+    };
+    const loader = createThreadPatchDiffLoader((params) => {
+      calls.push(params);
+      return new Promise((resolve) => {
+        resolveRequest = resolve;
+      });
+    });
+    const states: string[] = [];
+    loader.request(
+      "thread-1:call-1:src/a.ts",
+      { threadId: "thread-1", toolCallId: "call-1", path: "src/a.ts" },
+      (state) => states.push(state.status),
+    );
+    expect(calls).toEqual([
+      { threadId: "thread-1", toolCallId: "call-1", path: "src/a.ts" },
+    ]);
+    resolveRequest(result);
+    await Promise.resolve();
+    await Promise.resolve();
+    loader.request(
+      "thread-1:call-1:src/a.ts",
+      { threadId: "thread-1", toolCallId: "call-1", path: "src/a.ts" },
+      (state) => states.push(state.status),
+    );
+    expect(calls).toHaveLength(1);
+    expect(states).toEqual(["loading", "loaded", "loaded"]);
+  });
+
+  test("ignores a patch response after its consumer is disposed", async () => {
+    let resolveRequest!: (value: {
+      path: string;
+      operation: "update";
+      patch: string;
+      hunks: [];
+      renderable: true;
+      tooLargeReason: null;
+    }) => void;
+    const loader = createThreadPatchDiffLoader(() =>
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+    const states: string[] = [];
+    const dispose = loader.request(
+      "thread-1:call-1:src/a.ts",
+      { threadId: "thread-1", toolCallId: "call-1", path: "src/a.ts" },
+      (state) => states.push(state.status),
+    );
+    dispose();
+    resolveRequest({
+      path: "src/a.ts",
+      operation: "update",
+      patch: "",
+      hunks: [],
+      renderable: true,
+      tooLargeReason: null,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(states).toEqual(["loading"]);
+  });
+
+  test("adapts a thread patch diff to the shared review line model", () => {
+    const file = threadPatchDiffToDesktopFile({
+      path: "src/a.ts",
+      operation: "update",
+      patch: [
+        "--- a/src/a.ts",
+        "+++ b/src/a.ts",
+        "@@ -1,2 +1,2 @@",
+        "-old",
+        "+new",
+        " context",
+        "",
+      ].join("\n"),
+      hunks: [{
+        id: "hunk-1",
+        header: "@@ -1,2 +1,2 @@",
+        oldStart: 1,
+        oldLines: 2,
+        newStart: 1,
+        newLines: 2,
+        patch: "@@ -1,2 +1,2 @@\n-old\n+new\n context",
+      }],
+      renderable: true,
+      tooLargeReason: null,
+    });
+
+    expect(file).toMatchObject({
+      path: "src/a.ts",
+      status: "modified",
+      additions: 1,
+      deletions: 1,
+    });
+    expect(file.hunks[0]?.lines).toEqual([
+      expect.objectContaining({ type: "removed", oldLine: 1, newLine: null, content: "old" }),
+      expect.objectContaining({ type: "added", oldLine: null, newLine: 1, content: "new" }),
+      expect.objectContaining({ type: "context", oldLine: 2, newLine: 2, content: "context" }),
+    ]);
   });
 
   test("builds a terminal fallback patch from successful mutation tools only", () => {

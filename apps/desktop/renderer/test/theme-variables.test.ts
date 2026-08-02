@@ -4,12 +4,51 @@ import {
   DEFAULT_DARK_THEME,
   DEFAULT_DESKTOP_THEME_SETTINGS,
   DEFAULT_LIGHT_THEME,
+  DEFAULT_UI_FONT,
   getCodeThemeSelectionForVariant,
   normalizeDesktopThemeSettings,
 } from '../shared/theme.js'
 import { deriveThemeVariables } from '../src/features/theme/themeVariables.js'
 
 describe('fixed Codex UI themes', () => {
+  test('uses the Codex system font stack with canonical semantic weights', async () => {
+    const variables = deriveThemeVariables(DEFAULT_DARK_THEME)
+    const customFont = 'Inter, sans-serif'
+    const customVariables = deriveThemeVariables({
+      ...DEFAULT_DARK_THEME,
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        fonts: {
+          ...DEFAULT_DARK_THEME.theme.fonts,
+          ui: customFont,
+        },
+      },
+    })
+
+    expect(variables['--font-family-sans']).toBe(DEFAULT_UI_FONT)
+    expect(variables['--vscode-font-family']).toBe(DEFAULT_UI_FONT)
+    expect(customVariables['--font-family-sans']).toBe(customFont)
+    expect(customVariables['--vscode-font-family']).toBe(customFont)
+
+    const stylesheet = await Bun.file(
+      new URL(
+        '../src/styles/design-system/tokens.scss',
+        import.meta.url,
+      ),
+    ).text()
+    const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
+
+    expect(normalizedStylesheet).toContain(
+      `--font-family-sans: ${DEFAULT_UI_FONT};`,
+    )
+    expect(normalizedStylesheet).toContain('--font-weight-body: 400;')
+    expect(normalizedStylesheet).toContain('--font-weight-label: 500;')
+    expect(normalizedStylesheet).toContain('--font-weight-heading: 600;')
+    expect(normalizedStylesheet).toContain('--font-weight-emphasis: 600;')
+    expect(normalizedStylesheet).not.toContain('--font-weight-body: 445;')
+    expect(normalizedStylesheet).not.toContain('--font-weight-heading: 560;')
+  })
+
   test('locks the Codex light and dark semantic surfaces', () => {
     const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
@@ -69,6 +108,45 @@ describe('fixed Codex UI themes', () => {
       'rgba(255, 255, 255, 0.08)',
     )
     expect(dark['--codex-base-on-accent']).toBe('#ffffff')
+  })
+
+  test('uses the same restrained black elevation shadows in every theme', async () => {
+    const expectedRaised = '0 1px 3px -1px rgb(0 0 0 / 14%)'
+    const expectedFloat =
+      '0 8px 20px -8px rgb(0 0 0 / 28%), 0 2px 6px -3px rgb(0 0 0 / 18%)'
+    const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
+    const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
+
+    for (const variables of [light, dark]) {
+      expect(variables['--shadow-raised']).toBe(expectedRaised)
+      expect(variables['--shadow-float']).toBe(expectedFloat)
+    }
+    expect(dark['--shadow-raised']).toBe(light['--shadow-raised'])
+    expect(dark['--shadow-float']).toBe(light['--shadow-float'])
+
+    const stylesheet = await Bun.file(
+      new URL(
+        '../src/styles/design-system/tokens.scss',
+        import.meta.url,
+      ),
+    ).text()
+    const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
+    const shadowDeclarations =
+      normalizedStylesheet.match(
+        /--shadow-(?:raised|float):\s*[^;]+;/g,
+      ) ?? []
+
+    expect(normalizedStylesheet).toContain(
+      `--shadow-raised: ${expectedRaised};`,
+    )
+    expect(normalizedStylesheet).toContain(
+      `--shadow-float: ${expectedFloat};`,
+    )
+    expect(shadowDeclarations).toHaveLength(2)
+    expect(shadowDeclarations.join(' ')).not.toContain(
+      '--color-token-foreground',
+    )
+    expect(shadowDeclarations.join(' ')).not.toContain('color-mix')
   })
 
   test('uses the recovered Codex runtime formulas for Dracula', () => {

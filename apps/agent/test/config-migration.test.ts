@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
+import { setTimeout as delay } from "node:timers/promises"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { ConfigService } from "../src/config/ConfigService"
 import { ConfigMigrationService } from "../src/config/ConfigMigrationService"
@@ -11,8 +12,20 @@ import { planPiProviderConfigMigration } from "../src/provider/pi/PiProviderConf
 
 const roots: string[] = []
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) =>
-    rm(root, { recursive: true, force: true })))
+  await Promise.all(roots.splice(0).map(async (root) => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      try {
+        await rm(root, { recursive: true, force: true })
+        return
+      } catch (cause) {
+        if ((cause as NodeJS.ErrnoException).code !== "EBUSY" || attempt === 199) {
+          throw cause
+        }
+        Bun.gc(true)
+        await delay(25)
+      }
+    }
+  }))
 })
 
 describe("ConfigMigrationService", () => {
@@ -86,7 +99,7 @@ describe("ConfigMigrationService", () => {
       preferences: { nodejs: "system", python: "managed" },
     }), "utf8")
 
-    const config = new ConfigService(join(data, "config.toml"))
+    const config = new ConfigService(join(data, "config.json"))
     await config.initialize()
     await config.writeValue({ keyPath: ["model"], value: "file-wins" })
     const migrate = () => new ConfigMigrationService(
@@ -134,24 +147,82 @@ describe("ConfigMigrationService", () => {
     expect(db.getSetting("desktop.settings.v1")).toBeNull()
     expect(db.getSetting("mcp.settings.v2")).toBeNull()
     expect(db.getSetting("skills.settings.v1")).toBeNull()
+    expect(
+      db.getSetting<{ completed: boolean }>("config.json.migration.v1")?.completed,
+    ).toBe(true)
     expect(db.getSetting<{ generation: number }>("mcp.runtime.v1")?.generation).toBe(4)
     expect(db.getSetting<Record<string, unknown>>("desktop.runtime-state.v1")).toMatchObject({
       recentWorkspaces: [{ path: workspace }],
       sidebarManualOrder: { all: ["session-1"] },
     })
-    expect(await readFile(join(data, "config.toml"), "utf8")).not.toContain(
+    expect(await readFile(join(data, "config.json"), "utf8")).not.toContain(
       "sidebarManualOrder",
     )
     expect(await readFile(
-      join(workspace, ".codepilotx", "config.toml"),
+      join(workspace, ".codepilotx", "config.json"),
       "utf8",
-    )).toContain('model = "project-model"')
+    )).toContain('"model": "project-model"')
     await expect(readFile(appearancePath, "utf8")).rejects.toMatchObject({
       code: "ENOENT",
     })
     await expect(readFile(toolingPath, "utf8")).rejects.toMatchObject({
       code: "ENOENT",
     })
+    db.profileSqlite.query(
+      "DELETE FROM app_settings WHERE key = 'config.json.migration.v1'",
+    ).run()
+    db.setSetting("config.toml.migration.v1", { completed: true })
+    expect(new ConfigMigrationRepository(db).read().completed).toBe(true)
+    await config.dispose()
+    db.close()
+  })
+
+  test("已完成旧迁移后仍将 config.json 中的桌面运行状态搬到本机数据库", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-config-runtime-migration-"))
+    roots.push(root)
+    const data = join(root, "data")
+    const configPath = join(data, "config.json")
+    const db = new AgentDatabase({
+      historyPath: join(data, "history.sqlite"),
+      profilePath: join(data, "profile.sqlite"),
+    })
+    db.setSetting("config.json.migration.v1", { completed: true })
+    db.setSetting("desktop.runtime-state.v1", {
+      lastActiveWorkspacePath: "F:/local-wins",
+    })
+    await mkdir(data, { recursive: true })
+    await writeFile(configPath, [
+      "{",
+      "  // 可迁移配置中的未知内容和注释必须保留",
+      '  "future_setting": { "keep": true },',
+      '  "desktop": {',
+      '    "recentWorkspaces": [{ "path": "F:/portable" }],',
+      '    "lastActiveWorkspacePath": "F:/stale",',
+      '    "showContextUsage": true,',
+      "  },",
+      "}",
+      "",
+    ].join("\n"), "utf8")
+    const config = new ConfigService(configPath)
+    await config.initialize()
+    const migrate = () => new ConfigMigrationService(
+      config,
+      new ConfigMigrationRepository(db),
+    ).run()
+
+    await migrate()
+    await migrate()
+
+    expect(db.getSetting<Record<string, unknown>>("desktop.runtime-state.v1")).toMatchObject({
+      recentWorkspaces: [{ path: "F:/portable" }],
+      lastActiveWorkspacePath: "F:/local-wins",
+    })
+    const persisted = await readFile(configPath, "utf8")
+    expect(persisted).toContain("可迁移配置中的未知内容和注释必须保留")
+    expect(persisted).toContain('"future_setting"')
+    expect(persisted).toContain('"showContextUsage": true')
+    expect(persisted).not.toContain("recentWorkspaces")
+    expect(persisted).not.toContain("lastActiveWorkspacePath")
     await config.dispose()
     db.close()
   })

@@ -8,7 +8,7 @@ import type {
 } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { Model, Provider } from "@codepilotx/model-schema";
-import type { EncryptedCredentialRepository } from "../../auth/EncryptedCredentialRepository";
+import type { ProviderCredentialRepository } from "../../auth/ProviderCredentialRepository";
 import {
   EncryptedCredentialStore,
   type EncryptedCredentialStoreOptions,
@@ -160,7 +160,7 @@ export class PiModelService {
   private disposed = false;
 
   constructor(
-    repository: EncryptedCredentialRepository,
+    repository: ProviderCredentialRepository,
     options: PiModelServiceOptions = {},
   ) {
     this.credentials = new EncryptedCredentialStore(repository, options);

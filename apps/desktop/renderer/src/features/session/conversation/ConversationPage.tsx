@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,
@@ -43,6 +44,7 @@ import {
   ComposerChangeSummary,
   findLatestExecutionPlan,
 } from "../composer/ComposerChangeSummary.js";
+import { deriveConversationChangeSummary } from "../composer/conversationChangeSummary.js";
 import { DesktopComposer } from "../composer/DesktopComposer.js";
 import {
   clearConversationSelectionHighlight,
@@ -67,6 +69,8 @@ import {
   saveConversationUiState,
 } from "../../layout/tabs/conversationUiState.js";
 import { CanonicalThreadView } from "../timeline/CanonicalThreadView.js";
+import { normalizePatchActionError } from "../timeline/patchActionError.js";
+import { subagentStatusLabel } from "../subagents/subagentStatusLabel.js";
 import { ConversationItemContext } from "../timeline/ConversationItemContext.js";
 import type { ThreadTimelineNavigationHandle } from "../timeline/SessionTimelineView.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
@@ -93,8 +97,15 @@ import {
   canRegenerateConversationTitle,
   shouldCloseConversationRenameDialog,
 } from "./conversationTitleActions.js";
+import { useConversationForkController } from "../workflow/fork/useConversationForkController.js";
 export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
 export type { ConversationTurnNavItem } from "./turnNavigationModel.js";
+
+const ConversationEnvironmentControls = React.lazy(() =>
+  import("../workflow/ConversationEnvironmentControls.js").then((module) => ({
+    default: module.ConversationEnvironmentControls,
+  }))
+);
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -122,6 +133,7 @@ function escapeCssAttributeValue(value: string): string {
 }
 
 export function ConversationPage(): React.ReactNode {
+  const navigate = useNavigate();
   const {
     isConversationLoading,
     activeSessionId,
@@ -139,6 +151,7 @@ export function ConversationPage(): React.ReactNode {
     onCreateBranch,
     onOpenAutomation,
     onOpenWorkspacePath,
+    onOpenPatchReview,
     onRefreshDiff,
     onRenameSession,
     onRefreshSessionTitle,
@@ -165,6 +178,8 @@ export function ConversationPage(): React.ReactNode {
     setDefaultOpenTargetId,
     diffMarkerStyle,
     reviewView,
+    draft: settingsDraft,
+    setSidebarSessionPins,
   } = useDesktopSettings();
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
   const subagents = React.useMemo(
@@ -178,6 +193,15 @@ export function ConversationPage(): React.ReactNode {
       selectCanonicalConversationAuxiliaryState(canonicalConversation.state),
     [canonicalConversation.state],
   );
+  const navigateToForkTarget = React.useCallback((targetThreadId: string) => {
+    navigate(`/threads/${encodeURIComponent(targetThreadId)}`);
+  }, [navigate]);
+  const conversationFork = useConversationForkController({
+    canUseNewWorktree: Boolean(workspacePath && (branchName || gitStatus)),
+    sourceRunning: sessionStatus === "running" || sessionStatus === "waiting" || sessionStatus === "queued",
+    sourceThreadId: activeSessionId,
+    onNavigateTarget: navigateToForkTarget,
+  });
   const pendingPermissions = canonicalAuxiliary.pendingPermissions;
   const reduceMotion = usePrefersReducedMotion();
   const turnNavItems = React.useMemo<ConversationTurnNavItem[]>(
@@ -209,6 +233,28 @@ export function ConversationPage(): React.ReactNode {
   );
   const timelineNavigationRef =
     React.useRef<ThreadTimelineNavigationHandle | null>(null);
+  const [timelineBottomState, setTimelineBottomState] = React.useState<{
+    sessionId: string | null;
+    canReturnToBottom: boolean;
+  }>({
+    sessionId: null,
+    canReturnToBottom: false,
+  });
+  const canReturnTimelineToBottom =
+    timelineBottomState.sessionId === activeSessionId &&
+    timelineBottomState.canReturnToBottom;
+  const handleCanReturnToBottomChange = React.useCallback(
+    (canReturnToBottom: boolean): void => {
+      setTimelineBottomState({
+        sessionId: activeSessionId,
+        canReturnToBottom,
+      });
+    },
+    [activeSessionId],
+  );
+  const returnTimelineToBottom = React.useCallback((): void => {
+    timelineNavigationRef.current?.returnToBottom();
+  }, []);
   const threadScrollRef = React.useRef<HTMLDivElement | null>(null);
   const turnNavItemIds = React.useMemo(
     () => turnNavItems.map((item) => item.id),
@@ -333,15 +379,21 @@ export function ConversationPage(): React.ReactNode {
       window.setTimeout(() => setIsRefreshingDiff(false), 600);
     }
   }, [isRefreshingDiff, onRefreshDiff]);
-  const changedFileCount = workspacePath ? (gitStatus?.files.length ?? 0) : 0;
+  const workspaceChangedFileCount = workspacePath
+    ? (gitStatus?.files.length ?? 0)
+    : 0;
   const composerExecutionPlan = findLatestExecutionPlan(
     canonicalConversation.turns,
   );
+  const conversationChangeSummary = React.useMemo(
+    () => deriveConversationChangeSummary(canonicalConversation.turns, gitStatus),
+    [canonicalConversation.turns, gitStatus],
+  );
   const showComposerStatusSummary = shouldShowComposerStatusSummary({
     hasPlan: composerExecutionPlan !== null,
-    changedFileCount,
+    changedFileCount: conversationChangeSummary.changedFileCount,
   });
-  const composerDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
+  const workspaceDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
   const sourceLinks = canonicalAuxiliary.sourceLinks;
   const canonicalSummaryEvents = React.useMemo<DesktopSessionEvent[]>(
     () =>
@@ -364,10 +416,10 @@ export function ConversationPage(): React.ReactNode {
   const threadSummaryModel = React.useMemo(
     () =>
       deriveThreadSummaryViewModel({
-        additions: composerDiffSummary.additions,
+        additions: workspaceDiffSummary.additions,
         branchName,
-        changedFileCount,
-        deletions: composerDiffSummary.deletions,
+        changedFileCount: workspaceChangedFileCount,
+        deletions: workspaceDiffSummary.deletions,
         events: canonicalSummaryEvents,
         sources: sourceLinks,
         subagents,
@@ -375,8 +427,8 @@ export function ConversationPage(): React.ReactNode {
       }),
     [
       branchName,
-      changedFileCount,
-      composerDiffSummary,
+      workspaceChangedFileCount,
+      workspaceDiffSummary,
       sourceLinks,
       subagents,
       canonicalSummaryEvents,
@@ -636,6 +688,33 @@ export function ConversationPage(): React.ReactNode {
     onOpenRightDock("review");
   }, [onOpenRightDock, onRefreshDiff]);
 
+  const applyThreadPatch = React.useCallback(
+    async (
+      itemId: string,
+      action: "undo" | "reapply",
+      expectedVersion: number,
+    ): Promise<void> => {
+      if (!activeSessionId) return;
+      try {
+        await desktopClient.applyThreadPatch({
+          threadId: activeSessionId,
+          itemId,
+          action,
+          expectedVersion,
+        });
+        await canonicalConversation.reload();
+        onRefreshDiff();
+      } catch (error) {
+        throw normalizePatchActionError(error, action);
+      }
+    },
+    [
+      activeSessionId,
+      canonicalConversation,
+      onRefreshDiff,
+    ],
+  );
+
   function handleConversationContextMenu(): void {
     clearConversationSelectionHighlight();
     const snapshot = createConversationSelectionSnapshot(window.getSelection());
@@ -868,6 +947,30 @@ export function ConversationPage(): React.ReactNode {
 
       return (
         <div className="chat-session-actions">
+          {activeSessionId && workspacePath ? (
+            <React.Suspense fallback={null}>
+            <ConversationEnvironmentControls
+              terminalProfileId={settingsDraft.values.terminalProfileId}
+              threadId={activeSessionId}
+              workspacePath={workspacePath}
+              onOpenEnvironmentSettings={() => {
+                navigate(`/settings/local-environment?threadId=${encodeURIComponent(activeSessionId)}`)
+              }}
+              onOpenWorktreeSettings={projectId => {
+                navigate(`/settings/worktrees?projectId=${encodeURIComponent(projectId)}`)
+              }}
+              onTransferAuxiliaryState={targetThreadId => {
+                setSidebarSessionPins(current => {
+                  const pinnedAt = current[activeSessionId]
+                  return pinnedAt ? { ...current, [targetThreadId]: pinnedAt } : current
+                })
+              }}
+              onNavigateTarget={targetThreadId => {
+                navigate(`/threads/${encodeURIComponent(targetThreadId)}`)
+              }}
+            />
+            </React.Suspense>
+          ) : null}
         <div className="open-target-split-button">
           <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
             <button
@@ -933,6 +1036,7 @@ export function ConversationPage(): React.ReactNode {
     },
     [
       branches,
+      activeSessionId,
       defaultOpenTargetId,
       onBranchSelect,
       onCommitOrPush,
@@ -943,9 +1047,13 @@ export function ConversationPage(): React.ReactNode {
       onOpenWorkspacePath,
       openTargetMenuOpen,
       openTargets,
+      navigate,
       selectedOpenTarget,
+      settingsDraft.values.terminalProfileId,
+      setSidebarSessionPins,
       threadSummary,
       threadSummaryModel,
+      workspacePath,
     ],
   );
 
@@ -968,12 +1076,14 @@ export function ConversationPage(): React.ReactNode {
             active={
               sessionStatus === "running" || sessionStatus === "waiting"
             }
-            additions={composerDiffSummary.additions}
-            changedFileCount={changedFileCount}
-            deletions={composerDiffSummary.deletions}
+            additions={conversationChangeSummary.additions}
+            canReturnToBottom={canReturnTimelineToBottom}
+            changedFileCount={conversationChangeSummary.changedFileCount}
+            deletions={conversationChangeSummary.deletions}
             executionPlan={composerExecutionPlan}
             failed={sessionStatus === "error"}
             onOpenReview={openReviewSidebar}
+            onReturnToBottom={returnTimelineToBottom}
           />
         ) : null}
         {activePermissionRequest ? (
@@ -1000,6 +1110,7 @@ export function ConversationPage(): React.ReactNode {
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
       onOpenFileReference,
+      onForkFromMessage: conversationFork.onForkFromMessage,
       onSubmitEditedUserMessage,
       sessionStatus,
       workspacePath,
@@ -1008,6 +1119,7 @@ export function ConversationPage(): React.ReactNode {
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
       onOpenFileReference,
+      conversationFork.onForkFromMessage,
       onSubmitEditedUserMessage,
       sessionStatus,
       workspacePath,
@@ -1017,6 +1129,7 @@ export function ConversationPage(): React.ReactNode {
     <ConversationItemContext.Provider value={conversationItemContextValue}>
       <CanonicalThreadView
         active={sessionStatus === "running" || sessionStatus === "waiting"}
+        diffMarkerStyle={diffMarkerStyle}
         error={canonicalConversation.error}
         hasOlder={canonicalConversation.hasOlder}
         initialScrollOffset={initialTimelineScrollTop}
@@ -1024,13 +1137,17 @@ export function ConversationPage(): React.ReactNode {
         navigationRef={timelineNavigationRef}
         loading={canonicalConversation.loading}
         loadingOlder={canonicalConversation.loadingOlder}
+        onCanReturnToBottomChange={handleCanReturnToBottomChange}
+        onApplyPatch={applyThreadPatch}
         onLoadOlder={canonicalConversation.loadOlder}
+        onOpenPatchReview={onOpenPatchReview}
         onOpenPlanInRightDock={onOpenPlanInRightDock}
         onOpenSubagent={onOpenSubagent}
         onReload={canonicalConversation.reload}
         onScroll={handleTimelineScroll}
         registerTurnRow={registerTurnRow}
         rightDockPlanEventId={rightDockPlanEventId}
+        readThreadPatchDiff={desktopClient.readThreadPatchDiff}
         scrollRef={threadScrollRef}
         threadId={activeSessionId}
         turns={canonicalConversation.turns}
@@ -1079,6 +1196,7 @@ export function ConversationPage(): React.ReactNode {
           if (!renamingSession) setRenameDialogOpen(false);
         }}
       />
+      {conversationFork.dialog}
       <div
         className="workflow-page__body"
       >
@@ -1146,7 +1264,7 @@ export function ConversationPage(): React.ReactNode {
                                 <button key={task.id} type="button" onClick={() => onOpenSubagent(task.id)}>
                                   <Bot size={14} />
                                   <span>{task.displayName}</span>
-                                  <small>{subagentPanelStatus(currentRun?.status ?? "interrupted")}</small>
+                                  <small>{subagentStatusLabel(currentRun?.status ?? "interrupted")}</small>
                                 </button>
                               ))}
                             </div>
@@ -1262,18 +1380,6 @@ export function shouldShowComposerStatusSummary({
   changedFileCount: number;
 }): boolean {
   return hasPlan || changedFileCount > 0;
-}
-
-function subagentPanelStatus(status: string): string {
-  if (status === "completed") return "已完成";
-  if (status === "failed") return "失败";
-  if (status === "stopped") return "已停止";
-  if (status === "interrupted") return "已中断";
-  if (status === "queued") return "排队中";
-  if (status === "waiting-question") return "等待回答";
-  if (status === "waiting-permission") return "等待审批";
-  if (status === "steering") return "调整中";
-  return "运行中";
 }
 
 function summarizeDiff(diff: string): { additions: number; deletions: number } {

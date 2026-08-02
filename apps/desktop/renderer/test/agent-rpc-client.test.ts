@@ -3,6 +3,7 @@ import {
   AgentRpcError,
   createAgentRpcClient,
 } from '../src/services/agentRpcClient.js'
+import { AgentRpcTimeoutError } from '../src/services/rpcFetch.js'
 
 describe('agent RPC v4 client', () => {
   test('并发业务请求统一等待首次 initialized 握手完成', async () => {
@@ -680,6 +681,69 @@ describe('agent RPC v4 client', () => {
     await waitFor(() => replayCompleteCount === 1)
     expect(cursorExpiredCount).toBe(1)
     unsubscribe()
+  })
+
+  test('Review 读取超时会中止底层 fetch 且允许重新发起', async () => {
+    let attempts = 0
+    let aborted = false
+    const client = createAgentRpcClient({
+      timeout: method => method === 'review/summary' ? 10 : undefined,
+      fetch: async (_input, init) => {
+        const body = JSON.parse(String(init?.body)) as {
+          id?: string
+          method?: string
+        }
+        attempts += 1
+        if (attempts === 1) {
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              aborted = true
+              reject(init.signal?.reason)
+            }, { once: true })
+          })
+        }
+        return Response.json({
+          jsonrpc: '2.0',
+          id: body.id,
+          result: {
+            snapshot: {
+              projectId: 'project-1',
+              generation: 'generation-1',
+              source: { kind: 'unstaged' },
+              repositoryRoot: 'C:\\workspace',
+              headSha: null,
+              baseSha: null,
+              files: [],
+              totals: {
+                files: 0,
+                additions: 0,
+                deletions: 0,
+                changedLines: 0,
+                changedBytes: 0,
+              },
+              largeDiffMode: false,
+            },
+            cacheState: 'fresh',
+          },
+        })
+      },
+    })
+
+    const timedOut = client.call('review/summary', {
+        projectId: 'project-1',
+        source: { kind: 'unstaged' },
+      }).catch(error => error)
+    await Bun.sleep(20)
+    expect(await timedOut).toBeInstanceOf(AgentRpcTimeoutError)
+    expect(aborted).toBe(true)
+    expect(attempts).toBe(1)
+
+    const retried = await client.call('review/summary', {
+      projectId: 'project-1',
+      source: { kind: 'unstaged' },
+    })
+    expect(retried.cacheState).toBe('fresh')
+    expect(attempts).toBe(2)
   })
 
   test('游标恢复失败时重试旧游标且不会跳到 latest', async () => {

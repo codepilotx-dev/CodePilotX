@@ -6,18 +6,17 @@ import {
   ArrowUpRight,
   ChevronRight,
   CircleUser,
-  Download,
   Gauge,
   HelpCircle,
   Keyboard,
   LogOut,
   PawPrint,
-  RefreshCw,
   Settings2,
   Sparkles,
 } from "lucide-react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
+import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type {
@@ -30,8 +29,8 @@ import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
 import {
-  buildDesktopUpdateMenuModel,
-  runDesktopUpdateMenuAction,
+  buildDesktopUpdateIndicatorModel,
+  runDesktopUpdateIndicatorAction,
   startDesktopUpdateMonitoring,
 } from './desktopUpdateMenu.js'
 import {
@@ -94,11 +93,17 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const usageAvailable = Boolean(configuredProviderID && model);
   const petEnabled = draft.values.pet.enabled;
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null)
-  const updateMenu = buildDesktopUpdateMenuModel(updateStatus)
+  const updateIndicator = buildDesktopUpdateIndicatorModel(updateStatus)
 
   useEffect(() => {
     return startDesktopUpdateMonitoring(desktopClient, setUpdateStatus)
   }, [])
+
+  useEffect(() => {
+    if (updateIndicator.visible) {
+      setHelpMenuOpen(false)
+    }
+  }, [updateIndicator.visible])
 
   const refreshUsage = useCallback(async (): Promise<void> => {
     setUsage(previous => ({ ...previous, loading: true, error: null }));
@@ -215,14 +220,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             className="sidebar-settings-link"
             labelClassName={cx('sidebar-settings-label', 'u-min-w-0', 'u-truncate')}
             layout="flex"
-            leading={
-              <span className="sidebar-settings-icon-wrap">
-                <Settings2 aria-hidden="true" size={APP_ICON_SIZE} />
-                {updateStatus?.phase === 'available' ? (
-                  <span className="sidebar-update-dot" />
-                ) : null}
-              </span>
-            }
+            leading={<Settings2 aria-hidden="true" size={APP_ICON_SIZE} />}
           >
             <button className="sidebar-footer-trigger" type="button">
               设置
@@ -378,25 +376,6 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             设置
           </PopoverItem>
           <PopoverItem
-            disabled={updateMenu.disabled}
-            icon={
-              updateMenu.icon === 'download'
-                ? <Download size={APP_ICON_SIZE} />
-                : <RefreshCw size={APP_ICON_SIZE} />
-            }
-            onClick={() => {
-              void runDesktopUpdateMenuAction(desktopClient, updateMenu.action)
-                .catch(() => {
-                setUpdateStatus({
-                  phase: 'error',
-                  message: '更新操作失败，请稍后重试',
-                })
-              })
-            }}
-          >
-            {updateMenu.label}
-          </PopoverItem>
-          <PopoverItem
             icon={<LogOut size={APP_ICON_SIZE} />}
             onClick={() => {
               setMenuOpen(false);
@@ -407,51 +386,81 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           </PopoverItem>
         </div>
       </PopoverMenu>
-      <PopoverMenu
-        align="end"
-        className="popover-sidebar-help popover-menu--grid"
-        open={helpMenuOpen}
-        side="top"
-        width={180}
-        trigger={
-          <IconButton
-            className="sidebar-help-button"
-            ref={helpMenuTriggerRef}
-            title="帮助"
+      <div className="sidebar-footer-status-slot">
+        {updateIndicator.visible ? (
+          <Button
+            aria-label={updateIndicator.ariaLabel}
+            className="sidebar-update-indicator"
+            data-phase={updateIndicator.phase}
+            disabled={updateIndicator.disabled}
+            onClick={() => {
+              if (!updateIndicator.action) {
+                return
+              }
+              void runDesktopUpdateIndicatorAction(
+                desktopClient,
+                updateIndicator.action,
+              ).catch(() => {
+                setUpdateStatus({
+                  phase: 'error',
+                  message: '更新操作失败，请稍后重试',
+                })
+              })
+            }}
           >
-            <HelpCircle size={APP_ICON_SIZE} />
-          </IconButton>
-        }
-        onOpenChange={setHelpMenuOpen}
-      >
-        <PopoverItem
-          icon={<Sparkles size={APP_ICON_SIZE} />}
-          onClick={() => {
-            setHelpMenuOpen(false)
-            onOpenWhatsNew(helpMenuTriggerRef.current)
-          }}
-        >
-          新特性
-        </PopoverItem>
-        <PopoverItem
-          icon={<Keyboard size={APP_ICON_SIZE} />}
-          onClick={() => {
-            setHelpMenuOpen(false)
-            navigate('/settings/shortcuts')
-          }}
-        >
-          键盘快捷键
-        </PopoverItem>
-        <PopoverItem
-          icon={<Settings2 size={APP_ICON_SIZE} />}
-          onClick={() => {
-            setHelpMenuOpen(false)
-            navigate('/settings/general')
-          }}
-        >
-          帮助与设置
-        </PopoverItem>
-      </PopoverMenu>
+            {updateIndicator.label}
+          </Button>
+        ) : (
+          <PopoverMenu
+            align="end"
+            className="popover-sidebar-help popover-menu--grid"
+            open={helpMenuOpen}
+            side="top"
+            width={180}
+            trigger={
+              <IconButton
+                className="sidebar-help-button"
+                ref={helpMenuTriggerRef}
+                title="帮助"
+              >
+                <HelpCircle size={APP_ICON_SIZE} />
+              </IconButton>
+            }
+            onOpenChange={setHelpMenuOpen}
+          >
+            <PopoverItem
+              icon={<Sparkles size={APP_ICON_SIZE} />}
+              onClick={() => {
+                setHelpMenuOpen(false)
+                onOpenWhatsNew(helpMenuTriggerRef.current)
+              }}
+            >
+              新特性
+            </PopoverItem>
+            <PopoverItem
+              icon={<Keyboard size={APP_ICON_SIZE} />}
+              onClick={() => {
+                setHelpMenuOpen(false)
+                navigate('/settings/shortcuts')
+              }}
+            >
+              键盘快捷键
+            </PopoverItem>
+            <PopoverItem
+              icon={<Settings2 size={APP_ICON_SIZE} />}
+              onClick={() => {
+                setHelpMenuOpen(false)
+                navigate('/settings/general')
+              }}
+            >
+              帮助与设置
+            </PopoverItem>
+          </PopoverMenu>
+        )}
+      </div>
+      <span aria-atomic="true" aria-live="polite" className="u-sr-only">
+        {updateIndicator.announcement}
+      </span>
     </footer>
   );
 });

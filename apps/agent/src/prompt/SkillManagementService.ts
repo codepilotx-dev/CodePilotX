@@ -124,7 +124,7 @@ export class SkillManagementService {
           : null
         const target = workspaceRoot
           ? {
-              filePath: join(workspaceRoot, ".codepilotx", "config.toml"),
+              filePath: join(workspaceRoot, ".codepilotx", "config.json"),
               cwd: workspaceRoot,
             }
           : {}

@@ -525,7 +525,7 @@ export const parsePiProviderCatalog = (
 
 /**
  * Validates the camelCase RPC definition and returns the canonical
- * config.toml table payload. Callers still write it through ConfigService
+ * config.json object payload. Callers still write it through ConfigService
  * key paths so unrelated and future keys remain untouched.
  */
 export const serializePiProviderDefinition = (

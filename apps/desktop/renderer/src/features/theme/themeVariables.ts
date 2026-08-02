@@ -1,3 +1,4 @@
+import { DEFAULT_UI_FONT } from '../../../shared/theme.js'
 import type { DesktopThemeConfigV1 } from '../../../shared/types.js'
 
 export type ThemeVariableName = `--${string}`
@@ -73,10 +74,9 @@ export function deriveThemeVariables(
   })
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
   const shadowResting = 'none'
-  const shadowRaised =
-    '0 2px 8px color-mix(in srgb, var(--color-token-foreground) 4%, transparent)'
+  const shadowRaised = '0 1px 3px -1px rgb(0 0 0 / 14%)'
   const shadowFloat =
-    '0 8px 24px color-mix(in srgb, var(--color-token-foreground) 7%, transparent), 0 2px 6px color-mix(in srgb, var(--color-token-foreground) 4%, transparent)'
+    '0 8px 20px -8px rgb(0 0 0 / 28%), 0 2px 6px -3px rgb(0 0 0 / 18%)'
 
   return {
     '--codex-base-accent': theme.accent,
@@ -103,15 +103,11 @@ export function deriveThemeVariables(
     '--shadow-resting': shadowResting,
     '--shadow-raised': shadowRaised,
     '--shadow-float': shadowFloat,
-    '--font-family-sans':
-      theme.fonts.ui ??
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    '--font-family-sans': theme.fonts.ui ?? DEFAULT_UI_FONT,
     '--font-family-mono':
       theme.fonts.code ??
       '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
-    '--vscode-font-family':
-      theme.fonts.ui ??
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    '--vscode-font-family': theme.fonts.ui ?? DEFAULT_UI_FONT,
     '--vscode-editor-font-family':
       theme.fonts.code ??
       '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',

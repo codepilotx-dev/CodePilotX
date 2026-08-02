@@ -67,6 +67,8 @@ const modelUsage = (value: unknown): Extract<Item, { type: "text" }>["usage"] =>
   }
 }
 const activityCommandStatus = (value: unknown): "success" | "running" | "error" | "interrupted" | undefined => value === "success" || value === "running" || value === "error" || value === "interrupted" ? value : undefined
+const toolLeaf = (tool: string) => tool.toLowerCase().split(".").at(-1) ?? tool.toLowerCase()
+const isFileMutationTool = (tool: string) => ["edit", "write", "apply_patch"].includes(toolLeaf(tool))
 const activityCommands = (value: unknown): Extract<Item, { type: "activity" }>["commands"] => {
   if (!Array.isArray(value)) return undefined
   const commands = value.flatMap((entry) => {
@@ -525,7 +527,18 @@ export class ThreadProjection {
   }
 
   list(params: { projectID?: string; archived?: boolean; limit?: number } = {}) {
-    const where: string[] = ["t.kind = 'main'"]
+    const where: string[] = [
+      "t.kind = 'main'",
+      "(t.archived_at IS NULL OR t.archived_at <> -1)",
+      `NOT EXISTS (
+        SELECT 1
+        FROM thread_forks AS pending_fork
+        JOIN thread_handoff_operations AS pending_handoff
+          ON pending_handoff.operation_id = pending_fork.operation_id
+        WHERE pending_fork.target_thread_id = t.id
+          AND pending_handoff.status <> 'completed'
+      )`,
+    ]
     const values: Array<string | number | null> = []
     if (params.projectID !== undefined) {
       where.push("t.project_id = ?")
@@ -608,7 +621,14 @@ export class ThreadProjection {
       const toolName = asText(item.data.tool ?? item.data.toolName) ?? "tool"
       const input = item.data.input ?? item.data.inputText ?? null
       const terminal = item.status === "completed" || item.status === "error" || item.status === "interrupted"
-      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID: asText(item.data.callID) ?? item.id, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: asText(item.data.command), output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, ...order, createdAt: item.createdAt }
+      const callID = asText(item.data.callID) ?? item.id
+      const execution = item.status === "completed" && isFileMutationTool(toolName)
+        ? this.db.getAgentExecution(item.agentID)
+        : null
+      const mutationDiffPaths = execution
+        ? this.db.repositories.turnPatches.diffPathsForToolCall(execution.threadID, callID)
+        : []
+      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: asText(item.data.command), output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, ...(mutationDiffPaths.length ? { mutationDiffPaths } : {}), ...order, createdAt: item.createdAt }
     }
     if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
     if (item.type === "execution-plan") {
@@ -639,7 +659,34 @@ export class ThreadProjection {
       const options = Array.isArray(item.data.options) ? item.data.options.filter((value): value is string => typeof value === "string") : []
       return { id: item.id, messageID, turnId: item.turnID, agentId, type: "question", prompt: asText(item.data.question) ?? "需要你的选择", choices: options.map((label, index) => ({ id: String(index), label, recommended: index === 0 })), status: item.status === "pending" ? "pending" : item.status === "interrupted" ? "cancelled" : "answered", answer: asText(item.data.answer), ...order, createdAt: item.createdAt }
     }
-    if (item.type === "patch") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "patch", files: Array.isArray(item.data.files) ? item.data.files as Extract<Item, { type: "patch" }>["files"] : [], totalAdditions: Number(item.data.totalAdditions ?? item.data.additions ?? 0), totalDeletions: Number(item.data.totalDeletions ?? item.data.deletions ?? 0), ...order, createdAt: item.createdAt }
+    if (item.type === "patch") {
+      const patchState = this.db.repositories.turnPatches.getByTurn(item.turnID)
+      return {
+        id: item.id,
+        messageID,
+        turnId: item.turnID,
+        agentId,
+        type: "patch",
+        files: Array.isArray(item.data.files) ? item.data.files as Extract<Item, { type: "patch" }>["files"] : [],
+        totalAdditions: Number(item.data.totalAdditions ?? item.data.additions ?? 0),
+        totalDeletions: Number(item.data.totalDeletions ?? item.data.deletions ?? 0),
+        ...(patchState
+          ? patchState.evidenceComplete ? { reversible: true } : {}
+          : item.data.reversible === true ? { reversible: true } : {}),
+        ...(patchState
+          ? { applyState: patchState.applyState }
+          : item.data.applyState === "applied" || item.data.applyState === "undone"
+            ? { applyState: item.data.applyState }
+            : {}),
+        ...(patchState
+          ? { actionVersion: patchState.actionVersion }
+          : typeof item.data.actionVersion === "number"
+            ? { actionVersion: item.data.actionVersion }
+            : {}),
+        ...order,
+        createdAt: item.createdAt,
+      }
+    }
     if (item.type === "subagent") {
       const rawStatus = String(item.data.status).replaceAll("_", "-")
       const subagentStatus = ["queued", "preparing", "running", "steering", "waiting-question", "waiting-permission", "completed", "failed", "stopped", "interrupted"].includes(rawStatus)
