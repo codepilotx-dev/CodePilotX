@@ -162,35 +162,9 @@
 
 .workflow-plan-card__body .md-body {
   color: var(--color-token-foreground);
-  font-size: var(--type-message);
 
   h1:first-child {
     display: none;
-  }
-
-  h2,
-  h3 {
-    margin: 12px 0 8px;
-    font-size: var(--type-section-title);
-    font-weight: var(--font-weight-label);
-  }
-
-  ul {
-    margin-top: 0;
-    padding-left: 22px;
-  }
-
-  li {
-    margin-bottom: 6px;
-  }
-
-  code:not(pre code) {
-    border-radius: var(--radius-2);
-    background: color-mix(
-      in srgb,
-      var(--color-token-main-surface-primary) 72%,
-      var(--color-token-border-light)
-    );
   }
 }
 

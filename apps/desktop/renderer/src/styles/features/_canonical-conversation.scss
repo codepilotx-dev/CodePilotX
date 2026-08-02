@@ -639,60 +639,6 @@
   }
 }
 
-/* Tighter markdown spacing for result paragraphs */
-.canonical-text-item--result .md-body,
-.canonical-text-item--process .md-body {
-  p {
-    margin: 3px 0;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    margin-top: 20px;
-    margin-bottom: 10px;
-    font-weight: 600;
-  }
-
-  ul,
-  ol {
-    padding-left: 21px;
-  }
-
-  li {
-    margin: 8px 0;
-
-    > p {
-      margin: 0;
-    }
-  }
-
-  blockquote {
-    margin: 0 0 11px;
-    padding: 0 0 0 12px;
-    border-left: 4px solid var(--color-token-border);
-    background: transparent;
-    border-radius: 0;
-  }
-
-  hr {
-    margin: 28px 0;
-  }
-
-  :not(pre) > code {
-    padding: 1px 6px;
-    border-radius: 6px;
-    background: color-mix(
-      in srgb,
-      var(--color-token-foreground) 5%,
-      transparent
-    );
-  }
-}
-
 .canonical-process-card {
   min-width: 0;
   color: var(--color-token-text-secondary);

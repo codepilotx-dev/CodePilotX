@@ -431,8 +431,16 @@
     margin: 0;
   }
 
+  li + li {
+    margin-top: 0;
+  }
+
   p + p {
     margin-top: 4px;
+  }
+
+  .md-lead-description__detail {
+    margin-top: 0;
   }
 
   ul,
