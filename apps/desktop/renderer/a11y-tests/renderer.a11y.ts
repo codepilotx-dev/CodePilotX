@@ -42,6 +42,21 @@ async function preparePage(page: Page, route: string): Promise<void> {
   await closeTransientErrorToast(page)
 }
 
+test.beforeAll(async ({ browser }, testInfo) => {
+  testInfo.setTimeout(120_000)
+  const baseURL = testInfo.project.use.baseURL
+  if (typeof baseURL !== 'string') {
+    throw new Error('a11y Playwright 配置缺少 baseURL')
+  }
+
+  const page = await browser.newPage({ baseURL })
+  try {
+    await preparePage(page, '/?visualCase=empty#/new')
+  } finally {
+    await page.close()
+  }
+})
+
 async function expectNoWcagViolations(
   page: Page,
   testInfo: TestInfo,
