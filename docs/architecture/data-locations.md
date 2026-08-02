@@ -9,15 +9,19 @@ CodePilotX 将持久化内容分为用户数据、工作区配置、Electron 状
 用户数据根包括：
 
 - `history.sqlite`、`profile.sqlite` 及其 WAL/SHM；
+- 可移植的 `config.json` 和 `profiles\<id>.json`；
+- 选择明文 Provider 凭据仓库时使用的 `auth.json`；
 - `pi-models.cache.json`（Pi 模型目录缓存；旧 `models.cache.json` 仅原样保留，不再读取）；
 - 全局 `hooks.json` 和 `skills`；
 - `attachments`、`pets`、`tooling`、`workspaces`；
 - Agent `logs`；
 - 不含绝对路径的数据迁移标记。
 
-其中数据库、附件、全局配置和已安装宠物应备份。模型目录缓存、Agent 日志、可重新安装的托管工具以及已结束的隔离工作树可重建，但迁移时仍会保留。
+换机时可以备份 `config.json` 和 `profiles`。若选择 `auth.json` 凭据仓库，还可以一并迁移 `auth.json`，但它包含明文 Provider API Key/OAuth，必须按敏感文件保护；使用 Windows 加密仓库时凭据不可通过复制文件迁移。数据库、附件和已安装宠物是否备份取决于是否需要保留历史任务与本机状态。模型目录缓存、Agent 日志、可重新安装的托管工具以及已结束的隔离工作树可重建。
 
-API Key 与 OAuth 值以密文保存在 `profile.sqlite`，主密钥由 Windows 系统凭据库保管。迁移数据库不会导出主密钥或明文凭据。
+Provider API Key 与 OAuth 值可以保存在 `auth.json`，或以密文保存在 `profile.sqlite` 且主密钥由 Windows 系统凭据库保管。GitHub、MCP OAuth、用量和订阅凭据始终留在加密仓库。迁移数据库不会导出主密钥或明文凭据。
+
+项目可信状态、最近项目、活动工作区和侧栏布局属于机器本地状态，保存在 `profile.sqlite`，不得写回或同步到 `config.json`。完整的配置分层与 Profile 契约见 [多端配置架构](./configuration.md)。
 
 ## 工作区配置
 
@@ -25,6 +29,7 @@ API Key 与 OAuth 值以密文保存在 `profile.sqlite`，主密钥由 Windows 
 
 ```text
 .codepilotx\
+  config.json
   hooks.json
   skills\
     <name>\
@@ -33,7 +38,7 @@ API Key 与 OAuth 值以密文保存在 `profile.sqlite`，主密钥由 Windows 
       assets\
 ```
 
-项目 Hook 执行前必须通过现有信任确认。CodePilotX 兼容读取工作区的 `.agents\skills`、`.codex\skills` 和 `.claude\skills`，但不管理这些目录。
+项目 `config.json` 和 Hook 只有在项目来源受信任后才会参与合并或执行；信任记录保存在本机数据库，不随仓库同步。CodePilotX 兼容读取工作区的 `.agents\skills`、`.codex\skills` 和 `.claude\skills`，但不管理这些目录。
 
 数据库、日志、附件、宠物、工具链、记忆、UI 状态和子 Agent worktree 不得写入工作区 `.codepilotx`。项目记忆保存在用户数据库中，并以规范化工作区路径的哈希隔离。
 

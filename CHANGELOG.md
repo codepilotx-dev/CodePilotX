@@ -9,6 +9,7 @@
 
 ### Added
 
+- [Agent/desktop/renderer] 新增共享的 JSON/JSONC Profile v1 分层、结构化写入目标及 Profile 列表/选择 RPC，让桌面端和后续 CLI/TUI 使用同一配置真源并明确提示重启生效
 - [desktop/renderer/test] 新增 1200 个真实修改文件、500 轮长会话、30 个任务与三个真实 Agent 会话并发写入时的 Electron 拖动性能验收
 - [Agent/renderer] 修改文件卡片新增三文件折叠、Review 文件定位及基于精确文件状态校验的撤销与重新应用
 - [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
@@ -20,6 +21,7 @@
 
 ### Changed
 
+- [Agent] 将旧项目可信记录和桌面运行状态从可迁移 `config.json` 幂等搬入机器本地 SQLite，并保留 JSONC 注释、未知字段与多端并发写入语义
 - [Agent/renderer] 将会话工具行的展开指示器移至摘要内容后方，并支持按文件展开单次编辑产生的逐行 Diff，旧记录缺少完整证据时保持不可展开
 - [desktop/renderer] 将侧栏产品模式菜单扩展为 Coding、Working、Chat 三个可持久化占位入口，并补充 Codex 风格的两行功能说明
 - [renderer] 按 Codex 的信息层级重组配置来源、智能体默认设置和诊断区域，统一下拉框摆放并消除重复审批名称
@@ -48,6 +50,7 @@
 
 ### Fixed
 
+- [Agent/desktop] 桌面设置保存只写相对有效配置真正变化的叶子，避免修改侧栏或外观时把 Profile 覆盖值物化回用户配置
 - [renderer] 修复新对话首条消息在路由切换间隙复用已消费 inputId 的问题，避免后续新任务提示“inputId 已被其他请求使用”。
 - [renderer] 修复 Composer 胶囊未按当前对话接入真实 Git Diff 统计，并移除单条命令的冗余命令组展示
 - [Agent/renderer] 修复开发态首次进入会话时 Vite 瞬时 504 被懒加载缓存为持续错误的问题，增加代理有限重试与单次自动重载兜底
@@ -93,6 +96,7 @@
 
 ### Security
 
+- [Agent] Profile 禁止保存 Provider 凭据、MCP、Hook 和机器设施配置，项目向上查找同时排除用户 `config.json`，避免可移植文件携带秘密或被误判为项目来源
 - [agent] Git 命令统一采用字面 pathspec、流式输出限制和公开错误 allowlist，阻止批量 Review 路径扩展、未跟踪符号链接越界读取及 stderr 敏感信息泄露
 - [ci] 安全 CI 仅在 PR 上运行，避免同一提交的 push 与 pull_request 使用相同检查上下文时，非门禁 push 抖动错误阻塞受保护分支合并；CodeQL 仍扫描受保护分支 push
 - [ci] 新增覆盖版本一致性、High/Critical 依赖审计、类型检查、单元测试、Renderer CSS 规则和全仓构建的 Windows CI，并通过最小权限、不可变 Actions 提交、禁用持久凭据、超时与并发取消降低供应链风险
