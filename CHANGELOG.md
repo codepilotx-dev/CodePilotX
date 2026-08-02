@@ -66,6 +66,7 @@
 
 ### Fixed
 
+- [Auth Broker/test] 并发 PKCE 交换测试按响应状态识别唯一成功请求，不再假定 Promise.all 中第一个请求必定先取得 attempt，避免不同 runner 调度顺序造成误报
 - [Agent/release] Local environment 生命周期在 Windows 复用 Agent 既有的 PowerShell 可执行文件解析，优先使用可用的 pwsh 并以 SystemRoot 下 Windows PowerShell 回退，避免 release runner 的服务 PATH 缺少 powershell.exe 时 setup 误报失败
 - [release] Prepare 在 detached worktree 中直接创建并推送签名提交，不再于持久 Windows runner 留下本地发布分支，避免 dry-run 失败后重试及后续正式发布被同名分支阻断
 - [Agent/test] ConfigService 关闭时等待文件 watcher 完成释放，配置迁移测试复用数据库 reset 的 GC 辅助有界 EBUSY 重试，避免 Windows 句柄滞留误报失败
