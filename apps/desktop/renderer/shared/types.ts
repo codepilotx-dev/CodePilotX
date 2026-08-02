@@ -993,6 +993,8 @@ gitBranchPrefix: string
 export type DesktopConfigReadResult = RpcResult<'config/read'>
 export type DesktopConfigBatchWriteParams = RpcParams<'config/batchWrite'>
 export type DesktopConfigWriteResult = RpcResult<'config/batchWrite'>
+export type DesktopConfigProfileListResult = RpcResult<'config/profile/list'>
+export type DesktopConfigProfileSelectResult = RpcResult<'config/profile/select'>
 
 export type DesktopMcpScope = McpScope
 export type DesktopEditableMcpScope = McpScope
@@ -1630,6 +1632,8 @@ export type DesktopApi = {
   deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   readConfig(params?: RpcParams<'config/read'>): Promise<DesktopConfigReadResult>
   writeConfigBatch(params: DesktopConfigBatchWriteParams): Promise<DesktopConfigWriteResult>
+  listConfigProfiles(): Promise<DesktopConfigProfileListResult>
+  selectConfigProfile(profileId: string | null): Promise<DesktopConfigProfileSelectResult>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
   listProjectMemories(workspacePath: string): Promise<DesktopProjectMemoryListing>

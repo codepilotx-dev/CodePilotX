@@ -137,6 +137,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     desktop: { ...settings } as unknown as JsonValue,
   }
   let configVersion = '0'.repeat(64)
+  let selectedProfile: string | null = null
   let themeSettings: DesktopThemeSettings = readBrowserThemeSettings(storage)
   let browserState: DesktopBrowserState = emptyBrowserState()
   let githubLoginMode: DesktopGithubAuthMode = 'browser'
@@ -292,6 +293,11 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
           }
         : {}),
       diagnostics: [],
+      profileState: {
+        activeProfile: null,
+        selectedProfile,
+        restartRequired: selectedProfile !== null,
+      },
     }),
     writeConfigBatch: async params => {
       for (const edit of params.edits) {
@@ -310,6 +316,31 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
         status: 'ok',
         version: configVersion,
         filePath: params.filePath ?? 'C:/Users/mock/.codepilotx/config.json',
+      }
+    },
+    listConfigProfiles: async () => ({
+      profileState: {
+        activeProfile: null,
+        selectedProfile,
+        restartRequired: selectedProfile !== null,
+      },
+      profiles: [],
+      profilesDirectory: 'C:/Users/mock/.codepilotx/profiles',
+    }),
+    selectConfigProfile: async profileId => {
+      selectedProfile = profileId
+      if (profileId === null) delete configDocument.profile
+      else configDocument.profile = profileId
+      configVersion = (configVersion[0] === '0' ? '1' : '0').repeat(64)
+      return {
+        status: 'ok',
+        version: configVersion,
+        filePath: 'C:/Users/mock/.codepilotx/config.json',
+        profileState: {
+          activeProfile: null,
+          selectedProfile,
+          restartRequired: selectedProfile !== null,
+        },
       }
     },
     getDesktopSettings: async () => settings,

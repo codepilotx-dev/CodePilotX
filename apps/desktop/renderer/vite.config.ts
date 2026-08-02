@@ -5,7 +5,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-const NEW_ROUTE_GZIP_BUDGET = 362 * 1024
+// Profile v1 adds two formal RPC result decoders to the shared typed client.
+const NEW_ROUTE_GZIP_BUDGET_KIB = 365
+const NEW_ROUTE_GZIP_BUDGET = NEW_ROUTE_GZIP_BUDGET_KIB * 1024
 const INITIAL_CSS_RAW_BUDGET = 460 * 1024
 const rootPackage = JSON.parse(
   readFileSync(resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8'),
@@ -92,7 +94,7 @@ function routeBundleBudget(): Plugin {
       }
       if (gzipBytes > NEW_ROUTE_GZIP_BUDGET) {
         this.error(
-            `/new immediate JS exceeds budget (${(gzipBytes / 1024).toFixed(1)} KiB gzip; limit 362 KiB)`,
+            `/new immediate JS exceeds budget (${(gzipBytes / 1024).toFixed(1)} KiB gzip; limit ${NEW_ROUTE_GZIP_BUDGET_KIB} KiB)`,
         )
       }
       if (initialCssBytes > INITIAL_CSS_RAW_BUDGET) {
