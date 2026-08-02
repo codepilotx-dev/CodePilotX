@@ -1,3 +1,4 @@
+import { DEFAULT_UI_FONT } from '../../../shared/theme.js'
 import type { DesktopThemeConfigV1 } from '../../../shared/types.js'
 
 export type ThemeVariableName = `--${string}`
@@ -102,15 +103,11 @@ export function deriveThemeVariables(
     '--shadow-resting': shadowResting,
     '--shadow-raised': shadowRaised,
     '--shadow-float': shadowFloat,
-    '--font-family-sans':
-      theme.fonts.ui ??
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    '--font-family-sans': theme.fonts.ui ?? DEFAULT_UI_FONT,
     '--font-family-mono':
       theme.fonts.code ??
       '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
-    '--vscode-font-family':
-      theme.fonts.ui ??
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    '--vscode-font-family': theme.fonts.ui ?? DEFAULT_UI_FONT,
     '--vscode-editor-font-family':
       theme.fonts.code ??
       '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',

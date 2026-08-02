@@ -4,12 +4,51 @@ import {
   DEFAULT_DARK_THEME,
   DEFAULT_DESKTOP_THEME_SETTINGS,
   DEFAULT_LIGHT_THEME,
+  DEFAULT_UI_FONT,
   getCodeThemeSelectionForVariant,
   normalizeDesktopThemeSettings,
 } from '../shared/theme.js'
 import { deriveThemeVariables } from '../src/features/theme/themeVariables.js'
 
 describe('fixed Codex UI themes', () => {
+  test('uses the Codex system font stack with canonical semantic weights', async () => {
+    const variables = deriveThemeVariables(DEFAULT_DARK_THEME)
+    const customFont = 'Inter, sans-serif'
+    const customVariables = deriveThemeVariables({
+      ...DEFAULT_DARK_THEME,
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        fonts: {
+          ...DEFAULT_DARK_THEME.theme.fonts,
+          ui: customFont,
+        },
+      },
+    })
+
+    expect(variables['--font-family-sans']).toBe(DEFAULT_UI_FONT)
+    expect(variables['--vscode-font-family']).toBe(DEFAULT_UI_FONT)
+    expect(customVariables['--font-family-sans']).toBe(customFont)
+    expect(customVariables['--vscode-font-family']).toBe(customFont)
+
+    const stylesheet = await Bun.file(
+      new URL(
+        '../src/styles/design-system/tokens.scss',
+        import.meta.url,
+      ),
+    ).text()
+    const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
+
+    expect(normalizedStylesheet).toContain(
+      `--font-family-sans: ${DEFAULT_UI_FONT};`,
+    )
+    expect(normalizedStylesheet).toContain('--font-weight-body: 400;')
+    expect(normalizedStylesheet).toContain('--font-weight-label: 500;')
+    expect(normalizedStylesheet).toContain('--font-weight-heading: 600;')
+    expect(normalizedStylesheet).toContain('--font-weight-emphasis: 600;')
+    expect(normalizedStylesheet).not.toContain('--font-weight-body: 445;')
+    expect(normalizedStylesheet).not.toContain('--font-weight-heading: 560;')
+  })
+
   test('locks the Codex light and dark semantic surfaces', () => {
     const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
