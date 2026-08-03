@@ -1,4 +1,5 @@
 import { parse } from "yaml";
+import { basenameEnvPath } from "./path-utils.ts";
 import { type ExecutionEnv, type FileInfo, type PromptTemplate, type Result, toError } from "./types.ts";
 
 export type PromptTemplateDiagnosticCode = "file_info_failed" | "list_failed" | "read_failed" | "parse_failed";
@@ -211,12 +212,6 @@ function parseFrontmatter<T extends Record<string, unknown>>(
 	} catch (error) {
 		return { ok: false, error: toError(error) };
 	}
-}
-
-function basenameEnvPath(path: string): string {
-	const normalized = path.replace(/\/+$/, "");
-	const slashIndex = normalized.lastIndexOf("/");
-	return slashIndex === -1 ? normalized : normalized.slice(slashIndex + 1);
 }
 
 /** Parse an argument string using simple shell-style single and double quotes. */

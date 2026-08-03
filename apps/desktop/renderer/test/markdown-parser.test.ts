@@ -101,6 +101,21 @@ describe('markdown parser', () => {
     })
   })
 
+  test('parses long escaped directive attributes without regex backtracking', () => {
+    const escaped = '\\!'.repeat(20_000)
+    const source =
+      '::code-comment{title="' + escaped + '" file="src/main.ts"}\n'
+    const [directive] = lexMarkdown(source)
+
+    expect(directive).toMatchObject({
+      type: 'directive',
+      attributes: {
+        title: escaped,
+        file: 'src/main.ts',
+      },
+    })
+  })
+
   test('keeps completed streaming prefixes separate from pending prose', () => {
     expect(segmentStreamingMarkdown('done\n\npending')).toEqual({
       kind: 'text',

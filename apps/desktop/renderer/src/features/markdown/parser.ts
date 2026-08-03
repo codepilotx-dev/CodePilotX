@@ -273,14 +273,77 @@ function readDirectiveBlock(
 
 function parseDirectiveAttributes(source: string): Record<string, string> {
   const attributes: Record<string, string> = {}
-  const pattern =
-    /([a-zA-Z][\w-]*)=(?:"((?:\\.|[^"])*)"|'((?:\\.|[^'])*)'|([^\s]+))/gu
-  for (const match of source.matchAll(pattern)) {
-    const key = match[1].toLowerCase()
-    const value = match[2] ?? match[3] ?? match[4] ?? ''
-    attributes[key] = value.replace(/\\(["'\\])/gu, '$1')
+  let cursor = 0
+  while (cursor < source.length) {
+    while (cursor < source.length && isAttributeWhitespace(source[cursor])) {
+      cursor += 1
+    }
+    if (!isAsciiLetter(source.charCodeAt(cursor))) {
+      cursor += 1
+      continue
+    }
+    const keyStart = cursor
+    cursor += 1
+    while (
+      cursor < source.length
+      && isAttributeNameCode(source.charCodeAt(cursor))
+    ) {
+      cursor += 1
+    }
+    const key = source.slice(keyStart, cursor).toLowerCase()
+    if (source[cursor] !== '=') continue
+    cursor += 1
+    if (cursor >= source.length) continue
+
+    const quote = source[cursor] === '"' || source[cursor] === "'"
+      ? source[cursor]
+      : null
+    if (quote) cursor += 1
+    let value = ''
+    let closed = quote === null
+    while (cursor < source.length) {
+      const char = source[cursor]
+      if (quote && char === quote) {
+        cursor += 1
+        closed = true
+        break
+      }
+      if (!quote && isAttributeWhitespace(char)) break
+      if (quote && char === '\\' && cursor + 1 < source.length) {
+        const escaped = source[cursor + 1]
+        value += escaped === '"' || escaped === "'" || escaped === '\\'
+          ? escaped
+          : '\\' + escaped
+        cursor += 2
+        continue
+      }
+      value += char
+      cursor += 1
+    }
+    if (closed && (quote !== null || value.length > 0)) {
+      attributes[key] = value
+    }
   }
   return attributes
+}
+
+function isAsciiLetter(code: number): boolean {
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
+}
+
+function isAttributeNameCode(code: number): boolean {
+  return isAsciiLetter(code)
+    || (code >= 48 && code <= 57)
+    || code === 45
+    || code === 95
+}
+
+function isAttributeWhitespace(char: string | undefined): boolean {
+  return char === ' '
+    || char === '\t'
+    || char === '\r'
+    || char === '\n'
+    || char === '\f'
 }
 
 function textToken(text: string): Tokens.Text {
