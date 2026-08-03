@@ -746,10 +746,16 @@ async function createTemporaryWorktree(
       ) {
         throw new Error("拒绝清理不属于临时目录的 release worktree");
       }
-      await git(["worktree", "remove", "--force", path], ROOT, {
-        allowFailure: true,
-      });
-      await rm(parent, { recursive: true, force: true });
+      const status = (await git([
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+      ], path)).stdout.trim();
+      if (status) {
+        throw new Error("release worktree 存在 tracked/untracked 变更，拒绝自动清理");
+      }
+      await git(["worktree", "remove", path], ROOT);
+      await rm(parent);
       await git(["worktree", "prune"], ROOT, { allowFailure: true });
     },
   };

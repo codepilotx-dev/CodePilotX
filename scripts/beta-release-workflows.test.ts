@@ -87,6 +87,19 @@ describe("beta release workflows", () => {
     );
   });
 
+  test("temporary release worktree is removed only after a clean status check", () => {
+    expect(betaReleaseScript).toContain('"--untracked-files=all"');
+    expect(betaReleaseScript).toContain(
+      'git(["worktree", "remove", path], ROOT)',
+    );
+    expect(betaReleaseScript).not.toContain(
+      'git(["worktree", "remove", "--force", path]',
+    );
+    expect(betaReleaseScript).not.toContain(
+      'rm(parent, { recursive: true, force: true })',
+    );
+  });
+
   test("manual finalize targets one merge SHA and only schedules reconcile", () => {
     expect(finalizeWorkflow).toContain(
       'if ($env:GITHUB_EVENT_NAME -eq "schedule")',
