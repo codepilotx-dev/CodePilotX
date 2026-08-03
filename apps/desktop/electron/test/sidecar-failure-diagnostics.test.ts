@@ -4,6 +4,7 @@ import {
   isSidecarFailureCode,
   readSidecarFailureCode,
 } from "../src/sidecar/failure-diagnostics"
+import { resolveDocumentsDirectory } from "../src/sidecar/documents-directory"
 
 describe("Sidecar 安全失败诊断", () => {
   test("只接受固定阶段与错误码", () => {
@@ -20,5 +21,12 @@ describe("Sidecar 安全失败诊断", () => {
     )
     expect(readSidecarFailureCode(error)).toBe("unknown")
     expect(readSidecarFailureCode({ code: "EINVAL" })).toBe("EINVAL")
+  })
+
+  test("Windows 服务账户缺少 Documents 已知目录时回退到 home", () => {
+    expect(resolveDocumentsDirectory(name => {
+      if (name === "documents") throw new Error("known folder unavailable")
+      return "C:\\service-profile"
+    })).toBe("C:\\service-profile\\Documents")
   })
 })
