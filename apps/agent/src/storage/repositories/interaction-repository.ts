@@ -430,6 +430,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
           interactionResolvedPayload(
             approvalInteractionResult(checkpoint, decision, feedback, operation),
             timestamp,
+            approvalID,
           ),
         ))
         if (operation) this.saveInteractionOperation(operation)
@@ -667,6 +668,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
             interactionResolvedPayload(
               questionInteractionResult(id, parse(row.payload), answer, ignored, operation),
               timestamp,
+              id,
             ),
           ),
         ]

@@ -51,6 +51,7 @@ export type AgentPermissionRequest = {
     | 'sandbox-escalation'
     | 'full-access'
     | 'tool'
+    | 'permission-grant'
   autoReviewFallbackReason?: string
 }
 

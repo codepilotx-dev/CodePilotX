@@ -313,6 +313,9 @@ export function agentEventsFromNotification(
   if (notification.method === 'approval/requested') {
     return [{ ...base, type: 'permission_request', request: approvalParamsToRequest(params) }]
   }
+  if (notification.method === 'permission/requested') {
+    return [{ ...base, type: 'permission_request', request: permissionParamsToRequest(params) }]
+  }
   if (notification.method === 'question/requested') {
     return [{ ...base, type: 'permission_request', request: questionParamsToRequest(params) }]
   }
@@ -530,6 +533,17 @@ export function toolToRequest(item: Extract<Item, { type: 'tool' }>): DesktopPer
 }
 
 export function approvalToRequest(approval: ApprovalRequest): DesktopPermissionRequest {
+  const permissionGrant = approval.permissionGrant
+    ? {
+        requestedPermissions: {
+          readPaths: [...(approval.requestedPermissions.readPaths ?? [])],
+          writePaths: [...(approval.requestedPermissions.writePaths ?? [])],
+          networkDomains: [...(approval.requestedPermissions.networkDomains ?? [])],
+        },
+        requestedScope: approval.permissionGrant.requestedScope,
+        allowedScopes: [...approval.permissionGrant.allowedScopes],
+      }
+    : undefined
   return {
     requestId: approval.id,
     toolName: approval.tool,
@@ -542,7 +556,12 @@ export function approvalToRequest(approval: ApprovalRequest): DesktopPermissionR
       ...(approval.reviewSummary ? { reviewSummary: approval.reviewSummary } : {}),
     },
     description: approval.reason,
-    requestKind: approval.command ? 'shell-command' : 'tool',
+    requestKind: permissionGrant
+      ? 'permission-grant'
+      : approval.command
+        ? 'shell-command'
+        : 'tool',
+    ...(permissionGrant ? { permissionGrant } : {}),
   }
 }
 
@@ -576,6 +595,44 @@ function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermis
     input,
     description: stringValue(params.reason) || '需要批准工具调用',
     requestKind: command ? 'shell-command' : 'tool',
+  }
+}
+
+function permissionParamsToRequest(params: Record<string, unknown>): DesktopPermissionRequest {
+  const requested = record(params.requestedPermissions)
+  const requestedPermissions = {
+    readPaths: stringArray(requested.readPaths),
+    writePaths: stringArray(requested.writePaths),
+    networkDomains: stringArray(requested.networkDomains),
+  }
+  const rawRequestedScope = stringValue(params.requestedScope)
+  const requestedScope: 'tool-call' | 'turn' | 'session' =
+    rawRequestedScope === 'tool-call' || rawRequestedScope === 'turn' || rawRequestedScope === 'session'
+      ? rawRequestedScope
+      : 'tool-call'
+  const allowedScopes = stringArray(params.allowedScopes).filter(
+    (scope): scope is 'tool-call' | 'turn' | 'session' =>
+      scope === 'tool-call' || scope === 'turn' || scope === 'session',
+  )
+  return {
+    requestId: stringValue(params.interactionId) || stringValue(params.id),
+    toolName: stringValue(params.tool) || 'tool',
+    toolUseId: stringValue(params.toolCallId) || stringValue(params.toolCallID) || stringValue(params.itemId),
+    input: {
+      paths: [
+        ...requestedPermissions.readPaths,
+        ...requestedPermissions.writePaths,
+        ...requestedPermissions.networkDomains,
+      ],
+      risk: riskValue(params.risk),
+    },
+    description: stringValue(params.reason) || '需要额外权限',
+    requestKind: 'permission-grant',
+    permissionGrant: {
+      requestedPermissions,
+      requestedScope,
+      allowedScopes: allowedScopes.length > 0 ? allowedScopes : [requestedScope],
+    },
   }
 }
 
@@ -717,6 +774,16 @@ function record(value: unknown): Record<string, any> {
 
 function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : ''
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
+
+function riskValue(value: unknown): 'low' | 'medium' | 'high' | 'critical' {
+  return value === 'low' || value === 'medium' || value === 'high' || value === 'critical'
+    ? value
+    : 'high'
 }
 
 function nonNegativeNumber(value: unknown): number | null {

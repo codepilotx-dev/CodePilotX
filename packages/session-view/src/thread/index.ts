@@ -213,6 +213,15 @@ export function applyThreadEvent(
     return approval ? { ...snapshot, approvals: upsert(snapshot.approvals, approval) } : snapshot
   }
 
+  if (notification.method === "permission/requested") {
+    const approval = permissionFromParams(snapshot, params)
+    return approval ? { ...snapshot, approvals: upsert(snapshot.approvals, approval) } : snapshot
+  }
+
+  if (notification.method === "interaction/resolved") {
+    return resolveInteraction(snapshot, params)
+  }
+
   if (notification.method === "question/requested") {
     const question = questionFromParams(snapshot, params)
     return question ? { ...snapshot, items: upsert(snapshot.items, question) } : snapshot
@@ -473,6 +482,81 @@ function approvalFromParams(
     reason: stringValue(params.reason) ?? "需要用户确认",
     status: "pending",
     createdAt: numberValue(params.createdAt) ?? item?.createdAt ?? snapshot.thread.updatedAt,
+  }
+}
+
+function permissionFromParams(
+  snapshot: ThreadSnapshot,
+  params: Record<string, unknown>,
+): ApprovalRequest | null {
+  const id = stringValue(params.interactionId) ?? stringValue(params.id)
+  const threadId = stringValue(params.threadId) ?? snapshot.thread.id
+  const turnId = stringValue(params.turnId) ?? stringValue(params.turnID)
+  const toolCallID = stringValue(params.toolCallId) ?? stringValue(params.toolCallID) ?? stringValue(params.itemId)
+  const tool = stringValue(params.tool) ?? "tool"
+  const item = snapshot.items.find((candidate) => candidate.id === toolCallID)
+  const agentId = stringValue(params.agentId) ?? stringValue(params.agentID) ?? item?.agentId
+  if (!id || !turnId || !toolCallID || !agentId) return null
+  const requested = record(params.requestedPermissions)
+  const requestedPermissions = {
+    readPaths: stringArray(requested.readPaths),
+    writePaths: stringArray(requested.writePaths),
+    networkDomains: stringArray(requested.networkDomains),
+  }
+  const rawRequestedScope = stringValue(params.requestedScope)
+  const requestedScope = rawRequestedScope === "tool-call" || rawRequestedScope === "turn" || rawRequestedScope === "session"
+    ? rawRequestedScope
+    : "tool-call"
+  const allowedScopes = stringArray(params.allowedScopes)
+    .filter((scope): scope is "tool-call" | "turn" | "session" =>
+      scope === "tool-call" || scope === "turn" || scope === "session")
+  return {
+    id,
+    threadId,
+    turnId,
+    agentId,
+    toolCallID,
+    tool,
+    command: null,
+    cwd: null,
+    paths: [
+      ...requestedPermissions.readPaths,
+      ...requestedPermissions.writePaths,
+      ...requestedPermissions.networkDomains,
+    ],
+    requestedPermissions,
+    review: null,
+    risk: params.risk === "low" || params.risk === "medium" || params.risk === "high" || params.risk === "critical"
+      ? params.risk
+      : "high",
+    reason: stringValue(params.reason) ?? "需要额外权限",
+    status: "pending",
+    createdAt: numberValue(params.createdAt) ?? item?.createdAt ?? snapshot.thread.updatedAt,
+    permissionGrant: {
+      requestedScope,
+      allowedScopes: allowedScopes.length > 0 ? allowedScopes : [requestedScope],
+    },
+  }
+}
+
+function resolveInteraction(
+  snapshot: ThreadSnapshot,
+  params: Record<string, unknown>,
+): ThreadSnapshot {
+  const interactionId = stringValue(params.interactionId)
+  if (!interactionId) return snapshot
+  const result = record(params.result)
+  const kind = stringValue(result.kind)
+  if (kind !== "approval" && kind !== "permission") return snapshot
+  const decision = stringValue(result.decision)
+  const status = (kind === "approval" && decision === "allow-once")
+    || (kind === "permission" && decision === "grant")
+    ? "allowed" as const
+    : "denied" as const
+  return {
+    ...snapshot,
+    approvals: snapshot.approvals.map((approval) =>
+      approval.id === interactionId ? { ...approval, status } : approval),
   }
 }
 

@@ -10,6 +10,7 @@ import {
   ServerRequestResultSchema,
   ServerRequests,
 } from "../src/wire/interactions"
+import { EventManifest } from "../src/wire/events"
 import { RpcMethods } from "../src/methods/index"
 
 const responseBranches = [
@@ -220,5 +221,52 @@ describe("server request interactions", () => {
     expect(decode(request)).toEqual(request)
     expect(() => decode({ ...request, allowedScopes: [] })).toThrow()
     expect(() => decode({ ...request, requestedScope: "workspace" })).toThrow()
+  })
+
+  test("permission requests accept an optional real checkpoint risk", () => {
+    const decode = Schema.decodeUnknownSync(ServerRequests["permission/request"].params)
+    const base = {
+      kind: "permission" as const,
+      interactionId: "interaction-permission-2",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      agentId: "agent-1",
+      createdAt: 1,
+      version: 1,
+      toolCallId: "tool-call-2",
+      tool: "shell",
+      reason: "需要读取额外目录",
+      requestedPermissions: {},
+      requestedScope: "session" as const,
+      allowedScopes: ["tool-call", "turn", "session"] as const,
+    }
+
+    // Legacy durable events without risk still decode.
+    expect(decode(base)).toEqual(base)
+    for (const risk of ["low", "medium", "high", "critical"] as const) {
+      expect(decode({ ...base, risk })).toEqual({ ...base, risk })
+    }
+    expect(() => decode({ ...base, risk: "unknown" })).toThrow()
+  })
+
+  test("interaction/resolved events carry an optional interactionId for precise card closing", () => {
+    const decode = Schema.decodeUnknownSync(EventManifest["interaction/resolved"].payload)
+    const withId = {
+      interactionId: "interaction-permission-2",
+      result: {
+        kind: "permission" as const,
+        decision: "grant" as const,
+        scope: "tool-call" as const,
+        grantedPermissions: { readPaths: ["C:\\workspace"] },
+      },
+      resolvedAt: 10,
+    }
+    const legacy = {
+      result: { kind: "approval" as const, decision: "deny" as const },
+      resolvedAt: 10,
+    }
+    expect(decode(withId)).toEqual(withId)
+    // Historical replay without the identifier still decodes.
+    expect(decode(legacy)).toEqual(legacy)
   })
 })

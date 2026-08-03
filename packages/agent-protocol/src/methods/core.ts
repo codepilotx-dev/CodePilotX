@@ -171,6 +171,9 @@ export const PendingPermissionInteractionSchema = Schema.Struct({
   allowedScopes: Schema.Array(AgentThread.PermissionGrantScopeSchema)
     .check(Schema.isMinLength(1))
     .check(Schema.isMaxLength(3)),
+  // New agents always send the real checkpoint risk; old durable events may
+  // omit it, in which case consumers fall back to a high-risk presentation.
+  risk: Schema.optional(Schema.Literals(["low", "medium", "high", "critical"])),
 })
 
 export const InteractionQuestionChoiceSchema = Schema.Struct({

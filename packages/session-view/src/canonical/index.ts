@@ -578,6 +578,9 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
     case "approval/requested":
       state.approvalsById.set(payload.interactionId, approvalFromPayload(payload))
       return
+    case "permission/requested":
+      state.approvalsById.set(payload.interactionId, permissionFromPayload(payload))
+      return
     case "approval/cancelled": {
       const approval = state.approvalsById.get(payload.interactionId)
       if (approval) state.approvalsById.set(approval.id, { ...approval, status: "cancelled" })
@@ -586,11 +589,21 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
     case "question/requested":
       for (const item of questionsFromPayload(payload)) state.itemsById.set(item.id, item)
       return
-    case "interaction/resolved":
-      // The v4 event deliberately carries only the safe response payload. It does
-      // not contain an interaction identifier, so the canonical snapshot remains
-      // the source of truth for the resolved item during reconciliation.
+    case "interaction/resolved": {
+      // Newer events carry the interaction identifier so the pending approval
+      // can be closed precisely; historical events without it keep waiting for
+      // snapshot reconciliation instead of guessing which request to close.
+      if (typeof payload.interactionId !== "string") return
+      const approval = state.approvalsById.get(payload.interactionId)
+      if (!approval) return
+      const result = payload.result
+      if (result?.kind !== "approval" && result?.kind !== "permission") return
+      const status = result.kind === "approval"
+        ? result.decision === "allow-once" ? "allowed" : "denied"
+        : result.decision === "grant" ? "allowed" : "denied"
+      state.approvalsById.set(approval.id, { ...approval, status })
       return
+    }
     case "queue/updated":
       applyQueueUpdate(state, payload)
       return
@@ -668,6 +681,50 @@ function approvalFromPayload(payload: {
     reason: payload.reason,
     status: "pending",
     createdAt: payload.createdAt,
+  }
+}
+
+function permissionFromPayload(payload: {
+  interactionId: string
+  threadId: string
+  turnId: string
+  agentId: string
+  toolCallId: string
+  tool: string
+  reason: string
+  requestedPermissions: ApprovalRequest["requestedPermissions"]
+  requestedScope: "tool-call" | "turn" | "session"
+  allowedScopes: Array<"tool-call" | "turn" | "session">
+  risk?: "low" | "medium" | "high" | "critical"
+  createdAt: number
+}): ApprovalRequest {
+  // The dynamic permission card displays every requested read path, write
+  // path and network domain so the user can review the full grant surface.
+  const paths = [
+    ...(payload.requestedPermissions.readPaths ?? []),
+    ...(payload.requestedPermissions.writePaths ?? []),
+    ...(payload.requestedPermissions.networkDomains ?? []),
+  ]
+  return {
+    id: payload.interactionId,
+    threadId: payload.threadId,
+    turnId: payload.turnId,
+    agentId: payload.agentId,
+    toolCallID: payload.toolCallId,
+    tool: payload.tool,
+    command: null,
+    cwd: null,
+    paths,
+    requestedPermissions: payload.requestedPermissions,
+    review: null,
+    risk: payload.risk ?? "high",
+    reason: payload.reason,
+    status: "pending",
+    createdAt: payload.createdAt,
+    permissionGrant: {
+      requestedScope: payload.requestedScope,
+      allowedScopes: [...payload.allowedScopes],
+    },
   }
 }
 

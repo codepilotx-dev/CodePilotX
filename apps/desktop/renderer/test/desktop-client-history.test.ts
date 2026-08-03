@@ -365,6 +365,90 @@ describe('desktop history client', () => {
     expect(requests.map(request => request.body).some(body => body?.method === 'thread/delete')).toBe(true)
   })
 
+  test('responds to dynamic permission requests with grant/deny and the chosen scope', async () => {
+    const respondRequests: Array<Record<string, unknown>> = []
+    const pendingInteraction = {
+      kind: 'permission' as const,
+      interactionId: 'permission-1',
+      threadId: 'session-1',
+      turnId: 'turn-1',
+      agentId: 'agent-1',
+      createdAt: now,
+      version: 1,
+      toolCallId: 'call-perm',
+      tool: 'request_permissions',
+      reason: '需要额外权限',
+      requestedPermissions: {
+        readPaths: ['C:\\workspace\\docs'],
+        writePaths: ['C:\\workspace\\out'],
+        networkDomains: ['api.example.com'],
+      },
+      requestedScope: 'turn' as const,
+      allowedScopes: ['tool-call', 'turn'] as const,
+      risk: 'high' as const,
+    }
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${init?.method} ${path}`)
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      const rpcMethod = body?.method
+      if (rpcMethod === 'initialize') return rpc(body.id, initializedResult())
+      if (rpcMethod === 'initialized') return new Response(null, { status: 204 })
+      if (rpcMethod === 'interaction/listPending') {
+        return rpc(body.id, { interactions: [pendingInteraction], nextCursor: null })
+      }
+      if (rpcMethod === 'interaction/respond') {
+        respondRequests.push(body.params)
+        return rpc(body.id, {
+          interactionId: 'permission-1',
+          kind: 'permission',
+          state: 'resolved',
+          version: 2,
+          resolvedAt: now + 100,
+          response: body.params.response,
+        })
+      }
+      if (rpcMethod === 'thread/read') return rpc(body.id, snapshotResult(sessionSnapshot()))
+      if (rpcMethod === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
+      if (rpcMethod === 'thread/list') return rpc(body.id, { threads: [sessionItem()], nextCursor: null })
+      throw new Error(`Unhandled RPC method: ${rpcMethod}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await client.respondToPermission('session-1', 'permission-1', {
+      behavior: 'allow',
+      grantScope: 'tool-call',
+    })
+    expect(respondRequests[0]).toMatchObject({
+      interactionId: 'permission-1',
+      expectedVersion: 1,
+      response: {
+        kind: 'permission',
+        decision: 'grant',
+        scope: 'tool-call',
+        grantedPermissions: {
+          readPaths: ['C:\\workspace\\docs'],
+          writePaths: ['C:\\workspace\\out'],
+          networkDomains: ['api.example.com'],
+        },
+      },
+    })
+
+    // Deny sends a bare permission deny response without any grant payload.
+    respondRequests.length = 0
+    await client.respondToPermission('session-1', 'permission-1', { behavior: 'deny' })
+    expect(respondRequests[0]).toMatchObject({
+      response: { kind: 'permission', decision: 'deny' },
+    })
+
+    // Granting a scope outside allowedScopes must fail before any RPC is sent.
+    respondRequests.length = 0
+    await expect(client.respondToPermission('session-1', 'permission-1', {
+      behavior: 'allow',
+      grantScope: 'session',
+    })).rejects.toThrow('不在 Agent 允许的范围内')
+    expect(respondRequests).toHaveLength(0)
+  })
+
   test('falls back to browser mock when agent is unavailable', async () => {
     const client = createDesktopClient({
       fetch: async () => new Response('nope', { status: 503 }),

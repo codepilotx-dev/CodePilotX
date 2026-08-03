@@ -169,6 +169,7 @@ describe("问题 checkpoint", () => {
     expect(db.interactionOperation(operation.operationID)?.result).toEqual(operation.result)
     const resolvedEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?").get(turn.turnID) as { params: string }
     expect(JSON.parse(resolvedEvent.params)).toEqual({
+      interactionId: id,
       result: operation.response,
       resolvedAt: expect.any(Number),
     })

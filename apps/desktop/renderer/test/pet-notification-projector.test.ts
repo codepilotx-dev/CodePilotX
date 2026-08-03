@@ -103,4 +103,74 @@ describe("pet notification projector", () => {
       }),
     ).toEqual([])
   })
+
+  test("respects per-category pet preferences", () => {
+    const now = Date.parse("2026-07-24T00:00:20.000Z")
+    const disabled = {
+      ...preferences,
+      notifyAttention: false,
+      notifyCompletion: false,
+      notifyFailure: false,
+    }
+    expect(projectPetNotifications({
+      previous: [],
+      current: [
+        snapshot("thread-1", "waiting", [
+          {
+            requestId: "approval-1",
+            toolName: "PowerShell",
+            input: {},
+            description: "运行命令",
+            requestKind: "shell-command",
+          },
+        ]),
+      ],
+      now,
+      dismissedIds: new Set(),
+      preferences: disabled,
+    })).toEqual([])
+    expect(projectPetNotifications({
+      previous: [snapshot("thread-1", "running")],
+      current: [snapshot("thread-1", "done")],
+      now,
+      dismissedIds: new Set(),
+      preferences: { ...preferences, notifyCompletion: false },
+    })).toEqual([])
+    expect(projectPetNotifications({
+      previous: [snapshot("thread-1", "running")],
+      current: [snapshot("thread-1", "error")],
+      now,
+      dismissedIds: new Set(),
+      preferences: { ...preferences, notifyFailure: false },
+    })).toEqual([])
+  })
+
+  test("skips guardian, archived tasks and subagent transitions", () => {
+    const now = Date.parse("2026-07-24T00:00:20.000Z")
+    const guardian = snapshot("thread-1", "waiting", [
+      {
+        requestId: "approval-1",
+        toolName: "PowerShell",
+        input: {},
+        description: "运行命令",
+        requestKind: "shell-command",
+      },
+    ])
+    guardian.item.source = "internal_guardian"
+    const archived = snapshot("thread-2", "running")
+    archived.item.archivedAt = "2026-07-23T00:00:00.000Z"
+    const subagentDone = snapshot("thread-3", "done")
+    subagentDone.item.source = "subagent"
+    expect(projectPetNotifications({
+      previous: [
+        guardian,
+        archived,
+        snapshot("thread-3", "running"),
+      ],
+      current: [guardian, archived, subagentDone],
+      now,
+      dismissedIds: new Set(),
+      preferences,
+    })).toEqual([])
+  })
 })

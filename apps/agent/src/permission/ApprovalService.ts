@@ -128,6 +128,17 @@ export class ApprovalService {
         cwd: safeInvocation.input.cwd ?? null,
         requestedPermissions: requestedPermissions(safeInvocation.input),
         ...approvalScopePayload(safeInvocation),
+        // Dynamic permission requests persist their grant metadata so the
+        // thread projection can restore permissionGrant without live events.
+        ...(safeInvocation.name === "request_permissions"
+          ? {
+              kind: "permission",
+              requestedScope: ["tool-call", "turn", "session"].includes(String(safeInvocation.input.scope))
+                ? safeInvocation.input.scope
+                : "tool-call",
+              allowedScopes: allowedPermissionScopes(safeInvocation.input.scope),
+            }
+          : {}),
       },
       checkpoint,
       version: 1,
@@ -180,6 +191,7 @@ export class ApprovalService {
             ? invocation.input.scope
             : "tool-call",
           allowedScopes: allowedPermissionScopes(invocation.input.scope),
+          risk: ["low", "medium", "high", "critical"].includes(stored.risk) ? stored.risk : "high",
         }
       : {
           interactionId: stored.approvalID,

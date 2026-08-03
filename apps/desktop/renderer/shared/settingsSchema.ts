@@ -228,6 +228,12 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
       notifyCompletion: true,
       notifyFailure: true,
     },
+    notifications: {
+      completion: 'unfocused',
+      permissions: true,
+      questions: true,
+      errors: true,
+    },
   }
 }
 
@@ -510,6 +516,10 @@ export function normalizeDesktopStoredSettings(
       parsed.browserAllowedSites,
     ),
     pet: normalizePetSettings(parsed.pet, defaults.pet),
+    notifications: normalizeSystemNotificationSettings(
+      parsed.notifications,
+      defaults.notifications,
+    ),
   }
 }
 
@@ -570,6 +580,38 @@ function normalizePetSettings(
       typeof pet.notifyFailure === 'boolean'
         ? pet.notifyFailure
         : fallback.notifyFailure,
+  }
+}
+
+function normalizeSystemNotificationSettings(
+  value: unknown,
+  fallback: DesktopStoredSettings['notifications'],
+): DesktopStoredSettings['notifications'] {
+  const notifications =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? value as Partial<DesktopStoredSettings['notifications']>
+      : {}
+  const completion = notifications.completion
+  const normalizedCompletion =
+    completion === 'always'
+    || completion === 'unfocused'
+    || completion === 'never'
+      ? completion
+      : fallback.completion
+  return {
+    completion: normalizedCompletion,
+    permissions:
+      typeof notifications.permissions === 'boolean'
+        ? notifications.permissions
+        : fallback.permissions,
+    questions:
+      typeof notifications.questions === 'boolean'
+        ? notifications.questions
+        : fallback.questions,
+    errors:
+      typeof notifications.errors === 'boolean'
+        ? notifications.errors
+        : fallback.errors,
   }
 }
 
