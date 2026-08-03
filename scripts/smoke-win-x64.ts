@@ -13,6 +13,9 @@ const root = resolve(import.meta.dir, "..")
 // 一轮 Sidecar 启动最多包含 60 秒 ready 消息等待与 20 秒健康检查。
 // 为持久 runner 保留至少两轮完整恢复窗口，并给 Electron 冷启动留出余量。
 const DESKTOP_READY_TIMEOUT_MS = 180_000
+// The packaged terminal smoke contains several independently bounded phases.
+// Leave room for three cold phases while retaining a strict process deadline.
+const PACKAGED_TERMINAL_SMOKE_TIMEOUT_MS = 90_000
 const applicationArgument = process.argv.find(argument => argument.startsWith("--application="))
 const application = applicationArgument
   ? resolve(applicationArgument.slice("--application=".length))
@@ -100,7 +103,12 @@ async function assertPackagedTerminal(applicationPath: string, isolatedRoot: str
     const exitCode = await Promise.race([
       child.exited,
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error("打包 ConPTY 冒烟在 30 秒内未完成")), 30_000)
+        timer = setTimeout(
+          () => reject(new Error(
+            `打包 ConPTY 冒烟在 ${PACKAGED_TERMINAL_SMOKE_TIMEOUT_MS / 1_000} 秒内未完成`,
+          )),
+          PACKAGED_TERMINAL_SMOKE_TIMEOUT_MS,
+        )
       }),
     ])
     if (exitCode !== 0) throw new Error(`打包 Electron ConPTY 冒烟退出码异常：${exitCode}`)

@@ -7,7 +7,10 @@ import { HostProcessTreeKiller } from "./process-tree.js"
 
 const FIXED_MARKER = "CODEPILOTX_CONPTY_SMOKE_OK"
 const FIXED_EXIT_CODE = 23
-const SMOKE_TIMEOUT_MS = 10_000
+// GitHub-hosted Windows runners can spend more than 10 seconds cold-starting
+// PowerShell/ConPTY. Keep each phase bounded without treating that startup tail
+// as a package failure.
+const SMOKE_TIMEOUT_MS = 30_000
 
 export async function runPackagedTerminalSmoke(resultPath: string): Promise<void> {
   if (process.platform !== "win32") throw new Error("Packaged terminal smoke 仅支持 Windows")
