@@ -121,7 +121,7 @@ export function CanonicalProcessGroup({
       }}
       open={expanded}
     >
-      <summary>
+      <summary aria-label={label || (variant === "commands" ? "命令" : "处理过程")}>
         {active ? (
           <LoaderCircle className="canonical-spin" aria-hidden="true" />
         ) : failed ? (

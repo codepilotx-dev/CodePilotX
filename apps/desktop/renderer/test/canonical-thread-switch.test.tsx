@@ -109,6 +109,16 @@ describe("canonical thread switch", () => {
         <span data-testid="persisted-tool-card">tool output</span>
       </CanonicalProcessGroup>,
     );
+    const unnamed = renderToStaticMarkup(
+      <CanonicalProcessGroup
+        {...disclosureProps}
+        active={false}
+        failed={false}
+        label=""
+      >
+        <span>tool output</span>
+      </CanonicalProcessGroup>,
+    );
 
     expect(completed).not.toContain("expensive-tool-card");
     expect(completed).not.toContain("lucide-check");
@@ -123,6 +133,7 @@ describe("canonical thread switch", () => {
     expect(failed).toContain("lucide-circle-alert");
     expect(persisted).toContain("persisted-tool-card");
     expect(persisted).toContain("lucide-chevron-down");
+    expect(unnamed).toContain('aria-label="命令"');
   });
 
   test("keeps non-tool process items ordered around consecutive command groups", () => {
