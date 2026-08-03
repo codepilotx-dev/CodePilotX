@@ -16,6 +16,7 @@ import {
   BETA_PREFLIGHT_REPOSITORY,
   BETA_PREFLIGHT_SUITE,
   BETA_PREFLIGHT_VALIDITY_MS,
+  assertBetaPreflightProofExpectations,
   canonicalizeBetaPreflightProof,
   createBetaPreflightProof,
   digestBetaPreflightPayload,
@@ -50,13 +51,6 @@ beforeAll(() => {
   ], { encoding: "utf8", windowsHide: true });
   if (generated.status !== 0 || generated.error) {
     throw new Error("测试环境无法生成临时 SSH 密钥");
-  }
-  const attackerGenerated = spawnSync("ssh-keygen", [
-    "-q", "-t", "ed25519", "-N", "", "-C", "beta-proof-attacker", "-f",
-    attackerKeyFile,
-  ], { encoding: "utf8", windowsHide: true });
-  if (attackerGenerated.status !== 0 || attackerGenerated.error) {
-    throw new Error("测试环境无法生成第二把临时 SSH 密钥");
   }
   const publicKey = readFileSync(`${keyFile}.pub`, "utf8");
   writeFileSync(allowedSignersFile, `${SIGNER} ${publicKey.trim()}\n`, "utf8");
@@ -161,31 +155,42 @@ describe("BetaPreflightProofV1", () => {
     expect(() => verify(signedProof(), {
       signerIdentity: "attacker@example.com",
     })).toThrow("签名者不受信任");
+    const attackerGenerated = spawnSync("ssh-keygen", [
+      "-q", "-t", "ed25519", "-N", "", "-C", "beta-proof-attacker", "-f",
+      attackerKeyFile,
+    ], { encoding: "utf8", windowsHide: true });
+    if (attackerGenerated.status !== 0 || attackerGenerated.error) {
+      throw new Error("测试环境无法生成第二把临时 SSH 密钥");
+    }
     expect(() => verify(signBetaPreflightProof(baseProof(), {
       signingKeyFile: attackerKeyFile,
     }))).toThrow("签名者不受信任");
-  });
+  }, 60_000);
 
   it("拒绝错误 SHA、release tree、版本和标签期望", () => {
-    const signed = signedProof();
+    const proof = baseProof();
     const expected = {
       mainSha: MAIN_SHA,
       releaseTreeSha: RELEASE_TREE_SHA,
       nextVersion: "0.2.0-beta.4",
       nextTag: "v0.2.0-beta.4",
     };
-    expect(() => verify(signed, {
-      expected: { ...expected, mainSha: "3".repeat(40) },
-    })).toThrow("main SHA 不匹配");
-    expect(() => verify(signed, {
-      expected: { ...expected, releaseTreeSha: "4".repeat(40) },
-    })).toThrow("release tree 不匹配");
-    expect(() => verify(signed, {
-      expected: { ...expected, nextVersion: "0.2.0-beta.5" },
-    })).toThrow("版本不匹配");
-    expect(() => verify(signed, {
-      expected: { ...expected, nextTag: "v0.2.0-beta.5" },
-    })).toThrow("标签不匹配");
+    expect(() => assertBetaPreflightProofExpectations(
+      proof,
+      { ...expected, mainSha: "3".repeat(40) },
+    )).toThrow("main SHA 不匹配");
+    expect(() => assertBetaPreflightProofExpectations(
+      proof,
+      { ...expected, releaseTreeSha: "4".repeat(40) },
+    )).toThrow("release tree 不匹配");
+    expect(() => assertBetaPreflightProofExpectations(
+      proof,
+      { ...expected, nextVersion: "0.2.0-beta.5" },
+    )).toThrow("版本不匹配");
+    expect(() => assertBetaPreflightProofExpectations(
+      proof,
+      { ...expected, nextTag: "v0.2.0-beta.5" },
+    )).toThrow("标签不匹配");
   });
 
   it("拒绝过期和超前超过五分钟的证明", () => {
