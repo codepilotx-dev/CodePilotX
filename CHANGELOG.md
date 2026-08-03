@@ -68,6 +68,7 @@
 
 ### Fixed
 
+- [release] 本地 Beta 预检复用当前 Bun 可执行文件并以目录语义移除空临时父目录，兼容仅暴露 PowerShell shim 的 Windows 工作站且不把清理异常遮蔽为质量门禁失败
 - [renderer/release] 外观主题编辑器在异步 code-theme seed 完成前声明 busy，并将预览强调色调整到 WCAG AA 对比度后再运行 a11y 扫描，避免未完成样式与 `#339cff` 白底低对比度误阻塞 Beta
 - [desktop/release] 打包桌面启动 Sidecar 时若 Windows 服务账户缺少 Documents 已知文件夹，则回退到其 home 下的 Documents，并将环境求值、进程创建与 stdin 关闭分阶段诊断，避免自托管发布 Runner 在创建 Agent 前反复失败
 - [desktop/release] Sidecar 连接失败日志新增固定枚举的启动阶段与错误码，发布 smoke 可在不输出路径、异常正文或凭据的前提下区分托管地址、命令解析、进程创建、Agent 就绪与桌面加载故障
