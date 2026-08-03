@@ -2,7 +2,7 @@ import { existsSync } from "node:fs"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
-import { mergeProcessEnvironment } from "./process-environment"
+import { createIsolatedProcessEnvironment } from "./process-environment"
 import { assertWindowsX64PE } from "./windows-pe"
 
 const root = resolve(import.meta.dir, "..")
@@ -30,7 +30,7 @@ try {
 }
 const child = Bun.spawn([application, `--user-data-dir=${join(isolatedRoot, "profile")}`], {
   cwd: dirname(application),
-  env: mergeProcessEnvironment(process.env, {
+  env: createIsolatedProcessEnvironment(process.env, {
     APPDATA: join(isolatedRoot, "appdata"),
     LOCALAPPDATA: join(isolatedRoot, "localappdata"),
     CODEPILOTX_AGENT_URL: undefined,
@@ -80,7 +80,7 @@ async function assertPackagedTerminal(applicationPath: string, isolatedRoot: str
     "--codepilotx-packaged-terminal-smoke",
   ], {
     cwd: dirname(applicationPath),
-    env: mergeProcessEnvironment(process.env, {
+  env: createIsolatedProcessEnvironment(process.env, {
       APPDATA: join(isolatedRoot, "terminal-appdata"),
       LOCALAPPDATA: join(isolatedRoot, "terminal-localappdata"),
       CODEPILOTX_USER_DATA_DIR: join(isolatedRoot, "terminal-user-data"),
