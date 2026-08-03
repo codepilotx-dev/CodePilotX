@@ -67,6 +67,7 @@
 
 ### Fixed
 
+- [desktop/release] 打包桌面启动 Sidecar 时若 Windows 服务账户缺少 Documents 已知文件夹，则回退到其 home 下的 Documents，并将环境求值、进程创建与 stdin 关闭分阶段诊断，避免自托管发布 Runner 在创建 Agent 前反复失败
 - [desktop/release] Sidecar 连接失败日志新增固定枚举的启动阶段与错误码，发布 smoke 可在不输出路径、异常正文或凭据的前提下区分托管地址、命令解析、进程创建、Agent 就绪与桌面加载故障
 - [release] 临时 Release worktree 仅在 tracked/untracked 状态完全干净时无强制参数移除，失败现场存在变更时保留并拒绝自动清理
 - [release] Windows 打包 smoke 不再把 `CODEPILOTX_*`、GitHub Actions、runner 或签名发布变量传入产品进程，仅注入当前测试白名单，避免 Windows 环境块膨胀导致 Sidecar 无法创建并阻止 CI 凭据进入桌面与 Agent
