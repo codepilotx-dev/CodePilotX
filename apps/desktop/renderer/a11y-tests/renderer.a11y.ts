@@ -27,7 +27,10 @@ const ROUTES = [
   ['plugins', '/?visualCase=empty#/plugins'],
   ['automations', '/?visualCase=empty#/automations'],
   ['pets', '/?visualCase=empty#/pets'],
-  ['settings-appearance', '/?visualCase=empty#/settings/appearance'],
+  [
+    'settings-appearance',
+    '/?visualCase=empty&visualThemeSeedDelayMs=300#/settings/appearance',
+  ],
   ['settings-general', '/?visualCase=empty#/settings/general'],
   ['settings-plugins', '/?visualCase=empty#/settings/plugins'],
   ['settings-environment', '/?visualCase=empty#/settings/environment/visual-workspace'],
@@ -41,6 +44,28 @@ async function preparePage(page: Page, route: string): Promise<void> {
   await prepareVisualTheme(page, 'light')
   await page.goto(route)
   await waitForVisualPage(page, 'light', page.locator('body'))
+  if (route.includes('/settings/appearance')) {
+    const editors = page.locator('.appearance-theme-editor')
+    await expect(editors.first()).toBeVisible()
+    await expect(
+      page.locator('.appearance-theme-editor[aria-busy="true"]'),
+    ).toHaveCount(0)
+    await expect(page.locator('.appearance-theme-seed').first()).toBeVisible()
+    await expect
+      .poll(() =>
+        page.locator('.appearance-theme-seed').first().evaluate(element => {
+          const style = window.getComputedStyle(element)
+          return style.color !== '' && style.backgroundColor !== ''
+        }),
+      )
+      .toBe(true)
+    await page.evaluate(
+      () =>
+        new Promise<void>(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    )
+  }
   await closeTransientErrorToast(page)
 }
 

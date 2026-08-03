@@ -165,20 +165,26 @@ git merge-base --is-ancestor <mergeCommitSha> refs/remotes/origin/main
 每次 dispatch 前记录 UTC 时间和该 workflow 最近 run IDs。只从 `main` ref 触发：
 
 ```powershell
-gh workflow run prepare-beta-release.yml --ref main -f dry_run=true  -f main_sha=<lockedMainSha>
-gh workflow run prepare-beta-release.yml --ref main -f dry_run=false -f main_sha=<lockedMainSha>
+gh workflow run prepare-beta-release.yml --ref main -f dry_run=true -f main_sha=<lockedMainSha> -f preflight_digest=<digest> -f preflight_payload=<base64Payload> -f preflight_signature=<base64Signature>
+gh workflow run prepare-beta-release.yml --ref main -f dry_run=false -f main_sha=<lockedMainSha> -f preflight_digest=<digest> -f preflight_payload=<base64Payload> -f preflight_signature=<base64Signature> -f dry_run_id=<successfulDryRunId>
 gh workflow run finalize-beta-release.yml --ref main -f dry_run=false -f main_sha=<releasePrMergeSha>
 ```
 
-触发后轮询 `gh run list --workflow <file> --event workflow_dispatch --branch main --json databaseId,displayTitle,headSha,status,conclusion,createdAt,url`。只关联同时满足以下条件的唯一 run：创建时间不早于 dispatch 前记录的 UTC 时间；run ID 不在 dispatch 前记录的集合中；`displayTitle` 中的 dry-run/live 阶段和锁定 SHA 与本次输入一致。Prepare 的 `headSha` 还必须等于已锁定 main SHA；不一致表示 main 已变化，本次确认立即失效。Finalize 通过 `displayTitle` 关联明确的 Release PR merge SHA，不要求该 SHA 仍为 main tip。不能简单取列表第一项。使用 `gh run watch <id> --exit-status` 等待；失败时读取 `--log-failed`。
+触发后轮询 `gh run list --workflow <file> --event workflow_dispatch --branch main --json databaseId,displayTitle,headSha,status,conclusion,createdAt,url`。只关联同时满足以下条件的唯一 run：创建时间不早于 dispatch 前记录的 UTC 时间；run ID 不在 dispatch 前记录的集合中；`displayTitle` 中的 dry-run/live 阶段、锁定 SHA、proof digest 与本次输入一致，live 还必须包含 dry-run ID。Prepare 的 `headSha` 必须等于已锁定 main SHA；不一致表示 main 已变化，本次证明和确认立即失效。Finalize 通过 `displayTitle` 关联明确的 Release PR merge SHA，不要求该 SHA 仍为 main tip。不能简单取列表第一项。使用 `gh run watch <id> --exit-status` 等待；失败时读取 `--log-failed`。
 
 如果同 workflow、同锁定 SHA、同 dry-run/live 阶段已有 queued 或 in_progress run，复用并等待。已存在成功 run 时，必须从 `displayTitle` 及日志确认 `main_sha` 和 `dry_run` 输入均相同后才能复用。相同 SHA 的非瞬时失败不得无意义重复 dispatch。
 
 ## 8. Dry-run 与唯一确认
 
-dev PR 合并后，在最新 main committed worktree 中执行 `inspect --json`。只允许 `candidate`，并锁定 `mainSha`、`nextVersion`、`nextTag`。随后以该 `mainSha` dispatch Prepare `dry_run=true`；workflow 会拒绝已经不再等于 `origin/main` tip 的候选。
+dev PR 合并后，在最新 main committed worktree 中执行 `inspect --json`。只允许 `candidate`，并锁定 `mainSha`、`nextVersion`、`nextTag`。在当前维护者 Windows x64 工作站连续执行两次：
 
-dry-run 成功后重新执行 inspect，展示锁定值和 run URL，并请求完全匹配：
+```powershell
+bun run beta:preflight -- --main-sha <lockedMainSha>
+```
+
+两次都必须成功、当前工作区保持干净且 `releaseTreeSha` 相同。使用 `.git/codepilotx/beta-preflight/<mainSha>/workflow-inputs.json` 中的公开 proof inputs dispatch Prepare `dry_run=true`；workflow 会验签、重建相同 tree，并拒绝已经不再等于 `origin/main` tip 的候选。不得输出签名密钥或本机路径。
+
+dry-run 成功后验证唯一回执 artifact 名同时包含 main SHA 和 proof digest，重新执行 inspect，展示锁定版本、main SHA、proof digest、run ID 和 run URL，并请求完全匹配：
 
 ```text
 发布 <nextTag>
@@ -188,7 +194,7 @@ dry-run 成功后重新执行 inspect，展示锁定值和 run URL，并请求�
 
 ## 9. Live Prepare、Release PR 与 Finalize
 
-确认后用与 dry-run 完全相同的 `mainSha` dispatch Prepare `dry_run=false`。成功后按以下全部条件查找 Release PR：
+确认后用与 dry-run 完全相同的 `mainSha`、proof inputs 和成功 `dry_run_id` dispatch Prepare `dry_run=false`。live 只验证并复用 24 小时内回执，不重新打包。成功后按以下全部条件查找 Release PR：
 
 - label 为 `automation:beta-release`；
 - head 为 `automation/release-v<nextVersion>-<mainSha7>`；

@@ -2,13 +2,13 @@
 
 ## 目标与边界
 
-仓库使用一台专用 Windows x64 电脑作为 self-hosted runner，自动处理受保护 `main` 上的下一版 Beta：
+仓库使用维护者 Windows x64 工作站生成可验证的本地质量证明，并由专用 Windows x64 self-hosted runner 处理受保护 `main` 上的环境验证与最终签名产物：
 
-1. `main` 合入有效 `Unreleased` 内容后等待 30 分钟静默期。
+1. 锁定包含有效 `Unreleased` 内容的 `main` SHA，并在本地执行完整确定性质量门禁。
 2. 将当前 `X.Y.Z-beta.N` 单步递增为 `X.Y.Z-beta.N+1`。
-3. 在发布机完成完整检查、Windows 打包及安装冒烟。
-4. 创建 Release PR，等待远端 CI 全部通过并自动合并。
-5. 为合并提交创建签名 annotated tag，由现有标签工作流发布 GitHub prerelease。
+3. 对规范化证明使用维护者 SSH 密钥签名；self-hosted 发布机只验证证明、签名打包、静默安装和服务账户启动。
+4. dry-run 生成绑定 main SHA、proof digest 与 release tree 的 24 小时回执；live Prepare 复用回执创建 Release PR，不重复打包。
+5. Release PR 自动合并后创建签名 annotated tag；self-hosted 发布机从精确标签构建最终签名产物，GitHub-hosted job 只证明来源并发布 prerelease。
 
 自动化不会决定 Beta → RC、RC → Stable 或新的 `MAJOR.MINOR.PATCH` 版本线。这些变化必须由人工确认并按人工发布流程执行。`Unreleased` 为空、当前版本不是 beta、当前版本尚未发布、标签冲突或 GitHub 状态不一致时，自动化停止，不猜测目标版本。
 
@@ -16,13 +16,13 @@
 
 ### Prepare
 
-`.github/workflows/prepare-beta-release.yml` 在 `main` push、每小时恢复检查或手动触发时运行。普通 push 等待静默期后重新核对远端 `main` SHA；期间有新提交时，旧候选退出并由新任务重新计时。
+`.github/workflows/prepare-beta-release.yml` 只允许从 `main` ref 手动触发。`push`、`schedule` 和没有证明的请求都不能 Prepare；`BETA_RELEASE_AUTOMATION_ENABLED` 继续保持 `false`。手动任务必须传入精确 `main_sha`、proof digest、Base64 payload 和 Base64 SSH signature，并确认执行时 main 仍未前进。
 
-当 `BETA_RELEASE_AUTOMATION_ENABLED=false` 时，push 和 schedule 继续跳过；从 `main` ref 发起的 `workflow_dispatch` 仍可按 `dry_run` 输入执行人工演练或正式 Prepare。手动任务必须同时传入 40 位 `main_sha`，checkout 该提交并确认执行时它仍等于 `origin/main`；候选变化后旧确认不能继续发布。非 `main` ref 的手动任务不能进入发布 Environment。
+`bun run beta:preflight -- --main-sha <sha>` 是完整质量门禁入口。它只在系统临时目录的 detached worktree 中调用现有 `version:prepare`，创建不推送的签名临时 Release commit，并运行冻结安装、版本策略、全仓类型检查与单元测试、CSS、安全审计、等待最终主题状态的 a11y、unsigned Windows package、静默安装、installed-layout smoke、release diff 与工作树检查。全部通过后才把 `BetaPreflightProofV1` 和 SSH 签名写入 `.git/codepilotx/beta-preflight/<mainSha>/`；证明有效期 24 小时，允许最多 5 分钟时钟偏差。
 
-Prepare 调用现有 `version:prepare` 归档 CHANGELOG 和同步版本，不复制升版逻辑。推送 Release 分支前依次执行冻结依赖安装、版本与标签一致性检查、全仓类型检查和单元测试、CSS 与依赖安全检查、Renderer 无障碍测试、Windows 打包、安装及桌面启动冒烟，以及 `git diff --check` 和文件范围校验。
+dry-run 在发布机重建同一 Release tree，并只执行签名 Windows package、Authenticode/包结构检查、NSIS 静默安装及服务账户下的 Agent、Sidecar、Renderer 和 `/api/ready` 冒烟。成功后上传 `beta-dry-run-receipt-<mainSha>-<proofDigest>`。live Prepare 必须读取指定成功 run 的 workflow/event/head SHA/actor/conclusion 和唯一回执，逐项匹配 SHA、tree、版本、标签、proof digest 与 24 小时时效，然后直接创建 Release PR，不再次执行 package。
 
-全部通过后才创建 `automation/release-v<version>-<baseSha7>` 分支及 `chore(release)：准备 <version>` 签名提交，为 PR 添加 `automation:beta-release` 标签并开启 auto-merge。Release PR 只能改动 `CHANGELOG.md`、四个产品 manifest 和 `bun.lock`。如果验证期间 `main` 前进，自动化只关闭自己创建的过期 PR，不强推或改写其他分支。
+验证通过后才创建 `automation/release-v<version>-<baseSha7>` 分支及 `chore(release)：准备 <version>` 签名提交，为 PR 添加 `automation:beta-release` 标签并开启 auto-merge。Release PR 只能改动 `CHANGELOG.md`、四个产品 manifest 和 `bun.lock`。可信 Release PR 先严格检查仓库、作者、label、marker、base/head、签名和允许文件范围，再以原 required job 名快速通过；所有普通 PR 仍执行原有 GitHub-hosted CI，且永远不会进入 self-hosted runner。
 
 ### Finalize
 
@@ -32,7 +32,7 @@ Prepare 调用现有 `version:prepare` 归档 CHANGELOG 和同步版本，不复
 
 Finalize 核对 PR base/head、签名、必需检查和 merge SHA，然后创建指向该 merge commit 的签名 annotated tag，说明为 `chore(release)：发布 v<version>`。标签已存在且指向同一 SHA 视为幂等成功；同名标签指向其他 SHA 时停止。
 
-标签触发的 `.github/workflows/windows-x64-package.yml` 必须先确认目标属于 `main` 历史，再在 GitHub-hosted Windows runner 上构建并发布。成功结果必须是 prerelease，且包含安装包、blockmap、对应的 `beta.yml`、`SHA256SUMS.txt` 和 SPDX JSON SBOM。
+标签触发的 `.github/workflows/windows-x64-package.yml` 必须先确认目标属于 `main` 历史且来自可信 Release PR，再在受保护 self-hosted 发布机上构建最终签名产物，完成 Authenticode、静默安装、installed-layout smoke、checksum、release notes 和 SPDX JSON SBOM。GitHub-hosted publish job只下载该唯一 artifact、执行 provenance/SBOM attestation 并发布不可变 Release，不重新构建二进制。成功结果必须是 prerelease，且包含安装包、blockmap、对应的 `beta.yml`、`SHA256SUMS.txt` 和 SPDX JSON SBOM。
 
 ## 发布机配置
 
@@ -60,14 +60,14 @@ Finalize 核对 PR base/head、签名、必需检查和 merge SHA，然后创建
 
 ### 提交与标签签名
 
-在发布机的 runner 服务账户下生成独立 ED25519 SSH 签名密钥。私钥 ACL 只允许该服务账户读取，公钥添加到当前 GitHub 账户的 signing keys；另创建仅含已验证邮箱与该公钥的 `allowed_signers` 文件供本机验签。配置：
+当前维护者 Windows 工作站和发布机服务账户使用已登记到 GitHub signing keys 的 ED25519 SSH 签名密钥。私钥 ACL 只允许对应账户读取；仓库的 `.github/release-trust/beta-preflight.allowed_signers` 只包含当前维护者邮箱与公钥，供本地证明、Release commit 和 tag job 验签，不包含私钥或本机路径。配置：
 
 ```powershell
 git config --global user.name "Xiao Hi"
 git config --global user.email "xouyang525@gmail.com"
 git config --global gpg.format ssh
 git config --global user.signingkey "C:/path/to/release-signing-key.pub"
-git config --global gpg.ssh.allowedSignersFile "C:/path/to/allowed_signers"
+git config --global gpg.ssh.allowedSignersFile "<repo>/.github/release-trust/beta-preflight.allowed_signers"
 git config --global commit.gpgsign true
 git config --global tag.gpgsign true
 ```
@@ -99,11 +99,11 @@ git config --global tag.gpgsign true
 | `published` | prerelease 和全部预期附件已发布 |
 | `blocked` | 发现语义冲突或不可安全自动恢复的终态故障 |
 
-关机、断网或 Actions 中断后，每小时任务调用 `reconcile` 恢复。网络及无副作用的瞬时失败最多重试 3 次；重复运行必须复用已确认的分支、PR 或同 SHA 标签，不创建平行版本。已发布 Release 不得覆盖；草稿已有部分附件时不得删除或替换，立即进入 `blocked`。
+关机、断网或 Actions 中断后，`reconcile` 只恢复已合并 Release PR 的 Finalize、标签和 Release；它不会在没有本地证明时自动 Prepare。网络及无副作用的瞬时失败最多重试 3 次；重复运行必须复用已确认的分支、PR、dry-run 回执或同 SHA 标签，不创建平行版本。已发布 Release 不得覆盖；草稿已有部分附件时不得删除或替换，立即进入 `blocked`。
 
 终态失败创建或更新 `[release automation] <version> 发布阻塞` Issue，只包含版本、SHA、阶段、重试次数和 Actions URL，不包含本机路径、环境、设置、凭据或构建内容。对应版本成功后自动关闭该 Issue。
 
-## 手动 Beta 发布 Skill
+## Beta 发布 Skill
 
 仓库提供 `.agents/skills/codepilotx-beta-release`，支持仓库 Skill 的 Agent 可从仓库根目录发现。常用调用：
 
@@ -117,7 +117,7 @@ git config --global tag.gpgsign true
 
 调用发布模式即授权 Skill 推送 `dev` 已提交 commit、创建或复用 `dev → main` PR、添加 `release-automation` 标签并开启 GitHub auto-merge。普通集成 PR 不使用 `automation:beta-release`，该标签只属于升版 Release PR。PR 的现有远端 CI 必须全部通过；代码、测试、a11y、SQLite、性能或打包失败时，Skill 只报告根因并停止，不修改产品代码或降低门禁。
 
-`dev → main` 合并后，Skill 锁定 `mainSha`，从 `main` ref 同时传入 `dry_run=true` 和该 `main_sha` dispatch Prepare dry-run，等待发布机完成升版模拟、全仓验证、Windows 打包和安装冒烟。演练成功后只询问一次精确确认 `发布 vX.Y.Z-beta.N`；main SHA 或候选版本变化会使确认失效。确认后 Skill 用同一 `main_sha` dispatch live Prepare，等待可信 Release PR 自动合并，再以 Release PR merge SHA 手动 dispatch live Finalize。workflow run-name 同时记录 dry-run/live 阶段和锁定 SHA，供并发运行精确关联。升版、签名 commit、签名 tag、Release 和附件仍完全由现有状态机及 workflows 创建。
+`dev → main` 合并后，Skill 锁定 `mainSha`，连续两次执行本地 `beta:preflight` 并确认 `releaseTreeSha` 相同，再把 proof inputs 传给 locked dry-run。演练成功后只询问一次精确确认 `发布 vX.Y.Z-beta.N`；main SHA、候选版本、证明或回执变化都会使确认失效。确认后 Skill 使用相同 proof 和 dry-run ID dispatch live Prepare，等待可信 Release PR 自动合并，再以 Release PR merge SHA手动 dispatch live Finalize。workflow run-name 同时记录阶段、SHA、proof digest 和回执 run ID。升版、签名 commit、签名 tag、Release 和附件仍完全由现有状态机及 workflows 创建。
 
 重复调用恢复模式时，Skill 从 GitHub 和 Git 派生状态并复用已有 PR、workflow、同 SHA 标签或 Release。它不会删除 draft、覆盖标签、替换附件、复用旧版本标签或把 Beta 自动提升为 RC/Stable。最终成功必须验证 prerelease 非 draft，标签属于 `main` 且指向 Release PR merge commit，并包含 exe、blockmap、`beta.yml`、`SHA256SUMS.txt` 和 SPDX JSON SBOM。
 
@@ -134,9 +134,9 @@ bun scripts/beta-release.ts reconcile --dry-run
 
 1. 合并自动化代码，保持 `BETA_RELEASE_AUTOMATION_ENABLED=false`。
 2. 配置 runner 服务、PAT、Environment、签名密钥、仓库变量和标签。
-3. 手动触发 `prepare-beta-release`，设置 `dry_run=true` 并传入当前 40 位 main SHA。
-4. 确认候选版本、签名检查、本地安装包及“未创建分支、PR、标签、Release、Issue”的无副作用保证。
-5. 将 `BETA_RELEASE_AUTOMATION_ENABLED` 改为 `true`，等待小时级 schedule 执行一次 live `reconcile`。
-6. 观察 Release PR 的必需检查和 auto-merge；合并后确认标签只指向 merge commit，最终 prerelease 附件完整。
+3. 在维护者 Windows x64 工作站为当前 main 连续执行两次 `beta:preflight`，确认 `releaseTreeSha` 一致。
+4. 使用证明输入手动触发 `prepare-beta-release` dry-run，确认服务账户签名安装和桌面启动通过且生成唯一回执。
+5. 保持 `BETA_RELEASE_AUTOMATION_ENABLED=false`；经唯一确认后用相同证明和 dry-run ID 触发 live Prepare。
+6. 观察 Release PR 的快速身份门禁和 auto-merge；合并后确认标签只指向 merge commit，最终 prerelease 签名附件完整。
 
 发布机离线时任务可保持排队；恢复上线后由小时级 reconcile 继续。任何 RC、Stable、版本线变化或状态冲突均保留给人工处理。

@@ -9,7 +9,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,18 @@ import {
   hasChangelogEntry,
 } from "./changelog-utils.ts";
 import { parseSemver } from "./semver-utils.ts";
+import {
+  createBetaPreflightProof,
+  encodeBetaPreflightProofInputs,
+  signBetaPreflightProof,
+  verifyBetaPreflightProofInputs,
+  type BetaPreflightProofInputsV1,
+} from "./beta-preflight-proof.ts";
+import {
+  createBetaDryRunReceipt,
+  validateBetaDryRunReceipt,
+  type BetaDryRunReceiptV1,
+} from "./beta-dry-run-receipt.ts";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(SCRIPT_DIR, "..");
@@ -25,6 +37,11 @@ const RELEASE_LABEL = "automation:beta-release";
 const FAILURE_LABEL = "release-automation";
 const RELEASE_BRANCH_PREFIX = "automation/release-v";
 const DEFAULT_BOT_LOGIN = "xiaohai-ouyang";
+const PREFLIGHT_SIGNER_IDENTITY = "xouyang525@gmail.com";
+const PREFLIGHT_ALLOWED_SIGNERS = join(
+  ROOT,
+  ".github/release-trust/beta-preflight.allowed_signers",
+);
 const REQUIRED_PR_CHECKS = new Set([
   "quality",
   "unit-tests",
@@ -115,12 +132,22 @@ type GithubPullRequest = {
 
 type GithubWorkflowRun = {
   id: number;
+  name?: string;
+  path?: string;
+  event?: string;
+  actor?: { login?: string };
   status: string;
   conclusion: string | null;
   html_url: string;
   run_attempt?: number;
   head_sha?: string;
   head_branch?: string;
+};
+
+type PrepareProofInputs = BetaPreflightProofInputsV1 & {
+  receiptOutput?: string;
+  dryRunId?: string;
+  dryRunReceipt?: string;
 };
 
 type ReleaseMarker = {
@@ -401,6 +428,12 @@ function parseArgs(args: string[]): {
   quietMinutes: number;
   dryRun: boolean;
   json: boolean;
+  preflightDigest?: string;
+  preflightPayload?: string;
+  preflightSignature?: string;
+  receiptOutput?: string;
+  dryRunId?: string;
+  dryRunReceipt?: string;
 } {
   const command = args[0] ?? "";
   const read = (name: string) => {
@@ -418,6 +451,12 @@ function parseArgs(args: string[]): {
     quietMinutes,
     dryRun: args.includes("--dry-run"),
     json: args.includes("--json"),
+    preflightDigest: read("--preflight-digest"),
+    preflightPayload: read("--preflight-payload"),
+    preflightSignature: read("--preflight-signature"),
+    receiptOutput: read("--receipt-output"),
+    dryRunId: read("--dry-run-id"),
+    dryRunReceipt: read("--dry-run-receipt"),
   };
 }
 
@@ -781,16 +820,114 @@ async function assertReleaseDiff(worktree: string, baseSha: string): Promise<voi
   await git(["diff", "--check", `${baseSha}...HEAD`], worktree);
 }
 
-async function runPreflight(
+async function prepareReleaseCommit(
+  worktree: string,
+  mainSha: string,
+  version: string,
+): Promise<{ headSha: string; releaseTreeSha: string }> {
+  const releaseTreeSha = await prepareReleaseTree(worktree, mainSha, version);
+  return commitPreparedRelease(worktree, mainSha, version, releaseTreeSha);
+}
+
+async function prepareReleaseTree(
+  worktree: string,
+  mainSha: string,
+  version: string,
+): Promise<string> {
+  const mainCommittedAt = (await git([
+    "show",
+    "-s",
+    "--format=%cI",
+    mainSha,
+  ], worktree)).stdout.trim();
+  const releaseDate = new Date(mainCommittedAt).toISOString().slice(0, 10);
+  await run("bun", [
+    "scripts/version-policy.ts",
+    "version:prepare",
+    version,
+  ], {
+    cwd: worktree,
+    inherit: true,
+    env: {
+      RELEASE_BOT_TOKEN: undefined,
+      GH_TOKEN: undefined,
+      CODEPILOTX_RELEASE_DATE: releaseDate,
+    },
+  });
+  await run("bun", [
+    "scripts/version-policy.ts",
+    "version:check",
+    "--release-pr",
+    "--base",
+    mainSha,
+  ], {
+    cwd: worktree,
+    inherit: true,
+    env: { RELEASE_BOT_TOKEN: undefined, GH_TOKEN: undefined },
+  });
+  await git(["add", "--", ...RELEASE_PATHS], worktree);
+  const stagedPaths = (await git(["diff", "--cached", "--name-only"], worktree))
+    .stdout.split(/\r?\n/).filter(Boolean).sort();
+  const allowedPaths = [...RELEASE_PATHS].sort();
+  if (JSON.stringify(stagedPaths) !== JSON.stringify(allowedPaths)) {
+    throw new Error("Release staged 文件范围与允许列表不一致");
+  }
+  return (await git(["write-tree"], worktree)).stdout.trim();
+}
+
+async function commitPreparedRelease(
+  worktree: string,
+  mainSha: string,
+  version: string,
+  expectedTreeSha: string,
+): Promise<{ headSha: string; releaseTreeSha: string }> {
+  await configureSigning(worktree);
+  await git([
+    "commit",
+    "-S",
+    "-m",
+    `chore(release)：准备 ${version}`,
+  ], worktree, { inherit: true });
+  await git([
+    "-c",
+    `gpg.ssh.allowedSignersFile=${join(worktree, ".github/release-trust/beta-preflight.allowed_signers")}`,
+    "verify-commit",
+    "HEAD",
+  ], worktree);
+  await assertReleaseDiff(worktree, mainSha);
+  const releaseTreeSha = (await git(["rev-parse", "HEAD^{tree}"], worktree)).stdout.trim();
+  if (releaseTreeSha !== expectedTreeSha) {
+    throw new Error("签名 Release commit 的 tree 与已验证 tree 不一致");
+  }
+  return {
+    headSha: (await git(["rev-parse", "HEAD"], worktree)).stdout.trim(),
+    releaseTreeSha,
+  };
+}
+
+async function assertCleanReleaseWorktree(worktree: string): Promise<void> {
+  const status = (await git([
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=all",
+  ], worktree)).stdout.trim();
+  if (status) {
+    throw new Error("完整验证后 release worktree 出现 tracked/untracked 变更");
+  }
+}
+
+async function runLocalPreflightSuite(
   worktree: string,
   tag: string,
   baseSha: string,
 ): Promise<void> {
-  if (process.env.CODEPILOTX_BETA_RELEASE_SKIP_PREFLIGHT === "1") {
-    console.warn("  ⚠ CODEPILOTX_BETA_RELEASE_SKIP_PREFLIGHT=1，仅供测试使用");
-    return;
+  if (process.platform !== "win32" || process.arch !== "x64") {
+    throw new Error("Beta 本地预检只允许 win32-x64");
   }
-  const commands: Array<[string, string[]]> = [
+  if (Bun.version !== "1.3.14") {
+    throw new Error(`Beta 本地预检要求 Bun 1.3.14，当前为 ${Bun.version}`);
+  }
+  const commands: Array<[string, string[], Record<string, string | undefined>?]> = [
     ["bun", ["install", "--frozen-lockfile"]],
     ["bun", ["run", "version:check", "--", "--tag", tag]],
     ["bun", ["run", "typecheck"]],
@@ -798,7 +935,42 @@ async function runPreflight(
     ["bun", ["run", "desktop:css:check"]],
     ["bun", ["run", "security:audit"]],
     ["bun", ["run", "--cwd", "apps/desktop/renderer", "test:a11y"]],
+    ["bun", ["run", "package:win"], {
+      CODEPILOTX_REQUIRE_SIGNING: "0",
+      CSC_IDENTITY_AUTO_DISCOVERY: "false",
+      CSC_LINK: undefined,
+      CSC_KEY_PASSWORD: undefined,
+      WIN_CSC_LINK: undefined,
+      WIN_CSC_KEY_PASSWORD: undefined,
+    }],
+    ["pwsh", ["-NoLogo", "-NoProfile", "-File", "scripts/smoke-installed-win-x64.ps1"]],
+  ];
+  for (const [command, args, additions] of commands) {
+    console.log(`\n▶ ${command} ${args.join(" ")}`);
+    await run(command, args, {
+      cwd: worktree,
+      inherit: true,
+      env: {
+        RELEASE_BOT_TOKEN: undefined,
+        GH_TOKEN: undefined,
+        ...additions,
+      },
+    });
+  }
+  await assertReleaseDiff(worktree, baseSha);
+  await assertCleanReleaseWorktree(worktree);
+}
+
+async function runReleaseEnvironmentSuite(
+  worktree: string,
+  tag: string,
+  baseSha: string,
+): Promise<void> {
+  const commands: Array<[string, string[]]> = [
+    ["bun", ["install", "--frozen-lockfile"]],
+    ["bun", ["run", "version:check", "--", "--tag", tag]],
     ["bun", ["run", "package:win"]],
+    ["pwsh", ["-NoLogo", "-NoProfile", "-File", "scripts/smoke-installed-win-x64.ps1"]],
   ];
   for (const [command, args] of commands) {
     console.log(`\n▶ ${command} ${args.join(" ")}`);
@@ -808,17 +980,167 @@ async function runPreflight(
       env: {
         RELEASE_BOT_TOKEN: undefined,
         GH_TOKEN: undefined,
+        CODEPILOTX_REQUIRE_SIGNING: "1",
       },
     });
   }
   await assertReleaseDiff(worktree, baseSha);
-  const status = (await git(["status", "--short", "--untracked-files=all"], worktree))
-    .stdout
-    .split(/\r?\n/)
-    .filter(line => line && !/^\?\? (dist|release)\//.test(line));
-  if (status.length > 0) {
-    throw new Error("完整验证后 release worktree 出现意外 tracked/untracked 变更");
+  await assertCleanReleaseWorktree(worktree);
+}
+
+async function localPreflight(mainSha: string): Promise<BetaReleaseState> {
+  const latestMain = await fetchMainAndTags();
+  if (latestMain.toLowerCase() !== mainSha.toLowerCase()) {
+    throw new Error("--main-sha 不再等于 origin/main，拒绝生成本地证明");
   }
+  const state = await inspectRepository(mainSha);
+  if (state.kind !== "candidate" || !state.nextVersion || !state.nextTag) {
+    throw new Error(`main 当前不是可发布 candidate：${state.reason}`);
+  }
+  const repository = await repositoryName();
+  if (repository !== "codepilotx-dev/CodePilotX") {
+    throw new Error("Beta 本地证明只允许 codepilotx-dev/CodePilotX");
+  }
+
+  const worktree = await createTemporaryWorktree(mainSha);
+  let proofInputs: ReturnType<typeof encodeBetaPreflightProofInputs> | undefined;
+  let signedProof: ReturnType<typeof signBetaPreflightProof> | undefined;
+  let primaryError: unknown;
+  try {
+    const releaseCommit = await prepareReleaseCommit(
+      worktree.path,
+      mainSha,
+      state.nextVersion,
+    );
+    await runLocalPreflightSuite(worktree.path, state.nextTag, mainSha);
+    const mainAfterValidation = await fetchMainAndTags();
+    if (mainAfterValidation.toLowerCase() !== mainSha.toLowerCase()) {
+      throw new Error("本地预检期间 origin/main 已前进，拒绝生成旧候选证明");
+    }
+    const signingKey = (await git([
+      "config",
+      "--get",
+      "user.signingkey",
+    ], ROOT, { allowFailure: true })).stdout.trim();
+    if (!signingKey) {
+      throw new Error("当前维护者未配置 Git SSH 签名密钥");
+    }
+    signedProof = signBetaPreflightProof(createBetaPreflightProof({
+      mainSha,
+      releaseTreeSha: releaseCommit.releaseTreeSha,
+      nextVersion: state.nextVersion,
+      nextTag: state.nextTag,
+    }), { signingKeyFile: signingKey });
+    proofInputs = encodeBetaPreflightProofInputs(signedProof);
+  } catch (error) {
+    primaryError = error;
+    throw error;
+  } finally {
+    try {
+      await worktree.dispose();
+    } catch (cleanupError) {
+      if (!primaryError) throw cleanupError;
+      console.error("本地预检 worktree 未清理：失败现场存在变更，已保留原始错误");
+    }
+  }
+
+  if (!proofInputs || !signedProof) {
+    throw new Error("本地预检未生成证明");
+  }
+  const commonGitDirRaw = (await git(["rev-parse", "--git-common-dir"])).stdout.trim();
+  const commonGitDir = resolve(ROOT, commonGitDirRaw);
+  const proofDirectory = join(commonGitDir, "codepilotx", "beta-preflight", mainSha);
+  await mkdir(proofDirectory, { recursive: true });
+  await writeFile(join(proofDirectory, "proof.json"), signedProof.payload, "utf8");
+  await writeFile(join(proofDirectory, "proof.json.sig"), signedProof.signature, "utf8");
+  await writeFile(
+    join(proofDirectory, "workflow-inputs.json"),
+    `${JSON.stringify(proofInputs, null, 2)}\n`,
+    "utf8",
+  );
+  console.log(JSON.stringify({
+    mainSha,
+    nextVersion: state.nextVersion,
+    nextTag: state.nextTag,
+    releaseTreeSha: JSON.parse(signedProof.payload).releaseTreeSha,
+    preflightDigest: proofInputs.preflightDigest,
+    preflightPayload: proofInputs.preflightPayload,
+    preflightSignature: proofInputs.preflightSignature,
+  }, null, 2));
+  return state;
+}
+
+async function verifyDryRunReceipt(
+  repository: string,
+  proof: PrepareProofInputs,
+  expected: {
+    mainSha: string;
+    releaseTreeSha: string;
+    nextVersion: string;
+    nextTag: string;
+  },
+): Promise<BetaDryRunReceiptV1> {
+  const runId = Number(proof.dryRunId);
+  if (!Number.isSafeInteger(runId) || runId <= 0 || !proof.dryRunReceipt) {
+    throw new Error("live Prepare 必须提供有效 --dry-run-id 和 --dry-run-receipt");
+  }
+  if (String(process.env.GITHUB_RUN_ID ?? "") === String(runId)) {
+    throw new Error("live Prepare 不能把当前 run 作为 dry-run 回执来源");
+  }
+  const metadata = await apiJson<GithubWorkflowRun>(
+    `repos/${repository}/actions/runs/${runId}`,
+  );
+  const trustedActor = process.env.RELEASE_BOT_LOGIN ?? DEFAULT_BOT_LOGIN;
+  if (!metadata || metadata.status !== "completed" || metadata.conclusion !== "success" ||
+      metadata.event !== "workflow_dispatch" || metadata.head_sha?.toLowerCase() !== expected.mainSha ||
+      metadata.actor?.login !== trustedActor ||
+      (metadata.path !== ".github/workflows/prepare-beta-release.yml" &&
+        metadata.name !== "Prepare beta release")) {
+    throw new Error("dry-run Actions run 的 workflow、event、SHA、actor 或结论不受信任");
+  }
+  const receipt = JSON.parse(await readFile(resolve(proof.dryRunReceipt), "utf8")) as unknown;
+  return validateBetaDryRunReceipt(receipt, {
+    repository,
+    actor: trustedActor,
+    runId,
+    runAttempt: metadata.run_attempt ?? 1,
+    mainSha: expected.mainSha,
+    proofDigest: proof.preflightDigest,
+    releaseTreeSha: expected.releaseTreeSha,
+    nextVersion: expected.nextVersion,
+    nextTag: expected.nextTag,
+  });
+}
+
+async function writeDryRunReceipt(
+  repository: string,
+  proof: PrepareProofInputs,
+  output: string,
+  expected: {
+    mainSha: string;
+    releaseTreeSha: string;
+    nextVersion: string;
+    nextTag: string;
+  },
+): Promise<void> {
+  const runId = Number(process.env.GITHUB_RUN_ID);
+  const runAttempt = Number(process.env.GITHUB_RUN_ATTEMPT);
+  const actor = process.env.GITHUB_ACTOR ?? "";
+  if (!Number.isSafeInteger(runId) || runId <= 0 ||
+      !Number.isSafeInteger(runAttempt) || runAttempt <= 0 || !actor) {
+    throw new Error("无法从 GitHub Actions 环境生成可信 dry-run 回执");
+  }
+  const receipt = createBetaDryRunReceipt({
+    actor,
+    runId,
+    runAttempt,
+    mainSha: expected.mainSha,
+    proofDigest: proof.preflightDigest,
+    releaseTreeSha: expected.releaseTreeSha,
+    nextVersion: expected.nextVersion,
+    nextTag: expected.nextTag,
+  });
+  await writeFile(resolve(output), `${JSON.stringify(receipt, null, 2)}\n`, "utf8");
 }
 
 async function ensureRepositoryLabel(
@@ -898,7 +1220,17 @@ async function prepare(
   mainSha: string,
   quietMinutes: number,
   dryRun: boolean,
+  proof: PrepareProofInputs,
 ): Promise<BetaReleaseState> {
+  if (!proof.preflightDigest || !proof.preflightPayload || !proof.preflightSignature) {
+    throw new Error("Prepare 必须提供本地签名预检证明");
+  }
+  if (dryRun && (!proof.receiptOutput || proof.dryRunId || proof.dryRunReceipt)) {
+    throw new Error("dry-run Prepare 必须只提供 --receipt-output");
+  }
+  if (!dryRun && (!proof.dryRunId || !proof.dryRunReceipt || proof.receiptOutput)) {
+    throw new Error("live Prepare 必须提供 dry-run ID 与唯一回执");
+  }
   if (quietMinutes > 0) {
     console.log(`等待 main 静默 ${quietMinutes} 分钟…`);
     await Bun.sleep(Math.round(quietMinutes * 60_000));
@@ -920,65 +1252,86 @@ async function prepare(
   }
 
   const repository = await repositoryName();
-  await closeStaleReleasePullRequests(repository, mainSha, dryRun);
   const branch = releaseBranch(state.nextVersion, mainSha);
   const worktree = await createTemporaryWorktree(mainSha);
+  let primaryError: unknown;
   try {
-    await configureSigning(worktree.path);
-    await run("bun", [
-      "scripts/version-policy.ts",
-      "version:prepare",
-      state.nextVersion,
-    ], {
-      cwd: worktree.path,
-      inherit: true,
-      env: {
-        RELEASE_BOT_TOKEN: undefined,
-        GH_TOKEN: undefined,
-      },
-    });
-    await run("bun", [
-      "scripts/version-policy.ts",
-      "version:check",
-      "--release-pr",
-      "--base",
+    const releaseTreeSha = await prepareReleaseTree(
+      worktree.path,
       mainSha,
-    ], {
-      cwd: worktree.path,
-      inherit: true,
-      env: {
-        RELEASE_BOT_TOKEN: undefined,
-        GH_TOKEN: undefined,
+      state.nextVersion,
+    );
+    verifyBetaPreflightProofInputs({
+      preflightDigest: proof.preflightDigest,
+      preflightPayload: proof.preflightPayload,
+      preflightSignature: proof.preflightSignature,
+    }, {
+      allowedSignersFile: PREFLIGHT_ALLOWED_SIGNERS,
+      signerIdentity: PREFLIGHT_SIGNER_IDENTITY,
+      expected: {
+        mainSha,
+        releaseTreeSha,
+        nextVersion: state.nextVersion,
+        nextTag: state.nextTag,
       },
     });
-    await git(["add", "--", ...RELEASE_PATHS], worktree.path);
-    await git([
-      "commit",
-      "-S",
-      "-m",
-      `chore(release)：准备 ${state.nextVersion}`,
-    ], worktree.path, { inherit: true });
-    await git(["verify-commit", "HEAD"], worktree.path);
-    await assertReleaseDiff(worktree.path, mainSha);
-    await runPreflight(worktree.path, state.nextTag, mainSha);
-
-    const headSha = (await git(["rev-parse", "HEAD"], worktree.path)).stdout.trim();
+    const { headSha } = await commitPreparedRelease(
+      worktree.path,
+      mainSha,
+      state.nextVersion,
+      releaseTreeSha,
+    );
     const marker = buildReleaseMarker({
       baseSha: mainSha,
       version: state.nextVersion,
       tag: state.nextTag,
     });
     if (dryRun) {
+      await runReleaseEnvironmentSuite(worktree.path, state.nextTag, mainSha);
+      const mainAfterDryRun = await fetchMainAndTags();
+      if (mainAfterDryRun.toLowerCase() !== mainSha.toLowerCase()) {
+        throw new Error("环境 dry-run 期间 origin/main 已前进，拒绝生成旧候选回执");
+      }
+      verifyBetaPreflightProofInputs({
+        preflightDigest: proof.preflightDigest,
+        preflightPayload: proof.preflightPayload,
+        preflightSignature: proof.preflightSignature,
+      }, {
+        allowedSignersFile: PREFLIGHT_ALLOWED_SIGNERS,
+        signerIdentity: PREFLIGHT_SIGNER_IDENTITY,
+        expected: {
+          mainSha,
+          releaseTreeSha,
+          nextVersion: state.nextVersion,
+          nextTag: state.nextTag,
+        },
+      });
+      await writeDryRunReceipt(repository, proof, proof.receiptOutput!, {
+        mainSha,
+        releaseTreeSha,
+        nextVersion: state.nextVersion,
+        nextTag: state.nextTag,
+      });
       console.log(JSON.stringify({
         dryRun: true,
         baseSha: mainSha,
         branch,
         headSha,
+        releaseTreeSha,
+        proofDigest: proof.preflightDigest,
         version: state.nextVersion,
         tag: state.nextTag,
       }, null, 2));
       return state;
     }
+
+    await verifyDryRunReceipt(repository, proof, {
+      mainSha,
+      releaseTreeSha,
+      nextVersion: state.nextVersion,
+      nextTag: state.nextTag,
+    });
+    await closeStaleReleasePullRequests(repository, mainSha, false);
 
     const mainAfterValidation = await fetchMainAndTags();
     if (mainAfterValidation.toLowerCase() !== mainSha.toLowerCase()) {
@@ -1062,6 +1415,7 @@ async function prepare(
     console.log(`Release PR 已创建并启用 auto-merge：${prUrl}`);
     return state;
   } catch (error) {
+    primaryError = error;
     if (!dryRun) {
       await upsertFailureIssue(
         repository,
@@ -1073,7 +1427,12 @@ async function prepare(
     }
     throw error;
   } finally {
-    await worktree.dispose();
+    try {
+      await worktree.dispose();
+    } catch (cleanupError) {
+      if (!primaryError) throw cleanupError;
+      console.error("release worktree 未清理：失败现场存在变更，已保留原始错误");
+    }
   }
 }
 
@@ -1509,23 +1868,11 @@ async function reconcile(dryRun: boolean): Promise<BetaReleaseState[]> {
   const latestMain = (await git(["rev-parse", "origin/main"])).stdout.trim();
   const latestState = await inspectRepository(latestMain);
   if (latestState.kind === "candidate") {
-    const quietMinutes = Number(
-      process.env.BETA_RELEASE_QUIET_MINUTES ?? "30",
-    );
-    if (!Number.isFinite(quietMinutes) || quietMinutes < 0) {
-      throw new Error("BETA_RELEASE_QUIET_MINUTES 必须是非负数");
-    }
-    const committedAt = Number(
-      (await git(["show", "-s", "--format=%ct", latestMain])).stdout.trim(),
-    ) * 1_000;
-    const quietUntil = committedAt + quietMinutes * 60_000;
-    if (Date.now() >= quietUntil) {
-      states.push(await prepare(latestMain, 0, dryRun));
-    } else if (!states.some(state => state.mainSha === latestMain)) {
+    if (!states.some(state => state.mainSha === latestMain)) {
       states.push({
         ...latestState,
         kind: "idle",
-        reason: `main 仍在 ${quietMinutes} 分钟静默期内`,
+        reason: "Prepare 需要 24 小时内的本地签名预检证明，自动 reconcile 不创建候选",
       });
     }
   } else if (!states.some(state => state.mainSha === latestMain)) {
@@ -1536,13 +1883,13 @@ async function reconcile(dryRun: boolean): Promise<BetaReleaseState[]> {
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-  if (!["inspect", "prepare", "finalize", "reconcile"].includes(options.command)) {
+  if (!["inspect", "preflight", "prepare", "finalize", "reconcile"].includes(options.command)) {
     throw new Error(
-      "用法：beta-release.ts <inspect|prepare|finalize|reconcile> [--main-sha <sha>] [--quiet-minutes <n>] [--dry-run] [--json]",
+      "用法：beta-release.ts <inspect|preflight|prepare|finalize|reconcile> [--main-sha <sha>] [--quiet-minutes <n>] [--dry-run] [--json]",
     );
   }
   if (
-    ["inspect", "prepare", "finalize"].includes(options.command)
+    ["inspect", "preflight", "prepare", "finalize"].includes(options.command)
     && !options.mainSha
   ) {
     throw new Error(`${options.command} 必须提供 --main-sha`);
@@ -1554,11 +1901,22 @@ async function main(): Promise<void> {
       await fetchMainAndTags();
       result = await inspectRepository(options.mainSha!);
       break;
+    case "preflight":
+      result = await localPreflight(options.mainSha!);
+      break;
     case "prepare":
       result = await prepare(
         options.mainSha!,
         options.quietMinutes,
         options.dryRun,
+        {
+          preflightDigest: options.preflightDigest ?? "",
+          preflightPayload: options.preflightPayload ?? "",
+          preflightSignature: options.preflightSignature ?? "",
+          receiptOutput: options.receiptOutput,
+          dryRunId: options.dryRunId,
+          dryRunReceipt: options.dryRunReceipt,
+        },
       );
       break;
     case "finalize":

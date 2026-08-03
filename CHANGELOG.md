@@ -20,7 +20,7 @@
 - [Agent/renderer] 修改文件卡片新增三文件折叠、Review 文件定位及基于精确文件状态校验的撤销与重新应用
 - [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
 - [release] 新增专用 Windows runner 驱动的两阶段 Beta 自动发布流程，在 main 静默期后自动升版、完整验证、创建 Release PR，并于远端 CI 通过后签名打标和发布 prerelease
-- [release] 新增 OpenCode 手动 Beta 发布 Skill，仅使用 dev 已提交内容创建 main PR，并在一次正式确认后复用完整验证、Release PR、签名标签及 prerelease 发布流程
+- [release] 新增手动 Beta 发布 Skill，仅使用 dev 已提交内容创建 main PR，并在一次正式确认后复用完整验证、Release PR、签名标签及 prerelease 发布流程
 - [Agent/renderer] 新增可选的明文 `auth.json` Provider 凭据仓库与本机加密仓库切换流程，迁移会先验证目标再清理源，并明确提示便携性与明文风险
 - [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
 - [desktop/renderer] 新增可配置的 Windows 任务系统通知，在权限、提问、完成和失败时提醒用户，并支持点击恢复应用并打开对应任务
@@ -29,6 +29,7 @@
 
 ### Changed
 
+- [release] Beta 发布改为本地完整质量门禁与 SHA/tree 绑定的 SSH 签名证明，self-hosted 发布机只验证环境并生成可复用 dry-run 回执，最终标签产物在受保护发布机签名构建后由 GitHub-hosted job 证明来源并发布
 - [docs] 重写开源项目 README，补充产品截图、Beta 下载、功能概览与公开协作入口，并移除过时的能力限制和数据恢复说明
 - [renderer] 参照 Claude-like 阅读节奏统一 Markdown 标题、段落、列表项间距、引用、表格与代码排版，优化粗体标题说明分组及表格单元格的均匀内边距与居中对齐，同时保留紧凑摘要及工作台响应式布局
 - [renderer] 工作台激活标签统一使用列表选中态主题背景，并在聚焦或悬停时保持激活视觉
@@ -67,6 +68,7 @@
 
 ### Fixed
 
+- [renderer/release] 外观主题编辑器在异步 code-theme seed 完成前声明 busy，并将预览强调色调整到 WCAG AA 对比度后再运行 a11y 扫描，避免未完成样式与 `#339cff` 白底低对比度误阻塞 Beta
 - [desktop/release] 打包桌面启动 Sidecar 时若 Windows 服务账户缺少 Documents 已知文件夹，则回退到其 home 下的 Documents，并将环境求值、进程创建与 stdin 关闭分阶段诊断，避免自托管发布 Runner 在创建 Agent 前反复失败
 - [desktop/release] Sidecar 连接失败日志新增固定枚举的启动阶段与错误码，发布 smoke 可在不输出路径、异常正文或凭据的前提下区分托管地址、命令解析、进程创建、Agent 就绪与桌面加载故障
 - [release] 临时 Release worktree 仅在 tracked/untracked 状态完全干净时无强制参数移除，失败现场存在变更时保留并拒绝自动清理

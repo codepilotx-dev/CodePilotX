@@ -23,10 +23,21 @@ import {
   parseChangelogSections,
 } from "./changelog-utils.ts";
 import { buildReleaseNotes } from "./write-release-notes.ts";
-import { runReleasePrCheck } from "./version-policy.ts";
+import { resolveReleaseDate, runReleasePrCheck } from "./version-policy.ts";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const CLI = `bun ${join(ROOT, "scripts", "version-policy.ts")}`;
+
+describe("release date", () => {
+  it("uses a locked UTC date so proof trees stay stable across midnight", () => {
+    expect(resolveReleaseDate("2026-08-03", new Date("2026-08-04T12:00:00Z")))
+      .toBe("2026-08-03");
+    expect(resolveReleaseDate(undefined, new Date("2026-08-04T12:00:00Z")))
+      .toBe("2026-08-04");
+    expect(() => resolveReleaseDate("2026-02-30"))
+      .toThrow("有效的 YYYY-MM-DD");
+  });
+});
 
 function runCLI(args: string) {
   try {

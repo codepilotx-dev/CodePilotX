@@ -24,7 +24,10 @@ import {
   loadChromeThemeSeed,
   mergeChromeThemeSeed,
 } from '../theme/codeThemeSeed.js'
-import { deriveThemeVariables } from '../theme/themeVariables.js'
+import {
+  deriveThemeVariables,
+  ensureThemePreviewContrast,
+} from '../theme/themeVariables.js'
 import { SegmentedControl } from './SegmentedControl.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -42,6 +45,17 @@ type ThemeSettingsUpdater = (
 
 const VARIANTS = ['light', 'dark'] as const
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
+
+function visualThemeSeedDelay(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve()
+  const search = new URLSearchParams(window.location.search)
+  if (!search.has('visualCase')) return Promise.resolve()
+  const delay = Number.parseInt(search.get('visualThemeSeedDelayMs') ?? '', 10)
+  if (!Number.isFinite(delay) || delay <= 0) return Promise.resolve()
+  return new Promise(resolve =>
+    window.setTimeout(resolve, Math.min(delay, 5_000)),
+  )
+}
 
 const THEME_MODE_OPTIONS: Array<{
   value: DesktopThemeMode
@@ -754,16 +768,24 @@ function VariantThemeEditor({
   const [themeSeeds, setThemeSeeds] = useState<
     Record<string, Pick<DesktopChromeTheme, 'surface' | 'ink' | 'accent'>>
   >({})
+  const [themeSeedsReady, setThemeSeedsReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all(
-      themes.map(async theme => ({
-        slug: theme.slug,
-        seed: await loadChromeThemeSeed(theme.slug, variant),
-      })),
-    ).then(entries => {
+    setThemeSeedsReady(false)
+    void Promise.allSettled(
+      themes.map(async theme => {
+        await visualThemeSeedDelay()
+        return {
+          slug: theme.slug,
+          seed: await loadChromeThemeSeed(theme.slug, variant),
+        }
+      }),
+    ).then(results => {
       if (cancelled) return
+      const entries = results.flatMap(result =>
+        result.status === 'fulfilled' ? [result.value] : [],
+      )
       setThemeSeeds(
         Object.fromEntries(
           entries.map(({ slug, seed }) => [
@@ -776,6 +798,10 @@ function VariantThemeEditor({
           ]),
         ),
       )
+      setThemeSeedsReady(true)
+      if (entries.length !== results.length) {
+        onError('部分代码主题预览加载失败，请重试')
+      }
     })
     return () => {
       cancelled = true
@@ -797,7 +823,7 @@ function VariantThemeEditor({
                 seed
                   ? {
                       backgroundColor: seed.surface,
-                      color: seed.accent,
+                      color: ensureThemePreviewContrast(seed),
                       borderColor: `color-mix(in srgb, ${seed.ink} 18%, transparent)`,
                     }
                   : undefined
@@ -843,7 +869,7 @@ function VariantThemeEditor({
   }
 
   return (
-    <article className="appearance-theme-editor">
+    <article aria-busy={!themeSeedsReady} className="appearance-theme-editor">
       <SettingsRow
         title={`${variantLabel}主题`}
         control={
