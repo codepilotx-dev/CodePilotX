@@ -15,9 +15,10 @@ import type { PiModelService } from "../src/provider/pi/PiModelService"
 import { TaskSuggestionService } from "../src/suggestion/TaskSuggestionService"
 
 const roots: string[] = []
+const FIXTURE_REMOVE_ATTEMPTS = 100
 
 const removeFixtureRoot = async (root: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  for (let attempt = 0; attempt < FIXTURE_REMOVE_ATTEMPTS; attempt += 1) {
     try {
       await rm(root, { recursive: true, force: true })
       return
@@ -26,7 +27,7 @@ const removeFixtureRoot = async (root: string) => {
         !(error instanceof Error)
         || !("code" in error)
         || !["EBUSY", "EPERM", "ENOTEMPTY"].includes(String(error.code))
-        || attempt === 19
+        || attempt === FIXTURE_REMOVE_ATTEMPTS - 1
       ) {
         throw error
       }
