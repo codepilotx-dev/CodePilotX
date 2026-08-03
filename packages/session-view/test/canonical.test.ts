@@ -503,6 +503,195 @@ describe("canonical thread state", () => {
     })
   })
 
+  test("projects dynamic permission requests and closes them via interaction/resolved", () => {
+    const activeTurn = turn("turn-permission")
+    const rootAgent = agent("agent-permission", activeTurn.id)
+    const bundle = {
+      turn: activeTurn,
+      inputs: [input("input-permission", activeTurn.id, 1)],
+      messages: [],
+      agents: [rootAgent],
+      items: [],
+      approvals: [],
+    }
+    const payload = {
+      interactionId: "permission-1",
+      threadId: thread.id,
+      turnId: activeTurn.id,
+      agentId: rootAgent.id,
+      toolCallId: "tool-permission",
+      tool: "request_permissions",
+      reason: "需要读取文档并写入产物",
+      requestedPermissions: {
+        readPaths: ["C:\\workspace\\docs"],
+        writePaths: ["C:\\workspace\\out"],
+        networkDomains: ["api.example.com"],
+      },
+      requestedScope: "turn" as const,
+      allowedScopes: ["tool-call", "turn"] as const,
+      risk: "high" as const,
+      createdAt: 30,
+    }
+    const state = createCanonicalThreadState(page([bundle]))
+    const projected = applyThreadEnvelope(
+      state,
+      durable(11, "permission/requested", payload),
+    )
+    expect(projected.approvalsById.get(payload.interactionId)).toMatchObject({
+      paths: ["C:\\workspace\\docs", "C:\\workspace\\out", "api.example.com"],
+      risk: "high",
+      status: "pending",
+      permissionGrant: {
+        requestedScope: "turn",
+        allowedScopes: ["tool-call", "turn"],
+      },
+    })
+
+    const granted = applyThreadEnvelope(projected, durable(12, "interaction/resolved", {
+      interactionId: "permission-1",
+      result: {
+        kind: "permission",
+        decision: "grant",
+        scope: "turn",
+        grantedPermissions: { readPaths: ["C:\\workspace\\docs"] },
+      },
+      resolvedAt: 40,
+    }))
+    expect(granted.approvalsById.get("permission-1")?.status).toBe("allowed")
+
+    const denied = applyThreadEnvelope(projected, durable(12, "interaction/resolved", {
+      interactionId: "permission-1",
+      result: { kind: "permission", decision: "deny" },
+      resolvedAt: 40,
+    }))
+    expect(denied.approvalsById.get("permission-1")?.status).toBe("denied")
+
+    // Historical resolved events without an interactionId must not guess which
+    // request to close; the snapshot reconciliation remains the source of truth.
+    const unresolved = applyThreadEnvelope(projected, durable(12, "interaction/resolved", {
+      result: { kind: "permission", decision: "grant", scope: "tool-call", grantedPermissions: {} },
+      resolvedAt: 40,
+    }))
+    expect(unresolved.approvalsById.get("permission-1")?.status).toBe("pending")
+  })
+
+  test("closes ordinary approvals via interaction/resolved and keeps questions untouched", () => {
+    const activeTurn = turn("turn-approval-resolved")
+    const rootAgent = agent("agent-approval-resolved", activeTurn.id)
+    const bundle = {
+      turn: activeTurn,
+      inputs: [input("input-approval-resolved", activeTurn.id, 1)],
+      messages: [],
+      agents: [rootAgent],
+      items: [],
+      approvals: [],
+    }
+    const approvalPayload = {
+      interactionId: "approval-close",
+      threadId: thread.id,
+      turnId: activeTurn.id,
+      agentId: rootAgent.id,
+      toolCallId: "tool-close",
+      tool: "PowerShell",
+      risk: "medium" as const,
+      reason: "需要运行命令",
+      requestedPermissions: {},
+      allowedChoices: ["allow-once", "deny", "stop"] as const,
+      createdAt: 30,
+    }
+    const state = createCanonicalThreadState(page([bundle]))
+    const projected = applyThreadEnvelope(
+      state,
+      durable(11, "approval/requested", approvalPayload),
+    )
+    expect(projected.approvalsById.get("approval-close")?.status).toBe("pending")
+
+    const allowed = applyThreadEnvelope(projected, durable(12, "interaction/resolved", {
+      interactionId: "approval-close",
+      result: { kind: "approval", decision: "allow-once" },
+      resolvedAt: 40,
+    }))
+    expect(allowed.approvalsById.get("approval-close")?.status).toBe("allowed")
+
+    const stopped = applyThreadEnvelope(projected, durable(12, "interaction/resolved", {
+      interactionId: "approval-close",
+      result: { kind: "approval", decision: "stop" },
+      resolvedAt: 40,
+    }))
+    expect(stopped.approvalsById.get("approval-close")?.status).toBe("denied")
+
+    // Question resolution must not touch approval state.
+    const questionState = applyThreadEnvelope(projected, durable(12, "interaction/resolved", {
+      interactionId: "approval-close",
+      result: { kind: "question", status: "answered", resolution: "user", answers: [] },
+      resolvedAt: 40,
+    }))
+    expect(questionState.approvalsById.get("approval-close")?.status).toBe("pending")
+  })
+
+  test("legacy thread projection restores permissionGrant and resolves by interactionId", () => {
+    const activeTurn = turn("turn-legacy-permission")
+    const rootAgent = agent("agent-legacy-permission", activeTurn.id)
+    const payload = {
+      interactionId: "permission-legacy",
+      threadId: thread.id,
+      turnId: activeTurn.id,
+      agentId: rootAgent.id,
+      toolCallId: "tool-legacy",
+      tool: "request_permissions",
+      reason: "需要额外权限",
+      requestedPermissions: {
+        readPaths: ["C:\\workspace\\docs"],
+        writePaths: ["C:\\workspace\\out"],
+      },
+      requestedScope: "session" as const,
+      allowedScopes: ["tool-call", "turn", "session"] as const,
+      risk: "critical" as const,
+      createdAt: 30,
+    }
+    const snapshot = {
+      thread,
+      turns: [activeTurn],
+      agents: [rootAgent],
+      subagents: [],
+      inputs: [input("input-legacy", activeTurn.id, 1)],
+      messages: [],
+      items: [],
+      approvals: [],
+    }
+    const projected = applyThreadEvent(snapshot, {
+      jsonrpc: "2.0",
+      method: "permission/requested",
+      params: payload,
+    })
+    expect(projected.approvals[0]).toMatchObject({
+      paths: ["C:\\workspace\\docs", "C:\\workspace\\out"],
+      risk: "critical",
+      status: "pending",
+      permissionGrant: {
+        requestedScope: "session",
+        allowedScopes: ["tool-call", "turn", "session"],
+      },
+    })
+    const resolved = applyThreadEvent(projected, {
+      jsonrpc: "2.0",
+      method: "interaction/resolved",
+      params: {
+        interactionId: "permission-legacy",
+        result: { kind: "permission", decision: "deny" },
+        resolvedAt: 40,
+      },
+    })
+    expect(resolved.approvals[0]?.status).toBe("denied")
+    // Without the identifier the event is ignored for approval state.
+    const unresolved = applyThreadEvent(projected, {
+      jsonrpc: "2.0",
+      method: "interaction/resolved",
+      params: { result: { kind: "permission", decision: "grant", scope: "tool-call", grantedPermissions: {} }, resolvedAt: 40 },
+    })
+    expect(unresolved.approvals[0]?.status).toBe("pending")
+  })
+
   test("keeps only the final result text after process items as the assistant result", () => {
     const activeTurn = turn("turn-ordered")
     const rootAgent = agent("agent-ordered", activeTurn.id)

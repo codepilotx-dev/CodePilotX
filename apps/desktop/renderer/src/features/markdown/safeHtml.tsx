@@ -17,9 +17,9 @@ type ParsedNode =
 type ElementNode = Extract<ParsedNode, { kind: 'element' }>
 
 const ROOT_TAG = 'markdown-root'
-const DROP_WITH_CONTENT = /<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/giu
 const TOKEN_PATTERN = /<!--[\s\S]*?-->|<\/?[a-zA-Z][^>]*>|[^<]+|</gu
 const TAG_PATTERN = /^<\s*(\/?)\s*([a-zA-Z][\w-]*)([^>]*)>$/u
+const DROP_WITH_CONTENT_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed'])
 const ALLOWED_TAGS = new Set([
   'b',
   'br',
@@ -53,17 +53,31 @@ function parseBasicHtml(html: string): ElementNode {
     children: [],
   }
   const stack: ElementNode[] = [root]
-  const safeSource = html.replace(DROP_WITH_CONTENT, '')
+  const droppedTags: string[] = []
 
-  for (const match of safeSource.matchAll(TOKEN_PATTERN)) {
+  for (const match of html.matchAll(TOKEN_PATTERN)) {
     const fragment = match[0]
     if (!fragment || fragment.startsWith('<!--')) continue
+    const tagMatch = fragment.startsWith('<') ? TAG_PATTERN.exec(fragment) : null
+    if (tagMatch) {
+      const closing = Boolean(tagMatch[1])
+      const tag = tagMatch[2].toLowerCase()
+      if (DROP_WITH_CONTENT_TAGS.has(tag)) {
+        if (closing) {
+          const matchingIndex = droppedTags.lastIndexOf(tag)
+          if (matchingIndex !== -1) droppedTags.length = matchingIndex
+        } else if (!tagMatch[3].trimEnd().endsWith('/')) {
+          droppedTags.push(tag)
+        }
+        continue
+      }
+    }
+    if (droppedTags.length > 0) continue
     if (!fragment.startsWith('<')) {
       appendText(stack.at(-1)!, fragment)
       continue
     }
 
-    const tagMatch = TAG_PATTERN.exec(fragment)
     if (!tagMatch) {
       appendText(stack.at(-1)!, fragment)
       continue

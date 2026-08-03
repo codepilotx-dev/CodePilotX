@@ -16,6 +16,7 @@ const WCAG_TAGS = [
 ] as const
 
 const NEW_ROUTE = '/?visualCase=empty#/new'
+const PREWARM_TIMEOUT_MS = 240_000
 const ROUTES = [
   ['new', NEW_ROUTE],
   ['thread-rich', '/?visualCase=rich#/threads/visual-rich'],
@@ -44,7 +45,7 @@ async function preparePage(page: Page, route: string): Promise<void> {
 }
 
 test.beforeAll(async ({ browser }, testInfo) => {
-  testInfo.setTimeout(120_000)
+  testInfo.setTimeout(PREWARM_TIMEOUT_MS)
   const baseURL = testInfo.project.use.baseURL
   if (typeof baseURL !== 'string') {
     throw new Error('a11y Playwright 配置缺少 baseURL')

@@ -23,7 +23,6 @@ import {
   createEmptySessionView,
   setSessionView,
   type SessionViewStateSetters,
-  type UpdateSessionView,
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
 import { canonicalThreadCache } from './canonicalThreadCache.js'
@@ -294,7 +293,6 @@ export async function interruptSessionAction(
 
 export async function decidePermissionAction(
   onErrorRef: MutableRefObject<(message: string) => void>,
-  updateSessionView: UpdateSessionView,
   sessionId: string | null,
   request: DesktopPermissionRequest,
   behavior: 'allow' | 'deny',
@@ -302,16 +300,10 @@ export async function decidePermissionAction(
   updatedInput?: Record<string, unknown>,
   decisionExtras?: Pick<
     DesktopPermissionDecision,
-    'rememberOptionId'
+    'rememberOptionId' | 'grantScope'
   >,
 ): Promise<void> {
   if (!sessionId) return
-  updateSessionView(sessionId, view => ({
-    ...view,
-    pendingPermissions: view.pendingPermissions.filter(
-      item => item.requestId !== request.requestId,
-    ),
-  }))
   try {
     await desktopClient.respondToPermission(sessionId, request.requestId, {
       behavior,
@@ -321,6 +313,8 @@ export async function decidePermissionAction(
       ...decisionExtras,
     })
   } catch (error) {
+    // 不在 RPC 成功前乐观移除请求卡片：成功后由 interaction/resolved 事件与
+    // 刷新后的 snapshot 清理；失败或已被其他客户端处理时保留卡片供重试。
     onErrorRef.current(errorMessageOf(error))
   }
 }

@@ -126,6 +126,7 @@ export function GeneralSettings({
     enableParetoCodeRouter,
     enableFusionRouter,
     defaultModeRequestUserInput,
+    notifications,
   } = draft.values;
   const permissionMode = permissionModeForConfig(permissionConfig)
 
@@ -144,9 +145,46 @@ export function GeneralSettings({
   const [popupNoProjectChat, setPopupNoProjectChat] = useState(false);
   const [holdDictation] = useState<string | null>(null);
   const [toggleDictation] = useState<string | null>(null);
-  const [notifyOnComplete, setNotifyOnComplete] = useState('unfocused');
-  const [notifyPermission, setNotifyPermission] = useState(true);
-  const [notifyQuestions, setNotifyQuestions] = useState(true);
+  const setCompletionNotification = useCallback(
+    (value: 'always' | 'unfocused' | 'never') => {
+      draft.setValue('notifications', {
+        ...draft.values.notifications,
+        completion: value,
+      })
+      draft.autoSave()
+    },
+    [draft],
+  )
+  const setPermissionNotifications = useCallback(
+    (value: boolean) => {
+      draft.setValue('notifications', {
+        ...draft.values.notifications,
+        permissions: value,
+      })
+      draft.autoSave()
+    },
+    [draft],
+  )
+  const setQuestionNotifications = useCallback(
+    (value: boolean) => {
+      draft.setValue('notifications', {
+        ...draft.values.notifications,
+        questions: value,
+      })
+      draft.autoSave()
+    },
+    [draft],
+  )
+  const setErrorNotifications = useCallback(
+    (value: boolean) => {
+      draft.setValue('notifications', {
+        ...draft.values.notifications,
+        errors: value,
+      })
+      draft.autoSave()
+    },
+    [draft],
+  )
   const setShowContextUsage = useCallback(
     (value: boolean) => {
       draft.setValue('showContextUsage', value)
@@ -596,40 +634,51 @@ export function GeneralSettings({
         <SettingsSection title='通知'>
           <SettingsRow
             title='轮次完成通知'
-            description='设置 CodePilotX 完成任务时的提醒'
+            description='设置 CodePilotX 完成任务时是否显示系统通知'
             control={
               <SettingsDropdown
                 width={260}
-                value={notifyOnComplete}
+                value={notifications.completion}
                 options={[
                   { value: 'always', label: '总是' },
                   { value: 'unfocused', label: '仅当应用失焦时' },
                   { value: 'never', label: '从不' },
                 ]}
-                onChange={setNotifyOnComplete}
+                onChange={setCompletionNotification}
                 ariaLabel='轮次完成通知'
               />
             }
           />
           <SettingsRow
             title='启用权限通知'
-            description='在需要通知权限时显示提醒'
+            description='在需要额外权限时显示系统通知'
             control={
               <ToggleSwitch
-                checked={notifyPermission}
-                onChange={setNotifyPermission}
+                checked={notifications.permissions}
+                onChange={setPermissionNotifications}
                 ariaLabel='启用权限通知'
               />
             }
           />
           <SettingsRow
             title='启用问题通知'
-            description='需要输入才能继续时显示提醒'
+            description='需要输入才能继续时显示系统通知'
             control={
               <ToggleSwitch
-                checked={notifyQuestions}
-                onChange={setNotifyQuestions}
+                checked={notifications.questions}
+                onChange={setQuestionNotifications}
                 ariaLabel='启用问题通知'
+              />
+            }
+          />
+          <SettingsRow
+            title='启用任务错误通知'
+            description='任务执行失败时显示系统通知'
+            control={
+              <ToggleSwitch
+                checked={notifications.errors}
+                onChange={setErrorNotifications}
+                ariaLabel='启用任务错误通知'
               />
             }
           />

@@ -156,6 +156,7 @@ describe("可恢复审批 checkpoint", () => {
     await service.respond(prepared.approvalID, "allow")
     const resolvedEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?").get(turn.turnID) as { params: string }
     expect(JSON.parse(resolvedEvent.params)).toEqual({
+      interactionId: prepared.approvalID,
       result: { kind: "approval", decision: "allow-once" },
       resolvedAt: expect.any(Number),
     })
@@ -258,6 +259,70 @@ describe("可恢复审批 checkpoint", () => {
     db.sqlite.query("UPDATE approval_checkpoints SET payload = json_set(payload, '$.invocation.input.command', 'changed') WHERE approval_id = ?").run(prepared.approvalID)
     await expect(service.respond(prepared.approvalID, "allow")).rejects.toMatchObject({ code: "APPROVAL_CHECKPOINT_INVALID" })
     expect(db.sqlite.query("SELECT status FROM approval_requests WHERE id = ?").get(prepared.approvalID)).toEqual({ status: "cancelled" })
+  })
+
+  test("动态权限请求携带真实风险，resolved 事件携带原始交互 ID", async () => {
+    const path = join(tmpdir(), `codepilotx-permission-${crypto.randomUUID()}.sqlite`)
+    paths.push(path)
+    const db = new AgentDatabase(path)
+    databases.push(db)
+    const { thread, turn, input } = setup(db)
+    const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), new ToolRegistry())
+    const invocation: ToolInvocation = {
+      id: "permission-call",
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      name: "request_permissions",
+      input: {
+        scope: "turn",
+        readPaths: ["C:\\workspace\\docs"],
+        writePaths: ["C:\\workspace\\out"],
+        networkDomains: ["api.example.com"],
+        justification: "需要读取文档并写入产物",
+      },
+      permissionConfig: input.permissionConfig,
+      model: input.model,
+      taskMode: "chat",
+      durableApproval: true,
+    }
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, new ToolRegistry().get("request_permissions"))
+    if (resolved.action !== "review") throw new Error("测试需要 review 决策")
+    const prepared = service.prepare(invocation, { decision: "ask", risk: "critical", reason: "需要额外权限" }, resolved)
+    service.persist(prepared)
+    await service.attachRunState("permission-call", JSON.stringify({ version: 1 }), { name: "request_permissions", callId: "permission-call" })
+
+    const requestedEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'permission/requested' AND turn_id = ?").get(turn.turnID) as { params: string }
+    const requestedParams = JSON.parse(requestedEvent.params)
+    expect(requestedParams).toMatchObject({
+      interactionId: prepared.approvalID,
+      kind: "permission",
+      requestedScope: "turn",
+      allowedScopes: ["tool-call", "turn"],
+      risk: "critical",
+      requestedPermissions: {
+        readPaths: ["C:\\workspace\\docs"],
+        writePaths: ["C:\\workspace\\out"],
+        networkDomains: ["api.example.com"],
+      },
+    })
+
+    await service.respondPermission(prepared.approvalID, "allow", { scope: "tool-call", grantedPermissions: { readPaths: ["C:\\workspace\\docs"] } })
+    const resolvedEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?").get(turn.turnID) as { params: string }
+    expect(JSON.parse(resolvedEvent.params)).toEqual({
+      interactionId: prepared.approvalID,
+      result: {
+        kind: "permission",
+        decision: "grant",
+        scope: "tool-call",
+        grantedPermissions: { readPaths: ["C:\\workspace\\docs"] },
+      },
+      resolvedAt: expect.any(Number),
+    })
+    expect(service.permissionGrantResolution(db.getApprovalCheckpoint(prepared.approvalID)!)).toEqual({
+      scope: "tool-call",
+      grantedPermissions: { readPaths: ["C:\\workspace\\docs"] },
+    })
   })
 
   test("sandbox escalation token 跨重启保持且只能 claim 一次", async () => {

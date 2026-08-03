@@ -893,11 +893,11 @@ export function useSessionState(
       updatedInput?: Record<string, unknown>,
       decisionExtras?: {
         rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
+        grantScope?: DesktopPermissionDecision['grantScope']
       },
     ): Promise<void> => {
       await decidePermissionAction(
         onErrorRef,
-        updateSessionView,
         sessionId,
         request,
         behavior,
@@ -906,7 +906,7 @@ export function useSessionState(
         decisionExtras,
       )
     },
-    [sessionId, updateSessionView],
+    [sessionId],
   )
 
   const closeSession = useCallback(

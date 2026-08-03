@@ -364,4 +364,111 @@ describe('agent thread adapter', () => {
     expect(approval).toMatchObject({ type: 'permission_request', request: { requestId: 'approval-1', toolUseId: 'call-1', toolName: 'shell_command', input: { command: 'bun test', cwd: 'F:\\CodeProject\\CodePilotX-Ts' }, requestKind: 'shell-command' } })
     expect(question).toMatchObject({ type: 'permission_request', request: { requestId: 'question:question-1', toolUseId: 'question-1', description: '如何继续？' } })
   })
+
+  test('maps dynamic permission requests to permission-grant desktop requests', () => {
+    const permission = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'permission/requested',
+      params: {
+        threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1',
+        interactionId: 'permission-1', createdAt: 1, version: 1,
+        kind: 'permission', toolCallId: 'call-perm', tool: 'request_permissions',
+        risk: 'critical', reason: '需要额外权限',
+        requestedPermissions: {
+          readPaths: ['C:\\workspace\\docs'],
+          writePaths: ['C:\\workspace\\out'],
+          networkDomains: ['api.example.com'],
+        },
+        requestedScope: 'session',
+        allowedScopes: ['tool-call', 'turn', 'session'],
+      },
+    })[0]!
+
+    expect(permission).toMatchObject({
+      type: 'permission_request',
+      request: {
+        requestId: 'permission-1',
+        toolUseId: 'call-perm',
+        toolName: 'request_permissions',
+        requestKind: 'permission-grant',
+        description: '需要额外权限',
+        input: {
+          paths: ['C:\\workspace\\docs', 'C:\\workspace\\out', 'api.example.com'],
+          risk: 'critical',
+        },
+        permissionGrant: {
+          requestedScope: 'session',
+          allowedScopes: ['tool-call', 'turn', 'session'],
+          requestedPermissions: {
+            readPaths: ['C:\\workspace\\docs'],
+            writePaths: ['C:\\workspace\\out'],
+            networkDomains: ['api.example.com'],
+          },
+        },
+      },
+    })
+  })
+
+  test('approvalToRequest exposes permissionGrant metadata as permission-grant', () => {
+    const snapshot: ThreadSnapshot = {
+      thread: {
+        id: 'thread-1', title: '权限会话', projectID: null, gitBranch: null,
+        workspace: {
+          kind: 'projectless',
+          projectID: null,
+          workspaceRoot: 'C:\\workspace',
+          cwd: 'C:\\workspace',
+          outputDirectory: null,
+        },
+        settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+        createdAt: 1, updatedAt: 2,
+      },
+      turns: [],
+      agents: [],
+      subagents: [],
+      inputs: [],
+      messages: [],
+      items: [],
+      approvals: [{
+        id: 'approval-perm',
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+        agentId: 'agent-1',
+        toolCallID: 'call-perm',
+        tool: 'request_permissions',
+        command: null,
+        cwd: null,
+        paths: ['C:\\docs', 'C:\\out'],
+        requestedPermissions: {
+          readPaths: ['C:\\docs'],
+          writePaths: ['C:\\out'],
+          networkDomains: [],
+        },
+        review: null,
+        risk: 'high',
+        reason: '需要额外权限',
+        status: 'pending',
+        createdAt: 1,
+        permissionGrant: { requestedScope: 'turn', allowedScopes: ['tool-call', 'turn'] },
+      }],
+      queue: { version: 0, pauseReason: null },
+    }
+    const events = agentThreadSnapshotToDesktop(snapshot).events ?? []
+    const request = events
+      .filter(event => event.type === 'permission_request')
+      .map(event => event.metadata?.request)
+      .find(request => request?.requestId === 'approval-perm')
+
+    expect(request).toMatchObject({
+      requestKind: 'permission-grant',
+      permissionGrant: {
+        requestedScope: 'turn',
+        allowedScopes: ['tool-call', 'turn'],
+        requestedPermissions: {
+          readPaths: ['C:\\docs'],
+          writePaths: ['C:\\out'],
+          networkDomains: [],
+        },
+      },
+    })
+  })
 })

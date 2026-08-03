@@ -32,6 +32,27 @@ describe('basic Markdown HTML safety', () => {
 
     expect(html).toBe('<em>ok</em>')
   })
+
+  test('drops nested executable bodies without reconstructing active tags', () => {
+    const nested = renderToStaticMarkup(
+      renderSafeHtml(
+        '<script><script>nested</script>tail</script><strong>safe</strong>',
+        'test',
+        actions,
+      ),
+    )
+    const overlapping = renderToStaticMarkup(
+      renderSafeHtml(
+        '<scr<script>ipt>alert(1)</scr</script>ipt><em>ok</em>',
+        'test',
+        actions,
+      ),
+    )
+
+    expect(nested).toBe('<strong>safe</strong>')
+    expect(overlapping).toContain('<em>ok</em>')
+    expect(overlapping).not.toContain('<script')
+  })
 })
 
 describe('Markdown code comments', () => {

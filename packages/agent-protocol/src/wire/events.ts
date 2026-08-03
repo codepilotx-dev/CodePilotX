@@ -379,7 +379,13 @@ export const EventManifest = {
     capability: "events.replay.v1",
   }),
   "interaction/resolved": defineEvent({
-    payload: Schema.Struct({ result: ServerRequestResultSchema, resolvedAt: TimestampSchema }),
+    payload: Schema.Struct({
+      // Optional for forward compatibility with historical replay: events
+      // emitted before this field existed carry no interaction identifier.
+      interactionId: Schema.optional(OpaqueIDSchema),
+      result: ServerRequestResultSchema,
+      resolvedAt: TimestampSchema,
+    }),
     version: 1,
     durability: "durable",
     stream: "thread",

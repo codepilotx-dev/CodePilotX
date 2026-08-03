@@ -38,6 +38,13 @@ import { SidecarInstallationError } from "./sidecar/command.js"
 import { WindowAppearanceController } from "./windows/appearance.js"
 import { WindowManager } from "./windows/window-manager.js"
 import { registerPetOverlayIpc } from "./ipc/register-pet-overlay-ipc.js"
+import {
+  createElectronNotificationFactory,
+  publishNotificationActivation,
+  registerNotificationIpc,
+  resolveNotificationIconPath,
+} from "./ipc/register-notification-ipc.js"
+import { DesktopNotificationService } from "./notifications/desktop-notification-service.js"
 import { PetOverlayWindowController } from "./windows/pet-overlay-window.js"
 import { PetOverlayWindowStateStore } from "./windows/pet-overlay-window-state.js"
 import { DesktopAutoUpdater } from "./update/desktop-auto-updater.js"
@@ -60,6 +67,16 @@ const configuredUserDataDirectory =
   process.env.CODEPILOTX_USER_DATA_DIR?.trim()
 if (configuredUserDataDirectory) {
   app.setPath("userData", resolve(configuredUserDataDirectory))
+}
+
+// Windows toast 归属依赖 AppUserModelID；packaged 使用与 electron-builder
+// appId 一致的稳定 ID，开发态只能用进程路径做功能调试。
+if (process.platform === "win32") {
+  app.setAppUserModelId(
+    app.isPackaged
+      ? "com.codepilotx.desktop"
+      : process.execPath,
+  )
 }
 
 let supervisor: SidecarSupervisor | undefined
@@ -223,6 +240,16 @@ async function startDesktop(): Promise<void> {
     relaunch: relaunchApplication,
   })
   registerPetOverlayIpc(windows, petOverlay)
+  const notificationService = new DesktopNotificationService({
+    logger,
+    factory: createElectronNotificationFactory(),
+    resolveIconPath: resolveNotificationIconPath,
+    isMainWindowFocused: () => windows?.mainWindow?.isFocused() === true,
+    focusMainWindow: () => windows?.focus(true),
+    publishActivation: activation =>
+      publishNotificationActivation(windows, activation),
+  })
+  registerNotificationIpc(windows, notificationService)
   windows.createStartupWindow()
 
   const token = process.env.CODEPILOTX_AUTH_TOKEN

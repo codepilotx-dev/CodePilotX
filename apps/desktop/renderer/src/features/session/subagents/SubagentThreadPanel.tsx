@@ -37,6 +37,9 @@ import {
 import { Button } from '../../../components/ui/Button.js'
 import { MarkdownMessage } from '../MarkdownMessage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { approvalToRequest } from '../../../services/agentThreadAdapter.js'
+import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
+import type { DesktopPermissionGrantScope } from '../../../../shared/types.js'
 import {
   CanonicalConversationTurn,
   useTimelineDisclosureState,
@@ -67,6 +70,11 @@ export interface SubagentThreadCallbacks {
   onApprovalRespond?: (
     approval: ApprovalRequest,
     decision: 'allow-once' | 'deny' | 'stop',
+  ) => void
+  onPermissionRespond?: (
+    approval: ApprovalRequest,
+    behavior: 'allow' | 'deny',
+    grantScope?: DesktopPermissionGrantScope,
   ) => void
   onQuestionRespond?: (
     question: Extract<Item, { type: 'question' }>,
@@ -108,6 +116,14 @@ export function SubagentThreadPanel({
   const pendingApprovals = React.useMemo(
     () => visibleTurns.flatMap((turn) => turn.approvals).filter((approval) => approval.status === 'pending'),
     [visibleTurns],
+  )
+  const permissionApprovals = React.useMemo(
+    () => pendingApprovals.filter((approval) => Boolean(approval.permissionGrant)),
+    [pendingApprovals],
+  )
+  const approvalApprovals = React.useMemo(
+    () => pendingApprovals.filter((approval) => !approval.permissionGrant),
+    [pendingApprovals],
   )
   const pendingQuestions = React.useMemo(
     () => visibleTurns.flatMap((turn) => turn.items).filter((item): item is Extract<Item, { type: 'question' }> => item.type === 'question' && item.status === 'pending'),
@@ -249,7 +265,21 @@ export function SubagentThreadPanel({
             </div>
           )}
 
-          {pendingApprovals.map((approval) => (
+          {permissionApprovals.map((approval) => (
+            <InlineApprovalCard
+              key={approval.id}
+              request={approvalToRequest(approval)}
+              onDecide={(_request, behavior, _alwaysAllow, _updatedInput, extras) =>
+                callbacks.onPermissionRespond?.(
+                  approval,
+                  behavior,
+                  extras?.grantScope,
+                )
+              }
+            />
+          ))}
+
+          {approvalApprovals.map((approval) => (
             <ApprovalCard
               key={approval.id}
               approval={approval}

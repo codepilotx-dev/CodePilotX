@@ -32,6 +32,12 @@ import type {
   RunDesktopTerminalActionInput,
   WriteDesktopTerminalInput,
 } from "@codepilotx/shared/desktop-terminal-ipc"
+import type {
+  DesktopNotificationActivation,
+  DesktopNotificationIpcBridge,
+  DesktopNotificationRequest,
+  DesktopNotificationResult,
+} from "@codepilotx/shared/desktop-notification-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -87,6 +93,29 @@ const DESKTOP_TERMINAL_IPC_CHANNELS = {
   runAction: "desktop-terminal:run-action",
   event: "desktop-terminal:event",
 } as const satisfies typeof import("@codepilotx/shared/desktop-terminal-ipc").DESKTOP_TERMINAL_IPC_CHANNELS
+
+const DESKTOP_NOTIFICATION_IPC_CHANNELS = {
+  show: "desktop-notification:show",
+  activated: "desktop-notification:activated",
+} as const satisfies typeof import("@codepilotx/shared/desktop-notification-ipc").DESKTOP_NOTIFICATION_IPC_CHANNELS
+
+function isDesktopNotificationActivation(
+  value: unknown,
+): value is DesktopNotificationActivation {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false
+  }
+  const activation = value as Record<string, unknown>
+  return isNotificationIdentifier(activation.notificationId)
+    && isNotificationIdentifier(activation.threadId)
+}
+
+function isNotificationIdentifier(value: unknown): value is string {
+  return typeof value === "string"
+    && value.length >= 1
+    && value.length <= 200
+    && /^[A-Za-z0-9._:-]+$/.test(value)
+}
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -280,12 +309,33 @@ const desktop = {
     return () =>
       ipcRenderer.removeListener(PET_OVERLAY_CHANNELS.openSession, handler)
   },
+  showDesktopNotification: (
+    request: DesktopNotificationRequest,
+  ): Promise<DesktopNotificationResult> =>
+    ipcRenderer.invoke(DESKTOP_NOTIFICATION_IPC_CHANNELS.show, request),
+  onDesktopNotificationActivated: (
+    listener: (activation: DesktopNotificationActivation) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      activation: unknown,
+    ): void => {
+      if (isDesktopNotificationActivation(activation)) listener(activation)
+    }
+    ipcRenderer.on(DESKTOP_NOTIFICATION_IPC_CHANNELS.activated, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_NOTIFICATION_IPC_CHANNELS.activated,
+        handler,
+      )
+  },
 } satisfies DesktopPetOverlayBridge
   & DesktopSettingsIpcBridge
   & DesktopDataLocationIpcBridge
   & DesktopEditIpcBridge
   & DesktopUpdateIpcBridge
   & DesktopTerminalIpcBridge
+  & DesktopNotificationIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

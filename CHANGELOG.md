@@ -23,6 +23,7 @@
 - [release] 新增 OpenCode 手动 Beta 发布 Skill，仅使用 dev 已提交内容创建 main PR，并在一次正式确认后复用完整验证、Release PR、签名标签及 prerelease 发布流程
 - [Agent/renderer] 新增可选的明文 `auth.json` Provider 凭据仓库与本机加密仓库切换流程，迁移会先验证目标再清理源，并明确提示便携性与明文风险
 - [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
+- [desktop/renderer] 新增可配置的 Windows 任务系统通知，在权限、提问、完成和失败时提醒用户，并支持点击恢复应用并打开对应任务
 - [governance] 采用 Apache License 2.0，并新增贡献指南、行为准则、安全披露策略、CODEOWNERS、Issue/PR 模板与 Dependabot 配置，明确公开协作和依赖维护边界
 - [renderer] 新增可持久化的侧栏优先级聚焦视图，集中展示需关注任务并按最近一周自然日整理其余任务
 
@@ -68,6 +69,7 @@
 
 - [release] Windows 打包 smoke 在持久 runner 上最多等待 180 秒接收 `desktop.ready`，同时在桌面进程先退出时立即失败，避免冷启动抖动误报且不掩盖真实崩溃
 - [release] Windows 打包 smoke 超时时仅输出最近的安全事件名轨迹，为持久 runner 启动卡点保留诊断证据且不暴露路径、消息或凭据
+- [renderer/release] Renderer a11y 首次 Vite 页面预热使用独立 240 秒预算，正式 WCAG 场景仍保留默认短预算，避免持久 Windows runner 冷编译超过 120 秒时中止整套审计
 - [desktop/release] Sidecar 为签名 Agent 冷启动保留 60 秒 ready 消息窗口，并让 packaged smoke 输出有限枚举的失败类型，避免持久 runner 反复提前终止同一合法启动
 - [release] Windows 打包 smoke 显式清除 runner 注入的托管 Agent URL 并固定隔离 userData，确保验证刚打包的 owned Agent 而非外部服务
 - [release] Prepare 的小时级 schedule 只排队等待，不再取消正在执行的手动 dry-run；main push 仍会取消已过期候选，避免未经重新确认继续发布
@@ -124,6 +126,7 @@
 - [agent] 数据迁移与校验连接改用一次性查询助手并严格关闭，迁移期间不再缓存 Statement，彻底释放 Windows 上 SQLite 文件句柄，避免合并迁移偶发 EBUSY。
 - [renderer] 修复任务侧栏长标题硬截断和动作区固定占位问题，溢出标题改为渐隐并在悬停时滚动展示完整内容
 - [renderer] 修复 Composer 执行计划弹层被按胶囊内容收缩的定位包含块挤压到约 220px 的问题，改为相对完整摘要区域内容自适应居中（最小约 480px、最大 760px，不足时继续缩小）且不产生横向溢出，并保持胶囊尺寸与悬停/焦点关闭等现有行为不变
+- [Agent/renderer] 修复动态权限请求未进入桌面审批投影、无法授权及响应后卡片无法及时关闭的问题，并支持主与子 Agent 选择更小的授权范围
 
 ### Removed
 
@@ -132,6 +135,7 @@
 
 ### Security
 
+- [renderer/pi-agent-core] 将 Markdown HTML 清洗、指令属性和跨环境路径修剪改为单次线性扫描或标准路径 API，避免嵌套标签绕过清洗及攻击者可控输入触发 ReDoS
 - [Agent] auth.json 的外部修改检测改用仅驻留进程内的精确快照，避免对凭据内容生成可离线猜测的摘要
 
 - [agent] 分叉 setup 路径变量和输出仅用于受信任的有界内存执行链路，不写入历史、事件、日志或环境增量

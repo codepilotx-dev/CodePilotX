@@ -58,6 +58,7 @@ import {
   type SessionListItem,
 } from '../../../uiTypes.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+import { useSystemNotifications } from '../../notifications/useSystemNotifications.js'
 import { NO_WORKSPACE_DIFF } from '../../workspace/useWorkspaceState.js'
 import { shouldRestoreLastWorkspace } from '../../workspace/lastWorkspaceRestore.js'
 import { useSessionState } from '../../session/state/useSessionState.js'
@@ -298,6 +299,9 @@ export function DesktopLayout(): React.ReactNode {
 	    setSidebarPriorityFilterEnabled,
 	    syncExternalSettingsPatch,
   } = settings
+  useSystemNotifications(
+    settingsLoaded ? settings.draft.values.notifications : undefined,
+  )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
@@ -541,6 +545,15 @@ export function DesktopLayout(): React.ReactNode {
     settings.draft.values.pet.enabled,
     settingsLoaded,
   ])
+  useEffect(() => {
+    const bridge = window.codePilotXDesktop
+    if (typeof bridge?.onDesktopNotificationActivated !== 'function') return
+    return bridge.onDesktopNotificationActivated(activation => {
+      // 点击已解决的权限通知只打开任务，不直接执行授权；页面会重新读取
+      // pending interaction，避免对失效请求提交响应。
+      navigate(sessionPath(activation.threadId))
+    })
+  }, [navigate])
   const mainComposerDraftKey: ComposerDraftKey = routedSessionId
     ? `session:${routedSessionId}`
     : 'home'
@@ -2337,6 +2350,7 @@ export function DesktopLayout(): React.ReactNode {
         onOpenSubagent: item => handleOpenSubagent(item.subagentTaskId),
         onOpenPatchReview: handleOpenPatchReview,
         onApprovalRespond: (approval, decision) => { void desktopClient.respondSubagentApproval?.(approval, decision).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
+        onPermissionRespond: (approval, behavior, grantScope) => { void desktopClient.respondSubagentPermission?.(approval, behavior, grantScope).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onQuestionRespond: (question, response) => { void desktopClient.respondSubagentQuestion?.(question.id, response.answer, response.ignored).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         }}
       />

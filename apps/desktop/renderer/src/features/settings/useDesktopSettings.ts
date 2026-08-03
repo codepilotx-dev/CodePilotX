@@ -668,6 +668,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	      collapsedSidebarSections,
 	      browserSitePermissions,
       pet: draftValues.pet,
+      notifications: draftValues.notifications,
 	    }),
 	    [
 	      enableParetoCodeRouter,

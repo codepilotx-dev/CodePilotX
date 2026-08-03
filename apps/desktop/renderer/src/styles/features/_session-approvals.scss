@@ -367,6 +367,52 @@
   }
 }
 
+/* --- Dynamic permission-grant card --- */
+.inline-approval-permission-grant {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.inline-approval-permission-group {
+  display: grid;
+  gap: 4px;
+}
+
+.inline-approval-permission-group-title {
+  color: var(--color-token-text-secondary);
+  font-size: var(--type-secondary);
+  font-weight: var(--font-weight-label);
+}
+
+.inline-approval-permission-group-items {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid
+    color-mix(in srgb, var(--color-token-border-light) 70%, transparent);
+  border-radius: var(--radius-5);
+  background: color-mix(
+    in srgb,
+    var(--color-token-text-preformat-background) 72%,
+    var(--color-token-bg-secondary)
+  );
+  color: var(--color-token-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--type-code);
+  line-height: 1.45;
+  word-break: break-all;
+  list-style: none;
+
+  li {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .ask-user-question-custom-input {
   display: block;
   min-width: 0;
@@ -858,7 +904,8 @@
   color: var(--color-token-foreground);
 }
 
-.inline-approval-card[data-variant="permission"] {
+.inline-approval-card[data-variant="permission"],
+.inline-approval-card[data-variant="permission-grant"] {
   --inline-approval-card-gap: 8px;
   --inline-approval-card-padding: 16px 10px 10px;
   --inline-approval-card-border: 1px solid var(--color-token-border-light);

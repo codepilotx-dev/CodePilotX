@@ -3,7 +3,12 @@ import type { EventPayload, ServerRequestResponse } from "@codepilotx/agent-prot
 export const interactionResolvedPayload = (
   result: ServerRequestResponse,
   resolvedAt: number,
-): EventPayload<"interaction/resolved"> => ({ result, resolvedAt })
+  interactionId?: string,
+): EventPayload<"interaction/resolved"> => ({
+  ...(interactionId ? { interactionId } : {}),
+  result,
+  resolvedAt,
+})
 
 export const approvalCancelledPayload = (
   interactionId: string,

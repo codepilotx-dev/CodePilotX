@@ -8,6 +8,10 @@ import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
 import { EventHub } from "../src/storage/events/EventHub"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
+import { ApprovalService } from "../src/permission/ApprovalService"
+import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
+import { ToolRegistry } from "../src/tool/ToolRegistry"
+import type { ToolInvocation } from "../src/domain"
 import { Model, Provider } from "@codepilotx/model-schema"
 
 const paths: string[] = []
@@ -302,5 +306,57 @@ describe("Thread 历史", () => {
       mode: "plan",
       permissionConfig: nextSettings.permissionConfig,
     })
+  })
+
+  test("snapshot 与 historyPage 从 request_payload 恢复动态权限元数据", async () => {
+    const { db, projection } = await makeHistory()
+    const thread = db.createThread("权限会话")
+    const firstInput = input("需要额外权限")
+    const turn = db.createTurn(thread.id, firstInput)
+    db.claimTurnExecution(turn.turnID)
+    const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), new ToolRegistry())
+    const invocation: ToolInvocation = {
+      id: "permission-tool",
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      name: "request_permissions",
+      input: {
+        scope: "session",
+        readPaths: ["C:\\docs"],
+        writePaths: ["C:\\out"],
+        networkDomains: ["api.example.com"],
+        justification: "需要读取与写入目录",
+      },
+      permissionConfig: firstInput.permissionConfig,
+      model: firstInput.model,
+      taskMode: "chat",
+      durableApproval: true,
+    }
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, new ToolRegistry().get("request_permissions"))
+    if (resolved.action !== "review") throw new Error("测试需要 review 决策")
+    const prepared = service.prepare(invocation, { decision: "ask", risk: "high", reason: "需要权限" }, resolved)
+    service.persist(prepared)
+    await service.attachRunState("permission-tool", JSON.stringify({ version: 1 }), { name: "request_permissions", callId: "permission-tool" })
+
+    const snapshot = projection.snapshot(thread.id)
+    expect(snapshot?.approvals.find((approval) => approval.id === prepared.approvalID)).toMatchObject({
+      paths: ["C:\\docs", "C:\\out", "api.example.com"],
+      status: "pending",
+      permissionGrant: {
+        requestedScope: "session",
+        allowedScopes: ["tool-call", "turn", "session"],
+      },
+    })
+
+    const page = projection.historyPage(thread.id)
+    expect(page?.turns[0]?.approvals[0]).toMatchObject({
+      id: prepared.approvalID,
+      permissionGrant: {
+        requestedScope: "session",
+        allowedScopes: ["tool-call", "turn", "session"],
+      },
+    })
+    expect(page?.turns[0]?.approvals[0]?.paths).toEqual(["C:\\docs", "C:\\out", "api.example.com"])
   })
 })

@@ -709,12 +709,28 @@ export class ThreadProjection {
   approval(row: Record<string, string | number | null>): ApprovalRequest {
     const tool = this.db.sqlite.query("SELECT tool_name, input FROM tool_calls WHERE id = ?").get(String(row.tool_call_id)) as { tool_name: string; input: string } | null
     const input = tool ? parse<Record<string, unknown>>(tool.input) : {}
-    const paths = [input.path, input.cwd].filter((value): value is string => typeof value === "string")
-    const command = typeof input.command === "string" ? input.command : null
     const request = typeof row.request_payload === "string" ? parse<Record<string, unknown>>(row.request_payload) : {}
+    const requestKind = request.kind
     const rawPermissions = request.requestedPermissions
     const permissions = rawPermissions && typeof rawPermissions === "object" && !Array.isArray(rawPermissions) ? rawPermissions as Record<string, unknown> : {}
     const list = (name: string) => Array.isArray(permissions[name]) ? permissions[name].filter((value): value is string => typeof value === "string") : []
+    // 动态权限请求把读路径、写路径和网络域名纳入可展示范围；普通审批保持原状。
+    const paths = requestKind === "permission"
+      ? [...list("readPaths"), ...list("writePaths"), ...list("networkDomains")]
+      : [input.path, input.cwd].filter((value): value is string => typeof value === "string")
+    const command = typeof input.command === "string" ? input.command : null
+    const rawRequestedScope = request.requestedScope
+    const rawAllowedScopes = request.allowedScopes
+    const permissionGrant = requestKind === "permission"
+      && (rawRequestedScope === "tool-call" || rawRequestedScope === "turn" || rawRequestedScope === "session")
+      && Array.isArray(rawAllowedScopes)
+      && rawAllowedScopes.length > 0
+      && rawAllowedScopes.every((scope) => scope === "tool-call" || scope === "turn" || scope === "session")
+      ? {
+          requestedScope: rawRequestedScope as "tool-call" | "turn" | "session",
+          allowedScopes: rawAllowedScopes as Array<"tool-call" | "turn" | "session">,
+        }
+      : undefined
     const review = typeof row.review_payload === "string" ? parse<ApprovalRequest["review"]>(row.review_payload) : null
     return {
       id: String(row.id),
@@ -736,6 +752,7 @@ export class ThreadProjection {
       reason: String(row.reason),
       status: row.status === "pending" ? "pending" : row.status === "cancelled" ? "cancelled" : row.reply === "allow" ? "allowed" : "denied",
       createdAt: Number(row.created_at),
+      ...(permissionGrant ? { permissionGrant } : {}),
     }
   }
 

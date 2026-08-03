@@ -2,6 +2,7 @@ import React from 'react'
 import { ArrowDown, ArrowUp, CornerDownLeft, Info, Pencil } from 'lucide-react'
 import type {
   DesktopPermissionDecision,
+  DesktopPermissionGrantScope,
   DesktopPermissionMode,
   DesktopPermissionRememberOptionId,
   DesktopPermissionRequest,
@@ -24,6 +25,61 @@ export type InlineApprovalCommand = {
   hint: string
 }
 
+export type PermissionGrantScopeOption = {
+  scope: DesktopPermissionGrantScope
+  label: string
+}
+
+export const PERMISSION_GRANT_SCOPE_LABELS: Record<DesktopPermissionGrantScope, string> = {
+  'tool-call': '仅此次工具调用',
+  turn: '当前轮次',
+  session: '当前任务会话',
+}
+
+export function permissionGrantScopeOptions(
+  request: DesktopPermissionRequest,
+): PermissionGrantScopeOption[] {
+  const grant = request.permissionGrant
+  const allowedScopes = grant?.allowedScopes ?? []
+  const scopes = allowedScopes.length > 0
+    ? allowedScopes
+    : grant?.requestedScope
+      ? [grant.requestedScope]
+      : []
+  return scopes.map(scope => ({ scope, label: PERMISSION_GRANT_SCOPE_LABELS[scope] }))
+}
+
+export function permissionGrantDefaultScope(
+  options: PermissionGrantScopeOption[],
+  requestedScope: DesktopPermissionGrantScope | undefined,
+): DesktopPermissionGrantScope | null {
+  return options.find(option => option.scope === requestedScope)?.scope
+    ?? options[0]?.scope
+    ?? null
+}
+
+export function permissionGrantGroups(
+  request: DesktopPermissionRequest,
+): Array<{ title: string; items: string[] }> {
+  const requested = request.permissionGrant?.requestedPermissions
+  const groups: Array<{ title: string; items: string[] }> = []
+  if (requested) {
+    const readPaths = stringArrayValue(requested.readPaths)
+    const writePaths = stringArrayValue(requested.writePaths)
+    const networkDomains = stringArrayValue(requested.networkDomains)
+    if (readPaths.length > 0) groups.push({ title: '读取路径', items: readPaths })
+    if (writePaths.length > 0) groups.push({ title: '写入路径', items: writePaths })
+    if (networkDomains.length > 0) groups.push({ title: '网络域名', items: networkDomains })
+  }
+  if (groups.length === 0) {
+    const paths = Array.isArray(request.input.paths)
+      ? request.input.paths.filter((item): item is string => typeof item === 'string')
+      : []
+    if (paths.length > 0) groups.push({ title: '涉及范围', items: paths })
+  }
+  return groups
+}
+
 export type InlineApprovalCardProps = {
   request: DesktopPermissionRequest
   currentPermissionMode?: DesktopPermissionMode
@@ -32,7 +88,7 @@ export type InlineApprovalCardProps = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: Pick<DesktopPermissionDecision, 'rememberOptionId'>,
+    decisionExtras?: Pick<DesktopPermissionDecision, 'rememberOptionId' | 'grantScope'>,
   ) => void
 }
 
@@ -47,6 +103,21 @@ export function InlineApprovalCard({
     React.useState<ApprovalChoice>('allow')
   const [feedback, setFeedback] = React.useState('')
   const [isCommandExpanded, setIsCommandExpanded] = React.useState(false)
+  const isPermissionGrant =
+    request.requestKind === 'permission-grant' || Boolean(request.permissionGrant)
+  const scopeOptions = permissionGrantScopeOptions(request)
+  const defaultScope = permissionGrantDefaultScope(
+    scopeOptions,
+    request.permissionGrant?.requestedScope,
+  )
+  const [selectedScope, setSelectedScope] =
+    React.useState<DesktopPermissionGrantScope | null>(defaultScope)
+  React.useEffect(() => {
+    // A fresh permission request must not inherit the scope chosen for the
+    // previous one rendered by the same card instance.
+    setSelectedScope(defaultScope)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request.requestId])
   const command = buildInlineApprovalCommand(request)
   const approvalTitle = inlineApprovalTitle(request)
   const previewLabel = inlineApprovalPreviewLabel(request)
@@ -119,6 +190,71 @@ export function InlineApprovalCard({
         }
       />
     )
+  }
+
+  if (isPermissionGrant) {
+    const permissionGroups = permissionGrantGroups(request)
+    return (
+      <section
+        className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
+        data-variant="permission-grant"
+        aria-label="等待权限授权"
+      >
+        <header className="inline-approval-header">
+          <h2>需要额外权限，是否允许？</h2>
+        </header>
+        {permissionGroups.length > 0 ? (
+          <div className="inline-approval-permission-grant">
+            {permissionGroups.map(group => (
+              <div className="inline-approval-permission-group" key={group.title}>
+                <span className="inline-approval-permission-group-title">
+                  {group.title}
+                </span>
+                <ul className="inline-approval-permission-group-items">
+                  {group.items.map(item => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {scopeOptions.length > 0 ? (
+          <div
+            aria-label="授权范围"
+            className="inline-approval-options"
+            role="radiogroup"
+          >
+            {scopeOptions.map((option, index) => (
+              <ApprovalOption
+                key={option.scope}
+                index={index + 1}
+                label={option.label}
+                selected={selectedScope === option.scope}
+                onSelect={() => setSelectedScope(option.scope)}
+              />
+            ))}
+          </div>
+        ) : null}
+        <div className="inline-approval-fixed-option">
+          <div className="inline-approval-actions">
+            <Button onClick={() => onDecide(request, 'deny')}>
+              跳过
+            </Button>
+            <Button onClick={submitPermissionGrant}>
+              提交
+              <CornerDownLeft size={14} />
+            </Button>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  function submitPermissionGrant(): void {
+    const scope = selectedScope ?? defaultScope
+    if (scope) onDecide(request, 'allow', false, undefined, { grantScope: scope })
+    else onDecide(request, 'allow')
   }
 
   function submitChoice(): void {
@@ -419,6 +555,10 @@ function truncateCommand(value: string, maxLength: number): string {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
+}
+
+function stringArrayValue(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 }
 
 function nonNegativeInteger(value: unknown): number | null {

@@ -861,6 +861,18 @@ export type DesktopPetSettings = {
   notifyFailure: boolean
 }
 
+export type DesktopSystemNotificationCompletion =
+  | 'always'
+  | 'unfocused'
+  | 'never'
+
+export type DesktopSystemNotificationSettings = {
+  completion: DesktopSystemNotificationCompletion
+  permissions: boolean
+  questions: boolean
+  errors: boolean
+}
+
 export type SidebarProductMode = 'coding' | 'working' | 'chat'
 export type SidebarSectionId = 'pinned' | 'projects' | 'recent'
 export type DesktopShellSecurityLevel = 'strict' | 'balanced' | 'relaxed'
@@ -989,6 +1001,7 @@ gitBranchPrefix: string
 	  collapsedSidebarSections: SidebarSectionId[]
 	  browserSitePermissions: DesktopBrowserSitePermission[]
   pet: DesktopPetSettings
+  notifications: DesktopSystemNotificationSettings
 }
 
 export type DesktopConfigReadResult = RpcResult<'config/read'>
@@ -1082,12 +1095,26 @@ export type DesktopPermissionRememberOption = {
   hint?: string
 }
 
+export type DesktopPermissionGrantScope = 'tool-call' | 'turn' | 'session'
+
+export type DesktopPermissionGrant = {
+  requestedPermissions: {
+    readPaths?: string[]
+    writePaths?: string[]
+    networkDomains?: string[]
+  }
+  requestedScope: DesktopPermissionGrantScope
+  allowedScopes: DesktopPermissionGrantScope[]
+}
+
 export type DesktopPermissionDecision = AgentPermissionDecision & {
   rememberOptionId?: DesktopPermissionRememberOptionId
+  grantScope?: DesktopPermissionGrantScope
 }
 
 export type DesktopPermissionRequest = AgentPermissionRequest & {
   rememberOptions?: DesktopPermissionRememberOption[]
+  permissionGrant?: DesktopPermissionGrant
 }
 
 export type DesktopSessionMessage = AgentSessionMessage
@@ -1625,6 +1652,7 @@ export type DesktopApi = {
   discardSubagentWorktree?(taskId: string): Promise<unknown>
   restoreSubagentWorkspace?(taskId: string): Promise<unknown>
   respondSubagentApproval?(approval: ApprovalRequest, decision: 'allow-once' | 'deny' | 'stop'): Promise<void>
+  respondSubagentPermission?(approval: ApprovalRequest, behavior: 'allow' | 'deny', grantScope?: DesktopPermissionGrantScope): Promise<void>
   respondSubagentQuestion?(questionId: string, answer: string | null, ignored: boolean): Promise<void>
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>

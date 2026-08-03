@@ -967,6 +967,72 @@ export function createAgentSessionDesktopClient(
     })
   }
 
+  async function respondToPermissionInteraction(
+    interaction: Extract<PendingInteraction, { kind: 'permission' }>,
+    decision: DesktopPermissionDecision,
+  ): Promise<void> {
+    if (decision.behavior === 'deny') {
+      await respondToInteraction(interaction, {
+        kind: 'permission',
+        decision: 'deny',
+      })
+      return
+    }
+    const scope = decision.grantScope ?? interaction.requestedScope
+    if (!interaction.allowedScopes.includes(scope)) {
+      throw new Error(`授权范围 ${scope} 不在 Agent 允许的范围内，请重新选择。`)
+    }
+    await respondToInteraction(interaction, {
+      kind: 'permission',
+      decision: 'grant',
+      scope,
+      grantedPermissions: interaction.requestedPermissions,
+    })
+  }
+
+  async function respondToPermissionDecision(
+    requestId: string,
+    decision: DesktopPermissionDecision,
+    threadId?: string,
+  ): Promise<void> {
+    const questionId = agentQuestionIdFromRequestId(requestId)
+    const interaction = await findPendingInteraction(
+      candidate =>
+        questionId
+          ? candidate.kind === 'question' &&
+            candidate.questions.some(question => question.id === questionId)
+          : (candidate.kind === 'approval' || candidate.kind === 'permission') &&
+            candidate.interactionId === requestId,
+      threadId,
+    )
+    if (interaction.kind === 'question') {
+      await respondToQuestionInteraction(
+        interaction,
+        questionAnswerFromDecision(decision),
+        decision.behavior === 'deny',
+      )
+      return
+    }
+    if (interaction.kind === 'approval') {
+      await respondToInteraction(interaction, {
+        kind: 'approval',
+        decision: decision.behavior === 'allow' ? 'allow-once' : 'deny',
+        ...(decision.alwaysAllow
+          ? {
+              remember: {
+                scope: 'tool' as const,
+                value: interaction.tool,
+              },
+            }
+          : {}),
+      })
+      return
+    }
+    if (interaction.kind === 'permission') {
+      await respondToPermissionInteraction(interaction, decision)
+    }
+  }
+
   async function resolveAgentModelRef(
     selection: string | DesktopModelSelection | undefined,
     sessionId: string,
@@ -2269,6 +2335,20 @@ export function createAgentSessionDesktopClient(
         decision,
       })
     },
+    respondSubagentPermission: async (approval, behavior, grantScope) => {
+      const interaction = await findPendingInteraction(
+        candidate =>
+          candidate.kind === 'permission' &&
+          (candidate.interactionId === approval.id ||
+            candidate.toolCallId === approval.toolCallID),
+        approval.threadId,
+      )
+      if (interaction.kind !== 'permission') return
+      await respondToPermissionInteraction(interaction, {
+        behavior,
+        ...(behavior === 'allow' ? { grantScope } : {}),
+      })
+    },
     respondSubagentQuestion: async (questionId, answer, ignored) => {
       const interaction = await findPendingInteraction(
         candidate =>
@@ -2591,36 +2671,7 @@ export function createAgentSessionDesktopClient(
     ) =>
       withAgentOrMock(
         async () => {
-          const questionId = agentQuestionIdFromRequestId(requestId)
-          const interaction = await findPendingInteraction(
-            candidate =>
-              questionId
-                ? candidate.kind === 'question' &&
-                  candidate.questions.some(question => question.id === questionId)
-                : candidate.kind === 'approval' &&
-                  candidate.interactionId === requestId,
-            sessionId,
-          )
-          if (interaction.kind === 'question') {
-            await respondToQuestionInteraction(
-              interaction,
-              questionAnswerFromDecision(decision),
-              decision.behavior === 'deny',
-            )
-          } else if (interaction.kind === 'approval') {
-            await respondToInteraction(interaction, {
-              kind: 'approval',
-              decision: decision.behavior === 'allow' ? 'allow-once' : 'deny',
-              ...(decision.alwaysAllow
-                ? {
-                    remember: {
-                      scope: 'tool' as const,
-                      value: interaction.tool,
-                    },
-                  }
-                : {}),
-            })
-          }
+          await respondToPermissionDecision(requestId, decision, sessionId)
           await loadAgentSessionSnapshot(sessionId).catch(() => null)
           emitSessionStoreChange()
         },
@@ -2740,6 +2791,8 @@ export function createAgentSessionDesktopClient(
             'item/completed',
             'turn/plan/updated',
             'approval/requested',
+            'permission/requested',
+            'interaction/resolved',
             'question/requested',
           ].includes(notificationMethod)
         ) {

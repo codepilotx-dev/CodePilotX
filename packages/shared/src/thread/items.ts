@@ -3,6 +3,7 @@ import { Schema } from "effect"
 import {
   AdditionalPermissionsSchema,
   PermissionConfigSchema,
+  PermissionGrantScopeSchema,
   RiskCategorySchema,
   ShellInputSchema,
   ShellReviewSchema,
@@ -291,6 +292,14 @@ export const ApprovalRequestSchema = Schema.Struct({
   reason: Schema.String,
   status: Schema.Literals(["pending", "allowed", "denied", "cancelled"]),
   createdAt: Schema.Number,
+  // Optional dynamic permission-grant metadata for request_permissions; the
+  // plain approval structure above stays untouched for ordinary approvals.
+  permissionGrant: Schema.optional(Schema.Struct({
+    requestedScope: PermissionGrantScopeSchema,
+    allowedScopes: Schema.Array(PermissionGrantScopeSchema)
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(3)),
+  })),
 })
 export type ApprovalRequest = typeof ApprovalRequestSchema.Type
 

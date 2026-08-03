@@ -194,6 +194,90 @@ describe('canonical conversation auxiliary selector', () => {
     ])
   })
 
+  test('maps a pending dynamic permission approval to a permission-grant request', () => {
+    const page: CanonicalThreadPage = {
+      thread: {
+        id: 'thread-perm',
+        projectID: null,
+        title: null,
+        gitBranch: null,
+        settings: { taskMode: 'chat', permissionConfig },
+        createdAt: 1,
+        updatedAt: 12,
+      },
+      subagents: [],
+      turns: [
+        {
+          turn: {
+            id: 'turn-perm',
+            threadId: 'thread-perm',
+            sourceInputID: 'input-1',
+            status: 'waiting-permission',
+            mode: 'chat',
+            model,
+            permissionConfig,
+            rootAgentId: 'agent-1',
+            mergedInputIDs: [],
+            startedAt: 2,
+            finishedAt: null,
+            elapsedSeconds: 10,
+            error: null,
+          },
+          inputs: [],
+          messages: [],
+          agents: [],
+          items: [],
+          approvals: [
+            {
+              id: 'permission-1',
+              threadId: 'thread-perm',
+              turnId: 'turn-perm',
+              agentId: 'agent-1',
+              toolCallID: 'call-perm',
+              tool: 'request_permissions',
+              command: null,
+              cwd: null,
+              paths: ['C:\\docs', 'C:\\out', 'api.example.com'],
+              requestedPermissions: {
+                readPaths: ['C:\\docs'],
+                writePaths: ['C:\\out'],
+                networkDomains: ['api.example.com'],
+              },
+              review: null,
+              risk: 'high',
+              reason: '需要额外权限',
+              status: 'pending',
+              createdAt: 7,
+              permissionGrant: {
+                requestedScope: 'turn',
+                allowedScopes: ['tool-call', 'turn'],
+              },
+            },
+          ],
+          attachments: [],
+        },
+      ],
+      olderCursor: null,
+      hasOlder: false,
+      streamPosition: { streamId: 'thread:thread-perm', sequence: 1 },
+    }
+
+    const result = selectCanonicalConversationAuxiliaryState(
+      createCanonicalThreadState(page),
+    )
+
+    expect(result.pendingPermissions).toHaveLength(1)
+    expect(result.pendingPermissions[0]).toMatchObject({
+      requestId: 'permission-1',
+      toolName: 'request_permissions',
+      requestKind: 'permission-grant',
+      permissionGrant: {
+        requestedScope: 'turn',
+        allowedScopes: ['tool-call', 'turn'],
+      },
+    })
+  })
+
   test('returns an empty projection before canonical history is ready', () => {
     const result = selectCanonicalConversationAuxiliaryState(null)
     expect(result).toEqual({

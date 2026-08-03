@@ -63,6 +63,59 @@ describe("宠物设置归一化", () => {
   })
 })
 
+describe("系统通知设置归一化", () => {
+  test("提供安全默认值：完成仅失焦，其余默认开启", () => {
+    expect(defaultDesktopStoredSettings().notifications).toEqual({
+      completion: "unfocused",
+      permissions: true,
+      questions: true,
+      errors: true,
+    })
+  })
+
+  test("完整保存并往返保留全部字段", () => {
+    const saved = {
+      completion: "always",
+      permissions: false,
+      questions: true,
+      errors: false,
+    }
+    expect(
+      normalizeDesktopStoredSettings({ notifications: saved }).notifications,
+    ).toEqual(saved)
+  })
+
+  test("旧配置缺字段时按字段回填默认值", () => {
+    expect(
+      normalizeDesktopStoredSettings({
+        notifications: { completion: "never" },
+      }).notifications,
+    ).toEqual({
+      completion: "never",
+      permissions: true,
+      questions: true,
+      errors: true,
+    })
+    expect(
+      normalizeDesktopStoredSettings({ notifications: {} }).notifications,
+    ).toEqual(defaultDesktopStoredSettings().notifications)
+  })
+
+  test("非法 completion 值回退 unfocused，非对象输入整体回退默认", () => {
+    expect(
+      normalizeDesktopStoredSettings({
+        notifications: { completion: "sometimes" },
+      }).notifications.completion,
+    ).toBe("unfocused")
+    expect(
+      normalizeDesktopStoredSettings({ notifications: "on" }).notifications,
+    ).toEqual(defaultDesktopStoredSettings().notifications)
+    expect(
+      normalizeDesktopStoredSettings({}).notifications,
+    ).toEqual(defaultDesktopStoredSettings().notifications)
+  })
+})
+
 describe("高级权限设置归一化", () => {
   test("Shell 安全级别默认平衡并只保留合法档位", () => {
     expect(defaultDesktopStoredSettings().shellSecurityLevel).toBe("balanced")
