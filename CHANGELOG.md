@@ -68,6 +68,7 @@
 
 ### Fixed
 
+- [Agent/release] 将 Windows 全仓测试数据库夹具的可恢复清理等待扩展到 5 秒，避免短暂文件占用误阻塞本地 Beta 预检，同时在持续占用时仍保留失败
 - [renderer/release] 为会话处理过程的原生 disclosure 提供稳定可访问名称，避免空摘要在 Review 场景触发 WCAG `summary-name` 违规并阻塞本地 Beta 预检
 - [release/test] 隔离 MCP 项目信任临时配置，将预检期望字段校验抽为纯断言，并为真实 SSH 密钥夹具保留独立时限，避免祖先配置污染与 Windows SSH 进程长尾导致全仓本地门禁不稳定
 - [release] 固定 Pi Agent Core 生成声明为 LF，避免 Windows 本地预检在内容未变化时因换行符重写误判 worktree 不干净
