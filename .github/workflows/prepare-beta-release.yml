@@ -2,15 +2,12 @@ name: Prepare beta release
 
 run-name: >-
   Prepare beta release /
-  ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'dry-run' || 'live') || github.event_name }} /
-  ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || github.sha }}
+  ${{ inputs.dry_run && 'dry-run' || 'live' }} /
+  ${{ inputs.main_sha }} /
+  proof ${{ inputs.preflight_digest }} /
+  ${{ !inputs.dry_run && format('dry-run {0}', inputs.dry_run_id) || 'new receipt' }}
 
 on:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       main_sha:
@@ -18,106 +15,168 @@ on:
         required: true
         type: string
       dry_run:
-        description: "Run the full preparation without creating a branch or pull request"
+        description: "Validate the release environment and create a reusable receipt"
         required: true
         type: boolean
         default: true
+      preflight_digest:
+        description: "SHA-256 digest of the signed local preflight payload"
+        required: true
+        type: string
+      preflight_payload:
+        description: "Base64-encoded canonical local preflight payload"
+        required: true
+        type: string
+      preflight_signature:
+        description: "Base64-encoded SSH signature for the local preflight payload"
+        required: true
+        type: string
+      dry_run_id:
+        description: "Successful dry-run workflow run ID; required for live Prepare"
+        required: false
+        type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
   group: prepare-beta-release-${{ github.repository }}
-  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+  cancel-in-progress: true
 
 jobs:
   prepare:
-    if: >-
-      github.ref == 'refs/heads/main' &&
-      (
-        vars.BETA_RELEASE_AUTOMATION_ENABLED == 'true' ||
-        github.event_name == 'workflow_dispatch'
-      )
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, windows, x64, codepilotx-release]
-    timeout-minutes: 180
+    timeout-minutes: 120
     environment:
       name: beta-release
     steps:
-      - name: Checkout main candidate
+      - name: Checkout locked main candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || (github.event_name == 'push' && github.sha || 'main') }}
+          ref: ${{ inputs.main_sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Resolve main candidate
+      - name: Validate dispatch inputs and current main
         id: candidate
         shell: pwsh
         env:
-          MANUAL_MAIN_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || '' }}
+          MANUAL_MAIN_SHA: ${{ inputs.main_sha }}
+          PREFLIGHT_DIGEST: ${{ inputs.preflight_digest }}
+          DRY_RUN_ID: ${{ inputs.dry_run_id }}
+          RELEASE_DRY_RUN: ${{ inputs.dry_run }}
         run: |
+          $mainSha = $env:MANUAL_MAIN_SHA.Trim().ToLowerInvariant()
+          $proofDigest = $env:PREFLIGHT_DIGEST.Trim().ToLowerInvariant()
+          if ($mainSha -notmatch '^[0-9a-f]{40}$') {
+            throw "main_sha must be an exact 40-character commit SHA"
+          }
+          if ($proofDigest -notmatch '^[0-9a-f]{64}$') {
+            throw "preflight_digest must be an exact SHA-256 digest"
+          }
+          if ($env:RELEASE_DRY_RUN -ne "true" -and $env:DRY_RUN_ID -notmatch '^[1-9][0-9]*$') {
+            throw "dry_run_id is required for live Prepare"
+          }
+          if ($env:RELEASE_DRY_RUN -eq "true" -and $env:DRY_RUN_ID) {
+            throw "dry_run_id must be empty for a new dry-run"
+          }
+
           git fetch --no-tags --force "https://github.com/$env:GITHUB_REPOSITORY.git" `
             main:refs/remotes/origin/main
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to refresh origin/main"
-          }
-
+          if ($LASTEXITCODE -ne 0) { throw "Failed to refresh origin/main" }
           $currentMainSha = (git rev-parse refs/remotes/origin/main).Trim().ToLowerInvariant()
-          if ($LASTEXITCODE -ne 0 -or $currentMainSha -notmatch '^[0-9a-f]{40}$') {
-            throw "Unable to resolve the current origin/main SHA"
+          if ($mainSha -ne $currentMainSha) {
+            throw "The approved main_sha no longer matches origin/main"
           }
-
-          if ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") {
-            $mainSha = $env:MANUAL_MAIN_SHA.Trim().ToLowerInvariant()
-            if ($mainSha -notmatch '^[0-9a-f]{40}$') {
-              throw "main_sha must be an exact 40-character commit SHA"
-            }
-            if ($mainSha -ne $currentMainSha) {
-              throw "The approved main_sha no longer matches origin/main"
-            }
-          } elseif ($env:GITHUB_EVENT_NAME -eq "push") {
-            $mainSha = $env:GITHUB_SHA
-          } else {
-            $mainSha = $currentMainSha
-          }
-          if ($LASTEXITCODE -ne 0 -or $mainSha -notmatch '^[0-9a-f]{40}$') {
-            throw "Unable to resolve a valid main candidate SHA"
+          $checkedOutSha = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($checkedOutSha -ne $mainSha) {
+            throw "Checkout does not match the locked main candidate"
           }
           "sha=$mainSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "digest=$proofDigest" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Install dependencies
+      - name: Install frozen dependencies
         run: bun install --frozen-lockfile
 
-      - name: Prepare beta release
+      - name: Validate trusted dry-run metadata
+        if: ${{ !inputs.dry_run }}
+        id: dry-run
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          DRY_RUN_ID: ${{ inputs.dry_run_id }}
+          LOCKED_MAIN_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          $metadata = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:DRY_RUN_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "Unable to read the dry-run metadata" }
+          if ($metadata.path -cne ".github/workflows/prepare-beta-release.yml" -or
+              $metadata.event -cne "workflow_dispatch" -or
+              $metadata.head_sha.ToLowerInvariant() -cne $env:LOCKED_MAIN_SHA -or
+              $metadata.actor.login -cne "xiaohai-ouyang" -or
+              $metadata.conclusion -cne "success" -or
+              [string]$metadata.id -cne $env:DRY_RUN_ID) {
+            throw "dry_run_id does not identify a trusted successful locked dry-run"
+          }
+          $receiptDirectory = Join-Path $env:RUNNER_TEMP "beta-dry-run-receipt"
+          New-Item -ItemType Directory -Path $receiptDirectory -Force | Out-Null
+          $artifactName = "beta-dry-run-receipt-$env:LOCKED_MAIN_SHA-${{ steps.candidate.outputs.digest }}"
+          gh run download $env:DRY_RUN_ID --repo $env:GITHUB_REPOSITORY --name $artifactName --dir $receiptDirectory
+          if ($LASTEXITCODE -ne 0) { throw "Unable to download the unique dry-run receipt" }
+          $receipts = @(Get-ChildItem -LiteralPath $receiptDirectory -Filter "receipt.json" -File -Recurse)
+          if ($receipts.Count -ne 1) { throw "Expected exactly one dry-run receipt" }
+          "receipt=$($receipts[0].FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Run environment dry-run
+        if: ${{ inputs.dry_run }}
+        id: prepare-dry
         shell: pwsh
         env:
           RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
-          CONFIGURED_QUIET_MINUTES: ${{ vars.BETA_RELEASE_QUIET_MINUTES || '30' }}
-          RELEASE_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          PREFLIGHT_PAYLOAD: ${{ inputs.preflight_payload }}
+          PREFLIGHT_SIGNATURE: ${{ inputs.preflight_signature }}
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}
         run: |
-          $quietMinutes = 0
-          if ($env:GITHUB_EVENT_NAME -ne "workflow_dispatch") {
-            if (-not [int]::TryParse($env:CONFIGURED_QUIET_MINUTES, [ref]$quietMinutes) -or
-                $quietMinutes -lt 0 -or $quietMinutes -gt 1440) {
-              throw "BETA_RELEASE_QUIET_MINUTES must be an integer between 0 and 1440"
-            }
+          $receiptPath = Join-Path $env:RUNNER_TEMP "receipt.json"
+          bun scripts/beta-release.ts prepare `
+            --main-sha "${{ steps.candidate.outputs.sha }}" `
+            --preflight-digest "${{ steps.candidate.outputs.digest }}" `
+            --preflight-payload $env:PREFLIGHT_PAYLOAD `
+            --preflight-signature $env:PREFLIGHT_SIGNATURE `
+            --receipt-output $receiptPath `
+            --dry-run
+          if ($LASTEXITCODE -ne 0) { throw "Beta release environment dry-run failed" }
+          if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
+            throw "The environment dry-run did not create its receipt"
           }
+          "receipt=$receiptPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-          $arguments = @(
-            "scripts/beta-release.ts",
-            "prepare",
-            "--main-sha",
-            "${{ steps.candidate.outputs.sha }}",
-            "--quiet-minutes",
-            "$quietMinutes"
-          )
-          if ($env:RELEASE_DRY_RUN -eq "true") {
-            $arguments += "--dry-run"
-          }
+      - name: Upload reusable dry-run receipt
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: beta-dry-run-receipt-${{ steps.candidate.outputs.sha }}-${{ steps.candidate.outputs.digest }}
+          path: ${{ steps.prepare-dry.outputs.receipt }}
+          if-no-files-found: error
+          retention-days: 1
 
-          & bun @arguments
-          if ($LASTEXITCODE -ne 0) {
-            throw "Beta release preparation failed"
-          }
+      - name: Create Release PR from reusable receipt
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          PREFLIGHT_PAYLOAD: ${{ inputs.preflight_payload }}
+          PREFLIGHT_SIGNATURE: ${{ inputs.preflight_signature }}
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+        run: |
+          bun scripts/beta-release.ts prepare `
+            --main-sha "${{ steps.candidate.outputs.sha }}" `
+            --preflight-digest "${{ steps.candidate.outputs.digest }}" `
+            --preflight-payload $env:PREFLIGHT_PAYLOAD `
+            --preflight-signature $env:PREFLIGHT_SIGNATURE `
+            --dry-run-id "${{ inputs.dry_run_id }}" `
+            --dry-run-receipt "${{ steps.dry-run.outputs.receipt }}"
+          if ($LASTEXITCODE -ne 0) { throw "Beta release preparation failed" }
