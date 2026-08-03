@@ -147,6 +147,7 @@
 
 ### Security
 
+- [release/dependencies] 将 `brace-expansion` 统一升级到 5.0.9，修复可通过无界中间数组触发拒绝服务的 `GHSA-rgw5-rvv9-x895`
 - [renderer/pi-agent-core] 将 Markdown HTML 清洗、指令属性和跨环境路径修剪改为单次线性扫描或标准路径 API，避免嵌套标签绕过清洗及攻击者可控输入触发 ReDoS
 - [Agent] auth.json 的外部修改检测改用仅驻留进程内的精确快照，避免对凭据内容生成可离线猜测的摘要
 
