@@ -12,3 +12,14 @@ export function mergeProcessEnvironment(
   }
   return merged
 }
+
+export function createIsolatedProcessEnvironment(
+  base: NodeJS.ProcessEnv,
+  additions: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  const inherited = Object.fromEntries(
+    Object.entries(base).filter(([key, value]) =>
+      value !== undefined && !key.toLowerCase().startsWith("codepilotx_")),
+  )
+  return mergeProcessEnvironment(inherited, additions)
+}
