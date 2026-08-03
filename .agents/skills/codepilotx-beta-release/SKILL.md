@@ -1,6 +1,6 @@
 ---
 name: codepilotx-beta-release
-description: 手动检查、发布或恢复 CodePilotX 当前版本线的下一版 Beta。用于从 dev 已提交内容创建并自动合并 dev → main PR，执行 Windows dry-run，并在唯一一次正式确认后复用现有 Release PR、签名标签和 GitHub prerelease 流程；不得用于 RC、Stable 或新版本线。
+description: 手动检查、发布或恢复 CodePilotX 当前版本线的下一版 Beta。用于从 dev 已提交内容创建并自动合并 dev → main PR，在维护者 Windows 工作站生成签名本地预检证明，由发布机执行环境 dry-run，并在唯一一次正式确认后复用 dry-run 回执、Release PR、签名标签和 GitHub prerelease 流程；不得用于 RC、Stable 或新版本线。
 ---
 
 # CodePilotX 手动 Beta 发布
@@ -23,12 +23,12 @@ description: 手动检查、发布或恢复 CodePilotX 当前版本线的下一�
 
 - 只发布 `refs/heads/dev` 或 `origin/dev` 已提交的对象。当前工作区的 staged、modified 和 untracked 内容一律列为“未包含”。
 - 不得对当前 checkout 执行 `git add`、`git commit`、`git stash`、`git reset`、`git clean`、文件 checkout、rebase 或强推。
-- 本地内容验证只在候选 commit 的临时 detached worktree 中执行；移除 worktree 前必须确认它属于本次运行且 tracked/untracked 状态均为空，禁止 `--force` 清理。
+- 本地质量验证只通过 `bun run beta:preflight -- --main-sha <sha>` 在系统临时目录的 detached worktree 中执行；连续两次必须得到相同 `releaseTreeSha`。移除 worktree 前必须确认它属于本次运行且 tracked/untracked 状态均为空，禁止 `--force` 清理。
 - `scripts/beta-release.ts` 是版本和发布状态的唯一真源；Prepare、Finalize 和标签发布 workflows 是唯一发布执行入口。
-- 手动 Prepare 和 Finalize 必须传入已经验证的 40 位 `main_sha`；Prepare 只接受执行时仍为 `origin/main` tip 的候选，Finalize 只接受已合并 Release PR 的 merge SHA。不得用无目标约束的手动 `reconcile` 代替。
+- 手动 Prepare 必须传入已经验证的 40 位 `main_sha`、24 小时内本地 SSH 证明及其 digest；dry-run 成功后，live 还必须传入同一证明、成功 run ID 和唯一回执。Finalize 只接受已合并 Release PR 的 merge SHA。不得用无目标约束的手动 `reconcile` 代替。
 - 不得手工编辑产品版本、归档 CHANGELOG、创建标签、创建 GitHub Release、删除 draft、覆盖标签或替换附件。
 - 不得读取或打印 GitHub Environment secret。调用本地只读 `inspect` 时，只能将 `gh auth token` 临时放入当前子进程的 `RELEASE_BOT_TOKEN`，并在命令结束后立即清除。
-- `BETA_RELEASE_AUTOMATION_ENABLED` 必须保持 `false`。本 Skill 不创建定时任务。
+- `BETA_RELEASE_AUTOMATION_ENABLED` 必须保持 `false`。无本地证明的 push/schedule 不得 Prepare，本 Skill 不创建定时任务。
 - 代码门禁失败时只诊断并停止；不得修改产品代码、降低预算、跳过测试或自动生成修复提交。
 
 ## 发布授权
@@ -41,7 +41,7 @@ dry-run 完整成功后，展示候选版本、main SHA 和 Actions URL，并且
 发布 vX.Y.Z-beta.N
 ```
 
-未收到完全匹配的确认文本时，不得触发 live Prepare 或 Finalize。确认只对展示的版本和 main SHA 有效；dry-run 和 live Prepare 必须复用同一 `main_sha`。任一值变化后必须重新 dry-run 并重新确认。
+未收到完全匹配的确认文本时，不得触发 live Prepare 或 Finalize。确认只对展示的版本、main SHA、proof digest 和 dry-run ID 有效；live Prepare 必须复用同一 `main_sha`、证明与回执。任一值变化或证明/回执过期后必须重新本地预检、dry-run 并重新确认。
 
 ## 完成标准
 
