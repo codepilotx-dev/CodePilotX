@@ -1,7 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 
-const READY_TIMEOUT_MS = 20_000
+const READY_TIMEOUT_MS = 60_000
 const HEALTH_TIMEOUT_MS = 20_000
 
 interface ReadyMessage {

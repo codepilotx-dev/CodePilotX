@@ -5,9 +5,9 @@ import { dirname, join, resolve } from "node:path"
 import { assertWindowsX64PE } from "./windows-pe"
 
 const root = resolve(import.meta.dir, "..")
-// 一轮 Sidecar 启动最多包含 20 秒 ready 消息等待与 20 秒健康检查。
+// 一轮 Sidecar 启动最多包含 60 秒 ready 消息等待与 20 秒健康检查。
 // 为持久 runner 保留至少两轮完整恢复窗口，并给 Electron 冷启动留出余量。
-const DESKTOP_READY_TIMEOUT_MS = 120_000
+const DESKTOP_READY_TIMEOUT_MS = 180_000
 const applicationArgument = process.argv.find(argument => argument.startsWith("--application="))
 const application = applicationArgument
   ? resolve(applicationArgument.slice("--application=".length))
@@ -129,13 +129,17 @@ async function assertPackagedTerminal(applicationPath: string, isolatedRoot: str
 async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<{ origin: string }> {
   const deadline = Date.now() + timeoutMs
   let recentEvents: string[] = []
+  let recentFailureKinds: string[] = []
   while (Date.now() < deadline) {
     const text = await readFile(logPath, "utf8").catch(() => "")
     if (/ENOENT/i.test(text)) throw new Error("桌面启动日志出现 ENOENT")
     const records = text.split(/\r?\n/).flatMap(line => {
       try {
         return line
-          ? [JSON.parse(line) as { event?: string; details?: { origin?: string } }]
+          ? [JSON.parse(line) as {
+              event?: string
+              details?: { origin?: string; message?: unknown }
+            }]
           : []
       }
       catch { return [] }
@@ -144,6 +148,10 @@ async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<
       .flatMap(record => typeof record.event === "string" ? [record.event] : [])
       .slice(-12)
     const failure = records.find(record => record.event === "desktop.startup-failed")
+    recentFailureKinds = records
+      .filter(record => record.event === "sidecar.connect-failed")
+      .map(record => classifySidecarFailure(record.details?.message))
+      .slice(-6)
     if (failure) throw new Error("桌面启动记录 desktop.startup-failed")
     const ready = records.find(record =>
       record.event === "desktop.ready"
@@ -152,7 +160,16 @@ async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<
     await Bun.sleep(100)
   }
   const eventTrail = recentEvents.length > 0 ? recentEvents.join(" -> ") : "无"
+  const failureTrail = recentFailureKinds.length > 0 ? recentFailureKinds.join(" -> ") : "无"
   throw new Error(
-    `桌面程序 ${timeoutMs / 1_000} 秒内未记录 desktop.ready（最近事件：${eventTrail}）`,
+    `桌面程序 ${timeoutMs / 1_000} 秒内未记录 desktop.ready（最近事件：${eventTrail}；Sidecar 失败类型：${failureTrail}）`,
   )
+}
+
+function classifySidecarFailure(message: unknown): string {
+  if (typeof message !== "string") return "unknown"
+  if (message.includes("等待 Agent ready 消息超时")) return "agent-ready-timeout"
+  if (message.includes("Agent 在 ready 前退出")) return "agent-exited-before-ready"
+  if (message.includes("Agent 就绪检查超时")) return "agent-health-timeout"
+  return "other"
 }
