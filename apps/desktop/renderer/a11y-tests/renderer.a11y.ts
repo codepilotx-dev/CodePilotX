@@ -15,8 +15,9 @@ const WCAG_TAGS = [
   'wcag22aa',
 ] as const
 
+const NEW_ROUTE = '/?visualCase=empty#/new'
 const ROUTES = [
-  ['new', '/?visualCase=empty#/new'],
+  ['new', NEW_ROUTE],
   ['thread-rich', '/?visualCase=rich#/threads/visual-rich'],
   ['thread-permission', '/?visualCase=permission#/threads/visual-permission'],
   ['thread-review', '/?visualCase=review#/threads/visual-review'],
@@ -41,6 +42,21 @@ async function preparePage(page: Page, route: string): Promise<void> {
   await waitForVisualPage(page, 'light', page.locator('body'))
   await closeTransientErrorToast(page)
 }
+
+test.beforeAll(async ({ browser }, testInfo) => {
+  testInfo.setTimeout(120_000)
+  const baseURL = testInfo.project.use.baseURL
+  if (typeof baseURL !== 'string') {
+    throw new Error('a11y Playwright 配置缺少 baseURL')
+  }
+
+  const page = await browser.newPage({ baseURL })
+  try {
+    await preparePage(page, NEW_ROUTE)
+  } finally {
+    await page.close()
+  }
+})
 
 async function expectNoWcagViolations(
   page: Page,
@@ -79,7 +95,7 @@ for (const [name, route] of ROUTES) {
 test('WCAG 2.2 AA: command menu open state', async ({
   page,
 }, testInfo) => {
-  await preparePage(page, '/?visualCase=empty#/new')
+  await preparePage(page, NEW_ROUTE)
   await page.keyboard.press('Control+K')
   await expect(
     page.getByRole('searchbox', { name: '搜索任务' }),
@@ -131,7 +147,7 @@ test('WCAG 2.2 AA: popover open state', async ({ page }, testInfo) => {
 })
 
 test('keyboard users can bypass the application chrome', async ({ page }) => {
-  await preparePage(page, '/?visualCase=empty#/new')
+  await preparePage(page, NEW_ROUTE)
   await page.evaluate(() => {
     document.body.tabIndex = -1
     document.body.focus()
