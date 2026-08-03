@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path"
 import { assertWindowsX64PE } from "./windows-pe"
 
 const root = resolve(import.meta.dir, "..")
+const DESKTOP_READY_TIMEOUT_MS = 60_000
 const applicationArgument = process.argv.find(argument => argument.startsWith("--application="))
 const application = applicationArgument
   ? resolve(applicationArgument.slice("--application=".length))
@@ -41,7 +42,15 @@ const child = Bun.spawn([application, `--user-data-dir=${join(isolatedRoot, "pro
 })
 
 try {
-  const ready = await waitForDesktopReady(join(logDirectory, "desktop.jsonl"), 20_000)
+  const ready = await Promise.race([
+    waitForDesktopReady(
+      join(logDirectory, "desktop.jsonl"),
+      DESKTOP_READY_TIMEOUT_MS,
+    ),
+    child.exited.then(exitCode => {
+      throw new Error(`桌面程序在 desktop.ready 前退出：${exitCode}`)
+    }),
+  ])
   const response = await fetch(`${ready.origin}/api/ready`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(2_000),
