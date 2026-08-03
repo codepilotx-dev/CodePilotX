@@ -68,6 +68,7 @@
 
 ### Fixed
 
+- [release/test] 隔离 MCP 项目信任临时配置，将预检期望字段校验抽为纯断言，并为真实 SSH 密钥夹具保留独立时限，避免祖先配置污染与 Windows SSH 进程长尾导致全仓本地门禁不稳定
 - [release] 固定 Pi Agent Core 生成声明为 LF，避免 Windows 本地预检在内容未变化时因换行符重写误判 worktree 不干净
 - [release] 本地 Beta 预检复用当前 Bun 可执行文件并以目录语义移除空临时父目录，兼容仅暴露 PowerShell shim 的 Windows 工作站且不把清理异常遮蔽为质量门禁失败
 - [renderer/release] 外观主题编辑器在异步 code-theme seed 完成前声明 busy，并将预览强调色调整到 WCAG AA 对比度后再运行 a11y 扫描，避免未完成样式与 `#339cff` 白底低对比度误阻塞 Beta

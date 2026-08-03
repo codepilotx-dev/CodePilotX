@@ -347,10 +347,10 @@ describe("MCP configuration", () => {
   })
 
   test("requires explicit project trust before saving a local MCP declaration", async () => {
-    const root = await mkdtemp(join(process.cwd(), ".codepilotx-mcp-trust-"))
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-mcp-trust-"))
     temporaryDirectories.push(root)
     const workspace = await mkdtemp(join(root, "workspace-"))
-    const configService = new ConfigService(join(root, "data", "config.json"))
+    const configService = new ConfigService(join(root, ".codepilotx", "config.json"))
     await configService.initialize()
     try {
       const database = new MemorySettings()

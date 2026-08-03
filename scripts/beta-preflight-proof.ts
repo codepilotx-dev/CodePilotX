@@ -79,6 +79,24 @@ export interface VerifyBetaPreflightProofOptions extends SshOptions {
   now?: Date;
 }
 
+export function assertBetaPreflightProofExpectations(
+  proof: BetaPreflightProofV1,
+  expected: BetaPreflightExpectations,
+): void {
+  if (proof.mainSha !== expected.mainSha) {
+    throw new Error("Beta 预检证明 main SHA 不匹配");
+  }
+  if (proof.releaseTreeSha !== expected.releaseTreeSha) {
+    throw new Error("Beta 预检证明 release tree 不匹配");
+  }
+  if (proof.nextVersion !== expected.nextVersion) {
+    throw new Error("Beta 预检证明版本不匹配");
+  }
+  if (proof.nextTag !== expected.nextTag) {
+    throw new Error("Beta 预检证明标签不匹配");
+  }
+}
+
 function canonicalDate(value: string, field: string): number {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) {
@@ -306,19 +324,7 @@ export function verifyBetaPreflightProof(
     throw new Error("Beta 预检证明版本或标签无效");
   }
 
-  const expected = options.expected;
-  if (proof.mainSha !== expected.mainSha) {
-    throw new Error("Beta 预检证明 main SHA 不匹配");
-  }
-  if (proof.releaseTreeSha !== expected.releaseTreeSha) {
-    throw new Error("Beta 预检证明 release tree 不匹配");
-  }
-  if (proof.nextVersion !== expected.nextVersion) {
-    throw new Error("Beta 预检证明版本不匹配");
-  }
-  if (proof.nextTag !== expected.nextTag) {
-    throw new Error("Beta 预检证明标签不匹配");
-  }
+  assertBetaPreflightProofExpectations(proof, options.expected);
 
   const completedAt = canonicalDate(proof.completedAt, "completedAt");
   const expiresAt = canonicalDate(proof.expiresAt, "expiresAt");
