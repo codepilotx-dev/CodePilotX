@@ -67,6 +67,8 @@
 
 ### Fixed
 
+- [desktop/release] Sidecar 连接失败日志新增固定枚举的启动阶段与错误码，发布 smoke 可在不输出路径、异常正文或凭据的前提下区分托管地址、命令解析、进程创建、Agent 就绪与桌面加载故障
+- [release] 临时 Release worktree 仅在 tracked/untracked 状态完全干净时无强制参数移除，失败现场存在变更时保留并拒绝自动清理
 - [release] Windows 打包 smoke 不再把 `CODEPILOTX_*`、GitHub Actions、runner 或签名发布变量传入产品进程，仅注入当前测试白名单，避免 Windows 环境块膨胀导致 Sidecar 无法创建并阻止 CI 凭据进入桌面与 Agent
 - [release] Windows 打包 smoke 在持久 runner 上最多等待 180 秒接收 `desktop.ready`，同时在桌面进程先退出时立即失败，避免冷启动抖动误报且不掩盖真实崩溃
 - [release] Windows 打包 smoke 超时时仅输出最近的安全事件名轨迹，为持久 runner 启动卡点保留诊断证据且不暴露路径、消息或凭据
