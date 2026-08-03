@@ -19,7 +19,23 @@ export function createIsolatedProcessEnvironment(
 ): NodeJS.ProcessEnv {
   const inherited = Object.fromEntries(
     Object.entries(base).filter(([key, value]) =>
-      value !== undefined && !key.toLowerCase().startsWith("codepilotx_")),
+      value !== undefined && !isReleaseRunnerInternalKey(key)),
   )
   return mergeProcessEnvironment(inherited, additions)
+}
+
+function isReleaseRunnerInternalKey(key: string): boolean {
+  const normalized = key.toLowerCase()
+  return normalized.startsWith("codepilotx_")
+    || normalized.startsWith("github_")
+    || normalized.startsWith("runner_")
+    || normalized.startsWith("actions_")
+    || normalized === "ci"
+    || normalized === "release_bot_token"
+    || normalized === "release_dry_run"
+    || normalized === "configured_quiet_minutes"
+    || normalized === "csc_link"
+    || normalized === "csc_key_password"
+    || normalized === "win_csc_link"
+    || normalized === "win_csc_key_password"
 }

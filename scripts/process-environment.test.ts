@@ -23,11 +23,16 @@ describe("发布进程环境", () => {
     })
   })
 
-  test("发布 smoke 仅保留显式注入的 CodePilotX 环境", () => {
+  test("发布 smoke 仅保留显式注入的内部环境", () => {
     expect(createIsolatedProcessEnvironment(
       {
         codepilotx_agent_url: "http://runner.invalid",
         CodePilotX_Static_Dir: "runner-static",
+        GITHUB_EVENT_PATH: "event.json",
+        Runner_Temp: "runner-temp",
+        ACTIONS_CACHE_URL: "https://cache.invalid",
+        RELEASE_BOT_TOKEN: "release-token",
+        CSC_KEY_PASSWORD: "signing-password",
         KEEP: "yes",
       },
       {
