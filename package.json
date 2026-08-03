@@ -42,6 +42,7 @@
     "test:review-concurrency": "bun scripts/test-review-concurrency.ts",
     "build": "bun run scripts/build.ts",
     "package:win": "bun scripts/package-win.ts --x64",
+    "beta:preflight": "bun scripts/beta-release.ts preflight",
     "version:check": "bun scripts/version-policy.ts version:check",
     "version:prepare": "bun scripts/version-policy.ts version:prepare"
   },

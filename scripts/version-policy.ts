@@ -84,6 +84,20 @@ function warn(msg: string) {
   console.warn(`  ⚠ ${msg}`);
 }
 
+export function resolveReleaseDate(
+  configured = process.env.CODEPILOTX_RELEASE_DATE,
+  now = new Date(),
+): string {
+  if (configured === undefined || configured === "") {
+    return now.toISOString().slice(0, 10);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(configured) ||
+      new Date(`${configured}T00:00:00.000Z`).toISOString().slice(0, 10) !== configured) {
+    throw new Error("CODEPILOTX_RELEASE_DATE 必须是有效的 YYYY-MM-DD UTC 日期");
+  }
+  return configured;
+}
+
 /* ─────────────── 检查 ─────────────── */
 
 interface CheckOptions {
@@ -451,7 +465,7 @@ function runPrepare(newVersion: string, stable: boolean) {
   ok("Unreleased 区段非空");
 
   // 6. 归档 Unreleased → 新版本标题
-  const today = new Date().toISOString().slice(0, 10);
+  const today = resolveReleaseDate();
   const versionHeading = `## ${newVersion} — ${today}`;
 
   // Replace "## Unreleased" with "## Unreleased\n\n(empty)" as placeholder
