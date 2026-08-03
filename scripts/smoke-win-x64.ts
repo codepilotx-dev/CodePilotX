@@ -2,6 +2,10 @@ import { existsSync } from "node:fs"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
+import {
+  isSidecarConnectStage,
+  isSidecarFailureCode,
+} from "../apps/desktop/electron/src/sidecar/failure-diagnostics"
 import { createIsolatedProcessEnvironment } from "./process-environment"
 import { assertWindowsX64PE } from "./windows-pe"
 
@@ -137,7 +141,12 @@ async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<
         return line
           ? [JSON.parse(line) as {
               event?: string
-              details?: { origin?: string; message?: unknown }
+              details?: {
+                origin?: string
+                message?: unknown
+                stage?: unknown
+                failureCode?: unknown
+              }
             }]
           : []
       }
@@ -149,7 +158,11 @@ async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<
     const failure = records.find(record => record.event === "desktop.startup-failed")
     recentFailureKinds = records
       .filter(record => record.event === "sidecar.connect-failed")
-      .map(record => classifySidecarFailure(record.details?.message))
+      .map(record => classifySidecarFailure(
+        record.details?.stage,
+        record.details?.failureCode,
+        record.details?.message,
+      ))
       .slice(-6)
     if (failure) throw new Error("桌面启动记录 desktop.startup-failed")
     const ready = records.find(record =>
@@ -165,7 +178,15 @@ async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<
   )
 }
 
-function classifySidecarFailure(message: unknown): string {
+function classifySidecarFailure(
+  stage: unknown,
+  failureCode: unknown,
+  message: unknown,
+): string {
+  if (isSidecarConnectStage(stage)) {
+    const code = isSidecarFailureCode(failureCode) ? failureCode : "unknown"
+    return `${stage}/${code}`
+  }
   if (typeof message !== "string") return "unknown"
   if (message.includes("等待 Agent ready 消息超时")) return "agent-ready-timeout"
   if (message.includes("Agent 在 ready 前退出")) return "agent-exited-before-ready"

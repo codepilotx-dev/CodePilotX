@@ -9,6 +9,10 @@ import {
   SidecarInstallationError,
 } from "./command.js"
 import {
+  readSidecarFailureCode,
+  type SidecarConnectStage,
+} from "./failure-diagnostics.js"
+import {
   formatError,
   probeReady,
   sleep,
@@ -81,19 +85,23 @@ export class SidecarSupervisor {
     let delay = 0
     while (!this.#stopping) {
       attempt += 1
+      let stage: SidecarConnectStage = "select-connection"
       this.#onStateChange?.({
         state: "disconnected",
         phase: attempt === 1 ? "connecting" : "reconnecting",
         attempt,
       })
       try {
-        const connection = await this.#connectOnce(attempt)
+        const connection = await this.#connectOnce(attempt, (nextStage) => {
+          stage = nextStage
+        })
         this.#connection = connection
         this.#onStateChange?.({
           state: "disconnected",
           phase: "authenticating",
           attempt,
         })
+        stage = "validate-connection"
         await validate(connection)
         this.#logger.info("sidecar.connected", {
           origin: connection.origin,
@@ -108,7 +116,13 @@ export class SidecarSupervisor {
         if (error instanceof SidecarInstallationError) throw error
         if (this.#dataLocation.relocation) throw error
         const message = formatError(error)
-        this.#logger.warn("sidecar.connect-failed", { attempt, message })
+        const failureCode = readSidecarFailureCode(error)
+        this.#logger.warn("sidecar.connect-failed", {
+          attempt,
+          stage,
+          failureCode,
+          message,
+        })
         if (this.#stopping) break
         delay = delay === 0 ? 500 : Math.min(10_000, delay * 2)
         await sleep(
@@ -199,17 +213,26 @@ export class SidecarSupervisor {
     return response
   }
 
-  async #connectOnce(attempt: number): Promise<SidecarConnection> {
+  async #connectOnce(
+    attempt: number,
+    reportStage: (stage: SidecarConnectStage) => void,
+  ): Promise<SidecarConnection> {
     const managedOrigin = process.env.CODEPILOTX_AGENT_URL
     if (managedOrigin) {
+      reportStage("managed-origin")
       const origin = normalizeOrigin(managedOrigin)
+      reportStage("managed-ready")
       await waitForReady(origin, this.#token, this.#logger, attempt)
       return { origin, managed: true, port: Number(new URL(origin).port) }
     }
-    return this.#spawnOwnedSidecar(attempt)
+    return this.#spawnOwnedSidecar(attempt, reportStage)
   }
 
-  async #spawnOwnedSidecar(attempt: number): Promise<SidecarConnection> {
+  async #spawnOwnedSidecar(
+    attempt: number,
+    reportStage: (stage: SidecarConnectStage) => void,
+  ): Promise<SidecarConnection> {
+    reportStage("resolve-command")
     const command = resolveSidecarCommand({
       packaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
@@ -217,6 +240,7 @@ export class SidecarSupervisor {
     })
     const dataDirectory = resolve(this.#dataLocation.dataDir)
     const relocation = this.#dataLocation.relocation
+    reportStage("spawn-process")
     const child = spawn(command.executable, command.args, {
       cwd: command.cwd,
       windowsHide: true,
@@ -270,10 +294,12 @@ export class SidecarSupervisor {
 
     let origin: string
     try {
+      reportStage("await-ready-message")
       const ready = await waitForReadyMessage(child, this.#logger)
       const host = ready.host === "localhost" ? "localhost" : "127.0.0.1"
       origin = `http://${host}:${ready.port}`
       this.#preferredPort = ready.port
+      reportStage("probe-ready")
       await waitForReady(origin, this.#token, this.#logger, attempt)
     } catch (error) {
       await this.#disposeChild()
