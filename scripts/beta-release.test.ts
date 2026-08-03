@@ -11,6 +11,7 @@ import {
   parseReleaseMarker,
   releaseBranch,
   releaseHasPartialDraftAssets,
+  resolveReleaseExecutable,
   resolveTagAction,
   validatePublishedRelease,
   withTransientRetries,
@@ -49,6 +50,12 @@ function snapshot(
 }
 
 describe("beta 版本与可信标记", () => {
+  it("在 Windows shim 环境中复用当前 Bun 可执行文件", () => {
+    expect(resolveReleaseExecutable("bun", "C:/tools/bun.exe"))
+      .toBe("C:/tools/bun.exe");
+    expect(resolveReleaseExecutable("git", "C:/tools/bun.exe")).toBe("git");
+  });
+
   it("只递增同一版本线的 beta 序号", () => {
     expect(nextBetaVersion("1.2.3-beta.3")).toBe("1.2.3-beta.4");
     expect(nextBetaVersion("1.2.3-rc.1")).toBeNull();

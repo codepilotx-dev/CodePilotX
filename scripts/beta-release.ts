@@ -9,7 +9,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rmdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -465,7 +465,7 @@ async function run(
   args: string[],
   options: CommandOptions = {},
 ): Promise<CommandResult> {
-  const child = Bun.spawn([executable, ...args], {
+  const child = Bun.spawn([resolveReleaseExecutable(executable), ...args], {
     cwd: options.cwd ?? ROOT,
     env: cleanEnvironment(options.env),
     stdin: options.inherit ? "inherit" : "ignore",
@@ -484,6 +484,13 @@ async function run(
     );
   }
   return { exitCode, stdout, stderr };
+}
+
+export function resolveReleaseExecutable(
+  executable: string,
+  bunExecutable = process.execPath,
+): string {
+  return executable === "bun" ? bunExecutable : executable;
 }
 
 function cleanEnvironment(
@@ -794,7 +801,7 @@ async function createTemporaryWorktree(
         throw new Error("release worktree 存在 tracked/untracked 变更，拒绝自动清理");
       }
       await git(["worktree", "remove", path], ROOT);
-      await rm(parent);
+      await rmdir(parent);
       await git(["worktree", "prune"], ROOT, { allowFailure: true });
     },
   };
@@ -1040,7 +1047,7 @@ async function localPreflight(mainSha: string): Promise<BetaReleaseState> {
       await worktree.dispose();
     } catch (cleanupError) {
       if (!primaryError) throw cleanupError;
-      console.error("本地预检 worktree 未清理：失败现场存在变更，已保留原始错误");
+      console.error("本地预检 worktree 清理未完成，已保留原始门禁错误");
     }
   }
 
@@ -1431,7 +1438,7 @@ async function prepare(
       await worktree.dispose();
     } catch (cleanupError) {
       if (!primaryError) throw cleanupError;
-      console.error("release worktree 未清理：失败现场存在变更，已保留原始错误");
+      console.error("release worktree 清理未完成，已保留原始门禁错误");
     }
   }
 }
