@@ -67,7 +67,7 @@
 
 ### Fixed
 
-- [release] Windows 打包 smoke 不再继承 runner 注入的任何内部 `CODEPILOTX_*` 环境变量，仅传入当前测试白名单，避免 Windows 大小写异名绕过覆盖并让打包桌面连接错误的服务或路径
+- [release] Windows 打包 smoke 不再把 `CODEPILOTX_*`、GitHub Actions、runner 或签名发布变量传入产品进程，仅注入当前测试白名单，避免 Windows 环境块膨胀导致 Sidecar 无法创建并阻止 CI 凭据进入桌面与 Agent
 - [release] Windows 打包 smoke 在持久 runner 上最多等待 180 秒接收 `desktop.ready`，同时在桌面进程先退出时立即失败，避免冷启动抖动误报且不掩盖真实崩溃
 - [release] Windows 打包 smoke 超时时仅输出最近的安全事件名轨迹，为持久 runner 启动卡点保留诊断证据且不暴露路径、消息或凭据
 - [renderer/release] Renderer a11y 首次 Vite 页面预热使用独立 240 秒预算，正式 WCAG 场景仍保留默认短预算，避免持久 Windows runner 冷编译超过 120 秒时中止整套审计
