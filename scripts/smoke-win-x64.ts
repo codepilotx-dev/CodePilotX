@@ -5,7 +5,9 @@ import { dirname, join, resolve } from "node:path"
 import { assertWindowsX64PE } from "./windows-pe"
 
 const root = resolve(import.meta.dir, "..")
-const DESKTOP_READY_TIMEOUT_MS = 60_000
+// 一轮 Sidecar 启动最多包含 20 秒 ready 消息等待与 20 秒健康检查。
+// 为持久 runner 保留至少两轮完整恢复窗口，并给 Electron 冷启动留出余量。
+const DESKTOP_READY_TIMEOUT_MS = 120_000
 const applicationArgument = process.argv.find(argument => argument.startsWith("--application="))
 const application = applicationArgument
   ? resolve(applicationArgument.slice("--application=".length))
@@ -124,6 +126,7 @@ async function assertPackagedTerminal(applicationPath: string, isolatedRoot: str
 
 async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<{ origin: string }> {
   const deadline = Date.now() + timeoutMs
+  let recentEvents: string[] = []
   while (Date.now() < deadline) {
     const text = await readFile(logPath, "utf8").catch(() => "")
     if (/ENOENT/i.test(text)) throw new Error("桌面启动日志出现 ENOENT")
@@ -135,6 +138,9 @@ async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<
       }
       catch { return [] }
     })
+    recentEvents = records
+      .flatMap(record => typeof record.event === "string" ? [record.event] : [])
+      .slice(-12)
     const failure = records.find(record => record.event === "desktop.startup-failed")
     if (failure) throw new Error("桌面启动记录 desktop.startup-failed")
     const ready = records.find(record =>
@@ -143,5 +149,8 @@ async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<
     if (ready?.details?.origin) return { origin: ready.details.origin }
     await Bun.sleep(100)
   }
-  throw new Error(`桌面程序 ${timeoutMs / 1_000} 秒内未记录 desktop.ready`)
+  const eventTrail = recentEvents.length > 0 ? recentEvents.join(" -> ") : "无"
+  throw new Error(
+    `桌面程序 ${timeoutMs / 1_000} 秒内未记录 desktop.ready（最近事件：${eventTrail}）`,
+  )
 }
