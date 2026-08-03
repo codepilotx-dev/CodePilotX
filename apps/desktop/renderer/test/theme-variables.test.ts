@@ -8,9 +8,29 @@ import {
   getCodeThemeSelectionForVariant,
   normalizeDesktopThemeSettings,
 } from '../shared/theme.js'
-import { deriveThemeVariables } from '../src/features/theme/themeVariables.js'
+import {
+  deriveThemeVariables,
+  ensureThemePreviewContrast,
+} from '../src/features/theme/themeVariables.js'
 
 describe('fixed Codex UI themes', () => {
+  test('keeps code-theme seed labels readable on light, dark, and custom surfaces', () => {
+    const seeds = [
+      { accent: '#339cff', ink: '#1a1c1f', surface: '#ffffff' },
+      { accent: '#339cff', ink: '#ffffff', surface: '#181818' },
+      { accent: '#ffffff', ink: '#ffffff', surface: '#ffffff' },
+      { accent: '#000000', ink: '#000000', surface: '#000000' },
+    ]
+
+    for (const seed of seeds) {
+      expect(
+        contrastRatio(ensureThemePreviewContrast(seed), seed.surface),
+      ).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(ensureThemePreviewContrast(seeds[0]!)).not.toBe('#339cff')
+    expect(ensureThemePreviewContrast(seeds[1]!)).toBe('#339cff')
+  })
+
   test('uses the Codex system font stack with canonical semantic weights', async () => {
     const variables = deriveThemeVariables(DEFAULT_DARK_THEME)
     const customFont = 'Inter, sans-serif'

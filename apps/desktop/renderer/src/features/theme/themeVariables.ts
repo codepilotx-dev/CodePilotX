@@ -25,6 +25,23 @@ type DerivedSemanticTone = {
   textBackground: string
 }
 
+export function ensureThemePreviewContrast({
+  accent,
+  ink,
+  surface,
+}: {
+  accent: string
+  ink: string
+  surface: string
+}): string {
+  return ensureContrast(
+    parseColor(accent),
+    parseColor(ink),
+    parseColor(surface),
+    4.5,
+  )
+}
+
 const CODEX_LIGHT_SYNTAX = {
   keyword: '#cf222e',
   property: '#0550ae',
