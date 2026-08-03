@@ -68,6 +68,7 @@
 
 ### Fixed
 
+- [desktop/release] 将打包 ConPTY 冒烟的单阶段预算提高到 30 秒、进程总预算提高到 90 秒，避免 GitHub-hosted Windows 冷启动长尾误判安装包损坏，同时保留严格超时
 - [Agent/release] 将 Windows 全仓测试数据库夹具的可恢复清理等待扩展到 5 秒，避免短暂文件占用误阻塞本地 Beta 预检，同时在持续占用时仍保留失败
 - [renderer/release] 为会话处理过程的原生 disclosure 提供稳定可访问名称，避免空摘要在 Review 场景触发 WCAG `summary-name` 违规并阻塞本地 Beta 预检
 - [release/test] 隔离 MCP 项目信任临时配置，将预检期望字段校验抽为纯断言，并为真实 SSH 密钥夹具保留独立时限，避免祖先配置污染与 Windows SSH 进程长尾导致全仓本地门禁不稳定
@@ -146,6 +147,7 @@
 
 ### Security
 
+- [release/dependencies] 将 `brace-expansion` 统一升级到 5.0.9，修复可通过无界中间数组触发拒绝服务的 `GHSA-rgw5-rvv9-x895`
 - [renderer/pi-agent-core] 将 Markdown HTML 清洗、指令属性和跨环境路径修剪改为单次线性扫描或标准路径 API，避免嵌套标签绕过清洗及攻击者可控输入触发 ReDoS
 - [Agent] auth.json 的外部修改检测改用仅驻留进程内的精确快照，避免对凭据内容生成可离线猜测的摘要
 
