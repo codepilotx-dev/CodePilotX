@@ -67,6 +67,7 @@
 
 ### Fixed
 
+- [release] Windows 打包 smoke 以大小写无关的方式覆盖 runner 环境变量，确保混合大小写的托管 Agent URL 不会绕过隔离并导致打包桌面反复连接外部服务
 - [release] Windows 打包 smoke 在持久 runner 上最多等待 180 秒接收 `desktop.ready`，同时在桌面进程先退出时立即失败，避免冷启动抖动误报且不掩盖真实崩溃
 - [release] Windows 打包 smoke 超时时仅输出最近的安全事件名轨迹，为持久 runner 启动卡点保留诊断证据且不暴露路径、消息或凭据
 - [renderer/release] Renderer a11y 首次 Vite 页面预热使用独立 240 秒预算，正式 WCAG 场景仍保留默认短预算，避免持久 Windows runner 冷编译超过 120 秒时中止整套审计
