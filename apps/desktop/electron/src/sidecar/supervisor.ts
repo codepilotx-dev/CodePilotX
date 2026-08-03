@@ -8,6 +8,7 @@ import {
   resolveSidecarCommand,
   SidecarInstallationError,
 } from "./command.js"
+import { resolveDocumentsDirectory } from "./documents-directory.js"
 import {
   readSidecarFailureCode,
   type SidecarConnectStage,
@@ -240,44 +241,48 @@ export class SidecarSupervisor {
     })
     const dataDirectory = resolve(this.#dataLocation.dataDir)
     const relocation = this.#dataLocation.relocation
+    reportStage("resolve-environment")
+    const childEnvironment = {
+      ...process.env,
+      CODEPILOTX_HOST: "127.0.0.1",
+      CODEPILOTX_PORT: String(this.#preferredPort ?? 0),
+      CODEPILOTX_AUTH_TOKEN: this.#token,
+      CODEPILOTX_DESKTOP_MANAGED: "1",
+      CODEPILOTX_DATA_DIR: dataDirectory,
+      CODEPILOTX_PETS_DIR: join(dataDirectory, "pets"),
+      CODEPILOTX_TOOLING_HOME: join(dataDirectory, "tooling"),
+      CODEPILOTX_LEGACY_DATA_DIR: join(app.getPath("userData"), "agent"),
+      CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH: join(
+        app.getPath("userData"),
+        "appearance-settings.json",
+      ),
+      CODEPILOTX_DOCUMENTS_DIR: resolveDocumentsDirectory(name =>
+        app.getPath(name)),
+      CODEPILOTX_LOG_DIR: join(dataDirectory, "logs"),
+      ...(relocation
+        ? {
+            CODEPILOTX_RELOCATION_SOURCE_DIR:
+              relocation.sourceDataDir,
+            CODEPILOTX_RELOCATION_OPERATION_ID:
+              relocation.operationId,
+          }
+        : {
+            CODEPILOTX_RELOCATION_SOURCE_DIR: undefined,
+            CODEPILOTX_RELOCATION_OPERATION_ID: undefined,
+          }),
+      CODEPILOTX_STATIC_DIR: app.isPackaged
+        ? join(process.resourcesPath, "renderer")
+        : process.env.CODEPILOTX_STATIC_DIR,
+    }
     reportStage("spawn-process")
     const child = spawn(command.executable, command.args, {
       cwd: command.cwd,
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        CODEPILOTX_HOST: "127.0.0.1",
-        CODEPILOTX_PORT: String(this.#preferredPort ?? 0),
-        CODEPILOTX_AUTH_TOKEN: this.#token,
-        CODEPILOTX_DESKTOP_MANAGED: "1",
-        CODEPILOTX_DATA_DIR: dataDirectory,
-        CODEPILOTX_PETS_DIR: join(dataDirectory, "pets"),
-        CODEPILOTX_TOOLING_HOME: join(dataDirectory, "tooling"),
-        CODEPILOTX_LEGACY_DATA_DIR: join(app.getPath("userData"), "agent"),
-        CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH: join(
-          app.getPath("userData"),
-          "appearance-settings.json",
-        ),
-        CODEPILOTX_DOCUMENTS_DIR: app.getPath("documents"),
-        CODEPILOTX_LOG_DIR: join(dataDirectory, "logs"),
-        ...(relocation
-          ? {
-              CODEPILOTX_RELOCATION_SOURCE_DIR:
-                relocation.sourceDataDir,
-              CODEPILOTX_RELOCATION_OPERATION_ID:
-                relocation.operationId,
-            }
-          : {
-              CODEPILOTX_RELOCATION_SOURCE_DIR: undefined,
-              CODEPILOTX_RELOCATION_OPERATION_ID: undefined,
-            }),
-        CODEPILOTX_STATIC_DIR: app.isPackaged
-          ? join(process.resourcesPath, "renderer")
-          : process.env.CODEPILOTX_STATIC_DIR,
-      },
+      env: childEnvironment,
     })
     this.#child = child
+    reportStage("close-stdin")
     child.stdin.end()
 
     this.#logger.info("sidecar.spawned", {
