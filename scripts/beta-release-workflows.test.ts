@@ -156,7 +156,8 @@ describe("beta release workflows", () => {
     expect(betaReleaseScript).not.toContain('git(["switch", "-c", branch]');
     expect(betaReleaseScript).toContain('gitPush(["origin", `HEAD:refs/heads/${branch}`]');
     expect(betaReleaseScript).toContain('"--untracked-files=all"');
-    expect(betaReleaseScript).toContain('git(["worktree", "remove", path], ROOT)');
+    expect(betaReleaseScript).toContain('"worktree", "remove", path');
+    expect(betaReleaseScript).toContain('"core.longpaths=true"');
     expect(betaReleaseScript).not.toContain('git(["worktree", "remove", "--force", path]');
   });
 

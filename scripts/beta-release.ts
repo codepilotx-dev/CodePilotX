@@ -834,7 +834,12 @@ async function createTemporaryWorktree(
       if (status) {
         throw new Error("release worktree 存在 tracked/untracked 变更，拒绝自动清理");
       }
-      await git(["worktree", "remove", path], ROOT);
+      // Windows 上 bun/electron-builder 生成的 node_modules 深度可能超过
+      // MAX_PATH，git 默认删除失败；core.longpaths 让 git 使用扩展长度路径。
+      const longpaths = process.platform === "win32"
+        ? ["-c", "core.longpaths=true"]
+        : [];
+      await git([...longpaths, "worktree", "remove", path], ROOT);
       await rmdir(parent);
       await git(["worktree", "prune"], ROOT, { allowFailure: true });
     },
