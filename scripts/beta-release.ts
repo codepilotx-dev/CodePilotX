@@ -472,7 +472,10 @@ async function run(
   args: string[],
   options: CommandOptions = {},
 ): Promise<CommandResult> {
-  const child = Bun.spawn([resolveReleaseExecutable(executable), ...args], {
+  const [command, commandArgs] = executable === "pwsh"
+    ? resolvePwshExecution(args)
+    : [resolveReleaseExecutable(executable), args];
+  const child = Bun.spawn([command, ...commandArgs], {
     cwd: options.cwd ?? ROOT,
     env: cleanEnvironment(options.env),
     stdin: options.inherit ? "inherit" : "ignore",
@@ -498,6 +501,30 @@ export function resolveReleaseExecutable(
   bunExecutable = process.execPath,
 ): string {
   return executable === "bun" ? bunExecutable : executable;
+}
+
+/**
+ * 解析 pwsh 执行方式：标准安装目录（GitHub Actions runner 自带）直接用
+ * 真实可执行文件；WindowsApps Store 安装的应用执行别名无法被 Bun 直接
+ * 启动，回退经 cmd.exe 按用户 PATH 解析执行（cmd 能解析该别名）。
+ */
+export function resolvePwshExecution(
+  args: readonly string[],
+): readonly [string, readonly string[]] {
+  const standard = join(
+    process.env.ProgramFiles ?? "C:\\Program Files",
+    "PowerShell/7/pwsh.exe",
+  );
+  if (existsSync(standard)) return [standard, args];
+  const quote = (value: string) =>
+    /[ \t"]/.test(value) ? `"${value.replaceAll('"', '\\"')}"` : value;
+  return [
+    join(
+      process.env.SystemRoot ?? "C:\\Windows",
+      "System32/cmd.exe",
+    ),
+    ["/c", `pwsh ${args.map(quote).join(" ")}`],
+  ];
 }
 
 function cleanEnvironment(

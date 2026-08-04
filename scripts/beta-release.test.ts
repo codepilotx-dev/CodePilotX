@@ -11,6 +11,7 @@ import {
   parseReleaseMarker,
   releaseBranch,
   releaseHasPartialDraftAssets,
+  resolvePwshExecution,
   resolveReleaseExecutable,
   resolveTagAction,
   validatePublishedRelease,
@@ -54,6 +55,21 @@ describe("beta 版本与可信标记", () => {
     expect(resolveReleaseExecutable("bun", "C:/tools/bun.exe"))
       .toBe("C:/tools/bun.exe");
     expect(resolveReleaseExecutable("git", "C:/tools/bun.exe")).toBe("git");
+  });
+
+  it("pwsh 无标准安装时经 cmd.exe 按用户 PATH 解析执行", () => {
+    const [executable, args] = resolvePwshExecution([
+      "-NoLogo",
+      "-File",
+      "scripts/smoke-installed-win-x64.ps1",
+    ]);
+    if (executable.toLowerCase().endsWith("pwsh.exe")) {
+      expect(args).toEqual(["-NoLogo", "-File", "scripts/smoke-installed-win-x64.ps1"]);
+    } else {
+      expect(executable.toLowerCase()).toMatch(/cmd\.exe$/);
+      expect(args[0]).toBe("/c");
+      expect(args[1]).toMatch(/^pwsh -NoLogo -File scripts\/smoke-installed-win-x64\.ps1$/);
+    }
   });
 
   it("只递增同一版本线的 beta 序号", () => {
