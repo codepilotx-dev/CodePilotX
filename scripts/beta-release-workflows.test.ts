@@ -195,8 +195,13 @@ describe("beta release workflows", () => {
     expect(parity).toContain("scripts/sign-win-agent.ts");
     expect(parity).toContain("scripts/agent-runtime-verifier.ts");
     expect(parity).toContain("--require-authenticode");
+    expect(parity).toContain("--authenticode-trust-anchor");
     expect(parity).toContain("Cert:\\CurrentUser\\My");
-    expect(parity).toContain("Remove-Item");
+    expect(parity).toContain('X509Store("My", "CurrentUser")');
+    expect(parity).toContain("$store.Remove($c)");
+    expect(parity).not.toContain("CustomRootTrust");
+    expect(parity).not.toContain("Import-PfxCertificate");
+    expect(parity).not.toContain("Remove-Item");
     expect(parity).toContain("needs.release-pr-policy.outputs.trusted == 'true'");
     expect(parity).toContain("Accept verified Release PR receipt");
     expect(parity).not.toContain("package:win");

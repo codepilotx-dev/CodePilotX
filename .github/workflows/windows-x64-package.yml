@@ -115,19 +115,8 @@ jobs:
           $pfxPath = Join-Path $env:CODEPILOTX_RELEASE_RUN_ROOT "parity.pfx"
           Export-PfxCertificate -Cert $cert -FilePath $pfxPath `
             -Password (ConvertTo-SecureString $password -AsPlainText -Force) | Out-Null
-          Write-Output "[parity] certificate created and pfx exported"
-          # 自签证书需要进入当前用户受信根，Authenticode Status 才会是 Valid。
-          # 用 X509Store 直接导入，避免 Import-PfxCertificate 在 PowerShell 7 上挂起。
-          $imported = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
-            $pfxPath,
-            (ConvertTo-SecureString $password -AsPlainText -Force),
-            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::DefaultKeySet)
-          $rootStore = New-Object System.Security.Cryptography.X509Certificates.X509Store(
-            "Root", "CurrentUser")
-          $rootStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-          try { $rootStore.Add($imported) } finally { $rootStore.Close() }
-          $imported.Dispose()
-          Write-Output "[parity] root store updated"
+          # 不向用户根存储添加自签证书：Windows 会触发极慢的根验证/自动更新，
+          # 签名验证改用 ExtraStore + 链根固定信任锚（见 verify 步骤）。
           "thumbprint=$thumbprint" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "pfx=$pfxPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "password=$password" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -143,10 +132,13 @@ jobs:
       - name: Verify signed agent runtime parity
         if: needs.release-pr-policy.outputs.trusted != 'true'
         shell: pwsh
+        env:
+          PARITY_THUMBPRINT: ${{ steps.parity-cert.outputs.thumbprint }}
         run: |
           bun scripts/agent-runtime-verifier.ts `
             --agent apps/agent/dist/x64/codepilotx-agent.exe `
-            --require-authenticode
+            --require-authenticode `
+            --authenticode-trust-anchor $env:PARITY_THUMBPRINT
           if ($LASTEXITCODE -ne 0) { throw "Signed agent runtime parity failed" }
       - name: Remove synthetic certificate and context
         if: always() && needs.release-pr-policy.outputs.trusted != 'true'
@@ -155,15 +147,13 @@ jobs:
           CERT_THUMBPRINT: ${{ steps.parity-cert.outputs.thumbprint }}
         run: |
           if ($env:CERT_THUMBPRINT) {
-            # X509Store.Remove 避免 Remove-Item 对用户根存储的 UI 限制。
-            foreach ($storeName in @("My", "Root")) {
-              $store = New-Object System.Security.Cryptography.X509Certificates.X509Store($storeName, "CurrentUser")
-              $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-              try {
-                $found = @($store.Certificates | Where-Object { $_.Thumbprint -eq $env:CERT_THUMBPRINT })
-                foreach ($c in $found) { $store.Remove($c) }
-              } finally { $store.Close() }
-            }
+            # 只从 My 存储移除；根存储从未写入。
+            $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "CurrentUser")
+            $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+            try {
+              $found = @($store.Certificates | Where-Object { $_.Thumbprint -eq $env:CERT_THUMBPRINT })
+              foreach ($c in $found) { $store.Remove($c) }
+            } finally { $store.Close() }
           }
           bun scripts/release-run-context.ts dispose
           if ($LASTEXITCODE -ne 0) { throw "Failed to remove the synthetic signing context" }
