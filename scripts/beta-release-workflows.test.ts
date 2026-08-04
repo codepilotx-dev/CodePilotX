@@ -8,6 +8,7 @@ const finalizeWorkflow = readWorkflow("finalize-beta-release.yml");
 const packageWorkflow = readWorkflow("windows-x64-package.yml");
 const ciWorkflow = readWorkflow("ci.yml");
 const prRulesWorkflow = readWorkflow("pr-rules.yml");
+const canaryWorkflow = readWorkflow("release-runner-canary.yml");
 const releasePrPolicy = readFileSync(
   resolve(repositoryRoot, "scripts", "verify-release-pr-policy.ts"),
   "utf8",
@@ -84,11 +85,14 @@ describe("beta release workflows", () => {
     expect(job(packageWorkflow, "release-pr-policy")).toContain("runs-on: windows-latest");
     expect(job(packageWorkflow, "unsigned-smoke")).toContain("runs-on: windows-latest");
     expect(job(packageWorkflow, "unsigned-smoke")).not.toContain("codepilotx-release");
+    expect(job(packageWorkflow, "release-parity")).toContain("runs-on: windows-latest");
+    expect(job(packageWorkflow, "release-parity")).not.toContain("codepilotx-release");
     expect(job(packageWorkflow, "package-release")).toContain(
       "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')",
     );
     expect(prepareWorkflow).not.toMatch(/^\s{2}pull_request:/m);
     expect(finalizeWorkflow).not.toMatch(/^\s{2}pull_request:/m);
+    expect(canaryWorkflow).not.toMatch(/pull_request:/m);
   });
 
   test("trusted Release PR fast path is strict and keeps required job names", () => {
@@ -112,6 +116,7 @@ describe("beta release workflows", () => {
     expect(releasePrPolicy).toContain("RELEASE_PATHS");
     expect(releasePrPolicy).toContain('runGit(["verify-commit", headSha])');
     expect(releasePrPolicy).toContain("beta-preflight.allowed_signers");
+    expect(betaReleaseScript).toContain('"release-parity"');
   });
 
   test("tag package is signed on the protected release runner", () => {
@@ -155,6 +160,75 @@ describe("beta release workflows", () => {
     expect(betaReleaseScript).not.toContain('git(["worktree", "remove", "--force", path]');
   });
 
+  test("Prepare 与 Finalize 共享 release-state 并发组且不取消进行中的工作", () => {
+    for (const workflow of [prepareWorkflow, finalizeWorkflow]) {
+      expect(workflow).toContain("group: release-state-${{ github.repository }}");
+      expect(workflow).toContain("cancel-in-progress: false");
+    }
+    expect(packageWorkflow).not.toContain("release-state-${{ github.repository }}");
+  });
+
+  test("每个 self-hosted 发布 job 都创建并清理唯一运行上下文", () => {
+    for (const workflow of [prepareWorkflow, finalizeWorkflow]) {
+      expect(workflow).toContain("bun scripts/release-run-context.ts create");
+      expect(workflow).toContain("bun scripts/release-run-context.ts dispose");
+      expect(workflow).toContain("if: always() && steps.run-context.outputs.created == 'true'");
+    }
+    const packageRelease = job(packageWorkflow, "package-release");
+    expect(packageRelease).toContain("bun scripts/release-run-context.ts create");
+    expect(packageRelease).toContain("bun scripts/release-run-context.ts dispose");
+    expect(packageRelease).toContain("if: always() && steps.run-context.outputs.created == 'true'");
+    expect(job(canaryWorkflow, "canary")).toContain("bun scripts/release-run-context.ts create");
+    expect(job(canaryWorkflow, "canary")).toContain("bun scripts/release-run-context.ts dispose");
+    expect(job(prepareWorkflow, "prepare")).not.toContain("TEMP: ${{ runner.temp }}");
+    expect(job(finalizeWorkflow, "finalize")).not.toContain("TEMP: ${{ runner.temp }}");
+  });
+
+  test("release-parity 只使用合成签名且可信 Release PR 走同一 job 快速路径", () => {
+    const parity = job(packageWorkflow, "release-parity");
+    expect(parity).toContain("needs: release-pr-policy");
+    expect(parity).not.toContain("RELEASE_BOT_TOKEN");
+    expect(parity).not.toContain("name: beta-release");
+    expect(parity).toContain("bun run --cwd apps/desktop/renderer test:a11y");
+    expect(parity).toContain("bun run build:agent");
+    expect(parity).toContain("New-SelfSignedCertificate");
+    expect(parity).toContain("scripts/sign-win-agent.ts");
+    expect(parity).toContain("scripts/agent-runtime-verifier.ts");
+    expect(parity).toContain("--require-authenticode");
+    expect(parity).toContain("Cert:\\CurrentUser\\My");
+    expect(parity).toContain("Remove-Item");
+    expect(parity).toContain("needs.release-pr-policy.outputs.trusted == 'true'");
+    expect(parity).toContain("Accept verified Release PR receipt");
+    expect(parity).not.toContain("package:win");
+  });
+
+  test("每日 canary 只有只读权限且无发布副作用入口", () => {
+    expect(canaryWorkflow).toMatch(/cron: "17 19 \* \* \*"/);
+    expect(canaryWorkflow).toContain("workflow_dispatch:");
+    expect(canaryWorkflow).toContain("permissions:\n  contents: read");
+    expect(canaryWorkflow).not.toContain("RELEASE_BOT_TOKEN");
+    expect(canaryWorkflow).not.toContain("beta-release.ts");
+    expect(canaryWorkflow).not.toContain("gh pr");
+    expect(canaryWorkflow).not.toContain("gh release");
+    expect(canaryWorkflow).not.toContain("gh run rerun");
+    const canary = job(canaryWorkflow, "canary");
+    expect(canary).toContain("runs-on: [self-hosted, windows, x64, codepilotx-release]");
+    expect(canary).toContain("environment:\n      name: beta-release");
+    expect(canary).toContain("bun run build:agent");
+    expect(canary).toContain("scripts/sign-win-agent.ts");
+    expect(canary).toContain("--require-authenticode");
+    expect(canaryWorkflow).toContain("group: release-runner-canary-${{ github.repository }}");
+    expect(canaryWorkflow).toContain("cancel-in-progress: false");
+  });
+
+  test("dry-run 回执写入隔离运行上下文并发布安全计时摘要", () => {
+    const prepare = job(prepareWorkflow, "prepare");
+    expect(prepare).toContain('Join-Path $env:CODEPILOTX_RELEASE_RUN_ROOT "artifacts\\receipt.json"');
+    expect(prepare).toContain("Publish dry-run timing summary");
+    expect(prepare).toContain("GITHUB_STEP_SUMMARY");
+    expect(prepare).toContain("receipt.timings");
+  });
+
   test("Prepare verifies the proof before signing or remote PR side effects", () => {
     const prepareBody = betaReleaseScript.slice(
       betaReleaseScript.indexOf("async function prepare("),
@@ -171,7 +245,7 @@ describe("beta release workflows", () => {
   });
 
   test("all actions are pinned to full commit SHAs", () => {
-    for (const workflow of [prepareWorkflow, finalizeWorkflow, packageWorkflow, ciWorkflow, prRulesWorkflow]) {
+    for (const workflow of [prepareWorkflow, finalizeWorkflow, packageWorkflow, ciWorkflow, prRulesWorkflow, canaryWorkflow]) {
       for (const reference of actionReferences(workflow)) {
         expect(reference).toMatch(/^[^@\s]+@[0-9a-f]{40}$/);
       }

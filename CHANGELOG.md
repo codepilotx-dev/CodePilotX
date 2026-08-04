@@ -9,6 +9,8 @@
 
 ### Added
 
+- [release] 新增 PR `release-parity` 门禁：在 GitHub-hosted runner 上执行 Renderer 最终状态 a11y、x64 Agent 构建、一次性自签证书合成签名与共享 Agent runtime verifier，并在 always 步骤按精确 thumbprint 删除证书、经 ownership marker 校验后清理临时目录；可信 Release PR 验证身份与 dry-run 回执后以同一 job 名快速成功
+- [release] 新增每日 release runner canary：只读权限的 self-hosted 巡检每天构建、真实签名并运行共享 Agent runtime verifier，输出安全计时摘要，无 Prepare、Release PR、Finalize、tag、Release 或 Issue 副作用
 - [desktop] 支持从已完成的 Assistant 回复分叉到共享当前工作树或隔离托管 worktree 的新聊天
 - [desktop] 在 Local environment 编辑器中说明 worktree setup 可用的源目录与目标目录变量
 - [desktop/Agent/renderer] 新增 Windows-first 集成终端，每个任务拥有一个 ConPTY/PTY 会话，支持 shell profile、主题、回放、尺寸同步、任务关闭清理及经审批的有界终端输出读取
