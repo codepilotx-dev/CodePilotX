@@ -8,7 +8,7 @@ const finalizeWorkflow = readWorkflow("finalize-beta-release.yml");
 const packageWorkflow = readWorkflow("windows-x64-package.yml");
 const ciWorkflow = readWorkflow("ci.yml");
 const prRulesWorkflow = readWorkflow("pr-rules.yml");
-const canaryWorkflow = readWorkflow("release-runner-canary.yml");
+const canaryWorkflow = readWorkflow("release-runner-canary.yml").replaceAll("\r\n", "\n");
 const releasePrPolicy = readFileSync(
   resolve(repositoryRoot, "scripts", "verify-release-pr-policy.ts"),
   "utf8",

@@ -3,6 +3,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   assertAuthenticodeValid,
@@ -51,11 +53,17 @@ describe("packaged agent runtime verifier", () => {
   }, TEST_TIMEOUT_MS);
 
   it("Authenticode 非 Valid 状态被拒绝", async () => {
-    const status = await authenticodeStatus(process.execPath);
-    if (status === "Valid") return; // 本机 bun.exe 恰好签名时跳过
-    await expect(assertAuthenticodeValid([process.execPath])).rejects.toThrow(
-      "Windows Authenticode 验证失败",
-    );
+    // 用确定未签名的非 PE 文件验证拒绝路径，避免依赖本机/CI bun.exe 的签名状态。
+    const directory = await mkdtemp(join(tmpdir(), "codepilotx-authenticode-"));
+    const dummy = join(directory, "unsigned.txt");
+    await writeFile(dummy, "not a signed pe", "utf8");
+    try {
+      await expect(assertAuthenticodeValid([dummy])).rejects.toThrow(
+        "Windows Authenticode 验证失败",
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   }, TEST_TIMEOUT_MS);
 
   it("安全错误不泄漏本地绝对路径", () => {
@@ -64,18 +72,3 @@ describe("packaged agent runtime verifier", () => {
     expect(sanitized).toContain("[LOCAL_PATH]");
   });
 });
-
-async function authenticodeStatus(path: string): Promise<string> {
-  const powershell = join(
-    process.env.SystemRoot ?? "C:\\Windows",
-    "System32/WindowsPowerShell/v1.0/powershell.exe",
-  );
-  const child = Bun.spawn([
-    powershell,
-    "-NoProfile",
-    "-NonInteractive",
-    "-Command",
-    `(Get-AuthenticodeSignature -LiteralPath '${path.replaceAll("'", "''")}').Status`,
-  ], { stdout: "pipe", stderr: "ignore", windowsHide: true });
-  return (await new Response(child.stdout).text()).trim();
-}
