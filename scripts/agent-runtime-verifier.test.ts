@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   assertAuthenticodeValid,
+  readCliArgument,
   sanitizeVerifierError,
   verifyPackagedAgentRuntime,
 } from "./agent-runtime-verifier.ts";
@@ -70,5 +71,16 @@ describe("packaged agent runtime verifier", () => {
     const sanitized = sanitizeVerifierError("failed at C:\\Users\\secret\\x\\y");
     expect(sanitized).not.toContain("C:\\Users\\secret");
     expect(sanitized).toContain("[LOCAL_PATH]");
+  });
+
+  it("CLI 参数同时支持 --name value 与 --name=value 形式", () => {
+    const spaced = ["--agent", "apps/x.exe", "--require-authenticode", "--authenticode-trust-anchor", "ABCD"];
+    expect(readCliArgument(spaced, "--agent")).toBe("apps/x.exe");
+    expect(readCliArgument(spaced, "--authenticode-trust-anchor")).toBe("ABCD");
+    const inline = ["--agent=apps/x.exe", "--authenticode-trust-anchor=ABCD"];
+    expect(readCliArgument(inline, "--agent")).toBe("apps/x.exe");
+    expect(readCliArgument(inline, "--authenticode-trust-anchor")).toBe("ABCD");
+    expect(readCliArgument(spaced, "--missing")).toBeUndefined();
+    expect(readCliArgument(["--agent"], "--agent")).toBeUndefined();
   });
 });

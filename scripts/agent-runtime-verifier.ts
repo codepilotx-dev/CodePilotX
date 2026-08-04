@@ -13,7 +13,7 @@ import { createReadStream } from "node:fs";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { spawn, type ChildProcess } from "node:child_process";
 import { assertWindowsX64PE } from "./windows-pe";
@@ -128,13 +128,16 @@ export async function verifyPackagedAgentRuntime(
     readyTimeoutMs = 60_000,
     agentArgs = [],
   } = options;
-  if (!existsSync(agentPath)) {
-    throw new Error(`打包 Agent 不存在：${sanitizeVerifierError(agentPath)}`);
+  // 统一为绝对路径：spawn 的 cwd 是隔离临时目录，相对路径解析不可靠，
+  // Windows 上相对路径启动可能拿不到子进程 pid，导致清理时无法终止进程树。
+  const absoluteAgentPath = resolve(agentPath);
+  if (!existsSync(absoluteAgentPath)) {
+    throw new Error(`打包 Agent 不存在：${sanitizeVerifierError(absoluteAgentPath)}`);
   }
-  await assertWindowsX64PE(agentPath);
+  await assertWindowsX64PE(absoluteAgentPath);
   if (requireAuthenticode) {
     await assertAuthenticodeValid(
-      [agentPath],
+      [absoluteAgentPath],
       authenticodeTrustAnchorThumbprint
         ? { trustAnchorThumbprint: authenticodeTrustAnchorThumbprint }
         : {},
@@ -144,7 +147,7 @@ export async function verifyPackagedAgentRuntime(
   const isolatedRoot = await mkdtemp(join(tmpdir(), "codepilotx-agent-runtime-"));
   const token = crypto.randomUUID();
   const startedAt = Date.now();
-  const child = spawn(agentPath, [...agentArgs], {
+  const child = spawn(absoluteAgentPath, [...agentArgs], {
     cwd: isolatedRoot,
     env: {
       ...process.env,
@@ -399,18 +402,26 @@ async function removeIsolatedRoot(isolatedRoot: string): Promise<void> {
   }
 }
 
+/** 解析 `--name=value` 或 `--name value` 两种 CLI 参数形式。 */
+export function readCliArgument(
+  args: readonly string[],
+  name: string,
+): string | undefined {
+  const inline = args.find(argument => argument.startsWith(`${name}=`));
+  if (inline) return inline.slice(name.length + 1);
+  const index = args.indexOf(name);
+  const value = index >= 0 ? args[index + 1] : undefined;
+  return value !== undefined && !value.startsWith("--") ? value : undefined;
+}
+
 if (import.meta.main) {
-  const agentArgument = process.argv.find(argument => argument.startsWith("--agent="));
-  const agentPath = agentArgument
-    ? agentArgument.slice("--agent=".length)
-    : "";
-  const requireAuthenticode = process.argv.includes("--require-authenticode");
-  const trustAnchorArgument = process.argv.find(
-    argument => argument.startsWith("--authenticode-trust-anchor="),
+  const args = process.argv.slice(2);
+  const agentPath = readCliArgument(args, "--agent") ?? "";
+  const requireAuthenticode = args.includes("--require-authenticode");
+  const authenticodeTrustAnchorThumbprint = readCliArgument(
+    args,
+    "--authenticode-trust-anchor",
   );
-  const authenticodeTrustAnchorThumbprint = trustAnchorArgument
-    ? trustAnchorArgument.slice("--authenticode-trust-anchor=".length)
-    : undefined;
   if (!agentPath) {
     throw new Error(
       "用法：bun scripts/agent-runtime-verifier.ts --agent <path> [--require-authenticode] [--authenticode-trust-anchor <thumbprint>]",
