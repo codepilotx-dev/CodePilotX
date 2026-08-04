@@ -115,7 +115,9 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath $pfxPath `
             -Password (ConvertTo-SecureString $password -AsPlainText -Force) | Out-Null
           # 自签证书需要进入当前用户受信根，Authenticode Status 才会是 Valid。
-          Import-Certificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
+          Import-PfxCertificate -FilePath $pfxPath `
+            -CertStoreLocation Cert:\CurrentUser\Root `
+            -Password (ConvertTo-SecureString $password -AsPlainText -Force) | Out-Null
           "thumbprint=$thumbprint" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "pfx=$pfxPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "password=$password" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
