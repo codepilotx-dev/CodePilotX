@@ -74,6 +74,7 @@
 
 ### Fixed
 
+- [release] release-parity 合成签名流程修复：运行上下文与证书创建拆分为独立步骤，证书受信根导入与清理改用 X509Store，避免 PowerShell 7 下 Import-PfxCertificate 挂起及用户根存储的 UI 限制
 - [release/test] 修正发布契约测试与 Authenticode 拒绝路径测试的 CI 环境差异：契约断言按 LF 归一化读取 workflow，Authenticode 用例改用确定未签名的非 PE 文件验证拒绝路径，不再依赖本机/CI bun.exe 的签名状态
 - [Agent] 统一 Windows 测试夹具清理到共享 helper：teardown 先关闭数据库、watcher、子进程与服务再删除路径，EBUSY/EPERM/ENOTEMPTY 按固定约 5 秒窗口重试并严格顺序清理，重试时强制 GC 释放 Bun sqlite 延迟持有的 -wal/-shm 句柄，持续句柄占用成为真实测试失败而非被静默吞掉
 - [desktop/release] 将打包 ConPTY 冒烟的单阶段预算提高到 30 秒、进程总预算提高到 90 秒，避免 GitHub-hosted Windows 冷启动长尾误判安装包损坏，同时保留严格超时
