@@ -31,6 +31,7 @@
 
 ### Changed
 
+- [release] 更新 Beta 发布 Skill、手动运行手册与发布自动化文档：补充唯一运行上下文的创建与安全清理、`release-parity` 与可信 Release PR 快速路径、每日 canary 的只读职责、安全耗时指标的观察方式，以及本地预检失败轮不计数且不得定向重跑漂绿
 - [release] 每个 self-hosted 发布 job（Prepare dry-run/live、Finalize、tag package）使用带 ownership marker 的唯一运行上下文隔离 TEMP/APPDATA/LOCALAPPDATA 与 Agent 数据目录，清理时重新校验 repository、run ID、attempt 与 UUID，Prepare 与 Finalize 共享仓库级 release-state 并发组防止并发修改发布状态
 - [release] 从 Windows package verifier 抽出可复用的打包 Agent 运行时验证门面（PE x64、Authenticode、ready、/api/ready、thread-rpc-v4、Pi provider/model 目录、进程树退出与目录清理），供本地 verifier、PR 合成签名 parity、每日 canary 与最终 tag 复用
 - [release] dry-run 回执新增经过范围校验的安全耗时指标（ConPTY、Agent ready、Desktop ready、签名打包、安装冒烟、总计），只记录毫秒数与计数，不参与证明信任判定，超过 12 分钟 P95 目标只警告

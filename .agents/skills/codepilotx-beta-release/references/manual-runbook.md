@@ -182,7 +182,7 @@ dev PR 合并后，在最新 main committed worktree 中执行 `inspect --json`�
 bun run beta:preflight -- --main-sha <lockedMainSha>
 ```
 
-两次都必须成功、当前工作区保持干净且 `releaseTreeSha` 相同。使用 `.git/codepilotx/beta-preflight/<mainSha>/workflow-inputs.json` 中的公开 proof inputs dispatch Prepare `dry_run=true`；workflow 会验签、重建相同 tree，并拒绝已经不再等于 `origin/main` tip 的候选。不得输出签名密钥或本机路径。
+两次都必须成功、当前工作区保持干净且 `releaseTreeSha` 相同。失败轮不计数：只有完整流程连续成功两次才算数；不得针对同一失败用例定向重跑“漂绿”。使用 `.git/codepilotx/beta-preflight/<mainSha>/workflow-inputs.json` 中的公开 proof inputs dispatch Prepare `dry_run=true`；workflow 会验签、重建相同 tree，并拒绝已经不再等于 `origin/main` tip 的候选。不得输出签名密钥或本机路径。
 
 dry-run 成功后验证唯一回执 artifact 名同时包含 main SHA 和 proof digest，重新执行 inspect，展示锁定版本、main SHA、proof digest、run ID 和 run URL，并请求完全匹配：
 
@@ -191,6 +191,8 @@ dry-run 成功后验证唯一回执 artifact 名同时包含 main SHA 和 proof 
 ```
 
 任何其他回复都停止。确认前再次读取远端 main；SHA 变化时原确认失效，必须重新 inspect 和 dry-run。
+
+dry-run 的 Actions summary 展示各阶段耗时（ConPTY、Agent ready、Desktop ready、签名打包、安装冒烟、总计）；这些毫秒数只用于观察，不参与证明信任判定，超过 12 分钟 P95 目标也只警告。发布机 job 的临时目录由 `release-run-context.ts create/dispose` 管理：每个 job 使用 `RUNNER_TEMP` 下带 run ID/attempt/UUID 的唯一目录，清理时重新校验 ownership marker；不得手工删除或复用。若某 job 的上下文清理失败，报告其阶段和错误分类并保留现场，不要用其他工具强制删除。
 
 ## 9. Live Prepare、Release PR 与 Finalize
 
@@ -202,9 +204,13 @@ dry-run 成功后验证唯一回执 artifact 名同时包含 main SHA 和 proof 
 - body 中 base SHA、version 和 tag marker 与锁定值一致；
 - 创建者符合 `RELEASE_BOT_LOGIN`。
 
-等待 Release PR 的 required checks 和 auto-merge。不要手工合并失败检查。合并后记录 Release PR merge commit，并将该 SHA 作为 `main_sha` 从 main ref dispatch Finalize `dry_run=false`。手动 Finalize 必须调用现有 `finalize --main-sha <releasePrMergeSha>`；只有自动 schedule 可以调用 `reconcile`，任何流程都不得手工创建 tag。
+等待 Release PR 的 required checks 和 auto-merge。不要手工合并失败检查。required checks 包含 `release-parity`：普通 PR 在 GitHub-hosted runner 上执行 a11y、Agent 构建、一次性自签证书合成签名与共享 runtime verifier；可信 Release PR 验证身份和 dry-run 回执后以同一 job 名快速成功，不重复执行门禁。合并后记录 Release PR merge commit，并将该 SHA 作为 `main_sha` 从 main ref dispatch Finalize `dry_run=false`。手动 Finalize 必须调用现有 `finalize --main-sha <releasePrMergeSha>`；只有自动 schedule 可以调用 `reconcile`，任何流程都不得手工创建 tag。
 
 等待 Finalize、随后由标签触发的 `windows-x64-package.yml` 和 GitHub Release。重复调用恢复模式时，先使用 `inspect --json`；`prepared`、`publishing` 继续 Finalize，`published` 只验证结果，`blocked` 停止并报告。
+
+## 9.5 每日 release runner canary
+
+`release-runner-canary.yml` 每日 `19:17 UTC`（北京时间次日 `03:17`）从 `main` 运行，也可手动触发。它只允许 `contents: read` 权限，不映射 `RELEASE_BOT_TOKEN`；在唯一运行上下文中冻结安装、构建 Agent、用真实签名证书签名并运行共享 runtime verifier，把安全计时写入 Actions summary。canary 不产生 Prepare、Release PR、Finalize、tag、GitHub Release 或阻塞 Issue。canary 失败只保留 Actions 失败结果，绝不触发自动发布；不得通过重跑 canary 掩盖连续环境故障。
 
 ## 10. 最终验证
 
