@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Api, Model as PiModel } from "@earendil-works/pi-ai"
 import type { Model } from "@codepilotx/model-schema"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentLogger } from "../src/observability/AgentLogger"
 import type { PiModelService } from "../src/provider/pi/PiModelService"
 import { ThreadHistoryService } from "../src/session/ThreadHistoryService"
@@ -19,28 +20,9 @@ import { EventHub } from "../src/storage/events/EventHub"
 const roots: string[] = []
 const databases: AgentDatabase[] = []
 
-const removeFixtureRoot = async (root: string) => {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    try {
-      await rm(root, { recursive: true, force: true })
-      return
-    } catch (error) {
-      if (
-        !(error instanceof Error)
-        || !("code" in error)
-        || !["EBUSY", "EPERM", "ENOTEMPTY"].includes(String(error.code))
-        || attempt === 79
-      ) {
-        throw error
-      }
-      await Bun.sleep(25)
-    }
-  }
-}
-
 afterEach(async () => {
   for (const db of databases.splice(0)) db.close()
-  await Promise.all(roots.splice(0).map(removeFixtureRoot))
+  await removeFixturePaths(roots.splice(0))
 })
 
 const fixture = async () => {

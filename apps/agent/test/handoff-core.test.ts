@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentError } from "../src/domain"
 import { GitHandoffCoordinator, type HandoffGitRunner } from "../src/handoff/GitHandoffCoordinator"
 import { HANDOFF_STEPS, HandoffRepository } from "../src/handoff/HandoffRepository"
@@ -18,18 +19,10 @@ import { WorktreeRepository } from "../src/worktree/WorktreeRepository"
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
-const removePath = async (path: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try { await rm(path, { recursive: true, force: true }); return } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
 
 afterEach(async () => {
   for (const db of databases.splice(0)) db.close()
-  await Promise.all(roots.splice(0).map(removePath))
+  await removeFixturePaths(roots.splice(0))
 })
 
 const database = async () => {

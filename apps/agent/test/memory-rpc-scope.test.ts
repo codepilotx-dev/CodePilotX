@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { Capabilities, EventManifest, RpcMethods } from "@codepilotx/agent-protocol"
 import { MemoryService, projectMemoryKey } from "../src/memory/MemoryService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
@@ -9,15 +10,7 @@ import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcR
 import { ThreadService } from "../src/session/ThreadService"
 
 const roots: string[] = []
-const removeRoot = async (root: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try { await rm(root, { recursive: true, force: true }); return } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
-afterEach(async () => Promise.all(roots.splice(0).map(removeRoot)))
+afterEach(async () => removeFixturePaths(roots.splice(0)), 30_000)
 
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-memory-rpc-"))
@@ -119,6 +112,9 @@ describe("Memory RPC 项目作用域", () => {
       const columns = (db.sqlite.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((column) => column.name)
       expect(columns).not.toContain("permission_mode")
     }
+    // MemoryService 的 drain 链通过微任务落定；先排空再关库，避免异步查询与
+    // close 竞态留下 Windows 上的 -wal/-shm 句柄。
+    await Bun.sleep(0)
     db.close()
   })
 

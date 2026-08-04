@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import {
   PetCatalogService,
   classifyPetLicense,
@@ -14,11 +15,7 @@ const categoriesUrl =
   "https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/categories.json"
 
 afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories.splice(0).map(directory =>
-      rm(directory, { recursive: true, force: true }),
-    ),
-  )
+  await removeFixturePaths(temporaryDirectories.splice(0))
 })
 
 describe("PetCatalogService", () => {

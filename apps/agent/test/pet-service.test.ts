@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { PetService } from "../src/pet/PetService"
 import { asPetStorageError } from "../src/pet/PetStorageError"
 
@@ -10,11 +11,7 @@ const temporaryDirectories: string[] = []
 
 afterEach(async () => {
   globalThis.fetch = originalFetch
-  await Promise.all(
-    temporaryDirectories.splice(0).map(directory =>
-      rm(directory, { recursive: true, force: true }),
-    ),
-  )
+  await removeFixturePaths(temporaryDirectories.splice(0))
 })
 
 describe("PetService", () => {

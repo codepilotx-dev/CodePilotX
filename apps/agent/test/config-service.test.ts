@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import {
   ConfigService,
   ConfigServiceError,
@@ -16,8 +17,7 @@ const temporaryRoot = async () => {
 }
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) =>
-    rm(root, { recursive: true, force: true })))
+  await removeFixturePaths(roots.splice(0))
 })
 
 describe("ConfigService", () => {

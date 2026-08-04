@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { resolve } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { EncryptedCredentialRepository, type MasterKeyStore } from "../src/auth/EncryptedCredentialRepository"
 import { McpClientFactory } from "../src/mcp/McpClientFactory"
 import { McpOAuthCoordinator } from "../src/mcp/McpOAuthCoordinator"
@@ -18,17 +19,7 @@ afterEach(async () => {
   const children = processes.splice(0)
   for (const process of children) process.kill()
   await Promise.all(children.map((process) => process.exited))
-  await Promise.all(temporaryPaths.splice(0).map(async (path) => {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      try {
-        await rm(path, { recursive: true, force: true })
-        return
-      } catch (cause) {
-        if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-        await Bun.sleep(50)
-      }
-    }
-  }))
+  await removeFixturePaths(temporaryPaths.splice(0))
 })
 
 const memoryKeyStore = (): MasterKeyStore & { value: string | null } => ({

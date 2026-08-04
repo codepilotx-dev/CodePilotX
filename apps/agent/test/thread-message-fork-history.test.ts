@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { PiEventAdapter } from "../src/orchestration/pi/PiEventAdapter"
 import { ConversationHistoryForkRepository } from "../src/session/fork/ConversationHistoryForkRepository"
 import { ThreadMessageForkRepository } from "../src/session/fork/ThreadMessageForkRepository"
@@ -12,21 +13,9 @@ import { TurnPiBoundaryRepository } from "../src/storage/repositories/turn-pi-bo
 const roots: string[] = []
 const databases: AgentDatabase[] = []
 
-const removePath = async (path: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(path, { recursive: true, force: true })
-      return
-    } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
-
 afterEach(async () => {
   for (const db of databases.splice(0)) db.close()
-  await Promise.all(roots.splice(0).map(removePath))
+  await removeFixturePaths(roots.splice(0))
 })
 
 const database = async () => {

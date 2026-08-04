@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { ThreadMessageForkRepository } from "../src/session/fork/ThreadMessageForkRepository"
 import { ThreadMessageForkService } from "../src/session/fork/ThreadMessageForkService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
@@ -11,21 +12,9 @@ import type { ManagedWorktree, WorktreeOperation } from "../src/worktree/types"
 const roots: string[] = []
 const databases: AgentDatabase[] = []
 
-const removeRoot = async (root: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(root, { recursive: true, force: true })
-      return
-    } catch (cause) {
-      if ((cause as NodeJS.ErrnoException).code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
-
 afterEach(async () => {
   for (const database of databases.splice(0)) database.close()
-  await Promise.all(roots.splice(0).map(removeRoot))
+  await removeFixturePaths(roots.splice(0))
 })
 
 const fixture = async () => {

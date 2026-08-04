@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentLogger } from "../src/observability/AgentLogger"
 
 const roots: string[] = []
@@ -17,7 +18,7 @@ const records = async (root: string) =>
     .filter(Boolean)
     .map(line => JSON.parse(line) as Record<string, unknown>)
 
-afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(roots.splice(0)))
 
 describe("AgentLogger", () => {
   test("safe 模式写统一 schema、递归脱敏且终端不包含开发详情", async () => {

@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { z } from "zod"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { ToolExecutor } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
@@ -11,7 +12,7 @@ import { WorkspaceService } from "../src/workspace/WorkspaceService"
 const temporary: string[] = []
 
 afterEach(async () => {
-  await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })))
+  await removeFixturePaths(temporary.splice(0))
 })
 
 const fingerprintFor = (patch: string) =>

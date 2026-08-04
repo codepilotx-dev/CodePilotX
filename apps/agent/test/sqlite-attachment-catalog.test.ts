@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { AttachmentService } from "../src/subagent/AttachmentService"
 import { SqliteAttachmentCatalog } from "../src/subagent/SqliteAttachmentCatalog"
 
 const paths: string[] = []
-afterEach(async () => { for (const path of paths.splice(0)) await rm(path, { recursive: true, force: true }).catch(() => undefined) })
+afterEach(async () => { await removeFixturePaths(paths.splice(0)) })
 
 describe("SQLite 附件目录", () => {
   test("附件跨服务实例读取、绑定到 input，并随父 Thread 级联删除", async () => {

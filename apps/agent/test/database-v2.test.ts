@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Database } from "bun:sqlite"
-import { mkdtemp, readdir, rm, stat } from "node:fs/promises"
+import { mkdtemp, readdir, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase, DATA_EPOCH, HISTORY_APPLICATION_ID, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
 import { FINAL_SCHEMA, HISTORY_SCHEMA, initializeSchema } from "../src/storage/database/schema-initializer"
 import { PROFILE_APPLICATION_ID, PROFILE_SCHEMA_VERSION } from "../src/storage/database/schema"
@@ -16,15 +17,7 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
         .replace(", git_branch TEXT)", ")")
     : statement)
 
-const removePath = async (path: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try { await rm(path, { recursive: true, force: true }); return } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(100)
-    }
-  }
-}
-afterEach(async () => Promise.all(paths.splice(0).map(removePath)))
+afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
 describe("数据库兼容与迁移", () => {
   test("v18 到 v19 从 durable events 恢复被覆盖正文并分配稳定 ordinal", () => {

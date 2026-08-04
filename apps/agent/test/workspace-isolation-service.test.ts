@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { WorkspaceIsolationService } from "../src/subagent/WorkspaceIsolationService"
 
 const paths: string[] = []
 
-afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 const git = async (cwd: string, args: readonly string[]) => {
   const process = Bun.spawn(["git", ...args], { cwd, stdin: "ignore", stdout: "pipe", stderr: "pipe" })

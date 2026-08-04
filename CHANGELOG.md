@@ -68,6 +68,7 @@
 
 ### Fixed
 
+- [Agent] 统一 Windows 测试夹具清理到共享 helper：teardown 先关闭数据库、watcher、子进程与服务再删除路径，EBUSY/EPERM/ENOTEMPTY 按固定约 5 秒窗口重试并严格顺序清理，重试时强制 GC 释放 Bun sqlite 延迟持有的 -wal/-shm 句柄，持续句柄占用成为真实测试失败而非被静默吞掉
 - [desktop/release] 将打包 ConPTY 冒烟的单阶段预算提高到 30 秒、进程总预算提高到 90 秒，避免 GitHub-hosted Windows 冷启动长尾误判安装包损坏，同时保留严格超时
 - [Agent/release] 将 Windows 全仓测试数据库夹具的可恢复清理等待扩展到 5 秒，避免短暂文件占用误阻塞本地 Beta 预检，同时在持续占用时仍保留失败
 - [renderer/release] 为会话处理过程的原生 disclosure 提供稳定可访问名称，避免空摘要在 Review 场景触发 WCAG `summary-name` 违规并阻塞本地 Beta 预检

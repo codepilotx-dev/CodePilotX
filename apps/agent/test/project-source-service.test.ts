@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { mkdir, mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, stat, unlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { ProjectSourceService } from "../src/project/ProjectSourceService"
 import { ProjectService } from "../src/project/ProjectService"
 import { createLifecycleTools } from "../src/orchestration/pi/PiToolAdapter"
@@ -14,22 +15,7 @@ import { SqliteAttachmentCatalog } from "../src/subagent/SqliteAttachmentCatalog
 const roots: string[] = []
 
 afterEach(async () => {
-  for (const root of roots.splice(0)) {
-    for (let attempt = 0; attempt < 80; attempt += 1) {
-      try {
-        await rm(root, { recursive: true, force: true })
-        break
-      } catch (cause) {
-        if (
-          !(cause instanceof Error)
-          || !("code" in cause)
-          || cause.code !== "EBUSY"
-          || attempt === 79
-        ) throw cause
-        await Bun.sleep(25)
-      }
-    }
-  }
+  await removeFixturePaths(roots.splice(0))
 })
 
 const fixture = async () => {

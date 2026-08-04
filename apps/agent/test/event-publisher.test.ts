@@ -1,22 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { EventHub } from "../src/storage/events/EventHub"
 import { publishAgentEvent } from "../src/storage/events/EventPublisher"
 
 const paths: string[] = []
-const removePath = async (path: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try { await rm(path, { force: true }); return } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
-afterEach(async () => Promise.all(paths.splice(0).map(removePath)))
+afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 describe("manifest-aware event publisher", () => {
   test("live 事件只发 EventHub，durable 事件才进入 SQLite", async () => {

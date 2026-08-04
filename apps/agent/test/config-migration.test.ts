@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { setTimeout as delay } from "node:timers/promises"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { ConfigService } from "../src/config/ConfigService"
 import { ConfigMigrationService } from "../src/config/ConfigMigrationService"
@@ -12,20 +12,7 @@ import { planPiProviderConfigMigration } from "../src/provider/pi/PiProviderConf
 
 const roots: string[] = []
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map(async (root) => {
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      try {
-        await rm(root, { recursive: true, force: true })
-        return
-      } catch (cause) {
-        if ((cause as NodeJS.ErrnoException).code !== "EBUSY" || attempt === 199) {
-          throw cause
-        }
-        Bun.gc(true)
-        await delay(25)
-      }
-    }
-  }))
+  await removeFixturePaths(roots.splice(0))
 })
 
 describe("ConfigMigrationService", () => {

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { ContextManager, contextFingerprint, estimateContextTokens, type AgentInputItem } from "../src/context/ContextManager"
 import { HookService } from "../src/hooks/HookService"
@@ -10,15 +11,7 @@ import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/database/AgentData
 import { ConfigService } from "../src/config/ConfigService"
 
 const roots: string[] = []
-const removeRoot = async (root: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try { await rm(root, { recursive: true, force: true }); return } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
-afterEach(async () => Promise.all(roots.splice(0).map(removeRoot)))
+afterEach(async () => removeFixturePaths(roots.splice(0)))
 
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-context-"))

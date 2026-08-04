@@ -1,21 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { isMainAgentRequestUserInputEnabled } from "../src/orchestration/AgentRuntimeTypes"
 
 const paths: string[] = []
-const removePath = async (path: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try { await rm(path, { recursive: true, force: true }); return } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(100)
-    }
-  }
-}
-afterEach(async () => Promise.all(paths.splice(0).map(removePath)))
+afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 describe("单主 Agent 编排", () => {
   test("问题卡默认只在 Plan 调查阶段开放，设置开启后覆盖普通执行阶段", () => {

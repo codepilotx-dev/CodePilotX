@@ -1,21 +1,17 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { SubagentRepository } from "../src/subagent/SubagentRepository"
 import { SubagentWorkspaceCoordinator } from "../src/subagent/SubagentWorkspaceCoordinator"
 import { WorkspaceIsolationService } from "../src/subagent/WorkspaceIsolationService"
 
 const paths: string[] = []
-afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, {
-  recursive: true,
-  force: true,
-  maxRetries: 5,
-  retryDelay: 50,
-}).catch(() => undefined))))
+afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
 const model = Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
 const permission = { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" } as const

@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Database } from "bun:sqlite"
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { ThreadService } from "../src/session/ThreadService"
 import { EnvironmentDeltaStore } from "../src/local-environment/EnvironmentDeltaStore"
@@ -16,15 +17,7 @@ import { ManagedProjectlessWorkspaceService } from "../src/workspace/ManagedProj
 import { ThreadWorkspaceResolver } from "../src/workspace/ThreadWorkspaceResolver"
 
 const roots: string[] = []
-const removeRoot = async (root: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try { await rm(root, { recursive: true, force: true }); return } catch (cause) {
-      if ((cause as NodeJS.ErrnoException).code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
-afterEach(async () => Promise.all(roots.splice(0).map(removeRoot)))
+afterEach(async () => removeFixturePaths(roots.splice(0)))
 
 const git = async (cwd: string, args: readonly string[]) => {
   const child = Bun.spawn(["git", ...args], { cwd, stdin: "ignore", stdout: "pipe", stderr: "pipe" })
