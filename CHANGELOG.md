@@ -29,6 +29,9 @@
 
 ### Changed
 
+- [release] 每个 self-hosted 发布 job（Prepare dry-run/live、Finalize、tag package）使用带 ownership marker 的唯一运行上下文隔离 TEMP/APPDATA/LOCALAPPDATA 与 Agent 数据目录，清理时重新校验 repository、run ID、attempt 与 UUID，Prepare 与 Finalize 共享仓库级 release-state 并发组防止并发修改发布状态
+- [release] 从 Windows package verifier 抽出可复用的打包 Agent 运行时验证门面（PE x64、Authenticode、ready、/api/ready、thread-rpc-v4、Pi provider/model 目录、进程树退出与目录清理），供本地 verifier、PR 合成签名 parity、每日 canary 与最终 tag 复用
+- [release] dry-run 回执新增经过范围校验的安全耗时指标（ConPTY、Agent ready、Desktop ready、签名打包、安装冒烟、总计），只记录毫秒数与计数，不参与证明信任判定，超过 12 分钟 P95 目标只警告
 - [release] Beta 发布改为本地完整质量门禁与 SHA/tree 绑定的 SSH 签名证明，self-hosted 发布机只验证环境并生成可复用 dry-run 回执，最终标签产物在受保护发布机签名构建后由 GitHub-hosted job 证明来源并发布
 - [docs] 重写开源项目 README，补充产品截图、Beta 下载、功能概览与公开协作入口，并移除过时的能力限制和数据恢复说明
 - [renderer] 参照 Claude-like 阅读节奏统一 Markdown 标题、段落、列表项间距、引用、表格与代码排版，优化粗体标题说明分组及表格单元格的均匀内边距与居中对齐，同时保留紧凑摘要及工作台响应式布局

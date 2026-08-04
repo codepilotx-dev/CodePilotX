@@ -27,7 +27,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: finalize-beta-release-${{ github.repository }}
+  # 与 Prepare 共享仓库级 release-state 组，防止并发修改 Release PR、
+  # tag 或发布状态；正在进行的工作不允许被取消。
+  group: release-state-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -73,14 +75,20 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Create isolated release run context
+        id: run-context
+        shell: pwsh
+        run: |
+          bun scripts/release-run-context.ts create
+          if ($LASTEXITCODE -ne 0) { throw "Failed to create the isolated release run context" }
+          "created=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
       - name: Finalize or reconcile beta release
         shell: pwsh
         env:
           RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
           BETA_RELEASE_QUIET_MINUTES: ${{ vars.BETA_RELEASE_QUIET_MINUTES || '30' }}
           RELEASE_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
-          TEMP: ${{ runner.temp }}
-          TMP: ${{ runner.temp }}
         run: |
           if ($env:GITHUB_EVENT_NAME -eq "schedule") {
             $arguments = @("scripts/beta-release.ts", "reconcile")
@@ -101,3 +109,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Beta release finalization or reconciliation failed"
           }
+
+      - name: Dispose release run context
+        if: always() && steps.run-context.outputs.created == 'true'
+        shell: pwsh
+        run: |
+          bun scripts/release-run-context.ts dispose
+          if ($LASTEXITCODE -ne 0) { throw "Failed to dispose the isolated release run context" }

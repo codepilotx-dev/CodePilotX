@@ -72,4 +72,50 @@ describe("Beta dry-run 回执", () => {
     expect(() => validateBetaDryRunReceipt(receipt({ completedAt: future.toISOString() }), expected()))
       .toThrow("来自未来");
   });
+
+  it("接受范围合法的可选 timings 且不参与信任判定", () => {
+    const withTimings = receipt({
+      timings: {
+        schemaVersion: 1,
+        conptyMs: 25_000,
+        agentReadyMs: 12_000,
+        desktopReadyMs: 40_000,
+        signedPackageMs: 1_200_000,
+        installedSmokeMs: 300_000,
+        totalMs: 1_800_000,
+      },
+    });
+    expect(validateBetaDryRunReceipt(withTimings, expected()).timings?.totalMs)
+      .toBe(1_800_000);
+  });
+
+  it("拒绝超范围或结构错误的 timings", () => {
+    expect(() => validateBetaDryRunReceipt(
+      receipt({ timings: { schemaVersion: 1, totalMs: -1 } }),
+      expected(),
+    )).toThrow("totalMs");
+    expect(() => validateBetaDryRunReceipt(
+      receipt({ timings: { schemaVersion: 1, totalMs: 1, conptyMs: 999_999 } }),
+      expected(),
+    )).toThrow("conptyMs");
+    expect(() => validateBetaDryRunReceipt(
+      receipt({ timings: { schemaVersion: 2, totalMs: 1 } }),
+      expected(),
+    )).toThrow("schemaVersion");
+  });
+
+  it("create 时校验并规范化 timings", () => {
+    expect(createBetaDryRunReceipt({
+      actor: "xiaohai-ouyang",
+      runId: 123,
+      runAttempt: 1,
+      mainSha: MAIN_SHA,
+      proofDigest: DIGEST,
+      releaseTreeSha: TREE_SHA,
+      nextVersion: "0.2.0-beta.4",
+      nextTag: "v0.2.0-beta.4",
+      completedAt: NOW,
+      timings: { schemaVersion: 1, conptyMs: 20_000, totalMs: 90_000 },
+    }).timings).toEqual({ schemaVersion: 1, conptyMs: 20_000, totalMs: 90_000 });
+  });
 });
