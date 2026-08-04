@@ -92,13 +92,19 @@ jobs:
       - name: Build Windows x64 agent
         if: needs.release-pr-policy.outputs.trusted != 'true'
         run: bun run build:agent
-      - name: Create synthetic signing context
-        id: parity-cert
+      - name: Create isolated release run context
+        id: run-context
         if: needs.release-pr-policy.outputs.trusted != 'true'
         shell: pwsh
         run: |
           bun scripts/release-run-context.ts create
-          if ($LASTEXITCODE -ne 0) { throw "Failed to create the synthetic signing context" }
+          if ($LASTEXITCODE -ne 0) { throw "Failed to create the isolated release run context" }
+          "created=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Create synthetic signing certificate
+        id: parity-cert
+        if: needs.release-pr-policy.outputs.trusted != 'true'
+        shell: pwsh
+        run: |
           $cert = New-SelfSignedCertificate -Type CodeSigningCert `
             -Subject "CN=CodePilotX PR Parity (ephemeral)" `
             -CertStoreLocation Cert:\CurrentUser\My `
