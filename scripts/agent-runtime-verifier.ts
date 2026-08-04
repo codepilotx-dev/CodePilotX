@@ -33,6 +33,8 @@ export interface VerifyPackagedAgentRuntimeOptions {
   agentPath: string;
   /** 验证 Agent PE 的 Authenticode 状态必须为 Valid。 */
   requireAuthenticode?: boolean;
+  /** 合成签名场景的自定义信任锚 thumbprint（见 assertAuthenticodeValid）。 */
+  authenticodeTrustAnchorThumbprint?: string;
   /** ready 等待超时，默认 60 秒。 */
   readyTimeoutMs?: number;
   /** 追加到 Agent 可执行文件之后的参数（测试用假 Agent）。 */
@@ -65,14 +67,32 @@ async function sha256(path: string): Promise<string> {
   return hash.digest("hex");
 }
 
+export interface AuthenticodeVerificationOptions {
+  /**
+   * 用自定义信任锚验证签名链（PR 合成签名场景）：
+   * 从 CurrentUser\My 按 thumbprint 取锚证书，允许未知根构建链后
+   * 固定链根必须等于锚证书，避免向用户根存储添加自签证书触发
+   * Windows 极慢的根验证/自动更新。
+   */
+  trustAnchorThumbprint?: string;
+}
+
 export async function assertAuthenticodeValid(
   paths: readonly string[],
+  options: AuthenticodeVerificationOptions = {},
 ): Promise<void> {
   const powershell = join(
     process.env.SystemRoot ?? "C:\\Windows",
     "System32/WindowsPowerShell/v1.0/powershell.exe",
   );
-  const command = "$ErrorActionPreference='Stop'; $paths=ConvertFrom-Json $env:CODEPILOTX_SIGNATURE_PATHS; foreach($path in $paths){ $status=(Get-AuthenticodeSignature -LiteralPath $path).Status; Write-Output \"$path`t$status\"; if($status -ne 'Valid'){ exit 12 } }";
+  const anchor = options.trustAnchorThumbprint;
+  // 信任锚验证在 Windows PowerShell 5.1 上完成：.NET Framework 没有
+  // CustomRootTrust，改用 ExtraStore + AllowUnknownCertificateAuthority
+  // 构建链后固定链根 thumbprint 必须等于锚证书，效果等价且全环境可用
+  // （pwsh 在本地开发机可能只是 WindowsApps 别名，Bun 无法直接启动）。
+  const command = anchor
+    ? "$ErrorActionPreference='Stop'; $paths=ConvertFrom-Json $env:CODEPILOTX_SIGNATURE_PATHS; $anchorThumbprint=$env:CODEPILOTX_TRUST_ANCHOR_THUMBPRINT; foreach($path in $paths){ $signature=Get-AuthenticodeSignature -LiteralPath $path; Write-Output \"$path`t$($signature.Status)\"; if($signature.Status -ne 'Valid' -and $signature.Status -ne 'UnknownError'){ exit 12 }; $chain=New-Object System.Security.Cryptography.X509Certificates.X509Chain; $chain.ChainPolicy.RevocationMode='NoCheck'; $chain.ChainPolicy.VerificationFlags=[System.Security.Cryptography.X509Certificates.X509VerificationFlags]::AllowUnknownCertificateAuthority; $anchorCert=Get-ChildItem \"Cert:\\CurrentUser\\My\\$anchorThumbprint\"; $chain.ChainPolicy.ExtraStore.Add($anchorCert); if(-not $chain.Build($signature.SignerCertificate)){ exit 13 }; $root=$chain.ChainElements[$chain.ChainElements.Count-1].Certificate; if(-not ($root.Thumbprint -eq $anchorThumbprint)){ exit 13 } }"
+    : "$ErrorActionPreference='Stop'; $paths=ConvertFrom-Json $env:CODEPILOTX_SIGNATURE_PATHS; foreach($path in $paths){ $status=(Get-AuthenticodeSignature -LiteralPath $path).Status; Write-Output \"$path`t$status\"; if($status -ne 'Valid'){ exit 12 } }";
   const environment = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "psmodulepath"),
   );
@@ -84,7 +104,11 @@ export async function assertAuthenticodeValid(
     command,
   ], {
     cwd: process.cwd(),
-    env: { ...environment, CODEPILOTX_SIGNATURE_PATHS: JSON.stringify(paths) },
+    env: {
+      ...environment,
+      CODEPILOTX_SIGNATURE_PATHS: JSON.stringify(paths),
+      ...(anchor ? { CODEPILOTX_TRUST_ANCHOR_THUMBPRINT: anchor } : {}),
+    },
     stdout: "inherit",
     stderr: "inherit",
   });
@@ -100,6 +124,7 @@ export async function verifyPackagedAgentRuntime(
   const {
     agentPath,
     requireAuthenticode = false,
+    authenticodeTrustAnchorThumbprint,
     readyTimeoutMs = 60_000,
     agentArgs = [],
   } = options;
@@ -108,7 +133,12 @@ export async function verifyPackagedAgentRuntime(
   }
   await assertWindowsX64PE(agentPath);
   if (requireAuthenticode) {
-    await assertAuthenticodeValid([agentPath]);
+    await assertAuthenticodeValid(
+      [agentPath],
+      authenticodeTrustAnchorThumbprint
+        ? { trustAnchorThumbprint: authenticodeTrustAnchorThumbprint }
+        : {},
+    );
   }
 
   const isolatedRoot = await mkdtemp(join(tmpdir(), "codepilotx-agent-runtime-"));
@@ -375,12 +405,22 @@ if (import.meta.main) {
     ? agentArgument.slice("--agent=".length)
     : "";
   const requireAuthenticode = process.argv.includes("--require-authenticode");
+  const trustAnchorArgument = process.argv.find(
+    argument => argument.startsWith("--authenticode-trust-anchor="),
+  );
+  const authenticodeTrustAnchorThumbprint = trustAnchorArgument
+    ? trustAnchorArgument.slice("--authenticode-trust-anchor=".length)
+    : undefined;
   if (!agentPath) {
     throw new Error(
-      "用法：bun scripts/agent-runtime-verifier.ts --agent <path> [--require-authenticode]",
+      "用法：bun scripts/agent-runtime-verifier.ts --agent <path> [--require-authenticode] [--authenticode-trust-anchor <thumbprint>]",
     );
   }
-  verifyPackagedAgentRuntime({ agentPath, requireAuthenticode })
+  verifyPackagedAgentRuntime({
+    agentPath,
+    requireAuthenticode,
+    authenticodeTrustAnchorThumbprint,
+  })
     .then(async result => {
       console.log(`[CodePilotX] Packaged agent runtime verified: ${await sha256(agentPath)}`);
       console.log(JSON.stringify(result, null, 2));
