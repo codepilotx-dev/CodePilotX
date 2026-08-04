@@ -154,6 +154,7 @@
 
 ### Security
 
+- [dependencies] 升级 fast-uri 至 3.1.5、ip-address 至 10.4.0，并将 undici 统一对齐到 8.10.0，修复新增的 host confusion、IP 前导零八进制解析 SSRF 与跨用户信息泄露/解析崩溃公告（GHSA-7p8r-x3mc-p8w7、GHSA-mwp4-54f8-5fhr、GHSA-4cwx-7wf7-3272）
 - [release/dependencies] 将 `brace-expansion` 统一升级到 5.0.9，修复可通过无界中间数组触发拒绝服务的 `GHSA-rgw5-rvv9-x895`
 - [renderer/pi-agent-core] 将 Markdown HTML 清洗、指令属性和跨环境路径修剪改为单次线性扫描或标准路径 API，避免嵌套标签绕过清洗及攻击者可控输入触发 ReDoS
 - [Agent] auth.json 的外部修改检测改用仅驻留进程内的精确快照，避免对凭据内容生成可离线猜测的摘要
