@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { Effect } from "effect"
 import { Credential } from "@codepilotx/model-schema"
 import { EncryptedCredentialRepository, type MasterKeyStore } from "../src/auth/EncryptedCredentialRepository"
@@ -14,20 +15,9 @@ import { emptySource, type ProviderUsageAdapter } from "../src/usage/types"
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
-const removePath = async (root: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(root, { recursive: true, force: true })
-      return
-    } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(100)
-    }
-  }
-}
 afterEach(async () => {
   for (const database of databases.splice(0)) database.close()
-  await Promise.all(roots.splice(0).map(removePath))
+  await removeFixturePaths(roots.splice(0))
 })
 
 const memoryKeyStore = (): MasterKeyStore & { value: string | null } => ({

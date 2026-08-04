@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { z } from "zod"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentError } from "../src/domain"
 import { ToolExecutor, type ToolExecutorOptions } from "../src/tool/ToolExecutor"
 import { lineChangeSummary, ToolRegistry } from "../src/tool/ToolRegistry"
@@ -11,7 +12,7 @@ import type { ToolingResolver, ToolProcessRunner } from "../src/tool/ToolingRunt
 import { adaptToolDefinition } from "../src/orchestration/pi/PiToolAdapter"
 
 const temporary: string[] = []
-afterEach(async () => Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(temporary.splice(0)))
 
 const fixture = async (runtime: {
   resolveTooling?: ToolingResolver

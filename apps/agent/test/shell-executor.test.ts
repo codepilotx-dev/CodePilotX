@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
   FULL_ACCESS_PERMISSION_CONFIG,
   type PermissionConfig,
 } from "@codepilotx/shared/thread"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { shellRuntimeDependencies, ToolExecutor, type ToolExecutionContext } from "../src/tool/ToolExecutor"
 import type { ProcessResult } from "../src/tool/Shell/HostProcess"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
@@ -14,8 +15,7 @@ import { AgentLogger } from "../src/observability/AgentLogger"
 import type { ShellSecurityLevel } from "../src/security/ShellRiskClassifier"
 
 const tempPaths: string[] = []
-afterEach(async () => Promise.all(tempPaths.splice(0).map((path) =>
-  rm(path, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(tempPaths.splice(0)))
 
 const workspaceWrite: PermissionConfig = {
   sandboxMode: "workspace-write",

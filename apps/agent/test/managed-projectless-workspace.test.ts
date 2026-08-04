@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, mkdir, rm } from "node:fs/promises"
+import { mkdtemp, mkdir } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, join, resolve } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { ManagedProjectlessWorkspaceService, projectlessWorkspaceSlug } from "../src/workspace/ManagedProjectlessWorkspaceService"
 import { ThreadWorkspaceResolver } from "../src/workspace/ThreadWorkspaceResolver"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
@@ -10,17 +11,7 @@ import { ThreadService } from "../src/session/ThreadService"
 const roots: string[] = []
 
 afterEach(async () => {
-  for (const root of roots.splice(0)) {
-    for (let attempt = 0; attempt < 80; attempt += 1) {
-      try {
-        await rm(root, { recursive: true, force: true })
-        break
-      } catch (cause) {
-        if (!(cause && typeof cause === "object" && "code" in cause && cause.code === "EBUSY") || attempt === 79) throw cause
-        await Bun.sleep(25)
-      }
-    }
-  }
+  await removeFixturePaths(roots.splice(0))
 })
 
 describe("ManagedProjectlessWorkspaceService", () => {

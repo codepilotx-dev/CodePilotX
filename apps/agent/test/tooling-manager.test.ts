@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import {
   TOOLING_CATALOG,
   ToolingManager,
@@ -25,7 +26,7 @@ afterEach(async () => {
   process.env.CODEPILOTX_RIPGREP_PATH = originalRipgrep
   process.env.CODEPILOTX_NODEJS_PATH = originalNodejs
   process.env.CODEPILOTX_PYTHON_PATH = originalPython
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  await removeFixturePaths(roots.splice(0))
 })
 
 describe("ToolingManager", () => {

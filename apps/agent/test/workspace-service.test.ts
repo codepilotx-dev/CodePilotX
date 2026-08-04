@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { chmod, mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 
 const paths: string[] = []
 const hash = (content: string) => createHash("sha256").update(content, "utf8").digest("hex")
 
-afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 const waitForFileContent = async (path: string, expected: string, timeoutMs = 5_000) => {
   const deadline = Date.now() + timeoutMs

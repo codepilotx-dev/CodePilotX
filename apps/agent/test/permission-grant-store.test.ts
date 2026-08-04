@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { PermissionGrantStore, intersectPermissionGrant } from "../src/permission/PermissionGrantStore"
 import { ToolExecutor } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 
 const temporary: string[] = []
-afterEach(async () => Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(temporary.splice(0)))
 
 describe("临时权限授权", () => {
   test("request_permissions schema 支持 session 且拒绝空权限请求", () => {

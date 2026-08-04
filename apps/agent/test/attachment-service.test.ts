@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { ATTACHMENT_LIMITS, AttachmentService } from "../src/subagent/AttachmentService"
 
 const paths: string[] = []
-afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 const setup = async () => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-attachments-"))

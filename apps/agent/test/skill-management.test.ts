@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import {
   SkillManagementError,
@@ -14,19 +15,7 @@ import type { RpcRouter } from "../src/transport/rpc/RpcRouter"
 
 const roots: string[] = []
 
-const removeRoot = async (root: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(root, { recursive: true, force: true })
-      return
-    } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
-
-afterEach(async () => Promise.all(roots.splice(0).map(removeRoot)))
+afterEach(async () => removeFixturePaths(roots.splice(0)))
 
 const writeSkill = async (
   root: string,

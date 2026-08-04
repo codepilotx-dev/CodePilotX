@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Effect } from "effect";
+import { removeFixturePaths } from "./fixture-cleanup";
 import type { EncryptedCredentialRepository } from "../src/auth/EncryptedCredentialRepository";
 import {
   discoverOpenAIModels,
@@ -15,9 +16,7 @@ import {
 
 const roots: string[] = [];
 afterEach(async () => {
-  await Promise.all(
-    roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
-  );
+  await removeFixturePaths(roots.splice(0));
 });
 
 const repository = {

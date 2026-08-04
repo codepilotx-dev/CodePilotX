@@ -9,6 +9,8 @@
 
 ### Added
 
+- [release] 新增 PR `release-parity` 门禁：在 GitHub-hosted runner 上执行 Renderer 最终状态 a11y、x64 Agent 构建、一次性自签证书合成签名与共享 Agent runtime verifier，并在 always 步骤按精确 thumbprint 删除证书、经 ownership marker 校验后清理临时目录；可信 Release PR 验证身份与 dry-run 回执后以同一 job 名快速成功
+- [release] 新增每日 release runner canary：只读权限的 self-hosted 巡检每天构建、真实签名并运行共享 Agent runtime verifier，输出安全计时摘要，无 Prepare、Release PR、Finalize、tag、Release 或 Issue 副作用
 - [desktop] 支持从已完成的 Assistant 回复分叉到共享当前工作树或隔离托管 worktree 的新聊天
 - [desktop] 在 Local environment 编辑器中说明 worktree setup 可用的源目录与目标目录变量
 - [desktop/Agent/renderer] 新增 Windows-first 集成终端，每个任务拥有一个 ConPTY/PTY 会话，支持 shell profile、主题、回放、尺寸同步、任务关闭清理及经审批的有界终端输出读取
@@ -29,6 +31,10 @@
 
 ### Changed
 
+- [release] 更新 Beta 发布 Skill、手动运行手册与发布自动化文档：补充唯一运行上下文的创建与安全清理、`release-parity` 与可信 Release PR 快速路径、每日 canary 的只读职责、安全耗时指标的观察方式，以及本地预检失败轮不计数且不得定向重跑漂绿
+- [release] 每个 self-hosted 发布 job（Prepare dry-run/live、Finalize、tag package）使用带 ownership marker 的唯一运行上下文隔离 TEMP/APPDATA/LOCALAPPDATA 与 Agent 数据目录，清理时重新校验 repository、run ID、attempt 与 UUID，Prepare 与 Finalize 共享仓库级 release-state 并发组防止并发修改发布状态
+- [release] 从 Windows package verifier 抽出可复用的打包 Agent 运行时验证门面（PE x64、Authenticode、ready、/api/ready、thread-rpc-v4、Pi provider/model 目录、进程树退出与目录清理），供本地 verifier、PR 合成签名 parity、每日 canary 与最终 tag 复用
+- [release] dry-run 回执新增经过范围校验的安全耗时指标（ConPTY、Agent ready、Desktop ready、签名打包、安装冒烟、总计），只记录毫秒数与计数，不参与证明信任判定，超过 12 分钟 P95 目标只警告
 - [release] Beta 发布改为本地完整质量门禁与 SHA/tree 绑定的 SSH 签名证明，self-hosted 发布机只验证环境并生成可复用 dry-run 回执，最终标签产物在受保护发布机签名构建后由 GitHub-hosted job 证明来源并发布
 - [docs] 重写开源项目 README，补充产品截图、Beta 下载、功能概览与公开协作入口，并移除过时的能力限制和数据恢复说明
 - [renderer] 参照 Claude-like 阅读节奏统一 Markdown 标题、段落、列表项间距、引用、表格与代码排版，优化粗体标题说明分组及表格单元格的均匀内边距与居中对齐，同时保留紧凑摘要及工作台响应式布局
@@ -68,6 +74,8 @@
 
 ### Fixed
 
+- [release/test] 修正发布契约测试与 Authenticode 拒绝路径测试的 CI 环境差异：契约断言按 LF 归一化读取 workflow，Authenticode 用例改用确定未签名的非 PE 文件验证拒绝路径，不再依赖本机/CI bun.exe 的签名状态
+- [Agent] 统一 Windows 测试夹具清理到共享 helper：teardown 先关闭数据库、watcher、子进程与服务再删除路径，EBUSY/EPERM/ENOTEMPTY 按固定约 5 秒窗口重试并严格顺序清理，重试时强制 GC 释放 Bun sqlite 延迟持有的 -wal/-shm 句柄，持续句柄占用成为真实测试失败而非被静默吞掉
 - [desktop/release] 将打包 ConPTY 冒烟的单阶段预算提高到 30 秒、进程总预算提高到 90 秒，避免 GitHub-hosted Windows 冷启动长尾误判安装包损坏，同时保留严格超时
 - [Agent/release] 将 Windows 全仓测试数据库夹具的可恢复清理等待扩展到 5 秒，避免短暂文件占用误阻塞本地 Beta 预检，同时在持续占用时仍保留失败
 - [renderer/release] 为会话处理过程的原生 disclosure 提供稳定可访问名称，避免空摘要在 Review 场景触发 WCAG `summary-name` 违规并阻塞本地 Beta 预检
@@ -147,6 +155,7 @@
 
 ### Security
 
+- [dependencies] 升级 fast-uri 至 3.1.5、ip-address 至 10.4.0，并将 undici 统一对齐到 8.10.0，修复新增的 host confusion、IP 前导零八进制解析 SSRF 与跨用户信息泄露/解析崩溃公告（GHSA-7p8r-x3mc-p8w7、GHSA-mwp4-54f8-5fhr、GHSA-4cwx-7wf7-3272）
 - [release/dependencies] 将 `brace-expansion` 统一升级到 5.0.9，修复可通过无界中间数组触发拒绝服务的 `GHSA-rgw5-rvv9-x895`
 - [renderer/pi-agent-core] 将 Markdown HTML 清洗、指令属性和跨环境路径修剪改为单次线性扫描或标准路径 API，避免嵌套标签绕过清洗及攻击者可控输入触发 ReDoS
 - [Agent] auth.json 的外部修改检测改用仅驻留进程内的精确快照，避免对凭据内容生成可离线猜测的摘要

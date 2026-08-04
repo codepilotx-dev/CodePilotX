@@ -1,3 +1,8 @@
+import {
+  validateReleaseTimingMetrics,
+  type ReleaseTimingMetricsV1,
+} from "./release-timing.ts";
+
 export const BETA_DRY_RUN_RECEIPT_VALIDITY_MS = 24 * 60 * 60 * 1_000;
 export const BETA_DRY_RUN_RECEIPT_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 
@@ -19,6 +24,8 @@ export interface BetaDryRunReceiptV1 {
   nextTag: string;
   completedAt: string;
   result: "passed";
+  /** 安全耗时指标；只做范围校验，不参与信任判定。 */
+  timings?: ReleaseTimingMetricsV1;
 }
 
 export interface BetaDryRunReceiptExpectation {
@@ -39,7 +46,7 @@ export function createBetaDryRunReceipt(
     "schemaVersion" | "repository" | "workflow" | "event" |
     "completedAt" | "result"> & { completedAt?: Date },
 ): BetaDryRunReceiptV1 {
-  return {
+  const receipt: BetaDryRunReceiptV1 = {
     schemaVersion: 1,
     repository: "codepilotx-dev/CodePilotX",
     workflow: "prepare-beta-release.yml",
@@ -55,6 +62,10 @@ export function createBetaDryRunReceipt(
     completedAt: (input.completedAt ?? new Date()).toISOString(),
     result: "passed",
   };
+  if (input.timings !== undefined) {
+    receipt.timings = validateReleaseTimingMetrics(input.timings);
+  }
+  return receipt;
 }
 
 export function validateBetaDryRunReceipt(
@@ -111,6 +122,9 @@ export function validateBetaDryRunReceipt(
   ];
   for (const [actual, wanted, label] of comparisons) {
     if (actual !== wanted) throw new Error(`Beta dry-run 回执 ${label} 不匹配`);
+  }
+  if (receipt.timings !== undefined) {
+    validateReleaseTimingMetrics(receipt.timings);
   }
   return receipt as BetaDryRunReceiptV1;
 }

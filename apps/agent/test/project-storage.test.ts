@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Database } from "bun:sqlite"
 import { createHash } from "node:crypto"
-import { mkdir, mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import {
   backfillProjectThreadWorkspaces,
@@ -12,19 +13,8 @@ import {
 import { PROFILE_SCHEMA_VERSION, SCHEMA_VERSION } from "../src/storage/database/schema"
 
 const temporaryPaths: string[] = []
-const removeTemporaryPath = async (path: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(path, { recursive: true, force: true })
-      return
-    } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(100)
-    }
-  }
-}
 afterEach(async () => {
-  await Promise.all(temporaryPaths.splice(0).map(removeTemporaryPath))
+  await removeFixturePaths(temporaryPaths.splice(0))
 })
 
 const legacyMemoryKey = (path: string) =>

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { AgentError } from "../src/domain"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
@@ -10,20 +11,8 @@ import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 
 const paths: string[] = []
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const modelRef = (providerID: string, id: string) => Model.Ref.make({ providerID: Provider.ID.make(providerID), id: Model.ID.make(id) })
-const removePath = async (path: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(path, { recursive: true, force: true })
-      return
-    } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await sleep(100)
-    }
-  }
-}
-afterEach(async () => Promise.all(paths.splice(0).map((path) => removePath(path))))
+afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 describe("持久化队列", () => {
   test("将旧 Turn lifecycle 事件投影为包含完整 turn 和 input 的 canonical payload", async () => {

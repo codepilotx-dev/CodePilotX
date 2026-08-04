@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { Effect, Schema } from "effect"
 import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
@@ -14,19 +15,8 @@ import { TerminalOutputMirror } from "../src/terminal/TerminalOutputMirror"
 import { rpcTransportAuthority } from "../src/transport/server"
 
 const roots: string[] = []
-const removeRoot = async (root: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(root, { recursive: true, force: true })
-      return
-    } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await Bun.sleep(50)
-    }
-  }
-}
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map(removeRoot))
+  await removeFixturePaths(roots.splice(0))
 })
 
 const fixture = async (
@@ -798,6 +788,8 @@ describe("RPC v4 Router", () => {
       },
     })
     expect(JSON.stringify(expired)).not.toContain("secret")
+    gitFailure.db.close()
+    expiredFailure.db.close()
   })
 
   test("task suggestion RPC resolves project scope and returns safe service output", async () => {

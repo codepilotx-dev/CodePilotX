@@ -18,11 +18,17 @@
 
 `.github/workflows/prepare-beta-release.yml` 只允许从 `main` ref 手动触发。`push`、`schedule` 和没有证明的请求都不能 Prepare；`BETA_RELEASE_AUTOMATION_ENABLED` 继续保持 `false`。手动任务必须传入精确 `main_sha`、proof digest、Base64 payload 和 Base64 SSH signature，并确认执行时 main 仍未前进。
 
-`bun run beta:preflight -- --main-sha <sha>` 是完整质量门禁入口。它只在系统临时目录的 detached worktree 中调用现有 `version:prepare`，创建不推送的签名临时 Release commit，并运行冻结安装、版本策略、全仓类型检查与单元测试、CSS、安全审计、等待最终主题状态的 a11y、unsigned Windows package、静默安装、installed-layout smoke、release diff 与工作树检查。全部通过后才把 `BetaPreflightProofV1` 和 SSH 签名写入 `.git/codepilotx/beta-preflight/<mainSha>/`；证明有效期 24 小时，允许最多 5 分钟时钟偏差。
+`bun run beta:preflight -- --main-sha <sha>` 是完整质量门禁入口。它只在系统临时目录的 detached worktree 中调用现有 `version:prepare`，创建不推送的签名临时 Release commit，并运行冻结安装、版本策略、全仓类型检查与单元测试、CSS、安全审计、等待最终主题状态的 a11y、unsigned Windows package、静默安装、installed-layout smoke、release diff 与工作树检查。全部通过后才把 `BetaPreflightProofV1` 和 SSH 签名写入 `.git/codepilotx/beta-preflight/<mainSha>/`；证明有效期 24 小时，允许最多 5 分钟时钟偏差。失败轮不计数，只有完整流程连续成功两次且 `releaseTreeSha` 相同才算数；不得靠针对同一失败用例定向重跑漂绿。
 
-dry-run 在发布机重建同一 Release tree，并只执行签名 Windows package、Authenticode/包结构检查、NSIS 静默安装及服务账户下的 Agent、Sidecar、Renderer 和 `/api/ready` 冒烟。成功后上传 `beta-dry-run-receipt-<mainSha>-<proofDigest>`。live Prepare 必须读取指定成功 run 的 workflow/event/head SHA/actor/conclusion 和唯一回执，逐项匹配 SHA、tree、版本、标签、proof digest 与 24 小时时效，然后直接创建 Release PR，不再次执行 package。
+dry-run 在发布机重建同一 Release tree，并只执行签名 Windows package、Authenticode/包结构检查、NSIS 静默安装及服务账户下的 Agent、Sidecar、Renderer 和 `/api/ready` 冒烟。每个 self-hosted job 先由 `scripts/release-run-context.ts create` 在 `RUNNER_TEMP` 直接子目录创建带 run ID/attempt/UUID 的唯一上下文（temp/appdata/localappdata/user-data/data/logs/artifacts），写入不含 secret 的 ownership marker，并把 `TEMP/TMP/APPDATA/LOCALAPPDATA/CODEPILOTX_USER_DATA_DIR/CODEPILOTX_DATA_DIR/CODEPILOTX_LOG_DIR` 指向该上下文，同时清空继承的 `CODEPILOTX_AGENT_URL` 与旧测试端口；`if: always()` 的 `dispose` 步骤重新校验 repository、run ID、attempt、UUID 和 resolved path 后清理，失败时保留现场并只输出阶段和错误分类。不覆盖 `HOME`、`USERPROFILE` 或系统证书目录。
+
+dry-run 记录安全耗时指标（ConPTY、Agent ready、Desktop ready、签名打包、安装冒烟、总计，只含毫秒数与计数），写入回执的 `timings` 并在 Actions summary 展示；timing 只做范围校验，不参与 proof 信任判定，超过 12 分钟 P95 目标只警告、不判失败、不放松 timeout。成功后上传 `beta-dry-run-receipt-<mainSha>-<proofDigest>`。live Prepare 必须读取指定成功 run 的 workflow/event/head SHA/actor/conclusion 和唯一回执，逐项匹配 SHA、tree、版本、标签、proof digest 与 24 小时时效，然后直接创建 Release PR，不再次执行 package。
 
 验证通过后才创建 `automation/release-v<version>-<baseSha7>` 分支及 `chore(release)：准备 <version>` 签名提交，为 PR 添加 `automation:beta-release` 标签并开启 auto-merge。Release PR 只能改动 `CHANGELOG.md`、四个产品 manifest 和 `bun.lock`。可信 Release PR 先严格检查仓库、作者、label、marker、base/head、签名和允许文件范围，再以原 required job 名快速通过；所有普通 PR 仍执行原有 GitHub-hosted CI，且永远不会进入 self-hosted runner。
+
+普通 PR 的 `release-parity` job 在 GitHub-hosted `windows-latest` 上补齐签名 Agent 路径：Renderer 最终状态 a11y、构建 x64 Agent、在唯一临时目录与 `CurrentUser` 证书库生成一次性自签证书及随机 PFX 密码、复用 `sign-win-agent.ts` 签名、运行从 package verifier 抽出的共享 Agent runtime verifier（PE x64、Authenticode Valid、ready、`/api/ready`、thread-rpc-v4、Pi provider/model catalog、进程退出与目录清理），并在 `if: always()` 中按精确 thumbprint 删除本 job 创建的证书、经 ownership marker 校验后删除临时目录。可信 Release PR 验证身份与 dry-run 回执后以同一 job 名快速成功。`unsigned-smoke` 保留并继续负责完整未签名 Electron package、NSIS 安装、ConPTY 与 desktop-ready；`release-parity` 不重复完整 Electron package。
+
+Prepare 与 Finalize 共享仓库级 `release-state` concurrency group（`cancel-in-progress: false`），防止多 runner 并发修改 Release PR、tag 或发布状态；标签打包保留以 tag 为单位的构建并发。
 
 ### Finalize
 
@@ -43,6 +49,16 @@ Finalize 核对 PR base/head、签名、必需检查和 merge SHA，然后创建
 - 安装 Bun 1.3.14、Git、GitHub CLI、PowerShell、Chrome 和仓库当前 Windows 打包依赖，并启用 Git 长路径。
 - 将 runner 注册到本仓库，只添加专用标签 `codepilotx-release`，工作流选择器为 `[self-hosted, windows, x64, codepilotx-release]`。
 - 公开仓库中的任何 `pull_request`、来自 fork 的代码或其他不可信事件，绝不能调度到 self-hosted runner。PR CI 继续使用 GitHub-hosted runner；发布机只运行 `main` 上仓库自身的 prepare/finalize 工作流。
+
+### 唯一运行上下文
+
+每个 self-hosted job（Prepare dry-run/live、Finalize、tag `package-release`、每日 canary）都使用 `scripts/release-run-context.ts` 创建并清理自己的唯一运行上下文：
+
+- 根目录为 `RUNNER_TEMP` 直接子目录 `codepilotx-release-<runId>-<runAttempt>-<uuid>`，包含 `temp/`、`appdata/`、`localappdata/`、`user-data/`、`data/`、`logs/`、`artifacts/`。
+- 写入不含 secret 的 ownership marker；`dispose` 重新校验 repository、run ID、attempt、UUID 与 resolved path 后才删除。
+- 不接受任意外部删除路径，不使用 `--force` worktree removal，不调用全局 `git worktree prune`；清理失败保留现场并只输出阶段与错误分类。
+- 相关步骤使用本轮独立的 `TEMP/TMP/APPDATA/LOCALAPPDATA/CODEPILOTX_USER_DATA_DIR/CODEPILOTX_DATA_DIR/CODEPILOTX_LOG_DIR`，并显式清空继承的 `CODEPILOTX_AGENT_URL`、旧测试端口和旧 smoke 数据目录；不覆盖 `HOME`、`USERPROFILE` 或系统证书目录。
+- 真实签名证书、SignTool 与时间戳配置继续来自 `beta-release` Environment，不复制或输出其值。
 
 ### GitHub 凭据
 
@@ -103,6 +119,24 @@ git config --global tag.gpgsign true
 
 终态失败创建或更新 `[release automation] <version> 发布阻塞` Issue，只包含版本、SHA、阶段、重试次数和 Actions URL，不包含本机路径、环境、设置、凭据或构建内容。对应版本成功后自动关闭该 Issue。
 
+## 每日 release runner canary
+
+`.github/workflows/release-runner-canary.yml` 每日 `19:17 UTC`（北京时间次日 `03:17`）从 `main` 运行，也可手动触发：
+
+- 只允许 `main` committed code；runner 为 `[self-hosted, windows, x64, codepilotx-release]`。
+- `permissions` 仅 `contents: read`；使用 `beta-release` Environment 的现有签名环境，但不映射 `RELEASE_BOT_TOKEN`，不具备 Release、PR、Issue 或 tag 写权限。
+- 使用唯一 release run context；冻结安装、构建 Agent、真实 Authenticode 签名、运行共享 Agent runtime verifier。
+- 输出安全计时到 Actions summary；无 version prepare、Release PR、Finalize、tag、GitHub Release 或阻塞 Issue 副作用。
+- canary 失败只保留 Actions 失败结果，不能触发自动发布；使用独立 concurrency group 且 `cancel-in-progress: false`，避免隐藏连续环境故障。
+
+## 安全耗时指标
+
+发布流程只记录毫秒数、计数、阶段名和成功状态（`ReleaseTimingMetricsV1`），不记录 origin、token、命令环境、本地绝对路径、证书信息或日志正文：
+
+- dry-run 回执可带经过范围校验的 `timings`，但 timing 不参与 proof 信任判定，也不因超过目标自动失败。
+- Actions summary 展示各阶段耗时；最近 20 次成功 dry-run 的 P95 目标为 12 分钟，超过只警告，不降低门禁、不放宽 timeout、不把成功发布判失败。
+- ConPTY 30 秒阶段预算、90 秒总预算与 desktop 180 秒恢复窗口保持不变，后续只根据不少于 20 次成功样本调整。
+
 ## Beta 发布 Skill
 
 仓库提供 `.agents/skills/codepilotx-beta-release`，支持仓库 Skill 的 Agent 可从仓库根目录发现。常用调用：
@@ -138,5 +172,6 @@ bun scripts/beta-release.ts reconcile --dry-run
 4. 使用证明输入手动触发 `prepare-beta-release` dry-run，确认服务账户签名安装和桌面启动通过且生成唯一回执。
 5. 保持 `BETA_RELEASE_AUTOMATION_ENABLED=false`；经唯一确认后用相同证明和 dry-run ID 触发 live Prepare。
 6. 观察 Release PR 的快速身份门禁和 auto-merge；合并后确认标签只指向 merge commit，最终 prerelease 签名附件完整。
+7. 在 ruleset 中加入已成功出现的 `release-parity` required context 后，普通 PR 的合成签名门禁成为强制项；每日 canary 持续巡检签名发布机环境。
 
 发布机离线时任务可保持排队；恢复上线后由小时级 reconcile 继续。任何 RC、Stable、版本线变化或状态冲突均保留给人工处理。

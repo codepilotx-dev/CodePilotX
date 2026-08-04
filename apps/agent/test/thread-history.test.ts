@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { ThreadHistoryService } from "../src/session/ThreadHistoryService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
@@ -16,25 +17,13 @@ import { Model, Provider } from "@codepilotx/model-schema"
 
 const paths: string[] = []
 const databases: AgentDatabase[] = []
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-const removePath = async (path: string) => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(path, { recursive: true, force: true })
-      return
-    } catch (cause) {
-      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-      await sleep(100)
-    }
-  }
-}
 
 afterEach(async () => {
   for (const database of databases.splice(0)) {
     database.sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)")
     database.close()
   }
-  await Promise.all(paths.splice(0).map((path) => removePath(path)))
+  await removeFixturePaths(paths.splice(0))
 })
 
 const makeHistory = async () => {

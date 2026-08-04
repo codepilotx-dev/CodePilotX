@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { EnvironmentDeltaStore } from "../src/local-environment/EnvironmentDeltaStore"
 import { LocalEnvironmentDiscovery, LOCAL_ENVIRONMENT_RELATIVE_PATH } from "../src/local-environment/LocalEnvironmentDiscovery"
 import { LocalEnvironmentRunner } from "../src/local-environment/LocalEnvironmentRunner"
@@ -35,7 +36,7 @@ const fixture = async () => {
 }
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  await removeFixturePaths(roots.splice(0))
 })
 
 describe("LocalEnvironmentService", () => {

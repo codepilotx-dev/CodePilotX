@@ -30,6 +30,12 @@ import {
   validateBetaDryRunReceipt,
   type BetaDryRunReceiptV1,
 } from "./beta-dry-run-receipt.ts";
+import {
+  createReleaseTimingMetrics,
+  parseReleaseTimingMetrics,
+  warnIfDryRunOverTarget,
+  type ReleaseTimingMetricsV1,
+} from "./release-timing.ts";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(SCRIPT_DIR, "..");
@@ -48,6 +54,7 @@ const REQUIRED_PR_CHECKS = new Set([
   "dependency-audit",
   "changelog-check",
   "unsigned-smoke",
+  "release-parity",
 ]);
 const RELEASE_PATHS = [
   "CHANGELOG.md",
@@ -972,15 +979,22 @@ async function runReleaseEnvironmentSuite(
   worktree: string,
   tag: string,
   baseSha: string,
-): Promise<void> {
-  const commands: Array<[string, string[]]> = [
+): Promise<ReleaseTimingMetricsV1> {
+  const smokeTimingsPath = join(tmpdir(), "release-smoke-timings.json");
+  const startedAt = Date.now();
+  const commands: Array<[string, string[], Record<string, string | undefined>?]> = [
     ["bun", ["install", "--frozen-lockfile"]],
     ["bun", ["run", "version:check", "--", "--tag", tag]],
-    ["bun", ["run", "package:win"]],
+    ["bun", ["run", "package:win"], {
+      CODEPILOTX_SMOKE_TIMINGS: smokeTimingsPath,
+    }],
     ["pwsh", ["-NoLogo", "-NoProfile", "-File", "scripts/smoke-installed-win-x64.ps1"]],
   ];
-  for (const [command, args] of commands) {
+  let signedPackageMs: number | undefined;
+  let installedSmokeMs: number | undefined;
+  for (const [command, args, additions] of commands) {
     console.log(`\n▶ ${command} ${args.join(" ")}`);
+    const commandStartedAt = Date.now();
     await run(command, args, {
       cwd: worktree,
       inherit: true,
@@ -988,11 +1002,39 @@ async function runReleaseEnvironmentSuite(
         RELEASE_BOT_TOKEN: undefined,
         GH_TOKEN: undefined,
         CODEPILOTX_REQUIRE_SIGNING: "1",
+        ...additions,
       },
     });
+    const elapsed = Date.now() - commandStartedAt;
+    if (command === "bun" && args.includes("package:win")) {
+      signedPackageMs = elapsed;
+    }
+    if (command === "pwsh") {
+      installedSmokeMs = elapsed;
+    }
   }
   await assertReleaseDiff(worktree, baseSha);
   await assertCleanReleaseWorktree(worktree);
+  const metrics = createReleaseTimingMetrics({
+    signedPackageMs,
+    installedSmokeMs,
+    totalMs: Date.now() - startedAt,
+  });
+  try {
+    const smoke = parseReleaseTimingMetrics(
+      await readFile(smokeTimingsPath, "utf8"),
+    );
+    return createReleaseTimingMetrics({
+      ...metrics,
+      conptyMs: smoke.conptyMs,
+      agentReadyMs: smoke.agentReadyMs,
+      desktopReadyMs: smoke.desktopReadyMs,
+      totalMs: metrics.totalMs,
+    });
+  } catch {
+    // smoke 阶段耗时文件不存在或无效时不阻塞 dry-run。
+    return metrics;
+  }
 }
 
 async function localPreflight(mainSha: string): Promise<BetaReleaseState> {
@@ -1129,6 +1171,7 @@ async function writeDryRunReceipt(
     nextVersion: string;
     nextTag: string;
   },
+  timings?: ReleaseTimingMetricsV1,
 ): Promise<void> {
   const runId = Number(process.env.GITHUB_RUN_ID);
   const runAttempt = Number(process.env.GITHUB_RUN_ATTEMPT);
@@ -1146,6 +1189,7 @@ async function writeDryRunReceipt(
     releaseTreeSha: expected.releaseTreeSha,
     nextVersion: expected.nextVersion,
     nextTag: expected.nextTag,
+    timings,
   });
   await writeFile(resolve(output), `${JSON.stringify(receipt, null, 2)}\n`, "utf8");
 }
@@ -1294,7 +1338,12 @@ async function prepare(
       tag: state.nextTag,
     });
     if (dryRun) {
-      await runReleaseEnvironmentSuite(worktree.path, state.nextTag, mainSha);
+      const timings = await runReleaseEnvironmentSuite(
+        worktree.path,
+        state.nextTag,
+        mainSha,
+      );
+      warnIfDryRunOverTarget(timings.totalMs);
       const mainAfterDryRun = await fetchMainAndTags();
       if (mainAfterDryRun.toLowerCase() !== mainSha.toLowerCase()) {
         throw new Error("环境 dry-run 期间 origin/main 已前进，拒绝生成旧候选回执");
@@ -1318,7 +1367,7 @@ async function prepare(
         releaseTreeSha,
         nextVersion: state.nextVersion,
         nextTag: state.nextTag,
-      });
+      }, timings);
       console.log(JSON.stringify({
         dryRun: true,
         baseSha: mainSha,

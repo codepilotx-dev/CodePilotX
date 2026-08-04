@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { removeFixturePaths } from "./fixture-cleanup"
 import type { ToolInvocation } from "../src/domain"
 import { ApprovalService } from "../src/permission/ApprovalService"
 import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
@@ -16,8 +16,8 @@ const paths: string[] = []
 const databases: AgentDatabase[] = []
 afterEach(async () => {
   for (const database of databases.splice(0)) database.close()
-  await Promise.all(paths.splice(0).map((path) => rm(path, { force: true }).catch(() => undefined)))
-})
+  await removeFixturePaths(paths.splice(0))
+}, 30_000)
 
 const setup = (db: AgentDatabase) => {
   const thread = db.createThread()

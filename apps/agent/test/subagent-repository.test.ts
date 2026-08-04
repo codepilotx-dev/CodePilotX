@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { SubagentRepository } from "../src/subagent/SubagentRepository"
 import { canonicalSubagentChangedFiles } from "../src/subagent/SubagentService"
@@ -10,7 +10,7 @@ import { ThreadProjection } from "../src/transport/ThreadProjection"
 
 const paths: string[] = []
 afterEach(async () => {
-  for (const path of paths.splice(0)) await rm(path, { recursive: true, force: true }).catch(() => undefined)
+  await removeFixturePaths(paths.splice(0))
 })
 
 const model = Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })

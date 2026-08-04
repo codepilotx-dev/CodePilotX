@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
+import { removeFixturePaths } from "./fixture-cleanup"
 import type { EventEnvelope } from "../src/domain"
 import { AgentLogger } from "../src/observability/AgentLogger"
 import { ExecutionLogObserver, HarnessLogObserver } from "../src/observability/ExecutionLogObserver"
 
 const roots: string[] = []
-afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(roots.splice(0)))
 
 const setup = async () => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-execution-logs-"))

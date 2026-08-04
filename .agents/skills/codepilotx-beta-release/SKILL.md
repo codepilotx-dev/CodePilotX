@@ -24,12 +24,17 @@ description: 手动检查、发布或恢复 CodePilotX 当前版本线的下一�
 - 只发布 `refs/heads/dev` 或 `origin/dev` 已提交的对象。当前工作区的 staged、modified 和 untracked 内容一律列为“未包含”。
 - 不得对当前 checkout 执行 `git add`、`git commit`、`git stash`、`git reset`、`git clean`、文件 checkout、rebase 或强推。
 - 本地质量验证只通过 `bun run beta:preflight -- --main-sha <sha>` 在系统临时目录的 detached worktree 中执行；连续两次必须得到相同 `releaseTreeSha`。移除 worktree 前必须确认它属于本次运行且 tracked/untracked 状态均为空，禁止 `--force` 清理。
+- 每次本地预检失败不计数，且不得靠针对同一失败用例定向重跑“漂绿”；只有完整流程连续成功两次才算数。
 - `scripts/beta-release.ts` 是版本和发布状态的唯一真源；Prepare、Finalize 和标签发布 workflows 是唯一发布执行入口。
 - 手动 Prepare 必须传入已经验证的 40 位 `main_sha`、24 小时内本地 SSH 证明及其 digest；dry-run 成功后，live 还必须传入同一证明、成功 run ID 和唯一回执。Finalize 只接受已合并 Release PR 的 merge SHA。不得用无目标约束的手动 `reconcile` 代替。
 - 不得手工编辑产品版本、归档 CHANGELOG、创建标签、创建 GitHub Release、删除 draft、覆盖标签或替换附件。
 - 不得读取或打印 GitHub Environment secret。调用本地只读 `inspect` 时，只能将 `gh auth token` 临时放入当前子进程的 `RELEASE_BOT_TOKEN`，并在命令结束后立即清除。
 - `BETA_RELEASE_AUTOMATION_ENABLED` 必须保持 `false`。无本地证明的 push/schedule 不得 Prepare，本 Skill 不创建定时任务。
 - 代码门禁失败时只诊断并停止；不得修改产品代码、降低预算、跳过测试或自动生成修复提交。
+- 发布机每个 self-hosted job 使用 `scripts/release-run-context.ts` 创建唯一运行上下文（temp/appdata/localappdata/user-data/data/logs/artifacts），并由 `if: always()` 步骤按 ownership marker 校验后清理；不得手工删除发布机临时目录，也不得复用其他 job 的上下文。
+- 普通 PR 的 `release-parity` 门禁只使用一次性自签证书做合成签名验证，不加载真实发布证书或 `RELEASE_BOT_TOKEN`；可信 Release PR 在验证身份与 dry-run 回执后以同一 job 名快速通过，不重复执行门禁。
+- 每日 `release-runner-canary` 只有 `contents: read` 权限，不映射 `RELEASE_BOT_TOKEN`，不得产生 Prepare、Release PR、Finalize、tag、GitHub Release 或阻塞 Issue 副作用；canary 失败只保留 Actions 失败结果。
+- 发布耗时指标只记录毫秒数、计数、阶段名和成功状态；dry-run 回执可带经过范围校验的 `timings`，但 timing 不参与 proof 信任判定，超过 12 分钟 P95 目标只警告、不判失败。
 
 ## 发布授权
 

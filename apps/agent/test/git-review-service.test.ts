@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises"
 import { writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { GitCommandRunner } from "../src/git/GitCommandRunner"
 import type { AgentLogger } from "../src/observability/AgentLogger"
 import { GitReviewService } from "../src/review/GitReviewService"
@@ -10,18 +11,8 @@ import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 const roots: string[] = []
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map(async (path) => {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      try {
-        await rm(path, { recursive: true, force: true })
-        return
-      } catch (cause) {
-        if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
-        await Bun.sleep(100)
-      }
-    }
-  }))
-})
+  await removeFixturePaths(roots.splice(0))
+}, 30_000)
 
 const git = async (cwd: string, ...args: string[]) => {
   const child = Bun.spawn(["git", ...args], { cwd, stdin: "ignore", stdout: "pipe", stderr: "pipe" })

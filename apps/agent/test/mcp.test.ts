@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import type { McpServerDeclaration } from "@codepilotx/agent-protocol"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import {
   ConfigService,
   ConfigServiceError,
@@ -43,11 +44,9 @@ const fixtureProcesses: Bun.Subprocess[] = []
 afterEach(async () => {
   for (const process of fixtureProcesses.splice(0)) {
     process.kill()
-    await process.exited.catch(() => undefined)
+    await process.exited
   }
-  await Promise.all(temporaryDirectories.splice(0).map((directory) =>
-    rm(directory, { recursive: true, force: true }),
-  ))
+  await removeFixturePaths(temporaryDirectories.splice(0))
 })
 
 describe("MCP configuration", () => {

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 const paths: string[] = []
@@ -10,7 +10,7 @@ const databases: AgentDatabase[] = []
 
 afterEach(async () => {
   for (const database of databases.splice(0)) database.close()
-  await Promise.all(paths.splice(0).map((path) => rm(path, { force: true }).catch(() => undefined)))
+  await removeFixturePaths(paths.splice(0))
 })
 
 const input = {

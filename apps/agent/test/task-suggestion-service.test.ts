@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, mkdir, rm } from "node:fs/promises"
+import { mkdtemp, mkdir } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Api, Model as PiModel } from "@earendil-works/pi-ai"
@@ -8,6 +8,7 @@ import type {
   TaskSuggestion,
   TaskSuggestionGenerateParams,
 } from "@codepilotx/agent-protocol"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { MemoryService } from "../src/memory/MemoryService"
 import { AgentLogger } from "../src/observability/AgentLogger"
@@ -15,29 +16,9 @@ import type { PiModelService } from "../src/provider/pi/PiModelService"
 import { TaskSuggestionService } from "../src/suggestion/TaskSuggestionService"
 
 const roots: string[] = []
-const FIXTURE_REMOVE_ATTEMPTS = 100
-
-const removeFixtureRoot = async (root: string) => {
-  for (let attempt = 0; attempt < FIXTURE_REMOVE_ATTEMPTS; attempt += 1) {
-    try {
-      await rm(root, { recursive: true, force: true })
-      return
-    } catch (error) {
-      if (
-        !(error instanceof Error)
-        || !("code" in error)
-        || !["EBUSY", "EPERM", "ENOTEMPTY"].includes(String(error.code))
-        || attempt === FIXTURE_REMOVE_ATTEMPTS - 1
-      ) {
-        throw error
-      }
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-  }
-}
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map(removeFixtureRoot))
+  await removeFixturePaths(roots.splice(0))
 })
 
 const localCandidates = [

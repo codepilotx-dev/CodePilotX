@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import { InstructionDiscoveryService } from "../src/prompt/InstructionDiscoveryService"
 import { PromptComposer } from "../src/prompt/PromptComposer"
 import {
@@ -18,7 +19,7 @@ const temporaryDirectory = async () => {
   paths.push(path)
   return path
 }
-afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 describe("项目指令发现", () => {
   test("从根到 cwd 分层，并在每层选择最高优先级文件", async () => {

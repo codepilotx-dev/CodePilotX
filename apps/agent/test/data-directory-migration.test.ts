@@ -9,6 +9,7 @@ import {
 } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { removeFixturePaths } from "./fixture-cleanup"
 import {
   migrateLegacyAgentData,
   relocateAgentDataRoot,
@@ -17,11 +18,7 @@ import {
 const temporaryDirectories: string[] = []
 
 afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories.splice(0).map(path =>
-      rm(path, { recursive: true, force: true }),
-    ),
-  )
+  await removeFixturePaths(temporaryDirectories.splice(0))
 })
 
 describe("legacy Agent data migration", () => {

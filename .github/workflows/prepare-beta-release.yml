@@ -41,8 +41,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: prepare-beta-release-${{ github.repository }}
-  cancel-in-progress: true
+  # Prepare 与 Finalize 共享仓库级 release-state 组，防止多 runner 并发修改
+  # Release PR、tag 或发布状态；正在进行的工作不允许被取消。
+  group: release-state-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   prepare:
@@ -97,6 +99,14 @@ jobs:
           "sha=$mainSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "digest=$proofDigest" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
+      - name: Create isolated release run context
+        id: run-context
+        shell: pwsh
+        run: |
+          bun scripts/release-run-context.ts create
+          if ($LASTEXITCODE -ne 0) { throw "Failed to create the isolated release run context" }
+          "created=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
       - name: Install frozen dependencies
         run: bun install --frozen-lockfile
 
@@ -119,7 +129,7 @@ jobs:
               [string]$metadata.id -cne $env:DRY_RUN_ID) {
             throw "dry_run_id does not identify a trusted successful locked dry-run"
           }
-          $receiptDirectory = Join-Path $env:RUNNER_TEMP "beta-dry-run-receipt"
+          $receiptDirectory = Join-Path $env:CODEPILOTX_RELEASE_RUN_ROOT "artifacts\beta-dry-run-receipt"
           New-Item -ItemType Directory -Path $receiptDirectory -Force | Out-Null
           $artifactName = "beta-dry-run-receipt-$env:LOCKED_MAIN_SHA-${{ steps.candidate.outputs.digest }}"
           gh run download $env:DRY_RUN_ID --repo $env:GITHUB_REPOSITORY --name $artifactName --dir $receiptDirectory
@@ -136,10 +146,8 @@ jobs:
           RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
           PREFLIGHT_PAYLOAD: ${{ inputs.preflight_payload }}
           PREFLIGHT_SIGNATURE: ${{ inputs.preflight_signature }}
-          TEMP: ${{ runner.temp }}
-          TMP: ${{ runner.temp }}
         run: |
-          $receiptPath = Join-Path $env:RUNNER_TEMP "receipt.json"
+          $receiptPath = Join-Path $env:CODEPILOTX_RELEASE_RUN_ROOT "artifacts\receipt.json"
           bun scripts/beta-release.ts prepare `
             --main-sha "${{ steps.candidate.outputs.sha }}" `
             --preflight-digest "${{ steps.candidate.outputs.digest }}" `
@@ -152,6 +160,32 @@ jobs:
             throw "The environment dry-run did not create its receipt"
           }
           "receipt=$receiptPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Publish dry-run timing summary
+        if: ${{ inputs.dry_run }}
+        shell: pwsh
+        env:
+          RECEIPT_PATH: ${{ steps.prepare-dry.outputs.receipt }}
+        run: |
+          $receipt = Get-Content -LiteralPath $env:RECEIPT_PATH -Raw | ConvertFrom-Json
+          if ($null -eq $receipt.timings) { throw "Dry-run receipt is missing timings" }
+          $t = $receipt.timings
+          function Show-Duration($value) {
+            if ($null -eq $value -or $value -eq "") { return "—" }
+            return [math]::Round([double]$value / 1000, 1)
+          }
+          @(
+            "## Beta dry-run timings",
+            "",
+            "| Stage | Duration (s) |",
+            "|---|---|",
+            "| ConPTY smoke | $(Show-Duration $t.conptyMs) |",
+            "| Agent ready | $(Show-Duration $t.agentReadyMs) |",
+            "| Desktop ready | $(Show-Duration $t.desktopReadyMs) |",
+            "| Signed package | $(Show-Duration $t.signedPackageMs) |",
+            "| Installed smoke | $(Show-Duration $t.installedSmokeMs) |",
+            "| Total | $(Show-Duration $t.totalMs) |"
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Upload reusable dry-run receipt
         if: ${{ inputs.dry_run }}
@@ -169,8 +203,6 @@ jobs:
           RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
           PREFLIGHT_PAYLOAD: ${{ inputs.preflight_payload }}
           PREFLIGHT_SIGNATURE: ${{ inputs.preflight_signature }}
-          TEMP: ${{ runner.temp }}
-          TMP: ${{ runner.temp }}
         run: |
           bun scripts/beta-release.ts prepare `
             --main-sha "${{ steps.candidate.outputs.sha }}" `
@@ -180,3 +212,10 @@ jobs:
             --dry-run-id "${{ inputs.dry_run_id }}" `
             --dry-run-receipt "${{ steps.dry-run.outputs.receipt }}"
           if ($LASTEXITCODE -ne 0) { throw "Beta release preparation failed" }
+
+      - name: Dispose release run context
+        if: always() && steps.run-context.outputs.created == 'true'
+        shell: pwsh
+        run: |
+          bun scripts/release-run-context.ts dispose
+          if ($LASTEXITCODE -ne 0) { throw "Failed to dispose the isolated release run context" }
