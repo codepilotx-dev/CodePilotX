@@ -30,8 +30,7 @@
 | `rc.N` | 仅修复 | `0.x.0-rc.N` → `0.x.0-rc.N+1` |
 | 稳定版 | — | 去掉预发布后缀，如 `0.2.0-rc.3` → `0.2.0` |
 
-- 当前版本线处于 `beta.N` 时，受保护的 `main` 合入有效 `Unreleased` 内容后可由发布自动化将序号递增为 `beta.N+1`；自动化不会改变 `MAJOR.MINOR.PATCH`。
-- 是否从 Beta 进入 RC、从 RC 进入稳定版，或开启新的版本线，均由**人工决定**，不以日期、提交数或版本号自动触发。
+- 是否从 Beta 进入 RC、从 RC 进入稳定版、递增当前 beta 序号或开启新的版本线，均由**人工决定并运行 `version:prepare`**，不以日期、提交数或版本号自动触发。
 - 只有人工明确宣布稳定后，才允许发布无预发布后缀的版本。
 - 功能冻结前不可发布 `rc.N`。
 
@@ -60,27 +59,40 @@ Git 标签格式：`v<根 package.json 的 version>`。
 
 > 修改记录、生成文件或配置必须逐项列出；生成文件需说明生成来源或目的。
 
-## Beta 自动发布
-
-Beta 自动发布采用两阶段流程，详细部署和恢复方式见 [Beta 自动发布](./beta-automation.md)：
-
-1. `prepare` 在 `main` 保持 30 分钟无新提交后，确认当前 beta 已发布且 `Unreleased` 非空。
-2. 自动将 `beta.N` 递增为 `beta.N+1`，执行完整检查、Windows 打包及安装冒烟，再创建带签名提交的 Release PR。
-3. Release PR 通过受保护分支要求的远端 CI 后自动合并。
-4. `finalize` 核对可信 Release PR 的 merge commit，创建指向该提交的签名 annotated tag。
-5. 现有标签工作流在 GitHub-hosted Windows runner 上重新完成可信构建并发布 prerelease。
-
-Release PR 只承担版本文件和 CHANGELOG 归档；标签只在 Release PR 合并并通过核验后创建。自动化仅递增当前 beta 序号，Alpha、Beta → RC、RC → Stable 和版本线调整仍使用人工流程。
-
 ## 人工发布步骤
 
+预发布与正式版本都使用同一套人工发布流程。版本文件由 `version:prepare` 生成，提交与 `v*` 标签必须签名，标签必须指向 `main` 历史，推送标签后由 self-hosted runner 签名打包并创建 GitHub Release。
+
 1. 确认 `Unreleased` 区段非空。
-2. 运行 `bun run version:prepare -- <新版本> [--stable]`。
-3. 人工检查产物（manifest、lockfile、CHANGELOG）。
-4. 确认 `CHANGELOG.md` 已生成 `## <版本> — YYYY-MM-DD` 归档区段，且内容非空。
-5. 人工创建提交和 `v<版本>` 标签，并将提交与标签推送到 GitHub。
-6. CI 验证标签与根版本一致，构建、签名并完成安装冒烟测试。
-7. 所有验证成功后，CI 从对应的 CHANGELOG 归档区段生成正文，在 `codepilotx-dev/CodePilotX` 创建 GitHub Release，并上传 Windows x64 安装包。
+2. 运行 `bun run version:prepare -- <新版本> [--stable]`，生成四 manifest、lockfile 与 CHANGELOG 归档区段。
+3. 人工检查产物（manifest、lockfile、CHANGELOG），确认 `CHANGELOG.md` 已生成 `## <版本> — YYYY-MM-DD` 归档区段且内容非空。
+4. 在版本分支上创建签名提交并推送该分支：
+
+   ```bash
+   git commit -S -m "chore(release)：准备 <版本>"
+   git push origin <当前版本分支>
+   ```
+
+   不要在 `dev` 上同时推送版本分支和标签，也不要先在 `dev` 上打标签。
+5. 通过正常 PR/合并流程让该提交进入 `main`，并等待其合入 `origin/main`。
+6. 本地拉取 `main`，确认目标提交属于 `origin/main` 历史：
+
+   ```bash
+   git checkout main && git pull --ff-only
+   bun run version:check -- --tag v<版本>
+   ```
+
+   `v*` 标签必须指向 `main` 历史，由 `Protect release tags` ruleset 的创建限制与 required signature、以及工作流内的 `version:check --tag` 与 main ancestor 检查共同保证。
+7. 在 `main` 上的目标提交创建签名 `v<版本>` 标签，并**单独**推送该标签：
+
+   ```bash
+   git tag -s v<版本> -m "CodePilotX v<版本>"
+   git push origin v<版本>
+   ```
+
+8. 推送 `v*` 标签后，self-hosted `codepilotx-release` runner 校验标签目标属于 `main`、验证标签与根版本一致，然后签名打包并完成安装冒烟测试。
+9. 成功后 CI 从对应的 CHANGELOG 归档区段生成正文，在 `codepilotx-dev/CodePilotX` 创建 GitHub Release 并上传 Windows x64 安装包。
+10. Beta/Alpha/RC 的人工确认发生在创建和推送签名标签的时刻；稳定版还额外经过 `release` Environment 的审批。
 
 预发布标签（`alpha.N`、`beta.N`、`rc.N`）会创建 prerelease；无后缀版本会创建正式 Release。已发布 Release 与附件不可覆盖：相同标签已发布时工作流失败关闭；草稿已含部分附件时也不得删除或替换，必须人工检查后决定恢复方式。
 
@@ -106,12 +118,9 @@ Release PR 只承担版本文件和 CHANGELOG 归档；标签只在 Release PR �
 |---|---|
 | `bun run version:check` | 验证四 manifest 一致、lockfile 一致、CHANGELOG 结构有效 |
 | `bun run version:check -- --base <git-sha>` | 验证 PR 中 `Unreleased` 有新增说明 |
-| `bun run version:check -- --release-pr --base <git-sha>` | 验证自动 Release PR 的 beta 单步递增、CHANGELOG 归档和允许修改的文件范围 |
 | `bun run version:check -- --tag <v版本>` | 额外验证标签与 manifest 版本一致 |
 | `bun run version:prepare -- <新版本>` | 归档 `Unreleased`、同步 manifest、刷新 lockfile |
 | `bun run version:prepare -- <新版本> --stable` | 同上，但允许无预发布后缀的稳定版 |
-| `bun scripts/beta-release.ts inspect --main-sha <git-sha> --json` | 只读查看指定 `main` 提交的自动发布状态 |
-| `bun scripts/beta-release.ts reconcile --dry-run` | 无外部写入地演练自动发布恢复流程 |
 | `bun scripts/write-release-notes.ts --tag <v版本> --output <文件>` | 从对应的已归档 CHANGELOG 版本区段生成 Release 正文；标签、根版本或归档区段不一致时失败 |
 
 ## 示例
