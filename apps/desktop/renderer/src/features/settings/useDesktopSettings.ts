@@ -99,7 +99,8 @@ export type UseDesktopSettingsResult = {
   sidebarProductMode: SidebarProductMode
   sidebarProjectSort: DesktopSidebarSort
   sidebarSort: DesktopSidebarSort
-  sidebarPriorityFilterEnabled: boolean
+  sidebarTimelineEnabled: boolean
+  sidebarTimelinePriorityEnabled: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
@@ -165,7 +166,10 @@ export type UseDesktopSettingsResult = {
   setSidebarProductMode: (value: SidebarProductMode) => void
   setSidebarProjectSort: (value: DesktopSidebarSort) => void
   setSidebarSort: (value: DesktopSidebarSort) => void
-  setSidebarPriorityFilterEnabled: (
+  setSidebarTimelineEnabled: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarTimelinePriorityEnabled: (
     value: boolean | ((current: boolean) => boolean),
   ) => void
   setSidebarManualOrder: (
@@ -458,8 +462,11 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [sidebarSort, setSidebarSort] = useState<DesktopSidebarSort>(
     initial.sidebarSort,
   )
-  const [sidebarPriorityFilterEnabled, setSidebarPriorityFilterEnabled] =
-    useState<boolean>(initial.sidebarPriorityFilterEnabled ?? false)
+  const [sidebarTimelineEnabled, setSidebarTimelineEnabled] = useState<boolean>(
+    initial.sidebarTimelineEnabled ?? false,
+  )
+  const [sidebarTimelinePriorityEnabled, setSidebarTimelinePriorityEnabled] =
+    useState<boolean>(initial.sidebarTimelinePriorityEnabled ?? false)
   const [sidebarManualOrder, setSidebarManualOrder] = useState<
     Record<string, string[]>
   >(initial.sidebarManualOrder)
@@ -577,7 +584,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setSidebarProductMode(settings.sidebarProductMode)
         setSidebarProjectSort(settings.sidebarProjectSort)
         setSidebarSort(settings.sidebarSort)
-        setSidebarPriorityFilterEnabled(settings.sidebarPriorityFilterEnabled)
+        setSidebarTimelineEnabled(settings.sidebarTimelineEnabled)
+        setSidebarTimelinePriorityEnabled(
+          settings.sidebarTimelinePriorityEnabled,
+        )
         setSidebarManualOrder(settings.sidebarManualOrder)
         setSidebarSessionPins(settings.sidebarSessionPins)
         setCollapsedSidebarProjectPaths(settings.collapsedSidebarProjectPaths)
@@ -658,7 +668,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarStateVersion: SIDEBAR_STATE_VERSION,
       sidebarProjectSort,
       sidebarSort,
-      sidebarPriorityFilterEnabled,
+      sidebarTimelineEnabled,
+      sidebarTimelinePriorityEnabled,
       sidebarManualOrder,
       sidebarSessionPins,
       collapsedSidebarProjectPaths,
@@ -726,7 +737,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarProductMode,
       sidebarProjectSort,
       sidebarSort,
-      sidebarPriorityFilterEnabled,
+      sidebarTimelineEnabled,
+      sidebarTimelinePriorityEnabled,
       sidebarManualOrder,
       sidebarSessionPins,
       collapsedSidebarProjectPaths,
@@ -845,7 +857,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setSidebarProductMode(snapshot.sidebarProductMode)
       setSidebarProjectSort(snapshot.sidebarProjectSort)
       setSidebarSort(snapshot.sidebarSort)
-      setSidebarPriorityFilterEnabled(snapshot.sidebarPriorityFilterEnabled)
+      setSidebarTimelineEnabled(snapshot.sidebarTimelineEnabled)
+      setSidebarTimelinePriorityEnabled(
+        snapshot.sidebarTimelinePriorityEnabled,
+      )
       setSidebarManualOrder(snapshot.sidebarManualOrder)
       setSidebarSessionPins(snapshot.sidebarSessionPins)
       setCollapsedSidebarProjectPaths(snapshot.collapsedSidebarProjectPaths)
@@ -1005,15 +1020,16 @@ defaultOpenTargetId,
     sidebarProductMode,
     sidebarProjectSort,
     sidebarSort,
-    sidebarPriorityFilterEnabled,
+    sidebarTimelineEnabled,
+    sidebarTimelinePriorityEnabled,
     sidebarManualOrder,
     sidebarSessionPins,
     collapsedSidebarProjectPaths,
     sidebarSectionOrder,
     rustSearchAndDiffKernels,
-	    browserAllowedSites,
-	    collapsedSidebarSections,
-	    browserSitePermissions,
+      browserAllowedSites,
+      collapsedSidebarSections,
+      browserSitePermissions,
     settingsLoaded,
     setPermissionMode,
     setEnableAutoReviewPermissionMode,
@@ -1063,7 +1079,8 @@ defaultOpenTargetId,
     setSidebarProductMode,
     setSidebarProjectSort,
     setSidebarSort,
-    setSidebarPriorityFilterEnabled,
+    setSidebarTimelineEnabled,
+    setSidebarTimelinePriorityEnabled,
     setSidebarManualOrder,
     setSidebarSessionPins,
     setCollapsedSidebarProjectPaths,

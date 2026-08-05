@@ -129,16 +129,16 @@ export function SidebarHeader({
   const {
     sidebarProductMode,
     setSidebarProductMode,
-    sidebarPriorityFilterEnabled,
-    setSidebarPriorityFilterEnabled,
+    sidebarTimelineEnabled,
+    setSidebarTimelineEnabled,
   } = useDesktopSettings()
   const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
-  const priorityToggleLabel = sidebarPriorityFilterEnabled
-    ? "关闭优先级筛选器"
-    : "按优先级筛选"
-  const priorityToggleTitle = sidebarPriorityFilterEnabled
-    ? "关闭优先级筛选器 (Ctrl+Alt+U)"
-    : "按优先级筛选 (Ctrl+Alt+U)"
+  const timelineToggleLabel = sidebarTimelineEnabled
+    ? "关闭时间线"
+    : "打开时间线"
+  const timelineToggleTitle = sidebarTimelineEnabled
+    ? "关闭时间线 (Ctrl+Alt+U)"
+    : "打开时间线 (Ctrl+Alt+U)"
 
   return (
     <header className="sidebar-header">
@@ -193,15 +193,15 @@ export function SidebarHeader({
         >
           <Search size={APP_ICON_SIZE} />
         </IconButton>
-        <Tooltip content={priorityToggleTitle} side="bottom">
+        <Tooltip content={timelineToggleTitle} side="bottom">
           <IconButton
-            aria-label={priorityToggleLabel}
+            aria-label={timelineToggleLabel}
             aria-keyshortcuts="Control+Alt+U"
-            aria-pressed={sidebarPriorityFilterEnabled}
-            active={sidebarPriorityFilterEnabled}
-            className="sidebar-priority-filter-button"
-            onClick={() => setSidebarPriorityFilterEnabled(v => !v)}
-            title={priorityToggleTitle}
+            aria-pressed={sidebarTimelineEnabled}
+            active={sidebarTimelineEnabled}
+            className="sidebar-timeline-toggle-button"
+            onClick={() => setSidebarTimelineEnabled(v => !v)}
+            title={timelineToggleTitle}
           >
             <BellDot size={APP_ICON_SIZE} />
           </IconButton>

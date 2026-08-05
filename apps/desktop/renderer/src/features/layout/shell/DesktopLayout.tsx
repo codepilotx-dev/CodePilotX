@@ -296,7 +296,7 @@ export function DesktopLayout(): React.ReactNode {
 	    setCollapsedSidebarSections,
 	    sidebarSessionPins,
 	    setSidebarSessionPins,
-	    setSidebarPriorityFilterEnabled,
+	    setSidebarTimelineEnabled,
 	    syncExternalSettingsPatch,
   } = settings
   useSystemNotifications(
@@ -1272,7 +1272,7 @@ export function DesktopLayout(): React.ReactNode {
         && key === 'u'
       ) {
         event.preventDefault()
-        setSidebarPriorityFilterEnabled(current => !current)
+        setSidebarTimelineEnabled(current => !current)
       } else if (
         !event.shiftKey &&
         !event.altKey &&

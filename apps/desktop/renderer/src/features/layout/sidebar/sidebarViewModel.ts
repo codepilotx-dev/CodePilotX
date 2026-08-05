@@ -56,26 +56,32 @@ export type SidebarFocusSection = {
   sessions: SessionListItem[]
 }
 
-export function buildSidebarFocusSections(input: {
+export type SidebarTimelineModel = {
+  prioritySessions: SessionListItem[]
+  dateSections: SidebarFocusSection[]
+}
+
+export function buildSidebarTimelineModel(input: {
   now: number
+  priorityEnabled: boolean
   sessions: readonly SessionListItem[]
-  sessionStateById: Readonly<Record<string, SidebarSessionVisualState>>
-}): SidebarFocusSection[] {
+}): SidebarTimelineModel {
   const priority: SessionListItem[] = []
   const priorityRankById = new Map<string, number>()
   const dayBuckets = new Map<number, SessionListItem[]>()
 
   for (const session of input.sessions) {
-    const state = input.sessionStateById[session.id]
-    const priorityRank = sidebarPriorityRank(state)
-    if (priorityRank >= 0) {
+    const priorityRank = input.priorityEnabled
+      ? sidebarTimelinePriorityRank(session)
+      : null
+    if (priorityRank != null) {
       priority.push(session)
       priorityRankById.set(session.id, priorityRank)
       continue
     }
     const activityMs = sessionRecencyMs(session)
     if (activityMs <= 0) {
-      // 时间无效的普通任务不进入聚焦视图
+      // 时间无效的普通任务不进入时间线
       continue
     }
     let offset = localDayOrdinal(input.now) - localDayOrdinal(activityMs)
@@ -89,27 +95,43 @@ export function buildSidebarFocusSections(input: {
     }
   }
 
-  const sections: SidebarFocusSection[] = []
-  if (priority.length > 0) {
-    sections.push({
-      id: 'priority',
-      label: '优先级',
-      sessions: sortPrioritySessions(priority, priorityRankById),
-    })
-  }
-
+  const dateSections: SidebarFocusSection[] = []
   for (const offset of [...dayBuckets.keys()].sort((a, b) => a - b)) {
     const sessions = dayBuckets.get(offset) ?? []
     if (sessions.length === 0) continue
     const dayDate = new Date(input.now)
     dayDate.setDate(dayDate.getDate() - offset)
-    sections.push({
+    dateSections.push({
       id: `day-${offset}`,
       label: labelForDayOffset(offset, dayDate),
       sessions: sortSessionsByRecency(sessions),
     })
   }
-  return sections
+  return {
+    prioritySessions: sortPrioritySessions(priority, priorityRankById),
+    dateSections,
+  }
+}
+
+function sidebarTimelinePriorityRank(
+  session: SessionListItem,
+): number | null {
+  if (
+    session.latestTurnStatus === 'waiting-question' ||
+    session.latestTurnStatus === 'waiting-permission'
+  ) {
+    return 0
+  }
+  if (session.pendingPlanApproval === true) {
+    return 1
+  }
+  if (
+    session.latestTurnStatus === 'completed' &&
+    session.unreadAt != null
+  ) {
+    return 2
+  }
+  return null
 }
 
 export function labelForDayOffset(offset: number, date: Date): string {
@@ -140,15 +162,6 @@ function sortPrioritySessions(
       right.id.localeCompare(left.id)
     )
   })
-}
-
-function sidebarPriorityRank(
-  state: SidebarSessionVisualState | undefined,
-): number {
-  if (state === 'needs-input') return 0
-  if (state === 'unread') return 1
-  if (state === 'running') return 2
-  return -1
 }
 
 export function buildSidebarViewModel({

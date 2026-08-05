@@ -14,7 +14,7 @@ import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
 import { SidebarHeader, SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 import {
   buildSidebarViewModel,
-  buildSidebarFocusSections,
+  buildSidebarTimelineModel,
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
 } from './sidebar/sidebarViewModel.js'
@@ -94,7 +94,9 @@ export function DesktopSidebar({
     sidebarProjectSort,
     sidebarSort,
     setSidebarSort,
-    sidebarPriorityFilterEnabled,
+    sidebarTimelineEnabled,
+    setSidebarTimelinePriorityEnabled,
+    sidebarTimelinePriorityEnabled,
   } = useDesktopSettings()
   const collapsedProjectPaths = useMemo(
     () => new Set(collapsedSidebarProjectPaths),
@@ -159,19 +161,19 @@ export function DesktopSidebar({
     ],
   )
 
-  const focusSections = useMemo(
+  const timeline = useMemo(
     () =>
-      sidebarPriorityFilterEnabled
-        ? buildSidebarFocusSections({
+      sidebarTimelineEnabled
+        ? buildSidebarTimelineModel({
             now: relativeNow,
+            priorityEnabled: sidebarTimelinePriorityEnabled,
             sessions: viewModel.visibleSessions,
-            sessionStateById: viewModel.sessionStateById,
           })
         : null,
     [
       relativeNow,
-      sidebarPriorityFilterEnabled,
-      viewModel.sessionStateById,
+      sidebarTimelineEnabled,
+      sidebarTimelinePriorityEnabled,
       viewModel.visibleSessions,
     ],
   )
@@ -283,7 +285,8 @@ export function DesktopSidebar({
         titleLoadingIds={titleLoadingIds}
         collapsedProjectPaths={collapsedProjectPaths}
         organization={sidebarOrganization}
-        focusSections={focusSections}
+        timeline={timeline}
+        timelinePriorityEnabled={sidebarTimelinePriorityEnabled}
         now={relativeNow}
         pinnedSessions={viewModel.pinnedSessions}
         pinnedWorkspaces={viewModel.pinnedWorkspaces}
@@ -327,6 +330,7 @@ export function DesktopSidebar({
         onOrganizationChange={setSidebarOrganization}
         onProjectSortChange={setSidebarProjectSort}
         onSessionSortChange={setSidebarSort}
+        onTimelinePriorityEnabledChange={setSidebarTimelinePriorityEnabled}
       />
       <SidebarFooter
         sidebarWidth={sidebarWidth}

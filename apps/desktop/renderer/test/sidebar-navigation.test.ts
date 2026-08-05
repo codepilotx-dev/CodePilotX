@@ -30,7 +30,7 @@ import {
 } from '../src/features/layout/sidebar/SidebarProjectHoverCard.js'
 import { getSidebarSessionDisplayGroups } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
 import {
-  buildSidebarFocusSections,
+  buildSidebarTimelineModel,
   buildSidebarPinnedItems,
   buildProjectSessionBuckets,
   buildSidebarViewModel,
@@ -42,7 +42,7 @@ import {
   sidebarPinnedSessionKey,
   sidebarProjectKey,
   sortProjectsForSidebar,
-  type SidebarSessionVisualState,
+  type SidebarTimelineModel,
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
 import { sortSessionsForSidebar } from '../src/features/session/state/sessionSorting.js'
 import {
@@ -828,67 +828,124 @@ function session(
   } as SessionListItem
 }
 
-describe('侧栏聚焦视图投影', () => {
+describe('侧栏时间线投影', () => {
   // 假定当前日期 2026-08-01（星期六）
   const NOW = new Date('2026-08-01T12:00:00.000Z').getTime()
 
-  function focusSession(
+  function timelineSession(
     id: string,
-    lastMessageAt: string | null | undefined,
-    state: SidebarSessionVisualState = 'idle',
+    latestTurnStatus: SessionListItem['latestTurnStatus'],
+    lastMessageAt: string | null = '2026-08-01T00:00:00.000Z',
     extras: Partial<SessionListItem> = {},
   ): SessionListItem {
     return {
       ...session(id, `C:\\${id}`, lastMessageAt ?? undefined),
+      latestTurnStatus,
+      unreadAt: null,
       ...extras,
     }
   }
 
   function focus(
     sessions: SessionListItem[],
-    sessionStateById: Record<string, SidebarSessionVisualState>,
-  ) {
-    return buildSidebarFocusSections({
+    priorityEnabled = true,
+  ): SidebarTimelineModel {
+    return buildSidebarTimelineModel({
       now: NOW,
+      priorityEnabled,
       sessions,
-      sessionStateById,
     })
   }
 
-  test('等待输入、未读、运行中进入优先级，且不受日期窗口限制', () => {
-    const sections = focus(
-      [
-        focusSession('needs', '2026-05-01T00:00:00.000Z', 'needs-input'),
-        focusSession('unread', '2026-05-02T00:00:00.000Z', 'unread'),
-        focusSession('running', '2026-05-03T00:00:00.000Z', 'running'),
-      ],
-      {
-        needs: 'needs-input',
-        unread: 'unread',
-        running: 'running',
-      },
-    )
-    expect(sections.map(s => s.id)).toEqual(['priority'])
-    expect(sections[0]!.sessions.map(s => s.id)).toEqual([
-      'needs',
-      'unread',
-      'running',
+  test('等待问题、等待权限、计划待审批、完成未读进入优先区，且不受日期窗口限制', () => {
+    const model = focus([
+      timelineSession('plan-approval', 'completed', '2026-05-01T00:00:00.000Z', {
+        pendingPlanApproval: true,
+      }),
+      timelineSession('question', 'waiting-question', '2026-05-02T00:00:00.000Z'),
+      timelineSession('permission', 'waiting-permission', '2026-05-03T00:00:00.000Z'),
+      timelineSession('completed-unread', 'completed', '2026-05-04T00:00:00.000Z', {
+        unreadAt: '2026-08-01T00:00:00.000Z',
+      }),
+    ])
+    expect(model.prioritySessions.map(s => s.id)).toEqual([
+      'permission',
+      'question',
+      'plan-approval',
+      'completed-unread',
+    ])
+    expect(model.dateSections).toEqual([])
+  })
+
+  test('waiting-subagents、普通运行中和已读完成任务不进入优先区', () => {
+    const model = focus([
+      timelineSession('subagents', 'waiting-subagents'),
+      timelineSession('running', 'running'),
+      timelineSession('read-completed', 'completed'),
+      timelineSession('queued', 'queued'),
+    ])
+    expect(model.prioritySessions).toEqual([])
+    expect(model.dateSections.map(s => s.id)).toEqual(['day-0'])
+    expect(
+      model.dateSections[0]!.sessions.map(s => s.id).sort(),
+    ).toEqual(['queued', 'read-completed', 'running', 'subagents'])
+  })
+
+  test('同一优先级内按最近活动时间倒序，再以任务 ID 保证稳定顺序', () => {
+    const model = focus([
+      timelineSession('older-question', 'waiting-question', '2026-08-01T01:00:00.000Z'),
+      timelineSession('newer-question', 'waiting-question', '2026-08-01T12:00:00.000Z'),
+    ])
+    expect(model.prioritySessions.map(s => s.id)).toEqual([
+      'newer-question',
+      'older-question',
     ])
   })
 
   test('优先级任务不会在日期组重复出现', () => {
-    const sections = focus(
+    const model = focus([
+      timelineSession('question', 'waiting-question', '2026-08-01T00:00:00.000Z'),
+      timelineSession('normal', 'idle', '2026-08-01T00:00:00.000Z'),
+    ])
+    expect(model.prioritySessions.map(s => s.id)).toEqual(['question'])
+    expect(model.dateSections.map(s => s.id)).toEqual(['day-0'])
+    expect(model.dateSections[0]!.sessions.map(s => s.id)).toEqual(['normal'])
+  })
+
+  test('清除未读后退出优先区，并在符合 7 天条件时回到日期区', () => {
+    const unread = timelineSession('done', 'completed', '2026-08-01T00:00:00.000Z', {
+      unreadAt: '2026-08-01T00:00:00.000Z',
+    })
+    const unreadModel = focus([unread])
+    expect(unreadModel.prioritySessions.map(s => s.id)).toEqual(['done'])
+
+    const readModel = focus([
+      { ...unread, unreadAt: null },
+    ])
+    expect(readModel.prioritySessions).toEqual([])
+    expect(readModel.dateSections.map(s => s.id)).toEqual(['day-0'])
+    expect(readModel.dateSections[0]!.sessions.map(s => s.id)).toEqual(['done'])
+  })
+
+  test('7 天以前的等待用户任务仍进入优先区', () => {
+    const model = focus([
+      timelineSession('old-question', 'waiting-question', '2026-04-01T00:00:00.000Z'),
+    ])
+    expect(model.prioritySessions.map(s => s.id)).toEqual(['old-question'])
+    expect(model.dateSections).toEqual([])
+  })
+
+  test('优先级未勾选时只显示最近 7 天，不提取优先任务', () => {
+    const model = focus(
       [
-        focusSession('needs', '2026-08-01T00:00:00.000Z', 'needs-input'),
-        focusSession('normal', '2026-08-01T00:00:00.000Z', 'idle'),
+        timelineSession('question', 'waiting-question', '2026-08-01T00:00:00.000Z'),
+        timelineSession('old-normal', 'idle', '2026-04-01T00:00:00.000Z'),
       ],
-      { needs: 'needs-input', normal: 'idle' },
+      false,
     )
-    expect(sections.map(s => s.id)).toEqual(['priority', 'day-0'])
-    const priorityIds = sections[0]!.sessions.map(s => s.id)
-    const dayIds = sections[1]!.sessions.map(s => s.id)
-    expect(priorityIds).toEqual(['needs'])
-    expect(dayIds).toEqual(['normal'])
+    expect(model.prioritySessions).toEqual([])
+    expect(model.dateSections.map(s => s.id)).toEqual(['day-0'])
+    expect(model.dateSections[0]!.sessions.map(s => s.id)).toEqual(['question'])
   })
 
   test('今天和昨天标签正确', () => {
@@ -907,25 +964,15 @@ describe('侧栏聚焦视图投影', () => {
   })
 
   test('没有任务的星期二不会生成空分组，日期组按偏移 0→6 排列', () => {
-    const sections = focus(
-      [
-        focusSession('today', '2026-08-01T00:00:00.000Z', 'idle'),
-        focusSession('thu', '2026-07-30T00:00:00.000Z', 'idle'),
-        focusSession('wed', '2026-07-29T00:00:00.000Z', 'idle'),
-        focusSession('mon', '2026-07-27T00:00:00.000Z', 'idle'),
-        focusSession('sun', '2026-07-26T00:00:00.000Z', 'idle'),
-        focusSession('fri', '2026-07-31T00:00:00.000Z', 'idle'),
-      ],
-      {
-        today: 'idle',
-        thu: 'idle',
-        wed: 'idle',
-        mon: 'idle',
-        sun: 'idle',
-        fri: 'idle',
-      },
-    )
-    expect(sections.map(s => s.id)).toEqual([
+    const model = focus([
+      timelineSession('today', 'idle', '2026-08-01T00:00:00.000Z'),
+      timelineSession('thu', 'idle', '2026-07-30T00:00:00.000Z'),
+      timelineSession('wed', 'idle', '2026-07-29T00:00:00.000Z'),
+      timelineSession('mon', 'idle', '2026-07-27T00:00:00.000Z'),
+      timelineSession('sun', 'idle', '2026-07-26T00:00:00.000Z'),
+      timelineSession('fri', 'idle', '2026-07-31T00:00:00.000Z'),
+    ])
+    expect(model.dateSections.map(s => s.id)).toEqual([
       'day-0',
       'day-1',
       'day-2',
@@ -933,7 +980,7 @@ describe('侧栏聚焦视图投影', () => {
       'day-5',
       'day-6',
     ])
-    expect(sections.map(s => s.label)).toEqual([
+    expect(model.dateSections.map(s => s.label)).toEqual([
       '今天',
       '昨天',
       '星期四',
@@ -944,64 +991,59 @@ describe('侧栏聚焦视图投影', () => {
   })
 
   test('第 6 天任务仍显示，第 7 天及更早任务被隐藏', () => {
-    const sections = focus(
-      [
-        focusSession('day6', '2026-07-26T00:00:00.000Z', 'idle'),
-        focusSession('day7', '2026-07-25T00:00:00.000Z', 'idle'),
-      ],
-      { day6: 'idle', day7: 'idle' },
-    )
-    expect(sections.flatMap(s => s.sessions).map(s => s.id)).toEqual(['day6'])
+    const model = focus([
+      timelineSession('day6', 'idle', '2026-07-26T00:00:00.000Z'),
+      timelineSession('day7', 'idle', '2026-07-25T00:00:00.000Z'),
+    ])
+    expect(model.dateSections.flatMap(s => s.sessions).map(s => s.id)).toEqual([
+      'day6',
+    ])
   })
 
   test('跨月和跨年时仍按自然日分组', () => {
     // 当前为 2026-08-01，前 6 天跨越 7 月；再测一个跨年场景
-    const sections = focus(
-      [
-        focusSession('end-july', '2026-07-26T23:00:00.000Z', 'idle'),
-      ],
-      { 'end-july': 'idle' },
-    )
-    expect(sections[0]!.id).toBe('day-6')
+    const model = focus([
+      timelineSession('end-july', 'idle', '2026-07-26T23:00:00.000Z'),
+    ])
+    expect(model.dateSections[0]!.id).toBe('day-6')
     // 跨年：当前 2026-01-01，前 6 天跨越 2025
-    const nyeSections = buildSidebarFocusSections({
+    const nyeModel = buildSidebarTimelineModel({
       now: new Date('2026-01-01T12:00:00.000Z').getTime(),
-      sessions: [focusSession('old-year', '2025-12-30T00:00:00.000Z', 'idle')],
-      sessionStateById: { 'old-year': 'idle' },
+      priorityEnabled: false,
+      sessions: [
+        timelineSession('old-year', 'idle', '2025-12-30T00:00:00.000Z'),
+      ],
     })
-    expect(nyeSections[0]!.id).toBe('day-2')
+    expect(nyeModel.dateSections[0]!.id).toBe('day-2')
   })
 
   test('日期组内按最近活动时间倒序', () => {
-    const sections = focus(
-      [
-        focusSession('older', '2026-08-01T01:00:00.000Z', 'idle'),
-        focusSession('newer', '2026-08-01T12:00:00.000Z', 'idle'),
-      ],
-      { older: 'idle', newer: 'idle' },
-    )
-    expect(sections[0]!.sessions.map(s => s.id)).toEqual(['newer', 'older'])
-  })
-
-  test('无效时间的普通任务被隐藏，但无效时间的优先级任务仍显示', () => {
-    const sections = focus(
-      [
-        focusSession('bad-normal', '__bad__', 'idle', {
-          createdAt: '__invalid__',
-        }),
-        focusSession('bad-priority', '__bad__', 'running', {
-          createdAt: '__invalid__',
-        }),
-      ],
-      { 'bad-normal': 'idle', 'bad-priority': 'running' },
-    )
-    expect(sections.flatMap(s => s.sessions).map(s => s.id)).toEqual([
-      'bad-priority',
+    const model = focus([
+      timelineSession('older', 'idle', '2026-08-01T01:00:00.000Z'),
+      timelineSession('newer', 'idle', '2026-08-01T12:00:00.000Z'),
+    ])
+    expect(model.dateSections[0]!.sessions.map(s => s.id)).toEqual([
+      'newer',
+      'older',
     ])
   })
 
+  test('无效时间的普通任务被隐藏，但无效时间的等待用户任务在优先模式下仍显示', () => {
+    const model = focus([
+      timelineSession('bad-normal', 'idle', '__bad__', {
+        createdAt: '__invalid__',
+      }),
+      timelineSession('bad-priority', 'waiting-question', '__bad__', {
+        createdAt: '__invalid__',
+      }),
+    ])
+    expect(model.prioritySessions.map(s => s.id)).toEqual(['bad-priority'])
+    expect(model.dateSections).toEqual([])
+  })
+
   test('所有分组为空时返回空投影', () => {
-    const sections = focus([], {})
-    expect(sections).toEqual([])
+    const model = focus([])
+    expect(model.prioritySessions).toEqual([])
+    expect(model.dateSections).toEqual([])
   })
 })

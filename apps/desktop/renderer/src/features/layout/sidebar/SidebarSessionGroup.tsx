@@ -48,7 +48,8 @@ type Props = {
   titleLoadingIds: ReadonlySet<string>;
   sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
-  sort?: DesktopSidebarSort
+  /** 'preserve' 表示调用方已排好序，不再重排（时间线优先任务组使用） */
+  sort?: DesktopSidebarSort | 'preserve'
   manualOrderByScope?: Record<string, string[]>
   presentation?: 'compact' | 'workspace-meta'
   pagination?: 'incremental' | 'all'
@@ -100,13 +101,15 @@ function SidebarSessionGroupComponent({
   )
   const sortedSessions = useMemo(
     () =>
-      sortSessionsForSidebar(sessions, {
-        sort,
-        needsInputSessionIds,
-        unreadSessionIds,
-        scopeKey: groupKey,
-        manualOrderByScope,
-      }),
+      sort === 'preserve'
+        ? sessions
+        : sortSessionsForSidebar(sessions, {
+            sort,
+            needsInputSessionIds,
+            unreadSessionIds,
+            scopeKey: groupKey,
+            manualOrderByScope,
+          }),
     [
       groupKey,
       manualOrderByScope,

@@ -12,6 +12,7 @@ import type {
 import type { SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import {
+  PopoverCheckboxItem,
   PopoverLabel,
   PopoverRadioGroup,
   PopoverRadioItem,
@@ -38,6 +39,7 @@ import {
   type SidebarFocusSection,
   type SidebarPinnedItem,
   type SidebarProjectSessionBucket,
+  type SidebarTimelineModel,
 } from "./sidebarViewModel.js";
 import { cx } from "../../../utils/cx.js";
 
@@ -48,7 +50,8 @@ type Props = {
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
   organization: DesktopSidebarOrganization;
-  focusSections?: SidebarFocusSection[] | null;
+  timeline?: SidebarTimelineModel | null;
+  timelinePriorityEnabled: boolean;
   now: number;
   pendingPermissionSessionIds: ReadonlySet<string>;
   titleLoadingIds: ReadonlySet<string>;
@@ -81,13 +84,15 @@ type Props = {
   onOrganizationChange: (organization: DesktopSidebarOrganization) => void;
   onProjectSortChange: (sort: DesktopSidebarSort) => void;
   onSessionSortChange: (sort: DesktopSidebarSort) => void;
+  onTimelinePriorityEnabledChange: (value: boolean) => void;
 };
 
 export function SidebarBody({
   activeSessionId,
   collapsedProjectPaths,
   organization,
-  focusSections,
+  timeline,
+  timelinePriorityEnabled,
   now,
   pendingPermissionSessionIds,
   titleLoadingIds,
@@ -120,6 +125,7 @@ export function SidebarBody({
   onOrganizationChange,
   onProjectSortChange,
   onSessionSortChange,
+  onTimelinePriorityEnabledChange,
 }: Props): React.ReactNode {
   const [visibleProjectLimit, setVisibleProjectLimit] = useState(5);
   const [visiblePinnedLimit, setVisiblePinnedLimit] = useState(
@@ -139,14 +145,14 @@ export function SidebarBody({
     string | null
   >(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null)
-  const previousFocusModeRef = useRef<boolean>(focusSections !== null)
+  const previousFocusModeRef = useRef<boolean>(timeline !== null)
   useEffect(() => {
-    const focusMode = focusSections !== null
+    const focusMode = timeline !== null
     if (focusMode !== previousFocusModeRef.current) {
       previousFocusModeRef.current = focusMode
       scrollViewportRef.current?.scrollTo({ top: 0 })
     }
-  }, [focusSections])
+  }, [timeline])
   const unavailablePaths = useMemo(
     () =>
       new Set(
@@ -434,16 +440,18 @@ export function SidebarBody({
       contentClassName="sidebar-scroll-content"
       viewportRef={scrollViewportRef}
     >
-      {focusSections ? (
-        <FocusSections
+      {timeline ? (
+        <Timeline
           activeSessionId={activeSessionId}
-          focusSections={focusSections}
           now={now}
           pendingPermissionSessionIds={pendingPermissionSessionIds}
+          priorityEnabled={timelinePriorityEnabled}
+          timeline={timeline}
           titleLoadingIds={titleLoadingIds}
           sessionFallbackTitles={sessionFallbackTitles}
           onArchiveSessions={onArchiveSessions}
           onPinSession={onPinSession}
+          onPriorityEnabledChange={onTimelinePriorityEnabledChange}
           onSelectSession={onSelectSession}
           onRenameSession={onRenameSession}
           onUnpinSession={onUnpinSession}
@@ -573,69 +581,128 @@ export function SidebarBody({
   );
 }
 
-function FocusSections({
+function Timeline({
   activeSessionId,
-  focusSections,
   now,
   pendingPermissionSessionIds,
+  priorityEnabled,
+  timeline,
   titleLoadingIds,
   sessionFallbackTitles,
   onArchiveSessions,
   onPinSession,
+  onPriorityEnabledChange,
   onSelectSession,
   onRenameSession,
   onUnpinSession,
 }: {
   activeSessionId: string | null
-  focusSections: readonly SidebarFocusSection[]
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
+  priorityEnabled: boolean
+  timeline: SidebarTimelineModel
   titleLoadingIds: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onPinSession: (session: SessionListItem) => void
+  onPriorityEnabledChange: (value: boolean) => void
   onSelectSession: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
-  if (focusSections.length === 0) {
-    return (
-      <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
-        <SidebarEmptyRow>最近一周暂无任务</SidebarEmptyRow>
-      </div>
-    )
+  const sharedSessionProps = {
+    activeSessionId,
+    now,
+    pendingPermissionSessionIds,
+    titleLoadingIds,
+    sessionFallbackTitles,
+    onArchiveSessions,
+    onPinSession,
+    onSelectSession,
+    onRenameSession,
+    onUnpinSession,
   }
   return (
-    <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
-      {focusSections.map(section => (
+    <div className="sidebar-timeline">
+      <TimelineHeader
+        priorityEnabled={priorityEnabled}
+        onPriorityEnabledChange={onPriorityEnabledChange}
+      />
+      {timeline.prioritySessions.length > 0 ? (
+        <SidebarSessionGroup
+          groupKey="timeline:priority"
+          sessions={timeline.prioritySessions}
+          presentation="workspace-meta"
+          pagination="all"
+          sort="preserve"
+          {...sharedSessionProps}
+        />
+      ) : null}
+      {timeline.dateSections.map(section => (
         <FocusSectionGroup
-          activeSessionId={activeSessionId}
           key={section.id}
-          label={section.label}
-          now={now}
-          pendingPermissionSessionIds={pendingPermissionSessionIds}
-          titleLoadingIds={titleLoadingIds}
-          sessionFallbackTitles={sessionFallbackTitles}
-          sessions={section.sessions}
-          onArchiveSessions={onArchiveSessions}
-          onPinSession={onPinSession}
-          onSelectSession={onSelectSession}
-          onRenameSession={onRenameSession}
-          onUnpinSession={onUnpinSession}
+          section={section}
+          sort="updated"
+          {...sharedSessionProps}
         />
       ))}
+      {timeline.prioritySessions.length === 0
+        && timeline.dateSections.length === 0 ? (
+        <SidebarEmptyRow>最近一周暂无任务</SidebarEmptyRow>
+      ) : null}
     </div>
+  )
+}
+
+function TimelineHeader({
+  priorityEnabled,
+  onPriorityEnabledChange,
+}: {
+  priorityEnabled: boolean
+  onPriorityEnabledChange: (value: boolean) => void
+}): React.ReactNode {
+  const [menuOpen, setMenuOpen] = useState(false)
+  return (
+    <header className="sidebar-timeline-header">
+      <h2 className="sidebar-timeline-title">时间线</h2>
+      <PopoverMenu
+        align="end"
+        className="sidebar-timeline-menu"
+        open={menuOpen}
+        side="bottom"
+        width={208}
+        trigger={
+          <IconButton
+            aria-label="时间线显示选项"
+            className="sidebar-timeline-menu-button"
+            title="时间线显示选项"
+          >
+            <Ellipsis size={APP_ICON_SIZE} />
+          </IconButton>
+        }
+        onOpenChange={setMenuOpen}
+      >
+        <PopoverLabel>显示</PopoverLabel>
+        <PopoverCheckboxItem
+          checked={priorityEnabled}
+          keepOpen
+          onCheckedChange={onPriorityEnabledChange}
+        >
+          优先级
+        </PopoverCheckboxItem>
+      </PopoverMenu>
+    </header>
   )
 }
 
 function FocusSectionGroup({
   activeSessionId,
-  label,
   now,
   pendingPermissionSessionIds,
+  section,
+  sort,
   titleLoadingIds,
   sessionFallbackTitles,
-  sessions,
   onArchiveSessions,
   onPinSession,
   onSelectSession,
@@ -643,12 +710,12 @@ function FocusSectionGroup({
   onUnpinSession,
 }: {
   activeSessionId: string | null
-  label: string
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
+  section: SidebarFocusSection
+  sort: 'updated' | 'preserve'
   titleLoadingIds: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
-  sessions: SessionListItem[]
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onPinSession: (session: SessionListItem) => void
   onSelectSession: (session: SessionListItem) => void
@@ -658,18 +725,19 @@ function FocusSectionGroup({
   return (
     <section className="sidebar-section tw:grid tw:gap-1">
       <div className="sidebar-focus-section-header">
-        <h3 className="sidebar-focus-section-title">{label}</h3>
+        <h3 className="sidebar-focus-section-title">{section.label}</h3>
       </div>
       <SidebarSessionGroup
         activeSessionId={activeSessionId}
-        groupKey={`focus:${label}`}
+        groupKey={`focus:${section.id}`}
         now={now}
         pagination="all"
         pendingPermissionSessionIds={pendingPermissionSessionIds}
         presentation="workspace-meta"
+        sort={sort}
         titleLoadingIds={titleLoadingIds}
         sessionFallbackTitles={sessionFallbackTitles}
-        sessions={sessions}
+        sessions={section.sessions}
         onArchiveSessions={onArchiveSessions}
         onPinSession={onPinSession}
         onSelectSession={onSelectSession}
