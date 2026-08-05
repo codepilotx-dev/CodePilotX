@@ -151,6 +151,24 @@
   gap: 2px;
 }
 
+/* 固定“新建任务”导航：位于滚动区外，侧栏高度不足时不可压缩。
+   默认无可见分隔线；内容滚过固定入口（scrollTop > 0）时显示轻量边界，
+   透明底边框预留 1px 几何空间，滚动开始时只切换颜色避免内容跳动 */
+.sidebar-new-task-nav {
+  flex: 0 0 auto;
+  border-bottom: 1px solid transparent;
+
+  &[data-scroll-overlap='true'] {
+    border-bottom-color: var(--color-token-border-light);
+  }
+}
+
+/* 滚动区内部：次级导航与时间线/任务主体之间的分组间距 */
+.sidebar-scroll-main {
+  min-width: 0;
+  padding-top: 16px;
+}
+
 .sidebar-nav-link.active,
 .sidebar-session-row.active,
 .sidebar-settings-link.active {
@@ -176,7 +194,6 @@
 .sidebar-scroll-area {
   flex: 1 1 auto;
   min-height: 0;
-  margin-top: 16px;
   overflow-x: hidden;
   overflow-y: auto;
   scroll-padding-bottom: calc(var(--sidebar-footer-height) + 8px);
@@ -244,6 +261,10 @@
 
 .sidebar-session-row.sidebar-row--grid {
   grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.sidebar-session-row.sidebar-row--grid.sidebar-row--no-leading {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .sidebar-row--flex {
@@ -601,10 +622,17 @@
   }
 }
 
-.sidebar-timeline-title,
-.sidebar-focus-section-title {
+.sidebar-timeline-title {
   margin: 0;
   font-size: var(--type-body);
+  line-height: var(--menu-line-height);
+  font-weight: var(--font-weight-label);
+  color: var(--color-token-description-foreground);
+}
+
+.sidebar-focus-section-title {
+  margin: 0;
+  font-size: var(--type-secondary);
   line-height: var(--menu-line-height);
   font-weight: var(--font-weight-label);
   color: var(--color-token-description-foreground);
@@ -620,7 +648,7 @@
 }
 
 .sidebar-session-button-lines--meta {
-  gap: 1px;
+  gap: 5px;
 }
 
 .sidebar-session-workspace-meta {

@@ -11,7 +11,7 @@ import type { AppView, SessionListItem } from "../../uiTypes.js";
 import { SidebarBody } from "./sidebar/SidebarBody.js";
 import { SidebarFooter } from "./sidebar/SidebarFooter.js";
 import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
-import { SidebarHeader, SidebarTopNav } from "./sidebar/SidebarTopNav.js";
+import { SidebarHeader, SidebarNewTaskNav, SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 import {
   buildSidebarViewModel,
   buildSidebarTimelineModel,
@@ -81,6 +81,8 @@ export function DesktopSidebar({
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
   const [catalogProjects, setCatalogProjects] = useState<DesktopWorkspace[]>([])
+  const [sidebarScrollOverlapping, setSidebarScrollOverlapping] =
+    useState(false)
   const {
     collapsedSidebarProjectPaths,
     setCollapsedSidebarProjectPaths,
@@ -268,18 +270,27 @@ export function DesktopSidebar({
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-chrome tw:py-2">
       <SidebarHeader onOpenCommandMenu={onOpenCommandMenu} />
-      <SidebarTopNav
+      <SidebarNewTaskNav
         isActiveView={isActiveView}
-        showProjects={sidebarOrganization === 'flat'}
+        scrollOverlapping={sidebarScrollOverlapping}
       />
-      {catalogStatus.state === 'loading' ? (
-        <SidebarEmptyRow role="status">正在加载任务目录…</SidebarEmptyRow>
-      ) : catalogStatus.state === 'unavailable' ? (
-        <SidebarEmptyRow role="status">
-          {catalogStatus.error ?? 'The app-server is unavailable. Please try again.'}
-        </SidebarEmptyRow>
-      ) : null}
       <SidebarBody
+        onScrollOverlapChange={setSidebarScrollOverlapping}
+        scrollHeader={
+          <>
+            <SidebarTopNav
+              isActiveView={isActiveView}
+              showProjects={sidebarOrganization === 'flat'}
+            />
+            {catalogStatus.state === 'loading' ? (
+              <SidebarEmptyRow role="status">正在加载任务目录…</SidebarEmptyRow>
+            ) : catalogStatus.state === 'unavailable' ? (
+              <SidebarEmptyRow role="status">
+                {catalogStatus.error ?? 'The app-server is unavailable. Please try again.'}
+              </SidebarEmptyRow>
+            ) : null}
+          </>
+        }
         activeSessionId={activeSessionId}
         pendingPermissionSessionIds={pendingPermissionSessionIds}
         titleLoadingIds={titleLoadingIds}

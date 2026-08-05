@@ -25,6 +25,8 @@ import type {
   ComposerDraftKey,
   ComposerPlacement,
   ComposerSubmitShortcut,
+  ComposerSurface,
+  WorkingPlugin,
 } from './composerTypes.js'
 import {
   useDesktopComposerController,
@@ -57,6 +59,10 @@ export type DesktopComposerProps = {
   draftKey: ComposerDraftKey
   capabilities?: Partial<ComposerCapabilities>
   submitShortcut?: ComposerSubmitShortcut
+  surface?: ComposerSurface
+  workingPlugin?: WorkingPlugin | null
+  onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void
+  placeholder?: string
   routedSessionId: string | null
   sessionStatus: DesktopSessionStatus
   permissionMode: DesktopPermissionMode
@@ -158,6 +164,10 @@ export function DesktopComposer({
   draftKey,
   capabilities,
   submitShortcut,
+  surface,
+  workingPlugin,
+  onWorkingPluginChange,
+  placeholder: placeholderOverride,
   routedSessionId,
   sessionStatus,
   permissionMode,
@@ -284,6 +294,9 @@ export function DesktopComposer({
       placement={placement}
       capabilities={effectiveCapabilities}
       submitShortcut={submitShortcut}
+      surface={surface}
+      workingPlugin={workingPlugin}
+      onWorkingPluginChange={onWorkingPluginChange}
       submitting={isSubmitting}
       submitOutcome={lastSubmitOutcome}
       goalModeEnabled={goalModeEnabled}
@@ -315,13 +328,14 @@ export function DesktopComposer({
       selectedSkillToken={selectedSkillToken ?? undefined}
       hasConversationMessages={hasConversationMessages}
       placeholder={
-        modelCatalogLoading
+        placeholderOverride ??
+        (modelCatalogLoading
           ? '加载模型列表中……'
           : modelConfigured
           ? hasConversationMessages
             ? '要求后续变更'
             : '随心输入'
-          : '未配置模型，请先在设置中配置模型'
+          : '未配置模型，请先在设置中配置模型')
       }
       onChooseWorkspace={() => void onChooseWorkspace()}
       onInputChange={onInputChange}

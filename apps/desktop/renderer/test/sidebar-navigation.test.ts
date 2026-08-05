@@ -49,8 +49,10 @@ import {
   getSidebarTopNavItems,
   SIDEBAR_PRODUCT_MODE_META,
   SIDEBAR_PRODUCT_MODE_ORDER,
+  splitSidebarTopNavItems,
   TOP_NAV_ITEMS,
 } from '../src/features/layout/sidebar/SidebarTopNav.js'
+import { newSessionPath } from '../src/features/session/newSessionSurface.js'
 import {
   SETTINGS_GROUPS,
   SETTINGS_ITEMS,
@@ -97,6 +99,83 @@ describe('Codex 侧栏导航', () => {
         path: item.path,
       })),
     ])
+  })
+
+  test('模式切换目标分别为对应 Surface 新建页', () => {
+    expect(
+      SIDEBAR_PRODUCT_MODE_ORDER.map(mode => newSessionPath(mode)),
+    ).toEqual([
+      '/new?surface=coding',
+      '/new?surface=working',
+      '/new?surface=chat',
+    ])
+  })
+
+  test('新建任务链接跟随当前 Surface，未指定时保留 /new 兼容入口', () => {
+    expect(getSidebarTopNavItems(false, 'working')[0]).toMatchObject({
+      view: 'new',
+      label: '新建任务',
+      path: '/new?surface=working',
+    })
+    expect(
+      getSidebarTopNavItems(true, 'chat').map(item => ({
+        view: item.view,
+        path: item.path,
+      })),
+    ).toEqual([
+      { view: 'new', path: '/new?surface=chat' },
+      { view: 'projects', path: '/projects' },
+      ...TOP_NAV_ITEMS.slice(1).map(item => ({
+        view: item.view,
+        path: item.path,
+      })),
+    ])
+    expect(getSidebarTopNavItems(false)[0]!.path).toBe('/new')
+  })
+
+  test('普通组织模式下固定分组只包含新建任务', () => {
+    const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
+      getSidebarTopNavItems(false),
+    )
+    expect(fixedItems.map(item => item.view)).toEqual(['new'])
+    expect(scrollableItems.map(item => item.view)).toEqual([
+      'pullRequests',
+      'automations',
+      'plugins',
+      'models',
+      'labs',
+    ])
+  })
+
+  test('扁平组织模式下项目位于可滚动分组首位而不是固定分组', () => {
+    const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
+      getSidebarTopNavItems(true),
+    )
+    expect(fixedItems.map(item => item.view)).toEqual(['new'])
+    expect(scrollableItems.map(item => item.view)).toEqual([
+      'projects',
+      'pullRequests',
+      'automations',
+      'plugins',
+      'models',
+      'labs',
+    ])
+  })
+
+  test('可滚动分组不重复包含新建任务，且固定入口跟随 Surface', () => {
+    const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
+      getSidebarTopNavItems(true, 'working'),
+    )
+    expect(scrollableItems.some(item => item.view === 'new')).toBeFalse()
+    expect(fixedItems[0]!.path).toBe('/new?surface=working')
+  })
+
+  test('拆分后完整导航顺序保持不变', () => {
+    for (const showProjects of [false, true]) {
+      const items = getSidebarTopNavItems(showProjects)
+      const { fixedItems, scrollableItems } = splitSidebarTopNavItems(items)
+      expect([...fixedItems, ...scrollableItems]).toEqual(items)
+    }
   })
 
   test('从设置目录移除旧 connections 标签', () => {

@@ -326,6 +326,7 @@ function SidebarSessionGroupComponent({
         indent="session"
         key={session.id}
         layout="grid"
+        leadingMode="none"
         onDragEnd={() => {
           setDraggedSessionId(null)
           setDragOverSessionId(null)

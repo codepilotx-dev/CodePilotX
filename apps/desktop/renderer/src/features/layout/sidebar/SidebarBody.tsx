@@ -66,6 +66,10 @@ type Props = {
   manualOrderByScope: Record<string, string[]>;
   unavailableWorkspacePaths: Set<string>;
   workspace: DesktopWorkspace | null;
+  /** 位于滚动视口最前端的次级导航与加载/错误提示。 */
+  scrollHeader: React.ReactNode;
+  /** 滚动视口是否已滚过固定入口（scrollTop > 0），驱动动态分隔线。 */
+  onScrollOverlapChange: (overlapping: boolean) => void;
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
@@ -107,6 +111,8 @@ export function SidebarBody({
   manualOrderByScope,
   unavailableWorkspacePaths,
   workspace,
+  scrollHeader,
+  onScrollOverlapChange,
   onArchiveSessions,
   onChooseWorkspace,
   onCreateSession,
@@ -151,8 +157,10 @@ export function SidebarBody({
     if (focusMode !== previousFocusModeRef.current) {
       previousFocusModeRef.current = focusMode
       scrollViewportRef.current?.scrollTo({ top: 0 })
+      // 时间线模式切换会滚回顶部，同步清除动态分隔线，避免残留
+      onScrollOverlapChange(false)
     }
-  }, [timeline])
+  }, [timeline, onScrollOverlapChange])
   const unavailablePaths = useMemo(
     () =>
       new Set(
@@ -447,147 +455,154 @@ export function SidebarBody({
 
   return (
     <ScrollArea
-      className="sidebar-scroll-area tw:mt-4.5 tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
+      className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
       contentClassName="sidebar-scroll-content"
       viewportRef={scrollViewportRef}
+      onScroll={event => {
+        onScrollOverlapChange(event.currentTarget.scrollTop > 0)
+      }}
     >
-      {timeline ? (
-        <Timeline
-          activeSessionId={activeSessionId}
-          now={now}
-          pendingPermissionSessionIds={pendingPermissionSessionIds}
-          priorityEnabled={timelinePriorityEnabled}
-          timeline={timeline}
-          titleLoadingIds={titleLoadingIds}
-          sessionFallbackTitles={sessionFallbackTitles}
-          onArchiveSessions={onArchiveSessions}
-          onPinSession={onPinSession}
-          onPriorityEnabledChange={onTimelinePriorityEnabledChange}
-          onSelectSession={onSelectSession}
-          onRenameSession={onRenameSession}
-          onUnpinSession={onUnpinSession}
-        />
-      ) : (
-      <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
-        {pinnedItems.length > 0 ? (
-          <SidebarSection
-            collapsed={collapsedSidebarSections.includes("pinned")}
-            sectionId="pinned"
-            title="置顶"
-            onToggle={onToggleSidebarSection}
-          >
-            {displayedPinnedItems.map(renderPinnedItem)}
-            {hasPinnedItemOverflow ? (
-              <SidebarShowMoreActions
-                canCollapse={canCollapsePinnedItems}
-                canShowMore={canShowMorePinnedItems}
-                onCollapse={() => setVisiblePinnedLimit(PINNED_INITIAL_LIMIT)}
-                onShowMore={() =>
-                  setVisiblePinnedLimit(current =>
-                    Math.min(
-                      current + PINNED_LIMIT_STEP,
-                      pinnedItems.length,
-                    ),
-                  )
-                }
-              />
-            ) : null}
-          </SidebarSection>
+      {scrollHeader}
+      {/* 次级导航与时间线/任务主体之间的分组间距，不再占用整个滚动视口的外边距 */}
+      <div className="sidebar-scroll-main">
+        {timeline ? (
+          <Timeline
+            activeSessionId={activeSessionId}
+            now={now}
+            pendingPermissionSessionIds={pendingPermissionSessionIds}
+            priorityEnabled={timelinePriorityEnabled}
+            timeline={timeline}
+            titleLoadingIds={titleLoadingIds}
+            sessionFallbackTitles={sessionFallbackTitles}
+            onArchiveSessions={onArchiveSessions}
+            onPinSession={onPinSession}
+            onPriorityEnabledChange={onTimelinePriorityEnabledChange}
+            onSelectSession={onSelectSession}
+            onRenameSession={onRenameSession}
+            onUnpinSession={onUnpinSession}
+          />
+        ) : (
+        <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
+          {pinnedItems.length > 0 ? (
+            <SidebarSection
+              collapsed={collapsedSidebarSections.includes("pinned")}
+              sectionId="pinned"
+              title="置顶"
+              onToggle={onToggleSidebarSection}
+            >
+              {displayedPinnedItems.map(renderPinnedItem)}
+              {hasPinnedItemOverflow ? (
+                <SidebarShowMoreActions
+                  canCollapse={canCollapsePinnedItems}
+                  canShowMore={canShowMorePinnedItems}
+                  onCollapse={() => setVisiblePinnedLimit(PINNED_INITIAL_LIMIT)}
+                  onShowMore={() =>
+                    setVisiblePinnedLimit(current =>
+                      Math.min(
+                        current + PINNED_LIMIT_STEP,
+                        pinnedItems.length,
+                      ),
+                    )
+                  }
+                />
+              ) : null}
+            </SidebarSection>
+          ) : null}
+
+          {organization === "projects" ? (
+            <SidebarSection
+              action={
+                <SidebarSectionActions>
+                  <SidebarOrganizeMenu
+                    organization={organization}
+                    sort={projectSort}
+                    onOrganizationChange={onOrganizationChange}
+                    onSortChange={onProjectSortChange}
+                  />
+                  <IconButton onClick={onChooseWorkspace} title="添加项目">
+                    <Plus size={APP_ICON_SIZE} />
+                  </IconButton>
+                </SidebarSectionActions>
+              }
+              collapsed={collapsedSidebarSections.includes("projects")}
+              sectionId="projects"
+              title="项目"
+              onToggle={onToggleSidebarSection}
+            >
+              {projectWorkspaces.length === 0 ? (
+                <SidebarEmptyRow>暂无项目</SidebarEmptyRow>
+              ) : (
+                <>
+                  {displayedProjects.map((project) =>
+                    renderProject(project, projectWorkspaces, "projects"),
+                  )}
+                  {hasProjectOverflow ? (
+                    <SidebarShowMoreActions
+                      canCollapse={canCollapseProjects}
+                      canShowMore={canShowMoreProjects}
+                      onCollapse={() => setVisibleProjectLimit(5)}
+                      onShowMore={() =>
+                        setVisibleProjectLimit((current) =>
+                          Math.min(current + 5, projectWorkspaces.length),
+                        )
+                      }
+                    />
+                  ) : null}
+                </>
+              )}
+            </SidebarSection>
         ) : null}
 
-        {organization === "projects" ? (
           <SidebarSection
             action={
               <SidebarSectionActions>
                 <SidebarOrganizeMenu
                   organization={organization}
-                  sort={projectSort}
+                  sort={sessionSort}
                   onOrganizationChange={onOrganizationChange}
-                  onSortChange={onProjectSortChange}
+                  onSortChange={onSessionSortChange}
                 />
-                <IconButton onClick={onChooseWorkspace} title="添加项目">
-                  <Plus size={APP_ICON_SIZE} />
+                <IconButton
+                  onClick={() => onCreateSession(null)}
+                  title="新建无项目任务"
+                >
+                  <SquarePen size={APP_ICON_SIZE} />
                 </IconButton>
               </SidebarSectionActions>
             }
-            collapsed={collapsedSidebarSections.includes("projects")}
-            sectionId="projects"
-            title="项目"
+            collapsed={collapsedSidebarSections.includes("recent")}
+            sectionId="recent"
+            title="最近"
             onToggle={onToggleSidebarSection}
           >
-            {projectWorkspaces.length === 0 ? (
-              <SidebarEmptyRow>暂无项目</SidebarEmptyRow>
+            {recentSessions.length === 0 ? (
+              <SidebarEmptyRow>
+                {organization === "flat" ? "暂无任务" : "暂无无项目任务"}
+              </SidebarEmptyRow>
             ) : (
-              <>
-                {displayedProjects.map((project) =>
-                  renderProject(project, projectWorkspaces, "projects"),
-                )}
-                {hasProjectOverflow ? (
-                  <SidebarShowMoreActions
-                    canCollapse={canCollapseProjects}
-                    canShowMore={canShowMoreProjects}
-                    onCollapse={() => setVisibleProjectLimit(5)}
-                    onShowMore={() =>
-                      setVisibleProjectLimit((current) =>
-                        Math.min(current + 5, projectWorkspaces.length),
-                      )
-                    }
-                  />
-                ) : null}
-              </>
+              <SidebarSessionGroup
+                activeSessionId={activeSessionId}
+                groupKey="recent"
+                manualOrderByScope={manualOrderByScope}
+                now={now}
+                pendingPermissionSessionIds={pendingPermissionSessionIds}
+                titleLoadingIds={titleLoadingIds}
+                sessionFallbackTitles={sessionFallbackTitles}
+                sessions={recentSessions}
+                sort={sessionSort}
+                onArchiveSessions={onArchiveSessions}
+                onManualOrderChange={onManualOrderChange}
+                onPinSession={onPinSession}
+                onSelectSession={onSelectSession}
+                onRenameSession={onRenameSession}
+                onSortChange={onSessionSortChange}
+                onUnpinSession={onUnpinSession}
+              />
             )}
           </SidebarSection>
-        ) : null}
-
-        <SidebarSection
-          action={
-            <SidebarSectionActions>
-              <SidebarOrganizeMenu
-                organization={organization}
-                sort={sessionSort}
-                onOrganizationChange={onOrganizationChange}
-                onSortChange={onSessionSortChange}
-              />
-              <IconButton
-                onClick={() => onCreateSession(null)}
-                title="新建无项目任务"
-              >
-                <SquarePen size={APP_ICON_SIZE} />
-              </IconButton>
-            </SidebarSectionActions>
-          }
-          collapsed={collapsedSidebarSections.includes("recent")}
-          sectionId="recent"
-          title="最近"
-          onToggle={onToggleSidebarSection}
-        >
-          {recentSessions.length === 0 ? (
-            <SidebarEmptyRow>
-              {organization === "flat" ? "暂无任务" : "暂无无项目任务"}
-            </SidebarEmptyRow>
-          ) : (
-            <SidebarSessionGroup
-              activeSessionId={activeSessionId}
-              groupKey="recent"
-              manualOrderByScope={manualOrderByScope}
-              now={now}
-              pendingPermissionSessionIds={pendingPermissionSessionIds}
-              titleLoadingIds={titleLoadingIds}
-              sessionFallbackTitles={sessionFallbackTitles}
-              sessions={recentSessions}
-              sort={sessionSort}
-              onArchiveSessions={onArchiveSessions}
-              onManualOrderChange={onManualOrderChange}
-              onPinSession={onPinSession}
-              onSelectSession={onSelectSession}
-              onRenameSession={onRenameSession}
-              onSortChange={onSessionSortChange}
-              onUnpinSession={onUnpinSession}
-            />
-          )}
-        </SidebarSection>
+        </div>
+        )}
       </div>
-      )}
     </ScrollArea>
   );
 }

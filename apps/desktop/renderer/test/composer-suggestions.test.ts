@@ -22,6 +22,15 @@ import {
 } from '../src/features/session/newSessionSuggestionState.js'
 import { buildContextualTaskSuggestions } from '../src/features/session/newSessionSuggestions.js'
 import { shouldApplyGeneratedSuggestions } from '../src/features/session/useContextualTaskSuggestions.js'
+import {
+  createWorkingSuggestionState,
+  returnToWorkingSuggestionRoot,
+  selectWorkingSuggestionCategory,
+  selectWorkingSuggestionTask,
+  shouldShowWorkingSuggestions,
+  syncWorkingSuggestionState,
+  WORKING_SUGGESTION_CATEGORIES,
+} from '../src/features/session/workingSuggestions.js'
 
 describe('composer suggestions', () => {
   test('loads enabled runtime skills once per workspace and refreshes on demand', async () => {
@@ -253,6 +262,115 @@ describe('composer suggestions', () => {
         '输入中',
       ),
     ).toBeNull()
+  })
+})
+
+describe('working suggestions', () => {
+  const categoryState = selectWorkingSuggestionCategory(
+    'today',
+    '规划今天的工作',
+  )
+
+  test('空输入进入第一层，键入内容隐藏建议', () => {
+    expect(createWorkingSuggestionState('')).toEqual({ kind: 'root' })
+    expect(createWorkingSuggestionState('  ')).toEqual({ kind: 'root' })
+    expect(createWorkingSuggestionState('自定义输入')).toEqual({
+      kind: 'hidden',
+      reason: 'custom-input',
+    })
+  })
+
+  test('第一层到第二层的状态转换并记录 starter', () => {
+    expect(categoryState).toEqual({
+      kind: 'category',
+      categoryId: 'today',
+      generatedStarter: '规划今天的工作',
+    })
+    expect(syncWorkingSuggestionState(categoryState, '继续编辑')).toEqual(
+      categoryState,
+    )
+  })
+
+  test('starter 仅在未被用户修改时移除', () => {
+    expect(
+      returnToWorkingSuggestionRoot(categoryState, '规划今天的工作'),
+    ).toEqual({ state: { kind: 'root' }, composerValue: '' })
+    expect(
+      returnToWorkingSuggestionRoot(categoryState, '规划今天的工作。补充'),
+    ).toEqual({ state: { kind: 'root' }, composerValue: '规划今天的工作。补充' })
+    expect(
+      returnToWorkingSuggestionRoot({ kind: 'root' }, '自定义'),
+    ).toEqual({ state: { kind: 'root' }, composerValue: '自定义' })
+  })
+
+  test('九个第二层选项映射到正确提示词，并自动选择规划任务插件', () => {
+    const prompts = WORKING_SUGGESTION_CATEGORIES.flatMap(category =>
+      category.tasks.map(task => ({
+        category: category.id,
+        ...task,
+      })),
+    )
+    expect(prompts).toHaveLength(9)
+    const today = prompts.filter(item => item.category === 'today')
+    expect(today.map(item => item.prompt)).toEqual([
+      '请帮我安排今天全部任务。先询问我要完成的任务、今天的可用时间、固定事项和每项预计耗时，再为我生成可以执行的时间安排。',
+      '请帮我安排带固定时间的事项。先询问我要完成的任务、今天的可用时间、固定事项和每项预计耗时，再为我生成可以执行的时间安排。',
+      '请根据当前工作情况重新规划今天剩余的任务。保留已经完成和固定时间的事项，先向我确认缺失的预计耗时或时间约束，再调整剩余任务。',
+    ])
+    expect(
+      prompts.filter(item => item.category === 'complex').map(item => item.prompt),
+    ).toEqual([
+      '请帮我拆解目标和交付物。先确认工作目标、交付标准、已有资料、依赖和截止时间，再把它拆成可以逐步执行的工作安排。',
+      '请帮我识别依赖和阻塞。先确认工作目标、交付标准、已有资料、依赖和截止时间，再把它拆成可以逐步执行的工作安排。',
+      '请帮我制定分阶段推进计划。先确认工作目标、交付标准、已有资料、依赖和截止时间，再把它拆成可以逐步执行的工作安排。',
+    ])
+    expect(
+      prompts
+        .filter(item => item.category === 'multi-project')
+        .map(item => item.prompt),
+    ).toEqual([
+      '请帮我平衡多个项目优先级。先确认各项目的目标、优先级、截止时间、预计耗时和固定约束，再协调冲突并生成整体工作安排。',
+      '请帮我安排跨项目工作时间。先确认各项目的目标、优先级、截止时间、预计耗时和固定约束，再协调冲突并生成整体工作安排。',
+      '请帮我检查截止时间与冲突。先确认各项目的目标、优先级、截止时间、预计耗时和固定约束，再协调冲突并生成整体工作安排。',
+    ])
+    expect(new Set(prompts.map(item => item.prompt)).size).toBe(9)
+  })
+
+  test('最终建议选择规划任务插件但不自动发送（只替换 Composer）', () => {
+    const result = selectWorkingSuggestionTask(categoryState, 'today-all')
+    expect(result).toEqual({
+      state: { kind: 'hidden', reason: 'prompt-filled' },
+      prompt:
+        '请帮我安排今天全部任务。先询问我要完成的任务、今天的可用时间、固定事项和每项预计耗时，再为我生成可以执行的时间安排。',
+      plugin: 'task-planning',
+    })
+  })
+
+  test('未知任务或非分类状态返回 null', () => {
+    expect(selectWorkingSuggestionTask(categoryState, 'missing')).toBeNull()
+    expect(selectWorkingSuggestionTask({ kind: 'root' }, 'today-all')).toBeNull()
+  })
+
+  test('建议只在 Composer 交互区域聚焦时显示', () => {
+    expect(shouldShowWorkingSuggestions({ kind: 'root' }, true)).toBeTrue()
+    expect(shouldShowWorkingSuggestions(categoryState, true)).toBeTrue()
+    expect(shouldShowWorkingSuggestions({ kind: 'root' }, false)).toBeFalse()
+    expect(shouldShowWorkingSuggestions(categoryState, false)).toBeFalse()
+  })
+
+  test('hidden 状态即使聚焦也不显示建议', () => {
+    expect(
+      shouldShowWorkingSuggestions(
+        { kind: 'hidden', reason: 'custom-input' },
+        true,
+      ),
+    ).toBeFalse()
+    expect(
+      shouldShowWorkingSuggestions(
+        { kind: 'hidden', reason: 'prompt-filled' },
+        true,
+      ),
+    ).toBeFalse()
   })
 })
 

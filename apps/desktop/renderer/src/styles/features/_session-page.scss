@@ -165,6 +165,15 @@
   display: block;
 }
 
+/* --- Working chat home --- */
+.working-chat-view {
+  .quick-chat-composer-region {
+    // 空状态内容整体居中，不把 Composer 固定在窗口最底部；
+    // margin auto 在内容超高时可滚动，不会裁剪顶部
+    margin: auto;
+  }
+}
+
 .quick-chat-hero p,
 .empty-canvas-card p,
 .placeholder-card p {

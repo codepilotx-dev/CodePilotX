@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Boxes,
   BellDot,
@@ -16,6 +16,8 @@ import {
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import type { SidebarProductMode } from "../../../../shared/types.js";
 import type { AppView } from "../../../uiTypes.js";
+import { newSessionPath } from "../../session/newSessionSurface.js";
+import type { NewSessionSurface } from "../../session/newSessionSurface.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import {
@@ -82,13 +84,61 @@ export const PROJECTS_NAV_ITEM: SidebarNavItem = {
 
 export function getSidebarTopNavItems(
   showProjects: boolean,
+  surface?: NewSessionSurface,
 ): SidebarNavItem[] {
-  if (!showProjects) return TOP_NAV_ITEMS
+  const newItem = surface
+    ? { ...TOP_NAV_ITEMS[0]!, path: newSessionPath(surface) }
+    : TOP_NAV_ITEMS[0]!
+  if (!showProjects) return [newItem, ...TOP_NAV_ITEMS.slice(1)]
   return [
-    TOP_NAV_ITEMS[0]!,
+    newItem,
     PROJECTS_NAV_ITEM,
     ...TOP_NAV_ITEMS.slice(1),
   ]
+}
+
+/**
+ * 将最终导航数组拆成固定入口（新建任务）与可滚动入口；
+ * 扁平组织模式下的“项目”仍属于可滚动分组。
+ */
+export function splitSidebarTopNavItems(
+  items: readonly SidebarNavItem[],
+): { fixedItems: SidebarNavItem[]; scrollableItems: SidebarNavItem[] } {
+  return {
+    fixedItems: items.filter(item => item.view === 'new'),
+    scrollableItems: items.filter(item => item.view !== 'new'),
+  }
+}
+
+function SidebarNavItems({
+  items,
+  isActiveView,
+}: {
+  items: readonly SidebarNavItem[];
+  isActiveView: (view: AppView) => boolean;
+}): React.ReactNode {
+  return (
+    <>
+      {items.map((item) => {
+        const active = isActiveView(item.view);
+        return (
+          <SidebarRow
+            active={active}
+            asChild
+            className={cx("sidebar-nav-link", active ? "active" : undefined)}
+            key={item.view}
+            labelClassName={cx('sidebar-item-label', 'u-min-w-0', 'u-truncate')}
+            layout="flex"
+            leading={item.icon}
+          >
+            <Link aria-current={active ? 'page' : undefined} to={item.path}>
+              {item.label}
+            </Link>
+          </SidebarRow>
+        );
+      })}
+    </>
+  );
 }
 
 type Props = {
@@ -126,6 +176,7 @@ export function SidebarHeader({
   onOpenCommandMenu: () => void
 }): React.ReactNode {
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
+  const navigate = useNavigate()
   const {
     sidebarProductMode,
     setSidebarProductMode,
@@ -139,6 +190,12 @@ export function SidebarHeader({
   const timelineToggleTitle = sidebarTimelineEnabled
     ? "关闭时间线 (Ctrl+Alt+U)"
     : "打开时间线 (Ctrl+Alt+U)"
+
+  const handleModeChange = (value: SidebarProductMode): void => {
+    setSidebarProductMode(value)
+    // 模式切换直接导航到对应 Surface 新建页；正在查看的 thread 任务不会被删除或归档
+    navigate(newSessionPath(value))
+  }
 
   return (
     <header className="sidebar-header">
@@ -164,7 +221,7 @@ export function SidebarHeader({
         <PopoverRadioGroup
           value={sidebarProductMode}
           onValueChange={value =>
-            setSidebarProductMode(value as typeof sidebarProductMode)
+            handleModeChange(value as SidebarProductMode)
           }
         >
           {SIDEBAR_PRODUCT_MODE_ORDER.map(value => {
@@ -215,26 +272,41 @@ export function SidebarTopNav({
   isActiveView,
   showProjects,
 }: Props): React.ReactNode {
+  const { sidebarProductMode } = useDesktopSettings()
+  const { scrollableItems } = splitSidebarTopNavItems(
+    getSidebarTopNavItems(showProjects, sidebarProductMode),
+  )
   return (
     <nav className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5" aria-label="主要导航">
-      {getSidebarTopNavItems(showProjects).map((item) => {
-        const active = isActiveView(item.view);
-        return (
-          <SidebarRow
-            active={active}
-            asChild
-            className={cx("sidebar-nav-link", active ? "active" : undefined)}
-            key={item.view}
-            labelClassName={cx('sidebar-item-label', 'u-min-w-0', 'u-truncate')}
-            layout="flex"
-            leading={item.icon}
-          >
-            <Link aria-current={active ? 'page' : undefined} to={item.path}>
-              {item.label}
-            </Link>
-          </SidebarRow>
-        );
-      })}
+      <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
+    </nav>
+  );
+}
+
+/**
+ * 固定在侧栏顶部的“新建任务”入口；与可滚动导航共用相同的
+ * active、键盘焦点、图标、路由和无障碍属性。
+ * `scrollOverlapping` 由滚动视口的实际 scrollTop 驱动：
+ * 内容滚过固定入口时显示边界分隔线，滚回顶部立即隐藏。
+ */
+export function SidebarNewTaskNav({
+  isActiveView,
+  scrollOverlapping,
+}: {
+  isActiveView: (view: AppView) => boolean;
+  scrollOverlapping: boolean;
+}): React.ReactNode {
+  const { sidebarProductMode } = useDesktopSettings()
+  const { fixedItems } = splitSidebarTopNavItems(
+    getSidebarTopNavItems(false, sidebarProductMode),
+  )
+  return (
+    <nav
+      aria-label="新建任务"
+      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5"
+      data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
+    >
+      <SidebarNavItems items={fixedItems} isActiveView={isActiveView} />
     </nav>
   );
 }

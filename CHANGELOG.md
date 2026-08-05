@@ -9,6 +9,8 @@
 
 ### Added
 
+- [desktop/renderer] 新增多模式新建页 Surface 路由（`/new?surface=coding|working|chat`）：URL 有效值优先并与侧栏产品模式同步，缺失或无效参数回退到已保存模式并只替换 `surface` 参数；侧栏模式切换直接导航到对应新建页，「新建任务」链接跟随当前 Surface
+- [desktop/renderer] 新增 Working 首屏：固定标题与居中空状态布局，单 workspace「选择文件夹」选择器，隐藏本地执行与 Git 分支工具条，新增「规划任务」工作插件（可选中/取消，状态仅属于新建页草稿），并提供规划今天的工作、拆解复杂工作、协调多个项目三层分步建议与中文提示词填入
 - [release] 新增 PR `release-parity` 门禁：所有普通 PR 都在 GitHub-hosted runner 上执行 Renderer 最终状态 a11y、x64 Agent 构建、一次性自签证书合成签名与共享 Agent runtime verifier，并在 always 步骤按精确 thumbprint 删除证书、经 ownership marker 校验后清理临时目录
 - [desktop] 支持从已完成的 Assistant 回复分叉到共享当前工作树或隔离托管 worktree 的新聊天
 - [desktop] 在 Local environment 编辑器中说明 worktree setup 可用的源目录与目标目录变量
@@ -34,6 +36,12 @@
 - [release] self-hosted 标签打包 job 使用带 ownership marker 的唯一运行上下文隔离 TEMP/APPDATA/LOCALAPPDATA 与 Agent 数据目录，PR `release-parity` 复用相同上下文在 GitHub-hosted runner 上安全隔离并在 always 步骤经校验清理
 - [release] 从 Windows package verifier 抽出可复用的打包 Agent 运行时验证门面（PE x64、Authenticode、ready、/api/ready、thread-rpc-v4、Pi provider/model 目录、进程树退出与目录清理），供 PR 合成签名 parity 与人工标签签名包复用
 - [release] `version:prepare` 的人工发布指引改为分阶段顺序：先推送签名版本分支并将提交合入 `main`，同步后运行 `version:check -- --tag` 确认目标提交在 `origin/main` 历史，再创建并单独推送签名 `v*` 标签，避免在 `dev` 上同时推分支与标签或未进入 `main` 就打标签
+- [desktop/renderer] 移除侧栏会话行未使用的前置图标占位，使会话标题和工作区元信息与日期分组左侧对齐
+- [desktop/renderer] 将侧栏会话标题与元信息的双行间距调整为 5px，增强工作区信息层次
+- [desktop/renderer] 将侧栏聚焦分组日期标题统一为 UI 字号减 1px 的次级字号，兼顾日期分组层级与可读性
+- [desktop/renderer] 移除 Working 首屏项目与插件工具条的顶部内边距，使下方工具条紧贴 Composer 输入面板
+- [desktop/renderer] 修正 Working 首屏标题与 Composer 工具条布局，避免下方项目和插件区域被裁切，并将聚焦建议调整为无卡片分步列表
+- [desktop/renderer] 调整 Working 首屏 Composer 工具条与工作建议交互，使项目和插件位于输入框下方，并仅在聚焦输入时展示无卡片分步建议
 - [docs] 重写开源项目 README，补充产品截图、Beta 下载、功能概览与公开协作入口，并移除过时的能力限制和数据恢复说明
 - [renderer] 参照 Claude-like 阅读节奏统一 Markdown 标题、段落、列表项间距、引用、表格与代码排版，优化粗体标题说明分组及表格单元格的均匀内边距与居中对齐，同时保留紧凑摘要及工作台响应式布局
 - [renderer] 工作台激活标签统一使用列表选中态主题背景，并在聚焦或悬停时保持激活视觉
@@ -140,6 +148,11 @@
 - [renderer] 修复任务侧栏长标题硬截断和动作区固定占位问题，溢出标题改为渐隐并在悬停时滚动展示完整内容
 - [renderer] 修复 Composer 执行计划弹层被按胶囊内容收缩的定位包含块挤压到约 220px 的问题，改为相对完整摘要区域内容自适应居中（最小约 480px、最大 760px，不足时继续缩小）且不产生横向溢出，并保持胶囊尺寸与悬停/焦点关闭等现有行为不变
 - [Agent/renderer] 修复动态权限请求未进入桌面审批投影、无法授权及响应后卡片无法及时关闭的问题，并支持主与子 Agent 选择更小的授权范围
+
+### Fixed
+
+- [renderer] 统一右侧 Dock 与主工作区的背景色，消除工作台分栏之间的非预期色差
+- [renderer] 修复侧栏仅任务和项目区域滚动的问题，使“新建任务”下方的导航、提示、时间线与项目内容共享滚动区域，并保持头部、新建任务和账户栏固定；内容滚过固定入口时显示边界分隔线
 
 ### Removed
 

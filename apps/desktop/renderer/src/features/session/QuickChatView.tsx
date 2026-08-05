@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
+import { useSearchParams } from "react-router-dom";
 import type { DesktopWorkspace } from "../../../shared/types.js";
+import { useDesktopSettings } from "../settings/useDesktopSettings.js";
 import { NewSessionSuggestions } from "./NewSessionSuggestionPanel.js";
 import {
   createNewSessionSuggestionState,
@@ -15,12 +17,55 @@ import type {
   NewSessionSuggestionTask,
   NewSessionTaskSuggestion,
 } from "./newSessionSuggestions.js";
+import {
+  normalizeNewSessionSurfaceSearch,
+  parseNewSessionSurface,
+} from "./newSessionSurface.js";
 import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
 import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
 import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
 
+const WorkingNewSessionView = lazy(() =>
+  import("./WorkingNewSessionView.js").then(module => ({
+    default: module.WorkingNewSessionView,
+  })),
+);
+
 export function QuickChatView(): React.ReactNode {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { sidebarProductMode, setSidebarProductMode } = useDesktopSettings();
+  const search = searchParams.toString();
+  const urlSurface = parseNewSessionSurface(search);
+  const surface = urlSurface ?? sidebarProductMode;
+
+  // 缺失或无效的 surface 参数回退到已保存模式，并只替换 surface 参数
+  useEffect(() => {
+    if (urlSurface === surface) return;
+    setSearchParams(
+      normalizeNewSessionSurfaceSearch(search, surface),
+      { replace: true },
+    );
+  }, [search, setSearchParams, surface, urlSurface]);
+
+  // URL 中的有效 surface 优先于已保存设置，并同步侧栏模式
+  useEffect(() => {
+    if (urlSurface === null || urlSurface === sidebarProductMode) return;
+    setSidebarProductMode(urlSurface);
+  }, [setSidebarProductMode, sidebarProductMode, urlSurface]);
+
+  if (surface === "working") {
+    return (
+      <Suspense fallback={null}>
+        <WorkingNewSessionView />
+      </Suspense>
+    );
+  }
+
+  return <CodingQuickChatView />;
+}
+
+function CodingQuickChatView(): React.ReactNode {
   const {
     branchName,
     composerProps,
