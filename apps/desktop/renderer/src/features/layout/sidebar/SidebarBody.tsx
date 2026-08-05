@@ -338,6 +338,12 @@ export function SidebarBody({
     if (order) onManualOrderChange("pinned-items", order);
   }
 
+  function pinnedItemKind(
+    key: string,
+  ): SidebarPinnedItem["kind"] | null {
+    return pinnedItems.find(item => item.key === key)?.kind ?? null;
+  }
+
   function renderPinnedItem(item: SidebarPinnedItem): React.ReactNode {
     const shortcutTargetSelector =
       item.kind === "session"
@@ -370,6 +376,10 @@ export function SidebarBody({
         }}
         onDragOver={(event) => {
           if (!draggingPinnedItemKey || draggingPinnedItemKey === item.key) {
+            return;
+          }
+          // 置顶区固定为“会话 → 文件夹”，跨类型拖拽不接受 drop
+          if (pinnedItemKind(draggingPinnedItemKey) !== item.kind) {
             return;
           }
           event.preventDefault();
@@ -406,7 +416,8 @@ export function SidebarBody({
           );
           const targetIndex = event.key === "ArrowUp" ? index - 1 : index + 1;
           const target = pinnedItems[targetIndex];
-          if (index < 0 || !target) return;
+          // 到达会话/文件夹分界时停止，不跨组移动
+          if (index < 0 || !target || target.kind !== item.kind) return;
           event.preventDefault();
           event.stopPropagation();
           movePinnedItem(item.key, target.key);
@@ -457,7 +468,7 @@ export function SidebarBody({
           onUnpinSession={onUnpinSession}
         />
       ) : (
-      <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
+      <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
         {pinnedItems.length > 0 ? (
           <SidebarSection
             collapsed={collapsedSidebarSections.includes("pinned")}

@@ -28,6 +28,7 @@
 
 ### Changed
 
+- [renderer] 区分普通侧栏与时间线的会话缩进，并将置顶内容固定为会话优先、文件夹随后，保持两组内部的手动顺序
 - [renderer] 将侧栏任务按钮的纵向内边距调整为 4px，改善任务行的视觉间距与点击区域
 - [Agent/renderer] 将侧栏优先级聚焦视图调整为紧凑型可筛选时间线，默认按最近一周分组，并按等待用户处理、计划待审批和完成未读整理优先任务
 - [release] self-hosted 标签打包 job 使用带 ownership marker 的唯一运行上下文隔离 TEMP/APPDATA/LOCALAPPDATA 与 Agent 数据目录，PR `release-parity` 复用相同上下文在 GitHub-hosted runner 上安全隔离并在 always 步骤经校验清理

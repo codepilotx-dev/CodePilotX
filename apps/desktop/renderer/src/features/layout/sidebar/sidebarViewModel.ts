@@ -305,32 +305,57 @@ export function buildSidebarPinnedItems({
   pinnedWorkspaces: readonly DesktopWorkspace[]
   storedOrder: readonly string[]
 }): SidebarPinnedItem[] {
-  const byPinnedAt: SidebarPinnedItem[] = [
-    ...pinnedSessions.map(
+  const sessionItems: SidebarPinnedItem[] = pinnedSessions
+    .map(
       (session): SidebarPinnedItem => ({
         key: sidebarPinnedSessionKey(session),
         kind: 'session',
         pinnedAt: session.pinnedAt ?? null,
         session,
       }),
-    ),
-    ...pinnedWorkspaces.map(
+    )
+    .sort(
+      (left, right) =>
+        timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt),
+    )
+  const projectItems: SidebarPinnedItem[] = pinnedWorkspaces
+    .map(
       (project): SidebarPinnedItem => ({
         key: sidebarPinnedProjectKey(project),
         kind: 'project',
         pinnedAt: project.pinnedAt ?? null,
         project,
       }),
-    ),
-  ].sort(
-    (left, right) =>
-      timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt),
-  )
-  const itemByKey = new Map(byPinnedAt.map(item => [item.key, item]))
-  const storedKeys = new Set(storedOrder)
+    )
+    .sort(
+      (left, right) =>
+        timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt),
+    )
+  const sessionKeys = new Set(sessionItems.map(item => item.key))
+  const projectKeys = new Set(projectItems.map(item => item.key))
+  // 置顶区固定为“全部置顶会话 → 全部置顶文件夹”；
+  // 旧 storedOrder 可能是跨类型混排，读取时按类型过滤，仅保留各类型内部的手动顺序。
   return [
-    ...byPinnedAt.filter(item => !storedKeys.has(item.key)),
-    ...storedOrder.flatMap(key => {
+    ...orderPinnedItemGroup(
+      sessionItems,
+      storedOrder.filter(key => sessionKeys.has(key)),
+    ),
+    ...orderPinnedItemGroup(
+      projectItems,
+      storedOrder.filter(key => projectKeys.has(key)),
+    ),
+  ]
+}
+
+function orderPinnedItemGroup(
+  items: readonly SidebarPinnedItem[],
+  storedKeys: readonly string[],
+): SidebarPinnedItem[] {
+  const storedKeySet = new Set(storedKeys)
+  const itemByKey = new Map(items.map(item => [item.key, item]))
+  return [
+    ...items.filter(item => !storedKeySet.has(item.key)),
+    ...storedKeys.flatMap(key => {
       const item = itemByKey.get(key)
       return item ? [item] : []
     }),
@@ -343,6 +368,9 @@ export function reorderSidebarPinnedItemKeys(
   targetKey: string,
 ): string[] | null {
   if (sourceKey === targetKey) return null
+  const source = items.find(item => item.key === sourceKey)
+  const target = items.find(item => item.key === targetKey)
+  if (!source || !target || source.kind !== target.kind) return null
   const order = items.map(item => item.key)
   const sourceIndex = order.indexOf(sourceKey)
   const targetIndex = order.indexOf(targetKey)

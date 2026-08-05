@@ -447,7 +447,7 @@ describe('sidebar view model', () => {
     ])
   })
 
-  test('interleaves pinned tasks and projects with one cross-type manual order', () => {
+  test('pinned sessions always precede pinned projects regardless of pinnedAt', () => {
     const newerProject: DesktopWorkspace = {
       name: 'Newer project',
       path: 'C:\\newer',
@@ -471,36 +471,102 @@ describe('sidebar view model', () => {
     })
 
     expect(byPinnedAt.map(item => item.key)).toEqual([
-      sidebarPinnedProjectKey(newerProject),
       sidebarPinnedSessionKey(pinnedSession),
+      sidebarPinnedProjectKey(newerProject),
       sidebarPinnedProjectKey(olderProject),
     ])
+  })
 
-    const manuallyOrdered = buildSidebarPinnedItems({
-      pinnedSessions: [pinnedSession],
-      pinnedWorkspaces: [olderProject, newerProject],
+  test('normalizes mixed cross-type stored order into sessions then projects', () => {
+    // 旧顺序：文件夹 B、会话 A、文件夹 C、会话 D
+    // 新顺序：会话 A、会话 D、文件夹 B、文件夹 C（各组内部相对顺序不变）
+    const projectB: DesktopWorkspace = {
+      name: 'B',
+      path: 'C:\\b',
+      projectId: 'b',
+      pinnedAt: '2026-07-18T06:00:00.000Z',
+    }
+    const projectC: DesktopWorkspace = {
+      name: 'C',
+      path: 'C:\\c',
+      projectId: 'c',
+      pinnedAt: '2026-07-18T08:00:00.000Z',
+    }
+    const sessionA = {
+      ...session('a', 'C:\\alpha'),
+      pinnedAt: '2026-07-18T05:00:00.000Z',
+    }
+    const sessionD = {
+      ...session('d', 'C:\\delta'),
+      pinnedAt: '2026-07-18T07:00:00.000Z',
+    }
+    const items = buildSidebarPinnedItems({
+      pinnedSessions: [sessionA, sessionD],
+      pinnedWorkspaces: [projectB, projectC],
       storedOrder: [
-        sidebarPinnedProjectKey(olderProject),
-        sidebarPinnedSessionKey(pinnedSession),
-        sidebarPinnedProjectKey(newerProject),
+        sidebarPinnedProjectKey(projectB),
+        sidebarPinnedSessionKey(sessionA),
+        sidebarPinnedProjectKey(projectC),
+        sidebarPinnedSessionKey(sessionD),
       ],
     })
-    expect(manuallyOrdered.map(item => item.key)).toEqual([
-      sidebarPinnedProjectKey(olderProject),
-      sidebarPinnedSessionKey(pinnedSession),
-      sidebarPinnedProjectKey(newerProject),
+
+    expect(items.map(item => item.key)).toEqual([
+      sidebarPinnedSessionKey(sessionA),
+      sidebarPinnedSessionKey(sessionD),
+      sidebarPinnedProjectKey(projectB),
+      sidebarPinnedProjectKey(projectC),
+    ])
+  })
+
+  test('reorders pinned items within the same kind and rejects cross-kind moves', () => {
+    const projectB: DesktopWorkspace = {
+      name: 'B',
+      path: 'C:\\b',
+      projectId: 'b',
+      pinnedAt: '2026-07-18T06:00:00.000Z',
+    }
+    const projectC: DesktopWorkspace = {
+      name: 'C',
+      path: 'C:\\c',
+      projectId: 'c',
+      pinnedAt: '2026-07-18T08:00:00.000Z',
+    }
+    const sessionA = {
+      ...session('a', 'C:\\alpha'),
+      pinnedAt: '2026-07-18T05:00:00.000Z',
+    }
+    const items = buildSidebarPinnedItems({
+      pinnedSessions: [sessionA],
+      pinnedWorkspaces: [projectB, projectC],
+      storedOrder: [],
+    })
+
+    expect(
+      reorderSidebarPinnedItemKeys(
+        items,
+        sidebarPinnedProjectKey(projectB),
+        sidebarPinnedProjectKey(projectC),
+      ),
+    ).toEqual([
+      sidebarPinnedSessionKey(sessionA),
+      sidebarPinnedProjectKey(projectB),
+      sidebarPinnedProjectKey(projectC),
     ])
     expect(
       reorderSidebarPinnedItemKeys(
-        manuallyOrdered,
-        sidebarPinnedProjectKey(olderProject),
-        sidebarPinnedSessionKey(pinnedSession),
+        items,
+        sidebarPinnedSessionKey(sessionA),
+        sidebarPinnedProjectKey(projectC),
       ),
-    ).toEqual([
-      sidebarPinnedSessionKey(pinnedSession),
-      sidebarPinnedProjectKey(olderProject),
-      sidebarPinnedProjectKey(newerProject),
-    ])
+    ).toBeNull()
+    expect(
+      reorderSidebarPinnedItemKeys(
+        items,
+        sidebarPinnedProjectKey(projectC),
+        sidebarPinnedSessionKey(sessionA),
+      ),
+    ).toBeNull()
   })
 
   test('derives stable visual state precedence', () => {

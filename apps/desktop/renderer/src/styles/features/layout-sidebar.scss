@@ -659,6 +659,11 @@
   }
 }
 
+// 普通模式会话统一右缩进；时间线行不在此容器内，继续使用 8px 基线。
+.sidebar-standard-mode .sidebar-row--session {
+  padding-left: var(--layout-sidebar-session-indent);
+}
+
 .sidebar-project-sortable {
   &.is-dragging {
     opacity: 0.48;
