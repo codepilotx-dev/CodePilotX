@@ -31,7 +31,6 @@ describe("发布进程环境", () => {
         GITHUB_EVENT_PATH: "event.json",
         Runner_Temp: "runner-temp",
         ACTIONS_CACHE_URL: "https://cache.invalid",
-        RELEASE_BOT_TOKEN: "release-token",
         CSC_KEY_PASSWORD: "signing-password",
         KEEP: "yes",
       },
