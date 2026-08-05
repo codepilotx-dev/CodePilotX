@@ -79,6 +79,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复 Windows 自定义安装目录中的编辑器与开发工具无法出现在外部打开菜单的问题，补齐 Visual Studio、GitHub Desktop、File Explorer、Windows Terminal 和 IntelliJ IDEA 检测，并统一应用图标与失效默认项回退
 - [release] agent-runtime-verifier CLI 统一支持 `--name value` 与 `--name=value` 两种参数形式，并将 Agent 路径解析为绝对路径后再启动与验证，避免 Windows 上相对路径启动拿不到子进程 pid 导致进程树清理失败
 - [release] release-parity 锚点链验证改在 Windows PowerShell 5.1 完成：用 ExtraStore 与 AllowUnknownCertificateAuthority 构建链后固定链根 thumbprint 必须等于锚证书，移除对 PowerShell 7 的依赖（本地开发机 Store 版 pwsh 别名无法被 Bun 直接启动），根存储依旧不写入
 - [release] release-parity 合成签名流程修复：运行上下文与证书创建拆分为独立步骤，证书受信根导入与清理改用 X509Store，避免 PowerShell 7 下 Import-PfxCertificate 挂起及用户根存储的 UI 限制
