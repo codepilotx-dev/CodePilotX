@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@codepilotx/shared": "workspace:*",
-    "@playwright/test": "1.55.1",
+    "@playwright/test": "1.62.1",
     "@types/node": "^24.0.0",
     "electron": "39.8.10",
     "electron-builder": "26.15.3",
