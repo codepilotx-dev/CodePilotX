@@ -488,7 +488,6 @@ export type DesktopBrowserSitePermission = {
 }
 
 export type DesktopOpenTargetKind =
-  | 'default-app'
   | 'file-explorer'
   | 'terminal'
   | 'editor'
@@ -505,7 +504,7 @@ export type DesktopOpenTarget = {
 export type DesktopExternalOpenTarget = {
   id: string
   label: string
-  kind: 'default-app' | 'editor'
+  kind: DesktopOpenTargetKind
   iconDataUrl?: string
   preferred: boolean
 }

@@ -7,9 +7,7 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
-  Code2,
   Copy,
-  File,
   FolderOpen,
   GitBranch,
   Laptop,
@@ -19,13 +17,13 @@ import {
   Pencil,
   Pin,
   Sparkles,
-  SquareTerminal,
   Workflow,
 } from "lucide-react";
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
+import { OpenTargetIcon } from "../../../components/ui/openTargetIcon.js";
 import type {
   DesktopOpenTarget,
   DesktopPermissionRequest,
@@ -109,19 +107,9 @@ const ConversationEnvironmentControls = React.lazy(() =>
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
-    id: "default-app",
-    label: "Default app",
-    kind: "default-app",
-  },
-  {
     id: "file-explorer",
     label: "File Explorer",
     kind: "file-explorer",
-  },
-  {
-    id: "terminal",
-    label: "Terminal",
-    kind: "terminal",
   },
 ];
 
@@ -1345,21 +1333,13 @@ function SessionSubmenu({
 }
 
 function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
-  if (target.iconDataUrl) {
-    return (
-      <img alt="" className="chat-open-target-icon" src={target.iconDataUrl} />
-    );
-  }
-  if (target.kind === "file-explorer") {
-    return <FolderOpen size={APP_ICON_SIZE} />;
-  }
-  if (target.kind === "terminal") {
-    return <SquareTerminal size={APP_ICON_SIZE} />;
-  }
-  if (target.kind === "editor") {
-    return <Code2 size={APP_ICON_SIZE} />;
-  }
-  return <File size={APP_ICON_SIZE} />;
+  return (
+    <OpenTargetIcon
+      className="chat-open-target-icon"
+      kind={target.kind}
+      targetId={target.id}
+    />
+  );
 }
 
 type WorkflowComposerMode = "chat" | "brainstorm" | "plan" | "permission";

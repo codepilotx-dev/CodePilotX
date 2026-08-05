@@ -182,7 +182,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     providerID: '',
     providerBaseURL: '',
     showContextUsage: true,
-    defaultOpenTargetId: 'default-app',
+    defaultOpenTargetId: 'auto',
     gitBranchPrefix: 'codepilotx/',
     gitPrMergeMethod: 'merge',
     gitShowPrIconsInSidebar: true,

@@ -47,7 +47,7 @@ type DesktopClientWindow = {
     listExternalOpenTargets?(targetPath: string): Promise<Array<{
       targetId: string
       label: string
-      kind: 'default-app' | 'editor'
+      kind: 'file-explorer' | 'terminal' | 'editor'
       iconDataUrl?: string
     }>>
     openPathWithTarget?(targetPath: string, targetId: string): Promise<void>

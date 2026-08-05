@@ -40,6 +40,7 @@ import {
   normalizeDesktopThemeSettings,
 } from '../../../shared/theme.js'
 import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
+import { resolvePreferredOpenTarget } from './openTargetSelection.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -1416,17 +1417,25 @@ export function createAgentSessionDesktopClient(
         listTargets(targetPath),
         client.getDesktopSettings(),
       ])
-      const preferredId = targets.some(
-        target => target.targetId === settings.defaultOpenTargetId,
-      )
-        ? settings.defaultOpenTargetId
-        : 'default-app'
-      return targets.map(target => ({
+      const mappedTargets = targets.map(target => ({
         id: target.targetId,
         label: target.label,
         kind: target.kind,
         ...(target.iconDataUrl ? { iconDataUrl: target.iconDataUrl } : {}),
-        preferred: target.targetId === preferredId,
+      }))
+      const resolved = resolvePreferredOpenTarget(
+        mappedTargets,
+        settings.defaultOpenTargetId,
+      )
+      if (resolved && resolved.id !== settings.defaultOpenTargetId) {
+        await client.saveDesktopSettings({
+          ...settings,
+          defaultOpenTargetId: resolved.id,
+        })
+      }
+      return mappedTargets.map(target => ({
+        ...target,
+        preferred: target.id === resolved?.id,
       }))
     },
     listOpenTargets: async () => {
@@ -1460,14 +1469,14 @@ export function createAgentSessionDesktopClient(
       const openPath =
         environment.window?.codePilotXDesktop?.openPathWithTarget
       if (!openPath) return mockClient.openPathWithDefaultTarget(targetPath)
-      const settings = await client.getDesktopSettings()
       const targets = await client.listExternalOpenTargets(targetPath)
-      const targetId = targets.some(
-        target => target.id === settings.defaultOpenTargetId,
+      const settings = await client.getDesktopSettings()
+      const resolved = resolvePreferredOpenTarget(
+        targets,
+        settings.defaultOpenTargetId,
       )
-        ? settings.defaultOpenTargetId
-        : 'default-app'
-      return openPath(targetPath, targetId)
+      if (!resolved) throw new Error('没有可用的外部打开方式。')
+      return openPath(targetPath, resolved.id)
     },
     revealPathInFolder: async targetPath => {
       const revealPath =

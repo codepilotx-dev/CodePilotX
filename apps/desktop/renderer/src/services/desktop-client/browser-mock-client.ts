@@ -464,13 +464,13 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     getMcpOAuthStatus: async () => mcpUnavailable(),
     logoutMcpOAuth: async () => mcpUnavailable(),
     listOpenTargets: async () => [
-      { id: 'default-app', label: '系统默认应用', kind: 'default-app' },
+      { id: 'file-explorer', label: 'File Explorer', kind: 'file-explorer' },
     ],
     listExternalOpenTargets: async () => [
       {
-        id: 'default-app',
-        label: '系统默认应用',
-        kind: 'default-app',
+        id: 'file-explorer',
+        label: 'File Explorer',
+        kind: 'file-explorer',
         preferred: true,
       },
     ],

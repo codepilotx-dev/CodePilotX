@@ -3,7 +3,6 @@ import type React from 'react'
 import {
   ChevronDown,
   ChevronRight,
-  Code2,
   FolderOpen,
 } from 'lucide-react'
 import type {
@@ -21,6 +20,7 @@ import {
   PopoverSeparator,
 } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { OpenTargetIcon } from '../../../components/ui/openTargetIcon.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
   loadExternalOpenTargets,
@@ -190,19 +190,13 @@ export function FileBreadcrumbToolbar({
               openWithTarget(preferredOpenTarget)
             }}
           >
-            {preferredOpenTarget?.iconDataUrl ? (
-              <img
-                alt=""
+            {preferredOpenTarget ? (
+              <OpenTargetIcon
                 className="file-breadcrumb-open-target-icon"
-                src={preferredOpenTarget.iconDataUrl}
+                kind={preferredOpenTarget.kind}
+                targetId={preferredOpenTarget.id}
               />
-            ) : (
-              <Code2
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            )}
+            ) : null}
             <span>打开</span>
           </button>
           <PopoverMenu
@@ -241,19 +235,11 @@ export function FileBreadcrumbToolbar({
               {openTargets.map(target => (
                 <PopoverRadioItem
                   icon={
-                    target.iconDataUrl ? (
-                      <img
-                        alt=""
-                        className="file-breadcrumb-open-target-icon"
-                        src={target.iconDataUrl}
-                      />
-                    ) : (
-                      <Code2
-                        aria-hidden="true"
-                        size={APP_ICON_SIZE}
-                        strokeWidth={APP_ICON_STROKE_WIDTH}
-                      />
-                    )
+                    <OpenTargetIcon
+                      className="file-breadcrumb-open-target-icon"
+                      kind={target.kind}
+                      targetId={target.id}
+                    />
                   }
                   key={target.id}
                   value={target.id}
