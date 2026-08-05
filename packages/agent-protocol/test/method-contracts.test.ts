@@ -2394,6 +2394,17 @@ describe("RPC method schema contracts", () => {
     expect(decode(read).threads[0]?.unreadAt).toBeNull()
   })
 
+  test("thread list pendingPlanApproval stays optional and decodes present values", () => {
+    const decode = Schema.decodeUnknownSync(RpcMethods["thread/list"].result)
+    const withoutPlan = structuredClone(fixtures["thread/list"].result)
+    delete (withoutPlan.threads[0] as { pendingPlanApproval?: boolean }).pendingPlanApproval
+    expect(decode(withoutPlan).threads[0]?.pendingPlanApproval).toBeUndefined()
+
+    const withPlan = structuredClone(fixtures["thread/list"].result)
+    ;(withPlan.threads[0] as { pendingPlanApproval?: boolean }).pendingPlanApproval = true
+    expect(decode(withPlan).threads[0]?.pendingPlanApproval).toBe(true)
+  })
+
   test("accepts bundled changelog as a release notes source", () => {
     const result = {
       ...fixtures["release-notes/list"].result,

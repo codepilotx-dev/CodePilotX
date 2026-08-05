@@ -471,4 +471,137 @@ describe('agent thread adapter', () => {
       },
     })
   })
+
+  test('maps latestTurnStatus and pendingPlanApproval from the list item, missing fields default to false', () => {
+    const thread: ThreadListItem = {
+      id: 'thread-plan', projectID: project.id, gitBranch: null, workspace: projectWorkspace, title: '计划待审批',
+      preview: null, firstUserMessage: null, messageCount: 2, latestTurnStatus: 'completed',
+      pendingPlanApproval: true,
+      settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
+    }
+    const item = agentThreadListItemToDesktop(thread, project)
+    expect(item.latestTurnStatus).toBe('completed')
+    expect(item.pendingPlanApproval).toBe(true)
+
+    const { pendingPlanApproval: _omitted, ...legacyThread } = thread
+    const legacyItem = agentThreadListItemToDesktop(legacyThread as ThreadListItem, project)
+    expect(legacyItem.latestTurnStatus).toBe('completed')
+    expect(legacyItem.pendingPlanApproval).toBe(false)
+  })
+
+  test('keeps waiting-question, waiting-permission and waiting-subagents distinct on the desktop item', () => {
+    for (const latestTurnStatus of ['waiting-question', 'waiting-permission', 'waiting-subagents'] as const) {
+      const thread: ThreadListItem = {
+        id: `thread-${latestTurnStatus}`, projectID: project.id, gitBranch: null, workspace: projectWorkspace, title: '等待中',
+        preview: null, firstUserMessage: null, messageCount: 0, latestTurnStatus,
+        settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+        archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
+      }
+      const item = agentThreadListItemToDesktop(thread, project)
+      expect(item.status).toBe('waiting')
+      expect(item.latestTurnStatus).toBe(latestTurnStatus)
+    }
+  })
+
+  test('derives pendingPlanApproval from the latest completed turn with a completed plan item', () => {
+    const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } as const
+    const model = { providerID: 'openai', id: 'gpt-5' }
+    const snapshot: ThreadSnapshot = {
+      thread: {
+        id: 'thread-plan-snapshot', title: '计划待审批', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
+        settings: { taskMode: 'plan', permissionConfig },
+        createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
+      },
+      turns: [{
+        id: 'turn-plan', threadId: 'thread-plan-snapshot', sourceInputID: 'input-plan', status: 'completed', mode: 'plan', model, permissionConfig,
+        rootAgentId: 'agent-plan', mergedInputIDs: [], startedAt: 1_700_000_001_000,
+        finishedAt: 1_700_000_007_000, elapsedSeconds: 6, error: null,
+      }],
+      agents: [], inputs: [], messages: [],
+      items: [
+        { id: 'plan-1', messageID: 'turn-plan', turnId: 'turn-plan', agentId: 'agent-plan', type: 'plan', title: '实施计划', markdown: '- 步骤', status: 'completed', createdAt: 1_700_000_005_000 },
+      ],
+      approvals: [],
+    }
+
+    const desktop = agentThreadSnapshotToDesktop(snapshot, project)
+    expect(desktop.item.latestTurnStatus).toBe('completed')
+    expect(desktop.item.pendingPlanApproval).toBe(true)
+  })
+
+  test('does not mark pendingPlanApproval for streaming plan, newer running turn, or planless completed turn', () => {
+    const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } as const
+    const model = { providerID: 'openai', id: 'gpt-5' }
+    const thread = {
+      id: 'thread-plan-negative', title: '无待审批', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
+      settings: { taskMode: 'plan', permissionConfig },
+      createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
+    }
+    const turn = (id: string, status: 'completed' | 'running') => ({
+      id, threadId: thread.id, sourceInputID: `input-${id}`, status, mode: 'plan' as const, model, permissionConfig,
+      rootAgentId: `agent-${id}`, mergedInputIDs: [], startedAt: 1_700_000_001_000,
+      finishedAt: status === 'completed' ? 1_700_000_007_000 : null, elapsedSeconds: 6, error: null,
+    })
+    const planItem = {
+      id: 'plan-neg', messageID: 'turn-plan-old', turnId: 'turn-plan-old', agentId: 'agent-plan-old', type: 'plan' as const,
+      title: '计划', markdown: '- 步骤', status: 'completed' as const, createdAt: 1_700_000_005_000,
+    }
+
+    const streamingPlan: ThreadSnapshot = {
+      thread, turns: [{ ...turn('turn-stream', 'completed'), id: 'turn-stream', sourceInputID: 'input-turn-stream' }],
+      agents: [], inputs: [], messages: [], approvals: [],
+      items: [{ ...planItem, turnId: 'turn-stream', status: 'streaming' }],
+    }
+    expect(agentThreadSnapshotToDesktop(streamingPlan, project).item.pendingPlanApproval).toBe(false)
+
+    const newerRunning: ThreadSnapshot = {
+      thread, turns: [turn('turn-old', 'completed'), turn('turn-new', 'running')],
+      agents: [], inputs: [], messages: [], approvals: [],
+      items: [planItem],
+    }
+    expect(agentThreadSnapshotToDesktop(newerRunning, project).item.pendingPlanApproval).toBe(false)
+
+    const planless: ThreadSnapshot = {
+      thread, turns: [turn('turn-plain', 'completed')],
+      agents: [], inputs: [], messages: [], items: [], approvals: [],
+    }
+    expect(agentThreadSnapshotToDesktop(planless, project).item.pendingPlanApproval).toBe(false)
+  })
+
+  test('list item and full snapshot derive the same priority state', () => {
+    const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } as const
+    const model = { providerID: 'openai', id: 'gpt-5' }
+    const thread: ThreadListItem = {
+      id: 'thread-consistent', projectID: project.id, gitBranch: null, workspace: projectWorkspace, title: '一致推导',
+      preview: null, firstUserMessage: null, messageCount: 1, latestTurnStatus: 'completed',
+      pendingPlanApproval: true,
+      settings: { taskMode: 'plan', permissionConfig },
+      archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
+    }
+    const snapshot: ThreadSnapshot = {
+      thread: {
+        id: thread.id, title: thread.title, projectID: project.id, gitBranch: null, workspace: projectWorkspace,
+        settings: { taskMode: 'plan', permissionConfig },
+        createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
+      },
+      turns: [{
+        id: 'turn-consistent', threadId: thread.id, sourceInputID: 'input-consistent', status: 'completed', mode: 'plan', model, permissionConfig,
+        rootAgentId: 'agent-consistent', mergedInputIDs: [], startedAt: 1_700_000_001_000,
+        finishedAt: 1_700_000_007_000, elapsedSeconds: 6, error: null,
+      }],
+      agents: [], inputs: [], messages: [],
+      items: [
+        { id: 'plan-consistent', messageID: 'turn-consistent', turnId: 'turn-consistent', agentId: 'agent-consistent', type: 'plan', title: '计划', markdown: '- 步骤', status: 'completed', createdAt: 1_700_000_005_000 },
+      ],
+      approvals: [],
+    }
+
+    expect(agentThreadListItemToDesktop(thread, project).pendingPlanApproval).toBe(
+      agentThreadSnapshotToDesktop(snapshot, project).item.pendingPlanApproval,
+    )
+    expect(agentThreadListItemToDesktop(thread, project).latestTurnStatus).toBe(
+      agentThreadSnapshotToDesktop(snapshot, project).item.latestTurnStatus,
+    )
+  })
 })

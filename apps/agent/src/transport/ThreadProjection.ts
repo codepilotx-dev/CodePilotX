@@ -553,7 +553,24 @@ export class ThreadProjection {
         read_state.unread_at,
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents') THEN 0 ELSE 1 END,
-            u.created_at DESC LIMIT 1) AS latest_turn_status
+            u.created_at DESC LIMIT 1) AS latest_turn_status,
+        EXISTS (
+          SELECT 1
+          FROM turns AS plan_turn
+          WHERE plan_turn.thread_id = t.id
+            AND plan_turn.status = 'completed'
+            AND plan_turn.id = (
+              SELECT u.id FROM turns AS u WHERE u.thread_id = t.id
+              ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents') THEN 0 ELSE 1 END,
+                u.created_at DESC LIMIT 1
+            )
+            AND EXISTS (
+              SELECT 1 FROM items AS plan_item
+              WHERE plan_item.turn_id = plan_turn.id
+                AND plan_item.type = 'plan'
+                AND plan_item.status NOT IN ('pending', 'running', 'interrupted')
+            )
+        ) AS pending_plan_approval
       FROM threads AS t
       LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
@@ -577,6 +594,7 @@ export class ThreadProjection {
       latestTurnStatus: row.latest_turn_status == null ? null : turnStatus(String(row.latest_turn_status)),
       archivedAt: row.archived_at == null ? null : Number(row.archived_at),
       unreadAt: row.unread_at == null ? null : Number(row.unread_at),
+      pendingPlanApproval: Number(row.pending_plan_approval) === 1,
       settings: {
         taskMode: String(row.task_mode) as ThreadListItem["settings"]["taskMode"],
         permissionConfig: {
