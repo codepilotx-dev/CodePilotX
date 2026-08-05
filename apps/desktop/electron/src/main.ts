@@ -184,8 +184,6 @@ async function startDesktop(): Promise<void> {
   const externalOpenTargets = new ExternalOpenTargetService({
     platform: process.platform,
     env: process.env,
-    getFileIconDataUrl: async path =>
-      (await app.getFileIcon(path, { size: "normal" })).toDataURL(),
     openPath: path => shell.openPath(path),
     revealPath: path => shell.showItemInFolder(path),
     spawnProcess: (executablePath, args, options) =>
