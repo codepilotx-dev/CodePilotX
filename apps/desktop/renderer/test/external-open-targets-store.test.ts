@@ -8,9 +8,9 @@ import {
 
 const targets: DesktopExternalOpenTarget[] = [
   {
-    id: 'default-app',
-    kind: 'default-app',
-    label: '系统默认应用',
+    id: 'file-explorer',
+    kind: 'file-explorer',
+    label: 'File Explorer',
     preferred: true,
   },
   {
@@ -121,13 +121,13 @@ describe('external open targets store', () => {
 
     await expect(
       store.openPathWithPreferredExternalTarget(path),
-    ).resolves.toMatchObject({ id: 'default-app', preferred: true })
+    ).resolves.toMatchObject({ id: 'file-explorer', preferred: true })
     await expect(
       store.openPathWithExternalTarget(path, 'cursor'),
     ).resolves.toMatchObject({ id: 'cursor', preferred: true })
 
     expect(opened).toEqual([
-      { path, targetId: 'default-app' },
+      { path, targetId: 'file-explorer' },
       { path, targetId: 'cursor' },
     ])
     await expect(store.loadExternalOpenTargets(path)).resolves.toEqual([
