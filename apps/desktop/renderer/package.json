@@ -74,7 +74,7 @@
     "@tailwindcss/vite": "4.3.3",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "5.1.2",
+    "@vitejs/plugin-react": "6.0.5",
     "lightningcss": "1.32.0",
     "postcss": "^8.5.19",
     "postcss-scss": "^4.0.9",
