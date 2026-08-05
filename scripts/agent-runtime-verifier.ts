@@ -1,8 +1,8 @@
 /**
  * agent-runtime-verifier.ts — 打包 Agent 运行时验证门面。
  *
- * 供本地 package verifier、PR synthetic-signing parity、self-hosted daily
- * canary 与最终 tag package 复用；不实现第二套 PE 修改逻辑。
+ * 供本地 package verifier、普通 PR 的合成签名 `release-parity` 与人工标签签名包
+ * 复用；不实现第二套 PE 修改逻辑。
  *
  * CLI：
  *   bun scripts/agent-runtime-verifier.ts --agent <path> [--require-authenticode]

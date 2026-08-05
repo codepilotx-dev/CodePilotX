@@ -9,8 +9,7 @@
 
 ### Added
 
-- [release] 新增 PR `release-parity` 门禁：在 GitHub-hosted runner 上执行 Renderer 最终状态 a11y、x64 Agent 构建、一次性自签证书合成签名与共享 Agent runtime verifier，并在 always 步骤按精确 thumbprint 删除证书、经 ownership marker 校验后清理临时目录；可信 Release PR 验证身份与 dry-run 回执后以同一 job 名快速成功
-- [release] 新增每日 release runner canary：只读权限的 self-hosted 巡检每天构建、真实签名并运行共享 Agent runtime verifier，输出安全计时摘要，无 Prepare、Release PR、Finalize、tag、Release 或 Issue 副作用
+- [release] 新增 PR `release-parity` 门禁：所有普通 PR 都在 GitHub-hosted runner 上执行 Renderer 最终状态 a11y、x64 Agent 构建、一次性自签证书合成签名与共享 Agent runtime verifier，并在 always 步骤按精确 thumbprint 删除证书、经 ownership marker 校验后清理临时目录
 - [desktop] 支持从已完成的 Assistant 回复分叉到共享当前工作树或隔离托管 worktree 的新聊天
 - [desktop] 在 Local environment 编辑器中说明 worktree setup 可用的源目录与目标目录变量
 - [desktop/Agent/renderer] 新增 Windows-first 集成终端，每个任务拥有一个 ConPTY/PTY 会话，支持 shell profile、主题、回放、尺寸同步、任务关闭清理及经审批的有界终端输出读取
@@ -21,8 +20,6 @@
 - [desktop/renderer/test] 新增 1200 个真实修改文件、500 轮长会话、30 个任务与三个真实 Agent 会话并发写入时的 Electron 拖动性能验收
 - [Agent/renderer] 修改文件卡片新增三文件折叠、Review 文件定位及基于精确文件状态校验的撤销与重新应用
 - [Agent/renderer] 新增 Review 摘要扫描、快照重试与文件 Diff 失败的安全诊断日志，便于定位“无法加载变更”问题
-- [release] 新增专用 Windows runner 驱动的两阶段 Beta 自动发布流程，在 main 静默期后自动升版、完整验证、创建 Release PR，并于远端 CI 通过后签名打标和发布 prerelease
-- [release] 新增手动 Beta 发布 Skill，仅使用 dev 已提交内容创建 main PR，并在一次正式确认后复用完整验证、Release PR、签名标签及 prerelease 发布流程
 - [Agent/renderer] 新增可选的明文 `auth.json` Provider 凭据仓库与本机加密仓库切换流程，迁移会先验证目标再清理源，并明确提示便携性与明文风险
 - [Agent/renderer] 新增可跨重启保留的会话未读状态，后台任务完成或失败时显示前景色未读点并在打开会话后清除
 - [desktop/renderer] 新增可配置的 Windows 任务系统通知，在权限、提问、完成和失败时提醒用户，并支持点击恢复应用并打开对应任务
@@ -31,11 +28,11 @@
 
 ### Changed
 
-- [release] 更新 Beta 发布 Skill、手动运行手册与发布自动化文档：补充唯一运行上下文的创建与安全清理、`release-parity` 与可信 Release PR 快速路径、每日 canary 的只读职责、安全耗时指标的观察方式，以及本地预检失败轮不计数且不得定向重跑漂绿
-- [release] 每个 self-hosted 发布 job（Prepare dry-run/live、Finalize、tag package）使用带 ownership marker 的唯一运行上下文隔离 TEMP/APPDATA/LOCALAPPDATA 与 Agent 数据目录，清理时重新校验 repository、run ID、attempt 与 UUID，Prepare 与 Finalize 共享仓库级 release-state 并发组防止并发修改发布状态
-- [release] 从 Windows package verifier 抽出可复用的打包 Agent 运行时验证门面（PE x64、Authenticode、ready、/api/ready、thread-rpc-v4、Pi provider/model 目录、进程树退出与目录清理），供本地 verifier、PR 合成签名 parity、每日 canary 与最终 tag 复用
-- [release] dry-run 回执新增经过范围校验的安全耗时指标（ConPTY、Agent ready、Desktop ready、签名打包、安装冒烟、总计），只记录毫秒数与计数，不参与证明信任判定，超过 12 分钟 P95 目标只警告
-- [release] Beta 发布改为本地完整质量门禁与 SHA/tree 绑定的 SSH 签名证明，self-hosted 发布机只验证环境并生成可复用 dry-run 回执，最终标签产物在受保护发布机签名构建后由 GitHub-hosted job 证明来源并发布
+- [renderer] 将侧栏任务按钮的纵向内边距调整为 4px，改善任务行的视觉间距与点击区域
+- [Agent/renderer] 将侧栏优先级聚焦视图调整为紧凑型可筛选时间线，默认按最近一周分组，并按等待用户处理、计划待审批和完成未读整理优先任务
+- [release] self-hosted 标签打包 job 使用带 ownership marker 的唯一运行上下文隔离 TEMP/APPDATA/LOCALAPPDATA 与 Agent 数据目录，PR `release-parity` 复用相同上下文在 GitHub-hosted runner 上安全隔离并在 always 步骤经校验清理
+- [release] 从 Windows package verifier 抽出可复用的打包 Agent 运行时验证门面（PE x64、Authenticode、ready、/api/ready、thread-rpc-v4、Pi provider/model 目录、进程树退出与目录清理），供 PR 合成签名 parity 与人工标签签名包复用
+- [release] `version:prepare` 的人工发布指引改为分阶段顺序：先推送签名版本分支并将提交合入 `main`，同步后运行 `version:check -- --tag` 确认目标提交在 `origin/main` 历史，再创建并单独推送签名 `v*` 标签，避免在 `dev` 上同时推分支与标签或未进入 `main` 就打标签
 - [docs] 重写开源项目 README，补充产品截图、Beta 下载、功能概览与公开协作入口，并移除过时的能力限制和数据恢复说明
 - [renderer] 参照 Claude-like 阅读节奏统一 Markdown 标题、段落、列表项间距、引用、表格与代码排版，优化粗体标题说明分组及表格单元格的均匀内边距与居中对齐，同时保留紧凑摘要及工作台响应式布局
 - [renderer] 工作台激活标签统一使用列表选中态主题背景，并在聚焦或悬停时保持激活视觉
@@ -59,7 +56,6 @@
 - [renderer] 将侧栏、工作台及 Review 文件树调整为真实宽高与 flex 布局实时拖动，使相邻内容随指针自然重排并仅在结束时持久化尺寸
 - [Agent/renderer] 子代理改为共享工作区并行执行，并在完成后按真实工具修改立即向父任务上报状态与文件
 - [renderer] 将全局错误详情格式化与提示组件改为异常发生时按需加载，避免非错误路径占用 `/new` 首屏预算
-- [release] 发布机 workflow 不再依赖 setup-bun 在线下载，改用发布机预装 Bun 1.3.14（PATH 提供），避免受限网络下工具链下载失败
 - [desktop/renderer] 统一侧栏、菜单、Composer、设置、Review 与会话摘要的紧凑交互行规格和状态反馈，减少同类控件的尺寸、圆角与浮层效果漂移。
 - [renderer] 收紧会话摘要与中等宽度阅读区，并调整响应式断点，使约 1920px 窗口同时打开侧栏和 Review 时仍保留置顶摘要
 - [renderer] 移除共享动作按钮阴影，并降低卡片、弹窗与浮层的全局阴影层级
@@ -74,34 +70,26 @@
 
 ### Fixed
 
-- [release] 本地 Beta 预检清理临时 worktree 时在 Windows 上启用 core.longpaths，避免 bun/electron-builder 生成的超长 node_modules 路径导致 git 删除失败（Filename too long）
-- [release] 本地 Beta 预检的 pwsh 调用在没有标准 PowerShell 7 安装时经 cmd.exe 按用户 PATH 解析执行（WindowsApps Store 别名无法被 Bun 直接启动），避免维护者工作站预检在安装冒烟步骤失败
 - [release] agent-runtime-verifier CLI 统一支持 `--name value` 与 `--name=value` 两种参数形式，并将 Agent 路径解析为绝对路径后再启动与验证，避免 Windows 上相对路径启动拿不到子进程 pid 导致进程树清理失败
 - [release] release-parity 锚点链验证改在 Windows PowerShell 5.1 完成：用 ExtraStore 与 AllowUnknownCertificateAuthority 构建链后固定链根 thumbprint 必须等于锚证书，移除对 PowerShell 7 的依赖（本地开发机 Store 版 pwsh 别名无法被 Bun 直接启动），根存储依旧不写入
 - [release] release-parity 合成签名流程修复：运行上下文与证书创建拆分为独立步骤，证书受信根导入与清理改用 X509Store，避免 PowerShell 7 下 Import-PfxCertificate 挂起及用户根存储的 UI 限制
 - [release/test] 修正发布契约测试与 Authenticode 拒绝路径测试的 CI 环境差异：契约断言按 LF 归一化读取 workflow，Authenticode 用例改用确定未签名的非 PE 文件验证拒绝路径，不再依赖本机/CI bun.exe 的签名状态
 - [Agent] 统一 Windows 测试夹具清理到共享 helper：teardown 先关闭数据库、watcher、子进程与服务再删除路径，EBUSY/EPERM/ENOTEMPTY 按固定约 5 秒窗口重试并严格顺序清理，重试时强制 GC 释放 Bun sqlite 延迟持有的 -wal/-shm 句柄，持续句柄占用成为真实测试失败而非被静默吞掉
 - [desktop/release] 将打包 ConPTY 冒烟的单阶段预算提高到 30 秒、进程总预算提高到 90 秒，避免 GitHub-hosted Windows 冷启动长尾误判安装包损坏，同时保留严格超时
-- [Agent/release] 将 Windows 全仓测试数据库夹具的可恢复清理等待扩展到 5 秒，避免短暂文件占用误阻塞本地 Beta 预检，同时在持续占用时仍保留失败
-- [renderer/release] 为会话处理过程的原生 disclosure 提供稳定可访问名称，避免空摘要在 Review 场景触发 WCAG `summary-name` 违规并阻塞本地 Beta 预检
-- [release/test] 隔离 MCP 项目信任临时配置，将预检期望字段校验抽为纯断言，并为真实 SSH 密钥夹具保留独立时限，避免祖先配置污染与 Windows SSH 进程长尾导致全仓本地门禁不稳定
-- [release] 固定 Pi Agent Core 生成声明为 LF，避免 Windows 本地预检在内容未变化时因换行符重写误判 worktree 不干净
-- [release] 本地 Beta 预检复用当前 Bun 可执行文件并以目录语义移除空临时父目录，兼容仅暴露 PowerShell shim 的 Windows 工作站且不把清理异常遮蔽为质量门禁失败
-- [renderer/release] 外观主题编辑器在异步 code-theme seed 完成前声明 busy，并将预览强调色调整到 WCAG AA 对比度后再运行 a11y 扫描，避免未完成样式与 `#339cff` 白底低对比度误阻塞 Beta
+- [Agent/release] 将 Windows 全仓测试数据库夹具的可恢复清理等待扩展到 5 秒，避免短暂文件占用误阻塞测试并卡住发布，保证普通 PR CI 的单元测试正常执行，同时持续占用时仍保留失败
+- [renderer/release] 为会话处理过程的原生 disclosure 提供稳定可访问名称，避免空摘要在 Review 场景触发 WCAG `summary-name` 违规，保证普通 PR `release-parity` 的 a11y 检查正常执行
+- [renderer/release] 外观主题编辑器在异步 code-theme seed 完成前声明 busy，并将预览强调色调整到 WCAG AA 对比度后再运行 a11y 扫描，避免未完成样式与 `#339cff` 白底低对比度，保证普通 PR `release-parity` 的 a11y 检查正常执行
 - [desktop/release] 打包桌面启动 Sidecar 时若 Windows 服务账户缺少 Documents 已知文件夹，则回退到其 home 下的 Documents，并将环境求值、进程创建与 stdin 关闭分阶段诊断，避免自托管发布 Runner 在创建 Agent 前反复失败
 - [desktop/release] Sidecar 连接失败日志新增固定枚举的启动阶段与错误码，发布 smoke 可在不输出路径、异常正文或凭据的前提下区分托管地址、命令解析、进程创建、Agent 就绪与桌面加载故障
-- [release] 临时 Release worktree 仅在 tracked/untracked 状态完全干净时无强制参数移除，失败现场存在变更时保留并拒绝自动清理
 - [release] Windows 打包 smoke 不再把 `CODEPILOTX_*`、GitHub Actions、runner 或签名发布变量传入产品进程，仅注入当前测试白名单，避免 Windows 环境块膨胀导致 Sidecar 无法创建并阻止 CI 凭据进入桌面与 Agent
 - [release] Windows 打包 smoke 在持久 runner 上最多等待 180 秒接收 `desktop.ready`，同时在桌面进程先退出时立即失败，避免冷启动抖动误报且不掩盖真实崩溃
 - [release] Windows 打包 smoke 超时时仅输出最近的安全事件名轨迹，为持久 runner 启动卡点保留诊断证据且不暴露路径、消息或凭据
 - [renderer/release] Renderer a11y 首次 Vite 页面预热使用独立 240 秒预算，正式 WCAG 场景仍保留默认短预算，避免持久 Windows runner 冷编译超过 120 秒时中止整套审计
 - [desktop/release] Sidecar 为签名 Agent 冷启动保留 60 秒 ready 消息窗口，并让 packaged smoke 输出有限枚举的失败类型，避免持久 runner 反复提前终止同一合法启动
 - [release] Windows 打包 smoke 显式清除 runner 注入的托管 Agent URL 并固定隔离 userData，确保验证刚打包的 owned Agent 而非外部服务
-- [release] Prepare 的小时级 schedule 只排队等待，不再取消正在执行的手动 dry-run；main push 仍会取消已过期候选，避免未经重新确认继续发布
-- [renderer/release] Visual 与 a11y Playwright 测试通过配置白名单启动器动态分配严格回环端口并正确传递失败状态，a11y 复用正式 `new` 场景路由在审计前以独立 120 秒预算预热首次 Vite 页面且单个 WCAG 场景仍保持默认 30 秒，同时提高 Review diff 小字号文本及增删高亮背景的 WCAG AA 对比度，避免持久 Windows runner 残留进程、冷启动误报或假绿结果阻断 Beta 发布
+- [renderer/release] Visual 与 a11y Playwright 测试通过配置白名单启动器动态分配严格回环端口并正确传递失败状态，a11y 复用正式 `new` 场景路由在审计前以独立 120 秒预算预热首次 Vite 页面且单个 WCAG 场景仍保持默认 30 秒，同时提高 Review diff 小字号文本及增删高亮背景的 WCAG AA 对比度，避免持久 Windows runner 残留进程、冷启动误报或假绿结果，保证普通 PR CI 与 `release-parity` 正常执行
 - [Auth Broker/test] 并发 PKCE 交换测试按响应状态识别并显式验证唯一成功与重放请求，不再假定 Promise.all 中第一个请求必定先取得 attempt，避免不同 runner 调度顺序造成误报
 - [Agent/release] Local environment 生命周期在 Windows 复用 Agent 既有的 PowerShell 可执行文件解析，优先使用可用的 pwsh 并以 SystemRoot 下 Windows PowerShell 回退，避免 release runner 的服务 PATH 缺少 powershell.exe 时 setup 误报失败
-- [release] Prepare 在 detached worktree 中直接创建并推送签名提交，不再于持久 Windows runner 留下本地发布分支，避免 dry-run 失败后重试及后续正式发布被同名分支阻断
 - [Agent/test] ConfigService 关闭时等待文件 watcher 完成释放，配置迁移测试复用数据库 reset 的 GC 辅助有界 EBUSY 重试，避免 Windows 句柄滞留误报失败
 - [desktop/release] 修复 Windows 打包重复从源码编译已提供官方 N-API 预构建产物的 node-pty、导致缺少本机 Spectre C++ 组件时无法产出安装包的问题，并保留打包态 ConPTY 实际运行校验
 - [Agent/desktop/renderer] 修复 Handoff 重放与崩溃恢复、托管 worktree 并发变更、终端 Action 换代接入、PTY 单实例及输出镜像积压问题，并让 Local environment 结构化编辑保留嵌套 JSONC 注释和未知键
@@ -117,7 +105,6 @@
 - [Agent/renderer] 修复 Review 批量 Diff 在新 Renderer 与旧 Agent 版本错配时永久加载的问题，增加能力降级、读取超时及慢请求阶段诊断
 - [renderer] 修复平滑回到底部途中中间滚动事件重新显示按钮的问题，确保 Composer 摘要退出动画完整播放
 - [release] 发布机 workflow 的脚本步骤显式设置 TEMP/TMP 为 runner 工作区临时目录，避免服务账户系统 TEMP（C:\Windows\TEMP）与磁盘真实目录大小写不一致导致路径断言类单元测试失败
-- [release] 修复自动 Release PR 的版本一致性检查失败：升版刷新 lockfile 改用非冻结的 `bun install`，并按其既有格式同步三个 workspace 条目的版本号（bun 不会把 workspace 版本变更写回 bun.lock）
 - [desktop/renderer] 修复设置搜索输入未连接现有键盘结果处理器的问题，恢复方向键选择、Enter 导航和搜索结果定位。
 - [desktop/renderer/test] 更新 Settings 综合视觉用例对统一动作按钮契约的断言，避免继续校验已移除的旧无边框样式。
 - [desktop/renderer] 修复紧凑交互行悬停色被错误映射为主表面背景的问题，还原 Codex 的透明叠加层级，并让侧栏、Composer 与会话摘要获得清晰一致的 hover 反馈。
@@ -145,7 +132,7 @@
 - [agent] 更新会话标题时综合首轮目标与近期已完成对话，避免提交、推送等单次收尾操作覆盖会话主线
 - [Agent/renderer] 为“新特性”内置当前版本更新记录，并在 GitHub 限流或离线时回退显示，避免 Dialog 只剩错误状态
 - [renderer] 修复顶部帮助菜单“新特性”点击无响应的问题，使其可以打开版本更新记录 Dialog
-- [release] Windows 打包校验会重试清理被短暂占用的临时目录，发布流程改用 Release ID 校验、上传和发布草稿，避免文件锁与草稿标签查询语义导致可信 beta 发布误失败
+- [release] Windows 打包校验会重试清理被短暂占用的临时目录，发布流程改用 Release ID 校验、上传和发布草稿，避免文件锁与草稿标签查询语义导致人工签名标签发布误失败
 - [agent] 数据迁移临时库使用 DELETE journal 并延长文件锁重试窗口，避免 Bun 在 Windows 上残留 WAL 句柄导致原子发布误失败。
 - [agent] 数据迁移失败后的临时库清理不再覆盖原始校验错误，残留临时文件会在下次启动前继续清理，避免 Windows 文件锁改变故障语义。
 - [agent] 数据迁移与校验连接改用一次性查询助手并严格关闭，迁移期间不再缓存 Statement，彻底释放 Windows 上 SQLite 文件句柄，避免合并迁移偶发 EBUSY。
@@ -157,6 +144,7 @@
 
 - [renderer/test] 移除不应入库的 Workbench 视觉截图基线并忽略后续本地产物，避免二进制快照污染仓库历史
 - [renderer] 移除不可达的旧会话渲染、workflow 事件调试入口及桌面调试模式，统一使用 canonical 会话与标准弹层行为
+- [release] 移除 Beta 自动升版、Release PR 编排、仓库发布 Skill、预检证明与回执及每日发布机巡检，版本改回人工准备并通过签名标签触发打包发布
 
 ### Security
 
@@ -174,7 +162,6 @@
 - [ci] 安全 CI 仅在 PR 上运行，避免同一提交的 push 与 pull_request 使用相同检查上下文时，非门禁 push 抖动错误阻塞受保护分支合并；CodeQL 仍扫描受保护分支 push
 - [ci] 新增覆盖版本一致性、High/Critical 依赖审计、类型检查、单元测试、Renderer CSS 规则和全仓构建的 Windows CI，并通过最小权限、不可变 Actions 提交、禁用持久凭据、超时与并发取消降低供应链风险
 - [dependencies] 将 MCP SDK、Hono、Wrangler、Electron、electron-builder 与 Vite 升级到包含安全修复的版本，并为暂不可升级的 React Router 公告增加有负责人和到期日的审计豁免
-- [release] Beta 与稳定版安装包不再要求 Authenticode 代码签名，改由隔离的构建/发布权限、SHA-256 校验和、SPDX JSON SBOM、GitHub 构建来源与 SBOM attestation 提供来源和完整性证明；稳定版还需经过受保护环境批准
 - [governance] 明确私密漏洞报告的确认、初步评估与持续同步目标，让报告者能够预期安全响应节奏
 
 ## 0.2.0-beta.3 — 2026-07-29

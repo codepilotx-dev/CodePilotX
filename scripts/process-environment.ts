@@ -31,9 +31,6 @@ function isReleaseRunnerInternalKey(key: string): boolean {
     || normalized.startsWith("runner_")
     || normalized.startsWith("actions_")
     || normalized === "ci"
-    || normalized === "release_bot_token"
-    || normalized === "release_dry_run"
-    || normalized === "configured_quiet_minutes"
     || normalized === "csc_link"
     || normalized === "csc_key_password"
     || normalized === "win_csc_link"
