@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 import type {
   DesktopRemovedWorkspace,
   DesktopWorkspace,
@@ -22,6 +24,11 @@ import {
   shouldShowSidebarPreview,
 } from '../src/features/layout/sidebarShellState.js'
 import {
+  DEFAULT_RESIZE_COLLAPSE_BEHAVIOR,
+  shouldCollapseSidebarResize,
+} from '../src/features/layout/useSidebarResizeCollapseConfirm.js'
+import { getSidebarScrollModeKey } from '../src/features/layout/sidebar/useSidebarScrollController.js'
+import {
   buildSidebarSessionHoverCardModel,
   formatSidebarSessionRelativeTime,
 } from '../src/features/layout/sidebar/SidebarSessionHoverCard.js'
@@ -30,7 +37,7 @@ import {
 } from '../src/features/layout/sidebar/SidebarProjectHoverCard.js'
 import { getSidebarSessionDisplayGroups } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
 import {
-  buildSidebarFocusSections,
+  buildSidebarTimelineModel,
   buildSidebarPinnedItems,
   buildProjectSessionBuckets,
   buildSidebarViewModel,
@@ -38,23 +45,51 @@ import {
   labelForDayOffset,
   localDayOrdinal,
   reorderSidebarPinnedItemKeys,
+  sidebarArchivableAttentionSessions,
+  sidebarAttentionUnreadSessions,
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
   sidebarProjectKey,
   sortProjectsForSidebar,
-  type SidebarSessionVisualState,
+  type SidebarTimelineModel,
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
 import { sortSessionsForSidebar } from '../src/features/session/state/sessionSorting.js'
 import {
   getSidebarTopNavItems,
+  type SidebarCapabilityState,
   SIDEBAR_PRODUCT_MODE_META,
   SIDEBAR_PRODUCT_MODE_ORDER,
+  splitSidebarTopNavItems,
   TOP_NAV_ITEMS,
 } from '../src/features/layout/sidebar/SidebarTopNav.js'
+import { newSessionPath } from '../src/features/session/newSessionSurface.js'
 import {
   SETTINGS_GROUPS,
   SETTINGS_ITEMS,
 } from '../src/features/settings/settingsRegistry.js'
+
+const unknownSidebarCapabilities: SidebarCapabilityState = {
+  status: 'unknown',
+  capabilities: null,
+}
+
+function readySidebarCapabilities(
+  ...capabilities: ProtocolCapability[]
+): SidebarCapabilityState {
+  return { status: 'ready', capabilities: new Set(capabilities) }
+}
+
+function sidebarNavItems(
+  showProjects: boolean,
+  surface?: Parameters<typeof getSidebarTopNavItems>[0]['surface'],
+  capabilityState: SidebarCapabilityState = unknownSidebarCapabilities,
+) {
+  return getSidebarTopNavItems({
+    showProjects,
+    surface,
+    capabilityState,
+  })
+}
 
 describe('Codex 侧栏导航', () => {
   test('产品模式按约定顺序展示名称和说明', () => {
@@ -81,9 +116,9 @@ describe('Codex 侧栏导航', () => {
     ])
     expect(TOP_NAV_ITEMS.some(item => item.path === '/search')).toBeFalse()
     expect(TOP_NAV_ITEMS.some(item => item.path === '/sites')).toBeFalse()
-    expect(getSidebarTopNavItems(false)).toEqual(TOP_NAV_ITEMS)
+    expect(sidebarNavItems(false)).toEqual(TOP_NAV_ITEMS)
     expect(
-      getSidebarTopNavItems(true).map(item => ({
+      sidebarNavItems(true).map(item => ({
         view: item.view,
         label: item.label,
         path: item.path,
@@ -97,6 +132,154 @@ describe('Codex 侧栏导航', () => {
         path: item.path,
       })),
     ])
+  })
+
+  test('模式切换目标分别为对应 Surface 新建页', () => {
+    expect(
+      SIDEBAR_PRODUCT_MODE_ORDER.map(mode => newSessionPath(mode)),
+    ).toEqual([
+      '/new?surface=coding',
+      '/new?surface=working',
+      '/new?surface=chat',
+    ])
+  })
+
+  test('新建任务链接跟随当前 Surface，未指定时保留 /new 兼容入口', () => {
+    expect(sidebarNavItems(false, 'working')[0]).toMatchObject({
+      view: 'new',
+      label: '新建任务',
+      path: '/new?surface=working',
+    })
+    expect(
+      sidebarNavItems(true, 'chat').map(item => ({
+        view: item.view,
+        path: item.path,
+      })),
+    ).toEqual([
+      { view: 'new', path: '/new?surface=chat' },
+      { view: 'projects', path: '/projects' },
+      ...TOP_NAV_ITEMS.slice(1).map(item => ({
+        view: item.view,
+        path: item.path,
+      })),
+    ])
+    expect(sidebarNavItems(false)[0]!.path).toBe('/new')
+  })
+
+  test('普通组织模式下固定分组只包含新建任务', () => {
+    const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
+      sidebarNavItems(false),
+    )
+    expect(fixedItems.map(item => item.view)).toEqual(['new'])
+    expect(scrollableItems.map(item => item.view)).toEqual([
+      'pullRequests',
+      'automations',
+      'plugins',
+      'models',
+      'labs',
+    ])
+  })
+
+  test('扁平组织模式下项目位于可滚动分组首位而不是固定分组', () => {
+    const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
+      sidebarNavItems(true),
+    )
+    expect(fixedItems.map(item => item.view)).toEqual(['new'])
+    expect(scrollableItems.map(item => item.view)).toEqual([
+      'projects',
+      'pullRequests',
+      'automations',
+      'plugins',
+      'models',
+      'labs',
+    ])
+  })
+
+  test('可滚动分组不重复包含新建任务，且固定入口跟随 Surface', () => {
+    const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
+      sidebarNavItems(true, 'working'),
+    )
+    expect(scrollableItems.some(item => item.view === 'new')).toBeFalse()
+    expect(fixedItems[0]!.path).toBe('/new?surface=working')
+  })
+
+  test('拆分后完整导航顺序保持不变', () => {
+    for (const showProjects of [false, true]) {
+      const items = sidebarNavItems(showProjects)
+      const { fixedItems, scrollableItems } = splitSidebarTopNavItems(items)
+      expect([...fixedItems, ...scrollableItems]).toEqual(items)
+    }
+  })
+
+  test('能力未知或 Agent 暂时不可用时保持现有导航顺序', () => {
+    const unavailable: SidebarCapabilityState = {
+      status: 'unavailable',
+      capabilities: null,
+    }
+
+    expect(sidebarNavItems(false).map(item => item.view)).toEqual(
+      TOP_NAV_ITEMS.map(item => item.view),
+    )
+    expect(
+      sidebarNavItems(false, undefined, unavailable).map(item => item.view),
+    ).toEqual(TOP_NAV_ITEMS.map(item => item.view))
+  })
+
+  test('明确缺少 GitHub 能力时隐藏拉取请求但保留固定产品入口', () => {
+    const items = sidebarNavItems(false, undefined, readySidebarCapabilities())
+
+    expect(items.map(item => item.view)).toEqual([
+      'new',
+      'automations',
+      'labs',
+    ])
+  })
+
+  test('插件入口满足 Skills 或 MCP 任一能力即可显示', () => {
+    for (const capability of ['skills.manage.v1', 'mcp.manage.v1'] as const) {
+      expect(
+        sidebarNavItems(
+          false,
+          undefined,
+          readySidebarCapabilities(capability),
+        ).some(item => item.view === 'plugins'),
+      ).toBeTrue()
+    }
+  })
+
+  test('供应商入口满足模型目录或任一 Pi Provider 能力即可显示', () => {
+    for (const capability of [
+      'model.catalog.paged.v1',
+      'provider.config.pi.v1',
+      'provider.auth.pi.v1',
+    ] as const) {
+      expect(
+        sidebarNavItems(
+          false,
+          undefined,
+          readySidebarCapabilities(capability),
+        ).some(item => item.view === 'models'),
+      ).toBeTrue()
+    }
+  })
+
+  test('能力过滤不改变项目规则且固定区域仍只有新建任务', () => {
+    const withoutProjects = sidebarNavItems(
+      false,
+      undefined,
+      readySidebarCapabilities('github.pullRequests.v1'),
+    )
+    const withProjects = sidebarNavItems(
+      true,
+      undefined,
+      readySidebarCapabilities('github.pullRequests.v1'),
+    )
+    const { fixedItems, scrollableItems } = splitSidebarTopNavItems(withProjects)
+
+    expect(withoutProjects.some(item => item.view === 'projects')).toBeFalse()
+    expect(withProjects.some(item => item.view === 'projects')).toBeTrue()
+    expect(fixedItems.map(item => item.view)).toEqual(['new'])
+    expect(scrollableItems.some(item => item.view === 'new')).toBeFalse()
   })
 
   test('从设置目录移除旧 connections 标签', () => {
@@ -144,6 +327,58 @@ describe('设置导航', () => {
 })
 
 describe('sidebar shell modes', () => {
+  test('keeps independent runtime scroll modes without persistent storage', () => {
+    expect([
+      getSidebarScrollModeKey({
+        organization: 'projects',
+        timelineEnabled: true,
+      }),
+      getSidebarScrollModeKey({
+        organization: 'flat',
+        timelineEnabled: true,
+      }),
+      getSidebarScrollModeKey({
+        organization: 'projects',
+        timelineEnabled: false,
+      }),
+      getSidebarScrollModeKey({
+        organization: 'flat',
+        timelineEnabled: false,
+      }),
+    ]).toEqual([
+      'timeline:priority',
+      'timeline:priority',
+      'standard:projects',
+      'standard:flat',
+    ])
+
+    const controllerSource = readFileSync(
+      new URL(
+        '../src/features/layout/sidebar/useSidebarScrollController.ts',
+        import.meta.url,
+      ),
+      'utf8',
+    )
+    expect(controllerSource).not.toContain('localStorage')
+    expect(controllerSource).not.toContain('useDesktopSettings')
+    expect(controllerSource).not.toContain('timeline:recent')
+  })
+
+  test('left threshold collapses below 120px while the shared default stays hold-target', () => {
+    const leftBehavior = { kind: 'threshold', threshold: 120 } as const
+
+    expect(shouldCollapseSidebarResize(119, leftBehavior)).toBeTrue()
+    expect(shouldCollapseSidebarResize(120, leftBehavior)).toBeFalse()
+    expect(DEFAULT_RESIZE_COLLAPSE_BEHAVIOR).toEqual({ kind: 'hold-target' })
+
+    const rightDockSource = readFileSync(
+      new URL('../src/features/layout/dock/RightDock.tsx', import.meta.url),
+      'utf8',
+    )
+    expect(rightDockSource).toContain('SIDEBAR_COLLAPSE_HOLD_MS')
+    expect(rightDockSource).not.toContain('collapseBehavior:')
+  })
+
   test('uses the 720px container boundary without changing desktop preference', () => {
     expect(isSidebarNarrow(SIDEBAR_RESPONSIVE_BREAKPOINT)).toBe(true)
     expect(isSidebarNarrow(SIDEBAR_RESPONSIVE_BREAKPOINT + 1)).toBe(false)
@@ -447,7 +682,7 @@ describe('sidebar view model', () => {
     ])
   })
 
-  test('interleaves pinned tasks and projects with one cross-type manual order', () => {
+  test('pinned sessions always precede pinned projects regardless of pinnedAt', () => {
     const newerProject: DesktopWorkspace = {
       name: 'Newer project',
       path: 'C:\\newer',
@@ -471,36 +706,102 @@ describe('sidebar view model', () => {
     })
 
     expect(byPinnedAt.map(item => item.key)).toEqual([
-      sidebarPinnedProjectKey(newerProject),
       sidebarPinnedSessionKey(pinnedSession),
+      sidebarPinnedProjectKey(newerProject),
       sidebarPinnedProjectKey(olderProject),
     ])
+  })
 
-    const manuallyOrdered = buildSidebarPinnedItems({
-      pinnedSessions: [pinnedSession],
-      pinnedWorkspaces: [olderProject, newerProject],
+  test('normalizes mixed cross-type stored order into sessions then projects', () => {
+    // 旧顺序：文件夹 B、会话 A、文件夹 C、会话 D
+    // 新顺序：会话 A、会话 D、文件夹 B、文件夹 C（各组内部相对顺序不变）
+    const projectB: DesktopWorkspace = {
+      name: 'B',
+      path: 'C:\\b',
+      projectId: 'b',
+      pinnedAt: '2026-07-18T06:00:00.000Z',
+    }
+    const projectC: DesktopWorkspace = {
+      name: 'C',
+      path: 'C:\\c',
+      projectId: 'c',
+      pinnedAt: '2026-07-18T08:00:00.000Z',
+    }
+    const sessionA = {
+      ...session('a', 'C:\\alpha'),
+      pinnedAt: '2026-07-18T05:00:00.000Z',
+    }
+    const sessionD = {
+      ...session('d', 'C:\\delta'),
+      pinnedAt: '2026-07-18T07:00:00.000Z',
+    }
+    const items = buildSidebarPinnedItems({
+      pinnedSessions: [sessionA, sessionD],
+      pinnedWorkspaces: [projectB, projectC],
       storedOrder: [
-        sidebarPinnedProjectKey(olderProject),
-        sidebarPinnedSessionKey(pinnedSession),
-        sidebarPinnedProjectKey(newerProject),
+        sidebarPinnedProjectKey(projectB),
+        sidebarPinnedSessionKey(sessionA),
+        sidebarPinnedProjectKey(projectC),
+        sidebarPinnedSessionKey(sessionD),
       ],
     })
-    expect(manuallyOrdered.map(item => item.key)).toEqual([
-      sidebarPinnedProjectKey(olderProject),
-      sidebarPinnedSessionKey(pinnedSession),
-      sidebarPinnedProjectKey(newerProject),
+
+    expect(items.map(item => item.key)).toEqual([
+      sidebarPinnedSessionKey(sessionA),
+      sidebarPinnedSessionKey(sessionD),
+      sidebarPinnedProjectKey(projectB),
+      sidebarPinnedProjectKey(projectC),
+    ])
+  })
+
+  test('reorders pinned items within the same kind and rejects cross-kind moves', () => {
+    const projectB: DesktopWorkspace = {
+      name: 'B',
+      path: 'C:\\b',
+      projectId: 'b',
+      pinnedAt: '2026-07-18T06:00:00.000Z',
+    }
+    const projectC: DesktopWorkspace = {
+      name: 'C',
+      path: 'C:\\c',
+      projectId: 'c',
+      pinnedAt: '2026-07-18T08:00:00.000Z',
+    }
+    const sessionA = {
+      ...session('a', 'C:\\alpha'),
+      pinnedAt: '2026-07-18T05:00:00.000Z',
+    }
+    const items = buildSidebarPinnedItems({
+      pinnedSessions: [sessionA],
+      pinnedWorkspaces: [projectB, projectC],
+      storedOrder: [],
+    })
+
+    expect(
+      reorderSidebarPinnedItemKeys(
+        items,
+        sidebarPinnedProjectKey(projectB),
+        sidebarPinnedProjectKey(projectC),
+      ),
+    ).toEqual([
+      sidebarPinnedSessionKey(sessionA),
+      sidebarPinnedProjectKey(projectB),
+      sidebarPinnedProjectKey(projectC),
     ])
     expect(
       reorderSidebarPinnedItemKeys(
-        manuallyOrdered,
-        sidebarPinnedProjectKey(olderProject),
-        sidebarPinnedSessionKey(pinnedSession),
+        items,
+        sidebarPinnedSessionKey(sessionA),
+        sidebarPinnedProjectKey(projectC),
       ),
-    ).toEqual([
-      sidebarPinnedSessionKey(pinnedSession),
-      sidebarPinnedProjectKey(olderProject),
-      sidebarPinnedProjectKey(newerProject),
-    ])
+    ).toBeNull()
+    expect(
+      reorderSidebarPinnedItemKeys(
+        items,
+        sidebarPinnedProjectKey(projectC),
+        sidebarPinnedSessionKey(sessionA),
+      ),
+    ).toBeNull()
   })
 
   test('derives stable visual state precedence', () => {
@@ -828,67 +1129,217 @@ function session(
   } as SessionListItem
 }
 
-describe('侧栏聚焦视图投影', () => {
+describe('侧栏时间线投影', () => {
   // 假定当前日期 2026-08-01（星期六）
   const NOW = new Date('2026-08-01T12:00:00.000Z').getTime()
 
-  function focusSession(
+  function timelineSession(
     id: string,
-    lastMessageAt: string | null | undefined,
-    state: SidebarSessionVisualState = 'idle',
+    latestTurnStatus: SessionListItem['latestTurnStatus'],
+    lastMessageAt: string | null = '2026-08-01T00:00:00.000Z',
     extras: Partial<SessionListItem> = {},
   ): SessionListItem {
     return {
       ...session(id, `C:\\${id}`, lastMessageAt ?? undefined),
+      latestTurnStatus,
+      unreadAt: null,
       ...extras,
     }
   }
 
   function focus(
     sessions: SessionListItem[],
-    sessionStateById: Record<string, SidebarSessionVisualState>,
-  ) {
-    return buildSidebarFocusSections({
+    showPinned = false,
+  ): SidebarTimelineModel {
+    return buildSidebarTimelineModel({
       now: NOW,
+      showPinned,
       sessions,
-      sessionStateById,
     })
   }
 
-  test('等待输入、未读、运行中进入优先级，且不受日期窗口限制', () => {
-    const sections = focus(
-      [
-        focusSession('needs', '2026-05-01T00:00:00.000Z', 'needs-input'),
-        focusSession('unread', '2026-05-02T00:00:00.000Z', 'unread'),
-        focusSession('running', '2026-05-03T00:00:00.000Z', 'running'),
-      ],
-      {
-        needs: 'needs-input',
-        unread: 'unread',
-        running: 'running',
-      },
-    )
-    expect(sections.map(s => s.id)).toEqual(['priority'])
-    expect(sections[0]!.sessions.map(s => s.id)).toEqual([
-      'needs',
-      'unread',
-      'running',
+  test('等待问题、等待权限、计划待审批、完成未读始终进入关注投影，且不受日期窗口限制', () => {
+    const model = focus([
+      timelineSession('plan-approval', 'completed', '2026-05-01T00:00:00.000Z', {
+        pendingPlanApproval: true,
+      }),
+      timelineSession('question', 'waiting-question', '2026-05-02T00:00:00.000Z'),
+      timelineSession('permission', 'waiting-permission', '2026-05-03T00:00:00.000Z'),
+      timelineSession('completed-unread', 'completed', '2026-05-04T00:00:00.000Z', {
+        unreadAt: '2026-08-01T00:00:00.000Z',
+      }),
+    ])
+    expect(model.attentionSessions.map(s => s.id)).toEqual([
+      'permission',
+      'question',
+      'plan-approval',
+      'completed-unread',
+    ])
+    expect(model.prioritySessions.map(s => s.id)).toEqual([
+      'permission',
+      'question',
+      'plan-approval',
+      'completed-unread',
+    ])
+    expect(model.pinnedSessions).toEqual([])
+    expect(model.dateSections).toEqual([])
+  })
+
+  test('waiting-subagents、普通运行中和已读完成任务不进入关注区', () => {
+    const model = focus([
+      timelineSession('subagents', 'waiting-subagents'),
+      timelineSession('running', 'running'),
+      timelineSession('read-completed', 'completed'),
+      timelineSession('queued', 'queued'),
+    ])
+    expect(model.attentionSessions).toEqual([])
+    expect(model.prioritySessions).toEqual([])
+    expect(model.dateSections.map(s => s.id)).toEqual(['day-0'])
+    expect(
+      model.dateSections[0]!.sessions.map(s => s.id).sort(),
+    ).toEqual(['queued', 'read-completed', 'running', 'subagents'])
+  })
+
+  test('同一优先级内按最近活动时间倒序，再以任务 ID 保证稳定顺序', () => {
+    const model = focus([
+      timelineSession('older-question', 'waiting-question', '2026-08-01T01:00:00.000Z'),
+      timelineSession('newer-question', 'waiting-question', '2026-08-01T12:00:00.000Z'),
+    ])
+    expect(model.prioritySessions.map(s => s.id)).toEqual([
+      'newer-question',
+      'older-question',
     ])
   })
 
-  test('优先级任务不会在日期组重复出现', () => {
-    const sections = focus(
-      [
-        focusSession('needs', '2026-08-01T00:00:00.000Z', 'needs-input'),
-        focusSession('normal', '2026-08-01T00:00:00.000Z', 'idle'),
-      ],
-      { needs: 'needs-input', normal: 'idle' },
-    )
-    expect(sections.map(s => s.id)).toEqual(['priority', 'day-0'])
-    const priorityIds = sections[0]!.sessions.map(s => s.id)
-    const dayIds = sections[1]!.sessions.map(s => s.id)
-    expect(priorityIds).toEqual(['needs'])
-    expect(dayIds).toEqual(['normal'])
+  test('关注任务不会在日期组重复出现', () => {
+    const model = focus([
+      timelineSession('question', 'waiting-question', '2026-08-01T00:00:00.000Z'),
+      timelineSession('normal', 'idle', '2026-08-01T00:00:00.000Z'),
+    ])
+    expect(model.prioritySessions.map(s => s.id)).toEqual(['question'])
+    expect(model.dateSections.map(s => s.id)).toEqual(['day-0'])
+    expect(model.dateSections[0]!.sessions.map(s => s.id)).toEqual(['normal'])
+  })
+
+  test('清除未读后退出关注区，并在符合 7 天条件时回到日期区', () => {
+    const unread = timelineSession('done', 'completed', '2026-08-01T00:00:00.000Z', {
+      unreadAt: '2026-08-01T00:00:00.000Z',
+    })
+    const unreadModel = focus([unread])
+    expect(unreadModel.attentionSessions.map(s => s.id)).toEqual(['done'])
+
+    const readModel = focus([
+      { ...unread, unreadAt: null },
+    ])
+    expect(readModel.attentionSessions).toEqual([])
+    expect(readModel.prioritySessions).toEqual([])
+    expect(readModel.dateSections.map(s => s.id)).toEqual(['day-0'])
+    expect(readModel.dateSections[0]!.sessions.map(s => s.id)).toEqual(['done'])
+  })
+
+  test('7 天以前的等待用户任务仍进入关注区', () => {
+    const model = focus([
+      timelineSession('old-question', 'waiting-question', '2026-04-01T00:00:00.000Z'),
+    ])
+    expect(model.attentionSessions.map(s => s.id)).toEqual(['old-question'])
+    expect(model.prioritySessions.map(s => s.id)).toEqual(['old-question'])
+    expect(model.dateSections).toEqual([])
+  })
+
+  test('showPinned=false 时置顶关注任务仍位于优先级分类，置顶普通任务仍按日期分类', () => {
+    const model = focus([
+      timelineSession('pinned-question', 'waiting-question', '2026-08-01T00:00:00.000Z', {
+        pinnedAt: '2026-07-20T00:00:00.000Z',
+      }),
+      timelineSession('pinned-normal', 'idle', '2026-08-01T00:00:00.000Z', {
+        pinnedAt: '2026-07-21T00:00:00.000Z',
+      }),
+      timelineSession('normal', 'idle', '2026-08-01T00:00:00.000Z'),
+    ])
+    expect(model.pinnedSessions).toEqual([])
+    expect(model.prioritySessions.map(s => s.id)).toEqual(['pinned-question'])
+    expect(model.dateSections[0]!.sessions.map(s => s.id)).toEqual([
+      'pinned-normal',
+      'normal',
+    ])
+  })
+
+  test('showPinned=true 时置顶任务进入独立分组，并从优先级和日期分类去重', () => {
+    const sessions = [
+      timelineSession('pinned-question', 'waiting-question', '2026-08-01T00:00:00.000Z', {
+        pinnedAt: '2026-07-20T00:00:00.000Z',
+      }),
+      timelineSession('pinned-unread', 'completed', '2026-08-01T01:00:00.000Z', {
+        pinnedAt: '2026-07-21T00:00:00.000Z',
+        unreadAt: '2026-08-01T01:00:00.000Z',
+      }),
+      timelineSession('pinned-normal', 'idle', '2026-08-01T02:00:00.000Z', {
+        pinnedAt: '2026-07-22T00:00:00.000Z',
+      }),
+      timelineSession('normal', 'idle', '2026-08-01T03:00:00.000Z'),
+    ]
+    const model = focus(sessions, true)
+    expect(model.pinnedSessions.map(s => s.id).sort()).toEqual([
+      'pinned-normal',
+      'pinned-question',
+      'pinned-unread',
+    ])
+    expect(model.prioritySessions).toEqual([])
+    expect(model.dateSections[0]!.sessions.map(s => s.id)).toEqual(['normal'])
+  })
+
+  test('attentionSessions 不受置顶开关影响，保证铃铛和批量操作状态稳定', () => {
+    const sessions = [
+      timelineSession('pinned-question', 'waiting-question', '2026-08-01T00:00:00.000Z', {
+        pinnedAt: '2026-07-20T00:00:00.000Z',
+      }),
+      timelineSession('question', 'waiting-question', '2026-08-01T00:00:00.000Z'),
+    ]
+    expect(focus(sessions, false).attentionSessions.map(s => s.id)).toEqual([
+      'question',
+      'pinned-question',
+    ])
+    expect(focus(sessions, true).attentionSessions.map(s => s.id)).toEqual([
+      'question',
+      'pinned-question',
+    ])
+  })
+
+  test('全部标为已读只选择 unreadAt 非空的关注任务', () => {
+    const sessions = [
+      timelineSession('unread', 'completed', '2026-08-01T00:00:00.000Z', {
+        unreadAt: '2026-08-01T00:00:00.000Z',
+      }),
+      timelineSession('question', 'waiting-question', '2026-08-01T00:00:00.000Z'),
+      timelineSession('plan-approval', 'completed', '2026-08-01T00:00:00.000Z', {
+        pendingPlanApproval: true,
+      }),
+    ]
+    const attention = focus(sessions).attentionSessions
+    expect(sidebarAttentionUnreadSessions(attention).map(s => s.id)).toEqual([
+      'unread',
+    ])
+  })
+
+  test('安全批量归档只选择完成未读且没有计划待审批的关注任务', () => {
+    const sessions = [
+      timelineSession('unread', 'completed', '2026-08-01T00:00:00.000Z', {
+        unreadAt: '2026-08-01T00:00:00.000Z',
+      }),
+      timelineSession('question', 'waiting-question', '2026-08-01T00:00:00.000Z'),
+      timelineSession('permission', 'waiting-permission', '2026-08-01T00:00:00.000Z'),
+      timelineSession('plan-approval', 'completed', '2026-08-01T00:00:00.000Z', {
+        pendingPlanApproval: true,
+        unreadAt: '2026-08-01T00:00:00.000Z',
+      }),
+      timelineSession('running', 'running', '2026-08-01T00:00:00.000Z', {
+        unreadAt: '2026-08-01T00:00:00.000Z',
+      }),
+    ]
+    const attention = focus(sessions).attentionSessions
+    expect(
+      sidebarArchivableAttentionSessions(attention).map(s => s.id),
+    ).toEqual(['unread'])
   })
 
   test('今天和昨天标签正确', () => {
@@ -907,25 +1358,15 @@ describe('侧栏聚焦视图投影', () => {
   })
 
   test('没有任务的星期二不会生成空分组，日期组按偏移 0→6 排列', () => {
-    const sections = focus(
-      [
-        focusSession('today', '2026-08-01T00:00:00.000Z', 'idle'),
-        focusSession('thu', '2026-07-30T00:00:00.000Z', 'idle'),
-        focusSession('wed', '2026-07-29T00:00:00.000Z', 'idle'),
-        focusSession('mon', '2026-07-27T00:00:00.000Z', 'idle'),
-        focusSession('sun', '2026-07-26T00:00:00.000Z', 'idle'),
-        focusSession('fri', '2026-07-31T00:00:00.000Z', 'idle'),
-      ],
-      {
-        today: 'idle',
-        thu: 'idle',
-        wed: 'idle',
-        mon: 'idle',
-        sun: 'idle',
-        fri: 'idle',
-      },
-    )
-    expect(sections.map(s => s.id)).toEqual([
+    const model = focus([
+      timelineSession('today', 'idle', '2026-08-01T00:00:00.000Z'),
+      timelineSession('thu', 'idle', '2026-07-30T00:00:00.000Z'),
+      timelineSession('wed', 'idle', '2026-07-29T00:00:00.000Z'),
+      timelineSession('mon', 'idle', '2026-07-27T00:00:00.000Z'),
+      timelineSession('sun', 'idle', '2026-07-26T00:00:00.000Z'),
+      timelineSession('fri', 'idle', '2026-07-31T00:00:00.000Z'),
+    ])
+    expect(model.dateSections.map(s => s.id)).toEqual([
       'day-0',
       'day-1',
       'day-2',
@@ -933,7 +1374,7 @@ describe('侧栏聚焦视图投影', () => {
       'day-5',
       'day-6',
     ])
-    expect(sections.map(s => s.label)).toEqual([
+    expect(model.dateSections.map(s => s.label)).toEqual([
       '今天',
       '昨天',
       '星期四',
@@ -944,64 +1385,62 @@ describe('侧栏聚焦视图投影', () => {
   })
 
   test('第 6 天任务仍显示，第 7 天及更早任务被隐藏', () => {
-    const sections = focus(
-      [
-        focusSession('day6', '2026-07-26T00:00:00.000Z', 'idle'),
-        focusSession('day7', '2026-07-25T00:00:00.000Z', 'idle'),
-      ],
-      { day6: 'idle', day7: 'idle' },
-    )
-    expect(sections.flatMap(s => s.sessions).map(s => s.id)).toEqual(['day6'])
+    const model = focus([
+      timelineSession('day6', 'idle', '2026-07-26T00:00:00.000Z'),
+      timelineSession('day7', 'idle', '2026-07-25T00:00:00.000Z'),
+    ])
+    expect(model.dateSections.flatMap(s => s.sessions).map(s => s.id)).toEqual([
+      'day6',
+    ])
   })
 
   test('跨月和跨年时仍按自然日分组', () => {
     // 当前为 2026-08-01，前 6 天跨越 7 月；再测一个跨年场景
-    const sections = focus(
-      [
-        focusSession('end-july', '2026-07-26T23:00:00.000Z', 'idle'),
-      ],
-      { 'end-july': 'idle' },
-    )
-    expect(sections[0]!.id).toBe('day-6')
+    const model = focus([
+      timelineSession('end-july', 'idle', '2026-07-26T23:00:00.000Z'),
+    ])
+    expect(model.dateSections[0]!.id).toBe('day-6')
     // 跨年：当前 2026-01-01，前 6 天跨越 2025
-    const nyeSections = buildSidebarFocusSections({
+    const nyeModel = buildSidebarTimelineModel({
       now: new Date('2026-01-01T12:00:00.000Z').getTime(),
-      sessions: [focusSession('old-year', '2025-12-30T00:00:00.000Z', 'idle')],
-      sessionStateById: { 'old-year': 'idle' },
+      showPinned: false,
+      sessions: [
+        timelineSession('old-year', 'idle', '2025-12-30T00:00:00.000Z'),
+      ],
     })
-    expect(nyeSections[0]!.id).toBe('day-2')
+    expect(nyeModel.dateSections[0]!.id).toBe('day-2')
   })
 
   test('日期组内按最近活动时间倒序', () => {
-    const sections = focus(
-      [
-        focusSession('older', '2026-08-01T01:00:00.000Z', 'idle'),
-        focusSession('newer', '2026-08-01T12:00:00.000Z', 'idle'),
-      ],
-      { older: 'idle', newer: 'idle' },
-    )
-    expect(sections[0]!.sessions.map(s => s.id)).toEqual(['newer', 'older'])
-  })
-
-  test('无效时间的普通任务被隐藏，但无效时间的优先级任务仍显示', () => {
-    const sections = focus(
-      [
-        focusSession('bad-normal', '__bad__', 'idle', {
-          createdAt: '__invalid__',
-        }),
-        focusSession('bad-priority', '__bad__', 'running', {
-          createdAt: '__invalid__',
-        }),
-      ],
-      { 'bad-normal': 'idle', 'bad-priority': 'running' },
-    )
-    expect(sections.flatMap(s => s.sessions).map(s => s.id)).toEqual([
-      'bad-priority',
+    const model = focus([
+      timelineSession('older', 'idle', '2026-08-01T01:00:00.000Z'),
+      timelineSession('newer', 'idle', '2026-08-01T12:00:00.000Z'),
+    ])
+    expect(model.dateSections[0]!.sessions.map(s => s.id)).toEqual([
+      'newer',
+      'older',
     ])
   })
 
+  test('无效时间的普通任务被隐藏，但无效时间的等待用户任务仍显示', () => {
+    const model = focus([
+      timelineSession('bad-normal', 'idle', '__bad__', {
+        createdAt: '__invalid__',
+      }),
+      timelineSession('bad-priority', 'waiting-question', '__bad__', {
+        createdAt: '__invalid__',
+      }),
+    ])
+    expect(model.attentionSessions.map(s => s.id)).toEqual(['bad-priority'])
+    expect(model.prioritySessions.map(s => s.id)).toEqual(['bad-priority'])
+    expect(model.dateSections).toEqual([])
+  })
+
   test('所有分组为空时返回空投影', () => {
-    const sections = focus([], {})
-    expect(sections).toEqual([])
+    const model = focus([])
+    expect(model.attentionSessions).toEqual([])
+    expect(model.pinnedSessions).toEqual([])
+    expect(model.prioritySessions).toEqual([])
+    expect(model.dateSections).toEqual([])
   })
 })

@@ -2,7 +2,7 @@ name: PR rules
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -12,70 +12,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  release-pr-policy:
-    runs-on: windows-latest
-    timeout-minutes: 10
-    outputs:
-      trusted: ${{ steps.policy.outputs.trusted }}
-    steps:
-      - name: Checkout pull request
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.14
-      - name: Verify trusted Release PR policy
-        id: policy
-        run: bun scripts/verify-release-pr-policy.ts
-
   changelog-check:
-    needs: release-pr-policy
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Bun
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.14
       - name: Install dependencies
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         run: bun install --frozen-lockfile
       - name: Version consistency check
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         run: bun run version:check
-      - name: Automated release archive check
-        if: >-
-          needs.release-pr-policy.outputs.trusted != 'true' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          github.event.pull_request.user.login == (vars.RELEASE_BOT_LOGIN || 'xiaohai-ouyang') &&
-          startsWith(github.event.pull_request.head.ref, 'automation/release-v')
-        shell: pwsh
-        run: |
-          $baseSha = "${{ github.event.pull_request.base.sha }}"
-          bun run version:check -- --release-pr --base $baseSha
       - name: Changelog Unreleased entry check
-        if: >-
-          needs.release-pr-policy.outputs.trusted != 'true' &&
-          github.event.pull_request.user.login != 'dependabot[bot]' &&
-          !(
-            github.event.pull_request.head.repo.full_name == github.repository &&
-            github.event.pull_request.user.login == (vars.RELEASE_BOT_LOGIN || 'xiaohai-ouyang') &&
-            startsWith(github.event.pull_request.head.ref, 'automation/release-v')
-          )
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         shell: pwsh
         run: |
           $baseSha = "${{ github.event.pull_request.base.sha }}"
           bun run version:check -- --base $baseSha
-      - name: Accept verified Release PR receipt
-        if: needs.release-pr-policy.outputs.trusted == 'true'
-        run: echo "Trusted signed Release PR uses its locked local preflight and dry-run receipt."

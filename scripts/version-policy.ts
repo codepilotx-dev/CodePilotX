@@ -4,13 +4,12 @@
  * 命令：
  *   bun run version:check                             基本一致性检查
  *   bun run version:check -- --base <git-sha>         PR 检查（Unreleased 有新增）
- *   bun run version:check -- --release-pr --base <sha> 自动 Release PR 检查
  *   bun run version:check -- --tag <v版本>             标签一致性检查
  *   bun run version:prepare -- <新版本> [--stable]     归档并升版
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { execFileSync, execSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SEMVER_RE, compareSemver, parseSemver } from "./semver-utils.ts";
@@ -40,11 +39,6 @@ const LOCK_WS_MAP: Record<string, string> = {
   "apps/desktop/electron/package.json": "apps/desktop/electron",
   "apps/desktop/renderer/package.json": "apps/desktop/renderer",
 };
-const RELEASE_PR_ALLOWED_FILES = new Set<string>([
-  CHANGELOG,
-  ...MANIFESTS,
-  LOCKFILE,
-]);
 
 /* ─────────────── 工具 ─────────────── */
 
@@ -54,17 +48,6 @@ function readJson(p: string) {
 
 function readFile(p: string) {
   return readFileSync(join(ROOT, p), "utf-8");
-}
-
-function readFileAtRevision(revision: string, p: string, root = ROOT) {
-  return execFileSync("git", ["show", `${revision}:${p}`], {
-    cwd: root,
-    encoding: "utf-8",
-  });
-}
-
-function readJsonAtRevision(revision: string, p: string, root = ROOT) {
-  return JSON.parse(readFileAtRevision(revision, p, root));
 }
 
 function writeFile(p: string, content: string) {
@@ -84,26 +67,11 @@ function warn(msg: string) {
   console.warn(`  ⚠ ${msg}`);
 }
 
-export function resolveReleaseDate(
-  configured = process.env.CODEPILOTX_RELEASE_DATE,
-  now = new Date(),
-): string {
-  if (configured === undefined || configured === "") {
-    return now.toISOString().slice(0, 10);
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(configured) ||
-      new Date(`${configured}T00:00:00.000Z`).toISOString().slice(0, 10) !== configured) {
-    throw new Error("CODEPILOTX_RELEASE_DATE 必须是有效的 YYYY-MM-DD UTC 日期");
-  }
-  return configured;
-}
-
 /* ─────────────── 检查 ─────────────── */
 
 interface CheckOptions {
   base?: string;
   tag?: string;
-  releasePr?: boolean;
 }
 
 function parseLockVersions(lockRaw: string): Record<string, string> {
@@ -115,153 +83,6 @@ function parseLockVersions(lockRaw: string): Record<string, string> {
     lockVersions[match[1]] = match[3];
   }
   return lockVersions;
-}
-
-export function runReleasePrCheck(
-  base: string,
-  headVersion: string,
-  headChangelog: string,
-  fail: (...msgs: string[]) => void,
-  root = ROOT,
-) {
-  console.log(`\n🤖 自动 Release PR 检查 (base: ${base})\n`);
-
-  let baseVersion: string;
-  let baseChangelog: string;
-  try {
-    const baseRootPkg = readJsonAtRevision(base, "package.json", root);
-    baseVersion = baseRootPkg.version;
-    baseChangelog = readFileAtRevision(base, CHANGELOG, root);
-  } catch (error) {
-    fail(
-      `无法读取 base ${base} 的版本文件：${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    return;
-  }
-
-  const baseParts = parseSemver(baseVersion);
-  const headParts = parseSemver(headVersion);
-  if (baseParts?.prereleaseType !== "beta") {
-    fail(`base 版本 "${baseVersion}" 不是 X.Y.Z-beta.N`);
-  }
-  if (headParts?.prereleaseType !== "beta") {
-    fail(`head 版本 "${headVersion}" 不是 X.Y.Z-beta.N`);
-  }
-  if (
-    baseParts?.prereleaseType === "beta" &&
-    headParts?.prereleaseType === "beta"
-  ) {
-    const sameCore =
-      baseParts.major === headParts.major &&
-      baseParts.minor === headParts.minor &&
-      baseParts.patch === headParts.patch;
-    const nextBeta =
-      headParts.prereleaseNum === (baseParts.prereleaseNum ?? -1) + 1;
-    if (!sameCore || !nextBeta) {
-      fail(
-        `Release PR 只能递增同一版本线的一个 beta 序号：${baseVersion} → ${headVersion}`,
-      );
-    } else {
-      ok(`beta 序号严格递增: ${baseVersion} → ${headVersion}`);
-    }
-  }
-
-  // base 上的所有产品 manifest 必须处于同一版本，避免从不一致状态生成发布。
-  for (const manifest of MANIFESTS.slice(1)) {
-    try {
-      const version = readJsonAtRevision(base, manifest, root).version;
-      if (version !== baseVersion) {
-        fail(
-          `base 中 ${manifest} 版本 "${version}" 与根版本 "${baseVersion}" 不一致`,
-        );
-      }
-    } catch (error) {
-      fail(
-        `无法读取 base 中的 ${manifest}：${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
-  }
-
-  const baseUnreleased = getChangelogSection(baseChangelog, "Unreleased");
-  if (!baseUnreleased || !hasChangelogEntry(baseUnreleased)) {
-    fail("base 的 Unreleased 区段为空，不能创建自动 Release PR");
-  }
-
-  const headUnreleased = getChangelogSection(headChangelog, "Unreleased");
-  if (!headUnreleased) {
-    fail("head 的 CHANGELOG.md 缺少 Unreleased 区段");
-  } else if (hasChangelogEntry(headUnreleased)) {
-    fail("Release PR 归档后 head 的 Unreleased 区段必须为空");
-  } else {
-    ok("head 的 Unreleased 区段已清空");
-  }
-
-  const archivedSections = parseChangelogSections(headChangelog).filter(
-    (section) => {
-      const match = section.heading.match(
-        /^(.+?)\s+—\s+\d{4}-\d{2}-\d{2}$/,
-      );
-      return match?.[1] === headVersion;
-    },
-  );
-  if (archivedSections.length !== 1) {
-    fail(
-      `head 必须且只能包含一个 ${headVersion} 归档区段，实际为 ${archivedSections.length} 个`,
-    );
-  } else if (
-    baseUnreleased &&
-    archivedSections[0].body !== baseUnreleased.body
-  ) {
-    fail(
-      `head 的 ${headVersion} 归档内容必须与 base 的 Unreleased 内容原样一致`,
-    );
-  } else if (baseUnreleased) {
-    ok(`base 的 Unreleased 已原样归档到 ${headVersion}`);
-  }
-
-  const escapedHeadVersion = headVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const reconstructedBase = headChangelog
-    .replace(/\r\n?/g, "\n")
-    .replace(
-      new RegExp(
-        `\\n\\n## ${escapedHeadVersion} — \\d{4}-\\d{2}-\\d{2}`,
-      ),
-      "",
-    );
-  if (reconstructedBase !== baseChangelog.replace(/\r\n?/g, "\n")) {
-    fail("Release PR 除归档 base 的 Unreleased 外不得改写 CHANGELOG 历史");
-  }
-
-  try {
-    const changedFiles = execFileSync(
-      "git",
-      ["diff", "--name-only", base, "HEAD"],
-      { cwd: root, encoding: "utf-8" },
-    )
-      .split(/\r?\n/)
-      .map((file) => file.trim())
-      .filter(Boolean);
-    const disallowedFiles = changedFiles.filter(
-      (file) => !RELEASE_PR_ALLOWED_FILES.has(file),
-    );
-    if (disallowedFiles.length > 0) {
-      fail(
-        `Release PR 包含不允许的文件：${disallowedFiles.join(", ")}`,
-      );
-    } else {
-      ok("Release PR 仅修改版本归档允许的文件");
-    }
-  } catch (error) {
-    fail(
-      `无法读取 Release PR 文件差异：${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-  }
 }
 
 function runCheck(opts: CheckOptions) {
@@ -355,17 +176,8 @@ function runCheck(opts: CheckOptions) {
     ok("CHANGELOG.md 结构有效");
   }
 
-  // 5. --release-pr: 自动 Release PR 的严格归档检查
-  if (opts.releasePr) {
-    if (!opts.base) {
-      fail("--release-pr 必须同时提供 --base <git-sha>");
-    } else if (changelogText) {
-      runReleasePrCheck(opts.base, rootVersion, changelogText, fail);
-    }
-  }
-
-  // 6. --base: 普通 PR 检查 Unreleased 有新增
-  if (opts.base && !opts.releasePr) {
+  // 5. --base: 普通 PR 检查 Unreleased 有新增
+  if (opts.base) {
     try {
       const diff = execSync(
         `git diff "${opts.base}" -- "${CHANGELOG}"`,
@@ -465,7 +277,7 @@ function runPrepare(newVersion: string, stable: boolean) {
   ok("Unreleased 区段非空");
 
   // 6. 归档 Unreleased → 新版本标题
-  const today = resolveReleaseDate();
+  const today = new Date().toISOString().slice(0, 10);
   const versionHeading = `## ${newVersion} — ${today}`;
 
   // Replace "## Unreleased" with "## Unreleased\n\n(empty)" as placeholder
@@ -519,12 +331,20 @@ function runPrepare(newVersion: string, stable: boolean) {
     );
   }
 
-  console.log(`\n✅ 升版至 ${newVersion} 准备完成\n`);
-  console.log("后续人工步骤:");
-  console.log("  1. 检查各项改动");
-  console.log(`  2. 提交: git add -A && git commit -m "release：${newVersion}"`);
-  console.log(`  3. 打标签: git tag v${newVersion}`);
-  console.log("  4. 推送: git push && git push --tags\n");
+  console.log("\n✅ 升版至 " + newVersion + " 准备完成\n");
+  console.log("后续签名标签发布步骤（分阶段，勿在 dev 上同时推分支与标签）:");
+  console.log("  1. 创建签名提交并推送当前版本分支:");
+  console.log(`     git add -A`);
+  console.log(`     git commit -S -m "chore(release)：准备 ${newVersion}"`);
+  console.log(`     git push origin <当前版本分支>`);
+  console.log("  2. 通过正常 PR/合并流程让该提交进入 main，等待其合入 origin/main");
+  console.log("  3. 目标提交进入 main 后，本地同步并校验标签目标:");
+  console.log(`     git checkout main && git pull --ff-only`);
+  console.log("     bun run version:check -- --tag v" + newVersion);
+  console.log("  4. 在 main 上的目标提交创建签名标签并单独推送:");
+  console.log(`     git tag -s v${newVersion} -m "CodePilotX v${newVersion}"`);
+  console.log(`     git push origin v${newVersion}\n`);
+  console.log("  推送 v* 标签后由 GitHub-hosted runner 校验 main 历史，并创建仅含 GitHub 自动源码归档的 Release。\n");
 }
 
 /* ┌──────────────────────────────────┐
@@ -537,10 +357,7 @@ function main() {
   if (args.length === 0) {
     console.log("用法:");
     console.log("  version:check                          基本一致性检查");
-    console.log("  version:check -- --base <git-sha>      PR 检查");
-    console.log(
-      "  version:check -- --release-pr --base <git-sha>  自动 Release PR 检查",
-    );
+    console.log("  version:check -- --base <git-sha>      PR 检查（Unreleased 有新增）");
     console.log("  version:check -- --tag <v版本>          标签检查");
     console.log("  version:prepare -- <SemVer> [--stable]  升版准备");
     process.exit(0);
@@ -556,8 +373,6 @@ function main() {
         opts.base = rest[++i];
       } else if (rest[i] === "--tag" && i + 1 < rest.length) {
         opts.tag = rest[++i];
-      } else if (rest[i] === "--release-pr") {
-        opts.releasePr = true;
       } else if (rest[i] === "--") {
         continue;
       }

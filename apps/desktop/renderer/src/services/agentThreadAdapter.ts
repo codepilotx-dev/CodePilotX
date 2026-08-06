@@ -90,6 +90,8 @@ export function agentThreadListItemToDesktop(
     additionalDirectoryCount: 0,
     status: agentTurnStatusToDesktopStatus(thread.latestTurnStatus),
     unreadAt: isoOrNull(thread.unreadAt),
+    latestTurnStatus: thread.latestTurnStatus,
+    pendingPlanApproval: thread.pendingPlanApproval === true,
     lastMessageAt: isoOrNull(thread.updatedAt),
     createdAt: iso(thread.createdAt),
   }
@@ -155,6 +157,8 @@ export function agentThreadSnapshotToDesktop(
     hasAppendSystemPrompt: false,
     additionalDirectoryCount: 0,
     status: agentTurnStatusToDesktopStatus(latestTurn?.status),
+    latestTurnStatus: latestTurn?.status ?? null,
+    pendingPlanApproval: pendingPlanApprovalFromSnapshot(latestTurn, snapshot.items),
     lastMessageAt: iso(snapshot.thread.updatedAt),
     createdAt: iso(snapshot.thread.createdAt),
   }
@@ -207,6 +211,19 @@ function latestDisplayTurn(turns: ThreadSnapshot['turns']): Turn | null {
     .sort((left, right) => (right.startedAt ?? 0) - (left.startedAt ?? 0))[0]
   if (active) return active
   return [...turns].reverse().find(turn => turn.status !== 'queued') ?? turns.at(-1) ?? null
+}
+
+function pendingPlanApprovalFromSnapshot(
+  latestTurn: Turn | null,
+  items: ThreadSnapshot['items'],
+): boolean {
+  if (!latestTurn || latestTurn.status !== 'completed') return false
+  return items.some(
+    item =>
+      item.turnId === latestTurn.id &&
+      item.type === 'plan' &&
+      item.status === 'completed',
+  )
 }
 
 export function agentQueuedFollowUpsToDesktop(

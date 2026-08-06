@@ -40,6 +40,7 @@ import {
   normalizeDesktopThemeSettings,
 } from '../../../shared/theme.js'
 import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
+import { resolvePreferredOpenTarget } from './openTargetSelection.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -156,10 +157,11 @@ import { catalogProviderToDesktop } from './provider-adapters.js'
 import type {
   CodePilotXDesktopClient,
   DesktopClientEnvironment,
+  DesktopRuntimeCapabilityApi,
 } from './types.js'
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
-  mockClient: DesktopApi,
+  mockClient: DesktopApi & DesktopRuntimeCapabilityApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -1249,6 +1251,12 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    getRuntimeCapabilities: () => withAgentOrMock<
+      readonly ProtocolCapability[]
+    >(
+      async () => [...agentCapabilities] as ProtocolCapability[],
+      () => mockClient.getRuntimeCapabilities(),
+    ),
     checkForUpdates: () =>
       environment.window?.codePilotXDesktop?.checkForUpdates
         ? environment.window.codePilotXDesktop.checkForUpdates()
@@ -1416,17 +1424,25 @@ export function createAgentSessionDesktopClient(
         listTargets(targetPath),
         client.getDesktopSettings(),
       ])
-      const preferredId = targets.some(
-        target => target.targetId === settings.defaultOpenTargetId,
-      )
-        ? settings.defaultOpenTargetId
-        : 'default-app'
-      return targets.map(target => ({
+      const mappedTargets = targets.map(target => ({
         id: target.targetId,
         label: target.label,
         kind: target.kind,
         ...(target.iconDataUrl ? { iconDataUrl: target.iconDataUrl } : {}),
-        preferred: target.targetId === preferredId,
+      }))
+      const resolved = resolvePreferredOpenTarget(
+        mappedTargets,
+        settings.defaultOpenTargetId,
+      )
+      if (resolved && resolved.id !== settings.defaultOpenTargetId) {
+        await client.saveDesktopSettings({
+          ...settings,
+          defaultOpenTargetId: resolved.id,
+        })
+      }
+      return mappedTargets.map(target => ({
+        ...target,
+        preferred: target.id === resolved?.id,
       }))
     },
     listOpenTargets: async () => {
@@ -1460,14 +1476,14 @@ export function createAgentSessionDesktopClient(
       const openPath =
         environment.window?.codePilotXDesktop?.openPathWithTarget
       if (!openPath) return mockClient.openPathWithDefaultTarget(targetPath)
-      const settings = await client.getDesktopSettings()
       const targets = await client.listExternalOpenTargets(targetPath)
-      const targetId = targets.some(
-        target => target.id === settings.defaultOpenTargetId,
+      const settings = await client.getDesktopSettings()
+      const resolved = resolvePreferredOpenTarget(
+        targets,
+        settings.defaultOpenTargetId,
       )
-        ? settings.defaultOpenTargetId
-        : 'default-app'
-      return openPath(targetPath, targetId)
+      if (!resolved) throw new Error('没有可用的外部打开方式。')
+      return openPath(targetPath, resolved.id)
     },
     revealPathInFolder: async targetPath => {
       const revealPath =
@@ -2308,14 +2324,6 @@ export function createAgentSessionDesktopClient(
       return response.subagents
     },
     readSubagent: taskId => rpc.call<DesktopSubagentRead>('subagent/read', { taskId }),
-    sendSubagent: async (taskId, input, selectedModel, selectedPermissionMode) => rpc.call('subagent/send', {
-      taskId,
-      inputId: crypto.randomUUID(),
-      message: desktopUserMessageInputToPreviewText(input),
-      model: await resolveAgentModelRef(selectedModel, activeSessionId ?? ''),
-      attachmentIds: await importAgentAttachments(input),
-      ...(selectedPermissionMode ? { permissionConfig: desktopPermissionModeToPermissionConfig(selectedPermissionMode) } : {}),
-    }),
     stopSubagent: taskId => rpc.call('subagent/stop', { taskId, operationId: crypto.randomUUID() }),
     retrySubagent: taskId => rpc.call('subagent/retry', { taskId, operationId: crypto.randomUUID() }),
     applySubagentWorktree: taskId => rpc.call('subagent/worktree/apply', { taskId, operationId: crypto.randomUUID() }),

@@ -13,6 +13,7 @@ type Props = {
   collisionPadding?: number
   avoidCollisions?: boolean
   textMode?: 'nowrap' | 'wrap'
+  modal?: boolean
   onOpenChange?: (open: boolean) => void
 } & PopoverSizingProps
 
@@ -27,12 +28,13 @@ export function Dropdown({
   collisionPadding = 6,
   avoidCollisions = true,
   textMode = 'nowrap',
+  modal = false,
   width,
   maxWidth,
   onOpenChange,
 }: Props): React.ReactNode {
   return (
-    <DropdownMenu.Root modal={false} open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu.Root modal={modal} open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
         {trigger}
       </DropdownMenu.Trigger>

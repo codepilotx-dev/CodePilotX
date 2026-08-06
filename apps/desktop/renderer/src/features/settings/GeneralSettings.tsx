@@ -3,13 +3,10 @@ import {
   loadDesktopTerminalClient,
 } from '../../services/desktop-client/index.js'
 import React, { useCallback, useEffect, useState } from 'react';
+import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js';
 import {
-  Code,
-  File,
-  FolderOpen,
-  SquareTerminal,
-} from 'lucide-react';
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+  OPEN_TARGET_STORED_SENTINELS,
+} from '../../services/desktop-client/openTargetSelection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js';
 import { SettingsRow } from './SettingsRow.js';
 import { SettingsSection } from './SettingsSection.js';
@@ -28,19 +25,9 @@ import type { DesktopTerminalProfile } from '@codepilotx/shared/desktop-terminal
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
-    id: 'default-app',
-    label: 'Default app',
-    kind: 'default-app',
-  },
-  {
     id: 'file-explorer',
     label: 'File Explorer',
     kind: 'file-explorer',
-  },
-  {
-    id: 'terminal',
-    label: 'Terminal',
-    kind: 'terminal',
   },
 ];
 
@@ -82,25 +69,13 @@ function LearnMoreLink() {
 }
 
 function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
-  if (target.iconDataUrl) {
-    return (
-      <img
-        alt=''
-        className='settings-open-target-icon'
-        src={target.iconDataUrl}
-      />
-    );
-  }
-  if (target.kind === 'file-explorer') {
-    return <FolderOpen size={APP_ICON_SIZE} />;
-  }
-  if (target.kind === 'terminal') {
-    return <SquareTerminal size={APP_ICON_SIZE} />;
-  }
-  if (target.kind === 'editor') {
-    return <Code size={APP_ICON_SIZE} />;
-  }
-  return <File size={APP_ICON_SIZE} />;
+  return (
+    <OpenTargetIcon
+      className='settings-open-target-icon'
+      kind={target.kind}
+      targetId={target.id}
+    />
+  );
 }
 
 type GeneralSettingsProps = {
@@ -273,9 +248,6 @@ export function GeneralSettings({
         const nextTargets = targets.length ? targets : FALLBACK_OPEN_TARGETS;
         setOpenTargets(nextTargets);
         setOpenTargetsLoaded(true);
-        if (!nextTargets.some((target) => target.id === defaultOpenTargetId)) {
-          setDefaultOpenTargetId('default-app');
-        }
       })
       .catch(() => {
         if (mounted) {
@@ -309,7 +281,10 @@ export function GeneralSettings({
 
   const displayedOpenTargets =
     !openTargetsLoaded &&
-    !openTargets.some((target) => target.id === defaultOpenTargetId)
+    !openTargets.some((target) => target.id === defaultOpenTargetId) &&
+    !(OPEN_TARGET_STORED_SENTINELS as readonly string[]).includes(
+      defaultOpenTargetId,
+    )
       ? [
           ...openTargets,
           {

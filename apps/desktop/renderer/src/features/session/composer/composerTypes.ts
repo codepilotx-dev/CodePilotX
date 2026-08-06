@@ -5,6 +5,12 @@ import type {
 
 export type ComposerPlacement = 'new-session' | 'thread' | 'side-task'
 
+/** 新建页展示上下文；thread 内不设置，保持现有行为。 */
+export type ComposerSurface = 'coding' | 'working' | 'chat'
+
+/** 当前唯一的工作插件；仅属于新建页草稿的本地 UI 状态。 */
+export type WorkingPlugin = 'task-planning'
+
 export type ComposerExecutionMode = 'local' | 'worktree' | 'cloud'
 
 export type ComposerCollaborationMode = 'default' | 'plan'
@@ -104,7 +110,6 @@ export type ComposerDraftKey =
   | 'home'
   | `session:${string}`
   | 'side-chat'
-  | `side-task:${string}`
 
 export type ComposerSkillInvocation = {
   name: string

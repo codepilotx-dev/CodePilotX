@@ -16,7 +16,6 @@ import {
   attachmentView,
   booleanParam,
   decodeOffsetCursor,
-  decodePermissionConfig,
   decodeQueueInput,
   decodeQueueResume,
   decodeQueueUpdate,
@@ -39,7 +38,6 @@ import {
   githubPullRequestIdentity,
   githubRepositoryIdentity,
   memoryEntryView,
-  modelRef,
   modelRefOrNull,
   parseJsonRecord,
   positiveIntegerParam,
@@ -50,7 +48,6 @@ import {
   resolveProjectWorkspace,
   stringParam,
   submitMessage,
-  supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 
@@ -59,7 +56,6 @@ export const subagentHandlers = {
   methods: [
     "subagent/list",
     "subagent/read",
-    "subagent/send",
     "subagent/stop",
     "subagent/retry",
     "subagent/worktree/diff",
@@ -75,43 +71,19 @@ export const subagentHandlers = {
         return { subagents: subagents.list(stringParam(params, "threadId", "parentThreadId")), nextCursor: null }
       case "subagent/read": {
         const value = subagents.read(stringParam(params, "taskId", "subagentTaskId"))
+        const { approvals, questions } = pendingInteractionCounts(db, value.task.childThreadId)
         return {
           ...value,
           snapshot: runtime.requiredSnapshot(value.task.childThreadId),
           capabilities: {
-            canSend: true,
             canStop: Boolean(value.currentRun && !["completed", "failed", "stopped", "interrupted"].includes(value.currentRun.status)),
             canRetry: Boolean(value.currentRun && ["failed", "stopped", "interrupted"].includes(value.currentRun.status)),
+            canRespondToApprovals: approvals > 0,
+            canRespondToQuestions: questions > 0,
             canApplyWorktree: value.task.workspace.mode === "worktree" && value.task.workspace.state !== "applied" && value.task.workspace.state !== "discarded" && Boolean(value.currentRun && ["completed", "failed", "stopped", "interrupted"].includes(value.currentRun.status)),
             canDiscardWorktree: value.task.workspace.mode === "worktree" && value.task.workspace.state !== "applied" && value.task.workspace.state !== "discarded",
             canRestoreWorkspace: value.task.workspace.mode === "shared" && value.task.workspace.baselineRef !== null && Boolean(value.currentRun && ["completed", "failed", "stopped", "interrupted"].includes(value.currentRun.status)),
           },
-        }
-      }
-      case "subagent/send": {
-        const taskId = stringParam(params, "taskId", "subagentTaskId")
-        const inputId = stringParam(params, "inputId")
-        const sent = await subagents.send(taskId, stringParam(params, "message"), inputId, {
-          ...(params.model === undefined ? {} : { model: modelRef(record(params.model, "model")) }),
-          ...(params.permissionConfig === undefined ? {} : { permissionConfig: supportedPermissionConfig(decodeParams(decodePermissionConfig, params.permissionConfig, "permissionConfig")) }),
-          ...(Array.isArray(params.attachmentIds) ? { attachmentIDs: params.attachmentIds.map((value) => {
-            if (typeof value !== "string" || !value) throw new AgentError("INVALID_REQUEST", "attachmentIds 参数无效", 400)
-            return value
-          }) } : {}),
-        })
-        const run = record(record(sent).run, "run")
-        const runId = stringParam(run, "id")
-        const execution = db.sqlite.query("SELECT turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runId) as { turn_id: string } | null
-        if (!execution) throw new AgentError("CHECKPOINT_UNAVAILABLE", "子 Agent admission 尚未建立", 409)
-        const childThreadId = subagents.read(taskId).task.childThreadId
-        const sequence = globalEventSequence(db)
-        return {
-          taskId,
-          runId,
-          inputId,
-          turnId: execution.turn_id,
-          disposition: "accepted",
-          streamPosition: { streamId: childThreadId, sequence },
         }
       }
       case "subagent/stop":
@@ -169,3 +141,12 @@ export const subagentHandlers = {
     }
   },
 } as const satisfies RpcHandlerGroup
+
+function pendingInteractionCounts(
+  db: { sqlite: { query: (sql: string) => { get: (...params: string[]) => { count: number } | null | undefined } } },
+  childThreadId: string,
+): { approvals: number; questions: number } {
+  const approvals = db.sqlite.query("SELECT COUNT(*) AS count FROM approval_requests WHERE thread_id = ? AND status = 'pending'").get(childThreadId)
+  const questions = db.sqlite.query("SELECT COUNT(*) AS count FROM question_requests WHERE thread_id = ? AND status = 'pending'").get(childThreadId)
+  return { approvals: Number(approvals?.count ?? 0), questions: Number(questions?.count ?? 0) }
+}

@@ -9,8 +9,12 @@
   flex-direction: column;
   overflow: hidden;
   border-right: 0;
-  background: var(--color-token-side-bar-background);
-  color: var(--color-token-foreground);
+  background: var(--color-token-editor-background);
+  color: color-mix(
+    in srgb,
+    var(--color-token-foreground) 85%,
+    transparent
+  );
   user-select: none;
   transition: width var(--motion-emphasis) var(--ease-standard);
 
@@ -30,7 +34,19 @@
     border: 0.5px solid var(--color-token-border);
     border-radius: 10px;
     background: var(--color-token-editor-widget-background);
-    box-shadow: var(--shadow-raised);
+    box-shadow:
+      0 3px 7.5px color-mix(in srgb, black 3.1%, transparent),
+      0 0 16px color-mix(in srgb, black 2%, transparent);
+  }
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .desktop-sidebar.is-docked {
+    background: color-mix(
+      in srgb,
+      var(--color-token-editor-background) 70%,
+      transparent
+    );
   }
 }
 
@@ -134,7 +150,7 @@
   margin-left: 8px;
 }
 
-.sidebar-priority-filter-button {
+.sidebar-timeline-toggle-button {
   flex: 0 0 32px;
   width: 32px;
   height: 32px;
@@ -149,6 +165,24 @@
 
 .sidebar-top-nav {
   gap: 2px;
+}
+
+/* 固定“新建任务”导航：位于滚动区外，侧栏高度不足时不可压缩。
+   默认无可见分隔线；内容滚过固定入口（scrollTop > 0）时显示轻量边界，
+   透明底边框预留 1px 几何空间，滚动开始时只切换颜色避免内容跳动 */
+.sidebar-new-task-nav {
+  flex: 0 0 auto;
+  border-bottom: 1px solid transparent;
+
+  &[data-scroll-overlap='true'] {
+    border-bottom-color: var(--color-token-border-light);
+  }
+}
+
+/* 滚动区内部：次级导航与时间线/任务主体之间的分组间距 */
+.sidebar-scroll-main {
+  min-width: 0;
+  padding-top: 16px;
 }
 
 .sidebar-nav-link.active,
@@ -169,17 +203,56 @@
 }
 
 .sidebar-layout {
+  position: relative;
   min-width: var(--sidebar-current-width);
+  background: transparent;
   transition: opacity var(--motion-fast) var(--ease-out);
 }
 
 .sidebar-scroll-area {
+  --sidebar-footer-edge: calc(100% - var(--sidebar-footer-height));
+  --sidebar-footer-fade-distance: 40px;
+  --sidebar-footer-fade-start: calc(
+    var(--sidebar-footer-edge) - var(--sidebar-footer-fade-distance)
+  );
+
   flex: 1 1 auto;
   min-height: 0;
-  margin-top: 16px;
   overflow-x: hidden;
   overflow-y: auto;
   scroll-padding-bottom: calc(var(--sidebar-footer-height) + 8px);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 8px,
+    black var(--sidebar-footer-fade-start),
+    color-mix(in srgb, black 88%, transparent)
+      calc(var(--sidebar-footer-edge) - 24px),
+    color-mix(in srgb, black 52%, transparent)
+      calc(var(--sidebar-footer-edge) - 12px),
+    color-mix(in srgb, black 18%, transparent)
+      calc(var(--sidebar-footer-edge) - 4px),
+    transparent var(--sidebar-footer-edge),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 8px,
+    black var(--sidebar-footer-fade-start),
+    color-mix(in srgb, black 88%, transparent)
+      calc(var(--sidebar-footer-edge) - 24px),
+    color-mix(in srgb, black 52%, transparent)
+      calc(var(--sidebar-footer-edge) - 12px),
+    color-mix(in srgb, black 18%, transparent)
+      calc(var(--sidebar-footer-edge) - 4px),
+    transparent var(--sidebar-footer-edge),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -205,6 +278,7 @@
 
 .sidebar-scroll-content {
   min-width: 0;
+  padding-bottom: calc(var(--sidebar-footer-height) + 8px);
 }
 
 .sidebar-row,
@@ -244,6 +318,10 @@
 
 .sidebar-session-row.sidebar-row--grid {
   grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.sidebar-session-row.sidebar-row--grid.sidebar-row--no-leading {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .sidebar-row--flex {
@@ -310,11 +388,19 @@
   width: auto;
 }
 
-.sidebar-nav-link:hover .sidebar-item-icon,
-.sidebar-nav-link.active .sidebar-item-icon,
+.sidebar-item-icon {
+  color: color-mix(
+    in srgb,
+    var(--color-token-foreground) 50%,
+    transparent
+  );
+}
+
+.sidebar-row:hover .sidebar-item-icon,
+.sidebar-row:focus-within .sidebar-item-icon,
+.sidebar-row.active .sidebar-item-icon,
 .sidebar-project-header:hover .sidebar-item-icon,
-.sidebar-settings-link:hover .sidebar-item-icon,
-.sidebar-settings-link.active .sidebar-item-icon {
+.sidebar-project-header:focus-within .sidebar-item-icon {
   color: var(--color-token-foreground);
 }
 
@@ -465,9 +551,16 @@
   display: flex;
   align-items: center;
   gap: var(--sidebar-item-gap);
-  padding: 0;
   color: inherit;
   text-align: left;
+}
+
+.sidebar-project-button {
+  padding: 0;
+}
+
+.sidebar-session-button {
+  padding: 4px 0;
 }
 
 .sidebar-project-name {
@@ -554,16 +647,153 @@
 }
 
 .sidebar-focus-section-header {
+  position: sticky;
+  top: 6px;
+  z-index: 10;
   min-width: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sidebar-item-gap);
   padding: 0 var(--sidebar-padding-x);
-  margin-top: 2px;
+  margin-top: 0;
+  background: transparent;
+  isolation: isolate;
+}
+
+// Codex 式透明 blur 层：不给标题添加颜色块，滚动时内容透过标题仍保持可读
+.sidebar-focus-section-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 4px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 4px),
+    transparent
+  );
+}
+
+.sidebar-focus-section-clip-window,
+.sidebar-focus-section-clip-content {
+  min-width: 0;
+}
+
+@supports (animation-timeline: view(block)) {
+  .sidebar-focus-section {
+    view-timeline-name: --sidebar-sticky-section;
+    view-timeline-axis: block;
+    view-timeline-inset: 36px 0;
+    overflow: clip;
+  }
+
+  .sidebar-focus-section-clip-window,
+  .sidebar-focus-section-clip-content,
+  .sidebar-focus-section-header {
+    animation-duration: auto;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+  }
+
+  .sidebar-focus-section-clip-window,
+  .sidebar-focus-section-clip-content {
+    animation-timeline: --sidebar-sticky-section;
+    animation-range: exit-crossing;
+  }
+
+  .sidebar-focus-section-clip-window {
+    margin-top: -4px;
+    padding-top: 4px;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent -4px,
+      black 0
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent -4px,
+      black 0
+    );
+    animation-name: sidebar-sticky-section-clip-window;
+    overflow: hidden;
+  }
+
+  .sidebar-focus-section-clip-content {
+    animation-name: sidebar-sticky-section-clip-content;
+  }
+
+  .sidebar-focus-section-header {
+    animation-name: sidebar-sticky-section-heading-fade;
+    animation-timeline: view(block 8px 0);
+    animation-range: exit 0% exit 8px;
+  }
+}
+
+@keyframes sidebar-sticky-section-clip-window {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sidebar-sticky-section-clip-content {
+  to {
+    transform: translateY(calc(-100% - 4px));
+  }
+}
+
+@keyframes sidebar-sticky-section-heading-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+// 时间线唯一的外层 gutter：与分类标题、空状态、会话行各自的 8px 行内
+// padding 叠加后，文字统一落在距滚动内容边缘 16px 的基线上，选中/hover
+// 背景则从 8px gutter 开始，左右对称。
+.sidebar-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding-inline: var(--sidebar-padding-x);
+}
+
+.sidebar-timeline-menu-button {
+  flex: 0 0 auto;
+  opacity: 0;
+  pointer-events: none;
+
+  &:focus-visible,
+  &[data-state="open"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar-focus-section-header:hover &,
+  .sidebar-focus-section-header:focus-within & {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .sidebar-focus-section-title {
   margin: 0;
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-label);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--type-secondary);
   line-height: var(--menu-line-height);
+  font-weight: var(--font-weight-label);
   color: var(--color-token-description-foreground);
 }
 
@@ -577,7 +807,7 @@
 }
 
 .sidebar-session-button-lines--meta {
-  gap: 1px;
+  gap: 5px;
 }
 
 .sidebar-session-workspace-meta {
@@ -614,6 +844,11 @@
   &.is-drag-over {
     box-shadow: inset 0 2px 0 var(--color-token-focus-border);
   }
+}
+
+// 普通模式会话统一右缩进；时间线行不在此容器内，继续使用 8px 基线。
+.sidebar-standard-mode .sidebar-row--session {
+  padding-left: var(--layout-sidebar-session-indent);
 }
 
 .sidebar-project-sortable {
@@ -852,6 +1087,22 @@
   .sidebar-hover-card-surface {
     animation: none;
   }
+
+  .sidebar-focus-section-clip-window,
+  .sidebar-focus-section-clip-content,
+  .sidebar-focus-section-header {
+    animation: none;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .sidebar-focus-section-header,
+  .sidebar-focus-section-header::before {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 [data-reduce-motion="true"] .sidebar-hover-card-surface {
@@ -908,20 +1159,37 @@
 }
 
 .sidebar-footer {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 8px;
+  z-index: 20;
   min-width: 0;
   min-height: 40px;
   padding-top: 7px;
-  border-top: 1px solid var(--color-token-border-light);
+  border-top: 0;
 }
 
 @media (forced-colors: active) {
   .sidebar-scroll-area {
     scrollbar-color: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
 
     &::-webkit-scrollbar-thumb {
       border-color: Canvas;
       background: ButtonText;
     }
+  }
+
+  .sidebar-focus-section-header {
+    color: CanvasText;
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .sidebar-focus-section-header::before {
+    display: none;
   }
 
   .desktop-sidebar.is-preview {
@@ -937,7 +1205,17 @@
   color: var(--color-token-foreground);
 
   .sidebar-item-icon {
-    color: inherit;
+    color: color-mix(
+      in srgb,
+      var(--color-token-foreground) 50%,
+      transparent
+    );
+  }
+
+  &:hover .sidebar-item-icon,
+  &:focus-within .sidebar-item-icon,
+  &.active .sidebar-item-icon {
+    color: var(--color-token-foreground);
   }
 }
 
@@ -1301,6 +1579,13 @@
   .sidebar-session-spinner,
   .sidebar-collapse-confirm-target {
     animation: none;
+  }
+
+  .sidebar-focus-section-clip-window,
+  .sidebar-focus-section-clip-content,
+  .sidebar-focus-section-header {
+    animation: none;
+    transform: none;
   }
 }
 

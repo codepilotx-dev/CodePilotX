@@ -128,6 +128,7 @@ export const ThreadListItemSchema = Schema.Struct({
   latestTurnStatus: Schema.NullOr(TurnStatusSchema),
   archivedAt: Schema.NullOr(Schema.Number),
   unreadAt: Schema.optional(Schema.NullOr(Schema.Number)),
+  pendingPlanApproval: Schema.optional(Schema.Boolean),
   settings: ThreadSettingsSchema,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,

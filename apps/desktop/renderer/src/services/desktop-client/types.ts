@@ -1,5 +1,6 @@
 import type {
   EventEnvelope,
+  ProtocolCapability,
   RpcParams,
   RpcResult,
   ToolingID,
@@ -47,7 +48,7 @@ type DesktopClientWindow = {
     listExternalOpenTargets?(targetPath: string): Promise<Array<{
       targetId: string
       label: string
-      kind: 'default-app' | 'editor'
+      kind: 'file-explorer' | 'terminal' | 'editor'
       iconDataUrl?: string
     }>>
     openPathWithTarget?(targetPath: string, targetId: string): Promise<void>
@@ -312,6 +313,10 @@ export type DesktopReleaseNotesApi = {
   }): Promise<RpcResult<'release-notes/list'>>
 }
 
+export type DesktopRuntimeCapabilityApi = {
+  getRuntimeCapabilities(): Promise<readonly ProtocolCapability[]>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
@@ -319,4 +324,5 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopToolingApi &
   DesktopPetApi &
   DesktopUsageApi &
-  DesktopReleaseNotesApi
+  DesktopReleaseNotesApi &
+  DesktopRuntimeCapabilityApi

@@ -1,5 +1,6 @@
 import React, { Suspense, type ReactNode } from 'react'
 import {
+  Bot,
   FileText,
   GitPullRequest,
   Globe2,
@@ -275,10 +276,9 @@ const definitions: readonly WorkbenchTabDefinition[] = [
   {
     kind: 'side-task',
     label: '子智能体',
-    icon: <MessageSquarePlus size={iconSize} />,
+    icon: <Bot size={iconSize} />,
     launcher: false,
-    getTitle: tab =>
-      tab.kind === 'side-task' ? `子智能体 ${tab.taskId.slice(0, 8)}` : '子智能体',
+    getTitle: () => '子智能体',
     render: (tab, context) =>
       tab.kind === 'side-task' &&
       context.sideTask.activeTaskId === tab.taskId ? (

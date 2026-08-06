@@ -122,8 +122,8 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     keys: ['Ctrl+B'],
   },
   {
-    title: '切换侧栏优先级筛选',
-    description: 'Focus the sidebar on priority tasks and the last week of conversations',
+    title: '切换侧栏时间线',
+    description: 'Focus the sidebar on the last week of conversations and priority tasks',
     keys: ['Ctrl+Alt+U'],
   },
   {

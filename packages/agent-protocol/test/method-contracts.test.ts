@@ -213,9 +213,10 @@ const subagentTask = {
 } as const
 
 const subagentCapabilities = {
-  canSend: true,
   canStop: false,
   canRetry: true,
+  canRespondToApprovals: true,
+  canRespondToQuestions: true,
   canApplyWorktree: true,
   canDiscardWorktree: true,
   canRestoreWorkspace: true,
@@ -1209,19 +1210,6 @@ const fixtures = {
     currentRun: subagentRun,
     snapshot: threadSnapshot,
     capabilities: subagentCapabilities,
-  }),
-  "subagent/send": methodFixture("subagent/send", {
-    taskId: subagentTask.id,
-    inputId: "input:subagent:1",
-    message: "Continue the fixture task.",
-    model: modelRef,
-    permissionConfig,
-    attachmentIds: [attachment.id],
-  }, {
-    ...admission,
-    inputId: "input:subagent:1",
-    taskId: subagentTask.id,
-    runId: subagentRun.id,
   }),
   "subagent/stop": methodFixture("subagent/stop", {
     taskId: subagentTask.id,
@@ -2362,7 +2350,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(191)
+    expect(methods).toHaveLength(190)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2392,6 +2380,17 @@ describe("RPC method schema contracts", () => {
     const read = structuredClone(fixtures["thread/list"].result)
     ;(read.threads[0] as { unreadAt?: number | null }).unreadAt = null
     expect(decode(read).threads[0]?.unreadAt).toBeNull()
+  })
+
+  test("thread list pendingPlanApproval stays optional and decodes present values", () => {
+    const decode = Schema.decodeUnknownSync(RpcMethods["thread/list"].result)
+    const withoutPlan = structuredClone(fixtures["thread/list"].result)
+    delete (withoutPlan.threads[0] as { pendingPlanApproval?: boolean }).pendingPlanApproval
+    expect(decode(withoutPlan).threads[0]?.pendingPlanApproval).toBeUndefined()
+
+    const withPlan = structuredClone(fixtures["thread/list"].result)
+    ;(withPlan.threads[0] as { pendingPlanApproval?: boolean }).pendingPlanApproval = true
+    expect(decode(withPlan).threads[0]?.pendingPlanApproval).toBe(true)
   })
 
   test("accepts bundled changelog as a release notes source", () => {
@@ -2619,7 +2618,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(185)
+    expect(Object.keys(RpcMethods)).toHaveLength(184)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

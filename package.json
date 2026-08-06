@@ -1,7 +1,7 @@
 {
   "name": "codepilotx",
   "private": true,
-  "version": "0.2.0-beta.3",
+  "version": "0.2.0-beta.4",
   "packageManager": "bun@1.3.14",
   "workspaces": [
     "apps/agent",
@@ -42,7 +42,6 @@
     "test:review-concurrency": "bun scripts/test-review-concurrency.ts",
     "build": "bun run scripts/build.ts",
     "package:win": "bun scripts/package-win.ts --x64",
-    "beta:preflight": "bun scripts/beta-release.ts preflight",
     "version:check": "bun scripts/version-policy.ts version:check",
     "version:prepare": "bun scripts/version-policy.ts version:prepare"
   },

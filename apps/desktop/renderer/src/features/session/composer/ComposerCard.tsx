@@ -87,6 +87,8 @@ import {
   type ComposerPlacement,
   type ComposerSubmitOutcome,
   type ComposerSubmitShortcut,
+  type ComposerSurface,
+  type WorkingPlugin,
 } from "./composerTypes.js";
 import {
   getActiveSkillTokenQuery,
@@ -120,7 +122,8 @@ type ComposerDropdown =
   | "mode"
   | "branch"
   | "status"
-  | "goal";
+  | "goal"
+  | "plugin";
 
 type ContextPluginTone =
   | "docs"
@@ -322,6 +325,9 @@ type Props = {
   onCompositionStart?: () => void;
   onCompositionEnd?: () => void;
   submitShortcut?: ComposerSubmitShortcut;
+  surface?: ComposerSurface;
+  workingPlugin?: WorkingPlugin | null;
+  onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void;
 };
 
 const ComposerEditor = lazy(async () => {
@@ -413,6 +419,9 @@ export function ComposerCard({
   onCompositionStart,
   onCompositionEnd,
   submitShortcut = "enter",
+  surface,
+  workingPlugin,
+  onWorkingPluginChange,
 }: Props): React.ReactNode {
   const editorRef = useRef<ComposerEditorHandle | null>(null);
   const menuId = useId();
@@ -1124,6 +1133,7 @@ export function ComposerCard({
     <div
       className="composer-stack tw:relative tw:flex tw:w-full tw:max-w-[48rem] tw:flex-col tw:overflow-hidden"
       data-placement={placement}
+      data-surface={surface}
       aria-busy={submitting}
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
@@ -1986,7 +1996,7 @@ export function ComposerCard({
       </div>
 
       {placement !== "thread" ? (
-        <div className="composer-bottom composer-utility-bar tw:flex  tw:min-w-0 tw:items-center tw:gap-2 tw:pt-2">
+        <div className="composer-bottom composer-utility-bar tw:flex tw:min-w-0 tw:items-center tw:gap-2">
           {subagentMode ? (
             <MetaChip
               icon={<Folder size={APP_ICON_SIZE} />}
@@ -2018,20 +2028,74 @@ export function ComposerCard({
                 <MetaChip
                   active={openDropdown === "project"}
                   icon={<Folder size={APP_ICON_SIZE} />}
-                  label={workspace?.name ?? "进入项目工作"}
+                  label={
+                    workspace?.name ??
+                    (surface === "working" ? "选择文件夹" : "进入项目工作")
+                  }
                   title="选择项目"
                 />
               }
             />
           )}
 
+          {surface === "working" ? (
+            <PopoverMenu
+              className="popover-plugin"
+              open={openDropdown === "plugin"}
+              side="top"
+              width={200}
+              onOpenChange={(open) => setOpenDropdown(open ? "plugin" : null)}
+              trigger={
+                <MetaChip
+                  active={openDropdown === "plugin"}
+                  className={workingPlugin ? "is-selected" : undefined}
+                  icon={<Blocks size={APP_ICON_SIZE} />}
+                  label={workingPlugin === "task-planning" ? "规划任务" : "插件"}
+                  title={
+                    workingPlugin ? "取消工作插件" : "选择工作插件"
+                  }
+                  onClick={(event) => {
+                    if (workingPlugin) {
+                      // 选中状态下再次点击芯片直接取消，并阻止菜单展开
+                      event.preventDefault();
+                      onWorkingPluginChange?.(null);
+                      setOpenDropdown(null);
+                    }
+                  }}
+                />
+              }
+            >
+              <div className="popover-header">插件</div>
+              <div className="popover-section">
+                <PopoverItem
+                  icon={<Blocks size={APP_ICON_SIZE} />}
+                  selected={workingPlugin === "task-planning"}
+                  withCheck
+                  onClick={() => {
+                    onWorkingPluginChange?.(
+                      workingPlugin === "task-planning"
+                        ? null
+                        : "task-planning",
+                    );
+                    closeDropdown();
+                  }}
+                >
+                  规划任务
+                </PopoverItem>
+              </div>
+              <div className="popover-plugin-note">更多工作插件即将支持</div>
+            </PopoverMenu>
+          ) : null}
+
           {workspace ? (
             <>
-              <MetaChip
-                icon={<Monitor size={APP_ICON_SIZE} />}
-                label="本地"
-                title="本地执行"
-              />
+              {surface !== "working" ? (
+                <MetaChip
+                  icon={<Monitor size={APP_ICON_SIZE} />}
+                  label="本地"
+                  title="本地执行"
+                />
+              ) : null}
 
               {threadGoal ? (
                 <PopoverMenu
@@ -2116,28 +2180,30 @@ export function ComposerCard({
                 </PopoverMenu>
               ) : null}
 
-              <BranchSelectPopover
-                align="end"
-                branchSearch={branchSearch}
-                branches={branches}
-                className="popover-branch"
-                currentBranchName={branchName}
-                open={openDropdown === "branch"}
-                side="top"
-                width={420}
-                onBranchSearchChange={setBranchSearch}
-                onBranchSelect={onBranchSelect}
-                onCreateBranch={onCreateBranch}
-                onOpenChange={(open) => setOpenDropdown(open ? "branch" : null)}
-                trigger={
-                  <MetaChip
-                    active={openDropdown === "branch"}
-                    icon={<GitBranch size={APP_ICON_SIZE} />}
-                    label={branchName}
-                    title="选择分支"
-                  />
-                }
-              />
+              {surface !== "working" ? (
+                <BranchSelectPopover
+                  align="end"
+                  branchSearch={branchSearch}
+                  branches={branches}
+                  className="popover-branch"
+                  currentBranchName={branchName}
+                  open={openDropdown === "branch"}
+                  side="top"
+                  width={420}
+                  onBranchSearchChange={setBranchSearch}
+                  onBranchSelect={onBranchSelect}
+                  onCreateBranch={onCreateBranch}
+                  onOpenChange={(open) => setOpenDropdown(open ? "branch" : null)}
+                  trigger={
+                    <MetaChip
+                      active={openDropdown === "branch"}
+                      icon={<GitBranch size={APP_ICON_SIZE} />}
+                      label={branchName}
+                      title="选择分支"
+                    />
+                  }
+                />
+              ) : null}
             </>
           ) : null}
         </div>

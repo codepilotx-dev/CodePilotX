@@ -2,99 +2,62 @@ name: Windows x64 package
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
   push:
     tags:
       - "v*"
 
 permissions:
   contents: read
-  pull-requests: read
 
 concurrency:
   group: windows-x64-package-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  release-pr-policy:
-    if: github.event_name == 'pull_request'
-    runs-on: windows-latest
-    timeout-minutes: 10
-    outputs:
-      trusted: ${{ steps.policy.outputs.trusted }}
-    steps:
-      - name: Checkout pull request
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.14
-      - name: Verify trusted Release PR policy
-        id: policy
-        run: bun scripts/verify-release-pr-policy.ts
-
   unsigned-smoke:
     if: github.event_name == 'pull_request'
-    needs: release-pr-policy
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
       - name: Checkout
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - name: Setup Bun
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.14
       - name: Install dependencies
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         run: bun install --frozen-lockfile
       - name: Build unsigned package
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         run: bun run package:win
       - name: Silent install and installed-layout smoke
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         shell: pwsh
         run: pwsh -NoProfile -File scripts/smoke-installed-win-x64.ps1
-      - name: Accept verified Release PR receipt
-        if: needs.release-pr-policy.outputs.trusted == 'true'
-        run: echo "Trusted signed Release PR uses its locked package dry-run receipt."
 
   release-parity:
     if: github.event_name == 'pull_request'
-    needs: release-pr-policy
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
       - name: Checkout
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Bun
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.14
       - name: Install dependencies
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         run: bun install --frozen-lockfile
       - name: Renderer final-state accessibility
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         run: bun run --cwd apps/desktop/renderer test:a11y
       - name: Build Windows x64 agent
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         run: bun run build:agent
       - name: Create isolated release run context
         id: run-context
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         shell: pwsh
         run: |
           bun scripts/release-run-context.ts create
@@ -102,7 +65,6 @@ jobs:
           "created=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
       - name: Create synthetic signing certificate
         id: parity-cert
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         shell: pwsh
         timeout-minutes: 10
         run: |
@@ -121,7 +83,6 @@ jobs:
           "pfx=$pfxPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "password=$password" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
       - name: Sign agent with synthetic certificate
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         shell: pwsh
         env:
           CODEPILOTX_WINDOWS_CERTIFICATE_PATH: ${{ steps.parity-cert.outputs.pfx }}
@@ -130,7 +91,6 @@ jobs:
           bun scripts/sign-win-agent.ts
           if ($LASTEXITCODE -ne 0) { throw "Synthetic Authenticode signing failed" }
       - name: Verify signed agent runtime parity
-        if: needs.release-pr-policy.outputs.trusted != 'true'
         shell: pwsh
         env:
           PARITY_THUMBPRINT: ${{ steps.parity-cert.outputs.thumbprint }}
@@ -141,7 +101,7 @@ jobs:
             --authenticode-trust-anchor $env:PARITY_THUMBPRINT
           if ($LASTEXITCODE -ne 0) { throw "Signed agent runtime parity failed" }
       - name: Remove synthetic certificate and context
-        if: always() && needs.release-pr-policy.outputs.trusted != 'true'
+        if: always()
         shell: pwsh
         env:
           CERT_THUMBPRINT: ${{ steps.parity-cert.outputs.thumbprint }}
@@ -157,19 +117,15 @@ jobs:
           }
           bun scripts/release-run-context.ts dispose
           if ($LASTEXITCODE -ne 0) { throw "Failed to remove the synthetic signing context" }
-      - name: Accept verified Release PR receipt
-        if: needs.release-pr-policy.outputs.trusted == 'true'
-        run: echo "Trusted signed Release PR uses its locked package dry-run receipt."
 
-  package-release:
+  source-release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: [self-hosted, windows, x64, codepilotx-release]
-    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
-      name: beta-release
-    outputs:
-      channel: ${{ steps.release-metadata.outputs.channel }}
-      update-channel: ${{ steps.release-metadata.outputs.update-channel }}
+      name: ${{ contains(github.ref_name, '-') && 'beta-release' || 'release' }}
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -177,347 +133,60 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Verify tag target belongs to main
-        shell: pwsh
+        shell: bash
         run: |
-          git fetch --no-tags --force "https://github.com/$env:GITHUB_REPOSITORY.git" `
+          set -euo pipefail
+          git fetch --no-tags --force "https://github.com/${GITHUB_REPOSITORY}.git" \
             main:refs/remotes/origin/main
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to refresh origin/main"
-          }
-
-          $tagCommit = (git rev-parse "$env:GITHUB_REF^{commit}").Trim()
-          $checkedOutCommit = (git rev-parse HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $tagCommit -cne $checkedOutCommit) {
-            throw "The checked out commit does not match the release tag target"
-          }
-
-          git merge-base --is-ancestor $tagCommit refs/remotes/origin/main
-          if ($LASTEXITCODE -ne 0) {
-            throw "Release tag $env:GITHUB_REF_NAME does not point to a commit in main history"
-          }
-      - name: Verify trusted Release PR identity
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $tagCommit = (git rev-parse "$env:GITHUB_REF^{commit}").Trim().ToLowerInvariant()
-          $pullRequests = @(gh api `
-            -H "Accept: application/vnd.github+json" `
-            "repos/$env:GITHUB_REPOSITORY/commits/$tagCommit/pulls" | ConvertFrom-Json)
-          if ($LASTEXITCODE -ne 0 -or $pullRequests.Count -ne 1) {
-            throw "Release tag must identify exactly one merged Release PR"
-          }
-          $pullRequest = $pullRequests[0]
-          $labels = @($pullRequest.labels | ForEach-Object { $_.name })
-          if ($pullRequest.user.login -cne "xiaohai-ouyang" -or
-              $pullRequest.base.ref -cne "main" -or
-              $pullRequest.head.repo.full_name -cne "codepilotx-dev/CodePilotX" -or
-              -not $pullRequest.head.ref.StartsWith("automation/release-v") -or
-              $pullRequest.merge_commit_sha.ToLowerInvariant() -cne $tagCommit -or
-              $pullRequest.merged_at -eq $null -or
-              $labels -cnotcontains "automation:beta-release") {
-            throw "Release tag is not backed by the trusted automation Release PR"
-          }
-          $marker = [regex]::Match(
-            [string]$pullRequest.body,
-            '<!-- codepilotx-beta-release\s+base-sha:\s*([0-9a-f]{40})\s+version:\s*([^\s]+)\s+tag:\s*(v[^\s]+)\s+-->',
-            [Text.RegularExpressions.RegexOptions]::IgnoreCase
-          )
-          if (-not $marker.Success -or
-              $marker.Groups[1].Value.ToLowerInvariant() -cne $pullRequest.base.sha.ToLowerInvariant() -or
-              $marker.Groups[3].Value -cne $env:GITHUB_REF_NAME -or
-              $marker.Groups[3].Value -cne "v$($marker.Groups[2].Value)" -or
-              $pullRequest.head.ref -cne "automation/release-v$($marker.Groups[2].Value)-$($marker.Groups[1].Value.Substring(0, 7))") {
-            throw "Release PR marker does not match the tag"
-          }
-          git fetch --no-tags --force origin $pullRequest.head.sha
-          if ($LASTEXITCODE -ne 0) { throw "Unable to fetch the signed Release PR head" }
-          $allowedPaths = @(
-            "CHANGELOG.md",
-            "package.json",
-            "apps/agent/package.json",
-            "apps/desktop/electron/package.json",
-            "apps/desktop/renderer/package.json",
-            "bun.lock"
-          )
-          $changedPaths = @(git diff --name-only `
-            "$($marker.Groups[1].Value)...$($pullRequest.head.sha)")
-          if ($LASTEXITCODE -ne 0 -or $changedPaths.Count -eq 0 -or
-              @($changedPaths | Where-Object { $allowedPaths -cnotcontains $_ }).Count -ne 0) {
-            throw "Release PR changes files outside the release allowlist"
-          }
-          git config gpg.format ssh
-          git config gpg.ssh.allowedSignersFile `
-            "$PWD/.github/release-trust/beta-preflight.allowed_signers"
-          git verify-commit $pullRequest.head.sha
-          if ($LASTEXITCODE -ne 0) { throw "Release PR head commit signature is not trusted" }
+          tag_commit="$(git rev-parse "${GITHUB_REF}^{commit}")"
+          checked_out_commit="$(git rev-parse HEAD)"
+          test "$tag_commit" = "$checked_out_commit"
+          git merge-base --is-ancestor "$tag_commit" refs/remotes/origin/main
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.14
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Create isolated release run context
-        id: run-context
-        shell: pwsh
-        run: |
-          bun scripts/release-run-context.ts create
-          if ($LASTEXITCODE -ne 0) { throw "Failed to create the isolated release run context" }
-          "created=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
       - name: Version policy check
-        shell: pwsh
+        shell: bash
         run: |
-          if ($env:GITHUB_REPOSITORY -cne "codepilotx-dev/CodePilotX") {
-            throw "Release publishing is restricted to codepilotx-dev/CodePilotX"
-          }
-          bun run version:check -- --tag "$env:GITHUB_REF_NAME"
-      - name: Resolve release channel
-        id: release-metadata
-        shell: pwsh
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "codepilotx-dev/CodePilotX"
+          bun run version:check -- --tag "$GITHUB_REF_NAME"
+      - name: Generate release notes
+        shell: bash
         run: |
-          $tag = $env:GITHUB_REF_NAME
-          if ($tag -match '^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$') {
-            "channel=prerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "update-channel=$($Matches[1])" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          } elseif ($tag -match '^v\d+\.\d+\.\d+$') {
-            "channel=stable" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "update-channel=latest" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          } else {
-            throw "Unsupported release tag '$tag'. Expected vX.Y.Z-(alpha|beta|rc).N or vX.Y.Z."
-          }
-      - name: Build signed release package
-        env:
-          CODEPILOTX_REQUIRE_SIGNING: "1"
-        run: bun run package:win
-      - name: Verify updater artifacts
-        shell: pwsh
-        env:
-          UPDATE_CHANNEL: ${{ steps.release-metadata.outputs.update-channel }}
-        run: |
-          $installers = @(Get-ChildItem release/CodePilotX-*-x64.exe)
-          $blockmaps = @(Get-ChildItem release/CodePilotX-*-x64.exe.blockmap)
-          $metadata = @(Get-Item "release/$env:UPDATE_CHANNEL.yml")
-          if ($installers.Count -ne 1 -or $blockmaps.Count -ne 1 -or $metadata.Count -ne 1) {
-            throw "Expected exactly one installer, blockmap and $env:UPDATE_CHANNEL.yml update metadata file"
-          }
-      - name: Silent install and installed-layout smoke
-        shell: pwsh
-        env:
-          CODEPILOTX_REQUIRE_SIGNING: "1"
-        run: pwsh -NoProfile -File scripts/smoke-installed-win-x64.ps1
-      - name: Generate release notes and SHA-256 checksum
-        shell: pwsh
-        run: |
-          $tag = $env:GITHUB_REF_NAME
-          $installers = @(Get-ChildItem release/CodePilotX-*-x64.exe)
-          if ($installers.Count -ne 1) {
-            throw "Expected exactly one Windows x64 installer, found $($installers.Count)"
-          }
-
-          bun scripts/write-release-notes.ts --tag $tag --output release/RELEASE_NOTES.md
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to generate release notes for $tag"
-          }
-
-          $checksumFiles = @(
-            $installers[0]
-            (Get-ChildItem release/CodePilotX-*-x64.exe.blockmap -File)
-            (Get-Item "release/${{ steps.release-metadata.outputs.update-channel }}.yml")
-          )
-          $checksumLines = @($checksumFiles | ForEach-Object {
-            $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
-            "$digest *$($_.Name)"
-          })
-          $checksumLines | Set-Content -LiteralPath release/SHA256SUMS.txt -Encoding utf8NoBOM
-      - name: Generate SPDX JSON SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
-        with:
-          path: release/installed
-          format: spdx-json
-          output-file: release/codepilotx-windows-x64.spdx.json
-          upload-artifact: false
-          upload-release-assets: false
-      - name: Upload release bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: windows-x64-release-${{ github.ref_name }}
-          path: |
-            release/CodePilotX-*-x64.exe
-            release/CodePilotX-*-x64.exe.blockmap
-            release/${{ steps.release-metadata.outputs.update-channel }}.yml
-            release/SHA256SUMS.txt
-            release/codepilotx-windows-x64.spdx.json
-            release/RELEASE_NOTES.md
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Dispose release run context
-        if: always() && steps.run-context.outputs.created == 'true'
-        shell: pwsh
-        run: |
-          bun scripts/release-run-context.ts dispose
-          if ($LASTEXITCODE -ne 0) { throw "Failed to dispose the isolated release run context" }
-
-  stable-release-approval:
-    needs: package-release
-    if: needs.package-release.outputs.channel == 'stable'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions: {}
-    environment:
-      name: release
-    steps:
-      - name: Confirm release environment approval
-        run: echo "Stable release approved."
-
-  publish-release:
-    needs:
-      - package-release
-      - stable-release-approval
-    if: >-
-      always() &&
-      needs.package-release.result == 'success' &&
-      (
-        needs.package-release.outputs.channel == 'prerelease' ||
-        needs.stable-release-approval.result == 'success'
-      )
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
-    steps:
-      - name: Download release bundle
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: windows-x64-release-${{ github.ref_name }}
-          path: release
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
-        with:
-          subject-path: "${{ github.workspace }}/release/CodePilotX-*-x64.exe"
-      - name: Attest SBOM
-        uses: actions/attest-sbom@10926c72720ffc3f7b666661c8e55b1344e2a365 # v2
-        with:
-          subject-path: "${{ github.workspace }}/release/CodePilotX-*-x64.exe"
-          sbom-path: "${{ github.workspace }}/release/codepilotx-windows-x64.spdx.json"
-      - name: Create or update GitHub Release
-        shell: pwsh
+          set -euo pipefail
+          mkdir -p release
+          bun scripts/write-release-notes.ts \
+            --tag "$GITHUB_REF_NAME" \
+            --output release/RELEASE_NOTES.md
+      - name: Create source-only GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_CHANNEL: ${{ needs.package-release.outputs.channel }}
-          UPDATE_CHANNEL: ${{ needs.package-release.outputs.update-channel }}
         run: |
-          $repository = $env:GITHUB_REPOSITORY
-          $tag = $env:GITHUB_REF_NAME
-          $notesPath = Join-Path $PWD "release/RELEASE_NOTES.md"
-          $isPrerelease = $env:RELEASE_CHANNEL -eq "prerelease"
-          $apiHeaders = @{
-            Accept = "application/vnd.github+json"
-            Authorization = "Bearer $env:GH_TOKEN"
-            "User-Agent" = "CodePilotX-release"
-            "X-GitHub-Api-Version" = "2022-11-28"
-          }
-          $apiBase = "https://api.github.com/repos/$repository"
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists and immutable releases must not be replaced" >&2
+            exit 1
+          fi
 
-          $assets = @(
-            (Get-ChildItem release/CodePilotX-*-x64.exe).FullName
-            (Get-ChildItem release/CodePilotX-*-x64.exe.blockmap).FullName
-            (Resolve-Path "release/$env:UPDATE_CHANNEL.yml").Path
-            (Resolve-Path release/SHA256SUMS.txt).Path
-            (Resolve-Path release/codepilotx-windows-x64.spdx.json).Path
+          release_args=(
+            "$tag"
+            --repo "$GITHUB_REPOSITORY"
+            --verify-tag
+            --title "CodePilotX $tag"
+            --notes-file release/RELEASE_NOTES.md
           )
-          if ($assets.Count -ne 5) {
-            throw "Expected installer, blockmap, update metadata, checksum and SBOM release assets"
-          }
+          if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]; then
+            release_args+=(--prerelease)
+          fi
+          gh release create "${release_args[@]}"
 
-          $releases = @()
-          $page = 1
-          do {
-            $releasePage = @(
-              Invoke-RestMethod `
-                -Method Get `
-                -Uri "$apiBase/releases?per_page=100&page=$page" `
-                -Headers $apiHeaders
-            )
-            $releases += $releasePage
-            $page += 1
-          } while ($releasePage.Count -eq 100)
-          $matchingReleases = @($releases | Where-Object { $_.tag_name -ceq $tag })
-          $publishedReleases = @($matchingReleases | Where-Object { -not $_.draft })
-          if ($publishedReleases.Count -ne 0) {
-            throw "Release $tag already exists and immutable releases must not be replaced"
-          }
-
-          $draftReleases = @($matchingReleases | Where-Object { $_.draft })
-          if ($draftReleases.Count -gt 1) {
-            throw "Multiple draft releases exist for $tag; refusing an ambiguous publish"
-          }
-
-          $releaseBody = @{
-            name = "CodePilotX $tag"
-            body = Get-Content -LiteralPath $notesPath -Raw
-            draft = $true
-            prerelease = $isPrerelease
-          }
-          if ($draftReleases.Count -eq 1) {
-            $release = Invoke-RestMethod `
-              -Method Patch `
-              -Uri "$apiBase/releases/$($draftReleases[0].id)" `
-              -Headers $apiHeaders `
-              -ContentType "application/json" `
-              -Body ($releaseBody | ConvertTo-Json)
-          } else {
-            $releaseBody.tag_name = $tag
-            $release = Invoke-RestMethod `
-              -Method Post `
-              -Uri "$apiBase/releases" `
-              -Headers $apiHeaders `
-              -ContentType "application/json" `
-              -Body ($releaseBody | ConvertTo-Json)
-          }
-
-          if (-not $release.draft -or $release.tag_name -cne $tag) {
-            throw "Release $tag is not a confirmed draft; refusing to upload assets"
-          }
-          if (@($release.assets).Count -ne 0) {
-            throw "Draft release $tag already contains assets; refusing to replace them"
-          }
-
-          foreach ($asset in $assets) {
-            $assetName = Split-Path $asset -Leaf
-            $encodedAssetName = [Uri]::EscapeDataString($assetName)
-            $uploadedAsset = Invoke-RestMethod `
-              -Method Post `
-              -Uri "https://uploads.github.com/repos/$repository/releases/$($release.id)/assets?name=$encodedAssetName" `
-              -Headers $apiHeaders `
-              -ContentType "application/octet-stream" `
-              -InFile $asset
-            if ($uploadedAsset.name -cne $assetName) {
-              throw "GitHub returned an unexpected asset name while uploading $assetName"
-            }
-          }
-
-          $verifiedDraft = Invoke-RestMethod `
-            -Method Get `
-            -Uri "$apiBase/releases/$($release.id)" `
-            -Headers $apiHeaders
-          $actualAssets = @($verifiedDraft.assets | ForEach-Object { $_.name })
-          $expectedAssets = @($assets | ForEach-Object { Split-Path $_ -Leaf })
-          $assetDifference = @(
-            Compare-Object $expectedAssets $actualAssets -CaseSensitive
-          )
-          if (-not $verifiedDraft.draft -or $assetDifference.Count -ne 0) {
-            throw "Draft release assets for $tag do not exactly match the expected bundle"
-          }
-
-          $publishedRelease = Invoke-RestMethod `
-            -Method Patch `
-            -Uri "$apiBase/releases/$($release.id)" `
-            -Headers $apiHeaders `
-            -ContentType "application/json" `
-            -Body (@{ draft = $false } | ConvertTo-Json)
-          if ($publishedRelease.draft -or $publishedRelease.tag_name -cne $tag) {
-            throw "Publishing release $tag returned an ambiguous result; no release was deleted"
-          }
+          asset_count="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" \
+            --jq '.assets | length')"
+          test "$asset_count" = "0"

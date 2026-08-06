@@ -96,6 +96,7 @@ import {
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
 import { useModelProviderController } from '../useModelProviderController.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
+import { useSideChatController } from '../dock/useSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
 import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
@@ -296,7 +297,7 @@ export function DesktopLayout(): React.ReactNode {
 	    setCollapsedSidebarSections,
 	    sidebarSessionPins,
 	    setSidebarSessionPins,
-	    setSidebarPriorityFilterEnabled,
+	    setSidebarTimelineEnabled,
 	    syncExternalSettingsPatch,
   } = settings
   useSystemNotifications(
@@ -977,27 +978,42 @@ export function DesktopLayout(): React.ReactNode {
     sideChatFocusVersion,
     sideChatAttachments,
     setSideChatAttachments,
-    selectedSubagentTaskId,
-    selectedSubagent,
-    subagentPermissionMode,
-    setSubagentPermissionMode,
     handleAppendSideChatText,
     sideChatSubmitToSession,
     appendSideComposerAttachmentsForDraft,
     removeSideComposerAttachmentForDraft,
     clearSideComposerDraftIfUnchanged,
+  } = useSideChatController({
+    openRightDockTab,
+    submitToSession,
+  })
+  const {
+    selectedSubagentTaskId,
+    selectedSubagent,
     refreshSelectedSubagent,
     handleOpenSubagent,
   } = useSubagentDockController({
     activeSideTaskId,
-    model,
     openRightDockTab,
-    submitToSession,
     onError: handleErrorMessage,
   })
-  const sideComposerDraftKey: ComposerDraftKey = selectedSubagentTaskId
-    ? `side-task:${selectedSubagentTaskId}`
-    : 'side-chat'
+  const sideComposerDraftKey: ComposerDraftKey = 'side-chat'
+
+  const handleCloseSubagentTab = useCallback(
+    (taskId: string): void => {
+      const tabId = `side-task:${taskId}` as const
+      const target: WorkbenchPanelTarget =
+        workbenchPanelState.right.tabIds.includes(tabId)
+          ? 'right'
+          : workbenchPanelState.bottom.tabIds.includes(tabId)
+            ? 'bottom'
+            : null
+      if (!target) return
+      closePanelTab(target, tabId)
+      closePanel(target)
+    },
+    [closePanel, closePanelTab, workbenchPanelState],
+  )
 
   const handleSubmitEditedUserMessage = useCallback(
     async (text: string): Promise<void> => {
@@ -1272,7 +1288,7 @@ export function DesktopLayout(): React.ReactNode {
         && key === 'u'
       ) {
         event.preventDefault()
-        setSidebarPriorityFilterEnabled(current => !current)
+        setSidebarTimelineEnabled(current => !current)
       } else if (
         !event.shiftKey &&
         !event.altKey &&
@@ -2274,17 +2290,15 @@ export function DesktopLayout(): React.ReactNode {
         messages={messages}
         placement="side-task"
         draftKey={sideComposerDraftKey}
-        routedSessionId={
-          selectedSubagent?.task.childThreadId ?? activeSessionItem?.id ?? null
-        }
+        routedSessionId={activeSessionItem?.id ?? null}
         sessionStatus={sessionStatus}
-        permissionMode={selectedSubagentTaskId ? subagentPermissionMode : effectivePermissionMode}
-        planModeActive={selectedSubagentTaskId ? false : planModeActive}
+        permissionMode={effectivePermissionMode}
+        planModeActive={planModeActive}
         localRouterMode={effectiveLocalRouterMode}
         enableParetoCodeRouter={localRouterAvailable && (enableParetoCodeRouter ?? false)}
         enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
-        enableAutoReviewPermissionMode={selectedSubagentTaskId ? selectedSubagent?.task.permissionCeiling.approvalsReviewer === 'auto_review' : enableAutoReviewPermissionMode ?? false}
-        enableFullAccessPermissionMode={selectedSubagentTaskId ? selectedSubagent?.task.permissionCeiling.sandboxMode === 'danger-full-access' : enableFullAccessPermissionMode ?? false}
+        enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
+        enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
         planExecutionModel={planExecutionModel}
         thinkingMode={thinkingMode}
         selectedProviderID={selectedProviderID}
@@ -2308,7 +2322,7 @@ export function DesktopLayout(): React.ReactNode {
         onDraftAccepted={clearSideComposerDraftIfUnchanged}
         onChooseWorkspace={handleChooseWorkspace}
         onInputChange={setSideChatInput}
-        onInterrupt={selectedSubagentTaskId && desktopClient.stopSubagent ? async () => { await desktopClient.stopSubagent!(selectedSubagentTaskId); await refreshSelectedSubagent() } : interrupt}
+        onInterrupt={interrupt}
         onProviderModelChange={handleProviderModelChange}
         onProviderOpen={handleProviderOpen}
         onProviderSearch={handleProviderSearch}
@@ -2320,23 +2334,24 @@ export function DesktopLayout(): React.ReactNode {
         onBranchSelect={handleBranchSelect}
         onCreateBranch={handleCreateBranch}
         onStartReview={handleStartAiReview}
-        onPermissionChange={selectedSubagentTaskId ? setSubagentPermissionMode : handlePermissionChange}
-        onPlanModeChange={selectedSubagentTaskId ? () => {} : handlePlanModeChange}
+        onPermissionChange={handlePermissionChange}
+        onPlanModeChange={handlePlanModeChange}
         onLocalRouterModeChange={handleLocalRouterModeChange}
         onThinkingChange={setThinkingMode}
         createSessionForWorkspace={createSessionForWorkspace}
         submitToSession={sideChatSubmitToSession}
-        subagentMode={Boolean(selectedSubagentTaskId)}
       />
     ) : null
-  const subagentSideChatContent = selectedSubagent?.currentRun ? (
+  const subagentThreadContent = selectedSubagent?.currentRun ? (
     <Suspense fallback={null}>
       <SubagentThreadPanel
         task={selectedSubagent.task}
         run={selectedSubagent.currentRun}
         snapshot={selectedSubagent.snapshot}
         capabilities={selectedSubagent.capabilities}
-        composer={sideChatComposer}
+        onBackToParent={() => {
+          if (selectedSubagentTaskId) handleCloseSubagentTab(selectedSubagentTaskId)
+        }}
         callbacks={{
         onPatchApplied: async () => {
           await refreshSelectedSubagent()
@@ -2355,7 +2370,7 @@ export function DesktopLayout(): React.ReactNode {
         }}
       />
     </Suspense>
-  ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
+  ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子智能体…</div> : undefined
   const planContentByEventId = useMemo(() => {
     const result: Record<string, string> = {}
     for (const event of events) {
@@ -2739,7 +2754,13 @@ export function DesktopLayout(): React.ReactNode {
       }}
       onCloseTab={tabId => {
         void saveTabsBeforeClose([tabId]).then(saved => {
-          if (saved) closePanelTab(target, tabId)
+          if (!saved) return
+          const tab = workbenchPanelState.tabsById[tabId]
+          if (tab?.kind === 'side-task') {
+            handleCloseSubagentTab(tab.taskId)
+            return
+          }
+          closePanelTab(target, tabId)
         })
       }}
       onCloseOtherTabs={tabId => {
@@ -2791,7 +2812,7 @@ export function DesktopLayout(): React.ReactNode {
       sideChatComposer={sideChatComposer}
       sideChatFocusVersion={sideChatFocusVersion}
       activeSideTaskId={activeSideTaskId}
-      sideTaskContent={subagentSideChatContent}
+      sideTaskContent={subagentThreadContent}
       />
     </Suspense>
     )

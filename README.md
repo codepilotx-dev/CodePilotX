@@ -8,7 +8,7 @@ _Open-source, Windows-first desktop workspace for AI-assisted coding._
 [![License](https://img.shields.io/github/license/codepilotx-dev/CodePilotX)](LICENSE)
 
 > [!IMPORTANT]
-> CodePilotX 当前处于 Beta 阶段，仅提供 Windows x64 版本。
+> CodePilotX 当前处于 Beta 阶段，仅发布源码；运行环境为 Windows x64，使用者需自行构建。
 
 ## 界面预览
 
@@ -39,12 +39,15 @@ _Open-source, Windows-first desktop workspace for AI-assisted coding._
 
 ## 下载与安装
 
-前往 [GitHub Releases](https://github.com/codepilotx-dev/CodePilotX/releases)，下载最新的 `CodePilotX-*-x64.exe` Beta 安装程序。
+前往 [GitHub Releases](https://github.com/codepilotx-dev/CodePilotX/releases)，下载最新版本的 `Source code (zip)` 或 `Source code (tar.gz)`。仓库不提供预构建安装程序；Windows x64 使用者需在源码目录自行打包：
 
-1. 运行 Windows x64 安装程序。
-2. 打开或导入一个本地 Git 项目。
-3. 在“供应商”中配置 API Key、OAuth 或自定义 Endpoint。
-4. 新建任务，选择模型、推理等级与权限模式后开始工作。
+```powershell
+bun install --frozen-lockfile
+bun run package:win
+pwsh -NoProfile -File scripts/smoke-installed-win-x64.ps1
+```
+
+打包成功后，从 `release/` 运行本机构建的 Windows x64 安装程序，再打开或导入本地 Git 项目并配置 Provider。
 
 请勿在公开 Issue、日志或截图中暴露 API Key、访问令牌或真实用户数据。安全问题请按[安全策略](SECURITY.md)私密报告。
 

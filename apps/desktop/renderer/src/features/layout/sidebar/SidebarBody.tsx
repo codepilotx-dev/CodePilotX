@@ -12,9 +12,12 @@ import type {
 import type { SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import {
+  PopoverCheckboxItem,
+  PopoverItem,
   PopoverLabel,
   PopoverRadioGroup,
   PopoverRadioItem,
+  PopoverSeparator,
 } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
@@ -38,8 +41,14 @@ import {
   type SidebarFocusSection,
   type SidebarPinnedItem,
   type SidebarProjectSessionBucket,
+  type SidebarTimelineModel,
 } from "./sidebarViewModel.js";
 import { cx } from "../../../utils/cx.js";
+import type { SidebarProjectCatalogState } from './useSidebarProjectCatalog.js'
+import {
+  type SidebarScrollModeKey,
+  useSidebarScrollController,
+} from './useSidebarScrollController.js'
 
 const PINNED_INITIAL_LIMIT = 20;
 const PINNED_LIMIT_STEP = 20;
@@ -48,7 +57,8 @@ type Props = {
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
   organization: DesktopSidebarOrganization;
-  focusSections?: SidebarFocusSection[] | null;
+  timeline?: SidebarTimelineModel | null;
+  showTimelinePinned: boolean;
   now: number;
   pendingPermissionSessionIds: ReadonlySet<string>;
   titleLoadingIds: ReadonlySet<string>;
@@ -63,6 +73,13 @@ type Props = {
   manualOrderByScope: Record<string, string[]>;
   unavailableWorkspacePaths: Set<string>;
   workspace: DesktopWorkspace | null;
+  /** 位于滚动视口最前端的次级导航与加载/错误提示。 */
+  scrollHeader: React.ReactNode;
+  /** 滚动视口是否已滚过固定入口（scrollTop > 0），驱动动态分隔线。 */
+  onScrollOverlapChange: (overlapping: boolean) => void;
+  projectCatalogState: SidebarProjectCatalogState;
+  scrollModeKey: SidebarScrollModeKey;
+  scrollPositions: Map<SidebarScrollModeKey, number>;
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
@@ -81,13 +98,19 @@ type Props = {
   onOrganizationChange: (organization: DesktopSidebarOrganization) => void;
   onProjectSortChange: (sort: DesktopSidebarSort) => void;
   onSessionSortChange: (sort: DesktopSidebarSort) => void;
+  hasUnreadAttention: boolean;
+  hasArchivableAttention: boolean;
+  onMarkAttentionRead: () => void;
+  onRequestArchiveAttention: () => void;
+  onShowTimelinePinnedChange: (value: boolean) => void;
 };
 
 export function SidebarBody({
   activeSessionId,
   collapsedProjectPaths,
   organization,
-  focusSections,
+  timeline,
+  showTimelinePinned,
   now,
   pendingPermissionSessionIds,
   titleLoadingIds,
@@ -102,6 +125,11 @@ export function SidebarBody({
   manualOrderByScope,
   unavailableWorkspacePaths,
   workspace,
+  scrollHeader,
+  onScrollOverlapChange,
+  projectCatalogState,
+  scrollModeKey,
+  scrollPositions,
   onArchiveSessions,
   onChooseWorkspace,
   onCreateSession,
@@ -120,6 +148,11 @@ export function SidebarBody({
   onOrganizationChange,
   onProjectSortChange,
   onSessionSortChange,
+  hasUnreadAttention,
+  hasArchivableAttention,
+  onMarkAttentionRead,
+  onRequestArchiveAttention,
+  onShowTimelinePinnedChange,
 }: Props): React.ReactNode {
   const [visibleProjectLimit, setVisibleProjectLimit] = useState(5);
   const [visiblePinnedLimit, setVisiblePinnedLimit] = useState(
@@ -139,14 +172,13 @@ export function SidebarBody({
     string | null
   >(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null)
-  const previousFocusModeRef = useRef<boolean>(focusSections !== null)
-  useEffect(() => {
-    const focusMode = focusSections !== null
-    if (focusMode !== previousFocusModeRef.current) {
-      previousFocusModeRef.current = focusMode
-      scrollViewportRef.current?.scrollTo({ top: 0 })
-    }
-  }, [focusSections])
+  const { onScroll } = useSidebarScrollController({
+    activeSessionId,
+    modeKey: scrollModeKey,
+    positions: scrollPositions,
+    viewportRef: scrollViewportRef,
+    onScrollOverlapChange,
+  })
   const unavailablePaths = useMemo(
     () =>
       new Set(
@@ -187,7 +219,49 @@ export function SidebarBody({
   const displayedPinnedItems = [...basePinnedItems, ...extraPinnedItems];
 
   useEffect(() => {
-    setVisibleProjectLimit(5);
+    if (!activeSessionId) return
+
+    const pinnedIndex = pinnedItems.findIndex(item =>
+      item.kind === 'session'
+        ? item.session.id === activeSessionId
+        : projectSessionBuckets
+            .get(sidebarProjectKey(item.project))
+            ?.displaySessions.some(session => session.id === activeSessionId),
+    )
+    if (pinnedIndex >= 0) {
+      setVisiblePinnedLimit(current => Math.max(current, pinnedIndex + 1))
+      return
+    }
+
+    const projectIndex = organization === 'projects'
+      ? projectWorkspaces.findIndex(project =>
+          projectSessionBuckets
+            .get(sidebarProjectKey(project))
+            ?.displaySessions.some(session => session.id === activeSessionId),
+        )
+      : -1
+    if (projectIndex >= 0) {
+      setVisibleProjectLimit(current => Math.max(current, projectIndex + 1))
+    }
+  }, [
+    activeSessionId,
+    pinnedItems,
+    organization,
+    projectSessionBuckets,
+    projectWorkspaces,
+  ])
+
+  useEffect(() => {
+    const activeProjectIndex = activeSessionId && organization === 'projects'
+      ? projectWorkspaces.findIndex(project =>
+          projectSessionBuckets
+            .get(sidebarProjectKey(project))
+            ?.displaySessions.some(session => session.id === activeSessionId),
+        )
+      : -1
+    setVisibleProjectLimit(
+      activeProjectIndex < 0 ? 5 : Math.max(5, activeProjectIndex + 1),
+    )
   }, [organization]);
 
   function isUnavailable(project: DesktopWorkspace): boolean {
@@ -332,6 +406,12 @@ export function SidebarBody({
     if (order) onManualOrderChange("pinned-items", order);
   }
 
+  function pinnedItemKind(
+    key: string,
+  ): SidebarPinnedItem["kind"] | null {
+    return pinnedItems.find(item => item.key === key)?.kind ?? null;
+  }
+
   function renderPinnedItem(item: SidebarPinnedItem): React.ReactNode {
     const shortcutTargetSelector =
       item.kind === "session"
@@ -364,6 +444,10 @@ export function SidebarBody({
         }}
         onDragOver={(event) => {
           if (!draggingPinnedItemKey || draggingPinnedItemKey === item.key) {
+            return;
+          }
+          // 置顶区固定为“会话 → 文件夹”，跨类型拖拽不接受 drop
+          if (pinnedItemKind(draggingPinnedItemKey) !== item.kind) {
             return;
           }
           event.preventDefault();
@@ -400,7 +484,8 @@ export function SidebarBody({
           );
           const targetIndex = event.key === "ArrowUp" ? index - 1 : index + 1;
           const target = pinnedItems[targetIndex];
-          if (index < 0 || !target) return;
+          // 到达会话/文件夹分界时停止，不跨组移动
+          if (index < 0 || !target || target.kind !== item.kind) return;
           event.preventDefault();
           event.stopPropagation();
           movePinnedItem(item.key, target.key);
@@ -430,225 +515,356 @@ export function SidebarBody({
 
   return (
     <ScrollArea
-      className="sidebar-scroll-area tw:mt-4.5 tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
+      className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
       contentClassName="sidebar-scroll-content"
       viewportRef={scrollViewportRef}
+      onScroll={onScroll}
     >
-      {focusSections ? (
-        <FocusSections
-          activeSessionId={activeSessionId}
-          focusSections={focusSections}
-          now={now}
-          pendingPermissionSessionIds={pendingPermissionSessionIds}
-          titleLoadingIds={titleLoadingIds}
-          sessionFallbackTitles={sessionFallbackTitles}
-          onArchiveSessions={onArchiveSessions}
-          onPinSession={onPinSession}
-          onSelectSession={onSelectSession}
-          onRenameSession={onRenameSession}
-          onUnpinSession={onUnpinSession}
-        />
-      ) : (
-      <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
-        {pinnedItems.length > 0 ? (
-          <SidebarSection
-            collapsed={collapsedSidebarSections.includes("pinned")}
-            sectionId="pinned"
-            title="置顶"
-            onToggle={onToggleSidebarSection}
-          >
-            {displayedPinnedItems.map(renderPinnedItem)}
-            {hasPinnedItemOverflow ? (
-              <SidebarShowMoreActions
-                canCollapse={canCollapsePinnedItems}
-                canShowMore={canShowMorePinnedItems}
-                onCollapse={() => setVisiblePinnedLimit(PINNED_INITIAL_LIMIT)}
-                onShowMore={() =>
-                  setVisiblePinnedLimit(current =>
-                    Math.min(
-                      current + PINNED_LIMIT_STEP,
-                      pinnedItems.length,
-                    ),
-                  )
-                }
-              />
-            ) : null}
-          </SidebarSection>
+      {scrollHeader}
+      {/* 次级导航与时间线/任务主体之间的分组间距，不再占用整个滚动视口的外边距 */}
+      <div className="sidebar-scroll-main">
+        {timeline ? (
+          <Timeline
+            activeSessionId={activeSessionId}
+            hasArchivableAttention={hasArchivableAttention}
+            hasUnreadAttention={hasUnreadAttention}
+            now={now}
+            pendingPermissionSessionIds={pendingPermissionSessionIds}
+            showPinned={showTimelinePinned}
+            timeline={timeline}
+            titleLoadingIds={titleLoadingIds}
+            sessionFallbackTitles={sessionFallbackTitles}
+            onArchiveSessions={onArchiveSessions}
+            onMarkAttentionRead={onMarkAttentionRead}
+            onPinSession={onPinSession}
+            onRequestArchiveAttention={onRequestArchiveAttention}
+            onSelectSession={onSelectSession}
+            onRenameSession={onRenameSession}
+            onShowPinnedChange={onShowTimelinePinnedChange}
+            onUnpinSession={onUnpinSession}
+          />
+        ) : (
+        <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
+          {pinnedItems.length > 0 ? (
+            <SidebarSection
+              collapsed={collapsedSidebarSections.includes("pinned")}
+              sectionId="pinned"
+              title="置顶"
+              onToggle={onToggleSidebarSection}
+            >
+              {displayedPinnedItems.map(renderPinnedItem)}
+              {hasPinnedItemOverflow ? (
+                <SidebarShowMoreActions
+                  canCollapse={canCollapsePinnedItems}
+                  canShowMore={canShowMorePinnedItems}
+                  onCollapse={() => setVisiblePinnedLimit(PINNED_INITIAL_LIMIT)}
+                  onShowMore={() =>
+                    setVisiblePinnedLimit(current =>
+                      Math.min(
+                        current + PINNED_LIMIT_STEP,
+                        pinnedItems.length,
+                      ),
+                    )
+                  }
+                />
+              ) : null}
+            </SidebarSection>
+          ) : null}
+
+          {organization === "projects" ? (
+            <SidebarSection
+              action={
+                <SidebarSectionActions>
+                  <SidebarOrganizeMenu
+                    organization={organization}
+                    sort={projectSort}
+                    onOrganizationChange={onOrganizationChange}
+                    onSortChange={onProjectSortChange}
+                  />
+                  <IconButton onClick={onChooseWorkspace} title="添加项目">
+                    <Plus size={APP_ICON_SIZE} />
+                  </IconButton>
+                </SidebarSectionActions>
+              }
+              collapsed={collapsedSidebarSections.includes("projects")}
+              sectionId="projects"
+              title="项目"
+              onToggle={onToggleSidebarSection}
+            >
+              {projectCatalogState.status === 'loading' ? (
+                <SidebarEmptyRow role="status">正在加载项目…</SidebarEmptyRow>
+              ) : projectCatalogState.status === 'unavailable' &&
+                projectCatalogState.projects.length === 0 ? (
+                <SidebarEmptyRow role="status">
+                  {projectCatalogState.error || '项目目录暂时不可用。'}
+                </SidebarEmptyRow>
+              ) : null}
+              {projectWorkspaces.length > 0 ? (
+                <>
+                  {displayedProjects.map((project) =>
+                    renderProject(project, projectWorkspaces, "projects"),
+                  )}
+                  {hasProjectOverflow ? (
+                    <SidebarShowMoreActions
+                      canCollapse={canCollapseProjects}
+                      canShowMore={canShowMoreProjects}
+                      onCollapse={() => setVisibleProjectLimit(5)}
+                      onShowMore={() =>
+                        setVisibleProjectLimit((current) =>
+                          Math.min(current + 5, projectWorkspaces.length),
+                        )
+                      }
+                    />
+                  ) : null}
+                </>
+              ) : projectCatalogState.status === 'ready' ? (
+                <SidebarEmptyRow>暂无项目</SidebarEmptyRow>
+              ) : null}
+            </SidebarSection>
         ) : null}
 
-        {organization === "projects" ? (
           <SidebarSection
             action={
               <SidebarSectionActions>
                 <SidebarOrganizeMenu
                   organization={organization}
-                  sort={projectSort}
+                  sort={sessionSort}
                   onOrganizationChange={onOrganizationChange}
-                  onSortChange={onProjectSortChange}
+                  onSortChange={onSessionSortChange}
                 />
-                <IconButton onClick={onChooseWorkspace} title="添加项目">
-                  <Plus size={APP_ICON_SIZE} />
+                <IconButton
+                  onClick={() => onCreateSession(null)}
+                  title="新建无项目任务"
+                >
+                  <SquarePen size={APP_ICON_SIZE} />
                 </IconButton>
               </SidebarSectionActions>
             }
-            collapsed={collapsedSidebarSections.includes("projects")}
-            sectionId="projects"
-            title="项目"
+            collapsed={collapsedSidebarSections.includes("recent")}
+            sectionId="recent"
+            title="最近"
             onToggle={onToggleSidebarSection}
           >
-            {projectWorkspaces.length === 0 ? (
-              <SidebarEmptyRow>暂无项目</SidebarEmptyRow>
+            {recentSessions.length === 0 ? (
+              <SidebarEmptyRow>
+                {organization === "flat" ? "暂无任务" : "暂无无项目任务"}
+              </SidebarEmptyRow>
             ) : (
-              <>
-                {displayedProjects.map((project) =>
-                  renderProject(project, projectWorkspaces, "projects"),
-                )}
-                {hasProjectOverflow ? (
-                  <SidebarShowMoreActions
-                    canCollapse={canCollapseProjects}
-                    canShowMore={canShowMoreProjects}
-                    onCollapse={() => setVisibleProjectLimit(5)}
-                    onShowMore={() =>
-                      setVisibleProjectLimit((current) =>
-                        Math.min(current + 5, projectWorkspaces.length),
-                      )
-                    }
-                  />
-                ) : null}
-              </>
+              <SidebarSessionGroup
+                activeSessionId={activeSessionId}
+                groupKey="recent"
+                manualOrderByScope={manualOrderByScope}
+                now={now}
+                pendingPermissionSessionIds={pendingPermissionSessionIds}
+                titleLoadingIds={titleLoadingIds}
+                sessionFallbackTitles={sessionFallbackTitles}
+                sessions={recentSessions}
+                sort={sessionSort}
+                onArchiveSessions={onArchiveSessions}
+                onManualOrderChange={onManualOrderChange}
+                onPinSession={onPinSession}
+                onSelectSession={onSelectSession}
+                onRenameSession={onRenameSession}
+                onSortChange={onSessionSortChange}
+                onUnpinSession={onUnpinSession}
+              />
             )}
           </SidebarSection>
-        ) : null}
-
-        <SidebarSection
-          action={
-            <SidebarSectionActions>
-              <SidebarOrganizeMenu
-                organization={organization}
-                sort={sessionSort}
-                onOrganizationChange={onOrganizationChange}
-                onSortChange={onSessionSortChange}
-              />
-              <IconButton
-                onClick={() => onCreateSession(null)}
-                title="新建无项目任务"
-              >
-                <SquarePen size={APP_ICON_SIZE} />
-              </IconButton>
-            </SidebarSectionActions>
-          }
-          collapsed={collapsedSidebarSections.includes("recent")}
-          sectionId="recent"
-          title="最近"
-          onToggle={onToggleSidebarSection}
-        >
-          {recentSessions.length === 0 ? (
-            <SidebarEmptyRow>
-              {organization === "flat" ? "暂无任务" : "暂无无项目任务"}
-            </SidebarEmptyRow>
-          ) : (
-            <SidebarSessionGroup
-              activeSessionId={activeSessionId}
-              groupKey="recent"
-              manualOrderByScope={manualOrderByScope}
-              now={now}
-              pendingPermissionSessionIds={pendingPermissionSessionIds}
-              titleLoadingIds={titleLoadingIds}
-              sessionFallbackTitles={sessionFallbackTitles}
-              sessions={recentSessions}
-              sort={sessionSort}
-              onArchiveSessions={onArchiveSessions}
-              onManualOrderChange={onManualOrderChange}
-              onPinSession={onPinSession}
-              onSelectSession={onSelectSession}
-              onRenameSession={onRenameSession}
-              onSortChange={onSessionSortChange}
-              onUnpinSession={onUnpinSession}
-            />
-          )}
-        </SidebarSection>
+        </div>
+        )}
       </div>
-      )}
     </ScrollArea>
   );
 }
 
-function FocusSections({
+function Timeline({
   activeSessionId,
-  focusSections,
+  hasArchivableAttention,
+  hasUnreadAttention,
   now,
   pendingPermissionSessionIds,
+  showPinned,
+  timeline,
   titleLoadingIds,
   sessionFallbackTitles,
   onArchiveSessions,
+  onMarkAttentionRead,
   onPinSession,
+  onRequestArchiveAttention,
   onSelectSession,
   onRenameSession,
+  onShowPinnedChange,
   onUnpinSession,
 }: {
   activeSessionId: string | null
-  focusSections: readonly SidebarFocusSection[]
+  hasArchivableAttention: boolean
+  hasUnreadAttention: boolean
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
+  showPinned: boolean
+  timeline: SidebarTimelineModel
   titleLoadingIds: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
+  onMarkAttentionRead: () => void
   onPinSession: (session: SessionListItem) => void
+  onRequestArchiveAttention: () => void
   onSelectSession: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
+  onShowPinnedChange: (value: boolean) => void
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
-  if (focusSections.length === 0) {
-    return (
-      <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
-        <SidebarEmptyRow>最近一周暂无任务</SidebarEmptyRow>
-      </div>
-    )
+  const sharedSessionProps = {
+    activeSessionId,
+    now,
+    pendingPermissionSessionIds,
+    titleLoadingIds,
+    sessionFallbackTitles,
+    onArchiveSessions,
+    onPinSession,
+    onSelectSession,
+    onRenameSession,
+    onUnpinSession,
   }
   return (
-    <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
-      {focusSections.map(section => (
+    <div className="sidebar-timeline">
+      <FocusSectionGroup
+        action={
+          <TimelinePriorityMenu
+            hasArchivableAttention={hasArchivableAttention}
+            hasUnreadAttention={hasUnreadAttention}
+            showPinned={showPinned}
+            onMarkAttentionRead={onMarkAttentionRead}
+            onRequestArchiveAttention={onRequestArchiveAttention}
+            onShowPinnedChange={onShowPinnedChange}
+          />
+        }
+        emptyState="没有需要关注的任务"
+        section={{
+          id: 'priority',
+          label: '优先级',
+          sessions: timeline.prioritySessions,
+        }}
+        sort="preserve"
+        {...sharedSessionProps}
+      />
+      {timeline.pinnedSessions.length > 0 ? (
         <FocusSectionGroup
-          activeSessionId={activeSessionId}
+          section={{
+            id: 'pinned',
+            label: '置顶',
+            sessions: timeline.pinnedSessions,
+          }}
+          sort="updated"
+          {...sharedSessionProps}
+        />
+      ) : null}
+      {timeline.dateSections.map(section => (
+        <FocusSectionGroup
           key={section.id}
-          label={section.label}
-          now={now}
-          pendingPermissionSessionIds={pendingPermissionSessionIds}
-          titleLoadingIds={titleLoadingIds}
-          sessionFallbackTitles={sessionFallbackTitles}
-          sessions={section.sessions}
-          onArchiveSessions={onArchiveSessions}
-          onPinSession={onPinSession}
-          onSelectSession={onSelectSession}
-          onRenameSession={onRenameSession}
-          onUnpinSession={onUnpinSession}
+          section={section}
+          sort="updated"
+          {...sharedSessionProps}
         />
       ))}
     </div>
   )
 }
 
+function TimelinePriorityMenu({
+  hasArchivableAttention,
+  hasUnreadAttention,
+  showPinned,
+  onMarkAttentionRead,
+  onRequestArchiveAttention,
+  onShowPinnedChange,
+}: {
+  hasArchivableAttention: boolean
+  hasUnreadAttention: boolean
+  showPinned: boolean
+  onMarkAttentionRead: () => void
+  onRequestArchiveAttention: () => void
+  onShowPinnedChange: (value: boolean) => void
+}): React.ReactNode {
+  const [menuOpen, setMenuOpen] = useState(false)
+  return (
+    <PopoverMenu
+      align="start"
+      className="sidebar-timeline-menu"
+      modal
+      open={menuOpen}
+      side="bottom"
+      sideOffset={4}
+      width={208}
+      trigger={
+        <IconButton
+          aria-label="优先级显示选项"
+          className="sidebar-timeline-menu-button"
+          title="优先级显示选项"
+        >
+          <Ellipsis size={APP_ICON_SIZE} />
+        </IconButton>
+      }
+      onOpenChange={setMenuOpen}
+    >
+      <PopoverLabel>显示</PopoverLabel>
+      <PopoverCheckboxItem
+        checked={showPinned}
+        keepOpen
+        onCheckedChange={onShowPinnedChange}
+      >
+        置顶
+      </PopoverCheckboxItem>
+      <PopoverCheckboxItem
+        checked={false}
+        disabled
+        meta="自动化任务尚未接入侧栏时间线"
+        onCheckedChange={() => undefined}
+      >
+        已安排
+      </PopoverCheckboxItem>
+      <PopoverSeparator />
+      <PopoverItem
+        disabled={!hasUnreadAttention}
+        onClick={onMarkAttentionRead}
+      >
+        全部标为已读
+      </PopoverItem>
+      <PopoverItem
+        disabled={!hasArchivableAttention}
+        onClick={onRequestArchiveAttention}
+      >
+        归档任务
+      </PopoverItem>
+    </PopoverMenu>
+  )
+}
+
 function FocusSectionGroup({
+  action,
   activeSessionId,
-  label,
+  emptyState,
   now,
   pendingPermissionSessionIds,
+  section,
+  sort,
   titleLoadingIds,
   sessionFallbackTitles,
-  sessions,
   onArchiveSessions,
   onPinSession,
   onSelectSession,
   onRenameSession,
   onUnpinSession,
 }: {
+  action?: React.ReactNode
   activeSessionId: string | null
-  label: string
+  emptyState?: React.ReactNode
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
+  section: SidebarFocusSection
+  sort: 'updated' | 'preserve'
   titleLoadingIds: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
-  sessions: SessionListItem[]
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onPinSession: (session: SessionListItem) => void
   onSelectSession: (session: SessionListItem) => void
@@ -656,26 +872,36 @@ function FocusSectionGroup({
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
   return (
-    <section className="sidebar-section tw:grid tw:gap-1">
+    <section className="sidebar-section sidebar-focus-section tw:grid tw:gap-1">
       <div className="sidebar-focus-section-header">
-        <h3 className="sidebar-focus-section-title">{label}</h3>
+        <h3 className="sidebar-focus-section-title">{section.label}</h3>
+        {action}
       </div>
-      <SidebarSessionGroup
-        activeSessionId={activeSessionId}
-        groupKey={`focus:${label}`}
-        now={now}
-        pagination="all"
-        pendingPermissionSessionIds={pendingPermissionSessionIds}
-        presentation="workspace-meta"
-        titleLoadingIds={titleLoadingIds}
-        sessionFallbackTitles={sessionFallbackTitles}
-        sessions={sessions}
-        onArchiveSessions={onArchiveSessions}
-        onPinSession={onPinSession}
-        onSelectSession={onSelectSession}
-        onRenameSession={onRenameSession}
-        onUnpinSession={onUnpinSession}
-      />
+      <div className="sidebar-focus-section-clip-window">
+        <div className="sidebar-focus-section-clip-content">
+          {section.sessions.length === 0 && emptyState != null ? (
+            <SidebarEmptyRow>{emptyState}</SidebarEmptyRow>
+          ) : (
+            <SidebarSessionGroup
+              activeSessionId={activeSessionId}
+              groupKey={`focus:${section.id}`}
+              now={now}
+              pagination="all"
+              pendingPermissionSessionIds={pendingPermissionSessionIds}
+              presentation="workspace-meta"
+              sort={sort}
+              titleLoadingIds={titleLoadingIds}
+              sessionFallbackTitles={sessionFallbackTitles}
+              sessions={section.sessions}
+              onArchiveSessions={onArchiveSessions}
+              onPinSession={onPinSession}
+              onSelectSession={onSelectSession}
+              onRenameSession={onRenameSession}
+              onUnpinSession={onUnpinSession}
+            />
+          )}
+        </div>
+      </div>
     </section>
   )
 }

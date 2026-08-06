@@ -182,7 +182,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     providerID: '',
     providerBaseURL: '',
     showContextUsage: true,
-    defaultOpenTargetId: 'default-app',
+    defaultOpenTargetId: 'auto',
     gitBranchPrefix: 'codepilotx/',
     gitPrMergeMethod: 'merge',
     gitShowPrIconsInSidebar: true,
@@ -212,7 +212,8 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
     sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
-    sidebarPriorityFilterEnabled: false,
+    sidebarTimelineEnabled: false,
+    sidebarTimelinePriorityEnabled: false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
     collapsedSidebarProjectPaths: [],
@@ -247,6 +248,11 @@ export function normalizeDesktopStoredSettings(
   const defaults = defaultDesktopStoredSettings()
   const permissionMode = normalizeDesktopPermissionMode(parsed.permissionMode)
   const legacyPermissionProfile = normalizeDesktopPermissionProfile(parsed.permissionProfile, ':workspace')
+  const legacyTimelineOnlySettings =
+    parsed.sidebarTimelineEnabled === undefined
+    && parsed.sidebarTimelinePriorityEnabled === undefined
+  const timelineMigratedFromLegacyPriorityFilter =
+    legacyTimelineOnlySettings && parsed.sidebarPriorityFilterEnabled === true
   const sandboxMode = isDesktopSandboxMode(parsed.sandboxMode)
     ? parsed.sandboxMode === 'full-access' ? 'danger-full-access' : parsed.sandboxMode
     : legacyPermissionProfile.includes('danger')
@@ -482,10 +488,16 @@ export function normalizeDesktopStoredSettings(
       parsed.sidebarSort,
       defaults.sidebarSort,
     ),
-    sidebarPriorityFilterEnabled:
-      typeof parsed.sidebarPriorityFilterEnabled === 'boolean'
-        ? parsed.sidebarPriorityFilterEnabled
-        : defaults.sidebarPriorityFilterEnabled,
+    sidebarTimelineEnabled: timelineMigratedFromLegacyPriorityFilter
+      ? true
+      : typeof parsed.sidebarTimelineEnabled === 'boolean'
+        ? parsed.sidebarTimelineEnabled
+        : defaults.sidebarTimelineEnabled,
+    sidebarTimelinePriorityEnabled: timelineMigratedFromLegacyPriorityFilter
+      ? true
+      : typeof parsed.sidebarTimelinePriorityEnabled === 'boolean'
+        ? parsed.sidebarTimelinePriorityEnabled
+        : defaults.sidebarTimelinePriorityEnabled,
     sidebarManualOrder: normalizeSidebarManualOrder(
       parsed.sidebarManualOrder,
       defaults.sidebarManualOrder,
@@ -536,7 +548,8 @@ export function createSidebarStateResetPatch(
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
     sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
-    sidebarPriorityFilterEnabled: false,
+    sidebarTimelineEnabled: false,
+    sidebarTimelinePriorityEnabled: false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
     collapsedSidebarProjectPaths: [],

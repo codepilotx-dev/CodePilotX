@@ -22,6 +22,7 @@ import type {
   SubagentProjection,
   SubagentRun,
   SubagentTask,
+  ThreadListItem,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
 import type {
@@ -487,7 +488,6 @@ export type DesktopBrowserSitePermission = {
 }
 
 export type DesktopOpenTargetKind =
-  | 'default-app'
   | 'file-explorer'
   | 'terminal'
   | 'editor'
@@ -504,7 +504,7 @@ export type DesktopOpenTarget = {
 export type DesktopExternalOpenTarget = {
   id: string
   label: string
-  kind: 'default-app' | 'editor'
+  kind: DesktopOpenTargetKind
   iconDataUrl?: string
   preferred: boolean
 }
@@ -992,7 +992,10 @@ gitBranchPrefix: string
   sidebarStateVersion: number
   sidebarProjectSort: DesktopSidebarSort
   sidebarSort: DesktopSidebarSort
-  sidebarPriorityFilterEnabled: boolean
+  /** @deprecated 旧版“优先级筛选”开关；读取时仅用于迁移到时间线设置，保存不再写入 */
+  sidebarPriorityFilterEnabled?: boolean
+  sidebarTimelineEnabled: boolean
+  sidebarTimelinePriorityEnabled: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
@@ -1168,6 +1171,8 @@ export type DesktopSessionListItem = {
   status: DesktopSessionStatus
   threadGoal?: DesktopThreadGoal | null
   unreadAt?: string | null
+  latestTurnStatus?: ThreadListItem["latestTurnStatus"]
+  pendingPlanApproval?: boolean
   lastMessageAt?: string | null
   createdAt: string
 }
@@ -1242,12 +1247,10 @@ export type DesktopSubagentRead = {
   currentRun: SubagentRun | null
   snapshot: ThreadSnapshot
   capabilities: {
-    canSend: boolean
     canStop: boolean
     canRetry: boolean
     canRespondToApprovals: boolean
     canRespondToQuestions: boolean
-    canSubmitPlanDecision: boolean
     canApplyWorktree: boolean
     canDiscardWorktree: boolean
     canRestoreWorkspace: boolean
@@ -1645,7 +1648,6 @@ export type DesktopMemoryRecallListing = {
 export type DesktopApi = {
   listSubagents?(threadId: string): Promise<SubagentProjection[]>
   readSubagent?(taskId: string): Promise<DesktopSubagentRead>
-  sendSubagent?(taskId: string, input: DesktopUserMessageInput, model?: string | DesktopModelSelection, permissionMode?: DesktopPermissionMode): Promise<unknown>
   stopSubagent?(taskId: string): Promise<unknown>
   retrySubagent?(taskId: string): Promise<unknown>
   applySubagentWorktree?(taskId: string): Promise<unknown>

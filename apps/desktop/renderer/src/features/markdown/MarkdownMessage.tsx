@@ -10,6 +10,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
+import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import {
   loadExternalOpenTargets,
@@ -1268,20 +1269,12 @@ function FileReferenceButton({
 function openTargetIcon(
   target: DesktopExternalOpenTarget | undefined,
 ): React.ReactNode {
-  if (target?.iconDataUrl) {
-    return (
-      <img
-        alt=""
-        className="md-file-reference__target-icon"
-        src={target.iconDataUrl}
-      />
-    )
-  }
+  if (!target) return null
   return (
-    <Code2
-      aria-hidden="true"
-      size={APP_ICON_SIZE}
-      strokeWidth={APP_ICON_STROKE_WIDTH}
+    <OpenTargetIcon
+      className="md-file-reference__target-icon"
+      kind={target.kind}
+      targetId={target.id}
     />
   )
 }

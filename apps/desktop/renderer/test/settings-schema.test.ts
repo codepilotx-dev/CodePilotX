@@ -301,47 +301,89 @@ describe("侧边栏设置归一化", () => {
       pinnedAt: null,
     }])
   })
-  test("在默认设置中聚焦筛选默认关闭", () => {
-    expect(normalizeDesktopStoredSettings({}).sidebarPriorityFilterEnabled).toBe(
-      false,
-    )
+  test("在默认设置中时间线默认关闭且优先级未勾选", () => {
+    const settings = normalizeDesktopStoredSettings({})
+    expect(settings.sidebarTimelineEnabled).toBe(false)
+    expect(settings.sidebarTimelinePriorityEnabled).toBe(false)
   })
 
   test("旧设置缺字段时默认关闭，非法值回退关闭", () => {
     expect(
-      normalizeDesktopStoredSettings({}).sidebarPriorityFilterEnabled,
+      normalizeDesktopStoredSettings({}).sidebarTimelineEnabled,
     ).toBe(false)
     expect(
       normalizeDesktopStoredSettings({
-        sidebarPriorityFilterEnabled: "yes",
-      }).sidebarPriorityFilterEnabled,
+        sidebarTimelineEnabled: "yes",
+      }).sidebarTimelineEnabled,
     ).toBe(false)
     expect(
       normalizeDesktopStoredSettings({
-        sidebarPriorityFilterEnabled: 1,
-      }).sidebarPriorityFilterEnabled,
+        sidebarTimelineEnabled: 1,
+      }).sidebarTimelineEnabled,
+    ).toBe(false)
+    expect(
+      normalizeDesktopStoredSettings({
+        sidebarTimelinePriorityEnabled: "yes",
+      }).sidebarTimelinePriorityEnabled,
+    ).toBe(false)
+    expect(
+      normalizeDesktopStoredSettings({
+        sidebarTimelinePriorityEnabled: 1,
+      }).sidebarTimelinePriorityEnabled,
     ).toBe(false)
   })
 
-  test("true 能通过归一化并保留保存快照", () => {
+  test("旧优先级筛选开关迁移为时间线开启且优先级勾选", () => {
     const settings = normalizeDesktopStoredSettings({
       sidebarPriorityFilterEnabled: true,
     })
-    expect(settings.sidebarPriorityFilterEnabled).toBe(true)
+    expect(settings.sidebarTimelineEnabled).toBe(true)
+    expect(settings.sidebarTimelinePriorityEnabled).toBe(true)
     expect(
-      normalizeDesktopStoredSettings(settings).sidebarPriorityFilterEnabled,
+      normalizeDesktopStoredSettings(settings).sidebarTimelineEnabled,
     ).toBe(true)
   })
 
-  test("重置侧栏状态会关闭聚焦筛选视图", () => {
+  test("新字段存在时旧优先级筛选开关不再覆盖时间线设置", () => {
     const settings = normalizeDesktopStoredSettings({
       sidebarPriorityFilterEnabled: true,
+      sidebarTimelineEnabled: false,
+      sidebarTimelinePriorityEnabled: false,
+    })
+    expect(settings.sidebarTimelineEnabled).toBe(false)
+    expect(settings.sidebarTimelinePriorityEnabled).toBe(false)
+  })
+
+  test("迁移不会清除其他侧栏设置", () => {
+    const settings = normalizeDesktopStoredSettings({
+      sidebarPriorityFilterEnabled: true,
+      sidebarOrganization: "flat",
+      sidebarSort: "updated",
+      sidebarSessionPins: { "session:one": "2026-08-01T00:00:00.000Z" },
+      sidebarManualOrder: { pinned: ["session:one"] },
+    })
+    expect(settings.sidebarTimelineEnabled).toBe(true)
+    expect(settings.sidebarOrganization).toBe("flat")
+    expect(settings.sidebarSort).toBe("updated")
+    expect(settings.sidebarSessionPins).toEqual({
+      "session:one": "2026-08-01T00:00:00.000Z",
+    })
+    expect(settings.sidebarManualOrder).toEqual({
+      pinned: ["session:one"],
+    })
+  })
+
+  test("重置侧栏状态会关闭时间线并取消优先级勾选", () => {
+    const settings = normalizeDesktopStoredSettings({
+      sidebarTimelineEnabled: true,
+      sidebarTimelinePriorityEnabled: true,
     })
     const reset = {
       ...settings,
       ...createSidebarStateResetPatch(settings),
     }
-    expect(reset.sidebarPriorityFilterEnabled).toBe(false)
+    expect(reset.sidebarTimelineEnabled).toBe(false)
+    expect(reset.sidebarTimelinePriorityEnabled).toBe(false)
   })
 })
 

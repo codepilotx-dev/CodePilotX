@@ -1,20 +1,15 @@
 import { existsSync } from "node:fs"
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import {
   isSidecarConnectStage,
   isSidecarFailureCode,
 } from "../apps/desktop/electron/src/sidecar/failure-diagnostics"
-import {
-  createReleaseTimingMetrics,
-  type ReleaseTimingInput,
-} from "./release-timing"
 import { createIsolatedProcessEnvironment } from "./process-environment"
 import { assertWindowsX64PE } from "./windows-pe"
 
 const root = resolve(import.meta.dir, "..")
-const smokeStartedAt = Date.now()
 // 一轮 Sidecar 启动最多包含 60 秒 ready 消息等待与 20 秒健康检查。
 // 为持久 runner 保留至少两轮完整恢复窗口，并给 Electron 冷启动留出余量。
 const DESKTOP_READY_TIMEOUT_MS = 180_000
@@ -34,14 +29,12 @@ await assertWindowsX64PE(agent)
 const isolatedRoot = await mkdtemp(join(tmpdir(), "codepilotx-win-smoke-"))
 const logDirectory = join(isolatedRoot, "logs")
 const token = crypto.randomUUID().replaceAll("-", "")
-const conptyStartedAt = Date.now()
 try {
   await assertPackagedTerminal(application, isolatedRoot)
 } catch (cause) {
   await rm(isolatedRoot, { recursive: true, force: true }).catch(() => undefined)
   throw cause
 }
-const conptyMs = Date.now() - conptyStartedAt
 const child = Bun.spawn([application, `--user-data-dir=${join(isolatedRoot, "profile")}`], {
   cwd: dirname(application),
   env: createIsolatedProcessEnvironment(process.env, {
@@ -60,7 +53,6 @@ const child = Bun.spawn([application, `--user-data-dir=${join(isolatedRoot, "pro
 })
 
 try {
-  const desktopStartedAt = Date.now()
   const ready = await Promise.race([    waitForDesktopReady(
       join(logDirectory, "desktop.jsonl"),
       DESKTOP_READY_TIMEOUT_MS,
@@ -69,8 +61,6 @@ try {
       throw new Error(`桌面程序在 desktop.ready 前退出：${exitCode}`)
     }),
   ])
-  const agentReadyMs = Date.now() - desktopStartedAt
-  const apiReadyStartedAt = Date.now()
   const response = await fetch(`${ready.origin}/api/ready`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(2_000),
@@ -78,14 +68,7 @@ try {
   if (!response.ok || (await response.json() as { ok?: boolean }).ok !== true) {
     throw new Error(`Agent /api/ready 冒烟失败：HTTP ${response.status}`)
   }
-  const desktopReadyMs = Date.now() - desktopStartedAt
   console.log(`[CodePilotX] desktop.ready and /api/ready smoke passed: ${ready.origin}`)
-  await writeSmokeTimings({
-    conptyMs,
-    agentReadyMs,
-    desktopReadyMs,
-    totalMs: Date.now() - smokeStartedAt,
-  })
 } finally {
   child.kill()
   if (process.platform === "win32" && child.pid) {
@@ -93,16 +76,6 @@ try {
     await cleanup.exited
   }
   await rm(isolatedRoot, { recursive: true, force: true }).catch(() => undefined)
-}
-
-async function writeSmokeTimings(metrics: ReleaseTimingInput): Promise<void> {
-  const output = process.env.CODEPILOTX_SMOKE_TIMINGS
-  if (!output) return
-  await writeFile(
-    output,
-    `${JSON.stringify(createReleaseTimingMetrics(metrics), null, 2)}\n`,
-    "utf8",
-  )
 }
 
 async function assertPackagedTerminal(applicationPath: string, isolatedRoot: string): Promise<void> {

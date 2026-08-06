@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Bot, History } from "lucide-react";
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import type { Transition } from 'motion/react'
 import {
   animate,
   motion,
@@ -10,13 +11,9 @@ import {
 } from "motion/react";
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import {
-  fastTween,
   motionTransition,
-  standardTween,
 } from '../motion/motionTransitions.js'
 import {
-  SIDEBAR_COLLAPSE_HOLD_MS,
-  SIDEBAR_COLLAPSE_TARGET_SIZE,
   useSidebarResizeCollapseConfirm,
 } from './useSidebarResizeCollapseConfirm.js'
 import { useLiveResizeValue } from './useLiveResizeValue.js'
@@ -47,6 +44,12 @@ type Props = {
   shell: SidebarShellController;
 };
 
+const sidebarSpring = {
+  type: 'spring',
+  duration: 0.5,
+  bounce: 0.1,
+} satisfies Transition
+
 export function SidebarFrame({
   children,
   collapsed,
@@ -68,8 +71,6 @@ export function SidebarFrame({
   } = useLiveResizeValue(width)
 
   const {
-    collapseConfirmKey,
-    collapseConfirmTarget,
     handleLostPointerCapture,
     handlePointerCancel,
     handlePointerMove,
@@ -82,6 +83,10 @@ export function SidebarFrame({
     maxWidth,
     minWidth,
     width,
+    collapseBehavior: {
+      kind: 'threshold',
+      threshold: minWidth / 2,
+    },
     onCollapse,
     onResizePreview: previewWidth,
     onSetWidth,
@@ -110,7 +115,7 @@ export function SidebarFrame({
       docked ? liveWidth.get() : 0,
       motionTransition(
         reducedMotion,
-        docked ? standardTween : fastTween,
+        sidebarSpring,
       ),
     )
     allocatedWidthAnimationRef.current = animation
@@ -231,7 +236,7 @@ export function SidebarFrame({
         }
         transition={motionTransition(
           reducedMotion,
-          hidden ? fastTween : standardTween,
+          sidebarSpring,
         )}
       >
         {children}
@@ -257,19 +262,6 @@ export function SidebarFrame({
         </div>
         <History className="icon-button sidebar-history-watermark" size={APP_ICON_SIZE} />
       </motion.aside>
-      {collapseConfirmTarget ? (
-        <div
-          key={collapseConfirmKey}
-          aria-hidden="true"
-          className="sidebar-collapse-confirm-target"
-          style={{
-            "--sidebar-collapse-target-ms": `${SIDEBAR_COLLAPSE_HOLD_MS}ms`,
-            "--sidebar-collapse-target-size": `${SIDEBAR_COLLAPSE_TARGET_SIZE}px`,
-            left: `${collapseConfirmTarget.x}px`,
-            top: `${collapseConfirmTarget.y}px`,
-          } as React.CSSProperties}
-        />
-      ) : null}
     </>
   );
 }

@@ -2,7 +2,7 @@ import { Children, cloneElement, forwardRef } from "react";
 import type { HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
 import { cx } from "../../../utils/cx.js";
 
-type SidebarRowLeadingMode = "icon" | "spacer";
+type SidebarRowLeadingMode = "icon" | "spacer" | "none";
 type SidebarRowIndent = "none" | "session";
 type SidebarRowLayout = "flex" | "grid";
 
@@ -45,6 +45,7 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
     active ? "active" : undefined,
     active ? "selected" : undefined,
     indent === "session" ? "sidebar-row--session" : undefined,
+    leadingMode === "none" ? "sidebar-row--no-leading" : undefined,
     className,
   );
 
@@ -104,8 +105,9 @@ function renderRowContent({
   trailing?: ReactNode;
 }): ReactNode {
   const hasLeading =
-    layout === "grid" ||
-    (leadingMode === "icon" && leading !== undefined && leading !== null);
+    leadingMode !== "none" &&
+    (layout === "grid" ||
+      (leadingMode === "icon" && leading !== undefined && leading !== null));
   const hasTrailing = trailing !== undefined && trailing !== null;
 
   return (

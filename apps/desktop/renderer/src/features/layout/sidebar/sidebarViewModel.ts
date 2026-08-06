@@ -48,6 +48,7 @@ export type SidebarViewModel = {
 
 export type SidebarFocusSectionId =
   | 'priority'
+  | 'pinned'
   | `day-${number}`
 
 export type SidebarFocusSection = {
@@ -56,26 +57,40 @@ export type SidebarFocusSection = {
   sessions: SessionListItem[]
 }
 
-export function buildSidebarFocusSections(input: {
+export type SidebarTimelineModel = {
+  /** 所有需要关注的任务，不受置顶分组开关影响。 */
+  attentionSessions: SessionListItem[]
+  /** showPinned 为 true 时，从其余分组抽出的置顶任务。 */
+  pinnedSessions: SessionListItem[]
+  /** 实际显示在“优先级”分类中的关注任务。 */
+  prioritySessions: SessionListItem[]
+  dateSections: SidebarFocusSection[]
+}
+
+export function buildSidebarTimelineModel(input: {
   now: number
   sessions: readonly SessionListItem[]
-  sessionStateById: Readonly<Record<string, SidebarSessionVisualState>>
-}): SidebarFocusSection[] {
-  const priority: SessionListItem[] = []
-  const priorityRankById = new Map<string, number>()
+  showPinned: boolean
+}): SidebarTimelineModel {
+  const attention: SessionListItem[] = []
+  const attentionRankById = new Map<string, number>()
+  const pinned: SessionListItem[] = []
   const dayBuckets = new Map<number, SessionListItem[]>()
 
   for (const session of input.sessions) {
-    const state = input.sessionStateById[session.id]
-    const priorityRank = sidebarPriorityRank(state)
-    if (priorityRank >= 0) {
-      priority.push(session)
-      priorityRankById.set(session.id, priorityRank)
+    const priorityRank = sidebarTimelinePriorityRank(session)
+    if (priorityRank != null) {
+      attention.push(session)
+      attentionRankById.set(session.id, priorityRank)
+      continue
+    }
+    if (input.showPinned && session.pinnedAt != null) {
+      pinned.push(session)
       continue
     }
     const activityMs = sessionRecencyMs(session)
     if (activityMs <= 0) {
-      // 时间无效的普通任务不进入聚焦视图
+      // 时间无效的普通任务不进入时间线
       continue
     }
     let offset = localDayOrdinal(input.now) - localDayOrdinal(activityMs)
@@ -89,27 +104,73 @@ export function buildSidebarFocusSections(input: {
     }
   }
 
-  const sections: SidebarFocusSection[] = []
-  if (priority.length > 0) {
-    sections.push({
-      id: 'priority',
-      label: '优先级',
-      sessions: sortPrioritySessions(priority, priorityRankById),
-    })
+  let prioritySessions = attention
+  if (input.showPinned) {
+    const pinnedAttention = attention.filter(session => session.pinnedAt != null)
+    if (pinnedAttention.length > 0) {
+      pinned.push(...pinnedAttention)
+      const pinnedAttentionIds = new Set(pinnedAttention.map(session => session.id))
+      prioritySessions = attention.filter(session => !pinnedAttentionIds.has(session.id))
+    }
   }
 
+  const dateSections: SidebarFocusSection[] = []
   for (const offset of [...dayBuckets.keys()].sort((a, b) => a - b)) {
     const sessions = dayBuckets.get(offset) ?? []
     if (sessions.length === 0) continue
     const dayDate = new Date(input.now)
     dayDate.setDate(dayDate.getDate() - offset)
-    sections.push({
+    dateSections.push({
       id: `day-${offset}`,
       label: labelForDayOffset(offset, dayDate),
       sessions: sortSessionsByRecency(sessions),
     })
   }
-  return sections
+  return {
+    attentionSessions: sortPrioritySessions(attention, attentionRankById),
+    pinnedSessions: sortSessionsByRecency(pinned),
+    prioritySessions: sortPrioritySessions(prioritySessions, attentionRankById),
+    dateSections,
+  }
+}
+
+/** “全部标为已读”的目标集合：未读的关注任务。 */
+export function sidebarAttentionUnreadSessions(
+  sessions: readonly SessionListItem[],
+): SessionListItem[] {
+  return sessions.filter(session => session.unreadAt != null)
+}
+
+/** 安全批量归档集合：仅“已完成但未读”的关注任务，排除等待用户操作或计划审批的任务。 */
+export function sidebarArchivableAttentionSessions(
+  sessions: readonly SessionListItem[],
+): SessionListItem[] {
+  return sessions.filter(
+    session =>
+      session.latestTurnStatus === 'completed' &&
+      session.pendingPlanApproval !== true,
+  )
+}
+
+function sidebarTimelinePriorityRank(
+  session: SessionListItem,
+): number | null {
+  if (
+    session.latestTurnStatus === 'waiting-question' ||
+    session.latestTurnStatus === 'waiting-permission'
+  ) {
+    return 0
+  }
+  if (session.pendingPlanApproval === true) {
+    return 1
+  }
+  if (
+    session.latestTurnStatus === 'completed' &&
+    session.unreadAt != null
+  ) {
+    return 2
+  }
+  return null
 }
 
 export function labelForDayOffset(offset: number, date: Date): string {
@@ -140,15 +201,6 @@ function sortPrioritySessions(
       right.id.localeCompare(left.id)
     )
   })
-}
-
-function sidebarPriorityRank(
-  state: SidebarSessionVisualState | undefined,
-): number {
-  if (state === 'needs-input') return 0
-  if (state === 'unread') return 1
-  if (state === 'running') return 2
-  return -1
 }
 
 export function buildSidebarViewModel({
@@ -292,32 +344,57 @@ export function buildSidebarPinnedItems({
   pinnedWorkspaces: readonly DesktopWorkspace[]
   storedOrder: readonly string[]
 }): SidebarPinnedItem[] {
-  const byPinnedAt: SidebarPinnedItem[] = [
-    ...pinnedSessions.map(
+  const sessionItems: SidebarPinnedItem[] = pinnedSessions
+    .map(
       (session): SidebarPinnedItem => ({
         key: sidebarPinnedSessionKey(session),
         kind: 'session',
         pinnedAt: session.pinnedAt ?? null,
         session,
       }),
-    ),
-    ...pinnedWorkspaces.map(
+    )
+    .sort(
+      (left, right) =>
+        timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt),
+    )
+  const projectItems: SidebarPinnedItem[] = pinnedWorkspaces
+    .map(
       (project): SidebarPinnedItem => ({
         key: sidebarPinnedProjectKey(project),
         kind: 'project',
         pinnedAt: project.pinnedAt ?? null,
         project,
       }),
-    ),
-  ].sort(
-    (left, right) =>
-      timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt),
-  )
-  const itemByKey = new Map(byPinnedAt.map(item => [item.key, item]))
-  const storedKeys = new Set(storedOrder)
+    )
+    .sort(
+      (left, right) =>
+        timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt),
+    )
+  const sessionKeys = new Set(sessionItems.map(item => item.key))
+  const projectKeys = new Set(projectItems.map(item => item.key))
+  // 置顶区固定为“全部置顶会话 → 全部置顶文件夹”；
+  // 旧 storedOrder 可能是跨类型混排，读取时按类型过滤，仅保留各类型内部的手动顺序。
   return [
-    ...byPinnedAt.filter(item => !storedKeys.has(item.key)),
-    ...storedOrder.flatMap(key => {
+    ...orderPinnedItemGroup(
+      sessionItems,
+      storedOrder.filter(key => sessionKeys.has(key)),
+    ),
+    ...orderPinnedItemGroup(
+      projectItems,
+      storedOrder.filter(key => projectKeys.has(key)),
+    ),
+  ]
+}
+
+function orderPinnedItemGroup(
+  items: readonly SidebarPinnedItem[],
+  storedKeys: readonly string[],
+): SidebarPinnedItem[] {
+  const storedKeySet = new Set(storedKeys)
+  const itemByKey = new Map(items.map(item => [item.key, item]))
+  return [
+    ...items.filter(item => !storedKeySet.has(item.key)),
+    ...storedKeys.flatMap(key => {
       const item = itemByKey.get(key)
       return item ? [item] : []
     }),
@@ -330,6 +407,9 @@ export function reorderSidebarPinnedItemKeys(
   targetKey: string,
 ): string[] | null {
   if (sourceKey === targetKey) return null
+  const source = items.find(item => item.key === sourceKey)
+  const target = items.find(item => item.key === targetKey)
+  if (!source || !target || source.kind !== target.kind) return null
   const order = items.map(item => item.key)
   const sourceIndex = order.indexOf(sourceKey)
   const targetIndex = order.indexOf(targetKey)
