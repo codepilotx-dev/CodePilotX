@@ -234,12 +234,11 @@ export async function waitForPerformanceThread(
   sessionIndex: number,
   turnCount: number,
 ): Promise<void> {
+  const sessionId =
+    `performance-session-${String(sessionIndex).padStart(3, '0')}`
   await page
-    .getByText(
-      `性能会话 ${String(sessionIndex).padStart(3, '0')}`,
-      { exact: true },
-    )
-    .waitFor()
+    .locator(`[data-canonical-thread-id="${sessionId}"]`)
+    .waitFor({ state: 'visible' })
   await page.locator('.composer-editor-content').waitFor()
   await page.waitForFunction(
     expected =>

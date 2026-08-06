@@ -7,6 +7,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- [renderer/test] 修复性能回归场景在侧栏与工作区同时显示同名会话标题时因全页严格文本定位产生歧义的问题，改用 canonical thread 标记确认当前会话完成切换
+
 ## 0.2.0-beta.4 — 2026-08-07
 
 ### Added
