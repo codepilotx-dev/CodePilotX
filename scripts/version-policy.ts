@@ -344,7 +344,7 @@ function runPrepare(newVersion: string, stable: boolean) {
   console.log("  4. 在 main 上的目标提交创建签名标签并单独推送:");
   console.log(`     git tag -s v${newVersion} -m "CodePilotX v${newVersion}"`);
   console.log(`     git push origin v${newVersion}\n`);
-  console.log("  推送 v* 标签后由 self-hosted Windows runner 校验 main 历史、签名打包并创建 GitHub Release。\n");
+  console.log("  推送 v* 标签后由 GitHub-hosted runner 校验 main 历史，并创建仅含 GitHub 自动源码归档的 Release。\n");
 }
 
 /* ┌──────────────────────────────────┐

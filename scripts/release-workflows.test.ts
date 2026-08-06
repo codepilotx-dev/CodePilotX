@@ -51,42 +51,44 @@ describe("release workflows", () => {
     expect(parity).not.toContain("name: beta-release");
   });
 
-  test("package-release only triggers on v* tags with signed self-hosted packaging", () => {
-    const packageRelease = job(packageWorkflow, "package-release");
-    expect(packageRelease).toContain(
+  test("source-release only publishes source archives for v* tags", () => {
+    const sourceRelease = job(packageWorkflow, "source-release");
+    expect(sourceRelease).toContain(
       "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')",
     );
-    expect(packageRelease).toContain(
-      "runs-on: [self-hosted, windows, x64, codepilotx-release]",
-    );
-    expect(packageRelease).toContain("name: beta-release");
-    expect(packageRelease).toContain("Verify tag target belongs to main");
-    expect(packageRelease).toContain('CODEPILOTX_REQUIRE_SIGNING: "1"');
-    expect(packageRelease).toContain("scripts/smoke-installed-win-x64.ps1");
-    expect(packageRelease).toContain("anchore/sbom-action@");
-    expect(packageRelease).toContain("release/SHA256SUMS.txt");
-    expect(packageRelease).toContain("release/RELEASE_NOTES.md");
+    expect(sourceRelease).toContain("runs-on: ubuntu-latest");
+    expect(sourceRelease).toContain("Verify tag target belongs to main");
+    expect(sourceRelease).toContain("bun run version:check -- --tag");
+    expect(sourceRelease).toContain("scripts/write-release-notes.ts");
+    expect(sourceRelease).toContain("gh release create");
+    expect(sourceRelease).toContain("--verify-tag");
+    expect(sourceRelease).toContain("--prerelease");
+    expect(sourceRelease).toContain("--jq '.assets | length'");
+    expect(sourceRelease).not.toContain("self-hosted");
+    expect(sourceRelease).not.toContain("package:win");
+    expect(sourceRelease).not.toContain("CODEPILOTX_REQUIRE_SIGNING");
+    expect(sourceRelease).not.toContain("CodePilotX-*-x64.exe");
+    expect(sourceRelease).not.toContain("upload-artifact");
+    expect(sourceRelease).not.toContain("attest-");
   });
 
-  test("package-release no longer references Release PR automation", () => {
-    const packageRelease = job(packageWorkflow, "package-release");
-    expect(packageRelease).not.toContain("Verify trusted Release PR identity");
-    expect(packageRelease).not.toContain("automation/release-v");
-    expect(packageRelease).not.toContain("automation:beta-release");
-    expect(packageRelease).not.toContain("codepilotx-beta-release");
-    expect(packageRelease).not.toContain("verify-release-pr-policy");
-    expect(packageRelease).not.toContain("beta-preflight.allowed_signers");
-    expect(packageRelease).not.toContain("release-pr-policy");
-  });
-
-  test("publish-release only downloads, attests and publishes the unique artifact", () => {
-    const publish = job(packageWorkflow, "publish-release");
-    expect(publish).toContain("runs-on: ubuntu-latest");
-    expect(publish).toContain("actions/download-artifact@");
-    expect(publish).toContain("actions/attest-build-provenance@");
-    expect(publish).toContain("actions/attest-sbom@");
-    expect(publish).not.toContain("package:win");
-    expect(publish).not.toContain("setup-bun");
+  test("tag publishing no longer references binary or Release PR automation", () => {
+    const sourceRelease = job(packageWorkflow, "source-release");
+    for (const removedMarker of [
+      "Verify trusted Release PR identity",
+      "automation/release-v",
+      "automation:beta-release",
+      "codepilotx-beta-release",
+      "verify-release-pr-policy",
+      "beta-preflight.allowed_signers",
+      "release-pr-policy",
+      "SHA256SUMS.txt",
+      "spdx.json",
+      "blockmap",
+      "beta.yml",
+    ]) {
+      expect(sourceRelease).not.toContain(removedMarker);
+    }
   });
 
   test("ordinary PR CI jobs are preserved and run for every pull request", () => {
