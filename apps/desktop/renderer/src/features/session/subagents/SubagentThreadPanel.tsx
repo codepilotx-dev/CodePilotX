@@ -1,19 +1,14 @@
 import React from 'react'
 import {
   AlertCircle,
+  ArrowLeft,
   Bot,
-  Brain,
   Check,
-  ChevronDown,
   Circle,
-  Code2,
-  FileDiff,
-  GitBranch,
   LoaderCircle,
   RotateCcw,
   Send,
   Square,
-  Wrench,
   X,
 } from 'lucide-react'
 import type {
@@ -28,14 +23,13 @@ import {
   pageFromThreadSnapshot,
   selectRenderTurnEntries,
   selectVisibleTurnEntries,
-  type ThreadTimelineRow,
 } from '@codepilotx/session-view'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import { MarkdownMessage } from '../MarkdownMessage.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { approvalToRequest } from '../../../services/agentThreadAdapter.js'
 import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
@@ -48,7 +42,6 @@ import { normalizePatchActionError } from '../timeline/patchActionError.js'
 import { subagentStatusLabel } from './subagentStatusLabel.js'
 
 export interface SubagentThreadCapabilities {
-  canSend: boolean
   canStop: boolean
   canRetry: boolean
   canRespondToApprovals: boolean
@@ -88,7 +81,7 @@ export interface SubagentThreadPanelProps {
   snapshot: ThreadSnapshot
   capabilities: SubagentThreadCapabilities
   callbacks: SubagentThreadCallbacks
-  composer?: React.ReactNode
+  onBackToParent?: () => void
 }
 
 export function SubagentThreadPanel({
@@ -97,7 +90,7 @@ export function SubagentThreadPanel({
   snapshot,
   capabilities,
   callbacks,
-  composer,
+  onBackToParent,
 }: SubagentThreadPanelProps): React.ReactNode {
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const disclosureState = useTimelineDisclosureState(task.childThreadId)
@@ -157,20 +150,25 @@ export function SubagentThreadPanel({
     >
       <header className="subagent-thread-panel__header">
         <div className="subagent-thread-panel__identity">
+          {onBackToParent ? (
+            <IconButton
+              className="subagent-thread-panel__back"
+              title="返回主对话"
+              variant="plain"
+              onClick={onBackToParent}
+            >
+              <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </IconButton>
+          ) : null}
           <span className="subagent-thread-panel__avatar" aria-hidden="true">
             <Bot size={16} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </span>
           <div className="subagent-thread-panel__title-block">
-            <div className="subagent-thread-panel__title-line">
-              <h2>{task.displayName}</h2>
-              <StatusBadge status={run.status} />
-            </div>
-            <span>
-              {profileLabel(task.profile)} · {run.model.id} · 第 {run.generation} 次运行
-            </span>
+            <h2>{task.displayName}</h2>
           </div>
         </div>
         <div className="subagent-thread-panel__run-actions">
+          <StatusBadge status={run.status} />
           {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
             <button aria-label="应用子智能体变更" className="subagent-thread-panel__icon-button" title="应用变更" type="button" onClick={() => callbacks.onApplyWorktree?.(task, run)}>
               <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -213,11 +211,6 @@ export function SubagentThreadPanel({
 
       <div ref={scrollRef} className="subagent-thread-panel__scroll-region">
         <div className="subagent-thread-panel__transcript">
-          <article className="subagent-thread-panel__task">
-            <span>任务</span>
-            <p>{task.task}</p>
-          </article>
-
           {run.queueReason ? (
             <div className="subagent-thread-panel__notice" role="status">
               <LoaderCircle className="is-spinning" size={APP_ICON_SIZE} />
@@ -307,169 +300,7 @@ export function SubagentThreadPanel({
           {run.result ? <RunResult result={run.result} /> : null}
         </div>
       </div>
-
-      {composer ? (
-        <footer
-          aria-disabled={!capabilities.canSend}
-          className="subagent-thread-panel__composer-slot"
-          data-disabled={!capabilities.canSend || undefined}
-        >
-          {composer}
-        </footer>
-      ) : null}
     </section>
-  )
-}
-
-function ThreadRow({
-  row,
-  capabilities,
-  callbacks,
-}: {
-  row: ThreadTimelineRow
-  capabilities: SubagentThreadCapabilities
-  callbacks: SubagentThreadCallbacks
-}): React.ReactNode {
-  if (row.kind === 'text') {
-    return (
-      <article className="subagent-thread-row subagent-thread-row--text">
-        <MarkdownMessage
-          text={row.item.text}
-          streaming={row.item.status === 'streaming'}
-        />
-      </article>
-    )
-  }
-  if (row.kind === 'reasoning') {
-    return (
-      <details
-        className="subagent-thread-row subagent-thread-row--details"
-        open={row.item.status === 'streaming'}
-      >
-        <summary>
-          <Brain size={APP_ICON_SIZE} />
-          <span>{row.item.status === 'streaming' ? '正在思考' : '思考过程'}</span>
-          <ChevronDown size={APP_ICON_SIZE} />
-        </summary>
-        <div className="subagent-thread-row__detail-body">
-          <MarkdownMessage
-            text={row.item.text}
-            streaming={row.item.status === 'streaming'}
-          />
-        </div>
-      </details>
-    )
-  }
-  if (row.kind === 'activity') {
-    return <ActivityRow item={row.item} />
-  }
-  if (row.kind === 'tool') {
-    return <ToolRow item={row.item} />
-  }
-  if (row.kind === 'plan') {
-    return <PlanRow item={row.item} />
-  }
-  if (row.kind === 'execution-plan') {
-    return null
-  }
-  if (row.kind === 'question') {
-    return (
-      <QuestionRow
-        item={row.item}
-        enabled={capabilities.canRespondToQuestions}
-        onRespond={callbacks.onQuestionRespond}
-      />
-    )
-  }
-  if (row.kind === 'patch') {
-    return <PatchRow item={row.item} />
-  }
-  return (
-    <button
-      className="subagent-thread-row subagent-thread-row--subagent"
-      disabled={!callbacks.onOpenSubagent}
-      type="button"
-      onClick={() => callbacks.onOpenSubagent?.(row.item)}
-    >
-      <GitBranch size={APP_ICON_SIZE} />
-      <span className="subagent-thread-row__main">
-        <strong>{row.item.displayName}</strong>
-        <small>{row.item.task}</small>
-      </span>
-      <span className="subagent-thread-row__status">
-        {subagentStatusLabel(row.item.status)}
-      </span>
-    </button>
-  )
-}
-
-function ActivityRow({
-  item,
-}: {
-  item: Extract<Item, { type: 'activity' }>
-}): React.ReactNode {
-  const hasDetails = Boolean(item.detail || item.commands?.length)
-  return (
-    <details className="subagent-thread-row subagent-thread-row--details" open={item.status === 'running'}>
-      <summary>
-        <ActivityStatusIcon status={item.status} />
-        <span>{item.title}</span>
-        {hasDetails ? <ChevronDown size={APP_ICON_SIZE} /> : null}
-      </summary>
-      {hasDetails ? (
-        <div className="subagent-thread-row__detail-body">
-          {item.detail ? <p>{item.detail}</p> : null}
-          {item.commands?.map((command, index) => (
-            <div className="subagent-thread-row__command" key={`${item.id}:${index}`}>
-              <code>{command.command}</code>
-              {command.output ? <pre>{command.output}</pre> : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </details>
-  )
-}
-
-function ToolRow({ item }: { item: Extract<Item, { type: 'tool' }> }): React.ReactNode {
-  const input = formatUnknown(item.input)
-  return (
-    <details
-      className="subagent-thread-row subagent-thread-row--details"
-      open={item.state === 'running' || item.state === 'waiting-permission'}
-    >
-      <summary>
-        <Wrench size={APP_ICON_SIZE} />
-        <span>{item.title || item.tool}</span>
-        <small>{toolStateLabel(item.state)}</small>
-        <ChevronDown size={APP_ICON_SIZE} />
-      </summary>
-      <div className="subagent-thread-row__detail-body">
-        {item.command ? <code className="subagent-thread-row__inline-code">{item.command}</code> : null}
-        {!item.command && input ? <pre>{input}</pre> : null}
-        {item.output ? <pre>{item.output}</pre> : null}
-        {item.error ? <pre className="is-error">{item.error}</pre> : null}
-      </div>
-    </details>
-  )
-}
-
-function PlanRow({
-  item,
-}: {
-  item: Extract<Item, { type: 'plan' }>
-}): React.ReactNode {
-  return (
-    <article className="subagent-thread-row subagent-thread-row--plan">
-      <header>
-        <span>计划</span>
-        <strong>{item.title}</strong>
-      </header>
-      <MarkdownMessage
-        text={item.markdown}
-        streaming={item.status === 'streaming'}
-      />
-    </article>
   )
 }
 
@@ -545,32 +376,6 @@ function QuestionRow({
           提交
         </Button>
       </div>
-    </article>
-  )
-}
-
-function PatchRow({ item }: { item: Extract<Item, { type: 'patch' }> }): React.ReactNode {
-  return (
-    <article className="subagent-thread-row subagent-thread-row--patch">
-      <header>
-        <FileDiff size={APP_ICON_SIZE} />
-        <strong>已编辑 {item.files.length} 个文件</strong>
-        <small>
-          <span className="diff-added">+{item.totalAdditions}</span>
-          <span className="diff-removed">-{item.totalDeletions}</span>
-        </small>
-      </header>
-      <ul>
-        {item.files.map((file) => (
-          <li key={file.path}>
-            <span>{file.path}</span>
-            <small>
-              <span className="diff-added">+{file.additions}</span>
-              <span className="diff-removed">-{file.deletions}</span>
-            </small>
-          </li>
-        ))}
-      </ul>
     </article>
   )
 }
@@ -675,45 +480,10 @@ function StatusBadge({ status }: { status: SubagentRun['status'] }): React.React
   )
 }
 
-function ActivityStatusIcon({ status }: { status: Extract<Item, { type: 'activity' }>['status'] }): React.ReactNode {
-  if (status === 'running') return <LoaderCircle className="is-spinning" size={APP_ICON_SIZE} />
-  if (status === 'completed') return <Check size={APP_ICON_SIZE} />
-  if (status === 'error') return <X size={APP_ICON_SIZE} />
-  return <Circle size={APP_ICON_SIZE} />
-}
-
-function formatUnknown(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  if (typeof value === 'string') return value
-  try {
-    return JSON.stringify(value, null, 2)
-  } catch {
-    return String(value)
-  }
-}
-
-function profileLabel(profile: SubagentTask['profile']): string {
-  if (profile === 'explorer') return '探索'
-  if (profile === 'worker') return '执行'
-  return '默认'
-}
-
 function queueReasonLabel(reason: NonNullable<SubagentRun['queueReason']>): string {
   if (reason === 'parent-limit') return '等待同一父智能体释放并发名额'
   if (reason === 'global-limit') return '等待全局并发名额'
   return '等待共享工作区写入锁'
-}
-
-function toolStateLabel(state: Extract<Item, { type: 'tool' }>['state']): string {
-  const labels: Record<typeof state, string> = {
-    pending: '等待中',
-    'waiting-permission': '等待审批',
-    running: '运行中',
-    completed: '已完成',
-    error: '失败',
-    interrupted: '已中断',
-  }
-  return labels[state]
 }
 
 function riskLabel(risk: ApprovalRequest['risk']): string {

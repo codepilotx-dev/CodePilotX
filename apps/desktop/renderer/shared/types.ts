@@ -1247,12 +1247,10 @@ export type DesktopSubagentRead = {
   currentRun: SubagentRun | null
   snapshot: ThreadSnapshot
   capabilities: {
-    canSend: boolean
     canStop: boolean
     canRetry: boolean
     canRespondToApprovals: boolean
     canRespondToQuestions: boolean
-    canSubmitPlanDecision: boolean
     canApplyWorktree: boolean
     canDiscardWorktree: boolean
     canRestoreWorkspace: boolean
@@ -1650,7 +1648,6 @@ export type DesktopMemoryRecallListing = {
 export type DesktopApi = {
   listSubagents?(threadId: string): Promise<SubagentProjection[]>
   readSubagent?(taskId: string): Promise<DesktopSubagentRead>
-  sendSubagent?(taskId: string, input: DesktopUserMessageInput, model?: string | DesktopModelSelection, permissionMode?: DesktopPermissionMode): Promise<unknown>
   stopSubagent?(taskId: string): Promise<unknown>
   retrySubagent?(taskId: string): Promise<unknown>
   applySubagentWorktree?(taskId: string): Promise<unknown>

@@ -110,7 +110,6 @@ export type ComposerDraftKey =
   | 'home'
   | `session:${string}`
   | 'side-chat'
-  | `side-task:${string}`
 
 export type ComposerSkillInvocation = {
   name: string

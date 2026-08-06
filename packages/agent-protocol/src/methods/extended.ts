@@ -1,7 +1,6 @@
 import { Credential, Model, Provider } from "@codepilotx/model-schema"
 import {
   ModelCatalogSchema,
-  PermissionConfigSchema,
   SubagentProjectionSchema,
   SubagentRunSchema,
   SubagentTaskSchema,
@@ -23,21 +22,15 @@ import {
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
-const AttachmentIDsSchema = Schema.Array(OpaqueIDSchema).check(Schema.isMaxLength(20))
 
 const SubagentCapabilitiesSchema = Schema.Struct({
-  canSend: Schema.Boolean,
   canStop: Schema.Boolean,
   canRetry: Schema.Boolean,
+  canRespondToApprovals: Schema.Boolean,
+  canRespondToQuestions: Schema.Boolean,
   canApplyWorktree: Schema.Boolean,
   canDiscardWorktree: Schema.Boolean,
   canRestoreWorkspace: Schema.Boolean,
-})
-
-const SubagentAdmissionSchema = Schema.Struct({
-  ...AdmissionSchema.fields,
-  taskId: OpaqueIDSchema,
-  runId: OpaqueIDSchema,
 })
 
 const SubagentTerminalResultSchema = Schema.Struct({
@@ -322,31 +315,6 @@ export const ExtendedRpcMethods = {
     errors: ["SUBAGENT_NOT_FOUND", "THREAD_NOT_FOUND", "CAPABILITY_REQUIRED", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
     capability: SUBAGENT_CAPABILITY,
     mutation: false,
-  }),
-
-  "subagent/send": defineMethod({
-    params: Schema.Struct({
-      taskId: OpaqueIDSchema,
-      inputId: OpaqueIDSchema,
-      message: NonEmptyStringSchema,
-      model: Schema.optional(Model.Ref),
-      permissionConfig: Schema.optional(PermissionConfigSchema),
-      attachmentIds: Schema.optional(AttachmentIDsSchema),
-    }),
-    result: SubagentAdmissionSchema,
-    errors: [
-      "SUBAGENT_NOT_FOUND",
-      "MODEL_UNAVAILABLE",
-      "ATTACHMENT_NOT_FOUND",
-      "ATTACHMENT_LIMIT",
-      "PERMISSION_DENIED",
-      "CONFLICT",
-      "CAPABILITY_REQUIRED",
-      "RATE_LIMITED",
-      "INTERNAL_ERROR",
-    ] as const,
-    capability: SUBAGENT_CAPABILITY,
-    mutation: true,
   }),
 
   "subagent/stop": defineMethod({

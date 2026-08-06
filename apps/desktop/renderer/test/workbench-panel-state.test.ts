@@ -195,6 +195,60 @@ describe('workbench dynamic tab state', () => {
     ])
   })
 
+  test('back/close from a side task removes its tab, closes the panel, and restores main focus', () => {
+    const sideChat = { id: 'side-chat', kind: 'side-chat' } as const
+    let state = open(createDefaultWorkbenchTabsState(), sideChat)
+    state = open(state, {
+      id: 'side-task:task-1',
+      kind: 'side-task',
+      taskId: 'task-1',
+      childThreadId: 'thread-1',
+    })
+
+    // 返回箭头/标签 × 的同一行为：先移除当前 side-task 标签，再关闭所在面板
+    state = applyWorkbenchPanelAction(state, {
+      type: 'closeTab',
+      target: 'right',
+      tabId: 'side-task:task-1',
+    })
+    state = applyWorkbenchPanelAction(state, {
+      type: 'closePanel',
+      target: 'right',
+    })
+
+    expect(state.right.tabIds).toEqual(['side-chat'])
+    expect(state.tabsById['side-task:task-1']).toBeUndefined()
+    expect(state.right.open).toBe(false)
+    expect(state.focusArea).toBe('main')
+    // 普通侧边聊天标签不受影响
+    expect(state.tabsById['side-chat']).toEqual(sideChat)
+    expect(state.bottom.tabIds).toEqual([])
+  })
+
+  test('closing a full-width right panel from a side task exits full width', () => {
+    let state = open(createDefaultWorkbenchTabsState(), {
+      id: 'side-task:task-1',
+      kind: 'side-task',
+      taskId: 'task-1',
+      childThreadId: 'thread-1',
+    })
+    state = applyWorkbenchPanelAction(state, {
+      type: 'toggleRightFullWidth',
+    })
+    state = applyWorkbenchPanelAction(state, {
+      type: 'closeTab',
+      target: 'right',
+      tabId: 'side-task:task-1',
+    })
+    state = applyWorkbenchPanelAction(state, {
+      type: 'closePanel',
+      target: 'right',
+    })
+
+    expect(state.rightFullWidth).toBe(false)
+    expect(state.focusArea).toBe('main')
+  })
+
   test('replaces an unpinned file preview and preserves a pinned one', () => {
     let state = open(createDefaultWorkbenchTabsState(), {
       id: 'file:src/a.ts',
