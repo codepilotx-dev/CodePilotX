@@ -31,12 +31,12 @@ import type {
   ThreadSettingsPatch,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
-import type {
-  EventEnvelope,
-  JsonValue,
-  ProtocolCapability,
-  RpcParams,
-  RpcResult,
+import {
+  type EventEnvelope,
+  type JsonValue,
+  type ProtocolCapability,
+  type RpcParams,
+  type RpcResult,
 } from '@codepilotx/agent-protocol'
 import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
@@ -117,6 +117,7 @@ import {
   readBrowserThemeSettings,
   requireMockSession,
 } from './fixtures.js'
+import type { DesktopRuntimeCapabilityApi } from './types.js'
 
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
   'codepilotx.desktop.appearance.v6'
@@ -131,7 +132,9 @@ function mcpUnavailable(): never {
   throw error
 }
 
-export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
+export function createBrowserMockDesktopClient(
+  storage?: Storage,
+): DesktopApi & DesktopRuntimeCapabilityApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   let configDocument: Record<string, JsonValue> = {
     desktop: { ...settings } as unknown as JsonValue,
@@ -235,6 +238,8 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
   }
 
   return {
+    getRuntimeCapabilities: async () =>
+      (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
     getAuthStatus: async () => ({
       authenticated: false,
       method: 'none',

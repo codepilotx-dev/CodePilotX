@@ -1,4 +1,3 @@
-import type { DesktopApi } from '../../../shared/types.js'
 import { createAgentSessionDesktopClient } from './agent-session-client.js'
 import { createBrowserMockDesktopClient } from './browser-mock-client.js'
 import { defaultDesktopClientEnvironment } from './environment.js'
@@ -36,6 +35,7 @@ export type {
   DesktopAgentThreadTitleApi,
   DesktopClientEnvironment,
   DesktopReleaseNotesApi,
+  DesktopRuntimeCapabilityApi,
   DesktopUsageApi,
   DesktopReviewAgentComment,
   DesktopReviewAgentFileDiff,
@@ -47,7 +47,7 @@ export type {
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
 ): CodePilotXDesktopClient {
-  const fallbackClient: DesktopApi =
+  const fallbackClient =
     createBrowserMockDesktopClient(environment.localStorage)
   return createAgentSessionDesktopClient(
     environment,

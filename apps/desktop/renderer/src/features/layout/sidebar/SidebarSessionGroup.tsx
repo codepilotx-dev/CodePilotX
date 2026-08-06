@@ -121,10 +121,29 @@ function SidebarSessionGroupComponent({
   )
   const { baseSessions, canCollapse, canShowMore, extraSessions, hasOverflow } =
     getSidebarSessionDisplayGroups(sortedSessions, visibleLimit);
+  const previousGroupKeyRef = useRef(groupKey)
 
   useEffect(() => {
-    setVisibleLimit(GROUP_LIMIT);
-  }, [groupKey]);
+    const groupChanged = previousGroupKeyRef.current !== groupKey
+    previousGroupKeyRef.current = groupKey
+    if (pagination === 'all') {
+      return
+    }
+    const activeIndex = sortedSessions.findIndex(
+      session => session.id === activeSessionId,
+    )
+    if (groupChanged) {
+      setVisibleLimit(
+        activeIndex < 0 ? GROUP_LIMIT : Math.max(GROUP_LIMIT, activeIndex + 1),
+      )
+      return
+    }
+    if (activeIndex >= 0) {
+      // 排序或异步数据变化后，继续让当前激活项处于已渲染分页内。
+      // 用户单独点击“折叠显示”只改变 visibleLimit，不会重新触发本 effect。
+      setVisibleLimit(current => Math.max(current, activeIndex + 1))
+    }
+  }, [activeSessionId, groupKey, pagination, sortedSessions])
 
   function persistManualOrder(order: string[]): void {
     if (!onManualOrderChange) return
@@ -322,6 +341,7 @@ function SidebarSessionGroupComponent({
           draggedSessionId === session.id && 'is-dragging',
           dragOverSessionId === session.id && 'is-drag-over',
         )}
+        data-sidebar-session-id={session.id}
         draggable={Boolean(onManualOrderChange)}
         indent="session"
         key={session.id}
@@ -455,7 +475,7 @@ function SidebarSessionGroupComponent({
 
   return (
     <>
-      <ul className="sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
+      <ul className="sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:p-0">
         {(pagination === 'all' ? sortedSessions : baseSessions).map(renderSessionRow)}
       </ul>
       {pagination !== 'all' ? (
@@ -464,7 +484,7 @@ function SidebarSessionGroupComponent({
         {extraSessions.length > 0 ? (
           <motion.ul
             animate={{ height: "auto", opacity: 1 }}
-            className="sidebar-session-list sidebar-session-list-extra tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:overflow-hidden tw:p-0"
+            className="sidebar-session-list sidebar-session-list-extra tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:overflow-hidden tw:p-0"
             exit={{ height: 0, opacity: 0 }}
             initial={{ height: 0, opacity: 0 }}
             key={`${groupKey}-extra-sessions`}

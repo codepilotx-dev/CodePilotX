@@ -7,6 +7,14 @@ export const SIDEBAR_COLLAPSE_JITTER_TOLERANCE = 6
 
 export type ResizePhase = 'idle' | 'dragging' | 'settling'
 
+export type ResizeCollapseBehavior =
+  | { kind: 'hold-target' }
+  | { kind: 'threshold'; threshold: number }
+
+export const DEFAULT_RESIZE_COLLAPSE_BEHAVIOR = {
+  kind: 'hold-target',
+} as const satisfies ResizeCollapseBehavior
+
 export type SidebarCollapseConfirmTarget = {
   x: number
   y: number
@@ -51,6 +59,7 @@ type UseSidebarResizeCollapseConfirmInput = {
   onResizePhaseChange?: (phase: ResizePhase) => void
   onResizePreview?: (width: number | null) => void
   onSetWidth: (width: number) => void
+  collapseBehavior?: ResizeCollapseBehavior
   /** `'left'` (default): drag right edge to resize, pointer right = wider.
    *  `'right'`: drag left edge to resize, pointer left = wider.
    *  `'bottom'`: drag top edge to resize, pointer up = taller. */
@@ -116,6 +125,14 @@ export function computeSidebarResizeCollapseConfirm({
   }
 }
 
+export function shouldCollapseSidebarResize(
+  rawWidth: number,
+  collapseBehavior: ResizeCollapseBehavior,
+): boolean {
+  return collapseBehavior.kind === 'threshold'
+    && rawWidth < collapseBehavior.threshold
+}
+
 export function useSidebarResizeCollapseConfirm({
   collapsed,
   maxWidth,
@@ -127,6 +144,7 @@ export function useSidebarResizeCollapseConfirm({
   onResizePhaseChange,
   onResizePreview,
   onSetWidth,
+  collapseBehavior = DEFAULT_RESIZE_COLLAPSE_BEHAVIOR,
   direction = 'left',
 }: UseSidebarResizeCollapseConfirmInput): UseSidebarResizeCollapseConfirmResult {
   const [resizing, setResizing] = useState(false)
@@ -309,6 +327,21 @@ export function useSidebarResizeCollapseConfirm({
         if (onResizePreview) queuePreview(nextWidth)
         return
       }
+      if (shouldCollapseSidebarResize(rawWidth, collapseBehavior)) {
+        stopResize(false)
+        onCollapse()
+        return
+      }
+      if (collapseBehavior.kind === 'threshold') {
+        const nextWidth = Math.min(
+          maxWidth,
+          Math.max(minWidth, rawWidth),
+        )
+        if (onResizePreview) queuePreview(nextWidth)
+        else onSetWidth(nextWidth)
+        clearCollapseConfirm()
+        return
+      }
       const result = computeSidebarResizeCollapseConfirm({
         rawWidth,
         minWidth,
@@ -334,14 +367,17 @@ export function useSidebarResizeCollapseConfirm({
     },
     [
       clearCollapseConfirm,
+      collapseBehavior,
       collapseEnabled,
       direction,
       maxWidth,
       minWidth,
+      onCollapse,
       onResizePreview,
       onSetWidth,
       queuePreview,
       scheduleCollapseHold,
+      stopResize,
     ],
   )
 
@@ -462,10 +498,10 @@ export function useSidebarResizeCollapseConfirm({
         : 'ArrowUp'
     if (event.key === decreaseKey) {
       event.preventDefault()
-      onSetWidth(width - step)
+      onSetWidth(Math.max(minWidth, width - step))
     } else if (event.key === increaseKey) {
       event.preventDefault()
-      onSetWidth(width + step)
+      onSetWidth(Math.min(maxWidth, width + step))
     } else if (event.key === 'Home') {
       event.preventDefault()
       if (onResetSize) onResetSize()

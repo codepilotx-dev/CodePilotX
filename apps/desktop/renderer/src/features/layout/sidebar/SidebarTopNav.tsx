@@ -1,9 +1,11 @@
 import type React from "react";
 import { useState } from "react";
+import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Boxes,
+  Bell,
   BellDot,
+  Boxes,
   BrainCircuit,
   ChevronDown,
   Clock3,
@@ -29,12 +31,30 @@ import { cx } from "../../../utils/cx.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
 import { SidebarRow } from "./SidebarRow.js";
 
-type SidebarNavItem = {
+type SidebarNavAvailability =
+  | { kind: 'always' }
+  | {
+      kind: 'any-capability'
+      capabilities: readonly ProtocolCapability[]
+    }
+
+export type SidebarCapabilityState =
+  | { status: 'unknown'; capabilities: null }
+  | { status: 'ready'; capabilities: ReadonlySet<ProtocolCapability> }
+  | { status: 'unavailable'; capabilities: null }
+
+export type SidebarNavItem = {
   view: AppView;
   label: string;
   icon: React.ReactNode;
   path: string;
+  availability: SidebarNavAvailability;
 };
+
+export const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
+  status: 'unknown',
+  capabilities: null,
+}
 
 export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
@@ -42,36 +62,55 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
     label: "新建任务",
     icon: <SquarePen size={APP_ICON_SIZE} />,
     path: "/new",
+    availability: { kind: 'always' },
   },
   {
     view: "pullRequests",
     label: "拉取请求",
     icon: <GitPullRequest size={APP_ICON_SIZE} />,
     path: "/pull-requests",
+    availability: {
+      kind: 'any-capability',
+      capabilities: ['github.pullRequests.v1'],
+    },
   },
   {
     view: "automations",
     label: "自动化",
     icon: <Clock3 size={APP_ICON_SIZE} />,
     path: "/automations",
+    availability: { kind: 'always' },
   },
   {
     view: "plugins",
     label: "插件",
     icon: <Boxes size={APP_ICON_SIZE} />,
     path: "/plugins",
+    availability: {
+      kind: 'any-capability',
+      capabilities: ['skills.manage.v1', 'mcp.manage.v1'],
+    },
   },
   {
     view: "models",
     label: "供应商",
     icon: <BrainCircuit size={APP_ICON_SIZE} />,
     path: "/models",
+    availability: {
+      kind: 'any-capability',
+      capabilities: [
+        'model.catalog.paged.v1',
+        'provider.config.pi.v1',
+        'provider.auth.pi.v1',
+      ],
+    },
   },
   {
     view: "labs",
     label: "Codex Labs",
     icon: <FlaskConical size={APP_ICON_SIZE} />,
     path: "/labs",
+    availability: { kind: 'always' },
   },
 ];
 
@@ -80,21 +119,34 @@ export const PROJECTS_NAV_ITEM: SidebarNavItem = {
   label: '项目',
   icon: <FolderKanban size={APP_ICON_SIZE} />,
   path: '/projects',
+  availability: { kind: 'always' },
 }
 
-export function getSidebarTopNavItems(
-  showProjects: boolean,
-  surface?: NewSessionSurface,
-): SidebarNavItem[] {
+export function getSidebarTopNavItems({
+  showProjects,
+  surface,
+  capabilityState,
+}: {
+  showProjects: boolean
+  surface?: NewSessionSurface
+  capabilityState: SidebarCapabilityState
+}): SidebarNavItem[] {
   const newItem = surface
     ? { ...TOP_NAV_ITEMS[0]!, path: newSessionPath(surface) }
     : TOP_NAV_ITEMS[0]!
-  if (!showProjects) return [newItem, ...TOP_NAV_ITEMS.slice(1)]
-  return [
+  const items = showProjects ? [
     newItem,
     PROJECTS_NAV_ITEM,
     ...TOP_NAV_ITEMS.slice(1),
-  ]
+  ] : [newItem, ...TOP_NAV_ITEMS.slice(1)]
+
+  if (capabilityState.status !== 'ready') return items
+  return items.filter(item =>
+    item.availability.kind === 'always'
+    || item.availability.capabilities.some(capability =>
+      capabilityState.capabilities.has(capability),
+    ),
+  )
 }
 
 /**
@@ -142,6 +194,7 @@ function SidebarNavItems({
 }
 
 type Props = {
+  capabilityState?: SidebarCapabilityState;
   isActiveView: (view: AppView) => boolean;
   showProjects: boolean;
 };
@@ -171,8 +224,10 @@ export const SIDEBAR_PRODUCT_MODE_META: Record<
 }
 
 export function SidebarHeader({
+  hasAttention,
   onOpenCommandMenu,
 }: {
+  hasAttention: boolean
   onOpenCommandMenu: () => void
 }): React.ReactNode {
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
@@ -186,10 +241,12 @@ export function SidebarHeader({
   const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
   const timelineToggleLabel = sidebarTimelineEnabled
     ? "关闭时间线"
-    : "打开时间线"
+    : hasAttention
+      ? "打开时间线，有需要关注的任务"
+      : "打开时间线"
   const timelineToggleTitle = sidebarTimelineEnabled
     ? "关闭时间线 (Ctrl+Alt+U)"
-    : "打开时间线 (Ctrl+Alt+U)"
+    : `${timelineToggleLabel} (Ctrl+Alt+U)`
 
   const handleModeChange = (value: SidebarProductMode): void => {
     setSidebarProductMode(value)
@@ -260,7 +317,11 @@ export function SidebarHeader({
             onClick={() => setSidebarTimelineEnabled(v => !v)}
             title={timelineToggleTitle}
           >
-            <BellDot size={APP_ICON_SIZE} />
+            {hasAttention ? (
+              <BellDot aria-hidden="true" size={APP_ICON_SIZE} />
+            ) : (
+              <Bell aria-hidden="true" size={APP_ICON_SIZE} />
+            )}
           </IconButton>
         </Tooltip>
       </div>
@@ -269,12 +330,17 @@ export function SidebarHeader({
 }
 
 export function SidebarTopNav({
+  capabilityState = UNKNOWN_SIDEBAR_CAPABILITY_STATE,
   isActiveView,
   showProjects,
 }: Props): React.ReactNode {
   const { sidebarProductMode } = useDesktopSettings()
   const { scrollableItems } = splitSidebarTopNavItems(
-    getSidebarTopNavItems(showProjects, sidebarProductMode),
+    getSidebarTopNavItems({
+      showProjects,
+      surface: sidebarProductMode,
+      capabilityState,
+    }),
   )
   return (
     <nav className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5" aria-label="主要导航">
@@ -298,7 +364,11 @@ export function SidebarNewTaskNav({
 }): React.ReactNode {
   const { sidebarProductMode } = useDesktopSettings()
   const { fixedItems } = splitSidebarTopNavItems(
-    getSidebarTopNavItems(false, sidebarProductMode),
+    getSidebarTopNavItems({
+      showProjects: false,
+      surface: sidebarProductMode,
+      capabilityState: UNKNOWN_SIDEBAR_CAPABILITY_STATE,
+    }),
   )
   return (
     <nav

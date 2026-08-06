@@ -13,6 +13,7 @@ type Props = {
   avoidCollisions?: boolean
   trigger: React.ReactElement
   textMode?: 'nowrap' | 'wrap'
+  modal?: boolean
   onOpenChange: (open: boolean) => void
 } & PopoverSizingProps
 
@@ -27,6 +28,7 @@ export function PopoverMenu({
   avoidCollisions,
   trigger,
   textMode = 'nowrap',
+  modal = false,
   width,
   maxWidth,
   onOpenChange,
@@ -40,6 +42,7 @@ export function PopoverMenu({
       sideOffset={sideOffset}
       collisionPadding={collisionPadding}
       avoidCollisions={avoidCollisions}
+      modal={modal}
       textMode={textMode}
       trigger={trigger}
       width={width}

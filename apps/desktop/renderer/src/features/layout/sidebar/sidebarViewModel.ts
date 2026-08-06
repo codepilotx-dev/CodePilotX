@@ -48,6 +48,7 @@ export type SidebarViewModel = {
 
 export type SidebarFocusSectionId =
   | 'priority'
+  | 'pinned'
   | `day-${number}`
 
 export type SidebarFocusSection = {
@@ -57,26 +58,34 @@ export type SidebarFocusSection = {
 }
 
 export type SidebarTimelineModel = {
+  /** 所有需要关注的任务，不受置顶分组开关影响。 */
+  attentionSessions: SessionListItem[]
+  /** showPinned 为 true 时，从其余分组抽出的置顶任务。 */
+  pinnedSessions: SessionListItem[]
+  /** 实际显示在“优先级”分类中的关注任务。 */
   prioritySessions: SessionListItem[]
   dateSections: SidebarFocusSection[]
 }
 
 export function buildSidebarTimelineModel(input: {
   now: number
-  priorityEnabled: boolean
   sessions: readonly SessionListItem[]
+  showPinned: boolean
 }): SidebarTimelineModel {
-  const priority: SessionListItem[] = []
-  const priorityRankById = new Map<string, number>()
+  const attention: SessionListItem[] = []
+  const attentionRankById = new Map<string, number>()
+  const pinned: SessionListItem[] = []
   const dayBuckets = new Map<number, SessionListItem[]>()
 
   for (const session of input.sessions) {
-    const priorityRank = input.priorityEnabled
-      ? sidebarTimelinePriorityRank(session)
-      : null
+    const priorityRank = sidebarTimelinePriorityRank(session)
     if (priorityRank != null) {
-      priority.push(session)
-      priorityRankById.set(session.id, priorityRank)
+      attention.push(session)
+      attentionRankById.set(session.id, priorityRank)
+      continue
+    }
+    if (input.showPinned && session.pinnedAt != null) {
+      pinned.push(session)
       continue
     }
     const activityMs = sessionRecencyMs(session)
@@ -95,6 +104,16 @@ export function buildSidebarTimelineModel(input: {
     }
   }
 
+  let prioritySessions = attention
+  if (input.showPinned) {
+    const pinnedAttention = attention.filter(session => session.pinnedAt != null)
+    if (pinnedAttention.length > 0) {
+      pinned.push(...pinnedAttention)
+      const pinnedAttentionIds = new Set(pinnedAttention.map(session => session.id))
+      prioritySessions = attention.filter(session => !pinnedAttentionIds.has(session.id))
+    }
+  }
+
   const dateSections: SidebarFocusSection[] = []
   for (const offset of [...dayBuckets.keys()].sort((a, b) => a - b)) {
     const sessions = dayBuckets.get(offset) ?? []
@@ -108,9 +127,29 @@ export function buildSidebarTimelineModel(input: {
     })
   }
   return {
-    prioritySessions: sortPrioritySessions(priority, priorityRankById),
+    attentionSessions: sortPrioritySessions(attention, attentionRankById),
+    pinnedSessions: sortSessionsByRecency(pinned),
+    prioritySessions: sortPrioritySessions(prioritySessions, attentionRankById),
     dateSections,
   }
+}
+
+/** “全部标为已读”的目标集合：未读的关注任务。 */
+export function sidebarAttentionUnreadSessions(
+  sessions: readonly SessionListItem[],
+): SessionListItem[] {
+  return sessions.filter(session => session.unreadAt != null)
+}
+
+/** 安全批量归档集合：仅“已完成但未读”的关注任务，排除等待用户操作或计划审批的任务。 */
+export function sidebarArchivableAttentionSessions(
+  sessions: readonly SessionListItem[],
+): SessionListItem[] {
+  return sessions.filter(
+    session =>
+      session.latestTurnStatus === 'completed' &&
+      session.pendingPlanApproval !== true,
+  )
 }
 
 function sidebarTimelinePriorityRank(

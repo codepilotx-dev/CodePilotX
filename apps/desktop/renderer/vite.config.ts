@@ -5,8 +5,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-// Profile v1 adds two formal RPC result decoders to the shared typed client.
-const NEW_ROUTE_GZIP_BUDGET_KIB = 365
+// Capability-aware sidebar state, active-row recovery and the timeline
+// attention menu add about 1.4 KiB gzip.
+const NEW_ROUTE_GZIP_BUDGET_KIB = 367
 const NEW_ROUTE_GZIP_BUDGET = NEW_ROUTE_GZIP_BUDGET_KIB * 1024
 const INITIAL_CSS_RAW_BUDGET = 460 * 1024
 const rootPackage = JSON.parse(

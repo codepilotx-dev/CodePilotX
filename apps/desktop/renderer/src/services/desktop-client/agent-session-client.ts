@@ -157,10 +157,11 @@ import { catalogProviderToDesktop } from './provider-adapters.js'
 import type {
   CodePilotXDesktopClient,
   DesktopClientEnvironment,
+  DesktopRuntimeCapabilityApi,
 } from './types.js'
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
-  mockClient: DesktopApi,
+  mockClient: DesktopApi & DesktopRuntimeCapabilityApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -1250,6 +1251,12 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    getRuntimeCapabilities: () => withAgentOrMock<
+      readonly ProtocolCapability[]
+    >(
+      async () => [...agentCapabilities] as ProtocolCapability[],
+      () => mockClient.getRuntimeCapabilities(),
+    ),
     checkForUpdates: () =>
       environment.window?.codePilotXDesktop?.checkForUpdates
         ? environment.window.codePilotXDesktop.checkForUpdates()
@@ -2317,14 +2324,6 @@ export function createAgentSessionDesktopClient(
       return response.subagents
     },
     readSubagent: taskId => rpc.call<DesktopSubagentRead>('subagent/read', { taskId }),
-    sendSubagent: async (taskId, input, selectedModel, selectedPermissionMode) => rpc.call('subagent/send', {
-      taskId,
-      inputId: crypto.randomUUID(),
-      message: desktopUserMessageInputToPreviewText(input),
-      model: await resolveAgentModelRef(selectedModel, activeSessionId ?? ''),
-      attachmentIds: await importAgentAttachments(input),
-      ...(selectedPermissionMode ? { permissionConfig: desktopPermissionModeToPermissionConfig(selectedPermissionMode) } : {}),
-    }),
     stopSubagent: taskId => rpc.call('subagent/stop', { taskId, operationId: crypto.randomUUID() }),
     retrySubagent: taskId => rpc.call('subagent/retry', { taskId, operationId: crypto.randomUUID() }),
     applySubagentWorktree: taskId => rpc.call('subagent/worktree/apply', { taskId, operationId: crypto.randomUUID() }),

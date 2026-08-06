@@ -13,9 +13,11 @@ import type { SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import {
   PopoverCheckboxItem,
+  PopoverItem,
   PopoverLabel,
   PopoverRadioGroup,
   PopoverRadioItem,
+  PopoverSeparator,
 } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
@@ -42,6 +44,11 @@ import {
   type SidebarTimelineModel,
 } from "./sidebarViewModel.js";
 import { cx } from "../../../utils/cx.js";
+import type { SidebarProjectCatalogState } from './useSidebarProjectCatalog.js'
+import {
+  type SidebarScrollModeKey,
+  useSidebarScrollController,
+} from './useSidebarScrollController.js'
 
 const PINNED_INITIAL_LIMIT = 20;
 const PINNED_LIMIT_STEP = 20;
@@ -51,7 +58,7 @@ type Props = {
   collapsedProjectPaths: Set<string>;
   organization: DesktopSidebarOrganization;
   timeline?: SidebarTimelineModel | null;
-  timelinePriorityEnabled: boolean;
+  showTimelinePinned: boolean;
   now: number;
   pendingPermissionSessionIds: ReadonlySet<string>;
   titleLoadingIds: ReadonlySet<string>;
@@ -70,6 +77,9 @@ type Props = {
   scrollHeader: React.ReactNode;
   /** 滚动视口是否已滚过固定入口（scrollTop > 0），驱动动态分隔线。 */
   onScrollOverlapChange: (overlapping: boolean) => void;
+  projectCatalogState: SidebarProjectCatalogState;
+  scrollModeKey: SidebarScrollModeKey;
+  scrollPositions: Map<SidebarScrollModeKey, number>;
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
   onChooseWorkspace: () => void;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
@@ -88,7 +98,11 @@ type Props = {
   onOrganizationChange: (organization: DesktopSidebarOrganization) => void;
   onProjectSortChange: (sort: DesktopSidebarSort) => void;
   onSessionSortChange: (sort: DesktopSidebarSort) => void;
-  onTimelinePriorityEnabledChange: (value: boolean) => void;
+  hasUnreadAttention: boolean;
+  hasArchivableAttention: boolean;
+  onMarkAttentionRead: () => void;
+  onRequestArchiveAttention: () => void;
+  onShowTimelinePinnedChange: (value: boolean) => void;
 };
 
 export function SidebarBody({
@@ -96,7 +110,7 @@ export function SidebarBody({
   collapsedProjectPaths,
   organization,
   timeline,
-  timelinePriorityEnabled,
+  showTimelinePinned,
   now,
   pendingPermissionSessionIds,
   titleLoadingIds,
@@ -113,6 +127,9 @@ export function SidebarBody({
   workspace,
   scrollHeader,
   onScrollOverlapChange,
+  projectCatalogState,
+  scrollModeKey,
+  scrollPositions,
   onArchiveSessions,
   onChooseWorkspace,
   onCreateSession,
@@ -131,7 +148,11 @@ export function SidebarBody({
   onOrganizationChange,
   onProjectSortChange,
   onSessionSortChange,
-  onTimelinePriorityEnabledChange,
+  hasUnreadAttention,
+  hasArchivableAttention,
+  onMarkAttentionRead,
+  onRequestArchiveAttention,
+  onShowTimelinePinnedChange,
 }: Props): React.ReactNode {
   const [visibleProjectLimit, setVisibleProjectLimit] = useState(5);
   const [visiblePinnedLimit, setVisiblePinnedLimit] = useState(
@@ -151,16 +172,13 @@ export function SidebarBody({
     string | null
   >(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null)
-  const previousFocusModeRef = useRef<boolean>(timeline !== null)
-  useEffect(() => {
-    const focusMode = timeline !== null
-    if (focusMode !== previousFocusModeRef.current) {
-      previousFocusModeRef.current = focusMode
-      scrollViewportRef.current?.scrollTo({ top: 0 })
-      // 时间线模式切换会滚回顶部，同步清除动态分隔线，避免残留
-      onScrollOverlapChange(false)
-    }
-  }, [timeline, onScrollOverlapChange])
+  const { onScroll } = useSidebarScrollController({
+    activeSessionId,
+    modeKey: scrollModeKey,
+    positions: scrollPositions,
+    viewportRef: scrollViewportRef,
+    onScrollOverlapChange,
+  })
   const unavailablePaths = useMemo(
     () =>
       new Set(
@@ -201,7 +219,49 @@ export function SidebarBody({
   const displayedPinnedItems = [...basePinnedItems, ...extraPinnedItems];
 
   useEffect(() => {
-    setVisibleProjectLimit(5);
+    if (!activeSessionId) return
+
+    const pinnedIndex = pinnedItems.findIndex(item =>
+      item.kind === 'session'
+        ? item.session.id === activeSessionId
+        : projectSessionBuckets
+            .get(sidebarProjectKey(item.project))
+            ?.displaySessions.some(session => session.id === activeSessionId),
+    )
+    if (pinnedIndex >= 0) {
+      setVisiblePinnedLimit(current => Math.max(current, pinnedIndex + 1))
+      return
+    }
+
+    const projectIndex = organization === 'projects'
+      ? projectWorkspaces.findIndex(project =>
+          projectSessionBuckets
+            .get(sidebarProjectKey(project))
+            ?.displaySessions.some(session => session.id === activeSessionId),
+        )
+      : -1
+    if (projectIndex >= 0) {
+      setVisibleProjectLimit(current => Math.max(current, projectIndex + 1))
+    }
+  }, [
+    activeSessionId,
+    pinnedItems,
+    organization,
+    projectSessionBuckets,
+    projectWorkspaces,
+  ])
+
+  useEffect(() => {
+    const activeProjectIndex = activeSessionId && organization === 'projects'
+      ? projectWorkspaces.findIndex(project =>
+          projectSessionBuckets
+            .get(sidebarProjectKey(project))
+            ?.displaySessions.some(session => session.id === activeSessionId),
+        )
+      : -1
+    setVisibleProjectLimit(
+      activeProjectIndex < 0 ? 5 : Math.max(5, activeProjectIndex + 1),
+    )
   }, [organization]);
 
   function isUnavailable(project: DesktopWorkspace): boolean {
@@ -458,9 +518,7 @@ export function SidebarBody({
       className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
       contentClassName="sidebar-scroll-content"
       viewportRef={scrollViewportRef}
-      onScroll={event => {
-        onScrollOverlapChange(event.currentTarget.scrollTop > 0)
-      }}
+      onScroll={onScroll}
     >
       {scrollHeader}
       {/* 次级导航与时间线/任务主体之间的分组间距，不再占用整个滚动视口的外边距 */}
@@ -468,17 +526,21 @@ export function SidebarBody({
         {timeline ? (
           <Timeline
             activeSessionId={activeSessionId}
+            hasArchivableAttention={hasArchivableAttention}
+            hasUnreadAttention={hasUnreadAttention}
             now={now}
             pendingPermissionSessionIds={pendingPermissionSessionIds}
-            priorityEnabled={timelinePriorityEnabled}
+            showPinned={showTimelinePinned}
             timeline={timeline}
             titleLoadingIds={titleLoadingIds}
             sessionFallbackTitles={sessionFallbackTitles}
             onArchiveSessions={onArchiveSessions}
+            onMarkAttentionRead={onMarkAttentionRead}
             onPinSession={onPinSession}
-            onPriorityEnabledChange={onTimelinePriorityEnabledChange}
+            onRequestArchiveAttention={onRequestArchiveAttention}
             onSelectSession={onSelectSession}
             onRenameSession={onRenameSession}
+            onShowPinnedChange={onShowTimelinePinnedChange}
             onUnpinSession={onUnpinSession}
           />
         ) : (
@@ -529,9 +591,15 @@ export function SidebarBody({
               title="项目"
               onToggle={onToggleSidebarSection}
             >
-              {projectWorkspaces.length === 0 ? (
-                <SidebarEmptyRow>暂无项目</SidebarEmptyRow>
-              ) : (
+              {projectCatalogState.status === 'loading' ? (
+                <SidebarEmptyRow role="status">正在加载项目…</SidebarEmptyRow>
+              ) : projectCatalogState.status === 'unavailable' &&
+                projectCatalogState.projects.length === 0 ? (
+                <SidebarEmptyRow role="status">
+                  {projectCatalogState.error || '项目目录暂时不可用。'}
+                </SidebarEmptyRow>
+              ) : null}
+              {projectWorkspaces.length > 0 ? (
                 <>
                   {displayedProjects.map((project) =>
                     renderProject(project, projectWorkspaces, "projects"),
@@ -549,7 +617,9 @@ export function SidebarBody({
                     />
                   ) : null}
                 </>
-              )}
+              ) : projectCatalogState.status === 'ready' ? (
+                <SidebarEmptyRow>暂无项目</SidebarEmptyRow>
+              ) : null}
             </SidebarSection>
         ) : null}
 
@@ -609,31 +679,39 @@ export function SidebarBody({
 
 function Timeline({
   activeSessionId,
+  hasArchivableAttention,
+  hasUnreadAttention,
   now,
   pendingPermissionSessionIds,
-  priorityEnabled,
+  showPinned,
   timeline,
   titleLoadingIds,
   sessionFallbackTitles,
   onArchiveSessions,
+  onMarkAttentionRead,
   onPinSession,
-  onPriorityEnabledChange,
+  onRequestArchiveAttention,
   onSelectSession,
   onRenameSession,
+  onShowPinnedChange,
   onUnpinSession,
 }: {
   activeSessionId: string | null
+  hasArchivableAttention: boolean
+  hasUnreadAttention: boolean
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
-  priorityEnabled: boolean
+  showPinned: boolean
   timeline: SidebarTimelineModel
   titleLoadingIds: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
+  onMarkAttentionRead: () => void
   onPinSession: (session: SessionListItem) => void
-  onPriorityEnabledChange: (value: boolean) => void
+  onRequestArchiveAttention: () => void
   onSelectSession: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
+  onShowPinnedChange: (value: boolean) => void
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
   const sharedSessionProps = {
@@ -650,17 +728,34 @@ function Timeline({
   }
   return (
     <div className="sidebar-timeline">
-      <TimelineHeader
-        priorityEnabled={priorityEnabled}
-        onPriorityEnabledChange={onPriorityEnabledChange}
+      <FocusSectionGroup
+        action={
+          <TimelinePriorityMenu
+            hasArchivableAttention={hasArchivableAttention}
+            hasUnreadAttention={hasUnreadAttention}
+            showPinned={showPinned}
+            onMarkAttentionRead={onMarkAttentionRead}
+            onRequestArchiveAttention={onRequestArchiveAttention}
+            onShowPinnedChange={onShowPinnedChange}
+          />
+        }
+        emptyState="没有需要关注的任务"
+        section={{
+          id: 'priority',
+          label: '优先级',
+          sessions: timeline.prioritySessions,
+        }}
+        sort="preserve"
+        {...sharedSessionProps}
       />
-      {timeline.prioritySessions.length > 0 ? (
-        <SidebarSessionGroup
-          groupKey="timeline:priority"
-          sessions={timeline.prioritySessions}
-          presentation="workspace-meta"
-          pagination="all"
-          sort="preserve"
+      {timeline.pinnedSessions.length > 0 ? (
+        <FocusSectionGroup
+          section={{
+            id: 'pinned',
+            label: '置顶',
+            sessions: timeline.pinnedSessions,
+          }}
+          sort="updated"
           {...sharedSessionProps}
         />
       ) : null}
@@ -672,57 +767,83 @@ function Timeline({
           {...sharedSessionProps}
         />
       ))}
-      {timeline.prioritySessions.length === 0
-        && timeline.dateSections.length === 0 ? (
-        <SidebarEmptyRow>最近一周暂无任务</SidebarEmptyRow>
-      ) : null}
     </div>
   )
 }
 
-function TimelineHeader({
-  priorityEnabled,
-  onPriorityEnabledChange,
+function TimelinePriorityMenu({
+  hasArchivableAttention,
+  hasUnreadAttention,
+  showPinned,
+  onMarkAttentionRead,
+  onRequestArchiveAttention,
+  onShowPinnedChange,
 }: {
-  priorityEnabled: boolean
-  onPriorityEnabledChange: (value: boolean) => void
+  hasArchivableAttention: boolean
+  hasUnreadAttention: boolean
+  showPinned: boolean
+  onMarkAttentionRead: () => void
+  onRequestArchiveAttention: () => void
+  onShowPinnedChange: (value: boolean) => void
 }): React.ReactNode {
   const [menuOpen, setMenuOpen] = useState(false)
   return (
-    <header className="sidebar-timeline-header">
-      <h2 className="sidebar-timeline-title">时间线</h2>
-      <PopoverMenu
-        align="end"
-        className="sidebar-timeline-menu"
-        open={menuOpen}
-        side="bottom"
-        width={208}
-        trigger={
-          <IconButton
-            aria-label="时间线显示选项"
-            className="sidebar-timeline-menu-button"
-            title="时间线显示选项"
-          >
-            <Ellipsis size={APP_ICON_SIZE} />
-          </IconButton>
-        }
-        onOpenChange={setMenuOpen}
-      >
-        <PopoverLabel>显示</PopoverLabel>
-        <PopoverCheckboxItem
-          checked={priorityEnabled}
-          keepOpen
-          onCheckedChange={onPriorityEnabledChange}
+    <PopoverMenu
+      align="start"
+      className="sidebar-timeline-menu"
+      modal
+      open={menuOpen}
+      side="bottom"
+      sideOffset={4}
+      width={208}
+      trigger={
+        <IconButton
+          aria-label="优先级显示选项"
+          className="sidebar-timeline-menu-button"
+          title="优先级显示选项"
         >
-          优先级
-        </PopoverCheckboxItem>
-      </PopoverMenu>
-    </header>
+          <Ellipsis size={APP_ICON_SIZE} />
+        </IconButton>
+      }
+      onOpenChange={setMenuOpen}
+    >
+      <PopoverLabel>显示</PopoverLabel>
+      <PopoverCheckboxItem
+        checked={showPinned}
+        keepOpen
+        onCheckedChange={onShowPinnedChange}
+      >
+        置顶
+      </PopoverCheckboxItem>
+      <PopoverCheckboxItem
+        checked={false}
+        disabled
+        meta="自动化任务尚未接入侧栏时间线"
+        onCheckedChange={() => undefined}
+      >
+        已安排
+      </PopoverCheckboxItem>
+      <PopoverSeparator />
+      <PopoverItem
+        disabled={!hasUnreadAttention}
+        onClick={onMarkAttentionRead}
+      >
+        全部标为已读
+      </PopoverItem>
+      <PopoverItem
+        disabled={!hasArchivableAttention}
+        onClick={onRequestArchiveAttention}
+      >
+        归档任务
+      </PopoverItem>
+    </PopoverMenu>
   )
 }
 
 function FocusSectionGroup({
+  action,
   activeSessionId,
+  emptyState,
   now,
   pendingPermissionSessionIds,
   section,
@@ -735,7 +856,9 @@ function FocusSectionGroup({
   onRenameSession,
   onUnpinSession,
 }: {
+  action?: React.ReactNode
   activeSessionId: string | null
+  emptyState?: React.ReactNode
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
   section: SidebarFocusSection
@@ -749,27 +872,36 @@ function FocusSectionGroup({
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
   return (
-    <section className="sidebar-section tw:grid tw:gap-1">
+    <section className="sidebar-section sidebar-focus-section tw:grid tw:gap-1">
       <div className="sidebar-focus-section-header">
         <h3 className="sidebar-focus-section-title">{section.label}</h3>
+        {action}
       </div>
-      <SidebarSessionGroup
-        activeSessionId={activeSessionId}
-        groupKey={`focus:${section.id}`}
-        now={now}
-        pagination="all"
-        pendingPermissionSessionIds={pendingPermissionSessionIds}
-        presentation="workspace-meta"
-        sort={sort}
-        titleLoadingIds={titleLoadingIds}
-        sessionFallbackTitles={sessionFallbackTitles}
-        sessions={section.sessions}
-        onArchiveSessions={onArchiveSessions}
-        onPinSession={onPinSession}
-        onSelectSession={onSelectSession}
-        onRenameSession={onRenameSession}
-        onUnpinSession={onUnpinSession}
-      />
+      <div className="sidebar-focus-section-clip-window">
+        <div className="sidebar-focus-section-clip-content">
+          {section.sessions.length === 0 && emptyState != null ? (
+            <SidebarEmptyRow>{emptyState}</SidebarEmptyRow>
+          ) : (
+            <SidebarSessionGroup
+              activeSessionId={activeSessionId}
+              groupKey={`focus:${section.id}`}
+              now={now}
+              pagination="all"
+              pendingPermissionSessionIds={pendingPermissionSessionIds}
+              presentation="workspace-meta"
+              sort={sort}
+              titleLoadingIds={titleLoadingIds}
+              sessionFallbackTitles={sessionFallbackTitles}
+              sessions={section.sessions}
+              onArchiveSessions={onArchiveSessions}
+              onPinSession={onPinSession}
+              onSelectSession={onSelectSession}
+              onRenameSession={onRenameSession}
+              onUnpinSession={onUnpinSession}
+            />
+          )}
+        </div>
+      </div>
     </section>
   )
 }
