@@ -10,6 +10,6 @@
     "test": "bun test"
   },
   "devDependencies": {
-    "wrangler": "4.114.0"
+    "wrangler": "4.118.0"
   }
 }
