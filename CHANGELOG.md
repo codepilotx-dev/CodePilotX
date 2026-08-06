@@ -7,6 +7,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.4 — 2026-08-07
+
 ### Added
 
 - [desktop/renderer] 新增多模式新建页 Surface 路由（`/new?surface=coding|working|chat`）：URL 有效值优先并与侧栏产品模式同步，缺失或无效参数回退到已保存模式并只替换 `surface` 参数；侧栏模式切换直接导航到对应新建页，「新建任务」链接跟随当前 Surface
