@@ -30,6 +30,9 @@
 
 ### Changed
 
+- [desktop/renderer] 固定侧栏关注任务区并按真实关注状态切换铃铛提示，补齐置顶筛选、批量已读/归档及 Codex 式透明分类标题与列表间距。
+- [Desktop] 侧栏按 Agent 能力动态展示现有入口，并对齐 Codex 的滚动定位、遮罩、粘性分组、悬浮预览与折叠动效。
+- [Agent/renderer] 将子 Agent 详情重构为无输入框的只读工作台线程：移除公开直发能力与侧边聊天混淆，保留停止、重试、工作区处理、审批和结构化提问，返回或关闭标签时恢复主对话焦点
 - [renderer] 区分普通侧栏与时间线的会话缩进，并将置顶内容固定为会话优先、文件夹随后，保持两组内部的手动顺序
 - [renderer] 将侧栏任务按钮的纵向内边距调整为 4px，改善任务行的视觉间距与点击区域
 - [Agent/renderer] 将侧栏优先级聚焦视图调整为紧凑型可筛选时间线，默认按最近一周分组，并按等待用户处理、计划待审批和完成未读整理优先任务
@@ -79,6 +82,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修正时间线分类、空状态、任务标题与工作区元信息贴近侧栏边缘的问题，统一为 Codex 式双层 8px 横向基线
 - [desktop/renderer] 修复 Windows 自定义安装目录中的编辑器与开发工具无法出现在外部打开菜单的问题，补齐 Visual Studio、GitHub Desktop、File Explorer、Windows Terminal 和 IntelliJ IDEA 检测，并统一应用图标与失效默认项回退
 - [release] agent-runtime-verifier CLI 统一支持 `--name value` 与 `--name=value` 两种参数形式，并将 Agent 路径解析为绝对路径后再启动与验证，避免 Windows 上相对路径启动拿不到子进程 pid 导致进程树清理失败
 - [release] release-parity 锚点链验证改在 Windows PowerShell 5.1 完成：用 ExtraStore 与 AllowUnknownCertificateAuthority 构建链后固定链根 thumbprint 必须等于锚证书，移除对 PowerShell 7 的依赖（本地开发机 Store 版 pwsh 别名无法被 Bun 直接启动），根存储依旧不写入
