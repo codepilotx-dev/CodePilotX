@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { removeFixturePaths } from "./fixture-cleanup"
-import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
 import { ThreadService } from "../src/session/ThreadService"
 import { EnvironmentDeltaStore } from "../src/local-environment/EnvironmentDeltaStore"
 import { HISTORY_SCHEMA, initializeSchema } from "../src/storage/database/schema-initializer"
@@ -120,13 +120,13 @@ describe("ManagedWorktreeService", () => {
     expect(output.read("operation", 70_000)).toEqual({ cursor: 70_000, data: "", truncated: false, complete: true })
   })
 
-  test("history 24 逐代迁移到 26 并只增加可忽略的独立表", () => {
+  test("history 24 逐代迁移到当前版本并只增加可忽略的独立表", () => {
     const sqlite = new Database(":memory:")
-    const newObjects = /(?:managed_worktrees|thread_execution_bindings|worktree_operations|thread_handoff_operations|thread_forks|thread_message_fork_operations|thread_message_forks|turn_pi_boundaries)/
+    const newObjects = /(?:managed_worktrees|thread_execution_bindings|worktree_operations|thread_handoff_operations|thread_forks|thread_message_fork_operations|thread_message_forks|turn_pi_boundaries|resume_checkpoint_leases)/
     sqlite.exec(HISTORY_SCHEMA.filter((statement) => !newObjects.test(statement)).join(";\n"))
     sqlite.exec("PRAGMA user_version = 24")
     initializeSchema(sqlite, "history")
-    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 26 })
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     const tables = new Set((sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map(({ name }) => name))
     for (const table of ["managed_worktrees", "thread_execution_bindings", "worktree_operations", "thread_handoff_operations", "thread_forks"]) {
       expect(tables.has(table)).toBe(true)
@@ -134,6 +134,7 @@ describe("ManagedWorktreeService", () => {
     for (const table of ["thread_message_fork_operations", "thread_message_forks", "turn_pi_boundaries"]) {
       expect(tables.has(table)).toBe(true)
     }
+    expect(tables.has("resume_checkpoint_leases")).toBe(true)
     sqlite.close()
   })
 

@@ -249,12 +249,15 @@ export type DesktopAgentEventEnvelopeApi = {
   readThreadHistoryPage(
     params: RpcParams<'thread/history/read'>,
   ): Promise<RpcResult<'thread/history/read'>>
+  listPendingAgentInteractions(
+    params: RpcParams<'interaction/listPending'>,
+  ): Promise<RpcResult<'interaction/listPending'>>
   readThreadPatchDiff(
     params: RpcParams<'thread/patch/diff'>,
   ): Promise<RpcResult<'thread/patch/diff'>>
   subscribeAgentEventEnvelopes(
     options: AgentRpcSubscription,
-    callback: (event: EventEnvelope) => void,
+    callback: (events: readonly EventEnvelope[]) => void | Promise<void>,
   ): () => void
 }
 

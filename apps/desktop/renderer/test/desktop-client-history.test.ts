@@ -449,6 +449,70 @@ describe('desktop history client', () => {
     expect(respondRequests).toHaveLength(0)
   })
 
+  test('responds to hook trust through the typed hookTrust decision', async () => {
+    const responses: Array<Record<string, unknown>> = []
+    const pendingInteraction = {
+      kind: 'hookTrust',
+      interactionId: 'hook-trust-1',
+      threadId: 'session-1',
+      turnId: 'turn-1',
+      agentId: 'agent-1',
+      createdAt: now,
+      version: 3,
+      configPath: '.codepilotx/hooks.json',
+      sha256: 'fixture-sha256',
+      hook: {
+        id: 'hook-1',
+        name: 'Pre tool hook',
+        event: 'pre-tool',
+        command: 'fixture-command',
+      },
+    }
+    const client = createDesktopClient({
+      fetch: async (path, init) => {
+        if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        if (body?.method === 'interaction/listPending') {
+          return rpc(body.id, {
+            interactions: [pendingInteraction],
+            nextCursor: null,
+          })
+        }
+        if (body?.method === 'interaction/respond') {
+          responses.push(body.params)
+          return rpc(body.id, {
+            interactionId: pendingInteraction.interactionId,
+            kind: 'hookTrust',
+            state: 'resolved',
+            version: 4,
+            resolvedAt: now + 1,
+            response: body.params.response,
+          })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+    })
+
+    await client.respondToPermission('session-1', 'hook-trust-1', {
+      behavior: 'allow',
+    })
+    await client.respondToPermission('session-1', 'hook-trust-1', {
+      behavior: 'deny',
+    })
+
+    expect(responses.map(response => response.response)).toEqual([
+      { kind: 'hookTrust', decision: 'allow' },
+      { kind: 'hookTrust', decision: 'block' },
+    ])
+    expect(responses[0]).toMatchObject({
+      interactionId: 'hook-trust-1',
+      expectedVersion: 3,
+      operationId: expect.any(String),
+    })
+  })
+
   test('falls back to browser mock when agent is unavailable', async () => {
     const client = createDesktopClient({
       fetch: async () => new Response('nope', { status: 503 }),
@@ -458,6 +522,10 @@ describe('desktop history client', () => {
 
     expect(created.sessionId).toStartWith('browser-mock-')
     expect(created.standalone).toBe(true)
+    await expect(client.listPendingAgentInteractions({
+      threadId: created.sessionId,
+      limit: 500,
+    })).resolves.toEqual({ interactions: [], nextCursor: null })
   })
 
   test('restores authoritative unread state when mark-read fails', async () => {

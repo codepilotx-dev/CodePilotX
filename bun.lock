@@ -185,6 +185,7 @@
       "name": "@codepilotx/session-view",
       "version": "0.1.0",
       "dependencies": {
+        "@codepilotx/agent-protocol": "workspace:*",
         "@codepilotx/shared": "workspace:*",
       },
       "devDependencies": {

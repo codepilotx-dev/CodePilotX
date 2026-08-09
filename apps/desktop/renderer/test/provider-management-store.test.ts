@@ -77,7 +77,7 @@ describe('provider management store', () => {
   })
 
   test('live credential events reconcile through provider/credential/list', async () => {
-    let callback: ((event: EventEnvelope) => void) | undefined
+    let callback: ((events: readonly EventEnvelope[]) => void | Promise<void>) | undefined
     let subscriptionOptions: Parameters<
       ProviderManagementClient['subscribeAgentEventEnvelopes']
     >[0] | undefined
@@ -102,12 +102,17 @@ describe('provider management store', () => {
     })
     credentials = [credential('oauth-1', 'oauth', true)]
 
-    callback?.({
+    await callback?.([{
+      eventId: 'credential-event-1',
+      streamId: 'global',
       type: 'provider/credential/updated',
-      seq: 1,
-      emittedAt: Date.now(),
+      version: 1,
+      occurredAt: Date.now(),
+      durability: 'live',
+      sequence: null,
+      afterSequence: 1,
       payload: { providerId: 'openai' },
-    } as EventEnvelope)
+    }])
     await waitFor(() => store.getSnapshot().credentials[0]?.id === 'oauth-1')
 
     expect(store.getSnapshot().apiKeys).toEqual([])

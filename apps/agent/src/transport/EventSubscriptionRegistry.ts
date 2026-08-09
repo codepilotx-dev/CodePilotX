@@ -106,6 +106,34 @@ export class EventSubscriptionRegistry {
     return subscription?.connectionId === connectionId ? subscription : null
   }
 
+  validateLastEventID(subscription: EventSubscription, raw: string | undefined) {
+    if (raw === undefined || raw === "") return
+    if (subscription.acknowledged.size !== 1) {
+      throw new AgentError("CONFLICT", "多 stream 订阅不能使用单一 Last-Event-ID", 409)
+    }
+    if (!/^\d+$/.test(raw)) throw new AgentError("INVALID_REQUEST", "Last-Event-ID 格式无效", 400)
+    const cursor = Number(raw)
+    if (!Number.isSafeInteger(cursor) || cursor < 0) throw new AgentError("INVALID_REQUEST", "Last-Event-ID 超出安全范围", 400)
+    const [streamID] = subscription.acknowledged.keys()
+    const bounds = this.cursorBounds(streamID!)
+    if (cursor > bounds.high) throw new AgentError("CONFLICT", "Last-Event-ID 超过 stream 高水位", 409)
+    if (bounds.low !== null && cursor < bounds.low - 1) {
+      throw new AgentError("CURSOR_EXPIRED", "Last-Event-ID 已超出可重放范围", 409, {
+        streamId: streamID,
+        lowWatermark: bounds.low,
+        highWatermark: bounds.high,
+      })
+    }
+    if (streamID !== "global") {
+      const acknowledged = subscription.acknowledged.get(streamID!) ?? 0
+      if (cursor === 0 || cursor === acknowledged || (bounds.low !== null && cursor === bounds.low - 1)) return
+      const event = this.db.sqlite.query("SELECT thread_id FROM events WHERE id = ?").get(cursor) as { thread_id: string | null } | null
+      if (!event || (event.thread_id !== null && event.thread_id !== streamID)) {
+        throw new AgentError("CONFLICT", "Last-Event-ID 不属于当前 stream", 409)
+      }
+    }
+  }
+
   closeConnection(connectionId: string) {
     for (const [id, subscription] of this.subscriptions) {
       if (subscription.connectionId === connectionId) this.subscriptions.delete(id)

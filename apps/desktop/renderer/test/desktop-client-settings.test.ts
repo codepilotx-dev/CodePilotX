@@ -199,6 +199,7 @@ describe('desktop thread settings client', () => {
     })
     source.onmessage?.({
       data: JSON.stringify({
+        jsonrpc: '2.0',
         method: 'event/next',
         params: {
           subscriptionId: 'tooling-subscription',
@@ -216,6 +217,9 @@ describe('desktop thread settings client', () => {
         },
       }),
     } as MessageEvent)
+    for (let index = 0; index < 20 && updates.length === 0; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
     expect(updates).toEqual([toolingStatus])
     unsubscribe()
   })
@@ -734,8 +738,11 @@ describe('desktop thread settings client', () => {
     expect(updated.item.permissionMode).toBe('auto-review')
   })
 
-  test('refreshes only the thread named by a settings notification', async () => {
+  test('reconciles thread and pending-interaction catalog metadata before committing a global thread update', async () => {
     const readThreadIds: string[] = []
+    let threadListRequests = 0
+    let interactionListRequests = 0
+    let pendingInteractionThreadIds: readonly string[] = []
     const source = {
       onmessage: null as ((event: MessageEvent) => void) | null,
       onerror: null as (() => void) | null,
@@ -764,10 +771,50 @@ describe('desktop thread settings client', () => {
           acknowledged: params.positions,
         })
       }
+      if (body?.method === 'interaction/listPending') {
+        interactionListRequests += 1
+        return rpc(body.id, {
+          interactions: [{
+            interactionId: 'hook-trust-1',
+            threadId: 'session-2',
+            turnId: 'turn-2',
+            agentId: 'agent-2',
+            createdAt: now,
+            version: 1,
+            kind: 'hookTrust',
+            configPath: '.codepilotx/hooks.json',
+            sha256: 'fixture-sha256',
+            hook: {
+              id: 'hook-1',
+              name: 'Fixture hook',
+              event: 'pre-tool',
+              command: 'fixture-command',
+            },
+          }, {
+            interactionId: 'hook-trust-1',
+            threadId: 'session-1',
+            turnId: 'turn-1',
+            agentId: 'agent-1',
+            createdAt: now,
+            version: 1,
+            kind: 'hookTrust',
+            configPath: '.codepilotx/hooks.json',
+            sha256: 'fixture-sha256',
+            hook: {
+              id: 'hook-1',
+              name: 'Fixture hook',
+              event: 'pre-tool',
+              command: 'fixture-command',
+            },
+          }],
+          nextCursor: null,
+        })
+      }
       if (body?.method === 'project/list') {
         return rpc(body.id, { projects: [project], nextCursor: null })
       }
       if (body?.method === 'thread/list') {
+        threadListRequests += 1
         return rpc(body.id, {
           threads: [
             listItem('session-1', defaultSettings),
@@ -790,37 +837,47 @@ describe('desktop thread settings client', () => {
       eventSourceFactory: () => source as unknown as EventSource,
     })
     await client.listSessions()
-    const unsubscribe = client.onAgentEvent(() => {})
+    const unsubscribeStore = client.onSessionStoreChange(change => {
+      pendingInteractionThreadIds = change.pendingInteractionThreadIds ?? []
+    })
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
     source.onmessage?.({
       data: JSON.stringify({
+        jsonrpc: '2.0',
         method: 'event/next',
         params: {
           subscriptionId: 'subscription-1',
           event: {
             eventId: 'event-13',
-            streamId: 'session-2',
-            type: 'thread/settings/updated',
+            streamId: 'global',
+            type: 'thread/updated',
             version: 1,
             occurredAt: now,
-            threadId: 'session-2',
             durability: 'durable',
             sequence: 13,
             payload: {
-              threadId: 'session-2',
-              settings: defaultSettings,
+              thread: snapshot('session-2', defaultSettings).thread,
               version: 1,
             },
           },
         },
       }),
     } as MessageEvent)
-    await new Promise(resolve => setTimeout(resolve, 350))
-    unsubscribe()
+    for (
+      let index = 0;
+      index < 20 && interactionListRequests === 0;
+      index += 1
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    unsubscribeStore()
 
-    expect(readThreadIds).toEqual(['session-2'])
+    expect(readThreadIds).toEqual([])
+    expect(threadListRequests).toBe(2)
+    expect(interactionListRequests).toBe(1)
+    expect(pendingInteractionThreadIds).toEqual(['session-2', 'session-1'])
   })
 
   test('reconciles the active thread after event replay completes', async () => {
@@ -879,6 +936,9 @@ describe('desktop thread settings client', () => {
           acknowledged: params.positions,
         })
       }
+      if (body?.method === 'interaction/listPending') {
+        return rpc(body.id, { interactions: [], nextCursor: null })
+      }
       if (body?.method === 'project/list') {
         return rpc(body.id, { projects: [project], nextCursor: null })
       }
@@ -907,7 +967,6 @@ describe('desktop thread settings client', () => {
       const status = change.sessions.find(item => item.item.id === 'session-1')?.item.status
       if (status) observedStatuses.push(status)
     })
-    const unsubscribeEvents = client.onAgentEvent(() => {})
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
@@ -915,6 +974,7 @@ describe('desktop thread settings client', () => {
     completed = true
     source.onmessage?.({
       data: JSON.stringify({
+        jsonrpc: '2.0',
         method: 'event/replayComplete',
         params: {
           subscriptionId: 'subscription-1',
@@ -929,7 +989,6 @@ describe('desktop thread settings client', () => {
     ) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
-    unsubscribeEvents()
     unsubscribeStore()
 
     expect(readThreadIds).toEqual(['session-1'])

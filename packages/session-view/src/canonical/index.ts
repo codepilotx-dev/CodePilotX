@@ -11,54 +11,24 @@ import type {
   ThreadSnapshot,
   Turn,
 } from "@codepilotx/shared/thread"
+import type { EventEnvelope, RpcResult } from "@codepilotx/agent-protocol"
 
-/** Structural subset of agent-protocol's EventEnvelope consumed by the reducer. */
-export type ThreadEventEnvelopeLike = {
-  eventId: string
-  streamId: string
-  type: string
-  threadId?: string
-  turnId?: string
-  occurredAt: number
-  payload: any
-} & (
-  | { durability: "durable"; sequence: number; afterSequence?: never }
-  | { durability: "live"; sequence: null; afterSequence: number }
-)
+export type ThreadEventEnvelopeLike = EventEnvelope
 
-export interface ThreadStreamPosition {
-  streamId: string
-  sequence: number
-}
+type ProtocolThreadHistoryPage = RpcResult<"thread/history/read">
+export type PendingHookTrustInteraction = Extract<
+  RpcResult<"interaction/listPending">["interactions"][number],
+  { kind: "hookTrust" }
+>
 
-export interface ThreadTurnBundle {
-  turn: Turn
-  inputs: ReadonlyArray<Input>
-  messages: ReadonlyArray<Message>
-  agents: ReadonlyArray<AgentExecution>
-  items: ReadonlyArray<Item>
-  approvals: ReadonlyArray<ApprovalRequest>
-  attachments?: ReadonlyArray<Attachment>
-}
+export type ThreadStreamPosition = ProtocolThreadHistoryPage["streamPosition"]
 
-/**
- * Renderer-facing history page. This intentionally mirrors the protocol page
- * without importing its result type, so the projection package stays usable
- * while the RPC contract is introduced independently.
- */
-export interface CanonicalThreadPage {
-  thread: Thread
-  subagents: ReadonlyArray<SubagentProjection>
-  turns: ReadonlyArray<ThreadTurnBundle>
-  queue?: {
-    version: number
-    pauseReason: "interrupted" | "turn_failed" | null
-    turns: ReadonlyArray<Turn>
-    inputs: ReadonlyArray<Input>
-  }
-  olderCursor: string | null
-  hasOlder: boolean
-  streamPosition: ThreadStreamPosition
+export type ThreadTurnBundle = ProtocolThreadHistoryPage["turns"][number]
+
+/** Renderer-facing history page with an optional queue for snapshot adapters. */
+export type CanonicalThreadPage = Omit<ProtocolThreadHistoryPage, "queue"> & {
+  queue?: ProtocolThreadHistoryPage["queue"]
+  pendingHookTrusts?: readonly PendingHookTrustInteraction[]
 }
 
 export type ThreadHistoryPageLike = CanonicalThreadPage
@@ -79,6 +49,7 @@ export interface CanonicalThreadState {
   agentsById: Map<string, AgentExecution>
   itemsById: Map<string, Item>
   approvalsById: Map<string, ApprovalRequest>
+  hookTrustsById: Map<string, PendingHookTrustInteraction>
   attachmentsById: Map<string, Attachment>
   subagentsByTaskId: Map<string, SubagentProjection>
   queue: CanonicalQueueState
@@ -233,6 +204,10 @@ export function hydrateLatestThreadPage(
   const next = emptyState(page.thread)
   mergePageEntities(next, page, "replace")
   next.subagentsByTaskId = mapBy(page.subagents, (projection) => projection.task.id)
+  next.hookTrustsById = mapBy(
+    page.pendingHookTrusts ?? [],
+    (interaction) => interaction.interactionId,
+  )
   next.history = {
     olderCursor: page.olderCursor,
     hasOlder: page.hasOlder,
@@ -263,10 +238,9 @@ export function prependOlderThreadPage(
     hasOlder: page.hasOlder,
     loadingOlder: false,
   }
-  // An older page must never move the live stream cursor backwards.
-  if (page.streamPosition.streamId === next.stream.streamId) {
-    next.stream.appliedSequence = Math.max(next.stream.appliedSequence, page.streamPosition.sequence)
-  }
+  // The read fence belongs to this historical page, which intentionally omits
+  // newer active turns. Advancing the live cursor here could make a concurrent
+  // durable event look already applied and silently drop it.
   return next
 }
 
@@ -509,94 +483,103 @@ function appendProcessBlock(blocks: RenderContentBlock[], item: RenderItem): voi
 }
 
 function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEventEnvelopeLike): void {
-  const payload = envelope.payload
   switch (envelope.type) {
     case "thread/created":
     case "thread/updated":
-      state.thread = payload.thread
+      state.thread = envelope.payload.thread
       return
     case "thread/settings/updated":
-      state.thread = { ...state.thread, settings: payload.settings }
+      state.thread = { ...state.thread, settings: envelope.payload.settings }
       return
     case "turn/queued":
-      upsertTurn(state, payload.turn)
-      state.inputsById.set(payload.input.id, payload.input)
-      if (!state.queue.turnIds.includes(payload.turn.id)) state.queue.turnIds.push(payload.turn.id)
+      upsertTurn(state, envelope.payload.turn)
+      state.inputsById.set(envelope.payload.input.id, envelope.payload.input)
+      if (!state.queue.turnIds.includes(envelope.payload.turn.id)) state.queue.turnIds.push(envelope.payload.turn.id)
       return
     case "turn/started":
-      upsertTurn(state, payload.turn)
-      state.inputsById.set(payload.input.id, payload.input)
-      state.queue.turnIds = state.queue.turnIds.filter((id) => id !== payload.turn.id)
+      upsertTurn(state, envelope.payload.turn)
+      state.inputsById.set(envelope.payload.input.id, envelope.payload.input)
+      state.queue.turnIds = state.queue.turnIds.filter((id) => id !== envelope.payload.turn.id)
       return
     case "turn/completed":
     case "turn/failed":
     case "turn/interrupted":
-      upsertTurn(state, payload.turn)
-      state.queue.turnIds = state.queue.turnIds.filter((id) => id !== payload.turn.id)
+      upsertTurn(state, envelope.payload.turn)
+      state.queue.turnIds = state.queue.turnIds.filter((id) => id !== envelope.payload.turn.id)
       return
     case "turn/statusChanged": {
-      const turn = state.turnsById.get(payload.turnId)
-      if (turn) state.turnsById.set(turn.id, { ...turn, status: payload.status })
+      const turn = state.turnsById.get(envelope.payload.turnId)
+      if (turn) state.turnsById.set(turn.id, { ...turn, status: envelope.payload.status })
       return
     }
     case "agent/upserted":
-      state.agentsById.set(payload.agent.id, payload.agent)
+      state.agentsById.set(envelope.payload.agent.id, envelope.payload.agent)
       return
     case "subagent/created":
     case "subagent/updated":
     case "subagent/workspaceUpdated":
-      state.subagentsByTaskId.set(payload.projection.task.id, payload.projection)
-      reconcileSubagentItems(state, payload.projection)
+      state.subagentsByTaskId.set(envelope.payload.projection.task.id, envelope.payload.projection)
+      reconcileSubagentItems(state, envelope.payload.projection)
       return
     case "item/started":
     case "item/completed":
-      state.itemsById.set(payload.item.id, payload.item)
+      state.itemsById.set(envelope.payload.item.id, envelope.payload.item)
       return
     case "item/agentMessage/delta":
-      appendItemDelta(state, payload.itemId, payload.delta, "text", payload, envelope.occurredAt)
+      appendItemDelta(state, envelope.payload.itemId, envelope.payload.delta, "text", envelope.payload, envelope.occurredAt)
       return
     case "reasoning/textDelta":
     case "reasoning/summaryTextDelta":
-      appendItemDelta(state, payload.itemId, payload.delta, "reasoning", payload, envelope.occurredAt)
+      appendItemDelta(state, envelope.payload.itemId, envelope.payload.delta, "reasoning", envelope.payload, envelope.occurredAt)
       return
     case "reasoning/summaryPartAdded":
       return
     case "plan/delta":
-      appendItemDelta(state, payload.itemId, payload.delta, "plan", payload, envelope.occurredAt)
+      appendItemDelta(state, envelope.payload.itemId, envelope.payload.delta, "plan", envelope.payload, envelope.occurredAt)
       return
     case "turn/plan/updated":
-      state.itemsById.set(payload.item.id, payload.item)
+      state.itemsById.set(envelope.payload.item.id, envelope.payload.item)
       return
     case "tool/callStarted":
     case "tool/callCompleted":
     case "tool/error":
-      state.itemsById.set(payload.item.id, payload.item)
+      state.itemsById.set(envelope.payload.item.id, envelope.payload.item)
       return
     case "tool/outputDelta":
-      appendItemDelta(state, payload.itemId, payload.delta, "tool", payload, envelope.occurredAt)
+      appendItemDelta(state, envelope.payload.itemId, envelope.payload.delta, "tool", envelope.payload, envelope.occurredAt)
       return
     case "approval/requested":
-      state.approvalsById.set(payload.interactionId, approvalFromPayload(payload))
+      state.approvalsById.set(envelope.payload.interactionId, approvalFromPayload(envelope.payload))
       return
     case "permission/requested":
-      state.approvalsById.set(payload.interactionId, permissionFromPayload(payload))
+      state.approvalsById.set(envelope.payload.interactionId, permissionFromPayload(envelope.payload))
+      return
+    case "hook/trust/requested":
+      state.hookTrustsById.set(envelope.payload.interactionId, envelope.payload)
+      return
+    case "hook/trust/resolved":
+      state.hookTrustsById.delete(envelope.payload.interactionId)
       return
     case "approval/cancelled": {
-      const approval = state.approvalsById.get(payload.interactionId)
+      const approval = state.approvalsById.get(envelope.payload.interactionId)
       if (approval) state.approvalsById.set(approval.id, { ...approval, status: "cancelled" })
       return
     }
     case "question/requested":
-      for (const item of questionsFromPayload(payload)) state.itemsById.set(item.id, item)
+      for (const item of questionsFromPayload(envelope.payload)) state.itemsById.set(item.id, item)
       return
     case "interaction/resolved": {
       // Newer events carry the interaction identifier so the pending approval
       // can be closed precisely; historical events without it keep waiting for
       // snapshot reconciliation instead of guessing which request to close.
-      if (typeof payload.interactionId !== "string") return
-      const approval = state.approvalsById.get(payload.interactionId)
+      if (typeof envelope.payload.interactionId !== "string") return
+      if (envelope.payload.result?.kind === "hookTrust") {
+        state.hookTrustsById.delete(envelope.payload.interactionId)
+        return
+      }
+      const approval = state.approvalsById.get(envelope.payload.interactionId)
       if (!approval) return
-      const result = payload.result
+      const result = envelope.payload.result
       if (result?.kind !== "approval" && result?.kind !== "permission") return
       const status = result.kind === "approval"
         ? result.decision === "allow-once" ? "allowed" : "denied"
@@ -605,7 +588,7 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
       return
     }
     case "queue/updated":
-      applyQueueUpdate(state, payload)
+      applyQueueUpdate(state, envelope.payload)
       return
     default:
       return
@@ -694,7 +677,7 @@ function permissionFromPayload(payload: {
   reason: string
   requestedPermissions: ApprovalRequest["requestedPermissions"]
   requestedScope: "tool-call" | "turn" | "session"
-  allowedScopes: Array<"tool-call" | "turn" | "session">
+  allowedScopes: ReadonlyArray<"tool-call" | "turn" | "session">
   risk?: "low" | "medium" | "high" | "critical"
   createdAt: number
 }): ApprovalRequest {
@@ -732,7 +715,11 @@ function questionsFromPayload(payload: {
   interactionId: string
   turnId: string
   agentId: string
-  questions: Array<{ id: string; prompt: string; choices: readonly QuestionChoice[] }>
+  questions: ReadonlyArray<{
+    id: string
+    prompt: string
+    choices: readonly QuestionChoice[]
+  }>
   createdAt: number
 }): Array<Extract<Item, { type: "question" }>> {
   return payload.questions.map((question, index) => ({
@@ -827,6 +814,7 @@ function emptyState(thread: Thread): CanonicalThreadState {
     agentsById: new Map(),
     itemsById: new Map(),
     approvalsById: new Map(),
+    hookTrustsById: new Map(),
     attachmentsById: new Map(),
     subagentsByTaskId: new Map(),
     queue: { version: 0, pauseReason: null, turnIds: [], inputIds: [] },
@@ -844,6 +832,7 @@ function cloneState(state: CanonicalThreadState): CanonicalThreadState {
     agentsById: new Map(state.agentsById),
     itemsById: new Map(state.itemsById),
     approvalsById: new Map(state.approvalsById),
+    hookTrustsById: new Map(state.hookTrustsById),
     attachmentsById: new Map(state.attachmentsById),
     subagentsByTaskId: new Map(state.subagentsByTaskId),
     queue: { ...state.queue, turnIds: [...state.queue.turnIds], inputIds: [...state.queue.inputIds] },

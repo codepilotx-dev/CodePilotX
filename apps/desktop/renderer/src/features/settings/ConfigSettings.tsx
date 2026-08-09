@@ -241,17 +241,17 @@ export function ConfigSettings(): React.ReactNode {
               }
             />
             <SettingsRow
-              title="工具权限范围"
-              description="该范围约束结构化文件工具和审批信号，不是 Shell 子进程的操作系统隔离边界。"
+              title="文件访问范围"
+              description="选择结构化文件工具的访问范围；终端命令始终在本机执行，并经过风险、Hook 和审批门禁。"
               control={
                 <SettingsDropdown
                   width={260}
-                  ariaLabel="工具权限范围"
+                  ariaLabel="文件访问范围"
                   value={draft.values.permissionConfig.sandboxMode === 'read-only' ? ':read-only' : draft.values.permissionConfig.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'}
                   options={[
-                    { value: ':read-only', label: '文件工具只读', detail: '结构化文件工具只读；非计划模式 Shell 仍在本机执行' },
-                    { value: ':workspace', label: '文件工具限工作区', detail: '结构化文件工具仅写工作区；Shell 没有 OS 文件边界' },
-                    { value: ':danger-full-access', label: '完全访问', detail: '所有工具以当前 Windows 用户权限执行（风险很高）' },
+                    { value: ':read-only', label: '只读', detail: '结构化文件工具只读；终端命令在本机执行并经过风险、Hook 和审批' },
+                    { value: ':workspace', label: '当前工作区', detail: '结构化文件工具仅写当前工作区；终端命令在本机执行并经过风险、Hook 和审批' },
+                    { value: ':danger-full-access', label: '完全访问', detail: '结构化文件工具可访问本机路径；终端命令在本机执行并经过风险、Hook 和审批' },
                   ]}
                   onChange={value => {
                     const sandboxMode = value === ':read-only' ? 'read-only' : value === ':danger-full-access' ? 'danger-full-access' : 'workspace-write'

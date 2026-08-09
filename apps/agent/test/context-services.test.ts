@@ -125,7 +125,10 @@ describe("Hooks 与记忆", () => {
     const resolved = db.resolveHookTrustRequest(request.id, "allow")
     expect(resolved.resumed).toEqual([{ agentID: turn.agentID, turnID: turn.turnID, threadID: thread.id }])
     expect(resolved.events).toHaveLength(1)
-    expect(db.getAgentTurnCheckpoint(turn.turnID)).toBeNull()
+    expect(db.getAgentTurnCheckpoint(turn.turnID)).toMatchObject({
+      state: "ready",
+      payload: { kind: "hook-trust", requestID: request.id, decision: "allow" },
+    })
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "queued" })
     db.close()
   })

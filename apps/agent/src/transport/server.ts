@@ -466,14 +466,8 @@ export const createApp = (dependencies: TransportDependencies) => {
       config.authToken,
     )
     if (!rpc.touchConnection(connectionId, transportAuthority)) throw new AgentError("UNAUTHORIZED", "RPC 连接已过期或认证来源已变化", 401)
+    rpc.subscriptions.validateLastEventID(subscription, context.req.header("Last-Event-ID"))
     const cursors = new Map(subscription.acknowledged)
-    if (cursors.size === 1) {
-      const lastEventId = Number(context.req.header("Last-Event-ID"))
-      if (Number.isFinite(lastEventId)) {
-        const [streamId, current] = [...cursors][0]!
-        cursors.set(streamId, Math.max(current, lastEventId))
-      }
-    }
     return streamSSE(context, async (stream) => {
       let heartbeatAt = Date.now()
       let replayCompleted = false
@@ -613,7 +607,17 @@ export const createApp = (dependencies: TransportDependencies) => {
 
   app.get("/api/ready", (context) => {
     db.sqlite.query("SELECT 1").get()
-    return context.json({ ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now() })
+    const instanceToken = process.env.CODEPILOTX_DESKTOP_MANAGED === "1"
+      ? process.env.CODEPILOTX_SIDECAR_INSTANCE_TOKEN
+      : undefined
+    return context.json({
+      ok: true,
+      service: "codepilotx-agent",
+      version: "0.1.0",
+      pid: process.pid,
+      readyAt: Date.now(),
+      ...(instanceToken ? { instanceToken } : {}),
+    })
   })
 
   app.get("/api/config/desktop-projection", async (context) => {

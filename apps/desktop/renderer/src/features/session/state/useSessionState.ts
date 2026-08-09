@@ -1,7 +1,6 @@
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
-  DesktopAgentEvent,
   DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopSessionCatalogStatus,
@@ -36,7 +35,6 @@ import {
   decidePermissionAction,
   interruptSessionAction,
   renameSessionAction,
-  markSessionReadThrough,
   setSessionLocalRouterModeAction,
   setSessionPermissionModeAction,
   setSessionPlanModeActiveAction,
@@ -47,7 +45,6 @@ import {
   type SessionActionContext,
   type SessionSettingsSnapshot,
 } from './sessionActions.js'
-import { handleSessionAgentEvent } from './sessionEvents.js'
 import {
   appendUniqueWorkflowEvent,
   dedupeWorkflowEvents,
@@ -56,11 +53,9 @@ import { mergeSessionStoreSnapshotView } from './sessionStoreMerge.js'
 import { deriveWorkflowViewPatch } from '../workflow/workflowViewPatch.js'
 import {
   applySessionView,
-  addToolLogEntry as addToolLogEntryToView,
   createEmptySessionView,
   setSessionView,
   toggleToolLogEntry as toggleToolLogEntryInView,
-  type AddToolLogEntry,
   type SessionViewRefs,
   type SessionViewStateSetters,
   type UpdateSessionView,
@@ -219,8 +214,6 @@ export function useSessionState(
     enableMemory,
     rustSearchAndDiffKernels,
     onError,
-    onDiffForActive,
-    onRefreshActiveWorkspace,
     onOpenDrawerPermissions,
   } = options
 
@@ -280,10 +273,6 @@ export function useSessionState(
   }>>({})
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
-  const onDiffForActiveRef = useRef(onDiffForActive)
-  onDiffForActiveRef.current = onDiffForActive
-  const onRefreshActiveWorkspaceRef = useRef(onRefreshActiveWorkspace)
-  onRefreshActiveWorkspaceRef.current = onRefreshActiveWorkspace
   const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
@@ -451,48 +440,11 @@ export function useSessionState(
     [syncPendingPermissionSessionIds, viewRefs, viewSetters],
   )
 
-  const addToolLogEntry = useCallback<AddToolLogEntry>(
-    (targetSessionId, entry) => {
-      addToolLogEntryToView(updateSessionView, targetSessionId, entry)
-    },
-    [updateSessionView],
-  )
-
   const toggleToolLogEntry = useCallback(
     (entryId: string): void => {
       toggleToolLogEntryInView(viewRefs, updateSessionView, entryId)
     },
     [updateSessionView, viewRefs],
-  )
-
-  const applyAgentEvent = useCallback(
-    (event: DesktopAgentEvent): void => {
-      handleSessionAgentEvent(event, {
-        activeSessionIdRef,
-        setSessions,
-        setSessionStatus,
-        updateSessionView,
-        addToolLogEntry,
-        onErrorRef,
-        onDiffForActiveRef,
-        onRefreshActiveWorkspaceRef,
-        onOpenDrawerPermissionsRef,
-        markSessionReadThrough: (targetSessionId, readThroughAt) => {
-          markSessionReadThrough(
-            actionContext,
-            targetSessionId,
-            readThroughAt,
-          )
-        },
-      })
-    },
-    [actionContext, addToolLogEntry, updateSessionView],
-  )
-  const handleAgentEvent = useCallback(
-    (event: DesktopAgentEvent): void => {
-      applyAgentEvent(event)
-    },
-    [applyAgentEvent],
   )
 
   const handleWorkflowEvent = useCallback(
@@ -519,13 +471,6 @@ export function useSessionState(
     },
     [updateSessionView],
   )
-
-  useEffect(() => {
-    const unsubscribeAgent = desktopClient.onAgentEvent(handleAgentEvent)
-    return () => {
-      unsubscribeAgent()
-    }
-  }, [handleAgentEvent])
 
   useEffect(() => {
     const unsubscribeWorkflow =
@@ -582,7 +527,11 @@ export function useSessionState(
       sessionWorkspacesRef.current = nextWorkspaces
       queueStateBySessionRef.current = nextQueueStates
       sessionsRef.current = nextSessions
-      setPendingPermissionSessionIds(buildPendingPermissionSessionIds(nextViews))
+      setPendingPermissionSessionIds(
+        change.pendingInteractionThreadIds
+          ? new Set(change.pendingInteractionThreadIds)
+          : buildPendingPermissionSessionIds(nextViews),
+      )
       setSessions(nextSessions)
       setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 

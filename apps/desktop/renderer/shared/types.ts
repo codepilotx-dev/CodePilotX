@@ -1260,6 +1260,8 @@ export type DesktopSubagentRead = {
 export type DesktopSessionStoreChange = {
   activeSessionId: string | null
   sessions: DesktopSessionSnapshot[]
+  /** List-level interaction metadata; no interaction payloads or thread content. */
+  pendingInteractionThreadIds?: readonly string[]
 }
 
 export type DesktopSessionCatalogStatus = {

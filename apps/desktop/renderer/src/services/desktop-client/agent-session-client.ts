@@ -78,7 +78,6 @@ import type {
   ModelProviderID,
 } from '../../../shared/types.js'
 import {
-  agentEventsFromNotification,
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktopSnapshot,
   agentThreadSnapshotToDesktop,
@@ -91,6 +90,7 @@ import {
 } from '../agentRpcClient.js'
 import { createAgentTurnQueueClient } from './agent-turn-queue-client.js'
 import { AGENT_LIVE_EVENT_FILTERS } from './eventSubscriptionFilters.js'
+import { SessionCatalogCoordinator } from './SessionCatalogCoordinator.js'
 
 export const WORKSPACE_FILE_CHANGED_EVENT =
   'codepilotx-workspace-file-changed'
@@ -201,6 +201,7 @@ export function createAgentSessionDesktopClient(
   let providerCredentialsCache: DesktopProviderCredential[] | null = null
   const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
   const sessionPermissionConfigs = new Map<string, PermissionConfig>()
+  let pendingInteractionThreadIds = new Set<string>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const confirmedReadThroughBySessionId = new Map<string, number>()
@@ -762,9 +763,14 @@ export function createAgentSessionDesktopClient(
   }
 
   async function refreshAgentSessionStoreChange(
-    options: { reloadActive?: boolean } = {},
+    options: { reloadActive?: boolean; reconcileInteractions?: boolean } = {},
   ): Promise<void> {
-    const sessions = await listAgentSessions({ archived: false })
+    const [sessions] = await Promise.all([
+      listAgentSessions({ archived: false }),
+      options.reconcileInteractions
+        ? refreshPendingInteractionCatalog()
+        : Promise.resolve(),
+    ])
     const visibleIds = new Set(sessions.map(snapshot => snapshot.item.id))
     for (const sessionId of [...sessionSnapshots.keys()]) {
       if (!visibleIds.has(sessionId)) {
@@ -786,7 +792,10 @@ export function createAgentSessionDesktopClient(
     providerCredentialsCache = null
     invalidateModelCatalog()
     notifyModelProviderChanged()
-    sessionStoreReconcile = refreshAgentSessionStoreChange({ reloadActive: true })
+    sessionStoreReconcile = refreshAgentSessionStoreChange({
+      reloadActive: true,
+      reconcileInteractions: true,
+    })
       .finally(() => {
         sessionStoreReconcile = null
       })
@@ -801,10 +810,22 @@ export function createAgentSessionDesktopClient(
     const change: DesktopSessionStoreChange = {
       activeSessionId,
       sessions,
+      pendingInteractionThreadIds: [...pendingInteractionThreadIds],
     }
     for (const listener of sessionStoreListeners) {
       listener(change)
     }
+  }
+
+  async function refreshPendingInteractionCatalog(): Promise<void> {
+    if (!agentCapabilities.has('interaction.recovery.v1')) {
+      pendingInteractionThreadIds = new Set()
+      return
+    }
+    const result = await rpc.call('interaction/listPending', { limit: 500 })
+    pendingInteractionThreadIds = new Set(
+      result.interactions.map(interaction => interaction.threadId),
+    )
   }
 
   function scheduleSessionRefresh(sessionId: string): void {
@@ -1003,7 +1024,11 @@ export function createAgentSessionDesktopClient(
         questionId
           ? candidate.kind === 'question' &&
             candidate.questions.some(question => question.id === questionId)
-          : (candidate.kind === 'approval' || candidate.kind === 'permission') &&
+          : (
+              candidate.kind === 'approval' ||
+              candidate.kind === 'permission' ||
+              candidate.kind === 'hookTrust'
+            ) &&
             candidate.interactionId === requestId,
       threadId,
     )
@@ -1032,6 +1057,13 @@ export function createAgentSessionDesktopClient(
     }
     if (interaction.kind === 'permission') {
       await respondToPermissionInteraction(interaction, decision)
+      return
+    }
+    if (interaction.kind === 'hookTrust') {
+      await respondToInteraction(interaction, {
+        kind: 'hookTrust',
+        decision: decision.behavior === 'allow' ? 'allow' : 'block',
+      })
     }
   }
 
@@ -1247,6 +1279,56 @@ export function createAgentSessionDesktopClient(
       }),
     )
     return agentProviderCredentialApiPromise
+  }
+
+  let unsubscribeSessionCatalog: (() => void) | null = null
+  const startSessionCatalogSubscription = (): void => {
+    if (unsubscribeSessionCatalog || !eventSourceFactory()) return
+    const catalogCoordinator = new SessionCatalogCoordinator({
+      onCatalogUpdated: () => {
+        invalidateModelCatalog()
+        notifyModelProviderChanged()
+      },
+      onProviderCredentialUpdated: () => {
+        providerCredentialsCache = null
+        invalidateModelCatalog()
+        notifyModelProviderChanged()
+      },
+      onConfigUpdated: payload => {
+        void agentProjectTrustPromise?.then(controller => controller.clear())
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent(CONFIG_UPDATED_EVENT, {
+            detail: payload,
+          }))
+        }
+      },
+      onWorkspaceFileChanged: payload => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent(WORKSPACE_FILE_CHANGED_EVENT, {
+            detail: payload,
+          }))
+        }
+      },
+      onWorkspaceGitChanged: payload => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent(WORKSPACE_GIT_CHANGED_EVENT, {
+            detail: payload,
+          }))
+        }
+      },
+      refreshThreads: async () => {
+        await refreshAgentSessionStoreChange({ reconcileInteractions: true })
+      },
+    })
+    unsubscribeSessionCatalog = rpc.subscribeEnvelope({
+      liveEventTypes: AGENT_LIVE_EVENT_FILTERS.global,
+      onReplayComplete: () => reconcileAgentSessionStore(),
+    }, events => catalogCoordinator.deliverBatch(events))
+  }
+
+  const stopSessionCatalogSubscription = (): void => {
+    unsubscribeSessionCatalog?.()
+    unsubscribeSessionCatalog = null
   }
 
   const client: CodePilotXDesktopClient = {
@@ -2705,7 +2787,12 @@ export function createAgentSessionDesktopClient(
         async () => mockThreadHistoryPage(
           await mockClient.getSession(params.threadId),
         ),
-    ),
+      ),
+    listPendingAgentInteractions: params =>
+      withAgentOrMock(
+        () => rpc.call('interaction/listPending', params),
+        async () => ({ interactions: [], nextCursor: null }),
+      ),
     readThreadPatchDiff: params =>
       withRequiredAgent(() => rpc.call('thread/patch/diff', params)),
     subscribeAgentEventEnvelopes: (options, callback) => {
@@ -2713,108 +2800,18 @@ export function createAgentSessionDesktopClient(
       if (!makeEventSource) return noop
       return rpc.subscribeEnvelope(options, callback)
     },
-    onAgentEvent: callback => {
-      const makeEventSource = eventSourceFactory()
-      if (!makeEventSource) {
-        return allowBrowserMockFallback
-          ? mockClient.onAgentEvent(callback)
-          : noop
-      }
-      return rpc.subscribe({
-        liveEventTypes: AGENT_LIVE_EVENT_FILTERS.global,
-        onReplayComplete: () => {
-          void reconcileAgentSessionStore().catch(() => {})
-        },
-      }, notification => {
-        const notificationMethod = notification.method as string
-        if (notificationMethod === 'catalog/updated') {
-          invalidateModelCatalog()
-          notifyModelProviderChanged()
-        }
-        if (notificationMethod === 'provider/credential/updated') {
-          providerCredentialsCache = null
-          invalidateModelCatalog()
-          notifyModelProviderChanged()
-        }
-        if (notificationMethod === 'config/updated') {
-          void agentProjectTrustPromise?.then(controller => controller.clear())
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(
-              new CustomEvent(CONFIG_UPDATED_EVENT, {
-                detail: notification.params,
-              }),
-            )
-          }
-        }
-        if (
-          notificationMethod === 'workspace/file/changed' &&
-          notification.params &&
-          typeof notification.params === 'object' &&
-          typeof window !== 'undefined'
-        ) {
-          window.dispatchEvent(
-            new CustomEvent(WORKSPACE_FILE_CHANGED_EVENT, {
-              detail: notification.params,
-            }),
-          )
-        }
-        if (
-          notificationMethod === 'workspace/git/changed' &&
-          notification.params &&
-          typeof notification.params === 'object' &&
-          typeof window !== 'undefined'
-        ) {
-          window.dispatchEvent(
-            new CustomEvent(WORKSPACE_GIT_CHANGED_EVENT, {
-              detail: notification.params,
-            }),
-          )
-        }
-        for (const event of agentEventsFromNotification(notification)) {
-          callback(event)
-        }
-        const params =
-          notification.params && typeof notification.params === 'object'
-            ? notification.params
-            : null
-        const changedThreadId = typeof params?.threadId === 'string'
-          ? params.threadId
-          : notificationMethod === 'thread/forked' && typeof params?.targetThreadId === 'string'
-            ? params.targetThreadId
-            : null
-        if (
-          changedThreadId &&
-          [
-            'thread/snapshot',
-            'thread/updated',
-            'thread/forked',
-            'thread/settings/updated',
-            'turn/queued',
-            'queue/updated',
-            'turn/started',
-            'turn/statusChanged',
-            'turn/completed',
-            'turn/failed',
-            'turn/interrupted',
-            'item/completed',
-            'turn/plan/updated',
-            'approval/requested',
-            'permission/requested',
-            'interaction/resolved',
-            'question/requested',
-          ].includes(notificationMethod)
-        ) {
-          scheduleSessionRefresh(changedThreadId)
-        }
-      })
-    },
+    onAgentEvent: callback => allowBrowserMockFallback
+      ? mockClient.onAgentEvent(callback)
+      : noop,
     onSessionStoreChange: callback => {
       sessionStoreListeners.add(callback)
+      if (sessionStoreListeners.size === 1) startSessionCatalogSubscription()
       const unsubscribeMock = allowBrowserMockFallback
         ? mockClient.onSessionStoreChange(callback)
         : noop
       return () => {
         sessionStoreListeners.delete(callback)
+        if (sessionStoreListeners.size === 0) stopSessionCatalogSubscription()
         unsubscribeMock()
       }
     },

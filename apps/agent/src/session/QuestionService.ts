@@ -9,6 +9,7 @@ import {
   requestUserInputSchema,
   type InteractionQuestion,
 } from "./QuestionInput"
+import { QuestionAutoResolutionScheduler } from "../interaction/QuestionAutoResolutionScheduler"
 
 type ResumeHandler = (threadID: string, turnID: string) => void
 
@@ -121,10 +122,13 @@ const autoAnswer = (questions: readonly InteractionQuestion[]): StoredAnswer => 
  */
 export class QuestionService {
   private resumeHandler: ResumeHandler | undefined
-  private readonly autoResolutionTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private readonly autoResolution: QuestionAutoResolutionScheduler
 
-  constructor(private readonly db: AgentDatabase, private readonly hub: EventHub) {
-    this.restoreAutoResolutions()
+  constructor(private readonly db: AgentDatabase, private readonly hub: EventHub, restoreOnConstruct = true) {
+    this.autoResolution = new QuestionAutoResolutionScheduler({
+      isPending: (id) => this.db.repositories.interactions.isQuestionPending(id),
+    })
+    if (restoreOnConstruct) this.restoreAutoResolutions()
   }
 
   setResumeHandler(handler: ResumeHandler) {
@@ -189,16 +193,15 @@ export class QuestionService {
   }
 
   claimResolvedCheckpoint(turnID: string): ResolvedCheckpoint | null {
-    const row = this.db.sqlite.query("SELECT id, payload, answer FROM question_requests WHERE turn_id = ? AND status = 'resolved' ORDER BY resolved_at LIMIT 1").get(turnID) as { id: string; payload: string; answer: string | null } | null
+    const row = this.db.repositories.interactions.claimResolvedQuestionLegacy(turnID)
     if (!row) return null
-    const payload = parse(row.payload)
+    const payload = row.payload
     const checkpoint = record(payload.checkpoint)
     const state = typeof checkpoint.state === "string" ? checkpoint.state : typeof checkpoint.payload === "object" && checkpoint.payload ? (checkpoint.payload as Record<string, unknown>).state : undefined
     const interruption = checkpoint.interruption ?? (typeof checkpoint.payload === "object" && checkpoint.payload ? (checkpoint.payload as Record<string, unknown>).interruption : undefined)
     if (typeof state !== "string" || interruption === undefined) return null
-    this.db.run("UPDATE question_requests SET status = 'resuming' WHERE id = ? AND status = 'resolved'", row.id)
-    const storedAnswer = row.answer ? parse(row.answer) : {}
-    const answer = Object.prototype.hasOwnProperty.call(storedAnswer, "value") ? storedAnswer.value : row.answer === "null" ? null : row.answer
+    const storedAnswer = row.answer
+    const answer = Object.prototype.hasOwnProperty.call(storedAnswer, "value") ? storedAnswer.value : null
     return { id: row.id, approval: { state, interruption, answer: typeof answer === "string" ? answer : answer == null ? null : JSON.stringify(answer), checkpointID: row.id } }
   }
 
@@ -210,38 +213,34 @@ export class QuestionService {
     resume = true,
     operation?: InteractionOperationInput,
   ) {
-    const stored = this.db.sqlite.query("SELECT payload FROM question_requests WHERE id = ? AND status = 'pending'").get(id) as { payload: string } | null
-    if (!stored) throw new AgentError("QUESTION_NOT_FOUND", "问题不存在或已经回答", 409)
-    const payload = parse(stored.payload)
+    const payload = this.db.repositories.interactions.pendingQuestionPayload(id)
+    if (!payload) throw new AgentError("QUESTION_NOT_FOUND", "问题不存在或已经回答", 409)
     const questions = storedQuestions(payload)
     const normalizedAnswer = ignored || questions.length === 0 || payload.answerFormat !== "structured"
       ? answer
       : normalizeRichAnswer(questions, answer, resolution)
     const row = this.db.resolveResumableQuestion(id, normalizedAnswer, ignored, operation)
     if (!row) throw new AgentError("QUESTION_NOT_FOUND", "问题不存在或已经回答", 409)
-    this.clearAutoResolution(id)
-    for (const event of row.events) await Effect.runPromise(this.hub.publish(event))
+    this.autoResolution.forget(id)
+    await Promise.allSettled(row.events.map((event) => Effect.runPromise(this.hub.publish(event))))
     if (resume) this.resumeHandler?.(row.threadID, row.turnID)
     return row
   }
 
   cancelTurn(turnID: string) {
-    const rows = this.db.sqlite.query("SELECT id FROM question_requests WHERE turn_id = ? AND status IN ('pending', 'resolved', 'resuming')").all(turnID) as Array<{ id: string }>
-    this.db.run("UPDATE question_requests SET status = 'cancelled', answer = '__stopped__', resolved_at = ? WHERE turn_id = ? AND status IN ('pending', 'resolved', 'resuming')", Date.now(), turnID)
-    for (const { id } of rows) this.clearAutoResolution(id)
+    for (const id of this.db.repositories.interactions.cancelQuestionsForTurn(turnID)) this.autoResolution.forget(id)
   }
 
   dispose() {
-    for (const timer of this.autoResolutionTimers.values()) clearTimeout(timer)
-    this.autoResolutionTimers.clear()
+    this.autoResolution.dispose()
   }
 
-  private restoreAutoResolutions() {
-    const rows = this.db.sqlite.query("SELECT id, payload, created_at FROM question_requests WHERE status = 'pending'").all() as Array<{ id: string; payload: string; created_at: number }>
+  restoreAutoResolutions() {
+    const rows = this.db.repositories.interactions.pendingAutoResolutionQuestions()
     for (const row of rows) {
-      const payload = parse(row.payload)
+      const payload = row.payload
       const timeout = typeof payload.autoResolutionMs === "number" ? payload.autoResolutionMs : undefined
-      this.scheduleAutoResolution(row.id, row.created_at, timeout, storedQuestions(payload))
+      this.scheduleAutoResolution(row.id, row.createdAt, timeout, storedQuestions(payload))
     }
   }
 
@@ -252,18 +251,10 @@ export class QuestionService {
     questions: readonly InteractionQuestion[],
   ) {
     if (timeout === undefined || timeout < 60_000 || timeout > 240_000 || questions.length === 0) return
-    this.clearAutoResolution(id)
-    const timer = setTimeout(() => {
-      this.autoResolutionTimers.delete(id)
-      void this.reply(id, autoAnswer(questions), false, "auto").catch(() => undefined)
-    }, Math.max(0, createdAt + timeout - Date.now()))
-    timer.unref?.()
-    this.autoResolutionTimers.set(id, timer)
-  }
-
-  private clearAutoResolution(id: string) {
-    const timer = this.autoResolutionTimers.get(id)
-    if (timer) clearTimeout(timer)
-    this.autoResolutionTimers.delete(id)
+    this.autoResolution.track({
+      id,
+      deadline: createdAt + timeout,
+      resolve: async () => { await this.reply(id, autoAnswer(questions), false, "auto") },
+    })
   }
 }

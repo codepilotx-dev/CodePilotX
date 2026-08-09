@@ -15,6 +15,7 @@ export interface PlanCheckpoint {
   authorizationFingerprint?: string
   approvalID?: string
   checkpointID?: string
+  resumeLeaseID?: string
   permissionGrant?: {
     scope: "tool-call" | "turn" | "session"
     grantedPermissions: {
@@ -82,6 +83,8 @@ export interface AgentRuntimeRequest {
   workspace: WorkspaceService
   defaultCwd?: string
   resume?: PlanCheckpoint
+  /** Durable gate acquired before starting a fresh runtime (for example Hook trust). */
+  startupGateLeaseID?: string
   defaultModeRequestUserInput?: boolean
   promptSections?: PromptSection[]
   skillService?: SkillService

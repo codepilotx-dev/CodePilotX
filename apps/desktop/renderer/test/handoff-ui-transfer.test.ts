@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from 'bun:test'
 import {
   createDefaultConversationUiState,
   loadConversationUiState,
+  patchConversationUiState,
   saveConversationUiState,
   transferConversationUiStateForHandoff,
 } from '../src/features/layout/tabs/conversationUiState.js'
@@ -61,6 +62,21 @@ describe('Handoff UI transfer', () => {
     expect(target?.workbench.bottom.tabIds).toEqual(['terminal'])
     expect(target?.review.source).toEqual({ kind: 'unstaged' })
     expect(target?.sideChatAttachments).toEqual([])
+  })
+
+  test('field patches preserve the scroll position owned by ConversationPage', () => {
+    const initial = createDefaultConversationUiState()
+    initial.mainScrollTop = 428
+    saveConversationUiState('thread-1', initial)
+
+    patchConversationUiState('thread-1', {
+      sideChatInput: 'shell-owned draft',
+    })
+
+    expect(loadConversationUiState('thread-1')).toMatchObject({
+      mainScrollTop: 428,
+      sideChatInput: 'shell-owned draft',
+    })
   })
 })
 

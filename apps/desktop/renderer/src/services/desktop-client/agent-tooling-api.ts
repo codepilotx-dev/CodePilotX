@@ -140,9 +140,11 @@ export function createAgentToolingApi({
         {
           liveEventTypes: AGENT_LIVE_EVENT_FILTERS.skills,
         },
-        event => {
-          if (event.type !== 'skill/updated') return
-          callback(event.payload.generation)
+        events => {
+          for (const event of events) {
+            if (event.type !== 'skill/updated') continue
+            callback(event.payload.generation)
+          }
         },
       ),
     onToolingUpdated: callback =>
@@ -150,12 +152,14 @@ export function createAgentToolingApi({
         {
           liveEventTypes: AGENT_LIVE_EVENT_FILTERS.tooling,
         },
-        event => {
-          if (event.type !== 'tooling/updated') return
-          const payload = event.payload
-          if (!payload || typeof payload !== 'object') return
-          const status = (payload as { status?: unknown }).status
-          if (isToolingStatus(status)) callback(status)
+        events => {
+          for (const event of events) {
+            if (event.type !== 'tooling/updated') continue
+            const payload = event.payload
+            if (!payload || typeof payload !== 'object') continue
+            const status = (payload as { status?: unknown }).status
+            if (isToolingStatus(status)) callback(status)
+          }
         },
       ),
     listTooling: async () =>

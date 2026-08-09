@@ -6,6 +6,8 @@ import { SqliteProjectTrustStore } from "./config/ProjectTrustStore";
 import { ConfigMigrationService } from "./config/ConfigMigrationService";
 import { ConfigMigrationRepository } from "./storage/repositories/config-migration-repository";
 import { AgentDatabase } from "./storage/database/AgentDatabase";
+import { InterruptedRunRecoveryCoordinator } from "./storage/recovery/interrupted-run-recovery";
+import { StartupRecoveryCoordinator } from "./storage/recovery/StartupRecoveryCoordinator";
 import { EventHub } from "./storage/events/EventHub";
 import { publishAgentEvent } from "./storage/events/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
@@ -18,6 +20,7 @@ import { getToolingManager } from "./tool/ToolingManager";
 import { ApprovalService } from "./permission/ApprovalService";
 import { ReviewerService } from "./permission/ReviewerService";
 import { QuestionService } from "./session/QuestionService";
+import { ResumeCheckpointResolver } from "./interaction/ResumeCheckpointResolver";
 import { ThreadService } from "./session/ThreadService";
 import { ThreadHistoryService } from "./session/ThreadHistoryService";
 import { PiOrchestratorAdapter } from "./orchestration/PiOrchestratorAdapter";
@@ -563,7 +566,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         for (const event of events) await Effect.runPromise(hub.publish(event))
       },
     });
-    const questions = new QuestionService(db, hub);
+    const questions = new QuestionService(db, hub, false);
     const orchestrator = new PiOrchestratorAdapter({
       db,
       hub,
@@ -651,6 +654,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       db,
       config.storage.workspacesRoot,
     );
+    const resumeCheckpoints = new ResumeCheckpointResolver(db, approvals);
     const subagents = new SubagentService(
       db,
       hub,
@@ -669,7 +673,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       skills,
       mcpConnections,
       projectSources,
+      resumeCheckpoints,
+      false,
     );
+    resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID));
     const threads = new ThreadService(
       db,
       hub,
@@ -692,6 +699,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       configService,
       projectSources,
       threadTitles,
+      resumeCheckpoints,
+      false,
     );
     const handoffOperations = new HandoffRepository(db);
     const handoff = new HandoffService(
@@ -724,18 +733,24 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       worktrees,
       worktreeRepository,
     );
-    yield* Effect.promise(async () => {
-      for (const operationId of handoffOperations.runningOperationIDs()) {
-        await handoff.recover(operationId).catch(() => undefined);
-      }
-      for (const operationId of handoffOperations.pendingFinalizationIDs()) {
-        const operation = handoffOperations.get(operationId);
-        await handoff.acknowledgeClientTransfer(operationId, operation.revision).catch(() => undefined);
-      }
-      for (const operationId of threadForkOperations.runningOperationIDs()) {
-        await threadFork.recover(operationId).catch(() => undefined);
-      }
+    const startupRecovery = new StartupRecoveryCoordinator({
+      recoverInterruptedRuns: () => new InterruptedRunRecoveryCoordinator(db).run(),
+      recoverResumeLeases: () => { resumeCheckpoints.recoverInterruptedLeases() },
+      restoreQuestionTimers: () => questions.restoreAutoResolutions(),
+      recoverSubagents: () => subagents.recoverStartup(),
+      recoverHandoffs: async () => {
+        for (const operationId of handoffOperations.runningOperationIDs()) await handoff.recover(operationId);
+        for (const operationId of handoffOperations.pendingFinalizationIDs()) {
+          const operation = handoffOperations.get(operationId);
+          await handoff.acknowledgeClientTransfer(operationId, operation.revision);
+        }
+      },
+      recoverForks: async () => {
+        for (const operationId of threadForkOperations.runningOperationIDs()) await threadFork.recover(operationId);
+      },
+      startQueues: () => threads.startRecoveredQueues(),
     });
+    yield* Effect.promise(() => startupRecovery.run());
     const app = createApp({
       config,
       configService,

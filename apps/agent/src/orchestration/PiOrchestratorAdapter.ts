@@ -802,7 +802,8 @@ export class PiOrchestratorAdapter {
           : undefined;
       if (!assistantEntry || !toolCall || toolCall.type !== "toolCall")
         throw new Error("Pi checkpoint 中找不到待恢复的 tool call");
-      await session.moveTo(assistantEntry.id);
+      const alreadySettled = this.options.db.hasPersistedToolResult(request.turnID, request.resume.toolCallID);
+      if (!alreadySettled) await session.moveTo(assistantEntry.id);
       let resolutionText = request.resume.decision === "deny"
         ? request.resume.answer
           ? `用户拒绝了此工具调用，并要求：${request.resume.answer}`
@@ -820,7 +821,7 @@ export class PiOrchestratorAdapter {
         "update_plan",
         "finalize_result",
       ]);
-      if (
+      if (!alreadySettled &&
         request.resume.decision === "allow"
         && toolCall.name === "request_permissions"
         && request.resume.permissionGrant
@@ -851,11 +852,15 @@ export class PiOrchestratorAdapter {
           resolutionText = secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause));
         }
       }
-      if (
+      if (!alreadySettled &&
         request.resume.decision === "allow" &&
         !lifecycleNames.has(toolCall.name)
       ) {
-        try {
+        const completed = this.options.db.completedToolCall(request.resume.toolCallID);
+        if (completed) {
+          resolutionDetails = secretScrubber.scrub(completed.output);
+          resolutionText = resumedToolResultText(completed.output, completed.name);
+        } else try {
           const resolution = await this.options.toolExecutor.execute(
             toolCall.name,
             toolCall.arguments as Record<string, unknown>,
@@ -885,36 +890,40 @@ export class PiOrchestratorAdapter {
           resolutionText = secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause));
         }
       }
-      await session.appendMessage({
-        role: "toolResult",
-        toolCallId: request.resume.toolCallID,
-        toolName: toolCall.name,
-        content: [
-          {
-            type: "text",
-            text: resolutionText,
-          },
-        ],
-        isError,
-        timestamp: Date.now(),
-      });
-      let completedEvents: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
-      this.options.db.transaction(() => {
-        storage.flush();
-        if (request.resume?.checkpointID) this.options.db.completeQuestionResume(request.resume.checkpointID);
-        completedEvents = this.persistFinishedTool({
-          threadID: request.threadID,
-          turnID: request.turnID,
-          agentID: request.agentID,
-        }, {
-          toolCallID: request.resume!.toolCallID!,
-          tool: toolCall.name,
-          output: resolutionText,
-          details: resolutionDetails,
+      if (!alreadySettled) {
+        await session.appendMessage({
+          role: "toolResult",
+          toolCallId: request.resume.toolCallID,
+          toolName: toolCall.name,
+          content: [
+            {
+              type: "text",
+              text: resolutionText,
+            },
+          ],
           isError,
+          timestamp: Date.now(),
         });
-      });
-      for (const event of completedEvents) await this.publish(event);
+        let completedEvents: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
+        this.options.db.transaction(() => {
+          storage.flush();
+          if (!request.resume?.resumeLeaseID && request.resume?.checkpointID) {
+            this.options.db.completeQuestionResume(request.resume.checkpointID);
+          }
+          completedEvents = this.persistFinishedTool({
+            threadID: request.threadID,
+            turnID: request.turnID,
+            agentID: request.agentID,
+          }, {
+            toolCallID: request.resume!.toolCallID!,
+            tool: toolCall.name,
+            output: resolutionText,
+            details: resolutionDetails,
+            isError,
+          });
+        });
+        for (const event of completedEvents) await this.publish(event);
+      }
     }
     const previousRuntime = this.active.get(request.threadID);
     if (previousRuntime) await previousRuntime.dispose();

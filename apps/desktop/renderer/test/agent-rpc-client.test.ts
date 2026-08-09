@@ -379,7 +379,7 @@ describe('agent RPC v4 client', () => {
       requests.filter(request => request.method === 'event/subscribe').at(-1)
         ?.params,
     ).toEqual({
-      streams: [{ streamId: 'global', after: 'latest' }],
+      streams: [{ streamId: 'global', after: 12 }],
       liveEventTypes: ['catalog/updated', 'config/updated'],
     })
     unsubscribe()
@@ -388,7 +388,7 @@ describe('agent RPC v4 client', () => {
   test('raw 事件订阅完整保留 EventEnvelope 字段', async () => {
     const requests: Array<Record<string, unknown>> = []
     const sources: FakeEventSource[] = []
-    const received: Array<Record<string, unknown>> = []
+    const received: Array<readonly Record<string, unknown>[]> = []
     const client = createAgentRpcClient({
       handshake: automaticHandshake('renderer-raw-envelope'),
       fetch: createSubscriptionFetcher(requests),
@@ -401,7 +401,9 @@ describe('agent RPC v4 client', () => {
 
     const unsubscribe = client.subscribeEnvelope(
       { threadId: 'thread-1', after: 7 },
-      event => received.push(event as unknown as Record<string, unknown>),
+      events => received.push(
+        events as unknown as readonly Record<string, unknown>[],
+      ),
     )
     await waitFor(() => sources.length === 1)
     const envelope = {
@@ -429,7 +431,7 @@ describe('agent RPC v4 client', () => {
     })
 
     await waitFor(() => received.length === 1)
-    expect(received[0]).toEqual(envelope)
+    expect(received[0]).toEqual([envelope])
     sources[0]?.emit({
       jsonrpc: '2.0',
       method: 'event/next',
@@ -443,6 +445,316 @@ describe('agent RPC v4 client', () => {
     expect(
       requests.find(request => request.method === 'event/subscribe')?.params,
     ).toEqual({ streams: [{ streamId: 'thread-1', after: 7 }] })
+    unsubscribe()
+  })
+
+  test('只在批量 consumer 提交成功后 ACK 事件位置', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const sources: FakeEventSource[] = []
+    let deliveryStarted = false
+    let releaseDelivery = () => undefined
+    const deliveryGate = new Promise<void>(resolve => {
+      releaseDelivery = resolve
+    })
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-commit-before-ack'),
+      fetch: createSubscriptionFetcher(requests),
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+    })
+
+    const unsubscribe = client.subscribeEnvelope(
+      { threadId: 'thread-1', after: 7 },
+      async () => {
+        deliveryStarted = true
+        await deliveryGate
+      },
+    )
+    await waitFor(() => sources.length === 1)
+    sources[0]?.emit(eventNext('subscription-1', liveDeltaEnvelope('event-8')))
+    await waitFor(() => deliveryStarted)
+    await sleep(1_100)
+    expect(requests.some(request => request.method === 'event/ack')).toBe(false)
+
+    releaseDelivery()
+    await waitFor(
+      () => requests.some(request => request.method === 'event/ack'),
+      1_500,
+    )
+    expect(
+      requests.find(request => request.method === 'event/ack')?.params,
+    ).toEqual({
+      subscriptionId: 'subscription-1',
+      positions: [{ streamId: 'thread-1', sequence: 7 }],
+    })
+    unsubscribe()
+  })
+
+  test('consumer 失败时不 ACK，并在 history rehydrate 后重连', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const sources: FakeEventSource[] = []
+    let recoveryCount = 0
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-delivery-recovery'),
+      fetch: createSubscriptionFetcher(requests),
+      eventReconnectDelay: () => 0,
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+    })
+
+    const unsubscribe = client.subscribeEnvelope({
+      threadId: 'thread-1',
+      after: 7,
+      onDeliveryError: () => {
+        recoveryCount += 1
+        return 9
+      },
+    }, () => {
+      throw new Error('projection failed')
+    })
+    await waitFor(() => sources.length === 1)
+    sources[0]?.emit(eventNext('subscription-1', liveDeltaEnvelope('event-8')))
+    await waitFor(() => sources.length === 2)
+
+    expect(recoveryCount).toBe(1)
+    expect(requests.some(request => request.method === 'event/ack')).toBe(false)
+    expect(
+      requests.filter(request => request.method === 'event/subscribe').at(-1)
+        ?.params,
+    ).toEqual({ streams: [{ streamId: 'thread-1', after: 9 }] })
+    unsubscribe()
+  })
+
+  test('按 256 条边界批量提交且保持事件顺序', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const sources: FakeEventSource[] = []
+    const batches: string[][] = []
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-batch-boundary'),
+      fetch: createSubscriptionFetcher(requests),
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+    })
+
+    const unsubscribe = client.subscribeEnvelope(
+      { threadId: 'thread-1', after: 7 },
+      events => {
+        batches.push(events.map(event => event.eventId))
+      },
+    )
+    await waitFor(() => sources.length === 1)
+    for (let index = 0; index < 257; index += 1) {
+      const envelope = liveDeltaEnvelope(`event-${index}`)
+      sources[0]?.emit(eventNext('subscription-1', envelope))
+    }
+    await waitFor(
+      () => batches.reduce((count, batch) => count + batch.length, 0) === 257,
+    )
+    expect(batches.map(batch => batch.length)).toEqual([256, 1])
+    expect(batches.flat()).toEqual(
+      Array.from({ length: 257 }, (_, index) => `event-${index}`),
+    )
+    unsubscribe()
+  })
+
+  test('单条事件等待 50ms 批量窗口后提交', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const sources: FakeEventSource[] = []
+    let delivered = false
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-single-event-delay'),
+      fetch: createSubscriptionFetcher(requests),
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+    })
+    const unsubscribe = client.subscribeEnvelope(
+      { threadId: 'thread-1', after: 7 },
+      () => {
+        delivered = true
+      },
+    )
+    await waitFor(() => sources.length === 1)
+    sources[0]?.emit(eventNext('subscription-1', liveDeltaEnvelope('event-1')))
+    await sleep(20)
+    expect(delivered).toBe(false)
+    await waitFor(() => delivered)
+    unsubscribe()
+  })
+
+  test('允许 1024 条有界积压，第 1025 条触发 rehydrate 且不 ACK', async () => {
+    const createCase = () => {
+      const requests: Array<Record<string, unknown>> = []
+      const sources: FakeEventSource[] = []
+      let delivered = 0
+      let recoveryCount = 0
+      let release = () => undefined
+      const gate = new Promise<void>(resolve => {
+        release = resolve
+      })
+      const client = createAgentRpcClient({
+        handshake: automaticHandshake(crypto.randomUUID()),
+        fetch: createSubscriptionFetcher(requests),
+        eventReconnectDelay: () => 0,
+        eventSourceFactory: url => {
+          const source = new FakeEventSource(url)
+          sources.push(source)
+          return source as unknown as EventSource
+        },
+      })
+      const unsubscribe = client.subscribeEnvelope({
+        threadId: 'thread-1',
+        after: 7,
+        onDeliveryError: () => {
+          recoveryCount += 1
+          return 20
+        },
+      }, async events => {
+        if (delivered === 0) await gate
+        delivered += events.length
+      })
+      return {
+        requests,
+        sources,
+        release,
+        unsubscribe,
+        delivered: () => delivered,
+        recoveryCount: () => recoveryCount,
+      }
+    }
+
+    const bounded = createCase()
+    await waitFor(() => bounded.sources.length === 1)
+    for (let index = 0; index < 1_024; index += 1) {
+      bounded.sources[0]?.emit(eventNext(
+        'subscription-1',
+        liveDeltaEnvelope(`bounded-${index}`),
+      ))
+    }
+    await sleep(20)
+    expect(bounded.recoveryCount()).toBe(0)
+    bounded.release()
+    await waitFor(() => bounded.delivered() === 1_024, 1_500)
+    bounded.unsubscribe()
+
+    const overflow = createCase()
+    await waitFor(() => overflow.sources.length === 1)
+    for (let index = 0; index < 1_025; index += 1) {
+      overflow.sources[0]?.emit(eventNext(
+        'subscription-1',
+        liveDeltaEnvelope(`overflow-${index}`),
+      ))
+    }
+    await waitFor(() => overflow.recoveryCount() === 1)
+    expect(overflow.requests.some(request => request.method === 'event/ack'))
+      .toBe(false)
+    overflow.release()
+    overflow.unsubscribe()
+  })
+
+  test('malformed 与 wrong-scope 通知都停止当前代次并重新 hydration', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const sources: FakeEventSource[] = []
+    let deliveries = 0
+    let recoveries = 0
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-invalid-events'),
+      fetch: createSubscriptionFetcher(requests),
+      eventReconnectDelay: () => 0,
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+    })
+    const unsubscribe = client.subscribeEnvelope({
+      threadId: 'thread-1',
+      after: 7,
+      onDeliveryError: () => {
+        recoveries += 1
+        return 7
+      },
+    }, () => {
+      deliveries += 1
+    })
+    await waitFor(() => sources.length === 1)
+    sources[0]?.emit(eventNext(
+      'subscription-1',
+      liveDeltaEnvelope('wrong-scope', 'thread-2'),
+    ))
+    await waitFor(() => sources.length === 2)
+    sources[1]?.emit(eventNext('subscription-2', {
+      ...liveDeltaEnvelope('malformed'),
+      version: 2,
+    }))
+    await waitFor(() => sources.length === 3)
+    expect(recoveries).toBe(2)
+    expect(deliveries).toBe(0)
+    expect(requests.some(request => request.method === 'event/ack')).toBe(false)
+    unsubscribe()
+  })
+
+  test('replayComplete 等待批次提交且不会用 high-watermark 推进 ACK', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const sources: FakeEventSource[] = []
+    let release = () => undefined
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let replayCompleted = false
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-replay-commit'),
+      fetch: createSubscriptionFetcher(requests),
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+    })
+    const unsubscribe = client.subscribeEnvelope({
+      threadId: 'thread-1',
+      after: 7,
+      onReplayComplete: () => {
+        replayCompleted = true
+      },
+    }, async () => {
+      await gate
+    })
+    await waitFor(() => sources.length === 1)
+    sources[0]?.emit(eventNext('subscription-1', liveDeltaEnvelope('event-8')))
+    sources[0]?.emit({
+      jsonrpc: '2.0',
+      method: 'event/replayComplete',
+      params: {
+        subscriptionId: 'subscription-1',
+        positions: [{ streamId: 'thread-1', sequence: 99 }],
+      },
+    })
+    await sleep(70)
+    expect(replayCompleted).toBe(false)
+    release()
+    await waitFor(() => replayCompleted)
+    await waitFor(
+      () => requests.some(request => request.method === 'event/ack'),
+      1_500,
+    )
+    expect(
+      requests.find(request => request.method === 'event/ack')?.params,
+    ).toEqual({
+      subscriptionId: 'subscription-1',
+      positions: [{ streamId: 'thread-1', sequence: 7 }],
+    })
     unsubscribe()
   })
 
@@ -548,6 +860,29 @@ describe('agent RPC v4 client', () => {
       liveEventTypes: ['workspace/file/changed'],
     }, () => {})
     await waitFor(() => sources.length === 1)
+    sources[0]?.emit({
+      jsonrpc: '2.0',
+      method: 'event/next',
+      params: {
+        subscriptionId: 'subscription-1',
+        event: {
+          eventId: 'event-12',
+          streamId: 'global',
+          type: 'workspace/file/changed',
+          version: 1,
+          occurredAt: 12,
+          durability: 'live',
+          sequence: null,
+          afterSequence: 12,
+          payload: {
+            projectId: 'project-1',
+            folderId: 'folder-1',
+            path: 'src/index.ts',
+            changedAt: 12,
+          },
+        },
+      },
+    })
     sources[0]?.emit({
       jsonrpc: '2.0',
       method: 'event/replayComplete',
@@ -829,6 +1164,41 @@ class FakeEventSource {
 
   close(): void {
     this.closed = true
+  }
+}
+
+function eventNext(
+  subscriptionId: string,
+  event: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    jsonrpc: '2.0',
+    method: 'event/next',
+    params: { subscriptionId, event },
+  }
+}
+
+function liveDeltaEnvelope(
+  eventId: string,
+  streamId = 'thread-1',
+): Record<string, unknown> {
+  return {
+    eventId,
+    streamId,
+    type: 'item/agentMessage/delta',
+    version: 1,
+    occurredAt: 1_721_000_000_000,
+    threadId: streamId,
+    turnId: 'turn-1',
+    durability: 'live',
+    sequence: null,
+    afterSequence: 7,
+    payload: {
+      itemId: 'item-1',
+      turnId: 'turn-1',
+      agentId: 'agent-1',
+      delta: eventId,
+    },
   }
 }
 

@@ -371,13 +371,14 @@ describe('desktop provider client', () => {
         eventSourceFactory: () => source as unknown as EventSource,
       })
       expect((await client.listModelProviders())[0]?.apiKeyConfigured).toBe(false)
-      unsubscribe = client.onAgentEvent(() => {})
+      unsubscribe = client.onSessionStoreChange(() => {})
       for (let index = 0; index < 20 && !source.onmessage; index += 1) {
         await new Promise(resolve => setTimeout(resolve, 0))
       }
       authConfigured = true
       source.onmessage?.({
         data: JSON.stringify({
+          jsonrpc: '2.0',
           method: 'event/next',
           params: {
             subscriptionId: 'subscription-1',
@@ -396,7 +397,7 @@ describe('desktop provider client', () => {
         }),
       } as MessageEvent)
       for (let index = 0; index < 20 && refreshEvents === 0; index += 1) {
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await new Promise(resolve => setTimeout(resolve, 10))
       }
 
       expect(refreshEvents).toBe(1)

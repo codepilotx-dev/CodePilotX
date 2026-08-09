@@ -332,18 +332,28 @@ export function createProviderManagementStore(
     if (eventSubscription !== null) return
     eventSubscription = client.subscribeAgentEventEnvelopes({
       liveEventTypes: AGENT_LIVE_EVENT_FILTERS.provider,
-    }, event => {
-      if (event.type === 'catalog/updated') {
-        void refreshCatalog()
-        return
+    }, async events => {
+      let refreshCatalogRequested = false
+      let refreshConnectionsRequested = false
+      let refreshSourcesRequested = false
+      for (const event of events) {
+        if (event.type === 'catalog/updated') {
+          refreshCatalogRequested = true
+          continue
+        }
+        if (event.type === 'provider/credential/updated') {
+          refreshConnectionsRequested = true
+          continue
+        }
+        if (event.type === 'usage/source/updated') {
+          refreshSourcesRequested = true
+        }
       }
-      if (event.type === 'provider/credential/updated') {
-        void refreshConnections()
-        return
-      }
-      if (event.type === 'usage/source/updated') {
-        void refreshSources().catch(() => {})
-      }
+      await Promise.all([
+        ...(refreshCatalogRequested ? [refreshCatalog()] : []),
+        ...(refreshConnectionsRequested ? [refreshConnections()] : []),
+        ...(refreshSourcesRequested ? [refreshSources()] : []),
+      ])
     })
   }
 

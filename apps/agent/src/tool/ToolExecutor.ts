@@ -17,6 +17,7 @@ import { realpath } from "node:fs/promises"
 import { dirname, isAbsolute, normalize, relative, resolve } from "node:path"
 import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions } from "../permission/PermissionDecisionEngine"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
+import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
 import { PermissionGrantStore } from "../permission/PermissionGrantStore"
 import { pathContains } from "../permission/PathPermissions"
 import { analyzeShellRisk, type ShellSecurityLevel } from "../security/ShellRiskClassifier"
@@ -568,6 +569,7 @@ export class ToolExecutor {
       throw new AgentError("PLAN_SHELL_DISABLED", "Plan 模式禁止执行 Bash 或 PowerShell", 403)
     }
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
+    const executionPolicy = executionPolicyFromV4(permissionConfig)
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const parsedShell = this.parseShellInput(input)
     const workspaceRoot = await realpath(context.workspace.rootPath)
@@ -581,7 +583,7 @@ export class ToolExecutor {
       ? (isAbsolute(shell.cwd) ? resolve(shell.cwd) : resolve(context.defaultCwd ?? workspaceRoot, shell.cwd))
       : resolve(context.defaultCwd ?? workspaceRoot)
     const cwd = await realpath(requestedCwd).catch(() => { throw new AgentError("SHELL_CWD_NOT_FOUND", "Shell cwd 不存在或无法解析", 400) })
-    if (permissionConfig.sandboxMode !== "danger-full-access") {
+    if (executionPolicy.fileAccess !== "full-access") {
       const outsideWorkspace = !context.workspace.containsPath(cwd)
       if (outsideWorkspace && !(shell.additionalPermissions?.readPaths ?? []).some((path) => pathContains(path, cwd))) {
         throw new AgentError("SHELL_CWD_PERMISSION_REQUIRED", "工作区外 cwd 必须在 additionalPermissions.readPaths 中声明", 403)
@@ -658,7 +660,7 @@ export class ToolExecutor {
         details: {
           shellTool,
           taskMode: context.taskMode,
-          permissionProfile: permissionConfig.sandboxMode,
+          fileAccess: executionPolicy.fileAccess,
           risk: staticRisk.risk,
           hookDecision,
           permissionDecision: decision.decision,

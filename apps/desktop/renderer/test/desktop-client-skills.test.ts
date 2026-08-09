@@ -129,6 +129,7 @@ describe('desktop runtime skills client', () => {
     })
     source.onmessage?.({
       data: JSON.stringify({
+        jsonrpc: '2.0',
         method: 'event/next',
         params: {
           subscriptionId: 'skill-subscription',
@@ -146,6 +147,9 @@ describe('desktop runtime skills client', () => {
         },
       }),
     } as MessageEvent)
+    for (let index = 0; index < 20 && generations.length === 0; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
     expect(generations).toEqual([3])
     unsubscribe()
   })

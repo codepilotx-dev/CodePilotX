@@ -25,16 +25,15 @@ import {
   verifyAuthCookie,
 } from "./security/auth-session.js"
 import { readStartupAppearanceConfig } from "./settings/startup-appearance-config.js"
+import { AppearanceSettingsStore } from "./settings/appearance-settings-store.js"
 import {
   DataLocationStore,
   type DataLocationLaunch,
 } from "./settings/data-location-store.js"
-import { formatError, sleep } from "./sidecar/readiness.js"
-import {
-  type ConnectionStatus,
-  SidecarSupervisor,
-} from "./sidecar/supervisor.js"
-import { SidecarInstallationError } from "./sidecar/command.js"
+import { formatError } from "./sidecar/readiness.js"
+import { SidecarSupervisor } from "./sidecar/supervisor.js"
+import { DesktopAgentConnectionCoordinator } from "./sidecar/connection-coordinator.js"
+import { orchestrateDesktopQuit } from "./sidecar/desktop-quit-orchestrator.js"
 import { WindowAppearanceController } from "./windows/appearance.js"
 import { WindowManager } from "./windows/window-manager.js"
 import { registerPetOverlayIpc } from "./ipc/register-pet-overlay-ipc.js"
@@ -84,12 +83,7 @@ let logger: DesktopLogger | undefined
 let windows: WindowManager | undefined
 let petOverlay: PetOverlayWindowController | undefined
 let quitting = false
-let connectionStatus: ConnectionStatus = {
-  state: "unknown",
-  phase: "starting",
-  attempt: 0,
-}
-let connectionTask: Promise<void> | undefined
+let connectionCoordinator: DesktopAgentConnectionCoordinator | undefined
 let dataLocationStore: DataLocationStore | undefined
 let dataLocationLaunch: DataLocationLaunch | undefined
 let terminalManager: TerminalManager | undefined
@@ -112,7 +106,9 @@ if (
     app.quit()
   } else {
     app.on("second-instance", () => {
-      windows?.focus(connectionStatus.state === "connected")
+      windows?.focus(
+        connectionCoordinator?.status.connectionState === "connected",
+      )
     })
     app.whenReady().then(startDesktop).catch((error: unknown) => {
       logger?.error("desktop.startup-failed", { error })
@@ -205,7 +201,8 @@ async function startDesktop(): Promise<void> {
     externalOpenTargets,
     updater,
     getSupervisor: () => supervisor,
-    getConnectionState: () => connectionStatus.state,
+    getConnectionState: () =>
+      connectionCoordinator?.status.connectionState ?? "unknown",
     getLogDirectory: () => logger?.directory ?? logDirectory,
     quitDuringStartup: () => app.quit(),
     isDesktopRendererSender: sender =>
@@ -228,7 +225,11 @@ async function startDesktop(): Promise<void> {
     manager: terminalManager,
     isMainWindowSender: sender => windows?.isMainSender(sender) === true,
   })
-  registerAppearanceIpc(appearanceSettings, appearance)
+  registerAppearanceIpc(
+    appearanceSettings,
+    appearance,
+    new AppearanceSettingsStore(app.getPath("userData"), logger),
+  )
   registerDataLocationIpc({
     store: dataLocationStore,
     windows,
@@ -257,11 +258,113 @@ async function startDesktop(): Promise<void> {
     logger,
     moduleDirectory,
     dataLocationLaunch,
+    {
+      appRuntime: {
+        isPackaged: app.isPackaged,
+        resourcesPath: process.resourcesPath,
+        getPath: name => app.getPath(name),
+      },
+    },
   )
-  supervisor.onStateChange((status) => {
-    connectionStatus = status
-    logger?.info("desktop.connection-state", { ...status })
-    windows?.send("agent:connection-changed", status.state)
+  const activeLogger = logger
+  const activeWindows = windows
+  connectionCoordinator = new DesktopAgentConnectionCoordinator({
+    supervisor,
+    logger: activeLogger,
+    loadConnection: async (candidate, guard) => {
+      guard.assertCurrent()
+      activeWindows.showStartupStatus(
+        "正在验证 Agent 认证",
+        candidate.origin,
+      )
+      await configureAuthCookie(candidate.origin, token, activeLogger)
+      guard.assertCurrent()
+      await verifyAuthCookie(candidate.origin, activeLogger)
+      guard.assertCurrent()
+      petOverlay?.setApplicationOrigin(candidate.origin)
+      guard.assertCurrent()
+      activeWindows.showStartupStatus("正在加载桌面界面", candidate.origin)
+      guard.assertCurrent()
+      await activeWindows.loadApplication(candidate.origin)
+      guard.assertCurrent()
+    },
+    onConnected: async (connection, guard) => {
+      guard.assertCurrent()
+      activeLogger.info("desktop.ready", {
+        origin: connection.origin,
+        port: connection.port,
+        generation: connection.generation,
+      })
+      if (dataLocationLaunch?.relocation) {
+        await dataLocationStore?.promotePending()
+        guard.assertCurrent()
+        dataLocationLaunch = {
+          dataDir: dataLocationLaunch.dataDir,
+          relocation: null,
+        }
+      }
+      guard.assertCurrent()
+      activeWindows.send("agent:connection-changed", "connected")
+      guard.assertCurrent()
+      activeWindows.showApplication()
+    },
+    onReconnecting: () => {
+      windows?.showReconnectWindow()
+      windows?.send("agent:connection-changed", "disconnected")
+    },
+    onBeforeReconnect: () => terminalHost?.invalidate(),
+    isRelocating: () => Boolean(dataLocationLaunch?.relocation),
+    onTerminalFailure: (error, kind) => {
+      if (kind === "installation") {
+        activeLogger.error("desktop.startup-failed", {
+          code: "SIDECAR_INSTALLATION_INCOMPLETE",
+        })
+        activeWindows.showStartupStatus(
+          "安装不完整，请重新安装",
+          "CodePilotX Agent 文件缺失",
+          "terminal-error",
+        )
+        return
+      }
+      if (kind === "relocation") {
+        activeLogger.error("desktop.data-location-relocation-failed", {
+          reason: "agent-startup-failed",
+        })
+        activeWindows.showStartupStatus(
+          "用户数据迁移失败",
+          "可以重试迁移，或恢复原数据位置后重新启动。",
+          "terminal-error",
+        )
+        return
+      }
+      if (kind === "termination") {
+        activeLogger.error("desktop.sidecar-termination-unconfirmed", {
+          code: "SIDECAR_TERMINATION_UNCONFIRMED",
+        })
+        activeWindows.showStartupStatus(
+          "残留 Agent 未退出",
+          "请结束残留 Agent 进程后重新启动 CodePilotX。",
+          "terminal-error",
+        )
+        return
+      }
+      activeLogger.error("desktop.connection-cycle-failed", { error })
+      activeWindows.showStartupStatus("Agent 连接失败", formatError(error), "terminal-error")
+    },
+  })
+  connectionCoordinator.onStateChange(status => {
+    logger?.info("desktop.connection-state", {
+      state: status.connectionState,
+      phase: status.phase,
+      lifecycle: status.lifecycle,
+      attempt: status.attempt,
+    })
+    windows?.send("agent:connection-changed", status.connectionState)
+    if (
+      status.lifecycle === "idle"
+      || status.lifecycle === "failed"
+      || status.lifecycle === "connected"
+    ) return
     windows?.showStartupStatus(
       status.phase === "reconnecting"
         ? "Agent 连接中断，正在重试"
@@ -269,125 +372,40 @@ async function startDesktop(): Promise<void> {
       status.message ?? `第 ${status.attempt} 次尝试`,
     )
   })
-  await connectAndLoad(token)
-}
-
-async function connectAndLoad(token: string): Promise<void> {
-  if (connectionTask) return connectionTask
-  connectionTask = runConnectionCycle(token)
-  try {
-    await connectionTask
-  } finally {
-    connectionTask = undefined
-  }
-}
-
-async function runConnectionCycle(token: string): Promise<void> {
-  while (!quitting && supervisor && windows && logger) {
-    try {
-      const connection = await supervisor.connect(async (candidate) => {
-        windows?.showStartupStatus(
-          "正在验证 Agent 认证",
-          candidate.origin,
-        )
-        if (!logger || !windows) throw new Error("桌面服务尚未初始化")
-        await configureAuthCookie(candidate.origin, token, logger)
-        await verifyAuthCookie(candidate.origin, logger)
-        petOverlay?.setApplicationOrigin(candidate.origin)
-        connectionStatus = {
-          state: "disconnected",
-          phase: "loading",
-          attempt: connectionStatus.attempt,
-        }
-        windows.showStartupStatus("正在加载桌面界面", candidate.origin)
-        await windows.loadApplication(candidate.origin)
-      })
-      connectionStatus = {
-        state: "connected",
-        phase: "loading",
-        attempt: connectionStatus.attempt,
-      }
-      logger.info("desktop.ready", {
-        origin: connection.origin,
-        port: connection.port,
-      })
-      if (dataLocationLaunch?.relocation) {
-        await dataLocationStore?.promotePending()
-        dataLocationLaunch = {
-          dataDir: dataLocationLaunch.dataDir,
-          relocation: null,
-        }
-      }
-      windows.send("agent:connection-changed", "connected")
-      windows.showApplication()
-      supervisor.watch(connection, () => {
-        if (quitting || connectionStatus.state !== "connected") return
-        logger?.warn("desktop.connection-lost", {
-          origin: connection.origin,
-        })
-        connectionStatus = {
-          state: "disconnected",
-          phase: "reconnecting",
-          attempt: 0,
-        }
-        windows?.showReconnectWindow()
-        windows?.send("agent:connection-changed", "disconnected")
-        supervisor?.invalidate()
-        terminalHost?.invalidate()
-        void connectAndLoad(token)
-      })
-      return
-    } catch (error) {
-      if (error instanceof SidecarInstallationError) {
-        logger.error("desktop.startup-failed", {
-          code: error.code,
-          message: error.message,
-        })
-        windows.showStartupStatus(
-          "安装不完整，请重新安装",
-          "CodePilotX Agent 文件缺失",
-          "terminal-error",
-        )
-        return
-      }
-      if (dataLocationLaunch?.relocation) {
-        logger.error("desktop.data-location-relocation-failed", {
-          reason: "agent-startup-failed",
-        })
-        windows.showStartupStatus(
-          "用户数据迁移失败",
-          "可以重试迁移，或恢复原数据位置后重新启动。",
-          "terminal-error",
-        )
-        return
-      }
-      logger.error("desktop.connection-cycle-failed", { error })
-      windows.showStartupStatus(
-        "连接失败，正在继续重试",
-        formatError(error),
-      )
-      if (quitting) return
-      await sleep(1_000)
-    }
-  }
+  await connectionCoordinator.start()
 }
 
 app.on("before-quit", (event) => {
+  event.preventDefault()
   if (quitting) return
   quitting = true
-  event.preventDefault()
-  const stopTerminalAndAgent = stopTerminalsBeforeSupervisor({
-    manager: terminalManager,
-    stopSupervisor: async () => {
-      terminalHost?.invalidate()
-      await supervisor?.stop()
+  void orchestrateDesktopQuit({
+    stopRuntime: () => stopTerminalsBeforeSupervisor({
+      manager: terminalManager,
+      stopSupervisor: async () => {
+        terminalHost?.invalidate()
+        if (connectionCoordinator) await connectionCoordinator.stop()
+        else await supervisor?.stop()
+      },
+    }),
+    flushState: [
+      () => windows?.flushWindowState() ?? Promise.resolve(),
+      () => petOverlay?.flushState() ?? Promise.resolve(),
+    ],
+    exit: () => app.exit(0),
+    onBlocked: () => {
+      quitting = false
+      logger?.error("desktop.quit-blocked", {
+        code: "SIDECAR_TERMINATION_UNCONFIRMED",
+      })
+      windows?.showReconnectWindow()
+      windows?.showStartupStatus(
+        "残留 Agent 未退出",
+        "请在任务管理器中结束残留 Agent 进程，然后再次退出以重新检查。",
+        "terminal-error",
+      )
     },
   })
-  void Promise.allSettled([
-    stopTerminalAndAgent,
-    windows?.flushWindowState() ?? Promise.resolve(),
-    petOverlay?.flushState() ?? Promise.resolve(),
-  ]).finally(() => app.exit(0))
 })
 
 function broadcastDesktopSettingsChanged(

@@ -13,6 +13,15 @@ export const SIDECAR_CONNECT_STAGES = [
 
 export type SidecarConnectStage = typeof SIDECAR_CONNECT_STAGES[number]
 
+export class SidecarTerminationError extends Error {
+  readonly code = "SIDECAR_TERMINATION_UNCONFIRMED"
+
+  constructor() {
+    super("无法确认旧 Agent 进程已经退出")
+    this.name = "SidecarTerminationError"
+  }
+}
+
 export const SIDECAR_FAILURE_CODES = [
   "E2BIG",
   "EACCES",

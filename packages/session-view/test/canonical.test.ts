@@ -7,6 +7,13 @@ import type {
   Thread,
   Turn,
 } from "@codepilotx/shared/thread"
+import type {
+  DurableEventEnvelope,
+  DurableEventType,
+  EventPayload,
+  LiveEventEnvelope,
+  LiveEventType,
+} from "@codepilotx/agent-protocol"
 import {
   applyThreadEnvelope,
   applyThreadEnvelopes,
@@ -19,7 +26,6 @@ import {
   type ThreadEventEnvelopeLike,
   type ThreadHistoryPageLike,
 } from "../src/canonical/index"
-import { applyThreadEvent, createThreadView } from "../src/thread/index"
 
 const model = { providerID: "openai", id: "gpt-test" }
 const permissionConfig = {
@@ -116,11 +122,16 @@ function page(turns: ThreadHistoryPageLike["turns"], sequence = 10): ThreadHisto
   }
 }
 
-function durable(sequence: number, type: string, payload: unknown): ThreadEventEnvelopeLike {
+function durable<T extends DurableEventType>(
+  sequence: number,
+  type: T,
+  payload: EventPayload<T>,
+): DurableEventEnvelope<T> {
   return {
     eventId: `event-${sequence}-${type}`,
     streamId: "stream-1",
     type,
+    version: 1,
     threadId: thread.id,
     occurredAt: sequence,
     durability: "durable",
@@ -129,11 +140,17 @@ function durable(sequence: number, type: string, payload: unknown): ThreadEventE
   }
 }
 
-function live(eventId: string, type: string, payload: unknown, afterSequence = 10): ThreadEventEnvelopeLike {
+function live<T extends LiveEventType>(
+  eventId: string,
+  type: T,
+  payload: EventPayload<T>,
+  afterSequence = 10,
+): LiveEventEnvelope<T> {
   return {
     eventId,
     streamId: "stream-1",
     type,
+    version: 1,
     threadId: thread.id,
     occurredAt: afterSequence,
     durability: "live",
@@ -169,6 +186,42 @@ describe("canonical thread state", () => {
     expect(next.history).toMatchObject({ olderCursor: null, hasOlder: false })
     expect(next.stream.appliedSequence).toBe(10)
     expect(state.turnOrder).toEqual(["turn-2"])
+  })
+
+  test("does not advance the live cursor from an older page read fence", () => {
+    const activeTurn = turn("turn-active")
+    const streaming = textItem("item-active", activeTurn.id, "streaming")
+    const state = createCanonicalThreadState(page([{
+      turn: activeTurn,
+      inputs: [],
+      messages: [],
+      agents: [agent("agent-active", activeTurn.id)],
+      items: [streaming],
+      approvals: [],
+    }], 10))
+    const olderTurn = turn("turn-older")
+    const withHistory = prependOlderThreadPage(state, {
+      ...page([{
+        turn: olderTurn,
+        inputs: [],
+        messages: [],
+        agents: [],
+        items: [],
+        approvals: [],
+      }], 12),
+      olderCursor: null,
+      hasOlder: false,
+    })
+
+    expect(withHistory.stream.appliedSequence).toBe(10)
+    const completed = applyThreadEnvelope(withHistory, durable(11, "item/completed", {
+      item: { ...streaming, text: "completed", status: "completed" },
+    }))
+    expect(completed.stream.appliedSequence).toBe(11)
+    expect(completed.itemsById.get(streaming.id)).toMatchObject({
+      text: "completed",
+      status: "completed",
+    })
   })
 
   test("appends live deltas once and reconciles them with the durable terminal item", () => {
@@ -392,36 +445,6 @@ describe("canonical thread state", () => {
     expect(rendered?.executionPlanItems.map((item) => item.id)).toEqual([executionPlan.id])
     expect(rendered?.contentBlocks.map((block) => block.kind)).toEqual(["plan", "execution-plan"])
 
-    const snapshot = {
-      thread,
-      turns: [activeTurn],
-      agents: [agent("agent-turn-plan", activeTurn.id)],
-      subagents: [],
-      inputs: [],
-      messages: [],
-      items: [completedPlan],
-      approvals: [],
-    }
-    const projectedOnce = applyThreadEvent(snapshot, {
-      jsonrpc: "2.0",
-      method: "turn/plan/updated",
-      params: { item: executionPlan },
-    })
-    const projectedTwice = applyThreadEvent(projectedOnce, {
-      jsonrpc: "2.0",
-      method: "turn/plan/updated",
-      params: {
-        item: {
-          ...executionPlan,
-          steps: [{ step: "实现契约", status: "completed" }],
-        },
-      },
-    })
-    const threadView = createThreadView(projectedTwice)
-
-    expect(threadView.blockers).toEqual([])
-    expect(threadView.rows.map((row) => row.kind)).toEqual(["plan", "execution-plan"])
-    expect(projectedTwice.items.filter((item) => item.type === "execution-plan")).toHaveLength(1)
   })
 
   test("upserts a missing turn from turn/started and ignores replayed durable sequences", () => {
@@ -437,7 +460,7 @@ describe("canonical thread state", () => {
     expect(applyThreadEnvelope(next, { ...envelope, eventId: "different-id" })).toBe(next)
   })
 
-  test("projects affected approval paths and keeps legacy paths derived from the safe scope", () => {
+  test("projects affected approval paths from the safe scope", () => {
     const activeTurn = turn("turn-approval")
     const rootAgent = agent("agent-approval", activeTurn.id)
     const bundle = {
@@ -476,27 +499,6 @@ describe("canonical thread state", () => {
       durable(11, "approval/requested", payload),
     )
     expect(projected.approvalsById.get(payload.interactionId)).toMatchObject({
-      paths: ["src/a.ts", "src/b.ts"],
-      affectedPaths: payload.affectedPaths,
-      reviewSummary: payload.reviewSummary,
-    })
-
-    const snapshot = {
-      thread,
-      turns: [activeTurn],
-      agents: [rootAgent],
-      subagents: [],
-      inputs: bundle.inputs,
-      messages: [],
-      items: [],
-      approvals: [],
-    }
-    const legacyProjected = applyThreadEvent(snapshot, {
-      jsonrpc: "2.0",
-      method: "approval/requested",
-      params: payload,
-    })
-    expect(legacyProjected.approvals[0]).toMatchObject({
       paths: ["src/a.ts", "src/b.ts"],
       affectedPaths: payload.affectedPaths,
       reviewSummary: payload.reviewSummary,
@@ -575,6 +577,38 @@ describe("canonical thread state", () => {
     expect(unresolved.approvalsById.get("permission-1")?.status).toBe("pending")
   })
 
+  test("projects and resolves typed hook trust interactions", () => {
+    const state = createCanonicalThreadState(page([]))
+    const requested = applyThreadEnvelope(state, durable(11, "hook/trust/requested", {
+      interactionId: "hook-trust-1",
+      threadId: thread.id,
+      turnId: "turn-hook",
+      agentId: "agent-hook",
+      createdAt: 30,
+      version: 1,
+      kind: "hookTrust",
+      configPath: ".codepilotx/hooks.json",
+      sha256: "fixture-sha256",
+      hook: {
+        id: "hook-1",
+        name: "Pre tool hook",
+        event: "pre-tool",
+        command: "fixture-command",
+      },
+    }))
+
+    expect(requested.hookTrustsById.get("hook-trust-1")).toMatchObject({
+      kind: "hookTrust",
+      configPath: ".codepilotx/hooks.json",
+    })
+    const resolved = applyThreadEnvelope(requested, durable(12, "interaction/resolved", {
+      interactionId: "hook-trust-1",
+      result: { kind: "hookTrust", decision: "allow" },
+      resolvedAt: 40,
+    }))
+    expect(resolved.hookTrustsById.size).toBe(0)
+  })
+
   test("closes ordinary approvals via interaction/resolved and keeps questions untouched", () => {
     const activeTurn = turn("turn-approval-resolved")
     const rootAgent = agent("agent-approval-resolved", activeTurn.id)
@@ -627,69 +661,6 @@ describe("canonical thread state", () => {
       resolvedAt: 40,
     }))
     expect(questionState.approvalsById.get("approval-close")?.status).toBe("pending")
-  })
-
-  test("legacy thread projection restores permissionGrant and resolves by interactionId", () => {
-    const activeTurn = turn("turn-legacy-permission")
-    const rootAgent = agent("agent-legacy-permission", activeTurn.id)
-    const payload = {
-      interactionId: "permission-legacy",
-      threadId: thread.id,
-      turnId: activeTurn.id,
-      agentId: rootAgent.id,
-      toolCallId: "tool-legacy",
-      tool: "request_permissions",
-      reason: "需要额外权限",
-      requestedPermissions: {
-        readPaths: ["C:\\workspace\\docs"],
-        writePaths: ["C:\\workspace\\out"],
-      },
-      requestedScope: "session" as const,
-      allowedScopes: ["tool-call", "turn", "session"] as const,
-      risk: "critical" as const,
-      createdAt: 30,
-    }
-    const snapshot = {
-      thread,
-      turns: [activeTurn],
-      agents: [rootAgent],
-      subagents: [],
-      inputs: [input("input-legacy", activeTurn.id, 1)],
-      messages: [],
-      items: [],
-      approvals: [],
-    }
-    const projected = applyThreadEvent(snapshot, {
-      jsonrpc: "2.0",
-      method: "permission/requested",
-      params: payload,
-    })
-    expect(projected.approvals[0]).toMatchObject({
-      paths: ["C:\\workspace\\docs", "C:\\workspace\\out"],
-      risk: "critical",
-      status: "pending",
-      permissionGrant: {
-        requestedScope: "session",
-        allowedScopes: ["tool-call", "turn", "session"],
-      },
-    })
-    const resolved = applyThreadEvent(projected, {
-      jsonrpc: "2.0",
-      method: "interaction/resolved",
-      params: {
-        interactionId: "permission-legacy",
-        result: { kind: "permission", decision: "deny" },
-        resolvedAt: 40,
-      },
-    })
-    expect(resolved.approvals[0]?.status).toBe("denied")
-    // Without the identifier the event is ignored for approval state.
-    const unresolved = applyThreadEvent(projected, {
-      jsonrpc: "2.0",
-      method: "interaction/resolved",
-      params: { result: { kind: "permission", decision: "grant", scope: "tool-call", grantedPermissions: {} }, resolvedAt: 40 },
-    })
-    expect(unresolved.approvals[0]?.status).toBe("pending")
   })
 
   test("keeps only the final result text after process items as the assistant result", () => {

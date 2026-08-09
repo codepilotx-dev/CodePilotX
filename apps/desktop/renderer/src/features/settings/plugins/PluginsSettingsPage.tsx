@@ -180,8 +180,8 @@ export function PluginsSettingsPage({
   useEffect(() => {
     return desktopClient.subscribeAgentEventEnvelopes({
       liveEventTypes: AGENT_LIVE_EVENT_FILTERS.mcp,
-    }, event => {
-      if (event.type === 'mcp/updated') void loadServers()
+    }, async events => {
+      if (events.some(event => event.type === 'mcp/updated')) await loadServers()
     })
     // Reconcile the currently selected workspace whenever the Agent catalog changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps

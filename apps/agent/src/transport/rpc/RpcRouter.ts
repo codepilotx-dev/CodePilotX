@@ -59,6 +59,8 @@ import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBi
 import type { WorktreeRepository } from "../../worktree/WorktreeRepository"
 import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
+import { InteractionService } from "../../interaction/InteractionService"
+import { ThreadReadViewRepository } from "../../session/ThreadReadViewRepository"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
@@ -255,6 +257,8 @@ export const submitMessage = (raw: unknown): SubmitMessage => {
 export class RpcRouter {
   readonly projection: ThreadProjection
   readonly subscriptions: EventSubscriptionRegistry
+  private readonly interactions: InteractionService
+  private readonly threadReadViews: ThreadReadViewRepository
   readonly workspaceFileWatchers = new Map<string, { close: () => void }>()
   catalogVersion = 1
   private catalogSource: Promise<{
@@ -283,6 +287,15 @@ export class RpcRouter {
     this.now = options.now ?? Date.now
     this.projection = new ThreadProjection(dependencies.db)
     this.subscriptions = new EventSubscriptionRegistry(dependencies.db)
+    this.interactions = new InteractionService({
+      db: dependencies.db,
+      hub: dependencies.hub,
+      approvals: dependencies.approvals,
+      questions: dependencies.questions,
+      subagents: dependencies.subagents,
+      threads: dependencies.threads,
+    })
+    this.threadReadViews = new ThreadReadViewRepository(dependencies.db)
     this.handlers = createRpcHandlerRegistry(
       this,
       (method, cause) => this.applicationError(method, cause),
@@ -314,339 +327,11 @@ export class RpcRouter {
   }
 
   listPendingInteractions(rawParams: Record<string, unknown>) {
-    const { db } = this.dependencies
-    const threadId = typeof rawParams.threadId === "string" ? rawParams.threadId : undefined
-    const requestedKinds = Array.isArray(rawParams.kinds)
-      ? new Set(rawParams.kinds.filter((kind): kind is string => typeof kind === "string"))
-      : null
-    const interactions: Array<Record<string, unknown>> = []
-
-    if (!requestedKinds || requestedKinds.has("approval") || requestedKinds.has("permission")) {
-      const rows = db.sqlite.query(`
-        SELECT id FROM approval_requests
-        WHERE status = 'pending' AND (? IS NULL OR thread_id = ?)
-        ORDER BY created_at, id
-      `).all(threadId ?? null, threadId ?? null) as Array<{ id: string }>
-      for (const row of rows) {
-        const checkpoint = db.getApprovalCheckpoint(row.id)
-        if (!checkpoint) continue
-        const invocation = checkpoint.payload.invocation
-        const isPermission = invocation.name === "request_permissions"
-        if (requestedKinds && !requestedKinds.has(isPermission ? "permission" : "approval")) continue
-        const permissionSource = isPermission
-          ? invocation.input
-          : record(invocation.input.additionalPermissions ?? {}, "requestedPermissions")
-        const requestedPermissions = {
-          ...(Array.isArray(permissionSource.readPaths) ? { readPaths: permissionSource.readPaths } : {}),
-          ...(Array.isArray(permissionSource.writePaths) ? { writePaths: permissionSource.writePaths } : {}),
-          ...(Array.isArray(permissionSource.networkDomains) ? { networkDomains: permissionSource.networkDomains } : {}),
-        }
-        const metadata = {
-          interactionId: checkpoint.approvalID,
-          threadId: checkpoint.threadID,
-          turnId: checkpoint.turnID,
-          agentId: checkpoint.agentID,
-          createdAt: checkpoint.createdAt,
-          version: checkpoint.version,
-          toolCallId: checkpoint.toolCallID,
-          tool: invocation.name,
-          reason: typeof invocation.input.justification === "string"
-            ? invocation.input.justification
-            : checkpoint.reason || "需要批准工具调用",
-          requestedPermissions,
-        }
-        if (isPermission) {
-          const requestedScope = enumValue(invocation.input.scope, ["tool-call", "turn", "session"] as const, "permission.scope")
-          interactions.push({
-            ...metadata,
-            kind: "permission",
-            requestedScope,
-            allowedScopes: requestedScope === "session"
-              ? ["tool-call", "turn", "session"]
-              : requestedScope === "turn"
-                ? ["tool-call", "turn"]
-                : ["tool-call"],
-          })
-        } else {
-          interactions.push({
-            ...metadata,
-            kind: "approval",
-            risk: ["low", "medium", "high", "critical"].includes(checkpoint.risk) ? checkpoint.risk : "high",
-            ...(typeof invocation.input.command === "string" ? { command: invocation.input.command } : {}),
-            ...(typeof invocation.input.cwd === "string" ? { cwd: invocation.input.cwd } : {}),
-            allowedChoices: ["allow-once", "deny", "stop"],
-          })
-        }
-      }
-    }
-
-    if (!requestedKinds || requestedKinds.has("question")) {
-      const rows = db.sqlite.query(`
-        SELECT id, thread_id, turn_id, agent_id, payload, payload_version, created_at
-        FROM question_requests
-        WHERE status = 'pending' AND (? IS NULL OR thread_id = ?)
-        ORDER BY created_at, id
-      `).all(threadId ?? null, threadId ?? null) as Array<{
-        id: string; thread_id: string; turn_id: string; agent_id: string
-        payload: string; payload_version: number; created_at: number
-      }>
-      for (const row of rows) {
-        const payload = parseJsonRecord(row.payload)
-        const questions = Array.isArray(payload.questions)
-          ? payload.questions.flatMap((entry) => {
-              const question = record(entry, "question")
-              if (
-                typeof question.id !== "string"
-                || typeof question.header !== "string"
-                || typeof question.prompt !== "string"
-                || !Array.isArray(question.choices)
-              ) return []
-              const choices = question.choices.flatMap((entry) => {
-                const choice = record(entry, "choice")
-                return typeof choice.id === "string"
-                  && typeof choice.label === "string"
-                  && typeof choice.description === "string"
-                  ? [{
-                      id: choice.id,
-                      label: choice.label,
-                      description: choice.description,
-                      recommended: choice.recommended === true,
-                    }]
-                  : []
-              })
-              return choices.length >= 2 && choices.length <= 3
-                ? [{
-                    id: question.id,
-                    header: question.header,
-                    prompt: question.prompt,
-                    choices,
-                    allowFreeform: true,
-                    required: true,
-                  }]
-                : []
-            })
-          : []
-        if (questions.length === 0) continue
-        interactions.push({
-          interactionId: row.id,
-          threadId: row.thread_id,
-          turnId: row.turn_id,
-          agentId: row.agent_id,
-          createdAt: row.created_at,
-          version: row.payload_version,
-          kind: "question",
-          questions,
-          ...(typeof payload.autoResolutionMs === "number" ? { autoResolutionMs: payload.autoResolutionMs } : {}),
-        })
-      }
-    }
-
-    if (!requestedKinds || requestedKinds.has("hookTrust")) {
-      const rows = db.sqlite.query(`
-        SELECT id FROM hook_trust_requests
-        WHERE status = 'pending' AND thread_id IS NOT NULL AND turn_id IS NOT NULL
-          AND (? IS NULL OR thread_id = ?)
-        ORDER BY created_at, id
-      `).all(threadId ?? null, threadId ?? null) as Array<{ id: string }>
-      for (const row of rows) {
-        const request = db.getHookTrustRequest(row.id)
-        if (!request?.threadID || !request.turnID) continue
-        const audit = request.auditSummary
-        const hooks = Array.isArray(audit.hooks) ? audit.hooks : []
-        const hook = hooks.find((candidate) => candidate && typeof candidate === "object") as Record<string, unknown> | undefined
-        const agent = db.agentForTurn(request.turnID)
-        interactions.push({
-          interactionId: request.id,
-          threadId: request.threadID,
-          turnId: request.turnID,
-          agentId: agent?.id ?? `hook:${request.turnID}`,
-          createdAt: request.createdAt,
-          version: 1,
-          kind: "hookTrust",
-          configPath: request.configPath,
-          sha256: request.configHash,
-          hook: {
-            id: typeof hook?.id === "string" && hook.id ? hook.id : "project-hooks",
-            name: typeof hook?.id === "string" && hook.id ? hook.id : "项目 Hook",
-            event: typeof hook?.event === "string" && hook.event ? hook.event : "unknown",
-            command: typeof hook?.command === "string" && hook.command ? hook.command : "(multiple hooks)",
-          },
-        })
-      }
-    }
-
-    interactions.sort((left, right) => Number(left.createdAt) - Number(right.createdAt) || String(left.interactionId).localeCompare(String(right.interactionId)))
-    const offset = decodeOffsetCursor(rawParams.cursor)
-    const limit = typeof rawParams.limit === "number" ? rawParams.limit : 100
-    const page = interactions.slice(offset, offset + limit)
-    return {
-      interactions: page,
-      nextCursor: offset + page.length < interactions.length ? encodeOffsetCursor(offset + page.length) : null,
-    }
+    return this.interactions.listPending(rawParams)
   }
 
   async respondToInteraction(rawParams: Record<string, unknown>) {
-    const { db, approvals, questions, subagents, threads } = this.dependencies
-    const operationId = stringParam(rawParams, "operationId")
-    const interactionId = stringParam(rawParams, "interactionId")
-    const expectedVersion = rawParams.expectedVersion
-    if (!Number.isInteger(expectedVersion) || Number(expectedVersion) < 0) {
-      throw new AgentError("INVALID_REQUEST", "expectedVersion 参数无效", 400)
-    }
-    const response = record(rawParams.response, "response")
-    const duplicate = db.interactionOperation(operationId)
-    if (duplicate) {
-      if (duplicate.interactionID !== interactionId || JSON.stringify(duplicate.response) !== JSON.stringify(response)) {
-        throw new AgentError("CONFLICT", "operationId 已被其他 interaction 响应使用", 409)
-      }
-      return duplicate.result
-    }
-    const kind = enumValue(response.kind, ["approval", "permission", "question", "hookTrust"] as const, "response.kind")
-    const resolvedAt = Date.now()
-    const resumeActions: Array<() => void | Promise<void>> = []
-    const result = {
-      interactionId,
-      kind,
-      state: "resolved",
-      version: Number(expectedVersion) + 1,
-      resolvedAt,
-      response,
-    }
-    const operation = {
-      operationID: operationId,
-      interactionID: interactionId,
-      response,
-      result,
-    }
-    let operationPersistedWithResolution = false
-
-    if (kind === "approval") {
-      const checkpoint = db.getApprovalCheckpoint(interactionId)
-      if (!checkpoint || checkpoint.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "审批请求不存在或已处理", 409)
-      if (checkpoint.version !== expectedVersion) throw new AgentError("CONFLICT", "审批请求版本已经变化", 409)
-      const decision = enumValue(response.decision, ["allow-once", "deny", "stop"] as const, "response.decision")
-      if (decision === "stop") {
-        const execution = db.getAgentExecution(checkpoint.agentID)
-        if (execution?.subagentRunID) {
-          const task = db.sqlite.query("SELECT task_id FROM subagent_runs WHERE id = ?").get(execution.subagentRunID) as { task_id: string } | null
-          if (!task) throw new AgentError("SUBAGENT_NOT_FOUND", "子 Agent 不存在", 404)
-          await subagents.stop(task.task_id, operationId)
-        } else {
-          await threads.stop(checkpoint.threadID, checkpoint.turnID)
-        }
-      } else {
-        const rawFeedback = response.feedback
-        if (rawFeedback !== undefined && typeof rawFeedback !== "string") {
-          throw new AgentError("INVALID_REQUEST", "response.feedback 参数无效", 400)
-        }
-        if (decision !== "deny" && rawFeedback?.trim()) {
-          throw new AgentError("INVALID_REQUEST", "只有拒绝审批时才能提交调整意见", 400)
-        }
-        const trimmedFeedback = rawFeedback?.trim().slice(0, 4_000)
-        const feedback = trimmedFeedback ? secretScrubber.scrubText(trimmedFeedback) : undefined
-        const resolved = await approvals.respond(
-          interactionId,
-          decision === "allow-once" ? "allow" : "deny",
-          feedback,
-          operation,
-        )
-        operationPersistedWithResolution = true
-        const execution = db.getAgentExecution(resolved.agentID)
-        resumeActions.push(() => execution?.subagentRunID
-          ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
-          : threads.resumeTurn(resolved.threadID, resolved.turnID))
-      }
-    } else if (kind === "permission") {
-      const checkpoint = db.getApprovalCheckpoint(interactionId)
-      if (
-        !checkpoint
-        || checkpoint.status !== "pending"
-        || checkpoint.payload.invocation.name !== "request_permissions"
-      ) throw new AgentError("REQUEST_NOT_PENDING", "权限请求不存在或已处理", 409)
-      if (checkpoint.version !== expectedVersion) throw new AgentError("CONFLICT", "权限请求版本已经变化", 409)
-      const decision = enumValue(response.decision, ["grant", "deny", "stop"] as const, "response.decision")
-      if (decision === "stop") {
-        const execution = db.getAgentExecution(checkpoint.agentID)
-        if (execution?.subagentRunID) {
-          const task = db.sqlite.query("SELECT task_id FROM subagent_runs WHERE id = ?").get(execution.subagentRunID) as { task_id: string } | null
-          if (!task) throw new AgentError("SUBAGENT_NOT_FOUND", "子 Agent 不存在", 404)
-          await subagents.stop(task.task_id, operationId)
-        } else {
-          await threads.stop(checkpoint.threadID, checkpoint.turnID)
-        }
-      } else {
-        let resolved
-        if (decision === "grant") {
-          const requestedScope = enumValue(
-            checkpoint.payload.invocation.input.scope,
-            ["tool-call", "turn", "session"] as const,
-            "permission.requestedScope",
-          )
-          const scope = enumValue(response.scope, ["tool-call", "turn", "session"] as const, "response.scope")
-          const scopeRank = { "tool-call": 0, turn: 1, session: 2 } as const
-          if (scopeRank[scope] > scopeRank[requestedScope]) {
-            throw new AgentError("INVALID_REQUEST", "授予范围不能高于工具请求范围", 400)
-          }
-          resolved = await approvals.respondPermission(
-            interactionId,
-            "allow",
-            {
-              scope,
-              grantedPermissions: record(response.grantedPermissions, "response.grantedPermissions"),
-            },
-            operation,
-          )
-        } else {
-          resolved = await approvals.respondPermission(interactionId, "deny", undefined, operation)
-        }
-        operationPersistedWithResolution = true
-        const execution = db.getAgentExecution(resolved.agentID)
-        resumeActions.push(() => execution?.subagentRunID
-          ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
-          : threads.resumeTurn(resolved.threadID, resolved.turnID))
-      }
-    } else if (kind === "question") {
-      const row = db.sqlite.query("SELECT payload_version, status FROM question_requests WHERE id = ?").get(interactionId) as { payload_version: number; status: string } | null
-      if (!row || row.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "问题不存在或已经回答", 409)
-      if (row.payload_version !== expectedVersion) throw new AgentError("CONFLICT", "问题版本已经变化", 409)
-      const status = enumValue(response.status, ["answered", "ignored"] as const, "response.status")
-      const resolved = await questions.reply(
-        interactionId,
-        status === "ignored" ? null : response.answers,
-        status === "ignored",
-        status === "answered"
-          ? enumValue(response.resolution, ["user", "auto"] as const, "response.resolution")
-          : "user",
-        false,
-        operation,
-      )
-      operationPersistedWithResolution = true
-      const execution = db.agentForTurn(resolved.turnID)
-      resumeActions.push(() => execution?.subagentRunID
-        ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
-        : threads.resumeTurn(resolved.threadID, resolved.turnID))
-    } else {
-      const request = db.getHookTrustRequest(interactionId)
-      if (!request || request.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "Hook 信任请求不存在或已经处理", 409)
-      if (expectedVersion !== 1) throw new AgentError("CONFLICT", "Hook 信任请求版本已经变化", 409)
-      const decision = enumValue(response.decision, ["allow", "block"] as const, "response.decision")
-      const resolved = db.resolveHookTrustRequest(interactionId, decision, operation)
-      operationPersistedWithResolution = true
-      for (const event of resolved.events) await Effect.runPromise(this.dependencies.hub.publish(event))
-      for (const resumed of resolved.resumed) {
-        const execution = db.getAgentExecution(resumed.agentID)
-        resumeActions.push(() => execution?.subagentRunID
-          ? subagents.resumeTurn(resumed.threadID, resumed.turnID)
-          : threads.resumeHookTrust(resumed.threadID, resumed.turnID))
-      }
-    }
-
-    const storedOperation = operationPersistedWithResolution
-      ? db.interactionOperation(operationId)
-      : null
-    const stored = (storedOperation ?? db.saveInteractionOperation(operation)).result
-    for (const resume of resumeActions) await resume()
-    return stored
+    return this.interactions.respond(rawParams)
   }
 
   private applicationError(method: RpcMethod, cause: unknown) {
@@ -722,32 +407,15 @@ export class RpcRouter {
   }
 
   threadSnapshotResult(threadId: string) {
-    const snapshot = this.requiredSnapshot(threadId)
-    const sequence = globalEventSequence(this.dependencies.db)
-    return { snapshot, streamPosition: { streamId: threadId, sequence } }
+    return this.threadReadViews.snapshot(threadId)
   }
 
   threadHistoryPageResult(threadId: string, params: { before?: string; limit?: number }) {
-    return this.dependencies.db.transaction(() => {
-      const page = this.projection.historyPage(threadId, params)
-      if (!page) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
-      const sequence = globalEventSequence(this.dependencies.db)
-      return { ...page, streamPosition: { streamId: threadId, sequence } }
-    })
+    return this.threadReadViews.history(threadId, params)
   }
 
   queueStateResult(threadId: string, eventID?: number) {
-    const snapshot = this.requiredSnapshot(threadId)
-    const metadata = this.dependencies.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
-    const sequence = Math.max(eventID ?? 0, globalEventSequence(this.dependencies.db))
-    return {
-      threadId,
-      version: metadata.version,
-      pauseReason: metadata.pauseReason,
-      turns: snapshot.turns,
-      inputs: snapshot.inputs,
-      streamPosition: { streamId: threadId, sequence },
-    }
+    return this.threadReadViews.queue(threadId, eventID)
   }
 
   private loadCatalogSource() {

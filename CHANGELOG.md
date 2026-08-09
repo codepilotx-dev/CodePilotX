@@ -9,11 +9,20 @@
 
 ### Changed
 
+- [Agent/desktop/renderer] 统一执行与恢复纵切面：history schema 27 增加 durable resume lease，main/subagent 共享 interaction 恢复入口，Renderer 改为 canonical 批量单写者并在应用提交后确认事件位置
+- [Agent/renderer] 统一 thread snapshot、history、queue 的 SQLite read fence 与 SSE cursor authority，事件以 256 条或 50ms 批量提交、1024 条有界积压并在消费失败后从已提交位置重新对账
 - [release/docs] 后续 GitHub Release 统一改为 source-only：标签流水线使用 GitHub-hosted runner，仅发布 CHANGELOG 正文与 GitHub 自动生成的源码归档，不再依赖自托管签名 runner 或上传 Windows 安装包、更新元数据、校验和及 SBOM；README 改为指导 Windows x64 使用者自行打包
 
 ### Fixed
 
+- [Agent] 修复审批、提问、Hook 信任、子 Agent 等待与启动恢复在崩溃窗口中可能重复执行、永久等待或因 live publish 失败阻断 continuation 的问题
+- [desktop] 修复 owned Agent sidecar 的旧 generation 晚回调、并发退出和残留进程可能污染重连的问题，增加实例身份校验及 shutdown、SIGTERM、进程树确认的严格退出链路
+- [desktop] 修复外观设置 IPC 只广播但未原子落盘，导致桌面重启后主题、字体、动效和指针偏好恢复默认值的问题
 - [renderer/test] 修复性能回归场景在侧栏与工作区同时显示同名会话标题时因全页严格文本定位产生歧义的问题，改用 canonical thread 标记确认当前会话完成切换
+
+### Security
+
+- [Agent/renderer] 将旧 `sandboxMode` 集中解释为结构化文件访问范围，明确终端命令始终以当前 Windows 用户在宿主机执行并继续经过风险、Hook、审批和临时授权门禁，不再暗示操作系统级沙箱隔离
 
 ## 0.2.0-beta.4 — 2026-08-07
 

@@ -4,6 +4,8 @@ import type { Item } from '@codepilotx/shared/thread'
 import type {
   DesktopContextUsage,
   DesktopPermissionRequest,
+  DesktopQueuedFollowUp,
+  DesktopQueuePauseReason,
 } from '../../../../shared/types.js'
 import {
   approvalToRequest,
@@ -22,6 +24,8 @@ export type CanonicalConversationAuxiliaryState = {
   hasConversationMessages: boolean
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
+  queuedFollowUps: DesktopQueuedFollowUp[]
+  queuePauseReason: DesktopQueuePauseReason | null
   sourceLinks: SourceLink[]
   fallbackTitle: string | null
 }
@@ -36,6 +40,8 @@ export function selectCanonicalConversationAuxiliaryState(
       hasConversationMessages: false,
       pendingPermissions: [],
       contextUsage: null,
+      queuedFollowUps: [],
+      queuePauseReason: null,
       sourceLinks: [],
       fallbackTitle: null,
     }
@@ -49,9 +55,39 @@ export function selectCanonicalConversationAuxiliaryState(
       items.some(item => item.type === 'text' && item.text.trim().length > 0),
     pendingPermissions: selectPendingPermissions(state),
     contextUsage: latestItemContextUsage(items),
+    queuedFollowUps: selectQueuedFollowUps(state),
+    queuePauseReason: state.queue.pauseReason,
     sourceLinks: extractCanonicalSourceLinks(items),
     fallbackTitle: fallbackTitleFromInput(inputs[0]?.content),
   }
+}
+
+function selectQueuedFollowUps(
+  state: CanonicalThreadState,
+): DesktopQueuedFollowUp[] {
+  const orderedInputIds: string[] = []
+  const seen = new Set<string>()
+  for (const turnId of state.queue.turnIds) {
+    const sourceInputId = state.turnsById.get(turnId)?.sourceInputID
+    if (!sourceInputId || seen.has(sourceInputId)) continue
+    seen.add(sourceInputId)
+    orderedInputIds.push(sourceInputId)
+  }
+  for (const inputId of state.queue.inputIds) {
+    if (seen.has(inputId)) continue
+    seen.add(inputId)
+    orderedInputIds.push(inputId)
+  }
+  return orderedInputIds.flatMap(inputId => {
+    const input = state.inputsById.get(inputId)
+    if (!input) return []
+    return [{
+      id: input.id,
+      input: { text: input.content },
+      previewText: input.content,
+      createdAt: new Date(input.createdAt).toISOString(),
+    }]
+  })
 }
 
 function selectPendingPermissions(
@@ -84,6 +120,20 @@ function selectPendingPermissions(
     if (approval.status === 'pending') {
       add(approvalToRequest(approval), approval.createdAt, 3)
     }
+  }
+  for (const interaction of state.hookTrustsById.values()) {
+    add({
+      requestId: interaction.interactionId,
+      toolName: 'HookTrust',
+      toolUseId: interaction.interactionId,
+      input: {
+        configPath: interaction.configPath,
+        configSha256: interaction.sha256,
+        hook: interaction.hook,
+      },
+      description: `项目 Hook“${interaction.hook.name}”请求信任，是否允许？`,
+      requestKind: 'tool',
+    }, interaction.createdAt, 4)
   }
 
   return [...requests.values()]

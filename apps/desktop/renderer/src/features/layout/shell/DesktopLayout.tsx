@@ -32,6 +32,7 @@ import {
   createDefaultConversationUiState,
   createDefaultReviewTabUiState,
   openPatchReviewTabState,
+  patchConversationUiState,
   saveConversationUiState,
   loadConversationUiState,
   validateConversationUiState,
@@ -1138,7 +1139,7 @@ export function DesktopLayout(): React.ReactNode {
   uiSnapshotRef.current = {
     schemaVersion: 4,
     workbench: workbenchPanelState,
-    mainScrollTop: 0,
+    mainScrollTop: uiSnapshotRef.current.mainScrollTop,
     sideChatInput,
     sideChatAttachments,
     review: reviewTabState,
@@ -1149,7 +1150,12 @@ export function DesktopLayout(): React.ReactNode {
     const currentId = sessionId
 
     if (prevId && prevId !== currentId) {
-      saveConversationUiState(prevId, uiSnapshotRef.current)
+      patchConversationUiState(prevId, {
+        workbench: uiSnapshotRef.current.workbench,
+        sideChatInput: uiSnapshotRef.current.sideChatInput,
+        sideChatAttachments: uiSnapshotRef.current.sideChatAttachments,
+        review: uiSnapshotRef.current.review,
+      })
     }
 
     prevSessionIdRef.current = currentId
@@ -1182,7 +1188,12 @@ export function DesktopLayout(): React.ReactNode {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
       const currentSessionId = sessionId
       if (currentSessionId) {
-        saveConversationUiState(currentSessionId, uiSnapshotRef.current)
+        patchConversationUiState(currentSessionId, {
+          workbench: uiSnapshotRef.current.workbench,
+          sideChatInput: uiSnapshotRef.current.sideChatInput,
+          sideChatAttachments: uiSnapshotRef.current.sideChatAttachments,
+          review: uiSnapshotRef.current.review,
+        })
       }
       if (hasDirtyFileDocuments()) {
         void saveAllFileDocuments()

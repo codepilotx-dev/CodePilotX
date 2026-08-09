@@ -144,6 +144,20 @@ export function saveConversationUiState(
   }
 }
 
+export function patchConversationUiState(
+  sessionId: string,
+  patch: Partial<Omit<ConversationUiState, 'schemaVersion'>>,
+): void {
+  const current = validateConversationUiState(
+    loadConversationUiState(sessionId) ?? createDefaultConversationUiState(),
+  )
+  saveConversationUiState(sessionId, {
+    ...current,
+    ...patch,
+    schemaVersion: 4,
+  })
+}
+
 export function loadConversationUiState(
   sessionId: string,
 ): ConversationUiState | null {

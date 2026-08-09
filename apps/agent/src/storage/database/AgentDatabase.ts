@@ -11,7 +11,6 @@ import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
 import { threadRepository } from "../repositories/thread-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
-import { recoverInterruptedRuns } from "../recovery/interrupted-run-recovery"
 import { configureConnection } from "./connection"
 import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
 import { HISTORY_APPLICATION_ID } from "./schema"
@@ -68,7 +67,6 @@ export class AgentDatabase extends RepositoryDatabase {
       turnPatches: new TurnPatchRepository(this),
     }
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
-    recoverInterruptedRuns(this)
   }
 
   readonly repositories

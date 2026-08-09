@@ -278,12 +278,65 @@ describe('canonical conversation auxiliary selector', () => {
     })
   })
 
+  test('maps a pending hook trust interaction into the shared approval card model', () => {
+    const page: CanonicalThreadPage = {
+      thread: {
+        id: 'thread-hook',
+        projectID: null,
+        title: 'Hook trust',
+        gitBranch: null,
+        settings: { taskMode: 'chat', permissionConfig },
+        createdAt: 1,
+        updatedAt: 2,
+      },
+      subagents: [],
+      turns: [],
+      queue: { version: 0, pauseReason: null, turns: [], inputs: [] },
+      pendingHookTrusts: [{
+        interactionId: 'hook-trust-1',
+        threadId: 'thread-hook',
+        turnId: 'turn-hook',
+        agentId: 'agent-hook',
+        createdAt: 2,
+        version: 1,
+        kind: 'hookTrust',
+        configPath: '.codepilotx/hooks.json',
+        sha256: 'fixture-sha256',
+        hook: {
+          id: 'hook-1',
+          name: 'Pre tool hook',
+          event: 'pre-tool',
+          command: 'fixture-command',
+        },
+      }],
+      olderCursor: null,
+      hasOlder: false,
+      streamPosition: { streamId: 'thread-hook', sequence: 2 },
+    }
+
+    const result = selectCanonicalConversationAuxiliaryState(
+      createCanonicalThreadState(page),
+    )
+
+    expect(result.pendingPermissions).toEqual([expect.objectContaining({
+      requestId: 'hook-trust-1',
+      toolName: 'HookTrust',
+      description: '项目 Hook“Pre tool hook”请求信任，是否允许？',
+      input: expect.objectContaining({
+        configPath: '.codepilotx/hooks.json',
+        configSha256: 'fixture-sha256',
+      }),
+    })])
+  })
+
   test('returns an empty projection before canonical history is ready', () => {
     const result = selectCanonicalConversationAuxiliaryState(null)
     expect(result).toEqual({
       hasConversationMessages: false,
       pendingPermissions: [],
       contextUsage: null,
+      queuedFollowUps: [],
+      queuePauseReason: null,
       sourceLinks: [],
       fallbackTitle: null,
     })

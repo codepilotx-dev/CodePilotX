@@ -47,6 +47,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE prompt_session_state (\n          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          baseline_version INTEGER NOT NULL DEFAULT 1,\n          prompt_version TEXT NOT NULL,\n          base_hash TEXT NOT NULL,\n          context_hash TEXT NOT NULL,\n          cache_key TEXT NOT NULL,\n          fragments TEXT NOT NULL DEFAULT '[]',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        , context_window_tokens INTEGER NOT NULL DEFAULT 0, usage_tokens INTEGER NOT NULL DEFAULT 0, usage_source TEXT NOT NULL DEFAULT 'estimated', usage_sample_id TEXT, needs_compaction INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE provider_settings (\n        provider_id TEXT PRIMARY KEY,\n        payload TEXT NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE question_requests (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        tool_call_id TEXT,\n        payload TEXT NOT NULL,\n        payload_version INTEGER NOT NULL DEFAULT 1,\n        status TEXT NOT NULL,\n        answer TEXT,\n        created_at INTEGER NOT NULL,\n        resolved_at INTEGER\n      )",
+  "CREATE TABLE resume_checkpoint_leases (\n        turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        checkpoint_kind TEXT NOT NULL CHECK(checkpoint_kind IN ('permission','question','hook-trust','subagent-wait')),\n        checkpoint_payload TEXT NOT NULL,\n        permission_grant TEXT,\n        consumer TEXT CHECK(consumer IN ('main','subagent')),\n        lease_id TEXT UNIQUE,\n        status TEXT NOT NULL CHECK(status IN ('available','acquired','completed','interrupted')),\n        created_at INTEGER NOT NULL,\n        acquired_at INTEGER,\n        completed_at INTEGER,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE queue_operations (\n          operation_id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          method TEXT NOT NULL,\n          event_id INTEGER REFERENCES events(id) ON DELETE SET NULL,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE review_comments (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n          source_key TEXT NOT NULL,\n          path TEXT NOT NULL,\n          side TEXT NOT NULL CHECK(side IN ('old', 'new')),\n          line INTEGER NOT NULL CHECK(line > 0),\n          hunk_id TEXT,\n          revision TEXT NOT NULL,\n          body TEXT NOT NULL,\n          status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'resolved')),\n          github_comment_id TEXT,\n          github_thread_id TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE sandbox_escalations (\n      token TEXT PRIMARY KEY,\n      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n      turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n      agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n      tool_call_id TEXT NOT NULL,\n      invocation TEXT NOT NULL,\n      invocation_hash TEXT NOT NULL DEFAULT '',\n      failure TEXT NOT NULL,\n      status TEXT NOT NULL,\n      output TEXT,\n      created_at INTEGER NOT NULL,\n      claimed_at INTEGER,\n      completed_at INTEGER\n    )",
@@ -94,6 +95,7 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX project_operations_status ON project_operations(status, created_at)",
   "CREATE INDEX review_comments_scope\n          ON review_comments(thread_id, project_id, source_key, updated_at)",
   "CREATE INDEX sandbox_escalations_turn_status ON sandbox_escalations(turn_id, status, created_at)",
+  "CREATE INDEX resume_checkpoint_leases_status ON resume_checkpoint_leases(status, updated_at)",
   "CREATE INDEX subagent_controls_pending ON subagent_controls(run_id, status, created_at)",
   "CREATE INDEX subagent_runs_status_created ON subagent_runs(status, created_at)",
   "CREATE INDEX subagent_tasks_parent_updated ON subagent_tasks(parent_thread_id, updated_at DESC)",
@@ -656,6 +658,27 @@ const migrateHistory25To26 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory26To27 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS resume_checkpoint_leases (
+      turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+      checkpoint_kind TEXT NOT NULL CHECK(checkpoint_kind IN ('permission','question','hook-trust','subagent-wait')),
+      checkpoint_payload TEXT NOT NULL,
+      permission_grant TEXT,
+      consumer TEXT CHECK(consumer IN ('main','subagent')),
+      lease_id TEXT UNIQUE,
+      status TEXT NOT NULL CHECK(status IN ('available','acquired','completed','interrupted')),
+      created_at INTEGER NOT NULL,
+      acquired_at INTEGER,
+      completed_at INTEGER,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS resume_checkpoint_leases_status
+      ON resume_checkpoint_leases(status, updated_at);
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -752,6 +775,7 @@ class SchemaInitializer {
           23: () => migrateHistory23To24(this.sqlite),
           24: () => migrateHistory24To25(this.sqlite),
           25: () => migrateHistory25To26(this.sqlite),
+          26: () => migrateHistory26To27(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

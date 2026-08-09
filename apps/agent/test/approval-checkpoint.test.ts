@@ -1,16 +1,20 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
+import { Schema } from "effect"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { EventManifest } from "@codepilotx/agent-protocol"
 import { removeFixturePaths } from "./fixture-cleanup"
 import type { ToolInvocation } from "../src/domain"
 import { ApprovalService } from "../src/permission/ApprovalService"
 import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { recoverInterruptedRuns } from "../src/storage/recovery/interrupted-run-recovery"
 import { EventHub } from "../src/storage/events/EventHub"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { pausedSubagentStatus } from "../src/subagent/SubagentService"
+import { InteractionService } from "../src/interaction/InteractionService"
 
 const paths: string[] = []
 const databases: AgentDatabase[] = []
@@ -122,6 +126,38 @@ describe("可恢复审批 checkpoint", () => {
     expect(requestRow.request_payload).not.toContain("raw-patch-body")
   })
 
+  test("审批 durable resolution 后 live publish 失败不回滚响应", async () => {
+    const path = join(tmpdir(), `codepilotx-approval-publish-${crypto.randomUUID()}.sqlite`)
+    paths.push(path)
+    const db = new AgentDatabase(path)
+    databases.push(db)
+    const { thread, turn, input } = setup(db)
+    const tools = new ToolRegistry()
+    const invocation: ToolInvocation = {
+      id: "tool-publish-failure",
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      name: "PowerShell",
+      input: { command: "npm test" },
+      permissionConfig: input.permissionConfig,
+      model: input.model,
+      taskMode: "chat",
+      durableApproval: true,
+    }
+    const resolution = new PermissionDecisionEngine().evaluate(invocation, tools.get("PowerShell"))
+    if (resolution.action !== "review") throw new Error("测试需要 review 决策")
+    const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
+    const prepared = service.prepare(invocation, { decision: "ask", risk: "high", reason: "需要确认" }, resolution)
+    service.persist(prepared)
+    await service.attachRunState(invocation.id, "run-state", { callId: invocation.id })
+
+    const failingHub = { publish: () => Effect.fail(new Error("subscriber unavailable")) } as unknown as EventHub
+    const responder = new ApprovalService(db, failingHub, tools)
+    await expect(responder.respond(prepared.approvalID, "allow")).resolves.toMatchObject({ status: "resolved" })
+    expect(db.getApprovalCheckpoint(prepared.approvalID)?.status).toBe("resolved")
+  })
+
   test("审批跨重启加载、响应并且只能 claim 一次", async () => {
     const path = join(tmpdir(), `codepilotx-approval-${crypto.randomUUID()}.sqlite`)
     paths.push(path)
@@ -204,6 +240,7 @@ describe("可恢复审批 checkpoint", () => {
 
     db = new AgentDatabase(path)
     databases.push(db)
+    recoverInterruptedRuns(db)
     expect(db.sqlite.query("SELECT status FROM approval_requests WHERE id = 'restart-legacy'").get()).toEqual({ status: "cancelled" })
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "interrupted" })
     expect(db.sqlite.query("SELECT method FROM events WHERE method = 'approval/cancelled' AND turn_id = ?").get(turn.turnID)).toEqual({ method: "approval/cancelled" })
@@ -351,6 +388,7 @@ describe("可恢复审批 checkpoint", () => {
     db.close()
     db = new AgentDatabase(path)
     databases.push(db)
+    recoverInterruptedRuns(db)
     expect(db.getSandboxEscalation(escalation.token)?.status).toBe("cancelled")
   })
 
@@ -399,10 +437,34 @@ describe("可恢复审批 checkpoint", () => {
     const reused = db.ensureHookTrustRequest({ ...trust, threadID: secondThread.id, turnID: second.turnID })
     expect(reused.request.id).toBe(initial.request.id)
     const reusedEvent = db.sqlite.query("SELECT params FROM events WHERE thread_id = ? AND method = 'hook/trust/requested'").get(secondThread.id) as { params: string }
-    expect(JSON.parse(reusedEvent.params)).toMatchObject({ reused: true })
+    const requestedPayload = JSON.parse(reusedEvent.params)
+    expect(requestedPayload).toMatchObject({
+      interactionId: initial.request.id,
+      threadId: secondThread.id,
+      turnId: second.turnID,
+      agentId: second.agentID,
+      kind: "hookTrust",
+      sha256: "same-hash",
+    })
+    expect(() => Schema.decodeUnknownSync(EventManifest["hook/trust/requested"].payload)(requestedPayload)).not.toThrow()
     expect(db.ensureHookTrustRequest({ ...trust, threadID: secondThread.id, turnID: second.turnID }).event).toBeNull()
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE method = 'hook/trust/requested'").get()).toEqual({ count: 2 })
+    const interactionService = new InteractionService({ db } as never)
+    expect(interactionService.listPending({ threadId: secondThread.id }).interactions).toEqual([
+      expect.objectContaining({
+        interactionId: initial.request.id,
+        threadId: secondThread.id,
+        turnId: second.turnID,
+        agentId: second.agentID,
+      }),
+    ])
+    expect(interactionService.listPending({}).interactions.filter((interaction) => interaction.kind === "hookTrust")).toHaveLength(2)
     expect(db.resolveHookTrustRequest(initial.request.id, "allow").resumed).toHaveLength(2)
+    const resolvedEvents = db.sqlite.query("SELECT params FROM events WHERE method = 'hook/trust/resolved'").all() as Array<{ params: string }>
+    expect(resolvedEvents).toHaveLength(2)
+    for (const event of resolvedEvents) {
+      expect(() => Schema.decodeUnknownSync(EventManifest["hook/trust/resolved"].payload)(JSON.parse(event.params))).not.toThrow()
+    }
   })
 
   test("Turn 在 preparing 阶段停止会持久取消审批", async () => {

@@ -322,7 +322,9 @@ test.describe("真实 Electron 宿主", () => {
       await page.evaluate(nextRoute => {
         location.hash = `#${nextRoute}`
       }, route)
-      await expect.poll(() => page.evaluate(() => location.hash)).toBe(`#${route}`)
+      await expect
+        .poll(() => page.evaluate(() => location.hash.slice(1).split("?", 1)[0]))
+        .toBe(route)
     }
     await expect(
       page.getByRole("heading", { name: "这个页面不存在" }),
@@ -494,7 +496,7 @@ async function expectHostContract(page: Page): Promise<void> {
     hasDesktopBridge: true,
     hasEditBridge: true,
     hasNodeRequire: "undefined",
-    tokenCount: 117,
+    tokenCount: 121,
   })
 }
 

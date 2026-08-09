@@ -19,7 +19,10 @@ export async function startAgentServer(): Promise<void> {
 
   const url = `http://${server.hostname}:${server.port}`
   runtime.logger.info("agent.started", { host: server.hostname, port: server.port, pid: process.pid })
-  process.stdout.write(`${JSON.stringify({ type: "ready", port: server.port, url })}\n`)
+  const instanceToken = process.env.CODEPILOTX_DESKTOP_MANAGED === "1"
+    ? process.env.CODEPILOTX_SIDECAR_INSTANCE_TOKEN
+    : undefined
+  process.stdout.write(`${JSON.stringify({ type: "ready", port: server.port, url, ...(instanceToken ? { instanceToken } : {}) })}\n`)
 
   let closing = false
   const shutdown = async (exitCode = 0) => {

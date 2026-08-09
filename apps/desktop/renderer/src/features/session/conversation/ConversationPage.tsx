@@ -64,7 +64,7 @@ import { InputDialog } from "../../../components/ui/ConfirmationDialog.js";
 import { SkeletonBlock } from "../../../components/ui/Skeleton.js";
 import {
   loadConversationUiState,
-  saveConversationUiState,
+  patchConversationUiState,
 } from "../../layout/tabs/conversationUiState.js";
 import { CanonicalThreadView } from "../timeline/CanonicalThreadView.js";
 import { normalizePatchActionError } from "../timeline/patchActionError.js";
@@ -320,11 +320,9 @@ export function ConversationPage(): React.ReactNode {
 
     return () => {
       if (!sessionId) return;
-      const existing = loadConversationUiState(sessionId);
-      if (existing) {
-        existing.mainScrollTop = mainScrollTopRef.current;
-        saveConversationUiState(sessionId, existing);
-      }
+      patchConversationUiState(sessionId, {
+        mainScrollTop: mainScrollTopRef.current,
+      });
     };
   }, [activeSessionId]);
 
@@ -1084,6 +1082,8 @@ export function ConversationPage(): React.ReactNode {
           <DesktopComposer
             {...composerProps}
             contextUsage={canonicalAuxiliary.contextUsage}
+            queuedFollowUps={canonicalAuxiliary.queuedFollowUps}
+            queuePauseReason={canonicalAuxiliary.queuePauseReason}
             hasConversationMessages={
               canonicalAuxiliary.hasConversationMessages
             }
