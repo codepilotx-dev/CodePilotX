@@ -503,47 +503,6 @@ export function ConversationPage(): React.ReactNode {
     };
   }, []);
   React.useEffect(() => {
-    const composerEl = composerTransition.ref.current;
-    const pageEl = workflowPageRef.current;
-    if (!composerEl || !pageEl) return;
-
-    let animationFrame = 0;
-    let lastWidth = 0;
-
-    const updateDimensions = (): void => {
-      const rect = composerEl.getBoundingClientRect();
-      if (Math.abs(rect.width - lastWidth) < 0.5) return;
-      lastWidth = rect.width;
-      pageEl.style.setProperty("--workflow-composer-width", `${rect.width}px`);
-    };
-
-    const scheduleUpdateDimensions = (): void => {
-      if (animationFrame) return;
-      animationFrame = window.requestAnimationFrame(() => {
-        animationFrame = 0;
-        updateDimensions();
-      });
-    };
-
-    updateDimensions();
-
-    let observer: ResizeObserver | null = null;
-    try {
-      observer = new ResizeObserver(scheduleUpdateDimensions);
-      observer.observe(composerEl);
-    } catch {
-      // ResizeObserver not available; CSS fallback handles dimension variables
-    }
-
-    return () => {
-      if (animationFrame) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-      observer?.disconnect();
-    };
-  }, [composerProps, composerTransition.ref, workflowPageRef]);
-
-  React.useEffect(() => {
     let mounted = true;
     void desktopClient
       .listOpenTargets()
@@ -1048,14 +1007,7 @@ export function ConversationPage(): React.ReactNode {
       <ComposerFrame
         ref={composerTransition.ref}
         className="workflow-page__composer-inner"
-        style={{
-          ...composerTransition.style,
-          maxWidth:
-            threadSummary.displayMode === "shift" &&
-            threadSummary.shouldShowInline
-              ? "var(--session-content-w)"
-              : undefined,
-        }}
+        style={composerTransition.style}
       >
         {showComposerStatusSummary ? (
           <ComposerChangeSummary
@@ -1195,11 +1147,6 @@ export function ConversationPage(): React.ReactNode {
             threadSummary.shouldShowInline || undefined
           }
           data-thread-summary-mode={threadSummary.displayMode}
-          style={
-            {
-              "--thread-summary-content-shift": `${threadSummary.contentShift}px`,
-            } as React.CSSProperties
-          }
         >
           <div className="workflow-main-scroll-frame">
             <ConversationTurnNavRail

@@ -3095,6 +3095,7 @@ export function DesktopLayout(): React.ReactNode {
                     <WorkbenchPanelPresence
                       fullWidth={rightDockFullWidth}
                       mainRouteRef={mainRouteRef}
+                      minSize={rightDockMinWidth}
                       size={
                         rightDockFullWidth
                           ? Math.max(workspaceWidth, rightDockWidth)
@@ -3108,6 +3109,7 @@ export function DesktopLayout(): React.ReactNode {
                   </div>
                   <WorkbenchPanelPresence
                     mainRouteRef={mainRouteRef}
+                    minSize={bottomPanelMinHeight}
                     size={bottomPanelHeight}
                     target="bottom"
                     visible={bottomPanelVisible}

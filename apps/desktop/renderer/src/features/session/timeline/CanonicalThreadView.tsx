@@ -330,6 +330,7 @@ function CanonicalThreadViewComponent({
     <div
       className="canonical-thread-view"
       data-canonical-thread-id={threadId}
+      data-canonical-turn-count={turns.length}
     >
       {hasOlder ? (
         <div className="canonical-history-control">
@@ -401,7 +402,7 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   return (
     <div
       ref={rowRef}
-      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:max-w-[48rem] tw:min-w-0"
+      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:min-w-0"
       data-component="conversation-turn"
       data-turn-navigation-id={entry.id}
     >

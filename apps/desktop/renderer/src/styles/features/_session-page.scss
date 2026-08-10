@@ -505,9 +505,8 @@
 /* --- Conversation page --- */
 .conversation-page {
   --session-content-inline-gutter: var(--layout-page-pad-x, 32px);
-  --session-content-w: min(
-    var(--layout-content-w, 760px),
-    calc(100% - (var(--session-content-inline-gutter) * 2))
+  --session-content-w: calc(
+    100% - (var(--session-content-inline-gutter) * 2)
   );
 
   display: flex;
@@ -536,7 +535,9 @@
   .chat-composer > .inline-approval-card,
   .chat-composer > .composer,
   .chat-composer > .composer-change-summary {
-    max-width: min(var(--layout-content-w, 760px), calc(100% - 40px));
+    width: var(--session-content-w);
+    min-width: 0;
+    max-width: none;
   }
 
   .chat-composer > .composer,

@@ -2,7 +2,7 @@ import type React from 'react'
 import {
   AnimatePresence,
   motion,
-  useIsPresent,
+  usePresence,
 } from 'motion/react'
 import {
   createContext,
@@ -27,6 +27,7 @@ type Props = {
   children: React.ReactNode
   fullWidth?: boolean
   mainRouteRef: React.RefObject<HTMLDivElement | null>
+  minSize: number
   size: number
   target: WorkbenchPanelTarget
   visible: boolean
@@ -51,6 +52,7 @@ export function WorkbenchPanelPresence({
   children,
   fullWidth = false,
   mainRouteRef,
+  minSize,
   size,
   target,
   visible,
@@ -64,6 +66,7 @@ export function WorkbenchPanelPresence({
           key={target}
           fullWidth={fullWidth}
           mainRouteRef={mainRouteRef}
+          minSize={minSize}
           size={size}
           skipEnterAnimation={initiallyVisibleRef.current}
           target={target}
@@ -79,6 +82,7 @@ function WorkbenchPanelPresenceItem({
   children,
   fullWidth,
   mainRouteRef,
+  minSize,
   size,
   skipEnterAnimation,
   target,
@@ -86,7 +90,7 @@ function WorkbenchPanelPresenceItem({
   skipEnterAnimation: boolean
 }): React.ReactNode {
   const reducedMotion = usePrefersReducedMotion()
-  const isPresent = useIsPresent()
+  const [isPresent, safeToRemove] = usePresence()
   const shellRef = useRef<HTMLDivElement>(null)
   const [entryComplete, setEntryComplete] = useState(skipEnterAnimation)
   const isBottom = target === 'bottom'
@@ -102,6 +106,12 @@ function WorkbenchPanelPresenceItem({
   const hiddenState = isBottom
     ? { height: 0, opacity: 0, y: 8 }
     : { opacity: 0, width: 0, x: 8 }
+  const spacerVisibleState = isBottom ? { height: size } : { width: size }
+  const spacerHiddenState = isBottom ? { height: 0 } : { width: 0 }
+  const enforcedMinSize = isPresent && entryComplete ? minSize : 0
+  const liveSizeStyle = isBottom
+    ? { height: liveSize, minHeight: enforcedMinSize }
+    : { minWidth: enforcedMinSize, width: liveSize }
 
   useLayoutEffect(() => {
     if (isPresent) return
@@ -120,41 +130,66 @@ function WorkbenchPanelPresenceItem({
     setEntryComplete(true)
   }, [isPresent, reducedMotion])
 
+  useEffect(() => {
+    if (isPresent || !safeToRemove) return
+    const timeout = window.setTimeout(
+      safeToRemove,
+      reducedMotion ? 0 : (fastTween.duration as number) * 1_000,
+    )
+    return () => window.clearTimeout(timeout)
+  }, [isPresent, reducedMotion, safeToRemove])
+
   return (
     <WorkbenchPanelResizePreviewContext.Provider value={resizePreviewContext}>
       <motion.div
+        aria-hidden="true"
+        animate={isPresent
+          ? spacerVisibleState
+          : {
+              ...spacerHiddenState,
+              transition: motionTransition(reducedMotion, fastTween),
+            }}
+        className={[
+          'desktop-workspace-panel-spacer',
+          `desktop-workspace-panel-spacer--${target === 'right' ? 'right' : 'bottom'}`,
+          fullWidth ? 'full-width' : '',
+        ].filter(Boolean).join(' ')}
+        initial={skipEnterAnimation ? false : spacerHiddenState}
+        style={liveSizeStyle}
+        transition={motionTransition(
+          reducedMotion,
+          entryComplete ? instantTween : standardTween,
+        )}
+      />
+      <motion.div
         ref={shellRef}
         aria-hidden={!isPresent ? true : undefined}
-        animate={visibleState}
+        animate={isPresent
+          ? visibleState
+          : {
+              ...hiddenState,
+              transition: motionTransition(reducedMotion, fastTween),
+            }}
         className={[
           'desktop-workspace-panel',
           `desktop-workspace-panel--${target === 'right' ? 'right' : 'bottom'}`,
           fullWidth ? 'full-width' : '',
         ].filter(Boolean).join(' ')}
         data-workbench-panel-presence={isPresent ? 'open' : 'exiting'}
-        exit={{
-          ...hiddenState,
-          transition: motionTransition(reducedMotion, fastTween),
-        }}
         initial={skipEnterAnimation ? false : hiddenState}
         inert={!isPresent ? true : undefined}
         onAnimationComplete={() => {
           if (isPresent) setEntryComplete(true)
         }}
-        style={isBottom ? { height: liveSize } : { width: liveSize }}
+        style={liveSizeStyle}
         transition={motionTransition(
           reducedMotion,
           entryComplete ? instantTween : standardTween,
         )}
       >
-        <motion.div
-          className="desktop-workspace-panel__surface"
-          style={isBottom
-            ? { height: liveSize, minHeight: liveSize }
-            : { minWidth: liveSize, width: liveSize }}
-        >
+        <div className="desktop-workspace-panel__surface">
           {children}
-        </motion.div>
+        </div>
       </motion.div>
     </WorkbenchPanelResizePreviewContext.Provider>
   )

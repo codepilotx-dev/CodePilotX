@@ -33,9 +33,16 @@
   width: 100%;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
   overscroll-behavior: contain;
   overflow-anchor: none;
   scroll-padding-block-end: var(--thread-scroll-padding-bottom);
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 }
 
 .thread-scroll-layout__inner {
@@ -109,8 +116,8 @@
 
 .session-timeline-container {
   min-width: 0;
-  width: var(--session-content-w, min(var(--layout-content-w, 48rem), 100%));
-  max-width: 100%;
+  width: var(--session-content-w, 100%);
+  max-width: none;
   position: relative;
 }
 
@@ -131,7 +138,6 @@
 
 .session-turn-row {
   padding: 7px 0;
-  container-type: inline-size;
 }
 
 .session-turn-row + .session-turn-row {

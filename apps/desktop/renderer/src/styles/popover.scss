@@ -3,7 +3,8 @@
   --popover-default-max-width: min(360px, calc(100vw - 16px));
   --popover-surface-radius: 12px;
   --popover-surface-padding: var(--menu-surface-padding);
-  --popover-surface-shadow: var(--shadow-float);
+  --popover-surface-shadow:
+    color-mix(in srgb, black 6.27%, transparent) 0px 0px 4px;
 }
 
 .popover-surface,

@@ -559,6 +559,8 @@
 
 /* Transparent placement frame; ComposerStack owns its nested surfaces. */
 .composer-frame {
+  width: 100%;
+  min-width: 0;
   container-type: inline-size;
   transition: height var(--motion-emphasis) var(--ease-standard);
 

@@ -236,6 +236,7 @@
   transform: translateX(-50%);
 }
 
+.conversation-page .md-wide-block,
 .right-dock .md-wide-block,
 .workflow-composer-card .md-wide-block {
   left: auto;
@@ -321,12 +322,14 @@
 }
 
 .md-table-scroll {
-  overflow-x: auto;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .md-table-block table {
   width: 100%;
-  min-width: 32rem;
+  min-width: 0;
+  table-layout: fixed;
   border-top: 1px solid var(--color-token-border);
   border-bottom: 1px solid var(--color-token-border);
   border-collapse: collapse;
@@ -344,10 +347,14 @@
 
 .md-table-block th,
 .md-table-block td {
+  min-width: 0;
   padding: 12px 18px;
   border: 0;
   text-align: center;
   vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .md-table-block th {
@@ -365,6 +372,13 @@
 
 .md-table-block tr:last-child td {
   border-bottom: 0;
+}
+
+@container (max-width: 520px) {
+  .md-table-block th,
+  .md-table-block td {
+    padding-inline: 10px;
+  }
 }
 
 .md-media-grid {

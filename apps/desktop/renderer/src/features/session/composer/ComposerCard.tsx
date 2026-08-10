@@ -1131,7 +1131,7 @@ export function ComposerCard({
 
   return (
     <div
-      className="composer-stack tw:relative tw:flex tw:w-full tw:max-w-[48rem] tw:flex-col tw:overflow-hidden"
+      className="composer-stack tw:relative tw:flex tw:w-full tw:flex-col tw:overflow-hidden"
       data-placement={placement}
       data-surface={surface}
       aria-busy={submitting}

@@ -77,7 +77,9 @@
 
 /* --- Workflow plan card --- */
 .workflow-plan-card {
-  width: var(--workflow-composer-width, var(--layout-content-w));
+  width: 100%;
+  min-width: 0;
+  max-width: none;
   display: flex;
   flex-direction: column;
   gap: 10px;
