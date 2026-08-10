@@ -9,12 +9,20 @@
 
 ### Changed
 
+- [renderer] 统一线程摘要、下拉菜单、上下文菜单和 Popover 的轻量黑色阴影，提升浮层与背景之间的层次感
+- [renderer] 统一计划更新等生命周期状态与命令摘要的内容宽度和左侧对齐方式
+- [renderer] 隐藏会话主滚动区的滚动条外观，同时保留滚轮、触控板和键盘滚动能力
+- [renderer] 移除会话轮次与 Composer 的 48rem 最大宽度限制，使内容随会话主区完整铺开
+- [renderer] 统一会话工作台右栏与底栏的定位占位层级，使拖拽时主区、面板内容、Markdown 与 Composer 实时重排，并补齐宽内容折行和最小尺寸保护
 - [Agent/desktop/renderer] 统一执行与恢复纵切面：history schema 27 增加 durable resume lease，main/subagent 共享 interaction 恢复入口，Renderer 改为 canonical 批量单写者并在应用提交后确认事件位置
 - [Agent/renderer] 统一 thread snapshot、history、queue 的 SQLite read fence 与 SSE cursor authority，事件以 256 条或 50ms 批量提交、1024 条有界积压并在消费失败后从已提交位置重新对账
 - [release/docs] 后续 GitHub Release 统一改为 source-only：标签流水线使用 GitHub-hosted runner，仅发布 CHANGELOG 正文与 GitHub 自动生成的源码归档，不再依赖自托管签名 runner 或上传 Windows 安装包、更新元数据、校验和及 SBOM；README 改为指导 Windows x64 使用者自行打包
 
 ### Fixed
 
+- [renderer] 修复任务侧栏 Footer 覆盖滚动内容的问题，使设置与状态区域固定在独立布局空间并保证最后一项完整可见
+- [renderer] 优化工作台各类面板在高刷新率下的实时拖拽，消除会话逐像素重渲染、重复滚动测量和 Review 全量行高同步
+- [renderer] 修复 React StrictMode 重放导致 canonical 会话投影协调器提前停止、会话页无法加载的问题
 - [Agent] 修复审批、提问、Hook 信任、子 Agent 等待与启动恢复在崩溃窗口中可能重复执行、永久等待或因 live publish 失败阻断 continuation 的问题
 - [desktop] 修复 owned Agent sidecar 的旧 generation 晚回调、并发退出和残留进程可能污染重连的问题，增加实例身份校验及 shutdown、SIGTERM、进程树确认的严格退出链路
 - [desktop] 修复外观设置 IPC 只广播但未原子落盘，导致桌面重启后主题、字体、动效和指针偏好恢复默认值的问题
