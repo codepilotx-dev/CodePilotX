@@ -51,7 +51,6 @@
 }
 
 .desktop-sidebar {
-  --sidebar-footer-height: 0px;
   --sidebar-padding-x: 8px;
   --sidebar-item-gap: 10px;
   --sidebar-row-pad-y: var(--control-padding-block-compact);
@@ -210,43 +209,23 @@
 }
 
 .sidebar-scroll-area {
-  --sidebar-footer-edge: calc(100% - var(--sidebar-footer-height));
-  --sidebar-footer-fade-distance: 40px;
-  --sidebar-footer-fade-start: calc(
-    var(--sidebar-footer-edge) - var(--sidebar-footer-fade-distance)
-  );
-
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  scroll-padding-bottom: calc(var(--sidebar-footer-height) + 8px);
+  scroll-padding-bottom: 8px;
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
     black 8px,
-    black var(--sidebar-footer-fade-start),
-    color-mix(in srgb, black 88%, transparent)
-      calc(var(--sidebar-footer-edge) - 24px),
-    color-mix(in srgb, black 52%, transparent)
-      calc(var(--sidebar-footer-edge) - 12px),
-    color-mix(in srgb, black 18%, transparent)
-      calc(var(--sidebar-footer-edge) - 4px),
-    transparent var(--sidebar-footer-edge),
+    black calc(100% - 8px),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
     black 8px,
-    black var(--sidebar-footer-fade-start),
-    color-mix(in srgb, black 88%, transparent)
-      calc(var(--sidebar-footer-edge) - 24px),
-    color-mix(in srgb, black 52%, transparent)
-      calc(var(--sidebar-footer-edge) - 12px),
-    color-mix(in srgb, black 18%, transparent)
-      calc(var(--sidebar-footer-edge) - 4px),
-    transparent var(--sidebar-footer-edge),
+    black calc(100% - 8px),
     transparent 100%
   );
   -webkit-mask-repeat: no-repeat;
@@ -278,7 +257,7 @@
 
 .sidebar-scroll-content {
   min-width: 0;
-  padding-bottom: calc(var(--sidebar-footer-height) + 8px);
+  padding-bottom: 8px;
 }
 
 .sidebar-row,
@@ -1159,10 +1138,7 @@
 }
 
 .sidebar-footer {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 8px;
-  z-index: 20;
+  flex: 0 0 auto;
   min-width: 0;
   min-height: 40px;
   padding-top: 7px;
