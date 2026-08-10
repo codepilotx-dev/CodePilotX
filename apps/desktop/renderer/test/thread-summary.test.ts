@@ -2,9 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import {
   deriveThreadSummaryState,
-  resolveThreadSummaryContentShift,
   resolveThreadSummaryDisplayMode,
-  THREAD_SUMMARY_SHIFT_PX,
+  resolveThreadSummaryDisplayModeUpdate,
   toggleThreadSummaryPreference,
   transitionThreadSummaryMode,
 } from "../src/features/session/summary/threadSummaryState.js";
@@ -23,20 +22,16 @@ describe("thread summary state", () => {
     expect(resolveThreadSummaryDisplayMode(Number.NaN)).toBe("overlay");
   });
 
-  test("derives inline visibility and a gap-aware content shift", () => {
-    expect(
-      deriveThreadSummaryState(960, {
-        isPinned: true,
-        isPopoverOpen: false,
-      }),
-    ).toMatchObject({
+  test("reserves inline space only for a pinned summary outside overlay mode", () => {
+    const inlineState = deriveThreadSummaryState(960, {
+      isPinned: true,
+      isPopoverOpen: false,
+    });
+    expect(inlineState).toMatchObject({
       displayMode: "shift",
       shouldShowInline: true,
-      contentShift: THREAD_SUMMARY_SHIFT_PX,
     });
-    expect(THREAD_SUMMARY_SHIFT_PX).toBe(-144);
-    expect(resolveThreadSummaryContentShift(1043)).toBe(-102.5);
-    expect(resolveThreadSummaryContentShift(1248)).toBe(0);
+    expect(inlineState).not.toHaveProperty("contentShift");
 
     expect(
       deriveThreadSummaryState(1536, {
@@ -46,7 +41,6 @@ describe("thread summary state", () => {
     ).toMatchObject({
       displayMode: "gutter",
       shouldShowInline: true,
-      contentShift: 0,
     });
     expect(
       deriveThreadSummaryState(960, {
@@ -55,8 +49,29 @@ describe("thread summary state", () => {
       }),
     ).toMatchObject({
       shouldShowInline: false,
-      contentShift: 0,
     });
+    expect(
+      deriveThreadSummaryState(959, {
+        isPinned: true,
+        isPopoverOpen: false,
+      }),
+    ).toMatchObject({
+      displayMode: "overlay",
+      shouldShowInline: false,
+    });
+  });
+
+  test("updates React state only when a resize crosses a display mode boundary", () => {
+    let mode = resolveThreadSummaryDisplayMode(700);
+    let updates = 0;
+    for (let width = 701; width <= 1700; width += 1) {
+      const nextMode = resolveThreadSummaryDisplayModeUpdate(mode, width);
+      if (nextMode === null) continue;
+      mode = nextMode;
+      updates += 1;
+    }
+    expect(updates).toBe(2);
+    expect(mode).toBe("gutter");
   });
 
   test("toggles popover on narrow content and pinning on wide content", () => {

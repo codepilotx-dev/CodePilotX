@@ -170,6 +170,12 @@ export async function measurePerformanceThreadSwitch(
           && getComputedStyle(node).visibility !== 'hidden',
         )
       }
+      const readyThread = (index: number, expectedTurns: number): boolean =>
+        document
+          .querySelector<HTMLElement>(
+            `[data-canonical-thread-id="${threadId(index)}"]`,
+          )
+          ?.dataset.canonicalTurnCount === String(expectedTurns)
       const startedAt = performance.now()
       let contentVisibleMs: number | null = null
       let staleVisibleMs: number | null = null
@@ -207,8 +213,7 @@ export async function measurePerformanceThreadSwitch(
         }
         if (
           contentVisibleMs !== null &&
-          document.querySelectorAll('[data-turn-navigation-item-id]').length ===
-            turns
+          readyThread(nextIndex, turns)
         ) {
           return {
             contentVisibleMs,
@@ -240,12 +245,11 @@ export async function waitForPerformanceThread(
     .locator(`[data-canonical-thread-id="${sessionId}"]`)
     .waitFor({ state: 'visible' })
   await page.locator('.composer-editor-content').waitFor()
-  await page.waitForFunction(
-    expected =>
-      document.querySelectorAll('[data-turn-navigation-item-id]').length ===
-      expected,
-    turnCount,
-  )
+  await page
+    .locator(
+      `[data-canonical-thread-id="${sessionId}"][data-canonical-turn-count="${turnCount}"]`,
+    )
+    .waitFor({ state: 'visible' })
 }
 
 export function nearestRankP95(values: readonly number[]): number {

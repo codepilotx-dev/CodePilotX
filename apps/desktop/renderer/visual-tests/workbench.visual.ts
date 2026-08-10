@@ -57,6 +57,24 @@ const MARKDOWN_TYPOGRAPHY_CASES = [
   { id: 'compact-dark', mode: 'dark', width: 960, height: 640 },
 ] as const
 
+test('canonical thread stays active through StrictMode effect replay', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+
+  await expect(
+    page.locator('[data-canonical-thread-id="visual-rich"]'),
+  ).toBeVisible()
+  await expect(
+    page.getByText('canonical thread ingestion coordinator 已停止。'),
+  ).toHaveCount(0)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+})
+
 for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
   test(`Markdown typography follows the Claude-like rhythm in ${visualCase.id}`, async ({
     page,
@@ -75,6 +93,13 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     await expect(
       page.getByText('已完成工作台结构梳理。', { exact: true }),
     ).toBeVisible()
+
+    if (visualCase.id === 'compact-dark') {
+      await page.getByRole('button', { name: '显示右侧面板' }).click()
+      await expect(
+        page.getByRole('complementary', { name: '右侧面板' }),
+      ).toBeVisible()
+    }
 
     const markdown = page.locator('.canonical-text-item--result > .md-body').first()
     await expect(markdown.getByRole('heading', { level: 1 })).toHaveText(
@@ -115,12 +140,44 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
       const listItem = style('li')
       const spacedListItem = style('ul > li + li')
       const codeBlock = style('.md-code-block:not(.md-table-block)')
+      const codePreElement = select<HTMLElement>(
+        '.md-code-block:not(.md-table-block) .md-code-pre',
+      )
       const codePre = style('.md-code-block:not(.md-table-block) .md-code-pre')
+      const tableScroll = select<HTMLElement>('.md-table-scroll')
       const table = style('.md-table-block table')
       const tableHeading = style('.md-table-block th')
       const lastTableHeading = style('.md-table-block th:last-child')
       const tableCell = style('.md-table-block td')
       const lastTableCell = style('.md-table-block td:last-child')
+      const longPathCell = Array.from(
+        element.querySelectorAll<HTMLElement>('.md-table-block td'),
+      ).find(cell =>
+        cell.textContent?.includes(
+          'WorkbenchPanelPresenceWithExtremelyLongUnbrokenFilename',
+        ),
+      )
+      if (!longPathCell) {
+        throw new Error('Missing long-path Markdown table fixture cell')
+      }
+      const longPathCellStyle = getComputedStyle(longPathCell)
+      const longPathCellVerticalPadding =
+        px(longPathCellStyle.paddingTop) + px(longPathCellStyle.paddingBottom)
+      const threadScroller = document.querySelector<HTMLElement>(
+        '[data-component="thread-scroll-layout"]',
+      )
+      const timeline = document.querySelector<HTMLElement>(
+        '.session-timeline-container',
+      )
+      const composer = document.querySelector<HTMLElement>(
+        '.workflow-page__composer-inner',
+      )
+      const mainRoute = document.querySelector<HTMLElement>(
+        '.desktop-main-route',
+      )
+      if (!threadScroller || !timeline || !composer || !mainRoute) {
+        throw new Error('Missing responsive conversation fixture element')
+      }
       const leadDescription = select<HTMLElement>('.md-lead-description')
       const leadTitle = style('.md-lead-description__title')
       const leadDetailElement = select<HTMLElement>(
@@ -145,9 +202,13 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         codeBlockMarginTop: px(codeBlock.marginTop),
         codePreFontSize: codePre.fontSize,
         codePreLineHeightRatio: px(codePre.lineHeight) / px(codePre.fontSize),
+        codePreClientWidth: codePreElement.clientWidth,
+        codePreOverflowX: codePre.overflowX,
         codePrePaddingBottomRatio: px(codePre.paddingBottom) / rootSize,
         codePrePaddingInlineRatio: px(codePre.paddingLeft) / rootSize,
         codePrePaddingTopRatio: px(codePre.paddingTop) / rootSize,
+        codePreScrollWidth: codePreElement.scrollWidth,
+        composerWidth: composer.getBoundingClientRect().width,
         documentClientWidth: document.documentElement.clientWidth,
         documentScrollWidth: document.documentElement.scrollWidth,
         h1BorderBottomWidth: h1.borderBottomWidth,
@@ -173,6 +234,14 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         listItemSiblingMarginTopRatio:
           px(spacedListItem.marginTop) / bodySize,
         listPaddingRatio: px(list.paddingLeft) / rootSize,
+        longPathCellClientWidth: longPathCell.clientWidth,
+        longPathCellContentHeight:
+          longPathCell.scrollHeight - longPathCellVerticalPadding,
+        longPathCellLineHeight: px(longPathCellStyle.lineHeight),
+        longPathCellOverflowWrap: longPathCellStyle.overflowWrap,
+        longPathCellScrollWidth: longPathCell.scrollWidth,
+        longPathCellWhiteSpace: longPathCellStyle.whiteSpace,
+        mainRouteWidth: mainRoute.getBoundingClientRect().width,
         paragraphMarginRatio: px(paragraph.marginTop) / bodySize,
         normalSoftBreakCount: normalSoftBreak.querySelectorAll('br').length,
         normalSoftBreakLeadDescriptionCount: normalSoftBreak.classList.contains(
@@ -205,6 +274,11 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         tablePaddingTop: px(tableCell.paddingTop),
         tableTextAlign: tableCell.textAlign,
         tableVerticalAlign: tableCell.verticalAlign,
+        tableWrapperClientWidth: tableScroll.clientWidth,
+        tableWrapperScrollWidth: tableScroll.scrollWidth,
+        threadClientWidth: threadScroller.clientWidth,
+        threadScrollWidth: threadScroller.scrollWidth,
+        timelineWidth: timeline.getBoundingClientRect().width,
       }
     })
 
@@ -246,25 +320,50 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.codePrePaddingInlineRatio).toBeCloseTo(1, 2)
     expect(metrics.codePrePaddingBottomRatio).toBeCloseTo(0.85, 2)
     expect(metrics.codePreFontSize).toBe('12px')
+    expect(metrics.codePreOverflowX).toBe('auto')
+    expect(metrics.codePreScrollWidth).toBeGreaterThan(
+      metrics.codePreClientWidth,
+    )
     expect(metrics.tableFontSizeRatio).toBeCloseTo(0.93, 2)
     expect(metrics.tableBorderRightWidth).toBe('0px')
     expect(metrics.tableHeadingFontWeight).toBe('600')
     expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(1.48, 2)
     expect(metrics.tableHeadingPaddingTop).toBe(12)
-    expect(metrics.tableHeadingPaddingRight).toBe(18)
+    const expectedTableInlinePadding =
+      visualCase.id === 'compact-dark' ? 10 : 18
+    expect(metrics.tableHeadingPaddingRight).toBe(expectedTableInlinePadding)
     expect(metrics.tableHeadingPaddingBottom).toBe(12)
-    expect(metrics.tableHeadingPaddingLeft).toBe(18)
+    expect(metrics.tableHeadingPaddingLeft).toBe(expectedTableInlinePadding)
     expect(metrics.tableHeadingTextAlign).toBe('center')
     expect(metrics.tableHeadingVerticalAlign).toBe('middle')
-    expect(metrics.tableLastHeadingPaddingRight).toBe(18)
+    expect(metrics.tableLastHeadingPaddingRight).toBe(
+      expectedTableInlinePadding,
+    )
     expect(metrics.tableLineHeightRatio).toBeCloseTo(1.56, 2)
     expect(metrics.tablePaddingTop).toBe(12)
-    expect(metrics.tablePaddingRight).toBe(18)
+    expect(metrics.tablePaddingRight).toBe(expectedTableInlinePadding)
     expect(metrics.tablePaddingBottom).toBe(12)
-    expect(metrics.tablePaddingLeft).toBe(18)
-    expect(metrics.tableLastCellPaddingRight).toBe(18)
+    expect(metrics.tablePaddingLeft).toBe(expectedTableInlinePadding)
+    expect(metrics.tableLastCellPaddingRight).toBe(expectedTableInlinePadding)
     expect(metrics.tableTextAlign).toBe('center')
     expect(metrics.tableVerticalAlign).toBe('middle')
+    expect(metrics.tableWrapperScrollWidth).toBeLessThanOrEqual(
+      metrics.tableWrapperClientWidth + 1,
+    )
+    expect(metrics.longPathCellScrollWidth).toBeLessThanOrEqual(
+      metrics.longPathCellClientWidth + 1,
+    )
+    expect(metrics.longPathCellContentHeight).toBeGreaterThan(
+      metrics.longPathCellLineHeight * 1.5,
+    )
+    expect(metrics.longPathCellWhiteSpace).toBe('normal')
+    expect(metrics.longPathCellOverflowWrap).toBe('anywhere')
+    expect(metrics.threadScrollWidth).toBeLessThanOrEqual(
+      metrics.threadClientWidth + 1,
+    )
+    expect(metrics.timelineWidth).toBeLessThanOrEqual(metrics.mainRouteWidth)
+    expect(metrics.composerWidth).toBeLessThanOrEqual(metrics.mainRouteWidth)
+    expect(metrics.composerWidth).toBeCloseTo(metrics.timelineWidth, 0)
     expect(metrics.documentScrollWidth).toBeLessThanOrEqual(
       metrics.documentClientWidth,
     )
@@ -555,7 +654,7 @@ test('session header aligns with the right panel and bottom panel spans the work
   expect(scrolledHeader!.height).toBeCloseTo(initialHeader!.height, 0)
 
   const bottomPanelButton = page.getByRole('button', {
-    name: '显示底部面板',
+    name: '打开集成终端 (Ctrl+`)',
   })
   const rightDockButton = page.getByRole('button', {
     name: '显示右侧面板',
@@ -610,17 +709,49 @@ test('session header aligns with the right panel and bottom panel spans the work
 
   await bottomPanelButton.click()
   const activeBottomPanelButton = page.getByRole('button', {
-    name: '隐藏底部面板',
+    name: '隐藏集成终端',
   })
   await expect(activeBottomPanelButton).toHaveAttribute('aria-pressed', 'true')
   const bottomPanelElement = page.getByRole('complementary', {
     name: '底部面板',
   })
+  const bottomPanelShell = page.locator('.desktop-workspace-panel--bottom')
+  const bottomPanelSurface = bottomPanelShell.locator(
+    '.desktop-workspace-panel__surface',
+  )
+  const bottomPanelSpacer = page.locator(
+    '.desktop-workspace-panel-spacer--bottom',
+  )
+  const bottomUpperRegion = page.locator('.desktop-workspace__upper')
   await expect(bottomPanelElement).toBeVisible()
   const bottomPanel = await bottomPanelElement.boundingBox()
   const workspace = await page.locator('.desktop-workspace').boundingBox()
+  const [bottomShellBox, bottomSurfaceBox, bottomSpacerBox, bottomUpperBox] =
+    await Promise.all([
+      bottomPanelShell.boundingBox(),
+      bottomPanelSurface.boundingBox(),
+      bottomPanelSpacer.boundingBox(),
+      bottomUpperRegion.boundingBox(),
+    ])
+  expect(bottomShellBox).not.toBeNull()
+  expect(bottomSurfaceBox).not.toBeNull()
+  expect(bottomSpacerBox).not.toBeNull()
+  expect(bottomUpperBox).not.toBeNull()
   expect(bottomPanel!.x).toBeCloseTo(workspace!.x, 0)
   expect(bottomPanel!.width).toBeCloseTo(workspace!.width, 0)
+  expect(bottomShellBox!.y + bottomShellBox!.height).toBeCloseTo(
+    workspace!.y + workspace!.height,
+    0,
+  )
+  expect(bottomSpacerBox!.y).toBeCloseTo(bottomShellBox!.y, 0)
+  expect(bottomSpacerBox!.height).toBeCloseTo(bottomShellBox!.height, 0)
+  expect(
+    Math.abs(bottomSurfaceBox!.height - bottomShellBox!.height),
+  ).toBeLessThanOrEqual(1)
+  await expect(bottomPanelShell).toHaveCSS('position', 'absolute')
+  await expect(bottomPanelSurface).toHaveCSS('display', 'flex')
+  await expect(bottomPanelSurface).toHaveCSS('flex-direction', 'column')
+  await expect(bottomPanelSurface).toHaveCSS('overflow', 'hidden')
   const bottomSeparator = page.getByRole('separator', {
     name: '调整底部面板高度',
   })
@@ -639,6 +770,40 @@ test('session header aligns with the right panel and bottom panel spans the work
   await expect
     .poll(async () => (await bottomPanelElement.boundingBox())?.height)
     .toBeGreaterThan(bottomPanel!.height + 48)
+  const [
+    liveBottomShellBox,
+    liveBottomSurfaceBox,
+    liveBottomSpacerBox,
+    liveBottomUpperBox,
+  ] = await Promise.all([
+    bottomPanelShell.boundingBox(),
+    bottomPanelSurface.boundingBox(),
+    bottomPanelSpacer.boundingBox(),
+    bottomUpperRegion.boundingBox(),
+  ])
+  expect(liveBottomShellBox).not.toBeNull()
+  expect(liveBottomSurfaceBox).not.toBeNull()
+  expect(liveBottomSpacerBox).not.toBeNull()
+  expect(liveBottomUpperBox).not.toBeNull()
+  expect(
+    Math.abs(liveBottomSurfaceBox!.height - liveBottomShellBox!.height),
+  ).toBeLessThanOrEqual(1)
+  expect(liveBottomSpacerBox!.height).toBeCloseTo(
+    liveBottomShellBox!.height,
+    0,
+  )
+  expect(liveBottomSpacerBox!.y).toBeCloseTo(liveBottomShellBox!.y, 0)
+  expect(liveBottomUpperBox!.height).toBeLessThan(
+    bottomUpperBox!.height - 48,
+  )
+  expect(bottomUpperBox!.height - liveBottomUpperBox!.height).toBeCloseTo(
+    liveBottomShellBox!.height - bottomShellBox!.height,
+    0,
+  )
+  expect(liveBottomShellBox!.y + liveBottomShellBox!.height).toBeCloseTo(
+    workspace!.y + workspace!.height,
+    0,
+  )
   await expect(page.locator('.workbench-resize-guide')).toHaveCount(0)
   await expect(
     bottomPanelElement.locator('.workbench-panel-content'),
@@ -689,7 +854,19 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await page.getByRole('button', { name: '显示右侧面板' }).click()
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
   const rightPanelShell = page.locator('.desktop-workspace-panel--right')
+  const rightPanelSurface = rightPanelShell.locator(
+    '.desktop-workspace-panel__surface',
+  )
+  const rightPanelSpacer = page.locator(
+    '.desktop-workspace-panel-spacer--right',
+  )
+  const mainRoute = page.locator('.desktop-main-route')
+  const upperRegion = page.locator('.desktop-workspace__upper')
   await expect(rightPanel).toBeVisible()
+  await expect(rightPanelShell).toHaveCSS('position', 'absolute')
+  await expect(rightPanelSurface).toHaveCSS('display', 'flex')
+  await expect(rightPanelSurface).toHaveCSS('flex-direction', 'column')
+  await expect(rightPanelSurface).toHaveCSS('overflow', 'hidden')
   await rightPanel.getByRole('button', { name: '审阅 Ctrl+Shift+G' }).click()
   const sourceMenu = await openAndAssertReviewSourceMenu(page, rightPanel)
   await page.keyboard.press('Escape')
@@ -710,6 +887,36 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect(
     smallDiffSection.locator('.review-codex-diff--virtual'),
   ).toHaveCount(0)
+  await expect(regularDiff.locator('[data-diff-sync-row]')).toHaveCount(0)
+  const splitRowAlignment = await regularDiff.evaluate(element => {
+    const leftRows = Array.from(
+      element.querySelectorAll<HTMLElement>(
+        ':scope > [data-deletions] > [data-content] > *',
+      ),
+    )
+    const rightRows = Array.from(
+      element.querySelectorAll<HTMLElement>(
+        ':scope > [data-additions] > [data-content] > *',
+      ),
+    )
+    return {
+      aligned: leftRows.every((row, index) => {
+        const peer = rightRows[index]
+        if (!peer) return false
+        const leftRect = row.getBoundingClientRect()
+        const rightRect = peer.getBoundingClientRect()
+        return (
+          Math.abs(leftRect.top - rightRect.top) <= 1
+          && Math.abs(leftRect.bottom - rightRect.bottom) <= 1
+        )
+      }),
+      leftCount: leftRows.length,
+      rightCount: rightRows.length,
+    }
+  })
+  expect(splitRowAlignment.leftCount).toBeGreaterThan(0)
+  expect(splitRowAlignment.rightCount).toBe(splitRowAlignment.leftCount)
+  expect(splitRowAlignment.aligned).toBe(true)
   await expect
     .poll(async () => rightPanel.locator('.review-diff-word').count())
     .toBeGreaterThan(0)
@@ -801,7 +1008,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     )
   expect(gitStatusColors).toHaveLength(3)
   await reviewFileTree
-    .getByRole('button', { name: /WorkspaceReviewDiff\.tsx/ })
+    .getByRole('treeitem', { name: /WorkspaceReviewDiff\.tsx/ })
     .click()
   const largeDiffSection = rightPanel.getByLabel(
     'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx diff',
@@ -855,6 +1062,18 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .not.toBeCloseTo(keyboardWidth!, 0)
   const resetWidth = (await rightPanel.boundingBox())?.width
   expect(resetWidth).toBeGreaterThan(320)
+  const [resetShellBox, resetSpacerBox, resetMainBox, upperRegionBox] =
+    await Promise.all([
+      rightPanelShell.boundingBox(),
+      rightPanelSpacer.boundingBox(),
+      mainRoute.boundingBox(),
+      upperRegion.boundingBox(),
+    ])
+  expect(resetShellBox).not.toBeNull()
+  expect(resetSpacerBox).not.toBeNull()
+  expect(resetMainBox).not.toBeNull()
+  expect(upperRegionBox).not.toBeNull()
+  expect(resetSpacerBox!.width).toBeCloseTo(resetShellBox!.width, 0)
   await expect
     .poll(async () => Number(await rightSeparator.getAttribute('aria-valuenow')))
     .toBeCloseTo(resetWidth!, 0)
@@ -892,20 +1111,49 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeGreaterThan(resetWidth! + 48)
-  const [liveRightPanelBox, liveRightPanelShellBox] = await Promise.all([
+  const [
+    liveRightPanelBox,
+    liveRightPanelShellBox,
+    liveRightPanelSurfaceBox,
+    liveRightPanelSpacerBox,
+    liveMainRouteBox,
+  ] = await Promise.all([
     rightPanel.boundingBox(),
     rightPanelShell.boundingBox(),
+    rightPanelSurface.boundingBox(),
+    rightPanelSpacer.boundingBox(),
+    mainRoute.boundingBox(),
   ])
   expect(liveRightPanelBox).not.toBeNull()
   expect(liveRightPanelShellBox).not.toBeNull()
+  expect(liveRightPanelSurfaceBox).not.toBeNull()
+  expect(liveRightPanelSpacerBox).not.toBeNull()
+  expect(liveMainRouteBox).not.toBeNull()
   expect(liveRightPanelBox!.x).toBeCloseTo(liveRightPanelShellBox!.x, 0)
-  await expect
-    .poll(async () =>
-      rightPanelShell
-        .locator('.desktop-workspace-panel__surface')
-        .evaluate(element => Number.parseFloat(getComputedStyle(element).width)),
-    )
-    .toBeCloseTo(resetWidth!, 0)
+  expect(liveRightPanelSurfaceBox!.width).toBeCloseTo(
+    liveRightPanelShellBox!.width,
+    0,
+  )
+  expect(liveRightPanelSpacerBox!.width).toBeCloseTo(
+    liveRightPanelShellBox!.width,
+    0,
+  )
+  expect(liveRightPanelSpacerBox!.x).toBeCloseTo(
+    liveRightPanelShellBox!.x,
+    0,
+  )
+  expect(liveMainRouteBox!.x + liveMainRouteBox!.width).toBeCloseTo(
+    liveRightPanelSpacerBox!.x,
+    0,
+  )
+  expect(
+    liveRightPanelShellBox!.x + liveRightPanelShellBox!.width,
+  ).toBeCloseTo(upperRegionBox!.x + upperRegionBox!.width, 0)
+  expect(liveMainRouteBox!.width).toBeLessThan(resetMainBox!.width - 48)
+  expect(resetMainBox!.width - liveMainRouteBox!.width).toBeCloseTo(
+    liveRightPanelShellBox!.width - resetShellBox!.width,
+    0,
+  )
   await expect(reviewDiffPreview).toBeVisible()
   await expect(reviewFileTree).toBeVisible()
   await expect(
@@ -931,7 +1179,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     resizeWindow.__resizeLongTaskObserver?.disconnect()
     return resizeWindow.__resizeLongTaskDurations ?? []
   })
-  expect(Math.max(0, ...resizeLongTaskDurations)).toBeLessThan(200)
+  expect(Math.max(0, ...resizeLongTaskDurations)).toBeLessThan(50)
   await rightSeparator.dblclick()
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
@@ -952,26 +1200,51 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     await expect
       .poll(async () => (await rightPanel.boundingBox())?.width)
       .toBeGreaterThan(resetWidth! + 32)
-    const [cancelPreviewPanelBox, cancelPreviewShellBox] = await Promise.all([
+    const [
+      cancelPreviewPanelBox,
+      cancelPreviewShellBox,
+      cancelPreviewSurfaceBox,
+      cancelPreviewSpacerBox,
+    ] = await Promise.all([
       rightPanel.boundingBox(),
       rightPanelShell.boundingBox(),
+      rightPanelSurface.boundingBox(),
+      rightPanelSpacer.boundingBox(),
     ])
     expect(cancelPreviewPanelBox).not.toBeNull()
     expect(cancelPreviewShellBox).not.toBeNull()
+    expect(cancelPreviewSurfaceBox).not.toBeNull()
+    expect(cancelPreviewSpacerBox).not.toBeNull()
     expect(cancelPreviewPanelBox!.x).toBeCloseTo(
       cancelPreviewShellBox!.x,
+      0,
+    )
+    expect(cancelPreviewPanelBox!.width).toBeCloseTo(
+      cancelPreviewShellBox!.width,
+      0,
+    )
+    expect(cancelPreviewSurfaceBox!.width).toBeCloseTo(
+      cancelPreviewShellBox!.width,
+      0,
+    )
+    expect(cancelPreviewSpacerBox!.width).toBeCloseTo(
+      cancelPreviewShellBox!.width,
       0,
     )
     await expect(reviewDiffPreview).toBeVisible()
   }
   await beginCancelledResize()
-  await page.evaluate(() => {
-    document.dispatchEvent(new PointerEvent('pointercancel'))
-  })
+  await rightSeparator.dispatchEvent('pointercancel', { pointerId: 1 })
   await page.mouse.up()
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeCloseTo(resetWidth!, 0)
+  await expect
+    .poll(async () => (await rightPanelSpacer.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  await expect
+    .poll(async () => (await mainRoute.boundingBox())?.width)
+    .toBeCloseTo(resetMainBox!.width, 0)
   await expect(reviewDiffPreview).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
@@ -983,6 +1256,12 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect
     .poll(async () => (await rightPanel.boundingBox())?.width)
     .toBeCloseTo(resetWidth!, 0)
+  await expect
+    .poll(async () => (await rightPanelSpacer.boundingBox())?.width)
+    .toBeCloseTo(resetWidth!, 0)
+  await expect
+    .poll(async () => (await mainRoute.boundingBox())?.width)
+    .toBeCloseTo(resetMainBox!.width, 0)
   await expect(reviewDiffPreview).toBeVisible()
   await expect(
     rightPanel.locator('.workbench-panel-content'),
@@ -1013,7 +1292,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .toBeGreaterThan(initialFileTreeWidth! + 48)
   await expect
     .poll(async () => (await reviewDiffPreview.boundingBox())?.width)
-    .toBeCloseTo(initialDiffPreviewWidth!, 0)
+    .toBeLessThan(initialDiffPreviewWidth! - 48)
   await expect(reviewFileTree).toBeVisible()
   await expect(reviewDiffPreview).toBeVisible()
   await page.mouse.up()
@@ -1021,10 +1300,14 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     .poll(async () => (await reviewFileTree.boundingBox())?.width)
     .toBeGreaterThan(initialFileTreeWidth!)
 
-  await fileTreeSeparator.dblclick()
+  await fileTreeSeparator.focus()
+  await fileTreeSeparator.press('Home')
+  const minimumFileTreeWidth = Number(
+    await fileTreeSeparator.getAttribute('aria-valuemin'),
+  )
   await expect
     .poll(async () => (await reviewFileTree.boundingBox())?.width)
-    .toBeCloseTo(initialFileTreeWidth!, 0)
+    .toBeCloseTo(minimumFileTreeWidth, 0)
   const cancelledFileTreeWidth = (await reviewFileTree.boundingBox())?.width
   const cancelledFileTreeSeparatorBox = await fileTreeSeparator.boundingBox()
   expect(cancelledFileTreeSeparatorBox).not.toBeNull()
@@ -1061,12 +1344,22 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   await expect
     .poll(async () => (await rightPanelShell.boundingBox())?.width)
     .toBeLessThan(resetWidth! - 32)
-  await expect
-    .poll(async () => (await rightPanel.boundingBox())?.width)
-    .toBeCloseTo(resetWidth!, 0)
-  await page.evaluate(() => {
-    document.dispatchEvent(new PointerEvent('pointercancel'))
-  })
+  const [shrunkShellBox, shrunkPanelBox, shrunkSurfaceBox, shrunkSpacerBox] =
+    await Promise.all([
+      rightPanelShell.boundingBox(),
+      rightPanel.boundingBox(),
+      rightPanelSurface.boundingBox(),
+      rightPanelSpacer.boundingBox(),
+    ])
+  expect(shrunkShellBox).not.toBeNull()
+  expect(shrunkPanelBox).not.toBeNull()
+  expect(shrunkSurfaceBox).not.toBeNull()
+  expect(shrunkSpacerBox).not.toBeNull()
+  expect(shrunkPanelBox!.width).toBeCloseTo(shrunkShellBox!.width, 0)
+  expect(shrunkSurfaceBox!.width).toBeCloseTo(shrunkShellBox!.width, 0)
+  expect(shrunkSpacerBox!.width).toBeCloseTo(shrunkShellBox!.width, 0)
+  expect(shrunkPanelBox!.width).toBeLessThan(resetWidth! - 32)
+  await rightSeparator.dispatchEvent('pointercancel', { pointerId: 1 })
   await page.mouse.up()
 
   await page.setViewportSize({ width: 960, height: 640 })
@@ -1176,7 +1469,7 @@ test('bottom panel scales with workspace height while preserving the upper regio
     page.getByText('已完成工作台结构梳理。', { exact: true }),
   ).toBeVisible()
 
-  await page.getByRole('button', { name: '显示底部面板' }).click()
+  await page.getByRole('button', { name: '打开集成终端 (Ctrl+`)' }).click()
   const bottomPanel = page.getByRole('complementary', { name: '底部面板' })
   const initialHeight = (await bottomPanel.boundingBox())?.height
   expect(initialHeight).toBeGreaterThanOrEqual(160)
@@ -1365,6 +1658,7 @@ test('wide workspace keeps the summary beside a 600px review panel', async ({
   const summary = page.locator('.thread-summary-inline')
   const timeline = page.locator('.session-timeline-container')
   const composer = page.locator('.workflow-page__composer-inner')
+  const workflowMain = page.locator('.workflow-page__main')
   await expect(summary).toBeVisible()
   await expect(
     page.getByRole('button', { name: '取消置顶摘要' }),
@@ -1393,22 +1687,33 @@ test('wide workspace keeps the summary beside a 600px review panel', async ({
     summary.locator('button.interactive-row--adaptive').first(),
   )
 
-  const [summaryBox, timelineBox, composerBox, rightPanelBox] =
+  const [summaryBox, timelineBox, composerBox, rightPanelBox, workflowMainBox] =
     await Promise.all([
       summary.boundingBox(),
       timeline.boundingBox(),
       composer.boundingBox(),
       rightPanel.boundingBox(),
+      workflowMain.boundingBox(),
     ])
   expect(summaryBox).not.toBeNull()
   expect(timelineBox).not.toBeNull()
   expect(composerBox).not.toBeNull()
   expect(rightPanelBox).not.toBeNull()
-  if (!summaryBox || !timelineBox || !composerBox || !rightPanelBox) return
+  expect(workflowMainBox).not.toBeNull()
+  if (
+    !summaryBox
+    || !timelineBox
+    || !composerBox
+    || !rightPanelBox
+    || !workflowMainBox
+  ) return
 
   expect(summaryBox.width).toBeCloseTo(272, 0)
-  expect(timelineBox.width).toBeCloseTo(640, 0)
-  expect(composerBox.width).toBeCloseTo(640, 0)
+  expect(timelineBox.width).toBeGreaterThan(640)
+  expect(composerBox.width).toBeCloseTo(timelineBox.width, 0)
+  expect(composerBox.x).toBeCloseTo(timelineBox.x, 0)
+  expect(timelineBox.x - workflowMainBox.x).toBeCloseTo(32, 0)
+  await expect(workflowMain).toHaveCSS('padding-right', '304px')
   expect(rightPanelBox.width).toBeCloseTo(600, 0)
   expect(
     summaryBox.x - (timelineBox.x + timelineBox.width),
@@ -1561,6 +1866,70 @@ for (const mode of MODES) {
   })
 }
 
+test('sidebar footer reserves space outside the task scroll viewport', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await page.goto('/?visualCase=rich#/new')
+  await closeTransientErrorToast(page)
+
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const scrollArea = sidebar.locator('.sidebar-scroll-area')
+  const footer = sidebar.locator('.sidebar-footer')
+
+  const expectFooterOutsideScrollViewport = async () => {
+    await expect
+      .poll(async () => {
+        const [scrollAreaBox, footerBox] = await Promise.all([
+          scrollArea.boundingBox(),
+          footer.boundingBox(),
+        ])
+        if (!scrollAreaBox || !footerBox) return false
+        return scrollAreaBox.y + scrollAreaBox.height <= footerBox.y + 0.5
+      })
+      .toBe(true)
+  }
+
+  await expectFooterOutsideScrollViewport()
+  await scrollArea.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+
+  const lastScrollItem = scrollArea
+    .locator(
+      '[data-sidebar-session-id], .sidebar-empty, .sidebar-section-header',
+    )
+    .last()
+  await expect(lastScrollItem).toBeVisible()
+  const [lastScrollItemBox, footerBox] = await Promise.all([
+    lastScrollItem.boundingBox(),
+    footer.boundingBox(),
+  ])
+  expect(lastScrollItemBox).not.toBeNull()
+  expect(footerBox).not.toBeNull()
+  expect(lastScrollItemBox!.y + lastScrollItemBox!.height).toBeLessThanOrEqual(
+    footerBox!.y + 0.5,
+  )
+
+  await footer.getByRole('button', { name: '设置', exact: true }).click()
+  const footerMenu = page.locator('.popover-sidebar-footer')
+  await expect(footerMenu).toBeVisible()
+  await expect(footerMenu).toHaveAttribute('data-side', 'top')
+  const footerMenuBox = await footerMenu.boundingBox()
+  expect(footerMenuBox).not.toBeNull()
+  expect(footerMenuBox!.y + footerMenuBox!.height).toBeLessThanOrEqual(
+    footerBox!.y,
+  )
+  await page.keyboard.press('Escape')
+
+  await page.getByTitle('收起侧边栏').click()
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+  await page.mouse.move(600, 400)
+  await page.mouse.move(6, 400)
+  await expect(sidebar).toHaveClass(/is-preview/)
+  await expectFooterOutsideScrollViewport()
+})
+
 test('sidebar keeps one mounted tree across docked and hover preview modes', async ({
   page,
 }) => {
@@ -1672,7 +2041,7 @@ test('sidebar exit and re-entry keep the workspace aligned', async ({
   await expect(page.locator('aside.desktop-sidebar')).toHaveCount(1)
 })
 
-test('workbench panels remain present and layout-isolated while exiting', async ({
+test('workbench panels and spacers reflow together while exiting', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' })
@@ -1686,6 +2055,7 @@ test('workbench panels remain present and layout-isolated while exiting', async 
   await page.getByRole('button', { name: '显示右侧面板' }).click()
   const rightShell = page.locator('.desktop-workspace-panel--right')
   const rightSurface = rightShell.locator('.desktop-workspace-panel__surface')
+  const rightSpacer = page.locator('.desktop-workspace-panel-spacer--right')
   const main = page.locator('.desktop-main-route')
   await expect(rightShell).toHaveAttribute(
     'data-workbench-panel-presence',
@@ -1723,10 +2093,14 @@ test('workbench panels remain present and layout-isolated while exiting', async 
     const mainRoute = document.querySelector<HTMLElement>(
       '.desktop-main-route',
     )
+    const spacer = document.querySelector<HTMLElement>(
+      '.desktop-workspace-panel-spacer--right',
+    )
     return {
       immediate,
       mainWidth: mainRoute?.getBoundingClientRect().width ?? 0,
       shellWidth: shell?.getBoundingClientRect().width ?? 0,
+      spacerWidth: spacer?.getBoundingClientRect().width ?? 0,
       surfaceWidth: surface?.getBoundingClientRect().width ?? 0,
     }
   })
@@ -1737,9 +2111,12 @@ test('workbench panels remain present and layout-isolated while exiting', async 
   })
   expect(rightExit.shellWidth).toBeLessThan(rightBefore!.width)
   expect(rightExit.shellWidth).toBeGreaterThan(0)
-  expect(rightExit.surfaceWidth).toBeCloseTo(surfaceBefore!.width, 0)
+  expect(rightExit.spacerWidth).toBeCloseTo(rightExit.shellWidth, 0)
+  expect(rightExit.surfaceWidth).toBeCloseTo(rightExit.shellWidth, 0)
+  expect(rightExit.surfaceWidth).toBeLessThan(surfaceBefore!.width)
   expect(rightExit.mainWidth).toBeGreaterThan(mainBefore!.width)
   await expect(rightShell).toHaveCount(0)
+  await expect(rightSpacer).toHaveCount(0)
 
   await page.getByRole('button', { name: '显示右侧面板' }).click()
   await page.waitForTimeout(180)
@@ -1753,6 +2130,7 @@ test('workbench panels remain present and layout-isolated while exiting', async 
       ?.click()
   })
   await expect(rightShell).toHaveCount(1)
+  await expect(rightSpacer).toHaveCount(1)
   await expect(rightShell).toHaveAttribute(
     'data-workbench-panel-presence',
     'open',
@@ -1761,19 +2139,25 @@ test('workbench panels remain present and layout-isolated while exiting', async 
     page.getByRole('complementary', { name: '右侧面板' }),
   ).toHaveCount(1)
 
-  await page.getByRole('button', { name: '显示底部面板' }).click()
+  await page.getByRole('button', { name: '打开集成终端 (Ctrl+`)' }).click()
   const bottomShell = page.locator('.desktop-workspace-panel--bottom')
   const bottomSurface = bottomShell.locator(
     '.desktop-workspace-panel__surface',
   )
+  const bottomSpacer = page.locator(
+    '.desktop-workspace-panel-spacer--bottom',
+  )
+  const bottomUpper = page.locator('.desktop-workspace__upper')
   await page.waitForTimeout(180)
-  const [bottomBefore, bottomSurfaceBefore] = await Promise.all([
-    bottomShell.boundingBox(),
-    bottomSurface.boundingBox(),
-  ])
+  const [bottomBefore, bottomSurfaceBefore, bottomUpperBefore] =
+    await Promise.all([
+      bottomShell.boundingBox(),
+      bottomSurface.boundingBox(),
+      bottomUpper.boundingBox(),
+    ])
   const bottomExit = await page.evaluate(async () => {
     document
-      .querySelector<HTMLElement>('[aria-label="隐藏底部面板"]')
+      .querySelector<HTMLElement>('[aria-label="隐藏集成终端"]')
       ?.click()
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
     const shell = document.querySelector<HTMLElement>(
@@ -1784,20 +2168,31 @@ test('workbench panels remain present and layout-isolated while exiting', async 
     const surface = shell?.querySelector<HTMLElement>(
       '.desktop-workspace-panel__surface',
     )
+    const spacer = document.querySelector<HTMLElement>(
+      '.desktop-workspace-panel-spacer--bottom',
+    )
+    const upper = document.querySelector<HTMLElement>(
+      '.desktop-workspace__upper',
+    )
     return {
       immediateState,
       shellHeight: shell?.getBoundingClientRect().height ?? 0,
+      spacerHeight: spacer?.getBoundingClientRect().height ?? 0,
       surfaceHeight: surface?.getBoundingClientRect().height ?? 0,
+      upperHeight: upper?.getBoundingClientRect().height ?? 0,
     }
   })
   expect(bottomExit.immediateState).toBe('exiting')
   expect(bottomExit.shellHeight).toBeLessThan(bottomBefore!.height)
   expect(bottomExit.shellHeight).toBeGreaterThan(0)
-  expect(bottomExit.surfaceHeight).toBeCloseTo(
-    bottomSurfaceBefore!.height,
-    0,
-  )
+  expect(bottomExit.spacerHeight).toBeCloseTo(bottomExit.shellHeight, 0)
+  expect(
+    Math.abs(bottomExit.surfaceHeight - bottomExit.shellHeight),
+  ).toBeLessThanOrEqual(1)
+  expect(bottomExit.surfaceHeight).toBeLessThan(bottomSurfaceBefore!.height)
+  expect(bottomExit.upperHeight).toBeGreaterThan(bottomUpperBefore!.height)
   await expect(bottomShell).toHaveCount(0)
+  await expect(bottomSpacer).toHaveCount(0)
 })
 
 test('turn navigation preview matches Codex geometry and output limits', async ({

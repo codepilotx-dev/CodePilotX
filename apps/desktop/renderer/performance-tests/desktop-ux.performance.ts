@@ -57,6 +57,118 @@ test.describe('desktop UX performance', () => {
     }
   })
 
+  test('workbench panels reflow live and persist only after release', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const target = window as typeof window & {
+        __workbenchSizeWrites?: Record<string, number>
+      }
+      target.__workbenchSizeWrites = {}
+      const original = Storage.prototype.setItem
+      Storage.prototype.setItem = function setItem(key, value) {
+        if (
+          key === 'codepilotx.desktop.rightDockWidthRatio.v2'
+          || key === 'codepilotx.desktop.bottomPanelHeightRatio.v3'
+        ) {
+          const writes = target.__workbenchSizeWrites ?? {}
+          writes[key] = (writes[key] ?? 0) + 1
+          target.__workbenchSizeWrites = writes
+        }
+        return original.call(this, key, value)
+      }
+    })
+    await waitForFixture(page, 500, 30)
+
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightHandle = page.getByRole('separator', {
+      name: '调整右侧面板宽度',
+    })
+    const rightShell = page.locator('.desktop-workspace-panel--right')
+    const rightSpacer = page.locator('.desktop-workspace-panel-spacer--right')
+    const mainRoute = page.locator('.desktop-main-route')
+    await expect(rightHandle).toBeVisible()
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await rightHandle.press('Home')
+      await settlePage(page)
+      await resetWorkbenchWriteCount(page)
+      const before = await readPanelGeometry(rightShell, rightSpacer, mainRoute)
+      await startInteractionProbe(page)
+      await performPanelDrag(page, rightHandle, -96, 0, 120, false)
+      const during = await readPanelGeometry(rightShell, rightSpacer, mainRoute)
+      const writesDuringDrag = await readWorkbenchWriteCount(
+        page,
+        'codepilotx.desktop.rightDockWidthRatio.v2',
+      )
+      await page.mouse.up()
+      const interaction = await stopInteractionProbe(page)
+      const writesAfterDrop = await readWorkbenchWriteCount(
+        page,
+        'codepilotx.desktop.rightDockWidthRatio.v2',
+      )
+      await recordRendererSample(page, 'workbench-right-live-resize', sample, {
+        ...interaction,
+        liveMainSizeChanged:
+          Math.abs(during.mainSize - before.mainSize) > 48 ? 1 : 0,
+        livePanelSizeChanged:
+          Math.abs(during.panelSize - before.panelSize) > 48 ? 1 : 0,
+        panelSpacerDelta: Math.abs(during.panelSize - during.spacerSize),
+        writesAfterDrop,
+        writesDuringDrag,
+      })
+    }
+
+    await page.getByRole('button', { name: /打开集成终端/ }).click()
+    const bottomHandle = page.getByRole('separator', {
+      name: '调整底部面板高度',
+    })
+    const bottomShell = page.locator('.desktop-workspace-panel--bottom')
+    const bottomSpacer = page.locator('.desktop-workspace-panel-spacer--bottom')
+    const upperRegion = page.locator('.desktop-workspace__upper')
+    await expect(bottomHandle).toBeVisible()
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await bottomHandle.press('Home')
+      await settlePage(page)
+      await resetWorkbenchWriteCount(page)
+      const before = await readPanelGeometry(
+        bottomShell,
+        bottomSpacer,
+        upperRegion,
+        'height',
+      )
+      await startInteractionProbe(page)
+      await performPanelDrag(page, bottomHandle, 0, -80, 120, false)
+      const during = await readPanelGeometry(
+        bottomShell,
+        bottomSpacer,
+        upperRegion,
+        'height',
+      )
+      const writesDuringDrag = await readWorkbenchWriteCount(
+        page,
+        'codepilotx.desktop.bottomPanelHeightRatio.v3',
+      )
+      await page.mouse.up()
+      const interaction = await stopInteractionProbe(page)
+      const writesAfterDrop = await readWorkbenchWriteCount(
+        page,
+        'codepilotx.desktop.bottomPanelHeightRatio.v3',
+      )
+      await recordRendererSample(page, 'bottom-panel-live-resize', sample, {
+        ...interaction,
+        liveMainSizeChanged:
+          Math.abs(during.mainSize - before.mainSize) > 48 ? 1 : 0,
+        livePanelSizeChanged:
+          Math.abs(during.panelSize - before.panelSize) > 48 ? 1 : 0,
+        panelSpacerDelta: Math.abs(during.panelSize - during.spacerSize),
+        writesAfterDrop,
+        writesDuringDrag,
+      })
+    }
+  })
+
   test('long conversation scrolling remains virtualized', async ({ page }) => {
     await waitForFixture(page, 250, 30)
     const scrollArea = page.locator('.workflow-main-scroll-area')
@@ -303,6 +415,73 @@ async function performSidebarDrag(
     )
   }
   if (release) await page.mouse.up()
+}
+
+async function performPanelDrag(
+  page: import('@playwright/test').Page,
+  handle: import('@playwright/test').Locator,
+  deltaX: number,
+  deltaY: number,
+  steps: number,
+  release: boolean,
+): Promise<void> {
+  const box = await handle.boundingBox()
+  if (!box) throw new Error('Workbench resize handle has no bounds')
+  const startX = box.x + box.width / 2
+  const startY = box.y + box.height / 2
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  for (let step = 1; step <= steps; step += 1) {
+    await page.mouse.move(
+      startX + (deltaX * step) / steps,
+      startY + (deltaY * step) / steps,
+    )
+  }
+  if (release) await page.mouse.up()
+}
+
+async function readPanelGeometry(
+  panel: import('@playwright/test').Locator,
+  spacer: import('@playwright/test').Locator,
+  main: import('@playwright/test').Locator,
+  axis: 'width' | 'height' = 'width',
+): Promise<{ mainSize: number; panelSize: number; spacerSize: number }> {
+  const [panelBox, spacerBox, mainBox] = await Promise.all([
+    panel.boundingBox(),
+    spacer.boundingBox(),
+    main.boundingBox(),
+  ])
+  if (!panelBox || !spacerBox || !mainBox) {
+    throw new Error('Workbench panel geometry is unavailable')
+  }
+  return {
+    mainSize: mainBox[axis],
+    panelSize: panelBox[axis],
+    spacerSize: spacerBox[axis],
+  }
+}
+
+async function resetWorkbenchWriteCount(
+  page: import('@playwright/test').Page,
+): Promise<void> {
+  await page.evaluate(() => {
+    ;(window as typeof window & {
+      __workbenchSizeWrites?: Record<string, number>
+    }).__workbenchSizeWrites = {}
+  })
+}
+
+async function readWorkbenchWriteCount(
+  page: import('@playwright/test').Page,
+  key: string,
+): Promise<number> {
+  return page.evaluate(
+    storageKey =>
+      (window as typeof window & {
+        __workbenchSizeWrites?: Record<string, number>
+      }).__workbenchSizeWrites?.[storageKey] ?? 0,
+    key,
+  )
 }
 
 async function scrollTimeline(
