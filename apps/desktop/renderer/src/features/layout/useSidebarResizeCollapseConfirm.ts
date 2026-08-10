@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { normalizeLiveResizeSize } from './useLiveResizeValue.js'
 
 export const SIDEBAR_COLLAPSE_HOLD_MS = 600
 export const SIDEBAR_COLLAPSE_TARGET_SIZE = 72
@@ -159,6 +160,8 @@ export function useSidebarResizeCollapseConfirm({
   const pointerTargetRef = useRef<HTMLDivElement | null>(null)
   const previewFrameRef = useRef<number | null>(null)
   const previewWidthRef = useRef<number | null>(null)
+  const lastQueuedPreviewRef = useRef<number | null>(null)
+  const lastEmittedPreviewRef = useRef<number | null>(null)
   const settlementFrameRef = useRef<number | null>(null)
   const settlementPaintFrameRef = useRef<number | null>(null)
   const pendingCommitWidthRef = useRef<number | null>(null)
@@ -207,18 +210,31 @@ export function useSidebarResizeCollapseConfirm({
       window.cancelAnimationFrame(previewFrameRef.current)
       previewFrameRef.current = null
     }
-    if (previewWidthRef.current !== null) {
-      onResizePreviewRef.current?.(previewWidthRef.current)
+    const previewWidth = previewWidthRef.current
+    if (
+      previewWidth !== null
+      && previewWidth !== lastEmittedPreviewRef.current
+    ) {
+      lastEmittedPreviewRef.current = previewWidth
+      onResizePreviewRef.current?.(previewWidth)
     }
   }, [])
 
   const queuePreview = useCallback((nextWidth: number): void => {
-    previewWidthRef.current = nextWidth
+    const normalizedWidth = normalizeLiveResizeSize(nextWidth)
+    if (normalizedWidth === lastQueuedPreviewRef.current) return
+    lastQueuedPreviewRef.current = normalizedWidth
+    previewWidthRef.current = normalizedWidth
     if (!onResizePreviewRef.current || previewFrameRef.current !== null) return
     previewFrameRef.current = window.requestAnimationFrame(() => {
       previewFrameRef.current = null
-      if (previewWidthRef.current !== null) {
-        onResizePreviewRef.current?.(previewWidthRef.current)
+      const previewWidth = previewWidthRef.current
+      if (
+        previewWidth !== null
+        && previewWidth !== lastEmittedPreviewRef.current
+      ) {
+        lastEmittedPreviewRef.current = previewWidth
+        onResizePreviewRef.current?.(previewWidth)
       }
     })
   }, [])
@@ -247,9 +263,12 @@ export function useSidebarResizeCollapseConfirm({
     }
     flushPreview()
     previewWidthRef.current = null
+    lastQueuedPreviewRef.current = null
+    lastEmittedPreviewRef.current = null
     setResizing(false)
     clearCollapseConfirm()
     document.body.classList.remove(
+      'workbench-is-resizing',
       'right-dock-is-resizing',
       'bottom-panel-is-resizing',
     )
@@ -386,6 +405,7 @@ export function useSidebarResizeCollapseConfirm({
 
     const handleWindowBlur = (): void => stopResize(false)
     window.addEventListener('blur', handleWindowBlur)
+    document.body.classList.add('workbench-is-resizing')
     if (direction === 'bottom') {
       document.body.classList.add('bottom-panel-is-resizing')
     } else if (direction === 'right') {
@@ -397,6 +417,7 @@ export function useSidebarResizeCollapseConfirm({
     return () => {
       window.removeEventListener('blur', handleWindowBlur)
       document.body.classList.remove(
+        'workbench-is-resizing',
         'right-dock-is-resizing',
         'bottom-panel-is-resizing',
       )
@@ -444,8 +465,11 @@ export function useSidebarResizeCollapseConfirm({
       x: direction === 'bottom' ? event.clientY : event.clientX,
       width,
     }
-    previewWidthRef.current = width
-    onResizePreview?.(width)
+    const normalizedWidth = normalizeLiveResizeSize(width)
+    previewWidthRef.current = normalizedWidth
+    lastQueuedPreviewRef.current = normalizedWidth
+    lastEmittedPreviewRef.current = normalizedWidth
+    onResizePreview?.(normalizedWidth)
     setResizePhase('dragging')
     setResizing(true)
   }

@@ -292,13 +292,12 @@ export function ReviewDiffSplit({
   ariaLabel?: string;
   readOnly?: boolean;
 }): React.ReactNode {
-  const rootRef = React.useRef<HTMLPreElement>(null);
   const { leftRows, rightRows } = React.useMemo(
     () => buildSplitDiffRows(file),
     [file],
   );
   const syntax = useReviewDiffSyntax(file, syntaxThemeId);
-  useSyncCodexSplitRows(rootRef, !wrapLines, file);
+  const rowSpan = Math.max(leftRows.length, 1);
 
   return (
     <pre
@@ -309,7 +308,9 @@ export function ReviewDiffSplit({
       data-indicators={diffMarkerStyle === "symbol" ? "classic" : "bars"}
       data-overflow={wrapLines ? "wrap" : "scroll"}
       data-review-syntax-state={syntax.state}
-      ref={rootRef}
+      style={{
+        "--review-diff-row-count": rowSpan,
+      } as React.CSSProperties}
     >
       <ReviewDiffCodePane
         attachedComments={attachedComments}
@@ -321,7 +322,6 @@ export function ReviewDiffSplit({
         readOnly={readOnly}
         rows={leftRows}
         scope={scope}
-        syncRows={!wrapLines}
         syntaxByLineId={syntax.byLineId}
         onApplyOperation={onApplyOperation}
         onCancelDraft={onCancelDraft}
@@ -341,7 +341,6 @@ export function ReviewDiffSplit({
         readOnly={readOnly}
         rows={rightRows}
         scope={scope}
-        syncRows={!wrapLines}
         syntaxByLineId={syntax.byLineId}
         onApplyOperation={onApplyOperation}
         onCancelDraft={onCancelDraft}
@@ -365,7 +364,6 @@ export function ReviewDiffCodePane({
   readOnly = false,
   rows,
   scope,
-  syncRows = false,
   syntaxByLineId,
   onApplyOperation,
   onCancelDraft,
@@ -381,7 +379,6 @@ export function ReviewDiffCodePane({
   pane: "unified" | "deletions" | "additions";
   readOnly?: boolean;
   rows: CodexDiffPaneRow[];
-  syncRows?: boolean;
   syntaxByLineId: ReviewSyntaxByLineId;
 }): React.ReactNode {
   const rowSpan = Math.max(rows.length, 1);
@@ -410,7 +407,6 @@ export function ReviewDiffCodePane({
             return (
               <div
                 className="review-codex-diff__hunk review-codex-diff__hunk--gutter"
-                data-diff-sync-row={syncRows ? row.id : undefined}
                 data-separator="line-info"
                 key={`gutter-${row.id}`}
               />
@@ -431,7 +427,6 @@ export function ReviewDiffCodePane({
               key={`gutter-${row.id}`}
               lineNumber={cell.number}
               readOnly={readOnly}
-              syncRow={syncRows ? row.id : undefined}
               onCreateDraft={onCreateDraft}
             />
           );
@@ -448,7 +443,6 @@ export function ReviewDiffCodePane({
             return (
               <div
                 className="review-codex-diff__hunk review-codex-diff__hunk--content"
-                data-diff-sync-row={syncRows ? row.id : undefined}
                 data-separator="line-info"
                 key={`content-${row.id}`}
               >
@@ -489,7 +483,6 @@ export function ReviewDiffCodePane({
               draft={readOnly ? null : draft}
               key={`content-${row.id}`}
               readOnly={readOnly}
-              syncRow={syncRows ? row.id : undefined}
               onCancelDraft={onCancelDraft}
               onDeleteComment={onDeleteComment}
               onDraftBodyChange={onDraftBodyChange}
@@ -525,21 +518,18 @@ export function ReviewDiffLineNumber({
   cellTone,
   lineNumber,
   readOnly = false,
-  syncRow,
   onCreateDraft,
 }: {
   anchor: CommentAnchor | null;
   cellTone: ReviewCell["tone"];
   lineNumber: number | null;
   readOnly?: boolean;
-  syncRow?: string;
   onCreateDraft: (draft: CommentDraft) => void;
 }): React.ReactNode {
   return (
     <div
       className="review-codex-diff__number"
       data-column-number={lineNumber ?? ""}
-      data-diff-sync-row={syncRow}
       data-line-type={codexDiffLineType(cellTone)}
     >
       {readOnly ? null : (
@@ -561,7 +551,6 @@ export function ReviewDiffLineContent({
   comments,
   draft,
   readOnly = false,
-  syncRow,
   onCancelDraft,
   onDeleteComment,
   onDraftBodyChange,
@@ -574,7 +563,6 @@ export function ReviewDiffLineContent({
   comments: DesktopReviewComment[];
   draft: CommentDraft | null;
   readOnly?: boolean;
-  syncRow?: string;
   onCancelDraft: () => void;
   onDeleteComment: (commentId: string) => void;
   onDraftBodyChange: (body: string) => void;
@@ -584,7 +572,6 @@ export function ReviewDiffLineContent({
   return (
     <div
       className="review-codex-diff__line"
-      data-diff-sync-row={syncRow}
       data-line=""
       data-line-type={codexDiffLineType(cellTone)}
     >
@@ -821,70 +808,6 @@ export function codexDiffLineType(cell: ReviewCell["tone"]): string {
   if (cell === "empty") return "buffer";
   if (cell === "meta") return "metadata";
   return "context";
-}
-
-export function useSyncCodexSplitRows(
-  rootRef: React.RefObject<HTMLPreElement | null>,
-  enabled: boolean,
-  revision: unknown,
-): void {
-  React.useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root || !enabled || typeof ResizeObserver === "undefined") return;
-
-    let frame = 0;
-    const sync = (): void => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const groups = new Map<string, HTMLElement[]>();
-        for (const node of root.querySelectorAll<HTMLElement>(
-          "[data-diff-sync-row]",
-        )) {
-          node.style.minHeight = "";
-          const key = node.dataset.diffSyncRow;
-          if (!key) continue;
-          const group = groups.get(key) ?? [];
-          group.push(node);
-          groups.set(key, group);
-        }
-        for (const group of groups.values()) {
-          const height = Math.max(
-            ...group.map((node) => node.getBoundingClientRect().height),
-          );
-          for (const node of group) node.style.minHeight = `${height}px`;
-        }
-      });
-    };
-
-    const observedHeights = new WeakMap<Element, number>();
-    const observer = new ResizeObserver((entries) => {
-      let blockSizeChanged = false;
-      for (const entry of entries) {
-        const nextHeight =
-          entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-        const previousHeight = observedHeights.get(entry.target);
-        observedHeights.set(entry.target, nextHeight);
-        if (
-          previousHeight === undefined ||
-          Math.abs(previousHeight - nextHeight) > 0.5
-        ) {
-          blockSizeChanged = true;
-        }
-      }
-      if (blockSizeChanged) sync();
-    });
-    observer.observe(root);
-    for (const node of root.querySelectorAll<HTMLElement>(
-      "[data-diff-sync-row]",
-    )) {
-      observer.observe(node);
-    }
-    sync();
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [enabled, revision, rootRef]);
 }
 
 export function ReviewHunkActions({

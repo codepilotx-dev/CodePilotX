@@ -31,14 +31,15 @@ export function ThreadScrollLayout({
 }: ThreadScrollLayoutProps): React.ReactNode {
   const measuredInsetRef = React.useRef(THREAD_FOOTER_GAP_PX)
   const previousFooterHeightRef = React.useRef(0)
-  const correctionFrameRef = React.useRef<number | null>(null)
+  const previousViewportHeightRef = React.useRef(0)
+  const writtenInsetRef = React.useRef<string | null>(null)
 
   const writeMeasuredInset = React.useCallback(
     (focusWithin: boolean): void => {
-      scrollRef.current?.style.setProperty(
-        '--thread-scroll-padding-bottom',
-        focusWithin ? '0px' : `${measuredInsetRef.current}px`,
-      )
+      const value = focusWithin ? '0px' : `${measuredInsetRef.current}px`
+      if (writtenInsetRef.current === value) return
+      writtenInsetRef.current = value
+      scrollRef.current?.style.setProperty('--thread-scroll-padding-bottom', value)
     },
     [scrollRef],
   )
@@ -47,59 +48,76 @@ export function ThreadScrollLayout({
     const scrollElement = scrollRef.current
     const footerElement = footerRef.current
     if (!scrollElement || !footerElement) return
+    writtenInsetRef.current = null
 
-    const readDistance = (): number =>
-      distanceFromThreadBottom({
-        scrollOffset: scrollElement.scrollTop,
-        scrollSize: scrollElement.scrollHeight,
-        viewportSize: scrollElement.clientHeight,
-      })
+    let measureFrame: number | null = null
+    let observedFooterHeight: number | null = null
+    let observedViewportHeight: number | null = null
 
-    const measureFooter = (): void => {
-      const footerHeight = Math.ceil(footerElement.getBoundingClientRect().height)
+    const measureLayout = (): void => {
+      measureFrame = null
+      const footerHeight = Math.ceil(
+        observedFooterHeight ?? footerElement.getBoundingClientRect().height,
+      )
+      const viewportHeight = Math.ceil(
+        observedViewportHeight ?? scrollElement.clientHeight,
+      )
+      observedFooterHeight = null
+      observedViewportHeight = null
       const previousFooterHeight = previousFooterHeightRef.current
       const footerHeightDelta = footerHeight - previousFooterHeight
-      const previousDistance = Math.max(0, readDistance() - footerHeightDelta)
+      const scrollSize = scrollElement.scrollHeight
+      const previousDistance = Math.max(
+        0,
+        distanceFromThreadBottom({
+          scrollOffset: scrollElement.scrollTop,
+          scrollSize,
+          viewportSize: viewportHeight,
+        }) - footerHeightDelta,
+      )
       previousFooterHeightRef.current = footerHeight
       measuredInsetRef.current = footerHeight + THREAD_FOOTER_GAP_PX
-      scrollElement.style.setProperty(
-        '--thread-scroll-viewport-height',
-        `${scrollElement.clientHeight}px`,
-      )
+      if (previousViewportHeightRef.current !== viewportHeight) {
+        previousViewportHeightRef.current = viewportHeight
+        scrollElement.style.setProperty(
+          '--thread-scroll-viewport-height',
+          `${viewportHeight}px`,
+        )
+      }
       writeMeasuredInset(footerElement.contains(document.activeElement))
 
       if (previousFooterHeight === 0 || previousFooterHeight === footerHeight) {
         return
       }
 
-      if (correctionFrameRef.current !== null) {
-        cancelAnimationFrame(correctionFrameRef.current)
-      }
-      correctionFrameRef.current = requestAnimationFrame(() => {
-        correctionFrameRef.current = null
-        scrollElement.scrollTop = scrollOffsetForThreadBottomDistance(
-          {
-            scrollSize: scrollElement.scrollHeight,
-            viewportSize: scrollElement.clientHeight,
-          },
-          previousDistance,
-        )
-      })
+      scrollElement.scrollTop = scrollOffsetForThreadBottomDistance(
+        { scrollSize, viewportSize: viewportHeight },
+        previousDistance,
+      )
     }
 
-    measureFooter()
+    const scheduleMeasure = (entries: ResizeObserverEntry[]): void => {
+      for (const entry of entries) {
+        const blockSize =
+          entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
+        if (entry.target === footerElement) observedFooterHeight = blockSize
+        if (entry.target === scrollElement) observedViewportHeight = blockSize
+      }
+      if (measureFrame !== null) return
+      measureFrame = requestAnimationFrame(measureLayout)
+    }
+
+    measureLayout()
     const observer =
       typeof ResizeObserver === 'undefined'
         ? null
-        : new ResizeObserver(measureFooter)
+        : new ResizeObserver(scheduleMeasure)
     observer?.observe(footerElement)
     observer?.observe(scrollElement)
 
     return () => {
       observer?.disconnect()
-      if (correctionFrameRef.current !== null) {
-        cancelAnimationFrame(correctionFrameRef.current)
-      }
+      if (measureFrame !== null) cancelAnimationFrame(measureFrame)
     }
   }, [footerRef, scrollRef, writeMeasuredInset])
 

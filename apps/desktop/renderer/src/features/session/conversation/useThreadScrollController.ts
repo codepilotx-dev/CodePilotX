@@ -97,6 +97,7 @@ export function resolveThreadScrollMode({
 
 type UseThreadScrollControllerOptions = {
   active: boolean
+  contentRevision?: unknown
   initialScrollOffset?: number
   itemCount: number
   listRef: React.RefObject<VirtualizerHandle | null>
@@ -240,6 +241,7 @@ function readMetrics(
 
 export function useThreadScrollController({
   active,
+  contentRevision,
   initialScrollOffset = 0,
   itemCount,
   listRef,
@@ -263,6 +265,17 @@ export function useThreadScrollController({
   const itemCountRef = React.useRef(itemCount)
   const previousOffsetRef = React.useRef(0)
   const previousScrollSizeRef = React.useRef(0)
+  const previousDistanceFromBottomRef = React.useRef(0)
+  const previousContentInlineSizeRef = React.useRef(0)
+  const observedItemCountRef = React.useRef(itemCount)
+  const contentRevisionRef = React.useRef(contentRevision)
+  const observedContentRevisionRef = React.useRef(contentRevision)
+  const contentResizeFrameRef = React.useRef<number | null>(null)
+  const pendingContentSizeRef = React.useRef<{
+    blockSize: number
+    inlineSize: number
+  } | null>(null)
+  const contentReflowActiveUntilRef = React.useRef(0)
   const programmaticScrollUntilRef = React.useRef(0)
   const explicitReturnInProgressRef = React.useRef(false)
   const scrollFrameRef = React.useRef<number | null>(null)
@@ -270,6 +283,7 @@ export function useThreadScrollController({
 
   activeRef.current = active
   itemCountRef.current = itemCount
+  contentRevisionRef.current = contentRevision
 
   const setMode = React.useCallback((nextMode: ThreadScrollMode): void => {
     modeRef.current = nextMode
@@ -370,6 +384,7 @@ export function useThreadScrollController({
         )
 
       previousOffsetRef.current = scrollTop
+      previousDistanceFromBottomRef.current = distance
       updateAtBottom(atBottom)
       const decision = resolveThreadScrollMode({
         mode: modeRef.current,
@@ -391,34 +406,112 @@ export function useThreadScrollController({
     [applyDecision, listRef, onScroll, scrollRef, updateAtBottom],
   )
 
-  const handleContentResize = React.useCallback((): void => {
-    const metrics = readMetrics(listRef.current, scrollRef.current)
-    if (!metrics) return
-    const previousSize = previousScrollSizeRef.current
-    previousScrollSizeRef.current = metrics.scrollSize
-    if (previousSize === 0 || metrics.scrollSize <= previousSize + 0.5) return
+  const handleContentResize = React.useCallback(
+    (entry: ResizeObserverEntry): void => {
+      pendingContentSizeRef.current = {
+        blockSize:
+          entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height,
+        inlineSize:
+          entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width,
+      }
+      if (contentResizeFrameRef.current !== null) return
+      contentResizeFrameRef.current = requestAnimationFrame(() => {
+        contentResizeFrameRef.current = null
+        const observedSize = pendingContentSizeRef.current
+        pendingContentSizeRef.current = null
+        const metrics = readMetrics(listRef.current, scrollRef.current)
+        if (!observedSize || !metrics) return
 
-    const shouldFollow =
-      modeRef.current === 'prework_follow' ||
-      modeRef.current === 'user_follow' ||
-      (activeRef.current && atBottomRef.current)
-    if (shouldFollow) {
-      setHasNewContent(false)
-      scrollToEnd(false)
-      return
-    }
-    if (activeRef.current) {
-      setHasNewContent(true)
-    }
-    const currentSessionKey = sessionKeyRef.current
-    if (currentSessionKey) {
-      savedThreadScrollStates.set(currentSessionKey, {
-        distanceFromBottom: distanceFromThreadBottom(metrics),
-        mode: modeRef.current,
-        scrollOffset: metrics.scrollOffset,
+        const now = performance.now()
+        const previousInlineSize = previousContentInlineSizeRef.current
+        const inlineSizeChanged =
+          previousInlineSize > 0
+          && Math.abs(observedSize.inlineSize - previousInlineSize) > 0.5
+        previousContentInlineSizeRef.current = observedSize.inlineSize
+
+        const itemCountChanged = observedItemCountRef.current !== itemCountRef.current
+        observedItemCountRef.current = itemCountRef.current
+        const contentRevisionChanged =
+          observedContentRevisionRef.current !== contentRevisionRef.current
+        observedContentRevisionRef.current = contentRevisionRef.current
+        const contentChanged = itemCountChanged || contentRevisionChanged
+        const layoutResizeActive =
+          document.body.classList.contains('workbench-is-resizing')
+        if (inlineSizeChanged || layoutResizeActive) {
+          contentReflowActiveUntilRef.current = now + 100
+        }
+        const widthReflow =
+          !contentChanged && now <= contentReflowActiveUntilRef.current
+
+        const previousSize = previousScrollSizeRef.current
+        previousScrollSizeRef.current = metrics.scrollSize
+        if (previousSize === 0) {
+          previousDistanceFromBottomRef.current =
+            distanceFromThreadBottom(metrics)
+          return
+        }
+
+        if (widthReflow) {
+          const shouldFollow =
+            modeRef.current === 'prework_follow'
+            || modeRef.current === 'user_follow'
+            || (activeRef.current && atBottomRef.current)
+          const distance = shouldFollow
+            ? 0
+            : previousDistanceFromBottomRef.current
+          const targetOffset = scrollOffsetForThreadBottomDistance(
+            metrics,
+            distance,
+          )
+          if (Math.abs(targetOffset - metrics.scrollOffset) > 0.5) {
+            programmaticScrollUntilRef.current = Date.now() + 140
+            previousOffsetRef.current = targetOffset
+            if (scrollRef.current) scrollRef.current.scrollTop = targetOffset
+            else listRef.current?.scrollTo(targetOffset)
+          }
+          previousDistanceFromBottomRef.current = distance
+          const currentSessionKey = sessionKeyRef.current
+          if (currentSessionKey) {
+            savedThreadScrollStates.set(currentSessionKey, {
+              distanceFromBottom: distance,
+              mode: modeRef.current,
+              scrollOffset: targetOffset,
+            })
+          }
+          return
+        }
+
+        if (metrics.scrollSize <= previousSize + 0.5) {
+          previousDistanceFromBottomRef.current =
+            distanceFromThreadBottom(metrics)
+          return
+        }
+
+        const shouldFollow =
+          modeRef.current === 'prework_follow'
+          || modeRef.current === 'user_follow'
+          || (activeRef.current && atBottomRef.current)
+        if (shouldFollow) {
+          previousDistanceFromBottomRef.current = 0
+          setHasNewContent(false)
+          scrollToEnd(false)
+          return
+        }
+        const distance = distanceFromThreadBottom(metrics)
+        previousDistanceFromBottomRef.current = distance
+        if (activeRef.current) setHasNewContent(true)
+        const currentSessionKey = sessionKeyRef.current
+        if (currentSessionKey) {
+          savedThreadScrollStates.set(currentSessionKey, {
+            distanceFromBottom: distance,
+            mode: modeRef.current,
+            scrollOffset: metrics.scrollOffset,
+          })
+        }
       })
-    }
-  }, [listRef, scrollRef, scrollToEnd])
+    },
+    [listRef, scrollRef, scrollToEnd],
+  )
 
   const returnToBottom = React.useCallback((): void => {
     applyDecision(
@@ -455,6 +548,9 @@ export function useThreadScrollController({
     previousCountRef.current = itemCountRef.current
     previousOffsetRef.current = restoredOffset
     previousScrollSizeRef.current = metrics?.scrollSize ?? 0
+    previousDistanceFromBottomRef.current = metrics
+      ? distanceFromThreadBottom({ ...metrics, scrollOffset: restoredOffset })
+      : 0
     resetBottomMeasurement()
 
     if (restoredOffset > 0) {
@@ -549,10 +645,25 @@ export function useThreadScrollController({
     if (!content || typeof ResizeObserver === 'undefined') return
     const metrics = readMetrics(listRef.current, scrollRef.current)
     previousScrollSizeRef.current = metrics?.scrollSize ?? 0
-    const observer = new ResizeObserver(handleContentResize)
+    previousDistanceFromBottomRef.current = metrics
+      ? distanceFromThreadBottom(metrics)
+      : 0
+    previousContentInlineSizeRef.current = content.getBoundingClientRect().width
+    observedItemCountRef.current = itemCountRef.current
+    observedContentRevisionRef.current = contentRevisionRef.current
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) handleContentResize(entry)
+    })
     observer.observe(content)
-    return () => observer.disconnect()
-  }, [handleContentResize, itemCount, listRef, scrollRef, sessionKey])
+    return () => {
+      observer.disconnect()
+      if (contentResizeFrameRef.current !== null) {
+        cancelAnimationFrame(contentResizeFrameRef.current)
+        contentResizeFrameRef.current = null
+      }
+      pendingContentSizeRef.current = null
+    }
+  }, [handleContentResize, listRef, scrollRef, sessionKey])
 
   React.useEffect(() => {
     const viewport = scrollRef.current

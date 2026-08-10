@@ -725,16 +725,25 @@
 .review-codex-diff[data-diff-type="split"][data-overflow="scroll"] {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(var(--review-diff-row-count), max-content);
   overflow: hidden;
 }
 
 .review-codex-diff[data-diff-type="split"][data-overflow="scroll"]
+  > [data-code] {
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+}
+
+.review-codex-diff[data-diff-type="split"][data-overflow="scroll"]
   [data-deletions] {
+  grid-column: 1;
   border-right: 1px solid var(--color-token-border-light);
 }
 
 .review-codex-diff[data-diff-type="split"][data-overflow="scroll"]
   [data-additions] {
+  grid-column: 2;
   border-left: 1px solid var(--color-token-editor-background);
 }
 

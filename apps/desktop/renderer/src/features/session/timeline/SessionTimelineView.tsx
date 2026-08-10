@@ -77,6 +77,7 @@ export function SessionTimelineView<T>({
   );
   const scrollController = useThreadScrollController({
     active: Boolean(scrollToBottom),
+    contentRevision: items.at(-1),
     initialScrollOffset,
     itemCount: count,
     listRef: listHandle,
