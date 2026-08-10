@@ -24,7 +24,6 @@ export class CanonicalThreadIngestionCoordinator {
   readonly #onCommit: ((state: CanonicalThreadState) => void) | undefined
   readonly #listeners = new Set<() => void>()
   #state: CanonicalThreadState | null
-  #disposed = false
 
   constructor(options: CanonicalThreadIngestionCoordinatorOptions) {
     this.#threadId = options.threadId
@@ -39,7 +38,6 @@ export class CanonicalThreadIngestionCoordinator {
   }
 
   subscribe(listener: () => void): () => void {
-    if (this.#disposed) return () => undefined
     this.#listeners.add(listener)
     return () => {
       this.#listeners.delete(listener)
@@ -47,7 +45,6 @@ export class CanonicalThreadIngestionCoordinator {
   }
 
   rehydrate(page: ThreadHistoryPageLike): void {
-    this.#assertActive()
     this.#assertPageThread(page)
     const next = this.#state?.thread.id === this.#threadId
       ? reconcileLatestThreadPage(this.#state, page)
@@ -56,7 +53,6 @@ export class CanonicalThreadIngestionCoordinator {
   }
 
   prependOlder(page: ThreadHistoryPageLike): void {
-    this.#assertActive()
     this.#assertPageThread(page)
     if (!this.#state || this.#state.thread.id !== this.#threadId) {
       throw new Error('尚未加载当前会话，无法合并更早记录。')
@@ -65,7 +61,6 @@ export class CanonicalThreadIngestionCoordinator {
   }
 
   async deliverBatch(events: readonly EventEnvelope[]): Promise<void> {
-    this.#assertActive()
     if (events.length === 0) return
     if (!this.#state || this.#state.thread.id !== this.#threadId) {
       throw new Error('尚未加载当前会话，无法提交事件批次。')
@@ -81,13 +76,7 @@ export class CanonicalThreadIngestionCoordinator {
     this.#commit(applyThreadEnvelopes(this.#state, events))
   }
 
-  dispose(): void {
-    this.#disposed = true
-    this.#listeners.clear()
-  }
-
   #commit(next: CanonicalThreadState): void {
-    this.#assertActive()
     if (next.thread.id !== this.#threadId) {
       throw new Error('canonical projection 返回了不匹配的会话。')
     }
@@ -100,12 +89,6 @@ export class CanonicalThreadIngestionCoordinator {
   #assertPageThread(page: ThreadHistoryPageLike): void {
     if (page.thread.id !== this.#threadId) {
       throw new Error('历史记录返回了不匹配的会话。')
-    }
-  }
-
-  #assertActive(): void {
-    if (this.#disposed) {
-      throw new Error('canonical thread ingestion coordinator 已停止。')
     }
   }
 }

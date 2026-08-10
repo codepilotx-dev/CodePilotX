@@ -183,12 +183,14 @@ export function useCanonicalThreadConversation(
   React.useEffect(() => {
     void reload()
     return () => {
+      // The coordinator is a render-owned projection store with no external
+      // resources. StrictMode replays this cleanup, so only stop the transport
+      // work owned by this effect and let the memoized store follow render life.
       generationRef.current += 1
       unsubscribeRef.current?.()
       unsubscribeRef.current = null
-      coordinator?.dispose()
     }
-  }, [coordinator, reload])
+  }, [reload])
 
   const loadOlder = React.useCallback(async (): Promise<void> => {
     const current = coordinator?.getSnapshot() ?? null
