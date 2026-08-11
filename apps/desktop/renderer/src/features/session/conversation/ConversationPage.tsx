@@ -37,7 +37,6 @@ import { useHeightTransition } from "../../../hooks/useHeightTransition.js";
 import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
 import { desktopClient } from "../../../services/desktop-client/index.js";
 import { InlineApprovalCard } from "../approvals/InlineApprovalCard.js";
-import { ComposerFrame } from "../composer/ComposerSurface.js";
 import {
   ComposerChangeSummary,
   findLatestExecutionPlan,
@@ -71,6 +70,7 @@ import { normalizePatchActionError } from "../timeline/patchActionError.js";
 import { subagentStatusLabel } from "../subagents/subagentStatusLabel.js";
 import { ConversationItemContext } from "../timeline/ConversationItemContext.js";
 import type { ThreadTimelineNavigationHandle } from "../timeline/SessionTimelineView.js";
+import { ThreadComposerDock } from "./ThreadComposerDock.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
 import {
   ConversationTurnNavRail,
@@ -153,9 +153,12 @@ export function ConversationPage(): React.ReactNode {
     canCopyFileReferenceContents,
     onCopyFileReferenceContents,
     onOpenFileReference,
+    onOpenAttachment,
     onSubmitEditedUserMessage,
     onAppendComposerText,
     onAppendSideChatText,
+    onOpenSideChat,
+    sideChatAvailable,
     onOpenSubagent,
     permissionMode,
     composerProps,
@@ -761,8 +764,9 @@ export function ConversationPage(): React.ReactNode {
           </PopoverItem>
           <PopoverSeparator />
           <PopoverItem
-            disabled
+            disabled={!hasActiveSession || !sideChatAvailable}
             icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
+            onClick={onOpenSideChat}
           >
             打开侧边聊天
           </PopoverItem>
@@ -1003,12 +1007,10 @@ export function ConversationPage(): React.ReactNode {
   );
 
   const composerFooter = composerProps ? (
-    <div className="chat-composer workflow-page__composer tw:pointer-events-none tw:flex tw:w-full tw:justify-center">
-      <ComposerFrame
-        ref={composerTransition.ref}
-        className="workflow-page__composer-inner"
-        style={composerTransition.style}
-      >
+    <ThreadComposerDock
+      ref={composerTransition.ref}
+      style={composerTransition.style}
+    >
         {showComposerStatusSummary ? (
           <ComposerChangeSummary
             active={
@@ -1042,14 +1044,14 @@ export function ConversationPage(): React.ReactNode {
             messages={[]}
           />
         )}
-      </ComposerFrame>
-    </div>
+    </ThreadComposerDock>
   ) : null;
   const conversationItemContextValue = React.useMemo(
     () => ({
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
       onOpenFileReference,
+      onOpenAttachment,
       onForkFromMessage: conversationFork.onForkFromMessage,
       onSubmitEditedUserMessage,
       sessionStatus,
@@ -1059,6 +1061,7 @@ export function ConversationPage(): React.ReactNode {
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
       onOpenFileReference,
+      onOpenAttachment,
       conversationFork.onForkFromMessage,
       onSubmitEditedUserMessage,
       sessionStatus,
@@ -1172,6 +1175,7 @@ export function ConversationPage(): React.ReactNode {
                       {
                         kind: "item",
                         label: "在侧边聊天中提问",
+                        disabled: !sideChatAvailable,
                         onSelect: handleAskInSideChat,
                       },
                     ]

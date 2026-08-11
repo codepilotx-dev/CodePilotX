@@ -3,6 +3,7 @@ import { createBrowserMockDesktopClient } from './browser-mock-client.js'
 import { defaultDesktopClientEnvironment } from './environment.js'
 import type {
   CodePilotXDesktopClient,
+  DesktopAttachmentApi,
   DesktopClientEnvironment,
 } from './types.js'
 

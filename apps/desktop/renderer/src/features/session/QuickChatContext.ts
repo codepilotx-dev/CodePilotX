@@ -15,6 +15,7 @@ import type {
 } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
 import type { NewSessionRecentTask } from './newSessionSuggestions.js'
+import type { Attachment } from '@codepilotx/shared/thread'
 
 export type ProviderModelOption = {
   providerID: string
@@ -60,6 +61,7 @@ export type QuickChatContextValue = {
     reference: MarkdownFileReference,
     options: MarkdownFileOpenOptions,
   ) => void
+  onOpenAttachment: (attachment: Attachment) => void
   canCopyFileReferenceContents: (
     reference: MarkdownFileReference,
   ) => boolean
@@ -69,6 +71,8 @@ export type QuickChatContextValue = {
   onSubmitEditedUserMessage: (text: string) => Promise<void>
   onAppendComposerText: (text: string) => void
   onAppendSideChatText: (text: string) => void
+  onOpenSideChat: () => void
+  sideChatAvailable: boolean
   onOpenSubagent: (taskId: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void

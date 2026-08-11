@@ -8,7 +8,6 @@ import type {
 } from '../../../../shared/types.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
-import { ComposerFrame } from '../../session/composer/ComposerSurface.js'
 import { MarkdownMessage } from '../../session/MarkdownMessage.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import { cx } from '../../../utils/cx.js'
@@ -525,36 +524,6 @@ export function RightDockFilePreviewPanel({
 
 function isMarkdownFilePath(path: string): boolean {
   return /\.(?:md|markdown|mdown|mdx|mkd)$/i.test(path)
-}
-
-export function RightDockSideChatPanel({
-  composer,
-  focusVersion,
-  content,
-}: {
-  composer: React.ReactNode
-  focusVersion: number
-  content?: React.ReactNode
-}): React.ReactNode {
-  const surfaceRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const textarea = surfaceRef.current?.querySelector('textarea')
-    textarea?.focus()
-  }, [focusVersion])
-
-  return (
-    <section className="right-dock-side-chat tw:relative tw:min-h-0 tw:min-w-0 tw:flex-1 tw:bg-app-canvas" aria-label="侧边聊天">
-      {content ?? (
-        <ComposerFrame
-          ref={surfaceRef}
-          className="right-dock-side-chat__composer tw:mx-auto tw:px-4 tw:pb-4"
-        >
-          {composer}
-        </ComposerFrame>
-      )}
-    </section>
-  )
 }
 
 export function buildFileSelectionPrompt({

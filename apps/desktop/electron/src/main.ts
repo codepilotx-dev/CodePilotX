@@ -15,6 +15,7 @@ import { registerDataLocationIpc } from "./ipc/register-data-location-ipc.js"
 import { registerDesktopIpc } from "./ipc/register-desktop-ipc.js"
 import { registerTerminalIpc } from "./ipc/register-terminal-ipc.js"
 import { ExternalOpenTargetService } from "./ipc/external-open-targets.js"
+import { AttachmentDownloadService } from "./ipc/attachment-download-service.js"
 import {
   createDesktopLogger,
   type DesktopLogger,
@@ -194,12 +195,16 @@ async function startDesktop(): Promise<void> {
       windows?.send(DESKTOP_UPDATE_IPC_CHANNELS.status, status)
     },
   })
+  const attachmentDownloads = new AttachmentDownloadService({
+    getDownloadsDirectory: () => app.getPath("downloads"),
+  })
 
   registerDesktopIpc({
     windows,
     logger,
     externalOpenTargets,
     updater,
+    attachmentDownloads,
     getSupervisor: () => supervisor,
     getConnectionState: () =>
       connectionCoordinator?.status.connectionState ?? "unknown",

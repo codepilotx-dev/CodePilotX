@@ -7,10 +7,13 @@ import {
   type WorkbenchTabDescriptor,
 } from '../src/features/layout/dock/rightDockState.js'
 import {
+  getWorkbenchLauncherDefinitions,
+  getWorkbenchLauncherPresentation,
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
 } from '../src/features/layout/tabs/workbenchTabRegistry.js'
 import {
+  createDefaultConversationUiState,
   createDefaultReviewTabUiState,
   isReviewDiffExpanded,
   openPatchReviewTabState,
@@ -20,6 +23,7 @@ import {
 import {
   BOTTOM_PANEL_DEFAULT_HEIGHT,
   BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
+  RIGHT_DOCK_DEFAULT_WIDTH,
   RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
   bottomPanelHeightFromRatio,
   bottomPanelHeightToRatio,
@@ -52,12 +56,135 @@ function open(
 }
 
 describe('workbench dynamic tab state', () => {
+  test('始终复用一个用户附件预览标签并替换 descriptor', () => {
+    const first = {
+      id: 'user-attachment-preview',
+      kind: 'attachment-preview',
+      attachment: {
+        id: 'first',
+        kind: 'text',
+        name: 'first.txt',
+        mediaType: 'text/plain',
+        sizeBytes: 5,
+      },
+      source: { storage: 'thread', attachmentId: 'first' },
+    } as const
+    const second = {
+      ...first,
+      attachment: { ...first.attachment, id: 'second', name: 'second.txt' },
+      source: { storage: 'thread', attachmentId: 'second' },
+    } as const
+    const state = open(open(createDefaultWorkbenchTabsState(), first), second)
+
+    expect(state.right.tabIds).toEqual(['user-attachment-preview'])
+    expect(state.tabsById['user-attachment-preview']).toEqual(second)
+  })
+
+  test('拒绝从持久化状态恢复用户附件预览', () => {
+    const base = createDefaultConversationUiState()
+    base.workbench.tabsById['user-attachment-preview'] = {
+      id: 'user-attachment-preview',
+      kind: 'attachment-preview',
+      attachment: {
+        id: 'draft',
+        kind: 'text',
+        name: 'draft.txt',
+        mediaType: 'text/plain',
+        sizeBytes: 5,
+      },
+      source: { storage: 'draft', encoding: 'utf8', data: 'draft' },
+    }
+    base.workbench.right = {
+      open: true,
+      activeTabId: 'user-attachment-preview',
+      tabIds: ['user-attachment-preview'],
+    }
+    const restored = validateConversationUiState(base)
+
+    expect(restored.workbench.tabsById).toEqual({})
+    expect(restored.workbench.right.tabIds).toEqual([])
+  })
+
   test('labels the file browser placeholder as open file', () => {
     const tab = { id: 'file-browser', kind: 'file-browser' } as const
     const definition = getWorkbenchTabDefinition(tab)
 
     expect(definition.label).toBe('打开文件')
     expect(definition.getTitle(tab)).toBe('打开文件')
+  })
+
+  test('matches the Codex launcher order and presentation without changing tab titles', () => {
+    const launchers = getWorkbenchLauncherDefinitions()
+    const presentation = launchers.map(definition => ({
+      kind: definition.kind,
+      ...getWorkbenchLauncherPresentation(definition),
+    }))
+
+    expect(presentation.map(item => item.kind)).toEqual([
+      'review',
+      'terminal',
+      'browser',
+      'file-browser',
+      'side-chat',
+    ])
+    expect(presentation.map(item => item.label)).toEqual([
+      '审阅',
+      '终端',
+      '浏览器',
+      '文件',
+      '侧边聊天',
+    ])
+    expect(presentation.map(item => item.shortcut)).toEqual([
+      'Ctrl+Shift+G',
+      undefined,
+      'Ctrl+T',
+      'Ctrl+P',
+      'Ctrl+Alt+S',
+    ])
+    expect(getWorkbenchTabDefinition('file-browser').getTitle({
+      id: 'file-browser',
+      kind: 'file-browser',
+    })).toBe('打开文件')
+  })
+
+  test('hides the add button for an empty header and restores the add menu for side-chat tabs', () => {
+    const baseProps = {
+      target: 'right' as const,
+      terminalDisplayPath: null,
+      onCloseTab: () => undefined,
+      onCloseOtherTabs: () => undefined,
+      onCloseTabsToRight: () => undefined,
+      onOpenTab: () => undefined,
+      onCreateSideChat: () => undefined,
+      sideChatAvailable: true,
+      onSelectTab: () => undefined,
+      onMoveTab: () => undefined,
+      onReorderTab: () => undefined,
+      onPinTab: () => undefined,
+    }
+    const emptyMarkup = renderToStaticMarkup(createElement(WorkbenchTabsHeader, {
+      ...baseProps,
+      state: { open: true, activeTabId: null, tabIds: [] },
+      tabsById: {},
+    }))
+    const sideChat = {
+      id: 'side-chat:thread-side-1',
+      kind: 'side-chat',
+      threadId: 'thread-side-1',
+      sourceThreadId: 'thread-main',
+      inheritedThroughTurnId: null,
+      title: '侧边聊天',
+    } as const
+    const sideChatMarkup = renderToStaticMarkup(createElement(WorkbenchTabsHeader, {
+      ...baseProps,
+      state: { open: true, activeTabId: sideChat.id, tabIds: [sideChat.id] },
+      tabsById: { [sideChat.id]: sideChat },
+    }))
+
+    expect(emptyMarkup).not.toContain('aria-label="添加标签"')
+    expect(emptyMarkup).not.toContain('aria-label="新建侧边聊天"')
+    expect(sideChatMarkup).toContain('aria-label="添加标签"')
+    expect(sideChatMarkup).not.toContain('aria-label="新建侧边聊天"')
   })
 
   test('opening an empty bottom panel does not invent a Terminal tab', () => {
@@ -111,6 +238,8 @@ describe('workbench dynamic tab state', () => {
       onCloseOtherTabs: () => undefined,
       onCloseTabsToRight: () => undefined,
       onOpenTab: () => undefined,
+      onCreateSideChat: () => undefined,
+      sideChatAvailable: true,
       onSelectTab: () => undefined,
       onMoveTab: () => undefined,
       onReorderTab: () => undefined,
@@ -195,8 +324,44 @@ describe('workbench dynamic tab state', () => {
     ])
   })
 
+  test('replaces a loading side-chat tab in place', () => {
+    const loading = {
+      id: 'side-chat:loading:1',
+      kind: 'side-chat',
+      threadId: 'loading:1',
+      sourceThreadId: 'thread-main',
+      inheritedThroughTurnId: null,
+      title: '侧边聊天',
+    } as const
+    const ready = {
+      ...loading,
+      id: 'side-chat:thread-side-1',
+      threadId: 'thread-side-1',
+      inheritedThroughTurnId: 'turn-boundary',
+    } as const
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    state = open(state, loading)
+    state = applyWorkbenchPanelAction(state, {
+      type: 'replaceTab',
+      previousTabId: loading.id,
+      tab: ready,
+    })
+
+    expect(state.right.tabIds).toEqual(['review', ready.id])
+    expect(state.right.activeTabId).toBe(ready.id)
+    expect(state.tabsById[loading.id]).toBeUndefined()
+    expect(state.tabsById[ready.id]).toEqual(ready)
+  })
+
   test('back/close from a side task removes its tab, closes the panel, and restores main focus', () => {
-    const sideChat = { id: 'side-chat', kind: 'side-chat' } as const
+    const sideChat = {
+      id: 'side-chat:thread-side-1',
+      kind: 'side-chat',
+      threadId: 'thread-side-1',
+      sourceThreadId: 'thread-main',
+      inheritedThroughTurnId: null,
+      title: '侧边聊天',
+    } as const
     let state = open(createDefaultWorkbenchTabsState(), sideChat)
     state = open(state, {
       id: 'side-task:task-1',
@@ -216,12 +381,12 @@ describe('workbench dynamic tab state', () => {
       target: 'right',
     })
 
-    expect(state.right.tabIds).toEqual(['side-chat'])
+    expect(state.right.tabIds).toEqual([sideChat.id])
     expect(state.tabsById['side-task:task-1']).toBeUndefined()
     expect(state.right.open).toBe(false)
     expect(state.focusArea).toBe('main')
     // 普通侧边聊天标签不受影响
-    expect(state.tabsById['side-chat']).toEqual(sideChat)
+    expect(state.tabsById[sideChat.id]).toEqual(sideChat)
     expect(state.bottom.tabIds).toEqual([])
   })
 
@@ -563,14 +728,13 @@ describe('workbench dynamic tab state', () => {
       planTab.id,
     ])
     expect(state.workbench.right.activeTabId).toBe(planTab.id)
-    expect(state.workbench.bottom.tabIds).toEqual([sideChat.id])
-    expect(state.workbench.bottom.activeTabId).toBe(sideChat.id)
+    expect(state.workbench.bottom.tabIds).toEqual([])
+    expect(state.workbench.bottom.activeTabId).toBeNull()
     expect(state.workbench.tabsById['tool-probe']).toBeUndefined()
     expect(state.workbench.tabsById).toEqual({
       review,
       [fileTab.id]: fileTab,
       [planTab.id]: planTab,
-      [sideChat.id]: sideChat,
     })
     expect(state.workbench.focusArea).toBe('bottom-panel')
     expect(state.schemaVersion).toBe(4)
@@ -911,8 +1075,10 @@ describe('workbench dynamic tab state', () => {
 })
 
 describe('workbench right panel sizing', () => {
-  test('使用 Codex 响应式默认值并按比例适配窗口宽度', () => {
-    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(1_000)
+  test('使用 400px 默认值并按可用工作区夹紧', () => {
+    expect(RIGHT_DOCK_DEFAULT_WIDTH).toBe(400)
+    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(400)
+    expect(getResponsiveRightDockDefaultWidth(700, 800)).toBe(348)
 
     const ratio = rightDockWidthToRatio(700, 1_500)
     expect(rightDockWidthFromRatio(ratio, 1_500)).toBe(700)

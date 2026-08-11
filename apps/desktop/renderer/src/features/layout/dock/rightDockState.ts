@@ -4,11 +4,36 @@ export type WorkbenchFocusArea = 'main' | 'right-panel' | 'bottom-panel'
 
 export type MarkdownFileViewMode = 'rich' | 'source'
 
+export type UserAttachmentPreviewSource =
+  | {
+      storage: 'thread'
+      attachmentId: string
+    }
+  | {
+      storage: 'draft'
+      data: string
+      encoding: 'base64' | 'utf8'
+    }
+
+export type UserAttachmentPreviewTab = {
+  id: 'user-attachment-preview'
+  kind: 'attachment-preview'
+  attachment: {
+    id: string
+    kind: 'image' | 'text'
+    name: string
+    mediaType: string
+    sizeBytes: number
+  }
+  source: UserAttachmentPreviewSource
+}
+
 export type WorkbenchTabKind =
   | 'review'
   | 'browser'
   | 'file-browser'
   | 'file-preview'
+  | 'attachment-preview'
   | 'plan'
   | 'side-chat'
   | 'side-task'
@@ -43,7 +68,15 @@ export type WorkbenchTabDescriptor =
       eventId: string
       title: string
     }
-  | { id: 'side-chat'; kind: 'side-chat' }
+  | {
+      id: `side-chat:${string}`
+      kind: 'side-chat'
+      threadId: string
+      sourceThreadId: string
+      inheritedThroughTurnId: string | null
+      title: string
+    }
+  | UserAttachmentPreviewTab
   | { id: 'terminal'; kind: 'terminal' }
   | {
       id: `side-task:${string}`
@@ -82,6 +115,11 @@ export type WorkbenchPanelAction =
       target: WorkbenchPanelTarget
       tab: WorkbenchTabDescriptor
       index?: number
+    }
+  | {
+      type: 'replaceTab'
+      previousTabId: WorkbenchTabId
+      tab: WorkbenchTabDescriptor
     }
   | {
       type: 'selectTab'
@@ -246,6 +284,31 @@ export function applyWorkbenchPanelAction(
         activeTabId: action.tab.id,
       },
       focusArea: `${action.target}-panel`,
+    }
+  }
+
+  if (action.type === 'replaceTab') {
+    if (!state.tabsById[action.previousTabId]) return state
+    const tabsById = { ...state.tabsById }
+    delete tabsById[action.previousTabId]
+    tabsById[action.tab.id] = action.tab
+    const replaceInPanel = (
+      panel: WorkbenchPanelSnapshot,
+    ): WorkbenchPanelSnapshot => ({
+      ...panel,
+      activeTabId:
+        panel.activeTabId === action.previousTabId
+          ? action.tab.id
+          : panel.activeTabId,
+      tabIds: panel.tabIds.map(tabId =>
+        tabId === action.previousTabId ? action.tab.id : tabId,
+      ),
+    })
+    return {
+      ...state,
+      tabsById,
+      right: replaceInPanel(state.right),
+      bottom: replaceInPanel(state.bottom),
     }
   }
 

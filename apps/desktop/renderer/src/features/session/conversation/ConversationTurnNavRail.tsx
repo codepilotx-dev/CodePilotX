@@ -494,7 +494,7 @@ export function ConversationTurnNavRail({
                 }}
                 open={isPreviewOpen}
                 side="right"
-                sideOffset={0}
+                sideOffset={8}
                 variant="unstyled"
               >
                 <button

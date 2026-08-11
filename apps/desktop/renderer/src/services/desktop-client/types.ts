@@ -14,6 +14,11 @@ import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-ove
 import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
 import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-ipc'
 import type { DesktopTerminalIpcBridge } from '@codepilotx/shared/desktop-terminal-ipc'
+import type {
+  DesktopAttachmentIpcBridge,
+  DesktopAttachmentSaveInput,
+  DesktopAttachmentSaveResult,
+} from '@codepilotx/shared/desktop-attachment-ipc'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
@@ -57,6 +62,7 @@ type DesktopClientWindow = {
     & Partial<DesktopDataLocationIpcBridge>
     & Partial<DesktopTerminalIpcBridge>
     & Partial<DesktopUpdateIpcBridge>
+    & Partial<DesktopAttachmentIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
   dispatchEvent?: Window['dispatchEvent']
@@ -320,6 +326,15 @@ export type DesktopRuntimeCapabilityApi = {
   getRuntimeCapabilities(): Promise<readonly ProtocolCapability[]>
 }
 
+export type DesktopAttachmentApi = {
+  readAttachment(
+    attachmentId: string,
+  ): Promise<RpcResult<'attachment/read'>>
+  saveAttachmentToDownloads(
+    input: DesktopAttachmentSaveInput,
+  ): Promise<DesktopAttachmentSaveResult>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
@@ -328,4 +343,5 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopPetApi &
   DesktopUsageApi &
   DesktopReleaseNotesApi &
-  DesktopRuntimeCapabilityApi
+  DesktopRuntimeCapabilityApi &
+  DesktopAttachmentApi

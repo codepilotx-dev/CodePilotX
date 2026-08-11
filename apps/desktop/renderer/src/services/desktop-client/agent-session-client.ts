@@ -134,6 +134,7 @@ const RENDERER_CAPABILITIES = [
   'config.profiles.v1',
   'task-suggestions.v1',
   'release-notes.read.v1',
+  'thread.side-chat.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -156,12 +157,13 @@ import {
 import { catalogProviderToDesktop } from './provider-adapters.js'
 import type {
   CodePilotXDesktopClient,
+  DesktopAttachmentApi,
   DesktopClientEnvironment,
   DesktopRuntimeCapabilityApi,
 } from './types.js'
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
-  mockClient: DesktopApi & DesktopRuntimeCapabilityApi,
+  mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -1333,6 +1335,12 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    readAttachment: attachmentId =>
+      rpc.call('attachment/read', { attachmentId }),
+    saveAttachmentToDownloads: input =>
+      environment.window?.codePilotXDesktop?.saveAttachmentToDownloads
+        ? environment.window.codePilotXDesktop.saveAttachmentToDownloads(input)
+        : mockClient.saveAttachmentToDownloads(input),
     getRuntimeCapabilities: () => withAgentOrMock<
       readonly ProtocolCapability[]
     >(
@@ -2788,6 +2796,26 @@ export function createAgentSessionDesktopClient(
           await mockClient.getSession(params.threadId),
         ),
       ),
+    createSideChat: input => withAgentOrMock(
+      async () => {
+        requireAgentCapability('thread.side-chat.v1')
+        return rpc.call('thread/side-chat/create', {
+          ...input,
+          operationId: crypto.randomUUID(),
+        })
+      },
+      () => mockClient.createSideChat(input),
+    ),
+    discardSideChat: input => withAgentOrMock(
+      async () => {
+        requireAgentCapability('thread.side-chat.v1')
+        return rpc.call('thread/side-chat/discard', {
+          ...input,
+          operationId: crypto.randomUUID(),
+        })
+      },
+      () => mockClient.discardSideChat(input),
+    ),
     listPendingAgentInteractions: params =>
       withAgentOrMock(
         () => rpc.call('interaction/listPending', params),

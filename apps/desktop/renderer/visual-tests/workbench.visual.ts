@@ -75,6 +75,162 @@ test('canonical thread stays active through StrictMode effect replay', async ({
   ).toBeVisible()
 })
 
+test('side chat matches the temporary multi-tab workbench flow', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await gotoWorkbenchFixture(
+    page,
+    '/?visualCase=rich&visualSideChatSecondMessage=1#/threads/visual-rich',
+  )
+  await closeTransientErrorToast(page)
+
+  await page.getByRole('button', { name: '更多会话操作' }).click()
+  await page.getByRole('menuitem', { name: '打开侧边聊天' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await expect(rightPanel).toBeVisible()
+  await expect(
+    rightPanel.getByRole('region', { name: '侧边聊天' }),
+  ).toContainText('侧边聊天是临时聊天，关闭应用后会消失。')
+  await expect(
+    rightPanel.locator('.composer-utility-strip'),
+  ).toHaveCount(0)
+
+  const mainComposerDock = page.locator(
+    '.conversation-page [data-component="thread-composer-dock"]',
+  )
+  const sideComposerDock = rightPanel.locator(
+    '[data-component="thread-composer-dock"]',
+  )
+  await expect(mainComposerDock).toHaveCount(1)
+  await expect(sideComposerDock).toHaveCount(1)
+  await expect(mainComposerDock.locator('.composer-stack')).toHaveAttribute(
+    'data-placement',
+    'thread',
+  )
+  await expect(sideComposerDock.locator('.composer-stack')).toHaveAttribute(
+    'data-placement',
+    'thread',
+  )
+
+  const readStackShadow = async (composer: Locator) =>
+    composer
+      .locator('.composer-stack')
+      .evaluate(element => getComputedStyle(element).boxShadow)
+  const mainStackShadow = await readStackShadow(mainComposerDock)
+  expect(await readStackShadow(sideComposerDock)).toBe(mainStackShadow)
+  expect(mainStackShadow).not.toBe('none')
+
+  const readComposerStyles = async (composer: Locator) =>
+    composer.locator('.composer-input-surface').evaluate(element => {
+      const style = getComputedStyle(element)
+      return {
+        background: style.background,
+        border: style.border,
+        borderRadius: style.borderRadius,
+        boxShadow: style.boxShadow,
+        minHeight: style.minHeight,
+        padding: style.padding,
+      }
+    })
+  expect(await readComposerStyles(sideComposerDock)).toEqual(
+    await readComposerStyles(mainComposerDock),
+  )
+
+  const readSendButtonSize = async (composer: Locator) =>
+    composer.locator('.send-button').evaluate(element => {
+      const style = getComputedStyle(element)
+      return { height: style.height, width: style.width }
+    })
+  expect(await readSendButtonSize(sideComposerDock)).toEqual(
+    await readSendButtonSize(mainComposerDock),
+  )
+
+  const sideComposerFooter = rightPanel.locator('.thread-scroll-layout__footer')
+  await expect(sideComposerFooter).toHaveCSS('padding-left', '16px')
+  await expect(sideComposerFooter).toHaveCSS('padding-right', '16px')
+  await expect(sideComposerFooter).toHaveCSS('padding-bottom', '16px')
+  await expect(rightPanel).toHaveScreenshot('side-chat-thread-composer.png', {
+    animations: 'disabled',
+    caret: 'hide',
+  })
+
+  await rightPanel.getByRole('button', { name: '添加标签' }).click()
+  await page
+    .getByRole('menuitemradio', { name: '侧边聊天 Ctrl+Alt+S' })
+    .click()
+  await expect(
+    rightPanel.getByRole('region', { name: '侧边聊天 2' }),
+  ).toContainText('已检查：空输入和分页边界都需要单独处理。')
+  await expect(
+    rightPanel.getByRole('button', { name: /侧边聊天 2/ }),
+  ).toBeVisible()
+})
+
+test('empty right dock matches Codex launcher', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  const launcher = rightPanel.getByLabel('可用面板标签')
+  const actions = launcher.locator('.right-panel-tabs-empty-state__actions')
+  const items = actions.locator('.right-panel-tabs-empty-state__item')
+
+  await expect(rightPanel).toBeVisible()
+  await expect(rightPanel.getByRole('button', { name: '添加标签' })).toHaveCount(0)
+  await expect(items).toHaveCount(5)
+  await expect(items.locator('strong')).toHaveText([
+    '审阅',
+    '终端',
+    '浏览器',
+    '文件',
+    '侧边聊天',
+  ])
+  await expect(items.locator('kbd')).toHaveText([
+    'Ctrl+Shift+G',
+    'Ctrl+T',
+    'Ctrl+P',
+    'Ctrl+Alt+S',
+  ])
+  await expect(items.nth(1).locator('kbd')).toHaveCount(0)
+  await expect(items.nth(0).locator('.lucide-square-plus')).toHaveCount(1)
+  await expect(items.nth(3).locator('.lucide-folder')).toHaveCount(1)
+  await expect(items.first()).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+
+  const [panelBox, launcherBox, actionsBox] = await Promise.all([
+    rightPanel.boundingBox(),
+    launcher.boundingBox(),
+    actions.boundingBox(),
+  ])
+  expect(panelBox).not.toBeNull()
+  expect(launcherBox).not.toBeNull()
+  expect(actionsBox).not.toBeNull()
+  expect(panelBox!.width).toBeCloseTo(400, 0)
+  expect(
+    actionsBox!.y + actionsBox!.height / 2 -
+      (launcherBox!.y + launcherBox!.height / 2),
+  ).toBeCloseTo(0, 0)
+
+  await expect(rightPanel).toHaveScreenshot('empty-right-dock-codex-launcher.png', {
+    animations: 'disabled',
+    caret: 'hide',
+  })
+
+  await rightPanel.getByRole('button', { name: '侧边聊天 Ctrl+Alt+S' }).click()
+  await expect(rightPanel.getByRole('tab', { name: '侧边聊天' })).toBeVisible()
+  await rightPanel.getByRole('button', { name: '添加标签' }).click()
+  await expect(
+    page.getByRole('menuitemradio', { name: '审阅 Ctrl+Shift+G' }),
+  ).toBeVisible()
+  await page.keyboard.press('Escape')
+  await rightPanel.getByRole('button', { name: '关闭 侧边聊天' }).click()
+  await expect(rightPanel.getByLabel('可用面板标签')).toBeVisible()
+})
+
 for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
   test(`Markdown typography follows the Claude-like rhythm in ${visualCase.id}`, async ({
     page,
@@ -460,7 +616,7 @@ for (const mode of MODES) {
       name: '右侧面板',
     })
     await rightPanel
-      .getByRole('button', { name: '打开文件 Ctrl+Shift+E' })
+      .getByRole('button', { name: '文件 Ctrl+P' })
       .click()
 
     await expect(rightPanel.getByRole('tab', { name: '打开文件' })).toBeVisible()
@@ -552,7 +708,7 @@ test('Markdown file switches between rich and source presentations', async ({
 
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
   await rightPanel
-    .getByRole('button', { name: '打开文件 Ctrl+Shift+E' })
+    .getByRole('button', { name: '文件 Ctrl+P' })
     .click()
   await rightPanel.getByText('README.md', { exact: true }).click()
 
@@ -1536,7 +1692,7 @@ test('narrow file panel keeps the editor and file tree side by side', async ({
   await page.getByRole('button', { name: '显示右侧面板' }).click()
   const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
   await rightPanel
-    .getByRole('button', { name: '打开文件 Ctrl+Shift+E' })
+    .getByRole('button', { name: '文件 Ctrl+P' })
     .click()
 
   const editor = rightPanel.locator('.right-dock-open-file-empty')
@@ -2213,10 +2369,34 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect(rail).toBeVisible()
   const items = rail.getByRole('button')
   await expect(items).toHaveCount(4)
-  await expect(rail.locator('[aria-current="true"]')).toHaveCount(4)
+
+  const frame = page.locator('.workflow-main-scroll-frame')
+  const timeline = page.locator('.session-timeline-container')
+  const composer = page.locator('.workflow-page__composer-inner')
+  const [frameBox, timelineBox, composerBox, railBox] = await Promise.all([
+    frame.boundingBox(),
+    timeline.boundingBox(),
+    composer.boundingBox(),
+    rail.boundingBox(),
+  ])
+  expect(frameBox).not.toBeNull()
+  expect(timelineBox).not.toBeNull()
+  expect(composerBox).not.toBeNull()
+  expect(railBox).not.toBeNull()
+  if (!frameBox || !timelineBox || !composerBox || !railBox) return
+
+  expect(timelineBox.x - frameBox.x).toBeCloseTo(48, 0)
+  expect(
+    frameBox.x + frameBox.width - (timelineBox.x + timelineBox.width),
+  ).toBeCloseTo(16, 0)
+  expect(composerBox.x).toBeCloseTo(timelineBox.x, 0)
+  expect(composerBox.width).toBeCloseTo(timelineBox.width, 0)
+  expect(railBox.x - frameBox.x).toBeCloseTo(8, 0)
+  expect(timelineBox.x - (railBox.x + railBox.width)).toBeCloseTo(8, 0)
 
   const lastItem = items.last()
-  await expect(lastItem).toHaveCSS('width', '36px')
+  await expect(lastItem).toHaveAttribute('aria-current', 'true')
+  await expect(lastItem).toHaveCSS('width', '32px')
   await expect(lastItem).toHaveCSS('height', '10px')
 
   const marker = lastItem.locator('.conversation-turn-nav-marker')
@@ -2247,11 +2427,18 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect(preview.locator('.preview-card-output-more')).toHaveText('+1')
   await expect(tooltip.locator('.tooltip-arrow')).toHaveCount(0)
   await expect(tooltip).toHaveCSS('padding', '0px')
+  const tooltipBox = await tooltip.boundingBox()
+  expect(tooltipBox).not.toBeNull()
+  expect(tooltipBox!.x - (railBox.x + railBox.width)).toBeCloseTo(8, 0)
+  expect(tooltipBox!.x).toBeCloseTo(timelineBox.x, 0)
 
   await lastItem.hover()
   await expect
     .poll(async () => (await marker.boundingBox())?.width)
     .toBeCloseTo(26, 0)
+
+  await page.setViewportSize({ width: 760, height: 920 })
+  await expect(rail).toHaveCount(0)
 })
 
 test('turn navigation supports click, keyboard, and pointer scrubbing', async ({

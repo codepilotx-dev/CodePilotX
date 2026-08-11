@@ -117,7 +117,10 @@ import {
   readBrowserThemeSettings,
   requireMockSession,
 } from './fixtures.js'
-import type { DesktopRuntimeCapabilityApi } from './types.js'
+import type {
+  DesktopAttachmentApi,
+  DesktopRuntimeCapabilityApi,
+} from './types.js'
 
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
   'codepilotx.desktop.appearance.v6'
@@ -134,7 +137,7 @@ function mcpUnavailable(): never {
 
 export function createBrowserMockDesktopClient(
   storage?: Storage,
-): DesktopApi & DesktopRuntimeCapabilityApi {
+): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   let configDocument: Record<string, JsonValue> = {
     desktop: { ...settings } as unknown as JsonValue,
@@ -145,6 +148,7 @@ export function createBrowserMockDesktopClient(
   let browserState: DesktopBrowserState = emptyBrowserState()
   let githubLoginMode: DesktopGithubAuthMode = 'browser'
   const sessions = new Map<string, DesktopSessionSnapshot>()
+  const sideChatSessionIds = new Set<string>()
   let activeSessionId: string | null = null
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const settingsListeners = new Set<(change: DesktopSettingsChange) => void>()
@@ -238,6 +242,10 @@ export function createBrowserMockDesktopClient(
   }
 
   return {
+    readAttachment: async () => {
+      throw new Error('浏览器 mock 模式无法读取历史附件。')
+    },
+    saveAttachmentToDownloads: async input => ({ fileName: input.name }),
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
     getAuthStatus: async () => ({
@@ -778,7 +786,79 @@ export function createBrowserMockDesktopClient(
         standalone: !options.workspacePath,
       }
     },
-    listSessions: async () => [...sessions.values()],
+    createSideChat: async input => {
+      const source = requireMockSession(sessions, input.sourceThreadId)
+      const threadId = `browser-mock-side-chat-${crypto.randomUUID()}`
+      const createdAt = Date.now()
+      const includeVisualTimeline =
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get(
+          'visualSideChatSecondMessage',
+        ) === '1' &&
+        sideChatSessionIds.size > 0
+      const sideChatMessages = includeVisualTimeline
+        ? [
+            {
+              id: `${threadId}-user`,
+              role: 'user' as const,
+              text: '帮我检查这个函数的边界条件。',
+              createdAt: new Date(createdAt).toISOString(),
+            },
+            {
+              id: `${threadId}-assistant`,
+              role: 'assistant' as const,
+              text: '已检查：空输入和分页边界都需要单独处理。',
+              createdAt: new Date(createdAt + 1).toISOString(),
+            },
+          ]
+        : []
+      sessions.set(threadId, {
+        ...source,
+        item: {
+          ...source.item,
+          id: threadId,
+          sessionName: '侧边聊天',
+          aiTitle: null,
+          customTitle: null,
+          firstPrompt: null,
+          archivedAt: new Date(-1).toISOString(),
+          status: 'idle',
+          createdAt: new Date(createdAt).toISOString(),
+        },
+        view: {
+          ...source.view,
+          messages: sideChatMessages,
+          toolLog: [],
+          pendingPermissions: [],
+          contextUsage: null,
+        },
+        events: [],
+        workflowEvents: [],
+        queuedFollowUps: [],
+        updatedAt: new Date(createdAt + sideChatMessages.length).toISOString(),
+      })
+      sideChatSessionIds.add(threadId)
+      return {
+        sideChat: {
+          threadId,
+          sourceThreadId: input.sourceThreadId,
+          inheritedThroughTurnId: null,
+          createdAt,
+        },
+      }
+    },
+    discardSideChat: async input => {
+      sessions.delete(input.threadId)
+      sideChatSessionIds.delete(input.threadId)
+      return { ok: true as const }
+    },
+    listSessions: async options => [...sessions.values()].filter(snapshot =>
+      !sideChatSessionIds.has(snapshot.item.id) && (
+        options?.archived === true
+          ? Boolean(snapshot.item.archivedAt)
+          : !snapshot.item.archivedAt
+      ),
+    ),
     getSessionCatalogStatus: async () => ({ state: 'ready', error: null }),
     getSession: async sessionId => {
       if (visualSessionReadDelayMs > 0) {

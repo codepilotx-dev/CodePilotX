@@ -38,6 +38,11 @@ import type {
   DesktopNotificationRequest,
   DesktopNotificationResult,
 } from "@codepilotx/shared/desktop-notification-ipc"
+import type {
+  DesktopAttachmentIpcBridge,
+  DesktopAttachmentSaveInput,
+  DesktopAttachmentSaveResult,
+} from "@codepilotx/shared/desktop-attachment-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -99,6 +104,10 @@ const DESKTOP_NOTIFICATION_IPC_CHANNELS = {
   activated: "desktop-notification:activated",
 } as const satisfies typeof import("@codepilotx/shared/desktop-notification-ipc").DESKTOP_NOTIFICATION_IPC_CHANNELS
 
+const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
+  saveToDownloads: "desktop-attachment:save-to-downloads",
+} as const satisfies typeof import("@codepilotx/shared/desktop-attachment-ipc").DESKTOP_ATTACHMENT_IPC_CHANNELS
+
 function isDesktopNotificationActivation(
   value: unknown,
 ): value is DesktopNotificationActivation {
@@ -128,6 +137,10 @@ interface DesktopExternalOpenTarget {
 }
 
 const desktop = {
+  saveAttachmentToDownloads: (
+    input: DesktopAttachmentSaveInput,
+  ): Promise<DesktopAttachmentSaveResult> =>
+    ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.saveToDownloads, input),
   minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
   toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke("window:toggle-maximize"),
   close: (): Promise<void> => ipcRenderer.invoke("window:close"),
@@ -336,6 +349,7 @@ const desktop = {
   & DesktopUpdateIpcBridge
   & DesktopTerminalIpcBridge
   & DesktopNotificationIpcBridge
+  & DesktopAttachmentIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

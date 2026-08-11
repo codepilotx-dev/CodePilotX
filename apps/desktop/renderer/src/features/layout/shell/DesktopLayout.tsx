@@ -26,7 +26,9 @@ import {
   applyWorkbenchPanelAction,
   createDefaultWorkbenchTabsState,
   type WorkbenchPanelTarget,
+  type WorkbenchTabDescriptor,
   type WorkbenchTabId,
+  type UserAttachmentPreviewTab,
 } from '../dock/rightDockState.js'
 import {
   createDefaultConversationUiState,
@@ -41,6 +43,7 @@ import {
 } from '../tabs/conversationUiState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
 import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { MenuBar } from '../MenuBar.js'
@@ -71,6 +74,7 @@ import {
   resolveModelPresetId,
 } from '../../../modelPresets.js'
 import type {
+  DesktopComposerAttachment,
   DesktopModelMetadata,
   DesktopBrowserState,
   DesktopFileEntry,
@@ -82,6 +86,7 @@ import type {
   ModelProviderID,
   SidebarSectionId,
 } from '../../../../shared/types.js'
+import type { Attachment } from '@codepilotx/shared/thread'
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   QUICK_CHAT_PATH,
@@ -233,7 +238,6 @@ function routeAccessibilityLabel(pathname: string): string {
   if (pathname === '/automations') return '自动化'
   if (pathname === '/pets') return '宠物'
   if (pathname.startsWith('/settings/')) return '设置'
-  if (pathname === '/labs') return '实验室'
   return 'CodePilotX'
 }
 
@@ -866,8 +870,22 @@ export function DesktopLayout(): React.ReactNode {
     openRightDockTab({ id: 'file-browser', kind: 'file-browser' })
   }, [openRightDockTab])
 
-  const handleOpenSideChat = useCallback((): void => {
-    openRightDockTab({ id: 'side-chat', kind: 'side-chat' })
+  const handleOpenThreadAttachment = useCallback((attachment: Attachment): void => {
+    void import('../../session/attachments/attachmentPreviewDescriptor.js')
+      .then(({ createThreadAttachmentPreviewTab }) => {
+        const tab = createThreadAttachmentPreviewTab(attachment)
+        if (tab) openRightDockTab(tab)
+      })
+  }, [openRightDockTab])
+
+  const handleOpenDraftAttachment = useCallback((
+    attachment: DesktopComposerAttachment,
+  ): void => {
+    void import('../../session/attachments/attachmentPreviewDescriptor.js')
+      .then(({ createDraftAttachmentPreviewTab }) => {
+        const tab = createDraftAttachmentPreviewTab(attachment)
+        if (tab) openRightDockTab(tab)
+      })
   }, [openRightDockTab])
 
   const handleOpenReview = useCallback((): void => {
@@ -973,21 +991,99 @@ export function DesktopLayout(): React.ReactNode {
     return null
   }, [workbenchPanelState])
 
+  const activeSideChatTab = useMemo(() => {
+    const preferredTarget =
+      workbenchPanelState.focusArea === 'bottom-panel' ? 'bottom' : 'right'
+    const fallbackTarget = preferredTarget === 'right' ? 'bottom' : 'right'
+    for (const target of [preferredTarget, fallbackTarget] as const) {
+      const panel = workbenchPanelState[target]
+      if (!panel.open || !panel.activeTabId) continue
+      const tab = workbenchPanelState.tabsById[panel.activeTabId]
+      if (tab?.kind === 'side-chat') return tab
+    }
+    return null
+  }, [workbenchPanelState])
+
+  const replaceSideChatWorkbenchTab = useCallback((
+    previousTabId: WorkbenchTabId,
+    tab: WorkbenchTabDescriptor,
+  ): void => {
+    setWorkbenchPanelState(current => applyWorkbenchPanelAction(current, {
+      type: 'replaceTab',
+      previousTabId,
+      tab,
+    }))
+  }, [setWorkbenchPanelState])
+
+  const removeSideChatWorkbenchTab = useCallback((
+    tabId: WorkbenchTabId,
+  ): void => {
+    setWorkbenchPanelState(current => {
+      const target = current.right.tabIds.includes(tabId)
+        ? 'right'
+        : current.bottom.tabIds.includes(tabId)
+          ? 'bottom'
+          : null
+      return target
+        ? applyWorkbenchPanelAction(current, { type: 'closeTab', target, tabId })
+        : current
+    })
+  }, [setWorkbenchPanelState])
+
+  const initialSideChatSettings = useMemo(() => ({
+    permissionMode: effectivePermissionMode,
+    planModeActive,
+    providerID,
+    ...(providerBaseURL.trim() ? { providerBaseURL: providerBaseURL.trim() } : {}),
+    model,
+    selectedModelPreset,
+    thinkingMode,
+  }), [
+    effectivePermissionMode,
+    model,
+    planModeActive,
+    providerBaseURL,
+    providerID,
+    selectedModelPreset,
+    thinkingMode,
+  ])
+
   const {
     sideChatInput,
     setSideChatInput,
     sideChatFocusVersion,
+    sideChatSupported,
     sideChatAttachments,
     setSideChatAttachments,
     handleAppendSideChatText,
     sideChatSubmitToSession,
+    createSideChat,
+    sideChatTabsForSource,
+    requestCloseSideChatTabs,
+    reportSideChatState,
+    getSideChatSettings,
+    updateSideChatSettings,
+    isCreatingSideChat,
+    closeConfirmationOpen,
+    skipCloseConfirmation,
+    setSkipCloseConfirmation,
+    confirmSideChatClose,
+    cancelSideChatClose,
     appendSideComposerAttachmentsForDraft,
     removeSideComposerAttachmentForDraft,
     clearSideComposerDraftIfUnchanged,
   } = useSideChatController({
+    activeTab: activeSideChatTab,
+    initialSettings: initialSideChatSettings,
+    sourceThreadId: activeSessionItem?.id ?? null,
     openRightDockTab,
-    submitToSession,
+    removeWorkbenchTab: removeSideChatWorkbenchTab,
+    replaceWorkbenchTab: replaceSideChatWorkbenchTab,
+    onError: handleErrorMessage,
   })
+  const handleOpenSideChat = useCallback((): void => {
+    void createSideChat()
+  }, [createSideChat])
   const {
     selectedSubagentTaskId,
     selectedSubagent,
@@ -998,7 +1094,6 @@ export function DesktopLayout(): React.ReactNode {
     openRightDockTab,
     onError: handleErrorMessage,
   })
-  const sideComposerDraftKey: ComposerDraftKey = 'side-chat'
 
   const handleCloseSubagentTab = useCallback(
     (taskId: string): void => {
@@ -1130,59 +1225,101 @@ export function DesktopLayout(): React.ReactNode {
   }, [browserTabVisible])
 
   const prevSessionIdRef = useRef<string | null>(null)
+  const attachmentPreviewTabRef = useRef<UserAttachmentPreviewTab | null>(null)
   const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
     createDefaultReviewTabUiState,
   )
   const uiSnapshotRef = useRef<ConversationUiState>(
     createDefaultConversationUiState(),
   )
+  const sideChatPanelTargetsRef = useRef(
+    new Map<WorkbenchTabId, WorkbenchPanelTarget>(),
+  )
   uiSnapshotRef.current = {
     schemaVersion: 4,
     workbench: workbenchPanelState,
     mainScrollTop: uiSnapshotRef.current.mainScrollTop,
-    sideChatInput,
-    sideChatAttachments,
+    sideChatInput: '',
+    sideChatAttachments: [],
     review: reviewTabState,
+  }
+  const currentAttachmentPreview = workbenchPanelState
+    .tabsById['user-attachment-preview']
+  if (currentAttachmentPreview?.kind === 'attachment-preview') {
+    attachmentPreviewTabRef.current = currentAttachmentPreview
+  } else if (prevSessionIdRef.current === sessionId) {
+    attachmentPreviewTabRef.current = null
   }
 
   useEffect(() => {
     const prevId = prevSessionIdRef.current
     const currentId = sessionId
 
+    for (const target of ['right', 'bottom'] as const) {
+      for (const tabId of uiSnapshotRef.current.workbench[target].tabIds) {
+        if (uiSnapshotRef.current.workbench.tabsById[tabId]?.kind === 'side-chat') {
+          sideChatPanelTargetsRef.current.set(tabId, target)
+        }
+      }
+    }
+
     if (prevId && prevId !== currentId) {
       patchConversationUiState(prevId, {
         workbench: uiSnapshotRef.current.workbench,
-        sideChatInput: uiSnapshotRef.current.sideChatInput,
-        sideChatAttachments: uiSnapshotRef.current.sideChatAttachments,
+        sideChatInput: '',
+        sideChatAttachments: [],
         review: uiSnapshotRef.current.review,
       })
     }
 
     prevSessionIdRef.current = currentId
 
+    const restoreAttachmentPreview = (
+      state: ReturnType<typeof createDefaultWorkbenchTabsState>,
+    ) => attachmentPreviewTabRef.current
+      ? applyWorkbenchPanelAction(state, {
+          type: 'openTab',
+          target: 'right',
+          tab: attachmentPreviewTabRef.current,
+        })
+      : state
+
     if (currentId) {
       const saved = loadConversationUiState(currentId)
       if (saved) {
         const validated = validateConversationUiState(saved)
-        setWorkbenchPanelState(validated.workbench)
-        setSideChatInput(validated.sideChatInput)
-        setSideChatAttachments(validated.sideChatAttachments)
+        setWorkbenchPanelState(restoreAttachmentPreview(validated.workbench))
         setReviewTabState(validated.review)
       } else {
         /* No saved state — force defaults */
-        setWorkbenchPanelState(createDefaultWorkbenchTabsState())
-        setSideChatInput('')
-        setSideChatAttachments([])
+        setWorkbenchPanelState(restoreAttachmentPreview(
+          createDefaultWorkbenchTabsState(),
+        ))
         setReviewTabState(createDefaultReviewTabUiState())
       }
     } else {
       /* Quick-chat — force defaults */
-      setWorkbenchPanelState(createDefaultWorkbenchTabsState())
-      setSideChatInput('')
-      setSideChatAttachments([])
+      setWorkbenchPanelState(restoreAttachmentPreview(
+        createDefaultWorkbenchTabsState(),
+      ))
       setReviewTabState(createDefaultReviewTabUiState())
     }
   }, [sessionId])
+
+  useEffect(() => {
+    if (!sessionId || sideChatTabsForSource.length === 0) return
+    setWorkbenchPanelState(current => {
+      let next = current
+      for (const tab of sideChatTabsForSource) {
+        next = applyWorkbenchPanelAction(next, {
+          type: 'openTab',
+          target: sideChatPanelTargetsRef.current.get(tab.id) ?? 'right',
+          tab,
+        })
+      }
+      return next
+    })
+  }, [sessionId, sideChatTabsForSource])
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
@@ -1190,8 +1327,8 @@ export function DesktopLayout(): React.ReactNode {
       if (currentSessionId) {
         patchConversationUiState(currentSessionId, {
           workbench: uiSnapshotRef.current.workbench,
-          sideChatInput: uiSnapshotRef.current.sideChatInput,
-          sideChatAttachments: uiSnapshotRef.current.sideChatAttachments,
+          sideChatInput: '',
+          sideChatAttachments: [],
           review: uiSnapshotRef.current.review,
         })
       }
@@ -2264,6 +2401,7 @@ export function DesktopLayout(): React.ReactNode {
           onAttachmentsChange: setComposerAttachments,
           onAppendAttachmentsForDraft: appendComposerAttachmentsForDraft,
           onRemoveAttachmentForDraft: removeComposerAttachmentForDraft,
+          onOpenAttachment: handleOpenDraftAttachment,
           onDraftAccepted: clearComposerDraftIfUnchanged,
           onChooseWorkspace: handleChooseWorkspace,
           onInputChange: setInput,
@@ -2294,35 +2432,72 @@ export function DesktopLayout(): React.ReactNode {
           onFollowUpResume: () => void handleFollowUpResume(),
         }
       : null
-  const sideChatComposer =
-    isQuickChatPage || isConversationRoute ? (
+  const renderSideChatComposer = (
+    tab: Extract<
+      import('../dock/rightDockState.js').WorkbenchTabDescriptor,
+      { kind: 'side-chat' }
+    >,
+    sideChatContext: import('../../session/conversation/SideChatThreadPanel.js').SideChatComposerRenderContext,
+  ): React.ReactNode => {
+    if (!isQuickChatPage && !isConversationRoute) return null
+    const sideSettings = getSideChatSettings(tab.id)
+    const sideProviderOption = providerModelOptions.find(
+      option => option.providerID === sideSettings.providerID,
+    )
+    const sideModelPresets = sideProviderOption?.modelPresets ?? modelPresets
+    const sideSelectedModelPreset = resolveModelPresetId(
+      sideSettings.model,
+      sideSettings.selectedModelPreset,
+      sideModelPresets,
+    )
+    const sideProviderSummary =
+      modelProviders.find(
+        provider => provider.providerID === sideSettings.providerID,
+      ) ??
+      (providerState?.provider.providerID === sideSettings.providerID
+        ? providerState.provider
+        : undefined)
+    const sideModelMetadata = sideProviderSummary?.modelMetadata?.[
+      sideSettings.model
+    ] ?? providerState?.modelMetadata?.[sideSettings.model]
+    const sideDeepSeekThinkingControls = isDeepSeekThinkingModel({
+      providerID: sideSettings.providerID,
+      model: sideSettings.model,
+      metadata: sideModelMetadata,
+    })
+    const sideShowThinkingOptions =
+      sideDeepSeekThinkingControls ||
+      sideProviderSummary?.kind === 'anthropic' ||
+      sideModelMetadata?.reasoning === true
+    return (
       <DesktopComposer
         input={sideChatInput}
-        messages={messages}
-        placement="side-task"
-        draftKey={sideComposerDraftKey}
-        routedSessionId={activeSessionItem?.id ?? null}
-        sessionStatus={sessionStatus}
-        permissionMode={effectivePermissionMode}
-        planModeActive={planModeActive}
+        messages={[]}
+        hasConversationMessages={sideChatContext.hasVisibleMessages}
+        placement="thread"
+        draftKey={tab.id}
+        routedSessionId={tab.threadId}
+        sessionStatus={sideChatContext.status}
+        permissionMode={sideSettings.permissionMode}
+        planModeActive={sideSettings.planModeActive}
         localRouterMode={effectiveLocalRouterMode}
         enableParetoCodeRouter={localRouterAvailable && (enableParetoCodeRouter ?? false)}
         enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
         enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
         enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
         planExecutionModel={planExecutionModel}
-        thinkingMode={thinkingMode}
-        selectedProviderID={selectedProviderID}
-        selectedModelPreset={resolvedSelectedModelPreset}
+        thinkingMode={sideSettings.thinkingMode}
+        selectedProviderID={sideSettings.providerID}
+        selectedModelPreset={sideSelectedModelPreset}
         modelConfigured={modelConfigured}
         modelCatalogLoading={modelCatalogLoading}
         modelConfigurationMessage={modelConfigurationMessage}
-        selectedModelMetadata={selectedModelMetadata}
-        showThinkingOptions={showThinkingOptions}
-        deepSeekThinkingControls={deepSeekThinkingControls}
-        showContextUsage={showContextUsage}
-        contextUsage={contextUsage}
-        modelPresets={selectedProviderModelPresets}
+        selectedModelMetadata={sideModelMetadata}
+        showThinkingOptions={sideShowThinkingOptions}
+        deepSeekThinkingControls={sideDeepSeekThinkingControls}
+        showContextUsage={false}
+        contextUsage={null}
+        modelPresets={sideModelPresets}
         providerOptions={providerModelOptions}
         recentWorkspaces={recentWorkspaces}
         workspace={currentWorkspace}
@@ -2330,11 +2505,26 @@ export function DesktopLayout(): React.ReactNode {
         onAttachmentsChange={setSideChatAttachments}
         onAppendAttachmentsForDraft={appendSideComposerAttachmentsForDraft}
         onRemoveAttachmentForDraft={removeSideComposerAttachmentForDraft}
+        onOpenAttachment={handleOpenDraftAttachment}
         onDraftAccepted={clearSideComposerDraftIfUnchanged}
         onChooseWorkspace={handleChooseWorkspace}
         onInputChange={setSideChatInput}
-        onInterrupt={interrupt}
-        onProviderModelChange={handleProviderModelChange}
+        onInterrupt={() => desktopClient.interruptSession(tab.threadId)}
+        onProviderModelChange={(nextProviderID, nextPresetId) => {
+          const providerOption = providerModelOptions.find(
+            option => option.providerID === nextProviderID,
+          )
+          const preset = providerOption?.modelPresets.find(
+            candidate => candidate.id === nextPresetId,
+          )
+          if (!providerOption || !preset) return
+          updateSideChatSettings(tab.id, {
+            providerID: nextProviderID,
+            providerBaseURL: providerOption.baseURL ?? '',
+            model: preset.value,
+            selectedModelPreset: nextPresetId,
+          })
+        }}
         onProviderOpen={handleProviderOpen}
         onProviderSearch={handleProviderSearch}
         onOpenWorkspace={handleOpenRecentWorkspace}
@@ -2344,15 +2534,34 @@ export function DesktopLayout(): React.ReactNode {
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
         onBranchSelect={handleBranchSelect}
         onCreateBranch={handleCreateBranch}
-        onStartReview={handleStartAiReview}
-        onPermissionChange={handlePermissionChange}
-        onPlanModeChange={handlePlanModeChange}
-        onLocalRouterModeChange={handleLocalRouterModeChange}
-        onThinkingChange={setThinkingMode}
+        capabilities={{ goals: false, review: false, status: false }}
+        onPermissionChange={value => {
+          const previous = sideSettings.permissionMode
+          updateSideChatSettings(tab.id, { permissionMode: value })
+          void desktopClient.setSessionPermissionMode(tab.threadId, value)
+            .catch(error => {
+              updateSideChatSettings(tab.id, { permissionMode: previous })
+              setErrorMessage(error instanceof Error ? error.message : String(error))
+            })
+        }}
+        onPlanModeChange={active => {
+          const previous = sideSettings.planModeActive
+          updateSideChatSettings(tab.id, { planModeActive: active })
+          void desktopClient.setSessionPlanModeActive(tab.threadId, active)
+            .catch(error => {
+              updateSideChatSettings(tab.id, { planModeActive: previous })
+              setErrorMessage(error instanceof Error ? error.message : String(error))
+            })
+        }}
+        onLocalRouterModeChange={() => undefined}
+        onThinkingChange={value => {
+          updateSideChatSettings(tab.id, { thinkingMode: value })
+        }}
         createSessionForWorkspace={createSessionForWorkspace}
         submitToSession={sideChatSubmitToSession}
       />
-    ) : null
+    )
+  }
   const subagentThreadContent = selectedSubagent?.currentRun ? (
     <Suspense fallback={null}>
       <SubagentThreadPanel
@@ -2691,7 +2900,17 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const saveTabsBeforeClose = useCallback(
-    async (tabIds: readonly WorkbenchTabId[]): Promise<boolean> => {
+    async (
+      tabIds: readonly WorkbenchTabId[],
+      options: { discardSideChats?: boolean } = {},
+    ): Promise<boolean> => {
+      if (options.discardSideChats !== false) {
+        const sideChatTabs = tabIds.flatMap(tabId => {
+          const tab = workbenchPanelState.tabsById[tabId]
+          return tab?.kind === 'side-chat' ? [tab] : []
+        })
+        if (!(await requestCloseSideChatTabs(sideChatTabs))) return false
+      }
       for (const tabId of tabIds) {
         const tab = workbenchPanelState.tabsById[tabId]
         if (tab?.kind === 'terminal' && sessionId) {
@@ -2714,7 +2933,7 @@ export function DesktopLayout(): React.ReactNode {
       }
       return true
     },
-    [sessionId, workbenchPanelState.tabsById],
+    [requestCloseSideChatTabs, sessionId, workbenchPanelState.tabsById],
   )
 
   const renderWorkbenchPanel = (
@@ -2759,7 +2978,9 @@ export function DesktopLayout(): React.ReactNode {
       onAddComposerFiles={handleAddComposerFiles}
       onBrowserStateChange={setBrowserState}
       onClose={() => {
-        void saveTabsBeforeClose(state.tabIds).then(saved => {
+        void saveTabsBeforeClose(state.tabIds, {
+          discardSideChats: false,
+        }).then(saved => {
           if (saved) closePanel(target)
         })
       }}
@@ -2820,8 +3041,40 @@ export function DesktopLayout(): React.ReactNode {
       onToggleReviewView={() =>
         setReviewView(reviewView === 'inline' ? 'split' : 'inline')
       }
-      sideChatComposer={sideChatComposer}
-      sideChatFocusVersion={sideChatFocusVersion}
+      onCreateSideChat={() => void createSideChat()}
+      sideChat={{
+        available: sideChatSupported,
+        focusVersion: sideChatFocusVersion,
+        isCreating: isCreatingSideChat,
+        getPermissionMode: tab => getSideChatSettings(tab.id).permissionMode,
+        onInteractionError: message => setErrorMessage(message),
+        itemContext: (tab, status) => ({
+          canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
+          onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
+          onOpenFileReference: handleOpenMarkdownFileReference,
+          onOpenAttachment: handleOpenThreadAttachment,
+          onSubmitEditedUserMessage: async text => {
+            await sideChatSubmitToSession(tab.threadId, { text })
+          },
+          sessionStatus: status,
+          workspacePath: currentWorkspace?.path ?? null,
+        }),
+        onOpenPatchReview: handleOpenPatchReview,
+        onOpenPlan: handleOpenPlanDock,
+        onRecreate: tab => {
+          void createSideChat().then(created => {
+            if (!created) return
+            const target = workbenchPanelState.right.tabIds.includes(tab.id)
+              ? 'right'
+              : 'bottom'
+            void requestCloseSideChatTabs([tab]).then(closed => {
+              if (closed) closePanelTab(target, tab.id)
+            })
+          })
+        },
+        onStateChange: reportSideChatState,
+        renderComposer: renderSideChatComposer,
+      }}
       activeSideTaskId={activeSideTaskId}
       sideTaskContent={subagentThreadContent}
       />
@@ -2939,6 +3192,20 @@ export function DesktopLayout(): React.ReactNode {
           }}
         />
       ) : null}
+      <ConfirmationDialog
+        actionLabel="关闭侧边聊天"
+        description="这个侧边聊天将被删除，且无法恢复。你确定吗？"
+        open={closeConfirmationOpen}
+        suppression={{
+          checked: skipCloseConfirmation,
+          label: '不再询问',
+          onCheckedChange: setSkipCloseConfirmation,
+        }}
+        title="关闭侧边聊天？"
+        tone="danger"
+        onAction={confirmSideChatClose}
+        onCancel={cancelSideChatClose}
+      />
 
       <WorkbenchShellView
         menuBar={menuBar}
@@ -2980,9 +3247,12 @@ export function DesktopLayout(): React.ReactNode {
             onCopyFileReferenceContents:
               handleCopyMarkdownFileReferenceContents,
             onOpenFileReference: handleOpenMarkdownFileReference,
+            onOpenAttachment: handleOpenThreadAttachment,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
             onAppendSideChatText: handleAppendSideChatText,
+            onOpenSideChat: handleOpenSideChat,
+            sideChatAvailable: sideChatSupported,
             onOpenSubagent: handleOpenSubagent,
             onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,

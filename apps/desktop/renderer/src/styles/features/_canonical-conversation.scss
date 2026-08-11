@@ -1,6 +1,9 @@
 .conversation-page {
+  --session-content-inline-start-gutter: 48px;
+  --session-content-inline-end-gutter: 16px;
   --session-content-w: calc(
-    100% - (var(--session-content-inline-gutter) * 2)
+    100% - var(--session-content-inline-start-gutter) -
+      var(--session-content-inline-end-gutter)
   );
   --conversation-item-gap: 16px;
   --conversation-grouped-item-gap: 4px;
@@ -39,10 +42,13 @@
   padding: 0 0 16px;
 }
 
+.conversation-page .session-timeline-container,
 .conversation-page .workflow-page__composer-inner {
   width: var(--session-content-w);
   min-width: 0;
   max-width: none;
+  margin-inline-start: var(--session-content-inline-start-gutter);
+  margin-inline-end: var(--session-content-inline-end-gutter);
 }
 
 .conversation-page .thread-summary-inline,
@@ -108,7 +114,9 @@
   display: flex;
   justify-content: center;
   width: var(--session-content-w, 100%);
-  margin: 10px auto 2px;
+  margin:
+    10px var(--session-content-inline-end-gutter) 2px
+    var(--session-content-inline-start-gutter);
 
   button {
     display: inline-flex;
@@ -402,6 +410,10 @@
     list-style: none;
 
     li {
+      display: contents;
+    }
+
+    .canonical-user-message__attachment-entry {
       display: inline-flex;
       align-items: center;
       gap: 5px;
@@ -419,6 +431,7 @@
       font-size: var(--type-caption);
       line-height: 1.3;
       white-space: nowrap;
+      cursor: pointer;
     }
 
     span {
@@ -1398,6 +1411,8 @@
 @media (max-width: 760px) {
   .conversation-page {
     --session-content-inline-gutter: 16px;
+    --session-content-inline-start-gutter: 16px;
+    --session-content-inline-end-gutter: 16px;
   }
 
   .conversation-page .chat-session-header {
@@ -1411,6 +1426,20 @@
   .conversation-page .thread-scroll-layout__footer {
     padding-inline: 0;
   }
+}
+
+.canonical-user-message__attachment-entry:hover:not(:disabled) {
+  color: var(--color-token-foreground);
+  background: var(--color-token-list-hover-background);
+}
+
+.canonical-user-message__attachment-entry:focus-visible {
+  outline: 2px solid var(--color-token-focus-border);
+  outline-offset: 1px;
+}
+
+.canonical-user-message__attachment-entry:disabled {
+  cursor: default;
 }
 
 @media (prefers-reduced-motion: reduce) {

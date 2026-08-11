@@ -664,6 +664,58 @@ describe('desktop provider client', () => {
       'auth/session/cancel',
     ]))
   })
+
+  test('declares the side-chat capability before calling its RPC methods', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        expect(body.params.capabilities).toContain('thread.side-chat.v1')
+        return rpc(body.id, initializedResult([
+          'rpc.typed.v1',
+          'thread.side-chat.v1',
+        ]))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'thread/side-chat/create') {
+        return rpc(body.id, {
+          sideChat: {
+            threadId: 'side-chat-1',
+            sourceThreadId: 'thread-1',
+            inheritedThroughTurnId: 'turn-1',
+            createdAt: 1,
+          },
+        })
+      }
+      if (body.method === 'thread/side-chat/discard') {
+        return rpc(body.id, { ok: true })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await client.createSideChat({ sourceThreadId: 'thread-1' })
+    await client.discardSideChat({ threadId: 'side-chat-1' })
+
+    expect(requests).toEqual(expect.arrayContaining([
+      {
+        method: 'thread/side-chat/create',
+        params: {
+          sourceThreadId: 'thread-1',
+          operationId: expect.any(String),
+        },
+      },
+      {
+        method: 'thread/side-chat/discard',
+        params: {
+          threadId: 'side-chat-1',
+          operationId: expect.any(String),
+        },
+      },
+    ]))
+  })
 })
 
 function rpc(id: string | number, result: unknown): Response {

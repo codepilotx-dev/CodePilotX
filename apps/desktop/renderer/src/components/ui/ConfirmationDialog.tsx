@@ -23,6 +23,11 @@ type Props = {
   actionLabel: string
   tone?: 'primary' | 'danger'
   actionDisabled?: boolean
+  suppression?: {
+    checked: boolean
+    label: string
+    onCheckedChange: (checked: boolean) => void
+  }
   onCancel: () => void
   onAction: () => void
 }
@@ -35,6 +40,7 @@ export function ConfirmationDialog({
   actionLabel,
   tone = 'primary',
   actionDisabled = false,
+  suppression,
   onCancel,
   onAction,
 }: Props): React.ReactNode {
@@ -84,6 +90,18 @@ export function ConfirmationDialog({
                   {description ?? '请确认是否继续。'}
                 </p>
               </AlertDialog.Description>
+              {suppression ? (
+                <label className="confirmation-dialog-suppression tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:text-sm tw:text-app-text-soft">
+                  <input
+                    checked={suppression.checked}
+                    type="checkbox"
+                    onChange={event =>
+                      suppression.onCheckedChange(event.currentTarget.checked)
+                    }
+                  />
+                  <span>{suppression.label}</span>
+                </label>
+              ) : null}
               <div className="permission-modal-actions confirmation-dialog-actions tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
                 <AlertDialog.Cancel asChild>
                   <Button className="tw:min-w-19">

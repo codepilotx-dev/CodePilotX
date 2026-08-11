@@ -9,8 +9,10 @@ import {
   ClipboardCheck,
   Copy,
   FileDiff,
+  FileText,
   GitFork,
   Hourglass,
+  Image,
   LoaderCircle,
   MessageCircleQuestion,
   NotepadText,
@@ -149,6 +151,7 @@ export function CanonicalUserInput({
     canCopyFileReferenceContents,
     onCopyFileReferenceContents,
     onOpenFileReference,
+    onOpenAttachment,
     onSubmitEditedUserMessage,
     sessionStatus,
     workspacePath,
@@ -220,9 +223,23 @@ export function CanonicalUserInput({
         {attachments.length ? (
           <ul className="canonical-user-message__attachments" aria-label="附件">
             {attachments.map((attachment) => (
-              <li key={attachment.id} title={`${attachment.mediaType} · ${formatBytes(attachment.sizeBytes)}`}>
-                <Paperclip aria-hidden="true" size={14} />
-                <span>{attachment.name}</span>
+              <li key={attachment.id}>
+                <button
+                  className="canonical-user-message__attachment-entry"
+                  disabled={!onOpenAttachment}
+                  onClick={() => onOpenAttachment?.(attachment)}
+                  title={`${attachment.mediaType} · ${formatBytes(attachment.sizeBytes)}`}
+                  type="button"
+                >
+                  {attachment.kind === "image" ? (
+                    <Image aria-hidden="true" size={14} />
+                  ) : attachment.kind === "text" ? (
+                    <FileText aria-hidden="true" size={14} />
+                  ) : (
+                    <Paperclip aria-hidden="true" size={14} />
+                  )}
+                  <span>{attachment.name}</span>
+                </button>
               </li>
             ))}
           </ul>

@@ -98,6 +98,7 @@ export type DesktopComposerProps = {
     draftKey: ComposerDraftKey,
     attachmentId: string,
   ) => void
+  onOpenAttachment?: (attachment: DesktopComposerAttachment) => void
   onDraftAccepted?: (
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
@@ -197,6 +198,7 @@ export function DesktopComposer({
   onAttachmentsChange,
   onAppendAttachmentsForDraft,
   onRemoveAttachmentForDraft,
+  onOpenAttachment,
   onDraftAccepted,
   onChooseWorkspace,
   onInputChange,
@@ -348,6 +350,7 @@ export function DesktopComposer({
       onAddFiles={filePaths => void handleAddFilePaths(filePaths)}
       onOpenFiles={() => void handleOpenFiles()}
       onRemoveAttachment={handleRemoveAttachment}
+      onOpenAttachment={onOpenAttachment}
       onOpenWorkspace={workspaceItem => void onOpenWorkspace(workspaceItem)}
       onCloneGithub={onCloneGithub}
       onClearWorkspace={onClearWorkspace}

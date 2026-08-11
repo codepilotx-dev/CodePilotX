@@ -75,7 +75,6 @@ import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
 import { ComposerStatusOverlay } from "./ComposerStatusOverlay.js";
-import { ComposerAttachmentTray } from "./ComposerAttachmentTray.js";
 import type {
   ComposerEditorHandle,
   ComposerEditorProps,
@@ -284,6 +283,7 @@ type Props = {
   onAddFiles?: (filePaths: string[]) => void;
   onOpenFiles: () => void;
   onRemoveAttachment?: (attachmentId: string) => void;
+  onOpenAttachment?: (attachment: DesktopComposerAttachment) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onCloneGithub?: () => void;
   onClearWorkspace: () => void;
@@ -339,6 +339,11 @@ const ComposerEditor = lazy(async () => {
   };
 });
 
+const ComposerAttachmentTray = lazy(async () => {
+  const module = await import("./ComposerAttachmentTray.js");
+  return { default: module.ComposerAttachmentTray };
+});
+
 export function ComposerCard({
   input,
   canSubmit,
@@ -382,6 +387,7 @@ export function ComposerCard({
   onAddFiles,
   onOpenFiles,
   onRemoveAttachment,
+  onOpenAttachment,
   onOpenWorkspace,
   onCloneGithub,
   onClearWorkspace,
@@ -1155,10 +1161,15 @@ export function ComposerCard({
             {submitOutcome.message}，请修改后重试。
           </div>
         ) : null}
-        <ComposerAttachmentTray
-          attachments={attachments}
-          onRemove={onRemoveAttachment}
-        />
+        {attachments.length > 0 ? (
+          <Suspense fallback={null}>
+            <ComposerAttachmentTray
+              attachments={attachments}
+              onOpen={onOpenAttachment}
+              onRemove={onRemoveAttachment}
+            />
+          </Suspense>
+        ) : null}
         <div
           className="composer-input tw:flex tw:min-w-0 tw:items-start"
           onPointerDown={(event) => {

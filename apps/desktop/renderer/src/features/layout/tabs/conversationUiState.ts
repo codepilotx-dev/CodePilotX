@@ -137,10 +137,53 @@ export function saveConversationUiState(
   try {
     window.localStorage.setItem(
       STORAGE_PREFIX + sessionId,
-      JSON.stringify(state),
+      JSON.stringify({
+        ...state,
+        workbench: omitEphemeralSideChatTabs(state.workbench),
+        sideChatInput: '',
+        sideChatAttachments: [],
+      }),
     )
   } catch {
     /* localStorage full or disabled; silently ignore */
+  }
+}
+
+/** Removes process-local tabs before a conversation UI snapshot is persisted. */
+export function omitEphemeralSideChatTabs(
+  workbench: WorkbenchTabsState,
+): WorkbenchTabsState {
+  const sideChatIds = new Set(
+    Object.entries(workbench.tabsById)
+      .filter(([, tab]) =>
+        tab?.kind === 'side-chat' || tab?.kind === 'attachment-preview',
+      )
+      .map(([tabId]) => tabId),
+  )
+  if (sideChatIds.size === 0) return workbench
+
+  const tabsById = { ...workbench.tabsById }
+  for (const tabId of sideChatIds) {
+    delete tabsById[tabId as WorkbenchTabId]
+  }
+  const filterPanel = (
+    panel: WorkbenchPanelSnapshot,
+  ): WorkbenchPanelSnapshot => {
+    const tabIds = panel.tabIds.filter(tabId => !sideChatIds.has(tabId))
+    return {
+      ...panel,
+      tabIds,
+      activeTabId:
+        panel.activeTabId && !sideChatIds.has(panel.activeTabId)
+          ? panel.activeTabId
+          : (tabIds.at(-1) ?? null),
+    }
+  }
+  return {
+    ...workbench,
+    tabsById,
+    right: filterPanel(workbench.right),
+    bottom: filterPanel(workbench.bottom),
   }
 }
 
@@ -190,6 +233,8 @@ export function transferConversationUiStateForHandoff(input: {
     const tabsById = Object.fromEntries(
       Object.entries(source.workbench.tabsById).filter(([, tab]) =>
         tab?.kind !== 'plan' &&
+        tab?.kind !== 'side-chat' &&
+        tab?.kind !== 'attachment-preview' &&
         tab?.kind !== 'side-task' &&
         tab?.kind !== 'file-preview'),
     )
@@ -494,9 +539,8 @@ function validateTabDescriptor(
       ...(directoryPath ? { directoryPath } : {}),
     }
   }
-  if (tab.id === 'side-chat' && tab.kind === 'side-chat') {
-    return { id: 'side-chat', kind: 'side-chat' }
-  }
+  // Side chats are process-local and must never be restored from localStorage.
+  if (tab.kind === 'side-chat' || tab.kind === 'attachment-preview') return null
   if (tab.id === 'terminal' && tab.kind === 'terminal') {
     return { id: 'terminal', kind: 'terminal' }
   }

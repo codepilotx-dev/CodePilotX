@@ -1897,6 +1897,13 @@ export type DesktopApi = {
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
+  createSideChat(input: {
+    sourceThreadId: string
+    referenceText?: string
+  }): Promise<RpcResult<'thread/side-chat/create'>>
+  discardSideChat(input: {
+    threadId: string
+  }): Promise<RpcResult<'thread/side-chat/discard'>>
   listSessions(options?: { archived?: boolean }): Promise<DesktopSessionSnapshot[]>
   getSessionCatalogStatus(): Promise<DesktopSessionCatalogStatus>
   getSession(sessionId: string): Promise<DesktopSessionSnapshot>

@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 
 import type { DesktopSessionStatus } from "../../../../shared/types.js";
+import type { Attachment } from "@codepilotx/shared/thread";
 import type {
   MarkdownFileOpenOptions,
   MarkdownFileReference,
@@ -17,6 +18,7 @@ export type ConversationItemContextValue = {
     reference: MarkdownFileReference,
     options: MarkdownFileOpenOptions,
   ) => void;
+  onOpenAttachment?: (attachment: Attachment) => void;
   onForkFromMessage?: (request: { itemId: string; turnId: string }) => void;
   onSubmitEditedUserMessage: (text: string) => Promise<void>;
   sessionStatus: DesktopSessionStatus;

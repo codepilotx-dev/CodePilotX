@@ -127,7 +127,7 @@ export function SessionTimelineView<T>({
 
   return (
     <div
-      className="session-timeline-container tw:mx-auto tw:min-w-0"
+      className="session-timeline-container tw:min-w-0"
       data-component="session-timeline"
       data-scroll-mode={scrollController.mode}
     >

@@ -53,6 +53,7 @@ import type {
 import {
   createLauncherTab,
   getWorkbenchLauncherDefinitions,
+  getWorkbenchLauncherPresentation,
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
   type WorkbenchTabRenderContext,
@@ -133,8 +134,8 @@ type Props = {
   ) => void
   onToggleRightFullWidth?: () => void
   onToggleReviewView: () => void
-  sideChatComposer: React.ReactNode
-  sideChatFocusVersion: number
+  sideChat: Omit<WorkbenchTabRenderContext['sideChat'], 'activeTabId'>
+  onCreateSideChat: () => void
   activeSideTaskId: string | null
   sideTaskContent?: React.ReactNode
 }
@@ -337,8 +338,8 @@ export function WorkbenchPanel({
   onSetFileMarkdownViewMode,
   onToggleRightFullWidth,
   onToggleReviewView,
-  sideChatComposer,
-  sideChatFocusVersion,
+  sideChat,
+  onCreateSideChat,
   activeSideTaskId,
   sideTaskContent,
 }: Props): React.ReactNode {
@@ -430,9 +431,8 @@ export function WorkbenchPanel({
       },
       planContentByEventId,
       sideChat: {
-        composer: sideChatComposer,
-        focusVersion: sideChatFocusVersion,
-        available: activeSideTaskId === null,
+        ...sideChat,
+        activeTabId: state.activeTabId,
       },
       sideTask: {
         activeTaskId: activeSideTaskId,
@@ -456,8 +456,7 @@ export function WorkbenchPanel({
       selectedFile,
       sessionId,
       sessionStatus,
-      sideChatComposer,
-      sideChatFocusVersion,
+      sideChat,
       activeSideTaskId,
       sideTaskContent,
       stableOnAddComposerFiles,
@@ -514,6 +513,8 @@ export function WorkbenchPanel({
             onCloseTabsToRight={onCloseTabsToRight}
             onMoveTab={onMoveTab}
             onOpenTab={stableOnOpenTab}
+            onCreateSideChat={onCreateSideChat}
+            sideChatAvailable={sideChat.available}
             onPinTab={onPinTab}
             onReorderTab={onReorderTab}
             onSelectTab={onSelectTab}
@@ -540,7 +541,9 @@ export function WorkbenchPanel({
         state={state}
         tabsById={tabsById}
         target={target}
+        onCreateSideChat={onCreateSideChat}
         onOpenTab={stableOnOpenTab}
+        sideChatAvailable={sideChat.available}
       />
     </aside>
   )
@@ -552,14 +555,18 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
   state,
   tabsById,
   target,
+  onCreateSideChat,
   onOpenTab,
+  sideChatAvailable,
 }: {
   contentRef: React.RefObject<HTMLDivElement | null>
   panelContext: WorkbenchTabRenderContext
   state: WorkbenchPanelSnapshot
   tabsById: WorkbenchTabsState['tabsById']
   target: WorkbenchPanelTarget
+  onCreateSideChat: () => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
+  sideChatAvailable: boolean
 }): React.ReactNode {
   return (
     <div
@@ -596,7 +603,11 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
           )
         })
       ) : (
-        <WorkbenchLauncher onOpenTab={onOpenTab} />
+        <WorkbenchLauncher
+          onCreateSideChat={onCreateSideChat}
+          onOpenTab={onOpenTab}
+          sideChatAvailable={sideChatAvailable}
+        />
       )}
     </div>
   )
@@ -612,6 +623,8 @@ export function WorkbenchTabsHeader({
   onCloseOtherTabs,
   onCloseTabsToRight,
   onOpenTab,
+  onCreateSideChat,
+  sideChatAvailable,
   onSelectTab,
   onMoveTab,
   onReorderTab,
@@ -626,6 +639,8 @@ export function WorkbenchTabsHeader({
   onCloseOtherTabs: (tabId: WorkbenchTabId) => void
   onCloseTabsToRight: (tabId: WorkbenchTabId) => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
+  onCreateSideChat: () => void
+  sideChatAvailable: boolean
   onSelectTab: (tabId: WorkbenchTabId) => void
   onMoveTab: Props['onMoveTab']
   onReorderTab: Props['onReorderTab']
@@ -633,7 +648,12 @@ export function WorkbenchTabsHeader({
 }): React.ReactNode {
   const tabRefs = useRef(new Map<WorkbenchTabId, HTMLButtonElement>())
   const [menuOpen, setMenuOpen] = useState(false)
-  const launchers = useMemo(() => getWorkbenchLauncherDefinitions(), [])
+  const launchers = useMemo(
+    () => getWorkbenchLauncherDefinitions().filter(
+      definition => definition.kind !== 'side-chat' || sideChatAvailable,
+    ),
+    [sideChatAvailable],
+  )
 
   useEffect(() => {
     const activeTabId = state.activeTabId
@@ -835,55 +855,65 @@ export function WorkbenchTabsHeader({
               </Fragment>
             )
           })}
-          <PopoverMenu
-            align="end"
-            avoidCollisions={false}
-            className="popover-right-dock-add popover-menu--grid"
-            collisionPadding={6}
-            open={menuOpen}
-            side="bottom"
-            sideOffset={4}
-            width={220}
-            trigger={
-              <button
-                aria-label="添加标签"
-                className="right-dock-add-button"
-                title="添加标签"
-                type="button"
-              >
-                <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </button>
-            }
-            onOpenChange={setMenuOpen}
-          >
-            <PopoverRadioGroup
-              value={
-                launchers.find(definition =>
-                  createLauncherTab(definition.kind)?.id === state.activeTabId
-                )?.kind ?? ''
-              }
-              onValueChange={kind => {
-                const definition = launchers.find(item => item.kind === kind)
-                if (!definition) return
-                const candidate = createLauncherTab(definition.kind)
-                if (!candidate) return
-                if (state.tabIds.includes(candidate.id)) onSelectTab(candidate.id)
-                else onOpenTab(candidate)
-                setMenuOpen(false)
-              }}
-            >
-              {launchers.map(definition => (
-                <PopoverRadioItem
-                  icon={definition.icon}
-                  key={definition.kind}
-                  shortcut={definition.shortcut}
-                  value={definition.kind}
+          {state.tabIds.length > 0 ? (
+            <PopoverMenu
+              align="end"
+              avoidCollisions={false}
+              className="popover-right-dock-add popover-menu--grid"
+              collisionPadding={6}
+              open={menuOpen}
+              side="bottom"
+              sideOffset={4}
+              width={220}
+              trigger={
+                <button
+                  aria-label="添加标签"
+                  className="right-dock-add-button"
+                  title="添加标签"
+                  type="button"
                 >
-                  {definition.label}
-                </PopoverRadioItem>
-              ))}
-            </PopoverRadioGroup>
-          </PopoverMenu>
+                  <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                </button>
+              }
+              onOpenChange={setMenuOpen}
+            >
+              <PopoverRadioGroup
+                value={
+                  launchers.find(definition =>
+                    createLauncherTab(definition.kind)?.id === state.activeTabId
+                  )?.kind ?? ''
+                }
+                onValueChange={kind => {
+                  const definition = launchers.find(item => item.kind === kind)
+                  if (!definition) return
+                  if (definition.kind === 'side-chat') {
+                    onCreateSideChat()
+                    setMenuOpen(false)
+                    return
+                  }
+                  const candidate = createLauncherTab(definition.kind)
+                  if (!candidate) return
+                  if (state.tabIds.includes(candidate.id)) onSelectTab(candidate.id)
+                  else onOpenTab(candidate)
+                  setMenuOpen(false)
+                }}
+              >
+                {launchers.map(definition => {
+                  const presentation = getWorkbenchLauncherPresentation(definition)
+                  return (
+                    <PopoverRadioItem
+                      icon={presentation.icon}
+                      key={definition.kind}
+                      shortcut={presentation.shortcut}
+                      value={definition.kind}
+                    >
+                      {presentation.label}
+                    </PopoverRadioItem>
+                  )
+                })}
+              </PopoverRadioGroup>
+            </PopoverMenu>
+          ) : null}
           <span
             aria-hidden="true"
             className="right-dock-tab-empty"
@@ -914,17 +944,42 @@ export function WorkbenchTabsHeader({
 }
 
 function WorkbenchLauncher({
+  onCreateSideChat,
   onOpenTab,
+  sideChatAvailable,
 }: {
+  onCreateSideChat: () => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
+  sideChatAvailable: boolean
 }): React.ReactNode {
+  const launchers = getWorkbenchLauncherDefinitions().filter(
+    definition => definition.kind !== 'side-chat' || sideChatAvailable,
+  )
+
   return (
     <div
       aria-label="可用面板标签"
       className="right-panel-tabs-empty-state"
     >
       <div className="right-panel-tabs-empty-state__actions">
-        {getWorkbenchLauncherDefinitions().map(definition => {
+        {launchers.map(definition => {
+          const presentation = getWorkbenchLauncherPresentation(definition)
+          if (definition.kind === 'side-chat') {
+            return (
+              <button
+                key={definition.kind}
+                className="right-panel-tabs-empty-state__item"
+                type="button"
+                onClick={onCreateSideChat}
+              >
+                <span className="right-panel-tabs-empty-state__icon">
+                  {presentation.icon}
+                </span>
+                <strong>{presentation.label}</strong>
+                {presentation.shortcut ? <kbd>{presentation.shortcut}</kbd> : null}
+              </button>
+            )
+          }
           const tab = createLauncherTab(definition.kind)
           if (!tab) return null
           return (
@@ -935,10 +990,10 @@ function WorkbenchLauncher({
               onClick={() => onOpenTab(tab)}
             >
               <span className="right-panel-tabs-empty-state__icon">
-                {definition.icon}
+                {presentation.icon}
               </span>
-              <strong>{definition.label}</strong>
-              {definition.shortcut ? <kbd>{definition.shortcut}</kbd> : null}
+              <strong>{presentation.label}</strong>
+              {presentation.shortcut ? <kbd>{presentation.shortcut}</kbd> : null}
             </button>
           )
         })}

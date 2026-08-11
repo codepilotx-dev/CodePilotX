@@ -1,11 +1,14 @@
 import React, { Suspense, type ReactNode } from 'react'
 import {
   Bot,
+  Folder,
   FileText,
   GitPullRequest,
   Globe2,
   ListChecks,
-  MessageSquarePlus,
+  MessageCirclePlus,
+  Paperclip,
+  SquarePlus,
   SquareTerminal,
 } from 'lucide-react'
 import type {
@@ -14,11 +17,15 @@ import type {
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopGitStatus,
+  DesktopPermissionMode,
   DesktopReviewView,
   DesktopSessionStatus,
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import type { ReviewTabUiState } from './conversationUiState.js'
+import type { SideChatComposerRenderContext } from '../../session/conversation/SideChatThreadPanel.js'
+import type { ConversationItemContextValue } from '../../session/timeline/ConversationItemContext.js'
+import type { OpenPlanInDockRequest } from '../../session/workflow/WorkflowPlanCard.js'
 import type { FileDocumentLoadErrorPhase } from '../dock/RightDockPanels.js'
 import { FileTypeIcon } from '../FileTypeIcon.js'
 import { createWorkspaceFileTabId } from './workspaceFileTabId.js'
@@ -33,8 +40,9 @@ const WorkspaceReviewSidebar = React.lazy(() => import('../../review/workspace/W
 const RightDockFilePreviewPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilePreviewPanel })))
 const RightDockFilesPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilesPanel })))
 const RightDockPlanPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockPlanPanel })))
-const RightDockSideChatPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockSideChatPanel })))
+const SideChatThreadPanel = React.lazy(() => import('../../session/conversation/SideChatThreadPanel.js').then(module => ({ default: module.SideChatThreadPanel })))
 const TerminalPanel = React.lazy(() => import('../../terminal/TerminalPanel.js').then(module => ({ default: module.TerminalPanel })))
+const UserAttachmentPreviewPanel = React.lazy(() => import('../../session/attachments/UserAttachmentPreviewPanel.js').then(module => ({ default: module.UserAttachmentPreviewPanel })))
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
@@ -91,9 +99,34 @@ export type WorkbenchTabRenderContext = {
   }
   planContentByEventId: Readonly<Record<string, string>>
   sideChat: {
-    composer: ReactNode
-    focusVersion: number
+    activeTabId: WorkbenchTabDescriptor['id'] | null
     available: boolean
+    focusVersion: number
+    isCreating: (
+      tabId: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>['id'],
+    ) => boolean
+    itemContext: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+      status: DesktopSessionStatus,
+    ) => ConversationItemContextValue
+    getPermissionMode: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+    ) => DesktopPermissionMode
+    onInteractionError: (message: string) => void
+    onOpenPatchReview?: (path?: string) => void
+    onOpenPlan?: (request: OpenPlanInDockRequest) => void
+    onRecreate: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+    ) => void
+    onStateChange: (
+      threadId: string,
+      count: number,
+      status: DesktopSessionStatus,
+    ) => void
+    renderComposer: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+      context: SideChatComposerRenderContext,
+    ) => ReactNode
   }
   sideTask: {
     activeTaskId: string | null
@@ -111,6 +144,9 @@ export type WorkbenchTabDefinition = {
   icon: ReactNode
   shortcut?: string
   launcher: boolean
+  launcherLabel?: string
+  launcherIcon?: ReactNode
+  launcherShortcut?: string | null
   getTitle: (tab: WorkbenchTabDescriptor) => string
   getIcon?: (tab: WorkbenchTabDescriptor) => ReactNode
   render: (
@@ -121,6 +157,31 @@ export type WorkbenchTabDefinition = {
 
 const iconSize = 14
 
+const WORKBENCH_LAUNCHER_ORDER: Partial<Record<WorkbenchTabKind, number>> = {
+  review: 0,
+  terminal: 1,
+  browser: 2,
+  'file-browser': 3,
+  'side-chat': 4,
+}
+
+export function getWorkbenchLauncherPresentation(
+  definition: WorkbenchTabDefinition,
+): {
+  label: string
+  icon: ReactNode
+  shortcut?: string
+} {
+  return {
+    label: definition.launcherLabel ?? definition.label,
+    icon: definition.launcherIcon ?? definition.icon,
+    shortcut:
+      definition.launcherShortcut === undefined
+        ? definition.shortcut
+        : definition.launcherShortcut ?? undefined,
+  }
+}
+
 const definitions: readonly WorkbenchTabDefinition[] = [
   {
     kind: 'review',
@@ -128,6 +189,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <GitPullRequest size={iconSize} />,
     shortcut: 'Ctrl+Shift+G',
     launcher: true,
+    launcherIcon: <SquarePlus size={iconSize} />,
     getTitle: () => '审阅',
     render: (_tab, context) => deferred(
       <WorkspaceReviewSidebar {...context.review} />,
@@ -148,6 +210,9 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <FileText size={iconSize} />,
     shortcut: 'Ctrl+Shift+E',
     launcher: true,
+    launcherLabel: '文件',
+    launcherIcon: <Folder size={iconSize} />,
+    launcherShortcut: 'Ctrl+P',
     getTitle: () => '打开文件',
     render: (tab, context) => {
       const directoryPath = tab.kind === 'file-browser' ? tab.directoryPath : undefined
@@ -232,24 +297,40 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     ),
   },
   {
+    kind: 'attachment-preview',
+    label: '用户附件',
+    icon: <Paperclip size={iconSize} />,
+    launcher: false,
+    getTitle: () => '用户附件',
+    render: tab => tab.kind === 'attachment-preview'
+      ? deferred(<UserAttachmentPreviewPanel tab={tab} />)
+      : null,
+  },
+  {
     kind: 'side-chat',
     label: '侧边聊天',
-    icon: <MessageSquarePlus size={iconSize} />,
+    icon: <MessageCirclePlus size={iconSize} />,
     shortcut: 'Ctrl+Alt+S',
     launcher: true,
-    getTitle: () => '侧边聊天',
-    render: (_tab, context) =>
-      context.sideChat.available ? (
-        deferred(<RightDockSideChatPanel
-          composer={context.sideChat.composer}
-          focusVersion={context.sideChat.focusVersion}
-        />)
-      ) : (
-        <div className="right-dock-empty-state">
-          <strong>侧边聊天已在其他标签切换</strong>
-          <span>选择此标签即可继续草稿。</span>
-        </div>
-      ),
+    getTitle: tab => tab.kind === 'side-chat' ? tab.title : '侧边聊天',
+    render: (tab, context) => tab.kind === 'side-chat'
+      ? deferred(
+          <SideChatThreadPanel
+            active={context.sideChat.activeTabId === tab.id}
+            creating={context.sideChat.isCreating(tab.id)}
+            focusVersion={context.sideChat.focusVersion}
+            itemContext={status => context.sideChat.itemContext(tab, status)}
+            onInteractionError={context.sideChat.onInteractionError}
+            onOpenPatchReview={context.sideChat.onOpenPatchReview}
+            onOpenPlan={context.sideChat.onOpenPlan}
+            onRecreate={context.sideChat.onRecreate}
+            onStateChange={context.sideChat.onStateChange}
+            permissionMode={context.sideChat.getPermissionMode(tab)}
+            renderComposer={context.sideChat.renderComposer}
+            tab={tab}
+          />,
+        )
+      : null,
   },
   {
     kind: 'terminal',
@@ -257,6 +338,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <SquareTerminal size={iconSize} />,
     shortcut: 'Ctrl+`',
     launcher: true,
+    launcherShortcut: null,
     getTitle: () => '终端',
     render: (_tab, context) =>
       context.terminal.threadId ? (
@@ -318,7 +400,18 @@ export function getWorkbenchTabDisplayTitle(
 }
 
 export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefinition[] {
-  return definitions.filter(definition => definition.launcher)
+  return definitions
+    .filter(definition => definition.launcher)
+    .map((definition, index) => ({ definition, index }))
+    .sort((left, right) => {
+      const leftOrder = WORKBENCH_LAUNCHER_ORDER[left.definition.kind]
+      const rightOrder = WORKBENCH_LAUNCHER_ORDER[right.definition.kind]
+      return (
+        (leftOrder ?? Object.keys(WORKBENCH_LAUNCHER_ORDER).length + left.index) -
+        (rightOrder ?? Object.keys(WORKBENCH_LAUNCHER_ORDER).length + right.index)
+      )
+    })
+    .map(({ definition }) => definition)
 }
 
 export function createLauncherTab(
@@ -329,7 +422,7 @@ export function createLauncherTab(
   if (kind === 'file-browser') {
     return { id: 'file-browser', kind: 'file-browser' }
   }
-  if (kind === 'side-chat') return { id: 'side-chat', kind: 'side-chat' }
+  if (kind === 'side-chat') return null
   if (kind === 'terminal') return { id: 'terminal', kind: 'terminal' }
   return null
 }

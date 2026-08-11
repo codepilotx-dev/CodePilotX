@@ -75,7 +75,49 @@ describe('Handoff UI transfer', () => {
 
     expect(loadConversationUiState('thread-1')).toMatchObject({
       mainScrollTop: 428,
-      sideChatInput: 'shell-owned draft',
+      sideChatInput: '',
+    })
+  })
+
+  test('never persists dynamic side-chat, attachment preview tabs or drafts', () => {
+    const state = createDefaultConversationUiState()
+    const tab = {
+      id: 'side-chat:temporary-thread',
+      kind: 'side-chat',
+      threadId: 'temporary-thread',
+      sourceThreadId: 'thread-1',
+      inheritedThroughTurnId: 'turn-1',
+      title: '侧边聊天',
+    } as const
+    state.sideChatInput = 'temporary draft'
+    state.workbench.tabsById[tab.id] = tab
+    state.workbench.tabsById['user-attachment-preview'] = {
+      id: 'user-attachment-preview',
+      kind: 'attachment-preview',
+      attachment: {
+        id: 'draft-attachment',
+        kind: 'text',
+        name: 'draft.txt',
+        mediaType: 'text/plain',
+        sizeBytes: 5,
+      },
+      source: { storage: 'draft', encoding: 'utf8', data: 'draft' },
+    }
+    state.workbench.right = {
+      open: true,
+      activeTabId: tab.id,
+      tabIds: [tab.id, 'user-attachment-preview'],
+    }
+
+    saveConversationUiState('thread-1', state)
+
+    expect(loadConversationUiState('thread-1')).toMatchObject({
+      sideChatInput: '',
+      sideChatAttachments: [],
+      workbench: {
+        tabsById: {},
+        right: { activeTabId: null, tabIds: [] },
+      },
     })
   })
 })

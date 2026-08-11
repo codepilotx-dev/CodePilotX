@@ -1,6 +1,6 @@
 export const RIGHT_DOCK_MIN_WIDTH = 320
 export const RIGHT_DOCK_MAIN_MIN_WIDTH = 352
-export const RIGHT_DOCK_DEFAULT_WIDTH = 600
+export const RIGHT_DOCK_DEFAULT_WIDTH = 400
 export const RIGHT_DOCK_CONSTRAINED_WIDTH = 672
 export const RIGHT_DOCK_REOPEN_WIDTH = 696
 
@@ -61,14 +61,15 @@ export function getRightDockMaxWidth(workspaceWidth: number): number {
 
 export function getResponsiveRightDockDefaultWidth(
   workspaceWidth: number,
-  workspaceHeight: number,
+  _workspaceHeight: number,
 ): number {
   const safeWorkspaceWidth = normalizeDimension(workspaceWidth)
-  const safeWorkspaceHeight = normalizeDimension(workspaceHeight)
-  return Math.max(
-    RIGHT_DOCK_MIN_WIDTH,
-    Math.min(safeWorkspaceHeight * 1.6, safeWorkspaceWidth - 500),
-    Math.min(640, safeWorkspaceWidth - RIGHT_DOCK_MAIN_MIN_WIDTH),
+  return Math.round(
+    clamp(
+      RIGHT_DOCK_DEFAULT_WIDTH,
+      RIGHT_DOCK_MIN_WIDTH,
+      getRightDockMaxWidth(safeWorkspaceWidth),
+    ),
   )
 }
 

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import {
   COMPACT_VIEWPORT,
   DESKTOP_VIEWPORT,
@@ -33,6 +33,40 @@ const FORMAL_ROUTES = [
   },
 ] as const
 
+async function expectNewSessionComposerContract(page: Page): Promise<void> {
+  const stack = page.locator(
+    '.composer-stack[data-placement="new-session"]',
+  ).first()
+  await expect(stack).toBeVisible()
+
+  const contract = await stack.evaluate(element => {
+    const input = element.querySelector<HTMLElement>('.composer-input-surface')
+    const utility = element.querySelector<HTMLElement>('.composer-utility-bar')
+    if (!input || !utility) {
+      throw new Error('Expected the new-session Composer surfaces to be present')
+    }
+
+    const stackStyle = getComputedStyle(element)
+    const inputStyle = getComputedStyle(input)
+    const utilityStyle = getComputedStyle(utility)
+    return {
+      stackBoxShadow: stackStyle.boxShadow,
+      inputBackgroundColor: inputStyle.backgroundColor,
+      inputBorderRadius: inputStyle.borderRadius,
+      inputBorderWidth: inputStyle.borderWidth,
+      utilityBackgroundColor: utilityStyle.backgroundColor,
+      utilityBorderTopWidth: utilityStyle.borderTopWidth,
+    }
+  })
+
+  expect(contract.stackBoxShadow).toBe('none')
+  expect(contract.inputBorderWidth).not.toBe('0px')
+  expect(contract.inputBorderRadius).toBe('20px')
+  expect(contract.inputBackgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(contract.utilityBorderTopWidth).not.toBe('0px')
+  expect(contract.utilityBackgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+}
+
 for (const mode of VISUAL_MODES) {
   for (const scenario of FORMAL_ROUTES) {
     visualTest(`formal page ${scenario.id} ${mode}`, async ({ page }) => {
@@ -40,6 +74,9 @@ for (const mode of VISUAL_MODES) {
       await prepareVisualTheme(page, mode)
       await page.goto(scenario.route)
       await waitForVisualPage(page, mode, page.locator(scenario.ready))
+      if (scenario.id === 'new') {
+        await expectNewSessionComposerContract(page)
+      }
       await expect(page.locator('body')).toHaveScreenshot(
         `formal-${scenario.id}-${mode}-1440x920.png`,
         STABLE_SCREENSHOT_OPTIONS,
@@ -58,6 +95,9 @@ for (const mode of VISUAL_MODES) {
       await prepareVisualTheme(page, mode)
       await page.goto(scenario.route)
       await waitForVisualPage(page, mode, page.locator(scenario.ready))
+      if (scenario.id === 'new') {
+        await expectNewSessionComposerContract(page)
+      }
       await expect(page.locator('body')).toHaveScreenshot(
         `formal-${scenario.id}-${mode}-960x640.png`,
         STABLE_SCREENSHOT_OPTIONS,

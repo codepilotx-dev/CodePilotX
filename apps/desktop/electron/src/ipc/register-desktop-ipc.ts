@@ -18,6 +18,10 @@ import {
 import {
   DESKTOP_UPDATE_IPC_CHANNELS,
 } from "@codepilotx/shared/desktop-update-ipc"
+import {
+  DESKTOP_ATTACHMENT_IPC_CHANNELS,
+  type DesktopAttachmentSaveInput,
+} from "@codepilotx/shared/desktop-attachment-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { isSafeExternalUrl } from "../security/navigation.js"
 import {
@@ -31,6 +35,7 @@ import type {
 import type { WindowManager } from "../windows/window-manager.js"
 import type { DesktopAutoUpdater } from "../update/desktop-auto-updater.js"
 import type { ExternalOpenTargetService } from "./external-open-targets.js"
+import type { AttachmentDownloadService } from "./attachment-download-service.js"
 
 const API_KEY_CLIPBOARD_CLEAR_DELAY_MS = 60_000 as const
 
@@ -39,6 +44,7 @@ interface DesktopIpcDependencies {
   logger: DesktopLogger
   externalOpenTargets: ExternalOpenTargetService
   updater: DesktopAutoUpdater
+  attachmentDownloads: AttachmentDownloadService
   getSupervisor: () => SidecarSupervisor | undefined
   getConnectionState: () => AgentConnectionState
   getLogDirectory: () => string
@@ -55,6 +61,7 @@ export function registerDesktopIpc(
     logger,
     externalOpenTargets,
     updater,
+    attachmentDownloads,
     getSupervisor,
     getConnectionState,
     getLogDirectory,
@@ -62,6 +69,14 @@ export function registerDesktopIpc(
     broadcastDesktopSettingsChanged,
     isDesktopRendererSender,
   } = dependencies
+
+  ipcMain.handle(
+    DESKTOP_ATTACHMENT_IPC_CHANNELS.saveToDownloads,
+    async (event, input: DesktopAttachmentSaveInput) => {
+      requireMainWindowSender(event, windows)
+      return attachmentDownloads.save(input)
+    },
+  )
 
   ipcMain.handle("window:minimize", event => {
     requireMainWindowSender(event, windows)
