@@ -837,7 +837,10 @@ export function ComposerCard({
       unifiedMenuItems.filter((item) => item.key.startsWith("code-review")),
     [unifiedMenuItems],
   );
-  const [activeMenuIndex, setActiveMenuIndex] = useState(0);
+  const activeMenuScopeRef = useRef("");
+  const [storedActiveMenuKey, setStoredActiveMenuKey] = useState<string | null>(
+    null,
+  );
   const activeMenuKeyword = reviewMenuRequested
     ? ""
     : openDropdown === "context"
@@ -871,10 +874,57 @@ export function ComposerCard({
     Boolean(activeSkillQuery) ||
     reviewMenuRequested;
 
+  const activeMenuScopeKey = `${reviewMenuRequested
+    ? 0
+    : activeSkillQuery
+      ? 1
+      : showSlashContextDropdown
+        ? 2
+        : activeMention
+          ? `3:${activeMention.start}`
+          : 4}:${activeMenuKeyword}`;
+  const firstActiveMenuKey =
+    activeMenuItems[firstEnabledMenuIndex(activeMenuItems)]?.key ?? null;
+  const storedActiveMenuAvailable = activeMenuItems.some(
+    (item) => item.key === storedActiveMenuKey && !item.disabled,
+  );
+  const activeMenuKey = unifiedMenuOpen
+    ? activeMenuScopeRef.current === activeMenuScopeKey &&
+      storedActiveMenuAvailable
+      ? storedActiveMenuKey
+      : firstActiveMenuKey
+    : null;
+  const activeMenuItem = activeMenuItems.find(
+    (item) => item.key === activeMenuKey,
+  );
+  const activeMenuIndex = activeMenuItem
+    ? activeMenuItems.indexOf(activeMenuItem)
+    : -1;
+
+  function setActiveMenuKey(itemKey: string | null): void {
+    activeMenuScopeRef.current = activeMenuScopeKey;
+    setStoredActiveMenuKey(itemKey);
+  }
+
   useEffect(() => {
-    if (!unifiedMenuOpen) return;
-    setActiveMenuIndex(firstEnabledMenuIndex(activeMenuItems));
-  }, [activeMenuItems, unifiedMenuOpen]);
+    if (!unifiedMenuOpen) {
+      activeMenuScopeRef.current = "";
+      return;
+    }
+    if (
+      activeMenuScopeRef.current === activeMenuScopeKey &&
+      storedActiveMenuAvailable
+    ) {
+      return;
+    }
+    activeMenuScopeRef.current = activeMenuScopeKey;
+    setStoredActiveMenuKey(firstActiveMenuKey);
+  }, [
+    activeMenuScopeKey,
+    firstActiveMenuKey,
+    storedActiveMenuAvailable,
+    unifiedMenuOpen,
+  ]);
 
   useEffect(() => {
     if (input.trimStart() !== "/") {
@@ -1028,14 +1078,14 @@ export function ComposerCard({
     items,
     keyword,
     onItemSelect,
-    activeIndex,
-    onActiveIndexChange,
+    activeKey,
+    onActiveKeyChange,
   }: {
     items: UnifiedMenuItem[];
     keyword: string;
     onItemSelect: (item: UnifiedMenuItem) => void;
-    activeIndex: number;
-    onActiveIndexChange: (index: number) => void;
+    activeKey: string | null;
+    onActiveKeyChange: (key: string) => void;
   }): React.ReactNode {
     const filtered = filterUnifiedMenuItems(items, keyword);
 
@@ -1091,16 +1141,14 @@ export function ComposerCard({
               </span>
               <span className="chat-input__dropdown-section-trailing" />
             </div>
-            {(grouped.get(group) ?? []).map((item) => {
-              const itemIndex = filtered.indexOf(item);
-              return (
+            {(grouped.get(group) ?? []).map((item) => (
                 <button
                   aria-disabled={item.disabled ? true : undefined}
                   aria-current={item.isActive ? "true" : undefined}
                   className={[
                     "chat-input__dropdown-item",
                     item.isActive ? "is-active" : "",
-                    itemIndex === activeIndex ? "is-keyboard-active" : "",
+                    item.key === activeKey ? "is-keyboard-active" : "",
                     item.disabled ? "is-disabled" : "",
                   ].join(" ")}
                   id={menuItemId(item.key)}
@@ -1108,7 +1156,9 @@ export function ComposerCard({
                   onClick={() => {
                     if (!item.disabled) onItemSelect(item);
                   }}
-                  onMouseEnter={() => onActiveIndexChange(itemIndex)}
+                  onMouseEnter={() => {
+                    if (!item.disabled) onActiveKeyChange(item.key);
+                  }}
                   role="option"
                   tabIndex={-1}
                   type="button"
@@ -1127,8 +1177,7 @@ export function ComposerCard({
                     ) : null}
                   </span>
                 </button>
-              );
-            })}
+            ))}
           </div>
         )})}
       </div>
@@ -1149,7 +1198,7 @@ export function ComposerCard({
       onDrop={handleFileDrop}
     >
       <div
-        className="composer composer-input-surface composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between tw:transition-[min-height] tw:duration-[220ms]"
+        className="composer composer-input-surface composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between"
         inert={submitting || undefined}
       >
         {submitOutcome?.status === "failed" ? (
@@ -1209,8 +1258,8 @@ export function ComposerCard({
           >
             <ComposerEditor
               ariaActiveDescendant={
-                unifiedMenuOpen && activeMenuItems[activeMenuIndex]
-                  ? menuItemId(activeMenuItems[activeMenuIndex].key)
+                unifiedMenuOpen && activeMenuKey
+                  ? menuItemId(activeMenuKey)
                   : undefined
               }
               ariaControls={unifiedMenuOpen ? menuId : undefined}
@@ -1232,26 +1281,27 @@ export function ComposerCard({
                 if (unifiedMenuOpen) {
                   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                     event.preventDefault();
-                    setActiveMenuIndex((current) =>
-                      nextEnabledMenuIndex(
-                        activeMenuItems,
-                        current,
-                        event.key === "ArrowDown" ? 1 : -1,
-                      ),
+                    const nextIndex = nextEnabledMenuIndex(
+                      activeMenuItems,
+                      activeMenuIndex,
+                      event.key === "ArrowDown" ? 1 : -1,
                     );
+                    const nextItem = activeMenuItems[nextIndex];
+                    if (nextItem) setActiveMenuKey(nextItem.key);
                     return true;
                   }
                   if (event.key === "Home" || event.key === "End") {
                     event.preventDefault();
-                    setActiveMenuIndex(
+                    const boundaryIndex =
                       event.key === "Home"
                         ? firstEnabledMenuIndex(activeMenuItems)
-                        : lastEnabledMenuIndex(activeMenuItems),
-                    );
+                        : lastEnabledMenuIndex(activeMenuItems);
+                    const boundaryItem = activeMenuItems[boundaryIndex];
+                    if (boundaryItem) setActiveMenuKey(boundaryItem.key);
                     return true;
                   }
                   if (event.key === "Enter" && !event.shiftKey) {
-                    const item = activeMenuItems[activeMenuIndex];
+                    const item = activeMenuItem;
                     if (item && !item.disabled) {
                       event.preventDefault();
                       if (reviewMenuRequested) handleReviewSelect(item);
@@ -1352,10 +1402,10 @@ export function ComposerCard({
           }}
         >
           <UnifiedMenuContent
-            activeIndex={activeMenuIndex}
+            activeKey={activeMenuKey}
             items={slashMenuItems}
             keyword={slashSearch}
-            onActiveIndexChange={setActiveMenuIndex}
+            onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleUnifiedSlashSelect}
           />
         </ChatInputDropdown>
@@ -1368,10 +1418,10 @@ export function ComposerCard({
           onClose={() => setDismissedSkillInput(input)}
         >
           <UnifiedMenuContent
-            activeIndex={activeMenuIndex}
+            activeKey={activeMenuKey}
             items={skillMenuItems}
             keyword={activeSkillQuery?.query ?? ""}
-            onActiveIndexChange={setActiveMenuIndex}
+            onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleSkillQuerySelect}
           />
         </ChatInputDropdown>
@@ -1384,10 +1434,10 @@ export function ComposerCard({
           onClose={() => setReviewMenuRequested(false)}
         >
           <UnifiedMenuContent
-            activeIndex={activeMenuIndex}
+            activeKey={activeMenuKey}
             items={reviewMenuItems}
             keyword=""
-            onActiveIndexChange={setActiveMenuIndex}
+            onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleReviewSelect}
           />
         </ChatInputDropdown>
@@ -1402,10 +1452,10 @@ export function ComposerCard({
           }}
         >
           <UnifiedMenuContent
-            activeIndex={activeMenuIndex}
+            activeKey={activeMenuKey}
             items={unifiedMenuItems}
             keyword={activeMention?.query ?? ""}
-            onActiveIndexChange={setActiveMenuIndex}
+            onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleUnifiedMentionSelect}
           />
         </ChatInputDropdown>
@@ -1989,10 +2039,10 @@ export function ComposerCard({
           maxWidth="100%"
         >
           <UnifiedMenuContent
-            activeIndex={activeMenuIndex}
+            activeKey={activeMenuKey}
             items={unifiedMenuItems}
             keyword=""
-            onActiveIndexChange={setActiveMenuIndex}
+            onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleUnifiedPlusSelect}
           />
         </ChatInputDropdown>

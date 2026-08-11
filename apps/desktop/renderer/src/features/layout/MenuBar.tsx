@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
 import {
@@ -140,14 +140,18 @@ type AppMenuProps = {
   children: React.ReactNode
   contentClassName?: string
   label: string
+  onRequestClose: () => void
   triggerRef?: React.Ref<HTMLButtonElement>
-  value: string
+  value: AppMenuValue
 } & PopoverSizingProps
+
+type AppMenuValue = 'file' | 'edit' | 'view' | 'window' | 'help'
 
 function AppMenu({
   children,
   contentClassName = '',
   label,
+  onRequestClose,
   triggerRef,
   value,
   width,
@@ -155,7 +159,20 @@ function AppMenu({
 }: AppMenuProps): React.ReactNode {
   return (
     <Menubar.Menu value={value}>
-      <Menubar.Trigger className="menubar-trigger" ref={triggerRef}>
+      <Menubar.Trigger
+        className="menubar-trigger"
+        onPointerDown={event => {
+          if (
+            event.currentTarget.dataset.state === 'open'
+            && event.button === 0
+            && event.ctrlKey === false
+          ) {
+            event.preventDefault()
+            onRequestClose()
+          }
+        }}
+        ref={triggerRef}
+      >
         {label}
       </Menubar.Trigger>
       <Menubar.Portal>
@@ -193,6 +210,22 @@ export function MenuBar({
   onHelpMenuAction,
 }: Props): React.ReactNode {
   const helpMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const ignoreStaleCloseRef = useRef(false)
+  const [openMenu, setOpenMenu] = useState<AppMenuValue | ''>('')
+
+  function closeMenu(): void {
+    ignoreStaleCloseRef.current = false
+    setOpenMenu('')
+  }
+
+  function handleMenuValueChange(value: string): void {
+    // react-menubar@1.1.18 reports a stale close in the same event turn
+    // after switching the controlled Root to another Menu.
+    if (!value && ignoreStaleCloseRef.current) return
+    ignoreStaleCloseRef.current = Boolean(value)
+    setOpenMenu(value as AppMenuValue | '')
+    if (value) queueMicrotask(() => (ignoreStaleCloseRef.current = false))
+  }
 
   return (
     <div className="app-menubar" data-edit-command-preserve-target>
@@ -236,8 +269,15 @@ export function MenuBar({
             aria-label="应用菜单"
             className="menubar-root"
             loop
+            onValueChange={handleMenuValueChange}
+            value={openMenu}
           >
-            <AppMenu label="文件" value="file" width={240}>
+            <AppMenu
+              label="文件"
+              onRequestClose={closeMenu}
+              value="file"
+              width={240}
+            >
               <MenuItem shortcut="Ctrl+W" onSelect={() => onFileMenuAction('close')}>
                 关闭
               </MenuItem>
@@ -272,7 +312,12 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
 
-            <AppMenu label="编辑" value="edit" width={240}>
+            <AppMenu
+              label="编辑"
+              onRequestClose={closeMenu}
+              value="edit"
+              width={240}
+            >
               <MenuItem
                 disabled={!editMenuCapabilities.undo}
                 shortcut="Ctrl+Z"
@@ -326,7 +371,12 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
 
-            <AppMenu label="查看" value="view" width={260}>
+            <AppMenu
+              label="查看"
+              onRequestClose={closeMenu}
+              value="view"
+              width={260}
+            >
               <MenuItem
                 shortcut="Ctrl+B"
                 onSelect={() => onViewMenuAction('toggleSidebar')}
@@ -418,6 +468,7 @@ export function MenuBar({
             <AppMenu
               contentClassName="menubar-content-window"
               label="窗口"
+              onRequestClose={closeMenu}
               value="window"
               width={240}
             >
@@ -438,6 +489,7 @@ export function MenuBar({
             <AppMenu
               contentClassName="menubar-content-help"
               label="帮助"
+              onRequestClose={closeMenu}
               triggerRef={helpMenuTriggerRef}
               value="help"
               width={260}
