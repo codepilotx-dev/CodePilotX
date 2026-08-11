@@ -711,6 +711,21 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       return row ? { name: row.tool_name, input: parse<Record<string, unknown>>(row.input), output: row.output == null ? null : parse<unknown>(row.output) } : null
     }
 
+  completedToolEvidenceForTurn(turnID: string) {
+    const rows = this.sqlite.query(`
+        SELECT id, tool_name
+        FROM tool_calls
+        WHERE turn_id = ? AND status = 'completed'
+        ORDER BY COALESCE(finished_at, started_at, 0), id
+        LIMIT 100
+    `).all(turnID) as Array<{ id: string; tool_name: string }>
+    return rows.map((row) => ({
+      toolCallID: row.id,
+      tool: row.tool_name,
+      summary: "工具调用已完成，结果保存在会话历史中",
+    }))
+  }
+
   hasPersistedToolResult(turnID: string, toolCallID: string) {
       return Boolean(this.sqlite.query(`
         SELECT 1
@@ -908,7 +923,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           agentId: input.agentID,
           attemptOrdinal: input.payload.attemptOrdinal,
           completedSideEffects: input.payload.completed,
-          createdAt: timestamp,
+          checkpointVersion: 1,
         }))
         return this.getAgentTurnCheckpoint(input.turnID)!
       })

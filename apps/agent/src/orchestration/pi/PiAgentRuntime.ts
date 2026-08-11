@@ -10,6 +10,12 @@ import { PiEventAdapter } from "./PiEventAdapter"
 import { applyPromptCacheRuntimePolicy } from "./PiPromptCacheAdapter"
 import { adaptToolDefinition, createPiTools } from "./PiToolAdapter"
 import type { ActivePiHarness, PiAgentRuntimeApi, PiAgentRuntimeOptions, PiRunResult, PiRuntimeRequest } from "./types"
+import type { RuntimeCompactionTrigger } from "./types"
+import {
+  isProviderContextOverflow,
+  REACTIVE_COMPACTION_INSTRUCTIONS,
+  REACTIVE_CONTINUATION_PROMPT,
+} from "./ContextOverflow"
 
 const subagentResultSchema = z.object({
   outcome: z.enum(["succeeded", "partial", "blocked"]),
@@ -125,24 +131,62 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
       return result ? { ...(result.block === undefined ? {} : { block: result.block }), ...(result.reason === undefined ? {} : { reason: result.reason }) } : undefined
     })
     harness.on("tool_result", (event) => pausedToolCalls.has(event.toolCallId) ? { terminate: true } : undefined)
+    let compactionTrigger: RuntimeCompactionTrigger | null = null
     const adapter = new PiEventAdapter(
       { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID },
       this.options.eventSink ?? {},
       {
         parseProposedPlan: request.taskMode === "plan",
         resolveSessionEntryID: () => dependencies.session.getLeafId(),
+        resolveCompactionContext: () => ({
+          trigger: compactionTrigger ?? "manual",
+          promptText: bundle.instructions,
+        }),
       },
     )
     const unsubscribe = harness.subscribe((event) => adapter.handle(event))
-    this.harnesses.set(request.threadID, { harness, unsubscribe })
+    const compact = async (trigger: RuntimeCompactionTrigger, instructions?: string) => {
+      compactionTrigger = trigger
+      try {
+        return await harness.compact(instructions)
+      } finally {
+        compactionTrigger = null
+      }
+    }
+    this.harnesses.set(request.threadID, { harness, unsubscribe, compact })
     const onAbort = () => { void harness.abort() }
     request.signal.addEventListener("abort", onAbort, { once: true })
     try {
       const images = promptImages(request)
-      const message: AssistantMessage = await harness.prompt(promptContext(request, bundle.contextItems), images.length > 0 ? { images } : undefined)
+      let message: AssistantMessage = await harness.prompt(promptContext(request, bundle.contextItems), images.length > 0 ? { images } : undefined)
+      if (message.stopReason === "error" && isProviderContextOverflow(message.errorMessage)) {
+        try {
+          await compact("reactive", REACTIVE_COMPACTION_INSTRUCTIONS)
+          message = await harness.prompt(REACTIVE_CONTINUATION_PROMPT)
+        } catch {
+          await this.options.compaction?.recordFailure(request.threadID, "reactive")
+          throw new AgentError("PI_CONTEXT_WINDOW_EXCEEDED", "模型上下文超过窗口限制，自动压缩未能恢复", 413)
+        }
+        if (message.stopReason === "error" && isProviderContextOverflow(message.errorMessage)) {
+          await this.options.compaction?.recordFailure(request.threadID, "reactive")
+          throw new AgentError("PI_CONTEXT_WINDOW_EXCEEDED", "模型上下文超过窗口限制，压缩后仍无法继续", 413)
+        }
+      }
       if (message.stopReason === "error") throw new AgentError("PI_AGENT_FAILED", message.errorMessage ?? "Pi Agent 执行失败", 502)
       if (message.stopReason === "aborted" || request.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
       const output = adapter.outputText(message.content)
+      const compaction = this.options.compaction
+      if (
+        compaction
+        && (await request.canAutoCompact?.() ?? true)
+        && await compaction.shouldAutoCompact(request.threadID)
+      ) {
+        try {
+          await compact("automatic")
+        } catch {
+          await compaction.recordFailure(request.threadID, "automatic")
+        }
+      }
       return { status: "completed", output, ...(finalizedResult ? { result: finalizedResult } : {}) }
     } finally {
       request.signal.removeEventListener("abort", onAbort)
@@ -171,7 +215,13 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
   }
 
   compact(threadID: string, instructions?: string) {
-    return this.active(threadID).compact(instructions)
+    return this.activeRecord(threadID).compact("manual", instructions)
+  }
+
+  private activeRecord(threadID: string) {
+    const active = this.harnesses.get(threadID)
+    if (!active) throw new AgentError("PI_HARNESS_NOT_FOUND", `Thread ${threadID} 尚未创建 Pi Harness`, 404)
+    return active
   }
 
   async dispose() {

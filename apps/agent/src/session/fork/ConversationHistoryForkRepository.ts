@@ -5,6 +5,7 @@ import { SqlitePiSessionRepo, type SqlitePiSessionMetadata } from "../../storage
 import type { AgentDatabase } from "../../storage/database/AgentDatabase"
 import { parsePiSessionEntry } from "../../storage/pi-session-entry"
 import { TurnPiBoundaryRepository } from "../../storage/repositories/turn-pi-boundary-repository"
+import type { SideChatRepository, StoredSideChat } from "../../storage/repositories/side-chat-repository"
 
 type Scalar = string | number | bigint | Uint8Array | null
 type Row = Record<string, Scalar>
@@ -36,6 +37,13 @@ export type ForkThroughOptions = {
 export type FullHistoryForkOptions = {
   operationID: string
   targetThreadID?: string
+  targetWorkspace: ForkThroughOptions["targetWorkspace"]
+}
+
+export type SideChatForkOptions = {
+  operationID: string
+  targetThreadID?: string
+  referenceText?: string
   targetWorkspace: ForkThroughOptions["targetWorkspace"]
 }
 
@@ -127,6 +135,7 @@ export class ConversationHistoryForkRepository {
   private readonly sessions: Pick<SqlitePiSessionRepo, "fork">
   private readonly boundaries: TurnPiBoundaryRepository
   private readonly inFlight = new Map<string, { requestKey: string; promise: Promise<ThreadForkResult> }>()
+  private readonly sideChatInFlight = new Map<string, { requestKey: string; promise: Promise<StoredSideChat> }>()
 
   constructor(
     private readonly db: AgentDatabase,
@@ -135,6 +144,41 @@ export class ConversationHistoryForkRepository {
   ) {
     this.sessions = sessions ?? new SqlitePiSessionRepo(db)
     this.boundaries = new TurnPiBoundaryRepository(db)
+  }
+
+  forkLatestForSideChat(
+    sourceThreadID: string,
+    options: SideChatForkOptions,
+    sideChats: SideChatRepository,
+  ): Promise<StoredSideChat> {
+    const requestKey = JSON.stringify({
+      sourceThreadID,
+      targetThreadID: options.targetThreadID ?? null,
+      referenceText: options.referenceText ?? null,
+      targetWorkspace: options.targetWorkspace,
+    })
+    const existing = sideChats.findByOperation(options.operationID)
+    if (existing) {
+      if (
+        existing.sourceThreadID !== sourceThreadID
+        || existing.referenceText !== (options.referenceText ?? null)
+        || (options.targetThreadID && existing.threadID !== options.targetThreadID)
+      ) {
+        throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他侧边聊天", 409)
+      }
+      return Promise.resolve(existing)
+    }
+    const inFlight = this.sideChatInFlight.get(options.operationID)
+    if (inFlight) {
+      if (inFlight.requestKey !== requestKey) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他侧边聊天", 409)
+      return inFlight.promise
+    }
+    const owned = this.forkLatestForSideChatOwned(sourceThreadID, options, sideChats)
+    const tracked = owned.finally(() => {
+      if (this.sideChatInFlight.get(options.operationID)?.promise === tracked) this.sideChatInFlight.delete(options.operationID)
+    })
+    this.sideChatInFlight.set(options.operationID, { requestKey, promise: tracked })
+    return tracked
   }
 
   forkThrough(sourceThreadID: string, options: ForkThroughOptions): Promise<ThreadForkResult> {
@@ -309,6 +353,103 @@ export class ConversationHistoryForkRepository {
       throw new AgentError("HISTORY_UNSUPPORTED", "任务历史无法完整分叉", 409)
     }
     return { sourceThreadID, targetThreadID: targetRootID, ...maps }
+  }
+
+  private async forkLatestForSideChatOwned(
+    sourceThreadID: string,
+    options: SideChatForkOptions,
+    sideChats: SideChatRepository,
+  ): Promise<StoredSideChat> {
+    const source = this.db.sqlite.query(`
+      SELECT threads.id, threads.kind
+      FROM threads
+      LEFT JOIN thread_side_chats ON thread_side_chats.thread_id = threads.id
+      WHERE threads.id = ?
+        AND thread_side_chats.thread_id IS NULL
+        AND (threads.archived_at IS NULL OR threads.archived_at <> -1)
+    `).get(sourceThreadID) as { id: string; kind: string } | null
+    if (!source) throw new AgentError("THREAD_NOT_FOUND", "源任务不存在", 404)
+    if (source.kind !== "main") throw new AgentError("HISTORY_UNSUPPORTED", "只能从主任务创建侧边聊天", 409)
+
+    const latestCompleted = this.db.sqlite.query(`
+      SELECT id
+      FROM turns
+      WHERE thread_id = ? AND status = 'completed'
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+    `).get(sourceThreadID) as { id: string } | null
+    let sourceItemID: string | null = null
+    let selected: ReturnType<ConversationHistoryForkRepository["requireForkPoint"]> | null = null
+    let piBoundary: string | null = null
+    if (latestCompleted) {
+      const candidates = this.db.sqlite.query(`
+        SELECT items.id, items.data
+        FROM items
+        JOIN turns ON turns.id = items.turn_id
+        WHERE items.thread_id = ? AND items.turn_id = ?
+          AND items.agent_id = turns.root_agent_id
+          AND items.type = 'text' AND items.status = 'completed'
+        ORDER BY items.ordinal DESC, items.created_at DESC, items.id DESC
+      `).all(sourceThreadID, latestCompleted.id) as Array<{ id: string; data: string }>
+      sourceItemID = candidates.find((candidate) => {
+        try { return (JSON.parse(candidate.data) as Record<string, unknown>).placement === "result" } catch { return false }
+      })?.id ?? null
+      if (!sourceItemID) throw new AgentError("FORK_POINT_UNAVAILABLE", "最新完成回复缺少可安全分叉的结果", 409)
+      selected = this.requireForkPoint(sourceThreadID, latestCompleted.id, sourceItemID)
+      piBoundary = this.resolvePiBoundary(latestCompleted.id, selected.sessionID, selected.text)
+    }
+
+    const targetRootID = options.targetThreadID ?? this.nextID()
+    const maps = latestCompleted
+      ? this.allocatePrefixMappings(sourceThreadID, targetRootID, latestCompleted.id)
+      : this.allocateEmptyMappings(sourceThreadID, targetRootID)
+    const piForks = new Map<string, PiFork>()
+    const copiedBoundaries: Array<{ turnID: string; sessionID: string; entryID: string }> = []
+    const inheritedThroughTurnID = latestCompleted ? maps.turnIDs.get(latestCompleted.id) ?? null : null
+    const createdAt = Date.now()
+    try {
+      this.db.transaction(() => {
+        this.copyThreads(sourceThreadID, {
+          ...options,
+          throughTurnID: latestCompleted?.id ?? "",
+          sourceItemID: sourceItemID ?? "",
+          visible: false,
+        }, maps, false)
+        this.copyConversationRows(maps, piForks)
+        this.collectCopiedBoundaries(maps, piForks, copiedBoundaries)
+        if (latestCompleted && selected && piBoundary) {
+          const targetSessionID = piForks.get(selected.sessionID)?.targetSessionID
+          if (!inheritedThroughTurnID || !targetSessionID) throw new AgentError("FORK_POINT_UNAVAILABLE", "无法建立侧边聊天会话边界", 409)
+          piForks.get(selected.sessionID)!.entryID = piBoundary
+          copiedBoundaries.splice(0, copiedBoundaries.length, ...copiedBoundaries.filter((entry) => entry.turnID !== inheritedThroughTurnID))
+          copiedBoundaries.push({ turnID: inheritedThroughTurnID, sessionID: targetSessionID, entryID: piBoundary })
+        }
+        sideChats.insert({
+          threadID: targetRootID,
+          sourceThreadID,
+          inheritedThroughTurnID,
+          referenceText: options.referenceText ?? null,
+          operationID: options.operationID,
+          createdAt,
+        })
+      })
+      for (const entry of piForks.values()) {
+        await this.sessions.fork(entry.source, {
+          id: entry.targetSessionID,
+          threadID: entry.targetThreadID,
+          agentID: entry.targetAgentID,
+          ...(entry.entryID ? { entryId: entry.entryID, position: "at" as const } : {}),
+        })
+      }
+      this.db.transaction(() => {
+        for (const boundary of copiedBoundaries) this.boundaries.upsert(boundary)
+      })
+    } catch (cause) {
+      this.rollbackHiddenTarget(targetRootID)
+      if (cause instanceof AgentError) throw cause
+      throw new AgentError("HISTORY_UNSUPPORTED", "无法启动新的侧边聊天", 409)
+    }
+    return sideChats.findByThread(targetRootID)!
   }
 
   publishTarget(operationID: string, targetThreadID: string) {
@@ -532,6 +673,20 @@ export class ConversationHistoryForkRepository {
     }
     for (const taskID of taskIDs.keys()) for (const row of this.rows("subagent_runs", "task_id", taskID)) runIDs.set(String(row.id), this.nextID())
     return { threadIDs, turnIDs, agentIDs, inputIDs, itemIDs, toolCallIDs, taskIDs, runIDs, includedTurns }
+  }
+
+  private allocateEmptyMappings(sourceRootID: string, targetRootID: string): ForkMappings {
+    return {
+      threadIDs: new Map([[sourceRootID, targetRootID]]),
+      turnIDs: new Map(),
+      agentIDs: new Map(),
+      inputIDs: new Map(),
+      itemIDs: new Map(),
+      toolCallIDs: new Map(),
+      taskIDs: new Map(),
+      runIDs: new Map(),
+      includedTurns: new Map([[sourceRootID, new Set()]]),
+    }
   }
 
   private copyThreads(sourceRootID: string, options: ForkThroughOptions, maps: ForkMappings, appendForkSuffix = true) {

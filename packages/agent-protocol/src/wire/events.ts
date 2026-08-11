@@ -394,10 +394,12 @@ export const EventManifest = {
   "context/compacted": defineEvent({
     payload: Schema.Struct({
       compactionId: OpaqueIDSchema,
+      trigger: Schema.optional(Schema.Literals(["manual", "automatic", "reactive"])),
       beforeCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       afterCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       beforeTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       afterTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      afterTokensSource: Schema.optional(Schema.Literals(["compaction-estimate", "measured"])),
       targetTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       baselineVersion: VersionSchema,
       usageSampleId: OpaqueIDSchema,

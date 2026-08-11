@@ -59,6 +59,7 @@ import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBi
 import type { WorktreeRepository } from "../../worktree/WorktreeRepository"
 import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
+import type { SideChatService } from "../../session/side-chat/SideChatService"
 import { InteractionService } from "../../interaction/InteractionService"
 import { ThreadReadViewRepository } from "../../session/ThreadReadViewRepository"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
@@ -145,6 +146,7 @@ export type RpcRouterDependencies = {
   worktrees: ManagedWorktreeService
   handoff: HandoffService
   threadFork: ThreadMessageForkService
+  sideChats: SideChatService
   executionBindings: TaskExecutionBindingService
   worktreeRepository: WorktreeRepository
   environmentDeltas: EnvironmentDeltaStore

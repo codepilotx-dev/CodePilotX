@@ -819,10 +819,12 @@ export const PromptRefreshResultSchema = Schema.Struct({
 
 export const CompactionSchema = Schema.Struct({
   id: OpaqueIDSchema,
+  trigger: Schema.optional(Schema.Literals(["manual", "automatic", "reactive"])),
   beforeCount: NonNegativeIntSchema,
   afterCount: NonNegativeIntSchema,
   beforeTokens: NonNegativeIntSchema,
   afterTokens: NonNegativeIntSchema,
+  afterTokensSource: Schema.optional(Schema.Literals(["compaction-estimate", "measured"])),
   targetTokens: NonNegativeIntSchema,
   usageSampleId: OpaqueIDSchema,
   baselineVersion: SequenceSchema,

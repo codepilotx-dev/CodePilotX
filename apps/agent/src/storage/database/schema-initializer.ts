@@ -44,7 +44,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE project_folders (\n        id TEXT PRIMARY KEY,\n        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n        path TEXT NOT NULL,\n        path_key TEXT NOT NULL,\n        role TEXT NOT NULL CHECK(role IN ('primary', 'secondary')),\n        sort_order INTEGER NOT NULL DEFAULT 0,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        UNIQUE(project_id, path_key)\n      )",
   "CREATE TABLE project_sources (\n        id TEXT PRIMARY KEY,\n        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n        storage_kind TEXT NOT NULL CHECK(storage_kind IN ('managed', 'workspace-file')),\n        content_kind TEXT NOT NULL CHECK(content_kind IN ('text', 'image')),\n        name TEXT NOT NULL,\n        media_type TEXT,\n        size_bytes INTEGER,\n        sha256 TEXT,\n        storage_path TEXT,\n        folder_id TEXT REFERENCES project_folders(id) ON DELETE CASCADE,\n        relative_path TEXT,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        CHECK((storage_kind = 'managed' AND media_type IS NOT NULL AND size_bytes IS NOT NULL AND sha256 IS NOT NULL AND storage_path IS NOT NULL AND folder_id IS NULL AND relative_path IS NULL) OR (storage_kind = 'workspace-file' AND folder_id IS NOT NULL AND relative_path IS NOT NULL AND storage_path IS NULL))\n      )",
   "CREATE TABLE project_operations (\n        operation_id TEXT PRIMARY KEY,\n        project_id TEXT,\n        method TEXT NOT NULL,\n        request_hash TEXT NOT NULL,\n        status TEXT NOT NULL CHECK(status IN ('pending', 'completed')),\n        result TEXT,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
-  "CREATE TABLE prompt_session_state (\n          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          baseline_version INTEGER NOT NULL DEFAULT 1,\n          prompt_version TEXT NOT NULL,\n          base_hash TEXT NOT NULL,\n          context_hash TEXT NOT NULL,\n          cache_key TEXT NOT NULL,\n          fragments TEXT NOT NULL DEFAULT '[]',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        , context_window_tokens INTEGER NOT NULL DEFAULT 0, usage_tokens INTEGER NOT NULL DEFAULT 0, usage_source TEXT NOT NULL DEFAULT 'estimated', usage_sample_id TEXT, needs_compaction INTEGER NOT NULL DEFAULT 0)",
+  "CREATE TABLE prompt_session_state (\n          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          baseline_version INTEGER NOT NULL DEFAULT 1,\n          prompt_version TEXT NOT NULL,\n          base_hash TEXT NOT NULL,\n          context_hash TEXT NOT NULL,\n          cache_key TEXT NOT NULL,\n          fragments TEXT NOT NULL DEFAULT '[]',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        , context_window_tokens INTEGER NOT NULL DEFAULT 0, usage_tokens INTEGER NOT NULL DEFAULT 0, usage_source TEXT NOT NULL DEFAULT 'estimated', usage_sample_id TEXT, needs_compaction INTEGER NOT NULL DEFAULT 0, auto_compact_failures INTEGER NOT NULL DEFAULT 0, auto_compact_suspended INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE provider_settings (\n        provider_id TEXT PRIMARY KEY,\n        payload TEXT NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE question_requests (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        tool_call_id TEXT,\n        payload TEXT NOT NULL,\n        payload_version INTEGER NOT NULL DEFAULT 1,\n        status TEXT NOT NULL,\n        answer TEXT,\n        created_at INTEGER NOT NULL,\n        resolved_at INTEGER\n      )",
   "CREATE TABLE resume_checkpoint_leases (\n        turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        checkpoint_kind TEXT NOT NULL CHECK(checkpoint_kind IN ('permission','question','hook-trust','subagent-wait')),\n        checkpoint_payload TEXT NOT NULL,\n        permission_grant TEXT,\n        consumer TEXT CHECK(consumer IN ('main','subagent')),\n        lease_id TEXT UNIQUE,\n        status TEXT NOT NULL CHECK(status IN ('available','acquired','completed','interrupted')),\n        created_at INTEGER NOT NULL,\n        acquired_at INTEGER,\n        completed_at INTEGER,\n        updated_at INTEGER NOT NULL\n      )",
@@ -59,6 +59,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE thread_handoff_operations (\n          operation_id TEXT PRIMARY KEY,\n          source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          target_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          source_binding_id TEXT,\n          target_binding_id TEXT,\n          destination_kind TEXT CHECK(destination_kind IN ('local','worktree')),\n          destination_worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          direction TEXT NOT NULL CHECK(direction IN ('local-to-worktree','worktree-to-local')),\n          request_hash TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('running','await-client-transfer','completed','failed','rollback-failed')),\n          step TEXT NOT NULL,\n          revision INTEGER NOT NULL DEFAULT 1,\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          rollback_journal TEXT NOT NULL DEFAULT '{}',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
   "CREATE TABLE thread_message_fork_operations (\n          operation_id TEXT PRIMARY KEY,\n          source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          source_turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          source_item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,\n          target_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          target_worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          worktree_operation_id TEXT REFERENCES worktree_operations(operation_id) ON DELETE SET NULL,\n          destination_kind TEXT NOT NULL CHECK(destination_kind IN ('same-worktree','new-worktree')),\n          snapshot_mode TEXT CHECK(snapshot_mode IN ('shared','head','working-tree')),\n          request_hash TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('running','awaiting-setup-decision','completed','failed','abandoned')),\n          step TEXT NOT NULL CHECK(step IN ('preflight','prepare-worktree','setup','fork-history','bind-target','complete')),\n          revision INTEGER NOT NULL DEFAULT 1,\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
   "CREATE TABLE thread_message_forks (\n          target_thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          source_turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          source_item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,\n          operation_id TEXT NOT NULL UNIQUE REFERENCES thread_message_fork_operations(operation_id) ON DELETE CASCADE,\n          created_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE thread_side_chats (\n          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          inherited_through_turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          reference_text TEXT,\n          operation_id TEXT NOT NULL UNIQUE,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE thread_forks (\n          target_thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE RESTRICT,\n          operation_id TEXT NOT NULL UNIQUE REFERENCES thread_handoff_operations(operation_id) ON DELETE RESTRICT,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE thread_read_state (\n        thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n        read_at INTEGER NOT NULL DEFAULT 0,\n        unread_at INTEGER,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE tool_calls (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL,\n        turn_id TEXT NOT NULL,\n        agent_id TEXT NOT NULL,\n        tool_name TEXT NOT NULL,\n        input TEXT NOT NULL,\n        output TEXT,\n        status TEXT NOT NULL,\n        started_at INTEGER,\n        finished_at INTEGER,\n        error TEXT\n      )",
@@ -108,6 +109,7 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX idx_thread_message_fork_source_status ON thread_message_fork_operations(source_thread_id, status, updated_at DESC)",
   "CREATE UNIQUE INDEX idx_thread_message_fork_pending_boundary ON thread_message_fork_operations(source_thread_id, source_turn_id, source_item_id) WHERE status IN ('running','awaiting-setup-decision')",
   "CREATE INDEX idx_thread_message_forks_source ON thread_message_forks(source_thread_id, created_at)",
+  "CREATE INDEX thread_side_chats_source_created ON thread_side_chats(source_thread_id, created_at)",
   "CREATE INDEX idx_thread_forks_source ON thread_forks(source_thread_id, created_at)",
   "CREATE INDEX turn_git_snapshots_project\n          ON turn_git_snapshots(project_id, updated_at DESC)",
   "CREATE INDEX turns_queue_position ON turns(thread_id, status, queue_position, created_at)",
@@ -115,6 +117,7 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX turns_thread_status ON turns(thread_id, status, created_at)",
   "CREATE INDEX idx_managed_worktrees_project_status ON managed_worktrees(project_id, status, last_used_at)",
   "CREATE INDEX idx_worktree_operations_status ON worktree_operations(status, created_at)",
+  "CREATE TRIGGER thread_side_chats_delete_with_source\n        BEFORE DELETE ON threads\n        BEGIN\n          DELETE FROM threads\n          WHERE id IN (\n            SELECT thread_id FROM thread_side_chats WHERE source_thread_id = OLD.id\n          ) AND archived_at = -1;\n        END",
   "CREATE TRIGGER threads_workspace_insert_valid\n        BEFORE INSERT ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END",
   "CREATE TRIGGER threads_workspace_update_valid\n        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, workspace_roots, instruction_sources, output_directory ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END"
 ] as const
@@ -679,6 +682,46 @@ const migrateHistory26To27 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory27To28 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS thread_side_chats (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+      source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      inherited_through_turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
+      reference_text TEXT,
+      operation_id TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS thread_side_chats_source_created
+      ON thread_side_chats(source_thread_id, created_at);
+    CREATE TRIGGER IF NOT EXISTS thread_side_chats_delete_with_source
+      BEFORE DELETE ON threads
+      BEGIN
+        DELETE FROM threads
+        WHERE id IN (
+          SELECT thread_id FROM thread_side_chats WHERE source_thread_id = OLD.id
+        ) AND archived_at = -1;
+      END;
+  `)
+}
+
+const migrateHistory28To29 = (sqlite: Database) => {
+  const table = sqlite.query(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'prompt_session_state'",
+  ).get()
+  if (!table) return
+  const columns = new Set(
+    (sqlite.query("PRAGMA table_info(prompt_session_state)").all() as Array<{ name: string }>)
+      .map(({ name }) => name),
+  )
+  if (!columns.has("auto_compact_failures")) {
+    sqlite.exec("ALTER TABLE prompt_session_state ADD COLUMN auto_compact_failures INTEGER NOT NULL DEFAULT 0")
+  }
+  if (!columns.has("auto_compact_suspended")) {
+    sqlite.exec("ALTER TABLE prompt_session_state ADD COLUMN auto_compact_suspended INTEGER NOT NULL DEFAULT 0")
+  }
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -776,6 +819,8 @@ class SchemaInitializer {
           24: () => migrateHistory24To25(this.sqlite),
           25: () => migrateHistory25To26(this.sqlite),
           26: () => migrateHistory26To27(this.sqlite),
+          27: () => migrateHistory27To28(this.sqlite),
+          28: () => migrateHistory28To29(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

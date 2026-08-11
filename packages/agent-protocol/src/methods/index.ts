@@ -4,6 +4,7 @@ import { BaseRpcMethods } from "./base"
 import { HandoffRpcMethods } from "./handoff"
 import { LocalEnvironmentRpcMethods } from "./local-environment"
 import { ThreadForkRpcMethods } from "./thread-fork"
+import { SideChatRpcMethods } from "./side-chat"
 import { WorktreeRpcMethods } from "./worktree"
 import type { TerminalRpcMethodMap } from "./terminal"
 import type { LocalEnvironmentHostRpcMethodMap } from "./local-environment"
@@ -13,6 +14,7 @@ export const RpcMethods = {
   ...HandoffRpcMethods,
   ...LocalEnvironmentRpcMethods,
   ...ThreadForkRpcMethods,
+  ...SideChatRpcMethods,
   ...WorktreeRpcMethods,
 } as const
 export { BaseRpcMethods } from "./base"
@@ -50,5 +52,6 @@ export * from "./skills"
 export * from "./suggestions"
 export * from "./tooling"
 export * from "./thread-fork"
+export * from "./side-chat"
 export * from "./usage"
 export * from "./worktree"

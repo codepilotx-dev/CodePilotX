@@ -3,11 +3,13 @@ import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { RepositoryDatabase } from "../repositories/RepositoryDatabase"
 import { credentialRepositoryDatabase } from "../repositories/credential-repository"
+import { ContextRepository } from "../repositories/context-repository"
 import { executionRepository } from "../repositories/execution-repository"
 import { interactionRepository } from "../repositories/interaction-repository"
 import { projectRepository } from "../repositories/project-repository"
 import { reviewRepository } from "../repositories/review-repository"
 import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
+import { SideChatRepository } from "../repositories/side-chat-repository"
 import { threadRepository } from "../repositories/thread-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
@@ -60,10 +62,12 @@ export class AgentDatabase extends RepositoryDatabase {
       executions: executionRepository(this),
       interactions: interactionRepository(this),
       subagents: subagentRepositoryDatabase(this),
+      sideChats: new SideChatRepository(this),
       projects: projectRepository(this),
       workspaces: workspaceRepository(this),
       reviews: reviewRepository(this),
       credentials: credentialRepositoryDatabase(this),
+      context: new ContextRepository(this),
       turnPatches: new TurnPatchRepository(this),
     }
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)

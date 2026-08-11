@@ -753,6 +753,22 @@ const fixtures = {
     threadId: threadListItem.id,
     operationId: "operation:thread-delete",
   }, { threadId: threadListItem.id, deletedAt: 2 }),
+  "thread/side-chat/create": methodFixture("thread/side-chat/create", {
+    sourceThreadId: threadListItem.id,
+    referenceText: "selected reference",
+    operationId: "operation:side-chat-create",
+  }, {
+    sideChat: {
+      threadId: "thread:side-chat",
+      sourceThreadId: threadListItem.id,
+      inheritedThroughTurnId: "turn:1",
+      createdAt: 2,
+    },
+  }),
+  "thread/side-chat/discard": methodFixture("thread/side-chat/discard", {
+    threadId: "thread:side-chat",
+    operationId: "operation:side-chat-discard",
+  }, { ok: true }),
   "thread/patch/diff": methodFixture("thread/patch/diff", {
     threadId: threadListItem.id,
     toolCallId: "tool:edit-1",
@@ -814,10 +830,12 @@ const fixtures = {
   }, {
     compaction: {
       id: "compaction:1",
+      trigger: "manual",
       beforeCount: 10,
       afterCount: 4,
       beforeTokens: 1_000,
       afterTokens: 400,
+      afterTokensSource: "measured",
       targetTokens: 500,
       usageSampleId: "usage:1",
       baselineVersion: 2,
@@ -2350,7 +2368,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(190)
+    expect(methods).toHaveLength(192)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2618,7 +2636,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(184)
+    expect(Object.keys(RpcMethods)).toHaveLength(186)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
@@ -2656,6 +2674,24 @@ describe("RPC method schema contracts", () => {
       ...result,
       compaction: { ...result.compaction, replacementHistory: [{ from: "old", to: "new" }] },
     })).toThrow()
+  })
+
+  test("keeps compaction provenance optional for older method results", () => {
+    const result = structuredClone(fixtures["thread/compact"].result)
+    const legacyResult = {
+      compaction: {
+        id: result.compaction.id,
+        beforeCount: result.compaction.beforeCount,
+        afterCount: result.compaction.afterCount,
+        beforeTokens: result.compaction.beforeTokens,
+        afterTokens: result.compaction.afterTokens,
+        targetTokens: result.compaction.targetTokens,
+        usageSampleId: result.compaction.usageSampleId,
+        baselineVersion: result.compaction.baselineVersion,
+      },
+    }
+
+    expect(Schema.decodeUnknownSync(RpcMethods["thread/compact"].result)(legacyResult)).toEqual(legacyResult)
   })
 
   test("rejects sandbox runtime internals from the public result", () => {

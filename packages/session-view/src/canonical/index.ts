@@ -69,6 +69,7 @@ export interface CanonicalThreadState {
 export type ThreadConversationScope =
   | { type: "main" }
   | { type: "subagent"; runId: string }
+  | { type: "side-chat"; inheritedThroughTurnId: string | null }
 
 export interface VisibleTurnEntry {
   id: string
@@ -309,7 +310,13 @@ export function selectVisibleTurnEntries(
   sortGrouped(approvalsByTurnId, compareCreated)
 
   const entries: VisibleTurnEntry[] = []
-  for (const turnId of state.turnOrder) {
+  const inheritedBoundaryIndex = scope.type === "side-chat" && scope.inheritedThroughTurnId !== null
+    ? state.turnOrder.indexOf(scope.inheritedThroughTurnId)
+    : -1
+  const visibleTurnOrder = inheritedBoundaryIndex >= 0
+    ? state.turnOrder.slice(inheritedBoundaryIndex + 1)
+    : state.turnOrder
+  for (const turnId of visibleTurnOrder) {
     const turn = state.turnsById.get(turnId)
     if (!turn || queueTurnIds.has(turnId)) continue
     const userInputs = inputsByTurnId.get(turnId) ?? []
@@ -354,7 +361,12 @@ export function createRenderTurnEntriesSelector(): RenderTurnEntriesSelector {
     state: CanonicalThreadState,
     scope: ThreadConversationScope = { type: "main" },
   ): RenderTurnEntry[] => {
-    const nextCacheKey = `${state.thread.id}:${scope.type === "main" ? "main" : `subagent:${scope.runId}`}`
+    const scopeCacheKey = scope.type === "main"
+      ? "main"
+      : scope.type === "subagent"
+        ? `subagent:${scope.runId}`
+        : `side-chat:${scope.inheritedThroughTurnId ?? "none"}`
+    const nextCacheKey = `${state.thread.id}:${scopeCacheKey}`
     if (nextCacheKey !== cacheKey) {
       cacheKey = nextCacheKey
       previousEntries = []
@@ -409,12 +421,19 @@ export function buildRenderTurnEntry(entry: VisibleTurnEntry): RenderTurnEntry {
     } else if (item.type === "execution-plan") {
       executionPlanItems.push(item)
       contentBlocks.push({ kind: "execution-plan", id: `execution-plan:${item.id}`, item })
+    } else if (isContextCompressionActivity(item)) {
+      postAssistantItems.push(item)
     } else if (item.type === "question" && item.status !== "pending") {
       postAssistantItems.push(item)
       contentBlocks.push({ kind: "post", id: `post:${item.id}`, item })
     } else if (item.type !== "question") {
       processItems.push(item)
       appendProcessBlock(contentBlocks, item)
+    }
+  }
+  for (const item of postAssistantItems) {
+    if (isContextCompressionActivity(item)) {
+      contentBlocks.push({ kind: "post", id: `post:${item.id}`, item })
     }
   }
 
@@ -446,6 +465,7 @@ function findLastProcessItemIndex(items: readonly Item[]): number {
   for (let index = items.length - 1; index >= 0; index -= 1) {
     const item = items[index]
     if (!item) continue
+    if (isContextCompressionActivity(item)) continue
     if (item.type === "text") {
       if (item.placement === "process" && item.text.trim()) return index
       continue
@@ -460,6 +480,12 @@ function findLastProcessItemIndex(items: readonly Item[]): number {
     }
   }
   return -1
+}
+
+function isContextCompressionActivity(
+  item: Item,
+): item is Extract<Item, { type: "activity" }> {
+  return item.type === "activity" && item.activity === "context-compression"
 }
 
 function findAssistantResultIndex(items: readonly Item[], lastProcessItemIndex: number): number {
@@ -587,12 +613,53 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
       state.approvalsById.set(approval.id, { ...approval, status })
       return
     }
+    case "context/compacted":
+      projectContextCompaction(state, envelope)
+      return
     case "queue/updated":
       applyQueueUpdate(state, envelope.payload)
       return
     default:
       return
   }
+}
+
+function projectContextCompaction(
+  state: CanonicalThreadState,
+  envelope: Extract<ThreadEventEnvelopeLike, { type: "context/compacted" }>,
+): void {
+  const turnId = envelope.turnId && state.turnsById.has(envelope.turnId)
+    ? envelope.turnId
+    : state.turnOrder.at(-1)
+  if (!turnId) return
+  const turn = state.turnsById.get(turnId)
+  if (!turn) return
+
+  const latestAgent = [...state.agentsById.values()]
+    .filter((agent) => agent.turnId === turnId)
+    .sort(compareCreated)
+    .at(-1)
+  const itemId = `activity:context-compression:${envelope.payload.compactionId}`
+  const detailParts = [
+    `消息 ${envelope.payload.beforeCount} → ${envelope.payload.afterCount}`,
+    `Token ${envelope.payload.beforeTokens} → ${envelope.payload.afterTokens}`,
+  ]
+  if (envelope.payload.trigger) detailParts.push(`触发方式：${envelope.payload.trigger}`)
+  if (envelope.payload.afterTokensSource) {
+    detailParts.push(`压缩后用量来源：${envelope.payload.afterTokensSource}`)
+  }
+  state.itemsById.set(itemId, {
+    id: itemId,
+    messageID: itemId,
+    turnId,
+    agentId: latestAgent?.id ?? turn.rootAgentId,
+    type: "activity",
+    activity: "context-compression",
+    title: "上下文已压缩",
+    detail: detailParts.join("；"),
+    status: "completed",
+    createdAt: envelope.occurredAt,
+  })
 }
 
 function appendItemDelta(

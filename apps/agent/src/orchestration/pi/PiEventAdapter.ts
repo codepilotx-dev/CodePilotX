@@ -1,6 +1,6 @@
 import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import { ProposedPlanStreamParser, type ProposedPlanChunk } from "../plan/ProposedPlanStreamParser"
-import type { PiRuntimeEventContext, PiRuntimeEventSink } from "./types"
+import type { PiRuntimeEventContext, PiRuntimeEventSink, RuntimeCompactionTrigger } from "./types"
 
 type ToolResultLike = {
   content?: unknown
@@ -78,6 +78,10 @@ export class PiEventAdapter {
     private readonly options: {
       parseProposedPlan?: boolean
       resolveSessionEntryID?: () => string | null | Promise<string | null>
+      resolveCompactionContext?: () => {
+        trigger: RuntimeCompactionTrigger
+        promptText: string
+      }
     } = {},
   ) {}
 
@@ -157,7 +161,10 @@ export class PiEventAdapter {
         }
         break
       case "session_before_compact":
-        this.beforeCompactionCount = event.branchEntries.length
+        this.beforeCompactionCount = event.preparation.messagesToSummarize.length
+          + event.preparation.turnPrefixMessages.length
+          + event.preparation.retainedTail.length
+          + (event.preparation.previousSummary ? 1 : 0)
         break
       case "message_update": {
         const update = event.assistantMessageEvent
@@ -251,14 +258,23 @@ export class PiEventAdapter {
         await this.sink.queueConsumed?.(this.context, { delivery: event.delivery, inputIDs: event.inputIds })
         break
       case "session_compact":
+      {
+        const compaction = this.options.resolveCompactionContext?.() ?? {
+          trigger: "manual" as const,
+          promptText: "",
+        }
         await this.sink.compacted?.(this.context, {
           entryID: event.compactionEntry.id,
           summary: event.compactionEntry.summary,
+          firstKeptEntryID: event.compactionEntry.firstKeptEntryId ?? null,
           tokensBefore: event.compactionEntry.tokensBefore,
           beforeCount: this.beforeCompactionCount ?? 0,
+          trigger: compaction.trigger,
+          promptText: compaction.promptText,
         })
         this.beforeCompactionCount = undefined
         break
+      }
       case "save_point":
         await this.sink.savePoint?.(this.context, { hadPendingMutations: event.hadPendingMutations })
         break

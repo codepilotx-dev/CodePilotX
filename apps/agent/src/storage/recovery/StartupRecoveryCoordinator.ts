@@ -1,5 +1,6 @@
 export type StartupRecoveryStages = {
   recoverInterruptedRuns: () => void
+  discardRecoveredSideChats: () => void | Promise<void>
   recoverResumeLeases: () => void
   restoreQuestionTimers: () => void
   recoverSubagents: () => void | Promise<void>
@@ -17,6 +18,7 @@ export class StartupRecoveryCoordinator {
 
   async run() {
     this.stages.recoverInterruptedRuns()
+    await this.stages.discardRecoveredSideChats()
     this.stages.recoverResumeLeases()
     this.stages.restoreQuestionTimers()
     await this.stages.recoverSubagents()

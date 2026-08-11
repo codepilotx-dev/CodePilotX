@@ -7,12 +7,12 @@ import {
   finishedPiToolItem,
   mergeTimelineMutationFiles,
   PiOrchestratorAdapter,
-  piCompactionEventPayload,
   piItemDeltaPayload,
   piToolItemPayload,
   piToolMutationFiles,
   piToolTimelineInput,
 } from "../src/orchestration/PiOrchestratorAdapter"
+import { isProviderContextOverflow } from "../src/orchestration/pi/ContextOverflow"
 import type { PiRuntimeEventSink } from "../src/orchestration/pi/types"
 
 describe("PiEventAdapter", () => {
@@ -132,17 +132,20 @@ describe("PiEventAdapter", () => {
       hub: {} as never,
       models: {} as never,
       toolExecutor: {} as never,
+      contextCompaction: {} as never,
     })
     const sink = (orchestrator as unknown as {
       eventSink(
         storage: unknown,
+        session: unknown,
         runtimeModel: { provider: string; id: string; contextWindow: number },
+        sessionID: string,
       ): PiRuntimeEventSink
-    }).eventSink({}, {
+    }).eventSink({}, {}, {
       provider: "openai",
       id: "model",
       contextWindow: 128_000,
-    })
+    }, "session")
 
     await sink.assistantMessageCompleted?.(
       { threadID: "thread", turnID: "turn", agentID: "agent" },
@@ -464,6 +467,7 @@ describe("PiEventAdapter", () => {
       hub: {} as never,
       models: {} as never,
       toolExecutor: {} as never,
+      contextCompaction: {} as never,
     })
     const persist = (orchestrator as unknown as {
       persistFinishedTool(context: unknown, input: unknown): Array<{ method: string }>
@@ -563,27 +567,6 @@ describe("PiEventAdapter", () => {
     )).toEqual([{ path: "src/source.ts", additions: 4, deletions: 6 }])
   })
 
-  test("maps Pi compaction metadata to the existing protocol payload", () => {
-    const payload = piCompactionEventPayload({
-      compactionID: "compact-1",
-      beforeCount: 12,
-      afterCount: 4,
-      beforeTokens: 8000,
-      afterTokens: 0,
-      targetTokens: 0,
-    })
-
-    expect(() => Schema.decodeUnknownSync(EventManifest["context/compacted"].payload)(payload)).not.toThrow()
-    expect(payload).toMatchObject({
-      compactionId: "compact-1",
-      usageSampleId: "compact-1",
-      beforeTokens: 8000,
-    })
-    expect(payload).not.toHaveProperty("entryID")
-    expect(payload).not.toHaveProperty("summary")
-    expect(payload).not.toHaveProperty("tokensBefore")
-  })
-
   test("carries the pre-compaction branch size into the compacted callback", async () => {
     const seen: unknown[] = []
     const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
@@ -593,7 +576,11 @@ describe("PiEventAdapter", () => {
     await adapter.handle({
       type: "session_before_compact",
       branchEntries: [{}, {}, {}],
-      preparation: {},
+      preparation: {
+        messagesToSummarize: [{}, {}],
+        turnPrefixMessages: [],
+        retainedTail: [{}],
+      },
       signal: new AbortController().signal,
     } as unknown as AgentHarnessEvent)
     await adapter.handle({
@@ -605,9 +592,21 @@ describe("PiEventAdapter", () => {
     expect(seen).toEqual([{
       entryID: "compact-1",
       summary: "summary",
+      firstKeptEntryID: null,
       tokensBefore: 8000,
       beforeCount: 3,
+      trigger: "manual",
+      promptText: "",
     }])
+  })
+
+  test("classifies only provider context-window failures for reactive compaction", () => {
+    expect(isProviderContextOverflow("context_length_exceeded")).toBe(true)
+    expect(isProviderContextOverflow("Maximum context length is 128000 tokens")).toBe(true)
+    expect(isProviderContextOverflow("Input token count exceeds the model limit")).toBe(true)
+    expect(isProviderContextOverflow("context window limit exceeded")).toBe(true)
+    expect(isProviderContextOverflow("attachment too large")).toBe(false)
+    expect(isProviderContextOverflow("tool returned HTTP 413")).toBe(false)
   })
 
   test("uses the existing item delta payload for Pi reasoning and tool output", () => {

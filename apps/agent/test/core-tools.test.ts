@@ -195,8 +195,19 @@ describe("核心工具面", () => {
     expect(() => executor.definition("shell")).toThrow()
     const defaultPlan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main" })
     expect(defaultPlan.eager).toContain("Edit")
+    expect(defaultPlan.exposed).toContain("spawn_agents")
     expect(defaultPlan.eager).not.toContain("apply_patch")
     expect(defaultPlan.deferred).toContain("apply_patch")
+    const sideChatPlan = executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      profile: "main",
+      delegationEnabled: false,
+    })
+    expect(sideChatPlan.exposed).not.toContain("spawn_agents")
+    expect(sideChatPlan.exposed).not.toContain("wait_agents")
+    expect(sideChatPlan.exposed).not.toContain("send_agent")
+    expect(sideChatPlan.exposed).not.toContain("stop_agent")
     const editSkillPlan = executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",

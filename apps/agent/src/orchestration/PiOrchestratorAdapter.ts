@@ -8,6 +8,7 @@ import {
 import {
   AgentHarness,
   SessionError,
+  type Session,
   type AgentHarnessEvent,
 } from "@codepilotx/pi-agent-core";
 import type { AgentRuntimeRequest, PendingApproval } from "./AgentRuntimeTypes";
@@ -25,13 +26,17 @@ import type { AgentDatabase } from "../storage/database/AgentDatabase";
 import type { EventHub } from "../storage/events/EventHub";
 import type { ToolExecutor } from "../tool/ToolExecutor";
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan";
-import type { Item, SubagentResult } from "../domain";
+import { AgentError, type Item, type SubagentResult } from "../domain";
 import { createLiveEvent } from "../storage/events/EventPublisher";
 import { secretScrubber } from "../security/SecretScrubber";
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
 import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
 import { parseApplyPatch } from "../tool/ApplyPatch/parseApplyPatch";
 import { TurnPiBoundaryRepository } from "../storage/repositories/turn-pi-boundary-repository";
+import {
+  ContextCompactionService,
+  type ContextCompaction,
+} from "../context/ContextCompactionService";
 
 export type {
   DelegationController,
@@ -299,29 +304,12 @@ export const piItemDeltaPayload = (input: {
   delta: input.delta,
 });
 
-export const piCompactionEventPayload = (input: {
-  compactionID: string;
-  beforeCount: number;
-  afterCount: number;
-  beforeTokens: number;
-  afterTokens?: number;
-  targetTokens?: number;
-}) => ({
-  compactionId: input.compactionID,
-  beforeCount: input.beforeCount,
-  afterCount: input.afterCount,
-  beforeTokens: input.beforeTokens,
-  afterTokens: input.afterTokens ?? 0,
-  targetTokens: input.targetTokens ?? 0,
-  baselineVersion: 1,
-  usageSampleId: input.compactionID,
-});
-
 export interface PiOrchestratorAdapterOptions {
   db: AgentDatabase;
   hub: EventHub;
   models: Models;
   toolExecutor: ToolExecutor;
+  contextCompaction: ContextCompactionService;
   observeHarnessEvent?: (
     context: PiRuntimeEventContext,
     event: AgentHarnessEvent,
@@ -334,6 +322,7 @@ export class PiOrchestratorAdapter {
   private readonly turnPiBoundaries: TurnPiBoundaryRepository;
   private readonly active = new Map<string, PiAgentRuntime>();
   private readonly pending = new Map<string, PendingTurn>();
+  private readonly completedCompactions = new Map<string, ContextCompaction>();
 
   constructor(private readonly options: PiOrchestratorAdapterOptions) {
     this.repo = new SqlitePiSessionRepo(options.db);
@@ -466,6 +455,7 @@ export class PiOrchestratorAdapter {
 
   private eventSink(
     storage: SqlitePiSessionStorage,
+    session: Session,
     runtimeModel: PiModel<Api>,
     sessionID: string,
     onUsage?: AgentRuntimeRequest["onUsage"],
@@ -726,20 +716,31 @@ export class PiOrchestratorAdapter {
         for (const event of durable) await this.publish(event);
       },
       compacted: async (context, input) => {
-        const afterCount = (await storage.getEntries()).length;
-        await this.publish(
-          this.options.db.insertEvent(
-            context.threadID,
-            context.turnID,
-            "context/compacted",
-            piCompactionEventPayload({
-              compactionID: input.entryID,
-              beforeCount: input.beforeCount,
-              afterCount,
-              beforeTokens: input.tokensBefore,
-            }),
-          ),
-        );
+        const piEntry = await session.getEntry(input.entryID);
+        if (!piEntry || piEntry.type !== "compaction") {
+          throw new Error(`Pi compaction entry ${input.entryID} 不存在`);
+        }
+        const afterContext = await session.buildContext();
+        let completed!: ReturnType<ContextCompactionService["complete"]>;
+        this.options.db.transaction(() => {
+          storage.flush();
+          completed = this.options.contextCompaction.complete({
+            threadID: context.threadID,
+            turnID: context.turnID,
+            sessionID,
+            piEntry,
+            summary: input.summary,
+            firstKeptEntryID: input.firstKeptEntryID,
+            beforeCount: input.beforeCount,
+            afterCount: afterContext.messages.length,
+            items: afterContext.messages,
+            promptText: input.promptText,
+            contextWindowTokens: Math.max(1, Number(runtimeModel.contextWindow) || 1),
+            trigger: input.trigger,
+          });
+        });
+        this.completedCompactions.set(context.threadID, completed.compaction);
+        await this.publish(completed.event);
       },
       aborted: async (context) => {
         storage.discardPending();
@@ -959,7 +960,7 @@ export class PiOrchestratorAdapter {
           session,
         }),
       } as never,
-      eventSink: this.eventSink(storage, model, request.sessionID, request.onUsage),
+      eventSink: this.eventSink(storage, session, model, request.sessionID, request.onUsage),
       beforeToolCall: async (_runtimeRequest, input) => {
         if ((PI_LIFECYCLE_TOOLS as readonly string[]).includes(input.tool))
           return undefined;
@@ -994,6 +995,10 @@ export class PiOrchestratorAdapter {
           },
         });
         return { block: true, reason: "等待用户审批", pause: true };
+      },
+      compaction: {
+        shouldAutoCompact: (threadID) => this.options.contextCompaction.shouldAutoCompact(threadID),
+        recordFailure: (threadID, trigger) => this.options.contextCompaction.recordFailure(threadID, trigger),
       },
       lifecycle: {
         skillList: async () =>
@@ -1143,32 +1148,64 @@ export class PiOrchestratorAdapter {
     const resumedContent = request.resume
       ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? "unknown")}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\n继续处理已恢复的 Pi session；不得重新执行已完成或已被用户拒绝的同一个工具调用。若用户给出调整要求，必须据此改用其他方案。`
       : request.content;
-    const result = await runtime.run({
-      threadID: request.threadID,
-      turnID: request.turnID,
-      agentID: request.agentID,
-      sessionID: request.sessionID,
-      ...(request.profile ? { profile: request.profile } : {}),
-      content: resumedContent,
-      taskMode: request.taskMode,
-      permissionConfig: effectivePermissionConfig,
-      signal: request.signal,
-      workspace: request.workspace,
-      ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
-      model,
-      policyModel: request.fallbackModel,
-      ...(resolved.ref.variant
-        ? { thinkingLevel: String(resolved.ref.variant) as import("@codepilotx/pi-agent-core").ThinkingLevel }
-        : {}),
-      exposedTools,
-      promptSections: effectivePromptSections,
-      ...(request.attachments ? { attachments: request.attachments } : {}),
-      preapprovedToolCalls,
-      ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
-      ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
-      onPromptComposed: async (bundle) =>
-        request.onPromptComposed?.(bundle, { budgetText: bundle.instructions }),
-    });
+    let result: Awaited<ReturnType<PiAgentRuntime["run"]>>
+    try {
+      result = await runtime.run({
+        threadID: request.threadID,
+        turnID: request.turnID,
+        agentID: request.agentID,
+        sessionID: request.sessionID,
+        ...(request.profile ? { profile: request.profile } : {}),
+        content: resumedContent,
+        taskMode: request.taskMode,
+        permissionConfig: effectivePermissionConfig,
+        signal: request.signal,
+        workspace: request.workspace,
+        ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+        model,
+        policyModel: request.fallbackModel,
+        ...(resolved.ref.variant
+          ? { thinkingLevel: String(resolved.ref.variant) as import("@codepilotx/pi-agent-core").ThinkingLevel }
+          : {}),
+        exposedTools,
+        promptSections: effectivePromptSections,
+        ...(request.attachments ? { attachments: request.attachments } : {}),
+        preapprovedToolCalls,
+        ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+        ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
+        onPromptComposed: async (bundle) =>
+          request.onPromptComposed?.(bundle, { budgetText: bundle.instructions }),
+        canAutoCompact: () => !paused && !request.signal.aborted,
+      });
+    } catch (cause) {
+      if (
+        cause instanceof AgentError
+        && cause.code === "PI_CONTEXT_WINDOW_EXCEEDED"
+        && (request.profile ?? "main") === "main"
+      ) {
+        const completed = this.options.db.completedToolEvidenceForTurn(request.turnID);
+        if (completed.length > 0) {
+          const existing = this.options.db.getAgentTurnCheckpoint(request.turnID);
+          const previousAttempt = existing?.payload.kind === "side-effect-prompt-recovery"
+            ? Number(existing.payload.attemptOrdinal) || 1
+            : 1;
+          const interrupted = this.options.db.interruptForSideEffectRecovery({
+            threadID: request.threadID,
+            turnID: request.turnID,
+            agentID: request.agentID,
+            payload: {
+              kind: "side-effect-prompt-recovery",
+              attemptOrdinal: previousAttempt + 1,
+              completed,
+              error: "模型上下文超过窗口限制，压缩后仍无法继续",
+            },
+          });
+          for (const event of interrupted.events) await this.publish(event);
+          throw new AgentError("SIDE_EFFECT_RECOVERY_REQUIRED", "模型上下文超限；已保存副作用恢复证据", 409);
+        }
+      }
+      throw cause;
+    }
     return paused
       ? { status: "paused" as const, output: result.output }
       : result;
@@ -1187,13 +1224,19 @@ export class PiOrchestratorAdapter {
       ...(runtime.skillService ? { hasSkillService: true } : "hasSkillService" in request && request.hasSkillService ? { hasSkillService: true } : {}),
       ...(runtime.projectSources ? { hasProjectSources: true } : "hasProjectSources" in request && request.hasProjectSources ? { hasProjectSources: true } : {}),
       ...(runtime.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : "defaultModeRequestUserInput" in request && request.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
+      ...(request.delegationEnabled === false ? { delegationEnabled: false } : {}),
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
     }, runtime.toolCatalog);
   }
 
-  async compact(threadID: string, instructions?: string) {
+  async compact(threadID: string, instructions?: string, promptText?: string) {
     const runtime = this.active.get(threadID);
-    if (runtime) return runtime.compact(threadID, instructions);
+    if (runtime) {
+      await runtime.compact(threadID, instructions);
+      const completed = this.completedCompactions.get(threadID);
+      if (!completed) throw new Error("Pi 压缩完成但缺少产品压缩记录");
+      return completed;
+    }
     const row = this.options.db.sqlite
       .query(
         `
@@ -1228,25 +1271,32 @@ export class PiOrchestratorAdapter {
     const beforeCount = (await session.getEntries()).length;
     const result = await harness.compact(instructions);
     const entryID = await storage.getLeafId();
-    const afterCount = (await session.getEntries()).length;
-    const compactionID = entryID ?? crypto.randomUUID();
-    let event!: ReturnType<AgentDatabase["insertEvent"]>;
+    const piEntry = entryID ? await session.getEntry(entryID) : undefined;
+    if (!piEntry || piEntry.type !== "compaction") {
+      throw new Error("Pi 压缩完成但未生成 compaction entry");
+    }
+    const afterContext = await session.buildContext();
+    let completed!: ReturnType<ContextCompactionService["complete"]>;
     this.options.db.transaction(() => {
       storage.flush();
-      event = this.options.db.insertEvent(
+      completed = this.options.contextCompaction.complete({
         threadID,
-        null,
-        "context/compacted",
-        piCompactionEventPayload({
-          compactionID,
-          beforeCount,
-          afterCount,
-          beforeTokens: result.tokensBefore,
-        }),
-      );
+        turnID: null,
+        sessionID: row.session_id,
+        piEntry,
+        summary: result.summary,
+        firstKeptEntryID: result.firstKeptEntryId ?? null,
+        beforeCount,
+        afterCount: afterContext.messages.length,
+        items: afterContext.messages,
+        promptText: promptText ?? "",
+        contextWindowTokens: Math.max(1, Number(model.contextWindow) || 1),
+        trigger: "manual",
+      });
     });
-    await this.publish(event);
-    return result;
+    this.completedCompactions.set(threadID, completed.compaction);
+    await this.publish(completed.event);
+    return completed.compaction;
   }
 
   async steer(threadID: string, content: string, images?: import("@earendil-works/pi-ai").ImageContent[], inputID?: string) {

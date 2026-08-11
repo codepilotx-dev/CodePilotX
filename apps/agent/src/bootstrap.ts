@@ -24,6 +24,7 @@ import { ResumeCheckpointResolver } from "./interaction/ResumeCheckpointResolver
 import { ThreadService } from "./session/ThreadService";
 import { ThreadHistoryService } from "./session/ThreadHistoryService";
 import { PiOrchestratorAdapter } from "./orchestration/PiOrchestratorAdapter";
+import { ContextCompactionService } from "./context/ContextCompactionService";
 import {
   EncryptedCredentialStore,
   PiModelService,
@@ -106,6 +107,8 @@ import { ConversationHistoryForkRepository } from "./session/fork/ConversationHi
 import { ThreadForkWorkspaceService } from "./session/fork/ThreadForkWorkspaceService";
 import { ThreadMessageForkRepository } from "./session/fork/ThreadMessageForkRepository";
 import { ThreadMessageForkService } from "./session/fork/ThreadMessageForkService";
+import { SideChatService } from "./session/side-chat/SideChatService";
+import { SideChatEnvironmentCleanup } from "./session/side-chat/SideChatEnvironmentCleanup";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -572,6 +575,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       hub,
       models: piModels.pi,
       toolExecutor,
+      contextCompaction: new ContextCompactionService(db),
       observeHarnessEvent: (context, event) =>
         harnessLogs.observe({
           threadId: context.threadID,
@@ -638,10 +642,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       {},
       configService,
     );
+    const sideChatEnvironmentCleanup = new SideChatEnvironmentCleanup(
+      db.repositories.sideChats,
+      environmentDeltas,
+    );
     const history = new ThreadHistoryService(
       db,
       hub,
-      (threadID) => review.prepareThreadSnapshotCleanup(threadID),
+      (threadID) => {
+        return sideChatEnvironmentCleanup.prepareSource(
+          threadID,
+          review.prepareThreadSnapshotCleanup(threadID),
+        );
+      },
     );
     const threadTitles = new ThreadTitleService(
       db,
@@ -733,8 +746,22 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       worktrees,
       worktreeRepository,
     );
+    const sideChats = new SideChatService(
+      db.repositories.sideChats,
+      new ConversationHistoryForkRepository(db),
+      new ThreadForkWorkspaceService(
+        workspaceResolver,
+        executionBindings,
+        worktreeRepository,
+        environmentDeltas,
+      ),
+      threads,
+      executionBindings,
+      (threadID) => review.prepareThreadSnapshotCleanup(threadID),
+    );
     const startupRecovery = new StartupRecoveryCoordinator({
       recoverInterruptedRuns: () => new InterruptedRunRecoveryCoordinator(db).run(),
+      discardRecoveredSideChats: () => sideChats.discardAll(),
       recoverResumeLeases: () => { resumeCheckpoints.recoverInterruptedLeases() },
       restoreQuestionTimers: () => questions.restoreAutoResolutions(),
       recoverSubagents: () => subagents.recoverStartup(),
@@ -789,6 +816,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       worktrees,
       handoff,
       threadFork,
+      sideChats,
       executionBindings,
       worktreeRepository,
       environmentDeltas,
@@ -800,6 +828,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeExecutionLogs();
       unsubscribeTooling();
       unsubscribeConfig();
+      await sideChats.discardAll(true);
       await configService.dispose();
       await mcpConnections.dispose();
       await providers.dispose();

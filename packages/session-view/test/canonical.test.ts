@@ -745,6 +745,83 @@ describe("canonical thread state", () => {
     expect(entry?.contentBlocks.map((block) => block.kind)).toEqual(["process", "assistant"])
   })
 
+  test("projects context compaction after the assistant result with stable turn and agent anchors", () => {
+    const explicitTurn = turn("turn-compaction-explicit")
+    const latestTurn = turn("turn-compaction-latest")
+    const explicitRoot = agent("agent-compaction-explicit-root", explicitTurn.id)
+    const explicitLatestAgent = {
+      ...agent("agent-compaction-explicit-latest", explicitTurn.id),
+      createdAt: 11,
+      updatedAt: 11,
+    }
+    const latestAgent = agent("agent-compaction-latest", latestTurn.id)
+    const state = createCanonicalThreadState(page([
+      {
+        turn: explicitTurn,
+        inputs: [input("input-compaction-explicit", explicitTurn.id, 1)],
+        messages: [],
+        agents: [explicitRoot, explicitLatestAgent],
+        items: [{
+          ...textItem("result-compaction-explicit", explicitTurn.id, "原有回答", "completed"),
+          agentId: explicitLatestAgent.id,
+        }],
+        approvals: [],
+      },
+      {
+        turn: latestTurn,
+        inputs: [input("input-compaction-latest", latestTurn.id, 2)],
+        messages: [],
+        agents: [latestAgent],
+        items: [textItem("result-compaction-latest", latestTurn.id, "最新回答", "completed")],
+        approvals: [],
+      },
+    ]))
+
+    const withExplicitAnchor = applyThreadEnvelope(state, {
+      ...durable(11, "context/compacted", {
+        compactionId: "compaction-explicit",
+        trigger: "manual",
+        beforeCount: 10,
+        afterCount: 4,
+        beforeTokens: 1_000,
+        afterTokens: 400,
+        afterTokensSource: "measured",
+        targetTokens: 500,
+        baselineVersion: 2,
+        usageSampleId: "usage-explicit",
+      }),
+      turnId: explicitTurn.id,
+    })
+    const explicitActivityId = "activity:context-compression:compaction-explicit"
+    expect(withExplicitAnchor.itemsById.get(explicitActivityId)).toMatchObject({
+      turnId: explicitTurn.id,
+      agentId: explicitLatestAgent.id,
+      type: "activity",
+      activity: "context-compression",
+      status: "completed",
+    })
+    const explicitEntry = selectRenderTurnEntries(withExplicitAnchor)
+      .find((entry) => entry.id === explicitTurn.id)
+    expect(explicitEntry?.assistantResultItems.map((item) => item.id)).toEqual([
+      "result-compaction-explicit",
+    ])
+    expect(explicitEntry?.postAssistantItems.map((item) => item.id)).toEqual([explicitActivityId])
+    expect(explicitEntry?.contentBlocks.map((block) => block.kind)).toEqual(["assistant", "post"])
+
+    const withLatestFallback = applyThreadEnvelope(withExplicitAnchor, durable(12, "context/compacted", {
+      compactionId: "compaction-latest",
+      beforeCount: 4,
+      afterCount: 2,
+      beforeTokens: 400,
+      afterTokens: 200,
+      targetTokens: 250,
+      baselineVersion: 3,
+      usageSampleId: "usage-latest",
+    }))
+    expect(withLatestFallback.itemsById.get("activity:context-compression:compaction-latest"))
+      .toMatchObject({ turnId: latestTurn.id, agentId: latestAgent.id })
+  })
+
   test("projects semantic slots and filters subagent scope by run id", () => {
     const activeTurn = turn("turn-1")
     const rootAgent = agent("agent-turn-1", activeTurn.id)
@@ -789,6 +866,130 @@ describe("canonical thread state", () => {
     expect(rendered?.assistantResultItems.map((item) => item.id)).toEqual(["result-1"])
     expect(rendered?.patchItems.map((item) => item.id)).toEqual(["patch-1"])
     expect(rendered?.blockers.map((blocker) => blocker.kind)).toEqual(["question", "approval"])
+  })
+
+  test("filters side-chat scope after its inherited turn boundary", () => {
+    const inheritedTurn = turn("turn-side-chat-inherited")
+    const firstVisibleTurn = turn("turn-side-chat-visible-1")
+    const secondVisibleTurn = turn("turn-side-chat-visible-2")
+    const state = createCanonicalThreadState(page([
+      {
+        turn: inheritedTurn,
+        inputs: [input("input-side-chat-inherited", inheritedTurn.id, 1)],
+        messages: [],
+        agents: [agent("agent-side-chat-inherited", inheritedTurn.id)],
+        items: [textItem("item-side-chat-inherited", inheritedTurn.id, "inherited")],
+        approvals: [],
+      },
+      {
+        turn: firstVisibleTurn,
+        inputs: [input("input-side-chat-visible-1", firstVisibleTurn.id, 2)],
+        messages: [],
+        agents: [agent("agent-side-chat-visible-1", firstVisibleTurn.id)],
+        items: [textItem("item-side-chat-visible-1", firstVisibleTurn.id, "first")],
+        approvals: [],
+      },
+      {
+        turn: secondVisibleTurn,
+        inputs: [input("input-side-chat-visible-2", secondVisibleTurn.id, 3)],
+        messages: [],
+        agents: [agent("agent-side-chat-visible-2", secondVisibleTurn.id)],
+        items: [textItem("item-side-chat-visible-2", secondVisibleTurn.id, "second")],
+        approvals: [],
+      },
+    ]))
+    const selectEntries = createRenderTurnEntriesSelector()
+
+    expect(selectVisibleTurnEntries(state, {
+      type: "side-chat",
+      inheritedThroughTurnId: inheritedTurn.id,
+    }).map((entry) => entry.id)).toEqual([firstVisibleTurn.id, secondVisibleTurn.id])
+
+    const afterInherited = selectEntries(state, {
+      type: "side-chat",
+      inheritedThroughTurnId: inheritedTurn.id,
+    })
+    const afterFirstVisible = selectEntries(state, {
+      type: "side-chat",
+      inheritedThroughTurnId: firstVisibleTurn.id,
+    })
+    expect(afterInherited.map((entry) => entry.id)).toEqual([firstVisibleTurn.id, secondVisibleTurn.id])
+    expect(afterFirstVisible.map((entry) => entry.id)).toEqual([secondVisibleTurn.id])
+    expect(afterFirstVisible).not.toBe(afterInherited)
+  })
+
+  test("shows every loaded turn when side-chat has no inherited boundary", () => {
+    const firstTurn = turn("turn-side-chat-empty-1")
+    const secondTurn = turn("turn-side-chat-empty-2")
+    const state = createCanonicalThreadState(page([
+      {
+        turn: firstTurn,
+        inputs: [],
+        messages: [],
+        agents: [agent("agent-side-chat-empty-1", firstTurn.id)],
+        items: [],
+        approvals: [],
+      },
+      {
+        turn: secondTurn,
+        inputs: [],
+        messages: [],
+        agents: [agent("agent-side-chat-empty-2", secondTurn.id)],
+        items: [],
+        approvals: [],
+      },
+    ]))
+
+    expect(selectVisibleTurnEntries(state, {
+      type: "side-chat",
+      inheritedThroughTurnId: null,
+    }).map((entry) => entry.id)).toEqual([firstTurn.id, secondTurn.id])
+  })
+
+  test("keeps current side-chat turns visible until an older page supplies the inherited boundary", () => {
+    const inheritedTurn = turn("turn-side-chat-paged-boundary")
+    const currentTurn = turn("turn-side-chat-paged-current")
+    const state = createCanonicalThreadState(page([{
+      turn: currentTurn,
+      inputs: [input("input-side-chat-paged-current", currentTurn.id, 3)],
+      messages: [],
+      agents: [agent("agent-side-chat-paged-current", currentTurn.id)],
+      items: [],
+      approvals: [],
+    }]))
+    const scope = {
+      type: "side-chat" as const,
+      inheritedThroughTurnId: inheritedTurn.id,
+    }
+
+    expect(selectVisibleTurnEntries(state, scope).map((entry) => entry.id)).toEqual([currentTurn.id])
+
+    const olderPrefixTurn = turn("turn-side-chat-paged-prefix")
+    const withBoundary = prependOlderThreadPage(state, {
+      ...page([
+        {
+          turn: olderPrefixTurn,
+          inputs: [input("input-side-chat-paged-prefix", olderPrefixTurn.id, 1)],
+          messages: [],
+          agents: [],
+          items: [],
+          approvals: [],
+        },
+        {
+          turn: inheritedTurn,
+          inputs: [input("input-side-chat-paged-boundary", inheritedTurn.id, 2)],
+          messages: [],
+          agents: [],
+          items: [],
+          approvals: [],
+        },
+      ]),
+      olderCursor: null,
+      hasOlder: false,
+    })
+
+    expect(withBoundary.turnOrder).toEqual([olderPrefixTurn.id, inheritedTurn.id, currentTurn.id])
+    expect(selectVisibleTurnEntries(withBoundary, scope).map((entry) => entry.id)).toEqual([currentTurn.id])
   })
 
   test("reuses unchanged render turn entries when one turn receives an update", () => {

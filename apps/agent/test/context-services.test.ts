@@ -4,10 +4,13 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { Model, Provider } from "@codepilotx/model-schema"
+import type { CompactionEntry } from "@codepilotx/pi-agent-core"
+import { ContextCompactionService } from "../src/context/ContextCompactionService"
 import { ContextManager, contextFingerprint, estimateContextTokens, type AgentInputItem } from "../src/context/ContextManager"
 import { HookService } from "../src/hooks/HookService"
 import { MemoryService, projectMemoryKey } from "../src/memory/MemoryService"
 import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
+import { SqlitePiSessionRepo, type SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
 import { ConfigService } from "../src/config/ConfigService"
 
 const roots: string[] = []
@@ -54,6 +57,133 @@ describe("v8 上下文存储", () => {
     const changed = manager.snapshot({ threadID: thread.id, items: [{ role: "user", content: "changed" }] as AgentInputItem[], contextWindowTokens: 100 })
     expect(changed).toMatchObject({ source: "estimated", needsCompaction: true })
     expect(manager.usageSamples(thread.id)).toHaveLength(3)
+    db.close()
+  })
+
+  test("自动压缩熔断三次失败，成功估算与新 baseline 会重置熔断", async () => {
+    const { db, thread } = await fixture()
+    const manager = new ContextManager(db)
+    const service = new ContextCompactionService(db, manager)
+    manager.establishBaseline({ threadID: thread.id, promptVersion: "v1", baseHash: "base", contextHash: "context", cacheKey: thread.id })
+    manager.recordMeasuredUsage({ threadID: thread.id, items: [], contextWindowTokens: 100, inputTokens: 80 })
+    expect(service.shouldAutoCompact(thread.id)).toBe(true)
+
+    service.recordFailure(thread.id, "automatic")
+    service.recordFailure(thread.id, "reactive")
+    service.recordFailure(thread.id, "automatic")
+    expect(manager.state(thread.id)).toMatchObject({ autoCompactFailures: 3, autoCompactSuspended: true, needsCompaction: true })
+    expect(service.shouldAutoCompact(thread.id)).toBe(false)
+
+    const ineffective = manager.recordCompactionEstimate({
+      threadID: thread.id,
+      items: [{ role: "user", content: "x".repeat(400) }],
+      contextWindowTokens: 100,
+    })
+    expect(ineffective.needsCompaction).toBe(true)
+    expect(manager.state(thread.id)).toMatchObject({ autoCompactFailures: 3, autoCompactSuspended: true })
+
+    const estimate = manager.recordCompactionEstimate({ threadID: thread.id, items: [], contextWindowTokens: 100 })
+    expect(estimate).toMatchObject({ source: "compaction-estimate", needsCompaction: false })
+    expect(manager.state(thread.id)).toMatchObject({ autoCompactFailures: 0, autoCompactSuspended: false, needsCompaction: false })
+
+    service.recordFailure(thread.id, "automatic")
+    manager.establishBaseline({ threadID: thread.id, promptVersion: "v2", baseHash: "base-2", contextHash: "context-2", cacheKey: thread.id })
+    expect(manager.state(thread.id)).toMatchObject({ autoCompactFailures: 0, autoCompactSuspended: false })
+    db.close()
+  })
+
+  test("压缩完成将 Pi 引用、usage、状态和 durable event 原子提交", async () => {
+    const { db, thread } = await fixture()
+    const manager = new ContextManager(db)
+    manager.establishBaseline({ threadID: thread.id, promptVersion: "v1", baseHash: "base", contextHash: "context", cacheKey: thread.id })
+    const service = new ContextCompactionService(db, manager)
+    const session = await new SqlitePiSessionRepo(db).create({ id: "session", threadID: thread.id, agentID: "main" })
+    const storage = session.getStorage() as SqlitePiSessionStorage
+    const piEntry: CompactionEntry = {
+      type: "compaction",
+      id: "compact-1",
+      parentId: null,
+      timestamp: new Date().toISOString() as CompactionEntry["timestamp"],
+      summary: "保留当前目标与已修改文件。",
+      firstKeptEntryId: "kept-1",
+      tokensBefore: 900,
+    }
+    await storage.appendEntry(piEntry)
+
+    let completed!: ReturnType<ContextCompactionService["complete"]>
+    db.transaction(() => {
+      storage.flush()
+      completed = service.complete({
+        threadID: thread.id,
+        sessionID: "session",
+        piEntry,
+        summary: piEntry.summary,
+        firstKeptEntryID: piEntry.firstKeptEntryId ?? null,
+        beforeCount: 12,
+        afterCount: 3,
+        items: [{ role: "user", content: "继续" }],
+        promptText: "system",
+        contextWindowTokens: 1_000,
+        trigger: "automatic",
+      })
+    })
+
+    expect(completed.compaction).toMatchObject({
+      id: piEntry.id,
+      beforeCount: 12,
+      afterCount: 3,
+      beforeTokens: 900,
+      trigger: "automatic",
+      afterTokensSource: "compaction-estimate",
+      baselineVersion: 1,
+    })
+    expect(completed.event).toMatchObject({
+      threadId: thread.id,
+      method: "context/compacted",
+      params: { compactionId: piEntry.id, trigger: "automatic", afterTokensSource: "compaction-estimate" },
+    })
+    expect(service.latest(thread.id)).toEqual(completed.compaction)
+    expect(service.byID(piEntry.id)).toEqual(completed.compaction)
+    expect(manager.state(thread.id)).toMatchObject({ usageSource: "compaction-estimate", needsCompaction: false })
+    const stored = db.sqlite.query("SELECT replacement_history FROM agent_compactions WHERE id = ?").get(piEntry.id) as { replacement_history: string }
+    expect(JSON.parse(stored.replacement_history)).toEqual({
+      version: 1,
+      kind: "pi-compaction-reference",
+      sessionID: "session",
+      entryID: piEntry.id,
+      firstKeptEntryID: piEntry.firstKeptEntryId,
+      trigger: "automatic",
+      afterTokensSource: "compaction-estimate",
+    })
+
+    const failedEntry: CompactionEntry = {
+      type: "compaction",
+      id: "compact-rollback",
+      parentId: piEntry.id,
+      timestamp: new Date().toISOString() as CompactionEntry["timestamp"],
+      summary: "这次事务必须回滚。",
+      tokensBefore: 100,
+    }
+    await storage.appendEntry(failedEntry)
+    db.sqlite.exec(`CREATE TRIGGER fail_context_compacted BEFORE INSERT ON events WHEN NEW.method = 'context/compacted' BEGIN SELECT RAISE(ABORT, 'outbox unavailable'); END`)
+    expect(() => db.transaction(() => {
+      storage.flush()
+      service.complete({
+        threadID: thread.id,
+        sessionID: "session",
+        piEntry: failedEntry,
+        summary: failedEntry.summary,
+        firstKeptEntryID: null,
+        beforeCount: 3,
+        afterCount: 2,
+        items: [],
+        contextWindowTokens: 1_000,
+        trigger: "reactive",
+      })
+    })).toThrow("outbox unavailable")
+    expect(db.sqlite.query("SELECT id FROM agent_compactions WHERE id = ?").get(failedEntry.id)).toBeNull()
+    expect(db.sqlite.query("SELECT id FROM pi_session_entries WHERE id = ?").get(failedEntry.id)).toBeNull()
+    expect(manager.usageSamples(thread.id)).toHaveLength(1)
     db.close()
   })
 

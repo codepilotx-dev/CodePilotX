@@ -20,6 +20,7 @@ import { localEnvironmentHandlers } from "./handlers/local-environment"
 import { worktreeHandlers } from "./handlers/worktree"
 import { handoffHandlers } from "./handlers/handoff"
 import { threadForkHandlers } from "./handlers/thread-fork"
+import { sideChatHandlers } from "./handlers/side-chat"
 import { threadHandlers } from "./handlers/thread"
 import { toolingHandlers } from "./handlers/tooling"
 import { usageHandlers } from "./handlers/usage"
@@ -53,6 +54,7 @@ const groups: readonly RpcHandlerGroup[] = [
   worktreeHandlers,
   handoffHandlers,
   threadForkHandlers,
+  sideChatHandlers,
   providerHandlers,
   toolingHandlers,
   usageHandlers,

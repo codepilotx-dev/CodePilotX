@@ -16,6 +16,7 @@ export interface ToolExposureInput {
   hasSkillService?: boolean
   hasProjectSources?: boolean
   defaultModeRequestUserInput?: boolean
+  delegationEnabled?: boolean
   allowedTools?: readonly string[]
 }
 
@@ -40,7 +41,7 @@ export function createToolExposurePlan(catalog: ToolCatalog, input: ToolExposure
   else {
     if (input.taskMode === "plan" || input.defaultModeRequestUserInput) lifecycle.push("request_user_input")
     if (input.taskMode === "chat") lifecycle.push("request_permissions", "update_plan")
-    lifecycle.push("spawn_agents", "wait_agents", "send_agent", "stop_agent")
+    if (input.delegationEnabled !== false) lifecycle.push("spawn_agents", "wait_agents", "send_agent", "stop_agent")
   }
 
   const allowlist = input.allowedTools ? new Set(input.allowedTools) : null

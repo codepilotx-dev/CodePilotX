@@ -86,6 +86,7 @@ export interface AgentRuntimeRequest {
   /** Durable gate acquired before starting a fresh runtime (for example Hook trust). */
   startupGateLeaseID?: string
   defaultModeRequestUserInput?: boolean
+  delegationEnabled?: boolean
   promptSections?: PromptSection[]
   skillService?: SkillService
   projectSources?: ProjectSourceRuntimeAccess
@@ -116,7 +117,7 @@ export interface AgentRuntime {
   ): Promise<void>
   followUp(threadID: string, content: string): Promise<void>
   abort(threadID: string): Promise<void>
-  compact(threadID: string, instructions?: string): Promise<unknown>
+  compact(threadID: string, instructions?: string, promptText?: string): Promise<unknown>
   dispose(): Promise<void>
 }
 

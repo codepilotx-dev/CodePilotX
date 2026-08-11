@@ -20,6 +20,8 @@ export type PiRunResult =
   | { status: "completed"; output: string; result?: SubagentResult }
   | { status: "paused"; output: string }
 
+export type RuntimeCompactionTrigger = "manual" | "automatic" | "reactive"
+
 export interface PiRuntimeRequest {
   threadID: string
   turnID: string
@@ -42,6 +44,7 @@ export interface PiRuntimeRequest {
   toolCatalog?: ToolCatalog
   onPromptComposed?: (bundle: PromptBundle) => void | Promise<void>
   preapprovedToolCalls?: ReadonlyMap<string, string | undefined>
+  canAutoCompact?: () => boolean | Promise<boolean>
 }
 
 export interface PiHarnessDependencies {
@@ -110,7 +113,15 @@ export interface PiRuntimeEventSink {
   }): void | Promise<void>
   queueUpdated?(context: PiRuntimeEventContext, input: { steer: number; followUp: number; nextTurn: number }): void | Promise<void>
   queueConsumed?(context: PiRuntimeEventContext, input: { delivery: "steer" | "follow-up" | "next-turn"; inputIDs: string[] }): void | Promise<void>
-  compacted?(context: PiRuntimeEventContext, input: { entryID: string; summary: string; tokensBefore: number; beforeCount: number }): void | Promise<void>
+  compacted?(context: PiRuntimeEventContext, input: {
+    entryID: string
+    summary: string
+    firstKeptEntryID: string | null
+    tokensBefore: number
+    beforeCount: number
+    trigger: RuntimeCompactionTrigger
+    promptText: string
+  }): void | Promise<void>
   savePoint?(context: PiRuntimeEventContext, input: { hadPendingMutations: boolean }): void | Promise<void>
   settled?(context: PiRuntimeEventContext, input: { nextTurnCount: number }): void | Promise<void>
   aborted?(context: PiRuntimeEventContext): void | Promise<void>
@@ -151,11 +162,16 @@ export interface PiAgentRuntimeOptions {
   eventSink?: PiRuntimeEventSink
   lifecycle?: PiLifecycleCallbacks
   beforeToolCall?: (request: PiRuntimeRequest, input: { toolCallID: string; tool: string; input: Record<string, unknown> }) => Promise<{ block?: boolean; reason?: string; pause?: boolean } | undefined>
+  compaction?: {
+    shouldAutoCompact(threadID: string): boolean | Promise<boolean>
+    recordFailure(threadID: string, trigger: RuntimeCompactionTrigger): void | Promise<void>
+  }
 }
 
 export interface ActivePiHarness {
   harness: AgentHarness
   unsubscribe: () => void
+  compact(trigger: RuntimeCompactionTrigger, instructions?: string): Promise<CompactResult>
 }
 
 export interface PiAgentRuntimeApi {
