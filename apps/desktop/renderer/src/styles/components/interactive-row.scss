@@ -170,19 +170,24 @@
   color: var(--interactive-row-foreground, var(--color-token-foreground));
 }
 
-.interactive-row:focus-visible,
+.interactive-row:focus-visible {
+  outline: 2px solid var(--color-token-focus-border);
+  outline-offset: 1px;
+}
+
 .popover-item:focus-visible,
 .popover-sub-trigger:focus-visible,
 .menubar-item:focus-visible,
 .settings-dropdown-item:focus-visible,
+.theme-dropdown-item:focus-visible,
 .permission-select-item:focus-visible,
 .chat-input__dropdown-item:focus-visible,
 .sidebar-context-menu-item:focus-visible,
 .sidebar-context-menu-sub-trigger:focus-visible,
 .rm-model-menu .rm-menu-item:focus-visible,
 .rm-model-menu .rm-sub-trigger:focus-visible {
-  outline: 2px solid var(--color-token-focus-border);
-  outline-offset: -1px;
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
 }
 
 .interactive-row[data-state="open"],
@@ -265,5 +270,25 @@
   .rm-model-menu .rm-menu-item,
   .rm-model-menu .rm-sub-trigger {
     transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  :is(
+    .popover-item,
+    .popover-sub-trigger,
+    .menubar-item,
+    .settings-dropdown-item,
+    .theme-dropdown-item,
+    .permission-select-item,
+    .chat-input__dropdown-item,
+    .sidebar-context-menu-item,
+    .sidebar-context-menu-sub-trigger,
+    .rm-model-menu .rm-menu-item,
+    .rm-model-menu .rm-sub-trigger
+  ):focus-visible {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }

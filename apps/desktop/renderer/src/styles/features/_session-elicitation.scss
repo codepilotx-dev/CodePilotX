@@ -75,13 +75,13 @@
   align-items: center;
   gap: 2px;
   font-size: var(--type-body);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
   color: var(--color-token-foreground);
 }
 
 .mcp-form-required-mark {
   color: var(--color-token-error-foreground);
-  font-weight: 600;
+  font-weight: var(--font-weight-emphasis);
   margin-left: 1px;
 }
 
@@ -244,7 +244,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-token-text-secondary) 12%, transparent);
   font-size: var(--type-caption);
-  font-weight: 600;
+  font-weight: var(--font-weight-emphasis);
 }
 
 .mcp-form-option.selected .mcp-form-option-index {
@@ -253,7 +253,7 @@
 }
 
 .mcp-form-option-label {
-  font-weight: 400;
+  font-weight: var(--font-weight-body);
 }
 
 /* Actions row */
@@ -306,7 +306,7 @@
   border-radius: var(--mcp-form-submit-radius);
   background: var(--mcp-form-submit-bg);
   color: var(--mcp-form-submit-color);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
 }
 
 .mcp-form-btn-submit:hover {

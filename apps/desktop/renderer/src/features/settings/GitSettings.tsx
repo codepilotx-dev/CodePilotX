@@ -141,6 +141,7 @@ export function GitSettings(): React.ReactNode {
               <SegmentedControl
                 value={gitPrMergeMethod}
                 options={PR_MERGE_OPTIONS}
+                variant="inset"
                 onChange={value => {
                   draft.setValue('gitPrMergeMethod', value)
                   draft.autoSave()

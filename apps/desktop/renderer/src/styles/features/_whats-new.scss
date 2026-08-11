@@ -125,8 +125,16 @@
 }
 
 .whats-new-version-item:focus-visible {
-  outline: 2px solid var(--color-token-text-link-foreground);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
+}
+
+@media (forced-colors: active) {
+  .whats-new-version-item:focus-visible {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 
 .whats-new-detail-scroll-content {

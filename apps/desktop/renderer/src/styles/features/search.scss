@@ -97,7 +97,7 @@
   span {
     color: var(--color-token-foreground);
     font-size: var(--type-control);
-    font-weight: 500;
+    font-weight: var(--font-weight-label);
   }
 
   small {

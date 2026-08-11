@@ -659,7 +659,7 @@
     margin: 0 0 4px;
     color: var(--color-token-foreground);
     font-size: var(--type-card-title);
-    font-weight: 500;
+    font-weight: var(--font-weight-label);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -913,7 +913,7 @@
   background: transparent;
   color: var(--color-token-text-secondary);
   font-family: var(--font-family-sans);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
 }
 
 .keyboard-shortcuts-action {

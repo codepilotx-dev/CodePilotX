@@ -4,7 +4,7 @@
   font-family: var(--font-family-sans);
   font-size: var(--type-body);
   font-weight: var(--font-weight-body);
-  line-height: 1.62;
+  line-height: var(--type-line-body);
   overflow-wrap: anywhere;
 
   > :first-child {
@@ -21,7 +21,7 @@
   ol,
   dl,
   .md-table-block {
-    margin: 0.78em 0;
+    margin: 8px 0;
   }
 
   h1,
@@ -30,38 +30,38 @@
   h4,
   h5,
   h6 {
-    margin: 1.45rem 0 0.7rem;
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-heading);
-    line-height: 1.3;
     text-wrap: balance;
   }
 
   h1 {
+    margin: 24px 0 8px;
     padding: 0;
     border: 0;
-    font-size: 1.84em;
-    line-height: 1.16;
+    font-size: var(--type-page-title);
+    line-height: calc(var(--type-page-title) + 6px);
   }
 
   h2 {
+    margin: 20px 0 8px;
     padding: 0;
-    font-size: 1.48em;
-    line-height: 1.2;
+    font-size: var(--type-title-md);
+    line-height: calc(var(--type-title-md) + 6px);
   }
 
   h3 {
-    font-size: 1.24em;
-    line-height: 1.32;
+    margin: 16px 0 6px;
+    font-size: var(--type-panel-title);
+    line-height: calc(var(--type-panel-title) + 6px);
   }
 
-  h4 {
-    font-size: 1.12em;
-  }
-
+  h4,
   h5,
   h6 {
-    font-size: 1em;
+    margin: 16px 0 6px;
+    font-size: var(--type-body);
+    line-height: var(--type-line-body);
   }
 
   ul,
@@ -74,7 +74,7 @@
   }
 
   li + li {
-    margin-top: 0.5em;
+    margin-top: 4px;
   }
 
   li > p {
@@ -167,7 +167,7 @@
   background: transparent;
   color: var(--md-file-reference-color, var(--color-token-text-link-foreground));
   font: inherit;
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
   text-decoration: none;
   cursor: pointer;
   overflow-wrap: anywhere;

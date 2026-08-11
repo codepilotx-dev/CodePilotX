@@ -211,7 +211,8 @@
 .permission-select-item-detail {
   color: var(--color-token-text-secondary);
   font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-line-height);
+  font-weight: var(--font-weight-body);
+  line-height: var(--menu-detail-line-height);
   white-space: normal;
 }
 
@@ -290,7 +291,7 @@
 
   strong {
     color: var(--color-token-foreground);
-    font-weight: 500;
+    font-weight: var(--font-weight-emphasis);
   }
 }
 
@@ -440,10 +441,11 @@
   background: transparent;
   border: 0;
   font-family: inherit;
+  font-size: var(--menu-font-size);
+  line-height: var(--menu-line-height);
 
   &.is-keyboard-active {
     background: var(--color-token-list-hover-background);
-    box-shadow: inset 0 0 0 1px var(--color-token-border);
   }
 
   &.is-disabled {
@@ -471,7 +473,7 @@
 
 .chat-input__dropdown-label {
   min-width: 0;
-  font-weight: var(--font-weight-label);
+  font-weight: var(--font-weight-body);
 }
 
 .chat-input__dropdown-trailing {
@@ -482,7 +484,8 @@
 .chat-input__dropdown-hint {
   font-size: var(--menu-detail-font-size);
   color: var(--color-token-description-foreground);
-  font-weight: 400;
+  font-weight: var(--font-weight-body);
+  line-height: var(--menu-detail-line-height);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -510,9 +513,9 @@
   column-gap: var(--menu-item-gap);
   padding: 4px 8px;
   font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-line-height);
+  line-height: var(--menu-detail-line-height);
   color: var(--color-token-description-foreground);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
 }
 
 .chat-input__dropdown-bullet {
@@ -527,7 +530,7 @@
   padding: 8px;
   color: var(--color-token-description-foreground);
   font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-line-height);
+  line-height: var(--menu-detail-line-height);
   text-align: center;
 }
 

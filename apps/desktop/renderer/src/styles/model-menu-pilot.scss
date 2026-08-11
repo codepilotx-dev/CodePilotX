@@ -23,8 +23,8 @@
     padding: 4px 8px;
     color: var(--color-token-description-foreground);
     font-size: var(--menu-detail-font-size);
-    line-height: var(--menu-line-height);
-    font-weight: 500;
+    line-height: var(--menu-detail-line-height);
+    font-weight: var(--font-weight-label);
   }
 
   .rm-divider {

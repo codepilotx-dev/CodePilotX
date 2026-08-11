@@ -297,7 +297,6 @@
     color var(--motion-micro) var(--ease-standard);
 
   &.active {
-    border-block-end-color: var(--state-selected-rail);
     background: var(--state-selected-fill);
     color: var(--color-token-foreground);
   }
@@ -340,7 +339,7 @@
   background: transparent;
   color: inherit;
   font-size: var(--type-meta);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
   white-space: nowrap;
 
   &.compact {

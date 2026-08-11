@@ -110,7 +110,7 @@
 .workflow-plan-card__label {
   color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
 }
 
 .workflow-plan-card__dock {

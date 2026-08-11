@@ -112,6 +112,7 @@ export function ProviderUsagePanel({
             onChange={onRangeChange}
             options={RANGE_OPTIONS}
             value={range}
+            variant="inset"
           />
           <Button
             loading={loading}

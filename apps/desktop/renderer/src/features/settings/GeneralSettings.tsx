@@ -461,6 +461,7 @@ export function GeneralSettings({
               <SegmentedControl
                 value={reviewView}
                 options={REVIEW_OPTIONS}
+                variant='inset'
                 onChange={setReviewView}
               />
             }
@@ -473,6 +474,7 @@ export function GeneralSettings({
               <SegmentedControl
                 value={reviewDelivery}
                 options={REVIEW_DELIVERY_OPTIONS}
+                variant='inset'
                 onChange={setReviewDelivery}
               />
             }

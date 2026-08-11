@@ -63,13 +63,13 @@
   }
 
   &:hover .appearance-mode-visual {
-    border-color: var(--color-token-border);
+    border-color: var(--color-token-border-heavy);
     background-color: var(--state-hover-fill);
   }
 
   &[data-state="checked"] .appearance-mode-visual {
-    border-color: var(--state-selected-rail);
-    box-shadow: inset 0 -2px 0 var(--state-selected-rail);
+    border-width: 2px;
+    border-color: var(--color-token-foreground);
   }
 
   &[data-state="checked"] .appearance-mode-label {
@@ -79,6 +79,7 @@
 
 .appearance-mode-visual {
   position: relative;
+  box-sizing: border-box;
   display: block;
   aspect-ratio: 17 / 12;
   overflow: hidden;
@@ -87,8 +88,7 @@
   background: #f3f3f3;
   transition:
     background-color var(--motion-state) var(--ease-standard),
-    border-color var(--motion-state) var(--ease-standard),
-    box-shadow var(--motion-state) var(--ease-standard);
+    border-color var(--motion-state) var(--ease-standard);
 
   svg {
     display: block;
@@ -145,7 +145,7 @@
   background: var(--layer-panel-fill);
   color: var(--color-token-text-link-foreground);
   font-size: var(--type-meta);
-  font-weight: 600;
+  font-weight: var(--font-weight-label);
 }
 
 .settings-dropdown-item-indicator {

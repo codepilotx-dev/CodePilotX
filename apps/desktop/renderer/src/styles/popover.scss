@@ -261,7 +261,7 @@
 .sidebar-context-menu-shortcut {
   color: var(--color-token-description-foreground);
   font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-line-height);
+  line-height: var(--menu-detail-line-height);
   white-space: nowrap;
 }
 
@@ -361,7 +361,7 @@
     width: 20px;
     height: 20px;
     border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-resting);
+    box-shadow: var(--shadow-control-sm);
     transition: transform var(--motion-state) var(--ease-out);
   }
 
@@ -444,17 +444,18 @@
   padding: 4px 8px;
   color: var(--color-token-description-foreground);
   font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-line-height);
-  font-weight: 500;
+  line-height: var(--menu-detail-line-height);
+  font-weight: var(--font-weight-label);
+  letter-spacing: normal;
 }
 
 .popover-section-title {
   padding: 4px 8px;
   color: var(--color-token-description-foreground);
   font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-line-height);
-  font-weight: 600;
-  letter-spacing: 0.2px;
+  line-height: var(--menu-detail-line-height);
+  font-weight: var(--font-weight-label);
+  letter-spacing: normal;
 }
 
 .popover-section {
@@ -471,7 +472,7 @@
   padding: 8px;
   color: var(--color-token-input-placeholder-foreground);
   font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-line-height);
+  line-height: var(--menu-detail-line-height);
   text-align: center;
 }
 
@@ -533,6 +534,7 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: var(--font-weight-body);
   white-space: nowrap;
 }
 
@@ -574,9 +576,9 @@
 .popover-item-shortcut {
   color: var(--color-token-description-foreground);
   font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-line-height);
-  font-weight: 500;
-  letter-spacing: 0.2px;
+  line-height: var(--menu-detail-line-height);
+  font-weight: var(--font-weight-body);
+  letter-spacing: normal;
   white-space: nowrap;
 }
 
@@ -611,7 +613,7 @@
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
   line-height: 1.4;
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
   user-select: none;
   transform-origin: var(--radix-tooltip-content-transform-origin, center);
 }

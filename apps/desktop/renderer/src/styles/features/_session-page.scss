@@ -120,7 +120,7 @@
     margin: 0;
     color: var(--color-token-foreground);
     font-size: inherit;
-    font-weight: 400;
+    font-weight: var(--font-weight-body);
     padding: 3px 6px;
     letter-spacing: 0;
     text-wrap: balance;
@@ -743,7 +743,8 @@
 
     &.ui-button:focus-visible {
       z-index: 2;
-      outline-offset: -2px;
+      outline: none;
+      box-shadow: var(--focus-ring-inset);
     }
   }
 
@@ -985,5 +986,14 @@
 
   .composer-change-summary__return:active {
     transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .composer-change-summary__plan.ui-button:focus-visible,
+  .composer-change-summary__changes.ui-button:focus-visible {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }

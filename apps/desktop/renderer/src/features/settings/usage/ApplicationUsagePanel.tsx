@@ -109,6 +109,7 @@ export function ApplicationUsagePanel({
             onChange={onRangeChange}
             options={RANGE_OPTIONS}
             value={range}
+            variant="inset"
           />
           <Button loading={loading} onClick={onRefresh}>刷新</Button>
         </div>

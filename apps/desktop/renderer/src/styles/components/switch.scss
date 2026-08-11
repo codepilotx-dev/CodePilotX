@@ -90,7 +90,7 @@
 .context-menu-switch-thumb {
   border: 1px solid var(--color-token-border);
   background: var(--layer-canvas-fill);
-  box-shadow: none;
+  box-shadow: var(--shadow-control-sm);
 }
 
 /* --- Settings Page Toggle Switch --- */
@@ -117,7 +117,7 @@
   position: absolute;
   top: 2px;
   left: 0;
-  box-shadow: none;
+  box-shadow: var(--shadow-control-sm);
   transition:
     background-color var(--motion-state) var(--ease-standard),
     border-color var(--motion-state) var(--ease-standard),
@@ -141,6 +141,7 @@
 .toggle-knob[data-disabled] {
   border-color: var(--color-token-border-light);
   background: var(--layer-raised-fill);
+  box-shadow: none;
 }
 
 /* --- Chat Input Dropdown Switch --- */
@@ -159,7 +160,7 @@
   height: 16px;
   margin: 3px;
   border-radius: var(--radius-pill);
-  box-shadow: none;
+  box-shadow: var(--shadow-control-sm);
   transition: transform var(--motion-state) var(--ease-standard);
 }
 

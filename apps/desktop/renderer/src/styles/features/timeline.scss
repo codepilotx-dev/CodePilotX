@@ -409,7 +409,7 @@
 }
 
 .preview-card-user-text {
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
   font-size: var(--type-meta);
   line-height: 20px;
   color: var(--color-token-foreground);

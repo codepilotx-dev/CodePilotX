@@ -193,7 +193,7 @@
   overflow: hidden;
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -290,7 +290,7 @@
   background: var(--state-selected-fill);
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
   white-space: nowrap;
   user-select: none;

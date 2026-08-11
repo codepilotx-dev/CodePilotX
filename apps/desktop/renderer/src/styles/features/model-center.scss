@@ -83,17 +83,6 @@
     background: var(--state-selected-fill);
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
-
-    &::after {
-      content: "";
-      position: absolute;
-      right: 0;
-      bottom: -1px;
-      left: 0;
-      height: 2px;
-      border-radius: var(--radius-control);
-      background: var(--state-selected-rail);
-    }
   }
 }
 
@@ -193,9 +182,9 @@
   }
 
   &[data-current="true"] {
-    border-color: var(--state-selected-rail);
+    border-color: var(--state-selected-edge);
     background: var(--state-selected-fill);
-    box-shadow: inset 2px 0 0 var(--state-selected-rail);
+    box-shadow: none;
   }
 }
 
@@ -466,17 +455,6 @@
     background: var(--state-selected-fill);
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
-
-    &::after {
-      content: "";
-      position: absolute;
-      right: 0;
-      bottom: -1px;
-      left: 0;
-      height: 2px;
-      border-radius: var(--radius-control);
-      background: var(--state-selected-rail);
-    }
   }
 }
 
@@ -500,7 +478,15 @@
   box-shadow: none;
 
   &:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-token-text-link-foreground) 50%, transparent);
+    outline: none;
+    box-shadow: var(--focus-ring-inset);
+  }
+}
+
+@media (forced-colors: active) {
+  .model-center-provider-panel:focus-visible {
+    box-shadow: none;
+    outline: 2px solid Highlight;
     outline-offset: -2px;
   }
 }
@@ -840,9 +826,9 @@
     }
 
     &.selected {
-      border-color: var(--state-selected-rail);
+      border-color: var(--state-selected-edge);
       background: var(--state-selected-fill);
-      box-shadow: inset 2px 0 0 var(--state-selected-rail);
+      box-shadow: none;
     }
 
     &.orphan {

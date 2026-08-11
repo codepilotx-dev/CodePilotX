@@ -82,7 +82,7 @@
 
     &:focus {
       background: var(--layer-raised-fill);
-      box-shadow: inset 0 0 0 1px var(--color-token-focus-border);
+      box-shadow: var(--focus-ring-inset);
     }
   }
 }
@@ -106,7 +106,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-token-error-foreground) 12%, transparent);
   color: var(--color-token-error-foreground);
-  font-weight: 700;
+  font-weight: var(--font-weight-emphasis);
 }
 
 .browser-annotation-form button,
@@ -140,7 +140,6 @@
 
 .browser-annotation-toggle[aria-pressed="true"] {
   background: var(--state-selected-fill);
-  box-shadow: inset 0 -2px 0 var(--state-selected-rail);
   color: var(--color-token-foreground);
 }
 
@@ -164,7 +163,7 @@
 
   strong {
     color: var(--color-token-error-foreground);
-    font-weight: 500;
+    font-weight: var(--font-weight-emphasis);
   }
 }
 
@@ -195,7 +194,7 @@
   strong {
     color: var(--color-token-foreground);
     font-size: var(--type-title-md);
-    font-weight: 700;
+    font-weight: var(--font-weight-heading);
   }
 
   span {
@@ -235,5 +234,13 @@
 
   button {
     align-self: flex-end;
+  }
+}
+
+@media (forced-colors: active) {
+  .browser-address-field input:focus {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }

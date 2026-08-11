@@ -16,6 +16,7 @@ type Props<T extends string> = {
   className?: string
   overflowMode?: 'auto' | 'fit'
   semantics?: 'group' | 'tabs'
+  variant?: 'default' | 'inset'
   getTabId?: (value: T) => string
   getPanelId?: (value: T) => string
 }
@@ -28,6 +29,7 @@ export function SegmentedControl<T extends string>({
   className,
   overflowMode = 'auto',
   semantics = 'group',
+  variant = 'default',
   getTabId,
   getPanelId,
 }: Props<T>): React.ReactNode {
@@ -70,6 +72,7 @@ export function SegmentedControl<T extends string>({
         overflowMode === 'auto' ? 'tw:overflow-y-hidden' : false,
         className,
       )}
+      data-variant={variant}
       role={isTabs ? 'tablist' : 'group'}
     >
       {options.map((option, index) => {

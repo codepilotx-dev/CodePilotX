@@ -24,7 +24,7 @@ body {
   font-family: var(--font-family-sans);
   font-size: var(--font-size-ui);
   font-weight: var(--font-weight-body);
-  line-height: 1.5;
+  line-height: var(--type-line-body);
   scrollbar-color: var(--color-token-scrollbar-slider-background) transparent;
   scrollbar-width: thin;
 }
@@ -174,7 +174,7 @@ p {
 .muted-copy {
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.6;
+  line-height: var(--type-line-secondary);
 }
 
 .r-none {
@@ -248,7 +248,9 @@ p {
     --state-hover-fill: Highlight;
     --state-pressed-fill: Highlight;
     --state-selected-fill: Highlight;
-    --state-selected-rail: Highlight;
+    --state-selected-edge: Highlight;
+    --focus-ring-inset: none;
+    --shadow-control-sm: none;
     --shadow-floating: none;
     --shadow-float: none;
     --shadow-glass-raised: none;

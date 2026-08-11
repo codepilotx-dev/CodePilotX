@@ -326,6 +326,7 @@ function DependencySection({
             }}
             options={SOURCE_OPTIONS}
             value={status.preference}
+            variant="inset"
           />
         }
       />

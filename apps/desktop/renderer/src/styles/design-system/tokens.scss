@@ -19,6 +19,7 @@
   --shadow-raised: none;
   --shadow-floating: 0 8px 24px -16px
     color-mix(in srgb, var(--color-token-foreground) 26%, transparent);
+  --shadow-control-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
   --shadow-float: var(--shadow-floating);
   --shadow-2: var(--shadow-raised);
 
@@ -38,20 +39,17 @@
   --shadow-glass-raised: none;
   --shadow-glass-floating: var(--shadow-floating);
 
-  // Interaction states are distinct: hover is transient, pressed is deeper,
-  // and selected/open states keep a low-chroma accent trace.
+  // Interaction states are deliberately neutral. Accent remains available to
+  // semantic controls, while navigation and selection use theme-derived ink.
   --state-hover-fill: var(--color-token-list-hover-background);
   --state-pressed-fill: color-mix(
     in srgb,
     var(--color-token-foreground) 9%,
     transparent
   );
-  --state-selected-fill: color-mix(
-    in srgb,
-    var(--color-token-focus-border) 8%,
-    var(--layer-panel-fill)
-  );
-  --state-selected-rail: var(--color-token-focus-border);
+  --state-selected-fill: var(--color-token-list-active-selection-background);
+  --state-selected-edge: var(--color-token-border-heavy);
+  --focus-ring-inset: inset 0 0 0 1px var(--color-token-focus-border);
 
   // Nested soft curves: outer surfaces step down by their inset spacing.
   --radius-control: 8px;
@@ -103,9 +101,10 @@
   --font-size-24: calc(var(--font-size-ui) + 10px);
   --font-size-26: calc(var(--font-size-ui) + 12px);
 
-  --menu-font-size: var(--interactive-row-font-menu);
-  --menu-line-height: var(--interactive-row-line-menu);
-  --menu-detail-font-size: max(10px, calc(var(--font-size-ui) - 3px));
+  --menu-font-size: var(--type-control);
+  --menu-line-height: var(--type-line-body);
+  --menu-detail-font-size: var(--type-meta);
+  --menu-detail-line-height: var(--type-line-meta);
   --menu-surface-padding: 4px;
   --menu-item-padding-block: var(--interactive-row-padding-block-menu);
   --menu-item-padding-inline: var(--interactive-row-padding-inline);
@@ -113,8 +112,8 @@
   --menu-icon-size: calc(var(--menu-font-size) + 4px);
 
   // Shared compact interactive-row profiles.
-  --interactive-row-height-nav: 30px;
-  --interactive-row-height-menu: 27px;
+  --interactive-row-height-nav: calc(var(--font-size-ui) + 16px);
+  --interactive-row-height-menu: calc(var(--font-size-ui) + 18px);
   --interactive-row-height-toolbar: 28px;
   --interactive-row-height-composer: 28px;
   --interactive-row-radius: var(--radius-row);
@@ -124,9 +123,9 @@
   --interactive-row-padding-inline-composer: 6px;
   --interactive-row-gap: 6px;
   --interactive-row-font-nav: var(--type-control);
-  --interactive-row-line-nav: 20px;
-  --interactive-row-font-menu: var(--type-meta);
-  --interactive-row-line-menu: 17px;
+  --interactive-row-line-nav: var(--type-line-body);
+  --interactive-row-font-menu: var(--type-control);
+  --interactive-row-line-menu: var(--type-line-body);
   --interactive-row-line-compact: 18px;
   --interactive-row-background: transparent;
   --interactive-row-foreground: var(--color-token-foreground);
@@ -204,7 +203,10 @@
   --type-message: var(--font-size-ui);
   --type-secondary: max(10px, calc(var(--font-size-ui) - 1px));
   --type-meta: max(10px, calc(var(--font-size-ui) - 2px));
-  --type-caption: max(10px, calc(var(--font-size-ui) - 3px));
+  --type-caption: var(--type-meta);
+  --type-line-body: calc(var(--font-size-ui) + 6px);
+  --type-line-secondary: calc(var(--type-secondary) + 5px);
+  --type-line-meta: calc(var(--type-meta) + 4px);
 
   --radius-1: 2px;
   --radius-2: var(--radius-control);
@@ -275,17 +277,17 @@
   --font-family-mono:
     "JetBrains Mono", Consolas, monospace;
   --type-card-title: var(--font-size-ui);
-  --type-section-title: calc(var(--font-size-ui) + 1px);
+  --type-section-title: var(--font-size-ui);
   --type-panel-title: calc(var(--font-size-ui) + 2px);
   --type-title-sm: var(--type-panel-title);
   --type-title-md: calc(var(--font-size-ui) + 4px);
   --type-title-lg: calc(var(--font-size-ui) + 6px);
-  --type-page-title: calc(var(--font-size-ui) + 8px);
+  --type-page-title: calc(var(--font-size-ui) + 10px);
   --type-hero-title: calc(var(--font-size-ui) + 12px);
   --type-code: var(--font-size-code);
-  --font-weight-body: 400;
+  --font-weight-body: 445;
   --font-weight-label: 500;
-  --font-weight-heading: 600;
+  --font-weight-heading: 500;
   --font-weight-emphasis: 600;
 
   --focus-ring: 0 0 0 3px

@@ -83,7 +83,7 @@
 
 .composer-status-bar-percent {
   color: var(--color-token-foreground);
-  font-weight: 500;
+  font-weight: var(--font-weight-label);
 }
 
 .composer-status-bar-detail {

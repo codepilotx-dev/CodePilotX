@@ -37,6 +37,10 @@
   padding: 0 var(--space-3);
   border-bottom: 1px solid var(--color-token-border-light);
   color: var(--color-token-text-secondary);
+
+  &:focus-within {
+    box-shadow: var(--focus-ring-inset);
+  }
 }
 
 .command-menu-search-icon {
@@ -104,6 +108,10 @@
 
   &[data-selected='true'] {
     background: var(--color-token-list-active-selection-background);
+  }
+
+  &:focus-visible {
+    box-shadow: var(--focus-ring-inset);
   }
 
   &[data-disabled='true'] {
@@ -251,6 +259,13 @@
   }
 
   .command-menu-input:focus {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .command-menu-search:focus-within,
+  .command-menu-item:focus-visible {
+    box-shadow: none;
     outline: 2px solid Highlight;
     outline-offset: -2px;
   }

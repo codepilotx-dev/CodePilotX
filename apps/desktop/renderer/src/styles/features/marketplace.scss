@@ -83,27 +83,11 @@
     color var(--motion-state) var(--ease-standard),
     background var(--motion-state) var(--ease-standard);
 
-  &::after {
-    content: "";
-    position: absolute;
-    right: var(--space-2);
-    bottom: -1px;
-    left: var(--space-2);
-    height: 2px;
-    border-radius: var(--radius-control);
-    background: transparent;
-  }
-
   &.is-active,
   &[aria-selected="true"] {
     background: var(--state-selected-fill);
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
-  }
-
-  &.is-active::after,
-  &[aria-selected="true"]::after {
-    background: var(--state-selected-rail);
   }
 }
 
@@ -188,7 +172,6 @@
   &[aria-pressed="true"],
   &.is-selected {
     background: var(--state-selected-fill);
-    box-shadow: inset 0 -2px 0 var(--state-selected-rail);
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
   }

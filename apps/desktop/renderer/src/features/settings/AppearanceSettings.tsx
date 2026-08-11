@@ -1147,6 +1147,7 @@ export function AppearanceSettings({
                   { value: 'symbol', label: '+/-' },
                 ]}
                 value={desktopSettings.draft.values.diffMarkerStyle}
+                variant="inset"
                 onChange={updateDiffMarkerStyle}
               />
             }
@@ -1198,6 +1199,7 @@ export function AppearanceSettings({
                   { value: 'off', label: '关闭' },
                 ]}
                 value={settings.reduceMotion}
+                variant="inset"
                 onChange={reduceMotion => updateThemeSettings({ reduceMotion })}
               />
             }
