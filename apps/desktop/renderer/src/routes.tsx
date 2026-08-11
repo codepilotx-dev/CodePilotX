@@ -41,11 +41,6 @@ const SettingsLayout = lazy(() =>
     default: module.SettingsLayout,
   })),
 )
-const LabsPage = lazy(() =>
-  import('./features/labs/LabsPage.js').then(module => ({
-    default: module.LabsPage,
-  })),
-)
 const PetOverlayPage = lazy(() =>
   import('./features/pet/PetOverlayPage.js').then(module => ({
     default: module.PetOverlayPage,
@@ -102,7 +97,6 @@ const router = createHashRouter([
         element: deferred(<SettingsLayout />),
       },
       { path: 'settings/:tab', element: deferred(<SettingsLayout />) },
-      { path: 'labs', element: deferred(<LabsPage />) },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

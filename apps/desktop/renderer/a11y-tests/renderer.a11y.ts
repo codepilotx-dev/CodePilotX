@@ -34,7 +34,6 @@ const ROUTES = [
   ['settings-general', '/?visualCase=empty#/settings/general'],
   ['settings-plugins', '/?visualCase=empty#/settings/plugins'],
   ['settings-environment', '/?visualCase=empty#/settings/environment/visual-workspace'],
-  ['labs', '/?visualCase=empty#/labs'],
   ['not-found', '/?visualCase=empty#/route-that-does-not-exist'],
   ['pet-overlay', '/?visualCase=empty#/pet-overlay'],
 ] as const

@@ -54,13 +54,6 @@ function routeBundleBudget(): Plugin {
             : 0
         )
       }, 0)
-      const labsCss = new Set(
-        [...chunks.values()]
-          .filter((chunk: any) =>
-            chunk.facadeModuleId?.replaceAll('\\', '/').endsWith('/features/labs/LabsPage.tsx'),
-          )
-          .flatMap((chunk: any) => [...(chunk.viteMetadata?.importedCss ?? [])]),
-      )
       const largestChunk = [...chunks.values()]
         .map((chunk: any) => ({
           fileName: chunk.fileName,
@@ -90,9 +83,6 @@ function routeBundleBudget(): Plugin {
       this.info(
         `/new largest modules: ${largestImmediateModules.map(module => `${module.id.replaceAll('\\', '/').split('/node_modules/').at(-1)} (${(module.renderedLength / 1024).toFixed(1)} KiB)`).join(', ')}`,
       )
-      if ([...labsCss].some(fileName => initialCss.has(fileName))) {
-        this.error('Labs CSS leaked into the /new immediate dependency graph')
-      }
       if (gzipBytes > NEW_ROUTE_GZIP_BUDGET) {
         this.error(
             `/new immediate JS exceeds budget (${(gzipBytes / 1024).toFixed(1)} KiB gzip; limit ${NEW_ROUTE_GZIP_BUDGET_KIB} KiB)`,

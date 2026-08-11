@@ -843,7 +843,7 @@ function createBrowserVisualReviewLargePatch(): string {
 
 function createBrowserVisualReviewSmallPatch(): string {
   const context = [
-    "import { LAB_DEMOS } from '../src/features/labs/labRegistry.js'",
+    "import { describe, expect, test } from 'bun:test'",
     '',
     "describe('Codex semantic token contract', () => {",
     "  test('exports semantic color tokens', async () => {",

@@ -112,7 +112,6 @@ describe('Codex 侧栏导航', () => {
       { view: 'automations', label: '自动化', path: '/automations' },
       { view: 'plugins', label: '插件', path: '/plugins' },
       { view: 'models', label: '供应商', path: '/models' },
-      { view: 'labs', label: 'Codex Labs', path: '/labs' },
     ])
     expect(TOP_NAV_ITEMS.some(item => item.path === '/search')).toBeFalse()
     expect(TOP_NAV_ITEMS.some(item => item.path === '/sites')).toBeFalse()
@@ -176,7 +175,6 @@ describe('Codex 侧栏导航', () => {
       'automations',
       'plugins',
       'models',
-      'labs',
     ])
   })
 
@@ -191,7 +189,6 @@ describe('Codex 侧栏导航', () => {
       'automations',
       'plugins',
       'models',
-      'labs',
     ])
   })
 
@@ -231,7 +228,6 @@ describe('Codex 侧栏导航', () => {
     expect(items.map(item => item.view)).toEqual([
       'new',
       'automations',
-      'labs',
     ])
   })
 

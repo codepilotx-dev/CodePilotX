@@ -9,7 +9,6 @@ import {
   BrainCircuit,
   ChevronDown,
   Clock3,
-  FlaskConical,
   FolderKanban,
   GitPullRequest,
   Search,
@@ -104,13 +103,6 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
         'provider.auth.pi.v1',
       ],
     },
-  },
-  {
-    view: "labs",
-    label: "Codex Labs",
-    icon: <FlaskConical size={APP_ICON_SIZE} />,
-    path: "/labs",
-    availability: { kind: 'always' },
   },
 ];
 

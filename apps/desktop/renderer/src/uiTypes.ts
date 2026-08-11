@@ -17,7 +17,6 @@ export type AppView =
   | 'plugins'
   | 'pullRequests'
   | 'automations'
-  | 'labs'
 
 export type DrawerTab =
   | 'files'

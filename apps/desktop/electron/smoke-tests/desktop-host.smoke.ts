@@ -317,7 +317,6 @@ test.describe("真实 Electron 宿主", () => {
       "/new",
       "/settings/general",
       "/labs",
-      "/not-a-real-route",
     ]) {
       await page.evaluate(nextRoute => {
         location.hash = `#${nextRoute}`

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { LAB_DEMOS } from '../src/features/labs/labRegistry.js'
 
 describe('Codex semantic token contract', () => {
   test('exports exactly 121 unique semantic color tokens', async () => {
@@ -80,25 +79,6 @@ describe('Codex semantic token contract', () => {
 
     for (const source of sources) {
       expect(source.match(removedAliasPattern)).toBeNull()
-    }
-  })
-})
-
-describe('Codex Labs registry', () => {
-  test('registers 18 unique lazy visual prototypes with evidence', async () => {
-    expect(LAB_DEMOS).toHaveLength(18)
-    expect(new Set(LAB_DEMOS.map(demo => demo.id)).size).toBe(18)
-
-    for (const demo of LAB_DEMOS) {
-      expect(demo.status).toBe('visual-prototype')
-      expect(demo.evidence.sourceChunks.length).toBeGreaterThan(0)
-      expect(demo.evidence.selectors.length).toBeGreaterThan(0)
-      expect(demo.evidence.themeTokens.length).toBeGreaterThan(0)
-      expect(demo.evidence.platformVariants).toContain('electron')
-      expect(demo.evidence.platformVariants).toContain('browser-mock')
-
-      const loaded = await demo.load()
-      expect(typeof loaded.default).toBe('function')
     }
   })
 })
