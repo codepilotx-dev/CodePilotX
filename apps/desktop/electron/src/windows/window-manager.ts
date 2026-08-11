@@ -27,6 +27,7 @@ import {
   type DesktopWindowStateV1,
   WindowStateStore,
 } from "./window-state.js"
+import { isDevToolsShortcut } from "./devtools-shortcut.js"
 
 const APPLICATION_LOAD_TIMEOUT_MS = 20_000
 
@@ -409,7 +410,7 @@ export class WindowManager {
 
   #registerDevToolsShortcut(window: BrowserWindow): void {
     window.webContents.on("before-input-event", (event, input) => {
-      if (input.type !== "keyDown" || input.key !== "F12") return
+      if (!isDevToolsShortcut(input)) return
       event.preventDefault()
       window.webContents.toggleDevTools()
     })
