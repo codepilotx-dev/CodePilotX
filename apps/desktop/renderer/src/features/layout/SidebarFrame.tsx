@@ -2,7 +2,6 @@ import type React from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Bot, History } from "lucide-react";
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import type { Transition } from 'motion/react'
 import {
   animate,
   motion,
@@ -11,6 +10,7 @@ import {
 } from "motion/react";
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import {
+  layoutTween,
   motionTransition,
 } from '../motion/motionTransitions.js'
 import {
@@ -43,12 +43,6 @@ type Props = {
   onSetWidth: (width: number) => void;
   shell: SidebarShellController;
 };
-
-const sidebarSpring = {
-  type: 'spring',
-  duration: 0.5,
-  bounce: 0.1,
-} satisfies Transition
 
 export function SidebarFrame({
   children,
@@ -115,7 +109,7 @@ export function SidebarFrame({
       docked ? liveWidth.get() : 0,
       motionTransition(
         reducedMotion,
-        sidebarSpring,
+        layoutTween,
       ),
     )
     allocatedWidthAnimationRef.current = animation
@@ -195,7 +189,7 @@ export function SidebarFrame({
         }
         transition={motionTransition(
           reducedMotion,
-          sidebarSpring,
+          layoutTween,
         )}
       >
         {children}

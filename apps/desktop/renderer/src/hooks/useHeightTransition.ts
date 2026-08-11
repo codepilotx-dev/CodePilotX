@@ -1,6 +1,7 @@
 import React from 'react'
 
-const HEIGHT_TRANSITION_MS = 240
+const HEIGHT_TRANSITION_MS = 200
+const HEIGHT_TRANSITION_FALLBACK_MS = HEIGHT_TRANSITION_MS + 80
 
 export function useHeightTransition(
   dependencies: React.DependencyList,
@@ -17,11 +18,17 @@ export function useHeightTransition(
     const el = ref.current
     if (!el) return
 
-    const startHeight = previousHeight.current ?? el.getBoundingClientRect().height
+    const startHeight =
+      height === null
+        ? (previousHeight.current ?? el.getBoundingClientRect().height)
+        : el.getBoundingClientRect().height
     const targetHeight = outerContentHeight(el)
     previousHeight.current = targetHeight
 
-    if (Math.abs(startHeight - targetHeight) < 1) {
+    if (
+      Math.abs(startHeight - targetHeight) < 1 ||
+      isReducedMotionEnabled()
+    ) {
       setHeight(null)
       setTransitioning(false)
       return
@@ -29,20 +36,42 @@ export function useHeightTransition(
 
     let frame = 0
     let timer = 0
+    let finished = false
+
+    const finishTransition = (event?: TransitionEvent) => {
+      if (
+        finished ||
+        (event && (event.target !== el || event.propertyName !== 'height'))
+      ) {
+        return
+      }
+
+      finished = true
+      window.clearTimeout(timer)
+      el.removeEventListener('transitionend', finishTransition)
+      el.removeEventListener('transitioncancel', finishTransition)
+      setHeight(null)
+      setTransitioning(false)
+    }
+
     setHeight(startHeight)
     setTransitioning(true)
 
     frame = window.requestAnimationFrame(() => {
+      el.addEventListener('transitionend', finishTransition)
+      el.addEventListener('transitioncancel', finishTransition)
       setHeight(targetHeight)
-      timer = window.setTimeout(() => {
-        setHeight(null)
-        setTransitioning(false)
-      }, HEIGHT_TRANSITION_MS)
+      timer = window.setTimeout(
+        finishTransition,
+        HEIGHT_TRANSITION_FALLBACK_MS,
+      )
     })
 
     return () => {
       window.cancelAnimationFrame(frame)
       window.clearTimeout(timer)
+      el.removeEventListener('transitionend', finishTransition)
+      el.removeEventListener('transitioncancel', finishTransition)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies)
@@ -54,6 +83,13 @@ export function useHeightTransition(
       overflow: transitioning ? 'hidden' : undefined,
     },
   }
+}
+
+function isReducedMotionEnabled(): boolean {
+  return (
+    document.documentElement.dataset.reduceMotion === 'on' ||
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+  )
 }
 
 function outerContentHeight(el: HTMLElement): number {

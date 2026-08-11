@@ -15,10 +15,10 @@ import {
 } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import {
-  fastTween,
+  exitTween,
   instantTween,
+  layoutTween,
   motionTransition,
-  standardTween,
 } from '../../motion/motionTransitions.js'
 import type { WorkbenchPanelTarget } from '../dock/rightDockState.js'
 import { useLiveResizeValue } from '../useLiveResizeValue.js'
@@ -134,7 +134,7 @@ function WorkbenchPanelPresenceItem({
     if (isPresent || !safeToRemove) return
     const timeout = window.setTimeout(
       safeToRemove,
-      reducedMotion ? 0 : (fastTween.duration as number) * 1_000,
+      reducedMotion ? 0 : (exitTween.duration as number) * 1_000,
     )
     return () => window.clearTimeout(timeout)
   }, [isPresent, reducedMotion, safeToRemove])
@@ -147,7 +147,7 @@ function WorkbenchPanelPresenceItem({
           ? spacerVisibleState
           : {
               ...spacerHiddenState,
-              transition: motionTransition(reducedMotion, fastTween),
+              transition: motionTransition(reducedMotion, exitTween),
             }}
         className={[
           'desktop-workspace-panel-spacer',
@@ -158,7 +158,7 @@ function WorkbenchPanelPresenceItem({
         style={liveSizeStyle}
         transition={motionTransition(
           reducedMotion,
-          entryComplete ? instantTween : standardTween,
+          entryComplete ? instantTween : layoutTween,
         )}
       />
       <motion.div
@@ -168,7 +168,7 @@ function WorkbenchPanelPresenceItem({
           ? visibleState
           : {
               ...hiddenState,
-              transition: motionTransition(reducedMotion, fastTween),
+              transition: motionTransition(reducedMotion, exitTween),
             }}
         className={[
           'desktop-workspace-panel',
@@ -184,7 +184,7 @@ function WorkbenchPanelPresenceItem({
         style={liveSizeStyle}
         transition={motionTransition(
           reducedMotion,
-          entryComplete ? instantTween : standardTween,
+          entryComplete ? instantTween : layoutTween,
         )}
       >
         <div className="desktop-workspace-panel__surface">
