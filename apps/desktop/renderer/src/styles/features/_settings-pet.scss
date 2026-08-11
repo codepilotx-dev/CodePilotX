@@ -22,9 +22,9 @@
 .pet-settings-preview {
   margin: 0 14px 14px;
   padding: 12px;
-  background: var(--color-token-bg-secondary);
-  border: 1px solid var(--color-token-border);
-  border-radius: 10px;
+  background: var(--layer-panel-fill);
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
 }
 
 .pet-settings-preview > div {
@@ -34,5 +34,5 @@
 .pet-settings-preview p {
   margin: 3px 0 0;
   color: var(--color-token-description-foreground);
-  font-size: 12px;
+  font-size: var(--type-secondary);
 }

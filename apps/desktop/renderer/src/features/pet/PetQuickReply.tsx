@@ -190,7 +190,7 @@ export function PetQuickReply({
       </div>
       {action === 'deny' ? (
         <textarea
-          className="tw:min-h-16 tw:w-full tw:resize-y tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent"
+          className="tw:min-h-16 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent"
           disabled={blocked}
           placeholder="可选：说明拒绝原因"
           value={feedback}
@@ -274,7 +274,7 @@ function QuestionReply({
       })}
       <textarea
         aria-label={`${question.question}的自定义回答`}
-        className="tw:min-h-14 tw:w-full tw:resize-y tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent"
+        className="tw:min-h-14 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent"
         disabled={disabled}
         placeholder="其他回答…"
         value={state.custom}
@@ -356,14 +356,14 @@ function QuickReplyFrame({
 }
 
 const primaryButtonClass =
-  'tw:inline-flex tw:min-h-8 tw:items-center tw:justify-center tw:rounded-lg tw:border-0 tw:bg-app-primary-action tw:px-3 tw:text-sm tw:font-medium tw:text-app-primary-action-foreground tw:disabled:cursor-not-allowed tw:disabled:opacity-50'
+  'tw:inline-flex tw:min-h-8 tw:items-center tw:justify-center tw:rounded-xs tw:border-0 tw:bg-app-primary-action tw:px-3 tw:text-sm tw:font-medium tw:text-app-primary-action-foreground tw:disabled:cursor-not-allowed tw:disabled:opacity-50'
 
 const secondaryButtonClass =
-  'tw:inline-flex tw:min-h-8 tw:items-center tw:justify-center tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:text-sm tw:text-app-text tw:disabled:cursor-not-allowed tw:disabled:opacity-50'
+  'tw:inline-flex tw:min-h-8 tw:items-center tw:justify-center tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:text-sm tw:text-app-text tw:disabled:cursor-not-allowed tw:disabled:opacity-50'
 
 const optionButtonClass = (selected: boolean): string =>
   [
-    'tw:flex tw:min-h-9 tw:w-full tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:px-2.5 tw:py-1.5 tw:text-sm tw:disabled:cursor-not-allowed tw:disabled:opacity-50',
+    'tw:flex tw:min-h-9 tw:w-full tw:items-center tw:gap-2 tw:rounded-xs tw:border tw:px-2.5 tw:py-1.5 tw:text-sm tw:disabled:cursor-not-allowed tw:disabled:opacity-50',
     selected
       ? 'tw:border-app-accent tw:bg-app-panel tw:text-app-text'
       : 'tw:border-app-border tw:bg-app-canvas tw:text-app-text',

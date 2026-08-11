@@ -1,5 +1,5 @@
 .desktop-main {
-  background: var(--color-token-main-surface-primary);
+  background: var(--layer-canvas-fill);
   border-width: 1px 0 0 1px;
   border-style: solid;
   border-color: var(--color-token-border-light);
@@ -58,7 +58,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: var(--color-token-main-surface-primary);
+  background: var(--layer-canvas-fill);
 }
 
 .desktop-workspace__upper {

@@ -12,7 +12,7 @@
   background-color: color-mix(
     in srgb,
     var(--color-token-text-secondary) 7%,
-    var(--color-token-main-surface-primary)
+    var(--layer-panel-fill)
   );
   background-image: linear-gradient(
     90deg,
@@ -24,7 +24,8 @@
   background-repeat: no-repeat;
   background-size: 100vw 100vh;
   background-attachment: fixed;
-  animation: ui-skeleton-page-sweep 2.6s steps(48, end) infinite;
+  box-shadow: none;
+  animation: ui-skeleton-page-sweep var(--motion-loading) steps(24, end) infinite;
 }
 
 .ui-remote-image {
@@ -49,7 +50,7 @@
 
 .ui-remote-image-content {
   opacity: 0;
-  transition: opacity var(--motion-fast) var(--ease-standard);
+  transition: opacity var(--motion-enter) var(--ease-standard);
 }
 
 .ui-remote-image[data-state='ready'] .ui-remote-image-content {
@@ -67,7 +68,7 @@
   --ui-skeleton-highlight: color-mix(
     in srgb,
     var(--color-token-text-secondary) 13%,
-    var(--color-token-main-surface-primary)
+    var(--layer-panel-fill)
   );
 }
 

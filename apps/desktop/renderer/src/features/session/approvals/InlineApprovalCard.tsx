@@ -127,7 +127,7 @@ export function InlineApprovalCard({
   if (request.toolName === 'AskUserQuestion') {
     return (
       <section
-        className="inline-approval-card workflow-composer-card workflow-composer-card-question tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
+        className="inline-approval-card workflow-composer-card workflow-composer-card-question tw:w-full tw:max-w-[48rem] tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
         data-variant="question"
         aria-label="回答问题"
       >
@@ -196,7 +196,7 @@ export function InlineApprovalCard({
     const permissionGroups = permissionGrantGroups(request)
     return (
       <section
-        className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
+        className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
         data-variant="permission-grant"
         aria-label="等待权限授权"
       >
@@ -272,7 +272,7 @@ export function InlineApprovalCard({
 
   return (
     <section
-      className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
+      className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
       data-variant="permission"
       aria-label="等待审批"
     >

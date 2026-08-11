@@ -743,7 +743,7 @@ const markdownRichTheme = EditorView.theme({
   },
   '&.cm-markdown-rich .cm-md-rich-inline-code': {
     padding: '0.08em 0.3em',
-    borderRadius: 'var(--radius-2)',
+    borderRadius: '4px',
     color: 'var(--cm-editor-foreground, var(--color-token-foreground))',
     backgroundColor:
       'color-mix(in srgb, var(--cm-editor-background, var(--color-token-text-preformat-background)) 88%, var(--color-token-foreground) 12%)',
@@ -791,13 +791,13 @@ const markdownRichTheme = EditorView.theme({
   },
   '&.cm-markdown-rich .cm-line:not(.cm-md-rich-code-block) + .cm-line.cm-md-rich-code-block, &.cm-markdown-rich .cm-line.cm-md-rich-code-block:first-child':
     {
-      borderTopLeftRadius: 'var(--radius-lg, var(--radius-5))',
-      borderTopRightRadius: 'var(--radius-lg, var(--radius-5))',
+      borderTopLeftRadius: 'var(--radius-card)',
+      borderTopRightRadius: 'var(--radius-card)',
     },
   '&.cm-markdown-rich .cm-line.cm-md-rich-code-block:not(:has(+ .cm-line.cm-md-rich-code-block))':
     {
-      borderBottomLeftRadius: 'var(--radius-lg, var(--radius-5))',
-      borderBottomRightRadius: 'var(--radius-lg, var(--radius-5))',
+      borderBottomLeftRadius: 'var(--radius-card)',
+      borderBottomRightRadius: 'var(--radius-card)',
     },
   '&.cm-markdown-rich .cm-md-rich-mermaid': {
     display: 'block',
@@ -805,7 +805,7 @@ const markdownRichTheme = EditorView.theme({
     margin: '12px 24px',
     padding: '12px',
     border: '1px solid var(--color-token-border)',
-    borderRadius: 'var(--radius-3)',
+    borderRadius: 'var(--radius-card)',
     backgroundColor:
       'var(--cm-editor-background, var(--color-token-editor-background, var(--color-token-text-preformat-background)))',
     overflow: 'auto',
@@ -827,7 +827,7 @@ const markdownRichTheme = EditorView.theme({
     display: 'block',
     boxSizing: 'border-box',
     marginBlock: '12px',
-    borderRadius: 'var(--radius-lg, var(--radius-5))',
+    borderRadius: 'var(--radius-card)',
     backgroundColor: 'var(--color-token-editor-background)',
     overflowX: 'auto',
   },

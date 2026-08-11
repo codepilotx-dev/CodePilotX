@@ -58,7 +58,7 @@
 /* --- Right Content --- */
 .settings-content-scroll-area {
   flex: 1;
-  background-color: var(--color-token-main-surface-primary);
+  background-color: var(--layer-canvas-fill);
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -150,7 +150,7 @@
 .settings-section-title {
   margin: 0;
   color: var(--color-token-foreground);
-  font-size: var(--type-control);
+  font-size: var(--type-section-title);
   font-weight: var(--font-weight-label);
   line-height: 1.4;
 }
@@ -165,13 +165,13 @@
 .settings-card,
 .settings-section-content {
   overflow: hidden;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: 16px;
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-resting);
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
+  background: var(--layer-raised-fill);
+  box-shadow: none;
   transition:
-    background-color var(--motion-standard),
-    border-color var(--motion-standard);
+    background-color var(--motion-state) var(--ease-standard),
+    border-color var(--motion-state) var(--ease-standard);
 }
 
 .settings-section-footer {
@@ -276,8 +276,8 @@
   align-items: center;
   padding: 0.318em 0.727em;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-full);
-  background: var(--color-token-list-hover-background);
+  border-radius: var(--radius-pill);
+  background: var(--state-hover-fill);
   color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-label);

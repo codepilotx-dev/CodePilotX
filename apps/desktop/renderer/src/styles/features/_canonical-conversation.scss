@@ -9,7 +9,7 @@
   --conversation-grouped-item-gap: 4px;
   --thread-reading-width: 40rem;
   --thread-resource-row-padding-x: 12px;
-  background: var(--color-token-main-surface-primary);
+  background: var(--layer-canvas-fill);
 }
 
 .conversation-page .chat-session-header {
@@ -103,8 +103,8 @@
     min-height: 34px;
     padding: 6px 10px;
     border: 1px solid var(--color-token-border-light);
-    border-radius: 8px;
-    background: var(--color-token-bg-secondary);
+    border-radius: var(--radius-button);
+    background: var(--layer-panel-fill);
     color: var(--color-token-foreground);
     cursor: pointer;
   }
@@ -125,13 +125,13 @@
     min-height: 32px;
     padding: 5px 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--radius-button);
     background: transparent;
     color: var(--color-token-text-secondary);
     cursor: pointer;
     transition:
-      background 180ms ease-out,
-      color 180ms ease-out;
+      background var(--motion-state) var(--ease-out),
+      color var(--motion-state) var(--ease-out);
 
     &:hover:not(:disabled) {
       background: var(--color-token-list-hover-background);
@@ -177,11 +177,11 @@
       var(--color-token-error-foreground) 38%,
       var(--color-token-border-light)
     );
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-card);
   background: color-mix(
     in srgb,
     var(--color-token-error-foreground) 7%,
-    var(--color-token-bg-secondary)
+    var(--layer-panel-fill)
   );
 
   > svg {
@@ -204,8 +204,8 @@
     min-height: 32px;
     padding: 5px 9px;
     border: 1px solid var(--color-token-border-light);
-    border-radius: 8px;
-    background: var(--color-token-bg-secondary);
+    border-radius: var(--radius-button);
+    background: var(--layer-panel-fill);
     color: var(--color-token-foreground);
     cursor: pointer;
 
@@ -237,7 +237,7 @@
       var(--color-token-error-foreground) 45%,
       var(--color-token-border-light)
     );
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   color: var(--color-token-text-tertiary);
   font-size: var(--type-caption);
 
@@ -274,12 +274,12 @@
     width: fit-content;
     max-width: 100%;
     padding: 4px 0;
-    border-radius: 7px;
+    border-radius: var(--radius-row);
     cursor: pointer;
     list-style: none;
     transition:
-      background 160ms ease-out,
-      color 160ms ease-out;
+      background var(--motion-state) var(--ease-out),
+      color var(--motion-state) var(--ease-out);
 
     &::-webkit-details-marker {
       display: none;
@@ -310,10 +310,14 @@
     }
   }
 
+  &[open] > summary {
+    color: var(--color-token-foreground);
+  }
+
   &__items {
     display: grid;
     gap: var(--conversation-grouped-item-gap);
-    animation: process-group-content-enter 180ms ease-out;
+    animation: process-group-content-enter var(--motion-enter) var(--ease-out);
   }
 
   &--turn {
@@ -326,9 +330,10 @@
     > .canonical-process-group__items {
       gap: 6px;
       margin-block: 4px 6px;
-      padding: 0;
-      border: 0;
-      background: transparent;
+      padding: 6px 8px;
+      border: 1px solid var(--color-token-border-light);
+      border-radius: var(--radius-card);
+      background: var(--layer-panel-fill);
       box-shadow: none;
     }
   }
@@ -367,9 +372,11 @@
 @keyframes process-group-content-enter {
   from {
     opacity: 0;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -388,11 +395,11 @@
     padding: 8px 12px;
     overflow: hidden;
     border: 0;
-    border-radius: 16px;
+    border-radius: var(--radius-user-message);
     background: color-mix(
       in srgb,
-      var(--color-token-foreground) 5%,
-      transparent
+      var(--layer-panel-fill) 78%,
+      var(--layer-canvas-fill)
     );
     color: var(--color-token-foreground);
     font-size: var(--type-message);
@@ -421,11 +428,11 @@
       max-width: 100%;
       padding: 4px 7px;
       border: 1px solid var(--color-token-border-light);
-      border-radius: 7px;
+      border-radius: var(--radius-card);
       background: color-mix(
         in srgb,
-        var(--color-token-bg-secondary) 72%,
-        transparent
+        var(--layer-panel-fill) 82%,
+        var(--layer-canvas-fill)
       );
       color: var(--color-token-text-tertiary);
       font-size: var(--type-caption);
@@ -446,9 +453,9 @@
     resize: vertical;
     padding: 11px 13px;
     border: 1px solid var(--color-token-border);
-    border-radius: var(--radius-panel);
+    border-radius: var(--radius-input);
     outline: none;
-    background: var(--color-token-bg-secondary);
+    background: var(--layer-panel-fill);
     color: var(--color-token-foreground);
     font: inherit;
     line-height: 1.55;
@@ -472,13 +479,13 @@
       min-height: 32px;
       padding: 5px 12px;
       border: 1px solid var(--color-token-border-light);
-      border-radius: 8px;
-      background: var(--color-token-bg-secondary);
+      border-radius: var(--radius-button);
+      background: var(--layer-panel-fill);
       color: var(--color-token-foreground);
       cursor: pointer;
       transition:
-        background 180ms ease-out,
-        border-color 180ms ease-out;
+        background var(--motion-state) var(--ease-out),
+        border-color var(--motion-state) var(--ease-out);
     }
   }
 }
@@ -538,7 +545,7 @@
   }
 
   &:focus-visible {
-    border-radius: 4px;
+    border-radius: var(--radius-control);
     outline: 2px solid var(--color-token-text-link-foreground);
     outline-offset: 2px;
   }
@@ -571,7 +578,7 @@
   gap: 3px;
   min-height: 26px;
   opacity: 0;
-  transition: opacity 160ms ease-out;
+  transition: opacity var(--motion-enter) var(--ease-out);
 
   &--assistant {
     justify-content: flex-start;
@@ -594,13 +601,13 @@
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-token-description-foreground);
   cursor: pointer;
   transition:
-    background 160ms ease-out,
-    color 160ms ease-out;
+    background var(--motion-state) var(--ease-out),
+    color var(--motion-state) var(--ease-out);
 
   &:hover {
     background: var(--color-token-list-hover-background);
@@ -633,6 +640,8 @@
 
 .canonical-text-item--result {
   width: 100%;
+  background: transparent;
+  box-shadow: none;
 
   > .md-body {
     max-width: none;
@@ -661,12 +670,12 @@
     min-height: 30px;
     width: fit-content;
     max-width: 100%;
-    border-radius: 7px;
+    border-radius: var(--radius-row);
     cursor: pointer;
     list-style: none;
     transition:
-      background 160ms ease-out,
-      color 160ms ease-out;
+      background var(--motion-state) var(--ease-out),
+      color var(--motion-state) var(--ease-out);
 
     &::-webkit-details-marker {
       display: none;
@@ -697,12 +706,16 @@
     }
   }
 
+  &[open] > summary {
+    color: var(--color-token-foreground);
+  }
+
   &:not(.canonical-tool)[open] .canonical-process-card__chevron {
     transform: rotate(180deg);
   }
 
   &__chevron {
-    transition: transform 180ms ease-out;
+    transition: transform var(--motion-enter) var(--ease-out);
   }
 
   &__body {
@@ -721,7 +734,7 @@
       max-height: 360px;
       margin: 5px 0;
       padding: 9px 10px;
-      border-radius: 8px;
+      border-radius: var(--radius-card);
       background: color-mix(
         in srgb,
         var(--color-token-foreground) 5%,
@@ -767,8 +780,9 @@
   margin: 5px 0;
   overflow: hidden;
   border: 1px solid var(--color-token-border-light);
-  border-radius: 10px;
-  background: var(--color-token-text-preformat-background);
+  border-radius: var(--radius-card);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
   color: var(--color-token-foreground);
 
   &__header {
@@ -777,8 +791,8 @@
     border-bottom: 1px solid var(--color-token-border-light);
     background: color-mix(
       in srgb,
-      var(--color-token-bg-secondary) 72%,
-      transparent
+      var(--layer-panel-fill) 82%,
+      var(--layer-canvas-fill)
     );
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
@@ -840,8 +854,8 @@
     padding: 7px 10px;
     background: color-mix(
       in srgb,
-      var(--color-token-bg-secondary) 72%,
-      transparent
+      var(--layer-panel-fill) 82%,
+      var(--layer-canvas-fill)
     );
   }
 
@@ -870,7 +884,7 @@
 }
 
 .canonical-spin {
-  animation: canonical-spin 1s linear infinite;
+  animation: canonical-spin var(--motion-loading) linear infinite;
 }
 
 @keyframes canonical-spin {
@@ -917,7 +931,7 @@
       max-width: 100%;
       min-height: 28px;
       padding: 1px 4px;
-      border-radius: 6px;
+      border-radius: var(--radius-row);
       cursor: pointer;
       list-style: none;
     }
@@ -986,8 +1000,8 @@
     margin: 4px 0 6px;
     overflow: auto;
     border: 1px solid var(--color-token-border-light);
-    border-radius: 8px;
-    background: var(--color-token-bg-secondary);
+    border-radius: var(--radius-card);
+    background: var(--layer-panel-fill);
 
     > .review-codex-diff {
       margin: 0;
@@ -1082,8 +1096,8 @@
 
   &__icon-flash {
     color: var(--color-token-foreground);
-    animation: canonical-lifecycle-icon-flash 1.6s ease-in-out infinite;
-    clip-path: polygon(-45% 0, -15% 0, 15% 100%, -15% 100%);
+    animation: canonical-lifecycle-icon-flash
+      calc(var(--motion-loading) * 2) ease-in-out infinite;
   }
 
   > span {
@@ -1101,23 +1115,12 @@
 
 @keyframes canonical-lifecycle-icon-flash {
   0%,
-  20% {
-    clip-path: polygon(-45% 0, -15% 0, 15% 100%, -15% 100%);
-    opacity: 0;
-  }
-
-  30% {
-    opacity: 1;
-  }
-
-  70% {
-    opacity: 1;
-  }
-
-  80%,
   100% {
-    clip-path: polygon(85% 0, 115% 0, 145% 100%, 115% 100%);
-    opacity: 0;
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.8;
   }
 }
 
@@ -1125,9 +1128,9 @@
 .canonical-patch-card {
   padding: 12px;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-resting);
+  border-radius: var(--radius-card);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
 }
 
 .canonical-blocker-card {
@@ -1162,7 +1165,7 @@
   span {
     padding: 4px 8px;
     border: 1px solid var(--color-token-border-light);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     color: var(--color-token-text-secondary);
     font-size: var(--type-meta);
 
@@ -1196,7 +1199,7 @@
     width: 34px;
     height: 34px;
     place-items: center;
-    border-radius: 9px;
+    border-radius: var(--radius-control);
     background: color-mix(
       in srgb,
       var(--color-token-foreground) 5%,
@@ -1247,7 +1250,7 @@
     min-height: 34px;
     padding: 5px 0;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-row);
     background: transparent;
     color: var(--color-token-foreground);
     font: inherit;
@@ -1293,7 +1296,7 @@
     svg {
       width: 15px;
       height: 15px;
-      transition: transform 120ms ease;
+      transition: transform var(--motion-state) var(--ease-out);
     }
   }
 
@@ -1333,8 +1336,9 @@
   min-height: 48px;
   padding: 8px 10px;
   border: 1px solid var(--color-token-border-light);
-  border-radius: 10px;
-  background: var(--color-token-bg-secondary);
+  border-radius: var(--radius-card);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
   color: var(--color-token-foreground);
   text-align: left;
 
@@ -1346,8 +1350,8 @@
   }
   cursor: pointer;
   transition:
-    background 180ms ease-out,
-    border-color 180ms ease-out;
+    background var(--motion-state) var(--ease-out),
+    border-color var(--motion-state) var(--ease-out);
 
   &:hover {
     border-color: var(--color-token-border);

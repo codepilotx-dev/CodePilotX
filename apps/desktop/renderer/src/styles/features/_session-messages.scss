@@ -21,7 +21,7 @@
     gap: 8px;
     min-height: 34px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-row);
     padding: 6px 10px;
     color: var(--color-token-foreground);
     background: var(--color-token-text-preformat-background);
@@ -61,7 +61,7 @@
   .popover-item,
   .popover-sub-trigger {
     min-height: 32px;
-    border-radius: var(--radius-3);
+    border-radius: var(--radius-row);
   }
 
   .popover-section-title {

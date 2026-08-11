@@ -344,13 +344,13 @@ export function McpEditorDialog({
 
             <div className="tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto tw:px-5 tw:py-4">
               {runtimeError || needsAuth ? (
-                <div className="tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-sm tw:text-app-text-soft">
+                <div className="tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-sm tw:text-app-text-soft">
                   {runtimeError ?? '该 server 需要认证。请从 MCP 列表发起 OAuth 登录，或配置宿主环境变量凭据。'}
                 </div>
               ) : null}
               {validationError ? (
                 <div
-                  className="tw:rounded-lg tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-sm tw:text-app-danger"
+                  className="tw:rounded-md tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-sm tw:text-app-danger"
                   role="alert"
                 >
                   {validationError}
@@ -677,7 +677,7 @@ function Field({
 
 function FormCard({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <section className="tw:grid tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border tw:bg-app-panel">
+    <section className="tw:grid tw:overflow-hidden tw:rounded-md tw:border tw:border-app-border tw:bg-app-panel">
       {children}
     </section>
   )

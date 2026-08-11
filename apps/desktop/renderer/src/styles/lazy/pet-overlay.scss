@@ -31,15 +31,11 @@
     max-height: 220px;
     padding: 12px 14px;
     color: var(--color-token-foreground);
-    background: color-mix(
-      in srgb,
-      var(--color-token-main-surface-primary) 88%,
-      transparent
-    );
-    border: 1px solid var(--color-token-border);
-    border-radius: 18px;
-    box-shadow: var(--shadow-float);
-    backdrop-filter: blur(18px) saturate(1.2);
+    background: var(--layer-floating-fill);
+    border: var(--layer-edge-strong);
+    border-radius: var(--radius-floating);
+    box-shadow: var(--shadow-floating);
+    backdrop-filter: none;
     overflow: auto;
   }
 
@@ -65,7 +61,7 @@
 
   .pet-overlay-pill-copy span {
     color: var(--color-token-description-foreground);
-    font-size: 12px;
+    font-size: var(--type-secondary);
   }
 
   .pet-overlay-pill-actions {
@@ -83,14 +79,14 @@
     color: inherit;
     background: transparent;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     cursor: pointer;
     place-items: center;
   }
 
   .pet-overlay-pill-actions button:hover,
   .pet-overlay-reply-form button:hover {
-    background: var(--color-token-bg-secondary);
+    background: var(--state-hover-fill);
   }
 
   .pet-overlay-pill button:disabled {
@@ -115,9 +111,9 @@
     padding: 0 9px;
     color: var(--color-token-foreground);
     font: inherit;
-    background: var(--color-token-bg-secondary);
+    background: var(--layer-raised-fill);
     border: 1px solid var(--color-token-border);
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     outline: none;
   }
 
@@ -128,7 +124,7 @@
   .pet-overlay-reply-error {
     grid-column: 1 / -1;
     color: var(--color-token-error-foreground);
-    font-size: 11px;
+    font-size: var(--type-caption);
   }
 
   .pet-overlay-avatar {

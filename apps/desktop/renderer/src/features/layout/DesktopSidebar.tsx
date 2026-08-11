@@ -405,7 +405,7 @@ export function DesktopSidebar({
   }, [setSidebarManualOrder])
 
   return (
-    <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-chrome tw:py-2">
+    <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:py-2">
       <SidebarHeader
         hasAttention={hasAttention}
         onOpenCommandMenu={onOpenCommandMenu}

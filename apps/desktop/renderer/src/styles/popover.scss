@@ -1,10 +1,9 @@
 :root {
   --popover-width-extra: 0px;
   --popover-default-max-width: min(360px, calc(100vw - 16px));
-  --popover-surface-radius: 12px;
+  --popover-surface-radius: var(--radius-floating);
   --popover-surface-padding: var(--menu-surface-padding);
-  --popover-surface-shadow:
-    color-mix(in srgb, black 6.27%, transparent) 0px 0px 4px;
+  --popover-surface-shadow: var(--shadow-floating);
 }
 
 .popover-surface,
@@ -17,21 +16,58 @@
   z-index: var(--z-popover);
   width: var(--popover-width, max-content);
   max-width: var(--popover-max-width, var(--popover-default-max-width));
-  max-height: var(--popover-max-height, min(420px, calc(100vh - 96px)));
+  max-height: var(
+    --popover-max-height,
+    min(
+      420px,
+      var(
+        --radix-select-content-available-height,
+        var(
+          --radix-dropdown-menu-content-available-height,
+          var(
+            --radix-context-menu-content-available-height,
+            var(--radix-popover-content-available-height, calc(100vh - 96px))
+          )
+        )
+      )
+    )
+  );
   overflow-x: var(--popover-overflow-x, hidden);
   overflow-y: var(--popover-overflow-y, auto);
   overscroll-behavior: contain;
-  border: 1px solid var(--color-token-menu-border);
   border-radius: var(--popover-surface-radius);
-  background-color: var(--color-token-menu-background);
-  backdrop-filter: none;
-  box-shadow: var(--popover-surface-shadow);
   color: var(--color-token-foreground);
   font-size: var(--type-control);
   outline: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
+}
+
+:where(
+  .popover-surface,
+  .sidebar-context-menu-content,
+  .settings-dropdown-content,
+  .permission-select-content,
+  .appearance-color-popover,
+  .rm-model-menu,
+  .thread-summary-popover,
+  .tooltip-content,
+  .permission-modal,
+  .github-repository-modal,
+  .git-workflow-modal,
+  .command-menu-dialog,
+  .project-edit-dialog,
+  .model-center-key-dialog,
+  .plugin-details-dialog,
+  .whats-new-dialog,
+  .sidebar-hover-card-surface,
+  .thread-summary-sources-panel
+) {
+  border: var(--layer-edge);
+  background: var(--layer-floating-fill);
+  backdrop-filter: none;
+  box-shadow: var(--shadow-floating);
 }
 
 .popover-scroll-content {
@@ -69,7 +105,7 @@
 .popover-search-region {
   flex: 0 0 auto;
   padding: var(--space-3) var(--space-3) var(--space-2);
-  background: var(--color-token-panel-background);
+  background: transparent;
 }
 
 .popover-search-region .search-input {
@@ -118,19 +154,22 @@
       --radix-select-content-transform-origin,
       var(
         --radix-dropdown-menu-content-transform-origin,
-        var(
-          --radix-context-menu-content-transform-origin,
-          var(--radix-popover-content-transform-origin, center)
-        )
+          var(
+            --radix-context-menu-content-transform-origin,
+            var(
+              --radix-menubar-content-transform-origin,
+              var(--radix-popover-content-transform-origin, center)
+            )
+          )
       )
     );
 
   &[data-state="open"] {
-    animation: radix-floating-surface-in 150ms var(--ease-out);
+    animation: radix-floating-surface-in var(--motion-enter) var(--ease-out);
   }
 
   &[data-state="closed"] {
-    animation: radix-floating-surface-out 100ms var(--ease-in);
+    animation: radix-floating-surface-out var(--motion-exit) var(--ease-in);
   }
 }
 
@@ -232,38 +271,6 @@
   background-color: var(--color-token-border);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .popover[data-state="open"] {
-    animation: popover-in var(--motion-enter) var(--ease-standard);
-  }
-
-  .popover[data-state="closed"] {
-    animation: popover-out var(--motion-exit) var(--ease-in);
-  }
-}
-
-@keyframes popover-in {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes popover-out {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-}
-
 .popover *,
 .chip-button *,
 .meta-chip * {
@@ -285,19 +292,6 @@
   transition:
     background var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
-}
-
-.popover-item:focus-visible,
-.popover-sub-trigger:focus-visible,
-.sidebar-context-menu-item:focus-visible,
-.sidebar-context-menu-sub-trigger:focus-visible,
-.settings-dropdown-item:focus-visible,
-.theme-dropdown-item:focus-visible,
-.permission-select-item:focus-visible,
-.rm-model-menu .rm-menu-item:focus-visible,
-.rm-model-menu .rm-sub-trigger:focus-visible,
-.chat-input__dropdown-item:focus-visible {
-  outline: none;
 }
 
 .popover-provider-list {
@@ -357,8 +351,8 @@
   height: 28px;
   margin-left: auto;
   flex: 0 0 auto;
-  border-radius: var(--radius-full);
-  transition: background 0.15s ease-out;
+  border-radius: var(--radius-pill);
+  transition: background var(--motion-state) var(--ease-out);
 
   .context-menu-switch-thumb {
     position: absolute;
@@ -366,9 +360,9 @@
     left: 4px;
     width: 20px;
     height: 20px;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-pill);
     box-shadow: var(--shadow-resting);
-    transition: transform 0.15s ease-out;
+    transition: transform var(--motion-state) var(--ease-out);
   }
 
   &[aria-checked="true"] .context-menu-switch-thumb {
@@ -385,7 +379,7 @@
   width: max-content;
   max-width: calc(320px + var(--popover-width-extra));
   max-height: min(360px, calc(100vh - 96px));
-  border-radius: var(--radius-6);
+  border-radius: var(--radius-floating);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -408,7 +402,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
   color: var(--color-token-button-foreground);
 }
 
@@ -442,7 +436,7 @@
 }
 
 .context-plugin-icon-openai {
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--color-token-text-link-foreground);
 }
 
@@ -602,9 +596,6 @@
   max-width: min(350px, calc(100vw - 32px));
   padding: 6px 8px;
   border-radius: var(--popover-surface-radius);
-  border: 1px solid var(--color-token-menu-border);
-  background: var(--color-token-menu-background);
-  box-shadow: var(--popover-surface-shadow);
   color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   line-height: 1.4;
@@ -616,19 +607,27 @@
 .tooltip-content {
   z-index: var(--z-tooltip);
   padding: 4px 8px;
-  border: 1px solid var(--color-token-menu-border);
-  border-radius: var(--radius-3);
-  background: var(--color-token-menu-background);
+  border-radius: var(--radius-floating);
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
   line-height: 1.4;
   font-weight: 500;
-  box-shadow: var(--popover-surface-shadow);
   user-select: none;
-  animation: tooltip-fade-in var(--motion-fast) var(--ease-out);
+  transform-origin: var(--radix-tooltip-content-transform-origin, center);
 }
 
-:root[data-reduce-motion="on"] {
+.tooltip-content:is(
+  [data-state="delayed-open"],
+  [data-state="instant-open"]
+) {
+  animation: tooltip-fade-in var(--motion-enter) var(--ease-out);
+}
+
+.tooltip-content[data-state="closed"] {
+  animation: radix-floating-surface-out var(--motion-exit) var(--ease-in);
+}
+
+:root[data-reduce-motion="on"] :is(
   .popover-surface[data-side],
   .sidebar-context-menu-content[data-side],
   .settings-dropdown-content[data-side],
@@ -636,27 +635,15 @@
   .appearance-color-popover[data-side],
   .rm-model-menu[data-side],
   .thread-summary-popover[data-side],
-  .popover[data-state="open"],
-  .popover[data-state="closed"],
-  .popover-item-tooltip {
-    animation: none;
-  }
+  .popover[data-state],
+  .popover-item-tooltip,
+  .tooltip-content
+) {
+  animation: none;
 }
 
 .tooltip-arrow {
-  fill: var(--color-token-menu-background);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .popover-surface[data-side],
-  .sidebar-context-menu-content[data-side],
-  .settings-dropdown-content[data-side],
-  .permission-select-content[data-side],
-  .appearance-color-popover[data-side],
-  .rm-model-menu[data-side],
-  .thread-summary-popover[data-side] {
-    animation: none;
-  }
+  fill: var(--layer-floating-fill);
 }
 
 @keyframes radix-floating-surface-in {
@@ -684,10 +671,26 @@
 @keyframes tooltip-fade-in {
   from {
     opacity: 0;
-    transform: translateY(2px);
+    transform: scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1);
+  }
+}
+
+@media (forced-colors: active) {
+  :is(
+    .popover-item,
+    .popover-sub-trigger,
+    .sidebar-context-menu-item,
+    .sidebar-context-menu-sub-trigger,
+    .settings-dropdown-item,
+    .theme-dropdown-item,
+    .permission-select-item,
+    .menubar-item
+  ):is([data-highlighted], :focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }

@@ -167,8 +167,8 @@
   transform: translateY(-50%);
   pointer-events: none;
   transition:
-    opacity 150ms var(--ease-out, ease-out),
-    visibility 0s linear 150ms;
+    opacity var(--motion-enter) var(--ease-out, ease-out),
+    visibility 0s linear var(--motion-enter);
 
 }
 
@@ -225,7 +225,7 @@
   &:focus-visible {
     outline: 1px solid var(--color-token-text-link-foreground);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: var(--radius-control);
   }
 }
 
@@ -241,7 +241,7 @@
   transform: scaleX(calc(0.2308 + 0.7692 * var(--marker-progress)));
   transform-origin: left center;
   transition:
-    transform 160ms linear(
+    transform var(--motion-enter) linear(
       0,
       0.398 10%,
       0.682 20%,
@@ -253,8 +253,8 @@
       1.003 80%,
       1
     ),
-    opacity 150ms var(--ease-out, ease-out),
-    background-color 150ms var(--ease-out, ease-out);
+    opacity var(--motion-state) var(--ease-out, ease-out),
+    background-color var(--motion-state) var(--ease-out, ease-out);
 }
 
 .conversation-turn-nav-item[aria-current="true"] .conversation-turn-nav-marker {
@@ -400,17 +400,17 @@
   max-width: calc(100vw - 16px);
   padding: 8px;
   border: 0.5px solid var(--color-token-menu-border, var(--color-token-border-light));
-  border-radius: 12px;
-  background-color: var(--color-token-menu-background, var(--color-token-editor-widget-background));
+  border-radius: var(--radius-floating);
+  background-color: var(--layer-floating-fill);
   color: var(--color-token-foreground);
-  font-size: 12px;
+  font-size: var(--type-meta);
   line-height: 20px;
-  box-shadow: var(--shadow-float);
+  box-shadow: var(--shadow-floating);
 }
 
 .preview-card-user-text {
   font-weight: 500;
-  font-size: 12px;
+  font-size: var(--type-meta);
   line-height: 20px;
   color: var(--color-token-foreground);
   white-space: nowrap;
@@ -421,7 +421,7 @@
 .preview-card-assistant-text {
   display: -webkit-box;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--type-meta);
   line-height: 20px;
   color: var(--color-token-description-foreground);
   -webkit-line-clamp: 3;
@@ -476,7 +476,7 @@
   align-items: center;
   gap: 12px;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--type-meta);
   line-height: 20px;
   color: var(--color-token-text-tertiary, var(--color-token-description-foreground));
   white-space: nowrap;

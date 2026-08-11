@@ -85,12 +85,12 @@
   gap: 10px;
   padding: 15px;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel);
-  background: var(--color-token-editor-widget-background);
+  border-radius: var(--radius-card);
+  background: var(--layer-raised-fill);
   color: var(--color-token-foreground);
   font-size: var(--type-body);
-  box-shadow: var(--shadow-raised);
-  animation: workflow-item-in 0.28s ease-out;
+  box-shadow: none;
+  animation: workflow-item-in var(--motion-enter) var(--ease-out);
 }
 
 .workflow-plan-card__header {
@@ -120,16 +120,16 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius-3);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-token-description-foreground);
   cursor: pointer;
   transition:
-    background 0.15s ease-out,
-    color 0.15s ease-out;
+    background var(--motion-micro) var(--ease-out),
+    color var(--motion-micro) var(--ease-out);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
     color: var(--color-token-foreground);
   }
 }
@@ -137,7 +137,7 @@
 .workflow-plan-card__title {
   margin: 0;
   color: var(--color-token-foreground);
-  font-size: var(--type-title-lg);
+  font-size: var(--type-panel-title);
   font-weight: var(--font-weight-heading);
   line-height: 1.35;
 }
@@ -180,11 +180,11 @@
   padding: 12px 14px;
   overflow: hidden;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-marquee);
-  background: var(--color-token-editor-widget-background);
+  border-radius: var(--radius-card);
+  background: var(--layer-raised-fill);
   color: var(--color-token-foreground);
-  box-shadow: var(--shadow-raised);
-  animation: workflow-item-in 0.28s ease-out;
+  box-shadow: none;
+  animation: workflow-item-in var(--motion-enter) var(--ease-out);
 }
 
 .execution-plan-card__steps {

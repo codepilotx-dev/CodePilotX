@@ -23,11 +23,15 @@
     "src/main.tsx -> src/styles/tailwind.css",
     "src/features/pet/PetCatalogPage.tsx -> src/styles/lazy/pet-catalog.scss",
     "src/features/pet/PetOverlayPage.tsx -> src/styles/lazy/pet-overlay.scss",
+    "src/features/models/ModelCenterView.tsx -> src/styles/lazy/model-center.scss",
+    "src/features/plugins/PluginsView.tsx -> src/styles/lazy/marketplace.scss",
     "src/features/settings/SettingsLayout.tsx -> src/styles/lazy/settings.scss",
     "src/features/terminal/TerminalPanel.tsx -> src/styles/lazy/terminal.scss",
     "src/features/whats-new/WhatsNewDialog.tsx -> src/styles/lazy/whats-new.scss"
   ],
   "lazyStyleEntrypoints": {
+    "src/styles/lazy/marketplace.scss": "features",
+    "src/styles/lazy/model-center.scss": "features",
     "src/styles/lazy/pet-catalog.scss": "features",
     "src/styles/lazy/pet-overlay.scss": "features",
     "src/styles/lazy/settings.scss": "features",
@@ -39,15 +43,21 @@
     "--inline-approval-card-radius",
     "--popover-overflow-x",
     "--radix-context-menu-content-transform-origin",
+    "--radix-context-menu-content-available-height",
     "--radix-dropdown-menu-content-transform-origin",
+    "--radix-dropdown-menu-content-available-height",
+    "--radix-menubar-content-transform-origin",
+    "--radix-menubar-content-available-height",
     "--radix-popover-content-transform-origin",
+    "--radix-popover-content-available-height",
     "--radix-select-content-transform-origin",
-    "--radix-select-trigger-width"
+    "--radix-select-content-available-height",
+    "--radix-select-trigger-width",
+    "--radix-tooltip-content-transform-origin"
   ],
   "forbiddenCustomPropertyPatterns": [
     "^--color-bg(?:-|$)",
     "^--surface-",
-    "^--state-",
     "^--border-(?:subtle|muted|control|strong)$",
     "^--color-text(?:$|-(?:strong|meta|soft|mute|muted|placeholder|disabled|on-accent)$)"
   ],

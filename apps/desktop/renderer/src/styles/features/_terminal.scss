@@ -17,9 +17,12 @@
   justify-content: space-between;
   gap: 8px;
   padding: 4px 10px;
-  border-bottom: 1px solid var(--color-token-terminal-border);
+  border-bottom: var(--layer-edge-strong);
+  background: var(--layer-panel-fill);
   color: var(--color-decoration-deleted);
-  font-size: 12px;
+  font-family: var(--font-family-sans);
+  font-size: var(--type-secondary);
+  box-shadow: none;
 }
 
 .integrated-terminal__viewport {

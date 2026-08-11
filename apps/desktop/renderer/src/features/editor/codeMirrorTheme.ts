@@ -277,7 +277,7 @@ function createThemeExtension(
           color: widgetForeground,
           backgroundColor: widgetBackground,
           border: `1px solid ${widgetBorder}`,
-          borderRadius: 'var(--radius-3)',
+          borderRadius: 'var(--radius-floating)',
           boxShadow: 'var(--shadow-raised)',
         },
         '.cm-tooltip-autocomplete > ul > li[aria-selected]': {

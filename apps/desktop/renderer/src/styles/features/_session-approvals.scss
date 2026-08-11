@@ -10,12 +10,12 @@
     --inline-approval-card-border,
     1px solid var(--color-token-border-light)
   );
-  border-radius: var(--inline-approval-card-radius, var(--radius-panel));
-  background: var(--inline-approval-card-bg, var(--color-token-bg-secondary));
+  border-radius: var(--inline-approval-card-radius, var(--radius-card));
+  background: var(--inline-approval-card-bg, var(--layer-raised-fill));
   color: var(--color-token-foreground);
   box-shadow: var(
     --inline-approval-card-shadow,
-    var(--shadow-raised)
+    none
   );
 }
 .inline-approval-header {
@@ -65,7 +65,7 @@
     gap: var(--control-gap-compact);
     padding: var(--control-padding-block-compact) var(--control-padding-inline);
     border: 0;
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--color-token-description-foreground);
     font-size: var(--type-control);
@@ -128,7 +128,7 @@
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--color-token-foreground);
 }
 
@@ -145,7 +145,7 @@
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px transparent solid;
-  border-radius: var(--radius-6);
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--color-token-foreground);
   font-size: var(--type-control);
@@ -173,7 +173,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--inline-approval-option-index-bg, var(--color-token-text-preformat-background));
   color: var(--inline-approval-option-index-color, var(--color-token-description-foreground));
   font-size: var(--type-caption);
@@ -194,7 +194,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--color-token-text-preformat-background);
   color: var(--color-token-description-foreground);
   flex: 0 0 auto;
@@ -238,7 +238,7 @@
   align-items: center;
   justify-content: center;
   border-color: var(--color-token-border);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-control);
   color: var(--color-token-main-surface-primary);
   background: transparent;
 
@@ -268,7 +268,7 @@
   );
   background: var(--inline-approval-note-bg, var(--color-token-main-surface-primary));
   border: var(--inline-approval-note-border, 1px solid transparent);
-  border-radius: var(--inline-approval-note-radius, var(--radius-5));
+  border-radius: var(--inline-approval-note-radius, var(--radius-card));
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
@@ -325,7 +325,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--color-token-text-preformat-background);
   color: var(--color-token-description-foreground);
   flex: 0 0 auto;
@@ -392,7 +392,7 @@
   padding: 8px 10px;
   border: 1px solid
     color-mix(in srgb, var(--color-token-border-light) 70%, transparent);
-  border-radius: var(--radius-5);
+  border-radius: var(--radius-card);
   background: color-mix(
     in srgb,
     var(--color-token-text-preformat-background) 72%,
@@ -439,7 +439,7 @@
   margin: 0 12px;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--color-token-error-foreground) 40%, transparent);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--color-token-error-foreground) 10%, transparent);
   color: var(--color-token-error-foreground);
   font-size: var(--type-secondary);
@@ -468,7 +468,7 @@
   min-width: var(--control-size-sm);
   padding: 0.167em 0.5em;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-3);
+  border-radius: 4px;
   background: var(--color-token-text-preformat-background);
   color: var(--color-token-text-secondary);
   font-family: inherit;
@@ -481,7 +481,7 @@
 .inline-approval-skip {
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 0;
-  border-radius: var(--radius-6);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-token-description-foreground);
   font-size: var(--type-control);
@@ -515,7 +515,7 @@
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--motion-state) var(--ease-standard);
 
   &:hover {
     background: var(
@@ -539,18 +539,18 @@
   gap: 10px;
   padding: 10px;
   border-color: var(--color-token-border-light);
-  border-radius: var(--radius-panel);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-raised);
-  animation: workflow-card-in 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--radius-card);
+  background: var(--layer-raised-fill);
+  box-shadow: none;
+  animation: workflow-card-in var(--motion-enter) var(--ease-standard);
   transform-origin: bottom center;
 }
 
 .inline-approval-card[data-variant="question"],
 .inline-approval-card[data-variant="plan"] {
   --inline-approval-header-padding: 0;
-  --inline-approval-option-hover-bg: var(--color-token-list-hover-background);
-  --inline-approval-option-selected-bg: var(--color-token-list-active-selection-background);
+  --inline-approval-option-hover-bg: var(--state-hover-fill);
+  --inline-approval-option-selected-bg: var(--state-selected-fill);
   --inline-approval-option-selected-border: var(--color-token-border);
   --inline-approval-option-selected-index-bg: var(--color-token-main-surface-primary);
   --inline-approval-option-selected-index-color: var(--color-token-foreground);
@@ -640,7 +640,7 @@
   align-items: center;
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block) var(--control-padding-inline);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
   font-size: var(--type-control);
   line-height: var(--control-line-height);
   cursor: pointer;
@@ -721,7 +721,7 @@
   gap: var(--control-gap);
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 0;
-  border-radius: var(--radius-6);
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--color-token-foreground);
   font-size: var(--type-control);
@@ -729,7 +729,7 @@
   line-height: var(--control-line-height);
   text-align: left;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--motion-state) var(--ease-standard);
 
   &:hover {
     background: var(--inline-approval-option-hover-bg, var(--color-token-list-hover-background));
@@ -750,7 +750,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--color-token-text-preformat-background);
   color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
@@ -794,7 +794,7 @@
   padding: var(--control-padding-block) var(--control-padding-inline);
   background: transparent;
   border: 0;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   transition:
     background 0.15s,
     color 0.15s;
@@ -836,7 +836,7 @@
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 0;
-  border-radius: var(--radius-6);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-token-description-foreground);
   font-size: var(--type-control);
@@ -860,7 +860,7 @@
   justify-content: center;
   padding: var(--control-padding-block-compact)
     var(--control-padding-inline-compact);
-  border-radius: var(--radius-4);
+  border-radius: 4px;
   background: var(--color-token-text-preformat-background);
   color: var(--color-token-text-secondary);
   font-family: inherit;
@@ -875,7 +875,7 @@
   align-items: center;
   gap: var(--control-gap-compact);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--motion-state) var(--ease-standard);
 
   svg {
     width: var(--app-icon-size);
@@ -909,14 +909,14 @@
   --inline-approval-card-gap: 8px;
   --inline-approval-card-padding: 16px 10px 10px;
   --inline-approval-card-border: 1px solid var(--color-token-border-light);
-  --inline-approval-card-bg: var(--color-token-bg-secondary);
-  --inline-approval-card-shadow: var(--shadow-raised);
+  --inline-approval-card-bg: var(--layer-raised-fill);
+  --inline-approval-card-shadow: none;
   --inline-approval-header-padding: 0 12px 2px;
   --inline-approval-summary-padding: 0;
   --inline-approval-command-preview-padding: 10px 12px;
   --inline-approval-command-preview-border: 1px solid
     color-mix(in srgb, var(--color-token-border-light) 70%, transparent);
-  --inline-approval-command-preview-radius: var(--radius-5);
+  --inline-approval-command-preview-radius: var(--radius-card);
   --inline-approval-command-preview-bg: color-mix(
     in srgb,
     var(--color-token-text-preformat-background) 72%,
@@ -927,7 +927,7 @@
   --inline-approval-note-padding: var(--control-padding-block-compact)
     var(--control-padding-inline);
   --inline-approval-note-border: 1px solid var(--color-token-border-light);
-  --inline-approval-note-radius: var(--radius-5);
+  --inline-approval-note-radius: var(--radius-card);
   --inline-approval-note-bg: color-mix(
     in srgb,
     var(--color-token-main-surface-primary) 74%,
@@ -951,7 +951,7 @@
     var(--control-padding-inline);
   --inline-approval-submit-border: 1px solid
     color-mix(in srgb, var(--color-token-foreground) 18%, transparent);
-  --inline-approval-submit-radius: var(--radius-full);
+  --inline-approval-submit-radius: var(--radius-button);
   --inline-approval-submit-bg: var(--color-token-foreground);
   --inline-approval-submit-color: var(--color-token-main-surface-primary);
   --inline-approval-submit-hover-bg: color-mix(
@@ -1057,7 +1057,7 @@
   padding: var(--control-padding-block) var(--control-padding-inline);
 
   background: var(--color-token-foreground);
-  border-radius: var(--radius-6);
+  border-radius: var(--radius-control);
   color: var(--color-token-main-surface-primary);
 
   font-size: var(--type-control);
@@ -1126,7 +1126,7 @@
 
 .workflow-composer-card-permission .inline-approval-option {
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   color: var(--color-token-foreground);
 }
 
@@ -1143,7 +1143,7 @@
 
 .workflow-composer-card-permission .inline-approval-skip {
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
   color: var(--color-token-description-foreground);
 }
 

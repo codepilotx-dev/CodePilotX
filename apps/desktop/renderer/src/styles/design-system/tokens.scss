@@ -16,18 +16,54 @@
   --color-warning: #a05a00;
 
   --shadow-resting: none;
-  --shadow-raised: 0 1px 3px -1px rgb(0 0 0 / 14%);
-  --shadow-float:
-    0 8px 20px -8px rgb(0 0 0 / 28%),
-    0 2px 6px -3px rgb(0 0 0 / 18%);
+  --shadow-raised: none;
+  --shadow-floating: 0 8px 24px -16px
+    color-mix(in srgb, var(--color-token-foreground) 26%, transparent);
+  --shadow-float: var(--shadow-floating);
   --shadow-2: var(--shadow-raised);
 
-  --radius-button: 8px;
-  --radius-input: 8px;
-  --radius-panel: 12px;
+  // Surface hierarchy. These values are derived from the active theme so the
+  // user's accent, surface and ink choices remain the single color source.
+  --layer-underlay-fill: var(--color-token-side-bar-background);
+  --layer-canvas-fill: var(--color-token-main-surface-primary);
+  --layer-panel-fill: var(--color-token-panel-background);
+  --layer-raised-fill: var(--color-token-elevated-background);
+  --layer-floating-fill: var(--color-token-menu-background);
+  --layer-filter: none;
+  --layer-raised-filter: var(--layer-filter);
+  --layer-floating-filter: var(--layer-filter);
+  --layer-edge: 1px solid var(--color-token-border-light);
+  --layer-edge-strong: 1px solid var(--color-token-border);
+  --layer-edge-highlight: none;
+  --shadow-glass-raised: none;
+  --shadow-glass-floating: var(--shadow-floating);
+
+  // Interaction states are distinct: hover is transient, pressed is deeper,
+  // and selected/open states keep a low-chroma accent trace.
+  --state-hover-fill: var(--color-token-list-hover-background);
+  --state-pressed-fill: color-mix(
+    in srgb,
+    var(--color-token-foreground) 9%,
+    transparent
+  );
+  --state-selected-fill: color-mix(
+    in srgb,
+    var(--color-token-focus-border) 8%,
+    var(--layer-panel-fill)
+  );
+  --state-selected-rail: var(--color-token-focus-border);
+
+  // Nested soft curves: outer surfaces step down by their inset spacing.
+  --radius-control: 8px;
+  --radius-row: 8px;
   --radius-card: 12px;
-  --radius-marquee: 16px;
-  --radius-base: 8px;
+  --radius-panel: 16px;
+  --radius-floating: 16px;
+  --radius-pill: 9999px;
+  --radius-button: var(--radius-control);
+  --radius-input: var(--radius-control);
+  --radius-marquee: var(--radius-floating);
+  --radius-base: var(--radius-row);
   --layout-page-pad-x: 32px;
   --layout-page-pad-y: 36px;
   --layout-page-pad-bottom: 72px;
@@ -81,15 +117,15 @@
   --interactive-row-height-menu: 27px;
   --interactive-row-height-toolbar: 28px;
   --interactive-row-height-composer: 28px;
-  --interactive-row-radius: 10px;
-  --interactive-row-radius-pill: 9999px;
+  --interactive-row-radius: var(--radius-row);
+  --interactive-row-radius-pill: var(--radius-pill);
   --interactive-row-padding-block-menu: 5px;
   --interactive-row-padding-inline: 8px;
   --interactive-row-padding-inline-composer: 6px;
   --interactive-row-gap: 6px;
-  --interactive-row-font-nav: 14px;
+  --interactive-row-font-nav: var(--type-control);
   --interactive-row-line-nav: 20px;
-  --interactive-row-font-menu: 12px;
+  --interactive-row-font-menu: var(--type-meta);
   --interactive-row-line-menu: 17px;
   --interactive-row-line-compact: 18px;
   --interactive-row-background: transparent;
@@ -132,7 +168,7 @@
   --interactive-row-toolbar-padding-inline: var(
     --interactive-row-padding-inline
   );
-  --interactive-row-toolbar-font-size: 14px;
+  --interactive-row-toolbar-font-size: var(--type-control);
   --interactive-row-toolbar-line-height: var(--interactive-row-line-compact);
   --interactive-row-composer-height: var(--interactive-row-height-composer);
   --interactive-row-composer-radius: var(--interactive-row-radius-pill);
@@ -171,14 +207,14 @@
   --type-caption: max(10px, calc(var(--font-size-ui) - 3px));
 
   --radius-1: 2px;
-  --radius-2: 4px;
-  --radius-3: 6px;
-  --radius-4: 8px;
-  --radius-5: 10px;
-  --radius-6: 12px;
-  --radius-7: 16px;
-  --radius-full: 9999px;
-  --radius-user-message: var(--radius-6);
+  --radius-2: var(--radius-control);
+  --radius-3: var(--radius-row);
+  --radius-4: var(--radius-card);
+  --radius-5: var(--radius-panel);
+  --radius-6: var(--radius-floating);
+  --radius-7: var(--radius-floating);
+  --radius-full: var(--radius-pill);
+  --radius-user-message: var(--radius-card);
 
   --z-right-dock: 90;
   --z-composer: 95;
@@ -192,12 +228,20 @@
   --app-icon-size-md: calc(var(--font-size-ui) + 4px);
   --app-icon-stroke-width: 1.75;
 
-  --motion-fast: 150ms;
-  --motion-standard: 150ms;
-  --motion-emphasis: 300ms;
-  --motion-hover: var(--motion-fast);
-  --motion-enter: var(--motion-standard);
-  --motion-exit: var(--motion-fast);
+  --motion-instant: 0ms;
+  --motion-micro: 90ms;
+  --motion-state: 140ms;
+  --motion-enter: 160ms;
+  --motion-exit: 120ms;
+  --motion-panel: 200ms;
+  --motion-layout: var(--motion-panel);
+  --motion-loading: 900ms;
+
+  // Compatibility aliases for existing feature styles.
+  --motion-fast: var(--motion-micro);
+  --motion-standard: var(--motion-enter);
+  --motion-emphasis: var(--motion-panel);
+  --motion-hover: var(--motion-micro);
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out: ease-out;
   --ease-in: ease-in;
@@ -231,12 +275,13 @@
   --font-family-mono:
     "JetBrains Mono", Consolas, monospace;
   --type-card-title: var(--font-size-ui);
-  --type-section-title: calc(var(--font-size-ui));
-  --type-title-sm: calc(var(--font-size-ui) + 2px);
+  --type-section-title: calc(var(--font-size-ui) + 1px);
+  --type-panel-title: calc(var(--font-size-ui) + 2px);
+  --type-title-sm: var(--type-panel-title);
   --type-title-md: calc(var(--font-size-ui) + 4px);
   --type-title-lg: calc(var(--font-size-ui) + 6px);
-  --type-page-title: calc(var(--font-size-ui) + 12px);
-  --type-hero-title: calc(var(--font-size-ui) + 16px);
+  --type-page-title: calc(var(--font-size-ui) + 8px);
+  --type-hero-title: calc(var(--font-size-ui) + 12px);
   --type-code: var(--font-size-code);
   --font-weight-body: 400;
   --font-weight-label: 500;

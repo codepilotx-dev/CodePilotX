@@ -33,9 +33,9 @@
   outline: none;
   user-select: none;
   transition:
-    background var(--motion-fast) var(--ease-out),
-    box-shadow var(--motion-fast) var(--ease-out),
-    color var(--motion-fast) var(--ease-out);
+    background-color var(--motion-micro) var(--ease-out),
+    color var(--motion-micro) var(--ease-out),
+    opacity var(--motion-state) var(--ease-out);
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
 }
@@ -126,7 +126,7 @@
 .rm-model-menu .rm-sub-trigger:hover:not(:where([data-disabled])) {
   background: var(
     --interactive-row-hover-background,
-    var(--color-token-list-hover-background)
+    var(--state-hover-fill)
   );
   color: var(
     --interactive-row-hover-foreground,
@@ -147,7 +147,7 @@
 .rm-model-menu .rm-sub-trigger[data-highlighted] {
   background: var(
     --interactive-row-hover-background,
-    var(--color-token-list-hover-background)
+    var(--state-hover-fill)
   );
   color: var(
     --interactive-row-hover-foreground,
@@ -155,40 +155,19 @@
   );
 }
 
-.interactive-row[data-state="open"],
-.interactive-row[aria-expanded="true"],
-.popover-sub-trigger[data-state="open"],
-.sidebar-context-menu-sub-trigger[data-state="open"],
-.rm-model-menu .rm-sub-trigger[data-state="open"] {
-  background: var(
-    --interactive-row-open-background,
-    var(--color-token-list-active-selection-background)
-  );
-  color: var(
-    --interactive-row-open-foreground,
-    var(--color-token-list-active-selection-foreground)
-  );
-}
-
-.interactive-row.selected,
-.interactive-row.active,
-.interactive-row[aria-selected="true"],
-.interactive-row[aria-current="page"],
-.interactive-row[data-state="checked"],
-.popover-item.selected,
-.popover-item.active,
-.popover-item[aria-selected="true"],
-.popover-item[data-state="checked"],
-.settings-dropdown-item[aria-selected="true"],
-.settings-dropdown-item[data-state="checked"] {
-  background: var(
-    --interactive-row-selected-background,
-    var(--color-token-list-active-selection-background)
-  );
-  color: var(
-    --interactive-row-selected-foreground,
-    var(--color-token-list-active-selection-foreground)
-  );
+.interactive-row:active:not(:where(:disabled, [data-disabled], [aria-disabled="true"])),
+.popover-item:active:not(:where(:disabled, [data-disabled])),
+.popover-sub-trigger:active:not(:where([data-disabled])),
+.menubar-item:active:not(:where([data-disabled])),
+.settings-dropdown-item:active:not(:where(:disabled, [data-disabled])),
+.permission-select-item:active:not(:where([data-disabled])),
+.chat-input__dropdown-item:active:not(:where(:disabled, [aria-disabled="true"])),
+.sidebar-context-menu-item:active:not(:where([data-disabled])),
+.sidebar-context-menu-sub-trigger:active:not(:where([data-disabled])),
+.rm-model-menu .rm-menu-item:active:not(:where([data-disabled])),
+.rm-model-menu .rm-sub-trigger:active:not(:where([data-disabled])) {
+  background: var(--state-pressed-fill);
+  color: var(--interactive-row-foreground, var(--color-token-foreground));
 }
 
 .interactive-row:focus-visible,
@@ -202,8 +181,32 @@
 .sidebar-context-menu-sub-trigger:focus-visible,
 .rm-model-menu .rm-menu-item:focus-visible,
 .rm-model-menu .rm-sub-trigger:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring-soft);
+  outline: 2px solid var(--color-token-focus-border);
+  outline-offset: -1px;
+}
+
+.interactive-row[data-state="open"],
+.interactive-row[aria-expanded="true"],
+.popover-sub-trigger[data-state="open"],
+.sidebar-context-menu-sub-trigger[data-state="open"],
+.rm-model-menu .rm-sub-trigger[data-state="open"] {
+  background: var(--state-selected-fill);
+  color: var(--color-token-foreground);
+}
+
+.interactive-row.selected,
+.interactive-row.active,
+.interactive-row[aria-selected="true"],
+.interactive-row[aria-current="page"],
+.interactive-row[data-state="checked"],
+.popover-item.selected,
+.popover-item.active,
+.popover-item[aria-selected="true"],
+.popover-item[data-state="checked"],
+.settings-dropdown-item[aria-selected="true"],
+.settings-dropdown-item[data-state="checked"] {
+  background: var(--state-selected-fill);
+  color: var(--color-token-foreground);
 }
 
 .interactive-row:disabled,
@@ -225,6 +228,10 @@
     --interactive-row-disabled-foreground,
     var(--color-token-disabled-foreground)
   );
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  transform: none;
   cursor: default;
   opacity: var(--interactive-row-disabled-opacity, 0.55);
 }

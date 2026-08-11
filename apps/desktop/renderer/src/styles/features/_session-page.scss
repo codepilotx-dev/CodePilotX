@@ -23,7 +23,7 @@
   --quick-chat-surface-width: min(var(--layout-content-w, 48rem), 100%);
   --composer-surface-top-padding: 0.85em 1em 0.7em;
   --composer-surface-top-border: 0;
-  --composer-surface-top-radius: var(--radius-card);
+  --composer-surface-top-radius: var(--radius-panel);
   --composer-surface-top-bg: color-mix(
     in srgb,
     var(--color-token-bg-secondary) 92%,
@@ -83,7 +83,7 @@
   color: var(--color-token-foreground);
   font-size: var(--type-hero-title);
   text-align: center;
-  animation: quick-chat-hero-enter 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation: quick-chat-hero-enter var(--motion-enter) var(--ease-standard) both;
 
   .quick-chat-mark {
     display: block;
@@ -266,28 +266,28 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-7);
-  background: var(--color-token-main-surface-primary);
-  box-shadow: 0 0 0 0.5px var(--color-token-border);
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
   color: var(--color-token-foreground);
   text-align: left;
-  animation: new-session-suggestion-card-enter 150ms
-    cubic-bezier(0.23, 1, 0.32, 1) both;
-  animation-delay: calc(var(--new-session-suggestion-index) * 25ms);
+  animation: new-session-suggestion-card-enter var(--motion-enter)
+    var(--ease-standard) both;
+  animation-delay: calc(var(--new-session-suggestion-index) * 20ms);
   transition:
     background var(--motion-hover) var(--ease-standard),
     transform var(--motion-hover) var(--ease-standard),
-    box-shadow var(--motion-hover) var(--ease-standard);
+    border-color var(--motion-hover) var(--ease-standard);
 
   &:hover {
-    background: var(--color-token-editor-widget-background);
-    box-shadow:
-      0 0 0 0.5px var(--color-token-border-heavy),
-      var(--shadow-raised);
+    border-color: var(--color-token-border-heavy);
+    background: var(--state-hover-fill);
   }
 
   &:active {
-    transform: scale(0.99);
+    background: var(--state-pressed-fill);
+    transform: translateY(1px);
   }
 
   &.is-blue {
@@ -325,7 +325,7 @@
 }
 
 .new-session-suggestion-label {
-  font-size: var(--font-size-14);
+  font-size: var(--type-body);
   font-weight: var(--font-weight-label);
   line-height: 20px;
 }
@@ -334,13 +334,12 @@
   display: grid;
   gap: var(--space-2);
   padding: var(--space-2);
-  border-radius: var(--radius-7);
-  background: var(--color-token-editor-widget-background);
-  box-shadow:
-    0 0 0 0.5px var(--color-token-border),
-    var(--shadow-raised);
-  animation: new-session-suggestion-list-enter 150ms
-    cubic-bezier(0.23, 1, 0.32, 1) both;
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
+  animation: new-session-suggestion-list-enter var(--motion-enter)
+    var(--ease-standard) both;
 }
 
 .new-session-suggestion-list-heading {
@@ -368,12 +367,12 @@
   button {
     flex: 0 0 auto;
     padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--color-token-text-secondary);
 
     &:hover {
-      background: var(--color-token-list-hover-background);
+      background: var(--state-hover-fill);
       color: var(--color-token-foreground);
     }
   }
@@ -390,17 +389,17 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-row);
   background: transparent;
   color: var(--color-token-foreground);
   font-size: var(--type-body);
   text-align: left;
-  animation: new-session-suggestion-row-enter 150ms
-    cubic-bezier(0.23, 1, 0.32, 1) both;
-  animation-delay: calc(var(--new-session-suggestion-index) * 25ms);
+  animation: new-session-suggestion-row-enter var(--motion-enter)
+    var(--ease-standard) both;
+  animation-delay: calc(var(--new-session-suggestion-index) * 20ms);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
   }
 }
 
@@ -577,7 +576,7 @@
   .chat-session-title__skeleton {
     width: clamp(6rem, 18vw, 11.25rem);
     height: 1em;
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
   }
 }
 
@@ -609,7 +608,7 @@
   width: var(--control-size-sm);
   height: var(--control-size-sm);
   padding: 0;
-  border-radius: var(--radius-4) 0 0 var(--radius-4);
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
 .open-target-trigger {
@@ -617,7 +616,7 @@
   height: var(--control-size-sm);
   padding: 0;
   margin-left: -1px;
-  border-radius: 0 var(--radius-4) var(--radius-4) 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 .chat-open-target-icon {
@@ -678,7 +677,7 @@
   justify-content: center;
   gap: var(--space-2);
   box-sizing: border-box;
-  border-radius: var(--radius-7);
+  border-radius: var(--radius-panel);
   pointer-events: auto;
 
   &__bar-shell {
@@ -706,7 +705,7 @@
     padding: 0;
     overflow: hidden;
     border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-card);
     background: var(--color-token-main-surface-primary);
     box-shadow: var(--shadow-card);
     color: var(--color-token-input-placeholder-foreground);
@@ -844,7 +843,7 @@
     height: var(--space-8);
     overflow: hidden;
     border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-pill);
     background: var(--color-token-main-surface-primary);
     box-shadow: var(--shadow-card);
     color: var(--color-token-icon-foreground);
@@ -891,7 +890,7 @@
     span {
       width: 6px;
       height: 6px;
-      border-radius: var(--radius-full);
+      border-radius: var(--radius-pill);
       background: currentcolor;
       animation: composer-change-summary-dot-bounce 1.2s ease-in-out infinite;
     }

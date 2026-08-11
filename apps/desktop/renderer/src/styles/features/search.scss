@@ -58,7 +58,7 @@
   margin: 0 auto;
   padding: 1.15em 1em;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-control);
   background: var(--color-token-bg-secondary);
   color: var(--color-token-icon-foreground);
   box-shadow: var(--shadow-raised);
@@ -87,7 +87,7 @@
   justify-items: start;
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid transparent;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-row);
   text-align: left;
   transition:
     background var(--motion-standard) var(--ease-standard),

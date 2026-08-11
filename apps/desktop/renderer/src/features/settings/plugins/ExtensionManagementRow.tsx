@@ -47,20 +47,20 @@ export function ExtensionManagementRow({
     <article
       className={[
         'extensions-settings-row',
-        'tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-xl tw:text-app-text',
+        'tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-sm tw:text-app-text',
         dimmed ? 'tw:opacity-60' : '',
       ].filter(Boolean).join(' ')}
     >
       {onActivate ? (
         <button
-          className="tw:grid tw:min-h-20 tw:min-w-0 tw:grid-cols-[3rem_minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-xl tw:border-0 tw:bg-transparent tw:px-3 tw:py-2.5 tw:text-left tw:text-inherit tw:transition-colors tw:duration-[var(--motion-fast)] tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent tw:max-[640px]:grid-cols-[3rem_minmax(0,1fr)]"
+          className="tw:grid tw:min-h-20 tw:min-w-0 tw:grid-cols-[3rem_minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-sm tw:border-0 tw:bg-transparent tw:px-3 tw:py-2.5 tw:text-left tw:text-inherit tw:transition-colors tw:duration-[var(--motion-fast)] tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent tw:max-[640px]:grid-cols-[3rem_minmax(0,1fr)]"
           onClick={event => onActivate(event.currentTarget)}
           type="button"
         >
           {rowContent}
         </button>
       ) : (
-        <div className="tw:grid tw:min-h-20 tw:min-w-0 tw:grid-cols-[3rem_minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-xl tw:px-3 tw:py-2.5 tw:max-[640px]:grid-cols-[3rem_minmax(0,1fr)]">
+        <div className="tw:grid tw:min-h-20 tw:min-w-0 tw:grid-cols-[3rem_minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-sm tw:px-3 tw:py-2.5 tw:max-[640px]:grid-cols-[3rem_minmax(0,1fr)]">
           {rowContent}
         </div>
       )}

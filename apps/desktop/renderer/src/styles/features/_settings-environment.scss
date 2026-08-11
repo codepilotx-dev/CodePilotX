@@ -60,21 +60,22 @@
   gap: 12px;
   width: 100%;
   padding: 14px 16px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: 14px;
-  background: var(--color-token-bg-secondary);
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
+  background: var(--layer-raised-fill);
+  box-shadow: none;
   color: var(--color-token-foreground);
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
   }
 
   > svg:last-child {
     box-sizing: content-box;
-    border-radius: 9px;
-    background: var(--color-token-list-hover-background);
+    border-radius: var(--radius-control);
+    background: var(--state-hover-fill);
     padding: 8px;
   }
 }
@@ -84,8 +85,8 @@
   width: 32px;
   height: 32px;
   place-items: center;
-  border-radius: 9px;
-  background: var(--color-token-list-hover-background);
+  border-radius: var(--radius-control);
+  background: var(--state-hover-fill);
   color: var(--color-token-text-secondary);
 }
 
@@ -139,8 +140,8 @@
     min-width: 0;
     width: 100%;
     border: 1px solid var(--color-token-border);
-    border-radius: 8px;
-    background: var(--color-token-main-surface-primary);
+    border-radius: var(--radius-control);
+    background: var(--layer-canvas-fill);
     color: var(--color-token-foreground);
     font: inherit;
     outline: none;
@@ -190,22 +191,22 @@
     min-height: 34px;
     padding: 6px 9px;
     border: 1px solid var(--color-token-border);
-    border-radius: 8px;
-    background: var(--color-token-main-surface-primary);
+    border-radius: var(--radius-control);
+    background: var(--layer-canvas-fill);
     color: var(--color-token-foreground);
   }
 }
 
 .environment-settings-dropdown {
   width: 100%;
-  background: var(--color-token-main-surface-primary);
+  background: var(--layer-canvas-fill);
 }
 
 .environment-source-file-tree {
   max-height: 18rem;
   overflow: auto;
   border-bottom: 1px solid var(--color-token-border);
-  background: var(--color-token-main-surface-primary);
+  background: var(--layer-canvas-fill);
 }
 
 .environment-source-row {
@@ -227,13 +228,13 @@
     height: 30px;
     place-items: center;
     border: 0;
-    border-radius: 7px;
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--color-token-text-secondary);
     cursor: pointer;
 
     &:hover:not(:disabled) {
-      background: var(--color-token-list-hover-background);
+      background: var(--state-hover-fill);
       color: var(--color-token-foreground);
     }
   }
@@ -253,8 +254,9 @@
   margin: 0 16px 16px;
   padding: 12px;
   border: 1px solid var(--color-token-border);
-  border-radius: 10px;
-  background: var(--color-token-main-surface-primary);
+  border-radius: var(--radius-card);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
 
   header {
     display: flex;
@@ -269,7 +271,7 @@
     margin: 0;
     overflow: auto;
     color: var(--color-token-foreground);
-    font: var(--type-secondary) / 1.55 var(--font-family-mono);
+    font: var(--type-code) / 1.55 var(--font-family-mono);
     white-space: pre-wrap;
   }
 

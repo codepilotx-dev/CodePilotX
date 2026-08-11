@@ -196,7 +196,7 @@ export function InputDialog({
                 </Dialog.Description>
                 <input
                   aria-label={title}
-                  className="confirmation-dialog-input tw:w-full tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-base tw:text-app-text tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-[160ms] tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                  className="confirmation-dialog-input tw:w-full tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-base tw:text-app-text tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-[160ms] tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                   defaultValue={input.value}
                   maxLength={input.maxLength}
                   onInput={event => input.onChange(event.currentTarget.value)}

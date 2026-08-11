@@ -35,14 +35,14 @@
   padding: var(--space-1) var(--space-2);
   overflow: hidden;
   color: var(--color-token-text-secondary);
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--color-token-editor-widget-background);
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-3);
-  box-shadow: var(--shadow-resting);
+  background: var(--layer-raised-fill);
+  border: var(--layer-edge-strong);
+  border-radius: var(--radius-card);
+  box-shadow: none;
 }
 
 .file-editor-status:not([data-error])::before {
@@ -53,8 +53,8 @@
   content: '';
   border: 1.5px solid currentcolor;
   border-right-color: transparent;
-  border-radius: var(--radius-full);
-  animation: file-editor-status-spin 800ms linear infinite;
+  border-radius: var(--radius-pill);
+  animation: file-editor-status-spin var(--motion-loading) linear infinite;
 }
 
 .file-editor-status[data-error] {
@@ -80,8 +80,9 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3);
-  background: var(--color-token-bg-secondary);
-  border-bottom: 1px solid var(--color-token-border);
+  background: var(--layer-panel-fill);
+  border-bottom: var(--layer-edge-strong);
+  box-shadow: none;
 }
 
 .conflict-merge-editor-header > div:first-child {
@@ -111,8 +112,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
-  background: var(--color-token-bg-secondary);
-  border-bottom: 1px solid var(--color-token-border);
+  background: var(--layer-panel-fill);
+  border-bottom: var(--layer-edge-strong);
 }
 
 .conflict-merge-editor-labels span {
@@ -120,7 +121,7 @@
 }
 
 .conflict-merge-editor-labels span + span {
-  border-left: 1px solid var(--color-token-border);
+  border-left: var(--layer-edge-strong);
 }
 
 .conflict-merge-editor-host {
@@ -138,7 +139,7 @@
 }
 
 .conflict-merge-editor-host .cm-mergeViewEditor + .cm-mergeViewEditor {
-  border-left: 1px solid var(--color-token-border);
+  border-left: var(--layer-edge-strong);
 }
 
 .conflict-merge-editor-host .cm-changedLine {
@@ -161,7 +162,7 @@
   }
 
   .conflict-merge-editor-host .cm-mergeViewEditor + .cm-mergeViewEditor {
-    border-top: 1px solid var(--color-token-border);
+    border-top: var(--layer-edge-strong);
     border-left: 0;
   }
 }

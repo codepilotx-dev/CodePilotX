@@ -7,21 +7,32 @@
   border-radius: var(--radius-input);
   color: var(--color-token-input-foreground);
   background: var(--color-token-input-background);
+  box-shadow: none;
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
   outline: none;
+  transition:
+    background-color var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard),
+    opacity var(--motion-state) var(--ease-standard);
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-token-border-heavy);
+  }
 
   &:focus-visible {
     border-color: var(--color-token-focus-border);
-    box-shadow: 0 0 0 2px color-mix(
-      in srgb,
-      var(--color-token-focus-border) 20%,
-      transparent
-    );
+    outline: 2px solid var(--color-token-focus-border);
+    outline-offset: 1px;
   }
 
   &:disabled {
+    background: var(--layer-panel-fill);
     color: var(--color-token-disabled-foreground);
-    cursor: not-allowed;
+    outline: none;
+    cursor: default;
+    opacity: 0.55;
   }
 }
 
@@ -52,15 +63,15 @@
   gap: 6px;
   min-width: 0;
   font-size: var(--type-control);
-  line-height: 18px;
+  line-height: var(--interactive-row-line-compact);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .settings-dropdown-icon {
-  width: 12px;
-  height: 12px;
+  width: var(--app-icon-size-sm);
+  height: var(--app-icon-size-sm);
   color: var(--color-token-input-placeholder-foreground);
   flex-shrink: 0;
 }
@@ -68,11 +79,17 @@
 /* --- Text Inputs --- */
 .settings-input {
   border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-5);
+  border-radius: var(--radius-input);
   background: var(--color-token-bg-secondary);
   color: var(--color-token-foreground);
   padding: var(--control-padding-block) var(--control-padding-inline);
   line-height: var(--control-line-height);
+  outline: none;
+  transition:
+    background-color var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard),
+    opacity var(--motion-state) var(--ease-standard);
 }
 
 .settings-input:not(.ui-input) {
@@ -124,12 +141,18 @@
   width: min(360px, 48vw);
   resize: vertical;
   border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-5);
+  border-radius: var(--radius-input);
   background: var(--color-token-bg-secondary);
   color: var(--color-token-foreground);
   padding: var(--control-padding-block) var(--control-padding-inline);
   font-size: var(--type-control);
   line-height: 1.45;
+  outline: none;
+  transition:
+    background-color var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard),
+    opacity var(--motion-state) var(--ease-standard);
 }
 
 .settings-code-textarea {
@@ -142,15 +165,27 @@
   color: var(--color-token-text-secondary);
 }
 
-/* --- Input Focus --- */
-.settings-input:focus,
-.settings-textarea:focus,
-.settings-input-number:focus {
-  border-color: color-mix(
-    in srgb,
-    var(--color-token-text-link-foreground) 42%,
-    var(--color-token-border-light)
-  );
+/* --- Input Interaction States --- */
+.settings-input:hover:not(:disabled),
+.settings-textarea:hover:not(:disabled) {
+  border-color: var(--color-token-border-heavy);
+}
+
+.settings-input:focus-visible,
+.settings-textarea:focus-visible {
+  border-color: var(--color-token-focus-border);
+  outline: 2px solid var(--color-token-focus-border);
+  outline-offset: 1px;
+}
+
+.settings-input:disabled,
+.settings-textarea:disabled {
+  border-color: var(--color-token-border-light);
+  background: var(--layer-panel-fill);
+  color: var(--color-token-disabled-foreground);
+  outline: none;
+  cursor: default;
+  opacity: 0.55;
 }
 
 /* ===== Search Input Primitive ===== */
@@ -163,8 +198,14 @@
   border: 1px solid var(--color-token-border-light);
   background: var(--color-token-main-surface-primary);
   transition:
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard);
+    background-color var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard),
+    opacity var(--motion-state) var(--ease-standard);
+
+  &:hover:not(.search-input--disabled):not(:has(input:disabled)) {
+    border-color: var(--color-token-border-heavy);
+  }
 
   &:focus-within {
     border-color: color-mix(
@@ -175,17 +216,18 @@
   }
 
   &:has(:focus-visible) {
-    box-shadow: 0 0 0 2px color-mix(
-      in srgb,
-      var(--color-token-focus-border, var(--color-token-text-link-foreground)) 20%,
-      transparent
-    );
+    border-color: var(--color-token-focus-border);
+    outline: 2px solid var(--color-token-focus-border);
+    outline-offset: 1px;
   }
 
   &.search-input--disabled,
   &:has(input:disabled) {
-    opacity: 0.5;
-    cursor: not-allowed;
+    border-color: var(--color-token-border-light);
+    background: var(--layer-panel-fill);
+    outline: none;
+    opacity: 0.55;
+    cursor: default;
   }
 
   input[type='search']::-webkit-search-cancel-button,
@@ -215,8 +257,8 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--type-secondary);
+  line-height: var(--interactive-row-line-compact);
 
   &:focus-within {
     border-color: transparent;
@@ -224,6 +266,7 @@
 
   &:has(:focus-visible) {
     box-shadow: none;
+    outline: none;
   }
 }
 
@@ -245,7 +288,8 @@
   }
 
   &:disabled {
-    cursor: not-allowed;
+    color: var(--color-token-disabled-foreground);
+    cursor: default;
   }
 }
 
@@ -272,5 +316,23 @@
 @media (forced-colors: active) {
   .search-input:has(:focus-visible) {
     outline: 2px solid Highlight;
+  }
+}
+
+:root[data-reduce-motion='on'] {
+  .ui-input,
+  .settings-input,
+  .settings-textarea,
+  .search-input {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-input,
+  .settings-input,
+  .settings-textarea,
+  .search-input {
+    transition: none;
   }
 }

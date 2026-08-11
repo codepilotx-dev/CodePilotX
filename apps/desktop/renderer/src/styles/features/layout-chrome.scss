@@ -1,10 +1,10 @@
 .desktop-menubar {
-  background: var(--color-token-side-bar-background);
+  background: var(--layer-underlay-fill);
 }
 
 .app-menubar {
   height: 100%;
-  background: var(--color-token-side-bar-background);
+  background: var(--layer-underlay-fill);
   user-select: none;
 }
 
@@ -64,29 +64,32 @@
   line-height: inherit;
   white-space: nowrap;
   -webkit-app-region: no-drag;
-  border-radius: calc(var(--radius-base) - 2px);
+  border-radius: var(--radius-control);
+
+  &:hover,
+  &[data-state="open"] {
+    background: var(--state-hover-fill);
+    color: var(--color-token-foreground);
+  }
+
+  &[data-state="open"] {
+    background: var(--state-selected-fill);
+  }
 }
 
 .menubar-content {
   width: var(--popover-width, max-content);
   max-width: var(--popover-max-width, var(--popover-default-max-width));
-  max-height: calc(100vh - 96px);
   padding: var(--popover-surface-padding);
-  transform-origin: top left;
+  transform-origin: var(--radix-menubar-content-transform-origin, top left);
+  max-height: min(
+    calc(100vh - 96px),
+    var(--radix-menubar-content-available-height, calc(100vh - 96px))
+  );
 }
 
 .menubar-item {
   box-sizing: border-box;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .menubar-content[data-state="open"] {
-    animation: popover-in var(--motion-enter) var(--ease-standard);
-  }
-
-  .menubar-content[data-state="closed"] {
-    animation: popover-out var(--motion-exit) var(--ease-in);
-  }
 }
 
 .menubar-item-trailing {
@@ -127,7 +130,7 @@
   }
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
   }
 
   &.close:hover {

@@ -12,20 +12,15 @@
 .composer {
   z-index: var(--z-composer);
   container-type: inline-size;
-  border: 1px solid var(--color-token-border);
-  border-radius: 20px;
-  background: var(--color-token-editor-widget-background);
+  border-radius: var(--radius-panel);
 }
 
 .composer-stack {
   z-index: var(--z-composer);
   container-type: inline-size;
   isolation: isolate;
-  border-radius: 20px;
-}
-
-.composer-stack[data-placement="thread"] {
-  box-shadow: var(--popover-surface-shadow);
+  border-radius: var(--radius-panel);
+  box-shadow: none;
 }
 
 .composer-input-surface {
@@ -37,21 +32,20 @@
   z-index: 1;
   order: 1;
   min-height: 42px;
-
   overflow-x: auto;
   overflow-y: hidden;
-  border: 1px solid var(--color-token-border);
-  border-bottom: 0;
-  border-radius: 16px 16px 0 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-token-border-light);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   background: color-mix(
     in srgb,
-    var(--color-token-main-surface-primary) 70%,
-    var(--color-token-panel-background)
+    var(--layer-panel-fill) 68%,
+    var(--layer-raised-fill)
   );
-  box-shadow: var(--shadow-resting);
+  box-shadow: none;
   scrollbar-width: none;
   white-space: nowrap;
-  animation: composer-utility-enter 350ms var(--ease-standard) both;
+  animation: composer-utility-enter var(--motion-enter) var(--ease-out) both;
 
   &::-webkit-scrollbar {
     display: none;
@@ -74,14 +68,11 @@
 
   .composer-utility-bar {
     order: 2;
-
-    // 工具条移到底部后取消全局 -10px 负底边距，
-    // 避免被 .composer-stack 的 overflow-hidden 裁掉底边、圆角与内边距
-    margin: 0 30px;
-    padding: 0 5px;
-    border-top: 0;
-    border-bottom: 1px solid var(--color-token-border);
-    border-radius: 0 0 16px 16px;
+    margin: -1px 12px 0;
+    padding: 8px 8px 4px;
+    border-top: 1px solid var(--color-token-border-light);
+    border-bottom: 0;
+    border-radius: 0 0 var(--radius-panel) var(--radius-panel);
   }
 }
 
@@ -100,7 +91,7 @@
   --tw-spacing: 0.25rem;
 
   padding: calc(var(--tw-spacing) * 3) calc(var(--tw-spacing) * 3) 5px;
-  transition: min-height var(--motion-emphasis) var(--ease-standard);
+  transition: min-height var(--motion-layout) var(--ease-standard);
 }
 
 .composer-submit-error {
@@ -111,7 +102,7 @@
 }
 
 .send-button.is-submitting svg {
-  animation: composer-submit-spin 800ms linear infinite;
+  animation: composer-submit-spin var(--motion-loading) linear infinite;
 }
 
 @keyframes composer-submit-spin {
@@ -122,7 +113,7 @@
 
 .composer-attachment-card {
   border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-5);
+  border-radius: var(--radius-card);
   background: var(--color-token-text-preformat-background);
   box-shadow: var(--shadow-resting);
 
@@ -227,7 +218,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--color-token-button-background);
   color: var(--color-token-button-foreground);
   box-shadow: var(--shadow-resting);
@@ -295,8 +286,8 @@
   margin-top: 9px;
   flex-shrink: 0;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
-  background: var(--color-token-list-active-selection-background);
+  border-radius: var(--radius-pill);
+  background: var(--state-selected-fill);
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
   font-weight: 500;
@@ -320,15 +311,15 @@
 .composer .icon-button {
   width: var(--control-size-sm);
   height: var(--control-size-sm);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
     color: var(--color-token-foreground);
   }
 
   &[data-active="true"] {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-selected-fill);
     color: var(--color-token-foreground);
   }
 
@@ -353,8 +344,8 @@
   padding: 8px 0 0;
 
   &.composer-utility-bar {
-    margin: 0 30px -10px;
-    padding: 4px 5px 14px;
+    margin: 0 12px -1px;
+    padding: 4px 8px 8px;
   }
 }
 
@@ -369,12 +360,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .send-button.is-submitting svg {
-    animation: none;
-  }
-}
-
 @media (forced-colors: active) {
   .composer,
   .composer-utility-bar {
@@ -386,7 +371,7 @@
 @keyframes composer-utility-enter {
   from {
     opacity: 0;
-    transform: translateY(100%);
+    transform: translateY(6px);
   }
 
   to {
@@ -417,5 +402,5 @@
 
 .chip-button-spinner {
   flex-shrink: 0;
-  animation: composer-chip-spin 0.9s linear infinite;
+  animation: composer-chip-spin var(--motion-loading) linear infinite;
 }

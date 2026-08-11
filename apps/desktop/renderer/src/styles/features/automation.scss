@@ -55,10 +55,10 @@
   gap: var(--layout-section-gap);
   min-height: 460px;
   padding: var(--layout-card-pad);
-  border: 1px solid var(--color-token-border-light);
+  border: var(--layer-edge);
   border-radius: var(--radius-panel);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-raised);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
 }
 
 .automation-empty-state {

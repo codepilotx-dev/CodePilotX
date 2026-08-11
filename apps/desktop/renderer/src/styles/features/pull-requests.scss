@@ -22,6 +22,10 @@
   justify-items: center;
   gap: var(--layout-toolbar-gap);
   padding: var(--layout-card-pad);
+  border: var(--layer-edge);
+  border-radius: var(--radius-panel);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
   text-align: center;
 
   h2,
@@ -48,10 +52,10 @@
   width: 48px;
   height: 48px;
   margin-bottom: var(--layout-toolbar-gap);
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel);
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
   color: var(--color-token-description-foreground);
-  background: var(--color-token-bg-secondary);
+  background: var(--layer-raised-fill);
 }
 
 .pull-requests-placeholder__action {
@@ -62,17 +66,30 @@
   padding: var(--control-padding-block)
     calc(var(--control-padding-inline) + var(--control-padding-inline));
   border: 1px solid var(--color-token-button-background);
-  border-radius: var(--radius-button);
+  border-radius: var(--radius-control);
   color: var(--color-token-button-foreground);
   background: var(--color-token-button-background);
   font-size: var(--type-control);
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
   text-decoration: none;
+  transition:
+    background var(--motion-micro) var(--ease-out),
+    border-color var(--motion-micro) var(--ease-out),
+    color var(--motion-micro) var(--ease-out),
+    transform var(--motion-micro) var(--ease-out);
 
   &:hover {
     color: var(--color-token-button-foreground);
-    background: var(--color-token-button-background);
+    background: color-mix(
+      in srgb,
+      var(--color-token-button-background) 88%,
+      var(--color-token-foreground)
+    );
+  }
+
+  &:active {
+    transform: translateY(1px);
   }
 
   &:focus-visible {

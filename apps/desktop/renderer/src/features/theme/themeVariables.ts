@@ -89,9 +89,8 @@ export function deriveThemeVariables(
   })
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
   const shadowResting = 'none'
-  const shadowRaised = '0 1px 3px -1px rgb(0 0 0 / 14%)'
-  const shadowFloat =
-    '0 8px 20px -8px rgb(0 0 0 / 28%), 0 2px 6px -3px rgb(0 0 0 / 18%)'
+  const shadowRaised = 'none'
+  const shadowFloat = 'var(--shadow-floating)'
 
   return {
     '--codex-base-accent': theme.accent,

@@ -60,7 +60,7 @@
   overflow: auto;
   gap: 1.25rem;
   border: 1px solid var(--color-app-border);
-  border-radius: 1.25rem;
+  border-radius: var(--radius-floating);
   outline: none;
   background: var(--color-app-chrome);
   padding: 1.5rem;
@@ -90,7 +90,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-app-text-soft);
   cursor: pointer;
@@ -116,7 +116,7 @@
   min-height: 2.75rem;
   overflow: hidden;
   border: 1px solid var(--color-app-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-control);
   background: var(--color-app-canvas);
 
   &:focus-within {
@@ -173,7 +173,7 @@
 .project-edit-folder-list {
   overflow: hidden;
   border: 1px solid var(--color-app-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-card);
   background: var(--color-app-canvas);
 }
 
@@ -221,7 +221,7 @@
 
 .project-edit-primary-badge {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-token-list-hover-background);
   padding: 0.1875rem 0.5rem;
   color: var(--color-app-text-soft);
@@ -273,7 +273,7 @@
   z-index: 120;
   width: 16.25rem;
   border: 1px solid var(--color-app-border);
-  border-radius: 0.875rem;
+  border-radius: var(--radius-floating);
   outline: none;
   background: var(--color-app-chrome);
   padding: 0.5rem;
@@ -296,7 +296,7 @@
   align-items: center;
   justify-content: center;
   border: 3px solid transparent;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: currentcolor;
   color: var(--color-app-text-soft);
   cursor: pointer;
@@ -332,7 +332,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 0.625rem;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-app-text-soft);
   cursor: pointer;

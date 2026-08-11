@@ -4,14 +4,14 @@
   --inline-approval-card-gap: 8px;
   --inline-approval-card-padding: 16px 10px 10px;
   --inline-approval-card-border: 1px solid var(--color-token-border-light);
-  --inline-approval-card-bg: var(--color-token-bg-secondary);
-  --inline-approval-card-shadow: var(--shadow-raised);
+  --inline-approval-card-bg: var(--layer-raised-fill);
+  --inline-approval-card-shadow: none;
   --inline-approval-header-padding: 0 12px 2px;
   --mcp-form-gap: var(--control-gap);
   --mcp-form-field-gap: var(--control-gap-compact);
   --mcp-form-input-padding: var(--control-padding-block)
     var(--control-padding-inline);
-  --mcp-form-input-radius: var(--radius-5);
+  --mcp-form-input-radius: var(--radius-input);
   --mcp-form-input-border: 1px solid var(--color-token-border-light);
   --mcp-form-input-bg: color-mix(in srgb, var(--color-token-main-surface-primary) 74%, transparent);
   --mcp-form-input-focus-border: var(--color-token-text-link-foreground);
@@ -21,7 +21,7 @@
     var(--control-padding-inline);
   --mcp-form-submit-border: 1px solid
     color-mix(in srgb, var(--color-token-foreground) 18%, transparent);
-  --mcp-form-submit-radius: var(--radius-full);
+  --mcp-form-submit-radius: var(--radius-button);
   --mcp-form-submit-bg: var(--color-token-foreground);
   --mcp-form-submit-color: var(--color-token-main-surface-primary);
   --mcp-form-submit-hover-bg: color-mix(
@@ -104,8 +104,8 @@
   font-family: inherit;
   outline: none;
   transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+    border-color var(--motion-state) var(--ease-standard),
+    box-shadow var(--motion-state) var(--ease-standard);
   box-sizing: border-box;
 }
 
@@ -157,7 +157,7 @@
   gap: var(--control-gap);
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: var(--mcp-form-input-border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--mcp-form-input-bg);
   color: var(--color-token-text-secondary);
   cursor: pointer;
@@ -165,16 +165,17 @@
   font-family: inherit;
   outline: none;
   transition:
-    background 0.15s,
-    border-color 0.15s;
+    background var(--motion-state) var(--ease-standard),
+    border-color var(--motion-state) var(--ease-standard);
 }
 
 .mcp-form-boolean:hover {
   border-color: var(--color-token-border);
+  background: var(--state-hover-fill);
 }
 
 .mcp-form-boolean-on {
-  background: var(--color-token-list-active-selection-background);
+  background: var(--state-selected-fill);
   border-color: var(--color-token-text-link-foreground);
   color: var(--color-token-foreground);
 }
@@ -184,7 +185,7 @@
   height: 12px;
   border-radius: 50%;
   background: var(--color-token-text-tertiary);
-  transition: background 0.15s;
+  transition: background var(--motion-state) var(--ease-standard);
 }
 
 .mcp-form-boolean-on .mcp-form-boolean-thumb {
@@ -219,16 +220,17 @@
   text-align: left;
   outline: none;
   transition:
-    background 0.15s,
-    border-color 0.15s;
+    background var(--motion-state) var(--ease-standard),
+    border-color var(--motion-state) var(--ease-standard);
 }
 
 .mcp-form-option:hover {
   border-color: var(--color-token-border);
+  background: var(--state-hover-fill);
 }
 
 .mcp-form-option.selected {
-  background: var(--color-token-list-active-selection-background);
+  background: var(--state-selected-fill);
   border-color: var(--color-token-border);
   color: var(--color-token-foreground);
 }
@@ -239,7 +241,7 @@
   justify-content: center;
   width: var(--app-icon-size-md);
   height: var(--app-icon-size-md);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-token-text-secondary) 12%, transparent);
   font-size: var(--type-caption);
   font-weight: 600;
@@ -272,9 +274,9 @@
   cursor: pointer;
   outline: none;
   transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    background var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard);
 
   svg {
     width: var(--app-icon-size-sm);
@@ -286,14 +288,14 @@
 .mcp-form-btn-cancel {
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border: 1px solid transparent;
-  border-radius: var(--radius-5);
+  border-radius: var(--radius-button);
   background: transparent;
   color: var(--color-token-text-tertiary);
 }
 
 .mcp-form-btn-decline:hover,
 .mcp-form-btn-cancel:hover {
-  background: var(--color-token-list-hover-background);
+  background: var(--state-hover-fill);
   color: var(--color-token-foreground);
 }
 

@@ -19,9 +19,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--color-token-border-light);
-  background: var(--color-token-panel-background);
+  border-left: var(--layer-edge);
+  background: var(--layer-panel-fill);
   color: var(--color-token-foreground);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -32,8 +33,9 @@
   justify-content: space-between;
   gap: var(--control-gap);
   padding: var(--control-padding-block-compact) 1em;
-  border-bottom: 1px solid var(--color-token-border-light);
-  background: var(--color-token-panel-background);
+  border-bottom: var(--layer-edge);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
 }
 
 .review-sidebar-toolbar--branch {
@@ -84,24 +86,54 @@
   align-items: center;
   gap: 2px;
   padding: 2px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-3);
-  background: var(--color-token-text-preformat-background);
+  border: var(--layer-edge);
+  border-radius: var(--radius-row);
+  background: var(--layer-raised-fill);
 
   button {
+    position: relative;
     min-width: 54px;
     padding: 3px 7px;
-    border-radius: var(--radius-2);
+    border-radius: var(--radius-control);
     color: var(--color-token-text-secondary);
     font-size: var(--type-control);
-    font-weight: 500;
+    font-weight: var(--font-weight-label);
+    transition:
+      color var(--motion-micro) ease,
+      background-color var(--motion-micro) ease;
 
-    &.active,
     &:hover {
-      background: var(--color-token-control-background);
+      background: var(--state-hover-fill);
       color: var(--color-token-foreground);
     }
+
+    &:active {
+      background: var(--state-pressed-fill);
+    }
+
+    &.active {
+      background: var(--state-selected-fill);
+      color: var(--color-token-foreground);
+    }
+
+    &:disabled {
+      background: transparent;
+      color: var(--color-token-text-tertiary);
+      cursor: default;
+      transform: none;
+    }
   }
+}
+
+.review-scope-switch button.active::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: -2px;
+  left: 5px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--state-selected-rail);
 }
 
 .review-sidebar-title-button {
@@ -109,8 +141,8 @@
   align-items: center;
   gap: 4px;
   color: var(--color-token-foreground);
-  font-size: var(--type-card-title);
-  font-weight: 600;
+  font-size: var(--type-section-title);
+  font-weight: var(--font-weight-heading);
 
   svg {
     color: var(--color-token-description-foreground);
@@ -133,7 +165,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid var(--color-token-border-light);
+  border: var(--layer-edge);
 }
 
 .review-sidebar-action-label {
@@ -179,7 +211,7 @@
   max-height: none;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--color-token-border-light);
+  border-right: var(--layer-edge);
   background: var(--color-token-editor-background);
   contain: size layout paint;
   overflow: hidden;
@@ -213,7 +245,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--color-token-panel-background);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
   contain: size layout paint;
   overflow: hidden;
 }
@@ -246,17 +279,16 @@
     left: 4px;
     width: 1px;
     background: var(--color-token-border-light);
+    transition:
+      width var(--motion-micro) ease,
+      background-color var(--motion-micro) ease;
   }
 
   &:hover::after,
   &:focus-visible::after,
   &[data-resize-phase]::after {
     width: 2px;
-    background: color-mix(
-      in srgb,
-      var(--color-token-text-link-foreground) 64%,
-      var(--color-token-border-light)
-    );
+    background: var(--state-selected-rail);
   }
 }
 
@@ -274,6 +306,7 @@
 }
 
 .review-file-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -282,9 +315,21 @@
   color: var(--color-token-text-secondary);
   text-align: left;
 
-  &:hover,
+  transition:
+    color var(--motion-micro) ease,
+    background-color var(--motion-micro) ease;
+
+  &:hover {
+    background: var(--state-hover-fill);
+    color: var(--color-token-foreground);
+  }
+
+  &:active {
+    background: var(--state-pressed-fill);
+  }
+
   &.active {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-selected-fill);
     color: var(--color-token-foreground);
   }
 
@@ -299,14 +344,30 @@
     gap: 0;
     margin: 4px 4px 2px;
     padding: 4px 8px 4px 12px;
-    border-radius: 8px;
-    background: var(--color-token-control-background);
+    border: var(--layer-edge);
+    border-radius: var(--radius-row);
+    background: var(--layer-raised-fill);
     cursor: pointer;
     outline: 0;
 
+    &.active {
+      background: var(--state-selected-fill);
+    }
+
     &:focus-visible {
-      outline: 2px solid var(--color-token-text-link-foreground);
+      outline: 2px solid var(--state-selected-rail);
       outline-offset: -2px;
+    }
+
+    &.active::after {
+      content: "";
+      position: absolute;
+      right: var(--radius-row);
+      bottom: -1px;
+      left: var(--radius-row);
+      height: 2px;
+      border-radius: var(--radius-pill);
+      background: var(--state-selected-rail);
     }
   }
 }
@@ -356,7 +417,7 @@
   flex: 0 0 auto;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-micro) ease;
 }
 
 .review-file-actions-primary {
@@ -372,7 +433,7 @@
   min-width: 24px;
   height: 24px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .review-file-actions .message-action svg {
@@ -381,7 +442,7 @@
 }
 
 .review-file-toggle svg {
-  transition: transform 120ms ease;
+  transition: transform var(--motion-state) ease;
 }
 
 .review-file-toggle[data-expanded="true"] svg {
@@ -409,7 +470,7 @@
   gap: 8px;
   flex: 0 0 auto;
   padding: 8px 14px;
-  border-bottom: 1px solid var(--color-token-border-light);
+  border-bottom: var(--layer-edge);
   background: color-mix(in srgb, var(--color-token-error-foreground) 10%, transparent);
   color: var(--color-token-error-foreground);
   font-size: var(--type-secondary);
@@ -460,10 +521,10 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  border-bottom: 1px solid var(--color-token-border-light);
+  border-bottom: var(--layer-edge);
   color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
-  background: var(--color-token-text-preformat-background);
+  background: var(--layer-panel-fill);
   overflow: hidden;
 
   span {
@@ -616,12 +677,17 @@
   align-items: center;
   gap: 4px;
   padding: 2px 7px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-2);
-  background: var(--color-token-control-background);
+  border: var(--layer-edge);
+  border-radius: var(--radius-control);
+  background: var(--layer-raised-fill);
   color: var(--color-token-text-secondary);
   font-family: var(--font-family-sans);
   font-size: var(--type-control);
+  transition:
+    color var(--motion-micro) ease,
+    background-color var(--motion-micro) ease,
+    border-color var(--motion-micro) ease,
+    transform var(--motion-micro) ease;
 
   svg {
     width: var(--app-icon-size-sm);
@@ -631,8 +697,23 @@
 
 .review-hunk-actions button:hover,
 .review-comment-actions button:hover {
+  background: var(--state-hover-fill);
   color: var(--color-token-foreground);
   border-color: var(--color-token-border);
+}
+
+.review-hunk-actions button:active,
+.review-comment-actions button:active {
+  background: var(--state-pressed-fill);
+  transform: translateY(1px);
+}
+
+.review-hunk-actions button:disabled,
+.review-comment-actions button:disabled {
+  background: var(--layer-raised-fill);
+  color: var(--color-token-text-tertiary);
+  cursor: default;
+  transform: none;
 }
 
 .review-line-comment-button {
@@ -837,7 +918,8 @@
 }
 
 .review-diff-word {
-  border-radius: var(--radius-2);
+  // Inline diff marks deliberately keep a tight code-level curve.
+  border-radius: 2px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -958,7 +1040,7 @@
   display: flex;
   align-items: center;
   background: var(--color-token-text-preformat-background);
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 .review-codex-diff__hunk--gutter::after {
@@ -967,7 +1049,7 @@
   height: 100%;
   display: block;
   background: var(--color-token-text-preformat-background);
-  border-radius: 8px 0 0 8px;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
 .review-codex-diff__hunk [data-separator-content] {
@@ -1010,7 +1092,7 @@
   z-index: 4;
   top: 0;
   right: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   background: var(--color-token-text-link-foreground);
   color: var(--color-token-main-surface-primary);
 }
@@ -1039,12 +1121,13 @@
   flex-direction: column;
   gap: 5px;
   padding: 8px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-3);
-  background: var(--color-token-elevated-background);
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
+  background: var(--layer-raised-fill);
   color: var(--color-token-foreground);
   font-family: var(--font-family-sans);
   font-size: var(--type-body);
+  box-shadow: none;
 
   &.resolved {
     opacity: 0.68;
@@ -1075,9 +1158,9 @@
   min-height: 5.385em;
   resize: vertical;
   padding: var(--control-padding-block) var(--control-padding-inline);
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-3);
-  background: var(--color-token-text-preformat-background);
+  border: var(--layer-edge);
+  border-radius: var(--radius-row);
+  background: var(--layer-canvas-fill);
   color: var(--color-token-foreground);
   font-family: var(--font-family-sans);
   font-size: var(--type-control);
@@ -1091,15 +1174,15 @@
 
 .review-stale-comments {
   padding: 10px 12px;
-  border-top: 1px solid var(--color-token-border-light);
-  background: var(--color-token-text-preformat-background);
+  border-top: var(--layer-edge);
+  background: var(--layer-panel-fill);
 }
 
 .review-stale-title {
   margin-bottom: 8px;
   color: var(--color-token-text-secondary);
-  font-size: var(--type-card-title);
-  font-weight: 600;
+  font-size: var(--type-section-title);
+  font-weight: var(--font-weight-heading);
 }
 
 .popover-review-turns {
@@ -1144,8 +1227,8 @@
   button {
     padding: 3px 8px;
     border: 1px solid var(--color-token-border);
-    border-radius: 6px;
-    background: var(--color-token-control-background);
+    border-radius: var(--radius-control);
+    background: var(--layer-raised-fill);
     color: var(--color-token-foreground);
     cursor: pointer;
   }
@@ -1205,12 +1288,16 @@
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-control);
   color: var(--color-token-text-secondary);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
     color: var(--color-token-foreground);
+  }
+
+  &:active {
+    background: var(--state-pressed-fill);
   }
 
   span {
@@ -1229,15 +1316,15 @@
 
   strong {
     color: var(--color-token-foreground);
-    font-size: 16px;
-    font-weight: 500;
-    line-height: 24px;
+    font-size: var(--type-panel-title);
+    font-weight: var(--font-weight-heading);
+    line-height: 1.4;
   }
 
   span {
     color: var(--color-token-text-secondary);
-    font-size: 12px;
-    line-height: 18px;
+    font-size: var(--type-secondary);
+    line-height: 1.5;
   }
 }
 
@@ -1297,21 +1384,21 @@
   .review-scope-trigger .review-sidebar-counts {
     margin-left: 6px;
     padding-left: 6px;
-    border-left: 1px solid var(--color-token-border-light);
+    border-left: var(--layer-edge);
   }
 
   .review-file-search-region {
     flex: 0 0 auto;
     padding: 12px 12px 8px;
-    background: var(--color-token-panel-background);
+    background: var(--layer-panel-fill);
   }
 
   .review-file-search {
     width: 100%;
     min-height: 32px;
-    border: 1px solid var(--color-token-border-light);
-    border-radius: 8px;
-    background: var(--color-token-control-background);
+    border: var(--layer-edge);
+    border-radius: var(--radius-row);
+    background: var(--layer-raised-fill);
   }
 
   .review-file-tree-scroll {
@@ -1335,6 +1422,7 @@
   }
 
   .review-file-tree-dir {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1352,10 +1440,17 @@
     font-weight: 500;
     text-align: left;
     cursor: pointer;
+    transition:
+      color var(--motion-micro) ease,
+      background-color var(--motion-micro) ease;
 
     &:hover {
-      background: var(--color-token-list-hover-background);
+      background: var(--state-hover-fill);
       color: var(--color-token-foreground);
+    }
+
+    &:active {
+      background: var(--state-pressed-fill);
     }
 
     svg {
@@ -1372,6 +1467,7 @@
   }
 
   .review-file-tree-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1388,10 +1484,21 @@
     font-size: var(--type-control);
     text-align: left;
     cursor: pointer;
+    transition:
+      color var(--motion-micro) ease,
+      background-color var(--motion-micro) ease;
 
-    &:hover,
+    &:hover {
+      background: var(--state-hover-fill);
+      color: var(--color-token-foreground);
+    }
+
+    &:active {
+      background: var(--state-pressed-fill);
+    }
+
     &.active {
-      background: var(--color-token-list-hover-background);
+      background: var(--state-selected-fill);
       color: var(--color-token-foreground);
     }
 
@@ -1423,7 +1530,7 @@
       content: "";
       width: 8px;
       height: 8px;
-      border-radius: 50%;
+      border-radius: var(--radius-pill);
       background: var(--color-token-editor-warning-foreground);
     }
   }
@@ -1468,13 +1575,14 @@
     gap: 15px;
     position: absolute;
     bottom: 10px;
-    background: var(--color-token-bg-secondary);
+    background: var(--layer-raised-fill);
     padding: 0 4px;
     left: 50%;
     transform: translateX(-50%);
-    border-radius: 20px;
+    border-radius: var(--radius-card);
     z-index: 10;
-    border: 1px solid var(--color-token-border-light);
+    border: var(--layer-edge);
+    box-shadow: none;
 
     button {
       display: inline-flex;
@@ -1510,6 +1618,17 @@
   }
 }
 
+.review-sidebar .review-file-tree-row.active::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 2px;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  background: var(--state-selected-rail);
+}
+
 /* --- Comment badge --- */
 .review-comment-badge {
   display: inline-flex;
@@ -1517,11 +1636,11 @@
   gap: 3px;
   flex: 0 0 auto;
   padding: 1px 6px;
-  border-radius: var(--radius-4);
-  background: var(--color-token-list-active-selection-background);
+  border-radius: var(--radius-pill);
+  background: var(--state-selected-fill);
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
-  font-weight: 600;
+  font-weight: var(--font-weight-heading);
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
 
@@ -1556,6 +1675,10 @@
   flex-direction: column;
   gap: 8px;
   padding: 8px;
+  border: var(--layer-edge-strong);
+  border-radius: var(--radius-floating);
+  background: var(--layer-floating-fill);
+  box-shadow: var(--shadow-floating);
   font-family: var(--font-family-sans);
 }
 
@@ -1563,9 +1686,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--type-card-title);
+  font-size: var(--type-section-title);
   color: var(--color-token-foreground);
-  font-weight: 600;
+  font-weight: var(--font-weight-heading);
 
   .review-popover-branch {
     display: inline-flex;
@@ -1610,7 +1733,7 @@
   width: var(--control-size-sm);
   height: var(--control-size-sm);
   border: 0;
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-token-text-tertiary);
   cursor: pointer;
@@ -1621,8 +1744,12 @@
   }
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
     color: var(--color-token-foreground);
+  }
+
+  &:active {
+    background: var(--state-pressed-fill);
   }
 }
 
@@ -1642,9 +1769,9 @@
 .review-popover-field input[type="text"] {
   width: 100%;
   padding: 5px 8px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-3);
-  background: var(--color-token-text-preformat-background);
+  border: var(--layer-edge);
+  border-radius: var(--radius-row);
+  background: var(--layer-canvas-fill);
   color: var(--color-token-foreground);
   font-family: var(--font-family-sans);
   font-size: var(--type-control);
@@ -1672,7 +1799,7 @@
   flex-direction: column;
   gap: 2px;
   padding-top: 4px;
-  border-top: 1px solid var(--color-token-border);
+  border-top: var(--layer-edge-strong);
 }
 
 .review-popover-action {
@@ -1683,7 +1810,7 @@
   width: 100%;
   padding: var(--menu-item-padding-block) var(--menu-item-padding-inline);
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-row);
   background: transparent;
   color: var(--color-token-foreground);
   font-family: inherit;
@@ -1691,10 +1818,26 @@
   line-height: var(--menu-line-height);
   text-align: left;
   cursor: pointer;
+  transition:
+    color var(--motion-micro) ease,
+    background-color var(--motion-micro) ease,
+    transform var(--motion-micro) ease;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
     color: var(--color-token-foreground);
+  }
+
+  &:active {
+    background: var(--state-pressed-fill);
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    background: transparent;
+    color: var(--color-token-text-tertiary);
+    cursor: default;
+    transform: none;
   }
 }
 

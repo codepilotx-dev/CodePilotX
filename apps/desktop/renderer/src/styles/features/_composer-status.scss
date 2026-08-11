@@ -24,11 +24,11 @@
   border: 0;
   cursor: pointer;
   padding: 2px;
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-control);
   color: var(--color-token-icon-foreground);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
   }
 }
 
@@ -71,7 +71,7 @@
   width: calc(var(--usage-ratio, 0) * 100%);
   border-radius: 3px;
   background: var(--color-token-text-link-foreground);
-  transition: width 0.2s ease;
+  transition: width var(--motion-panel) var(--ease-standard);
 }
 
 .composer-status-bar-meta {

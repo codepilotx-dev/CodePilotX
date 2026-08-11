@@ -13,7 +13,9 @@
 .rm-model-menu .rm-menu-item,
 .rm-model-menu .rm-sub-trigger {
   width: 100%;
+  min-width: 0;
   overflow: hidden;
+  box-shadow: none;
 }
 
 /* Menu layout belongs to the menu surface, not the item primitive. */
@@ -102,4 +104,14 @@
 .rm-model-menu .rm-sub-trigger {
   display: flex;
   gap: var(--menu-item-gap);
+}
+
+.popover-item-label,
+.sidebar-context-menu-label,
+.settings-dropdown-item > span,
+.permission-select-item > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

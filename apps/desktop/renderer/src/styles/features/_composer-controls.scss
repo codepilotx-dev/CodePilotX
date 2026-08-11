@@ -1,17 +1,14 @@
 /* --- Permission chip --- */
 .chip-button.permission-chip {
-  --composer-permission-chip-open-bg: var(
-    --color-token-list-hover-background
-  );
+  --composer-permission-chip-open-bg: var(--state-selected-fill);
 
   border: 1px solid var(--composer-permission-chip-border, transparent);
   background: var(--composer-permission-chip-bg, transparent);
   color: var(--composer-permission-chip-color, var(--color-token-description-foreground));
   transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
+    background var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard);
 }
 
 .chip-button.permission-chip:hover,
@@ -85,7 +82,7 @@
   position: relative;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
     color: var(--color-token-text-link-foreground);
   }
 
@@ -95,7 +92,7 @@
   }
 
   &.active:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--color-token-list-active-selection-background);
   }
 }
 
@@ -114,14 +111,14 @@
   position: absolute;
   inset: 0;
   margin: auto;
-  transition: opacity 0.12s ease-out;
+  transition: opacity var(--motion-state) var(--ease-out);
 }
 
 .composer-plan-mode-chip-icon-exit {
   width: var(--app-icon-size);
   height: var(--app-icon-size);
   padding: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, currentColor 18%, transparent);
   opacity: 0;
 }
@@ -238,7 +235,7 @@
   height: 100%;
   display: inline-block;
   position: relative;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: conic-gradient(
     var(--color-token-text-secondary) calc(var(--context-usage-progress, 0) * 1%),
     color-mix(in srgb, var(--color-token-text-secondary) 20%, transparent)
@@ -250,7 +247,7 @@
     content: "";
     position: absolute;
     inset: 2px;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-pill);
     background: var(--color-token-main-surface-primary);
   }
 }
@@ -288,8 +285,8 @@
   opacity: 0;
   pointer-events: none;
   transition:
-    opacity 0.12s ease-out,
-    transform 0.12s ease-out;
+    opacity var(--motion-state) var(--ease-out),
+    transform var(--motion-state) var(--ease-out);
 
   strong {
     color: var(--color-token-foreground);
@@ -338,10 +335,10 @@
   display: flex;
   gap: 6px;
   padding: 6px;
-  background: var(--color-token-main-surface-primary);
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-5);
-  box-shadow: var(--shadow-raised);
+  background: var(--layer-floating-fill);
+  border: var(--layer-edge);
+  border-radius: var(--radius-floating);
+  box-shadow: var(--shadow-floating);
   z-index: var(--z-popover);
 }
 
@@ -352,13 +349,13 @@
   padding: 8px 14px;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
   cursor: pointer;
   font-size: var(--type-control);
   color: var(--color-token-description-foreground);
   transition:
-    background 0.15s,
-    color 0.15s;
+    background var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard);
 
   &:hover {
     background: var(--color-token-list-hover-background);
@@ -396,23 +393,23 @@
   }
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion="on"] :is(
   .composer-card,
+  .composer-frame,
   .composer-input,
   .context-usage-popover,
   .composer-mode-switch-thumb,
   .composer-plan-mode-chip-icon-plan,
-  .composer-plan-mode-chip-icon-exit {
-    transition: none;
-  }
+  .composer-plan-mode-chip-icon-exit
+) {
+  transition: none;
+}
 
-  .composer-chip-spinner {
-    animation: none;
-  }
-
-  .composer-utility-bar {
-    animation: none;
-  }
+:root[data-reduce-motion="on"] :is(
+  .composer-chip-spinner,
+  .composer-utility-bar
+) {
+  animation: none;
 }
 
 /* --- Chat input dropdown --- */
@@ -562,7 +559,7 @@
   width: 100%;
   min-width: 0;
   container-type: inline-size;
-  transition: height var(--motion-emphasis) var(--ease-standard);
+  transition: height var(--motion-layout) var(--ease-standard);
 
   > .composer-stack,
   > .composer-stack > .composer {

@@ -126,13 +126,13 @@ export function SkillDetailsDialog({
                 </p>
               ) : error ? (
                 <div
-                  className="tw:rounded-lg tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-sm tw:text-app-danger"
+                  className="tw:rounded-md tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-sm tw:text-app-danger"
                   role="alert"
                 >
                   {error}
                 </div>
               ) : (
-                <pre className="tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:font-mono tw:text-sm tw:leading-6 tw:text-app-text">
+                <pre className="tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:font-mono tw:text-sm tw:leading-6 tw:text-app-text">
                   {content}
                 </pre>
               )}

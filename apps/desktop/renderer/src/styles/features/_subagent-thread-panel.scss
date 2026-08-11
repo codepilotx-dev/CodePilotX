@@ -4,7 +4,7 @@
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  background: var(--color-token-panel-background);
+  background: var(--layer-panel-fill);
   color: var(--color-token-foreground);
   container-type: inline-size;
 }
@@ -17,7 +17,7 @@
   gap: var(--space-3);
   padding: 10px 14px;
   border-bottom: 1px solid var(--color-token-border-light);
-  background: var(--color-token-bg-secondary);
+  background: var(--layer-raised-fill);
 }
 
 .subagent-thread-panel__identity,
@@ -49,7 +49,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-pill);
   background: var(--color-token-editor-widget-background);
   color: var(--color-token-foreground);
 }
@@ -75,7 +75,7 @@
   gap: 4px;
   padding: 2px 6px;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-3);
+  border-radius: var(--radius-pill);
   background: var(--color-token-text-preformat-background);
   color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
@@ -102,12 +102,12 @@
   justify-content: center;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-token-icon-foreground);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
     color: var(--color-token-foreground);
   }
 
@@ -148,7 +148,7 @@
 .subagent-thread-panel__error {
   gap: 7px;
   padding: 8px 10px;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   font-size: var(--type-secondary);
 }
 
@@ -182,8 +182,8 @@
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
-  background: var(--color-token-bg-secondary);
+  border-radius: var(--radius-card);
+  background: var(--layer-raised-fill);
 }
 
 .subagent-thread-row--question > header {
@@ -219,7 +219,7 @@
     gap: 8px;
     padding: 8px;
     border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-row);
     cursor: pointer;
 
     &:has(input:checked) {
@@ -256,7 +256,7 @@
   resize: vertical;
   padding: 8px 9px;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-input);
   outline: none;
   background: var(--color-token-control-background);
   color: var(--color-token-foreground);
@@ -315,7 +315,7 @@
   margin: 0;
   overflow: auto;
   padding: 9px;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   background: var(--color-token-text-preformat-background);
   font-family: var(--font-family-mono);
   font-size: var(--type-code);
@@ -353,7 +353,7 @@
 }
 
 .subagent-thread-panel .is-spinning {
-  animation: subagent-thread-spin 900ms linear infinite;
+  animation: subagent-thread-spin var(--motion-loading) linear infinite;
 }
 
 @keyframes subagent-thread-spin {

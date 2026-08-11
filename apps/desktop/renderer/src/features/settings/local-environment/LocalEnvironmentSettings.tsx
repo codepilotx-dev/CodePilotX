@@ -182,7 +182,7 @@ function EnvironmentVariable({
   return (
     <div className="tw:grid tw:gap-1">
       <span className="tw:text-xs tw:text-app-text-soft">{description}</span>
-      <code className="tw:rounded-md tw:bg-app-canvas tw:px-2 tw:py-1 tw:font-mono tw:text-xs">
+      <code className="tw:rounded-xs tw:bg-app-canvas tw:px-2 tw:py-1 tw:font-mono tw:text-xs">
         {name}
       </code>
     </div>

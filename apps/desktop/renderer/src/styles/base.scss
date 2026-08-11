@@ -36,7 +36,7 @@ body {
   left: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-3);
+  border-radius: var(--radius-row);
   background: var(--color-token-main-surface-primary);
   color: var(--color-token-foreground);
   text-decoration: none;
@@ -59,7 +59,7 @@ body {
 
 *::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--color-token-scrollbar-slider-background);
   background-clip: padding-box;
 }
@@ -122,7 +122,7 @@ input,
 textarea {
   min-width: 0;
   border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-3);
+  border-radius: var(--radius-control);
   background: var(--color-token-main-surface-primary);
   color: var(--color-token-foreground);
   outline: none;
@@ -210,6 +210,12 @@ p {
 }
 
 :root[data-reduce-motion="on"] {
+  --motion-instant: 0ms;
+  --motion-micro: 1ms;
+  --motion-state: 1ms;
+  --motion-panel: 1ms;
+  --motion-layout: 1ms;
+  --motion-loading: 1ms;
   --motion-fast: 1ms;
   --motion-standard: 1ms;
   --motion-emphasis: 1ms;
@@ -225,4 +231,27 @@ p {
   animation-iteration-count: 1 !important;
   scroll-behavior: auto !important;
   transition-duration: 1ms !important;
+}
+
+@media (forced-colors: active) {
+  :root {
+    --layer-underlay-fill: Canvas;
+    --layer-canvas-fill: Canvas;
+    --layer-panel-fill: Canvas;
+    --layer-raised-fill: Canvas;
+    --layer-floating-fill: Canvas;
+    --layer-raised-filter: none;
+    --layer-floating-filter: none;
+    --layer-edge: 1px solid CanvasText;
+    --layer-edge-strong: 1px solid CanvasText;
+    --layer-edge-highlight: none;
+    --state-hover-fill: Highlight;
+    --state-pressed-fill: Highlight;
+    --state-selected-fill: Highlight;
+    --state-selected-rail: Highlight;
+    --shadow-floating: none;
+    --shadow-float: none;
+    --shadow-glass-raised: none;
+    --shadow-glass-floating: none;
+  }
 }

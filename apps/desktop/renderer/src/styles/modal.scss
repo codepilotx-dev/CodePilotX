@@ -6,31 +6,50 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
-  background: color-mix(in srgb, var(--color-token-foreground) 1%, transparent);
-}
-
-.permission-modal {
-  border: 1px solid var(--color-token-border);
-  background: var(--color-token-elevated-background);
-  box-shadow: var(--shadow-float);
+  background: color-mix(in srgb, var(--color-token-foreground) 14%, transparent);
 }
 
 .permission-modal,
 .github-repository-modal,
 .git-workflow-modal {
-  border-color: var(--color-token-border-light);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-float);
+  border-radius: var(--radius-floating);
 }
 
-.github-repository-modal,
-.git-workflow-modal {
-  border-radius: var(--radius-panel);
+:is(
+  .permission-modal,
+  .github-repository-modal,
+  .git-workflow-modal,
+  .command-menu-dialog,
+  .project-edit-dialog,
+  .model-center-key-dialog,
+  .plugin-details-dialog,
+  .whats-new-dialog
+)[data-state="open"] {
+  animation: radix-floating-surface-in var(--motion-enter) var(--ease-out);
+}
+
+:is(
+  .permission-modal,
+  .github-repository-modal,
+  .git-workflow-modal,
+  .command-menu-dialog,
+  .project-edit-dialog,
+  .model-center-key-dialog,
+  .plugin-details-dialog,
+  .whats-new-dialog
+)[data-state="closed"] {
+  animation: radix-floating-surface-out var(--motion-exit) var(--ease-in);
+}
+
+@media (forced-colors: active) {
+  .permission-modal-backdrop {
+    background: color-mix(in srgb, CanvasText 18%, transparent);
+  }
 }
 
 .permission-modal header span {
   padding: 5px 10px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: var(--color-token-text-preformat-background);
   color: var(--color-token-text-secondary);
 }
@@ -44,12 +63,12 @@
     padding: var(--control-padding-block)
       var(--control-padding-inline);
     border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
     background: var(--color-token-control-background);
     line-height: var(--control-line-height);
 
     &:hover {
-      background: var(--color-token-list-hover-background);
+      background: var(--state-hover-fill);
     }
   }
 }
@@ -66,10 +85,10 @@
 }
 
 .archive-session-toast {
-  border-color: var(--color-token-border-light);
-  border-radius: var(--radius-card);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-float);
+  border: var(--layer-edge);
+  border-radius: var(--radius-floating);
+  background: var(--layer-floating-fill);
+  box-shadow: var(--shadow-floating);
 }
 
 .global-error-toast-scroll-content {
@@ -94,7 +113,7 @@
     justify-content: center;
     padding: 0;
     border: 0;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--color-token-text-secondary);
     font-size: var(--app-icon-size);
@@ -149,13 +168,13 @@
   justify-content: center;
   margin-left: 2px;
   padding: 0;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   color: var(--color-token-text-secondary);
   line-height: 1;
 
   &:hover {
     color: var(--color-token-foreground);
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
   }
 }
 
@@ -165,7 +184,7 @@
     display: block;
     min-width: max-content;
     padding: var(--space-3);
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-card);
     background: var(--color-token-text-preformat-background);
     font-family: var(--font-family-mono);
     font-size: var(--type-code);
@@ -191,7 +210,7 @@
     width: 100%;
     padding: 0.57em var(--control-padding-inline);
     border: 1px solid var(--color-token-border);
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-input);
     background: var(--color-token-control-background);
     color: var(--color-token-foreground);
     font: inherit;
@@ -209,7 +228,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   background: var(--color-token-text-preformat-background);
 }
 
@@ -234,7 +253,7 @@
     padding: var(--control-padding-block-compact)
       var(--control-padding-inline-compact);
     border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-button);
     background: var(--color-token-control-background);
     line-height: var(--control-line-height);
   }
@@ -267,7 +286,7 @@
 .git-workflow-error {
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--color-token-error-foreground) 40%, transparent);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--color-token-error-foreground) 10%, transparent);
   color: var(--color-token-error-foreground);
   font-size: var(--type-secondary);
@@ -285,7 +304,7 @@
   gap: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   background: var(--color-token-text-preformat-background);
 }
 
@@ -313,7 +332,7 @@
   padding: var(--control-padding-block)
     var(--control-padding-inline);
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-input);
   background: var(--color-token-control-background);
 
   input {
@@ -334,7 +353,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-card);
   background: var(--color-token-control-background);
 }
 
@@ -390,7 +409,7 @@
     align-items: center;
     padding: 0.2em 0.58em;
     border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-6);
+    border-radius: var(--radius-pill);
     color: var(--color-token-text-secondary);
     font-size: var(--type-caption);
     flex-shrink: 0;

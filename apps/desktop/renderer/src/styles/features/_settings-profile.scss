@@ -7,7 +7,7 @@
   min-height: 100%;
   padding: 48px var(--layout-page-pad-x)
     var(--layout-page-pad-bottom);
-  background-color: var(--color-token-main-surface-primary);
+  background-color: var(--layer-canvas-fill);
 }
 
 .profile-dashboard-header {
@@ -42,7 +42,7 @@
   min-height: 28px;
   padding: 0 8px;
   border: 0;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
   background-color: transparent;
   color: var(--color-token-foreground);
   font-size: var(--type-control);
@@ -50,7 +50,7 @@
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background-color: var(--color-token-list-hover-background);
+    background-color: var(--state-hover-fill);
   }
 
   &:focus-visible {
@@ -83,7 +83,7 @@
     width: 100%;
     padding-inline: var(--space-2);
     overflow: hidden;
-    font-size: 24px;
+    font-size: var(--type-page-title);
     line-height: 32px;
     font-weight: 400;
     letter-spacing: 0.003em;
@@ -135,13 +135,13 @@
   justify-content: center;
   width: 30px;
   height: 30px;
-  border: 3px solid var(--color-token-main-surface-primary);
+  border: 3px solid var(--layer-canvas-fill);
   border-radius: 50%;
-  background-color: var(--color-token-bg-secondary);
+  background-color: var(--layer-raised-fill);
   color: var(--color-token-foreground);
   font-size: var(--app-icon-size-md);
   cursor: pointer;
-  box-shadow: var(--shadow-resting);
+  box-shadow: none;
 
   &:focus-visible {
     outline: 1px solid var(--color-token-focus-border);
@@ -165,7 +165,7 @@
     height: 24px;
     padding: 1px 6px;
     border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
     font-size: var(--type-caption);
     line-height: 20px;
   }
@@ -192,7 +192,7 @@
   margin-top: 10px;
   padding: 6px 10px;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
 
@@ -233,9 +233,10 @@
   max-width: 732px;
   min-height: 60px;
   margin: 40px auto 0;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: 16px;
-  background-color: transparent;
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
+  background-color: var(--layer-panel-fill);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -416,7 +417,7 @@
   }
 
   &:focus-visible {
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
     outline: 1px solid var(--color-token-focus-border);
     outline-offset: 2px;
   }
@@ -457,8 +458,10 @@
   max-width: 520px;
   margin: 40px auto 0;
   padding: 40px 24px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: 16px;
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
+  background: var(--layer-panel-fill);
+  box-shadow: none;
   text-align: center;
   color: var(--color-token-text-secondary);
 }
@@ -502,20 +505,21 @@
 .profile-loading-name {
   width: 144px;
   height: 32px;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
 }
 
 .profile-loading-identity {
   width: 104px;
   height: 20px;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
 }
 
 .profile-loading-stats {
   display: flex;
   min-height: 60px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: 16px;
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
+  background: var(--layer-panel-fill);
   overflow: hidden;
 
   > div {
@@ -536,13 +540,13 @@
   .ui-skeleton-block:first-child {
     width: 42px;
     height: 18px;
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
   }
 
   .ui-skeleton-block:last-child {
     width: 62px;
     height: 14px;
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
   }
 }
 
@@ -555,7 +559,7 @@
 .profile-loading-heading {
   width: 92px;
   height: 20px;
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-control);
 }
 
 .profile-loading-contributions {
@@ -566,7 +570,7 @@
   .ui-skeleton-block {
     width: 100%;
     aspect-ratio: 1;
-    border-radius: 4px;
+    border-radius: var(--radius-control);
   }
 }
 
@@ -584,7 +588,7 @@
   .ui-skeleton-block {
     width: 100%;
     height: 20px;
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
   }
 }
 
@@ -682,8 +686,8 @@
 .profile-status-field input {
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-4);
-  background-color: var(--color-token-main-surface-primary);
+  border-radius: var(--radius-control);
+  background-color: var(--layer-canvas-fill);
   color: var(--color-token-foreground);
   font-size: var(--type-control);
   line-height: var(--control-line-height);
@@ -694,7 +698,7 @@
   height: 32px;
   min-height: 32px;
   padding: var(--control-padding-block) var(--control-padding-inline);
-  background-color: var(--color-token-main-surface-primary);
+  background-color: var(--layer-canvas-fill);
 }
 
 .profile-status-checkbox {
@@ -722,13 +726,13 @@
   gap: var(--space-4);
   padding: 14px var(--space-4);
   border-bottom: 1px solid var(--color-token-border-light);
-  background-color: var(--color-token-bg-secondary);
+  background-color: var(--layer-raised-fill);
 
   &.compact {
     margin-top: var(--space-3);
     padding: 12px;
     border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-4);
+    border-radius: var(--radius-control);
   }
 
   p {
@@ -768,28 +772,31 @@
 }
 
 .radio-card {
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel);
+  border: var(--layer-edge);
+  border-radius: var(--radius-card);
   padding: var(--space-4);
   cursor: pointer;
   position: relative;
   transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-resting);
+    background var(--motion-state) var(--ease-standard),
+    border-color var(--motion-state) var(--ease-standard),
+    box-shadow var(--motion-state) var(--ease-standard);
+  background: var(--layer-raised-fill);
+  box-shadow: none;
   display: flex;
   gap: var(--space-3);
   align-items: center;
 
   &:hover {
     border-color: var(--color-token-border-light);
-    background: var(--color-token-list-hover-background);
+    background: var(--state-hover-fill);
   }
 
-  &.active {
-    box-shadow: var(--shadow-raised);
+  &.active,
+  &[data-state='checked'] {
+    border-color: var(--state-selected-rail);
+    background: var(--state-selected-fill);
+    box-shadow: inset 2px 0 0 var(--state-selected-rail);
   }
 
   &-icon {
@@ -827,14 +834,14 @@
 .radio-indicator {
   width: 16px;
   height: 16px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   border: 1.5px solid var(--color-token-border);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   margin-top: 1px;
-  background-color: var(--color-token-main-surface-primary);
+  background-color: var(--layer-canvas-fill);
 }
 
 .radio-card[data-state='checked'] .radio-indicator {
@@ -844,13 +851,13 @@
 .radio-indicator-inner {
   width: 8px;
   height: 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background-color: var(--color-token-foreground);
   opacity: 0;
   transform: scale(0.5);
   transition:
-    opacity 0.15s ease,
-    transform 0.15s ease;
+    opacity var(--motion-state) var(--ease-out),
+    transform var(--motion-state) var(--ease-out);
 }
 
 .radio-card[data-state='checked'] .radio-indicator-inner {
@@ -861,7 +868,7 @@
 .settings-open-target-icon {
   width: var(--app-icon-size);
   height: var(--app-icon-size);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-control);
   flex-shrink: 0;
   object-fit: contain;
 }

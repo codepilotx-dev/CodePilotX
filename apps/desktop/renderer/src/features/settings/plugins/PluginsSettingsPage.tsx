@@ -613,7 +613,7 @@ export function PluginsSettingsPage({
 
         {tabError ? (
           <div
-            className="tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-sm tw:text-app-danger"
+            className="tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-md tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-sm tw:text-app-danger"
             role="alert"
           >
             <span>{tabError}</span>
@@ -827,7 +827,7 @@ function LoadingRows(): React.ReactNode {
       {[0, 1, 2, 3].map(index => (
         <div
           aria-hidden="true"
-          className="tw:h-20 tw:animate-pulse tw:rounded-xl tw:bg-app-panel tw:motion-reduce:animate-none"
+          className="tw:h-20 tw:animate-pulse tw:rounded-md tw:bg-app-panel tw:motion-reduce:animate-none"
           key={index}
         />
       ))}
@@ -837,7 +837,7 @@ function LoadingRows(): React.ReactNode {
 
 function EmptyState({ label }: { label: string }): React.ReactNode {
   return (
-    <div className="tw:grid tw:min-h-48 tw:place-items-center tw:rounded-xl tw:border tw:border-dashed tw:border-app-border tw:px-6 tw:text-center tw:text-sm tw:text-app-text-soft">
+    <div className="tw:grid tw:min-h-48 tw:place-items-center tw:rounded-md tw:border tw:border-dashed tw:border-app-border tw:px-6 tw:text-center tw:text-sm tw:text-app-text-soft">
       <span className="tw:grid tw:justify-items-center tw:gap-3">
         <Package
           aria-hidden="true"

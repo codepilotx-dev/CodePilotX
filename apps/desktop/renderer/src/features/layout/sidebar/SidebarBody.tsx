@@ -1087,7 +1087,7 @@ function SidebarSection({
   return (
     <section className="sidebar-section tw:grid tw:gap-1">
       <div
-        className="sidebar-section-header tw:rounded-md tw:px-2 tw:py-1.25 tw:text-sm"
+        className="sidebar-section-header tw:rounded-sm tw:px-2 tw:py-1.25 tw:text-sm"
       >
         <h2 className="sidebar-section-title">
           <button

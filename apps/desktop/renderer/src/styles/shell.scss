@@ -6,7 +6,7 @@
 .desktop-frame {
   display: flex;
   flex-direction: column;
-  background: var(--color-token-main-surface-primary);
+  background: var(--layer-underlay-fill);
 }
 
 .app-shell {
@@ -16,7 +16,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--color-token-bg-appshot);
+  background: var(--layer-underlay-fill);
+}
+
+.desktop-menubar {
+  background: var(--layer-underlay-fill);
 }
 
 .app-body {
@@ -25,5 +29,10 @@
   min-height: 0;
   display: flex;
   overflow: hidden;
-  background: var(--color-token-main-surface-primary);
+  background: var(--layer-underlay-fill);
+}
+
+.desktop-main,
+.desktop-main-stage {
+  background: var(--layer-canvas-fill);
 }
