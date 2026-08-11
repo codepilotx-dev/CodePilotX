@@ -225,6 +225,44 @@ for (const mode of VISUAL_MODES) {
       mode,
       page.getByRole('heading', { name: '外观' }),
     )
+
+    const selectedThemeVisual = page.locator(
+      '.appearance-mode-card[data-state="checked"] .appearance-mode-visual',
+    )
+    await expect(selectedThemeVisual).toHaveCSS('border-top-width', '2px')
+    await expect(selectedThemeVisual).toHaveCSS('box-shadow', 'none')
+
+    const diffMarkerGroup = page.getByRole('group', { name: '差异标记选项' })
+    await expect(diffMarkerGroup).toHaveAttribute('data-variant', 'inset')
+    const diffMarkerChrome = await diffMarkerGroup.evaluate(element => {
+      const style = getComputedStyle(element)
+      return {
+        backgroundColor: style.backgroundColor,
+        paddingTop: style.paddingTop,
+      }
+    })
+    expect(diffMarkerChrome.paddingTop).toBe('2px')
+    expect(diffMarkerChrome.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+
+    const selectedDiffMarker = diffMarkerGroup.locator(
+      '.segmented-control-item[aria-pressed="true"]',
+    )
+    await expect(selectedDiffMarker).toHaveCSS('border-radius', '8px')
+    await expect
+      .poll(() =>
+        selectedDiffMarker.evaluate(element => getComputedStyle(element).boxShadow),
+      )
+      .not.toBe('none')
+
+    const pointerSwitchThumb = page
+      .getByRole('switch', { name: '使用指针光标' })
+      .locator('.toggle-knob')
+    await expect
+      .poll(() =>
+        pointerSwitchThumb.evaluate(element => getComputedStyle(element).boxShadow),
+      )
+      .not.toBe('none')
+
     await expect(page.locator('body')).toHaveScreenshot(
       `settings-appearance-${mode}-960x640.png`,
       {

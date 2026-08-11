@@ -61,12 +61,22 @@ describe('fixed Codex UI themes', () => {
     expect(normalizedStylesheet).toContain(
       `--font-family-sans: ${DEFAULT_UI_FONT};`,
     )
-    expect(normalizedStylesheet).toContain('--font-weight-body: 400;')
+    expect(normalizedStylesheet).toContain('--font-weight-body: 445;')
     expect(normalizedStylesheet).toContain('--font-weight-label: 500;')
-    expect(normalizedStylesheet).toContain('--font-weight-heading: 600;')
+    expect(normalizedStylesheet).toContain('--font-weight-heading: 500;')
     expect(normalizedStylesheet).toContain('--font-weight-emphasis: 600;')
-    expect(normalizedStylesheet).not.toContain('--font-weight-body: 445;')
-    expect(normalizedStylesheet).not.toContain('--font-weight-heading: 560;')
+    expect(normalizedStylesheet).toContain(
+      '--type-line-body: calc(var(--font-size-ui) + 6px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--type-line-secondary: calc(var(--type-secondary) + 5px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--type-line-meta: calc(var(--type-meta) + 4px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--menu-detail-line-height: var(--type-line-meta);',
+    )
   })
 
   test('locks the Codex light and dark semantic surfaces', () => {

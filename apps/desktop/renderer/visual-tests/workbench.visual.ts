@@ -232,7 +232,7 @@ test('empty right dock matches Codex launcher', async ({ page }) => {
 })
 
 for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
-  test(`Markdown typography follows the Claude-like rhythm in ${visualCase.id}`, async ({
+  test(`Markdown typography follows the Codex-like rhythm in ${visualCase.id}`, async ({
     page,
   }) => {
     await page.setViewportSize({
@@ -351,7 +351,9 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
       }
 
       return {
+        bodyFontSize: body.fontSize,
         bodyFontWeight: body.fontWeight,
+        bodyLineHeight: body.lineHeight,
         bodyLineHeightRatio: px(body.lineHeight) / bodySize,
         codeBlockBorderRadius: codeBlock.borderTopLeftRadius,
         codeBlockMarginBottom: px(codeBlock.marginBottom),
@@ -368,12 +370,21 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         documentClientWidth: document.documentElement.clientWidth,
         documentScrollWidth: document.documentElement.scrollWidth,
         h1BorderBottomWidth: h1.borderBottomWidth,
+        h1FontSize: h1.fontSize,
         h1FontSizeRatio: px(h1.fontSize) / bodySize,
+        h1FontWeight: h1.fontWeight,
+        h1LineHeight: h1.lineHeight,
         h1PaddingBottom: px(h1.paddingBottom),
+        h2FontSize: h2.fontSize,
         h2FontSizeRatio: px(h2.fontSize) / bodySize,
+        h2FontWeight: h2.fontWeight,
+        h2LineHeight: h2.lineHeight,
         h2MarginBottomRatio: px(h2.marginBottom) / rootSize,
         h2MarginTopRatio: px(h2.marginTop) / rootSize,
+        h3FontSize: h3.fontSize,
         h3FontSizeRatio: px(h3.fontSize) / bodySize,
+        h3FontWeight: h3.fontWeight,
+        h3LineHeight: h3.lineHeight,
         inlineCodeBorderRadius: inlineCode.borderTopLeftRadius,
         inlineCodeBorderWidth: inlineCode.borderTopWidth,
         inlineCodeFontSizeRatio: px(inlineCode.fontSize) / bodySize,
@@ -438,27 +449,38 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
       }
     })
 
-    expect(metrics.bodyFontWeight).toBe('400')
-    expect(metrics.bodyLineHeightRatio).toBeCloseTo(1.62, 2)
-    expect(metrics.paragraphMarginRatio).toBeCloseTo(0.78, 2)
-    expect(metrics.h1FontSizeRatio).toBeCloseTo(1.84, 2)
+    expect(metrics.bodyFontSize).toBe('14px')
+    expect(metrics.bodyFontWeight).toBe('445')
+    expect(metrics.bodyLineHeight).toBe('20px')
+    expect(metrics.bodyLineHeightRatio).toBeCloseTo(20 / 14, 2)
+    expect(metrics.paragraphMarginRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.h1FontSize).toBe('24px')
+    expect(metrics.h1LineHeight).toBe('30px')
+    expect(metrics.h1FontWeight).toBe('500')
+    expect(metrics.h1FontSizeRatio).toBeCloseTo(24 / 14, 2)
     expect(metrics.h1BorderBottomWidth).toBe('0px')
     expect(metrics.h1PaddingBottom).toBe(0)
-    expect(metrics.h2FontSizeRatio).toBeCloseTo(1.48, 2)
-    expect(metrics.h2MarginTopRatio).toBeCloseTo(1.45, 2)
-    expect(metrics.h2MarginBottomRatio).toBeCloseTo(0.7, 2)
-    expect(metrics.h3FontSizeRatio).toBeCloseTo(1.24, 2)
+    expect(metrics.h2FontSize).toBe('18px')
+    expect(metrics.h2LineHeight).toBe('24px')
+    expect(metrics.h2FontWeight).toBe('500')
+    expect(metrics.h2FontSizeRatio).toBeCloseTo(18 / 14, 2)
+    expect(metrics.h2MarginTopRatio).toBeCloseTo(20 / 16, 2)
+    expect(metrics.h2MarginBottomRatio).toBeCloseTo(8 / 16, 2)
+    expect(metrics.h3FontSize).toBe('16px')
+    expect(metrics.h3LineHeight).toBe('22px')
+    expect(metrics.h3FontWeight).toBe('500')
+    expect(metrics.h3FontSizeRatio).toBeCloseTo(16 / 14, 2)
     expect(metrics.strongFontWeight).toBe('600')
     expect(metrics.listPaddingRatio).toBeCloseTo(1.45, 2)
     expect(metrics.listItemMarginTop).toBe(0)
     expect(metrics.listItemMarginBottom).toBe(0)
-    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(0.5, 2)
+    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(4 / 14, 2)
     expect(metrics.quoteBorderWidth).toBe('2px')
-    expect(metrics.quoteBorderRadius).toBe('16px')
+    expect(metrics.quoteBorderRadius).toBe('12px')
     expect(metrics.quotePaddingBlockRatio).toBeCloseTo(0.55, 2)
     expect(metrics.quotePaddingInlineRatio).toBeCloseTo(1, 2)
     expect(metrics.inlineCodeBorderWidth).toBe('1px')
-    expect(metrics.inlineCodeBorderRadius).toBe('9999px')
+    expect(metrics.inlineCodeBorderRadius).toBe('4px')
     expect(metrics.inlineCodeFontSizeRatio).toBeCloseTo(0.9, 2)
     expect(metrics.leadDescriptionChildCount).toBe(2)
     expect(metrics.leadDescriptionDirectBreakCount).toBe(0)
@@ -482,7 +504,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     )
     expect(metrics.tableFontSizeRatio).toBeCloseTo(0.93, 2)
     expect(metrics.tableBorderRightWidth).toBe('0px')
-    expect(metrics.tableHeadingFontWeight).toBe('600')
+    expect(metrics.tableHeadingFontWeight).toBe('500')
     expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(1.48, 2)
     expect(metrics.tableHeadingPaddingTop).toBe(12)
     const expectedTableInlinePadding =
@@ -1105,9 +1127,9 @@ test('right panel scales with its workspace and keeps a constrained manual overr
   })
   await expectCompactInteractiveRow(textDiffCheckbox, {
     borderRadius: '8px',
-    fontSize: '12px',
-    height: 27,
-    lineHeight: '17px',
+    fontSize: '14px',
+    height: 32,
+    lineHeight: '20px',
     paddingInline: '8px',
   })
   await textDiffCheckbox.click()
@@ -2535,7 +2557,7 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
     composerRowStyles.every(
       (row) =>
         row.borderRadius === '9999px' &&
-        row.fontSize === '12px' &&
+        row.fontSize === '14px' &&
         row.height === 28 &&
         row.lineHeight === '18px' &&
         row.paddingInline === '6px',
@@ -2587,6 +2609,48 @@ test('composer unified menu keeps the hovered command across rerenders', async (
     page.getByText('已完成工作台结构梳理。', { exact: true }),
   ).toBeVisible()
 
+  await expect(page.locator('body')).toHaveCSS('font-size', '14px')
+  await expect(page.locator('body')).toHaveCSS('font-weight', '445')
+  await expect(page.locator('body')).toHaveCSS('line-height', '20px')
+
+  const sidebarTypography = await page.evaluate(() => {
+    const row = document.createElement('div')
+    row.className = 'sidebar-session-row'
+    const sessionTitle = document.createElement('span')
+    sessionTitle.className = 'sidebar-session-title'
+    const projectTitle = document.createElement('span')
+    projectTitle.className = 'sidebar-project-title-text'
+    row.append(sessionTitle, projectTitle)
+    document.body.append(row)
+    const readSession = () => {
+      const style = getComputedStyle(sessionTitle)
+      return {
+        fontSize: style.fontSize,
+        fontWeight: style.fontWeight,
+        lineHeight: style.lineHeight,
+      }
+    }
+    const ordinary = readSession()
+    row.classList.add('active', 'selected')
+    const selected = readSession()
+    const projectFontWeight = getComputedStyle(projectTitle).fontWeight
+    row.remove()
+    return { ordinary, projectFontWeight, selected }
+  })
+  expect(sidebarTypography).toEqual({
+    ordinary: {
+      fontSize: '14px',
+      fontWeight: '445',
+      lineHeight: '20px',
+    },
+    projectFontWeight: '500',
+    selected: {
+      fontSize: '14px',
+      fontWeight: '445',
+      lineHeight: '20px',
+    },
+  })
+
   const composer = page.locator('.workflow-page__composer-inner')
   const editor = composer.locator(
     '.composer-editor-content[contenteditable="true"]',
@@ -2601,6 +2665,59 @@ test('composer unified menu keeps the hovered command across rerenders', async (
     .locator('.chat-input__dropdown-item')
     .filter({ hasText: /^模型/ })
   await expect(firstEnabledItem).toHaveClass(/is-keyboard-active/)
+
+  const menuTypography = await modelItem.evaluate((item) => {
+    const itemStyle = getComputedStyle(item)
+    const label = item.querySelector<HTMLElement>('.chat-input__dropdown-label')
+    const hint = item.querySelector<HTMLElement>('.chat-input__dropdown-hint')
+    if (!label || !hint) throw new Error('Missing Composer menu typography fixture')
+    const labelStyle = getComputedStyle(label)
+    const hintStyle = getComputedStyle(hint)
+    return {
+      hintFontSize: hintStyle.fontSize,
+      hintFontWeight: hintStyle.fontWeight,
+      hintLineHeight: hintStyle.lineHeight,
+      itemFontSize: itemStyle.fontSize,
+      itemFontWeight: labelStyle.fontWeight,
+      itemHeight: item.getBoundingClientRect().height,
+      itemLineHeight: itemStyle.lineHeight,
+    }
+  })
+  expect(menuTypography).toEqual({
+    hintFontSize: '12px',
+    hintFontWeight: '445',
+    hintLineHeight: '16px',
+    itemFontSize: '14px',
+    itemFontWeight: '445',
+    itemHeight: 32,
+    itemLineHeight: '20px',
+  })
+
+  const fontIndependentTypography = await modelItem.evaluate((item) => {
+    const root = document.documentElement
+    const read = () => {
+      const itemStyle = getComputedStyle(item)
+      const hint = item.querySelector<HTMLElement>('.chat-input__dropdown-hint')!
+      const hintStyle = getComputedStyle(hint)
+      return {
+        hintFontSize: hintStyle.fontSize,
+        hintFontWeight: hintStyle.fontWeight,
+        hintLineHeight: hintStyle.lineHeight,
+        itemFontSize: itemStyle.fontSize,
+        itemFontWeight: itemStyle.fontWeight,
+        itemLineHeight: itemStyle.lineHeight,
+      }
+    }
+    root.style.setProperty('--font-family-sans', 'Arial, sans-serif')
+    const proportional = read()
+    root.style.setProperty('--font-family-sans', '"JetBrains Mono", monospace')
+    const monospace = read()
+    root.style.removeProperty('--font-family-sans')
+    return { monospace, proportional }
+  })
+  expect(fontIndependentTypography.monospace).toEqual(
+    fontIndependentTypography.proportional,
+  )
 
   await modelItem.hover()
   await expect(modelItem).toHaveClass(/is-keyboard-active/)
@@ -2723,7 +2840,7 @@ for (const mode of MODES) {
         padding: style.padding,
       }
     })
-    expect(surfaceContract.itemHeight).toBeCloseTo(27, 0)
+    expect(surfaceContract.itemHeight).toBeCloseTo(32, 0)
     expect({
       backdropFilter: surfaceContract.backdropFilter,
       borderRadius: surfaceContract.borderRadius,
@@ -2739,8 +2856,8 @@ for (const mode of MODES) {
       borderRadius: '16px',
       borderTopWidth: '1px',
       itemBorderRadius: '8px',
-      itemFontSize: '12px',
-      itemLineHeight: '17px',
+      itemFontSize: '14px',
+      itemLineHeight: '20px',
       itemPaddingBlock: '5px',
       itemPaddingInline: '8px',
       padding: '4px',
@@ -3016,7 +3133,7 @@ test('settings shell search and appearance source contracts', async ({
       padding: style.padding,
     }
   })
-  expect(languageSurfaceStyles.itemHeight).toBeCloseTo(27, 0)
+  expect(languageSurfaceStyles.itemHeight).toBeCloseTo(32, 0)
   expect({
     backdropFilter: languageSurfaceStyles.backdropFilter,
     borderRadius: languageSurfaceStyles.borderRadius,
@@ -3026,8 +3143,8 @@ test('settings shell search and appearance source contracts', async ({
   }).toEqual({
     backdropFilter: 'none',
     borderRadius: '16px',
-    itemFontSize: '12px',
-    itemLineHeight: '17px',
+    itemFontSize: '14px',
+    itemLineHeight: '20px',
     padding: '4px',
   })
   await expect(page.getByRole('combobox', { name: '搜索语言' })).toBeVisible()
@@ -3306,7 +3423,7 @@ test('settings shell search and appearance source contracts', async ({
     galleryMaxWidth: 'none',
     innerMaxWidth: '768px',
     innerPadding: '20px',
-    cardRadius: '10px',
+    cardRadius: '12px',
   })
   expect(structure.cardRatio).toBeCloseTo(17 / 12, 2)
 
@@ -3383,11 +3500,11 @@ test('settings shell search and appearance source contracts', async ({
       paddingTop: style.paddingTop,
     }
   })
-  expect(groupChrome).toEqual({
-    backgroundColor: 'rgba(0, 0, 0, 0)',
+  expect(groupChrome).toMatchObject({
     borderTopWidth: '0px',
-    paddingTop: '0px',
+    paddingTop: '2px',
   })
+  expect(groupChrome.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
 
   const symbolButton = diffMarkerGroup.getByRole('button', { name: '+/-' })
   const colorButton = diffMarkerGroup.getByRole('button', { name: '颜色' })
@@ -3412,14 +3529,13 @@ test('settings shell search and appearance source contracts', async ({
       }
     }),
   ).resolves.toEqual({
-    borderRadius: '9999px',
+    borderRadius: '8px',
     fontSize: '13px',
     height: 24,
     lineHeight: '18px',
     paddingBlock: '2px',
     paddingInline: '8px',
   })
-
   const pointerSwitch = page.getByRole('switch', { name: '使用指针光标' })
   await pointerSwitch.click()
   await expect(pointerSwitch).toBeChecked()
@@ -3444,7 +3560,6 @@ test('settings shell search and appearance source contracts', async ({
     thumbSize: [16, 16],
     thumbUsesWhite: true,
   })
-
   await colorButton.click()
   await expect(colorButton).toHaveAttribute('aria-pressed', 'true')
   await expect(previewDiff).toHaveAttribute('data-indicators', 'bars')
@@ -3660,14 +3775,14 @@ async function openAndAssertReviewSourceMenu(
     menuRowStyles.every(
       (row) =>
         row.borderRadius === '8px' &&
-        row.fontSize === '12px' &&
-        row.lineHeight === '17px' &&
+        row.fontSize === '14px' &&
+        row.lineHeight === '20px' &&
         row.paddingBlock === '5px' &&
         row.paddingInline === '8px',
     ),
   ).toBe(true)
   expect(
-    menuRowStyles.every((row) => Math.abs(row.height - 27) < 0.5),
+    menuRowStyles.every((row) => Math.abs(row.height - 32) < 0.5),
   ).toBe(true)
   return menu
 }

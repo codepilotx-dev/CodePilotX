@@ -19,7 +19,8 @@ test('Radix dropdown stays anchored and uses a readable opaque surface', async (
   await waitForVisualPage(page, 'dark', trigger)
   const triggerBox = await trigger.boundingBox()
   expect(triggerBox).not.toBeNull()
-  await trigger.click()
+  await trigger.focus()
+  await page.keyboard.press('Enter')
 
   const content = page.locator('.popover[data-side]').first()
   await expect(content).toBeVisible()
@@ -48,10 +49,11 @@ test('Radix dropdown stays anchored and uses a readable opaque surface', async (
     }),
   ])
   expect(itemBox).not.toBeNull()
-  expect(itemBox!.height).toBeCloseTo(52, 0)
+  expect(itemBox!.height).toBeGreaterThanOrEqual(51.5)
+  expect(itemBox!.height).toBeLessThanOrEqual(53)
   expect(itemStyles.borderRadius).toBeCloseTo(8, 0)
-  expect(itemStyles.fontSize).toBeCloseTo(12, 1)
-  expect(itemStyles.lineHeight).toBeCloseTo(17, 1)
+  expect(itemStyles.fontSize).toBeCloseTo(14, 1)
+  expect(itemStyles.lineHeight).toBeCloseTo(20, 1)
   expect(itemStyles.paddingBlockStart).toBeCloseTo(6, 0)
   expect(itemStyles.paddingInlineStart).toBeCloseTo(8, 0)
   expect(scrollStyles.paddingBlockStart).toBeCloseTo(4, 1)
@@ -74,11 +76,15 @@ test('Radix dropdown stays anchored and uses a readable opaque surface', async (
   await page.keyboard.press('ArrowDown')
   const keyboardFocusedItem = content.locator('.popover-item:focus').first()
   await expect(keyboardFocusedItem).toBeVisible()
-  await expect(
-    keyboardFocusedItem.evaluate(
-      element => getComputedStyle(element).outlineStyle,
-    ),
-  ).resolves.toBe('solid')
+  const keyboardFocusStyle = await keyboardFocusedItem.evaluate(element => {
+    const style = getComputedStyle(element)
+    return {
+      boxShadow: style.boxShadow,
+      outlineStyle: style.outlineStyle,
+    }
+  })
+  expect(keyboardFocusStyle.outlineStyle).toBe('none')
+  expect(keyboardFocusStyle.boxShadow).not.toBe('none')
 
   const contentBox = await content.boundingBox()
   expect(contentBox).not.toBeNull()
@@ -192,10 +198,10 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   expect(contentBox).not.toBeNull()
   expect(contentBox!.width).toBeGreaterThanOrEqual(180)
   expect(firstItemBox).not.toBeNull()
-  expect(firstItemBox!.height).toBeCloseTo(27, 0)
+  expect(firstItemBox!.height).toBeCloseTo(32, 0)
   expect(firstItemStyles.borderRadius).toBeCloseTo(8, 0)
-  expect(firstItemStyles.fontSize).toBeCloseTo(12, 1)
-  expect(firstItemStyles.lineHeight).toBeCloseTo(17, 1)
+  expect(firstItemStyles.fontSize).toBeCloseTo(14, 1)
+  expect(firstItemStyles.lineHeight).toBeCloseTo(20, 1)
   expect(firstItemStyles.paddingBlockStart).toBeCloseTo(5, 0)
   expect(firstItemStyles.paddingInlineStart).toBeCloseTo(8, 0)
   await firstItem.hover()
