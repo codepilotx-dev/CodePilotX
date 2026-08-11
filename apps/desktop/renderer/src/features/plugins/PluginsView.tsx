@@ -687,3 +687,4 @@ export function PluginsView(): React.ReactNode {
     </section>
   )
 }
+import '../../styles/lazy/marketplace.scss'

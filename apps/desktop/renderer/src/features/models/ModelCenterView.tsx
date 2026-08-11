@@ -1,6 +1,8 @@
 import type React from 'react'
 import { useState } from 'react'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
+import '../../styles/lazy/model-center.scss'
+
 import { ModelCenterWorkbench } from './ModelCenterWorkbench.js'
 
 export function ModelCenterView(): React.ReactNode {
