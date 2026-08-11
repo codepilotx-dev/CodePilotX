@@ -7,8 +7,15 @@
 
 ## Unreleased
 
+### Added
+
+- [desktop/renderer] 新增历史消息与待发送图片、文本附件的右侧预览，支持图片缩放、按类型美化文本及安全下载到系统 Downloads 目录。
+- [desktop] 支持在主窗口按 F12 切换开发者工具控制台，并避免长按按键导致重复开关。
+
 ### Changed
 
+- [desktop] 将右侧面板默认宽度调整为 400px，同时保留用户已保存的拖拽宽度和窄窗口夹紧行为。
+- [Agent/session-view] 为主任务、侧边聊天和子 Agent 接通自动上下文压缩与单次 Provider 溢出恢复，并持久化可恢复、可投影的压缩检查点和统计。
 - [renderer] 统一线程摘要、下拉菜单、上下文菜单和 Popover 的轻量黑色阴影，提升浮层与背景之间的层次感
 - [renderer] 移除 Composer 外层堆栈的溢出裁剪，避免统一阴影和子面板边框被截断
 - [renderer] 统一 Composer 外层堆栈与输入面板的圆角，避免阴影出现方形边角
@@ -22,6 +29,13 @@
 
 ### Fixed
 
+- [desktop] 对齐 Codex 空右栏的启动项顺序、文案、图标与快捷键，在无标签时隐藏冗余加号，并修复侧边聊天入口、添加菜单与标签关闭交互。
+- [renderer] 修复新建会话复合 Composer 被全局外层阴影包围的问题，同时保留主线程和侧边聊天的输入框层次。
+- [desktop] 侧边聊天直接复用主工作区 Composer 的完整布局和样式，同时保持独立草稿、附件及 thread 路由。
+- [desktop] 修复侧边聊天 capability 未随 renderer 初始化握手声明的问题，避免 Agent 重启后入口可见但创建请求被拒绝。
+- [desktop] 对齐 Codex 侧边聊天的临时分叉会话、多标签、关闭销毁与独立时间线，避免侧聊消息写入主任务。
+- [renderer] 调整宽会话中对话导航轨的空间层级，以 48px 左侧导轨通道和 16px 右侧余量保持宽正文，并避免导轨贴附侧栏分隔线
+- [renderer] 修复宽会话布局使对话导航轨因旧空白门槛始终隐藏的问题，并将导轨收进现有正文 gutter
 - [renderer] 修复任务侧栏 Footer 覆盖滚动内容的问题，使设置与状态区域固定在独立布局空间并保证最后一项完整可见
 - [renderer] 优化工作台各类面板在高刷新率下的实时拖拽，消除会话逐像素重渲染、重复滚动测量和 Review 全量行高同步
 - [renderer] 修复 React StrictMode 重放导致 canonical 会话投影协调器提前停止、会话页无法加载的问题
@@ -29,6 +43,10 @@
 - [desktop] 修复 owned Agent sidecar 的旧 generation 晚回调、并发退出和残留进程可能污染重连的问题，增加实例身份校验及 shutdown、SIGTERM、进程树确认的严格退出链路
 - [desktop] 修复外观设置 IPC 只广播但未原子落盘，导致桌面重启后主题、字体、动效和指针偏好恢复默认值的问题
 - [renderer/test] 修复性能回归场景在侧栏与工作区同时显示同名会话标题时因全页严格文本定位产生歧义的问题，改用 canonical thread 标记确认当前会话完成切换
+
+### Removed
+
+- [desktop/renderer] 移除 Codex Labs 导航、页面及视觉原型，旧 `/labs` 地址改为显示现有 404 页面并不再打包相关代码和样式。
 
 ### Security
 
