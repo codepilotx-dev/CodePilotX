@@ -5,6 +5,7 @@ import {
   STABLE_SCREENSHOT_OPTIONS,
   V6_VISUAL_BASELINES_ENABLED,
   VISUAL_MODES,
+  closeTransientErrorToast,
   expectNoHorizontalOverflow,
   prepareVisualTheme,
   waitForVisualPage,
@@ -61,9 +62,9 @@ async function expectNewSessionComposerContract(page: Page): Promise<void> {
 
   expect(contract.stackBoxShadow).toBe('none')
   expect(contract.inputBorderWidth).not.toBe('0px')
-  expect(contract.inputBorderRadius).toBe('20px')
+  expect(contract.inputBorderRadius).toBe('16px')
   expect(contract.inputBackgroundColor).not.toBe('rgba(0, 0, 0, 0)')
-  expect(contract.utilityBorderTopWidth).not.toBe('0px')
+  expect(contract.utilityBorderTopWidth).toBe('0px')
   expect(contract.utilityBackgroundColor).not.toBe('rgba(0, 0, 0, 0)')
 }
 
@@ -77,6 +78,7 @@ for (const mode of VISUAL_MODES) {
       if (scenario.id === 'new') {
         await expectNewSessionComposerContract(page)
       }
+      await closeTransientErrorToast(page, 3_000)
       await expect(page.locator('body')).toHaveScreenshot(
         `formal-${scenario.id}-${mode}-1440x920.png`,
         STABLE_SCREENSHOT_OPTIONS,
@@ -98,6 +100,7 @@ for (const mode of VISUAL_MODES) {
       if (scenario.id === 'new') {
         await expectNewSessionComposerContract(page)
       }
+      await closeTransientErrorToast(page, 3_000)
       await expect(page.locator('body')).toHaveScreenshot(
         `formal-${scenario.id}-${mode}-960x640.png`,
         STABLE_SCREENSHOT_OPTIONS,

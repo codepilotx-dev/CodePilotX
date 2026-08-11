@@ -130,10 +130,9 @@ describe('fixed Codex UI themes', () => {
     expect(dark['--codex-base-on-accent']).toBe('#ffffff')
   })
 
-  test('uses the same restrained black elevation shadows in every theme', async () => {
-    const expectedRaised = '0 1px 3px -1px rgb(0 0 0 / 14%)'
-    const expectedFloat =
-      '0 8px 20px -8px rgb(0 0 0 / 28%), 0 2px 6px -3px rgb(0 0 0 / 18%)'
+  test('keeps resting surfaces flat and delegates floating elevation to the theme token', async () => {
+    const expectedRaised = 'none'
+    const expectedFloat = 'var(--shadow-floating)'
     const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
@@ -163,10 +162,8 @@ describe('fixed Codex UI themes', () => {
       `--shadow-float: ${expectedFloat};`,
     )
     expect(shadowDeclarations).toHaveLength(2)
-    expect(shadowDeclarations.join(' ')).not.toContain(
-      '--color-token-foreground',
-    )
-    expect(shadowDeclarations.join(' ')).not.toContain('color-mix')
+    expect(shadowDeclarations.join(' ')).toContain('--shadow-floating')
+    expect(shadowDeclarations.join(' ')).not.toContain('rgb(0 0 0')
   })
 
   test('uses the recovered Codex runtime formulas for Dracula', () => {

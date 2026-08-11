@@ -118,9 +118,17 @@ export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
 }
 
-export async function closeTransientErrorToast(page: Page): Promise<void> {
+export async function closeTransientErrorToast(
+  page: Page,
+  waitForMilliseconds = 0,
+): Promise<void> {
   const closeButton = page.getByRole('button', { name: '关闭错误提示' })
-  while (await closeButton.isVisible().catch(() => false)) {
-    await closeButton.click()
-  }
+  const deadline = Date.now() + waitForMilliseconds
+  do {
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click().catch(() => undefined)
+    }
+    if (Date.now() >= deadline) return
+    await page.waitForTimeout(100)
+  } while (true)
 }

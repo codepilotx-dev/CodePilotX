@@ -120,7 +120,7 @@ test('side chat matches the temporary multi-tab workbench flow', async ({
       .evaluate(element => getComputedStyle(element).boxShadow)
   const mainStackShadow = await readStackShadow(mainComposerDock)
   expect(await readStackShadow(sideComposerDock)).toBe(mainStackShadow)
-  expect(mainStackShadow).not.toBe('none')
+  expect(mainStackShadow).toBe('none')
 
   const readComposerStyles = async (composer: Locator) =>
     composer.locator('.composer-input-surface').evaluate(element => {
@@ -454,11 +454,11 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.listItemMarginBottom).toBe(0)
     expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(0.5, 2)
     expect(metrics.quoteBorderWidth).toBe('2px')
-    expect(metrics.quoteBorderRadius).toBe('10px')
+    expect(metrics.quoteBorderRadius).toBe('16px')
     expect(metrics.quotePaddingBlockRatio).toBeCloseTo(0.55, 2)
     expect(metrics.quotePaddingInlineRatio).toBeCloseTo(1, 2)
     expect(metrics.inlineCodeBorderWidth).toBe('1px')
-    expect(metrics.inlineCodeBorderRadius).toBe('999px')
+    expect(metrics.inlineCodeBorderRadius).toBe('9999px')
     expect(metrics.inlineCodeFontSizeRatio).toBeCloseTo(0.9, 2)
     expect(metrics.leadDescriptionChildCount).toBe(2)
     expect(metrics.leadDescriptionDirectBreakCount).toBe(0)
@@ -470,7 +470,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.normalSoftBreakLeadDescriptionCount).toBe(0)
     expect(metrics.codeBlockMarginTop).toBe(14)
     expect(metrics.codeBlockMarginBottom).toBe(18)
-    expect(metrics.codeBlockBorderRadius).toBe('8px')
+    expect(metrics.codeBlockBorderRadius).toBe('12px')
     expect(metrics.codePreLineHeightRatio).toBeCloseTo(1.55, 2)
     expect(metrics.codePrePaddingTopRatio).toBeCloseTo(0.9, 2)
     expect(metrics.codePrePaddingInlineRatio).toBeCloseTo(1, 2)
@@ -1104,7 +1104,7 @@ test('right panel scales with its workspace and keeps a constrained manual overr
     name: '文字差异',
   })
   await expectCompactInteractiveRow(textDiffCheckbox, {
-    borderRadius: '10px',
+    borderRadius: '8px',
     fontSize: '12px',
     height: 27,
     lineHeight: '17px',
@@ -1834,7 +1834,7 @@ test('wide workspace keeps the summary beside a 600px review panel', async ({
     })),
   )
   expect(summaryRowGeometry.every((row) => row.height >= 30)).toBe(true)
-  expect(summaryRowGeometry.every((row) => row.radius === '10px')).toBe(true)
+  expect(summaryRowGeometry.every((row) => row.radius === '8px')).toBe(true)
   expect(
     summaryRowGeometry.every((row) => row.paddingInline === '8px'),
   ).toBe(true)
@@ -1868,7 +1868,7 @@ test('wide workspace keeps the summary beside a 600px review panel', async ({
   expect(timelineBox.width).toBeGreaterThan(640)
   expect(composerBox.width).toBeCloseTo(timelineBox.width, 0)
   expect(composerBox.x).toBeCloseTo(timelineBox.x, 0)
-  expect(timelineBox.x - workflowMainBox.x).toBeCloseTo(32, 0)
+  expect(timelineBox.x - workflowMainBox.x).toBeCloseTo(48, 0)
   await expect(workflowMain).toHaveCSS('padding-right', '304px')
   expect(rightPanelBox.width).toBeCloseTo(600, 0)
   expect(
@@ -1933,25 +1933,19 @@ for (const mode of MODES) {
 
       return {
         header: getComputedStyle(header).backgroundColor,
-        output: resolveBackground(
-          shell,
-          '--color-token-text-preformat-background',
-        ),
+        panelSurface: resolveBackground(shell, '--layer-panel-fill'),
         panel: getComputedStyle(panel).backgroundColor,
-        summary: resolveBackground(
-          panel,
-          '--color-token-editor-widget-background',
-        ),
+        raisedSurface: resolveBackground(panel, '--layer-raised-fill'),
         shell: getComputedStyle(shell).backgroundColor,
       }
     })
 
     expect(surfaces).toEqual({
-      header: surfaces?.summary,
-      output: surfaces?.output,
-      panel: surfaces?.summary,
-      summary: surfaces?.summary,
-      shell: surfaces?.output,
+      header: 'rgba(0, 0, 0, 0)',
+      panelSurface: surfaces?.panelSurface,
+      panel: surfaces?.raisedSurface,
+      raisedSurface: surfaces?.raisedSurface,
+      shell: surfaces?.panelSurface,
     })
   })
 }
@@ -2413,7 +2407,7 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect(preview).toHaveCSS('padding', '8px')
   await expect(preview).toHaveCSS('font-size', '12px')
   await expect(preview).toHaveCSS('line-height', '20px')
-  await expect(preview).toHaveCSS('border-radius', '12px')
+  await expect(preview).toHaveCSS('border-radius', '16px')
   await expect(
     preview.locator('.preview-card-assistant-text'),
   ).toHaveCSS('-webkit-line-clamp', '3')
@@ -2504,11 +2498,11 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
   await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
   await expect(sidebar).not.toHaveClass(/is-drawer/)
   const primaryNavigationRow = page
-    .getByRole('navigation', { name: '主要导航' })
+    .getByRole('navigation', { name: '新建任务' })
     .getByRole('link', { name: '新建任务' })
   await expect(primaryNavigationRow).toBeVisible()
   await expectCompactInteractiveRow(primaryNavigationRow, {
-    borderRadius: '10px',
+    borderRadius: '8px',
     fontSize: '14px',
     height: 30,
     lineHeight: '20px',
@@ -2554,7 +2548,7 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
   await expect(sidebar).toHaveClass(/is-docked/)
 })
 
-test('composer utility controls restore the Codex hover overlay', async ({
+test('composer utility controls preserve hover and selected state hierarchy', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 920 })
@@ -2569,15 +2563,63 @@ test('composer utility controls restore the Codex hover overlay', async ({
     page.getByText('已完成工作台结构梳理。', { exact: true }),
   ).toBeVisible()
 
-  const rows = [
+  for (const row of [
     page.locator('.permission-select-trigger:visible'),
-    page.locator('.composer-plan-mode-chip:visible'),
     page.locator('.composer-model-chip:visible'),
-  ]
-  for (const row of rows) {
+  ]) {
     await expect(row).toBeVisible()
     await expectCodexHoverBackground(row)
   }
+
+  const selectedPlanMode = page.locator('.composer-plan-mode-chip.active:visible')
+  await expect(selectedPlanMode).toBeVisible()
+  await expectSelectedBackgroundOnHover(selectedPlanMode)
+})
+
+test('composer unified menu keeps the hovered command across rerenders', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/?visualCase=permission#/threads/visual-permission')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  const composer = page.locator('.workflow-page__composer-inner')
+  const editor = composer.locator(
+    '.composer-editor-content[contenteditable="true"]',
+  )
+  await composer.getByTitle('添加上下文').click()
+
+  const dropdown = composer.locator('.chat-input__dropdown:visible')
+  const firstEnabledItem = dropdown
+    .locator('.chat-input__dropdown-item:not(.is-disabled)')
+    .first()
+  const modelItem = dropdown
+    .locator('.chat-input__dropdown-item')
+    .filter({ hasText: /^模型/ })
+  await expect(firstEnabledItem).toHaveClass(/is-keyboard-active/)
+
+  await modelItem.hover()
+  await expect(modelItem).toHaveClass(/is-keyboard-active/)
+  await expect(firstEnabledItem).not.toHaveClass(/is-keyboard-active/)
+  await page.evaluate(
+    () =>
+      new Promise<void>(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      }),
+  )
+  await expect(modelItem).toHaveClass(/is-keyboard-active/)
+
+  const modelItemId = await modelItem.getAttribute('id')
+  expect(modelItemId).not.toBeNull()
+  await expect(editor).toHaveAttribute('aria-activedescendant', modelItemId!)
+
+  await modelItem.click()
+  await expect(dropdown).toHaveCount(0)
+  await expect(page.locator('.rm-model-menu:visible')).toBeVisible()
 })
 
 test('settings toolbar trigger restores the Codex hover overlay', async ({
@@ -2589,7 +2631,7 @@ test('settings toolbar trigger restores the Codex hover overlay', async ({
 
   const trigger = page.getByRole('combobox', { name: '默认打开目标' })
   await expectCompactInteractiveRow(trigger, {
-    borderRadius: '10px',
+    borderRadius: '8px',
     fontSize: '14px',
     height: 28,
     lineHeight: '18px',
@@ -2611,7 +2653,7 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   const settingsNavigationRow = page.locator('.settings-nav-item:visible').first()
   await expect(settingsNavigationRow).toBeVisible()
   await expectCompactInteractiveRow(settingsNavigationRow, {
-    borderRadius: '10px',
+    borderRadius: '8px',
     fontSize: '14px',
     height: 30,
     lineHeight: '20px',
@@ -2650,7 +2692,7 @@ for (const mode of MODES) {
     await expectCompactInteractiveRow(
       page.getByRole('combobox', { name: '默认打开目标' }),
       {
-        borderRadius: '10px',
+        borderRadius: '8px',
         fontSize: '14px',
         height: 28,
         lineHeight: '18px',
@@ -2694,9 +2736,9 @@ for (const mode of MODES) {
       padding: surfaceContract.padding,
     }).toEqual({
       backdropFilter: 'none',
-      borderRadius: '12px',
+      borderRadius: '16px',
       borderTopWidth: '1px',
-      itemBorderRadius: '10px',
+      itemBorderRadius: '8px',
       itemFontSize: '12px',
       itemLineHeight: '17px',
       itemPaddingBlock: '5px',
@@ -2943,7 +2985,7 @@ test('settings shell search and appearance source contracts', async ({
     }),
   ).resolves.toEqual({
     backgroundIsTransparent: true,
-    borderRadius: '10px',
+    borderRadius: '8px',
     colorMatchesForeground: true,
     fontSize: '14px',
     height: 28,
@@ -2983,7 +3025,7 @@ test('settings shell search and appearance source contracts', async ({
     padding: languageSurfaceStyles.padding,
   }).toEqual({
     backdropFilter: 'none',
-    borderRadius: '12px',
+    borderRadius: '16px',
     itemFontSize: '12px',
     itemLineHeight: '17px',
     padding: '4px',
@@ -3568,7 +3610,7 @@ async function openAndAssertReviewSourceMenu(
 ): Promise<Locator> {
   const trigger = rightPanel.getByRole('button', { name: '切换变更范围' })
   await expectCompactInteractiveRow(trigger, {
-    borderRadius: '10px',
+    borderRadius: '8px',
     fontSize: '14px',
     height: 28,
     lineHeight: '18px',
@@ -3617,7 +3659,7 @@ async function openAndAssertReviewSourceMenu(
   expect(
     menuRowStyles.every(
       (row) =>
-        row.borderRadius === '10px' &&
+        row.borderRadius === '8px' &&
         row.fontSize === '12px' &&
         row.lineHeight === '17px' &&
         row.paddingBlock === '5px' &&
@@ -3683,6 +3725,20 @@ async function expectCodexHoverBackground(row: Locator): Promise<void> {
     )
     .toBe(expected)
   expect(expected).not.toBe(before)
+}
+
+async function expectSelectedBackgroundOnHover(row: Locator): Promise<void> {
+  const expected = await row.evaluate((element) => {
+    const probe = document.createElement('span')
+    probe.style.background = 'var(--state-selected-fill)'
+    element.append(probe)
+    const background = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return background
+  })
+  await expect(row).toHaveCSS('background-color', expected)
+  await row.hover()
+  await expect(row).toHaveCSS('background-color', expected)
 }
 
 async function readReviewDiffComputedStyles(diff: Locator) {
