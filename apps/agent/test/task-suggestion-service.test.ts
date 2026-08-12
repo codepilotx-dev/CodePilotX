@@ -48,7 +48,32 @@ const localCandidates = [
   },
 ] as const
 
-const params = (projectId?: string): TaskSuggestionGenerateParams => ({
+const workingCandidates = [
+  {
+    id: "working:1",
+    categoryId: "create",
+    label: "创建项目交付物",
+    prompt: "Create the next project deliverable",
+  },
+  {
+    id: "working:2",
+    categoryId: "research",
+    label: "调研后续步骤",
+    prompt: "Research and plan the next steps",
+  },
+  {
+    id: "working:3",
+    categoryId: "automate",
+    label: "自动化重复工作",
+    prompt: "Automate the recurring work",
+  },
+] as const
+
+const params = (
+  projectId?: string,
+  surface?: TaskSuggestionGenerateParams["surface"],
+): TaskSuggestionGenerateParams => ({
+  ...(surface ? { surface } : {}),
   workspace: projectId
     ? { kind: "project", projectId }
     : { kind: "projectless" },
@@ -57,7 +82,9 @@ const params = (projectId?: string): TaskSuggestionGenerateParams => ({
     branchName: projectId ? "main" : null,
     git: null,
     recentTasks: [],
-    localCandidates: [...localCandidates],
+    localCandidates: surface === "working"
+      ? [...workingCandidates]
+      : [...localCandidates],
   },
 })
 
@@ -77,6 +104,31 @@ const generated: { suggestions: Array<Omit<TaskSuggestion, "id">> } = {
       categoryId: "codex-create",
       label: "继续构建功能",
       prompt: "Build the next useful feature",
+    },
+  ],
+}
+
+const workingGenerated: { suggestions: Array<Omit<TaskSuggestion, "id">> } = {
+  suggestions: [
+    {
+      categoryId: "create",
+      label: "整理项目交付物",
+      prompt: "整理 C:\\private\\project-plan.md 并输出可评审的项目计划",
+    },
+    {
+      categoryId: "research",
+      label: "规划后续步骤",
+      prompt: "调研最近会话与当前改动并规划后续步骤",
+    },
+    {
+      categoryId: "automate",
+      label: "自动化周报",
+      prompt: "自动汇总每周进展，api_key=sk-1234567890abcdefghijklmnop",
+    },
+    {
+      categoryId: "create",
+      label: "额外交付物",
+      prompt: "创建一份额外的项目交付清单",
     },
   ],
 }
@@ -107,7 +159,7 @@ describe("TaskSuggestionService", () => {
     memory.remember({
       scope: "project",
       projectKey: "project:key",
-      content: "项目使用 Bun。",
+      content: "项目使用 Bun，资料位于 C:\\private\\project-notes.md。",
     })
     const attemptedModels: string[] = []
     const model = { provider: "provider:test", id: "fast" } as PiModel<Api>
@@ -146,6 +198,8 @@ describe("TaskSuggestionService", () => {
     expect(second).toEqual(first)
     expect(prompts[0]).toContain("用户偏好简洁的变更")
     expect(prompts[0]).toContain("项目使用 Bun")
+    expect(prompts[0]).not.toContain("C:\\private")
+    expect(prompts[0]).toContain("<path>")
 
     memory.remember({
       scope: "project",
@@ -202,6 +256,88 @@ describe("TaskSuggestionService", () => {
     await service.generate(params())
     expect(prompt).toContain("用户记忆")
     expect(prompt).not.toContain("不应出现的项目记忆")
+    db.close()
+  })
+
+  test("isolates Working generation with its own prompt, categories, and three-result limit", async () => {
+    const { db, project, memory, logger } = await fixture()
+    db.setSetting("desktop.settings.v1", {
+      providerID: "provider:test",
+      smallFastModel: "fast",
+    })
+    const model = { provider: "provider:test", id: "fast" } as PiModel<Api>
+    const systems: string[] = []
+    const service = new TaskSuggestionService(
+      db,
+      {
+        pi: {},
+        getPiModel: async () => model,
+      } as unknown as Pick<PiModelService, "pi" | "getPiModel">,
+      memory,
+      logger,
+      {
+        generate: async input => {
+          systems.push(input.system)
+          return input.system.includes("Working") ? workingGenerated : generated
+        },
+      },
+      {
+        snapshot: () => ({
+          model_provider: "provider:test",
+          task_models: { small_fast: "fast" },
+        }),
+        read: async () => ({
+          config: {
+            model_provider: "provider:test",
+            task_models: { small_fast: "fast" },
+          },
+        }),
+      } as never,
+    )
+
+    const coding = await service.generate(params(project.id))
+    const working = await service.generate(params(project.id, "working"))
+    const cachedWorking = await service.generate(params(project.id, "working"))
+
+    expect(systems).toHaveLength(2)
+    expect(systems[0]).toContain("编码任务建议")
+    expect(systems[1]).toContain("恰好返回 3 条")
+    expect(systems[1]).toContain("不得把所有结果都描述成编码任务")
+    expect(working.contextKey).not.toBe(coding.contextKey)
+    expect(cachedWorking).toEqual(working)
+    expect(working.suggestions).toHaveLength(3)
+    expect(working.suggestions.map(item => item.categoryId)).toEqual([
+      "create",
+      "research",
+      "automate",
+    ])
+    expect(working.suggestions[0]?.prompt).not.toContain("C:\\private")
+    expect(working.suggestions[0]?.prompt).toContain("<path>")
+    expect(working.suggestions[2]?.prompt).not.toContain("sk-123456")
+    expect(working.suggestions[2]?.prompt).toContain("<redacted>")
+    db.close()
+  })
+
+  test("rejects categories that do not belong to the requested surface", async () => {
+    const { db, project, memory, logger } = await fixture()
+    const service = new TaskSuggestionService(
+      db,
+      { pi: {}, getPiModel: async () => ({}) } as never,
+      memory,
+      logger,
+    )
+    const valid = params(project.id, "working")
+    const invalid: TaskSuggestionGenerateParams = {
+      ...valid,
+      context: {
+        ...valid.context,
+        localCandidates: localCandidates.slice(0, 3),
+      },
+    }
+
+    await expect(service.generate(invalid)).rejects.toMatchObject({
+      reason: "invalid-output",
+    })
     db.close()
   })
 })

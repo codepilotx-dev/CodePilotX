@@ -2755,4 +2755,52 @@ describe("RPC method schema contracts", () => {
       key: "updated-secret",
     })).toThrow()
   })
+
+  test("keeps Coding as the legacy suggestion surface and accepts Working categories", () => {
+    const decode = Schema.decodeUnknownSync(
+      RpcMethods["task-suggestion/generate"].params,
+      { onExcessProperty: "error" },
+    )
+    const legacy = decode(fixtures["task-suggestion/generate"].params)
+    expect(legacy.surface).toBeUndefined()
+
+    const working = decode({
+      ...fixtures["task-suggestion/generate"].params,
+      surface: "working",
+      context: {
+        ...fixtures["task-suggestion/generate"].params.context,
+        localCandidates: [
+          { id: "working:1", categoryId: "create", label: "创建", prompt: "Create a deliverable" },
+          { id: "working:2", categoryId: "research", label: "调研", prompt: "Research next steps" },
+          { id: "working:3", categoryId: "automate", label: "自动化", prompt: "Automate recurring work" },
+        ],
+      },
+    })
+    expect(working.surface).toBe("working")
+    expect(working.context.localCandidates.map(item => item.categoryId)).toEqual([
+      "create",
+      "research",
+      "automate",
+    ])
+    const decodeResult = Schema.decodeUnknownSync(
+      RpcMethods["task-suggestion/generate"].result,
+      { onExcessProperty: "error" },
+    )
+    const workingResult = decodeResult({
+      ...fixtures["task-suggestion/generate"].result,
+      suggestions: working.context.localCandidates.map((item, index) => ({
+        ...item,
+        id: `working-suggestion:${index + 1}`,
+      })),
+    })
+    expect(workingResult.suggestions.map(item => item.categoryId)).toEqual([
+      "create",
+      "research",
+      "automate",
+    ])
+    expect(() => decode({
+      ...fixtures["task-suggestion/generate"].params,
+      surface: "chat",
+    })).toThrow()
+  })
 })
