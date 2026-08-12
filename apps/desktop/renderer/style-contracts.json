@@ -62,7 +62,7 @@
     "^--color-text(?:$|-(?:strong|meta|soft|mute|muted|placeholder|disabled|on-accent)$)"
   ],
   "importantDeclarationAllowlist": {
-    "src/styles/base.scss": 12,
+    "src/styles/base.scss": 8,
     "src/styles/popover.scss": 1
   },
   "dataThemeSelectorAllowlist": {
