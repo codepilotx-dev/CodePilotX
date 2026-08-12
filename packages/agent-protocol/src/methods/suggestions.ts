@@ -9,6 +9,14 @@ export const TaskSuggestionCategoryIdSchema = Schema.Literals([
   "codex-create",
   "codex-review",
   "codex-fix",
+  "create",
+  "research",
+  "automate",
+])
+
+export const TaskSuggestionSurfaceSchema = Schema.Literals([
+  "coding",
+  "working",
 ])
 
 export const TaskSuggestionSchema = Schema.Struct({
@@ -58,6 +66,7 @@ export const TaskSuggestionGitContextSchema = Schema.Struct({
 })
 
 export const TaskSuggestionGenerateParamsSchema = Schema.Struct({
+  surface: Schema.optional(TaskSuggestionSurfaceSchema),
   workspace: TaskSuggestionWorkspaceSchema,
   context: Schema.Struct({
     workspaceName: Schema.NullOr(Schema.String),
@@ -95,6 +104,7 @@ export const SuggestionRpcMethods = {
 export type TaskSuggestion = typeof TaskSuggestionSchema.Type
 export type TaskSuggestionCategoryId =
   typeof TaskSuggestionCategoryIdSchema.Type
+export type TaskSuggestionSurface = typeof TaskSuggestionSurfaceSchema.Type
 export type TaskSuggestionGenerateParams =
   typeof TaskSuggestionGenerateParamsSchema.Type
 export type TaskSuggestionGenerateResult =
