@@ -53,19 +53,19 @@ afterEach(() => {
 })
 
 describe('timeline disclosure state', () => {
-  test('persists all disclosure levels independently for each thread', () => {
+  test('persists turn activity alongside file diffs and legacy records', () => {
+    setTimelineDisclosureExpanded('thread-1', 'turn-activity:turn-1', true)
+    setTimelineDisclosureExpanded('thread-1', 'file-mutation:tool-1:0', true)
     setTimelineDisclosureExpanded('thread-1', 'turn-process:turn-1', true)
-    setTimelineDisclosureExpanded('thread-1', 'command-group:turn-1:tool-1', true)
-    setTimelineDisclosureExpanded('thread-1', 'tool:turn-1:tool-1', true)
-    setTimelineDisclosureExpanded('thread-2', 'turn-process:turn-2', true)
+    setTimelineDisclosureExpanded('thread-2', 'turn-activity:turn-2', true)
 
     expect([...loadTimelineDisclosureState('thread-1')]).toEqual([
+      'turn-activity:turn-1',
+      'file-mutation:tool-1:0',
       'turn-process:turn-1',
-      'command-group:turn-1:tool-1',
-      'tool:turn-1:tool-1',
     ])
     expect([...loadTimelineDisclosureState('thread-2')]).toEqual([
-      'turn-process:turn-2',
+      'turn-activity:turn-2',
     ])
   })
 
@@ -144,8 +144,8 @@ describe('timeline disclosure state', () => {
 
     expect(loadTimelineDisclosureState('thread-1')).toEqual(new Set())
     expect(
-      setTimelineDisclosureExpanded('thread-1', 'turn-process:turn-1', true),
-    ).toEqual(new Set(['turn-process:turn-1']))
+      setTimelineDisclosureExpanded('thread-1', 'turn-activity:turn-1', true),
+    ).toEqual(new Set(['turn-activity:turn-1']))
   })
 })
 

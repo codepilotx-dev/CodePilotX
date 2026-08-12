@@ -52,7 +52,7 @@ describe("canonical tool item display", () => {
   test("formats command durations independently from semantic summaries", () => {
     expect(formatToolDuration(250)).toBe("1 秒");
     expect(formatToolDuration(84_000)).toBe("1 分 24 秒");
-    expect(buildToolItemDisplay(toolItem()).expandedLabel).toBe("Ran command");
+    expect(buildToolItemDisplay(toolItem()).expandedLabel).toBe("已运行命令");
   });
 
   test("only allows an active command to expand after output arrives", () => {
@@ -69,8 +69,8 @@ describe("canonical tool item display", () => {
       output: "partial output",
     }))).toMatchObject({
       canExpand: true,
-      collapsedLabel: "Running bun test",
-      expandedLabel: "Running command",
+      collapsedLabel: "正在运行 bun test",
+      expandedLabel: "正在运行命令",
       resultText: "partial output",
     });
   });
@@ -110,15 +110,34 @@ describe("canonical tool item display", () => {
       collapsedLabel: "操作失败",
       toolLabel: "操作",
     });
+
+    expect(buildToolSemanticSummary(toolItem()).kind).toBe("command");
+    expect(buildToolSemanticSummary(toolItem({
+      command: null,
+      input: { file_path: "src/a.ts" },
+      tool: "Read",
+    })).kind).toBe("exploration");
+    expect(buildToolSemanticSummary(toolItem({
+      command: null,
+      tool: "web__run",
+    })).kind).toBe("web-search");
+    expect(buildToolSemanticSummary(toolItem({
+      command: null,
+      tool: "mcp__drive__search",
+    })).kind).toBe("integration");
+    expect(buildToolSemanticSummary(toolItem({
+      command: null,
+      tool: "internal.private_tool",
+    })).kind).toBe("tool");
   });
 
   test("uses state-specific failure and interruption labels", () => {
     expect(buildToolSemanticSummary(toolItem({
       state: "error",
-    })).collapsedLabel).toBe("Command failed bun test");
+    })).collapsedLabel).toBe("命令失败 bun test");
     expect(buildToolSemanticSummary(toolItem({
       state: "interrupted",
-    })).collapsedLabel).toBe("Command interrupted bun test");
+    })).collapsedLabel).toBe("命令已中断 bun test");
     expect(buildToolSemanticSummary(toolItem({
       command: null,
       input: { file_path: "C:\\private\\ConversationPage.tsx" },
@@ -368,7 +387,53 @@ describe("canonical tool item display", () => {
     expect(withoutResult).toContain("无输出");
   });
 
-  test("uses the persisted disclosure state for command details", () => {
+  test("renders grouped commands as embedded shells without losing details", () => {
+    const item = toolItem({ output: "pass" });
+    const embedded = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard
+          item={item}
+          presentation="grouped"
+          view={buildToolItemDisplay(item)}
+        />
+      </TooltipProvider>,
+    );
+    const standalone = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard
+          item={item}
+          view={buildToolItemDisplay(item)}
+        />
+      </TooltipProvider>,
+    );
+    const groupedItem = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolItemView
+          disclosure={{
+            id: "tool:turn-1:tool-1",
+            expanded: true,
+            onExpandedChange: () => undefined,
+          }}
+          item={item}
+          presentation="grouped"
+        />
+      </TooltipProvider>,
+    );
+
+    expect(embedded).toContain("canonical-command-shell--embedded");
+    expect(embedded).not.toContain("canonical-command-shell__header");
+    expect(embedded).toContain('aria-label="复制执行内容"');
+    expect(embedded).toContain('aria-label="复制返回结果"');
+    expect(embedded).toContain("bun test");
+    expect(embedded).toContain("pass");
+    expect(embedded).toContain("成功");
+    expect(standalone).not.toContain("canonical-command-shell--embedded");
+    expect(standalone).toContain("canonical-command-shell__header");
+    expect(groupedItem).toContain('data-presentation="grouped"');
+    expect(groupedItem).toContain("canonical-command-shell--embedded");
+  });
+
+  test("keeps the controlled disclosure mode for command details", () => {
     const item = toolItem();
     const collapsed = renderToStaticMarkup(
       <TooltipProvider>
@@ -395,14 +460,14 @@ describe("canonical tool item display", () => {
       </TooltipProvider>,
     );
 
-    expect(collapsed).toContain("Ran bun test");
+    expect(collapsed).toContain("已运行 bun test");
     expect(collapsed).not.toContain('aria-label="执行内容"');
     expect(collapsed).toContain("lucide-chevron-right");
     expect(collapsed).not.toContain("lucide-chevron-down");
-    expect(expanded).toContain("Ran command");
+    expect(expanded).toContain("已运行命令");
     expect(expanded).toContain('aria-label="执行内容"');
-    expect(expanded).toContain("lucide-chevron-down");
-    expect(expanded).not.toContain("lucide-chevron-right");
+    expect(expanded).toContain("lucide-chevron-right");
+    expect(expanded).not.toContain("lucide-chevron-down");
   });
 
   test("extracts file mutations and renders one row per affected file", () => {

@@ -273,6 +273,103 @@ for (const mode of VISUAL_MODES) {
     await expectNoHorizontalOverflow(page)
   })
 }
+
+for (const mode of VISUAL_MODES) {
+  visualTest(`appearance controls and previews stay stable ${mode}`, async ({ page }) => {
+    await page.setViewportSize(COMPACT_VIEWPORT)
+    await prepareVisualTheme(page, mode)
+    await page.goto('/?visualCase=empty#/settings/appearance')
+    await waitForVisualPage(
+      page,
+      mode,
+      page.getByRole('heading', { name: '外观' }),
+    )
+
+    const modeCards = page.locator('.appearance-mode-card')
+    await expect(modeCards).toHaveCount(3)
+    for (let index = 0; index < 3; index += 1) {
+      const card = modeCards.nth(index)
+      const beforeHover = await card.evaluate(element => {
+        const visual = element.querySelector<HTMLElement>('.appearance-mode-visual')!
+        const label = element.querySelector<HTMLElement>('.appearance-mode-label')!
+        const visualStyle = getComputedStyle(visual)
+        return {
+          backgroundColor: visualStyle.backgroundColor,
+          backgroundImage: visualStyle.backgroundImage,
+          borderColor: visualStyle.borderColor,
+          labelColor: getComputedStyle(label).color,
+        }
+      })
+      await card.hover()
+      await expect
+        .poll(() =>
+          card.evaluate(element => {
+            const visual = element.querySelector<HTMLElement>('.appearance-mode-visual')!
+            const label = element.querySelector<HTMLElement>('.appearance-mode-label')!
+            const visualStyle = getComputedStyle(visual)
+            return {
+              backgroundColor: visualStyle.backgroundColor,
+              backgroundImage: visualStyle.backgroundImage,
+              borderColor: visualStyle.borderColor,
+              labelColor: getComputedStyle(label).color,
+            }
+          }),
+        )
+        .toEqual(beforeHover)
+    }
+
+    const pointerSwitch = page.getByRole('switch', { name: '使用指针光标' })
+    const pointerSwitchThumb = pointerSwitch.locator('.toggle-knob')
+    const expectCenteredThumb = async (): Promise<void> => {
+      await expect
+        .poll(() =>
+          pointerSwitch.evaluate(element => {
+            const track = element.getBoundingClientRect()
+            const thumb = element.querySelector<HTMLElement>('.toggle-knob')!
+              .getBoundingClientRect()
+            const checked = element.getAttribute('data-state') === 'checked'
+            return {
+              edgeGap: checked
+                ? track.right - thumb.right
+                : thumb.left - track.left,
+              topGap: thumb.top - track.top,
+              bottomGap: track.bottom - thumb.bottom,
+            }
+          }),
+        )
+        .toEqual({
+          edgeGap: 2,
+          topGap: 2,
+          bottomGap: 2,
+        })
+    }
+    const expectedThumbColor = 'rgb(255, 255, 255)'
+    await expect(pointerSwitchThumb).toHaveCSS(
+      'background-color',
+      expectedThumbColor,
+    )
+    await expectCenteredThumb()
+    await pointerSwitch.click()
+    await expect(pointerSwitch).toHaveAttribute('data-state', 'checked')
+    await expect(pointerSwitchThumb).toHaveCSS(
+      'background-color',
+      expectedThumbColor,
+    )
+    await expectCenteredThumb()
+
+    const contrastSlider = page.getByRole('slider', {
+      name: mode === 'light' ? '浅色对比度' : '深色对比度',
+    })
+    await expect
+      .poll(() =>
+        contrastSlider.evaluate(element =>
+          getComputedStyle(element).getPropertyValue('--control-thumb-fill').trim(),
+        ),
+      )
+      .toBe('#ffffff')
+  })
+}
+
 const CONTRAST_BOUNDARIES = [0, 45, 60, 100] as const
 
 for (const contrast of CONTRAST_BOUNDARIES) {

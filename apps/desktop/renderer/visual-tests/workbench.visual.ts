@@ -11,7 +11,7 @@ const SCENARIOS: readonly VisualScenario[] = [
   {
     id: 'empty',
     route: '/?visualCase=empty#/new',
-    readyText: '我们应该构建什么？',
+    readyText: '我们该构建什么？',
   },
   {
     id: 'rich',
@@ -258,6 +258,22 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     }
 
     const markdown = page.locator('.canonical-text-item--result > .md-body').first()
+    const userTurnLocator = page.locator('.canonical-turn__user').first()
+    const userBubbleLocator = userTurnLocator.locator('[data-user-message-bubble]')
+    const imageAttachmentRow = userTurnLocator.getByRole('group', {
+      name: '图片附件',
+    })
+    const fileAttachmentRow = userTurnLocator.getByRole('group', {
+      name: '文件附件',
+    })
+    await expect(imageAttachmentRow).toBeVisible()
+    await expect(fileAttachmentRow).toBeVisible()
+    await expect(imageAttachmentRow.locator('.attachment-image-tile')).toHaveCount(3)
+    await expect(fileAttachmentRow.locator('.attachment-file-pill')).toHaveCount(2)
+    await expect(
+      imageAttachmentRow.locator('.attachment-image-tile[data-status="error"]'),
+    ).toHaveCount(1)
+    await expect(userBubbleLocator.getByRole('button', { name: '显示更多' })).toBeVisible()
     await expect(markdown.getByRole('heading', { level: 1 })).toHaveText(
       'Markdown 阅读排版',
     )
@@ -269,9 +285,17 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     )
     await expect(markdown.locator('blockquote')).toBeVisible()
     await expect(markdown.locator('.md-table-block table')).toBeVisible()
+    const codeWideHost = markdown.locator('.md-wide-block').first()
+    await codeWideHost.scrollIntoViewIfNeeded()
     await expect(
-      markdown.locator('.md-code-block:not(.md-table-block)'),
+      codeWideHost.locator('.md-code-block:not(.md-table-block)'),
     ).toBeVisible()
+    const tableBlock = markdown.locator('.md-table-block')
+    const tableCopy = tableBlock.getByRole('button', { name: '复制表格' })
+    await expect(tableBlock).not.toHaveClass(/md-code-block/)
+    await expect(tableBlock).not.toHaveClass(/md-wide-block/)
+    await expect(tableBlock.locator('.md-table-toolbar')).toHaveCount(0)
+    await expect(tableCopy).toHaveCSS('opacity', '0')
 
     const metrics = await markdown.evaluate(element => {
       const select = <T extends HTMLElement>(selector: string): T => {
@@ -294,13 +318,20 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
       const inlineCode = style('p code')
       const list = style('ul')
       const listItem = style('li')
-      const spacedListItem = style('ul > li + li')
+      const spacedListItem = style(':scope > ul > li + li')
+      const nestedSpacedListItem = style(':scope > ul > li > ul > li + li')
+      const directListParagraph = style(':scope > ul > li > p')
+      const secondListParagraph = style(':scope > ul > li > p + p')
+      const nestedList = style(':scope > ul > li > ul')
       const codeBlock = style('.md-code-block:not(.md-table-block)')
+      const codeBlockElement = select<HTMLElement>('.md-wide-block')
       const codePreElement = select<HTMLElement>(
         '.md-code-block:not(.md-table-block) .md-code-pre',
       )
       const codePre = style('.md-code-block:not(.md-table-block) .md-code-pre')
       const tableScroll = select<HTMLElement>('.md-table-scroll')
+      const tableBlockElement = select<HTMLElement>('.md-table-block')
+      const tableBlockStyle = getComputedStyle(tableBlockElement)
       const table = style('.md-table-block table')
       const tableHeading = style('.md-table-block th')
       const lastTableHeading = style('.md-table-block th:last-child')
@@ -317,8 +348,6 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         throw new Error('Missing long-path Markdown table fixture cell')
       }
       const longPathCellStyle = getComputedStyle(longPathCell)
-      const longPathCellVerticalPadding =
-        px(longPathCellStyle.paddingTop) + px(longPathCellStyle.paddingBottom)
       const threadScroller = document.querySelector<HTMLElement>(
         '[data-component="thread-scroll-layout"]',
       )
@@ -331,9 +360,61 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
       const mainRoute = document.querySelector<HTMLElement>(
         '.desktop-main-route',
       )
-      if (!threadScroller || !timeline || !composer || !mainRoute) {
+      const canonicalTurn = element.closest<HTMLElement>('.canonical-turn')
+      const processSection = canonicalTurn?.querySelector<HTMLElement>(
+        '.canonical-turn__process',
+      )
+      const processSummary = processSection?.querySelector<HTMLElement>(
+        '.canonical-process-group__summary',
+      )
+      const resultSection = canonicalTurn?.querySelector<HTMLElement>(
+        '.canonical-turn__result',
+      )
+      const postSection = canonicalTurn?.querySelector<HTMLElement>(
+        '.canonical-turn__post',
+      )
+      const patchCard = postSection?.querySelector<HTMLElement>(
+        '.canonical-patch-card',
+      )
+      const userTurn = document.querySelector<HTMLElement>('.canonical-turn__user')
+      const userMessage = document.querySelector<HTMLElement>(
+        '.canonical-user-message',
+      )
+      const userBubble = document.querySelector<HTMLElement>(
+        '[data-user-message-bubble]',
+      )
+      if (
+        !threadScroller ||
+        !timeline ||
+        !composer ||
+        !mainRoute ||
+        !canonicalTurn ||
+        !processSection ||
+        !processSummary ||
+        !resultSection ||
+        !postSection ||
+        !patchCard ||
+        !userTurn ||
+        !userMessage ||
+        !userBubble
+      ) {
         throw new Error('Missing responsive conversation fixture element')
       }
+      const userMessageRect = userMessage.getBoundingClientRect()
+      const rectMetrics = (target: HTMLElement) => {
+        const rect = target.getBoundingClientRect()
+        return {
+          center: rect.left + rect.width / 2,
+          left: rect.left,
+          width: rect.width,
+        }
+      }
+      const canonicalTurnRect = rectMetrics(canonicalTurn)
+      const processSectionRect = rectMetrics(processSection)
+      const processSummaryRect = rectMetrics(processSummary)
+      const resultSectionRect = rectMetrics(resultSection)
+      const postSectionRect = rectMetrics(postSection)
+      const patchCardRect = rectMetrics(patchCard)
       const leadDescription = select<HTMLElement>('.md-lead-description')
       const leadTitle = style('.md-lead-description__title')
       const leadDetailElement = select<HTMLElement>(
@@ -355,7 +436,15 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         bodyFontWeight: body.fontWeight,
         bodyLineHeight: body.lineHeight,
         bodyLineHeightRatio: px(body.lineHeight) / bodySize,
+        canonicalTurnCenter: canonicalTurnRect.center,
+        canonicalTurnClientWidth: canonicalTurn.clientWidth,
+        canonicalTurnScrollWidth: canonicalTurn.scrollWidth,
+        canonicalTurnWidth: canonicalTurnRect.width,
         codeBlockBorderRadius: codeBlock.borderTopLeftRadius,
+        codeBlockCenter:
+          codeBlockElement.getBoundingClientRect().left
+          + codeBlockElement.getBoundingClientRect().width / 2,
+        codeBlockWidth: codeBlockElement.getBoundingClientRect().width,
         codeBlockMarginBottom: px(codeBlock.marginBottom),
         codeBlockMarginTop: px(codeBlock.marginTop),
         codePreFontSize: codePre.fontSize,
@@ -366,6 +455,9 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         codePrePaddingInlineRatio: px(codePre.paddingLeft) / rootSize,
         codePrePaddingTopRatio: px(codePre.paddingTop) / rootSize,
         codePreScrollWidth: codePreElement.scrollWidth,
+        composerCenter:
+          composer.getBoundingClientRect().left +
+          composer.getBoundingClientRect().width / 2,
         composerWidth: composer.getBoundingClientRect().width,
         documentClientWidth: document.documentElement.clientWidth,
         documentScrollWidth: document.documentElement.scrollWidth,
@@ -400,16 +492,36 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         listItemMarginTop: px(listItem.marginTop),
         listItemSiblingMarginTopRatio:
           px(spacedListItem.marginTop) / bodySize,
-        listPaddingRatio: px(list.paddingLeft) / rootSize,
+        listDirectParagraphMarginBottom: px(directListParagraph.marginBottom),
+        listDirectParagraphMarginTop: px(directListParagraph.marginTop),
+        listNestedItemSiblingMarginTopRatio:
+          px(nestedSpacedListItem.marginTop) / bodySize,
+        listNestedMarginBottom: px(nestedList.marginBottom),
+        listNestedMarginTopRatio: px(nestedList.marginTop) / bodySize,
+        listPaddingRatio: px(list.paddingLeft) / bodySize,
+        listSecondParagraphMarginTopRatio:
+          px(secondListParagraph.marginTop) / bodySize,
         longPathCellClientWidth: longPathCell.clientWidth,
-        longPathCellContentHeight:
-          longPathCell.scrollHeight - longPathCellVerticalPadding,
-        longPathCellLineHeight: px(longPathCellStyle.lineHeight),
         longPathCellOverflowWrap: longPathCellStyle.overflowWrap,
         longPathCellScrollWidth: longPathCell.scrollWidth,
         longPathCellWhiteSpace: longPathCellStyle.whiteSpace,
         mainRouteWidth: mainRoute.getBoundingClientRect().width,
+        markdownWidth: element.getBoundingClientRect().width,
         paragraphMarginRatio: px(paragraph.marginTop) / bodySize,
+        patchCardCenter: patchCardRect.center,
+        patchCardWidth: patchCardRect.width,
+        postSectionCenter: postSectionRect.center,
+        postSectionWidth: postSectionRect.width,
+        processSectionCenter: processSectionRect.center,
+        processSectionWidth: processSectionRect.width,
+        processSummaryLeft: processSummaryRect.left,
+        readingBlockCenter:
+          select<HTMLElement>('p').getBoundingClientRect().left +
+          select<HTMLElement>('p').getBoundingClientRect().width / 2,
+        readingBlockWidth: select<HTMLElement>('p').getBoundingClientRect().width,
+        readingBlockLeft: select<HTMLElement>('p').getBoundingClientRect().left,
+        resultSectionCenter: resultSectionRect.center,
+        resultSectionWidth: resultSectionRect.width,
         normalSoftBreakCount: normalSoftBreak.querySelectorAll('br').length,
         normalSoftBreakLeadDescriptionCount: normalSoftBreak.classList.contains(
           'md-lead-description',
@@ -421,7 +533,15 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         quotePaddingBlockRatio: px(quote.paddingTop) / rootSize,
         quotePaddingInlineRatio: px(quote.paddingLeft) / rootSize,
         strongFontWeight: strong.fontWeight,
+        tableBackgroundColor: tableBlockStyle.backgroundColor,
+        tableBlockBorderRadius: tableBlockStyle.borderTopLeftRadius,
+        tableBlockBorderWidth: tableBlockStyle.borderTopWidth,
+        tableBlockWidth: tableBlockElement.getBoundingClientRect().width,
         tableBorderRightWidth: tableCell.borderRightWidth,
+        tableFirstCellWidth: select<HTMLElement>(
+          '.md-table-block td:first-child',
+        ).getBoundingClientRect().width,
+        tableFontSize: table.fontSize,
         tableFontSizeRatio: px(table.fontSize) / bodySize,
         tableHeadingPaddingBottom: px(tableHeading.paddingBottom),
         tableHeadingPaddingLeft: px(tableHeading.paddingLeft),
@@ -434,6 +554,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         tableHeadingVerticalAlign: tableHeading.verticalAlign,
         tableLastHeadingPaddingRight: px(lastTableHeading.paddingRight),
         tableLastCellPaddingRight: px(lastTableCell.paddingRight),
+        tableLayout: table.tableLayout,
         tableLineHeightRatio: px(tableCell.lineHeight) / px(tableCell.fontSize),
         tablePaddingBottom: px(tableCell.paddingBottom),
         tablePaddingLeft: px(tableCell.paddingLeft),
@@ -442,10 +563,21 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         tableTextAlign: tableCell.textAlign,
         tableVerticalAlign: tableCell.verticalAlign,
         tableWrapperClientWidth: tableScroll.clientWidth,
+        tableWrapperOverflowX: getComputedStyle(tableScroll).overflowX,
         tableWrapperScrollWidth: tableScroll.scrollWidth,
         threadClientWidth: threadScroller.clientWidth,
         threadScrollWidth: threadScroller.scrollWidth,
         timelineWidth: timeline.getBoundingClientRect().width,
+        userBubbleMaxWidth: getComputedStyle(userBubble).maxWidth,
+        userBubbleWidth: userBubble.getBoundingClientRect().width,
+        userMessageCenter:
+          userMessageRect.left + userMessageRect.width / 2,
+        userMessageLeft: userMessageRect.left,
+        userMessageWidth: userMessageRect.width,
+        userTurnCenter:
+          userTurn.getBoundingClientRect().left +
+          userTurn.getBoundingClientRect().width / 2,
+        userTurnWidth: userTurn.getBoundingClientRect().width,
       }
     })
 
@@ -453,7 +585,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.bodyFontWeight).toBe('445')
     expect(metrics.bodyLineHeight).toBe('20px')
     expect(metrics.bodyLineHeightRatio).toBeCloseTo(20 / 14, 2)
-    expect(metrics.paragraphMarginRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.paragraphMarginRatio).toBeCloseTo(10 / 14, 2)
     expect(metrics.h1FontSize).toBe('24px')
     expect(metrics.h1LineHeight).toBe('30px')
     expect(metrics.h1FontWeight).toBe('500')
@@ -474,12 +606,18 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.listPaddingRatio).toBeCloseTo(1.45, 2)
     expect(metrics.listItemMarginTop).toBe(0)
     expect(metrics.listItemMarginBottom).toBe(0)
-    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(4 / 14, 2)
+    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.listNestedItemSiblingMarginTopRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.listDirectParagraphMarginTop).toBe(0)
+    expect(metrics.listDirectParagraphMarginBottom).toBe(0)
+    expect(metrics.listSecondParagraphMarginTopRatio).toBeCloseTo(11 / 14, 2)
+    expect(metrics.listNestedMarginTopRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.listNestedMarginBottom).toBe(0)
     expect(metrics.quoteBorderWidth).toBe('2px')
     expect(metrics.quoteBorderRadius).toBe('12px')
     expect(metrics.quotePaddingBlockRatio).toBeCloseTo(0.55, 2)
     expect(metrics.quotePaddingInlineRatio).toBeCloseTo(1, 2)
-    expect(metrics.inlineCodeBorderWidth).toBe('1px')
+    expect(metrics.inlineCodeBorderWidth).toBe('0px')
     expect(metrics.inlineCodeBorderRadius).toBe('4px')
     expect(metrics.inlineCodeFontSizeRatio).toBeCloseTo(0.9, 2)
     expect(metrics.leadDescriptionChildCount).toBe(2)
@@ -502,49 +640,212 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.codePreScrollWidth).toBeGreaterThan(
       metrics.codePreClientWidth,
     )
-    expect(metrics.tableFontSizeRatio).toBeCloseTo(0.93, 2)
+    expect(metrics.tableBackgroundColor).toBe('rgba(0, 0, 0, 0)')
+    expect(metrics.tableBlockBorderRadius).toBe('0px')
+    expect(metrics.tableBlockBorderWidth).toBe('0px')
+    expect(metrics.tableFirstCellWidth).toBeGreaterThanOrEqual(90)
+    expect(metrics.tableFontSize).toBe('14px')
+    expect(metrics.tableFontSizeRatio).toBeCloseTo(1, 2)
     expect(metrics.tableBorderRightWidth).toBe('0px')
-    expect(metrics.tableHeadingFontWeight).toBe('500')
-    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(1.48, 2)
-    expect(metrics.tableHeadingPaddingTop).toBe(12)
-    const expectedTableInlinePadding =
-      visualCase.id === 'compact-dark' ? 10 : 18
-    expect(metrics.tableHeadingPaddingRight).toBe(expectedTableInlinePadding)
-    expect(metrics.tableHeadingPaddingBottom).toBe(12)
-    expect(metrics.tableHeadingPaddingLeft).toBe(expectedTableInlinePadding)
-    expect(metrics.tableHeadingTextAlign).toBe('center')
-    expect(metrics.tableHeadingVerticalAlign).toBe('middle')
-    expect(metrics.tableLastHeadingPaddingRight).toBe(
-      expectedTableInlinePadding,
+    expect(metrics.tableHeadingFontWeight).toBe('600')
+    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(16 / 14, 2)
+    expect(metrics.tableHeadingPaddingTop).toBe(8)
+    expect(metrics.tableHeadingPaddingRight).toBe(24)
+    expect(metrics.tableHeadingPaddingBottom).toBe(8)
+    expect(metrics.tableHeadingPaddingLeft).toBe(0)
+    expect(metrics.tableHeadingTextAlign).toBe('left')
+    expect(metrics.tableHeadingVerticalAlign).toBe('top')
+    expect(metrics.tableLastHeadingPaddingRight).toBe(40)
+    expect(metrics.tableLayout).toBe('auto')
+    expect(metrics.tableLineHeightRatio).toBeCloseTo(20 / 14, 2)
+    expect(metrics.tablePaddingTop).toBe(10)
+    expect(metrics.tablePaddingRight).toBe(24)
+    expect(metrics.tablePaddingBottom).toBe(10)
+    expect(metrics.tablePaddingLeft).toBe(0)
+    expect(metrics.tableLastCellPaddingRight).toBe(0)
+    expect(metrics.tableTextAlign).toBe('left')
+    expect(metrics.tableVerticalAlign).toBe('top')
+    expect(metrics.tableWrapperOverflowX).toBe('auto')
+    expect(metrics.tableWrapperScrollWidth).toBeGreaterThanOrEqual(
+      metrics.tableWrapperClientWidth,
     )
-    expect(metrics.tableLineHeightRatio).toBeCloseTo(1.56, 2)
-    expect(metrics.tablePaddingTop).toBe(12)
-    expect(metrics.tablePaddingRight).toBe(expectedTableInlinePadding)
-    expect(metrics.tablePaddingBottom).toBe(12)
-    expect(metrics.tablePaddingLeft).toBe(expectedTableInlinePadding)
-    expect(metrics.tableLastCellPaddingRight).toBe(expectedTableInlinePadding)
-    expect(metrics.tableTextAlign).toBe('center')
-    expect(metrics.tableVerticalAlign).toBe('middle')
-    expect(metrics.tableWrapperScrollWidth).toBeLessThanOrEqual(
-      metrics.tableWrapperClientWidth + 1,
-    )
-    expect(metrics.longPathCellScrollWidth).toBeLessThanOrEqual(
-      metrics.longPathCellClientWidth + 1,
-    )
-    expect(metrics.longPathCellContentHeight).toBeGreaterThan(
-      metrics.longPathCellLineHeight * 1.5,
+    expect(metrics.longPathCellScrollWidth).toBeGreaterThanOrEqual(
+      metrics.longPathCellClientWidth,
     )
     expect(metrics.longPathCellWhiteSpace).toBe('normal')
-    expect(metrics.longPathCellOverflowWrap).toBe('anywhere')
+    expect(metrics.longPathCellOverflowWrap).toBe('normal')
     expect(metrics.threadScrollWidth).toBeLessThanOrEqual(
       metrics.threadClientWidth + 1,
     )
     expect(metrics.timelineWidth).toBeLessThanOrEqual(metrics.mainRouteWidth)
     expect(metrics.composerWidth).toBeLessThanOrEqual(metrics.mainRouteWidth)
-    expect(metrics.composerWidth).toBeCloseTo(metrics.timelineWidth, 0)
+    expect(metrics.readingBlockWidth).toBeLessThanOrEqual(768)
+    expect(metrics.canonicalTurnWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
+    expect(metrics.processSectionWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
+    expect(metrics.resultSectionWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
+    expect(metrics.postSectionWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
+    expect(metrics.codeBlockWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
+    expect(metrics.composerWidth).toBeLessThanOrEqual(768)
+    expect(metrics.tableBlockWidth).toBeLessThanOrEqual(768)
+    expect(metrics.tableBlockWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
+    expect(metrics.patchCardWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
+    for (const center of [
+      metrics.canonicalTurnCenter,
+      metrics.processSectionCenter,
+      metrics.resultSectionCenter,
+      metrics.postSectionCenter,
+      metrics.codeBlockCenter,
+      metrics.patchCardCenter,
+      metrics.composerCenter,
+    ]) {
+      expect(Math.abs(center - metrics.readingBlockCenter)).toBeLessThanOrEqual(1)
+    }
+    expect(Math.abs(metrics.processSummaryLeft - metrics.readingBlockLeft)).toBeLessThanOrEqual(1)
+    expect(metrics.userTurnWidth).toBeLessThanOrEqual(768)
+    expect(metrics.userMessageWidth).toBeCloseTo(metrics.userTurnWidth, 0)
+    expect(metrics.userBubbleMaxWidth).toBe('77%')
+    expect(metrics.userBubbleWidth).toBeLessThanOrEqual(
+      metrics.userMessageWidth * 0.77 + 1,
+    )
+    expect(metrics.userBubbleWidth).toBeLessThan(metrics.userMessageWidth)
+    expect(
+      Math.abs(metrics.userTurnCenter - metrics.readingBlockCenter),
+    ).toBeLessThanOrEqual(1)
+    expect(
+      Math.abs(metrics.composerCenter - metrics.readingBlockCenter),
+    ).toBeLessThanOrEqual(1)
+    if (visualCase.id === 'desktop-light') {
+      expect(metrics.readingBlockWidth).toBeCloseTo(768, 0)
+      expect(metrics.canonicalTurnWidth).toBeCloseTo(768, 0)
+      expect(metrics.processSectionWidth).toBeCloseTo(768, 0)
+      expect(metrics.resultSectionWidth).toBeCloseTo(768, 0)
+      expect(metrics.postSectionWidth).toBeCloseTo(768, 0)
+      expect(metrics.codeBlockWidth).toBeCloseTo(768, 0)
+      expect(metrics.composerWidth).toBeCloseTo(768, 0)
+      expect(metrics.tableBlockWidth).toBeCloseTo(768, 0)
+      expect(metrics.patchCardWidth).toBeCloseTo(768, 0)
+      expect(metrics.timelineWidth).toBeGreaterThan(metrics.composerWidth)
+    }
+    expect(metrics.canonicalTurnScrollWidth).toBeLessThanOrEqual(
+      metrics.canonicalTurnClientWidth + 1,
+    )
     expect(metrics.documentScrollWidth).toBeLessThanOrEqual(
       metrics.documentClientWidth,
     )
+
+    await tableBlock.hover()
+    await expect(tableCopy).toHaveCSS('opacity', '1')
+    await tableCopy.focus()
+    await expect(tableCopy).toBeFocused()
+    await expect(tableCopy).toHaveCSS('opacity', '1')
+
+    const attachmentMetrics = await userTurnLocator.evaluate(element => {
+      const imageTiles = Array.from(
+        element.querySelectorAll<HTMLElement>('.attachment-image-tile'),
+      )
+      const readyImage = imageTiles.find(tile => tile.dataset.status === 'ready')
+      const failedImage = imageTiles.find(tile => tile.dataset.status === 'error')
+      const filePill = element.querySelector<HTMLElement>('.attachment-file-pill')
+      const imageRow = element.querySelector<HTMLElement>(
+        '[aria-label="图片附件"]',
+      )
+      const fileRow = element.querySelector<HTMLElement>(
+        '[aria-label="文件附件"]',
+      )
+      const bubble = element.querySelector<HTMLElement>(
+        '[data-user-message-bubble]',
+      )
+      if (!readyImage || !failedImage || !filePill || !imageRow || !fileRow || !bubble) {
+        throw new Error('Missing attachment layout fixture elements')
+      }
+      const bubbleRect = bubble.getBoundingClientRect()
+      return {
+        bubbleTop: bubbleRect.top,
+        failedImageHeight: failedImage.getBoundingClientRect().height,
+        failedImageWidth: failedImage.getBoundingClientRect().width,
+        filePillMaxWidth: getComputedStyle(filePill).maxWidth,
+        fileRowOverflowX: getComputedStyle(fileRow).overflowX,
+        fileRowTop: fileRow.getBoundingClientRect().top,
+        imageHeight: readyImage.getBoundingClientRect().height,
+        imageRowOverflowX: getComputedStyle(imageRow).overflowX,
+        imageRowTop: imageRow.getBoundingClientRect().top,
+        imageWidth: readyImage.getBoundingClientRect().width,
+      }
+    })
+    expect(attachmentMetrics.imageWidth).toBe(80)
+    expect(attachmentMetrics.imageHeight).toBe(80)
+    expect(attachmentMetrics.failedImageWidth).toBe(64)
+    expect(attachmentMetrics.failedImageHeight).toBe(64)
+    expect(attachmentMetrics.filePillMaxWidth).toBe('320px')
+    expect(attachmentMetrics.imageRowOverflowX).toBe('auto')
+    expect(attachmentMetrics.fileRowOverflowX).toBe('auto')
+    expect(attachmentMetrics.imageRowTop).toBeLessThan(
+      attachmentMetrics.bubbleTop,
+    )
+    expect(attachmentMetrics.fileRowTop).toBeLessThan(
+      attachmentMetrics.bubbleTop,
+    )
+
+    if (visualCase.id === 'desktop-light') {
+      const patchCard = page.locator('.canonical-patch-card').first()
+      await expect(patchCard).toBeVisible()
+      const patchMetrics = await patchCard.evaluate(element => {
+        const fileRow = element.querySelector<HTMLElement>(
+          '.canonical-patch-card__file',
+        )
+        const disclosure = element.querySelector<HTMLElement>(
+          '.canonical-patch-card__disclosure',
+        )
+        if (!fileRow || !disclosure) {
+          throw new Error('Missing patch card rows')
+        }
+        return {
+          center:
+            element.getBoundingClientRect().left +
+            element.getBoundingClientRect().width / 2,
+          disclosureHeight: disclosure.getBoundingClientRect().height,
+          fileRowHeight: fileRow.getBoundingClientRect().height,
+          width: element.getBoundingClientRect().width,
+        }
+      })
+      expect(patchMetrics.width).toBeCloseTo(metrics.readingBlockWidth, 0)
+      expect(patchMetrics.fileRowHeight).toBe(36)
+      expect(patchMetrics.disclosureHeight).toBe(36)
+      expect(Math.abs(patchMetrics.center - metrics.readingBlockCenter)).toBeLessThanOrEqual(1)
+
+      await userBubbleLocator.getByRole('button', { name: '显示更多' }).click()
+      await expect(
+        userBubbleLocator.getByRole('button', { name: '收起' }),
+      ).toBeVisible()
+      await userTurnLocator.getByRole('button', { name: '修改并重新发送' }).click()
+      const editorSurface = userTurnLocator.locator(
+        '.canonical-user-message__editor-surface',
+      )
+      await expect(editorSurface).toBeVisible()
+      await expect(editorSurface.getByRole('group', { name: '图片附件' })).toBeVisible()
+      await expect(editorSurface.getByRole('group', { name: '文件附件' })).toBeVisible()
+      const editMetrics = await editorSurface.evaluate(element => {
+        const editingMessage = element.closest<HTMLElement>(
+          '.canonical-user-message--editing',
+        )
+        const turn = element.closest<HTMLElement>('.canonical-turn__user')
+        if (!editingMessage || !turn) throw new Error('Missing edited message axis')
+        return {
+          messageWidth: editingMessage.getBoundingClientRect().width,
+          turnWidth: turn.getBoundingClientRect().width,
+        }
+      })
+      expect(editMetrics.messageWidth).toBeCloseTo(editMetrics.turnWidth, 0)
+      const originalAttachmentCount = await editorSurface
+        .locator('.attachment-image-tile, .attachment-file-pill')
+        .count()
+      await editorSurface.getByRole('button', { name: '移除 工作台布局.png' }).click()
+      await expect(
+        editorSurface.locator('.attachment-image-tile, .attachment-file-pill'),
+      ).toHaveCount(originalAttachmentCount - 1)
+      await editorSurface.getByRole('button', { name: '取消' }).click()
+      await expect(userTurnLocator.locator('.attachment-image-tile')).toHaveCount(3)
+    }
   })
 }
 
@@ -1928,9 +2229,107 @@ for (const mode of MODES) {
     await expect(summary).toBeVisible()
     await expect(summaryHeader).toBeVisible()
 
-    const command = page.locator('.canonical-tool').first()
+    const turnActivity = page.locator('.canonical-turn-activity').first()
+    const turnActivitySummary = turnActivity.locator(
+      ':scope > .canonical-turn-activity__summary',
+    )
+    const turnActivityChevron = turnActivitySummary.locator(
+      '.canonical-turn-activity__chevron',
+    )
+    const turnActivityDivider = turnActivity.locator(
+      ':scope > .canonical-turn-activity__divider',
+    )
+    const result = page.locator('.canonical-turn__result').first()
+    await expect(turnActivity).toHaveAttribute('data-expandable', 'true')
+    await expect(turnActivity).toHaveAttribute('data-expanded', 'false')
+    await expect(turnActivitySummary).toHaveAttribute('aria-expanded', 'false')
+    await expect(turnActivityChevron).toBeVisible()
+    await expect(turnActivityChevron).toHaveCSS('opacity', '1')
+    await expect(turnActivityDivider).toBeVisible()
+    await expect(turnActivity.locator('.canonical-turn-activity__content')).toHaveCount(0)
+    await expect(turnActivity.locator('.canonical-turn__process')).toHaveCount(0)
+    await expect(result).toBeVisible()
+
+    const collapsedChevronTransform = await turnActivityChevron.evaluate(
+      element => getComputedStyle(element).transform,
+    )
+    const initialOrder = await page.evaluate(() => {
+      const activity = document.querySelector<HTMLElement>(
+        '.canonical-turn-activity',
+      )
+      const activitySummary = activity?.querySelector<HTMLElement>(
+        ':scope > .canonical-turn-activity__summary',
+      )
+      const divider = activity?.querySelector<HTMLElement>(
+        ':scope > .canonical-turn-activity__divider',
+      )
+      const result = document.querySelector<HTMLElement>(
+        '.canonical-turn__result',
+      )
+      if (!activity || !activitySummary || !divider || !result) return null
+      return {
+        activityBeforeResult: Boolean(
+          activity.compareDocumentPosition(result)
+          & Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
+        summaryBeforeDivider: Boolean(
+          activitySummary.compareDocumentPosition(divider)
+          & Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
+      }
+    })
+    expect(initialOrder).toEqual({
+      activityBeforeResult: true,
+      summaryBeforeDivider: true,
+    })
+
+    await turnActivitySummary.click()
+    await expect(turnActivity).toHaveAttribute('data-expanded', 'true')
+    await expect(turnActivitySummary).toHaveAttribute('aria-expanded', 'true')
+    const turnActivityContent = turnActivity.locator(
+      ':scope > .canonical-turn-activity__content',
+    )
+    await expect(turnActivityContent).toBeVisible()
+    await expect(turnActivityContent).toHaveCSS('opacity', '1')
+    const reducedMotionTransform = await turnActivityContent.evaluate(
+      element => getComputedStyle(element).transform,
+    )
+    expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(
+      reducedMotionTransform,
+    )
+    const expandedChevronTransform = await turnActivityChevron.evaluate(
+      element => getComputedStyle(element).transform,
+    )
+    expect(expandedChevronTransform).not.toBe(collapsedChevronTransform)
+
+    const process = page.locator('.canonical-turn__process').first()
+    const activityGroup = process.locator(
+      '.canonical-process-group[data-expandable="true"]',
+    ).first()
+    const activitySummary = activityGroup.locator(
+      ':scope > .canonical-process-group__summary',
+    )
+    const activityChevron = activitySummary.locator(
+      '.canonical-process-group__chevron',
+    )
+    await expect(activityGroup).toBeVisible()
+    await expect(activityGroup.locator('.canonical-process-group__content')).toHaveCount(0)
+    await expect(activityChevron).toHaveCSS('opacity', '0')
+    await activitySummary.hover()
+    await expect(activityChevron).toHaveCSS('opacity', '1')
+    await activitySummary.focus()
+    await expect(activityChevron).toHaveCSS('opacity', '1')
+    await activitySummary.click()
+    await expect(activityGroup).toHaveAttribute('data-expanded', 'true')
+    await expect(activityGroup.locator('.canonical-process-group__content')).toBeVisible()
+    await expect(activityChevron).toHaveCSS('opacity', '1')
+
+    const command = activityGroup.locator('.canonical-tool').first()
+    await expect(command).toHaveAttribute('data-presentation', 'grouped')
     await command.locator(':scope > summary').click()
-    const commandShell = page.locator('.canonical-command-shell').first()
+    const commandShell = command.locator(
+      '.canonical-command-shell--embedded',
+    )
     await expect(commandShell).toBeVisible()
 
     const surfaces = await page.evaluate(() => {
@@ -1938,8 +2337,54 @@ for (const mode of MODES) {
       const header = panel?.querySelector<HTMLElement>(
         '.thread-summary-section > header',
       )
-      const shell = document.querySelector<HTMLElement>('.canonical-command-shell')
-      if (!panel || !header || !shell) return null
+      const process = document.querySelector<HTMLElement>('.canonical-turn__process')
+      const turnActivity = document.querySelector<HTMLElement>(
+        '.canonical-turn-activity',
+      )
+      const turnActivitySummary = turnActivity?.querySelector<HTMLElement>(
+        ':scope > .canonical-turn-activity__summary',
+      )
+      const turnActivityDivider = turnActivity?.querySelector<HTMLElement>(
+        ':scope > .canonical-turn-activity__divider',
+      )
+      const turnActivityContent = turnActivity?.querySelector<HTMLElement>(
+        ':scope > .canonical-turn-activity__content',
+      )
+      const result = document.querySelector<HTMLElement>(
+        '.canonical-turn__result',
+      )
+      const group = process?.querySelector<HTMLElement>(
+        '.canonical-process-group[data-expandable="true"]',
+      )
+      const summary = group?.querySelector<HTMLElement>(
+        ':scope > .canonical-process-group__summary',
+      )
+      const items = group?.querySelector<HTMLElement>(
+        '.canonical-process-group__items',
+      )
+      const shell = group?.querySelector<HTMLElement>(
+        '.canonical-command-shell--embedded',
+      )
+      const output = shell?.querySelector<HTMLElement>(
+        '.canonical-command-shell__result pre',
+      )
+      if (
+        !panel
+        || !header
+        || !process
+        || !turnActivity
+        || !turnActivitySummary
+        || !turnActivityDivider
+        || !turnActivityContent
+        || !result
+        || !group
+        || !summary
+        || !items
+        || !shell
+        || !output
+      ) {
+        return null
+      }
 
       const resolveBackground = (
         parent: HTMLElement,
@@ -1954,21 +2399,105 @@ for (const mode of MODES) {
       }
 
       return {
+        group: {
+          background: getComputedStyle(group).backgroundColor,
+          borderRadius: getComputedStyle(group).borderRadius,
+          borderWidth: getComputedStyle(group).borderTopWidth,
+          padding: getComputedStyle(group).padding,
+        },
         header: getComputedStyle(header).backgroundColor,
+        items: {
+          background: getComputedStyle(items).backgroundColor,
+          borderRadius: getComputedStyle(items).borderRadius,
+          borderWidth: getComputedStyle(items).borderTopWidth,
+          gap: getComputedStyle(items).gap,
+          maskImage: getComputedStyle(items).maskImage,
+          maxHeight: getComputedStyle(items).maxHeight,
+          padding: getComputedStyle(items).padding,
+        },
         panelSurface: resolveBackground(shell, '--layer-panel-fill'),
         panel: getComputedStyle(panel).backgroundColor,
+        processGap: getComputedStyle(process).gap,
         raisedSurface: resolveBackground(panel, '--layer-raised-fill'),
-        shell: getComputedStyle(shell).backgroundColor,
+        shell: {
+          background: getComputedStyle(shell).backgroundColor,
+          borderRadius: getComputedStyle(shell).borderRadius,
+          borderWidth: getComputedStyle(shell).borderTopWidth,
+        },
+        shellOutputMaxHeight: getComputedStyle(output).maxHeight,
+        summary: {
+          background: getComputedStyle(summary).backgroundColor,
+          borderRadius: getComputedStyle(summary).borderRadius,
+          padding: getComputedStyle(summary).padding,
+        },
+        turnActivity: {
+          activityBeforeResult: Boolean(
+            turnActivity.compareDocumentPosition(result)
+            & Node.DOCUMENT_POSITION_FOLLOWING,
+          ),
+          background: getComputedStyle(turnActivity).backgroundColor,
+          borderRadius: getComputedStyle(turnActivity).borderRadius,
+          borderWidth: getComputedStyle(turnActivity).borderTopWidth,
+          contentPaddingTop: getComputedStyle(turnActivityContent).paddingTop,
+          dividerBorderWidth: getComputedStyle(turnActivityDivider).borderTopWidth,
+          processGapAfterDivider:
+            process.getBoundingClientRect().top
+            - turnActivityDivider.getBoundingClientRect().bottom,
+          summaryBackground: getComputedStyle(turnActivitySummary).backgroundColor,
+          summaryBorderRadius: getComputedStyle(turnActivitySummary).borderRadius,
+          summaryPadding: getComputedStyle(turnActivitySummary).padding,
+        },
       }
     })
 
-    expect(surfaces).toEqual({
-      header: 'rgba(0, 0, 0, 0)',
-      panelSurface: surfaces?.panelSurface,
-      panel: surfaces?.raisedSurface,
-      raisedSurface: surfaces?.raisedSurface,
-      shell: surfaces?.panelSurface,
+    expect(surfaces).not.toBeNull()
+    expect(surfaces?.header).toBe('rgba(0, 0, 0, 0)')
+    expect(surfaces?.panel).toBe(surfaces?.raisedSurface)
+    expect(surfaces?.processGap).toBe('16px')
+    expect(surfaces?.group).toEqual({
+      background: 'rgba(0, 0, 0, 0)',
+      borderRadius: '0px',
+      borderWidth: '0px',
+      padding: '0px',
     })
+    expect(surfaces?.summary).toEqual({
+      background: 'rgba(0, 0, 0, 0)',
+      borderRadius: '0px',
+      padding: '0px',
+    })
+    expect(surfaces?.items).toMatchObject({
+      background: 'rgba(0, 0, 0, 0)',
+      borderRadius: '0px',
+      borderWidth: '0px',
+      gap: '4px',
+      maxHeight: '224px',
+      padding: '0px',
+    })
+    expect(surfaces?.items.maskImage).not.toBe('none')
+    expect(surfaces?.shell).toEqual({
+      background: 'rgba(0, 0, 0, 0)',
+      borderRadius: '0px',
+      borderWidth: '0px',
+    })
+    expect(surfaces?.shellOutputMaxHeight).toBe('144px')
+    expect(surfaces?.turnActivity).toMatchObject({
+      activityBeforeResult: true,
+      background: 'rgba(0, 0, 0, 0)',
+      borderRadius: '0px',
+      borderWidth: '0px',
+      contentPaddingTop: '16px',
+      dividerBorderWidth: '1px',
+      summaryBackground: 'rgba(0, 0, 0, 0)',
+      summaryBorderRadius: '0px',
+      summaryPadding: '0px',
+    })
+    expect(surfaces?.turnActivity.processGapAfterDivider).toBeCloseTo(16, 0)
+
+    await turnActivitySummary.click()
+    await expect(turnActivity).toHaveAttribute('data-expanded', 'false')
+    await expect(turnActivity.locator('.canonical-turn-activity__content')).toHaveCount(0)
+    await expect(turnActivity.locator('.canonical-turn__process')).toHaveCount(0)
+    await expect(result).toBeVisible()
   })
 }
 
@@ -1983,7 +2512,7 @@ for (const mode of MODES) {
     await closeTransientErrorToast(page)
     await expect(
       page.getByRole('heading', {
-        name: /我们(?:该做什么|应该构建什么)？/,
+        name: /我们该构建什么？/,
       }),
     ).toBeVisible()
     await expect(page.locator('html')).toHaveAttribute(

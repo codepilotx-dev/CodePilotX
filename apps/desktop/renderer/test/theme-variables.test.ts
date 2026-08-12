@@ -140,6 +140,32 @@ describe('fixed Codex UI themes', () => {
     expect(dark['--codex-base-on-accent']).toBe('#ffffff')
   })
 
+  test('keeps control thumbs white in light and dark themes', () => {
+    const light = deriveThemeVariables({
+      ...DEFAULT_LIGHT_THEME,
+      theme: {
+        ...DEFAULT_LIGHT_THEME.theme,
+        accent: '#d7827e',
+        contrast: 40,
+        ink: '#575279',
+        surface: '#faf4ed',
+      },
+    })
+    const dark = deriveThemeVariables({
+      ...DEFAULT_DARK_THEME,
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        accent: '#a7c080',
+        contrast: 41,
+        ink: '#d3c6aa',
+        surface: '#2d353b',
+      },
+    })
+
+    expect(light['--control-thumb-fill']).toBe('#ffffff')
+    expect(dark['--control-thumb-fill']).toBe('#ffffff')
+  })
+
   test('keeps resting surfaces flat and delegates floating elevation to the theme token', async () => {
     const expectedRaised = 'none'
     const expectedFloat = 'var(--shadow-floating)'

@@ -53,30 +53,62 @@ function composerCardProps(
 }
 
 describe('composer surface variant', () => {
-  test('Working 输出 data-surface 标记，Coding/Chat 不输出', () => {
+  test('Coding、Working 与 Chat 输出各自的 data-surface 标记', () => {
+    const coding = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ surface: 'coding' })} />,
+    )
     const working = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'working' })} />,
     )
-    const coding = renderToStaticMarkup(<ComposerCard {...composerCardProps()} />)
+    const chat = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ surface: 'chat' })} />,
+    )
+    expect(coding).toContain('data-surface="coding"')
     expect(working).toContain('data-surface="working"')
     expect(working).toContain('data-placement="new-session"')
-    expect(coding).not.toContain('data-surface')
+    expect(chat).toContain('data-surface="chat"')
   })
 
-  test('Coding/Chat 未选 workspace 时保留进入项目工作入口', () => {
-    const html = renderToStaticMarkup(<ComposerCard {...composerCardProps()} />)
+  test('Coding 未选 workspace 时保留进入项目工作入口', () => {
+    const html = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ surface: 'coding' })} />,
+    )
     expect(html).toContain('进入项目工作')
     expect(html).not.toContain('选择文件夹')
   })
 
-  test('Coding/Chat 选中 workspace 后保留本地、分支与项目行为', () => {
+  test('Coding 选中 workspace 后保留本地、分支与项目行为', () => {
     const html = renderToStaticMarkup(
-      <ComposerCard {...composerCardProps({ workspace: WORKSPACE })} />,
+      <ComposerCard
+        {...composerCardProps({ surface: 'coding', workspace: WORKSPACE })}
+      />,
     )
     expect(html).toContain('Alpha 工作区')
     expect(html).toContain('本地')
     expect(html).toContain('feature/working-surface')
     expect(html).toContain('选择分支')
+  })
+
+  test('Chat 不渲染项目工具条，但保留输入与提交结构', () => {
+    const html = renderToStaticMarkup(
+      <ComposerCard
+        {...composerCardProps({ surface: 'chat', workspace: WORKSPACE })}
+      />,
+    )
+    expect(html).not.toContain('composer-utility-bar')
+    expect(html).not.toContain('Alpha 工作区')
+    expect(html).toContain('composer-input-surface')
+    expect(html).toContain('aria-label="发送"')
+  })
+
+  test('麦克风保留为带说明的禁用控件', () => {
+    const html = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ surface: 'chat' })} />,
+    )
+    expect(html).toContain('composer-mic-button')
+    expect(html).toContain('aria-label="语音输入尚未可用"')
+    expect(html).toContain('title="语音输入尚未可用"')
+    expect(html).toContain('disabled=""')
   })
 
   test('Working 新建页未选 workspace 时显示选择文件夹与插件入口', () => {

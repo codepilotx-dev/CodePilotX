@@ -59,6 +59,85 @@ const projectWorkspace = {
 }
 
 describe('desktop thread settings client', () => {
+  test('reimports retained attachments before starting an edited turn', async () => {
+    const calls: Array<{ method: string; params: any }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      calls.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'attachment/read') {
+        return rpc(body.id, {
+          attachment: {
+            id: body.params.attachmentId,
+            kind: 'text',
+            name: 'history.md',
+            mediaType: 'text/markdown',
+            sizeBytes: 7,
+            sha256: 'history-sha',
+            createdAt: now,
+          },
+          data: 'history',
+          encoding: 'utf8',
+          range: { offset: 0, length: 7, total: 7 },
+        })
+      }
+      if (body.method === 'attachment/import') {
+        return rpc(body.id, {
+          attachments: [{
+            id: 'cloned-history-id',
+            kind: 'text',
+            name: 'history.md',
+            mediaType: 'text/markdown',
+            sizeBytes: 7,
+            sha256: 'cloned-sha',
+            createdAt: now,
+          }],
+        })
+      }
+      if (body.method === 'model/list') return rpc(body.id, modelCatalog())
+      if (body.method === 'turn/start') {
+        return rpc(body.id, {
+          inputId: body.params.inputId,
+          turnId: 'edited-turn',
+          disposition: 'accepted',
+          streamPosition: { streamId: body.params.threadId, sequence: 1 },
+        })
+      }
+      if (body.method === 'thread/read') {
+        throw new Error('视觉外的刷新失败不应改变已提交请求。')
+      }
+      throw new Error(`Unhandled method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await client.sendUserMessage('session-edited', {
+      text: '修改后的消息',
+      retainedAttachmentIds: ['history-id'],
+    })
+
+    expect(calls.find(call => call.method === 'attachment/read')?.params).toEqual({
+      attachmentId: 'history-id',
+    })
+    expect(calls.find(call => call.method === 'attachment/import')?.params).toMatchObject({
+      uploads: [{
+        kind: 'text',
+        name: 'history.md',
+        data: 'history',
+        encoding: 'utf8',
+      }],
+    })
+    expect(calls.find(call => call.method === 'turn/start')?.params).toMatchObject({
+      attachmentIds: ['cloned-history-id'],
+      content: '修改后的消息',
+      threadId: 'session-edited',
+    })
+    expect(
+      calls.find(call => call.method === 'turn/start')?.params.attachmentIds,
+    ).not.toContain('history-id')
+  })
+
   test('routes shared Profile listing and selection through RPC v4', async () => {
     const calls: Array<{ method: string; params: unknown }> = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
