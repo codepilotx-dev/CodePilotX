@@ -14,6 +14,12 @@
 
 ### Changed
 
+- [desktop/renderer] 将会话处理过程改为 Codex 式无框活动流，补齐语义摘要、嵌入命令详情、折叠动效与长列表渐隐滚动。
+- [desktop/renderer] 按 Codex 的尺寸、颜色与上下文契约重构文字及纯图标按钮，统一应用标题栏、工作区、面板、TabStrip、侧栏与 Composer 的点击盒、字级、圆角和主次视觉层级。
+- [desktop/renderer] 将 Coding 首页建议限制为最多四项，并让 Working 根据当前工作区、Git 状态与最近会话生成三条真实建议，同时保留工作模板入口。
+- [desktop/renderer] 对齐 Coding、Working 与 Chat 新建首页的标题、建议层级和 Composer 布局，并为 Chat 增加独立首页。
+- [desktop/renderer] 将桌面开关与对比度滑块的控制点统一为亮暗模式固定白色，并取消主题预览卡的鼠标悬停变色。
+- [desktop/renderer] 将会话轮次、过程与耗时、正文、表格、代码、媒体、用户消息、附件、编辑态、文件变更卡片与 Composer 统一到 48rem 阅读轴，保留编辑重发附件并改善长消息及窄窗口下的折叠、截断和横向溢出表现。
 - [desktop/renderer] 统一全局正文、标题、侧栏与菜单的字号、行高和语义字重，使等宽及非等宽 UI 字体均保持 Codex 式清晰排版节奏。
 - [desktop] 参考 Codex 统一桌面端中性 active、hover 与键盘焦点表现，移除突兀的选中轨道，并仅为 inset 分段控件和裁切焦点保留轻量特殊效果。
 - [desktop] 将桌面端圆角统一为 8/12/16px 嵌套柔和曲率，并限制胶囊圆角只用于状态与选择类控件，使扁平工作台更精致统一。
@@ -26,7 +32,6 @@
 - [renderer] 统一 Composer 外层堆栈与输入面板的圆角，避免阴影出现方形边角
 - [renderer] 统一计划更新等生命周期状态与命令摘要的内容宽度和左侧对齐方式
 - [renderer] 隐藏会话主滚动区的滚动条外观，同时保留滚轮、触控板和键盘滚动能力
-- [renderer] 移除会话轮次与 Composer 的 48rem 最大宽度限制，使内容随会话主区完整铺开
 - [renderer] 统一会话工作台右栏与底栏的定位占位层级，使拖拽时主区、面板内容、Markdown 与 Composer 实时重排，并补齐宽内容折行和最小尺寸保护
 - [Agent/desktop/renderer] 统一执行与恢复纵切面：history schema 27 增加 durable resume lease，main/subagent 共享 interaction 恢复入口，Renderer 改为 canonical 批量单写者并在应用提交后确认事件位置
 - [Agent/renderer] 统一 thread snapshot、history、queue 的 SQLite read fence 与 SSE cursor authority，事件以 256 条或 50ms 批量提交、1024 条有界积压并在消费失败后从已提交位置重新对账
@@ -34,6 +39,8 @@
 
 ### Fixed
 
+- [desktop/renderer] 修正整轮活动流的耗时标题、运行状态和折叠层级，使最终回复前的 commentary、工具活动与 thinking 状态按 Codex 顺序展示。
+- [desktop/renderer] 修复桌面开关控制点因边框计入尺寸错误而偏离轨道中心、在选中端贴边的问题。
 - [desktop/renderer] 修复顶部应用菜单无法通过重复点击和标准关闭操作稳定收起，以及 Composer 统一菜单的导航高亮反复跳回第一项的问题。
 - [desktop] 对齐 Codex 空右栏的启动项顺序、文案、图标与快捷键，在无标签时隐藏冗余加号，并修复侧边聊天入口、添加菜单与标签关闭交互。
 - [renderer] 修复新建会话复合 Composer 被全局外层阴影包围的问题，同时保留主线程和侧边聊天的输入框层次。
