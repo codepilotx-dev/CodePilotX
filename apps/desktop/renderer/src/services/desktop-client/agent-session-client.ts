@@ -908,18 +908,12 @@ export function createAgentSessionDesktopClient(
   }
 
   async function importAgentAttachments(input: DesktopUserMessageInput) {
-    const source = input.attachments ?? []
-    if (!source.length) return []
-    const payload = source.map(attachment => {
-      if (attachment.status !== 'ready') throw new Error(`附件 ${attachment.name} 尚未准备完成。`)
-      if (attachment.kind === 'image') {
-        const data = attachment.contentBase64 ?? attachment.previewDataUrl?.replace(/^data:[^;]+;base64,/, '')
-        if (!data) throw new Error(`图片附件 ${attachment.name} 缺少内容。`)
-        return { kind: 'image' as const, name: attachment.name, mediaType: attachment.mediaType, data, encoding: 'base64' as const }
-      }
-      if (typeof attachment.textContent !== 'string' || attachment.truncated) throw new Error(`附件 ${attachment.name} 不是完整的 UTF-8 文本或受支持图片。`)
-      return { kind: 'text' as const, name: attachment.name, mediaType: attachment.mediaType || 'text/plain', data: attachment.textContent, encoding: 'utf8' as const }
-    })
+    const { buildAgentAttachmentUploads } = await import('./attachmentUploadSupport.js')
+    const payload = await buildAgentAttachmentUploads(
+      input,
+      attachmentId => rpc.call('attachment/read', { attachmentId }),
+    )
+    if (!payload.length) return []
     const response = await rpc.call('attachment/import', {
       uploads: payload,
       operationId: crypto.randomUUID(),
@@ -1335,8 +1329,10 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
-    readAttachment: attachmentId =>
-      rpc.call('attachment/read', { attachmentId }),
+    readAttachment: attachmentId => withAgentOrMock(
+      () => rpc.call('attachment/read', { attachmentId }),
+      () => mockClient.readAttachment(attachmentId),
+    ),
     saveAttachmentToDownloads: input =>
       environment.window?.codePilotXDesktop?.saveAttachmentToDownloads
         ? environment.window.codePilotXDesktop.saveAttachmentToDownloads(input)
@@ -2108,6 +2104,7 @@ export function createAgentSessionDesktopClient(
           ? await loadProjectForPath(input.workspacePath)
           : null
         return rpc.call('task-suggestion/generate', {
+          ...(input.surface ? { surface: input.surface } : {}),
           workspace: project
             ? { kind: 'project', projectId: project.id }
             : { kind: 'projectless' },
@@ -2647,6 +2644,7 @@ export function createAgentSessionDesktopClient(
       withAgentOrMock(
         async () => {
           const shouldReplaceAttachments = input.attachments !== undefined
+            || input.retainedAttachmentIds !== undefined
           const attachmentIds = shouldReplaceAttachments
             ? await importAgentAttachments(input)
             : undefined

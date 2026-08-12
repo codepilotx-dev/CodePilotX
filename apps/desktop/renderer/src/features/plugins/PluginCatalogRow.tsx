@@ -57,7 +57,7 @@ export function PluginCatalogRow({
 
       <div className="plugin-catalog-row__actions">
         {action ? (
-          <Button
+          <Button color="primary"
             aria-describedby={errorId}
             aria-pressed={action.pressed}
             disabled={action.disabled}
@@ -75,10 +75,10 @@ export function PluginCatalogRow({
           </Button>
         ) : null}
         <IconButton
+          color="ghostSecondary"
           onClick={event => onOpenDetails(item, event.currentTarget)}
-          size="sm"
+          size="iconMd"
           title={`查看 ${item.name} 详情`}
-          variant="plain"
         >
           <MoreHorizontal
             aria-hidden="true"

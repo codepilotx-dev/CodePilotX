@@ -4,7 +4,6 @@ import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import type { ExecutionPlanItem } from "@codepilotx/shared/thread";
 
 import { Button } from "../../../components/ui/Button.js";
-import { IconButton } from "../../../components/ui/IconButton.js";
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -146,7 +145,7 @@ export function ComposerChangeSummary({
           role="group"
         >
           {executionPlan ? (
-            <Button
+            <Button color="primary"
               aria-controls={planPanelId}
               aria-expanded={planExpanded}
               className="composer-change-summary__plan"
@@ -172,7 +171,7 @@ export function ComposerChangeSummary({
             </span>
           ) : null}
           {changedFileCount > 0 ? (
-            <Button
+            <Button color="primary"
               aria-label={diffStatsAvailable
                 ? `打开审阅面板，${changedFileCount} 个文件已更改，新增 ${formattedAdditions} 行，删除 ${formattedDeletions} 行`
                 : `打开审阅面板，${changedFileCount} 个文件已更改，增删行数统计暂不可用`}
@@ -262,11 +261,13 @@ function ComposerReturnToBottomPresence({
             }
       }
     >
-      <IconButton
+      <button
+        aria-label="回到底部"
         className="composer-change-summary__return"
         data-running={running || undefined}
         onClick={onReturnToBottom}
         title="回到底部"
+        type="button"
       >
         {running ? (
           <span
@@ -284,7 +285,7 @@ function ComposerReturnToBottomPresence({
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
-      </IconButton>
+      </button>
     </motion.div>
   );
 }

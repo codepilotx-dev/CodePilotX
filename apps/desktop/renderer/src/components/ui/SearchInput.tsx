@@ -133,10 +133,10 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           <IconButton
             aria-label={clearLabel}
             className="search-input-clear"
+            color="ghostSecondary"
             onClick={handleClear}
-            size="sm"
+            size="iconMd"
             title={clearLabel}
-            variant="plain"
           >
             <X size={APP_ICON_SIZE} />
           </IconButton>

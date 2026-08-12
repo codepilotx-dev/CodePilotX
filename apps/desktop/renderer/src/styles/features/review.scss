@@ -142,12 +142,6 @@
   flex: 0 0 auto;
   gap: 5px;
   white-space: nowrap;
-
-  .message-action {
-    width: var(--control-size-sm);
-    height: var(--control-size-sm);
-    padding: 0;
-  }
 }
 
 .review-sidebar-primary-action {
@@ -164,7 +158,7 @@
 }
 
 @container (min-width: 640px) {
-  .review-sidebar-actions .message-action.review-sidebar-primary-action {
+  .review-sidebar-actions .review-sidebar-primary-action {
     width: auto;
     min-width: var(--control-size-sm);
     padding: 0 var(--control-padding-inline-compact);
@@ -404,19 +398,6 @@
 
 .review-file-actions-secondary {
   margin-left: auto;
-}
-
-.review-file-actions .message-action {
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  padding: 0;
-  border-radius: var(--radius-control);
-}
-
-.review-file-actions .message-action svg {
-  width: 12px;
-  height: 12px;
 }
 
 .review-file-toggle svg {

@@ -8,6 +8,7 @@
   --codex-base-ink: #1a1c1f;
   --codex-base-on-accent: #ffffff;
   --codex-base-surface: #ffffff;
+  --control-thumb-fill: #ffffff;
   --color-accent-blue: var(--codex-base-accent);
   --color-accent-purple: #924ff7;
   --color-decoration-added: #00a240;
@@ -190,6 +191,28 @@
   --control-padding-inline: 0.7em;
   --control-gap-compact: 0.35em;
   --control-gap: 0.57em;
+
+  // Codex Electron button profiles use a fixed 4px spacing unit and do not
+  // scale with the editor/UI font preference.
+  --button-size-compact: 24px;
+  --button-size-default: 24px;
+  --button-size-toolbar: 28px;
+  --button-size-medium: 32px;
+  --button-size-tab-strip-action: 34px;
+  --button-size-large: 36px;
+  --button-size-icon-large: 64px;
+  --button-icon-size-xs: 14px;
+  --button-icon-size-sm: 18px;
+  --button-radius-scale: 1;
+  --button-radius-md-base: 8px;
+  --button-radius-lg-base: 10px;
+  --button-radius-xl-base: 12px;
+  --button-radius-2xl-base: 16px;
+  --button-radius-md: calc(var(--button-radius-md-base) * var(--button-radius-scale));
+  --button-radius-lg: calc(var(--button-radius-lg-base) * var(--button-radius-scale));
+  --button-radius-xl: calc(var(--button-radius-xl-base) * var(--button-radius-scale));
+  --button-radius-2xl: calc(var(--button-radius-2xl-base) * var(--button-radius-scale));
+  --button-radius-full: 9999px;
   --control-size-sm: calc(var(--font-size-ui) + var(--font-size-ui));
   --control-size-md: calc(
     var(--font-size-ui) + var(--font-size-ui) + 6px
@@ -250,10 +273,11 @@
 
   --composer-width: 48rem;
   --floating-composer-h: 142px;
-  --chrome-h: calc(
-    var(--font-size-ui) + var(--font-size-ui) + 7px
-  );
-  --menubar-h: var(--chrome-h);
+  --application-menubar-height: 36px;
+  --workspace-toolbar-height: 46px;
+  --pane-toolbar-height: 40px;
+  --chrome-h: var(--application-menubar-height);
+  --menubar-h: var(--application-menubar-height);
   --shadow-soft: var(--shadow-resting);
   --shadow-card: var(--shadow-resting);
   --shadow-card-lg: var(--shadow-raised);

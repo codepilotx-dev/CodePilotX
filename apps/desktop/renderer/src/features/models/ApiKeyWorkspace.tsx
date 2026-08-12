@@ -387,7 +387,7 @@ export function AccountWorkspaceEmptyState({
       <Cable aria-hidden />
       <strong>尚未连接任何供应商</strong>
       <span>先从供应商目录选择服务，再添加推理 Key 或完成 OAuth 授权。</span>
-      <Button onClick={onOpenCatalog}>前往供应商</Button>
+      <Button color="secondary" onClick={onOpenCatalog}>前往供应商</Button>
     </div>
   )
 }
@@ -439,7 +439,7 @@ function ProviderConnectionContents({
               <h3>推理 API Keys</h3>
               <p>每个 Provider 只有一个活动凭据；其他 Key 仅保留供手动切换。</p>
             </div>
-            <Button onClick={onNewKey}>
+            <Button color="primary" onClick={onNewKey}>
               <Plus aria-hidden />
               新增 Key
             </Button>
@@ -510,7 +510,7 @@ function ProviderConnectionContents({
                 <div><strong>{connection.label}</strong><span>{connection.active ? '当前活动' : '未选择'}</span></div>
                 <div className="model-center-account-actions">
                   {!connection.active && connection.credentialId ? (
-                    <Button onClick={() => void onMutate(
+                    <Button color="primary" onClick={() => void onMutate(
                       connection.id,
                       () => providerManagementStore.setActiveCredential(
                         group.provider.providerID,
@@ -521,7 +521,7 @@ function ProviderConnectionContents({
                   ) : null}
                   {connection.credentialId ? (
                     <Button
-                      tone="danger"
+                      color="danger"
                       onClick={() => void onMutate(
                         connection.id,
                         () => providerManagementStore.deleteCredential(
@@ -647,15 +647,19 @@ function ApiKeyRow({
     >
       <div className="model-center-key-order">
         <IconButton
+          color="ghostSecondary"
           disabled={busy || index <= 0}
           onClick={() => onMove(-1)}
+          size="iconMd"
           title={`上移 ${keyItem.label}`}
         >
           <ArrowUp aria-hidden />
         </IconButton>
         <IconButton
+          color="ghostSecondary"
           disabled={busy || last}
           onClick={() => onMove(1)}
+          size="iconMd"
           title={`下移 ${keyItem.label}`}
         >
           <ArrowDown aria-hidden />
@@ -688,18 +692,18 @@ function ApiKeyRow({
         </div>
       </div>
       <div className="model-center-key-actions">
-        <Button disabled={busy} onClick={onCopy}>
+        <Button color="secondary" disabled={busy} onClick={onCopy}>
           <Copy aria-hidden />
           复制
         </Button>
-        <Button disabled={busy} onClick={onTest} title="测试会产生极少量费用">
+        <Button color="secondary" disabled={busy} onClick={onTest} title="测试会产生极少量费用">
           测试
         </Button>
         <Dropdown
           align="end"
           className="popover-menu--flex"
           trigger={(
-            <IconButton disabled={busy} title={`更多 ${keyItem.label}`}>
+            <IconButton color="ghostSecondary" disabled={busy} size="iconMd" title={`更多 ${keyItem.label}`}>
               <MoreHorizontal aria-hidden />
             </IconButton>
           )}

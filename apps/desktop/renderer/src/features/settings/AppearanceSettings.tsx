@@ -984,8 +984,6 @@ function VariantThemeEditor({
                 style={{
                   '--appearance-slider-accent': chromeTheme.accent,
                   '--appearance-slider-surface': chromeTheme.surface,
-                  '--appearance-slider-thumb':
-                    variant === 'light' ? '#000' : '#fff',
                 } as React.CSSProperties}
                 type="range"
                 value={chromeTheme.contrast}

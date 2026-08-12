@@ -317,18 +317,18 @@ export function GitWorkflowModal({
                 )}
               >
                 <Dialog.Close asChild>
-                  <Button>取消</Button>
+                  <Button color="secondary">取消</Button>
                 </Dialog.Close>
                 {mode === 'commitPush' ? (
                   <>
-                    <Button
+                    <Button color="secondary"
                       disabled={isSubmitting || changedFiles.length === 0}
                       type="button"
                       onClick={() => void submitCommit()}
                     >
                       提交选中文件
                     </Button>
-                    <Button
+                    <Button color="primary"
                       disabled={isSubmitting}
                       type="button"
                       onClick={() => void submitPush()}
@@ -337,7 +337,7 @@ export function GitWorkflowModal({
                     </Button>
                   </>
                 ) : (
-                  <Button
+                  <Button color="primary"
                     disabled={isSubmitting}
                     type="button"
                     onClick={() =>

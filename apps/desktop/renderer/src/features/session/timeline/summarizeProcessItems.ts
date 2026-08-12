@@ -1,10 +1,22 @@
 import type { Item, TurnStatus } from "@codepilotx/shared/thread";
 
-type ToolItem = Extract<Item, { type: "tool" }>;
+import {
+  buildToolSemanticSummary,
+  type ToolSemanticKind,
+} from "./CanonicalItemRenderer.js";
+
+export type ProcessSemanticKind = ToolSemanticKind | "thinking" | "failed";
 
 export type ProcessSummary = {
   active: boolean;
   failed: boolean;
+  kind: ProcessSemanticKind;
+  label: string;
+  summaryKey: string;
+};
+
+export type TurnWorkSummary = {
+  kind: "working" | "worked" | "stopped";
   label: string;
 };
 
@@ -47,29 +59,122 @@ function itemActivity(item: Item): ItemActivity {
   }
 }
 
-/**
- * Tell whether a turn status should keep the process group expanded
- * because the user's action is needed.
- */
-function isWaitingStatus(status: TurnStatus): boolean {
-  return (
-    status === "waiting-permission" ||
-    status === "waiting-question" ||
-    status === "waiting-subagents"
-  );
+export function isProcessItemActive(item: Item): boolean {
+  return itemActivity(item) === "running";
 }
 
-function isRunningTool(item: ToolItem): boolean {
-  return (
-    item.state === "pending"
-    || item.state === "waiting-permission"
-    || item.state === "running"
-  );
+function isActiveTurn(status: TurnStatus): boolean {
+  return status === "running"
+    || status === "waiting-permission"
+    || status === "waiting-question"
+    || status === "waiting-subagents";
 }
 
-function commandPreview(item: ToolItem): string {
-  const source = item.command?.trim() || item.title.trim() || item.tool;
-  return source.replace(/\s+/g, " ").trim();
+function activeItemSummary(item: Item): Pick<ProcessSummary, "kind" | "label"> {
+  switch (item.type) {
+    case "tool": {
+      const summary = buildToolSemanticSummary(item);
+      return { kind: summary.kind, label: summary.collapsedLabel };
+    }
+    case "reasoning":
+      return { kind: "thinking", label: "正在思考" };
+    case "activity":
+      return {
+        kind: item.activity === "file-edit"
+          ? "file-change"
+          : item.activity === "build"
+            ? "command"
+            : "thinking",
+        label: item.title.trim() || "正在处理",
+      };
+    case "subagent":
+      return { kind: "tool", label: "正在处理子代理" };
+    case "text":
+      return { kind: "thinking", label: "正在处理" };
+    default:
+      return { kind: "thinking", label: "正在处理" };
+  }
+}
+
+function semanticCount(item: Item, kind: ToolSemanticKind): number {
+  if (kind !== "file-change" || item.type !== "tool") return 1;
+  return item.mutationDiffPaths && item.mutationDiffPaths.length > 0
+    ? item.mutationDiffPaths.length
+    : 1;
+}
+
+function completedSemanticKinds(
+  items: readonly Item[],
+): Array<{ count: number; kind: ToolSemanticKind }> {
+  const counts = new Map<ToolSemanticKind, number>();
+  const add = (kind: ToolSemanticKind, count = 1): void => {
+    counts.set(kind, (counts.get(kind) ?? 0) + count);
+  };
+
+  for (const item of items) {
+    if (item.type === "tool") {
+      const { kind } = buildToolSemanticSummary(item);
+      add(kind, semanticCount(item, kind));
+      continue;
+    }
+    if (item.type === "activity") {
+      if (item.activity === "file-edit") add("file-change");
+      if (item.activity === "build") add("command");
+      continue;
+    }
+    if (item.type === "subagent") add("tool");
+  }
+
+  return [...counts].map(([kind, count]) => ({ count, kind }));
+}
+
+function completedSemanticLabel(kind: ToolSemanticKind, count: number): string {
+  switch (kind) {
+    case "file-change":
+      return count === 1 ? "编辑了一个文件" : "编辑了文件";
+    case "exploration":
+      return "已读取文件";
+    case "command":
+      return "运行了命令";
+    case "web-search":
+      return "已搜索网页";
+    case "integration":
+      return "使用了集成";
+    case "tool":
+      return "调用了工具";
+  }
+}
+
+export function summarizeTurnProcessItems(
+  items: readonly Item[],
+  turnStatus: TurnStatus,
+): ProcessSummary {
+  const activeItem = [...items].reverse().find(isProcessItemActive);
+  if (isActiveTurn(turnStatus)) {
+    const summary = activeItem
+      ? activeItemSummary(activeItem)
+      : { kind: "thinking" as const, label: "正在思考" };
+    return {
+      active: true,
+      failed: false,
+      kind: summary.kind,
+      label: summary.label,
+      summaryKey: `active:${activeItem?.id ?? "thinking"}:${summary.label}`,
+    };
+  }
+
+  const parts = completedSemanticKinds(items);
+  const label = parts.length > 0
+    ? parts.map(({ count, kind }) => completedSemanticLabel(kind, count)).join("、")
+    : "已处理";
+  const kind = parts[0]?.kind ?? "tool";
+  return {
+    active: false,
+    failed: false,
+    kind,
+    label,
+    summaryKey: `completed:${parts.map(({ count, kind }) => `${kind}:${count}`).join("|") || "processed"}`,
+  };
 }
 
 export function formatProcessElapsed(seconds: number): string {
@@ -86,88 +191,30 @@ export function formatProcessElapsed(seconds: number): string {
   return parts.join(" ");
 }
 
-function withElapsed(label: string, elapsedSeconds: number): string {
-  const elapsed = formatProcessElapsed(elapsedSeconds);
-  return elapsed ? `${label} ${elapsed}` : label;
-}
-
-export function summarizeTurnProcessItems(
-  items: readonly Item[],
+export function summarizeTurnWork(
   turnStatus: TurnStatus,
   elapsedSeconds: number,
-): ProcessSummary {
-  const activities = items.map(itemActivity);
-  const hasRunningItem = activities.includes("running");
-
-  if (isWaitingStatus(turnStatus)) {
-    return { active: true, failed: false, label: "等待操作" };
-  }
-  if (turnStatus === "running" || hasRunningItem) {
-    return { active: true, failed: false, label: "正在处理" };
-  }
-  if (turnStatus === "failed") {
-    return {
-      active: false,
-      failed: true,
-      label: withElapsed("处理失败", elapsedSeconds),
-    };
-  }
+): TurnWorkSummary | null {
+  if (turnStatus === "queued") return null;
+  const elapsed = formatProcessElapsed(elapsedSeconds);
   if (
     turnStatus === "stopped"
     || turnStatus === "interrupted"
     || turnStatus === "cancelled"
   ) {
     return {
-      active: false,
-      failed: true,
-      label: withElapsed("已中断", elapsedSeconds),
+      kind: "stopped",
+      label: elapsed ? `你在 ${elapsed} 后停止了` : "你停止了",
     };
   }
-  return {
-    active: false,
-    failed: false,
-    label: withElapsed("已处理", elapsedSeconds),
-  };
-}
-
-/**
- * Summarise one consecutive command group for CanonicalProcessGroup.
- *
- * @returns `active` – the group should be expanded automatically.
- *          `failed` – at least one item ended in error.
- *          `label`  – concise Chinese summary string.
- */
-export function summarizeCommandItems(
-  items: readonly ToolItem[],
-  turnStatus: TurnStatus,
-): ProcessSummary {
-  if (items.length === 0) {
-    return { active: false, failed: false, label: "" };
-  }
-
-  const runningItems = items.filter(isRunningTool);
-  const hasFailed = items.some(
-    (item) => item.state === "error" || item.state === "interrupted",
-  );
-
-  // Waiting states take priority — keep visible so the blocker is obvious.
-  if (isWaitingStatus(turnStatus)) {
-    return { active: true, failed: hasFailed, label: "等待操作" };
-  }
-
-  if (runningItems.length > 0) {
+  if (isActiveTurn(turnStatus)) {
     return {
-      active: true,
-      failed: hasFailed,
-      label: runningItems.length === 1
-        ? `正在运行 ${commandPreview(runningItems[0])}`
-        : `正在运行 ${runningItems.length} 条命令`,
+      kind: "working",
+      label: elapsed ? `已处理 ${elapsed}` : "处理中",
     };
   }
-
   return {
-    active: false,
-    failed: hasFailed,
-    label: `运行了 ${items.length} 条命令`,
+    kind: "worked",
+    label: elapsed ? `已处理 ${elapsed}` : "已处理",
   };
 }

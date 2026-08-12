@@ -63,7 +63,7 @@ export function RouteErrorPageContent({
           ? '应用可能正在更新，请重新加载后继续。'
           : '应用遇到临时问题，请重新加载后继续。'}
       </p>
-      <Button onClick={() => window.location.reload()}>重新加载</Button>
+      <Button color="secondary" onClick={() => window.location.reload()}>重新加载</Button>
     </main>
   )
 }

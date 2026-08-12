@@ -112,7 +112,7 @@ export function ApiKeyEditorDialog({
                   </div>
                 </div>
                 <Dialog.Close asChild>
-                  <IconButton title="关闭"><X aria-hidden /></IconButton>
+                  <IconButton color="ghostSecondary" size="toolbar" title="关闭"><X aria-hidden /></IconButton>
                 </Dialog.Close>
               </header>
 
@@ -161,8 +161,8 @@ export function ApiKeyEditorDialog({
               </div>
 
               <footer className="model-center-key-dialog-actions">
-                <Dialog.Close asChild><Button>取消</Button></Dialog.Close>
-                <Button disabled={!canSubmit} loading={busy} type="submit">
+                <Dialog.Close asChild><Button color="secondary">取消</Button></Dialog.Close>
+                <Button color="primary" disabled={!canSubmit} loading={busy} type="submit">
                   {editing ? '保存更改' : '安全保存'}
                 </Button>
               </footer>

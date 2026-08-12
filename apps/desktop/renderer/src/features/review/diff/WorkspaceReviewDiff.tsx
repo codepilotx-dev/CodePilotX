@@ -47,6 +47,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
+import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
@@ -730,23 +731,25 @@ export function ReviewDiffFilePreview({
           aria-label="文件查看操作"
         >
           <Tooltip content={isCollapsed ? "展开文件差异" : "折叠文件差异"}>
-            <button
+            <IconButton
               aria-expanded={!isCollapsed}
-              aria-label={isCollapsed ? "展开文件差异" : "折叠文件差异"}
-              className="message-action review-file-toggle"
+              className="review-file-toggle"
+              color="ghostSecondary"
               data-expanded={isCollapsed ? "false" : "true"}
-              type="button"
+              size="iconMd"
+              title={isCollapsed ? "展开文件差异" : "折叠文件差异"}
               onClick={() => toggleCollapseDiff(file.path)}
             >
               <ChevronRight size={REVIEW_FILE_ACTION_ICON_SIZE} />
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip content="打开文件">
-            <button
-              aria-label="打开文件"
+            <IconButton
               aria-disabled={!workspacePath}
-              className="message-action review-file-open"
-              type="button"
+              className="review-file-open"
+              color="ghostSecondary"
+              size="iconMd"
+              title="打开文件"
               onClick={() => {
                 if (!workspacePath) return;
                 void desktopClient.openPathWithDefaultTarget(
@@ -755,7 +758,7 @@ export function ReviewDiffFilePreview({
               }}
             >
               <ExternalLink size={REVIEW_FILE_ACTION_ICON_SIZE} />
-            </button>
+            </IconButton>
           </Tooltip>
         </div>
         <div
@@ -766,11 +769,11 @@ export function ReviewDiffFilePreview({
           aria-label="文件 Git 操作"
         >
           <Tooltip content={file.isUntracked ? "删除未跟踪文件" : "还原文件"}>
-            <button
-              aria-label={file.isUntracked ? "删除未跟踪文件" : "还原文件"}
+            <IconButton
               aria-disabled={pending}
-              className="message-action"
-              type="button"
+              color="ghostSecondary"
+              size="iconMd"
+              title={file.isUntracked ? "删除未跟踪文件" : "还原文件"}
               onClick={() => {
                 if (pending) return;
                 onApplyOperation("revert", { type: "file", path: file.path });
@@ -781,37 +784,37 @@ export function ReviewDiffFilePreview({
               ) : (
                 <Undo2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
               )}
-            </button>
+            </IconButton>
           </Tooltip>
           {scope === "unstaged" ? (
             <Tooltip content="暂存文件">
-              <button
-                aria-label="暂存文件"
+              <IconButton
                 aria-disabled={pending}
-                className="message-action"
-                type="button"
+                color="ghostSecondary"
+                size="iconMd"
+                title="暂存文件"
                 onClick={() => {
                   if (pending) return;
                   onApplyOperation("stage", { type: "file", path: file.path });
                 }}
               >
                 <Plus size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              </button>
+              </IconButton>
             </Tooltip>
           ) : (
             <Tooltip content="取消暂存文件">
-              <button
-                aria-label="取消暂存文件"
+              <IconButton
                 aria-disabled={pending}
-                className="message-action"
-                type="button"
+                color="ghostSecondary"
+                size="iconMd"
+                title="取消暂存文件"
                 onClick={() => {
                   if (pending) return;
                   onApplyOperation("unstage", { type: "file", path: file.path });
                 }}
               >
                 <Minus size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              </button>
+              </IconButton>
             </Tooltip>
           )}
         </div>

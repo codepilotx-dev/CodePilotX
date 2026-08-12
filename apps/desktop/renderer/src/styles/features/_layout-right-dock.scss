@@ -27,10 +27,10 @@
 .workbench-panel-header {
   position: relative;
   display: flex;
-  height: var(--workspace-header-height, 46px);
-  max-height: var(--workspace-header-height, 46px);
+  height: var(--workspace-pane-header-height);
+  max-height: var(--workspace-pane-header-height);
   min-width: 0;
-  flex: 0 0 var(--workspace-header-height, 46px);
+  flex: 0 0 var(--workspace-pane-header-height);
   align-items: center;
   overflow: hidden;
   padding-left: 10px;
@@ -39,17 +39,20 @@
 }
 
 .right-dock-header {
-  height: var(--workspace-header-height, 46px);
-  max-height: var(--workspace-header-height, 46px);
-  flex-basis: var(--workspace-header-height, 46px);
+  height: var(--workspace-pane-header-height);
+  max-height: var(--workspace-pane-header-height);
+  flex-basis: var(--workspace-pane-header-height);
   padding-left: 8px;
   padding-right: calc(
-    var(--workspace-header-shell-width, 0px) + var(--control-size-sm) +
+    var(--workspace-header-shell-width, 0px) + var(--button-size-tab-strip-action) +
       var(--space-2)
   );
 }
 
 .bottom-panel-header {
+  height: var(--workspace-pane-header-height);
+  max-height: var(--workspace-pane-header-height);
+  flex-basis: var(--workspace-pane-header-height);
   padding-right: 10px;
 }
 
@@ -147,14 +150,9 @@
 .right-dock-full-width {
   position: absolute;
   right: var(--workspace-header-shell-width, 0px);
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
 }
 
 .bottom-panel-close {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
-  flex: 0 0 var(--control-size-sm);
   margin-left: var(--space-1);
 }
 
@@ -389,10 +387,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
   margin-left: 4px;
-  padding: 2px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -404,13 +399,6 @@
     color var(--motion-fast) var(--ease-standard),
     opacity var(--motion-fast) var(--ease-standard);
   z-index: 1;
-
-  svg {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
-    display: block;
-    stroke-width: var(--app-icon-stroke-width);
-  }
 
   &:hover,
   &:focus-visible {
@@ -466,7 +454,6 @@
   flex: 1 0 12px;
 }
 
-.right-dock-add-button,
 .right-dock-control {
   width: var(--control-size-sm);
   height: var(--control-size-sm);
@@ -495,7 +482,6 @@
   color: var(--color-token-foreground);
 }
 
-.right-dock-add-button:active:not(:disabled),
 .right-dock-control:active:not(:disabled) {
   background: var(--state-pressed-fill);
   transform: translateY(1px);

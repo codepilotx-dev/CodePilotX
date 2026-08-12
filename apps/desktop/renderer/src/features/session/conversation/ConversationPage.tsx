@@ -24,6 +24,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
 import { OpenTargetIcon } from "../../../components/ui/openTargetIcon.js";
+import { IconButton } from "../../../components/ui/IconButton.js";
 import type {
   DesktopOpenTarget,
   DesktopPermissionRequest,
@@ -720,14 +721,13 @@ export function ConversationPage(): React.ReactNode {
           open={sessionMenuOpen}
           width={220}
           trigger={
-            <button
-              aria-label="更多会话操作"
-              className="message-action"
-              title="更多操作"
-              type="button"
+            <IconButton
+              color="outline"
+              size="toolbar"
+              title="更多会话操作"
             >
               <MoreHorizontal size={APP_ICON_SIZE} />
-            </button>
+            </IconButton>
           }
           onOpenChange={setSessionMenuOpen}
         >
@@ -863,8 +863,11 @@ export function ConversationPage(): React.ReactNode {
         </ThreadSummaryErrorBoundary>
       );
       const summaryToggle = (
-        <button
-          aria-label={
+        <IconButton
+          color={threadSummary.displayMode === "overlay"
+            ? threadSummary.isPopoverOpen ? "ghostActive" : "ghostSecondary"
+            : threadSummary.isPinned ? "ghostActive" : "ghostSecondary"}
+          title={
             threadSummary.displayMode === "overlay"
               ? threadSummary.isPopoverOpen
                 ? "关闭置顶摘要"
@@ -878,9 +881,7 @@ export function ConversationPage(): React.ReactNode {
               ? threadSummary.isPopoverOpen
               : threadSummary.isPinned
           }
-          className="message-action"
-          title="置顶摘要"
-          type="button"
+          size="toolbar"
           onClick={
             threadSummary.displayMode === "overlay"
               ? undefined
@@ -891,7 +892,7 @@ export function ConversationPage(): React.ReactNode {
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
-        </button>
+        </IconButton>
       );
 
       return (
@@ -922,15 +923,16 @@ export function ConversationPage(): React.ReactNode {
           ) : null}
         <div className="open-target-split-button">
           <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
-            <button
-              aria-label={`用 ${selectedOpenTarget.label} 打开`}
+            <IconButton
               aria-disabled={!workspacePath}
-              className="message-action open-target-main"
-              type="button"
+              className="open-target-main"
+              color="ghostSecondary"
+              size="toolbar"
+              title={`用 ${selectedOpenTarget.label} 打开`}
               onClick={openWorkspaceWithDefaultTarget}
             >
               {renderOpenTargetIcon(selectedOpenTarget)}
-            </button>
+            </IconButton>
           </Tooltip>
           <PopoverMenu
             align="end"
@@ -939,17 +941,18 @@ export function ConversationPage(): React.ReactNode {
             sideOffset={4}
             width={220}
             trigger={
-              <button
-                aria-label="切换默认打开目标"
-                className="message-action open-target-trigger"
+              <IconButton
+                className="open-target-trigger"
+                color="outline"
                 disabled={!workspacePath}
-                type="button"
+                size="toolbar"
+                title="切换默认打开目标"
               >
                 <ChevronDown
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
-              </button>
+              </IconButton>
             }
             onOpenChange={setOpenTargetMenuOpen}
           >

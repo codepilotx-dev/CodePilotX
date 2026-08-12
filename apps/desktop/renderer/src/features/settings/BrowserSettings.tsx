@@ -64,7 +64,7 @@ export function BrowserSettings(): React.ReactNode {
           }
           actions={
             <Button
-              tone="danger"
+              color="danger"
               disabled={sitePermissions.length === 0 && browserAllowedSites.length === 0}
               type="button"
               onClick={() => void clearAllowedSites()}

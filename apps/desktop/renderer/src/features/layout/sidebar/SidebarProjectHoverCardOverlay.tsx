@@ -93,7 +93,9 @@ export function SidebarProjectHoverCardOverlay({
           <strong title={project.name}>{project.name}</strong>
           <IconButton
             className="sidebar-project-hover-card-pin"
+            color={isPinned ? "ghostActive" : "ghostSecondary"}
             ref={initialFocusRef}
+            size="toolbar"
             title={isPinned ? '取消置顶项目' : '置顶项目'}
             onClick={() => {
               onTogglePinned()
@@ -121,7 +123,7 @@ export function SidebarProjectHoverCardOverlay({
         <SidebarHoverCardDivider className="sidebar-project-hover-card-divider" />
         <div className="sidebar-project-hover-card-folders">
           {folders.map(folder => (
-            <Button
+            <Button color="primary"
               className="sidebar-project-hover-card-folder"
               disabled={
                 isUnavailable || folder.availability === 'missing'
@@ -139,7 +141,7 @@ export function SidebarProjectHoverCardOverlay({
           ))}
         </div>
         <SidebarHoverCardDivider className="sidebar-project-hover-card-divider" />
-        <Button
+        <Button color="secondary"
           className="sidebar-project-hover-card-edit"
           onClick={() => {
             onEdit()

@@ -114,6 +114,7 @@ export function deriveThemeVariables(
     '--color-danger': theme.semanticColors.diffRemoved,
     '--color-warning': dark ? '#f0a33b' : '#a05a00',
     '--codex-base-on-accent': textOnAccent(theme.accent),
+    '--control-thumb-fill': '#ffffff',
     '--shadow-resting': shadowResting,
     '--shadow-raised': shadowRaised,
     '--shadow-float': shadowFloat,

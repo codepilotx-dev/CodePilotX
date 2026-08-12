@@ -259,7 +259,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
       {status === 'exited' || status === 'failed' ? (
         <div className="integrated-terminal__lifecycle" role="status">
           <span>{error || terminalStatusLabel(status, exitCode)}</span>
-          <Button type="button" onClick={() => void handleRestart()}>
+          <Button color="secondary" type="button" onClick={() => void handleRestart()}>
             重新启动
           </Button>
         </div>

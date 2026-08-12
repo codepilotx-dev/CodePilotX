@@ -1,4 +1,5 @@
 .desktop-menubar {
+  --desktop-titlebar-height: var(--application-menubar-height);
   background: var(--layer-underlay-fill);
 }
 
@@ -10,12 +11,12 @@
 
 .menubar-titlebar {
   width: 100%;
-  height: var(--chrome-h);
+  height: var(--desktop-titlebar-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  padding: 0 0 0 10px;
+  gap: var(--space-2);
+  padding: 0 0 0 var(--space-2);
   -webkit-app-region: drag;
 }
 

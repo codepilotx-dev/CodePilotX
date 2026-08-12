@@ -77,7 +77,7 @@ export function PluginDetailsDialog({
                 </Dialog.Description>
               </div>
               <Dialog.Close asChild>
-                <IconButton ref={closeButtonRef} title="关闭插件详情" variant="plain">
+                <IconButton color="ghostSecondary" ref={closeButtonRef} size="toolbar" title="关闭插件详情">
                   <X
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
@@ -108,10 +108,10 @@ export function PluginDetailsDialog({
 
             <footer className="plugin-details-dialog__actions">
               <Dialog.Close asChild>
-                <Button>关闭</Button>
+                <Button color="secondary">关闭</Button>
               </Dialog.Close>
               {action ? (
-                <Button
+                <Button color="primary"
                   aria-pressed={action.pressed}
                   disabled={action.disabled}
                   loading={busy}

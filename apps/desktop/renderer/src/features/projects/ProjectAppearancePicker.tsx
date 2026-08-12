@@ -109,7 +109,7 @@ export function ProjectAppearancePicker({
             ))}
           </RadioGroup.Root>
           <div className="project-appearance-footer">
-            <Button onClick={() => setOpen(false)}>完成</Button>
+            <Button color="primary" onClick={() => setOpen(false)}>完成</Button>
           </div>
         </Popover.Content>
       </Popover.Portal>

@@ -42,41 +42,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex: 0 0 32px;
+  flex: 0 0 auto;
   min-width: 0;
   margin: 0 8px 10px;
 }
 
-.sidebar-product-mode-trigger {
-  display: inline-flex;
-  align-items: center;
+.sidebar-product-mode-trigger[data-size="medium"] {
   gap: 6px;
   min-width: 0;
-  height: 32px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
+  padding-inline: 8px;
+  border-radius: 12px;
   color: var(--color-token-foreground);
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-label);
-  line-height: var(--type-line-body);
-  cursor: pointer;
-  -webkit-app-region: no-drag;
+  font-size: 17px;
+  line-height: 24px;
 
   svg {
     flex: 0 0 auto;
     color: var(--color-token-description-foreground);
   }
 
-  &:hover {
-    background: var(--state-hover-fill);
-  }
-
-  &:focus-visible {
-    outline: 1px solid var(--color-token-text-link-foreground);
-    outline-offset: 1px;
-  }
 }
 
 .sidebar-product-mode-menu {
@@ -115,10 +99,6 @@
 }
 
 .sidebar-search-button {
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-control);
   color: var(--color-token-description-foreground);
 }
 
@@ -131,10 +111,6 @@
 }
 
 .sidebar-timeline-toggle-button {
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-control);
   color: var(--color-token-description-foreground);
 
   &[data-active="true"] {
@@ -1159,10 +1135,6 @@
 }
 
 .sidebar-help-button {
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-control);
   color: var(--color-token-description-foreground);
 }
 

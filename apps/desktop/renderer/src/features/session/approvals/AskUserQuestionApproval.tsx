@@ -172,7 +172,7 @@ export function AskUserQuestionApproval({
         <div className="inline-approval-footer inline-approval-footer-split">
           <span className="inline-approval-footer-spacer" aria-hidden="true" />
           <Button
-            tone="danger"
+            color="danger"
             onClick={onReject}
           >
             拒绝
@@ -498,7 +498,7 @@ export function AskUserQuestionApproval({
             )
           })}
           <div className="inline-approval-split ask-user-question-actions">
-            <Button
+            <Button color="secondary"
               aria-label="跳过当前问题"
               title="按 Esc 跳过"
               onClick={onReject}
@@ -508,7 +508,7 @@ export function AskUserQuestionApproval({
             {controls.showPrevious || controls.showNext ? (
               <div className="ask-user-question-navigation">
                 {controls.showPrevious ? (
-                  <Button
+                  <Button color="secondary"
                     onClick={() => goToQuestion(-1)}
                   >
                     <ChevronLeft size={14} />
@@ -516,7 +516,7 @@ export function AskUserQuestionApproval({
                   </Button>
                 ) : null}
                 {controls.showNext ? (
-                  <Button
+                  <Button color="secondary"
                     onClick={() => goToQuestion(1)}
                   >
                     下一题
@@ -526,7 +526,7 @@ export function AskUserQuestionApproval({
               </div>
             ) : null}
             {controls.showSubmit ? (
-              <Button
+              <Button color="primary"
                 disabled={!canSubmit}
                 onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
               >

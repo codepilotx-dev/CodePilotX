@@ -184,7 +184,7 @@ export function PullRequestPopover({
       </label>
 
       <div className="review-popover-actions">
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreateDraftPR(title, body, pushFirst)}
         >
@@ -194,7 +194,7 @@ export function PullRequestPopover({
           </span>
           <span className="shortcut">Ctrl+Enter</span>
         </Button>
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreatePR(title, body, pushFirst)}
         >
@@ -203,7 +203,7 @@ export function PullRequestPopover({
             创建拉取请求
           </span>
         </Button>
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onOpenPR()}
         >

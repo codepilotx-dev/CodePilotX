@@ -114,7 +114,7 @@ export function ProviderUsagePanel({
             value={range}
             variant="inset"
           />
-          <Button
+          <Button color="secondary"
             loading={loading}
             onClick={() => onRefresh(visibleAnalytics.map(source => source.sourceId), true)}
           >
@@ -129,7 +129,7 @@ export function ProviderUsagePanel({
             当前筛选：
             {activeSource?.displayName ?? selectedProviderId ?? selectedSourceId}
           </span>
-          <Button onClick={onClearFilter}>清除筛选</Button>
+          <Button color="secondary" onClick={onClearFilter}>清除筛选</Button>
         </div>
       ) : null}
 
@@ -148,7 +148,7 @@ export function ProviderUsagePanel({
         <div className="usage-empty-state" role="status">
           <h3>没有匹配的已配置来源</h3>
           <p>当前深链筛选可能已失效，清除后可查看其他账户。</p>
-          <Button onClick={onClearFilter}>清除筛选</Button>
+          <Button color="secondary" onClick={onClearFilter}>清除筛选</Button>
         </div>
       ) : null}
 
@@ -273,7 +273,7 @@ function ProviderUsageCard({
             {formatCheckedAt(source?.checkedAt)}
           </p>
         </div>
-        <Button loading={loading} onClick={onRefresh}>刷新来源</Button>
+        <Button color="secondary" loading={loading} onClick={onRefresh}>刷新来源</Button>
       </header>
 
       {descriptor.queryPolicy === 'metered' ? (

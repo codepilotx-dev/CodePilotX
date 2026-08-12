@@ -46,7 +46,8 @@
 }
 
 .desktop-workspace {
-  --workspace-header-height: 46px;
+  --workspace-header-height: var(--workspace-toolbar-height);
+  --workspace-pane-header-height: var(--pane-toolbar-height);
   --workspace-right-panel-live-width: 0px;
   container-name: desktop-workspace;
   container-type: inline-size;
@@ -158,9 +159,9 @@
 
 .desktop-main-route__header-spacer {
   width: 100%;
-  height: var(--workspace-header-height, 46px);
-  min-height: var(--workspace-header-height, 46px);
-  flex: 0 0 var(--workspace-header-height, 46px);
+  height: var(--workspace-header-height);
+  min-height: var(--workspace-header-height);
+  flex: 0 0 var(--workspace-header-height);
   pointer-events: none;
 }
 
@@ -175,7 +176,7 @@
 }
 
 :root[data-reduce-motion="on"] {
-  .chat-session-actions .message-action {
+  .chat-session-actions .icon-button {
     transition: none;
   }
 }

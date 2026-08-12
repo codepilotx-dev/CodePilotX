@@ -3,7 +3,6 @@ import type React from "react";
 import { useSearchParams } from "react-router-dom";
 import type { DesktopWorkspace } from "../../../shared/types.js";
 import { useDesktopSettings } from "../settings/useDesktopSettings.js";
-import { NewSessionSuggestions } from "./NewSessionSuggestionPanel.js";
 import {
   createNewSessionSuggestionState,
   removeGeneratedSuggestionStarter,
@@ -32,6 +31,24 @@ const WorkingNewSessionView = lazy(() =>
   })),
 );
 
+const ChatNewSessionView = lazy(() =>
+  import("./ChatNewSessionView.js").then(module => ({
+    default: module.ChatNewSessionView,
+  })),
+);
+
+const CodingHeadingTransition = lazy(() =>
+  import("./CodingHeadingTransition.js").then(module => ({
+    default: module.CodingHeadingTransition,
+  })),
+);
+
+const NewSessionSuggestions = lazy(() =>
+  import("./NewSessionSuggestionPanel.js").then(module => ({
+    default: module.NewSessionSuggestions,
+  })),
+);
+
 export function QuickChatView(): React.ReactNode {
   const [searchParams, setSearchParams] = useSearchParams();
   const { sidebarProductMode, setSidebarProductMode } = useDesktopSettings();
@@ -54,15 +71,22 @@ export function QuickChatView(): React.ReactNode {
     setSidebarProductMode(urlSurface);
   }, [setSidebarProductMode, sidebarProductMode, urlSurface]);
 
-  if (surface === "working") {
-    return (
-      <Suspense fallback={null}>
-        <WorkingNewSessionView />
-      </Suspense>
-    );
+  switch (surface) {
+    case "working":
+      return (
+        <Suspense fallback={null}>
+          <WorkingNewSessionView />
+        </Suspense>
+      );
+    case "chat":
+      return (
+        <Suspense fallback={null}>
+          <ChatNewSessionView />
+        </Suspense>
+      );
+    default:
+      return <CodingQuickChatView />;
   }
-
-  return <CodingQuickChatView />;
 }
 
 function CodingQuickChatView(): React.ReactNode {
@@ -268,13 +292,61 @@ function CodingQuickChatView(): React.ReactNode {
   );
 
   const hasGitWorkspace = Boolean(branchName || gitStatus);
-  const headingUsesProject = Boolean(workspaceName && workspaceName.length <= 15);
-  const headingVerb = hasGitWorkspace ? "构建" : "开展";
+  const headingUsesProject = Boolean(currentWorkspace && workspaceName);
+  const headingKey = headingUsesProject
+    ? `${hasGitWorkspace ? "git" : "project"}:${workspacePath}`
+    : "no-project";
+  const headingContent = headingUsesProject ? (
+    <>
+      {hasGitWorkspace ? "要在 " : "我们应该在 "}
+      <ProjectSwitcherPopover
+        align="center"
+        className="popover-project quick-chat-project-popover"
+        maxWidth="min(420px, calc(100vw - 48px))"
+        open={projectMenuOpen}
+        recentWorkspaces={recentWorkspaces}
+        side="top"
+        sideOffset={4}
+        trigger={
+          <button
+            aria-label={`选择项目：${workspaceName}`}
+            className="project-name"
+            title={workspaceName}
+            type="button"
+          >
+            {workspaceName}
+          </button>
+        }
+        width={200}
+        workspace={currentWorkspace}
+        onChooseWorkspace={() => {
+          void onChooseWorkspace();
+          setProjectMenuOpen(false);
+        }}
+        onCloneGithub={() => {
+          onCloneGithub();
+          setProjectMenuOpen(false);
+        }}
+        onClearWorkspace={() => {
+          onClearWorkspace();
+          setProjectMenuOpen(false);
+        }}
+        onOpenChange={setProjectMenuOpen}
+        onOpenWorkspace={workspace => {
+          void onOpenWorkspace(workspace);
+          setProjectMenuOpen(false);
+        }}
+      />
+      {hasGitWorkspace ? " 内开发什么？" : " 中做些什么？"}
+    </>
+  ) : (
+    "我们该构建什么？"
+  );
 
   return (
     <div ref={pageRef} className="quick-chat-workspace">
       <main
-        className="quick-chat-view"
+        className="quick-chat-view coding-chat-view"
         onInputCapture={handleComposerInputCapture}
       >
         <section className="quick-chat-hero-region">
@@ -286,84 +358,47 @@ function CodingQuickChatView(): React.ReactNode {
               type="button"
               onClick={handleWhaleMarkClick}
             />
-            {headingUsesProject ? (
-              <h1>
-                我们应该在{" "}
-                <ProjectSwitcherPopover
-                  align="center"
-                  className="popover-project quick-chat-project-popover"
-                  maxWidth="min(420px, calc(100vw - 48px))"
-                  open={projectMenuOpen}
-                  recentWorkspaces={recentWorkspaces}
-                  side="top"
-                  sideOffset={4}
-                  trigger={
-                    <button
-                      aria-label="选择项目"
-                      className="project-name"
-                      type="button"
-                    >
-                      {workspaceName}
-                    </button>
-                  }
-                  width={200}
-                  workspace={currentWorkspace}
-                  onChooseWorkspace={() => {
-                    void onChooseWorkspace();
-                    setProjectMenuOpen(false);
-                  }}
-                  onCloneGithub={() => {
-                    onCloneGithub();
-                    setProjectMenuOpen(false);
-                  }}
-                  onClearWorkspace={() => {
-                    onClearWorkspace();
-                    setProjectMenuOpen(false);
-                  }}
-                  onOpenChange={setProjectMenuOpen}
-                  onOpenWorkspace={workspace => {
-                    void onOpenWorkspace(workspace);
-                    setProjectMenuOpen(false);
-                  }}
-                />
-                {" "}
-                中{headingVerb}什么？
-              </h1>
-            ) : (
-              <h1>
-                {hasGitWorkspace ? "我们应该构建什么？" : "我们该做什么？"}
-              </h1>
-            )}
+            <Suspense
+              fallback={<h1 className="quick-chat-heading">{headingContent}</h1>}
+            >
+              <CodingHeadingTransition transitionKey={headingKey}>
+                {headingContent}
+              </CodingHeadingTransition>
+            </Suspense>
           </div>
           {suggestionState.kind === "root" ||
           suggestionState.kind === "templates" ? (
-            <NewSessionSuggestions
-              state={suggestionState}
-              suggestions={suggestions}
-              onSelectSuggestion={handleSelectSuggestion}
-              onSelectCategory={handleSelectCategory}
-              onSelectTask={handleSelectTask}
-              onShowAll={handleShowAll}
-              onShowSuggestions={handleShowSuggestions}
-            />
+            <Suspense fallback={null}>
+              <NewSessionSuggestions
+                state={suggestionState}
+                suggestions={suggestions}
+                onSelectSuggestion={handleSelectSuggestion}
+                onSelectCategory={handleSelectCategory}
+                onSelectTask={handleSelectTask}
+                onShowAll={handleShowAll}
+                onShowSuggestions={handleShowSuggestions}
+              />
+            </Suspense>
           ) : null}
         </section>
 
         <section className="quick-chat-composer-region">
           {suggestionState.kind === "category" ? (
-            <NewSessionSuggestions
-              state={suggestionState}
-              suggestions={suggestions}
-              onSelectSuggestion={handleSelectSuggestion}
-              onSelectCategory={handleSelectCategory}
-              onSelectTask={handleSelectTask}
-              onShowAll={handleShowAll}
-              onShowSuggestions={handleShowSuggestions}
-            />
+            <Suspense fallback={null}>
+              <NewSessionSuggestions
+                state={suggestionState}
+                suggestions={suggestions}
+                onSelectSuggestion={handleSelectSuggestion}
+                onSelectCategory={handleSelectCategory}
+                onSelectTask={handleSelectTask}
+                onShowAll={handleShowAll}
+                onShowSuggestions={handleShowSuggestions}
+              />
+            </Suspense>
           ) : null}
           {composerProps ? (
             <div className="chat-composer">
-              <DesktopComposer {...composerProps} />
+              <DesktopComposer {...composerProps} surface="coding" />
             </div>
           ) : null}
         </section>

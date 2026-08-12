@@ -283,13 +283,13 @@ export function GitSettings(): React.ReactNode {
                 </p>
               </div>
               <div className="github-device-code-actions">
-                <Button
+                <Button color="secondary"
                   onClick={() => void copyGithubCode()}
                   type="button"
                 >
                   复制验证码
                 </Button>
-                <Button
+                <Button color="secondary"
                   onClick={() => void openGithubDevicePage()}
                   type="button"
                 >
@@ -311,7 +311,7 @@ export function GitSettings(): React.ReactNode {
               <div className="settings-inline-actions">
                 <span className="settings-row-status">{githubStatusText}</span>
                 {githubAuth?.authenticated ? (
-                  <Button
+                  <Button color="danger"
                     disabled={githubBusy}
                     onClick={() => void logoutGithub()}
                     type="button"
@@ -320,14 +320,14 @@ export function GitSettings(): React.ReactNode {
                   </Button>
                 ) : (
                   <>
-                    <Button
+                    <Button color="primary"
                       disabled={githubBusy}
                       onClick={() => void startGithubLogin('browser')}
                       type="button"
                     >
                       登录 GitHub
                     </Button>
-                    <Button
+                    <Button color="secondary"
                       disabled={githubBusy}
                       onClick={() => void startGithubLogin('device')}
                       type="button"

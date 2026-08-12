@@ -104,9 +104,9 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
       <SettingsSection title="创建 Worktree" description="Working-tree 模式会安全捕获 staged、unstaged 与 untracked 修改。">
         <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:p-3">
           <input aria-label="起始分支" className="confirmation-dialog-input tw:min-w-56" placeholder="已有分支名称" value={branchName} onChange={event => setBranchName(event.target.value)} />
-          <Button disabled={busy || !branchName.trim()} onClick={() => void mutate(operationId => client.createWorktree({ projectId, startingState: { type: 'branch', branchName: branchName.trim() }, operationId }))}>从分支创建</Button>
-          <Button disabled={busy} onClick={() => void mutate(operationId => client.createWorktree({ projectId, startingState: { type: 'working-tree' }, operationId }))}>从当前 Working Tree 创建</Button>
-          <Button disabled={busy} onClick={() => void refresh()}>刷新</Button>
+          <Button color="primary" disabled={busy || !branchName.trim()} onClick={() => void mutate(operationId => client.createWorktree({ projectId, startingState: { type: 'branch', branchName: branchName.trim() }, operationId }))}>从分支创建</Button>
+          <Button color="primary" disabled={busy} onClick={() => void mutate(operationId => client.createWorktree({ projectId, startingState: { type: 'working-tree' }, operationId }))}>从当前 Working Tree 创建</Button>
+          <Button color="secondary" disabled={busy} onClick={() => void refresh()}>刷新</Button>
         </div>
       </SettingsSection>
       <SettingsSection title="托管 Worktrees" description="永久、活跃或仍有关联任务的 Worktree 不会被自动清理。">
@@ -117,15 +117,15 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                 <div><strong>{worktree.branchName ?? 'Detached worktree'}</strong><div className="tw:text-xs tw:text-app-text-soft">{worktree.status} · setup {worktree.setupStatus}</div></div>
                 <div className="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
                   {worktree.status === 'ready-with-setup-error' ? <>
-                    <Button disabled={busy} onClick={() => void mutate(operationId => client.retryWorktreeSetup(worktree.id, operationId))}>重试 Setup</Button>
-                    <Button disabled={busy} onClick={() => void mutate(operationId => client.continueWorktreeWithoutSetup(worktree.id, operationId))}>跳过并继续</Button>
+                    <Button color="secondary" disabled={busy} onClick={() => void mutate(operationId => client.retryWorktreeSetup(worktree.id, operationId))}>重试 Setup</Button>
+                    <Button color="secondary" disabled={busy} onClick={() => void mutate(operationId => client.continueWorktreeWithoutSetup(worktree.id, operationId))}>跳过并继续</Button>
                   </> : null}
-                  <Button disabled={busy} onClick={() => void mutate(operationId => client.setWorktreePermanent(worktree.id, !worktree.permanent, operationId))}>{worktree.permanent ? '取消永久保留' : '永久保留'}</Button>
+                  <Button color="primary" disabled={busy} onClick={() => void mutate(operationId => client.setWorktreePermanent(worktree.id, !worktree.permanent, operationId))}>{worktree.permanent ? '取消永久保留' : '永久保留'}</Button>
                   {worktree.status === 'cleaned'
-                    ? <Button disabled={busy} onClick={() => void mutate(operationId => client.restoreWorktree(worktree.id, operationId))}>恢复</Button>
+                    ? <Button color="secondary" disabled={busy} onClick={() => void mutate(operationId => client.restoreWorktree(worktree.id, operationId))}>恢复</Button>
                     : worktree.status === 'restore-conflict'
                       ? <span className="tw:text-xs tw:text-app-danger">恢复冲突，已保留工作树和快照，请手动处理</span>
-                      : <Button disabled={busy} tone="danger" onClick={() => void mutate(operationId => client.deleteWorktree(worktree.id, operationId))}>删除</Button>}
+                      : <Button color="danger" disabled={busy} onClick={() => void mutate(operationId => client.deleteWorktree(worktree.id, operationId))}>删除</Button>}
                 </div>
               </div>
             </article>

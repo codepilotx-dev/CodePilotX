@@ -78,6 +78,8 @@ export function ProviderDetail({
         {onBack ? (
           <IconButton
             className="model-center-provider-back"
+            color="ghostSecondary"
+            size="toolbar"
             title="返回 Provider 列表"
             onClick={onBack}
           >

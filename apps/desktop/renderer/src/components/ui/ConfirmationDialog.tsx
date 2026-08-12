@@ -76,6 +76,8 @@ export function ConfirmationDialog({
                 <AlertDialog.Cancel asChild>
                   <IconButton
                     className="tw:shrink-0"
+                    color="ghostSecondary"
+                    size="toolbar"
                     title="关闭对话框"
                   >
                     <X
@@ -104,7 +106,7 @@ export function ConfirmationDialog({
               ) : null}
               <div className="permission-modal-actions confirmation-dialog-actions tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
                 <AlertDialog.Cancel asChild>
-                  <Button className="tw:min-w-19">
+                  <Button className="tw:min-w-19" color="secondary">
                     {cancelLabel}
                   </Button>
                 </AlertDialog.Cancel>
@@ -113,7 +115,7 @@ export function ConfirmationDialog({
                     className="tw:min-w-19"
                     disabled={actionDisabled}
                     onClick={handleActionClick}
-                    tone={tone === 'danger' ? 'danger' : 'default'}
+                    color={tone === 'danger' ? 'dangerSolid' : 'primary'}
                   >
                     {actionLabel}
                   </Button>
@@ -180,7 +182,7 @@ export function InputDialog({
                     </h2>
                   </Dialog.Title>
                   <Dialog.Close asChild>
-                    <IconButton className="tw:shrink-0" title="关闭对话框">
+                    <IconButton className="tw:shrink-0" color="ghostSecondary" size="toolbar" title="关闭对话框">
                       <X
                         aria-hidden="true"
                         size={APP_ICON_SIZE + 2}
@@ -206,10 +208,11 @@ export function InputDialog({
                 />
                 <div className="permission-modal-actions confirmation-dialog-actions tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
                   <Dialog.Close asChild>
-                    <Button className="tw:min-w-19">{cancelLabel}</Button>
+                    <Button className="tw:min-w-19" color="secondary">{cancelLabel}</Button>
                   </Dialog.Close>
                   <Button
                     className="tw:min-w-19"
+                    color="primary"
                     disabled={submitDisabled}
                     type="submit"
                   >

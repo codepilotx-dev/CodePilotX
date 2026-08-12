@@ -58,7 +58,7 @@ export function UserAttachmentPreviewPanel({ tab }: Props): React.ReactNode {
     return (
       <div className="right-dock-empty-state">
         <strong>{state.message}</strong>
-        <Button onClick={state.retry}>重试</Button>
+        <Button color="secondary" onClick={state.retry}>重试</Button>
       </div>
     )
   }
@@ -183,28 +183,28 @@ function ImageAttachmentPreview({
     <section style={panelStyle}>
       <AttachmentToolbar value={value}>
         <IconButton
+          color="ghostSecondary"
           disabled={scale <= MIN_IMAGE_SCALE}
           onClick={() => changeScale(1 / IMAGE_SCALE_STEP)}
-          size="sm"
+          size="toolbar"
           title="缩小"
-          variant="toolbar"
         >
           <Minus size={15} />
         </IconButton>
         <small style={zoomStyle}>{Math.round(scale * 100)}%</small>
-        <IconButton onClick={fitImage} size="sm" title="适应窗口" variant="toolbar">
+        <IconButton color="ghostSecondary" onClick={fitImage} size="toolbar" title="适应窗口">
           <Maximize2 size={15} />
         </IconButton>
         <IconButton
+          color="ghostSecondary"
           disabled={scale >= MAX_IMAGE_SCALE}
           onClick={() => changeScale(IMAGE_SCALE_STEP)}
-          size="sm"
+          size="toolbar"
           title="放大"
-          variant="toolbar"
         >
           <Plus size={15} />
         </IconButton>
-        <IconButton onClick={handleDownload} size="sm" title="下载" variant="toolbar">
+        <IconButton color="ghostSecondary" onClick={handleDownload} size="toolbar" title="下载">
           <Download size={15} />
         </IconButton>
       </AttachmentToolbar>
@@ -275,7 +275,7 @@ function TextAttachmentPreview({
     <section style={panelStyle}>
       <AttachmentToolbar value={value}>
         {formatted.markdown ? (
-          <Button
+          <Button color="primary"
             className="file-breadcrumb-toolbar__view-mode"
             onClick={() => setMarkdownSource(current => !current)}
           >
@@ -283,6 +283,7 @@ function TextAttachmentPreview({
           </Button>
         ) : null}
         <IconButton
+          color="ghostSecondary"
           onClick={() => {
             setMessage('')
             void navigator.clipboard.writeText(visibleText).then(
@@ -290,13 +291,13 @@ function TextAttachmentPreview({
               () => setMessage('复制失败。'),
             )
           }}
-          size="sm"
+          size="toolbar"
           title="复制"
-          variant="toolbar"
         >
           <Copy size={15} />
         </IconButton>
         <IconButton
+          color="ghostSecondary"
           onClick={() => {
             setMessage('')
             void saveOriginalAttachment(value).then(
@@ -304,9 +305,8 @@ function TextAttachmentPreview({
               () => setMessage('下载失败，请重试。'),
             )
           }}
-          size="sm"
+          size="toolbar"
           title="下载"
-          variant="toolbar"
         >
           <Download size={15} />
         </IconButton>

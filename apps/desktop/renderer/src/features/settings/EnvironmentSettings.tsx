@@ -122,7 +122,7 @@ function EnvironmentList({
 
         <SettingsSection
           actions={(
-            <Button loading={adding} onClick={() => void addProject()}>
+            <Button color="primary" loading={adding} onClick={() => void addProject()}>
               <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               添加项目
             </Button>
@@ -451,7 +451,7 @@ function EnvironmentDetail({
               {project.path}
             </p>
           </div>
-          <Button loading={busy === 'save'} onClick={() => void saveProject()}>
+          <Button color="primary" loading={busy === 'save'} onClick={() => void saveProject()}>
             保存更改
           </Button>
         </header>
@@ -520,7 +520,7 @@ function EnvironmentDetail({
                   event.currentTarget.value = ''
                 }}
               />
-              <Button
+              <Button color="primary"
                 loading={busy === 'upload'}
                 onClick={() => uploadRef.current?.click()}
               >
@@ -562,7 +562,7 @@ function EnvironmentDetail({
               value={sourcePath}
               onChange={event => setSourcePath(event.target.value)}
             />
-            <Button
+            <Button color="primary"
               disabled={busy !== null || !sourcePath.trim()}
               onClick={() => void addReference()}
             >
@@ -570,7 +570,7 @@ function EnvironmentDetail({
               {relinkSourceId ? '重新关联' : '添加文件'}
             </Button>
             {relinkSourceId ? (
-              <Button
+              <Button color="secondary"
                 disabled={busy !== null}
                 onClick={() => {
                   setRelinkSourceId(null)

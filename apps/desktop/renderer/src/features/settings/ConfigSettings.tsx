@@ -183,7 +183,7 @@ export function ConfigSettings(): React.ReactNode {
               />
             </div>
             <div className="config-settings-source-actions">
-              <Button
+              <Button color="secondary"
                 type="button"
                 disabled={!configProfiles?.profilesDirectory}
                 onClick={() => {
@@ -195,7 +195,7 @@ export function ConfigSettings(): React.ReactNode {
                 <ExternalLink size={APP_ICON_SIZE} />
                 打开 Profiles 目录
               </Button>
-              <Button
+              <Button color="secondary"
                 type="button"
                 disabled={!selectedConfigLayer?.filePath}
                 onClick={() => {
@@ -369,7 +369,7 @@ export function ConfigSettings(): React.ReactNode {
             title="完整提示词诊断"
             description="仅在你主动请求时读取当前任务的 system/developer/contextual-user sections、来源、hash、token 估算和缓存分类；内容不会写入日志或遥测。"
             control={
-              <Button
+              <Button color="secondary"
                 type="button"
                 onClick={() => void (async () => {
                   try {
@@ -559,7 +559,7 @@ export function ConfigSettings(): React.ReactNode {
                 : '选择父目录后会创建 .codepilotx，并立即重启完成安全迁移。旧目录不会删除。'
             }
             control={
-              <Button
+              <Button color="primary"
                 disabled={
                   changingLocation ||
                   dataLocation?.isEnvControlled

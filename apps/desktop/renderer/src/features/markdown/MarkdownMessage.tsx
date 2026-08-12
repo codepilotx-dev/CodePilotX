@@ -416,6 +416,7 @@ function renderCode(
   }
   return (
     <LazyRender
+      className={context.allowWideBlocks ? 'md-wide-block' : undefined}
       fallback={
         <pre className="md-code-placeholder">
           <code>{code}</code>
@@ -589,47 +590,30 @@ function MarkdownTable({
   }
 
   return (
-    <figure
-      className={cx(
-        'md-table-block',
-        'md-code-block',
-        'tw:bg-app-chrome',
-        'tw:mx-0',
-        'tw:w-full',
-        'tw:max-w-full',
-        'tw:overflow-hidden',
-      )}
-    >
-      <figcaption className="md-table-toolbar md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-base tw:text-app-text-soft">
-        <span className="md-code-lang tw:font-mono">table</span>
-        <span className="md-code-actions tw:flex tw:items-center">
-          <button
-            aria-label={copied ? '已复制' : '复制表格'}
-            className={cx(
-              'md-code-action md-code-copy',
-              copied && 'is-copied',
-              'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-xs tw:text-app-text-soft tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
-            )}
-            title={copied ? '已复制' : '复制表格'}
-            type="button"
-            onClick={() => void copyTable()}
-          >
-            {copied ? (
-              <Check
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            ) : (
-              <Copy
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            )}
-          </button>
-        </span>
-      </figcaption>
+    <figure className="md-table-block">
+      <div className="md-table-actions">
+        <button
+          aria-label={copied ? '已复制' : '复制表格'}
+          className={cx('md-table-copy', copied && 'is-copied')}
+          title={copied ? '已复制' : '复制表格'}
+          type="button"
+          onClick={() => void copyTable()}
+        >
+          {copied ? (
+            <Check
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          ) : (
+            <Copy
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          )}
+        </button>
+      </div>
       <div className="md-table-scroll">
         <table>
           <thead>

@@ -153,18 +153,18 @@ export function McpElicitationForm({
 
       <div className="mcp-form-actions">
         <Button
-          tone="danger"
+          color="danger"
           onClick={onDecline}
         >
           拒绝
         </Button>
-        <Button
+        <Button color="secondary"
           onClick={onCancel}
         >
           <X size={14} />
           取消
         </Button>
-        <Button
+        <Button color="primary"
           onClick={handleSubmit}
         >
           提交
@@ -213,12 +213,12 @@ export function McpElicitationUnsupported({
 
       <div className="mcp-form-actions">
         <Button
-          tone="danger"
+          color="danger"
           onClick={onDecline}
         >
           拒绝
         </Button>
-        <Button
+        <Button color="secondary"
           onClick={onCancel}
         >
           <X size={14} />

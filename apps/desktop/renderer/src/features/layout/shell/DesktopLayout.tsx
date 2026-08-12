@@ -1112,12 +1112,9 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleSubmitEditedUserMessage = useCallback(
-    async (text: string): Promise<void> => {
+    async (input: DesktopUserMessageInput): Promise<void> => {
       if (!activeSessionItem) return
-      await submitToSession(activeSessionItem.id, {
-        text,
-        attachments: [],
-      })
+      await submitToSession(activeSessionItem.id, input)
     },
     [activeSessionItem, submitToSession],
   )
@@ -3053,8 +3050,8 @@ export function DesktopLayout(): React.ReactNode {
           onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
           onOpenFileReference: handleOpenMarkdownFileReference,
           onOpenAttachment: handleOpenThreadAttachment,
-          onSubmitEditedUserMessage: async text => {
-            await sideChatSubmitToSession(tab.threadId, { text })
+          onSubmitEditedUserMessage: async input => {
+            await sideChatSubmitToSession(tab.threadId, input)
           },
           sessionStatus: status,
           workspacePath: currentWorkspace?.path ?? null,

@@ -569,7 +569,7 @@ function WorkspaceFileTreeContent({
       ) : (
         <div className="right-dock-tree-empty">
           {workspace && rootPath && directoryErrors.has(normalizePath(rootPath)) ? (
-            <Button
+            <Button color="secondary"
               onClick={() => {
                 void loadDirectory(rootPath, -1, { replaceRoot: true }).catch(
                   () => undefined,

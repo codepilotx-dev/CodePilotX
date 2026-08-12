@@ -1465,6 +1465,8 @@ export function ComposerCard({
             <IconButton
               active={openDropdown === "context"}
               aria-expanded={openDropdown === "context"}
+              color={openDropdown === "context" ? "ghostActive" : "ghostSecondary"}
+              size="composer"
               title="添加上下文"
               onClick={() =>
                 setOpenDropdown(openDropdown === "context" ? null : "context")
@@ -1984,9 +1986,12 @@ export function ComposerCard({
             </Popover.Root>
 
             <IconButton
-              aria-label="语音输入"
+              aria-label="语音输入尚未可用"
               className="composer-mic-button"
-              title="语音输入"
+              color="ghostSecondary"
+              disabled
+              size="composer"
+              title="语音输入尚未可用"
             >
               <Mic
                 size={APP_ICON_SIZE}
@@ -2056,7 +2061,7 @@ export function ComposerCard({
         />
       </div>
 
-      {placement !== "thread" ? (
+      {placement !== "thread" && surface !== "chat" ? (
         <div className="composer-bottom composer-utility-bar tw:flex tw:min-w-0 tw:items-center tw:gap-2">
           {subagentMode ? (
             <MetaChip

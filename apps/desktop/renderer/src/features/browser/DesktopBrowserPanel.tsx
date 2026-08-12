@@ -166,27 +166,27 @@ export function DesktopBrowserPanel({
       <div className="browser-commandbar">
         <div className="browser-navigation">
           <IconButton
+            color="ghostSecondary"
             disabled={!state.canGoBack}
-            size="md"
+            size="toolbar"
             title="后退"
-            variant="browser"
             onClick={() => void runBrowserAction(desktopClient.goBackBrowser)}
           >
             <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
+            color="ghostSecondary"
             disabled={!state.canGoForward}
-            size="md"
+            size="toolbar"
             title="前进"
-            variant="browser"
             onClick={() => void runBrowserAction(desktopClient.goForwardBrowser)}
           >
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
-            size="md"
+            color="ghostSecondary"
+            size="toolbar"
             title="重新加载"
-            variant="browser"
             onClick={() => void runBrowserAction(desktopClient.reloadBrowser)}
           >
             <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -213,10 +213,10 @@ export function DesktopBrowserPanel({
         </form>
         <div className="browser-toolbar-actions">
           <IconButton
+            color="ghostSecondary"
             disabled={!state.url && !address.trim()}
-            size="md"
+            size="toolbar"
             title="发送当前页面到对话框"
-            variant="browser"
             onClick={handleSendPageToComposer}
           >
             <MessageSquarePlus
@@ -225,9 +225,9 @@ export function DesktopBrowserPanel({
             />
           </IconButton>
           <IconButton
-            size="md"
+            color="ghostSecondary"
+            size="toolbar"
             title={annotationOpen ? '收起批注' : '添加批注'}
-            variant="browser"
             onClick={() => setAnnotationOpen(current => !current)}
           >
             <MessageSquarePlus
@@ -235,7 +235,7 @@ export function DesktopBrowserPanel({
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
           </IconButton>
-          <IconButton size="md" title="更多" variant="browser">
+          <IconButton color="ghostSecondary" size="toolbar" title="更多">
             <MoreVertical size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
         </div>
@@ -253,7 +253,7 @@ export function DesktopBrowserPanel({
 
       {annotationOpen ? (
         <div className="browser-annotation-bar">
-          <Button
+          <Button color="primary"
             onClick={() => setAnnotationOpen(current => !current)}
           >
             <MessageSquarePlus size={APP_ICON_SIZE} />
@@ -277,7 +277,7 @@ export function DesktopBrowserPanel({
             value={annotationBody}
             onChange={event => setAnnotationBody(event.target.value)}
           />
-          <Button
+          <Button color="primary"
             disabled={!annotationBody.trim()}
             onClick={handleSubmitAnnotation}
           >

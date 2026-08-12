@@ -4,6 +4,13 @@ export type NewSessionSuggestionCategoryId =
   | "codex-review"
   | "codex-fix";
 
+export type WorkingContextualSuggestionCategoryId =
+  | "create"
+  | "research"
+  | "automate";
+
+export type ContextualTaskSuggestionSurface = "coding" | "working";
+
 export type NewSessionSuggestionTone =
   | "blue"
   | "purple"
@@ -18,6 +25,10 @@ export type NewSessionSuggestionTask = {
 
 export type NewSessionTaskSuggestion = NewSessionSuggestionTask & {
   categoryId: NewSessionSuggestionCategoryId;
+};
+
+export type WorkingContextualTaskSuggestion = NewSessionSuggestionTask & {
+  categoryId: WorkingContextualSuggestionCategoryId;
 };
 
 export type NewSessionRecentTask = {

@@ -162,7 +162,7 @@ export function SideChatThreadPanel({
             <CirclePlus aria-hidden="true" />
             <strong>侧边聊天已过期</strong>
             <span>此临时侧边聊天已不可用；请新建一个侧边聊天以继续。</span>
-            <Button onClick={() => onRecreate(tab)}>开始新的侧边聊天</Button>
+            <Button color="primary" onClick={() => onRecreate(tab)}>开始新的侧边聊天</Button>
           </div>
         ) : conversation.loading && visibleTurnCount === 0 ? (
           <div className="right-dock-side-chat__empty" role="status">

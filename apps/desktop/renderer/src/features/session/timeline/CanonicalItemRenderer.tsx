@@ -9,31 +9,36 @@ import {
   ClipboardCheck,
   Copy,
   FileDiff,
-  FileText,
+  Globe2,
   GitFork,
   Hourglass,
-  Image,
   LoaderCircle,
   MessageCircleQuestion,
   NotepadText,
-  Paperclip,
   Pencil,
   RotateCcw,
+  Search,
   Send,
   Shield,
   SquareTerminal,
   UserRoundPlus,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import type { Attachment, Input, Item } from "@codepilotx/shared/thread";
 import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
+import type {
+  ComposerEditorHandle,
+  ComposerEditorProps,
+} from "../composer/ComposerEditor.js";
 
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
 import { Button } from "../../../components/ui/Button.js";
+import { IconButton } from "../../../components/ui/IconButton.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { MarkdownMessage } from "../MarkdownMessage.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
@@ -48,6 +53,20 @@ import {
 const LazyExpandableFileMutationRow = React.lazy(async () => {
   const module = await import("./ExpandableFileMutationRow.js");
   return { default: module.ExpandableFileMutationRow };
+});
+
+const LazyComposerEditor = React.lazy(async () => {
+  const module = await import("../composer/ComposerEditor.js");
+  return {
+    default: module.ComposerEditor as React.ForwardRefExoticComponent<
+      ComposerEditorProps & React.RefAttributes<ComposerEditorHandle>
+    >,
+  };
+});
+
+const LazyThreadAttachmentRows = React.lazy(async () => {
+  const module = await import("../attachments/AttachmentRows.js");
+  return { default: module.ThreadAttachmentRows };
 });
 
 type ItemOf<T extends Item["type"]> = Extract<Item, { type: T }>;
@@ -97,6 +116,7 @@ export type ToolItemDisplay = {
   resultText: string | null;
   showShellPrompt: boolean;
   statusLabel: string;
+  semanticKind: ToolSemanticKind;
   toolLabel: string;
 };
 
@@ -158,7 +178,19 @@ export function CanonicalUserInput({
   } = useConversationItemContext();
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(input.content);
+  const [retainedAttachmentIds, setRetainedAttachmentIds] = React.useState<
+    string[]
+  >(() => [...(input.attachmentIds ?? [])]);
   const [submitting, setSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const editorRef = React.useRef<ComposerEditorHandle | null>(null);
+  const retainedAttachments = React.useMemo(
+    () =>
+      attachments.filter((attachment) =>
+        retainedAttachmentIds.includes(attachment.id),
+      ),
+    [attachments, retainedAttachmentIds],
+  );
   const canSubmit =
     draft.trim().length > 0 &&
     !submitting &&
@@ -167,15 +199,45 @@ export function CanonicalUserInput({
 
   React.useEffect(() => {
     setDraft(input.content);
+    setRetainedAttachmentIds([...(input.attachmentIds ?? [])]);
+    setSubmitError(null);
     setEditing(false);
   }, [input.content, input.id]);
+
+  React.useEffect(() => {
+    if (!editing) return;
+    const frame = window.requestAnimationFrame(() => editorRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [editing]);
+
+  const cancelEditing = (): void => {
+    setDraft(input.content);
+    setRetainedAttachmentIds([...(input.attachmentIds ?? [])]);
+    setSubmitError(null);
+    setEditing(false);
+  };
+
+  const startEditing = (): void => {
+    setDraft(input.content);
+    setRetainedAttachmentIds([...(input.attachmentIds ?? [])]);
+    setSubmitError(null);
+    setEditing(true);
+  };
 
   const submit = async (): Promise<void> => {
     if (!canSubmit) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      await onSubmitEditedUserMessage(draft.trim());
+      await onSubmitEditedUserMessage({
+        text: draft.trim(),
+        retainedAttachmentIds,
+      });
       setEditing(false);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "消息发送失败，请重试。",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -184,27 +246,67 @@ export function CanonicalUserInput({
   if (editing) {
     return (
       <article className="canonical-user-message canonical-user-message--editing">
-        <textarea
-          aria-label="修改用户消息"
-          autoFocus
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              setDraft(input.content);
-              setEditing(false);
-            }
-            if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-              event.preventDefault();
-              void submit();
-            }
-          }}
-        />
-        <div className="canonical-user-message__editor-actions">
-          <button type="button" onClick={() => setEditing(false)}>取消</button>
-          <button type="button" disabled={!canSubmit} onClick={() => void submit()}>
-            {submitting ? "发送中" : "发送"}
-          </button>
+        <div className="canonical-user-message__editor-surface">
+          {retainedAttachments.length > 0 ? (
+            <React.Suspense fallback={null}>
+              <LazyThreadAttachmentRows
+                attachments={retainedAttachments}
+                onOpen={onOpenAttachment}
+                onRemove={(attachmentId) =>
+                  setRetainedAttachmentIds((current) =>
+                    current.filter((id) => id !== attachmentId),
+                  )
+                }
+              />
+            </React.Suspense>
+          ) : null}
+          <React.Suspense fallback={null}>
+            <LazyComposerEditor
+              ariaDescribedBy={submitError ? `edit-error-${input.id}` : undefined}
+              ariaExpanded={false}
+              onChange={setDraft}
+              onCompositionChange={() => undefined}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  cancelEditing();
+                  return true;
+                }
+                if (
+                  event.key === "Enter" &&
+                  (event.ctrlKey || event.metaKey)
+                ) {
+                  event.preventDefault();
+                  void submit();
+                  return true;
+                }
+                return false;
+              }}
+              onSelectionChange={() => undefined}
+              placeholder="修改消息"
+              ref={editorRef}
+              value={draft}
+            />
+          </React.Suspense>
+          {submitError ? (
+            <p
+              className="canonical-user-message__editor-error"
+              id={`edit-error-${input.id}`}
+              role="alert"
+            >
+              {submitError}
+            </p>
+          ) : null}
+          <div className="canonical-user-message__editor-actions">
+            <Button color="secondary" onClick={cancelEditing}>取消</Button>
+            <Button color="primary"
+              disabled={!canSubmit}
+              loading={submitting}
+              onClick={() => void submit()}
+            >
+              发送
+            </Button>
+          </div>
         </div>
       </article>
     );
@@ -212,6 +314,14 @@ export function CanonicalUserInput({
 
   return (
     <article className="canonical-user-message">
+      {attachments.length > 0 ? (
+        <React.Suspense fallback={null}>
+          <LazyThreadAttachmentRows
+            attachments={attachments}
+            onOpen={onOpenAttachment}
+          />
+        </React.Suspense>
+      ) : null}
       <div className="canonical-user-message__bubble" data-user-message-bubble>
         <CollapsibleUserMarkdown
           canCopyFileReferenceContents={canCopyFileReferenceContents}
@@ -220,52 +330,23 @@ export function CanonicalUserInput({
           onOpenFileReference={onOpenFileReference}
           text={input.content}
         />
-        {attachments.length ? (
-          <ul className="canonical-user-message__attachments" aria-label="附件">
-            {attachments.map((attachment) => (
-              <li key={attachment.id}>
-                <button
-                  className="canonical-user-message__attachment-entry"
-                  disabled={!onOpenAttachment}
-                  onClick={() => onOpenAttachment?.(attachment)}
-                  title={`${attachment.mediaType} · ${formatBytes(attachment.sizeBytes)}`}
-                  type="button"
-                >
-                  {attachment.kind === "image" ? (
-                    <Image aria-hidden="true" size={14} />
-                  ) : attachment.kind === "text" ? (
-                    <FileText aria-hidden="true" size={14} />
-                  ) : (
-                    <Paperclip aria-hidden="true" size={14} />
-                  )}
-                  <span>{attachment.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </div>
       <div className="canonical-message-actions" aria-label="用户消息操作">
         <CopyButton text={input.content} />
         <Tooltip content="修改并重新发送">
-          <button
+          <IconButton
             aria-label="修改并重新发送"
-            className="canonical-icon-button"
-            type="button"
-            onClick={() => setEditing(true)}
+            color="ghostSecondary"
+            size="toolbar"
+            title="修改并重新发送"
+            onClick={startEditing}
           >
             <Pencil aria-hidden="true" size={APP_ICON_SIZE} />
-          </button>
+          </IconButton>
         </Tooltip>
       </div>
     </article>
   );
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function CanonicalItemRenderer({
@@ -287,7 +368,13 @@ export function CanonicalItemRenderer({
     case "activity":
       return <ActivityItemView item={item} />;
     case "tool":
-      return <ToolItemView disclosure={disclosure} item={item} />;
+      return (
+        <ToolItemView
+          disclosure={disclosure}
+          item={item}
+          presentation={presentation}
+        />
+      );
     case "plan":
       return (
         <WorkflowPlanCard
@@ -351,11 +438,11 @@ function TextItemView({
           <CopyButton text={item.text} />
           {item.placement === "result" && item.status === "completed" && onForkFromMessage ? (
             <Tooltip content="在新聊天中继续">
-              <button
+              <IconButton
                 aria-label="在新聊天中继续"
-                className="canonical-icon-button"
+                color="ghostSecondary"
+                size="toolbar"
                 title="在新聊天中继续"
-                type="button"
                 onClick={event => {
                   event.stopPropagation();
                   onForkFromMessage({ itemId: item.id, turnId: item.turnId });
@@ -366,7 +453,7 @@ function TextItemView({
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
-              </button>
+              </IconButton>
             </Tooltip>
           ) : null}
         </div>
@@ -429,30 +516,43 @@ function ActivityItemView({ item }: { item: ItemOf<"activity"> }): React.ReactNo
 export function ToolItemView({
   disclosure,
   item,
+  presentation = "standalone",
 }: {
   disclosure?: CanonicalItemDisclosure;
   item: ToolItem;
+  presentation?: CanonicalItemRendererProps["presentation"];
 }): React.ReactNode {
   const view = buildToolItemDisplay(item);
-  const expanded = view.canExpand && Boolean(disclosure?.expanded);
+  const [localExpanded, setLocalExpanded] = React.useState(false);
+  const requestedExpanded = disclosure?.expanded ?? localExpanded;
+  const expanded = view.canExpand && requestedExpanded;
+  const SummaryIcon = toolSemanticIcon(view.semanticKind);
 
   React.useEffect(() => {
-    if (!view.canExpand && disclosure?.expanded) {
+    if (view.canExpand || !requestedExpanded) return;
+    if (disclosure) {
       disclosure.onExpandedChange(disclosure.id, false);
+    } else {
+      setLocalExpanded(false);
     }
-  }, [disclosure, view.canExpand]);
+  }, [disclosure, requestedExpanded, view.canExpand]);
 
   return (
     <details
       className="canonical-process-card canonical-tool"
       data-expandable={view.canExpand ? "true" : "false"}
+      data-presentation={presentation}
       data-state={item.state}
       onToggle={(event) => {
         if (!view.canExpand) {
           if (event.currentTarget.open) event.currentTarget.open = false;
           return;
         }
-        disclosure?.onExpandedChange(disclosure.id, event.currentTarget.open);
+        if (disclosure) {
+          disclosure.onExpandedChange(disclosure.id, event.currentTarget.open);
+        } else {
+          setLocalExpanded(event.currentTarget.open);
+        }
       }}
       open={expanded}
     >
@@ -468,34 +568,40 @@ export function ToolItemView({
         ) : view.failed ? (
           <CircleAlert aria-hidden="true" />
         ) : (
-          <SquareTerminal aria-hidden="true" />
+          <SummaryIcon aria-hidden="true" />
         )}
         <span className="canonical-tool__summary-label">
           {expanded ? view.expandedLabel : view.collapsedLabel}
         </span>
-        {expanded ? (
-          <ChevronDown className="canonical-process-card__chevron" aria-hidden="true" />
-        ) : (
-          <ChevronRight className="canonical-process-card__chevron" aria-hidden="true" />
-        )}
+        <ChevronRight className="canonical-process-card__chevron" aria-hidden="true" />
       </summary>
-      {expanded ? <ToolExecutionCard item={item} view={view} /> : null}
+      {expanded ? (
+        <ToolExecutionCard item={item} presentation={presentation} view={view} />
+      ) : null}
     </details>
   );
 }
 
 export function ToolExecutionCard({
   item,
+  presentation = "standalone",
   view,
 }: {
   item: ToolItem;
+  presentation?: CanonicalItemRendererProps["presentation"];
   view: ToolItemDisplay;
 }): React.ReactNode {
+  const embedded = presentation === "grouped";
   return (
-    <article className="canonical-command-shell" data-state={item.state}>
-      <header className="canonical-command-shell__header">{view.toolLabel}</header>
+    <article
+      className={`canonical-command-shell${embedded ? " canonical-command-shell--embedded" : ""}`}
+      data-state={item.state}
+    >
+      {!embedded ? (
+        <header className="canonical-command-shell__header">{view.toolLabel}</header>
+      ) : null}
       <section className="canonical-command-shell__section" aria-label="执行内容">
-        <CopyButton ariaLabel="复制执行内容" text={view.executionContent} />
+        <CopyButton ariaLabel="复制执行内容" className="canonical-command-shell__copy-button" text={view.executionContent} />
         <pre>
           <code>
             {view.showShellPrompt ? <span className="canonical-command-shell__prompt">$ </span> : null}
@@ -509,7 +615,7 @@ export function ToolExecutionCard({
         data-empty={view.resultText ? undefined : "true"}
       >
         {view.resultText ? (
-          <CopyButton ariaLabel="复制返回结果" text={view.resultText} />
+          <CopyButton ariaLabel="复制返回结果" className="canonical-command-shell__copy-button" text={view.resultText} />
         ) : null}
         <pre><code>{view.resultText ?? "无输出"}</code></pre>
       </section>
@@ -638,7 +744,7 @@ export function PatchSummaryView({
         </span>
         <span className="canonical-patch-card__actions">
           {canApplyPatch ? (
-            <Button
+            <Button color="primary"
               className="canonical-patch-card__action"
               loading={pendingAction === patchAction}
               onClick={() => void applyPatch()}
@@ -648,7 +754,7 @@ export function PatchSummaryView({
             </Button>
           ) : null}
           {onOpenReview ? (
-            <Button
+            <Button color="secondary"
               className="canonical-patch-card__action"
               onClick={() =>
                 onOpenReview(patch.files.length === 1 ? patch.files[0]?.path : undefined)
@@ -679,7 +785,7 @@ export function PatchSummaryView({
         ))}
       </div>
       {hiddenFileCount > 0 ? (
-        <Button
+        <Button color="primary"
           aria-expanded={filesExpanded}
           className="canonical-patch-card__disclosure"
           onClick={() => setFilesExpanded((expanded) => !expanded)}
@@ -829,18 +935,22 @@ function SubagentItemView({
 
 function CopyButton({
   ariaLabel = "复制",
+  className,
   text,
 }: {
   ariaLabel?: string;
+  className?: string;
   text: string;
 }): React.ReactNode {
   const [copied, setCopied] = React.useState(false);
   return (
     <Tooltip content={copied ? "已复制" : ariaLabel}>
-      <button
+      <IconButton
         aria-label={copied ? `${ariaLabel}：已复制` : ariaLabel}
-        className="canonical-icon-button"
-        type="button"
+        className={className}
+        color="ghostSecondary"
+        size="toolbar"
+        title={copied ? "已复制" : ariaLabel}
         onClick={(event) => {
           event.stopPropagation();
           void navigator.clipboard?.writeText(text).then(() => {
@@ -850,7 +960,7 @@ function CopyButton({
         }}
       >
         {copied ? <Check aria-hidden="true" size={APP_ICON_SIZE} /> : <Copy aria-hidden="true" size={APP_ICON_SIZE} />}
-      </button>
+      </IconButton>
     </Tooltip>
   );
 }
@@ -894,6 +1004,7 @@ export function buildToolItemDisplay(item: ToolItem): ToolItemDisplay {
       resultText: null,
       showShellPrompt: false,
       statusLabel: toolStateLabel(item.state),
+      semanticKind: "tool",
       toolLabel: lifecycle.toolLabel,
     };
   }
@@ -924,13 +1035,23 @@ export function buildToolItemDisplay(item: ToolItem): ToolItemDisplay {
     resultText,
     showShellPrompt: command !== null,
     statusLabel: toolStateLabel(item.state),
+    semanticKind: semanticSummary.kind,
     toolLabel: semanticSummary.toolLabel,
   };
 }
 
-type ToolSemanticSummary = {
+export type ToolSemanticKind =
+  | "file-change"
+  | "exploration"
+  | "command"
+  | "web-search"
+  | "integration"
+  | "tool";
+
+export type ToolSemanticSummary = {
   collapsedLabel: string;
   expandedLabel: string;
+  kind: ToolSemanticKind;
   toolLabel: string;
 };
 
@@ -940,6 +1061,7 @@ type SemanticAction = {
   expandedCompleted: string;
   expandedRunning: string;
   interrupted: string;
+  kind: ToolSemanticKind;
   running: string;
   target: string | null;
   toolLabel: string;
@@ -1007,8 +1129,25 @@ function semanticLabel(
         : item.state === "error"
           ? action.error
           : action.interrupted,
+    kind: action.kind,
     toolLabel: action.toolLabel,
   };
+}
+
+export function toolSemanticIcon(kind: ToolSemanticKind): LucideIcon {
+  switch (kind) {
+    case "file-change":
+      return Pencil;
+    case "exploration":
+      return Search;
+    case "command":
+      return SquareTerminal;
+    case "web-search":
+      return Globe2;
+    case "integration":
+    case "tool":
+      return Wrench;
+  }
 }
 
 export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
@@ -1016,23 +1155,64 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
   const command = oneLine(nonBlank(item.command));
   if (command) {
     const prefix = item.state === "completed"
-      ? "Ran"
+      ? "已运行"
       : item.state === "error"
-        ? "Command failed"
+        ? "命令失败"
         : item.state === "interrupted"
-          ? "Command interrupted"
-          : "Running";
+          ? "命令已中断"
+          : "正在运行";
     return {
       collapsedLabel: `${prefix} ${command}`,
       expandedLabel: item.state === "completed"
-        ? "Ran command"
+        ? "已运行命令"
         : item.state === "error"
-          ? "Command failed"
+          ? "命令失败"
           : item.state === "interrupted"
-            ? "Command interrupted"
-            : "Running command",
+            ? "命令已中断"
+            : "正在运行命令",
+      kind: "command",
       toolLabel: "Shell",
     };
+  }
+  if (isFileMutationTool(item)) {
+    return semanticLabel(item, {
+      completed: "已编辑文件",
+      error: "编辑文件失败",
+      expandedCompleted: "已编辑文件",
+      expandedRunning: "正在编辑文件",
+      interrupted: "已中断编辑文件",
+      kind: "file-change",
+      running: "正在编辑文件",
+      target: null,
+      toolLabel: "文件编辑",
+    });
+  }
+  const normalizedTool = item.tool.trim().toLowerCase();
+  if (normalizedTool.startsWith("web__") || normalizedTool === "web.run") {
+    return semanticLabel(item, {
+      completed: "已搜索网页",
+      error: "搜索网页失败",
+      expandedCompleted: "已搜索网页",
+      expandedRunning: "正在搜索网页",
+      interrupted: "已中断搜索网页",
+      kind: "web-search",
+      running: "正在搜索网页",
+      target: null,
+      toolLabel: "网页搜索",
+    });
+  }
+  if (normalizedTool.startsWith("mcp__")) {
+    return semanticLabel(item, {
+      completed: "已使用集成",
+      error: "集成调用失败",
+      expandedCompleted: "已使用集成",
+      expandedRunning: "正在使用集成",
+      interrupted: "已中断使用集成",
+      kind: "integration",
+      running: "正在使用集成",
+      target: null,
+      toolLabel: "集成",
+    });
   }
   if (isToolSearchName(item.tool)) {
     return semanticLabel(item, {
@@ -1041,6 +1221,7 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
       expandedCompleted: "已搜索工具",
       expandedRunning: "正在搜索工具",
       interrupted: "已中断搜索工具",
+      kind: "tool",
       running: "正在搜索工具",
       target: null,
       toolLabel: "工具搜索",
@@ -1055,6 +1236,7 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
         expandedCompleted: "已读取文件",
         expandedRunning: "正在读取文件",
         interrupted: "已中断读取",
+        kind: "exploration",
         running: "正在读取",
         target: safeDisplayPath(inputText(input, "file_path", "filePath", "path")),
         toolLabel: "文件读取",
@@ -1066,6 +1248,7 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
         expandedCompleted: "已搜索内容",
         expandedRunning: "正在搜索内容",
         interrupted: "已中断搜索",
+        kind: "exploration",
         running: "正在搜索",
         target: inputText(input, "pattern", "query"),
         toolLabel: "内容搜索",
@@ -1077,6 +1260,7 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
         expandedCompleted: "已查找文件",
         expandedRunning: "正在查找文件",
         interrupted: "已中断查找",
+        kind: "exploration",
         running: "正在查找",
         target: inputText(input, "pattern", "glob"),
         toolLabel: "文件查找",
@@ -1089,6 +1273,7 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
         expandedCompleted: "已搜索工具",
         expandedRunning: "正在搜索工具",
         interrupted: "已中断搜索工具",
+        kind: "tool",
         running: "正在搜索工具",
         target: null,
         toolLabel: "工具搜索",
@@ -1100,6 +1285,7 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
         expandedCompleted: "已更新计划",
         expandedRunning: "正在更新计划",
         interrupted: "已中断更新计划",
+        kind: "tool",
         running: "正在更新计划",
         target: null,
         toolLabel: "更新计划",
@@ -1111,6 +1297,7 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
         expandedCompleted: "已读取技能",
         expandedRunning: "正在读取技能",
         interrupted: "已中断读取技能",
+        kind: "tool",
         running: "正在读取技能",
         target: inputText(input, "name"),
         toolLabel: "技能读取",
@@ -1122,6 +1309,7 @@ export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
         expandedCompleted: "操作已完成",
         expandedRunning: "正在执行操作",
         interrupted: "操作已中断",
+        kind: "tool",
         running: "正在执行操作",
         target: null,
         toolLabel: "操作",

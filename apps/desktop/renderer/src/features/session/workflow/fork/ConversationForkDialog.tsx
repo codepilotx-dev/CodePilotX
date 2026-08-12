@@ -62,7 +62,7 @@ export function ConversationForkDialog({
                   </h2>
                 </Dialog.Title>
                 <Dialog.Close asChild>
-                  <IconButton className="tw:shrink-0" title="关闭对话框">
+                  <IconButton className="tw:shrink-0" color="ghostSecondary" size="toolbar" title="关闭对话框">
                     <X
                       aria-hidden="true"
                       size={APP_ICON_SIZE + 2}
@@ -109,13 +109,13 @@ export function ConversationForkDialog({
 
               {awaitingSetup ? (
                 <div className="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
-                  <Button disabled={busy} onClick={onAbandon} tone="danger">
+                  <Button color="danger" disabled={busy} onClick={onAbandon}>
                     放弃并删除
                   </Button>
-                  <Button disabled={busy} onClick={onContinueWithoutSetup}>
+                  <Button color="secondary" disabled={busy} onClick={onContinueWithoutSetup}>
                     跳过并继续
                   </Button>
-                  <Button disabled={busy} onClick={onRetrySetup}>
+                  <Button color="primary" disabled={busy} onClick={onRetrySetup}>
                     重新尝试
                   </Button>
                 </div>
@@ -140,7 +140,7 @@ function DestinationButton({
   onClick: () => void
 }): React.ReactNode {
   return (
-    <Button
+    <Button color="primary"
       className="conversation-fork-dialog__destination tw:h-auto tw:w-full tw:justify-start tw:gap-4 tw:px-4 tw:py-3 tw:text-left"
       disabled={disabled}
       onClick={onClick}

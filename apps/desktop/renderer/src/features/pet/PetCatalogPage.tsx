@@ -49,7 +49,7 @@ export function PetCatalogPage(): React.ReactNode {
                 浏览并一键安装 awesome-codex-pet 社区中的桌面伙伴。
               </p>
             </div>
-            <Button
+            <Button color="secondary"
               onClick={() => navigate('/settings/pets')}
               type="button"
             >

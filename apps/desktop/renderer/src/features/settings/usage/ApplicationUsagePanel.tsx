@@ -52,7 +52,7 @@ export function ApplicationUsagePanel({
       <div className="usage-empty-state" role="status">
         <h3>暂时无法读取应用用量</h3>
         <p>{error ?? '本机还没有可归属到模型的调用记录。'}</p>
-        <Button onClick={onRefresh}>重新读取</Button>
+        <Button color="secondary" onClick={onRefresh}>重新读取</Button>
       </div>
     )
   }
@@ -111,7 +111,7 @@ export function ApplicationUsagePanel({
             value={range}
             variant="inset"
           />
-          <Button loading={loading} onClick={onRefresh}>刷新</Button>
+          <Button color="secondary" loading={loading} onClick={onRefresh}>刷新</Button>
         </div>
       </div>
 

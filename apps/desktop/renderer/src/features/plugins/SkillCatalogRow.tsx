@@ -48,7 +48,7 @@ export function SkillCatalogRow({
           已添加
         </span>
       ) : (
-        <Button
+        <Button color="primary"
           className="skill-catalog-row__action"
           loading={installing}
           onClick={() => onInstall(skill)}

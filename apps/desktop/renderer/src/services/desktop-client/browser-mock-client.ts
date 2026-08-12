@@ -114,6 +114,7 @@ import {
   mockThreadHistoryPage,
   mockWorkspace,
   permissionModeFromDesktopConfig,
+  readBrowserFixtureAttachment,
   readBrowserThemeSettings,
   requireMockSession,
 } from './fixtures.js'
@@ -242,9 +243,8 @@ export function createBrowserMockDesktopClient(
   }
 
   return {
-    readAttachment: async () => {
-      throw new Error('浏览器 mock 模式无法读取历史附件。')
-    },
+    readAttachment: async attachmentId =>
+      readBrowserFixtureAttachment(attachmentId),
     saveAttachmentToDownloads: async input => ({ fileName: input.name }),
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,

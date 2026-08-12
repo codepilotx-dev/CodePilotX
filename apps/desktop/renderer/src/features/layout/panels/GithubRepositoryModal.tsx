@@ -216,13 +216,13 @@ export function GithubRepositoryModal({
                         </p>
                       </div>
                       <div className="github-device-code-actions">
-                        <Button
+                        <Button color="secondary"
                           onClick={() => void copyGithubCode()}
                           type="button"
                         >
                           复制验证码
                         </Button>
-                        <Button
+                        <Button color="secondary"
                           onClick={() => void openGithubDevicePage()}
                           type="button"
                         >
@@ -233,7 +233,7 @@ export function GithubRepositoryModal({
                   ) : null}
                 </div>
                 <div className="settings-inline-actions">
-                  <Button
+                  <Button color="primary"
                     disabled={loading}
                     onClick={() => void startLogin('browser')}
                     type="button"
@@ -241,7 +241,7 @@ export function GithubRepositoryModal({
                     登录 GitHub
                   </Button>
                   {login?.state === 'failed' ? (
-                    <Button
+                    <Button color="secondary"
                       disabled={loading}
                       onClick={() => void startLogin('device')}
                       type="button"
@@ -318,7 +318,7 @@ export function GithubRepositoryModal({
                                 : ''}
                             </small>
                           </div>
-                          <Button
+                          <Button color="primary"
                             disabled={Boolean(cloningRepo)}
                             onClick={() => void cloneRepository(repository)}
                             type="button"
@@ -343,10 +343,10 @@ export function GithubRepositoryModal({
               )}
             >
               <Dialog.Close asChild>
-                <Button>关闭</Button>
+                <Button color="secondary">关闭</Button>
               </Dialog.Close>
               {auth?.authenticated ? (
-                <Button onClick={() => void loadRepositories()} type="button">
+                <Button color="secondary" onClick={() => void loadRepositories()} type="button">
                   刷新
                 </Button>
               ) : null}

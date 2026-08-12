@@ -1,13 +1,28 @@
 import { forwardRef } from 'react'
 import type React from 'react'
+import {
+  Button,
+  type ButtonColor,
+  type ButtonProps,
+} from './Button.js'
 
-type Props = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'color'> & {
+export type IconButtonSize =
+  | 'composer'
+  | 'composerSm'
+  | 'composerUtility'
+  | 'icon'
+  | 'iconLarge'
+  | 'iconMd'
+  | 'iconSm'
+  | 'tabStripAction'
+  | 'toolbar'
+
+type Props = Omit<ButtonProps, 'children' | 'color' | 'size' | 'uniform'> & {
   children: React.ReactNode
   title: string
-  className?: string
   active?: boolean
-  size?: 'sm' | 'md'
-  variant?: 'default' | 'plain' | 'browser' | 'toolbar'
+  color: ButtonColor
+  size: IconButtonSize
 }
 
 export const IconButton = forwardRef<HTMLButtonElement, Props>(
@@ -16,28 +31,27 @@ export const IconButton = forwardRef<HTMLButtonElement, Props>(
       children,
       title,
       active = false,
-      className = '',
+      className,
+      color,
       size,
-      type = 'button',
-      variant = 'default',
       ...buttonProps
     },
     ref,
   ): React.ReactNode {
     return (
-      <button
+      <Button
         {...buttonProps}
         ref={ref}
         aria-label={title}
         className={['icon-button', className].filter(Boolean).join(' ')}
+        color={color}
         data-active={active || undefined}
-        data-size={size}
-        data-variant={variant}
+        size={size}
         title={title}
-        type={type}
+        uniform
       >
         {children}
-      </button>
+      </Button>
     )
   },
 )

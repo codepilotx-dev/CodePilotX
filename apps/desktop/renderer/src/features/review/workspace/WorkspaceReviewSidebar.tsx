@@ -51,6 +51,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
 import { Button } from "../../../components/ui/Button.js";
+import { IconButton } from "../../../components/ui/IconButton.js";
 import {
   PopoverCheckboxItem,
   PopoverItem,
@@ -2495,14 +2496,13 @@ function WorkspaceReviewSidebarImpl({
             sideOffset={4}
             width={220}
             trigger={
-              <button
-                aria-label="更多"
-                className="message-action"
+              <IconButton
+                color="ghostSecondary"
+                size="toolbar"
                 title="更多"
-                type="button"
               >
                 <Ellipsis size={APP_ICON_SIZE} />
-              </button>
+              </IconButton>
             }
             onOpenChange={setMoreMenuOpen}
           >
@@ -2593,10 +2593,10 @@ function WorkspaceReviewSidebarImpl({
             </PopoverItem>
           </PopoverMenu>
           <Tooltip content={allCollapsed ? "展开全部差异" : "折叠全部差异"}>
-            <button
-              aria-label={allCollapsed ? "展开全部差异" : "折叠全部差异"}
-              className="message-action"
-              type="button"
+            <IconButton
+              color="ghostSecondary"
+              size="toolbar"
+              title={allCollapsed ? "展开全部差异" : "折叠全部差异"}
               onClick={allCollapsed ? expandAllDiffs : collapseAllDiffs}
             >
               {allCollapsed ? (
@@ -2604,31 +2604,31 @@ function WorkspaceReviewSidebarImpl({
               ) : (
                 <ListChevronsDownUp size={APP_ICON_SIZE} />
               )}
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip content="搜索文件">
-            <button
-              aria-label="搜索文件"
-              className="message-action"
-              type="button"
+            <IconButton
+              color="ghostSecondary"
+              size="toolbar"
+              title="搜索文件"
               onClick={() => fileSearchInputRef.current?.focus()}
             >
               <Search size={APP_ICON_SIZE} />
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip
             content={
               reviewView === "inline" ? "切换到分离视图" : "切换到统一差异视图"
             }
           >
-            <button
-              aria-label={
+            <IconButton
+              color={reviewView === "inline" ? "ghostSecondary" : "ghostActive"}
+              size="toolbar"
+              title={
                 reviewView === "inline"
                   ? "切换到拆分差异视图"
                   : "切换到统一差异视图"
               }
-              className="message-action"
-              type="button"
               onClick={onToggleReviewView}
             >
               {reviewView === "inline" ? (
@@ -2642,24 +2642,25 @@ function WorkspaceReviewSidebarImpl({
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               )}
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip content={hideFileList ? "显示文件" : "隐藏文件"}>
-            <button
-              aria-label={hideFileList ? "显示文件" : "隐藏文件"}
+            <IconButton
               aria-pressed={!hideFileList}
-              className="message-action"
-              type="button"
+              color={!hideFileList ? "ghostActive" : "ghostSecondary"}
+              size="toolbar"
+              title={hideFileList ? "显示文件" : "隐藏文件"}
               onClick={() => setHideFileList((value) => !value)}
             >
               <Briefcase size={APP_ICON_SIZE} />
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip content="提交或推送">
-            <Button
+            <Button color="secondary"
               aria-label="提交或推送"
               className="review-sidebar-primary-action"
               ref={commitButtonRef}
+              size="toolbar"
               onClick={() => setCommitPopoverOpen((value) => !value)}
             >
               <GitCommitHorizontal size={APP_ICON_SIZE} />
@@ -2667,10 +2668,11 @@ function WorkspaceReviewSidebarImpl({
             </Button>
           </Tooltip>
           <Tooltip content="创建拉取请求">
-            <Button
+            <Button color="secondary"
               aria-label="创建拉取请求"
               className="review-sidebar-primary-action"
               ref={prButtonRef}
+              size="toolbar"
               onClick={() => setPrPopoverOpen((value) => !value)}
             >
               <GitPullRequestArrow size={APP_ICON_SIZE} />
@@ -2683,7 +2685,7 @@ function WorkspaceReviewSidebarImpl({
       {error ? (
         <div className="review-error-state" role="alert">
           <span>{error}</span>
-          <Button
+          <Button color="secondary"
             onClick={() => void refreshReviewDiff(true)}
           >
             重试
@@ -2828,7 +2830,7 @@ function WorkspaceReviewSidebarImpl({
               <Tooltip content="还原所有未暂存变更">
                 <Button
                   aria-disabled={reviewMutationPending}
-                  tone="danger"
+                  color="danger"
                   onClick={() => {
                     if (!reviewMutationPending) revertAll();
                   }}
@@ -2838,7 +2840,7 @@ function WorkspaceReviewSidebarImpl({
                 </Button>
               </Tooltip>
               <Tooltip content="暂存所有未暂存文件">
-                <Button
+                <Button color="primary"
                   aria-disabled={reviewMutationPending}
                   onClick={() => {
                     if (!reviewMutationPending) stageAll();
@@ -2852,7 +2854,7 @@ function WorkspaceReviewSidebarImpl({
           ) : (
             <>
               <Tooltip content="取消暂存所有已暂存文件">
-                <Button
+                <Button color="secondary"
                   aria-disabled={reviewMutationPending}
                   onClick={() => {
                     if (!reviewMutationPending) unstageAll();
@@ -2865,7 +2867,7 @@ function WorkspaceReviewSidebarImpl({
               <Tooltip content="还原已暂存变更">
                 <Button
                   aria-disabled={reviewMutationPending}
-                  tone="danger"
+                  color="danger"
                   onClick={() => {
                     if (!reviewMutationPending) revertAll();
                   }}
@@ -2881,14 +2883,14 @@ function WorkspaceReviewSidebarImpl({
 
       {source.kind === "pull-request" ? (
         <footer className="review-footer">
-          <Button
+          <Button color="secondary"
             disabled={pending || openComments.length === 0}
             onClick={() => void submitGithubReview("COMMENT")}
           >
             <MessageSquarePlus size={APP_ICON_SIZE} />
             提交评论
           </Button>
-          <Button
+          <Button color="primary"
             disabled={pending}
             onClick={() => void submitGithubReview("APPROVE")}
           >
@@ -2897,7 +2899,7 @@ function WorkspaceReviewSidebarImpl({
           </Button>
           <Button
             disabled={pending || openComments.length === 0}
-            tone="danger"
+            color="danger"
             onClick={() => void submitGithubReview("REQUEST_CHANGES")}
           >
             <RotateCcw size={APP_ICON_SIZE} />

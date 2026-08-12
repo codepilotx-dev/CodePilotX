@@ -135,15 +135,19 @@ export function PetSettings({
                   width={220}
                 />
                 <IconButton
+                  color="ghostSecondary"
                   disabled={busy}
                   onClick={() => void refreshPets()}
+                  size="toolbar"
                   title="刷新宠物"
                 >
                   <RefreshCw size={APP_ICON_SIZE} />
                 </IconButton>
                 <IconButton
+                  color="ghostSecondary"
                   disabled={busy || !settings.selectedPetId}
                   onClick={() => void remove()}
+                  size="iconMd"
                   title="删除当前宠物"
                 >
                   <Trash2 size={APP_ICON_SIZE} />
@@ -214,7 +218,7 @@ export function PetSettings({
             title="浏览社区宠物"
             description="搜索并一键安装社区提供的桌面伙伴"
             control={
-              <Button
+              <Button color="secondary"
                 onClick={() => navigate('/pets')}
                 type="button"
               >
@@ -237,7 +241,7 @@ export function PetSettings({
               }}
               placeholder="https://example.com/my-pet/pet.json"
             />
-            <Button
+            <Button color="secondary"
               disabled={busy || !sourceUrl.trim()}
               onClick={() => void loadPreview()}
               type="button"
@@ -256,7 +260,7 @@ export function PetSettings({
                   {(preview.sizeBytes / 1024).toFixed(1)} KiB
                 </p>
               </div>
-              <Button
+              <Button color="primary"
                 disabled={busy}
                 onClick={() => void install()}
                 type="button"

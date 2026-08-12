@@ -71,7 +71,7 @@ export function PermissionRequestModal({
                   </div>
                   <div className="permission-modal-actions tw:flex tw:items-center tw:justify-between tw:gap-3">
                     <AlertDialog.Action asChild>
-                      <Button
+                      <Button color="primary"
                         onClick={event => {
                           event.preventDefault()
                           onDecide(request, 'allow')
@@ -83,7 +83,7 @@ export function PermissionRequestModal({
                     </AlertDialog.Action>
                     {(request.rememberOptions ?? []).map(option => (
                       <AlertDialog.Action asChild key={option.id}>
-                        <Button
+                        <Button color="primary"
                           onClick={event => {
                             event.preventDefault()
                             onDecide(request, 'allow', false, undefined, {
@@ -98,7 +98,7 @@ export function PermissionRequestModal({
                     ))}
                     <AlertDialog.Cancel asChild>
                       <Button
-                        tone="danger"
+                        color="danger"
                         onClick={() =>
                           onDecide(request, 'deny')
                         }

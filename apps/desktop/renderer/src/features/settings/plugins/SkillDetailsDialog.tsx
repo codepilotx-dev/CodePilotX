@@ -103,7 +103,7 @@ export function SkillDetailsDialog({
                 </Dialog.Description>
               </span>
               <Dialog.Close asChild>
-                <IconButton ref={closeRef} title="关闭技能详情" variant="plain">
+                <IconButton color="ghostSecondary" ref={closeRef} size="toolbar" title="关闭技能详情">
                   <X
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
@@ -139,7 +139,7 @@ export function SkillDetailsDialog({
             </div>
 
             <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
-              <Button onClick={() => onOpenSkill(skill)}>
+              <Button color="secondary" onClick={() => onOpenSkill(skill)}>
                 <FolderOpen
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
@@ -147,7 +147,7 @@ export function SkillDetailsDialog({
                 />
                 打开
               </Button>
-              <Button
+              <Button color="primary"
                 disabled={!skill.enabled}
                 onClick={() => onUseSkill(skill)}
               >

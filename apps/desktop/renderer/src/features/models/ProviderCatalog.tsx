@@ -114,7 +114,7 @@ export function ProviderCatalog({
                   {provider.status.label}
                 </span>
               </button>
-              <Button
+              <Button color="primary"
                 className="provider-card-connection-action"
                 onClick={() => (
                   provider.canAddConnection

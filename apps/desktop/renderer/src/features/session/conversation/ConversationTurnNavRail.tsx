@@ -250,16 +250,22 @@ export function ConversationTurnNavRail({
     }
     const anchor = anchorRef.current;
     const frame = anchor?.parentElement;
-    const content =
-      frame?.querySelector<HTMLElement>(".session-timeline-container") ??
-      frame?.querySelector<HTMLElement>(".workflow-page__composer-inner");
-    if (!frame || !content) return;
+    if (!frame) return;
+    const resolveContent = (): HTMLElement | null =>
+      frame.querySelector<HTMLElement>(".canonical-turn") ??
+      frame.querySelector<HTMLElement>(".canonical-turn-error") ??
+      frame.querySelector<HTMLElement>(".workflow-page__composer-inner") ??
+      frame.querySelector<HTMLElement>(".session-timeline-container");
+    const observedContent = resolveContent();
+    if (!observedContent) return;
 
     let frameId: number | null = null;
     const updateVisibility = (): void => {
       if (frameId !== null) return;
       frameId = window.requestAnimationFrame(() => {
         frameId = null;
+        const content = resolveContent();
+        if (!content) return;
         const frameRect = frame.getBoundingClientRect();
         const contentRect = content.getBoundingClientRect();
         const scale =
@@ -278,7 +284,7 @@ export function ConversationTurnNavRail({
         ? null
         : new ResizeObserver(updateVisibility);
     observer?.observe(frame);
-    observer?.observe(content);
+    observer?.observe(observedContent);
     const styleHost = frame.closest<HTMLElement>(".workflow-page__main");
     const styleObserver =
       typeof MutationObserver === "undefined" || !styleHost
@@ -290,14 +296,14 @@ export function ConversationTurnNavRail({
         attributes: true,
       });
     }
-    content.addEventListener("transitionend", updateVisibility);
+    observedContent.addEventListener("transitionend", updateVisibility);
     window.addEventListener("resize", updateVisibility);
 
     return () => {
       if (frameId !== null) window.cancelAnimationFrame(frameId);
       observer?.disconnect();
       styleObserver?.disconnect();
-      content.removeEventListener("transitionend", updateVisibility);
+      observedContent.removeEventListener("transitionend", updateVisibility);
       window.removeEventListener("resize", updateVisibility);
     };
   }, [items.length]);

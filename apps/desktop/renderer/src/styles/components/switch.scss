@@ -88,8 +88,9 @@
 
 .chat-input__dropdown-switch-thumb,
 .context-menu-switch-thumb {
+  box-sizing: border-box;
   border: 1px solid var(--color-token-border);
-  background: var(--layer-canvas-fill);
+  background: var(--control-thumb-fill);
   box-shadow: var(--shadow-control-sm);
 }
 
@@ -105,40 +106,54 @@
 
   &[data-state="checked"] .toggle-knob,
   &[aria-checked="true"] .toggle-knob {
-    transform: translateX(14px);
+    transform: translateX(12px);
   }
 }
 
 .toggle-knob {
+  box-sizing: border-box;
   width: 16px;
   height: 16px;
   border: 1px solid var(--color-token-border);
   border-radius: var(--radius-pill);
   position: absolute;
-  top: 2px;
-  left: 0;
+  top: 1px;
+  left: 1px;
   box-shadow: var(--shadow-control-sm);
   transition:
     background-color var(--motion-state) var(--ease-standard),
     border-color var(--motion-state) var(--ease-standard),
     transform var(--motion-state) var(--ease-standard);
-  transform: translateX(2px);
-  background: var(--layer-canvas-fill);
+  transform: translateX(0);
+  background: var(--control-thumb-fill);
 }
 
 .toggle-switch[data-state="checked"] .toggle-knob,
 .toggle-knob[data-state="checked"],
 .toggle-switch[aria-checked="true"] .toggle-knob {
   border-color: transparent;
-  background: var(--codex-base-on-accent);
+  background: var(--control-thumb-fill);
 }
 
 .toggle-knob[data-state="unchecked"] {
   border-color: var(--color-token-border);
-  background: var(--layer-canvas-fill);
+  background: var(--control-thumb-fill);
 }
 
 .toggle-knob[data-disabled] {
+  border-color: var(--color-token-border-light);
+  background: var(--layer-raised-fill);
+  box-shadow: none;
+}
+
+.chat-input__dropdown-switch:is(
+    :disabled,
+    [data-disabled],
+    [aria-disabled="true"]
+  )
+  .chat-input__dropdown-switch-thumb,
+.context-menu-switch:is(:disabled, [data-disabled], [aria-disabled="true"])
+  .context-menu-switch-thumb {
   border-color: var(--color-token-border-light);
   background: var(--layer-raised-fill);
   box-shadow: none;
@@ -188,5 +203,28 @@
   .chat-input__dropdown-switch-thumb,
   .context-menu-switch-thumb {
     transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .toggle-knob,
+  .chat-input__dropdown-switch-thumb,
+  .context-menu-switch-thumb {
+    border-color: ButtonText;
+    background: ButtonText;
+  }
+
+  .toggle-knob[data-disabled],
+  .chat-input__dropdown-switch:is(
+      :disabled,
+      [data-disabled],
+      [aria-disabled="true"]
+    )
+    .chat-input__dropdown-switch-thumb,
+  .context-menu-switch:is(:disabled, [data-disabled], [aria-disabled="true"])
+    .context-menu-switch-thumb {
+    border-color: GrayText;
+    background: GrayText;
+    box-shadow: none;
   }
 }

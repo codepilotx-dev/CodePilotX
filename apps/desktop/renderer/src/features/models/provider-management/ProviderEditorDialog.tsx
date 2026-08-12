@@ -249,7 +249,7 @@ export function ProviderEditorDialog({
                   </Dialog.Description>
                 </div>
               </div>
-              <Dialog.Close asChild><IconButton title="关闭"><X aria-hidden /></IconButton></Dialog.Close>
+              <Dialog.Close asChild><IconButton color="ghostSecondary" size="toolbar" title="关闭"><X aria-hidden /></IconButton></Dialog.Close>
             </header>
 
             <div className="model-center-account-fields">
@@ -266,8 +266,8 @@ export function ProviderEditorDialog({
                 <header>
                   <div><h3>模型</h3><p>只需填写 ID 与 API，其余使用保守默认值。</p></div>
                   <div className="model-center-account-actions">
-                    {editing ? <Button disabled={busy} onClick={() => void discover()}>从 /models 导入</Button> : null}
-                    <Button onClick={() => setModels(current => [...current, emptyModel()])}><Plus aria-hidden />新增模型</Button>
+                    {editing ? <Button color="primary" disabled={busy} onClick={() => void discover()}>从 /models 导入</Button> : null}
+                    <Button color="primary" onClick={() => setModels(current => [...current, emptyModel()])}><Plus aria-hidden />新增模型</Button>
                   </div>
                 </header>
                 {models.map((model, index) => (
@@ -298,13 +298,13 @@ export function ProviderEditorDialog({
                       <span>{String(candidate.id)} · {candidate.api}</span>
                     </label>
                   ))}
-                  <Button disabled={selectedCandidates.size === 0} onClick={importSelected}>导入已选模型</Button>
+                  <Button color="primary" disabled={selectedCandidates.size === 0} onClick={importSelected}>导入已选模型</Button>
                 </section>
               ) : null}
 
               {error ? <p className="model-center-account-error" role="status">{error}</p> : null}
               <div className="model-center-account-actions">
-                <Button loading={busy} onClick={() => void save()}>保存 Provider</Button>
+                <Button color="primary" loading={busy} onClick={() => void save()}>保存 Provider</Button>
               </div>
             </div>
           </Dialog.Content>
@@ -345,7 +345,7 @@ function ModelEditor({
         <label className="model-center-account-field"><span>Thinking Level Map（JSON）</span><textarea value={model.thinkingLevelMap} onChange={event => onChange({ ...model, thinkingLevelMap: event.target.value })} placeholder='{"high":"high"}' /></label>
         <label className="model-center-account-field"><span>API Compat（JSON）</span><textarea value={model.compat} onChange={event => onChange({ ...model, compat: event.target.value })} placeholder="{}" /></label>
       </details>
-      <Button tone="danger" onClick={onRemove}><Trash2 aria-hidden />移除模型</Button>
+      <Button color="danger" onClick={onRemove}><Trash2 aria-hidden />移除模型</Button>
     </div>
   )
 }

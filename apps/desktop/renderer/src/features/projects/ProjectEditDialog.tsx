@@ -262,8 +262,10 @@ export function ProjectEditDialog({
             <Dialog.Close asChild>
               <IconButton
                 className="project-edit-close"
+                color="ghostSecondary"
                 disabled={busy}
                 ref={closeButtonRef}
+                size="toolbar"
                 title="关闭编辑项目"
               >
                 <X
@@ -376,7 +378,7 @@ export function ProjectEditDialog({
             <Button
               className="project-edit-delete"
               disabled={busy || !projectId}
-              tone="danger"
+              color="danger"
               onClick={onRequestRemove}
             >
               <Trash2 size={APP_ICON_SIZE} />
@@ -384,9 +386,9 @@ export function ProjectEditDialog({
             </Button>
             <div>
               <Dialog.Close asChild>
-                <Button disabled={busy}>取消</Button>
+                <Button color="secondary" disabled={busy}>取消</Button>
               </Dialog.Close>
-              <Button
+              <Button color="primary"
                 disabled={
                   busy || !projectId || !draftName.trim() || !primaryDraft
                 }

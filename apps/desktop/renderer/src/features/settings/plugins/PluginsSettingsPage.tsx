@@ -581,7 +581,7 @@ export function PluginsSettingsPage({
               value={query}
               onChange={setQuery}
             />
-            <Button
+            <Button color="primary"
               aria-label={`刷新${tabLabel(tab)}`}
               title={`刷新${tabLabel(tab)}`}
               onClick={() => void refreshCurrentTab()}
@@ -593,7 +593,7 @@ export function PluginsSettingsPage({
               />
             </Button>
             {tab === 'mcps' ? (
-              <Button
+              <Button color="primary"
                 onClick={event => {
                   setSelectedServer(null)
                   setMcpDialogTrigger(event.currentTarget)
@@ -617,7 +617,7 @@ export function PluginsSettingsPage({
             role="alert"
           >
             <span>{tabError}</span>
-            <Button onClick={() => void refreshCurrentTab()}>重试</Button>
+            <Button color="secondary" onClick={() => void refreshCurrentTab()}>重试</Button>
           </div>
         ) : null}
         {tab === 'mcps' && mcpStatus ? (
@@ -658,7 +658,7 @@ export function PluginsSettingsPage({
                         onChange={enabled => void togglePlugin(item, enabled)}
                       />
                     ) : item.category === 'manageable' ? (
-                      <Button onClick={refreshPlugins}>重试</Button>
+                      <Button color="secondary" onClick={refreshPlugins}>重试</Button>
                     ) : null
                   }
                 />
@@ -965,13 +965,13 @@ function mcpAuthAction(
 ): React.ReactNode {
   if (!server.effective || !server.enabled || !server.runtime) return null
   if (attempt) {
-    return <Button disabled loading title="等待 OAuth 授权">等待授权</Button>
+    return <Button color="primary" disabled loading title="等待 OAuth 授权">等待授权</Button>
   }
   if (server.runtime.auth.canLogout) {
-    return <Button disabled={busy} loading={busy} onClick={actions.logout}>退出登录</Button>
+    return <Button color="danger" disabled={busy} loading={busy} onClick={actions.logout}>退出登录</Button>
   }
   if (server.runtime.auth.canLogin) {
-    return <Button disabled={busy} loading={busy} onClick={actions.login}>登录</Button>
+    return <Button color="primary" disabled={busy} loading={busy} onClick={actions.login}>登录</Button>
   }
   return null
 }

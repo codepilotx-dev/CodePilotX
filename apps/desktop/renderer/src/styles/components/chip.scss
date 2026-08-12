@@ -39,24 +39,19 @@
 }
 
 /* --- Chip & Meta-chip Hover / Active --- */
-.composer .icon-button:hover:not(:disabled),
-.message-action:hover:not(:where(:disabled, [aria-disabled="true"])),
-.icon-button[data-variant="toolbar"]:hover:not(:disabled),
+.composer .chip-button:hover:not(:disabled),
 .menubar-trigger:hover:not(:where(:disabled, [data-disabled])),
 .menubar-trigger[data-highlighted]:not(:where(:disabled, [data-disabled])) {
   background: var(--state-hover-fill);
   color: var(--color-token-foreground);
 }
 
-.composer .icon-button:active:not(:disabled),
-.message-action:active:not(:where(:disabled, [aria-disabled="true"])),
-.icon-button[data-variant="toolbar"]:active:not(:disabled),
+.composer .chip-button:active:not(:disabled),
 .menubar-trigger:active:not(:where(:disabled, [data-disabled])) {
   background: var(--state-pressed-fill);
   color: var(--color-token-foreground);
 }
 
-.message-action[data-state="open"],
 .menubar-trigger[data-state="open"] {
   background: var(--state-selected-fill);
   color: var(--color-token-foreground);

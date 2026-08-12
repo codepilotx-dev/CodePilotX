@@ -494,7 +494,7 @@ export function GeneralSettings({
             title='从其他 AI 应用导入工作内容'
             description='导入您的设置、项目和最近聊天记录'
             control={
-              <Button type='button'>
+              <Button color="primary" type='button'>
                 导入
               </Button>
             }
@@ -503,7 +503,7 @@ export function GeneralSettings({
             title='打开源许可证'
             description='捆绑依赖项的第三方声明'
             control={
-              <Button type='button'>
+              <Button color="secondary" type='button'>
                 查看
               </Button>
             }
@@ -541,7 +541,7 @@ export function GeneralSettings({
                 <span className='settings-row-status'>
                   {popupShortcut ? popupShortcut : '禁用'}
                 </span>
-                <Button type='button'>
+                <Button color="secondary" type='button'>
                   设置
                 </Button>
               </>
@@ -569,7 +569,7 @@ export function GeneralSettings({
                 <span className='settings-row-status'>
                   {holdDictation ? holdDictation : '关闭'}
                 </span>
-                <Button type='button'>
+                <Button color="secondary" type='button'>
                   设置
                 </Button>
               </>
@@ -583,7 +583,7 @@ export function GeneralSettings({
                 <span className='settings-row-status'>
                   {toggleDictation ? toggleDictation : '关闭'}
                 </span>
-                <Button type='button'>
+                <Button color="secondary" type='button'>
                   设置
                 </Button>
               </>

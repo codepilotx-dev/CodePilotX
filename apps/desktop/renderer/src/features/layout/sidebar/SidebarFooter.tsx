@@ -388,7 +388,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
       </PopoverMenu>
       <div className="sidebar-footer-status-slot">
         {updateIndicator.visible ? (
-          <Button
+          <Button color="primary"
             aria-label={updateIndicator.ariaLabel}
             className="sidebar-update-indicator"
             data-phase={updateIndicator.phase}
@@ -420,7 +420,9 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             trigger={
               <IconButton
                 className="sidebar-help-button"
+                color="ghost"
                 ref={helpMenuTriggerRef}
+                size="icon"
                 title="帮助"
               >
                 <HelpCircle size={APP_ICON_SIZE} />

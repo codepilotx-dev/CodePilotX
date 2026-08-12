@@ -166,7 +166,7 @@ export function CommitPopover({
       </label>
 
       <div className="review-popover-actions">
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           disabled={false}
           onClick={() => onCommit(message, includeUnstaged)}
@@ -177,7 +177,7 @@ export function CommitPopover({
           </span>
           <span className="shortcut">Ctrl+Enter</span>
         </Button>
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCommitAndPush(message, includeUnstaged)}
         >
@@ -186,7 +186,7 @@ export function CommitPopover({
             提交并推送
           </span>
         </Button>
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onPush()}
         >

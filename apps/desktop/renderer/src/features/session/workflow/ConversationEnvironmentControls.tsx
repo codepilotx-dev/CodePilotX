@@ -160,7 +160,7 @@ export function ConversationEnvironmentControls({
         align="end"
         open={actionsOpen}
         width={260}
-        trigger={<Button disabled={busy}><Play size={APP_ICON_SIZE} />Actions</Button>}
+        trigger={<Button color="secondary" disabled={busy} size="toolbarLabel"><Play size={APP_ICON_SIZE} />Actions</Button>}
         onOpenChange={setActionsOpen}
       >
         {actions.length ? actions.map(action => (
@@ -177,7 +177,7 @@ export function ConversationEnvironmentControls({
         align="end"
         open={handoffOpen}
         width={310}
-        trigger={<Button disabled={busy || !workspacePath}><GitFork size={APP_ICON_SIZE} />Handoff</Button>}
+        trigger={<Button color="secondary" disabled={busy || !workspacePath} size="toolbarLabel"><GitFork size={APP_ICON_SIZE} />Handoff</Button>}
         onOpenChange={setHandoffOpen}
       >
         <PopoverItem disabled={busy} onClick={() => void start({ kind: 'local' })}>

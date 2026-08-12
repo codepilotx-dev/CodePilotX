@@ -55,11 +55,11 @@ export function OAuthConnection({
 
       <div className="model-center-account-fields">
         <div className="model-center-account-actions">
-          <Button loading={auth.busy} onClick={() => void auth.start()}>
+          <Button color="primary" loading={auth.busy} onClick={() => void auth.start()}>
             {connected ? '重新授权' : '开始授权'}
           </Button>
           {auth.session && ['running', 'waiting'].includes(auth.session.status) ? (
-            <Button onClick={() => void auth.cancel()}>取消</Button>
+            <Button color="secondary" onClick={() => void auth.cancel()}>取消</Button>
           ) : null}
         </div>
 
@@ -121,7 +121,7 @@ export function OAuthConnection({
                 value={auth.value}
               />
             )}
-            <Button
+            <Button color="primary"
               disabled={!auth.value.trim()}
               loading={auth.busy}
               onClick={() => void auth.respond()}

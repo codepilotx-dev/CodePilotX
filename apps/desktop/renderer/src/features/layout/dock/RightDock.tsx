@@ -37,6 +37,7 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import { TabStripButtonProvider } from '../../../components/ui/TabStripButtonContext.js'
 import {
   PopoverRadioGroup,
   PopoverRadioItem,
@@ -501,8 +502,9 @@ export function WorkbenchPanel({
         onSetWidth={onSetWidth}
         onSetHeight={onSetHeight}
       />
-        <div className={`${target === 'right' ? 'right-dock-header' : 'bottom-panel-header'} workbench-panel-header`}>
-          <WorkbenchTabsHeader
+        <TabStripButtonProvider>
+          <div className={`${target === 'right' ? 'right-dock-header' : 'bottom-panel-header'} workbench-panel-header`}>
+            <WorkbenchTabsHeader
             state={state}
             tabsById={tabsById}
             target={target}
@@ -519,12 +521,13 @@ export function WorkbenchPanel({
             onReorderTab={onReorderTab}
             onSelectTab={onSelectTab}
           />
-          {target === 'right' && onToggleRightFullWidth ? (
-            <IconButton
+            {target === 'right' && onToggleRightFullWidth ? (
+              <IconButton
               aria-pressed={rightFullWidth}
               className="right-dock-full-width"
+              color="ghostSecondary"
+              size="toolbar"
               title={rightFullWidth ? '恢复右侧面板宽度' : '展开右侧面板'}
-              variant="plain"
               onClick={onToggleRightFullWidth}
             >
               {rightFullWidth ? (
@@ -532,9 +535,10 @@ export function WorkbenchPanel({
               ) : (
                 <Maximize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               )}
-            </IconButton>
-          ) : null}
-        </div>
+              </IconButton>
+            ) : null}
+          </div>
+        </TabStripButtonProvider>
       <MemoizedWorkbenchPanelContent
         contentRef={contentRef}
         panelContext={panelContext}
@@ -834,8 +838,9 @@ export function WorkbenchTabsHeader({
                       <IconButton
                         aria-label={`关闭 ${tabTitle}`}
                         className="right-dock-tab-close"
+                        color="ghost"
+                        size="iconMd"
                         title={`关闭 ${tabTitle}`}
-                        variant="plain"
                         onMouseDown={event => {
                           event.preventDefault()
                           event.stopPropagation()
@@ -866,14 +871,14 @@ export function WorkbenchTabsHeader({
               sideOffset={4}
               width={220}
               trigger={
-                <button
-                  aria-label="添加标签"
+                <IconButton
                   className="right-dock-add-button"
+                  color="ghostSecondary"
+                  size="toolbar"
                   title="添加标签"
-                  type="button"
                 >
                   <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                </button>
+                </IconButton>
               }
               onOpenChange={setMenuOpen}
             >
@@ -932,8 +937,9 @@ export function WorkbenchTabsHeader({
         <IconButton
           aria-label="关闭底部面板"
           className="bottom-panel-close"
+          color="ghostSecondary"
+          size="toolbar"
           title="关闭底部面板"
-          variant="plain"
           onClick={onClosePanel}
         >
           <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />

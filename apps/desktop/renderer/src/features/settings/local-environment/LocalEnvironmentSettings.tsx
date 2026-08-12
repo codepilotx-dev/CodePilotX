@@ -91,7 +91,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
       <SettingsSection
         title="Local environment"
         description={`${source.filePath}。按 key-path 保存，文件中的注释和未知键由 Agent 保留。`}
-        actions={<Button loading={saving} onClick={() => void save()}>保存</Button>}
+        actions={<Button color="primary" loading={saving} onClick={() => void save()}>保存</Button>}
       >
         <SettingsRow title="名称" control={<input className="confirmation-dialog-input" value={name} onChange={event => setName(event.target.value)} />} />
         <div className="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:p-3">
@@ -108,7 +108,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         <div className="tw:grid tw:gap-2 tw:p-3">
           <div className="tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div><strong>Actions</strong><p className="tw:text-xs tw:text-app-text-soft">每个 Action 可提供默认命令和三平台覆盖。</p></div>
-            <Button disabled={saving} onClick={() => setActions(current => [...current, { ...EMPTY_ENVIRONMENT_ACTION }])}>添加 Action</Button>
+            <Button color="primary" disabled={saving} onClick={() => setActions(current => [...current, { ...EMPTY_ENVIRONMENT_ACTION }])}>添加 Action</Button>
           </div>
           {actions.map((action, index) => (
             <article className="settings-card tw:grid tw:gap-2 tw:p-3" key={index}>
@@ -124,7 +124,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
                   </label>
                 ))}
               </div>
-              <div className="tw:flex tw:justify-end"><Button disabled={saving} tone="danger" onClick={() => setActions(current => current.filter((_, itemIndex) => itemIndex !== index))}>删除 Action</Button></div>
+              <div className="tw:flex tw:justify-end"><Button color="danger" disabled={saving} onClick={() => setActions(current => current.filter((_, itemIndex) => itemIndex !== index))}>删除 Action</Button></div>
             </article>
           ))}
           {actions.length === 0 ? <p className="settings-empty-copy">暂无 Action。</p> : null}
@@ -134,8 +134,8 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         <SettingsRow
           title={source.executionTrusted ? '当前配置已信任' : '当前配置未信任'}
           control={source.executionTrusted
-            ? <Button disabled={saving} onClick={() => void updateTrust('revoke')}>撤销信任</Button>
-            : <Button disabled={saving} onClick={() => void updateTrust('allow')}>允许执行当前版本</Button>}
+            ? <Button color="danger" disabled={saving} onClick={() => void updateTrust('revoke')}>撤销信任</Button>
+            : <Button color="primary" disabled={saving} onClick={() => void updateTrust('allow')}>允许执行当前版本</Button>}
         />
       </SettingsSection>
     </SettingsContentArea>
@@ -146,7 +146,7 @@ function SetupVariablesPopover(): React.ReactNode {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <Button>变量</Button>
+        <Button color="secondary">变量</Button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content

@@ -27,34 +27,6 @@
   gap: 6px;
 }
 
-.icon-button[data-variant="browser"] {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--color-token-text-secondary);
-  transition:
-    background var(--motion-micro) var(--ease-out),
-    border-color var(--motion-micro) var(--ease-out),
-    color var(--motion-micro) var(--ease-out);
-
-  &:not(:disabled):hover {
-    border-color: var(--color-token-border-light);
-    background: var(--state-hover-fill);
-    color: var(--color-token-foreground);
-  }
-
-  &:not(:disabled):active {
-    background: var(--state-pressed-fill);
-  }
-
-  &:disabled {
-    opacity: 0.28;
-  }
-}
-
 .browser-address-form {
   position: relative;
   display: flex;

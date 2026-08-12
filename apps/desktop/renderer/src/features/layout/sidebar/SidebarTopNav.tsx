@@ -15,6 +15,7 @@ import {
   SquarePen,
 } from "lucide-react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { Button } from '../../../components/ui/Button.js'
 import type { SidebarProductMode } from "../../../../shared/types.js";
 import type { AppView } from "../../../uiTypes.js";
 import { newSessionPath } from "../../session/newSessionSurface.js";
@@ -256,14 +257,16 @@ export function SidebarHeader({
         side="bottom"
         width={248}
         trigger={
-          <button
+          <Button
             aria-label={`切换工作模式，当前为 ${activeMode.label}`}
             className="sidebar-product-mode-trigger"
+            color="ghostActive"
+            size="medium"
             type="button"
           >
             <span>{activeMode.label}</span>
             <ChevronDown aria-hidden="true" size={14} />
-          </button>
+          </Button>
         }
         onOpenChange={setModeMenuOpen}
       >
@@ -294,6 +297,8 @@ export function SidebarHeader({
         <IconButton
           aria-haspopup="dialog"
           className="sidebar-search-button"
+          color="ghost"
+          size="icon"
           onClick={onOpenCommandMenu}
           title="搜索任务"
         >
@@ -306,6 +311,8 @@ export function SidebarHeader({
             aria-pressed={sidebarTimelineEnabled}
             active={sidebarTimelineEnabled}
             className="sidebar-timeline-toggle-button"
+            color="ghost"
+            size="icon"
             onClick={() => setSidebarTimelineEnabled(v => !v)}
             title={timelineToggleTitle}
           >

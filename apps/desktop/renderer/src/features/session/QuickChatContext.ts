@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { ModelPreset } from '../../modelPresets.js'
 import type {
+  DesktopUserMessageInput,
   DesktopGitStatus,
   DesktopPermissionDecision,
   DesktopPermissionMode,
@@ -68,7 +69,7 @@ export type QuickChatContextValue = {
   onCopyFileReferenceContents: (
     reference: MarkdownFileReference,
   ) => void | Promise<void>
-  onSubmitEditedUserMessage: (text: string) => Promise<void>
+  onSubmitEditedUserMessage: (input: DesktopUserMessageInput) => Promise<void>
   onAppendComposerText: (text: string) => void
   onAppendSideChatText: (text: string) => void
   onOpenSideChat: () => void

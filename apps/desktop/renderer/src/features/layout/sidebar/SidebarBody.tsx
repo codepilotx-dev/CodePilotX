@@ -581,7 +581,12 @@ export function SidebarBody({
                     onOrganizationChange={onOrganizationChange}
                     onSortChange={onProjectSortChange}
                   />
-                  <IconButton onClick={onChooseWorkspace} title="添加项目">
+                  <IconButton
+                    color="ghostSecondary"
+                    onClick={onChooseWorkspace}
+                    size="toolbar"
+                    title="添加项目"
+                  >
                     <Plus size={APP_ICON_SIZE} />
                   </IconButton>
                 </SidebarSectionActions>
@@ -633,7 +638,9 @@ export function SidebarBody({
                   onSortChange={onSessionSortChange}
                 />
                 <IconButton
+                  color="ghostSecondary"
                   onClick={() => onCreateSession(null)}
+                  size="toolbar"
                   title="新建无项目任务"
                 >
                   <SquarePen size={APP_ICON_SIZE} />
@@ -800,6 +807,8 @@ function TimelinePriorityMenu({
         <IconButton
           aria-label="优先级显示选项"
           className="sidebar-timeline-menu-button"
+          color="ghostSecondary"
+          size="toolbar"
           title="优先级显示选项"
         >
           <Ellipsis size={APP_ICON_SIZE} />
@@ -941,7 +950,7 @@ function SidebarOrganizeMenu({
       open={open}
       side="bottom"
       trigger={
-        <IconButton title="整理侧栏">
+        <IconButton color="ghostSecondary" size="toolbar" title="整理侧栏">
           <Ellipsis size={APP_ICON_SIZE} />
         </IconButton>
       }

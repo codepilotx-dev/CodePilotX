@@ -1,6 +1,7 @@
 import type React from 'react'
 import { FolderOpen, Plus, RefreshCw, X } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import type { DesktopWorkspace } from '../../../shared/types.js'
 import { sessionDisplayTitle, type SessionListItem } from '../../uiTypes.js'
 
@@ -44,25 +45,27 @@ export function ProjectList({
           <h2>{workspace?.name ?? '未选择项目'}</h2>
         </div>
         <div className="project-panel-actions">
-          <button className="ghost-icon-button" onClick={onChooseWorkspace} title="选择项目">
+          <IconButton color="ghostSecondary" onClick={onChooseWorkspace} size="toolbar" title="选择项目">
             <FolderOpen size={APP_ICON_SIZE} />
-          </button>
-          <button
-            className="ghost-icon-button"
+          </IconButton>
+          <IconButton
+            color="ghostSecondary"
             onClick={onRefreshWorkspace}
             disabled={!workspace}
+            size="toolbar"
             title="刷新项目"
           >
             <RefreshCw size={APP_ICON_SIZE} />
-          </button>
-          <button
-            className="ghost-icon-button"
+          </IconButton>
+          <IconButton
+            color="ghostSecondary"
             onClick={onCreateSession}
             disabled={!workspace}
+            size="toolbar"
             title="新建会话"
           >
             <Plus size={APP_ICON_SIZE} />
-          </button>
+          </IconButton>
         </div>
       </div>
 
@@ -104,13 +107,14 @@ export function ProjectList({
                     {session.createdAt} · {session.status}
                   </small>
                 </button>
-                <button
-                  className="ghost-icon-button"
+                <IconButton
+                  color="ghostSecondary"
                   onClick={() => onCloseSession(session.id)}
+                  size="toolbar"
                   title="关闭会话"
                 >
                   <X size={APP_ICON_SIZE} />
-                </button>
+                </IconButton>
               </div>
             ))
           )}

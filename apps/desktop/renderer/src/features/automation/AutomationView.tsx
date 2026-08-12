@@ -35,14 +35,14 @@ export function AutomationView(): React.ReactNode {
         slot="right"
       >
         <div className="automation-header-actions">
-          <Button
+          <Button color="secondary"
             aria-label="查看自动化模板（尚未开放）"
             disabled
           >
             查看模板
             <span aria-hidden="true">尚未开放</span>
           </Button>
-          <Button
+          <Button color="primary"
             aria-label="通过聊天创建自动化（尚未开放）"
             disabled
           >
@@ -103,7 +103,7 @@ export function AutomationView(): React.ReactNode {
         <ul className="automation-quick-starts" aria-label="快捷创建">
           {QUICK_STARTS.map(item => (
             <li key={item.id}>
-              <Button>
+              <Button color="primary">
                 <span
                   className={cx(
                     'automation-quick-icon',

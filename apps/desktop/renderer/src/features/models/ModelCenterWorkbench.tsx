@@ -565,7 +565,7 @@ const nextState = await desktopClient.saveModelProvider({
       >
         <div className="model-center-header-actions">
           {!showInitialSkeleton && workspaceView === 'providers' && !showingProviderDetail ? (
-            <Button
+            <Button color="primary"
               onClick={() => {
                 setProviderEditorProviderId(null)
                 setProviderEditorOpen(true)
@@ -579,14 +579,14 @@ const nextState = await desktopClient.saveModelProvider({
             && showingProviderDetail
             && selectedProvider?.providerKind === 'custom' ? (
               <>
-                <Button onClick={() => {
+                <Button color="primary" onClick={() => {
                   setProviderEditorProviderId(selectedProvider.providerID)
                   setProviderEditorOpen(true)
                 }}>
                   <Pencil aria-hidden />
                   <span className="model-center-header-action-label">编辑 Provider</span>
                 </Button>
-                <Button tone="danger" onClick={() => void deleteCustomProvider()}>
+                <Button color="danger" onClick={() => void deleteCustomProvider()}>
                   <Trash2 aria-hidden />
                   <span className="model-center-header-action-label">删除 Provider</span>
                 </Button>
@@ -594,7 +594,7 @@ const nextState = await desktopClient.saveModelProvider({
             ) : null}
           {!showInitialSkeleton && showingProviderDetail && providerSection === 'connection' ? (
             <>
-              <Button
+              <Button color="secondary"
                 aria-label="测试连接"
                 disabled={busy}
                 onClick={() => void testConnection()}
@@ -603,7 +603,7 @@ const nextState = await desktopClient.saveModelProvider({
                 <Cable aria-hidden />
                 <span className="model-center-header-action-label">测试连接</span>
               </Button>
-              <Button
+              <Button color="primary"
                 aria-label="保存连接"
                 disabled={busy}
                 onClick={() => void saveProvider()}
@@ -616,7 +616,7 @@ const nextState = await desktopClient.saveModelProvider({
           ) : null}
           {!showInitialSkeleton && showingProviderDetail && providerSection === 'models' ? (
             <>
-              <Button
+              <Button color="secondary"
                 aria-label="刷新目录"
                 disabled={busy}
                 onClick={() => void fetchModels()}
@@ -625,7 +625,7 @@ const nextState = await desktopClient.saveModelProvider({
                 <RefreshCw aria-hidden />
                 <span className="model-center-header-action-label">刷新目录</span>
               </Button>
-              <Button
+              <Button color="primary"
                 aria-label="保存模型"
                 disabled={busy || !model}
                 onClick={() => void saveProvider()}
@@ -714,7 +714,7 @@ const nextState = await desktopClient.saveModelProvider({
                       <p>{connectionSummary}</p>
                     </div>
                     <div className="model-center-inline-actions">
-                      <Button onClick={() => updateLocation({
+                      <Button color="secondary" onClick={() => updateLocation({
                         view: 'keys',
                         provider: providerID,
                       })}>
@@ -1139,7 +1139,7 @@ function BuiltinProviderSettings({
         <Input value={denyModels} onChange={event => setDenyModels(event.target.value)} />
       </label>
       <div className="model-center-inline-actions">
-        <Button
+        <Button color="primary"
           disabled={busy}
           onClick={() => void update({
             allowModels: commaSeparatedModels(allowModels) as never,

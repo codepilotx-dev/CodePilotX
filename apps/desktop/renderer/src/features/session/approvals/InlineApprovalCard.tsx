@@ -238,10 +238,10 @@ export function InlineApprovalCard({
         ) : null}
         <div className="inline-approval-fixed-option">
           <div className="inline-approval-actions">
-            <Button onClick={() => onDecide(request, 'deny')}>
+            <Button color="secondary" onClick={() => onDecide(request, 'deny')}>
               跳过
             </Button>
-            <Button onClick={submitPermissionGrant}>
+            <Button color="primary" onClick={submitPermissionGrant}>
               提交
               <CornerDownLeft size={14} />
             </Button>
@@ -362,12 +362,12 @@ export function InlineApprovalCard({
         </div>
 
         <div className="inline-approval-actions">
-          <Button
+          <Button color="secondary"
             onClick={() => onDecide(request, 'deny')}
           >
             跳过
           </Button>
-          <Button
+          <Button color="primary"
             onClick={submitChoice}
           >
             提交

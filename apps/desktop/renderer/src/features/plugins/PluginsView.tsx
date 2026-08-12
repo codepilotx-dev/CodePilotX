@@ -322,10 +322,11 @@ export function PluginsView(): React.ReactNode {
       >
         <IconButton
           aria-busy={tab === 'plugins' ? pluginsLoading : skillsLoading}
+          color="ghostSecondary"
           disabled={tab === 'plugins' ? pluginsLoading : skillsLoading}
           onClick={refreshActiveCatalog}
+          size="toolbar"
           title={tab === 'plugins' ? '刷新插件目录' : '刷新技能目录'}
-          variant="toolbar"
         >
           <RefreshCw
             aria-hidden="true"
@@ -416,10 +417,10 @@ export function PluginsView(): React.ReactNode {
                   trigger={
                     <IconButton
                       className="plugins-status-trigger"
+                      color="ghostSecondary"
                       ref={statusTriggerRef}
-                      size="md"
+                      size="toolbar"
                       title={`插件状态：${selectedStatusLabel}`}
-                      variant="plain"
                     >
                       <ListFilter
                         aria-hidden="true"
@@ -456,7 +457,7 @@ export function PluginsView(): React.ReactNode {
                     <strong>无法读取可管理插件状态</strong>
                     <p>{pluginLoadError}</p>
                   </div>
-                  <Button onClick={refreshBuiltinPlugins}>
+                  <Button color="secondary" onClick={refreshBuiltinPlugins}>
                     重试
                   </Button>
                 </div>
@@ -485,7 +486,7 @@ export function PluginsView(): React.ReactNode {
                         ? `没有找到与“${pluginQuery}”匹配的插件。`
                         : '清除来源或状态筛选后再试。'}
                     </p>
-                    <Button onClick={clearPluginFilters}>
+                    <Button color="secondary" onClick={clearPluginFilters}>
                       清除筛选
                     </Button>
                   </div>
@@ -592,7 +593,7 @@ export function PluginsView(): React.ReactNode {
                     <strong>技能目录刷新失败</strong>
                     <p>{skillsError}</p>
                   </div>
-                  <Button
+                  <Button color="secondary"
                     onClick={() => setSkillsReloadKey(current => current + 1)}
                   >
                     重试
@@ -610,15 +611,15 @@ export function PluginsView(): React.ReactNode {
                     <li>重启应用后重新加载 skills.sh 技能目录。</li>
                   </ol>
                   <div className="plugins-empty-actions">
-                    <Button onClick={() => setSkillsReloadKey(current => current + 1)}>
+                    <Button color="secondary" onClick={() => setSkillsReloadKey(current => current + 1)}>
                       重试
                     </Button>
-                    <Button
+                    <Button color="secondary"
                       onClick={() => void desktopClient.openExternalURL('https://skills.sh')}
                     >
                       打开 skills.sh
                     </Button>
-                    <Button
+                    <Button color="secondary"
                       onClick={() => void desktopClient.openExternalURL(SKILLS_SH_API_DOCS_URL)}
                     >
                       查看配置文档

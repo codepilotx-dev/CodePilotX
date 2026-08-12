@@ -35,11 +35,12 @@ export function WorkspaceShellControls({
           aria-label={terminalVisible ? '隐藏集成终端' : '打开集成终端'}
           aria-pressed={terminalVisible}
           className="workspace-shell-control-button"
+          color="ghostSecondary"
           disabled={!terminalAvailable}
+          size="toolbar"
           title={terminalAvailable
             ? terminalVisible ? '隐藏集成终端' : '打开集成终端 (Ctrl+`)'
             : '创建任务后可使用集成终端'}
-          variant="plain"
           onClick={onToggleTerminal}
         >
           <SquareTerminal
@@ -53,8 +54,9 @@ export function WorkspaceShellControls({
           aria-label={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
           aria-pressed={rightDockState.open}
           className="workspace-shell-control-button"
+          color="ghostSecondary"
+          size="toolbar"
           title={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
-          variant="plain"
           onClick={onToggleRightPanel}
         >
           <RightPanelToggleIcon open={rightDockState.open} />

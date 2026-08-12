@@ -105,7 +105,7 @@ export function ProviderCredentialStoreSection({
           )}
         </div>
         {targetStore ? (
-          <Button
+          <Button color="primary"
             disabled={busy}
             onClick={() => setPendingStore(targetStore)}
           >

@@ -1431,14 +1431,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 }
 
 .model-center-account-disclosure {
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
-
   svg {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
     transition: transform var(--motion-state) var(--ease-standard);
   }
 

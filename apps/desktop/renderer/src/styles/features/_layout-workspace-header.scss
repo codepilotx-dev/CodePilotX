@@ -73,7 +73,7 @@
   justify-self: start;
   width: max-content;
   max-width: 100%;
-  padding-left: var(--space-3);
+  padding-left: var(--space-2);
 }
 
 .desktop-workspace-header-center {
@@ -93,7 +93,7 @@
   width: max-content;
   flex: 0 0 auto;
   justify-content: flex-end;
-  padding-right: var(--space-3);
+  padding-right: var(--space-2);
 }
 
 .desktop-workspace-header-item {
@@ -102,7 +102,7 @@
 }
 
 .desktop-workspace-header-group {
-  gap: var(--layout-toolbar-gap);
+  gap: var(--space-1);
 
   &[data-align="center"] {
     margin-inline: auto;
@@ -142,19 +142,11 @@
   height: 100%;
   align-items: center;
   gap: var(--space-1);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2);
 }
 
 .workspace-shell-control-button {
-  display: inline-flex;
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
-  flex: 0 0 var(--control-size-sm);
-  align-items: center;
-  justify-content: center;
-  padding: 0;
   border: 0;
-  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-token-text-secondary);
   transition:

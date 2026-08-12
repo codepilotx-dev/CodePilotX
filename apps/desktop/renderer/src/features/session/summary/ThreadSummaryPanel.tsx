@@ -370,7 +370,7 @@ function ThreadSummarySourcesPanel({
               <span>{sources.length}</span>
             </div>
             <Dialog.Close asChild>
-              <IconButton title="关闭来源面板">
+              <IconButton color="ghostSecondary" size="toolbar" title="关闭来源面板">
                 <X aria-hidden="true" size={APP_ICON_SIZE} />
               </IconButton>
             </Dialog.Close>

@@ -236,9 +236,9 @@ export function MenuBar({
             onClick={onToggleSidebar}
             onPointerEnter={onSidebarTriggerPointerEnter}
             onPointerLeave={onSidebarTriggerPointerLeave}
-            size="sm"
+            color="ghost"
+            size="toolbar"
             title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
-            variant="toolbar"
           >
             {sidebarCollapsed ? (
               <PanelLeftOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -248,19 +248,19 @@ export function MenuBar({
           </IconButton>
           <IconButton
             disabled={!canNavigateBack}
+            color="ghost"
             onClick={() => onViewMenuAction('back')}
-            size="sm"
+            size="toolbar"
             title="后退"
-            variant="toolbar"
           >
             <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
             disabled={!canNavigateForward}
+            color="ghost"
             onClick={() => onViewMenuAction('forward')}
-            size="sm"
+            size="toolbar"
             title="前进"
-            variant="toolbar"
           >
             <ChevronRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -544,19 +544,21 @@ export function MenuBar({
         </div>
 
         <div className="window-controls">
-          <IconButton
+          <button
+            aria-label="最小化"
             className="window-control-button"
             onClick={onMinimize}
             title="最小化"
-            variant="plain"
+            type="button"
           >
             <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <IconButton
+          </button>
+          <button
+            aria-label={isMaximized ? '还原' : '最大化'}
             className="window-control-button"
             onClick={onToggleMaximize}
             title={isMaximized ? '还原' : '最大化'}
-            variant="plain"
+            type="button"
           >
             {isMaximized ? (
               <Copy
@@ -567,15 +569,16 @@ export function MenuBar({
             ) : (
               <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             )}
-          </IconButton>
-          <IconButton
+          </button>
+          <button
+            aria-label="关闭"
             className="window-control-button close"
             onClick={onClose}
             title="关闭"
-            variant="plain"
+            type="button"
           >
             <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
+          </button>
         </div>
       </div>
     </div>

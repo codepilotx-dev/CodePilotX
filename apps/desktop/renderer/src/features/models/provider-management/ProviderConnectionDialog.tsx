@@ -107,9 +107,10 @@ export function ProviderConnectionDialog({
               <div className="model-center-key-dialog-heading">
                 {selected ? (
                   <IconButton
+                    color="ghostSecondary"
                     onClick={() => setSelectedId(null)}
+                    size="toolbar"
                     title="返回连接方式"
-                    variant="plain"
                   >
                     <ChevronLeft aria-hidden />
                   </IconButton>
@@ -130,14 +131,14 @@ export function ProviderConnectionDialog({
                 </div>
               </div>
               <Dialog.Close asChild>
-                <IconButton title="关闭"><X aria-hidden /></IconButton>
+                <IconButton color="ghostSecondary" size="toolbar" title="关闭"><X aria-hidden /></IconButton>
               </Dialog.Close>
             </header>
 
             {!selected ? (
               <div className="model-center-connection-choices">
                 {choices.map(choice => (
-                  <Button
+                  <Button color="primary"
                     className="model-center-connection-choice"
                     key={choice.id}
                     onClick={() => setSelectedId(choice.id)}

@@ -109,9 +109,10 @@ export function AccountProviderGroup({
             aria-controls={contentId}
             aria-expanded={expanded}
             className="model-center-account-disclosure"
+            color="ghostSecondary"
             onClick={onToggle}
+            size="toolbar"
             title={expanded ? `收起 ${group.provider.displayName}` : `展开 ${group.provider.displayName}`}
-            variant="plain"
           >
             <ChevronDown aria-hidden />
           </IconButton>
@@ -170,11 +171,11 @@ export function AccountProviderGroup({
           ) : null}
         </div>
         <div className="model-center-account-group-links">
-          <Button onClick={onOpenProvider}>
+          <Button color="primary" onClick={onOpenProvider}>
             <ExternalLink aria-hidden />
             供应商
           </Button>
-          <Button onClick={onOpenUsage}>
+          <Button color="secondary" onClick={onOpenUsage}>
             <LineChart aria-hidden />
             查看用量
           </Button>

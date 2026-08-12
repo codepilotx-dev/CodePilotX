@@ -108,9 +108,10 @@ export function WhatsNewDialog({
               </div>
               <Dialog.Close asChild>
                 <IconButton
+                  color="ghostSecondary"
                   ref={closeButtonRef}
+                  size="toolbar"
                   title="关闭新特性"
-                  variant="plain"
                 >
                   <X
                     aria-hidden="true"
@@ -197,7 +198,7 @@ function ReleaseNotesContent({
             <p>
               当前仅显示随应用提供的版本记录，在线历史版本暂时不可用。
             </p>
-            <Button loading={refreshing} onClick={onRefresh}>
+            <Button color="primary" loading={refreshing} onClick={onRefresh}>
               {refreshing ? null : <RefreshCw size={APP_ICON_SIZE} />}
               {refreshing ? '正在重试…' : '重试加载历史版本'}
             </Button>
@@ -298,7 +299,7 @@ function ReleaseDetails({
         )}
         {canOpenRelease ? (
           <div className="whats-new-release-actions">
-            <Button
+            <Button color="secondary"
               onClick={() => {
                 void desktopClient.openExternalURL(release.htmlUrl)
               }}
@@ -364,7 +365,7 @@ function ReleaseNotesError({
     <section aria-live="polite" className="whats-new-state">
       <strong>{message.title}</strong>
       <p>{message.description}</p>
-      <Button onClick={onRetry}>
+      <Button color="secondary" onClick={onRetry}>
         <RefreshCw size={APP_ICON_SIZE} />
         重试
       </Button>

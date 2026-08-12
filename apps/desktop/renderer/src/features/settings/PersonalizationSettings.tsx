@@ -96,7 +96,7 @@ export function PersonalizationSettings({
               value={draft.values.customInstructions}
             />
             <div className="personalization-actions">
-              <Button
+              <Button color="primary"
                 disabled={draft.saving}
                 onClick={() => void saveCustomInstructions()}
                 type="button"

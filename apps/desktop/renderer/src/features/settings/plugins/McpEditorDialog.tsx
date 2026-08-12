@@ -327,7 +327,7 @@ export function McpEditorDialog({
                 <Dialog.Description className="tw:mt-1 tw:mb-0 tw:text-sm tw:text-app-text-soft">
                   使用结构化字段配置 stdio 或 Streamable HTTP；HTTP 会在协议不兼容时自动回退 SSE。
                 </Dialog.Description>
-                <Button
+                <Button color="secondary"
                   className="tw:mt-1"
                   onClick={onOpenDocumentation}
                 >
@@ -336,7 +336,7 @@ export function McpEditorDialog({
                 </Button>
               </span>
               <Dialog.Close asChild>
-                <IconButton ref={closeRef} title="关闭 MCP 编辑器" variant="plain">
+                <IconButton color="ghostSecondary" ref={closeRef} size="toolbar" title="关闭 MCP 编辑器">
                   <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </IconButton>
               </Dialog.Close>
@@ -466,7 +466,7 @@ export function McpEditorDialog({
                 </FormCard>
               )}
 
-              <Button
+              <Button color="secondary"
                 aria-controls="mcp-advanced-options"
                 aria-expanded={advanced}
                 onClick={() => setAdvanced(current => !current)}
@@ -641,15 +641,15 @@ export function McpEditorDialog({
             <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
               <span>
                 {server?.removable ? (
-                  <Button disabled={busy} tone="danger" onClick={() => onRemove(server)}>
+                  <Button color="danger" disabled={busy} onClick={() => onRemove(server)}>
                     <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     删除
                   </Button>
                 ) : null}
               </span>
               <span className="tw:flex tw:items-center tw:gap-2">
-                <Dialog.Close asChild><Button>关闭</Button></Dialog.Close>
-                <Button disabled={busy} loading={busy} onClick={() => void save()}>
+                <Dialog.Close asChild><Button color="secondary">关闭</Button></Dialog.Close>
+                <Button color="primary" disabled={busy} loading={busy} onClick={() => void save()}>
                   保存
                 </Button>
               </span>
@@ -728,15 +728,16 @@ function ValueListField({
             <IconButton
               aria-label={`删除${label} ${index + 1}`}
               disabled={rows.length === 1 && !row.value}
+              color="ghostSecondary"
+              size="iconMd"
               title={`删除${label}`}
-              variant="plain"
               onClick={() => onChange(removeValueRow(rows, row.id))}
             >
               <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}
-        <Button className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createValueRow()])}>
+        <Button color="primary" className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createValueRow()])}>
           <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           {addLabel}
         </Button>
@@ -782,15 +783,16 @@ function MapListField({
               aria-label={`删除${label} ${index + 1}`}
               className="tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-1"
               disabled={rows.length === 1 && !row.key && !row.value}
+              color="ghostSecondary"
+              size="iconMd"
               title={`删除${label}`}
-              variant="plain"
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
               <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}
-        <Button className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createMapRow()])}>
+        <Button color="primary" className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createMapRow()])}>
           <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           {addLabel}
         </Button>
@@ -829,15 +831,16 @@ function ToolApprovalListField({
             <IconButton
               className="tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-1"
               disabled={rows.length === 1 && !row.key}
+              color="ghostSecondary"
+              size="iconMd"
               title={`删除工具审批覆盖 ${index + 1}`}
-              variant="plain"
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
               <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}
-        <Button className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createMapRow('', 'auto')])}>
+        <Button color="primary" className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createMapRow('', 'auto')])}>
           <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           添加工具覆盖
         </Button>

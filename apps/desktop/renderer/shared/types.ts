@@ -195,6 +195,7 @@ export type DesktopComposerAttachment = {
 export type DesktopUserMessageInput = {
   text: string
   attachments?: DesktopComposerAttachment[]
+  retainedAttachmentIds?: string[]
   skillInvocation?: {
     name: string
     args?: string
@@ -1577,6 +1578,7 @@ export type DesktopTaskSuggestion =
   RpcResult<'task-suggestion/generate'>['suggestions'][number]
 
 export type GenerateDesktopTaskSuggestionsInput = {
+  surface?: 'coding' | 'working'
   workspacePath: string | null
   context: RpcParams<'task-suggestion/generate'>['context']
 }

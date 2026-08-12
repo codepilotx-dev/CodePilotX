@@ -94,28 +94,6 @@
   gap: 4px;
 }
 
-.subagent-thread-panel__icon-button {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--color-token-icon-foreground);
-
-  &:hover {
-    background: var(--state-hover-fill);
-    color: var(--color-token-foreground);
-  }
-
-  &.is-danger:hover {
-    color: var(--color-token-error-foreground);
-  }
-}
-
 .subagent-thread-panel__scroll-region {
   min-height: 0;
   overflow: auto;
