@@ -39,6 +39,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复弹窗、浮层、折叠面板、临时卡片和新建页切换在 React 提前卸载时缺少退出动画的问题，并统一减少动态效果与焦点清理语义。
 - [desktop/renderer] 修正整轮活动流的耗时标题、运行状态和折叠层级，使最终回复前的 commentary、工具活动与 thinking 状态按 Codex 顺序展示。
 - [desktop/renderer] 修复桌面开关控制点因边框计入尺寸错误而偏离轨道中心、在选中端贴边的问题。
 - [desktop/renderer] 修复顶部应用菜单无法通过重复点击和标准关闭操作稳定收起，以及 Composer 统一菜单的导航高亮反复跳回第一项的问题。
