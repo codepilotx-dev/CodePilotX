@@ -195,17 +195,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .toggle-switch,
-  .chat-input__dropdown-switch,
-  .context-menu-switch,
-  .toggle-knob,
-  .chat-input__dropdown-switch-thumb,
-  .context-menu-switch-thumb {
-    transition: none;
-  }
-}
-
 @media (forced-colors: active) {
   .toggle-knob,
   .chat-input__dropdown-switch-thumb,

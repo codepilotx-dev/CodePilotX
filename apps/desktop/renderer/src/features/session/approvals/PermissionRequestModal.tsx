@@ -8,6 +8,7 @@ import type {
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 import { Button } from '../../../components/ui/Button.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
 export type PermissionRequestModalProps = {
   request: DesktopPermissionRequest | null
@@ -27,15 +28,18 @@ export function PermissionRequestModal({
   onDecide,
 }: PermissionRequestModalProps): React.ReactNode {
   const open = Boolean(request)
+  const lastRequest = useLastNonNull(request)
+  const retainedRequest = open ? request : lastRequest
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
+
+  if (!retainedRequest) return null
 
   return (
     <AlertDialog.Root open={open}>
       <AlertDialog.Portal>
-        {request ? (
-          <AlertDialog.Overlay className="permission-modal-backdrop">
-            <AlertDialog.Content
-              className="permission-modal tw:grid tw:w-[min(38.75rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5 tw:text-app-text"
+        <AlertDialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <AlertDialog.Content
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:grid tw:w-[min(38.75rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5 tw:text-app-text"
               onCloseAutoFocus={onCloseAutoFocus}
               onEscapeKeyDown={event => event.preventDefault()}
             >
@@ -43,30 +47,30 @@ export function PermissionRequestModal({
                 <AlertDialog.Title asChild>
                   <h2>权限请求</h2>
                 </AlertDialog.Title>
-                <span>{request.toolName}</span>
+                <span>{retainedRequest.toolName}</span>
               </header>
               <AlertDialog.Description asChild>
-                <p>{request.description}</p>
+                <p>{retainedRequest.description}</p>
               </AlertDialog.Description>
-              {request.autoReviewFallbackReason ? (
+              {retainedRequest.autoReviewFallbackReason ? (
                 <p>
                   自动审查无法完成，已转为人工审批：
-                  {request.autoReviewFallbackReason}
+                  {retainedRequest.autoReviewFallbackReason}
                 </p>
               ) : null}
-              {request.toolName === 'AskUserQuestion' ? (
+              {retainedRequest.toolName === 'AskUserQuestion' ? (
                 <AskUserQuestionApproval
-                  request={request}
-                  onReject={() => onDecide(request, 'deny')}
+                  request={retainedRequest}
+                  onReject={() => onDecide(retainedRequest, 'deny')}
                   onSubmit={updatedInput =>
-                    onDecide(request, 'allow', false, updatedInput)
+                    onDecide(retainedRequest, 'allow', false, updatedInput)
                   }
                 />
               ) : (
                 <>
                   <div className="permission-code-scroll-area tw:overflow-hidden tw:overflow-y-auto">
                     <div className="permission-code-scroll-content tw:overflow-hidden tw:overflow-x-auto">
-                      <code>{JSON.stringify(request.input)}</code>
+                      <code>{JSON.stringify(retainedRequest.input)}</code>
                     </div>
                   </div>
                   <div className="permission-modal-actions tw:flex tw:items-center tw:justify-between tw:gap-3">
@@ -74,19 +78,19 @@ export function PermissionRequestModal({
                       <Button color="primary"
                         onClick={event => {
                           event.preventDefault()
-                          onDecide(request, 'allow')
+                          onDecide(retainedRequest, 'allow')
                         }}
                         type="button"
                       >
                         允许
                       </Button>
                     </AlertDialog.Action>
-                    {(request.rememberOptions ?? []).map(option => (
+                    {(retainedRequest.rememberOptions ?? []).map(option => (
                       <AlertDialog.Action asChild key={option.id}>
                         <Button color="primary"
                           onClick={event => {
                             event.preventDefault()
-                            onDecide(request, 'allow', false, undefined, {
+                            onDecide(retainedRequest, 'allow', false, undefined, {
                               rememberOptionId: option.id,
                             })
                           }}
@@ -100,7 +104,7 @@ export function PermissionRequestModal({
                       <Button
                         color="danger"
                         onClick={() =>
-                          onDecide(request, 'deny')
+                          onDecide(retainedRequest, 'deny')
                         }
                         type="button"
                       >
@@ -110,9 +114,7 @@ export function PermissionRequestModal({
                   </div>
                 </>
               )}
-            </AlertDialog.Content>
-          </AlertDialog.Overlay>
-        ) : null}
+        </AlertDialog.Content>
       </AlertDialog.Portal>
     </AlertDialog.Root>
   )

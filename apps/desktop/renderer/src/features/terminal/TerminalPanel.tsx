@@ -8,6 +8,7 @@ import type {
 } from '@codepilotx/shared/desktop-terminal-ipc'
 import React, { use, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button.js'
+import { getEffectiveReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import { loadDesktopTerminalClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import {
@@ -61,12 +62,11 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
     const host = hostRef.current
     if (!host) return
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     const initialFont = readTerminalFont(document.documentElement)
     const terminal = new Terminal({
       allowProposedApi: false,
       convertEol: true,
-      cursorBlink: !reducedMotion.matches,
+      cursorBlink: !getEffectiveReducedMotion(),
       fontFamily: initialFont.fontFamily,
       fontSize: initialFont.fontSize,
       scrollback: 5_000,

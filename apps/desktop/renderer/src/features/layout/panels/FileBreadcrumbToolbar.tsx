@@ -33,6 +33,7 @@ export type FileBreadcrumbToolbarProps = {
   path: string
   readonly?: boolean
   treeAvailable: boolean
+  treeToggleRef?: React.Ref<HTMLButtonElement>
   treeVisible: boolean
   markdownViewMode?: MarkdownFileViewMode
   switching?: boolean
@@ -46,6 +47,7 @@ export function FileBreadcrumbToolbar({
   path,
   readonly = false,
   treeAvailable,
+  treeToggleRef,
   treeVisible,
   markdownViewMode,
   switching = false,
@@ -155,6 +157,7 @@ export function FileBreadcrumbToolbar({
         ) : null}
         {readonly ? <small>只读</small> : null}
         <button
+          ref={treeToggleRef}
           aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
           aria-pressed={treeVisible}
           className="file-breadcrumb-toolbar__action"

@@ -53,8 +53,9 @@ export function Tooltip({
           align={align}
           className={
             variant === 'unstyled'
-              ? className
+              ? ['tooltip-presence', className].filter(Boolean).join(' ')
               : [
+                  'tooltip-presence',
                   'tooltip-content',
                   'tw:max-w-[min(20rem,calc(100vw-2rem))]',
                   'tw:rounded-xl',

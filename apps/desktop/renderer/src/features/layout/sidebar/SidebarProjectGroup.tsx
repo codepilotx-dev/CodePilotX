@@ -39,6 +39,7 @@ import {
   normalizeSidebarPath,
 } from './sidebarViewModel.js'
 import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
+import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
 
 const ProjectEditDialog = lazy(async () => {
   const module = await import('../../projects/ProjectEditDialog.js')
@@ -104,6 +105,7 @@ function SidebarProjectGroupComponent({
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
+  const managerDialogMounted = useEverOpened(managerOpen)
   const [managedProject, setManagedProject] = useState(project)
   const [processingAction, setProcessingAction] = useState<
     'archive' | 'remove' | null
@@ -405,11 +407,11 @@ function SidebarProjectGroupComponent({
         onCancel={() => setConfirmRemoveOpen(false)}
       />
 
-      {managerOpen ? (
+      {managerDialogMounted ? (
         <Suspense fallback={null}>
           <ProjectEditDialog
             appearance={appearance}
-            open
+            open={managerOpen}
             project={managedProject}
             onAppearanceChange={nextAppearance => {
               if (!managedProject.projectId) return

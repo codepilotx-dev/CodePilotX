@@ -639,13 +639,9 @@
 
 /* --- Profile status popover --- */
 .profile-status-popover {
-  position: fixed;
-  top: 132px;
-  left: 50%;
   z-index: var(--z-popover);
   width: min(384px, calc(100vw - 16px));
   max-width: min(384px, calc(100vw - 16px));
-  transform: translateX(-50%);
 }
 
 .profile-status-popover-header {

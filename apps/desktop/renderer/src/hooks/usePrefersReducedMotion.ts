@@ -25,7 +25,7 @@ export function usePrefersReducedMotion(): boolean {
   return reduced
 }
 
-function getEffectiveReducedMotion(): boolean {
+export function getEffectiveReducedMotion(): boolean {
   if (typeof document !== 'undefined') {
     const value = document.documentElement.dataset.reduceMotion
     if (value === 'on') return true

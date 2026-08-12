@@ -319,8 +319,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .whats-new-skeleton-card > span {
-    animation: none;
-  }
+:root[data-reduce-motion='on'] .whats-new-skeleton-card > span {
+  animation: none;
 }

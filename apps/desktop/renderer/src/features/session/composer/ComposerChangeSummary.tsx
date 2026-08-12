@@ -10,6 +10,8 @@ import {
 } from "../../../components/ui/iconTokens.js";
 import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
 import {
+  enterTween,
+  exitTween,
   fastTween,
   instantTween,
   motionTransition,
@@ -125,20 +127,18 @@ export function ComposerChangeSummary({
         layout="position"
         transition={motionTransition(reducedMotion, standardTween)}
       >
-        {executionPlan ? (
-          <div
-            aria-hidden={!planExpanded}
-            aria-label="执行计划"
-            className="composer-change-summary__plan-preview"
-            hidden={!planExpanded}
-            id={planPanelId}
-            role="region"
-            onPointerEnter={clearPlanPreviewCloseTimer}
-            onPointerLeave={schedulePlanPreviewCloseUnlessFocused}
-          >
-            <ExecutionPlanCard item={executionPlan} />
-          </div>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {executionPlan && planExpanded ? (
+            <ComposerPlanPreviewPresence
+              key={executionPlan.id}
+              id={planPanelId}
+              item={executionPlan}
+              reducedMotion={reducedMotion}
+              onPointerEnter={clearPlanPreviewCloseTimer}
+              onPointerLeave={schedulePlanPreviewCloseUnlessFocused}
+            />
+          ) : null}
+        </AnimatePresence>
         <div
           aria-label="任务变更摘要"
           className="composer-change-summary__bar"
@@ -203,6 +203,48 @@ export function ComposerChangeSummary({
         ) : null}
       </AnimatePresence>
     </div>
+  );
+}
+
+function ComposerPlanPreviewPresence({
+  id,
+  item,
+  onPointerEnter,
+  onPointerLeave,
+  reducedMotion,
+}: {
+  id: string;
+  item: ExecutionPlanItem;
+  onPointerEnter: () => void;
+  onPointerLeave: () => void;
+  reducedMotion: boolean;
+}): React.ReactNode {
+  const isPresent = useIsPresent();
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      aria-hidden={!isPresent ? true : undefined}
+      aria-label="执行计划"
+      className="composer-change-summary__plan-preview"
+      data-presence={isPresent ? "present" : "exiting"}
+      exit={{
+        opacity: 0,
+        scale: 0.985,
+        y: 4,
+        transition: motionTransition(reducedMotion, exitTween),
+      }}
+      id={id}
+      inert={!isPresent ? true : undefined}
+      initial={reducedMotion ? false : { opacity: 0, scale: 0.985, y: 4 }}
+      role="region"
+      style={{ pointerEvents: isPresent ? undefined : "none" }}
+      transition={motionTransition(reducedMotion, enterTween)}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+    >
+      <ExecutionPlanCard item={item} />
+    </motion.div>
   );
 }
 

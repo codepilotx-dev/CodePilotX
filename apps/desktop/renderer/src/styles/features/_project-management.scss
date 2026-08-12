@@ -46,7 +46,6 @@
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--color-app-canvas) 46%, transparent);
-  animation: project-dialog-fade var(--motion-fast) ease-out;
 }
 
 .project-edit-dialog {
@@ -66,8 +65,6 @@
   padding: 1.5rem;
   color: var(--color-app-text);
   box-shadow: var(--shadow-float);
-  transform: translate(-50%, -50%);
-  animation: project-dialog-enter var(--motion-enter) var(--ease-out);
 }
 
 .project-edit-header {
@@ -342,24 +339,4 @@
 .project-appearance-footer {
   display: flex;
   justify-content: flex-end;
-}
-
-@keyframes project-dialog-enter {
-  from {
-    opacity: 0;
-    transform: translate(-50%, calc(-50% + 0.5rem)) scale(0.98);
-  }
-}
-
-@keyframes project-dialog-fade {
-  from {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .project-edit-backdrop,
-  .project-edit-dialog {
-    animation: none;
-  }
 }

@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
+import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion.js";
+import {
+  enterTween,
+  exitTween,
+  motionTransition,
+} from "../motion/motionTransitions.js";
 import type { WorkingPlugin } from "./composer/composerTypes.js";
 import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
@@ -25,6 +32,7 @@ import {
 const WORKING_COMPOSER_PLACEHOLDER = "使用 CodePilotX Working";
 
 export function WorkingNewSessionView(): React.ReactNode {
+  const reducedMotion = usePrefersReducedMotion();
   const {
     branchName,
     composerProps,
@@ -210,21 +218,59 @@ export function WorkingNewSessionView(): React.ReactNode {
                 />
               </div>
             ) : null}
-            {showSuggestions ? (
-              <WorkingSuggestionsPanel
-                state={suggestionState}
-                suggestions={suggestions}
-                onSelectSuggestion={handleSelectSuggestion}
-                onShowTemplates={handleShowTemplates}
-                onShowSuggestions={handleShowSuggestions}
-                onSelectCategory={handleSelectCategory}
-                onSelectTask={handleSelectTask}
-                onBack={handleBack}
-              />
-            ) : null}
+            <AnimatePresence initial={false}>
+              {showSuggestions ? (
+                <WorkingSuggestionPresence
+                  key="working-suggestions"
+                  reducedMotion={reducedMotion}
+                >
+                  <WorkingSuggestionsPanel
+                    state={suggestionState}
+                    suggestions={suggestions}
+                    onSelectSuggestion={handleSelectSuggestion}
+                    onShowTemplates={handleShowTemplates}
+                    onShowSuggestions={handleShowSuggestions}
+                    onSelectCategory={handleSelectCategory}
+                    onSelectTask={handleSelectTask}
+                    onBack={handleBack}
+                  />
+                </WorkingSuggestionPresence>
+              ) : null}
+            </AnimatePresence>
           </div>
         </section>
       </main>
     </div>
+  );
+}
+
+function WorkingSuggestionPresence({
+  children,
+  reducedMotion,
+}: {
+  children: React.ReactNode;
+  reducedMotion: boolean;
+}): React.ReactNode {
+  const isPresent = useIsPresent();
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      aria-hidden={!isPresent ? true : undefined}
+      className="new-session-panel-presence"
+      data-presence={isPresent ? "present" : "exiting"}
+      exit={{
+        opacity: 0,
+        scale: 0.985,
+        y: 4,
+        transition: motionTransition(reducedMotion, exitTween),
+      }}
+      inert={!isPresent ? true : undefined}
+      initial={reducedMotion ? false : { opacity: 0, scale: 0.985, y: 4 }}
+      style={{ pointerEvents: isPresent ? undefined : "none" }}
+      transition={motionTransition(reducedMotion, enterTween)}
+    >
+      {children}
+    </motion.div>
   );
 }

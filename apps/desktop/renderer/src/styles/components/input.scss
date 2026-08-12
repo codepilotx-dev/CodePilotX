@@ -327,12 +327,3 @@
     transition: none;
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .ui-input,
-  .settings-input,
-  .settings-textarea,
-  .search-input {
-    transition: none;
-  }
-}

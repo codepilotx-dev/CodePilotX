@@ -618,14 +618,14 @@
   transform-origin: var(--radix-tooltip-content-transform-origin, center);
 }
 
-.tooltip-content:is(
+.tooltip-presence:is(
   [data-state="delayed-open"],
   [data-state="instant-open"]
 ) {
   animation: tooltip-fade-in var(--motion-enter) var(--ease-out);
 }
 
-.tooltip-content[data-state="closed"] {
+.tooltip-presence[data-state="closed"] {
   animation: radix-floating-surface-out var(--motion-exit) var(--ease-in);
 }
 
@@ -639,7 +639,8 @@
   .thread-summary-popover[data-side],
   .popover[data-state],
   .popover-item-tooltip,
-  .tooltip-content
+  .tooltip-content,
+  .tooltip-presence
 ) {
   animation: none;
 }

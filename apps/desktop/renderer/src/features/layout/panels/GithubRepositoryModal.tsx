@@ -159,10 +159,10 @@ export function GithubRepositoryModal({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
             aria-describedby="github-repository-description"
-            className="permission-modal github-repository-modal"
+            className="ui-dialog-surface ui-dialog-surface--centered permission-modal github-repository-modal"
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <header
@@ -351,8 +351,7 @@ export function GithubRepositoryModal({
                 </Button>
               ) : null}
             </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

@@ -209,6 +209,11 @@
   }
 }
 
+.browser-annotation-presence {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
 @media (forced-colors: active) {
   .browser-address-field input:focus {
     box-shadow: none;

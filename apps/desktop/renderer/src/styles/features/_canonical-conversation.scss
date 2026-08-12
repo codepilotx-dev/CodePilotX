@@ -1542,7 +1542,7 @@
 
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion='on'] {
   .user-message-markdown__toggle svg {
     transition: none;
   }
@@ -1590,7 +1590,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion="on"] {
   .canonical-spin {
     animation: none;
   }
@@ -1609,22 +1609,4 @@
   .canonical-lifecycle-tool__icon-flash {
     display: none;
   }
-}
-
-:root[data-reduce-motion="on"] {
-  .canonical-spin {
-    animation: none;
-  }
-  .canonical-message-actions,
-  .canonical-turn-activity__summary,
-  .canonical-turn-activity__chevron,
-  .canonical-process-group__summary,
-  .canonical-process-group__chevron,
-  .canonical-process-card > summary,
-  .canonical-process-card__chevron,
-  .canonical-patch-card__disclosure svg,
-  .canonical-subagent-card {
-    transition: none;
-  }
-
 }

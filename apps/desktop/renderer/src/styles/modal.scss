@@ -9,40 +9,65 @@
   background: color-mix(in srgb, var(--color-token-foreground) 14%, transparent);
 }
 
+.ui-dialog-backdrop[data-state="open"] {
+  animation: ui-dialog-backdrop-in var(--motion-enter) var(--ease-out);
+}
+
+.ui-dialog-backdrop[data-state="closed"] {
+  animation: ui-dialog-backdrop-out var(--motion-exit) var(--ease-in);
+}
+
+.ui-dialog-surface[data-state="open"] {
+  animation: radix-floating-surface-in var(--motion-enter) var(--ease-out);
+}
+
+.ui-dialog-surface[data-state="closed"] {
+  animation: radix-floating-surface-out var(--motion-exit) var(--ease-in);
+}
+
+.ui-dialog-surface--centered {
+  position: fixed;
+  z-index: calc(var(--z-modal) + 1);
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+}
+
 .permission-modal,
 .github-repository-modal,
 .git-workflow-modal {
   border-radius: var(--radius-floating);
 }
 
-:is(
-  .permission-modal,
-  .github-repository-modal,
-  .git-workflow-modal,
-  .command-menu-dialog,
-  .project-edit-dialog,
-  .model-center-key-dialog,
-  .plugin-details-dialog,
-  .whats-new-dialog
-)[data-state="open"] {
-  animation: radix-floating-surface-in var(--motion-enter) var(--ease-out);
+:root[data-reduce-motion="on"] :is(
+  .ui-dialog-backdrop,
+  .ui-dialog-surface
+) {
+  animation: none;
 }
 
-:is(
-  .permission-modal,
-  .github-repository-modal,
-  .git-workflow-modal,
-  .command-menu-dialog,
-  .project-edit-dialog,
-  .model-center-key-dialog,
-  .plugin-details-dialog,
-  .whats-new-dialog
-)[data-state="closed"] {
-  animation: radix-floating-surface-out var(--motion-exit) var(--ease-in);
+@keyframes ui-dialog-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ui-dialog-backdrop-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 @media (forced-colors: active) {
-  .permission-modal-backdrop {
+  :is(.permission-modal-backdrop, .ui-dialog-backdrop) {
     background: color-mix(in srgb, CanvasText 18%, transparent);
   }
 }

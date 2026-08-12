@@ -509,16 +509,6 @@
   flex: 0 0 auto;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .conversation-turn-nav-rail {
-    transition: none;
-  }
-
-  .conversation-turn-nav-marker {
-    transition: none;
-  }
-}
-
 :root[data-reduce-motion="on"] {
   .conversation-turn-nav-rail,
   .conversation-turn-nav-marker {

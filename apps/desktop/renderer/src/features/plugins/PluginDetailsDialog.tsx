@@ -12,6 +12,7 @@ import {
 import type { PluginCatalogItem } from './pluginCatalog.js'
 import { pluginPrimaryAction, pluginStatusLabel } from './pluginCatalog.js'
 import { PluginIcon } from './PluginIcon.js'
+import { useLastNonNull } from '../../hooks/usePresenceRetention.js'
 
 type Props = {
   item: PluginCatalogItem | null
@@ -30,7 +31,7 @@ const CATEGORY_LABELS: Record<PluginCatalogItem['category'], string> = {
 }
 
 export function PluginDetailsDialog({
-  item,
+  item: currentItem,
   open,
   busy = false,
   error,
@@ -38,6 +39,8 @@ export function PluginDetailsDialog({
   onOpenChange,
   onPrimaryAction,
 }: Props): React.ReactNode {
+  const retainedItem = useLastNonNull(currentItem)
+  const item = open ? currentItem : retainedItem
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   if (!item) return null
@@ -47,9 +50,9 @@ export function PluginDetailsDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop plugin-details-dialog__backdrop">
-          <Dialog.Content
-            className="plugin-details-dialog"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop plugin-details-dialog__backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered plugin-details-dialog"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -128,8 +131,7 @@ export function PluginDetailsDialog({
                 </Button>
               ) : null}
             </footer>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

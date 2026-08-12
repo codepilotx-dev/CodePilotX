@@ -541,7 +541,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion="on"] {
   .attachment-image-tile__loading {
     animation: none;
   }

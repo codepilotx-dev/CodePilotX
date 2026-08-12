@@ -6,6 +6,7 @@ import { TooltipProvider } from './components/ui/Tooltip.js'
 import { AppContextMenu } from './components/ui/AppContextMenu.js'
 import { EditCommandProvider } from './components/ui/EditCommandProvider.js'
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { useEverOpened } from './hooks/usePresenceRetention.js'
 
 const GlobalErrorModal = lazy(() => import('./components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
 
@@ -16,6 +17,7 @@ function isResizeObserverLoopError(error: unknown): boolean {
 
 export function App(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const errorModalMounted = useEverOpened(errorMessage !== null)
 
   useEffect(() => {
     const showError = (error: unknown): void => {
@@ -71,7 +73,7 @@ export function App(): React.ReactNode {
             width={240}
             trigger={
               <div className="app-global-context-menu-trigger">
-                {errorMessage ? (
+                {errorModalMounted ? (
                   <Suspense fallback={null}>
                     <GlobalErrorModal
                       message={errorMessage}

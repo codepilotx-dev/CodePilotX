@@ -359,9 +359,9 @@ function ThreadSummarySourcesPanel({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="thread-summary-sources-overlay" />
+        <Dialog.Overlay className="ui-dialog-backdrop thread-summary-sources-overlay" />
         <Dialog.Content
-          className="thread-summary-sources-panel"
+          className="ui-dialog-surface thread-summary-sources-panel"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header>

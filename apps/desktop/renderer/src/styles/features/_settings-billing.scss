@@ -629,7 +629,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion='on'] {
   .usage-token-chart rect {
     transition: none;
   }

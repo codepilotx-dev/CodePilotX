@@ -1,7 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { Folder, FolderOpen, ListChecks } from 'lucide-react'
-import { motion, useMotionValue, useTransform } from 'motion/react'
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  usePresence,
+  useTransform,
+  type MotionValue,
+} from 'motion/react'
 import type {
   DesktopFileEntry,
   DesktopWorkspace,
@@ -28,6 +35,13 @@ import {
   type WorkspaceFileOpenOptions,
 } from '../WorkspaceFileTree.js'
 import { createWorkspaceFileTabId } from '../tabs/workspaceFileTabId.js'
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import {
+  exitTween,
+  instantTween,
+  layoutTween,
+  motionTransition,
+} from '../../motion/motionTransitions.js'
 
 const FILE_TREE_DEFAULT_WIDTH = 280
 const FILE_TREE_MIN_WIDTH = 200
@@ -101,6 +115,7 @@ export function RightDockFilesPanel({
   )
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const layoutRef = useRef<HTMLDivElement | null>(null)
+  const treeToggleRef = useRef<HTMLButtonElement | null>(null)
   const treeResize = useEditorFileTreeResize({
     committedWidth: treeWidth,
     layoutRef,
@@ -132,6 +147,7 @@ export function RightDockFilesPanel({
         </div>
         <div className="file-breadcrumb-toolbar__actions">
           <button
+            ref={treeToggleRef}
             aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
             aria-pressed={treeVisible}
             className="file-breadcrumb-toolbar__action"
@@ -165,26 +181,30 @@ export function RightDockFilesPanel({
               : '先打开一个工作区以浏览文件'}
           </span>
         </div>
-        {treeVisible ? (
-          <>
-            <div
-              aria-label="调整文件树宽度"
-              aria-orientation="vertical"
-              aria-valuemax={treeResize.maximumWidth}
-              aria-valuemin={FILE_TREE_MIN_WIDTH}
-              aria-valuenow={treeWidth}
-              className="right-dock-editor-tree-resize-handle"
-              role="separator"
-              tabIndex={0}
-              title="拖拽调整文件树宽度，双击恢复默认宽度"
-              onDoubleClick={treeResize.resetWidth}
-              onKeyDown={treeResize.handleKeyDown}
-              onPointerDown={treeResize.startResize}
-            />
-            <aside
-              aria-label="工作区文件树"
-              className="right-dock-editor-file-tree"
-            >
+        <EditorFileTreePresence
+          focusReturnRef={treeToggleRef}
+          liveWidth={treeResize.liveWidth}
+          visible={treeVisible}
+          width={treeWidth}
+        >
+          <div
+            aria-label="调整文件树宽度"
+            aria-orientation="vertical"
+            aria-valuemax={treeResize.maximumWidth}
+            aria-valuemin={FILE_TREE_MIN_WIDTH}
+            aria-valuenow={treeWidth}
+            className="right-dock-editor-tree-resize-handle"
+            role="separator"
+            tabIndex={0}
+            title="拖拽调整文件树宽度，双击恢复默认宽度"
+            onDoubleClick={treeResize.resetWidth}
+            onKeyDown={treeResize.handleKeyDown}
+            onPointerDown={treeResize.startResize}
+          />
+          <aside
+            aria-label="工作区文件树"
+            className="right-dock-editor-file-tree"
+          >
               <WorkspaceFileTree
                 key={workspacePath}
                 activePath={activePath}
@@ -196,9 +216,8 @@ export function RightDockFilesPanel({
                 onEscape={() => setTreeVisible(false)}
                 onOpenFile={onOpenFile}
               />
-            </aside>
-          </>
-        ) : null}
+          </aside>
+        </EditorFileTreePresence>
       </motion.div>
     </section>
   )
@@ -251,6 +270,7 @@ export function RightDockFilePreviewPanel({
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const [switchingMarkdownMode, setSwitchingMarkdownMode] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
+  const treeToggleRef = useRef<HTMLButtonElement | null>(null)
   const treeResize = useEditorFileTreeResize({
     committedWidth: treeWidth,
     layoutRef,
@@ -369,6 +389,7 @@ export function RightDockFilePreviewPanel({
         )}
       >
         <FileBreadcrumbToolbar
+          treeToggleRef={treeToggleRef}
           path={expectedPath}
           readonly={document.readonly}
           treeAvailable
@@ -485,26 +506,30 @@ export function RightDockFilePreviewPanel({
             }
             width={220}
           />
-          {treeVisible ? (
-            <>
-              <div
-                aria-label="调整文件树宽度"
-                aria-orientation="vertical"
-                aria-valuemax={treeResize.maximumWidth}
-                aria-valuemin={FILE_TREE_MIN_WIDTH}
-                aria-valuenow={treeWidth}
-                className="right-dock-editor-tree-resize-handle"
-                role="separator"
-                tabIndex={0}
-                title="拖拽调整文件树宽度，双击恢复默认宽度"
-                onDoubleClick={treeResize.resetWidth}
-                onKeyDown={treeResize.handleKeyDown}
-                onPointerDown={treeResize.startResize}
-              />
-              <aside
-                aria-label="当前文件的工作区文件树"
-                className="right-dock-editor-file-tree"
-              >
+          <EditorFileTreePresence
+            focusReturnRef={treeToggleRef}
+            liveWidth={treeResize.liveWidth}
+            visible={treeVisible}
+            width={treeWidth}
+          >
+            <div
+              aria-label="调整文件树宽度"
+              aria-orientation="vertical"
+              aria-valuemax={treeResize.maximumWidth}
+              aria-valuemin={FILE_TREE_MIN_WIDTH}
+              aria-valuenow={treeWidth}
+              className="right-dock-editor-tree-resize-handle"
+              role="separator"
+              tabIndex={0}
+              title="拖拽调整文件树宽度，双击恢复默认宽度"
+              onDoubleClick={treeResize.resetWidth}
+              onKeyDown={treeResize.handleKeyDown}
+              onPointerDown={treeResize.startResize}
+            />
+            <aside
+              aria-label="当前文件的工作区文件树"
+              className="right-dock-editor-file-tree"
+            >
                 <WorkspaceFileTree
                   activePath={expectedPath}
                   files={files}
@@ -513,9 +538,8 @@ export function RightDockFilePreviewPanel({
                   onEscape={() => setTreeVisible(false)}
                   onOpenFile={onOpenFile}
                 />
-              </aside>
-            </>
-          ) : null}
+            </aside>
+          </EditorFileTreePresence>
         </motion.div>
       </article>
     </section>
@@ -609,6 +633,7 @@ function useEditorFileTreeResize({
 }): {
   handleKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
   layoutStyle: React.CSSProperties
+  liveWidth: MotionValue<number>
   maximumWidth: number
   resetWidth: () => void
   startResize: (event: React.PointerEvent<HTMLDivElement>) => void
@@ -744,10 +769,122 @@ function useEditorFileTreeResize({
     layoutStyle: {
       '--right-dock-editor-tree-width': liveWidthPixels,
     } as React.CSSProperties,
+    liveWidth,
     maximumWidth: resolveFileTreeMaximumWidth(layoutRef.current),
     resetWidth: () => commitWidth(FILE_TREE_DEFAULT_WIDTH),
     startResize,
   }
+}
+
+function EditorFileTreePresence({
+  children,
+  focusReturnRef,
+  liveWidth,
+  visible,
+  width,
+}: {
+  children: React.ReactNode
+  focusReturnRef: React.RefObject<HTMLButtonElement | null>
+  liveWidth: MotionValue<number>
+  visible: boolean
+  width: number
+}): React.ReactNode {
+  const initiallyVisibleRef = useRef(visible)
+
+  return (
+    <AnimatePresence initial={false}>
+      {visible ? (
+        <EditorFileTreePresenceItem
+          key="editor-file-tree"
+          focusReturnRef={focusReturnRef}
+          liveWidth={liveWidth}
+          skipEnterAnimation={initiallyVisibleRef.current}
+          width={width}
+        >
+          {children}
+        </EditorFileTreePresenceItem>
+      ) : null}
+    </AnimatePresence>
+  )
+}
+
+function EditorFileTreePresenceItem({
+  children,
+  focusReturnRef,
+  liveWidth,
+  skipEnterAnimation,
+  width,
+}: {
+  children: React.ReactNode
+  focusReturnRef: React.RefObject<HTMLButtonElement | null>
+  liveWidth: MotionValue<number>
+  skipEnterAnimation: boolean
+  width: number
+}): React.ReactNode {
+  const reducedMotion = usePrefersReducedMotion()
+  const [isPresent, safeToRemove] = usePresence()
+  const shellRef = useRef<HTMLDivElement | null>(null)
+  const [entryComplete, setEntryComplete] = useState(skipEnterAnimation)
+  const liveShellWidth = useTransform(liveWidth, value => value + 8)
+  const visibleState = { opacity: 1, width: width + 8, x: 0 }
+  const hiddenState = { opacity: 0, width: 0, x: 8 }
+
+  useLayoutEffect(() => {
+    if (isPresent) return
+    setEntryComplete(false)
+    const activeElement = document.activeElement
+    if (
+      activeElement instanceof HTMLElement
+      && shellRef.current?.contains(activeElement)
+    ) {
+      focusReturnRef.current?.focus({ preventScroll: true })
+    }
+  }, [focusReturnRef, isPresent])
+
+  useEffect(() => {
+    if (!reducedMotion || !isPresent) return
+    setEntryComplete(true)
+  }, [isPresent, reducedMotion])
+
+  useEffect(() => {
+    if (isPresent || !safeToRemove) return
+    const timeout = window.setTimeout(
+      safeToRemove,
+      reducedMotion ? 0 : (exitTween.duration as number) * 1_000,
+    )
+    return () => window.clearTimeout(timeout)
+  }, [isPresent, reducedMotion, safeToRemove])
+
+  return (
+    <motion.div
+      ref={shellRef}
+      aria-hidden={!isPresent ? true : undefined}
+      animate={isPresent
+        ? visibleState
+        : {
+            ...hiddenState,
+            transition: motionTransition(reducedMotion, exitTween),
+          }}
+      className="right-dock-editor-file-tree-presence"
+      data-file-tree-presence={isPresent ? 'open' : 'exiting'}
+      data-presence={isPresent ? 'present' : 'exiting'}
+      initial={skipEnterAnimation ? false : hiddenState}
+      inert={!isPresent ? true : undefined}
+      onAnimationComplete={() => {
+        if (isPresent) setEntryComplete(true)
+      }}
+      style={{
+        width: liveShellWidth,
+        minWidth: isPresent && entryComplete ? FILE_TREE_MIN_WIDTH + 8 : 0,
+      }}
+      transition={motionTransition(
+        reducedMotion,
+        entryComplete ? instantTween : layoutTween,
+      )}
+    >
+      {children}
+    </motion.div>
+  )
 }
 
 function fileTreeViewStorageKey(workspacePath: string): string {

@@ -2260,7 +2260,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion='on'] {
   .model-center-page *,
   .model-center-key-dialog * {
     scroll-behavior: auto;

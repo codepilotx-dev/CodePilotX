@@ -591,14 +591,10 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion='on'] {
   .md-streaming-token,
   .md-table-copy {
     animation: none;
     transition: none;
   }
-}
-
-:root[data-reduce-motion='on'] .md-table-copy {
-  transition: none;
 }

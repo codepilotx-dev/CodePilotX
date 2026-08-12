@@ -14,6 +14,7 @@ import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
 const API_OPTIONS = [
   { value: 'openai-completions', label: 'OpenAI Completions' },
@@ -50,10 +51,12 @@ export type ProviderEditorDialogProps = {
 
 export function ProviderEditorDialog({
   open,
-  provider,
+  provider: currentProvider,
   onOpenChange,
   onSaved,
 }: ProviderEditorDialogProps): React.ReactNode {
+  const retainedProvider = useLastNonNull(currentProvider)
+  const provider = open ? currentProvider : retainedProvider ?? undefined
   const titleId = useId()
   const editing = provider?.providerKind === 'custom'
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
@@ -232,10 +235,10 @@ export function ProviderEditorDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
             aria-labelledby={titleId}
-            className="model-center-key-dialog model-center-connection-dialog"
+            className="ui-dialog-surface ui-dialog-surface--centered model-center-key-dialog model-center-connection-dialog"
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <header className="model-center-key-dialog-header">
@@ -307,8 +310,7 @@ export function ProviderEditorDialog({
                 <Button color="primary" loading={busy} onClick={() => void save()}>保存 Provider</Button>
               </div>
             </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

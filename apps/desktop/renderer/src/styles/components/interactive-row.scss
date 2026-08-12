@@ -257,22 +257,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .interactive-row,
-  .popover-item,
-  .popover-sub-trigger,
-  .menubar-item,
-  .settings-dropdown-item,
-  .permission-select-item,
-  .chat-input__dropdown-item,
-  .sidebar-context-menu-item,
-  .sidebar-context-menu-sub-trigger,
-  .rm-model-menu .rm-menu-item,
-  .rm-model-menu .rm-sub-trigger {
-    transition: none;
-  }
-}
-
 @media (forced-colors: active) {
   :is(
     .popover-item,

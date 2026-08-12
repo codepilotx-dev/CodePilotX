@@ -12,6 +12,7 @@ import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
 import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
+import { useLastNonNull } from '../../hooks/usePresenceRetention.js'
 
 export type ApiKeyEditorValue = {
   providerId: ModelProviderID
@@ -34,12 +35,14 @@ export function ApiKeyEditorDialog({
   open,
   providers,
   initialProviderId,
-  apiKey = null,
+  apiKey: currentApiKey = null,
   busy = false,
   restoreFocusElement,
   onOpenChange,
   onSubmit,
 }: ApiKeyEditorDialogProps): React.ReactNode {
+  const retainedApiKey = useLastNonNull(currentApiKey)
+  const apiKey = open ? currentApiKey : retainedApiKey
   const titleId = useId()
   const descriptionId = useId()
   const [providerId, setProviderId] = useState<ModelProviderID>(initialProviderId)
@@ -91,11 +94,11 @@ export function ApiKeyEditorDialog({
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
             aria-describedby={descriptionId}
             aria-labelledby={titleId}
-            className="model-center-key-dialog"
+            className="ui-dialog-surface ui-dialog-surface--centered model-center-key-dialog"
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <form className="model-center-key-dialog-form" onSubmit={event => void handleSubmit(event)}>
@@ -167,8 +170,7 @@ export function ApiKeyEditorDialog({
                 </Button>
               </footer>
             </form>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

@@ -18,7 +18,6 @@
   box-shadow: var(--shadow-float);
   color: var(--color-token-foreground);
   outline: 0;
-  animation: command-menu-enter var(--motion-enter) var(--ease-standard);
   -webkit-app-region: no-drag;
 }
 
@@ -236,13 +235,6 @@
 
   .command-menu-workspace {
     max-width: 6rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .command-menu-dialog,
-  .command-menu-spinner {
-    animation: none;
   }
 }
 

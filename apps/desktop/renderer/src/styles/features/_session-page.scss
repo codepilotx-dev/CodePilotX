@@ -533,7 +533,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion="on"] {
   .quick-chat-hero,
   .new-session-suggestion-card,
   .new-session-suggestions.is-follow-up,
@@ -692,6 +692,19 @@
   min-height: 0;
   display: flex;
   overflow: hidden;
+}
+
+.new-session-surface-presence {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.new-session-panel-presence {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
 }
 
 .quick-chat-workspace.with-review-sidebar {
@@ -1016,7 +1029,7 @@
   transform: scale(1);
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion="on"] {
   .composer-change-summary__plan-icon--running svg,
   .composer-change-summary__thinking-dots span {
     animation: none;
@@ -1050,6 +1063,13 @@
   .composer-change-summary__return:active {
     transform: none;
   }
+}
+
+.composer-lifecycle-presence {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
 }
 
 @media (forced-colors: active) {

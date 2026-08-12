@@ -69,6 +69,7 @@ import { useSessionState } from '../../session/state/useSessionState.js'
 import { useSessionTitleRegeneration } from '../../session/state/useSessionTitleRegeneration.js'
 import { useDesktopCommands } from '../../session/useDesktopCommands.js'
 import { withModelCatalogLoading } from '../../../hooks/useModelCatalogLoading.js'
+import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
 import {
   buildModelPresets,
   resolveModelPresetId,
@@ -322,6 +323,13 @@ export function DesktopLayout(): React.ReactNode {
     useState<HTMLElement | null>(null)
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
+  )
+  const gitWorkflowModalMounted = useEverOpened(gitWorkflowMode !== null)
+  const githubRepositoryModalMounted = useEverOpened(githubRepositoryModalOpen)
+  const whatsNewDialogMounted = useEverOpened(whatsNewDialogOpen)
+  const commandMenuDialogMounted = useEverOpened(commandMenuOpen)
+  const globalMessageModalMounted = useEverOpened(
+    errorMessage !== null || noticeMessage !== null,
   )
   const {
     providerState,
@@ -3098,24 +3106,20 @@ export function DesktopLayout(): React.ReactNode {
       <span aria-atomic="true" aria-live="polite" className="u-sr-only">
         已进入{routeLabel}
       </span>
-      {errorMessage || noticeMessage ? (
+      {globalMessageModalMounted ? (
         <Suspense fallback={null}>
-          {errorMessage ? (
-            <GlobalErrorModal
-              message={errorMessage}
-              onDismiss={() => setErrorMessage(null)}
-            />
-          ) : null}
-          {noticeMessage ? (
-            <GlobalErrorModal
-              message={noticeMessage}
-              tone="status"
-              onDismiss={() => setNoticeMessage(null)}
-            />
-          ) : null}
+          <GlobalErrorModal
+            message={errorMessage}
+            onDismiss={() => setErrorMessage(null)}
+          />
+          <GlobalErrorModal
+            message={noticeMessage}
+            tone="status"
+            onDismiss={() => setNoticeMessage(null)}
+          />
         </Suspense>
       ) : null}
-      {gitWorkflowMode ? <Suspense fallback={null}><GitWorkflowModal
+      {gitWorkflowModalMounted ? <Suspense fallback={null}><GitWorkflowModal
         allowForcePush={allowForcePush}
         commitMessagePrompt={commitMessagePrompt}
         gitBranchPrefix={gitBranchPrefix}
@@ -3135,28 +3139,28 @@ export function DesktopLayout(): React.ReactNode {
         }}
         onWorkspaceChanged={handleWorkspaceChanged}
       /></Suspense> : null}
-      {githubRepositoryModalOpen ? <Suspense fallback={null}><GithubRepositoryModal
+      {githubRepositoryModalMounted ? <Suspense fallback={null}><GithubRepositoryModal
         open={githubRepositoryModalOpen}
         onClose={() => setGithubRepositoryModalOpen(false)}
         onError={message => setErrorMessage(message)}
         onWorkspaceCloned={handleGithubWorkspaceCloned}
       /></Suspense> : null}
-      {whatsNewDialogOpen ? (
+      {whatsNewDialogMounted ? (
         <Suspense fallback={null}>
           <WhatsNewDialog
-            open
+            open={whatsNewDialogOpen}
             restoreFocusElement={whatsNewRestoreFocusElement}
             onOpenChange={setWhatsNewDialogOpen}
           />
         </Suspense>
       ) : null}
-      {commandMenuOpen ? (
+      {commandMenuDialogMounted ? (
         <Suspense fallback={null}>
           <CommandMenuDialog
             catalogStatus={catalogStatus}
             hasWorkspace={currentWorkspace !== null}
             inputRef={commandMenuInputRef}
-            open
+            open={commandMenuOpen}
             pendingPermissionSessionIds={pendingPermissionSessionIds}
             sessions={sessions}
             onCreateTask={() => {

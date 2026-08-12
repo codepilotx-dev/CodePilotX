@@ -243,10 +243,10 @@ export function ProjectEditDialog({
       if (!busy) onOpenChange(nextOpen)
     }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="project-edit-backdrop" />
+        <Dialog.Overlay className="ui-dialog-backdrop project-edit-backdrop" />
         <Dialog.Content
           aria-describedby={undefined}
-          className="project-edit-dialog"
+          className="ui-dialog-surface ui-dialog-surface--centered project-edit-dialog"
           onCloseAutoFocus={onCloseAutoFocus}
           onOpenAutoFocus={event => {
             event.preventDefault()

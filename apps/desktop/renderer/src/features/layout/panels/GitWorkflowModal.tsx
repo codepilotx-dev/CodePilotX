@@ -9,6 +9,7 @@ import { desktopClient } from '../../../services/desktop-client/index.js'
 import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
 export type GitWorkflowMode = 'branch' | 'commitPush' | 'pullRequest'
 
@@ -29,7 +30,7 @@ type Props = {
 }
 
 export function GitWorkflowModal({
-  mode,
+  mode: currentMode,
   workspace,
   gitStatus,
   gitBranchPrefix,
@@ -41,6 +42,9 @@ export function GitWorkflowModal({
   onWorkspaceChanged,
   onRefreshWorkspace,
 }: Props): React.ReactNode {
+  const retainedMode = useLastNonNull(currentMode)
+  const open = currentMode !== null
+  const mode = open ? currentMode : retainedMode
   const [branchName, setBranchName] = useState(gitBranchPrefix)
   const [commitMessage, setCommitMessage] = useState(commitMessagePrompt)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
@@ -53,7 +57,6 @@ export function GitWorkflowModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const changedFiles = gitStatus?.files ?? EMPTY_CHANGES
-  const open = mode !== null
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
   const title =
     mode === 'branch'
@@ -183,11 +186,10 @@ export function GitWorkflowModal({
       }}
     >
       <Dialog.Portal>
-        {open ? (
-          <Dialog.Overlay className="permission-modal-backdrop">
-            <Dialog.Content
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
               aria-describedby="git-workflow-description"
-              className="permission-modal git-workflow-modal"
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal git-workflow-modal"
               onCloseAutoFocus={onCloseAutoFocus}
             >
               <header
@@ -350,9 +352,7 @@ export function GitWorkflowModal({
                   </Button>
                 )}
               </div>
-            </Dialog.Content>
-          </Dialog.Overlay>
-        ) : null}
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

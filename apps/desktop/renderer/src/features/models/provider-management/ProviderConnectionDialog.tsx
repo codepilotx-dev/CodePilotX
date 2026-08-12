@@ -24,6 +24,7 @@ import {
 import { BillingCredentialConnection } from './BillingCredentialConnection.js'
 import { OAuthConnection } from './OAuthConnection.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
 export type ConnectionChoice =
   | { id: 'inference'; kind: 'inference-key' }
@@ -43,12 +44,14 @@ export type ProviderConnectionDialogProps = {
 export function ProviderConnectionDialog({
   busy,
   open,
-  provider,
+  provider: currentProvider,
   sources,
   onKeySubmit,
   onOpenChange,
   onConnected,
 }: ProviderConnectionDialogProps): React.ReactNode {
+  const retainedProvider = useLastNonNull(currentProvider)
+  const provider = open ? currentProvider : retainedProvider
   const titleId = useId()
   const descriptionId = useId()
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -96,11 +99,11 @@ export function ProviderConnectionDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
             aria-describedby={descriptionId}
             aria-labelledby={titleId}
-            className="model-center-key-dialog model-center-connection-dialog"
+            className="ui-dialog-surface ui-dialog-surface--centered model-center-key-dialog model-center-connection-dialog"
             onCloseAutoFocus={focusRestore.onCloseAutoFocus}
           >
             <header className="model-center-key-dialog-header">
@@ -205,8 +208,7 @@ export function ProviderConnectionDialog({
                   }
                 />
               ) : null}
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

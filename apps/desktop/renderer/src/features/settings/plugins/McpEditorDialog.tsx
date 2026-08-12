@@ -19,6 +19,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
 import { SettingsDropdown } from '../SettingsDropdown.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
 type TransportType = DesktopMcpServerConfig['type']
 
@@ -120,7 +121,7 @@ const STATIC_SECRET_HEADERS = new Set([
 
 export function McpEditorDialog({
   open,
-  server,
+  server: currentServer,
   busy,
   workspaceAvailable,
   restoreFocusElement,
@@ -129,6 +130,8 @@ export function McpEditorDialog({
   onRemove,
   onOpenDocumentation,
 }: Props): React.ReactNode {
+  const retainedServer = useLastNonNull(currentServer)
+  const server = open ? currentServer : retainedServer
   const closeRef = useRef<HTMLButtonElement | null>(null)
   const visitedTransportTypes = useRef<Set<TransportType>>(new Set())
   const stdioDiagnosticContext = useRef(false)
@@ -306,9 +309,9 @@ export function McpEditorDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
-            className="permission-modal tw:flex tw:max-h-[min(48rem,calc(100vh-3rem))] tw:w-[min(44rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-xl tw:p-0 tw:text-app-text"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(48rem,calc(100vh-3rem))] tw:w-[min(44rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-xl tw:p-0 tw:text-app-text"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -654,8 +657,7 @@ export function McpEditorDialog({
                 </Button>
               </span>
             </footer>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import * as Popover from '@radix-ui/react-popover'
 import {
   Edit3,
   GitFork,
@@ -139,7 +140,8 @@ export function ProfileSettings(): React.ReactNode {
   }
 
   return (
-    <SettingsContentArea className="profile-dashboard-area">
+    <Popover.Root open={statusEditorOpen} onOpenChange={setStatusEditorOpen}>
+      <SettingsContentArea className="profile-dashboard-area">
       <div className="profile-dashboard">
         <header className="profile-dashboard-header">
           <h2>个人资料</h2>
@@ -181,14 +183,16 @@ export function ProfileSettings(): React.ReactNode {
                   )}
                 </div>
                 {user ? (
-                  <button
-                    className="profile-avatar-badge"
-                    title={currentStatus?.message ?? '设置状态'}
-                    onClick={openStatusEditor}
-                    type="button"
-                  >
-                    {statusEmojiGlyph(currentStatus?.emoji)}
-                  </button>
+                  <Popover.Trigger asChild>
+                    <button
+                      className="profile-avatar-badge"
+                      title={currentStatus?.message ?? '设置状态'}
+                      onClick={openStatusEditor}
+                      type="button"
+                    >
+                      {statusEmojiGlyph(currentStatus?.emoji)}
+                    </button>
+                  </Popover.Trigger>
                 ) : null}
               </div>
               <h1>{user?.name || user?.login || 'GitHub Profile'}</h1>
@@ -329,16 +333,22 @@ export function ProfileSettings(): React.ReactNode {
             )}
           </>
         )}
-        {statusEditorOpen ? (
-          <div className="popover-surface profile-status-popover" role="dialog" aria-label="设置 GitHub 状态">
+      </div>
+      </SettingsContentArea>
+      <Popover.Portal>
+        <Popover.Content
+          align="center"
+          aria-label="设置 GitHub 状态"
+          className="popover-surface profile-status-popover"
+          collisionPadding={8}
+          side="bottom"
+          sideOffset={8}
+        >
             <div className="profile-status-popover-header">
               <strong>设置 GitHub 状态</strong>
-              <button
-                onClick={() => setStatusEditorOpen(false)}
-                type="button"
-              >
-                ×
-              </button>
+              <Popover.Close asChild>
+                <button type="button">×</button>
+              </Popover.Close>
             </div>
             <div className="profile-status-field">
               <span>What's happening</span>
@@ -385,10 +395,9 @@ export function ProfileSettings(): React.ReactNode {
                 Set status
               </Button>
             </div>
-          </div>
-        ) : null}
-      </div>
-    </SettingsContentArea>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
 

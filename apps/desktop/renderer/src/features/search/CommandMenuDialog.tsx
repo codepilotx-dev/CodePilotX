@@ -102,11 +102,10 @@ export function CommandMenuDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        {open ? (
-          <Dialog.Overlay className="command-menu-backdrop">
-            <Dialog.Content
+        <Dialog.Overlay className="ui-dialog-backdrop command-menu-backdrop" />
+        <Dialog.Content
               aria-describedby="command-menu-description"
-              className="command-menu-dialog"
+              className="ui-dialog-surface ui-dialog-surface--centered command-menu-dialog"
               onCloseAutoFocus={onCloseAutoFocus}
               onOpenAutoFocus={event => {
                 event.preventDefault()
@@ -193,9 +192,7 @@ export function CommandMenuDialog({
                   ) : null}
                 </Command.List>
               </Command>
-            </Dialog.Content>
-          </Dialog.Overlay>
-        ) : null}
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

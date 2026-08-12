@@ -78,17 +78,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .ui-skeleton-block {
-    background-image: none;
-    animation: none;
-  }
-
-  .ui-remote-image-content {
-    transition: none;
-  }
-}
-
 :root[data-reduce-motion='on'] {
   .ui-skeleton-block {
     background-image: none;

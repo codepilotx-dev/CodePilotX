@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type React from "react";
+import { getEffectiveReducedMotion } from "../../hooks/usePrefersReducedMotion.js";
 
 type CodingHeadingTransitionProps = {
   children: React.ReactNode;
   transitionKey: string;
 };
-
-function prefersReducedMotion(): boolean {
-  return (
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
-  );
-}
 
 export function CodingHeadingTransition({
   children,
@@ -36,7 +31,7 @@ export function CodingHeadingTransition({
       setDisplayedKey(latest.key);
     };
     const element = headingRef.current;
-    if (!element || prefersReducedMotion()) {
+    if (!element || getEffectiveReducedMotion()) {
       showLatestHeading();
       return;
     }
@@ -69,7 +64,7 @@ export function CodingHeadingTransition({
 
   useEffect(() => {
     const element = headingRef.current;
-    if (!element || prefersReducedMotion()) return;
+    if (!element || getEffectiveReducedMotion()) return;
     const animation = element.animate(
       [
         { opacity: 0, transform: "translateY(4px)" },

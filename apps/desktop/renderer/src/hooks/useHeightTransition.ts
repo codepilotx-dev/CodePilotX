@@ -1,5 +1,7 @@
 import React from 'react'
 
+import { getEffectiveReducedMotion } from './usePrefersReducedMotion.js'
+
 const HEIGHT_TRANSITION_MS = 200
 const HEIGHT_TRANSITION_FALLBACK_MS = HEIGHT_TRANSITION_MS + 80
 
@@ -27,7 +29,7 @@ export function useHeightTransition(
 
     if (
       Math.abs(startHeight - targetHeight) < 1 ||
-      isReducedMotionEnabled()
+      getEffectiveReducedMotion()
     ) {
       setHeight(null)
       setTransitioning(false)
@@ -83,13 +85,6 @@ export function useHeightTransition(
       overflow: transitioning ? 'hidden' : undefined,
     },
   }
-}
-
-function isReducedMotionEnabled(): boolean {
-  return (
-    document.documentElement.dataset.reduceMotion === 'on' ||
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
-  )
 }
 
 function outerContentHeight(el: HTMLElement): number {

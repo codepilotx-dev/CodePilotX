@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,6 +16,12 @@ import { formatBrowserDisplayURL } from './browserDisplayURL.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
+import {
+  enterTween,
+  exitTween,
+  motionTransition,
+} from '../motion/motionTransitions.js'
 
 type Props = {
   state: DesktopBrowserState
@@ -37,6 +44,9 @@ export function DesktopBrowserPanel({
   onStateChange,
 }: Props): React.ReactNode {
   const viewportRef = useRef<HTMLDivElement | null>(null)
+  const annotationToggleRef = useRef<HTMLButtonElement | null>(null)
+  const annotationPanelRef = useRef<HTMLDivElement | null>(null)
+  const reducedMotion = usePrefersReducedMotion()
   const [address, setAddress] = useState(state.url)
   const [addressFocused, setAddressFocused] = useState(false)
   const [annotationOpen, setAnnotationOpen] = useState(false)
@@ -49,6 +59,13 @@ export function DesktopBrowserPanel({
       setAddress(state.url)
     }
   }, [state.url])
+
+  useLayoutEffect(() => {
+    if (!annotationOpen) return
+    annotationPanelRef.current?.removeAttribute('aria-hidden')
+    annotationPanelRef.current?.removeAttribute('inert')
+    annotationPanelRef.current?.setAttribute('data-presence', 'present')
+  }, [annotationOpen])
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current
@@ -136,6 +153,20 @@ export function DesktopBrowserPanel({
     onAppendAnnotation(lines.join('\n'))
     setAnnotationBody('')
     setAnnotationTarget('')
+    closeAnnotation()
+  }
+
+  function closeAnnotation(): void {
+    annotationPanelRef.current?.setAttribute('aria-hidden', 'true')
+    annotationPanelRef.current?.setAttribute('inert', '')
+    annotationPanelRef.current?.setAttribute('data-presence', 'exiting')
+    const activeElement = document.activeElement
+    if (
+      activeElement instanceof HTMLElement
+      && annotationPanelRef.current?.contains(activeElement)
+    ) {
+      annotationToggleRef.current?.focus({ preventScroll: true })
+    }
     setAnnotationOpen(false)
   }
 
@@ -225,10 +256,14 @@ export function DesktopBrowserPanel({
             />
           </IconButton>
           <IconButton
+            ref={annotationToggleRef}
             color="ghostSecondary"
             size="toolbar"
             title={annotationOpen ? '收起批注' : '添加批注'}
-            onClick={() => setAnnotationOpen(current => !current)}
+            onClick={() => {
+              if (annotationOpen) closeAnnotation()
+              else setAnnotationOpen(true)
+            }}
           >
             <MessageSquarePlus
               size={APP_ICON_SIZE}
@@ -251,41 +286,59 @@ export function DesktopBrowserPanel({
         ) : null}
       </div>
 
-      {annotationOpen ? (
-        <div className="browser-annotation-bar">
-          <Button color="primary"
-            onClick={() => setAnnotationOpen(current => !current)}
+      <AnimatePresence initial={false}>
+        {annotationOpen ? (
+          <motion.div
+            ref={annotationPanelRef}
+            animate={{ height: 'auto', opacity: 1, y: 0 }}
+            className="browser-annotation-presence"
+            data-presence="present"
+            exit={{
+              height: 0,
+              opacity: 0,
+              y: 8,
+              transition: motionTransition(reducedMotion, exitTween),
+            }}
+            initial={{ height: 0, opacity: 0, y: 8 }}
+            transition={motionTransition(reducedMotion, enterTween)}
+            onKeyDown={event => {
+              if (event.key !== 'Escape') return
+              event.preventDefault()
+              event.stopPropagation()
+              closeAnnotation()
+            }}
           >
-            <MessageSquarePlus size={APP_ICON_SIZE} />
-            <span>添加批注</span>
-          </Button>
-        </div>
-      ) : null}
-
-      {annotationOpen ? (
-        <div className="browser-annotation-form">
-          <input
-            aria-label="批注位置"
-            placeholder="位置或元素描述，例如 顶部导航按钮"
-            value={annotationTarget}
-            onChange={event => setAnnotationTarget(event.target.value)}
-          />
-          <textarea
-            aria-label="批注内容"
-            placeholder="描述需要调整的视觉问题"
-            rows={3}
-            value={annotationBody}
-            onChange={event => setAnnotationBody(event.target.value)}
-          />
-          <Button color="primary"
-            disabled={!annotationBody.trim()}
-            onClick={handleSubmitAnnotation}
-          >
-            <Check size={APP_ICON_SIZE} />
-            <span>插入输入框</span>
-          </Button>
-        </div>
-      ) : null}
+            <div className="browser-annotation-bar">
+              <Button color="primary" onClick={closeAnnotation}>
+                <MessageSquarePlus size={APP_ICON_SIZE} />
+                <span>添加批注</span>
+              </Button>
+            </div>
+            <div className="browser-annotation-form">
+              <input
+                aria-label="批注位置"
+                placeholder="位置或元素描述，例如 顶部导航按钮"
+                value={annotationTarget}
+                onChange={event => setAnnotationTarget(event.target.value)}
+              />
+              <textarea
+                aria-label="批注内容"
+                placeholder="描述需要调整的视觉问题"
+                rows={3}
+                value={annotationBody}
+                onChange={event => setAnnotationBody(event.target.value)}
+              />
+              <Button color="primary"
+                disabled={!annotationBody.trim()}
+                onClick={handleSubmitAnnotation}
+              >
+                <Check size={APP_ICON_SIZE} />
+                <span>插入输入框</span>
+              </Button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </section>
   )
 }

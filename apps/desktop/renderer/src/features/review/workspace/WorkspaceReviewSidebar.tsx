@@ -73,6 +73,7 @@ import { CommitPopover } from "./CommitPopover.js";
 import { PullRequestPopover } from "./PullRequestPopover.js";
 import { ReviewFileTreeResizeController } from "./ReviewFileTreeResizeController.js";
 import { ReviewFileTreeRow } from "./ReviewFileTree.js";
+import { ReviewFileTreePanelPresence } from "./ReviewFileTreePanelPresence.js";
 import { formatReviewCount } from "../diff/reviewFormat.js";
 import {
   isReviewDiffExpanded,
@@ -416,6 +417,7 @@ function WorkspaceReviewSidebarImpl({
   const commitButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const prButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const reviewMainRef = React.useRef<HTMLDivElement | null>(null);
+  const fileTreeToggleRef = React.useRef<HTMLButtonElement | null>(null);
   const reviewRootRef = React.useRef<HTMLElement | null>(null);
   const staleGitChangeRef = React.useRef(false);
   const summaryRef = React.useRef<ReviewSummarySnapshot | null>(null);
@@ -2646,6 +2648,7 @@ function WorkspaceReviewSidebarImpl({
           </Tooltip>
           <Tooltip content={hideFileList ? "显示文件" : "隐藏文件"}>
             <IconButton
+              ref={fileTreeToggleRef}
               aria-pressed={!hideFileList}
               color={!hideFileList ? "ghostActive" : "ghostSecondary"}
               size="toolbar"
@@ -2742,8 +2745,10 @@ function WorkspaceReviewSidebarImpl({
           />
         ) : null}
 
-        {!showProjectEmptyState && !hideFileList ? (
-          <>
+        <ReviewFileTreePanelPresence
+          focusReturnRef={fileTreeToggleRef}
+          liveWidthPixels={liveFileTreePanelWidthPixels}
+          resizeHandle={
             <ReviewFileTreeResizeController
               containerRef={reviewMainRef}
               liveWidthPixels={liveFileTreePanelWidthPixels}
@@ -2751,14 +2756,10 @@ function WorkspaceReviewSidebarImpl({
               onResizePreview={previewFileTreePanelWidth}
               onSetWidth={setFileTreePanelWidth}
             />
-            <motion.section
-              className="review-file-tree-panel"
-              aria-label="审查文件导航"
-              style={{
-                flexBasis: liveFileTreePanelWidthPixels,
-                width: liveFileTreePanelWidthPixels,
-              }}
-            >
+          }
+          visible={!showProjectEmptyState && !hideFileList}
+          width={fileTreePanelWidth}
+        >
               <div className="review-file-tree-panel-content">
                 <div className="review-file-search-region">
                   <SearchInput
@@ -2816,9 +2817,7 @@ function WorkspaceReviewSidebarImpl({
                   </ScrollArea>
                 ) : null}
               </div>
-            </motion.section>
-          </>
-        ) : null}
+        </ReviewFileTreePanelPresence>
       </motion.div>
 
       {!hideFileList &&

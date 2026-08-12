@@ -61,10 +61,9 @@ export function ConfirmationDialog({
       }}
     >
       <AlertDialog.Portal>
-        {open ? (
-          <AlertDialog.Overlay className="permission-modal-backdrop">
-            <AlertDialog.Content
-              className="permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5"
+        <AlertDialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <AlertDialog.Content
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5"
               onCloseAutoFocus={onCloseAutoFocus}
             >
               <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
@@ -121,9 +120,7 @@ export function ConfirmationDialog({
                   </Button>
                 </AlertDialog.Action>
               </div>
-            </AlertDialog.Content>
-          </AlertDialog.Overlay>
-        ) : null}
+        </AlertDialog.Content>
       </AlertDialog.Portal>
     </AlertDialog.Root>
   )
@@ -157,10 +154,9 @@ export function InputDialog({
       }}
     >
       <Dialog.Portal>
-        {open ? (
-          <Dialog.Overlay className="permission-modal-backdrop">
-            <Dialog.Content
-              className="permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5"
               onCloseAutoFocus={onCloseAutoFocus}
               onOpenAutoFocus={event => {
                 event.preventDefault()
@@ -220,9 +216,7 @@ export function InputDialog({
                   </Button>
                 </div>
               </form>
-            </Dialog.Content>
-          </Dialog.Overlay>
-        ) : null}
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

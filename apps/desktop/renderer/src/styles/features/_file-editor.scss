@@ -167,7 +167,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion='on'] {
   .file-editor-status::before {
     animation: none;
   }

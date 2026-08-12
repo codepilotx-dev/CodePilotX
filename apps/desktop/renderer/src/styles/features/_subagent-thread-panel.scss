@@ -340,7 +340,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion='on'] {
   .subagent-thread-panel .is-spinning {
     animation: none;
   }

@@ -860,7 +860,7 @@ button.plugins-card-title:focus-visible,
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion='on'] {
   .plugins-view *,
   .plugins-dialog-overlay,
   .plugins-dialog-content,
@@ -1254,7 +1254,7 @@ button.plugins-card-title:focus-visible,
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-reduce-motion='on'] {
   .plugins-view *,
   .plugin-details-dialog,
   .plugin-details-dialog * {

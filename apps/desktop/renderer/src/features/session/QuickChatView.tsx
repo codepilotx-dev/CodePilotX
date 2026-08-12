@@ -1,7 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { useSearchParams } from "react-router-dom";
 import type { DesktopWorkspace } from "../../../shared/types.js";
+import {
+  getEffectiveReducedMotion,
+  usePrefersReducedMotion,
+} from "../../hooks/usePrefersReducedMotion.js";
 import { useDesktopSettings } from "../settings/useDesktopSettings.js";
 import {
   createNewSessionSuggestionState,
@@ -24,6 +29,11 @@ import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
 import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
 import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
+import {
+  enterTween,
+  exitTween,
+  motionTransition,
+} from "../motion/motionTransitions.js";
 
 const WorkingNewSessionView = lazy(() =>
   import("./WorkingNewSessionView.js").then(module => ({
@@ -55,6 +65,7 @@ export function QuickChatView(): React.ReactNode {
   const search = searchParams.toString();
   const urlSurface = parseNewSessionSurface(search);
   const surface = urlSurface ?? sidebarProductMode;
+  const reducedMotion = usePrefersReducedMotion();
 
   // 缺失或无效的 surface 参数回退到已保存模式，并只替换 surface 参数
   useEffect(() => {
@@ -71,25 +82,25 @@ export function QuickChatView(): React.ReactNode {
     setSidebarProductMode(urlSurface);
   }, [setSidebarProductMode, sidebarProductMode, urlSurface]);
 
-  switch (surface) {
-    case "working":
-      return (
+  return (
+    <AnimatePresence initial={false} mode="wait">
+      <NewSessionPresence key={surface} kind="surface" reducedMotion={reducedMotion}>
         <Suspense fallback={null}>
-          <WorkingNewSessionView />
+          {surface === "working" ? (
+            <WorkingNewSessionView />
+          ) : surface === "chat" ? (
+            <ChatNewSessionView />
+          ) : (
+            <CodingQuickChatView />
+          )}
         </Suspense>
-      );
-    case "chat":
-      return (
-        <Suspense fallback={null}>
-          <ChatNewSessionView />
-        </Suspense>
-      );
-    default:
-      return <CodingQuickChatView />;
-  }
+      </NewSessionPresence>
+    </AnimatePresence>
+  );
 }
 
 function CodingQuickChatView(): React.ReactNode {
+  const reducedMotion = usePrefersReducedMotion();
   const {
     branchName,
     composerProps,
@@ -265,8 +276,7 @@ function CodingQuickChatView(): React.ReactNode {
   const handleWhaleMarkClick = useCallback(() => {
     const mark = whaleMarkRef.current;
     if (
-      !mark ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      !mark || getEffectiveReducedMotion()
     ) {
       return;
     }
@@ -366,36 +376,52 @@ function CodingQuickChatView(): React.ReactNode {
               </CodingHeadingTransition>
             </Suspense>
           </div>
-          {suggestionState.kind === "root" ||
-          suggestionState.kind === "templates" ? (
-            <Suspense fallback={null}>
-              <NewSessionSuggestions
-                state={suggestionState}
-                suggestions={suggestions}
-                onSelectSuggestion={handleSelectSuggestion}
-                onSelectCategory={handleSelectCategory}
-                onSelectTask={handleSelectTask}
-                onShowAll={handleShowAll}
-                onShowSuggestions={handleShowSuggestions}
-              />
-            </Suspense>
-          ) : null}
+          <AnimatePresence initial={false}>
+            {suggestionState.kind === "root" ||
+            suggestionState.kind === "templates" ? (
+              <NewSessionPresence
+                key={`hero-${suggestionState.kind}`}
+                kind="panel"
+                reducedMotion={reducedMotion}
+              >
+                <Suspense fallback={null}>
+                  <NewSessionSuggestions
+                    state={suggestionState}
+                    suggestions={suggestions}
+                    onSelectSuggestion={handleSelectSuggestion}
+                    onSelectCategory={handleSelectCategory}
+                    onSelectTask={handleSelectTask}
+                    onShowAll={handleShowAll}
+                    onShowSuggestions={handleShowSuggestions}
+                  />
+                </Suspense>
+              </NewSessionPresence>
+            ) : null}
+          </AnimatePresence>
         </section>
 
         <section className="quick-chat-composer-region">
-          {suggestionState.kind === "category" ? (
-            <Suspense fallback={null}>
-              <NewSessionSuggestions
-                state={suggestionState}
-                suggestions={suggestions}
-                onSelectSuggestion={handleSelectSuggestion}
-                onSelectCategory={handleSelectCategory}
-                onSelectTask={handleSelectTask}
-                onShowAll={handleShowAll}
-                onShowSuggestions={handleShowSuggestions}
-              />
-            </Suspense>
-          ) : null}
+          <AnimatePresence initial={false}>
+            {suggestionState.kind === "category" ? (
+              <NewSessionPresence
+                key={`category-${suggestionState.categoryId}`}
+                kind="panel"
+                reducedMotion={reducedMotion}
+              >
+                <Suspense fallback={null}>
+                  <NewSessionSuggestions
+                    state={suggestionState}
+                    suggestions={suggestions}
+                    onSelectSuggestion={handleSelectSuggestion}
+                    onSelectCategory={handleSelectCategory}
+                    onSelectTask={handleSelectTask}
+                    onShowAll={handleShowAll}
+                    onShowSuggestions={handleShowSuggestions}
+                  />
+                </Suspense>
+              </NewSessionPresence>
+            ) : null}
+          </AnimatePresence>
           {composerProps ? (
             <div className="chat-composer">
               <DesktopComposer {...composerProps} surface="coding" />
@@ -404,5 +430,42 @@ function CodingQuickChatView(): React.ReactNode {
         </section>
       </main>
     </div>
+  );
+}
+
+function NewSessionPresence({
+  children,
+  kind,
+  reducedMotion,
+}: {
+  children: React.ReactNode;
+  kind: "panel" | "surface";
+  reducedMotion: boolean;
+}): React.ReactNode {
+  const isPresent = useIsPresent();
+  const panel = kind === "panel";
+  const offset = panel ? 4 : -4;
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      aria-hidden={!isPresent ? true : undefined}
+      className={`new-session-${kind}-presence`}
+      data-presence={isPresent ? "present" : "exiting"}
+      exit={{
+        opacity: 0,
+        scale: panel ? 0.985 : 1,
+        y: offset,
+        transition: motionTransition(reducedMotion, exitTween),
+      }}
+      inert={!isPresent ? true : undefined}
+      initial={reducedMotion
+        ? false
+        : { opacity: 0, scale: panel ? 0.985 : 1, y: 4 }}
+      style={{ pointerEvents: isPresent ? undefined : "none" }}
+      transition={motionTransition(reducedMotion, enterTween)}
+    >
+      {children}
+    </motion.div>
   );
 }

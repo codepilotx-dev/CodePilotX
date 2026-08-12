@@ -81,9 +81,9 @@ export function WhatsNewDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop whats-new-dialog-backdrop">
-          <Dialog.Content
-            className="whats-new-dialog"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop whats-new-dialog-backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered whats-new-dialog"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -138,8 +138,7 @@ export function WhatsNewDialog({
                 />
               ) : null}
             </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

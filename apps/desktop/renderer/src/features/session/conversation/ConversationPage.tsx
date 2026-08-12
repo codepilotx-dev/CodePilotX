@@ -1,4 +1,5 @@
 import React from "react";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -36,6 +37,11 @@ import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
 import { WorkspaceHeaderItem } from "../../layout/workspace-header/index.js";
 import { useHeightTransition } from "../../../hooks/useHeightTransition.js";
 import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
+import {
+  enterTween,
+  exitTween,
+  motionTransition,
+} from "../../motion/motionTransitions.js";
 import { desktopClient } from "../../../services/desktop-client/index.js";
 import { InlineApprovalCard } from "../approvals/InlineApprovalCard.js";
 import {
@@ -80,7 +86,6 @@ import {
 import { useConversationTurnRowVisibility } from "./useConversationTurnRowVisibility.js";
 import {
   ThreadSummaryErrorBoundary,
-  ThreadSummaryInline,
   ThreadSummaryPanel,
   ThreadSummaryPopover,
 } from "../summary/ThreadSummaryPanel.js";
@@ -1014,28 +1019,43 @@ export function ConversationPage(): React.ReactNode {
       ref={composerTransition.ref}
       style={composerTransition.style}
     >
-        {showComposerStatusSummary ? (
-          <ComposerChangeSummary
-            active={
-              sessionStatus === "running" || sessionStatus === "waiting"
-            }
-            additions={conversationChangeSummary.additions}
-            canReturnToBottom={canReturnTimelineToBottom}
-            changedFileCount={conversationChangeSummary.changedFileCount}
-            deletions={conversationChangeSummary.deletions}
-            executionPlan={composerExecutionPlan}
-            failed={sessionStatus === "error"}
-            onOpenReview={openReviewSidebar}
-            onReturnToBottom={returnTimelineToBottom}
-          />
-        ) : null}
-        {activePermissionRequest ? (
-          <InlineApprovalCard
-            request={activePermissionRequest}
-            currentPermissionMode={permissionMode}
-            onDecide={onDecidePermission}
-          />
-        ) : (
+        <AnimatePresence initial={false}>
+          {showComposerStatusSummary ? (
+            <ComposerFooterPresence
+              key="composer-change-summary"
+              reducedMotion={reduceMotion}
+            >
+              <ComposerChangeSummary
+                active={
+                  sessionStatus === "running" || sessionStatus === "waiting"
+                }
+                additions={conversationChangeSummary.additions}
+                canReturnToBottom={canReturnTimelineToBottom}
+                changedFileCount={conversationChangeSummary.changedFileCount}
+                deletions={conversationChangeSummary.deletions}
+                executionPlan={composerExecutionPlan}
+                failed={sessionStatus === "error"}
+                onOpenReview={openReviewSidebar}
+                onReturnToBottom={returnTimelineToBottom}
+              />
+            </ComposerFooterPresence>
+          ) : null}
+        </AnimatePresence>
+        <AnimatePresence initial={false}>
+          {activePermissionRequest ? (
+            <ComposerFooterPresence
+              key={activePermissionRequest.requestId}
+              reducedMotion={reduceMotion}
+            >
+              <InlineApprovalCard
+                request={activePermissionRequest}
+                currentPermissionMode={permissionMode}
+                onDecide={onDecidePermission}
+              />
+            </ComposerFooterPresence>
+          ) : null}
+        </AnimatePresence>
+        {!activePermissionRequest ? (
           <DesktopComposer
             {...composerProps}
             contextUsage={canonicalAuxiliary.contextUsage}
@@ -1046,7 +1066,7 @@ export function ConversationPage(): React.ReactNode {
             }
             messages={[]}
           />
-        )}
+        ) : null}
     </ThreadComposerDock>
   ) : null;
   const conversationItemContextValue = React.useMemo(
@@ -1221,8 +1241,12 @@ export function ConversationPage(): React.ReactNode {
             />
             </ThreadScrollLayout>
           </div>
-          {threadSummary.shouldShowInline ? (
-            <ThreadSummaryInline>
+          <AnimatePresence initial={false}>
+            {threadSummary.shouldShowInline ? (
+            <ThreadSummaryInlinePresence
+              key="thread-summary-inline"
+              reducedMotion={reduceMotion}
+            >
               <ThreadSummaryErrorBoundary>
                 <ThreadSummaryPanel
                   branches={branches}
@@ -1237,11 +1261,74 @@ export function ConversationPage(): React.ReactNode {
                   onOpenWorkspacePath={onOpenWorkspacePath}
                 />
               </ThreadSummaryErrorBoundary>
-            </ThreadSummaryInline>
-          ) : null}
+            </ThreadSummaryInlinePresence>
+            ) : null}
+          </AnimatePresence>
         </main>
       </div>
     </section>
+  );
+}
+
+function ComposerFooterPresence({
+  children,
+  reducedMotion,
+}: {
+  children: React.ReactNode;
+  reducedMotion: boolean;
+}): React.ReactNode {
+  const isPresent = useIsPresent();
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      aria-hidden={!isPresent ? true : undefined}
+      className="composer-lifecycle-presence"
+      data-presence={isPresent ? "present" : "exiting"}
+      exit={{
+        opacity: 0,
+        scale: 0.985,
+        y: 4,
+        transition: motionTransition(reducedMotion, exitTween),
+      }}
+      inert={!isPresent ? true : undefined}
+      initial={reducedMotion ? false : { opacity: 0, scale: 0.985, y: 4 }}
+      style={{ pointerEvents: isPresent ? undefined : "none" }}
+      transition={motionTransition(reducedMotion, enterTween)}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function ThreadSummaryInlinePresence({
+  children,
+  reducedMotion,
+}: {
+  children: React.ReactNode;
+  reducedMotion: boolean;
+}): React.ReactNode {
+  const isPresent = useIsPresent();
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, x: 0 }}
+      aria-hidden={!isPresent ? true : undefined}
+      className="thread-summary-inline"
+      data-presence={isPresent ? "present" : "exiting"}
+      data-testid="thread-summary-inline"
+      exit={{
+        opacity: 0,
+        x: 6,
+        transition: motionTransition(reducedMotion, exitTween),
+      }}
+      inert={!isPresent ? true : undefined}
+      initial={reducedMotion ? false : { opacity: 0, x: 6 }}
+      style={{ pointerEvents: isPresent ? undefined : "none" }}
+      transition={motionTransition(reducedMotion, enterTween)}
+    >
+      {children}
+    </motion.div>
   );
 }
 

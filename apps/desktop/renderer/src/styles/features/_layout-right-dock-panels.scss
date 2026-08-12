@@ -568,6 +568,19 @@
   }
 }
 
+.right-dock-editor-file-tree-presence {
+  display: flex;
+  min-height: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+
+  > .right-dock-editor-file-tree {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+}
+
 @media (forced-colors: active) {
   .file-breadcrumb-toolbar__action:focus-visible,
   .file-breadcrumb-toolbar__view-mode:focus-visible,

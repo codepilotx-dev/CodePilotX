@@ -154,6 +154,7 @@ export function SidebarBody({
   onRequestArchiveAttention,
   onShowTimelinePinnedChange,
 }: Props): React.ReactNode {
+  const reducedMotion = usePrefersReducedMotion();
   const [visibleProjectLimit, setVisibleProjectLimit] = useState(5);
   const [visiblePinnedLimit, setVisiblePinnedLimit] = useState(
     PINNED_INITIAL_LIMIT,
@@ -545,7 +546,9 @@ export function SidebarBody({
           />
         ) : (
         <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
+          <AnimatePresence initial={false}>
           {pinnedItems.length > 0 ? (
+            <SidebarSectionPresence key="pinned" reducedMotion={reducedMotion}>
             <SidebarSection
               collapsed={collapsedSidebarSections.includes("pinned")}
               sectionId="pinned"
@@ -569,9 +572,13 @@ export function SidebarBody({
                 />
               ) : null}
             </SidebarSection>
+            </SidebarSectionPresence>
           ) : null}
+          </AnimatePresence>
 
+          <AnimatePresence initial={false}>
           {organization === "projects" ? (
+            <SidebarSectionPresence key="projects" reducedMotion={reducedMotion}>
             <SidebarSection
               action={
                 <SidebarSectionActions>
@@ -626,7 +633,9 @@ export function SidebarBody({
                 <SidebarEmptyRow>暂无项目</SidebarEmptyRow>
               ) : null}
             </SidebarSection>
+            </SidebarSectionPresence>
         ) : null}
+          </AnimatePresence>
 
           <SidebarSection
             action={
@@ -1139,6 +1148,38 @@ function SidebarSection({
         ) : null}
       </AnimatePresence>
     </section>
+  );
+}
+
+function SidebarSectionPresence({
+  children,
+  reducedMotion,
+}: {
+  children: React.ReactNode;
+  reducedMotion: boolean;
+}): React.ReactNode {
+  const isPresent = useIsPresent();
+
+  return (
+    <motion.div
+      animate={{ height: "auto", opacity: 1 }}
+      aria-hidden={!isPresent ? true : undefined}
+      data-presence={isPresent ? "present" : "exiting"}
+      exit={{
+        height: 0,
+        opacity: 0,
+        transition: motionTransition(reducedMotion, fastTween),
+      }}
+      inert={!isPresent ? true : undefined}
+      initial={{ height: 0, opacity: 0 }}
+      style={{
+        overflow: isPresent ? "visible" : "hidden",
+        pointerEvents: isPresent ? undefined : "none",
+      }}
+      transition={motionTransition(reducedMotion, standardTween)}
+    >
+      {children}
+    </motion.div>
   );
 }
 

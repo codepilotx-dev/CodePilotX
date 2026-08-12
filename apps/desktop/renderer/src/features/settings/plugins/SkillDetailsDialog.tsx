@@ -10,6 +10,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
 import { readRuntimeSkill } from './skillClientAdapter.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
 type Props = {
   workspacePath: string | null
@@ -24,7 +25,7 @@ type Props = {
 
 export function SkillDetailsDialog({
   workspacePath,
-  skill,
+  skill: currentSkill,
   open,
   restoreFocusElement,
   onOpenChange,
@@ -32,6 +33,8 @@ export function SkillDetailsDialog({
   onUseSkill,
   onError,
 }: Props): React.ReactNode {
+  const retainedSkill = useLastNonNull(currentSkill)
+  const skill = open ? currentSkill : retainedSkill
   const closeRef = useRef<HTMLButtonElement | null>(null)
   const onErrorRef = useRef(onError)
   const [content, setContent] = useState('')
@@ -71,9 +74,9 @@ export function SkillDetailsDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
-            className="permission-modal tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-xl tw:p-0 tw:text-app-text"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-xl tw:p-0 tw:text-app-text"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -159,8 +162,7 @@ export function SkillDetailsDialog({
                 立即使用
               </Button>
             </footer>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
