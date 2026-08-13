@@ -318,12 +318,11 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border: var(--layer-edge);
+  border: 0;
   border-radius: 16px;
-  background: var(--layer-panel-fill);
-  box-shadow:
-    0 0 0 0.5px color-mix(in srgb, var(--color-token-border-heavy) 72%, transparent),
-    0 2px 8px color-mix(in srgb, var(--color-token-foreground) 3%, transparent);
+  background: var(--color-token-main-surface-primary);
+  box-shadow: 0 0 0 0.5px
+    color-mix(in srgb, var(--color-token-border-heavy) 72%, transparent);
   color: var(--color-token-foreground);
   text-align: left;
   animation: new-session-suggestion-card-enter var(--motion-enter)
@@ -331,16 +330,14 @@
   animation-delay: calc(var(--new-session-suggestion-index) * 20ms);
   transition:
     background var(--motion-hover) var(--ease-standard),
-    transform var(--motion-hover) var(--ease-standard),
-    border-color var(--motion-hover) var(--ease-standard);
+    transform var(--motion-hover) var(--ease-standard);
 
   &:hover {
-    border-color: var(--color-token-border-heavy);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   &:active {
-    background: var(--state-pressed-fill);
+    background: var(--color-token-list-active-selection-background);
     transform: translateY(1px);
   }
 
@@ -426,7 +423,7 @@
     color: var(--color-token-text-secondary);
 
     &:hover {
-      background: var(--state-hover-fill);
+      background: var(--color-token-list-hover-background);
       color: var(--color-token-foreground);
     }
   }
@@ -453,7 +450,7 @@
   animation-delay: calc(var(--new-session-suggestion-index) * 20ms);
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 }
 
@@ -618,13 +615,15 @@
   display: flex;
   align-items: center;
   flex: 1 1 auto;
-  gap: var(--space-2);
+  gap: 6px;
   min-width: 0;
   color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
 
   .chat-session-title__icon {
+    width: 16px;
+    height: 16px;
     flex: 0 0 auto;
     color: var(--color-token-icon-foreground);
   }
@@ -649,14 +648,14 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 5px;
+  gap: var(--space-1);
   white-space: nowrap;
 }
 
 .open-target-split-button {
   display: inline-flex;
   align-items: center;
-  margin-right: 4px;
+  margin-right: 0;
 
   .icon-button {
     border: 1px solid var(--color-token-border-light);

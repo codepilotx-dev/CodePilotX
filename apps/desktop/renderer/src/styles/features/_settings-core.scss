@@ -162,8 +162,12 @@
   line-height: 1.5;
 }
 
-.settings-card,
 .settings-section-content {
+  min-width: 0;
+}
+
+.settings-card,
+.settings-section-content[data-surface="card"] {
   overflow: hidden;
   border: var(--layer-edge);
   border-radius: var(--radius-card);
@@ -196,10 +200,11 @@
 /* --- Row --- */
 .settings-row {
   display: flex;
+  min-height: 64px;
   align-items: center;
   gap: 16px;
   min-width: 0;
-  padding: 14px 16px;
+  padding: 10px 0;
   background: transparent;
 
   &[data-size="compact"] {
@@ -257,13 +262,24 @@
   &::before {
     position: absolute;
     top: 0;
-    right: 16px;
-    left: 16px;
+    right: 0;
+    left: 0;
     height: 0.5px;
     background: var(--color-token-border);
     content: "";
     pointer-events: none;
   }
+}
+
+.settings-card > .settings-row,
+.settings-section-content[data-surface="card"] > .settings-row {
+  padding-inline: 16px;
+}
+
+.settings-card > .settings-row + .settings-row::before,
+.settings-section-content[data-surface="card"] > .settings-row + .settings-row::before {
+  right: 16px;
+  left: 16px;
 }
 
 .billing-balance-row + .billing-balance-row,
@@ -277,7 +293,7 @@
   padding: 0.318em 0.727em;
   border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-pill);
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
   color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-label);

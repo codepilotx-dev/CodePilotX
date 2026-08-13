@@ -93,7 +93,7 @@
     line-height: var(--control-line-height);
 
     &:hover {
-      background: var(--state-hover-fill);
+      background: var(--color-token-list-hover-background);
     }
   }
 }
@@ -199,7 +199,7 @@
 
   &:hover {
     color: var(--color-token-foreground);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 }
 

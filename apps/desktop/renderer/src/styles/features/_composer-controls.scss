@@ -1,6 +1,6 @@
 /* --- Permission chip --- */
 .chip-button.permission-chip {
-  --composer-permission-chip-open-bg: var(--state-selected-fill);
+  --composer-permission-chip-open-bg: var(--color-token-list-active-selection-background);
 
   border: 1px solid var(--composer-permission-chip-border, transparent);
   background: var(--composer-permission-chip-bg, transparent);
@@ -82,7 +82,7 @@
   position: relative;
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-text-link-foreground);
   }
 

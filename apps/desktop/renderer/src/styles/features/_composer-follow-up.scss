@@ -62,7 +62,7 @@
 
   &:hover {
     border-color: var(--color-token-border);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   &:focus-within .session-follow-up-action {

@@ -80,7 +80,7 @@
   &[aria-selected="true"],
   &[data-active="true"],
   &.is-active {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
   }
@@ -177,13 +177,13 @@
 
   &:hover {
     border-color: var(--color-token-border-light);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     box-shadow: none;
   }
 
   &[data-current="true"] {
-    border-color: var(--state-selected-edge);
-    background: var(--state-selected-fill);
+    border-color: var(--color-token-border-heavy);
+    background: var(--color-token-list-active-selection-background);
     box-shadow: none;
   }
 }
@@ -452,7 +452,7 @@
   }
 
   &[aria-selected="true"] {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
   }
@@ -822,12 +822,12 @@
 
     &:hover {
       border-color: var(--color-token-border);
-      background: var(--state-hover-fill);
+      background: var(--color-token-list-hover-background);
     }
 
     &.selected {
-      border-color: var(--state-selected-edge);
-      background: var(--state-selected-fill);
+      border-color: var(--color-token-border-heavy);
+      background: var(--color-token-list-active-selection-background);
       box-shadow: none;
     }
 
@@ -893,7 +893,7 @@
     gap: 3px;
     padding: 2px 6px;
     border-radius: var(--radius-pill);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-text-secondary);
     font-size: var(--type-caption);
   }
@@ -1090,7 +1090,7 @@
     background var(--motion-state) var(--ease-standard);
 
   &:hover {
-    background-color: var(--state-hover-fill);
+    background-color: var(--color-token-list-hover-background);
   }
 
   &:disabled {
@@ -1722,7 +1722,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   }
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   &[data-disabled="true"] {

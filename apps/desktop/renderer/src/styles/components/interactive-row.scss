@@ -126,7 +126,7 @@
 .rm-model-menu .rm-sub-trigger:hover:not(:where([data-disabled])) {
   background: var(
     --interactive-row-hover-background,
-    var(--state-hover-fill)
+    var(--color-token-list-hover-background)
   );
   color: var(
     --interactive-row-hover-foreground,
@@ -147,7 +147,7 @@
 .rm-model-menu .rm-sub-trigger[data-highlighted] {
   background: var(
     --interactive-row-hover-background,
-    var(--state-hover-fill)
+    var(--color-token-list-hover-background)
   );
   color: var(
     --interactive-row-hover-foreground,
@@ -166,7 +166,7 @@
 .sidebar-context-menu-sub-trigger:active:not(:where([data-disabled])),
 .rm-model-menu .rm-menu-item:active:not(:where([data-disabled])),
 .rm-model-menu .rm-sub-trigger:active:not(:where([data-disabled])) {
-  background: var(--state-pressed-fill);
+  background: var(--color-token-list-active-selection-background);
   color: var(--interactive-row-foreground, var(--color-token-foreground));
 }
 
@@ -195,7 +195,7 @@
 .popover-sub-trigger[data-state="open"],
 .sidebar-context-menu-sub-trigger[data-state="open"],
 .rm-model-menu .rm-sub-trigger[data-state="open"] {
-  background: var(--state-selected-fill);
+  background: var(--color-token-list-active-selection-background);
   color: var(--color-token-foreground);
 }
 
@@ -210,7 +210,7 @@
 .popover-item[data-state="checked"],
 .settings-dropdown-item[aria-selected="true"],
 .settings-dropdown-item[data-state="checked"] {
-  background: var(--state-selected-fill);
+  background: var(--color-token-list-active-selection-background);
   color: var(--color-token-foreground);
 }
 

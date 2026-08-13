@@ -69,13 +69,13 @@
   cursor: pointer;
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   > svg:last-child {
     box-sizing: content-box;
     border-radius: var(--radius-control);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     padding: 8px;
   }
 }
@@ -86,7 +86,7 @@
   height: 32px;
   place-items: center;
   border-radius: var(--radius-control);
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
   color: var(--color-token-text-secondary);
 }
 
@@ -234,7 +234,7 @@
     cursor: pointer;
 
     &:hover:not(:disabled) {
-      background: var(--state-hover-fill);
+      background: var(--color-token-list-hover-background);
       color: var(--color-token-foreground);
     }
   }

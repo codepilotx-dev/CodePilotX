@@ -40,16 +40,8 @@
   --shadow-glass-raised: none;
   --shadow-glass-floating: var(--shadow-floating);
 
-  // Interaction states are deliberately neutral. Accent remains available to
-  // semantic controls, while navigation and selection use theme-derived ink.
-  --state-hover-fill: var(--color-token-list-hover-background);
-  --state-pressed-fill: color-mix(
-    in srgb,
-    var(--color-token-foreground) 9%,
-    transparent
-  );
-  --state-selected-fill: var(--color-token-list-active-selection-background);
-  --state-selected-edge: var(--color-token-border-heavy);
+  // Interaction states consume the canonical semantic color tokens directly.
+  // Accent remains reserved for controls with explicit product semantics.
   --focus-ring-inset: inset 0 0 0 1px var(--color-token-focus-border);
 
   // Nested soft curves: outer surfaces step down by their inset spacing.

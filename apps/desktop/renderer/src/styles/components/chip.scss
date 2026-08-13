@@ -42,18 +42,18 @@
 .composer .chip-button:hover:not(:disabled),
 .menubar-trigger:hover:not(:where(:disabled, [data-disabled])),
 .menubar-trigger[data-highlighted]:not(:where(:disabled, [data-disabled])) {
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
   color: var(--color-token-foreground);
 }
 
 .composer .chip-button:active:not(:disabled),
 .menubar-trigger:active:not(:where(:disabled, [data-disabled])) {
-  background: var(--state-pressed-fill);
+  background: var(--color-token-list-active-selection-background);
   color: var(--color-token-foreground);
 }
 
 .menubar-trigger[data-state="open"] {
-  background: var(--state-selected-fill);
+  background: var(--color-token-list-active-selection-background);
   color: var(--color-token-foreground);
 }
 

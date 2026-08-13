@@ -33,7 +33,7 @@
   justify-content: space-between;
   gap: var(--control-gap);
   padding: var(--control-padding-block-compact) 1em;
-  border-bottom: var(--layer-edge);
+  border-bottom: 1px solid var(--color-token-border-light);
   background: var(--layer-panel-fill);
   box-shadow: none;
 }
@@ -73,7 +73,7 @@
   }
 }
 
-.right-doc .review-sidebar {
+.workbench-panel .review-sidebar {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
@@ -103,16 +103,16 @@
       background-color var(--motion-micro) ease;
 
     &:hover {
-      background: var(--state-hover-fill);
+      background: var(--color-token-list-hover-background);
       color: var(--color-token-foreground);
     }
 
     &:active {
-      background: var(--state-pressed-fill);
+      background: var(--color-token-list-active-selection-background);
     }
 
     &.active {
-      background: var(--state-selected-fill);
+      background: var(--color-token-list-active-selection-background);
       color: var(--color-token-foreground);
     }
 
@@ -194,7 +194,7 @@
   max-height: none;
   display: flex;
   flex-direction: column;
-  border-right: var(--layer-edge);
+  border-right: 0;
   background: var(--color-token-editor-background);
   contain: size layout paint;
   overflow: hidden;
@@ -303,16 +303,16 @@
     background-color var(--motion-micro) ease;
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-foreground);
   }
 
   &:active {
-    background: var(--state-pressed-fill);
+    background: var(--color-token-list-active-selection-background);
   }
 
   &.active {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
     color: var(--color-token-foreground);
   }
 
@@ -325,16 +325,16 @@
     z-index: 10;
     min-height: 32px;
     gap: 0;
-    margin: 4px 4px 2px;
+    margin: 2px 4px;
     padding: 4px 8px 4px 12px;
-    border: var(--layer-edge);
+    border: 0;
     border-radius: var(--radius-row);
-    background: var(--layer-raised-fill);
+    background: color-mix(in srgb, var(--color-token-foreground) 2%, transparent);
     cursor: pointer;
     outline: 0;
 
     &.active {
-      background: var(--state-selected-fill);
+      background: var(--color-token-list-active-selection-background);
     }
 
     &:focus-visible {
@@ -477,26 +477,6 @@
   padding: 0 12px;
   color: inherit;
   font-family: inherit;
-}
-
-.review-sidebar-context {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-bottom: var(--layer-edge);
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-meta);
-  background: var(--layer-panel-fill);
-  overflow: hidden;
-
-  span {
-    min-width: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 }
 
 .review-diff-lines {
@@ -660,14 +640,14 @@
 
 .review-hunk-actions button:hover,
 .review-comment-actions button:hover {
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
   color: var(--color-token-foreground);
   border-color: var(--color-token-border);
 }
 
 .review-hunk-actions button:active,
 .review-comment-actions button:active {
-  background: var(--state-pressed-fill);
+  background: var(--color-token-list-active-selection-background);
   transform: translateY(1px);
 }
 
@@ -1255,12 +1235,12 @@
   color: var(--color-token-text-secondary);
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-foreground);
   }
 
   &:active {
-    background: var(--state-pressed-fill);
+    background: var(--color-token-list-active-selection-background);
   }
 
   span {
@@ -1408,12 +1388,12 @@
       background-color var(--motion-micro) ease;
 
     &:hover {
-      background: var(--state-hover-fill);
+      background: var(--color-token-list-hover-background);
       color: var(--color-token-foreground);
     }
 
     &:active {
-      background: var(--state-pressed-fill);
+      background: var(--color-token-list-active-selection-background);
     }
 
     svg {
@@ -1452,16 +1432,16 @@
       background-color var(--motion-micro) ease;
 
     &:hover {
-      background: var(--state-hover-fill);
+      background: var(--color-token-list-hover-background);
       color: var(--color-token-foreground);
     }
 
     &:active {
-      background: var(--state-pressed-fill);
+      background: var(--color-token-list-active-selection-background);
     }
 
     &.active {
-      background: var(--state-selected-fill);
+      background: var(--color-token-list-active-selection-background);
       color: var(--color-token-foreground);
     }
 
@@ -1581,7 +1561,7 @@
   flex: 0 0 auto;
   padding: 1px 6px;
   border-radius: var(--radius-pill);
-  background: var(--state-selected-fill);
+  background: var(--color-token-list-active-selection-background);
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-heading);
@@ -1696,12 +1676,12 @@
   }
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-foreground);
   }
 
   &:active {
-    background: var(--state-pressed-fill);
+    background: var(--color-token-list-active-selection-background);
   }
 }
 
@@ -1776,12 +1756,12 @@
     transform var(--motion-micro) ease;
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-foreground);
   }
 
   &:active {
-    background: var(--state-pressed-fill);
+    background: var(--color-token-list-active-selection-background);
     transform: translateY(1px);
   }
 

@@ -102,16 +102,16 @@
 
 .browser-annotation-form button:not(:disabled):hover,
 .browser-annotation-toggle:hover {
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
 }
 
 .browser-annotation-form button:not(:disabled):active,
 .browser-annotation-toggle:active {
-  background: var(--state-pressed-fill);
+  background: var(--color-token-list-active-selection-background);
 }
 
 .browser-annotation-toggle[aria-pressed="true"] {
-  background: var(--state-selected-fill);
+  background: var(--color-token-list-active-selection-background);
   color: var(--color-token-foreground);
 }
 

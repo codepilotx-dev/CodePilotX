@@ -76,7 +76,7 @@
   margin: 12px 0 0;
   padding: 9px 12px;
   border-radius: var(--radius-row);
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
   color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
 }
@@ -199,7 +199,7 @@
 .pet-catalog-tags > span {
   padding: 3px 7px;
   border-radius: var(--radius-pill);
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
   color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
 }

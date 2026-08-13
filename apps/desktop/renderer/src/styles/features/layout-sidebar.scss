@@ -115,7 +115,7 @@
 
   &[data-active="true"] {
     color: var(--color-token-icon-foreground);
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
   }
 }
 
@@ -144,7 +144,7 @@
 .sidebar-nav-link.active,
 .sidebar-session-row.active,
 .sidebar-settings-link.active {
-  background: var(--state-selected-fill);
+  background: var(--color-token-list-active-selection-background);
 }
 
 .sidebar-section-title {

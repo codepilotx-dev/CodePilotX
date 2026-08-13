@@ -26,7 +26,7 @@
   }
 
   &:active:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
-    background: var(--state-pressed-fill);
+    background: var(--color-token-list-active-selection-background);
   }
 
   &:focus-visible {

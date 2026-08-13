@@ -233,10 +233,9 @@ p {
     --layer-edge: 1px solid CanvasText;
     --layer-edge-strong: 1px solid CanvasText;
     --layer-edge-highlight: none;
-    --state-hover-fill: Highlight;
-    --state-pressed-fill: Highlight;
-    --state-selected-fill: Highlight;
-    --state-selected-edge: Highlight;
+    --color-token-list-hover-background: Highlight;
+    --color-token-list-active-selection-background: Highlight;
+    --color-token-border-heavy: Highlight;
     --control-thumb-fill: ButtonText;
     --focus-ring-inset: none;
     --shadow-control-sm: none;

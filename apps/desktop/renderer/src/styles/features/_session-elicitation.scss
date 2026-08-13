@@ -171,11 +171,11 @@
 
 .mcp-form-boolean:hover {
   border-color: var(--color-token-border);
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
 }
 
 .mcp-form-boolean-on {
-  background: var(--state-selected-fill);
+  background: var(--color-token-list-active-selection-background);
   border-color: var(--color-token-text-link-foreground);
   color: var(--color-token-foreground);
 }
@@ -226,11 +226,11 @@
 
 .mcp-form-option:hover {
   border-color: var(--color-token-border);
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
 }
 
 .mcp-form-option.selected {
-  background: var(--state-selected-fill);
+  background: var(--color-token-list-active-selection-background);
   border-color: var(--color-token-border);
   color: var(--color-token-foreground);
 }
@@ -295,7 +295,7 @@
 
 .mcp-form-btn-decline:hover,
 .mcp-form-btn-cancel:hover {
-  background: var(--state-hover-fill);
+  background: var(--color-token-list-hover-background);
   color: var(--color-token-foreground);
 }
 

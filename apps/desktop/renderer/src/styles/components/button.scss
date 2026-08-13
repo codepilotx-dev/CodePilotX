@@ -176,25 +176,25 @@
 
 .ui-button[data-color="primary"] {
   border-color: var(--color-token-border);
-  background: var(--color-token-foreground);
-  color: var(--color-token-dropdown-background);
-
-  &:enabled:hover,
-  &[data-state="open"],
-  &[data-active] {
-    background: color-mix(in srgb, var(--color-token-foreground) 80%, transparent);
-  }
-}
-
-.ui-button[data-color="secondary"] {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
+  background: var(--color-token-control-background);
   color: var(--color-token-foreground);
 
   &:enabled:hover,
   &[data-state="open"],
   &[data-active] {
-    background: color-mix(in srgb, var(--color-token-foreground) 10%, transparent);
+    background: var(--color-token-list-hover-background);
+  }
+}
+
+.ui-button[data-color="secondary"] {
+  border-color: var(--color-token-border);
+  background: var(--color-token-control-background);
+  color: var(--color-token-foreground);
+
+  &:enabled:hover,
+  &[data-state="open"],
+  &[data-active] {
+    background: var(--color-token-list-hover-background);
   }
 }
 
@@ -378,13 +378,13 @@
     color var(--motion-micro) var(--ease-standard);
 
   &:hover:not(:disabled) {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-foreground);
   }
 
   &[aria-pressed="true"],
   &[aria-selected="true"] {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
     color: var(--color-token-foreground);
   }
 

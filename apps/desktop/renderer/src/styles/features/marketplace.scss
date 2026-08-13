@@ -85,7 +85,7 @@
 
   &.is-active,
   &[aria-selected="true"] {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
   }
@@ -171,7 +171,7 @@
 
   &[aria-pressed="true"],
   &.is-selected {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
     color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
   }
@@ -200,7 +200,7 @@
     box-shadow var(--motion-state) var(--ease-standard);
 
   &[data-state="open"] {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
   }
 
   &:disabled,
@@ -701,13 +701,13 @@ button.plugins-card-title:focus-visible,
   .plugins-segmented-button:hover,
   .plugins-filter:hover:not(:disabled),
   .plugins-status-trigger:hover:not(:disabled) {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-foreground);
   }
 
   .plugins-card:hover {
     border-color: var(--color-token-border);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     box-shadow: none;
   }
 
@@ -718,7 +718,7 @@ button.plugins-card-title:focus-visible,
   .plugins-included-overview__item:hover,
   .plugin-catalog-row:hover {
     border-color: var(--color-token-border);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   .plugin-catalog-row__title-button:hover {
@@ -1201,7 +1201,7 @@ button.plugins-card-title:focus-visible,
   .plugin-catalog-row:hover,
   .skill-catalog-row:hover {
     border-color: var(--color-token-border-light);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     box-shadow: none;
   }
 }

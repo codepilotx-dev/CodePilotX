@@ -50,7 +50,7 @@
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background-color: var(--state-hover-fill);
+    background-color: var(--color-token-list-hover-background);
   }
 
   &:focus-visible {
@@ -785,13 +785,13 @@
 
   &:hover {
     border-color: var(--color-token-border-light);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   &.active,
   &[data-state='checked'] {
-    border-color: var(--state-selected-edge);
-    background: var(--state-selected-fill);
+    border-color: var(--color-token-border-heavy);
+    background: var(--color-token-list-active-selection-background);
     box-shadow: none;
   }
 

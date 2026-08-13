@@ -1440,6 +1440,16 @@
       var(--color-token-foreground) 2%,
       transparent
     );
+    color: var(--color-token-text-secondary);
+
+    &:hover:not(:disabled) {
+      background: var(--color-token-list-hover-background);
+      color: var(--color-token-foreground);
+    }
+
+    &:active:not(:disabled) {
+      background: var(--color-token-list-active-selection-background);
+    }
 
     svg {
       width: 15px;

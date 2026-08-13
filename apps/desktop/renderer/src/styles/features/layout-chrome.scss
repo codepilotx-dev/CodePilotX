@@ -69,12 +69,12 @@
 
   &:hover,
   &[data-state="open"] {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-foreground);
   }
 
   &[data-state="open"] {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
   }
 }
 
@@ -131,7 +131,7 @@
   }
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   &.close:hover {

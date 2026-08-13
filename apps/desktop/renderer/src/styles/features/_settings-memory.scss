@@ -133,12 +133,12 @@
   position: relative;
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   &.active {
-    border-color: var(--state-selected-edge);
-    background: var(--state-selected-fill);
+    border-color: var(--color-token-border-heavy);
+    background: var(--color-token-list-active-selection-background);
   }
 
   &-name {
@@ -166,7 +166,7 @@
     align-items: center;
     padding: 1px 6px;
     border-radius: var(--radius-pill);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-text-secondary);
     font-size: var(--type-caption);
     line-height: 1.4;
@@ -308,13 +308,13 @@
 
   &:hover {
     border-color: var(--color-token-border-light);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     box-shadow: none;
   }
 
   &.selected {
-    border-color: var(--state-selected-edge);
-    background: var(--state-selected-fill);
+    border-color: var(--color-token-border-heavy);
+    background: var(--color-token-list-active-selection-background);
     box-shadow: none;
   }
 
@@ -379,7 +379,7 @@
     gap: 3px;
     padding: 1px 5px;
     border-radius: var(--radius-pill);
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-text-secondary);
     font-size: var(--type-caption);
   }

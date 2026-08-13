@@ -549,8 +549,8 @@
 .inline-approval-card[data-variant="question"],
 .inline-approval-card[data-variant="plan"] {
   --inline-approval-header-padding: 0;
-  --inline-approval-option-hover-bg: var(--state-hover-fill);
-  --inline-approval-option-selected-bg: var(--state-selected-fill);
+  --inline-approval-option-hover-bg: var(--color-token-list-hover-background);
+  --inline-approval-option-selected-bg: var(--color-token-list-active-selection-background);
   --inline-approval-option-selected-border: var(--color-token-border);
   --inline-approval-option-selected-index-bg: var(--color-token-main-surface-primary);
   --inline-approval-option-selected-index-color: var(--color-token-foreground);
