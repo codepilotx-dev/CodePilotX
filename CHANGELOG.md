@@ -9,11 +9,14 @@
 
 ### Added
 
+- [Agent/desktop/renderer] 新增 Codex 式本地文件与目录上下文：图片按发送时快照保存，普通文件和目录以任务级只读路径引用接入 Agent，并支持安全的应用内预览与目录浏览。
 - [desktop/renderer] 新增历史消息与待发送图片、文本附件的右侧预览，支持图片缩放、按类型美化文本及安全下载到系统 Downloads 目录。
 - [desktop] 支持在主窗口按 F12 切换开发者工具控制台，并避免长按按键导致重复开关。
 
 ### Changed
 
+- [desktop/renderer] 以 Codex 式应用栏与工作区工具栏层级、克制表面和首次模型配置向导统一桌面视觉，并在进入工作台前确保存在可用默认模型。
+- [desktop/renderer] 将会话顶栏的环境 Actions 与任务 Handoff 迁入命令菜单，恢复标题菜单“继续到…”的对话派生语义，并收紧 Codex 式标题图标与尾部工具按钮间距。
 - [desktop/renderer] 将会话处理过程改为 Codex 式无框活动流，补齐语义摘要、嵌入命令详情、折叠动效与长列表渐隐滚动。
 - [desktop/renderer] 按 Codex 的尺寸、颜色与上下文契约重构文字及纯图标按钮，统一应用标题栏、工作区、面板、TabStrip、侧栏与 Composer 的点击盒、字级、圆角和主次视觉层级。
 - [desktop/renderer] 将 Coding 首页建议限制为最多四项，并让 Working 根据当前工作区、Git 状态与最近会话生成三条真实建议，同时保留工作模板入口。
@@ -40,6 +43,8 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复右栏拖拽时工作区 Header、主视口、面板外壳与内容使用不同宽度源造成的错位、空白和松手跳变，并保持主会话当前阅读位置稳定。
+- [desktop/renderer] 减少 Review 文件预览和变更树的重复边界，并修复浅色主题下“再显示 N 个文件”文字不可见。
 - [desktop/renderer] 修复 React StrictMode 重放使 Review 刷新协调器提前停止、变更快照永久停留在刷新状态，并确保 fresh 快照 generation 未变化时仍自动加载文件差异。
 - [Agent/desktop/renderer] 修复工作区文件 revision 精确协议遗漏原始摘要与 UTF-8 BOM 信息导致文本文件统一报 Internal RPC error，并让“打开文件”目录树占满面板且不再受固定分组高度截断。
 - [desktop] 修复内置 Browser 仍使用内存 mock、Review/Git 项目身份丢失、文件标签恢复过期作用域、工作区可选数据联动失败以及 Terminal/子智能体能力误判，缺失能力改为明确不可用状态。
