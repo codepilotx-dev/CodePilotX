@@ -200,8 +200,8 @@ export class SpeechInstaller {
     const script = [
       "$ErrorActionPreference='Stop'",
       "Add-Type -AssemblyName System.IO.Compression.FileSystem",
-      "$zip=[IO.Compression.ZipFile]::OpenRead($args[0])",
-      "$root=[IO.Path]::GetFullPath($args[1] + [IO.Path]::DirectorySeparatorChar)",
+      "$zip=[IO.Compression.ZipFile]::OpenRead($env:CODEPILOTX_ZIP_VALIDATION_ARCHIVE)",
+      "$root=[IO.Path]::GetFullPath($env:CODEPILOTX_ZIP_VALIDATION_DESTINATION + [IO.Path]::DirectorySeparatorChar)",
       "try { foreach($e in $zip.Entries) {",
       "  $name=$e.FullName.Replace('/', [IO.Path]::DirectorySeparatorChar)",
       "  $target=[IO.Path]::GetFullPath([IO.Path]::Combine($root,$name))",
@@ -211,7 +211,16 @@ export class SpeechInstaller {
       "} } finally { $zip.Dispose() }",
     ].join("; ")
     const shell = process.env.SystemRoot ? join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe") : "powershell.exe"
-    const child = spawn(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script, archive, destination], { windowsHide: true, shell: false, stdio: "ignore" })
+    const child = spawn(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script], {
+      windowsHide: true,
+      shell: false,
+      stdio: "ignore",
+      env: {
+        ...process.env,
+        CODEPILOTX_ZIP_VALIDATION_ARCHIVE: archive,
+        CODEPILOTX_ZIP_VALIDATION_DESTINATION: destination,
+      },
+    })
     const stop = () => child.kill()
     signal?.addEventListener("abort", stop, { once: true })
     const timer = setTimeout(stop, 30_000)

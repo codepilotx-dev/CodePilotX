@@ -69,6 +69,18 @@ describe("ToolingManager", () => {
     expect(requested).toEqual([...(TOOLING_CATALOG.ripgrep.mirrors ?? []), TOOLING_CATALOG.ripgrep.url])
   })
 
+  test("ZIP 安全校验通过子进程环境传递路径", async () => {
+    if (process.platform !== "win32") return
+    const root = await temporaryRoot()
+    const archive = join(root, "empty.zip")
+    const destination = join(root, "extract")
+    await writeFile(archive, Buffer.from("504b0506000000000000000000000000000000000000", "hex"))
+    await mkdir(destination)
+
+    const manager = new ToolingManager({ root })
+    await expect((manager as any).extract(TOOLING_CATALOG.ripgrep, archive, destination)).resolves.toBeUndefined()
+  })
+
   test("默认使用托管版并将独立来源偏好持久化到 tooling home", async () => {
     const root = await temporaryRoot()
     process.env.CODEPILOTX_GIT_BASH_PATH = join(root, "missing-bash.exe")

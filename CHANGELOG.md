@@ -44,6 +44,7 @@
 
 ### Fixed
 
+- [Agent/desktop] 修复 Windows PowerShell ZIP 安全扫描未正确接收归档与解压路径，导致本地语音模型及托管 ZIP 工具下载后持续报安全校验失败的问题。
 - [desktop/renderer] 修复右栏拖拽时工作区 Header、主视口、面板外壳与内容使用不同宽度源造成的错位、空白和松手跳变，并保持主会话当前阅读位置稳定。
 - [desktop/renderer] 减少 Review 文件预览和变更树的重复边界，并修复浅色主题下“再显示 N 个文件”文字不可见。
 - [desktop/renderer] 修复 React StrictMode 重放使 Review 刷新协调器提前停止、变更快照永久停留在刷新状态，并确保 fresh 快照 generation 未变化时仍自动加载文件差异。

@@ -103,6 +103,18 @@ describe("speech installer supply-chain guards", () => {
     expect(() => assertSafeSpeechZipEntry("C:\\safe", "link.exe", 0xA000 << 16)).toThrow("不安全")
   })
 
+  test("passes ZIP validation paths through the PowerShell child environment", async () => {
+    if (process.platform !== "win32") return
+    const root = await temporaryRoot()
+    const archive = join(root, "empty.zip")
+    const destination = join(root, "extract")
+    await writeFile(archive, Buffer.from("504b0506000000000000000000000000000000000000", "hex"))
+    await mkdir(destination)
+
+    const installer = new SpeechInstaller(root, () => undefined)
+    await expect((installer as any).validateZip(archive, destination)).resolves.toBeUndefined()
+  })
+
   test("rejects a tampered executable even when its manifest hash is changed too", async () => {
     const root = await temporaryRoot()
     const installer = new SpeechInstaller(root, () => undefined)
