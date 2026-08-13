@@ -13,9 +13,13 @@
 - [desktop] 新增基于 SenseVoice GGUF 的本地语音听写、麦克风选择和后台模型安装，录音仅临时处理且不会自动发送。
 - [desktop/renderer] 新增历史消息与待发送图片、文本附件的右侧预览，支持图片缩放、按类型美化文本及安全下载到系统 Downloads 目录。
 - [desktop] 支持在主窗口按 F12 切换开发者工具控制台，并避免长按按键导致重复开关。
+- [desktop/renderer] 新增 `/new` 两种真实资源门禁（Renderer 静态入口与 coding/working/chat 交互首屏），以显式模块清单定位首屏必经 chunk，并在优化完成后按实测值收紧上限，防止首屏体积回退。
+- [desktop/renderer] 在入口 JS 与主 CSS 就绪前保持静态启动遮罩（复用 Electron 鲸鱼图标视觉），仅在真实 ProseMirror 编辑器可输入后淡出，并在 reduced-motion、离开 `/new` 与 20 秒超时场景安全退出。
+- [desktop/electron] 在 Electron 性能测试的 cold start 中新增 `new-route-ready` 观测样本（真实 Composer 可输入、建议面板与字体、同源 JS/CSS 解码字节），本轮仅观测不设硬预算。
 
 ### Changed
 
+- [desktop/renderer] 收敛 `/new` 三种首屏依赖：codex-light/codex-dark 主题 token、Browser Mock、Mock 历史投影及未打开的确认框改为按需加载，Electron typed bridge 首屏不再解析冷分支；visual/performance fixture 显式预置 Mock 模型，继续绕过真实 Agent 完成浏览器回归。
 - [desktop/renderer] 以 Codex 式应用栏与工作区工具栏层级、克制表面和首次模型配置向导统一桌面视觉，并在进入工作台前确保存在可用默认模型。
 - [desktop/renderer] 将会话顶栏的环境 Actions 与任务 Handoff 迁入命令菜单，恢复标题菜单“继续到…”的对话派生语义，并收紧 Codex 式标题图标与尾部工具按钮间距。
 - [desktop/renderer] 将会话处理过程改为 Codex 式无框活动流，补齐语义摘要、嵌入命令详情、折叠动效与长列表渐隐滚动。
