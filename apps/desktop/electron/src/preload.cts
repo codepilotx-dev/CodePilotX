@@ -43,6 +43,15 @@ import type {
   DesktopAttachmentSaveInput,
   DesktopAttachmentSaveResult,
 } from "@codepilotx/shared/desktop-attachment-ipc"
+import type {
+  CreateOrRestoreDesktopBrowserInput,
+  DesktopBrowserIpcBridge,
+  DesktopBrowserSnapshot,
+  DesktopBrowserTabInput,
+  NavigateDesktopBrowserInput,
+  SetDesktopBrowserBoundsInput,
+  SetDesktopBrowserVisibleInput,
+} from "@codepilotx/shared/desktop-browser-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -108,6 +117,22 @@ const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
   saveToDownloads: "desktop-attachment:save-to-downloads",
 } as const satisfies typeof import("@codepilotx/shared/desktop-attachment-ipc").DESKTOP_ATTACHMENT_IPC_CHANNELS
 
+const DESKTOP_BROWSER_IPC_CHANNELS = {
+  getState: "desktop-browser:get-state",
+  createOrRestore: "desktop-browser:create-or-restore",
+  navigate: "desktop-browser:navigate",
+  reload: "desktop-browser:reload",
+  stop: "desktop-browser:stop",
+  goBack: "desktop-browser:go-back",
+  goForward: "desktop-browser:go-forward",
+  setBounds: "desktop-browser:set-bounds",
+  setVisible: "desktop-browser:set-visible",
+  focus: "desktop-browser:focus",
+  close: "desktop-browser:close",
+  clearAllowedSites: "desktop-browser:clear-allowed-sites",
+  stateChanged: "desktop-browser:state-changed",
+} as const satisfies typeof import("@codepilotx/shared/desktop-browser-ipc").DESKTOP_BROWSER_IPC_CHANNELS
+
 function isDesktopNotificationActivation(
   value: unknown,
 ): value is DesktopNotificationActivation {
@@ -137,6 +162,65 @@ interface DesktopExternalOpenTarget {
 }
 
 const desktop = {
+  getDesktopBrowserState: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.getState, input),
+  createOrRestoreDesktopBrowser: (
+    input: CreateOrRestoreDesktopBrowserInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.createOrRestore, input),
+  navigateDesktopBrowser: (
+    input: NavigateDesktopBrowserInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.navigate, input),
+  reloadDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.reload, input),
+  stopDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.stop, input),
+  goBackDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.goBack, input),
+  goForwardDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.goForward, input),
+  setDesktopBrowserBounds: (
+    input: SetDesktopBrowserBoundsInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.setBounds, input),
+  setDesktopBrowserVisible: (
+    input: SetDesktopBrowserVisibleInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.setVisible, input),
+  focusDesktopBrowser: (input: DesktopBrowserTabInput): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.focus, input),
+  closeDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.close, input),
+  clearDesktopBrowserAllowedSites: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.clearAllowedSites, input),
+  onDesktopBrowserStateChange: (
+    listener: (state: DesktopBrowserSnapshot) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      state: unknown,
+    ): void => {
+      if (isDesktopBrowserSnapshot(state)) listener(state)
+    }
+    ipcRenderer.on(DESKTOP_BROWSER_IPC_CHANNELS.stateChanged, handler)
+    return () =>
+      ipcRenderer.removeListener(DESKTOP_BROWSER_IPC_CHANNELS.stateChanged, handler)
+  },
   saveAttachmentToDownloads: (
     input: DesktopAttachmentSaveInput,
   ): Promise<DesktopAttachmentSaveResult> =>
@@ -350,12 +434,30 @@ const desktop = {
   & DesktopTerminalIpcBridge
   & DesktopNotificationIpcBridge
   & DesktopAttachmentIpcBridge
+  & DesktopBrowserIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function isDesktopBrowserSnapshot(
+  value: unknown,
+): value is DesktopBrowserSnapshot {
+  if (!isRecord(value)) return false
+  return isIdentifier(value.tabId)
+    && typeof value.open === "boolean"
+    && typeof value.url === "string"
+    && typeof value.title === "string"
+    && typeof value.loading === "boolean"
+    && typeof value.canGoBack === "boolean"
+    && typeof value.canGoForward === "boolean"
+    && (value.error === null || typeof value.error === "string")
+    && Array.isArray(value.allowedSites)
+    && value.allowedSites.every(site => typeof site === "string")
+    && Array.isArray(value.sitePermissions)
 }
 
 function isPetPresentation(value: unknown): value is DesktopPetPresentation {

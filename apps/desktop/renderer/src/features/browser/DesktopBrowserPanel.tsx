@@ -11,7 +11,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import type { DesktopBrowserState } from '../../../shared/types.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
+import { desktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
@@ -60,6 +60,19 @@ export function DesktopBrowserPanel({
     }
   }, [state.url])
 
+  useEffect(
+    () => desktopBrowserClient.onBrowserStateChange(onStateChange),
+    [onStateChange],
+  )
+
+  useEffect(() => {
+    if (!desktopBrowserClient.available || !state.open) return
+    void desktopBrowserClient
+      .setBrowserVisible(!annotationOpen)
+      .then(onStateChange)
+      .catch(() => undefined)
+  }, [annotationOpen, onStateChange, state.open])
+
   useLayoutEffect(() => {
     if (!annotationOpen) return
     annotationPanelRef.current?.removeAttribute('aria-hidden')
@@ -79,7 +92,7 @@ export function DesktopBrowserPanel({
       }
 
       lastBoundsRef.current = bounds
-      void desktopClient
+      void desktopBrowserClient
         .setBrowserBounds(bounds)
         .then(onStateChange)
         .catch(() => undefined)
@@ -136,7 +149,7 @@ export function DesktopBrowserPanel({
   }
 
   function handleNavigate(): void {
-    void runBrowserAction(() => desktopClient.navigateBrowser(address))
+    void runBrowserAction(() => desktopBrowserClient.navigateBrowser(address))
   }
 
   function handleSubmitAnnotation(): void {
@@ -201,7 +214,7 @@ export function DesktopBrowserPanel({
             disabled={!state.canGoBack}
             size="toolbar"
             title="后退"
-            onClick={() => void runBrowserAction(desktopClient.goBackBrowser)}
+            onClick={() => void runBrowserAction(desktopBrowserClient.goBackBrowser)}
           >
             <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -210,15 +223,19 @@ export function DesktopBrowserPanel({
             disabled={!state.canGoForward}
             size="toolbar"
             title="前进"
-            onClick={() => void runBrowserAction(desktopClient.goForwardBrowser)}
+            onClick={() => void runBrowserAction(desktopBrowserClient.goForwardBrowser)}
           >
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
             color="ghostSecondary"
             size="toolbar"
-            title="重新加载"
-            onClick={() => void runBrowserAction(desktopClient.reloadBrowser)}
+            title={state.loading ? '停止加载' : '重新加载'}
+            onClick={() => void runBrowserAction(
+              state.loading
+                ? desktopBrowserClient.stopBrowser
+                : desktopBrowserClient.reloadBrowser,
+            )}
           >
             <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -276,7 +293,15 @@ export function DesktopBrowserPanel({
         </div>
       </div>
 
-      <div className="browser-viewport" ref={viewportRef}>
+      <div
+        className="browser-viewport"
+        ref={viewportRef}
+        onPointerDown={() => {
+          if (desktopBrowserClient.available) {
+            void desktopBrowserClient.focusBrowser().catch(() => undefined)
+          }
+        }}
+      >
         {!state.url ? (
           <div className="browser-empty-state">
             <Globe2 size={86} strokeWidth={1.6} />

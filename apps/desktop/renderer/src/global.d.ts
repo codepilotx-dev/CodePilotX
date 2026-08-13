@@ -9,6 +9,7 @@ import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-i
 import type { DesktopTerminalIpcBridge } from '@codepilotx/shared/desktop-terminal-ipc'
 import type { DesktopNotificationIpcBridge } from '@codepilotx/shared/desktop-notification-ipc'
 import type { DesktopAttachmentIpcBridge } from '@codepilotx/shared/desktop-attachment-ipc'
+import type { DesktopBrowserIpcBridge } from '@codepilotx/shared/desktop-browser-ipc'
 
 declare global {
   const __CODEPILOTX_VERSION__: string
@@ -56,6 +57,7 @@ declare global {
       & DesktopUpdateIpcBridge
       & DesktopNotificationIpcBridge
       & DesktopAttachmentIpcBridge
+      & DesktopBrowserIpcBridge
   }
 }
 

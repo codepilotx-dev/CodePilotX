@@ -14,6 +14,7 @@ import { registerAppearanceIpc } from "./ipc/register-appearance-ipc.js"
 import { registerDataLocationIpc } from "./ipc/register-data-location-ipc.js"
 import { registerDesktopIpc } from "./ipc/register-desktop-ipc.js"
 import { registerTerminalIpc } from "./ipc/register-terminal-ipc.js"
+import { registerBrowserIpc } from "./ipc/register-browser-ipc.js"
 import { ExternalOpenTargetService } from "./ipc/external-open-targets.js"
 import { AttachmentDownloadService } from "./ipc/attachment-download-service.js"
 import {
@@ -61,6 +62,8 @@ import { TerminalHostRpcClient } from "./terminal/terminal-host-rpc-client.js"
 import { stopTerminalsBeforeSupervisor } from "./terminal/terminal-shutdown.js"
 import { runPackagedTerminalSmoke } from "./terminal/packaged-terminal-smoke.js"
 import { DESKTOP_TERMINAL_IPC_CHANNELS } from "@codepilotx/shared/desktop-terminal-ipc"
+import { DESKTOP_BROWSER_IPC_CHANNELS } from "@codepilotx/shared/desktop-browser-ipc"
+import { DesktopBrowserController } from "./browser/browser-controller.js"
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const configuredUserDataDirectory =
@@ -89,6 +92,7 @@ let dataLocationStore: DataLocationStore | undefined
 let dataLocationLaunch: DataLocationLaunch | undefined
 let terminalManager: TerminalManager | undefined
 let terminalHost: TerminalHostRpcClient | undefined
+let browserController: DesktopBrowserController | undefined
 
 const packagedTerminalSmokeResult = process.env.CODEPILOTX_PACKAGED_TERMINAL_SMOKE_RESULT?.trim()
 const packagedTerminalSmokeRequested = process.argv.includes("--codepilotx-packaged-terminal-smoke")
@@ -198,6 +202,14 @@ async function startDesktop(): Promise<void> {
   const attachmentDownloads = new AttachmentDownloadService({
     getDownloadsDirectory: () => app.getPath("downloads"),
   })
+  browserController = new DesktopBrowserController({
+    getMainWindow: () => windows?.mainWindow,
+    publish: state => windows?.send(
+      DESKTOP_BROWSER_IPC_CHANNELS.stateChanged,
+      state,
+    ),
+    logger,
+  })
 
   registerDesktopIpc({
     windows,
@@ -228,6 +240,10 @@ async function startDesktop(): Promise<void> {
   })
   registerTerminalIpc({
     manager: terminalManager,
+    isMainWindowSender: sender => windows?.isMainSender(sender) === true,
+  })
+  registerBrowserIpc({
+    controller: browserController,
     isMainWindowSender: sender => windows?.isMainSender(sender) === true,
   })
   registerAppearanceIpc(
@@ -314,6 +330,7 @@ async function startDesktop(): Promise<void> {
       activeWindows.showApplication()
     },
     onReconnecting: () => {
+      browserController?.suspendAll()
       windows?.showReconnectWindow()
       windows?.send("agent:connection-changed", "disconnected")
     },
@@ -385,14 +402,17 @@ app.on("before-quit", (event) => {
   if (quitting) return
   quitting = true
   void orchestrateDesktopQuit({
-    stopRuntime: () => stopTerminalsBeforeSupervisor({
-      manager: terminalManager,
-      stopSupervisor: async () => {
-        terminalHost?.invalidate()
-        if (connectionCoordinator) await connectionCoordinator.stop()
-        else await supervisor?.stop()
-      },
-    }),
+    stopRuntime: () => {
+      browserController?.dispose()
+      return stopTerminalsBeforeSupervisor({
+        manager: terminalManager,
+        stopSupervisor: async () => {
+          terminalHost?.invalidate()
+          if (connectionCoordinator) await connectionCoordinator.stop()
+          else await supervisor?.stop()
+        },
+      })
+    },
     flushState: [
       () => windows?.flushWindowState() ?? Promise.resolve(),
       () => petOverlay?.flushState() ?? Promise.resolve(),
