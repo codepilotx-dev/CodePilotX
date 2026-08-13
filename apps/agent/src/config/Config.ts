@@ -38,6 +38,7 @@ export interface AgentStorageLayout {
   attachmentsRoot: string
   petsRoot: string
   toolingRoot: string
+  speechRoot: string
   workspacesRoot: string
   logsRoot: string
 }
@@ -98,6 +99,7 @@ export const resolveAgentStorageLayout = (
       environment.CODEPILOTX_TOOLING_HOME?.trim()
         || join(dataRoot, "tooling"),
     ),
+    speechRoot: resolve(dataRoot, "speech"),
     workspacesRoot: resolve(dataRoot, "workspaces"),
     logsRoot: resolveAgentLogDirectory(environment, userHome),
   }

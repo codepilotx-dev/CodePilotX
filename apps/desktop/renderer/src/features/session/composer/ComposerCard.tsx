@@ -6,6 +6,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useCallback,
   useRef,
   useState,
 } from "react";
@@ -28,7 +29,6 @@ import {
   Hand,
   ListChecks,
   MessageSquare,
-  Mic,
   Monitor,
   Palette,
   Paperclip,
@@ -82,6 +82,7 @@ import type {
 import {
   DEFAULT_COMPOSER_CAPABILITIES,
   type ComposerCapabilities,
+  type ComposerDraftKey,
   type ComposerDeliveryIntent,
   type ComposerPlacement,
   type ComposerSubmitOutcome,
@@ -238,6 +239,7 @@ const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
 };
 
 type Props = {
+  draftKey: ComposerDraftKey;
   input: string;
   canSubmit: boolean;
   sessionStatus: DesktopSessionStatus;
@@ -342,8 +344,13 @@ const ComposerAttachmentTray = lazy(async () => {
   const module = await import("./ComposerAttachmentTray.js");
   return { default: module.ComposerAttachmentTray };
 });
+const ComposerDictationControl = lazy(async () => {
+  const module = await import('./ComposerDictationControl.js')
+  return { default: module.ComposerDictationControl }
+})
 
 export function ComposerCard({
+  draftKey,
   input,
   canSubmit,
   sessionStatus,
@@ -435,6 +442,10 @@ export function ComposerCard({
     () => ({ ...DEFAULT_COMPOSER_CAPABILITIES, ...capabilityOverrides }),
     [capabilityOverrides],
   );
+  const dictationToggleRef = useRef<(() => void) | null>(null);
+  const registerDictationToggle = useCallback((toggle: (() => void) | null) => {
+    dictationToggleRef.current = toggle;
+  }, []);
   const submitErrorId = `${menuId}-submit-error`;
   const subagentMode = placement === "side-task";
   const contextDropdownSide = contextDropdownSideOverride ?? "top";
@@ -1297,6 +1308,14 @@ export function ComposerCard({
               }}
               onKeyDown={(event) => {
                 if (event.isComposing || event.keyCode === 229) return false;
+                if (
+                  event.ctrlKey && event.shiftKey && !event.altKey
+                  && event.key.toLowerCase() === "d"
+                ) {
+                  event.preventDefault();
+                  dictationToggleRef.current?.();
+                  return true;
+                }
                 if (unifiedMenuOpen) {
                   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                     event.preventDefault();
@@ -2000,19 +2019,16 @@ export function ComposerCard({
               </Popover.Portal>
             </Popover.Root>
 
-            <IconButton
-              aria-label="语音输入尚未可用"
-              className="composer-mic-button"
-              color="ghostSecondary"
-              disabled
-              size="composer"
-              title="语音输入尚未可用"
-            >
-              <Mic
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            </IconButton>
+            {capabilities.dictation ? (
+              <Suspense fallback={null}>
+                <ComposerDictationControl
+                  draftKey={draftKey}
+                  editorRef={editorRef}
+                  enabled
+                  registerToggle={registerDictationToggle}
+                />
+              </Suspense>
+            ) : null}
 
             <button
               aria-label={

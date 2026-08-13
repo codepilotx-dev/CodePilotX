@@ -13,6 +13,7 @@
     "./desktop-attachment-ipc": "./src/desktop-attachment-ipc.ts",
     "./desktop-browser-ipc": "./src/desktop-browser-ipc.ts",
     "./desktop-edit-ipc": "./src/desktop-edit-ipc.ts",
+    "./desktop-microphone-ipc": "./src/desktop-microphone-ipc.ts",
     "./desktop-notification-ipc": "./src/desktop-notification-ipc.ts",
     "./desktop-settings-ipc": "./src/desktop-settings-ipc.ts",
     "./desktop-terminal-ipc": "./src/desktop-terminal-ipc.ts",

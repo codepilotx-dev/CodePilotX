@@ -41,6 +41,7 @@ import { ProviderCredentialService } from "./provider/ProviderCredentialService"
 import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
 import { AttachmentService } from "./subagent/AttachmentService";
+import { SpeechTranscriptionService } from "./speech/SpeechTranscriptionService";
 import { SqliteAttachmentCatalog } from "./subagent/SqliteAttachmentCatalog";
 import { LocalContextPathRepository } from "./storage/repositories/local-context-path-repository";
 import { LocalContextPathService } from "./local-context/LocalContextPathService";
@@ -207,6 +208,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     }));
     const hub = yield* EventHub.make;
+    const speech = new SpeechTranscriptionService(config.storage.speechRoot, async (status) => {
+      await publishAgentEvent(db, hub, null, null, "speech/statusChanged", { status });
+    });
+    yield* Effect.promise(() => speech.initialize());
     const turnPatches = new TurnPatchService(
       db,
       hub,
@@ -828,11 +833,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       executionBindings,
       worktreeRepository,
       environmentDeltas,
+      speech,
     });
     let disposed = false;
     const dispose = async () => {
       if (disposed) return;
       disposed = true;
+      await speech.dispose();
       unsubscribeExecutionLogs();
       unsubscribeTooling();
       unsubscribeConfig();

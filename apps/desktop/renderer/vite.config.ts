@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-// Capability-aware sidebar state, active-row recovery and the timeline
-// attention menu add about 1.4 KiB gzip.
+// Keep the /new route bounded; optional speech UI stays lazy while capability
+// and event manifests remain part of the shared eager protocol surface.
 const NEW_ROUTE_GZIP_BUDGET_KIB = 368
 const NEW_ROUTE_GZIP_BUDGET = NEW_ROUTE_GZIP_BUDGET_KIB * 1024
 const INITIAL_CSS_RAW_BUDGET = 460 * 1024

@@ -57,6 +57,9 @@ import type {
   SetDesktopBrowserBoundsInput,
   SetDesktopBrowserVisibleInput,
 } from "@codepilotx/shared/desktop-browser-ipc"
+import type {
+  DesktopMicrophoneIpcBridge,
+} from "@codepilotx/shared/desktop-microphone-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -141,6 +144,10 @@ const DESKTOP_BROWSER_IPC_CHANNELS = {
   clearAllowedSites: "desktop-browser:clear-allowed-sites",
   stateChanged: "desktop-browser:state-changed",
 } as const satisfies typeof import("@codepilotx/shared/desktop-browser-ipc").DESKTOP_BROWSER_IPC_CHANNELS
+
+const DESKTOP_MICROPHONE_IPC_CHANNELS = {
+  openPrivacySettings: "desktop-microphone:open-privacy-settings",
+} as const satisfies typeof import("@codepilotx/shared/desktop-microphone-ipc").DESKTOP_MICROPHONE_IPC_CHANNELS
 
 function isDesktopNotificationActivation(
   value: unknown,
@@ -231,6 +238,8 @@ const desktop = {
     return () =>
       ipcRenderer.removeListener(DESKTOP_BROWSER_IPC_CHANNELS.stateChanged, handler)
   },
+  openMicrophonePrivacySettings: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_MICROPHONE_IPC_CHANNELS.openPrivacySettings),
   saveAttachmentToDownloads: (
     input: DesktopAttachmentSaveInput,
   ): Promise<DesktopAttachmentSaveResult> =>
@@ -477,6 +486,7 @@ const desktop = {
   & DesktopNotificationIpcBridge
   & DesktopAttachmentIpcBridge
   & DesktopBrowserIpcBridge
+  & DesktopMicrophoneIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

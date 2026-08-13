@@ -9,6 +9,7 @@ import { baseKeymap, splitBlock } from 'prosemirror-commands'
 import { keymap } from 'prosemirror-keymap'
 import { Schema } from 'prosemirror-model'
 import { AllSelection, EditorState, TextSelection } from 'prosemirror-state'
+import type { Transaction } from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
 import {
   forwardRef,
@@ -18,7 +19,7 @@ import {
 } from 'react'
 import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
 
-const composerSchema = new Schema({
+export const composerSchema = new Schema({
   nodes: {
     doc: { content: 'paragraph+' },
     paragraph: { content: 'text*', toDOM: () => ['p', 0] },
@@ -28,6 +29,7 @@ const composerSchema = new Schema({
 
 export type ComposerEditorHandle = {
   focus: () => void
+  insertText: (text: string) => void
 }
 
 export type ComposerEditorProps = {
@@ -82,6 +84,12 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
 
     useImperativeHandle(forwardedRef, () => ({
       focus: () => viewRef.current?.focus(),
+      insertText: text => {
+        const view = viewRef.current
+        if (!view || !text) return
+        view.dispatch(insertTextTransaction(view.state, text).scrollIntoView())
+        view.focus()
+      },
     }), [])
 
     useEffect(() => {
@@ -254,6 +262,13 @@ function documentFromText(value: string) {
     ),
   )
   return composerSchema.nodes.doc.create(null, paragraphs)
+}
+
+export function insertTextTransaction(
+  state: EditorState,
+  text: string,
+): Transaction {
+  return state.tr.insertText(text, state.selection.from, state.selection.to)
 }
 
 function textFromDocument(doc: EditorState['doc']): string {

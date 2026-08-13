@@ -59,6 +59,7 @@ import type { HandoffService } from "../../handoff/HandoffService"
 import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBindingService"
 import type { WorktreeRepository } from "../../worktree/WorktreeRepository"
 import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
+import type { SpeechTranscriptionService } from "../../speech/SpeechTranscriptionService"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
 import type { SideChatService } from "../../session/side-chat/SideChatService"
 import { InteractionService } from "../../interaction/InteractionService"
@@ -152,6 +153,7 @@ export type RpcRouterDependencies = {
   executionBindings: TaskExecutionBindingService
   worktreeRepository: WorktreeRepository
   environmentDeltas: EnvironmentDeltaStore
+  speech: SpeechTranscriptionService
 }
 
 export type { RpcRouterContext } from "./request-context"

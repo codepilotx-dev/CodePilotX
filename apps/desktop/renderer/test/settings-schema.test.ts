@@ -25,6 +25,24 @@ describe("工作空间依赖项迁移", () => {
   })
 })
 
+describe("语音输入设备设置", () => {
+  test("默认跟随系统设备并保留有效设备 ID", () => {
+    expect(
+      defaultDesktopStoredSettings()['desktop.voice.preferredInputDeviceId'],
+    ).toBe('')
+    expect(
+      normalizeDesktopStoredSettings({
+        'desktop.voice.preferredInputDeviceId': 'microphone-1',
+      })['desktop.voice.preferredInputDeviceId'],
+    ).toBe('microphone-1')
+    expect(
+      normalizeDesktopStoredSettings({
+        'desktop.voice.preferredInputDeviceId': 42 as never,
+      })['desktop.voice.preferredInputDeviceId'],
+    ).toBe('')
+  })
+})
+
 describe("宠物设置归一化", () => {
   test("提供安全默认值并限制尺寸与宠物 ID", () => {
     expect(defaultDesktopStoredSettings().pet).toEqual({

@@ -43,6 +43,8 @@ export type {
   DesktopReleaseNotesApi,
   DesktopRuntimeCapabilityApi,
   DesktopLocalContextApi,
+  DesktopSpeechApi,
+  DesktopSpeechStatus,
   DesktopUsageApi,
   DesktopReviewAgentComment,
   DesktopReviewAgentFileDiff,

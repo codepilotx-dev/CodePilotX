@@ -57,6 +57,7 @@ describe("Agent data directories", () => {
       attachmentsRoot: join(dataRoot, "attachments"),
       petsRoot: join(dataRoot, "pets"),
       toolingRoot: join(dataRoot, "tooling"),
+      speechRoot: join(dataRoot, "speech"),
       workspacesRoot: join(dataRoot, "workspaces"),
       logsRoot: join(dataRoot, "logs"),
     })

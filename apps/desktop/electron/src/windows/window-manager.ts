@@ -74,6 +74,10 @@ export class WindowManager {
     return this.#mainWindow
   }
 
+  get applicationOrigin(): string | undefined {
+    return this.#allowedApplicationOrigin
+  }
+
   isMainSender(sender: WebContents): boolean {
     return this.#mainWindow?.webContents === sender
   }
@@ -307,6 +311,7 @@ export class WindowManager {
 
   #loadStartupPage(mainWindow: BrowserWindow): void {
     const navigationGeneration = ++this.#navigationGeneration
+    this.#allowedApplicationOrigin = undefined
     this.#startupPageActive = false
     this.#setStartupBackground(mainWindow)
     const page = `data:text/html;charset=utf-8,${encodeURIComponent(

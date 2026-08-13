@@ -232,19 +232,9 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     keys: [],
   },
   {
-    title: '打开听写',
-    description: 'Start dictation in the current composer',
-    keys: ['Ctrl+Shift+M'],
-  },
-  {
     title: '开始听写',
     description: 'Start dictation in the current composer',
     keys: ['Ctrl+Shift+D'],
-  },
-  {
-    title: '关注焦点模式',
-    description: 'Start or stop voice mode',
-    keys: ['Ctrl+Shift+V'],
   },
   {
     title: '发送消息',

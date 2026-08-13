@@ -14,6 +14,7 @@ import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-ove
 import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
 import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-ipc'
 import type { DesktopTerminalIpcBridge } from '@codepilotx/shared/desktop-terminal-ipc'
+import type { DesktopMicrophoneIpcBridge } from '@codepilotx/shared/desktop-microphone-ipc'
 import type {
   DesktopAttachmentIpcBridge,
   DesktopAttachmentSaveInput,
@@ -70,6 +71,7 @@ type DesktopClientWindow = {
     & Partial<DesktopUpdateIpcBridge>
     & Partial<DesktopAttachmentIpcBridge>
     & Partial<DesktopBrowserIpcBridge>
+    & Partial<DesktopMicrophoneIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
   dispatchEvent?: Window['dispatchEvent']
@@ -342,6 +344,21 @@ export type DesktopRuntimeCapabilityApi = {
   getRuntimeCapabilities(): Promise<readonly ProtocolCapability[]>
 }
 
+export type DesktopSpeechStatus = RpcResult<'speech/status'>['status']
+
+export type DesktopSpeechApi = {
+  getSpeechStatus(): Promise<DesktopSpeechStatus>
+  installSpeech(force?: boolean): Promise<DesktopSpeechStatus>
+  transcribeSpeech(
+    input: RpcParams<'speech/transcribe'>,
+  ): Promise<RpcResult<'speech/transcribe'>>
+  cancelSpeech(operationId: string): Promise<boolean>
+  onSpeechStatusUpdated(
+    callback: (status: DesktopSpeechStatus) => void,
+  ): () => void
+  openMicrophonePrivacySettings(): Promise<void>
+}
+
 export type DesktopAttachmentApi = {
   isComposerFileAttachmentAvailable(): Promise<boolean>
   chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
@@ -380,4 +397,5 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopReleaseNotesApi &
   DesktopRuntimeCapabilityApi &
   DesktopAttachmentApi &
+  DesktopSpeechApi &
   DesktopLocalContextApi

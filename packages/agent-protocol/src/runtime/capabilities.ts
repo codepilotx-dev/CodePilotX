@@ -14,6 +14,7 @@ export const Capabilities = [
   "turn.queue.management.v1",
   "attachments.v1",
   "local-context.paths.v1",
+  "speech.transcription.v1",
   "memory.v2",
   "workspace.editor.v1",
   "git.review.v1",

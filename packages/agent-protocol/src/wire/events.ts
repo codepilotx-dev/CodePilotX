@@ -25,6 +25,7 @@ import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from
 import { ToolingStatusSchema } from "../methods/tooling"
 import { UsageSourceIdSchema } from "../methods/usage"
 import { AuthSessionSchema } from "../methods/extended"
+import { SpeechStatusSchema } from "../methods/speech"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -101,6 +102,14 @@ export const EventManifest = {
     stream: "global",
     capability: "tooling.management.v1",
     reconcilesWith: "tooling/list",
+  }),
+  "speech/statusChanged": defineEvent({
+    payload: Schema.Struct({ status: SpeechStatusSchema }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "speech.transcription.v1",
+    reconcilesWith: "speech/status",
   }),
   "skill/updated": defineEvent({
     payload: Schema.Struct({
