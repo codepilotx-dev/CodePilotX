@@ -850,13 +850,30 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
-  test("workspace file methods expose declared file errors instead of internal workspace codes", async () => {
+  test("workspace file methods encode editor revisions and expose declared file errors", async () => {
     const { db, call, initialize } = await fixture()
     await initialize()
     const root = roots.at(-1)!
     const project = db.createProject({ rootPath: root })
+    await writeFile(join(root, "tsconfig.json"), "{\n  \"compilerOptions\": {}\n}\n", "utf8")
     await writeFile(join(root, "binary.bin"), new Uint8Array([0xff, 0xfe]))
     await writeFile(join(root, "too-large.txt"), Buffer.alloc(20 * 1024 * 1024 + 1, 97))
+
+    const opened = await call("workspace/file/read", {
+      projectId: project.id,
+      folderId: project.primaryFolderId,
+      path: "tsconfig.json",
+    })
+    expect(opened.error).toBeUndefined()
+    expect(opened.result).toMatchObject({
+      path: "tsconfig.json",
+      content: "{\n  \"compilerOptions\": {}\n}\n",
+      revision: {
+        sha256: expect.any(String),
+        rawSha256: expect.any(String),
+        utf8Bom: false,
+      },
+    })
 
     const missing = await call("workspace/file/read", {
       projectId: project.id,

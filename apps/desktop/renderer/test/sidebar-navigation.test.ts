@@ -360,7 +360,7 @@ describe('sidebar shell modes', () => {
     expect(controllerSource).not.toContain('timeline:recent')
   })
 
-  test('left threshold collapses below 120px while the shared default stays hold-target', () => {
+  test('left and right side panels use thresholds while bottom keeps hold-target', () => {
     const leftBehavior = { kind: 'threshold', threshold: 120 } as const
 
     expect(shouldCollapseSidebarResize(119, leftBehavior)).toBeTrue()
@@ -372,7 +372,10 @@ describe('sidebar shell modes', () => {
       'utf8',
     )
     expect(rightDockSource).toContain('SIDEBAR_COLLAPSE_HOLD_MS')
-    expect(rightDockSource).not.toContain('collapseBehavior:')
+    expect(rightDockSource).toContain("? { kind: 'hold-target' }")
+    expect(rightDockSource).toContain(
+      ": { kind: 'threshold', threshold: minSize / 2 }",
+    )
   })
 
   test('uses the 720px container boundary without changing desktop preference', () => {

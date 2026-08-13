@@ -81,6 +81,107 @@ describe('ReviewRefreshCoordinator', () => {
     expect(forces).toEqual([false, true, true])
   })
 
+  test('dispose 后停止请求，activate 后同一实例可以重新执行', async () => {
+    const coordinator = new ReviewRefreshCoordinator<{
+      cacheState: 'fresh'
+      generation: string
+    }>()
+    let executions = 0
+
+    coordinator.dispose()
+    const disposedResult = await coordinator.request(
+      'project:unstaged',
+      false,
+      () => {
+        executions += 1
+        return Promise.resolve({
+          cacheState: 'fresh' as const,
+          generation: 'disposed',
+        })
+      },
+    )
+
+    expect(disposedResult).toBeNull()
+    expect(executions).toBe(0)
+
+    coordinator.activate()
+    const activeResult = await coordinator.request(
+      'project:unstaged',
+      false,
+      () => {
+        executions += 1
+        return Promise.resolve({
+          cacheState: 'fresh' as const,
+          generation: 'active',
+        })
+      },
+    )
+
+    expect(activeResult?.generation).toBe('active')
+    expect(executions).toBe(1)
+  })
+
+  test('cleanup 前的旧 cycle 不会阻止重新激活后的新 cycle', async () => {
+    const coordinator = new ReviewRefreshCoordinator<{
+      cacheState: 'fresh'
+      generation: string
+    }>()
+    let releaseOld!: () => void
+    const oldBlocked = new Promise<void>(resolve => {
+      releaseOld = resolve
+    })
+    const oldRequest = coordinator.request(
+      'project:unstaged',
+      false,
+      async () => {
+        await oldBlocked
+        return { cacheState: 'fresh' as const, generation: 'old' }
+      },
+    )
+
+    coordinator.dispose()
+    coordinator.activate()
+    const newRequest = coordinator.request(
+      'project:unstaged',
+      false,
+      () =>
+        Promise.resolve({
+          cacheState: 'fresh' as const,
+          generation: 'new',
+        }),
+    )
+    releaseOld()
+
+    expect((await newRequest)?.generation).toBe('new')
+    expect((await oldRequest)?.generation).toBe('old')
+  })
+
+  test('重新激活后 stale 请求仍会尾随 force 并收敛到 fresh', async () => {
+    const coordinator = new ReviewRefreshCoordinator<{
+      cacheState: 'fresh' | 'stale'
+      generation: string
+    }>()
+    const forces: boolean[] = []
+
+    coordinator.dispose()
+    coordinator.activate()
+    const result = await coordinator.request(
+      'project:unstaged',
+      false,
+      force => {
+        forces.push(force)
+        return Promise.resolve(
+          force
+            ? { cacheState: 'fresh' as const, generation: 'same' }
+            : { cacheState: 'stale' as const, generation: 'same' },
+        )
+      },
+    )
+
+    expect(forces).toEqual([false, true])
+    expect(result).toEqual({ cacheState: 'fresh', generation: 'same' })
+  })
+
   test('文件请求必须同时匹配 identity、generation 和 requestId', () => {
     const current = {
       identity: 'project:unstaged',

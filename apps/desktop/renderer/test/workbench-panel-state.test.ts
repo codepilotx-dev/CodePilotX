@@ -268,6 +268,7 @@ describe('workbench dynamic tab state', () => {
     expect(resolveIntegratedTerminalToggleAction('thread-1', initial)).toBe('open-bottom')
     expect(resolveIntegratedTerminalToggleAction('thread-1', bottom)).toBe('hide-bottom')
     expect(resolveIntegratedTerminalToggleAction('thread-1', right)).toBe('move-to-bottom')
+    expect(resolveIntegratedTerminalToggleAction('thread-1', right, false)).toBe('unavailable')
   })
 
   test('reopening a singleton activates its existing host', () => {
@@ -294,6 +295,37 @@ describe('workbench dynamic tab state', () => {
     expect(closed.right.open).toBe(false)
     expect(closed.right.tabIds).toEqual(['review'])
     expect(reopened.right).toEqual(opened.right)
+  })
+
+  test('closing or moving the last tab closes its empty source panel', () => {
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    state = applyWorkbenchPanelAction(state, {
+      type: 'toggleRightFullWidth',
+    })
+    state = applyWorkbenchPanelAction(state, {
+      type: 'closeTab',
+      target: 'right',
+      tabId: 'review',
+    })
+
+    expect(state.right).toEqual({
+      open: false,
+      activeTabId: null,
+      tabIds: [],
+    })
+    expect(state.rightFullWidth).toBe(false)
+    expect(state.focusArea).toBe('main')
+
+    state = open(state, { id: 'terminal', kind: 'terminal' }, 'right')
+    state = applyWorkbenchPanelAction(state, {
+      type: 'moveTab',
+      source: 'right',
+      target: 'bottom',
+      tabId: 'terminal',
+    })
+    expect(state.right.open).toBe(false)
+    expect(state.bottom.open).toBe(true)
+    expect(state.bottom.activeTabId).toBe('terminal')
   })
 
   test('supports multiple plans and side tasks', () => {
@@ -902,6 +934,49 @@ describe('workbench dynamic tab state', () => {
     ).not.toHaveProperty('markdownViewMode')
   })
 
+  test('rebinds restored file tabs to the current project folder identity', () => {
+    const state = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: {
+        schemaVersion: 2,
+        tabsById: {
+          'file:README.md': {
+            id: 'file:README.md',
+            kind: 'file-preview',
+            workspacePath: 'F:\\project',
+            projectId: 'stale-project',
+            folderId: 'stale-folder',
+            relativePath: 'README.md',
+            preview: false,
+          },
+        },
+        right: {
+          open: true,
+          activeTabId: 'file:README.md',
+          tabIds: ['file:README.md'],
+        },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: false,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+      },
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    }, {
+      fileScopes: [{
+        projectId: 'current-project',
+        folderId: 'current-folder',
+        workspacePath: 'F:/project',
+      }],
+    })
+
+    expect(state.workbench.tabsById['file:README.md']).toMatchObject({
+      projectId: 'current-project',
+      folderId: 'current-folder',
+    })
+  })
+
   test('reopens the file-browser tab with updated directoryPath', () => {
     let state = open(createDefaultWorkbenchTabsState(), {
       id: 'file-browser',
@@ -1075,9 +1150,9 @@ describe('workbench dynamic tab state', () => {
 })
 
 describe('workbench right panel sizing', () => {
-  test('使用 400px 默认值并按可用工作区夹紧', () => {
-    expect(RIGHT_DOCK_DEFAULT_WIDTH).toBe(400)
-    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(400)
+  test('使用 600px 默认值并按可用工作区夹紧', () => {
+    expect(RIGHT_DOCK_DEFAULT_WIDTH).toBe(600)
+    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(600)
     expect(getResponsiveRightDockDefaultWidth(700, 800)).toBe(348)
 
     const ratio = rightDockWidthToRatio(700, 1_500)
