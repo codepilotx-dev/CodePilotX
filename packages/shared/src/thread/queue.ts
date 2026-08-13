@@ -4,6 +4,7 @@ import {
   AttachmentSchema,
   InputSchema,
   ItemSchema,
+  LocalContextReferenceSchema,
   MessageSchema,
   ThreadTurnBundleSchema,
 } from "./items"
@@ -33,6 +34,7 @@ export const ThreadSnapshotSchema = Schema.Struct({
   messages: Schema.Array(MessageSchema),
   items: Schema.Array(ItemSchema),
   approvals: Schema.Array(ApprovalRequestSchema),
+  contextReferences: Schema.optional(Schema.Array(LocalContextReferenceSchema)),
   queue: Schema.optional(Schema.Struct({
     version: Schema.Number,
     pauseReason: QueuePauseReasonSchema,

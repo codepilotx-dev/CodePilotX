@@ -3,7 +3,7 @@
  * read/write contract of schema 21 so patched older clients can ignore features
  * they do not understand.
  */
-export const SCHEMA_VERSION = 29
+export const SCHEMA_VERSION = 30
 
 /**
  * Stable ownership marker for CodePilotX history storage. This is not a schema

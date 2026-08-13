@@ -11,6 +11,7 @@ import { ResumeCheckpointResolver, toPlanCheckpoint } from "../interaction/Resum
 import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
 import type { PiOrchestratorAdapter } from "../orchestration/PiOrchestratorAdapter"
 import type { AttachmentService } from "../subagent/AttachmentService"
+import type { LocalContextPathService } from "../local-context/LocalContextPathService"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
 import type { SubagentService } from "../subagent/SubagentService"
 import { InstructionDiscoveryService, PromptComposer, SkillService, createPromptSections, type PromptBundle, type PromptSection } from "../prompt"
@@ -137,6 +138,7 @@ export class ThreadService {
     private readonly threadTitles?: ThreadTitleService,
     resumeCheckpoints?: ResumeCheckpointResolver,
     resumeOnConstruct = true,
+    private readonly localContextPaths?: LocalContextPathService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -472,6 +474,14 @@ export class ThreadService {
     if (unbound.length) await this.attachments.bind(unbound, binding)
   }
 
+  private validateInputItems(threadID: string, attachmentIDs: readonly string[], contextReferenceIDs: readonly string[]) {
+    if (attachmentIDs.length + contextReferenceIDs.length > 8) {
+      throw new AgentError("ATTACHMENT_COUNT_LIMIT", "每条消息最多包含 8 个附件项", 413)
+    }
+    if (contextReferenceIDs.length > 0 && !this.localContextPaths) throw new AgentError("LOCAL_CONTEXT_NOT_FOUND", "本地上下文服务不可用", 404)
+    this.localContextPaths?.repository.validateForThread(threadID, contextReferenceIDs)
+  }
+
   private async validateAdmission(threadID: string, input: SubmitMessage) {
     this.get(threadID)
     if (!input.content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
@@ -489,11 +499,12 @@ export class ThreadService {
     await Effect.runPromise(this.hub.publish(created.agentEvent))
   }
 
-  async startTurn(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[] = []) {
+  async startTurn(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[] = [], contextReferenceIDs: readonly string[] = []) {
     return this.coordinator.exclusive(threadID, async () => {
       const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
       if (duplicate) return duplicate
       await this.validateAdmission(threadID, input)
+      this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
       const queued = this.db.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1").get(threadID)
       if (this.coordinator.active(threadID) || this.db.activeTurn(threadID) || queued) {
         throw new AgentError("TURN_ACTIVE", "当前 Thread 已有运行中或待运行的 Turn", 409)
@@ -501,7 +512,11 @@ export class ThreadService {
       await this.bindInputAttachments(inputID, attachmentIDs, input.model)
       let created
       try {
-        created = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
+        created = this.db.transaction(() => {
+          const value = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
+          this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
+          return value
+        })
       } catch (cause) {
         if (attachmentIDs.length) await this.attachments.unbind(attachmentIDs, { type: "input", id: inputID }).catch(() => undefined)
         throw cause
@@ -519,6 +534,7 @@ export class ThreadService {
     input: SubmitMessage,
     inputID: string,
     attachmentIDs: readonly string[] = [],
+    contextReferenceIDs: readonly string[] = [],
     queueMeta?: QueueMutationMeta,
   ) {
     return this.coordinator.exclusive(threadID, async () => {
@@ -533,14 +549,19 @@ export class ThreadService {
       const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
       if (duplicate) return duplicate
       await this.validateAdmission(threadID, input)
+      this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
       await this.bindInputAttachments(inputID, attachmentIDs, input.model)
       const active = this.coordinator.active(threadID) ?? this.db.activeTurn(threadID)
       const hadQueued = Boolean(this.db.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1").get(threadID))
       let created
       try {
-        created = this.db.createTurn(threadID, { ...input, strategy: "queue" }, "queued", {
-          inputID,
-          ...(queueMeta ? { queueOperation: queueMeta } : {}),
+        created = this.db.transaction(() => {
+          const value = this.db.createTurn(threadID, { ...input, strategy: "queue" }, "queued", {
+            inputID,
+            ...(queueMeta ? { queueOperation: queueMeta } : {}),
+          })
+          this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
+          return value
         })
       } catch (cause) {
         if (attachmentIDs.length) await this.attachments.unbind(attachmentIDs, { type: "input", id: inputID }).catch(() => undefined)
@@ -557,7 +578,7 @@ export class ThreadService {
     })
   }
 
-  async steerTurn(threadID: string, turnID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[] = []) {
+  async steerTurn(threadID: string, turnID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[] = [], contextReferenceIDs: readonly string[] = []) {
     return this.coordinator.exclusive(threadID, async () => {
       const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
       if (duplicate) {
@@ -572,10 +593,15 @@ export class ThreadService {
       if (actualTurnID !== turnID || live?.acceptingSteer === false) {
         throw new AgentError("TURN_ID_MISMATCH", "活动 Turn 已变化，请刷新后重试", 409)
       }
+      this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
       await this.bindInputAttachments(inputID, attachmentIDs, input.model)
       let guide
       try {
-        guide = this.db.appendGuide(threadID, turnID, { ...input, strategy: "guide" }, inputID)
+        guide = this.db.transaction(() => {
+          const value = this.db.appendGuide(threadID, turnID, { ...input, strategy: "guide" }, inputID)
+          this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
+          return value
+        })
       } catch (cause) {
         if (attachmentIDs.length) await this.attachments.unbind(attachmentIDs, { type: "input", id: inputID }).catch(() => undefined)
         throw cause
@@ -624,7 +650,7 @@ export class ThreadService {
     return result
   }
 
-  async updateQueue(threadID: string, inputID: string, content: string, attachmentIDs: readonly string[] | undefined, meta: QueueMutationMeta) {
+  async updateQueue(threadID: string, inputID: string, content: string, attachmentIDs: readonly string[] | undefined, contextReferenceIDs: readonly string[] | undefined, meta: QueueMutationMeta) {
     const duplicate = this.db.lookupQueueOperation(threadID, "queue/update", meta.operationID)
     if (duplicate) return duplicate
     if (!content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
@@ -636,6 +662,9 @@ export class ThreadService {
     const current = await this.attachments.listByBinding(binding)
     const currentIDs = current.map((record) => record.id)
     const nextIDs = desired ?? currentIDs
+    const currentContextIDs = this.localContextPaths?.repository.listByInput(inputID).map((entry) => entry.id) ?? []
+    const nextContextIDs = contextReferenceIDs === undefined ? currentContextIDs : [...contextReferenceIDs]
+    this.validateInputItems(threadID, nextIDs, nextContextIDs)
     const records = await Promise.all(nextIDs.map((id) => this.attachments.read(id).then((value) => value.record)))
     if (records.some((record) => record.binding && (record.binding.type !== binding.type || record.binding.id !== binding.id))) throw new AgentError("ATTACHMENT_ALREADY_BOUND", "附件已绑定到其他 Turn", 409)
     if (records.some((record) => record.kind === "image")) {
@@ -647,7 +676,12 @@ export class ThreadService {
     try {
       if (removed.length) await this.attachments.unbind(removed, binding)
       if (added.length) await this.attachments.bind(added, binding)
-      return await this.publishQueueMutation(this.db.updateQueuedInput(threadID, inputID, content.trim(), meta))
+      const mutation = this.db.transaction(() => {
+        const value = this.db.updateQueuedInput(threadID, inputID, content.trim(), meta)
+        this.localContextPaths?.repository.bindInput(threadID, inputID, nextContextIDs)
+        return value
+      })
+      return await this.publishQueueMutation(mutation)
     } catch (cause) {
       if (added.length) await this.attachments.unbind(added, binding).catch(() => undefined)
       if (removed.length) await this.attachments.bind(removed, binding).catch(() => undefined)
@@ -732,6 +766,8 @@ export class ThreadService {
       const runtime = await this.workspaceResolver.resolve(threadID)
       const projectID = runtime.projectID
       const workspace = runtime.workspace
+      const localContextReferences = this.localContextPaths?.repository.listAuthorized(threadID) ?? []
+      workspace.grantReadOnlyPaths(localContextReferences.map(({ path, kind }) => ({ path, kind })))
       const existingReviewSnapshot = this.db.getTurnGitSnapshot(threadID, turnID)
       if (projectID && !existingReviewSnapshot?.beforeTree) {
         await this.review?.captureTurnSnapshot({
@@ -832,6 +868,8 @@ export class ThreadService {
           ? [projectSourceCatalog.content]
           : [],
         externalData: [
+          ...localContextReferences.map((reference) =>
+            `<local_context kind=${JSON.stringify(reference.kind)} path=${JSON.stringify(reference.path)}>${escapeUntrustedReference(reference.name)}</local_context>`),
           ...hookFeedback,
           ...invokedSkillData,
           ...(sideEffectRecovery ? [

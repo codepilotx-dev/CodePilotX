@@ -13,6 +13,7 @@ import type { EventHub } from "../storage/events/EventHub"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import { SubagentRepository, type SpawnSubagentInput } from "./SubagentRepository"
 import type { AttachmentService } from "./AttachmentService"
+import type { LocalContextPathService } from "../local-context/LocalContextPathService"
 import { InstructionDiscoveryService, SkillService, createPromptSections, type PromptBundle } from "../prompt"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
@@ -110,6 +111,7 @@ export class SubagentService {
     private readonly projectSources?: ProjectSourceService,
     resumeCheckpoints?: ResumeCheckpointResolver,
     recoverOnConstruct = true,
+    private readonly localContextPaths?: LocalContextPathService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals)
     this.repository = new SubagentRepository(db)
@@ -465,6 +467,8 @@ export class SubagentService {
                 }),
           })
         : await WorkspaceService.open(prepared.rootPath)
+      const localContextReferences = this.localContextPaths?.repository.listAuthorized(task.parentThreadId) ?? []
+      workspace.grantReadOnlyPaths(localContextReferences.map(({ path, kind }) => ({ path, kind })))
       mcpLease = await this.mcp?.acquire(workspace.rootPath)
       const permissionConfig = run.permissionConfig
       const executionPolicy = executionPolicyFromV4(permissionConfig)
@@ -512,6 +516,8 @@ export class SubagentService {
           ? [projectSourceCatalog.content]
           : [],
         externalData: [
+          ...localContextReferences.map((reference) =>
+            `<local_context kind=${JSON.stringify(reference.kind)} path=${JSON.stringify(reference.path)}>${reference.name.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</local_context>`),
           ...invokedSkillData,
         ],
         userMessage: input.content,

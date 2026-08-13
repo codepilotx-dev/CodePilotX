@@ -68,6 +68,7 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   "PERMISSION_DENIED",
   "ATTACHMENT_NOT_FOUND",
   "ATTACHMENT_LIMIT",
+  "LOCAL_CONTEXT_NOT_FOUND",
   "MEMORY_NOT_FOUND",
   "MEMORY_REJECTED",
   "SKILL_NOT_FOUND",

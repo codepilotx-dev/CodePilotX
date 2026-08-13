@@ -2,6 +2,7 @@ import type {
   ApprovalRequest,
   AgentExecution,
   Attachment,
+  LocalContextReference,
   Input,
   Item,
   Message,
@@ -12,12 +13,25 @@ import type {
   ThreadTurnBundle,
   Turn,
 } from "@codepilotx/shared/thread"
+import { realpathSync } from "node:fs"
+import { resolve } from "node:path"
 import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
 import type { EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { SubagentRepository } from "../subagent/SubagentRepository"
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
+const localContextStatus = (path: string): LocalContextReference["status"] => {
+  try {
+    const canonical = realpathSync(resolve(path))
+    const expected = resolve(path)
+    return (process.platform === "win32" ? canonical.toLowerCase() === expected.toLowerCase() : canonical === expected)
+      ? "available"
+      : "missing"
+  } catch {
+    return "missing"
+  }
+}
 
 const turnStatus = (status: string): Turn["status"] => {
   if (status === "waiting_permission") return "waiting-permission"
@@ -145,6 +159,9 @@ export class ThreadProjection {
     const attachmentIds = (this.db.sqlite.query(
       "SELECT id FROM input_attachments WHERE input_id = ? ORDER BY created_at, id",
     ).all(String(row.id)) as Array<{ id: string }>).map(({ id }) => id)
+    const contextReferenceIds = (this.db.sqlite.query(
+      "SELECT context_path_id AS id FROM input_context_paths WHERE input_id = ? ORDER BY sort_order, created_at, context_path_id",
+    ).all(String(row.id)) as Array<{ id: string }>).map(({ id }) => id)
     return {
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -159,6 +176,7 @@ export class ThreadProjection {
         approvalsReviewer: String(row.approvals_reviewer) as Input["permissionConfig"]["approvalsReviewer"],
       },
       attachmentIds,
+      contextReferenceIds,
       state: inputState(String(row.status)),
       createdAt: Number(row.created_at),
     }
@@ -251,6 +269,16 @@ export class ThreadProjection {
     const attachmentRows = this.db.sqlite.query("SELECT id, input_id FROM input_attachments WHERE thread_id = ? AND input_id IS NOT NULL ORDER BY created_at, id").all(threadId) as Array<{ id: string; input_id: string }>
     const attachmentIDsByInput = new Map<string, string[]>()
     for (const attachment of attachmentRows) attachmentIDsByInput.set(attachment.input_id, [...(attachmentIDsByInput.get(attachment.input_id) ?? []), attachment.id])
+    const contextRows = this.db.sqlite.query(`
+      SELECT binding.input_id, context.id, context.name, context.path, context.kind, context.created_at
+      FROM input_context_paths AS binding
+      JOIN thread_context_paths AS context ON context.id = binding.context_path_id
+      JOIN inputs ON inputs.id = binding.input_id
+      WHERE inputs.thread_id = ?
+      ORDER BY binding.sort_order, binding.created_at, context.id
+    `).all(threadId) as Array<{ input_id: string; id: string; name: string; path: string; kind: LocalContextReference["kind"]; created_at: number }>
+    const contextIDsByInput = new Map<string, string[]>()
+    for (const row of contextRows) contextIDsByInput.set(row.input_id, [...(contextIDsByInput.get(row.input_id) ?? []), row.id])
     const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -265,6 +293,7 @@ export class ThreadProjection {
         approvalsReviewer: String(row.approvals_reviewer) as Input["permissionConfig"]["approvalsReviewer"],
       },
       attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
+      contextReferenceIds: contextIDsByInput.get(String(row.id)) ?? [],
       state: inputState(String(row.status)),
       createdAt: Number(row.created_at),
     }))
@@ -356,6 +385,7 @@ export class ThreadProjection {
       messages,
       items,
       approvals,
+      contextReferences: contextRows.map((row) => ({ id: row.id, name: row.name, path: row.path, kind: row.kind, status: localContextStatus(row.path), createdAt: row.created_at })),
       queue: this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null },
     }
   }
@@ -399,8 +429,27 @@ export class ThreadProjection {
     const attachmentRows = inputIDs.length
       ? this.db.sqlite.query(`SELECT id, input_id, kind, name, media_type, size_bytes, sha256, created_at FROM input_attachments WHERE input_id IN (${inputPlaceholders}) ORDER BY created_at, id`).all(...inputIDs) as Array<Record<string, string | number | null>>
       : []
+    const contextRows = inputIDs.length
+      ? this.db.sqlite.query(`
+          SELECT binding.input_id, context.id, context.name, context.path, context.kind, context.created_at
+          FROM input_context_paths AS binding
+          JOIN thread_context_paths AS context ON context.id = binding.context_path_id
+          WHERE binding.input_id IN (${inputPlaceholders})
+          ORDER BY binding.sort_order, binding.created_at, context.id
+        `).all(...inputIDs) as Array<Record<string, string | number | null>>
+      : []
     const attachmentIDsByInput = new Map<string, string[]>()
     const attachmentsByInput = new Map<string, Attachment[]>()
+    const contextIDsByInput = new Map<string, string[]>()
+    const contextByInput = new Map<string, LocalContextReference[]>()
+    for (const row of contextRows) {
+      const inputID = String(row.input_id)
+      contextIDsByInput.set(inputID, [...(contextIDsByInput.get(inputID) ?? []), String(row.id)])
+      contextByInput.set(inputID, [...(contextByInput.get(inputID) ?? []), {
+        id: String(row.id), name: String(row.name), path: String(row.path), kind: String(row.kind) as LocalContextReference["kind"],
+        status: localContextStatus(String(row.path)), createdAt: Number(row.created_at),
+      }])
+    }
     for (const row of attachmentRows) {
       const inputID = String(row.input_id)
       attachmentIDsByInput.set(inputID, [...(attachmentIDsByInput.get(inputID) ?? []), String(row.id)])
@@ -428,6 +477,7 @@ export class ThreadProjection {
         approvalsReviewer: String(row.approvals_reviewer) as Input["permissionConfig"]["approvalsReviewer"],
       },
       attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
+      contextReferenceIds: contextIDsByInput.get(String(row.id)) ?? [],
       state: inputState(String(row.status)),
       createdAt: Number(row.created_at),
     }))
@@ -504,6 +554,7 @@ export class ThreadProjection {
         items: items.filter((item) => item.turnId === turnId),
         approvals: approvals.filter((approval) => approval.turnId === turnId),
         attachments: turnInputs.flatMap((input) => attachmentsByInput.get(input.id) ?? []),
+        contextReferences: turnInputs.flatMap((input) => contextByInput.get(input.id) ?? []),
       }
     })
     const workspace = this.db.threadWorkspace(threadId)

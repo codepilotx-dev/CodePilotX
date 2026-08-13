@@ -25,6 +25,9 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE hook_trust_requests (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          workspace_path TEXT NOT NULL,\n          config_path TEXT NOT NULL,\n          config_hash TEXT NOT NULL,\n          status TEXT NOT NULL,\n          audit_summary TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          resolved_at INTEGER\n        )",
   "CREATE TABLE hook_trust_waiters (\n          request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,\n          agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY (request_id, agent_id)\n        )",
   "CREATE TABLE input_attachments (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,\n          input_id TEXT REFERENCES inputs(id) ON DELETE CASCADE,\n          kind TEXT NOT NULL,\n          name TEXT NOT NULL,\n          media_type TEXT NOT NULL,\n          size_bytes INTEGER NOT NULL,\n          sha256 TEXT NOT NULL,\n          storage_path TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          bound_at INTEGER\n        )",
+  "CREATE TABLE thread_context_paths (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          name TEXT NOT NULL,\n          path TEXT NOT NULL,\n          path_key TEXT NOT NULL,\n          kind TEXT NOT NULL CHECK(kind IN ('file','directory')),\n          created_at INTEGER NOT NULL,\n          UNIQUE(thread_id, path_key)\n        )",
+  "CREATE TABLE input_context_paths (\n          input_id TEXT NOT NULL REFERENCES inputs(id) ON DELETE CASCADE,\n          context_path_id TEXT NOT NULL REFERENCES thread_context_paths(id) ON DELETE CASCADE,\n          sort_order INTEGER NOT NULL DEFAULT 0,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY(input_id, context_path_id)\n        )",
+  "CREATE TABLE context_path_operations (\n          operation_id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          request_hash TEXT NOT NULL,\n          reference_ids TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE inputs (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        content TEXT NOT NULL,\n        model_ref TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        strategy TEXT NOT NULL,\n        task_mode TEXT NOT NULL,\n        status TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE integration_credential_bindings (\n          integration_id TEXT PRIMARY KEY,\n          credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE interaction_operations (\n          operation_id TEXT PRIMARY KEY,\n          interaction_id TEXT NOT NULL,\n          response TEXT NOT NULL,\n          result TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
@@ -80,6 +83,8 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX hook_runs_thread ON hook_runs(thread_id, started_at DESC)",
   "CREATE UNIQUE INDEX hook_trust_requests_pending\n          ON hook_trust_requests(workspace_path, config_hash) WHERE status = 'pending'",
   "CREATE INDEX input_attachments_thread ON input_attachments(thread_id, created_at)",
+  "CREATE INDEX input_context_paths_reference ON input_context_paths(context_path_id, created_at)",
+  "CREATE INDEX thread_context_paths_thread ON thread_context_paths(thread_id, created_at)",
   "CREATE INDEX interaction_operations_interaction\n          ON interaction_operations(interaction_id, created_at)",
   "CREATE INDEX items_turn_created ON items(turn_id, created_at)",
   "CREATE UNIQUE INDEX items_turn_ordinal_unique ON items(turn_id, ordinal)",
@@ -722,6 +727,39 @@ const migrateHistory28To29 = (sqlite: Database) => {
   }
 }
 
+const migrateHistory29To30 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS thread_context_paths (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      path TEXT NOT NULL,
+      path_key TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN ('file','directory')),
+      created_at INTEGER NOT NULL,
+      UNIQUE(thread_id, path_key)
+    );
+    CREATE TABLE IF NOT EXISTS input_context_paths (
+      input_id TEXT NOT NULL REFERENCES inputs(id) ON DELETE CASCADE,
+      context_path_id TEXT NOT NULL REFERENCES thread_context_paths(id) ON DELETE CASCADE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY(input_id, context_path_id)
+    );
+    CREATE TABLE IF NOT EXISTS context_path_operations (
+      operation_id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      request_hash TEXT NOT NULL,
+      reference_ids TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS input_context_paths_reference
+      ON input_context_paths(context_path_id, created_at);
+    CREATE INDEX IF NOT EXISTS thread_context_paths_thread
+      ON thread_context_paths(thread_id, created_at);
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -821,6 +859,7 @@ class SchemaInitializer {
           26: () => migrateHistory26To27(this.sqlite),
           27: () => migrateHistory27To28(this.sqlite),
           28: () => migrateHistory28To29(this.sqlite),
+          29: () => migrateHistory29To30(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

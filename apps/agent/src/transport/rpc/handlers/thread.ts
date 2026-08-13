@@ -309,6 +309,7 @@ export const threadHandlers = {
           submitMessage(start),
           start.inputId,
           start.attachmentIds ?? [],
+          start.contextReferenceIds ?? [],
         )
         const sequence = globalEventSequence(db)
         return {
@@ -328,7 +329,7 @@ export const threadHandlers = {
           permissionConfig: activeInput.permissionConfig,
           strategy: "guide",
           taskMode: activeInput.taskMode,
-        }, request.inputId, request.attachmentIds ?? [])
+        }, request.inputId, request.attachmentIds ?? [], request.contextReferenceIds ?? [])
         const sequence = globalEventSequence(db)
         return {
           inputId: request.inputId,
@@ -350,7 +351,7 @@ export const threadHandlers = {
       }
       case "queue/update": {
         const request = decodeParams(decodeQueueUpdate, rawParams, "queue/update")
-        const mutation = await threads.updateQueue(request.threadId, request.inputId, request.content, request.attachmentIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
+        const mutation = await threads.updateQueue(request.threadId, request.inputId, request.content, request.attachmentIds, request.contextReferenceIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
         return runtime.queueStateResult(request.threadId, mutation.event?.id)
       }
       case "queue/add": {
@@ -361,7 +362,7 @@ export const threadHandlers = {
           permissionConfig: request.permissionConfig,
           strategy: "queue",
           taskMode: request.taskMode,
-        }, request.inputId, request.attachmentIds ?? [], {
+        }, request.inputId, request.attachmentIds ?? [], request.contextReferenceIds ?? [], {
           operationID: request.operationId,
           ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }),
         })

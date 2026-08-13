@@ -54,6 +54,7 @@ const ThreadErrors = [
 ] as const
 const SandboxErrors = ["SANDBOX_UNAVAILABLE", "SANDBOX_BUSY", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const AttachmentErrors = ["ATTACHMENT_NOT_FOUND", "ATTACHMENT_LIMIT", "PERMISSION_DENIED", ...CommonErrors] as const
+const LocalContextErrors = ["THREAD_NOT_FOUND", "LOCAL_CONTEXT_NOT_FOUND", "PATH_DENIED", "FILE_NOT_FOUND", "FILE_NOT_TEXT", "FILE_TOO_LARGE", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const MemoryErrors = ["MEMORY_NOT_FOUND", "MEMORY_REJECTED", "PERMISSION_DENIED", ...CommonErrors] as const
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
@@ -841,6 +842,7 @@ export const ThreadCompactResultSchema = Schema.Struct({ compaction: CompactionS
 const TurnContentFields = {
   content: NonEmptyStringSchema,
   attachmentIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
+  contextReferenceIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
 }
 
 export const TurnStartParamsSchema = Schema.Struct({
@@ -992,6 +994,59 @@ export const AttachmentReadResultSchema = Schema.Struct({
   }),
 })
 
+export const LocalContextPathImportParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  paths: Schema.Array(NonEmptyStringSchema),
+  ...OperationParamsSchema.fields,
+})
+export const LocalContextPathImportResultSchema = Schema.Struct({
+  references: Schema.Array(AgentThread.LocalContextReferenceSchema),
+})
+
+export const LocalContextPathRangeSchema = Schema.Struct({
+  offset: NonNegativeIntSchema,
+  length: PositiveIntSchema,
+})
+
+export const LocalContextPathReadParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  referenceId: OpaqueIDSchema,
+  relativePath: Schema.optional(Schema.String),
+  range: Schema.optional(LocalContextPathRangeSchema),
+})
+export const LocalContextPathReadResultSchema = Schema.Struct({
+  reference: AgentThread.LocalContextReferenceSchema,
+  relativePath: Schema.NullOr(Schema.String),
+  preview: Schema.Literals(["text", "image", "unsupported"]),
+  mediaType: Schema.NullOr(Schema.String),
+  data: Schema.NullOr(Schema.String),
+  encoding: Schema.NullOr(Schema.Literals(["utf8", "base64"])),
+  range: Schema.NullOr(Schema.Struct({
+    offset: NonNegativeIntSchema,
+    length: NonNegativeIntSchema,
+    total: NonNegativeIntSchema,
+  })),
+})
+
+export const LocalContextPathListParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  referenceId: OpaqueIDSchema,
+  relativePath: Schema.optional(Schema.String),
+  cursor: Schema.optional(CursorSchema),
+  limit: Schema.optional(LimitSchema),
+})
+export const LocalContextPathListResultSchema = Schema.Struct({
+  reference: AgentThread.LocalContextReferenceSchema,
+  relativePath: Schema.NullOr(Schema.String),
+  entries: Schema.Array(Schema.Struct({
+    name: NonEmptyStringSchema,
+    relativePath: NonEmptyStringSchema,
+    kind: Schema.Literals(["file", "directory"]),
+    status: Schema.Literals(["available", "missing"]),
+  })),
+  nextCursor: NullableCursorSchema,
+})
+
 export const MemoryScopeSchema = Schema.Literals(["user", "project"])
 export const MemoryEntrySchema = Schema.Struct({
   id: OpaqueIDSchema,
@@ -1112,6 +1167,9 @@ export const CoreRpcMethods = {
   "sandbox/uninstall": defineMethod({ params: SandboxUninstallParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "attachment/import": defineMethod({ params: AttachmentImportParamsSchema, result: AttachmentImportResultSchema, errors: AttachmentErrors, capability: "attachments.v1", mutation: true, exactParams: true }),
   "attachment/read": defineMethod({ params: AttachmentReadParamsSchema, result: AttachmentReadResultSchema, errors: AttachmentErrors, capability: "attachments.v1", mutation: false }),
+  "context/path/import": defineMethod({ params: LocalContextPathImportParamsSchema, result: LocalContextPathImportResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: true, exactParams: true, exactResult: true }),
+  "context/path/read": defineMethod({ params: LocalContextPathReadParamsSchema, result: LocalContextPathReadResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: false, exactParams: true, exactResult: true }),
+  "context/path/list": defineMethod({ params: LocalContextPathListParamsSchema, result: LocalContextPathListResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: false, exactParams: true, exactResult: true }),
   "memory/list": defineMethod({ params: MemoryListParamsSchema, result: MemoryListResultSchema, errors: MemoryErrors, capability: "memory.v2", mutation: false, exactResult: true }),
   "memory/read": defineMethod({ params: MemoryReadParamsSchema, result: MemoryReadResultSchema, errors: MemoryErrors, capability: "memory.v2", mutation: false, exactResult: true }),
   "memory/save": defineMethod({ params: MemorySaveParamsSchema, result: MemorySaveResultSchema, errors: MemoryErrors, capability: "memory.v2", mutation: true, exactParams: true, exactResult: true }),

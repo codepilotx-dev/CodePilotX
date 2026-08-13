@@ -33,6 +33,7 @@ import type { EventHub } from "../../storage/events/EventHub"
 import { globalEventSequence, publishAgentEvent } from "../../storage/events/EventPublisher"
 import type { SubagentService } from "../../subagent/SubagentService"
 import type { AttachmentService } from "../../subagent/AttachmentService"
+import type { LocalContextPathService } from "../../local-context/LocalContextPathService"
 import type { ProjectSourceService } from "../../project/ProjectSourceService"
 import { WorkspaceService } from "../../workspace/WorkspaceService"
 import { InvalidThreadHistoryCursorError, ThreadProjection } from "../ThreadProjection"
@@ -120,6 +121,7 @@ export type RpcRouterDependencies = {
   questions: QuestionService
   subagents: SubagentService
   attachments: AttachmentService
+  localContextPaths: LocalContextPathService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
   piModels: PiModelService

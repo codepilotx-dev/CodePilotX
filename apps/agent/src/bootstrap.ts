@@ -42,6 +42,8 @@ import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
 import { AttachmentService } from "./subagent/AttachmentService";
 import { SqliteAttachmentCatalog } from "./subagent/SqliteAttachmentCatalog";
+import { LocalContextPathRepository } from "./storage/repositories/local-context-path-repository";
+import { LocalContextPathService } from "./local-context/LocalContextPathService";
 import { ProjectSourceService } from "./project/ProjectSourceService";
 import { ProjectService } from "./project/ProjectService";
 import { MemoryService } from "./memory/MemoryService";
@@ -646,6 +648,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       db.repositories.sideChats,
       environmentDeltas,
     );
+    const localContextPaths = new LocalContextPathService(
+      new LocalContextPathRepository(db),
+    );
     const history = new ThreadHistoryService(
       db,
       hub,
@@ -688,6 +693,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       projectSources,
       resumeCheckpoints,
       false,
+      localContextPaths,
     );
     resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID));
     const threads = new ThreadService(
@@ -714,6 +720,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threadTitles,
       resumeCheckpoints,
       false,
+      localContextPaths,
     );
     const handoffOperations = new HandoffRepository(db);
     const handoff = new HandoffService(
@@ -789,6 +796,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       questions,
       subagents,
       attachments,
+      localContextPaths,
       projectSources,
       providers,
       piModels,

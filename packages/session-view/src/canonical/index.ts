@@ -2,6 +2,7 @@ import type {
   AgentExecution,
   ApprovalRequest,
   Attachment,
+  LocalContextReference,
   Input,
   Item,
   Message,
@@ -51,6 +52,7 @@ export interface CanonicalThreadState {
   approvalsById: Map<string, ApprovalRequest>
   hookTrustsById: Map<string, PendingHookTrustInteraction>
   attachmentsById: Map<string, Attachment>
+  contextReferencesById: Map<string, LocalContextReference>
   subagentsByTaskId: Map<string, SubagentProjection>
   queue: CanonicalQueueState
   history: {
@@ -79,6 +81,7 @@ export interface VisibleTurnEntry {
   items: Item[]
   approvals: ApprovalRequest[]
   attachments: Attachment[]
+  contextReferences: LocalContextReference[]
 }
 
 export type RenderItem = Item
@@ -123,6 +126,12 @@ export function pageFromThreadSnapshot(
       items: snapshot.items.filter((item) => item.turnId === turn.id),
       approvals: snapshot.approvals.filter((approval) => approval.turnId === turn.id),
       attachments: [],
+      contextReferences: (snapshot.contextReferences ?? []).filter(reference =>
+        snapshot.inputs.some(input =>
+          input.turnId === turn.id
+          && input.contextReferenceIds?.includes(reference.id),
+        ),
+      ),
     })),
     queue: snapshot.queue ? {
       version: snapshot.queue.version,
@@ -187,6 +196,19 @@ export function reconcileLatestThreadPage(
     if (fresh.attachmentsById.has(attachmentId)) continue
     const attachment = cached.attachmentsById.get(attachmentId)
     if (attachment) fresh.attachmentsById.set(attachmentId, attachment)
+  }
+
+  const preservedReferenceIds = new Set<string>()
+  for (const input of fresh.inputsById.values()) {
+    if (!input.turnId || !preservedTurnIdSet.has(input.turnId)) continue
+    for (const referenceId of input.contextReferenceIds ?? []) {
+      preservedReferenceIds.add(referenceId)
+    }
+  }
+  for (const referenceId of preservedReferenceIds) {
+    if (fresh.contextReferencesById.has(referenceId)) continue
+    const reference = cached.contextReferencesById.get(referenceId)
+    if (reference) fresh.contextReferencesById.set(referenceId, reference)
   }
 
   fresh.turnOrder = unique([...preservedTurnIds, ...fresh.turnOrder])
@@ -325,6 +347,9 @@ export function selectVisibleTurnEntries(
     const approvals = approvalsByTurnId.get(turnId) ?? []
     if (allowedAgentIds && agents.length === 0 && items.length === 0 && approvals.length === 0) continue
     const attachmentIds = new Set(userInputs.flatMap((input) => input.attachmentIds ?? []))
+    const contextReferenceIds = new Set(
+      userInputs.flatMap(input => input.contextReferenceIds ?? []),
+    )
     entries.push({
       id: turn.id,
       turn,
@@ -335,6 +360,9 @@ export function selectVisibleTurnEntries(
       attachments: [...attachmentIds]
         .map((attachmentId) => state.attachmentsById.get(attachmentId))
         .filter((attachment): attachment is Attachment => attachment !== undefined),
+      contextReferences: [...contextReferenceIds]
+        .map(referenceId => state.contextReferencesById.get(referenceId))
+        .filter((reference): reference is LocalContextReference => reference !== undefined),
     })
   }
   return entries
@@ -850,6 +878,9 @@ function mergePageEntities(state: CanonicalThreadState, page: CanonicalThreadPag
     for (const item of bundle.items) state.itemsById.set(item.id, item)
     for (const approval of bundle.approvals) state.approvalsById.set(approval.id, approval)
     for (const attachment of bundle.attachments ?? []) state.attachmentsById.set(attachment.id, attachment)
+    for (const reference of bundle.contextReferences ?? []) {
+      state.contextReferencesById.set(reference.id, reference)
+    }
   }
   state.turnOrder = mode === "replace"
     ? unique(pageTurnIds)
@@ -883,6 +914,7 @@ function emptyState(thread: Thread): CanonicalThreadState {
     approvalsById: new Map(),
     hookTrustsById: new Map(),
     attachmentsById: new Map(),
+    contextReferencesById: new Map(),
     subagentsByTaskId: new Map(),
     queue: { version: 0, pauseReason: null, turnIds: [], inputIds: [] },
     history: { olderCursor: null, hasOlder: false, loadingOlder: false, generation: 0 },
@@ -901,6 +933,7 @@ function cloneState(state: CanonicalThreadState): CanonicalThreadState {
     approvalsById: new Map(state.approvalsById),
     hookTrustsById: new Map(state.hookTrustsById),
     attachmentsById: new Map(state.attachmentsById),
+    contextReferencesById: new Map(state.contextReferencesById),
     subagentsByTaskId: new Map(state.subagentsByTaskId),
     queue: { ...state.queue, turnIds: [...state.queue.turnIds], inputIds: [...state.queue.inputIds] },
     history: { ...state.history },

@@ -5,6 +5,7 @@ import { githubHandlers } from "./handlers/github"
 import { gitHandlers } from "./handlers/git"
 import { interactionHandlers } from "./handlers/interaction"
 import { memoryHandlers } from "./handlers/memory"
+import { localContextHandlers } from "./handlers/local-context"
 import { mcpHandlers } from "./handlers/mcp"
 import { petHandlers } from "./handlers/pet"
 import { releaseNotesHandlers } from "./handlers/release-notes"
@@ -44,6 +45,7 @@ const groups: readonly RpcHandlerGroup[] = [
   skillHandlers,
   githubHandlers,
   threadHandlers,
+  localContextHandlers,
   memoryHandlers,
   petHandlers,
   releaseNotesHandlers,

@@ -31,6 +31,7 @@ export const InputSchema = Schema.Struct({
   model: Model.Ref,
   permissionConfig: PermissionConfigSchema,
   attachmentIds: Schema.optional(Schema.Array(Schema.String)),
+  contextReferenceIds: Schema.optional(Schema.Array(Schema.String)),
   state: Schema.Literals(["queued", "merged", "active", "completed", "cancelled"]),
   createdAt: Schema.Number,
 })
@@ -314,6 +315,16 @@ export const AttachmentSchema = Schema.Struct({
 })
 export type Attachment = typeof AttachmentSchema.Type
 
+export const LocalContextReferenceSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  path: Schema.String,
+  kind: Schema.Literals(["file", "directory"]),
+  status: Schema.Literals(["available", "missing"]),
+  createdAt: Schema.Number,
+})
+export type LocalContextReference = typeof LocalContextReferenceSchema.Type
+
 export const ThreadTurnBundleSchema = Schema.Struct({
   turn: TurnSchema,
   inputs: Schema.Array(InputSchema),
@@ -322,5 +333,6 @@ export const ThreadTurnBundleSchema = Schema.Struct({
   items: Schema.Array(ItemSchema),
   approvals: Schema.Array(ApprovalRequestSchema),
   attachments: Schema.Array(AttachmentSchema),
+  contextReferences: Schema.optional(Schema.Array(LocalContextReferenceSchema)),
 })
 export type ThreadTurnBundle = typeof ThreadTurnBundleSchema.Type

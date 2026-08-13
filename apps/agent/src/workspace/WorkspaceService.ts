@@ -45,6 +45,11 @@ export interface WorkspaceSearchResult {
   preview?: string
 }
 
+export type WorkspaceReadOnlyPath = {
+  path: string
+  kind: "file" | "directory"
+}
+
 export interface WorkspaceFileRevision {
   mtimeMs: number
   sha256: string
@@ -199,6 +204,7 @@ export class WorkspaceService {
   readonly workspaceRoots: readonly WorkspaceRoot[]
   private readonly editorAliases = new Map<string, string>()
   private readonly mutationQueues = new Map<string, Promise<void>>()
+  private readonly readOnlyPaths = new Map<string, WorkspaceReadOnlyPath>()
 
   private constructor(rootPath: string, workspaceRoots: readonly WorkspaceRoot[]) {
     this.rootPath = rootPath
@@ -256,6 +262,14 @@ export class WorkspaceService {
     this.editorAliases.set(alias, resolve(targetPath))
   }
 
+  grantReadOnlyPaths(paths: readonly WorkspaceReadOnlyPath[]) {
+    for (const entry of paths) {
+      if (!isAbsolute(entry.path)) continue
+      const canonical = resolve(entry.path)
+      this.readOnlyPaths.set(this.mutationKey(canonical), { path: canonical, kind: entry.kind })
+    }
+  }
+
   private aliasTarget(path: string) {
     if (path.startsWith("@") && !this.editorAliases.has(path)) {
       throw new AgentError("WORKSPACE_PATH_DENIED", "未知的 host 编辑器别名", 403)
@@ -268,6 +282,7 @@ export class WorkspaceService {
       if (resolve(path) === target) return alias
     }
     const owner = this.rootForPath(path)
+    if (!owner && this.readOnlyPathFor(path)) return resolve(path)
     if (owner && owner.path !== this.rootPath) return resolve(path)
     const result = relative(this.rootPath, path)
     return result === "" ? "." : result.replaceAll("\\", "/")
@@ -292,9 +307,23 @@ export class WorkspaceService {
     throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区内", 403)
   }
 
+  private readOnlyPathFor(path: string) {
+    const candidate = resolve(path)
+    return [...this.readOnlyPaths.values()].find((entry) => {
+      if (entry.kind === "file") return this.mutationKey(entry.path) === this.mutationKey(candidate)
+      const child = relative(entry.path, candidate)
+      return child === "" || (!child.startsWith("..") && !isAbsolute(child))
+    })
+  }
+
+  private ensureReadable(path: string) {
+    if (this.containsPath(path) || this.readOnlyPathFor(path)) return
+    throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区或已授权本地上下文内", 403)
+  }
+
   private ensureWritable(path: string) {
     const owner = this.rootForPath(path)
-    if (owner?.writable !== false) return
+    if (owner && owner.writable !== false) return
     throw new AgentError("WORKSPACE_FILE_READONLY", "当前工作区目录为只读", 403)
   }
 
@@ -305,7 +334,7 @@ export class WorkspaceService {
       throw new AgentError("WORKSPACE_PATH_DENIED", "路径必须位于当前工作区内", 403)
     }
     const requested = isAbsolute(path) ? resolve(path) : resolve(this.rootPath, path)
-    this.ensureWithinRoot(requested)
+    this.ensureReadable(requested)
     return requested
   }
 
@@ -326,7 +355,22 @@ export class WorkspaceService {
     if (alias) {
       if (canonical !== alias) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名不能通过符号链接重定向", 403)
     } else {
-      this.ensureWithinRoot(canonical)
+      if (!this.containsPath(canonical)) {
+        const grant = this.readOnlyPathFor(requested)
+        if (!grant) throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区或已授权本地上下文内", 403)
+        const currentRoot = await realpath(grant.path).catch(() => {
+          throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "本地上下文路径不存在或不可访问", 404)
+        })
+        if (this.mutationKey(currentRoot) !== this.mutationKey(grant.path)) {
+          throw new AgentError("WORKSPACE_PATH_DENIED", "本地上下文根路径已被重定向", 403)
+        }
+        if (grant.kind === "file") {
+          if (this.mutationKey(canonical) !== this.mutationKey(grant.path)) throw new AgentError("WORKSPACE_PATH_DENIED", "文件引用不能访问其他路径", 403)
+        } else {
+          const child = relative(currentRoot, canonical)
+          if (child !== "" && (child.startsWith("..") || isAbsolute(child))) throw new AgentError("WORKSPACE_PATH_DENIED", "目录引用不能通过链接越界", 403)
+        }
+      }
     }
     return canonical
   }

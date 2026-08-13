@@ -64,6 +64,7 @@ type ForkMappings = {
   toolCallIDs: Map<string, string>
   taskIDs: Map<string, string>
   runIDs: Map<string, string>
+  contextPathIDs: Map<string, string>
   includedTurns: Map<string, Set<string>>
 }
 
@@ -661,10 +662,20 @@ export class ConversationHistoryForkRepository {
     const toolCallIDs = new Map<string, string>()
     const taskIDs = new Map<string, string>()
     const runIDs = new Map<string, string>()
+    const contextPathIDs = new Map<string, string>()
     for (const [sourceThreadID, turns] of includedTurns) {
       for (const turnID of turns) turnIDs.set(turnID, this.nextID())
       for (const row of this.rowsForTurns("agent_executions", sourceThreadID, turns)) agentIDs.set(String(row.id), this.nextID())
       for (const row of this.rowsForTurns("inputs", sourceThreadID, turns)) inputIDs.set(String(row.id), this.nextID())
+      const linkedContextPaths = turns.size === 0 ? [] : this.db.sqlite.query(`
+        SELECT DISTINCT context.*
+        FROM thread_context_paths AS context
+        JOIN input_context_paths AS binding ON binding.context_path_id = context.id
+        JOIN inputs ON inputs.id = binding.input_id
+        WHERE inputs.thread_id = ? AND inputs.turn_id IN (${[...turns].map(() => "?").join(",")})
+        ORDER BY context.created_at, context.id
+      `).all(sourceThreadID, ...turns) as Row[]
+      for (const row of linkedContextPaths) contextPathIDs.set(String(row.id), this.nextID())
       for (const row of this.completedTasks(sourceThreadID, turns)) taskIDs.set(String(row.id), this.nextID())
       for (const row of this.rowsForTurns("items", sourceThreadID, turns)) {
         if (row.type !== "subagent" || this.completedSubagentItem(row, taskIDs)) itemIDs.set(String(row.id), this.nextID())
@@ -672,7 +683,7 @@ export class ConversationHistoryForkRepository {
       for (const row of this.rowsForTurns("tool_calls", sourceThreadID, turns)) toolCallIDs.set(String(row.id), this.nextID())
     }
     for (const taskID of taskIDs.keys()) for (const row of this.rows("subagent_runs", "task_id", taskID)) runIDs.set(String(row.id), this.nextID())
-    return { threadIDs, turnIDs, agentIDs, inputIDs, itemIDs, toolCallIDs, taskIDs, runIDs, includedTurns }
+    return { threadIDs, turnIDs, agentIDs, inputIDs, itemIDs, toolCallIDs, taskIDs, runIDs, contextPathIDs, includedTurns }
   }
 
   private allocateEmptyMappings(sourceRootID: string, targetRootID: string): ForkMappings {
@@ -685,6 +696,7 @@ export class ConversationHistoryForkRepository {
       toolCallIDs: new Map(),
       taskIDs: new Map(),
       runIDs: new Map(),
+      contextPathIDs: new Map(),
       includedTurns: new Map([[sourceRootID, new Set()]]),
     }
   }
@@ -712,7 +724,7 @@ export class ConversationHistoryForkRepository {
   }
 
   private copyConversationRows(maps: ForkMappings, piForks: Map<string, PiFork>) {
-    const allIDs = new Map<string, string>([...maps.threadIDs, ...maps.turnIDs, ...maps.agentIDs, ...maps.inputIDs, ...maps.itemIDs, ...maps.toolCallIDs, ...maps.taskIDs, ...maps.runIDs])
+    const allIDs = new Map<string, string>([...maps.threadIDs, ...maps.turnIDs, ...maps.agentIDs, ...maps.inputIDs, ...maps.itemIDs, ...maps.toolCallIDs, ...maps.taskIDs, ...maps.runIDs, ...maps.contextPathIDs])
     const sessionIDs = new Map<string, string>()
     for (const [sourceThreadID, targetThreadID] of maps.threadIDs) {
       const turns = maps.includedTurns.get(sourceThreadID)!
@@ -746,6 +758,22 @@ export class ConversationHistoryForkRepository {
       for (const source of this.rowsForTurns("patches", sourceThreadID, turns)) this.insert("patches", this.remapRow({ ...source, id: this.nextID() }, allIDs, { thread_id: maps.threadIDs, turn_id: maps.turnIDs, agent_id: maps.agentIDs }))
       for (const source of this.rowsForTurns("agent_compactions", sourceThreadID, turns)) this.insert("agent_compactions", this.remapRow({ ...source, id: this.nextID() }, allIDs, { thread_id: maps.threadIDs, turn_id: maps.turnIDs }))
       for (const source of this.rowsByMappedIDs("input_attachments", "input_id", maps.inputIDs)) this.insert("input_attachments", this.remapRow({ ...source, id: this.nextID() }, allIDs, { thread_id: maps.threadIDs, input_id: maps.inputIDs }))
+      for (const source of this.rows("thread_context_paths", "thread_id", sourceThreadID)) {
+        if (!maps.contextPathIDs.has(String(source.id))) continue
+        this.insert("thread_context_paths", this.remapRow(source, allIDs, { id: maps.contextPathIDs, thread_id: maps.threadIDs }))
+      }
+      const sourceInputIDs = this.rowsForTurns("inputs", sourceThreadID, turns).map(({ id }) => String(id))
+      const contextBindings = sourceInputIDs.length === 0 ? [] : this.db.sqlite.query(`
+        SELECT binding.*
+        FROM input_context_paths AS binding
+        JOIN thread_context_paths AS context ON context.id = binding.context_path_id
+        WHERE context.thread_id = ? AND binding.input_id IN (${sourceInputIDs.map(() => "?").join(",")})
+        ORDER BY binding.sort_order, binding.created_at, binding.context_path_id
+      `).all(sourceThreadID, ...sourceInputIDs) as Row[]
+      for (const source of contextBindings) {
+        if (!maps.contextPathIDs.has(String(source.context_path_id))) continue
+        this.insert("input_context_paths", this.remapRow(source, allIDs, { input_id: maps.inputIDs, context_path_id: maps.contextPathIDs }))
+      }
       for (const source of this.rowsForTurns("turn_patch_sets", sourceThreadID, turns)) this.insert("turn_patch_sets", this.remapRow(source, allIDs, { turn_id: maps.turnIDs, thread_id: maps.threadIDs, item_id: maps.itemIDs }))
       for (const [sourceTaskID] of maps.taskIDs) {
         const task = this.row("subagent_tasks", "id", sourceTaskID)
