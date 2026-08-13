@@ -190,7 +190,11 @@ export function applyWorkbenchPanelAction(
 ): WorkbenchTabsState {
   if (action.type === 'focusPanel') {
     const focusArea: WorkbenchFocusArea =
-      action.target === 'main' ? 'main' : `${action.target}-panel`
+      action.target === 'main' ||
+      !state[action.target].open ||
+      !state[action.target].activeTabId
+        ? 'main'
+        : `${action.target}-panel`
     return focusArea === state.focusArea ? state : { ...state, focusArea }
   }
 
@@ -393,8 +397,12 @@ export function applyWorkbenchPanelAction(
         index: action.index ?? state[action.target].tabIds.length - 1,
       })
     }
-    const source = removeTab(state[action.source], action.tabId)
+    const source = closeEmptyPanel(
+      removeTab(state[action.source], action.tabId),
+    )
     const target = insertTab(state[action.target], action.tabId, action.index)
+    const rightBecameEmpty =
+      action.source === 'right' && source.tabIds.length === 0
     return {
       ...state,
       [action.source]: source,
@@ -403,6 +411,9 @@ export function applyWorkbenchPanelAction(
         open: true,
         activeTabId: action.tabId,
       },
+      rightFullWidth: rightBecameEmpty ? false : state.rightFullWidth,
+      restoreRightFullWidthOnNextOpen:
+        rightBecameEmpty ? false : state.restoreRightFullWidthOnNextOpen,
       focusArea: `${action.target}-panel`,
     }
   }
@@ -532,12 +543,32 @@ function removeTabEverywhere(
 ): WorkbenchTabsState {
   const tabsById = { ...state.tabsById }
   delete tabsById[tabId]
+  const right = closeEmptyPanel(removeTab(state.right, tabId))
+  const bottom = closeEmptyPanel(removeTab(state.bottom, tabId))
+  const rightClosed = state.right.open && !right.open
+  const bottomClosed = state.bottom.open && !bottom.open
   return {
     ...state,
     tabsById,
-    right: removeTab(state.right, tabId),
-    bottom: removeTab(state.bottom, tabId),
+    right,
+    bottom,
+    rightFullWidth: rightClosed ? false : state.rightFullWidth,
+    restoreRightFullWidthOnNextOpen:
+      rightClosed ? false : state.restoreRightFullWidthOnNextOpen,
+    focusArea:
+      (rightClosed && state.focusArea === 'right-panel') ||
+      (bottomClosed && state.focusArea === 'bottom-panel')
+        ? 'main'
+        : state.focusArea,
   }
+}
+
+function closeEmptyPanel(
+  panel: WorkbenchPanelSnapshot,
+): WorkbenchPanelSnapshot {
+  return panel.tabIds.length === 0
+    ? { ...panel, open: false, activeTabId: null }
+    : panel
 }
 
 function removeTabsFromPanel(

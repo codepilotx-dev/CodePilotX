@@ -1,4 +1,4 @@
-import React, { Suspense, type ReactNode } from 'react'
+import React, { Suspense, useEffect, type ReactNode } from 'react'
 import {
   Bot,
   Folder,
@@ -34,6 +34,12 @@ import type {
   WorkbenchTabDescriptor,
   WorkbenchTabKind,
 } from '../dock/rightDockState.js'
+import {
+  WorkbenchPanelEmpty,
+  WorkbenchPanelLoading,
+  WorkbenchPanelUnavailable,
+} from '../panels/WorkbenchPanelStates.js'
+import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
 
 const DesktopBrowserPanel = React.lazy(() => import('../../browser/DesktopBrowserPanel.js').then(module => ({ default: module.DesktopBrowserPanel })))
 const WorkspaceReviewSidebar = React.lazy(() => import('../../review/workspace/WorkspaceReviewSidebar.js').then(module => ({ default: module.WorkspaceReviewSidebar })))
@@ -46,6 +52,55 @@ const UserAttachmentPreviewPanel = React.lazy(() => import('../../session/attach
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
+}
+
+function BrowserTabContent({
+  context,
+}: {
+  context: WorkbenchTabRenderContext['browser']
+}): React.ReactNode {
+  const { availability, onStateChange, state } = context
+  const initialized = state !== null
+  useEffect(() => {
+    if (availability.status !== 'available') return
+    const unsubscribe = desktopBrowserClient.onBrowserStateChange(
+      onStateChange,
+    )
+    if (!initialized) {
+      void desktopBrowserClient
+        .openBrowser()
+        .then(onStateChange)
+        .catch(() => undefined)
+    } else {
+      void desktopBrowserClient
+        .setBrowserVisible(true)
+        .then(onStateChange)
+        .catch(() => undefined)
+    }
+    return () => {
+      unsubscribe()
+      void desktopBrowserClient.setBrowserVisible(false).catch(() => undefined)
+    }
+  }, [availability.status, initialized, onStateChange])
+
+  if (availability.status === 'loading') {
+    return <WorkbenchPanelLoading label="正在连接内置浏览器…" />
+  }
+  if (availability.status === 'unavailable') {
+    return (
+      <WorkbenchPanelUnavailable
+        title="内置浏览器不可用"
+        description={
+          availability.reason ??
+          '当前桌面运行环境没有提供浏览器能力。'
+        }
+      />
+    )
+  }
+  if (!state) {
+    return <WorkbenchPanelLoading label="正在启动内置浏览器…" />
+  }
+  return deferred(<DesktopBrowserPanel {...context} state={state} />)
 }
 
 export type WorkbenchTabRenderContext = {
@@ -73,6 +128,7 @@ export type WorkbenchTabRenderContext = {
     onToggleReviewView: () => void
   }
   browser: {
+    availability: WorkbenchTabAvailability
     state: DesktopBrowserState | null
     onAppendAnnotation: (text: string) => void
     onAppendComposerText?: (text: string) => void
@@ -130,12 +186,24 @@ export type WorkbenchTabRenderContext = {
   }
   sideTask: {
     activeTaskId: string | null
+    availability: WorkbenchTabAvailability
     content?: ReactNode
   }
   terminal: {
+    availability: WorkbenchTabAvailability
     threadId: string | null
     onDisplayPathChange: (displayPath: string | null) => void
   }
+}
+
+export type WorkbenchTabLifecycle =
+  | 'unmount-when-hidden'
+  | 'keep-alive-hidden'
+  | 'external-surface'
+
+export type WorkbenchTabAvailability = {
+  status: 'loading' | 'available' | 'unavailable'
+  reason?: string
 }
 
 export type WorkbenchTabDefinition = {
@@ -147,6 +215,10 @@ export type WorkbenchTabDefinition = {
   launcherLabel?: string
   launcherIcon?: ReactNode
   launcherShortcut?: string | null
+  lifecycle: WorkbenchTabLifecycle
+  getAvailability?: (
+    context: WorkbenchTabRenderContext,
+  ) => WorkbenchTabAvailability
   getTitle: (tab: WorkbenchTabDescriptor) => string
   getIcon?: (tab: WorkbenchTabDescriptor) => ReactNode
   render: (
@@ -189,6 +261,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <GitPullRequest size={iconSize} />,
     shortcut: 'Ctrl+Shift+G',
     launcher: true,
+    lifecycle: 'unmount-when-hidden',
     launcherIcon: <SquarePlus size={iconSize} />,
     getTitle: () => '审阅',
     render: (_tab, context) => deferred(
@@ -201,8 +274,10 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <Globe2 size={iconSize} />,
     shortcut: 'Ctrl+T',
     launcher: true,
+    lifecycle: 'external-surface',
+    getAvailability: context => context.browser.availability,
     getTitle: () => '浏览器',
-    render: (_tab, context) => deferred(<DesktopBrowserPanel {...context.browser} />),
+    render: (_tab, context) => <BrowserTabContent context={context.browser} />,
   },
   {
     kind: 'file-browser',
@@ -210,6 +285,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <FileText size={iconSize} />,
     shortcut: 'Ctrl+Shift+E',
     launcher: true,
+    lifecycle: 'unmount-when-hidden',
     launcherLabel: '文件',
     launcherIcon: <Folder size={iconSize} />,
     launcherShortcut: 'Ctrl+P',
@@ -232,6 +308,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     label: '文件预览',
     icon: <FileText size={iconSize} />,
     launcher: false,
+    lifecycle: 'unmount-when-hidden',
     getTitle: tab =>
       tab.kind === 'file-preview'
         ? basename(tab.relativePath)
@@ -285,6 +362,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     label: '计划',
     icon: <ListChecks size={iconSize} />,
     launcher: false,
+    lifecycle: 'unmount-when-hidden',
     getTitle: tab => (tab.kind === 'plan' ? tab.title : '计划'),
     render: (tab, context) => deferred(
       <RightDockPlanPanel
@@ -301,6 +379,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     label: '用户附件',
     icon: <Paperclip size={iconSize} />,
     launcher: false,
+    lifecycle: 'unmount-when-hidden',
     getTitle: () => '用户附件',
     render: tab => tab.kind === 'attachment-preview'
       ? deferred(<UserAttachmentPreviewPanel tab={tab} />)
@@ -312,6 +391,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <MessageCirclePlus size={iconSize} />,
     shortcut: 'Ctrl+Alt+S',
     launcher: true,
+    lifecycle: 'unmount-when-hidden',
     getTitle: tab => tab.kind === 'side-chat' ? tab.title : '侧边聊天',
     render: (tab, context) => tab.kind === 'side-chat'
       ? deferred(
@@ -339,9 +419,25 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     shortcut: 'Ctrl+`',
     launcher: true,
     launcherShortcut: null,
+    lifecycle: 'keep-alive-hidden',
+    getAvailability: context => context.terminal.availability,
     getTitle: () => '终端',
-    render: (_tab, context) =>
-      context.terminal.threadId ? (
+    render: (_tab, context) => {
+      if (context.terminal.availability.status === 'loading') {
+        return <WorkbenchPanelLoading label="正在连接集成终端…" />
+      }
+      if (context.terminal.availability.status === 'unavailable') {
+        return (
+          <WorkbenchPanelUnavailable
+            title="集成终端不可用"
+            description={
+              context.terminal.availability.reason ??
+              '当前桌面运行环境没有提供终端能力。'
+            }
+          />
+        )
+      }
+      return context.terminal.threadId ? (
         deferred(
           <TerminalPanel
             threadId={context.terminal.threadId}
@@ -349,17 +445,20 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           />,
         )
       ) : (
-        <div className="right-dock-empty-state">
-          <strong>请先创建任务</strong>
-          <span>集成终端会绑定到当前任务的工作目录。</span>
-        </div>
-      ),
+        <WorkbenchPanelEmpty
+          title="请先创建任务"
+          description="集成终端会绑定到当前任务的工作目录。"
+        />
+      )
+    },
   },
   {
     kind: 'side-task',
     label: '子智能体',
     icon: <Bot size={iconSize} />,
     launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getAvailability: context => context.sideTask.availability,
     getTitle: () => '子智能体',
     render: (tab, context) =>
       tab.kind === 'side-task' &&

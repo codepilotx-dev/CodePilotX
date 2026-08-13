@@ -318,6 +318,15 @@
   background: var(--layer-panel-fill);
 }
 
+.right-dock-open-file-tree {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  background: var(--color-token-bg-secondary);
+}
+
 .right-dock-open-file-empty {
   display: grid;
   min-width: 0;
@@ -694,11 +703,20 @@
   font-size: var(--type-body);
 }
 .workspace-file-tree-groups {
+  display: flex;
+  height: 100%;
   min-height: 0;
-  overflow: auto;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .workspace-file-tree-group {
+  display: flex;
+  min-height: calc(2rem + 3rem);
+  flex: 1 1 0;
+  flex-direction: column;
+  overflow: hidden;
   border-bottom: 1px solid var(--color-app-border);
 }
 
@@ -735,6 +753,8 @@
 }
 
 .workspace-file-tree-group .workspace-file-tree {
+  height: auto;
   min-height: 3rem;
-  max-height: 18rem;
+  flex: 1 1 auto;
+  max-height: none;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type React from 'react'
-import { Folder, FolderOpen, ListChecks } from 'lucide-react'
+import { Folder, ListChecks } from 'lucide-react'
 import {
   AnimatePresence,
   motion,
@@ -21,12 +21,14 @@ import { cx } from '../../../utils/cx.js'
 import { ConflictMergeEditor, FileEditor } from '../../editor/index.js'
 import {
   prefetchFileDocument,
+  fileDocumentLoadErrorMessage,
   resolveFileDocumentConflict,
   saveFileDocument,
   startFileDocumentExternalChecks,
   updateFileDocument,
   useFileDocument,
 } from '../../workspace/fileDocumentStore.js'
+import { WorkbenchPanelError } from '../panels/WorkbenchPanelStates.js'
 import { FileBreadcrumbToolbar } from '../panels/FileBreadcrumbToolbar.js'
 import type { MarkdownFileViewMode } from './rightDockState.js'
 import {
@@ -107,34 +109,6 @@ export function RightDockFilesPanel({
   onAddComposerFiles,
 }: FilesPanelProps): React.ReactNode {
   const workspacePath = workspace?.path ?? ''
-  const initialTreeState = useRef(
-    readFileTreeViewState(workspacePath, true),
-  )
-  const [treeVisible, setTreeVisible] = useState(
-    initialTreeState.current.visible,
-  )
-  const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
-  const layoutRef = useRef<HTMLDivElement | null>(null)
-  const treeToggleRef = useRef<HTMLButtonElement | null>(null)
-  const treeResize = useEditorFileTreeResize({
-    committedWidth: treeWidth,
-    layoutRef,
-    onCommitWidth: setTreeWidth,
-  })
-
-  useEffect(() => {
-    const next = readFileTreeViewState(workspacePath, true)
-    setTreeVisible(next.visible)
-    setTreeWidth(next.width)
-  }, [workspacePath])
-
-  useEffect(() => {
-    if (!workspacePath) return
-    writeFileTreeViewState(workspacePath, {
-      visible: treeVisible,
-      width: treeWidth,
-    })
-  }, [treeVisible, treeWidth, workspacePath])
 
   return (
     <section className="right-dock-file-browser" aria-label="打开文件">
@@ -145,80 +119,19 @@ export function RightDockFilesPanel({
         >
           <strong className="file-breadcrumb-toolbar__root">/</strong>
         </div>
-        <div className="file-breadcrumb-toolbar__actions">
-          <button
-            ref={treeToggleRef}
-            aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
-            aria-pressed={treeVisible}
-            className="file-breadcrumb-toolbar__action"
-            title={treeVisible ? '隐藏文件树' : '显示文件树'}
-            type="button"
-            onClick={() => setTreeVisible(current => !current)}
-          >
-            <FolderOpen
-              aria-hidden="true"
-              size={16}
-              strokeWidth={1.8}
-            />
-          </button>
-        </div>
       </header>
-      <motion.div
-        ref={layoutRef}
-        className={cx(
-          'right-dock-file-editor-layout',
-          'right-dock-open-file-layout',
-          treeVisible && 'has-file-tree',
-        )}
-        style={treeResize.layoutStyle}
-      >
-        <div className="right-dock-open-file-empty">
-          <Folder aria-hidden="true" size={48} strokeWidth={1.5} />
-          <strong>打开文件</strong>
-          <span>
-            {workspace
-              ? '从工作区目录树中选择文件'
-              : '先打开一个工作区以浏览文件'}
-          </span>
-        </div>
-        <EditorFileTreePresence
-          focusReturnRef={treeToggleRef}
-          liveWidth={treeResize.liveWidth}
-          visible={treeVisible}
-          width={treeWidth}
-        >
-          <div
-            aria-label="调整文件树宽度"
-            aria-orientation="vertical"
-            aria-valuemax={treeResize.maximumWidth}
-            aria-valuemin={FILE_TREE_MIN_WIDTH}
-            aria-valuenow={treeWidth}
-            className="right-dock-editor-tree-resize-handle"
-            role="separator"
-            tabIndex={0}
-            title="拖拽调整文件树宽度，双击恢复默认宽度"
-            onDoubleClick={treeResize.resetWidth}
-            onKeyDown={treeResize.handleKeyDown}
-            onPointerDown={treeResize.startResize}
-          />
-          <aside
-            aria-label="工作区文件树"
-            className="right-dock-editor-file-tree"
-          >
-              <WorkspaceFileTree
-                key={workspacePath}
-                activePath={activePath}
-                autoFocusSearch
-                files={files}
-                revealToken={revealToken}
-                workspace={workspace}
-                onAddComposerFiles={onAddComposerFiles}
-                onEscape={() => setTreeVisible(false)}
-                onOpenFile={onOpenFile}
-              />
-          </aside>
-        </EditorFileTreePresence>
-      </motion.div>
+      <aside aria-label="工作区文件树" className="right-dock-open-file-tree">
+        <WorkspaceFileTree
+          key={workspacePath}
+          activePath={activePath}
+          autoFocusSearch
+          files={files}
+          revealToken={revealToken}
+          workspace={workspace}
+          onAddComposerFiles={onAddComposerFiles}
+          onOpenFile={onOpenFile}
+        />
+      </aside>
     </section>
   )
 }
@@ -359,10 +272,26 @@ export function RightDockFilePreviewPanel({
   }
 
   if (document.status === 'error') {
+    const presentation = fileDocumentLoadErrorMessage(
+      document.loadErrorCode,
+      document.loadError,
+    )
     return (
-      <div className="right-dock-file-load-error" role="alert">
-        无法打开文件
-      </div>
+      <WorkbenchPanelError
+        {...presentation}
+        onRetry={() => {
+          void prefetchFileDocument(
+            workspacePath,
+            expectedPath,
+            documentScope,
+          ).catch(error => {
+            onLoadErrorRef.current?.(
+              error instanceof Error ? error : new Error(String(error)),
+              'initial',
+            )
+          })
+        }}
+      />
     )
   }
 
