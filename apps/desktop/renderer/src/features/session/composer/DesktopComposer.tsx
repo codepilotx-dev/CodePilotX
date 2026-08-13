@@ -33,9 +33,9 @@ import {
 } from './useDesktopComposerController.js'
 
 export {
-  getDesktopComposerBranchName,
   loadCachedRuntimeSkills,
 } from './useDesktopComposerController.js'
+export { getDesktopComposerBranchName } from './composerWorkspacePresentation.js'
 export type {
   ComposerCapabilities,
   ComposerCollaborationMode,
@@ -184,7 +184,6 @@ export function DesktopComposer({
   selectedModelPreset,
   modelConfigured,
   modelCatalogLoading = false,
-  modelConfigurationMessage,
   selectedModelMetadata,
   showThinkingOptions,
   deepSeekThinkingControls,
@@ -240,8 +239,9 @@ export function DesktopComposer({
     branchName,
     canSubmit,
     effectivePermissionMode,
+    fileAttachmentsAvailable,
     goalModeEnabled,
-    handleAddFilePaths,
+    handleAddFiles,
     handleCommandError,
     handleCompact,
     handleOpenFiles,
@@ -294,7 +294,12 @@ export function DesktopComposer({
       permissionMode={effectivePermissionMode}
       planModeActive={planModeActive}
       placement={placement}
-      capabilities={effectiveCapabilities}
+      capabilities={{
+        ...effectiveCapabilities,
+        fileAttachments:
+          fileAttachmentsAvailable
+          && (effectiveCapabilities?.fileAttachments ?? true),
+      }}
       submitShortcut={submitShortcut}
       surface={surface}
       workingPlugin={workingPlugin}
@@ -311,7 +316,6 @@ export function DesktopComposer({
       selectedModelPreset={selectedModelPreset}
       modelConfigured={modelConfigured}
       modelCatalogLoading={modelCatalogLoading}
-      modelConfigurationMessage={modelConfigurationMessage}
       submitDisabledReason={unsupportedAttachmentReason ?? undefined}
       showThinkingOptions={showThinkingOptions}
       deepSeekThinkingControls={deepSeekThinkingControls}
@@ -333,11 +337,9 @@ export function DesktopComposer({
         placeholderOverride ??
         (modelCatalogLoading
           ? '加载模型列表中……'
-          : modelConfigured
-          ? hasConversationMessages
+          : hasConversationMessages
             ? '要求后续变更'
-            : '随心输入'
-          : '未配置模型，请先在设置中配置模型')
+            : '随心输入')
       }
       onChooseWorkspace={() => void onChooseWorkspace()}
       onInputChange={onInputChange}
@@ -347,7 +349,7 @@ export function DesktopComposer({
       onProviderModelChange={onProviderModelChange}
       onProviderOpen={onProviderOpen}
       onProviderSearch={onProviderSearch}
-      onAddFiles={filePaths => void handleAddFilePaths(filePaths)}
+      onAddFiles={files => void handleAddFiles(files)}
       onOpenFiles={() => void handleOpenFiles()}
       onRemoveAttachment={handleRemoveAttachment}
       onOpenAttachment={onOpenAttachment}

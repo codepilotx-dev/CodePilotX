@@ -66,7 +66,7 @@ export function buildDesktopUserMessageContent(
   return {
     text: formatCanonicalSkillInvocation(input.skillInvocation, text),
     attachments: (input.attachments ?? [])
-      .filter(a => a.status !== 'error')
+      .filter(a => a.status !== 'error' && a.storage !== 'local-path')
       .map(desktopAttachmentToAttachment),
   }
 }

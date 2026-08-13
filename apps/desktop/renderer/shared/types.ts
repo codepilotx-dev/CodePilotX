@@ -183,6 +183,10 @@ export type DesktopComposerAttachmentKind =
 
 export type DesktopComposerAttachmentStatus = 'ready' | 'error'
 
+export type DesktopComposerAttachmentStorage = 'managed' | 'local-path'
+
+export type DesktopComposerPathKind = 'file' | 'directory'
+
 export type DesktopComposerAttachment = {
   id: string
   name: string
@@ -191,6 +195,10 @@ export type DesktopComposerAttachment = {
   sizeBytes: number
   kind: DesktopComposerAttachmentKind
   status: DesktopComposerAttachmentStatus
+  storage?: DesktopComposerAttachmentStorage
+  pathKind?: DesktopComposerPathKind
+  localGrantId?: string
+  contextReferenceId?: string
   error?: string
   contentBase64?: string
   previewDataUrl?: string
@@ -202,6 +210,7 @@ export type DesktopUserMessageInput = {
   text: string
   attachments?: DesktopComposerAttachment[]
   retainedAttachmentIds?: string[]
+  retainedContextReferenceIds?: string[]
   skillInvocation?: {
     name: string
     args?: string
@@ -1900,9 +1909,6 @@ export type DesktopApi = {
   saveWorkspaceFile(input: DesktopFileSaveInput): Promise<DesktopFileSaveResult>
   watchWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<void>
   unwatchWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<void>
-  chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
-  authorizeComposerFilePaths(filePaths: string[]): Promise<void>
-  readComposerFiles(filePaths: string[]): Promise<DesktopComposerAttachment[]>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>

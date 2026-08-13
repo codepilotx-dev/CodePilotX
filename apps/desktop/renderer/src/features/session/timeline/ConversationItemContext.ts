@@ -4,7 +4,7 @@ import type {
   DesktopSessionStatus,
   DesktopUserMessageInput,
 } from "../../../../shared/types.js";
-import type { Attachment } from "@codepilotx/shared/thread";
+import type { Attachment, LocalContextReference } from "@codepilotx/shared/thread";
 import type {
   MarkdownFileOpenOptions,
   MarkdownFileReference,
@@ -22,6 +22,7 @@ export type ConversationItemContextValue = {
     options: MarkdownFileOpenOptions,
   ) => void;
   onOpenAttachment?: (attachment: Attachment) => void;
+  onOpenLocalContext?: (reference: LocalContextReference) => void;
   onForkFromMessage?: (request: { itemId: string; turnId: string }) => void;
   onSubmitEditedUserMessage: (input: DesktopUserMessageInput) => Promise<void>;
   sessionStatus: DesktopSessionStatus;

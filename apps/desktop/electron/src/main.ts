@@ -17,6 +17,7 @@ import { registerTerminalIpc } from "./ipc/register-terminal-ipc.js"
 import { registerBrowserIpc } from "./ipc/register-browser-ipc.js"
 import { ExternalOpenTargetService } from "./ipc/external-open-targets.js"
 import { AttachmentDownloadService } from "./ipc/attachment-download-service.js"
+import { ComposerPathGrantService } from "./ipc/composer-path-grant-service.js"
 import {
   createDesktopLogger,
   type DesktopLogger,
@@ -202,6 +203,7 @@ async function startDesktop(): Promise<void> {
   const attachmentDownloads = new AttachmentDownloadService({
     getDownloadsDirectory: () => app.getPath("downloads"),
   })
+  const composerPathGrants = new ComposerPathGrantService()
   browserController = new DesktopBrowserController({
     getMainWindow: () => windows?.mainWindow,
     publish: state => windows?.send(
@@ -217,6 +219,7 @@ async function startDesktop(): Promise<void> {
     externalOpenTargets,
     updater,
     attachmentDownloads,
+    composerPathGrants,
     getSupervisor: () => supervisor,
     getConnectionState: () =>
       connectionCoordinator?.status.connectionState ?? "unknown",

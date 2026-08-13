@@ -28,6 +28,7 @@ import {
   skillToComposerCommand,
   type ComposerSkillCommand,
 } from './composerSlashCommands.js'
+import { getDesktopComposerBranchName } from './composerWorkspacePresentation.js'
 
 type ControllerOptions = {
   input: string
@@ -112,6 +113,7 @@ export function useDesktopComposerController({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [lastSubmitOutcome, setLastSubmitOutcome] =
     useState<ComposerSubmitOutcome | null>(null)
+  const [fileAttachmentsAvailable, setFileAttachmentsAvailable] = useState(false)
   const [, setDraftStoreVersion] = useState(0)
   const composingRef = useRef(false)
   const submittingRef = useRef(false)
@@ -164,6 +166,18 @@ export function useDesktopComposerController({
     if (permissionModeVisible) return
     onPermissionChange('default')
   }, [onPermissionChange, permissionModeVisible])
+
+  useEffect(() => {
+    let cancelled = false
+    void desktopClient.isComposerFileAttachmentAvailable().then(available => {
+      if (!cancelled) setFileAttachmentsAvailable(available)
+    }, () => {
+      if (!cancelled) setFileAttachmentsAvailable(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(
     () =>
@@ -400,41 +414,54 @@ export function useDesktopComposerController({
       targetDraftKey,
     )
     const selected = await desktopClient.chooseComposerFiles()
-    if (attachmentGenerationRef.current.get(targetDraftKey) !== generation) {
-      return
-    }
-    appendAttachments(targetDraftKey, selected)
+    await appendAttachments(targetDraftKey, selected, generation)
   }
 
-  async function handleAddFilePaths(filePaths: string[]): Promise<void> {
-    if (filePaths.length === 0) return
+  async function handleAddFiles(files: FileList): Promise<void> {
+    if (files.length === 0) return
     const targetDraftKey = draftKey
     const generation = nextAttachmentGeneration(
       attachmentGenerationRef.current,
       targetDraftKey,
     )
-    await desktopClient.authorizeComposerFilePaths(filePaths)
-    const selected = await desktopClient.readComposerFiles(filePaths)
-    if (attachmentGenerationRef.current.get(targetDraftKey) !== generation) {
-      return
-    }
-    appendAttachments(targetDraftKey, selected)
+    const { selectDroppedComposerAttachments } = await import(
+      './composerAttachmentSelection.js'
+    )
+    const selected = await selectDroppedComposerAttachments(
+      files,
+      file => desktopClient.getComposerFilePath(file),
+      paths => desktopClient.grantComposerFilePaths(paths),
+    )
+    await appendAttachments(targetDraftKey, selected, generation)
   }
 
-  function appendAttachments(
+  async function appendAttachments(
     targetDraftKey: ComposerDraftKey,
     nextAttachments: DesktopComposerAttachment[],
-  ): void {
+    generation: number,
+  ): Promise<void> {
     if (nextAttachments.length === 0) return
+    const { mergeComposerAttachments } = await import(
+      './composerAttachmentSelection.js'
+    )
+    if (attachmentGenerationRef.current.get(targetDraftKey) !== generation) return
+    const { accepted, error } = mergeComposerAttachments(attachments, nextAttachments)
+    if (error) {
+      const outcome: ComposerSubmitOutcome = {
+        status: 'failed',
+        phase: 'prepare',
+        message: error,
+      }
+      setLastSubmitOutcome(outcome)
+      composerDraftStore.setSubmitOutcome(targetDraftKey, outcome)
+    }
     if (onAppendAttachmentsForDraft) {
-      onAppendAttachmentsForDraft(targetDraftKey, nextAttachments)
+      onAppendAttachmentsForDraft(targetDraftKey, accepted)
       return
     }
     onAttachmentsChange([
       ...attachments,
-      ...nextAttachments.filter(
-        attachment => !attachmentIds.has(attachment.id),
-      ),
+      ...accepted.filter(attachment => !attachmentIds.has(attachment.id)),
     ])
   }
 
@@ -468,8 +495,9 @@ export function useDesktopComposerController({
     branchName,
     canSubmit,
     effectivePermissionMode,
+    fileAttachmentsAvailable,
     goalModeEnabled,
-    handleAddFilePaths,
+    handleAddFiles,
     handleCommandError,
     handleCompact,
     handleOpenFiles,
@@ -554,6 +582,7 @@ function getUnsupportedAttachmentReason(
   const supportedInputs = new Set(metadata.modalities.input)
   const unsupported = attachments.find(attachment => {
     if (attachment.status === 'error') return false
+    if (attachment.storage === 'local-path') return false
     return !supportedInputs.has(attachment.kind)
   })
   if (!unsupported) return null
@@ -578,14 +607,6 @@ function attachmentKindLabel(
     case 'binary':
       return '文件'
   }
-}
-
-export function getDesktopComposerBranchName(
-  workspace: DesktopWorkspace | null,
-): string {
-  if (!workspace) return '无项目'
-  if (workspace.isGitRepo === false) return '未检测到 Git 分支'
-  return workspace.branchName ?? '未检测到 Git 分支'
 }
 
 function sessionPath(sessionId: string): string {

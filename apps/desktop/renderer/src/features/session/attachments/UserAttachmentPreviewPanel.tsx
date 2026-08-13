@@ -49,6 +49,13 @@ export type FormattedAttachmentText = {
 }
 
 export function UserAttachmentPreviewPanel({ tab }: Props): React.ReactNode {
+  if (tab.attachment.kind === 'directory') {
+    return <DirectoryAttachmentPreview tab={tab} />
+  }
+  return <UserAttachmentFilePreview tab={tab} />
+}
+
+function UserAttachmentFilePreview({ tab }: Props): React.ReactNode {
   const state = useUserAttachmentPreview(tab)
 
   if (state.status === 'loading') {
@@ -68,13 +75,130 @@ export function UserAttachmentPreviewPanel({ tab }: Props): React.ReactNode {
     ? encoding === 'base64' && IMAGE_MEDIA_TYPES.has(attachment.mediaType)
     : encoding === 'utf8'
   if (!supported) {
-    return <div className="right-dock-empty-state">暂不支持预览此附件。</div>
+    return (
+      <div className="right-dock-empty-state">
+        <strong>{attachment.name}</strong>
+        <span>{attachment.mediaType} · {formatByteSize(attachment.sizeBytes)}</span>
+        <span>不支持应用内预览，但仍会作为本地路径上下文提供给 Agent。</span>
+      </div>
+    )
   }
 
   return attachment.kind === 'image' ? (
     <ImageAttachmentPreview value={state.value} />
   ) : (
     <TextAttachmentPreview value={state.value} />
+  )
+}
+
+type DirectoryEntry = {
+  name: string
+  relativePath: string
+  kind: 'file' | 'directory'
+}
+
+function DirectoryAttachmentPreview({ tab }: Props): React.ReactNode {
+  const [relativePath, setRelativePath] = useState('')
+  const [entries, setEntries] = useState<DirectoryEntry[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    const request = tab.source.storage === 'draft-path'
+      ? desktopClient.listDraftComposerPath({
+          grantId: tab.source.grantId,
+          ...(relativePath ? { relativePath } : {}),
+          limit: 200,
+        }).then(result => result.entries.map(entry => ({
+          name: entry.name,
+          relativePath: entry.relativePath,
+          kind: entry.pathKind,
+        })))
+      : tab.source.storage === 'thread-path'
+        ? desktopClient.listLocalContextPath({
+            threadId: tab.source.threadId,
+            referenceId: tab.source.referenceId,
+            ...(relativePath ? { relativePath } : {}),
+            limit: 200,
+          }).then(result => result.entries.map(entry => ({
+            name: entry.name,
+            relativePath: entry.relativePath,
+            kind: entry.kind,
+          })))
+        : Promise.resolve([])
+    void request.then(next => {
+      if (cancelled) return
+      setEntries(next)
+      setLoading(false)
+    }, () => {
+      if (cancelled) return
+      setError('目录读取失败，请重试。')
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [relativePath, tab])
+
+  const openEntry = (entry: DirectoryEntry): void => {
+    if (entry.kind === 'directory') {
+      setRelativePath(entry.relativePath)
+      return
+    }
+    const nextTab: UserAttachmentPreviewTab = {
+      ...tab,
+      attachment: { ...tab.attachment, kind: 'binary', name: entry.name },
+      source: tab.source.storage === 'draft-path'
+        ? { ...tab.source, relativePath: entry.relativePath }
+        : tab.source.storage === 'thread-path'
+          ? { ...tab.source, relativePath: entry.relativePath }
+          : tab.source,
+    }
+    // Keep directory navigation state local while reusing the exact file preview adapter.
+    setOpenedFile(nextTab)
+  }
+  const [openedFile, setOpenedFile] = useState<UserAttachmentPreviewTab | null>(null)
+  if (openedFile) {
+    return (
+      <section style={panelStyle}>
+        <Button color="secondary" onClick={() => setOpenedFile(null)}>返回目录</Button>
+        <UserAttachmentFilePreview tab={openedFile} />
+      </section>
+    )
+  }
+  const parent = relativePath.split(/[\\/]/u).slice(0, -1).join('/')
+  return (
+    <section style={panelStyle}>
+      <header className="file-breadcrumb-toolbar">
+        <div className="file-breadcrumb-toolbar__path">
+          <strong>{tab.attachment.name}</strong>
+          <span>{relativePath || '目录根'}</span>
+        </div>
+        {relativePath ? (
+          <Button color="secondary" onClick={() => setRelativePath(parent)}>返回上级</Button>
+        ) : null}
+      </header>
+      {loading ? <div className="right-dock-empty-state">正在读取目录…</div> : null}
+      {error ? <div className="right-dock-empty-state">{error}</div> : null}
+      {!loading && !error ? (
+        <div className="right-dock-file-preview-scroll-area">
+          {entries.length ? entries.map(entry => (
+            <button
+              className="chat-input__dropdown-item"
+              key={entry.relativePath}
+              onClick={() => openEntry(entry)}
+              type="button"
+            >
+              <span>{entry.kind === 'directory' ? '📁' : '📄'}</span>
+              <span>{entry.name}</span>
+            </button>
+          )) : <div className="right-dock-empty-state">目录为空</div>}
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -392,10 +516,10 @@ export function clampImageScale(scale: number): number {
 
 function saveOriginalAttachment(value: LoadedUserAttachment) {
   return desktopClient.saveAttachmentToDownloads({
-    kind: value.attachment.kind,
+    kind: value.attachment.kind === 'image' ? 'image' : 'text',
     name: value.attachment.name,
     mediaType: value.attachment.mediaType,
-    encoding: value.encoding,
+    encoding: value.encoding ?? 'utf8',
     data: value.data,
   })
 }

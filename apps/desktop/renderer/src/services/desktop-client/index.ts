@@ -4,6 +4,7 @@ import { defaultDesktopClientEnvironment } from './environment.js'
 import type {
   CodePilotXDesktopClient,
   DesktopAttachmentApi,
+  DesktopLocalContextApi,
   DesktopClientEnvironment,
 } from './types.js'
 
@@ -41,6 +42,7 @@ export type {
   DesktopClientEnvironment,
   DesktopReleaseNotesApi,
   DesktopRuntimeCapabilityApi,
+  DesktopLocalContextApi,
   DesktopUsageApi,
   DesktopReviewAgentComment,
   DesktopReviewAgentFileDiff,

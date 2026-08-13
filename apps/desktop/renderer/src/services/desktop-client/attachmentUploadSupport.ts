@@ -14,6 +14,7 @@ export async function buildAgentAttachmentUploads(
   )]
   const seenDraftAttachmentIds = new Set<string>()
   const draftAttachments = (input.attachments ?? []).filter(attachment => {
+    if (attachment.storage === 'local-path') return false
     if (
       retainedAttachmentIds.includes(attachment.id)
       || seenDraftAttachmentIds.has(attachment.id)
@@ -21,7 +22,21 @@ export async function buildAgentAttachmentUploads(
     seenDraftAttachmentIds.add(attachment.id)
     return true
   })
-  if (retainedAttachmentIds.length + draftAttachments.length > MAX_ATTACHMENTS_PER_MESSAGE) {
+  const retainedContextReferenceIds = new Set(
+    (input.retainedContextReferenceIds ?? []).filter(Boolean),
+  )
+  const localPathCount = new Set(
+    (input.attachments ?? [])
+      .filter(attachment => attachment.storage === 'local-path')
+      .map(attachment => attachment.path.toLocaleLowerCase()),
+  ).size
+  if (
+    retainedAttachmentIds.length
+      + retainedContextReferenceIds.size
+      + draftAttachments.length
+      + localPathCount
+    > MAX_ATTACHMENTS_PER_MESSAGE
+  ) {
     throw new Error(`每次最多发送 ${MAX_ATTACHMENTS_PER_MESSAGE} 个附件。`)
   }
 

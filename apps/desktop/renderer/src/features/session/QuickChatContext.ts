@@ -16,7 +16,7 @@ import type {
 } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
 import type { NewSessionRecentTask } from './newSessionSuggestions.js'
-import type { Attachment } from '@codepilotx/shared/thread'
+import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
 
 export type ProviderModelOption = {
   providerID: string
@@ -63,6 +63,7 @@ export type QuickChatContextValue = {
     options: MarkdownFileOpenOptions,
   ) => void
   onOpenAttachment: (attachment: Attachment) => void
+  onOpenLocalContext: (reference: LocalContextReference) => void
   canCopyFileReferenceContents: (
     reference: MarkdownFileReference,
   ) => boolean
@@ -102,6 +103,7 @@ export type QuickChatContextValue = {
   composerProps: DesktopComposerProps | null
   composerDraft?: QuickChatComposerDraftBridge
   bottomPanelVisible: boolean
+  layoutResizeActive: boolean
   onToggleBottomPanel: () => void
   rightDockPlanEventId: string | null
 }

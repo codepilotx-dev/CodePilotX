@@ -108,6 +108,7 @@ const RENDERER_CAPABILITIES = [
   'turn.steer.v1',
   'turn.queue.management.v1',
   'attachments.v1',
+  'local-context.paths.v1',
   'memory.v2',
   'pets.management.v1',
   'workspace.editor.v1',
@@ -158,11 +159,13 @@ import type {
   CodePilotXDesktopClient,
   DesktopAttachmentApi,
   DesktopClientEnvironment,
+  DesktopLocalContextApi,
   DesktopRuntimeCapabilityApi,
 } from './types.js'
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
-  mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi,
+  mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
+    & DesktopLocalContextApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -923,6 +926,32 @@ export function createAgentSessionDesktopClient(
     return response.attachments.map(attachment => attachment.id)
   }
 
+  async function importAgentMessageContext(
+    sessionId: string,
+    input: DesktopUserMessageInput,
+  ): Promise<{ attachmentIds: string[]; contextReferenceIds: string[] }> {
+    const attachmentIds = await importAgentAttachments(input)
+    const { importLocalContextReferences } = await import(
+      './localContextImportSupport.js'
+    )
+    const contextReferenceIds = await importLocalContextReferences(
+      sessionId,
+      input,
+      async (threadId, paths) => {
+        requireAgentCapability('local-context.paths.v1')
+        return rpc.call('context/path/import', {
+          threadId,
+          paths,
+          operationId: crypto.randomUUID(),
+        })
+      },
+    )
+    return {
+      attachmentIds,
+      contextReferenceIds,
+    }
+  }
+
   async function findPendingInteraction(
     predicate: (interaction: PendingInteraction) => boolean,
     threadId?: string,
@@ -1136,7 +1165,7 @@ export function createAgentSessionDesktopClient(
   const turnQueueClient = createAgentTurnQueueClient({
     rpc,
     awaitPendingSettingsUpdate,
-    importAttachments: importAgentAttachments,
+    importMessageContext: importAgentMessageContext,
     resolveModelRef: resolveAgentModelRef,
     permissionConfigForSession,
     taskModeForSession,
@@ -1351,14 +1380,64 @@ export function createAgentSessionDesktopClient(
       : async () => {
           throw new Error('当前 Agent 不提供独立工作区 patch；请使用 Review 数据源。')
         },
+    isComposerFileAttachmentAvailable: async () => {
+      if (!(await isAgentAvailable())) return false
+      return agentCapabilities.has('attachments.v1')
+        && agentCapabilities.has('local-context.paths.v1')
+        && Boolean(
+          environment.window?.codePilotXDesktop?.chooseComposerFiles
+          && environment.window.codePilotXDesktop.grantComposerPaths
+          && environment.window.codePilotXDesktop.getPathForFile,
+        )
+    },
+    chooseComposerFiles: async () => {
+      const bridge = environment.window?.codePilotXDesktop
+      if (!bridge?.chooseComposerFiles || !bridge.readComposerPathGrant) return []
+      const { composerAttachmentsFromPathGrants } = await import(
+        './composerPathAttachmentSupport.js'
+      )
+      return composerAttachmentsFromPathGrants(
+        await bridge.chooseComposerFiles(),
+        bridge as Required<Pick<typeof bridge, 'readComposerPathGrant'>>,
+      )
+    },
+    grantComposerFilePaths: async filePaths => {
+      const bridge = environment.window?.codePilotXDesktop
+      if (!bridge?.grantComposerPaths || !bridge.readComposerPathGrant) return []
+      const { composerAttachmentsFromPathGrants } = await import(
+        './composerPathAttachmentSupport.js'
+      )
+      return composerAttachmentsFromPathGrants(
+        await bridge.grantComposerPaths(filePaths),
+        bridge as Required<Pick<typeof bridge, 'readComposerPathGrant'>>,
+      )
+    },
+    getComposerFilePath: file =>
+      environment.window?.codePilotXDesktop?.getPathForFile?.(file) ?? '',
     readAttachment: attachmentId => withAgentOrMock(
       () => rpc.call('attachment/read', { attachmentId }),
       () => mockClient.readAttachment(attachmentId),
     ),
+    readLocalContextPath: input => withRequiredAgent(() => {
+      requireAgentCapability('local-context.paths.v1')
+      return rpc.call('context/path/read', input)
+    }),
+    listLocalContextPath: input => withRequiredAgent(() => {
+      requireAgentCapability('local-context.paths.v1')
+      return rpc.call('context/path/list', input)
+    }),
     saveAttachmentToDownloads: input =>
       environment.window?.codePilotXDesktop?.saveAttachmentToDownloads
         ? environment.window.codePilotXDesktop.saveAttachmentToDownloads(input)
         : mockClient.saveAttachmentToDownloads(input),
+    readDraftComposerPath: input =>
+      environment.window?.codePilotXDesktop?.readComposerPathGrant
+        ? environment.window.codePilotXDesktop.readComposerPathGrant(input)
+        : mockClient.readDraftComposerPath(input),
+    listDraftComposerPath: input =>
+      environment.window?.codePilotXDesktop?.listComposerPathGrant
+        ? environment.window.codePilotXDesktop.listComposerPathGrant(input)
+        : mockClient.listDraftComposerPath(input),
     getRuntimeCapabilities: () => withAgentOrMock<
       readonly ProtocolCapability[]
     >(
@@ -2672,13 +2751,20 @@ export function createAgentSessionDesktopClient(
         async () => {
           const shouldReplaceAttachments = input.attachments !== undefined
             || input.retainedAttachmentIds !== undefined
-          const attachmentIds = shouldReplaceAttachments
-            ? await importAgentAttachments(input)
+          const shouldReplaceContextReferences = input.attachments !== undefined
+            || input.retainedContextReferenceIds !== undefined
+          const imported = shouldReplaceAttachments || shouldReplaceContextReferences
+            ? await importAgentMessageContext(sessionId, input)
             : undefined
           await turnQueueClient.callQueueMutation(sessionId, 'queue/update', {
             inputId: followUpId,
             content: desktopUserMessageInputToPreviewText(input),
-            ...(shouldReplaceAttachments ? { attachmentIds } : {}),
+            ...(shouldReplaceAttachments
+              ? { attachmentIds: imported?.attachmentIds ?? [] }
+              : {}),
+            ...(shouldReplaceContextReferences
+              ? { contextReferenceIds: imported?.contextReferenceIds ?? [] }
+              : {}),
           })
           const snapshot = await loadAgentSessionSnapshot(sessionId)
           emitSessionStoreChange()

@@ -5,7 +5,7 @@ import type { UserAttachmentPreviewTab } from '../../layout/dock/rightDockState.
 export type LoadedUserAttachment = {
   attachment: UserAttachmentPreviewTab['attachment']
   data: string
-  encoding: 'base64' | 'utf8'
+  encoding: 'base64' | 'utf8' | null
 }
 
 export type UserAttachmentLoadState =
@@ -49,19 +49,53 @@ export function useUserAttachmentPreview(
 
     let cancelled = false
     setState({ status: 'loading' })
-    void desktopClient.readAttachment(tab.source.attachmentId).then(
+    const request = tab.source.storage === 'thread'
+      ? desktopClient.readAttachment(tab.source.attachmentId).then(result => ({
+          attachment: result.attachment,
+          data: result.data,
+          encoding: result.encoding,
+        }))
+      : tab.source.storage === 'draft-path'
+        ? desktopClient.readDraftComposerPath({
+            grantId: tab.source.grantId,
+            ...(tab.source.relativePath ? { relativePath: tab.source.relativePath } : {}),
+          }).then(result => ({
+            attachment: {
+              id: tab.attachment.id,
+              kind: result.kind,
+              name: result.name,
+              mediaType: result.mediaType,
+              sizeBytes: result.sizeBytes,
+            },
+            data: result.data ?? '',
+            encoding: result.encoding ?? null,
+          }))
+        : desktopClient.readLocalContextPath({
+            threadId: tab.source.threadId,
+            referenceId: tab.source.referenceId,
+            ...(tab.source.relativePath ? { relativePath: tab.source.relativePath } : {}),
+          }).then(result => ({
+            attachment: {
+              id: result.reference.id,
+              kind: result.preview === 'unsupported' ? 'binary' : result.preview,
+              name: result.relativePath?.split(/[\\/]/u).pop() ?? result.reference.name,
+              mediaType: result.mediaType ?? 'application/octet-stream',
+              sizeBytes: result.range?.total ?? 0,
+            },
+            data: result.data ?? '',
+            encoding: result.encoding,
+          }))
+    void request.then(
       result => {
         if (cancelled || generationRef.current !== generation) return
-        if (result.attachment.kind !== 'image' && result.attachment.kind !== 'text') {
-          setState({ status: 'error', message: '暂不支持预览此附件。' })
-          return
-        }
         setState({
           status: 'ready',
           value: {
             attachment: {
               id: result.attachment.id,
-              kind: result.attachment.kind,
+              kind: result.attachment.kind === 'image' || result.attachment.kind === 'text'
+                ? result.attachment.kind
+                : 'binary',
               name: result.attachment.name,
               mediaType: result.attachment.mediaType,
               sizeBytes: result.attachment.sizeBytes,

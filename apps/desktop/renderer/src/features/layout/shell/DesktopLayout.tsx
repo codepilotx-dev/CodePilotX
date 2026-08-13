@@ -8,11 +8,8 @@ import {
 } from '../../../services/externalOpenTargetsStore.js'
 import type React from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import {
-  DesktopComposer,
-  getDesktopComposerBranchName,
-  type DesktopComposerProps,
-} from '../../session/composer/DesktopComposer.js'
+import type { DesktopComposerProps } from '../../session/composer/DesktopComposer.js'
+import { getDesktopComposerBranchName } from '../../session/composer/composerWorkspacePresentation.js'
 import { composerDraftStore } from '../../session/composer/composerDraftStore.js'
 import type { ComposerDraftKey } from '../../session/composer/composerTypes.js'
 import { deriveWorkflowSessionState } from '../../../../shared/workflowReducer.js'
@@ -87,7 +84,7 @@ import type {
   ModelProviderID,
   SidebarSectionId,
 } from '../../../../shared/types.js'
-import type { Attachment } from '@codepilotx/shared/thread'
+import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   QUICK_CHAT_PATH,
@@ -106,6 +103,8 @@ import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { useSideChatController } from '../dock/useSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
+import { useLiveResizeValue } from '../useLiveResizeValue.js'
+import type { ResizePhase } from '../useSidebarResizeCollapseConfirm.js'
 import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
 import type {
   MarkdownFileOpenOptions,
@@ -127,6 +126,7 @@ const SubagentDockContent = lazy(() => import('../../session/subagents/SubagentD
 const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
 const WorkbenchPanel = lazy(() => import('../dock/RightDock.js').then(module => ({ default: module.WorkbenchPanel })))
 const CommandMenuDialog = lazy(() => import('../../search/CommandMenuDialog.js').then(module => ({ default: module.CommandMenuDialog })))
+const DesktopComposer = lazy(() => import('../../session/composer/DesktopComposer.js').then(module => ({ default: module.DesktopComposer })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -388,6 +388,12 @@ export function DesktopLayout(): React.ReactNode {
   } = useWorkbenchShellController()
   const rightDockFullWidth =
     rightDockVisible && workbenchPanelState.rightFullWidth
+  const rightPanelCommittedSize = rightDockFullWidth
+    ? Math.max(workspaceWidth, rightDockWidth)
+    : rightDockWidth
+  const rightPanelLiveResize = useLiveResizeValue(rightPanelCommittedSize)
+  const bottomPanelLiveResize = useLiveResizeValue(bottomPanelHeight)
+  const [rightResizePhase, setRightResizePhase] = useState<ResizePhase>('idle')
   const mainRouteRef = useRef<HTMLDivElement>(null)
   const commandMenuInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -897,6 +903,16 @@ export function DesktopLayout(): React.ReactNode {
       })
   }, [openRightDockTab])
 
+  const handleOpenThreadLocalContext = useCallback((
+    reference: LocalContextReference,
+  ): void => {
+    if (!sessionId) return
+    void import('../../session/attachments/attachmentPreviewDescriptor.js')
+      .then(({ createThreadLocalContextPreviewTab }) => {
+        openRightDockTab(createThreadLocalContextPreviewTab(sessionId, reference))
+      })
+  }, [openRightDockTab, sessionId])
+
   const handleOpenReview = useCallback((): void => {
     if (bottomPanelState.tabIds.includes('review')) {
       movePanelTab('bottom', 'right', 'review')
@@ -1134,8 +1150,7 @@ export function DesktopLayout(): React.ReactNode {
     if (filePaths.length === 0) return
     const targetDraftKey = mainComposerDraftKey
     void desktopClient
-      .authorizeComposerFilePaths(filePaths)
-      .then(() => desktopClient.readComposerFiles(filePaths))
+      .grantComposerFilePaths(filePaths)
       .then(nextAttachments => {
         if (nextAttachments.length === 0) return
         appendComposerAttachmentsForDraft(targetDraftKey, nextAttachments)
@@ -3105,6 +3120,7 @@ export function DesktopLayout(): React.ReactNode {
           onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
           onOpenFileReference: handleOpenMarkdownFileReference,
           onOpenAttachment: handleOpenThreadAttachment,
+          onOpenLocalContext: handleOpenThreadLocalContext,
           onSubmitEditedUserMessage: async input => {
             await sideChatSubmitToSession(tab.threadId, input)
           },
@@ -3302,6 +3318,7 @@ export function DesktopLayout(): React.ReactNode {
               handleCopyMarkdownFileReferenceContents,
             onOpenFileReference: handleOpenMarkdownFileReference,
             onOpenAttachment: handleOpenThreadAttachment,
+            onOpenLocalContext: handleOpenThreadLocalContext,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
             onAppendSideChatText: handleAppendSideChatText,
@@ -3365,6 +3382,7 @@ export function DesktopLayout(): React.ReactNode {
               replace: setInput,
             },
             bottomPanelVisible,
+            layoutResizeActive: rightResizePhase !== 'idle',
             onToggleBottomPanel: toggleBottomPanelVisible,
             rightDockPlanEventId,
             }}
@@ -3376,11 +3394,6 @@ export function DesktopLayout(): React.ReactNode {
                   style={
                     {
                       '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-                      '--workspace-right-panel-live-width': rightDockVisible
-                        ? rightDockFullWidth
-                          ? '100%'
-                          : `${rightDockWidth}px`
-                        : '0px',
                     } as React.CSSProperties
                   }
                 >
@@ -3418,21 +3431,22 @@ export function DesktopLayout(): React.ReactNode {
                     </div>
                     <WorkbenchPanelPresence
                       fullWidth={rightDockFullWidth}
+                      liveResize={rightPanelLiveResize}
                       mainRouteRef={mainRouteRef}
+                      workspaceRef={workspaceRef}
                       minSize={rightDockMinWidth}
-                      size={
-                        rightDockFullWidth
-                          ? Math.max(workspaceWidth, rightDockWidth)
-                          : rightDockWidth
-                      }
+                      size={rightPanelCommittedSize}
                       target="right"
                       visible={rightDockVisible}
+                      onResizePhaseChange={setRightResizePhase}
                     >
                       {rightDockNode}
                     </WorkbenchPanelPresence>
                   </div>
                   <WorkbenchPanelPresence
+                    liveResize={bottomPanelLiveResize}
                     mainRouteRef={mainRouteRef}
+                    workspaceRef={workspaceRef}
                     minSize={bottomPanelMinHeight}
                     size={bottomPanelHeight}
                     target="bottom"

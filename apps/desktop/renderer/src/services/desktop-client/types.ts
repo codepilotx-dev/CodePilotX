@@ -18,11 +18,16 @@ import type {
   DesktopAttachmentIpcBridge,
   DesktopAttachmentSaveInput,
   DesktopAttachmentSaveResult,
+  DesktopComposerPathListInput,
+  DesktopComposerPathListResult,
+  DesktopComposerPathPreview,
+  DesktopComposerPathReadInput,
 } from '@codepilotx/shared/desktop-attachment-ipc'
 import type { DesktopBrowserIpcBridge } from '@codepilotx/shared/desktop-browser-ipc'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
+  DesktopComposerAttachment,
   DesktopGitStatus,
   DesktopReviewSource,
   DesktopSessionSnapshot,
@@ -338,12 +343,31 @@ export type DesktopRuntimeCapabilityApi = {
 }
 
 export type DesktopAttachmentApi = {
+  isComposerFileAttachmentAvailable(): Promise<boolean>
+  chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
+  grantComposerFilePaths(filePaths: string[]): Promise<DesktopComposerAttachment[]>
+  getComposerFilePath(file: File): string
   readAttachment(
     attachmentId: string,
   ): Promise<RpcResult<'attachment/read'>>
   saveAttachmentToDownloads(
     input: DesktopAttachmentSaveInput,
   ): Promise<DesktopAttachmentSaveResult>
+  readDraftComposerPath(
+    input: DesktopComposerPathReadInput,
+  ): Promise<DesktopComposerPathPreview>
+  listDraftComposerPath(
+    input: DesktopComposerPathListInput,
+  ): Promise<DesktopComposerPathListResult>
+}
+
+export type DesktopLocalContextApi = {
+  readLocalContextPath(
+    input: RpcParams<'context/path/read'>,
+  ): Promise<RpcResult<'context/path/read'>>
+  listLocalContextPath(
+    input: RpcParams<'context/path/list'>,
+  ): Promise<RpcResult<'context/path/list'>>
 }
 
 export type CodePilotXDesktopClient = DesktopApi &
@@ -355,4 +379,5 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopUsageApi &
   DesktopReleaseNotesApi &
   DesktopRuntimeCapabilityApi &
-  DesktopAttachmentApi
+  DesktopAttachmentApi &
+  DesktopLocalContextApi

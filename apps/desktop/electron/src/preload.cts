@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron"
+import { contextBridge, ipcRenderer, webUtils } from "electron"
 import type { DesktopThemeSettingsV6 } from "./settings/appearance-settings-store.js"
 import type {
   DesktopPetOverlayBridge,
@@ -42,6 +42,11 @@ import type {
   DesktopAttachmentIpcBridge,
   DesktopAttachmentSaveInput,
   DesktopAttachmentSaveResult,
+  DesktopComposerPathGrant,
+  DesktopComposerPathListInput,
+  DesktopComposerPathListResult,
+  DesktopComposerPathPreview,
+  DesktopComposerPathReadInput,
 } from "@codepilotx/shared/desktop-attachment-ipc"
 import type {
   CreateOrRestoreDesktopBrowserInput,
@@ -115,6 +120,10 @@ const DESKTOP_NOTIFICATION_IPC_CHANNELS = {
 
 const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
   saveToDownloads: "desktop-attachment:save-to-downloads",
+  chooseComposerFiles: "desktop-attachment:choose-composer-files",
+  grantComposerPaths: "desktop-attachment:grant-composer-paths",
+  readComposerPathGrant: "desktop-attachment:read-composer-path-grant",
+  listComposerPathGrant: "desktop-attachment:list-composer-path-grant",
 } as const satisfies typeof import("@codepilotx/shared/desktop-attachment-ipc").DESKTOP_ATTACHMENT_IPC_CHANNELS
 
 const DESKTOP_BROWSER_IPC_CHANNELS = {
@@ -153,6 +162,7 @@ function isNotificationIdentifier(value: unknown): value is string {
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
+const pendingComposerDropPaths = new Set<string>()
 
 interface DesktopExternalOpenTarget {
   targetId: string
@@ -225,6 +235,38 @@ const desktop = {
     input: DesktopAttachmentSaveInput,
   ): Promise<DesktopAttachmentSaveResult> =>
     ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.saveToDownloads, input),
+  chooseComposerFiles: (): Promise<DesktopComposerPathGrant[]> =>
+    ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.chooseComposerFiles),
+  grantComposerPaths: (
+    paths: readonly string[],
+  ): Promise<DesktopComposerPathGrant[]> => {
+    if (
+      !Array.isArray(paths)
+      || paths.some(path =>
+        typeof path !== "string" || !pendingComposerDropPaths.has(path),
+      )
+    ) {
+      return Promise.reject(new Error("本地文件未通过拖放或粘贴选择"))
+    }
+    for (const path of paths) pendingComposerDropPaths.delete(path)
+    return ipcRenderer.invoke(
+      DESKTOP_ATTACHMENT_IPC_CHANNELS.grantComposerPaths,
+      paths,
+    )
+  },
+  getPathForFile: (file: File): string => {
+    const path = webUtils.getPathForFile(file)
+    if (path) pendingComposerDropPaths.add(path)
+    return path
+  },
+  readComposerPathGrant: (
+    input: DesktopComposerPathReadInput,
+  ): Promise<DesktopComposerPathPreview> =>
+    ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.readComposerPathGrant, input),
+  listComposerPathGrant: (
+    input: DesktopComposerPathListInput,
+  ): Promise<DesktopComposerPathListResult> =>
+    ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.listComposerPathGrant, input),
   minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
   toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke("window:toggle-maximize"),
   close: (): Promise<void> => ipcRenderer.invoke("window:close"),

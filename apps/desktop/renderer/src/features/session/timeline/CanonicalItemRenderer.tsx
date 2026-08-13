@@ -25,7 +25,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import type { Attachment, Input, Item } from "@codepilotx/shared/thread";
+import type { Attachment, Input, Item, LocalContextReference } from "@codepilotx/shared/thread";
 import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 import type {
@@ -67,6 +67,11 @@ const LazyComposerEditor = React.lazy(async () => {
 const LazyThreadAttachmentRows = React.lazy(async () => {
   const module = await import("../attachments/AttachmentRows.js");
   return { default: module.ThreadAttachmentRows };
+});
+
+const LazyLocalContextRows = React.lazy(async () => {
+  const module = await import("../attachments/LocalContextRows.js");
+  return { default: module.LocalContextRows };
 });
 
 type ItemOf<T extends Item["type"]> = Extract<Item, { type: T }>;
@@ -162,9 +167,11 @@ export type CanonicalItemRendererProps = {
 
 export function CanonicalUserInput({
   attachments,
+  contextReferences,
   input,
 }: {
   attachments: readonly Attachment[];
+  contextReferences: readonly LocalContextReference[];
   input: Input;
 }): React.ReactNode {
   const {
@@ -172,6 +179,7 @@ export function CanonicalUserInput({
     onCopyFileReferenceContents,
     onOpenFileReference,
     onOpenAttachment,
+    onOpenLocalContext,
     onSubmitEditedUserMessage,
     sessionStatus,
     workspacePath,
@@ -181,6 +189,9 @@ export function CanonicalUserInput({
   const [retainedAttachmentIds, setRetainedAttachmentIds] = React.useState<
     string[]
   >(() => [...(input.attachmentIds ?? [])]);
+  const [retainedContextReferenceIds, setRetainedContextReferenceIds] = React.useState<
+    string[]
+  >(() => [...(input.contextReferenceIds ?? [])]);
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const editorRef = React.useRef<ComposerEditorHandle | null>(null);
@@ -191,6 +202,12 @@ export function CanonicalUserInput({
       ),
     [attachments, retainedAttachmentIds],
   );
+  const retainedContextReferences = React.useMemo(
+    () => contextReferences.filter(reference =>
+      retainedContextReferenceIds.includes(reference.id),
+    ),
+    [contextReferences, retainedContextReferenceIds],
+  );
   const canSubmit =
     draft.trim().length > 0 &&
     !submitting &&
@@ -200,6 +217,7 @@ export function CanonicalUserInput({
   React.useEffect(() => {
     setDraft(input.content);
     setRetainedAttachmentIds([...(input.attachmentIds ?? [])]);
+    setRetainedContextReferenceIds([...(input.contextReferenceIds ?? [])]);
     setSubmitError(null);
     setEditing(false);
   }, [input.content, input.id]);
@@ -213,6 +231,7 @@ export function CanonicalUserInput({
   const cancelEditing = (): void => {
     setDraft(input.content);
     setRetainedAttachmentIds([...(input.attachmentIds ?? [])]);
+    setRetainedContextReferenceIds([...(input.contextReferenceIds ?? [])]);
     setSubmitError(null);
     setEditing(false);
   };
@@ -220,6 +239,7 @@ export function CanonicalUserInput({
   const startEditing = (): void => {
     setDraft(input.content);
     setRetainedAttachmentIds([...(input.attachmentIds ?? [])]);
+    setRetainedContextReferenceIds([...(input.contextReferenceIds ?? [])]);
     setSubmitError(null);
     setEditing(true);
   };
@@ -232,6 +252,7 @@ export function CanonicalUserInput({
       await onSubmitEditedUserMessage({
         text: draft.trim(),
         retainedAttachmentIds,
+        retainedContextReferenceIds,
       });
       setEditing(false);
     } catch (error) {
@@ -255,6 +276,19 @@ export function CanonicalUserInput({
                 onRemove={(attachmentId) =>
                   setRetainedAttachmentIds((current) =>
                     current.filter((id) => id !== attachmentId),
+                  )
+                }
+              />
+            </React.Suspense>
+          ) : null}
+          {retainedContextReferences.length > 0 ? (
+            <React.Suspense fallback={null}>
+              <LazyLocalContextRows
+                references={retainedContextReferences}
+                onOpen={onOpenLocalContext}
+                onRemove={(referenceId) =>
+                  setRetainedContextReferenceIds(current =>
+                    current.filter(id => id !== referenceId),
                   )
                 }
               />
@@ -319,6 +353,14 @@ export function CanonicalUserInput({
           <LazyThreadAttachmentRows
             attachments={attachments}
             onOpen={onOpenAttachment}
+          />
+        </React.Suspense>
+      ) : null}
+      {contextReferences.length > 0 ? (
+        <React.Suspense fallback={null}>
+          <LazyLocalContextRows
+            references={contextReferences}
+            onOpen={onOpenLocalContext}
           />
         </React.Suspense>
       ) : null}
@@ -785,9 +827,10 @@ export function PatchSummaryView({
         ))}
       </div>
       {hiddenFileCount > 0 ? (
-        <Button color="primary"
+        <Button
           aria-expanded={filesExpanded}
           className="canonical-patch-card__disclosure"
+          color="ghostSecondary"
           onClick={() => setFilesExpanded((expanded) => !expanded)}
         >
           {filesExpanded ? "收起文件" : `再显示 ${hiddenFileCount} 个文件`}

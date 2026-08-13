@@ -87,6 +87,7 @@ export type CanonicalThreadViewProps = {
   hasOlder: boolean;
   error: string | null;
   initialScrollOffset?: number;
+  layoutResizeActive?: boolean;
   listRef: React.RefObject<VirtualizerHandle | null>;
   navigationRef: React.Ref<ThreadTimelineNavigationHandle>;
   scrollRef: React.RefObject<HTMLElement | null>;
@@ -500,6 +501,7 @@ function CanonicalThreadViewComponent({
   hasOlder,
   error,
   initialScrollOffset,
+  layoutResizeActive,
   listRef,
   navigationRef,
   scrollRef,
@@ -605,6 +607,7 @@ function CanonicalThreadViewComponent({
         key={threadId}
         count={turns.length}
         initialScrollOffset={initialScrollOffset}
+        layoutResizeActive={layoutResizeActive}
         items={turns}
         listRef={listRef}
         navigationRef={navigationRef}
@@ -822,6 +825,9 @@ function CanonicalConversationTurnComponent({
           {entry.userItems.map((input) => (
             <CanonicalUserInput
               attachments={entry.attachments.filter((attachment) => input.attachmentIds?.includes(attachment.id))}
+              contextReferences={entry.contextReferences.filter(reference =>
+                input.contextReferenceIds?.includes(reference.id),
+              )}
               input={input}
               key={input.id}
             />

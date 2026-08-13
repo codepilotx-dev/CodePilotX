@@ -253,7 +253,6 @@ type Props = {
   selectedModelPreset: string;
   modelConfigured?: boolean;
   modelCatalogLoading?: boolean;
-  modelConfigurationMessage?: string;
   submitDisabledReason?: string;
   showThinkingOptions: boolean;
   deepSeekThinkingControls: boolean;
@@ -280,7 +279,7 @@ type Props = {
   ) => void;
   onProviderOpen?: (providerID: ModelProviderID) => void;
   onProviderSearch?: (providerID: ModelProviderID, query: string) => void;
-  onAddFiles?: (filePaths: string[]) => void;
+  onAddFiles?: (files: FileList) => void;
   onOpenFiles: () => void;
   onRemoveAttachment?: (attachmentId: string) => void;
   onOpenAttachment?: (attachment: DesktopComposerAttachment) => void;
@@ -360,7 +359,6 @@ export function ComposerCard({
   selectedModelPreset,
   modelConfigured = true,
   modelCatalogLoading = false,
-  modelConfigurationMessage,
   submitDisabledReason,
   showThinkingOptions,
   deepSeekThinkingControls,
@@ -481,6 +479,8 @@ export function ComposerCard({
     null,
   );
   const [isComposing, setIsComposing] = useState(false);
+  const [fileDragActive, setFileDragActive] = useState(false);
+  const fileDragDepthRef = useRef(0);
 
   useEffect(() => {
     if (submitOutcome?.status === "failed") editorRef.current?.focus();
@@ -511,12 +511,12 @@ export function ComposerCard({
   const selectedModelLabel = modelCatalogLoading
     ? "加载模型列表中……"
     : !modelConfigured
-      ? "未配置模型"
+      ? "配置模型"
       : (selectedModel?.label ?? "未选择模型");
   const selectedModelTitle = modelCatalogLoading
     ? "加载模型列表中……"
     : !modelConfigured
-      ? "未配置模型"
+      ? "打开模型配置"
       : (selectedModel?.label ?? "未选择模型");
   const selectedThinking = thinkingOptions.find(
     (option) => option.value === thinkingMode,
@@ -1036,10 +1036,11 @@ export function ComposerCard({
 
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
     if (!onAddFiles) return;
-    const filePaths = getFilePathsFromFileList(event.dataTransfer.files);
-    if (filePaths.length === 0) return;
+    fileDragDepthRef.current = 0;
+    setFileDragActive(false);
+    if (event.dataTransfer.files.length === 0) return;
     event.preventDefault();
-    onAddFiles(filePaths);
+    onAddFiles(event.dataTransfer.files);
   }
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
@@ -1190,13 +1191,31 @@ export function ComposerCard({
       data-placement={placement}
       data-surface={surface}
       aria-busy={submitting}
+      onDragEnter={(event) => {
+        if (!onAddFiles || !event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        fileDragDepthRef.current += 1;
+        setFileDragActive(true);
+      }}
+      onDragLeave={() => {
+        fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
+        if (fileDragDepthRef.current === 0) setFileDragActive(false);
+      }}
       onDragOver={(event) => {
-        if (event.dataTransfer.types.includes("Files")) {
+        if (onAddFiles && event.dataTransfer.types.includes("Files")) {
           event.preventDefault();
         }
       }}
       onDrop={handleFileDrop}
     >
+      {fileDragActive ? (
+        <div
+          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:rounded-xl tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised tw:text-sm tw:font-medium"
+          role="status"
+        >
+          Drop to attach
+        </div>
+      ) : null}
       <div
         className="composer composer-input-surface composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between"
         inert={submitting || undefined}
@@ -1382,9 +1401,8 @@ export function ComposerCard({
               }}
               onPasteFiles={(files) => {
                 if (!onAddFiles) return false;
-                const filePaths = getFilePathsFromFileList(files);
-                if (filePaths.length === 0) return false;
-                onAddFiles(filePaths);
+                if (files.length === 0) return false;
+                onAddFiles(files);
                 return true;
               }}
               placeholder={selectedSkillToken ? "" : composerPlaceholder}
@@ -1888,9 +1906,6 @@ export function ComposerCard({
                       )
                     ) : null}
                     <div className="rm-section-header">提供商</div>
-                    {providerOptions.length === 0 ? (
-                      <div className="rm-empty">未配置模型</div>
-                    ) : null}
                     {providerOptions.map((provider) => (
                       <SearchablePopoverContent
                         key={provider.providerID}
@@ -2017,9 +2032,7 @@ export function ComposerCard({
               title={
                 isRunning && !canSubmit
                   ? "停止 Esc"
-                  : modelConfigured
-                    ? (submitDisabledReason ?? "发送")
-                    : (modelConfigurationMessage ?? "未配置模型")
+                  : (submitDisabledReason ?? "发送")
               }
               type="button"
             >
@@ -2357,14 +2370,6 @@ function composerSlashCommandIcon(
     case "status":
       return <Activity size={14} />;
   }
-}
-
-function getFilePathsFromFileList(files: FileList): string[] {
-  return Array.from(files)
-    .map((file) => (file as File & { path?: string }).path)
-    .filter(
-      (path): path is string => typeof path === "string" && path.length > 0,
-    );
 }
 
 export function shouldSubmitComposerKey(

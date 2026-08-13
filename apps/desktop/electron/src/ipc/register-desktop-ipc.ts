@@ -21,6 +21,8 @@ import {
 import {
   DESKTOP_ATTACHMENT_IPC_CHANNELS,
   type DesktopAttachmentSaveInput,
+  type DesktopComposerPathListInput,
+  type DesktopComposerPathReadInput,
 } from "@codepilotx/shared/desktop-attachment-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { isSafeExternalUrl } from "../security/navigation.js"
@@ -36,6 +38,7 @@ import type { WindowManager } from "../windows/window-manager.js"
 import type { DesktopAutoUpdater } from "../update/desktop-auto-updater.js"
 import type { ExternalOpenTargetService } from "./external-open-targets.js"
 import type { AttachmentDownloadService } from "./attachment-download-service.js"
+import type { ComposerPathGrantService } from "./composer-path-grant-service.js"
 
 const API_KEY_CLIPBOARD_CLEAR_DELAY_MS = 60_000 as const
 
@@ -45,6 +48,7 @@ interface DesktopIpcDependencies {
   externalOpenTargets: ExternalOpenTargetService
   updater: DesktopAutoUpdater
   attachmentDownloads: AttachmentDownloadService
+  composerPathGrants: ComposerPathGrantService
   getSupervisor: () => SidecarSupervisor | undefined
   getConnectionState: () => AgentConnectionState
   getLogDirectory: () => string
@@ -62,6 +66,7 @@ export function registerDesktopIpc(
     externalOpenTargets,
     updater,
     attachmentDownloads,
+    composerPathGrants,
     getSupervisor,
     getConnectionState,
     getLogDirectory,
@@ -75,6 +80,55 @@ export function registerDesktopIpc(
     async (event, input: DesktopAttachmentSaveInput) => {
       requireMainWindowSender(event, windows)
       return attachmentDownloads.save(input)
+    },
+  )
+
+  const grantOwnersWithCleanup = new Set<number>()
+  const retainGrantOwner = (sender: WebContents): void => {
+    if (grantOwnersWithCleanup.has(sender.id)) return
+    grantOwnersWithCleanup.add(sender.id)
+    sender.once("destroyed", () => {
+      grantOwnersWithCleanup.delete(sender.id)
+      composerPathGrants.clearOwner(sender.id)
+    })
+  }
+  ipcMain.handle(
+    DESKTOP_ATTACHMENT_IPC_CHANNELS.chooseComposerFiles,
+    async event => {
+      requireMainWindowSender(event, windows)
+      const options: OpenDialogOptions = {
+        title: "Files and folders",
+        properties: ["openFile", "multiSelections"],
+      }
+      const mainWindow = windows.mainWindow
+      const result = mainWindow
+        ? await dialog.showOpenDialog(mainWindow, options)
+        : await dialog.showOpenDialog(options)
+      if (result.canceled) return []
+      retainGrantOwner(event.sender)
+      return composerPathGrants.grantPaths(event.sender.id, result.filePaths)
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_ATTACHMENT_IPC_CHANNELS.grantComposerPaths,
+    async (event, paths: unknown) => {
+      requireMainWindowSender(event, windows)
+      retainGrantOwner(event.sender)
+      return composerPathGrants.grantPaths(event.sender.id, paths)
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_ATTACHMENT_IPC_CHANNELS.readComposerPathGrant,
+    async (event, input: DesktopComposerPathReadInput) => {
+      requireMainWindowSender(event, windows)
+      return composerPathGrants.read(event.sender.id, input)
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_ATTACHMENT_IPC_CHANNELS.listComposerPathGrant,
+    async (event, input: DesktopComposerPathListInput) => {
+      requireMainWindowSender(event, windows)
+      return composerPathGrants.list(event.sender.id, input)
     },
   )
 

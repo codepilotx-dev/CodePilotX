@@ -120,6 +120,7 @@ import {
 } from './fixtures.js'
 import type {
   DesktopAttachmentApi,
+  DesktopLocalContextApi,
   DesktopRuntimeCapabilityApi,
 } from './types.js'
 
@@ -138,7 +139,8 @@ function mcpUnavailable(): never {
 
 export function createBrowserMockDesktopClient(
   storage?: Storage,
-): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi {
+): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
+  & DesktopLocalContextApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   let configDocument: Record<string, JsonValue> = {
     desktop: { ...settings } as unknown as JsonValue,
@@ -245,7 +247,19 @@ export function createBrowserMockDesktopClient(
   return {
     readAttachment: async attachmentId =>
       readBrowserFixtureAttachment(attachmentId),
+    readLocalContextPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径上下文。')
+    },
+    listLocalContextPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径上下文。')
+    },
     saveAttachmentToDownloads: async input => ({ fileName: input.name }),
+    readDraftComposerPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径预览。')
+    },
+    listDraftComposerPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地目录预览。')
+    },
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
     getAuthStatus: async () => ({
@@ -753,9 +767,10 @@ export function createBrowserMockDesktopClient(
     }),
     watchWorkspaceFile: async () => {},
     unwatchWorkspaceFile: async () => {},
+    isComposerFileAttachmentAvailable: async () => false,
     chooseComposerFiles: async () => [],
-    authorizeComposerFilePaths: async () => {},
-    readComposerFiles: async () => [],
+    grantComposerFilePaths: async () => [],
+    getComposerFilePath: () => '',
     getWorkspaceDiff: async () => ({
       patch: '',
     }),
