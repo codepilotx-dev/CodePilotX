@@ -65,7 +65,7 @@ import {
   SIDEBAR_COLLAPSE_TARGET_SIZE,
   useSidebarResizeCollapseConfirm,
 } from '../useSidebarResizeCollapseConfirm.js'
-import { useWorkbenchPanelResizePreview } from '../panels/WorkbenchPanelPresence.js'
+import { useWorkbenchPanelLiveResize } from '../panels/WorkbenchPanelPresence.js'
 
 type Props = {
   target: WorkbenchPanelTarget
@@ -200,18 +200,19 @@ function WorkbenchPanelResizeController({
   const maxSize = isBottom
     ? (maxHeight ?? minHeight ?? 160)
     : maxWidth
-  const previewSize = useWorkbenchPanelResizePreview(target)
+  const liveResize = useWorkbenchPanelLiveResize(target)
 
   const updateResizePhase = useCallback(
     (phase: ResizePhase): void => {
       const handle = handleRef.current
       if (phase === 'idle') {
         if (handle) delete handle.dataset.resizePhase
-        return
+      } else if (handle) {
+        handle.dataset.resizePhase = phase
       }
-      if (handle) handle.dataset.resizePhase = phase
+      liveResize?.setPhase(phase)
     },
-    [],
+    [liveResize],
   )
 
   const {
@@ -235,7 +236,7 @@ function WorkbenchPanelResizeController({
     onCollapse: onClose,
     onResetSize: isBottom ? onResetHeight : onResetWidth,
     onResizePhaseChange: updateResizePhase,
-    onResizePreview: previewSize ?? undefined,
+    onResizePreview: liveResize?.previewSize,
     onSetWidth: isBottom ? (onSetHeight ?? onSetWidth) : onSetWidth,
     width: size,
   })
@@ -353,6 +354,7 @@ export function WorkbenchPanel({
   sideTaskContent,
 }: Props): React.ReactNode {
   const panelRef = useRef<HTMLElement>(null)
+  const liveResize = useWorkbenchPanelLiveResize(target)
   const contentRef = useRef<HTMLDivElement>(null)
   const [terminalDisplayPathState, setTerminalDisplayPathState] = useState<{
     sessionId: string | null
@@ -504,13 +506,17 @@ export function WorkbenchPanel({
   return (
     <WorkbenchDockFrame
       ref={panelRef}
-      animatedWidth={width}
-      focusArea={target === 'right' ? 'right-panel' : 'bottom-panel'}
       fullWidth={target === 'right' && rightFullWidth}
       open={state.open}
-      opacity={1}
       target={target}
-      width={width}
+      targetWidth={
+        target === 'right' && liveResize && liveResize.phase !== 'idle'
+          ? liveResize.liveSize
+          : width
+      }
+      visibleWidth={
+        target === 'right' && liveResize ? liveResize.liveSize : width
+      }
     >
       <WorkbenchPanelResizeController
         target={target}

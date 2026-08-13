@@ -1,7 +1,10 @@
 /* --- Shared workspace header --- */
 
 .desktop-workspace-header {
-  --workspace-header-route-end-inset: var(--workspace-header-shell-width, 0px);
+  --workspace-header-route-end-inset: max(
+    var(--workspace-header-shell-width, 0px),
+    var(--workspace-right-panel-live-width, 0px)
+  );
   --workspace-header-route-width: calc(
     100% - var(--workspace-header-route-end-inset)
   );
@@ -40,10 +43,6 @@
   .desktop-workspace-header::before {
     background: var(--layer-canvas-fill);
   }
-}
-
-.desktop-workspace-header[data-right-dock-open="true"] {
-  --workspace-header-route-end-inset: var(--workspace-right-panel-live-width, 0px);
 }
 
 .desktop-workspace-header-route-band,
@@ -93,7 +92,7 @@
   width: max-content;
   flex: 0 0 auto;
   justify-content: flex-end;
-  padding-right: var(--space-2);
+  padding-right: 0;
 }
 
 .desktop-workspace-header-item {
@@ -142,7 +141,7 @@
   height: 100%;
   align-items: center;
   gap: var(--space-1);
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-2) 0 var(--space-1);
 }
 
 .workspace-shell-control-button {
@@ -155,17 +154,17 @@
     transform var(--motion-micro) var(--ease-out);
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
     color: var(--color-token-foreground);
   }
 
   &[aria-pressed="true"] {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
     color: var(--color-token-foreground);
   }
 
   &:active:not(:disabled) {
-    background: var(--state-pressed-fill);
+    background: var(--color-token-list-active-selection-background);
     transform: translateY(1px);
   }
 

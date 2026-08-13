@@ -35,6 +35,8 @@ export type SessionTimelineViewProps<T> = {
   onCanReturnToBottomChange?: (canReturnToBottom: boolean) => void;
   /** Persisted scroll offset to restore when mounting this session. */
   initialScrollOffset?: number;
+  /** True only for the start/end-bounded workbench resize session. */
+  layoutResizeActive?: boolean;
   /**
    * If true, scroll to the end whenever the child count changes.
    * Used during streaming to keep the latest content visible.
@@ -65,6 +67,7 @@ export function SessionTimelineView<T>({
   onScroll,
   onCanReturnToBottomChange,
   initialScrollOffset,
+  layoutResizeActive,
   scrollToBottom,
   count,
   sessionKey,
@@ -80,6 +83,7 @@ export function SessionTimelineView<T>({
     contentRevision: items.at(-1),
     initialScrollOffset,
     itemCount: count,
+    layoutResizeActive,
     listRef: listHandle,
     onScroll,
     scrollRef,

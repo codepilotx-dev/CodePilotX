@@ -533,11 +533,11 @@
   text-align: left;
 
   &:hover {
-    background: var(--state-hover-fill);
+    background: var(--color-token-list-hover-background);
   }
 
   &.active {
-    background: var(--state-selected-fill);
+    background: var(--color-token-list-active-selection-background);
   }
 
   span {

@@ -68,7 +68,6 @@
 }
 
 .desktop-workspace-panel {
-  position: absolute;
   min-width: 0;
   min-height: 0;
   flex: 0 0 auto;
@@ -86,12 +85,11 @@
 }
 
 .right-dock-is-resizing {
-  .desktop-workspace-panel--right,
-  .desktop-workspace-panel-spacer--right {
+  .desktop-workspace-panel--right {
     will-change: width;
   }
 
-  .desktop-workspace__main-route,
+  .desktop-main-route,
   .desktop-workspace-panel--right .workbench-panel-content {
     pointer-events: none;
   }
@@ -110,17 +108,13 @@
 }
 
 .desktop-workspace-panel--right {
-  inset: 0 0 0 auto;
-  height: 100%;
-  max-width: 100%;
-}
-
-.desktop-workspace-panel-spacer--right {
+  position: relative;
   height: 100%;
   max-width: 100%;
 }
 
 .desktop-workspace-panel--bottom {
+  position: absolute;
   inset: auto 0 0;
   width: 100%;
   max-height: 50%;

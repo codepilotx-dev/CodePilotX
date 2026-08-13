@@ -14,13 +14,24 @@ export type UserAttachmentPreviewSource =
       data: string
       encoding: 'base64' | 'utf8'
     }
+  | {
+      storage: 'draft-path'
+      grantId: string
+      relativePath?: string
+    }
+  | {
+      storage: 'thread-path'
+      threadId: string
+      referenceId: string
+      relativePath?: string
+    }
 
 export type UserAttachmentPreviewTab = {
   id: 'user-attachment-preview'
   kind: 'attachment-preview'
   attachment: {
     id: string
-    kind: 'image' | 'text'
+    kind: 'image' | 'text' | 'binary' | 'directory'
     name: string
     mediaType: string
     sizeBytes: number

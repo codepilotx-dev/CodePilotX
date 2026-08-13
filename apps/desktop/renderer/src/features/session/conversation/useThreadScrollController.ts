@@ -100,6 +100,7 @@ type UseThreadScrollControllerOptions = {
   contentRevision?: unknown
   initialScrollOffset?: number
   itemCount: number
+  layoutResizeActive?: boolean
   listRef: React.RefObject<VirtualizerHandle | null>
   onScroll?: (scrollTop: number) => void
   scrollRef: React.RefObject<HTMLElement | null>
@@ -110,6 +111,31 @@ export type SavedThreadScrollState = {
   distanceFromBottom: number
   mode: ThreadScrollMode
   scrollOffset: number
+}
+
+export type ThreadResizeAnchor = {
+  fallbackScrollOffset: number
+  turnId: string
+  viewportOffset: number
+}
+
+export function scrollOffsetForThreadResizeAnchor({
+  anchor,
+  currentScrollOffset,
+  currentViewportOffset,
+  metrics,
+}: {
+  anchor: Pick<ThreadResizeAnchor, 'fallbackScrollOffset' | 'viewportOffset'>
+  currentScrollOffset: number
+  currentViewportOffset: number | null
+  metrics: Pick<ScrollMetrics, 'scrollSize' | 'viewportSize'>
+}): number {
+  return clampThreadScrollOffset(
+    metrics,
+    currentViewportOffset === null
+      ? anchor.fallbackScrollOffset
+      : currentScrollOffset + currentViewportOffset - anchor.viewportOffset,
+  )
 }
 
 export const THREAD_SCROLL_STATE_CACHE_CAPACITY = 4
@@ -239,11 +265,46 @@ function readMetrics(
   }
 }
 
+function readThreadResizeAnchor(
+  viewport: HTMLElement | null,
+): ThreadResizeAnchor | null {
+  if (!viewport) return null
+  const viewportRect = viewport.getBoundingClientRect()
+  const rows = viewport.querySelectorAll<HTMLElement>('[data-turn-navigation-id]')
+  for (const row of rows) {
+    const turnId = row.getAttribute('data-turn-navigation-id')
+    if (!turnId) continue
+    const rowRect = row.getBoundingClientRect()
+    if (rowRect.bottom <= viewportRect.top || rowRect.top >= viewportRect.bottom) {
+      continue
+    }
+    return {
+      fallbackScrollOffset: viewport.scrollTop,
+      turnId,
+      viewportOffset: rowRect.top - viewportRect.top,
+    }
+  }
+  return null
+}
+
+function findThreadTurnRow(
+  viewport: HTMLElement,
+  turnId: string,
+): HTMLElement | null {
+  for (const row of viewport.querySelectorAll<HTMLElement>(
+    '[data-turn-navigation-id]',
+  )) {
+    if (row.getAttribute('data-turn-navigation-id') === turnId) return row
+  }
+  return null
+}
+
 export function useThreadScrollController({
   active,
   contentRevision,
   initialScrollOffset = 0,
   itemCount,
+  layoutResizeActive = false,
   listRef,
   onScroll,
   scrollRef,
@@ -280,10 +341,13 @@ export function useThreadScrollController({
   const explicitReturnInProgressRef = React.useRef(false)
   const scrollFrameRef = React.useRef<number | null>(null)
   const sessionKeyRef = React.useRef(sessionKey)
+  const layoutResizeActiveRef = React.useRef(layoutResizeActive)
+  const resizeAnchorRef = React.useRef<ThreadResizeAnchor | null>(null)
 
   activeRef.current = active
   itemCountRef.current = itemCount
   contentRevisionRef.current = contentRevision
+  layoutResizeActiveRef.current = layoutResizeActive
 
   const setMode = React.useCallback((nextMode: ThreadScrollMode): void => {
     modeRef.current = nextMode
@@ -353,6 +417,59 @@ export function useThreadScrollController({
     [setMode],
   )
 
+  const restoreResizeAnchor = React.useCallback((): void => {
+    const viewport = scrollRef.current
+    const anchor = resizeAnchorRef.current
+    const metrics = readMetrics(listRef.current, viewport)
+    if (!viewport || !anchor || !metrics) return
+
+    const row = findThreadTurnRow(viewport, anchor.turnId)
+    const viewportTop = viewport.getBoundingClientRect().top
+    const currentViewportOffset = row
+      ? row.getBoundingClientRect().top - viewportTop
+      : null
+    const targetOffset = scrollOffsetForThreadResizeAnchor({
+      anchor,
+      currentScrollOffset: metrics.scrollOffset,
+      currentViewportOffset,
+      metrics,
+    })
+    if (Math.abs(targetOffset - metrics.scrollOffset) <= 0.5) return
+
+    programmaticScrollUntilRef.current = Date.now() + 140
+    previousOffsetRef.current = targetOffset
+    viewport.scrollTop = targetOffset
+  }, [listRef, scrollRef])
+
+  React.useLayoutEffect(() => {
+    if (layoutResizeActive) {
+      const metrics = readMetrics(listRef.current, scrollRef.current)
+      const shouldFollow =
+        modeRef.current === 'prework_follow'
+        || modeRef.current === 'user_follow'
+        || atBottomRef.current
+        || (metrics !== null
+          && distanceFromThreadBottom(metrics) <= THREAD_BOTTOM_THRESHOLD_PX)
+      if (shouldFollow) {
+        resizeAnchorRef.current = null
+      } else {
+        resizeAnchorRef.current ??= readThreadResizeAnchor(scrollRef.current)
+      }
+      return
+    }
+    if (!resizeAnchorRef.current) return
+    let settleFrame: number | null = requestAnimationFrame(() => {
+      settleFrame = requestAnimationFrame(() => {
+        settleFrame = null
+        restoreResizeAnchor()
+        resizeAnchorRef.current = null
+      })
+    })
+    return () => {
+      if (settleFrame !== null) cancelAnimationFrame(settleFrame)
+    }
+  }, [layoutResizeActive, listRef, restoreResizeAnchor, scrollRef])
+
   const handleScroll = React.useCallback(
     (scrollTop: number): void => {
       onScroll?.(scrollTop)
@@ -376,12 +493,13 @@ export function useThreadScrollController({
         explicitReturnInProgressRef.current = false
       }
       const previousOffset = previousOffsetRef.current
+      const programmaticScrollActive = isProgrammaticScrollActive(
+        Date.now(),
+        programmaticScrollUntilRef.current,
+      )
       const userScrolledUp =
         scrollTop < previousOffset - 2 &&
-        !isProgrammaticScrollActive(
-          Date.now(),
-          programmaticScrollUntilRef.current,
-        )
+        !programmaticScrollActive
 
       previousOffsetRef.current = scrollTop
       previousDistanceFromBottomRef.current = distance
@@ -435,9 +553,7 @@ export function useThreadScrollController({
           observedContentRevisionRef.current !== contentRevisionRef.current
         observedContentRevisionRef.current = contentRevisionRef.current
         const contentChanged = itemCountChanged || contentRevisionChanged
-        const layoutResizeActive =
-          document.body.classList.contains('workbench-is-resizing')
-        if (inlineSizeChanged || layoutResizeActive) {
+        if (inlineSizeChanged || layoutResizeActiveRef.current) {
           contentReflowActiveUntilRef.current = now + 100
         }
         const widthReflow =
@@ -455,7 +571,24 @@ export function useThreadScrollController({
           const shouldFollow =
             modeRef.current === 'prework_follow'
             || modeRef.current === 'user_follow'
-            || (activeRef.current && atBottomRef.current)
+            || atBottomRef.current
+            || distanceFromThreadBottom(metrics) <= THREAD_BOTTOM_THRESHOLD_PX
+          if (shouldFollow) resizeAnchorRef.current = null
+          if (
+            !shouldFollow
+            && (layoutResizeActiveRef.current || resizeAnchorRef.current !== null)
+          ) {
+            if (layoutResizeActiveRef.current) {
+              resizeAnchorRef.current ??= readThreadResizeAnchor(scrollRef.current)
+            }
+            restoreResizeAnchor()
+            const anchoredMetrics = readMetrics(listRef.current, scrollRef.current)
+            if (anchoredMetrics) {
+              previousDistanceFromBottomRef.current =
+                distanceFromThreadBottom(anchoredMetrics)
+            }
+            return
+          }
           const distance = shouldFollow
             ? 0
             : previousDistanceFromBottomRef.current
@@ -510,7 +643,7 @@ export function useThreadScrollController({
         }
       })
     },
-    [listRef, scrollRef, scrollToEnd],
+    [listRef, restoreResizeAnchor, scrollRef, scrollToEnd],
   )
 
   const returnToBottom = React.useCallback((): void => {
@@ -529,6 +662,7 @@ export function useThreadScrollController({
 
   React.useEffect(() => {
     sessionKeyRef.current = sessionKey
+    resizeAnchorRef.current = null
     const savedState = sessionKey
       ? savedThreadScrollStates.get(sessionKey)
       : null
