@@ -25,7 +25,8 @@
 - [desktop] 将桌面端圆角统一为 8/12/16px 嵌套柔和曲率，并限制胶囊圆角只用于状态与选择类控件，使扁平工作台更精致统一。
 - [desktop] 统一桌面端扁平视觉层级、交互状态与动效，使全部工作台页面在用户自定义主题下保持清晰主次。
 - [desktop/renderer] 重建设计系统的表面层级、低强度雾面浮层与统一动效，使工作台、会话概览和 Composer 在保留强调色、背景色与前景色设置的同时获得一致层次。
-- [desktop] 将右侧面板默认宽度调整为 400px，同时保留用户已保存的拖拽宽度和窄窗口夹紧行为。
+- [desktop] 将右侧面板默认宽度调整为 600px，同时保留用户已保存的拖拽宽度和窄窗口夹紧行为。
+- [desktop/renderer] 重建 Codex 式右侧工作台 Frame、46px TabStrip 与统一面板状态，使 Review、文件、Browser、Terminal、Plan、附件、侧边聊天和子智能体共享尺寸、焦点、拖拽、全宽及生命周期契约。
 - [Agent/session-view] 为主任务、侧边聊天和子 Agent 接通自动上下文压缩与单次 Provider 溢出恢复，并持久化可恢复、可投影的压缩检查点和统计。
 - [renderer] 统一线程摘要、下拉菜单、上下文菜单和 Popover 的轻量黑色阴影，提升浮层与背景之间的层次感
 - [renderer] 移除 Composer 外层堆栈的溢出裁剪，避免统一阴影和子面板边框被截断
@@ -39,6 +40,9 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复 React StrictMode 重放使 Review 刷新协调器提前停止、变更快照永久停留在刷新状态，并确保 fresh 快照 generation 未变化时仍自动加载文件差异。
+- [Agent/desktop/renderer] 修复工作区文件 revision 精确协议遗漏原始摘要与 UTF-8 BOM 信息导致文本文件统一报 Internal RPC error，并让“打开文件”目录树占满面板且不再受固定分组高度截断。
+- [desktop] 修复内置 Browser 仍使用内存 mock、Review/Git 项目身份丢失、文件标签恢复过期作用域、工作区可选数据联动失败以及 Terminal/子智能体能力误判，缺失能力改为明确不可用状态。
 - [desktop/renderer] 修复弹窗、浮层、折叠面板、临时卡片和新建页切换在 React 提前卸载时缺少退出动画的问题，并统一减少动态效果与焦点清理语义。
 - [desktop/renderer] 修正整轮活动流的耗时标题、运行状态和折叠层级，使最终回复前的 commentary、工具活动与 thinking 状态按 Codex 顺序展示。
 - [desktop/renderer] 修复桌面开关控制点因边框计入尺寸错误而偏离轨道中心、在选中端贴边的问题。
