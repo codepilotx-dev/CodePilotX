@@ -113,6 +113,7 @@ import type {
 } from '../../markdown/index.js'
 import {
   hasDirtyFileDocuments,
+  fileDocumentLoadErrorMessage,
   prefetchFileDocument,
   saveAllFileDocuments,
   saveFileDocument,
@@ -122,7 +123,7 @@ const GitWorkflowModal = lazy(() => import('../panels/GitWorkflowModal.js').then
 const GlobalErrorModal = lazy(() => import('../../../components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
 const GithubRepositoryModal = lazy(() => import('../panels/GithubRepositoryModal.js').then(module => ({ default: module.GithubRepositoryModal })))
 const SettingsSidebarContent = lazy(() => import('../../settings/SettingsSidebarContent.js').then(module => ({ default: module.SettingsSidebarContent })))
-const SubagentThreadPanel = lazy(() => import('../../session/subagents/SubagentThreadPanel.js').then(module => ({ default: module.SubagentThreadPanel })))
+const SubagentDockContent = lazy(() => import('../../session/subagents/SubagentDockContent.js').then(module => ({ default: module.SubagentDockContent })))
 const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
 const WorkbenchPanel = lazy(() => import('../dock/RightDock.js').then(module => ({ default: module.WorkbenchPanel })))
 const CommandMenuDialog = lazy(() => import('../../search/CommandMenuDialog.js').then(module => ({ default: module.CommandMenuDialog })))
@@ -324,6 +325,10 @@ export function DesktopLayout(): React.ReactNode {
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
   )
+  const browserAvailable =
+    typeof window !== 'undefined' &&
+    typeof window.codePilotXDesktop?.createOrRestoreDesktopBrowser === 'function'
+  const browserAvailability = browserAvailable ? 'available' : 'unavailable'
   const gitWorkflowModalMounted = useEverOpened(gitWorkflowMode !== null)
   const githubRepositoryModalMounted = useEverOpened(githubRepositoryModalOpen)
   const whatsNewDialogMounted = useEverOpened(whatsNewDialogOpen)
@@ -798,6 +803,7 @@ export function DesktopLayout(): React.ReactNode {
         const nextWorkspace = await desktopClient.checkoutWorkspaceBranch(
           currentWorkspace.path,
           branch,
+          currentWorkspace.projectId,
         )
         setWorkspaceState(nextWorkspace)
         await refreshWorkspace(nextWorkspace, {
@@ -855,19 +861,14 @@ export function DesktopLayout(): React.ReactNode {
     setGitWorkflowMode('pullRequest')
   }, [])
 
-  const refreshBrowserState = useCallback((): void => {
-    void desktopClient
-      .getBrowserState()
-      .then(setBrowserState)
-      .catch(error =>
-        setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
-  }, [])
-
   const handleOpenBrowser = useCallback((): void => {
+    if (browserAvailability !== 'available') {
+      setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
+      return
+    }
     openRightDockTab({ id: 'browser', kind: 'browser' })
-    void desktopClient
-      .openBrowser()
+    void import('../../../services/desktop-client/desktop-browser-client.js')
+      .then(({ desktopBrowserClient }) => desktopBrowserClient.openBrowser())
       .then(setBrowserState)
       .catch(error =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
@@ -959,8 +960,8 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleReloadBrowser = useCallback((): void => {
-    void desktopClient
-      .reloadBrowser()
+    void import('../../../services/desktop-client/desktop-browser-client.js')
+      .then(({ desktopBrowserClient }) => desktopBrowserClient.reloadBrowser())
       .then(setBrowserState)
       .catch(error =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
@@ -1095,6 +1096,8 @@ export function DesktopLayout(): React.ReactNode {
   const {
     selectedSubagentTaskId,
     selectedSubagent,
+    selectedSubagentError,
+    subagentAvailability,
     refreshSelectedSubagent,
     handleOpenSubagent,
   } = useSubagentDockController({
@@ -1199,36 +1202,6 @@ export function DesktopLayout(): React.ReactNode {
     },
   })
 
-  useEffect(() => {
-    refreshBrowserState()
-  }, [refreshBrowserState])
-
-  useEffect(() => {
-    if (!browserState?.open) return
-    const id = window.setInterval(refreshBrowserState, 1000)
-    return () => window.clearInterval(id)
-  }, [browserState?.open, refreshBrowserState])
-
-  const browserTabVisible = useMemo(
-    () =>
-      (['right', 'bottom'] as const).some(target => {
-        const panel = workbenchPanelState[target]
-        if (!panel.open || !panel.activeTabId) return false
-        return (
-          workbenchPanelState.tabsById[panel.activeTabId]?.kind === 'browser'
-        )
-      }),
-    [workbenchPanelState],
-  )
-
-  useEffect(() => {
-    if (browserTabVisible) return
-    void desktopClient
-      .setBrowserBounds({ x: 0, y: 0, width: 0, height: 0 })
-      .then(setBrowserState)
-      .catch(() => undefined)
-  }, [browserTabVisible])
-
   const prevSessionIdRef = useRef<string | null>(null)
   const attachmentPreviewTabRef = useRef<UserAttachmentPreviewTab | null>(null)
   const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
@@ -1237,6 +1210,17 @@ export function DesktopLayout(): React.ReactNode {
   const uiSnapshotRef = useRef<ConversationUiState>(
     createDefaultConversationUiState(),
   )
+  const restoredConversationUiIdentityRef = useRef<string | null>(null)
+  const currentWorkspaceUiIdentity = currentWorkspace
+    ? [
+        currentWorkspace.projectId ?? '',
+        ...(currentWorkspace.folders && currentWorkspace.folders.length > 0
+          ? currentWorkspace.folders.map(folder =>
+              `${folder.id}:${folder.path.replace(/\\/g, '/').toLowerCase()}`,
+            )
+          : [currentWorkspace.path.replace(/\\/g, '/').toLowerCase()]),
+      ].join('\u0000')
+    : ''
   const sideChatPanelTargetsRef = useRef(
     new Map<WorkbenchTabId, WorkbenchPanelTarget>(),
   )
@@ -1259,7 +1243,6 @@ export function DesktopLayout(): React.ReactNode {
   useEffect(() => {
     const prevId = prevSessionIdRef.current
     const currentId = sessionId
-
     for (const target of ['right', 'bottom'] as const) {
       for (const tabId of uiSnapshotRef.current.workbench[target].tabIds) {
         if (uiSnapshotRef.current.workbench.tabsById[tabId]?.kind === 'side-chat') {
@@ -1277,6 +1260,19 @@ export function DesktopLayout(): React.ReactNode {
       })
     }
 
+    if (
+      currentId &&
+      activeSessionItem &&
+      (!currentWorkspace ||
+        (activeSessionItem.projectId &&
+          currentWorkspace.projectId !== activeSessionItem.projectId))
+    ) {
+      return
+    }
+    const restoreIdentity = `${currentId ?? ''}\u0000${currentWorkspaceUiIdentity}`
+    if (restoredConversationUiIdentityRef.current === restoreIdentity) return
+    restoredConversationUiIdentityRef.current = restoreIdentity
+
     prevSessionIdRef.current = currentId
 
     const restoreAttachmentPreview = (
@@ -1292,7 +1288,20 @@ export function DesktopLayout(): React.ReactNode {
     if (currentId) {
       const saved = loadConversationUiState(currentId)
       if (saved) {
-        const validated = validateConversationUiState(saved)
+        const fileScopes = currentWorkspace
+          ? currentWorkspace.folders && currentWorkspace.folders.length > 0
+            ? currentWorkspace.folders.map(folder => ({
+                projectId: currentWorkspace.projectId,
+                folderId: folder.id,
+                workspacePath: folder.path,
+              }))
+            : [{
+                projectId: currentWorkspace.projectId,
+                folderId: currentWorkspace.primaryFolderId,
+                workspacePath: currentWorkspace.path,
+              }]
+          : undefined
+        const validated = validateConversationUiState(saved, { fileScopes })
         setWorkbenchPanelState(restoreAttachmentPreview(validated.workbench))
         setReviewTabState(validated.review)
       } else {
@@ -1309,7 +1318,12 @@ export function DesktopLayout(): React.ReactNode {
       ))
       setReviewTabState(createDefaultReviewTabUiState())
     }
-  }, [sessionId])
+  }, [
+    activeSessionItem,
+    currentWorkspace,
+    currentWorkspaceUiIdentity,
+    sessionId,
+  ])
 
   useEffect(() => {
     if (!sessionId || sideChatTabsForSource.length === 0) return
@@ -2567,35 +2581,24 @@ export function DesktopLayout(): React.ReactNode {
       />
     )
   }
-  const subagentThreadContent = selectedSubagent?.currentRun ? (
+  const subagentThreadContent = selectedSubagentTaskId ? (
     <Suspense fallback={null}>
-      <SubagentThreadPanel
-        task={selectedSubagent.task}
-        run={selectedSubagent.currentRun}
-        snapshot={selectedSubagent.snapshot}
-        capabilities={selectedSubagent.capabilities}
-        onBackToParent={() => {
+      <SubagentDockContent
+        availability={subagentAvailability}
+        error={selectedSubagentError}
+        read={selectedSubagent}
+        taskId={selectedSubagentTaskId}
+        onBack={() => {
           if (selectedSubagentTaskId) handleCloseSubagentTab(selectedSubagentTaskId)
         }}
-        callbacks={{
-        onPatchApplied: async () => {
-          await refreshSelectedSubagent()
-          handleRefreshDiff()
-        },
-        onStop: task => { void desktopClient.stopSubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onRetry: task => { void desktopClient.retrySubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onApplyWorktree: task => { void desktopClient.applySubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onDiscardWorktree: task => { void desktopClient.discardSubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onRestoreWorkspace: task => { void desktopClient.restoreSubagentWorkspace?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onOpenSubagent: item => handleOpenSubagent(item.subagentTaskId),
-        onOpenPatchReview: handleOpenPatchReview,
-        onApprovalRespond: (approval, decision) => { void desktopClient.respondSubagentApproval?.(approval, decision).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onPermissionRespond: (approval, behavior, grantScope) => { void desktopClient.respondSubagentPermission?.(approval, behavior, grantScope).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onQuestionRespond: (question, response) => { void desktopClient.respondSubagentQuestion?.(question.id, response.answer, response.ignored).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        }}
+        onError={setErrorMessage}
+        onOpenPatchReview={handleOpenPatchReview}
+        onOpenSubagent={item => handleOpenSubagent(item.subagentTaskId)}
+        onPatchApplied={handleRefreshDiff}
+        onRefresh={refreshSelectedSubagent}
       />
     </Suspense>
-  ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子智能体…</div> : undefined
+  ) : undefined
   const planContentByEventId = useMemo(() => {
     const result: Record<string, string> = {}
     for (const event of events) {
@@ -2641,7 +2644,11 @@ export function DesktopLayout(): React.ReactNode {
         )
         return
       }
-      setErrorMessage('无法打开文件')
+      const errorCode =
+        'errorCode' in error && typeof error.errorCode === 'string'
+          ? error.errorCode
+          : null
+      setErrorMessage(fileDocumentLoadErrorMessage(errorCode, error.message).message)
     },
     [closePanelTab, setErrorMessage],
   )
@@ -2931,7 +2938,10 @@ export function DesktopLayout(): React.ReactNode {
           continue
         }
         if (tab?.kind !== 'file-preview') continue
-        if (!(await saveFileDocument(tab.workspacePath, tab.relativePath))) {
+        if (!(await saveFileDocument(tab.workspacePath, tab.relativePath, {
+          projectId: tab.projectId,
+          folderId: tab.folderId,
+        }))) {
           setErrorMessage(`无法关闭 ${tab.relativePath}：文件尚未保存。`)
           return false
         }
@@ -2939,6 +2949,24 @@ export function DesktopLayout(): React.ReactNode {
       return true
     },
     [requestCloseSideChatTabs, sessionId, workbenchPanelState.tabsById],
+  )
+
+  const closeBrowserIfIncluded = useCallback(
+    async (tabIds: readonly WorkbenchTabId[]): Promise<void> => {
+      if (!tabIds.some(tabId => workbenchPanelState.tabsById[tabId]?.kind === 'browser')) {
+        return
+      }
+      try {
+        const { desktopBrowserClient } = await import(
+          '../../../services/desktop-client/desktop-browser-client.js'
+        )
+        if (!desktopBrowserClient.available) return
+        setBrowserState(await desktopBrowserClient.closeBrowser())
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [workbenchPanelState.tabsById],
   )
 
   const renderWorkbenchPanel = (
@@ -2958,6 +2986,15 @@ export function DesktopLayout(): React.ReactNode {
       target={target}
       state={state}
       tabsById={workbenchPanelState.tabsById}
+      browserAvailability={{
+        status: browserAvailability,
+        ...(browserAvailability === 'unavailable'
+          ? {
+              reason:
+                '当前桌面运行环境没有提供安全的 WebContentsView 浏览器桥接。',
+            }
+          : {}),
+      }}
       browserState={browserState}
       defaultBranch={derivedDefaultBranch}
       files={workspaceFiles}
@@ -2974,6 +3011,7 @@ export function DesktopLayout(): React.ReactNode {
       selectedFile={selectedFile}
       sessionId={sessionId}
       sessionStatus={sessionStatus}
+      terminalAvailable={terminalAvailable}
       width={rightDockWidth}
       height={bottomPanelHeight}
       rightFullWidth={rightDockFullWidth}
@@ -2990,35 +3028,44 @@ export function DesktopLayout(): React.ReactNode {
         })
       }}
       onCloseTab={tabId => {
-        void saveTabsBeforeClose([tabId]).then(saved => {
+        void saveTabsBeforeClose([tabId]).then(async saved => {
           if (!saved) return
           const tab = workbenchPanelState.tabsById[tabId]
           if (tab?.kind === 'side-task') {
             handleCloseSubagentTab(tab.taskId)
             return
           }
+          await closeBrowserIfIncluded([tabId])
           closePanelTab(target, tabId)
         })
       }}
       onCloseOtherTabs={tabId => {
         const closing = state.tabIds.filter(id => id !== tabId)
-        void saveTabsBeforeClose(closing).then(saved => {
-          if (saved) closeOtherTabs(target, tabId)
+        void saveTabsBeforeClose(closing).then(async saved => {
+          if (!saved) return
+          await closeBrowserIfIncluded(closing)
+          closeOtherTabs(target, tabId)
         })
       }}
       onCloseTabsToRight={tabId => {
         const index = state.tabIds.indexOf(tabId)
         const closing = index < 0 ? [] : state.tabIds.slice(index + 1)
-        void saveTabsBeforeClose(closing).then(saved => {
-          if (saved) closeTabsToRight(target, tabId)
+        void saveTabsBeforeClose(closing).then(async saved => {
+          if (!saved) return
+          await closeBrowserIfIncluded(closing)
+          closeTabsToRight(target, tabId)
         })
       }}
       onCreateBranch={handleCreateBranch}
       onFileLoadError={handleFileLoadError}
       onOpenTab={tab => {
         if (tab.kind === 'browser') {
-          void desktopClient
-            .openBrowser()
+          if (browserAvailability !== 'available') {
+            setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
+            return
+          }
+          void import('../../../services/desktop-client/desktop-browser-client.js')
+            .then(({ desktopBrowserClient }) => desktopBrowserClient.openBrowser())
             .then(setBrowserState)
             .catch(error =>
               setErrorMessage(error instanceof Error ? error.message : String(error)),
@@ -3081,6 +3128,12 @@ export function DesktopLayout(): React.ReactNode {
         renderComposer: renderSideChatComposer,
       }}
       activeSideTaskId={activeSideTaskId}
+      subagentAvailability={{
+        status: subagentAvailability,
+        ...(subagentAvailability === 'unavailable'
+          ? { reason: '当前 Agent 不支持子智能体工作台。' }
+          : {}),
+      }}
       sideTaskContent={subagentThreadContent}
       />
     </Suspense>

@@ -33,6 +33,10 @@ import type {
 import type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
 export type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
 import type {
+  DesktopBrowserBounds as SharedDesktopBrowserBounds,
+  DesktopBrowserSitePermission as SharedDesktopBrowserSitePermission,
+} from '@codepilotx/shared/desktop-browser-ipc'
+import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
   ModelProviderKind,
@@ -145,6 +149,8 @@ export type DesktopFilePreview = {
 export type DesktopFileRevision = {
   mtimeMs: number
   sha256: string
+  rawSha256?: string
+  utf8Bom?: boolean
 }
 
 export type DesktopFileSaveResult =
@@ -360,24 +366,28 @@ export type DesktopGitStatusResult =
   | { ok: false; error: string }
 
 export type CreateBranchInput = {
+  projectId?: string
   workspacePath: string
   branchName: string
   startPoint?: string
 }
 
 export type CommitChangesInput = {
+  projectId?: string
   workspacePath: string
   message: string
   paths: string[]
 }
 
 export type PushBranchInput = {
+  projectId?: string
   workspacePath: string
   setUpstream?: boolean
   forceWithLease?: boolean
 }
 
 export type CreatePullRequestInput = {
+  projectId?: string
   workspacePath: string
   title: string
   body?: string
@@ -463,12 +473,7 @@ export type DesktopToolchainInstallResult =
     }
   | { ok: false; error: string; diagnostics: DesktopToolchainDiagnosticReport }
 
-export type DesktopBrowserBounds = {
-  x: number
-  y: number
-  width: number
-  height: number
-}
+export type DesktopBrowserBounds = SharedDesktopBrowserBounds
 
 export type DesktopBrowserState = {
   open: boolean
@@ -482,11 +487,7 @@ export type DesktopBrowserState = {
   sitePermissions: DesktopBrowserSitePermission[]
 }
 
-export type DesktopBrowserSitePermission = {
-  origin: string
-  decision: 'allow' | 'deny'
-  updatedAt: string
-}
+export type DesktopBrowserSitePermission = SharedDesktopBrowserSitePermission
 
 export type DesktopOpenTargetKind =
   | 'file-explorer'
@@ -1851,12 +1852,19 @@ export type DesktopApi = {
   chooseProjectFolder(): Promise<string | null>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string, projectId?: string): Promise<DesktopWorkspace>
-  getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>
+  getWorkspaceContext(
+    workspacePath: string,
+    projectId?: string,
+  ): Promise<DesktopWorkspace>
   checkoutWorkspaceBranch(
     workspacePath: string,
     branchName: string,
+    projectId?: string,
   ): Promise<DesktopWorkspace>
-  getWorkspaceGitStatus(workspacePath: string): Promise<DesktopGitStatusResult>
+  getWorkspaceGitStatus(
+    workspacePath: string,
+    projectId?: string,
+  ): Promise<DesktopGitStatusResult>
   createWorkspaceBranch(
     input: CreateBranchInput,
   ): Promise<DesktopGitWorkspaceResult>

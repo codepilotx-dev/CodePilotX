@@ -171,12 +171,12 @@ export function SubagentThreadPanel({
         <div className="subagent-thread-panel__run-actions">
           <StatusBadge status={run.status} />
           {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
-            <IconButton aria-label="应用子智能体变更" color="ghostSecondary" size="toolbar" title="应用变更" onClick={() => callbacks.onApplyWorktree?.(task, run)}>
+            <IconButton aria-label="应用子智能体变更" color="ghostSecondary" size="toolbar" title="应用子智能体变更" onClick={() => callbacks.onApplyWorktree?.(task, run)}>
               <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           ) : null}
           {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
-            <IconButton aria-label="丢弃子智能体工作树" color="danger" size="toolbar" title="丢弃工作树" onClick={() => callbacks.onDiscardWorktree?.(task, run)}>
+            <IconButton aria-label="丢弃子智能体工作树" color="danger" size="toolbar" title="丢弃子智能体工作树" onClick={() => callbacks.onDiscardWorktree?.(task, run)}>
               <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           ) : null}

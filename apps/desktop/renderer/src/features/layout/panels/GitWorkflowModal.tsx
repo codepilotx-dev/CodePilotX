@@ -96,6 +96,7 @@ export function GitWorkflowModal({
     if (!workspace) return
     await runOperation(async () => {
       const result = await desktopClient.createWorkspaceBranch({
+        ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
         workspacePath: workspace.path,
         branchName,
       })
@@ -111,6 +112,7 @@ export function GitWorkflowModal({
     if (!workspace) return
     await runOperation(async () => {
       const result = await desktopClient.commitWorkspaceChanges({
+        ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
         workspacePath: workspace.path,
         message: commitMessage,
         paths: selectedPaths,
@@ -127,6 +129,7 @@ export function GitWorkflowModal({
     if (!workspace) return
     await runOperation(async () => {
       const result = await desktopClient.pushWorkspaceBranch({
+        ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
         workspacePath: workspace.path,
         setUpstream,
         forceWithLease,
@@ -143,6 +146,7 @@ export function GitWorkflowModal({
     if (!workspace) return
     await runOperation(async () => {
       const result = await desktopClient.createPullRequest({
+        ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
         workspacePath: workspace.path,
         title: prTitle,
         body: prBody,

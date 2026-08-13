@@ -29,10 +29,22 @@ export type TerminalPanelProps = {
   onDisplayPathChange?: (displayPath: string | null) => void
 }
 
-const terminalClientPromise = loadDesktopTerminalClient()
+let terminalClientResource:
+  | Promise<Awaited<ReturnType<typeof loadDesktopTerminalClient>>>
+  | null = null
+
+function loadTerminalClientResource(): Promise<
+  Awaited<ReturnType<typeof loadDesktopTerminalClient>>
+> {
+  terminalClientResource ??= loadDesktopTerminalClient().catch(error => {
+    terminalClientResource = null
+    throw error
+  })
+  return terminalClientResource
+}
 
 export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelProps): React.ReactNode {
-  const terminalClient = use(terminalClientPromise)
+  const terminalClient = use(loadTerminalClientResource())
   const { draft } = useDesktopSettings()
   const profileId = draft.values.terminalProfileId
   const hostRef = useRef<HTMLDivElement>(null)

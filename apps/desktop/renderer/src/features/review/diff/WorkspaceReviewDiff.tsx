@@ -129,6 +129,29 @@ export function reviewFileLoadMessage(
   return "等待加载文件差异…";
 }
 
+export type ReviewFileDiffLoadMode = "none" | "batch" | "selected";
+
+export function reviewFileDiffLoadMode(input: {
+  hasSummary: boolean;
+  cacheState: "fresh" | "stale" | null;
+  summaryLoadState: ReviewLoadState;
+  largeWorkspaceMode: boolean;
+  selectedPath: string | null;
+}): ReviewFileDiffLoadMode {
+  if (
+    !input.hasSummary ||
+    input.cacheState !== "fresh" ||
+    (input.summaryLoadState !== "success" &&
+      input.summaryLoadState !== "large-diff")
+  ) {
+    return "none";
+  }
+  if (input.largeWorkspaceMode) {
+    return input.selectedPath ? "selected" : "none";
+  }
+  return "batch";
+}
+
 export const REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH = 340;
 export const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 240;
 export const REVIEW_FILE_TREE_PANEL_MAX_WIDTH = 520;

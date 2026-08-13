@@ -19,6 +19,7 @@ import type {
   DesktopAttachmentSaveInput,
   DesktopAttachmentSaveResult,
 } from '@codepilotx/shared/desktop-attachment-ipc'
+import type { DesktopBrowserIpcBridge } from '@codepilotx/shared/desktop-browser-ipc'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
@@ -63,6 +64,7 @@ type DesktopClientWindow = {
     & Partial<DesktopTerminalIpcBridge>
     & Partial<DesktopUpdateIpcBridge>
     & Partial<DesktopAttachmentIpcBridge>
+    & Partial<DesktopBrowserIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
   dispatchEvent?: Window['dispatchEvent']
@@ -151,11 +153,13 @@ export type DesktopReviewAgentComment = {
 
 export type DesktopAgentReviewApi = {
   getAgentReviewSummary(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     refresh?: boolean
   }): Promise<DesktopReviewAgentSummaryResult>
   getAgentReviewFileDiff(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     generation: string
@@ -163,6 +167,7 @@ export type DesktopAgentReviewApi = {
     hideWhitespace?: boolean
   }): Promise<DesktopReviewAgentFileDiff>
   getAgentReviewFileDiffs(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     generation: string
@@ -170,6 +175,7 @@ export type DesktopAgentReviewApi = {
     hideWhitespace?: boolean
   }): Promise<RpcResult<'review/file-diffs'>>
   applyAgentReviewOperation(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     generation: string
@@ -180,6 +186,7 @@ export type DesktopAgentReviewApi = {
       | { kind: 'hunk'; path: string; hunkId: string }
   }): Promise<void>
   applyAgentReviewBatch(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     generation: string
@@ -189,13 +196,13 @@ export type DesktopAgentReviewApi = {
       ...Array<{ path: string; expectedRevision: string }>,
     ]
   }): Promise<RpcResult<'review/applyBatch'>>
-  getAgentReviewBranches(workspacePath: string): Promise<Array<{
+  getAgentReviewBranches(workspacePath: string, projectId?: string): Promise<Array<{
     name: string
     sha: string
     current: boolean
     remote: boolean
   }>>
-  getAgentReviewCommits(workspacePath: string): Promise<Array<{
+  getAgentReviewCommits(workspacePath: string, projectId?: string): Promise<Array<{
     sha: string
     shortSha: string
     subject: string
@@ -203,11 +210,13 @@ export type DesktopAgentReviewApi = {
     authoredAt: string
   }>>
   listAgentReviewComments(input: {
+    projectId?: string
     workspacePath: string
     threadId: string
     sourceKey: string
   }): Promise<DesktopReviewAgentComment[]>
   saveAgentReviewComment(input: {
+    projectId?: string
     id?: string
     workspacePath: string
     threadId: string
@@ -222,11 +231,13 @@ export type DesktopAgentReviewApi = {
     githubThreadId?: string
   }): Promise<DesktopReviewAgentComment>
   resolveAgentReviewComment(input: {
+    projectId?: string
     workspacePath: string
     threadId: string
     id: string
   }): Promise<DesktopReviewAgentComment>
   deleteAgentReviewComment(input: {
+    projectId?: string
     workspacePath: string
     threadId: string
     id: string

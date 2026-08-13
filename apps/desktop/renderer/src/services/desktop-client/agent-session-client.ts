@@ -45,7 +45,6 @@ import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
   DesktopApi,
-  DesktopBrowserState,
   DesktopMessageDelivery,
   DesktopFileEntry,
   DesktopFilePreview,
@@ -167,6 +166,9 @@ export function createAgentSessionDesktopClient(
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
+  const browserUnavailable = async (): Promise<never> => {
+    throw new Error('内置浏览器仅在 CodePilotX 桌面应用中可用。')
+  }
   const clientInstanceId = crypto.randomUUID()
   const rpc = createAgentRpcClient({
     ...environment,
@@ -1180,6 +1182,7 @@ export function createAgentSessionDesktopClient(
     agentReviewApiPromise ??= import('./agent-review-api.js').then(module =>
       module.createAgentReviewApi({
         rpc,
+        loadProjectById,
         loadProjectForPath,
         preparePullRequestReview,
         requireGithubPullRequestCapability: () =>
@@ -1205,6 +1208,7 @@ export function createAgentSessionDesktopClient(
         invalidateProjectCache: () => {
           projectsByIdCache = null
         },
+        loadProjectById,
         loadProjectForPath,
         ensureDesktopProjectTrusted,
         operationError,
@@ -1329,6 +1333,24 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    ...(allowBrowserMockFallback
+      ? {}
+      : {
+          getBrowserState: browserUnavailable,
+          openBrowser: browserUnavailable,
+          navigateBrowser: browserUnavailable,
+          reloadBrowser: browserUnavailable,
+          goBackBrowser: browserUnavailable,
+          goForwardBrowser: browserUnavailable,
+          closeBrowser: browserUnavailable,
+          setBrowserBounds: browserUnavailable,
+          clearBrowserAllowedSites: browserUnavailable,
+        }),
+    getWorkspaceDiff: allowBrowserMockFallback
+      ? mockClient.getWorkspaceDiff
+      : async () => {
+          throw new Error('当前 Agent 不提供独立工作区 patch；请使用 Review 数据源。')
+        },
     readAttachment: attachmentId => withAgentOrMock(
       () => rpc.call('attachment/read', { attachmentId }),
       () => mockClient.readAttachment(attachmentId),
@@ -1790,9 +1812,14 @@ export function createAgentSessionDesktopClient(
         ),
         () => mockClient.openWorkspace(workspacePath),
       ),
-    getWorkspaceContext: workspacePath =>
+    getWorkspaceContext: (workspacePath, projectId) =>
       withAgentOrMock(
-        async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
+        async () => projectToDesktopWorkspace(
+          projectId
+            ? await loadProjectById(projectId)
+            : await loadProjectForPath(workspacePath),
+          projectId ?? null,
+        ),
         () => mockClient.getWorkspaceContext(workspacePath),
       ),
     listWorkspaceFiles: (workspacePath, directoryPath = '.', folderId, projectId) =>

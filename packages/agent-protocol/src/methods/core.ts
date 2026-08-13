@@ -479,6 +479,8 @@ export const ProjectSourceRemoveResultSchema = Schema.Struct({
 export const WorkspaceFileRevisionSchema = Schema.Struct({
   mtimeMs: NonNegativeNumberSchema,
   sha256: NonEmptyStringSchema,
+  rawSha256: Schema.optional(NonEmptyStringSchema),
+  utf8Bom: Schema.optional(Schema.Boolean),
 })
 
 export const WorkspaceFileListParamsSchema = Schema.Struct({

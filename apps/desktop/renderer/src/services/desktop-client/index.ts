@@ -14,6 +14,7 @@ export {
 } from './agent-session-client.js'
 export { startGithubLoginFlow } from './github-login.js'
 export type { DesktopTerminalClient } from './terminal-client.js'
+export type { DesktopBrowserClient } from './desktop-browser-client.js'
 
 let terminalClientPromise:
   | Promise<import('./terminal-client.js').DesktopTerminalClient>
@@ -22,9 +23,12 @@ let terminalClientPromise:
 export function loadDesktopTerminalClient(): Promise<
   import('./terminal-client.js').DesktopTerminalClient
 > {
-  terminalClientPromise ??= import('./terminal-client.js').then(
-    module => module.terminalClient,
-  )
+  terminalClientPromise ??= import('./terminal-client.js')
+    .then(module => module.terminalClient)
+    .catch(error => {
+      terminalClientPromise = null
+      throw error
+    })
   return terminalClientPromise
 }
 export type { GithubLoginClient } from './github-login.js'

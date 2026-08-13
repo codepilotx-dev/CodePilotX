@@ -85,6 +85,11 @@ export type ConversationUiValidationOptions = {
   validPlanEventIds?: readonly string[]
   validSideTaskIds?: readonly string[]
   workspacePath?: string | null
+  fileScopes?: readonly {
+    projectId?: string
+    folderId?: string
+    workspacePath: string
+  }[]
 }
 
 export function createDefaultConversationUiState(): ConversationUiState {
@@ -550,14 +555,27 @@ function validateTabDescriptor(
     tab.id.startsWith('file:') &&
     isSafePath(tab.workspacePath, false) &&
     isSafePath(tab.relativePath, true) &&
-    (!options.workspacePath || tab.workspacePath === options.workspacePath)
+    (!options.workspacePath || sameWorkspacePath(tab.workspacePath, options.workspacePath))
   ) {
+    const workspacePath = tab.workspacePath
+    const fileScope = options.fileScopes?.find(scope =>
+      sameWorkspacePath(scope.workspacePath, workspacePath),
+    )
+    if (options.fileScopes && !fileScope) return null
     return {
       id: tab.id as `file:${string}`,
       kind: 'file-preview',
-      workspacePath: tab.workspacePath,
-      ...(typeof tab.projectId === 'string' ? { projectId: tab.projectId } : {}),
-      ...(typeof tab.folderId === 'string' ? { folderId: tab.folderId } : {}),
+      workspacePath,
+      ...(fileScope?.projectId
+        ? { projectId: fileScope.projectId }
+        : typeof tab.projectId === 'string'
+          ? { projectId: tab.projectId }
+          : {}),
+      ...(fileScope?.folderId
+        ? { folderId: fileScope.folderId }
+        : typeof tab.folderId === 'string'
+          ? { folderId: tab.folderId }
+          : {}),
       relativePath: tab.relativePath,
       preview: Boolean(tab.preview),
       ...(tab.markdownViewMode === 'rich' ||
@@ -607,6 +625,11 @@ function validateTabDescriptor(
   }
 
   return null
+}
+
+function sameWorkspacePath(left: string, right: string): boolean {
+  return left.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase() ===
+    right.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
 }
 
 function isPositiveInteger(value: unknown): value is number {

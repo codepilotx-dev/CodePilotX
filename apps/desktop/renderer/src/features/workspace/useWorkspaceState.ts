@@ -138,8 +138,6 @@ export function mergeWorkspaceReviewFileStats(
 type WorkspaceRefreshResult = {
   context: DesktopWorkspace
   files: DesktopFileEntry[]
-  diff: string
-  gitStatus: DesktopGitStatus | null
 }
 
 export type UseWorkspaceStateResult = {
@@ -179,6 +177,7 @@ export function useWorkspaceState(
   const [diff, setDiff] = useState(NO_WORKSPACE_DIFF)
   const [gitStatus, setGitStatus] = useState<DesktopGitStatus | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
+  const appliedWorkspaceIdentityRef = useRef<string | null>(null)
   const onErrorRef = useRef(options.onError)
   onErrorRef.current = options.onError
   const onWorkspaceUnavailableRef = useRef(options.onWorkspaceUnavailable)
@@ -190,54 +189,19 @@ export function useWorkspaceState(
   if (!refreshCoordinatorRef.current) {
     refreshCoordinatorRef.current = createWorkspaceRefreshCoordinator(
       async target => {
-        const [
-          nextContext,
-          nextFiles,
-          nextDiff,
-          nextGitStatus,
-          nextGitBranches,
-          nextUnstagedSummary,
-          nextStagedSummary,
-        ] =
-          await Promise.all([
-            desktopClient.getWorkspaceContext(target.path),
-            desktopClient.listWorkspaceFiles(
-              target.path,
-              '.',
-              target.primaryFolderId,
-              target.projectId,
-            ),
-            desktopClient.getWorkspaceDiff(target.path),
-            desktopClient.getWorkspaceGitStatus(target.path),
-            desktopClient
-              .getAgentReviewBranches(target.path)
-              .catch(() => []),
-            desktopClient.getAgentReviewSummary({
-              workspacePath: target.path,
-              source: { kind: 'unstaged' },
-              refresh: true,
-            }).catch(() => null),
-            desktopClient.getAgentReviewSummary({
-              workspacePath: target.path,
-              source: { kind: 'staged' },
-              refresh: true,
-            }).catch(() => null),
-          ])
-        const gitStatus = nextGitStatus.ok
-          ? mergeWorkspaceReviewFileStats(nextGitStatus.status, [
-              nextUnstagedSummary?.snapshot ?? null,
-              nextStagedSummary?.snapshot ?? null,
-            ])
-          : null
-        return {
-          context: mergeWorkspaceGitProjection(
-            nextContext,
-            gitStatus,
-            nextGitBranches,
+        // 项目上下文与文件树是工作区的核心状态；Git/Review 失败不能阻止它们更新。
+        const [nextContext, nextFiles] = await Promise.all([
+          desktopClient.getWorkspaceContext(target.path, target.projectId),
+          desktopClient.listWorkspaceFiles(
+            target.path,
+            '.',
+            target.primaryFolderId,
+            target.projectId,
           ),
+        ])
+        return {
+          context: nextContext,
           files: nextFiles,
-          diff: nextDiff.patch,
-          gitStatus,
         }
       },
     )
@@ -258,6 +222,9 @@ export function useWorkspaceState(
   const setWorkspace = useCallback(
     (nextWorkspace: DesktopWorkspace | null): void => {
       setWorkspaceState(nextWorkspace)
+      appliedWorkspaceIdentityRef.current = nextWorkspace
+        ? workspaceIdentity(nextWorkspace)
+        : null
       if (!nextWorkspace) {
         refreshCoordinatorRef.current?.reset()
         setGitStatus(null)
@@ -330,8 +297,7 @@ export function useWorkspaceState(
           upsertRecentWorkspace(current, result.context),
         )
         setFiles(result.files)
-        setDiff(result.diff)
-        setGitStatus(result.gitStatus)
+        setGitStatus(null)
         refreshCoordinatorRef.current?.markApplied(result.context)
         if (refreshOptions.clearSelectedFile ?? true) {
           setSelectedFile(null)
@@ -341,6 +307,7 @@ export function useWorkspaceState(
             refreshOptions.expectedSessionId ?? activeSessionIdRef.current,
           )
         }
+        void refreshWorkspaceGitProjection(result.context)
       } catch (error) {
         if (isWorkspaceUnavailableError(error)) {
           onWorkspaceUnavailableRef.current?.(target)
@@ -372,6 +339,51 @@ export function useWorkspaceState(
     } catch {
       setSelectedFile(null)
     }
+  }
+
+  async function refreshWorkspaceGitProjection(
+    target: DesktopWorkspace,
+  ): Promise<void> {
+    const identity = workspaceIdentity(target)
+    const [gitStatusResult, branchesResult, unstagedResult, stagedResult] =
+      await Promise.allSettled([
+        desktopClient.getWorkspaceGitStatus(target.path, target.projectId),
+        desktopClient.getAgentReviewBranches(target.path, target.projectId),
+        desktopClient.getAgentReviewSummary({
+          ...(target.projectId ? { projectId: target.projectId } : {}),
+          workspacePath: target.path,
+          source: { kind: 'unstaged' },
+          refresh: true,
+        }),
+        desktopClient.getAgentReviewSummary({
+          ...(target.projectId ? { projectId: target.projectId } : {}),
+          workspacePath: target.path,
+          source: { kind: 'staged' },
+          refresh: true,
+        }),
+      ])
+    if (appliedWorkspaceIdentityRef.current !== identity) return
+
+    const statusResult =
+      gitStatusResult.status === 'fulfilled' ? gitStatusResult.value : null
+    const summaries = [unstagedResult, stagedResult].map(result =>
+      result.status === 'fulfilled' ? result.value.snapshot : null,
+    )
+    const nextGitStatus = statusResult?.ok
+      ? mergeWorkspaceReviewFileStats(statusResult.status, summaries)
+      : null
+    const branches =
+      branchesResult.status === 'fulfilled' ? branchesResult.value : []
+    const projected = mergeWorkspaceGitProjection(
+      target,
+      nextGitStatus,
+      branches,
+    )
+    setWorkspaceState(projected)
+    setGitStatus(nextGitStatus)
+    onRecentWorkspacesChangeRef.current(current =>
+      upsertRecentWorkspace(current, projected),
+    )
   }
 
   const chooseWorkspace = useCallback(async (): Promise<DesktopWorkspace | null> => {
