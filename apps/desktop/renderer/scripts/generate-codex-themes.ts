@@ -269,8 +269,6 @@ function renderManifest(
   themes: ReadonlyArray<(typeof metadata)[number]>,
   families: typeof CODEX_THEME_FAMILIES,
 ): string {
-  const defaultImports = `import codexDark from './themes/codex-dark.js'
-import codexLight from './themes/codex-light.js'`
   const themesBySlug = new Map(themes.map(theme => [theme.slug, theme]))
   const selectableThemes = families.flatMap(family =>
     (['light', 'dark'] as const).flatMap(variant => {
@@ -297,12 +295,7 @@ import codexLight from './themes/codex-light.js'`
     .join('\n')
   const loaders = selectableThemes
     .map(theme => {
-      const expression =
-        theme.slug === 'codex-dark'
-          ? 'Promise.resolve(codexDark)'
-          : theme.slug === 'codex-light'
-            ? 'Promise.resolve(codexLight)'
-            : `import('./themes/${theme.slug}.js').then(module => module.default)`
+      const expression = `import('./themes/${theme.slug}.js').then(module => module.default)`
       return `  ${JSON.stringify(theme.slug)}: () => ${expression},`
     })
     .join('\n')

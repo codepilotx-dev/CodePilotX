@@ -23,7 +23,7 @@ import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
-import { InputDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
 import { cx } from "../../../utils/cx.js";
 import {
   SidebarContextMenu,
@@ -34,6 +34,11 @@ import type { DesktopSidebarSort } from '../../../../shared/types.js'
 const SidebarSessionHoverCard = lazy(async () => {
   const module = await import('./SidebarSessionHoverCard.js')
   return { default: module.SidebarSessionHoverCard }
+})
+
+const InputDialog = lazy(async () => {
+  const module = await import('../../../components/ui/ConfirmationDialog.js')
+  return { default: module.InputDialog }
 })
 
 const GROUP_LIMIT = 5;
@@ -89,6 +94,7 @@ function SidebarSessionGroupComponent({
   >(null);
   const [visibleLimit, setVisibleLimit] = useState(GROUP_LIMIT);
   const [renameSession, setRenameSession] = useState<SessionListItem | null>(null)
+  const renameDialogMounted = useEverOpened(renameSession !== null)
   const [renameValue, setRenameValue] = useState('')
   const [renaming, setRenaming] = useState(false)
   const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null)
@@ -562,31 +568,35 @@ function SidebarSessionGroupComponent({
       ) : null}
       </>
       ) : null}
-      <InputDialog
-        actionDisabled={renaming || renameValue.trim().length === 0}
-        actionLabel={renaming ? '重命名中…' : '重命名'}
-        description="输入新的对话名称。"
-        input={{
-          value: renameValue,
-          onChange: setRenameValue,
-          maxLength: 160,
-          placeholder: '输入对话名称',
-        }}
-        open={renameSession !== null}
-        title="重命名对话"
-        onAction={() => {
-          if (!renameSession || renaming) return
-          setRenaming(true)
-          void onRenameSession(renameSession.id, renameValue).then(success => {
-            setRenaming(false)
-            if (success) setRenameSession(null)
-          })
-        }}
-        onCancel={() => {
-          if (renaming) return
-          setRenameSession(null)
-        }}
-      />
+      {renameDialogMounted ? (
+        <Suspense fallback={null}>
+          <InputDialog
+            actionDisabled={renaming || renameValue.trim().length === 0}
+            actionLabel={renaming ? '重命名中…' : '重命名'}
+            description="输入新的对话名称。"
+            input={{
+              value: renameValue,
+              onChange: setRenameValue,
+              maxLength: 160,
+              placeholder: '输入对话名称',
+            }}
+            open={renameSession !== null}
+            title="重命名对话"
+            onAction={() => {
+              if (!renameSession || renaming) return
+              setRenaming(true)
+              void onRenameSession(renameSession.id, renameValue).then(success => {
+                setRenaming(false)
+                if (success) setRenameSession(null)
+              })
+            }}
+            onCancel={() => {
+              if (renaming) return
+              setRenameSession(null)
+            }}
+          />
+        </Suspense>
+      ) : null}
     </>
   );
 }

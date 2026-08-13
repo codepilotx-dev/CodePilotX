@@ -19,7 +19,6 @@ import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { SidebarRow } from './SidebarRow.js'
 import { SidebarSessionGroup } from './SidebarSessionGroup.js'
 import {
@@ -44,6 +43,11 @@ import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
 const ProjectEditDialog = lazy(async () => {
   const module = await import('../../projects/ProjectEditDialog.js')
   return { default: module.ProjectEditDialog }
+})
+
+const ConfirmationDialog = lazy(async () => {
+  const module = await import('../../../components/ui/ConfirmationDialog.js')
+  return { default: module.ConfirmationDialog }
 })
 
 type Props = {
@@ -105,6 +109,7 @@ function SidebarProjectGroupComponent({
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
+  const confirmationDialogMounted = useEverOpened(confirmRemoveOpen)
   const managerDialogMounted = useEverOpened(managerOpen)
   const [managedProject, setManagedProject] = useState(project)
   const [processingAction, setProcessingAction] = useState<
@@ -368,44 +373,48 @@ function SidebarProjectGroupComponent({
         />
       ) : null}
 
-      <ConfirmationDialog
-        actionDisabled={processingAction !== null}
-        actionLabel={processingAction === 'remove' ? '处理中…' : '移除'}
-        description="项目任务将一并归档。磁盘上的目录与文件不会被删除。"
-        open={confirmRemoveOpen}
-        title={`移除 ${managedProject.name}?`}
-        tone="danger"
-        onAction={() => {
-          if (processingAction) return
-          setProcessingAction('remove')
-          void (managedProject.projectId
-            ? desktopClient
-                .removeProject(managedProject.projectId)
-                .then(() => true)
-            : onArchiveSessions(countedProjectSessions)
-          )
-            .then(success => {
-              if (!success) return
-              setConfirmRemoveOpen(false)
-              if (managedProject.projectId) {
-                setProjectAppearances(current => {
-                  const {
-                    [managedProject.projectId as string]: _removed,
-                    ...next
-                  } = current
-                  return next
+      {confirmationDialogMounted ? (
+        <Suspense fallback={null}>
+          <ConfirmationDialog
+            actionDisabled={processingAction !== null}
+            actionLabel={processingAction === 'remove' ? '处理中…' : '移除'}
+            description="项目任务将一并归档。磁盘上的目录与文件不会被删除。"
+            open={confirmRemoveOpen}
+            title={`移除 ${managedProject.name}?`}
+            tone="danger"
+            onAction={() => {
+              if (processingAction) return
+              setProcessingAction('remove')
+              void (managedProject.projectId
+                ? desktopClient
+                    .removeProject(managedProject.projectId)
+                    .then(() => true)
+                : onArchiveSessions(countedProjectSessions)
+              )
+                .then(success => {
+                  if (!success) return
+                  setConfirmRemoveOpen(false)
+                  if (managedProject.projectId) {
+                    setProjectAppearances(current => {
+                      const {
+                        [managedProject.projectId as string]: _removed,
+                        ...next
+                      } = current
+                      return next
+                    })
+                  }
+                  onRemoveWorkspace(managedProject)
+                  notifyProjectCatalogChanged()
                 })
-              }
-              onRemoveWorkspace(managedProject)
-              notifyProjectCatalogChanged()
-            })
-            .catch(error => onReport(
-              error instanceof Error ? error.message : String(error),
-            ))
-            .finally(() => setProcessingAction(null))
-        }}
-        onCancel={() => setConfirmRemoveOpen(false)}
-      />
+                .catch(error => onReport(
+                  error instanceof Error ? error.message : String(error),
+                ))
+                .finally(() => setProcessingAction(null))
+            }}
+            onCancel={() => setConfirmRemoveOpen(false)}
+          />
+        </Suspense>
+      ) : null}
 
       {managerDialogMounted ? (
         <Suspense fallback={null}>

@@ -1,6 +1,6 @@
 import type React from "react";
 import { useLocation } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DesktopRemovedWorkspace,
   DesktopSessionCatalogStatus,
@@ -29,12 +29,17 @@ import {
 } from './sidebar/sidebarViewModel.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
+import { useEverOpened } from '../../hooks/usePresenceRetention.js'
 import {
   getSidebarScrollModeKey,
   type SidebarScrollModeKey,
 } from './sidebar/useSidebarScrollController.js'
 import { useSidebarProjectCatalog } from './sidebar/useSidebarProjectCatalog.js'
+
+const ConfirmationDialog = lazy(async () => {
+  const module = await import('../../components/ui/ConfirmationDialog.js')
+  return { default: module.ConfirmationDialog }
+})
 
 type Props = {
   activeSessionId: string | null;
@@ -183,6 +188,7 @@ export function DesktopSidebar({
   const [showTimelinePinned, setShowTimelinePinned] = useState(false)
   const [archiveAttentionOpen, setArchiveAttentionOpen] = useState(false)
   const [archivingAttention, setArchivingAttention] = useState(false)
+  const archiveAttentionDialogMounted = useEverOpened(archiveAttentionOpen)
 
   // 始终构建时间线投影，使铃铛在时间线关闭时也能获得关注状态
   const timelineModel = useMemo(
@@ -490,16 +496,20 @@ export function DesktopSidebar({
         onOpenWhatsNew={onOpenWhatsNew}
         onReport={onReport}
       />
-      <ConfirmationDialog
-        actionDisabled={archivingAttention}
-        actionLabel={archivingAttention ? '归档中…' : '归档任务'}
-        description={`将归档 ${archivableAttentionSessions.length} 个已完成的任务；等待问题、权限或计划审批的任务不会被归档。`}
-        open={archiveAttentionOpen}
-        title="归档需要关注的任务？"
-        tone="danger"
-        onAction={() => void confirmArchiveAttention()}
-        onCancel={() => setArchiveAttentionOpen(false)}
-      />
+      {archiveAttentionDialogMounted ? (
+        <Suspense fallback={null}>
+          <ConfirmationDialog
+            actionDisabled={archivingAttention}
+            actionLabel={archivingAttention ? '归档中…' : '归档任务'}
+            description={`将归档 ${archivableAttentionSessions.length} 个已完成的任务；等待问题、权限或计划审批的任务不会被归档。`}
+            open={archiveAttentionOpen}
+            title="归档需要关注的任务？"
+            tone="danger"
+            onAction={() => void confirmArchiveAttention()}
+            onCancel={() => setArchiveAttentionOpen(false)}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

@@ -40,7 +40,6 @@ import {
 } from '../tabs/conversationUiState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
 import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { MenuBar } from '../MenuBar.js'
@@ -127,6 +126,7 @@ const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').th
 const WorkbenchPanel = lazy(() => import('../dock/RightDock.js').then(module => ({ default: module.WorkbenchPanel })))
 const CommandMenuDialog = lazy(() => import('../../search/CommandMenuDialog.js').then(module => ({ default: module.CommandMenuDialog })))
 const DesktopComposer = lazy(() => import('../../session/composer/DesktopComposer.js').then(module => ({ default: module.DesktopComposer })))
+const ConfirmationDialog = lazy(() => import('../../../components/ui/ConfirmationDialog.js').then(module => ({ default: module.ConfirmationDialog })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -1106,6 +1106,7 @@ export function DesktopLayout(): React.ReactNode {
     replaceWorkbenchTab: replaceSideChatWorkbenchTab,
     onError: handleErrorMessage,
   })
+  const closeConfirmationDialogMounted = useEverOpened(closeConfirmationOpen)
   const handleOpenSideChat = useCallback((): void => {
     void createSideChat()
   }, [createSideChat])
@@ -3262,20 +3263,24 @@ export function DesktopLayout(): React.ReactNode {
           }}
         />
       ) : null}
-      <ConfirmationDialog
-        actionLabel="关闭侧边聊天"
-        description="这个侧边聊天将被删除，且无法恢复。你确定吗？"
-        open={closeConfirmationOpen}
-        suppression={{
-          checked: skipCloseConfirmation,
-          label: '不再询问',
-          onCheckedChange: setSkipCloseConfirmation,
-        }}
-        title="关闭侧边聊天？"
-        tone="danger"
-        onAction={confirmSideChatClose}
-        onCancel={cancelSideChatClose}
-      />
+      {closeConfirmationDialogMounted ? (
+        <Suspense fallback={null}>
+          <ConfirmationDialog
+            actionLabel="关闭侧边聊天"
+            description="这个侧边聊天将被删除，且无法恢复。你确定吗？"
+            open={closeConfirmationOpen}
+            suppression={{
+              checked: skipCloseConfirmation,
+              label: '不再询问',
+              onCheckedChange: setSkipCloseConfirmation,
+            }}
+            title="关闭侧边聊天？"
+            tone="danger"
+            onAction={confirmSideChatClose}
+            onCancel={cancelSideChatClose}
+          />
+        </Suspense>
+      ) : null}
 
       <WorkbenchShellView
         menuBar={menuBar}

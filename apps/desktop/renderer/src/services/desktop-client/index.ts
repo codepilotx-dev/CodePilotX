@@ -1,5 +1,5 @@
 import { createAgentSessionDesktopClient } from './agent-session-client.js'
-import { createBrowserMockDesktopClient } from './browser-mock-client.js'
+import { createLazyBrowserMockClient } from './lazy-browser-mock-client.js'
 import { defaultDesktopClientEnvironment } from './environment.js'
 import type {
   CodePilotXDesktopClient,
@@ -56,8 +56,7 @@ export type {
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
 ): CodePilotXDesktopClient {
-  const fallbackClient =
-    createBrowserMockDesktopClient(environment.localStorage)
+  const fallbackClient = createLazyBrowserMockClient(environment.localStorage)
   return createAgentSessionDesktopClient(
     environment,
     fallbackClient,

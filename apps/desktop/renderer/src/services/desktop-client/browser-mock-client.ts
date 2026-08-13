@@ -111,13 +111,16 @@ import {
   mockGithubLogin,
   mockModelProvider,
   mockSessionSnapshot,
-  mockThreadHistoryPage,
   mockWorkspace,
-  permissionModeFromDesktopConfig,
   readBrowserFixtureAttachment,
   readBrowserThemeSettings,
   requireMockSession,
 } from './fixtures.js'
+import {
+  bridgeWindowMaximized,
+  mockAuthStatus,
+  mockRuntimeStatus,
+} from './fixtureRuntime.js'
 import type {
   DesktopAttachmentApi,
   DesktopLocalContextApi,
@@ -158,6 +161,11 @@ export function createBrowserMockDesktopClient(
 ): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
   & DesktopLocalContextApi & DesktopSpeechApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
+  const visualFixture = createBrowserVisualFixture()
+  const performanceFixture = createBrowserPerformanceFixture()
+  if (visualFixture || performanceFixture) {
+    settings = { ...settings, providerID: 'mock', model: 'mock' }
+  }
   let configDocument: Record<string, JsonValue> = {
     desktop: { ...settings } as unknown as JsonValue,
   }
@@ -172,21 +180,10 @@ export function createBrowserMockDesktopClient(
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const settingsListeners = new Set<(change: DesktopSettingsChange) => void>()
 
-  const runtimeStatus: DesktopRuntimeStatus = {
-    runtimeKind: 'rust-sidecar',
-    runtimePreference: 'auto',
-    runtimeSelectionSource: 'default',
-    agentExecutablePath: '',
-    agentExecutableExists: false,
-    configDirectoryPath: '',
-    toolchainEnabled: true,
-    toolchainRoot: null,
-    managedToolchainRoot: '',
-    packagedToolchainRoot: '',
-    toolchainPathEntries: [],
-    toolchainBinaries: [],
+  const provider = {
+    ...mockModelProvider(settings.providerID),
+    ...(visualFixture || performanceFixture ? { defaultModels: ['mock'] } : {}),
   }
-  const provider = mockModelProvider(settings.providerID)
   const providerState = (): DesktopModelProviderState => ({
     selectedProviderID: settings.providerID,
     provider,
@@ -199,8 +196,6 @@ export function createBrowserMockDesktopClient(
     models: provider.defaultModels,
     modelMetadata: provider.modelMetadata,
   })
-  const visualFixture = createBrowserVisualFixture()
-  const performanceFixture = createBrowserPerformanceFixture()
   const visualSessionReadDelayMs =
     import.meta.env.DEV && typeof window !== 'undefined'
       ? Math.min(
@@ -286,47 +281,51 @@ export function createBrowserMockDesktopClient(
     },
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
-    getAuthStatus: async () => ({
-      authenticated: false,
-      method: 'none',
-      email: null,
-      organizationName: null,
-    }),
-    getRuntimeStatus: async () => runtimeStatus,
-    diagnoseDesktopToolchain: async () => ({
-      enabled: settings.installCodePilotXDependencies,
-      root: runtimeStatus.toolchainRoot,
-      managedRoot: runtimeStatus.managedToolchainRoot,
-      packagedRoot: runtimeStatus.packagedToolchainRoot,
-      pathEntries: runtimeStatus.toolchainPathEntries,
-      binaries: runtimeStatus.toolchainBinaries,
-    }),
-    reinstallDesktopToolchain: async () => ({
-      ok: true,
-      root: runtimeStatus.managedToolchainRoot,
-      copiedFrom: null,
-      diagnostics: {
+    getAuthStatus: async () => mockAuthStatus(),
+    getRuntimeStatus: async () => mockRuntimeStatus(),
+    diagnoseDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
         enabled: settings.installCodePilotXDependencies,
         root: runtimeStatus.toolchainRoot,
         managedRoot: runtimeStatus.managedToolchainRoot,
         packagedRoot: runtimeStatus.packagedToolchainRoot,
         pathEntries: runtimeStatus.toolchainPathEntries,
         binaries: runtimeStatus.toolchainBinaries,
-      },
-    }),
-    deleteDesktopToolchain: async () => ({
-      ok: true,
-      root: runtimeStatus.managedToolchainRoot,
-      copiedFrom: null,
-      diagnostics: {
-        enabled: settings.installCodePilotXDependencies,
-        root: null,
-        managedRoot: runtimeStatus.managedToolchainRoot,
-        packagedRoot: runtimeStatus.packagedToolchainRoot,
-        pathEntries: [],
-        binaries: runtimeStatus.toolchainBinaries,
-      },
-    }),
+      }
+    },
+    reinstallDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
+        ok: true,
+        root: runtimeStatus.managedToolchainRoot,
+        copiedFrom: null,
+        diagnostics: {
+          enabled: settings.installCodePilotXDependencies,
+          root: runtimeStatus.toolchainRoot,
+          managedRoot: runtimeStatus.managedToolchainRoot,
+          packagedRoot: runtimeStatus.packagedToolchainRoot,
+          pathEntries: runtimeStatus.toolchainPathEntries,
+          binaries: runtimeStatus.toolchainBinaries,
+        },
+      }
+    },
+    deleteDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
+        ok: true,
+        root: runtimeStatus.managedToolchainRoot,
+        copiedFrom: null,
+        diagnostics: {
+          enabled: settings.installCodePilotXDependencies,
+          root: null,
+          managedRoot: runtimeStatus.managedToolchainRoot,
+          packagedRoot: runtimeStatus.packagedToolchainRoot,
+          pathEntries: [],
+          binaries: runtimeStatus.toolchainBinaries,
+        },
+      }
+    },
     readConfig: async params => ({
       config: configDocument,
       origins: {},
@@ -1018,8 +1017,7 @@ export function createBrowserMockDesktopClient(
     closeWindow: async () => {
       await window.codePilotXDesktop?.close()
     },
-    isWindowMaximized: async () =>
-      (await window.codePilotXDesktop?.isMaximized()) ?? false,
+    isWindowMaximized: async () => bridgeWindowMaximized(),
     newWindow: async () => {},
     openDevTools: async () => {},
     closeDevTools: async () => {},

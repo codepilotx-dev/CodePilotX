@@ -152,9 +152,11 @@ type PendingInteraction =
   RpcResult<'interaction/listPending'>['interactions'][number]
 
 import {
-  mockThreadHistoryPage,
+  bridgeWindowMaximized,
+  mockAuthStatus,
+  mockRuntimeStatus,
   permissionModeFromDesktopConfig,
-} from './fixtures.js'
+} from './fixtureRuntime.js'
 import { catalogProviderToDesktop } from './provider-adapters.js'
 import type {
   CodePilotXDesktopClient,
@@ -1393,8 +1395,10 @@ export function createAgentSessionDesktopClient(
     unsubscribeSessionCatalog = null
   }
 
-  const client: CodePilotXDesktopClient = {
-    ...mockClient,
+  // 显式组合 Agent/Electron 实现与 lazy Browser Mock fallback：target 中
+  // 显式定义的方法优先；未定义的（mock 独有的兜底）在调用时才经 lazy
+  // facade 加载 Mock chunk，不再把完整 Mock 实现静态展开进 Agent 路径。
+  const agentClient: Partial<CodePilotXDesktopClient> = {
     ...(allowBrowserMockFallback
       ? {}
       : {
@@ -2274,24 +2278,30 @@ export function createAgentSessionDesktopClient(
           context: input.context,
         })
       }),
-    listModelProviders: async () => {
-      const directory = await loadProviderCatalog()
-      return directory.providers.map(provider => ({
-        ...catalogProviderToDesktop(
-          {
-            provider,
-            models: providerModelCache.get(provider.id) ?? [],
-          },
-        ),
-        config: provider.config,
-        unresolvedMigrationIssues: directory.issues
-          .filter(issue => issue.providerId === provider.id)
-          .map(issue => `${issue.code}:${issue.path}`),
-        apiKeyConfigured: provider.authConfigured,
-      }))
-    },
+    listModelProviders: () => withAgentOrMock(
+      async () => {
+        const directory = await loadProviderCatalog()
+        return directory.providers.map(provider => ({
+          ...catalogProviderToDesktop(
+            {
+              provider,
+              models: providerModelCache.get(provider.id) ?? [],
+            },
+          ),
+          config: provider.config,
+          unresolvedMigrationIssues: directory.issues
+            .filter(issue => issue.providerId === provider.id)
+            .map(issue => `${issue.code}:${issue.path}`),
+          apiKeyConfigured: provider.authConfigured,
+        }))
+      },
+      () => mockClient.listModelProviders(),
+    ),
     getModelProviderState: (providerID?: ModelProviderID) =>
-      providerState(providerID),
+      withAgentOrMock(
+        () => providerState(providerID),
+        () => mockClient.getModelProviderState(providerID),
+      ),
     fetchProviderModels: async options => {
       const result = await loadProviderModelPage({
         providerID: options.providerID,
@@ -2390,8 +2400,11 @@ export function createAgentSessionDesktopClient(
         api.deleteProviderApiKey(providerID),
       ),
     listProviderCredentials: providerId =>
-      loadAgentProviderCredentialApi().then(api =>
-        api.listProviderCredentials(providerId),
+      withAgentOrMock(
+        () => loadAgentProviderCredentialApi().then(api =>
+          api.listProviderCredentials(providerId),
+        ),
+        () => mockClient.listProviderCredentials(providerId),
       ),
     readProviderCredentialStore: () =>
       loadAgentProviderCredentialApi().then(api =>
@@ -2960,9 +2973,12 @@ export function createAgentSessionDesktopClient(
     readThreadHistoryPage: params =>
       withAgentOrMock(
         () => rpc.call('thread/history/read', params),
-        async () => mockThreadHistoryPage(
-          await mockClient.getSession(params.threadId),
-        ),
+        async () => {
+          const { mockThreadHistoryPage } = await import('./fixtureShared.js')
+          return mockThreadHistoryPage(
+            await mockClient.getSession(params.threadId),
+          )
+        },
       ),
     createSideChat: input => withAgentOrMock(
       async () => {
@@ -3028,6 +3044,104 @@ export function createAgentSessionDesktopClient(
       })
     },
   }
+
+  // Browser Mock 独有的兜底方法（CodePilotXDesktopClient 接口减去 agentClient
+  // 已实现键的差集）。这些方法不在 Agent/bridge 路径实现，原实现经
+  // `...mockClient` 静态展开；现在显式组合：首屏挂载链会调用的方法使用与
+  // Mock 等价的本地/共享实现（不加载 Mock chunk），其余方法在调用时才经
+  // lazy facade 加载 Mock chunk，行为与原实现等价。
+  const MOCK_FALLBACK_METHODS = [
+    'applyWorkspaceReviewOperation',
+    'cancelCopilotLogin',
+    'cancelDebugToolProbe',
+    'closeDevTools',
+    'closeWindow',
+    'deleteDesktopToolchain',
+    'diagnoseDesktopToolchain',
+    'discardWorkspaceChanges',
+    'exitApp',
+    'exportUserMemory',
+    'getAuthStatus',
+    'getCopilotAuthStatus',
+    'getRuntimeStatus',
+    'getWorkspaceReviewDiff',
+    'importUserMemory',
+    'installSkill',
+    'isWindowMaximized',
+    'listBuiltinPlugins',
+    'listDebugBuiltinTools',
+    'listRuntimePermissionProfiles',
+    'listSkillsCatalog',
+    'logOut',
+    'minimizeWindow',
+    'newWindow',
+    'onUiCommand',
+    'onWorkflowEvent',
+    'openDevTools',
+    'openExternalURL',
+    'openSettings',
+    'pickWorkspaceDirectory',
+    'pollCopilotLogin',
+    'reinstallDesktopToolchain',
+    'runDebugToolProbe',
+    'setBuiltinPluginEnabled',
+    'startCopilotLogin',
+    'toggleWindowMaximized',
+  ] as const
+  type MockFallbackMethod = (typeof MOCK_FALLBACK_METHODS)[number]
+  const lazyMock = (method: MockFallbackMethod) =>
+    (...args: unknown[]) => {
+      const impl = Reflect.get(mockClient, method) as (
+        ...methodArgs: unknown[]
+      ) => unknown
+      return impl(...args)
+    }
+  const mockFallbackMethods: Record<MockFallbackMethod, unknown> = {
+    // 首屏挂载链（useSessionState/useDesktopCommands/useWorkspaceState/
+    // DesktopLayout）会调用：使用与 Mock 等价的本地实现，不加载 Mock chunk。
+    onWorkflowEvent: () => () => {},
+    onUiCommand: () => () => {},
+    getAuthStatus: async () => mockAuthStatus(),
+    getRuntimeStatus: async () => mockRuntimeStatus(),
+    isWindowMaximized: async () => bridgeWindowMaximized(),
+    // 其余方法只在用户交互或导航后调用，按需经 lazy facade 加载 Mock chunk。
+    applyWorkspaceReviewOperation: lazyMock('applyWorkspaceReviewOperation'),
+    cancelCopilotLogin: lazyMock('cancelCopilotLogin'),
+    cancelDebugToolProbe: lazyMock('cancelDebugToolProbe'),
+    closeDevTools: lazyMock('closeDevTools'),
+    closeWindow: lazyMock('closeWindow'),
+    deleteDesktopToolchain: lazyMock('deleteDesktopToolchain'),
+    diagnoseDesktopToolchain: lazyMock('diagnoseDesktopToolchain'),
+    discardWorkspaceChanges: lazyMock('discardWorkspaceChanges'),
+    exitApp: lazyMock('exitApp'),
+    exportUserMemory: lazyMock('exportUserMemory'),
+    getCopilotAuthStatus: lazyMock('getCopilotAuthStatus'),
+    getWorkspaceReviewDiff: lazyMock('getWorkspaceReviewDiff'),
+    importUserMemory: lazyMock('importUserMemory'),
+    installSkill: lazyMock('installSkill'),
+    listBuiltinPlugins: lazyMock('listBuiltinPlugins'),
+    listDebugBuiltinTools: lazyMock('listDebugBuiltinTools'),
+    listRuntimePermissionProfiles: lazyMock('listRuntimePermissionProfiles'),
+    listSkillsCatalog: lazyMock('listSkillsCatalog'),
+    logOut: lazyMock('logOut'),
+    minimizeWindow: lazyMock('minimizeWindow'),
+    newWindow: lazyMock('newWindow'),
+    openDevTools: lazyMock('openDevTools'),
+    openExternalURL: lazyMock('openExternalURL'),
+    openSettings: lazyMock('openSettings'),
+    pickWorkspaceDirectory: lazyMock('pickWorkspaceDirectory'),
+    pollCopilotLogin: lazyMock('pollCopilotLogin'),
+    reinstallDesktopToolchain: lazyMock('reinstallDesktopToolchain'),
+    runDebugToolProbe: lazyMock('runDebugToolProbe'),
+    setBuiltinPluginEnabled: lazyMock('setBuiltinPluginEnabled'),
+    startCopilotLogin: lazyMock('startCopilotLogin'),
+    toggleWindowMaximized: lazyMock('toggleWindowMaximized'),
+  }
+
+  const client = {
+    ...agentClient,
+    ...mockFallbackMethods,
+  } as unknown as CodePilotXDesktopClient
 
   return client
 }
