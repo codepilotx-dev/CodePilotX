@@ -10,8 +10,7 @@ import {
   ChevronRight,
   Copy,
   FolderOpen,
-  GitBranch,
-  Laptop,
+  GitFork,
   LayoutList,
   MessageSquarePlus,
   MoreHorizontal,
@@ -49,7 +48,6 @@ import {
   findLatestExecutionPlan,
 } from "../composer/ComposerChangeSummary.js";
 import { deriveConversationChangeSummary } from "../composer/conversationChangeSummary.js";
-import { DesktopComposer } from "../composer/DesktopComposer.js";
 import {
   clearConversationSelectionHighlight,
   createConversationSelectionSnapshot,
@@ -102,8 +100,10 @@ import {
   shouldCloseConversationRenameDialog,
 } from "./conversationTitleActions.js";
 import { useConversationForkController } from "../workflow/fork/useConversationForkController.js";
+import { findLatestConversationForkPoint } from "../workflow/fork/latestConversationForkPoint.js";
 export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
 export type { ConversationTurnNavItem } from "./turnNavigationModel.js";
+const DesktopComposer = React.lazy(() => import("../composer/DesktopComposer.js").then(module => ({ default: module.DesktopComposer })));
 
 const ConversationEnvironmentControls = React.lazy(() =>
   import("../workflow/ConversationEnvironmentControls.js").then((module) => ({
@@ -118,6 +118,8 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
     kind: "file-explorer",
   },
 ];
+
+const WORKSPACE_HEADER_ICON_SIZE = 16;
 
 function escapeCssAttributeValue(value: string): string {
   if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
@@ -168,6 +170,7 @@ export function ConversationPage(): React.ReactNode {
     onOpenSubagent,
     permissionMode,
     composerProps,
+    layoutResizeActive,
     rightDockPlanEventId,
   } = useQuickChatContext();
   const {
@@ -203,6 +206,10 @@ export function ConversationPage(): React.ReactNode {
   const reduceMotion = usePrefersReducedMotion();
   const turnNavItems = React.useMemo<ConversationTurnNavItem[]>(
     () => deriveConversationTurnNavItems(canonicalConversation.turns),
+    [canonicalConversation.turns],
+  );
+  const latestConversationForkPoint = React.useMemo(
+    () => findLatestConversationForkPoint(canonicalConversation.turns),
     [canonicalConversation.turns],
   );
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
@@ -594,9 +601,10 @@ export function ConversationPage(): React.ReactNode {
     copyText(url.toString());
   }
 
-  function openBranchFlow(): void {
+  function continueInNewConversation(): void {
     closeSessionMenu();
-    onCreateBranch();
+    if (!latestConversationForkPoint) return;
+    conversationFork.onForkFromMessage?.(latestConversationForkPoint);
   }
 
   function openAutomationView(): void {
@@ -703,7 +711,7 @@ export function ConversationPage(): React.ReactNode {
         <FolderOpen
           aria-hidden="true"
           className="chat-session-title__icon"
-          size={APP_ICON_SIZE}
+          size={WORKSPACE_HEADER_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
         <span
@@ -727,11 +735,14 @@ export function ConversationPage(): React.ReactNode {
           width={220}
           trigger={
             <IconButton
-              color="outline"
+              color="ghostSecondary"
               size="toolbar"
               title="更多会话操作"
             >
-              <MoreHorizontal size={APP_ICON_SIZE} />
+              <MoreHorizontal
+                size={WORKSPACE_HEADER_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </IconButton>
           }
           onOpenChange={setSessionMenuOpen}
@@ -806,18 +817,16 @@ export function ConversationPage(): React.ReactNode {
             </PopoverItem>
           </SessionSubmenu>
           <SessionSubmenu
-            disabled={!workspacePath}
-            icon={<GitBranch size={APP_ICON_SIZE} />}
-            label="分支"
+            disabled={!conversationFork.onForkFromMessage || !latestConversationForkPoint}
+            icon={<GitFork size={APP_ICON_SIZE} />}
+            label="继续到…"
           >
             <PopoverItem
-              icon={<Laptop size={APP_ICON_SIZE} />}
-              onClick={openBranchFlow}
+              disabled={!conversationFork.onForkFromMessage || !latestConversationForkPoint}
+              icon={<GitFork size={APP_ICON_SIZE} />}
+              onClick={continueInNewConversation}
             >
-              派生到本地
-            </PopoverItem>
-            <PopoverItem disabled icon={<GitBranch size={APP_ICON_SIZE} />}>
-              派生到新工作树
+              在新聊天中继续
             </PopoverItem>
           </SessionSubmenu>
           <PopoverItem
@@ -836,9 +845,11 @@ export function ConversationPage(): React.ReactNode {
     [
       activeSessionId,
       canRegenerateSessionTitle,
+      conversationFork.onForkFromMessage,
       hasActiveSession,
       isConversationLoading,
       isSessionPinned,
+      latestConversationForkPoint,
       openRenameSessionDialog,
       regenerateCurrentSessionTitle,
       titleRegenerating,
@@ -902,30 +913,6 @@ export function ConversationPage(): React.ReactNode {
 
       return (
         <div className="chat-session-actions">
-          {activeSessionId && workspacePath ? (
-            <React.Suspense fallback={null}>
-            <ConversationEnvironmentControls
-              terminalProfileId={settingsDraft.values.terminalProfileId}
-              threadId={activeSessionId}
-              workspacePath={workspacePath}
-              onOpenEnvironmentSettings={() => {
-                navigate(`/settings/local-environment?threadId=${encodeURIComponent(activeSessionId)}`)
-              }}
-              onOpenWorktreeSettings={projectId => {
-                navigate(`/settings/worktrees?projectId=${encodeURIComponent(projectId)}`)
-              }}
-              onTransferAuxiliaryState={targetThreadId => {
-                setSidebarSessionPins(current => {
-                  const pinnedAt = current[activeSessionId]
-                  return pinnedAt ? { ...current, [targetThreadId]: pinnedAt } : current
-                })
-              }}
-              onNavigateTarget={targetThreadId => {
-                navigate(`/threads/${encodeURIComponent(targetThreadId)}`)
-              }}
-            />
-            </React.Suspense>
-          ) : null}
         <div className="open-target-split-button">
           <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
             <IconButton
@@ -1099,6 +1086,7 @@ export function ConversationPage(): React.ReactNode {
         error={canonicalConversation.error}
         hasOlder={canonicalConversation.hasOlder}
         initialScrollOffset={initialTimelineScrollTop}
+        layoutResizeActive={layoutResizeActive}
         listRef={timelineListRef}
         navigationRef={timelineNavigationRef}
         loading={canonicalConversation.loading}
@@ -1163,6 +1151,30 @@ export function ConversationPage(): React.ReactNode {
         }}
       />
       {conversationFork.dialog}
+      {activeSessionId && workspacePath ? (
+        <React.Suspense fallback={null}>
+          <ConversationEnvironmentControls
+            terminalProfileId={settingsDraft.values.terminalProfileId}
+            threadId={activeSessionId}
+            workspacePath={workspacePath}
+            onOpenEnvironmentSettings={() => {
+              navigate(`/settings/local-environment?threadId=${encodeURIComponent(activeSessionId)}`)
+            }}
+            onOpenWorktreeSettings={projectId => {
+              navigate(`/settings/worktrees?projectId=${encodeURIComponent(projectId)}`)
+            }}
+            onTransferAuxiliaryState={targetThreadId => {
+              setSidebarSessionPins(current => {
+                const pinnedAt = current[activeSessionId]
+                return pinnedAt ? { ...current, [targetThreadId]: pinnedAt } : current
+              })
+            }}
+            onNavigateTarget={targetThreadId => {
+              navigate(`/threads/${encodeURIComponent(targetThreadId)}`)
+            }}
+          />
+        </React.Suspense>
+      ) : null}
       <div
         className="workflow-page__body"
       >

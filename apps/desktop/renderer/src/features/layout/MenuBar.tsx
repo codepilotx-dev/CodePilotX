@@ -88,6 +88,13 @@ type Props = {
   ) => void
 }
 
+export type WindowControlsProps = {
+  isMaximized: boolean
+  onMinimize: () => void
+  onToggleMaximize: () => void
+  onClose: () => void
+}
+
 type MenuItemProps = {
   children: React.ReactNode
   disabled?: boolean
@@ -543,44 +550,60 @@ export function MenuBar({
           </Menubar.Root>
         </div>
 
-        <div className="window-controls">
-          <button
-            aria-label="最小化"
-            className="window-control-button"
-            onClick={onMinimize}
-            title="最小化"
-            type="button"
-          >
-            <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </button>
-          <button
-            aria-label={isMaximized ? '还原' : '最大化'}
-            className="window-control-button"
-            onClick={onToggleMaximize}
-            title={isMaximized ? '还原' : '最大化'}
-            type="button"
-          >
-            {isMaximized ? (
-              <Copy
-                className="window-restore-icon"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            ) : (
-              <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            )}
-          </button>
-          <button
-            aria-label="关闭"
-            className="window-control-button close"
-            onClick={onClose}
-            title="关闭"
-            type="button"
-          >
-            <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </button>
-        </div>
+        <WindowControls
+          isMaximized={isMaximized}
+          onClose={onClose}
+          onMinimize={onMinimize}
+          onToggleMaximize={onToggleMaximize}
+        />
       </div>
+    </div>
+  )
+}
+
+export function WindowControls({
+  isMaximized,
+  onMinimize,
+  onToggleMaximize,
+  onClose,
+}: WindowControlsProps): React.ReactNode {
+  return (
+    <div className="window-controls">
+      <button
+        aria-label="最小化"
+        className="window-control-button"
+        onClick={onMinimize}
+        title="最小化"
+        type="button"
+      >
+        <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      </button>
+      <button
+        aria-label={isMaximized ? '还原' : '最大化'}
+        className="window-control-button"
+        onClick={onToggleMaximize}
+        title={isMaximized ? '还原' : '最大化'}
+        type="button"
+      >
+        {isMaximized ? (
+          <Copy
+            className="window-restore-icon"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        ) : (
+          <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        )}
+      </button>
+      <button
+        aria-label="关闭"
+        className="window-control-button close"
+        onClick={onClose}
+        title="关闭"
+        type="button"
+      >
+        <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      </button>
     </div>
   )
 }
