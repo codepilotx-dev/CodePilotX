@@ -82,8 +82,10 @@ describe('provider management store', () => {
       ProviderManagementClient['subscribeAgentEventEnvelopes']
     >[0] | undefined
     let credentials = [credential('key-1', 'api-key', true)]
+    let currentState = providerState
     const client = createClient({
       listProviderCredentials: async () => credentials,
+      getModelProviderState: async () => currentState,
       subscribeAgentEventEnvelopes: (options, listener) => {
         subscriptionOptions = options
         callback = listener
@@ -101,6 +103,7 @@ describe('provider management store', () => {
       ],
     })
     credentials = [credential('oauth-1', 'oauth', true)]
+    currentState = { ...providerState, modelConfigured: false }
 
     await callback?.([{
       eventId: 'credential-event-1',
@@ -117,6 +120,7 @@ describe('provider management store', () => {
 
     expect(store.getSnapshot().apiKeys).toEqual([])
     expect(store.getSnapshot().credentials[0]?.kind).toBe('oauth')
+    expect(store.getSnapshot().currentProviderState?.modelConfigured).toBe(false)
     unsubscribe()
   })
 })

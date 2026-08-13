@@ -81,4 +81,43 @@ describe('Codex semantic token contract', () => {
       expect(source.match(removedAliasPattern)).toBeNull()
     }
   })
+
+  test('keeps home suggestions on one neutral hairline surface', async () => {
+    const stylesheet = await Bun.file(
+      new URL('../src/styles/features/_session-page.scss', import.meta.url),
+    ).text()
+    const suggestionCard = stylesheet.match(
+      /\.new-session-suggestion-card\s*\{([\s\S]*?)\n\}/,
+    )?.[1]
+
+    expect(suggestionCard).toBeDefined()
+    expect(suggestionCard).toContain('border: 0;')
+    expect(suggestionCard).toContain('0 0 0 0.5px')
+    expect(suggestionCard).not.toContain('var(--layer-edge)')
+    expect(suggestionCard).not.toContain('0 2px 8px')
+  })
+
+  test('keeps ordinary buttons and settings rows visually neutral', async () => {
+    const [buttons, settings] = await Promise.all([
+      Bun.file(
+        new URL('../src/styles/components/button.scss', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/styles/features/_settings-core.scss', import.meta.url),
+      ).text(),
+    ])
+
+    expect(buttons).toMatch(
+      /\.ui-button\[data-color="primary"\]\s*\{[\s\S]*?background: var\(--color-token-control-background\)/,
+    )
+    expect(buttons).toMatch(
+      /\.ui-button\[data-color="secondary"\]\s*\{[\s\S]*?background: var\(--color-token-control-background\)/,
+    )
+    expect(settings).toMatch(
+      /\.settings-row\s*\{[\s\S]*?min-height: 64px;/,
+    )
+    expect(settings).toMatch(
+      /\.settings-row \+ \.settings-row[\s\S]*?height: 0\.5px;/,
+    )
+  })
 })

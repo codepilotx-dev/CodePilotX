@@ -111,6 +111,22 @@ describe('composer surface variant', () => {
     expect(html).toContain('disabled=""')
   })
 
+  test('模型配置异常时只保留一个安静的配置入口', () => {
+    const html = renderToStaticMarkup(
+      <ComposerCard
+        {...composerCardProps({
+          modelConfigured: false,
+          modelPresets: [],
+          providerOptions: [],
+        })}
+      />,
+    )
+
+    expect(html).not.toContain('未配置模型')
+    expect(html).toContain('>配置模型<')
+    expect(html).not.toContain('class="rm-empty"')
+  })
+
   test('Working 新建页未选 workspace 时显示选择文件夹与插件入口', () => {
     const html = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'working' })} />,

@@ -59,6 +59,95 @@ const projectWorkspace = {
 }
 
 describe('desktop thread settings client', () => {
+  test('shows composer file entry only with Electron bridge and both Agent capabilities', async () => {
+    const bridge = {
+      chooseComposerFiles: async () => [],
+      grantComposerPaths: async () => [],
+      getPathForFile: () => '',
+    }
+    const createCapabilityClient = (capabilities: string[]) => createDesktopClient({
+      window: { codePilotXDesktop: bridge } as never,
+      fetch: async (_path, init) => {
+        const body = JSON.parse(String(init?.body))
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        if (body.method === 'initialize') {
+          return rpc(body.id, { ...initializedResult(), capabilities })
+        }
+        throw new Error(`Unhandled method: ${body.method}`)
+      },
+    })
+    expect(await createCapabilityClient([
+      'attachments.v1',
+      'local-context.paths.v1',
+    ]).isComposerFileAttachmentAvailable()).toBe(true)
+    expect(await createCapabilityClient([
+      'attachments.v1',
+    ]).isComposerFileAttachmentAvailable()).toBe(false)
+    expect(await createDesktopClient({}).isComposerFileAttachmentAvailable()).toBe(false)
+  })
+
+  test('imports live local paths separately and binds their ids to turn/start', async () => {
+    const calls: Array<{ method: string; params: any }> = []
+    const client = createDesktopClient({
+      fetch: async (path, init) => {
+        if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+        const body = JSON.parse(String(init?.body))
+        calls.push({ method: body.method, params: body.params })
+        if (body.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        if (body.method === 'context/path/import') {
+          return rpc(body.id, {
+            references: [{
+              id: 'context-docs',
+              name: 'docs',
+              path: 'C:\\outside\\docs',
+              kind: 'directory',
+              status: 'available',
+              createdAt: now,
+            }],
+          })
+        }
+        if (body.method === 'model/list') return rpc(body.id, modelCatalog())
+        if (body.method === 'turn/start') {
+          return rpc(body.id, {
+            inputId: body.params.inputId,
+            turnId: 'local-context-turn',
+            disposition: 'accepted',
+            streamPosition: { streamId: body.params.threadId, sequence: 1 },
+          })
+        }
+        if (body.method === 'thread/read') throw new Error('refresh omitted')
+        throw new Error(`Unhandled method: ${body.method}`)
+      },
+    })
+
+    await client.sendUserMessage('session-local-context', {
+      text: '读取目录',
+      attachments: [{
+        id: 'draft-grant',
+        name: 'docs',
+        path: 'C:\\outside\\docs',
+        pathKind: 'directory',
+        localGrantId: 'draft-grant',
+        storage: 'local-path',
+        mediaType: 'inode/directory',
+        sizeBytes: 0,
+        kind: 'document',
+        status: 'ready',
+      }],
+    })
+
+    expect(calls.some(call => call.method === 'attachment/import')).toBe(false)
+    expect(calls.find(call => call.method === 'context/path/import')?.params)
+      .toMatchObject({
+        threadId: 'session-local-context',
+        paths: ['C:\\outside\\docs'],
+        operationId: expect.any(String),
+      })
+    expect(calls.find(call => call.method === 'turn/start')?.params)
+      .toMatchObject({ contextReferenceIds: ['context-docs'] })
+  })
+
   test('reimports retained attachments before starting an edited turn', async () => {
     const calls: Array<{ method: string; params: any }> = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
@@ -1415,6 +1504,7 @@ function initializedResult() {
       'turn.steer.v1',
       'turn.queue.management.v1',
       'attachments.v1',
+      'local-context.paths.v1',
       'memory.v2',
       'workspace.editor.v1',
       'git.review.v1',

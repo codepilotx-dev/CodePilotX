@@ -9,6 +9,7 @@ import {
   LATEST_TURN_PLACEMENT_THRESHOLD_PX,
   resolveThreadScrollMode,
   resolveThreadAtBottomDuringExplicitReturn,
+  scrollOffsetForThreadResizeAnchor,
   scrollOffsetForThreadBottomDistance,
   THREAD_BOTTOM_THRESHOLD_PX,
 } from '../src/features/session/conversation/useThreadScrollController.js'
@@ -63,6 +64,28 @@ describe('thread scroll controller', () => {
         20,
       ),
     ).toBe(0)
+  })
+
+  test('keeps a visible turn at the same viewport offset during resize', () => {
+    expect(
+      scrollOffsetForThreadResizeAnchor({
+        anchor: { fallbackScrollOffset: 500, viewportOffset: -24 },
+        currentScrollOffset: 500,
+        currentViewportOffset: 36,
+        metrics: { scrollSize: 2_000, viewportSize: 600 },
+      }),
+    ).toBe(560)
+  })
+
+  test('falls back to the captured scroll offset when the turn is unmounted', () => {
+    expect(
+      scrollOffsetForThreadResizeAnchor({
+        anchor: { fallbackScrollOffset: 500, viewportOffset: 12 },
+        currentScrollOffset: 700,
+        currentViewportOffset: null,
+        metrics: { scrollSize: 900, viewportSize: 600 },
+      }),
+    ).toBe(300)
   })
 
   test('bounds saved thread positions by lru capacity and ttl', () => {

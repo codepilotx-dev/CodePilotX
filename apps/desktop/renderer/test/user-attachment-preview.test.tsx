@@ -44,6 +44,29 @@ describe('用户附件预览', () => {
     }))).toBe(false)
   })
 
+  test('本地文件与目录使用临时 grant 打开右侧预览', () => {
+    expect(createDraftAttachmentPreviewTab(attachment({
+      storage: 'local-path',
+      pathKind: 'file',
+      localGrantId: 'grant-file',
+      textContent: undefined,
+    }))).toMatchObject({
+      attachment: { kind: 'text' },
+      source: { storage: 'draft-path', grantId: 'grant-file' },
+    })
+    expect(createDraftAttachmentPreviewTab(attachment({
+      storage: 'local-path',
+      pathKind: 'directory',
+      localGrantId: 'grant-directory',
+      kind: 'document',
+      mediaType: 'inode/directory',
+      textContent: undefined,
+    }))).toMatchObject({
+      attachment: { kind: 'directory' },
+      source: { storage: 'draft-path', grantId: 'grant-directory' },
+    })
+  })
+
   test('识别 Markdown、格式化合法 JSON，并让非法 JSON 回退原文', () => {
     expect(formatAttachmentText('# Title', 'README.md', 'text/plain'))
       .toMatchObject({ markdown: true, language: 'markdown', text: '# Title' })

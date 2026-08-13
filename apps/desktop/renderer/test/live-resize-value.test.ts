@@ -11,4 +11,10 @@ describe("live resize value", () => {
       normalizeLiveResizeSize(320.28, 1.75),
     );
   });
+
+  test("normalizes fractional CSS pixels without accepting an invalid pixel ratio", () => {
+    expect(normalizeLiveResizeSize(600.4, Number.NaN)).toBe(600);
+    expect(normalizeLiveResizeSize(600.4, 0)).toBe(600);
+    expect(normalizeLiveResizeSize(600.4, 2)).toBe(600.5);
+  });
 });

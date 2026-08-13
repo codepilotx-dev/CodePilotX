@@ -39,6 +39,7 @@ import {
 } from '../src/features/layout/shell/workbenchLayoutStorage.js'
 import { resolveIntegratedTerminalToggleAction } from '../src/features/layout/shell/useIntegratedTerminalController.js'
 import { WorkbenchTabsHeader } from '../src/features/layout/dock/RightDock.js'
+import { WorkbenchDockFrame } from '../src/features/layout/dock/WorkbenchDockFrame.js'
 
 const review = { id: 'review', kind: 'review' } as const
 const browser = { id: 'browser', kind: 'browser' } as const
@@ -56,6 +57,25 @@ function open(
 }
 
 describe('workbench dynamic tab state', () => {
+  test('dock frame leaves live geometry to the panel presence owner', () => {
+    const markup = renderToStaticMarkup(createElement(
+      WorkbenchDockFrame,
+      {
+        target: 'right',
+        open: true,
+        fullWidth: false,
+        targetWidth: 600,
+        visibleWidth: 600,
+      },
+      'content',
+    ))
+
+    expect(markup).toContain('data-app-shell-focus-area="right-panel"')
+    expect(markup).toContain('data-workbench-panel-open="true"')
+    expect(markup).not.toContain('--workbench-panel-animated-width')
+    expect(markup).not.toContain('--workbench-panel-target-width')
+  })
+
   test('始终复用一个用户附件预览标签并替换 descriptor', () => {
     const first = {
       id: 'user-attachment-preview',
