@@ -243,6 +243,7 @@ export function createProviderManagementStore(
     const results = await Promise.allSettled([
       client.listProviderCredentials(),
       client.listUsageSources(),
+      client.getModelProviderState(),
     ])
     const errors = results
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
@@ -274,6 +275,9 @@ export function createProviderManagementStore(
               nextUsageSources,
             ),
           }
+        : {}),
+      ...(results[2]?.status === 'fulfilled'
+        ? { currentProviderState: results[2].value }
         : {}),
     })
   }
@@ -343,6 +347,7 @@ export function createProviderManagementStore(
         }
         if (event.type === 'provider/credential/updated') {
           refreshConnectionsRequested = true
+          refreshCatalogRequested = true
           continue
         }
         if (event.type === 'usage/source/updated') {

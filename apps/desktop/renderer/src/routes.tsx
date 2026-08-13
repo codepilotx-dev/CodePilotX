@@ -5,6 +5,7 @@ import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
 import { NotFoundPage } from './features/routing/NotFoundPage.js'
 import { RouteErrorPage } from './features/routing/RouteErrorPage.js'
+import { RequireConfiguredModel } from './features/models/setup/RequireConfiguredModel.js'
 
 const AutomationView = lazy(() =>
   import('./features/automation/AutomationView.js').then(module => ({
@@ -34,6 +35,11 @@ const PullRequestsPlaceholder = lazy(() =>
 const ModelCenterView = lazy(() =>
   import('./features/models/ModelCenterView.js').then(module => ({
     default: module.ModelCenterView,
+  })),
+)
+const ModelSetupPage = lazy(() =>
+  import('./features/models/setup/ModelSetupPage.js').then(module => ({
+    default: module.ModelSetupPage,
   })),
 )
 const SettingsLayout = lazy(() =>
@@ -68,36 +74,50 @@ const router = createHashRouter([
     ),
   },
   {
+    path: '/setup',
+    errorElement: routeErrorElement,
+    element: deferred(
+      <DesktopSettingsProvider access="read-write">
+        <ModelSetupPage />
+      </DesktopSettingsProvider>,
+    ),
+  },
+  {
     path: '/',
     errorElement: routeErrorElement,
     element: (
       <DesktopSettingsProvider access="read-write">
-        <DesktopLayout />
+        <RequireConfiguredModel />
       </DesktopSettingsProvider>
     ),
     children: [
-      { index: true, element: <Navigate to="/new" replace /> },
-      { path: 'new', element: <QuickChatView /> },
       {
-        path: 'threads/:threadId',
-        element: deferred(<ConversationPage />),
+        element: <DesktopLayout />,
+        children: [
+          { index: true, element: <Navigate to="/new" replace /> },
+          { path: 'new', element: <QuickChatView /> },
+          {
+            path: 'threads/:threadId',
+            element: deferred(<ConversationPage />),
+          },
+          { path: 'projects', element: deferred(<ProjectsView />) },
+          { path: 'projects/:projectId', element: deferred(<ProjectsView />) },
+          { path: 'models', element: deferred(<ModelCenterView />) },
+          { path: 'plugins', element: deferred(<PluginsView />) },
+          {
+            path: 'pull-requests',
+            element: deferred(<PullRequestsPlaceholder />),
+          },
+          { path: 'automations', element: deferred(<AutomationView />) },
+          { path: 'pets', element: deferred(<PetCatalogPage />) },
+          {
+            path: 'settings/environment/:projectId',
+            element: deferred(<SettingsLayout />),
+          },
+          { path: 'settings/:tab', element: deferred(<SettingsLayout />) },
+          { path: '*', element: <NotFoundPage /> },
+        ],
       },
-      { path: 'projects', element: deferred(<ProjectsView />) },
-      { path: 'projects/:projectId', element: deferred(<ProjectsView />) },
-      { path: 'models', element: deferred(<ModelCenterView />) },
-      { path: 'plugins', element: deferred(<PluginsView />) },
-      {
-        path: 'pull-requests',
-        element: deferred(<PullRequestsPlaceholder />),
-      },
-      { path: 'automations', element: deferred(<AutomationView />) },
-      { path: 'pets', element: deferred(<PetCatalogPage />) },
-      {
-        path: 'settings/environment/:projectId',
-        element: deferred(<SettingsLayout />),
-      },
-      { path: 'settings/:tab', element: deferred(<SettingsLayout />) },
-      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ])

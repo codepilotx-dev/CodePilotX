@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion.js";
@@ -8,8 +8,8 @@ import {
   motionTransition,
 } from "../motion/motionTransitions.js";
 import type { WorkingPlugin } from "./composer/composerTypes.js";
-import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
+const DesktopComposer = lazy(() => import("./composer/DesktopComposer.js").then(module => ({ default: module.DesktopComposer })));
 import { WorkingSuggestionsPanel } from "./WorkingSuggestionsPanel.js";
 import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
 import {

@@ -1,4 +1,5 @@
 import type React from 'react'
+import { lazy } from 'react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { useLocation } from 'react-router-dom'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
@@ -8,10 +9,10 @@ import {
   motionTransition,
 } from '../motion/motionTransitions.js'
 import { getChatHomeHeroTitle } from './chatHomeHero.js'
-import { DesktopComposer } from './composer/DesktopComposer.js'
 import { useQuickChatContext } from './QuickChatContext.js'
 
 const CHAT_COMPOSER_PLACEHOLDER = '给 CodePilotX 发消息'
+const DesktopComposer = lazy(() => import('./composer/DesktopComposer.js').then(module => ({ default: module.DesktopComposer })))
 
 export function ChatNewSessionView(): React.ReactNode {
   const { composerProps } = useQuickChatContext()

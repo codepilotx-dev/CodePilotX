@@ -26,8 +26,8 @@ import {
   parseNewSessionSurface,
 } from "./newSessionSurface.js";
 import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
-import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
+const DesktopComposer = lazy(() => import("./composer/DesktopComposer.js").then(module => ({ default: module.DesktopComposer })));
 import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
 import {
   enterTween,
