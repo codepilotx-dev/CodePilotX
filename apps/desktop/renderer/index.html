@@ -10,8 +10,138 @@
     />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>CodePilotX</title>
+    <style>
+      /* 静态启动遮罩：与 electron/src/windows/startup-page.ts 的视觉逻辑一致，
+         在入口 JS 与主 CSS 完成前保持稳定画面；由 main.tsx 的 handoff 控制器移除。 */
+      #startup-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f8f6;
+        transition: opacity 200ms ease-out;
+      }
+
+      #startup-splash .startup-splash__logo {
+        position: relative;
+        width: 56px;
+        height: 56px;
+        opacity: 0;
+        animation: startup-splash-fade-in 180ms ease-out 60ms forwards;
+      }
+
+      #startup-splash .startup-splash__base,
+      #startup-splash .startup-splash__overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      #startup-splash .startup-splash__base {
+        display: block;
+        object-fit: contain;
+        opacity: 0.24;
+        filter: grayscale(1) brightness(0);
+      }
+
+      #startup-splash .startup-splash__overlay {
+        background-image: linear-gradient(
+          112deg,
+          transparent 22%,
+          rgb(255 255 255 / 0.04) 38%,
+          rgb(28 28 26 / 0.92) 49%,
+          rgb(255 255 255 / 0.08) 56%,
+          transparent 74%
+        );
+        background-position: 140% 0;
+        background-repeat: no-repeat;
+        background-size: 220% 100%;
+        animation: startup-splash-shimmer 2200ms
+          cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        -webkit-mask-image: url(/whale-icon.svg);
+        mask-image: url(/whale-icon.svg);
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+      }
+
+      #startup-splash.startup-splash--exiting {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        #startup-splash {
+          background: #1c1c1a;
+        }
+
+        #startup-splash .startup-splash__base {
+          filter: grayscale(1) brightness(0) invert(1);
+        }
+
+        #startup-splash .startup-splash__overlay {
+          background-image: linear-gradient(
+            112deg,
+            transparent 22%,
+            rgb(255 255 255 / 0.04) 38%,
+            rgb(255 255 255 / 0.92) 49%,
+            rgb(255 255 255 / 0.08) 56%,
+            transparent 74%
+          );
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #startup-splash .startup-splash__logo {
+          animation: none;
+          opacity: 1;
+        }
+
+        #startup-splash .startup-splash__overlay {
+          animation: none;
+        }
+      }
+
+      @keyframes startup-splash-fade-in {
+        from {
+          opacity: 0;
+        }
+
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes startup-splash-shimmer {
+        from {
+          background-position: 140% 0;
+        }
+
+        to {
+          background-position: -105% 0;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div
+      id="startup-splash"
+      class="startup-splash"
+      role="status"
+      aria-busy="true"
+      aria-label="CodePilotX 正在启动"
+    >
+      <div class="startup-splash__logo" aria-hidden="true">
+        <img class="startup-splash__base" src="/whale-icon.svg" alt="" />
+        <div class="startup-splash__overlay"></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
