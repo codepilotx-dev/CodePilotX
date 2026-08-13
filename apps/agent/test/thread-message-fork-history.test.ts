@@ -220,6 +220,14 @@ describe("ConversationHistoryForkRepository", () => {
     ;(session.getStorage() as SqlitePiSessionStorage).flush()
 
     insertTurn(db, { threadID: source.id, turnID: "turn-1", agentID: "agent-1", sessionID: "source-main", itemID: "item-1", text: "answer-1", createdAt: 10 })
+    db.sqlite.query(`
+      INSERT INTO thread_context_paths (id, thread_id, name, path, path_key, kind, created_at)
+      VALUES ('context-1', ?, 'fixture.txt', 'C:\\outside\\fixture.txt', 'c:\\outside\\fixture.txt', 'file', 10)
+    `).run(source.id)
+    db.sqlite.query(`
+      INSERT INTO input_context_paths (input_id, context_path_id, sort_order, created_at)
+      VALUES ('input-turn-1', 'context-1', 0, 10)
+    `).run()
     insertTurn(db, { threadID: source.id, turnID: "turn-2", agentID: "agent-2", sessionID: "source-main", itemID: "item-2", text: "answer-2", createdAt: 20 })
     insertTurn(db, { threadID: source.id, turnID: "turn-active", agentID: "agent-active", sessionID: "source-main", itemID: "item-active", text: "partial", status: "running", createdAt: 30 })
     new TurnPiBoundaryRepository(db).upsert({ turnID: "turn-1", sessionID: "source-main", entryID: firstAssistantEntry })
@@ -249,6 +257,13 @@ describe("ConversationHistoryForkRepository", () => {
     expect((await sessions.openByID(copiedSession.id)).getEntries()).resolves.toHaveLength(2)
     expect(db.sqlite.query("SELECT entry_id FROM turn_pi_boundaries WHERE turn_id IN (SELECT id FROM turns WHERE thread_id = 'target-1')").get()).toEqual({ entry_id: firstAssistantEntry })
     expect(db.sqlite.query("SELECT id FROM items WHERE thread_id = 'target-1'").get()).not.toEqual({ id: "item-1" })
+    expect(db.sqlite.query(`
+      SELECT context.path, binding.sort_order
+      FROM thread_context_paths AS context
+      JOIN input_context_paths AS binding ON binding.context_path_id = context.id
+      JOIN inputs ON inputs.id = binding.input_id
+      WHERE context.thread_id = 'target-1' AND inputs.thread_id = 'target-1'
+    `).get()).toEqual({ path: "C:\\outside\\fixture.txt", sort_order: 0 })
 
     expect(history.publishTarget("fork-1", "target-1")).toBe(true)
     expect(history.publishTarget("fork-1", "target-1")).toBe(false)

@@ -20,6 +20,26 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
 describe("数据库兼容与迁移", () => {
+  test("v29 到 v30 新增独立本地上下文表且不改写核心会话", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v29-"))
+    paths.push(root)
+    const path = join(root, "agent.sqlite")
+    const db = new AgentDatabase({ historyPath: path, profilePath: join(root, "profile.sqlite") })
+    const thread = db.createThread("v29 context migration")
+    db.sqlite.query("DROP TABLE context_path_operations").run()
+    db.sqlite.query("DROP TABLE input_context_paths").run()
+    db.sqlite.query("DROP TABLE thread_context_paths").run()
+    db.sqlite.exec("PRAGMA user_version = 29")
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath: path, profilePath: join(root, "profile.sqlite") })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(reopened.sqlite.query("SELECT title FROM threads WHERE id = ?").get(thread.id)).toEqual({ title: "v29 context migration" })
+    expect(reopened.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'thread_context_paths'").get())
+      .toEqual({ name: "thread_context_paths" })
+    reopened.close()
+  })
+
   test("v18 到 v19 从 durable events 恢复被覆盖正文并分配稳定 ordinal", () => {
     const sqlite = new Database(":memory:")
     sqlite.exec(`

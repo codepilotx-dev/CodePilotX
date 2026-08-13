@@ -141,6 +141,15 @@ const attachment = {
   createdAt: 1,
 } as const
 
+const localContextReference = {
+  id: "context:1",
+  name: "fixture.txt",
+  path: "C:\\outside\\fixture.txt",
+  kind: "file",
+  status: "available",
+  createdAt: 1,
+} as const
+
 const memoryEntry = {
   id: "memory:1",
   scope: "project",
@@ -1126,6 +1135,34 @@ const fixtures = {
     data: "fixture",
     encoding: "utf8",
     range: { offset: 0, length: 7, total: 7 },
+  }),
+  "context/path/import": methodFixture("context/path/import", {
+    threadId: threadListItem.id,
+    paths: [localContextReference.path],
+    operationId: "operation:context-import",
+  }, { references: [localContextReference] }),
+  "context/path/read": methodFixture("context/path/read", {
+    threadId: threadListItem.id,
+    referenceId: localContextReference.id,
+    range: { offset: 0, length: 7 },
+  }, {
+    reference: localContextReference,
+    relativePath: null,
+    preview: "text",
+    mediaType: "text/plain; charset=utf-8",
+    data: "fixture",
+    encoding: "utf8",
+    range: { offset: 0, length: 7, total: 7 },
+  }),
+  "context/path/list": methodFixture("context/path/list", {
+    threadId: threadListItem.id,
+    referenceId: localContextReference.id,
+    limit: 20,
+  }, {
+    reference: localContextReference,
+    relativePath: null,
+    entries: [],
+    nextCursor: null,
   }),
   "memory/list": methodFixture("memory/list", {
     scope: "project",
@@ -2368,7 +2405,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(192)
+    expect(methods).toHaveLength(195)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2636,7 +2673,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(186)
+    expect(Object.keys(RpcMethods)).toHaveLength(189)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

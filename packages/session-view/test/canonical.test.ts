@@ -161,6 +161,39 @@ function live<T extends LiveEventType>(
 }
 
 describe("canonical thread state", () => {
+  test("projects local context references onto only their owning input", () => {
+    const currentTurn = turn("turn-context")
+    const currentInput = {
+      ...input("input-context", currentTurn.id, 20),
+      contextReferenceIds: ["context-docs"],
+    }
+    const state = createCanonicalThreadState(page([{
+      turn: currentTurn,
+      inputs: [currentInput],
+      messages: [],
+      agents: [],
+      items: [],
+      approvals: [],
+      contextReferences: [{
+        id: "context-docs",
+        name: "docs",
+        path: "C:\\outside\\docs",
+        kind: "directory",
+        status: "available",
+        createdAt: 20,
+      }],
+    }]))
+
+    expect(selectVisibleTurnEntries(state)[0]?.contextReferences).toEqual([{
+      id: "context-docs",
+      name: "docs",
+      path: "C:\\outside\\docs",
+      kind: "directory",
+      status: "available",
+      createdAt: 20,
+    }])
+  })
+
   test("hydrates latest page and prepends older turns without duplicates or cursor rollback", () => {
     const newer = turn("turn-2")
     const state = createCanonicalThreadState(page([{
