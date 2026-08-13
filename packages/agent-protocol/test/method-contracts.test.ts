@@ -1127,6 +1127,36 @@ const fixtures = {
     encoding: "utf8",
     range: { offset: 0, length: 7, total: 7 },
   }),
+  "speech/status": methodFixture("speech/status", {}, {
+    status: {
+      state: "ready",
+      provider: "sensevoice-llamacpp",
+      runtimeVersion: "0.1.9",
+      model: "sensevoice-small-q8",
+      variant: "avx2",
+      maxDurationMs: 120_000,
+      maxAudioBytes: 4_194_304,
+    },
+  }),
+  "speech/install": methodFixture("speech/install", { force: true }, {
+    status: {
+      state: "downloading",
+      provider: "sensevoice-llamacpp",
+      runtimeVersion: "0.1.9",
+      model: "sensevoice-small-q8",
+      variant: null,
+      progress: { receivedBytes: 1024, totalBytes: 2048 },
+      maxDurationMs: 120_000,
+      maxAudioBytes: 4_194_304,
+    },
+  }),
+  "speech/transcribe": methodFixture("speech/transcribe", {
+    operationId: "operation:speech-transcribe:1",
+    audio: { mediaType: "audio/wav", encoding: "base64", data: "UklGRg==" },
+  }, { text: "你好", detectedLanguage: "zh", durationMs: 1000 }),
+  "speech/cancel": methodFixture("speech/cancel", {
+    operationId: "operation:speech-transcribe:1",
+  }, { cancelled: true }),
   "memory/list": methodFixture("memory/list", {
     scope: "project",
     projectId: project.id,
@@ -2368,7 +2398,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(192)
+    expect(methods).toHaveLength(196)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2636,7 +2666,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(186)
+    expect(Object.keys(RpcMethods)).toHaveLength(190)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

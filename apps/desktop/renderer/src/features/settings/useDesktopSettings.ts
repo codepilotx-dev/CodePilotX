@@ -653,6 +653,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       allowNetworkAccess,
       installCodePilotXDependencies,
       workspaceDependenciesMigrated,
+      'desktop.voice.preferredInputDeviceId':
+        draftValues['desktop.voice.preferredInputDeviceId'],
       personality,
       customInstructions,
       enableMemory,
@@ -723,6 +725,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       allowNetworkAccess,
       installCodePilotXDependencies,
       workspaceDependenciesMigrated,
+      draftValues,
       personality,
       customInstructions,
       enableMemory,

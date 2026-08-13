@@ -120,10 +120,26 @@ import {
 import type {
   DesktopAttachmentApi,
   DesktopRuntimeCapabilityApi,
+  DesktopSpeechApi,
+  DesktopSpeechStatus,
 } from './types.js'
 
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
   'codepilotx.desktop.appearance.v6'
+
+const BROWSER_UNAVAILABLE_SPEECH_STATUS = {
+  state: 'unsupported',
+  provider: 'sensevoice-llamacpp',
+  runtimeVersion: '0.1.9',
+  model: 'sensevoice-small-q8',
+  variant: null,
+  maxDurationMs: 120_000,
+  maxAudioBytes: 4_194_304,
+  error: {
+    code: 'SPEECH_PLATFORM_UNSUPPORTED',
+    message: '浏览器预览环境不支持本地语音听写。',
+  },
+} as const satisfies DesktopSpeechStatus
 
 function noop(): void {}
 
@@ -137,7 +153,7 @@ function mcpUnavailable(): never {
 
 export function createBrowserMockDesktopClient(
   storage?: Storage,
-): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi {
+): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi & DesktopSpeechApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   let configDocument: Record<string, JsonValue> = {
     desktop: { ...settings } as unknown as JsonValue,
@@ -242,6 +258,14 @@ export function createBrowserMockDesktopClient(
   }
 
   return {
+    getSpeechStatus: async () => BROWSER_UNAVAILABLE_SPEECH_STATUS,
+    installSpeech: async () => BROWSER_UNAVAILABLE_SPEECH_STATUS,
+    transcribeSpeech: async () => {
+      throw new Error('浏览器预览环境不支持本地语音听写。')
+    },
+    cancelSpeech: async () => false,
+    onSpeechStatusUpdated: () => () => {},
+    openMicrophonePrivacySettings: async () => {},
     readAttachment: async () => {
       throw new Error('浏览器 mock 模式无法读取历史附件。')
     },

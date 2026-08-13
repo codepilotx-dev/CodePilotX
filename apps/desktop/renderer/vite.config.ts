@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-// Capability-aware sidebar state, active-row recovery and the timeline
-// attention menu add about 1.4 KiB gzip.
-const NEW_ROUTE_GZIP_BUDGET_KIB = 367
+// Capability-aware sidebar state, active-row recovery, the timeline attention
+// menu, and the always-available speech event manifest add about 2.5 KiB gzip.
+const NEW_ROUTE_GZIP_BUDGET_KIB = 369
 const NEW_ROUTE_GZIP_BUDGET = NEW_ROUTE_GZIP_BUDGET_KIB * 1024
 const INITIAL_CSS_RAW_BUDGET = 460 * 1024
 const rootPackage = JSON.parse(

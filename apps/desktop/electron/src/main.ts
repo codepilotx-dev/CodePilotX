@@ -2,7 +2,7 @@ import { spawn } from "node:child_process"
 import { randomBytes } from "node:crypto"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { app, nativeTheme, screen, shell } from "electron"
+import { app, ipcMain, nativeTheme, screen, session, shell } from "electron"
 import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
   type DesktopSettingsPayload,
@@ -61,6 +61,13 @@ import { TerminalHostRpcClient } from "./terminal/terminal-host-rpc-client.js"
 import { stopTerminalsBeforeSupervisor } from "./terminal/terminal-shutdown.js"
 import { runPackagedTerminalSmoke } from "./terminal/packaged-terminal-smoke.js"
 import { DESKTOP_TERMINAL_IPC_CHANNELS } from "@codepilotx/shared/desktop-terminal-ipc"
+import {
+  registerMicrophoneIpc,
+  WINDOWS_MICROPHONE_PRIVACY_SETTINGS_URL,
+} from "./ipc/register-microphone-ipc.js"
+import {
+  registerMicrophoneMediaPermissions,
+} from "./security/microphone-media-permission.js"
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const configuredUserDataDirectory =
@@ -162,6 +169,18 @@ async function startDesktop(): Promise<void> {
     initialWindowState,
     startupTheme,
     windowStateStore,
+  })
+  registerMicrophoneMediaPermissions({
+    session: session.defaultSession,
+    getAllowedApplicationOrigin: () => windows?.applicationOrigin,
+    isMainWindowSender: sender => windows?.isMainSender(sender) === true,
+  })
+  registerMicrophoneIpc({
+    ipc: ipcMain,
+    isMainWindowSender: sender => windows?.isMainSender(sender) === true,
+    openMicrophonePrivacySettings: async () => {
+      await shell.openExternal(WINDOWS_MICROPHONE_PRIVACY_SETTINGS_URL)
+    },
   })
   const petOverlayStateStore = new PetOverlayWindowStateStore(
     app.getPath("userData"),

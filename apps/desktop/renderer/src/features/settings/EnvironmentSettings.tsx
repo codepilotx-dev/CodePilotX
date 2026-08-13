@@ -28,6 +28,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+import { arrayBufferToBase64 } from '../../utils/binaryEncoding.js'
 import { WorkspaceFileTree } from '../layout/WorkspaceFileTree.js'
 import {
   DEFAULT_PROJECT_APPEARANCE,
@@ -719,16 +720,6 @@ function sameModel(left: ModelRef | null, right: ModelRef | null): boolean {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer)
-  const chunkSize = 0x8000
-  let binary = ''
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize))
-  }
-  return btoa(binary)
 }
 
 function sourceStatusLabel(

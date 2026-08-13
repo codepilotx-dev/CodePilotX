@@ -22,6 +22,7 @@ import type {
 } from '../../../shared/types.js';
 import { Button } from '../../components/ui/Button.js'
 import type { DesktopTerminalProfile } from '@codepilotx/shared/desktop-terminal-ipc'
+import { useSpeechStatus } from '../speech/useSpeechStatus.js'
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -56,6 +57,37 @@ const REVIEW_DELIVERY_OPTIONS: Array<{
   { value: 'detached', label: '独立任务' },
 ];
 
+function speechStatusLabel(
+  status: import('../../services/desktop-client/index.js').DesktopSpeechStatus | null,
+  loading: boolean,
+): string {
+  if (loading && !status) return '检查中…'
+  if (!status) return '不可用'
+  if (status.state === 'unsupported') return '不支持'
+  if (status.state === 'not-installed') return '未安装'
+  if (status.state === 'downloading') return '下载中'
+  if (status.state === 'installing') return '安装中'
+  if (status.state === 'ready') return '已就绪'
+  if (status.state === 'transcribing') return '转写中'
+  return '出错'
+}
+
+function speechStatusDescription(
+  status: import('../../services/desktop-client/index.js').DesktopSpeechStatus | null,
+  error: string | null,
+): string {
+  const message = status?.error?.message ?? error
+  if (message) return message
+  const progress = status?.progress
+  if (progress) {
+    if (progress.totalBytes) {
+      return `SenseVoice 本地运行时 · ${Math.round(progress.receivedBytes / progress.totalBytes * 100)}%`
+    }
+    return `SenseVoice 本地运行时 · 已接收 ${Math.round(progress.receivedBytes / 1_048_576)} MB`
+  }
+  return 'SenseVoice Small 在本机离线转写，音频不会发送到云端。'
+}
+
 function LearnMoreLink() {
   return (
     <a
@@ -83,7 +115,7 @@ type GeneralSettingsProps = {
 }
 
 export function GeneralSettings({
-  onNotice: _onNotice,
+  onNotice,
 }: GeneralSettingsProps = {}) {
   const {
     draft,
@@ -103,6 +135,9 @@ export function GeneralSettings({
     defaultModeRequestUserInput,
     notifications,
   } = draft.values;
+  const preferredInputDeviceId =
+    draft.values['desktop.voice.preferredInputDeviceId']
+  const speech = useSpeechStatus()
   const permissionMode = permissionModeForConfig(permissionConfig)
 
   const [openTargets, setOpenTargets] =
@@ -118,8 +153,23 @@ export function GeneralSettings({
   const [suggestPrompts, setSuggestPrompts] = useState(true);
   const [popupShortcut] = useState<string | null>(null);
   const [popupNoProjectChat, setPopupNoProjectChat] = useState(false);
-  const [holdDictation] = useState<string | null>(null);
-  const [toggleDictation] = useState<string | null>(null);
+  const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([])
+  const refreshAudioInputs = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    setAudioInputs(devices.filter(device => device.kind === 'audioinput'))
+  }, [])
+  useEffect(() => {
+    void refreshAudioInputs().catch(() => {})
+    navigator.mediaDevices?.addEventListener?.('devicechange', refreshAudioInputs)
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.('devicechange', refreshAudioInputs)
+    }
+  }, [refreshAudioInputs])
+  const setPreferredInputDeviceId = useCallback((value: string) => {
+    draft.setValue('desktop.voice.preferredInputDeviceId', value)
+    draft.autoSave()
+  }, [draft])
   const setCompletionNotification = useCallback(
     (value: 'always' | 'unfocused' | 'never') => {
       draft.setValue('notifications', {
@@ -562,49 +612,66 @@ export function GeneralSettings({
 
         <SettingsSection title='听写'>
           <SettingsRow
-            title='按住听写快捷键'
-            description='在桌面任意位置按住，即可在光标处听写'
+            title='本地语音模型'
+            description={speechStatusDescription(speech.status, speech.error)}
             control={
               <>
                 <span className='settings-row-status'>
-                  {holdDictation ? holdDictation : '关闭'}
+                  {speechStatusLabel(speech.status, speech.loading)}
                 </span>
-                <Button type='button'>
-                  设置
-                </Button>
+                {speech.status?.state === 'error' || speech.status?.state === 'not-installed' ? (
+                  <Button
+                    disabled={speech.loading}
+                    onClick={() => void speech.install(true)}
+                    type='button'
+                  >
+                    重试
+                  </Button>
+                ) : null}
               </>
             }
           />
           <SettingsRow
-            title='切换听写快捷键'
-            description='在桌面任意位置按一次开始听写，再按一次停止'
-            control={
-              <>
-                <span className='settings-row-status'>
-                  {toggleDictation ? toggleDictation : '关闭'}
-                </span>
-                <Button type='button'>
-                  设置
-                </Button>
-              </>
-            }
-          />
-          <SettingsRow
-            title='听写词典'
-            description='听写应能识别的单词或短语'
+            title='输入设备'
+            description='录音时优先使用的麦克风；不可用时自动回退到系统默认设备。'
             control={
               <SettingsDropdown
-                width={220}
-                value=''
-                options={[{ value: '', label: '未选择' }]}
-                onChange={() => {}}
-                ariaLabel='听写词典'
+                width={260}
+                value={preferredInputDeviceId}
+                options={[
+                  { value: '', label: '系统默认麦克风' },
+                  ...audioInputs.map((device, index) => ({
+                    value: device.deviceId,
+                    label: device.label || `麦克风 ${index + 1}`,
+                  })),
+                ]}
+                onChange={setPreferredInputDeviceId}
+                ariaLabel='听写输入设备'
               />
             }
           />
           <SettingsRow
-            title='最近的听写记录'
-            description='你最近的听写记录会显示在这里，便于在文本没有出现在预期位置时找回内容'
+            title='听写快捷键'
+            description='在当前消息输入框中开始或停止听写。'
+            control={
+              <span className='settings-row-status'>Ctrl+Shift+D</span>
+            }
+          />
+          <SettingsRow
+            title='麦克风隐私设置'
+            description='打开 Windows 麦克风权限页面，允许 CodePilotX 使用输入设备。'
+            control={
+              <Button
+                onClick={() => {
+                  void desktopClient.openMicrophonePrivacySettings().catch(error => {
+                    onNotice?.(error instanceof Error ? error.message : String(error))
+                  })
+                }}
+                type='button'
+              >
+                打开设置
+              </Button>
+            }
           />
         </SettingsSection>
 

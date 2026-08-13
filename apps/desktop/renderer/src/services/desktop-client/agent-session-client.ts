@@ -135,6 +135,7 @@ const RENDERER_CAPABILITIES = [
   'task-suggestions.v1',
   'release-notes.read.v1',
   'thread.side-chat.v1',
+  'speech.transcription.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -160,10 +161,11 @@ import type {
   DesktopAttachmentApi,
   DesktopClientEnvironment,
   DesktopRuntimeCapabilityApi,
+  DesktopSpeechApi,
 } from './types.js'
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
-  mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi,
+  mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi & DesktopSpeechApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -216,6 +218,18 @@ export function createAgentSessionDesktopClient(
   >()
   let desktopSettingsSaveTail: Promise<void> = Promise.resolve()
   let sessionStoreReconcile: Promise<void> | null = null
+  let speechInstallProbeStarted = false
+  let speechApiPromise: Promise<ReturnType<typeof import('./agent-speech-api.js')['createAgentSpeechApi']>> | null = null
+
+  function loadSpeechApi() {
+    speechApiPromise ??= import('./agent-speech-api.js').then(module =>
+      module.createAgentSpeechApi(
+        rpc,
+        () => agentCapabilities.has('speech.transcription.v1'),
+      ),
+    )
+    return speechApiPromise
+  }
 
   async function isAgentAvailable(): Promise<boolean> {
     if (agentReady) return true
@@ -234,11 +248,30 @@ export function createAgentSessionDesktopClient(
     try {
       const initialized = await rpc.ensureInitialized()
       agentCapabilities = new Set(initialized.capabilities)
+      if (
+        agentCapabilities.has('speech.transcription.v1')
+        && !speechInstallProbeStarted
+      ) {
+        speechInstallProbeStarted = true
+        void installSpeechInBackground()
+      }
       readinessError = null
       return true
     } catch (error) {
       readinessError = error
       return false
+    }
+  }
+
+  async function installSpeechInBackground(): Promise<void> {
+    try {
+      const speechApi = await loadSpeechApi()
+      const status = await speechApi.getSpeechStatus()
+      if (status.state === 'not-installed') {
+        await speechApi.installSpeech()
+      }
+    } catch {
+      // Installation remains observable and retryable from General Settings.
     }
   }
 
@@ -1335,6 +1368,30 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    getSpeechStatus: () => withAgentOrMock(
+      async () => (await loadSpeechApi()).getSpeechStatus(),
+      () => mockClient.getSpeechStatus(),
+    ),
+    installSpeech: (force = false) => withAgentOrMock(
+      async () => (await loadSpeechApi()).installSpeech(force),
+      () => mockClient.installSpeech(force),
+    ),
+    transcribeSpeech: input => withRequiredAgent(async () =>
+      (await loadSpeechApi()).transcribeSpeech(input)),
+    cancelSpeech: operationId => withRequiredAgent(async () =>
+      (await loadSpeechApi()).cancelSpeech(operationId)),
+    onSpeechStatusUpdated: callback => rpc.subscribeEnvelope(
+      { liveEventTypes: ['speech/statusChanged'] },
+      events => {
+        for (const event of events) {
+          if (event.type === 'speech/statusChanged') callback(event.payload.status)
+        }
+      },
+    ),
+    openMicrophonePrivacySettings: () =>
+      environment.window?.codePilotXDesktop?.openMicrophonePrivacySettings
+        ? environment.window.codePilotXDesktop.openMicrophonePrivacySettings()
+        : mockClient.openMicrophonePrivacySettings(),
     readAttachment: attachmentId =>
       rpc.call('attachment/read', { attachmentId }),
     saveAttachmentToDownloads: input =>

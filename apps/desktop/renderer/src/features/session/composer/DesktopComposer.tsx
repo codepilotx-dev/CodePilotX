@@ -234,8 +234,15 @@ export function DesktopComposer({
 }: DesktopComposerProps): React.ReactNode {
   const effectiveCapabilities =
     placement === 'new-session'
-      ? { ...capabilities, goals: false }
-      : capabilities
+      ? {
+          ...capabilities,
+          goals: false,
+          dictation: capabilities?.dictation ?? true,
+        }
+      : {
+          ...capabilities,
+          dictation: capabilities?.dictation ?? true,
+        }
   const {
     branchName,
     canSubmit,
@@ -288,6 +295,7 @@ export function DesktopComposer({
 
   return (
     <ComposerCard
+      draftKey={draftKey}
       input={input}
       canSubmit={canSubmit}
       sessionStatus={sessionStatus}

@@ -101,6 +101,27 @@
   line-height: 1.4;
 }
 
+.composer-dictation-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 2px 8px;
+  color: var(--color-token-text-secondary);
+  font-size: var(--type-caption);
+  line-height: 1.4;
+
+  &.is-error {
+    color: var(--color-token-editor-warning-foreground);
+  }
+}
+
+.composer-dictation-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 .send-button.is-submitting svg {
   animation: composer-submit-spin var(--motion-loading) linear infinite;
 }
@@ -335,6 +356,27 @@
 
   &:hover {
     color: var(--color-token-icon-foreground);
+  }
+
+  &.is-recording {
+    color: var(--color-token-editor-warning-foreground);
+    background: color-mix(
+      in srgb,
+      var(--color-token-editor-warning-foreground) 12%,
+      transparent
+    );
+  }
+
+  &.is-recording svg,
+  &:has(svg.lucide-activity) svg {
+    animation: composer-submit-spin var(--motion-loading) linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-mic-button.is-recording svg,
+  .composer-mic-button:has(svg.lucide-activity) svg {
+    animation: none;
   }
 }
 

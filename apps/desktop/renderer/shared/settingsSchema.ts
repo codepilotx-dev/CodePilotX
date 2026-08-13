@@ -192,8 +192,9 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
-	    installCodePilotXDependencies: true,
+    installCodePilotXDependencies: true,
     workspaceDependenciesMigrated: false,
+    'desktop.voice.preferredInputDeviceId': '',
     personality: 'pragmatic',
     customInstructions: '',
     enableMemory: false,
@@ -418,6 +419,10 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.workspaceDependenciesMigrated === 'boolean'
         ? parsed.workspaceDependenciesMigrated
         : defaults.workspaceDependenciesMigrated,
+    'desktop.voice.preferredInputDeviceId': stringOrDefault(
+      parsed['desktop.voice.preferredInputDeviceId'],
+      defaults['desktop.voice.preferredInputDeviceId'],
+    ),
     personality: isDesktopPersonality(parsed.personality)
       ? parsed.personality
       : defaults.personality,

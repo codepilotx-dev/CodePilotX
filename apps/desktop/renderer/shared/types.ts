@@ -976,6 +976,7 @@ gitBranchPrefix: string
   allowNetworkAccess?: boolean
   installCodePilotXDependencies: boolean
   workspaceDependenciesMigrated: boolean
+  'desktop.voice.preferredInputDeviceId': string
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean

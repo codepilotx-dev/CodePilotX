@@ -9,6 +9,15 @@ version 1.18.9. These portions are licensed under the MIT License. See
 Additional JavaScript dependencies retain the license terms distributed in
 their respective packages.
 
+CodePilotX can download pinned SenseVoice GGUF and FSMN-VAD model weights plus
+the self-contained FunASR llama.cpp Windows runtime to provide local speech
+dictation. These optional artifacts are checksum-verified and stored in the
+user-selected CodePilotX data directory rather than embedded in the installer.
+The model repositories identify their weights as Apache-2.0; the SenseVoice
+runtime and llama.cpp/ggml components are MIT-licensed, and miniaudio is used
+under its MIT No Attribution option. See `third_party/funasr/` for source,
+version and license details.
+
 CodePilotX uses Microsoft node-pty to provide native pseudoterminal support,
 including Windows ConPTY integration. node-pty is licensed under the MIT
 License; its license notice is distributed with the packaged dependency.

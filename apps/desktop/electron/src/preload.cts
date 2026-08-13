@@ -43,6 +43,9 @@ import type {
   DesktopAttachmentSaveInput,
   DesktopAttachmentSaveResult,
 } from "@codepilotx/shared/desktop-attachment-ipc"
+import type {
+  DesktopMicrophoneIpcBridge,
+} from "@codepilotx/shared/desktop-microphone-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -108,6 +111,10 @@ const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
   saveToDownloads: "desktop-attachment:save-to-downloads",
 } as const satisfies typeof import("@codepilotx/shared/desktop-attachment-ipc").DESKTOP_ATTACHMENT_IPC_CHANNELS
 
+const DESKTOP_MICROPHONE_IPC_CHANNELS = {
+  openPrivacySettings: "desktop-microphone:open-privacy-settings",
+} as const satisfies typeof import("@codepilotx/shared/desktop-microphone-ipc").DESKTOP_MICROPHONE_IPC_CHANNELS
+
 function isDesktopNotificationActivation(
   value: unknown,
 ): value is DesktopNotificationActivation {
@@ -137,6 +144,8 @@ interface DesktopExternalOpenTarget {
 }
 
 const desktop = {
+  openMicrophonePrivacySettings: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_MICROPHONE_IPC_CHANNELS.openPrivacySettings),
   saveAttachmentToDownloads: (
     input: DesktopAttachmentSaveInput,
   ): Promise<DesktopAttachmentSaveResult> =>
@@ -350,6 +359,7 @@ const desktop = {
   & DesktopTerminalIpcBridge
   & DesktopNotificationIpcBridge
   & DesktopAttachmentIpcBridge
+  & DesktopMicrophoneIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

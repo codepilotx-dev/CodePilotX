@@ -11,6 +11,7 @@ import { SkillRpcMethods } from "./skills"
 import { SuggestionRpcMethods } from "./suggestions"
 import { ToolingRpcMethods } from "./tooling"
 import { UsageRpcMethods } from "./usage"
+import { SpeechRpcMethods } from "./speech"
 
 /**
  * Public methods required by the always-loaded desktop session client. Optional
@@ -30,4 +31,5 @@ export const BaseRpcMethods = {
   ...SuggestionRpcMethods,
   ...ToolingRpcMethods,
   ...UsageRpcMethods,
+  ...SpeechRpcMethods,
 } as const
