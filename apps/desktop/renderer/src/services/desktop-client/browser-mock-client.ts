@@ -257,6 +257,36 @@ export function createBrowserMockDesktopClient(
         sessions.set(sessionId, target)
       }
     }
+    if (visualFixture.item.id === 'visual-scroll-edge') {
+      // 26 个会话让“最近”分组超过分组上限，供会话扩展/折叠动画验证。
+      for (let index = 2; index <= 26; index += 1) {
+        const sessionId = `visual-scroll-edge-${String(index).padStart(2, '0')}`
+        const target = mockSessionSnapshot(sessionId, visualFixture.workspace, {
+          workspacePath: visualFixture.workspace.path,
+          sessionName: `滚动边界会话 ${index}`,
+        })
+        const createdAt = new Date(
+          Date.now() - index * 60_000,
+        ).toISOString()
+        target.view.messages = [
+          {
+            id: `${sessionId}-user`,
+            role: 'user',
+            text: `第 ${index} 个会话。`,
+            createdAt,
+          },
+          {
+            id: `${sessionId}-assistant`,
+            role: 'assistant',
+            text: `会话 ${index} 已加载。`,
+            createdAt,
+          },
+        ]
+        target.item.lastMessageAt = createdAt
+        target.updatedAt = createdAt
+        sessions.set(sessionId, target)
+      }
+    }
   }
   if (performanceFixture) {
     for (const snapshot of performanceFixture.sessions) {

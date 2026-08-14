@@ -357,7 +357,13 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
   }
 
   const search = new URLSearchParams(window.location.search)
-  if (search.get('performanceCase') !== 'desktop-ux') return null
+  const performanceCase = search.get('performanceCase')
+  if (
+    performanceCase !== 'desktop-ux' &&
+    performanceCase !== 'nested-scroll-edge-fade'
+  ) {
+    return null
+  }
 
   const turns = fixtureCount(
     search.get('performanceTurns'),
@@ -369,6 +375,8 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
     PERFORMANCE_SESSION_COUNTS,
     30,
   )
+  const includeNestedScrollFixture =
+    performanceCase === 'nested-scroll-edge-fade'
   const baseTime = Date.UTC(2026, 6, 30, 8, 0, 0)
   const sessions: DesktopSessionSnapshot[] = []
 
@@ -410,6 +418,56 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
       )
     }
 
+    // 首个会话的末轮插入一批工具项，为嵌套滚动边界渐隐场景提供
+    // 可滚动的 process group（12 个 Bash 工具项超出 14rem 折叠高度）。
+    if (
+      includeNestedScrollFixture &&
+      sessionIndex === 0 &&
+      sessionTurns > 0
+    ) {
+      const lastTurnIndex = sessionTurns - 1
+      const lastUser = messages[lastTurnIndex * 2]!
+      const toolEvents: DesktopSessionEvent[] = []
+      for (let toolIndex = 0; toolIndex < 12; toolIndex += 1) {
+        const toolId = `${sessionId}-tool-${lastTurnIndex}-${toolIndex}`
+        const createdAt = new Date(
+          Date.parse(lastUser.createdAt) + 120 + toolIndex * 40,
+        ).toISOString()
+        toolEvents.push(
+          {
+            id: toolId,
+            sessionId,
+            type: 'tool_call',
+            content: `Bash: bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+            createdAt,
+            metadata: { toolName: 'Bash', toolUseId: toolId },
+          },
+          {
+            id: `${toolId}-output`,
+            sessionId,
+            type: 'tool_output_delta',
+            content: `第 ${toolIndex + 1} 项验证输出：保持会话投影稳定。`,
+            createdAt: new Date(Date.parse(createdAt) + 20).toISOString(),
+            metadata: { toolName: 'Bash', toolUseId: toolId },
+          },
+        )
+      }
+      snapshot.events = messages.map(message => ({
+        id: message.id,
+        sessionId,
+        type: 'message' as const,
+        role: message.role,
+        content: message.text,
+        createdAt: message.createdAt,
+        metadata: message.metadata,
+      }))
+      snapshot.events.splice(
+        lastTurnIndex * 2 + 1,
+        0,
+        ...toolEvents,
+      )
+    }
+
     snapshot.view.messages = messages
     snapshot.item.lastMessageAt = messages.at(-1)?.createdAt ?? snapshot.item.createdAt
     snapshot.updatedAt = snapshot.item.lastMessageAt
@@ -439,7 +497,8 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     visualCase !== 'permission' &&
     visualCase !== 'review' &&
     visualCase !== 'turn-nav' &&
-    visualCase !== 'execution-plan'
+    visualCase !== 'execution-plan' &&
+    visualCase !== 'scroll-edge'
   ) {
     return null
   }
@@ -457,7 +516,9 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
             ? '用户消息导航'
             : visualCase === 'execution-plan'
               ? '执行计划弹层'
-              : 'Review 与 Diff',
+              : visualCase === 'scroll-edge'
+                ? '滚动边界与会话扩展'
+                : 'Review 与 Diff',
     collaborationMode: {
       mode: visualCase === 'permission' ? 'plan' : 'default',
     },
@@ -643,6 +704,52 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           { path: 'apps/desktop/renderer/src/styles/features/timeline.scss' },
           { path: 'apps/desktop/renderer/src/components/ui/Tooltip.tsx' },
         ],
+      },
+    })
+  }
+
+  if (visualCase === 'scroll-edge') {
+    // 14 个 Bash 工具项组成可滚动的 process group；执行计划提供
+    // 16 步可滚动的 steps。两者都用于验证滚动边界渐隐状态。
+    for (let toolIndex = 0; toolIndex < 14; toolIndex += 1) {
+      const toolId = `${sessionId}-tool-${toolIndex}`
+      events.push(
+        {
+          id: toolId,
+          sessionId,
+          type: 'tool_call',
+          content: `Bash: bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+          createdAt: timestamp(300 + toolIndex * 40),
+          metadata: { toolName: 'Bash', toolUseId: toolId },
+        },
+        {
+          id: `${toolId}-output`,
+          sessionId,
+          type: 'tool_output_delta',
+          content: `第 ${toolIndex + 1} 项验证输出：保持会话投影稳定。`,
+          createdAt: timestamp(320 + toolIndex * 40),
+          metadata: { toolName: 'Bash', toolUseId: toolId },
+        },
+      )
+    }
+    events.push({
+      id: `${sessionId}-execution-plan`,
+      sessionId,
+      type: 'execution-plan',
+      content: '按序完成滚动边界验证。',
+      createdAt: timestamp(1_500),
+      metadata: {
+        steps: Array.from({ length: 16 }, (_, index) => ({
+          step:
+            `滚动边界第 ${index + 1} 步：验证嵌套滚动容器顶部与底部的渐隐状态。`,
+          status:
+            index < 2
+              ? 'completed'
+              : index === 2
+                ? 'in_progress'
+                : 'pending',
+        })),
+        status: 'streaming',
       },
     })
   }

@@ -2,6 +2,11 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { compile } from 'sass'
+import {
+  nestedSelectorBlock,
+  selectorBlock,
+  transitionProperties,
+} from './style-animation-contracts.js'
 
 type UtilityContract = {
   source: string
@@ -457,6 +462,98 @@ for (const styleFile of styleFiles) {
     errors.push(
       `font shorthand with '/' line-height in ${workspacePath(styleFile)}: declare font-family, font-size and line-height separately`,
     )
+  }
+}
+
+/*
+ * Animation implementation contracts: continuous animations must stay on the
+ * compositor/transform path. Guards the skeleton shimmer, the two progress
+ * bars, and the scroll edge-fade frames against regressing to per-frame
+ * repaints (background-position sweeps), layout-thrash transitions (width),
+ * persistent will-change promotion, scroll timelines or dynamic mask
+ * keyframes.
+ */
+const animationContractFiles = {
+  canonicalConversation: 'src/styles/features/_canonical-conversation.scss',
+  composerStatus: 'src/styles/features/_composer-status.scss',
+  layoutSidebar: 'src/styles/features/layout-sidebar.scss',
+  modelHealth: 'src/styles/features/_model-health.scss',
+  sessionWorkflow: 'src/styles/features/_session-workflow.scss',
+  skeleton: 'src/styles/components/skeleton.scss',
+} as const
+
+function readAnimationContractFile(name: keyof typeof animationContractFiles): Promise<string> {
+  return readFile(resolve(workspaceRoot, animationContractFiles[name]), 'utf8')
+}
+
+const skeletonSource = await readAnimationContractFile('skeleton')
+if (skeletonSource.includes('background-attachment')) {
+  errors.push('skeleton shimmer must not use background-attachment: fixed repaint sweeps')
+}
+if (/background-position/.test(skeletonSource)) {
+  errors.push('skeleton shimmer must not animate background-position; use a transform translateX sweep')
+}
+
+for (const [name, selector] of [
+  ['composerStatus', '.composer-status-bar-fill'],
+  ['modelHealth', '.model-health-progress-fill'],
+] as const) {
+  const source = await readAnimationContractFile(name)
+  const block = selectorBlock(source, selector)
+  if (!block) {
+    errors.push(`animation contract selector missing in ${animationContractFiles[name]}: ${selector}`)
+    continue
+  }
+  const properties = transitionProperties(block)
+  if (properties.length === 0 || properties.some(property => property !== 'transform')) {
+    errors.push(`${selector} must transition only transform (compositor)`)
+  }
+}
+
+const layoutSidebarSource = await readAnimationContractFile('layoutSidebar')
+const sidebarExtraBlock = selectorBlock(
+  layoutSidebarSource,
+  '.sidebar-session-list-extra',
+)
+if (!sidebarExtraBlock) {
+  errors.push(
+    `animation contract selector missing in ${animationContractFiles.layoutSidebar}: .sidebar-session-list-extra`,
+  )
+} else if (/will-change\s*:/.test(sidebarExtraBlock)) {
+  errors.push('.sidebar-session-list-extra must not carry persistent will-change')
+}
+
+const canonicalConversationSource = await readAnimationContractFile(
+  'canonicalConversation',
+)
+const activityContentBlock = nestedSelectorBlock(
+  canonicalConversationSource,
+  '.canonical-turn-activity',
+  '&__content',
+)
+if (!activityContentBlock) {
+  errors.push(
+    `animation contract selector missing in ${animationContractFiles.canonicalConversation}: .canonical-turn-activity__content`,
+  )
+} else if (/will-change\s*:/.test(activityContentBlock)) {
+  errors.push(
+    '.canonical-turn-activity__content must not carry persistent will-change',
+  )
+}
+
+for (const [name, message] of [
+  ['canonicalConversation', '_canonical-conversation.scss'],
+  ['sessionWorkflow', '_session-workflow.scss'],
+] as const) {
+  const source = await readAnimationContractFile(name)
+  if (/animation-timeline/.test(source)) {
+    errors.push(`${message} must not use animation-timeline scroll masks`)
+  }
+  if (/@property\s+--(?:canonical-process|execution-plan)/.test(source)) {
+    errors.push(`${message} must not re-add scroll fade @property variables`)
+  }
+  if (/@keyframes\s+(?:canonical-process-edge-fade|execution-plan-edge-fade)\b/.test(source)) {
+    errors.push(`${message} must not re-add scroll fade mask keyframes`)
   }
 }
 
