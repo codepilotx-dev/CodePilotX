@@ -232,8 +232,10 @@ for (const mode of VISUAL_MODES) {
     await expect(selectedThemeVisual).toHaveCSS('border-top-width', '2px')
     await expect(selectedThemeVisual).toHaveCSS('box-shadow', 'none')
 
-    const diffMarkerGroup = page.getByRole('group', { name: '差异标记选项' })
-    await expect(diffMarkerGroup).toHaveAttribute('data-variant', 'inset')
+    const diffMarkerGroup = page.getByRole('radiogroup', {
+      name: '差异标记选项',
+    })
+    await expect(diffMarkerGroup).toHaveAttribute('data-variant', 'default')
     const diffMarkerChrome = await diffMarkerGroup.evaluate(element => {
       const style = getComputedStyle(element)
       return {
@@ -241,18 +243,21 @@ for (const mode of VISUAL_MODES) {
         paddingTop: style.paddingTop,
       }
     })
-    expect(diffMarkerChrome.paddingTop).toBe('2px')
-    expect(diffMarkerChrome.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+    expect(diffMarkerChrome.paddingTop).toBe('0px')
+    expect(diffMarkerChrome.backgroundColor).toBe('rgba(0, 0, 0, 0)')
 
     const selectedDiffMarker = diffMarkerGroup.locator(
-      '.segmented-control-item[aria-pressed="true"]',
+      '.segmented-control-item[data-state="on"]',
     )
     await expect(selectedDiffMarker).toHaveCSS('border-radius', '8px')
-    await expect
-      .poll(() =>
-        selectedDiffMarker.evaluate(element => getComputedStyle(element).boxShadow),
-      )
-      .not.toBe('none')
+    await expect(selectedDiffMarker).toHaveCSS(
+      'background-color',
+      await resolveColorToken(
+        page,
+        '--color-token-list-active-selection-background',
+      ),
+    )
+    await expect(selectedDiffMarker).toHaveCSS('box-shadow', 'none')
 
     const pointerSwitchThumb = page
       .getByRole('switch', { name: '使用指针光标' })

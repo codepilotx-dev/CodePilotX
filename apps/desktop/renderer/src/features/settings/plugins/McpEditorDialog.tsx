@@ -383,7 +383,6 @@ export function McpEditorDialog({
                         ...option,
                         disabled: Boolean(server),
                       }))}
-                      variant="inset"
                       onChange={updateType}
                     />
                   </div>

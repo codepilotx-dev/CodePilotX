@@ -143,38 +143,11 @@
   }
 }
 
-.plugins-category-filter {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-row);
-  background: var(--layer-panel-fill);
-}
-
-.plugins-category-option {
+.plugins-category-filter .segmented-control-item,
+.plugins-skill-owner-filter .segmented-control-item {
   min-height: var(--control-size-sm);
   padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--color-token-text-secondary);
-  font: inherit;
   font-size: var(--type-control);
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    color var(--motion-state) var(--ease-standard),
-    background var(--motion-state) var(--ease-standard);
-
-  &[aria-pressed="true"],
-  &.is-selected {
-    background: var(--color-token-list-active-selection-background);
-    color: var(--color-token-foreground);
-    font-weight: var(--font-weight-label);
-  }
 }
 
 .plugins-status-trigger {
@@ -675,7 +648,6 @@
 }
 
 .plugins-tab:focus-visible,
-.plugins-category-option:focus-visible,
 .plugins-segmented-button:focus-visible,
 .plugins-filter:focus-visible,
 .plugins-status-trigger:focus-visible,
@@ -697,7 +669,6 @@ button.plugins-card-title:focus-visible,
 
 @media (hover: hover) and (pointer: fine) {
   .plugins-tab:hover,
-  .plugins-category-option:hover,
   .plugins-segmented-button:hover,
   .plugins-filter:hover:not(:disabled),
   .plugins-status-trigger:hover:not(:disabled) {
@@ -779,7 +750,8 @@ button.plugins-card-title:focus-visible,
     flex-wrap: wrap;
   }
 
-  .plugins-category-option,
+  .plugins-category-filter .segmented-control-item,
+  .plugins-skill-owner-filter .segmented-control-item,
   .plugins-segmented-button {
     flex: 1 1 auto;
   }
@@ -888,7 +860,6 @@ button.plugins-card-title:focus-visible,
   }
 
   .plugins-tab,
-  .plugins-category-option,
   .plugins-segmented-button,
   .plugins-filter,
   .plugins-status-trigger,
@@ -913,7 +884,6 @@ button.plugins-card-title:focus-visible,
 
   .plugins-tab.is-active,
   .plugins-tab[aria-selected="true"],
-  .plugins-category-option[aria-pressed="true"],
   .plugins-segmented-button[aria-pressed="true"] {
     border-color: Highlight;
     background: Highlight;
@@ -922,7 +892,6 @@ button.plugins-card-title:focus-visible,
   }
 
   .plugins-tab:focus-visible,
-  .plugins-category-option:focus-visible,
   .plugins-segmented-button:focus-visible,
   .plugins-filter:focus-visible,
   .plugins-status-trigger:focus-visible,
@@ -1173,18 +1142,6 @@ button.plugins-card-title:focus-visible,
   border-radius: var(--radius-control);
 }
 
-.plugins-skill-owner-filter {
-  display: inline-flex;
-  width: fit-content;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-row);
-  background: var(--layer-panel-fill);
-}
-
 .plugins-empty--section {
   min-height: 0;
   padding: var(--space-5);
@@ -1229,7 +1186,8 @@ button.plugins-card-title:focus-visible,
     flex-wrap: wrap;
   }
 
-  .plugins-category-option {
+  .plugins-category-filter .segmented-control-item,
+  .plugins-skill-owner-filter .segmented-control-item {
     flex: 1 1 auto;
   }
 
@@ -1269,8 +1227,7 @@ button.plugins-card-title:focus-visible,
   .plugin-catalog-row,
   .skill-catalog-row,
   .plugin-catalog-row__icon,
-  .skill-catalog-row__icon,
-  .plugins-skill-owner-filter {
+  .skill-catalog-row__icon {
     border-color: CanvasText;
     background: Canvas;
     color: CanvasText;

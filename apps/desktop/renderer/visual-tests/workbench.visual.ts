@@ -4013,8 +4013,8 @@ test('settings shell search and appearance source contracts', async ({
     '减少动态效果',
   ])
 
-  const diffMarkerGroup = page.getByRole('group', { name: '差异标记选项' })
-  const reduceMotionGroup = page.getByRole('group', {
+  const diffMarkerGroup = page.getByRole('radiogroup', { name: '差异标记选项' })
+  const reduceMotionGroup = page.getByRole('radiogroup', {
     name: '减少动态效果选项',
   })
   await expect(diffMarkerGroup.getByRole('button')).toHaveCount(2)
@@ -4032,9 +4032,9 @@ test('settings shell search and appearance source contracts', async ({
   })
   expect(groupChrome).toMatchObject({
     borderTopWidth: '0px',
-    paddingTop: '2px',
+    paddingTop: '0px',
   })
-  expect(groupChrome.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(groupChrome.backgroundColor).toBe('rgba(0, 0, 0, 0)')
 
   const symbolButton = diffMarkerGroup.getByRole('button', { name: '+/-' })
   const colorButton = diffMarkerGroup.getByRole('button', { name: '颜色' })
@@ -4043,9 +4043,9 @@ test('settings shell search and appearance source contracts', async ({
   })
   await symbolButton.click()
   await motionOffButton.click()
-  await expect(symbolButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(symbolButton).toHaveAttribute('data-state', 'on')
   await expect(previewDiff).toHaveAttribute('data-indicators', 'classic')
-  await expect(motionOffButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(motionOffButton).toHaveAttribute('data-state', 'on')
   await expect(
     motionOffButton.evaluate((button) => {
       const style = getComputedStyle(button)
@@ -4091,7 +4091,7 @@ test('settings shell search and appearance source contracts', async ({
     thumbUsesWhite: true,
   })
   await colorButton.click()
-  await expect(colorButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(colorButton).toHaveAttribute('data-state', 'on')
   await expect(previewDiff).toHaveAttribute('data-indicators', 'bars')
 
   const uiFontSizeInput = page.getByRole('spinbutton', { name: '界面字号' })
@@ -4138,9 +4138,9 @@ test('settings shell search and appearance source contracts', async ({
   await closeTransientErrorToast(page)
   await expect(
     page
-      .getByRole('group', { name: '减少动态效果选项' })
+      .getByRole('radiogroup', { name: '减少动态效果选项' })
       .getByRole('button', { name: '关闭' }),
-  ).toHaveAttribute('aria-pressed', 'true')
+  ).toHaveAttribute('data-state', 'on')
 })
 
 for (const mode of MODES) {

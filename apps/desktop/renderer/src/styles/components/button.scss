@@ -395,6 +395,7 @@
     color: var(--color-token-foreground);
   }
 
+  &[data-state="on"],
   &[aria-pressed="true"],
   &[aria-selected="true"] {
     background: var(--color-token-list-active-selection-background);
@@ -484,7 +485,11 @@
 }
 
 .segmented-control[data-variant="inset"]
-  .segmented-control-item:is([aria-pressed="true"], [aria-selected="true"]) {
+  .segmented-control-item:is(
+    [data-state="on"],
+    [aria-pressed="true"],
+    [aria-selected="true"]
+  ) {
   border-color: transparent;
   background: var(--layer-canvas-fill);
   box-shadow: var(--shadow-control-sm);
@@ -502,8 +507,23 @@
     background: transparent;
   }
 
+  .segmented-control-item:is(
+    [data-state="on"],
+    [aria-pressed="true"],
+    [aria-selected="true"]
+  ) {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
   .segmented-control[data-variant="inset"]
-    .segmented-control-item:is([aria-pressed="true"], [aria-selected="true"]) {
+    .segmented-control-item:is(
+      [data-state="on"],
+      [aria-pressed="true"],
+      [aria-selected="true"]
+    ) {
     border-color: ButtonText;
     box-shadow: none;
   }

@@ -54,13 +54,13 @@ const TAB_OPTIONS: ReadonlyArray<{ value: Tab; label: string }> = [
 ]
 
 const CATEGORY_OPTIONS: ReadonlyArray<{
-  id: PluginCategoryFilter
+  value: PluginCategoryFilter
   label: string
 }> = [
-  { id: 'all', label: '全部' },
-  { id: 'included', label: '内置' },
-  { id: 'manageable', label: '可管理' },
-  { id: 'external', label: '外部' },
+  { value: 'all', label: '全部' },
+  { value: 'included', label: '内置' },
+  { value: 'manageable', label: '可管理' },
+  { value: 'external', label: '外部' },
 ]
 
 const STATUS_OPTIONS: ReadonlyArray<{
@@ -74,12 +74,12 @@ const STATUS_OPTIONS: ReadonlyArray<{
 ]
 
 const SKILL_OWNER_OPTIONS: ReadonlyArray<{
-  id: DesktopSkillOwnerFilter
+  value: DesktopSkillOwnerFilter
   label: string
 }> = [
-  { id: 'all', label: '全部' },
-  { id: 'official', label: '官方' },
-  { id: 'community', label: '社区' },
+  { value: 'all', label: '全部' },
+  { value: 'official', label: '官方' },
+  { value: 'community', label: '社区' },
 ]
 
 export function PluginsView(): React.ReactNode {
@@ -396,19 +396,13 @@ export function PluginsView(): React.ReactNode {
               </section>
 
               <div className="plugins-directory-toolbar">
-                <div aria-label="插件来源" className="plugins-category-filter" role="group">
-                  {CATEGORY_OPTIONS.map(option => (
-                    <button
-                      aria-pressed={pluginCategory === option.id}
-                      className="plugins-category-option"
-                      key={option.id}
-                      onClick={() => setPluginCategory(option.id)}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl<PluginCategoryFilter>
+                  ariaLabel="插件来源"
+                  className="plugins-category-filter"
+                  onChange={setPluginCategory}
+                  options={CATEGORY_OPTIONS}
+                  value={pluginCategory}
+                />
                 <PopoverMenu
                   align="end"
                   className="popover-menu--flex"
@@ -572,19 +566,13 @@ export function PluginsView(): React.ReactNode {
                 </section>
               ) : null}
 
-              <div aria-label="技能来源" className="plugins-skill-owner-filter" role="group">
-                {SKILL_OWNER_OPTIONS.map(option => (
-                  <button
-                    aria-pressed={skillOwner === option.id}
-                    className="plugins-category-option"
-                    key={option.id}
-                    onClick={() => setSkillOwner(option.id)}
-                    type="button"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl<DesktopSkillOwnerFilter>
+                ariaLabel="技能来源"
+                className="plugins-skill-owner-filter"
+                onChange={setSkillOwner}
+                options={SKILL_OWNER_OPTIONS}
+                value={skillOwner}
+              />
 
               {skillsError && skills.length > 0 ? (
                 <div className="plugins-callout" data-tone="danger" role="status">
