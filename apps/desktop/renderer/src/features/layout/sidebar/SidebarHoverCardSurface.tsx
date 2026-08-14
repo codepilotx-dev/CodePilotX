@@ -153,15 +153,20 @@ export function SidebarHoverCardSurface({
         >
           <motion.div
             aria-hidden={!isPresent ? true : undefined}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
+            animate={{
+              opacity: 1,
+              transform: 'scale(1) translateX(0px)',
+            }}
             className={cx('sidebar-hover-card-surface', className)}
             exit={{
               opacity: 0,
-              scale: 0.98,
+              transform: 'scale(0.98) translateX(-4px)',
               transition: motionTransition(reducedMotion, fastTween),
-              x: -4,
             }}
-            initial={{ opacity: 0, scale: 0.98, x: -4 }}
+            initial={{
+              opacity: 0,
+              transform: 'scale(0.98) translateX(-4px)',
+            }}
             inert={!isPresent ? true : undefined}
             style={{
               pointerEvents: isPresent ? undefined : 'none',

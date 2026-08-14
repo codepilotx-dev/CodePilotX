@@ -4,6 +4,7 @@ import { Folder, ListChecks } from 'lucide-react'
 import {
   AnimatePresence,
   motion,
+  useMotionTemplate,
   useMotionValue,
   usePresence,
   useTransform,
@@ -182,6 +183,7 @@ export function RightDockFilePreviewPanel({
   )
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const [switchingMarkdownMode, setSwitchingMarkdownMode] = useState(false)
+  const reducedMotion = usePrefersReducedMotion()
   const layoutRef = useRef<HTMLDivElement | null>(null)
   const treeToggleRef = useRef<HTMLButtonElement | null>(null)
   const treeResize = useEditorFileTreeResize({
@@ -356,11 +358,15 @@ export function RightDockFilePreviewPanel({
             }
             layout="flex"
             trigger={
-              <div
+              <motion.div
                 className="right-dock-file-selection-target"
+                layout
                 onContextMenu={() =>
                   setSelectedText(window.getSelection()?.toString() ?? '')
                 }
+                transition={{
+                  layout: motionTransition(reducedMotion, layoutTween),
+                }}
               >
                 {document.conflict ? (
                   <ConflictMergeEditor
@@ -431,7 +437,7 @@ export function RightDockFilePreviewPanel({
                     }}
                   />
                 )}
-              </div>
+              </motion.div>
             }
             width={220}
           />
@@ -439,7 +445,6 @@ export function RightDockFilePreviewPanel({
             focusReturnRef={treeToggleRef}
             liveWidth={treeResize.liveWidth}
             visible={treeVisible}
-            width={treeWidth}
           >
             <div
               aria-label="调整文件树宽度"
@@ -568,10 +573,7 @@ function useEditorFileTreeResize({
   startResize: (event: React.PointerEvent<HTMLDivElement>) => void
 } {
   const liveWidth = useMotionValue(committedWidth)
-  const liveWidthPixels = useTransform(
-    liveWidth,
-    width => `${Math.round(width)}px`,
-  )
+  const liveWidthPixels = useMotionTemplate`${liveWidth}px`
   const committedWidthRef = useRef(committedWidth)
   const activeResizeRef = useRef<ActiveFileTreeResize | null>(null)
 
@@ -710,25 +712,22 @@ function EditorFileTreePresence({
   focusReturnRef,
   liveWidth,
   visible,
-  width,
 }: {
   children: React.ReactNode
   focusReturnRef: React.RefObject<HTMLButtonElement | null>
   liveWidth: MotionValue<number>
   visible: boolean
-  width: number
 }): React.ReactNode {
   const initiallyVisibleRef = useRef(visible)
 
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence initial={false} mode="popLayout">
       {visible ? (
         <EditorFileTreePresenceItem
           key="editor-file-tree"
           focusReturnRef={focusReturnRef}
           liveWidth={liveWidth}
           skipEnterAnimation={initiallyVisibleRef.current}
-          width={width}
         >
           {children}
         </EditorFileTreePresenceItem>
@@ -741,22 +740,22 @@ function EditorFileTreePresenceItem({
   children,
   focusReturnRef,
   liveWidth,
+  ref,
   skipEnterAnimation,
-  width,
 }: {
   children: React.ReactNode
   focusReturnRef: React.RefObject<HTMLButtonElement | null>
   liveWidth: MotionValue<number>
+  ref?: React.Ref<HTMLDivElement | null>
   skipEnterAnimation: boolean
-  width: number
 }): React.ReactNode {
   const reducedMotion = usePrefersReducedMotion()
   const [isPresent, safeToRemove] = usePresence()
   const shellRef = useRef<HTMLDivElement | null>(null)
   const [entryComplete, setEntryComplete] = useState(skipEnterAnimation)
-  const liveShellWidth = useTransform(liveWidth, value => value + 8)
-  const visibleState = { opacity: 1, width: width + 8, x: 0 }
-  const hiddenState = { opacity: 0, width: 0, x: 8 }
+  const liveShellWidth = useTransform(() => liveWidth.get() + 8)
+  const visibleState = { opacity: 1, x: 0 }
+  const hiddenState = { opacity: 0, x: 8 }
 
   useLayoutEffect(() => {
     if (isPresent) return
@@ -786,7 +785,14 @@ function EditorFileTreePresenceItem({
 
   return (
     <motion.div
-      ref={shellRef}
+      ref={(node) => {
+        shellRef.current = node
+        if (typeof ref === 'function') {
+          ref(node)
+        } else if (ref) {
+          ref.current = node
+        }
+      }}
       aria-hidden={!isPresent ? true : undefined}
       animate={isPresent
         ? visibleState
@@ -804,7 +810,7 @@ function EditorFileTreePresenceItem({
       }}
       style={{
         width: liveShellWidth,
-        minWidth: isPresent && entryComplete ? FILE_TREE_MIN_WIDTH + 8 : 0,
+        minWidth: isPresent ? FILE_TREE_MIN_WIDTH + 8 : 0,
       }}
       transition={motionTransition(
         reducedMotion,

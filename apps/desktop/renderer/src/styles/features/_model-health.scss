@@ -50,10 +50,13 @@
   background: var(--color-token-border-light);
 
   .model-health-progress-fill {
+    width: 100%;
     height: 100%;
     border-radius: 999px;
     background: var(--codex-base-accent);
-    transition: width var(--motion-state) var(--ease-standard);
+    transform: scaleX(var(--model-health-progress, 0));
+    transform-origin: left;
+    transition: transform var(--motion-state) var(--ease-standard);
   }
 }
 

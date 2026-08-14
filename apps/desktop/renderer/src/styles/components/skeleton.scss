@@ -8,24 +8,29 @@
     var(--color-token-foreground) 12%,
     transparent
   );
+  position: relative;
   display: block;
+  overflow: hidden;
   background-color: color-mix(
     in srgb,
     var(--color-token-text-secondary) 7%,
     var(--layer-panel-fill)
   );
-  background-image: linear-gradient(
-    90deg,
-    transparent 34%,
-    var(--ui-skeleton-highlight) 50%,
-    transparent 66%
-  );
-  background-position: -100vw 0;
-  background-repeat: no-repeat;
-  background-size: 100vw 100vh;
-  background-attachment: fixed;
   box-shadow: none;
-  animation: ui-skeleton-page-sweep var(--motion-loading) steps(24, end) infinite;
+
+  /* 局部渐变扫光走 compositor 的 translateX，避免逐帧重绘背景。 */
+  &::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 34%,
+      var(--ui-skeleton-highlight) 50%,
+      transparent 66%
+    );
+    content: "";
+    animation: ui-skeleton-sweep var(--motion-loading) steps(24, end) infinite;
+  }
 }
 
 .ui-remote-image {
@@ -72,15 +77,19 @@
   );
 }
 
-@keyframes ui-skeleton-page-sweep {
+@keyframes ui-skeleton-sweep {
+  from {
+    transform: translateX(-100%);
+  }
   to {
-    background-position: 100vw 0;
+    transform: translateX(100%);
   }
 }
 
 :root[data-reduce-motion='on'] {
-  .ui-skeleton-block {
-    background-image: none;
+  .ui-skeleton-block::after {
+    background: none;
+    content: none;
     animation: none;
   }
 

@@ -25,6 +25,7 @@ import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
 import {
   fastTween,
+  layoutTween,
   motionTransition,
   standardTween,
 } from "../../motion/motionTransitions.js";
@@ -547,7 +548,7 @@ export function SidebarBody({
           />
         ) : (
         <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
-          <AnimatePresence initial={false}>
+          <AnimatePresence initial={false} mode="popLayout">
           {pinnedItems.length > 0 ? (
             <SidebarSectionPresence key="pinned" reducedMotion={reducedMotion}>
             <SidebarSection
@@ -577,7 +578,7 @@ export function SidebarBody({
           ) : null}
           </AnimatePresence>
 
-          <AnimatePresence initial={false}>
+          <AnimatePresence initial={false} mode="popLayout">
           {organization === "projects" ? (
             <SidebarSectionPresence key="projects" reducedMotion={reducedMotion}>
             <SidebarSection
@@ -1098,7 +1099,11 @@ function SidebarSection({
   const reducedMotion = usePrefersReducedMotion();
 
   return (
-    <section className="sidebar-section tw:grid tw:gap-1">
+    <motion.section
+      className="sidebar-section tw:grid tw:gap-1"
+      layout="position"
+      transition={motionTransition(reducedMotion, layoutTween)}
+    >
       <div
         className="sidebar-section-header tw:rounded-sm tw:px-2 tw:py-1.25 tw:text-sm"
       >
@@ -1132,7 +1137,7 @@ function SidebarSection({
           {action}
         </div>
       </div>
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {!collapsed ? (
           <SidebarSectionContent
             key={`sidebar-section-content-${sectionId}`}
@@ -1142,33 +1147,36 @@ function SidebarSection({
           </SidebarSectionContent>
         ) : null}
       </AnimatePresence>
-    </section>
+    </motion.section>
   );
 }
 
 function SidebarSectionPresence({
   children,
   reducedMotion,
+  ref,
 }: {
   children: React.ReactNode;
   reducedMotion: boolean;
+  ref?: React.Ref<HTMLDivElement | null>;
 }): React.ReactNode {
   const isPresent = useIsPresent();
 
   return (
     <motion.div
-      animate={{ height: "auto", opacity: 1 }}
+      ref={ref}
+      animate={{ opacity: 1, y: 0 }}
       aria-hidden={!isPresent ? true : undefined}
       data-presence={isPresent ? "present" : "exiting"}
       exit={{
-        height: 0,
         opacity: 0,
         transition: motionTransition(reducedMotion, fastTween),
+        y: -8,
       }}
       inert={!isPresent ? true : undefined}
-      initial={{ height: 0, opacity: 0 }}
+      initial={{ opacity: 0, y: -8 }}
+      layout="position"
       style={{
-        overflow: isPresent ? "visible" : "hidden",
         pointerEvents: isPresent ? undefined : "none",
       }}
       transition={motionTransition(reducedMotion, standardTween)}
@@ -1181,24 +1189,27 @@ function SidebarSectionPresence({
 function SidebarSectionContent({
   children,
   reducedMotion,
+  ref,
 }: {
   children: React.ReactNode;
   reducedMotion: boolean;
+  ref?: React.Ref<HTMLDivElement | null>;
 }): React.ReactNode {
   const isPresent = useIsPresent();
 
   return (
     <motion.div
+      ref={ref}
       aria-hidden={!isPresent ? true : undefined}
-      animate={{ height: "auto", opacity: 1 }}
+      animate={{ opacity: 1, y: 0 }}
       className="sidebar-section-content tw:grid tw:gap-1"
       exit={{
-        height: 0,
         opacity: 0,
         transition: motionTransition(reducedMotion, fastTween),
+        y: -4,
       }}
       inert={!isPresent ? true : undefined}
-      initial={{ height: 0, opacity: 0 }}
+      initial={{ opacity: 0, y: -4 }}
       transition={motionTransition(reducedMotion, standardTween)}
     >
       {children}

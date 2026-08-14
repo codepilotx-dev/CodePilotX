@@ -44,6 +44,7 @@ import { MarkdownMessage } from "../MarkdownMessage.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
 import { CollapsibleUserMarkdown } from "../conversation/CollapsibleUserMarkdown.js";
 import { subagentStatusLabel } from "../subagents/subagentStatusLabel.js";
+import { useScrollEdgeState } from "../../../hooks/useScrollEdgeState.js";
 import { useConversationItemContext } from "./ConversationItemContext.js";
 import {
   WorkflowPlanCard,
@@ -644,12 +645,15 @@ export function ToolExecutionCard({
       ) : null}
       <section className="canonical-command-shell__section" aria-label="执行内容">
         <CopyButton ariaLabel="复制执行内容" className="canonical-command-shell__copy-button" text={view.executionContent} />
-        <pre>
-          <code>
-            {view.showShellPrompt ? <span className="canonical-command-shell__prompt">$ </span> : null}
-            {view.executionContent}
-          </code>
-        </pre>
+        {wrapEmbeddedOutput(
+          embedded,
+          <pre>
+            <code>
+              {view.showShellPrompt ? <span className="canonical-command-shell__prompt">$ </span> : null}
+              {view.executionContent}
+            </code>
+          </pre>,
+        )}
       </section>
       <section
         className="canonical-command-shell__section canonical-command-shell__result"
@@ -659,7 +663,10 @@ export function ToolExecutionCard({
         {view.resultText ? (
           <CopyButton ariaLabel="复制返回结果" className="canonical-command-shell__copy-button" text={view.resultText} />
         ) : null}
-        <pre><code>{view.resultText ?? "无输出"}</code></pre>
+        {wrapEmbeddedOutput(
+          embedded,
+          <pre><code>{view.resultText ?? "无输出"}</code></pre>,
+        )}
       </section>
       <footer className="canonical-command-shell__footer">
         <span className="canonical-command-shell__status">
@@ -674,6 +681,43 @@ export function ToolExecutionCard({
         </span>
       </footer>
     </article>
+  );
+}
+
+/**
+ * 分组呈现时把 command shell 输出包进滚动边界 frame：内层负责滚动，
+ * 外层顶部与底部伪元素按滚动状态显示固定的静态渐隐。
+ */
+function wrapEmbeddedOutput(
+  embedded: boolean,
+  output: React.ReactNode,
+): React.ReactNode {
+  return embedded
+    ? <CommandShellEmbeddedScroll>{output}</CommandShellEmbeddedScroll>
+    : output;
+}
+
+function CommandShellEmbeddedScroll({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.ReactNode {
+  const scrollerRef = React.useRef<HTMLDivElement | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const edge = useScrollEdgeState(scrollerRef, { contentRef });
+  return (
+    <div
+      className="canonical-command-shell__edge-fade"
+      data-at-end={edge.atEnd}
+      data-at-start={edge.atStart}
+      data-scrollable={edge.scrollable}
+    >
+      <div className="canonical-command-shell__scroller" ref={scrollerRef}>
+        <div className="canonical-command-shell__scroll-content" ref={contentRef}>
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }
 

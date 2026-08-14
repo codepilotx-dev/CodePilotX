@@ -352,32 +352,15 @@
   }
 
   &__items {
-    --canonical-process-edge-fade-distance: 1.5rem;
-
-    display: grid;
-    gap: var(--conversation-grouped-item-gap, 4px);
     max-height: 14rem;
     overflow-x: hidden;
     overflow-y: auto;
     scrollbar-gutter: stable;
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      transparent,
-      var(--color-token-foreground) var(--canonical-process-top-fade)
-        calc(100% - var(--canonical-process-bottom-fade)),
-      transparent
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      transparent,
-      var(--color-token-foreground) var(--canonical-process-top-fade)
-        calc(100% - var(--canonical-process-bottom-fade)),
-      transparent
-    );
-    animation-name: canonical-process-edge-fade;
-    animation-timing-function: linear;
-    animation-fill-mode: both;
-    animation-timeline: scroll(self y);
+  }
+
+  &__items-content {
+    display: grid;
+    gap: var(--conversation-grouped-item-gap, 4px);
   }
 
   /* Semantic state colours */
@@ -390,36 +373,56 @@
   }
 }
 
-@property --canonical-process-top-fade {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0;
-}
+/*
+ * 滚动边界渐隐 frame：顶部/底部伪元素绘制静态渐变，由 data-at-start /
+ * data-at-end / data-scrollable 控制透明度，替代 scroll timeline + 动态
+ * mask-image。伪元素 pointer-events: none，不阻挡滚动、点击、选择或焦点。
+ */
+.canonical-process-edge-fade,
+.canonical-command-shell__edge-fade,
+.execution-plan-card__edge-fade {
+  position: relative;
+  min-width: 0;
 
-@property --canonical-process-bottom-fade {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0;
-}
+  &::before,
+  &::after {
+    position: absolute;
+    inset-inline: 0;
+    z-index: 1;
+    height: var(--edge-fade-distance, 1.5rem);
+    content: "";
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-state) var(--ease-out);
+  }
 
-@keyframes canonical-process-edge-fade {
-  0%,
-  1% {
-    --canonical-process-top-fade: 0;
-    --canonical-process-bottom-fade: var(
-      --canonical-process-edge-fade-distance,
-      1.5rem
+  &::before {
+    top: 0;
+    background: linear-gradient(
+      to bottom,
+      var(--edge-fade-fill, var(--layer-canvas-fill)),
+      transparent
     );
   }
 
-  99%,
-  100% {
-    --canonical-process-top-fade: var(
-      --canonical-process-edge-fade-distance,
-      1.5rem
+  &::after {
+    bottom: 0;
+    background: linear-gradient(
+      to top,
+      var(--edge-fade-fill, var(--layer-canvas-fill)),
+      transparent
     );
-    --canonical-process-bottom-fade: 0;
   }
+
+  &[data-scrollable="true"][data-at-start="false"]::before,
+  &[data-scrollable="true"][data-at-end="false"]::after {
+    opacity: 1;
+  }
+}
+
+.right-dock-side-chat .canonical-process-edge-fade,
+.right-dock-side-chat .canonical-command-shell__edge-fade {
+  --edge-fade-fill: var(--color-token-panel-background);
 }
 
 .canonical-turn-activity {
@@ -491,7 +494,6 @@
   &__content {
     min-width: 0;
     padding-top: var(--conversation-item-gap, 16px);
-    will-change: opacity, transform;
   }
 }
 
@@ -991,28 +993,13 @@
     }
 
     .canonical-command-shell__section pre {
-      --canonical-process-edge-fade-distance: 1.5rem;
+      max-height: none;
+      overflow: visible;
+    }
 
+    .canonical-command-shell__section .canonical-command-shell__scroller {
       max-height: 9rem;
       overflow: auto;
-      -webkit-mask-image: linear-gradient(
-        to bottom,
-        transparent,
-        var(--color-token-foreground) var(--canonical-process-top-fade)
-          calc(100% - var(--canonical-process-bottom-fade)),
-        transparent
-      );
-      mask-image: linear-gradient(
-        to bottom,
-        transparent,
-        var(--color-token-foreground) var(--canonical-process-top-fade)
-          calc(100% - var(--canonical-process-bottom-fade)),
-        transparent
-      );
-      animation-name: canonical-process-edge-fade;
-      animation-timing-function: linear;
-      animation-fill-mode: both;
-      animation-timeline: scroll(self y);
     }
 
     .canonical-command-shell__footer {
@@ -1557,6 +1544,14 @@
 
   .canonical-lifecycle-tool__icon-flash {
     display: none;
+  }
+
+  /* 保留静态边缘提示，但取消渐隐的 opacity transition。 */
+  .canonical-process-edge-fade::before,
+  .canonical-process-edge-fade::after,
+  .canonical-command-shell__edge-fade::before,
+  .canonical-command-shell__edge-fade::after {
+    transition: none;
   }
 }
 

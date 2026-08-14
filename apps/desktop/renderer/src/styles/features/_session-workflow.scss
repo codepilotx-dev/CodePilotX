@@ -176,35 +176,18 @@
   animation: workflow-item-in var(--motion-enter) var(--ease-out);
 }
 
-.execution-plan-card__steps {
-  --execution-plan-edge-fade-distance: 2rem;
-
-  display: grid;
-  gap: 4px;
+.execution-plan-card__steps-scroller {
   max-height: 20rem;
-  margin: 0;
-  padding: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
+}
+
+.execution-plan-card__steps {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
   list-style: none;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    var(--color-token-foreground) var(--execution-plan-top-fade)
-      calc(100% - var(--execution-plan-bottom-fade)),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    var(--color-token-foreground) var(--execution-plan-top-fade)
-      calc(100% - var(--execution-plan-bottom-fade)),
-    transparent
-  );
-  animation-name: execution-plan-edge-fade;
-  animation-timing-function: linear;
-  animation-fill-mode: both;
-  animation-timeline: scroll(self y);
 
   li {
     display: grid;
@@ -220,6 +203,12 @@
   li[data-status="in_progress"] .execution-plan-card__step-text {
     color: var(--color-token-foreground);
   }
+}
+
+/* 与 canonical 共用滚动边界渐隐 frame；向卡片底色渐隐。 */
+.execution-plan-card__edge-fade {
+  --edge-fade-distance: 2rem;
+  --edge-fade-fill: var(--layer-raised-fill);
 }
 
 .execution-plan-card__step-icon {
@@ -257,38 +246,6 @@
 .execution-plan-card__steps li[data-status="in_progress"]
   .execution-plan-card__step-icon {
   color: var(--color-token-focus-border);
-}
-
-@property --execution-plan-top-fade {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0;
-}
-
-@property --execution-plan-bottom-fade {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0;
-}
-
-@keyframes execution-plan-edge-fade {
-  0%,
-  1% {
-    --execution-plan-top-fade: 0;
-    --execution-plan-bottom-fade: var(
-      --execution-plan-edge-fade-distance,
-      2rem
-    );
-  }
-
-  99%,
-  100% {
-    --execution-plan-top-fade: var(
-      --execution-plan-edge-fade-distance,
-      2rem
-    );
-    --execution-plan-bottom-fade: 0;
-  }
 }
 
 .workflow-plan-card--compact {
@@ -351,6 +308,11 @@
   .workflow-plan-card,
   .execution-plan-card {
     animation: none;
+  }
+
+  .execution-plan-card__edge-fade::before,
+  .execution-plan-card__edge-fade::after {
+    transition: none;
   }
 
   .workflow-page__composer-inner {

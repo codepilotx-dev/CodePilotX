@@ -46,9 +46,11 @@ import {
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
 import type { RegisterConversationTurnRow } from "../conversation/useConversationTurnRowVisibility.js";
 import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
+import { useScrollEdgeState } from "../../../hooks/useScrollEdgeState.js";
 import {
   enterTween,
   exitTween,
+  layoutTween,
   motionTransition,
 } from "../../motion/motionTransitions.js";
 
@@ -124,6 +126,12 @@ export function CanonicalProcessGroup({
   const [expanded, setExpanded] = React.useState(defaultExpanded);
   const reducedMotion = usePrefersReducedMotion();
   const contentId = React.useId();
+  const itemsRef = React.useRef<HTMLDivElement | null>(null);
+  const itemsContentRef = React.useRef<HTMLDivElement | null>(null);
+  const edge = useScrollEdgeState(itemsRef, {
+    contentRef: itemsContentRef,
+    version: expanded ? children : undefined,
+  });
   const visibleLabel = useDeferredProcessSummary(label, summaryKey, active);
   const datastate = active ? "active" : failed ? "failed" : "completed";
   const SummaryIcon = processSummaryIcon(active ? "thinking" : failed ? "failed" : kind);
@@ -144,11 +152,13 @@ export function CanonicalProcessGroup({
   );
 
   return (
-    <div
+    <motion.div
       className="canonical-process-group canonical-process-group--turn"
       data-expandable={canExpand ? "true" : "false"}
       data-expanded={expanded ? "true" : "false"}
       data-state={datastate}
+      layout="position"
+      transition={motionTransition(reducedMotion, layoutTween)}
     >
       {canExpand ? (
         <button
@@ -170,29 +180,37 @@ export function CanonicalProcessGroup({
           {summaryContent}
         </div>
       )}
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {canExpand && expanded ? (
           <motion.div
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ opacity: 1, y: 0 }}
             className="canonical-process-group__content"
             exit={{
-              height: 0,
               opacity: 0,
               pointerEvents: "none",
               transition: motionTransition(reducedMotion, exitTween),
+              y: -4,
             }}
             id={contentId}
-            initial={{ height: 0, opacity: 0 }}
-            style={{ overflow: "hidden" }}
+            initial={{ opacity: 0, y: -4 }}
             transition={motionTransition(reducedMotion, enterTween)}
           >
-            <div className="canonical-process-group__items">
-              {children}
+            <div
+              className="canonical-process-edge-fade"
+              data-at-end={edge.atEnd}
+              data-at-start={edge.atStart}
+              data-scrollable={edge.scrollable}
+            >
+              <div className="canonical-process-group__items" ref={itemsRef}>
+                <div className="canonical-process-group__items-content" ref={itemsContentRef}>
+                  {children}
+                </div>
+              </div>
             </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -369,9 +387,7 @@ export function CanonicalTurnActivity({
         opacity: 0,
         transform: reducedMotion ? "translateY(0)" : "translateY(-8px)",
       }}
-      transition={reducedMotion
-        ? { duration: 0 }
-        : { duration: 0.22, ease: [0.33, 1, 0.68, 1] }}
+      transition={motionTransition(reducedMotion, layoutTween)}
       key="turn-activity-content"
     >
       {children}
@@ -418,7 +434,7 @@ export function CanonicalTurnActivity({
         </div>
       )}
       <div aria-hidden="true" className="canonical-turn-activity__divider" />
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {contentVisible ? content : null}
       </AnimatePresence>
     </section>
@@ -715,6 +731,8 @@ function CanonicalConversationTurnComponent({
     expanded: disclosureState.expandedIds.has(id),
     onExpandedChange: disclosureState.onExpandedChange,
   });
+  const reducedMotion = usePrefersReducedMotion();
+  const processRowTransition = motionTransition(reducedMotion, layoutTween);
   const renderItem = (
     item: RenderTurnEntry["items"][number],
     options: {
@@ -845,7 +863,12 @@ function CanonicalConversationTurnComponent({
         {activityContent}
       </CanonicalTurnActivity>
       {entry.blockers.length ? (
-        <section className="canonical-turn__blockers" aria-label="等待处理">
+        <motion.section
+          className="canonical-turn__blockers"
+          aria-label="等待处理"
+          layout="position"
+          transition={processRowTransition}
+        >
           {entry.blockers.map((blocker) => (
             <CanonicalBlocker
               blocker={blocker}
@@ -853,43 +876,70 @@ function CanonicalConversationTurnComponent({
               renderItem={renderItem}
             />
           ))}
-        </section>
+        </motion.section>
       ) : null}
       {entry.planItem ? (
-        <section className="canonical-turn__plan">
+        <motion.section
+          className="canonical-turn__plan"
+          layout="position"
+          transition={processRowTransition}
+        >
           {renderItem(entry.planItem)}
-        </section>
+        </motion.section>
       ) : null}
       {entry.assistantResultItems.length > 0 ? (
-        <section className="canonical-turn__result" aria-label="助手回复">
+        <motion.section
+          className="canonical-turn__result"
+          aria-label="助手回复"
+          layout="position"
+          transition={processRowTransition}
+        >
           {entry.assistantResultItems.map((item) => renderItem(item, {
             showAssistantActions: true,
           }))}
-        </section>
+        </motion.section>
       ) : null}
       {!active && entry.patchItems.length > 0 ? (
-        <section className="canonical-turn__post" aria-label="文件更改">
+        <motion.section
+          className="canonical-turn__post"
+          aria-label="文件更改"
+          layout="position"
+          transition={processRowTransition}
+        >
           {entry.patchItems.map((item) => renderItem(item))}
-        </section>
+        </motion.section>
       ) : null}
       {syntheticPatch ? (
-        <section className="canonical-turn__post" aria-label="文件更改">
+        <motion.section
+          className="canonical-turn__post"
+          aria-label="文件更改"
+          layout="position"
+          transition={processRowTransition}
+        >
           <PatchSummaryView
             onOpenReview={onOpenPatchReview}
             patch={syntheticPatch}
           />
-        </section>
+        </motion.section>
       ) : null}
       {entry.postAssistantItems.length > 0 ? (
-        <section className="canonical-turn__post">
+        <motion.section
+          className="canonical-turn__post"
+          layout="position"
+          transition={processRowTransition}
+        >
           {entry.postAssistantItems.map((item) => renderItem(item))}
-        </section>
+        </motion.section>
       ) : null}
       {entry.turn.error ? (
-        <div className="canonical-turn__status canonical-turn__status--error">
+        <motion.div
+          className="canonical-turn__status canonical-turn__status--error"
+          layout="position"
+          transition={processRowTransition}
+        >
           <CircleAlert aria-hidden="true" />
           <span>{entry.turn.error}</span>
-        </div>
+        </motion.div>
       ) : null}
     </article>
   );

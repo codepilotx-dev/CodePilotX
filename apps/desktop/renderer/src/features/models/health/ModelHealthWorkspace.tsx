@@ -129,7 +129,11 @@ export function ModelHealthWorkspace({
             >
               <div
                 className="model-health-progress-fill"
-                style={{ width: `${progress}%` }}
+                style={
+                  {
+                    '--model-health-progress': progress / 100,
+                  } as React.CSSProperties
+                }
               />
             </div>
           </>

@@ -21,7 +21,7 @@ import {
 import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
+import { motionTransition, layoutTween, standardTween } from '../../motion/motionTransitions.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
 import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
@@ -493,13 +493,13 @@ function SidebarSessionGroupComponent({
       </ul>
       {pagination !== 'all' ? (
       <>
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {extraSessions.length > 0 ? (
           <motion.ul
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ opacity: 1, y: 0 }}
             className="sidebar-session-list sidebar-session-list-extra tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:overflow-hidden tw:p-0"
-            exit={{ height: 0, opacity: 0 }}
-            initial={{ height: 0, opacity: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            initial={{ opacity: 0, y: -4 }}
             key={`${groupKey}-extra-sessions`}
             transition={motionTransition(reducedMotion, standardTween)}
           >
@@ -508,7 +508,11 @@ function SidebarSessionGroupComponent({
         ) : null}
       </AnimatePresence>
       {hasOverflow ? (
-        <div className="sidebar-show-more-actions">
+        <motion.div
+          className="sidebar-show-more-actions"
+          layout="position"
+          transition={motionTransition(reducedMotion, layoutTween)}
+        >
           <span
             aria-hidden="true"
             className={cx(
@@ -559,7 +563,7 @@ function SidebarSessionGroupComponent({
               'u-justify-end',
             )}
           />
-        </div>
+        </motion.div>
       ) : null}
       </>
       ) : null}
