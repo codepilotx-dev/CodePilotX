@@ -21,6 +21,7 @@
 
 ### Changed
 
+- [desktop/renderer] 会话打开与切换期间的整窗加载统一为带真实阶段文案的鲸鱼扫光动画（复用启动遮罩契约），替换原有的“加载对话中”文字加载态。
 - [desktop/renderer] 拆分 live event 订阅过滤器：`provider` 过滤器不再接收 `model/health/updated`，模型健康页改用独立的 `modelHealth` 过滤器，避免 provider 状态消费无关的逐模型事件。
 - [desktop/renderer] 补充 Renderer 样式契约白名单判定规范，明确固定控件几何、语义行高、Tailwind leading 与外部样式契约的准入边界，避免后续检查失败时机械刷新基线。
 - [desktop/renderer] 统一可缩放内容与固定桌面 Chrome 的语义行高，修复大字号代码、设置行、侧栏动作和编辑器排版被局部行高撑高或压缩的问题。
@@ -54,9 +55,15 @@
 - [Agent/desktop/renderer] 统一执行与恢复纵切面：history schema 27 增加 durable resume lease，main/subagent 共享 interaction 恢复入口，Renderer 改为 canonical 批量单写者并在应用提交后确认事件位置
 - [Agent/renderer] 统一 thread snapshot、history、queue 的 SQLite read fence 与 SSE cursor authority，事件以 256 条或 50ms 批量提交、1024 条有界积压并在消费失败后从已提交位置重新对账
 - [release/docs] 后续 GitHub Release 统一改为 source-only：标签流水线使用 GitHub-hosted runner，仅发布 CHANGELOG 正文与 GitHub 自动生成的源码归档，不再依赖自托管签名 runner 或上传 Windows 安装包、更新元数据、校验和及 SBOM；README 改为指导 Windows x64 使用者自行打包
+- [desktop/renderer] 将分段选择与插件来源筛选迁移到 Radix Toggle Group，补齐方向键和 roving focus 键盘导航，同时保持现有视觉与必选行为。
+- [desktop/renderer] 融合 dashi 信息密度重构任务看板：44px 紧凑工具栏（搜索、Project、优先级/标签筛选菜单、归档）替换 Hero 大标题区；五列始终渲染并保持 296–336px 可读宽度、普通窗口横向滚动；列头以状态色 token 着色并绘制轻量 CSS 流程箭头（暗色与 forced-colors 降级）；任务卡改为 12px 圆角紧凑浮层，移除内部分割框与隐藏的 `<details>` 移动菜单，改用 PopoverMenu；列头 `+` 与顶部“新建任务”统一只保留一个文字入口，列内新增按状态预填（复用 RPC 可选 `status`，无协议变更）。
+- [desktop/renderer] 将任务详情 drawer 从悬浮全窗改为路由区域内右侧面板（480px，与右栏同表面语言，960px 以下近全宽浮层），看板上下文保持可见，字段、标签、对话、评论、活动和危险区按面板分组重排，权限、归档与永久删除行为不变。
+- [desktop/renderer] 为任务看板新增浏览器视觉回归基础设施：`visualCase=taskboard` 静态 fixture（五种状态、长标题、标签、运行中、等待输入与 worktree 卡片）、Playwright 场景与 axe 场景；浏览器 mock 仅提供只读 list/read/label fixture，mutation 保持显式不可用。
 
 ### Fixed
 
+- [desktop/renderer] 修复任务看板新建与“开始执行”弹窗缺少背景、边框和阴影导致控件漂浮在遮罩上的问题，统一接入共享 floating-surface（`layer-floating-fill`、`layer-edge-strong`、`radius-floating`、`shadow-floating`）。
+- [desktop] 修复模型配置判定期间启动鲸鱼过早交接的问题，统一整窗加载为带真实阶段滑动文案的鲸鱼扫光动画，并保留局部加载反馈。
 - [desktop/renderer] 将首次模型配置向导改为由用户 `config.json` 中的 `desktop.firstUseSetupCompleted` 一次性标记控制，已有有效模型的旧用户自动完成迁移，手动改回 `0` 可重新进入完整向导。
 - [Agent/desktop/renderer] 修复只保存 API Key、未显式选择默认模型时，Agent 目录 fallback 被伪装成已配置模型、刷新或重启后绕过首次配置门禁的问题；`model/list.defaultModel` 现在只返回显式配置且当前可用的默认模型（含 variant）。
 - [desktop/renderer] 修复 Provider 目录或模型状态刷新失败时旧 `modelConfigured` 状态继续放行工作台的问题，配置读取失败统一进入安全恢复态；凭据新增、更新、启停、切换、删除与 `catalog/updated` 事件合并为一次配置刷新，避免重复请求与后返回覆盖新状态。
@@ -91,6 +98,7 @@
 - [desktop/renderer] 修复模型健康页断线、离页与重试状态不一致：start 响应丢失后经 read 恢复已接受批次，离页或卸载按 operationId 立即取消，重连与投递恢复后以权威快照对账，单项重试结果不会覆盖新批次，任一重试进行中禁用重复触发。
 - [desktop/renderer] 修复设置等宽文本域、代码块与配置代码预览在 UI/code 字号独立配置时行高小于字体的角色错配，并让样式检查明确拒绝在 `font` shorthand 中通过 `/` 设置行高。
 - [desktop/renderer] 修复侧栏空态行复用交互行样式（指针、hover、active 与禁用选中）的问题，恢复中性 div 行结构并保持合法 block content model。
+- [desktop/renderer] 修复 Radix 单选分段控件继续使用 inset 反向底色的问题，统一为 Codex 默认的透明容器与弱前景色选中态。
 
 ### Removed
 
