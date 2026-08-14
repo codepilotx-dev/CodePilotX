@@ -48,7 +48,7 @@ export function SettingsSectionHeader({
 
 export function SettingsSectionContent({
   children,
-  surface = 'plain',
+  surface = 'card',
 }: ContentProps): React.ReactNode {
   return (
     <div

@@ -175,27 +175,40 @@
 }
 
 .ui-button[data-color="primary"] {
-  border-color: var(--color-token-border);
-  background: var(--color-token-control-background);
-  color: var(--color-token-foreground);
+  border-color: var(--color-token-border-heavy);
+  background: var(--color-token-foreground);
+  color: var(--color-token-main-surface-primary);
 
   &:enabled:hover,
   &[data-state="open"],
   &[data-active] {
-    background: var(--color-token-list-hover-background);
+    background: color-mix(in srgb, var(--color-token-foreground) 88%, transparent);
+  }
+
+  &:active:not(:disabled) {
+    background: color-mix(in srgb, var(--color-token-foreground) 80%, transparent);
   }
 }
 
 .ui-button[data-color="secondary"] {
-  border-color: var(--color-token-border);
-  background: var(--color-token-control-background);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
   color: var(--color-token-foreground);
 
   &:enabled:hover,
   &[data-state="open"],
   &[data-active] {
-    background: var(--color-token-list-hover-background);
+    background: color-mix(in srgb, var(--color-token-foreground) 10%, transparent);
   }
+
+  &:active:not(:disabled) {
+    background: var(--color-token-button-pressed);
+  }
+}
+
+.ui-button[aria-selected="true"] {
+  background: var(--color-token-list-active-selection-background);
+  color: var(--color-token-list-active-selection-foreground);
 }
 
 .ui-button[data-color="segmentedInsetSelected"] {
@@ -478,6 +491,17 @@
 }
 
 @media (forced-colors: active) {
+  .ui-button[data-color="primary"] {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .ui-button[data-color="secondary"] {
+    border-color: ButtonText;
+    background: transparent;
+  }
+
   .segmented-control[data-variant="inset"]
     .segmented-control-item:is([aria-pressed="true"], [aria-selected="true"]) {
     border-color: ButtonText;

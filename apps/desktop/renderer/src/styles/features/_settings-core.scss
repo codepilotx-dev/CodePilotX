@@ -170,8 +170,8 @@
 .settings-section-content[data-surface="card"] {
   overflow: hidden;
   border: var(--layer-edge);
-  border-radius: var(--radius-card);
-  background: var(--layer-raised-fill);
+  border-radius: var(--radius-floating);
+  background: var(--color-token-bg-fog);
   box-shadow: none;
   transition:
     background-color var(--motion-state) var(--ease-standard),
@@ -200,16 +200,14 @@
 /* --- Row --- */
 .settings-row {
   display: flex;
-  min-height: 64px;
   align-items: center;
   gap: 16px;
   min-width: 0;
-  padding: 10px 0;
+  padding: 12px 0;
   background: transparent;
 
   &[data-size="compact"] {
-    min-height: 44px;
-    padding-block: 9px;
+    padding-block: 8px;
   }
 
   &-info {
@@ -220,15 +218,15 @@
   &-title {
     margin: 0;
     color: var(--color-token-foreground);
-    font-size: var(--type-control);
+    font-size: var(--type-body);
     font-weight: var(--font-weight-body);
     line-height: 1.4;
   }
 
   &-desc {
     margin: 2px 0 0;
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-secondary);
+    color: var(--color-token-text-tertiary);
+    font-size: var(--type-meta);
     line-height: 1.45;
   }
 
@@ -280,6 +278,7 @@
 .settings-section-content[data-surface="card"] > .settings-row + .settings-row::before {
   right: 16px;
   left: 16px;
+  background: var(--color-token-border-light);
 }
 
 .billing-balance-row + .billing-balance-row,

@@ -321,8 +321,9 @@
   border: 0;
   border-radius: 16px;
   background: var(--color-token-main-surface-primary);
-  box-shadow: 0 0 0 0.5px
-    color-mix(in srgb, var(--color-token-border-heavy) 72%, transparent);
+  box-shadow:
+    0 0 0 0.5px var(--color-token-border-heavy),
+    0 2px 4px -1px color-mix(in srgb, var(--color-token-foreground) 10%, transparent);
   color: var(--color-token-foreground);
   text-align: left;
   animation: new-session-suggestion-card-enter var(--motion-enter)
@@ -338,7 +339,6 @@
 
   &:active {
     background: var(--color-token-list-active-selection-background);
-    transform: translateY(1px);
   }
 
   &.is-blue {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 describe('Codex semantic token contract', () => {
-  test('exports exactly 121 unique semantic color tokens', async () => {
+  test('exports exactly 122 unique semantic color tokens', async () => {
     const stylesheet = await Bun.file(
       new URL(
         '../src/styles/design-system/codex-semantic-tokens.scss',
@@ -13,14 +13,15 @@ describe('Codex semantic token contract', () => {
       match => match[1],
     )
 
-    expect(tokens).toHaveLength(121)
-    expect(new Set(tokens).size).toBe(121)
+    expect(tokens).toHaveLength(122)
+    expect(new Set(tokens).size).toBe(122)
     expect(tokens).toContain('--color-token-input-background')
     expect(tokens).toContain('--color-token-dropdown-background')
     expect(tokens).toContain('--color-token-main-surface-primary')
     expect(tokens).toContain('--color-token-panel-background')
     expect(tokens).toContain('--color-token-control-background')
     expect(tokens).toContain('--color-token-elevated-background')
+    expect(tokens).toContain('--color-token-button-pressed')
   })
 
   test('keeps diff backgrounds separate from raw decoration colors', async () => {
@@ -97,7 +98,7 @@ describe('Codex semantic token contract', () => {
     expect(suggestionCard).not.toContain('0 2px 8px')
   })
 
-  test('keeps ordinary buttons and settings rows visually neutral', async () => {
+  test('keeps primary/secondary buttons distinct and settings rows height-free', async () => {
     const [buttons, settings] = await Promise.all([
       Bun.file(
         new URL('../src/styles/components/button.scss', import.meta.url),
@@ -107,14 +108,26 @@ describe('Codex semantic token contract', () => {
       ).text(),
     ])
 
+    // primary：foreground 实底、反色文字；secondary：5% 弱背景、透明边框。
     expect(buttons).toMatch(
-      /\.ui-button\[data-color="primary"\]\s*\{[\s\S]*?background: var\(--color-token-control-background\)/,
+      /\.ui-button\[data-color="primary"\]\s*\{[\s\S]*?background: var\(--color-token-foreground\)/,
     )
     expect(buttons).toMatch(
-      /\.ui-button\[data-color="secondary"\]\s*\{[\s\S]*?background: var\(--color-token-control-background\)/,
+      /\.ui-button\[data-color="secondary"\]\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--color-token-foreground\) 5%, transparent\)/,
+    )
+    expect(buttons).toMatch(
+      /\.ui-button\[data-color="secondary"\]\s*\{[\s\S]*?border-color: transparent/,
+    )
+    // :active 使用 canonical pressed token，不再机械映射成 selection。
+    expect(buttons).toMatch(
+      /\.ui-button\[data-color="secondary"\][\s\S]*?:active:not\(:disabled\)\s*\{[\s\S]*?background: var\(--color-token-button-pressed\)/,
+    )
+    // 设置行不再锁死 64px，改用 padding 驱动高度。
+    expect(settings).not.toMatch(
+      /\.settings-row\s*\{[\s\S]*?min-height: 64px;/,
     )
     expect(settings).toMatch(
-      /\.settings-row\s*\{[\s\S]*?min-height: 64px;/,
+      /\.settings-row\s*\{[\s\S]*?padding: 12px 0;/,
     )
     expect(settings).toMatch(
       /\.settings-row \+ \.settings-row[\s\S]*?height: 0\.5px;/,

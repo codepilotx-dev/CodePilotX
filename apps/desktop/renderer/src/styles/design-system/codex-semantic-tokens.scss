@@ -130,6 +130,7 @@
   --color-token-button-background: var(--vscode-button-background);
   --color-token-button-border: var(--vscode-button-border);
   --color-token-button-foreground: var(--vscode-button-foreground);
+  --color-token-button-pressed: color-mix(in srgb, var(--color-token-foreground) 12%, transparent);
   --color-token-button-secondary-hover-background: var(--vscode-button-secondaryHoverBackground);
   --color-token-charts-blue: var(--vscode-charts-blue);
   --color-token-charts-green: var(--vscode-charts-green);

@@ -3,10 +3,23 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { SettingsSection } from '../src/features/settings/SettingsSection.js'
 
 describe('SettingsSection surface', () => {
-  test('defaults section content to the flat surface', () => {
+  test('defaults section content to the restrained card surface', () => {
     const html = renderToStaticMarkup(
       <SettingsSection title="常规">
         <div>设置项</div>
+      </SettingsSection>,
+    )
+
+    expect(html).toContain('class="settings-section-content settings-card"')
+    expect(html).toContain('data-surface="card"')
+  })
+
+  test('keeps the flat surface available for explicitly continuous content', () => {
+    const html = renderToStaticMarkup(
+      <SettingsSection>
+        <SettingsSection.Content surface="plain">
+          <div>连续内容</div>
+        </SettingsSection.Content>
       </SettingsSection>,
     )
 
