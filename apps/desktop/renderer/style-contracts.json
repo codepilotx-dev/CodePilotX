@@ -69,5 +69,21 @@
   },
   "dataThemeSelectorAllowlist": {
     "src/styles/features/model-center.scss": 2
-  }
+  },
+  "literalLineHeightAllowlist": {
+    "src/styles/components/button.scss": 13,
+    "src/styles/design-system/tokens.scss": 1,
+    "src/styles/features/_composer-shell.scss": 1,
+    "src/styles/features/_file-editor.scss": 1,
+    "src/styles/features/_session-approvals.scss": 1,
+    "src/styles/features/_settings-billing.scss": 2,
+    "src/styles/features/_settings-connections.scss": 1,
+    "src/styles/features/_settings-core.scss": 1,
+    "src/styles/features/_settings-profile.scss": 1,
+    "src/styles/features/layout-sidebar.scss": 2,
+    "src/styles/features/marketplace.scss": 1,
+    "src/styles/features/review.scss": 5,
+    "src/styles/modal.scss": 2
+  },
+  "tailwindLeadingAllowlist": {}
 }

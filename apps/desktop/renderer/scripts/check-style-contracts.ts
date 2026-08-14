@@ -22,6 +22,8 @@ type StyleContractManifest = {
   forbiddenCustomPropertyPatterns: string[]
   importantDeclarationAllowlist: Record<string, number>
   dataThemeSelectorAllowlist: Record<string, number>
+  literalLineHeightAllowlist: Record<string, number>
+  tailwindLeadingAllowlist: Record<string, number>
 }
 
 const workspaceRoot = resolve(import.meta.dir, '..')
@@ -389,6 +391,75 @@ for (const file of dataThemeFiles) {
   }
 }
 
+/*
+ * Line-height governance: content roles must use the semantic --type-line-*
+ * tokens (or var/calc/max/min/clamp), while fixed desktop chrome (buttons,
+ * badges, review diff, control profiles) keeps its geometry through the
+ * per-file literal allowlist. TSX must not add ad-hoc tw:leading-* values;
+ * new typography roles belong in the Tailwind theme instead.
+ */
+const semanticLineHeightValue = /^(?:var\(|calc\(|max\(|min\(|clamp\(|inherit)/
+const observedLiteralLineHeights: Record<string, number> = {}
+const literalLineHeightValues: Record<string, Set<string>> = {}
+for (const styleFile of styleFiles) {
+  const source = await readFile(styleFile, 'utf8')
+  const declarations = [
+    ...source.matchAll(/(?<!-)line-height\s*:\s*([^;{}]+);/g).map((match) => match[1]),
+    ...source.matchAll(/--[\w-]+-line-height\s*:\s*([^;{}]+);/g).map((match) => match[1]),
+  ].map((value) => value.trim())
+  const literals = declarations.filter((value) => !semanticLineHeightValue.test(value))
+  if (literals.length === 0) continue
+  const filePath = workspacePath(styleFile)
+  observedLiteralLineHeights[filePath] = literals.length
+  literalLineHeightValues[filePath] = new Set(literals)
+}
+
+const literalLineHeightFiles = new Set([
+  ...Object.keys(manifest.literalLineHeightAllowlist),
+  ...Object.keys(observedLiteralLineHeights),
+])
+for (const file of literalLineHeightFiles) {
+  const expected = manifest.literalLineHeightAllowlist[file] ?? 0
+  const observed = observedLiteralLineHeights[file] ?? 0
+  if (expected !== observed) {
+    const values = [...(literalLineHeightValues[file] ?? [])].sort().join(', ')
+    errors.push(
+      `literal line-height count changed in ${file}: expected ${expected}, observed ${observed}${values ? ` (${values})` : ''}`,
+    )
+  }
+}
+
+const observedTailwindLeading: Record<string, number> = {}
+for (const scriptFile of scriptFiles) {
+  const source = await readFile(scriptFile, 'utf8')
+  const count = [...source.matchAll(/tw:leading-/g)].length
+  if (count > 0) observedTailwindLeading[workspacePath(scriptFile)] = count
+}
+const tailwindLeadingFiles = new Set([
+  ...Object.keys(manifest.tailwindLeadingAllowlist),
+  ...Object.keys(observedTailwindLeading),
+])
+for (const file of tailwindLeadingFiles) {
+  const expected = manifest.tailwindLeadingAllowlist[file] ?? 0
+  const observed = observedTailwindLeading[file] ?? 0
+  if (expected !== observed) {
+    errors.push(`tw:leading-* count changed in ${file}: expected ${expected}, observed ${observed}`)
+  }
+}
+
+/*
+ * Font shorthand must not smuggle a line-height through the `/` segment; use
+ * semantic line-height tokens instead. `font: inherit` resets stay valid.
+ */
+for (const styleFile of styleFiles) {
+  const source = await readFile(styleFile, 'utf8')
+  for (const match of source.matchAll(/font\s*:\s*[^;{}]*\/[^;{}]*;/g)) {
+    errors.push(
+      `font shorthand with '/' line-height in ${workspacePath(styleFile)}: declare font-family, font-size and line-height separately`,
+    )
+  }
+}
+
 if (errors.length > 0) {
   console.error('[style-contracts] failed')
   for (const error of errors) console.error(`- ${error}`)
@@ -396,5 +467,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[style-contracts] ok: ${styleFiles.length} style files, ${customPropertyReferences.size} custom property references, ${Object.values(observedImportantDeclarations).reduce((sum, count) => sum + count, 0)} allowlisted !important declarations, ${Object.values(observedDataThemeSelectors).reduce((sum, count) => sum + count, 0)} data-theme selectors`,
+  `[style-contracts] ok: ${styleFiles.length} style files, ${customPropertyReferences.size} custom property references, ${Object.values(observedImportantDeclarations).reduce((sum, count) => sum + count, 0)} allowlisted !important declarations, ${Object.values(observedDataThemeSelectors).reduce((sum, count) => sum + count, 0)} data-theme selectors, ${Object.values(observedLiteralLineHeights).reduce((sum, count) => sum + count, 0)} allowlisted literal line-heights, ${Object.values(observedTailwindLeading).reduce((sum, count) => sum + count, 0)} allowlisted tw:leading-*`,
 )
