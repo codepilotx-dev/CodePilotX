@@ -51,6 +51,9 @@ import type { ThreadMessageForkService } from "../session/fork/ThreadMessageFork
 import type { SideChatService } from "../session/side-chat/SideChatService"
 import { normalizeShellSecurityLevel } from "../security/ShellRiskClassifier"
 import type { SpeechTranscriptionService } from "../speech/SpeechTranscriptionService"
+import type { ThreadExecutionPreparationService } from "../worktree/ThreadExecutionPreparationService"
+import type { TaskboardService } from "../taskboard/TaskboardService"
+import type { TaskboardStartService } from "../taskboard/TaskboardStartService"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -97,6 +100,9 @@ export interface TransportDependencies {
   worktreeRepository: WorktreeRepository
   environmentDeltas: EnvironmentDeltaStore
   speech: SpeechTranscriptionService
+  threadExecutions: ThreadExecutionPreparationService
+  taskboard: TaskboardService
+  taskboardStart: TaskboardStartService
 }
 
 export const resolveEventCursor = (
@@ -362,7 +368,7 @@ const eventNextNotification = (
 export const createApp = (dependencies: TransportDependencies) => {
   const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech, threadExecutions: dependencies.threadExecutions, taskboard: dependencies.taskboard, taskboardStart: dependencies.taskboardStart })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

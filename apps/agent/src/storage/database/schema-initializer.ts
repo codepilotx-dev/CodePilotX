@@ -71,6 +71,15 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE turns (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        root_agent_id TEXT,\n        status TEXT NOT NULL,\n        mode TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        model_ref TEXT NOT NULL,\n        strategy TEXT NOT NULL,\n        started_at INTEGER,\n        finished_at INTEGER,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      , queue_position INTEGER)",
   "CREATE TABLE workspace_writer_leases (\n          workspace_key TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,\n          run_id TEXT NOT NULL REFERENCES subagent_runs(id) ON DELETE CASCADE,\n          acquired_at INTEGER NOT NULL\n        )",
   "CREATE TABLE worktree_operations (\n          operation_id TEXT PRIMARY KEY,\n          worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          project_id TEXT NOT NULL,\n          kind TEXT NOT NULL CHECK(kind IN ('create','retry-setup','continue-without-setup','set-permanent','delete','restore','auto-cleanup')),\n          request_hash TEXT NOT NULL,\n          step TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('pending','running','completed','failed')),\n          revision INTEGER NOT NULL DEFAULT 1,\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
+  "CREATE TABLE taskboard_project_sequences (\n          project_id TEXT PRIMARY KEY,\n          next_number INTEGER NOT NULL CHECK(next_number >= 1),\n          updated_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE taskboard_tasks (\n          id TEXT PRIMARY KEY,\n          project_id TEXT NOT NULL,\n          number INTEGER NOT NULL CHECK(number >= 1),\n          title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 200),\n          description TEXT NOT NULL DEFAULT '' CHECK(length(description) <= 65536),\n          status TEXT NOT NULL CHECK(status IN ('backlog','todo','in_progress','in_review','done')),\n          priority TEXT NOT NULL DEFAULT 'none' CHECK(priority IN ('none','urgent','high','medium','low')),\n          position INTEGER NOT NULL CHECK(position >= 0),\n          version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),\n          archived_at INTEGER,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          UNIQUE(project_id, number)\n        )",
+  "CREATE TABLE taskboard_labels (\n          id TEXT PRIMARY KEY,\n          project_id TEXT NOT NULL,\n          name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 40),\n          normalized_name TEXT NOT NULL,\n          version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          UNIQUE(project_id, normalized_name)\n        )",
+  "CREATE TABLE taskboard_task_labels (\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          label_id TEXT NOT NULL REFERENCES taskboard_labels(id) ON DELETE CASCADE,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY(task_id, label_id)\n        )",
+  "CREATE TABLE taskboard_task_threads (\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          thread_id TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE,\n          role TEXT NOT NULL CHECK(role IN ('primary','supporting')),\n          version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),\n          linked_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          PRIMARY KEY(task_id, thread_id)\n        )",
+  "CREATE TABLE taskboard_comments (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          body TEXT NOT NULL CHECK(length(body) <= 32768),\n          author TEXT NOT NULL CHECK(author IN ('user','agent')),\n          source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),\n          deleted_at INTEGER,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE taskboard_activities (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          kind TEXT NOT NULL CHECK(kind IN ('task_created','task_updated','task_moved','task_archived','task_restored','comment_created','comment_updated','comment_deleted','thread_linked','thread_unlinked','primary_changed','label_created','label_updated','label_deleted','execution_started')),\n          actor TEXT NOT NULL CHECK(actor IN ('user','agent','system')),\n          source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          data TEXT NOT NULL DEFAULT '{}',\n          created_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE taskboard_operations (\n          operation_id TEXT PRIMARY KEY,\n          project_id TEXT NOT NULL,\n          task_id TEXT,\n          method TEXT NOT NULL,\n          request_hash TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('pending','completed')),\n          result TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE taskboard_start_operations (\n          operation_id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          project_id TEXT NOT NULL,\n          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          request_hash TEXT NOT NULL,\n          execution TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('running','awaiting_setup_decision','completed','failed','rollback_failed')),\n          step TEXT NOT NULL CHECK(step IN ('preflight','prepare_worktree','create_thread','link','complete')),\n          revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1),\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          startup_instruction TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -122,6 +131,15 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX turns_thread_status ON turns(thread_id, status, created_at)",
   "CREATE INDEX idx_managed_worktrees_project_status ON managed_worktrees(project_id, status, last_used_at)",
   "CREATE INDEX idx_worktree_operations_status ON worktree_operations(status, created_at)",
+  "CREATE INDEX taskboard_tasks_project_board ON taskboard_tasks(project_id, archived_at, status, position, id)",
+  "CREATE INDEX taskboard_labels_project_name ON taskboard_labels(project_id, normalized_name, id)",
+  "CREATE INDEX taskboard_task_labels_label ON taskboard_task_labels(label_id, task_id)",
+  "CREATE UNIQUE INDEX taskboard_one_primary_thread ON taskboard_task_threads(task_id) WHERE role = 'primary'",
+  "CREATE INDEX taskboard_task_threads_task ON taskboard_task_threads(task_id, role, linked_at, thread_id)",
+  "CREATE INDEX taskboard_comments_task_created ON taskboard_comments(task_id, created_at, id)",
+  "CREATE INDEX taskboard_activities_task_created ON taskboard_activities(task_id, created_at, id)",
+  "CREATE INDEX taskboard_operations_status ON taskboard_operations(status, created_at)",
+  "CREATE INDEX taskboard_start_operations_status ON taskboard_start_operations(status, updated_at)",
   "CREATE TRIGGER thread_side_chats_delete_with_source\n        BEFORE DELETE ON threads\n        BEGIN\n          DELETE FROM threads\n          WHERE id IN (\n            SELECT thread_id FROM thread_side_chats WHERE source_thread_id = OLD.id\n          ) AND archived_at = -1;\n        END",
   "CREATE TRIGGER threads_workspace_insert_valid\n        BEFORE INSERT ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END",
   "CREATE TRIGGER threads_workspace_update_valid\n        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, workspace_roots, instruction_sources, output_directory ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END"
@@ -760,6 +778,123 @@ const migrateHistory29To30 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory30To31 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS taskboard_project_sequences (
+      project_id TEXT PRIMARY KEY,
+      next_number INTEGER NOT NULL CHECK(next_number >= 1),
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_tasks (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      number INTEGER NOT NULL CHECK(number >= 1),
+      title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 200),
+      description TEXT NOT NULL DEFAULT '' CHECK(length(description) <= 65536),
+      status TEXT NOT NULL CHECK(status IN ('backlog','todo','in_progress','in_review','done')),
+      priority TEXT NOT NULL DEFAULT 'none' CHECK(priority IN ('none','urgent','high','medium','low')),
+      position INTEGER NOT NULL CHECK(position >= 0),
+      version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+      archived_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(project_id, number)
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_labels (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 40),
+      normalized_name TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(project_id, normalized_name)
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_task_labels (
+      task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,
+      label_id TEXT NOT NULL REFERENCES taskboard_labels(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY(task_id, label_id)
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_task_threads (
+      task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK(role IN ('primary','supporting')),
+      version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+      linked_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(task_id, thread_id)
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_comments (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,
+      body TEXT NOT NULL CHECK(length(body) <= 32768),
+      author TEXT NOT NULL CHECK(author IN ('user','agent')),
+      source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
+      version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+      deleted_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_activities (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK(kind IN ('task_created','task_updated','task_moved','task_archived','task_restored','comment_created','comment_updated','comment_deleted','thread_linked','thread_unlinked','primary_changed','label_created','label_updated','label_deleted','execution_started')),
+      actor TEXT NOT NULL CHECK(actor IN ('user','agent','system')),
+      source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
+      data TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_operations (
+      operation_id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      task_id TEXT,
+      method TEXT NOT NULL,
+      request_hash TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pending','completed')),
+      result TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_start_operations (
+      operation_id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL,
+      thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
+      worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,
+      request_hash TEXT NOT NULL,
+      execution TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('running','awaiting_setup_decision','completed','failed','rollback_failed')),
+      step TEXT NOT NULL CHECK(step IN ('preflight','prepare_worktree','create_thread','link','complete')),
+      revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1),
+      error_code TEXT,
+      warnings TEXT NOT NULL DEFAULT '[]',
+      startup_instruction TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      completed_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS taskboard_tasks_project_board
+      ON taskboard_tasks(project_id, archived_at, status, position, id);
+    CREATE INDEX IF NOT EXISTS taskboard_labels_project_name
+      ON taskboard_labels(project_id, normalized_name, id);
+    CREATE INDEX IF NOT EXISTS taskboard_task_labels_label
+      ON taskboard_task_labels(label_id, task_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS taskboard_one_primary_thread
+      ON taskboard_task_threads(task_id) WHERE role = 'primary';
+    CREATE INDEX IF NOT EXISTS taskboard_task_threads_task
+      ON taskboard_task_threads(task_id, role, linked_at, thread_id);
+    CREATE INDEX IF NOT EXISTS taskboard_comments_task_created
+      ON taskboard_comments(task_id, created_at, id);
+    CREATE INDEX IF NOT EXISTS taskboard_activities_task_created
+      ON taskboard_activities(task_id, created_at, id);
+    CREATE INDEX IF NOT EXISTS taskboard_operations_status
+      ON taskboard_operations(status, created_at);
+    CREATE INDEX IF NOT EXISTS taskboard_start_operations_status
+      ON taskboard_start_operations(status, updated_at);
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -860,6 +995,7 @@ class SchemaInitializer {
           27: () => migrateHistory27To28(this.sqlite),
           28: () => migrateHistory28To29(this.sqlite),
           29: () => migrateHistory29To30(this.sqlite),
+          30: () => migrateHistory30To31(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

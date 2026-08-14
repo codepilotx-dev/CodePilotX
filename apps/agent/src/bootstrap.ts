@@ -100,6 +100,10 @@ import {
 import { WorktreeRepository } from "./worktree/WorktreeRepository";
 import { TaskExecutionBindingService } from "./worktree/TaskExecutionBindingService";
 import { ManagedWorktreeService } from "./worktree/ManagedWorktreeService";
+import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPreparationService";
+import { TaskboardService } from "./taskboard/TaskboardService";
+import { TaskboardStartService } from "./taskboard/TaskboardStartService";
+import { createTaskboardDefinitions } from "./tool/Taskboard/definitions";
 import {
   BindingHandoffWorkspace,
   HandoffLifecycle,
@@ -173,6 +177,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const terminalContext = new TerminalContextService(workspaceResolver);
     const terminalOutput = new TerminalOutputMirror();
     const environmentDeltas = new EnvironmentDeltaStore(config.dataDir);
+    const threadExecutions = new ThreadExecutionPreparationService(
+      db,
+      executionBindings,
+      environmentDeltas,
+    );
     const localEnvironmentRunner = new LocalEnvironmentRunner(environmentDeltas);
     const localEnvironment = new LocalEnvironmentService(
       new LocalEnvironmentDiscovery(new GitCommandRunner({
@@ -209,6 +218,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     }));
     const hub = yield* EventHub.make;
+    const taskboard = new TaskboardService(db, hub, db.repositories.taskboard);
     const speech = new SpeechTranscriptionService(config.storage.speechRoot, async (status) => {
       await publishAgentEvent(db, hub, null, null, "speech/statusChanged", { status });
     });
@@ -461,6 +471,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     });
     const tools = new ToolRegistry();
     tools.register(createTerminalReadDefinition(terminalOutput));
+    for (const definition of createTaskboardDefinitions(taskboard)) tools.register(definition);
     const mcpConfigs = new McpConfigService(
       new McpSettingsRepository(db),
       configService,
@@ -741,6 +752,15 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       resumeCheckpoints,
       false,
       localContextPaths,
+      (threadId) => taskboard.admitPrimaryThread(threadId),
+    );
+    const taskboardStart = new TaskboardStartService(
+      db,
+      hub,
+      db.repositories.taskboard,
+      threads,
+      worktrees,
+      threadExecutions,
     );
     const handoffOperations = new HandoffRepository(db);
     const handoff = new HandoffService(
@@ -850,6 +870,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       worktreeRepository,
       environmentDeltas,
       speech,
+      threadExecutions,
+      taskboard,
+      taskboardStart,
     });
     let disposed = false;
     const dispose = async () => {

@@ -61,6 +61,9 @@ import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBi
 import type { WorktreeRepository } from "../../worktree/WorktreeRepository"
 import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
 import type { SpeechTranscriptionService } from "../../speech/SpeechTranscriptionService"
+import type { ThreadExecutionPreparationService } from "../../worktree/ThreadExecutionPreparationService"
+import type { TaskboardService } from "../../taskboard/TaskboardService"
+import type { TaskboardStartService } from "../../taskboard/TaskboardStartService"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
 import type { SideChatService } from "../../session/side-chat/SideChatService"
 import { InteractionService } from "../../interaction/InteractionService"
@@ -156,6 +159,9 @@ export type RpcRouterDependencies = {
   worktreeRepository: WorktreeRepository
   environmentDeltas: EnvironmentDeltaStore
   speech: SpeechTranscriptionService
+  threadExecutions: ThreadExecutionPreparationService
+  taskboard: TaskboardService
+  taskboardStart: TaskboardStartService
 }
 
 export type { RpcRouterContext } from "./request-context"

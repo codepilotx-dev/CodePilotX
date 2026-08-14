@@ -211,4 +211,4 @@ const defaultThreadSettings = (): ThreadSettings => ({
   permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
 })
 
-export { ReviewRepositoryDatabase as RepositoryDatabase } from "./review-repository"
+export { TaskboardRepositoryDatabase as RepositoryDatabase } from "./taskboard-repository"

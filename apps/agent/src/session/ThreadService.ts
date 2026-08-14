@@ -2,7 +2,7 @@ import { Effect } from "effect"
 import { Model } from "@codepilotx/model-schema"
 import type { ThreadSettings } from "@codepilotx/shared/thread"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
-import { AgentError, type AgentExecution, type SubmitMessage } from "../domain"
+import { AgentError, type AgentExecution, type EventEnvelope, type SubmitMessage } from "../domain"
 import type { AgentDatabase, QueueMutationMeta } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
 import type { ApprovalService } from "../permission/ApprovalService"
@@ -139,6 +139,7 @@ export class ThreadService {
     resumeCheckpoints?: ResumeCheckpointResolver,
     resumeOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
+    private readonly firstTurnAdmission?: (threadID: string) => EventEnvelope | null,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -511,10 +512,12 @@ export class ThreadService {
       }
       await this.bindInputAttachments(inputID, attachmentIDs, input.model)
       let created
+      let taskboardEvent: EventEnvelope | null = null
       try {
         created = this.db.transaction(() => {
           const value = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
           this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
+          taskboardEvent = this.firstTurnAdmission?.(threadID) ?? null
           return value
         })
       } catch (cause) {
@@ -522,6 +525,7 @@ export class ThreadService {
         throw cause
       }
       await this.publishCreatedTurn(created)
+      if (taskboardEvent) await Effect.runPromise(this.hub.publish(taskboardEvent))
       if (!this.sideChat(threadID)) void this.threadTitles?.generateForFirstMessage(threadID, input.content)
       this.coordinator.reserve(threadID, created.turnID)
       void this.executeTurn(threadID, created.turnID)

@@ -130,45 +130,9 @@ export const threadHandlers = {
           ? undefined
           : decodeParams(decodeThreadSettings, params.settings, "thread/create.settings")
         if (settings) supportedPermissionConfig(settings.permissionConfig)
-        let bindExecution: ((threadID: string) => void) | undefined
-        let copiedEnvironmentBindingId: string | undefined
-        if (workspace.kind === "project" && execution?.kind === "worktree") {
-          const worktree = runtime.dependencies.executionBindings.validateWorktree(
-            workspace.projectID,
-            execution.worktreeId,
-          )
-          const bindingId = runtime.dependencies.executionBindings.allocateBindingId()
-          const environment = await runtime.dependencies.environmentDeltas.copy(
-            worktree.id,
-            bindingId,
-            worktree.environmentRevision,
-          )
-          copiedEnvironmentBindingId = bindingId
-          bindExecution = (threadID) => {
-            runtime.dependencies.executionBindings.bindWorktree({
-              threadId: threadID,
-              projectId: workspace.projectID,
-              worktreeId: worktree.id,
-              bindingId,
-              environmentRevision: environment.revision,
-            })
-          }
-        } else if (workspace.kind === "project" && execution?.kind === "local") {
-          const bindingId = runtime.dependencies.executionBindings.allocateBindingId()
-          bindExecution = (threadID) => {
-            const descriptor = db.threadWorkspace(threadID)
-            if (!descriptor || descriptor.kind !== "project") {
-              throw new AgentError("CONFLICT", "项目任务工作区不可用", 409)
-            }
-            runtime.dependencies.executionBindings.bindLocal({
-              threadId: threadID,
-              projectId: workspace.projectID,
-              cwd: descriptor.cwd,
-              bindingId,
-              environmentRevision: 0,
-            })
-          }
-        }
+        const prepared = workspace.kind === "project" && execution
+          ? await runtime.dependencies.threadExecutions.prepare(workspace.projectID, execution)
+          : undefined
         let created: Awaited<ReturnType<typeof threads.create>>
         try {
           created = await threads.create({
@@ -176,40 +140,13 @@ export const threadHandlers = {
             ...(settings ? { settings } : {}),
             workspace,
             operationID: stringParam(params, "operationId"),
-            ...(bindExecution ? { bindExecution } : {}),
+            ...(prepared ? { bindExecution: prepared.bind } : {}),
           })
         } catch (cause) {
-          if (copiedEnvironmentBindingId) {
-            await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
-          }
+          await prepared?.abort()
           throw cause
         }
-        if (workspace.kind === "project" && execution) {
-          const existingBinding = runtime.dependencies.executionBindings.read(created.id)
-          const matches = execution.kind === "local"
-            ? existingBinding?.kind === "local"
-            : existingBinding?.kind === "worktree" && existingBinding.worktreeId === execution.worktreeId
-          if (matches) {
-            if (copiedEnvironmentBindingId && existingBinding?.bindingId !== copiedEnvironmentBindingId) {
-              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
-            }
-            return runtime.threadSnapshotResult(created.id)
-          }
-          if (existingBinding) {
-            if (copiedEnvironmentBindingId) {
-              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
-            }
-            throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已绑定其他执行位置", 409)
-          }
-          try {
-            bindExecution?.(created.id)
-          } catch (cause) {
-            if (copiedEnvironmentBindingId) {
-              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
-            }
-            throw cause
-          }
-        }
+        await prepared?.reconcile(created.id)
         return runtime.threadSnapshotResult(created.id)
       }
       case "thread/read":

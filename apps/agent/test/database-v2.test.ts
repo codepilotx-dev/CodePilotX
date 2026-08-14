@@ -20,6 +20,37 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
 describe("数据库兼容与迁移", () => {
+  test("v30 到 v31 新增任务看板表且保留既有会话", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v30-"))
+    paths.push(root)
+    const historyPath = join(root, "agent.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const thread = db.createThread("v30 taskboard migration")
+    for (const table of [
+      "taskboard_start_operations",
+      "taskboard_operations",
+      "taskboard_activities",
+      "taskboard_comments",
+      "taskboard_task_threads",
+      "taskboard_task_labels",
+      "taskboard_labels",
+      "taskboard_tasks",
+      "taskboard_project_sequences",
+    ]) db.sqlite.query(`DROP TABLE ${table}`).run()
+    db.sqlite.exec("PRAGMA user_version = 30")
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(reopened.sqlite.query("SELECT title FROM threads WHERE id = ?").get(thread.id)).toEqual({ title: "v30 taskboard migration" })
+    const tables = new Set((reopened.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'taskboard_%'").all() as Array<{ name: string }>).map(({ name }) => name))
+    expect(tables.size).toBe(9)
+    expect(tables.has("taskboard_tasks")).toBe(true)
+    expect(tables.has("taskboard_start_operations")).toBe(true)
+    reopened.close()
+  })
+
   test("v29 到 v30 新增独立本地上下文表且不改写核心会话", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v29-"))
     paths.push(root)

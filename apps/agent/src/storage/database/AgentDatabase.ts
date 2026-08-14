@@ -11,6 +11,7 @@ import { reviewRepository } from "../repositories/review-repository"
 import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
 import { SideChatRepository } from "../repositories/side-chat-repository"
 import { threadRepository } from "../repositories/thread-repository"
+import { taskboardRepository } from "../repositories/taskboard-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
 import { configureConnection } from "./connection"
@@ -69,6 +70,7 @@ export class AgentDatabase extends RepositoryDatabase {
       credentials: credentialRepositoryDatabase(this),
       context: new ContextRepository(this),
       turnPatches: new TurnPatchRepository(this),
+      taskboard: taskboardRepository(this),
     }
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
   }

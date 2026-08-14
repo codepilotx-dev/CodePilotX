@@ -122,7 +122,7 @@ describe("ManagedWorktreeService", () => {
 
   test("history 24 逐代迁移到当前版本并只增加可忽略的独立表", () => {
     const sqlite = new Database(":memory:")
-    const newObjects = /(?:managed_worktrees|thread_execution_bindings|worktree_operations|thread_handoff_operations|thread_forks|thread_message_fork_operations|thread_message_forks|turn_pi_boundaries|resume_checkpoint_leases)/
+    const newObjects = /(?:managed_worktrees|thread_execution_bindings|worktree_operations|thread_handoff_operations|thread_forks|thread_message_fork_operations|thread_message_forks|turn_pi_boundaries|resume_checkpoint_leases|taskboard_)/
     sqlite.exec(HISTORY_SCHEMA.filter((statement) => !newObjects.test(statement)).join(";\n"))
     sqlite.exec("PRAGMA user_version = 24")
     initializeSchema(sqlite, "history")
