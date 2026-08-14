@@ -14,12 +14,12 @@ export type ModelSetupGateDecision =
 export function resolveModelSetupGate(
   snapshot: Pick<
     ProviderManagementSnapshot,
-    'loaded' | 'error' | 'currentProviderState'
+    'loaded' | 'configurationError' | 'currentProviderState'
   >,
 ): ModelSetupGateDecision {
   if (!snapshot.loaded) return 'loading'
-  if (snapshot.error && !snapshot.currentProviderState) return 'recovery'
-  return snapshot.currentProviderState?.modelConfigured ? 'workbench' : 'setup'
+  if (snapshot.configurationError || !snapshot.currentProviderState) return 'recovery'
+  return snapshot.currentProviderState.modelConfigured ? 'workbench' : 'setup'
 }
 
 export function RequireConfiguredModel(): React.ReactNode {
@@ -32,7 +32,7 @@ export function RequireConfiguredModel(): React.ReactNode {
   if (decision === 'recovery') {
     return (
       <SetupRecoveryState
-        message={snapshot.error}
+        message={snapshot.configurationError ?? snapshot.error}
         onRetry={() => void providerManagementStore.refresh()}
       />
     )

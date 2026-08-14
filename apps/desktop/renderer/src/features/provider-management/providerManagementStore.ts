@@ -71,11 +71,14 @@ export type ProviderManagementStore = {
   invalidate(): void
 }
 
+const CONFIGURATION_ERROR_MESSAGE = '本地 Agent 的供应商配置暂时无法读取，请确认 Agent 已启动后重试。'
+
 const INITIAL_SNAPSHOT: ProviderManagementSnapshot = {
   loaded: false,
   loading: false,
   refreshingSources: false,
   error: null,
+  configurationError: null,
   providers: [],
   currentProviderState: null,
   credentials: [],
@@ -164,7 +167,7 @@ export function createProviderManagementStore(
 
   const refresh = (): Promise<ProviderManagementSnapshot> => {
     if (loadRequest) return loadRequest
-    update({ loading: true, error: null })
+    update({ loading: true, error: null, configurationError: null })
     const pending = Promise.allSettled([
       client.listModelProviders(),
       client.getModelProviderState(),
@@ -174,6 +177,8 @@ export function createProviderManagementStore(
       const errors = results
         .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
         .map(result => errorMessage(result.reason))
+      const configurationFailed = results[0]?.status === 'rejected'
+        || results[1]?.status === 'rejected'
       const nextUsageSources = results[3]?.status === 'fulfilled'
         ? [...results[3].value.sources]
         : snapshot.usageSources
@@ -184,6 +189,10 @@ export function createProviderManagementStore(
         loaded: true,
         loading: false,
         error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
+        // 目录或 Provider 状态读取失败时，stale 的 modelConfigured 不再可信。
+        ...(configurationFailed
+          ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
+          : { configurationError: null }),
         ...(results[0]?.status === 'fulfilled'
           ? { providers: [...results[0].value] }
           : {}),
@@ -239,7 +248,7 @@ export function createProviderManagementStore(
   }
 
   const refreshConnections = async (): Promise<ProviderManagementSnapshot> => {
-    update({ refreshingSources: true, error: null })
+    update({ refreshingSources: true, error: null, configurationError: null })
     const results = await Promise.allSettled([
       client.listProviderCredentials(),
       client.listUsageSources(),
@@ -254,10 +263,14 @@ export function createProviderManagementStore(
     const credentials = results[0]?.status === 'fulfilled'
       ? [...results[0].value]
       : snapshot.credentials
+    const configurationFailed = results[2]?.status === 'rejected'
     return update({
       loaded: true,
       refreshingSources: false,
       error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
+      ...(configurationFailed
+        ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
+        : { configurationError: null }),
       ...(results[0]?.status === 'fulfilled'
         ? {
             credentials,
@@ -282,21 +295,42 @@ export function createProviderManagementStore(
     })
   }
 
-  const refreshCatalog = async (): Promise<ProviderManagementSnapshot> => {
+  // 目录、凭据和模型状态的一次性合并刷新：事件与凭据变更统一走这里，
+  // 避免 refreshCatalog() 与 refreshConnections() 并发、重复请求及后返回覆盖新状态。
+  const refreshConfiguration = async (): Promise<ProviderManagementSnapshot> => {
+    update({ refreshingSources: true, configurationError: null })
     const results = await Promise.allSettled([
       client.listModelProviders(),
+      client.listProviderCredentials(),
       client.getModelProviderState(),
     ])
     const errors = results
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
       .map(result => errorMessage(result.reason))
+    const configurationFailed = results[0]?.status === 'rejected'
+      || results[2]?.status === 'rejected'
+    const credentials = results[1]?.status === 'fulfilled'
+      ? [...results[1].value]
+      : snapshot.credentials
     return update({
-      error: errors.length > 0 ? [...new Set(errors)].join('；') : snapshot.error,
+      refreshingSources: false,
+      error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
+      ...(configurationFailed
+        ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
+        : { configurationError: null }),
       ...(results[0]?.status === 'fulfilled'
         ? { providers: [...results[0].value] }
         : {}),
       ...(results[1]?.status === 'fulfilled'
-        ? { currentProviderState: results[1].value }
+        ? {
+            credentials,
+            apiKeys: credentials
+              .filter(credential => credential.kind === 'api-key')
+              .map(providerCredentialToApiKey),
+          }
+        : {}),
+      ...(results[2]?.status === 'fulfilled'
+        ? { currentProviderState: results[2].value }
         : {}),
     })
   }
@@ -337,17 +371,11 @@ export function createProviderManagementStore(
     eventSubscription = client.subscribeAgentEventEnvelopes({
       liveEventTypes: AGENT_LIVE_EVENT_FILTERS.provider,
     }, async events => {
-      let refreshCatalogRequested = false
-      let refreshConnectionsRequested = false
+      let refreshConfigurationRequested = false
       let refreshSourcesRequested = false
       for (const event of events) {
-        if (event.type === 'catalog/updated') {
-          refreshCatalogRequested = true
-          continue
-        }
-        if (event.type === 'provider/credential/updated') {
-          refreshConnectionsRequested = true
-          refreshCatalogRequested = true
+        if (event.type === 'catalog/updated' || event.type === 'provider/credential/updated') {
+          refreshConfigurationRequested = true
           continue
         }
         if (event.type === 'usage/source/updated') {
@@ -355,8 +383,7 @@ export function createProviderManagementStore(
         }
       }
       await Promise.all([
-        ...(refreshCatalogRequested ? [refreshCatalog()] : []),
-        ...(refreshConnectionsRequested ? [refreshConnections()] : []),
+        ...(refreshConfigurationRequested ? [refreshConfiguration()] : []),
         ...(refreshSourcesRequested ? [refreshSources()] : []),
       ])
     })
@@ -460,7 +487,7 @@ export function createProviderManagementStore(
     async createApiKey(input) {
       const result = await client.createApiKey(input)
       invalidateProviderCredentialResults(String(input.providerId))
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     async updateApiKey(input) {
@@ -471,7 +498,7 @@ export function createProviderManagementStore(
       invalidateProviderCredentialResults(
         providerId === undefined ? undefined : String(providerId),
       )
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     async testApiKey(credentialId) {
@@ -482,7 +509,7 @@ export function createProviderManagementStore(
     async setActiveCredential(...input) {
       const result = await client.setActiveProviderCredential(...input)
       invalidateProviderCredentialResults(String(input[0]))
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     async setCredentialEnabled(...input) {
@@ -493,7 +520,7 @@ export function createProviderManagementStore(
       invalidateProviderCredentialResults(
         providerId === undefined ? undefined : String(providerId),
       )
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     async reorderApiKeys(...input) {
@@ -509,11 +536,11 @@ export function createProviderManagementStore(
       invalidateProviderCredentialResults(
         providerId === undefined ? undefined : String(providerId),
       )
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     invalidate() {
-      update({ loaded: false, error: null })
+      update({ loaded: false, error: null, configurationError: null })
     },
   }
 }

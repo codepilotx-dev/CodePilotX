@@ -563,15 +563,20 @@ export function createAgentSessionDesktopClient(
         .filter(issue => issue.providerId === provider.id)
         .map(issue => `${issue.code}:${issue.path}`),
     }
-    const model =
-      selectedModel?.id ??
+    // 只有 Agent 显式配置且属于当前 Provider 的默认模型才算“已配置”；
+    // 目录第一项仅用于列表和预览展示，不能完成门禁。
+    const configuredModel =
+      directory.defaultModel?.providerID === provider.id
+        ? directory.defaultModel
+        : null
+    const displayModel =
+      configuredModel?.id ??
       models.find(item => item.enabled)?.id ??
       models[0]?.id ??
       ''
     const activeCredential = credentials.find(
       credential => credential.providerId === provider.id && credential.active,
     )
-    const modelAvailable = Boolean(model)
     const providerConfigured = provider.authConfigured
     const apiKeySource = activeCredential
       ? 'secureStorage'
@@ -584,15 +589,17 @@ export function createAgentSessionDesktopClient(
         ...summary,
         apiKeyConfigured: providerConfigured,
       },
-      model,
-      variant: selectedModel?.variant,
+      model: displayModel,
+      variant: configuredModel?.variant,
       baseURL: summary.baseURL,
       apiKeyConfigured: providerConfigured,
       apiKeySource,
-      modelConfigured: modelAvailable && providerConfigured,
-      configurationMessage: providerConfigured
-        ? undefined
-        : '未连接凭据，请先配置 API 密钥或完成授权。',
+      modelConfigured: Boolean(configuredModel) && providerConfigured,
+      configurationMessage: !providerConfigured
+        ? '未连接凭据，请先配置 API 密钥或完成授权。'
+        : configuredModel
+          ? undefined
+          : '已连接供应商，请选择并保存默认模型。',
       models: summary.defaultModels,
       modelMetadata: summary.modelMetadata,
     }

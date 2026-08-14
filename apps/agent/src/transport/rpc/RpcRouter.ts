@@ -453,14 +453,19 @@ export class RpcRouter {
 
   private async configuredModels() {
     const source = await this.loadCatalogSource()
-    const first = source.models.find((model) => model.enabled)
     const config = this.dependencies.config.snapshot()
     const providerID = typeof config.model_provider === "string" ? config.model_provider : ""
     const taskModels = config.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
       ? config.task_models as Record<string, unknown>
       : {}
     const configuredDefault = providerID && typeof config.model === "string"
-      ? { providerID, id: config.model } as Model.Ref
+      ? {
+          providerID,
+          id: config.model,
+          ...(typeof config.model_reasoning_effort === "string" && config.model_reasoning_effort
+            ? { variant: config.model_reasoning_effort as Model.VariantID }
+            : {}),
+        } as Model.Ref
       : null
     const configuredReviewer = providerID && typeof taskModels.reviewer === "string"
       ? { providerID, id: taskModels.reviewer } as Model.Ref
@@ -473,7 +478,7 @@ export class RpcRouter {
       return ref
     }
     return {
-      defaultModel: available(configuredDefault) ?? (first ? { providerID: first.providerID, id: first.id } : null),
+      defaultModel: available(configuredDefault),
       reviewerModel: available(configuredReviewer),
     }
   }

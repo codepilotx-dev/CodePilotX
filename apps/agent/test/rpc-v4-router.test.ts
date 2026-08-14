@@ -938,6 +938,68 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
+  test("model/list.defaultModel 只反映显式配置且当前可用的默认模型", async () => {
+    const providerID = Schema.decodeUnknownSync(Provider.ID)("provider:test")
+    const otherProviderID = Schema.decodeUnknownSync(Provider.ID)("provider:other")
+    const modelID = Schema.decodeUnknownSync(Model.ID)("alpha")
+    const disabledModelID = Schema.decodeUnknownSync(Model.ID)("disabled")
+    const missingModelID = Schema.decodeUnknownSync(Model.ID)("missing")
+    const variantID = Schema.decodeUnknownSync(Model.VariantID)("reasoning")
+    const models = [
+      { ...Model.Info.empty(providerID, modelID), variants: [{ id: variantID }] },
+      { ...Model.Info.empty(providerID, disabledModelID), enabled: false },
+      { ...Model.Info.empty(otherProviderID, Schema.decodeUnknownSync(Model.ID)("gamma")), enabled: true },
+    ]
+    const value = await fixture({
+      providers: {
+        list: async () => [Provider.Info.empty(providerID), Provider.Info.empty(otherProviderID)],
+        models: async () => models,
+      } as unknown as RpcRouterDependencies["providers"],
+    })
+    await value.initialize()
+
+    // 有可用目录模型但没有显式配置：不再把第一个 enabled 模型伪装成 defaultModel。
+    const unconfigured = await value.call("model/list", {})
+    expect(unconfigured.error).toBeUndefined()
+    expect(unconfigured.result.defaultModel).toBeNull()
+    expect(unconfigured.result.reviewerModel).toBeNull()
+
+    // 显式默认模型有效时返回原 ref 和 variant（variant 来自 model_reasoning_effort）。
+    value.configDocument.model_provider = "provider:test"
+    value.configDocument.model = "alpha"
+    value.configDocument.model_reasoning_effort = "reasoning"
+    value.configDocument.task_models = { reviewer: "alpha" }
+    const configured = await value.call("model/list", {})
+    expect(configured.result.defaultModel).toEqual({
+      providerID: "provider:test",
+      id: "alpha",
+      variant: "reasoning",
+    })
+    expect(configured.result.reviewerModel).toEqual({
+      providerID: "provider:test",
+      id: "alpha",
+    })
+
+    // 显式默认模型存在但 variant 无效：返回 null。
+    value.configDocument.model_reasoning_effort = "invalid-variant"
+    const invalidVariant = await value.call("model/list", {})
+    expect(invalidVariant.result.defaultModel).toBeNull()
+    expect(invalidVariant.result.reviewerModel).toEqual({
+      providerID: "provider:test",
+      id: "alpha",
+    })
+    value.configDocument.model_reasoning_effort = "reasoning"
+
+    // 显式模型存在但被禁用：返回 null。
+    value.configDocument.model = "disabled"
+    expect((await value.call("model/list", {})).result.defaultModel).toBeNull()
+
+    // 显式模型在目录中不存在：返回 null。
+    value.configDocument.model = "missing"
+    expect((await value.call("model/list", {})).result.defaultModel).toBeNull()
+    value.db.close()
+  })
+
   test("paged model catalog filters, caches, and expires versioned cursors", async () => {
     const providerID = Schema.decodeUnknownSync(Provider.ID)("provider:test")
     const otherProviderID = Schema.decodeUnknownSync(Provider.ID)("provider:other")
