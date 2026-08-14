@@ -297,7 +297,7 @@
 .md-code-pre {
   padding: 0.9rem 1rem 0.85rem;
   font-size: var(--type-code);
-  line-height: 1.55;
+  line-height: var(--type-line-code);
   scrollbar-gutter: stable;
 }
 
@@ -322,7 +322,7 @@
   color: var(--color-token-text-secondary);
   font-family: var(--font-family-mono);
   font-size: var(--type-code);
-  line-height: 20px;
+  line-height: max(20px, var(--type-line-code));
   white-space: pre-wrap;
 }
 
@@ -432,7 +432,6 @@
   padding-block: 8px;
   border-bottom: 1px solid var(--color-token-border);
   font-weight: var(--font-weight-emphasis);
-  line-height: 16px;
 }
 
 .md-table-block td {

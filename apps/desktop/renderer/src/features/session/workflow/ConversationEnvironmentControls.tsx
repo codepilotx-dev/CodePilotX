@@ -255,11 +255,11 @@ export function ConversationEnvironmentControls({
             <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
               <div className="tw:grid tw:gap-1">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 tw:text-xl tw:leading-7 tw:font-[var(--font-weight-heading)] tw:text-app-text">
+                  <h2 className="tw:m-0 tw:text-xl tw:font-[var(--font-weight-heading)] tw:text-app-text">
                     移交当前任务
                   </h2>
                 </Dialog.Title>
-                <Dialog.Description className="tw:m-0 tw:text-sm tw:leading-5 tw:text-app-text-soft">
+                <Dialog.Description className="tw:m-0 tw:text-sm tw:text-app-text-soft">
                   移交会停止并归档当前任务，再把修改和界面状态迁移到目标环境。
                 </Dialog.Description>
               </div>

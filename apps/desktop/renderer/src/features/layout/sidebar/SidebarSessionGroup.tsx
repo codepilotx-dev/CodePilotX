@@ -18,6 +18,7 @@ import {
   sessionEditableTitle,
   type SessionListItem,
 } from "../../../uiTypes.js";
+import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
@@ -520,37 +521,31 @@ function SidebarSessionGroupComponent({
           />
           <div className={cx('sidebar-row-main', 'u-min-w-0', 'u-flex', 'u-items-center')}>
             {canShowMore ? (
-              <button
+              <Button
                 aria-expanded={canCollapse}
-                className={cx(
-                  'sidebar-show-more-button',
-                  'u-type-control',
-                  'u-w-auto',
-                  'u-p-0',
-                )}
+                className="u-w-auto"
+                color="ghostTertiary"
                 onClick={() =>
                   setVisibleLimit((current) =>
                     Math.min(current + GROUP_LIMIT, sessions.length),
                   )
                 }
+                size="compact"
                 type="button"
               >
                 <span>展开显示</span>
-              </button>
+              </Button>
             ) : null}
             {canCollapse ? (
-              <button
-                className={cx(
-                  'sidebar-show-more-button',
-                  'u-type-control',
-                  'u-w-auto',
-                  'u-p-0',
-                )}
+              <Button
+                className="u-w-auto"
+                color="ghostTertiary"
                 onClick={() => setVisibleLimit(GROUP_LIMIT)}
+                size="compact"
                 type="button"
               >
                 <span>折叠显示</span>
-              </button>
+              </Button>
             ) : null}
           </div>
           <span

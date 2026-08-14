@@ -222,6 +222,12 @@
   --type-line-body: calc(var(--font-size-ui) + 6px);
   --type-line-secondary: calc(var(--type-secondary) + 5px);
   --type-line-meta: calc(var(--type-meta) + 4px);
+  --type-line-title-sm: calc(var(--type-title-sm) + 6px);
+  --type-line-title-md: calc(var(--type-title-md) + 6px);
+  --type-line-title-lg: calc(var(--type-title-lg) + 6px);
+  --type-line-page-title: calc(var(--type-page-title) + 6px);
+  --type-line-hero-title: calc(var(--type-hero-title) + 6px);
+  --type-line-code: calc(var(--type-code) * 1.55);
 
   --radius-1: 2px;
   --radius-2: var(--radius-control);

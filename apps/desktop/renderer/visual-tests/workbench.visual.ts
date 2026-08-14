@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { prepareVisualTheme } from './visual-test-helpers.js'
 
 type VisualScenario = {
   id: 'empty' | 'rich' | 'permission' | 'review'
@@ -648,7 +649,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.tableFontSizeRatio).toBeCloseTo(1, 2)
     expect(metrics.tableBorderRightWidth).toBe('0px')
     expect(metrics.tableHeadingFontWeight).toBe('600')
-    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(16 / 14, 2)
+    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(20 / 14, 2)
     expect(metrics.tableHeadingPaddingTop).toBe(8)
     expect(metrics.tableHeadingPaddingRight).toBe(24)
     expect(metrics.tableHeadingPaddingBottom).toBe(8)
@@ -2957,7 +2958,7 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect(preview).toHaveCSS('width', '320px')
   await expect(preview).toHaveCSS('padding', '8px')
   await expect(preview).toHaveCSS('font-size', '12px')
-  await expect(preview).toHaveCSS('line-height', '20px')
+  await expect(preview).toHaveCSS('line-height', '16px')
   await expect(preview).toHaveCSS('border-radius', '16px')
   await expect(
     preview.locator('.preview-card-assistant-text'),
@@ -4524,4 +4525,255 @@ test('execution plan popover is content-adaptive and never overflows', async ({
   expect(narrowOverflow.scrollWidth).toBeLessThanOrEqual(
     narrowOverflow.clientWidth,
   )
+})
+
+/* ── Line-height governance scenarios ──────────────────────── */
+
+test('scalable typography never clips and keeps chrome fixed at every UI font size', async ({
+  page,
+}) => {
+  const buttonHeightsByFontSize = new Map<number, number[]>()
+
+  for (const uiFontSize of [11, 14, 16] as const) {
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await prepareVisualTheme(page, 'dark', { uiFontSize })
+    await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+    await closeTransientErrorToast(page)
+
+    // Rename dialog: title and meta description scale with the UI font and
+    // never clip inside their line boxes.
+    await page.getByRole('button', { name: '更多会话操作' }).click()
+    await page.getByRole('menuitem', { name: /重命名对话/ }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    const dialogMetrics = await dialog.evaluate((element) => {
+      const probe = (selector: string) => {
+        const node = element.querySelector<HTMLElement>(selector)
+        if (!node) return null
+        const style = getComputedStyle(node)
+        return {
+          fontSize: Number.parseFloat(style.fontSize),
+          lineHeight: Number.parseFloat(style.lineHeight),
+          clipped: node.scrollHeight > node.clientHeight + 1,
+        }
+      }
+      return {
+        title: probe('h2'),
+        description: probe('.confirmation-dialog-description'),
+      }
+    })
+    expect(dialogMetrics.title).not.toBeNull()
+    expect(dialogMetrics.description).not.toBeNull()
+    for (const part of [dialogMetrics.title, dialogMetrics.description]) {
+      expect(part!.lineHeight).toBeGreaterThanOrEqual(part!.fontSize)
+      expect(part!.clipped).toBe(false)
+    }
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+
+    // Shared sidebar row chrome: the nav profile adapts to the UI font and
+    // keeps text inside the line box. Probed synthetically because the
+    // fixture sidebar is driven by the mock session catalog.
+    const rowProfile = await page.evaluate((uiFontSize) => {
+      const probe = document.createElement('div')
+      probe.className = 'interactive-row interactive-row--nav sidebar-row'
+      probe.textContent = '行高契约'
+      document.body.append(probe)
+      const style = getComputedStyle(probe)
+      const metrics = {
+        height: probe.getBoundingClientRect().height,
+        fontSize: Number.parseFloat(style.fontSize),
+        lineHeight: Number.parseFloat(style.lineHeight),
+      }
+      probe.remove()
+      return { ...metrics, uiFontSize }
+    }, uiFontSize)
+    expect(rowProfile.height).toBeCloseTo(uiFontSize + 16, 1)
+    expect(rowProfile.lineHeight).toBeGreaterThanOrEqual(rowProfile.fontSize)
+
+    const buttonHeights = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('.ui-button')]
+        .slice(0, 10)
+        .map((button) => button.getBoundingClientRect().height),
+    )
+    buttonHeightsByFontSize.set(uiFontSize, buttonHeights)
+
+    // Settings rows keep their text readable and unclipped. Probed
+    // synthetically because the fixture gate currently redirects the
+    // settings route to the model setup wizard.
+    const settingsRows = await page.evaluate(() => {
+      const probe = (className: string) => {
+        const node = document.createElement('div')
+        node.className = className
+        node.textContent = '设置行'
+        document.body.append(node)
+        const style = getComputedStyle(node)
+        const metrics = {
+          fontSize: Number.parseFloat(style.fontSize),
+          lineHeight: Number.parseFloat(style.lineHeight),
+          clipped: node.scrollHeight > node.clientHeight + 1,
+        }
+        node.remove()
+        return metrics
+      }
+      return {
+        title: probe('settings-row-title'),
+        description: probe('settings-row-desc'),
+      }
+    })
+    for (const part of [settingsRows.title, settingsRows.description]) {
+      expect(part.lineHeight).toBeGreaterThanOrEqual(part.fontSize)
+      expect(part.clipped).toBe(false)
+    }
+
+    // Turn navigation preview keeps a three-line clamp whose line boxes
+    // scale with the UI font.
+    await page.goto('/?visualCase=turn-nav#/threads/visual-turn-nav')
+    await closeTransientErrorToast(page)
+    await expect(page.getByText('第 4 轮已完成。', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: '取消置顶摘要' }).click()
+    const rail = page.getByRole('navigation', { name: '用户消息导航' })
+    await rail.getByRole('button').last().focus()
+    const preview = page
+      .locator(
+        '.conversation-turn-preview-tooltip [data-thread-user-message-navigation-tooltip-preview]',
+      )
+      .last()
+    await expect(preview).toBeVisible()
+    const clampMetrics = await preview
+      .locator('.preview-card-assistant-text')
+      .evaluate((element) => {
+        const style = getComputedStyle(element)
+        const fontSize = Number.parseFloat(style.fontSize)
+        const lineHeight = Number.parseFloat(style.lineHeight)
+        return {
+          fontSize,
+          lineHeight,
+          boxHeight: element.getBoundingClientRect().height,
+        }
+      })
+    expect(clampMetrics.lineHeight).toBeGreaterThanOrEqual(clampMetrics.fontSize)
+    // The clamp keeps exactly three line boxes; list margins inside the
+    // preview may add a couple of pixels on top.
+    expect(clampMetrics.boxHeight).toBeGreaterThanOrEqual(
+      clampMetrics.lineHeight * 3,
+    )
+    expect(clampMetrics.boxHeight).toBeLessThanOrEqual(
+      clampMetrics.lineHeight * 3 + 6,
+    )
+  }
+
+  // Fixed chrome keeps identical button boxes at every UI font size.
+  const at11 = buttonHeightsByFontSize.get(11) ?? []
+  const at14 = buttonHeightsByFontSize.get(14) ?? []
+  const at16 = buttonHeightsByFontSize.get(16) ?? []
+  expect(at11.length).toBeGreaterThan(0)
+  expect(at11).toEqual(at14)
+  expect(at14).toEqual(at16)
+})
+
+test('code line boxes never overlap at the supported code font sizes', async ({
+  page,
+}) => {
+  for (const codeFontSize of [8, 24] as const) {
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await prepareVisualTheme(page, 'dark', { codeFontSize })
+    await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+    await closeTransientErrorToast(page)
+
+    // Rendered Markdown code block: probed synthetically because the fixture
+    // conversation currently omits the code section.
+    const codePreMetrics = await page.evaluate(() => {
+      const probe = document.createElement('pre')
+      probe.className = 'md-code-pre'
+      probe.textContent = 'const theme = mode === "dark"'
+      document.body.append(probe)
+      const style = getComputedStyle(probe)
+      const metrics = {
+        fontSize: Number.parseFloat(style.fontSize),
+        lineHeight: Number.parseFloat(style.lineHeight),
+      }
+      probe.remove()
+      return metrics
+    })
+    expect(codePreMetrics.lineHeight).toBeGreaterThanOrEqual(
+      codePreMetrics.fontSize,
+    )
+
+    // Fallback / error code keeps at least its minimum line box.
+    const fallbackMetrics = await page.evaluate(() => {
+      const probe = document.createElement('div')
+      probe.className = 'md-mermaid-fallback'
+      probe.textContent = '代码回退'
+      document.body.append(probe)
+      const style = getComputedStyle(probe)
+      const metrics = {
+        fontSize: Number.parseFloat(style.fontSize),
+        lineHeight: Number.parseFloat(style.lineHeight),
+      }
+      probe.remove()
+      return metrics
+    })
+    expect(fallbackMetrics.lineHeight).toBeGreaterThanOrEqual(
+      fallbackMetrics.fontSize,
+    )
+  }
+})
+
+test('user message collapse threshold recomputes when the UI font changes at runtime', async ({
+  page,
+}) => {
+  const readClamp = (bubble: Locator) =>
+    bubble.evaluate((element) => {
+      const viewport = element.querySelector<HTMLElement>(
+        '.user-message-markdown__viewport',
+      )
+      if (!viewport) return null
+      return {
+        collapsed: viewport.classList.contains('is-collapsed'),
+        clientHeight: viewport.clientHeight,
+        scrollHeight: viewport.scrollHeight,
+      }
+    })
+
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await prepareVisualTheme(page, 'dark', { uiFontSize: 11 })
+  await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+  const bubble = page.locator('[data-user-message-bubble]').first()
+  const toggle = bubble.getByRole('button', { name: '显示更多' })
+  await expect(toggle).toBeVisible()
+  const heightAt11 = (await readClamp(bubble))!.clientHeight
+
+  // Grow 11 → 16 at runtime: the collapsed clamp follows the new line boxes.
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--font-size-ui', '16px')
+  })
+  await expect
+    .poll(async () => (await readClamp(bubble))?.clientHeight)
+    .toBeGreaterThan(heightAt11)
+  let clamp = await readClamp(bubble)
+  if (clamp!.collapsed) {
+    expect(clamp!.scrollHeight).toBeGreaterThan(clamp!.clientHeight)
+  } else {
+    expect(clamp!.scrollHeight).toBeLessThanOrEqual(clamp!.clientHeight + 1)
+  }
+
+  // Shrink back to 11: the threshold is recomputed from the current line
+  // boxes, so the collapse decision stays consistent with the measured
+  // heights instead of relying on the mount-time value.
+  const heightAt16 = clamp!.clientHeight
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--font-size-ui', '11px')
+  })
+  await expect
+    .poll(async () => (await readClamp(bubble))?.clientHeight)
+    .toBeLessThan(heightAt16)
+  clamp = await readClamp(bubble)
+  if (clamp!.collapsed) {
+    expect(clamp!.scrollHeight).toBeGreaterThan(clamp!.clientHeight)
+  } else {
+    expect(clamp!.scrollHeight).toBeLessThanOrEqual(clamp!.clientHeight + 1)
+  }
+  await expect(toggle).toBeVisible()
 })

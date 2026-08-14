@@ -169,7 +169,7 @@
     background: var(--color-token-list-hover-background);
     color: var(--color-token-text-secondary);
     font-size: var(--type-caption);
-    line-height: 1.4;
+    line-height: var(--type-line-meta);
     flex-shrink: 0;
   }
 
@@ -211,7 +211,7 @@
   padding: 10px 12px;
   font-family: var(--font-family-mono);
   font-size: var(--type-code);
-  line-height: 1.6;
+  line-height: var(--type-line-code);
   outline: none;
   margin: 0;
 
@@ -256,7 +256,7 @@
 .memory-recall-summary {
   font-size: var(--type-body);
   color: var(--color-token-foreground);
-  line-height: 1.45;
+  line-height: var(--type-line-body);
 }
 
 .memory-recall-files {
@@ -285,7 +285,7 @@
   text-align: center;
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .model-card {
@@ -356,7 +356,7 @@
       font-size: var(--type-caption);
       color: var(--color-token-text-secondary);
       white-space: nowrap;
-      line-height: 1.5;
+      line-height: var(--type-line-meta);
     }
 
     > span + span::before {

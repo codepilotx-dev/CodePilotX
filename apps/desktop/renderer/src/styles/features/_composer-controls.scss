@@ -279,7 +279,7 @@
   box-shadow: var(--popover-surface-shadow);
   color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
-  line-height: 1.25;
+  line-height: var(--type-line-meta);
   text-align: center;
   white-space: nowrap;
   transform: translateX(-50%) translateY(3px);

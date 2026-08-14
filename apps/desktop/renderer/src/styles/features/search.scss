@@ -11,12 +11,12 @@
   font-size: var(--type-page-title);
   font-weight: var(--font-weight-heading);
   letter-spacing: 0;
-  line-height: 1.3;
+  line-height: var(--type-line-page-title);
 }
 
 .utility-view-header p {
   font-size: var(--type-secondary);
-  line-height: 1.6;
+  line-height: var(--type-line-secondary);
   color: var(--color-token-text-secondary);
 }
 

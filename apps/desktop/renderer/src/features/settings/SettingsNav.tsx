@@ -244,7 +244,7 @@ function SearchResults({
                 </span>
               ) : null}
             </span>
-            <span className="tw:line-clamp-2 tw:text-xs tw:leading-4 tw:text-app-text-soft">
+            <span className="tw:line-clamp-2 tw:text-xs tw:text-app-text-soft">
               {result.description}
             </span>
           </button>

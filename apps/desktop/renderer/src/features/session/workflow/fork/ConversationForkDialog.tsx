@@ -56,7 +56,7 @@ export function ConversationForkDialog({
             >
               <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 tw:text-xl tw:leading-7 tw:font-[var(--font-weight-heading)] tw:text-app-text">
+                  <h2 className="tw:m-0 tw:text-xl tw:font-[var(--font-weight-heading)] tw:text-app-text">
                     在新聊天中继续
                   </h2>
                 </Dialog.Title>
@@ -83,7 +83,7 @@ export function ConversationForkDialog({
                     title="使用此工作树"
                     onClick={() => onSelectDestination({ kind: 'same-worktree' })}
                   />
-                  <p className="tw:m-0 tw:px-3 tw:text-xs tw:leading-5 tw:text-app-text-soft">
+                  <p className="tw:m-0 tw:px-3 tw:text-xs tw:text-app-text-soft">
                     两个聊天共享同一工作目录，后续文件修改互相可见。
                   </p>
                   <DestinationButton
@@ -93,11 +93,11 @@ export function ConversationForkDialog({
                     onClick={() => onSelectDestination({ kind: 'new-worktree' })}
                   />
                   {!canUseNewWorktree ? (
-                    <p className="tw:m-0 tw:px-3 tw:text-xs tw:leading-5 tw:text-app-text-soft">
+                    <p className="tw:m-0 tw:px-3 tw:text-xs tw:text-app-text-soft">
                       当前任务不在 Git 工作区中，无法创建托管工作树。
                     </p>
                   ) : sourceRunning ? (
-                    <p className="tw:m-0 tw:px-3 tw:text-xs tw:leading-5 tw:text-app-text-soft">
+                    <p className="tw:m-0 tw:px-3 tw:text-xs tw:text-app-text-soft">
                       当前任务正在运行，将从当前 Git HEAD 创建，不复制未提交修改。
                     </p>
                   ) : null}
@@ -186,7 +186,7 @@ function ForkProgress({
         <span>{forkProgressLabel(operation)}</span>
       </div>
       {progress?.output ? (
-        <pre className="tw:m-0 tw:max-h-52 tw:overflow-auto tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:p-3 tw:font-mono tw:text-xs tw:leading-5 tw:whitespace-pre-wrap tw:text-app-text">
+        <pre className="tw:m-0 tw:max-h-52 tw:overflow-auto tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:p-3 tw:font-mono tw:text-code tw:whitespace-pre-wrap tw:text-app-text">
           {progress.outputTruncated ? '…较早的输出已截断\n' : null}
           {progress.output}
         </pre>

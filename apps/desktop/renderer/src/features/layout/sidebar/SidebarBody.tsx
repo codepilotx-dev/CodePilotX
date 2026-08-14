@@ -10,6 +10,7 @@ import type {
   SidebarSectionId,
 } from "../../../../shared/types.js";
 import type { SessionListItem } from "../../../uiTypes.js";
+import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import {
   PopoverCheckboxItem,
@@ -1035,33 +1036,27 @@ function SidebarShowMoreActions({
         )}
       >
         {canShowMore ? (
-          <button
+          <Button
             aria-expanded={canCollapse}
-            className={cx(
-              "sidebar-show-more-button",
-              "u-type-control",
-              "u-w-auto",
-              "u-p-0",
-            )}
+            className="u-w-auto"
+            color="ghostTertiary"
             onClick={onShowMore}
+            size="compact"
             type="button"
           >
             <span>展开显示</span>
-          </button>
+          </Button>
         ) : null}
         {canCollapse ? (
-          <button
-            className={cx(
-              "sidebar-show-more-button",
-              "u-type-control",
-              "u-w-auto",
-              "u-p-0",
-            )}
+          <Button
+            className="u-w-auto"
+            color="ghostTertiary"
             onClick={onCollapse}
+            size="compact"
             type="button"
           >
             <span>折叠显示</span>
-          </button>
+          </Button>
         ) : null}
       </div>
       <span

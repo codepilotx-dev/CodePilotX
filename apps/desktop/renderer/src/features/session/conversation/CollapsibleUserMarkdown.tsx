@@ -64,14 +64,13 @@ export function CollapsibleUserMarkdown({
   React.useLayoutEffect(() => {
     if (!measurementElement) return;
 
-    const collapsedHeightPx = measureCollapsedTextHeight(
-      measurementElement,
-      collapsedLineCount,
-      FALLBACK_FONT_SIZE_PX,
-    );
     const updateMeasurement = (contentHeightPx: number): void => {
       const next = {
-        collapsedHeightPx,
+        collapsedHeightPx: measureCollapsedTextHeight(
+          measurementElement,
+          collapsedLineCount,
+          FALLBACK_FONT_SIZE_PX,
+        ),
         contentHeightPx: Math.ceil(contentHeightPx),
       };
       setMeasurement((current) =>

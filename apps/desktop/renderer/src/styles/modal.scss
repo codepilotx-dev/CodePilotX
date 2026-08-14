@@ -105,7 +105,7 @@
   left: 50%;
   z-index: var(--z-toast);
   max-height: min(70vh, 520px);
-  line-height: 1.4;
+  line-height: var(--type-line-body);
   transform: translateX(-50%);
 }
 
@@ -347,7 +347,7 @@
   margin-top: 3px;
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.45;
+  line-height: var(--type-line-secondary);
 }
 
 .github-repository-search {

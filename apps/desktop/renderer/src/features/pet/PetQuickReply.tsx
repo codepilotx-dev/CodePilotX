@@ -165,7 +165,7 @@ export function PetQuickReply({
 
   return (
     <QuickReplyFrame error={error}>
-      <p className="tw:m-0 tw:text-sm tw:leading-5 tw:text-app-text">
+      <p className="tw:m-0 tw:text-sm tw:text-app-text">
         {request.description || '是否允许这次操作？'}
       </p>
       <div className="tw:grid tw:grid-cols-2 tw:gap-2" role="radiogroup">
@@ -345,7 +345,7 @@ function QuickReplyFrame({
       {error ? (
         <p
           aria-live="polite"
-          className="tw:m-0 tw:text-xs tw:leading-4 tw:text-app-danger"
+          className="tw:m-0 tw:text-xs tw:text-app-danger"
           role="alert"
         >
           {error}

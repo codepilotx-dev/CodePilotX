@@ -101,7 +101,7 @@ export function SkillDetailsDialog({
                 <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--font-weight-heading)]">
                   {skill.name}
                 </Dialog.Title>
-                <Dialog.Description className="tw:mt-1 tw:mb-0 tw:text-sm tw:leading-5 tw:text-app-text-soft">
+                <Dialog.Description className="tw:mt-1 tw:mb-0 tw:text-sm tw:text-app-text-soft">
                   {skill.description || '未提供技能说明。'}
                 </Dialog.Description>
               </span>
@@ -135,7 +135,7 @@ export function SkillDetailsDialog({
                   {error}
                 </div>
               ) : (
-                <pre className="tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:font-mono tw:text-sm tw:leading-6 tw:text-app-text">
+                <pre className="tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:font-mono tw:text-code tw:text-app-text">
                   {content}
                 </pre>
               )}

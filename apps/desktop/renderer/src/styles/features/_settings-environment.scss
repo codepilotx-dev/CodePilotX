@@ -160,7 +160,7 @@
   textarea {
     resize: vertical;
     padding: 9px 10px;
-    line-height: 1.5;
+    line-height: var(--control-line-height);
   }
 }
 
@@ -170,7 +170,7 @@
   > small {
     grid-column: 1;
     color: var(--color-token-text-secondary);
-    line-height: 1.45;
+    line-height: var(--type-line-secondary);
   }
 
   > textarea {
@@ -271,7 +271,9 @@
     margin: 0;
     overflow: auto;
     color: var(--color-token-foreground);
-    font: var(--type-code) / 1.55 var(--font-family-mono);
+    font-family: var(--font-family-mono);
+    font-size: var(--type-code);
+    line-height: var(--type-line-code);
     white-space: pre-wrap;
   }
 

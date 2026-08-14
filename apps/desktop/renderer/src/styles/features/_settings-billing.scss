@@ -24,7 +24,7 @@
   margin: 4px 0 0;
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .usage-panel {
@@ -80,7 +80,7 @@
 .usage-metric-card small {
   color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
-  line-height: 1.4;
+  line-height: var(--type-line-meta);
 }
 
 .usage-metric-card strong {
@@ -719,7 +719,8 @@
 /* --- Config / Personalization settings --- */
 .settings-textarea-tall {
   font-family: var(--font-family-mono);
-  line-height: 1.55;
+  font-size: var(--type-code);
+  line-height: var(--type-line-code);
 }
 
 .settings-version-value {
@@ -869,7 +870,7 @@
   color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
-  line-height: 1.25;
+  line-height: var(--type-line-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -878,7 +879,7 @@
 .keyboard-shortcuts-desc {
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.25;
+  line-height: var(--type-line-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

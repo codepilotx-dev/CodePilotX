@@ -51,7 +51,7 @@
   padding: 0 12px;
   font-size: var(--type-body);
   color: var(--color-token-text-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-body);
   word-break: break-word;
 }
 
@@ -89,7 +89,7 @@
   margin: 0;
   font-size: var(--type-secondary);
   color: var(--color-token-text-tertiary);
-  line-height: 1.4;
+  line-height: var(--type-line-secondary);
 }
 
 /* Text / number input */
@@ -139,7 +139,7 @@
   margin: 0;
   font-size: var(--type-secondary);
   color: var(--color-token-error-foreground);
-  line-height: 1.4;
+  line-height: var(--type-line-secondary);
 }
 
 /* Error summary */
@@ -323,7 +323,7 @@
   padding: 0 12px;
   font-size: var(--type-secondary);
   color: var(--color-token-text-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .mcp-form-unsupported-icon {

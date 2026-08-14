@@ -311,7 +311,7 @@
     background: var(--color-token-input-background);
     color: var(--color-token-foreground);
     font-size: var(--type-control);
-    line-height: 18px;
+    line-height: var(--control-line-height);
     text-align: right;
     box-shadow: none;
   }
@@ -319,7 +319,7 @@
   span {
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
-    line-height: 18px;
+    line-height: var(--type-line-secondary);
   }
 }
 

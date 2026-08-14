@@ -62,7 +62,6 @@ export function Tooltip({
                   'tw:px-2',
                   'tw:py-1',
                   'tw:text-xs',
-                  'tw:leading-4',
                   'tw:text-app-text-soft',
                   'tw:shadow-md',
                   className,

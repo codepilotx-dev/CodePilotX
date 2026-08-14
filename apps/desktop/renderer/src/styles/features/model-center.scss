@@ -41,7 +41,7 @@
     max-width: 62ch;
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 }
 
@@ -465,7 +465,7 @@
   background: var(--layer-raised-fill);
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.45;
+  line-height: var(--type-line-secondary);
 }
 
 .model-center-provider-panel {
@@ -560,7 +560,7 @@
   background: var(--layer-raised-fill);
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.45;
+  line-height: var(--type-line-secondary);
 
   &[data-tone="success"] {
     color: var(--color-token-git-decoration-added-resource-foreground);
@@ -623,7 +623,7 @@
     margin-top: 4px;
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 
   > span {
@@ -660,7 +660,7 @@
   small {
     color: var(--color-token-text-secondary);
     font-size: var(--type-meta);
-    line-height: 1.45;
+    line-height: var(--type-line-meta);
   }
 
   input,
@@ -683,7 +683,7 @@
   margin: 0;
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .model-center-auth-fields {
@@ -712,7 +712,7 @@
     margin: 0;
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 
   a {
@@ -871,7 +871,7 @@
     > span {
       color: var(--color-token-text-secondary);
       font-size: var(--type-caption);
-      line-height: 1.5;
+      line-height: var(--type-line-meta);
       white-space: nowrap;
     }
 
@@ -961,7 +961,7 @@
     margin-top: 4px;
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 }
 
@@ -1022,7 +1022,7 @@
   p {
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 
   strong {
@@ -1524,7 +1524,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 .model-center-account-summary-empty {
   color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
-  line-height: 1.45;
+  line-height: var(--type-line-meta);
 }
 
 .model-center-account-group-links,
@@ -1582,7 +1582,7 @@ html[data-theme="dark"] .model-center-key-dialog {
       margin-top: 4px;
       color: var(--color-token-text-secondary);
       font-size: var(--type-secondary);
-      line-height: 1.5;
+      line-height: var(--type-line-secondary);
     }
 
     > span {
@@ -1609,7 +1609,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   border-radius: var(--radius-card);
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .model-center-account-fields {
@@ -1644,7 +1644,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   margin: 0;
   color: var(--color-token-error-foreground);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .model-center-account-oauth {
@@ -1659,7 +1659,7 @@ html[data-theme="dark"] .model-center-key-dialog {
     margin: 0;
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 
   a {
@@ -1921,7 +1921,7 @@ html[data-theme="dark"] .model-center-key-dialog {
     margin-top: 5px;
     color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 }
 
@@ -2019,7 +2019,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   small {
     color: var(--color-token-text-secondary);
     font-size: var(--type-meta);
-    line-height: 1.4;
+    line-height: var(--type-line-meta);
   }
 }
 

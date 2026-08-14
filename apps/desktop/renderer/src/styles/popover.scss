@@ -600,7 +600,7 @@
   border-radius: var(--popover-surface-radius);
   color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
-  line-height: 1.4;
+  line-height: var(--type-line-meta);
   white-space: normal;
   overflow-wrap: anywhere;
   -webkit-app-region: no-drag;
@@ -612,7 +612,7 @@
   border-radius: var(--radius-floating);
   color: var(--color-token-foreground);
   font-size: var(--type-caption);
-  line-height: 1.4;
+  line-height: var(--type-line-meta);
   font-weight: var(--font-weight-label);
   user-select: none;
   transform-origin: var(--radix-tooltip-content-transform-origin, center);

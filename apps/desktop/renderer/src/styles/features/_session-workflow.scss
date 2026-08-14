@@ -128,7 +128,7 @@
   color: var(--color-token-foreground);
   font-size: var(--type-panel-title);
   font-weight: var(--font-weight-heading);
-  line-height: 1.35;
+  line-height: var(--type-line-title-sm);
 }
 
 .workflow-plan-card__body {
@@ -214,7 +214,7 @@
     min-height: 20px;
     color: var(--color-token-description-foreground);
     font-size: var(--type-body);
-    line-height: 1.4;
+    line-height: var(--type-line-body);
   }
 
   li[data-status="in_progress"] .execution-plan-card__step-text {

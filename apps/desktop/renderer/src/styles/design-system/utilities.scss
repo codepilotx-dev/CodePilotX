@@ -44,14 +44,38 @@ $static-utilities: (
   'overflow-auto': (overflow: auto),
   'overflow-x-auto': (overflow-x: auto),
   'overflow-y-auto': (overflow-y: auto),
-  'type-body': (font-size: var(--type-body)),
-  'type-control': (font-size: var(--type-control)),
-  'type-secondary': (font-size: var(--type-secondary)),
-  'type-meta': (font-size: var(--type-meta)),
-  'type-caption': (font-size: var(--type-caption)),
-  'type-title-sm': (font-size: var(--type-title-sm)),
-  'type-title-md': (font-size: var(--type-title-md)),
-  'type-title-lg': (font-size: var(--type-title-lg)),
+  'type-body': (
+    font-size: var(--type-body),
+    line-height: var(--type-line-body),
+  ),
+  'type-control': (
+    font-size: var(--type-control),
+    line-height: var(--control-line-height),
+  ),
+  'type-secondary': (
+    font-size: var(--type-secondary),
+    line-height: var(--type-line-secondary),
+  ),
+  'type-meta': (
+    font-size: var(--type-meta),
+    line-height: var(--type-line-meta),
+  ),
+  'type-caption': (
+    font-size: var(--type-caption),
+    line-height: var(--type-line-meta),
+  ),
+  'type-title-sm': (
+    font-size: var(--type-title-sm),
+    line-height: var(--type-line-title-sm),
+  ),
+  'type-title-md': (
+    font-size: var(--type-title-md),
+    line-height: var(--type-line-title-md),
+  ),
+  'type-title-lg': (
+    font-size: var(--type-title-lg),
+    line-height: var(--type-line-title-lg),
+  ),
   'font-sans': (font-family: var(--font-family-sans)),
   'font-mono': (font-family: var(--font-family-mono)),
   'font-body': (font-weight: var(--font-weight-body)),

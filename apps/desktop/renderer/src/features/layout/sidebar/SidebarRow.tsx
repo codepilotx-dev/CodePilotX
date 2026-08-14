@@ -161,7 +161,7 @@ export function SidebarEmptyRow({
         "sidebar-row",
         "sidebar-row--flex",
         "sidebar-empty-row",
-        "tw:min-h-[31px] tw:w-full tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-base tw:leading-[21px] tw:text-app-text-soft",
+        "tw:min-h-[31px] tw:w-full tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-base tw:text-app-text-soft",
         className,
       )}
     >

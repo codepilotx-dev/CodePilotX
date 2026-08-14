@@ -27,7 +27,7 @@ export function RadioCard({
       <div className="radio-card-icon tw:flex tw:size-8 tw:items-center tw:justify-center tw:rounded-xs tw:bg-app-chrome tw:text-app-text-soft">{icon}</div>
       <div className="radio-card-body tw:min-w-0">
         <h4 className="radio-card-title tw:m-0 tw:text-base tw:font-[var(--font-weight-label)] tw:text-app-text">{title}</h4>
-        <p className="radio-card-desc tw:mt-1 tw:mb-0 tw:text-sm tw:leading-5 tw:text-app-text-soft">{description}</p>
+        <p className="radio-card-desc tw:mt-1 tw:mb-0 tw:text-sm tw:text-app-text-soft">{description}</p>
       </div>
       <div className="radio-indicator tw:mt-1 tw:flex tw:size-4 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border tw:bg-app-canvas">
         <RadioGroup.Indicator className="radio-indicator-inner tw:size-2 tw:rounded-full tw:bg-app-accent" />

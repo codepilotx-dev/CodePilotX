@@ -49,7 +49,7 @@
   color: var(--color-token-foreground);
   font-size: var(--type-page-title);
   font-weight: var(--font-weight-heading);
-  line-height: 1.2;
+  line-height: var(--type-line-page-title);
   letter-spacing: -0.01em;
 }
 
@@ -58,7 +58,7 @@
   margin: 0;
   color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .plugins-tabs {
@@ -240,7 +240,7 @@
     overflow-wrap: anywhere;
     color: var(--color-token-description-foreground);
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 }
 
@@ -326,7 +326,7 @@
     max-width: var(--layout-content-w);
     overflow-wrap: anywhere;
     font-size: var(--type-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 }
 
@@ -337,7 +337,7 @@
   padding-left: var(--space-5);
   text-align: left;
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .plugins-empty-actions {
@@ -387,7 +387,7 @@
   color: var(--color-token-foreground);
   font-size: var(--type-title-md);
   font-weight: var(--font-weight-heading);
-  line-height: 1.3;
+  line-height: var(--type-line-title-md);
 }
 
 .plugin-details-dialog__description {
@@ -395,7 +395,7 @@
   overflow-wrap: anywhere;
   color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .plugin-details-dialog__scroll-area {
@@ -443,7 +443,7 @@
   background: color-mix(in srgb, var(--color-token-error-foreground) 7%, var(--layer-raised-fill));
   color: var(--color-token-error-foreground);
   font-size: var(--type-secondary);
-  line-height: 1.45;
+  line-height: var(--type-line-secondary);
 }
 
 .plugin-details-dialog__actions {
@@ -619,7 +619,7 @@
   font: inherit;
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
-  line-height: 1.35;
+  line-height: var(--type-line-body);
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -632,7 +632,7 @@
   margin: 0;
   overflow: hidden;
   font-size: var(--type-secondary);
-  line-height: 1.4;
+  line-height: var(--type-line-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -650,7 +650,7 @@
   width: fit-content;
   color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
-  line-height: 1.2;
+  line-height: var(--type-line-meta);
 }
 
 .plugin-catalog-row[data-plugin-status="enabled"]
@@ -1083,7 +1083,7 @@ button.plugins-card-title:focus-visible,
   color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
-  line-height: 1.35;
+  line-height: var(--type-line-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1095,7 +1095,7 @@ button.plugins-card-title:focus-visible,
   margin: 0;
   overflow: hidden;
   font-size: var(--type-secondary);
-  line-height: 1.4;
+  line-height: var(--type-line-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

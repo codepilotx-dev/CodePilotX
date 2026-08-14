@@ -22,7 +22,7 @@
   h2 {
     margin: 0;
     font-size: var(--type-body);
-    line-height: 28px;
+    line-height: var(--type-line-body);
     font-weight: var(--font-weight-label);
     color: var(--color-token-foreground);
   }
@@ -84,7 +84,7 @@
     padding-inline: var(--space-2);
     overflow: hidden;
     font-size: var(--type-page-title);
-    line-height: 32px;
+    line-height: var(--type-line-page-title);
     font-weight: var(--font-weight-heading);
     letter-spacing: 0.003em;
     text-overflow: ellipsis;
@@ -159,7 +159,7 @@
   margin-top: 4px;
   color: var(--color-token-text-secondary);
   font-size: var(--type-body);
-  line-height: 20px;
+  line-height: var(--type-line-body);
 
   .profile-account-label {
     height: 24px;
@@ -181,7 +181,7 @@
   margin: 12px auto 0;
   color: var(--color-token-foreground);
   font-size: var(--type-body);
-  line-height: 1.5;
+  line-height: var(--type-line-body);
 }
 
 .profile-status-line {
@@ -256,7 +256,7 @@
     color: var(--color-token-foreground);
     overflow: hidden;
     font-size: var(--type-body);
-    line-height: 20px;
+    line-height: var(--type-line-body);
     font-weight: var(--font-weight-body);
     font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
@@ -269,7 +269,7 @@
     overflow: hidden;
     color: var(--color-token-text-secondary);
     font-size: var(--type-caption);
-    line-height: 20px;
+    line-height: var(--type-line-meta);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -293,7 +293,7 @@
   margin: 0;
   color: var(--color-token-foreground);
   font-size: var(--type-body);
-  line-height: 20px;
+  line-height: var(--type-line-body);
   font-weight: var(--font-weight-label);
 }
 
@@ -363,7 +363,7 @@
   margin-top: 8px;
   color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
-  line-height: 1.4;
+  line-height: var(--type-line-meta);
 
   span {
     position: absolute;
@@ -396,7 +396,7 @@
   margin-top: 4px;
   color: var(--color-token-text-secondary);
   font-size: var(--type-body);
-  line-height: 20px;
+  line-height: var(--type-line-body);
 }
 
 .profile-insight-row strong {
@@ -735,7 +735,7 @@
     margin: 6px 0 0;
     font-size: var(--type-secondary);
     color: var(--color-token-text-secondary);
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 }
 
@@ -823,7 +823,7 @@
     font-size: var(--type-secondary);
     color: var(--color-token-text-secondary);
     margin: 0;
-    line-height: 1.5;
+    line-height: var(--type-line-secondary);
   }
 }
 

@@ -696,7 +696,7 @@ function addLineDecoration(
   ranges.push(Decoration.line({ class: className }).range(lineFrom))
 }
 
-const markdownRichTheme = EditorView.theme({
+export const markdownRichThemeSpec = {
   '&.cm-markdown-rich': {
     color: 'var(--color-token-foreground)',
     backgroundColor: 'var(--color-token-main-surface-primary)',
@@ -707,7 +707,7 @@ const markdownRichTheme = EditorView.theme({
     padding: '24px',
   },
   '&.cm-markdown-rich .cm-line': {
-    lineHeight: '1.65',
+    lineHeight: 'var(--type-line-body)',
   },
   '&.cm-markdown-rich .cm-md-rich-heading': {
     color: 'var(--color-token-foreground)',
@@ -716,21 +716,21 @@ const markdownRichTheme = EditorView.theme({
     letterSpacing: '-0.015em',
   },
   '&.cm-markdown-rich .cm-md-rich-h1': {
-    fontSize: '24px',
-    lineHeight: '1.35',
+    fontSize: 'var(--type-page-title)',
+    lineHeight: 'var(--type-line-page-title)',
   },
   '&.cm-markdown-rich .cm-md-rich-h2': {
-    fontSize: '20px',
-    lineHeight: '1.4',
+    fontSize: 'var(--type-title-lg)',
+    lineHeight: 'var(--type-line-title-lg)',
   },
   '&.cm-markdown-rich .cm-md-rich-h3': {
-    fontSize: '18px',
-    lineHeight: '1.45',
+    fontSize: 'var(--type-title-md)',
+    lineHeight: 'var(--type-line-title-md)',
   },
   '&.cm-markdown-rich .cm-md-rich-h4, &.cm-markdown-rich .cm-md-rich-h5, &.cm-markdown-rich .cm-md-rich-h6':
     {
-      fontSize: 'var(--font-size-ui)',
-      lineHeight: '1.65',
+      fontSize: 'var(--type-body)',
+      lineHeight: 'var(--type-line-body)',
     },
   '&.cm-markdown-rich .cm-md-rich-emphasis': {
     fontStyle: 'italic',
@@ -763,9 +763,6 @@ const markdownRichTheme = EditorView.theme({
     paddingLeft: '12px',
     color: 'var(--color-token-text-secondary)',
   },
-  '&.cm-markdown-rich .cm-line.cm-md-rich-list-item': {
-    paddingBlock: '1px',
-  },
   '&.cm-markdown-rich .cm-md-rich-list-marker': {
     display: 'inline-block',
     width: '1.25em',
@@ -775,10 +772,10 @@ const markdownRichTheme = EditorView.theme({
     textAlign: 'center',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-horizontal-rule': {
-    minHeight: '1.65em',
+    minHeight: '1lh',
     borderTop: '1px solid var(--color-token-border)',
     color: 'transparent',
-    transform: 'translateY(0.8em)',
+    transform: 'translateY(0.5lh)',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-code-block': {
     boxSizing: 'border-box',
@@ -786,8 +783,8 @@ const markdownRichTheme = EditorView.theme({
     color: 'var(--cm-editor-foreground, var(--color-token-foreground))',
     backgroundColor: 'var(--color-token-editor-background)',
     fontFamily: 'var(--vscode-editor-font-family)',
-    fontSize: 'var(--font-size-code)',
-    lineHeight: '1.6',
+    fontSize: 'var(--type-code)',
+    lineHeight: 'var(--type-line-code)',
   },
   '&.cm-markdown-rich .cm-line:not(.cm-md-rich-code-block) + .cm-line.cm-md-rich-code-block, &.cm-markdown-rich .cm-line.cm-md-rich-code-block:first-child':
     {
@@ -853,4 +850,6 @@ const markdownRichTheme = EditorView.theme({
   '&.cm-markdown-rich .cm-md-rich-table-widget td': {
     backgroundColor: 'var(--color-token-editor-background)',
   },
-})
+} as const
+
+const markdownRichTheme = EditorView.theme(markdownRichThemeSpec)

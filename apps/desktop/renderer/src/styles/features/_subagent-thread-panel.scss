@@ -223,7 +223,7 @@
     small {
       color: var(--color-token-description-foreground);
       font-size: var(--type-meta);
-      line-height: 1.45;
+      line-height: var(--type-line-meta);
     }
   }
 }
@@ -270,7 +270,7 @@
     small {
       color: var(--color-token-description-foreground);
       font-size: var(--type-meta);
-      line-height: 1.4;
+      line-height: var(--type-line-meta);
     }
   }
 
@@ -297,7 +297,7 @@
   background: var(--color-token-text-preformat-background);
   font-family: var(--font-family-mono);
   font-size: var(--type-code);
-  line-height: 1.5;
+  line-height: var(--type-line-code);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -326,7 +326,7 @@
 
   span {
     color: var(--color-token-description-foreground);
-    line-height: 1.5;
+    line-height: var(--type-line-body);
   }
 }
 

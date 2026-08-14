@@ -31,7 +31,7 @@ export function ExtensionManagementRow({
         <strong className="tw:block tw:truncate tw:text-base tw:font-[var(--font-weight-label)] tw:text-app-text">
           {title}
         </strong>
-        <span className="tw:mt-0.5 tw:block tw:truncate tw:text-sm tw:leading-5 tw:text-app-text-soft">
+        <span className="tw:mt-0.5 tw:block tw:truncate tw:text-sm tw:text-app-text-soft">
           {description}
         </span>
       </span>

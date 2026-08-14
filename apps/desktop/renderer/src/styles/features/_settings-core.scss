@@ -102,6 +102,7 @@
 
 .settings-page-title {
   font-size: var(--type-page-title);
+  line-height: var(--type-line-page-title);
   font-weight: var(--font-weight-heading);
   margin: 0 0 32px;
   color: var(--color-token-foreground);
@@ -112,7 +113,7 @@
   margin: 0;
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 /* --- Section: header + group --- */
@@ -152,14 +153,14 @@
   color: var(--color-token-foreground);
   font-size: var(--type-section-title);
   font-weight: var(--font-weight-label);
-  line-height: 1.4;
+  line-height: var(--type-line-body);
 }
 
 .settings-section-desc {
   margin: 4px 0 0;
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 .settings-section-content {
@@ -183,7 +184,7 @@
   padding-inline: 4px;
   color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-secondary);
 }
 
 @media (max-width: 900px) {
@@ -220,14 +221,14 @@
     color: var(--color-token-foreground);
     font-size: var(--type-body);
     font-weight: var(--font-weight-body);
-    line-height: 1.4;
+    line-height: var(--type-line-body);
   }
 
   &-desc {
     margin: 2px 0 0;
     color: var(--color-token-text-tertiary);
     font-size: var(--type-meta);
-    line-height: 1.45;
+    line-height: var(--type-line-meta);
   }
 
   &-control {

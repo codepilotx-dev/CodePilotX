@@ -519,7 +519,7 @@
     );
     color: var(--color-token-foreground);
     font-size: var(--type-message);
-    line-height: 1.55;
+    line-height: var(--type-line-body);
     text-align: left;
     overflow-wrap: anywhere;
   }
@@ -703,12 +703,10 @@
   min-width: 0;
   color: var(--color-token-foreground);
   font-size: var(--type-message);
-  line-height: 1.62;
 
   &--process {
     color: var(--color-token-foreground);
     font-size: var(--type-message);
-    line-height: 1.62;
   }
 
   > .md-body {
@@ -921,7 +919,7 @@
       overflow: auto;
       font-family: var(--font-family-mono);
       font-size: var(--type-code);
-      line-height: 1.5;
+      line-height: var(--type-line-code);
       white-space: pre;
     }
 

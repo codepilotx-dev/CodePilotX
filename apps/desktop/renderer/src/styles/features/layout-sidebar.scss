@@ -995,7 +995,7 @@
 .sidebar-project-hover-card-folder span {
   min-width: 0;
   overflow-wrap: anywhere;
-  line-height: 1.35;
+  line-height: var(--type-line-body);
   white-space: normal;
 }
 
@@ -1046,30 +1046,10 @@
   animation: sidebar-spin var(--motion-loading) linear infinite;
 }
 
-.sidebar-show-more-button {
-  width: auto;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-token-description-foreground);
-  font: inherit;
-  line-height: 21px;
-  text-align: left;
-  cursor: pointer;
-  -webkit-app-region: no-drag;
-}
-
 .sidebar-show-more-actions {
   .sidebar-row-main {
     gap: 1em;
   }
-}
-
-.sidebar-show-more-button:hover {
-  background: transparent;
-  color: var(--color-token-foreground);
 }
 
 .sidebar-empty {

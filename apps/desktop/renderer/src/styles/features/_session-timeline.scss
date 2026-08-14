@@ -25,7 +25,7 @@
   margin: 0;
   font-size: var(--type-body);
   color: var(--color-token-foreground);
-  line-height: 1.6;
+  line-height: var(--type-line-body);
 }
 
 .review-message-actions {

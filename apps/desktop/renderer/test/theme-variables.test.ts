@@ -75,7 +75,51 @@ describe('fixed Codex UI themes', () => {
       '--type-line-meta: calc(var(--type-meta) + 4px);',
     )
     expect(normalizedStylesheet).toContain(
+      '--type-line-title-sm: calc(var(--type-title-sm) + 6px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--type-line-title-md: calc(var(--type-title-md) + 6px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--type-line-title-lg: calc(var(--type-title-lg) + 6px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--type-line-page-title: calc(var(--type-page-title) + 6px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--type-line-hero-title: calc(var(--type-hero-title) + 6px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--type-line-code: calc(var(--type-code) * 1.55);',
+    )
+    expect(normalizedStylesheet).toContain(
       '--menu-detail-line-height: var(--type-line-meta);',
+    )
+
+    const tailwind = await Bun.file(
+      new URL('../src/styles/tailwind.css', import.meta.url),
+    ).text()
+    const normalizedTailwind = tailwind.replace(/\s+/g, ' ')
+    expect(normalizedTailwind).toContain(
+      '--text-xs--line-height: var(--type-line-meta);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-sm--line-height: var(--type-line-meta);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-base--line-height: var(--type-line-body);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-lg--line-height: var(--type-line-title-sm);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-xl--line-height: var(--type-line-page-title);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-code: var(--type-code);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-code--line-height: var(--type-line-code);',
     )
   })
 

@@ -146,7 +146,7 @@
   color: var(--color-token-foreground);
   padding: var(--control-padding-block) var(--control-padding-inline);
   font-size: var(--type-control);
-  line-height: 1.45;
+  line-height: var(--control-line-height);
   outline: none;
   transition:
     background-color var(--motion-micro) var(--ease-standard),

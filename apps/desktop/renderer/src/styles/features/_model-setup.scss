@@ -63,7 +63,7 @@
   font-size: var(--type-page-title);
   font-weight: var(--font-weight-heading);
   letter-spacing: -0.025em;
-  line-height: 1.18;
+  line-height: var(--type-line-page-title);
 }
 
 .model-setup-heading p,
@@ -71,7 +71,7 @@
 .model-setup-connection p {
   margin: 0;
   color: var(--color-token-text-secondary);
-  line-height: 1.5;
+  line-height: var(--type-line-body);
 }
 
 .model-setup-heading .model-setup-eyebrow {

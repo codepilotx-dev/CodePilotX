@@ -510,7 +510,7 @@ export function McpEditorDialog({
                           checked={form.required}
                           onChange={required => update(current => ({ ...current, required }))}
                         />
-                        <span className="tw:text-xs tw:leading-5 tw:text-app-text-soft">
+                        <span className="tw:text-xs tw:text-app-text-soft">
                           开启后，连接失败会阻止任务开始。
                         </span>
                       </span>
@@ -597,7 +597,7 @@ export function McpEditorDialog({
                             diagnosticContext,
                           }))}
                         />
-                        <span className="tw:text-xs tw:leading-5 tw:text-app-text-soft">
+                        <span className="tw:text-xs tw:text-app-text-soft">
                           仅向本地进程传递最近的可见消息和工具状态摘要，不包含系统提示词、推理内容、路径或工具原始参数。
                         </span>
                       </FormRow>

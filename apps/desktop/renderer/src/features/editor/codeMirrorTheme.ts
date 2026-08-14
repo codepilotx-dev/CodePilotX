@@ -30,6 +30,16 @@ type EditorThemeRegistration = {
 
 const themeExtensionCache = new Map<string, Promise<Extension>>()
 
+/**
+ * Code editor line box in pixels. The explicit pixel value lets CodeMirror
+ * compute cursor, scrolling and syntax-line geometry; the 1.55 ratio matches
+ * the shared `--type-line-code` typography token so editor and rendered
+ * Markdown keep the same density.
+ */
+export function codeEditorLineHeight(fontSize: number): number {
+  return Math.round(fontSize * 1.55)
+}
+
 export function loadCodeMirrorTheme(
   options: CodeMirrorThemeOptions,
 ): Promise<Extension> {
@@ -202,7 +212,7 @@ function createThemeExtension(
     'diffEditorGutter.removedLineBackground',
     dark ? '#f85149' : '#cf222e',
   )
-  const lineHeight = Math.round(options.fontSize * 1.8)
+  const lineHeight = codeEditorLineHeight(options.fontSize)
 
   return [
     EditorView.theme(

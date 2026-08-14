@@ -169,7 +169,7 @@
   margin: 0 2px 8px;
   color: var(--color-token-editor-warning-foreground);
   font-size: var(--type-caption);
-  line-height: 1.4;
+  line-height: var(--type-line-meta);
 }
 
 .composer-dictation-status {
@@ -179,7 +179,7 @@
   margin: 0 2px 8px;
   color: var(--color-token-text-secondary);
   font-size: var(--type-caption);
-  line-height: 1.4;
+  line-height: var(--type-line-meta);
 
   &.is-error {
     color: var(--color-token-editor-warning-foreground);
@@ -460,7 +460,7 @@
     background: transparent;
     color: var(--color-token-foreground);
     font-size: var(--type-message);
-    line-height: 1.6;
+    line-height: var(--type-line-body);
     overflow-y: auto;
     overflow-wrap: anywhere;
     white-space: pre-wrap;

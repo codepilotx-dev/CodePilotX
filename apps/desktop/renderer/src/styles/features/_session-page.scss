@@ -230,12 +230,12 @@
 .empty-canvas-card p,
 .placeholder-card p {
   font-size: var(--type-secondary);
-  line-height: 1.6;
+  line-height: var(--type-line-secondary);
 }
 
 .message-card p {
   font-size: var(--type-message);
-  line-height: 1.6;
+  line-height: var(--type-line-body);
 }
 
 .quick-chat-hero p {
@@ -378,7 +378,7 @@
 .new-session-suggestion-label {
   font-size: var(--type-body);
   font-weight: var(--font-weight-label);
-  line-height: 20px;
+  line-height: var(--type-line-body);
 }
 
 .new-session-suggestions.is-follow-up {
@@ -782,7 +782,6 @@
     color: var(--color-token-input-placeholder-foreground);
     font-size: var(--type-body);
     font-weight: var(--font-weight-label);
-    line-height: 1;
   }
 
   &__plan,
@@ -799,7 +798,6 @@
     color: inherit;
     font-size: inherit;
     font-weight: inherit;
-    line-height: inherit;
     white-space: nowrap;
 
     &.ui-button:hover:not(:disabled) {

@@ -48,7 +48,6 @@
 .popover.popover-thread-summary-branch {
   --popover-surface-padding: 6px;
   --menu-font-size: var(--type-control);
-  --menu-line-height: normal;
   --menu-item-padding-block: 6px;
   --menu-item-padding-inline: 8px;
   --menu-item-gap: var(--control-gap);
@@ -67,13 +66,13 @@
   .popover-section-title {
     padding: var(--space-1) 10px 6px;
     font-size: var(--type-caption);
-    line-height: normal;
+    line-height: var(--menu-detail-line-height);
   }
 
   .popover-empty {
     padding: var(--space-3) 10px;
     font-size: var(--type-secondary);
-    line-height: normal;
+    line-height: var(--menu-detail-line-height);
   }
 }
 

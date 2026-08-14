@@ -32,7 +32,7 @@
 .pet-catalog-page-heading h1 {
   margin: 0;
   font-size: var(--type-page-title);
-  line-height: 1.2;
+  line-height: var(--type-line-page-title);
 }
 
 .pet-catalog-page-heading p {
@@ -185,7 +185,7 @@
 .pet-catalog-description {
   display: -webkit-box;
   overflow: hidden;
-  line-height: 1.45;
+  line-height: var(--type-line-body);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
