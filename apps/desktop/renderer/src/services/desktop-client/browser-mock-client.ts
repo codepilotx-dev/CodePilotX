@@ -606,7 +606,60 @@ export function createBrowserMockDesktopClient(
       migrationRequired: false,
       migratedCredentials: 1,
     }),
-    testModelProvider: async () => ({ ok: true }),
+    testModelProvider: async (providerID, model) => ({
+      providerId: providerID as RpcParams<'provider/test'>['providerId'],
+      status: 'reachable',
+      testedAt: Date.now(),
+      latencyMs: 12,
+      model: (model ?? {
+        providerID,
+        id: 'mock-model',
+      }) as Extract<
+        RpcResult<'provider/test'>,
+        { status: 'reachable' }
+      >['model'],
+    } as RpcResult<'provider/test'>),
+    previewModelHealth: async () => ({
+      totalRequests: 0,
+      excludedProviders: [],
+    }),
+    startModelHealth: async operationId => ({
+      run: {
+        runId: operationId,
+        status: 'completed',
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+        counts: {
+          total: 0,
+          queued: 0,
+          running: 0,
+          healthy: 0,
+          failed: 0,
+          cancelled: 0,
+        },
+        excludedProviders: [],
+        items: [],
+      },
+    }),
+    readModelHealth: async () => ({ run: null }),
+    cancelModelHealth: async () => ({
+      run: {
+        runId: 'mock',
+        status: 'cancelled',
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+        counts: {
+          total: 0,
+          queued: 0,
+          running: 0,
+          healthy: 0,
+          failed: 0,
+          cancelled: 0,
+        },
+        excludedProviders: [],
+        items: [],
+      },
+    }),
     createProvider: async () => undefined,
     updateProvider: async () => undefined,
     deleteProvider: async () => undefined,

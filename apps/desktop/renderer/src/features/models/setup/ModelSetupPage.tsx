@@ -9,6 +9,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
+  DesktopModelRef,
   ModelProviderID,
 } from '../../../../shared/types.js'
 import { AgentRpcError } from '../../../services/agentRpcClient.js'
@@ -115,16 +116,44 @@ export function ModelSetupPage(): React.ReactNode {
   }, [])
 
   useEffect(() => {
+    if (
+      !settings.settingsLoaded
+      || !snapshot.loaded
+      || snapshot.configurationError
+      || !snapshot.currentProviderState
+      || settings.firstUseSetupCompleted !== undefined
+    ) return
+    const inferred = snapshot.currentProviderState.modelConfigured ? 1 : 0
+    void settings.saveFirstUseSetupCompleted(inferred).catch(() => undefined)
+  }, [
+    settings.firstUseSetupCompleted,
+    settings.saveFirstUseSetupCompleted,
+    settings.settingsLoaded,
+    snapshot.configurationError,
+    snapshot.currentProviderState,
+    snapshot.loaded,
+  ])
+
+  useEffect(() => {
     if (!snapshot.loaded || providerId || providers.length === 0) return
     const preferred = providers.find(provider => (
       provider.providerID === snapshot.currentProviderState?.selectedProviderID
     )) ?? providers.find(provider => isProviderConnected(provider, snapshot)) ?? providers[0]
     setProviderId(preferred?.providerID ?? null)
-    // 已有可用连接的现有用户刷新/重启后直接进入第二步选择模型；
-    // 只保存 API Key 未选模型时不会退回第一步。
-    setStep(isProviderConnected(preferred, snapshot) ? 'model' : 'provider')
+    // 显式重置为 0，或旧配置尚未完成首次引导时，始终从第 1 步开始；
+    // Provider 已连接只影响“继续”按钮，不再跳过首次引导页面。
+    const fullGuideRequested = settings.firstUseSetupCompleted === 0
+      || (
+        settings.firstUseSetupCompleted === undefined
+        && snapshot.currentProviderState?.modelConfigured !== true
+      )
+    setStep(
+      !fullGuideRequested && isProviderConnected(preferred, snapshot)
+        ? 'model'
+        : 'provider',
+    )
     setStatus('ready')
-  }, [providerId, providers, snapshot])
+  }, [providerId, providers, settings.firstUseSetupCompleted, snapshot])
 
   useEffect(() => {
     if (step !== 'model' || !selectedProvider) return
@@ -172,7 +201,7 @@ export function ModelSetupPage(): React.ReactNode {
     }
   }, [modelReloadToken, selectedProvider, snapshot.currentProviderState, step])
 
-  if (!snapshot.loaded) return <SetupBootState />
+  if (!snapshot.loaded || !settings.settingsLoaded) return <SetupBootState />
   if (snapshot.configurationError || !snapshot.currentProviderState) {
     return (
       <SetupRecoveryState
@@ -181,7 +210,9 @@ export function ModelSetupPage(): React.ReactNode {
       />
     )
   }
-  if (snapshot.currentProviderState.modelConfigured) {
+  const effectiveFirstUseSetupCompleted = settings.firstUseSetupCompleted
+    ?? (snapshot.currentProviderState.modelConfigured ? 1 : 0)
+  if (effectiveFirstUseSetupCompleted === 1) {
     return <Navigate replace to="/new" />
   }
 
@@ -233,9 +264,19 @@ export function ModelSetupPage(): React.ReactNode {
     try {
       const result = createdCredentialId
         ? await providerManagementStore.testApiKey(createdCredentialId)
-        : await desktopClient.testModelProvider(selectedProvider.providerID)
-      setNotice(result.ok ? '连接正常。' : null)
-      setError(result.ok ? null : '连接测试失败；你仍可保存模型并稍后重试。')
+        : await desktopClient.testModelProvider(
+            selectedProvider.providerID,
+            modelId
+              ? {
+                  providerID: selectedProvider.providerID,
+                  id: modelId,
+                  ...(variant ? { variant } : {}),
+                } as DesktopModelRef
+              : undefined,
+          )
+      const ok = 'ok' in result ? result.ok : result.status === 'reachable'
+      setNotice(ok ? '连接正常。' : null)
+      setError(ok ? null : '连接测试失败；你仍可保存模型并稍后重试。')
     } catch (testError) {
       setError(setupErrorText(testError, '连接测试失败；你仍可保存模型并稍后重试。'))
       setNotice(null)
@@ -248,6 +289,7 @@ export function ModelSetupPage(): React.ReactNode {
     if (!selectedProvider || !modelId) return
     setStatus('saving')
     setError(null)
+    let modelSaved = false
     try {
       const nextState = await desktopClient.saveModelProvider({
         providerID: selectedProvider.providerID,
@@ -263,6 +305,7 @@ export function ModelSetupPage(): React.ReactNode {
         setStatus('error')
         return
       }
+      modelSaved = true
       settings.syncExternalSettingsPatch({
         providerID: nextState.selectedProviderID,
         providerBaseURL: nextState.baseURL ?? '',
@@ -270,10 +313,16 @@ export function ModelSetupPage(): React.ReactNode {
         selectedModelPreset: nextState.model,
       })
       await providerManagementStore.refresh()
+      await settings.saveFirstUseSetupCompleted(1)
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
       navigate('/new', { replace: true })
     } catch (saveError) {
-      setError(setupErrorText(saveError, '模型保存失败，请重试。'))
+      setError(setupErrorText(
+        saveError,
+        modelSaved
+          ? '模型已保存，但首次引导状态保存失败，请重试。'
+          : '模型保存失败，请重试。',
+      ))
       setStatus('error')
     }
   }

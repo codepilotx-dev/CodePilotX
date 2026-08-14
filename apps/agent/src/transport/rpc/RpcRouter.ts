@@ -22,6 +22,7 @@ import { AgentError, type SubmitMessage, type TaskMode } from "../../domain"
 import type { ApprovalService } from "../../permission/ApprovalService"
 import type { QuestionService } from "../../session/QuestionService"
 import type { ApiKeyService } from "../../provider/ApiKeyService"
+import type { ModelHealthService } from "../../provider/ModelHealthService"
 import type { ProviderCredentialService } from "../../provider/ProviderCredentialService"
 import type { ProviderCredentialStoreManager } from "../../auth/ProviderCredentialStoreManager"
 import type { PiModelService } from "../../provider/pi"
@@ -127,6 +128,7 @@ export type RpcRouterDependencies = {
   providers: AgentModelCatalog
   piModels: PiModelService
   apiKeys: ApiKeyService
+  modelHealth: ModelHealthService
   providerCredentials: ProviderCredentialService
   providerCredentialStore: ProviderCredentialStoreManager
   authSessions: PiAuthSessionService

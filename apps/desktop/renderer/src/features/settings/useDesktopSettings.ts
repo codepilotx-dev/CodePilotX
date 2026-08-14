@@ -85,6 +85,7 @@ export type UseDesktopSettingsResult = {
   allowNetworkAccess: boolean
   installCodePilotXDependencies: boolean
   workspaceDependenciesMigrated: boolean
+  firstUseSetupCompleted: 0 | 1 | undefined
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -197,6 +198,7 @@ export type UseDesktopSettingsResult = {
   syncExternalSettingsPatch: (
     patch: Partial<StoredDesktopSettings>,
   ) => void
+  saveFirstUseSetupCompleted: (value: 0 | 1) => Promise<void>
   draft: DesktopSettingsDraft
   flushDesktopSettings: () => Promise<void>
 }
@@ -423,6 +425,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [workspaceDependenciesMigrated, setWorkspaceDependenciesMigrated] = useState(
     initial.workspaceDependenciesMigrated,
   )
+  const [firstUseSetupCompleted, setFirstUseSetupCompleted] = useState<0 | 1 | undefined>(
+    initial.firstUseSetupCompleted,
+  )
   const [personality, setPersonality] = useState<DesktopPersonality>(
     initial.personality,
   )
@@ -569,6 +574,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setAllowNetworkAccess(settings.allowNetworkAccess)
         setInstallCodePilotXDependencies(settings.installCodePilotXDependencies)
         setWorkspaceDependenciesMigrated(settings.workspaceDependenciesMigrated)
+        setFirstUseSetupCompleted(settings.firstUseSetupCompleted)
         setPersonality(settings.personality)
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
@@ -653,6 +659,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       allowNetworkAccess,
       installCodePilotXDependencies,
       workspaceDependenciesMigrated,
+      ...(firstUseSetupCompleted === undefined
+        ? {}
+        : { firstUseSetupCompleted }),
       'desktop.voice.preferredInputDeviceId':
         draftValues['desktop.voice.preferredInputDeviceId'],
       personality,
@@ -725,6 +734,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       allowNetworkAccess,
       installCodePilotXDependencies,
       workspaceDependenciesMigrated,
+      firstUseSetupCompleted,
       draftValues,
       personality,
       customInstructions,
@@ -846,6 +856,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setAllowNetworkAccess(snapshot.allowNetworkAccess)
       setInstallCodePilotXDependencies(snapshot.installCodePilotXDependencies)
       setWorkspaceDependenciesMigrated(snapshot.workspaceDependenciesMigrated)
+      setFirstUseSetupCompleted(snapshot.firstUseSetupCompleted)
       setPersonality(snapshot.personality)
       setCustomInstructions(snapshot.customInstructions)
       setEnableMemory(snapshot.enableMemory)
@@ -896,6 +907,20 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       }
     },
     [applySettingsSnapshot],
+  )
+
+  const saveFirstUseSetupCompleted = useCallback(
+    async (value: 0 | 1): Promise<void> => {
+      // 先读取 Agent 当前投影，避免向导完成期间用旧的 Renderer snapshot
+      // 覆盖刚由 saveModelProvider 写入的默认模型与 Provider。
+      const current = await desktopClient.getDesktopSettings()
+      const saved = await desktopClient.saveDesktopSettings({
+        ...current,
+        firstUseSetupCompleted: value,
+      })
+      syncExternalSettingsPatch(saved)
+    },
+    [syncExternalSettingsPatch],
   )
 
   useEffect(() => {
@@ -1010,6 +1035,7 @@ defaultOpenTargetId,
     allowNetworkAccess,
     installCodePilotXDependencies,
     workspaceDependenciesMigrated,
+    firstUseSetupCompleted,
     personality,
     customInstructions,
     enableMemory,
@@ -1091,7 +1117,8 @@ defaultOpenTargetId,
     setRustSearchAndDiffKernels,
 	    setBrowserAllowedSites,
 	    setCollapsedSidebarSections,
-	    syncExternalSettingsPatch,
+    syncExternalSettingsPatch,
+    saveFirstUseSetupCompleted,
     draft,
     flushDesktopSettings,
   }

@@ -986,6 +986,7 @@ gitBranchPrefix: string
   allowNetworkAccess?: boolean
   installCodePilotXDependencies: boolean
   workspaceDependenciesMigrated: boolean
+  firstUseSetupCompleted?: 0 | 1
   'desktop.voice.preferredInputDeviceId': string
   personality: DesktopPersonality
   customInstructions: string
@@ -1783,7 +1784,19 @@ export type DesktopApi = {
   testApiKey(credentialId: string): Promise<ProviderTestResponse>
   deleteProviderCredential(credentialId: string): Promise<DesktopProviderCredential[]>
   copyProviderApiKey(credentialId: string): Promise<{ clearAfterMs: 60000 }>
-  testModelProvider(providerID: ModelProviderID): Promise<ProviderTestResponse>
+  testModelProvider(
+    providerID: ModelProviderID,
+    model?: DesktopModelRef,
+  ): Promise<RpcResult<'provider/test'>>
+  previewModelHealth(): Promise<RpcResult<'model/health/preview'>>
+  startModelHealth(
+    operationId: string,
+  ): Promise<RpcResult<'model/health/start'>>
+  readModelHealth(runId: string): Promise<RpcResult<'model/health/read'>>
+  cancelModelHealth(
+    runId: string,
+    operationId: string,
+  ): Promise<RpcResult<'model/health/cancel'>>
   createProvider(definition: DesktopCustomProviderDefinition): Promise<void>
   updateProvider(
     providerId: ModelProviderID,

@@ -419,6 +419,9 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.workspaceDependenciesMigrated === 'boolean'
         ? parsed.workspaceDependenciesMigrated
         : defaults.workspaceDependenciesMigrated,
+    ...(parsed.firstUseSetupCompleted === 0 || parsed.firstUseSetupCompleted === 1
+      ? { firstUseSetupCompleted: parsed.firstUseSetupCompleted }
+      : {}),
     'desktop.voice.preferredInputDeviceId': stringOrDefault(
       parsed['desktop.voice.preferredInputDeviceId'],
       defaults['desktop.voice.preferredInputDeviceId'],

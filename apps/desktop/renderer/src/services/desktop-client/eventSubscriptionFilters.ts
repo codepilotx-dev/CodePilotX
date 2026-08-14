@@ -14,6 +14,13 @@ export const AGENT_LIVE_EVENT_FILTERS = {
     'provider/credential/updated',
     'usage/source/updated',
   ],
+  /** Health workspace subscription: batch events plus the catalog/credential
+   * changes that invalidate existing results. */
+  modelHealth: [
+    'model/health/updated',
+    'catalog/updated',
+    'provider/credential/updated',
+  ],
   skills: ['skill/updated'],
   tooling: ['tooling/updated'],
   mcp: ['mcp/updated'],
@@ -26,7 +33,7 @@ export const AGENT_LIVE_EVENT_FILTERS = {
   ],
 } as const satisfies Readonly<
   Record<
-    'canonical' | 'provider' | 'skills' | 'tooling' | 'mcp' | 'global',
+    'canonical' | 'provider' | 'modelHealth' | 'skills' | 'tooling' | 'mcp' | 'global',
     readonly LiveEventType[]
   >
 >

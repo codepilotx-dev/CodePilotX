@@ -19,6 +19,7 @@ import type { ApiKeyService } from "../provider/ApiKeyService"
 import type { ProviderCredentialService } from "../provider/ProviderCredentialService"
 import type { ProviderCredentialStoreManager } from "../auth/ProviderCredentialStoreManager"
 import type { PiModelService } from "../provider/pi"
+import type { ModelHealthService } from "../provider/ModelHealthService"
 import type { PiAuthSessionService } from "../auth/PiAuthSessionService"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
@@ -67,6 +68,7 @@ export interface TransportDependencies {
   providers: AgentModelCatalog
   piModels: PiModelService
   apiKeys: ApiKeyService
+  modelHealth: ModelHealthService
   providerCredentials: ProviderCredentialService
   providerCredentialStore: ProviderCredentialStoreManager
   authSessions: PiAuthSessionService
@@ -109,6 +111,27 @@ export const resolveEventCursor = (
     Number.isFinite(queryCursor) ? queryCursor : 0,
     Number.isFinite(headerCursor) ? headerCursor : 0,
   )
+}
+
+/**
+ * Shared gate for live events: the manifest's negotiated capability and the
+ * subscription's explicit liveEventTypes both decide whether an event may be
+ * buffered or delivered. Clients that never negotiated e.g. model.health.v1
+ * must not receive model/health/updated even when they omit liveEventTypes.
+ */
+export const liveEventDeliveryAllowed = (
+  event: StoredEventEnvelope,
+  subscription: {
+    liveEventTypes: ReadonlySet<string> | null
+    capabilities: ReadonlySet<string>
+  },
+): boolean => {
+  if (!(event.method in EventManifest)) return false
+  const definition = EventManifest[event.method as EventType]
+  if (definition.durability !== "live") return false
+  if (definition.capability && !subscription.capabilities.has(definition.capability)) return false
+  if (subscription.liveEventTypes && !subscription.liveEventTypes.has(event.method)) return false
+  return true
 }
 
 export const deliverAnchoredLive = async (
@@ -337,9 +360,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
@@ -489,9 +512,7 @@ export const createApp = (dependencies: TransportDependencies) => {
         }
         const event = signal.event
         if (!appliesToAnyStream(event)) return
-        const definition = event.method in EventManifest ? EventManifest[event.method as EventType] : null
-        if (!definition || definition.durability !== "live") return
-        if (subscription.liveEventTypes && !subscription.liveEventTypes.has(event.method)) return
+        if (!liveEventDeliveryAllowed(event, subscription)) return
         if (buffered.length >= 1024) {
           overflow = true
           return
@@ -564,7 +585,7 @@ export const createApp = (dependencies: TransportDependencies) => {
             for (const event of pending) {
               for (const streamId of cursors.keys()) {
                 if (streamId !== "global" && event.threadId !== null && event.threadId !== streamId) continue
-                if (active.liveEventTypes && !active.liveEventTypes.has(event.method)) continue
+                if (!liveEventDeliveryAllowed(event, active)) continue
                 const anchor = event.afterSequence
                 if (anchor === undefined) continue
                 let durableDelivered = 0

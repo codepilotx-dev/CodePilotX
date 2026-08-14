@@ -124,6 +124,7 @@ const RENDERER_CAPABILITIES = [
   'sandbox.management.v1',
   'prompt.preview.sensitive.v1',
   'model.catalog.paged.v1',
+  'model.health.v1',
   'provider.config.pi.v1',
   'provider.auth.pi.v1',
   'tooling.management.v1',
@@ -1352,6 +1353,24 @@ export function createAgentSessionDesktopClient(
     return agentProviderCredentialApiPromise
   }
 
+  type AgentModelHealthApi = ReturnType<
+    (typeof import('./agent-model-health-api.js'))['createAgentModelHealthApi']
+  >
+  let agentModelHealthApiPromise: Promise<AgentModelHealthApi> | null = null
+  const loadAgentModelHealthApi = (): Promise<AgentModelHealthApi> => {
+    agentModelHealthApiPromise ??= import(
+      './agent-model-health-api.js'
+    ).then(module =>
+      module.createAgentModelHealthApi({
+        mockClient,
+        requireAgentCapability,
+        rpc,
+        withAgentOrMock,
+      }),
+    )
+    return agentModelHealthApiPromise
+  }
+
   let unsubscribeSessionCatalog: (() => void) | null = null
   const startSessionCatalogSubscription = (): void => {
     if (unsubscribeSessionCatalog || !eventSourceFactory()) return
@@ -2448,23 +2467,20 @@ export function createAgentSessionDesktopClient(
       if (!copy) throw new Error('安全复制仅在桌面应用中可用。')
       return copy(credentialId)
     },
-    testModelProvider: async providerID => {
-      const directory = await loadProviderCatalog()
-      const provider = directory.providers.find(item => item.id === providerID)
-      if (!provider) throw new Error(`未找到模型提供商：${providerID}`)
-      const result = await rpc.call('provider/test', {
-        providerId: provider.id,
-      })
-      return result.status === 'reachable'
-        ? {
-            ok: true,
-            message: `连接正常（${result.latencyMs} ms）`,
-          }
-        : {
-            ok: false,
-            message: result.message,
-          }
-    },
+    testModelProvider: (providerID, model) =>
+      loadAgentModelHealthApi().then(api =>
+        api.testModelProvider(providerID, model),
+      ),
+    previewModelHealth: () =>
+      loadAgentModelHealthApi().then(api => api.previewModelHealth()),
+    startModelHealth: operationId =>
+      loadAgentModelHealthApi().then(api => api.startModelHealth(operationId)),
+    readModelHealth: runId =>
+      loadAgentModelHealthApi().then(api => api.readModelHealth(runId)),
+    cancelModelHealth: (runId, operationId) =>
+      loadAgentModelHealthApi().then(api =>
+        api.cancelModelHealth(runId, operationId),
+      ),
     createProvider: async definition => {
       await rpc.call('provider/create', {
         definition,

@@ -34,6 +34,7 @@ export const Capabilities = [
   "model.catalog.paged.v1",
   "provider.config.pi.v1",
   "provider.auth.pi.v1",
+  "model.health.v1",
   "pets.management.v1",
   "release-notes.read.v1",
   "skills.manage.v1",

@@ -665,6 +665,116 @@ describe('desktop provider client', () => {
     ]))
   })
 
+  test('模型健康 RPC 通过 typed RPC 调用并受 capability 门禁', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const runSnapshot = {
+      runId: 'run-1',
+      status: 'running',
+      startedAt: 1000,
+      counts: {
+        total: 2,
+        queued: 1,
+        running: 1,
+        healthy: 0,
+        failed: 0,
+        cancelled: 0,
+      },
+      excludedProviders: [],
+      items: [
+        { model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' }, status: 'queued' },
+        {
+          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+          status: 'running',
+          startedAt: 1000,
+        },
+      ],
+    }
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        expect(body.params.capabilities).toContain('model.health.v1')
+        return rpc(body.id, initializedResult([
+          'rpc.typed.v1',
+          'model.health.v1',
+        ]))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'model/health/preview') {
+        expect(body.params).toEqual({})
+        return rpc(body.id, {
+          totalRequests: 2,
+          excludedProviders: [],
+        })
+      }
+      if (body.method === 'model/health/start') {
+        expect(body.params.operationId).toEqual('op-1')
+        return rpc(body.id, { run: runSnapshot })
+      }
+      if (body.method === 'model/health/read') {
+        expect(body.params).toEqual({ runId: 'run-1' })
+        return rpc(body.id, { run: null })
+      }
+      if (body.method === 'model/health/cancel') {
+        expect(body.params).toEqual({ runId: 'run-1', operationId: 'op-1' })
+        return rpc(body.id, {
+          run: {
+            ...runSnapshot,
+            status: 'cancelled',
+            completedAt: 1500,
+          },
+        })
+      }
+      if (body.method === 'provider/test') {
+        expect(body.params).toEqual({
+          providerId: 'minimax-cn-coding-plan',
+          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+        })
+        return rpc(body.id, {
+          providerId: 'minimax-cn-coding-plan',
+          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+          status: 'reachable',
+          testedAt: 1000,
+          latencyMs: 42,
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    expect(await client.previewModelHealth()).toEqual({
+      totalRequests: 2,
+      excludedProviders: [],
+    })
+    expect(await client.startModelHealth('op-1')).toEqual({ run: runSnapshot })
+    expect(await client.readModelHealth('run-1')).toEqual({ run: null })
+    expect(await client.cancelModelHealth('run-1', 'op-1')).toMatchObject({
+      run: { status: 'cancelled' },
+    })
+    expect(await client.testModelProvider(
+      'minimax-cn-coding-plan',
+      { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+    )).toMatchObject({
+      status: 'reachable',
+      latencyMs: 42,
+    })
+
+    expect(requests).toEqual(expect.arrayContaining([
+      { method: 'model/health/preview', params: {} },
+      { method: 'model/health/start', params: { operationId: 'op-1' } },
+      { method: 'model/health/read', params: { runId: 'run-1' } },
+      { method: 'model/health/cancel', params: { runId: 'run-1', operationId: 'op-1' } },
+      {
+        method: 'provider/test',
+        params: {
+          providerId: 'minimax-cn-coding-plan',
+          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+        },
+      },
+    ]))
+  })
+
   test('declares the side-chat capability before calling its RPC methods', async () => {
     const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {

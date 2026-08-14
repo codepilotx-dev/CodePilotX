@@ -37,6 +37,7 @@ import { AgentLogger } from "./observability/AgentLogger";
 import { ExecutionLogObserver, HarnessLogObserver } from "./observability/ExecutionLogObserver";
 import { normalizeShellSecurityLevel } from "./security/ShellRiskClassifier";
 import { ApiKeyService } from "./provider/ApiKeyService";
+import { ModelHealthService } from "./provider/ModelHealthService";
 import { ProviderCredentialService } from "./provider/ProviderCredentialService";
 import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
@@ -372,9 +373,23 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     });
     const providers = new PiModelCatalogAdapter(piModels);
+    const modelHealth = new ModelHealthService(
+      piModels,
+      async (payload) => {
+        await publishAgentEvent(
+          db,
+          hub,
+          null,
+          null,
+          "model/health/updated",
+          payload,
+        );
+      },
+    );
     const apiKeys = new ApiKeyService(
       piModels,
       providerCredentialStore,
+      modelHealth,
     );
     const providerCredentials = new ProviderCredentialService(
       piModels,
@@ -806,6 +821,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       providers,
       piModels,
       apiKeys,
+      modelHealth,
       providerCredentials,
       providerCredentialStore,
       authSessions,
@@ -846,6 +862,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       await sideChats.discardAll(true);
       await configService.dispose();
       await mcpConnections.dispose();
+      // Stop background model-health workers before tearing down the provider,
+      // so no batch keeps publishing events after the database is closing.
+      await modelHealth.dispose();
       await providers.dispose();
     };
     return { config, db, app, logger, providers, dispose };

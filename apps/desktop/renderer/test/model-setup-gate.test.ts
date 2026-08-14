@@ -3,71 +3,73 @@ import {
   resolveModelSetupGate,
 } from '../src/features/models/setup/RequireConfiguredModel.js'
 
+const settings = (
+  firstUseSetupCompleted: 0 | 1 | undefined,
+  settingsLoaded = true,
+) => ({ firstUseSetupCompleted, settingsLoaded })
+
+const providerSnapshot = (modelConfigured: boolean) => ({
+  loaded: true,
+  configurationError: null,
+  currentProviderState: { modelConfigured } as never,
+})
+
 describe('first-use model setup gate', () => {
-  test('waits for provider state before deciding where to route', () => {
+  test('waits for both settings and provider state before routing', () => {
     expect(resolveModelSetupGate({
       loaded: false,
       configurationError: null,
       currentProviderState: null,
-    })).toBe('loading')
+    }, settings(undefined))).toBe('loading')
+    expect(resolveModelSetupGate(
+      providerSnapshot(true),
+      settings(undefined, false),
+    )).toBe('loading')
   })
 
-  test('distinguishes Agent recovery from a genuine unconfigured state', () => {
+  test('keeps Agent configuration failures in recovery', () => {
     expect(resolveModelSetupGate({
       loaded: true,
       configurationError: '供应商配置状态暂时无法读取',
-      currentProviderState: null,
-    })).toBe('recovery')
-    // 没有 Provider 状态快照时不可信，必须进入恢复态，不能误判为待配置。
+      currentProviderState: { modelConfigured: true } as never,
+    }, settings(1))).toBe('recovery')
     expect(resolveModelSetupGate({
       loaded: true,
       configurationError: null,
       currentProviderState: null,
-    })).toBe('recovery')
-    // 有状态快照但未配置模型：真正的首次配置。
-    expect(resolveModelSetupGate({
-      loaded: true,
-      configurationError: null,
-      currentProviderState: {
-        modelConfigured: false,
-      } as never,
-    })).toBe('setup')
+    }, settings(0))).toBe('recovery')
   })
 
-  test('configuration error never lets a stale configured state pass', () => {
-    expect(resolveModelSetupGate({
-      loaded: true,
-      configurationError: '供应商配置状态暂时无法读取',
-      currentProviderState: {
-        modelConfigured: true,
-      } as never,
-    })).toBe('recovery')
+  test('explicit zero always opens the full setup guide', () => {
+    expect(resolveModelSetupGate(
+      providerSnapshot(false),
+      settings(0),
+    )).toBe('setup')
+    expect(resolveModelSetupGate(
+      providerSnapshot(true),
+      settings(0),
+    )).toBe('setup')
   })
 
-  test('plain usage errors do not gate the workbench', () => {
-    expect(resolveModelSetupGate({
-      loaded: true,
-      configurationError: null,
-      currentProviderState: {
-        modelConfigured: true,
-      } as never,
-    })).toBe('workbench')
+  test('explicit one always opens the workbench', () => {
+    expect(resolveModelSetupGate(
+      providerSnapshot(false),
+      settings(1),
+    )).toBe('workbench')
+    expect(resolveModelSetupGate(
+      providerSnapshot(true),
+      settings(1),
+    )).toBe('workbench')
   })
 
-  test('opens the workbench only for a configured model', () => {
-    expect(resolveModelSetupGate({
-      loaded: true,
-      configurationError: null,
-      currentProviderState: {
-        modelConfigured: false,
-      } as never,
-    })).toBe('setup')
-    expect(resolveModelSetupGate({
-      loaded: true,
-      configurationError: null,
-      currentProviderState: {
-        modelConfigured: true,
-      } as never,
-    })).toBe('workbench')
+  test('legacy settings infer the one-time value from the configured model', () => {
+    expect(resolveModelSetupGate(
+      providerSnapshot(false),
+      settings(undefined),
+    )).toBe('setup')
+    expect(resolveModelSetupGate(
+      providerSnapshot(true),
+      settings(undefined),
+    )).toBe('workbench')
   })
 })

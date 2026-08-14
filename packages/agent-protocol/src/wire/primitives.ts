@@ -177,6 +177,7 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   "WORKTREE_RESTORE_FAILED",
   "CONFLICT",
   "RATE_LIMITED",
+  "INVALID_REQUEST",
   "INTERNAL_ERROR",
 ])
 export type ApplicationErrorCode = typeof ApplicationErrorCodeSchema.Type

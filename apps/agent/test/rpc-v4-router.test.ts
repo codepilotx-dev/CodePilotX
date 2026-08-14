@@ -116,6 +116,7 @@ const fixture = async (
     providerCredentials: null,
     authSessions: null,
     apiKeys: null,
+    modelHealth: null,
     memory: null,
     hooks: null,
     handoff: { assertAdmissionOpen: () => undefined },
@@ -1171,6 +1172,209 @@ describe("RPC v4 Router", () => {
       kind: "custom",
     })
     db.close()
+  })
+
+  test("model/health RPC supports preview/start/read/cancel", async () => {
+    const provider = Provider.Info.empty(Provider.ID.make("provider:health"))
+    const model = Model.ID.make("model:health")
+    const modelRef = { providerID: provider.id, id: model }
+    const runSnapshot = {
+      runId: "op:health",
+      status: "running" as const,
+      startedAt: 1,
+      counts: { total: 1, queued: 0, running: 1, healthy: 0, failed: 0, cancelled: 0 },
+      excludedProviders: [],
+      items: [{ model: modelRef, status: "running" as const, startedAt: 1 }],
+    }
+    const modelHealth = {
+      preview: async () => ({
+        totalRequests: 1,
+        excludedProviders: [],
+      }),
+      start: async (operationId: string) =>
+        operationId === "op:health"
+          ? runSnapshot
+          : (() => { throw Object.assign(new Error("conflict"), { status: 409 }) })(),
+      read: async (runId: string) => runId === "op:health" ? runSnapshot : null,
+      cancel: async () => ({ ...runSnapshot, status: "cancelled" as const }),
+      dispose: async () => undefined,
+    }
+    const { db, call, initialize } = await fixture({
+      providers: {
+        list: async () => [provider],
+        models: async () => [{ providerID: provider.id, id: model, enabled: true }],
+        reload: async () => undefined,
+      } as unknown as RpcRouterDependencies["providers"],
+      modelHealth: modelHealth as unknown as RpcRouterDependencies["modelHealth"],
+    })
+    await initialize()
+
+    expect((await call("model/health/preview", {})).result).toMatchObject({
+      totalRequests: 1,
+      excludedProviders: [],
+    })
+    expect((await call("model/health/start", { operationId: "op:health" })).result).toMatchObject({
+      run: { runId: "op:health", status: "running" },
+    })
+    expect((await call("model/health/read", { runId: "op:health" })).result.run).toMatchObject({
+      runId: "op:health",
+    })
+    expect((await call("model/health/read", { runId: "op:unknown" })).result.run).toBeNull()
+    expect((await call("model/health/cancel", {
+      runId: "op:health",
+      operationId: "op:health",
+    })).result.run).toMatchObject({ status: "cancelled" })
+    db.close()
+  })
+
+  test("provider/test 将内部 timeout/provider 分类映射为 unknown 且仅显式 model 时附带 model", async () => {
+    const provider = Provider.Info.empty(Provider.ID.make("provider:legacy"))
+    const model = Model.ID.make("model:legacy")
+    const modelRef = { providerID: provider.id, id: model }
+    const modelHealth = {
+      probe: async (ref: { providerID: Provider.ID; id: Model.ID }) =>
+        String(ref.id) === "model:legacy"
+          ? { ok: false, category: "timeout" as const, message: "请求在 15 秒内未完成" }
+          : { ok: false, category: "provider" as const, message: "Provider 服务暂时不可用" },
+      dispose: async () => undefined,
+    }
+    const { db, call, initialize } = await fixture({
+      providers: {
+        list: async () => [provider],
+        models: async () => [{ providerID: provider.id, id: model, enabled: true }],
+        reload: async () => undefined,
+      } as unknown as RpcRouterDependencies["providers"],
+      modelHealth: modelHealth as unknown as RpcRouterDependencies["modelHealth"],
+    })
+    await initialize()
+
+    // Old shape: no explicit model means no `model` field in the result.
+    const withoutModel = await call("provider/test", { providerId: "provider:legacy" })
+    expect(withoutModel.result).toMatchObject({
+      providerId: "provider:legacy",
+      status: "unavailable",
+      category: "unknown",
+      message: "请求在 15 秒内未完成",
+    })
+    expect(withoutModel.result.model).toBeUndefined()
+
+    const withModel = await call("provider/test", {
+      providerId: "provider:legacy",
+      model: modelRef,
+    })
+    expect(withModel.result).toMatchObject({
+      providerId: "provider:legacy",
+      status: "unavailable",
+      category: "unknown",
+    })
+    expect(withModel.result.model).toEqual(modelRef)
+    db.close()
+  })
+
+  test("provider/test Provider/model 不匹配返回 INVALID_REQUEST；health 冲突返回 CONFLICT", async () => {
+    const provider = Provider.Info.empty(Provider.ID.make("provider:mismatch"))
+    const model = Model.ID.make("model:mismatch")
+    const modelHealth = {
+      start: async (operationId: string) => {
+        throw new AgentError("CONFLICT", "另一个模型健康测试批次正在进行", 409)
+      },
+      cancel: async () => {
+        throw new AgentError("CONFLICT", "未找到对应的模型健康测试批次", 409)
+      },
+      dispose: async () => undefined,
+    }
+    const { db, call, initialize } = await fixture({
+      providers: {
+        list: async () => [provider],
+        models: async () => [{ providerID: provider.id, id: model, enabled: true }],
+        reload: async () => undefined,
+      } as unknown as RpcRouterDependencies["providers"],
+      modelHealth: modelHealth as unknown as RpcRouterDependencies["modelHealth"],
+    })
+    await initialize()
+
+    const mismatch = await call("provider/test", {
+      providerId: "provider:mismatch",
+      model: { providerID: Provider.ID.make("anthropic"), id: Model.ID.make("claude") },
+    })
+    expect(mismatch.error.data.code).toBe("INVALID_REQUEST")
+
+    const conflict = await call("model/health/start", { operationId: "op:conflict" })
+    expect(conflict.error.data.code).toBe("CONFLICT")
+    const cancelConflict = await call("model/health/cancel", {
+      runId: "op:missing",
+      operationId: "op:missing",
+    })
+    expect(cancelConflict.error.data.code).toBe("CONFLICT")
+    db.close()
+  })
+
+  test("event/subscribe 记录连接已协商的 capabilities，供 live event 门禁使用", async () => {
+    const { db, call, initialize, router } = await fixture()
+    await initialize(["rpc.typed.v1", "events.replay.v1"])
+    const withoutHealth = await call("event/subscribe", {
+      streams: [{ streamId: "global", after: 0 }],
+      liveEventTypes: ["model/health/updated"],
+    })
+    const [connectionId] = router.connections.keys()
+    expect(
+      router.subscriptions.get(withoutHealth.result.subscriptionId, connectionId as string)
+        ?.capabilities.has("model.health.v1"),
+    ).toBe(false)
+    await call("event/unsubscribe", {
+      subscriptionId: withoutHealth.result.subscriptionId,
+    })
+
+    // A connection that negotiates model.health.v1 records it on the subscription.
+    const { call: capCall, db: capDb, initialize: capInitialize, router: capRouter } = await fixture()
+    await capInitialize(["rpc.typed.v1", "events.replay.v1", "model.health.v1"])
+    const subscribed = await capCall("event/subscribe", {
+      streams: [{ streamId: "global", after: 0 }],
+      liveEventTypes: ["model/health/updated"],
+    })
+    const [capConnectionId] = capRouter.connections.keys()
+    expect(
+      capRouter.subscriptions.get(subscribed.result.subscriptionId, capConnectionId as string)
+        ?.capabilities.has("model.health.v1"),
+    ).toBe(true)
+    capDb.close()
+    db.close()
+  })
+
+  test("liveEventDeliveryAllowed 按 capability 与 liveEventTypes 双重门禁", async () => {
+    const { liveEventDeliveryAllowed } = await import("../src/transport/server")
+    const event = {
+      id: 0,
+      afterSequence: 1,
+      threadId: null,
+      turnId: null,
+      method: "model/health/updated",
+      params: { runId: "op:1", status: "running" },
+      createdAt: Date.now(),
+    }
+    const base = { liveEventTypes: null, capabilities: new Set<string>() }
+    // No negotiated capability and no explicit filter: still blocked by capability.
+    expect(liveEventDeliveryAllowed(event, base)).toBe(false)
+    // Capability negotiated but event not explicitly subscribed: still blocked.
+    expect(liveEventDeliveryAllowed(event, {
+      liveEventTypes: new Set(["catalog/updated"]),
+      capabilities: new Set(["model.health.v1"]),
+    })).toBe(false)
+    // Capability negotiated and explicitly subscribed: delivered.
+    expect(liveEventDeliveryAllowed(event, {
+      liveEventTypes: new Set(["model/health/updated"]),
+      capabilities: new Set(["model.health.v1"]),
+    })).toBe(true)
+    // Without liveEventTypes the capability gate alone still applies.
+    expect(liveEventDeliveryAllowed(event, {
+      liveEventTypes: null,
+      capabilities: new Set(["model.health.v1"]),
+    })).toBe(true)
+    // Durable events are not affected by the live gate.
+    expect(liveEventDeliveryAllowed({
+      ...event,
+      method: "thread/updated",
+    }, base)).toBe(false)
   })
 
   test("event subscriptions track high-watermarks, acknowledgements and closure", async () => {

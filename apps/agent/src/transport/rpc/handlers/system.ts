@@ -144,8 +144,15 @@ export const systemHandlers = {
         if (process.env.CODEPILOTX_DESKTOP_MANAGED !== "1") throw new AgentError("SHUTDOWN_DENIED", "仅桌面托管的 Agent 可以通过 RPC 关闭", 403)
         setTimeout(() => process.emit("SIGTERM"), 25)
         return { ok: true, acceptedAt: Date.now() }
-      case "event/subscribe":
-        return runtime.subscriptions.subscribe(runtime.requireConnection(context), params as never)
+      case "event/subscribe": {
+        const connectionId = runtime.requireConnection(context)
+        const connection = runtime.connections.get(connectionId)
+        return runtime.subscriptions.subscribe(
+          connectionId,
+          params as never,
+          connection?.capabilities ?? new Set(),
+        )
+      }
       case "event/ack":
         return runtime.subscriptions.ack(runtime.requireConnection(context), params as never)
       case "event/unsubscribe":

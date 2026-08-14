@@ -264,21 +264,90 @@ export const AuthSessionSchema = Schema.Struct({
   expiresAt: TimestampSchema,
 })
 
-const ProviderTestResultSchema = Schema.Union([
+export const ProviderTestResultSchema = Schema.Union([
   Schema.Struct({
     providerId: Provider.ID,
+    model: Schema.optional(Model.Ref),
     status: Schema.Literal("reachable"),
     testedAt: TimestampSchema,
     latencyMs: NonNegativeIntSchema,
   }),
   Schema.Struct({
     providerId: Provider.ID,
+    model: Schema.optional(Model.Ref),
     status: Schema.Literal("unavailable"),
     testedAt: TimestampSchema,
     category: Schema.Literals(["authentication", "configuration", "network", "rate-limit", "unknown"]),
     message: Schema.String,
   }),
 ])
+
+const ModelHealthFailureCategorySchema = Schema.Literals([
+  "authentication",
+  "configuration",
+  "network",
+  "rate-limit",
+  "timeout",
+  "provider",
+  "unknown",
+])
+
+export const ModelHealthItemSchema = Schema.Union([
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("queued"),
+  }),
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("running"),
+    startedAt: TimestampSchema,
+  }),
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("healthy"),
+    startedAt: TimestampSchema,
+    completedAt: TimestampSchema,
+    latencyMs: NonNegativeIntSchema,
+  }),
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("failed"),
+    startedAt: TimestampSchema,
+    completedAt: TimestampSchema,
+    category: ModelHealthFailureCategorySchema,
+    message: Schema.String,
+  }),
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("cancelled"),
+    completedAt: TimestampSchema,
+  }),
+]).pipe(Schema.toTaggedUnion("status"))
+
+export const ModelHealthExcludedProviderSchema = Schema.Struct({
+  providerId: Provider.ID,
+  reason: Schema.Literals(["provider-disabled", "provider-unconfigured", "no-eligible-models"]),
+  modelCount: NonNegativeIntSchema,
+})
+
+export const ModelHealthCountsSchema = Schema.Struct({
+  total: NonNegativeIntSchema,
+  queued: NonNegativeIntSchema,
+  running: NonNegativeIntSchema,
+  healthy: NonNegativeIntSchema,
+  failed: NonNegativeIntSchema,
+  cancelled: NonNegativeIntSchema,
+})
+
+export const ModelHealthRunSchema = Schema.Struct({
+  runId: OpaqueIDSchema,
+  status: Schema.Literals(["running", "cancelling", "completed", "cancelled"]),
+  startedAt: TimestampSchema,
+  completedAt: Schema.optional(TimestampSchema),
+  counts: ModelHealthCountsSchema,
+  excludedProviders: Schema.Array(ModelHealthExcludedProviderSchema),
+  items: Schema.Array(ModelHealthItemSchema),
+})
 
 const ApiKeyTestResultSchema = Schema.Struct({
   credential: ProviderCredentialSummarySchema,
@@ -470,11 +539,52 @@ export const ExtendedRpcMethods = {
   }),
 
   "provider/test": defineMethod({
-    params: Schema.Struct({ providerId: Provider.ID }),
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      model: Schema.optional(Model.Ref),
+    }),
     result: ProviderTestResultSchema,
-    errors: ["PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    errors: ["PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INVALID_REQUEST", "INTERNAL_ERROR"] as const,
     capability: null,
     mutation: false,
+  }),
+
+  "model/health/preview": defineMethod({
+    params: Schema.Struct({}),
+    result: Schema.Struct({
+      totalRequests: NonNegativeIntSchema,
+      excludedProviders: Schema.Array(ModelHealthExcludedProviderSchema),
+    }),
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.health.v1",
+    mutation: false,
+  }),
+
+  "model/health/start": defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema }),
+    result: Schema.Struct({ run: ModelHealthRunSchema }),
+    errors: ["CONFLICT", "MODEL_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.health.v1",
+    mutation: true,
+  }),
+
+  "model/health/read": defineMethod({
+    params: Schema.Struct({ runId: OpaqueIDSchema }),
+    result: Schema.Struct({ run: Schema.NullOr(ModelHealthRunSchema) }),
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.health.v1",
+    mutation: false,
+  }),
+
+  "model/health/cancel": defineMethod({
+    params: Schema.Struct({
+      runId: OpaqueIDSchema,
+      operationId: OpaqueIDSchema,
+    }),
+    result: Schema.Struct({ run: ModelHealthRunSchema }),
+    errors: ["CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.health.v1",
+    mutation: true,
   }),
 
   "provider/create": defineMethod({

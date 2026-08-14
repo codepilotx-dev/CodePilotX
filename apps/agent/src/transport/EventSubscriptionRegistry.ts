@@ -16,6 +16,8 @@ export type EventSubscription = {
   streams: Map<string, number>
   acknowledged: Map<string, number>
   liveEventTypes: ReadonlySet<string> | null
+  /** Capabilities negotiated by the owning connection at initialize time. */
+  capabilities: ReadonlySet<string>
   createdAt: number
 }
 
@@ -32,7 +34,7 @@ export class EventSubscriptionRegistry {
     private readonly limits = { maxSubscriptions: 16, maxStreamsPerSubscription: 64 },
   ) {}
 
-  subscribe(connectionId: string, params: SubscribeParams) {
+  subscribe(connectionId: string, params: SubscribeParams, capabilities: ReadonlySet<string> = new Set()) {
     const connectionSubscriptions = [...this.subscriptions.values()].filter((subscription) => subscription.connectionId === connectionId).length
     if (connectionSubscriptions >= this.limits.maxSubscriptions) {
       throw new AgentError("SUBSCRIPTION_OVERFLOW", "事件订阅数量已达到上限", 409)
@@ -63,6 +65,7 @@ export class EventSubscriptionRegistry {
       streams,
       acknowledged: new Map(streams),
       liveEventTypes: params.liveEventTypes ? new Set(params.liveEventTypes) : null,
+      capabilities,
       createdAt: Date.now(),
     }
     this.subscriptions.set(id, subscription)

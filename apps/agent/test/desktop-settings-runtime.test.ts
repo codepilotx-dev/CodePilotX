@@ -76,6 +76,22 @@ const createSettingsApp = () => {
 }
 
 describe("桌面侧栏运行时设置", () => {
+  test("首次向导标记写入用户 config.json 的 desktop 节点", async () => {
+    const { app, runtimeSettings, writtenEdits } = createSettingsApp()
+    const response = await app.request("/api/config/desktop-projection", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstUseSetupCompleted: 1 }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(runtimeSettings.get("desktop.runtime-state.v1")).toEqual({})
+    expect(writtenEdits()).toEqual([{
+      keyPath: ["desktop", "firstUseSetupCompleted"],
+      value: 1,
+    }])
+  })
+
   test("手动顺序只写 runtime-state，并与 config.json 投影合并读取", async () => {
     const { app, runtimeSettings, writtenEdits } = createSettingsApp()
     const response = await app.request("/api/config/desktop-projection", {

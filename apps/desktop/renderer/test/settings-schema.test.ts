@@ -25,6 +25,24 @@ describe("工作空间依赖项迁移", () => {
   })
 })
 
+describe("首次模型配置向导", () => {
+  test("只保留数值 0 和 1，并让缺失或无效值继续走旧用户迁移", () => {
+    expect(defaultDesktopStoredSettings().firstUseSetupCompleted).toBeUndefined()
+    expect(normalizeDesktopStoredSettings({
+      firstUseSetupCompleted: 0,
+    }).firstUseSetupCompleted).toBe(0)
+    expect(normalizeDesktopStoredSettings({
+      firstUseSetupCompleted: 1,
+    }).firstUseSetupCompleted).toBe(1)
+
+    for (const value of [true, false, "0", "1", 2, -1]) {
+      expect(normalizeDesktopStoredSettings({
+        firstUseSetupCompleted: value as never,
+      }).firstUseSetupCompleted).toBeUndefined()
+    }
+  })
+})
+
 describe("语音输入设备设置", () => {
   test("默认跟随系统设备并保留有效设备 ID", () => {
     expect(

@@ -1,9 +1,11 @@
 import type React from 'react'
+import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button.js'
 import type { ProviderManagementSnapshot } from '../../provider-management/types.js'
 import { providerManagementStore } from '../../provider-management/providerManagementStore.js'
 import { useProviderManagementSnapshot } from '../../provider-management/useProviderManagementSnapshot.js'
+import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 
 export type ModelSetupGateDecision =
   | 'loading'
@@ -16,15 +18,41 @@ export function resolveModelSetupGate(
     ProviderManagementSnapshot,
     'loaded' | 'configurationError' | 'currentProviderState'
   >,
+  settings: {
+    settingsLoaded: boolean
+    firstUseSetupCompleted: 0 | 1 | undefined
+  },
 ): ModelSetupGateDecision {
-  if (!snapshot.loaded) return 'loading'
+  if (!snapshot.loaded || !settings.settingsLoaded) return 'loading'
   if (snapshot.configurationError || !snapshot.currentProviderState) return 'recovery'
+  if (settings.firstUseSetupCompleted === 0) return 'setup'
+  if (settings.firstUseSetupCompleted === 1) return 'workbench'
   return snapshot.currentProviderState.modelConfigured ? 'workbench' : 'setup'
 }
 
 export function RequireConfiguredModel(): React.ReactNode {
   const snapshot = useProviderManagementSnapshot()
-  const decision = resolveModelSetupGate(snapshot)
+  const settings = useDesktopSettings()
+  const decision = resolveModelSetupGate(snapshot, settings)
+
+  useEffect(() => {
+    if (
+      !settings.settingsLoaded
+      || !snapshot.loaded
+      || snapshot.configurationError
+      || !snapshot.currentProviderState
+      || settings.firstUseSetupCompleted !== undefined
+    ) return
+    const inferred = snapshot.currentProviderState.modelConfigured ? 1 : 0
+    void settings.saveFirstUseSetupCompleted(inferred).catch(() => undefined)
+  }, [
+    settings.firstUseSetupCompleted,
+    settings.saveFirstUseSetupCompleted,
+    settings.settingsLoaded,
+    snapshot.configurationError,
+    snapshot.currentProviderState,
+    snapshot.loaded,
+  ])
 
   if (decision === 'loading') {
     return <SetupBootState />

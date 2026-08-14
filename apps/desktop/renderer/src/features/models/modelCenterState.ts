@@ -6,8 +6,12 @@ import type {
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
 
-export const MODEL_CENTER_VIEWS = ['providers', 'keys'] as const
+export const MODEL_CENTER_VIEWS = ['providers', 'keys', 'health'] as const
 export type ModelCenterView = (typeof MODEL_CENTER_VIEWS)[number]
+
+export type ModelCenterCapabilityGate = {
+  supportsModelHealth: boolean
+}
 
 export const MODEL_CENTER_PROVIDER_SECTIONS = ['connection', 'models', 'router'] as const
 export type ModelCenterProviderSection = (typeof MODEL_CENTER_PROVIDER_SECTIONS)[number]
@@ -70,12 +74,19 @@ export function parseModelCenterSearchParams(
   params: URLSearchParams,
   allowedProviderIds: readonly string[],
   _fallbackProviderId?: string | null,
+  capabilities: ModelCenterCapabilityGate = { supportsModelHealth: true },
 ): ModelCenterRouteState {
   const allowed = new Set(allowedProviderIds)
   const requestedProvider = params.get('provider')
+  const requestedView = params.get('view')
+  const resolvedView = !capabilities.supportsModelHealth && requestedView === 'health'
+    ? 'providers'
+    : requestedView
 
   return {
-    view: isModelCenterView(params.get('view')) ? params.get('view') as ModelCenterView : 'providers',
+    view: resolvedView === 'providers' || resolvedView === 'keys' || resolvedView === 'health'
+      ? resolvedView as ModelCenterView
+      : 'providers',
     providerId: requestedProvider && allowed.has(requestedProvider) ? requestedProvider : null,
     section: isProviderSection(params.get('section'))
       ? params.get('section') as ModelCenterProviderSection

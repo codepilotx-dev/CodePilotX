@@ -63,6 +63,24 @@ describe('model center URL state', () => {
       .toBeNull()
   })
 
+  test('parses the health view when the agent supports model.health.v1', () => {
+    expect(parseModelCenterSearchParams(
+      new URLSearchParams('view=health'),
+      ['openai', 'anthropic'],
+      'openai',
+      { supportsModelHealth: true },
+    )).toEqual({ view: 'health', providerId: null, section: 'connection' })
+  })
+
+  test('falls back to providers for a health URL when the capability is missing', () => {
+    expect(parseModelCenterSearchParams(
+      new URLSearchParams('view=health'),
+      ['openai'],
+      'openai',
+      { supportsModelHealth: false },
+    )).toEqual({ view: 'providers', providerId: null, section: 'connection' })
+  })
+
   test('updates model-center params without mutating unrelated params', () => {
     const current = new URLSearchParams('debug=1&view=providers&section=connection')
     const next = updateModelCenterSearchParams(current, {

@@ -4,6 +4,11 @@ import { Schema } from "effect"
 import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from "../src/methods/index"
 import { AllRpcMethods } from "../src/methods/host"
 import { Capabilities, ProtocolCapabilitySchema } from "../src/runtime/capabilities"
+import {
+  ModelHealthItemSchema,
+  ModelHealthRunSchema,
+} from "../src/methods/extended"
+import { EventManifest } from "../src/wire/events"
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)("provider:test")
 const modelId = Schema.decodeUnknownSync(Model.ID)("model:test")
@@ -1340,12 +1345,77 @@ const fixtures = {
     model: modelRef,
     operationId: "operation:model-reviewer",
   }, { reviewerModel: modelRef, settingsVersion: 2 }),
-  "provider/test": methodFixture("provider/test", { providerId }, {
+  "provider/test": methodFixture("provider/test", { providerId, model: modelRef }, {
     providerId,
+    model: modelRef,
     status: "reachable",
     testedAt: 1,
     latencyMs: 12,
   }),
+  "model/health/preview": methodFixture("model/health/preview", {}, {
+    totalRequests: 1,
+    excludedProviders: [{
+      providerId,
+      reason: "no-eligible-models",
+      modelCount: 0,
+    }],
+  }),
+  "model/health/start": methodFixture("model/health/start", {
+    operationId: "operation:model-health",
+  }, { run: {
+    runId: "operation:model-health",
+    status: "completed" as const,
+    startedAt: 1,
+    completedAt: 2,
+    counts: {
+      total: 1, queued: 0, running: 0, healthy: 1, failed: 0, cancelled: 0,
+    },
+    excludedProviders: [],
+    items: [{
+      model: modelRef,
+      status: "healthy" as const,
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: 12,
+    }],
+  } }),
+  "model/health/read": methodFixture("model/health/read", {
+    runId: "operation:model-health",
+  }, { run: {
+    runId: "operation:model-health",
+    status: "completed" as const,
+    startedAt: 1,
+    completedAt: 2,
+    counts: {
+      total: 1, queued: 0, running: 0, healthy: 1, failed: 0, cancelled: 0,
+    },
+    excludedProviders: [],
+    items: [{
+      model: modelRef,
+      status: "healthy" as const,
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: 12,
+    }],
+  } }),
+  "model/health/cancel": methodFixture("model/health/cancel", {
+    runId: "operation:model-health",
+    operationId: "operation:model-health-cancel",
+  }, { run: {
+    runId: "operation:model-health",
+    status: "cancelled" as const,
+    startedAt: 1,
+    completedAt: 2,
+    counts: {
+      total: 1, queued: 0, running: 0, healthy: 0, failed: 0, cancelled: 1,
+    },
+    excludedProviders: [],
+    items: [{
+      model: modelRef,
+      status: "cancelled" as const,
+      completedAt: 2,
+    }],
+  } }),
   "provider/create": methodFixture("provider/create", {
     definition: customProviderDefinition,
     operationId: "operation:provider-create",
@@ -2435,7 +2505,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(199)
+    expect(methods).toHaveLength(203)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2703,7 +2773,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(193)
+    expect(Object.keys(RpcMethods)).toHaveLength(197)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
@@ -2868,6 +2938,124 @@ describe("RPC method schema contracts", () => {
     expect(() => decode({
       ...fixtures["task-suggestion/generate"].params,
       surface: "chat",
+    })).toThrow()
+  })
+
+  test("declares model health capability and gates the new RPC methods", () => {
+    expect(Capabilities).toContain("model.health.v1")
+    const capability = Schema.decodeUnknownSync(
+      ProtocolCapabilitySchema,
+    )("model.health.v1")
+    expect(Schema.encodeSync(ProtocolCapabilitySchema)(capability)).toBe("model.health.v1")
+    for (const method of ["model/health/preview", "model/health/start", "model/health/read", "model/health/cancel"] as const) {
+      expect(RpcMethods[method].capability).toBe("model.health.v1")
+    }
+  })
+
+  test("health run schema rejects invalid states, negative latency, and unknown categories", () => {
+    const decodeItem = Schema.decodeUnknownSync(ModelHealthItemSchema)
+    expect(decodeItem({
+      model: modelRef,
+      status: "queued",
+    })).toEqual({ model: modelRef, status: "queued" })
+    expect(decodeItem({
+      model: modelRef,
+      status: "healthy",
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: 12,
+    }).status).toBe("healthy")
+    expect(() => decodeItem({
+      model: modelRef,
+      status: "unknown-state",
+    })).toThrow()
+    expect(() => decodeItem({
+      model: modelRef,
+      status: "healthy",
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: -1,
+    })).toThrow()
+    expect(() => decodeItem({
+      model: modelRef,
+      status: "failed",
+      startedAt: 1,
+      completedAt: 2,
+      category: "definitely-not-a-category",
+      message: "x",
+    })).toThrow()
+    const decodeRun = Schema.decodeUnknownSync(ModelHealthRunSchema)
+    expect(() => decodeRun({
+      ...fixtures["model/health/start"].result.run,
+      status: "bogus",
+    })).toThrow()
+  })
+
+  test("provider/test accepts an optional explicit model and requires match on reachable", () => {
+    const decodeParams = Schema.decodeUnknownSync(RpcMethods["provider/test"].params)
+    const withoutModel = decodeParams({ providerId })
+    expect(withoutModel.model).toBeUndefined()
+    const withModel = decodeParams({ providerId, model: modelRef })
+    expect(withModel.model).toEqual(modelRef)
+
+    const decodeResult = Schema.decodeUnknownSync(RpcMethods["provider/test"].result)
+    const reachable = decodeResult({
+      ...fixtures["provider/test"].result,
+      status: "reachable",
+    })
+    expect(reachable.model).toEqual(modelRef)
+    // The legacy method keeps the old category set: internal timeout/provider
+    // classifications are mapped to `unknown` before reaching this schema.
+    const failed = decodeResult({
+      providerId,
+      status: "unavailable",
+      testedAt: 1,
+      category: "unknown",
+      message: "请求在 15 秒内未完成",
+    })
+    if (failed.status !== "unavailable") throw new Error("expected unavailable")
+    expect(failed.category).toBe("unknown")
+    expect(() => decodeResult({
+      providerId,
+      status: "unavailable",
+      testedAt: 1,
+      category: "timeout",
+      message: "x",
+    })).toThrow()
+    expect(() => decodeResult({
+      ...fixtures["provider/test"].result,
+      status: "unreachable",
+    })).toThrow()
+  })
+
+  test("model/health/updated is a live global event reconciling with read", () => {
+    expect(EventManifest["model/health/updated"]).toMatchObject({
+      version: 1,
+      durability: "live",
+      stream: "global",
+      capability: "model.health.v1",
+      reconcilesWith: "model/health/read",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["model/health/updated"].payload,
+      { onExcessProperty: "error" },
+    )
+    const payload = {
+      runId: "operation:model-health",
+      status: "running" as const,
+      counts: {
+        total: 1,
+        queued: 0,
+        running: 1,
+        healthy: 0,
+        failed: 0,
+        cancelled: 0,
+      },
+    }
+    expect(decode(payload)).toEqual(payload)
+    expect(() => decode({
+      ...payload,
+      latencyMs: 12,
     })).toThrow()
   })
 })

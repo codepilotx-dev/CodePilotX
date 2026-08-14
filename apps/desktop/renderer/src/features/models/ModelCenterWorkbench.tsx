@@ -6,6 +6,7 @@ import type {
   DesktopModelMetadata,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
+  DesktopModelRef,
   ModelProviderID,
 } from '../../../shared/types.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
@@ -16,6 +17,7 @@ import {
   Brain,
   Braces,
   Cable,
+  CircleStop,
   Eye,
   Hammer,
   Pencil,
@@ -47,6 +49,8 @@ import {
   updateModelCenterSearchParams,
 } from './modelCenterState.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
+import { ModelHealthWorkspace } from './health/ModelHealthWorkspace.js'
+import { useModelHealthController } from './health/useModelHealthController.js'
 import { ProviderConnectionDialog } from './provider-management/ProviderConnectionDialog.js'
 import { ProviderEditorDialog } from './provider-management/ProviderEditorDialog.js'
 import type { ApiKeyEditorValue } from './ApiKeyEditorDialog.js'
@@ -121,6 +125,7 @@ export function ModelCenterWorkbench({
     providerState,
     apiKeys,
     snapshot,
+    supportsModelHealth,
     setProviderState,
   } = controller
   const configuredGroups = useMemo(
@@ -151,11 +156,19 @@ export function ModelCenterWorkbench({
       searchParams,
       providers.map(provider => provider.providerID),
       providerID,
+      { supportsModelHealth: supportsModelHealth ?? false },
     ),
-    [providerID, providers, searchParams],
+    [providerID, providers, searchParams, supportsModelHealth],
   )
   const workspaceView = routeState.view
+  // The health controller cancels an accepted batch when this view is hidden;
+  // `active` tracks whether the health workspace is currently rendered.
+  const health = useModelHealthController(workspaceView === 'health')
   const providerSection = routeState.section
+  // Leaving the health view keeps completed results but cancels a running
+  // batch; the controller owns that lifecycle through its `active` flag.
+  const healthRunActive = health.state.run !== null
+    && (health.state.run.status === 'running' || health.state.run.status === 'cancelling')
   const selectedProvider = useMemo(
     () => providers.find(provider => provider.providerID === providerID),
     [providerID, providers],
@@ -251,9 +264,22 @@ export function ModelCenterWorkbench({
     }
   }, [providerID, providers, routeState.providerId])
 
+  // Old agents without model.health.v1 never show the health tab; a direct
+  // ?view=health URL is rewritten back to the provider catalog.
+  useEffect(() => {
+    if (
+      supportsModelHealth === false
+      && searchParams.get('view') === 'health'
+    ) {
+      updateLocation({ view: 'providers', provider: null, section: null }, true)
+    }
+    // updateLocation is stable per render; the URL fallback only reacts to capability resolution.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supportsModelHealth])
+
   function updateLocation(
     patch: {
-      view?: 'providers' | 'keys'
+      view?: 'providers' | 'keys' | 'health'
       provider?: string | null
       section?: 'connection' | 'models' | 'router' | null
     },
@@ -383,18 +409,23 @@ export function ModelCenterWorkbench({
     setModelError(null)
     setStatus('正在测试连接...')
     try {
-      const testResult = await desktopClient.testModelProvider(providerID)
-      const errors = [
-        testResult.ok ? null : testResult.message ?? '连接测试失败。',
-      ].filter(
-        (item): item is string => Boolean(item),
-      )
-      setModelError(errors.length > 0 ? errors.join('；') : null)
-      setStatus(
-        errors.length > 0
-          ? null
-          : testResult.message ?? '连接正常。',
-      )
+      const testRef: DesktopModelRef | undefined = model
+        ? {
+            providerID,
+            id: model,
+            ...(variant ? { variant } : {}),
+          } as DesktopModelRef
+        : undefined
+      const testResult = await desktopClient.testModelProvider(providerID, testRef)
+      if (testResult.status === 'reachable') {
+        setModelError(null)
+        setStatus(
+          `“${model || providerID}”连接正常（${testResult.latencyMs} ms）。`,
+        )
+      } else {
+        setModelError(testResult.message ?? '连接测试失败。')
+        setStatus(null)
+      }
     } catch (error) {
       showOperationError(error)
     } finally {
@@ -475,16 +506,20 @@ const nextState = await desktopClient.saveModelProvider({
   }
 
   const showingProviderDetail = workspaceView === 'providers' && routeState.providerId !== null
-  const pageTitle = workspaceView === 'keys'
-    ? '账户连接'
-    : showingProviderDetail
-      ? selectedProvider?.displayName ?? providerID
-      : '供应商'
-  const pageDescription = workspaceView === 'keys'
-    ? '按供应商统一管理推理 Key、OAuth、订阅与独立账务凭据。'
-    : showingProviderDetail
-      ? providerDescription(selectedProvider)
-      : '浏览 Pi 供应商目录，配置自定义 Endpoint、模型与 Router。'
+  const pageTitle = workspaceView === 'health'
+    ? '模型测试'
+    : workspaceView === 'keys'
+      ? '账户连接'
+      : showingProviderDetail
+        ? selectedProvider?.displayName ?? providerID
+        : '供应商'
+  const pageDescription = workspaceView === 'health'
+    ? '对全部已启用且已配置凭据的模型执行最小文本请求，实时查看延迟与安全失败分类；结果只保留在当前页面。'
+    : workspaceView === 'keys'
+      ? '按供应商统一管理推理 Key、OAuth、订阅与独立账务凭据。'
+      : showingProviderDetail
+        ? providerDescription(selectedProvider)
+        : '浏览 Pi 供应商目录，配置自定义 Endpoint、模型与 Router。'
   const connectionDialogProvider = connectionDialogProviderId
     ? providers.find(provider => provider.providerID === connectionDialogProviderId) ?? null
     : null
@@ -510,10 +545,10 @@ const nextState = await desktopClient.saveModelProvider({
         order={0}
         slot="left"
       >
-        <SegmentedControl<'providers' | 'keys'>
-          ariaLabel="供应商与账户连接工作区"
+        <SegmentedControl<'providers' | 'keys' | 'health'>
+          ariaLabel="模型中心工作区"
           className="model-center-workspace-tabs"
-          onChange={view => updateLocation({ view })}
+          onChange={view => updateLocation({ view, provider: null, section: null })}
           overflowMode="fit"
             options={[
             { value: 'providers', label: '供应商' },
@@ -521,6 +556,9 @@ const nextState = await desktopClient.saveModelProvider({
               value: 'keys',
               label: <>账户连接 <span>{configuredGroups.length}</span></>,
             },
+            ...(supportsModelHealth === true
+              ? [{ value: 'health' as const, label: '模型测试' }]
+              : []),
           ]}
           semantics="tabs"
           value={workspaceView}
@@ -533,6 +571,29 @@ const nextState = await desktopClient.saveModelProvider({
         slot="right"
       >
         <div className="model-center-header-actions">
+          {!showInitialSkeleton && workspaceView === 'health' && supportsModelHealth === true ? (
+            <Button
+              color="primary"
+              disabled={health.busy}
+              onClick={() => {
+                if (healthRunActive) void health.cancelRun()
+                else void health.requestStart()
+              }}
+            >
+              {healthRunActive ? (
+                <CircleStop aria-hidden />
+              ) : (
+                <RefreshCw aria-hidden />
+              )}
+              <span className="model-center-header-action-label">
+                {healthRunActive
+                  ? '停止测试'
+                  : health.state.run
+                    ? '重新测试全部'
+                    : '测试全部模型'}
+              </span>
+            </Button>
+          ) : null}
           {!showInitialSkeleton && workspaceView === 'providers' && !showingProviderDetail ? (
             <Button color="primary"
               onClick={() => {
@@ -624,6 +685,8 @@ const nextState = await desktopClient.saveModelProvider({
               ? 'detail'
               : 'catalog'}
         />
+      ) : workspaceView === 'health' ? (
+        <ModelHealthWorkspace controller={health} />
       ) : workspaceView === 'providers' ? (
         showingProviderDetail ? (
           <ProviderDetail

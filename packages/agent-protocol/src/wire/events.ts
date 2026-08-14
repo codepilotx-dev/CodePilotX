@@ -24,7 +24,7 @@ import {
 import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./primitives"
 import { ToolingStatusSchema } from "../methods/tooling"
 import { UsageSourceIdSchema } from "../methods/usage"
-import { AuthSessionSchema } from "../methods/extended"
+import { AuthSessionSchema, ModelHealthCountsSchema, ModelHealthItemSchema } from "../methods/extended"
 import { SpeechStatusSchema } from "../methods/speech"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
@@ -506,6 +506,20 @@ export const EventManifest = {
     stream: "global",
     capability: "events.live.v1",
     reconcilesWith: "usage/source/list",
+  }),
+  "model/health/updated": defineEvent({
+    payload: Schema.Struct({
+      runId: OpaqueIDSchema,
+      status: Schema.Literals(["running", "cancelling", "completed", "cancelled"]),
+      counts: ModelHealthCountsSchema,
+      changed: Schema.optional(ModelHealthItemSchema),
+      completedAt: Schema.optional(TimestampSchema),
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "model.health.v1",
+    reconcilesWith: "model/health/read",
   }),
 } as const
 
