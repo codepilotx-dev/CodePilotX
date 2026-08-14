@@ -144,6 +144,28 @@ export const rendererBudgets: readonly PerformanceBudget[] = [
   { scenario: 'composer-input', metric: 'relativeDegradationPercent', max: 10 },
   { scenario: 'sidebar-dnd', metric: 'moveMs', max: 80 },
   { scenario: 'sidebar-dnd', metric: 'dropReadyMs', max: 250 },
+  {
+    scenario: 'editor-file-tree-toggle',
+    metric: 'frameP95Ms',
+    max: 20,
+  },
+  {
+    scenario: 'editor-file-tree-toggle',
+    metric: 'maxLongTaskMs',
+    max: 50,
+  },
+  {
+    scenario: 'nested-scroll-edge-fade',
+    metric: 'frameP95Ms',
+    max: 20,
+  },
+  {
+    scenario: 'nested-scroll-edge-fade',
+    metric: 'maxLongTaskMs',
+    max: 50,
+  },
+  { scenario: 'skeleton-shimmer', metric: 'frameP95Ms', max: 20 },
+  { scenario: 'skeleton-shimmer', metric: 'maxLongTaskMs', max: 50 },
   { scenario: 'memory-stability', metric: 'heapRegressionScore', max: 0 },
 ] as const
 

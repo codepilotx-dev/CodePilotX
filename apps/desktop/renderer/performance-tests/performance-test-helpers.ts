@@ -123,9 +123,21 @@ export async function stopInteractionProbe(
   })
 }
 
-export async function waitForFixture(page: Page, turns: number, sessions: number) {
+export async function waitForFixture(
+  page: Page,
+  turns: number,
+  sessions: number,
+  options: { nestedScroll?: boolean } = {},
+) {
+  const search = new URLSearchParams({
+    performanceCase: options.nestedScroll
+      ? 'nested-scroll-edge-fade'
+      : 'desktop-ux',
+    performanceSessions: String(sessions),
+    performanceTurns: String(turns),
+  })
   await page.goto(
-    `/?performanceCase=desktop-ux&performanceTurns=${turns}&performanceSessions=${sessions}#/threads/performance-session-001`,
+    `/?${search.toString()}#/threads/performance-session-001`,
   )
   await waitForPerformanceThread(page, 1, turns)
   await page.evaluate(async () => {

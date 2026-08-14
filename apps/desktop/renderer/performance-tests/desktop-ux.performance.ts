@@ -297,6 +297,129 @@ test.describe('desktop UX performance', () => {
       })
     }
   })
+
+  test('editor file tree toggle commits width once and FLIPs', async ({
+    page,
+  }) => {
+    await waitForFixture(page, 250, 30)
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightPanel = page.getByRole('complementary', {
+      name: '右侧面板',
+    })
+    await rightPanel.getByRole('button', { name: '文件 Ctrl+P' }).click()
+    await rightPanel.getByText('README.md', { exact: true }).click()
+    const showTree = rightPanel.getByRole('button', { name: '显示文件树' })
+    await expect(showTree).toBeVisible()
+    await showTree.click()
+    const hideTree = rightPanel.getByRole('button', { name: '隐藏文件树' })
+    await expect(hideTree).toBeVisible()
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await settlePage(page)
+      await startInteractionProbe(page)
+      await hideTree.click()
+      await showTree.waitFor()
+      const interaction = await stopInteractionProbe(page)
+      await recordRendererSample(page, 'editor-file-tree-toggle', sample, {
+        ...interaction,
+      })
+      await showTree.click()
+      await hideTree.waitFor()
+    }
+  })
+
+  test('nested process list scrolling keeps edge fades frame-cheap', async ({
+    page,
+  }) => {
+    // 这里只测嵌套 scroller；使用小型外层会话避免虚拟列表把目标 turn
+    // 卸载后将外层 timeline 成本混入样本。
+    await waitForFixture(page, 10, 30, { nestedScroll: true })
+    const activitySummary = page.locator(
+      '.canonical-turn-activity__summary',
+    ).last()
+    await expect(activitySummary).toBeVisible()
+    if (await activitySummary.getAttribute('aria-expanded') === 'false') {
+      await activitySummary.click()
+    }
+    const processSummary = page.locator(
+      '.canonical-process-group__summary',
+    )
+    await expect(processSummary.first()).toBeVisible()
+    await processSummary.first().click()
+    const processItems = page.locator('.canonical-process-group__items')
+    await expect(processItems.first()).toBeVisible()
+    await expect(
+      processItems
+        .first()
+        .locator('.canonical-process-group__items-content > *'),
+    ).toHaveCount(12)
+    const edgeFrame = page.locator('.canonical-process-edge-fade').first()
+    await expect(edgeFrame).toHaveAttribute('data-scrollable', 'true')
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await startInteractionProbe(page)
+      await scrollNestedTimeline(processItems.first())
+      const interaction = await stopInteractionProbe(page)
+      await recordRendererSample(page, 'nested-scroll-edge-fade', sample, {
+        ...interaction,
+      })
+    }
+  })
+
+  test('skeleton shimmer stays on the compositor path', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await waitForFixture(page, 10, 30)
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-reduce-motion',
+      'off',
+    )
+    await page.evaluate(() => {
+      const block = document.createElement('div')
+      block.className = 'ui-skeleton-block'
+      block.style.cssText = 'position: fixed; inset: 0;'
+      document.body.appendChild(block)
+    })
+    const shimmer = await page.evaluate(() => {
+      const block = document.querySelector<HTMLElement>('.ui-skeleton-block')
+      if (!block) throw new Error('Skeleton performance fixture was not mounted')
+      const style = getComputedStyle(block, '::after')
+      return {
+        animationDuration: style.animationDuration,
+        animationName: style.animationName,
+        loadingToken: getComputedStyle(block)
+          .getPropertyValue('--motion-loading')
+          .trim(),
+      }
+    })
+    expect(shimmer).toEqual({
+      animationDuration: '0.9s',
+      animationName: 'ui-skeleton-sweep',
+      loadingToken: '900ms',
+    })
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await startInteractionProbe(page)
+      await page.evaluate(
+        () =>
+          new Promise<void>(resolve => {
+            let frames = 0
+            const tick = (): void => {
+              if (frames >= 48) {
+                resolve()
+              } else {
+                frames += 1
+                requestAnimationFrame(tick)
+              }
+            }
+            requestAnimationFrame(tick)
+          }),
+      )
+      const interaction = await stopInteractionProbe(page)
+      await recordRendererSample(page, 'skeleton-shimmer', sample, {
+        ...interaction,
+      })
+    }
+  })
 })
 
 async function measureComposerInput(
@@ -491,6 +614,23 @@ async function scrollTimeline(
     for (let step = 0; step < 100; step += 1) {
       element.scrollTop =
         (step / 99) * Math.max(0, element.scrollHeight - element.clientHeight)
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    }
+  })
+}
+
+async function scrollNestedTimeline(
+  scrollArea: import('@playwright/test').Locator,
+): Promise<void> {
+  await scrollArea.evaluate(async element => {
+    const maxScroll = Math.max(
+      0,
+      element.scrollHeight - element.clientHeight,
+    )
+    for (let step = 0; step < 100; step += 1) {
+      // 顶部 → 底部 → 顶部，完整覆盖两个边缘的渐隐状态切换。
+      const progress = step < 50 ? step / 49 : 2 - step / 49
+      element.scrollTop = progress * maxScroll
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
     }
   })
