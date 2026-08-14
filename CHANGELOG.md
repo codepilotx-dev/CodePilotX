@@ -19,6 +19,10 @@
 
 ### Changed
 
+- [desktop/renderer] 将右栏自动收起改为按整窗 960px 阈值计算并保留 24px 恢复回差，默认宽度改用按主区宽度与工作区高度的动态公式；工作区标题栏不再固定 94% 模糊背景与下边框，仅在会话滚动内容下显示 0.5px 分割线，窄窗口标题始终可见并截断。
+- [desktop/renderer] 按 Codex 证据恢复设置卡片与按钮的主次层级：SettingsSection 默认卡片表面（16px 圆角、fog 背景、inset hairline），移除设置行固定 64px 高度，primary 恢复前景实底反色文字、secondary 使用 5% 弱背景，并新增 canonical pressed token。
+- [desktop/renderer] 补齐 Windows 桌面菜单键盘行为：Alt/F10 聚焦菜单栏、Escape 关闭并恢复焦点、左右键切换菜单、Alt+F/E/V/W/H mnemonic 直接打开对应菜单。
+- [desktop/renderer] 首页建议保留 0.5px ring 并恢复极弱阴影，移除按压位移。
 - [desktop/renderer] 收敛 `/new` 三种首屏依赖：codex-light/codex-dark 主题 token、Browser Mock、Mock 历史投影及未打开的确认框改为按需加载，Electron typed bridge 首屏不再解析冷分支；visual/performance fixture 显式预置 Mock 模型，继续绕过真实 Agent 完成浏览器回归。
 - [desktop/renderer] 以 Codex 式应用栏与工作区工具栏层级、克制表面和首次模型配置向导统一桌面视觉，并在进入工作台前确保存在可用默认模型。
 - [desktop/renderer] 将会话顶栏的环境 Actions 与任务 Handoff 迁入命令菜单，恢复标题菜单“继续到…”的对话派生语义，并收紧 Codex 式标题图标与尾部工具按钮间距。
@@ -48,6 +52,9 @@
 
 ### Fixed
 
+- [Agent/desktop/renderer] 修复只保存 API Key、未显式选择默认模型时，Agent 目录 fallback 被伪装成已配置模型、刷新或重启后绕过首次配置门禁的问题；`model/list.defaultModel` 现在只返回显式配置且当前可用的默认模型（含 variant）。
+- [desktop/renderer] 修复 Provider 目录或模型状态刷新失败时旧 `modelConfigured` 状态继续放行工作台的问题，配置读取失败统一进入安全恢复态；凭据新增、更新、启停、切换、删除与 `catalog/updated` 事件合并为一次配置刷新，避免重复请求与后返回覆盖新状态。
+- [desktop/renderer] 移除不生效的 `fetchProviderModels`/`saveModelProvider` Base URL 死参数与模型中心的不可达内联 Base URL 分支，自定义供应商 Base URL 只通过 ProviderEditor 保存并统一刷新目录。
 - [Agent/desktop] 修复 Windows PowerShell ZIP 安全扫描未正确接收归档与解压路径，导致本地语音模型及托管 ZIP 工具下载后持续报安全校验失败的问题。
 - [desktop/renderer] 修复右栏拖拽时工作区 Header、主视口、面板外壳与内容使用不同宽度源造成的错位、空白和松手跳变，并保持主会话当前阅读位置稳定。
 - [desktop/renderer] 减少 Review 文件预览和变更树的重复边界，并修复浅色主题下“再显示 N 个文件”文字不可见。
