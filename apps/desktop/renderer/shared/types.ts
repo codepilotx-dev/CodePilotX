@@ -803,7 +803,6 @@ export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
   id?: string
   variant?: string
-  baseURL?: string
 }
 
 export type DesktopProviderDefinition = RpcParams<'provider/update'>['definition']
@@ -1740,7 +1739,6 @@ export type DesktopApi = {
   fetchProviderModels(options: {
     providerID: ModelProviderID
     apiKey?: string
-    baseURL?: string
     query?: string
     cursor?: string
     limit?: number

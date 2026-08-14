@@ -535,7 +535,6 @@ export function createBrowserMockDesktopClient(
         ...settings,
         providerID: options.providerID,
         model: options.id ?? settings.model,
-        providerBaseURL: options.baseURL ?? settings.providerBaseURL,
       }
       return providerState()
     },

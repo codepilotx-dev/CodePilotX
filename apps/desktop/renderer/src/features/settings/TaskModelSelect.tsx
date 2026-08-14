@@ -140,8 +140,6 @@ export function TaskModelSelect({
           const result = await withModelCatalogLoading(() =>
             desktopClient.fetchProviderModels({
               providerID: provider.providerID as ModelProviderID,
-              apiKey: undefined,
-              baseURL: provider.baseURL,
             }),
           )
           if (cancelled) return

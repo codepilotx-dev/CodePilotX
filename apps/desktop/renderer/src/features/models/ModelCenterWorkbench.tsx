@@ -56,14 +56,6 @@ import {
   type ConfiguredProviderGroup,
 } from '../provider-management/index.js'
 
-const BUILT_IN_PROVIDER_IDS = new Set([
-  'openai',
-  'openrouter',
-  'deepseek',
-  'minimax',
-  'groq',
-])
-
 const NO_MODEL_OPTION = '__no_models_available__'
 
 type Props = {
@@ -73,9 +65,8 @@ type Props = {
 
 export function getProviderSelectionState(
   provider: DesktopModelProviderSummary | undefined,
-): { baseURL: string; model: string } {
+): { model: string } {
   return {
-    baseURL: provider?.baseURL ?? '',
     model: provider?.defaultModels[0] ?? '',
   }
 }
@@ -84,18 +75,13 @@ export function getProviderConnectionState({
   provider,
   model,
   providerModels,
-  baseURL,
-  baseURLEditable,
 }: {
   provider: DesktopModelProviderSummary | undefined
   model: string
   providerModels: string[]
-  baseURL: string
-  baseURLEditable: boolean
-}): { baseURL: string; model: string } {
+}): { model: string } {
   const defaultSelection = getProviderSelectionState(provider)
   return {
-    baseURL: baseURLEditable ? baseURL : defaultSelection.baseURL,
     model: providerModels.includes(model) ? model : defaultSelection.model,
   }
 }
@@ -111,7 +97,6 @@ export function ModelCenterWorkbench({
     settings.providerID,
   )
   const [modelQuery, setModelQuery] = useState('')
-  const [baseURL, setBaseURL] = useState(settings.providerBaseURL)
   const [model, setModel] = useState(settings.model)
   const [variant, setVariant] = useState('')
   const [modelError, setModelError] = useState<string | null>(null)
@@ -189,8 +174,6 @@ export function ModelCenterWorkbench({
     if (!providerModels.includes(model)) return model
     return null
   }, [model, providerModels])
-  const requiresBaseURL = Boolean(selectedProvider?.requiresBaseURL)
-  const baseURLEditable = requiresBaseURL
   const providerApiKeys = useMemo(
     () => apiKeys
       .filter(key => key.providerId === providerID)
@@ -251,7 +234,6 @@ export function ModelCenterWorkbench({
   useEffect(() => {
     if (providerID === providerState?.selectedProviderID) return
     const nextSelection = getProviderSelectionState(selectedProvider)
-    setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
     setVariant('')
     setModelQuery('')
@@ -302,7 +284,6 @@ export function ModelCenterWorkbench({
   ): void {
     const nextSelection = getProviderSelectionState(nextProvider)
     setProviderID(nextProviderID)
-    setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
     setVariant('')
     setModelQuery('')
@@ -330,7 +311,6 @@ export function ModelCenterWorkbench({
       ''
     setProviderState(nextState)
     setProviderID(nextState.selectedProviderID)
-    setBaseURL(nextState.baseURL ?? '')
     setModel(nextModel)
     setVariant(nextState.variant ?? '')
     if (options.persistEffectiveSettings) {
@@ -366,7 +346,6 @@ export function ModelCenterWorkbench({
         selectedProviderID: providerID,
         provider: selectedProvider,
         model,
-        baseURL,
         apiKeyConfigured: false,
         apiKeySource: null,
         modelConfigured: false,
@@ -387,7 +366,6 @@ export function ModelCenterWorkbench({
       const result = await withModelCatalogLoading(() =>
         desktopClient.fetchProviderModels({
           providerID,
-          baseURL: baseURL.trim() || undefined,
         }),
       )
       applyFetchedModels(result.models, result.error, result.modelMetadata)
@@ -401,10 +379,6 @@ export function ModelCenterWorkbench({
   }
 
   async function testConnection(): Promise<void> {
-    if (requiresBaseURL && !baseURL.trim()) {
-      setModelError('测试前请为该供应商配置兼容 OpenAI 的 Base URL。')
-      return
-    }
     setBusy(true)
     setModelError(null)
     setStatus('正在测试连接...')
@@ -429,10 +403,6 @@ export function ModelCenterWorkbench({
   }
 
   async function saveProvider(): Promise<void> {
-    if (requiresBaseURL && !baseURL.trim()) {
-      setModelError('保存为可调用连接前，该 Models.dev 供应商需要 Base URL。')
-      return
-    }
     if (!model.trim()) {
       setModelError('保存前请选择一个具体模型。')
       return
@@ -444,7 +414,6 @@ const nextState = await desktopClient.saveModelProvider({
         providerID,
         id: model.trim(),
         variant: variant || undefined,
-        baseURL: baseURL.trim() || undefined,
       })
       applyProviderState(nextState, { persistEffectiveSettings: true })
       setStatus('模型连接已保存。')
@@ -693,8 +662,16 @@ const nextState = await desktopClient.saveModelProvider({
                   </section>
                 ) : null}
                 <section className="model-center-detail-section">
-                  <header className="model-center-detail-section-heading"><div><h3>Endpoint</h3><p>{baseURLDescription(selectedProvider, isMiniMax)}</p></div><span>{baseURLEditable ? '自定义' : '目录提供'}</span></header>
-                  <label className="model-center-detail-field"><span>Base URL</span><Input className="model-center-mono" readOnly={!baseURLEditable} value={baseURL} placeholder={selectedProvider?.baseURL ?? 'https://.../v1'} onChange={event => setBaseURL(event.target.value)} /></label>
+                  <header className="model-center-detail-section-heading"><div><h3>Endpoint</h3><p>{baseURLDescription(selectedProvider, isMiniMax)}</p></div><span>目录提供</span></header>
+                  <label className="model-center-detail-field"><span>Base URL</span><Input className="model-center-mono" readOnly value={selectedProvider?.baseURL ?? ''} placeholder="https://.../v1" /></label>
+                  {selectedProvider?.providerKind === 'custom' ? (
+                    <div className="model-center-detail-links">
+                      <Button color="secondary" onClick={() => {
+                        setProviderEditorProviderId(selectedProvider.providerID)
+                        setProviderEditorOpen(true)
+                      }}>编辑自定义供应商</Button>
+                    </div>
+                  ) : null}
                 </section>
                 {selectedProvider?.config?.kind === 'builtin' ? (
                   <BuiltinProviderSettings
@@ -946,9 +923,6 @@ function providerDescription(provider: DesktopModelProviderSummary | undefined):
   if (!provider) return '选择新会话使用的供应商。'
   const parts = [provider.providerID]
   parts.push(provider.providerKind === 'custom' ? 'Pi 自定义' : 'Pi 内置')
-  if (provider.requiresBaseURL && !BUILT_IN_PROVIDER_IDS.has(provider.providerID)) {
-    parts.push('需要 Base URL')
-  }
   return parts.join(' / ')
 }
 
@@ -988,7 +962,6 @@ function baseURLDescription(
   isMiniMax: boolean,
 ): string {
   if (!provider) return '选择供应商后会显示其默认 endpoint。'
-  if (provider.requiresBaseURL) return '该供应商需要兼容 OpenAI 的 Base URL。'
   if (provider.providerID === 'deepseek') return 'DeepSeek 使用内置的 OpenAI 兼容 endpoint。'
   if (isMiniMax) return 'MiniMax 使用内置的 Anthropic 兼容 endpoint。'
   return 'Base URL 由 Pi 内置 Provider 提供。'

@@ -1,29 +1,31 @@
 import {
   Check,
   ChevronLeft,
-  KeyRound,
   Server,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
   ModelProviderID,
 } from '../../../../shared/types.js'
+import { AgentRpcError } from '../../../services/agentRpcClient.js'
 import { Button } from '../../../components/ui/Button.js'
-import { Input } from '../../../components/ui/Input.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
 import { WindowControls } from '../../layout/MenuBar.js'
 import { providerManagementStore } from '../../provider-management/providerManagementStore.js'
 import { useProviderManagementSnapshot } from '../../provider-management/useProviderManagementSnapshot.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
-import type { ApiKeyEditorValue } from '../ApiKeyEditorDialog.js'
-import { ProviderConnectionDialog } from '../provider-management/ProviderConnectionDialog.js'
+import {
+  ApiKeyEditorForm,
+  type ApiKeyEditorValue,
+} from '../ApiKeyEditorDialog.js'
+import { OAuthConnection } from '../provider-management/OAuthConnection.js'
 import { ProviderEditorDialog } from '../provider-management/ProviderEditorDialog.js'
-import { desktopClient } from '../../../services/desktop-client/index.js'
 import { SetupBootState, SetupRecoveryState } from './RequireConfiguredModel.js'
 import '../../../styles/lazy/model-setup.scss'
 
@@ -41,18 +43,16 @@ export function ModelSetupPage(): React.ReactNode {
   const [providerId, setProviderId] = useState<ModelProviderID | null>(null)
   const [modelId, setModelId] = useState('')
   const [variant, setVariant] = useState('')
-  const [baseURL, setBaseURL] = useState('')
   const [models, setModels] = useState<string[]>([])
   const [modelMetadata, setModelMetadata] = useState<Record<string, DesktopModelMetadata>>({})
-  const [keyLabel, setKeyLabel] = useState('个人账号')
-  const [apiKey, setApiKey] = useState('')
   const [createdCredentialId, setCreatedCredentialId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [connectionDialogOpen, setConnectionDialogOpen] = useState(false)
+  const [modelReloadToken, setModelReloadToken] = useState(0)
   const [providerEditorOpen, setProviderEditorOpen] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
-  const interactionStarted = useRef(false)
+  const providerListboxId = useRef(`model-setup-provider-list-${Math.random().toString(36).slice(2)}`)
+  const modelListboxId = useRef(`model-setup-model-list-${Math.random().toString(36).slice(2)}`)
 
   const providers = useMemo(
     () => [...snapshot.providers].sort((left, right) => (
@@ -84,6 +84,23 @@ export function ModelSetupPage(): React.ReactNode {
     ? isProviderConnected(selectedProvider, snapshot)
     : false
   const supportsApiKey = selectedProvider?.authMethods?.includes('api-key') !== false
+  const keyFormProviders = useMemo(
+    () => selectedProvider ? [selectedProvider] : [],
+    [selectedProvider],
+  )
+  const providerNav = useListboxNavigation({
+    count: filteredProviders.length,
+    onSelect: index => chooseProvider(filteredProviders[index]),
+  })
+  const modelNav = useListboxNavigation({
+    count: filteredModels.length,
+    onSelect: index => {
+      const id = filteredModels[index]
+      if (!id) return
+      setModelId(id)
+      setVariant('')
+    },
+  })
 
   useEffect(() => {
     let mounted = true
@@ -103,8 +120,9 @@ export function ModelSetupPage(): React.ReactNode {
       provider.providerID === snapshot.currentProviderState?.selectedProviderID
     )) ?? providers.find(provider => isProviderConnected(provider, snapshot)) ?? providers[0]
     setProviderId(preferred?.providerID ?? null)
-    setBaseURL(preferred?.baseURL ?? '')
-    setKeyLabel(preferred ? `${preferred.displayName} 账号` : '个人账号')
+    // 已有可用连接的现有用户刷新/重启后直接进入第二步选择模型；
+    // 只保存 API Key 未选模型时不会退回第一步。
+    setStep(isProviderConnected(preferred, snapshot) ? 'model' : 'provider')
     setStatus('ready')
   }, [providerId, providers, snapshot])
 
@@ -116,7 +134,6 @@ export function ModelSetupPage(): React.ReactNode {
     setNotice('正在加载模型目录…')
     void desktopClient.fetchProviderModels({
       providerID: selectedProvider.providerID,
-      baseURL: baseURL.trim() || undefined,
       limit: 100,
     }).then(result => {
       if (cancelled) return
@@ -137,42 +154,39 @@ export function ModelSetupPage(): React.ReactNode {
             : nextModels[0] ?? ''
       ))
       setNotice(result.error
-        ? `远端目录刷新失败，正在使用已有目录：${result.error}`
+        ? '远端目录刷新失败，正在使用已有目录。'
         : `已加载 ${nextModels.length} 个模型。`)
       setStatus('ready')
-    }).catch(fetchError => {
+    }).catch(() => {
       if (cancelled) return
       const fallback = [...selectedProvider.defaultModels]
       setModels(fallback)
       setModelMetadata(selectedProvider.modelMetadata ?? {})
       setModelId(current => fallback.includes(current) ? current : fallback[0] ?? '')
       setNotice(fallback.length > 0 ? '远端目录暂不可用，正在使用已有目录。' : null)
-      setError(fallback.length > 0 ? null : safeErrorMessage(fetchError, '没有可用模型，请重试。'))
+      setError(fallback.length > 0 ? null : '没有可用模型，请稍后重试。')
       setStatus(fallback.length > 0 ? 'ready' : 'error')
     })
     return () => {
       cancelled = true
     }
-  }, [baseURL, selectedProvider, snapshot.currentProviderState, step])
+  }, [modelReloadToken, selectedProvider, snapshot.currentProviderState, step])
 
   if (!snapshot.loaded) return <SetupBootState />
-  if (snapshot.error && !snapshot.currentProviderState) {
+  if (snapshot.configurationError || !snapshot.currentProviderState) {
     return (
       <SetupRecoveryState
-        message={snapshot.error}
+        message={snapshot.configurationError}
         onRetry={() => void providerManagementStore.refresh()}
       />
     )
   }
-  if (!interactionStarted.current && snapshot.currentProviderState?.modelConfigured) {
+  if (snapshot.currentProviderState.modelConfigured) {
     return <Navigate replace to="/new" />
   }
 
   function chooseProvider(provider: DesktopModelProviderSummary): void {
-    interactionStarted.current = true
     setProviderId(provider.providerID)
-    setBaseURL(provider.baseURL ?? '')
-    setKeyLabel(`${provider.displayName} 账号`)
     setCreatedCredentialId(null)
     setNotice(null)
     setError(null)
@@ -180,7 +194,6 @@ export function ModelSetupPage(): React.ReactNode {
 
   function continueToModels(): void {
     if (!selectedProvider || !providerConnected) return
-    interactionStarted.current = true
     setStep('model')
     setModelQuery('')
     setVariant('')
@@ -188,35 +201,11 @@ export function ModelSetupPage(): React.ReactNode {
     setError(null)
   }
 
-  async function saveApiKey(): Promise<void> {
-    if (!selectedProvider || !apiKey.trim() || !keyLabel.trim()) return
-    interactionStarted.current = true
-    setStatus('saving')
-    setError(null)
-    setNotice(null)
-    const secret = apiKey.trim()
-    setApiKey('')
-    try {
-      const credential = await providerManagementStore.createApiKey({
-        providerId: selectedProvider.providerID,
-        label: keyLabel.trim(),
-        key: secret,
-      })
-      setCreatedCredentialId(credential.id)
-      setNotice('凭据已安全保存，尚未验证。')
-      setStatus('ready')
-      setStep('model')
-      window.dispatchEvent(new Event('desktop:model-provider-changed'))
-    } catch (saveError) {
-      setError(safeErrorMessage(saveError, '凭据保存失败，请重试。'))
-      setStatus('error')
-    }
-  }
-
-  async function saveConnectionFromDialog(value: ApiKeyEditorValue): Promise<boolean> {
+  async function saveApiKey(value: ApiKeyEditorValue): Promise<boolean> {
     if (!value.key) return false
     setStatus('saving')
     setError(null)
+    setNotice(null)
     try {
       const credential = await providerManagementStore.createApiKey({
         providerId: value.providerId,
@@ -225,12 +214,12 @@ export function ModelSetupPage(): React.ReactNode {
       })
       setCreatedCredentialId(credential.id)
       setNotice('凭据已安全保存，尚未验证。')
-      setStep('model')
       setStatus('ready')
+      setStep('model')
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
       return true
     } catch (saveError) {
-      setError(safeErrorMessage(saveError, '凭据保存失败，请重试。'))
+      setError(setupErrorText(saveError, '凭据保存失败，请重试。'))
       setStatus('error')
       return false
     }
@@ -245,10 +234,10 @@ export function ModelSetupPage(): React.ReactNode {
       const result = createdCredentialId
         ? await providerManagementStore.testApiKey(createdCredentialId)
         : await desktopClient.testModelProvider(selectedProvider.providerID)
-      setNotice(result.ok ? result.message ?? '连接正常。' : null)
-      setError(result.ok ? null : result.message ?? '连接测试失败；你仍可保存模型并稍后重试。')
+      setNotice(result.ok ? '连接正常。' : null)
+      setError(result.ok ? null : '连接测试失败；你仍可保存模型并稍后重试。')
     } catch (testError) {
-      setError(safeErrorMessage(testError, '连接测试失败；你仍可保存模型并稍后重试。'))
+      setError(setupErrorText(testError, '连接测试失败；你仍可保存模型并稍后重试。'))
       setNotice(null)
     } finally {
       setStatus('ready')
@@ -264,23 +253,27 @@ export function ModelSetupPage(): React.ReactNode {
         providerID: selectedProvider.providerID,
         id: modelId,
         variant: variant || undefined,
-        baseURL: baseURL.trim() || undefined,
       })
-      if (!nextState.modelConfigured) {
-        throw new Error(nextState.configurationMessage || '模型尚未完成配置。')
+      const sameSelection = nextState.modelConfigured
+        && nextState.selectedProviderID === selectedProvider.providerID
+        && nextState.model === modelId
+        && (nextState.variant ?? '') === (variant ?? '')
+      if (!sameSelection) {
+        setError('保存结果与所选不一致，请重试。')
+        setStatus('error')
+        return
       }
-      const nextModel = nextState.model || modelId
       settings.syncExternalSettingsPatch({
         providerID: nextState.selectedProviderID,
         providerBaseURL: nextState.baseURL ?? '',
-        model: nextModel,
-        selectedModelPreset: nextModel,
+        model: nextState.model,
+        selectedModelPreset: nextState.model,
       })
       await providerManagementStore.refresh()
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
       navigate('/new', { replace: true })
     } catch (saveError) {
-      setError(safeErrorMessage(saveError, '模型保存失败，请重试。'))
+      setError(setupErrorText(saveError, '模型保存失败，请重试。'))
       setStatus('error')
     }
   }
@@ -320,23 +313,45 @@ export function ModelSetupPage(): React.ReactNode {
             <div className="model-setup-content">
               <SearchInput
                 aria-label="搜索供应商"
-                onChange={setProviderQuery}
+                mode="combobox"
+                controls={providerListboxId.current}
+                expanded
+                activeDescendant={
+                  providerNav.activeIndex >= 0
+                    ? `model-setup-provider-option-${providerNav.activeIndex}`
+                    : undefined
+                }
+                onChange={value => {
+                  setProviderQuery(value)
+                  providerNav.moveToFirst()
+                }}
+                onKeyDown={providerNav.onKeyDown}
                 placeholder="搜索供应商"
                 value={providerQuery}
               />
-              <div className="model-setup-provider-list" role="listbox" aria-label="供应商">
-                {filteredProviders.map(provider => {
+              <div
+                aria-label="供应商"
+                className="model-setup-provider-list"
+                id={providerListboxId.current}
+                onKeyDown={providerNav.onKeyDown}
+                role="listbox"
+              >
+                {filteredProviders.map((provider, index) => {
                   const connected = isProviderConnected(provider, snapshot)
                   const selected = provider.providerID === providerId
                   return (
                     <button
                       aria-selected={selected}
                       className="model-setup-provider-row"
+                      data-active={providerNav.activeIndex === index || undefined}
                       data-selected={selected || undefined}
+                      id={`model-setup-provider-option-${index}`}
                       key={provider.providerID}
                       role="option"
+                      tabIndex={-1}
                       type="button"
                       onClick={() => chooseProvider(provider)}
+                      onMouseEnter={() => providerNav.setActive(index)}
                     >
                       {provider.logoURL ? (
                         <RemoteImage
@@ -371,41 +386,33 @@ export function ModelSetupPage(): React.ReactNode {
                     {providerConnected ? <span className="model-setup-connected"><Check aria-hidden />已连接</span> : null}
                   </div>
                   {!providerConnected && supportsApiKey ? (
-                    <form className="model-setup-key-form" onSubmit={event => {
-                      event.preventDefault()
-                      void saveApiKey()
-                    }}>
-                      <label>
-                        <span>名称</span>
-                        <Input maxLength={80} value={keyLabel} onChange={event => setKeyLabel(event.target.value)} />
-                      </label>
-                      <label>
-                        <span>API Key</span>
-                        <Input
-                          autoComplete="off"
-                          placeholder="粘贴 API Key"
-                          type="password"
-                          value={apiKey}
-                          onChange={event => setApiKey(event.target.value)}
-                        />
-                      </label>
-                      <Button
-                        color="secondary"
-                        disabled={!apiKey.trim() || !keyLabel.trim()}
-                        loading={status === 'saving'}
-                        type="submit"
-                      >
-                        <KeyRound aria-hidden />安全保存
-                      </Button>
-                    </form>
+                    <ApiKeyEditorForm
+                      busy={status === 'saving'}
+                      className="model-setup-key-form"
+                      defaultLabel={selectedProvider ? `${selectedProvider.displayName} 账号` : '个人账号'}
+                      hideProvider
+                      initialProviderId={selectedProvider.providerID}
+                      providers={keyFormProviders}
+                      resetSignal={selectedProvider.providerID}
+                      submitLabel="安全保存"
+                      onSubmit={saveApiKey}
+                    />
+                  ) : null}
+                  {!providerConnected && selectedProvider.authMethods?.includes('oauth') ? (
+                    <OAuthConnection
+                      connected={false}
+                      description="此授权用于模型推理；令牌保存在当前 Provider 凭据仓库。"
+                      target={{ kind: 'provider', providerId: selectedProvider.providerID } as never}
+                      title={`${selectedProvider.displayName} OAuth 授权`}
+                      onChanged={async () => {
+                        await providerManagementStore.refresh()
+                        setStep('model')
+                        setNotice('供应商已连接。')
+                        window.dispatchEvent(new Event('desktop:model-provider-changed'))
+                      }}
+                    />
                   ) : null}
                   <div className="model-setup-actions">
-                    {!providerConnected && selectedProvider.authMethods?.includes('oauth') ? (
-                      <Button color="secondary" onClick={() => {
-                        interactionStarted.current = true
-                        setConnectionDialogOpen(true)
-                      }}>使用 OAuth</Button>
-                    ) : null}
                     <Button color="secondary" disabled={!providerConnected} onClick={continueToModels}>
                       继续
                     </Button>
@@ -422,7 +429,19 @@ export function ModelSetupPage(): React.ReactNode {
               <div className="model-setup-model-toolbar">
                 <SearchInput
                   aria-label="搜索模型"
-                  onChange={setModelQuery}
+                  mode="combobox"
+                  controls={modelListboxId.current}
+                  expanded
+                  activeDescendant={
+                    modelNav.activeIndex >= 0
+                      ? `model-setup-model-option-${modelNav.activeIndex}`
+                      : undefined
+                  }
+                  onChange={value => {
+                    setModelQuery(value)
+                    modelNav.moveToFirst()
+                  }}
+                  onKeyDown={modelNav.onKeyDown}
                   placeholder="搜索模型"
                   value={modelQuery}
                 />
@@ -432,27 +451,31 @@ export function ModelSetupPage(): React.ReactNode {
                   setError(null)
                 }}><ChevronLeft aria-hidden />更换供应商</Button>
               </div>
-              {selectedProvider?.requiresBaseURL ? (
-                <label className="model-setup-base-url">
-                  <span>Base URL</span>
-                  <Input value={baseURL} onChange={event => setBaseURL(event.target.value)} placeholder="https://example.com/v1" />
-                </label>
-              ) : null}
-              <div className="model-setup-model-list" role="listbox" aria-label="模型">
-                {filteredModels.map(id => {
+              <div
+                aria-label="模型"
+                className="model-setup-model-list"
+                id={modelListboxId.current}
+                onKeyDown={modelNav.onKeyDown}
+                role="listbox"
+              >
+                {filteredModels.map((id, index) => {
                   const metadata = modelMetadata[id]
                   return (
                     <button
                       aria-selected={modelId === id}
                       className="model-setup-model-row"
+                      data-active={modelNav.activeIndex === index || undefined}
                       data-selected={modelId === id || undefined}
+                      id={`model-setup-model-option-${index}`}
                       key={id}
                       role="option"
+                      tabIndex={-1}
                       type="button"
                       onClick={() => {
                         setModelId(id)
                         setVariant('')
                       }}
+                      onMouseEnter={() => modelNav.setActive(index)}
                     >
                       <span><strong>{metadata?.name ?? id}</strong><small>{id}</small></span>
                       <span className="model-setup-model-capabilities">
@@ -479,9 +502,14 @@ export function ModelSetupPage(): React.ReactNode {
                 <Button color="ghostSecondary" disabled={status === 'loading'} onClick={() => void testConnection()}>
                   测试连接（可选）
                 </Button>
+                {status === 'error' ? (
+                  <Button color="secondary" onClick={() => setModelReloadToken(token => token + 1)}>
+                    重试
+                  </Button>
+                ) : null}
                 <Button
                   color="secondary"
-                  disabled={!modelId || (Boolean(selectedProvider?.requiresBaseURL) && !baseURL.trim())}
+                  disabled={!modelId}
                   loading={status === 'saving'}
                   onClick={() => void finishSetup()}
                 >
@@ -498,49 +526,93 @@ export function ModelSetupPage(): React.ReactNode {
         </section>
       </main>
 
-      <ProviderConnectionDialog
-        busy={status === 'saving'}
-        open={connectionDialogOpen}
-        provider={selectedProvider}
-        sources={[]}
-        onConnected={async () => {
-          interactionStarted.current = true
-          await providerManagementStore.refresh()
-          setStep('model')
-          setNotice('供应商已连接。')
-          window.dispatchEvent(new Event('desktop:model-provider-changed'))
-        }}
-        onKeySubmit={saveConnectionFromDialog}
-        onOpenChange={setConnectionDialogOpen}
-      />
       <ProviderEditorDialog
         open={providerEditorOpen}
         onOpenChange={setProviderEditorOpen}
         onSaved={async savedProviderId => {
-          interactionStarted.current = true
           const next = await providerManagementStore.refresh()
           const saved = next.providers.find(provider => provider.providerID === savedProviderId)
           setProviderId(savedProviderId as ModelProviderID)
-          setBaseURL(saved?.baseURL ?? '')
-          setKeyLabel(saved ? `${saved.displayName} 账号` : '自定义供应商账号')
         }}
       />
     </div>
   )
 }
 
+function useListboxNavigation({
+  count,
+  onSelect,
+}: {
+  count: number
+  onSelect: (index: number) => void
+}): {
+  activeIndex: number
+  moveToFirst: () => void
+  setActive: (index: number) => void
+  onKeyDown: (event: React.KeyboardEvent) => void
+} {
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const moveToFirst = useCallback(
+    () => setActiveIndex(count > 0 ? 0 : -1),
+    [count],
+  )
+  const setActive = useCallback((index: number) => setActiveIndex(index), [])
+  const onKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (count === 0) return
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      setActiveIndex(current => {
+        if (current < 0) return event.key === 'ArrowDown' ? 0 : count - 1
+        const next = current + (event.key === 'ArrowDown' ? 1 : -1)
+        if (next < 0) return count - 1
+        if (next >= count) return 0
+        return next
+      })
+      return
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault()
+      setActiveIndex(event.key === 'Home' ? 0 : count - 1)
+      return
+    }
+    if (event.key === 'Enter' && activeIndex >= 0 && activeIndex < count) {
+      event.preventDefault()
+      onSelect(activeIndex)
+    }
+  }, [activeIndex, count, onSelect])
+  return { activeIndex, moveToFirst, setActive, onKeyDown }
+}
+
 function isProviderConnected(
   provider: DesktopModelProviderSummary,
   snapshot: ReturnType<typeof providerManagementStore.getSnapshot>,
 ): boolean {
-  if (snapshot.credentials.some(credential => (
-    credential.providerId === provider.providerID && credential.enabled
-  ))) return true
+  // 只认可：Agent authConfigured 状态、enabled 且 active 的安全凭据，
+  // 或当前 Provider state 明确返回已配置凭据；enabled 但未激活的凭据不算连接。
   if (provider.apiKeyConfigured) return true
+  if (snapshot.credentials.some(credential => (
+    credential.providerId === provider.providerID
+    && credential.enabled
+    && credential.active
+  ))) return true
   return snapshot.currentProviderState?.selectedProviderID === provider.providerID
     && snapshot.currentProviderState.apiKeyConfigured
 }
 
-function safeErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message.trim() ? error.message : fallback
+function setupErrorText(error: unknown, fallback: string): string {
+  if (error instanceof AgentRpcError) {
+    switch (error.errorCode) {
+      case 'RATE_LIMITED': return '操作过于频繁，请稍后重试。'
+      case 'CONFLICT': return '当前操作冲突，请重试。'
+      case 'PERMISSION_DENIED': return '没有执行此操作的权限。'
+      case 'MODEL_UNAVAILABLE': return '所选模型当前不可用，请选择其他模型。'
+      case 'CURSOR_EXPIRED': return '模型目录已刷新，请重新选择。'
+      case 'AGENT_OPERATION_UNSUPPORTED': return '当前 Agent 不支持此操作，请重启后重试。'
+    }
+    if (error.status === 429) return '操作过于频繁，请稍后重试。'
+  }
+  if (error instanceof Error && /fetch|network|timeout|socket|connect|ECONN/i.test(error.message)) {
+    return '无法连接本地 Agent，请确认 Agent 已启动后重试。'
+  }
+  return fallback
 }
