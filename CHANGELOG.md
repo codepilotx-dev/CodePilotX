@@ -21,6 +21,7 @@
 
 ### Changed
 
+- [desktop/renderer] 动画体系一次性全优化：骨架屏扫光改为局部渐变伪元素 `transform: translateX` 的 compositor 路径（删除 100vw×100vh `background-attachment: fixed` 重绘）；文件树显示/隐藏、侧栏 section、会话扩展列表与处理过程/活动折叠改为 `AnimatePresence popLayout` + Motion layout projection 的 FLIP 呈现（删除 `width: 0 ↔ auto` 与 `height: 0 ↔ auto` 逐帧布局动画）；进度条填充统一为 `transform: scaleX` + `transform-origin: left` 过渡；滚动边缘渐隐由 scroll-timeline 动态 mask 改为 `useScrollEdgeState` 驱动的静态伪元素渐变 frame（passive scroll listener + rAF 合并 + ResizeObserver，仅边界布尔变化才重渲染）；删除常驻 `will-change`，拖拽实时 reflow、Radix 挂载/焦点语义、reduced-motion 与快捷键行为保持不变。
 - [desktop/renderer] 会话打开与切换期间的整窗加载统一为带真实阶段文案的鲸鱼扫光动画（复用启动遮罩契约），替换原有的“加载对话中”文字加载态。
 - [desktop/renderer] 拆分 live event 订阅过滤器：`provider` 过滤器不再接收 `model/health/updated`，模型健康页改用独立的 `modelHealth` 过滤器，避免 provider 状态消费无关的逐模型事件。
 - [desktop/renderer] 补充 Renderer 样式契约白名单判定规范，明确固定控件几何、语义行高、Tailwind leading 与外部样式契约的准入边界，避免后续检查失败时机械刷新基线。
@@ -62,6 +63,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复动态滚动内容增长后边缘渐隐状态失真、命令输出渐隐层随内容滚动及 reduced-motion 骨架屏残留高亮，并隔离动画性能夹具、补强视觉与样式契约以避免回归测试假绿。
 - [desktop/renderer] 修复任务看板新建与“开始执行”弹窗缺少背景、边框和阴影导致控件漂浮在遮罩上的问题，统一接入共享 floating-surface（`layer-floating-fill`、`layer-edge-strong`、`radius-floating`、`shadow-floating`）。
 - [desktop] 修复模型配置判定期间启动鲸鱼过早交接的问题，统一整窗加载为带真实阶段滑动文案的鲸鱼扫光动画，并保留局部加载反馈。
 - [desktop/renderer] 将首次模型配置向导改为由用户 `config.json` 中的 `desktop.firstUseSetupCompleted` 一次性标记控制，已有有效模型的旧用户自动完成迁移，手动改回 `0` 可重新进入完整向导。
