@@ -2,23 +2,28 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
-import type { TaskboardPriority } from '@codepilotx/shared/taskboard'
+import type {
+  TaskboardPriority,
+  TaskboardStatus,
+} from '@codepilotx/shared/taskboard'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
-import { TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
+import { TASKBOARD_COLUMNS, TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
 
 type Props = {
   open: boolean
   projects: readonly DesktopWorkspace[]
   initialProjectId?: string
+  initialStatus?: TaskboardStatus
   onClose: () => void
   onCreate: (input: {
     projectId: string
     title: string
     description?: string
+    status: TaskboardStatus
     priority: TaskboardPriority
   }) => Promise<void>
 }
@@ -27,12 +32,14 @@ export function CreateTaskDialog({
   open,
   projects,
   initialProjectId,
+  initialStatus = 'backlog',
   onClose,
   onCreate,
 }: Props): React.ReactNode {
   const [projectId, setProjectId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [status, setStatus] = useState<TaskboardStatus>(initialStatus)
   const [priority, setPriority] = useState<TaskboardPriority>('none')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -43,10 +50,11 @@ export function CreateTaskDialog({
     setProjectId(initialProjectId ?? projects[0]?.projectId ?? '')
     setTitle('')
     setDescription('')
+    setStatus(initialStatus)
     setPriority('none')
     setError(null)
     setSubmitting(false)
-  }, [initialProjectId, open, projects])
+  }, [initialProjectId, initialStatus, open, projects])
 
   const submit = async (): Promise<void> => {
     if (!projectId || !title.trim()) return
@@ -57,6 +65,7 @@ export function CreateTaskDialog({
         projectId,
         title: title.trim(),
         ...(description.trim() ? { description: description.trim() } : {}),
+        status,
         priority,
       })
       onClose()
@@ -95,7 +104,7 @@ export function CreateTaskDialog({
           }}>
             <label>
               <span>项目</span>
-              <select required value={projectId} onChange={event => setProjectId(event.currentTarget.value)}>
+              <select required aria-label="项目" value={projectId} onChange={event => setProjectId(event.currentTarget.value)}>
                 <option disabled value="">选择项目</option>
                 {projects.filter(project => project.projectId).map(project => (
                   <option key={project.projectId} value={project.projectId}>{project.name}</option>
@@ -103,23 +112,31 @@ export function CreateTaskDialog({
               </select>
             </label>
             <label>
+              <span>状态</span>
+              <select aria-label="状态" value={status} onChange={event => setStatus(event.currentTarget.value as TaskboardStatus)}>
+                {TASKBOARD_COLUMNS.map(column => (
+                  <option key={column.status} value={column.status}>{column.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
               <span>标题</span>
-              <input autoFocus maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} />
+              <input aria-label="标题" autoFocus maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} />
             </label>
             <label>
               <span>描述</span>
-              <textarea rows={5} value={description} onChange={event => setDescription(event.currentTarget.value)} />
+              <textarea aria-label="描述" rows={5} value={description} onChange={event => setDescription(event.currentTarget.value)} />
             </label>
             <label>
               <span>优先级</span>
-              <select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>
+              <select aria-label="优先级" value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>
                 {(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => (
                   <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>
                 ))}
               </select>
             </label>
             {error ? <p className="taskboard-dialog__error" role="alert">{error}</p> : null}
-            <footer>
+            <footer className="taskboard-dialog__actions">
               <Dialog.Close asChild><Button color="secondary">取消</Button></Dialog.Close>
               <Button color="secondary" disabled={!projectId || !title.trim()} loading={submitting} type="submit">
                 创建任务

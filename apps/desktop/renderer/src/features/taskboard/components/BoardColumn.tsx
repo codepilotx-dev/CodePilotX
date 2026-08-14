@@ -1,13 +1,15 @@
 // Adapted from dashi-taskboard commit 9b2aeb5; modified for CodePilotX.
 import type React from 'react'
-import { useState } from 'react'
-import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronRight, ChevronUp, MoreHorizontal, Plus } from 'lucide-react'
 import type {
   TaskboardStatus,
   TaskboardTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
-import { Button } from '../../../components/ui/Button.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
+import { PopoverItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
+import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { TaskCard } from './TaskCard.js'
 
 type ProjectNames = ReadonlyMap<string, string>
@@ -20,15 +22,21 @@ export type TaskDropPlacement = {
   position: number
 }
 
+type DragInsertState = {
+  payload: TaskDragPayload
+  taskId: string
+  placeAfter: boolean
+} | null
+
 type Props = {
   status: TaskboardStatus
   label: string
-  shortLabel: string
   tasks: readonly TaskboardTaskSummary[]
   projectNames: ProjectNames
   pendingTaskIds: ReadonlySet<string>
   onOpen: (taskId: string) => void
   onStart: (taskId: string) => void
+  onNewTask: () => void
   onMove: (
     taskId: string,
     status: TaskboardStatus,
@@ -39,26 +47,58 @@ type Props = {
 export function BoardColumn({
   status,
   label,
-  shortLabel,
   tasks,
   projectNames,
   pendingTaskIds,
   onOpen,
   onStart,
+  onNewTask,
   onMove,
 }: Props): React.ReactNode {
   const [announcement, setAnnouncement] = useState('')
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
+  const [dragInsert, setDragInsert] = useState<DragInsertState>(null)
+  const dragDepth = useRef(0)
+
+  useEffect(() => {
+    if (!draggingTaskId) return
+    const clear = (): void => {
+      setDraggingTaskId(null)
+      setDragInsert(null)
+    }
+    window.addEventListener('dragend', clear)
+    window.addEventListener('drop', clear)
+    return () => {
+      window.removeEventListener('dragend', clear)
+      window.removeEventListener('drop', clear)
+    }
+  }, [draggingTaskId])
+
+  const announceMove = (message: string): void => setAnnouncement(message)
+
+  const moveAndAnnounce = (
+    task: TaskboardTaskSummary,
+    nextStatus: TaskboardStatus,
+    placement?: { beforeTaskId: string | null; afterTaskId: string | null },
+  ): void => {
+    void onMove(task.id, nextStatus, placement).then(() => {
+      announceMove(`已将 ${task.title} 移到${moveLabel(nextStatus).slice(2)}`)
+    }).catch(() => announceMove('移动失败，已恢复'))
+  }
+
   const handleDrop = (event: React.DragEvent<HTMLElement>): void => {
     event.preventDefault()
+    dragDepth.current = 0
     const payload = readTaskDragPayload(event.dataTransfer)
+    setDragInsert(null)
     if (!payload) return
     const placement = resolveTaskDropPlacement(tasks, payload)
     void onMove(payload.taskId, status, {
       beforeTaskId: placement.beforeTaskId,
       afterTaskId: placement.afterTaskId,
     }).then(() => {
-      setAnnouncement(`已移到${label}第 ${placement.position} 位`)
-    }).catch(() => setAnnouncement('移动失败，已恢复'))
+      announceMove(`已移到${label}第 ${placement.position} 位`)
+    }).catch(() => announceMove('移动失败，已恢复'))
   }
 
   const handleCardDrop = (
@@ -67,7 +107,9 @@ export function BoardColumn({
   ): void => {
     event.preventDefault()
     event.stopPropagation()
+    dragDepth.current = 0
     const payload = readTaskDragPayload(event.dataTransfer)
+    setDragInsert(null)
     if (!payload || payload.taskId === targetTaskId) return
     const bounds = event.currentTarget.getBoundingClientRect()
     const placeAfter = event.clientY >= bounds.top + bounds.height / 2
@@ -76,8 +118,34 @@ export function BoardColumn({
       beforeTaskId: placement.beforeTaskId,
       afterTaskId: placement.afterTaskId,
     }).then(() => {
-      setAnnouncement(`已移到${label}第 ${placement.position} 位`)
-    }).catch(() => setAnnouncement('移动失败，已恢复'))
+      announceMove(`已移到${label}第 ${placement.position} 位`)
+    }).catch(() => announceMove('移动失败，已恢复'))
+  }
+
+  const handleCardDragEnter = (
+    event: React.DragEvent<HTMLElement>,
+    targetTaskId: string,
+  ): void => {
+    event.preventDefault()
+    const payload = readTaskDragPayload(event.dataTransfer)
+    if (!payload || payload.taskId === targetTaskId) return
+    dragDepth.current += 1
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const placeAfter = event.clientY >= bounds.top + bounds.height / 2
+    setDragInsert({ payload, taskId: targetTaskId, placeAfter })
+  }
+
+  const handleCardDragLeave = (event: React.DragEvent<HTMLElement>): void => {
+    event.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragInsert(null)
+  }
+
+  const projectPeersOf = (taskId: string): TaskboardTaskSummary[] => {
+    const task = tasks.find(candidate => candidate.id === taskId)
+    return task
+      ? tasks.filter(candidate => candidate.projectId === task.projectId)
+      : []
   }
 
   return (
@@ -89,108 +157,174 @@ export function BoardColumn({
       onDrop={handleDrop}
     >
       <header className="taskboard-column__header">
-        <span className="taskboard-column__rail" aria-hidden="true" />
-        <div>
-          <span>{shortLabel}</span>
-          <h2>{label}</h2>
-        </div>
+        <span className="taskboard-column__dot" aria-hidden="true" />
+        <h2>{label}</h2>
         <span className="taskboard-column__count">{tasks.length}</span>
+        <IconButton
+          aria-label={`新建任务到${label}`}
+          className="taskboard-column__add"
+          color="ghostSecondary"
+          size="iconMd"
+          title={`新建任务到${label}`}
+          type="button"
+          onClick={onNewTask}
+        >
+          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </IconButton>
       </header>
       <div className="taskboard-column__cards">
-        {tasks.map(task => {
-          const projectPeers = tasks.filter(candidate => candidate.projectId === task.projectId)
-          const projectIndex = projectPeers.findIndex(candidate => candidate.id === task.id)
-          return (
-          <div
-            className="taskboard-column__card-slot"
-            key={task.id}
-            onDragOver={event => event.preventDefault()}
-            onDrop={event => handleCardDrop(event, task.id)}
-          >
-            <TaskCard
-              pending={pendingTaskIds.has(task.id)}
-              projectName={projectNames.get(task.projectId) ?? '项目已移除'}
-              task={task}
-              onDragStart={event => {
-                event.dataTransfer.effectAllowed = 'move'
-                event.dataTransfer.setData(
-                  TASK_DRAG_TYPE,
-                  JSON.stringify({ taskId: task.id, projectId: task.projectId } satisfies TaskDragPayload),
-                )
-              }}
-              onOpen={() => onOpen(task.id)}
-              onStart={() => onStart(task.id)}
-            />
-            <details className="taskboard-card__move-menu">
-              <summary aria-label={`移动任务：${task.title}`}>移动</summary>
-              <div>
-                <Button
-                  color="ghostSecondary"
-                  disabled={pendingTaskIds.has(task.id) || projectIndex === 0}
-                  size="compact"
-                  onClick={() => {
-                    const remaining = projectPeers.filter(candidate => candidate.id !== task.id)
-                    const insertionIndex = projectIndex - 1
-                    void onMove(task.id, status, {
-                      beforeTaskId: remaining[insertionIndex - 1]?.id ?? null,
-                      afterTaskId: remaining[insertionIndex]?.id ?? null,
-                    }).then(() => {
-                      setAnnouncement(`已将 ${task.title} 移到${label}第 ${projectIndex} 位`)
-                    }).catch(() => setAnnouncement('移动失败，已恢复'))
-                  }}
-                >
-                  <ChevronUp aria-hidden="true" size={APP_ICON_SIZE - 2} />上移
-                </Button>
-                <Button
-                  color="ghostSecondary"
-                  disabled={pendingTaskIds.has(task.id) || projectIndex === projectPeers.length - 1}
-                  size="compact"
-                  onClick={() => {
-                    const remaining = projectPeers.filter(candidate => candidate.id !== task.id)
-                    const insertionIndex = projectIndex + 1
-                    void onMove(task.id, status, {
-                      beforeTaskId: remaining[insertionIndex - 1]?.id ?? null,
-                      afterTaskId: remaining[insertionIndex]?.id ?? null,
-                    }).then(() => {
-                      setAnnouncement(`已将 ${task.title} 移到${label}第 ${projectIndex + 2} 位`)
-                    }).catch(() => setAnnouncement('移动失败，已恢复'))
-                  }}
-                >
-                  <ChevronDown aria-hidden="true" size={APP_ICON_SIZE - 2} />下移
-                </Button>
-                {(['backlog', 'todo', 'in_progress', 'in_review', 'done'] as const)
-                  .filter(nextStatus => nextStatus !== task.status)
-                  .map(nextStatus => (
-                    <Button
-                      color="ghostSecondary"
-                      disabled={pendingTaskIds.has(task.id)}
-                      key={nextStatus}
-                      size="compact"
-                      onClick={() => {
-                        void onMove(task.id, nextStatus).then(() => {
-                          setAnnouncement(`已将 ${task.title} 移到${moveLabel(nextStatus).slice(2)}`)
-                        }).catch(() => setAnnouncement('移动失败，已恢复'))
-                      }}
-                    >
-                      <ChevronRight
-                        aria-hidden="true"
-                        size={APP_ICON_SIZE - 2}
-                        strokeWidth={APP_ICON_STROKE_WIDTH}
-                      />
-                      {moveLabel(nextStatus)}
-                    </Button>
-                  ))}
-              </div>
-            </details>
-          </div>
-          )
-        })}
+        {(() => {
+          const hoveredIndex = dragInsert
+            ? tasks.findIndex(candidate => candidate.id === dragInsert.taskId)
+            : -1
+          const displacedTaskId = dragInsert
+            ? dragInsert.placeAfter
+              ? tasks[hoveredIndex + 1]?.id ?? null
+              : dragInsert.taskId
+            : null
+          return tasks.map(task => {
+            const insertBefore = dragInsert?.taskId === task.id && !dragInsert.placeAfter
+            const insertAfter = dragInsert?.taskId === task.id && dragInsert.placeAfter
+            return (
+            <div
+              className="taskboard-column__card-slot"
+              data-drag-insert={insertBefore ? 'before' : insertAfter ? 'after' : undefined}
+              key={task.id}
+              onDragEnter={event => handleCardDragEnter(event, task.id)}
+              onDragLeave={handleCardDragLeave}
+              onDragOver={event => event.preventDefault()}
+              onDrop={event => handleCardDrop(event, task.id)}
+            >
+              <TaskCard
+                dataDragDisplaced={displacedTaskId === task.id}
+                dataDragging={draggingTaskId === task.id}
+                menu={(
+                  <TaskMoveMenu
+                    pending={pendingTaskIds.has(task.id)}
+                    projectPeers={projectPeersOf(task.id)}
+                    status={status}
+                    task={task}
+                    onMove={moveAndAnnounce}
+                  />
+                )}
+                pending={pendingTaskIds.has(task.id)}
+                projectName={projectNames.get(task.projectId) ?? '项目已移除'}
+                task={task}
+                onDragStart={event => {
+                  setDraggingTaskId(task.id)
+                  event.dataTransfer.effectAllowed = 'move'
+                  event.dataTransfer.setData(
+                    TASK_DRAG_TYPE,
+                    JSON.stringify({ taskId: task.id, projectId: task.projectId } satisfies TaskDragPayload),
+                  )
+                }}
+                onOpen={() => onOpen(task.id)}
+                onStart={() => onStart(task.id)}
+              />
+            </div>
+            )
+          })
+        })()}
         {tasks.length === 0 ? (
-          <p className="taskboard-column__empty">把任务拖到这里，或用移动菜单调整阶段。</p>
+          <div className="taskboard-column__empty">
+            <p>暂无任务</p>
+            <span>拖拽卡片到这里，或点击上方 + 新建。</span>
+            <IconButton
+              aria-label={`新建任务到${label}`}
+              color="ghostSecondary"
+              size="toolbar"
+              title={`新建任务到${label}`}
+              type="button"
+              onClick={onNewTask}
+            >
+              <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </IconButton>
+          </div>
         ) : null}
         <p aria-live="polite" className="taskboard-live-region">{announcement}</p>
       </div>
     </section>
+  )
+}
+
+function TaskMoveMenu({
+  pending,
+  projectPeers,
+  status,
+  task,
+  onMove,
+}: {
+  pending: boolean
+  projectPeers: readonly TaskboardTaskSummary[]
+  status: TaskboardStatus
+  task: TaskboardTaskSummary
+  onMove: (
+    task: TaskboardTaskSummary,
+    status: TaskboardStatus,
+    placement?: { beforeTaskId: string | null; afterTaskId: string | null },
+  ) => void
+}): React.ReactNode {
+  const [open, setOpen] = useState(false)
+  const projectIndex = projectPeers.findIndex(candidate => candidate.id === task.id)
+  const moveWithinColumn = (offset: -1 | 1): void => {
+    const remaining = projectPeers.filter(candidate => candidate.id !== task.id)
+    const insertionIndex = projectIndex + offset
+    onMove(task, status, {
+      beforeTaskId: remaining[insertionIndex - 1]?.id ?? null,
+      afterTaskId: remaining[insertionIndex]?.id ?? null,
+    })
+    setOpen(false)
+  }
+  return (
+    <PopoverMenu
+      align="end"
+      open={open}
+      side="top"
+      width={148}
+      trigger={
+        <IconButton
+          aria-label={`移动任务：${task.title}`}
+          color="ghostSecondary"
+          disabled={pending}
+          size="toolbar"
+          title="移动任务"
+        >
+          <MoreHorizontal aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </IconButton>
+      }
+      onOpenChange={setOpen}
+    >
+      <PopoverItem
+        disabled={pending || projectIndex <= 0}
+        icon={<ChevronUp aria-hidden="true" size={APP_ICON_SIZE - 2} />}
+        onClick={() => moveWithinColumn(-1)}
+      >
+        上移
+      </PopoverItem>
+      <PopoverItem
+        disabled={pending || projectIndex === -1 || projectIndex >= projectPeers.length - 1}
+        icon={<ChevronDown aria-hidden="true" size={APP_ICON_SIZE - 2} />}
+        onClick={() => moveWithinColumn(1)}
+      >
+        下移
+      </PopoverItem>
+      <PopoverSeparator />
+      {(['backlog', 'todo', 'in_progress', 'in_review', 'done'] as const)
+        .filter(nextStatus => nextStatus !== task.status)
+        .map(nextStatus => (
+          <PopoverItem
+            disabled={pending}
+            icon={<ChevronRight aria-hidden="true" size={APP_ICON_SIZE - 2} />}
+            key={nextStatus}
+            onClick={() => {
+              onMove(task, nextStatus)
+              setOpen(false)
+            }}
+          >
+            {moveLabel(nextStatus)}
+          </PopoverItem>
+        ))}
+    </PopoverMenu>
   )
 }
 

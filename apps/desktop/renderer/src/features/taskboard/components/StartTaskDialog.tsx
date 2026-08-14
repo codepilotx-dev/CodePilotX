@@ -161,14 +161,19 @@ export function StartTaskDialog({
           ) : null}
           {operation?.status === 'awaiting_setup_decision' ? (
             <div className="taskboard-start-dialog__decision" role="status">
-              <p>工作树已创建，但项目初始化脚本失败。可以重试，或保留当前工作树继续。</p>
-              <Button color="secondary" loading={submitting} onClick={() => void run(() => onRetrySetup(operation))}>重试初始化</Button>
-              <Button color="secondary" loading={submitting} onClick={() => void run(() => onContinueWithoutSetup(operation))}>仍然继续</Button>
+              <div>
+                <strong>初始化脚本失败</strong>
+                <p>工作树已创建，但项目初始化脚本没有成功执行。可以重试初始化，或保留当前工作树继续。</p>
+              </div>
+              <div className="taskboard-start-dialog__decision-actions">
+                <Button color="secondary" loading={submitting} onClick={() => void run(() => onRetrySetup(operation))}>重试初始化</Button>
+                <Button color="secondary" loading={submitting} onClick={() => void run(() => onContinueWithoutSetup(operation))}>仍然继续</Button>
+              </div>
             </div>
           ) : null}
           {operation?.warnings.length ? (
             <div className="taskboard-start-dialog__warnings" role="status">
-              <p>执行环境需要检查：</p>
+              <strong>执行环境需要检查</strong>
               <ul>
                 {operation.warnings.map(warning => <li key={warning}>{warning}</li>)}
               </ul>

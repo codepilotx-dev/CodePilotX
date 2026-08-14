@@ -6,13 +6,12 @@ import type {
 export const TASKBOARD_COLUMNS: readonly {
   status: TaskboardStatus
   label: string
-  shortLabel: string
 }[] = [
-  { status: 'backlog', label: '待整理', shortLabel: 'BACKLOG' },
-  { status: 'todo', label: '待办', shortLabel: 'TODO' },
-  { status: 'in_progress', label: '进行中', shortLabel: 'RUNNING' },
-  { status: 'in_review', label: '待审核', shortLabel: 'REVIEW' },
-  { status: 'done', label: '已完成', shortLabel: 'DONE' },
+  { status: 'backlog', label: '待整理' },
+  { status: 'todo', label: '待办' },
+  { status: 'in_progress', label: '进行中' },
+  { status: 'in_review', label: '待审核' },
+  { status: 'done', label: '已完成' },
 ]
 
 export const TASKBOARD_PRIORITY_LABELS: Record<TaskboardPriority, string> = {

@@ -26,6 +26,15 @@ import type {
   Project,
 } from '@codepilotx/shared'
 import type {
+  TaskboardLabel,
+  TaskboardTaskDetails,
+  TaskboardTaskSummary,
+  TaskboardThreadAttention,
+  TaskboardThreadExecution,
+  TaskboardThreadLink,
+  TaskboardThreadRole,
+} from '@codepilotx/shared/taskboard'
+import type {
   PermissionConfig,
   SubagentProjection,
   ThreadListItem,
@@ -765,6 +774,278 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   snapshot.item.lastMessageAt = events.at(-1)?.createdAt ?? createdAt
   snapshot.updatedAt = snapshot.item.lastMessageAt
   return snapshot
+}
+
+/* --- Taskboard 浏览器视觉 fixture（只读） --- */
+
+export type BrowserTaskboardFixture = {
+  projects: DesktopWorkspace[]
+  labels: readonly TaskboardLabel[]
+  tasks: readonly TaskboardTaskSummary[]
+  details: ReadonlyMap<string, TaskboardTaskDetails>
+}
+
+const TASKBORD_VISUAL_PROJECT_A = 'visual-taskboard-project-a'
+const TASKBORD_VISUAL_PROJECT_B = 'visual-taskboard-project-b'
+
+export function createBrowserTaskboardFixture(): BrowserTaskboardFixture | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null
+  const search = new URLSearchParams(window.location.search)
+  if (search.get('visualCase') !== 'taskboard') return null
+  if (search.get('taskboardEmpty') === '1') {
+    return { projects: [], labels: [], tasks: [], details: new Map() }
+  }
+
+  const baseTime = Date.UTC(2026, 7, 10, 9, 0, 0)
+  const timestamp = (offsetMs: number): number => baseTime + offsetMs
+  const label = (
+    id: string,
+    projectId: string,
+    name: string,
+    version = 1,
+  ): TaskboardLabel => ({
+    id,
+    projectId,
+    name,
+    normalizedName: name,
+    version,
+    createdAt: timestamp(0),
+    updatedAt: timestamp(0),
+  })
+  const labels = [
+    label('visual-label-backend', TASKBORD_VISUAL_PROJECT_A, '后端'),
+    label('visual-label-ux', TASKBORD_VISUAL_PROJECT_A, '视觉'),
+    label('visual-label-bug', TASKBORD_VISUAL_PROJECT_B, '缺陷'),
+  ]
+  const thread = (
+    taskId: string,
+    threadId: string,
+    title: string,
+    attention: TaskboardThreadAttention,
+    execution: TaskboardThreadExecution,
+    role: TaskboardThreadRole = 'primary',
+  ): TaskboardThreadLink => ({
+    taskId,
+    threadId,
+    role,
+    title,
+    latestTurnStatus: attention === 'running'
+      ? 'running'
+      : attention === 'needs_input'
+        ? 'waiting-permission'
+        : 'completed',
+    attention,
+    execution,
+    version: 1,
+    linkedAt: timestamp(1_000),
+  })
+
+  const summaries: TaskboardTaskSummary[] = [
+    {
+      id: 'visual-task-1',
+      projectId: TASKBORD_VISUAL_PROJECT_A,
+      number: 101,
+      title: '整理任务看板视觉重构的验收清单',
+      description: '覆盖五列布局、任务卡密度、创建浮层与详情面板的截图基线。',
+      status: 'backlog',
+      priority: 'high',
+      position: 1024,
+      version: 1,
+      labels: [labels[1]!],
+      archivedAt: null,
+      createdAt: timestamp(0),
+      updatedAt: timestamp(0),
+      threads: [],
+    },
+    {
+      id: 'visual-task-2',
+      projectId: TASKBORD_VISUAL_PROJECT_B,
+      number: 203,
+      title: '为跨项目执行跑道补充一个特别长的任务标题用于验证卡片省略号与自然换行的边界行为',
+      description: '',
+      status: 'backlog',
+      priority: 'low',
+      position: 2048,
+      version: 1,
+      labels: [labels[2]!],
+      archivedAt: null,
+      createdAt: timestamp(1_000),
+      updatedAt: timestamp(1_000),
+      threads: [],
+    },
+    {
+      id: 'visual-task-3',
+      projectId: TASKBORD_VISUAL_PROJECT_A,
+      number: 102,
+      title: '把创建浮层接入共享 floating-surface',
+      description: '统一获得 layer-floating-fill、边框、圆角和阴影，修复透明弹窗的控件漂浮问题。',
+      status: 'todo',
+      priority: 'medium',
+      position: 1024,
+      version: 1,
+      labels: [labels[0]!, labels[1]!],
+      archivedAt: null,
+      createdAt: timestamp(2_000),
+      updatedAt: timestamp(2_000),
+      threads: [],
+    },
+    {
+      id: 'visual-task-4',
+      projectId: TASKBORD_VISUAL_PROJECT_A,
+      number: 103,
+      title: '整理执行选项分段卡的信息层级',
+      description: '',
+      status: 'todo',
+      priority: 'none',
+      position: 2048,
+      version: 1,
+      labels: [labels[1]!],
+      archivedAt: null,
+      createdAt: timestamp(3_000),
+      updatedAt: timestamp(3_000),
+      threads: [],
+    },
+    {
+      id: 'visual-task-5',
+      projectId: TASKBORD_VISUAL_PROJECT_A,
+      number: 104,
+      title: '重构看板五列布局与流程箭头',
+      description: '五列保持 296–336px 可读宽度，普通窗口横向滚动，用 CSS 绘制列间流程箭头。',
+      status: 'in_progress',
+      priority: 'high',
+      position: 1024,
+      version: 1,
+      labels: [labels[0]!],
+      archivedAt: null,
+      createdAt: timestamp(4_000),
+      updatedAt: timestamp(4_000),
+      threads: [
+        thread('visual-task-5', 'visual-thread-5', '看板布局', 'running', {
+          kind: 'worktree',
+          worktreeId: 'visual-worktree-5',
+          branchName: 'feat/taskboard-lanes',
+          status: 'ready',
+        }),
+      ],
+    },
+    {
+      id: 'visual-task-6',
+      projectId: TASKBORD_VISUAL_PROJECT_B,
+      number: 204,
+      title: '校对任务卡底部运行状态摘要',
+      description: '对话数量、执行中、等待输入和分支摘要的展示需要保持紧凑。',
+      status: 'in_review',
+      priority: 'medium',
+      position: 1024,
+      version: 1,
+      labels: [labels[2]!],
+      archivedAt: null,
+      createdAt: timestamp(5_000),
+      updatedAt: timestamp(5_000),
+      threads: [
+        thread('visual-task-6', 'visual-thread-6', '状态摘要校对', 'needs_input', {
+          kind: 'local',
+          branchName: 'fix/card-footer',
+        }),
+      ],
+    },
+    {
+      id: 'visual-task-7',
+      projectId: TASKBORD_VISUAL_PROJECT_A,
+      number: 100,
+      title: '完成任务看板视觉回归基线的首次截图',
+      description: '截图必须人工检查后再接受基线，不能仅为通过测试机械更新。',
+      status: 'done',
+      priority: 'none',
+      position: 1024,
+      version: 1,
+      labels: [labels[1]!],
+      archivedAt: null,
+      createdAt: timestamp(-86_400_000),
+      updatedAt: timestamp(6_000),
+      threads: [
+        thread('visual-task-7', 'visual-thread-7', '基线截图', 'completed', {
+          kind: 'local',
+          branchName: 'main',
+        }),
+      ],
+    },
+  ]
+
+  const details = new Map<string, TaskboardTaskDetails>()
+  for (const [index, summary] of summaries.entries()) {
+    details.set(summary.id, {
+      task: {
+        id: summary.id,
+        projectId: summary.projectId,
+        number: summary.number,
+        title: summary.title,
+        description: summary.description,
+        status: summary.status,
+        priority: summary.priority,
+        position: summary.position,
+        version: summary.version,
+        labels: summary.labels.map(item => item),
+        archivedAt: summary.archivedAt,
+        createdAt: summary.createdAt,
+        updatedAt: summary.updatedAt,
+      },
+      threads: summary.threads.map(item => item),
+      comments: index === 3
+        ? [
+            {
+              id: `visual-comment-${summary.id}`,
+              taskId: summary.id,
+              body: '用评论记录决策、检查结果或下一步。',
+              author: 'user' as const,
+              sourceThreadId: null,
+              version: 1,
+              deletedAt: null,
+              createdAt: timestamp(3_500),
+              updatedAt: timestamp(3_500),
+            },
+          ]
+        : [],
+      activities: [
+        {
+          id: `visual-activity-${summary.id}-created`,
+          taskId: summary.id,
+          kind: 'task_created' as const,
+          actor: 'user' as const,
+          sourceThreadId: null,
+          data: {},
+          createdAt: summary.createdAt,
+        },
+        ...(summary.status !== 'backlog' ? [{
+          id: `visual-activity-${summary.id}-moved`,
+          taskId: summary.id,
+          kind: 'task_moved' as const,
+          actor: 'user' as const,
+          sourceThreadId: null,
+          data: {},
+          createdAt: summary.updatedAt,
+        }] : []),
+      ],
+    })
+  }
+
+  return {
+    projects: [
+      {
+        ...mockWorkspace('F:\\CodeProject\\CodePilotX-Ts'),
+        projectId: TASKBORD_VISUAL_PROJECT_A,
+        name: 'CodePilotX-Ts',
+      },
+      {
+        ...mockWorkspace('F:\\CodeProject\\CodePilotX-Docs'),
+        projectId: TASKBORD_VISUAL_PROJECT_B,
+        name: 'CodePilotX-Docs',
+      },
+    ],
+    labels,
+    tasks: summaries,
+    details,
+  }
 }
 
 const VISUAL_REVIEW_GENERATION = 'visual-review-generation'

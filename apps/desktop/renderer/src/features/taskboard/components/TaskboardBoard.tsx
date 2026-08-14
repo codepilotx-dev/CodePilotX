@@ -14,6 +14,7 @@ type Props = {
   archived: boolean
   onOpen: (taskId: string) => void
   onStart: (taskId: string) => void
+  onNewTask: (status: TaskboardStatus) => void
   onMove: (
     taskId: string,
     status: TaskboardStatus,
@@ -28,6 +29,7 @@ export function TaskboardBoard({
   archived,
   onOpen,
   onStart,
+  onNewTask,
   onMove,
 }: Props): React.ReactNode {
   return (
@@ -40,6 +42,7 @@ export function TaskboardBoard({
           projectNames={projectNames}
           tasks={tasks.filter(task => task.status === column.status)}
           onMove={onMove}
+          onNewTask={() => onNewTask(column.status)}
           onOpen={onOpen}
           onStart={onStart}
         />

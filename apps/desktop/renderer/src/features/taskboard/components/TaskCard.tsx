@@ -9,6 +9,9 @@ type Props = {
   task: TaskboardTaskSummary
   projectName: string
   pending: boolean
+  menu?: React.ReactNode
+  dataDragging?: boolean
+  dataDragDisplaced?: boolean
   onOpen: () => void
   onStart: () => void
   onDragStart: (event: React.DragEvent<HTMLElement>) => void
@@ -18,6 +21,9 @@ export function TaskCard({
   task,
   projectName,
   pending,
+  menu,
+  dataDragging,
+  dataDragDisplaced,
   onOpen,
   onStart,
   onDragStart,
@@ -36,6 +42,8 @@ export function TaskCard({
     <article
       aria-busy={pending || undefined}
       className="taskboard-card"
+      data-drag-displaced={dataDragDisplaced ? '' : undefined}
+      data-dragging={dataDragging ? '' : undefined}
       data-pending={pending || undefined}
       data-priority={task.priority}
       draggable={!pending}
@@ -48,15 +56,9 @@ export function TaskCard({
         onClick={onOpen}
       >
         <span className="taskboard-card__context">
-          <span className="taskboard-card__number">#{task.number}</span>
           <span className="taskboard-card__project" title={projectName}>
-            {projectName}
+            {projectName} · <span className="taskboard-card__number">#{task.number}</span>
           </span>
-          {task.priority !== 'none' ? (
-            <span className="taskboard-card__priority">
-              {TASKBOARD_PRIORITY_LABELS[task.priority]}
-            </span>
-          ) : null}
           {needsInput ? (
             <span className="taskboard-card__attention" title="关联对话需要处理">
               <TriangleAlert
@@ -66,15 +68,20 @@ export function TaskCard({
               />
             </span>
           ) : null}
+          {task.priority !== 'none' ? (
+            <span className="taskboard-card__priority">
+              {TASKBOARD_PRIORITY_LABELS[task.priority]}
+            </span>
+          ) : null}
         </span>
         <strong>{task.title}</strong>
         {task.description ? <p>{task.description}</p> : null}
         {task.labels.length > 0 ? (
           <span className="taskboard-card__labels">
-            {task.labels.slice(0, 3).map(label => (
+            {task.labels.slice(0, 2).map(label => (
               <span key={label.id}>{label.name}</span>
             ))}
-            {task.labels.length > 3 ? <span>+{task.labels.length - 3}</span> : null}
+            {task.labels.length > 2 ? <span>+{task.labels.length - 2}</span> : null}
           </span>
         ) : null}
       </button>
@@ -87,7 +94,8 @@ export function TaskCard({
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
             {task.threads.length}
-            {runningThreads > 0 ? <span>· {runningThreads} 执行中</span> : null}
+            {runningThreads > 0 ? <span className="taskboard-card__running">· {runningThreads} 执行中</span> : null}
+            {needsInput ? <span className="taskboard-card__needs-input">· 等待输入</span> : null}
           </span>
           {execution?.branchName ? (
             <span className="taskboard-card__branch" title={execution.branchName}>
@@ -100,19 +108,22 @@ export function TaskCard({
             </span>
           ) : null}
         </span>
-        <IconButton
-          color="ghostSecondary"
-          disabled={pending}
-          size="toolbar"
-          title="开始执行"
-          onClick={onStart}
-        >
-          <Play
-            aria-hidden="true"
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
-        </IconButton>
+        <span className="taskboard-card__actions">
+          {menu}
+          <IconButton
+            color="ghostSecondary"
+            disabled={pending}
+            size="toolbar"
+            title="开始执行"
+            onClick={onStart}
+          >
+            <Play
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          </IconButton>
+        </span>
       </footer>
     </article>
   )

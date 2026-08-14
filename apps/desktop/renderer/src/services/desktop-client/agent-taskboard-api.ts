@@ -7,24 +7,52 @@ type Dependencies = {
     name: Extract<ProtocolCapability, 'taskboard.v1'>,
   ) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
+  mockClient: DesktopTaskboardApi
   withRequiredAgent: <T>(operation: () => Promise<T>) => Promise<T>
+  withAgentOrMock: <T>(
+    agentOperation: () => Promise<T>,
+    mockOperation: () => Promise<T>,
+  ) => Promise<T>
 }
 
 export function createAgentTaskboardApi({
   requireAgentCapability,
   rpc,
+  mockClient,
   withRequiredAgent,
+  withAgentOrMock,
 }: Dependencies): DesktopTaskboardApi {
   const execute = <T>(operation: () => Promise<T>): Promise<T> =>
     withRequiredAgent(async () => {
     requireAgentCapability('taskboard.v1')
     return operation()
   })
+  const executeRead = <T>(
+    agentOperation: () => Promise<T>,
+    mockOperation: () => Promise<T>,
+  ): Promise<T> => withAgentOrMock(async () => {
+    requireAgentCapability('taskboard.v1')
+    return agentOperation()
+  }, mockOperation)
   const operationId = (): string => crypto.randomUUID()
 
   return {
-    listTaskboardTasks: params => execute(() => rpc.call('taskboard/task/list', params)),
-    readTaskboardTask: params => execute(() => rpc.call('taskboard/task/read', params)),
+    listTaskboardTasks: params => executeRead(
+      () => rpc.call('taskboard/task/list', params),
+      () => mockClient.listTaskboardTasks(params),
+    ),
+    readTaskboardTask: params => executeRead(
+      () => rpc.call('taskboard/task/read', params),
+      () => mockClient.readTaskboardTask(params),
+    ),
+    listTaskboardLabels: params => executeRead(
+      () => rpc.call('taskboard/label/list', params),
+      () => mockClient.listTaskboardLabels(params),
+    ),
+    readTaskboardStartStatus: params => executeRead(
+      () => rpc.call('taskboard/task/start/status', params),
+      () => mockClient.readTaskboardStartStatus(params),
+    ),
     createTaskboardTask: params => execute(() => rpc.call('taskboard/task/create', {
       ...params,
       operationId: operationId(),
@@ -73,7 +101,6 @@ export function createAgentTaskboardApi({
       ...params,
       operationId: operationId(),
     })),
-    listTaskboardLabels: params => execute(() => rpc.call('taskboard/label/list', params)),
     createTaskboardLabel: params => execute(() => rpc.call('taskboard/label/create', {
       ...params,
       operationId: operationId(),
@@ -90,7 +117,6 @@ export function createAgentTaskboardApi({
       ...params,
       operationId: operationId(),
     })),
-    readTaskboardStartStatus: params => execute(() => rpc.call('taskboard/task/start/status', params)),
     retryTaskboardStartSetup: params => execute(() => rpc.call('taskboard/task/start/retry-setup', params)),
     continueTaskboardStartWithoutSetup: params => execute(() => rpc.call(
       'taskboard/task/start/continue-without-setup',

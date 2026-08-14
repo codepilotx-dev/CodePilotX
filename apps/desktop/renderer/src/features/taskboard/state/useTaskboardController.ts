@@ -41,6 +41,7 @@ export function useTaskboardController(
     projectId: string
     title: string
     description?: string
+    status: TaskboardStatus
     priority: TaskboardPriority
   }) => Promise<string>
   moveTask: (
@@ -223,12 +224,9 @@ export function useTaskboardController(
     ...state,
     refresh,
     createTask: async input => {
-      const result = await desktopClient.createTaskboardTask({
-        projectId: input.projectId,
-        title: input.title,
-        description: input.description,
-        priority: input.priority,
-      })
+      const result = await desktopClient.createTaskboardTask(
+        taskboardCreateTaskRpcInput(input),
+      )
       applyDetails(result.task)
       return result.task.task.id
     },
@@ -447,10 +445,26 @@ export function useTaskboardController(
   }), [applyDetails, handleMutationError, refresh, runTaskMutation, selectedTaskId, state, store])
 }
 
+/** 把创建任务的 UI 输入映射为 taskboard/task/create 参数；status 使用 RPC 已有的可选字段。 */
+export function taskboardCreateTaskRpcInput(input: {
+  projectId: string
+  title: string
+  description?: string
+  status: TaskboardStatus
+  priority: TaskboardPriority
+}): Omit<RpcParams<'taskboard/task/create'>, 'operationId'> {
+  return {
+    projectId: input.projectId,
+    title: input.title,
+    description: input.description,
+    status: input.status,
+    priority: input.priority,
+  }
+}
+
 async function waitForStart(
   initial: TaskboardStartOperation,
-): Promise<TaskboardStartOperation> {
-  let operation = initial
+): Promise<TaskboardStartOperation> {  let operation = initial
   while (operation.status === 'running') {
     await new Promise(resolve => window.setTimeout(resolve, 350))
     const result = await desktopClient.readTaskboardStartStatus({

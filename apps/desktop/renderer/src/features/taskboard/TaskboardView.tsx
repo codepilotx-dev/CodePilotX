@@ -1,9 +1,10 @@
 import type React from 'react'
 import { useMemo, useState } from 'react'
-import { Archive, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type {
   TaskboardPriority,
+  TaskboardStatus,
   TaskboardTask,
   TaskboardTaskSummary,
 } from '@codepilotx/shared/taskboard'
@@ -12,7 +13,7 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTo
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { composerDraftStore } from '../session/composer/composerDraftStore.js'
 import { TaskboardBoard } from './components/TaskboardBoard.js'
-import { TaskboardProjectFilter } from './components/TaskboardProjectFilter.js'
+import { TaskboardToolbar } from './components/TaskboardToolbar.js'
 import { CreateTaskDialog } from './components/CreateTaskDialog.js'
 import { StartTaskDialog } from './components/StartTaskDialog.js'
 import { TaskDetailsDrawer } from './components/TaskDetailsDrawer.js'
@@ -26,7 +27,7 @@ export function TaskboardView(): React.ReactNode {
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = useMemo(() => parseTaskboardFilters(searchParams), [searchParams])
   const controller = useTaskboardController(filters, taskId)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [createStatus, setCreateStatus] = useState<TaskboardStatus | null>(null)
   const [startTaskId, setStartTaskId] = useState<string | null>(null)
   const projectNames = useMemo(() => new Map(
     controller.projects.map(project => [project.projectId ?? '', project.name]),
@@ -39,6 +40,12 @@ export function TaskboardView(): React.ReactNode {
     return [...labels.values()].sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
   }, [controller.tasks])
   const startTask = findTask(controller.tasks, controller.detail?.task ?? null, startTaskId)
+  const hasActiveFilters = Boolean(
+    filters.query
+    || filters.projectId
+    || filters.labelIds?.length
+    || filters.priorities?.length,
+  )
 
   const updateFilter = (patch: Record<string, string | null>): void => {
     const next = new URLSearchParams(searchParams)
@@ -59,55 +66,42 @@ export function TaskboardView(): React.ReactNode {
   return (
     <section className="taskboard-view">
       <WorkspaceHeaderItem align="end" id="taskboard.actions" order={100} slot="right">
-        <Button color="secondary" onClick={() => setCreateOpen(true)}>
+        <Button color="secondary" onClick={() => setCreateStatus('backlog')}>
           <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           新建任务
         </Button>
       </WorkspaceHeaderItem>
-      <header className="taskboard-header">
-        <div>
-          <span className="taskboard-header__eyebrow">EXECUTION LANES</span>
-          <h1>{filters.archived ? '任务归档' : '任务看板'}</h1>
-          <p>{filters.archived ? '查看并恢复已经离开执行跑道的任务。' : '跨项目整理任务，在就绪的工作环境中启动对话。'}</p>
-        </div>
-        <div className="taskboard-header__actions">
-          <Button color="secondary" onClick={() => updateFilter({ archived: filters.archived ? null : '1' })}>
-            <Archive aria-hidden="true" size={APP_ICON_SIZE} />
-            {filters.archived ? '返回看板' : '归档区'}
-          </Button>
-          <Button color="secondary" onClick={() => setCreateOpen(true)}>
-            <Plus aria-hidden="true" size={APP_ICON_SIZE} />新建任务
-          </Button>
-        </div>
-      </header>
-      <TaskboardProjectFilter
+      <TaskboardToolbar
+        archived={filters.archived}
+        count={controller.tasks.length}
+        hasActiveFilters={hasActiveFilters}
         labelIds={filters.labelIds ?? []}
         labels={availableLabels}
+        loading={controller.loading}
         priority={filters.priorities?.[0]}
         projectId={filters.projectId}
         projects={controller.projects}
         query={filters.query}
         onChange={updateFilter}
       />
-      {controller.error ? (
-        <div className="taskboard-notice" role="alert"><strong>无法读取任务看板</strong><span>{controller.error}</span><Button color="secondary" onClick={() => void controller.refresh()}>重试</Button></div>
-      ) : null}
-      {controller.loading && controller.tasks.length === 0 ? <div className="taskboard-loading" role="status">正在排列任务跑道…</div> : null}
-      {!controller.loading && !controller.error && controller.tasks.length === 0 ? (
-        <div className="taskboard-empty">
-          <span aria-hidden="true">→</span>
-          <h2>{filters.archived ? '归档区是空的' : '创建第一项任务'}</h2>
-          <p>{filters.archived ? '归档任务后，它们会出现在这里。' : '先记录要完成的工作，再从任务里创建对话并选择执行环境。'}</p>
-          {!filters.archived ? <Button color="secondary" onClick={() => setCreateOpen(true)}>新建任务</Button> : null}
-        </div>
-      ) : null}
-      {controller.tasks.length > 0 ? (
+      <div className="taskboard-board-area">
+        {controller.error ? (
+          <div className="taskboard-notice" role="alert">
+            <strong>无法读取任务看板</strong>
+            <span>{controller.error}</span>
+            <Button color="secondary" onClick={() => void controller.refresh()}>重试</Button>
+          </div>
+        ) : null}
+        {controller.loading && controller.tasks.length === 0 ? (
+          <div className="taskboard-loading" role="status">正在排列任务跑道…</div>
+        ) : null}
         <TaskboardBoard
           archived={filters.archived}
           pendingTaskIds={controller.pendingTaskIds}
           projectNames={projectNames}
           tasks={controller.tasks}
           onMove={controller.moveTask}
+          onNewTask={setCreateStatus}
           onOpen={openTask}
           onStart={id => {
             if (controller.tasks.find(task => task.id === id)?.archivedAt == null) {
@@ -115,44 +109,45 @@ export function TaskboardView(): React.ReactNode {
             }
           }}
         />
-      ) : null}
-      <TaskDetailsDrawer
-        detail={controller.detail}
-        error={controller.detailError}
-        loading={controller.detailLoading}
-        open={Boolean(taskId)}
-        pending={taskId ? controller.pendingTaskIds.has(taskId) : false}
-        projectAvailable={Boolean(controller.detail && projectNames.has(controller.detail.task.projectId))}
-        readOnly={controller.detailReadOnly || Boolean(controller.detail && !projectNames.has(controller.detail.task.projectId))}
-        projectName={controller.detail ? projectNames.get(controller.detail.task.projectId) ?? '项目已移除' : ''}
-        sessions={controller.sessions}
-        labels={controller.labels}
-        onAddComment={controller.addComment}
-        onDeleteComment={controller.deleteComment}
-        onArchive={async id => { await controller.archiveTask(id); closeTask() }}
-        onClose={closeTask}
-        onDelete={controller.deleteTask}
-        onCreateLabel={controller.createLabel}
-        onDeleteLabel={controller.deleteLabel}
-        onLinkThread={controller.linkThread}
-        onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
-        onRestore={controller.restoreTask}
-        onSetPrimaryThread={controller.setPrimaryThread}
-        onStart={id => {
-          if (controller.detail?.task.id === id && controller.detail.task.archivedAt === null) {
-            setStartTaskId(id)
-          }
-        }}
-        onUnlinkThread={controller.unlinkThread}
-        onUpdateComment={controller.updateComment}
-        onUpdate={controller.updateTask}
-        onUpdateLabel={controller.updateLabel}
-      />
+        <TaskDetailsDrawer
+          detail={controller.detail}
+          error={controller.detailError}
+          loading={controller.detailLoading}
+          open={Boolean(taskId)}
+          pending={taskId ? controller.pendingTaskIds.has(taskId) : false}
+          projectAvailable={Boolean(controller.detail && projectNames.has(controller.detail.task.projectId))}
+          readOnly={controller.detailReadOnly || Boolean(controller.detail && !projectNames.has(controller.detail.task.projectId))}
+          projectName={controller.detail ? projectNames.get(controller.detail.task.projectId) ?? '项目已移除' : ''}
+          sessions={controller.sessions}
+          labels={controller.labels}
+          onAddComment={controller.addComment}
+          onDeleteComment={controller.deleteComment}
+          onArchive={async id => { await controller.archiveTask(id); closeTask() }}
+          onClose={closeTask}
+          onDelete={controller.deleteTask}
+          onCreateLabel={controller.createLabel}
+          onDeleteLabel={controller.deleteLabel}
+          onLinkThread={controller.linkThread}
+          onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
+          onRestore={controller.restoreTask}
+          onSetPrimaryThread={controller.setPrimaryThread}
+          onStart={id => {
+            if (controller.detail?.task.id === id && controller.detail.task.archivedAt === null) {
+              setStartTaskId(id)
+            }
+          }}
+          onUnlinkThread={controller.unlinkThread}
+          onUpdateComment={controller.updateComment}
+          onUpdate={controller.updateTask}
+          onUpdateLabel={controller.updateLabel}
+        />
+      </div>
       <CreateTaskDialog
         initialProjectId={filters.projectId}
-        open={createOpen}
+        initialStatus={createStatus ?? 'backlog'}
+        open={createStatus !== null}
         projects={controller.projects}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => setCreateStatus(null)}
         onCreate={async input => { openTask(await controller.createTask(input)) }}
       />
       <StartTaskDialog

@@ -167,11 +167,12 @@ import type {
   DesktopLocalContextApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
+  DesktopTaskboardApi,
 } from './types.js'
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
-    & DesktopLocalContextApi & DesktopSpeechApi,
+    & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -1381,7 +1382,9 @@ export function createAgentSessionDesktopClient(
       module.createAgentTaskboardApi({
         requireAgentCapability,
         rpc,
+        mockClient,
         withRequiredAgent,
+        withAgentOrMock,
       }),
     )
     return agentTaskboardApiPromise
