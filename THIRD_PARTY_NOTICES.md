@@ -1,5 +1,15 @@
 # Third-Party Notices
 
+CodePilotX includes task workflow, optimistic concurrency, column ordering,
+conversation prioritization, and agent lifecycle semantics adapted from
+dashi-taskboard at commit `9b2aeb53bfe8d40eb5d65feecdfc2cc235928066`.
+The adapted implementation is integrated with CodePilotX's native RPC,
+history storage, worktree, thread, permission, and renderer layers; it does
+not include dashi-taskboard's server, Tauri launcher, CDP integration, hosted
+services, or brand assets. These portions are licensed under the Apache
+License 2.0. See `third_party/dashi-taskboard/LICENSE` and
+`third_party/dashi-taskboard/UPSTREAM.md`.
+
 CodePilotX includes source adapted from the OpenCode project. The copied model
 schema and project directory storage semantics originated from version
 1.17.13; the JSONC parsing and key-path patching approach was adapted from
