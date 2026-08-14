@@ -101,14 +101,14 @@ describe('composer surface variant', () => {
     expect(html).toContain('aria-label="发送"')
   })
 
-  test('麦克风保留为带说明的禁用控件', () => {
+  test('未协商 dictation capability 时不渲染听写入口', () => {
     const html = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'chat' })} />,
     )
-    expect(html).toContain('composer-mic-button')
-    expect(html).toContain('aria-label="语音输入尚未可用"')
-    expect(html).toContain('title="语音输入尚未可用"')
-    expect(html).toContain('disabled=""')
+    // The SSR shell never negotiates dictation; the enabled path is covered by
+    // the dedicated dictation suite instead of a disabled SSR stub.
+    expect(html).not.toContain('composer-mic-button')
+    expect(html).not.toContain('语音输入尚未可用')
   })
 
   test('模型配置异常时只保留一个安静的配置入口', () => {

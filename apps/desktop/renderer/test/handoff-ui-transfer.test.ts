@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import {
   createDefaultConversationUiState,
   loadConversationUiState,
@@ -6,6 +6,19 @@ import {
   saveConversationUiState,
   transferConversationUiStateForHandoff,
 } from '../src/features/layout/tabs/conversationUiState.js'
+
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
+  globalThis,
+  'window',
+)
+
+afterEach(() => {
+  if (originalWindowDescriptor) {
+    Object.defineProperty(globalThis, 'window', originalWindowDescriptor)
+  } else {
+    Reflect.deleteProperty(globalThis, 'window')
+  }
+})
 
 describe('Handoff UI transfer', () => {
   beforeEach(() => installStorage(new MemoryStorage()))
