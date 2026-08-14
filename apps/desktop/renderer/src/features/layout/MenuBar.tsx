@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
 import {
@@ -154,6 +154,14 @@ type AppMenuProps = {
 
 type AppMenuValue = 'file' | 'edit' | 'view' | 'window' | 'help'
 
+const MENU_MNEMONICS: Record<string, AppMenuValue> = {
+  f: 'file',
+  e: 'edit',
+  v: 'view',
+  w: 'window',
+  h: 'help',
+}
+
 function AppMenu({
   children,
   contentClassName = '',
@@ -217,6 +225,9 @@ export function MenuBar({
   onHelpMenuAction,
 }: Props): React.ReactNode {
   const helpMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const menuTriggerRefs = useRef<Partial<Record<AppMenuValue, HTMLButtonElement | null>>>({})
+  const menuBarFocusedRef = useRef(false)
+  const restoreFocusRef = useRef<HTMLElement | null>(null)
   const ignoreStaleCloseRef = useRef(false)
   const [openMenu, setOpenMenu] = useState<AppMenuValue | ''>('')
 
@@ -234,8 +245,83 @@ export function MenuBar({
     if (value) queueMicrotask(() => (ignoreStaleCloseRef.current = false))
   }
 
+  function rememberFocusSource(): void {
+    if (menuBarFocusedRef.current) return
+    const active = document.activeElement
+    restoreFocusRef.current =
+      active instanceof HTMLElement && active !== document.body ? active : null
+  }
+
+  function focusMenuBar(): void {
+    rememberFocusSource()
+    menuBarFocusedRef.current = true
+    menuTriggerRefs.current.file?.focus({ preventScroll: true })
+  }
+
+  function openMenuByMnemonic(value: AppMenuValue): void {
+    rememberFocusSource()
+    menuBarFocusedRef.current = true
+    setOpenMenu(value)
+    menuTriggerRefs.current[value]?.focus({ preventScroll: true })
+  }
+
+  function restoreMenuBarFocus(): void {
+    const target = restoreFocusRef.current
+    menuBarFocusedRef.current = false
+    restoreFocusRef.current = null
+    if (target && target.isConnected) {
+      target.focus({ preventScroll: true })
+    } else {
+      menuTriggerRefs.current.file?.blur()
+    }
+  }
+
+  function handleMenuBarKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
+    if (event.key === 'Escape' && openMenu === '' && menuBarFocusedRef.current) {
+      event.preventDefault()
+      restoreMenuBarFocus()
+    }
+  }
+
+  function handleMenuBarBlur(event: React.FocusEvent<HTMLDivElement>): void {
+    const next = event.relatedTarget
+    if (next instanceof Node && event.currentTarget.contains(next)) return
+    menuBarFocusedRef.current = false
+    restoreFocusRef.current = null
+  }
+
+  useEffect(() => {
+    // Windows 桌面菜单行为：Alt/F10 聚焦菜单栏，Alt+F/E/V/W/H 直接打开对应菜单。
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.ctrlKey || event.metaKey) return
+      if (event.key === 'F10') {
+        event.preventDefault()
+        focusMenuBar()
+        return
+      }
+      if (event.key === 'Alt') {
+        focusMenuBar()
+        return
+      }
+      const mnemonic = MENU_MNEMONICS[event.key.toLocaleLowerCase()]
+      if (mnemonic && (event.altKey || menuBarFocusedRef.current)) {
+        event.preventDefault()
+        event.stopPropagation()
+        openMenuByMnemonic(mnemonic)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <div className="app-menubar" data-edit-command-preserve-target>
+    <div
+      className="app-menubar"
+      data-edit-command-preserve-target
+      onBlur={handleMenuBarBlur}
+      onKeyDown={handleMenuBarKeyDown}
+    >
       <div className="menubar-titlebar">
         <div className="menubar-left">
           <IconButton
@@ -282,6 +368,7 @@ export function MenuBar({
             <AppMenu
               label="文件"
               onRequestClose={closeMenu}
+              triggerRef={ref => { menuTriggerRefs.current.file = ref }}
               value="file"
               width={240}
             >
@@ -322,6 +409,7 @@ export function MenuBar({
             <AppMenu
               label="编辑"
               onRequestClose={closeMenu}
+              triggerRef={ref => { menuTriggerRefs.current.edit = ref }}
               value="edit"
               width={240}
             >
@@ -381,6 +469,7 @@ export function MenuBar({
             <AppMenu
               label="查看"
               onRequestClose={closeMenu}
+              triggerRef={ref => { menuTriggerRefs.current.view = ref }}
               value="view"
               width={260}
             >
@@ -476,6 +565,7 @@ export function MenuBar({
               contentClassName="menubar-content-window"
               label="窗口"
               onRequestClose={closeMenu}
+              triggerRef={ref => { menuTriggerRefs.current.window = ref }}
               value="window"
               width={240}
             >
@@ -497,7 +587,10 @@ export function MenuBar({
               contentClassName="menubar-content-help"
               label="帮助"
               onRequestClose={closeMenu}
-              triggerRef={helpMenuTriggerRef}
+              triggerRef={ref => {
+                helpMenuTriggerRef.current = ref
+                menuTriggerRefs.current.help = ref
+              }}
               value="help"
               width={260}
             >

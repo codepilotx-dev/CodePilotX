@@ -25,23 +25,24 @@
     left: 0;
     width: var(--workspace-header-route-width);
     height: 100%;
-    border-bottom: 1px solid var(--color-token-border-light);
-    background: color-mix(in srgb, var(--layer-canvas-fill) 94%, transparent);
-    backdrop-filter: blur(10px) saturate(1.04);
+    background: transparent;
     content: "";
+  }
+
+  &[data-divider]::before {
+    border-bottom: 0.5px solid var(--color-token-border-light);
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .desktop-workspace-header::before {
-    background: var(--layer-canvas-fill);
-    backdrop-filter: none;
+    background: transparent;
   }
 }
 
 @supports not (backdrop-filter: blur(1px)) {
   .desktop-workspace-header::before {
-    background: var(--layer-canvas-fill);
+    background: transparent;
   }
 }
 
@@ -130,9 +131,33 @@
 }
 
 @container desktop-workspace (max-width: 47.9375rem) {
+  .desktop-workspace-header-route-band {
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+  }
+
+  .desktop-workspace-header-route-left {
+    grid-column: 1;
+    min-width: 0;
+  }
+
   .desktop-workspace-header-center {
-    visibility: hidden;
-    pointer-events: none;
+    position: static;
+    grid-column: 2;
+    justify-content: center;
+    overflow: hidden;
+    min-width: 0;
+    padding-inline: var(--space-2);
+  }
+
+  .desktop-workspace-header-route-right {
+    grid-column: 3;
+    min-width: 0;
+  }
+
+  .desktop-workspace-header-item,
+  .desktop-workspace-header-center .desktop-workspace-header-group {
+    min-width: 0;
+    max-width: 100%;
   }
 }
 
@@ -181,9 +206,11 @@
 
 @media (forced-colors: active) {
   .desktop-workspace-header::before {
+    background: transparent;
+  }
+
+  .desktop-workspace-header[data-divider]::before {
     border-bottom-color: CanvasText;
-    background: Canvas;
-    backdrop-filter: none;
   }
 
   .workspace-shell-control-button[aria-pressed="true"] {

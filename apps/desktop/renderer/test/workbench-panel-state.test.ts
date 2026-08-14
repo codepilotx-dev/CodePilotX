@@ -1170,9 +1170,9 @@ describe('workbench dynamic tab state', () => {
 })
 
 describe('workbench right panel sizing', () => {
-  test('使用 600px 默认值并按可用工作区夹紧', () => {
+  test('使用 Codex 动态公式计算默认宽度并按可用工作区夹紧', () => {
     expect(RIGHT_DOCK_DEFAULT_WIDTH).toBe(600)
-    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(600)
+    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(1_000)
     expect(getResponsiveRightDockDefaultWidth(700, 800)).toBe(348)
 
     const ratio = rightDockWidthToRatio(700, 1_500)
@@ -1197,23 +1197,23 @@ describe('workbench right panel sizing', () => {
     expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(220)
   })
 
-  test('右栏自动隐藏和恢复使用 672/696 回差', () => {
+  test('右栏按整窗 960px 阈值自动收起，恢复保留 24px 回差', () => {
     let state = createRightDockResponsiveState(800)
     state = reduceRightDockResponsiveState(state, {
       type: 'resize',
-      workspaceWidth: 671,
+      windowWidth: 959,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: false })
 
     state = reduceRightDockResponsiveState(state, {
       type: 'resize',
-      workspaceWidth: 680,
+      windowWidth: 970,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: false })
 
     state = reduceRightDockResponsiveState(state, {
       type: 'resize',
-      workspaceWidth: 696,
+      windowWidth: 984,
     })
     expect(state).toEqual({ suppressed: false, manualOverride: false })
   })
@@ -1222,19 +1222,19 @@ describe('workbench right panel sizing', () => {
     let state = createRightDockResponsiveState(660)
     state = reduceRightDockResponsiveState(state, {
       type: 'manualOpen',
-      workspaceWidth: 660,
+      windowWidth: 660,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: true })
 
     state = reduceRightDockResponsiveState(state, {
       type: 'resize',
-      workspaceWidth: 600,
+      windowWidth: 600,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: true })
 
     state = reduceRightDockResponsiveState(state, {
       type: 'manualClose',
-      workspaceWidth: 600,
+      windowWidth: 600,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: false })
   })

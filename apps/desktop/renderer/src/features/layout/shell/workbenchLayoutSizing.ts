@@ -1,8 +1,10 @@
 export const RIGHT_DOCK_MIN_WIDTH = 320
 export const RIGHT_DOCK_MAIN_MIN_WIDTH = 352
 export const RIGHT_DOCK_DEFAULT_WIDTH = 600
-export const RIGHT_DOCK_CONSTRAINED_WIDTH = 672
-export const RIGHT_DOCK_REOPEN_WIDTH = 696
+/** 右栏自动收起按整个窗口宽度计算。 */
+export const RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH = 960
+/** 恢复右栏需要越过阈值的回差，避免窗口拖动时反复开关。 */
+export const RIGHT_DOCK_RESPONSIVE_HYSTERESIS = 24
 
 export const BOTTOM_PANEL_MIN_HEIGHT = 160
 export const BOTTOM_PANEL_DEFAULT_HEIGHT = 220
@@ -23,9 +25,9 @@ export interface RightDockResponsiveState {
 }
 
 export type RightDockResponsiveAction =
-  | { type: 'resize'; workspaceWidth: number }
-  | { type: 'manualOpen'; workspaceWidth: number }
-  | { type: 'manualClose'; workspaceWidth: number }
+  | { type: 'resize'; windowWidth: number }
+  | { type: 'manualOpen'; windowWidth: number }
+  | { type: 'manualClose'; windowWidth: number }
 
 export function rightDockWidthFromRatio(
   ratio: number,
@@ -60,16 +62,18 @@ export function getRightDockMaxWidth(workspaceWidth: number): number {
 }
 
 export function getResponsiveRightDockDefaultWidth(
-  workspaceWidth: number,
-  _workspaceHeight: number,
+  mainContentWidth: number,
+  shellHeight: number,
 ): number {
-  const safeWorkspaceWidth = normalizeDimension(workspaceWidth)
+  const safeWidth = normalizeDimension(mainContentWidth)
+  const safeHeight = normalizeDimension(shellHeight)
+  const computed = Math.max(
+    RIGHT_DOCK_MIN_WIDTH,
+    Math.min(safeHeight * 1.6, safeWidth - 500),
+    Math.min(640, safeWidth - RIGHT_DOCK_MAIN_MIN_WIDTH),
+  )
   return Math.round(
-    clamp(
-      RIGHT_DOCK_DEFAULT_WIDTH,
-      RIGHT_DOCK_MIN_WIDTH,
-      getRightDockMaxWidth(safeWorkspaceWidth),
-    ),
+    clamp(computed, RIGHT_DOCK_MIN_WIDTH, getRightDockMaxWidth(safeWidth)),
   )
 }
 
@@ -114,10 +118,10 @@ export function getBottomPanelMaxHeight(workspaceHeight: number): number {
 }
 
 export function createRightDockResponsiveState(
-  workspaceWidth: number,
+  windowWidth: number,
 ): RightDockResponsiveState {
   return {
-    suppressed: normalizeDimension(workspaceWidth) < RIGHT_DOCK_CONSTRAINED_WIDTH,
+    suppressed: normalizeDimension(windowWidth) < RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH,
     manualOverride: false,
   }
 }
@@ -126,17 +130,17 @@ export function reduceRightDockResponsiveState(
   state: RightDockResponsiveState,
   action: RightDockResponsiveAction,
 ): RightDockResponsiveState {
-  const workspaceWidth = normalizeDimension(action.workspaceWidth)
+  const windowWidth = normalizeDimension(action.windowWidth)
   return {
     suppressed: state.suppressed
-      ? workspaceWidth < RIGHT_DOCK_REOPEN_WIDTH
-      : workspaceWidth < RIGHT_DOCK_CONSTRAINED_WIDTH,
+      ? windowWidth < RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH + RIGHT_DOCK_RESPONSIVE_HYSTERESIS
+      : windowWidth < RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH,
     manualOverride:
       action.type === 'manualClose'
         ? false
         : action.type === 'manualOpen'
           ? state.suppressed ||
-            workspaceWidth < RIGHT_DOCK_CONSTRAINED_WIDTH
+            windowWidth < RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH
           : state.manualOverride,
   }
 }

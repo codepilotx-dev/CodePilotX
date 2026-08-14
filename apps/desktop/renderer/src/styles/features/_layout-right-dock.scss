@@ -72,7 +72,8 @@
   flex-basis: var(--workbench-tab-strip-height);
   padding-left: 8px;
   padding-right: calc(
-    var(--button-size-tab-strip-action) + var(--space-2)
+    var(--button-size-tab-strip-action) + var(--space-2) +
+    var(--workspace-header-shell-width, 0px)
   );
 }
 
@@ -176,7 +177,7 @@
 
 .right-dock-full-width {
   position: absolute;
-  right: 0;
+  right: var(--workspace-header-shell-width, 0px);
 }
 
 .bottom-panel-close {

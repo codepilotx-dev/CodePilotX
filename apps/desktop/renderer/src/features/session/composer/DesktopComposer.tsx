@@ -78,7 +78,6 @@ export type DesktopComposerProps = {
   selectedModelPreset: string
   modelConfigured: boolean
   modelCatalogLoading?: boolean
-  modelConfigurationMessage?: string
   selectedModelMetadata?: DesktopModelMetadata
   showThinkingOptions: boolean
   deepSeekThinkingControls: boolean

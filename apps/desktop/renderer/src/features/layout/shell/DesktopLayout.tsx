@@ -1757,8 +1757,6 @@ export function DesktopLayout(): React.ReactNode {
     selectedProviderSummary?.kind === 'anthropic' ||
     selectedModelMetadata?.reasoning === true
   const modelConfigured = providerState?.modelConfigured === true
-  const modelConfigurationMessage =
-    providerState?.configurationMessage ?? '未配置模型，请先在设置中配置模型。'
 
   useEffect(() => {
     const activeModel = activeSessionItem?.model?.trim()
@@ -1817,12 +1815,10 @@ export function DesktopLayout(): React.ReactNode {
       })
       if (
         next.selectedProviderID &&
-        next.apiKeyConfigured &&
-        (!next.provider.requiresBaseURL || next.baseURL?.trim())
+        next.apiKeyConfigured
       ) {
         const catalogKey = [
           next.selectedProviderID,
-          next.baseURL ?? '',
           next.apiKeyConfigured ? 'key' : 'no-key',
         ].join('\0')
         if (
@@ -1835,7 +1831,6 @@ export function DesktopLayout(): React.ReactNode {
         void withModelCatalogLoading(() =>
           desktopClient.fetchProviderModels({
             providerID: next.selectedProviderID,
-            baseURL: next.baseURL,
           }),
         )
           .then(result => {
@@ -1929,7 +1924,6 @@ export function DesktopLayout(): React.ReactNode {
         .saveModelProvider({
           providerID,
           id: preset.value,
-          baseURL,
         })
         .then(next => {
           setProviderState(next)
@@ -2422,7 +2416,6 @@ export function DesktopLayout(): React.ReactNode {
           selectedModelPreset: resolvedSelectedModelPreset,
           modelConfigured,
           modelCatalogLoading,
-          modelConfigurationMessage,
           selectedModelMetadata,
           showThinkingOptions,
           deepSeekThinkingControls,
@@ -2526,7 +2519,6 @@ export function DesktopLayout(): React.ReactNode {
         selectedModelPreset={sideSelectedModelPreset}
         modelConfigured={modelConfigured}
         modelCatalogLoading={modelCatalogLoading}
-        modelConfigurationMessage={modelConfigurationMessage}
         selectedModelMetadata={sideModelMetadata}
         showThinkingOptions={sideShowThinkingOptions}
         deepSeekThinkingControls={sideDeepSeekThinkingControls}
@@ -3403,6 +3395,7 @@ export function DesktopLayout(): React.ReactNode {
                   }
                 >
                   <DesktopWorkspaceHeader
+                    divider={isConversationRoute}
                     fullWidth={rightDockFullWidth}
                     rightDockOpen={rightDockVisible}
                     shellControls={

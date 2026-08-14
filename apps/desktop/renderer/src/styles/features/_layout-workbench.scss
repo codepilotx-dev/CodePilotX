@@ -1,8 +1,11 @@
 .desktop-main {
+  --elevation-stroke: 0 0 0 0.5px var(--color-token-border-heavy);
+  --elevation-prominent:
+    var(--elevation-stroke),
+    0 3px 7.5px color-mix(in srgb, var(--color-token-foreground) 4%, transparent),
+    0 0 20px color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
   background: var(--layer-canvas-fill);
-  border-width: 1px 0 0 1px;
-  border-style: solid;
-  border-color: var(--color-token-border-light);
+  border-radius: 10px 0 0 0;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -12,7 +15,7 @@
   justify-content: flex-start;
   width: 100%;
   position: relative;
-  box-shadow: none;
+  box-shadow: var(--elevation-prominent);
 }
 
 .desktop-main-stage {
@@ -167,6 +170,15 @@
   flex: 1 1 auto;
   justify-content: center;
   overflow: hidden;
+}
+
+@media (forced-colors: active) {
+  .desktop-main {
+    border-radius: 0;
+    box-shadow: none;
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
 }
 
 :root[data-reduce-motion="on"] {

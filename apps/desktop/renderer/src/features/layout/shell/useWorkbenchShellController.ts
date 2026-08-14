@@ -72,6 +72,9 @@ export function useWorkbenchShellController() {
     rightDockWidthRatio ?? 0,
     workspaceSize.width,
   )
+  const [windowWidth, setWindowWidth] = useState<number>(() =>
+    typeof window === 'undefined' ? 0 : window.innerWidth,
+  )
   const [bottomPanelHeightRatio, setBottomPanelHeightRatio] =
     useState<number | null>(null)
   const bottomPanelHeight = bottomPanelHeightFromRatio(
@@ -115,11 +118,11 @@ export function useWorkbenchShellController() {
       setRightDockResponsiveState(current =>
         reduceRightDockResponsiveState(current, {
           type,
-          workspaceWidth: workspaceSize.width,
+          windowWidth,
         }),
       )
     },
-    [workspaceSize.width],
+    [windowWidth],
   )
 
   const moveRightDockFocusToMain = useCallback((): void => {
@@ -360,6 +363,7 @@ export function useWorkbenchShellController() {
         width: Math.round(width),
         height: Math.round(height),
       }
+      setWindowWidth(window.innerWidth)
       if (!workspaceMeasuredRef.current) {
         workspaceMeasuredRef.current = true
         void import('./workbenchLayoutStorage.js').then(module => {
@@ -391,7 +395,7 @@ export function useWorkbenchShellController() {
     setRightDockResponsiveState(current => {
       const next = reduceRightDockResponsiveState(current, {
         type: 'resize',
-        workspaceWidth: workspaceSize.width,
+        windowWidth,
       })
       if (
         rightDockState.open &&
@@ -407,7 +411,7 @@ export function useWorkbenchShellController() {
   }, [
     moveRightDockFocusToMain,
     rightDockState.open,
-    workspaceSize.width,
+    windowWidth,
   ])
 
   return {
