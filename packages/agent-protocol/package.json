@@ -14,7 +14,8 @@
     "./host": "./src/methods/host.ts",
     "./local-environment": "./src/methods/local-environment.ts",
     "./terminal": "./src/methods/terminal.ts",
-    "./worktree": "./src/methods/worktree.ts"
+    "./worktree": "./src/methods/worktree.ts",
+    "./taskboard": "./src/methods/taskboard.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

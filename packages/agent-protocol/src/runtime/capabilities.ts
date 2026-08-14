@@ -47,6 +47,7 @@ export const Capabilities = [
   "thread.fork.v1",
   "thread.side-chat.v1",
   "worktree.manage.v1",
+  "taskboard.v1",
 ] as const
 
 export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)

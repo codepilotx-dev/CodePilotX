@@ -149,4 +149,27 @@ describe("event manifest invariants", () => {
       expect(() => decode({ ...payload, ...forbidden })).toThrow()
     }
   })
+
+  test("publishes taskboard changes as minimal durable global invalidations", () => {
+    expect(EventManifest["taskboard/changed"]).toMatchObject({
+      durability: "durable",
+      stream: "global",
+      capability: "taskboard.v1",
+      reconcilesWith: "taskboard/task/list",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["taskboard/changed"].payload,
+      { onExcessProperty: "error" },
+    )
+    const payload = {
+      projectId: "project:1",
+      taskId: "task:1",
+      resource: "task" as const,
+      action: "updated" as const,
+      changedAt: 1,
+    }
+    expect(decode(payload)).toEqual(payload)
+    expect(() => decode({ ...payload, description: "不得进入事件日志" })).toThrow()
+    expect(() => decode({ ...payload, cwd: "C:\\sensitive" })).toThrow()
+  })
 })

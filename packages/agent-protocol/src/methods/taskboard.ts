@@ -1,0 +1,355 @@
+import {
+  TASKBOARD_COMMENT_MAX_LENGTH,
+  TASKBOARD_DESCRIPTION_MAX_LENGTH,
+  TASKBOARD_LABEL_MAX_LENGTH,
+  TASKBOARD_LABELS_PER_TASK_MAX,
+  TASKBOARD_TITLE_MAX_LENGTH,
+  TaskboardCommentSchema,
+  TaskboardLabelSchema,
+  TaskboardPrioritySchema,
+  TaskboardStatusSchema,
+  TaskboardTaskDetailsSchema,
+  TaskboardTaskSummarySchema,
+  TaskboardThreadRoleSchema,
+} from "@codepilotx/shared/taskboard"
+import { Schema } from "effect"
+import { defineMethod, type MethodMap } from "../wire/definition"
+import {
+  CursorSchema,
+  LimitSchema,
+  OpaqueIDSchema,
+  SequenceSchema,
+  TimestampSchema,
+} from "../wire/primitives"
+
+const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+const TaskTitleSchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_TITLE_MAX_LENGTH))
+const TaskDescriptionSchema = Schema.String.check(Schema.isMaxLength(TASKBOARD_DESCRIPTION_MAX_LENGTH))
+const TaskCommentBodySchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_COMMENT_MAX_LENGTH))
+const TaskLabelNameSchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_LABEL_MAX_LENGTH))
+const TaskLabelIdsSchema = Schema.Array(OpaqueIDSchema).check(Schema.isMaxLength(TASKBOARD_LABELS_PER_TASK_MAX))
+const ExpectedVersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
+
+export const TaskboardStartExecutionSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("local") }),
+  Schema.Struct({ kind: Schema.Literal("existing_worktree"), worktreeId: OpaqueIDSchema }),
+  Schema.Struct({
+    kind: Schema.Literal("new_worktree"),
+    startingState: Schema.Union([
+      Schema.Struct({ type: Schema.Literal("branch"), branchName: NonEmptyStringSchema }),
+      Schema.Struct({ type: Schema.Literal("working_tree") }),
+    ]),
+  }),
+])
+export type TaskboardStartExecution = typeof TaskboardStartExecutionSchema.Type
+
+export const TaskboardStartOperationStatusSchema = Schema.Literals([
+  "running",
+  "awaiting_setup_decision",
+  "completed",
+  "failed",
+  "rollback_failed",
+])
+export const TaskboardStartOperationStepSchema = Schema.Literals([
+  "preflight",
+  "prepare_worktree",
+  "create_thread",
+  "link",
+  "complete",
+])
+export const TaskboardStartOperationSchema = Schema.Struct({
+  operationId: OpaqueIDSchema,
+  taskId: OpaqueIDSchema,
+  projectId: OpaqueIDSchema,
+  threadId: Schema.NullOr(OpaqueIDSchema),
+  worktreeId: Schema.NullOr(OpaqueIDSchema),
+  execution: TaskboardStartExecutionSchema,
+  status: TaskboardStartOperationStatusSchema,
+  step: TaskboardStartOperationStepSchema,
+  revision: ExpectedVersionSchema,
+  errorCode: Schema.NullOr(NonEmptyStringSchema),
+  warnings: Schema.Array(NonEmptyStringSchema),
+  startupInstruction: Schema.NullOr(Schema.String),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+  completedAt: Schema.NullOr(TimestampSchema),
+})
+export type TaskboardStartOperation = typeof TaskboardStartOperationSchema.Type
+
+const TaskboardErrors = [
+  "PROJECT_NOT_FOUND",
+  "PROJECT_REMOVED",
+  "THREAD_NOT_FOUND",
+  "WORKTREE_NOT_FOUND",
+  "WORKTREE_NOT_READY",
+  "WORKTREE_SETUP_REQUIRED",
+  "TASKBOARD_TASK_NOT_FOUND",
+  "TASKBOARD_COMMENT_NOT_FOUND",
+  "TASKBOARD_LABEL_NOT_FOUND",
+  "TASKBOARD_OPERATION_NOT_FOUND",
+  "TASKBOARD_START_OPERATION_NOT_FOUND",
+  "TASKBOARD_THREAD_ALREADY_LINKED",
+  "TASKBOARD_PRIMARY_EXISTS",
+  "TASKBOARD_CONTEXT_REQUIRED",
+  "OPERATION_ID_CONFLICT",
+  "PERMISSION_DENIED",
+  "CONFLICT",
+  "INVALID_REQUEST",
+  "ROLLBACK_FAILED",
+  "INTERNAL_ERROR",
+] as const
+
+const TaskResultSchema = Schema.Struct({ task: TaskboardTaskDetailsSchema })
+const OperationIdField = { operationId: OpaqueIDSchema } as const
+const ExpectedVersionField = { expectedVersion: ExpectedVersionSchema } as const
+
+export const TaskboardRpcMethods = {
+  "taskboard/task/list": defineMethod({
+    params: Schema.Struct({
+      projectId: Schema.optional(OpaqueIDSchema),
+      statuses: Schema.optional(Schema.Array(TaskboardStatusSchema)),
+      priorities: Schema.optional(Schema.Array(TaskboardPrioritySchema)),
+      labelIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
+      query: Schema.optional(Schema.String),
+      archived: Schema.optional(Schema.Boolean),
+      cursor: Schema.optional(CursorSchema),
+      limit: Schema.optional(LimitSchema),
+    }),
+    result: Schema.Struct({
+      tasks: Schema.Array(TaskboardTaskSummarySchema),
+      nextCursor: Schema.NullOr(CursorSchema),
+    }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/read": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/create": defineMethod({
+    params: Schema.Struct({
+      projectId: OpaqueIDSchema,
+      title: TaskTitleSchema,
+      description: Schema.optional(TaskDescriptionSchema),
+      status: Schema.optional(TaskboardStatusSchema),
+      priority: Schema.optional(TaskboardPrioritySchema),
+      labelIds: Schema.optional(TaskLabelIdsSchema),
+      ...OperationIdField,
+    }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/update": defineMethod({
+    params: Schema.Struct({
+      taskId: OpaqueIDSchema,
+      patch: Schema.Struct({
+        title: Schema.optional(TaskTitleSchema),
+        description: Schema.optional(TaskDescriptionSchema),
+        status: Schema.optional(TaskboardStatusSchema),
+        priority: Schema.optional(TaskboardPrioritySchema),
+        labelIds: Schema.optional(TaskLabelIdsSchema),
+      }),
+      ...ExpectedVersionField,
+      ...OperationIdField,
+    }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/move": defineMethod({
+    params: Schema.Struct({
+      taskId: OpaqueIDSchema,
+      status: TaskboardStatusSchema,
+      beforeTaskId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+      afterTaskId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+      ...ExpectedVersionField,
+      ...OperationIdField,
+    }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/archive": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/restore": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/delete": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: Schema.Struct({ deleted: Schema.Literal(true), taskId: OpaqueIDSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/thread/link": defineMethod({
+    params: Schema.Struct({
+      taskId: OpaqueIDSchema,
+      threadId: OpaqueIDSchema,
+      role: TaskboardThreadRoleSchema,
+      ...ExpectedVersionField,
+      ...OperationIdField,
+    }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/thread/unlink": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema, threadId: OpaqueIDSchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/thread/set-primary": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema, threadId: OpaqueIDSchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: TaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/comment/create": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema, body: TaskCommentBodySchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: Schema.Struct({ task: TaskboardTaskDetailsSchema, comment: TaskboardCommentSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/comment/update": defineMethod({
+    params: Schema.Struct({ commentId: OpaqueIDSchema, body: TaskCommentBodySchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: Schema.Struct({ task: TaskboardTaskDetailsSchema, comment: TaskboardCommentSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/comment/delete": defineMethod({
+    params: Schema.Struct({ commentId: OpaqueIDSchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: Schema.Struct({ task: TaskboardTaskDetailsSchema, comment: TaskboardCommentSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/label/list": defineMethod({
+    params: Schema.Struct({ projectId: OpaqueIDSchema }),
+    result: Schema.Struct({ labels: Schema.Array(TaskboardLabelSchema) }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/label/create": defineMethod({
+    params: Schema.Struct({ projectId: OpaqueIDSchema, name: TaskLabelNameSchema, ...OperationIdField }),
+    result: Schema.Struct({ label: TaskboardLabelSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/label/update": defineMethod({
+    params: Schema.Struct({ labelId: OpaqueIDSchema, name: TaskLabelNameSchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: Schema.Struct({ label: TaskboardLabelSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/label/delete": defineMethod({
+    params: Schema.Struct({ labelId: OpaqueIDSchema, ...ExpectedVersionField, ...OperationIdField }),
+    result: Schema.Struct({ deleted: Schema.Literal(true), labelId: OpaqueIDSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/start": defineMethod({
+    params: Schema.Struct({
+      taskId: OpaqueIDSchema,
+      execution: TaskboardStartExecutionSchema,
+      operationId: OpaqueIDSchema,
+    }),
+    result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/start/status": defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema, afterRevision: Schema.optional(SequenceSchema) }),
+    result: Schema.Struct({ operation: TaskboardStartOperationSchema, changed: Schema.Boolean }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/start/retry-setup": defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema, revision: ExpectedVersionSchema }),
+    result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/task/start/continue-without-setup": defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema, revision: ExpectedVersionSchema }),
+    result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+} as const satisfies MethodMap
+
+export type TaskboardRpcMethodMap = typeof TaskboardRpcMethods

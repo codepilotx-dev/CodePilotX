@@ -19,6 +19,7 @@
     "./desktop-terminal-ipc": "./src/desktop-terminal-ipc.ts",
     "./desktop-update-ipc": "./src/desktop-update-ipc.ts",
     "./model": "./src/model.ts",
+    "./taskboard": "./src/taskboard.ts",
     "./thread": "./src/thread/index.ts"
   },
   "scripts": {

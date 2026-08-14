@@ -424,6 +424,69 @@ type MethodFixtures = {
   }
 }
 
+const taskboardTask = {
+  id: "taskboard-task:1",
+  projectId: project.id,
+  number: 1,
+  title: "实现原生任务看板",
+  description: "共享契约与存储",
+  status: "in_progress",
+  priority: "high",
+  position: 1_024,
+  version: 2,
+  labels: [],
+  archivedAt: null,
+  createdAt: 1,
+  updatedAt: 2,
+} as const
+
+const taskboardDetails = {
+  task: taskboardTask,
+  threads: [],
+  comments: [],
+  activities: [],
+} as const
+
+const taskboardComment = {
+  id: "taskboard-comment:1",
+  taskId: taskboardTask.id,
+  body: "已完成契约实现",
+  author: "user",
+  sourceThreadId: null,
+  version: 1,
+  deletedAt: null,
+  createdAt: 2,
+  updatedAt: 2,
+} as const
+
+const taskboardLabel = {
+  id: "taskboard-label:1",
+  projectId: project.id,
+  name: "Desktop",
+  normalizedName: "desktop",
+  version: 1,
+  createdAt: 1,
+  updatedAt: 1,
+} as const
+
+const taskboardStartOperation = {
+  operationId: "taskboard-start:1",
+  taskId: taskboardTask.id,
+  projectId: project.id,
+  threadId: "thread:taskboard",
+  worktreeId: null,
+  execution: { kind: "local" },
+  status: "completed",
+  step: "complete",
+  revision: 3,
+  errorCode: null,
+  warnings: [],
+  startupInstruction: "请先读取任务。",
+  createdAt: 1,
+  updatedAt: 3,
+  completedAt: 3,
+} as const
+
 const fixtures = {
   "config/read": methodFixture("config/read", {
     includeLayers: true,
@@ -2331,6 +2394,131 @@ const fixtures = {
     environmentRevision: 1,
     command: "bun run dev",
   }),
+  "taskboard/task/list": methodFixture("taskboard/task/list", {
+    projectId: project.id,
+    statuses: ["in_progress"],
+    priorities: ["high"],
+    labelIds: [],
+    query: "任务看板",
+    archived: false,
+    limit: 200,
+  }, {
+    tasks: [{ ...taskboardTask, threads: [] }],
+    nextCursor: null,
+  }),
+  "taskboard/task/read": methodFixture("taskboard/task/read", {
+    taskId: taskboardTask.id,
+  }, { task: taskboardDetails }),
+  "taskboard/task/create": methodFixture("taskboard/task/create", {
+    projectId: project.id,
+    title: taskboardTask.title,
+    description: taskboardTask.description,
+    status: "backlog",
+    priority: "high",
+    labelIds: [],
+    operationId: "operation:taskboard-create",
+  }, { task: taskboardDetails }),
+  "taskboard/task/update": methodFixture("taskboard/task/update", {
+    taskId: taskboardTask.id,
+    patch: { title: taskboardTask.title, priority: "high" },
+    expectedVersion: 1,
+    operationId: "operation:taskboard-update",
+  }, { task: taskboardDetails }),
+  "taskboard/task/move": methodFixture("taskboard/task/move", {
+    taskId: taskboardTask.id,
+    status: "in_progress",
+    beforeTaskId: null,
+    afterTaskId: null,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-move",
+  }, { task: taskboardDetails }),
+  "taskboard/task/archive": methodFixture("taskboard/task/archive", {
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    operationId: "operation:taskboard-archive",
+  }, { task: taskboardDetails }),
+  "taskboard/task/restore": methodFixture("taskboard/task/restore", {
+    taskId: taskboardTask.id,
+    expectedVersion: 3,
+    operationId: "operation:taskboard-restore",
+  }, { task: taskboardDetails }),
+  "taskboard/task/delete": methodFixture("taskboard/task/delete", {
+    taskId: taskboardTask.id,
+    expectedVersion: 4,
+    operationId: "operation:taskboard-delete",
+  }, { deleted: true, taskId: taskboardTask.id }),
+  "taskboard/thread/link": methodFixture("taskboard/thread/link", {
+    taskId: taskboardTask.id,
+    threadId: "thread:taskboard",
+    role: "primary",
+    expectedVersion: 1,
+    operationId: "operation:taskboard-link",
+  }, { task: taskboardDetails }),
+  "taskboard/thread/unlink": methodFixture("taskboard/thread/unlink", {
+    taskId: taskboardTask.id,
+    threadId: "thread:taskboard",
+    expectedVersion: 2,
+    operationId: "operation:taskboard-unlink",
+  }, { task: taskboardDetails }),
+  "taskboard/thread/set-primary": methodFixture("taskboard/thread/set-primary", {
+    taskId: taskboardTask.id,
+    threadId: "thread:taskboard",
+    expectedVersion: 2,
+    operationId: "operation:taskboard-primary",
+  }, { task: taskboardDetails }),
+  "taskboard/comment/create": methodFixture("taskboard/comment/create", {
+    taskId: taskboardTask.id,
+    body: taskboardComment.body,
+    expectedVersion: 2,
+    operationId: "operation:taskboard-comment-create",
+  }, { task: taskboardDetails, comment: taskboardComment }),
+  "taskboard/comment/update": methodFixture("taskboard/comment/update", {
+    commentId: taskboardComment.id,
+    body: taskboardComment.body,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-comment-update",
+  }, { task: taskboardDetails, comment: taskboardComment }),
+  "taskboard/comment/delete": methodFixture("taskboard/comment/delete", {
+    commentId: taskboardComment.id,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-comment-delete",
+  }, { task: taskboardDetails, comment: taskboardComment }),
+  "taskboard/label/list": methodFixture("taskboard/label/list", {
+    projectId: project.id,
+  }, { labels: [taskboardLabel] }),
+  "taskboard/label/create": methodFixture("taskboard/label/create", {
+    projectId: project.id,
+    name: taskboardLabel.name,
+    operationId: "operation:taskboard-label-create",
+  }, { label: taskboardLabel }),
+  "taskboard/label/update": methodFixture("taskboard/label/update", {
+    labelId: taskboardLabel.id,
+    name: taskboardLabel.name,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-label-update",
+  }, { label: taskboardLabel }),
+  "taskboard/label/delete": methodFixture("taskboard/label/delete", {
+    labelId: taskboardLabel.id,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-label-delete",
+  }, { deleted: true, labelId: taskboardLabel.id }),
+  "taskboard/task/start": methodFixture("taskboard/task/start", {
+    taskId: taskboardTask.id,
+    execution: { kind: "local" },
+    operationId: taskboardStartOperation.operationId,
+  }, { operation: taskboardStartOperation }),
+  "taskboard/task/start/status": methodFixture("taskboard/task/start/status", {
+    operationId: taskboardStartOperation.operationId,
+    afterRevision: 2,
+  }, { operation: taskboardStartOperation, changed: true }),
+  "taskboard/task/start/retry-setup": methodFixture("taskboard/task/start/retry-setup", {
+    operationId: taskboardStartOperation.operationId,
+    revision: 2,
+  }, { operation: taskboardStartOperation }),
+  "taskboard/task/start/continue-without-setup": methodFixture("taskboard/task/start/continue-without-setup", {
+    operationId: taskboardStartOperation.operationId,
+    revision: 2,
+  }, { operation: taskboardStartOperation }),
   "usage/source/list": methodFixture("usage/source/list", {}, {
     sources: [{
       sourceId: "fixture-key",
@@ -2448,6 +2636,33 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
+  test("任务看板方法统一使用 taskboard.v1 并在 wire 边界限制正文和标签", () => {
+    const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("taskboard/"))
+    expect(methods).toHaveLength(22)
+    expect(methods.every(([, definition]) => definition.capability === "taskboard.v1")).toBe(true)
+    expect(Capabilities).toContain("taskboard.v1")
+
+    const decodeCreate = Schema.decodeUnknownSync(RpcMethods["taskboard/task/create"].params)
+    expect(() => decodeCreate({
+      ...fixtures["taskboard/task/create"].params,
+      title: "x".repeat(201),
+    })).toThrow()
+    expect(() => decodeCreate({
+      ...fixtures["taskboard/task/create"].params,
+      description: "x".repeat(65_537),
+    })).toThrow()
+    expect(() => decodeCreate({
+      ...fixtures["taskboard/task/create"].params,
+      labelIds: Array.from({ length: 21 }, (_, index) => `label:${index}`),
+    })).toThrow()
+
+    const decodeComment = Schema.decodeUnknownSync(RpcMethods["taskboard/comment/create"].params)
+    expect(() => decodeComment({
+      ...fixtures["taskboard/comment/create"].params,
+      body: "x".repeat(32_769),
+    })).toThrow()
+  })
+
   test("批量 Review Diff 使用独立的向后兼容能力", () => {
     expect(RpcMethods["review/file-diffs"].capability).toBe("git.review.batch.v1")
     expect(Capabilities).toContain("git.review.batch.v1")
@@ -2505,7 +2720,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(203)
+    expect(methods).toHaveLength(225)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2773,7 +2988,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(197)
+    expect(Object.keys(RpcMethods)).toHaveLength(219)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

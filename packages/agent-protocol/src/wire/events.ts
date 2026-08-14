@@ -93,6 +93,20 @@ export const EventManifest = {
     capability: "workspace.editor.v1",
     reconcilesWith: "workspace/file/read",
   }),
+  "taskboard/changed": defineEvent({
+    payload: Schema.Struct({
+      projectId: OpaqueIDSchema,
+      taskId: Schema.NullOr(OpaqueIDSchema),
+      resource: Schema.Literals(["task", "comment", "label", "thread_link", "start"]),
+      action: Schema.Literals(["created", "updated", "archived", "restored", "deleted"]),
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "taskboard.v1",
+    reconcilesWith: "taskboard/task/list",
+  }),
   "tooling/updated": defineEvent({
     payload: Schema.Struct({
       status: ToolingStatusSchema,
