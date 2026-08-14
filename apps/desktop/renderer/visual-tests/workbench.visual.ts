@@ -3050,8 +3050,8 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
   await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
   await expect(sidebar).not.toHaveClass(/is-drawer/)
   const primaryNavigationRow = page
-    .getByRole('navigation', { name: '新建任务' })
-    .getByRole('link', { name: '新建任务' })
+    .getByRole('navigation', { name: '新建对话' })
+    .getByRole('link', { name: '新建对话' })
   await expect(primaryNavigationRow).toBeVisible()
   await expectCompactInteractiveRow(primaryNavigationRow, {
     borderRadius: '8px',

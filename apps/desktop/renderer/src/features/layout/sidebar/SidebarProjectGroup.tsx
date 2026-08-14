@@ -320,7 +320,7 @@ function SidebarProjectGroupComponent({
                     </PopoverItem>
                   </PopoverMenu>
                 <button
-                  aria-label="新建任务"
+                  aria-label="新建对话"
                   className="icon-button sidebar-project-action-button"
                   disabled={isUnavailable}
                   type="button"

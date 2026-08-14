@@ -37,6 +37,11 @@ const ModelCenterView = lazy(() =>
     default: module.ModelCenterView,
   })),
 )
+const TaskboardView = lazy(() =>
+  import('./features/taskboard/TaskboardView.js').then(module => ({
+    default: module.TaskboardView,
+  })),
+)
 const ModelSetupPage = lazy(() =>
   import('./features/models/setup/ModelSetupPage.js').then(module => ({
     default: module.ModelSetupPage,
@@ -102,6 +107,8 @@ const router = createHashRouter([
           },
           { path: 'projects', element: deferred(<ProjectsView />) },
           { path: 'projects/:projectId', element: deferred(<ProjectsView />) },
+          { path: 'taskboard', element: deferred(<TaskboardView />) },
+          { path: 'taskboard/:taskId', element: deferred(<TaskboardView />) },
           { path: 'models', element: deferred(<ModelCenterView />) },
           { path: 'plugins', element: deferred(<PluginsView />) },
           {

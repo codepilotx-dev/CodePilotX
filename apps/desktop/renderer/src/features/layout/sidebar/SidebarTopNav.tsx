@@ -9,6 +9,7 @@ import {
   BrainCircuit,
   ChevronDown,
   Clock3,
+  Columns3,
   FolderKanban,
   GitPullRequest,
   Search,
@@ -59,10 +60,20 @@ export const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
 export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
     view: "new",
-    label: "新建任务",
+    label: "新建对话",
     icon: <SquarePen size={APP_ICON_SIZE} />,
     path: "/new",
     availability: { kind: 'always' },
+  },
+  {
+    view: 'taskboard',
+    label: '任务看板',
+    icon: <Columns3 size={APP_ICON_SIZE} />,
+    path: '/taskboard',
+    availability: {
+      kind: 'any-capability',
+      capabilities: ['taskboard.v1'],
+    },
   },
   {
     view: "pullRequests",
@@ -129,11 +140,14 @@ export function getSidebarTopNavItems({
     : TOP_NAV_ITEMS[0]!
   const items = showProjects ? [
     newItem,
+    TOP_NAV_ITEMS[1]!,
     PROJECTS_NAV_ITEM,
-    ...TOP_NAV_ITEMS.slice(1),
+    ...TOP_NAV_ITEMS.slice(2),
   ] : [newItem, ...TOP_NAV_ITEMS.slice(1)]
 
-  if (capabilityState.status !== 'ready') return items
+  if (capabilityState.status !== 'ready') {
+    return items.filter(item => item.view !== 'taskboard')
+  }
   return items.filter(item =>
     item.availability.kind === 'always'
     || item.availability.capabilities.some(capability =>
@@ -143,7 +157,7 @@ export function getSidebarTopNavItems({
 }
 
 /**
- * 将最终导航数组拆成固定入口（新建任务）与可滚动入口；
+ * 将最终导航数组拆成固定入口（新建对话）与可滚动入口；
  * 扁平组织模式下的“项目”仍属于可滚动分组。
  */
 export function splitSidebarTopNavItems(
@@ -349,7 +363,7 @@ export function SidebarTopNav({
 }
 
 /**
- * 固定在侧栏顶部的“新建任务”入口；与可滚动导航共用相同的
+ * 固定在侧栏顶部的“新建对话”入口；与可滚动导航共用相同的
  * active、键盘焦点、图标、路由和无障碍属性。
  * `scrollOverlapping` 由滚动视口的实际 scrollTop 驱动：
  * 内容滚过固定入口时显示边界分隔线，滚回顶部立即隐藏。
@@ -371,7 +385,7 @@ export function SidebarNewTaskNav({
   )
   return (
     <nav
-      aria-label="新建任务"
+      aria-label="新建对话"
       className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5"
       data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
     >

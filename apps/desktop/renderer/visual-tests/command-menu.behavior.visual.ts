@@ -38,7 +38,7 @@ test('command menu opens from the sidebar, filters tasks, and selects a numbered
   await input.fill('B')
   await expect(input).toHaveValue('B')
   await expect(dialog.getByText('切换目标 B', { exact: true })).toBeVisible()
-  await expect(dialog.getByText('新建任务', { exact: true })).toHaveCount(0)
+  await expect(dialog.getByText('新建对话', { exact: true })).toHaveCount(0)
 
   await page.keyboard.press('Control+1')
   await expect(page).toHaveURL(/#\/threads\/visual-switch-b$/u)

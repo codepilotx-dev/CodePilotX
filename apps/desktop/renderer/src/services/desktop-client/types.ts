@@ -344,6 +344,35 @@ export type DesktopRuntimeCapabilityApi = {
   getRuntimeCapabilities(): Promise<readonly ProtocolCapability[]>
 }
 
+type WithoutOperationId<T> = T extends { operationId: unknown }
+  ? Omit<T, 'operationId'>
+  : T
+
+export type DesktopTaskboardApi = {
+  listTaskboardTasks(input: RpcParams<'taskboard/task/list'>): Promise<RpcResult<'taskboard/task/list'>>
+  readTaskboardTask(input: RpcParams<'taskboard/task/read'>): Promise<RpcResult<'taskboard/task/read'>>
+  createTaskboardTask(input: WithoutOperationId<RpcParams<'taskboard/task/create'>>): Promise<RpcResult<'taskboard/task/create'>>
+  updateTaskboardTask(input: WithoutOperationId<RpcParams<'taskboard/task/update'>>): Promise<RpcResult<'taskboard/task/update'>>
+  moveTaskboardTask(input: WithoutOperationId<RpcParams<'taskboard/task/move'>>): Promise<RpcResult<'taskboard/task/move'>>
+  archiveTaskboardTask(input: WithoutOperationId<RpcParams<'taskboard/task/archive'>>): Promise<RpcResult<'taskboard/task/archive'>>
+  restoreTaskboardTask(input: WithoutOperationId<RpcParams<'taskboard/task/restore'>>): Promise<RpcResult<'taskboard/task/restore'>>
+  deleteTaskboardTask(input: WithoutOperationId<RpcParams<'taskboard/task/delete'>>): Promise<RpcResult<'taskboard/task/delete'>>
+  linkTaskboardThread(input: WithoutOperationId<RpcParams<'taskboard/thread/link'>>): Promise<RpcResult<'taskboard/thread/link'>>
+  unlinkTaskboardThread(input: WithoutOperationId<RpcParams<'taskboard/thread/unlink'>>): Promise<RpcResult<'taskboard/thread/unlink'>>
+  setPrimaryTaskboardThread(input: WithoutOperationId<RpcParams<'taskboard/thread/set-primary'>>): Promise<RpcResult<'taskboard/thread/set-primary'>>
+  createTaskboardComment(input: WithoutOperationId<RpcParams<'taskboard/comment/create'>>): Promise<RpcResult<'taskboard/comment/create'>>
+  updateTaskboardComment(input: WithoutOperationId<RpcParams<'taskboard/comment/update'>>): Promise<RpcResult<'taskboard/comment/update'>>
+  deleteTaskboardComment(input: WithoutOperationId<RpcParams<'taskboard/comment/delete'>>): Promise<RpcResult<'taskboard/comment/delete'>>
+  listTaskboardLabels(input: RpcParams<'taskboard/label/list'>): Promise<RpcResult<'taskboard/label/list'>>
+  createTaskboardLabel(input: WithoutOperationId<RpcParams<'taskboard/label/create'>>): Promise<RpcResult<'taskboard/label/create'>>
+  updateTaskboardLabel(input: WithoutOperationId<RpcParams<'taskboard/label/update'>>): Promise<RpcResult<'taskboard/label/update'>>
+  deleteTaskboardLabel(input: WithoutOperationId<RpcParams<'taskboard/label/delete'>>): Promise<RpcResult<'taskboard/label/delete'>>
+  startTaskboardTask(input: WithoutOperationId<RpcParams<'taskboard/task/start'>>): Promise<RpcResult<'taskboard/task/start'>>
+  readTaskboardStartStatus(input: RpcParams<'taskboard/task/start/status'>): Promise<RpcResult<'taskboard/task/start/status'>>
+  retryTaskboardStartSetup(input: RpcParams<'taskboard/task/start/retry-setup'>): Promise<RpcResult<'taskboard/task/start/retry-setup'>>
+  continueTaskboardStartWithoutSetup(input: RpcParams<'taskboard/task/start/continue-without-setup'>): Promise<RpcResult<'taskboard/task/start/continue-without-setup'>>
+}
+
 export type DesktopSpeechStatus = RpcResult<'speech/status'>['status']
 
 export type DesktopSpeechApi = {
@@ -396,6 +425,7 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopUsageApi &
   DesktopReleaseNotesApi &
   DesktopRuntimeCapabilityApi &
+  DesktopTaskboardApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &
   DesktopLocalContextApi

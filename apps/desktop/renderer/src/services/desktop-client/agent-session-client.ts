@@ -98,7 +98,7 @@ export const WORKSPACE_GIT_CHANGED_EVENT =
 export const CONFIG_UPDATED_EVENT = 'codepilotx-config-updated'
 
 const RENDERER_PROTOCOL = 'thread-rpc-v4' as const
-const RENDERER_CAPABILITIES = [
+export const RENDERER_CAPABILITIES = [
   'rpc.typed.v1',
   'events.replay.v1',
   'events.live.v1',
@@ -137,6 +137,7 @@ const RENDERER_CAPABILITIES = [
   'release-notes.read.v1',
   'thread.side-chat.v1',
   'speech.transcription.v1',
+  'taskboard.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -1371,6 +1372,21 @@ export function createAgentSessionDesktopClient(
     return agentModelHealthApiPromise
   }
 
+  type AgentTaskboardApi = ReturnType<
+    (typeof import('./agent-taskboard-api.js'))['createAgentTaskboardApi']
+  >
+  let agentTaskboardApiPromise: Promise<AgentTaskboardApi> | null = null
+  const loadAgentTaskboardApi = (): Promise<AgentTaskboardApi> => {
+    agentTaskboardApiPromise ??= import('./agent-taskboard-api.js').then(module =>
+      module.createAgentTaskboardApi({
+        requireAgentCapability,
+        rpc,
+        withRequiredAgent,
+      }),
+    )
+    return agentTaskboardApiPromise
+  }
+
   let unsubscribeSessionCatalog: (() => void) | null = null
   const startSessionCatalogSubscription = (): void => {
     if (unsubscribeSessionCatalog || !eventSourceFactory()) return
@@ -1626,6 +1642,52 @@ export function createAgentSessionDesktopClient(
       loadAgentToolingApi().then(api => api.installPet(url)),
     removePet: id =>
       loadAgentToolingApi().then(api => api.removePet(id)),
+    listTaskboardTasks: input =>
+      loadAgentTaskboardApi().then(api => api.listTaskboardTasks(input)),
+    readTaskboardTask: input =>
+      loadAgentTaskboardApi().then(api => api.readTaskboardTask(input)),
+    createTaskboardTask: input =>
+      loadAgentTaskboardApi().then(api => api.createTaskboardTask(input)),
+    updateTaskboardTask: input =>
+      loadAgentTaskboardApi().then(api => api.updateTaskboardTask(input)),
+    moveTaskboardTask: input =>
+      loadAgentTaskboardApi().then(api => api.moveTaskboardTask(input)),
+    archiveTaskboardTask: input =>
+      loadAgentTaskboardApi().then(api => api.archiveTaskboardTask(input)),
+    restoreTaskboardTask: input =>
+      loadAgentTaskboardApi().then(api => api.restoreTaskboardTask(input)),
+    deleteTaskboardTask: input =>
+      loadAgentTaskboardApi().then(api => api.deleteTaskboardTask(input)),
+    linkTaskboardThread: input =>
+      loadAgentTaskboardApi().then(api => api.linkTaskboardThread(input)),
+    unlinkTaskboardThread: input =>
+      loadAgentTaskboardApi().then(api => api.unlinkTaskboardThread(input)),
+    setPrimaryTaskboardThread: input =>
+      loadAgentTaskboardApi().then(api => api.setPrimaryTaskboardThread(input)),
+    createTaskboardComment: input =>
+      loadAgentTaskboardApi().then(api => api.createTaskboardComment(input)),
+    updateTaskboardComment: input =>
+      loadAgentTaskboardApi().then(api => api.updateTaskboardComment(input)),
+    deleteTaskboardComment: input =>
+      loadAgentTaskboardApi().then(api => api.deleteTaskboardComment(input)),
+    listTaskboardLabels: input =>
+      loadAgentTaskboardApi().then(api => api.listTaskboardLabels(input)),
+    createTaskboardLabel: input =>
+      loadAgentTaskboardApi().then(api => api.createTaskboardLabel(input)),
+    updateTaskboardLabel: input =>
+      loadAgentTaskboardApi().then(api => api.updateTaskboardLabel(input)),
+    deleteTaskboardLabel: input =>
+      loadAgentTaskboardApi().then(api => api.deleteTaskboardLabel(input)),
+    startTaskboardTask: input =>
+      loadAgentTaskboardApi().then(api => api.startTaskboardTask(input)),
+    readTaskboardStartStatus: input =>
+      loadAgentTaskboardApi().then(api => api.readTaskboardStartStatus(input)),
+    retryTaskboardStartSetup: input =>
+      loadAgentTaskboardApi().then(api => api.retryTaskboardStartSetup(input)),
+    continueTaskboardStartWithoutSetup: input =>
+      loadAgentTaskboardApi().then(api =>
+        api.continueTaskboardStartWithoutSetup(input),
+      ),
     getGithubAuthStatus: () =>
       loadAgentGitApi().then(api => api.getGithubAuthStatus()),
     startGithubLogin: input =>

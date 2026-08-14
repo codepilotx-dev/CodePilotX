@@ -1,0 +1,133 @@
+import type React from 'react'
+import { useEffect, useState } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { X } from 'lucide-react'
+import type { TaskboardPriority } from '@codepilotx/shared/taskboard'
+import type { DesktopWorkspace } from '../../../../shared/types.js'
+import { Button } from '../../../components/ui/Button.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
+
+type Props = {
+  open: boolean
+  projects: readonly DesktopWorkspace[]
+  initialProjectId?: string
+  onClose: () => void
+  onCreate: (input: {
+    projectId: string
+    title: string
+    description?: string
+    priority: TaskboardPriority
+  }) => Promise<void>
+}
+
+export function CreateTaskDialog({
+  open,
+  projects,
+  initialProjectId,
+  onClose,
+  onCreate,
+}: Props): React.ReactNode {
+  const [projectId, setProjectId] = useState('')
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [priority, setPriority] = useState<TaskboardPriority>('none')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const { onCloseAutoFocus } = useDialogFocusRestore(open)
+
+  useEffect(() => {
+    if (!open) return
+    setProjectId(initialProjectId ?? projects[0]?.projectId ?? '')
+    setTitle('')
+    setDescription('')
+    setPriority('none')
+    setError(null)
+    setSubmitting(false)
+  }, [initialProjectId, open, projects])
+
+  const submit = async (): Promise<void> => {
+    if (!projectId || !title.trim()) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onCreate({
+        projectId,
+        title: title.trim(),
+        ...(description.trim() ? { description: description.trim() } : {}),
+        priority,
+      })
+      onClose()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog.Root open={open} onOpenChange={next => !next && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
+          aria-describedby="taskboard-create-description"
+          className="ui-dialog-surface ui-dialog-surface--centered taskboard-dialog"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
+          <header className="taskboard-dialog__header">
+            <div>
+              <Dialog.Title asChild><h2>新建任务</h2></Dialog.Title>
+              <Dialog.Description id="taskboard-create-description">
+                把要完成的工作放进项目执行跑道。
+              </Dialog.Description>
+            </div>
+            <Dialog.Close asChild>
+              <IconButton color="ghostSecondary" size="toolbar" title="关闭新建任务">
+                <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </IconButton>
+            </Dialog.Close>
+          </header>
+          <form className="taskboard-dialog__form" onSubmit={event => {
+            event.preventDefault()
+            void submit()
+          }}>
+            <label>
+              <span>项目</span>
+              <select required value={projectId} onChange={event => setProjectId(event.currentTarget.value)}>
+                <option disabled value="">选择项目</option>
+                {projects.filter(project => project.projectId).map(project => (
+                  <option key={project.projectId} value={project.projectId}>{project.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>标题</span>
+              <input autoFocus maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} />
+            </label>
+            <label>
+              <span>描述</span>
+              <textarea rows={5} value={description} onChange={event => setDescription(event.currentTarget.value)} />
+            </label>
+            <label>
+              <span>优先级</span>
+              <select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>
+                {(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => (
+                  <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>
+                ))}
+              </select>
+            </label>
+            {error ? <p className="taskboard-dialog__error" role="alert">{error}</p> : null}
+            <footer>
+              <Dialog.Close asChild><Button color="secondary">取消</Button></Dialog.Close>
+              <Button color="secondary" disabled={!projectId || !title.trim()} loading={submitting} type="submit">
+                创建任务
+              </Button>
+            </footer>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}

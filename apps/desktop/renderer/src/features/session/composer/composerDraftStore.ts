@@ -50,6 +50,20 @@ export class ComposerDraftStore {
     return this.set(key, update(this.get(key)))
   }
 
+  prefillTextIfEmpty(key: ComposerDraftKey, text: string): ComposerDraft {
+    const current = this.get(key)
+    if (current.document.text.trim()) return current
+    const next = this.set(key, {
+      ...current,
+      document: {
+        text,
+        tokens: [],
+      },
+    })
+    this.#emit()
+    return next
+  }
+
   setSkillInvocation(
     key: ComposerDraftKey,
     skillInvocation: ComposerSkillInvocation | undefined,

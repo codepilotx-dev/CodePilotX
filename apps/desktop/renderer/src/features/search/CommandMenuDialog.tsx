@@ -91,7 +91,7 @@ export function CommandMenuDialog({
   const recommendations: Recommendation[] = [
     {
       id: 'new-task',
-      label: '新建任务',
+      label: '新建对话',
       shortcut: 'Ctrl+N',
       icon: <SquarePen aria-hidden="true" size={APP_ICON_SIZE} />,
       action: onCreateTask,

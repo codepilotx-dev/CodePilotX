@@ -25,6 +25,7 @@
     "src/features/pet/PetOverlayPage.tsx -> src/styles/lazy/pet-overlay.scss",
     "src/features/models/ModelCenterView.tsx -> src/styles/lazy/model-center.scss",
     "src/features/models/setup/ModelSetupPage.tsx -> src/styles/lazy/model-setup.scss",
+    "src/features/taskboard/TaskboardView.tsx -> src/styles/lazy/taskboard.scss",
     "src/features/plugins/PluginsView.tsx -> src/styles/lazy/marketplace.scss",
     "src/features/settings/SettingsLayout.tsx -> src/styles/lazy/settings.scss",
     "src/features/terminal/TerminalPanel.tsx -> src/styles/lazy/terminal.scss",
@@ -37,6 +38,7 @@
     "src/styles/lazy/pet-catalog.scss": "features",
     "src/styles/lazy/pet-overlay.scss": "features",
     "src/styles/lazy/settings.scss": "features",
+    "src/styles/lazy/taskboard.scss": "features",
     "src/styles/lazy/terminal.scss": "vendor",
     "src/styles/lazy/whats-new.scss": "features"
   },

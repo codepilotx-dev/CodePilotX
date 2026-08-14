@@ -42,6 +42,7 @@ export type {
   DesktopClientEnvironment,
   DesktopReleaseNotesApi,
   DesktopRuntimeCapabilityApi,
+  DesktopTaskboardApi,
   DesktopLocalContextApi,
   DesktopSpeechApi,
   DesktopSpeechStatus,

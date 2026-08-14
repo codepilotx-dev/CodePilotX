@@ -107,7 +107,8 @@ describe('Codex 侧栏导航', () => {
 
   test('按产品入口优先顺序展示且搜索只保留在侧栏头部', () => {
     expect(TOP_NAV_ITEMS.map(item => ({ view: item.view, label: item.label, path: item.path }))).toEqual([
-      { view: 'new', label: '新建任务', path: '/new' },
+      { view: 'new', label: '新建对话', path: '/new' },
+      { view: 'taskboard', label: '任务看板', path: '/taskboard' },
       { view: 'pullRequests', label: '拉取请求', path: '/pull-requests' },
       { view: 'automations', label: '自动化', path: '/automations' },
       { view: 'plugins', label: '插件', path: '/plugins' },
@@ -115,7 +116,9 @@ describe('Codex 侧栏导航', () => {
     ])
     expect(TOP_NAV_ITEMS.some(item => item.path === '/search')).toBeFalse()
     expect(TOP_NAV_ITEMS.some(item => item.path === '/sites')).toBeFalse()
-    expect(sidebarNavItems(false)).toEqual(TOP_NAV_ITEMS)
+    expect(sidebarNavItems(false)).toEqual(
+      TOP_NAV_ITEMS.filter(item => item.view !== 'taskboard'),
+    )
     expect(
       sidebarNavItems(true).map(item => ({
         view: item.view,
@@ -123,9 +126,9 @@ describe('Codex 侧栏导航', () => {
         path: item.path,
       })),
     ).toEqual([
-      { view: 'new', label: '新建任务', path: '/new' },
+      { view: 'new', label: '新建对话', path: '/new' },
       { view: 'projects', label: '项目', path: '/projects' },
-      ...TOP_NAV_ITEMS.slice(1).map(item => ({
+      ...TOP_NAV_ITEMS.slice(2).map(item => ({
         view: item.view,
         label: item.label,
         path: item.path,
@@ -143,10 +146,10 @@ describe('Codex 侧栏导航', () => {
     ])
   })
 
-  test('新建任务链接跟随当前 Surface，未指定时保留 /new 兼容入口', () => {
+  test('新建对话链接跟随当前 Surface，未指定时保留 /new 兼容入口', () => {
     expect(sidebarNavItems(false, 'working')[0]).toMatchObject({
       view: 'new',
-      label: '新建任务',
+      label: '新建对话',
       path: '/new?surface=working',
     })
     expect(
@@ -157,7 +160,7 @@ describe('Codex 侧栏导航', () => {
     ).toEqual([
       { view: 'new', path: '/new?surface=chat' },
       { view: 'projects', path: '/projects' },
-      ...TOP_NAV_ITEMS.slice(1).map(item => ({
+      ...TOP_NAV_ITEMS.slice(2).map(item => ({
         view: item.view,
         path: item.path,
       })),
@@ -165,7 +168,7 @@ describe('Codex 侧栏导航', () => {
     expect(sidebarNavItems(false)[0]!.path).toBe('/new')
   })
 
-  test('普通组织模式下固定分组只包含新建任务', () => {
+  test('普通组织模式下固定分组只包含新建对话', () => {
     const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
       sidebarNavItems(false),
     )
@@ -192,7 +195,7 @@ describe('Codex 侧栏导航', () => {
     ])
   })
 
-  test('可滚动分组不重复包含新建任务，且固定入口跟随 Surface', () => {
+  test('可滚动分组不重复包含新建对话，且固定入口跟随 Surface', () => {
     const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
       sidebarNavItems(true, 'working'),
     )
@@ -208,18 +211,32 @@ describe('Codex 侧栏导航', () => {
     }
   })
 
-  test('能力未知或 Agent 暂时不可用时保持现有导航顺序', () => {
+  test('能力未知或 Agent 暂时不可用时只隐藏尚未协商的任务看板', () => {
     const unavailable: SidebarCapabilityState = {
       status: 'unavailable',
       capabilities: null,
     }
 
-    expect(sidebarNavItems(false).map(item => item.view)).toEqual(
-      TOP_NAV_ITEMS.map(item => item.view),
-    )
+    const legacyViews = TOP_NAV_ITEMS
+      .filter(item => item.view !== 'taskboard')
+      .map(item => item.view)
+    expect(sidebarNavItems(false).map(item => item.view)).toEqual(legacyViews)
     expect(
       sidebarNavItems(false, undefined, unavailable).map(item => item.view),
-    ).toEqual(TOP_NAV_ITEMS.map(item => item.view))
+    ).toEqual(legacyViews)
+  })
+
+  test('协商 taskboard.v1 后任务看板位于新建对话之后、项目之前', () => {
+    expect(sidebarNavItems(
+      true,
+      undefined,
+      readySidebarCapabilities('taskboard.v1'),
+    ).map(item => item.view)).toEqual([
+      'new',
+      'taskboard',
+      'projects',
+      'automations',
+    ])
   })
 
   test('明确缺少 GitHub 能力时隐藏拉取请求但保留固定产品入口', () => {
@@ -259,7 +276,7 @@ describe('Codex 侧栏导航', () => {
     }
   })
 
-  test('能力过滤不改变项目规则且固定区域仍只有新建任务', () => {
+  test('能力过滤不改变项目规则且固定区域仍只有新建对话', () => {
     const withoutProjects = sidebarNavItems(
       false,
       undefined,

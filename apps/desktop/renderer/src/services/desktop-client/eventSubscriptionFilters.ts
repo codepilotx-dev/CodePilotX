@@ -24,6 +24,10 @@ export const AGENT_LIVE_EVENT_FILTERS = {
   skills: ['skill/updated'],
   tooling: ['tooling/updated'],
   mcp: ['mcp/updated'],
+  // taskboard/changed is durable and therefore arrives independently of the
+  // live-only filter. Keep a named preset so the feature does not subscribe to
+  // unrelated high-volume live deltas.
+  taskboard: [],
   global: [
     'catalog/updated',
     'provider/credential/updated',
@@ -33,7 +37,7 @@ export const AGENT_LIVE_EVENT_FILTERS = {
   ],
 } as const satisfies Readonly<
   Record<
-    'canonical' | 'provider' | 'modelHealth' | 'skills' | 'tooling' | 'mcp' | 'global',
+    'canonical' | 'provider' | 'modelHealth' | 'skills' | 'tooling' | 'mcp' | 'taskboard' | 'global',
     readonly LiveEventType[]
   >
 >
