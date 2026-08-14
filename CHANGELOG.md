@@ -9,6 +9,7 @@
 
 ### Added
 
+- [Agent/desktop/renderer] 新增原生任务看板：支持 Project 筛选、五阶段拖拽排序、标签与评论、乐观并发、任务关联执行对话及本地或托管 worktree 启动，并向 Agent 提供受权限约束的任务工具。
 - [Agent/desktop/renderer] 新增全局模型健康测试，可用活动凭据并发执行真实最小请求、实时查看模型延迟与安全失败分类、取消批次及逐模型重试，并将 Provider 连接测试统一为真实探针。
 - [Agent/desktop/renderer] 新增 Codex 式本地文件与目录上下文：图片按发送时快照保存，普通文件和目录以任务级只读路径引用接入 Agent，并支持安全的应用内预览与目录浏览。
 - [desktop] 新增基于 SenseVoice GGUF 的本地语音听写、麦克风选择和后台模型安装，录音仅临时处理且不会自动发送。
