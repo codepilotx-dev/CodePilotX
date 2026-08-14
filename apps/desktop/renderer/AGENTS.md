@@ -28,6 +28,14 @@
 - 禁止调用 `localStorage.clear()` 或删除其他 origin 所有者的数据。
 - 数据 epoch 已淘汰旧 UI state；禁止重新加入 v3、legacy plan、旧 Review expansion 或旧单问题兼容分支。
 
+## 样式契约与白名单
+
+- `style-contracts.json` 中的白名单是经过审查的固定例外，不是检查失败后的自动基线；禁止机械增加计数、批量刷新基线或保留已经失效的条目。
+- `literalLineHeightAllowlist` 只允许收录行高直接参与固定桌面控件几何的场景，例如按钮、徽标、菜单、标签、固定控制条和 Review diff。Markdown、会话正文、设置说明、编辑器文本等可缩放内容必须使用 `--type-line-*` 语义 token，或基于语义 token 的 `var()`、`calc()`、`min()`、`max()`、`clamp()`，不得加入白名单。
+- `tailwindLeadingAllowlist` 默认保持为空；TSX 不得通过新增 `tw:leading-*` 绕过语义排版。新增排版角色必须复用或扩展现有 Tailwind 主题、设计 token 或语义样式层。
+- 其他 Renderer 样式白名单只允许第三方运行时变量、明确的 lazy stylesheet 边界，或无法由正常层叠替代的必要兼容覆盖；普通业务样式、可迁移到现有组件或 token 的声明不得加入。
+- 遇到 `css:check` 失败时，先定位具体文件、选择器和值，优先改为现有语义 token 或组件。确需新增白名单时，只增加最小文件级条目或计数，并在同一变更的代码说明或变更记录中写明固定几何、外部契约或兼容原因。
+
 ## 测试与验证
 
 - 测试重点是状态转换、client contract 和具体回归，放在现有 `test/` 目录。

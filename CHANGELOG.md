@@ -9,6 +9,7 @@
 
 ### Added
 
+- [Agent/desktop/renderer] 新增全局模型健康测试，可用活动凭据并发执行真实最小请求、实时查看模型延迟与安全失败分类、取消批次及逐模型重试，并将 Provider 连接测试统一为真实探针。
 - [Agent/desktop/renderer] 新增 Codex 式本地文件与目录上下文：图片按发送时快照保存，普通文件和目录以任务级只读路径引用接入 Agent，并支持安全的应用内预览与目录浏览。
 - [desktop] 新增基于 SenseVoice GGUF 的本地语音听写、麦克风选择和后台模型安装，录音仅临时处理且不会自动发送。
 - [desktop/renderer] 新增历史消息与待发送图片、文本附件的右侧预览，支持图片缩放、按类型美化文本及安全下载到系统 Downloads 目录。
@@ -19,6 +20,9 @@
 
 ### Changed
 
+- [desktop/renderer] 拆分 live event 订阅过滤器：`provider` 过滤器不再接收 `model/health/updated`，模型健康页改用独立的 `modelHealth` 过滤器，避免 provider 状态消费无关的逐模型事件。
+- [desktop/renderer] 补充 Renderer 样式契约白名单判定规范，明确固定控件几何、语义行高、Tailwind leading 与外部样式契约的准入边界，避免后续检查失败时机械刷新基线。
+- [desktop/renderer] 统一可缩放内容与固定桌面 Chrome 的语义行高，修复大字号代码、设置行、侧栏动作和编辑器排版被局部行高撑高或压缩的问题。
 - [desktop/renderer] 将右栏自动收起改为按整窗 960px 阈值计算并保留 24px 恢复回差，默认宽度改用按主区宽度与工作区高度的动态公式；工作区标题栏不再固定 94% 模糊背景与下边框，仅在会话滚动内容下显示 0.5px 分割线，窄窗口标题始终可见并截断。
 - [desktop/renderer] 按 Codex 证据恢复设置卡片与按钮的主次层级：SettingsSection 默认卡片表面（16px 圆角、fog 背景、inset hairline），移除设置行固定 64px 高度，primary 恢复前景实底反色文字、secondary 使用 5% 弱背景，并新增 canonical pressed token。
 - [desktop/renderer] 补齐 Windows 桌面菜单键盘行为：Alt/F10 聚焦菜单栏、Escape 关闭并恢复焦点、左右键切换菜单、Alt+F/E/V/W/H mnemonic 直接打开对应菜单。
@@ -52,6 +56,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 将首次模型配置向导改为由用户 `config.json` 中的 `desktop.firstUseSetupCompleted` 一次性标记控制，已有有效模型的旧用户自动完成迁移，手动改回 `0` 可重新进入完整向导。
 - [Agent/desktop/renderer] 修复只保存 API Key、未显式选择默认模型时，Agent 目录 fallback 被伪装成已配置模型、刷新或重启后绕过首次配置门禁的问题；`model/list.defaultModel` 现在只返回显式配置且当前可用的默认模型（含 variant）。
 - [desktop/renderer] 修复 Provider 目录或模型状态刷新失败时旧 `modelConfigured` 状态继续放行工作台的问题，配置读取失败统一进入安全恢复态；凭据新增、更新、启停、切换、删除与 `catalog/updated` 事件合并为一次配置刷新，避免重复请求与后返回覆盖新状态。
 - [desktop/renderer] 移除不生效的 `fetchProviderModels`/`saveModelProvider` Base URL 死参数与模型中心的不可达内联 Base URL 分支，自定义供应商 Base URL 只通过 ProviderEditor 保存并统一刷新目录。
@@ -79,6 +84,12 @@
 - [desktop] 修复 owned Agent sidecar 的旧 generation 晚回调、并发退出和残留进程可能污染重连的问题，增加实例身份校验及 shutdown、SIGTERM、进程树确认的严格退出链路
 - [desktop] 修复外观设置 IPC 只广播但未原子落盘，导致桌面重启后主题、字体、动效和指针偏好恢复默认值的问题
 - [renderer/test] 修复性能回归场景在侧栏与工作区同时显示同名会话标题时因全页严格文本定位产生歧义的问题，改用 canonical thread 标记确认当前会话完成切换
+- [Agent] 修复模型健康批量测试的并发与生命周期竞态：同 operationId 并发 start 只构建并启动一次批次，候选构建期间 cancel 产生零请求的终态快照，取消、事件发布失败或服务释放时批次收敛为 cancelled 且计数守恒，dispose 会中止并等待后台批次停止。
+- [Agent] 修复模型健康事件快照可变引用泄漏与发布失败可能产生未处理 rejection 的问题，历史 running 事件的 counts 不再随后续 healthy/failed 更新变化。
+- [Agent/desktop/renderer] 保持旧 `provider/test` 兼容形状（未显式传 model 时结果不含 model，timeout/provider 分类映射为 unknown），Provider 与模型不匹配返回声明过的 `INVALID_REQUEST`；未协商 `model.health.v1` 的事件订阅不再收到 `model/health/updated`。
+- [desktop/renderer] 修复模型健康页断线、离页与重试状态不一致：start 响应丢失后经 read 恢复已接受批次，离页或卸载按 operationId 立即取消，重连与投递恢复后以权威快照对账，单项重试结果不会覆盖新批次，任一重试进行中禁用重复触发。
+- [desktop/renderer] 修复设置等宽文本域、代码块与配置代码预览在 UI/code 字号独立配置时行高小于字体的角色错配，并让样式检查明确拒绝在 `font` shorthand 中通过 `/` 设置行高。
+- [desktop/renderer] 修复侧栏空态行复用交互行样式（指针、hover、active 与禁用选中）的问题，恢复中性 div 行结构并保持合法 block content model。
 
 ### Removed
 
