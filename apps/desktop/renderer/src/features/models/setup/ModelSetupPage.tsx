@@ -27,7 +27,11 @@ import {
 } from '../ApiKeyEditorDialog.js'
 import { OAuthConnection } from '../provider-management/OAuthConnection.js'
 import { ProviderEditorDialog } from '../provider-management/ProviderEditorDialog.js'
-import { SetupBootState, SetupRecoveryState } from './RequireConfiguredModel.js'
+import {
+  resolveModelSetupLoadingLabel,
+  SetupBootState,
+  SetupRecoveryState,
+} from './RequireConfiguredModel.js'
 import '../../../styles/lazy/model-setup.scss'
 
 export type ModelSetupStep = 'provider' | 'model'
@@ -201,7 +205,16 @@ export function ModelSetupPage(): React.ReactNode {
     }
   }, [modelReloadToken, selectedProvider, snapshot.currentProviderState, step])
 
-  if (!snapshot.loaded || !settings.settingsLoaded) return <SetupBootState />
+  if (!snapshot.loaded || !settings.settingsLoaded) {
+    return (
+      <SetupBootState
+        label={resolveModelSetupLoadingLabel(
+          snapshot.loaded,
+          settings.settingsLoaded,
+        )}
+      />
+    )
+  }
   if (snapshot.configurationError || !snapshot.currentProviderState) {
     return (
       <SetupRecoveryState
@@ -328,7 +341,7 @@ export function ModelSetupPage(): React.ReactNode {
   }
 
   return (
-    <div className="model-setup-page">
+    <div className="model-setup-page" data-startup-surface-ready="true">
       <header className="model-setup-titlebar">
         <span className="model-setup-brand">CodePilotX</span>
         <WindowControls

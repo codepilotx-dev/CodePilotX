@@ -62,6 +62,7 @@ import {
 } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { AppContextMenu } from "../../../components/ui/AppContextMenu.js";
+import { FullScreenWhaleLoading } from "../../../components/ui/FullScreenWhaleLoading.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { InputDialog } from "../../../components/ui/ConfirmationDialog.js";
@@ -1229,7 +1230,7 @@ export function ConversationPage(): React.ReactNode {
                 >
                   <div className="session-timeline-main tw:min-w-0">
                       {isConversationLoading ? (
-                        <div className="assistant-thinking">加载对话中</div>
+                        <FullScreenWhaleLoading label="正在加载会话内容…" />
                       ) : (
                         <>
                           {subagents.length ? (

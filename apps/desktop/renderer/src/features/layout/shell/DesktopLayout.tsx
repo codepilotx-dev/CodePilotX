@@ -3153,7 +3153,10 @@ export function DesktopLayout(): React.ReactNode {
   const bottomPanelNode = renderWorkbenchPanel('bottom')
 
   return (
-    <div className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
+    <div
+      className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text"
+      data-startup-surface-ready={location.pathname !== '/new' ? 'true' : undefined}
+    >
       <a
         className="skip-to-main"
         href="#desktop-main-content"

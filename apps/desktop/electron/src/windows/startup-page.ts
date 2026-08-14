@@ -174,20 +174,29 @@ export function renderStartupPage({
         transition-delay: 0s;
       }
 
-      .startup-status,
+      .startup-status-window {
+        width: min(420px, 100%);
+        height: 21px;
+        overflow: hidden;
+        text-align: center;
+      }
+
+      .startup-status {
+        display: block;
+        max-width: 100%;
+        margin: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--startup-muted);
+        font-size: 13px;
+      }
+
       .startup-detail {
         max-width: 100%;
         margin: 0;
         overflow-wrap: anywhere;
         text-align: center;
-      }
-
-      .startup-status {
-        color: var(--startup-foreground);
-        font-weight: 600;
-      }
-
-      .startup-detail {
         min-height: 21px;
         color: var(--startup-muted);
         font-size: 13px;
@@ -263,14 +272,16 @@ export function renderStartupPage({
     </style>
   </head>
   <body>
-    <main class="startup-loader" aria-label="CodePilotX 正在启动">
+    <main class="startup-loader" aria-label="CodePilotX 正在启动" aria-busy="true">
       <div class="startup-content">
         <div class="startup-logo" aria-hidden="true">
           <img class="startup-logo__base" src="${safeLogoDataUrl}" alt="">
           <div class="startup-logo__overlay"></div>
         </div>
-        <section class="startup-diagnostics" aria-live="polite">
+        <div class="startup-status-window" aria-live="polite">
           <p id="status" class="startup-status">正在启动…</p>
+        </div>
+        <section class="startup-diagnostics" aria-live="polite">
           <p id="detail" class="startup-detail"></p>
           <div class="startup-actions">
             <button id="logs" type="button">打开日志目录</button>
@@ -285,6 +296,7 @@ export function renderStartupPage({
       (() => {
         const statusElement = document.getElementById("status");
         const detailElement = document.getElementById("detail");
+        const loaderElement = document.querySelector(".startup-loader");
         const retryDataLocation = document.getElementById("retry-data-location");
         const restoreDataLocation = document.getElementById("restore-data-location");
         const revealDiagnostics = () => {
@@ -292,18 +304,70 @@ export function renderStartupPage({
         };
         const diagnosticTimer = window.setTimeout(revealDiagnostics, 8000);
 
+        // 单行状态窗纵向换字：旧文案上滑 180ms、新文案从下方 280ms 滑入；
+        // 快速连续更新只落定最新状态，reduced-motion 下直接替换。
+        let swapPending = null;
+        let swapExit = null;
+        const swapStartupStatus = (element, text) => {
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            if (swapExit) {
+              swapExit.cancel();
+              swapExit = null;
+            }
+            swapPending = null;
+            element.textContent = text;
+            return;
+          }
+          if (swapExit) {
+            swapPending = text;
+            return;
+          }
+          if (element.textContent === text) return;
+          swapPending = text;
+          const animation = element.animate(
+            [
+              { opacity: 1, transform: "translateY(0)" },
+              { opacity: 0, transform: "translateY(-4px)" },
+            ],
+            {
+              duration: 180,
+              easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+              fill: "forwards",
+            },
+          );
+          swapExit = animation;
+          animation.onfinish = () => {
+            swapExit = null;
+            const settled = swapPending;
+            if (settled === null) return;
+            swapPending = null;
+            element.textContent = settled;
+            element.animate(
+              [
+                { opacity: 0, transform: "translateY(4px)" },
+                { opacity: 1, transform: "translateY(0)" },
+              ],
+              {
+                duration: 280,
+                easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+              },
+            );
+          };
+        };
+
         window.updateStartupStatus = (
           status,
           detail,
           kind = "progress",
         ) => {
-          statusElement.textContent = status || "正在启动…";
+          swapStartupStatus(statusElement, status || "正在启动…");
           detailElement.textContent = detail || "";
           const relocationFailed = status === "用户数据迁移失败";
           retryDataLocation.hidden = !relocationFailed;
           restoreDataLocation.hidden = !relocationFailed;
           if (kind === "terminal-error") {
             window.clearTimeout(diagnosticTimer);
+            loaderElement?.setAttribute("aria-busy", "false");
             revealDiagnostics();
           }
         };

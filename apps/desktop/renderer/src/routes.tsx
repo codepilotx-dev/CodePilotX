@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { createHashRouter, Navigate } from 'react-router-dom'
+import { FullScreenWhaleLoading } from './components/ui/FullScreenWhaleLoading.js'
 import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.js'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
@@ -81,10 +82,12 @@ const router = createHashRouter([
   {
     path: '/setup',
     errorElement: routeErrorElement,
-    element: deferred(
+    element: (
       <DesktopSettingsProvider access="read-write">
-        <ModelSetupPage />
-      </DesktopSettingsProvider>,
+        <Suspense fallback={<FullScreenWhaleLoading label="正在打开模型设置…" />}>
+          <ModelSetupPage />
+        </Suspense>
+      </DesktopSettingsProvider>
     ),
   },
   {
@@ -103,7 +106,13 @@ const router = createHashRouter([
           { path: 'new', element: <QuickChatView /> },
           {
             path: 'threads/:threadId',
-            element: deferred(<ConversationPage />),
+            element: (
+              <Suspense
+                fallback={<FullScreenWhaleLoading label="正在打开会话…" />}
+              >
+                <ConversationPage />
+              </Suspense>
+            ),
           },
           { path: 'projects', element: deferred(<ProjectsView />) },
           { path: 'projects/:projectId', element: deferred(<ProjectsView />) },

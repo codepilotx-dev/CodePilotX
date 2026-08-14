@@ -11,43 +11,56 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>CodePilotX</title>
     <style>
-      /* 静态启动遮罩：与 electron/src/windows/startup-page.ts 的视觉逻辑一致，
-         在入口 JS 与主 CSS 完成前保持稳定画面；由 main.tsx 的 handoff 控制器移除。 */
-      #startup-splash {
+      /* 全窗鲸鱼加载契约：静态启动遮罩（id="startup-splash"）与 React
+         FullScreenWhaleLoading 共用同一套 DOM/CSS，视觉与
+         electron/src/windows/startup-page.ts 保持一致。静态阶段在入口 JS 与
+         主 CSS 完成前使用系统主题 fallback；React 接管后由
+         --layer-canvas-fill / --color-token-text-secondary 与
+         html[data-theme] 驱动，支持用户显式主题。由
+         src/startup/startupSplashHandoff.ts 的控制器移除。 */
+      .full-screen-whale-loader {
         position: fixed;
         inset: 0;
         z-index: 100000;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #f8f8f6;
+        background: var(--layer-canvas-fill, #f8f8f6);
+        color: var(--color-token-text-secondary, #6d6d68);
         transition: opacity 200ms ease-out;
       }
 
-      #startup-splash .startup-splash__logo {
+      .full-screen-whale-loader__content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+      }
+
+      .full-screen-whale-loader__logo {
         position: relative;
         width: 56px;
         height: 56px;
         opacity: 0;
-        animation: startup-splash-fade-in 180ms ease-out 60ms forwards;
+        animation: full-screen-whale-fade-in 180ms ease-out 60ms forwards;
       }
 
-      #startup-splash .startup-splash__base,
-      #startup-splash .startup-splash__overlay {
+      .full-screen-whale-loader__base,
+      .full-screen-whale-loader__overlay {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
       }
 
-      #startup-splash .startup-splash__base {
+      .full-screen-whale-loader__base {
         display: block;
         object-fit: contain;
         opacity: 0.24;
         filter: grayscale(1) brightness(0);
       }
 
-      #startup-splash .startup-splash__overlay {
+      .full-screen-whale-loader__overlay {
         background-image: linear-gradient(
           112deg,
           transparent 22%,
@@ -59,7 +72,7 @@
         background-position: 140% 0;
         background-repeat: no-repeat;
         background-size: 220% 100%;
-        animation: startup-splash-shimmer 2200ms
+        animation: full-screen-whale-shimmer 2200ms
           cubic-bezier(0.4, 0, 0.2, 1) infinite;
         -webkit-mask-image: url(/whale-icon.svg);
         mask-image: url(/whale-icon.svg);
@@ -71,21 +84,51 @@
         mask-size: contain;
       }
 
-      #startup-splash.startup-splash--exiting {
+      .full-screen-whale-loader__status-viewport {
+        width: min(420px, calc(100vw - 64px));
+        height: 1.5em;
+        overflow: hidden;
+        text-align: center;
+      }
+
+      .full-screen-whale-loader__status-viewport > span {
+        display: block;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .full-screen-whale-loader--exiting {
         opacity: 0;
         pointer-events: none;
       }
 
+      html[data-theme="dark"] .full-screen-whale-loader .full-screen-whale-loader__base {
+        filter: grayscale(1) brightness(0) invert(1);
+      }
+
+      html[data-theme="dark"] .full-screen-whale-loader .full-screen-whale-loader__overlay {
+        background-image: linear-gradient(
+          112deg,
+          transparent 22%,
+          rgb(255 255 255 / 0.04) 38%,
+          rgb(255 255 255 / 0.92) 49%,
+          rgb(255 255 255 / 0.08) 56%,
+          transparent 74%
+        );
+      }
+
       @media (prefers-color-scheme: dark) {
-        #startup-splash {
+        html:not([data-theme]) .full-screen-whale-loader {
           background: #1c1c1a;
+          color: #b3b3ad;
         }
 
-        #startup-splash .startup-splash__base {
+        html:not([data-theme]) .full-screen-whale-loader .full-screen-whale-loader__base {
           filter: grayscale(1) brightness(0) invert(1);
         }
 
-        #startup-splash .startup-splash__overlay {
+        html:not([data-theme]) .full-screen-whale-loader .full-screen-whale-loader__overlay {
           background-image: linear-gradient(
             112deg,
             transparent 22%,
@@ -98,17 +141,17 @@
       }
 
       @media (prefers-reduced-motion: reduce) {
-        #startup-splash .startup-splash__logo {
+        .full-screen-whale-loader__logo {
           animation: none;
           opacity: 1;
         }
 
-        #startup-splash .startup-splash__overlay {
+        .full-screen-whale-loader__overlay {
           animation: none;
         }
       }
 
-      @keyframes startup-splash-fade-in {
+      @keyframes full-screen-whale-fade-in {
         from {
           opacity: 0;
         }
@@ -118,7 +161,7 @@
         }
       }
 
-      @keyframes startup-splash-shimmer {
+      @keyframes full-screen-whale-shimmer {
         from {
           background-position: 140% 0;
         }
@@ -132,14 +175,19 @@
   <body>
     <div
       id="startup-splash"
-      class="startup-splash"
+      class="full-screen-whale-loader"
       role="status"
       aria-busy="true"
       aria-label="CodePilotX 正在启动"
     >
-      <div class="startup-splash__logo" aria-hidden="true">
-        <img class="startup-splash__base" src="/whale-icon.svg" alt="" />
-        <div class="startup-splash__overlay"></div>
+      <div class="full-screen-whale-loader__content">
+        <div class="full-screen-whale-loader__logo" aria-hidden="true">
+          <img class="full-screen-whale-loader__base" src="/whale-icon.svg" alt="" />
+          <div class="full-screen-whale-loader__overlay"></div>
+        </div>
+        <div class="full-screen-whale-loader__status-viewport">
+          <span class="full-screen-whale-loader__status">正在加载桌面界面…</span>
+        </div>
       </div>
     </div>
     <div id="root"></div>

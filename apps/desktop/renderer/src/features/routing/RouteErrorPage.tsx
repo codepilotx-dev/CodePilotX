@@ -51,7 +51,7 @@ export function RouteErrorPageContent({
   const isDynamicModuleError = isDynamicModuleLoadError(error)
 
   return (
-    <main className="not-found-page" role="alert">
+    <main className="not-found-page" data-startup-surface-ready="true" role="alert">
       <span aria-hidden="true">!</span>
       <h1>
         {isDynamicModuleError
