@@ -143,14 +143,44 @@ describe('desktop history client', () => {
 
     const loaded = await client.getThemeSettings()
     expect(loaded).toMatchObject({
-      version: 6,
+      version: 7,
       mode: 'system',
       codeThemeIds: { light: 'codex-light', dark: 'codex-dark' },
     })
     expect(loaded.chromeThemes.light).not.toHaveProperty('opaqueWindows')
 
     await client.saveThemeSettings({ ...loaded, mode: 'light' })
-    expect(stored).toMatchObject({ version: 6, mode: 'light' })
+    expect(stored).toMatchObject({ version: 7, mode: 'light' })
+  })
+
+  test('never batch-writes over a newer Agent appearance generation', async () => {
+    const rpcMethods: string[] = []
+    const futureAppearance = {
+      version: 8,
+      mode: 'dark',
+      futureField: 'must-survive',
+    }
+    const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      rpcMethods.push(body?.method)
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'config/read') {
+        return rpc(body.id, {
+          config: { desktop: { appearance: futureAppearance } },
+          layers: [{ kind: 'user', version: 'future-config' }],
+        })
+      }
+      throw new Error(`Unexpected RPC method: ${body?.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+    await client.getRuntimeCapabilities()
+    const fallback = await client.getThemeSettings()
+
+    await client.saveThemeSettings({ ...fallback, mode: 'light' })
+
+    expect(rpcMethods.filter(method => method === 'config/read')).toHaveLength(2)
+    expect(rpcMethods).not.toContain('config/batchWrite')
   })
 
   test('uses agent fetch for list, create, get, message, rename, archive, and delete', async () => {

@@ -1082,12 +1082,16 @@ export type SaveDesktopMcpServerOptions = {
 
 export type {
   DesktopChromeTheme,
+  DesktopSystemFontFace,
+  DesktopSystemFontsResult,
+  DesktopThemeFontFace,
   DesktopThemeMode,
   DesktopThemeVariant,
 } from '@codepilotx/shared/desktop-theme'
 import type {
   DesktopChromeTheme,
   DesktopThemeSettingsV6 as SharedDesktopThemeSettingsV6,
+  DesktopThemeSettingsV7 as SharedDesktopThemeSettingsV7,
   DesktopThemeVariant,
 } from '@codepilotx/shared/desktop-theme'
 
@@ -1100,7 +1104,10 @@ export type DesktopThemeConfigV1 = {
 export type DesktopThemeSettingsV6 =
   SharedDesktopThemeSettingsV6<CodexHighlightThemeSlug>
 
-export type DesktopThemeSettings = DesktopThemeSettingsV6
+export type DesktopThemeSettingsV7 =
+  SharedDesktopThemeSettingsV7<CodexHighlightThemeSlug>
+
+export type DesktopThemeSettings = DesktopThemeSettingsV7
 
 export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
 

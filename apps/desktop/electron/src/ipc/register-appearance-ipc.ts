@@ -1,13 +1,14 @@
 import { ipcMain } from "electron"
 import {
   type AppearanceSettingsStore,
+  migrateAppearanceSettings,
   normalizeAppearanceSettings,
-  type DesktopThemeSettingsV6,
+  type DesktopThemeSettingsV7,
 } from "../settings/appearance-settings-store.js"
 import type { WindowAppearanceController } from "../windows/appearance.js"
 
 export function registerAppearanceIpc(
-  initialSettings: DesktopThemeSettingsV6,
+  initialSettings: DesktopThemeSettingsV7,
   appearance: WindowAppearanceController,
   store: AppearanceSettingsStore,
 ): void {
@@ -16,7 +17,7 @@ export function registerAppearanceIpc(
   ipcMain.handle(
     "appearance:settings:save",
     async (_event, value: unknown) => {
-      const next = normalizeAppearanceSettings(value)
+      const next = migrateAppearanceSettings(value)
       await store.save(next)
       settings = next
       appearance.broadcastAppearanceSettings(next)

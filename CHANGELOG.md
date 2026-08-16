@@ -18,6 +18,7 @@
 - [desktop/renderer] 新增 `/new` 两种真实资源门禁（Renderer 静态入口与 coding/working/chat 交互首屏），以显式模块清单定位首屏必经 chunk，并在优化完成后按实测值收紧上限，防止首屏体积回退。
 - [desktop/renderer] 在入口 JS 与主 CSS 就绪前保持静态启动遮罩（复用 Electron 鲸鱼图标视觉），仅在真实 ProseMirror 编辑器可输入后淡出，并在 reduced-motion、离开 `/new` 与 20 秒超时场景安全退出。
 - [desktop/electron] 在 Electron 性能测试的 cold start 中新增 `new-route-ready` 观测样本（真实 Composer 可输入、建议面板与字体、同源 JS/CSS 解码字节），本轮仅观测不设硬预算。
+- [desktop] 外观设置补齐真实系统字体与字体样式选择：preload 新增类型化 `listSystemFonts()`（Local Font Access 只返回 family/fullName/postscriptName/style，字段限长、去重、稳定排序，不支持/拒绝/失败安全降级为自由文本输入）；主题设置保留式升级为 V7（新增可空 `uiFace`/`codeFace`，清除时显式持久化 `null`，V1–V5 历史重置策略与高版本拒绝覆盖不变）；新增主题字体加载工具，以唯一 alias 注册本地 face 并置于原家族之前，加载失败自动回退；UI 字体展示全部家族、代码字体按 Canvas 等宽检测过滤，默认 face 只保存家族；“偏好设置”顺序对齐 Codex：指针光标、减少动态效果、界面字号、代码字号、差异标记、字体平滑（仅 macOS）。
 
 ### Changed
 
@@ -63,6 +64,8 @@
 
 ### Fixed
 
+- [desktop/renderer] 统一外观页主题编辑器与偏好设置卡片的共享表面、圆角、宽度和 16px 内容网格，使标题、控件及分隔线左右对齐；字体家族与样式下拉改为按当前内容自适应宽度，不再截断常规选项。
+- [desktop] 修复外观 V7 在真实启动与 Agent 保存链中可能降级覆盖高版本配置、系统字体权限被麦克风策略误拒绝、字体 family/face 可不一致，以及已保存字体样式首次进入不可操作的问题。
 - [desktop/renderer] 修复动态滚动内容增长后边缘渐隐状态失真、命令输出渐隐层随内容滚动及 reduced-motion 骨架屏残留高亮，并隔离动画性能夹具、补强视觉与样式契约以避免回归测试假绿。
 - [desktop/renderer] 修复任务看板新建与“开始执行”弹窗缺少背景、边框和阴影导致控件漂浮在遮罩上的问题，统一接入共享 floating-surface（`layer-floating-fill`、`layer-edge-strong`、`radius-floating`、`shadow-floating`）。
 - [desktop] 修复模型配置判定期间启动鲸鱼过早交接的问题，统一整窗加载为带真实阶段滑动文案的鲸鱼扫光动画，并保留局部加载反馈。

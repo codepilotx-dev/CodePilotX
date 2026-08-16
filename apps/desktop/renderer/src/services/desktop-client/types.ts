@@ -33,6 +33,7 @@ import type {
   DesktopReviewSource,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
+  DesktopSystemFontsResult,
   DesktopThemeSettings,
 } from '../../../shared/types.js'
 
@@ -41,6 +42,7 @@ type DesktopClientWindow = {
     pickWorkspaceDirectory(): Promise<string | null>
     getAppearanceSettings?(): Promise<DesktopThemeSettings>
     saveAppearanceSettings?(settings: DesktopThemeSettings): Promise<void>
+    listSystemFonts?(): Promise<DesktopSystemFontsResult>
     getDesktopSettings?(): Promise<DesktopStoredSettings>
     saveDesktopSettings?(
       settings: DesktopStoredSettings,

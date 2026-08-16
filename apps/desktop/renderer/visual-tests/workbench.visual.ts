@@ -3977,6 +3977,12 @@ test('settings shell search and appearance source contracts', async ({
   const lightPicker = page.getByRole('combobox', { name: '浅色代码主题' })
   await expect(page.getByRole('button', { name: '导入' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '复制主题' })).toHaveCount(0)
+  await expect(
+    page.getByRole('switch', { name: /半透明/ }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('checkbox', { name: /半透明/ }),
+  ).toHaveCount(0)
   await lightPicker.click()
   await expect(page.getByRole('option')).toHaveCount(16)
   await expect(
@@ -4007,10 +4013,10 @@ test('settings shell search and appearance source contracts', async ({
       .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim())),
   ).resolves.toEqual([
     '使用指针光标',
-    '差异标记',
+    '减少动态效果',
     '界面字号',
     '代码字号',
-    '减少动态效果',
+    '差异标记',
   ])
 
   const diffMarkerGroup = page.getByRole('radiogroup', { name: '差异标记选项' })

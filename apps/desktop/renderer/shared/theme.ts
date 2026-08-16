@@ -1,9 +1,14 @@
 import type {
   DesktopChromeTheme,
   DesktopThemeConfigV1,
+  DesktopThemeFontFace,
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from './types.js'
+import {
+  desktopThemeFontFaceMatchesFamily,
+  isNewerDesktopThemeSettingsVersion,
+} from '@codepilotx/shared/desktop-theme'
 import {
   CODEX_HIGHLIGHT_THEMES,
   type CodexHighlightThemeSlug,
@@ -20,7 +25,7 @@ export const DEFAULT_CODE_FONT =
 export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
   accent: '#339cff',
   contrast: 45,
-  fonts: { code: null, ui: null },
+  fonts: { code: null, ui: null, uiFace: null, codeFace: null },
   ink: '#1a1c1f',
   semanticColors: {
     diffAdded: '#00a240',
@@ -33,7 +38,7 @@ export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
 export const DEFAULT_DARK_CHROME_THEME: DesktopChromeTheme = {
   accent: '#339cff',
   contrast: 60,
-  fonts: { code: null, ui: null },
+  fonts: { code: null, ui: null, uiFace: null, codeFace: null },
   ink: '#ffffff',
   semanticColors: {
     diffAdded: '#40c977',
@@ -56,7 +61,7 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
 }
 
 export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
-  version: 6,
+  version: 7,
   mode: 'system',
   chromeThemes: {
     light: DEFAULT_LIGHT_CHROME_THEME,
@@ -104,7 +109,7 @@ export function normalizeDesktopThemeSettings(
   value: unknown,
 ): DesktopThemeSettings {
   const record = isRecord(value) ? value : {}
-  if (record.version !== 6) {
+  if (record.version !== 6 && record.version !== 7) {
     return cloneDefaultDesktopThemeSettings()
   }
   const chromeThemes = isRecord(record.chromeThemes)
@@ -112,7 +117,7 @@ export function normalizeDesktopThemeSettings(
     : {}
 
   return {
-    version: 6,
+    version: 7,
     mode: normalizeMode(record.mode),
     chromeThemes: {
       light: normalizeChromeTheme(
@@ -137,6 +142,8 @@ export function normalizeDesktopThemeSettings(
     fontSizes: normalizeFontSizes(record.fontSizes),
   }
 }
+
+export { isNewerDesktopThemeSettingsVersion }
 
 function cloneDefaultDesktopThemeSettings(): DesktopThemeSettings {
   return {
@@ -181,12 +188,18 @@ function normalizeChromeTheme(
   const semanticColors = isRecord(record.semanticColors)
     ? record.semanticColors
     : {}
+  const code = normalizeOptionalFont(fonts.code)
+  const ui = normalizeOptionalFont(fonts.ui)
+  const codeFace = normalizeOptionalFontFace(fonts.codeFace)
+  const uiFace = normalizeOptionalFontFace(fonts.uiFace)
   return {
     accent: normalizeHex(record.accent, fallback.accent),
     contrast: clampNumber(record.contrast, 0, 100, fallback.contrast),
     fonts: {
-      code: normalizeOptionalFont(fonts.code),
-      ui: normalizeOptionalFont(fonts.ui),
+      code,
+      codeFace: desktopThemeFontFaceMatchesFamily(code, codeFace) ? codeFace : null,
+      ui,
+      uiFace: desktopThemeFontFaceMatchesFamily(ui, uiFace) ? uiFace : null,
     },
     ink: normalizeHex(record.ink, fallback.ink),
     semanticColors: {
@@ -278,6 +291,24 @@ function normalizeOptionalFont(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed ? trimmed.slice(0, 512) : null
+}
+
+function normalizeOptionalFontFace(
+  value: unknown,
+): DesktopThemeFontFace | null {
+  if (value === null) return null
+  if (!isRecord(value)) return null
+  const family = normalizeFontFaceField(value.family)
+  const fullName = normalizeFontFaceField(value.fullName)
+  const postscriptName = normalizeFontFaceField(value.postscriptName)
+  if (!family || !fullName || !postscriptName) return null
+  return { family, fullName, postscriptName }
+}
+
+function normalizeFontFaceField(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 && trimmed.length <= 200 ? trimmed : null
 }
 
 function clampNumber(

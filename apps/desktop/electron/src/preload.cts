@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron"
-import type { DesktopThemeSettingsV6 } from "./settings/appearance-settings-store.js"
+import type { DesktopThemeSettingsV7 } from "./settings/appearance-settings-store.js"
+import type {
+  DesktopSystemFontFace,
+  DesktopSystemFontsResult,
+} from "@codepilotx/shared/desktop-theme"
 import type {
   DesktopPetOverlayBridge,
   DesktopPetPresentation,
@@ -399,9 +403,9 @@ const desktop = {
     ipcRenderer.invoke("shell:reveal-path-in-folder", targetPath),
   openLogDirectory: (): Promise<string> => ipcRenderer.invoke("startup:open-logs"),
   quitDuringStartup: (): Promise<void> => ipcRenderer.invoke("startup:quit"),
-  getAppearanceSettings: (): Promise<DesktopThemeSettingsV6> =>
+  getAppearanceSettings: (): Promise<DesktopThemeSettingsV7> =>
     ipcRenderer.invoke("appearance:settings:get"),
-  saveAppearanceSettings: (settings: DesktopThemeSettingsV6): Promise<void> =>
+  saveAppearanceSettings: (settings: DesktopThemeSettingsV7): Promise<void> =>
     ipcRenderer.invoke("appearance:settings:save", settings),
   getSystemTheme: (): Promise<SystemThemeVariant> =>
     ipcRenderer.invoke("appearance:system-theme:get"),
@@ -419,6 +423,44 @@ const desktop = {
   getPetOverlayWindowState: () =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.getState),
   previewPetPresentation: (
+  listSystemFonts: async (): Promise<DesktopSystemFontsResult> => {
+    // Local Font Access (Chromium 103+). Only display metadata is returned;
+    // font file paths, Blobs, and filesystem access never cross the bridge.
+    const queryLocalFonts = (
+      window as unknown as {
+        queryLocalFonts?: () => Promise<readonly LocalFontMetadata[]>
+      }
+    ).queryLocalFonts
+    if (typeof queryLocalFonts !== "function") {
+      return { ok: false, error: "unsupported" }
+    }
+    try {
+      const entries = await queryLocalFonts()
+      if (!Array.isArray(entries)) return { ok: false, error: "failed" }
+      const seen = new Set<string>()
+      const fonts: DesktopSystemFontFace[] = []
+      for (const entry of entries) {
+        const face = normalizeSystemFontFace(entry)
+        if (!face) continue
+        const key = `${face.family}\u0000${face.postscriptName}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        fonts.push(face)
+      }
+      fonts.sort(
+        (left, right) =>
+          left.family.localeCompare(right.family) ||
+          left.fullName.localeCompare(right.fullName) ||
+          left.postscriptName.localeCompare(right.postscriptName),
+      )
+      return { ok: true, fonts }
+    } catch (error) {
+      if (isRecord(error) && error.name === "NotAllowedError") {
+        return { ok: false, error: "denied" }
+      }
+      return { ok: false, error: "failed" }
+    }
+  },
     presentation: DesktopPetPresentation,
   ): Promise<DesktopPetPresentation> =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.previewPresentation, presentation),
@@ -511,6 +553,37 @@ function isDesktopBrowserSnapshot(
     && value.allowedSites.every(site => typeof site === "string")
     && Array.isArray(value.sitePermissions)
 }
+type LocalFontMetadata = {
+  family: string
+  fullName: string
+  postscriptName: string
+  style: string
+}
+
+function normalizeSystemFontFace(value: unknown): DesktopSystemFontFace | null {
+  if (!isRecord(value)) return null
+  const family = fontMetadataField(value.family, 200)
+  const fullName = fontMetadataField(value.fullName, 200)
+  const postscriptName = fontMetadataField(value.postscriptName, 200)
+  if (!family || !fullName || !postscriptName) return null
+  const style = typeof value.style === "string" ? value.style.trim() : ""
+  return {
+    family,
+    fullName,
+    postscriptName,
+    style: style.length > 0 && style.length <= 100 ? style : "Regular",
+  }
+}
+
+function fontMetadataField(
+  value: unknown,
+  maximumLength: number,
+): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 && trimmed.length <= maximumLength ? trimmed : null
+}
+
 
 function isPetPresentation(value: unknown): value is DesktopPetPresentation {
   return isRecord(value)

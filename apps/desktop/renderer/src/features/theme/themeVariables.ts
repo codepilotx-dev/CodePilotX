@@ -1,5 +1,9 @@
-import { DEFAULT_UI_FONT } from '../../../shared/theme.js'
+import {
+  DEFAULT_CODE_FONT,
+  DEFAULT_UI_FONT,
+} from '../../../shared/theme.js'
 import type { DesktopThemeConfigV1 } from '../../../shared/types.js'
+import { fontFamilyWithFace } from './themeFontFaces.js'
 
 export type ThemeVariableName = `--${string}`
 export type ThemeVariableMap = Record<ThemeVariableName, string>
@@ -118,14 +122,22 @@ export function deriveThemeVariables(
     '--shadow-resting': shadowResting,
     '--shadow-raised': shadowRaised,
     '--shadow-float': shadowFloat,
-    '--font-family-sans': theme.fonts.ui ?? DEFAULT_UI_FONT,
-    '--font-family-mono':
-      theme.fonts.code ??
-      '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
-    '--vscode-font-family': theme.fonts.ui ?? DEFAULT_UI_FONT,
-    '--vscode-editor-font-family':
-      theme.fonts.code ??
-      '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
+    '--font-family-sans': fontFamilyWithFace(
+      theme.fonts.uiFace,
+      theme.fonts.ui ?? DEFAULT_UI_FONT,
+    ),
+    '--font-family-mono': fontFamilyWithFace(
+      theme.fonts.codeFace,
+      theme.fonts.code ?? DEFAULT_CODE_FONT,
+    ),
+    '--vscode-font-family': fontFamilyWithFace(
+      theme.fonts.uiFace,
+      theme.fonts.ui ?? DEFAULT_UI_FONT,
+    ),
+    '--vscode-editor-font-family': fontFamilyWithFace(
+      theme.fonts.codeFace,
+      theme.fonts.code ?? DEFAULT_CODE_FONT,
+    ),
     '--vscode-editor-background': theme.surface,
     '--vscode-editor-foreground': theme.ink,
     '--vscode-editorCursor-foreground': theme.accent,

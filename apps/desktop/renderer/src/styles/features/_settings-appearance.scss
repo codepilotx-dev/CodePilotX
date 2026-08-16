@@ -115,14 +115,18 @@
 }
 
 .appearance-theme-editor {
-  overflow: hidden;
-  border: var(--layer-edge);
-  border-radius: var(--radius-card);
-  background: var(--layer-raised-fill);
-  box-shadow: none;
-
   > .settings-row {
     min-height: 48px;
+  }
+
+  .appearance-theme-editor-rows > .settings-row {
+    padding-inline: 16px;
+  }
+
+  .appearance-theme-editor-rows > .settings-row + .settings-row::before {
+    right: 16px;
+    left: 16px;
+    background: var(--color-token-border-light);
   }
 }
 
@@ -295,6 +299,31 @@
   font-size: var(--type-control);
 }
 
+.appearance-theme-font-row {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  .settings-dropdown.settings-dropdown-trigger {
+    width: max-content;
+    max-width: none;
+    height: 28px;
+    min-height: 28px;
+    border-radius: var(--radius-control);
+    background: var(--color-token-input-background);
+  }
+
+  .settings-dropdown-value {
+    flex: 0 0 auto;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
 .appearance-number-input {
   display: flex;
   align-items: center;
@@ -388,4 +417,5 @@
   .appearance-font-input {
     width: min(100%, 240px);
   }
+
 }

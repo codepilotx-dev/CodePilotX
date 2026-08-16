@@ -398,7 +398,7 @@ describe('fixed Codex UI themes', () => {
     })
 
     expect(migrated).toMatchObject({
-      version: 6,
+      version: 7,
       mode: 'system',
       codeThemeIds: {
         light: 'codex-light',
@@ -439,7 +439,7 @@ describe('fixed Codex UI themes', () => {
     })
   })
 
-  test('resets a previous V2 single selection to V6 defaults', () => {
+  test('resets a previous V2 single selection to V7 defaults', () => {
     expect(
       normalizeDesktopThemeSettings({
         version: 2,

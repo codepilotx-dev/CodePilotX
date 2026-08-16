@@ -26,6 +26,23 @@ describe("microphone media permission policy", () => {
     })).toBe(true)
   })
 
+  test("permits local fonts only for the trusted main application frame", () => {
+    const localFonts = {
+      ...allowed,
+      permission: "local-fonts",
+      requestedMediaTypes: undefined,
+    }
+    expect(isMicrophoneMediaPermissionAllowed(localFonts)).toBe(true)
+    expect(isMicrophoneMediaPermissionAllowed({
+      ...localFonts,
+      isMainWindowSender: false,
+    })).toBe(false)
+    expect(isMicrophoneMediaPermissionAllowed({
+      ...localFonts,
+      requestingUrl: "http://127.0.0.1:43121/",
+    })).toBe(false)
+  })
+
   test.each([
     ["video", { requestedMediaTypes: ["video"] }],
     ["mixed media", { requestedMediaTypes: ["audio", "video"] }],
@@ -83,6 +100,29 @@ describe("microphone media permission policy", () => {
       },
     )
     expect(requestGranted).toBe(true)
+    requestHandler!(
+      mainWindow,
+      "local-fonts",
+      granted => {
+        requestGranted = granted
+      },
+      {
+        isMainFrame: true,
+        requestingUrl: `${allowedOrigin}/settings/appearance`,
+        securityOrigin: allowedOrigin,
+      },
+    )
+    expect(requestGranted).toBe(true)
+    expect(checkHandler!(
+      mainWindow,
+      'local-fonts',
+      allowedOrigin,
+      {
+        isMainFrame: true,
+        requestingUrl: `${allowedOrigin}/settings/appearance`,
+        securityOrigin: allowedOrigin,
+      },
+    )).toBe(true)
     expect(checkHandler!(
       mainWindow,
       "media",

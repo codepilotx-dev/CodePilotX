@@ -91,6 +91,47 @@ async function resolveTextColorToken(
   }, token)
 }
 
+test('appearance cards share the settings content grid', async ({ page }) => {
+  await page.setViewportSize(COMPACT_VIEWPORT)
+  await prepareVisualTheme(page, 'light')
+  await page.goto('/?visualCase=empty#/settings/appearance')
+  await waitForVisualPage(
+    page,
+    'light',
+    page.getByRole('heading', { name: '外观' }),
+  )
+
+  const cardAlignment = await page.evaluate(() => {
+    const themeCard = document.querySelector<HTMLElement>(
+      '.appearance-theme-editor',
+    )!
+    const preferenceCard = document.querySelector<HTMLElement>(
+      '.appearance-settings > .settings-section:last-child .settings-card',
+    )!
+    const themeRows = [
+      themeCard.querySelector<HTMLElement>(':scope > .settings-row')!,
+      themeCard.querySelector<HTMLElement>(
+        '.appearance-theme-editor-rows > .settings-row',
+      )!,
+    ]
+    const preferenceRow = preferenceCard.querySelector<HTMLElement>(
+      '.settings-row',
+    )!
+    const themeBounds = themeCard.getBoundingClientRect()
+    const preferenceBounds = preferenceCard.getBoundingClientRect()
+    return {
+      leftDelta: Math.abs(themeBounds.left - preferenceBounds.left),
+      widthDelta: Math.abs(themeBounds.width - preferenceBounds.width),
+      themePadding: themeRows.map(row => getComputedStyle(row).paddingInline),
+      preferencePadding: getComputedStyle(preferenceRow).paddingInline,
+    }
+  })
+  expect(cardAlignment.leftDelta).toBeLessThan(0.5)
+  expect(cardAlignment.widthDelta).toBeLessThan(0.5)
+  expect(cardAlignment.themePadding).toEqual(['16px', '16px'])
+  expect(cardAlignment.preferencePadding).toBe('16px')
+})
+
 for (const mode of VISUAL_MODES) {
   for (const tab of SETTINGS_TABS) {
     visualTest(`settings ${tab.id} ${mode}`, async ({ page }) => {

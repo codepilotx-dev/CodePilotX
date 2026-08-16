@@ -1,7 +1,6 @@
 import React, {
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react'
 import * as Popover from '@radix-ui/react-popover'
@@ -33,6 +32,7 @@ import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
+import { ThemeFontPicker } from './ThemeFontPicker.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 
 type Props = {
@@ -115,66 +115,6 @@ function NumberInput({
       />
       <span aria-hidden="true">px</span>
     </div>
-  )
-}
-
-function FontInput({
-  ariaLabel,
-  placeholder,
-  value,
-  onCommit,
-}: {
-  ariaLabel: string
-  placeholder: string
-  value: string | null
-  onCommit: (value: string | null) => void
-}) {
-  const [draft, setDraft] = useState(value ?? '')
-  const focusedRef = useRef(false)
-  const skipBlurCommitRef = useRef(false)
-  const latestValueRef = useRef(value)
-
-  useEffect(() => {
-    latestValueRef.current = value
-    if (!focusedRef.current) setDraft(value ?? '')
-  }, [value])
-
-  const commit = (): void => {
-    const next = draft.trim() || null
-    setDraft(next ?? '')
-    if (next !== latestValueRef.current) {
-      latestValueRef.current = next
-      onCommit(next)
-    }
-  }
-
-  return (
-    <Input
-      aria-label={ariaLabel}
-      className="appearance-font-input"
-      placeholder={placeholder}
-      value={draft}
-      onBlur={() => {
-        focusedRef.current = false
-        if (skipBlurCommitRef.current) {
-          skipBlurCommitRef.current = false
-          return
-        }
-        commit()
-      }}
-      onChange={event => setDraft(event.target.value)}
-      onFocus={() => {
-        focusedRef.current = true
-      }}
-      onKeyDown={event => {
-        if (event.key === 'Enter') event.currentTarget.blur()
-        if (event.key === 'Escape') {
-          skipBlurCommitRef.current = true
-          setDraft(latestValueRef.current ?? '')
-          event.currentTarget.blur()
-        }
-      }}
-    />
   )
 }
 
@@ -869,7 +809,10 @@ function VariantThemeEditor({
   }
 
   return (
-    <article aria-busy={!themeSeedsReady} className="appearance-theme-editor">
+    <article
+      aria-busy={!themeSeedsReady}
+      className="appearance-theme-editor settings-card"
+    >
       <SettingsRow
         title={`${variantLabel}主题`}
         control={
@@ -952,11 +895,13 @@ function VariantThemeEditor({
           title="UI 字体"
           size="compact"
           control={
-            <FontInput
+            <ThemeFontPicker
               ariaLabel={`${variantLabel}界面字体`}
+              kind="ui"
               placeholder="ui-sans-serif, system-ui, sans-serif"
-              value={chromeTheme.fonts.ui}
-              onCommit={ui => updateFonts({ ui })}
+              face={chromeTheme.fonts.uiFace ?? null}
+              family={chromeTheme.fonts.ui}
+              onCommit={(ui, uiFace) => updateFonts({ ui, uiFace })}
             />
           }
         />
@@ -964,11 +909,13 @@ function VariantThemeEditor({
           title="代码字体"
           size="compact"
           control={
-            <FontInput
+            <ThemeFontPicker
               ariaLabel={`${variantLabel}代码字体`}
+              kind="code"
               placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
-              value={chromeTheme.fonts.code}
-              onCommit={code => updateFonts({ code })}
+              face={chromeTheme.fonts.codeFace ?? null}
+              family={chromeTheme.fonts.code}
+              onCommit={(code, codeFace) => updateFonts({ code, codeFace })}
             />
           }
         />
@@ -1135,17 +1082,18 @@ export function AppearanceSettings({
           />
           <SettingsRow
             autoSave
-            title="差异标记"
-            description="使用彩色背景，或在更改行显示 + / - 符号"
+            title="减少动态效果"
+            description="跟随系统，或始终开启、关闭界面动画"
             control={
               <SegmentedControl
-                ariaLabel="差异标记选项"
+                ariaLabel="减少动态效果选项"
                 options={[
-                  { value: 'color', label: '颜色' },
-                  { value: 'symbol', label: '+/-' },
+                  { value: 'system', label: '系统' },
+                  { value: 'on', label: '开启' },
+                  { value: 'off', label: '关闭' },
                 ]}
-                value={desktopSettings.draft.values.diffMarkerStyle}
-                onChange={updateDiffMarkerStyle}
+                value={settings.reduceMotion}
+                onChange={reduceMotion => updateThemeSettings({ reduceMotion })}
               />
             }
           />
@@ -1185,18 +1133,17 @@ export function AppearanceSettings({
           />
           <SettingsRow
             autoSave
-            title="减少动态效果"
-            description="跟随系统，或始终开启、关闭界面动画"
+            title="差异标记"
+            description="使用彩色背景，或在更改行显示 + / - 符号"
             control={
               <SegmentedControl
-                ariaLabel="减少动态效果选项"
+                ariaLabel="差异标记选项"
                 options={[
-                  { value: 'system', label: '系统' },
-                  { value: 'on', label: '开启' },
-                  { value: 'off', label: '关闭' },
+                  { value: 'color', label: '颜色' },
+                  { value: 'symbol', label: '+/-' },
                 ]}
-                value={settings.reduceMotion}
-                onChange={reduceMotion => updateThemeSettings({ reduceMotion })}
+                value={desktopSettings.draft.values.diffMarkerStyle}
+                onChange={updateDiffMarkerStyle}
               />
             }
           />

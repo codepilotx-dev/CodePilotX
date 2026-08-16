@@ -27,7 +27,7 @@ const DEFAULT_SEEDS: Record<DesktopThemeVariant, DesktopChromeTheme> = {
     surface: '#ffffff',
     ink: '#1a1c1f',
     contrast: 45,
-    fonts: { ui: null, code: null },
+    fonts: { ui: null, code: null, uiFace: null, codeFace: null },
     semanticColors: {
       diffAdded: '#00a240',
       diffRemoved: '#ba2623',
@@ -39,7 +39,7 @@ const DEFAULT_SEEDS: Record<DesktopThemeVariant, DesktopChromeTheme> = {
     surface: '#181818',
     ink: '#ffffff',
     contrast: 60,
-    fonts: { ui: null, code: null },
+    fonts: { ui: null, code: null, uiFace: null, codeFace: null },
     semanticColors: {
       diffAdded: '#40c977',
       diffRemoved: '#fa423e',
@@ -145,14 +145,38 @@ export function mergeChromeThemeSeed(
   return {
     ...current,
     ...seed,
-    fonts:
-      seed.fonts == null
-        ? current.fonts
-        : { ...current.fonts, ...seed.fonts },
+    fonts: mergeSeedFonts(current.fonts, seed.fonts),
     semanticColors: {
       ...current.semanticColors,
       ...seed.semanticColors,
     },
+  }
+}
+
+function mergeSeedFonts(
+  current: DesktopChromeTheme['fonts'],
+  seed: DesktopChromeTheme['fonts'] | undefined,
+): DesktopChromeTheme['fonts'] {
+  if (seed == null) return current
+  const familyChanged = (key: 'ui' | 'code'): boolean =>
+    seed[key] !== undefined && seed[key] !== current[key]
+  return {
+    ...current,
+    ...seed,
+    // A family change without a matching face patch must drop the stale face
+    // instead of applying e.g. a JetBrains Mono face to another family.
+    uiFace:
+      seed.uiFace !== undefined
+        ? seed.uiFace
+        : familyChanged('ui')
+          ? null
+          : current.uiFace ?? null,
+    codeFace:
+      seed.codeFace !== undefined
+        ? seed.codeFace
+        : familyChanged('code')
+          ? null
+          : current.codeFace ?? null,
   }
 }
 

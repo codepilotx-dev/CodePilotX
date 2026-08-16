@@ -3,8 +3,9 @@ import { parse as parseJsonc } from "jsonc-parser/lib/esm/main.js"
 import { parse } from "smol-toml"
 import {
   DEFAULT_APPEARANCE_SETTINGS,
+  migrateAppearanceSettings,
   normalizeAppearanceSettings,
-  type DesktopThemeSettingsV6,
+  type DesktopThemeSettingsV7,
 } from "./appearance-settings-store.js"
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -14,14 +15,14 @@ export async function readStartupAppearanceConfig(
   configJsonPath: string,
   legacyConfigTomlPath?: string,
   legacyAppearancePath?: string,
-): Promise<DesktopThemeSettingsV6> {
+): Promise<DesktopThemeSettingsV7> {
   let configJsonMissing = false
   try {
     const source = (await readFile(configJsonPath, "utf8")).replace(/^\uFEFF/, "")
     const parsed = parseJsonc(source, undefined, { allowTrailingComma: true })
     const desktop = isObject(parsed.desktop) ? parsed.desktop : null
     if (desktop && isObject(desktop.appearance)) {
-      return normalizeAppearanceSettings(desktop.appearance)
+      return migrateAppearanceSettings(desktop.appearance)
     }
   } catch (error) {
     configJsonMissing = isFileMissingError(error)
@@ -31,13 +32,13 @@ export async function readStartupAppearanceConfig(
       const parsed = parse(await readFile(legacyConfigTomlPath, "utf8"))
       const desktop = isObject(parsed.desktop) ? parsed.desktop : null
       if (desktop && isObject(desktop.appearance)) {
-        return normalizeAppearanceSettings(desktop.appearance)
+        return migrateAppearanceSettings(desktop.appearance)
       }
     } catch {}
   }
   if (legacyAppearancePath) {
     try {
-      return normalizeAppearanceSettings(
+      return migrateAppearanceSettings(
         JSON.parse(await readFile(legacyAppearancePath, "utf8")),
       )
     } catch {}

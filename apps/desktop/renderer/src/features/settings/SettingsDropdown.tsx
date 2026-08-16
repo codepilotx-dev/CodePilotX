@@ -28,6 +28,8 @@ type Props = {
   searchPlaceholder?: string
   showSelectedIndicator?: boolean
   triggerClassName?: string
+  /** Fired with the next open state; keeps user-gesture-driven side effects. */
+  onOpenChange?: (open: boolean) => void
 } & PopoverSizingProps
 
 const EMPTY_VALUE = '__radix_empty_value__'
@@ -70,6 +72,7 @@ function SelectSettingsDropdown({
   triggerClassName,
   width,
   maxWidth,
+  onOpenChange,
 }: Props) {
   const [open, setOpen] = React.useState(false)
   const selectedOption = options.find((o) => o.value === value) || options[0]
@@ -81,7 +84,10 @@ function SelectSettingsDropdown({
       disabled={disabled}
       open={open}
       value={radixValue}
-      onOpenChange={setOpen}
+      onOpenChange={(next) => {
+        setOpen(next)
+        onOpenChange?.(next)
+      }}
       onValueChange={(nextValue) =>
         onChange(nextValue === EMPTY_VALUE ? '' : nextValue)
       }
@@ -180,6 +186,7 @@ function SearchableSettingsDropdown({
   triggerClassName,
   width,
   maxWidth,
+  onOpenChange,
 }: Props) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
@@ -267,8 +274,7 @@ function SearchableSettingsDropdown({
       event.preventDefault()
       const selected = visibleOptions[activeIndex]
       if (selected && !selected.disabled) {
-        onChange(selected.value)
-        setOpen(false)
+        selectOption(selected)
       }
     }
   }
@@ -277,6 +283,7 @@ function SearchableSettingsDropdown({
     if (opt.disabled) return
     onChange(opt.value)
     setOpen(false)
+    triggerRef.current?.focus()
   }
 
   return (
@@ -288,6 +295,7 @@ function SearchableSettingsDropdown({
           setActiveIndex(-1)
         }
         setOpen(next)
+        onOpenChange?.(next)
       }}
     >
       <Popover.Trigger asChild>

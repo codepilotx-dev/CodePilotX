@@ -22,6 +22,9 @@ interface MicrophoneMediaPermissionDependencies {
 export function isMicrophoneMediaPermissionAllowed(
   input: MicrophoneMediaPermissionInput,
 ): boolean {
+  if (input.permission === "local-fonts") {
+    return isTrustedMainWindowPermissionRequest(input)
+  }
   if (
     input.permission !== "media"
     || !input.isMainFrame
@@ -32,12 +35,18 @@ export function isMicrophoneMediaPermissionAllowed(
     return false
   }
 
+  return isTrustedMainWindowPermissionRequest(input)
+}
+
+function isTrustedMainWindowPermissionRequest(
+  input: MicrophoneMediaPermissionInput,
+): boolean {
+  if (!input.isMainFrame || !input.isMainWindowSender) return false
   const allowedOrigin = parseOrigin(input.allowedApplicationOrigin)
   const requestingOrigin = parseOrigin(input.requestingUrl)
   if (!allowedOrigin || requestingOrigin !== allowedOrigin) return false
-
-  if (input.securityOrigin === undefined) return true
-  return parseOrigin(input.securityOrigin) === allowedOrigin
+  return input.securityOrigin === undefined
+    || parseOrigin(input.securityOrigin) === allowedOrigin
 }
 
 export function registerMicrophoneMediaPermissions(

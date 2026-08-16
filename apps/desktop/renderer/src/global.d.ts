@@ -1,5 +1,6 @@
 import type {
   DesktopStoredSettings,
+  DesktopSystemFontsResult,
   DesktopThemeSettings,
 } from '../shared/types.js'
 import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-overlay'
@@ -32,6 +33,7 @@ declare global {
       revealPathInFolder(targetPath: string): Promise<void>
       getAppearanceSettings(): Promise<DesktopThemeSettings>
       saveAppearanceSettings(settings: DesktopThemeSettings): Promise<void>
+      listSystemFonts(): Promise<DesktopSystemFontsResult>
       getSystemTheme(): Promise<'light' | 'dark'>
       onSystemThemeChange(
         listener: (theme: 'light' | 'dark') => void,
