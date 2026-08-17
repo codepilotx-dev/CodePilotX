@@ -69,7 +69,7 @@
   --layout-sidebar-session-indent: 30px;
   --layout-sidebar-section-gap: 18px;
   --layout-content-w: 48rem;
-  --layout-bento-w: 1200px;
+  --layout-bento-w: 1250px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -122,25 +122,17 @@
   --interactive-row-line-compact: 18px;
   --interactive-row-background: transparent;
   --interactive-row-foreground: var(--color-token-foreground);
-  --interactive-row-hover-background: var(
-    --color-token-list-hover-background
-  );
+  --interactive-row-hover-background: var(--color-token-list-hover-background);
   --interactive-row-hover-foreground: var(--color-token-foreground);
-  --interactive-row-open-background: var(
-    --interactive-row-hover-background
-  );
-  --interactive-row-open-foreground: var(
-    --interactive-row-hover-foreground
-  );
+  --interactive-row-open-background: var(--interactive-row-hover-background);
+  --interactive-row-open-foreground: var(--interactive-row-hover-foreground);
   --interactive-row-selected-background: var(
     --color-token-list-active-selection-background
   );
   --interactive-row-selected-foreground: var(
     --color-token-list-active-selection-foreground
   );
-  --interactive-row-disabled-foreground: var(
-    --color-token-disabled-foreground
-  );
+  --interactive-row-disabled-foreground: var(--color-token-disabled-foreground);
   --interactive-row-disabled-opacity: 0.55;
   --interactive-row-nav-height: var(--interactive-row-height-nav);
   --interactive-row-nav-radius: var(--interactive-row-radius);
@@ -200,18 +192,22 @@
   --button-radius-lg-base: 10px;
   --button-radius-xl-base: 12px;
   --button-radius-2xl-base: 16px;
-  --button-radius-md: calc(var(--button-radius-md-base) * var(--button-radius-scale));
-  --button-radius-lg: calc(var(--button-radius-lg-base) * var(--button-radius-scale));
-  --button-radius-xl: calc(var(--button-radius-xl-base) * var(--button-radius-scale));
-  --button-radius-2xl: calc(var(--button-radius-2xl-base) * var(--button-radius-scale));
+  --button-radius-md: calc(
+    var(--button-radius-md-base) * var(--button-radius-scale)
+  );
+  --button-radius-lg: calc(
+    var(--button-radius-lg-base) * var(--button-radius-scale)
+  );
+  --button-radius-xl: calc(
+    var(--button-radius-xl-base) * var(--button-radius-scale)
+  );
+  --button-radius-2xl: calc(
+    var(--button-radius-2xl-base) * var(--button-radius-scale)
+  );
   --button-radius-full: 9999px;
   --control-size-sm: calc(var(--font-size-ui) + var(--font-size-ui));
-  --control-size-md: calc(
-    var(--font-size-ui) + var(--font-size-ui) + 6px
-  );
-  --control-size-lg: calc(
-    var(--font-size-ui) + var(--font-size-ui) + 12px
-  );
+  --control-size-md: calc(var(--font-size-ui) + var(--font-size-ui) + 6px);
+  --control-size-lg: calc(var(--font-size-ui) + var(--font-size-ui) + 12px);
 
   --type-body: var(--font-size-ui);
   --type-control: var(--font-size-ui);
@@ -296,8 +292,7 @@
     ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol", "Noto Color Emoji";
-  --font-family-mono:
-    "JetBrains Mono", Consolas, monospace;
+  --font-family-mono: "JetBrains Mono", Consolas, monospace;
   --type-card-title: var(--font-size-ui);
   --type-section-title: var(--font-size-ui);
   --type-panel-title: calc(var(--font-size-ui) + 2px);

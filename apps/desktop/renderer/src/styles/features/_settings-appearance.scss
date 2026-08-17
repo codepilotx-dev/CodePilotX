@@ -6,10 +6,7 @@
 
 .settings-dropdown-content[data-variant="theme"] {
   width: var(--popover-width, 11rem);
-  max-width: var(
-    --popover-max-width,
-    min(360px, calc(100vw - 16px))
-  );
+  max-width: var(--popover-max-width, min(360px, calc(100vw - 16px)));
   max-height: min(320px, calc(100vh - 96px));
 
   .settings-dropdown-scroll-area {
@@ -25,7 +22,7 @@
   display: grid;
   width: 100%;
 
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -220,7 +217,7 @@
     border-radius: 50%;
     background: var(--appearance-color-swatch-background);
     box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 10%, transparent);
-    content: '';
+    content: "";
     pointer-events: none;
     transform: translate(-50%, -50%);
   }
@@ -417,5 +414,4 @@
   .appearance-font-input {
     width: min(100%, 240px);
   }
-
 }

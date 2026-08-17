@@ -80,7 +80,7 @@
 
 .settings-content-inner {
   width: 100%;
-  max-width: 48rem;
+  max-width: var(--layout-bento-w);
   margin: 0 auto;
   padding: 20px;
 }
@@ -276,7 +276,9 @@
 }
 
 .settings-card > .settings-row + .settings-row::before,
-.settings-section-content[data-surface="card"] > .settings-row + .settings-row::before {
+.settings-section-content[data-surface="card"]
+  > .settings-row
+  + .settings-row::before {
   right: 16px;
   left: 16px;
   background: var(--color-token-border-light);
