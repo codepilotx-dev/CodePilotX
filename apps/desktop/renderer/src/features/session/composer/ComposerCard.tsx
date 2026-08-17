@@ -101,6 +101,7 @@ import {
   type ComposerSlashCommandId,
 } from "./composerSlashCommands.js";
 import { useComposerSlashCommands } from "./useComposerSlashCommands.js";
+import { desktopClient } from "../../../services/desktop-client/index.js";
 
 type Option<T extends string> = {
   value: T;
@@ -542,6 +543,49 @@ export function ComposerCard({
 
   const sessionBusy =
     sessionStatus === "running" || sessionStatus === "waiting";
+
+  // 插件 prompt commands（plugin:<pluginId>:<commandId>；builtin 触发器优先）。
+  const [pluginPromptCommands, setPluginPromptCommands] = useState<
+    ReadonlyArray<{
+      pluginId: string;
+      command: { id: string; title: string; description?: string };
+    }>
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    void desktopClient
+      .listPluginContributions()
+      .then((result) => {
+        if (cancelled) return;
+        setPluginPromptCommands(result.promptCommands);
+      })
+      .catch(() => {
+        if (!cancelled) setPluginPromptCommands([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const executePluginCommand = useCallback(
+    async (pluginId: string, commandId: string): Promise<void> => {
+      try {
+        const result = await desktopClient.executePluginCommand({
+          pluginId,
+          commandId,
+        });
+        if (result.promptTemplate) {
+          onInputChange(result.promptTemplate);
+          setDismissedSlashInput(input);
+        }
+      } catch (error) {
+        onCommandError?.(
+          error instanceof Error ? error.message : "插件命令执行失败。",
+        );
+      }
+    },
+    [onInputChange, onCommandError, input],
+  );
+
   const { commands: builtinSlashCommands, executeCommand } =
     useComposerSlashCommands({
       capabilities,
@@ -789,12 +833,31 @@ export function ComposerCard({
       });
     }
 
+    // 插件 prompt commands（plugin:<pluginId>:<commandId>；builtin 触发器保持优先）。
+    for (const entry of pluginPromptCommands) {
+      const trigger = `plugin:${entry.pluginId}:${entry.command.id}`;
+      items.push({
+        group: "插件",
+        key: `plugin-command-${entry.pluginId}-${entry.command.id}`,
+        label: entry.command.title,
+        hint: entry.command.description ?? trigger,
+        icon: <Blocks size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+        matchText: `${trigger} ${entry.command.title} ${entry.command.description ?? ""} 插件命令`,
+        onSelect: () => {
+          void executePluginCommand(entry.pluginId, entry.command.id);
+        },
+      });
+    }
+
     return items.filter((item) => {
       if (item.disabled) return false;
       if (item.key === "add-files") return capabilities.fileAttachments;
       if (item.key.startsWith("code-review")) return capabilities.review;
       if (item.command?.source === "builtin") {
         return item.command.availability.visible;
+      }
+      if (item.key.startsWith("plugin-command-")) {
+        return capabilities.plugins;
       }
       if (item.key.startsWith("plugin-")) {
         return (
@@ -812,6 +875,8 @@ export function ComposerCard({
     goalModeEnabled,
     builtinSlashCommands,
     executeCommand,
+    pluginPromptCommands,
+    executePluginCommand,
     planModeActive,
     onOpenFiles,
     onGoalModeChange,

@@ -24,11 +24,24 @@ import { ResumeCheckpointResolver } from "./interaction/ResumeCheckpointResolver
 import { ThreadService } from "./session/ThreadService";
 import { ThreadHistoryService } from "./session/ThreadHistoryService";
 import { PiOrchestratorAdapter } from "./orchestration/PiOrchestratorAdapter";
+import { RuntimeContributionRegistry, type RuntimeContribution } from "./runtime/RuntimeContribution";
+import { ModelRequestSnapshotRecorder } from "./snapshot/RequestSnapshotRecorder";
+import { PluginInstaller } from "./plugin/installer";
+import { PluginService } from "./plugin/PluginService";
+import { PluginRuntimeManager } from "./plugin/runtime/manager";
+import { PluginContributionAdapter } from "./plugin/contributions/adapter";
+import { createPluginBroker } from "./plugin/contributions/broker";
+import { SystemProfileLoader } from "./plugin/system/SystemProfileLoader";
+import { SystemServiceRegistry } from "./plugin/system/SystemServiceRegistry";
+import { PluginRepository } from "./storage/repositories/plugin-repository";
+import { ModelRequestSnapshotRepository } from "./storage/repositories/model-request-snapshot-repository";
+import { RuntimeStepServiceImpl } from "./runtime/RuntimeStepService";
 import { ContextCompactionService } from "./context/ContextCompactionService";
 import {
   EncryptedCredentialStore,
   PiModelService,
   PiModelsFileStore,
+  convertModelsDevCatalog,
 } from "./provider/pi";
 import { PiModelCatalogAdapter } from "./provider/PiModelCatalogAdapter";
 import { generatePiObject } from "./provider/pi/PiStructuredOutput";
@@ -362,8 +375,32 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       logger,
     );
     const git = new GitWorkspaceService(db);
+
+    const loadDefaultModels = async () => {
+      if (options.models) return options.models;
+      try {
+        const client = (await import("@opencode-ai/models")).Models.make({
+          baseUrl: "https://models.dev",
+        });
+        const catalog = await client.catalog();
+        return convertModelsDevCatalog(catalog);
+      } catch {
+        return builtinModels({
+          credentials: new EncryptedCredentialStore(credentials, {
+            integrationID: () => "provider.catalog.fallback",
+            providerID: () => undefined,
+            oauthMethodID: () => "provider.catalog.fallback",
+          }),
+          authContext: {
+            env: async () => undefined,
+            fileExists: async () => false,
+          },
+        });
+      }
+    };
+    const defaultModels = yield* Effect.promise(loadDefaultModels);
     const piModels = new PiModelService(providerCredentialStore, {
-      ...(options.models ? { models: options.models } : {}),
+      models: defaultModels,
       modelsStore: new PiModelsFileStore(config.piModelCachePath),
       config: () => {
         const snapshot = configService.snapshot();
@@ -475,6 +512,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const mcpConfigs = new McpConfigService(
       new McpSettingsRepository(db),
       configService,
+      // 插件声明的 MCP server（惰性引用 pluginContributions；用户声明优先）。
+      () => pluginContributions.mcpDeclarations().map(({ name, pluginId, declaration }) => ({
+        name,
+        pluginId,
+        declaration: declaration as never,
+      })),
     );
     const usage = new UsageService(
       new UsageRepository(db),
@@ -509,11 +552,18 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     );
     const mcp = new McpRuntimeService(mcpConfigs, mcpConnections, mcpOAuth);
     const reviewer = new ReviewerService(db, piModels, configService);
+    // System permission-policy provider 替换点（PR 8B）：激活时注入决策覆盖。
+    const permissionPolicyOverride = () => systemServiceRegistry.resolve<{ decide: (input: unknown) => unknown }>("codepilotx.permission-policy@1");
     const approvals = new ApprovalService(
       db,
       hub,
       tools,
       (invocation, signal) => reviewer.review(invocation, signal),
+      () => {
+        const provider = permissionPolicyOverride()
+        if (!provider || typeof provider.decide !== "function") return null
+        return { decide: (input) => provider.decide(input) as { decision: "allow" | "review" | "deny"; reason?: string } }
+      },
     );
     let toolExecutor!: ToolExecutor;
     const hooks = new HookService(
@@ -578,6 +628,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       userConfigPath: config.storage.userConfig,
       validateConfigDocument: (text, scope) =>
         configService.validateDocument(text, scope),
+      policyOverride: () => {
+        const provider = permissionPolicyOverride()
+        if (!provider || typeof provider.decide !== "function") return null
+        return { decide: (input) => provider.decide(input) as { decision: "allow" | "review" | "deny"; reason?: string } }
+      },
       resolveTooling: (id, resolveOptions) =>
         tooling.resolve(id, resolveOptions),
       resolveToolingEnvironment: (required, resolveOptions) =>
@@ -603,18 +658,192 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     });
     const questions = new QuestionService(db, hub, false);
+    // 完整 Provider 请求快照：默认关闭，只有严格布尔值 true 启用；
+    // diagnostics 属于用户层配置，项目配置与 AGENTS.md 不能替用户开启。
+    const runtimeSteps = new RuntimeStepServiceImpl({
+      db,
+      publish: async (event) => {
+        await Effect.runPromise(hub.publish(event));
+      },
+      logger,
+    });
+    const requestSnapshotRepository = new ModelRequestSnapshotRepository(db);
+    const requestSnapshots = new ModelRequestSnapshotRecorder({
+      db,
+      enabled: () => {
+        const diagnostics = (configService.snapshot().diagnostics ?? {}) as Record<string, unknown>;
+        const section = (diagnostics.model_request_snapshots ?? {}) as Record<string, unknown>;
+        return section.enabled === true;
+      },
+      publish: async (event) => {
+        await Effect.runPromise(hub.publish(event));
+      },
+      logger,
+    });
+    // 插件平台：Inventory/安装/启停/授权管理 service（PR 3 起装配；
+    // Application runner 与 System Profile loader 在后续 PR 接入）。
+    const pluginInstaller = new PluginInstaller({ root: config.storage.pluginRoot, db });
+    const pluginRuntimeManager = new PluginRuntimeManager({
+      db,
+      installer: pluginInstaller,
+      publish: async (event) => {
+        await Effect.runPromise(hub.publish({
+          id: 0,
+          afterSequence: 0,
+          threadId: null,
+          turnId: null,
+          method: event.method,
+          params: event.params,
+          createdAt: Date.now(),
+        }));
+      },
+    });
+    const pluginService = new PluginService({
+      db,
+      installer: pluginInstaller,
+      configService,
+      runtimeStatuses: () => pluginRuntimeManager.statuses(),
+      onInventoryChanged: () => { void pluginRuntimeManager.reconcile() },
+      contributionList: () => pluginContributions.contributionList(),
+      commandExecute: (input) => pluginContributions.executeCommand(input),
+      viewCall: {
+        renderView: (input) => pluginContributions.renderView(input),
+        viewAction: (input) => pluginContributions.viewAction(input),
+      },
+      publish: async (event) => {
+        await Effect.runPromise(hub.publish(event));
+      },
+    });
+    // 插件贡献适配器 + Host broker：工具/声明目录/KV/serviceCall/credentialUse。
+    const pluginContributions = new PluginContributionAdapter({ db, manager: pluginRuntimeManager });
+    pluginRuntimeManager.setBrokerProvider((pluginId) => createPluginBroker({
+      pluginId,
+      repo: new PluginRepository(db),
+      manager: pluginRuntimeManager,
+    }));
+    // System Profile loader：boot 尝试 pending generation（失败回退 + 重启一次）。
+    const systemServiceRegistry = new SystemServiceRegistry();
+    const systemProfileLoader = new SystemProfileLoader(db, systemServiceRegistry, {
+      // 每个 System 插件独立的 namespaced 数据根（session-persistence 等用）。
+      systemDataRoot: join(config.dataDir, "system-profiles"),
+    });
+    const systemProfileBoot = yield* Effect.promise(() => systemProfileLoader.bootAttempt());
+    // tool-runtime provider（PR 8A）：激活时把自定义工具目录叠加进 ToolRegistry。
+    const toolRuntime = systemServiceRegistry.resolve<{ listTools: () => unknown[] }>("codepilotx.tool-runtime@1");
+    if (toolRuntime) {
+      try {
+        for (const definition of toolRuntime.listTools()) {
+          tools.register(definition as never);
+        }
+      } catch (cause) {
+        logger.error("plugin.tool-runtime.invalid", { error: cause instanceof Error ? cause.message : String(cause) });
+      }
+    }
+    // 启动时后台 reconcile：启用的插件按 service graph 拓扑序拉起。
+    void pluginRuntimeManager.reconcile();
+    // 内置运行时贡献：静态注册，不加载任意本地代码。conditional 贡献沿用
+    // 各自现有配置（features 区段的显式关闭优先），不新增第二套开关。
+    const runtimeContributions = new RuntimeContributionRegistry((contribution) => {
+      const features = (configService.snapshot().features ?? {}) as Record<string, unknown>;
+      switch (contribution.manifest.id) {
+        case "skills@builtin": return features.skills !== false
+        case "mcp@builtin": return features.mcp !== false
+        case "subagents@builtin": return features.subagents !== false
+        case "plugins@builtin": return features.plugins !== false
+        default: return true
+      }
+    });
+    const registerContribution = (contribution: RuntimeContribution) => {
+      runtimeContributions.register(contribution);
+    };
+    registerContribution({
+      manifest: {
+        id: "core@builtin",
+        version: 1,
+        displayName: "核心运行时",
+        description: "注册工具、统一工具执行管线与核心编排能力。",
+        provides: ["tools", "guard", "observer"],
+        enablement: "required",
+      },
+      register: () => undefined,
+    });
+    registerContribution({
+      manifest: {
+        id: "skills@builtin",
+        version: 1,
+        displayName: "Skills",
+        description: "通过 SkillManagementService 提供技能列表、读取与启用状态。",
+        provides: ["tools", "prompt"],
+        enablement: "conditional",
+      },
+      register: () => undefined,
+    });
+    registerContribution({
+      manifest: {
+        id: "mcp@builtin",
+        version: 1,
+        displayName: "MCP",
+        description: "通过 McpRuntimeService 提供 MCP 服务器工具与 OAuth 连接。",
+        provides: ["tools"],
+        enablement: "conditional",
+      },
+      register: () => undefined,
+    });
+    registerContribution({
+      manifest: {
+        id: "subagents@builtin",
+        version: 1,
+        displayName: "子 Agent",
+        description: "通过 SubagentService 提供子 Agent 派生、等待与编排。",
+        provides: ["tools", "guard"],
+        enablement: "conditional",
+      },
+      register: () => undefined,
+    });
+    registerContribution({
+      manifest: {
+        id: "plugins@builtin",
+        version: 1,
+        displayName: "插件",
+        description: "通过 PluginContributionAdapter 提供插件工具（转发 plugin/toolExecute）与声明贡献。",
+        provides: ["tools"],
+        enablement: "conditional",
+      },
+      register: ({ builders }) => {
+        pluginContributions.registerTurnContributions(builders);
+      },
+    });
     const orchestrator = new PiOrchestratorAdapter({
       db,
       hub,
       models: piModels.pi,
       toolExecutor,
       contextCompaction: new ContextCompactionService(db),
+      contributions: runtimeContributions,
+      requestSnapshot: requestSnapshots,
+      runtimeSteps,
+      ...(pluginRuntimeManager ? {
+        pluginLeases: async (request) => pluginRuntimeManager.acquireForRequest({
+          threadID: request.threadID,
+          turnID: request.turnID,
+          agentID: request.agentID,
+          sessionID: request.sessionID,
+        }),
+      } : {}),
       observeHarnessEvent: (context, event) =>
         harnessLogs.observe({
           threadId: context.threadID,
           turnId: context.turnID,
           agentId: context.agentID,
         }, event),
+      // System agent-loop provider（PR 8C）：激活时整轮 turn 委托给 provider。
+      loopOverride: () => {
+        const provider = systemServiceRegistry.resolve<{ runTurn: (input: unknown) => unknown }>("codepilotx.agent-loop@1");
+        if (!provider || typeof provider.runTurn !== "function") return null;
+        return {
+          runTurn: (input) => provider.runTurn(input) as Promise<import("./orchestration/PiOrchestratorAdapter").AgentLoopRunOutput>,
+        };
+      },
     });
     const attachments = yield* Effect.promise(() =>
       AttachmentService.open(config.dataDir, {
@@ -725,6 +954,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       resumeCheckpoints,
       false,
       localContextPaths,
+      () => pluginContributions.skillBases(),
     );
     resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID));
     const threads = new ThreadService(
@@ -753,6 +983,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       false,
       localContextPaths,
       (threadId) => taskboard.admitPrimaryThread(threadId),
+      () => pluginContributions.skillBases(),
     );
     const taskboardStart = new TaskboardStartService(
       db,
@@ -825,6 +1056,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       startQueues: () => threads.startRecoveredQueues(),
     });
     yield* Effect.promise(() => startupRecovery.run());
+    // 重启恢复：运行中的 step 标记 interrupted，未完成 inbox claim 释放回队列。
+    yield* Effect.promise(() => runtimeSteps.recoverInterruptedSteps());
     const app = createApp({
       config,
       configService,
@@ -873,6 +1106,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threadExecutions,
       taskboard,
       taskboardStart,
+      runtimeContributions,
+      requestSnapshots: requestSnapshotRepository,
+      pluginService,
+      systemServiceRegistry,
     });
     let disposed = false;
     const dispose = async () => {
@@ -883,6 +1120,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeTooling();
       unsubscribeConfig();
       await sideChats.discardAll(true);
+      await pluginRuntimeManager.dispose();
+      await systemProfileLoader.dispose();
+      systemServiceRegistry.dispose();
       await configService.dispose();
       await mcpConnections.dispose();
       // Stop background model-health workers before tearing down the provider,
@@ -890,7 +1130,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       await modelHealth.dispose();
       await providers.dispose();
     };
-    return { config, db, app, logger, providers, dispose };
+    return { config, db, app, logger, providers, dispose, systemProfileBoot };
   });
 
 export const bootstrap = createBootstrap();

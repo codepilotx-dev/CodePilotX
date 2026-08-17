@@ -1,6 +1,6 @@
 import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import { ProposedPlanStreamParser, type ProposedPlanChunk } from "../plan/ProposedPlanStreamParser"
-import type { PiRuntimeEventContext, PiRuntimeEventSink, RuntimeCompactionTrigger } from "./types"
+import type { PiRuntimeEventContext, PiRuntimeEventHandler, PiRuntimeEventPayload, RuntimeCompactionTrigger } from "./types"
 
 type ToolResultLike = {
   content?: unknown
@@ -60,7 +60,10 @@ export const piToolResultText = (value: unknown, options: { tool: string; progre
   return ""
 }
 
-/** Converts Pi's protocol into stable semantic callbacks used by the Agent persistence layer. */
+/**
+ * 把 Pi 原始 Harness 事件映射为 CodePilotX 语义运行时事件（判别联合），
+ * 并负责计划解析与稳定 item ID 生成。持久化决策完全交给单一投影器。
+ */
 export class PiEventAdapter {
   private beforeCompactionCount: number | undefined
   private assistantItems: { textItemID: string; reasoningItemID: string; planItemID: string } | null = null
@@ -74,7 +77,7 @@ export class PiEventAdapter {
 
   constructor(
     private readonly context: PiRuntimeEventContext,
-    private readonly sink: PiRuntimeEventSink,
+    private readonly handler: PiRuntimeEventHandler,
     private readonly options: {
       parseProposedPlan?: boolean
       resolveSessionEntryID?: () => string | null | Promise<string | null>
@@ -82,6 +85,8 @@ export class PiEventAdapter {
         trigger: RuntimeCompactionTrigger
         promptText: string
       }
+      /** 原始事件观测（仅用于诊断日志，不进入协议）。 */
+      observe?: (event: AgentHarnessEvent) => void
     } = {},
   ) {}
 
@@ -117,8 +122,10 @@ export class PiEventAdapter {
     const items = this.assistantItems ?? this.resetAssistantMessage()
     if (this.textStarted) return
     this.textStarted = true
-    await this.sink.assistantMessageStarted?.(this.context, {
-      ...items,
+    await this.emit({
+      type: "assistant.started",
+      textItemID: items.textItemID,
+      reasoningItemID: items.reasoningItemID,
       placement: "process",
     })
   }
@@ -130,7 +137,7 @@ export class PiEventAdapter {
         this.pendingText += chunk.delta
         if (!this.textStarted && /\S/.test(this.pendingText)) await this.startText()
         if (this.textStarted && this.pendingText) {
-          await this.sink.textDelta?.(this.context, { itemID: items.textItemID, delta: this.pendingText })
+          await this.emit({ type: "assistant.text.delta", itemID: items.textItemID, delta: this.pendingText })
           this.pendingText = ""
         }
         continue
@@ -138,10 +145,10 @@ export class PiEventAdapter {
       this.pendingPlan += chunk.delta
       if (!this.planStarted && /\S/.test(this.pendingPlan)) {
         this.planStarted = true
-        await this.sink.planStarted?.(this.context, { itemID: items.planItemID })
+        await this.emit({ type: "plan.started", itemID: items.planItemID })
       }
       if (this.planStarted && this.pendingPlan) {
-        await this.sink.planDelta?.(this.context, { itemID: items.planItemID, delta: this.pendingPlan })
+        await this.emit({ type: "plan.delta", itemID: items.planItemID, delta: this.pendingPlan })
         this.pendingPlan = ""
       }
     }
@@ -151,8 +158,12 @@ export class PiEventAdapter {
     return this.options.parseProposedPlan ? this.completedText : textContent(content)
   }
 
+  private emit(event: PiRuntimeEventPayload): Promise<void> {
+    return Promise.resolve(this.handler({ context: this.context, ...event }))
+  }
+
   async handle(event: AgentHarnessEvent) {
-    await this.sink.event?.(this.context, event)
+    this.options.observe?.(event)
     switch (event.type) {
       case "message_start":
         if (event.message.role === "assistant") {
@@ -172,9 +183,9 @@ export class PiEventAdapter {
         if (update.type === "text_delta") {
           this.receivedTextDelta = true
           if (this.parser) await this.routeChunks(this.parser.push(update.delta))
-          else await this.sink.textDelta?.(this.context, { itemID: items.textItemID, delta: update.delta })
+          else await this.emit({ type: "assistant.text.delta", itemID: items.textItemID, delta: update.delta })
         }
-        if (update.type === "thinking_delta") await this.sink.reasoningDelta?.(this.context, { itemID: items.reasoningItemID, delta: update.delta })
+        if (update.type === "thinking_delta") await this.emit({ type: "assistant.reasoning.delta", itemID: items.reasoningItemID, delta: update.delta })
         break
       }
       case "message_end":
@@ -211,7 +222,8 @@ export class PiEventAdapter {
             const parsed = this.parser.finish()
             await this.routeChunks(parsed.chunks)
             this.completedText = parsed.text
-            await this.sink.assistantMessageCompleted?.(this.context, {
+            await this.emit({
+              type: "assistant.completed",
               ...items,
               content: event.message.content,
               text: parsed.text,
@@ -221,7 +233,8 @@ export class PiEventAdapter {
             })
           } else {
             this.completedText = textContent(event.message.content)
-            await this.sink.assistantMessageCompleted?.(this.context, {
+            await this.emit({
+              type: "assistant.completed",
               ...items,
               content: event.message.content,
               ...sessionEntry,
@@ -233,17 +246,19 @@ export class PiEventAdapter {
         }
         break
       case "tool_execution_start":
-        await this.sink.toolStarted?.(this.context, { toolCallID: event.toolCallId, tool: event.toolName, input: event.args })
+        await this.emit({ type: "tool.started", toolCallID: event.toolCallId, tool: event.toolName, input: event.args })
         break
       case "tool_execution_update":
-        await this.sink.toolUpdated?.(this.context, {
+        await this.emit({
+          type: "tool.updated",
           toolCallID: event.toolCallId,
           tool: event.toolName,
           update: piToolResultText(event.partialResult, { tool: event.toolName, progress: true }),
         })
         break
       case "tool_execution_end":
-        await this.sink.toolFinished?.(this.context, {
+        await this.emit({
+          type: "tool.finished",
           toolCallID: event.toolCallId,
           tool: event.toolName,
           result: piToolResultText(event.result, { tool: event.toolName }),
@@ -252,10 +267,10 @@ export class PiEventAdapter {
         })
         break
       case "queue_update":
-        await this.sink.queueUpdated?.(this.context, { steer: event.steer.length, followUp: event.followUp.length, nextTurn: event.nextTurn.length })
+        await this.emit({ type: "queue.updated", steer: event.steer.length, followUp: event.followUp.length, nextTurn: event.nextTurn.length })
         break
       case "queue_consumed":
-        await this.sink.queueConsumed?.(this.context, { delivery: event.delivery, inputIDs: event.inputIds })
+        await this.emit({ type: "queue.consumed", delivery: event.delivery, inputIDs: event.inputIds })
         break
       case "session_compact":
       {
@@ -263,7 +278,8 @@ export class PiEventAdapter {
           trigger: "manual" as const,
           promptText: "",
         }
-        await this.sink.compacted?.(this.context, {
+        await this.emit({
+          type: "compaction.completed",
           entryID: event.compactionEntry.id,
           summary: event.compactionEntry.summary,
           firstKeptEntryID: event.compactionEntry.firstKeptEntryId ?? null,
@@ -276,13 +292,13 @@ export class PiEventAdapter {
         break
       }
       case "save_point":
-        await this.sink.savePoint?.(this.context, { hadPendingMutations: event.hadPendingMutations })
+        await this.emit({ type: "runtime.savepoint", hadPendingMutations: event.hadPendingMutations })
         break
       case "settled":
-        await this.sink.settled?.(this.context, { nextTurnCount: event.nextTurnCount })
+        await this.emit({ type: "runtime.settled", nextTurnCount: event.nextTurnCount })
         break
       case "abort":
-        await this.sink.aborted?.(this.context)
+        await this.emit({ type: "runtime.aborted" })
         break
     }
   }

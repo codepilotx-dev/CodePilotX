@@ -244,6 +244,7 @@ async function startDesktop(): Promise<void> {
       connectionCoordinator?.status.connectionState ?? "unknown",
     getLogDirectory: () => logger?.directory ?? logDirectory,
     quitDuringStartup: () => app.quit(),
+    relaunch: relaunchApplication,
     isDesktopRendererSender: sender =>
       windows?.isMainSender(sender) === true
       || petOverlay?.isOverlaySender(sender) === true,

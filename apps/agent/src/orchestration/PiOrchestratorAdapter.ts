@@ -1,6 +1,5 @@
 import { Effect } from "effect";
 import {
-  contentText,
   type Api,
   type Model as PiModel,
   type Models,
@@ -11,13 +10,18 @@ import {
   type Session,
   type AgentHarnessEvent,
 } from "@codepilotx/pi-agent-core";
-import type { AgentRuntimeRequest, PendingApproval } from "./AgentRuntimeTypes";
+import type {
+  AgentRuntimeRequest,
+  AgentRuntimeResult,
+  PendingApproval,
+  PlanCheckpoint,
+} from "./AgentRuntimeTypes";
 import {
   PiAgentRuntime,
   piToolResultText,
   type PiRuntimeEventContext,
-  type PiRuntimeEventSink,
 } from "./pi";
+import { PiRuntimeProjector } from "./pi/PiRuntimeProjector";
 import {
   SqlitePiSessionRepo,
   type SqlitePiSessionStorage,
@@ -26,17 +30,18 @@ import type { AgentDatabase } from "../storage/database/AgentDatabase";
 import type { EventHub } from "../storage/events/EventHub";
 import type { ToolExecutor } from "../tool/ToolExecutor";
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan";
-import { AgentError, type Item, type SubagentResult } from "../domain";
-import { createLiveEvent } from "../storage/events/EventPublisher";
+import { AgentError, type Item, type PermissionConfig, type SubagentResult } from "../domain";
 import { secretScrubber } from "../security/SecretScrubber";
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
-import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
-import { parseApplyPatch } from "../tool/ApplyPatch/parseApplyPatch";
-import { TurnPiBoundaryRepository } from "../storage/repositories/turn-pi-boundary-repository";
 import {
   ContextCompactionService,
   type ContextCompaction,
 } from "../context/ContextCompactionService";
+import type { RuntimeContributionRegistry } from "../runtime/RuntimeContribution";
+import type { RequestSnapshotRecorder } from "../snapshot/RequestSnapshotRecorder";
+import type { RuntimeStepService } from "../runtime/RuntimeStepService";
+import type { RuntimeLease } from "../runtime/AgentRuntimeScope";
+import type { PiRuntimeRequest } from "./pi/types";
 
 export type {
   DelegationController,
@@ -51,174 +56,15 @@ export class SafeBoundaryInterrupt extends Error {
   }
 }
 
-type PendingTurn = {
-  items: Map<string, Item>;
-  storage: SqlitePiSessionStorage;
-  consumedInputIDs: Set<string>;
-  piBoundary?: { sessionID: string; entryID: string };
-};
-
-const outputDelta = (value: unknown) => typeof value === "string" ? value : "";
-
-const safeTimelinePatchPath = (path: string) => {
-  const normalized = path.replaceAll("\\", "/").replace(/^\.\/+/, "");
-  const parts = normalized.split("/").filter(Boolean);
-  if (/^(?:[a-z]:\/|\/)/i.test(normalized) || parts.includes("..")) {
-    return parts.at(-1) ?? "<workspace-file>";
-  }
-  return normalized || "<workspace-file>";
-};
-
-export type TimelineMutationFile = {
-  path: string;
-  additions: number;
-  deletions: number;
-};
-
-const timelineToolName = (tool: string) => tool.toLowerCase().split(".").at(-1) ?? "";
-
-const safeTimelineCount = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value)
-    ? Math.max(0, Math.trunc(value))
-    : 0;
-
-const mutationToolKind = (tool: string) => {
-  const name = timelineToolName(tool);
-  return name === "apply_patch" || name === "write" || name === "edit"
-    ? name
-    : null;
-};
-
-export const piToolMutationFiles = (
-  tool: string,
-  details: unknown,
-): TimelineMutationFile[] => {
-  const kind = mutationToolKind(tool);
-  if (!kind || !details || typeof details !== "object" || Array.isArray(details)) return [];
-  const record = details as Record<string, unknown>;
-  const candidates = kind === "apply_patch" && Array.isArray(record.files)
-    ? record.files
-    : [record];
-  return candidates.flatMap((candidate) => {
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
-    const file = candidate as Record<string, unknown>;
-    if (typeof file.path !== "string" || !file.path.trim()) return [];
-    return [{
-      path: safeTimelinePatchPath(file.path),
-      additions: safeTimelineCount(file.additions),
-      deletions: safeTimelineCount(file.deletions),
-    }];
-  });
-};
-
-const timelinePathKey = (path: string) => {
-  const normalized = path.replaceAll("\\", "/").replace(/^\.\/+/, "");
-  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
-};
-
-export const mergeTimelineMutationFiles = (
-  existing: readonly TimelineMutationFile[],
-  incoming: readonly TimelineMutationFile[],
-): TimelineMutationFile[] => {
-  const merged = new Map<string, TimelineMutationFile>();
-  for (const file of [...existing, ...incoming]) {
-    const path = safeTimelinePatchPath(file.path);
-    const key = timelinePathKey(path);
-    const current = merged.get(key);
-    merged.set(key, {
-      path: current?.path ?? path,
-      additions: (current?.additions ?? 0) + safeTimelineCount(file.additions),
-      deletions: (current?.deletions ?? 0) + safeTimelineCount(file.deletions),
-    });
-  }
-  return [...merged.values()];
-};
-
-export const piToolTimelineInput = (
-  tool: string,
-  input: unknown,
-): Record<string, unknown> => {
-  const record = input && typeof input === "object" && !Array.isArray(input)
-    ? input as Record<string, unknown>
-    : {};
-  const kind = mutationToolKind(tool);
-  if (kind === "write") {
-    const path = typeof record.file_path === "string"
-      ? safeTimelinePatchPath(record.file_path)
-      : "<workspace-file>";
-    return {
-      operation: "write",
-      file_path: path,
-      ...(typeof record.content === "string"
-        ? { contentBytes: Buffer.byteLength(record.content, "utf8") }
-        : {}),
-      affectedPaths: [{ path }],
-    };
-  }
-  if (kind === "edit") {
-    const path = typeof record.path === "string"
-      ? safeTimelinePatchPath(record.path)
-      : "<workspace-file>";
-    return {
-      operation: "edit",
-      path,
-      ...(Array.isArray(record.edits) ? { editCount: record.edits.length } : {}),
-      affectedPaths: [{ path }],
-    };
-  }
-  if (kind !== "apply_patch") return record;
-  const patch = typeof record.patch === "string" ? record.patch : "";
-  let affectedPaths: Array<{
-    path: string;
-    operation: "create" | "update";
-    additions: number;
-    deletions: number;
-  }> = [];
-  let hunkCount = 0;
-  let additions = 0;
-  let deletions = 0;
-  try {
-    const operations = parseApplyPatch(patch);
-    affectedPaths = operations.map((operation) => {
-      const fileAdditions = operation.type === "add"
-        ? operation.content.endsWith("\n")
-          ? operation.content.slice(0, -1).split("\n").length
-          : operation.content.split("\n").length
-        : operation.chunks.reduce((sum, chunk) => sum + chunk.additions, 0);
-      const fileDeletions = operation.type === "add"
-        ? 0
-        : operation.chunks.reduce((sum, chunk) => sum + chunk.deletions, 0);
-      return {
-        path: safeTimelinePatchPath(operation.path),
-        operation: operation.type === "add" ? "create" : "update",
-        additions: fileAdditions,
-        deletions: fileDeletions,
-      };
-    });
-    additions = affectedPaths.reduce((sum, file) => sum + file.additions, 0);
-    deletions = affectedPaths.reduce((sum, file) => sum + file.deletions, 0);
-    hunkCount = operations.reduce(
-      (sum, operation) => sum + (operation.type === "add" ? 0 : operation.chunks.length),
-      0,
-    );
-  } catch {
-    // Invalid patches still get a safe timeline item; the tool result carries the actionable parse error.
-  }
-  return {
-    operation: "apply_patch",
-    patchBytes: Buffer.byteLength(patch, "utf8"),
-    hunkCount,
-    additions,
-    deletions,
-    patch: "[补丁正文已隐藏]",
-    ...(affectedPaths.length ? { affectedPaths } : {}),
-  };
-};
-
-const commandFromInput = (input: unknown) => input && typeof input === "object"
-  && typeof (input as Record<string, unknown>).command === "string"
-  ? (input as Record<string, unknown>).command as string
-  : null;
+export {
+  finishedPiToolItem,
+  mergeTimelineMutationFiles,
+  piItemDeltaPayload,
+  piToolItemPayload,
+  piToolMutationFiles,
+  piToolTimelineInput,
+  type TimelineMutationFile,
+} from "./PiTimeline";
 
 const resumedToolResultText = (value: unknown, tool: string) => {
   if (typeof value === "string") return value;
@@ -230,529 +76,90 @@ const resumedToolResultText = (value: unknown, tool: string) => {
   }, { tool }) || "工具执行完成（无输出）";
 };
 
-export const piToolItemPayload = (item: Item) => {
-  const data = item.data;
-  const terminal = item.status === "completed" || item.status === "error" || item.status === "interrupted";
-  return {
-    id: item.id,
-    messageID: item.turnID,
-    turnId: item.turnID,
-    agentId: item.agentID,
-    type: "tool" as const,
-    callID: typeof data.callID === "string" ? data.callID : item.id,
-    tool: typeof data.tool === "string" ? data.tool : "tool",
-    title: typeof data.title === "string" ? data.title : `运行了 ${typeof data.tool === "string" ? data.tool : "tool"}`,
-    state: item.status === "pending" ? "pending" as const
-      : item.status === "running" ? "running" as const
-      : item.status === "error" ? "error" as const
-      : item.status === "interrupted" ? "interrupted" as const
-      : "completed" as const,
-    input: data.input ?? null,
-    command: typeof data.command === "string" ? data.command : null,
-    output: typeof data.output === "string" ? data.output : null,
-    error: typeof data.error === "string" ? data.error : null,
-    startedAt: typeof data.startedAt === "number" ? data.startedAt : item.createdAt,
-    finishedAt: typeof data.finishedAt === "number" ? data.finishedAt : terminal ? item.updatedAt : null,
-    durationMs: typeof data.durationMs === "number" ? data.durationMs : terminal ? item.updatedAt - item.createdAt : null,
-    ...(item.ordinal === undefined ? {} : { ordinal: item.ordinal }),
-    createdAt: item.createdAt,
-  };
-};
-
-export const finishedPiToolItem = (input: {
-  current: Item | null;
-  turnID: string;
-  agentID: string;
-  toolCallID: string;
-  tool: string;
-  output: string;
-  isError: boolean;
-  timestamp: number;
-}): Item | null => {
-  if (input.current && ["completed", "error", "interrupted"].includes(input.current.status)) return null;
-  const createdAt = input.current?.createdAt ?? input.timestamp;
-  return {
-    id: input.toolCallID,
-    turnID: input.turnID,
-    agentID: input.agentID,
-    type: "tool",
-    status: input.isError ? "error" : "completed",
-    data: {
-      ...(input.current?.data ?? {}),
-      callID: input.toolCallID,
-      tool: input.tool,
-      title: input.tool,
-      state: input.isError ? "error" : "completed",
-      output: input.isError ? null : input.output,
-      error: input.isError ? input.output : null,
-      finishedAt: input.timestamp,
-      durationMs: input.timestamp - createdAt,
-    },
-    createdAt,
-    updatedAt: input.timestamp,
-  };
-};
-
-export const piItemDeltaPayload = (input: {
-  itemID: string;
-  context: PiRuntimeEventContext;
-  delta: string;
-}) => ({
-  itemId: input.itemID,
-  turnId: input.context.turnID,
-  agentId: input.context.agentID,
-  delta: input.delta,
-});
-
 export interface PiOrchestratorAdapterOptions {
   db: AgentDatabase;
   hub: EventHub;
   models: Models;
   toolExecutor: ToolExecutor;
   contextCompaction: ContextCompactionService;
+  /** 仓库内静态贡献注册表；运行时传给 PiAgentRuntime 并绑定到 scope。 */
+  contributions?: RuntimeContributionRegistry;
+  /** 完整 Provider 请求快照采集器；未开启配置时内部直接跳过。 */
+  requestSnapshot?: RequestSnapshotRecorder;
+  /** 持久 step 状态机与 model-visible context invariant。 */
+  runtimeSteps?: RuntimeStepService;
+  /** 插件 generation 租约获取器；main turn 与 subagent 共用（PR 4）。 */
+  pluginLeases?: (request: PiRuntimeRequest) => Promise<RuntimeLease[]>;
   observeHarnessEvent?: (
     context: PiRuntimeEventContext,
     event: AgentHarnessEvent,
   ) => void;
+  /**
+   * System agent-loop provider 替换点（PR 8C）：返回非 null 时整轮 turn
+   * 委托给 provider.runTurn，Pi 编排完全不启动；null = 默认 Pi 编排原路径。
+   */
+  loopOverride?: () => AgentLoopOverride | null;
+}
+
+/**
+ * agent-loop System service 的进程内调用形状（与
+ * `AGENT_LOOP_CONTRACT` 的 runTurn JSON 契约对齐）。
+ */
+export interface AgentLoopRunInput {
+  threadID: string;
+  turnID: string;
+  agentID: string;
+  sessionID: string;
+  profile?: string;
+  content: string;
+  taskMode: "chat" | "plan";
+  model: { providerID: string; id: string };
+  permissionConfig: PermissionConfig;
+  resume?: PlanCheckpoint;
+  aborted: boolean;
+}
+
+export interface AgentLoopRunOutput {
+  status: "completed" | "paused" | "error" | "interrupted";
+  output: string;
+  result?: SubagentResult;
+  error?: { code: string; message: string };
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    requests: number;
+  };
+  events?: Array<{ method: string; params: unknown }>;
+}
+
+export interface AgentLoopOverride {
+  runTurn(input: AgentLoopRunInput): Promise<AgentLoopRunOutput>;
 }
 
 /** Adapts the existing product lifecycle to Pi without exposing Pi types to RPC. */
 export class PiOrchestratorAdapter {
   private readonly repo: SqlitePiSessionRepo;
-  private readonly turnPiBoundaries: TurnPiBoundaryRepository;
   private readonly active = new Map<string, PiAgentRuntime>();
-  private readonly pending = new Map<string, PendingTurn>();
-  private readonly completedCompactions = new Map<string, ContextCompaction>();
+  private readonly projectors = new Map<string, PiRuntimeProjector>();
 
   constructor(private readonly options: PiOrchestratorAdapterOptions) {
     this.repo = new SqlitePiSessionRepo(options.db);
-    this.turnPiBoundaries = new TurnPiBoundaryRepository(options.db);
   }
 
   private async publish(event: ReturnType<AgentDatabase["insertEvent"]>) {
     await Effect.runPromise(this.options.hub.publish(event));
   }
 
-  private persistFinishedTool(context: PiRuntimeEventContext, input: {
-    toolCallID: string;
-    tool: string;
-    output: string;
-    details: unknown;
-    isError: boolean;
-  }) {
-    let item = finishedPiToolItem({
-      current: this.options.db.getItem(input.toolCallID),
-      turnID: context.turnID,
-      agentID: context.agentID,
-      ...input,
-      timestamp: Date.now(),
-    });
-    if (!item) return [];
-    const mutationFiles = input.isError ? [] : piToolMutationFiles(input.tool, input.details);
-    if (mutationFiles.length) {
-      const timelineInput = item.data.input && typeof item.data.input === "object"
-        && !Array.isArray(item.data.input)
-        ? item.data.input as Record<string, unknown>
-        : {};
-      const priorPaths = Array.isArray(timelineInput.affectedPaths)
-        ? timelineInput.affectedPaths
-        : [];
-      const operationByPath = new Map(priorPaths.flatMap((value) => {
-        if (!value || typeof value !== "object" || Array.isArray(value)) return [];
-        const record = value as Record<string, unknown>;
-        return typeof record.path === "string" && typeof record.operation === "string"
-          ? [[timelinePathKey(safeTimelinePatchPath(record.path)), record.operation] as const]
-          : [];
-      }));
-      item = {
-        ...item,
-        data: {
-          ...item.data,
-          input: {
-            ...timelineInput,
-            affectedPaths: mutationFiles.map((file) => ({
-              ...file,
-              ...(operationByPath.has(timelinePathKey(file.path))
-                ? { operation: operationByPath.get(timelinePathKey(file.path)) }
-                : {}),
-            })),
-          },
-        },
-      };
-    }
-    const durable: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
-    this.options.db.transaction(() => {
-      this.options.db.upsertItem(context.threadID, item);
-      const storedTool = this.options.db.getItem(item.id) ?? item;
-      durable.push(this.options.db.insertEvent(
-        context.threadID,
-        context.turnID,
-        input.isError ? "tool/error" : "tool/callCompleted",
-        input.isError
-          ? { item: storedTool, error: { code: "TOOL_EXECUTION_ERROR", message: input.output || "工具执行失败", retryable: false } }
-          : { item: storedTool },
-      ));
-      if (!mutationFiles.length) return;
-      const patchID = `patch:${context.turnID}`;
-      const existingPatch = this.options.db.getItem(patchID);
-      const existingFiles = Array.isArray(existingPatch?.data.files)
-        ? existingPatch.data.files.flatMap((value): TimelineMutationFile[] => {
-            if (!value || typeof value !== "object" || Array.isArray(value)) return [];
-            const file = value as Record<string, unknown>;
-            if (typeof file.path !== "string") return [];
-            return [{
-              path: safeTimelinePatchPath(file.path),
-              additions: safeTimelineCount(file.additions),
-              deletions: safeTimelineCount(file.deletions),
-            }];
-          })
-        : [];
-      const files = mergeTimelineMutationFiles(existingFiles, mutationFiles);
-      const timestamp = item.updatedAt;
-      const reversible = this.options.db.repositories.turnPatches.getByTurn(context.turnID);
-      const patch: Item = {
-        id: patchID,
-        turnID: context.turnID,
-        agentID: context.agentID,
-        type: "patch",
-        status: "completed",
-        data: {
-          files,
-          totalAdditions: files.reduce((sum, file) => sum + file.additions, 0),
-          totalDeletions: files.reduce((sum, file) => sum + file.deletions, 0),
-          ...(reversible?.evidenceComplete ? {
-            reversible: true,
-            applyState: reversible.applyState,
-            actionVersion: reversible.actionVersion,
-          } : {}),
-        },
-        ...(existingPatch?.ordinal === undefined ? {} : { ordinal: existingPatch.ordinal }),
-        createdAt: existingPatch?.createdAt ?? timestamp,
-        updatedAt: timestamp,
-      };
-      this.options.db.upsertItem(context.threadID, patch);
-      const storedPatch = this.options.db.getItem(patchID) ?? patch;
-      durable.push(this.options.db.insertEvent(
-        context.threadID,
-        context.turnID,
-        "item/completed",
-        { item: storedPatch },
-      ));
-    });
-    return durable;
-  }
-
-  private async finishTool(context: PiRuntimeEventContext, input: {
-    toolCallID: string;
-    tool: string;
-    output: string;
-    details: unknown;
-    isError: boolean;
-  }) {
-    const events = this.persistFinishedTool(context, input);
-    for (const event of events) await this.publish(event);
-  }
-
-  private eventSink(
-    storage: SqlitePiSessionStorage,
-    session: Session,
-    runtimeModel: PiModel<Api>,
-    sessionID: string,
-    onUsage?: AgentRuntimeRequest["onUsage"],
-  ): PiRuntimeEventSink {
-    const pendingFor = (context: PiRuntimeEventContext) => {
-      const existing = this.pending.get(context.threadID);
-      if (existing) return existing;
-      const created: PendingTurn = { storage, items: new Map<string, Item>(), consumedInputIDs: new Set<string>() };
-      this.pending.set(context.threadID, created);
-      return created;
-    };
-    return {
-      event: (context, event) => {
-        this.options.observeHarnessEvent?.(context, event);
-      },
-      assistantMessageStarted: async (context, input) => {
-        const timestamp = Date.now();
-        const persisted = this.options.db.upsertItemWithEvent(context.threadID, {
-          id: input.textItemID,
-          turnID: context.turnID,
-          agentID: context.agentID,
-          type: "text",
-          status: "running",
-          data: { placement: input.placement, text: "" },
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        }, "item/started");
-        await this.publish(persisted.event);
-      },
-      planStarted: async (context, input) => {
-        const timestamp = Date.now();
-        const persisted = this.options.db.upsertItemWithEvent(context.threadID, {
-          id: input.itemID,
-          turnID: context.turnID,
-          agentID: context.agentID,
-          type: "plan",
-          status: "running",
-          data: { title: "实施计划", markdown: "" },
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        }, "item/started");
-        await this.publish(persisted.event);
-      },
-      textDelta: async (context, input) => {
-        await this.publish(
-          createLiveEvent(
-            this.options.db,
-            context.threadID,
-            context.turnID,
-            "item/agentMessage/delta",
-            piItemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
-          ),
-        );
-      },
-      planDelta: async (context, input) => {
-        await this.publish(
-          createLiveEvent(
-            this.options.db,
-            context.threadID,
-            context.turnID,
-            "plan/delta",
-            piItemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
-          ),
-        );
-      },
-      reasoningDelta: async (context, input) => {
-        await this.publish(
-          createLiveEvent(
-            this.options.db,
-            context.threadID,
-            context.turnID,
-            "reasoning/textDelta",
-            piItemDeltaPayload({
-              itemID: input.itemID,
-              context,
-              delta: input.delta,
-            }),
-          ),
-        );
-      },
-      assistantMessageCompleted: async (context, input) => {
-        const timestamp = Date.now();
-        const pending = pendingFor(context);
-        if (input.placement === "result" && input.sessionEntryID) {
-          pending.piBoundary = { sessionID, entryID: input.sessionEntryID };
-        }
-        const text = input.text === undefined
-          ? contentText(input.content as never, "\n").trim()
-          : input.text.trim();
-        const usage = {
-          provider: input.provider || runtimeModel.provider,
-          model: input.model || runtimeModel.id,
-          contextWindow: Math.max(1, Math.trunc(Number(runtimeModel.contextWindow) || 1)),
-          input: input.usage.input,
-          output: input.usage.output,
-          cacheRead: input.usage.cacheRead,
-          cacheWrite: input.usage.cacheWrite,
-          reasoning: input.usage.reasoning,
-        };
-        if (input.text === undefined || text) {
-          const currentText = this.options.db.getItem(input.textItemID);
-          pending.items.set(input.textItemID, {
-            id: input.textItemID,
-            turnID: context.turnID,
-            agentID: context.agentID,
-            type: "text",
-            status: "completed",
-            data: { placement: input.placement, text, usage },
-            ...(currentText?.ordinal === undefined ? {} : { ordinal: currentText.ordinal }),
-            createdAt: currentText?.createdAt ?? timestamp,
-            updatedAt: timestamp,
-          });
-        }
-        const plan = input.plan?.trim();
-        if (plan) {
-          const currentPlan = this.options.db.getItem(input.planItemID);
-          pending.items.set(input.planItemID, {
-            id: input.planItemID,
-            turnID: context.turnID,
-            agentID: context.agentID,
-            type: "plan",
-            status: "completed",
-            data: { title: proposedPlanTitle(plan), markdown: plan },
-            ...(currentPlan?.ordinal === undefined ? {} : { ordinal: currentPlan.ordinal }),
-            createdAt: currentPlan?.createdAt ?? timestamp,
-            updatedAt: timestamp,
-          });
-        }
-        const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite;
-        await onUsage?.({
-          inputTokens,
-          outputTokens: usage.output,
-          totalTokens: inputTokens + usage.output,
-          requests: 1,
-        });
-        const content = Array.isArray(input.content) ? input.content : [];
-        const reasoning = content
-          .flatMap((part) => (part.type === "thinking" ? [part.thinking] : []))
-          .join("\n")
-          .trim();
-        if (reasoning) {
-          pending.items.set(input.reasoningItemID, {
-            id: input.reasoningItemID,
-            turnID: context.turnID,
-            agentID: context.agentID,
-            type: "reasoning",
-            status: "completed",
-            data: { text: reasoning },
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          });
-        }
-      },
-      toolStarted: async (context, input) => {
-        const timestamp = Date.now();
-        const timelineInput = piToolTimelineInput(input.tool, input.input);
-        const item: Item = {
-          id: input.toolCallID,
-          turnID: context.turnID,
-          agentID: context.agentID,
-          type: "tool",
-          status: "running",
-          data: {
-            callID: input.toolCallID,
-            tool: input.tool,
-            title: input.tool,
-            state: "running",
-            input: timelineInput,
-            command: commandFromInput(timelineInput),
-            output: null,
-            error: null,
-            startedAt: timestamp,
-            finishedAt: null,
-            durationMs: null,
-          },
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        };
-        const persisted = this.options.db.upsertItemWithEvent(
-          context.threadID,
-          item,
-          "tool/callStarted",
-          (stored: Item) => ({
-            item: stored,
-            inputSummary: commandFromInput(timelineInput) ?? input.tool,
-          }),
-        );
-        await this.publish(persisted.event);
-      },
-      toolUpdated: async (context, input) => {
-        await this.publish(
-          createLiveEvent(
-            this.options.db,
-            context.threadID,
-            context.turnID,
-            "tool/outputDelta",
-            piItemDeltaPayload({
-              itemID: input.toolCallID,
-              context,
-              delta: outputDelta(input.update),
-            }),
-          ),
-        );
-      },
-      toolFinished: async (context, input) => {
-        await this.finishTool(context, { ...input, output: input.result });
-      },
-      queueConsumed: async (context, input) => {
-        if (input.delivery !== "steer") return;
-        const pending = pendingFor(context);
-        for (const inputID of input.inputIDs) pending.consumedInputIDs.add(inputID);
-      },
-      savePoint: async (context) => {
-        const pending = this.pending.get(context.threadID);
-        const durable: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
-        this.options.db.transaction(() => {
-          storage.flush();
-          if (pending) {
-            if (pending.piBoundary) {
-              this.turnPiBoundaries.upsert({
-                turnID: context.turnID,
-                sessionID: pending.piBoundary.sessionID,
-                entryID: pending.piBoundary.entryID,
-              });
-            }
-            for (const item of pending.items.values()) {
-              this.options.db.upsertItem(context.threadID, item);
-              const persisted = this.options.db.getItem(item.id) ?? item;
-              durable.push(
-                this.options.db.insertEvent(
-                  context.threadID,
-                  context.turnID,
-                  "item/completed",
-                  { item: persisted },
-                ),
-              );
-            }
-            const consumedInputIDs = this.options.db.consumeGuideMailbox(
-              context.turnID,
-              [...pending.consumedInputIDs],
-            );
-            for (const inputID of consumedInputIDs) {
-              durable.push(this.options.db.insertEvent(
-                context.threadID,
-                context.turnID,
-                "queue/updated",
-                {
-                  threadId: context.threadID,
-                  turnId: context.turnID,
-                  inputId: inputID,
-                  action: "steer-consumed",
-                },
-              ));
-            }
-          }
-        });
-        if (pending) this.pending.delete(context.threadID);
-        for (const event of durable) await this.publish(event);
-      },
-      compacted: async (context, input) => {
-        const piEntry = await session.getEntry(input.entryID);
-        if (!piEntry || piEntry.type !== "compaction") {
-          throw new Error(`Pi compaction entry ${input.entryID} 不存在`);
-        }
-        const afterContext = await session.buildContext();
-        let completed!: ReturnType<ContextCompactionService["complete"]>;
-        this.options.db.transaction(() => {
-          storage.flush();
-          completed = this.options.contextCompaction.complete({
-            threadID: context.threadID,
-            turnID: context.turnID,
-            sessionID,
-            piEntry,
-            summary: input.summary,
-            firstKeptEntryID: input.firstKeptEntryID,
-            beforeCount: input.beforeCount,
-            afterCount: afterContext.messages.length,
-            items: afterContext.messages,
-            promptText: input.promptText,
-            contextWindowTokens: Math.max(1, Number(runtimeModel.contextWindow) || 1),
-            trigger: input.trigger,
-          });
-        });
-        this.completedCompactions.set(context.threadID, completed.compaction);
-        await this.publish(completed.event);
-      },
-      aborted: async (context) => {
-        storage.discardPending();
-        this.pending.delete(context.threadID);
-      },
-    };
-  }
-
   async run(request: AgentRuntimeRequest) {
     // Serialized OpenAI RunState cannot be replayed safely. Continue only from
     // durable Pi session context; side effects remain protected by toolCallID.
     const resolved = await request.resolveModel(request.fallbackModel);
+    // System agent-loop provider（PR 8C）：激活时整轮委托，Pi 编排不启动。
+    const loop = this.options.loopOverride?.();
+    if (loop) {
+      return this.runWithLoopOverride(request, resolved, loop);
+    }
     const effectivePermissionConfig = resolveEffectivePermissionConfig(
       request.taskMode,
       request.permissionConfig,
@@ -778,6 +185,17 @@ export class PiOrchestratorAdapter {
       });
     }
     const storage = session.getStorage() as SqlitePiSessionStorage;
+    const projector = new PiRuntimeProjector({
+      db: this.options.db,
+      contextCompaction: this.options.contextCompaction,
+      storage,
+      session,
+      runtimeModel: model,
+      sessionID: request.sessionID,
+      ...(request.onUsage ? { onUsage: request.onUsage } : {}),
+      publish: (event) => this.publish(event),
+    });
+    this.projectors.set(request.threadID, projector);
     if (request.resume?.toolCallID) {
       const entries = await session.getEntries();
       const assistantEntry = [...entries]
@@ -911,7 +329,7 @@ export class PiOrchestratorAdapter {
           if (!request.resume?.resumeLeaseID && request.resume?.checkpointID) {
             this.options.db.completeQuestionResume(request.resume.checkpointID);
           }
-          completedEvents = this.persistFinishedTool({
+          completedEvents = projector.persistFinishedTool({
             threadID: request.threadID,
             turnID: request.turnID,
             agentID: request.agentID,
@@ -953,6 +371,10 @@ export class PiOrchestratorAdapter {
     };
     const runtime = new PiAgentRuntime({
       toolExecutor: this.options.toolExecutor,
+      ...(this.options.contributions ? { contributions: this.options.contributions } : {}),
+      ...(this.options.requestSnapshot ? { requestSnapshot: this.options.requestSnapshot } : {}),
+      ...(this.options.runtimeSteps ? { runtimeSteps: this.options.runtimeSteps } : {}),
+      ...(this.options.pluginLeases ? { acquireLeases: this.options.pluginLeases } : {}),
       harnessFactory: {
         resolve: async () => ({
           models: this.options.models,
@@ -960,14 +382,19 @@ export class PiOrchestratorAdapter {
           session,
         }),
       } as never,
-      eventSink: this.eventSink(storage, session, model, request.sessionID, request.onUsage),
-      beforeToolCall: async (_runtimeRequest, input) => {
+      eventHandler: (event) => projector.handle(event),
+      observeHarnessEvent: (context, event) =>
+        this.options.observeHarnessEvent?.(context, event),
+      beforeToolCall: async (runtimeRequest, input) => {
         if ((PI_LIFECYCLE_TOOLS as readonly string[]).includes(input.tool))
           return undefined;
         const decision = await this.options.toolExecutor.previewApproval(
           input.tool,
           input.input,
-          executionContext,
+          {
+            ...executionContext,
+            ...(runtimeRequest.toolCatalog ? { toolCatalog: runtimeRequest.toolCatalog } : {}),
+          },
           input.toolCallID,
         );
         if (decision.decision === "allow") {
@@ -1211,8 +638,74 @@ export class PiOrchestratorAdapter {
       : result;
   }
 
-  toolExposure(request: AgentRuntimeRequest | (ToolExposureInput & { permissionConfig?: never })) {
-    const runtime = request as AgentRuntimeRequest;
+  /**
+   * agent-loop provider 委托路径（PR 8C）：固定输入 = thread/turn 身份 +
+   * 模型选择 + 权限上下文 + 事件发布；固定输出 = 完成/错误分类 + usage +
+   * 中断状态。Provider 只回传要发布的事件，发布动作由 Host 完成。
+   */
+  private async runWithLoopOverride(
+    request: AgentRuntimeRequest,
+    resolved: Awaited<ReturnType<AgentRuntimeRequest["resolveModel"]>>,
+    loop: AgentLoopOverride,
+  ): Promise<AgentRuntimeResult> {
+    const input: AgentLoopRunInput = {
+      threadID: request.threadID,
+      turnID: request.turnID,
+      agentID: request.agentID,
+      sessionID: request.sessionID,
+      ...(request.profile ? { profile: request.profile } : {}),
+      content: request.content,
+      taskMode: request.taskMode,
+      model: resolved.ref,
+      permissionConfig: request.permissionConfig,
+      ...(request.resume ? { resume: request.resume } : {}),
+      aborted: request.signal.aborted,
+    };
+    await request.onRuntimeReady?.();
+    let result: AgentLoopRunOutput;
+    try {
+      result = await loop.runTurn(input);
+    } catch (cause) {
+      throw new AgentError(
+        "LOOP_PROVIDER_ERROR",
+        secretScrubber.scrubText(
+          cause instanceof Error ? cause.message : String(cause),
+        ),
+        500,
+      );
+    }
+    if (result.status === "error") {
+      throw new AgentError(
+        result.error?.code ?? "LOOP_PROVIDER_ERROR",
+        result.error?.message ?? "agent-loop Provider 执行失败",
+        500,
+      );
+    }
+    if (result.status === "interrupted") {
+      throw new AgentError("RUN_ABORTED", "任务已停止", 499);
+    }
+    if (result.usage) await request.onUsage?.(result.usage);
+    for (const event of result.events ?? []) {
+      await this.publish({
+        id: 0,
+        afterSequence: 0,
+        threadId: request.threadID,
+        turnId: request.turnID,
+        method: event.method,
+        params: event.params,
+        createdAt: Date.now(),
+      });
+    }
+    return result.status === "paused"
+      ? { status: "paused" as const, output: result.output }
+      : {
+          status: "completed" as const,
+          output: result.output,
+          ...(result.result ? { result: result.result } : {}),
+        };
+  }
+
+  toolExposure(request: AgentRuntimeRequest | (ToolExposureInput & { permissionConfig?: never })) {    const runtime = request as AgentRuntimeRequest;
     return this.options.toolExecutor.exposurePlan({
       taskMode: request.taskMode,
       sandboxMode: request.taskMode === "plan"
@@ -1233,7 +726,7 @@ export class PiOrchestratorAdapter {
     const runtime = this.active.get(threadID);
     if (runtime) {
       await runtime.compact(threadID, instructions);
-      const completed = this.completedCompactions.get(threadID);
+      const completed = this.projectors.get(threadID)?.lastCompaction(threadID);
       if (!completed) throw new Error("Pi 压缩完成但缺少产品压缩记录");
       return completed;
     }
@@ -1294,7 +787,6 @@ export class PiOrchestratorAdapter {
         trigger: "manual",
       });
     });
-    this.completedCompactions.set(threadID, completed.compaction);
     await this.publish(completed.event);
     return completed.compaction;
   }
@@ -1325,5 +817,6 @@ export class PiOrchestratorAdapter {
       [...this.active.values()].map((runtime) => runtime.dispose()),
     );
     this.active.clear();
+    this.projectors.clear();
   }
 }

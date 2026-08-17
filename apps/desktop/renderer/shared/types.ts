@@ -1368,6 +1368,7 @@ export type DesktopSkillFormat =
 export type DesktopSkillSource =
   | 'workspace'
   | 'user'
+  | 'plugin'
   | 'system'
   | 'admin'
 
@@ -1376,7 +1377,7 @@ export type DesktopInstalledSkill = {
   description: string
   shortDescription?: string
   path: string
-  scope: 'user' | 'repo' | 'system' | 'admin'
+  scope: 'user' | 'repo' | 'plugin' | 'system' | 'admin'
   source: DesktopSkillSource
   format: DesktopSkillFormat
   enabled: boolean

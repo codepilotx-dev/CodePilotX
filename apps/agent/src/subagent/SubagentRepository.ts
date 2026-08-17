@@ -119,7 +119,7 @@ export class SubagentRepository {
     this.db.sqlite.query(`INSERT INTO agent_executions (id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, subagent_run_id, run_sequence, status, error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'queued', NULL, ?, ?)`).run(
       input.agentID, input.childThreadID, input.turnID, input.parentAgentID, input.profile, input.task, stringify(input.model), `subagent:${this.taskIDForRun(input.runID)}`, input.runID, input.sequence, input.timestamp, input.timestamp,
     )
-    this.db.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queue', ?, 'queued', ?)`).run(
+    this.db.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, delivery_kind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queue', ?, 'queued', 'wake', ?)`).run(
       input.inputID, input.childThreadID, input.turnID, input.content ?? input.task, stringify(input.model),
       input.permission.sandboxMode, encodeApprovalPolicy(input.permission.approvalPolicy), input.permission.approvalsReviewer, input.taskMode, input.timestamp,
     )

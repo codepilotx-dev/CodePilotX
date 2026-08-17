@@ -112,6 +112,13 @@ export class SubagentService {
     resumeCheckpoints?: ResumeCheckpointResolver,
     recoverOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
+    private readonly pluginSkillBases?: () => Array<{
+      containmentRoot: string
+      skillsRoot: string
+      origin: "plugin"
+      format: "codepilotx"
+      pluginId: string
+    }>,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals)
     this.repository = new SubagentRepository(db)
@@ -490,6 +497,7 @@ export class SubagentService {
             workspaceRoot: workspace.rootPath,
             dataRoot: this.promptStorage.dataRoot,
             userHome: this.promptStorage.userHome,
+            ...(this.pluginSkillBases ? { extraBases: this.pluginSkillBases() } : {}),
           })
         : { skills: [], shadowed: [] }
       const invokedSkill = skillService.resolveInvocation(input.content)

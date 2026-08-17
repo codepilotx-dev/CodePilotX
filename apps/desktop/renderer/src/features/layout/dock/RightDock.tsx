@@ -29,6 +29,7 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { TabStripButtonProvider } from '../../../components/ui/TabStripButtonContext.js'
+import { modelRequestAvailability } from '../../session/request-inspector/requestInspectorModel.js'
 import type {
   MarkdownFileViewMode,
   WorkbenchPanelSnapshot,
@@ -88,6 +89,14 @@ type Props = {
   sessionId: string | null
   sessionStatus: DesktopSessionStatus
   terminalAvailable: boolean
+  modelRequestSnapshotsEnabled: boolean
+  modelRequestSnapshotsCapability: boolean
+  modelRequestSnapshotsLoading: boolean
+  pluginViews: ReadonlyArray<{
+    pluginId: string
+    view: { id: string; title: string; description?: string; icon?: string }
+  }>
+  pluginViewsAvailablePluginIds: ReadonlySet<string>
   planContentByEventId: Readonly<Record<string, string>>
   width: number
   height?: number
@@ -102,6 +111,8 @@ type Props = {
   onCreateBranch: () => void
   onFileLoadError: (event: WorkbenchFileLoadErrorEvent) => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
+  onOpenPluginView: (tab: Extract<WorkbenchTabDescriptor, { kind: 'plugin-view' }>) => void
+  onPluginViewInvalidated: (tabId: WorkbenchTabId) => void
   onOpenWorkspacePath: () => void
   onOpenFileFromBrowser: (file: DesktopFileEntry) => void
   onPreviewFile: (file: DesktopFileEntry) => void
@@ -315,6 +326,11 @@ export function WorkbenchPanel({
   sessionId,
   sessionStatus,
   terminalAvailable,
+  modelRequestSnapshotsEnabled,
+  modelRequestSnapshotsCapability,
+  modelRequestSnapshotsLoading,
+  pluginViews,
+  pluginViewsAvailablePluginIds,
   planContentByEventId,
   width,
   height,
@@ -329,6 +345,8 @@ export function WorkbenchPanel({
   onCreateBranch,
   onFileLoadError,
   onOpenTab,
+  onOpenPluginView,
+  onPluginViewInvalidated,
   onOpenWorkspacePath,
   onOpenFileFromBrowser,
   onPreviewFile,
@@ -356,6 +374,41 @@ export function WorkbenchPanel({
   const panelRef = useRef<HTMLElement>(null)
   const liveResize = useWorkbenchPanelLiveResize(target)
   const contentRef = useRef<HTMLDivElement>(null)
+  // 关闭请求记录或 capability 消失时立即从 launcher 隐藏，并关闭已打开的“请求”Tab。
+  const modelRequestsAvailability = useMemo<WorkbenchTabAvailability>(() => {
+    const availability = modelRequestAvailability({
+      loading: modelRequestSnapshotsLoading,
+      enabled: modelRequestSnapshotsEnabled,
+      capabilityAvailable: modelRequestSnapshotsCapability,
+      threadId: sessionId,
+    })
+    if (availability.status === 'loading') return { status: 'loading' }
+    if (availability.status === 'enabled') return { status: 'available' }
+    return {
+      status: 'unavailable',
+      reason: availability.reason === 'setting'
+        ? '请求记录未开启。'
+        : availability.reason === 'capability'
+          ? '当前 Agent 未协商请求快照能力。'
+          : '当前没有任务。',
+    }
+  }, [
+    modelRequestSnapshotsLoading,
+    modelRequestSnapshotsEnabled,
+    modelRequestSnapshotsCapability,
+    sessionId,
+  ])
+  const prevModelRequestsAvailable = useRef(modelRequestsAvailability.status === 'available')
+  useEffect(() => {
+    if (
+      prevModelRequestsAvailable.current &&
+      modelRequestsAvailability.status !== 'available' &&
+      tabsById['model-requests']
+    ) {
+      onCloseTab('model-requests')
+    }
+    prevModelRequestsAvailable.current = modelRequestsAvailability.status === 'available'
+  }, [modelRequestsAvailability.status, tabsById, onCloseTab])
   const [terminalDisplayPathState, setTerminalDisplayPathState] = useState<{
     sessionId: string | null
     displayPath: string | null
@@ -394,6 +447,8 @@ export function WorkbenchPanel({
     onReviewTabStateChange,
   )
   const stableOnOpenTab = useStableEvent(onOpenTab)
+  const stableOnOpenPluginView = useStableEvent(onOpenPluginView)
+  const stableOnPluginViewInvalidated = useStableEvent(onPluginViewInvalidated)
   const stableOnPinTab = useStableEvent(onPinTab)
   const stableOnSetFileMarkdownViewMode = useStableEvent(
     onSetFileMarkdownViewMode,
@@ -463,6 +518,16 @@ export function WorkbenchPanel({
         threadId: sessionId,
         onDisplayPathChange: handleTerminalDisplayPathChange,
       },
+      modelRequests: {
+        threadId: sessionId,
+        availability: modelRequestsAvailability,
+      },
+      pluginViews: {
+        availablePluginIds: pluginViewsAvailablePluginIds,
+        views: pluginViews,
+        onOpenView: stableOnOpenPluginView,
+        onViewInvalidated: stableOnPluginViewInvalidated,
+      },
     }),
     [
       browserState,
@@ -479,6 +544,8 @@ export function WorkbenchPanel({
       sessionId,
       sessionStatus,
       terminalAvailable,
+      modelRequestSnapshotsEnabled,
+      modelRequestSnapshotsCapability,
       sideChat,
       activeSideTaskId,
       sideTaskContent,
@@ -668,9 +735,10 @@ function WorkbenchLauncher({
     Parameters<typeof WorkbenchPanelLauncher>[0]['actions'][number]
   >(definition => {
     const presentation = getWorkbenchLauncherPresentation(definition)
-    const availability = definition.getAvailability?.(panelContext) ?? {
-      status: 'available' as const,
-    }
+    const tab = createLauncherTab(definition.kind)
+    const availability = tab
+      ? definition.getAvailability?.(tab, panelContext) ?? { status: 'available' as const }
+      : { status: 'available' as const }
     if (definition.kind === 'side-chat') {
       return [{
         disabled: availability.status !== 'available',
@@ -682,7 +750,6 @@ function WorkbenchLauncher({
         onSelect: onCreateSideChat,
       }]
     }
-    const tab = createLauncherTab(definition.kind)
     if (!tab) return []
     return [{
       disabled: availability.status !== 'available',

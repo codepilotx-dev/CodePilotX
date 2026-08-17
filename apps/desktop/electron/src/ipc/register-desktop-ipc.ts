@@ -24,6 +24,7 @@ import {
   type DesktopComposerPathListInput,
   type DesktopComposerPathReadInput,
 } from "@codepilotx/shared/desktop-attachment-ipc"
+import { DESKTOP_PLUGIN_IPC_CHANNELS } from "@codepilotx/shared/desktop-plugin-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { isSafeExternalUrl } from "../security/navigation.js"
 import {
@@ -53,6 +54,7 @@ interface DesktopIpcDependencies {
   getConnectionState: () => AgentConnectionState
   getLogDirectory: () => string
   quitDuringStartup: () => void
+  relaunch: () => void
   broadcastDesktopSettingsChanged: (settings: DesktopSettingsPayload) => void
   isDesktopRendererSender: (sender: WebContents) => boolean
 }
@@ -71,6 +73,7 @@ export function registerDesktopIpc(
     getConnectionState,
     getLogDirectory,
     quitDuringStartup,
+    relaunch,
     broadcastDesktopSettingsChanged,
     isDesktopRendererSender,
   } = dependencies
@@ -107,6 +110,44 @@ export function registerDesktopIpc(
       if (result.canceled) return []
       retainGrantOwner(event.sender)
       return composerPathGrants.grantPaths(event.sender.id, result.filePaths)
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_PLUGIN_IPC_CHANNELS.pickPluginPackageFile,
+    async event => {
+      requireMainWindowSender(event, windows)
+      const options: OpenDialogOptions = {
+        title: "选择插件包（.cpxplugin）",
+        properties: ["openFile"],
+        filters: [{ name: "CodePilotX 插件包", extensions: ["cpxplugin"] }],
+      }
+      const mainWindow = windows.mainWindow
+      const result = mainWindow
+        ? await dialog.showOpenDialog(mainWindow, options)
+        : await dialog.showOpenDialog(options)
+      return { canceled: result.canceled, path: result.filePaths[0] ?? null }
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_PLUGIN_IPC_CHANNELS.pickPluginDirectory,
+    async event => {
+      requireMainWindowSender(event, windows)
+      const options: OpenDialogOptions = {
+        title: "选择插件开发目录",
+        properties: ["openDirectory"],
+      }
+      const mainWindow = windows.mainWindow
+      const result = mainWindow
+        ? await dialog.showOpenDialog(mainWindow, options)
+        : await dialog.showOpenDialog(options)
+      return { canceled: result.canceled, path: result.filePaths[0] ?? null }
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_PLUGIN_IPC_CHANNELS.restartApp,
+    async event => {
+      requireMainWindowSender(event, windows)
+      relaunch()
     },
   )
   ipcMain.handle(

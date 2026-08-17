@@ -142,6 +142,7 @@ describe('workbench dynamic tab state', () => {
 
     expect(presentation.map(item => item.kind)).toEqual([
       'review',
+      'model-requests',
       'terminal',
       'browser',
       'file-browser',
@@ -149,6 +150,7 @@ describe('workbench dynamic tab state', () => {
     ])
     expect(presentation.map(item => item.label)).toEqual([
       '审阅',
+      '请求',
       '终端',
       '浏览器',
       '文件',
@@ -156,6 +158,7 @@ describe('workbench dynamic tab state', () => {
     ])
     expect(presentation.map(item => item.shortcut)).toEqual([
       'Ctrl+Shift+G',
+      undefined,
       undefined,
       'Ctrl+T',
       'Ctrl+P',
@@ -1288,5 +1291,96 @@ describe('workbench right panel sizing', () => {
       800,
     )
     expect(bottomPanelHeightFromRatio(bottomRatio, 800)).toBe(220)
+  })
+})
+
+describe('workbench model-requests tab', () => {
+  class MemoryStorage implements Storage {
+    #values = new Map<string, string>()
+    get length(): number { return this.#values.size }
+    clear(): void { this.#values.clear() }
+    getItem(key: string): string | null { return this.#values.get(key) ?? null }
+    key(index: number): string | null { return [...this.#values.keys()][index] ?? null }
+    removeItem(key: string): void { this.#values.delete(key) }
+    setItem(key: string, value: string): void { this.#values.set(key, value) }
+  }
+
+  test('启用请求记录时恢复 model-requests descriptor，禁用时丢弃', () => {
+    const enabled = validateConversationUiState({
+      schemaVersion: 4,
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+      review: createDefaultReviewTabUiState(),
+      workbench: {
+        schemaVersion: 2,
+        tabsById: {
+          'model-requests': { id: 'model-requests', kind: 'model-requests' },
+        },
+        right: {
+          open: true,
+          activeTabId: 'model-requests',
+          tabIds: ['model-requests'],
+        },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: false,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+      },
+    }, { modelRequestsEnabled: true })
+    expect(enabled.workbench.tabsById['model-requests']).toEqual({
+      id: 'model-requests',
+      kind: 'model-requests',
+    })
+    expect(enabled.workbench.right.activeTabId).toBe('model-requests')
+
+    const disabled = validateConversationUiState({
+      ...enabled,
+      workbench: {
+        ...enabled.workbench,
+        tabsById: {
+          'model-requests': { id: 'model-requests', kind: 'model-requests' },
+        },
+        right: {
+          open: true,
+          activeTabId: 'model-requests',
+          tabIds: ['model-requests'],
+        },
+      },
+    }, { modelRequestsEnabled: false })
+    expect(disabled.workbench.tabsById['model-requests']).toBeUndefined()
+    expect(disabled.workbench.right.tabIds).toEqual([])
+    expect(disabled.workbench.right.activeTabId).toBeNull()
+  })
+
+  test('handoff 不复制绑定源任务的 model-requests descriptor', () => {
+    const storage = new MemoryStorage()
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { localStorage: storage },
+    })
+    const source = createDefaultConversationUiState()
+    const opened = open(source.workbench, { id: 'model-requests', kind: 'model-requests' })
+    const state: ReturnType<typeof createDefaultConversationUiState> = {
+      ...source,
+      workbench: opened,
+    }
+    const { saveConversationUiState, transferConversationUiStateForHandoff } =
+      require('../src/features/layout/tabs/conversationUiState.js') as typeof import('../src/features/layout/tabs/conversationUiState.js')
+    saveConversationUiState('thread:source', state)
+    const transferred = transferConversationUiStateForHandoff({
+      sourceThreadId: 'thread:source',
+      targetThreadId: 'thread:target',
+      sourceWorkspacePath: 'F:\workspace',
+    })
+    expect(transferred.transferred).toBe(true)
+    const restored = validateConversationUiState(
+      JSON.parse(
+        window.localStorage.getItem('conversation.ui-state.thread:target') ?? 'null',
+      ),
+      { modelRequestsEnabled: true },
+    )
+    expect(restored.workbench.tabsById['model-requests']).toBeUndefined()
+    delete (globalThis as Record<string, unknown>).window
   })
 })

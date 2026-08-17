@@ -27,6 +27,8 @@ import { toolingHandlers } from "./handlers/tooling"
 import { usageHandlers } from "./handlers/usage"
 import { speechHandlers } from "./handlers/speech"
 import { taskboardHandlers } from "./handlers/taskboard"
+import { runtimeHandlers } from "./handlers/runtime"
+import { pluginHandlers } from "./handlers/plugins"
 import type { RpcHandlerGroup } from "./handlers/types"
 import { workspaceHandlers } from "./handlers/workspace"
 import type { RpcRouterContext } from "./request-context"
@@ -64,6 +66,8 @@ const groups: readonly RpcHandlerGroup[] = [
   usageHandlers,
   speechHandlers,
   taskboardHandlers,
+  runtimeHandlers,
+  pluginHandlers,
 ]
 
 const registeredMethods = groups.flatMap((group) => group.methods)

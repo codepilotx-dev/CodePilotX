@@ -90,6 +90,8 @@ export type ConversationUiValidationOptions = {
     folderId?: string
     workspacePath: string
   }[]
+  /** 未开启请求记录时丢弃恢复出的 model-requests Tab。 */
+  modelRequestsEnabled?: boolean
 }
 
 export function createDefaultConversationUiState(): ConversationUiState {
@@ -241,7 +243,8 @@ export function transferConversationUiStateForHandoff(input: {
         tab?.kind !== 'side-chat' &&
         tab?.kind !== 'attachment-preview' &&
         tab?.kind !== 'side-task' &&
-        tab?.kind !== 'file-preview'),
+        tab?.kind !== 'file-preview' &&
+        tab?.kind !== 'model-requests'), // 请求检查器绑定源任务，不随 handoff 复制
     )
     const transferableIds = new Set(Object.keys(tabsById))
     const filterPanel = (panel: WorkbenchPanelSnapshot): WorkbenchPanelSnapshot => {
@@ -548,6 +551,12 @@ function validateTabDescriptor(
   if (tab.kind === 'side-chat' || tab.kind === 'attachment-preview') return null
   if (tab.id === 'terminal' && tab.kind === 'terminal') {
     return { id: 'terminal', kind: 'terminal' }
+  }
+  if (tab.id === 'model-requests' && tab.kind === 'model-requests') {
+    // 未启用请求记录时丢弃恢复出的 descriptor。
+    return options.modelRequestsEnabled
+      ? { id: 'model-requests', kind: 'model-requests' }
+      : null
   }
   if (
     tab.kind === 'file-preview' &&

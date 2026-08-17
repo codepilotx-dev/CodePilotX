@@ -51,6 +51,16 @@ const hardGatedCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry)
 
 /** Pure permission truth source used by prompting, exposure, approval and execution. */
 export class PermissionDecisionEngine {
+  constructor(
+    private readonly options: {
+      /**
+       * System permission-policy provider（PR 8B）：非空时代替默认策略。
+       * 决策映射回既有 allow/review/deny 与 v4 approval checkpoint shape。
+       */
+      policyOverride?: () => PermissionPolicyOverride | null
+    } = {},
+  ) {}
+
   evaluate(invocation: ToolInvocation, tool: ToolCatalogEntry): ResolvedPermissionDecision {
     invocation = {
       ...invocation,
@@ -61,6 +71,11 @@ export class PermissionDecisionEngine {
     }
     const executionPolicy = executionPolicyFromV4(invocation.permissionConfig)
     const risk = riskFor(invocation, tool, executionPolicy.fileAccess)
+    // System permission-policy provider 替换点：默认 = 下方既有策略。
+    const override = this.options.policyOverride?.()
+    if (override && typeof override.decide === "function") {
+      return this.evaluateWithOverride(override, invocation, tool, executionPolicy, risk)
+    }
     const deny = (reason: string): ResolvedPermissionDecision => ({ action: "deny", decision: "deny", risk, reason })
     if (!toolAllowedInTaskMode(tool, invocation.taskMode)) return deny(`工具 ${tool.sdkName} 不允许在 ${invocation.taskMode} 模式执行`)
     if (invocation.taskMode === "plan" && tool.sdkName === "request_permissions") return deny("Plan 模式禁止请求或提升权限")
@@ -99,4 +114,53 @@ export class PermissionDecisionEngine {
     if (policy === "on-request") return elevated ? review("额外路径、网络或规则要求审批") : allow("当前文件访问范围内执行")
     return elevated ? deny("never 策略禁止权限提升") : allow("never 策略按当前文件访问范围执行")
   }
+
+  /** System provider 决策映射：保持 v4 approval checkpoint shape 固定。 */
+  private evaluateWithOverride(
+    override: PermissionPolicyOverride,
+    invocation: ToolInvocation,
+    tool: ToolCatalogEntry,
+    executionPolicy: EffectiveExecutionPolicy,
+    risk: ResolvedPermissionDecision["risk"],
+  ): ResolvedPermissionDecision {
+    const sandbox: ResolvedExecutionPolicy = {
+      ...executionPolicy,
+      requested: requestedPermissions(invocation.input),
+      networkAllowed: requestedPermissions(invocation.input).networkDomains.length > 0,
+    }
+    let decision: PermissionPolicyDecision
+    try {
+      decision = override.decide({
+        toolName: tool.sdkName,
+        input: invocation.input,
+        taskMode: invocation.taskMode,
+        permissionConfig: invocation.permissionConfig,
+      })
+    } catch {
+      // provider 异常 fail-closed：转入 review，不让策略静默放行。
+      return { action: "review", reviewer: invocation.permissionConfig.approvalsReviewer, sandbox, decision: "ask", risk, reason: "自定义权限策略异常，要求人工审批" }
+    }
+    if (decision.decision === "deny") {
+      return { action: "deny", decision: "deny", risk, reason: decision.reason ?? "自定义策略拒绝" }
+    }
+    if (decision.decision === "review") {
+      return { action: "review", reviewer: invocation.permissionConfig.approvalsReviewer, sandbox, decision: "ask", risk, reason: decision.reason ?? "自定义策略要求审批" }
+    }
+    return { action: "allow", sandbox, decision: "allow", risk, reason: decision.reason ?? "自定义策略放行" }
+  }
 }
+
+/** System permission-policy provider 形状（契约 codepilotx.permission-policy@1）。 */
+export interface PermissionPolicyOverride {
+  decide(input: {
+    toolName: string
+    input: Record<string, unknown>
+    taskMode: "chat" | "plan"
+    permissionConfig: unknown
+  }): PermissionPolicyDecision
+}
+
+export type PermissionPolicyDecision =
+  | { decision: "allow"; reason?: string }
+  | { decision: "review"; reason?: string }
+  | { decision: "deny"; reason?: string }

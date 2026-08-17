@@ -297,180 +297,182 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     status: TurnStatus = "queued",
     ids: { inputID?: string; queueOperation?: QueueMutationMeta } = {},
   ) {
-      const turnID = crypto.randomUUID()
-      const agentID = crypto.randomUUID()
-      const inputID = ids.inputID ?? crypto.randomUUID()
-      const timestamp = now()
-      return this.transaction(() => {
-        if (ids.queueOperation) {
-          const state = this.queueStateMeta(threadID)
-          if (!state) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
-          if (ids.queueOperation.expectedVersion !== undefined && ids.queueOperation.expectedVersion !== state.version) {
-            throw new AgentError("QUEUE_VERSION_CONFLICT", "队列版本已变化，请刷新后重试", 409, {
-              expectedVersion: ids.queueOperation.expectedVersion,
-              actualVersion: state.version,
-            })
-          }
+    const turnID = crypto.randomUUID()
+    const agentID = crypto.randomUUID()
+    const inputID = ids.inputID ?? crypto.randomUUID()
+    const timestamp = now()
+    return this.transaction(() => {
+      if (ids.queueOperation) {
+        const state = this.queueStateMeta(threadID)
+        if (!state) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+        if (ids.queueOperation.expectedVersion !== undefined && ids.queueOperation.expectedVersion !== state.version) {
+          throw new AgentError("QUEUE_VERSION_CONFLICT", "队列版本已变化，请刷新后重试", 409, {
+            expectedVersion: ids.queueOperation.expectedVersion,
+            actualVersion: state.version,
+          })
         }
-        const queuePosition = status === "queued"
-          ? (this.sqlite.query("SELECT COALESCE(MAX(queue_position), 0) AS position FROM turns WHERE thread_id = ? AND status = 'queued'").get(threadID) as { position: number }).position + 1
-          : null
-        const settingsUpdate = this.syncThreadSettings(threadID, {
-          taskMode: input.taskMode,
-          permissionConfig: input.permissionConfig,
-        })
-        this.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, queue_position, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
-          turnID,
-          threadID,
-          agentID,
-          status,
-          input.taskMode,
-          input.permissionConfig.sandboxMode,
-          encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
-          input.permissionConfig.approvalsReviewer,
-          stringify(input.model),
-          input.strategy,
-          queuePosition,
-          timestamp,
-          timestamp,
-        )
-        this.sqlite.query(`INSERT INTO agent_executions (id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, status, error, created_at, updated_at) VALUES (?, ?, ?, NULL, 'main', ?, ?, ?, 0, ?, NULL, ?, ?)`).run(
-          agentID,
-          threadID,
-          turnID,
-          input.content,
-          stringify(input.model),
-          `${threadID}:main`,
-          status,
-          timestamp,
-          timestamp,
-        )
-        this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-          inputID,
-          threadID,
-          turnID,
-          input.content,
-          stringify(input.model),
-          input.permissionConfig.sandboxMode,
-          encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
-          input.permissionConfig.approvalsReviewer,
-          input.strategy,
-          input.taskMode,
-          status === "queued" ? "queued" : "active",
-          timestamp,
-        )
-        this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
-        const method = status === "queued" ? "turn/queued" : "turn/started"
-        const event = this.insertEvent(threadID, turnID, method, { turnId: turnID, inputID, input, createdAt: timestamp })
-        let queueEvent: EventEnvelope | null = null
-        if (status === "queued") {
-          this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?").run(threadID)
-          if (input.strategy === "queue") {
-            const queue = this.queueStateMeta(threadID)!
-            queueEvent = this.insertEvent(threadID, turnID, "queue/updated", {
-              threadId: threadID,
-              turnId: turnID,
-              inputId: inputID,
-              version: queue.version,
-              pauseReason: queue.pauseReason,
-              action: "added",
-            })
-            if (ids.queueOperation) {
-              this.sqlite.query("INSERT INTO queue_operations (operation_id, thread_id, method, event_id, created_at) VALUES (?, ?, 'queue/add', ?, ?)").run(
-                ids.queueOperation.operationID,
-                threadID,
-                queueEvent.id,
-                timestamp,
-              )
-            }
-          }
-        }
-        const agentEvent = this.insertEvent(threadID, turnID, "agent/upserted", { agent: this.getAgentExecution(agentID) })
-        return { turnID, agentID, inputID, settingsEvent: settingsUpdate.event, event, queueEvent, agentEvent }
+      }
+      const queuePosition = status === "queued"
+        ? (this.sqlite.query("SELECT COALESCE(MAX(queue_position), 0) AS position FROM turns WHERE thread_id = ? AND status = 'queued'").get(threadID) as { position: number }).position + 1
+        : null
+      const settingsUpdate = this.syncThreadSettings(threadID, {
+        taskMode: input.taskMode,
+        permissionConfig: input.permissionConfig,
       })
-    }
+      this.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, queue_position, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
+        turnID,
+        threadID,
+        agentID,
+        status,
+        input.taskMode,
+        input.permissionConfig.sandboxMode,
+        encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
+        input.permissionConfig.approvalsReviewer,
+        stringify(input.model),
+        input.strategy,
+        queuePosition,
+        timestamp,
+        timestamp,
+      )
+      this.sqlite.query(`INSERT INTO agent_executions (id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, status, error, created_at, updated_at) VALUES (?, ?, ?, NULL, 'main', ?, ?, ?, 0, ?, NULL, ?, ?)`).run(
+        agentID,
+        threadID,
+        turnID,
+        input.content,
+        stringify(input.model),
+        `${threadID}:main`,
+        status,
+        timestamp,
+        timestamp,
+      )
+      const deliveryKind = status === "queued" ? "follow-up" : "wake"
+      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, delivery_kind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        inputID,
+        threadID,
+        turnID,
+        input.content,
+        stringify(input.model),
+        input.permissionConfig.sandboxMode,
+        encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
+        input.permissionConfig.approvalsReviewer,
+        input.strategy,
+        input.taskMode,
+        status === "queued" ? "queued" : "active",
+        deliveryKind,
+        timestamp,
+      )
+      this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
+      const method = status === "queued" ? "turn/queued" : "turn/started"
+      const event = this.insertEvent(threadID, turnID, method, { turnId: turnID, inputID, input, createdAt: timestamp })
+      let queueEvent: EventEnvelope | null = null
+      if (status === "queued") {
+        this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?").run(threadID)
+        if (input.strategy === "queue") {
+          const queue = this.queueStateMeta(threadID)!
+          queueEvent = this.insertEvent(threadID, turnID, "queue/updated", {
+            threadId: threadID,
+            turnId: turnID,
+            inputId: inputID,
+            version: queue.version,
+            pauseReason: queue.pauseReason,
+            action: "added",
+          })
+          if (ids.queueOperation) {
+            this.sqlite.query("INSERT INTO queue_operations (operation_id, thread_id, method, event_id, created_at) VALUES (?, ?, 'queue/add', ?, ?)").run(
+              ids.queueOperation.operationID,
+              threadID,
+              queueEvent.id,
+              timestamp,
+            )
+          }
+        }
+      }
+      const agentEvent = this.insertEvent(threadID, turnID, "agent/upserted", { agent: this.getAgentExecution(agentID) })
+      return { turnID, agentID, inputID, settingsEvent: settingsUpdate.event, event, queueEvent, agentEvent }
+    })
+  }
 
   appendGuide(threadID: string, turnID: string, input: SubmitMessage, inputID?: string) {
-      const id = inputID ?? crypto.randomUUID()
-      const timestamp = now()
-      return this.transaction(() => {
-        const settingsUpdate = this.syncThreadSettings(threadID, {
-          taskMode: input.taskMode,
-          permissionConfig: input.permissionConfig,
-        })
-        this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
-          id,
-          threadID,
-          turnID,
-          input.content,
-          stringify(input.model),
-          input.permissionConfig.sandboxMode,
-          encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
-          input.permissionConfig.approvalsReviewer,
-          input.taskMode,
-          timestamp,
-        )
-        this.appendUserMessage({ id, threadID, turnID, content: input.content, createdAt: timestamp })
-        const event = this.insertEvent(threadID, turnID, "queue/updated", {
-          threadId: threadID,
-          turnId: turnID,
-          inputId: id,
-          action: "steer-accepted",
-        })
-        return { inputID: id, settingsEvent: settingsUpdate.event, event }
+    const id = inputID ?? crypto.randomUUID()
+    const timestamp = now()
+    return this.transaction(() => {
+      const settingsUpdate = this.syncThreadSettings(threadID, {
+        taskMode: input.taskMode,
+        permissionConfig: input.permissionConfig,
       })
-    }
+      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, delivery_kind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', 'steer', ?)`).run(
+        id,
+        threadID,
+        turnID,
+        input.content,
+        stringify(input.model),
+        input.permissionConfig.sandboxMode,
+        encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
+        input.permissionConfig.approvalsReviewer,
+        input.taskMode,
+        timestamp,
+      )
+      this.appendUserMessage({ id, threadID, turnID, content: input.content, createdAt: timestamp })
+      const event = this.insertEvent(threadID, turnID, "queue/updated", {
+        threadId: threadID,
+        turnId: turnID,
+        inputId: id,
+        action: "steer-accepted",
+      })
+      return { inputID: id, settingsEvent: settingsUpdate.event, event }
+    })
+  }
 
   inputAdmission(inputID: string) {
-      return this.sqlite.query(`
-        SELECT id, thread_id, turn_id, content, strategy
-        FROM inputs WHERE id = ?
-      `).get(inputID) as {
-        id: string
-        thread_id: string
-        turn_id: string
-        content: string
-        strategy: string
-      } | null
-    }
+    return this.sqlite.query(`
+      SELECT id, thread_id, turn_id, content, strategy
+      FROM inputs WHERE id = ?
+    `).get(inputID) as {
+      id: string
+      thread_id: string
+      turn_id: string
+      content: string
+      strategy: string
+    } | null
+  }
 
   takeGuideMailbox(turnID: string) {
-      return this.transaction(() => {
-        const rows = this.guideMailbox(turnID)
-        if (rows.length) {
-          const placeholders = rows.map(() => "?").join(",")
-          this.sqlite.query(`UPDATE inputs SET status = 'consumed' WHERE id IN (${placeholders})`).run(...rows.map((row) => row.id))
-        }
-        return rows
-      })
-    }
+    return this.transaction(() => {
+      const rows = this.guideMailbox(turnID)
+      if (rows.length) {
+        const placeholders = rows.map(() => "?").join(",")
+        this.sqlite.query(`UPDATE inputs SET status = 'consumed' WHERE id IN (${placeholders})`).run(...rows.map((row) => row.id))
+      }
+      return rows
+    })
+  }
 
   guideMailbox(turnID: string) {
-      const rows = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, task_mode FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at, id").all(turnID) as Array<{
-        id: string
-        content: string
-        model_ref: string
-        task_mode: TaskMode
-      } & PermissionColumns>
-      return rows.map((row) => ({ id: row.id, content: row.content, model: parse<ModelRef>(row.model_ref), permissionConfig: permissionConfigFromRow(row), taskMode: row.task_mode }))
-    }
+    const rows = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, task_mode FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at, id").all(turnID) as Array<{
+      id: string
+      content: string
+      model_ref: string
+      task_mode: TaskMode
+    } & PermissionColumns>
+    return rows.map((row) => ({ id: row.id, content: row.content, model: parse<ModelRef>(row.model_ref), permissionConfig: permissionConfigFromRow(row), taskMode: row.task_mode }))
+  }
 
   consumeGuideMailbox(turnID: string, inputIDs: readonly string[]) {
-      if (inputIDs.length === 0) return []
-      return this.transaction(() => {
-        const placeholders = inputIDs.map(() => "?").join(",")
-        const rows = this.sqlite.query(`SELECT id FROM inputs WHERE turn_id = ? AND status = 'mailbox' AND id IN (${placeholders})`).all(turnID, ...inputIDs) as Array<{ id: string }>
-        if (rows.length) {
-          const consumed = rows.map((row) => row.id)
-          this.sqlite.query(`UPDATE inputs SET status = 'consumed' WHERE turn_id = ? AND status = 'mailbox' AND id IN (${consumed.map(() => "?").join(",")})`).run(turnID, ...consumed)
-        }
-        return rows.map((row) => row.id)
-      })
-    }
+    if (inputIDs.length === 0) return []
+    return this.transaction(() => {
+      const placeholders = inputIDs.map(() => "?").join(",")
+      const rows = this.sqlite.query(`SELECT id FROM inputs WHERE turn_id = ? AND status = 'mailbox' AND id IN (${placeholders})`).all(turnID, ...inputIDs) as Array<{ id: string }>
+      if (rows.length) {
+        const consumed = rows.map((row) => row.id)
+        this.sqlite.query(`UPDATE inputs SET status = 'consumed' WHERE turn_id = ? AND status = 'mailbox' AND id IN (${consumed.map(() => "?").join(",")})`).run(turnID, ...consumed)
+      }
+      return rows.map((row) => row.id)
+    })
+  }
 
   claimTurnExecution(turnID: string) {
-      const timestamp = now()
-      return this.transaction(() => {
+    const timestamp = now()
+    return this.transaction(() => {
         const turn = this.sqlite.query("SELECT root_agent_id FROM turns WHERE id = ? AND status = 'queued'").get(turnID) as { root_agent_id: string } | null
         if (!turn) return null
         const claimed = this.sqlite.query(`UPDATE agent_executions SET status = 'running', error = NULL, updated_at = ? WHERE id = ? AND status = 'queued'`).run(timestamp, turn.root_agent_id)

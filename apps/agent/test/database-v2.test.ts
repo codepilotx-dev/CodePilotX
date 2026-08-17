@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase, DATA_EPOCH, HISTORY_APPLICATION_ID, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
+import { Model, Provider } from "@codepilotx/model-schema"
 import { FINAL_SCHEMA, HISTORY_SCHEMA, initializeSchema } from "../src/storage/database/schema-initializer"
 import { PROFILE_APPLICATION_ID, PROFILE_SCHEMA_VERSION } from "../src/storage/database/schema"
 
@@ -48,6 +49,74 @@ describe("数据库兼容与迁移", () => {
     expect(tables.size).toBe(9)
     expect(tables.has("taskboard_tasks")).toBe(true)
     expect(tables.has("taskboard_start_operations")).toBe(true)
+    reopened.close()
+  })
+
+  test("v32 到 v33 新增 runtime step/context 表与 inputs 兼容列且保留既有会话", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v32-"))
+    paths.push(root)
+    const historyPath = join(root, "agent.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const thread = db.createThread("v32 runtime steps migration")
+    const input = {
+      content: "initial",
+      model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }),
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      strategy: "queue",
+      taskMode: "chat",
+    } as const
+    const turn = db.createTurn(thread.id, input)
+    db.appendGuide(thread.id, turn.turnID, { ...input, content: "steer", strategy: "guide" }, "input:steer:v32")
+    for (const table of ["runtime_steps", "runtime_context_snapshots"]) {
+      db.sqlite.query(`DROP TABLE IF EXISTS ${table}`).run()
+    }
+    db.sqlite.query("ALTER TABLE inputs DROP COLUMN delivery_kind").run()
+    db.sqlite.query("ALTER TABLE inputs DROP COLUMN claimed_step_id").run()
+    db.sqlite.exec("PRAGMA user_version = 32")
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(reopened.sqlite.query("SELECT title FROM threads WHERE id = ?").get(thread.id)).toEqual({ title: "v32 runtime steps migration" })
+    expect(reopened.sqlite.query("SELECT id FROM inputs WHERE id = 'input:steer:v32'").get()).toEqual({ id: "input:steer:v32" })
+    const tables = new Set((reopened.sqlite.query(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('runtime_steps', 'runtime_context_snapshots')",
+    ).all() as Array<{ name: string }>).map(({ name }) => name))
+    expect(tables.has("runtime_steps")).toBe(true)
+    expect(tables.has("runtime_context_snapshots")).toBe(true)
+    const columns = (reopened.sqlite.query("PRAGMA table_info(inputs)").all() as Array<{ name: string }>).map(({ name }) => name)
+    expect(columns).toContain("delivery_kind")
+    expect(columns).toContain("claimed_step_id")
+    reopened.close()
+  })
+
+  test("v31 到 v32 新增模型请求快照表且保留既有会话", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v31-"))
+    paths.push(root)
+    const historyPath = join(root, "agent.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const thread = db.createThread("v31 request snapshot migration")
+    db.sqlite.query("DROP TABLE model_request_snapshots").run()
+    db.sqlite.exec("PRAGMA user_version = 31")
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(reopened.sqlite.query("SELECT title FROM threads WHERE id = ?").get(thread.id)).toEqual({ title: "v31 request snapshot migration" })
+    const columns = (reopened.sqlite.query("PRAGMA table_info(model_request_snapshots)").all() as Array<{ name: string }>).map(({ name }) => name)
+    for (const column of [
+      "id", "thread_id", "turn_id", "agent_id", "session_id", "request_ordinal",
+      "provider_id", "api", "model_id", "status", "payload_json", "payload_sha256",
+      "payload_bytes", "runtime_manifest", "error_code", "created_at",
+    ]) {
+      expect(columns).toContain(column)
+    }
+    const indexes = new Set((reopened.sqlite.query(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'model_request_snapshots'",
+    ).all() as Array<{ name: string }>).map(({ name }) => name))
+    expect(indexes.has("model_request_snapshots_thread_created")).toBe(true)
     reopened.close()
   })
 

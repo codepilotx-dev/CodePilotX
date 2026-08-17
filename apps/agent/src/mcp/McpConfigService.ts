@@ -80,6 +80,12 @@ export class McpConfigService {
   constructor(
     private readonly repository: McpSettingsRepository,
     private readonly configService?: ConfigService,
+    /** 插件声明的 MCP server（provenance 由调用方携带；用户声明优先）。 */
+    private readonly extraMcpDeclarations?: () => Array<{
+      name: string
+      pluginId: string
+      declaration: McpServerDeclaration
+    }>,
   ) {}
 
   async workspace(value?: string): Promise<McpWorkspaceIdentity | null> {
@@ -204,31 +210,41 @@ export class McpConfigService {
 
   private async effectiveState(identity: McpWorkspaceIdentity | null): Promise<McpSettingsState> {
     const state = this.repository.state()
-    if (!this.configService) return state
-    const read = await this.configOperation(() =>
-      this.configService!.read(identity ? { cwd: identity.root } : {}))
-    if (!isRecord(read.config.mcp_servers)) return state
-    const user: Record<string, McpServerDeclaration> = {}
-    const local: Record<string, McpServerDeclaration> = {}
-    for (const [name, raw] of Object.entries(read.config.mcp_servers)) {
-      if (!isRecord(raw)) continue
-      const projectScoped = Object.entries(read.origins).some(([path, origin]) =>
-        path.startsWith(`mcp_servers.${name}.`) && origin === "project")
-      try {
-        const declaration = this.validate({
-          ...raw,
-          name,
-          scope: projectScoped ? "local" : "user",
-        } as McpServerDeclaration, identity)
-        ;(projectScoped ? local : user)[name] = declaration
-      } catch {
-        // Invalid external declarations remain diagnostics-only and are not activated.
+    let user: Record<string, McpServerDeclaration> = state.user
+    let local: Record<string, Record<string, McpServerDeclaration>> = state.local
+    if (this.configService) {
+      const read = await this.configOperation(() =>
+        this.configService!.read(identity ? { cwd: identity.root } : {}))
+      if (isRecord(read.config.mcp_servers)) {
+        const configUser: Record<string, McpServerDeclaration> = {}
+        const configLocal: Record<string, McpServerDeclaration> = {}
+        for (const [name, raw] of Object.entries(read.config.mcp_servers)) {
+          if (!isRecord(raw)) continue
+          const projectScoped = Object.entries(read.origins).some(([path, origin]) =>
+            path.startsWith(`mcp_servers.${name}.`) && origin === "project")
+          try {
+            const declaration = this.validate({
+              ...raw,
+              name,
+              scope: projectScoped ? "local" : "user",
+            } as McpServerDeclaration, identity)
+            ;(projectScoped ? configLocal : configUser)[name] = declaration
+          } catch {
+            // Invalid external declarations remain diagnostics-only and are not activated.
+          }
+        }
+        user = configUser
+        local = identity ? { [identity.hash]: configLocal } : {}
       }
     }
     return {
       ...state,
-      user,
-      local: identity ? { [identity.hash]: local } : {},
+      // 插件声明合并进 user 层；用户/项目声明保持优先（spread 顺序）。
+      user: {
+        ...Object.fromEntries((this.extraMcpDeclarations?.() ?? []).map(({ name, declaration }) => [name, declaration])),
+        ...user,
+      },
+      local,
     }
   }
 

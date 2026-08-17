@@ -40,6 +40,7 @@ export interface AgentStorageLayout {
   toolingRoot: string
   speechRoot: string
   workspacesRoot: string
+  pluginRoot: string
   logsRoot: string
 }
 
@@ -101,6 +102,7 @@ export const resolveAgentStorageLayout = (
     ),
     speechRoot: resolve(dataRoot, "speech"),
     workspacesRoot: resolve(dataRoot, "workspaces"),
+    pluginRoot: resolve(dataRoot, "plugins"),
     logsRoot: resolveAgentLogDirectory(environment, userHome),
   }
 }

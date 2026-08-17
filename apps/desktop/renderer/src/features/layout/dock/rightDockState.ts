@@ -49,6 +49,8 @@ export type WorkbenchTabKind =
   | 'side-chat'
   | 'side-task'
   | 'terminal'
+  | 'model-requests'
+  | 'plugin-view'
 
 export type WorkbenchTabDescriptor =
   | { id: 'review'; kind: 'review' }
@@ -89,11 +91,20 @@ export type WorkbenchTabDescriptor =
     }
   | UserAttachmentPreviewTab
   | { id: 'terminal'; kind: 'terminal' }
+  | { id: 'model-requests'; kind: 'model-requests' }
   | {
       id: `side-task:${string}`
       kind: 'side-task'
       taskId: string
       childThreadId: string
+    }
+  | {
+      id: `plugin-view:${string}`
+      kind: 'plugin-view'
+      pluginId: string
+      viewId: string
+      instanceId: string
+      title: string
     }
 
 export type WorkbenchTabId = WorkbenchTabDescriptor['id']

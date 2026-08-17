@@ -59,6 +59,12 @@ export type ToolOrigin =
       rawToolName: string
       generation: number
     }
+  | {
+      kind: "plugin"
+      pluginId: string
+      rawToolName: string
+      generation: string
+    }
 
 export interface ToolCatalogEntry<Input = unknown, Output = unknown> {
   /** The sole canonical name exposed to the model. */

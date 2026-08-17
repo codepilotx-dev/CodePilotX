@@ -8,6 +8,7 @@ import {
   type Context,
 } from "@earendil-works/pi-ai"
 import { AgentError } from "../src/domain"
+import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { PiAgentRuntime } from "../src/orchestration/pi/PiAgentRuntime"
 import { REACTIVE_CONTINUATION_PROMPT } from "../src/orchestration/pi/ContextOverflow"
 import type {
@@ -50,11 +51,10 @@ async function createRuntime(input: {
     },
     toolExecutor: {
       deferredDefinitions: () => [],
+      baseCatalog: () => new ToolRegistry(),
     } as never,
-    eventSink: {
-      compacted: async (_context, event) => {
-        compacted.push(event.trigger)
-      },
+    eventHandler: async (event) => {
+      if (event.type === "compaction.completed") compacted.push(event.trigger)
     },
     compaction: {
       shouldAutoCompact: async () => input.shouldAutoCompact ?? false,

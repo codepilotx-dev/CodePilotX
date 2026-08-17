@@ -19,11 +19,13 @@ export interface SkillMetadata {
   description: string;
   path: string;
   root: string;
-  origin: "workspace" | "user";
+  origin: "workspace" | "user" | "plugin";
   format: "codepilotx" | "agents" | "codex" | "claude";
   hash: string;
   metadata: Record<string, unknown>;
   allowedTools?: string[];
+  /** origin === "plugin" 时的插件 id（provenance）。 */
+  pluginId?: string;
 }
 
 export interface LoadedSkill extends SkillMetadata {
@@ -41,6 +43,14 @@ export interface SkillScanOptions {
   dataRoot: string;
   userHome: string;
   includeWorkspace?: boolean;
+  /** 插件声明 skill root（containmentRoot = 包根）。 */
+  extraBases?: Array<{
+    containmentRoot: string;
+    skillsRoot: string;
+    origin: "plugin";
+    format: "codepilotx";
+    pluginId: string;
+  }>;
 }
 
 export type SkillServiceOptions = {
@@ -122,6 +132,7 @@ export class SkillService {
         origin: "user" as const,
         format: compatibilityDir.slice(1) as SkillMetadata["format"],
       })),
+      ...(options.extraBases ?? []),
     ];
 
     const bases: Array<(typeof configuredBases)[number] & {
@@ -192,6 +203,9 @@ export class SkillService {
           hash: sha256(bytes),
           metadata: parsed.metadata,
           ...(allowedTools ? { allowedTools } : {}),
+          ...(base.origin === "plugin" && "pluginId" in base && base.pluginId
+            ? { pluginId: base.pluginId }
+            : {}),
         };
         const current = found.get(name);
         if (current)

@@ -8,6 +8,8 @@ import {
   OPEN_TARGET_STORED_SENTINELS,
 } from '../../services/desktop-client/openTargetSelection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js';
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js';
+import { CONFIG_UPDATED_EVENT } from '../../services/desktop-client/agent-session-client.js';
 import { SettingsRow } from './SettingsRow.js';
 import { SettingsSection } from './SettingsSection.js';
 import { SettingsDropdown } from './SettingsDropdown.js';
@@ -23,6 +25,7 @@ import type {
 import { Button } from '../../components/ui/Button.js'
 import type { DesktopTerminalProfile } from '@codepilotx/shared/desktop-terminal-ipc'
 import { useSpeechStatus } from '../speech/useSpeechStatus.js'
+import { modelRequestSnapshotsEnabledFromConfig } from '../session/request-inspector/requestInspectorModel.js'
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -200,6 +203,54 @@ export function GeneralSettings({
     },
     [draft],
   )
+  // 完整模型请求记录：用户层 diagnostics.model_request_snapshots.enabled。
+  const [modelRequestSnapshotsEnabled, setModelRequestSnapshotsEnabled] =
+    useState(false)
+  const [modelRequestSnapshotsConfirmOpen, setModelRequestSnapshotsConfirmOpen] =
+    useState(false)
+  useEffect(() => {
+    let mounted = true
+    const refresh = () => {
+      void desktopClient.readConfig({ includeLayers: true })
+        .then(read => {
+          if (!mounted) return
+          const userLayer = read.layers?.find(layer => layer.kind === 'user')
+          setModelRequestSnapshotsEnabled(
+            modelRequestSnapshotsEnabledFromConfig(userLayer?.config),
+          )
+        })
+        .catch(() => {
+          if (mounted) setModelRequestSnapshotsEnabled(false)
+        })
+    }
+    refresh()
+    const onConfigUpdated = () => refresh()
+    window.addEventListener(CONFIG_UPDATED_EVENT, onConfigUpdated)
+    return () => {
+      mounted = false
+      window.removeEventListener(CONFIG_UPDATED_EVENT, onConfigUpdated)
+    }
+  }, [])
+  const writeModelRequestSnapshots = useCallback((enabled: boolean) => {
+    void desktopClient.writeConfigBatch({
+      edits: [{
+        keyPath: ['diagnostics', 'model_request_snapshots', 'enabled'],
+        value: enabled,
+      }],
+      target: { kind: 'user' },
+    })
+      .then(() => setModelRequestSnapshotsEnabled(enabled))
+      .catch(() => onNotice?.('写入配置失败，请稍后重试'))
+  }, [onNotice])
+  const handleModelRequestSnapshotsToggle = useCallback((next: boolean) => {
+    if (next) {
+      // 首次开启需要确认；取消确认不写配置。
+      setModelRequestSnapshotsConfirmOpen(true)
+      return
+    }
+    // 关闭不弹确认，也不删除历史快照。
+    writeModelRequestSnapshots(false)
+  }, [writeModelRequestSnapshots])
   const setErrorNotifications = useCallback(
     (value: boolean) => {
       draft.setValue('notifications', {
@@ -367,8 +418,9 @@ export function GeneralSettings({
       : []),
   ]
   return (
-    <SettingsContentArea className="">
-      <div className='settings-content-inner'>
+    <>
+      <SettingsContentArea className="">
+        <div className='settings-content-inner'>
         <div className="settings-page-header">
           <h2 className='settings-page-title'>常规</h2>
         </div>
@@ -420,6 +472,26 @@ export function GeneralSettings({
                 checked={enableFullAccessPermissionMode ?? false}
                 onChange={handleFullAccess}
                 ariaLabel='完全访问权限'
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection title='隐私与诊断'>
+          <SettingsRow
+            title='记录完整模型请求'
+            autoSave
+            description={
+              <>
+                开启后，发送给模型前经过脱敏的完整请求会以明文写入本地历史数据库，
+                可在右侧“请求”面板中查看。关闭只停止新增记录，不会删除已有记录。
+              </>
+            }
+            control={
+              <ToggleSwitch
+                checked={modelRequestSnapshotsEnabled}
+                onChange={handleModelRequestSnapshotsToggle}
+                ariaLabel='记录完整模型请求'
               />
             }
           />
@@ -741,6 +813,28 @@ export function GeneralSettings({
           />
         </SettingsSection>
       </div>
-    </SettingsContentArea>
+      </SettingsContentArea>
+      <ConfirmationDialog
+        open={modelRequestSnapshotsConfirmOpen}
+        title='开启完整模型请求记录？'
+        description={
+          <>
+            开启后，发送给 Provider 的请求会在发送前脱敏，并以明文写入本地历史数据库。
+            请注意：
+            <ul>
+              <li>脱敏边界无法保证识别你主动粘贴的所有敏感文本；</li>
+              <li>归档任务会继续保留记录，只有永久删除任务才会删除；</li>
+              <li>导出的 JSON 是普通明文文件，请妥善保管。</li>
+            </ul>
+          </>
+        }
+        actionLabel='开启'
+        onCancel={() => setModelRequestSnapshotsConfirmOpen(false)}
+        onAction={() => {
+          setModelRequestSnapshotsConfirmOpen(false)
+          writeModelRequestSnapshots(true)
+        }}
+      />
+    </>
   );
 }

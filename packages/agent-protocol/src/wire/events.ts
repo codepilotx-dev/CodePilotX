@@ -26,6 +26,7 @@ import { ToolingStatusSchema } from "../methods/tooling"
 import { UsageSourceIdSchema } from "../methods/usage"
 import { AuthSessionSchema, ModelHealthCountsSchema, ModelHealthItemSchema } from "../methods/extended"
 import { SpeechStatusSchema } from "../methods/speech"
+import { RequestSnapshotSummarySchema } from "../methods/runtime"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -116,6 +117,38 @@ export const EventManifest = {
     stream: "global",
     capability: "tooling.management.v1",
     reconcilesWith: "tooling/list",
+  }),
+  "plugin/inventory-changed": defineEvent({
+    payload: Schema.Struct({
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "plugins.manage.v1",
+    reconcilesWith: "plugin/list",
+  }),
+  "plugin/operation-updated": defineEvent({
+    payload: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      status: Schema.Literals(["pending", "completed", "failed"]),
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "plugins.manage.v1",
+    reconcilesWith: "plugin/operation/get",
+  }),
+  "plugin/runtime-status-changed": defineEvent({
+    payload: Schema.Struct({
+      pluginId: OpaqueIDSchema,
+      status: Schema.Literals(["waiting", "active", "retiring", "crashed", "disabled"]),
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "plugins.runtime.v1",
+    reconcilesWith: "plugin/list",
   }),
   "speech/statusChanged": defineEvent({
     payload: Schema.Struct({ status: SpeechStatusSchema }),
@@ -485,6 +518,69 @@ export const EventManifest = {
     durability: "durable",
     stream: "thread",
     capability: "events.replay.v1",
+  }),
+  "runtime/request-snapshot/created": defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      snapshot: RequestSnapshotSummarySchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "thread",
+    capability: "runtime.request-snapshots.v1",
+  }),
+  "runtime/step-started": defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      turnId: OpaqueIDSchema,
+      stepId: OpaqueIDSchema,
+      ordinal: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      claimedInputIds: Schema.Array(OpaqueIDSchema),
+      startedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "thread",
+    capability: "runtime.step-lifecycle.v1",
+  }),
+  "runtime/step-completed": defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      turnId: OpaqueIDSchema,
+      stepId: OpaqueIDSchema,
+      ordinal: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      completedAt: TimestampSchema,
+      stopReason: Schema.optional(Schema.String),
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "thread",
+    capability: "runtime.step-lifecycle.v1",
+  }),
+  "runtime/step-failed": defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      turnId: OpaqueIDSchema,
+      stepId: OpaqueIDSchema,
+      ordinal: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      errorCode: Schema.String,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "thread",
+    capability: "runtime.step-lifecycle.v1",
+  }),
+  "runtime/step-interrupted": defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      turnId: OpaqueIDSchema,
+      stepId: OpaqueIDSchema,
+      ordinal: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "thread",
+    capability: "runtime.step-lifecycle.v1",
   }),
   "catalog/updated": defineEvent({
     payload: Schema.Struct({ catalogVersion: SequenceSchema, models: Schema.optional(Schema.Array(Model.Info)) }),

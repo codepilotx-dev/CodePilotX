@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://codepilotx.dev/schema/application-wire.v1.schema.json",
+  "title": "CodePilotX Application Plugin Wire v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "version",
+    "pluginId",
+    "generation",
+    "kind",
+    "method"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "cpx-plugin-rpc@1"
+    },
+    "version": {
+      "const": 1
+    },
+    "pluginId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "generation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "kind": {
+      "enum": [
+        "request",
+        "notification",
+        "response",
+        "clientRequest",
+        "clientNotification"
+      ]
+    },
+    "method": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "params": {},
+    "result": {},
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -1,5 +1,7 @@
 import type React from 'react'
+import type { RpcResult } from '@codepilotx/agent-protocol'
 import {
+  Cpu,
   FileCode2,
   Package,
   Plus,
@@ -31,6 +33,7 @@ import {
 } from '../../plugins/pluginCatalog.js'
 import { PluginDetailsDialog } from '../../plugins/PluginDetailsDialog.js'
 import { PluginIcon } from '../../plugins/PluginIcon.js'
+import { InstalledPluginsSection } from '../../plugins/installed/InstalledPluginsSection.js'
 import { useBuiltinPluginCatalog } from '../../plugins/useBuiltinPluginCatalog.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/eventSubscriptionFilters.js'
@@ -117,6 +120,9 @@ export function PluginsSettingsPage({
     useState<HTMLElement | null>(null)
   const [serverPendingRemoval, setServerPendingRemoval] =
     useState<DesktopMcpServerListItem | null>(null)
+  const [runtimeContributions, setRuntimeContributions] = useState<
+    RpcResult<'runtime/contribution/list'>['contributions']
+  >([])
 
   const pluginItems = useMemo(
     () =>
@@ -173,6 +179,9 @@ export function PluginsSettingsPage({
     setMcpOAuthAttempts({})
     void loadSkills(false)
     void loadServers()
+    void desktopClient.listRuntimeContributions()
+      .then(result => setRuntimeContributions(result.contributions))
+      .catch(() => setRuntimeContributions([]))
     // Initial data should be loaded once for the current workspace.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacePath])
@@ -635,7 +644,9 @@ export function PluginsSettingsPage({
           {loading ? (
             <LoadingRows />
           ) : tab === 'plugins' ? (
-            visiblePlugins.length ? (
+            <>
+            <InstalledPluginsSection onError={onError} onNotice={onNotice} />
+            {visiblePlugins.length ? (
               visiblePlugins.map(item => (
                 <ExtensionManagementRow
                   key={item.id}
@@ -665,7 +676,44 @@ export function PluginsSettingsPage({
               ))
             ) : (
               <EmptyState label="没有匹配的插件。" />
-            )
+            )}
+            {(() => {
+              const visibleContributions = runtimeContributions.filter(
+                contribution => matchesQuery(
+                  normalizedQuery,
+                  contribution.displayName,
+                  contribution.description,
+                ),
+              )
+              if (visibleContributions.length === 0) return null
+              return (
+                <div className="tw:mt-4 tw:grid tw:gap-1">
+                  <h3 className="tw:px-2 tw:text-sm tw:font-[var(--font-weight-label)] tw:text-app-text-soft">Agent 内置贡献</h3>
+                  {visibleContributions.map(contribution => (
+                    <ExtensionManagementRow
+                      key={contribution.id}
+                      title={contribution.displayName}
+                      description={contribution.description}
+                      icon={
+                        <Cpu
+                          size={APP_ICON_SIZE}
+                          strokeWidth={APP_ICON_STROKE_WIDTH}
+                        />
+                      }
+                      metadata={
+                        <>
+                          {'内置/Agent Runtime · '}
+                          {contribution.provides.join('/')}
+                          {contribution.enabled ? '' : ' · 未启用'}
+                        </>
+                      }
+                      dimmed={!contribution.enabled}
+                    />
+                  ))}
+                </div>
+              )
+            })()}
+            </>
           ) : tab === 'skills' ? (
             visibleSkills.length ? (
               visibleSkills.map(skill => (

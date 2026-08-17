@@ -2,6 +2,7 @@ import {
   desktopClient,
   loadDesktopTerminalClient,
 } from '../../../services/desktop-client/index.js'
+import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/eventSubscriptionFilters.js'
 import {
   openPathWithPreferredExternalTarget,
   shouldFallbackToExternalOpen,
@@ -96,6 +97,7 @@ import {
   isTerminalKeyboardTarget,
   useIntegratedTerminalController,
 } from './useIntegratedTerminalController.js'
+import { useModelRequestInspectorGate } from '../../session/request-inspector/useModelRequestInspectorGate.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
 import { useModelProviderController } from '../useModelProviderController.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
@@ -325,10 +327,47 @@ export function DesktopLayout(): React.ReactNode {
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
   )
+  const [pluginViewsState, setPluginViewsState] = useState<{
+    views: ReadonlyArray<{ pluginId: string; view: { id: string; title: string; description?: string; icon?: string } }>
+    availablePluginIds: ReadonlySet<string>
+  }>({ views: [], availablePluginIds: new Set() })
   const browserAvailable =
     typeof window !== 'undefined' &&
     typeof window.codePilotXDesktop?.createOrRestoreDesktopBrowser === 'function'
   const browserAvailability = browserAvailable ? 'available' : 'unavailable'
+  useEffect(() => {
+    let cancelled = false
+    const loadPluginViews = async () => {
+      try {
+        const [contributions, plugins] = await Promise.all([
+          desktopClient.listPluginContributions(),
+          desktopClient.listPlugins(),
+        ])
+        if (cancelled) return
+        const available = new Set(
+          plugins.plugins
+            .filter(plugin => plugin.runtimeStatus === 'active')
+            .map(plugin => plugin.pluginId),
+        )
+        setPluginViewsState({
+          views: contributions.workbenchViews,
+          availablePluginIds: available,
+        })
+      } catch {
+        if (!cancelled) setPluginViewsState({ views: [], availablePluginIds: new Set() })
+      }
+    }
+    void loadPluginViews()
+    const unsubscribe = desktopClient.subscribeAgentEventEnvelopes({
+      liveEventTypes: AGENT_LIVE_EVENT_FILTERS.plugins,
+    }, async events => {
+      if (events.length > 0) await loadPluginViews()
+    })
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [])
   const gitWorkflowModalMounted = useEverOpened(gitWorkflowMode !== null)
   const githubRepositoryModalMounted = useEverOpened(githubRepositoryModalOpen)
   const whatsNewDialogMounted = useEverOpened(whatsNewDialogOpen)
@@ -535,6 +574,7 @@ export function DesktopLayout(): React.ReactNode {
     movePanelTab,
     togglePanel,
   })
+  const modelRequestGate = useModelRequestInspectorGate()
   const localRouterAvailable = !sessionId || isBrowserMockSession
 
   const {
@@ -1317,7 +1357,10 @@ export function DesktopLayout(): React.ReactNode {
                 workspacePath: currentWorkspace.path,
               }]
           : undefined
-        const validated = validateConversationUiState(saved, { fileScopes })
+        const validated = validateConversationUiState(saved, {
+          fileScopes,
+          modelRequestsEnabled: modelRequestGate.enabled,
+        })
         setWorkbenchPanelState(restoreAttachmentPreview(validated.workbench))
         setReviewTabState(validated.review)
       } else {
@@ -1339,6 +1382,7 @@ export function DesktopLayout(): React.ReactNode {
     currentWorkspace,
     currentWorkspaceUiIdentity,
     sessionId,
+    modelRequestGate.enabled,
   ])
 
   useEffect(() => {
@@ -3020,6 +3064,9 @@ export function DesktopLayout(): React.ReactNode {
       sessionId={sessionId}
       sessionStatus={sessionStatus}
       terminalAvailable={terminalAvailable}
+      modelRequestSnapshotsEnabled={modelRequestGate.enabled}
+      modelRequestSnapshotsCapability={modelRequestGate.capabilityAvailable}
+      modelRequestSnapshotsLoading={modelRequestGate.loading}
       width={rightDockWidth}
       height={bottomPanelHeight}
       rightFullWidth={rightDockFullWidth}
@@ -3081,6 +3128,10 @@ export function DesktopLayout(): React.ReactNode {
         }
         openPanelTab(target, tab)
       }}
+      onOpenPluginView={tab => openPanelTab(target, tab)}
+      onPluginViewInvalidated={() => undefined}
+      pluginViews={pluginViewsState.views}
+      pluginViewsAvailablePluginIds={pluginViewsState.availablePluginIds}
       onOpenWorkspacePath={handleOpenWorkspacePath}
       onOpenFileFromBrowser={file =>
         handleOpenFileFromBrowser(target, file)

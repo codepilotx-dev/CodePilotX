@@ -145,6 +145,7 @@ const KNOWN_CONFIG_ROOTS = new Set([
   "logging",
   "migration",
   "data_dir",
+  "diagnostics",
 ])
 const PROJECT_FORBIDDEN_ROOTS = new Set([
   "model_providers",
@@ -156,6 +157,7 @@ const PROJECT_FORBIDDEN_ROOTS = new Set([
   "provider_credentials",
   "profile",
   "profiles",
+  "diagnostics",
 ])
 const ENVIRONMENT_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const STATIC_SECRET_HEADERS = new Set([

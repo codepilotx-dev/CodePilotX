@@ -2633,9 +2633,240 @@ const fixtures = {
     sourceId: "xai-management",
     disconnected: true,
   }),
+  "runtime/contribution/list": methodFixture("runtime/contribution/list", {}, {
+    contributions: [{
+      id: "core@builtin",
+      version: 1,
+      displayName: "核心运行时",
+      description: "注册工具与统一执行管线。",
+      provides: ["tools", "guard", "observer"],
+      enablement: "required",
+      enabled: true,
+    }],
+  }),
+  "runtime/request-snapshot/list": methodFixture("runtime/request-snapshot/list", {
+    threadId: threadListItem.id,
+    limit: 50,
+  }, {
+    items: [{
+      id: "snapshot:1",
+      threadId: threadListItem.id,
+      turnId: "turn:1",
+      agentId: "agent:1",
+      requestOrdinal: 0,
+      providerId: "openai",
+      api: "openai-responses",
+      modelId: "gpt-test",
+      status: "captured",
+      payloadBytes: 42,
+      payloadSha256: "a".repeat(64),
+      errorCode: null,
+      createdAt: 100,
+    }],
+  }),
+  "runtime/request-snapshot/read": methodFixture("runtime/request-snapshot/read", {
+    threadId: threadListItem.id,
+    snapshotId: "snapshot:1",
+  }, {
+    snapshot: {
+      id: "snapshot:1",
+      threadId: threadListItem.id,
+      turnId: "turn:1",
+      agentId: "agent:1",
+      requestOrdinal: 0,
+      providerId: "openai",
+      api: "openai-responses",
+      modelId: "gpt-test",
+      status: "captured",
+      payloadBytes: 42,
+      payloadSha256: "a".repeat(64),
+      errorCode: null,
+      createdAt: 100,
+      payloadJson: "{\"messages\":[]}",
+      runtimeManifest: JSON.stringify({ version: 1, presetID: "main/chat" }),
+    },
+  }),
+  // ── plugins ────────────────────────────────────────────────────────────
+  "plugin/list": methodFixture("plugin/list", {}, {
+    plugins: [{
+      pluginId: "acme.hello",
+      version: "1.0.0",
+      displayName: "Hello",
+      description: "示例",
+      publisher: "acme",
+      tier: "application",
+      runtimeKind: "process",
+      digest: "a".repeat(64),
+      source: "package",
+      linkedPath: "C:/dev/acme-hello",
+      stagedDirectoryDigest: null,
+      runtimeStatus: "active",
+      trustedDigest: true,
+      enabledGlobal: false,
+      workspaceOverrides: [],
+      installedAt: 1,
+      updatedAt: 2,
+    }],
+  }),
+  "plugin/installPackage": methodFixture("plugin/installPackage", {
+    packagePath: "C:/Downloads/acme.hello.cpxplugin",
+    operationId: "plugin-op:1",
+  }, {
+    pluginId: "acme.hello",
+    version: "1.0.0",
+    digest: "a".repeat(64),
+    status: "installed-disabled",
+  }),
+  "plugin/linkDirectory": methodFixture("plugin/linkDirectory", {
+    directoryPath: "C:/dev/acme-hello",
+    operationId: "plugin-op:2",
+  }, {
+    pluginId: "acme.hello",
+    version: "1.0.0",
+    digest: "a".repeat(64),
+    status: "installed-disabled",
+  }),
+  "plugin/unlinkDirectory": methodFixture("plugin/unlinkDirectory", {
+    pluginId: "acme.hello",
+    operationId: "plugin-op:3",
+  }, { ok: true }),
+  "plugin/enable": methodFixture("plugin/enable", {
+    pluginId: "acme.hello",
+    scope: "global",
+    operationId: "plugin-op:4",
+  }, { ok: true }),
+  "plugin/disable": methodFixture("plugin/disable", {
+    pluginId: "acme.hello",
+    scope: "workspace",
+    workspaceKey: "ws:abc",
+    force: true,
+    operationId: "plugin-op:5",
+  }, { ok: true }),
+  "plugin/uninstall": methodFixture("plugin/uninstall", {
+    pluginId: "acme.hello",
+    operationId: "plugin-op:6",
+  }, { ok: true }),
+  "plugin/config/get": methodFixture("plugin/config/get", {
+    pluginId: "acme.hello",
+  }, {
+    pluginId: "acme.hello",
+    config: { greeting: "你好" },
+  }),
+  "plugin/config/update": methodFixture("plugin/config/update", {
+    pluginId: "acme.hello",
+    config: { greeting: "你好" },
+    operationId: "plugin-op:7",
+  }, {
+    pluginId: "acme.hello",
+    config: { greeting: "你好" },
+  }),
+  "plugin/grants/get": methodFixture("plugin/grants/get", {
+    pluginId: "acme.hello",
+  }, {
+    pluginId: "acme.hello",
+    digest: "a".repeat(64),
+    grants: [{ permissionId: "network.request", granted: true }],
+  }),
+  "plugin/grants/update": methodFixture("plugin/grants/update", {
+    pluginId: "acme.hello",
+    grants: [{ permissionId: "network.request", granted: true }],
+    operationId: "plugin-op:8",
+  }, {
+    pluginId: "acme.hello",
+    digest: "a".repeat(64),
+    grants: [{ permissionId: "network.request", granted: true }],
+  }),
+  "plugin/profile/list": methodFixture("plugin/profile/list", {}, {
+    profiles: [{
+      id: "gen:1",
+      pluginId: "acme.system",
+      version: "1.0.0",
+      digest: "a".repeat(64),
+      status: "staged",
+      createdAt: 1,
+    }],
+  }),
+  "plugin/profile/stage": methodFixture("plugin/profile/stage", {
+    pluginId: "acme.system",
+    config: {},
+    operationId: "plugin-op:9",
+  }, {
+    generationId: "gen:1",
+    status: "staged",
+  }),
+  "plugin/profile/applyOnRestart": methodFixture("plugin/profile/applyOnRestart", {
+    generationId: "gen:1",
+    operationId: "plugin-op:10",
+  }, {
+    generationId: "gen:1",
+    restartRequired: true,
+  }),
+  "plugin/operation/get": methodFixture("plugin/operation/get", {
+    operationId: "plugin-op:1",
+  }, {
+    operationId: "plugin-op:1",
+    pluginId: "acme.hello",
+    method: "plugin/installPackage",
+    status: "completed",
+    result: { pluginId: "acme.hello", version: "1.0.0", digest: "a".repeat(64), status: "installed-disabled" },
+    errorCode: null,
+    createdAt: 1,
+    updatedAt: 2,
+  }),
+  "plugin/contribution/list": methodFixture("plugin/contribution/list", {}, {
+    tools: [{
+      pluginId: "acme.hello",
+      tool: { name: "run", description: "运行", inputSchema: { type: "object" } },
+    }],
+    skills: [],
+    mcpServers: [],
+    promptCommands: [],
+    settings: [],
+    workbenchViews: [],
+  }),
+  "plugin/command/execute": methodFixture("plugin/command/execute", {
+    pluginId: "acme.hello",
+    commandId: "hello",
+    args: "世界",
+  }, {
+    promptTemplate: "请向用户问好：世界",
+  }),
+  "plugin/view/render": methodFixture("plugin/view/render", {
+    pluginId: "acme.hello",
+    viewId: "hello-view",
+    instanceId: "instance-1",
+  }, {
+    nodes: [{ kind: "markdown", content: "hello from plugin" }],
+  }),
+  "plugin/view/action": methodFixture("plugin/view/action", {
+    pluginId: "acme.hello",
+    viewId: "hello-view",
+    instanceId: "instance-1",
+    actionId: "refresh",
+  }, {
+    ok: true,
+  }),
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
+  test("运行时方法统一使用 runtime 能力且只读", () => {
+    const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("runtime/"))
+    expect(methods).toHaveLength(3)
+    expect(methods.map(([method]) => method)).toEqual([
+      "runtime/contribution/list",
+      "runtime/request-snapshot/list",
+      "runtime/request-snapshot/read",
+    ])
+    expect(RpcMethods["runtime/contribution/list"].capability).toBe("runtime.contributions.v1")
+    expect(RpcMethods["runtime/request-snapshot/list"].capability).toBe("runtime.request-snapshots.v1")
+    expect(RpcMethods["runtime/request-snapshot/read"].capability).toBe("runtime.request-snapshots.v1")
+    expect(methods.every(([, definition]) => definition.mutation === false)).toBe(true)
+    expect(Capabilities).toContain("runtime.contributions.v1")
+    expect(Capabilities).toContain("runtime.request-snapshots.v1")
+    const capability = Schema.decodeUnknownSync(ProtocolCapabilitySchema)("runtime.request-snapshots.v1")
+    expect(Schema.encodeSync(ProtocolCapabilitySchema)(capability)).toBe("runtime.request-snapshots.v1")
+  })
+
   test("任务看板方法统一使用 taskboard.v1 并在 wire 边界限制正文和标签", () => {
     const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("taskboard/"))
     expect(methods).toHaveLength(22)
@@ -2720,7 +2951,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(225)
+    expect(methods).toHaveLength(247)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -2988,7 +3219,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(219)
+    expect(Object.keys(RpcMethods)).toHaveLength(241)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

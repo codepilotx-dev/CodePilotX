@@ -9,6 +9,15 @@ export async function startAgentServer(): Promise<void> {
     fallbackLogger.error("agent.startup-failed", { error: cause instanceof Error ? cause.message : String(cause) })
     throw cause
   })
+  // System Profile boot 失败（首次）：请求 sidecar 用 last-good 重启一次。
+  if (runtime.systemProfileBoot?.exitCode !== null && runtime.systemProfileBoot?.exitCode !== undefined) {
+    runtime.logger.error("agent.system-profile-boot-failed", {
+      exitCode: runtime.systemProfileBoot.exitCode,
+      errorCode: runtime.systemProfileBoot.error?.code ?? null,
+      message: runtime.systemProfileBoot.error?.message ?? "",
+    })
+    process.exit(runtime.systemProfileBoot.exitCode)
+  }
   const server = Bun.serve({
     hostname: runtime.config.host,
     port: runtime.config.port,

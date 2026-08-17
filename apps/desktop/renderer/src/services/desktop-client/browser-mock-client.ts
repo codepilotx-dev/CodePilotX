@@ -125,6 +125,7 @@ import {
 import type {
   DesktopAttachmentApi,
   DesktopLocalContextApi,
+  DesktopPluginApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
   DesktopSpeechStatus,
@@ -169,7 +170,7 @@ function taskboardMutationUnavailable(): never {
 export function createBrowserMockDesktopClient(
   storage?: Storage,
 ): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
-  & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi {
+  & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi & DesktopPluginApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
   const performanceFixture = createBrowserPerformanceFixture()
@@ -321,6 +322,25 @@ export function createBrowserMockDesktopClient(
     },
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
+    listPlugins: async () => ({ plugins: [] }),
+    installPluginPackage: async () => { throw new Error('浏览器模拟环境不支持插件安装。') },
+    linkPluginDirectory: async () => { throw new Error('浏览器模拟环境不支持开发目录链接。') },
+    unlinkPluginDirectory: async () => { throw new Error('浏览器模拟环境不支持取消链接。') },
+    enablePlugin: async () => { throw new Error('浏览器模拟环境不支持插件启用。') },
+    disablePlugin: async () => { throw new Error('浏览器模拟环境不支持插件禁用。') },
+    uninstallPlugin: async () => { throw new Error('浏览器模拟环境不支持插件卸载。') },
+    getPluginConfig: async input => ({ pluginId: input.pluginId, config: {} }),
+    updatePluginConfig: async () => { throw new Error('浏览器模拟环境不支持插件配置。') },
+    getPluginGrants: async input => ({ pluginId: input.pluginId, digest: '0'.repeat(64), grants: [] }),
+    updatePluginGrants: async () => { throw new Error('浏览器模拟环境不支持插件授权。') },
+    profileStagePlugin: async () => { throw new Error('浏览器模拟环境不支持 System Profile。') },
+    profileApplyOnRestart: async () => { throw new Error('浏览器模拟环境不支持 System Profile。') },
+    listPluginProfiles: async () => ({ profiles: [] }),
+    listPluginContributions: async () => ({ tools: [], skills: [], mcpServers: [], promptCommands: [], settings: [], workbenchViews: [] }),
+    executePluginCommand: async () => { throw new Error('浏览器模拟环境不支持插件命令。') },
+    getPluginOperation: async () => { throw new Error('浏览器模拟环境不支持插件操作查询。') },
+    renderPluginView: async () => ({ nodes: [{ kind: 'status' as const, text: '浏览器模拟环境没有插件视图。' }] }),
+    runPluginViewAction: async () => { throw new Error('浏览器模拟环境不支持插件视图动作。') },
     getAuthStatus: async () => mockAuthStatus(),
     getRuntimeStatus: async () => mockRuntimeStatus(),
     diagnoseDesktopToolchain: async () => {

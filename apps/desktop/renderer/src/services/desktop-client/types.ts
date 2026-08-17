@@ -346,6 +346,16 @@ export type DesktopRuntimeCapabilityApi = {
   getRuntimeCapabilities(): Promise<readonly ProtocolCapability[]>
 }
 
+export type DesktopRequestSnapshotApi = {
+  listRequestSnapshots(
+    input: RpcParams<'runtime/request-snapshot/list'>,
+  ): Promise<RpcResult<'runtime/request-snapshot/list'>>
+  readRequestSnapshot(
+    input: RpcParams<'runtime/request-snapshot/read'>,
+  ): Promise<RpcResult<'runtime/request-snapshot/read'>>
+  listRuntimeContributions(): Promise<RpcResult<'runtime/contribution/list'>>
+}
+
 type WithoutOperationId<T> = T extends { operationId: unknown }
   ? Omit<T, 'operationId'>
   : T
@@ -418,6 +428,28 @@ export type DesktopLocalContextApi = {
   ): Promise<RpcResult<'context/path/list'>>
 }
 
+export type DesktopPluginApi = {
+  listPlugins(): Promise<RpcResult<'plugin/list'>>
+  installPluginPackage(input: RpcParams<'plugin/installPackage'>): Promise<RpcResult<'plugin/installPackage'>>
+  linkPluginDirectory(input: RpcParams<'plugin/linkDirectory'>): Promise<RpcResult<'plugin/linkDirectory'>>
+  unlinkPluginDirectory(input: RpcParams<'plugin/unlinkDirectory'>): Promise<RpcResult<'plugin/unlinkDirectory'>>
+  enablePlugin(input: RpcParams<'plugin/enable'>): Promise<RpcResult<'plugin/enable'>>
+  disablePlugin(input: RpcParams<'plugin/disable'>): Promise<RpcResult<'plugin/disable'>>
+  uninstallPlugin(input: RpcParams<'plugin/uninstall'>): Promise<RpcResult<'plugin/uninstall'>>
+  getPluginConfig(input: RpcParams<'plugin/config/get'>): Promise<RpcResult<'plugin/config/get'>>
+  updatePluginConfig(input: RpcParams<'plugin/config/update'>): Promise<RpcResult<'plugin/config/update'>>
+  getPluginGrants(input: RpcParams<'plugin/grants/get'>): Promise<RpcResult<'plugin/grants/get'>>
+  updatePluginGrants(input: RpcParams<'plugin/grants/update'>): Promise<RpcResult<'plugin/grants/update'>>
+  profileStagePlugin(input: RpcParams<'plugin/profile/stage'>): Promise<RpcResult<'plugin/profile/stage'>>
+  profileApplyOnRestart(input: RpcParams<'plugin/profile/applyOnRestart'>): Promise<RpcResult<'plugin/profile/applyOnRestart'>>
+  listPluginProfiles(): Promise<RpcResult<'plugin/profile/list'>>
+  listPluginContributions(): Promise<RpcResult<'plugin/contribution/list'>>
+  executePluginCommand(input: RpcParams<'plugin/command/execute'>): Promise<RpcResult<'plugin/command/execute'>>
+  getPluginOperation(input: RpcParams<'plugin/operation/get'>): Promise<RpcResult<'plugin/operation/get'>>
+  renderPluginView(input: RpcParams<'plugin/view/render'>): Promise<RpcResult<'plugin/view/render'>>
+  runPluginViewAction(input: RpcParams<'plugin/view/action'>): Promise<RpcResult<'plugin/view/action'>>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
@@ -427,7 +459,9 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopUsageApi &
   DesktopReleaseNotesApi &
   DesktopRuntimeCapabilityApi &
+  DesktopRequestSnapshotApi &
   DesktopTaskboardApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &
-  DesktopLocalContextApi
+  DesktopLocalContextApi &
+  DesktopPluginApi

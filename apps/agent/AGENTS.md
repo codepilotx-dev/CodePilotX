@@ -8,6 +8,8 @@
 
 - `src/index.ts` 是可执行入口，`src/bootstrap.ts` 是 composition root；两者都不得承载业务逻辑。
 - Agent 保持 Bun + Effect 模块化单体，不得把业务逻辑移动到 Electron 或 renderer。
+- 插件平台能力放在 `src/plugin/` 领域：包/Inventory、运行时管理、process supervisor、service broker 与贡献适配；SQL 只允许进入对应 repository，不得堆回领域 service。
+- Application runner 环境使用最小 allowlist；runner 进程不得获得 Agent bearer token、Provider key、SQLite path 或完整环境变量。插件代码只能经 Plugin Host 加载执行，禁止绕过该链动态执行任意文件或字符串。
 - HTTP、RPC、SSE、projection 和 renderer proxy 放在 `src/transport/`。
 - 会话状态与历史放在 `src/session/`，执行编排放在 `src/orchestration/`。
 - SQLite 按 `storage/database/`、`storage/repositories/`、`storage/events/`、`storage/recovery/` 分层。

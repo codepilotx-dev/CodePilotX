@@ -52,6 +52,9 @@ declare global {
       copyProviderApiKey(
         credentialId: string,
       ): Promise<{ clearAfterMs: 60000 }>
+      pickPluginPackageFile(): Promise<{ canceled: boolean; path: string | null }>
+      pickPluginDirectory(): Promise<{ canceled: boolean; path: string | null }>
+      restartApp(): Promise<void>
     } & DesktopPetOverlayBridge
       & DesktopDataLocationIpcBridge
       & DesktopEditIpcBridge

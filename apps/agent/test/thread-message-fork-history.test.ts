@@ -383,7 +383,9 @@ describe("PiEventAdapter turn boundary", () => {
     const completed: Array<{ placement: string; sessionEntryID?: string }> = []
     const adapter = new PiEventAdapter(
       { threadID: "thread", turnID: "turn", agentID: "agent" },
-      { assistantMessageCompleted: (_context, input) => { completed.push(input) } },
+      (event) => {
+        if (event.type === "assistant.completed") completed.push(event)
+      },
       { resolveSessionEntryID: () => "assistant-entry" },
     )
     await adapter.handle({ type: "message_end", message: assistant("done", 1) })

@@ -1,0 +1,35 @@
+{
+  "name": "@codepilotx/plugin-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./manifest": "./src/manifest.ts",
+    "./contributions": "./src/contributions.ts",
+    "./permissions": "./src/permissions.ts",
+    "./services": "./src/services.ts",
+    "./application": "./src/application/index.ts",
+    "./system": "./src/system/index.ts",
+    "./wire": "./src/wire/index.ts",
+    "./testing": "./src/testing/index.ts",
+    "./pack": "./src/pack.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "generate:schema": "bun scripts/generate-json-schema.ts",
+    "plugin": "bun scripts/plugin-cli.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-beta.83"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "ajv": "8.20.0",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "bun": "1.3.14"
+  }
+}

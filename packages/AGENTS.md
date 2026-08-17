@@ -12,6 +12,7 @@
 - `shared` 定义跨进程复用的应用领域模型；`shared/thread` 不拥有 RPC 编排类型。
 - `agent-protocol` 是 v4 method、event、wire error、capability 和 runtime dispatcher 的唯一协议来源。
 - `session-view` 只进行 canonical projection 和 thread projection 的纯转换。
+- `plugin-sdk` 是 Manifest v1、Application Plugin Protocol v1 wire、Service 声明、权限声明与 System/Profile 插件框架的唯一来源；禁止复制其 schema、建立平行校验实现或新增插件平台 workspace。
 - 依赖必须沿公开契约流动，禁止复制底层 schema 或制造循环依赖。
 
 ## 多客户端共享契约

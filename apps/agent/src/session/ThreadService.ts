@@ -140,6 +140,13 @@ export class ThreadService {
     resumeOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
     private readonly firstTurnAdmission?: (threadID: string) => EventEnvelope | null,
+    private readonly pluginSkillBases?: () => Array<{
+      containmentRoot: string
+      skillsRoot: string
+      origin: "plugin"
+      format: "codepilotx"
+      pluginId: string
+    }>,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -830,6 +837,7 @@ export class ThreadService {
         dataRoot: this.promptStorage.dataRoot,
         userHome: this.promptStorage.userHome,
         includeWorkspace: runtime.kind === "project",
+        ...(this.pluginSkillBases ? { extraBases: this.pluginSkillBases() } : {}),
       })
       mcpLease = await this.mcp?.acquire(runtime.workspaceRoot)
       const invokedSkill = skillService.resolveInvocation(content)

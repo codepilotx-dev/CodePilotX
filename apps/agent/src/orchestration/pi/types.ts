@@ -13,6 +13,11 @@ import type { PromptBundle, PromptSection } from "../../prompt/types"
 import type { ToolExecutor } from "../../tool/ToolExecutor"
 import type { ToolCatalog } from "../../tool/ToolRegistry"
 import type { WorkspaceService } from "../../workspace/WorkspaceService"
+import type { AgentRuntimeScope, RuntimeLease } from "../../runtime/AgentRuntimeScope"
+import type { AgentLogger } from "../../observability/AgentLogger"
+import type { RuntimeContributionRegistry, RuntimeSnapshot } from "../../runtime/RuntimeContribution"
+import type { RequestSnapshotRecorder } from "../../snapshot/RequestSnapshotRecorder"
+import type { RuntimeStepService } from "../../runtime/RuntimeStepService"
 import type { ExecutionPlanInput } from "../plan/ExecutionPlanInput"
 import type { RequestUserInput } from "../../session/QuestionInput"
 
@@ -65,67 +70,66 @@ export interface PiRuntimeEventContext {
 
 export type PiAssistantMessagePlacement = "process" | "result"
 
-/**
- * Persistence is deliberately outside the Pi adapter. The eventual Agent integration
- * must implement savePoint/settled with AgentDatabase transactions and publish only
- * after the transaction commits.
- */
-export interface PiRuntimeEventSink {
-  event?(context: PiRuntimeEventContext, event: AgentHarnessEvent): void | Promise<void>
-  assistantMessageStarted?(context: PiRuntimeEventContext, input: {
-    textItemID: string
-    reasoningItemID: string
-    placement: PiAssistantMessagePlacement
-  }): void | Promise<void>
-  assistantMessageCompleted?(context: PiRuntimeEventContext, input: {
-    textItemID: string
-    reasoningItemID: string
-    planItemID: string
-    placement: PiAssistantMessagePlacement
-    content: unknown
-    text?: string
-    plan?: string | null
-    provider: string
-    api: string
-    model: string
-    /** Final assistant message entry in the private Pi session tree. */
-    sessionEntryID?: string
-    usage: {
-      input: number
-      output: number
-      cacheRead: number
-      cacheWrite: number
-      reasoning: number
+/** 语义运行时事件的载荷部分（不带 context）。 */
+export type PiRuntimeEventPayload =
+  | { type: "assistant.started"; textItemID: string; reasoningItemID: string; placement: PiAssistantMessagePlacement }
+  | {
+      type: "assistant.completed"
+      textItemID: string
+      reasoningItemID: string
+      planItemID: string
+      placement: PiAssistantMessagePlacement
+      content: unknown
+      text?: string
+      plan?: string | null
+      provider: string
+      api: string
+      model: string
+      /** Final assistant message entry in the private Pi session tree. */
+      sessionEntryID?: string
+      usage: {
+        input: number
+        output: number
+        cacheRead: number
+        cacheWrite: number
+        reasoning: number
+      }
     }
-  }): void | Promise<void>
-  textDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
-  planStarted?(context: PiRuntimeEventContext, input: { itemID: string }): void | Promise<void>
-  planDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
-  reasoningDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
-  toolStarted?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; input: unknown }): void | Promise<void>
-  toolUpdated?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; update: unknown }): void | Promise<void>
-  toolFinished?(context: PiRuntimeEventContext, input: {
-    toolCallID: string
-    tool: string
-    result: string
-    details: unknown
-    isError: boolean
-  }): void | Promise<void>
-  queueUpdated?(context: PiRuntimeEventContext, input: { steer: number; followUp: number; nextTurn: number }): void | Promise<void>
-  queueConsumed?(context: PiRuntimeEventContext, input: { delivery: "steer" | "follow-up" | "next-turn"; inputIDs: string[] }): void | Promise<void>
-  compacted?(context: PiRuntimeEventContext, input: {
-    entryID: string
-    summary: string
-    firstKeptEntryID: string | null
-    tokensBefore: number
-    beforeCount: number
-    trigger: RuntimeCompactionTrigger
-    promptText: string
-  }): void | Promise<void>
-  savePoint?(context: PiRuntimeEventContext, input: { hadPendingMutations: boolean }): void | Promise<void>
-  settled?(context: PiRuntimeEventContext, input: { nextTurnCount: number }): void | Promise<void>
-  aborted?(context: PiRuntimeEventContext): void | Promise<void>
-}
+  | { type: "assistant.text.delta"; itemID: string; delta: string }
+  | { type: "assistant.reasoning.delta"; itemID: string; delta: string }
+  | { type: "plan.started"; itemID: string }
+  | { type: "plan.delta"; itemID: string; delta: string }
+  | { type: "tool.started"; toolCallID: string; tool: string; input: unknown }
+  | { type: "tool.updated"; toolCallID: string; tool: string; update: unknown }
+  | {
+      type: "tool.finished"
+      toolCallID: string
+      tool: string
+      result: string
+      details: unknown
+      isError: boolean
+    }
+  | { type: "queue.updated"; steer: number; followUp: number; nextTurn: number }
+  | { type: "queue.consumed"; delivery: "steer" | "follow-up" | "next-turn"; inputIDs: string[] }
+  | {
+      type: "compaction.completed"
+      entryID: string
+      summary: string
+      firstKeptEntryID: string | null
+      tokensBefore: number
+      beforeCount: number
+      trigger: RuntimeCompactionTrigger
+      promptText: string
+    }
+  | { type: "runtime.savepoint"; hadPendingMutations: boolean }
+  | { type: "runtime.settled"; nextTurnCount: number }
+  | { type: "runtime.aborted" }
+
+/** 语义运行时事件：Pi 原始事件经 PiEventAdapter 映射后的唯一投影输入。 */
+export type PiRuntimeEvent = { context: PiRuntimeEventContext } & PiRuntimeEventPayload
+
+/** 唯一投影入口：PiRuntimeProjector 消费同一事件流，不再有大型可选回调接口。 */
+export type PiRuntimeEventHandler = (event: PiRuntimeEvent) => void | Promise<void>
 
 export interface PiToolAdapterOptions {
   executor: ToolExecutor
@@ -159,8 +163,24 @@ export interface PiLifecycleCallbacks {
 export interface PiAgentRuntimeOptions {
   harnessFactory: PiHarnessFactory
   toolExecutor: ToolExecutor
-  eventSink?: PiRuntimeEventSink
+  /** 语义事件投影入口；持久化由 PiRuntimeProjector 在事务提交后完成。 */
+  eventHandler?: PiRuntimeEventHandler
+  /** 原始 Harness 事件观测（仅用于诊断日志，不进入协议）。 */
+  observeHarnessEvent?: (context: PiRuntimeEventContext, event: AgentHarnessEvent) => void
   lifecycle?: PiLifecycleCallbacks
+  /** 仓库内静态贡献注册表；每次运行时绑定到新 scope。 */
+  contributions?: RuntimeContributionRegistry
+  /**
+   * 运行时开始时获取的资源租约（scope 释放时逆序回收）。
+   * PR 0 无宿主接线；为 MCP/插件 generation lease 预留的装配位。
+   */
+  acquireLeases?: (request: PiRuntimeRequest) => Promise<readonly RuntimeLease[]>
+  /** 诊断日志（observer 失败等）；失败不回滚已完成的 canonical projection。 */
+  logger?: AgentLogger
+  /** 完整 Provider 请求快照采集器；未开启配置时内部直接跳过。 */
+  requestSnapshot?: RequestSnapshotRecorder
+  /** 持久 step 状态机与 model-visible context invariant；未注入时跳过（测试/无宿主）。 */
+  runtimeSteps?: RuntimeStepService
   beforeToolCall?: (request: PiRuntimeRequest, input: { toolCallID: string; tool: string; input: Record<string, unknown> }) => Promise<{ block?: boolean; reason?: string; pause?: boolean } | undefined>
   compaction?: {
     shouldAutoCompact(threadID: string): boolean | Promise<boolean>
@@ -170,8 +190,11 @@ export interface PiAgentRuntimeOptions {
 
 export interface ActivePiHarness {
   harness: AgentHarness
-  unsubscribe: () => void
+  /** 本次运行的可回收 scope；释放即解除订阅并中止 harness。 */
+  scope: AgentRuntimeScope
   compact(trigger: RuntimeCompactionTrigger, instructions?: string): Promise<CompactResult>
+  /** 本轮运行开始时冻结的快照。 */
+  snapshot: RuntimeSnapshot
 }
 
 export interface PiAgentRuntimeApi {

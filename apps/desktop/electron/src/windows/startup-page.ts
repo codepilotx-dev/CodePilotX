@@ -1,6 +1,6 @@
 import type {
   DesktopChromeTheme,
-  DesktopThemeSettingsV6,
+  DesktopThemeSettingsV7,
 } from "@codepilotx/shared/desktop-theme"
 
 export type StartupStatusKind = "progress" | "terminal-error"
@@ -12,7 +12,7 @@ export interface StartupPageOptions {
 }
 
 export function resolveStartupPageTheme(
-  settings: DesktopThemeSettingsV6,
+  settings: DesktopThemeSettingsV7,
   systemVariant: "light" | "dark",
 ): Omit<StartupPageOptions, "logoDataUrl"> {
   const variant = settings.mode === "system" ? systemVariant : settings.mode

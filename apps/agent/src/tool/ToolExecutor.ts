@@ -3,6 +3,7 @@ import type { WorkspaceService } from "../workspace/WorkspaceService"
 import {
   toolNameMatches,
   type ToolCatalog,
+  type ToolCatalogEntry,
   type ToolFileSnapshots,
   type ToolInputInspection,
   type ToolProgress,
@@ -15,7 +16,7 @@ import { runHostCommand, type ProcessResult } from "./Shell/HostProcess"
 import { shellCommandSegments } from "./Shell/CommandSyntax"
 import { realpath } from "node:fs/promises"
 import { dirname, isAbsolute, normalize, relative, resolve } from "node:path"
-import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions } from "../permission/PermissionDecisionEngine"
+import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions, type PermissionPolicyOverride } from "../permission/PermissionDecisionEngine"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
 import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
 import { PermissionGrantStore } from "../permission/PermissionGrantStore"
@@ -24,6 +25,7 @@ import { analyzeShellRisk, type ShellSecurityLevel } from "../security/ShellRisk
 import { secretScrubber } from "../security/SecretScrubber"
 import { resolveManagedTool, resolveToolingEnvironment, runToolProcess, toolingPathOverride, type ToolingEnvironmentResolver, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
 import type { ManagedToolID, ToolingResolution } from "./ToolingManager"
+import { mergeToolGuards, type ResolvedToolInvocation, type ToolExecutionPipeline, type ToolGuardResult } from "./ToolPipeline"
 import { applyEditsText, type EditOperation } from "./Edit/applyEditText"
 import type { AgentLogger } from "../observability/AgentLogger"
 import { parseApplyPatch } from "./ApplyPatch/parseApplyPatch"
@@ -99,20 +101,33 @@ export interface ToolExecutorOptions {
   recordMutation?: (batch: TurnPatchMutationBatch) => Promise<void>
   discardMutationEvidence?: (input: { threadID: string; turnID: string }) => Promise<void>
   permissionGrants?: PermissionGrantStore
+  /** System permission-policy provider（PR 8B）；缺省使用默认策略。 */
+  policyOverride?: () => PermissionPolicyOverride | null
   logger?: AgentLogger
 }
 
-/** The sole host-capability entrypoint. Approval and Hook gates run before host execution. */
-export class ToolExecutor {
-  private readonly decisions = new PermissionDecisionEngine()
+/**
+ * The sole host-capability entrypoint. Every invocation runs the shared pipeline:
+ * resolve -> inspect -> authorize -> execute -> finalize.
+ */
+export class ToolExecutor implements ToolExecutionPipeline {
+  private readonly decisions: PermissionDecisionEngine
   readonly permissionGrants: PermissionGrantStore
   private readonly readSnapshots = new Map<string, { mtimeMs: number; sha256: string }>()
   constructor(private readonly registry: ToolRegistry, private readonly options?: ToolExecutorOptions) {
     this.permissionGrants = options?.permissionGrants ?? new PermissionGrantStore()
+    this.decisions = new PermissionDecisionEngine(
+      options?.policyOverride ? { policyOverride: options.policyOverride } : {},
+    )
   }
 
   definition(name: string, catalog: ToolCatalog = this.registry) {
     return catalog.get(name)
+  }
+
+  /** 进程级基础目录（不含 per-turn scoped/contributed tools）。 */
+  baseCatalog(): ToolCatalog {
+    return this.registry
   }
 
   exposurePlan(input: ToolExposureInput, catalog: ToolCatalog = this.registry) {
@@ -128,6 +143,17 @@ export class ToolExecutor {
   }
 
   async execute<T = unknown>(name: string, input: Record<string, unknown>, context: ToolExecutionContext): Promise<T> {
+    // ── Phase: resolve ──
+    const resolved = await this.resolveInvocation(name, input, context)
+    if (resolved.kind === "completed") return resolved.output as T
+    const { canonicalName } = resolved.invocation
+    if (canonicalName === "Bash" || canonicalName === "PowerShell") {
+      return this.executeShellPipeline<T>(resolved.invocation)
+    }
+    return this.executeRegisteredPipeline<T>(resolved.invocation)
+  }
+
+  private async resolveInvocation(name: string, input: Record<string, unknown>, context: ToolExecutionContext): Promise<{ kind: "completed"; output: unknown } | { kind: "invocation"; invocation: ResolvedToolInvocation }> {
     if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
     const requestStartedAt = Date.now()
     context = {
@@ -174,7 +200,7 @@ export class ToolExecutor {
         if (completed.name !== canonicalName || JSON.stringify(storedInput) !== JSON.stringify(normalized)) {
           throw new AgentError("TOOL_CALL_ID_CONFLICT", "toolCallId 已被不同的工具调用使用", 409)
         }
-        return completed.output as T
+        return { kind: "completed", output: completed.output }
       }
     }
     const profile = context.profile ?? "main"
@@ -190,21 +216,18 @@ export class ToolExecutor {
         ...(context.onProgress ? { onProgress: context.onProgress } : {}),
       })
       if (progress) context.onProgress?.(progress)
-      return await this.executeShell(canonicalName, normalized, context, catalog) as T
     }
-    return this.executeRegistered<T>(canonicalName, normalized, context, catalog)
+    return { kind: "invocation", invocation: { definition, canonicalName, input: normalized, context, startedAt: requestStartedAt } }
   }
 
-  private async executeRegistered<T>(name: string, input: Record<string, unknown>, context: ToolExecutionContext, catalog: ToolCatalog) {
-    if (!isFileMutationTool(name)) return this.executeRegisteredCore<T>(name, input, context, catalog)
+  private async executeRegisteredPipeline<T>(invocation: ResolvedToolInvocation): Promise<T> {
+    const { canonicalName: name, input, context } = invocation
+    if (!isFileMutationTool(name)) return this.executeRegisteredCore<T>(invocation)
     const startedAt = Date.now()
     let phase: FileToolFailurePhase = "normalize"
     try {
       return await this.executeRegisteredCore<T>(
-        name,
-        input,
-        context,
-        catalog,
+        invocation,
         (nextPhase) => { phase = nextPhase },
       )
     } catch (cause) {
@@ -214,19 +237,18 @@ export class ToolExecutor {
   }
 
   private async executeRegisteredCore<T>(
-    name: string,
-    input: Record<string, unknown>,
-    context: ToolExecutionContext,
-    catalog: ToolCatalog,
+    invocation: ResolvedToolInvocation,
     setFilePhase?: (phase: FileToolFailurePhase) => void,
   ) {
+    const { definition, canonicalName: name, input, context } = invocation
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const skipProjectHooks = context.skipHooks || context.taskMode === "plan"
+    const catalog = context.toolCatalog ?? this.registry
     if (this.options?.userConfigPath) {
       context.workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
     }
-    const definition = catalog.get(name)
+    // ── Phase: inspect ──
     const fileSnapshots = this.fileSnapshots(context)
     const inspection = definition.inspectInput
       ? this.validateToolInputInspection(await definition.inspectInput(input, {
@@ -273,7 +295,7 @@ export class ToolExecutor {
     const policyInput = sensitiveEnvironment || protectedGitWrite || protectedConfigWrite || authorizationScope?.ruleRequiresApproval
       ? { ...input, __ruleRequiresApproval: true }
       : input
-    const invocation: ToolInvocation = {
+    const toolInvocation: ToolInvocation = {
       id: context.toolCallID ?? crypto.randomUUID(),
       threadID: context.threadID,
       turnID: context.turnID,
@@ -286,13 +308,14 @@ export class ToolExecutor {
       ...(authorizationScope ? { authorizationScope } : {}),
       ...(context.authorizationOnly ? { durableApproval: true } : {}),
     }
+    // ── Phase: authorize ──
     setFilePhase?.("authorization")
-    const resolved = this.decisions.evaluate(invocation, definition)
+    const resolved = this.decisions.evaluate(toolInvocation, definition)
     if (resolved.action === "deny") throw new AgentError("TOOL_PERMISSION_DENIED", resolved.reason, 403, resolved)
-    const resumedApproval = context.approvedToolCallID === invocation.id
+    const resumedApproval = context.approvedToolCallID === toolInvocation.id
     if (
       resumedApproval
-      && invocation.authorizationScope?.fingerprint !== context.approvedAuthorizationFingerprint
+      && toolInvocation.authorizationScope?.fingerprint !== context.approvedAuthorizationFingerprint
     ) {
       throw new AgentError("APPROVAL_SCOPE_CHANGED", "工具输入或受影响文件范围已变化，需要重新审批", 409)
     }
@@ -302,7 +325,7 @@ export class ToolExecutor {
           threadId: context.threadID,
           turnId: context.turnID,
           ...(context.agentID ? { agentId: context.agentID } : {}),
-          toolCallId: invocation.id,
+          toolCallId: toolInvocation.id,
         },
         details: {
           tool: name,
@@ -310,31 +333,35 @@ export class ToolExecutor {
         },
       })
     }
-    const hookResults = skipProjectHooks || resumedApproval ? [] : await this.options?.hooks?.run("pre_tool_use", {
-      input,
-      resolved,
-      ...(authorizationScope ? { authorizationScope } : {}),
-    }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }) ?? []
-    const denied = hookResults.find(({ result }) => result.decision === "deny")
-    if (denied) throw new AgentError("HOOK_DENIED", denied.result.reason ?? "PreToolUse Hook 拒绝执行", 403)
-    const narrowed = hookResults.map(({ result }) => result.narrowedInput).filter((value): value is Record<string, unknown> => Boolean(value)).at(-1)
+    const hookOutcome = await this.runPreToolHooks({
+      skipHooks: skipProjectHooks || resumedApproval,
+      evidence: {
+        input,
+        resolved,
+        ...(authorizationScope ? { authorizationScope } : {}),
+      },
+      context,
+      invocation: toolInvocation,
+      toolName: name,
+    })
+    if (hookOutcome.denied) throw new AgentError("HOOK_DENIED", hookOutcome.denied.result.reason ?? "PreToolUse Hook 拒绝执行", 403)
+    const narrowed = hookOutcome.narrowed
     if (narrowed && JSON.stringify(narrowed) !== JSON.stringify(input)) {
       if ((context.hookDepth ?? 0) >= 2) throw new AgentError("HOOK_REWRITE_LIMIT", "Hook 重写工具输入次数过多", 409)
       return this.execute<T>(name, { ...input, ...narrowed }, { ...context, hookDepth: (context.hookDepth ?? 0) + 1 })
     }
-    const hookAsked = hookResults.some(({ result }) => result.decision === "ask")
-    if (hookAsked) invocation.input = { ...invocation.input, __hookRequiresApproval: true }
-    const grant = !resumedApproval && !hookAsked && resolved.action === "review"
-      ? this.permissionGrantFor(invocation, definition, !context.authorizationOnly)
+    if (hookOutcome.asked) toolInvocation.input = { ...toolInvocation.input, __hookRequiresApproval: true }
+    const grant = !resumedApproval && !hookOutcome.asked && resolved.action === "review"
+      ? this.permissionGrantFor(toolInvocation, definition, !context.authorizationOnly)
       : null
     let authorization: PermissionDecision = {
       decision: "allow",
       risk: resolved.risk,
       reason: grant ? `已使用 ${grant.scope} 临时权限` : "统一权限策略允许",
     }
-    if ((resolved.action === "review" || hookAsked) && !resumedApproval && !grant) {
+    if ((resolved.action === "review" || hookOutcome.asked) && !resumedApproval && !grant) {
       if (!this.options) throw new AgentError("TOOL_REVIEW_REQUIRED", "工具需要审批但执行器未配置审批服务", 403)
-      authorization = await this.options.authorizeShell(secretScrubber.scrub(invocation), context.signal)
+      authorization = await this.options.authorizeShell(secretScrubber.scrub(toolInvocation), context.signal)
     }
     if (context.authorizationOnly) {
       return {
@@ -343,9 +370,10 @@ export class ToolExecutor {
       } as T
     }
     if (authorization.decision !== "allow") throw new AgentError("TOOL_PERMISSION_DENIED", authorization.reason, 403, authorization)
+    // ── Phase: execute ──
     setFilePhase?.("execute")
     const startedAt = Date.now()
-    const auditInvocation = secretScrubber.scrub(invocation)
+    const auditInvocation = secretScrubber.scrub(toolInvocation)
     this.options?.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
     try {
       const filePath = typeof input.file_path === "string"
@@ -379,7 +407,7 @@ export class ToolExecutor {
           threadID: context.threadID,
           turnID: context.turnID,
           agentID: context.agentID ?? context.turnID,
-          toolCallID: invocation.id,
+          toolCallID: toolInvocation.id,
         },
         ...(this.options?.recordMutation ? {
           recordMutation: async (files) => {
@@ -387,7 +415,7 @@ export class ToolExecutor {
               threadID: context.threadID,
               turnID: context.turnID,
               agentID: context.agentID ?? context.turnID,
-              toolCallID: invocation.id,
+              toolCallID: toolInvocation.id,
               files,
             }
             if (JSON.stringify(secretScrubber.scrub(files)) !== JSON.stringify(files)) {
@@ -400,7 +428,7 @@ export class ToolExecutor {
                   threadId: context.threadID,
                   turnId: context.turnID,
                   agentId: context.agentID ?? context.turnID,
-                  toolCallId: invocation.id,
+                  toolCallId: toolInvocation.id,
                 },
                 details: { reason: "sensitive_content" },
               })
@@ -418,7 +446,7 @@ export class ToolExecutor {
                   threadId: context.threadID,
                   turnId: context.turnID,
                   agentId: context.agentID ?? context.turnID,
-                  toolCallId: invocation.id,
+                  toolCallId: toolInvocation.id,
                 },
                 details: { reason: "persistence_failed" },
               })
@@ -446,21 +474,22 @@ export class ToolExecutor {
           ?? (await context.workspace.readEditorFile(filePath)).revision
         if (savedSnapshotKey) this.readSnapshots.set(savedSnapshotKey, revision)
       }
+      // ── Phase: finalize ──
       const safeOutput = secretScrubber.scrub(output)
       this.options?.recordToolCall?.(auditInvocation, "completed", safeOutput, null, startedAt)
       if (!skipProjectHooks) {
-        await this.options?.hooks?.run("post_tool_use", { input, output: safeOutput }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }).catch((cause) => {
-          if (isFileMutationTool(name)) this.logFileToolFailure(name, input, context, "post-hook", cause, startedAt)
-        })
+        await this.runPostToolHook("post_tool_use", { input, output: safeOutput }, context, name, toolInvocation.id, isFileMutationTool(name)
+          ? (cause) => this.logFileToolFailure(name, input, context, "post-hook", cause, startedAt)
+          : undefined)
       }
       return output as T
     } catch (cause) {
       const error = secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause))
       this.options?.recordToolCall?.(auditInvocation, context.signal.aborted ? "interrupted" : "error", null, error, startedAt)
       if (!skipProjectHooks) {
-        await this.options?.hooks?.run("post_tool_error", { input, error }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }).catch((hookCause) => {
-          if (isFileMutationTool(name)) this.logFileToolFailure(name, input, context, "post-hook", hookCause, startedAt)
-        })
+        await this.runPostToolHook("post_tool_error", { input, error }, context, name, toolInvocation.id, isFileMutationTool(name)
+          ? (cause) => this.logFileToolFailure(name, input, context, "post-hook", cause, startedAt)
+          : undefined)
       }
       throw cause
     }
@@ -546,7 +575,9 @@ export class ToolExecutor {
     })
   }
 
-  private async executeShell(shellTool: "Bash" | "PowerShell", input: Record<string, unknown>, context: ToolExecutionContext, catalog: ToolCatalog): Promise<ProcessResult | PermissionDecision> {
+  private async executeShellPipeline<T>(invocation: ResolvedToolInvocation): Promise<T> {
+    const { canonicalName, input, context } = invocation
+    const shellTool = canonicalName as "Bash" | "PowerShell"
     const options = this.options
     if (!options) throw new AgentError("SHELL_EXECUTOR_REQUIRED", "Shell 执行器未配置", 500)
     const logContext = {
@@ -571,6 +602,8 @@ export class ToolExecutor {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const executionPolicy = executionPolicyFromV4(permissionConfig)
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
+    const catalog = context.toolCatalog ?? this.registry
+    // ── Phase: inspect（输入解析与 cwd 门禁；此段失败不产生 shell 执行日志）──
     const parsedShell = this.parseShellInput(input)
     const workspaceRoot = await realpath(context.workspace.rootPath)
     const additionalPermissions = parsedShell.additionalPermissions ? {
@@ -589,7 +622,7 @@ export class ToolExecutor {
         throw new AgentError("SHELL_CWD_PERMISSION_REQUIRED", "工作区外 cwd 必须在 additionalPermissions.readPaths 中声明", 403)
       }
     }
-    const invocation: ToolInvocation = {
+    const toolInvocation: ToolInvocation = {
       id: context.toolCallID ?? crypto.randomUUID(),
       threadID: context.threadID,
       turnID: context.turnID,
@@ -608,10 +641,11 @@ export class ToolExecutor {
     }
     const preflightStartedAt = Date.now()
     const toolStartedAt = Date.now()
-    let phase = "risk"
+    let phase: "risk" | "hook" | "authorization" | "runtime" | "execution" = "risk"
     let hookDecision: "continue" | "ask" | "deny" | "skipped" = "skipped"
     let risk: PermissionDecision["risk"] | undefined
     try {
+      // ── Phase: inspect（Shell 静态风险分析）──
       const staticRisk = analyzeShellRisk({
         command: shell.command,
         cwd,
@@ -623,38 +657,48 @@ export class ToolExecutor {
       risk = staticRisk.risk
       if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
       if (staticRisk.requiresApproval) {
-        invocation.input = {
-          ...invocation.input,
+        toolInvocation.input = {
+          ...toolInvocation.input,
           __ruleRequiresApproval: true,
         }
       }
-      const resumedApproval = context.approvedToolCallID === invocation.id
+      // ── Phase: authorize ──
+      const resumedApproval = context.approvedToolCallID === toolInvocation.id
       phase = "hook"
-      const hookResults = context.skipHooks || resumedApproval ? [] : await this.options.hooks?.run("pre_tool_use", { input: invocation.input, staticRisk }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }) ?? []
-      const denied = hookResults.find(({ result }) => result.decision === "deny")
-      hookDecision = denied
+      const hookOutcome = await this.runPreToolHooks({
+        skipHooks: context.skipHooks || resumedApproval,
+        evidence: { input: toolInvocation.input, staticRisk },
+        context,
+        invocation: toolInvocation,
+        toolName: shellTool,
+      })
+      hookDecision = hookOutcome.denied
         ? "deny"
-        : hookResults.some(({ result }) => result.decision === "ask")
+        : hookOutcome.asked
           ? "ask"
-          : hookResults.length > 0
+          : hookOutcome.ran
             ? "continue"
             : "skipped"
-      if (denied) throw new AgentError("HOOK_DENIED", denied.result.reason ?? "PreToolUse Hook 拒绝执行", 403)
-      const narrowed = hookResults.map(({ result }) => result.narrowedInput).filter((value): value is Record<string, unknown> => Boolean(value)).at(-1)
+      if (hookOutcome.denied) throw new AgentError("HOOK_DENIED", hookOutcome.denied.result.reason ?? "PreToolUse Hook 拒绝执行", 403)
+      const narrowed = hookOutcome.narrowed
       if (narrowed && JSON.stringify(narrowed) !== JSON.stringify(input)) {
         if ((context.hookDepth ?? 0) >= 2) throw new AgentError("HOOK_REWRITE_LIMIT", "Hook 重写 Shell 输入次数过多", 409)
-        return this.executeShell(shellTool, { ...input, ...narrowed }, { ...context, hookDepth: (context.hookDepth ?? 0) + 1 }, catalog)
+        return this.executeShellPipeline<T>({
+          ...invocation,
+          input: { ...input, ...narrowed },
+          context: { ...context, hookDepth: (context.hookDepth ?? 0) + 1 },
+        })
       }
-      if (hookResults.some(({ result }) => result.decision === "ask")) invocation.input = { ...invocation.input, __hookRequiresApproval: true }
+      if (hookOutcome.asked) toolInvocation.input = { ...toolInvocation.input, __hookRequiresApproval: true }
       phase = "authorization"
       const grant = resumedApproval
         ? null
-        : this.permissionGrantFor(invocation, catalog.get(shellTool), !context.authorizationOnly)
+        : this.permissionGrantFor(toolInvocation, catalog.get(shellTool), !context.authorizationOnly)
       const decision = resumedApproval
         ? { decision: "allow", risk: staticRisk.risk, reason: "已恢复并校验一次性审批" } satisfies PermissionDecision
         : grant
           ? { decision: "allow", risk: staticRisk.risk, reason: `已使用 ${grant.scope} 临时权限` } satisfies PermissionDecision
-          : await this.options.authorizeShell(secretScrubber.scrub(invocation), context.signal)
+          : await options.authorizeShell(secretScrubber.scrub(toolInvocation), context.signal)
       options.logger?.info("shell.preflight.completed", {
         context: logContext,
         details: {
@@ -669,11 +713,12 @@ export class ToolExecutor {
           durationMs: Date.now() - preflightStartedAt,
         },
       })
-      if (context.authorizationOnly) return decision
+      if (context.authorizationOnly) return decision as T
       if (decision.decision !== "allow") throw new AgentError("SHELL_PERMISSION_DENIED", decision.reason, 403, decision)
+      // ── Phase: execute ──
       phase = "runtime"
       const runtime = await this.commandForShell(shellTool, parsedShell.command, context.signal)
-      const auditInvocation = secretScrubber.scrub(invocation)
+      const auditInvocation = secretScrubber.scrub(toolInvocation)
       this.options.recordToolCall?.(auditInvocation, "running", null, null, toolStartedAt)
       options.logger?.info("shell.execution.started", {
         context: logContext,
@@ -687,6 +732,7 @@ export class ToolExecutor {
       phase = "execution"
       const executionStartedAt = Date.now()
       const result = await (this.options.runHost ?? runHostCommand)(runtime.command, cwd, shell.timeoutMs, context.signal, runtime.env)
+      // ── Phase: finalize ──
       const safeResult = secretScrubber.scrub(result)
       this.options.recordToolCall?.(auditInvocation, "completed", safeResult, null, toolStartedAt)
       options.logger?.info("shell.execution.completed", {
@@ -703,8 +749,8 @@ export class ToolExecutor {
           durationMs: Date.now() - executionStartedAt,
         },
       })
-      if (!context.skipHooks) await this.options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
-      return result
+      if (!context.skipHooks) await this.runPostToolHook("post_tool_use", { input: toolInvocation.input, output: safeResult }, context, shellTool, toolInvocation.id)
+      return result as T
     } catch (cause) {
       options.logger?.warn("shell.execution.failed", {
         context: logContext,
@@ -720,11 +766,61 @@ export class ToolExecutor {
         },
       })
       if (!context.authorizationOnly) {
-        this.options.recordToolCall?.(secretScrubber.scrub(invocation), context.signal.aborted ? "interrupted" : "error", null, secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)), toolStartedAt)
+        this.options.recordToolCall?.(secretScrubber.scrub(toolInvocation), context.signal.aborted ? "interrupted" : "error", null, secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)), toolStartedAt)
       }
-      if (!context.skipHooks && !context.authorizationOnly) await this.options.hooks?.run("post_tool_error", { input: invocation.input, error: secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)) }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
+      if (!context.skipHooks && !context.authorizationOnly) await this.runPostToolHook("post_tool_error", { input: toolInvocation.input, error: secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)) }, context, shellTool, toolInvocation.id)
       throw cause
     }
+  }
+
+  /**
+   * 执行 pre-tool Hook 并做决策单调合并（deny > require-approval > continue）。
+   * 返回的 denied/narrowed/asked 供注册工具与 Shell 分支共用同一套门禁语义。
+   */
+  private async runPreToolHooks(options: {
+    skipHooks: boolean
+    evidence: unknown
+    context: ToolExecutionContext
+    invocation: ToolInvocation
+    toolName: string
+  }): Promise<{ denied?: { result: { decision: "deny"; reason?: string } }; narrowed: Record<string, unknown> | undefined; asked: boolean; ran: boolean }> {
+    const results = options.skipHooks ? [] : await this.options?.hooks?.run("pre_tool_use", options.evidence, {
+      threadID: options.context.threadID,
+      turnID: options.context.turnID,
+      toolCallID: options.invocation.id,
+      toolName: options.toolName,
+      workspaceRoot: options.context.workspace.rootPath,
+    }) ?? []
+    const guards: ToolGuardResult[] = results.map(({ result }) => result.decision === "deny"
+      ? { kind: "deny", code: "HOOK_DENIED", reason: result.reason ?? "PreToolUse Hook 拒绝执行" }
+      : result.decision === "ask"
+        ? { kind: "require-approval", risk: "high", reason: result.reason ?? "PreToolUse Hook 请求审批" }
+        : { kind: "continue" })
+    const merged = mergeToolGuards(guards)
+    return {
+      ...(merged.kind === "deny" ? { denied: { result: { decision: "deny" as const, ...(merged.reason ? { reason: merged.reason } : {}) } } } : {}),
+      narrowed: results.map(({ result }) => result.narrowedInput).filter((value): value is Record<string, unknown> => Boolean(value)).at(-1),
+      asked: merged.kind === "require-approval",
+      ran: results.length > 0,
+    }
+  }
+
+  /** 执行 post-tool Hook；Hook 自身失败由 onFailure 处理，不遮蔽工具结果。 */
+  private async runPostToolHook(
+    event: "post_tool_use" | "post_tool_error",
+    evidence: unknown,
+    context: ToolExecutionContext,
+    toolName: string,
+    invocationId: string,
+    onFailure?: (cause: unknown) => void,
+  ) {
+    await this.options?.hooks?.run(event, evidence, {
+      threadID: context.threadID,
+      turnID: context.turnID,
+      toolCallID: invocationId,
+      toolName,
+      workspaceRoot: context.workspace.rootPath,
+    }).catch((cause) => onFailure?.(cause))
   }
 
   async applyPermissionGrant(input: {
@@ -904,7 +1000,7 @@ export class ToolExecutor {
 
   private permissionGrantFor(
     invocation: ToolInvocation,
-    tool: ReturnType<ToolCatalog["get"]>,
+    tool: ToolCatalogEntry,
     consumeToolCall: boolean,
   ) {
     if (!hasRequestedPermissions(invocation.input)) return null

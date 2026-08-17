@@ -18,6 +18,17 @@
 - `apps/desktop/electron/` 负责 Electron 主进程、preload、窗口、Agent sidecar 和 Windows 打包。
 - `apps/desktop/renderer/` 负责 React + Vite renderer。
 - `packages/` 负责共享领域契约、RPC 协议、view projection、模型 schema、provider 插件与 runtime。
+- `packages/plugin-sdk/` 是插件平台唯一新增公共 workspace：Manifest v1、Application Plugin Protocol v1 wire、Service 声明、System/Profile 插件框架与 conformance 工具的单一来源；不得再为插件平台新建其他 workspace。
+
+## 插件平台
+
+- 插件分为两层 ABI：Application 插件（declarative 声明 + process 独立进程 JSON-RPC，官方 TypeScript SDK）与 System/Profile 插件（Agent 进程内 TypeScript/Bun，可替换业务 service provider）。
+- 任何插件代码只能经 Plugin Host / System Profile loader 动态执行；禁止绕过该加载链以任意文件、字符串 import 或子进程方式执行插件代码。
+- Application 插件之间禁止直接 import；服务只经声明式 service key（`publisher.service@major`）与 JSON 数据交互。
+- 插件视为完全可信本机代码（拥有当前 Windows 用户权限）；独立进程只提供故障隔离，不是安全沙箱。Process permission 只约束 Host broker，不构成 OS 沙箱。
+- 固定元内核（包校验、Inventory、Profile Resolver、SDK ABI、`thread-rpc-v4`、canonical projection、Electron 安全外壳、profile/history 数据库、System Profile last-good 回退）不可被插件替换；可替换业务服务只限于 Model/Tool Runtime、Permission Policy、Agent Loop、Session Persistence 等显式列出的 service contract。
+- System Profile 校验后重启生效，不做首版热切换；无效 generation 不得破坏 last-good。
+- 插件更新采用 generation 语义：旧 turn/subagent 保持旧 generation，新 turn 使用新 generation；Host 侧注册 API 必须由 Host 创建 disposer 并挂入 scope，插件返回 disposer 只作补充。
 
 ## CLI 与桌面端产品边界
 

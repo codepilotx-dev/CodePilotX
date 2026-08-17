@@ -28,6 +28,10 @@ export {
   createPiCustomProvider,
   discoverOpenAIModels,
 } from "./PiCustomProvider";
+export {
+  convertModelsDevCatalog,
+  createModelsDevClient,
+} from "./ModelsDevCatalog";
 export type {
   DiscoveredOpenAIModel,
   DiscoverOpenAIModelsOptions,

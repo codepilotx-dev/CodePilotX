@@ -28,6 +28,15 @@ export const AGENT_LIVE_EVENT_FILTERS = {
   // live-only filter. Keep a named preset so the feature does not subscribe to
   // unrelated high-volume live deltas.
   taskboard: [],
+  // runtime/request-snapshot/created 是 durable 事件；只订阅增量刷新，
+  // 重连对账由 list 完成。
+  requestSnapshots: [],
+  // 插件 inventory/operation 是 live 事件；runtime-status 变化也驱动刷新。
+  plugins: [
+    'plugin/inventory-changed',
+    'plugin/operation-updated',
+    'plugin/runtime-status-changed',
+  ],
   global: [
     'catalog/updated',
     'provider/credential/updated',
@@ -37,7 +46,7 @@ export const AGENT_LIVE_EVENT_FILTERS = {
   ],
 } as const satisfies Readonly<
   Record<
-    'canonical' | 'provider' | 'modelHealth' | 'skills' | 'tooling' | 'mcp' | 'taskboard' | 'global',
+    'canonical' | 'provider' | 'modelHealth' | 'skills' | 'tooling' | 'mcp' | 'taskboard' | 'requestSnapshots' | 'plugins' | 'global',
     readonly LiveEventType[]
   >
 >

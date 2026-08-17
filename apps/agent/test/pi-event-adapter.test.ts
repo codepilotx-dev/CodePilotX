@@ -3,17 +3,24 @@ import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { PiEventAdapter, piToolResultText } from "../src/orchestration/pi/PiEventAdapter"
+import { PiRuntimeProjector } from "../src/orchestration/pi/PiRuntimeProjector"
+import type { PiRuntimeEventContext, PiRuntimeEventHandler } from "../src/orchestration/pi/types"
 import {
   finishedPiToolItem,
   mergeTimelineMutationFiles,
-  PiOrchestratorAdapter,
   piItemDeltaPayload,
   piToolItemPayload,
   piToolMutationFiles,
   piToolTimelineInput,
 } from "../src/orchestration/PiOrchestratorAdapter"
 import { isProviderContextOverflow } from "../src/orchestration/pi/ContextOverflow"
-import type { PiRuntimeEventSink } from "../src/orchestration/pi/types"
+
+const context: PiRuntimeEventContext = { threadID: "thread", turnID: "turn", agentID: "agent" }
+
+const capture = (seen: unknown[]) => {
+  const handler: PiRuntimeEventHandler = (event) => { seen.push(event) }
+  return handler
+}
 
 describe("PiEventAdapter", () => {
   test("apply_patch 时间线输入隐藏补丁正文和其中的主机路径", () => {
@@ -62,9 +69,9 @@ describe("PiEventAdapter", () => {
 
   test("routes live text and reasoning deltas without inventing durable events", async () => {
     const seen: string[] = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      textDelta: async (_context, input) => { seen.push(`text:${input.delta}`) },
-      reasoningDelta: async (_context, input) => { seen.push(`reasoning:${input.delta}`) },
+    const adapter = new PiEventAdapter(context, (event) => {
+      if (event.type === "assistant.text.delta") seen.push(`text:${event.delta}`)
+      if (event.type === "assistant.reasoning.delta") seen.push(`reasoning:${event.delta}`)
     })
 
     await adapter.handle({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "hello" } } as AgentHarnessEvent)
@@ -77,10 +84,10 @@ describe("PiEventAdapter", () => {
     const started: string[] = []
     const deltas: string[] = []
     const completed: string[] = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      assistantMessageStarted: async (_context, input) => { started.push(input.textItemID) },
-      textDelta: async (_context, input) => { deltas.push(input.itemID) },
-      assistantMessageCompleted: async (_context, input) => { completed.push(input.textItemID) },
+    const adapter = new PiEventAdapter(context, (event) => {
+      if (event.type === "assistant.started") started.push(event.textItemID)
+      if (event.type === "assistant.text.delta") deltas.push(event.itemID)
+      if (event.type === "assistant.completed") completed.push(event.textItemID)
     })
     const assistant = (text: string) => ({ role: "assistant", content: [{ type: "text", text }] })
 
@@ -99,9 +106,9 @@ describe("PiEventAdapter", () => {
   test("marks streaming text as process and classifies completed tool-call messages as process", async () => {
     const started: string[] = []
     const completed: string[] = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      assistantMessageStarted: async (_context, input) => { started.push(input.placement) },
-      assistantMessageCompleted: async (_context, input) => { completed.push(input.placement) },
+    const adapter = new PiEventAdapter(context, (event) => {
+      if (event.type === "assistant.started") started.push(event.placement)
+      if (event.type === "assistant.completed") completed.push(event.placement)
     })
     const assistant = (content: unknown[]) => ({ role: "assistant", content })
 
@@ -124,60 +131,62 @@ describe("PiEventAdapter", () => {
   })
 
   test("keeps the completion placement when building the durable text item", async () => {
+    const items = new Map<string, { data: Record<string, unknown> }>()
+    let eventID = 0
     const db = {
-      getItem: () => null,
-    }
-    const orchestrator = new PiOrchestratorAdapter({
-      db: db as never,
-      hub: {} as never,
-      models: {} as never,
-      toolExecutor: {} as never,
-      contextCompaction: {} as never,
-    })
-    const sink = (orchestrator as unknown as {
-      eventSink(
-        storage: unknown,
-        session: unknown,
-        runtimeModel: { provider: string; id: string; contextWindow: number },
-        sessionID: string,
-      ): PiRuntimeEventSink
-    }).eventSink({}, {}, {
-      provider: "openai",
-      id: "model",
-      contextWindow: 128_000,
-    }, "session")
-
-    await sink.assistantMessageCompleted?.(
-      { threadID: "thread", turnID: "turn", agentID: "agent" },
-      {
-        textItemID: "text-1",
-        reasoningItemID: "reasoning-1",
-        planItemID: "plan-1",
-        placement: "process",
-        content: [{ type: "text", text: "继续调用工具" }],
-        provider: "openai",
-        api: "responses",
-        model: "model",
-        usage: {
-          input: 1,
-          output: 1,
-          cacheRead: 0,
-          cacheWrite: 0,
-          reasoning: 0,
-        },
+      transaction: <T>(work: () => T) => work(),
+      getItem: (id: string) => items.get(id) ?? null,
+      upsertItem: (_threadID: string, item: { id: string; data: Record<string, unknown> }) => {
+        items.set(item.id, item)
       },
-    )
+      insertEvent: (threadId: string, turnId: string, method: string, params: unknown) => ({
+        id: ++eventID,
+        threadId,
+        turnId,
+        method,
+        params,
+        createdAt: 200,
+      }),
+      consumeGuideMailbox: () => [],
+    }
+    const projector = new PiRuntimeProjector({
+      db: db as never,
+      contextCompaction: {} as never,
+      storage: { flush: () => undefined } as never,
+      session: {} as never,
+      runtimeModel: { provider: "openai", id: "model", contextWindow: 128_000 } as never,
+      sessionID: "session",
+      publish: async () => undefined,
+    })
 
-    const pending = (orchestrator as unknown as {
-      pending: Map<string, { items: Map<string, { data: Record<string, unknown> }> }>
-    }).pending.get("thread")
-    expect(pending?.items.get("text-1")?.data.placement).toBe("process")
+    await projector.handle({
+      context,
+      type: "assistant.completed",
+      textItemID: "text-1",
+      reasoningItemID: "reasoning-1",
+      planItemID: "plan-1",
+      placement: "process",
+      content: [{ type: "text", text: "继续调用工具" }],
+      provider: "openai",
+      api: "responses",
+      model: "model",
+      usage: {
+        input: 1,
+        output: 1,
+        cacheRead: 0,
+        cacheWrite: 0,
+        reasoning: 0,
+      },
+    })
+    await projector.handle({ context, type: "runtime.savepoint", hadPendingMutations: false })
+
+    expect(items.get("text-1")?.data.placement).toBe("process")
   })
 
   test("normalizes standard Pi usage and prefers the actual response model", async () => {
     const completed: unknown[] = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      assistantMessageCompleted: async (_context, input) => { completed.push(input) },
+    const adapter = new PiEventAdapter(context, (event) => {
+      if (event.type === "assistant.completed") completed.push(event)
     })
 
     await adapter.handle({
@@ -215,8 +224,8 @@ describe("PiEventAdapter", () => {
 
   test("treats missing or invalid Pi usage fields as zero", async () => {
     const completed: Array<{ usage: Record<string, number> }> = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      assistantMessageCompleted: async (_context, input) => { completed.push(input) },
+    const adapter = new PiEventAdapter(context, (event) => {
+      if (event.type === "assistant.completed") completed.push(event)
     })
 
     await adapter.handle({
@@ -243,17 +252,15 @@ describe("PiEventAdapter", () => {
   test("Plan 模式流式输出独立计划且不创建空文本项", async () => {
     const seen: string[] = []
     const completed: Array<{ text?: string; plan?: string | null; planItemID: string }> = []
-    const adapter = new PiEventAdapter(
-      { threadID: "thread", turnID: "turn", agentID: "agent" },
-      {
-        assistantMessageStarted: async () => { seen.push("text-start") },
-        textDelta: async (_context, input) => { seen.push(`text:${input.delta}`) },
-        planStarted: async () => { seen.push("plan-start") },
-        planDelta: async (_context, input) => { seen.push(`plan:${input.delta}`) },
-        assistantMessageCompleted: async (_context, input) => { completed.push(input) },
-      },
-      { parseProposedPlan: true },
-    )
+    const adapter = new PiEventAdapter(context, (event) => {
+      switch (event.type) {
+        case "assistant.started": seen.push("text-start"); break
+        case "assistant.text.delta": seen.push(`text:${event.delta}`); break
+        case "plan.started": seen.push("plan-start"); break
+        case "plan.delta": seen.push(`plan:${event.delta}`); break
+        case "assistant.completed": completed.push(event); break
+      }
+    }, { parseProposedPlan: true })
     const assistant = (text: string) => ({ role: "assistant", content: [{ type: "text", text }] })
 
     await adapter.handle({ type: "message_start", message: assistant("") } as unknown as AgentHarnessEvent)
@@ -271,27 +278,23 @@ describe("PiEventAdapter", () => {
 
   test("routes transaction boundaries and queue counts", async () => {
     const seen: unknown[] = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      queueUpdated: async (_context, queue) => { seen.push(queue) },
-      savePoint: async (_context, point) => { seen.push(point) },
-      settled: async (_context, settled) => { seen.push(settled) },
-    })
+    const adapter = new PiEventAdapter(context, capture(seen))
 
     await adapter.handle({ type: "queue_update", steer: [{}], followUp: [{}, {}], nextTurn: [] } as unknown as AgentHarnessEvent)
     await adapter.handle({ type: "save_point", hadPendingMutations: true } as AgentHarnessEvent)
     await adapter.handle({ type: "settled", nextTurnCount: 0 } as AgentHarnessEvent)
 
     expect(seen).toEqual([
-      { steer: 1, followUp: 2, nextTurn: 0 },
-      { hadPendingMutations: true },
-      { nextTurnCount: 0 },
+      { context, type: "queue.updated", steer: 1, followUp: 2, nextTurn: 0 },
+      { context, type: "runtime.savepoint", hadPendingMutations: true },
+      { context, type: "runtime.settled", nextTurnCount: 0 },
     ])
   })
 
   test("routes tool output updates with the stable tool call identity", async () => {
     const seen: unknown[] = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      toolUpdated: async (_context, update) => { seen.push(update) },
+    const adapter = new PiEventAdapter(context, (event) => {
+      if (event.type === "tool.updated") seen.push(event)
     })
 
     await adapter.handle({
@@ -302,6 +305,8 @@ describe("PiEventAdapter", () => {
     } as unknown as AgentHarnessEvent)
 
     expect(seen).toEqual([{
+      context,
+      type: "tool.updated",
       toolCallID: "call-1",
       tool: "read_file",
       update: "partial",
@@ -310,8 +315,8 @@ describe("PiEventAdapter", () => {
 
   test("routes safe tool text together with structured result details", async () => {
     const seen: unknown[] = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      toolFinished: async (_context, result) => { seen.push(result) },
+    const adapter = new PiEventAdapter(context, (event) => {
+      if (event.type === "tool.finished") seen.push(event)
     })
 
     await adapter.handle({
@@ -331,6 +336,8 @@ describe("PiEventAdapter", () => {
     } as unknown as AgentHarnessEvent)
 
     expect(seen).toEqual([{
+      context,
+      type: "tool.finished",
       toolCallID: "call-1",
       tool: "Edit",
       result: "已编辑 src/source.ts（+2 -1）",
@@ -407,7 +414,7 @@ describe("PiEventAdapter", () => {
     })).toBeNull()
   })
 
-  test("merges successful mutation details into one idempotent patch item", () => {
+  test("merges successful mutation details into one idempotent patch item", async () => {
     const items = new Map<string, {
       id: string
       turnID: string
@@ -462,16 +469,15 @@ describe("PiEventAdapter", () => {
         createdAt: 200,
       }),
     }
-    const orchestrator = new PiOrchestratorAdapter({
+    const projector = new PiRuntimeProjector({
       db: db as never,
-      hub: {} as never,
-      models: {} as never,
-      toolExecutor: {} as never,
       contextCompaction: {} as never,
+      storage: { flush: () => undefined } as never,
+      session: {} as never,
+      runtimeModel: { provider: "openai", id: "model", contextWindow: 128_000 } as never,
+      sessionID: "session",
+      publish: async () => undefined,
     })
-    const persist = (orchestrator as unknown as {
-      persistFinishedTool(context: unknown, input: unknown): Array<{ method: string }>
-    }).persistFinishedTool.bind(orchestrator)
     const input = {
       toolCallID: "call-1",
       tool: "apply_patch",
@@ -486,7 +492,7 @@ describe("PiEventAdapter", () => {
       isError: false,
     }
 
-    expect(persist({ threadID: "thread", turnID: "turn", agentID: "agent" }, input).map((event) => event.method))
+    expect(projector.persistFinishedTool(context, input).map((event) => event.method))
       .toEqual(["tool/callCompleted", "item/completed"])
     expect(items.get("call-1")?.data.input).toMatchObject({
       affectedPaths: [
@@ -516,8 +522,8 @@ describe("PiEventAdapter", () => {
       createdAt: 100,
       updatedAt: 100,
     })
-    expect(persist(
-      { threadID: "thread", turnID: "turn", agentID: "agent" },
+    expect(projector.persistFinishedTool(
+      context,
       {
         toolCallID: "call-2",
         tool: "Edit",
@@ -540,8 +546,8 @@ describe("PiEventAdapter", () => {
       createdAt: 100,
       updatedAt: 100,
     })
-    expect(persist(
-      { threadID: "thread", turnID: "turn", agentID: "agent" },
+    expect(projector.persistFinishedTool(
+      context,
       {
         toolCallID: "call-3",
         tool: "Write",
@@ -550,7 +556,7 @@ describe("PiEventAdapter", () => {
         isError: false,
       },
     )).toEqual([])
-    expect(persist({ threadID: "thread", turnID: "turn", agentID: "agent" }, input)).toEqual([])
+    expect(projector.persistFinishedTool(context, input)).toEqual([])
     expect(transactionCount).toBe(2)
   })
 
@@ -567,11 +573,9 @@ describe("PiEventAdapter", () => {
     )).toEqual([{ path: "src/source.ts", additions: 4, deletions: 6 }])
   })
 
-  test("carries the pre-compaction branch size into the compacted callback", async () => {
+  test("carries the pre-compaction branch size into the compaction event", async () => {
     const seen: unknown[] = []
-    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      compacted: async (_context, compacted) => { seen.push(compacted) },
-    })
+    const adapter = new PiEventAdapter(context, capture(seen))
 
     await adapter.handle({
       type: "session_before_compact",
@@ -590,6 +594,8 @@ describe("PiEventAdapter", () => {
     } as unknown as AgentHarnessEvent)
 
     expect(seen).toEqual([{
+      context,
+      type: "compaction.completed",
       entryID: "compact-1",
       summary: "summary",
       firstKeptEntryID: null,
@@ -612,7 +618,7 @@ describe("PiEventAdapter", () => {
   test("uses the existing item delta payload for Pi reasoning and tool output", () => {
     const payload = piItemDeltaPayload({
       itemID: "call-1",
-      context: { threadID: "thread", turnID: "turn", agentID: "agent" },
+      context,
       delta: "partial",
     })
 

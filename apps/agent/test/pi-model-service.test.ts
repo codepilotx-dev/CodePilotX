@@ -3,6 +3,7 @@ import { Model, type Credential } from "@codepilotx/model-schema"
 import { Effect } from "effect"
 import type { EncryptedCredentialRepository } from "../src/auth/EncryptedCredentialRepository"
 import { EncryptedCredentialStore, PiModelService } from "../src/provider/pi"
+import { convertModelsDevCatalog } from "../src/provider/pi/ModelsDevCatalog"
 
 type Stored = {
   id: string
@@ -108,6 +109,48 @@ describe("EncryptedCredentialStore", () => {
     expect(seen).toEqual(["a0", "a1"])
     expect(fake.values.get("anthropic")?.methodID).toBe("oauth-default")
     expect(fake.values.get("anthropic")?.value).toMatchObject({ type: "oauth", access: "a2" })
+  })
+})
+
+describe("ModelsDevCatalog", () => {
+  test("converts a models.dev catalog into the pi-ai provider shape", () => {
+    const models = convertModelsDevCatalog({
+      providers: {
+        anthropic: {
+          id: "anthropic",
+          name: "Anthropic",
+          env: ["ANTHROPIC_API_KEY"],
+          npm: "@anthropic-ai/sdk",
+          doc: "https://docs.anthropic.com",
+          models: {
+            "claude-opus-4-6": {
+              id: "claude-opus-4-6",
+              name: "Claude Opus 4.6",
+              description: "Anthropic flagship",
+              attachment: true,
+              reasoning: true,
+              tool_call: true,
+              temperature: true,
+              release_date: "2025-01-01",
+              last_updated: "2025-01-01",
+              modalities: { input: ["text"], output: ["text"] },
+              open_weights: false,
+              limit: { context: 200000, output: 32000 },
+              cost: { input: 15, output: 75 },
+            },
+          },
+        },
+      },
+      models: {},
+    })
+
+    const providers = models.getProviders()
+    expect(providers.some((provider) => provider.id === "anthropic")).toBe(true)
+
+    const anthropic = models.getProvider("anthropic")
+    expect(anthropic).toBeDefined()
+    expect(anthropic?.getModels().length).toBeGreaterThan(0)
+    expect(anthropic?.getModels()[0]?.api).toBe("anthropic-messages")
   })
 })
 

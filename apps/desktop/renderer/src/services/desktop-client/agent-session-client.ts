@@ -139,6 +139,13 @@ export const RENDERER_CAPABILITIES = [
   'thread.side-chat.v1',
   'speech.transcription.v1',
   'taskboard.v1',
+  'runtime.contributions.v1',
+  'runtime.request-snapshots.v1',
+  'runtime.step-lifecycle.v1',
+  'plugins.manage.v1',
+  'plugins.runtime.v1',
+  'plugins.views.v1',
+  'plugins.system-profiles.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -170,6 +177,7 @@ import type {
   DesktopSpeechApi,
   DesktopTaskboardApi,
 } from './types.js'
+
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
@@ -1551,6 +1559,118 @@ export function createAgentSessionDesktopClient(
       async () => [...agentCapabilities] as ProtocolCapability[],
       () => mockClient.getRuntimeCapabilities(),
     ),
+    listRequestSnapshots: params => withAgentOrMock(
+      async () => {
+        requireAgentCapability('runtime.request-snapshots.v1')
+        return rpc.call('runtime/request-snapshot/list', params)
+      },
+      async () => ({ items: [] }),
+    ),
+    readRequestSnapshot: params => withRequiredAgent(async () => {
+      requireAgentCapability('runtime.request-snapshots.v1')
+      return rpc.call('runtime/request-snapshot/read', params)
+    }),
+    listRuntimeContributions: () => withAgentOrMock(
+      async () => {
+        requireAgentCapability('runtime.contributions.v1')
+        return rpc.call('runtime/contribution/list', {})
+      },
+      async () => ({ contributions: [] }),
+    ),
+    listPlugins: () => withAgentOrMock(
+      async () => {
+        requireAgentCapability('plugins.manage.v1')
+        return rpc.call('plugin/list', {})
+      },
+      async () => ({ plugins: [] }),
+    ),
+    installPluginPackage: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/installPackage', input)
+    }),
+    linkPluginDirectory: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/linkDirectory', input)
+    }),
+    unlinkPluginDirectory: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/unlinkDirectory', input)
+    }),
+    enablePlugin: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/enable', input)
+    }),
+    disablePlugin: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/disable', input)
+    }),
+    uninstallPlugin: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/uninstall', input)
+    }),
+    getPluginConfig: input => withAgentOrMock(
+      async () => {
+        requireAgentCapability('plugins.manage.v1')
+        return rpc.call('plugin/config/get', input)
+      },
+      async () => ({ pluginId: input.pluginId, config: {} }),
+    ),
+    updatePluginConfig: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/config/update', input)
+    }),
+    getPluginGrants: input => withAgentOrMock(
+      async () => {
+        requireAgentCapability('plugins.manage.v1')
+        return rpc.call('plugin/grants/get', input)
+      },
+      async () => ({ pluginId: input.pluginId, digest: '0'.repeat(64), grants: [] }),
+    ),
+    updatePluginGrants: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/grants/update', input)
+    }),
+    profileStagePlugin: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.system-profiles.v1')
+      return rpc.call('plugin/profile/stage', input)
+    }),
+    profileApplyOnRestart: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.system-profiles.v1')
+      return rpc.call('plugin/profile/applyOnRestart', input)
+    }),
+    listPluginProfiles: () => withAgentOrMock(
+      async () => {
+        requireAgentCapability('plugins.system-profiles.v1')
+        return rpc.call('plugin/profile/list', {})
+      },
+      async () => ({ profiles: [] }),
+    ),
+    listPluginContributions: () => withAgentOrMock(
+      async () => {
+        requireAgentCapability('plugins.runtime.v1')
+        return rpc.call('plugin/contribution/list', {})
+      },
+      async () => ({ tools: [], skills: [], mcpServers: [], promptCommands: [], settings: [], workbenchViews: [] }),
+    ),
+    executePluginCommand: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.runtime.v1')
+      return rpc.call('plugin/command/execute', input)
+    }),
+    getPluginOperation: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.manage.v1')
+      return rpc.call('plugin/operation/get', input)
+    }),
+    renderPluginView: input => withAgentOrMock(
+      async () => {
+        requireAgentCapability('plugins.views.v1')
+        return rpc.call('plugin/view/render', input)
+      },
+      async () => ({ nodes: [{ kind: 'status', text: '浏览器模拟环境没有插件视图。' }] }),
+    ),
+    runPluginViewAction: input => withRequiredAgent(async () => {
+      requireAgentCapability('plugins.views.v1')
+      return rpc.call('plugin/view/action', input)
+    }),
     checkForUpdates: () =>
       environment.window?.codePilotXDesktop?.checkForUpdates
         ? environment.window.codePilotXDesktop.checkForUpdates()
@@ -2229,6 +2349,9 @@ export function createAgentSessionDesktopClient(
           typeof desktop.appearance === 'object' &&
           !Array.isArray(desktop.appearance)
         ) {
+          if (isNewerDesktopThemeSettingsVersion(desktop.appearance)) {
+            throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级读取。')
+          }
           return normalizeDesktopThemeSettings(desktop.appearance)
         }
       } catch {
@@ -2245,6 +2368,15 @@ export function createAgentSessionDesktopClient(
       try {
         requireAgentCapability('config.manage.v1')
         const current = await rpc.call('config/read', { includeLayers: true })
+        const currentDesktop =
+          current.config.desktop
+          && typeof current.config.desktop === 'object'
+          && !Array.isArray(current.config.desktop)
+            ? current.config.desktop as Record<string, unknown>
+            : null
+        if (isNewerDesktopThemeSettingsVersion(currentDesktop?.appearance)) {
+          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级保存。')
+        }
         const version = current.layers?.find(layer => layer.kind === 'user')?.version
         const flatten = (
           value: Record<string, unknown>,
@@ -2345,9 +2477,6 @@ export function createAgentSessionDesktopClient(
       withAgentOrMock(
         async () => {
           requireAgentCapability('memory', 2)
-          if (isNewerDesktopThemeSettingsVersion(desktop.appearance)) {
-            throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级读取。')
-          }
           const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/save', { scope: 'user', ...(input.relativePath ? { id: input.relativePath } : {}), content: input.content, operationId: crypto.randomUUID() })
           return { relativePath: response.entry.id, absolutePath: response.entry.id, type: 'user' as const, description: response.entry.content.slice(0, 120), size: response.entry.content.length, mtimeMs: response.entry.updatedAt }
         },
@@ -2364,15 +2493,6 @@ export function createAgentSessionDesktopClient(
         requireAgentCapability('task-suggestions.v1')
         const project = input.workspacePath
           ? await loadProjectForPath(input.workspacePath)
-        const currentDesktop =
-          current.config.desktop
-          && typeof current.config.desktop === 'object'
-          && !Array.isArray(current.config.desktop)
-            ? current.config.desktop as Record<string, unknown>
-            : null
-        if (isNewerDesktopThemeSettingsVersion(currentDesktop?.appearance)) {
-          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级保存。')
-        }
           : null
         return rpc.call('task-suggestion/generate', {
           ...(input.surface ? { surface: input.surface } : {}),

@@ -5,7 +5,7 @@ import type { AgentDatabase, ApprovalCheckpointPayload, StoredApprovalCheckpoint
 import type { EventHub } from "../storage/events/EventHub"
 import type { InteractionOperationInput } from "../storage/repositories/interaction-repository"
 import type { ToolRegistry } from "../tool/ToolRegistry"
-import { PermissionDecisionEngine, requestedPermissions, type ResolvedPermissionDecision } from "./PermissionDecisionEngine"
+import { PermissionDecisionEngine, requestedPermissions, type PermissionPolicyOverride, type ResolvedPermissionDecision } from "./PermissionDecisionEngine"
 import { secretScrubber } from "../security/SecretScrubber"
 
 export type Reviewer = (invocation: ToolInvocation, signal: AbortSignal) => Promise<PermissionDecision>
@@ -70,7 +70,7 @@ const approvalScopePayload = (invocation: ToolInvocation) => invocation.authoriz
   : {}
 
 export class ApprovalService {
-  private readonly decisions = new PermissionDecisionEngine()
+  private readonly decisions: PermissionDecisionEngine
   private agentStatusHandler?: (agentID: string, status: "waiting_permission" | "running") => void
 
   constructor(
@@ -78,7 +78,10 @@ export class ApprovalService {
     private readonly hub: EventHub,
     private readonly tools: ToolRegistry,
     private readonly reviewer: Reviewer | null = null,
-  ) {}
+    policyOverride?: () => PermissionPolicyOverride | null,
+  ) {
+    this.decisions = new PermissionDecisionEngine(policyOverride ? { policyOverride } : {})
+  }
 
   setAgentStatusHandler(handler: (agentID: string, status: "waiting_permission" | "running") => void) {
     this.agentStatusHandler = handler

@@ -9,6 +9,16 @@ import {
 } from "./schema"
 
 export const FINAL_SCHEMA = [
+  // ── 插件平台（profile schema 4；只进 profile 库） ──
+  "CREATE TABLE plugin_packages (\n        plugin_id TEXT PRIMARY KEY,\n        version TEXT NOT NULL,\n        display_name TEXT NOT NULL,\n        description TEXT NOT NULL DEFAULT '',\n        publisher TEXT NOT NULL,\n        tier TEXT NOT NULL CHECK(tier IN ('application', 'system')),\n        manifest_json TEXT NOT NULL,\n        digest TEXT NOT NULL,\n        source TEXT NOT NULL CHECK(source IN ('package', 'linked-directory')),\n        linked_path TEXT,\n        directory_digest TEXT,\n        staged_directory_digest TEXT,\n        installed_path TEXT NOT NULL,\n        installed_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE plugin_activations (\n        plugin_id TEXT NOT NULL,\n        workspace_key TEXT NOT NULL DEFAULT '',\n        enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0, 1)),\n        updated_at INTEGER NOT NULL,\n        PRIMARY KEY (plugin_id, workspace_key)\n      )",
+  "CREATE TABLE plugin_grants (\n        plugin_id TEXT NOT NULL,\n        digest TEXT NOT NULL,\n        permission_id TEXT NOT NULL,\n        granted INTEGER NOT NULL DEFAULT 0 CHECK(granted IN (0, 1)),\n        granted_at INTEGER NOT NULL,\n        PRIMARY KEY (plugin_id, digest, permission_id)\n      )",
+  "CREATE TABLE plugin_profile_generations (\n        id TEXT PRIMARY KEY,\n        plugin_id TEXT NOT NULL,\n        kind TEXT NOT NULL CHECK(kind IN ('application', 'system')),\n        version TEXT NOT NULL,\n        digest TEXT NOT NULL,\n        status TEXT NOT NULL CHECK(status IN ('staged', 'active', 'last-good', 'retired', 'failed')),\n        config_json TEXT NOT NULL DEFAULT '{}',\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE plugin_operations (\n        operation_id TEXT PRIMARY KEY,\n        plugin_id TEXT NOT NULL,\n        method TEXT NOT NULL,\n        request_hash TEXT NOT NULL,\n        status TEXT NOT NULL CHECK(status IN ('pending', 'completed', 'failed')),\n        result TEXT,\n        error_code TEXT,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE plugin_kv (\n        plugin_id TEXT NOT NULL,\n        scope TEXT NOT NULL CHECK(scope IN ('global', 'workspace')),\n        workspace_key TEXT NOT NULL DEFAULT '',\n        key TEXT NOT NULL,\n        value TEXT NOT NULL,\n        version INTEGER NOT NULL DEFAULT 1,\n        updated_at INTEGER NOT NULL,\n        PRIMARY KEY (plugin_id, scope, workspace_key, key)\n      )",
+  "CREATE INDEX plugin_profile_generations_lookup ON plugin_profile_generations(plugin_id, kind, status, created_at)",
+  "CREATE INDEX plugin_operations_status ON plugin_operations(status, created_at)",
+  "CREATE INDEX plugin_kv_plugin_lookup ON plugin_kv(plugin_id, scope, workspace_key, updated_at)",
   "CREATE TABLE agent_checkpoints (\n        agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        state TEXT NOT NULL,\n        payload TEXT NOT NULL,\n        version INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE agent_compactions (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          baseline_version INTEGER NOT NULL,\n          before_count INTEGER NOT NULL,\n          after_count INTEGER NOT NULL,\n          summary TEXT NOT NULL,\n          replacement_history TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        , before_tokens INTEGER NOT NULL DEFAULT 0, after_tokens INTEGER NOT NULL DEFAULT 0, target_tokens INTEGER NOT NULL DEFAULT 0, usage_sample_id TEXT)",
   "CREATE TABLE agent_executions (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL UNIQUE REFERENCES turns(id) ON DELETE CASCADE,\n        parent_agent_id TEXT REFERENCES agent_executions(id) ON DELETE CASCADE,\n        profile TEXT NOT NULL,\n        task TEXT NOT NULL,\n        model_ref TEXT NOT NULL,\n        session_id TEXT NOT NULL,\n        depth INTEGER NOT NULL DEFAULT 0,\n        subagent_run_id TEXT,\n        run_sequence INTEGER NOT NULL DEFAULT 0,\n        status TEXT NOT NULL,\n        error TEXT,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
@@ -28,7 +38,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE thread_context_paths (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          name TEXT NOT NULL,\n          path TEXT NOT NULL,\n          path_key TEXT NOT NULL,\n          kind TEXT NOT NULL CHECK(kind IN ('file','directory')),\n          created_at INTEGER NOT NULL,\n          UNIQUE(thread_id, path_key)\n        )",
   "CREATE TABLE input_context_paths (\n          input_id TEXT NOT NULL REFERENCES inputs(id) ON DELETE CASCADE,\n          context_path_id TEXT NOT NULL REFERENCES thread_context_paths(id) ON DELETE CASCADE,\n          sort_order INTEGER NOT NULL DEFAULT 0,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY(input_id, context_path_id)\n        )",
   "CREATE TABLE context_path_operations (\n          operation_id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          request_hash TEXT NOT NULL,\n          reference_ids TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
-  "CREATE TABLE inputs (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        content TEXT NOT NULL,\n        model_ref TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        strategy TEXT NOT NULL,\n        task_mode TEXT NOT NULL,\n        status TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE inputs (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        content TEXT NOT NULL,\n        model_ref TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        strategy TEXT NOT NULL,\n        task_mode TEXT NOT NULL,\n        status TEXT NOT NULL,\n        delivery_kind TEXT,\n        claimed_step_id TEXT,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE integration_credential_bindings (\n          integration_id TEXT PRIMARY KEY,\n          credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE interaction_operations (\n          operation_id TEXT PRIMARY KEY,\n          interaction_id TEXT NOT NULL,\n          response TEXT NOT NULL,\n          result TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE items (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        type TEXT NOT NULL,\n        status TEXT NOT NULL,\n        data TEXT NOT NULL,\n        ordinal INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
@@ -79,6 +89,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE taskboard_comments (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          body TEXT NOT NULL CHECK(length(body) <= 32768),\n          author TEXT NOT NULL CHECK(author IN ('user','agent')),\n          source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),\n          deleted_at INTEGER,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE taskboard_activities (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          kind TEXT NOT NULL CHECK(kind IN ('task_created','task_updated','task_moved','task_archived','task_restored','comment_created','comment_updated','comment_deleted','thread_linked','thread_unlinked','primary_changed','label_created','label_updated','label_deleted','execution_started')),\n          actor TEXT NOT NULL CHECK(actor IN ('user','agent','system')),\n          source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          data TEXT NOT NULL DEFAULT '{}',\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE taskboard_operations (\n          operation_id TEXT PRIMARY KEY,\n          project_id TEXT NOT NULL,\n          task_id TEXT,\n          method TEXT NOT NULL,\n          request_hash TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('pending','completed')),\n          result TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE model_request_snapshots (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          agent_id TEXT NOT NULL,\n          session_id TEXT NOT NULL,\n          request_ordinal INTEGER NOT NULL CHECK(request_ordinal >= 0),\n          provider_id TEXT NOT NULL,\n          api TEXT NOT NULL,\n          model_id TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('captured', 'missing')),\n          payload_json TEXT,\n          payload_sha256 TEXT,\n          payload_bytes INTEGER,\n          runtime_manifest TEXT NOT NULL,\n          error_code TEXT,\n          created_at INTEGER NOT NULL,\n          CHECK (\n            (status = 'captured' AND payload_json IS NOT NULL AND payload_sha256 IS NOT NULL AND payload_bytes IS NOT NULL AND error_code IS NULL)\n            OR\n            (status = 'missing' AND payload_json IS NULL AND payload_sha256 IS NULL AND payload_bytes IS NULL AND error_code IS NOT NULL)\n          ),\n          UNIQUE(session_id, request_ordinal)\n        )",
   "CREATE TABLE taskboard_start_operations (\n          operation_id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          project_id TEXT NOT NULL,\n          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          request_hash TEXT NOT NULL,\n          execution TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('running','awaiting_setup_decision','completed','failed','rollback_failed')),\n          step TEXT NOT NULL CHECK(step IN ('preflight','prepare_worktree','create_thread','link','complete')),\n          revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1),\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          startup_instruction TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
@@ -140,6 +151,11 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX taskboard_activities_task_created ON taskboard_activities(task_id, created_at, id)",
   "CREATE INDEX taskboard_operations_status ON taskboard_operations(status, created_at)",
   "CREATE INDEX taskboard_start_operations_status ON taskboard_start_operations(status, updated_at)",
+  "CREATE INDEX model_request_snapshots_thread_created ON model_request_snapshots(thread_id, created_at DESC, id DESC)",
+  "CREATE TABLE runtime_steps (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          ordinal INTEGER NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed', 'interrupted')),\n          claimed_input_ids TEXT NOT NULL,\n          runtime_manifest_hash TEXT NOT NULL,\n          started_at INTEGER NOT NULL,\n          completed_at INTEGER,\n          stop_reason TEXT,\n          UNIQUE(turn_id, ordinal)\n        )",
+  "CREATE INDEX runtime_steps_turn_ordinal ON runtime_steps(turn_id, ordinal)",
+  "CREATE TABLE runtime_context_snapshots (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          step_id TEXT NOT NULL REFERENCES runtime_steps(id) ON DELETE CASCADE,\n          attempt_ordinal INTEGER NOT NULL DEFAULT 0,\n          pi_session_id TEXT NOT NULL,\n          pi_leaf_entry_id TEXT,\n          message_entry_ids TEXT NOT NULL,\n          message_digest TEXT NOT NULL,\n          prompt_text TEXT NOT NULL,\n          tool_catalog_json TEXT NOT NULL,\n          runtime_manifest_json TEXT NOT NULL,\n          context_digest TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          UNIQUE(step_id, attempt_ordinal)\n        )",
+  "CREATE INDEX runtime_context_snapshots_step ON runtime_context_snapshots(step_id, attempt_ordinal)",
   "CREATE TRIGGER thread_side_chats_delete_with_source\n        BEFORE DELETE ON threads\n        BEGIN\n          DELETE FROM threads\n          WHERE id IN (\n            SELECT thread_id FROM thread_side_chats WHERE source_thread_id = OLD.id\n          ) AND archived_at = -1;\n        END",
   "CREATE TRIGGER threads_workspace_insert_valid\n        BEFORE INSERT ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END",
   "CREATE TRIGGER threads_workspace_update_valid\n        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, workspace_roots, instruction_sources, output_directory ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END"
@@ -158,6 +174,13 @@ const PROFILE_TABLES = new Set([
   "integration_credential_bindings",
   "hook_trust_decisions",
   "memory_entries",
+  // 插件平台（profile schema 4）
+  "plugin_packages",
+  "plugin_activations",
+  "plugin_grants",
+  "plugin_profile_generations",
+  "plugin_operations",
+  "plugin_kv",
 ])
 
 const objectName = (statement: string) => {
@@ -778,6 +801,104 @@ const migrateHistory29To30 = (sqlite: Database) => {
   `)
 }
 
+
+const migrateHistory32To33 = (sqlite: Database) => {
+  // 统一 Turn Inbox 兼容列：旧写入方无需提供新字段。
+  // 早期代际可能不存在 inputs 表，先确认再变更。
+  const hasInputs = sqlite.query(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'inputs'",
+  ).get()
+  if (hasInputs) {
+    const inputColumns = sqlite.query("PRAGMA table_info(inputs)").all() as Array<{ name: string }>
+    if (!inputColumns.some((column) => column.name === "delivery_kind")) {
+      sqlite.exec("ALTER TABLE inputs ADD COLUMN delivery_kind TEXT")
+    }
+    if (!inputColumns.some((column) => column.name === "claimed_step_id")) {
+      sqlite.exec("ALTER TABLE inputs ADD COLUMN claimed_step_id TEXT")
+    }
+  }
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS runtime_steps (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+      ordinal INTEGER NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed', 'interrupted')),
+      claimed_input_ids TEXT NOT NULL,
+      runtime_manifest_hash TEXT NOT NULL,
+      started_at INTEGER NOT NULL,
+      completed_at INTEGER,
+      stop_reason TEXT,
+      UNIQUE(turn_id, ordinal)
+    );
+    CREATE INDEX IF NOT EXISTS runtime_steps_turn_ordinal
+      ON runtime_steps(turn_id, ordinal);
+    CREATE TABLE IF NOT EXISTS runtime_context_snapshots (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+      step_id TEXT NOT NULL REFERENCES runtime_steps(id) ON DELETE CASCADE,
+      attempt_ordinal INTEGER NOT NULL DEFAULT 0,
+      pi_session_id TEXT NOT NULL,
+      pi_leaf_entry_id TEXT,
+      message_entry_ids TEXT NOT NULL,
+      message_digest TEXT NOT NULL,
+      prompt_text TEXT NOT NULL,
+      tool_catalog_json TEXT NOT NULL,
+      runtime_manifest_json TEXT NOT NULL,
+      context_digest TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(step_id, attempt_ordinal)
+    );
+    CREATE INDEX IF NOT EXISTS runtime_context_snapshots_step
+      ON runtime_context_snapshots(step_id, attempt_ordinal);
+  `)
+}
+
+const migrateHistory31To32 = (sqlite: Database) => {
+  // 完整 Provider 请求快照：独立表，脱敏明文保存，随任务永久删除时级联清理。
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS model_request_snapshots (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      request_ordinal INTEGER NOT NULL CHECK(request_ordinal >= 0),
+      provider_id TEXT NOT NULL,
+      api TEXT NOT NULL,
+      model_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('captured', 'missing')),
+      payload_json TEXT,
+      payload_sha256 TEXT,
+      payload_bytes INTEGER,
+      runtime_manifest TEXT NOT NULL,
+      error_code TEXT,
+      created_at INTEGER NOT NULL,
+      CHECK (
+        (
+          status = 'captured'
+          AND payload_json IS NOT NULL
+          AND payload_sha256 IS NOT NULL
+          AND payload_bytes IS NOT NULL
+          AND error_code IS NULL
+        )
+        OR
+        (
+          status = 'missing'
+          AND payload_json IS NULL
+          AND payload_sha256 IS NULL
+          AND payload_bytes IS NULL
+          AND error_code IS NOT NULL
+        )
+      ),
+      UNIQUE(session_id, request_ordinal)
+    );
+    CREATE INDEX IF NOT EXISTS model_request_snapshots_thread_created
+      ON model_request_snapshots(thread_id, created_at DESC, id DESC);
+  `)
+}
+
 const migrateHistory30To31 = (sqlite: Database) => {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS taskboard_project_sequences (
@@ -925,6 +1046,24 @@ export const backfillProjectThreadWorkspaces = (history: Database, profile: Data
   }
 }
 
+/** Profile schema 3 → 4：新增插件平台独立表（纯增量，不触碰既有表与数据）。 */
+const migrateProfile3To4 = (sqlite: Database) => {
+  const statements = [
+    "CREATE TABLE IF NOT EXISTS plugin_packages (\n        plugin_id TEXT PRIMARY KEY,\n        version TEXT NOT NULL,\n        display_name TEXT NOT NULL,\n        description TEXT NOT NULL DEFAULT '',\n        publisher TEXT NOT NULL,\n        tier TEXT NOT NULL CHECK(tier IN ('application', 'system')),\n        manifest_json TEXT NOT NULL,\n        digest TEXT NOT NULL,\n        source TEXT NOT NULL CHECK(source IN ('package', 'linked-directory')),\n        linked_path TEXT,\n        directory_digest TEXT,\n        staged_directory_digest TEXT,\n        installed_path TEXT NOT NULL,\n        installed_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
+    "CREATE TABLE IF NOT EXISTS plugin_activations (\n        plugin_id TEXT NOT NULL,\n        workspace_key TEXT NOT NULL DEFAULT '',\n        enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0, 1)),\n        updated_at INTEGER NOT NULL,\n        PRIMARY KEY (plugin_id, workspace_key)\n      )",
+    "CREATE TABLE IF NOT EXISTS plugin_grants (\n        plugin_id TEXT NOT NULL,\n        digest TEXT NOT NULL,\n        permission_id TEXT NOT NULL,\n        granted INTEGER NOT NULL DEFAULT 0 CHECK(granted IN (0, 1)),\n        granted_at INTEGER NOT NULL,\n        PRIMARY KEY (plugin_id, digest, permission_id)\n      )",
+    "CREATE TABLE IF NOT EXISTS plugin_profile_generations (\n        id TEXT PRIMARY KEY,\n        plugin_id TEXT NOT NULL,\n        kind TEXT NOT NULL CHECK(kind IN ('application', 'system')),\n        version TEXT NOT NULL,\n        digest TEXT NOT NULL,\n        status TEXT NOT NULL CHECK(status IN ('staged', 'active', 'last-good', 'retired', 'failed')),\n        config_json TEXT NOT NULL DEFAULT '{}',\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
+    "CREATE TABLE IF NOT EXISTS plugin_operations (\n        operation_id TEXT PRIMARY KEY,\n        plugin_id TEXT NOT NULL,\n        method TEXT NOT NULL,\n        request_hash TEXT NOT NULL,\n        status TEXT NOT NULL CHECK(status IN ('pending', 'completed', 'failed')),\n        result TEXT,\n        error_code TEXT,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
+    "CREATE TABLE IF NOT EXISTS plugin_kv (\n        plugin_id TEXT NOT NULL,\n        scope TEXT NOT NULL CHECK(scope IN ('global', 'workspace')),\n        workspace_key TEXT NOT NULL DEFAULT '',\n        key TEXT NOT NULL,\n        value TEXT NOT NULL,\n        version INTEGER NOT NULL DEFAULT 1,\n        updated_at INTEGER NOT NULL,\n        PRIMARY KEY (plugin_id, scope, workspace_key, key)\n      )",
+    "CREATE INDEX IF NOT EXISTS plugin_profile_generations_lookup ON plugin_profile_generations(plugin_id, kind, status, created_at)",
+    "CREATE INDEX IF NOT EXISTS plugin_operations_status ON plugin_operations(status, created_at)",
+    "CREATE INDEX IF NOT EXISTS plugin_kv_plugin_lookup ON plugin_kv(plugin_id, scope, workspace_key, updated_at)",
+  ]
+  sqlite.transaction(() => {
+    sqlite.exec(statements.join(";\n"))
+  })()
+}
+
 export const PROFILE_SCHEMA = FINAL_SCHEMA
   .filter((statement) => {
     const table = tableName(statement) ?? indexTable(statement)
@@ -996,12 +1135,15 @@ class SchemaInitializer {
           28: () => migrateHistory28To29(this.sqlite),
           29: () => migrateHistory29To30(this.sqlite),
           30: () => migrateHistory30To31(this.sqlite),
+          31: () => migrateHistory31To32(this.sqlite),
+          32: () => migrateHistory32To33(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration
           // runs after both profile/config paths are available in bootstrap.
           1: () => undefined,
           2: () => migrateProfile2To3(this.sqlite),
+          3: () => migrateProfile3To4(this.sqlite),
         }
     let version = from
     while (version < target) {

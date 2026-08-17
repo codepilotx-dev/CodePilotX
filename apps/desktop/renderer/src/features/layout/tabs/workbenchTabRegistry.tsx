@@ -1,6 +1,8 @@
 import React, { Suspense, useEffect, type ReactNode } from 'react'
 import {
+  Blocks,
   Bot,
+  FileSearch,
   Folder,
   FileText,
   GitPullRequest,
@@ -27,6 +29,7 @@ import type { SideChatComposerRenderContext } from '../../session/conversation/S
 import type { ConversationItemContextValue } from '../../session/timeline/ConversationItemContext.js'
 import type { OpenPlanInDockRequest } from '../../session/workflow/WorkflowPlanCard.js'
 import type { FileDocumentLoadErrorPhase } from '../dock/RightDockPanels.js'
+import { PluginViewPane } from './PluginViewPane.js'
 import { FileTypeIcon } from '../FileTypeIcon.js'
 import { createWorkspaceFileTabId } from './workspaceFileTabId.js'
 import type {
@@ -49,6 +52,7 @@ const RightDockPlanPanel = React.lazy(() => import('../dock/RightDockPanels.js')
 const SideChatThreadPanel = React.lazy(() => import('../../session/conversation/SideChatThreadPanel.js').then(module => ({ default: module.SideChatThreadPanel })))
 const TerminalPanel = React.lazy(() => import('../../terminal/TerminalPanel.js').then(module => ({ default: module.TerminalPanel })))
 const UserAttachmentPreviewPanel = React.lazy(() => import('../../session/attachments/UserAttachmentPreviewPanel.js').then(module => ({ default: module.UserAttachmentPreviewPanel })))
+const ModelRequestInspectorPanel = React.lazy(() => import('../../session/request-inspector/ModelRequestInspectorPanel.js').then(module => ({ default: module.ModelRequestInspectorPanel })))
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
@@ -194,6 +198,21 @@ export type WorkbenchTabRenderContext = {
     threadId: string | null
     onDisplayPathChange: (displayPath: string | null) => void
   }
+  modelRequests: {
+    threadId: string | null
+    availability: WorkbenchTabAvailability
+  }
+  pluginViews: {
+    /** 已声明视图的插件 id 集合（active 插件）。 */
+    availablePluginIds: ReadonlySet<string>
+    /** 视图声明（来自 plugin/contribution/list）。 */
+    views: ReadonlyArray<{
+      pluginId: string
+      view: { id: string; title: string; description?: string; icon?: string }
+    }>
+    onOpenView: (tab: Extract<WorkbenchTabDescriptor, { kind: 'plugin-view' }>) => void
+    onViewInvalidated: (tabId: WorkbenchTabDescriptor['id']) => void
+  }
 }
 
 export type WorkbenchTabLifecycle =
@@ -217,6 +236,7 @@ export type WorkbenchTabDefinition = {
   launcherShortcut?: string | null
   lifecycle: WorkbenchTabLifecycle
   getAvailability?: (
+    tab: WorkbenchTabDescriptor,
     context: WorkbenchTabRenderContext,
   ) => WorkbenchTabAvailability
   getTitle: (tab: WorkbenchTabDescriptor) => string
@@ -231,10 +251,11 @@ const iconSize = 14
 
 const WORKBENCH_LAUNCHER_ORDER: Partial<Record<WorkbenchTabKind, number>> = {
   review: 0,
-  terminal: 1,
-  browser: 2,
-  'file-browser': 3,
-  'side-chat': 4,
+  'model-requests': 1,
+  terminal: 2,
+  browser: 3,
+  'file-browser': 4,
+  'side-chat': 5,
 }
 
 export function getWorkbenchLauncherPresentation(
@@ -275,7 +296,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     shortcut: 'Ctrl+T',
     launcher: true,
     lifecycle: 'external-surface',
-    getAvailability: context => context.browser.availability,
+    getAvailability: (_tab, context) => context.browser.availability,
     getTitle: () => '浏览器',
     render: (_tab, context) => <BrowserTabContent context={context.browser} />,
   },
@@ -413,6 +434,46 @@ const definitions: readonly WorkbenchTabDefinition[] = [
       : null,
   },
   {
+    kind: 'model-requests',
+    label: '请求',
+    icon: <FileSearch size={iconSize} />,
+    launcher: true,
+    lifecycle: 'unmount-when-hidden',
+    getAvailability: (_tab, context) => context.modelRequests.availability,
+    getTitle: () => '请求',
+    render: (tab, context) => tab.kind === 'model-requests'
+      ? deferred(
+          <ModelRequestInspectorPanel threadId={context.modelRequests.threadId ?? ''} />,
+        )
+      : null,
+  },
+  {
+    kind: 'plugin-view',
+    label: '插件视图',
+    icon: <Blocks size={iconSize} />,
+    launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getAvailability: (tab, context) => {
+      if (tab.kind !== 'plugin-view') return { status: 'unavailable', reason: '未知视图' }
+      if (!context.pluginViews.availablePluginIds.has(tab.pluginId)) {
+        return {
+          status: 'unavailable',
+          reason: `插件 ${tab.pluginId} 已禁用或不可用。`,
+        }
+      }
+      return { status: 'available' }
+    },
+    getTitle: tab => tab.kind === 'plugin-view' ? tab.title : '插件视图',
+    render: (tab, context) => tab.kind === 'plugin-view'
+      ? deferred(
+          <PluginViewPane
+            tab={tab}
+            onViewInvalidated={() => context.pluginViews.onViewInvalidated(tab.id)}
+          />,
+        )
+      : null,
+  },
+  {
     kind: 'terminal',
     label: '终端',
     icon: <SquareTerminal size={iconSize} />,
@@ -420,7 +481,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     launcherShortcut: null,
     lifecycle: 'keep-alive-hidden',
-    getAvailability: context => context.terminal.availability,
+    getAvailability: (_tab, context) => context.terminal.availability,
     getTitle: () => '终端',
     render: (_tab, context) => {
       if (context.terminal.availability.status === 'loading') {
@@ -458,7 +519,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <Bot size={iconSize} />,
     launcher: false,
     lifecycle: 'unmount-when-hidden',
-    getAvailability: context => context.sideTask.availability,
+    getAvailability: (_tab, context) => context.sideTask.availability,
     getTitle: () => '子智能体',
     render: (tab, context) =>
       tab.kind === 'side-task' &&
@@ -523,6 +584,9 @@ export function createLauncherTab(
   }
   if (kind === 'side-chat') return null
   if (kind === 'terminal') return { id: 'terminal', kind: 'terminal' }
+  if (kind === 'model-requests') {
+    return { id: 'model-requests', kind: 'model-requests' }
+  }
   return null
 }
 

@@ -3,8 +3,9 @@ import { defineMethod, type MethodMap } from "../wire/definition"
 import { OperationParamsSchema, SequenceSchema, TimestampSchema } from "../wire/primitives"
 
 const SkillPathSchema = Schema.String.check(Schema.isMinLength(1))
+const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 
-export const SkillScopeSchema = Schema.Literals(["workspace", "user"])
+export const SkillScopeSchema = Schema.Literals(["workspace", "user", "plugin"])
 export const SkillFormatSchema = Schema.Literals(["codepilotx", "agents", "codex", "claude"])
 
 export const InstalledSkillSchema = Schema.Struct({
@@ -14,6 +15,8 @@ export const InstalledSkillSchema = Schema.Struct({
   scope: SkillScopeSchema,
   format: SkillFormatSchema,
   enabled: Schema.Boolean,
+  /** scope === "plugin" 时的插件 id（provenance）。 */
+  pluginId: Schema.optional(NonEmptyStringSchema),
 })
 
 export const SkillListParamsSchema = Schema.Struct({

@@ -51,6 +51,7 @@ const toInstalledSkill = (
   scope: skill.origin,
   format: skill.format,
   enabled: !disabled.has(skillPathIdentity(skill.path)),
+  ...(skill.origin === "plugin" && skill.pluginId ? { pluginId: skill.pluginId } : {}),
 })
 
 export class SkillManagementService {

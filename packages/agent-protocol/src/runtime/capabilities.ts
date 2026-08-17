@@ -48,6 +48,13 @@ export const Capabilities = [
   "thread.side-chat.v1",
   "worktree.manage.v1",
   "taskboard.v1",
+  "runtime.contributions.v1",
+  "runtime.request-snapshots.v1",
+  "plugins.manage.v1",
+  "plugins.runtime.v1",
+  "plugins.views.v1",
+  "plugins.system-profiles.v1",
+  "runtime.step-lifecycle.v1",
 ] as const
 
 export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)

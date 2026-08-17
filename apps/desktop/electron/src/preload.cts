@@ -53,6 +53,10 @@ import type {
   DesktopComposerPathReadInput,
 } from "@codepilotx/shared/desktop-attachment-ipc"
 import type {
+  DesktopPluginDirectoryPick,
+  DesktopPluginPackageFilePick,
+} from "@codepilotx/shared/desktop-plugin-ipc"
+import type {
   CreateOrRestoreDesktopBrowserInput,
   DesktopBrowserIpcBridge,
   DesktopBrowserSnapshot,
@@ -132,6 +136,12 @@ const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
   readComposerPathGrant: "desktop-attachment:read-composer-path-grant",
   listComposerPathGrant: "desktop-attachment:list-composer-path-grant",
 } as const satisfies typeof import("@codepilotx/shared/desktop-attachment-ipc").DESKTOP_ATTACHMENT_IPC_CHANNELS
+
+const DESKTOP_PLUGIN_IPC_CHANNELS = {
+  pickPluginPackageFile: "desktop-plugin:pick-package-file",
+  pickPluginDirectory: "desktop-plugin:pick-directory",
+  restartApp: "desktop-plugin:restart-app",
+} as const satisfies typeof import("@codepilotx/shared/desktop-plugin-ipc").DESKTOP_PLUGIN_IPC_CHANNELS
 
 const DESKTOP_BROWSER_IPC_CHANNELS = {
   getState: "desktop-browser:get-state",
@@ -250,6 +260,12 @@ const desktop = {
     ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.saveToDownloads, input),
   chooseComposerFiles: (): Promise<DesktopComposerPathGrant[]> =>
     ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.chooseComposerFiles),
+  pickPluginPackageFile: (): Promise<DesktopPluginPackageFilePick> =>
+    ipcRenderer.invoke(DESKTOP_PLUGIN_IPC_CHANNELS.pickPluginPackageFile),
+  pickPluginDirectory: (): Promise<DesktopPluginDirectoryPick> =>
+    ipcRenderer.invoke(DESKTOP_PLUGIN_IPC_CHANNELS.pickPluginDirectory),
+  restartApp: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_PLUGIN_IPC_CHANNELS.restartApp),
   grantComposerPaths: (
     paths: readonly string[],
   ): Promise<DesktopComposerPathGrant[]> => {
@@ -407,22 +423,6 @@ const desktop = {
     ipcRenderer.invoke("appearance:settings:get"),
   saveAppearanceSettings: (settings: DesktopThemeSettingsV7): Promise<void> =>
     ipcRenderer.invoke("appearance:settings:save", settings),
-  getSystemTheme: (): Promise<SystemThemeVariant> =>
-    ipcRenderer.invoke("appearance:system-theme:get"),
-  onSystemThemeChange: (listener: (variant: SystemThemeVariant) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, variant: unknown) => {
-      if (variant === "light" || variant === "dark") listener(variant)
-    }
-    ipcRenderer.on("appearance:system-theme:changed", handler)
-    return () => ipcRenderer.removeListener("appearance:system-theme:changed", handler)
-  },
-  openPetOverlay: (): Promise<void> =>
-    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.open),
-  hidePetOverlay: (): Promise<void> =>
-    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.hide),
-  getPetOverlayWindowState: () =>
-    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.getState),
-  previewPetPresentation: (
   listSystemFonts: async (): Promise<DesktopSystemFontsResult> => {
     // Local Font Access (Chromium 103+). Only display metadata is returned;
     // font file paths, Blobs, and filesystem access never cross the bridge.
@@ -461,6 +461,22 @@ const desktop = {
       return { ok: false, error: "failed" }
     }
   },
+  getSystemTheme: (): Promise<SystemThemeVariant> =>
+    ipcRenderer.invoke("appearance:system-theme:get"),
+  onSystemThemeChange: (listener: (variant: SystemThemeVariant) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, variant: unknown) => {
+      if (variant === "light" || variant === "dark") listener(variant)
+    }
+    ipcRenderer.on("appearance:system-theme:changed", handler)
+    return () => ipcRenderer.removeListener("appearance:system-theme:changed", handler)
+  },
+  openPetOverlay: (): Promise<void> =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.open),
+  hidePetOverlay: (): Promise<void> =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.hide),
+  getPetOverlayWindowState: () =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.getState),
+  previewPetPresentation: (
     presentation: DesktopPetPresentation,
   ): Promise<DesktopPetPresentation> =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.previewPresentation, presentation),
@@ -537,22 +553,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function isDesktopBrowserSnapshot(
-  value: unknown,
-): value is DesktopBrowserSnapshot {
-  if (!isRecord(value)) return false
-  return isIdentifier(value.tabId)
-    && typeof value.open === "boolean"
-    && typeof value.url === "string"
-    && typeof value.title === "string"
-    && typeof value.loading === "boolean"
-    && typeof value.canGoBack === "boolean"
-    && typeof value.canGoForward === "boolean"
-    && (value.error === null || typeof value.error === "string")
-    && Array.isArray(value.allowedSites)
-    && value.allowedSites.every(site => typeof site === "string")
-    && Array.isArray(value.sitePermissions)
-}
 type LocalFontMetadata = {
   family: string
   fullName: string
@@ -584,6 +584,22 @@ function fontMetadataField(
   return trimmed.length > 0 && trimmed.length <= maximumLength ? trimmed : null
 }
 
+function isDesktopBrowserSnapshot(
+  value: unknown,
+): value is DesktopBrowserSnapshot {
+  if (!isRecord(value)) return false
+  return isIdentifier(value.tabId)
+    && typeof value.open === "boolean"
+    && typeof value.url === "string"
+    && typeof value.title === "string"
+    && typeof value.loading === "boolean"
+    && typeof value.canGoBack === "boolean"
+    && typeof value.canGoForward === "boolean"
+    && (value.error === null || typeof value.error === "string")
+    && Array.isArray(value.allowedSites)
+    && value.allowedSites.every(site => typeof site === "string")
+    && Array.isArray(value.sitePermissions)
+}
 
 function isPetPresentation(value: unknown): value is DesktopPetPresentation {
   return isRecord(value)

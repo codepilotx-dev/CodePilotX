@@ -42,6 +42,7 @@
   @include meta.load-css('features/layout-workspace-header');
   @include meta.load-css('features/layout-right-dock');
   @include meta.load-css('features/layout-right-dock-panels');
+  @include meta.load-css('features/request-inspector');
 }
 
 @layer features {

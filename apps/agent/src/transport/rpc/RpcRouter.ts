@@ -64,6 +64,10 @@ import type { SpeechTranscriptionService } from "../../speech/SpeechTranscriptio
 import type { ThreadExecutionPreparationService } from "../../worktree/ThreadExecutionPreparationService"
 import type { TaskboardService } from "../../taskboard/TaskboardService"
 import type { TaskboardStartService } from "../../taskboard/TaskboardStartService"
+import type { RuntimeContributionRegistry } from "../../runtime/RuntimeContribution"
+import type { ModelRequestSnapshotRepository } from "../../storage/repositories/model-request-snapshot-repository"
+import type { PluginService } from "../../plugin/PluginService"
+import type { SystemServiceRegistry } from "../../plugin/system/SystemServiceRegistry"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
 import type { SideChatService } from "../../session/side-chat/SideChatService"
 import { InteractionService } from "../../interaction/InteractionService"
@@ -162,6 +166,11 @@ export type RpcRouterDependencies = {
   threadExecutions: ThreadExecutionPreparationService
   taskboard: TaskboardService
   taskboardStart: TaskboardStartService
+  runtimeContributions: RuntimeContributionRegistry
+  requestSnapshots: ModelRequestSnapshotRepository
+  pluginService: PluginService
+  /** System service provider 注册表（PR 8A：model/tool runtime 替换点）。 */
+  systemServiceRegistry?: SystemServiceRegistry
 }
 
 export type { RpcRouterContext } from "./request-context"
@@ -435,6 +444,30 @@ export class RpcRouter {
   private loadCatalogSource() {
     if (this.catalogSource) return this.catalogSource
     const { providers } = this.dependencies
+    // System model-runtime provider 替换点：激活时目录来自 provider（PR 8A）。
+    const modelRuntime = this.dependencies.systemServiceRegistry?.resolve<{
+      listCatalog: () => Promise<{ providers: unknown[]; models: Model.Info[] }>
+    }>("codepilotx.model-runtime@1")
+    if (modelRuntime) {
+      this.catalogSource = modelRuntime.listCatalog().then((custom) => {
+        const models = custom.models
+        const modelsByProvider = new Map<string, Model.Info[]>()
+        for (const model of models) {
+          const group = modelsByProvider.get(model.providerID) ?? []
+          group.push(model)
+          modelsByProvider.set(model.providerID, group)
+        }
+        return {
+          providers: custom.providers as unknown as Provider.Info[],
+          models,
+          modelsByProvider: modelsByProvider as ReadonlyMap<string, readonly Model.Info[]>,
+        }
+      }).catch((cause) => {
+        this.catalogSource = null
+        throw cause
+      })
+      return this.catalogSource
+    }
     this.catalogSource = Promise.all([providers.list(), providers.models()]).then(([providerInfos, models]) => {
       const modelsByProvider = new Map<string, Model.Info[]>()
       for (const model of models) {
@@ -451,7 +484,7 @@ export class RpcRouter {
       this.catalogSource = null
       throw cause
     })
-    return this.catalogSource
+    return this.catalogSource!
   }
 
   private invalidateCatalogSource() {
