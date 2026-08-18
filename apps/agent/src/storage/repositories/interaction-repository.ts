@@ -913,6 +913,12 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
       this.sqlite.query("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status IN ('preparing', 'pending', 'resolved')").run(timestamp, turnID)
     }
 
+  getPendingInteractionCounts(threadID: string): { approvals: number; questions: number } {
+      const approvals = this.sqlite.query("SELECT COUNT(*) AS count FROM approval_requests WHERE thread_id = ? AND status = 'pending'").get(threadID) as { count: number } | null
+      const questions = this.sqlite.query("SELECT COUNT(*) AS count FROM question_requests WHERE thread_id = ? AND status = 'pending'").get(threadID) as { count: number } | null
+      return { approvals: Number(approvals?.count ?? 0), questions: Number(questions?.count ?? 0) }
+    }
+
   invalidateApprovalCheckpoint(approvalID: string, reason: string) {
       const row = this.sqlite.query("SELECT thread_id, turn_id, agent_id FROM approval_requests WHERE id = ?").get(approvalID) as { thread_id: string; turn_id: string; agent_id: string } | null
       if (!row) return null

@@ -292,7 +292,12 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
     }
 
   updateThreadSettings(threadID: string, patch: ThreadSettingsPatch) {
-      return this.transaction(() => this.syncThreadSettings(threadID, patch))
+      return this.transaction(() => {
+        const result = this.syncThreadSettings(threadID, patch)
+        const thread = this.getThread(threadID)
+        if (!thread) throw new Error("Thread not found")
+        return { ...result, version: thread.updatedAt }
+      })
     }
 
   getThreadPromptSettings<T extends Record<string, unknown> = Record<string, unknown>>(threadID: string): T | null {

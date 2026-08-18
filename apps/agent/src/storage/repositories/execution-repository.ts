@@ -863,6 +863,11 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       return { id: row.id, content: row.content, model: parse(row.model_ref), permissionConfig: permissionConfigFromRow(row), strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage & { id: string }
     }
 
+  getTurnStatus(turnID: string): TurnStatus | null {
+      const row = this.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turnID) as { status: TurnStatus } | null
+      return row?.status ?? null
+    }
+
   saveAgentTurnCheckpoint(input: Omit<AgentTurnCheckpoint, "createdAt" | "updatedAt">) {
       const timestamp = now()
       this.sqlite.query(`INSERT INTO agent_checkpoints (agent_id, turn_id, thread_id, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(agent_id) DO UPDATE SET turn_id = excluded.turn_id, thread_id = excluded.thread_id, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(

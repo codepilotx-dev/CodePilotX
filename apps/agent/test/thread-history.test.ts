@@ -224,13 +224,16 @@ describe("Thread 历史", () => {
       permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
     } as const
 
-    await history.patchSettings(thread.id, settings)
+    const changed = await history.patchSettings(thread.id, settings)
+    expect(changed.version).toBe(updatedAt)
     expect(db.getThreadSettings(thread.id)).toEqual(settings)
     expect(db.sqlite.query("SELECT updated_at FROM threads WHERE id = ?").get(thread.id)).toEqual({ updated_at: updatedAt })
     expect(db.eventsAfter(0).length).toBe(beforeEvents + 1)
 
-    await history.patchSettings(thread.id, {})
-    await history.patchSettings(thread.id, settings)
+    const unchanged = await history.patchSettings(thread.id, {})
+    const repeated = await history.patchSettings(thread.id, settings)
+    expect(unchanged.version).toBe(updatedAt)
+    expect(repeated.version).toBe(updatedAt)
     expect(db.eventsAfter(0).length).toBe(beforeEvents + 1)
 
     db.close()

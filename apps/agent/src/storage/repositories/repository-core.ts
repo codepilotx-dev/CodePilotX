@@ -255,6 +255,10 @@ export abstract class RepositoryCore {
     readonly profileSqlite: Database = sqlite,
   ) {}
 
+  probeHealth(): void {
+    this.sqlite.query("SELECT 1").get()
+  }
+
   transaction<T>(work: () => T): T {
       if (this.transactionDepth > 0) return work()
       this.transactionDepth = 1

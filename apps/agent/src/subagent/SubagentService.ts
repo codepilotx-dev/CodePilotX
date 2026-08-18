@@ -10,6 +10,7 @@ import { ResumeCheckpointResolver, toPlanCheckpoint } from "../interaction/Resum
 import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
+import { globalEventSequence } from "../storage/events/EventPublisher"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import { SubagentRepository, type SpawnSubagentInput } from "./SubagentRepository"
 import type { AttachmentService } from "./AttachmentService"
@@ -349,11 +350,10 @@ export class SubagentService {
       return response
     }
     if (["queued", "preparing", "waiting-question", "waiting-permission"].includes(run.status)) {
-      const latest = this.db.sqlite.query("SELECT turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(run.id) as { turn_id: string } | null
+      const latest = this.repository.latestExecution(run.id)
       if (latest) {
         this.approvals.cancelTurn(latest.turn_id)
         this.questions.cancelTurn(latest.turn_id)
-        this.db.run("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status = 'pending'", Date.now(), latest.turn_id)
       }
       const continued = this.repository.continueTask({ taskID, message, ...(options.model ? { model: options.model } : {}), permission, sameRun: true })
       await this.bindAttachments(continued.agent.turnID, options.attachmentIDs ?? [])
@@ -375,10 +375,23 @@ export class SubagentService {
     if (!task?.currentRun || !["failed", "stopped", "interrupted"].includes(task.currentRun.status)) throw new AgentError("SUBAGENT_NOT_RETRYABLE", "当前子 Agent 状态不能重试", 409)
     this.repository.createControl({ requestID, taskID, runID: task.currentRun.id, action: "retry" })
     const next = this.repository.continueTask({ taskID, message: task.task, sameRun: false })
-    this.repository.completeControl(requestID, next)
+    const input = this.db.getTurnInput(next.agent.turnID)
+    if (!input) throw new AgentError("CHECKPOINT_UNAVAILABLE", "子 Agent retry input 尚未建立", 409)
+    const sequence = globalEventSequence(this.db)
+    const result = {
+      task: next.task,
+      run: next.run,
+      admission: {
+        inputId: input.id,
+        turnId: next.agent.turnID,
+        disposition: "accepted" as const,
+        streamPosition: { streamId: next.task.childThreadId, sequence },
+      },
+    }
+    this.repository.completeControl(requestID, result)
     await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task: next.task, run: next.run })
     void this.schedule()
-    return next
+    return result
   }
 
   async stop(taskID: string, requestID: string) {
@@ -394,11 +407,10 @@ export class SubagentService {
       return result
     }
     this.controllers.get(run.id)?.abort()
-    const execution = this.db.sqlite.query("SELECT turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(run.id) as { turn_id: string } | null
+    const execution = this.repository.latestExecution(run.id)
     if (execution) {
       this.approvals.cancelTurn(execution.turn_id)
       this.questions.cancelTurn(execution.turn_id)
-      this.db.run("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status = 'pending'", Date.now(), execution.turn_id)
     }
     const finished = this.repository.finish(run.id, "stopped", null, "用户停止了子 Agent")
     this.repository.completeControl(requestID, finished)

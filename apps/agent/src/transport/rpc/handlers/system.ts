@@ -90,7 +90,7 @@ export const systemHandlers = {
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
-        db.sqlite.query("SELECT 1").get()
+        db.probeHealth()
         if (!Array.isArray(params.protocols) || !params.protocols.includes("thread-rpc-v4")) {
           throw new AgentError("PROTOCOL_VERSION_UNSUPPORTED", "客户端不支持 thread-rpc-v4", 409)
         }

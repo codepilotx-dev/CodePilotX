@@ -229,9 +229,7 @@ export const threadHandlers = {
         const threadId = stringParam(params, "threadId")
         const settings = decodeParams(decodeThreadSettingsPatch, params.settings, "thread/settings/update.settings")
         if (settings.permissionConfig) supportedPermissionConfig(settings.permissionConfig)
-        const result = await history.patchSettings(threadId, settings)
-        const version = Number((db.sqlite.query("SELECT updated_at FROM threads WHERE id = ?").get(threadId) as { updated_at: number } | null)?.updated_at ?? Date.now())
-        return { ...result, version }
+        return history.patchSettings(threadId, settings)
       }
       case "thread/delete": {
         const threadId = stringParam(params, "threadId")
@@ -304,7 +302,7 @@ export const threadHandlers = {
           ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }),
         })
         const sequence = globalEventSequence(db)
-        const turn = db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(submitted.turnID) as { status: string } | null
+        const turnStatus = db.getTurnStatus(submitted.turnID)
         return {
           inputId: submitted.inputID,
           turnId: submitted.turnID,
@@ -313,7 +311,7 @@ export const threadHandlers = {
             ? "started"
             : submitted.disposition === "queued"
               ? "queued"
-              : turn?.status === "queued"
+              : turnStatus === "queued"
                 ? "queued"
                 : "started",
           streamPosition: { streamId: request.threadId, sequence },

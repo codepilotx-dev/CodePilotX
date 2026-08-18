@@ -171,7 +171,7 @@ export class ThreadHistoryService {
     if (!this.getListItem(threadID)) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
     const result = this.db.updateThreadSettings(threadID, patch)
     if (result.event) await Effect.runPromise(this.hub.publish(result.event))
-    return { threadId: threadID, settings: result.settings }
+    return { threadId: threadID, settings: result.settings, version: result.version }
   }
 
   async remove(threadID: string) {
