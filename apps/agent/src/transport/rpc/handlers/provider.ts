@@ -189,6 +189,7 @@ export const providerHandlers = {
                   id: snapshot.model,
                   ...(typeof snapshot.model_reasoning_effort === "string"
                     && snapshot.model_reasoning_effort
+                    && snapshot.model_reasoning_effort !== "default"
                     ? { variant: snapshot.model_reasoning_effort }
                     : {}),
                 })

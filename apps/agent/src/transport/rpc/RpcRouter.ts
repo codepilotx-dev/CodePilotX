@@ -175,6 +175,13 @@ type ModelCatalogPage = {
   nextCursor?: string
 }
 
+const DESKTOP_THINKING_MODES = new Set([
+  "default",
+  "enabled",
+  "adaptive",
+  "disabled",
+])
+
 export const enumValue = <T extends string>(value: unknown, allowed: readonly T[], name: string): T => {
   if (typeof value !== "string" || !allowed.includes(value as T)) throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
   return value as T
@@ -470,7 +477,9 @@ export class RpcRouter {
       ? {
           providerID,
           id: config.model,
-          ...(typeof config.model_reasoning_effort === "string" && config.model_reasoning_effort
+          ...(typeof config.model_reasoning_effort === "string"
+            && config.model_reasoning_effort
+            && !DESKTOP_THINKING_MODES.has(config.model_reasoning_effort)
             ? { variant: config.model_reasoning_effort as Model.VariantID }
             : {}),
         } as Model.Ref

@@ -981,6 +981,14 @@ describe("RPC v4 Router", () => {
       id: "alpha",
     })
 
+    for (const thinkingMode of ["default", "enabled", "adaptive", "disabled"] as const) {
+      value.configDocument.model_reasoning_effort = thinkingMode
+      expect((await value.call("model/list", {})).result.defaultModel).toEqual({
+        providerID: "provider:test",
+        id: "alpha",
+      })
+    }
+
     // 显式默认模型存在但 variant 无效：返回 null。
     value.configDocument.model_reasoning_effort = "invalid-variant"
     const invalidVariant = await value.call("model/list", {})
