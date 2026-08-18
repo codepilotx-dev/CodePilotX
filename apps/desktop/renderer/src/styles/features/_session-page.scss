@@ -51,30 +51,18 @@
 .quick-chat-hero-region,
 .quick-chat-composer-region {
   display: flex;
-
-  // flex: 1 1 0;
   min-width: 0;
   width: 100%;
 }
 
 .coding-chat-view {
-  .quick-chat-hero-region,
-  .quick-chat-composer-region {
-    flex: 1 1 0;
-  }
-
   .quick-chat-hero-region {
     min-height: 320px;
     padding-bottom: var(--space-6);
   }
-
-  .quick-chat-composer-region {
-    min-height: 196px;
-  }
 }
 
 .quick-chat-hero-region {
-  // min-height: 320px;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
@@ -82,7 +70,6 @@
 }
 
 .quick-chat-composer-region {
-  // min-height: 196px;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
@@ -513,10 +500,6 @@
     .quick-chat-hero-region {
       min-height: 260px;
       padding-bottom: var(--space-4);
-    }
-
-    .quick-chat-composer-region {
-      min-height: 168px;
     }
   }
 
