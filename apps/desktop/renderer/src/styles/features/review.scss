@@ -614,50 +614,7 @@
   display: none;
 }
 
-.review-hunk-actions button,
-.review-comment-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  border: var(--layer-edge);
-  border-radius: var(--radius-control);
-  background: var(--layer-raised-fill);
-  color: var(--color-token-text-secondary);
-  font-family: var(--font-family-sans);
-  font-size: var(--type-control);
-  transition:
-    color var(--motion-micro) ease,
-    background-color var(--motion-micro) ease,
-    border-color var(--motion-micro) ease,
-    transform var(--motion-micro) ease;
 
-  svg {
-    width: var(--app-icon-size-sm);
-    height: var(--app-icon-size-sm);
-  }
-}
-
-.review-hunk-actions button:hover,
-.review-comment-actions button:hover {
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-foreground);
-  border-color: var(--color-token-border);
-}
-
-.review-hunk-actions button:active,
-.review-comment-actions button:active {
-  background: var(--color-token-list-active-selection-background);
-  transform: translateY(1px);
-}
-
-.review-hunk-actions button:disabled,
-.review-comment-actions button:disabled {
-  background: var(--layer-raised-fill);
-  color: var(--color-token-text-tertiary);
-  cursor: default;
-  transform: none;
-}
 
 .review-line-comment-button {
   width: var(--control-size-sm);
@@ -1167,14 +1124,7 @@
   justify-content: center;
   gap: 8px;
 
-  button {
-    padding: 3px 8px;
-    border: 1px solid var(--color-token-border);
-    border-radius: var(--radius-control);
-    background: var(--layer-raised-fill);
-    color: var(--color-token-foreground);
-    cursor: pointer;
-  }
+
 }
 
 .review-project-empty-state {

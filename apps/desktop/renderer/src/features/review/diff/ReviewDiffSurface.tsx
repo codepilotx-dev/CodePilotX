@@ -4,6 +4,7 @@ import {
   MessageSquarePlus,
   Trash2,
 } from "lucide-react";
+import { Button } from "../../../components/ui/Button.js";
 import type {
   DesktopDiffMarkerStyle,
   DesktopReviewComment,
@@ -830,7 +831,8 @@ export function ReviewHunkActions({
     <div className="review-hunk-actions" role="toolbar" aria-label="Hunk 操作">
       {scope === "unstaged" ? (
         <>
-          <button
+          <Button
+            size="compact"
             disabled={pending}
             type="button"
             onClick={() =>
@@ -842,8 +844,9 @@ export function ReviewHunkActions({
             }
           >
             暂存 hunk
-          </button>
-          <button
+          </Button>
+          <Button
+            size="compact"
             disabled={pending}
             type="button"
             onClick={() =>
@@ -855,10 +858,11 @@ export function ReviewHunkActions({
             }
           >
             还原
-          </button>
+          </Button>
         </>
       ) : (
-        <button
+        <Button
+          size="compact"
           disabled={pending}
           type="button"
           onClick={() =>
@@ -870,7 +874,7 @@ export function ReviewHunkActions({
           }
         >
           取消暂存
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -942,16 +946,17 @@ export function LineComments({
             onChange={(event) => onDraftBodyChange(event.target.value)}
           />
           <div className="review-comment-actions">
-            <button type="button" onClick={onCancelDraft}>
+            <Button size="compact" type="button" onClick={onCancelDraft}>
               取消
-            </button>
-            <button
+            </Button>
+            <Button
+              size="compact"
               disabled={!draft?.body.trim()}
               type="button"
               onClick={onSaveDraft}
             >
               保存
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -981,15 +986,15 @@ export function ReviewComment({
       <div className="review-comment-body">{comment.body}</div>
       <div className="review-comment-actions">
         {comment.status === "open" ? (
-          <button type="button" onClick={onResolve}>
+          <Button size="compact" type="button" onClick={onResolve}>
             <CheckCircle2 size={12} />
             解决
-          </button>
+          </Button>
         ) : null}
-        <button type="button" onClick={onDelete}>
+        <Button size="compact" color="danger" type="button" onClick={onDelete}>
           <Trash2 size={12} />
           删除
-        </button>
+        </Button>
       </div>
     </div>
   );

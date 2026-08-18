@@ -47,6 +47,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
+import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
@@ -637,9 +638,9 @@ export function ReviewDiffFilePreview({
     diffBody = (
       <div className="review-empty-state review-file-load-state" role="alert">
         <span>{fileLoadState.message}</span>
-        <button type="button" onClick={() => onRetryFile(file.path)}>
+        <Button size="compact" type="button" onClick={() => onRetryFile(file.path)}>
           重试
-        </button>
+        </Button>
       </div>
     );
   } else if (!hasContent) {
