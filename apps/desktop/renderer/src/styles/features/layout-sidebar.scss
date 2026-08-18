@@ -864,13 +864,41 @@
   background: var(--color-token-border-light);
 }
 
+.sidebar-session-hover-card {
+  min-width: 200px;
+  max-width: 268px;
+  padding: 10px 14px;
+}
+
+.sidebar-session-hover-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar-session-hover-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
 .sidebar-session-hover-card-title {
   min-width: 0;
   flex: 1;
-  overflow: hidden;
+  font-size: var(--menu-font-size);
   font-weight: var(--font-weight-label);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: var(--control-line-height);
+  color: var(--color-token-foreground);
+  overflow-wrap: break-word;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
 }
 
 .sidebar-session-hover-card-trailing {
@@ -878,6 +906,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding-top: 1px;
 }
 
 .sidebar-session-hover-card-title__skeleton {
@@ -889,6 +918,8 @@
 .sidebar-session-hover-card-time {
   flex: 0 0 auto;
   color: var(--color-token-description-foreground);
+  font-size: var(--menu-detail-font-size);
+  line-height: var(--control-line-height);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -903,16 +934,31 @@
   color: var(--color-token-foreground);
   background: var(--color-token-input-background);
   font: inherit;
+  font-size: var(--menu-font-size);
   font-weight: var(--font-weight-label);
   outline: none;
 }
 
+.sidebar-session-hover-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .sidebar-session-hover-card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--menu-font-size);
+  line-height: var(--control-line-height);
   color: var(--color-token-foreground);
 
   svg {
-    flex: 0 0 16px;
-    color: var(--color-token-description-foreground);
+    flex: 0 0 15px;
+    width: 15px;
+    height: 15px;
+    color: var(--color-token-foreground);
   }
 
   span {

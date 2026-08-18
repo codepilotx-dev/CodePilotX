@@ -1,5 +1,5 @@
 import type React from 'react'
-import { Folder, GitBranch } from 'lucide-react'
+import { GitBranch, SquareTerminal } from 'lucide-react'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 import {
@@ -87,7 +87,9 @@ export function SidebarSessionHoverCardOverlay({
                   <SkeletonBlock className="sidebar-session-hover-card-title__skeleton" />
                   <span className="u-sr-only">正在更新会话标题</span>
                 </>
-              ) : model.title}
+              ) : (
+                model.title
+              )}
             </span>
           )}
           <span className="sidebar-session-hover-card-trailing">
@@ -102,16 +104,18 @@ export function SidebarSessionHoverCardOverlay({
             ) : null}
           </span>
         </SidebarHoverCardHeader>
-        <SidebarHoverCardRow className="sidebar-session-hover-card-row">
-          <Folder aria-hidden="true" size={16} />
-          <span>{model.projectLabel}</span>
-        </SidebarHoverCardRow>
-        {model.gitBranch ? (
+        <div className="sidebar-session-hover-card-meta">
           <SidebarHoverCardRow className="sidebar-session-hover-card-row">
-            <GitBranch aria-hidden="true" size={16} />
-            <span>{model.gitBranch}</span>
+            <SquareTerminal aria-hidden="true" size={15} strokeWidth={1.75} />
+            <span>{model.projectLabel}</span>
           </SidebarHoverCardRow>
-        ) : null}
+          {model.gitBranch ? (
+            <SidebarHoverCardRow className="sidebar-session-hover-card-row">
+              <GitBranch aria-hidden="true" size={15} strokeWidth={1.75} />
+              <span>{model.gitBranch}</span>
+            </SidebarHoverCardRow>
+          ) : null}
+        </div>
       </SidebarHoverCardFrame>
     </SidebarHoverCardSurface>
   )

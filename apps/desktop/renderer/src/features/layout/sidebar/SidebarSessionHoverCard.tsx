@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   sessionDisplayTitle,
   sessionEditableTitle,
+  sessionResolvedTitle,
   type SessionListItem,
 } from '../../../uiTypes.js'
 import { SidebarHoverCard } from './SidebarHoverCard.js'
@@ -47,8 +48,9 @@ export function buildSidebarSessionHoverCardModel(
     ? '会话'
     : session.workspaceName.trim() || '会话'
   const gitBranch = session.gitBranch?.trim() || null
+  const resolved = sessionResolvedTitle(session, fallbackTitle)?.trim()
   return {
-    title: sessionDisplayTitle(session, fallbackTitle),
+    title: resolved || sessionDisplayTitle(session, fallbackTitle),
     relativeTime: formatSidebarSessionRelativeTime(
       session.lastMessageAt ?? session.createdAt,
       now,
