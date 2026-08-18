@@ -423,6 +423,9 @@ const desktop = {
   getPetOverlayWindowState: () =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.getState),
   previewPetPresentation: (
+    presentation: DesktopPetPresentation,
+  ): Promise<DesktopPetPresentation> =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.previewPresentation, presentation),
   listSystemFonts: async (): Promise<DesktopSystemFontsResult> => {
     // Local Font Access (Chromium 103+). Only display metadata is returned;
     // font file paths, Blobs, and filesystem access never cross the bridge.
@@ -461,9 +464,6 @@ const desktop = {
       return { ok: false, error: "failed" }
     }
   },
-    presentation: DesktopPetPresentation,
-  ): Promise<DesktopPetPresentation> =>
-    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.previewPresentation, presentation),
   onPetPresentationPreview: (
     listener: (presentation: DesktopPetPresentation) => void,
   ): (() => void) => {

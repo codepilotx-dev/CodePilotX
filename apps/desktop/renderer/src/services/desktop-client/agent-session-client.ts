@@ -2224,6 +2224,9 @@ export function createAgentSessionDesktopClient(
           !Array.isArray(result.config.desktop)
             ? result.config.desktop as Record<string, unknown>
             : {}
+        if (isNewerDesktopThemeSettingsVersion(desktop.appearance)) {
+          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级读取。')
+        }
         if (
           desktop.appearance &&
           typeof desktop.appearance === 'object' &&
@@ -2245,6 +2248,15 @@ export function createAgentSessionDesktopClient(
       try {
         requireAgentCapability('config.manage.v1')
         const current = await rpc.call('config/read', { includeLayers: true })
+        const currentDesktop =
+          current.config.desktop
+          && typeof current.config.desktop === 'object'
+          && !Array.isArray(current.config.desktop)
+            ? current.config.desktop as Record<string, unknown>
+            : null
+        if (isNewerDesktopThemeSettingsVersion(currentDesktop?.appearance)) {
+          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级保存。')
+        }
         const version = current.layers?.find(layer => layer.kind === 'user')?.version
         const flatten = (
           value: Record<string, unknown>,
@@ -2345,9 +2357,6 @@ export function createAgentSessionDesktopClient(
       withAgentOrMock(
         async () => {
           requireAgentCapability('memory', 2)
-          if (isNewerDesktopThemeSettingsVersion(desktop.appearance)) {
-            throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级读取。')
-          }
           const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/save', { scope: 'user', ...(input.relativePath ? { id: input.relativePath } : {}), content: input.content, operationId: crypto.randomUUID() })
           return { relativePath: response.entry.id, absolutePath: response.entry.id, type: 'user' as const, description: response.entry.content.slice(0, 120), size: response.entry.content.length, mtimeMs: response.entry.updatedAt }
         },
@@ -2364,15 +2373,6 @@ export function createAgentSessionDesktopClient(
         requireAgentCapability('task-suggestions.v1')
         const project = input.workspacePath
           ? await loadProjectForPath(input.workspacePath)
-        const currentDesktop =
-          current.config.desktop
-          && typeof current.config.desktop === 'object'
-          && !Array.isArray(current.config.desktop)
-            ? current.config.desktop as Record<string, unknown>
-            : null
-        if (isNewerDesktopThemeSettingsVersion(currentDesktop?.appearance)) {
-          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级保存。')
-        }
           : null
         return rpc.call('task-suggestion/generate', {
           ...(input.surface ? { surface: input.surface } : {}),
