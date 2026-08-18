@@ -9,6 +9,7 @@
 
 ### Added
 
+- [desktop] 新增仅开发环境可用的主题 Token 调试器，可实时组合和覆盖颜色 token，并复制 Dropdown 配色代码而不影响用户主题设置。
 - [development] 新增 CodePilotX 项目级代码审查、推送前检查、文档规范和简化审计 Skills，使 Agent 按仓库架构与验证契约执行常见工程工作流。
 - [Agent/desktop/renderer] 新增原生任务看板：支持 Project 筛选、五阶段拖拽排序、标签与评论、乐观并发、任务关联执行对话及本地或托管 worktree 启动，并向 Agent 提供受权限约束的任务工具。
 - [Agent/desktop/renderer] 新增全局模型健康测试，可用活动凭据并发执行真实最小请求、实时查看模型延迟与安全失败分类、取消批次及逐模型重试，并将 Provider 连接测试统一为真实探针。
@@ -22,6 +23,8 @@
 - [desktop] 外观设置补齐真实系统字体与字体样式选择：preload 新增类型化 `listSystemFonts()`（Local Font Access 只返回 family/fullName/postscriptName/style，字段限长、去重、稳定排序，不支持/拒绝/失败安全降级为自由文本输入）；主题设置保留式升级为 V7（新增可空 `uiFace`/`codeFace`，清除时显式持久化 `null`，V1–V5 历史重置策略与高版本拒绝覆盖不变）；新增主题字体加载工具，以唯一 alias 注册本地 face 并置于原家族之前，加载失败自动回退；UI 字体展示全部家族、代码字体按 Canvas 等宽检测过滤，默认 face 只保存家族；“偏好设置”顺序对齐 Codex：指针光标、减少动态效果、界面字号、代码字号、差异标记、字体平滑（仅 macOS）。
 
 ### Changed
+
+- [desktop/renderer] 移除 Coding 新建会话中 Composer 区域的 flex 比例与 min-height 限制，使输入区域高度由内容自然决定。
 
 - [architecture/shared/agent/desktop] 执行全仓简化方案：移除废弃共享会话模型与未消费 IPC 通道；收敛 RPC handler 直接 SQL 查询至仓储层；统一 Electron 窗口状态原子写器与 IPC 契约定义；合并 Renderer 跨端路径归一化比较工具；统一 Review 差异面板按钮复用及样式；提炼 Agent Protocol 基础类型与集成测试 Harness，并修正默认推理哨兵及确定性集成 fixture 的现行契约。
 - [desktop/renderer] 对齐 Codex 侧边栏会话悬浮卡（Hover Card）设计：项目图标改用终端图标（SquareTerminal），标题支持多行自然折行展示完整会话名称，右侧顶部对齐相对时间，并优化悬浮卡圆角、内边距与间距排版节奏。
