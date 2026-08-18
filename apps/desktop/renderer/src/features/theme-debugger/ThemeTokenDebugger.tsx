@@ -1,5 +1,18 @@
-import React from 'react'
-import { ChevronDown, Plus, RotateCcw, Sliders, Trash2, X } from 'lucide-react'
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+import {
+  Code2,
+  Copy,
+  Plus,
+  RotateCcw,
+  Sliders,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react'
 
 import '../../styles/lazy/theme-token-debugger.scss'
 
@@ -7,391 +20,502 @@ import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
+import { ComponentPreviewHost } from './ThemeComponentPreviews.js'
+import {
+  CATEGORY_LABELS,
+  THEME_COMPONENTS,
+  getThemeComponent,
+} from './themeComponentRegistry.js'
 import {
   CUSTOM_TOKEN_NAME,
-  DROPDOWN_COMPONENT_DEFINITION,
-  DROPDOWN_CONTRAST_CHECKS,
   HEX_COLOR,
-  THEME_COMPONENTS,
   calculateContrastRatio,
   createLiteralRecipe,
   createMixRecipe,
   createReferenceRecipe,
+  detectTokenType,
   generateThemeTokenCode,
   getBoundTokenName,
+  getCssPropertyForType,
+  getDefaultLiteralForType,
+  getPlaceholderForType,
+  isColorValue,
+  isValidCssValue,
   resolveSlotBinding,
   serializeRecipe,
   validateCustomTokenDeletion,
   validateDraft,
-  type RuntimeColorToken,
-  type ThemeComponentColorSlot,
+  type RuntimeToken,
+  type ThemeComponentCategory,
+  type ThemeComponentDefinition,
+  type ThemePropertySlot,
   type ThemeTokenDraft,
   type ThemeTokenName,
   type ThemeTokenOperand,
   type ThemeTokenRecipe,
+  type ThemeTokenValueType,
 } from './themeTokenDebuggerModel.js'
 import {
   applyThemeTokenDraft,
   clearThemeTokenDraft,
-  scanRuntimeColorTokens,
+  scanRuntimeTokens,
 } from './themeTokenDebuggerRuntime.js'
 
-const EMPTY_DRAFT: ThemeTokenDraft = { customTokens: {}, overrides: {} }
 const DEFAULT_OPTION_VALUE = '__default_recipe__'
 
 function ColorDot({ value }: { value: string }): React.ReactNode {
-  return <span className="theme-token-debugger__color-dot" style={{ backgroundColor: value }} />
+  const isColor = isColorValue(value)
+  return (
+    <span
+      className="theme-token-debugger__color-dot"
+      style={{
+        background: isColor ? value : 'var(--color-token-list-hover-background)',
+        border: '1px solid var(--color-token-border)',
+      }}
+    />
+  )
 }
 
 function OperandEditor({
   label,
   operand,
   options,
+  valueType,
   onChange,
 }: {
   label: string
   operand: ThemeTokenOperand
-  options: Array<{ value: string; label: string; detail?: string; icon?: React.ReactNode }>
+  options: Array<{ value: string; label: string; icon?: React.ReactNode }>
+  valueType?: ThemeTokenValueType
   onChange: (operand: ThemeTokenOperand) => void
 }): React.ReactNode {
-  const tokenOptions = options.filter(o => o.value !== DEFAULT_OPTION_VALUE)
+  const resolvedType = valueType ?? 'color'
   return (
     <fieldset className="theme-token-debugger__operand">
       <legend>{label}</legend>
-      <div className="theme-token-debugger__recipe-kind">
-        <Button
-          color={operand.kind === 'token' ? 'outlineActive' : 'secondary'}
-          size="compact"
-          type="button"
-          onClick={() => onChange({ kind: 'token', token: (tokenOptions[0]?.value ?? '--color-token-bg-primary') as ThemeTokenName })}
-        >
-          Token
-        </Button>
-        <Button
-          color={operand.kind === 'literal' ? 'outlineActive' : 'secondary'}
-          size="compact"
-          type="button"
-          onClick={() => onChange({ kind: 'literal', color: '#FFFFFF' })}
-        >
-          固定色
-        </Button>
-      </div>
-      {operand.kind === 'token' ? (
+      <div className="theme-token-debugger__field">
+        <span>引用现有 Token</span>
         <SettingsDropdown
-          ariaLabel={`${label} Token`}
-          options={tokenOptions}
+          ariaLabel={`${label} Token 选择`}
+          options={[
+            { value: '__none__', label: '（自定义直接值）' },
+            ...options,
+          ]}
           searchable
           searchPlaceholder="搜索 Token..."
-          value={operand.token}
+          value={operand.kind === 'token' ? operand.token : '__none__'}
           width="100%"
-          onChange={value => onChange({ kind: 'token', token: value as ThemeTokenName })}
+          onChange={val => {
+            if (val === '__none__') {
+              onChange({ kind: 'literal', value: getDefaultLiteralForType(resolvedType) })
+            } else {
+              onChange({ kind: 'token', token: val as ThemeTokenName })
+            }
+          }}
         />
-      ) : (
-        <div className="theme-token-debugger__color-input-row">
-          <Input
-            aria-label={`${label} 拾色器`}
-            className="theme-token-debugger__color-picker"
-            type="color"
-            value={HEX_COLOR.test(operand.color) ? operand.color : '#FFFFFF'}
-            onChange={event => onChange({ kind: 'literal', color: event.target.value.toUpperCase() as `#${string}` })}
-          />
-          <Input
-            aria-label={`${label} 颜色代码`}
-            placeholder="#FFFFFF"
-            spellCheck={false}
-            value={operand.color}
-            onChange={event => {
-              const val = event.target.value
-              onChange({ kind: 'literal', color: (val.startsWith('#') ? val : `#${val}`) as `#${string}` })
-            }}
-          />
-        </div>
-      )}
+      </div>
+
+      {operand.kind === 'literal' ? (
+        <label className="theme-token-debugger__field">
+          <span>固定值 ({resolvedType})</span>
+          <div className="theme-token-debugger__color-input-row">
+            {resolvedType === 'color' ? (
+              <input
+                aria-label={`${label} 拾色器`}
+                className="theme-token-debugger__color-picker"
+                type="color"
+                value={HEX_COLOR.test(operand.value) ? operand.value : '#FFFFFF'}
+                onChange={event => onChange({ kind: 'literal', value: event.target.value.toUpperCase() })}
+              />
+            ) : null}
+            <Input
+              aria-label={`${label} 文本值`}
+              placeholder={getPlaceholderForType(resolvedType)}
+              value={operand.value}
+              onChange={event => onChange({ kind: 'literal', value: event.target.value })}
+            />
+          </div>
+        </label>
+      ) : null}
     </fieldset>
   )
 }
 
 export function ThemeTokenDebugger(): React.ReactNode {
-  const [tokens, setTokens] = React.useState<RuntimeColorToken[]>([])
-  const [draft, setDraft] = React.useState<ThemeTokenDraft>(EMPTY_DRAFT)
-  const [activeComponentId, setActiveComponentId] = React.useState<string>('dropdown')
-  const [editingTokenName, setEditingTokenName] = React.useState<string | null>(null)
-  const [creatingSlot, setCreatingSlot] = React.useState<ThemeComponentColorSlot | null>(null)
-  const [createTokenName, setCreateTokenName] = React.useState<string>('--color-token-')
-  const [createMode, setCreateMode] = React.useState<'reference' | 'literal' | 'mix'>('reference')
-  const [createRefToken, setCreateRefToken] = React.useState<string>('')
-  const [createLiteralColor, setCreateLiteralColor] = React.useState<string>('#FFFFFF')
-  const [createMixFrom, setCreateMixFrom] = React.useState<ThemeTokenOperand>({ kind: 'token', token: '--color-token-bg-primary' })
-  const [createMixTo, setCreateMixTo] = React.useState<ThemeTokenOperand>({ kind: 'literal', color: '#FFFFFF' })
-  const [createMixAmount, setCreateMixAmount] = React.useState<number>(8)
-  const [libraryQuery, setLibraryQuery] = React.useState<string>('')
-  const [notice, setNotice] = React.useState<string>('')
-  const [alertMessage, setAlertMessage] = React.useState<string | null>(null)
+  const [tokens, setTokens] = useState<RuntimeToken[]>([])
+  const [draft, setDraft] = useState<ThemeTokenDraft>(() => ({ customTokens: {}, overrides: {} }))
+  const [selectedCategoryId, setSelectedCategoryId] = useState<ThemeComponentCategory | 'all'>('all')
+  const [selectedComponentId, setSelectedComponentId] = useState<string>('dropdown')
+  const [creatingSlot, setCreatingSlot] = useState<ThemePropertySlot | null>(null)
+  const [editingTokenName, setEditingTokenName] = useState<ThemeTokenName | null>(null)
+  const [createTokenName, setCreateTokenName] = useState<string>('')
+  const [createTokenKind, setCreateTokenKind] = useState<'reference' | 'literal' | 'color-mix'>('reference')
+  const [createRefToken, setCreateRefToken] = useState<string>('')
+  const [createLiteralVal, setCreateLiteralVal] = useState<string>('#FFFFFF')
+  const [createMixFrom, setCreateMixFrom] = useState<ThemeTokenOperand>({
+    kind: 'token',
+    token: '--color-token-bg-primary',
+  })
+  const [createMixTo, setCreateMixTo] = useState<ThemeTokenOperand>({
+    kind: 'literal',
+    value: '#FFFFFF',
+  })
+  const [createMixAmount, setCreateMixAmount] = useState<number>(10)
+  const [exportScope, setExportScope] = useState<'component' | 'all'>('component')
+  const [notice, setNotice] = useState<string | null>(null)
+  const [alertMessage, setAlertMessage] = useState<string | null>(null)
+  const [libraryQuery, setLibraryQuery] = useState<string>('')
+  const [libraryTypeFilter, setLibraryTypeFilter] = useState<ThemeTokenValueType | 'all'>('all')
 
-  const refresh = React.useCallback(() => setTokens(scanRuntimeColorTokens()), [])
+  const refreshTokens = (): void => {
+    setTokens(scanRuntimeTokens())
+  }
 
-  React.useEffect(() => {
-    refresh()
-    const observer = new MutationObserver(refresh)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class', 'data-theme', 'style'],
-    })
-    return () => {
-      observer.disconnect()
-      clearThemeTokenDraft()
+  useEffect(() => {
+    refreshTokens()
+    const timer = setTimeout(refreshTokens, 300)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const tokensByName = useMemo(() => {
+    const map = new Map<string, RuntimeToken>()
+    for (const t of tokens) map.set(t.name, t)
+    for (const [customName, recipe] of Object.entries(draft.customTokens)) {
+      if (!map.has(customName)) {
+        map.set(customName, {
+          name: customName as ThemeTokenName,
+          valueType: detectTokenType(customName),
+          resolvedValue: serializeRecipe(recipe),
+          authoredValue: serializeRecipe(recipe),
+          source: 'stylesheet',
+          references: 0,
+        })
+      }
     }
-  }, [refresh])
-
-  const knownTokens = React.useMemo(() => new Set<string>(tokens.map(token => token.name)), [tokens])
-  const inlineTokens = React.useMemo(
-    () => new Set<string>(tokens.filter(token => token.source === 'inline-derived').map(token => token.name)),
-    [tokens],
-  )
-  const tokensByName = React.useMemo(
-    () => new Map<string, RuntimeColorToken>(tokens.map(token => [token.name, token])),
-    [tokens],
-  )
-
-  const error = validateDraft(draft, knownTokens)
-
-  React.useEffect(() => {
-    if (error) {
-      clearThemeTokenDraft()
-    } else {
-      applyThemeTokenDraft(draft)
-      requestAnimationFrame(refresh)
-    }
-  }, [draft, error, refresh])
-
-  const activeComponent = React.useMemo(
-    () => THEME_COMPONENTS.find(c => c.id === activeComponentId) ?? DROPDOWN_COMPONENT_DEFINITION,
-    [activeComponentId],
-  )
-
-  const selectableTokens = React.useMemo(() => {
-    return [...tokens.map(token => token.name), ...Object.keys(draft.customTokens)]
-      .filter((name, index, all) => all.indexOf(name) === index)
-      .sort((a, b) => a.localeCompare(b))
+    return map
   }, [tokens, draft.customTokens])
 
-  const dropdownOptions = React.useMemo(() => {
-    const list: Array<{ value: string; label: string; detail?: string; icon?: React.ReactNode }> = [
-      {
-        value: DEFAULT_OPTION_VALUE,
-        label: '默认配方',
-        detail: '使用内置默认样式',
-        icon: <ColorDot value="transparent" />,
-      },
-    ]
-    for (const name of selectableTokens) {
-      const token = tokensByName.get(name)
-      const customRecipe = draft.customTokens[name]
-      const resolved = token?.resolvedValue ?? (customRecipe ? `var(${name})` : '')
-      list.push({
-        value: name,
-        label: name,
-        detail: resolved || undefined,
-        icon: <ColorDot value={resolved || 'transparent'} />,
-      })
-    }
-    return list
-  }, [selectableTokens, tokensByName, draft.customTokens])
+  const knownTokenNames = useMemo(() => new Set(tokensByName.keys()), [tokensByName])
 
-  const handleSlotTokenSelect = (slot: ThemeComponentColorSlot, selectedValue: string): void => {
-    if (selectedValue === DEFAULT_OPTION_VALUE) {
-      setDraft(current => {
-        const nextOverrides = { ...current.overrides }
-        delete nextOverrides[slot.targetToken]
-        return { ...current, overrides: nextOverrides }
-      })
+  const error = useMemo(() => {
+    return validateDraft(draft, knownTokenNames)
+  }, [draft, knownTokenNames])
+
+  useEffect(() => {
+    if (error) {
+      clearThemeTokenDraft()
       return
     }
-    setDraft(current => ({
-      ...current,
-      overrides: {
-        ...current.overrides,
-        [slot.targetToken]: createReferenceRecipe(selectedValue as ThemeTokenName),
-      },
-    }))
-  }
+    applyThemeTokenDraft(draft)
+    return () => {
+      clearThemeTokenDraft()
+    }
+  }, [draft, error])
 
-  const handleSlotReset = (slot: ThemeComponentColorSlot): void => {
-    setDraft(current => {
-      const nextOverrides = { ...current.overrides }
-      delete nextOverrides[slot.targetToken]
-      return { ...current, overrides: nextOverrides }
+  const activeComponent: ThemeComponentDefinition = useMemo(() => {
+    return getThemeComponent(selectedComponentId) ?? THEME_COMPONENTS[0]
+  }, [selectedComponentId])
+
+  const filteredComponents = useMemo(() => {
+    if (selectedCategoryId === 'all') return THEME_COMPONENTS
+    return THEME_COMPONENTS.filter(c => c.category === selectedCategoryId)
+  }, [selectedCategoryId])
+
+  const dropdownOptions = useMemo(() => {
+    const defaultOpt = {
+      value: DEFAULT_OPTION_VALUE,
+      label: '默认配方 (系统预设)',
+      icon: <span className="theme-token-debugger__option-dot" style={{ background: 'var(--color-token-border-light)' }} />,
+    }
+
+    const customOpts = Object.keys(draft.customTokens)
+      .sort()
+      .map(name => {
+        const info = tokensByName.get(name)
+        const val = info?.resolvedValue ?? `var(${name})`
+        return {
+          value: name,
+          label: `${name} (自定义)`,
+          icon: <span className="theme-token-debugger__option-dot" style={{ background: isColorValue(val) ? val : 'var(--color-token-border)' }} />,
+        }
+      })
+
+    const systemOpts = tokens.map(token => ({
+      value: token.name,
+      label: `${token.name} (${token.resolvedValue})`,
+      icon: <span className="theme-token-debugger__option-dot" style={{ background: isColorValue(token.resolvedValue) ? token.resolvedValue : 'var(--color-token-border)' }} />,
+    }))
+
+    return [defaultOpt, ...customOpts, ...systemOpts]
+  }, [tokens, draft.customTokens, tokensByName])
+
+  const contrastResults = useMemo(() => {
+    if (!activeComponent.contrastChecks) return []
+    return activeComponent.contrastChecks.map(check => {
+      const fgToken = tokensByName.get(check.foregroundToken)
+      const bgToken = tokensByName.get(check.backgroundToken)
+      const fgColor = fgToken?.resolvedValue
+      const bgColor = bgToken?.resolvedValue
+      const ratio = calculateContrastRatio(fgColor, bgColor)
+      return {
+        label: check.label,
+        ratio,
+        fgColor,
+        bgColor,
+      }
+    })
+  }, [activeComponent, tokensByName])
+
+  const handleSlotTokenSelect = (slot: ThemePropertySlot, selectedValue: string): void => {
+    setNotice(null)
+    setDraft(prev => {
+      const nextOverrides = { ...prev.overrides }
+      if (selectedValue === DEFAULT_OPTION_VALUE) {
+        delete nextOverrides[slot.targetToken]
+      } else {
+        nextOverrides[slot.targetToken] = createReferenceRecipe(selectedValue as ThemeTokenName)
+      }
+      return { ...prev, overrides: nextOverrides }
     })
   }
 
-  const handleOpenCreateForSlot = (slot: ThemeComponentColorSlot): void => {
+  const handleSlotReset = (slot: ThemePropertySlot): void => {
+    setDraft(prev => {
+      const nextOverrides = { ...prev.overrides }
+      delete nextOverrides[slot.targetToken]
+      return { ...prev, overrides: nextOverrides }
+    })
+    setNotice(`已重置属性「${slot.label}」`)
+  }
+
+  const handleOpenCreateForSlot = (slot: ThemePropertySlot): void => {
     setCreatingSlot(slot)
-    const suffix = slot.id.replace(/^(trigger-|surface-)/, '')
-    setCreateTokenName(`--color-token-custom-${suffix}`)
-    setCreateMode('reference')
-    setCreateRefToken(selectableTokens[0] ?? '--color-token-bg-primary')
-    setCreateLiteralColor('#FFFFFF')
-    setCreateMixFrom({ kind: 'token', token: (selectableTokens[0] ?? '--color-token-bg-primary') as ThemeTokenName })
-    setCreateMixTo({ kind: 'literal', color: '#FFFFFF' })
-    setCreateMixAmount(8)
-    setAlertMessage(null)
+    const prefix = slot.valueType === 'color' ? '--color-token-custom-' : `--${slot.valueType}-token-custom-`
+    setCreateTokenName(`${prefix}${slot.id}`)
+    setCreateTokenKind(slot.valueType === 'color' ? 'color-mix' : 'reference')
+    setCreateLiteralVal(getDefaultLiteralForType(slot.valueType))
+    setCreateRefToken(tokens[0]?.name ?? '')
   }
 
   const handleCreateAndApply = (): void => {
     if (!creatingSlot) return
-    const name = createTokenName.trim().toLowerCase()
-    if (!CUSTOM_TOKEN_NAME.test(name)) {
-      setAlertMessage(`Token 名称必须符合 --color-token-* 格式（例如 --color-token-my-color）`)
-      return
-    }
-    if (knownTokens.has(name as ThemeTokenName) || name in draft.customTokens) {
-      setAlertMessage(`Token 名称 "${name}" 已存在，请使用其他名称`)
+    const tokenName = createTokenName.trim() as ThemeTokenName
+    if (!CUSTOM_TOKEN_NAME.test(tokenName)) {
+      setAlertMessage(`Token 名称无效：${tokenName}（必须以 -- 开头，仅包含小写字母、数字和连字符）`)
       return
     }
 
     let recipe: ThemeTokenRecipe
-    if (createMode === 'reference') {
+    if (createTokenKind === 'reference') {
       recipe = createReferenceRecipe(createRefToken as ThemeTokenName)
-    } else if (createMode === 'literal') {
-      const color = (createLiteralColor.startsWith('#') ? createLiteralColor : `#${createLiteralColor}`).toUpperCase()
-      if (!HEX_COLOR.test(color)) {
-        setAlertMessage('固定颜色必须为 6 位 HEX 格式（如 #FFFFFF）')
+    } else if (createTokenKind === 'literal') {
+      const cssProp = creatingSlot.cssProperty || getCssPropertyForType(creatingSlot.valueType)
+      if (!isValidCssValue(cssProp, createLiteralVal, creatingSlot.valueType)) {
+        setAlertMessage(`固定值格式无效：${createLiteralVal}（不符合 ${cssProp} 语法）`)
         return
       }
-      recipe = createLiteralRecipe(color as `#${string}`)
+      recipe = createLiteralRecipe(createLiteralVal)
     } else {
-      if (createMixFrom.kind === 'literal' && createMixTo.kind === 'literal') {
-        setAlertMessage('混色两端均为固定色，请直接使用固定色模式。')
-        return
-      }
       recipe = createMixRecipe(createMixFrom, createMixTo, createMixAmount)
     }
 
-    setDraft(current => ({
-      customTokens: {
-        ...current.customTokens,
-        [name]: recipe,
-      },
-      overrides: {
-        ...current.overrides,
-        [creatingSlot.targetToken]: createReferenceRecipe(name as ThemeTokenName),
-      },
+    setDraft(prev => ({
+      customTokens: { ...prev.customTokens, [tokenName]: recipe },
+      overrides: { ...prev.overrides, [creatingSlot.targetToken]: createReferenceRecipe(tokenName) },
     }))
+
+    setNotice(`已创建自定义 Token "${tokenName}" 并绑定到 ${creatingSlot.label}`)
     setCreatingSlot(null)
-    setAlertMessage(null)
-    setNotice(`已创建并应用 ${name}`)
   }
 
-  const handleOpenEditToken = (tokenName: string): void => {
+  const handleDeleteCustomToken = (tokenName: ThemeTokenName): void => {
+    const check = validateCustomTokenDeletion(tokenName, draft, THEME_COMPONENTS)
+    if (!check.canDelete) {
+      setAlertMessage(
+        `无法删除自定义 Token "${tokenName}"，仍被以下属性/Token 引用：\n• ${check.references.join('\n• ')}`,
+      )
+      return
+    }
+
+    setDraft(prev => {
+      const nextCustom = { ...prev.customTokens }
+      delete nextCustom[tokenName]
+      return { ...prev, customTokens: nextCustom }
+    })
+
+    if (editingTokenName === tokenName) {
+      setEditingTokenName(null)
+    }
+    setNotice(`已删除自定义 Token "${tokenName}"`)
+  }
+
+  const handleOpenEditToken = (tokenName: ThemeTokenName): void => {
     setEditingTokenName(tokenName)
-    setAlertMessage(null)
   }
 
-  const handleEditingTokenRecipeChange = (nextRecipe: ThemeTokenRecipe): void => {
+  const isEditingCustomToken = Boolean(editingTokenName && editingTokenName in draft.customTokens)
+  const editingTokenRecipe = editingTokenName
+    ? isEditingCustomToken
+      ? draft.customTokens[editingTokenName]
+      : draft.overrides[editingTokenName] ?? createReferenceRecipe(editingTokenName)
+    : null
+  const editingTokenInfo = editingTokenName ? tokensByName.get(editingTokenName) : null
+  const editingTokenType = editingTokenInfo?.valueType ?? detectTokenType(editingTokenName ?? '')
+
+  const handleEditingTokenRecipeChange = (recipe: ThemeTokenRecipe): void => {
     if (!editingTokenName) return
-    setDraft(current => {
-      if (editingTokenName in current.customTokens) {
-        return {
-          ...current,
-          customTokens: { ...current.customTokens, [editingTokenName]: nextRecipe },
-        }
+    setDraft(prev => {
+      if (isEditingCustomToken) {
+        return { ...prev, customTokens: { ...prev.customTokens, [editingTokenName]: recipe } }
       }
-      return {
-        ...current,
-        overrides: { ...current.overrides, [editingTokenName]: nextRecipe },
-      }
+      return { ...prev, overrides: { ...prev.overrides, [editingTokenName]: recipe } }
     })
   }
 
   const handleEditingTokenReset = (): void => {
-    if (!editingTokenName) return
-    setDraft(current => {
-      const overrides = { ...current.overrides }
-      delete overrides[editingTokenName]
-      return { ...current, overrides }
+    if (!editingTokenName || isEditingCustomToken) return
+    setDraft(prev => {
+      const nextOverrides = { ...prev.overrides }
+      delete nextOverrides[editingTokenName]
+      return { ...prev, overrides: nextOverrides }
     })
+    setNotice(`已重置 Token "${editingTokenName}" 的全局覆盖`)
   }
-
-  const handleDeleteCustomToken = (tokenName: string): void => {
-    const check = validateCustomTokenDeletion(tokenName, draft, THEME_COMPONENTS)
-    if (!check.canDelete) {
-      setAlertMessage(`无法删除自定义 Token "${tokenName}"，仍被以下属性/Token 引用：\n• ${check.references.join('\n• ')}`)
-      return
-    }
-    setDraft(current => {
-      const customTokens = { ...current.customTokens }
-      delete customTokens[tokenName]
-      return { ...current, customTokens }
-    })
-    if (editingTokenName === tokenName) {
-      setEditingTokenName(null)
-    }
-    setAlertMessage(null)
-    setNotice(`已删除自定义 Token ${tokenName}`)
-  }
-
-  // Contrast calculation values
-  const tokenValue = (name: string): string | undefined => tokensByName.get(name)?.resolvedValue
-  const contrastResults = DROPDOWN_CONTRAST_CHECKS.map(check => ({
-    label: check.label,
-    ratio: calculateContrastRatio(tokenValue(check.foregroundToken), tokenValue(check.backgroundToken)),
-  }))
 
   const hasDraftChanges = Object.keys(draft.customTokens).length > 0 || Object.keys(draft.overrides).length > 0
 
-  const editingTokenInfo = editingTokenName ? tokensByName.get(editingTokenName) : undefined
-  const editingTokenRecipe = editingTokenName
-    ? (draft.customTokens[editingTokenName] ?? draft.overrides[editingTokenName])
-    : undefined
-  const isEditingCustomToken = Boolean(editingTokenName && editingTokenName in draft.customTokens)
+  const inlineTokens = useMemo(() => new Set<string>(), [])
 
-  const filteredLibraryTokens = React.useMemo(() => {
-    const q = libraryQuery.trim().toLowerCase()
-    return tokens.filter(token => !q || `${token.name} ${token.resolvedValue}`.toLowerCase().includes(q))
-  }, [tokens, libraryQuery])
+  const filteredLibraryTokens = useMemo(() => {
+    return tokens.filter(token => {
+      if (libraryTypeFilter !== 'all' && token.valueType !== libraryTypeFilter) return false
+      if (libraryQuery) {
+        const q = libraryQuery.toLowerCase()
+        return token.name.toLowerCase().includes(q) || token.resolvedValue.toLowerCase().includes(q)
+      }
+      return true
+    })
+  }, [tokens, libraryTypeFilter, libraryQuery])
 
-  const triggerSlots = activeComponent.slots.filter(slot => slot.group === 'trigger')
-  const surfaceSlots = activeComponent.slots.filter(slot => slot.group === 'surface')
+  // Group slots by their declared group
+  const groupedSlots = useMemo(() => {
+    const groups: Array<{ name: string; slots: ThemePropertySlot[] }> = []
+    const groupMap = new Map<string, ThemePropertySlot[]>()
+    for (const slot of activeComponent.slots) {
+      if (!groupMap.has(slot.group)) {
+        const list: ThemePropertySlot[] = []
+        groupMap.set(slot.group, list)
+        groups.push({ name: slot.group, slots: list })
+      }
+      groupMap.get(slot.group)!.push(slot)
+    }
+    return groups
+  }, [activeComponent])
 
   return (
-    <section aria-label="主题 Token 调试器" className="theme-token-debugger">
+    <section aria-label="主题视觉 Token 调试器" className="theme-token-debugger">
       <header className="theme-token-debugger__header">
         <div className="theme-token-debugger__title-wrap">
-          <h3>主题 Token 调试器</h3>
-          <p>开发者组件属性 → Token 绑定与调试；改动仅在当前页面有效，刷新后清除。</p>
+          <div className="theme-token-debugger__title-row">
+            <Sparkles className="theme-token-debugger__title-icon" size={16} />
+            <h3>全组件主题视觉 Token 调试工作台</h3>
+          </div>
+          <p>
+            支持所有组件的颜色、边框、阴影、圆角与尺寸属性实时重映射；纯内存运行且与生产完全隔离。
+          </p>
         </div>
+
         <div className="theme-token-debugger__actions">
+          {notice ? <span className="theme-token-debugger__notice">{notice}</span> : null}
           <Button
             color="secondary"
             disabled={!hasDraftChanges}
             size="compact"
             type="button"
             onClick={() => {
-              setDraft(EMPTY_DRAFT)
+              setDraft({ customTokens: {}, overrides: {} })
               setEditingTokenName(null)
               setCreatingSlot(null)
               setAlertMessage(null)
-              setNotice('已重置所有修改')
+              setNotice('已重置所有组件修改')
             }}
           >
             <RotateCcw size={14} /> 全部重置
           </Button>
-          <Button
-            color="secondary"
-            disabled={Boolean(error) || !hasDraftChanges}
-            size="compact"
-            type="button"
-            onClick={() => {
-              void navigator.clipboard
-                .writeText(generateThemeTokenCode(draft, inlineTokens))
-                .then(() => setNotice('代码已复制到剪贴板'))
-                .catch(() => setNotice('复制失败，请检查剪贴板权限'))
-            }}
-          >
-            复制代码
-          </Button>
+
+          <div className="theme-token-debugger__export-group">
+            <Button
+              color="secondary"
+              disabled={Boolean(error) || !hasDraftChanges}
+              size="compact"
+              title="复制 SCSS / TS 代码"
+              type="button"
+              onClick={() => {
+                const code = generateThemeTokenCode(draft, inlineTokens, {
+                  scope: exportScope,
+                  componentSlots: activeComponent.slots,
+                })
+                void navigator.clipboard
+                  .writeText(code)
+                  .then(() => setNotice(exportScope === 'component' ? `已复制「${activeComponent.label}」代码` : '已复制全部 Token 代码'))
+                  .catch(() => setNotice('复制失败，请检查剪贴板权限'))
+              }}
+            >
+              <Copy size={13} /> 复制代码 ({exportScope === 'component' ? '当前组件' : '全部修改'})
+            </Button>
+            <Button
+              color="secondary"
+              size="compact"
+              type="button"
+              onClick={() => setExportScope(prev => (prev === 'component' ? 'all' : 'component'))}
+            >
+              <Sliders size={13} /> 切换范围
+            </Button>
+          </div>
         </div>
       </header>
+
+      {/* Category and Component Navigation */}
+      <div className="theme-token-debugger__nav-bar">
+        <div className="theme-token-debugger__category-tabs">
+          <Button
+            color={selectedCategoryId === 'all' ? 'outlineActive' : 'secondary'}
+            size="compact"
+            type="button"
+            onClick={() => setSelectedCategoryId('all')}
+          >
+            全部类别
+          </Button>
+          {(['primitives', 'containers', 'layout', 'features'] as ThemeComponentCategory[]).map(cat => (
+            <Button
+              color={selectedCategoryId === cat ? 'outlineActive' : 'secondary'}
+              key={cat}
+              size="compact"
+              type="button"
+              onClick={() => setSelectedCategoryId(cat)}
+            >
+              {CATEGORY_LABELS[cat]}
+            </Button>
+          ))}
+        </div>
+
+        <div className="theme-token-debugger__component-pills">
+          {filteredComponents.map(comp => (
+            <Button
+              color={selectedComponentId === comp.id ? 'outlineActive' : 'secondary'}
+              key={comp.id}
+              size="compact"
+              type="button"
+              onClick={() => {
+                setSelectedComponentId(comp.id)
+                setCreatingSlot(null)
+              }}
+            >
+              {comp.label}
+            </Button>
+          ))}
+        </div>
+      </div>
 
       {error ? <div className="theme-token-debugger__error-banner" role="alert">{error}</div> : null}
       {alertMessage ? (
@@ -402,179 +526,98 @@ export function ThemeTokenDebugger(): React.ReactNode {
           </Button>
         </div>
       ) : null}
-      {notice ? <div className="theme-token-debugger__notice" role="status">{notice}</div> : null}
-
-      {/* Component Navigation / Selector */}
-      <div className="theme-token-debugger__component-tabs">
-        {THEME_COMPONENTS.map(comp => (
-          <button
-            className="theme-token-debugger__component-tab"
-            data-active={comp.id === activeComponentId || undefined}
-            key={comp.id}
-            type="button"
-            onClick={() => setActiveComponentId(comp.id)}
-          >
-            {comp.label} 属性配置
-          </button>
-        ))}
-      </div>
 
       <div className="theme-token-debugger__workspace">
         {/* Left Column: Properties Tables */}
         <div className="theme-token-debugger__properties-col">
-          {/* Trigger Group */}
-          <div className="theme-token-debugger__group-card">
-            <div className="theme-token-debugger__group-header">
-              <h4>触发器组 (Trigger)</h4>
-              <span>控制下拉按钮常态、悬停、展开、禁用及焦点表现</span>
-            </div>
-            <div className="theme-token-debugger__table">
-              {triggerSlots.map(slot => {
-                const binding = resolveSlotBinding(slot.targetToken, draft, tokens)
-                const boundToken = getBoundTokenName(binding)
-                const targetRuntime = tokensByName.get(slot.targetToken)
-                const boundRuntime = boundToken ? tokensByName.get(boundToken) : undefined
-                const resolvedColor = targetRuntime?.resolvedValue || boundRuntime?.resolvedValue || 'transparent'
-                const isOverridden = slot.targetToken in draft.overrides
-                const selectedValue = boundToken ?? DEFAULT_OPTION_VALUE
-                const editableSourceToken = boundToken ?? slot.targetToken
+          {groupedSlots.map(group => (
+            <div className="theme-token-debugger__group-card" key={group.name}>
+              <div className="theme-token-debugger__group-header">
+                <h4>{group.name}</h4>
+                <span>{activeComponent.label} 对应视觉槽位及状态绑定</span>
+              </div>
+              <div className="theme-token-debugger__table">
+                {group.slots.map(slot => {
+                  const binding = resolveSlotBinding(slot.targetToken, draft, tokens)
+                  const boundToken = getBoundTokenName(binding)
+                  const targetRuntime = tokensByName.get(slot.targetToken)
+                  const boundRuntime = boundToken ? tokensByName.get(boundToken) : undefined
+                  const resolvedVal = targetRuntime?.resolvedValue || boundRuntime?.resolvedValue || 'transparent'
+                  const isOverridden = slot.targetToken in draft.overrides
+                  const selectedValue = boundToken ?? DEFAULT_OPTION_VALUE
+                  const editableSourceToken = boundToken ?? slot.targetToken
 
-                return (
-                  <div className="theme-token-debugger__row" data-overridden={isOverridden || undefined} key={slot.id}>
-                    <div className="theme-token-debugger__slot-info">
-                      <span className="theme-token-debugger__slot-label">{slot.label}</span>
-                      <span className="theme-token-debugger__slot-token" title={slot.targetToken}>
-                        {slot.targetToken.replace('--color-token-dropdown-trigger-', '')}
-                      </span>
-                    </div>
-                    <div className="theme-token-debugger__color-preview" title={`解析颜色: ${resolvedColor}`}>
-                      <ColorDot value={resolvedColor} />
-                      <span className="theme-token-debugger__color-value">{resolvedColor}</span>
-                    </div>
-                    <div className="theme-token-debugger__slot-picker">
-                      <SettingsDropdown
-                        ariaLabel={`${slot.label} Token 选择`}
-                        options={dropdownOptions}
-                        searchable
-                        searchPlaceholder="搜索 Token..."
-                        value={selectedValue}
-                        width="100%"
-                        onChange={value => handleSlotTokenSelect(slot, value)}
-                      />
-                    </div>
-                    <div className="theme-token-debugger__row-actions">
-                      <Button
-                        color={editingTokenName === editableSourceToken ? 'outlineActive' : 'secondary'}
-                        size="compact"
-                        title={`编辑 Source Token: ${editableSourceToken}`}
-                        type="button"
-                        onClick={() => handleOpenEditToken(editableSourceToken)}
-                      >
-                        <Sliders size={13} /> 编辑
-                      </Button>
-                      <Button
-                        color="secondary"
-                        size="compact"
-                        title={`新建 Token 并应用到 ${slot.label}`}
-                        type="button"
-                        onClick={() => handleOpenCreateForSlot(slot)}
-                      >
-                        <Plus size={13} /> 新建
-                      </Button>
-                      <IconButton
-                        color="secondary"
-                        disabled={!isOverridden}
-                        size="iconSm"
-                        title="重置此属性绑定"
-                        type="button"
-                        onClick={() => handleSlotReset(slot)}
-                      >
-                        <RotateCcw size={13} />
-                      </IconButton>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+                  return (
+                    <div className="theme-token-debugger__row" data-overridden={isOverridden || undefined} key={slot.id}>
+                      <div className="theme-token-debugger__slot-info">
+                        <div className="theme-token-debugger__slot-title-row">
+                          <span className="theme-token-debugger__slot-label">{slot.label}</span>
+                          <span className="theme-token-debugger__type-badge">{slot.valueType}</span>
+                        </div>
+                        <span className="theme-token-debugger__slot-token" title={slot.targetToken}>
+                          {slot.targetToken}
+                        </span>
+                      </div>
 
-          {/* Menu Surface Group */}
-          <div className="theme-token-debugger__group-card">
-            <div className="theme-token-debugger__group-header">
-              <h4>菜单组 (Surface / Menu)</h4>
-              <span>控制弹出菜单表面、边框、项悬停、选中、按压及禁用状态</span>
-            </div>
-            <div className="theme-token-debugger__table">
-              {surfaceSlots.map(slot => {
-                const binding = resolveSlotBinding(slot.targetToken, draft, tokens)
-                const boundToken = getBoundTokenName(binding)
-                const targetRuntime = tokensByName.get(slot.targetToken)
-                const boundRuntime = boundToken ? tokensByName.get(boundToken) : undefined
-                const resolvedColor = targetRuntime?.resolvedValue || boundRuntime?.resolvedValue || 'transparent'
-                const isOverridden = slot.targetToken in draft.overrides
-                const selectedValue = boundToken ?? DEFAULT_OPTION_VALUE
-                const editableSourceToken = boundToken ?? slot.targetToken
+                      <div className="theme-token-debugger__color-preview" title={`解析值: ${resolvedVal}`}>
+                        {slot.valueType === 'color' ? (
+                          <ColorDot value={resolvedVal} />
+                        ) : (
+                          <span className="theme-token-debugger__generic-badge">{slot.valueType}</span>
+                        )}
+                        <span className="theme-token-debugger__color-value">{resolvedVal}</span>
+                      </div>
 
-                return (
-                  <div className="theme-token-debugger__row" data-overridden={isOverridden || undefined} key={slot.id}>
-                    <div className="theme-token-debugger__slot-info">
-                      <span className="theme-token-debugger__slot-label">{slot.label}</span>
-                      <span className="theme-token-debugger__slot-token" title={slot.targetToken}>
-                        {slot.targetToken.replace('--color-token-dropdown-', '')}
-                      </span>
-                    </div>
-                    <div className="theme-token-debugger__color-preview" title={`解析颜色: ${resolvedColor}`}>
-                      <ColorDot value={resolvedColor} />
-                      <span className="theme-token-debugger__color-value">{resolvedColor}</span>
-                    </div>
-                    <div className="theme-token-debugger__slot-picker">
-                      <SettingsDropdown
-                        ariaLabel={`${slot.label} Token 选择`}
-                        options={dropdownOptions}
-                        searchable
-                        searchPlaceholder="搜索 Token..."
-                        value={selectedValue}
-                        width="100%"
-                        onChange={value => handleSlotTokenSelect(slot, value)}
-                      />
-                    </div>
-                    <div className="theme-token-debugger__row-actions">
-                      <Button
-                        color={editingTokenName === editableSourceToken ? 'outlineActive' : 'secondary'}
-                        size="compact"
-                        title={`编辑 Source Token: ${editableSourceToken}`}
-                        type="button"
-                        onClick={() => handleOpenEditToken(editableSourceToken)}
-                      >
-                        <Sliders size={13} /> 编辑
-                      </Button>
-                      <Button
-                        color="secondary"
-                        size="compact"
-                        title={`新建 Token 并应用到 ${slot.label}`}
-                        type="button"
-                        onClick={() => handleOpenCreateForSlot(slot)}
-                      >
-                        <Plus size={13} /> 新建
-                      </Button>
-                      <IconButton
-                        color="secondary"
-                        disabled={!isOverridden}
-                        size="iconSm"
-                        title="重置此属性绑定"
-                        type="button"
-                        onClick={() => handleSlotReset(slot)}
-                      >
-                        <RotateCcw size={13} />
-                      </IconButton>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+                      <div className="theme-token-debugger__slot-picker">
+                        <SettingsDropdown
+                          ariaLabel={`${slot.label} Token 选择`}
+                          options={dropdownOptions}
+                          searchable
+                          searchPlaceholder="搜索 Token..."
+                          value={selectedValue}
+                          width="100%"
+                          onChange={value => handleSlotTokenSelect(slot, value)}
+                        />
+                      </div>
 
-          {/* Modal/Drawer: Create & Apply */}
+                      <div className="theme-token-debugger__row-actions">
+                        <Button
+                          color={editingTokenName === editableSourceToken ? 'outlineActive' : 'secondary'}
+                          size="compact"
+                          title={`编辑 Source Token: ${editableSourceToken}`}
+                          type="button"
+                          onClick={() => handleOpenEditToken(editableSourceToken)}
+                        >
+                          <Sliders size={13} /> 编辑
+                        </Button>
+                        <Button
+                          color="secondary"
+                          size="compact"
+                          title={`新建 Token 并应用到 ${slot.label}`}
+                          type="button"
+                          onClick={() => handleOpenCreateForSlot(slot)}
+                        >
+                          <Plus size={13} /> 新建
+                        </Button>
+                        <IconButton
+                          color="secondary"
+                          disabled={!isOverridden}
+                          size="iconSm"
+                          title="重置此属性绑定"
+                          type="button"
+                          onClick={() => handleSlotReset(slot)}
+                        >
+                          <RotateCcw size={13} />
+                        </IconButton>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Drawer: Create & Apply */}
           {creatingSlot ? (
             <div className="theme-token-debugger__card theme-token-debugger__editor-panel">
               <div className="theme-token-debugger__editor-header">
@@ -595,7 +638,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
 
               <div className="theme-token-debugger__form-grid">
                 <label className="theme-token-debugger__field">
-                  <span>新 Token 名称 (必须为 --color-token-*)</span>
+                  <span>新 Token 名称</span>
                   <Input
                     aria-label="新 Token 名称"
                     spellCheck={false}
@@ -605,90 +648,98 @@ export function ThemeTokenDebugger(): React.ReactNode {
                 </label>
 
                 <div className="theme-token-debugger__field">
-                  <span>配方模式</span>
+                  <span>配方类型</span>
                   <div className="theme-token-debugger__recipe-kind">
                     <Button
-                      color={createMode === 'reference' ? 'outlineActive' : 'secondary'}
+                      color={createTokenKind === 'reference' ? 'outlineActive' : 'secondary'}
                       size="compact"
                       type="button"
-                      onClick={() => setCreateMode('reference')}
+                      onClick={() => setCreateTokenKind('reference')}
                     >
-                      引用已有 Token
+                      直接引用
                     </Button>
                     <Button
-                      color={createMode === 'literal' ? 'outlineActive' : 'secondary'}
+                      color={createTokenKind === 'literal' ? 'outlineActive' : 'secondary'}
                       size="compact"
                       type="button"
-                      onClick={() => setCreateMode('literal')}
+                      onClick={() => {
+                        setCreateTokenKind('literal')
+                        setCreateLiteralVal(getDefaultLiteralForType(creatingSlot.valueType))
+                      }}
                     >
-                      固定色
+                      固定值 (Literal)
                     </Button>
-                    <Button
-                      color={createMode === 'mix' ? 'outlineActive' : 'secondary'}
-                      size="compact"
-                      type="button"
-                      onClick={() => setCreateMode('mix')}
-                    >
-                      sRGB 混色
-                    </Button>
+                    {creatingSlot.valueType === 'color' ? (
+                      <Button
+                        color={createTokenKind === 'color-mix' ? 'outlineActive' : 'secondary'}
+                        size="compact"
+                        type="button"
+                        onClick={() => setCreateTokenKind('color-mix')}
+                      >
+                        sRGB 混色 (color-mix)
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
 
-                {createMode === 'reference' ? (
+                {createTokenKind === 'reference' ? (
                   <div className="theme-token-debugger__field">
-                    <span>选择引用的 Token</span>
+                    <span>选择引用的源 Token</span>
                     <SettingsDropdown
-                      ariaLabel="引用 Token"
+                      ariaLabel="选择引用的源 Token"
                       options={dropdownOptions.filter(o => o.value !== DEFAULT_OPTION_VALUE)}
                       searchable
                       searchPlaceholder="搜索 Token..."
-                      value={createRefToken || (selectableTokens[0] ?? '')}
+                      value={createRefToken}
                       width="100%"
-                      onChange={value => setCreateRefToken(value)}
+                      onChange={setCreateRefToken}
                     />
                   </div>
                 ) : null}
 
-                {createMode === 'literal' ? (
-                  <div className="theme-token-debugger__field">
-                    <span>固定颜色值</span>
+                {createTokenKind === 'literal' ? (
+                  <label className="theme-token-debugger__field">
+                    <span>固定取值 ({creatingSlot.valueType})</span>
                     <div className="theme-token-debugger__color-input-row">
+                      {creatingSlot.valueType === 'color' ? (
+                        <input
+                          aria-label="拾色器"
+                          className="theme-token-debugger__color-picker"
+                          type="color"
+                          value={HEX_COLOR.test(createLiteralVal) ? createLiteralVal : '#FFFFFF'}
+                          onChange={event => setCreateLiteralVal(event.target.value.toUpperCase())}
+                        />
+                      ) : null}
                       <Input
-                        aria-label="拾色器"
-                        className="theme-token-debugger__color-picker"
-                        type="color"
-                        value={HEX_COLOR.test(createLiteralColor) ? createLiteralColor : '#FFFFFF'}
-                        onChange={event => setCreateLiteralColor(event.target.value.toUpperCase())}
-                      />
-                      <Input
-                        aria-label="HEX 颜色"
-                        placeholder="#FFFFFF"
-                        spellCheck={false}
-                        value={createLiteralColor}
-                        onChange={event => setCreateLiteralColor(event.target.value)}
+                        aria-label="固定取值文本"
+                        placeholder={getPlaceholderForType(creatingSlot.valueType)}
+                        value={createLiteralVal}
+                        onChange={event => setCreateLiteralVal(event.target.value)}
                       />
                     </div>
-                  </div>
+                  </label>
                 ) : null}
 
-                {createMode === 'mix' ? (
+                {createTokenKind === 'color-mix' ? (
                   <div className="theme-token-debugger__mix-builder">
                     <OperandEditor
                       label="起始颜色 (From)"
                       operand={createMixFrom}
-                      options={dropdownOptions}
+                      options={dropdownOptions.filter(o => o.value !== DEFAULT_OPTION_VALUE)}
+                      valueType="color"
                       onChange={setCreateMixFrom}
                     />
                     <OperandEditor
-                      label="混入目标颜色 (To)"
+                      label="目标颜色 (To)"
                       operand={createMixTo}
-                      options={dropdownOptions}
+                      options={dropdownOptions.filter(o => o.value !== DEFAULT_OPTION_VALUE)}
+                      valueType="color"
                       onChange={setCreateMixTo}
                     />
                     <label className="theme-token-debugger__field">
-                      <span>混入比例：{createMixAmount}%</span>
+                      <span>目标比例：{createMixAmount}%</span>
                       <Input
-                        aria-label="混入比例"
+                        aria-label="混色目标比例"
                         max={100}
                         min={0}
                         type="range"
@@ -696,45 +747,31 @@ export function ThemeTokenDebugger(): React.ReactNode {
                         onChange={event => setCreateMixAmount(Number(event.target.value))}
                       />
                     </label>
-                    {createMixFrom.kind === 'literal' && createMixTo.kind === 'literal' ? (
-                      <p className="theme-token-debugger__warning">
-                        混色两端均为固定色，请直接使用固定色模式。
-                      </p>
-                    ) : null}
                   </div>
                 ) : null}
 
                 <div className="theme-token-debugger__panel-footer">
-                  <Button
-                    color="primary"
-                    disabled={
-                      !CUSTOM_TOKEN_NAME.test(createTokenName) ||
-                      knownTokens.has(createTokenName as ThemeTokenName) ||
-                      createTokenName in draft.customTokens ||
-                      (createMode === 'mix' && createMixFrom.kind === 'literal' && createMixTo.kind === 'literal')
-                    }
-                    size="compact"
-                    type="button"
-                    onClick={handleCreateAndApply}
-                  >
-                    创建并绑定至「{creatingSlot.label}」
-                  </Button>
                   <Button color="secondary" size="compact" type="button" onClick={() => setCreatingSlot(null)}>
                     取消
+                  </Button>
+                  <Button color="secondary" size="compact" type="button" onClick={handleCreateAndApply}>
+                    创建并应用
                   </Button>
                 </div>
               </div>
             </div>
           ) : null}
 
-          {/* Modal/Drawer: Source Token Editor */}
+          {/* Drawer: Source Token Editor */}
           {editingTokenName ? (
             <div className="theme-token-debugger__card theme-token-debugger__editor-panel">
               <div className="theme-token-debugger__editor-header">
                 <div>
                   <h4>编辑 Source Token：{editingTokenName}</h4>
                   <div className="theme-token-debugger__token-meta-row">
-                    <ColorDot value={editingTokenInfo?.resolvedValue ?? `var(${editingTokenName})`} />
+                    {editingTokenType === 'color' ? (
+                      <ColorDot value={editingTokenInfo?.resolvedValue ?? `var(${editingTokenName})`} />
+                    ) : null}
                     <span>解析值：{editingTokenInfo?.resolvedValue ?? '自定义 / 动态'}</span>
                     <span>·</span>
                     <span>{editingTokenInfo?.references ?? 0} 处 CSS 引用</span>
@@ -756,7 +793,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
                 <div className="theme-token-debugger__warning-box">
                   <strong>⚠️ 全局覆盖警告</strong>
                   <p>
-                    「{editingTokenName}」是系统颜色 Token（共 {editingTokenInfo?.references ?? 0} 处引用）。
+                    「{editingTokenName}」是系统 Token（共 {editingTokenInfo?.references ?? 0} 处引用）。
                     在此进行的修改将产生全局临时 override，所有引用此 Token 的组件与页面将实时更新。
                   </p>
                 </div>
@@ -768,53 +805,85 @@ export function ThemeTokenDebugger(): React.ReactNode {
                     color={editingTokenRecipe?.kind === 'reference' ? 'outlineActive' : 'secondary'}
                     size="compact"
                     type="button"
-                    onClick={() => {
-                      const fallbackSource = (selectableTokens.find(t => t !== editingTokenName) ?? selectableTokens[0]) as ThemeTokenName
-                      handleEditingTokenRecipeChange(createReferenceRecipe(fallbackSource))
-                    }}
+                    onClick={() => handleEditingTokenRecipeChange(createReferenceRecipe(tokens[0]?.name ?? '--color-token-bg-primary'))}
                   >
-                    引用 Token / 固定色
+                    引用 (Reference)
                   </Button>
                   <Button
-                    color={editingTokenRecipe?.kind === 'mix' ? 'outlineActive' : 'secondary'}
+                    color={editingTokenRecipe?.kind === 'literal' ? 'outlineActive' : 'secondary'}
                     size="compact"
                     type="button"
-                    onClick={() => {
-                      const fallbackSource = (selectableTokens.find(t => t !== editingTokenName) ?? selectableTokens[0]) as ThemeTokenName
-                      handleEditingTokenRecipeChange(
-                        createMixRecipe(
-                          { kind: 'token', token: fallbackSource },
-                          { kind: 'literal', color: '#FFFFFF' },
-                          8,
-                        ),
-                      )
-                    }}
+                    onClick={() => handleEditingTokenRecipeChange(createLiteralRecipe(editingTokenInfo?.resolvedValue || getDefaultLiteralForType(editingTokenType)))}
                   >
-                    sRGB 混色
+                    固定值 (Literal)
                   </Button>
+                  {editingTokenType === 'color' ? (
+                    <Button
+                      color={editingTokenRecipe?.kind === 'color-mix' ? 'outlineActive' : 'secondary'}
+                      size="compact"
+                      type="button"
+                      onClick={() =>
+                        handleEditingTokenRecipeChange(
+                          createMixRecipe(
+                            { kind: 'token', token: '--color-token-bg-primary' },
+                            { kind: 'literal', value: '#FFFFFF' },
+                            15,
+                          ),
+                        )
+                      }
+                    >
+                      混色 (color-mix)
+                    </Button>
+                  ) : null}
                 </div>
 
                 {editingTokenRecipe?.kind === 'reference' ? (
                   <OperandEditor
-                    label="引用来源"
+                    label="引用的源"
                     operand={editingTokenRecipe.source}
-                    options={dropdownOptions.filter(o => o.value !== editingTokenName)}
-                    onChange={operand => handleEditingTokenRecipeChange({ kind: 'reference', source: operand })}
+                    options={dropdownOptions.filter(o => o.value !== editingTokenName && o.value !== DEFAULT_OPTION_VALUE)}
+                    valueType={editingTokenType}
+                    onChange={operand => handleEditingTokenRecipeChange({ ...editingTokenRecipe, source: operand })}
                   />
                 ) : null}
 
-                {editingTokenRecipe?.kind === 'mix' ? (
+                {editingTokenRecipe?.kind === 'literal' ? (
+                  <label className="theme-token-debugger__field">
+                    <span>固定值取值 ({editingTokenType})</span>
+                    <div className="theme-token-debugger__color-input-row">
+                      {editingTokenType === 'color' ? (
+                        <input
+                          aria-label="拾色器"
+                          className="theme-token-debugger__color-picker"
+                          type="color"
+                          value={HEX_COLOR.test(editingTokenRecipe.value) ? editingTokenRecipe.value : '#FFFFFF'}
+                          onChange={event => handleEditingTokenRecipeChange({ ...editingTokenRecipe, value: event.target.value.toUpperCase() })}
+                        />
+                      ) : null}
+                      <Input
+                        aria-label="固定值取值文本"
+                        placeholder={getPlaceholderForType(editingTokenType)}
+                        value={editingTokenRecipe.value}
+                        onChange={event => handleEditingTokenRecipeChange({ ...editingTokenRecipe, value: event.target.value })}
+                      />
+                    </div>
+                  </label>
+                ) : null}
+
+                {editingTokenRecipe?.kind === 'color-mix' && editingTokenType === 'color' ? (
                   <div className="theme-token-debugger__mix-builder">
                     <OperandEditor
                       label="起始颜色 (From)"
                       operand={editingTokenRecipe.from}
                       options={dropdownOptions.filter(o => o.value !== editingTokenName)}
+                      valueType="color"
                       onChange={operand => handleEditingTokenRecipeChange({ ...editingTokenRecipe, from: operand })}
                     />
                     <OperandEditor
                       label="目标颜色 (To)"
                       operand={editingTokenRecipe.to}
                       options={dropdownOptions.filter(o => o.value !== editingTokenName)}
+                      valueType="color"
                       onChange={operand => handleEditingTokenRecipeChange({ ...editingTokenRecipe, to: operand })}
                     />
                     <label className="theme-token-debugger__field">
@@ -840,11 +909,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
                   <div className="theme-token-debugger__code-preview">
                     <code>{`${editingTokenName}: ${serializeRecipe(editingTokenRecipe)};`}</code>
                   </div>
-                ) : (
-                  <p className="theme-token-debugger__hint">
-                    当前处于系统默认状态。点击上方「引用」或「混色」进行临时覆盖。
-                  </p>
-                )}
+                ) : null}
 
                 <div className="theme-token-debugger__panel-footer">
                   {!isEditingCustomToken && editingTokenName in draft.overrides ? (
@@ -873,140 +938,72 @@ export function ThemeTokenDebugger(): React.ReactNode {
 
         {/* Right Column: Previews & WCAG Contrast */}
         <aside className="theme-token-debugger__preview-col">
-          {/* Dropdown Live Preview */}
-          <div className="theme-token-debugger__card">
-            <h4>Dropdown 实时预览</h4>
-            <div className="theme-token-debugger__preview-triggers">
-              <div className="theme-token-debugger__preview-subitem">
-                <span className="theme-token-debugger__preview-label">常态 Trigger</span>
-                <button
-                  className="settings-dropdown-trigger"
-                  data-theme-component="dropdown-trigger"
-                  type="button"
-                >
-                  <span className="settings-dropdown-trigger-text">模型选择</span>
-                  <ChevronDown aria-hidden="true" className="settings-dropdown-trigger-icon" size={14} />
-                </button>
-              </div>
-              <div className="theme-token-debugger__preview-subitem">
-                <span className="theme-token-debugger__preview-label">展开 Trigger</span>
-                <button
-                  className="settings-dropdown-trigger"
-                  data-state="open"
-                  data-theme-component="dropdown-trigger"
-                  type="button"
-                >
-                  <span className="settings-dropdown-trigger-text">展开状态</span>
-                  <ChevronDown aria-hidden="true" className="settings-dropdown-trigger-icon" size={14} />
-                </button>
-              </div>
-              <div className="theme-token-debugger__preview-subitem">
-                <span className="theme-token-debugger__preview-label">禁用 Trigger</span>
-                <button
-                  className="settings-dropdown-trigger"
-                  data-theme-component="dropdown-trigger"
-                  disabled
-                  type="button"
-                >
-                  <span className="settings-dropdown-trigger-text">禁用状态</span>
-                  <ChevronDown aria-hidden="true" className="settings-dropdown-trigger-icon" size={14} />
-                </button>
-              </div>
-            </div>
+          <ComponentPreviewHost componentId={activeComponent.id} />
 
-            <div className="theme-token-debugger__preview-subitem">
-              <span className="theme-token-debugger__preview-label">菜单表面 (Menu Surface)</span>
-              <div
-                className="theme-token-debugger__preview-surface popover-surface"
-                data-theme-component="dropdown-surface"
-              >
-                <button className="settings-dropdown-item" type="button">
-                  <div className="settings-dropdown-item-inner">
-                    <div className="settings-dropdown-item-copy">
-                      <span className="settings-dropdown-item-label">普通菜单项</span>
+          {contrastResults.length ? (
+            <div className="theme-token-debugger__card">
+              <h4>{activeComponent.label} 对比度检查 (WCAG 2.1)</h4>
+              <div className="theme-token-debugger__contrast-list">
+                {contrastResults.map(check => {
+                  const isFail = check.ratio !== null && check.ratio < 4.5
+                  return (
+                    <div
+                      className={`theme-token-debugger__contrast-item ${isFail ? 'theme-token-debugger__contrast-item--fail' : ''}`}
+                      key={check.label}
+                    >
+                      <span className="theme-token-debugger__contrast-label">{check.label}</span>
+                      <span className="theme-token-debugger__contrast-ratio">
+                        {check.ratio === null ? (
+                          '无法计算'
+                        ) : (
+                          <>
+                            {check.ratio.toFixed(2)}:1 {isFail ? '⚠️ 低于 4.5:1' : '✓ 合格'}
+                          </>
+                        )}
+                      </span>
                     </div>
-                  </div>
-                </button>
-                <button className="settings-dropdown-item" data-highlighted type="button">
-                  <div className="settings-dropdown-item-inner">
-                    <div className="settings-dropdown-item-copy">
-                      <span className="settings-dropdown-item-label">悬停项 (Hover)</span>
-                    </div>
-                  </div>
-                </button>
-                <button aria-selected="true" className="settings-dropdown-item" type="button">
-                  <div className="settings-dropdown-item-inner">
-                    <div className="settings-dropdown-item-copy">
-                      <span className="settings-dropdown-item-label">选中项 (Selected)</span>
-                    </div>
-                  </div>
-                </button>
-                <button className="settings-dropdown-item" data-pressed type="button">
-                  <div className="settings-dropdown-item-inner">
-                    <div className="settings-dropdown-item-copy">
-                      <span className="settings-dropdown-item-label">按下项 (Pressed)</span>
-                    </div>
-                  </div>
-                </button>
-                <button className="settings-dropdown-item" disabled type="button">
-                  <div className="settings-dropdown-item-inner">
-                    <div className="settings-dropdown-item-copy">
-                      <span className="settings-dropdown-item-label">禁用项 (Disabled)</span>
-                    </div>
-                  </div>
-                </button>
+                  )
+                })}
               </div>
             </div>
-          </div>
-
-          {/* WCAG Contrast Checks */}
-          <div className="theme-token-debugger__card">
-            <h4>Dropdown 对比度检查 (WCAG 2.1)</h4>
-            <div className="theme-token-debugger__contrast-list">
-              {contrastResults.map(check => {
-                const isFail = check.ratio !== null && check.ratio < 4.5
-                return (
-                  <div
-                    className={`theme-token-debugger__contrast-item ${isFail ? 'theme-token-debugger__contrast-item--fail' : ''}`}
-                    key={check.label}
-                  >
-                    <span className="theme-token-debugger__contrast-label">{check.label}</span>
-                    <span className="theme-token-debugger__contrast-ratio">
-                      {check.ratio === null ? (
-                        '无法计算'
-                      ) : (
-                        <>
-                          {check.ratio.toFixed(2)}:1 {isFail ? '⚠️ 低于 4.5:1' : '✓ 合格'}
-                        </>
-                      )}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          ) : null}
         </aside>
       </div>
 
-      {/* Bottom Section: Token Library (Token 库 - 高级区域) */}
+      {/* Bottom Section: Token Library */}
       <details className="theme-token-debugger__library-section">
         <summary className="theme-token-debugger__library-summary">
           <div className="theme-token-debugger__library-summary-content">
-            <h4>Token 库（高级区域）</h4>
+            <h4>全量 Token 库（高级区域）</h4>
             <span className="theme-token-debugger__library-count">
-              共 {tokens.length} 个运行时颜色 Token · {Object.keys(draft.customTokens).length} 个自定义 Token
+              共 {tokens.length} 个运行时 Token · {Object.keys(draft.customTokens).length} 个自定义 Token
             </span>
           </div>
         </summary>
 
         <div className="theme-token-debugger__library-body">
-          <div className="theme-token-debugger__library-search">
-            <Input
-              aria-label="搜索颜色 Token 库"
-              placeholder="搜索 Token 名称或色值 (如 --color-background, #fff, rgb...)"
-              value={libraryQuery}
-              onChange={event => setLibraryQuery(event.target.value)}
-            />
+          <div className="theme-token-debugger__library-filter-bar">
+            <div className="theme-token-debugger__library-search">
+              <Input
+                aria-label="搜索颜色 Token 库"
+                placeholder="搜索 Token 名称或色值 (如 --color-background, --shadow, --radius...)"
+                value={libraryQuery}
+                onChange={event => setLibraryQuery(event.target.value)}
+              />
+            </div>
+            <div className="theme-token-debugger__type-pills">
+              {(['all', 'color', 'shadow', 'radius', 'border', 'dimension', 'typography', 'custom'] as Array<ThemeTokenValueType | 'all'>).map(t => (
+                <Button
+                  color={libraryTypeFilter === t ? 'outlineActive' : 'secondary'}
+                  key={t}
+                  size="compact"
+                  type="button"
+                  onClick={() => setLibraryTypeFilter(t)}
+                >
+                  {t === 'all' ? '全部类型' : t}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {Object.keys(draft.customTokens).length ? (
@@ -1031,7 +1028,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
                             color="secondary"
                             size="compact"
                             type="button"
-                            onClick={() => handleOpenEditToken(name)}
+                            onClick={() => handleOpenEditToken(name as ThemeTokenName)}
                           >
                             编辑
                           </Button>
@@ -1039,7 +1036,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
                             color="secondary"
                             size="compact"
                             type="button"
-                            onClick={() => handleDeleteCustomToken(name)}
+                            onClick={() => handleDeleteCustomToken(name as ThemeTokenName)}
                           >
                             删除
                           </Button>
@@ -1052,11 +1049,15 @@ export function ThemeTokenDebugger(): React.ReactNode {
           ) : null}
 
           <div className="theme-token-debugger__library-group">
-            <h5>系统颜色 Token</h5>
+            <h5>系统 Token</h5>
             <div className="theme-token-debugger__library-grid">
               {filteredLibraryTokens.map(token => (
                 <div className="theme-token-debugger__library-item" key={token.name}>
-                  <ColorDot value={token.resolvedValue} />
+                  {token.valueType === 'color' ? (
+                    <ColorDot value={token.resolvedValue} />
+                  ) : (
+                    <span className="theme-token-debugger__generic-badge">{token.valueType}</span>
+                  )}
                   <div className="theme-token-debugger__library-item-copy">
                     <span className="theme-token-debugger__library-name">{token.name}</span>
                     <span className="theme-token-debugger__library-value">

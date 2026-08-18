@@ -1,204 +1,261 @@
 export type ThemeTokenName = `--${string}`
 
+export type ThemeTokenValueType =
+  | 'color'
+  | 'shadow'
+  | 'radius'
+  | 'border'
+  | 'dimension'
+  | 'typography'
+  | 'custom'
+
 export type ThemeTokenOperand =
   | { kind: 'token'; token: ThemeTokenName }
-  | { kind: 'literal'; color: `#${string}` }
+  | { kind: 'literal'; value: string }
 
 export type ThemeTokenRecipe =
-  | { kind: 'reference'; source: ThemeTokenOperand }
   | {
-      kind: 'mix'
+      kind: 'reference'
+      source: ThemeTokenOperand
+    }
+  | {
+      kind: 'color-mix'
       from: ThemeTokenOperand
       to: ThemeTokenOperand
       toAmount: number
-      colorSpace: 'srgb'
+      colorSpace: 'srgb' | 'oklab'
+    }
+  | {
+      kind: 'literal'
+      value: string
     }
 
 export type ThemeTokenDraft = {
-  customTokens: Record<string, ThemeTokenRecipe>
-  overrides: Record<string, ThemeTokenRecipe>
+  customTokens: Record<ThemeTokenName, ThemeTokenRecipe>
+  overrides: Record<ThemeTokenName, ThemeTokenRecipe>
 }
 
-export type ThemeComponentColorSlot = {
+export type ThemeComponentCategory =
+  | 'primitives'
+  | 'containers'
+  | 'layout'
+  | 'features'
+
+export type ThemePropertySlot = {
   id: string
   label: string
-  group: 'trigger' | 'surface'
-  targetToken: `--color-token-${string}`
+  group: string
+  valueType: ThemeTokenValueType
+  cssProperty?: string
+  targetToken: ThemeTokenName
   description: string
-  contrastAgainst?: `--color-token-${string}`
+  contrastAgainst?: ThemeTokenName
+  presetTokens?: readonly ThemeTokenName[]
+  presetValues?: readonly string[]
+}
+
+export type ThemeComponentContrastCheck = {
+  label: string
+  foregroundToken: ThemeTokenName
+  backgroundToken: ThemeTokenName
 }
 
 export type ThemeComponentDefinition = {
   id: string
   label: string
-  slots: readonly ThemeComponentColorSlot[]
+  category: ThemeComponentCategory
+  description: string
+  slots: readonly ThemePropertySlot[]
+  contrastChecks?: readonly ThemeComponentContrastCheck[]
 }
 
-export type ThemeComponentContrastCheck = {
-  label: string
-  foregroundToken: `--color-token-${string}`
-  backgroundToken: `--color-token-${string}`
-}
-
-export type RuntimeColorToken = {
-  name: `--${string}`
+export type RuntimeToken = {
+  name: ThemeTokenName
+  valueType: ThemeTokenValueType
   resolvedValue: string
   authoredValue: string
   source: 'stylesheet' | 'inline-derived'
   references: number
 }
 
-export const CUSTOM_TOKEN_NAME = /^--color-token-[a-z0-9]+(?:-[a-z0-9]+)*$/
+// Backwards compatibility alias for RuntimeColorToken
+export type RuntimeColorToken = RuntimeToken
+
+export const CUSTOM_TOKEN_NAME = /^--[a-z0-9]+(?:-[a-z0-9]+)*$/
 export const HEX_COLOR = /^#[0-9a-f]{6}$/i
+export const HEX_COLOR_SHORT = /^#[0-9a-f]{3}$/i
 export const SIMPLE_VAR_REGEX = /^\s*var\(\s*(--[a-zA-Z0-9_-]+)\s*\)\s*$/
 
-export const DROPDOWN_COMPONENT_DEFINITION: ThemeComponentDefinition = {
-  id: 'dropdown',
-  label: 'Dropdown',
-  slots: [
-    // 触发器组 (Trigger Group)
-    {
-      id: 'trigger-background',
-      label: '背景',
-      group: 'trigger',
-      targetToken: '--color-token-dropdown-trigger-background',
-      description: '触发器常态背景颜色',
-    },
-    {
-      id: 'trigger-foreground',
-      label: '文字',
-      group: 'trigger',
-      targetToken: '--color-token-dropdown-trigger-foreground',
-      description: '触发器文字及图标前景色',
-      contrastAgainst: '--color-token-dropdown-trigger-background',
-    },
-    {
-      id: 'trigger-border',
-      label: '边框',
-      group: 'trigger',
-      targetToken: '--color-token-dropdown-trigger-border',
-      description: '触发器常态边框颜色',
-    },
-    {
-      id: 'trigger-hover-background',
-      label: 'Hover',
-      group: 'trigger',
-      targetToken: '--color-token-dropdown-trigger-hover-background',
-      description: '触发器悬停背景颜色',
-    },
-    {
-      id: 'trigger-open-background',
-      label: 'Open',
-      group: 'trigger',
-      targetToken: '--color-token-dropdown-trigger-open-background',
-      description: '触发器展开状态背景颜色',
-    },
-    {
-      id: 'trigger-disabled-foreground',
-      label: 'Disabled',
-      group: 'trigger',
-      targetToken: '--color-token-dropdown-trigger-disabled-foreground',
-      description: '触发器禁用文字颜色',
-      contrastAgainst: '--color-token-dropdown-trigger-background',
-    },
-    // 菜单组 (Surface / Menu Group)
-    {
-      id: 'surface-background',
-      label: '背景',
-      group: 'surface',
-      targetToken: '--color-token-dropdown-background',
-      description: '弹出菜单表面背景颜色',
-    },
-    {
-      id: 'surface-foreground',
-      label: '文字',
-      group: 'surface',
-      targetToken: '--color-token-dropdown-foreground',
-      description: '弹出菜单项常规文字颜色',
-      contrastAgainst: '--color-token-dropdown-background',
-    },
-    {
-      id: 'surface-border',
-      label: '边框',
-      group: 'surface',
-      targetToken: '--color-token-dropdown-border',
-      description: '弹出菜单表面外边框颜色',
-    },
-    {
-      id: 'surface-item-hover-background',
-      label: 'Item Hover',
-      group: 'surface',
-      targetToken: '--color-token-dropdown-item-hover-background',
-      description: '菜单项悬停背景颜色',
-      contrastAgainst: '--color-token-dropdown-foreground',
-    },
-    {
-      id: 'surface-item-selected-background',
-      label: 'Selected',
-      group: 'surface',
-      targetToken: '--color-token-dropdown-item-selected-background',
-      description: '菜单项选中状态背景颜色',
-      contrastAgainst: '--color-token-dropdown-foreground',
-    },
-    {
-      id: 'surface-item-pressed-background',
-      label: 'Pressed',
-      group: 'surface',
-      targetToken: '--color-token-dropdown-item-pressed-background',
-      description: '菜单项按下状态背景颜色',
-    },
-    {
-      id: 'surface-item-disabled-foreground',
-      label: 'Disabled',
-      group: 'surface',
-      targetToken: '--color-token-dropdown-item-disabled-foreground',
-      description: '菜单项禁用文字颜色',
-      contrastAgainst: '--color-token-dropdown-background',
-    },
-    {
-      id: 'focus-border',
-      label: 'Focus（触发器与菜单共用）',
-      group: 'surface',
-      targetToken: '--color-token-dropdown-focus-border',
-      description: '触发器与弹出菜单项键盘聚焦指示边框颜色',
-    },
-  ],
+export function getDefaultLiteralForType(type: ThemeTokenValueType): string {
+  switch (type) {
+    case 'color':
+      return '#FFFFFF'
+    case 'shadow':
+      return '0 8px 24px -16px rgba(0, 0, 0, 0.25)'
+    case 'border':
+      return '1px solid var(--color-token-border-light)'
+    case 'radius':
+      return '8px'
+    case 'dimension':
+      return '24px'
+    case 'typography':
+      return '14px'
+    case 'custom':
+    default:
+      return 'inherit'
+  }
 }
 
-export const THEME_COMPONENTS: readonly ThemeComponentDefinition[] = [
-  DROPDOWN_COMPONENT_DEFINITION,
-]
+export function getPlaceholderForType(type: ThemeTokenValueType): string {
+  switch (type) {
+    case 'color':
+      return '#FFFFFF 或 rgb(255, 255, 255)'
+    case 'shadow':
+      return '0 8px 24px -16px rgba(0,0,0,0.25)'
+    case 'border':
+      return '1px solid var(--color-token-border-light)'
+    case 'radius':
+      return '8px / 12px / 9999px'
+    case 'dimension':
+      return '24px / 16px / 1.5rem'
+    case 'typography':
+      return '14px / var(--font-family-mono)'
+    case 'custom':
+    default:
+      return 'CSS 声明值'
+  }
+}
 
-export const DROPDOWN_CONTRAST_CHECKS: readonly ThemeComponentContrastCheck[] = [
-  {
-    label: '触发器文字 / 背景',
-    foregroundToken: '--color-token-dropdown-trigger-foreground',
-    backgroundToken: '--color-token-dropdown-trigger-background',
-  },
-  {
-    label: '菜单文字 / 背景',
-    foregroundToken: '--color-token-dropdown-foreground',
-    backgroundToken: '--color-token-dropdown-background',
-  },
-  {
-    label: '菜单文字 / 悬停',
-    foregroundToken: '--color-token-dropdown-foreground',
-    backgroundToken: '--color-token-dropdown-item-hover-background',
-  },
-  {
-    label: '菜单文字 / 选中',
-    foregroundToken: '--color-token-dropdown-foreground',
-    backgroundToken: '--color-token-dropdown-item-selected-background',
-  },
-  {
-    label: '禁用文字 / 菜单背景',
-    foregroundToken: '--color-token-dropdown-item-disabled-foreground',
-    backgroundToken: '--color-token-dropdown-background',
-  },
-]
+export function isColorValue(value: string | undefined): boolean {
+  if (!value) return false
+  const trimmed = value.trim()
+  if (HEX_COLOR.test(trimmed) || HEX_COLOR_SHORT.test(trimmed)) return true
+  if (/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/i.test(trimmed)) return true
+  if (/^hsla?\(/i.test(trimmed)) return true
+  if (/^color-mix\(/i.test(trimmed)) return true
+  if (trimmed === 'transparent' || trimmed === 'currentColor') return true
+  return false
+}
 
-export function getThemeComponent(id: string): ThemeComponentDefinition | undefined {
-  return THEME_COMPONENTS.find(component => component.id === id)
+export function detectTokenType(name: string, value?: string): ThemeTokenValueType {
+  const lowerName = name.toLowerCase()
+  const lowerVal = (value ?? '').trim().toLowerCase()
+
+  if (
+    lowerName.startsWith('--color-') ||
+    lowerName.includes('background') ||
+    lowerName.includes('foreground') ||
+    lowerName.includes('border-color') ||
+    lowerName.startsWith('--vscode-') ||
+    isColorValue(lowerVal)
+  ) {
+    if (lowerName.startsWith('--layer-edge') || lowerName.includes('-border') && (lowerVal.includes('solid') || lowerVal.includes('dashed'))) {
+      return 'border'
+    }
+    return 'color'
+  }
+
+  if (lowerName.includes('shadow') || lowerVal.includes('drop-shadow') || (lowerVal.includes('px') && lowerVal.includes('rgba('))) {
+    return 'shadow'
+  }
+
+  if (lowerName.includes('radius')) {
+    return 'radius'
+  }
+
+  if (
+    lowerName.includes('height') ||
+    lowerName.includes('width') ||
+    lowerName.includes('size') ||
+    lowerName.includes('space') ||
+    lowerName.includes('pad') ||
+    lowerName.includes('gap') ||
+    lowerName.includes('margin') ||
+    lowerName.includes('padding') ||
+    /^-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)$/.test(lowerVal)
+  ) {
+    return 'dimension'
+  }
+
+  if (
+    lowerName.includes('font') ||
+    lowerName.includes('type-') ||
+    lowerName.includes('line-height')
+  ) {
+    return 'typography'
+  }
+
+  if (lowerName.includes('edge') || lowerName.includes('border') || lowerName.includes('ring')) {
+    return 'border'
+  }
+
+  return 'custom'
+}
+
+export function getCssPropertyForType(type: ThemeTokenValueType, customProperty?: string): string {
+  if (customProperty) return customProperty
+  switch (type) {
+    case 'color':
+      return 'background-color'
+    case 'shadow':
+      return 'box-shadow'
+    case 'radius':
+      return 'border-radius'
+    case 'border':
+      return 'border'
+    case 'dimension':
+      return 'height'
+    case 'typography':
+      return 'font-size'
+    case 'custom':
+    default:
+      return 'display'
+  }
+}
+
+export function isValidCssValue(cssProperty: string, value: string, valueType?: ThemeTokenValueType): boolean {
+  if (!value || typeof value !== 'string') return false
+  const trimmed = value.trim()
+  if (!trimmed) return false
+
+  // If running in browser environment with CSS.supports
+  if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function') {
+    try {
+      if (trimmed.startsWith('var(') && trimmed.endsWith(')')) {
+        return true
+      }
+      return CSS.supports(cssProperty, trimmed)
+    } catch {
+      // Fallback to pattern matching only if CSS.supports throws
+    }
+  }
+
+  // Safe pattern matching fallback for testing and node environments without CSS.supports
+  if (valueType === 'color' || cssProperty.includes('color') || cssProperty.includes('background')) {
+    return HEX_COLOR.test(trimmed) || HEX_COLOR_SHORT.test(trimmed) || /^rgba?\(/i.test(trimmed) || /^hsla?\(/i.test(trimmed) || /^color-mix\(/i.test(trimmed) || trimmed === 'transparent' || trimmed === 'currentColor' || trimmed.startsWith('var(')
+  }
+
+  if (valueType === 'radius' || cssProperty.includes('radius')) {
+    return /^-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%|pt)?$/.test(trimmed) || trimmed === '0' || trimmed === 'inherit' || trimmed.startsWith('var(')
+  }
+
+  if (valueType === 'dimension' || cssProperty.includes('height') || cssProperty.includes('width') || cssProperty.includes('size')) {
+    return /^-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%|pt)?$/.test(trimmed) || trimmed === '0' || trimmed === 'auto' || trimmed === 'inherit' || trimmed.startsWith('calc(') || trimmed.startsWith('var(')
+  }
+
+  if (valueType === 'shadow' || cssProperty.includes('shadow')) {
+    return trimmed === 'none' || trimmed.includes('px') || trimmed.includes('rgba(') || trimmed.includes('rgb(') || trimmed.startsWith('var(')
+  }
+
+  if (valueType === 'border' || cssProperty.includes('border') || cssProperty.includes('edge')) {
+    return trimmed === 'none' || trimmed.includes('solid') || trimmed.includes('dashed') || trimmed.includes('dotted') || trimmed.includes('px') || trimmed.startsWith('var(')
+  }
+
+  if (valueType === 'typography' || cssProperty.includes('font')) {
+    return /^-?\d+(?:\.\d+)?(?:px|rem|em|%)?$/.test(trimmed) || trimmed.includes('sans-serif') || trimmed.includes('monospace') || trimmed.includes('system-ui') || trimmed.startsWith('var(')
+  }
+
+  return true
 }
 
 export function parseSimpleVar(authoredValue: string | undefined): ThemeTokenName | null {
@@ -231,7 +288,7 @@ export function getBoundTokenName(info: SlotBindingInfo): ThemeTokenName | undef
 export function resolveSlotBinding(
   targetToken: ThemeTokenName,
   draft: ThemeTokenDraft,
-  runtimeTokens: readonly RuntimeColorToken[],
+  runtimeTokens: readonly RuntimeToken[],
 ): SlotBindingInfo {
   const overrideRecipe = draft.overrides[targetToken]
   if (overrideRecipe) {
@@ -268,8 +325,8 @@ export function createReferenceRecipe(token: ThemeTokenName): ThemeTokenRecipe {
   return { kind: 'reference', source: { kind: 'token', token } }
 }
 
-export function createLiteralRecipe(color: `#${string}`): ThemeTokenRecipe {
-  return { kind: 'reference', source: { kind: 'literal', color } }
+export function createLiteralRecipe(value: string): ThemeTokenRecipe {
+  return { kind: 'reference', source: { kind: 'literal', value } }
 }
 
 export function createMixRecipe(
@@ -278,7 +335,7 @@ export function createMixRecipe(
   toAmount: number,
 ): ThemeTokenRecipe {
   return {
-    kind: 'mix',
+    kind: 'color-mix',
     from,
     to,
     toAmount: Math.max(0, Math.min(100, toAmount)),
@@ -287,28 +344,44 @@ export function createMixRecipe(
 }
 
 export function serializeOperand(operand: ThemeTokenOperand): string {
-  return operand.kind === 'token' ? `var(${operand.token})` : operand.color.toUpperCase()
+  return operand.kind === 'token' ? `var(${operand.token})` : operand.value
 }
 
 export function serializeRecipe(recipe: ThemeTokenRecipe): string {
   if (recipe.kind === 'reference') return serializeOperand(recipe.source)
-  const amount = Math.max(0, Math.min(100, recipe.toAmount))
-  const fromAmount = Number((100 - amount).toFixed(2))
-  const toAmount = Number(amount.toFixed(2))
-  return `color-mix(in ${recipe.colorSpace}, ${serializeOperand(recipe.from)} ${fromAmount}%, ${serializeOperand(recipe.to)} ${toAmount}%)`
+  if (recipe.kind === 'literal') return recipe.value
+  if (recipe.kind === 'color-mix') {
+    const amount = Math.max(0, Math.min(100, recipe.toAmount))
+    const fromAmount = Number((100 - amount).toFixed(2))
+    const toAmount = Number(amount.toFixed(2))
+    return `color-mix(in ${recipe.colorSpace}, ${serializeOperand(recipe.from)} ${fromAmount}%, ${serializeOperand(recipe.to)} ${toAmount}%)`
+  }
+  return ''
 }
 
 export function recipeDependencies(recipe: ThemeTokenRecipe): string[] {
-  const operands = recipe.kind === 'reference'
-    ? [recipe.source]
-    : [recipe.from, recipe.to]
-  return operands.flatMap(operand => operand.kind === 'token' ? [operand.token] : [])
+  if (recipe.kind === 'reference') {
+    return recipe.source.kind === 'token' ? [recipe.source.token] : []
+  }
+  if (recipe.kind === 'color-mix') {
+    const operands = [recipe.from, recipe.to]
+    return operands.flatMap(operand => (operand.kind === 'token' ? [operand.token] : []))
+  }
+  return []
 }
 
-function validateOperand(name: string, operand: ThemeTokenOperand): string | null {
+function validateOperand(
+  name: string,
+  operand: ThemeTokenOperand,
+  expectedType: ThemeTokenValueType,
+  cssProperty: string,
+): string | null {
   if (operand.kind === 'literal') {
-    if (!HEX_COLOR.test(operand.color)) {
-      return `${name} 的固定颜色格式无效：${operand.color}（必须为 6 位 HEX，如 #FFFFFF）`
+    if (expectedType === 'color' && !HEX_COLOR.test(operand.value) && !HEX_COLOR_SHORT.test(operand.value) && !isColorValue(operand.value)) {
+      return `${name} 的固定颜色格式无效：${operand.value}（必须为 6 位 HEX 格式如 #FFFFFF 或合法 CSS 颜色）`
+    }
+    if (!isValidCssValue(cssProperty, operand.value, expectedType)) {
+      return `${name} 的固定值格式无效：${operand.value}（不符合 ${cssProperty} 语法）`
     }
   }
   return null
@@ -324,13 +397,23 @@ export function validateDraft(
     if (knownTokens.has(name)) return `自定义 token 已存在：${name}`
   }
   for (const [name, recipe] of Object.entries(recipes)) {
+    const tokenType = detectTokenType(name)
+    const cssProperty = getCssPropertyForType(tokenType)
+
     if (recipe.kind === 'reference') {
-      const err = validateOperand(name, recipe.source)
+      const err = validateOperand(name, recipe.source, tokenType, cssProperty)
       if (err) return err
-    } else if (recipe.kind === 'mix') {
-      const fromErr = validateOperand(name, recipe.from)
+    } else if (recipe.kind === 'literal') {
+      if (!isValidCssValue(cssProperty, recipe.value, tokenType)) {
+        return `${name} 的固定值格式无效：${recipe.value}`
+      }
+    } else if (recipe.kind === 'color-mix') {
+      if (tokenType !== 'color') {
+        return `${name} 是非颜色 Token（${tokenType}），不能使用 color-mix 混色配方`
+      }
+      const fromErr = validateOperand(name, recipe.from, 'color', 'background-color')
       if (fromErr) return fromErr
-      const toErr = validateOperand(name, recipe.to)
+      const toErr = validateOperand(name, recipe.to, 'color', 'background-color')
       if (toErr) return toErr
       if (!Number.isFinite(recipe.toAmount) || recipe.toAmount < 0 || recipe.toAmount > 100) {
         return `${name} 的混色比例无效（必须为 0 到 100 之间的数值）`
@@ -346,61 +429,93 @@ export function validateDraft(
     }
   }
 
-  const visiting = new Set<string>()
+  // Check for dependency cycles
   const visited = new Set<string>()
-  const visit = (name: string, path: string[]): string | null => {
-    if (visiting.has(name)) return `检测到循环引用：${[...path, name].join(' → ')}`
-    if (visited.has(name) || !(name in recipes)) return null
-    visiting.add(name)
-    for (const dependency of recipeDependencies(recipes[name]!)) {
-      const error = visit(dependency, [...path, name])
-      if (error) return error
+  const inStack = new Set<string>()
+
+  function checkCycle(token: string): string | null {
+    visited.add(token)
+    inStack.add(token)
+    const recipe = recipes[token as ThemeTokenName]
+    if (recipe) {
+      for (const dep of recipeDependencies(recipe)) {
+        if (!visited.has(dep)) {
+          const err = checkCycle(dep)
+          if (err) return err
+        } else if (inStack.has(dep)) {
+          return `检测到 Token 之间的循环引用：${token} -> ${dep}`
+        }
+      }
     }
-    visiting.delete(name)
-    visited.add(name)
+    inStack.delete(token)
     return null
   }
-  for (const name of Object.keys(recipes)) {
-    const error = visit(name, [])
-    if (error) return error
+
+  for (const token of Object.keys(recipes)) {
+    if (!visited.has(token)) {
+      const cycleError = checkCycle(token)
+      if (cycleError) return cycleError
+    }
   }
+
   return null
 }
 
+export function sortCustomTokens(
+  customTokens: Record<string, ThemeTokenRecipe>,
+): string[] {
+  const result: string[] = []
+  const visited = new Set<string>()
+
+  function visit(token: string): void {
+    if (visited.has(token)) return
+    visited.add(token)
+    const recipe = customTokens[token as ThemeTokenName]
+    if (recipe) {
+      for (const dep of recipeDependencies(recipe)) {
+        if (dep in customTokens) {
+          visit(dep)
+        }
+      }
+    }
+    result.push(token)
+  }
+
+  for (const token of Object.keys(customTokens).sort()) {
+    visit(token)
+  }
+  return result
+}
+
 export function validateCustomTokenDeletion(
-  tokenToDelete: string,
+  tokenToDelete: ThemeTokenName,
   draft: ThemeTokenDraft,
-  components: readonly ThemeComponentDefinition[] = THEME_COMPONENTS,
+  components: readonly ThemeComponentDefinition[],
 ): { canDelete: boolean; references: string[] } {
   const references: string[] = []
 
-  // Check slot overrides
-  const slotMap = new Map<string, { componentLabel: string; slotLabel: string; group: string }>()
-  for (const comp of components) {
-    for (const slot of comp.slots) {
-      slotMap.set(slot.targetToken, {
-        componentLabel: comp.label,
-        slotLabel: slot.label,
-        group: slot.group === 'trigger' ? '触发器' : '菜单',
-      })
-    }
-  }
-
+  // Check draft overrides referencing this custom token
   for (const [targetToken, recipe] of Object.entries(draft.overrides)) {
-    if (recipeDependencies(recipe).includes(tokenToDelete)) {
-      const slotInfo = slotMap.get(targetToken)
-      if (slotInfo) {
-        references.push(`${slotInfo.componentLabel} ${slotInfo.group}${slotInfo.slotLabel} (${targetToken})`)
+    const deps = recipeDependencies(recipe)
+    if (deps.includes(tokenToDelete)) {
+      const slotMatch = components
+        .flatMap(c => c.slots.map(s => ({ component: c.label, slot: s.label, token: s.targetToken })))
+        .find(s => s.token === targetToken)
+      if (slotMatch) {
+        references.push(`${slotMatch.component} · ${slotMatch.slot} (${targetToken})`)
       } else {
-        references.push(`覆盖项 (${targetToken})`)
+        references.push(`覆盖规则 (${targetToken})`)
       }
     }
   }
 
-  // Check other custom tokens
+  // Check other custom tokens referencing this token
   for (const [customName, recipe] of Object.entries(draft.customTokens)) {
-    if (customName !== tokenToDelete && recipeDependencies(recipe).includes(tokenToDelete)) {
-      references.push(`自定义 Token (${customName})`)
+    if (customName !== tokenToDelete) {
+      const deps = recipeDependencies(recipe)
+      if (deps.includes(tokenToDelete)) {
+        references.push(`自定义 Token (${customName})`)
+      }
     }
   }
 
@@ -410,73 +525,98 @@ export function validateCustomTokenDeletion(
   }
 }
 
-export function sortCustomTokens(draft: ThemeTokenDraft): string[] {
-  const result: string[] = []
-  const visited = new Set<string>()
-  const visit = (name: string): void => {
-    if (visited.has(name)) return
-    visited.add(name)
-    const recipe = draft.customTokens[name]
-    if (!recipe) return
-    for (const dependency of recipeDependencies(recipe)) {
-      if (dependency in draft.customTokens) visit(dependency)
-    }
-    result.push(name)
-  }
-  Object.keys(draft.customTokens).sort().forEach(visit)
-  return result
-}
-
 export function generateThemeTokenCode(
   draft: ThemeTokenDraft,
-  inlineDerivedTokens: ReadonlySet<string>,
+  inlineTokenNames: ReadonlySet<string>,
+  options: {
+    scope?: 'all' | 'component'
+    componentSlots?: readonly ThemePropertySlot[]
+  } = {},
 ): string {
-  const custom = sortCustomTokens(draft)
-  const scssOverrides = Object.keys(draft.overrides)
-    .filter(name => !inlineDerivedTokens.has(name))
-    .sort()
-  const inlineOverrides = Object.keys(draft.overrides)
-    .filter(name => inlineDerivedTokens.has(name))
-    .sort()
-  const scssLines = [...custom, ...scssOverrides]
-    .map(name => `  ${name}: ${serializeRecipe(draft.customTokens[name] ?? draft.overrides[name]!)};`)
+  const { scope = 'all', componentSlots = [] } = options
+  const targetTokenSet = scope === 'component' ? new Set(componentSlots.map(s => s.targetToken)) : null
+
+  const scssCustomLines: string[] = []
+  const sortedCustom = sortCustomTokens(draft.customTokens)
+  for (const name of sortedCustom) {
+    scssCustomLines.push(`  ${name}: ${serializeRecipe(draft.customTokens[name as ThemeTokenName])};`)
+  }
+
+  const scssOverrideLines: string[] = []
+  const tsOverrideLines: string[] = []
+
+  const overrideKeys = Object.keys(draft.overrides).sort() as ThemeTokenName[]
+  for (const name of overrideKeys) {
+    if (targetTokenSet && !targetTokenSet.has(name)) continue
+    const recipe = draft.overrides[name]
+    const serialized = serializeRecipe(recipe)
+    if (inlineTokenNames.has(name)) {
+      tsOverrideLines.push(`  '${name}': '${serialized}',`)
+    } else {
+      scssOverrideLines.push(`  ${name}: ${serialized};`)
+    }
+  }
+
   const sections: string[] = []
-  if (scssLines.length) {
-    sections.push(`// codex-semantic-tokens.scss\n:root {\n${scssLines.join('\n')}\n}`)
+
+  if (scssCustomLines.length || scssOverrideLines.length) {
+    sections.push(
+      [
+        '// codex-semantic-tokens.scss or _theme-token-debugger.scss',
+        ':root {',
+        ...(scssCustomLines.length ? ['  /* 自定义 Token */', ...scssCustomLines] : []),
+        ...(scssOverrideLines.length ? ['  /* 覆盖规则 */', ...scssOverrideLines] : []),
+        '}',
+      ].join('\n'),
+    )
   }
-  if (inlineOverrides.length) {
-    sections.push(`// themeVariables.ts\n${inlineOverrides
-      .map(name => `'${name}': '${serializeRecipe(draft.overrides[name]!) }',`)
-      .join('\n')}`)
+
+  if (tsOverrideLines.length) {
+    sections.push(
+      [
+        '// themeVariables.ts (deriveThemeVariables)',
+        'const overrides: Record<string, string> = {',
+        ...tsOverrideLines,
+        '}',
+      ].join('\n'),
+    )
   }
-  return sections.join('\n\n')
+
+  return sections.join('\n\n') || '/* 没有可导出的 Token 修改 */'
 }
 
-export function parseRgbChannels(value: string | undefined): [number, number, number] | null {
-  if (!value) return null
-  const channels = value.match(/[\d.]+/g)?.slice(0, 3).map(Number)
-  if (channels && channels.length === 3 && channels.every(Number.isFinite)) {
-    return [channels[0]!, channels[1]!, channels[2]!]
+export function parseRgbChannels(colorStr: string): [number, number, number] | null {
+  const hexMatch = colorStr.trim().match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+  if (hexMatch) {
+    return [parseInt(hexMatch[1], 16), parseInt(hexMatch[2], 16), parseInt(hexMatch[3], 16)]
+  }
+  const rgbMatch = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i)
+  if (rgbMatch) {
+    return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])]
   }
   return null
 }
 
-export function calculateLuminance(channels: [number, number, number]): number {
-  const srgb = channels
-    .map(channel => channel / 255)
-    .map(channel => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
-  return srgb[0]! * 0.2126 + srgb[1]! * 0.7152 + srgb[2]! * 0.0722
+export function calculateLuminance(rgb: [number, number, number]): number {
+  const [r, g, b] = rgb.map(val => {
+    const s = val / 255
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
 export function calculateContrastRatio(
   foreground: string | undefined,
   background: string | undefined,
 ): number | null {
-  const fg = parseRgbChannels(foreground)
-  const bg = parseRgbChannels(background)
-  if (!fg || !bg) return null
-  const lumFg = calculateLuminance(fg)
-  const lumBg = calculateLuminance(bg)
-  const [light, dark] = [lumFg, lumBg].sort((a, b) => b - a)
-  return (light! + 0.05) / (dark! + 0.05)
+  if (!foreground || !background) return null
+  const fgRgb = parseRgbChannels(foreground)
+  const bgRgb = parseRgbChannels(background)
+  if (!fgRgb || !bgRgb) return null
+
+  const lumFg = calculateLuminance(fgRgb)
+  const lumBg = calculateLuminance(bgRgb)
+  const brightest = Math.max(lumFg, lumBg)
+  const darkest = Math.min(lumFg, lumBg)
+  return (brightest + 0.05) / (darkest + 0.05)
 }

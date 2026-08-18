@@ -1,99 +1,130 @@
 import {
+  detectTokenType,
   serializeRecipe,
-  type RuntimeColorToken,
+  type RuntimeToken,
   type ThemeTokenDraft,
+  type ThemeTokenName,
 } from './themeTokenDebuggerModel.js'
 
-export type { RuntimeColorToken } from './themeTokenDebuggerModel.js'
+const OVERRIDE_STYLE_ID = 'codepilotx-theme-debugger-overrides'
 
-const STYLE_ATTRIBUTE = 'data-codepilotx-theme-debugger'
-
-function collectRuleTokens(
-  rules: CSSRuleList,
-  declared: Map<string, string>,
-  references: Map<string, number>,
+export function collectRuleTokens(
+  rule: CSSStyleRule,
+  declaredTokens: Map<string, string>,
+  tokenRefCounts: Map<string, number>,
 ): void {
-  for (const rule of Array.from(rules)) {
-    if ('cssRules' in rule) {
-      try {
-        collectRuleTokens((rule as CSSGroupingRule).cssRules, declared, references)
-      } catch {
-        // Cross-origin or browser-owned nested rules are intentionally ignored.
+  const cssText = rule.cssText
+  const varMatches = cssText.matchAll(/var\(\s*(--[a-zA-Z0-9_-]+)/g)
+  for (const match of varMatches) {
+    const name = match[1]
+    tokenRefCounts.set(name, (tokenRefCounts.get(name) ?? 0) + 1)
+  }
+
+  const style = rule.style
+  for (let i = 0; i < style.length; i++) {
+    const prop = style[i]
+    if (prop.startsWith('--')) {
+      const authored = style.getPropertyValue(prop).trim()
+      if (authored) {
+        declaredTokens.set(prop, authored)
       }
-    }
-    if (!(rule instanceof CSSStyleRule)) continue
-    for (const name of Array.from(rule.style)) {
-      if (name.startsWith('--')) {
-        const authored = rule.style.getPropertyValue(name).trim()
-        if (authored) declared.set(name, authored)
-      }
-    }
-    for (const match of rule.cssText.matchAll(/var\((--[\w-]+)/g)) {
-      const name = match[1]
-      if (name) references.set(name, (references.get(name) ?? 0) + 1)
     }
   }
 }
 
-export function scanRuntimeColorTokens(): RuntimeColorToken[] {
-  const declared = new Map<string, string>()
-  const references = new Map<string, number>()
-  for (const sheet of Array.from(document.styleSheets)) {
-    if ((sheet.ownerNode as Element | null)?.hasAttribute(STYLE_ATTRIBUTE)) continue
-    try {
-      collectRuleTokens(sheet.cssRules, declared, references)
-    } catch {
-      // A stylesheet without same-origin CSSOM access must not break the tool.
+export function scanRuntimeTokens(): RuntimeToken[] {
+  if (typeof document === 'undefined') return []
+
+  const declaredTokens = new Map<string, string>()
+  const tokenRefCounts = new Map<string, number>()
+
+  try {
+    for (let s = 0; s < document.styleSheets.length; s++) {
+      const sheet = document.styleSheets[s]
+      // Skip the debugger's own dynamically injected stylesheet
+      if (sheet.ownerNode instanceof HTMLElement && sheet.ownerNode.id === OVERRIDE_STYLE_ID) {
+        continue
+      }
+      try {
+        const rules = sheet.cssRules || sheet.rules
+        if (!rules) continue
+        for (let r = 0; r < rules.length; r++) {
+          const rule = rules[r]
+          if (rule instanceof CSSStyleRule) {
+            collectRuleTokens(rule, declaredTokens, tokenRefCounts)
+          } else if (rule instanceof CSSLayerBlockRule || rule instanceof CSSMediaRule) {
+            for (let sub = 0; sub < rule.cssRules.length; sub++) {
+              const subRule = rule.cssRules[sub]
+              if (subRule instanceof CSSStyleRule) {
+                collectRuleTokens(subRule, declaredTokens, tokenRefCounts)
+              }
+            }
+          }
+        }
+      } catch {
+        // Cross-origin or inaccessible stylesheet - continue safely
+      }
     }
+  } catch {
+    // Top-level stylesheet enumeration error - continue safely
   }
-  const inline = new Set<string>()
-  for (const name of Array.from(document.documentElement.style)) {
-    if (name.startsWith('--')) {
-      const authored = document.documentElement.style.getPropertyValue(name).trim()
-      if (authored) declared.set(name, authored)
-      inline.add(name)
-    }
-  }
-  const computed = getComputedStyle(document.documentElement)
-  const probe = document.createElement('span')
-  probe.hidden = true
-  document.documentElement.append(probe)
-  const result = Array.from(declared.keys())
-    .flatMap(name => {
-      const authoredValue = declared.get(name) || computed.getPropertyValue(name).trim()
-      if (!authoredValue || !CSS.supports('color', authoredValue)) return []
-      probe.style.color = `var(${name})`
-      const resolvedValue = getComputedStyle(probe).color
-      if (!resolvedValue) return []
-      return [{
-        name: name as `--${string}`,
-        resolvedValue,
-        authoredValue,
-        source: inline.has(name) ? ('inline-derived' as const) : ('stylesheet' as const),
-        references: references.get(name) ?? 0,
-      }]
+
+  const rootStyle = window.getComputedStyle(document.documentElement)
+  const result: RuntimeToken[] = []
+
+  for (const [name, authored] of declaredTokens.entries()) {
+    const resolved = rootStyle.getPropertyValue(name).trim() || authored
+    const valueType = detectTokenType(name, resolved || authored)
+
+    result.push({
+      name: name as ThemeTokenName,
+      valueType,
+      resolvedValue: resolved,
+      authoredValue: authored,
+      source: 'stylesheet',
+      references: tokenRefCounts.get(name) ?? 0,
     })
-    .sort((a, b) => a.name.localeCompare(b.name))
-  probe.remove()
-  return result
+  }
+
+  // Sort by name
+  return result.sort((a, b) => a.name.localeCompare(b.name))
 }
+
+// Backwards compatibility
+export const scanRuntimeColorTokens = scanRuntimeTokens
 
 export function applyThemeTokenDraft(draft: ThemeTokenDraft): void {
-  let style = document.head.querySelector<HTMLStyleElement>(`style[${STYLE_ATTRIBUTE}]`)
-  const declarations = [...Object.entries(draft.customTokens), ...Object.entries(draft.overrides)]
-    .map(([name, recipe]) => `  ${name}: ${serializeRecipe(recipe)} !important;`)
-  if (!declarations.length) {
-    style?.remove()
-    return
+  if (typeof document === 'undefined') return
+
+  let styleTag = document.getElementById(OVERRIDE_STYLE_ID) as HTMLStyleElement | null
+  if (!styleTag) {
+    styleTag = document.createElement('style')
+    styleTag.id = OVERRIDE_STYLE_ID
+    styleTag.setAttribute('data-codepilotx-theme-debugger', 'true')
+    document.head.appendChild(styleTag)
   }
-  if (!style) {
-    style = document.createElement('style')
-    style.setAttribute(STYLE_ATTRIBUTE, '')
-    document.head.append(style)
+
+  const rules: string[] = []
+
+  for (const [name, recipe] of Object.entries(draft.customTokens)) {
+    rules.push(`  ${name}: ${serializeRecipe(recipe)};`)
   }
-  style.textContent = `:root {\n${declarations.join('\n')}\n}`
+
+  for (const [name, recipe] of Object.entries(draft.overrides)) {
+    rules.push(`  ${name}: ${serializeRecipe(recipe)};`)
+  }
+
+  if (rules.length) {
+    styleTag.textContent = `:root {\n${rules.join('\n')}\n}`
+  } else {
+    styleTag.textContent = ''
+  }
 }
 
 export function clearThemeTokenDraft(): void {
-  document.head.querySelector(`style[${STYLE_ATTRIBUTE}]`)?.remove()
+  if (typeof document === 'undefined') return
+  const styleTag = document.getElementById(OVERRIDE_STYLE_ID)
+  if (styleTag) {
+    styleTag.remove()
+  }
 }
