@@ -6,13 +6,16 @@ export type EmptyParams = typeof EmptyParamsSchema.Type
 export const JsonValueSchema = Schema.Json
 export type JsonValue = typeof JsonValueSchema.Type
 
-export const OpaqueIDSchema = Schema.String.check(Schema.isMinLength(1))
+export const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+export const OpaqueIDSchema = NonEmptyStringSchema
 export const RpcIDSchema = Schema.Union([Schema.String, Schema.Number])
 export type RpcID = typeof RpcIDSchema.Type
 
 export const CursorSchema = Schema.String.check(Schema.isMinLength(1))
 export const LimitSchema = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 500 }))
-export const SequenceSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
+export const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
+export const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
+export const SequenceSchema = NonNegativeIntSchema
 export const TimestampSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
 
 export const OperationParamsSchema = Schema.Struct({

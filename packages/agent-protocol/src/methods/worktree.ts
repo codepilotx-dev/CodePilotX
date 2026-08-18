@@ -1,8 +1,11 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { OpaqueIDSchema, SequenceSchema, TimestampSchema } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+import {
+  NonEmptyStringSchema,
+  OpaqueIDSchema,
+  SequenceSchema,
+  TimestampSchema,
+} from "../wire/primitives"
 const RevisionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 
 export const WorktreeStatusSchema = Schema.Literals([

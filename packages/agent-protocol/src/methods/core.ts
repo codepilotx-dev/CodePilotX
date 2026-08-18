@@ -11,9 +11,12 @@ import {
   JsonValueSchema,
   LimitSchema,
   MutationMetaSchema,
+  NonEmptyStringSchema,
+  NonNegativeIntSchema,
   OkResultSchema,
   OpaqueIDSchema,
   OperationParamsSchema,
+  PositiveIntSchema,
   SequenceSchema,
   StreamPositionSchema,
   TimestampSchema,
@@ -57,11 +60,8 @@ const AttachmentErrors = ["ATTACHMENT_NOT_FOUND", "ATTACHMENT_LIMIT", "PERMISSIO
 const LocalContextErrors = ["THREAD_NOT_FOUND", "LOCAL_CONTEXT_NOT_FOUND", "PATH_DENIED", "FILE_NOT_FOUND", "FILE_NOT_TEXT", "FILE_TOO_LARGE", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const MemoryErrors = ["MEMORY_NOT_FOUND", "MEMORY_REJECTED", "PERMISSION_DENIED", ...CommonErrors] as const
 
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const ApprovalFeedbackSchema = Schema.String.check(Schema.isMaxLength(4_000))
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 const NonNegativeNumberSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
-const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThan(0))
 const NullableCursorSchema = Schema.NullOr(CursorSchema)
 
 export const ClientInfoSchema = Schema.Struct({

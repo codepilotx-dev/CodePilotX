@@ -17,12 +17,11 @@ import { defineMethod, type MethodMap } from "../wire/definition"
 import {
   CursorSchema,
   LimitSchema,
+  NonEmptyStringSchema,
   OpaqueIDSchema,
   SequenceSchema,
   TimestampSchema,
 } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const TaskTitleSchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_TITLE_MAX_LENGTH))
 const TaskDescriptionSchema = Schema.String.check(Schema.isMaxLength(TASKBOARD_DESCRIPTION_MAX_LENGTH))
 const TaskCommentBodySchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_COMMENT_MAX_LENGTH))

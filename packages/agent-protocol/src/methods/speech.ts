@@ -1,8 +1,10 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { EmptyParamsSchema, OperationParamsSchema } from "../wire/primitives"
-
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
+import {
+  EmptyParamsSchema,
+  NonNegativeIntSchema,
+  OperationParamsSchema,
+} from "../wire/primitives"
 
 export const SpeechStateSchema = Schema.Literals([
   "unsupported",

@@ -1,11 +1,10 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { EmptyParamsSchema, OperationParamsSchema } from "../wire/primitives"
+import { EmptyParamsSchema, NonEmptyStringSchema, OperationParamsSchema } from "../wire/primitives"
 
 const PetIDSchema = Schema.String.check(
   Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,63}$/),
 )
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const PetErrors = [
   "PET_NOT_FOUND",
   "PET_INVALID",

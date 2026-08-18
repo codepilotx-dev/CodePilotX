@@ -1,8 +1,6 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { OpaqueIDSchema, TimestampSchema } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+import { NonEmptyStringSchema, OpaqueIDSchema, TimestampSchema } from "../wire/primitives"
 
 export const TaskSuggestionCategoryIdSchema = Schema.Literals([
   "codex-explore",

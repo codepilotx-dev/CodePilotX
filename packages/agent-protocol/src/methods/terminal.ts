@@ -1,8 +1,11 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { OkResultSchema, OpaqueIDSchema, SequenceSchema } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+import {
+  NonEmptyStringSchema,
+  OkResultSchema,
+  OpaqueIDSchema,
+  SequenceSchema,
+} from "../wire/primitives"
 const TerminalDataSchema = Schema.String.check(Schema.isMaxLength(262_144))
 const TerminalErrors = [
   "THREAD_NOT_FOUND",

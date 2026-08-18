@@ -13,15 +13,14 @@ import {
   AdmissionSchema,
   CursorSchema,
   JsonValueSchema,
+  NonEmptyStringSchema,
+  NonNegativeIntSchema,
   OpaqueIDSchema,
   OperationParamsSchema,
   SequenceSchema,
   StreamPositionSchema,
   TimestampSchema,
 } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
 const SubagentCapabilitiesSchema = Schema.Struct({
   canStop: Schema.Boolean,
