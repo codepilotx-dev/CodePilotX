@@ -1,4 +1,16 @@
 .desktop-sidebar {
+  --interactive-row-hover-background: var(
+    --sidebar-item-hover-background,
+    var(--color-token-list-hover-background)
+  );
+  --interactive-row-selected-background: var(
+    --sidebar-item-active-background,
+    var(--color-token-list-active-selection-background)
+  );
+  --interactive-row-nav-radius: var(
+    --sidebar-item-radius,
+    var(--radius-row)
+  );
   position: absolute;
   inset: 0 auto 0 0;
   z-index: calc(var(--z-composer) + 1);
@@ -8,8 +20,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 0;
-  background: var(--layer-underlay-fill);
+  border-right: var(--sidebar-border, 0);
+  background: var(--sidebar-background, var(--layer-underlay-fill));
   color: color-mix(
     in srgb,
     var(--color-token-foreground) 85%,
@@ -19,7 +31,7 @@
 
   &.is-docked {
     z-index: 1;
-    background: var(--layer-underlay-fill);
+    background: var(--sidebar-background, var(--layer-underlay-fill));
   }
 
   &.is-collapsed {
@@ -144,7 +156,10 @@
 .sidebar-nav-link.active,
 .sidebar-session-row.active,
 .sidebar-settings-link.active {
-  background: var(--color-token-list-active-selection-background);
+  background: var(
+    --sidebar-item-active-background,
+    var(--color-token-list-active-selection-background)
+  );
 }
 
 .sidebar-section-title {

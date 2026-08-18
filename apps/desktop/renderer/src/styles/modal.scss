@@ -35,8 +35,17 @@
 
 .permission-modal,
 .github-repository-modal,
-.git-workflow-modal {
-  border-radius: var(--radius-floating);
+.git-workflow-modal,
+.ui-dialog-surface,
+.command-menu-dialog,
+.project-edit-dialog,
+.model-center-key-dialog,
+.plugin-details-dialog,
+.whats-new-dialog {
+  background: var(--modal-surface-background, var(--layer-floating-fill));
+  border: var(--modal-surface-border, var(--layer-edge));
+  box-shadow: var(--modal-surface-shadow, var(--shadow-floating));
+  border-radius: var(--modal-surface-radius, var(--radius-floating));
 }
 
 :root[data-reduce-motion="on"] :is(

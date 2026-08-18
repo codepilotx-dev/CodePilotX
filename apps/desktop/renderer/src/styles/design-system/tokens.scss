@@ -40,6 +40,37 @@
   --shadow-glass-raised: none;
   --shadow-glass-floating: var(--shadow-floating);
 
+  // Component semantic token aliases for independent scoped debugging
+  --right-dock-background: var(--layer-panel-fill);
+  --right-dock-border-color: var(--color-token-border-light);
+  --right-dock-tab-active-background: var(
+    --color-token-list-active-selection-background
+  );
+  --right-dock-tab-hover-background: var(--color-token-list-hover-background);
+  --right-dock-tab-radius: var(--radius-row);
+
+  --sidebar-background: var(--color-token-side-bar-background);
+  --sidebar-border: 0;
+  --sidebar-item-hover-background: var(--color-token-list-hover-background);
+  --sidebar-item-active-background: var(
+    --color-token-list-active-selection-background
+  );
+  --sidebar-item-radius: var(--radius-row);
+
+  --modal-surface-background: var(--layer-floating-fill);
+  --modal-surface-border: var(--layer-edge);
+  --modal-surface-shadow: var(--shadow-floating);
+  --modal-surface-radius: var(--radius-floating);
+
+  --popover-surface-background: var(--layer-floating-fill);
+  --popover-surface-border: var(--layer-edge);
+  --popover-surface-shadow: var(--shadow-floating);
+  --popover-surface-radius: var(--radius-floating);
+  --tooltip-surface-background: var(--layer-floating-fill);
+  --tooltip-surface-border: var(--layer-edge);
+  --tooltip-surface-shadow: var(--shadow-floating);
+  --tooltip-surface-radius: var(--radius-floating);
+
   // Interaction states consume the canonical semantic color tokens directly.
   // Accent remains reserved for controls with explicit product semantics.
   --focus-ring-inset: inset 0 0 0 1px var(--color-token-focus-border);

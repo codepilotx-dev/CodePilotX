@@ -151,4 +151,40 @@ describe('Codex semantic token contract', () => {
       /\.settings-row \+ \.settings-row[\s\S]*?height: 0\.5px;/,
     )
   })
+
+  test('defines component-scoped semantic aliases and consumes them in real selectors', async () => {
+    const [tokens, rightDock, sidebar, modal, popover] = await Promise.all([
+      Bun.file(new URL('../src/styles/design-system/tokens.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/layout-sidebar.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/modal.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/popover.scss', import.meta.url)).text(),
+    ])
+
+    // Verify token definitions in tokens.scss
+    expect(tokens).toContain('--right-dock-background: var(--layer-panel-fill);')
+    expect(tokens).toContain('--right-dock-border-color: var(--color-token-border-light);')
+    expect(tokens).toContain('--sidebar-background: var(--color-token-side-bar-background);')
+    expect(tokens).toContain('--sidebar-border: 0;')
+    expect(tokens).toContain('--modal-surface-background: var(--layer-floating-fill);')
+    expect(tokens).toContain('--modal-surface-border: var(--layer-edge);')
+    expect(tokens).toContain('--popover-surface-background: var(--layer-floating-fill);')
+    expect(tokens).toContain('--popover-surface-border: var(--layer-edge);')
+    expect(tokens).toContain('--tooltip-surface-background: var(--layer-floating-fill);')
+    expect(tokens).toContain('--tooltip-surface-border: var(--layer-edge);')
+
+    // Verify consumption in real component selectors
+    expect(rightDock).toContain('--right-dock-background')
+    expect(rightDock).toContain('--right-dock-border-color')
+    expect(rightDock).toContain('--right-dock-tab-radius')
+    expect(sidebar).toContain('--sidebar-background')
+    expect(sidebar).toContain('--sidebar-border')
+    expect(sidebar).toContain('--sidebar-item-active-background')
+    expect(modal).toContain('--modal-surface-background')
+    expect(modal).toContain('--modal-surface-shadow')
+    expect(modal).toContain('.command-menu-dialog')
+    expect(modal).toContain('.project-edit-dialog')
+    expect(popover).toContain('--popover-surface-background')
+    expect(popover).toContain('--tooltip-surface-background')
+  })
 })

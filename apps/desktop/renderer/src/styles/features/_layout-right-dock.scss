@@ -9,7 +9,7 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--layer-panel-fill);
+  background: var(--right-dock-background, var(--layer-panel-fill));
   color: var(--color-token-foreground);
   box-shadow: none;
 }
@@ -34,11 +34,11 @@
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
-  background: var(--layer-panel-fill);
+  background: var(--right-dock-background, var(--layer-panel-fill));
 }
 
 .right-dock {
-  border-left: 1px solid var(--color-token-border-light);
+  border-left: 1px solid var(--right-dock-border-color, var(--color-token-border-light));
   border-radius: 0;
   box-shadow: none;
 }
@@ -314,7 +314,7 @@
   flex: 0 1 auto;
   overflow: visible;
   border-block-end: 2px solid transparent;
-  border-radius: var(--radius-row);
+  border-radius: var(--right-dock-tab-radius, var(--radius-row));
   padding: 4px 8px;
   color: var(--color-token-description-foreground);
   transition:
@@ -323,13 +323,19 @@
     color var(--motion-micro) var(--ease-standard);
 
   &.active {
-    background: var(--color-token-list-active-selection-background);
+    background: var(
+      --right-dock-tab-active-background,
+      var(--color-token-list-active-selection-background)
+    );
     color: var(--color-token-foreground);
   }
 
   &:not(.active):hover,
   &:not(.active):focus-within {
-    background: var(--color-token-list-hover-background);
+    background: var(
+      --right-dock-tab-hover-background,
+      var(--color-token-list-hover-background)
+    );
     color: var(--color-token-text-secondary);
   }
 

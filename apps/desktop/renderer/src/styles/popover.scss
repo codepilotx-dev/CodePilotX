@@ -1,9 +1,7 @@
 :root {
   --popover-width-extra: 0px;
   --popover-default-max-width: min(360px, calc(100vw - 16px));
-  --popover-surface-radius: var(--radius-floating);
   --popover-surface-padding: var(--menu-surface-padding);
-  --popover-surface-shadow: var(--shadow-floating);
 }
 
 /* Developer-themeable Dropdown family contract. The data attributes mark only
@@ -117,6 +115,20 @@
   background: var(--layer-floating-fill);
   backdrop-filter: none;
   box-shadow: var(--shadow-floating);
+}
+
+.popover-surface {
+  border: var(--popover-surface-border, var(--layer-edge));
+  background: var(--popover-surface-background, var(--layer-floating-fill));
+  box-shadow: var(--popover-surface-shadow, var(--shadow-floating));
+  border-radius: var(--popover-surface-radius, var(--radius-floating));
+}
+
+.tooltip-content {
+  border: var(--tooltip-surface-border, var(--layer-edge));
+  background: var(--tooltip-surface-background, var(--layer-floating-fill));
+  box-shadow: var(--tooltip-surface-shadow, var(--shadow-floating));
+  border-radius: var(--tooltip-surface-radius, var(--radius-floating));
 }
 
 .popover-scroll-content {
