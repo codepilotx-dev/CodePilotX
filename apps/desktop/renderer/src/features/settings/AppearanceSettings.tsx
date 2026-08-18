@@ -39,6 +39,12 @@ type Props = {
   onError?: (message: string) => void
 }
 
+const ThemeTokenDebugger = import.meta.env.DEV
+  ? React.lazy(() => import('../theme-debugger/ThemeTokenDebugger.js').then(module => ({
+      default: module.ThemeTokenDebugger,
+    })))
+  : null
+
 type ThemeSettingsUpdater = (
   current: DesktopThemeSettings,
 ) => DesktopThemeSettings
@@ -1164,6 +1170,11 @@ export function AppearanceSettings({
             />
           ) : null}
         </SettingsSection>
+        {ThemeTokenDebugger ? (
+          <React.Suspense fallback={null}>
+            <ThemeTokenDebugger />
+          </React.Suspense>
+        ) : null}
       </div>
     </SettingsContentArea>
   )
