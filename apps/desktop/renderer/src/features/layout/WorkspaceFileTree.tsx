@@ -24,6 +24,7 @@ import { SearchInput } from '../../components/ui/SearchInput.js'
 import { VList, type VListHandle } from 'virtua'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { cx } from '../../utils/cx.js'
+import { normalizePathForComparison } from '../../utils/pathUtils.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
 
 export type WorkspaceFileOpenOptions = {
@@ -730,7 +731,7 @@ function removeSetValue(current: Set<string>, value: string): Set<string> {
 }
 
 function normalizePath(path: string): string {
-  return path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+  return normalizePathForComparison(path)
 }
 
 function isDescendantOf(path: string, directoryPath: string): boolean {

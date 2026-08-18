@@ -8,6 +8,7 @@ import {
   type DesktopApiMethod,
 } from '../../../shared/ipcChannels.js'
 import { encodeDesktopBridgeArgs } from '../../../shared/desktopBridgeArgs.js'
+import { arePathsEqual } from '../../utils/pathUtils.js'
 import {
   defaultDesktopStoredSettings,
   normalizeDesktopStoredSettings,
@@ -725,10 +726,7 @@ export function createAgentSessionDesktopClient(
   ): string {
     if (requested) return requested
     if (workspacePath) {
-      const normalized = workspacePath.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
-      const matching = project.folders.find(folder =>
-        folder.path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase() === normalized
-      )
+      const matching = project.folders.find(folder => arePathsEqual(folder.path, workspacePath))
       if (matching) return matching.id
     }
     return project.primaryFolderId
@@ -3245,39 +3243,6 @@ export function createAgentSessionDesktopClient(
   } as unknown as CodePilotXDesktopClient
 
   return client
-}
-
-async function agentJson<T>(
-  path: string,
-  init?: RequestInit,
-  fetcher: DesktopClientEnvironment['fetch'] =
-    typeof fetch === 'undefined' ? undefined : (input, requestInit) => fetch(input, requestInit),
-): Promise<T> {
-  if (!fetcher) throw new Error('当前环境无法访问 agent API。')
-  const headers = new Headers(init?.headers)
-  if (init?.body !== undefined && !headers.has('content-type')) {
-    headers.set('content-type', 'application/json')
-  }
-  const response = await fetcher(path, {
-    ...init,
-    credentials: 'include',
-    headers,
-  })
-  if (!response.ok) throw new Error(await agentErrorMessage(response))
-  if (response.status === 204) return undefined as T
-  return response.json() as Promise<T>
-}
-
-async function agentErrorMessage(response: Response): Promise<string> {
-  const text = await response.text().catch(() => '')
-  if (!text) return `Agent API 请求失败：${response.status}`
-  try {
-    const payload = JSON.parse(text) as { error?: { message?: unknown } }
-    if (typeof payload.error?.message === 'string') return payload.error.message
-  } catch {
-    // Fall through to the raw response body.
-  }
-  return text
 }
 
 function questionAnswerFromDecision(decision: DesktopPermissionDecision): string {

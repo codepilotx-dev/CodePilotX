@@ -5,6 +5,7 @@ import type {
 } from '../../../../shared/types.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { sortSessionsByRecency } from '../../session/state/sessionSorting.js'
+import { normalizePathForComparison } from '../../../utils/pathUtils.js'
 
 export type SidebarSessionVisualState =
   | 'needs-input'
@@ -541,7 +542,7 @@ function sessionProjectKey(session: SessionListItem): string {
 }
 
 export function normalizeSidebarPath(value: string): string {
-  return value.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+  return normalizePathForComparison(value)
 }
 
 function normalizePath(value: string): string {

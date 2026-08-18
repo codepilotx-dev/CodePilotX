@@ -11,6 +11,7 @@ import {
   type WorkbenchTabId,
   type WorkbenchTabsState,
 } from '../dock/rightDockState.js'
+import { arePathsEqual } from '../../../utils/pathUtils.js'
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
 
@@ -628,8 +629,7 @@ function validateTabDescriptor(
 }
 
 function sameWorkspacePath(left: string, right: string): boolean {
-  return left.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase() ===
-    right.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+  return arePathsEqual(left, right)
 }
 
 function isPositiveInteger(value: unknown): value is number {

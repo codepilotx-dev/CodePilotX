@@ -8,6 +8,7 @@ import {
 } from '../../../services/externalOpenTargetsStore.js'
 import type React from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { normalizePathForComparison } from '../../../utils/pathUtils.js'
 import type { DesktopComposerProps } from '../../session/composer/DesktopComposer.js'
 import { getDesktopComposerBranchName } from '../../session/composer/composerWorkspacePresentation.js'
 import { composerDraftStore } from '../../session/composer/composerDraftStore.js'
@@ -244,7 +245,7 @@ function routeAccessibilityLabel(pathname: string): string {
 }
 
 function normalizePathForCompare(path: string): string {
-  return path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+  return normalizePathForComparison(path)
 }
 
 /** Incrementing counter to sequence directory probe requests */

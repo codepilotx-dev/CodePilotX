@@ -12,6 +12,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { upsertRecentWorkspace } from '../settings/settingsStorage.js'
+import { normalizePathForComparison } from '../../utils/pathUtils.js'
 
 export const NO_WORKSPACE_DIFF = '未选择项目。'
 
@@ -464,5 +465,5 @@ function isWorkspaceUnavailableError(error: unknown): boolean {
 }
 
 function normalizeWorkspacePath(path: string): string {
-  return path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+  return normalizePathForComparison(path)
 }
