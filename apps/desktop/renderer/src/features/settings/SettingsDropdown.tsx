@@ -93,6 +93,7 @@ function SelectSettingsDropdown({
       }
     >
       <Select.Trigger
+        data-theme-component="dropdown-trigger"
         aria-label={ariaLabel}
         className={cx(
           'interactive-row',
@@ -115,6 +116,7 @@ function SelectSettingsDropdown({
       </Select.Trigger>
       <Select.Portal>
         <Select.Content
+          data-theme-component="dropdown-surface"
           align="end"
           className="popover-surface settings-dropdown-content"
           collisionPadding={6}
@@ -301,6 +303,7 @@ function SearchableSettingsDropdown({
       <Popover.Trigger asChild>
         <button
           ref={triggerRef}
+          data-theme-component="dropdown-trigger"
           aria-label={ariaLabel}
           className={cx(
             'interactive-row',
@@ -322,6 +325,7 @@ function SearchableSettingsDropdown({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
+          data-theme-component="dropdown-surface"
           align="end"
           aria-label={ariaLabel ?? '搜索选项'}
           className={cx(

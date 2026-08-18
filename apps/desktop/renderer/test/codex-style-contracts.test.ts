@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 describe('Codex semantic token contract', () => {
-  test('exports exactly 122 unique semantic color tokens', async () => {
+  test('exports exactly 134 unique semantic color tokens', async () => {
     const stylesheet = await Bun.file(
       new URL(
         '../src/styles/design-system/codex-semantic-tokens.scss',
@@ -13,15 +13,33 @@ describe('Codex semantic token contract', () => {
       match => match[1],
     )
 
-    expect(tokens).toHaveLength(122)
-    expect(new Set(tokens).size).toBe(122)
+    expect(tokens).toHaveLength(134)
+    expect(new Set(tokens).size).toBe(134)
     expect(tokens).toContain('--color-token-input-background')
     expect(tokens).toContain('--color-token-dropdown-background')
+    expect(tokens).toContain('--color-token-dropdown-trigger-background')
+    expect(tokens).toContain('--color-token-dropdown-item-hover-background')
+    expect(tokens).toContain('--color-token-dropdown-focus-border')
     expect(tokens).toContain('--color-token-main-surface-primary')
     expect(tokens).toContain('--color-token-panel-background')
     expect(tokens).toContain('--color-token-control-background')
     expect(tokens).toContain('--color-token-elevated-background')
     expect(tokens).toContain('--color-token-button-pressed')
+  })
+
+  test('maps Dropdown states through dedicated semantic slots', async () => {
+    const [tokens, popover, rows] = await Promise.all([
+      Bun.file(new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/popover.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/components/interactive-row.scss', import.meta.url)).text(),
+    ])
+
+    expect(tokens).toContain('--color-token-dropdown-border: var(--color-token-menu-border)')
+    expect(tokens).toContain('--color-token-dropdown-item-pressed-background: var(--color-token-button-pressed)')
+    expect(popover).toContain(".popover-surface[data-theme-component='dropdown-surface']")
+    expect(popover).toContain('--interactive-row-hover-background: var(--color-token-dropdown-item-hover-background)')
+    expect(rows).toContain('--interactive-row-pressed-background, var(--color-token-list-active-selection-background)')
+    expect(rows).toContain('--interactive-row-selected-background, var(--color-token-list-active-selection-background)')
   })
 
   test('keeps diff backgrounds separate from raw decoration colors', async () => {

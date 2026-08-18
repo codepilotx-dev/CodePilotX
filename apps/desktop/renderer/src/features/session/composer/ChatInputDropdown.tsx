@@ -117,6 +117,7 @@ export function ChatInputDropdown({
   return (
     <div
       ref={ref}
+      data-theme-component="dropdown-surface"
       className={[
         'popover-surface',
         'chat-input__dropdown',

@@ -35,11 +35,12 @@ export function Dropdown({
 }: Props): React.ReactNode {
   return (
     <DropdownMenu.Root modal={modal} open={open} onOpenChange={onOpenChange}>
-      <DropdownMenu.Trigger asChild>
+      <DropdownMenu.Trigger asChild data-theme-component="dropdown-trigger">
         {trigger}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
+          data-theme-component="dropdown-surface"
           align={align}
           className={[
             'popover-surface',

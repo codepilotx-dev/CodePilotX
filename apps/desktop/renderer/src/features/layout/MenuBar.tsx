@@ -175,6 +175,7 @@ function AppMenu({
   return (
     <Menubar.Menu value={value}>
       <Menubar.Trigger
+        data-theme-component="dropdown-trigger"
         className="menubar-trigger"
         onPointerDown={event => {
           if (
@@ -192,6 +193,7 @@ function AppMenu({
       </Menubar.Trigger>
       <Menubar.Portal>
         <Menubar.Content
+          data-theme-component="dropdown-surface"
           align="start"
           className={['popover-surface', 'menubar-content', contentClassName].join(' ')}
           collisionPadding={6}

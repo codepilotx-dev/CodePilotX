@@ -277,6 +277,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.SubContent
+                  data-theme-component="dropdown-surface"
                   alignOffset={-4}
                   aria-label="剩余用量详情"
                   className="popover-surface popover popover-sub-content popover-usage-submenu"

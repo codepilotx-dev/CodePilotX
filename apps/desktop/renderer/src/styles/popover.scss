@@ -6,6 +6,55 @@
   --popover-surface-shadow: var(--shadow-floating);
 }
 
+/* Developer-themeable Dropdown family contract. The data attributes mark only
+ * dropdown/select surfaces; generic popovers, dialogs and tooltips stay intact. */
+[data-theme-component='dropdown-trigger'] {
+  --interactive-row-background: var(--color-token-dropdown-trigger-background);
+  --interactive-row-foreground: var(--color-token-dropdown-trigger-foreground);
+  --interactive-row-hover-background: var(--color-token-dropdown-trigger-hover-background);
+  --interactive-row-open-background: var(--color-token-dropdown-trigger-open-background);
+  --interactive-row-disabled-foreground: var(--color-token-dropdown-trigger-disabled-foreground);
+  --interactive-row-focus-border: var(--color-token-dropdown-focus-border);
+  border-color: var(--color-token-dropdown-trigger-border);
+  background: var(--color-token-dropdown-trigger-background);
+  color: var(--color-token-dropdown-trigger-foreground);
+}
+
+[data-theme-component='dropdown-trigger']:hover:not(:where(:disabled, [data-disabled], [aria-disabled='true'])) {
+  background: var(--color-token-dropdown-trigger-hover-background);
+}
+
+[data-theme-component='dropdown-trigger']:where([data-state='open'], [aria-expanded='true']) {
+  background: var(--color-token-dropdown-trigger-open-background);
+}
+
+[data-theme-component='dropdown-trigger']:where(:disabled, [data-disabled], [aria-disabled='true']) {
+  color: var(--color-token-dropdown-trigger-disabled-foreground);
+}
+
+[data-theme-component='dropdown-trigger']:focus-visible {
+  outline: 2px solid var(--color-token-dropdown-focus-border);
+  outline-offset: 1px;
+}
+
+.popover-surface[data-theme-component='dropdown-surface'] {
+  --interactive-row-foreground: var(--color-token-dropdown-foreground);
+  --interactive-row-hover-background: var(--color-token-dropdown-item-hover-background);
+  --interactive-row-pressed-background: var(--color-token-dropdown-item-pressed-background);
+  --interactive-row-selected-background: var(--color-token-dropdown-item-selected-background);
+  --interactive-row-open-background: var(--color-token-dropdown-item-selected-background);
+  --interactive-row-disabled-foreground: var(--color-token-dropdown-item-disabled-foreground);
+  --interactive-row-focus-border: var(--color-token-dropdown-focus-border);
+  color: var(--color-token-dropdown-foreground);
+  border-color: var(--color-token-dropdown-border);
+  background: var(--color-token-dropdown-background);
+}
+
+.popover-surface[data-theme-component='dropdown-surface']
+  :where(.popover-item, .popover-sub-trigger, .menubar-item, .settings-dropdown-item, .permission-select-item, .chat-input__dropdown-item):focus-visible {
+  box-shadow: inset 0 0 0 1px var(--color-token-dropdown-focus-border);
+}
+
 .popover-surface,
 .sidebar-context-menu-content,
 .settings-dropdown-content,

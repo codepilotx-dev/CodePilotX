@@ -1524,6 +1524,7 @@ export function ComposerCard({
             >
               <Select.Trigger
                 aria-label="选择权限模式"
+                data-theme-component="dropdown-trigger"
                 className={[
                   "interactive-row",
                   "interactive-row--composer",
@@ -1549,6 +1550,7 @@ export function ComposerCard({
                 <Select.Content
                   align="start"
                   className="popover-surface permission-select-content"
+                  data-theme-component="dropdown-surface"
                   collisionPadding={6}
                   position="popper"
                   side="bottom"

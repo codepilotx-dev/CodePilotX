@@ -154,6 +154,18 @@
   --color-token-disabled-foreground: var(--vscode-disabledForeground);
   --color-token-dropdown-background: var(--vscode-dropdown-background);
   --color-token-dropdown-foreground: var(--vscode-dropdown-foreground);
+  --color-token-dropdown-border: var(--color-token-menu-border);
+  --color-token-dropdown-trigger-background: var(--color-token-input-background);
+  --color-token-dropdown-trigger-foreground: var(--color-token-input-foreground);
+  --color-token-dropdown-trigger-border: var(--color-token-input-border);
+  --color-token-dropdown-trigger-hover-background: var(--color-token-toolbar-hover-background);
+  --color-token-dropdown-trigger-open-background: var(--color-token-list-active-selection-background);
+  --color-token-dropdown-trigger-disabled-foreground: var(--color-token-disabled-foreground);
+  --color-token-dropdown-item-hover-background: var(--color-token-list-hover-background);
+  --color-token-dropdown-item-selected-background: var(--color-token-list-active-selection-background);
+  --color-token-dropdown-item-pressed-background: var(--color-token-button-pressed);
+  --color-token-dropdown-item-disabled-foreground: var(--color-token-disabled-foreground);
+  --color-token-dropdown-focus-border: var(--color-token-focus-border);
   --color-token-editor-background: var(--color-background-editor-opaque);
   --color-token-editor-error-foreground: var(--vscode-editorError-foreground);
   --color-token-editor-find-match-background: var(--vscode-editor-findMatchBackground);

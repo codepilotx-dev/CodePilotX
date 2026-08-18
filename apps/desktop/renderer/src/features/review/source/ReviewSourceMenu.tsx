@@ -167,6 +167,7 @@ function ReviewCommitSourceSubmenu({
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
+          data-theme-component="dropdown-surface"
           alignOffset={-4}
           className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex"
           collisionPadding={6}
