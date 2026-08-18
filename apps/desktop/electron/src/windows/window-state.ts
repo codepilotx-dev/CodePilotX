@@ -1,6 +1,12 @@
-import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
+import {
+  DebouncedAtomicJsonWriter,
+  clamp,
+  intersectionArea,
+  isRecord,
+  type DesktopWindowBounds,
+  type StateLogger as WindowStateLogger,
+} from "./debounced-atomic-json-writer.js"
 
 export const MAIN_WINDOW_MIN_WIDTH = 960
 export const MAIN_WINDOW_MIN_HEIGHT = 640
@@ -9,12 +15,7 @@ const DEFAULT_WINDOW_HEIGHT = 920
 const WINDOW_STATE_VERSION = 1
 const WINDOW_STATE_WRITE_DELAY_MS = 250
 
-export type DesktopWindowBounds = {
-  x: number
-  y: number
-  width: number
-  height: number
-}
+export type { DesktopWindowBounds, WindowStateLogger }
 
 export type DesktopWindowStateV1 = {
   version: 1
@@ -24,86 +25,42 @@ export type DesktopWindowStateV1 = {
 
 export type DesktopDisplayWorkArea = DesktopWindowBounds
 
-export interface WindowStateLogger {
-  warn(event: string, fields?: Record<string, unknown>): void
-}
-
 export class WindowStateStore {
-  readonly #filePath: string
-  readonly #logger: WindowStateLogger | undefined
-  #pendingState: DesktopWindowStateV1 | undefined
-  #writeTimer: ReturnType<typeof setTimeout> | undefined
-  #writeQueue: Promise<void> = Promise.resolve()
+  readonly #writer: DebouncedAtomicJsonWriter<DesktopWindowStateV1>
 
   constructor(
     userDataDirectory: string,
     logger?: WindowStateLogger,
     fileName = "window-state.json",
   ) {
-    this.#filePath = join(userDataDirectory, fileName)
-    this.#logger = logger
+    this.#writer = new DebouncedAtomicJsonWriter<DesktopWindowStateV1>(
+      join(userDataDirectory, fileName),
+      WINDOW_STATE_WRITE_DELAY_MS,
+      "window-state",
+      logger,
+    )
   }
 
   get filePath(): string {
-    return this.#filePath
+    return this.#writer.filePath
   }
 
   async load(
     displays: readonly DesktopDisplayWorkArea[],
     primaryDisplay: DesktopDisplayWorkArea,
   ): Promise<DesktopWindowStateV1> {
-    try {
-      const source = await readFile(this.#filePath, "utf8")
-      return normalizeWindowState(JSON.parse(source), displays, primaryDisplay)
-    } catch (error) {
-      if (!isMissingFileError(error)) {
-        this.#logger?.warn("window-state.load-failed", { error })
-      }
-      return createDefaultWindowState(primaryDisplay)
-    }
+    return this.#writer.load(
+      () => createDefaultWindowState(primaryDisplay),
+      parsed => normalizeWindowState(parsed, displays, primaryDisplay),
+    )
   }
 
   scheduleSave(state: DesktopWindowStateV1): void {
-    this.#pendingState = state
-    if (this.#writeTimer) clearTimeout(this.#writeTimer)
-    this.#writeTimer = setTimeout(() => {
-      this.#writeTimer = undefined
-      this.#enqueuePendingWrite()
-    }, WINDOW_STATE_WRITE_DELAY_MS)
+    this.#writer.scheduleSave(state)
   }
 
   async flush(): Promise<void> {
-    if (this.#writeTimer) {
-      clearTimeout(this.#writeTimer)
-      this.#writeTimer = undefined
-    }
-    this.#enqueuePendingWrite()
-    await this.#writeQueue
-  }
-
-  #enqueuePendingWrite(): void {
-    const state = this.#pendingState
-    if (!state) return
-    this.#pendingState = undefined
-    const write = this.#writeQueue.then(() => this.#writeAtomically(state))
-    this.#writeQueue = write.catch((error) => {
-      this.#logger?.warn("window-state.save-failed", { error })
-    })
-  }
-
-  async #writeAtomically(state: DesktopWindowStateV1): Promise<void> {
-    const directory = dirname(this.#filePath)
-    const temporaryPath = `${this.#filePath}.${process.pid}.${randomUUID()}.tmp`
-    await mkdir(directory, { recursive: true })
-    try {
-      await writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, {
-        encoding: "utf8",
-        mode: 0o600,
-      })
-      await rename(temporaryPath, this.#filePath)
-    } finally {
-      await rm(temporaryPath, { force: true }).catch(() => undefined)
-    }
+    return this.#writer.flush()
   }
 }
 
@@ -178,33 +135,4 @@ function isWindowState(value: unknown): value is DesktopWindowStateV1 {
     && typeof bounds.height === "number"
     && bounds.width > 0
     && bounds.height > 0
-}
-
-function intersectionArea(
-  left: DesktopWindowBounds,
-  right: DesktopWindowBounds,
-): number {
-  const width = Math.max(
-    0,
-    Math.min(left.x + left.width, right.x + right.width)
-      - Math.max(left.x, right.x),
-  )
-  const height = Math.max(
-    0,
-    Math.min(left.y + left.height, right.y + right.height)
-      - Math.max(left.y, right.y),
-  )
-  return width * height
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.round(Math.min(maximum, Math.max(minimum, value)))
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-function isMissingFileError(error: unknown): boolean {
-  return isRecord(error) && error.code === "ENOENT"
 }
