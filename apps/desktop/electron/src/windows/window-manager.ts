@@ -265,11 +265,9 @@ export class WindowManager {
       },
     )
     mainWindow.on("maximize", () => {
-      mainWindow.webContents.send("window:maximized-changed", true)
       this.#scheduleWindowState(true)
     })
     mainWindow.on("unmaximize", () => {
-      mainWindow.webContents.send("window:maximized-changed", false)
       this.#scheduleWindowState(false)
     })
     const rememberNormalBounds = () => {

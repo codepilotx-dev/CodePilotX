@@ -240,8 +240,6 @@ async function startDesktop(): Promise<void> {
     attachmentDownloads,
     composerPathGrants,
     getSupervisor: () => supervisor,
-    getConnectionState: () =>
-      connectionCoordinator?.status.connectionState ?? "unknown",
     getLogDirectory: () => logger?.directory ?? logDirectory,
     quitDuringStartup: () => app.quit(),
     isDesktopRendererSender: sender =>
@@ -347,14 +345,11 @@ async function startDesktop(): Promise<void> {
         }
       }
       guard.assertCurrent()
-      activeWindows.send("agent:connection-changed", "connected")
-      guard.assertCurrent()
       activeWindows.showApplication()
     },
     onReconnecting: () => {
       browserController?.suspendAll()
       windows?.showReconnectWindow()
-      windows?.send("agent:connection-changed", "disconnected")
     },
     onBeforeReconnect: () => terminalHost?.invalidate(),
     isRelocating: () => Boolean(dataLocationLaunch?.relocation),
@@ -403,7 +398,6 @@ async function startDesktop(): Promise<void> {
       lifecycle: status.lifecycle,
       attempt: status.attempt,
     })
-    windows?.send("agent:connection-changed", status.connectionState)
     if (
       status.lifecycle === "idle"
       || status.lifecycle === "failed"

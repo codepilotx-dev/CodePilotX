@@ -64,6 +64,15 @@ import type {
 import type {
   DesktopMicrophoneIpcBridge,
 } from "@codepilotx/shared/desktop-microphone-ipc"
+import type { DesktopWindowIpcBridge } from "@codepilotx/shared/desktop-window-ipc"
+import type { DesktopWorkspaceIpcBridge } from "@codepilotx/shared/desktop-workspace-ipc"
+import type {
+  DesktopExternalOpenTarget,
+  DesktopShellIpcBridge,
+} from "@codepilotx/shared/desktop-shell-ipc"
+import type { DesktopApiKeyIpcBridge } from "@codepilotx/shared/desktop-api-key-ipc"
+import type { DesktopStartupIpcBridge } from "@codepilotx/shared/desktop-startup-ipc"
+import type { DesktopAppearanceIpcBridge } from "@codepilotx/shared/desktop-appearance-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -153,6 +162,40 @@ const DESKTOP_MICROPHONE_IPC_CHANNELS = {
   openPrivacySettings: "desktop-microphone:open-privacy-settings",
 } as const satisfies typeof import("@codepilotx/shared/desktop-microphone-ipc").DESKTOP_MICROPHONE_IPC_CHANNELS
 
+const DESKTOP_WINDOW_IPC_CHANNELS = {
+  minimize: "window:minimize",
+  toggleMaximize: "window:toggle-maximize",
+  close: "window:close",
+  isMaximized: "window:is-maximized",
+} as const satisfies typeof import("@codepilotx/shared/desktop-window-ipc").DESKTOP_WINDOW_IPC_CHANNELS
+
+const DESKTOP_WORKSPACE_IPC_CHANNELS = {
+  pickDirectory: "workspace:pick-directory",
+} as const satisfies typeof import("@codepilotx/shared/desktop-workspace-ipc").DESKTOP_WORKSPACE_IPC_CHANNELS
+
+const DESKTOP_SHELL_IPC_CHANNELS = {
+  openExternal: "shell:open-external",
+  listExternalOpenTargets: "shell:list-external-open-targets",
+  openPathWithTarget: "shell:open-path-with-target",
+  revealPathInFolder: "shell:reveal-path-in-folder",
+} as const satisfies typeof import("@codepilotx/shared/desktop-shell-ipc").DESKTOP_SHELL_IPC_CHANNELS
+
+const DESKTOP_API_KEY_IPC_CHANNELS = {
+  copy: "api-key:copy",
+} as const satisfies typeof import("@codepilotx/shared/desktop-api-key-ipc").DESKTOP_API_KEY_IPC_CHANNELS
+
+const DESKTOP_STARTUP_IPC_CHANNELS = {
+  openLogs: "startup:open-logs",
+  quit: "startup:quit",
+} as const satisfies typeof import("@codepilotx/shared/desktop-startup-ipc").DESKTOP_STARTUP_IPC_CHANNELS
+
+const DESKTOP_APPEARANCE_IPC_CHANNELS = {
+  getSettings: "appearance:settings:get",
+  saveSettings: "appearance:settings:save",
+  getSystemTheme: "appearance:system-theme:get",
+  systemThemeChanged: "appearance:system-theme:changed",
+} as const satisfies typeof import("@codepilotx/shared/desktop-appearance-ipc").DESKTOP_APPEARANCE_IPC_CHANNELS
+
 function isDesktopNotificationActivation(
   value: unknown,
 ): value is DesktopNotificationActivation {
@@ -171,16 +214,8 @@ function isNotificationIdentifier(value: unknown): value is string {
     && /^[A-Za-z0-9._:-]+$/.test(value)
 }
 
-type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
 const pendingComposerDropPaths = new Set<string>()
-
-interface DesktopExternalOpenTarget {
-  targetId: string
-  label: string
-  kind: "default-app" | "editor"
-  iconDataUrl?: string
-}
 
 const desktop = {
   getDesktopBrowserState: (
@@ -280,26 +315,11 @@ const desktop = {
     input: DesktopComposerPathListInput,
   ): Promise<DesktopComposerPathListResult> =>
     ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.listComposerPathGrant, input),
-  minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
-  toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke("window:toggle-maximize"),
-  close: (): Promise<void> => ipcRenderer.invoke("window:close"),
-  isMaximized: (): Promise<boolean> => ipcRenderer.invoke("window:is-maximized"),
-  onMaximizedChange: (listener: (maximized: boolean) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, maximized: boolean) => listener(maximized)
-    ipcRenderer.on("window:maximized-changed", handler)
-    return () => ipcRenderer.removeListener("window:maximized-changed", handler)
-  },
-  pickWorkspaceDirectory: (): Promise<string | null> => ipcRenderer.invoke("workspace:pick-directory"),
-  // Main process support is intentionally optional during the transition. This
-  // listener is inert until it starts publishing agent:connection-changed.
-  onAgentConnectionChange: (listener: (state: AgentConnectionState) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, state: unknown) => {
-      if (state === "connected" || state === "disconnected" || state === "unknown") listener(state)
-    }
-    ipcRenderer.on("agent:connection-changed", handler)
-    return () => ipcRenderer.removeListener("agent:connection-changed", handler)
-  },
-  getAgentConnectionState: (): Promise<AgentConnectionState> => ipcRenderer.invoke("agent:connection-state"),
+  minimize: (): Promise<void> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.minimize),
+  toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.toggleMaximize),
+  close: (): Promise<void> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.close),
+  isMaximized: (): Promise<boolean> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.isMaximized),
+  pickWorkspaceDirectory: (): Promise<string | null> => ipcRenderer.invoke(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectory),
   getDataLocation: () =>
     ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.get),
   chooseDataLocation: (workspaceRoots?: readonly string[]) =>
@@ -393,28 +413,32 @@ const desktop = {
   copyProviderApiKey: (
     credentialId: string,
   ): Promise<{ clearAfterMs: 60000 }> =>
-    ipcRenderer.invoke("api-key:copy", credentialId),
-  openExternal: (url: string): Promise<void> => ipcRenderer.invoke("shell:open-external", url),
+    ipcRenderer.invoke(DESKTOP_API_KEY_IPC_CHANNELS.copy, credentialId),
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openExternal, url),
   listExternalOpenTargets: (targetPath: string): Promise<DesktopExternalOpenTarget[]> =>
-    ipcRenderer.invoke("shell:list-external-open-targets", targetPath),
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.listExternalOpenTargets, targetPath),
   openPathWithTarget: (targetPath: string, targetId: string): Promise<void> =>
-    ipcRenderer.invoke("shell:open-path-with-target", targetPath, targetId),
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openPathWithTarget, targetPath, targetId),
   revealPathInFolder: (targetPath: string): Promise<void> =>
-    ipcRenderer.invoke("shell:reveal-path-in-folder", targetPath),
-  openLogDirectory: (): Promise<string> => ipcRenderer.invoke("startup:open-logs"),
-  quitDuringStartup: (): Promise<void> => ipcRenderer.invoke("startup:quit"),
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.revealPathInFolder, targetPath),
+  openLogDirectory: (): Promise<string> => ipcRenderer.invoke(DESKTOP_STARTUP_IPC_CHANNELS.openLogs),
+  quitDuringStartup: (): Promise<void> => ipcRenderer.invoke(DESKTOP_STARTUP_IPC_CHANNELS.quit),
   getAppearanceSettings: (): Promise<DesktopThemeSettingsV7> =>
-    ipcRenderer.invoke("appearance:settings:get"),
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getSettings),
   saveAppearanceSettings: (settings: DesktopThemeSettingsV7): Promise<void> =>
-    ipcRenderer.invoke("appearance:settings:save", settings),
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.saveSettings, settings),
   getSystemTheme: (): Promise<SystemThemeVariant> =>
-    ipcRenderer.invoke("appearance:system-theme:get"),
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getSystemTheme),
   onSystemThemeChange: (listener: (variant: SystemThemeVariant) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, variant: unknown) => {
       if (variant === "light" || variant === "dark") listener(variant)
     }
-    ipcRenderer.on("appearance:system-theme:changed", handler)
-    return () => ipcRenderer.removeListener("appearance:system-theme:changed", handler)
+    ipcRenderer.on(DESKTOP_APPEARANCE_IPC_CHANNELS.systemThemeChanged, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_APPEARANCE_IPC_CHANNELS.systemThemeChanged,
+        handler,
+      )
   },
   openPetOverlay: (): Promise<void> =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.open),
@@ -529,6 +553,12 @@ const desktop = {
   & DesktopAttachmentIpcBridge
   & DesktopBrowserIpcBridge
   & DesktopMicrophoneIpcBridge
+  & DesktopWindowIpcBridge
+  & DesktopWorkspaceIpcBridge
+  & DesktopShellIpcBridge
+  & DesktopApiKeyIpcBridge
+  & DesktopStartupIpcBridge
+  & DesktopAppearanceIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

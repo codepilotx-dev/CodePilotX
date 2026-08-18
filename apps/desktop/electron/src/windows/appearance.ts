@@ -1,4 +1,5 @@
 import { app, BrowserWindow, nativeTheme } from "electron"
+import { DESKTOP_APPEARANCE_IPC_CHANNELS } from "@codepilotx/shared/desktop-appearance-ipc"
 export type SystemThemeVariant = "light" | "dark"
 
 export class WindowAppearanceController {
@@ -25,7 +26,10 @@ export class WindowAppearanceController {
     const variant = this.systemThemeVariant()
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) {
-        window.webContents.send("appearance:system-theme:changed", variant)
+        window.webContents.send(
+          DESKTOP_APPEARANCE_IPC_CHANNELS.systemThemeChanged,
+          variant,
+        )
       }
     }
   }

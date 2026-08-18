@@ -24,6 +24,11 @@ import {
   type DesktopComposerPathListInput,
   type DesktopComposerPathReadInput,
 } from "@codepilotx/shared/desktop-attachment-ipc"
+import { DESKTOP_WINDOW_IPC_CHANNELS } from "@codepilotx/shared/desktop-window-ipc"
+import { DESKTOP_WORKSPACE_IPC_CHANNELS } from "@codepilotx/shared/desktop-workspace-ipc"
+import { DESKTOP_SHELL_IPC_CHANNELS } from "@codepilotx/shared/desktop-shell-ipc"
+import { DESKTOP_API_KEY_IPC_CHANNELS } from "@codepilotx/shared/desktop-api-key-ipc"
+import { DESKTOP_STARTUP_IPC_CHANNELS } from "@codepilotx/shared/desktop-startup-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { isSafeExternalUrl } from "../security/navigation.js"
 import {
@@ -31,7 +36,6 @@ import {
   requireApiKeyMaterial,
 } from "../settings/desktop-settings-contract.js"
 import type {
-  AgentConnectionState,
   SidecarSupervisor,
 } from "../sidecar/supervisor.js"
 import type { WindowManager } from "../windows/window-manager.js"
@@ -50,7 +54,6 @@ interface DesktopIpcDependencies {
   attachmentDownloads: AttachmentDownloadService
   composerPathGrants: ComposerPathGrantService
   getSupervisor: () => SidecarSupervisor | undefined
-  getConnectionState: () => AgentConnectionState
   getLogDirectory: () => string
   quitDuringStartup: () => void
   broadcastDesktopSettingsChanged: (settings: DesktopSettingsPayload) => void
@@ -68,7 +71,6 @@ export function registerDesktopIpc(
     attachmentDownloads,
     composerPathGrants,
     getSupervisor,
-    getConnectionState,
     getLogDirectory,
     quitDuringStartup,
     broadcastDesktopSettingsChanged,
@@ -132,11 +134,11 @@ export function registerDesktopIpc(
     },
   )
 
-  ipcMain.handle("window:minimize", event => {
+  ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.minimize, event => {
     requireMainWindowSender(event, windows)
     windows.mainWindow?.minimize()
   })
-  ipcMain.handle("window:toggle-maximize", event => {
+  ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.toggleMaximize, event => {
     requireMainWindowSender(event, windows)
     const mainWindow = windows.mainWindow
     if (!mainWindow) return false
@@ -144,21 +146,17 @@ export function registerDesktopIpc(
     else mainWindow.maximize()
     return mainWindow.isMaximized()
   })
-  ipcMain.handle("window:close", event => {
+  ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.close, event => {
     requireMainWindowSender(event, windows)
     windows.mainWindow?.close()
   })
   ipcMain.handle(
-    "window:is-maximized",
+    DESKTOP_WINDOW_IPC_CHANNELS.isMaximized,
     event => {
       requireMainWindowSender(event, windows)
       return windows.mainWindow?.isMaximized() ?? false
     },
   )
-  ipcMain.handle("agent:connection-state", event => {
-    requireDesktopRendererSender(event, isDesktopRendererSender)
-    return getConnectionState()
-  })
   ipcMain.handle(DESKTOP_UPDATE_IPC_CHANNELS.check, async event => {
     requireMainWindowSender(event, windows)
     await updater.checkForUpdates()
@@ -203,7 +201,7 @@ export function registerDesktopIpc(
       return saved
     },
   )
-  ipcMain.handle("api-key:copy", async (event, credentialId: unknown) => {
+  ipcMain.handle(DESKTOP_API_KEY_IPC_CHANNELS.copy, async (event, credentialId: unknown) => {
     requireMainWindowSender(event, windows)
     const supervisor = requireSupervisor(getSupervisor())
     if (
@@ -226,7 +224,7 @@ export function registerDesktopIpc(
     }, API_KEY_CLIPBOARD_CLEAR_DELAY_MS).unref()
     return { clearAfterMs: API_KEY_CLIPBOARD_CLEAR_DELAY_MS }
   })
-  ipcMain.handle("shell:open-external", async (event, url: unknown) => {
+  ipcMain.handle(DESKTOP_SHELL_IPC_CHANNELS.openExternal, async (event, url: unknown) => {
     requireMainWindowSender(event, windows)
     if (typeof url !== "string" || !isSafeExternalUrl(url)) {
       throw new Error("拒绝打开不安全的外部链接")
@@ -234,7 +232,7 @@ export function registerDesktopIpc(
     await shell.openExternal(url)
   })
   ipcMain.handle(
-    "shell:list-external-open-targets",
+    DESKTOP_SHELL_IPC_CHANNELS.listExternalOpenTargets,
     async (event, targetPath: unknown) => {
       requireMainWindowSender(event, windows)
       if (typeof targetPath !== "string") throw new Error("路径参数无效")
@@ -242,7 +240,7 @@ export function registerDesktopIpc(
     },
   )
   ipcMain.handle(
-    "shell:open-path-with-target",
+    DESKTOP_SHELL_IPC_CHANNELS.openPathWithTarget,
     async (event, targetPath: unknown, targetId: unknown) => {
       requireMainWindowSender(event, windows)
       if (typeof targetPath !== "string" || typeof targetId !== "string") {
@@ -252,14 +250,14 @@ export function registerDesktopIpc(
     },
   )
   ipcMain.handle(
-    "shell:reveal-path-in-folder",
+    DESKTOP_SHELL_IPC_CHANNELS.revealPathInFolder,
     (event, targetPath: unknown) => {
       requireMainWindowSender(event, windows)
       if (typeof targetPath !== "string") throw new Error("路径参数无效")
       externalOpenTargets.revealPathInFolder(targetPath)
     },
   )
-  ipcMain.handle("startup:open-logs", async event => {
+  ipcMain.handle(DESKTOP_STARTUP_IPC_CHANNELS.openLogs, async event => {
     requireMainWindowSender(event, windows)
     const directory = getLogDirectory()
     const openError = await shell.openPath(directory)
@@ -272,11 +270,11 @@ export function registerDesktopIpc(
     logger.info("desktop.log-directory-opened")
     return directory
   })
-  ipcMain.handle("startup:quit", event => {
+  ipcMain.handle(DESKTOP_STARTUP_IPC_CHANNELS.quit, event => {
     requireMainWindowSender(event, windows)
     quitDuringStartup()
   })
-  ipcMain.handle("workspace:pick-directory", async event => {
+  ipcMain.handle(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectory, async event => {
     requireMainWindowSender(event, windows)
     const options: OpenDialogOptions = {
       title: "选择项目目录",

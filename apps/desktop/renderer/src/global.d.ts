@@ -11,33 +11,19 @@ import type { DesktopTerminalIpcBridge } from '@codepilotx/shared/desktop-termin
 import type { DesktopNotificationIpcBridge } from '@codepilotx/shared/desktop-notification-ipc'
 import type { DesktopAttachmentIpcBridge } from '@codepilotx/shared/desktop-attachment-ipc'
 import type { DesktopBrowserIpcBridge } from '@codepilotx/shared/desktop-browser-ipc'
+import type { DesktopWindowIpcBridge } from '@codepilotx/shared/desktop-window-ipc'
+import type { DesktopWorkspaceIpcBridge } from '@codepilotx/shared/desktop-workspace-ipc'
+import type { DesktopShellIpcBridge } from '@codepilotx/shared/desktop-shell-ipc'
+import type { DesktopApiKeyIpcBridge } from '@codepilotx/shared/desktop-api-key-ipc'
+import type { DesktopStartupIpcBridge } from '@codepilotx/shared/desktop-startup-ipc'
+import type { DesktopAppearanceIpcBridge } from '@codepilotx/shared/desktop-appearance-ipc'
 
 declare global {
   const __CODEPILOTX_VERSION__: string
 
   interface Window {
     codePilotXDesktop?: {
-      minimize(): Promise<void>
-      toggleMaximize(): Promise<boolean>
-      close(): Promise<void>
-      isMaximized(): Promise<boolean>
-      pickWorkspaceDirectory(): Promise<string | null>
-      openExternal(url: string): Promise<void>
-      listExternalOpenTargets(targetPath: string): Promise<Array<{
-        targetId: string
-        label: string
-        kind: 'file-explorer' | 'terminal' | 'editor'
-        iconDataUrl?: string
-      }>>
-      openPathWithTarget(targetPath: string, targetId: string): Promise<void>
-      revealPathInFolder(targetPath: string): Promise<void>
-      getAppearanceSettings(): Promise<DesktopThemeSettings>
-      saveAppearanceSettings(settings: DesktopThemeSettings): Promise<void>
       listSystemFonts(): Promise<DesktopSystemFontsResult>
-      getSystemTheme(): Promise<'light' | 'dark'>
-      onSystemThemeChange(
-        listener: (theme: 'light' | 'dark') => void,
-      ): () => void
       getDesktopSettings(): Promise<DesktopStoredSettings>
       saveDesktopSettings(
         settings: DesktopStoredSettings,
@@ -49,9 +35,6 @@ declare global {
             | { settings: DesktopStoredSettings },
         ) => void,
       ): () => void
-      copyProviderApiKey(
-        credentialId: string,
-      ): Promise<{ clearAfterMs: 60000 }>
     } & DesktopPetOverlayBridge
       & DesktopDataLocationIpcBridge
       & DesktopEditIpcBridge
@@ -60,6 +43,12 @@ declare global {
       & DesktopNotificationIpcBridge
       & DesktopAttachmentIpcBridge
       & DesktopBrowserIpcBridge
+      & DesktopWindowIpcBridge
+      & DesktopWorkspaceIpcBridge
+      & DesktopShellIpcBridge
+      & DesktopApiKeyIpcBridge
+      & DesktopStartupIpcBridge
+      & DesktopAppearanceIpcBridge<DesktopThemeSettings['codeThemeIds']['light']>
   }
 }
 

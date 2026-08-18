@@ -1,4 +1,5 @@
 import { ipcMain } from "electron"
+import { DESKTOP_APPEARANCE_IPC_CHANNELS } from "@codepilotx/shared/desktop-appearance-ipc"
 import {
   type AppearanceSettingsStore,
   migrateAppearanceSettings,
@@ -13,9 +14,9 @@ export function registerAppearanceIpc(
   store: AppearanceSettingsStore,
 ): void {
   let settings = normalizeAppearanceSettings(initialSettings)
-  ipcMain.handle("appearance:settings:get", () => settings)
+  ipcMain.handle(DESKTOP_APPEARANCE_IPC_CHANNELS.getSettings, () => settings)
   ipcMain.handle(
-    "appearance:settings:save",
+    DESKTOP_APPEARANCE_IPC_CHANNELS.saveSettings,
     async (_event, value: unknown) => {
       const next = migrateAppearanceSettings(value)
       await store.save(next)
@@ -24,7 +25,7 @@ export function registerAppearanceIpc(
     },
   )
   ipcMain.handle(
-    "appearance:system-theme:get",
+    DESKTOP_APPEARANCE_IPC_CHANNELS.getSystemTheme,
     () => appearance.systemThemeVariant(),
   )
   appearance.registerThemeBroadcast()
