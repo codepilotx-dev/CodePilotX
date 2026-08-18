@@ -9,6 +9,7 @@
 
 ### Added
 
+- [development] 新增 CodePilotX 项目级代码审查、推送前检查、文档规范和简化审计 Skills，使 Agent 按仓库架构与验证契约执行常见工程工作流。
 - [Agent/desktop/renderer] 新增原生任务看板：支持 Project 筛选、五阶段拖拽排序、标签与评论、乐观并发、任务关联执行对话及本地或托管 worktree 启动，并向 Agent 提供受权限约束的任务工具。
 - [Agent/desktop/renderer] 新增全局模型健康测试，可用活动凭据并发执行真实最小请求、实时查看模型延迟与安全失败分类、取消批次及逐模型重试，并将 Provider 连接测试统一为真实探针。
 - [Agent/desktop/renderer] 新增 Codex 式本地文件与目录上下文：图片按发送时快照保存，普通文件和目录以任务级只读路径引用接入 Agent，并支持安全的应用内预览与目录浏览。
@@ -22,6 +23,8 @@
 
 ### Changed
 
+- [architecture/shared/agent/desktop] 执行全仓简化方案：移除废弃共享会话模型与未消费 IPC 通道；收敛 RPC handler 直接 SQL 查询至仓储层；统一 Electron 窗口状态原子写器与 IPC 契约定义；合并 Renderer 跨端路径归一化比较工具；统一 Review 差异面板按钮复用及样式；提炼 Agent Protocol 基础类型与集成测试 Harness，并修正默认推理哨兵及确定性集成 fixture 的现行契约。
+- [desktop/renderer] 对齐 Codex 侧边栏会话悬浮卡（Hover Card）设计：项目图标改用终端图标（SquareTerminal），标题支持多行自然折行展示完整会话名称，右侧顶部对齐相对时间，并优化悬浮卡圆角、内边距与间距排版节奏。
 - [desktop/renderer] 动画体系一次性全优化：骨架屏扫光改为局部渐变伪元素 `transform: translateX` 的 compositor 路径（删除 100vw×100vh `background-attachment: fixed` 重绘）；文件树显示/隐藏、侧栏 section、会话扩展列表与处理过程/活动折叠改为 `AnimatePresence popLayout` + Motion layout projection 的 FLIP 呈现（删除 `width: 0 ↔ auto` 与 `height: 0 ↔ auto` 逐帧布局动画）；进度条填充统一为 `transform: scaleX` + `transform-origin: left` 过渡；滚动边缘渐隐由 scroll-timeline 动态 mask 改为 `useScrollEdgeState` 驱动的静态伪元素渐变 frame（passive scroll listener + rAF 合并 + ResizeObserver，仅边界布尔变化才重渲染）；删除常驻 `will-change`，拖拽实时 reflow、Radix 挂载/焦点语义、reduced-motion 与快捷键行为保持不变。
 - [desktop/renderer] 会话打开与切换期间的整窗加载统一为带真实阶段文案的鲸鱼扫光动画（复用启动遮罩契约），替换原有的“加载对话中”文字加载态。
 - [desktop/renderer] 拆分 live event 订阅过滤器：`provider` 过滤器不再接收 `model/health/updated`，模型健康页改用独立的 `modelHealth` 过滤器，避免 provider 状态消费无关的逐模型事件。
@@ -64,6 +67,7 @@
 
 ### Fixed
 
+- [Agent/Desktop] 修复 Desktop 推理模式被误当成模型 variant，导致已保存模型仍显示“配置模型”的问题。
 - [desktop/renderer] 修复外观 V7 与系统字体接线错误导致 Renderer 解析失败、Electron preload 编译失败及桌面开发环境无法启动的问题，并恢复高版本外观配置的拒绝覆盖保护。
 - [desktop/renderer] 统一外观页主题编辑器与偏好设置卡片的共享表面、圆角、宽度和 16px 内容网格，使标题、控件及分隔线左右对齐；字体家族与样式下拉改为按当前内容自适应宽度，不再截断常规选项。
 - [desktop] 修复外观 V7 在真实启动与 Agent 保存链中可能降级覆盖高版本配置、系统字体权限被麦克风策略误拒绝、字体 family/face 可不一致，以及已保存字体样式首次进入不可操作的问题。
