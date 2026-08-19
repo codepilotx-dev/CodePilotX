@@ -74,6 +74,7 @@ import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js
 import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
+import { ModelPickerPopover } from "./ModelPickerPopover.js";
 import { ComposerStatusOverlay } from "./ComposerStatusOverlay.js";
 import type {
   ComposerEditorHandle,
@@ -454,38 +455,6 @@ export function ComposerCard({
   );
   const [reviewMenuRequested, setReviewMenuRequested] = useState(false);
   const [branchSearch, setBranchSearch] = useState("");
-  const [providerSearchQueries, setProviderSearchQueries] = useState<
-    Record<string, string>
-  >({});
-  const [openModelProviderID, setOpenModelProviderID] =
-    useState<ModelProviderID | null>(null);
-  const providerSearchTimersRef = useRef(
-    new Map<string, ReturnType<typeof setTimeout>>(),
-  );
-  useEffect(
-    () => () => {
-      for (const timer of providerSearchTimersRef.current.values())
-        clearTimeout(timer);
-      providerSearchTimersRef.current.clear();
-    },
-    [],
-  );
-  const queueProviderSearch = (
-    providerID: ModelProviderID,
-    query: string,
-  ): void => {
-    setProviderSearchQueries((current) => ({
-      ...current,
-      [providerID]: query,
-    }));
-    const previous = providerSearchTimersRef.current.get(providerID);
-    if (previous) clearTimeout(previous);
-    const timer = setTimeout(() => {
-      providerSearchTimersRef.current.delete(providerID);
-      onProviderSearch?.(providerID, query.trim());
-    }, 150);
-    providerSearchTimersRef.current.set(providerID, timer);
-  };
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
     null,
   );
@@ -1763,14 +1732,19 @@ export function ComposerCard({
                 </span>
               </span>
             ) : null}
-            <Popover.Root
+            <ModelPickerPopover
+              align="end"
+              deepSeekThinkingControls={deepSeekThinkingControls}
               open={openDropdown === "model"}
-              onOpenChange={(open) => {
-                if (!open) setOpenModelProviderID(null);
-                setOpenDropdown(open ? "model" : null);
-              }}
-            >
-              <Popover.Trigger asChild>
+              providerOptions={providerOptions}
+              selectedModelPreset={selectedModelPreset}
+              selectedProviderID={selectedProviderID}
+              showThinkingOptions={showThinkingOptions}
+              side="top"
+              sideOffset={4}
+              thinkingMode={thinkingMode}
+              thinkingOptions={thinkingOptions}
+              trigger={
                 <ChipButton
                   active={openDropdown === "model"}
                   className="subtle composer-model-chip"
@@ -1786,240 +1760,14 @@ export function ComposerCard({
                     </span>
                   ) : null}
                 </ChipButton>
-              </Popover.Trigger>
-              <Popover.Portal>
-                <Popover.Content
-                  aria-label="模型与推理设置"
-                  className="popover-surface rm-model-menu"
-                  align="end"
-                  collisionPadding={6}
-                  side="top"
-                  sideOffset={4}
-                  style={buildPopoverSizingStyle({ width: 200 })}
-                >
-                  <div className="rm-model-menu-scroll-content">
-                    {showThinkingOptions ? (
-                      deepSeekThinkingControls ? (
-                        <>
-                          <div
-                            aria-label="思考模式"
-                            role="radiogroup"
-                          >
-                            <div className="rm-section-header">思考模式</div>
-                            <button
-                              aria-checked={thinkingMode !== "disabled"}
-                              className="rm-menu-item"
-                              onClick={() => onThinkingChange("default")}
-                              role="radio"
-                              type="button"
-                            >
-                              <span className="rm-item-label">启用</span>
-                              {thinkingMode !== "disabled" ? (
-                                <Check
-                                  className="rm-item-check"
-                                  size={APP_ICON_SIZE}
-                                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                                />
-                              ) : null}
-                            </button>
-                            <button
-                              aria-checked={thinkingMode === "disabled"}
-                              className="rm-menu-item"
-                              onClick={() => {
-                                onThinkingChange("disabled");
-                                closeDropdown();
-                              }}
-                              role="radio"
-                              type="button"
-                            >
-                              <span className="rm-item-label">禁用</span>
-                              {thinkingMode === "disabled" ? (
-                                <Check
-                                  className="rm-item-check"
-                                  size={APP_ICON_SIZE}
-                                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                                />
-                              ) : null}
-                            </button>
-                          </div>
-                          {thinkingMode !== "disabled" ? (
-                            <>
-                              <div aria-hidden="true" className="rm-divider" />
-                              <div
-                                aria-label="推理强度"
-                                role="radiogroup"
-                              >
-                                <div className="rm-section-header">推理强度</div>
-                                <button
-                                  aria-checked={thinkingMode !== "enabled"}
-                                  className="rm-menu-item"
-                                  onClick={() => {
-                                    onThinkingChange("default");
-                                    closeDropdown();
-                                  }}
-                                  role="radio"
-                                  type="button"
-                                >
-                                  <span className="rm-item-label">高</span>
-                                  {thinkingMode !== "enabled" ? (
-                                    <Check
-                                      className="rm-item-check"
-                                      size={APP_ICON_SIZE}
-                                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                                    />
-                                  ) : null}
-                                </button>
-                                <button
-                                  aria-checked={thinkingMode === "enabled"}
-                                  className="rm-menu-item"
-                                  onClick={() => {
-                                    onThinkingChange("enabled");
-                                    closeDropdown();
-                                  }}
-                                  role="radio"
-                                  type="button"
-                                >
-                                  <span className="rm-item-label">超高</span>
-                                  {thinkingMode === "enabled" ? (
-                                    <Check
-                                      className="rm-item-check"
-                                      size={APP_ICON_SIZE}
-                                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                                    />
-                                  ) : null}
-                                </button>
-                              </div>
-                            </>
-                          ) : null}
-                          <div aria-hidden="true" className="rm-divider" />
-                        </>
-                      ) : (
-                        <>
-                          <div aria-label="推理强度" role="radiogroup">
-                            <div className="rm-section-header">推理</div>
-                            {thinkingOptions.map((option) => (
-                              <button
-                                aria-checked={option.value === thinkingMode}
-                                className="rm-menu-item"
-                                key={option.value}
-                                onClick={() => {
-                                  onThinkingChange(option.value);
-                                  closeDropdown();
-                                }}
-                                role="radio"
-                                type="button"
-                              >
-                                <span className="rm-item-label">
-                                  {option.label}
-                                </span>
-                                {option.value === thinkingMode ? (
-                                  <Check
-                                    className="rm-item-check"
-                                    size={APP_ICON_SIZE}
-                                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                                  />
-                                ) : null}
-                              </button>
-                            ))}
-                          </div>
-                          <div aria-hidden="true" className="rm-divider" />
-                        </>
-                      )
-                    ) : null}
-                    <div className="rm-section-header">提供商</div>
-                    {providerOptions.map((provider) => (
-                      <SearchablePopoverContent
-                        key={provider.providerID}
-                        align="start"
-                        className="rm-model-menu rm-model-submenu"
-                        contentLabel={`${provider.displayName} 模型`}
-                        emptyLabel="加载模型中…"
-                        listClassName="rm-model-submenu-scroll-content"
-                        listLabel={`${provider.displayName} 模型`}
-                        maxWidth="min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))"
-                        open={openModelProviderID === provider.providerID}
-                        options={provider.modelPresets.map(preset => ({
-                          ...preset,
-                          value: preset.id,
-                        }))}
-                        renderOption={(preset, selected) => (
-                          <>
-                            <span className="rm-item-label">{preset.label}</span>
-                            {selected ? (
-                              <Check
-                                className="rm-item-check"
-                                size={APP_ICON_SIZE}
-                                strokeWidth={APP_ICON_STROKE_WIDTH}
-                              />
-                            ) : null}
-                          </>
-                        )}
-                        search={providerSearchQueries[provider.providerID] ?? ""}
-                        searchLabel={`搜索 ${provider.displayName} 模型`}
-                        searchPlaceholder="搜索模型…"
-                        selectedValue={
-                          provider.providerID === selectedProviderID
-                            ? selectedModelPreset
-                            : undefined
-                        }
-                        side="right"
-                        sideOffset={4}
-                        trigger={
-                          <button
-                            className={[
-                              "rm-sub-trigger",
-                              provider.providerID === selectedProviderID
-                                ? "selected"
-                                : "",
-                            ].join(" ")}
-                            onFocus={() =>
-                              onProviderOpen?.(provider.providerID)
-                            }
-                            onPointerEnter={() =>
-                              onProviderOpen?.(provider.providerID)
-                            }
-                            type="button"
-                          >
-                            <span className="rm-sub-trigger-content">
-                              <span className="rm-item-label">
-                                {provider.displayName}
-                              </span>
-                              {provider.providerID === selectedProviderID ? (
-                                <Check
-                                  className="rm-item-check rm-provider-check"
-                                  size={APP_ICON_SIZE}
-                                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                                />
-                              ) : null}
-                            </span>
-                            <span aria-hidden="true" className="rm-item-arrow">
-                              ›
-                            </span>
-                          </button>
-                        }
-                        width="auto"
-                        onOpenChange={nextOpen => {
-                          setOpenModelProviderID(
-                            nextOpen ? provider.providerID : null,
-                          );
-                          if (nextOpen) onProviderOpen?.(provider.providerID);
-                        }}
-                        onSearchChange={value =>
-                          queueProviderSearch(provider.providerID, value)
-                        }
-                        onSelect={preset => {
-                          onProviderModelChange(
-                            provider.providerID,
-                            preset.id,
-                          );
-                          closeDropdown();
-                        }}
-                      />
-                    ))}
-                  </div>
-                </Popover.Content>
-              </Popover.Portal>
-            </Popover.Root>
+              }
+              onOpenChange={(open) => {
+                setOpenDropdown(open ? "model" : null);
+              }}
+              onProviderModelChange={onProviderModelChange}
+              onProviderOpen={onProviderOpen}
+              onThinkingChange={onThinkingChange}
+            />
 
             {capabilities.dictation ? (
               <Suspense fallback={null}>

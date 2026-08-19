@@ -24,6 +24,9 @@
 
 ### Changed
 
+- [desktop/renderer] 现代化重构 Composer 模型与推理选择器：推出左右两栏 Master-Detail 弹窗结构、支持全局跨提供商即时搜索、推理强度平滑离散滑块调节（无冗余图标），并优化输入框底部触发 Chip 与胶囊徽标展示。
+
+- [desktop/renderer] 重新设计全局 Design Token 体系与组件交互层：引入动态感知表面多级阶梯与 WCAG 4.5:1 对比度校准、定义克制优雅的微混多色语义阶梯（成功绿/危险红/警告橙/技能紫/信息青/主色微混与对应 Chip 规范），并在悬浮 Composer、Popover、Dropdown、Modal 及 Tooltip 浮层引入精致微透毛玻璃 Token 体系（--cpx-sys-blur-* / --cpx-comp-glass-*），统一全量基础组件视觉与几何交互规范。
 - [desktop/renderer] 全面重构并精简样式 Token 体系：彻底弃用历史多层代理与旧命名遗留，建立「系统语义层（--cpx-sys-*）」与「组件槽位层（--cpx-comp-*）」现代化双层规范；统一收敛色彩、T-Shirt 圆角（xs~xl/full）、排版（xs~3xl）与 4px 间距网格；全仓 76+ 个 SCSS 样式及 TSX 引用统一迁移，同步升级 Theme Token Debugger 并在 CodeMirror/Terminal 局部保留最小必要映射，全量通过样式契约、单测与类型检查。
 - [desktop/renderer] 现代化重构自定义 Provider 新增与编辑弹窗（ProviderEditorDialog）：引入「基本配置 / 模型管理 / 高级与网络」三标签页结构、预设模板一键填入、模型折叠手风琴卡片及底部固定操作栏。
 - [desktop/renderer] 重构供应商与模型中心页面架构：顶层收敛为「供应商」主目录与「全量体检」大盘两级导航；供应商详情页内聚合「连接与凭据」和「模型与测速」双子闭环，在供应商上下文内直接完成 API Key/OAuth 凭据管理、模型目录拉取同步与单模型/批量即时测速，并移除与 Composer 及系统设置冗余的 Router 和默认模型配置。

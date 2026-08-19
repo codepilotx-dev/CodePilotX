@@ -637,6 +637,11 @@
 }
 
 .composer-model-chip-thinking {
+  font-size: var(--cpx-sys-font-size-xs);
+  line-height: var(--cpx-sys-line-height-tight);
+  padding: 1px 5px;
+  border-radius: var(--cpx-sys-radius-xs);
+  background: var(--cpx-sys-color-control);
   color: var(--cpx-sys-color-fg-secondary);
 }
 
