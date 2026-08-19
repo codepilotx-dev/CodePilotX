@@ -30,10 +30,28 @@
 
   --cpx-sys-color-accent: #0066ff;
   --cpx-sys-color-accent-subtle: #dbeafe;
+  --cpx-sys-color-accent-subtle-border: color-mix(in srgb, var(--cpx-sys-color-accent) 22%, transparent);
+  --cpx-sys-color-accent-fg: var(--cpx-sys-color-accent);
   --cpx-sys-color-success: #16a34a;
+  --cpx-sys-color-success-subtle-bg: #f5fbf7;
+  --cpx-sys-color-success-subtle-border: color-mix(in srgb, var(--cpx-sys-color-success) 22%, transparent);
+  --cpx-sys-color-success-fg: #15803d;
   --cpx-sys-color-warning: #d97706;
+  --cpx-sys-color-warning-subtle-bg: #fffbeb;
+  --cpx-sys-color-warning-subtle-border: color-mix(in srgb, var(--cpx-sys-color-warning) 22%, transparent);
+  --cpx-sys-color-warning-fg: #b45309;
   --cpx-sys-color-danger: #dc2626;
+  --cpx-sys-color-danger-subtle-bg: #fef2f2;
+  --cpx-sys-color-danger-subtle-border: color-mix(in srgb, var(--cpx-sys-color-danger) 22%, transparent);
+  --cpx-sys-color-danger-fg: #b91c1c;
   --cpx-sys-color-skill: #9333ea;
+  --cpx-sys-color-skill-subtle-bg: #faf5ff;
+  --cpx-sys-color-skill-subtle-border: color-mix(in srgb, var(--cpx-sys-color-skill) 22%, transparent);
+  --cpx-sys-color-skill-fg: #7e22ce;
+  --cpx-sys-color-info: #0284c7;
+  --cpx-sys-color-info-subtle-bg: #f0f9ff;
+  --cpx-sys-color-info-subtle-border: color-mix(in srgb, var(--cpx-sys-color-info) 22%, transparent);
+  --cpx-sys-color-info-fg: #0369a1;
 
   --cpx-sys-color-diff-added-line: #fafdfb;
   --cpx-sys-color-diff-added-text: #f5fbf7;
@@ -51,6 +69,16 @@
   --cpx-sys-color-charts-green: var(--cpx-sys-color-success);
   --cpx-sys-color-charts-blue: var(--cpx-sys-color-accent);
   --cpx-sys-color-charts-purple: var(--cpx-sys-color-skill);
+  --cpx-sys-color-charts-cyan: var(--cpx-sys-color-info);
+
+  // System Blur & Glassmorphism
+  --cpx-sys-blur-sm: 8px;
+  --cpx-sys-blur-md: 16px;
+  --cpx-sys-blur-lg: 24px;
+  --cpx-sys-glass-filter: blur(var(--cpx-sys-blur-md));
+  --cpx-sys-glass-bg: color-mix(in srgb, var(--cpx-sys-color-elevated-secondary) 85%, transparent);
+  --cpx-sys-glass-border: var(--cpx-sys-color-border-subtle);
+  --cpx-sys-glass-shadow: var(--cpx-sys-shadow-floating);
 
   // System Radius (T-Shirt Scale)
   --cpx-sys-radius-xs: 2px;

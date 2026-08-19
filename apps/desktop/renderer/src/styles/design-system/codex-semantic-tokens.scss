@@ -7,6 +7,7 @@
   --cpx-comp-dropdown-trigger-open-bg: var(--cpx-sys-color-selected);
   --cpx-comp-dropdown-trigger-disabled-fg: var(--cpx-sys-color-fg-disabled);
   --cpx-comp-dropdown-menu-bg: var(--cpx-sys-color-elevated-secondary);
+  --cpx-comp-dropdown-menu-backdrop-filter: blur(var(--cpx-sys-blur-md));
   --cpx-comp-dropdown-menu-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-dropdown-menu-border: var(--cpx-sys-color-border-default);
   --cpx-comp-dropdown-item-hover-bg: var(--cpx-sys-color-hover);
@@ -66,6 +67,7 @@
 
   // 5. Tooltip, ScrollArea & MetaChip Component
   --cpx-comp-tooltip-bg: var(--cpx-sys-color-elevated-secondary);
+  --cpx-comp-tooltip-backdrop-filter: blur(var(--cpx-sys-blur-sm));
   --cpx-comp-tooltip-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-tooltip-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-tooltip-shadow: var(--cpx-sys-shadow-floating);
@@ -76,6 +78,24 @@
   --cpx-comp-chip-bg: var(--cpx-sys-color-surface);
   --cpx-comp-chip-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-chip-border: var(--cpx-sys-color-border-subtle);
+  --cpx-comp-chip-success-bg: var(--cpx-sys-color-success-subtle-bg);
+  --cpx-comp-chip-success-fg: var(--cpx-sys-color-success-fg);
+  --cpx-comp-chip-success-border: var(--cpx-sys-color-success-subtle-border);
+  --cpx-comp-chip-danger-bg: var(--cpx-sys-color-danger-subtle-bg);
+  --cpx-comp-chip-danger-fg: var(--cpx-sys-color-danger-fg);
+  --cpx-comp-chip-danger-border: var(--cpx-sys-color-danger-subtle-border);
+  --cpx-comp-chip-warning-bg: var(--cpx-sys-color-warning-subtle-bg);
+  --cpx-comp-chip-warning-fg: var(--cpx-sys-color-warning-fg);
+  --cpx-comp-chip-warning-border: var(--cpx-sys-color-warning-subtle-border);
+  --cpx-comp-chip-skill-bg: var(--cpx-sys-color-skill-subtle-bg);
+  --cpx-comp-chip-skill-fg: var(--cpx-sys-color-skill-fg);
+  --cpx-comp-chip-skill-border: var(--cpx-sys-color-skill-subtle-border);
+  --cpx-comp-chip-info-bg: var(--cpx-sys-color-info-subtle-bg);
+  --cpx-comp-chip-info-fg: var(--cpx-sys-color-info-fg);
+  --cpx-comp-chip-info-border: var(--cpx-sys-color-info-subtle-border);
+  --cpx-comp-chip-accent-bg: var(--cpx-sys-color-accent-subtle);
+  --cpx-comp-chip-accent-fg: var(--cpx-sys-color-accent-fg);
+  --cpx-comp-chip-accent-border: var(--cpx-sys-color-accent-subtle-border);
 
   // 6. Surfaces & Containers Component
   --cpx-comp-surface-underlay: var(--cpx-sys-color-surface-under);
@@ -91,8 +111,15 @@
   --cpx-comp-surface-shadow-raised: var(--cpx-sys-shadow-raised);
   --cpx-comp-surface-fog: color-mix(in oklab, var(--cpx-sys-color-fg-primary) 2.5%, transparent);
 
+  // Glass Container Component Slot
+  --cpx-comp-glass-bg: var(--cpx-sys-glass-bg);
+  --cpx-comp-glass-border: var(--cpx-sys-glass-border);
+  --cpx-comp-glass-shadow: var(--cpx-sys-glass-shadow);
+  --cpx-comp-glass-filter: var(--cpx-sys-glass-filter);
+
   // 7. Modal & Dialog Component
   --cpx-comp-modal-bg: var(--cpx-sys-color-elevated-secondary);
+  --cpx-comp-modal-backdrop-filter: blur(var(--cpx-sys-blur-md));
   --cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-modal-shadow: var(--cpx-sys-shadow-floating);
   --cpx-comp-modal-radius: var(--cpx-sys-radius-xl);
@@ -127,6 +154,7 @@
 
   // 11. Composer Component
   --cpx-comp-composer-bg: var(--cpx-sys-color-control);
+  --cpx-comp-composer-backdrop-filter: blur(var(--cpx-sys-blur-md));
   --cpx-comp-composer-toolbar-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-composer-floating-height: 142px;
   --cpx-comp-composer-safe-pad: 78px;
@@ -147,13 +175,13 @@
   --cpx-comp-terminal-ansi-white: var(--cpx-sys-color-fg-secondary);
   --cpx-comp-terminal-ansi-black: var(--cpx-sys-color-surface-under);
   --cpx-comp-terminal-ansi-bright-black: var(--cpx-sys-color-fg-tertiary);
-  --cpx-comp-terminal-ansi-bright-red: var(--cpx-comp-terminal-ansi-red);
-  --cpx-comp-terminal-ansi-bright-green: var(--cpx-comp-terminal-ansi-green);
-  --cpx-comp-terminal-ansi-bright-yellow: var(--cpx-comp-terminal-ansi-yellow);
-  --cpx-comp-terminal-ansi-bright-blue: var(--cpx-comp-terminal-ansi-blue);
-  --cpx-comp-terminal-ansi-bright-magenta: var(--cpx-comp-terminal-ansi-magenta);
-  --cpx-comp-terminal-ansi-bright-cyan: var(--cpx-comp-terminal-ansi-cyan);
-  --cpx-comp-terminal-ansi-bright-white: var(--cpx-comp-terminal-ansi-white);
+  --cpx-comp-terminal-ansi-bright-red: var(--cpx-sys-color-danger);
+  --cpx-comp-terminal-ansi-bright-green: var(--cpx-sys-color-success);
+  --cpx-comp-terminal-ansi-bright-yellow: var(--cpx-sys-color-warning);
+  --cpx-comp-terminal-ansi-bright-blue: var(--cpx-sys-color-accent);
+  --cpx-comp-terminal-ansi-bright-magenta: var(--cpx-sys-color-skill);
+  --cpx-comp-terminal-ansi-bright-cyan: var(--cpx-sys-color-info);
+  --cpx-comp-terminal-ansi-bright-white: var(--cpx-sys-color-fg-secondary);
 
   // 13. Review Diff Component
   --cpx-comp-diff-surface: color-mix(in srgb, var(--cpx-sys-color-surface) 94%, var(--cpx-sys-color-fg-primary));

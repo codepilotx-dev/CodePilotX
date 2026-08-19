@@ -422,6 +422,41 @@ describe('fixed Codex UI themes', () => {
     )
     expect(getCodeThemeSelectionForVariant(settings, 'dark')).toBe('dracula')
   })
+
+  test('derives harmonized multi-hue semantic tones and frosted glass tokens', () => {
+    const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
+    const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
+
+    for (const vars of [light, dark]) {
+      // Blur & Glass tokens
+      expect(vars['--cpx-sys-blur-sm']).toBe('8px')
+      expect(vars['--cpx-sys-blur-md']).toBe('16px')
+      expect(vars['--cpx-sys-blur-lg']).toBe('24px')
+      expect(vars['--cpx-sys-glass-filter']).toBe('blur(16px)')
+      expect(vars['--cpx-comp-glass-filter']).toBe('blur(16px)')
+      expect(vars['--cpx-comp-glass-bg']).toBeDefined()
+
+      // Multi-hue semantic subtle backgrounds & borders
+      expect(vars['--cpx-sys-color-success-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-success-subtle-border']).toBeDefined()
+      expect(vars['--cpx-sys-color-danger-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-danger-subtle-border']).toBeDefined()
+      expect(vars['--cpx-sys-color-warning-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-warning-subtle-border']).toBeDefined()
+      expect(vars['--cpx-sys-color-skill-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-skill-subtle-border']).toBeDefined()
+      expect(vars['--cpx-sys-color-info-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-info-subtle-border']).toBeDefined()
+
+      // Semantic chips
+      expect(vars['--cpx-comp-chip-success-bg']).toBeDefined()
+      expect(vars['--cpx-comp-chip-danger-bg']).toBeDefined()
+      expect(vars['--cpx-comp-chip-warning-bg']).toBeDefined()
+      expect(vars['--cpx-comp-chip-skill-bg']).toBeDefined()
+      expect(vars['--cpx-comp-chip-info-bg']).toBeDefined()
+      expect(vars['--cpx-comp-chip-accent-bg']).toBeDefined()
+    }
+  })
 })
 
 function contrastRatio(foreground: string, background: string): number {

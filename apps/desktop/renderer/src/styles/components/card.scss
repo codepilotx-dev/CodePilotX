@@ -20,7 +20,7 @@
 .thread-summary-error {
   border: var(--cpx-comp-surface-edge);
   background: var(--cpx-comp-surface-raised);
-  backdrop-filter: var(--layer-raised-filter);
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
   box-shadow: var(--cpx-sys-shadow-raised);
 }
 
@@ -30,8 +30,20 @@
 
 .desktop-sidebar.is-floating {
   border: var(--cpx-comp-surface-edge);
-  background: var(--cpx-comp-surface-floating);
+  background: var(--cpx-comp-glass-bg, var(--cpx-comp-surface-floating));
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
   box-shadow: var(--cpx-sys-shadow-floating);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-surface-raised,
+  .composer,
+  .thread-summary-panel,
+  .thread-summary-error,
+  .desktop-sidebar.is-floating {
+    backdrop-filter: none;
+    background: var(--cpx-comp-surface-floating);
+  }
 }
 
 /* --- Product / Code Surface --- */

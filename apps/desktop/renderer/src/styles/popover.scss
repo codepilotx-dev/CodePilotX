@@ -112,14 +112,41 @@
   .thread-summary-sources-panel
 ) {
   border: var(--cpx-comp-surface-edge);
-  background: var(--cpx-comp-surface-floating);
-  backdrop-filter: none;
+  background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
+  backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
   box-shadow: var(--cpx-sys-shadow-floating);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    .popover-surface,
+    .sidebar-context-menu-content,
+    .settings-dropdown-content,
+    .permission-select-content,
+    .appearance-color-popover,
+    .rm-model-menu,
+    .thread-summary-popover,
+    .tooltip-content,
+    .permission-modal,
+    .github-repository-modal,
+    .git-workflow-modal,
+    .command-menu-dialog,
+    .project-edit-dialog,
+    .model-center-key-dialog,
+    .plugin-details-dialog,
+    .whats-new-dialog,
+    .sidebar-hover-card-surface,
+    .thread-summary-sources-panel
+  ) {
+    backdrop-filter: none;
+    background: var(--cpx-comp-surface-floating);
+  }
 }
 
 .popover-surface {
   border: var(--cpx-comp-dropdown-menu-border, var(--cpx-comp-surface-edge));
   background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
+  backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
   box-shadow: var(--cpx-comp-dropdown-menu-shadow, var(--cpx-sys-shadow-floating));
   border-radius: var(--cpx-comp-dropdown-menu-radius, var(--cpx-sys-radius-xl));
 }
@@ -127,6 +154,7 @@
 .tooltip-content {
   border: var(--cpx-comp-tooltip-border, var(--cpx-comp-surface-edge));
   background: var(--cpx-comp-tooltip-bg, var(--cpx-comp-surface-floating));
+  backdrop-filter: var(--cpx-comp-tooltip-backdrop-filter, blur(8px));
   box-shadow: var(--cpx-comp-tooltip-shadow, var(--cpx-sys-shadow-floating));
   border-radius: var(--cpx-comp-tooltip-radius, var(--cpx-sys-radius-xl));
 }

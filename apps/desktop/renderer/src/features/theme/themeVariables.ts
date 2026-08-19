@@ -105,6 +105,28 @@ export function deriveThemeVariables(
     editorBackground: roles.editorBackground,
     ink: theme.ink,
   })
+  const warningHue = dark ? '#f0a33b' : '#a05a00'
+  const warningTone = deriveSemanticTone({
+    hue: warningHue,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+  })
+  const skillTone = deriveSemanticTone({
+    hue: theme.semanticColors.skill,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+  })
+  const infoHue = dark ? '#38bdf8' : '#0284c7'
+  const infoTone = deriveSemanticTone({
+    hue: infoHue,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+  })
+  const accentTone = deriveSemanticTone({
+    hue: theme.accent,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+  })
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
   const shadowResting = 'none'
   const shadowRaised = 'none'
@@ -136,15 +158,51 @@ export function deriveThemeVariables(
     '--cpx-sys-color-border-strong': roles.borderHeavy,
     '--cpx-sys-color-border-focus': roles.borderFocus,
 
-    // System Layer: Accent & semantic
+    // System Layer: Accent & semantic multi-hues
     '--cpx-sys-color-accent-subtle': roles.accentSubtle,
+    '--cpx-sys-color-accent-subtle-border': rgba(parseHex(theme.accent), 0.22),
+    '--cpx-sys-color-accent-fg': accentTone.foreground,
     '--cpx-sys-color-accent-hover': roles.accentHover,
     '--cpx-sys-color-accent-active': roles.accentActive,
     '--cpx-sys-color-danger': theme.semanticColors.diffRemoved,
-    '--cpx-sys-color-warning': dark ? '#f0a33b' : '#a05a00',
+    '--cpx-sys-color-danger-subtle-bg': removed.lineBackground,
+    '--cpx-sys-color-danger-subtle-border': rgba(parseHex(theme.semanticColors.diffRemoved), 0.22),
+    '--cpx-sys-color-danger-fg': removed.foreground,
+    '--cpx-sys-color-warning': warningHue,
+    '--cpx-sys-color-warning-subtle-bg': warningTone.lineBackground,
+    '--cpx-sys-color-warning-subtle-border': rgba(parseHex(warningHue), 0.22),
+    '--cpx-sys-color-warning-fg': warningTone.foreground,
     '--cpx-sys-color-success': theme.semanticColors.diffAdded,
+    '--cpx-sys-color-success-subtle-bg': added.lineBackground,
+    '--cpx-sys-color-success-subtle-border': rgba(parseHex(theme.semanticColors.diffAdded), 0.22),
+    '--cpx-sys-color-success-fg': added.foreground,
     '--cpx-sys-color-skill': theme.semanticColors.skill,
+    '--cpx-sys-color-skill-subtle-bg': skillTone.lineBackground,
+    '--cpx-sys-color-skill-subtle-border': rgba(parseHex(theme.semanticColors.skill), 0.22),
+    '--cpx-sys-color-skill-fg': skillTone.foreground,
+    '--cpx-sys-color-info': infoHue,
+    '--cpx-sys-color-info-subtle-bg': infoTone.lineBackground,
+    '--cpx-sys-color-info-subtle-border': rgba(parseHex(infoHue), 0.22),
+    '--cpx-sys-color-info-fg': infoTone.foreground,
     '--cpx-sys-color-scrim': roles.simpleScrim,
+
+    // System Charts Colors
+    '--cpx-sys-color-charts-red': theme.semanticColors.diffRemoved,
+    '--cpx-sys-color-charts-orange': dark ? '#fb923c' : '#ea580c',
+    '--cpx-sys-color-charts-yellow': warningHue,
+    '--cpx-sys-color-charts-green': theme.semanticColors.diffAdded,
+    '--cpx-sys-color-charts-blue': theme.accent,
+    '--cpx-sys-color-charts-purple': theme.semanticColors.skill,
+    '--cpx-sys-color-charts-cyan': infoHue,
+
+    // System Blur & Glass
+    '--cpx-sys-blur-sm': '8px',
+    '--cpx-sys-blur-md': '16px',
+    '--cpx-sys-blur-lg': '24px',
+    '--cpx-sys-glass-filter': 'blur(16px)',
+    '--cpx-sys-glass-bg': `color-mix(in srgb, ${roles.elevatedSecondary} 85%, transparent)`,
+    '--cpx-sys-glass-border': roles.borderLight,
+    '--cpx-sys-glass-shadow': shadowFloating,
 
     // System Layer: Interactive states
     '--cpx-sys-color-hover': interactionHover,
@@ -235,6 +293,25 @@ export function deriveThemeVariables(
     '--cpx-comp-scrollbar-slider-hover-bg': rgba(interactionInk, 0.32),
     '--cpx-comp-scrollbar-slider-active-bg': rgba(interactionInk, 0.42),
 
+    '--cpx-comp-chip-success-bg': added.lineBackground,
+    '--cpx-comp-chip-success-fg': added.foreground,
+    '--cpx-comp-chip-success-border': rgba(parseHex(theme.semanticColors.diffAdded), 0.22),
+    '--cpx-comp-chip-danger-bg': removed.lineBackground,
+    '--cpx-comp-chip-danger-fg': removed.foreground,
+    '--cpx-comp-chip-danger-border': rgba(parseHex(theme.semanticColors.diffRemoved), 0.22),
+    '--cpx-comp-chip-warning-bg': warningTone.lineBackground,
+    '--cpx-comp-chip-warning-fg': warningTone.foreground,
+    '--cpx-comp-chip-warning-border': rgba(parseHex(warningHue), 0.22),
+    '--cpx-comp-chip-skill-bg': skillTone.lineBackground,
+    '--cpx-comp-chip-skill-fg': skillTone.foreground,
+    '--cpx-comp-chip-skill-border': rgba(parseHex(theme.semanticColors.skill), 0.22),
+    '--cpx-comp-chip-info-bg': infoTone.lineBackground,
+    '--cpx-comp-chip-info-fg': infoTone.foreground,
+    '--cpx-comp-chip-info-border': rgba(parseHex(infoHue), 0.22),
+    '--cpx-comp-chip-accent-bg': roles.accentSubtle,
+    '--cpx-comp-chip-accent-fg': accentTone.foreground,
+    '--cpx-comp-chip-accent-border': rgba(parseHex(theme.accent), 0.22),
+
     '--cpx-comp-surface-canvas': theme.surface,
     '--cpx-comp-surface-underlay': roles.surfaceUnder,
     '--cpx-comp-surface-panel': roles.panel,
@@ -242,6 +319,11 @@ export function deriveThemeVariables(
     '--cpx-comp-surface-floating': roles.elevatedSecondary,
     '--cpx-comp-surface-edge': `1px solid ${roles.borderLight}`,
     '--cpx-comp-surface-edge-strong': `1px solid ${roles.border}`,
+
+    '--cpx-comp-glass-bg': `color-mix(in srgb, ${roles.elevatedSecondary} 85%, transparent)`,
+    '--cpx-comp-glass-border': roles.borderLight,
+    '--cpx-comp-glass-shadow': shadowFloating,
+    '--cpx-comp-glass-filter': 'blur(16px)',
 
     '--cpx-comp-modal-bg': roles.elevatedSecondary,
     '--cpx-comp-modal-border': `1px solid ${roles.borderLight}`,
