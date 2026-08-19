@@ -6,26 +6,26 @@
   --*: initial;
   --spacing: 0.25rem;
 
-  --text-xs: var(--type-caption);
-  --text-xs--line-height: var(--type-line-meta);
-  --text-sm: var(--type-meta);
-  --text-sm--line-height: var(--type-line-meta);
-  --text-base: var(--type-body);
-  --text-base--line-height: var(--type-line-body);
-  --text-lg: var(--type-panel-title);
-  --text-lg--line-height: var(--type-line-title-sm);
-  --text-xl: var(--type-page-title);
-  --text-xl--line-height: var(--type-line-page-title);
-  --text-code: var(--type-code);
-  --text-code--line-height: var(--type-line-code);
+  --text-xs: var(--cpx-sys-font-size-xs);
+  --text-xs--line-height: calc(var(--cpx-sys-font-size-xs) + 4px);
+  --text-sm: var(--cpx-sys-font-size-sm);
+  --text-sm--line-height: var(--cpx-sys-line-height-tight);
+  --text-base: var(--cpx-sys-font-size-md);
+  --text-base--line-height: var(--cpx-sys-line-height-normal);
+  --text-lg: var(--cpx-sys-font-size-lg);
+  --text-lg--line-height: var(--cpx-sys-line-height-relaxed);
+  --text-xl: var(--cpx-sys-font-size-2xl);
+  --text-xl--line-height: calc(var(--cpx-sys-font-size-2xl) + 6px);
+  --text-code: var(--cpx-sys-font-size-code);
+  --text-code--line-height: var(--cpx-sys-line-height-code);
 
-  --radius-2xs: var(--radius-1);
-  --radius-xs: var(--radius-control);
-  --radius-sm: var(--radius-row);
-  --radius-md: var(--radius-card);
-  --radius-lg: var(--radius-panel);
-  --radius-xl: var(--radius-floating);
-  --radius-2xl: var(--radius-floating);
+  --radius-2xs: var(--cpx-sys-radius-xs);
+  --radius-xs: var(--cpx-sys-radius-sm);
+  --radius-sm: var(--cpx-sys-radius-md);
+  --radius-md: var(--cpx-sys-radius-lg);
+  --radius-lg: var(--cpx-sys-radius-xl);
+  --radius-xl: var(--cpx-sys-radius-xl);
+  --radius-2xl: var(--cpx-sys-radius-xl);
 
   --shadow-sm: none;
   --shadow-md: none;
@@ -33,21 +33,21 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-family-sans);
-  --font-mono: var(--font-family-mono);
-  --color-app-canvas: var(--layer-canvas-fill);
-  --color-app-underlay: var(--layer-underlay-fill);
-  --color-app-chrome: var(--layer-underlay-fill);
-  --color-app-panel: var(--layer-panel-fill);
-  --color-app-raised: var(--layer-raised-fill);
-  --color-app-text: var(--color-token-foreground);
-  --color-app-text-soft: var(--color-token-text-secondary);
-  --color-app-border: var(--color-token-border);
-  --color-app-accent: var(--color-token-text-link-foreground);
-  --color-app-primary-action: var(--color-token-button-background);
-  --color-app-primary-action-foreground: var(--color-token-button-foreground);
-  --color-app-border-subtle: var(--color-token-border-light);
-  --color-app-border-strong: var(--color-token-border-heavy);
-  --color-app-danger: var(--color-token-error-foreground);
-  --color-app-success: var(--color-token-git-decoration-added-resource-foreground);
+  --font-sans: var(--cpx-sys-font-family-sans);
+  --font-mono: var(--cpx-sys-font-family-mono);
+  --color-app-canvas: var(--cpx-sys-color-surface);
+  --color-app-underlay: var(--cpx-sys-color-surface-under);
+  --color-app-chrome: var(--cpx-sys-color-surface-under);
+  --color-app-panel: var(--cpx-sys-color-panel);
+  --color-app-raised: var(--cpx-sys-color-elevated-secondary);
+  --color-app-text: var(--cpx-sys-color-fg-primary);
+  --color-app-text-soft: var(--cpx-sys-color-fg-secondary);
+  --color-app-border: var(--cpx-sys-color-border-default);
+  --color-app-accent: var(--cpx-sys-color-accent);
+  --color-app-primary-action: var(--cpx-comp-button-primary-bg);
+  --color-app-primary-action-foreground: var(--cpx-comp-button-primary-fg);
+  --color-app-border-subtle: var(--cpx-sys-color-border-subtle);
+  --color-app-border-strong: var(--cpx-sys-color-border-strong);
+  --color-app-danger: var(--cpx-sys-color-danger);
+  --color-app-success: var(--cpx-sys-color-success);
 }

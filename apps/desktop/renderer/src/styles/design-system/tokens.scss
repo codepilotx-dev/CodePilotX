@@ -1,91 +1,160 @@
+// ============================================================================
+// CodePilotX Design System - Global System Tokens & Semantic Scales
+// Layer: @layer tokens
+// ============================================================================
+
 :root {
-  --workspace-fixed-controls-width: 0px;
-  --contrast: 0;
+  // System Colors (Light Default)
+  --cpx-sys-color-surface: #ffffff;
+  --cpx-sys-color-surface-under: #f6f6f6;
+  --cpx-sys-color-panel: #fbfbfb;
+  --cpx-sys-color-editor: #f8f8f8;
+  --cpx-sys-color-elevated-secondary: #ffffff;
+  --cpx-sys-color-control: color-mix(in srgb, #1a1c1f 4.5%, transparent);
+  --cpx-sys-color-scrim: rgb(0 0 0 / 28%);
 
-  // Theme-provider foundation values. Pages consume --color-token-* instead.
-  --codex-base-accent: #339cff;
-  --codex-base-contrast: 0;
-  --codex-base-ink: #1a1c1f;
-  --codex-base-on-accent: #ffffff;
-  --codex-base-surface: #ffffff;
-  --control-thumb-fill: #ffffff;
-  --color-accent-blue: var(--codex-base-accent);
-  --color-accent-purple: #924ff7;
-  --color-decoration-added: #00a240;
-  --color-decoration-deleted: #e02e2a;
-  --color-danger: var(--color-decoration-deleted);
-  --color-warning: #a05a00;
+  --cpx-sys-color-fg-primary: #1a1c1f;
+  --cpx-sys-color-fg-secondary: rgba(26, 28, 31, 0.695);
+  --cpx-sys-color-fg-tertiary: rgba(26, 28, 31, 0.495);
+  --cpx-sys-color-fg-disabled: rgba(26, 28, 31, 0.35);
+  --cpx-sys-color-fg-on-accent: #ffffff;
 
-  --shadow-resting: none;
-  --shadow-raised: none;
-  --shadow-floating: 0 8px 24px -16px
-    color-mix(in srgb, var(--color-token-foreground) 26%, transparent);
-  --shadow-control-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
-  --shadow-float: var(--shadow-floating);
-  --shadow-2: var(--shadow-raised);
+  --cpx-sys-color-border-subtle: rgba(26, 28, 31, 0.049);
+  --cpx-sys-color-border-default: rgba(26, 28, 31, 0.078);
+  --cpx-sys-color-border-strong: rgba(26, 28, 31, 0.117);
+  --cpx-sys-color-border-focus: #0066ff;
 
-  // Surface hierarchy. These values are derived from the active theme so the
-  // user's accent, surface and ink choices remain the single color source.
-  --layer-underlay-fill: var(--color-token-side-bar-background);
-  --layer-canvas-fill: var(--color-token-main-surface-primary);
-  --layer-panel-fill: var(--color-token-panel-background);
-  --layer-raised-fill: var(--color-token-elevated-background);
-  --layer-floating-fill: var(--color-token-menu-background);
-  --layer-filter: none;
-  --layer-raised-filter: var(--layer-filter);
-  --layer-floating-filter: var(--layer-filter);
-  --layer-edge: 1px solid var(--color-token-border-light);
-  --layer-edge-strong: 1px solid var(--color-token-border);
-  --layer-edge-highlight: none;
-  --shadow-glass-raised: none;
-  --shadow-glass-floating: var(--shadow-floating);
+  --cpx-sys-color-hover: rgba(26, 28, 31, 0.05);
+  --cpx-sys-color-active: rgba(26, 28, 31, 0.08);
+  --cpx-sys-color-selected: rgba(26, 28, 31, 0.05);
 
-  // Component semantic token aliases for independent scoped debugging
-  --right-dock-background: var(--layer-panel-fill);
-  --right-dock-border-color: var(--color-token-border-light);
-  --right-dock-tab-active-background: var(
-    --color-token-list-active-selection-background
-  );
-  --right-dock-tab-hover-background: var(--color-token-list-hover-background);
-  --right-dock-tab-radius: var(--radius-row);
+  --cpx-sys-color-accent: #0066ff;
+  --cpx-sys-color-accent-subtle: #dbeafe;
+  --cpx-sys-color-success: #16a34a;
+  --cpx-sys-color-warning: #d97706;
+  --cpx-sys-color-danger: #dc2626;
+  --cpx-sys-color-skill: #9333ea;
 
-  --sidebar-background: var(--color-token-side-bar-background);
-  --sidebar-border: 0;
-  --sidebar-item-hover-background: var(--color-token-list-hover-background);
-  --sidebar-item-active-background: var(
-    --color-token-list-active-selection-background
-  );
-  --sidebar-item-radius: var(--radius-row);
+  --cpx-sys-color-diff-added-line: #fafdfb;
+  --cpx-sys-color-diff-added-text: #f5fbf7;
+  --cpx-sys-color-diff-added-fg: #15803d;
+  --cpx-sys-color-diff-added-indicator: #15803d;
+  --cpx-sys-color-diff-removed-line: #fdfafb;
+  --cpx-sys-color-diff-removed-text: #fbf5f6;
+  --cpx-sys-color-diff-removed-fg: #b91c1c;
+  --cpx-sys-color-diff-removed-indicator: #b91c1c;
 
-  --modal-surface-background: var(--layer-floating-fill);
-  --modal-surface-border: var(--layer-edge);
-  --modal-surface-shadow: var(--shadow-floating);
-  --modal-surface-radius: var(--radius-floating);
+  // System Charts Colors
+  --cpx-sys-color-charts-red: var(--cpx-sys-color-danger);
+  --cpx-sys-color-charts-orange: #f97316;
+  --cpx-sys-color-charts-yellow: var(--cpx-sys-color-warning);
+  --cpx-sys-color-charts-green: var(--cpx-sys-color-success);
+  --cpx-sys-color-charts-blue: var(--cpx-sys-color-accent);
+  --cpx-sys-color-charts-purple: var(--cpx-sys-color-skill);
 
-  --popover-surface-background: var(--layer-floating-fill);
-  --popover-surface-border: var(--layer-edge);
-  --popover-surface-shadow: var(--shadow-floating);
-  --popover-surface-radius: var(--radius-floating);
-  --tooltip-surface-background: var(--layer-floating-fill);
-  --tooltip-surface-border: var(--layer-edge);
-  --tooltip-surface-shadow: var(--shadow-floating);
-  --tooltip-surface-radius: var(--radius-floating);
+  // System Radius (T-Shirt Scale)
+  --cpx-sys-radius-xs: 2px;
+  --cpx-sys-radius-sm: 4px;
+  --cpx-sys-radius-md: 8px;
+  --cpx-sys-radius-lg: 12px;
+  --cpx-sys-radius-xl: 16px;
+  --cpx-sys-radius-full: 9999px;
 
-  // Interaction states consume the canonical semantic color tokens directly.
-  // Accent remains reserved for controls with explicit product semantics.
-  --focus-ring-inset: inset 0 0 0 1px var(--color-token-focus-border);
+  // System Typography
+  --cpx-sys-font-family-sans: ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --cpx-sys-font-family-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 
-  // Nested soft curves: outer surfaces step down by their inset spacing.
-  --radius-control: 8px;
-  --radius-row: 8px;
-  --radius-card: 12px;
-  --radius-panel: 16px;
-  --radius-floating: 16px;
-  --radius-pill: 9999px;
-  --radius-button: var(--radius-control);
-  --radius-input: var(--radius-control);
-  --radius-marquee: var(--radius-floating);
-  --radius-base: var(--radius-row);
+  --cpx-sys-font-size-ui: 14px;
+  --cpx-sys-font-size-code: 12px;
+  --cpx-sys-font-size-xs: 11px;
+  --cpx-sys-font-size-sm: 12px;
+  --cpx-sys-font-size-md: 14px;
+  --cpx-sys-font-size-lg: 16px;
+  --cpx-sys-font-size-xl: 18px;
+  --cpx-sys-font-size-2xl: 20px;
+  --cpx-sys-font-size-3xl: 24px;
+
+  --cpx-sys-line-height-tight: calc(var(--cpx-sys-font-size-sm) + 5px);
+  --cpx-sys-line-height-normal: calc(var(--cpx-sys-font-size-md) + 6px);
+  --cpx-sys-line-height-relaxed: calc(var(--cpx-sys-font-size-lg) + 6px);
+  --cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-sm) * 1.55);
+
+  --cpx-sys-font-weight-regular: 445;
+  --cpx-sys-font-weight-medium: 500;
+  --cpx-sys-font-weight-bold: 600;
+
+  // System Spacing (4px Grid)
+  --cpx-sys-space-1: 4px;
+  --cpx-sys-space-2: 8px;
+  --cpx-sys-space-3: 12px;
+  --cpx-sys-space-4: 16px;
+  --cpx-sys-space-5: 20px;
+  --cpx-sys-space-6: 24px;
+  --cpx-sys-space-7: 30px;
+  --cpx-sys-space-8: 36px;
+
+  // System Shadows
+  --cpx-sys-shadow-resting: none;
+  --cpx-sys-shadow-raised: none;
+  --cpx-sys-shadow-floating: 0 8px 24px -16px
+    color-mix(in srgb, var(--cpx-sys-color-fg-primary) 26%, transparent);
+  --cpx-sys-shadow-control: 0 1px 2px -1px rgb(0 0 0 / 8%);
+
+  // System Motion
+  --cpx-sys-motion-instant: 0ms;
+  --cpx-sys-motion-micro: 90ms;
+  --cpx-sys-motion-state: 140ms;
+  --cpx-sys-motion-enter: 160ms;
+  --cpx-sys-motion-exit: 120ms;
+  --cpx-sys-motion-panel: 200ms;
+  --cpx-sys-motion-loading: 900ms;
+  --cpx-sys-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --cpx-sys-ease-out: ease-out;
+  --cpx-sys-ease-in: ease-in;
+
+  // System Z-Index
+  --cpx-sys-z-right-dock: 90;
+  --cpx-sys-z-composer: 95;
+  --cpx-sys-z-modal: 1200;
+  --cpx-sys-z-popover: 1300;
+  --cpx-sys-z-tooltip: 1400;
+  --cpx-sys-z-toast: 10000;
+
+  // System Syntax Colors
+  --cpx-sys-color-syntax-keyword: #cf222e;
+  --cpx-sys-color-syntax-property: #0550ae;
+  --cpx-sys-color-syntax-string: #0a3069;
+  --cpx-sys-color-syntax-number: #098658;
+  --cpx-sys-color-syntax-comment: #6e7781;
+  --cpx-sys-color-syntax-variable: #953800;
+  --cpx-sys-color-syntax-punctuation: #24292f;
+
+  // Focus Ring
+  --cpx-sys-focus-ring: 0 0 0 3px
+    color-mix(in srgb, var(--cpx-sys-color-border-focus) 24%, transparent);
+  --cpx-sys-focus-ring-soft: 0 0 0 2px
+    color-mix(in srgb, var(--cpx-sys-color-border-focus) 18%, transparent);
+  --cpx-sys-focus-ring-inset: inset 0 0 0 1px var(--cpx-sys-color-border-focus);
+
+  // Button icon and action sizing
+  --button-icon-size-xs: 14px;
+  --button-icon-size-sm: 16px;
+  --button-size-icon-large: 36px;
+
+  // Control Geometry
+  --control-size-sm: 24px;
+  --control-size-md: 28px;
+  --control-size-lg: 32px;
+  --control-padding-block: 5px;
+  --control-padding-inline: 8px;
+  --control-gap: 6px;
+  --control-padding-block-compact: 3px;
+  --control-padding-inline-compact: 6px;
+  --control-gap-compact: 4px;
+  --control-line-height: var(--cpx-sys-line-height-tight);
+  --chrome-h: 36px;
+
+  // Layout Constants
   --layout-page-pad-x: 32px;
   --layout-page-pad-y: 36px;
   --layout-page-pad-bottom: 72px;
@@ -101,245 +170,25 @@
   --layout-sidebar-section-gap: 18px;
   --layout-content-w: 48rem;
   --layout-bento-w: 1250px;
-
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-7: 30px;
-  --space-8: 36px;
-
-  --font-size-ui: 14px;
-  --font-size-code: 12px;
-  --font-size-11: calc(var(--font-size-ui) - 3px);
-  --font-size-12: calc(var(--font-size-ui) - 2px);
-  --font-size-13: calc(var(--font-size-ui) - 1px);
-  --font-size-14: var(--font-size-ui);
-  --font-size-15: calc(var(--font-size-ui) + 1px);
-  --font-size-16: calc(var(--font-size-ui) + 2px);
-  --font-size-17: calc(var(--font-size-ui) + 3px);
-  --font-size-18: calc(var(--font-size-ui) + 4px);
-  --font-size-20: calc(var(--font-size-ui) + 6px);
-  --font-size-24: calc(var(--font-size-ui) + 10px);
-  --font-size-26: calc(var(--font-size-ui) + 12px);
-
-  --menu-font-size: var(--type-control);
-  --menu-line-height: var(--type-line-body);
-  --menu-detail-font-size: var(--type-meta);
-  --menu-detail-line-height: var(--type-line-meta);
-  --menu-surface-padding: 4px;
-  --menu-item-padding-block: var(--interactive-row-padding-block-menu);
-  --menu-item-padding-inline: var(--interactive-row-padding-inline);
-  --menu-item-gap: var(--interactive-row-gap);
-  --menu-icon-size: calc(var(--menu-font-size) + 4px);
-
-  // Shared compact interactive-row profiles.
-  --interactive-row-height-nav: calc(var(--font-size-ui) + 16px);
-  --interactive-row-height-menu: calc(var(--font-size-ui) + 18px);
-  --interactive-row-height-toolbar: 28px;
-  --interactive-row-height-composer: 28px;
-  --interactive-row-radius: var(--radius-row);
-  --interactive-row-radius-pill: var(--radius-pill);
-  --interactive-row-padding-block-menu: 5px;
-  --interactive-row-padding-inline: 8px;
-  --interactive-row-padding-inline-composer: 6px;
-  --interactive-row-gap: 6px;
-  --interactive-row-font-nav: var(--type-control);
-  --interactive-row-line-nav: var(--type-line-body);
-  --interactive-row-font-menu: var(--type-control);
-  --interactive-row-line-menu: var(--type-line-body);
-  --interactive-row-line-compact: 18px;
-  --interactive-row-background: transparent;
-  --interactive-row-foreground: var(--color-token-foreground);
-  --interactive-row-hover-background: var(--color-token-list-hover-background);
-  --interactive-row-hover-foreground: var(--color-token-foreground);
-  --interactive-row-open-background: var(--interactive-row-hover-background);
-  --interactive-row-open-foreground: var(--interactive-row-hover-foreground);
-  --interactive-row-selected-background: var(
-    --color-token-list-active-selection-background
-  );
-  --interactive-row-selected-foreground: var(
-    --color-token-list-active-selection-foreground
-  );
-  --interactive-row-disabled-foreground: var(--color-token-disabled-foreground);
-  --interactive-row-disabled-opacity: 0.55;
-  --interactive-row-nav-height: var(--interactive-row-height-nav);
-  --interactive-row-nav-radius: var(--interactive-row-radius);
-  --interactive-row-nav-padding-inline: var(--interactive-row-padding-inline);
-  --interactive-row-nav-font-size: var(--interactive-row-font-nav);
-  --interactive-row-nav-line-height: var(--interactive-row-line-nav);
-  --interactive-row-menu-height: var(--interactive-row-height-menu);
-  --interactive-row-menu-radius: var(--interactive-row-radius);
-  --interactive-row-menu-padding-block: var(
-    --interactive-row-padding-block-menu
-  );
-  --interactive-row-menu-padding-inline: var(--interactive-row-padding-inline);
-  --interactive-row-menu-font-size: var(--interactive-row-font-menu);
-  --interactive-row-menu-line-height: var(--interactive-row-line-menu);
-  --interactive-row-toolbar-height: var(--interactive-row-height-toolbar);
-  --interactive-row-toolbar-radius: var(--interactive-row-radius);
-  --interactive-row-toolbar-padding-inline: var(
-    --interactive-row-padding-inline
-  );
-  --interactive-row-toolbar-font-size: var(--type-control);
-  --interactive-row-toolbar-line-height: var(--interactive-row-line-compact);
-  --interactive-row-composer-height: var(--interactive-row-height-composer);
-  --interactive-row-composer-radius: var(--interactive-row-radius-pill);
-  --interactive-row-composer-padding-inline: var(
-    --interactive-row-padding-inline-composer
-  );
-  --interactive-row-composer-gap: var(--interactive-row-gap);
-  --interactive-row-composer-font-size: var(--interactive-row-font-menu);
-  --interactive-row-composer-line-height: var(--interactive-row-line-compact);
-  --interactive-row-adaptive-min-height: var(--interactive-row-height-nav);
-  --interactive-row-adaptive-radius: var(--interactive-row-radius);
-  --interactive-row-adaptive-padding-inline: var(
-    --interactive-row-padding-inline
-  );
-
-  --control-line-height: 1.4;
-  --control-padding-block-compact: 0.4em;
-  --control-padding-block: 0.45em;
-  --control-padding-inline-compact: 0.6em;
-  --control-padding-inline: 0.7em;
-  --control-gap-compact: 0.35em;
-  --control-gap: 0.57em;
-
-  // Codex Electron button profiles use a fixed 4px spacing unit and do not
-  // scale with the editor/UI font preference.
-  --button-size-compact: 24px;
-  --button-size-default: 24px;
-  --button-size-toolbar: 28px;
-  --button-size-medium: 32px;
-  --button-size-tab-strip-action: 34px;
-  --button-size-large: 36px;
-  --button-size-icon-large: 64px;
-  --button-icon-size-xs: 14px;
-  --button-icon-size-sm: 18px;
-  --button-radius-scale: 1;
-  --button-radius-md-base: 8px;
-  --button-radius-lg-base: 10px;
-  --button-radius-xl-base: 12px;
-  --button-radius-2xl-base: 16px;
-  --button-radius-md: calc(
-    var(--button-radius-md-base) * var(--button-radius-scale)
-  );
-  --button-radius-lg: calc(
-    var(--button-radius-lg-base) * var(--button-radius-scale)
-  );
-  --button-radius-xl: calc(
-    var(--button-radius-xl-base) * var(--button-radius-scale)
-  );
-  --button-radius-2xl: calc(
-    var(--button-radius-2xl-base) * var(--button-radius-scale)
-  );
-  --button-radius-full: 9999px;
-  --control-size-sm: calc(var(--font-size-ui) + var(--font-size-ui));
-  --control-size-md: calc(var(--font-size-ui) + var(--font-size-ui) + 6px);
-  --control-size-lg: calc(var(--font-size-ui) + var(--font-size-ui) + 12px);
-
-  --type-body: var(--font-size-ui);
-  --type-control: var(--font-size-ui);
-  --type-message: var(--font-size-ui);
-  --type-secondary: max(10px, calc(var(--font-size-ui) - 1px));
-  --type-meta: max(10px, calc(var(--font-size-ui) - 2px));
-  --type-caption: var(--type-meta);
-  --type-line-body: calc(var(--font-size-ui) + 6px);
-  --type-line-secondary: calc(var(--type-secondary) + 5px);
-  --type-line-meta: calc(var(--type-meta) + 4px);
-  --type-line-title-sm: calc(var(--type-title-sm) + 6px);
-  --type-line-title-md: calc(var(--type-title-md) + 6px);
-  --type-line-title-lg: calc(var(--type-title-lg) + 6px);
-  --type-line-page-title: calc(var(--type-page-title) + 6px);
-  --type-line-hero-title: calc(var(--type-hero-title) + 6px);
-  --type-line-code: calc(var(--type-code) * 1.55);
-
-  --radius-1: 2px;
-  --radius-2: var(--radius-control);
-  --radius-3: var(--radius-row);
-  --radius-4: var(--radius-card);
-  --radius-5: var(--radius-panel);
-  --radius-6: var(--radius-floating);
-  --radius-7: var(--radius-floating);
-  --radius-full: var(--radius-pill);
-  --radius-user-message: var(--radius-card);
-
-  --z-right-dock: 90;
-  --z-composer: 95;
-  --z-modal: 1200;
-  --z-popover: 1300;
-  --z-tooltip: 1400;
-  --z-toast: 10000;
-
-  --app-icon-size-sm: var(--font-size-ui);
-  --app-icon-size: calc(var(--font-size-ui) + 2px);
-  --app-icon-size-md: calc(var(--font-size-ui) + 4px);
-  --app-icon-stroke-width: 1.75;
-
-  --motion-instant: 0ms;
-  --motion-micro: 90ms;
-  --motion-state: 140ms;
-  --motion-enter: 160ms;
-  --motion-exit: 120ms;
-  --motion-panel: 200ms;
-  --motion-layout: var(--motion-panel);
-  --motion-loading: 900ms;
-
-  // Compatibility aliases for existing feature styles.
-  --motion-fast: var(--motion-micro);
-  --motion-standard: var(--motion-enter);
-  --motion-emphasis: var(--motion-panel);
-  --motion-hover: var(--motion-micro);
-  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out: ease-out;
-  --ease-in: ease-in;
-
-  --composer-width: 48rem;
-  --floating-composer-h: 142px;
   --application-menubar-height: 36px;
   --workspace-toolbar-height: 46px;
+  --workspace-fixed-controls-width: 90px;
   --pane-toolbar-height: 40px;
-  --chrome-h: var(--application-menubar-height);
-  --menubar-h: var(--application-menubar-height);
-  --shadow-soft: var(--shadow-resting);
-  --shadow-card: var(--shadow-resting);
-  --shadow-card-lg: var(--shadow-raised);
-  --grid-gap: var(--layout-card-gap);
-  --plan-md-base-size: 0.9em;
+  --floating-composer-h: 142px;
+  --composer-width: 48rem;
 
-  --syntax-keyword: var(--color-text-accent);
-  --syntax-type: var(--syntax-keyword);
-  --syntax-property: var(--color-text-accent);
-  --syntax-string: var(--color-decoration-added);
-  --syntax-number: var(--color-accent-purple);
-  --syntax-operator: var(--syntax-number);
-  --syntax-comment: var(--color-token-description-foreground);
-  --syntax-variable: var(--color-token-text-tertiary);
-  --syntax-punctuation: var(--color-token-text-secondary);
-
-  --font-family-sans:
-    ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol", "Noto Color Emoji";
-  --font-family-mono: "JetBrains Mono", Consolas, monospace;
-  --type-card-title: var(--font-size-ui);
-  --type-section-title: var(--font-size-ui);
-  --type-panel-title: calc(var(--font-size-ui) + 2px);
-  --type-title-sm: var(--type-panel-title);
-  --type-title-md: calc(var(--font-size-ui) + 4px);
-  --type-title-lg: calc(var(--font-size-ui) + 6px);
-  --type-page-title: calc(var(--font-size-ui) + 10px);
-  --type-hero-title: calc(var(--font-size-ui) + 12px);
-  --type-code: var(--font-size-code);
-  --font-weight-body: 445;
-  --font-weight-label: 500;
-  --font-weight-heading: 500;
-  --font-weight-emphasis: 600;
-
-  --focus-ring: 0 0 0 3px
-    color-mix(in srgb, var(--color-token-focus-border) 24%, transparent);
-  --focus-ring-soft: 0 0 0 2px
-    color-mix(in srgb, var(--color-token-focus-border) 18%, transparent);
+  // App Icon sizes & Menu geometry
+  --app-icon-size-sm: var(--cpx-sys-font-size-md);
+  --app-icon-size: calc(var(--cpx-sys-font-size-md) + 2px);
+  --app-icon-size-md: calc(var(--cpx-sys-font-size-md) + 4px);
+  --app-icon-stroke-width: 1.75;
+  --menu-icon-size: calc(var(--cpx-sys-font-size-md) + 2px);
+  --menu-font-size: var(--cpx-sys-font-size-md);
+  --menu-line-height: var(--cpx-sys-line-height-normal);
+  --menu-detail-font-size: var(--cpx-sys-font-size-sm);
+  --menu-surface-padding: 4px;
+  --menu-item-padding-block: 5px;
+  --menu-item-padding-inline: 8px;
+  --menu-item-gap: 6px;
+  --context-menu-item-padding: 6px;
 }

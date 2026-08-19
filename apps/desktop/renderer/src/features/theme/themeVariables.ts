@@ -9,17 +9,31 @@ export type ThemeVariableName = `--${string}`
 export type ThemeVariableMap = Record<ThemeVariableName, string>
 
 type CodexRoles = {
-  tokens: ThemeVariableMap
+  surfaceUnder: string
+  panel: string
   editorBackground: string
-  raised: string
-  codeInline: string
-  hover: string
-  selected: string
-  borderControl: string
-  borderStrong: string
+  elevatedPrimary: string
+  elevatedSecondary: string
+  controlBackgroundOpaque: string
+  borderLight: string
+  border: string
+  borderHeavy: string
+  borderFocus: string
   textSecondary: string
   textTertiary: string
   textDisabled: string
+  accentSubtle: string
+  accentHover: string
+  accentActive: string
+  buttonPrimaryBg: string
+  buttonPrimaryFg: string
+  buttonPrimaryHover: string
+  buttonPrimaryActive: string
+  buttonSecondaryBg: string
+  buttonSecondaryFg: string
+  buttonSecondaryHover: string
+  buttonSecondaryActive: string
+  simpleScrim: string
 }
 
 type DerivedSemanticTone = {
@@ -94,97 +108,179 @@ export function deriveThemeVariables(
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
   const shadowResting = 'none'
   const shadowRaised = 'none'
-  const shadowFloat = 'var(--shadow-floating)'
+  const shadowFloating = `0 8px 24px -16px color-mix(in srgb, ${theme.ink} 26%, transparent)`
+  const shadowControl = '0 1px 2px -1px rgb(0 0 0 / 8%)'
 
   return {
-    '--codex-base-accent': theme.accent,
-    '--codex-base-contrast': String(theme.contrast),
-    '--codex-base-ink': theme.ink,
-    '--codex-base-surface': theme.surface,
-    ...roles.tokens,
-    '--color-accent-blue': theme.accent,
-    '--color-accent-purple': theme.semanticColors.skill,
-    '--color-decoration-added': theme.semanticColors.diffAdded,
-    '--color-decoration-deleted': theme.semanticColors.diffRemoved,
-    '--color-diff-added-foreground': added.foreground,
-    '--color-diff-added-indicator': added.indicator,
-    '--color-diff-added-line-background': added.lineBackground,
-    '--color-diff-added-text-background': added.textBackground,
-    '--color-diff-removed-foreground': removed.foreground,
-    '--color-diff-removed-indicator': removed.indicator,
-    '--color-diff-removed-line-background': removed.lineBackground,
-    '--color-diff-removed-text-background': removed.textBackground,
-    '--contrast': String(theme.contrast),
-    '--color-danger': theme.semanticColors.diffRemoved,
-    '--color-warning': dark ? '#f0a33b' : '#a05a00',
-    '--codex-base-on-accent': textOnAccent(theme.accent),
-    '--control-thumb-fill': '#ffffff',
-    '--shadow-resting': shadowResting,
-    '--shadow-raised': shadowRaised,
-    '--shadow-float': shadowFloat,
-    '--font-family-sans': fontFamilyWithFace(
+    // System Layer: Foundation & Contrast
+    '--cpx-sys-contrast': String(theme.contrast),
+    '--cpx-sys-color-accent': theme.accent,
+    '--cpx-sys-color-fg-on-accent': textOnAccent(theme.accent),
+    '--cpx-sys-color-fg-primary': theme.ink,
+    '--cpx-sys-color-surface': theme.surface,
+    '--cpx-sys-color-surface-under': roles.surfaceUnder,
+    '--cpx-sys-color-panel': roles.panel,
+    '--cpx-sys-color-editor': roles.editorBackground,
+    '--cpx-sys-color-elevated-primary': roles.elevatedPrimary,
+    '--cpx-sys-color-elevated-secondary': roles.elevatedSecondary,
+    '--cpx-sys-color-control': roles.controlBackgroundOpaque,
+
+    // System Layer: Foreground / text
+    '--cpx-sys-color-fg-secondary': roles.textSecondary,
+    '--cpx-sys-color-fg-tertiary': roles.textTertiary,
+    '--cpx-sys-color-fg-disabled': roles.textDisabled,
+
+    // System Layer: Borders
+    '--cpx-sys-color-border-subtle': roles.borderLight,
+    '--cpx-sys-color-border-default': roles.border,
+    '--cpx-sys-color-border-strong': roles.borderHeavy,
+    '--cpx-sys-color-border-focus': roles.borderFocus,
+
+    // System Layer: Accent & semantic
+    '--cpx-sys-color-accent-subtle': roles.accentSubtle,
+    '--cpx-sys-color-accent-hover': roles.accentHover,
+    '--cpx-sys-color-accent-active': roles.accentActive,
+    '--cpx-sys-color-danger': theme.semanticColors.diffRemoved,
+    '--cpx-sys-color-warning': dark ? '#f0a33b' : '#a05a00',
+    '--cpx-sys-color-success': theme.semanticColors.diffAdded,
+    '--cpx-sys-color-skill': theme.semanticColors.skill,
+    '--cpx-sys-color-scrim': roles.simpleScrim,
+
+    // System Layer: Interactive states
+    '--cpx-sys-color-hover': interactionHover,
+    '--cpx-sys-color-active': interactionSelected,
+    '--cpx-sys-color-selected': interactionSelected,
+
+    // System Layer: Diff semantic tones
+    '--cpx-sys-color-diff-added-fg': added.foreground,
+    '--cpx-sys-color-diff-added-indicator': added.indicator,
+    '--cpx-sys-color-diff-added-line': added.lineBackground,
+    '--cpx-sys-color-diff-added-text': added.textBackground,
+    '--cpx-sys-color-diff-removed-fg': removed.foreground,
+    '--cpx-sys-color-diff-removed-indicator': removed.indicator,
+    '--cpx-sys-color-diff-removed-line': removed.lineBackground,
+    '--cpx-sys-color-diff-removed-text': removed.textBackground,
+
+    // System Layer: Shadows
+    '--cpx-sys-shadow-resting': shadowResting,
+    '--cpx-sys-shadow-raised': shadowRaised,
+    '--cpx-sys-shadow-floating': shadowFloating,
+    '--cpx-sys-shadow-control': shadowControl,
+
+    // System Layer: Fonts
+    '--cpx-sys-font-family-sans': fontFamilyWithFace(
       theme.fonts.uiFace,
       theme.fonts.ui ?? DEFAULT_UI_FONT,
     ),
-    '--font-family-mono': fontFamilyWithFace(
+    '--cpx-sys-font-family-mono': fontFamilyWithFace(
       theme.fonts.codeFace,
       theme.fonts.code ?? DEFAULT_CODE_FONT,
     ),
-    '--vscode-font-family': fontFamilyWithFace(
-      theme.fonts.uiFace,
-      theme.fonts.ui ?? DEFAULT_UI_FONT,
-    ),
-    '--vscode-editor-font-family': fontFamilyWithFace(
-      theme.fonts.codeFace,
-      theme.fonts.code ?? DEFAULT_CODE_FONT,
-    ),
-    '--vscode-editor-background': theme.surface,
-    '--vscode-editor-foreground': theme.ink,
-    '--vscode-editorCursor-foreground': theme.accent,
-    '--vscode-editor-selectionBackground': mixHex(
-      parseHex(theme.surface),
-      parseHex(theme.accent),
-      0.28,
-    ),
-    '--vscode-editorWidget-background': roles.raised,
-    '--vscode-widget-border': roles.borderControl,
-    '--vscode-editor-findMatchBackground': mixHex(
-      parseHex(theme.surface),
-      parseHex(theme.accent),
-      0.32,
-    ),
-    '--vscode-editor-findMatchHighlightBackground': mixHex(
-      parseHex(theme.surface),
-      parseHex(theme.accent),
-      0.18,
-    ),
-    '--vscode-editor-findMatchHighlightBorder': roles.borderStrong,
-    '--vscode-editor-lineHighlightBackground': roles.hover,
-    '--vscode-editor-selectionHighlightBackground': roles.selected,
-    '--vscode-editorGutter-background': theme.surface,
-    '--vscode-editorLineNumber-foreground': roles.textTertiary,
-    '--vscode-editorLineNumber-activeForeground': roles.textSecondary,
-    '--vscode-editor-foldPlaceholderForeground': roles.textSecondary,
-    '--vscode-editor-foldBackground': roles.codeInline,
-    '--vscode-editorSuggestWidget-foreground': theme.ink,
-    '--vscode-editorSuggestWidget-background': roles.raised,
-    '--vscode-editorSuggestWidget-border': roles.borderControl,
-    '--vscode-editorSuggestWidget-selectedForeground': theme.ink,
-    '--vscode-editorSuggestWidget-selectedBackground': roles.selected,
-    '--vscode-button-secondaryHoverBackground': interactionHover,
-    '--vscode-focusBorder': theme.accent,
-    '--vscode-list-activeSelectionBackground': interactionSelected,
-    '--vscode-list-hoverBackground': interactionHover,
-    '--vscode-toolbar-hoverBackground': interactionHover,
-    '--syntax-keyword': syntax.keyword,
-    '--syntax-type': syntax.keyword,
-    '--syntax-property': syntax.property,
-    '--syntax-string': syntax.string,
-    '--syntax-number': syntax.number,
-    '--syntax-operator': syntax.number,
-    '--syntax-comment': syntax.comment,
-    '--syntax-variable': syntax.variable,
-    '--syntax-punctuation': syntax.punctuation,
+
+    // System Layer: Syntax
+    '--cpx-sys-color-syntax-keyword': syntax.keyword,
+    '--cpx-sys-color-syntax-property': syntax.property,
+    '--cpx-sys-color-syntax-string': syntax.string,
+    '--cpx-sys-color-syntax-number': syntax.number,
+    '--cpx-sys-color-syntax-comment': syntax.comment,
+    '--cpx-sys-color-syntax-variable': syntax.variable,
+    '--cpx-sys-color-syntax-punctuation': syntax.punctuation,
+
+    // Component Layer: 13 Theme Debugger Component Slots
+    '--cpx-comp-button-bg': roles.buttonSecondaryBg,
+    '--cpx-comp-button-fg': roles.buttonSecondaryFg,
+    '--cpx-comp-button-border': roles.borderLight,
+    '--cpx-comp-button-hover-bg': roles.buttonSecondaryHover,
+    '--cpx-comp-button-active-bg': roles.buttonSecondaryActive,
+    '--cpx-comp-button-pressed': interactionSelected,
+    '--cpx-comp-button-primary-bg': roles.buttonPrimaryBg,
+    '--cpx-comp-button-primary-fg': roles.buttonPrimaryFg,
+    '--cpx-comp-button-primary-hover-bg': roles.buttonPrimaryHover,
+    '--cpx-comp-button-primary-active-bg': roles.buttonPrimaryActive,
+    '--cpx-comp-button-primary-disabled-bg': roles.textDisabled,
+
+    '--cpx-comp-dropdown-trigger-bg': roles.controlBackgroundOpaque,
+    '--cpx-comp-dropdown-trigger-fg': theme.ink,
+    '--cpx-comp-dropdown-trigger-border': roles.borderLight,
+    '--cpx-comp-dropdown-trigger-hover-bg': interactionHover,
+    '--cpx-comp-dropdown-trigger-open-bg': interactionSelected,
+    '--cpx-comp-dropdown-trigger-disabled-fg': roles.textDisabled,
+    '--cpx-comp-dropdown-menu-bg': roles.elevatedSecondary,
+    '--cpx-comp-dropdown-menu-fg': theme.ink,
+    '--cpx-comp-dropdown-menu-border': roles.border,
+    '--cpx-comp-dropdown-item-hover-bg': interactionHover,
+    '--cpx-comp-dropdown-item-selected-bg': interactionSelected,
+    '--cpx-comp-dropdown-item-pressed-bg': interactionSelected,
+    '--cpx-comp-dropdown-item-disabled-fg': roles.textDisabled,
+    '--cpx-comp-dropdown-focus-border': roles.borderFocus,
+
+    '--cpx-comp-input-bg': roles.controlBackgroundOpaque,
+    '--cpx-comp-input-fg': theme.ink,
+    '--cpx-comp-input-border': roles.borderLight,
+    '--cpx-comp-input-placeholder-fg': roles.textTertiary,
+    '--cpx-comp-input-focus-border': roles.borderFocus,
+    '--cpx-comp-input-validation-error-bg': theme.semanticColors.diffRemoved,
+    '--cpx-comp-input-validation-error-border': theme.semanticColors.diffRemoved,
+    '--cpx-comp-input-validation-warning-bg': dark ? '#f0a33b' : '#a05a00',
+    '--cpx-comp-input-validation-warning-border': dark ? '#f0a33b' : '#a05a00',
+
+    '--cpx-comp-segmented-item-selected-fg': theme.ink,
+    '--cpx-comp-segmented-border': roles.border,
+    '--cpx-comp-switch-thumb-fill': '#ffffff',
+
+    '--cpx-comp-tooltip-bg': roles.elevatedSecondary,
+    '--cpx-comp-tooltip-border': `1px solid ${roles.borderLight}`,
+    '--cpx-comp-tooltip-shadow': shadowFloating,
+    '--cpx-comp-scrollbar-slider-bg': rgba(interactionInk, 0.22),
+    '--cpx-comp-scrollbar-slider-hover-bg': rgba(interactionInk, 0.32),
+    '--cpx-comp-scrollbar-slider-active-bg': rgba(interactionInk, 0.42),
+
+    '--cpx-comp-surface-canvas': theme.surface,
+    '--cpx-comp-surface-underlay': roles.surfaceUnder,
+    '--cpx-comp-surface-panel': roles.panel,
+    '--cpx-comp-surface-raised': roles.elevatedSecondary,
+    '--cpx-comp-surface-floating': roles.elevatedSecondary,
+    '--cpx-comp-surface-edge': `1px solid ${roles.borderLight}`,
+    '--cpx-comp-surface-edge-strong': `1px solid ${roles.border}`,
+
+    '--cpx-comp-modal-bg': roles.elevatedSecondary,
+    '--cpx-comp-modal-border': `1px solid ${roles.borderLight}`,
+    '--cpx-comp-modal-shadow': shadowFloating,
+    '--cpx-comp-modal-preformat-bg': theme.surface,
+
+    '--cpx-comp-sidebar-bg': roles.surfaceUnder,
+    '--cpx-comp-sidebar-border': '0',
+    '--cpx-comp-sidebar-item-hover-bg': interactionHover,
+    '--cpx-comp-sidebar-item-active-bg': interactionSelected,
+
+    '--cpx-comp-dock-bg': roles.panel,
+    '--cpx-comp-dock-border': roles.borderLight,
+    '--cpx-comp-dock-tab-hover-bg': interactionHover,
+    '--cpx-comp-dock-tab-active-bg': interactionSelected,
+
+    '--cpx-comp-workbench-panel-bg': roles.panel,
+    '--cpx-comp-workbench-main-surface-bg': theme.surface,
+    '--cpx-comp-workbench-tab-active-bg': interactionSelected,
+
+    '--cpx-comp-menubar-selection-bg': interactionSelected,
+    '--cpx-comp-menubar-selection-fg': theme.ink,
+
+    '--cpx-comp-composer-bg': roles.controlBackgroundOpaque,
+    '--cpx-comp-composer-toolbar-hover-bg': interactionHover,
+
+    '--cpx-comp-terminal-bg': theme.surface,
+    '--cpx-comp-terminal-fg': theme.ink,
+    '--cpx-comp-terminal-border': roles.border,
+    '--cpx-comp-terminal-ansi-blue': theme.accent,
+    '--cpx-comp-terminal-ansi-green': theme.semanticColors.diffAdded,
+    '--cpx-comp-terminal-ansi-red': theme.semanticColors.diffRemoved,
+    '--cpx-comp-terminal-ansi-yellow': dark ? '#f0a33b' : '#a05a00',
+
+    '--cpx-comp-diff-surface': mixHex(parseHex(theme.surface), interactionInk, 0.06),
+    '--cpx-comp-diff-inserted-line-bg': added.lineBackground,
+    '--cpx-comp-diff-inserted-text-bg': added.textBackground,
+    '--cpx-comp-diff-removed-line-bg': removed.lineBackground,
+    '--cpx-comp-diff-removed-text-bg': removed.textBackground,
   }
 }
 
@@ -195,8 +291,6 @@ function deriveCodexRoles(
   dark: boolean,
   contrast: number,
 ): CodexRoles {
-  // Ported from Codex Men/Ien/Len/Ren/zen/Ben/Ven
-  // (webview bundle byte 2,863,772 onward). Existing names below are aliases.
   const variant = dark ? 'dark' : 'light'
   const surfaceRgb = parseHex(surface)
   const inkRgb = parseHex(ink)
@@ -236,68 +330,31 @@ function deriveCodexRoles(
       )
 
   return {
-    tokens: {
-      '--color-background-accent': palette.accentBackground,
-      '--color-background-accent-active': palette.accentBackgroundActive,
-      '--color-background-accent-hover': palette.accentBackgroundHover,
-      '--color-background-button-primary': palette.buttonPrimaryBackground,
-      '--color-background-button-primary-active':
-        palette.buttonPrimaryBackgroundActive,
-      '--color-background-button-primary-hover':
-        palette.buttonPrimaryBackgroundHover,
-      '--color-background-button-primary-inactive':
-        palette.buttonPrimaryBackgroundInactive,
-      '--color-background-button-secondary': palette.buttonSecondaryBackground,
-      '--color-background-button-secondary-active':
-        palette.buttonSecondaryBackgroundActive,
-      '--color-background-button-secondary-hover':
-        palette.buttonSecondaryBackgroundHover,
-      '--color-background-button-secondary-inactive':
-        palette.buttonSecondaryBackgroundInactive,
-      '--color-background-button-tertiary': palette.buttonTertiaryBackground,
-      '--color-background-button-tertiary-active':
-        palette.buttonTertiaryBackgroundActive,
-      '--color-background-button-tertiary-hover':
-        palette.buttonTertiaryBackgroundHover,
-      '--color-background-control': palette.controlBackground,
-      '--color-background-control-opaque': palette.controlBackgroundOpaque,
-      '--color-background-editor-opaque': rgbString(editorBackground),
-      '--color-background-elevated-primary': palette.elevatedPrimary,
-      '--color-background-elevated-primary-opaque':
-        palette.elevatedPrimaryOpaque,
-      '--color-background-elevated-secondary': palette.elevatedSecondary,
-      '--color-background-elevated-secondary-opaque':
-        palette.elevatedSecondaryOpaque,
-      '--color-background-panel': panel,
-      '--color-background-surface': surface,
-      '--color-background-surface-under': surfaceUnder,
-      '--color-border': palette.border,
-      '--color-border-focus': palette.borderFocus,
-      '--color-border-heavy': palette.borderHeavy,
-      '--color-border-light': palette.borderLight,
-      '--color-icon-accent': palette.iconAccent,
-      '--color-icon-primary': palette.iconPrimary,
-      '--color-icon-secondary': palette.iconSecondary,
-      '--color-icon-tertiary': palette.iconTertiary,
-      '--color-simple-scrim': palette.simpleScrim,
-      '--color-text-accent': palette.textAccent,
-      '--color-text-button-primary': palette.textButtonPrimary,
-      '--color-text-button-secondary': palette.textButtonSecondary,
-      '--color-text-button-tertiary': palette.textButtonTertiary,
-      '--color-text-foreground': palette.textForeground,
-      '--color-text-foreground-secondary': palette.textForegroundSecondary,
-      '--color-text-foreground-tertiary': palette.textForegroundTertiary,
-    },
+    surfaceUnder,
+    panel,
     editorBackground: rgbString(editorBackground),
-    raised: palette.elevatedSecondaryOpaque,
-    codeInline: palette.buttonSecondaryBackground,
-    hover: palette.buttonSecondaryBackgroundHover,
-    selected: palette.buttonSecondaryBackgroundActive,
-    borderControl: palette.border,
-    borderStrong: palette.borderHeavy,
+    elevatedPrimary: palette.elevatedPrimaryOpaque,
+    elevatedSecondary: palette.elevatedSecondaryOpaque,
+    controlBackgroundOpaque: palette.controlBackgroundOpaque,
+    borderLight: palette.borderLight,
+    border: palette.border,
+    borderHeavy: palette.borderHeavy,
+    borderFocus: palette.borderFocus,
     textSecondary: palette.textForegroundSecondary,
     textTertiary: palette.textForegroundTertiary,
     textDisabled: palette.buttonPrimaryBackgroundInactive,
+    accentSubtle: palette.accentBackground,
+    accentHover: palette.accentBackgroundHover,
+    accentActive: palette.accentBackgroundActive,
+    buttonPrimaryBg: palette.buttonPrimaryBackground,
+    buttonPrimaryFg: palette.textButtonPrimary,
+    buttonPrimaryHover: palette.buttonPrimaryBackgroundHover,
+    buttonPrimaryActive: palette.buttonPrimaryBackgroundActive,
+    buttonSecondaryBg: palette.buttonSecondaryBackground,
+    buttonSecondaryFg: palette.textButtonSecondary,
+    buttonSecondaryHover: palette.buttonSecondaryBackgroundHover,
+    buttonSecondaryActive: palette.buttonSecondaryBackgroundActive,
+    simpleScrim: palette.simpleScrim,
   }
 }
 

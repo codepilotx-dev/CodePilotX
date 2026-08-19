@@ -28,23 +28,19 @@ import {
 } from './themeContext.js'
 
 const SETTINGS_THEME_VARIABLES = [
-  '--font-family-sans',
-  '--font-family-mono',
-  '--font-size-ui',
-  '--font-size-code',
-  '--font-size-11',
-  '--font-size-12',
-  '--font-size-13',
-  '--font-size-14',
-  '--font-size-15',
-  '--font-size-16',
-  '--font-size-17',
-  '--font-size-18',
-  '--font-size-20',
-  '--font-size-24',
-  '--font-size-26',
-  '--vscode-font-size',
-  '--vscode-editor-font-size',
+  '--cpx-sys-font-family-sans',
+  '--cpx-sys-font-family-mono',
+  '--cpx-sys-font-size-ui',
+  '--cpx-sys-font-size-code',
+  '--cpx-sys-font-size-xs',
+  '--cpx-sys-font-size-sm',
+  '--cpx-sys-font-size-md',
+  '--cpx-sys-font-size-lg',
+  '--cpx-sys-font-size-xl',
+  '--cpx-sys-font-size-2xl',
+  '--cpx-sys-font-size-3xl',
+  '--cpx-sys-font-family-mono',
+  '--cpx-sys-font-family-sans',
 ]
 
 export function DesktopThemeProvider({
@@ -362,21 +358,15 @@ function applyDesktopTheme(
 
   const uiFontSize = clamp(settings.fontSizes.ui, 11, 16)
   const codeFontSize = clamp(settings.fontSizes.code, 8, 24)
-  root.style.setProperty('--font-size-ui', `${uiFontSize}px`)
-  root.style.setProperty('--font-size-code', `${codeFontSize}px`)
-  root.style.setProperty('--vscode-font-size', `${uiFontSize}px`)
-  root.style.setProperty('--vscode-editor-font-size', `${codeFontSize}px`)
-  root.style.setProperty('--font-size-11', `${uiFontSize - 3}px`)
-  root.style.setProperty('--font-size-12', `${uiFontSize - 2}px`)
-  root.style.setProperty('--font-size-13', `${uiFontSize - 1}px`)
-  root.style.setProperty('--font-size-14', `${uiFontSize}px`)
-  root.style.setProperty('--font-size-15', `${uiFontSize + 1}px`)
-  root.style.setProperty('--font-size-16', `${uiFontSize + 2}px`)
-  root.style.setProperty('--font-size-17', `${uiFontSize + 3}px`)
-  root.style.setProperty('--font-size-18', `${uiFontSize + 4}px`)
-  root.style.setProperty('--font-size-20', `${uiFontSize + 6}px`)
-  root.style.setProperty('--font-size-24', `${uiFontSize + 10}px`)
-  root.style.setProperty('--font-size-26', `${uiFontSize + 12}px`)
+  root.style.setProperty('--cpx-sys-font-size-ui', `${uiFontSize}px`)
+  root.style.setProperty('--cpx-sys-font-size-code', `${codeFontSize}px`)
+  root.style.setProperty('--cpx-sys-font-size-xs', `${uiFontSize - 3}px`)
+  root.style.setProperty('--cpx-sys-font-size-sm', `${uiFontSize - 2}px`)
+  root.style.setProperty('--cpx-sys-font-size-md', `${uiFontSize}px`)
+  root.style.setProperty('--cpx-sys-font-size-lg', `${uiFontSize + 2}px`)
+  root.style.setProperty('--cpx-sys-font-size-xl', `${uiFontSize + 4}px`)
+  root.style.setProperty('--cpx-sys-font-size-2xl', `${uiFontSize + 6}px`)
+  root.style.setProperty('--cpx-sys-font-size-3xl', `${uiFontSize + 10}px`)
 }
 
 function getSystemThemeVariant(): DesktopThemeVariant {

@@ -76,7 +76,6 @@
   },
   "literalLineHeightAllowlist": {
     "src/styles/components/button.scss": 13,
-    "src/styles/design-system/tokens.scss": 1,
     "src/styles/features/_composer-shell.scss": 1,
     "src/styles/features/_file-editor.scss": 1,
     "src/styles/features/_session-approvals.scss": 1,
