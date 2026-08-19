@@ -1,14 +1,14 @@
 /* --- Permission chip --- */
 .chip-button.permission-chip {
-  --composer-permission-chip-open-bg: var(--color-token-list-active-selection-background);
+  --composer-permission-chip-open-bg: var(--cpx-sys-color-selected);
 
   border: 1px solid var(--composer-permission-chip-border, transparent);
   background: var(--composer-permission-chip-bg, transparent);
-  color: var(--composer-permission-chip-color, var(--color-token-description-foreground));
+  color: var(--composer-permission-chip-color, var(--cpx-sys-color-fg-tertiary));
   transition:
-    background var(--motion-micro) var(--ease-standard),
-    border-color var(--motion-micro) var(--ease-standard),
-    color var(--motion-micro) var(--ease-standard);
+    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 }
 
 .chip-button.permission-chip:hover,
@@ -19,11 +19,11 @@
   );
   background: var(
     --composer-permission-chip-hover-bg,
-    var(--color-token-list-hover-background)
+    var(--cpx-sys-color-hover)
   );
   color: var(
     --composer-permission-chip-hover-color,
-    var(--composer-permission-chip-color, var(--color-token-foreground))
+    var(--composer-permission-chip-color, var(--cpx-sys-color-fg-primary))
   );
 }
 
@@ -38,7 +38,7 @@
   );
   color: var(
     --composer-permission-chip-hover-color,
-    var(--composer-permission-chip-color, var(--color-token-foreground))
+    var(--composer-permission-chip-color, var(--cpx-sys-color-fg-primary))
   );
 }
 
@@ -46,53 +46,53 @@
 .permission-chip-customConfig {
   --composer-permission-chip-bg: transparent;
   --composer-permission-chip-border: transparent;
-  --composer-permission-chip-color: var(--color-token-foreground);
-  --composer-permission-chip-hover-bg: var(--color-token-list-hover-background);
+  --composer-permission-chip-color: var(--cpx-sys-color-fg-primary);
+  --composer-permission-chip-hover-bg: var(--cpx-sys-color-hover);
   --composer-permission-chip-hover-border: var(
     --composer-permission-chip-border
   );
-  --composer-permission-chip-hover-color: var(--color-token-foreground);
+  --composer-permission-chip-hover-color: var(--cpx-sys-color-fg-primary);
 }
 
 .permission-chip-auto {
   --composer-permission-chip-bg: transparent;
   --composer-permission-chip-border: transparent;
-  --composer-permission-chip-color: var(--color-token-foreground);
-  --composer-permission-chip-hover-bg: var(--color-token-list-hover-background);
+  --composer-permission-chip-color: var(--cpx-sys-color-fg-primary);
+  --composer-permission-chip-hover-bg: var(--cpx-sys-color-hover);
   --composer-permission-chip-hover-border: var(
     --composer-permission-chip-border
   );
-  --composer-permission-chip-hover-color: var(--color-token-foreground);
+  --composer-permission-chip-hover-color: var(--cpx-sys-color-fg-primary);
 }
 
 .permission-chip-bypassPermissions {
   --composer-permission-chip-bg: transparent;
   --composer-permission-chip-border: transparent;
-  --composer-permission-chip-color: var(--color-token-editor-warning-foreground);
-  --composer-permission-chip-hover-bg: var(--color-token-list-hover-background);
+  --composer-permission-chip-color: var(--cpx-sys-color-warning);
+  --composer-permission-chip-hover-bg: var(--cpx-sys-color-hover);
   --composer-permission-chip-hover-border: var(
     --composer-permission-chip-border
   );
-  --composer-permission-chip-hover-color: var(--color-token-editor-warning-foreground);
+  --composer-permission-chip-hover-color: var(--cpx-sys-color-warning);
 }
 
 /* --- Plan mode chip --- */
 .composer-plan-mode-chip {
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   position: relative;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-text-link-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-accent);
   }
 
   &.active {
-    background: var(--color-token-list-active-selection-background);
-    color: var(--color-token-text-link-foreground);
+    background: var(--cpx-sys-color-selected);
+    color: var(--cpx-sys-color-accent);
   }
 
   &.active:hover {
-    background: var(--color-token-list-active-selection-background);
+    background: var(--cpx-sys-color-selected);
   }
 }
 
@@ -111,14 +111,14 @@
   position: absolute;
   inset: 0;
   margin: auto;
-  transition: opacity var(--motion-state) var(--ease-out);
+  transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
 }
 
 .composer-plan-mode-chip-icon-exit {
   width: var(--app-icon-size);
   height: var(--app-icon-size);
   padding: 3px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--cpx-sys-radius-full);
   background: color-mix(in srgb, currentColor 18%, transparent);
   opacity: 0;
 }
@@ -135,7 +135,7 @@
   display: inline-block;
   width: 1px;
   height: 14px;
-  background: var(--color-token-border-light);
+  background: var(--cpx-sys-color-border-subtle);
   flex-shrink: 0;
 }
 
@@ -187,7 +187,7 @@
   justify-content: center;
   flex-shrink: 0;
   margin-top: 0;
-  color: var(--color-token-icon-foreground);
+  color: var(--cpx-sys-color-fg-primary);
   padding-right: var(--control-gap-compact);
 
   svg {
@@ -209,10 +209,10 @@
 }
 
 .permission-select-item-detail {
-  color: var(--color-token-text-secondary);
-  font-size: var(--menu-detail-font-size);
-  font-weight: var(--font-weight-body);
-  line-height: var(--menu-detail-line-height);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-regular);
+  line-height: var(--cpx-sys-line-height-tight);
   white-space: normal;
 }
 
@@ -227,7 +227,7 @@
   justify-content: center;
   flex-shrink: 0;
   margin-top: 0;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 /* --- Context usage dot --- */
@@ -236,20 +236,20 @@
   height: 100%;
   display: inline-block;
   position: relative;
-  border-radius: var(--radius-pill);
+  border-radius: var(--cpx-sys-radius-full);
   background: conic-gradient(
-    var(--color-token-text-secondary) calc(var(--context-usage-progress, 0) * 1%),
-    color-mix(in srgb, var(--color-token-text-secondary) 20%, transparent)
+    var(--cpx-sys-color-fg-secondary) calc(var(--context-usage-progress, 0) * 1%),
+    color-mix(in srgb, var(--cpx-sys-color-fg-secondary) 20%, transparent)
       calc(var(--context-usage-progress, 0) * 1%),
-    color-mix(in srgb, var(--color-token-text-secondary) 20%, transparent) 360deg
+    color-mix(in srgb, var(--cpx-sys-color-fg-secondary) 20%, transparent) 360deg
   );
 
   &::before {
     content: "";
     position: absolute;
     inset: 2px;
-    border-radius: var(--radius-pill);
-    background: var(--color-token-main-surface-primary);
+    border-radius: var(--cpx-sys-radius-full);
+    background: var(--cpx-sys-color-surface);
   }
 }
 
@@ -261,7 +261,7 @@
   width: var(--app-icon-size-sm);
   height: var(--app-icon-size-sm);
   flex-shrink: 0;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   cursor: default;
 }
 
@@ -269,29 +269,29 @@
   position: absolute;
   left: 50%;
   bottom: calc(100% + 8px);
-  z-index: var(--z-tooltip);
+  z-index: var(--cpx-sys-z-tooltip);
   display: grid;
   gap: 4px;
   padding: 8px 12px 10px;
-  border: 1px solid var(--color-token-menu-border);
-  border-radius: var(--popover-surface-radius);
-  background: var(--color-token-menu-background);
-  box-shadow: var(--popover-surface-shadow);
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-meta);
-  line-height: var(--type-line-meta);
+  border: 1px solid var(--cpx-comp-dropdown-menu-border);
+  border-radius: var(--cpx-comp-dropdown-menu-radius);
+  background: var(--cpx-comp-dropdown-menu-bg);
+  box-shadow: var(--cpx-comp-dropdown-menu-shadow);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
+  line-height: var(--cpx-sys-line-height-tight);
   text-align: center;
   white-space: nowrap;
   transform: translateX(-50%) translateY(3px);
   opacity: 0;
   pointer-events: none;
   transition:
-    opacity var(--motion-state) var(--ease-out),
-    transform var(--motion-state) var(--ease-out);
+    opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
+    transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
 
   strong {
-    color: var(--color-token-foreground);
-    font-weight: var(--font-weight-emphasis);
+    color: var(--cpx-sys-color-fg-primary);
+    font-weight: var(--cpx-sys-font-weight-bold);
   }
 }
 
@@ -307,7 +307,7 @@
 
     .meta-chip {
       gap: 4px;
-      padding: 0 var(--interactive-row-composer-padding-inline);
+      padding: 0 var(--cpx-comp-row-padding-inline);
 
       .permission-select-trigger-label,
       .composer-model-chip-thinking {
@@ -318,12 +318,12 @@
 
   .permission-select-trigger {
     gap: 4px;
-    padding-inline: var(--interactive-row-composer-padding-inline);
+    padding-inline: var(--cpx-comp-row-padding-inline);
   }
 
   .composer-model-chip {
     max-width: 96px;
-    padding-inline: var(--interactive-row-composer-padding-inline);
+    padding-inline: var(--cpx-comp-row-padding-inline);
   }
 }
 
@@ -336,11 +336,11 @@
   display: flex;
   gap: 6px;
   padding: 6px;
-  background: var(--layer-floating-fill);
-  border: var(--layer-edge);
-  border-radius: var(--radius-floating);
-  box-shadow: var(--shadow-floating);
-  z-index: var(--z-popover);
+  background: var(--cpx-comp-surface-floating);
+  border: var(--cpx-comp-surface-edge);
+  border-radius: var(--cpx-sys-radius-xl);
+  box-shadow: var(--cpx-sys-shadow-floating);
+  z-index: var(--cpx-sys-z-popover);
 }
 
 .home-debug-tool {
@@ -350,26 +350,26 @@
   padding: 8px 14px;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   cursor: pointer;
-  font-size: var(--type-control);
-  color: var(--color-token-description-foreground);
+  font-size: var(--cpx-sys-font-size-md);
+  color: var(--cpx-sys-color-fg-tertiary);
   transition:
-    background var(--motion-micro) var(--ease-standard),
-    color var(--motion-micro) var(--ease-standard);
+    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &.active {
-    background: var(--color-token-foreground);
-    color: var(--color-token-main-surface-primary);
+    background: var(--cpx-sys-color-fg-primary);
+    color: var(--cpx-sys-color-surface);
 
     &:hover {
-      background: var(--color-token-button-background);
-      color: var(--color-token-main-surface-primary);
+      background: var(--cpx-comp-button-bg);
+      color: var(--cpx-sys-color-surface);
     }
   }
 }
@@ -423,7 +423,7 @@
   bottom: calc(100% + 4px);
   left: 0;
 
-  z-index: var(--z-popover);
+  z-index: var(--cpx-sys-z-popover);
 }
 
 .chat-input__dropdown--bottom {
@@ -437,19 +437,19 @@
     var(--menu-icon-size)
     max-content
     minmax(0, 1fr);
-  column-gap: var(--menu-item-gap);
+  column-gap: var(--cpx-comp-row-gap);
   background: transparent;
   border: 0;
   font-family: inherit;
-  font-size: var(--menu-font-size);
-  line-height: var(--menu-line-height);
+  font-size: var(--cpx-sys-font-size-md);
+  line-height: var(--cpx-sys-line-height-normal);
 
   &.is-keyboard-active {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 
   &.is-disabled {
-    color: var(--color-token-description-foreground);
+    color: var(--cpx-sys-color-fg-tertiary);
     cursor: not-allowed;
     opacity: 0.58;
     pointer-events: none;
@@ -462,7 +462,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-token-icon-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 
   svg {
     width: var(--menu-icon-size);
@@ -473,7 +473,7 @@
 
 .chat-input__dropdown-label {
   min-width: 0;
-  font-weight: var(--font-weight-body);
+  font-weight: var(--cpx-sys-font-weight-regular);
 }
 
 .chat-input__dropdown-trailing {
@@ -482,10 +482,10 @@
 }
 
 .chat-input__dropdown-hint {
-  font-size: var(--menu-detail-font-size);
-  color: var(--color-token-description-foreground);
-  font-weight: var(--font-weight-body);
-  line-height: var(--menu-detail-line-height);
+  font-size: var(--cpx-sys-font-size-xs);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-weight: var(--cpx-sys-font-weight-regular);
+  line-height: var(--cpx-sys-line-height-tight);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -493,14 +493,14 @@
 }
 
 .chat-input__dropdown-check {
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
   flex-shrink: 0;
 }
 
 .chat-input__dropdown-separator {
   height: 1px;
   margin: 4px 0;
-  background: var(--color-token-border);
+  background: var(--cpx-sys-color-border-default);
 }
 
 .chat-input__dropdown-section-title {
@@ -510,12 +510,12 @@
     max-content
     minmax(0, 1fr);
   align-items: center;
-  column-gap: var(--menu-item-gap);
+  column-gap: var(--cpx-comp-row-gap);
   padding: 4px 8px;
-  font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-detail-line-height);
-  color: var(--color-token-description-foreground);
-  font-weight: var(--font-weight-label);
+  font-size: var(--cpx-sys-font-size-xs);
+  line-height: var(--cpx-sys-line-height-tight);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .chat-input__dropdown-bullet {
@@ -528,9 +528,9 @@
 
 .chat-input__dropdown-empty {
   padding: 8px;
-  color: var(--color-token-description-foreground);
-  font-size: var(--menu-detail-font-size);
-  line-height: var(--menu-detail-line-height);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+  line-height: var(--cpx-sys-line-height-tight);
   text-align: center;
 }
 
@@ -550,11 +550,11 @@
 }
 
 .composer-editor-content[data-placeholder]::before {
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .composer-model-chip-label {
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 /* Transparent placement frame; ComposerStack owns its nested surfaces. */
@@ -562,7 +562,7 @@
   width: 100%;
   min-width: 0;
   container-type: inline-size;
-  transition: height var(--motion-layout) var(--ease-standard);
+  transition: height var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
 
   > .composer-stack,
   > .composer-stack > .composer {

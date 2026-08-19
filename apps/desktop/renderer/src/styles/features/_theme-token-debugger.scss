@@ -3,9 +3,9 @@
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 12px;
-  background: var(--color-token-bg-fog);
+  background: var(--cpx-comp-surface-fog);
 
   h3, h4, h5, p {
     margin: 0;
@@ -19,7 +19,7 @@
   h5 {
     font-size: 12px;
     font-weight: 600;
-    color: var(--color-token-description-foreground);
+    color: var(--cpx-sys-color-fg-tertiary);
     margin-block: 8px 4px;
   }
 }
@@ -39,7 +39,7 @@
 
   p {
     font-size: 12px;
-    color: var(--color-token-description-foreground);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -50,7 +50,7 @@
 }
 
 .theme-token-debugger__title-icon {
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
 }
 
 .theme-token-debugger__actions {
@@ -70,7 +70,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border-bottom: 1px solid var(--color-token-border-light);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   padding-bottom: 10px;
 }
 
@@ -85,20 +85,20 @@
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &[data-active] {
-    background: var(--color-token-list-hover-background);
-    border-color: var(--color-token-border-light);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    border-color: var(--cpx-sys-color-border-subtle);
+    color: var(--cpx-sys-color-fg-primary);
     font-weight: 600;
   }
 }
@@ -111,22 +111,22 @@
 
 .theme-token-debugger__component-pill {
   padding: 3px 8px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-pill);
-  background: var(--color-token-editor-background);
-  color: var(--color-token-description-foreground);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-editor);
+  color: var(--cpx-sys-color-fg-tertiary);
   font-size: 11px;
   cursor: pointer;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &[data-active] {
-    background: var(--color-token-list-active-selection-background);
-    border-color: var(--color-token-border);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-selected);
+    border-color: var(--cpx-sys-color-border-default);
+    color: var(--cpx-sys-color-fg-primary);
     font-weight: 600;
   }
 }
@@ -151,9 +151,9 @@
   flex-direction: column;
   gap: 12px;
   padding: 14px;
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 8px;
-  background: var(--color-token-editor-background);
+  background: var(--cpx-sys-color-editor);
 }
 
 .theme-token-debugger__group-header {
@@ -163,7 +163,7 @@
 
   span {
     font-size: 11px;
-    color: var(--color-token-description-foreground);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -181,15 +181,15 @@
   padding: 6px 8px;
   border: 1px solid transparent;
   border-radius: 6px;
-  background: var(--color-token-bg-fog);
+  background: var(--cpx-comp-surface-fog);
 
   &:hover {
-    border-color: var(--color-token-border-light);
+    border-color: var(--cpx-sys-color-border-subtle);
   }
 
   &[data-overridden] {
-    border-color: var(--color-token-border);
-    background: var(--color-token-list-hover-background);
+    border-color: var(--cpx-sys-color-border-default);
+    background: var(--cpx-sys-color-hover);
   }
 }
 
@@ -209,31 +209,31 @@
 .theme-token-debugger__slot-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .theme-token-debugger__type-badge {
   padding: 1px 4px;
   border-radius: 3px;
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-description-foreground);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-tertiary);
   font-size: 9px;
-  font-family: var(--font-family-mono);
+  font-family: var(--cpx-sys-font-family-mono);
   text-transform: uppercase;
 }
 
 .theme-token-debugger__generic-badge {
   padding: 2px 6px;
   border-radius: 4px;
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-description-foreground);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-tertiary);
   font-size: 10px;
-  font-family: var(--font-family-mono);
+  font-family: var(--cpx-sys-font-family-mono);
 }
 
 .theme-token-debugger__slot-token {
   font-size: 10px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -244,8 +244,8 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  font-family: var(--font-family-mono);
-  color: var(--color-token-description-foreground);
+  font-family: var(--cpx-sys-font-family-mono);
+  color: var(--cpx-sys-color-fg-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -275,8 +275,8 @@
 }
 
 .theme-token-debugger__editor-panel {
-  border-color: var(--color-token-border);
-  background: var(--color-token-bg-fog);
+  border-color: var(--cpx-sys-color-border-default);
+  background: var(--cpx-comp-surface-fog);
   animation: theme-token-debugger-fade-in 0.15s ease-out;
 }
 
@@ -289,8 +289,8 @@
 
 .theme-token-debugger__editor-sub {
   font-size: 11px;
-  font-family: var(--font-family-mono);
-  color: var(--color-token-description-foreground);
+  font-family: var(--cpx-sys-font-family-mono);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .theme-token-debugger__token-meta-row {
@@ -298,14 +298,14 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   margin-top: 4px;
 }
 
 .theme-token-debugger__badge {
   padding: 2px 6px;
   border-radius: 4px;
-  background: var(--color-token-list-hover-background);
+  background: var(--cpx-sys-color-hover);
   font-size: 10px;
 }
 
@@ -323,7 +323,7 @@
   > span {
     font-size: 12px;
     font-weight: 500;
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
@@ -339,14 +339,14 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 6px;
 
   legend {
     font-size: 11px;
     font-weight: 600;
     padding-inline: 4px;
-    color: var(--color-token-description-foreground);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -373,8 +373,8 @@
 .theme-token-debugger__code-preview {
   padding: 8px 10px;
   border-radius: 6px;
-  background: var(--color-token-editor-background);
-  font-family: var(--font-family-mono);
+  background: var(--cpx-sys-color-editor);
+  font-family: var(--cpx-sys-font-family-mono);
   font-size: 12px;
   overflow: auto;
 }
@@ -392,14 +392,14 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px 12px;
-  border: 1px solid var(--color-token-charts-orange);
+  border: 1px solid var(--cpx-sys-color-charts-orange);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--color-token-charts-orange) 8%, transparent);
+  background: color-mix(in srgb, var(--cpx-sys-color-charts-orange) 8%, transparent);
   font-size: 12px;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 
   strong {
-    color: var(--color-token-charts-orange);
+    color: var(--cpx-sys-color-charts-orange);
   }
 
   p {
@@ -420,9 +420,9 @@
   flex-direction: column;
   gap: 12px;
   padding: 14px;
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 8px;
-  background: var(--color-token-editor-background);
+  background: var(--cpx-sys-color-editor);
 }
 
 .theme-token-debugger__preview-triggers {
@@ -452,7 +452,7 @@
 
 .theme-token-debugger__preview-label {
   font-size: 11px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .theme-token-debugger__preview-surface {
@@ -460,18 +460,18 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px;
-  border: 1px solid var(--color-token-dropdown-border);
+  border: 1px solid var(--cpx-comp-dropdown-menu-border);
   border-radius: 8px;
-  background: var(--color-token-dropdown-background);
+  background: var(--cpx-comp-dropdown-menu-bg);
 
   .settings-dropdown-item[data-pressed] {
     background: var(
-      --interactive-row-pressed-background,
-      var(--color-token-dropdown-item-pressed-background)
+      --cpx-comp-row-pressed-bg,
+      var(--cpx-comp-dropdown-item-pressed-bg)
     );
     color: var(
-      --interactive-row-foreground,
-      var(--color-token-dropdown-foreground)
+      --cpx-comp-row-fg,
+      var(--cpx-comp-dropdown-menu-fg)
     );
   }
 }
@@ -484,10 +484,10 @@
 
 .theme-token-debugger__surface-box {
   padding: 10px;
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 8px;
   font-size: 11px;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -509,24 +509,24 @@
   font-size: 12px;
 
   &--fail {
-    background: color-mix(in srgb, var(--color-token-charts-orange) 12%, transparent);
-    color: var(--color-token-charts-orange);
+    background: color-mix(in srgb, var(--cpx-sys-color-charts-orange) 12%, transparent);
+    color: var(--cpx-sys-color-charts-orange);
     font-weight: 500;
   }
 }
 
 .theme-token-debugger__contrast-label {
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .theme-token-debugger__contrast-ratio {
-  font-family: var(--font-family-mono);
+  font-family: var(--cpx-sys-font-family-mono);
 }
 
 .theme-token-debugger__library-section {
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 8px;
-  background: var(--color-token-editor-background);
+  background: var(--cpx-sys-color-editor);
   overflow: hidden;
 }
 
@@ -534,10 +534,10 @@
   padding: 12px 14px;
   cursor: pointer;
   user-select: none;
-  background: var(--color-token-bg-fog);
+  background: var(--cpx-comp-surface-fog);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 }
 
@@ -549,7 +549,7 @@
 
 .theme-token-debugger__library-count {
   font-size: 12px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .theme-token-debugger__library-body {
@@ -577,22 +577,22 @@
 
 .theme-token-debugger__type-pill {
   padding: 2px 8px;
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 4px;
-  background: var(--color-token-bg-fog);
-  color: var(--color-token-description-foreground);
+  background: var(--cpx-comp-surface-fog);
+  color: var(--cpx-sys-color-fg-tertiary);
   font-size: 11px;
   cursor: pointer;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &[data-active] {
-    background: var(--color-token-list-active-selection-background);
-    border-color: var(--color-token-border);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-selected);
+    border-color: var(--cpx-sys-color-border-default);
+    color: var(--cpx-sys-color-fg-primary);
     font-weight: 500;
   }
 }
@@ -611,9 +611,9 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 6px;
-  background: var(--color-token-bg-fog);
+  background: var(--cpx-comp-surface-fog);
 }
 
 .theme-token-debugger__library-item-copy {
@@ -627,7 +627,7 @@
 .theme-token-debugger__library-name {
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -635,7 +635,7 @@
 
 .theme-token-debugger__library-value {
   font-size: 10px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -650,8 +650,8 @@
 .theme-token-debugger__error-banner {
   padding: 8px 12px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--color-token-error-foreground) 15%, transparent);
-  color: var(--color-token-error-foreground);
+  background: color-mix(in srgb, var(--cpx-sys-color-danger) 15%, transparent);
+  color: var(--cpx-sys-color-danger);
   font-size: 12px;
 }
 
@@ -662,25 +662,25 @@
   gap: 12px;
   padding: 8px 12px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--color-token-charts-orange) 15%, transparent);
-  color: var(--color-token-charts-orange);
+  background: color-mix(in srgb, var(--cpx-sys-color-charts-orange) 15%, transparent);
+  color: var(--cpx-sys-color-charts-orange);
   font-size: 12px;
 }
 
 .theme-token-debugger__notice {
   font-size: 12px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .theme-token-debugger__warning {
-  color: var(--color-token-charts-orange);
+  color: var(--cpx-sys-color-charts-orange);
   font-size: 12px;
   margin: 0;
 }
 
 .theme-token-debugger__hint {
   font-size: 12px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   margin: 0;
 }
 

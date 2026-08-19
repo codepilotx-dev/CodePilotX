@@ -9,7 +9,7 @@
     100% - var(--workspace-header-route-end-inset)
   );
   position: absolute;
-  z-index: calc(var(--z-right-dock) + 1);
+  z-index: calc(var(--cpx-sys-z-right-dock) + 1);
   top: 0;
   right: 0;
   left: 0;
@@ -30,7 +30,7 @@
   }
 
   &[data-divider]::before {
-    border-bottom: 0.5px solid var(--color-token-border-light);
+    border-bottom: 0.5px solid var(--cpx-sys-color-border-subtle);
   }
 }
 
@@ -73,7 +73,7 @@
   justify-self: start;
   width: max-content;
   max-width: 100%;
-  padding-left: var(--space-2);
+  padding-left: var(--cpx-sys-space-2);
 }
 
 .desktop-workspace-header-center {
@@ -102,7 +102,7 @@
 }
 
 .desktop-workspace-header-group {
-  gap: var(--space-1);
+  gap: var(--cpx-sys-space-1);
 
   &[data-align="center"] {
     margin-inline: auto;
@@ -146,7 +146,7 @@
     justify-content: center;
     overflow: hidden;
     min-width: 0;
-    padding-inline: var(--space-2);
+    padding-inline: var(--cpx-sys-space-2);
   }
 
   .desktop-workspace-header-route-right {
@@ -165,36 +165,36 @@
   display: flex;
   height: 100%;
   align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-2) 0 var(--space-1);
+  gap: var(--cpx-sys-space-1);
+  padding: 0 var(--cpx-sys-space-2) 0 var(--cpx-sys-space-1);
 }
 
 .workspace-shell-control-button {
   border: 0;
   background: transparent;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   transition:
-    background var(--motion-micro) var(--ease-out),
-    color var(--motion-micro) var(--ease-out),
-    transform var(--motion-micro) var(--ease-out);
+    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
+    transform var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &[aria-pressed="true"] {
-    background: var(--color-token-list-active-selection-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-selected);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &:active:not(:disabled) {
-    background: var(--color-token-list-active-selection-background);
+    background: var(--cpx-sys-color-selected);
     transform: translateY(1px);
   }
 
   &:focus-visible {
-    outline-color: color-mix(in srgb, var(--color-token-text-link-foreground) 72%, transparent);
+    outline-color: color-mix(in srgb, var(--cpx-sys-color-accent) 72%, transparent);
   }
 }
 

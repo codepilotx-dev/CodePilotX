@@ -8,11 +8,11 @@
   padding: var(--inline-approval-card-padding, 24px 14px 12px);
   border: var(
     --inline-approval-card-border,
-    1px solid var(--color-token-border-light)
+    1px solid var(--cpx-sys-color-border-subtle)
   );
-  border-radius: var(--inline-approval-card-radius, var(--radius-card));
-  background: var(--inline-approval-card-bg, var(--layer-raised-fill));
-  color: var(--color-token-foreground);
+  border-radius: var(--inline-approval-card-radius, var(--cpx-sys-radius-lg));
+  background: var(--inline-approval-card-bg, var(--cpx-comp-surface-raised));
+  color: var(--cpx-sys-color-fg-primary);
   box-shadow: var(
     --inline-approval-card-shadow,
     none
@@ -23,10 +23,10 @@
 
   h2 {
     margin: 0;
-    color: var(--color-token-foreground);
-    font-size: var(--type-card-title);
-    font-weight: var(--font-weight-heading);
-    line-height: var(--type-line-body);
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-md);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    line-height: var(--cpx-sys-line-height-normal);
     letter-spacing: 0;
   }
 }
@@ -55,9 +55,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
+  font-weight: var(--cpx-sys-font-weight-medium);
 
   button {
     display: inline-flex;
@@ -65,17 +65,17 @@
     gap: var(--control-gap-compact);
     padding: var(--control-padding-block-compact) var(--control-padding-inline);
     border: 0;
-    border-radius: var(--radius-control);
+    border-radius: var(--cpx-sys-radius-md);
     background: transparent;
-    color: var(--color-token-description-foreground);
-    font-size: var(--type-control);
-    font-weight: var(--font-weight-label);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-size: var(--cpx-sys-font-size-md);
+    font-weight: var(--cpx-sys-font-weight-medium);
     line-height: var(--control-line-height);
     cursor: pointer;
 
     &:hover {
-      background: var(--color-token-list-hover-background);
-      color: var(--color-token-foreground);
+      background: var(--cpx-sys-color-hover);
+      color: var(--cpx-sys-color-fg-primary);
     }
   }
 }
@@ -87,11 +87,11 @@
   max-height: var(--inline-approval-command-max-height, none);
   overflow: auto;
   padding: 0;
-  color: var(--color-token-text-secondary);
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
-  font-weight: var(--font-weight-label);
-  line-height: var(--type-line-code);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  line-height: var(--cpx-sys-line-height-code);
   white-space: pre-wrap;
   word-break: break-all;
   background: transparent;
@@ -106,30 +106,30 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-token-text-link-foreground);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-accent);
+  font-weight: var(--cpx-sys-font-weight-medium);
 
   &.tool {
-    color: var(--color-token-text-secondary);
+    color: var(--cpx-sys-color-fg-secondary);
   }
 }
 
 .inline-approval-additions {
-  color: var(--color-token-git-decoration-added-resource-foreground);
-  font-weight: var(--font-weight-emphasis);
+  color: var(--cpx-sys-color-success);
+  font-weight: var(--cpx-sys-font-weight-bold);
 }
 
 .inline-approval-deletions {
-  color: var(--color-token-git-decoration-deleted-resource-foreground);
-  font-weight: var(--font-weight-emphasis);
+  color: var(--cpx-sys-color-danger);
+  font-weight: var(--cpx-sys-font-weight-bold);
 }
 
 .inline-approval-dot {
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-foreground);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-fg-primary);
 }
 
 .inline-approval-options {
@@ -145,11 +145,11 @@
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px transparent solid;
-  border-radius: var(--radius-card);
+  border-radius: var(--cpx-sys-radius-lg);
   background: transparent;
-  color: var(--color-token-foreground);
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
   text-align: left;
 
@@ -157,13 +157,13 @@
     border-color: var(--inline-approval-option-selected-border, transparent);
     background: var(
       --inline-approval-option-selected-bg,
-      var(--color-token-list-hover-background)
+      var(--cpx-sys-color-hover)
     );
   }
 
   &.muted {
-    color: var(--color-token-input-placeholder-foreground);
-    font-weight: var(--font-weight-label);
+    color: var(--cpx-comp-input-placeholder-fg);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 }
 
@@ -173,19 +173,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--inline-approval-option-index-bg, var(--color-token-text-preformat-background));
-  color: var(--inline-approval-option-index-color, var(--color-token-description-foreground));
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-label);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--inline-approval-option-index-bg, var(--cpx-comp-modal-preformat-bg));
+  color: var(--inline-approval-option-index-color, var(--cpx-sys-color-fg-tertiary));
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .inline-approval-option.selected .inline-approval-option-index {
   background: var(
     --inline-approval-option-selected-index-bg,
-    var(--color-token-foreground)
+    var(--cpx-sys-color-fg-primary)
   );
-  color: var(--inline-approval-option-selected-index-color, var(--color-token-main-surface-primary));
+  color: var(--inline-approval-option-selected-index-color, var(--cpx-sys-color-surface));
 }
 
 .inline-approval-option-custom-icon {
@@ -194,9 +194,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-text-preformat-background);
-  color: var(--color-token-description-foreground);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-comp-modal-preformat-bg);
+  color: var(--cpx-sys-color-fg-tertiary);
   flex: 0 0 auto;
 }
 
@@ -207,8 +207,8 @@
 
 .inline-approval-option.custom.selected .inline-approval-option-custom-icon,
 .inline-approval-option.custom.filled .inline-approval-option-custom-icon {
-  background: var(--color-token-foreground);
-  color: var(--color-token-main-surface-primary);
+  background: var(--cpx-sys-color-fg-primary);
+  color: var(--cpx-sys-color-surface);
 }
 
 .inline-approval-option.custom {
@@ -228,7 +228,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--color-token-input-placeholder-foreground);
+  color: var(--cpx-comp-input-placeholder-fg);
 }
 
 .inline-approval-option-checkbox {
@@ -237,14 +237,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-color: var(--color-token-border);
-  border-radius: var(--radius-control);
-  color: var(--color-token-main-surface-primary);
+  border-color: var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-md);
+  color: var(--cpx-sys-color-surface);
   background: transparent;
 
   &.selected {
-    border-color: var(--color-token-foreground);
-    background: var(--color-token-foreground);
+    border-color: var(--cpx-sys-color-fg-primary);
+    background: var(--cpx-sys-color-fg-primary);
   }
 }
 
@@ -266,28 +266,28 @@
     --inline-approval-note-padding,
     var(--control-padding-block) var(--control-padding-inline)
   );
-  background: var(--inline-approval-note-bg, var(--color-token-main-surface-primary));
+  background: var(--inline-approval-note-bg, var(--cpx-sys-color-surface));
   border: var(--inline-approval-note-border, 1px solid transparent);
-  border-radius: var(--inline-approval-note-radius, var(--radius-card));
+  border-radius: var(--inline-approval-note-radius, var(--cpx-sys-radius-lg));
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
 
   &:hover {
-    background: var(--color-token-text-preformat-background);
+    background: var(--cpx-comp-modal-preformat-bg);
   }
 
   &:focus-within {
-    border-color: var(--inline-approval-note-focus-border, var(--color-token-text-link-foreground));
-    background: var(--color-token-main-surface-primary);
+    border-color: var(--inline-approval-note-focus-border, var(--cpx-sys-color-accent));
+    background: var(--cpx-sys-color-surface);
     box-shadow: var(
       --inline-approval-note-focus-shadow,
-      0 0 0 3px var(--color-token-text-link-foreground)
+      0 0 0 3px var(--cpx-sys-color-accent)
     );
   }
 
   &.filled {
-    border-color: var(--color-token-border);
+    border-color: var(--cpx-sys-color-border-default);
   }
 }
 
@@ -296,7 +296,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .inline-approval-actions {
@@ -316,8 +316,8 @@
 }
 
 .inline-approval-option-hint {
-  color: var(--color-token-input-placeholder-foreground);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-comp-input-placeholder-fg);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .inline-approval-option-info {
@@ -325,13 +325,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-text-preformat-background);
-  color: var(--color-token-description-foreground);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-comp-modal-preformat-bg);
+  color: var(--cpx-sys-color-fg-tertiary);
   flex: 0 0 auto;
 
   &:hover {
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   svg {
@@ -363,7 +363,7 @@
   line-height: var(--control-line-height);
 
   &::placeholder {
-    color: var(--color-token-input-placeholder-foreground);
+    color: var(--cpx-comp-input-placeholder-fg);
   }
 }
 
@@ -380,9 +380,9 @@
 }
 
 .inline-approval-permission-group-title {
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .inline-approval-permission-group-items {
@@ -391,17 +391,17 @@
   margin: 0;
   padding: 8px 10px;
   border: 1px solid
-    color-mix(in srgb, var(--color-token-border-light) 70%, transparent);
-  border-radius: var(--radius-card);
+    color-mix(in srgb, var(--cpx-sys-color-border-subtle) 70%, transparent);
+  border-radius: var(--cpx-sys-radius-lg);
   background: color-mix(
     in srgb,
-    var(--color-token-text-preformat-background) 72%,
-    var(--color-token-bg-secondary)
+    var(--cpx-comp-modal-preformat-bg) 72%,
+    var(--cpx-sys-color-surface-under)
   );
-  color: var(--color-token-text-secondary);
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
-  line-height: var(--type-line-code);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
+  line-height: var(--cpx-sys-line-height-code);
   word-break: break-all;
   list-style: none;
 
@@ -431,19 +431,19 @@
   overflow-wrap: anywhere;
 
   &::placeholder {
-    color: var(--color-token-input-placeholder-foreground);
+    color: var(--cpx-comp-input-placeholder-fg);
   }
 }
 
 .ask-user-question-error {
   margin: 0 12px;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--color-token-error-foreground) 40%, transparent);
-  border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--color-token-error-foreground) 10%, transparent);
-  color: var(--color-token-error-foreground);
-  font-size: var(--type-secondary);
-  line-height: var(--type-line-secondary);
+  border: 1px solid color-mix(in srgb, var(--cpx-sys-color-danger) 40%, transparent);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: color-mix(in srgb, var(--cpx-sys-color-danger) 10%, transparent);
+  color: var(--cpx-sys-color-danger);
+  font-size: var(--cpx-sys-font-size-sm);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .inline-approval-footer-split {
@@ -459,21 +459,21 @@
   display: inline-flex;
   align-items: center;
   gap: var(--control-gap-compact);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .inline-approval-footer-key {
   min-width: var(--control-size-sm);
   padding: 0.167em 0.5em;
-  border: 1px solid var(--color-token-border-light);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 4px;
-  background: var(--color-token-text-preformat-background);
-  color: var(--color-token-text-secondary);
+  background: var(--cpx-comp-modal-preformat-bg);
+  color: var(--cpx-sys-color-fg-secondary);
   font-family: inherit;
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-emphasis);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-bold);
   line-height: 1;
   text-align: center;
 }
@@ -481,11 +481,11 @@
 .inline-approval-skip {
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
   cursor: pointer;
   transition:
@@ -493,8 +493,8 @@
     color 0.15s;
 
   &:hover {
-    background: var(--color-token-text-preformat-background);
-    color: var(--color-token-text-secondary);
+    background: var(--cpx-comp-modal-preformat-bg);
+    color: var(--cpx-sys-color-fg-secondary);
   }
 }
 
@@ -507,28 +507,28 @@
     var(--control-padding-block)
       calc(var(--control-padding-inline) + var(--control-padding-inline))
   );
-  border: var(--inline-approval-submit-border, 1px solid var(--color-token-button-background));
-  border-radius: var(--inline-approval-submit-radius, var(--radius-button));
-  background: var(--inline-approval-submit-bg, var(--color-token-button-background));
-  color: var(--inline-approval-submit-color, var(--color-token-button-foreground));
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-label);
+  border: var(--inline-approval-submit-border, 1px solid var(--cpx-comp-button-bg));
+  border-radius: var(--inline-approval-submit-radius, var(--cpx-comp-button-radius-md));
+  background: var(--inline-approval-submit-bg, var(--cpx-comp-button-bg));
+  color: var(--inline-approval-submit-color, var(--cpx-comp-button-fg));
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
   cursor: pointer;
-  transition: background var(--motion-state) var(--ease-standard);
+  transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:hover {
     background: var(
       --inline-approval-submit-hover-bg,
-      var(--color-token-button-background)
+      var(--cpx-comp-button-bg)
     );
     border-color: var(
       --inline-approval-submit-hover-border,
-      var(--color-token-button-background)
+      var(--cpx-comp-button-bg)
     );
     color: var(
       --inline-approval-submit-hover-color,
-      var(--inline-approval-submit-color, var(--color-token-button-foreground))
+      var(--inline-approval-submit-color, var(--cpx-comp-button-fg))
     );
   }
 }
@@ -538,29 +538,29 @@
 .workflow-composer-card {
   gap: 10px;
   padding: 10px;
-  border-color: var(--color-token-border-light);
-  border-radius: var(--radius-card);
-  background: var(--layer-raised-fill);
+  border-color: var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-comp-surface-raised);
   box-shadow: none;
-  animation: workflow-card-in var(--motion-enter) var(--ease-standard);
+  animation: workflow-card-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
   transform-origin: bottom center;
 }
 
 .inline-approval-card[data-variant="question"],
 .inline-approval-card[data-variant="plan"] {
   --inline-approval-header-padding: 0;
-  --inline-approval-option-hover-bg: var(--color-token-list-hover-background);
-  --inline-approval-option-selected-bg: var(--color-token-list-active-selection-background);
-  --inline-approval-option-selected-border: var(--color-token-border);
-  --inline-approval-option-selected-index-bg: var(--color-token-main-surface-primary);
-  --inline-approval-option-selected-index-color: var(--color-token-foreground);
+  --inline-approval-option-hover-bg: var(--cpx-sys-color-hover);
+  --inline-approval-option-selected-bg: var(--cpx-sys-color-selected);
+  --inline-approval-option-selected-border: var(--cpx-sys-color-border-default);
+  --inline-approval-option-selected-index-bg: var(--cpx-sys-color-surface);
+  --inline-approval-option-selected-index-color: var(--cpx-sys-color-fg-primary);
   display: flex;
   flex-direction: column;
 }
 
 .ask-user-question-heading {
-  font-size: var(--type-card-title);
-  font-weight: var(--font-weight-label);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .ask-user-question-block {
@@ -573,7 +573,7 @@
 
 .ask-user-question-heading {
   margin: 0;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .exit-plan-mode-approval {
@@ -594,15 +594,15 @@
 
 .exit-plan-mode-header h3 {
   margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: var(--font-weight-label);
-  color: var(--color-token-foreground);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .exit-plan-mode-header p {
   margin: 0;
-  font-size: var(--type-secondary);
-  color: var(--color-token-text-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
+  color: var(--cpx-sys-color-fg-secondary);
 }
 
 .exit-plan-mode-icon {
@@ -612,15 +612,15 @@
   width: var(--control-size-md);
   height: var(--control-size-md);
   border-radius: 50%;
-  background: var(--color-token-text-link-foreground);
-  color: var(--color-token-text-link-foreground);
+  background: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent);
   flex-shrink: 0;
 }
 
 .exit-plan-mode-empty {
   margin: 0;
-  font-size: var(--type-secondary);
-  color: var(--color-token-description-foreground);
+  font-size: var(--cpx-sys-font-size-sm);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .exit-plan-mode-actions {
@@ -640,20 +640,20 @@
   align-items: center;
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block) var(--control-padding-inline);
-  border-radius: var(--radius-control);
-  font-size: var(--type-control);
+  border-radius: var(--cpx-sys-radius-md);
+  font-size: var(--cpx-sys-font-size-md);
   line-height: var(--control-line-height);
   cursor: pointer;
-  border: 1px solid var(--color-token-border-light);
-  background: var(--color-token-main-surface-primary);
-  color: var(--color-token-foreground);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-sys-color-surface);
+  color: var(--cpx-sys-color-fg-primary);
   transition:
     background 120ms ease,
     border-color 120ms ease;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    border-color: var(--color-token-border);
+    background: var(--cpx-sys-color-hover);
+    border-color: var(--cpx-sys-color-border-default);
   }
 
   &.is-secondary {
@@ -661,13 +661,13 @@
   }
 
   &.is-primary {
-    background: var(--color-token-foreground);
-    color: var(--color-token-main-surface-primary);
-    border-color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-fg-primary);
+    color: var(--cpx-sys-color-surface);
+    border-color: var(--cpx-sys-color-fg-primary);
 
     &:hover {
-      background: var(--color-token-button-background);
-      border-color: var(--color-token-button-background);
+      background: var(--cpx-comp-button-bg);
+      border-color: var(--cpx-comp-button-bg);
     }
   }
 }
@@ -682,10 +682,10 @@
 
 .exit-plan-mode-title {
   margin: 0;
-  color: var(--color-token-foreground);
-  font-size: var(--type-card-title);
-  font-weight: var(--font-weight-label);
-  line-height: var(--type-line-body);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .exit-plan-mode-model {
@@ -693,10 +693,10 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  color: var(--color-token-foreground);
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-label);
-  line-height: var(--type-line-body);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  line-height: var(--cpx-sys-line-height-normal);
   white-space: nowrap;
 }
 
@@ -721,25 +721,25 @@
   gap: var(--control-gap);
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 0;
-  border-radius: var(--radius-card);
+  border-radius: var(--cpx-sys-radius-lg);
   background: transparent;
-  color: var(--color-token-foreground);
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
   text-align: left;
   cursor: pointer;
-  transition: background var(--motion-state) var(--ease-standard);
+  transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:hover {
-    background: var(--inline-approval-option-hover-bg, var(--color-token-list-hover-background));
+    background: var(--inline-approval-option-hover-bg, var(--cpx-sys-color-hover));
   }
 
   &.selected {
     border-color: var(--inline-approval-option-selected-border, transparent);
     background: var(
       --inline-approval-option-selected-bg,
-      var(--color-token-list-hover-background)
+      var(--cpx-sys-color-hover)
     );
   }
 }
@@ -750,19 +750,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-text-preformat-background);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-label);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-comp-modal-preformat-bg);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .exit-plan-mode-option.selected .exit-plan-mode-badge {
   background: var(
     --inline-approval-option-selected-index-bg,
-    var(--color-token-foreground)
+    var(--cpx-sys-color-fg-primary)
   );
-  color: var(--inline-approval-option-selected-index-color, var(--color-token-main-surface-primary));
+  color: var(--inline-approval-option-selected-index-color, var(--cpx-sys-color-surface));
 }
 
 .exit-plan-mode-label {
@@ -776,9 +776,9 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
+  font-weight: var(--cpx-sys-font-weight-medium);
 
   input {
     margin: 0;
@@ -794,19 +794,19 @@
   padding: var(--control-padding-block) var(--control-padding-inline);
   background: transparent;
   border: 0;
-  border-radius: var(--radius-card);
+  border-radius: var(--cpx-sys-radius-lg);
   transition:
     background 0.15s,
     color 0.15s;
 
   &:hover,
   &:focus-within {
-    background: var(--color-token-text-preformat-background);
+    background: var(--cpx-comp-modal-preformat-bg);
   }
 }
 
 .exit-plan-mode-note-icon {
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   flex: 0 0 auto;
 }
 
@@ -817,16 +817,16 @@
   outline: 0;
   resize: none;
   background: transparent;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
   font-family: inherit;
-  font-size: var(--type-message);
+  font-size: var(--cpx-sys-font-size-md);
   font-style: inherit;
   font-weight: inherit;
   padding: 0;
   line-height: var(--control-line-height);
 
   &::placeholder {
-    color: var(--color-token-input-placeholder-foreground);
+    color: var(--cpx-comp-input-placeholder-fg);
   }
 }
 
@@ -836,11 +836,11 @@
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
   cursor: pointer;
   transition:
@@ -848,8 +848,8 @@
     color 0.15s;
 
   &:hover {
-    background: var(--color-token-text-preformat-background);
-    color: var(--color-token-text-secondary);
+    background: var(--cpx-comp-modal-preformat-bg);
+    color: var(--cpx-sys-color-fg-secondary);
   }
 }
 
@@ -861,10 +861,10 @@
   padding: var(--control-padding-block-compact)
     var(--control-padding-inline-compact);
   border-radius: 4px;
-  background: var(--color-token-text-preformat-background);
-  color: var(--color-token-text-secondary);
+  background: var(--cpx-comp-modal-preformat-bg);
+  color: var(--cpx-sys-color-fg-secondary);
   font-family: inherit;
-  font-size: var(--type-caption);
+  font-size: var(--cpx-sys-font-size-xs);
   font-style: inherit;
   font-weight: inherit;
   line-height: inherit;
@@ -875,7 +875,7 @@
   align-items: center;
   gap: var(--control-gap-compact);
   cursor: pointer;
-  transition: background var(--motion-state) var(--ease-standard);
+  transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   svg {
     width: var(--app-icon-size);
@@ -883,8 +883,8 @@
   }
 
   &:hover {
-    background: var(--color-token-button-background);
-    border-color: var(--color-token-button-background);
+    background: var(--cpx-comp-button-bg);
+    border-color: var(--cpx-comp-button-bg);
   }
 }
 
@@ -895,76 +895,76 @@
 .workflow-composer-card-plan,
 .workflow-composer-card-permission,
 .inline-approval-title {
-  font-weight: var(--font-weight-label);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .workflow-composer-card-question,
 .workflow-composer-card-permission,
 .workflow-composer-card-plan {
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .inline-approval-card[data-variant="permission"],
 .inline-approval-card[data-variant="permission-grant"] {
   --inline-approval-card-gap: 8px;
   --inline-approval-card-padding: 16px 10px 10px;
-  --inline-approval-card-border: 1px solid var(--color-token-border-light);
-  --inline-approval-card-bg: var(--layer-raised-fill);
+  --inline-approval-card-border: 1px solid var(--cpx-sys-color-border-subtle);
+  --inline-approval-card-bg: var(--cpx-comp-surface-raised);
   --inline-approval-card-shadow: none;
   --inline-approval-header-padding: 0 12px 2px;
   --inline-approval-summary-padding: 0;
   --inline-approval-command-preview-padding: 10px 12px;
   --inline-approval-command-preview-border: 1px solid
-    color-mix(in srgb, var(--color-token-border-light) 70%, transparent);
-  --inline-approval-command-preview-radius: var(--radius-card);
+    color-mix(in srgb, var(--cpx-sys-color-border-subtle) 70%, transparent);
+  --inline-approval-command-preview-radius: var(--cpx-sys-radius-lg);
   --inline-approval-command-preview-bg: color-mix(
     in srgb,
-    var(--color-token-text-preformat-background) 72%,
-    var(--color-token-bg-secondary)
+    var(--cpx-comp-modal-preformat-bg) 72%,
+    var(--cpx-sys-color-surface-under)
   );
   --inline-approval-command-max-height: 96px;
   --inline-approval-command-expanded-max-height: min(34vh, 360px);
   --inline-approval-note-padding: var(--control-padding-block-compact)
     var(--control-padding-inline);
-  --inline-approval-note-border: 1px solid var(--color-token-border-light);
-  --inline-approval-note-radius: var(--radius-card);
+  --inline-approval-note-border: 1px solid var(--cpx-sys-color-border-subtle);
+  --inline-approval-note-radius: var(--cpx-sys-radius-lg);
   --inline-approval-note-bg: color-mix(
     in srgb,
-    var(--color-token-main-surface-primary) 74%,
+    var(--cpx-sys-color-surface) 74%,
     transparent
   );
-  --inline-approval-note-focus-border: var(--color-token-text-link-foreground);
-  --inline-approval-note-focus-shadow: 0 0 0 2px var(--color-token-text-link-foreground);
+  --inline-approval-note-focus-border: var(--cpx-sys-color-accent);
+  --inline-approval-note-focus-shadow: 0 0 0 2px var(--cpx-sys-color-accent);
   --inline-approval-actions-gap: var(--control-gap-compact);
   --inline-approval-option-selected-bg: color-mix(
     in srgb,
-    var(--color-token-foreground) 8%,
+    var(--cpx-sys-color-fg-primary) 8%,
     transparent
   );
   --inline-approval-option-index-bg: color-mix(
     in srgb,
-    var(--color-token-foreground) 12%,
+    var(--cpx-sys-color-fg-primary) 12%,
     transparent
   );
-  --inline-approval-option-index-color: var(--color-token-text-secondary);
+  --inline-approval-option-index-color: var(--cpx-sys-color-fg-secondary);
   --inline-approval-submit-padding: var(--control-padding-block)
     var(--control-padding-inline);
   --inline-approval-submit-border: 1px solid
-    color-mix(in srgb, var(--color-token-foreground) 18%, transparent);
-  --inline-approval-submit-radius: var(--radius-button);
-  --inline-approval-submit-bg: var(--color-token-foreground);
-  --inline-approval-submit-color: var(--color-token-main-surface-primary);
+    color-mix(in srgb, var(--cpx-sys-color-fg-primary) 18%, transparent);
+  --inline-approval-submit-radius: var(--cpx-comp-button-radius-md);
+  --inline-approval-submit-bg: var(--cpx-sys-color-fg-primary);
+  --inline-approval-submit-color: var(--cpx-sys-color-surface);
   --inline-approval-submit-hover-bg: color-mix(
     in srgb,
-    var(--color-token-foreground) 88%,
-    var(--color-token-main-surface-primary)
+    var(--cpx-sys-color-fg-primary) 88%,
+    var(--cpx-sys-color-surface)
   );
   --inline-approval-submit-hover-border: color-mix(
     in srgb,
-    var(--color-token-foreground) 26%,
+    var(--cpx-sys-color-fg-primary) 26%,
     transparent
   );
-  --inline-approval-submit-hover-color: var(--color-token-main-surface-primary);
+  --inline-approval-submit-hover-color: var(--cpx-sys-color-surface);
   display: flex;
   flex-direction: column;
 }
@@ -976,18 +976,18 @@
 .workflow-composer-card-plan .exit-plan-mode-info,
 .workflow-composer-card-plan .exit-plan-mode-note-icon,
 .workflow-composer-card-plan .exit-plan-mode-skip {
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
 }
 
 .workflow-composer-card-question .ask-user-question-custom-input::placeholder,
 .workflow-composer-card-question .inline-approval-feedback-input::placeholder,
 .workflow-composer-card-plan .exit-plan-mode-note-input::placeholder {
-  color: var(--color-token-text-tertiary);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .workflow-composer-card-question .inline-approval-option.custom:focus-within,
 .workflow-composer-card-question .inline-approval-option.custom.focused {
-  border: 1px solid var(--color-token-text-link-foreground);
+  border: 1px solid var(--cpx-sys-color-accent);
 }
 
 .ask-user-question-approval,
@@ -1002,8 +1002,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .workflow-composer-card-question .inline-approval-options {
@@ -1041,7 +1041,7 @@
 
 .ask-user-question-block + .ask-user-question-block {
   padding-top: 10px;
-  border-top: 1px solid var(--color-token-border-light);
+  border-top: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .ask-user-question-navigation {
@@ -1056,11 +1056,11 @@
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block) var(--control-padding-inline);
 
-  background: var(--color-token-foreground);
-  border-radius: var(--radius-control);
-  color: var(--color-token-main-surface-primary);
+  background: var(--cpx-sys-color-fg-primary);
+  border-radius: var(--cpx-sys-radius-md);
+  color: var(--cpx-sys-color-surface);
 
-  font-size: var(--type-control);
+  font-size: var(--cpx-sys-font-size-md);
   line-height: var(--control-line-height);
 
   svg {
@@ -1096,7 +1096,7 @@
 
 .workflow-composer-card-question .inline-approval-footer,
 .workflow-composer-card-question .inline-approval-footer-split {
-  border-top: 1px solid var(--color-token-border-light);
+  border-top: 1px solid var(--cpx-sys-color-border-subtle);
   padding: 10px 0 0;
 }
 
@@ -1105,18 +1105,18 @@
 }
 
 .workflow-composer-card-permission .inline-approval-command-preview-header {
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
 }
 
 .workflow-composer-card-permission .inline-approval-header h2 {
-  color: var(--color-token-foreground);
-  font-weight: var(--font-weight-label);
-  line-height: var(--type-line-body);
+  color: var(--cpx-sys-color-fg-primary);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .workflow-composer-card-permission .inline-approval-command {
   padding: 0;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   max-height: 2.15em;
 }
 
@@ -1126,8 +1126,8 @@
 
 .workflow-composer-card-permission .inline-approval-option {
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
-  border-radius: var(--radius-card);
-  color: var(--color-token-foreground);
+  border-radius: var(--cpx-sys-radius-lg);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .workflow-composer-card-permission .inline-approval-fixed-option {
@@ -1143,8 +1143,8 @@
 
 .workflow-composer-card-permission .inline-approval-skip {
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
-  border-radius: var(--radius-control);
-  color: var(--color-token-description-foreground);
+  border-radius: var(--cpx-sys-radius-md);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .workflow-composer-card-plan .exit-plan-mode-options {
@@ -1184,8 +1184,8 @@
 .workflow-composer-card .md-body :not(pre) > code {
   background: color-mix(
     in srgb,
-    var(--color-token-foreground) 5%,
+    var(--cpx-sys-color-fg-primary) 5%,
     transparent
   );
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }

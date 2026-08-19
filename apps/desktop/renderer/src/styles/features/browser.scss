@@ -6,8 +6,8 @@
   min-width: 0;
   flex: 0 0 auto;
   padding: 0.57em var(--control-padding-inline);
-  border-bottom: 1px solid var(--color-token-border-light);
-  background: var(--layer-panel-fill);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-comp-surface-panel);
 }
 
 .browser-navigation {
@@ -35,7 +35,7 @@
   width: 100%;
   align-items: center;
   border: 0;
-  border-radius: var(--radius-row);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   padding: 0;
 
@@ -43,18 +43,18 @@
     flex: 1 1 auto;
     min-width: 0;
     border: 0;
-    border-radius: var(--radius-row);
+    border-radius: var(--cpx-sys-radius-md);
     outline: 0;
     background: transparent;
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
     padding: 0.24em 1em;
     text-align: center;
-    font-size: var(--type-control);
+    font-size: var(--cpx-sys-font-size-md);
     line-height: var(--control-line-height);
 
     &:focus {
-      background: var(--layer-raised-fill);
-      box-shadow: var(--focus-ring-inset);
+      background: var(--cpx-comp-surface-raised);
+      box-shadow: var(--cpx-sys-focus-ring-inset);
     }
   }
 }
@@ -65,8 +65,8 @@
   right: 2px;
   top: 50%;
   transform: translate(100%, -50%);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
   white-space: nowrap;
 }
 
@@ -75,10 +75,10 @@
   height: 18px;
   display: inline-grid;
   place-items: center;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-token-error-foreground) 12%, transparent);
-  color: var(--color-token-error-foreground);
-  font-weight: var(--font-weight-emphasis);
+  border-radius: var(--cpx-sys-radius-full);
+  background: color-mix(in srgb, var(--cpx-sys-color-danger) 12%, transparent);
+  color: var(--cpx-sys-color-danger);
+  font-weight: var(--cpx-sys-font-weight-bold);
 }
 
 .browser-annotation-form button,
@@ -88,31 +88,31 @@
   justify-content: center;
   gap: var(--control-gap-compact);
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   padding: var(--control-padding-block)
     var(--control-padding-inline);
-  font-size: var(--type-control);
+  font-size: var(--cpx-sys-font-size-md);
   line-height: var(--control-line-height);
   transition:
-    background var(--motion-micro) var(--ease-out),
-    color var(--motion-micro) var(--ease-out);
+    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
 }
 
 .browser-annotation-form button:not(:disabled):hover,
 .browser-annotation-toggle:hover {
-  background: var(--color-token-list-hover-background);
+  background: var(--cpx-sys-color-hover);
 }
 
 .browser-annotation-form button:not(:disabled):active,
 .browser-annotation-toggle:active {
-  background: var(--color-token-list-active-selection-background);
+  background: var(--cpx-sys-color-selected);
 }
 
 .browser-annotation-toggle[aria-pressed="true"] {
-  background: var(--color-token-list-active-selection-background);
-  color: var(--color-token-foreground);
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .browser-status-row {
@@ -121,9 +121,9 @@
   justify-content: space-between;
   gap: var(--control-gap);
   padding: 0.55em 1em;
-  border-bottom: 1px solid var(--color-token-border-light);
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-meta);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--control-line-height);
 
   span {
@@ -134,8 +134,8 @@
   }
 
   strong {
-    color: var(--color-token-error-foreground);
-    font-weight: var(--font-weight-emphasis);
+    color: var(--cpx-sys-color-danger);
+    font-weight: var(--cpx-sys-font-weight-bold);
   }
 }
 
@@ -144,7 +144,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--layer-canvas-fill);
+  background: var(--cpx-comp-surface-canvas);
   overflow: hidden;
 }
 
@@ -159,19 +159,19 @@
   min-height: 0;
   width: 100%;
   height: 100%;
-  padding: clamp(12px, 4vh, var(--space-6));
-  color: var(--color-token-description-foreground);
+  padding: clamp(12px, 4vh, var(--cpx-sys-space-6));
+  color: var(--cpx-sys-color-fg-tertiary);
   text-align: center;
 
   strong {
-    color: var(--color-token-foreground);
-    font-size: var(--type-title-md);
-    font-weight: var(--font-weight-heading);
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-xl);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   span {
-    color: var(--color-token-description-foreground);
-    font-size: var(--type-secondary);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   svg {
@@ -183,23 +183,23 @@
 .browser-annotation-bar {
   display: flex;
   justify-content: flex-start;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
 }
 
 .browser-annotation-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: 0 var(--space-3) var(--space-3);
+  gap: var(--cpx-sys-space-2);
+  padding: 0 var(--cpx-sys-space-3) var(--cpx-sys-space-3);
 
   input,
   textarea {
     width: 100%;
-    border: 1px solid var(--color-token-border-light);
-    border-radius: var(--radius-control);
-    background: var(--layer-raised-fill);
-    color: var(--color-token-foreground);
-    padding: var(--space-2);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    border-radius: var(--cpx-sys-radius-md);
+    background: var(--cpx-comp-surface-raised);
+    color: var(--cpx-sys-color-fg-primary);
+    padding: var(--cpx-sys-space-2);
     font: inherit;
     resize: vertical;
   }

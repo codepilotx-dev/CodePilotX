@@ -21,8 +21,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: var(--type-secondary);
-  color: var(--color-token-description-foreground);
+  font-size: var(--cpx-sys-font-size-sm);
+  color: var(--cpx-sys-color-fg-tertiary);
   padding: 2px 4px 4px;
 }
 
@@ -37,10 +37,10 @@
 
 .session-follow-up-paused {
   padding: 4px 6px;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-  background: var(--color-token-main-surface-primary);
-  border-radius: var(--radius-control);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
+  background: var(--cpx-sys-color-surface);
+  border-radius: var(--cpx-sys-radius-md);
 }
 
 .session-follow-up-item {
@@ -52,17 +52,17 @@
   min-height: 54px;
   padding: 8px 12px;
   overflow: hidden;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-card);
-  background: var(--layer-raised-fill);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-comp-surface-raised);
   box-shadow: none;
   transition:
-    border-color var(--motion-state) var(--ease-standard),
-    background var(--motion-state) var(--ease-standard);
+    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:hover {
-    border-color: var(--color-token-border);
-    background: var(--color-token-list-hover-background);
+    border-color: var(--cpx-sys-color-border-default);
+    background: var(--cpx-sys-color-hover);
   }
 
   &:focus-within .session-follow-up-action {
@@ -76,9 +76,9 @@
   max-width: min(40rem, 100%);
   min-width: 0;
   overflow: hidden;
-  font-size: var(--type-body);
-  font-weight: var(--font-weight-label);
-  color: var(--color-token-foreground);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  color: var(--cpx-sys-color-fg-primary);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -95,14 +95,14 @@
   flex: 1;
   min-width: 0;
   padding: 3px 6px;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-input);
-  color: var(--color-token-foreground);
-  background: var(--color-token-editor-widget-background);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-comp-input-radius);
+  color: var(--cpx-sys-color-fg-primary);
+  background: var(--cpx-sys-color-elevated-secondary);
   font: inherit;
 
   &:focus-visible {
-    outline: 2px solid var(--color-token-text-link-foreground);
+    outline: 2px solid var(--cpx-sys-color-accent);
     outline-offset: 1px;
   }
 }
@@ -110,18 +110,18 @@
 .session-follow-up-action {
   border: 0;
   background: transparent;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   opacity: 0.72;
   transition:
-    color var(--motion-micro) var(--ease-standard),
-    opacity var(--motion-micro) var(--ease-standard);
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    opacity var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   .session-follow-up-item:hover & {
     opacity: 1;
   }
 
   &:hover {
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 

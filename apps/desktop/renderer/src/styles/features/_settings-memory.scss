@@ -45,8 +45,8 @@
 
 .memory-settings-count {
   margin-left: auto;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-meta);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
   white-space: nowrap;
 }
 
@@ -62,9 +62,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: var(--layer-edge-strong);
-  border-radius: var(--radius-card);
-  background: var(--layer-panel-fill);
+  border: var(--cpx-comp-surface-edge-strong);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-comp-surface-panel);
   box-shadow: none;
   overflow: hidden;
 }
@@ -74,11 +74,11 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-token-border);
-  font-size: var(--type-card-title);
-  font-weight: var(--font-weight-label);
-  color: var(--color-token-text-secondary);
-  background: var(--layer-raised-fill);
+  border-bottom: 1px solid var(--cpx-sys-color-border-default);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  color: var(--cpx-sys-color-fg-secondary);
+  background: var(--cpx-comp-surface-raised);
   flex-shrink: 0;
   user-select: none;
 }
@@ -94,9 +94,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-token-foreground);
-  font-size: var(--type-card-title);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .memory-settings-editor-actions {
@@ -125,33 +125,33 @@
   padding: 10px 12px 10px 12px;
   border-width: 0 0 1px;
   border-style: solid;
-  border-color: var(--color-token-border);
+  border-color: var(--cpx-sys-color-border-default);
   background: transparent;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
   text-align: left;
   cursor: pointer;
   position: relative;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 
   &.active {
-    border-color: var(--color-token-border-heavy);
-    background: var(--color-token-list-active-selection-background);
+    border-color: var(--cpx-sys-color-border-strong);
+    background: var(--cpx-sys-color-selected);
   }
 
   &-name {
-    font-size: var(--type-card-title);
-    font-weight: var(--font-weight-label);
-    color: var(--color-token-foreground);
+    font-size: var(--cpx-sys-font-size-md);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    color: var(--cpx-sys-color-fg-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   &.active &-name {
-    font-weight: var(--font-weight-label);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   &-meta {
@@ -165,11 +165,11 @@
     display: inline-flex;
     align-items: center;
     padding: 1px 6px;
-    border-radius: var(--radius-pill);
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-caption);
-    line-height: var(--type-line-meta);
+    border-radius: var(--cpx-sys-radius-full);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-xs);
+    line-height: var(--cpx-sys-line-height-tight);
     flex-shrink: 0;
   }
 
@@ -178,8 +178,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-secondary);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 }
 
@@ -204,22 +204,22 @@
   min-height: 320px;
   box-sizing: border-box;
   resize: vertical;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-control);
-  background: var(--layer-canvas-fill);
-  color: var(--color-token-foreground);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-comp-surface-canvas);
+  color: var(--cpx-sys-color-fg-primary);
   padding: 10px 12px;
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
-  line-height: var(--type-line-code);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
+  line-height: var(--cpx-sys-line-height-code);
   outline: none;
   margin: 0;
 
   &:focus {
     border-color: color-mix(
       in srgb,
-      var(--color-token-text-link-foreground) 42%,
-      var(--color-token-border-light)
+      var(--cpx-sys-color-accent) 42%,
+      var(--cpx-sys-color-border-subtle)
     );
   }
 }
@@ -240,7 +240,7 @@
   display: grid;
   gap: 3px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--color-token-border);
+  border-bottom: 1px solid var(--cpx-sys-color-border-default);
 
   &:last-child {
     border-bottom: none;
@@ -248,20 +248,20 @@
 }
 
 .memory-recall-time {
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-label);
-  color: var(--color-token-foreground);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .memory-recall-summary {
-  font-size: var(--type-body);
-  color: var(--color-token-foreground);
-  line-height: var(--type-line-body);
+  font-size: var(--cpx-sys-font-size-md);
+  color: var(--cpx-sys-color-fg-primary);
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .memory-recall-files {
-  font-size: var(--type-meta);
-  color: var(--color-token-text-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
+  color: var(--cpx-sys-color-fg-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -269,52 +269,52 @@
 
 /* --- Model Card Grid --- */
 .settings-model-cards {
-  padding: var(--space-3) var(--space-4) var(--space-2);
-  border-bottom: 1px solid var(--color-token-border);
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4) var(--cpx-sys-space-2);
+  border-bottom: 1px solid var(--cpx-sys-color-border-default);
 }
 
 .model-card-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
 }
 
 .model-card-grid-empty {
   grid-column: 1 / -1;
-  padding: var(--space-4) var(--space-2);
+  padding: var(--cpx-sys-space-4) var(--cpx-sys-space-2);
   text-align: center;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-  line-height: var(--type-line-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .model-card {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--space-2) var(--space-3);
-  border: var(--layer-edge);
-  border-radius: var(--radius-card);
-  background: var(--layer-raised-fill);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+  border: var(--cpx-comp-surface-edge);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-comp-surface-raised);
   box-shadow: none;
   cursor: pointer;
   text-align: left;
   font-family: inherit;
   min-width: 0;
   transition:
-    background var(--motion-state) var(--ease-standard),
-    border-color var(--motion-state) var(--ease-standard),
-    box-shadow var(--motion-state) var(--ease-standard);
+    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    box-shadow var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:hover {
-    border-color: var(--color-token-border-light);
-    background: var(--color-token-list-hover-background);
+    border-color: var(--cpx-sys-color-border-subtle);
+    background: var(--cpx-sys-color-hover);
     box-shadow: none;
   }
 
   &.selected {
-    border-color: var(--color-token-border-heavy);
-    background: var(--color-token-list-active-selection-background);
+    border-color: var(--cpx-sys-color-border-strong);
+    background: var(--cpx-sys-color-selected);
     box-shadow: none;
   }
 
@@ -328,17 +328,17 @@
   }
 
   .model-card-name {
-    font-size: var(--type-card-title);
-    font-weight: var(--font-weight-label);
-    color: var(--color-token-foreground);
+    font-size: var(--cpx-sys-font-size-md);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    color: var(--cpx-sys-color-fg-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .model-card-id {
-    font-size: var(--type-caption);
-    color: var(--color-token-text-secondary);
+    font-size: var(--cpx-sys-font-size-xs);
+    color: var(--cpx-sys-color-fg-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -353,16 +353,16 @@
     margin-top: 2px;
 
     > span {
-      font-size: var(--type-caption);
-      color: var(--color-token-text-secondary);
+      font-size: var(--cpx-sys-font-size-xs);
+      color: var(--cpx-sys-color-fg-secondary);
       white-space: nowrap;
-      line-height: var(--type-line-meta);
+      line-height: var(--cpx-sys-line-height-tight);
     }
 
     > span + span::before {
       content: "·";
       margin: 0 4px;
-      color: var(--color-token-text-tertiary);
+      color: var(--cpx-sys-color-fg-tertiary);
     }
   }
 
@@ -378,10 +378,10 @@
     align-items: center;
     gap: 3px;
     padding: 1px 5px;
-    border-radius: var(--radius-pill);
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-caption);
+    border-radius: var(--cpx-sys-radius-full);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-xs);
   }
 
   .model-card-tag-icon {
@@ -392,15 +392,15 @@
   }
 
   &.selected .model-card-tag {
-    background: color-mix(in srgb, var(--color-token-text-link-foreground) 14%, var(--color-token-main-surface-primary));
-    color: var(--color-token-text-link-foreground);
+    background: color-mix(in srgb, var(--cpx-sys-color-accent) 14%, var(--cpx-sys-color-surface));
+    color: var(--cpx-sys-color-accent);
   }
 
   .model-card-orphan-label {
     margin-top: 3px;
-    font-size: var(--type-caption);
-    font-weight: var(--font-weight-label);
-    color: var(--color-token-editor-warning-foreground);
+    font-size: var(--cpx-sys-font-size-xs);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    color: var(--cpx-sys-color-warning);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }

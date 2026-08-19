@@ -1,10 +1,10 @@
 .desktop-main {
-  --elevation-stroke: 0 0 0 0.5px var(--color-token-border-heavy);
+  --elevation-stroke: 0 0 0 0.5px var(--cpx-sys-color-border-strong);
   --elevation-prominent:
     var(--elevation-stroke),
-    0 3px 7.5px color-mix(in srgb, var(--color-token-foreground) 4%, transparent),
-    0 0 20px color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
-  background: var(--layer-canvas-fill);
+    0 3px 7.5px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 4%, transparent),
+    0 0 20px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
+  background: var(--cpx-comp-surface-canvas);
   border-radius: 10px 0 0 0;
   flex: 1;
   min-width: 0;
@@ -62,7 +62,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: var(--layer-canvas-fill);
+  background: var(--cpx-comp-surface-canvas);
 }
 
 .desktop-workspace__upper {
@@ -121,7 +121,7 @@
   inset: auto 0 0;
   width: 100%;
   max-height: 50%;
-  border-top: 1px solid var(--color-token-border-light);
+  border-top: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .desktop-workspace-panel-spacer--bottom {

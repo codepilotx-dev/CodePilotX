@@ -5,8 +5,8 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  color: var(--color-token-foreground);
-  background: var(--color-token-editor-background);
+  color: var(--cpx-sys-color-fg-primary);
+  background: var(--cpx-sys-color-editor);
 }
 
 .file-editor-host {
@@ -32,16 +32,16 @@
   gap: 4px;
   align-items: center;
   max-width: calc(100% - 32px);
-  padding: var(--space-1) var(--space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   overflow: hidden;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-caption);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--layer-raised-fill);
-  border: var(--layer-edge-strong);
-  border-radius: var(--radius-card);
+  background: var(--cpx-comp-surface-raised);
+  border: var(--cpx-comp-surface-edge-strong);
+  border-radius: var(--cpx-sys-radius-lg);
   box-shadow: none;
 }
 
@@ -53,13 +53,13 @@
   content: '';
   border: 1.5px solid currentcolor;
   border-right-color: transparent;
-  border-radius: var(--radius-pill);
-  animation: file-editor-status-spin var(--motion-loading) linear infinite;
+  border-radius: var(--cpx-sys-radius-full);
+  animation: file-editor-status-spin var(--cpx-sys-motion-loading) linear infinite;
 }
 
 .file-editor-status[data-error] {
-  color: var(--color-token-error-foreground);
-  border-color: color-mix(in srgb, var(--color-token-error-foreground) 35%, transparent);
+  color: var(--cpx-sys-color-danger);
+  border-color: color-mix(in srgb, var(--cpx-sys-color-danger) 35%, transparent);
 }
 
 @keyframes file-editor-status-spin {
@@ -76,12 +76,12 @@
 .conflict-merge-editor-header {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3);
-  background: var(--layer-panel-fill);
-  border-bottom: var(--layer-edge-strong);
+  padding: var(--cpx-sys-space-3);
+  background: var(--cpx-comp-surface-panel);
+  border-bottom: var(--cpx-comp-surface-edge-strong);
   box-shadow: none;
 }
 
@@ -92,36 +92,36 @@
 }
 
 .conflict-merge-editor-header strong {
-  font-size: var(--type-secondary);
-  font-weight: var(--font-weight-label);
+  font-size: var(--cpx-sys-font-size-sm);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .conflict-merge-editor-header span {
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-meta);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .conflict-merge-editor-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
 }
 
 .conflict-merge-editor-labels {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-meta);
-  background: var(--layer-panel-fill);
-  border-bottom: var(--layer-edge-strong);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
+  background: var(--cpx-comp-surface-panel);
+  border-bottom: var(--cpx-comp-surface-edge-strong);
 }
 
 .conflict-merge-editor-labels span {
-  padding: var(--space-1) var(--space-3);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
 }
 
 .conflict-merge-editor-labels span + span {
-  border-left: var(--layer-edge-strong);
+  border-left: var(--cpx-comp-surface-edge-strong);
 }
 
 .conflict-merge-editor-host {
@@ -139,15 +139,15 @@
 }
 
 .conflict-merge-editor-host .cm-mergeViewEditor + .cm-mergeViewEditor {
-  border-left: var(--layer-edge-strong);
+  border-left: var(--cpx-comp-surface-edge-strong);
 }
 
 .conflict-merge-editor-host .cm-changedLine {
-  background: color-mix(in srgb, var(--color-token-text-link-foreground) 9%, transparent);
+  background: color-mix(in srgb, var(--cpx-sys-color-accent) 9%, transparent);
 }
 
 .conflict-merge-editor-host .cm-changeGutter {
-  background: var(--color-token-bg-secondary);
+  background: var(--cpx-sys-color-surface-under);
 }
 
 @media (max-width: 720px) {
@@ -162,7 +162,7 @@
   }
 
   .conflict-merge-editor-host .cm-mergeViewEditor + .cm-mergeViewEditor {
-    border-top: var(--layer-edge-strong);
+    border-top: var(--cpx-comp-surface-edge-strong);
     border-left: 0;
   }
 }

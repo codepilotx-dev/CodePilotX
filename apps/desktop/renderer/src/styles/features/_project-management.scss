@@ -11,31 +11,31 @@
 .project-appearance-color,
 .project-appearance-icon {
   &[data-project-color='red'] {
-    color: var(--color-token-charts-red);
+    color: var(--cpx-sys-color-charts-red);
   }
 
   &[data-project-color='orange'] {
-    color: var(--color-token-charts-orange);
+    color: var(--cpx-sys-color-charts-orange);
   }
 
   &[data-project-color='yellow'] {
-    color: var(--color-token-charts-yellow);
+    color: var(--cpx-sys-color-charts-yellow);
   }
 
   &[data-project-color='green'] {
-    color: var(--color-token-charts-green);
+    color: var(--cpx-sys-color-charts-green);
   }
 
   &[data-project-color='blue'] {
-    color: var(--color-token-charts-blue);
+    color: var(--cpx-sys-color-charts-blue);
   }
 
   &[data-project-color='purple'] {
-    color: var(--color-token-charts-purple);
+    color: var(--cpx-sys-color-charts-purple);
   }
 
   &[data-project-color='pink'] {
-    color: var(--color-token-terminal-ansi-bright-magenta);
+    color: var(--cpx-comp-terminal-ansi-bright-magenta);
   }
 }
 
@@ -49,22 +49,18 @@
 }
 
 .project-edit-dialog {
-  position: fixed;
-  z-index: 101;
-  top: 50%;
-  left: 50%;
   display: grid;
   width: min(35rem, calc(100vw - 2rem));
   max-height: min(42rem, calc(100vh - 2rem));
   overflow: auto;
   gap: 1.25rem;
   border: 1px solid var(--color-app-border);
-  border-radius: var(--radius-floating);
+  border-radius: var(--cpx-sys-radius-xl);
   outline: none;
   background: var(--color-app-chrome);
   padding: 1.5rem;
   color: var(--color-app-text);
-  box-shadow: var(--shadow-float);
+  box-shadow: var(--cpx-sys-shadow-floating);
 }
 
 .project-edit-header {
@@ -76,7 +72,7 @@
   h2 {
     margin: 0;
     font-size: 1.25rem;
-    font-weight: var(--font-weight-heading);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 }
 
@@ -87,13 +83,13 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--color-app-text-soft);
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
     color: var(--color-app-text);
   }
 
@@ -108,7 +104,7 @@
   min-height: 2.75rem;
   overflow: hidden;
   border: 1px solid var(--color-app-border);
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: var(--color-app-canvas);
 
   &:focus-within {
@@ -134,7 +130,7 @@
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
     color: var(--color-app-text);
   }
 }
@@ -158,14 +154,14 @@
   h3 {
     margin: 0;
     font-size: 0.875rem;
-    font-weight: var(--font-weight-heading);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 }
 
 .project-edit-folder-list {
   overflow: hidden;
   border: 1px solid var(--color-app-border);
-  border-radius: var(--radius-card);
+  border-radius: var(--cpx-sys-radius-lg);
   background: var(--color-app-canvas);
 }
 
@@ -213,8 +209,8 @@
 
 .project-edit-primary-badge {
   flex: 0 0 auto;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-list-hover-background);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-hover);
   padding: 0.1875rem 0.5rem;
   color: var(--color-app-text-soft);
   font-size: 0.6875rem;
@@ -233,7 +229,7 @@
   font-size: 0.875rem;
 
   &:hover:not(:disabled) {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
     color: var(--color-app-text);
   }
 }
@@ -265,12 +261,12 @@
   z-index: 120;
   width: 16.25rem;
   border: 1px solid var(--color-app-border);
-  border-radius: var(--radius-floating);
+  border-radius: var(--cpx-sys-radius-xl);
   outline: none;
   background: var(--color-app-chrome);
   padding: 0.5rem;
   color: var(--color-app-text);
-  box-shadow: var(--shadow-float);
+  box-shadow: var(--cpx-sys-shadow-floating);
 }
 
 .project-appearance-colors {
@@ -288,13 +284,13 @@
   align-items: center;
   justify-content: center;
   border: 3px solid transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--cpx-sys-radius-full);
   background: currentcolor;
   color: var(--color-app-text-soft);
   cursor: pointer;
   box-shadow:
     inset 0 0 0 1px
-      color-mix(in srgb, currentcolor 85%, var(--color-token-on-accent));
+      color-mix(in srgb, currentcolor 85%, var(--cpx-sys-color-fg-on-accent));
 
   &[data-project-color='default'] {
     background: var(--color-app-text-soft);
@@ -324,14 +320,14 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--color-app-text-soft);
   cursor: pointer;
 
   &:hover,
   &.is-selected {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
     color: var(--color-app-text);
   }
 }

@@ -9,8 +9,8 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--right-dock-background, var(--layer-panel-fill));
-  color: var(--color-token-foreground);
+  background: var(--cpx-comp-dock-bg, var(--cpx-comp-surface-panel));
+  color: var(--cpx-sys-color-fg-primary);
   box-shadow: none;
 }
 
@@ -34,11 +34,11 @@
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
-  background: var(--right-dock-background, var(--layer-panel-fill));
+  background: var(--cpx-comp-dock-bg, var(--cpx-comp-surface-panel));
 }
 
 .right-dock {
-  border-left: 1px solid var(--right-dock-border-color, var(--color-token-border-light));
+  border-left: 1px solid var(--cpx-comp-dock-border, var(--cpx-sys-color-border-subtle));
   border-radius: 0;
   box-shadow: none;
 }
@@ -48,7 +48,7 @@
 }
 
 .bottom-panel {
-  border-top: 1px solid var(--color-token-border-light);
+  border-top: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 0;
 }
 
@@ -62,8 +62,8 @@
   align-items: center;
   overflow: hidden;
   padding-left: 10px;
-  border-bottom: 1px solid var(--color-token-border-light);
-  background: var(--layer-panel-fill);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-comp-surface-panel);
 }
 
 .right-dock-header {
@@ -72,7 +72,7 @@
   flex-basis: var(--workbench-tab-strip-height);
   padding-left: 8px;
   padding-right: calc(
-    var(--button-size-tab-strip-action) + var(--space-2) +
+    var(--cpx-comp-button-size-large) + var(--cpx-sys-space-2) +
     var(--workspace-header-shell-width, 0px)
   );
 }
@@ -90,7 +90,7 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
-  background: var(--layer-panel-fill);
+  background: var(--cpx-comp-surface-panel);
 }
 
 .right-panel-tabs-empty-state {
@@ -103,7 +103,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: 8px;
-  background: var(--layer-panel-fill);
+  background: var(--cpx-comp-surface-panel);
   user-select: none;
 }
 
@@ -124,40 +124,40 @@
   gap: 10px;
   padding: 8px 10px;
   border: 0;
-  border-radius: var(--radius-row);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
   text-align: left;
   transition:
-    background var(--motion-state) var(--ease-standard),
-    color var(--motion-state) var(--ease-standard);
+    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &:focus-visible {
-    outline: 1px solid var(--color-token-text-link-foreground);
+    outline: 1px solid var(--cpx-sys-color-accent);
     outline-offset: 1px;
   }
 
   strong {
     min-width: 0;
     overflow: hidden;
-    font-size: var(--type-body);
-    font-weight: var(--font-weight-label);
+    font-size: var(--cpx-sys-font-size-md);
+    font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   kbd {
     padding: 1px 6px;
-    border-radius: var(--radius-pill);
-    background: var(--color-token-list-active-selection-background);
-    color: var(--color-token-description-foreground);
+    border-radius: var(--cpx-sys-radius-full);
+    background: var(--cpx-sys-color-selected);
+    color: var(--cpx-sys-color-fg-tertiary);
     font-family: inherit;
-    font-size: var(--type-meta);
+    font-size: var(--cpx-sys-font-size-xs);
     white-space: nowrap;
   }
 }
@@ -165,14 +165,14 @@
 .bottom-panel-empty-state {
   width: 100%;
   height: 100%;
-  background: var(--color-token-panel-background);
+  background: var(--cpx-comp-workbench-panel-bg);
 }
 
 .right-panel-tabs-empty-state__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .right-dock-full-width {
@@ -181,7 +181,7 @@
 }
 
 .bottom-panel-close {
-  margin-left: var(--space-1);
+  margin-left: var(--cpx-sys-space-1);
 }
 
 .right-dock-resize-handle {
@@ -209,11 +209,11 @@
   &:focus-visible::after,
   &[data-resize-phase="dragging"]::after,
   &[data-resize-phase="settling"]::after {
-    background: var(--color-token-border);
+    background: var(--cpx-sys-color-border-default);
   }
 
   &:focus-visible {
-    outline-color: color-mix(in srgb, var(--color-token-text-link-foreground) 72%, transparent);
+    outline-color: color-mix(in srgb, var(--cpx-sys-color-accent) 72%, transparent);
   }
 }
 
@@ -242,7 +242,7 @@
   &:focus-visible::after,
   &[data-resize-phase="dragging"]::after,
   &[data-resize-phase="settling"]::after {
-    background: var(--color-token-border);
+    background: var(--cpx-sys-color-border-default);
   }
 }
 
@@ -314,34 +314,34 @@
   flex: 0 1 auto;
   overflow: visible;
   border-block-end: 2px solid transparent;
-  border-radius: var(--right-dock-tab-radius, var(--radius-row));
+  border-radius: var(--cpx-comp-dock-tab-radius, var(--cpx-sys-radius-md));
   padding: 4px 8px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   transition:
-    background var(--motion-micro) var(--ease-standard),
-    border-color var(--motion-state) var(--ease-standard),
-    color var(--motion-micro) var(--ease-standard);
+    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   &.active {
     background: var(
-      --right-dock-tab-active-background,
-      var(--color-token-list-active-selection-background)
+      --cpx-comp-dock-tab-active-bg,
+      var(--cpx-sys-color-selected)
     );
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &:not(.active):hover,
   &:not(.active):focus-within {
     background: var(
-      --right-dock-tab-hover-background,
-      var(--color-token-list-hover-background)
+      --cpx-comp-dock-tab-hover-bg,
+      var(--cpx-sys-color-hover)
     );
-    color: var(--color-token-text-secondary);
+    color: var(--cpx-sys-color-fg-secondary);
   }
 
   &.active:focus-within,
   &.active:hover {
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &.has-divider::after {
@@ -350,7 +350,7 @@
     right: -2px;
     width: 1px;
     height: 12px;
-    background: var(--color-token-border-light);
+    background: var(--cpx-sys-color-border-subtle);
     content: "";
     pointer-events: none;
     transform: translateY(-50%);
@@ -367,11 +367,11 @@
   overflow: hidden;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: inherit;
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-label);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
   white-space: nowrap;
 
   &.compact {
@@ -380,10 +380,10 @@
     width: var(--control-size-md);
     padding: 0;
     justify-content: center;
-    border-radius: var(--radius-control);
-    color: var(--color-token-description-foreground);
+    border-radius: var(--cpx-sys-radius-md);
+    color: var(--cpx-sys-color-fg-tertiary);
     outline: 1px dashed
-      color-mix(in srgb, var(--color-token-description-foreground) 35%, transparent);
+      color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 35%, transparent);
     outline-offset: -1px;
   }
 
@@ -423,21 +423,21 @@
   flex: 0 0 auto;
   margin-left: 4px;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   opacity: 0;
   pointer-events: none;
   transition:
-    background var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    opacity var(--motion-fast) var(--ease-standard);
+    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    opacity var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
   z-index: 1;
 
   &:hover,
   &:focus-visible {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
@@ -449,9 +449,9 @@
   flex: 0 0 20px;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-control);
-  background: var(--color-token-list-active-selection-background);
-  color: var(--color-token-description-foreground);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-tertiary);
   opacity: 0;
   pointer-events: auto;
 }
@@ -475,7 +475,7 @@
 .right-dock-tab-close:focus-visible,
 .right-dock-add-button:focus-visible,
 .right-dock-control:focus-visible {
-  outline-color: color-mix(in srgb, var(--color-token-text-link-foreground) 72%, transparent);
+  outline-color: color-mix(in srgb, var(--cpx-sys-color-accent) 72%, transparent);
 }
 
 .right-dock-tab-divider {
@@ -497,27 +497,27 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   transition:
-    background var(--motion-micro) var(--ease-standard),
-    color var(--motion-micro) var(--ease-standard),
-    transform var(--motion-micro) var(--ease-standard);
+    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    transform var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
 .right-dock-control.active {
-  background: var(--color-token-list-active-selection-background);
-  color: var(--color-token-foreground);
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .right-dock-control:active:not(:disabled) {
-  background: var(--color-token-list-active-selection-background);
+  background: var(--cpx-sys-color-selected);
   transform: translateY(1px);
 }
 
@@ -531,7 +531,7 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  background: var(--color-token-panel-background);
+  background: var(--cpx-comp-workbench-panel-bg);
 }
 
 .workbench-tab-panel {
@@ -554,25 +554,25 @@
   justify-items: center;
   gap: 8px;
   padding: 20px;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   text-align: center;
 
   strong {
-    color: var(--color-token-foreground);
-    font-size: var(--type-body);
-    font-weight: var(--font-weight-heading);
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-md);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   > span:not(.workbench-panel-state__icon) {
     max-width: 100%;
     overflow-wrap: anywhere;
-    font-size: var(--type-secondary);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 }
 
 .workbench-panel-state[data-tone="warning"] {
   .workbench-panel-state__icon {
-    color: var(--color-token-editor-warning-foreground);
+    color: var(--cpx-sys-color-warning);
   }
 }
 
@@ -581,9 +581,9 @@
   width: 36px;
   height: 36px;
   place-items: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-description-foreground);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .workbench-panel-state__actions {
@@ -591,16 +591,16 @@
   min-height: 28px;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
+  gap: var(--cpx-sys-space-2);
+  margin-top: var(--cpx-sys-space-1);
 }
 
 .workbench-panel-state__spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--color-token-border);
-  border-top-color: var(--color-token-foreground);
-  border-radius: var(--radius-pill);
+  border: 2px solid var(--cpx-sys-color-border-default);
+  border-top-color: var(--cpx-sys-color-fg-primary);
+  border-radius: var(--cpx-sys-radius-full);
   animation: workbench-panel-state-spin 700ms linear infinite;
 }
 
@@ -614,7 +614,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--color-token-panel-background);
+  background: var(--cpx-comp-workbench-panel-bg);
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -627,47 +627,47 @@
 .right-dock-plan-document {
   width: 100%;
   margin: 0;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .right-dock-plan-document .md-body .md-code-block {
   border-color: color-mix(
     in srgb,
-    var(--color-token-button-foreground) 10%,
+    var(--cpx-comp-button-fg) 10%,
     transparent
   );
   background: color-mix(
     in srgb,
-    var(--color-token-foreground) 5%,
+    var(--cpx-sys-color-fg-primary) 5%,
     transparent
   );
-  color: var(--color-token-button-foreground);
+  color: var(--cpx-comp-button-fg);
 }
 
 .right-dock-plan-scroll-area {
-  background: var(--color-token-panel-background);
+  background: var(--cpx-comp-workbench-panel-bg);
 }
 
 .right-dock-plan-document .md-body :not(pre) > code {
   background: color-mix(
     in srgb,
-    var(--color-token-foreground) 5%,
+    var(--cpx-sys-color-fg-primary) 5%,
     transparent
   );
 }
 
 .right-dock-plan-document .md-body .md-code-block {
-  border-color: var(--color-token-border);
+  border-color: var(--cpx-sys-color-border-default);
   background: color-mix(
     in srgb,
-    var(--color-token-foreground) 5%,
+    var(--cpx-sys-color-fg-primary) 5%,
     transparent
   );
 }
 
 .right-dock-plan-document .md-body .md-code-header {
-  border-bottom-color: var(--color-token-border-light);
-  background: var(--color-token-editor-widget-background);
+  border-bottom-color: var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-sys-color-elevated-secondary);
 }
 
 :root[data-reduce-motion="on"] {

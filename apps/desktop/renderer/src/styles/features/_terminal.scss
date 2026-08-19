@@ -6,8 +6,8 @@
   height: 100%;
   flex: 1 1 auto;
   flex-direction: column;
-  background: var(--color-token-terminal-background);
-  color: var(--color-token-terminal-foreground);
+  background: var(--cpx-comp-terminal-bg);
+  color: var(--cpx-comp-terminal-fg);
 }
 
 .integrated-terminal__lifecycle {
@@ -17,11 +17,11 @@
   justify-content: space-between;
   gap: 8px;
   padding: 4px 10px;
-  border-bottom: var(--layer-edge-strong);
-  background: var(--layer-panel-fill);
-  color: var(--color-decoration-deleted);
-  font-family: var(--font-family-sans);
-  font-size: var(--type-secondary);
+  border-bottom: var(--cpx-comp-surface-edge-strong);
+  background: var(--cpx-comp-surface-panel);
+  color: var(--cpx-sys-color-danger);
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-sm);
   box-shadow: none;
 }
 
@@ -37,5 +37,5 @@
 }
 
 .integrated-terminal__viewport .xterm-viewport {
-  scrollbar-color: var(--color-token-scrollbar-slider-background) transparent;
+  scrollbar-color: var(--cpx-comp-scrollbar-slider-bg) transparent;
 }

@@ -1,23 +1,23 @@
 .quick-chat-view,
 .utility-view {
   min-height: 100%;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .utility-view-header h1 {
   width: 100%;
   max-width: 760px;
-  color: var(--color-token-foreground);
-  font-size: var(--type-page-title);
-  font-weight: var(--font-weight-heading);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-3xl);
+  font-weight: var(--cpx-sys-font-weight-medium);
   letter-spacing: 0;
-  line-height: var(--type-line-page-title);
+  line-height: var(--cpx-sys-line-height-relaxed);
 }
 
 .utility-view-header p {
-  font-size: var(--type-secondary);
-  line-height: var(--type-line-secondary);
-  color: var(--color-token-text-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
+  line-height: var(--cpx-sys-line-height-tight);
+  color: var(--cpx-sys-color-fg-secondary);
 }
 
 .utility-view {
@@ -32,7 +32,7 @@
 
 .utility-view-header {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
   justify-items: start;
   text-align: left;
 }
@@ -46,8 +46,8 @@
 .utility-card {
   display: grid;
   align-content: start;
-  gap: var(--space-3);
-  padding: var(--space-5);
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-5);
 }
 
 .search-input-row {
@@ -57,20 +57,20 @@
   gap: var(--control-gap);
   margin: 0 auto;
   padding: 1.15em 1em;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-control);
-  background: var(--color-token-bg-secondary);
-  color: var(--color-token-icon-foreground);
-  box-shadow: var(--shadow-raised);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-sys-color-surface-under);
+  color: var(--cpx-sys-color-fg-primary);
+  box-shadow: var(--cpx-sys-shadow-raised);
   transition:
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard);
+    border-color var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard),
+    box-shadow var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
 
   &:focus-within {
-    border-color: color-mix(in srgb, var(--color-token-text-link-foreground) 42%, var(--color-token-border-light));
+    border-color: color-mix(in srgb, var(--cpx-sys-color-accent) 42%, var(--cpx-sys-color-border-subtle));
     box-shadow:
-      var(--shadow-raised),
-      var(--focus-ring);
+      var(--cpx-sys-shadow-raised),
+      var(--cpx-sys-focus-ring);
   }
 
   input {
@@ -87,31 +87,31 @@
   justify-items: start;
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid transparent;
-  border-radius: var(--radius-row);
+  border-radius: var(--cpx-sys-radius-md);
   text-align: left;
   transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard);
+    background var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard),
+    box-shadow var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
 
   span {
-    color: var(--color-token-foreground);
-    font-size: var(--type-control);
-    font-weight: var(--font-weight-label);
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-md);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   small {
     max-width: 100%;
     overflow: hidden;
-    color: var(--color-token-description-foreground);
-    font-size: var(--type-meta);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-size: var(--cpx-sys-font-size-xs);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   &:hover {
-    border-color: var(--color-token-border);
-    background: var(--color-token-list-hover-background);
+    border-color: var(--cpx-sys-color-border-default);
+    background: var(--cpx-sys-color-hover);
   }
 
   &:focus-visible {
@@ -121,5 +121,5 @@
 
 .utility-card:hover,
 .message-card:hover {
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--cpx-sys-shadow-raised);
 }

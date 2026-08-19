@@ -1,25 +1,25 @@
 /* Context limit banner — wired from primitives */
 .context-limit-reached-banner {
-  border-color: var(--color-token-border-light);
+  border-color: var(--cpx-sys-color-border-subtle);
   background: color-mix(
     in srgb,
-    var(--color-token-bg-secondary) 74%,
+    var(--cpx-sys-color-surface-under) 74%,
     transparent
   );
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .composer {
-  z-index: var(--z-composer);
+  z-index: var(--cpx-sys-z-composer);
   container-type: inline-size;
-  border-radius: var(--radius-panel);
+  border-radius: var(--cpx-sys-radius-xl);
 }
 
 .composer-stack {
-  z-index: var(--z-composer);
+  z-index: var(--cpx-sys-z-composer);
   container-type: inline-size;
   isolation: isolate;
-  border-radius: var(--radius-panel);
+  border-radius: var(--cpx-sys-radius-xl);
   box-shadow: none;
 }
 
@@ -35,17 +35,17 @@
   overflow-x: auto;
   overflow-y: hidden;
   border: 0;
-  border-bottom: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-xl) var(--cpx-sys-radius-xl) 0 0;
   background: color-mix(
     in srgb,
-    var(--layer-panel-fill) 68%,
-    var(--layer-raised-fill)
+    var(--cpx-comp-surface-panel) 68%,
+    var(--cpx-comp-surface-raised)
   );
   box-shadow: none;
   scrollbar-width: none;
   white-space: nowrap;
-  animation: composer-utility-enter var(--motion-enter) var(--ease-out) both;
+  animation: composer-utility-enter var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out) both;
 
   &::-webkit-scrollbar {
     display: none;
@@ -77,8 +77,8 @@
     border-radius: 0 0 16px 16px;
     background: color-mix(
       in srgb,
-      var(--color-token-bg-secondary) 92%,
-      var(--color-token-dropdown-background)
+      var(--cpx-sys-color-surface-under) 92%,
+      var(--cpx-comp-dropdown-menu-bg)
     );
   }
 }
@@ -109,14 +109,14 @@
     border-radius: 20px;
     background: color-mix(
       in srgb,
-      var(--color-token-input-background) 90%,
+      var(--cpx-comp-input-bg) 90%,
       transparent
     );
     backdrop-filter: blur(20px);
     box-shadow:
-      0 0 0 0.5px var(--color-token-border-heavy),
-      0 3px 7.5px color-mix(in srgb, var(--color-token-foreground) 4%, transparent),
-      0 0 20px color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
+      0 0 0 0.5px var(--cpx-sys-color-border-strong),
+      0 3px 7.5px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 4%, transparent),
+      0 0 20px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
   }
 
   .composer-editor-content {
@@ -141,35 +141,35 @@
     border-radius: 16px 16px 0 0;
     background: color-mix(
       in srgb,
-      var(--color-token-bg-secondary) 92%,
-      var(--color-token-dropdown-background)
+      var(--cpx-sys-color-surface-under) 92%,
+      var(--cpx-comp-dropdown-menu-bg)
     );
   }
 }
 
 /* Working 新建页的工作插件：选中状态与菜单底部说明 */
 .composer-utility-bar .meta-chip.is-selected {
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
 }
 
 .popover-plugin-note {
-  padding: var(--space-2) var(--space-3);
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
 }
 
 .composer-top {
   --tw-spacing: 0.25rem;
 
   padding: calc(var(--tw-spacing) * 3) calc(var(--tw-spacing) * 3) 5px;
-  transition: min-height var(--motion-layout) var(--ease-standard);
+  transition: min-height var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
 }
 
 .composer-submit-error {
   margin: 0 2px 8px;
-  color: var(--color-token-editor-warning-foreground);
-  font-size: var(--type-caption);
-  line-height: var(--type-line-meta);
+  color: var(--cpx-sys-color-warning);
+  font-size: var(--cpx-sys-font-size-xs);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .composer-dictation-status {
@@ -177,12 +177,12 @@
   align-items: center;
   gap: 6px;
   margin: 0 2px 8px;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-caption);
-  line-height: var(--type-line-meta);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
+  line-height: var(--cpx-sys-line-height-tight);
 
   &.is-error {
-    color: var(--color-token-editor-warning-foreground);
+    color: var(--cpx-sys-color-warning);
   }
 }
 
@@ -194,7 +194,7 @@
 }
 
 .send-button.is-submitting svg {
-  animation: composer-submit-spin var(--motion-loading) linear infinite;
+  animation: composer-submit-spin var(--cpx-sys-motion-loading) linear infinite;
 }
 
 @keyframes composer-submit-spin {
@@ -207,11 +207,11 @@
 .thread-attachment-rows {
   display: grid;
   min-width: 0;
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
 }
 
 .composer-attachments {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--cpx-sys-space-2);
 }
 
 .attachment-horizontal-row {
@@ -232,7 +232,7 @@
   min-width: min-content;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
 }
 
 .attachment-horizontal-row[data-reverse='true'] {
@@ -251,23 +251,23 @@
   height: 80px;
   flex: 0 0 auto;
   overflow: visible;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-card);
-  background: var(--color-token-text-preformat-background);
-  box-shadow: var(--shadow-resting);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-comp-modal-preformat-bg);
+  box-shadow: var(--cpx-sys-shadow-resting);
 
   &[data-status='error'] {
     width: 64px;
     height: 64px;
     border-color: color-mix(
       in srgb,
-      var(--color-token-editor-warning-foreground) 50%,
+      var(--cpx-sys-color-warning) 50%,
       transparent
     );
     background: color-mix(
       in srgb,
-      var(--color-token-editor-warning-foreground) 10%,
-      var(--color-token-main-surface-primary)
+      var(--cpx-sys-color-warning) 10%,
+      var(--cpx-sys-color-surface)
     );
   }
 }
@@ -288,7 +288,7 @@
   color: inherit;
 
   &:focus-visible {
-    outline: 2px solid var(--color-token-focus-border);
+    outline: 2px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;
   }
 }
@@ -311,24 +311,24 @@
 }
 
 .attachment-image-tile__fallback {
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
 }
 
 .attachment-image-tile__loading {
   background: linear-gradient(
     100deg,
-    var(--color-token-text-preformat-background) 30%,
-    var(--color-token-list-hover-background) 50%,
-    var(--color-token-text-preformat-background) 70%
+    var(--cpx-comp-modal-preformat-bg) 30%,
+    var(--cpx-sys-color-hover) 50%,
+    var(--cpx-comp-modal-preformat-bg) 70%
   );
   background-size: 200% 100%;
-  animation: attachment-loading calc(var(--motion-loading) * 2) ease-in-out infinite;
+  animation: attachment-loading calc(var(--cpx-sys-motion-loading) * 2) ease-in-out infinite;
 }
 
 .attachment-image-tile__error {
   flex-direction: column;
   gap: 2px;
-  color: var(--color-token-editor-warning-foreground);
+  color: var(--cpx-sys-color-warning);
   font-size: 10px;
   line-height: 12px;
 }
@@ -338,20 +338,20 @@
   max-width: 320px;
   flex: 0 0 auto;
   overflow: visible;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-token-dropdown-background);
-  color: var(--color-token-foreground);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-comp-dropdown-menu-bg);
+  color: var(--cpx-sys-color-fg-primary);
 
   &[data-status='error'] {
     border-color: color-mix(
       in srgb,
-      var(--color-token-editor-warning-foreground) 50%,
+      var(--cpx-sys-color-warning) 50%,
       transparent
     );
 
     .attachment-file-pill__detail {
-      color: var(--color-token-editor-warning-foreground);
+      color: var(--cpx-sys-color-warning);
     }
   }
 }
@@ -363,7 +363,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
   padding: 6px 10px;
   border: 0;
   border-radius: inherit;
@@ -372,26 +372,26 @@
   text-align: start;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--color-token-focus-border);
+    outline: 2px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;
   }
 }
 
 .attachment-file-pill__icon {
   flex: 0 0 auto;
-  color: var(--color-token-icon-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .attachment-file-pill__text {
   min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: var(--space-1);
-  line-height: var(--type-line-body);
+  gap: var(--cpx-sys-space-1);
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .attachment-file-pill__name,
@@ -402,15 +402,15 @@
 }
 
 .attachment-file-pill__name {
-  font-size: var(--type-body);
-  font-weight: var(--font-weight-body);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-regular);
 }
 
 .attachment-file-pill__detail {
   min-width: 0;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-body);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-regular);
 
   &::before {
     content: '· ';
@@ -429,13 +429,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-button-background);
-  color: var(--color-token-button-foreground);
-  box-shadow: var(--shadow-resting);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-comp-button-bg);
+  color: var(--cpx-comp-button-fg);
+  box-shadow: var(--cpx-sys-shadow-resting);
 
   &:hover {
-    background: var(--color-token-button-background);
+    background: var(--cpx-comp-button-bg);
   }
 
 }
@@ -458,9 +458,9 @@
     padding: 0;
     border: 0;
     background: transparent;
-    color: var(--color-token-foreground);
-    font-size: var(--type-message);
-    line-height: var(--type-line-body);
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-md);
+    line-height: var(--cpx-sys-line-height-normal);
     overflow-y: auto;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
@@ -479,7 +479,7 @@
     &.is-empty::before {
       content: attr(data-placeholder);
       position: absolute;
-      color: var(--color-token-text-secondary);
+      color: var(--cpx-sys-color-fg-secondary);
       pointer-events: none;
     }
   }
@@ -492,12 +492,12 @@
   padding: 0.2em 0.5em 0.2em 0.35em;
   margin-top: 9px;
   flex-shrink: 0;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-pill);
-  background: var(--color-token-list-active-selection-background);
-  color: var(--color-token-foreground);
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-label);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
   white-space: nowrap;
   user-select: none;
@@ -508,7 +508,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
 }
 
 .composer-skill-token-label {
@@ -518,16 +518,16 @@
 .composer .icon-button {
   width: var(--control-size-sm);
   height: var(--control-size-sm);
-  border-radius: var(--radius-pill);
+  border-radius: var(--cpx-sys-radius-full);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &[data-active="true"] {
-    background: var(--color-token-list-active-selection-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-selected);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &:active {
@@ -538,24 +538,24 @@
 .composer-mic-button {
   width: var(--control-size-sm);
   height: var(--control-size-sm);
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 
   &:hover {
-    color: var(--color-token-icon-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &.is-recording {
-    color: var(--color-token-editor-warning-foreground);
+    color: var(--cpx-sys-color-warning);
     background: color-mix(
       in srgb,
-      var(--color-token-editor-warning-foreground) 12%,
+      var(--cpx-sys-color-warning) 12%,
       transparent
     );
   }
 
   &.is-recording svg,
   &:has(svg.lucide-activity) svg {
-    animation: composer-submit-spin var(--motion-loading) linear infinite;
+    animation: composer-submit-spin var(--cpx-sys-motion-loading) linear infinite;
   }
 }
 
@@ -633,14 +633,14 @@
 }
 
 .composer-model-chip-label {
-  font-weight: var(--font-weight-body);
+  font-weight: var(--cpx-sys-font-weight-regular);
 }
 
 .composer-model-chip-thinking {
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
 }
 
 .chip-button-spinner {
   flex-shrink: 0;
-  animation: composer-chip-spin var(--motion-loading) linear infinite;
+  animation: composer-chip-spin var(--cpx-sys-motion-loading) linear infinite;
 }

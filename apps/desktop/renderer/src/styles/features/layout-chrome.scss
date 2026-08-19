@@ -1,11 +1,11 @@
 .desktop-menubar {
   --desktop-titlebar-height: var(--application-menubar-height);
-  background: var(--layer-underlay-fill);
+  background: var(--cpx-comp-surface-underlay);
 }
 
 .app-menubar {
   height: 100%;
-  background: var(--layer-underlay-fill);
+  background: var(--cpx-comp-surface-underlay);
   user-select: none;
 }
 
@@ -15,8 +15,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
-  padding: 0 0 0 var(--space-2);
+  gap: var(--cpx-sys-space-2);
+  padding: 0 0 0 var(--cpx-sys-space-2);
   -webkit-app-region: drag;
 }
 
@@ -57,24 +57,24 @@
   padding: 2px 10px;
   border: 0;
   background: transparent;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   font-family: inherit;
-  font-size: var(--type-control);
+  font-size: var(--cpx-sys-font-size-md);
   font-style: inherit;
   font-weight: inherit;
   line-height: inherit;
   white-space: nowrap;
   -webkit-app-region: no-drag;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
 
   &:hover,
   &[data-state="open"] {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &[data-state="open"] {
-    background: var(--color-token-list-active-selection-background);
+    background: var(--cpx-sys-color-selected);
   }
 }
 
@@ -99,13 +99,13 @@
 }
 
 .menubar-item[data-disabled] .menubar-shortcut {
-  color: var(--color-token-disabled-foreground);
+  color: var(--cpx-sys-color-fg-disabled);
 }
 
 .menubar-separator {
   height: 1px;
   margin: 4px 0;
-  background: var(--color-token-border);
+  background: var(--cpx-sys-color-border-default);
 }
 
 .window-controls {
@@ -122,7 +122,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   -webkit-app-region: no-drag;
 
   svg {
@@ -131,12 +131,12 @@
   }
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 
   &.close:hover {
-    background: var(--color-token-error-foreground);
-    color: var(--color-token-button-foreground);
+    background: var(--cpx-sys-color-danger);
+    color: var(--cpx-comp-button-fg);
   }
 }
 

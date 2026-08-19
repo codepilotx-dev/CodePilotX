@@ -1,7 +1,7 @@
 .command-menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal);
+  z-index: var(--cpx-sys-z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12,11 +12,11 @@
   width: min(520px, 92vw);
   max-height: calc(100vh - clamp(6rem, 16vh, 10rem));
   overflow: hidden;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-floating);
-  background: var(--color-token-elevated-background);
-  box-shadow: var(--shadow-float);
-  color: var(--color-token-foreground);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-xl);
+  background: var(--cpx-sys-color-elevated-secondary);
+  box-shadow: var(--cpx-sys-shadow-floating);
+  color: var(--cpx-sys-color-fg-primary);
   outline: 0;
   -webkit-app-region: no-drag;
 }
@@ -32,13 +32,13 @@
   min-height: var(--control-size-lg);
   flex: 0 0 auto;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
-  border-bottom: 1px solid var(--color-token-border-light);
-  color: var(--color-token-text-secondary);
+  gap: var(--cpx-sys-space-2);
+  padding: 0 var(--cpx-sys-space-3);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  color: var(--cpx-sys-color-fg-secondary);
 
   &:focus-within {
-    box-shadow: var(--focus-ring-inset);
+    box-shadow: var(--cpx-sys-focus-ring-inset);
   }
 }
 
@@ -53,14 +53,14 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-token-input-foreground);
+  color: var(--cpx-comp-input-fg);
   font: inherit;
-  font-size: var(--type-control);
+  font-size: var(--cpx-sys-font-size-md);
   line-height: var(--control-line-height);
   outline: 0;
 
   &::placeholder {
-    color: var(--color-token-input-placeholder-foreground);
+    color: var(--cpx-comp-input-placeholder-fg);
   }
 }
 
@@ -70,20 +70,20 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-2);
-  scroll-padding-block: var(--space-2);
+  padding: var(--cpx-sys-space-2);
+  scroll-padding-block: var(--cpx-sys-space-2);
 }
 
 .command-menu-group {
   &:not(:first-child) {
-    margin-top: var(--space-2);
+    margin-top: var(--cpx-sys-space-2);
   }
 
   [cmdk-group-heading] {
-    padding: var(--space-1) var(--space-2);
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-caption);
-    font-weight: var(--font-weight-label);
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-xs);
+    font-weight: var(--cpx-sys-font-weight-medium);
     line-height: var(--control-line-height);
   }
 }
@@ -95,26 +95,26 @@
   display: grid;
   grid-template-columns: var(--app-icon-size) minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  border-radius: var(--radius-row);
-  color: var(--color-token-foreground);
-  font-size: var(--type-control);
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-md);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
   line-height: var(--control-line-height);
   cursor: default;
   outline: 0;
   user-select: none;
 
   &[data-selected='true'] {
-    background: var(--color-token-list-active-selection-background);
+    background: var(--cpx-sys-color-selected);
   }
 
   &:focus-visible {
-    box-shadow: var(--focus-ring-inset);
+    box-shadow: var(--cpx-sys-focus-ring-inset);
   }
 
   &[data-disabled='true'] {
-    color: var(--color-token-disabled-foreground);
+    color: var(--cpx-sys-color-fg-disabled);
     cursor: not-allowed;
     opacity: 0.68;
   }
@@ -126,7 +126,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
 }
 
 .command-menu-item-icon {
@@ -151,31 +151,31 @@
 }
 
 .command-menu-item-description {
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .command-menu-workspace {
   max-width: 9rem;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .command-menu-shortcut {
   min-width: max-content;
   padding: 0.1em 0.45em;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-control);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-md);
   background: color-mix(
     in srgb,
-    var(--color-token-control-background) 72%,
+    var(--cpx-sys-color-control) 72%,
     transparent
   );
-  color: var(--color-token-text-secondary);
-  font-family: var(--font-family-sans);
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-body);
-  line-height: var(--type-line-meta);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-regular);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .command-menu-recommendation {
@@ -183,27 +183,27 @@
 }
 
 .command-menu-status {
-  min-height: calc(var(--control-size-md) + var(--space-2));
+  min-height: calc(var(--control-size-md) + var(--cpx-sys-space-2));
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-3);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
   text-align: center;
 }
 
 .command-menu-spinner {
   flex: 0 0 auto;
-  animation: command-menu-spin var(--motion-loading) linear infinite;
+  animation: command-menu-spin var(--cpx-sys-motion-loading) linear infinite;
 }
 
 .command-menu-unread-dot {
   width: 6px;
   height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-text-link-foreground);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-accent);
 }
 
 @keyframes command-menu-enter {
@@ -226,7 +226,7 @@
 
 @media (max-width: 560px) {
   .command-menu-backdrop {
-    padding-inline: var(--space-2);
+    padding-inline: var(--cpx-sys-space-2);
   }
 
   .command-menu-dialog {

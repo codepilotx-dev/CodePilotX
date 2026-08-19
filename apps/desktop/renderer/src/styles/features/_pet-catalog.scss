@@ -5,8 +5,8 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--layer-canvas-fill);
-  color: var(--color-token-foreground);
+  background: var(--cpx-comp-surface-canvas);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-scroll-region {
@@ -31,15 +31,15 @@
 
 .pet-catalog-page-heading h1 {
   margin: 0;
-  font-size: var(--type-page-title);
-  line-height: var(--type-line-page-title);
+  font-size: var(--cpx-sys-font-size-3xl);
+  line-height: var(--cpx-sys-line-height-relaxed);
 }
 
 .pet-catalog-page-heading p {
   max-width: 680px;
   margin: 8px 0 0;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
 }
 
 .pet-catalog-browser {
@@ -48,15 +48,15 @@
 
 .pet-catalog-panel {
   padding: 16px;
-  border: var(--layer-edge-strong);
-  border-radius: var(--radius-panel);
-  background: var(--layer-panel-fill);
+  border: var(--cpx-comp-surface-edge-strong);
+  border-radius: var(--cpx-sys-radius-xl);
+  background: var(--cpx-comp-surface-panel);
   box-shadow: none;
 }
 
 .pet-catalog-workspace-tabs .segmented-control-item > span {
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .pet-catalog-filters {
@@ -69,16 +69,16 @@
 .pet-catalog-filters .settings-dropdown {
   width: 100%;
   min-width: 0;
-  background: var(--layer-raised-fill);
+  background: var(--cpx-comp-surface-raised);
 }
 
 .pet-catalog-status {
   margin: 12px 0 0;
   padding: 9px 12px;
-  border-radius: var(--radius-row);
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
 }
 
 .pet-catalog-wake {
@@ -88,10 +88,10 @@
   gap: 12px;
   margin-top: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-card);
-  background: var(--layer-raised-fill);
-  color: var(--color-token-foreground);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-comp-surface-raised);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-grid {
@@ -105,9 +105,9 @@
   display: grid;
   min-width: 0;
   overflow: hidden;
-  border: var(--layer-edge-strong);
-  border-radius: var(--radius-card);
-  background: var(--layer-raised-fill);
+  border: var(--cpx-comp-surface-edge-strong);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-comp-surface-raised);
   box-shadow: none;
 }
 
@@ -118,8 +118,8 @@
   justify-content: center;
   overflow: hidden;
   padding: 10px;
-  background: var(--color-token-editor-background);
-  color: var(--color-token-icon-foreground);
+  background: var(--cpx-sys-color-editor);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-art img,
@@ -144,7 +144,7 @@
 .pet-catalog-preview > .ui-skeleton-block {
   width: min(100%, 148px);
   height: 100%;
-  border-radius: var(--radius-card);
+  border-radius: var(--cpx-sys-radius-lg);
 }
 
 .pet-catalog-art .pet-sprite {
@@ -166,26 +166,26 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-card-heading > span {
   flex: 0 0 auto;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .pet-catalog-author,
 .pet-catalog-description {
   margin: 0;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
 }
 
 .pet-catalog-description {
   display: -webkit-box;
   overflow: hidden;
-  line-height: var(--type-line-body);
+  line-height: var(--cpx-sys-line-height-normal);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
@@ -198,15 +198,15 @@
 
 .pet-catalog-tags > span {
   padding: 3px 7px;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .pet-catalog-tags > span[data-license="restricted"],
 .pet-catalog-tags > span[data-license="unknown"] {
-  color: var(--color-token-editor-warning-foreground);
+  color: var(--cpx-sys-color-warning);
 }
 
 .pet-catalog-empty {
@@ -214,12 +214,12 @@
   justify-items: center;
   gap: 8px;
   padding: 48px 16px;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   text-align: center;
 }
 
 .pet-catalog-empty strong {
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-skeleton-card {
@@ -234,19 +234,19 @@
 .pet-catalog-skeleton-title {
   width: 62%;
   height: 18px;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
 }
 
 .pet-catalog-skeleton-author {
   width: 44%;
   height: 14px;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
 }
 
 .pet-catalog-skeleton-description {
   width: 100%;
   height: 3.5em;
-  border-radius: var(--radius-card);
+  border-radius: var(--cpx-sys-radius-lg);
 }
 
 .pet-catalog-skeleton-tags {
@@ -257,13 +257,13 @@
 .pet-catalog-skeleton-tags > * {
   width: 58px;
   height: 22px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--cpx-sys-radius-full);
 }
 
 .pet-catalog-skeleton-action {
   width: 100%;
   height: var(--control-size-md);
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
 }
 
 .pet-license-confirmation {
@@ -275,10 +275,10 @@
   max-height: 112px;
   overflow: auto;
   padding: 9px 10px;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-row);
-  background: var(--layer-raised-fill);
-  color: var(--color-token-foreground);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-comp-surface-raised);
+  color: var(--cpx-sys-color-fg-primary);
   white-space: pre-wrap;
 }
 

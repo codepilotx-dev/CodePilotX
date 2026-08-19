@@ -8,12 +8,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px 8px;
-  border-bottom: 1px solid var(--color-token-border);
+  border-bottom: 1px solid var(--cpx-sys-color-border-default);
 }
 
 .composer-status-title {
-  font-weight: var(--font-weight-heading, 600);
-  font-size: var(--type-card-title);
+  font-weight: var(--cpx-sys-font-weight-medium, 600);
+  font-size: var(--cpx-sys-font-size-md);
 }
 
 .composer-status-close {
@@ -24,11 +24,11 @@
   border: 0;
   cursor: pointer;
   padding: 2px;
-  border-radius: var(--radius-control);
-  color: var(--color-token-icon-foreground);
+  border-radius: var(--cpx-sys-radius-md);
+  color: var(--cpx-sys-color-fg-primary);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 }
 
@@ -37,12 +37,12 @@
 }
 
 .composer-status-section + .composer-status-section {
-  border-top: 1px solid var(--color-token-border);
+  border-top: 1px solid var(--cpx-sys-color-border-default);
 }
 
 .composer-status-label {
-  font-size: var(--type-meta);
-  color: var(--color-token-description-foreground);
+  font-size: var(--cpx-sys-font-size-xs);
+  color: var(--cpx-sys-color-fg-tertiary);
 
   svg {
     width: var(--app-icon-size-sm);
@@ -52,16 +52,16 @@
 }
 
 .composer-status-value {
-  font-size: var(--type-meta);
+  font-size: var(--cpx-sys-font-size-xs);
   font-family: var(--font-mono, monospace);
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
   word-break: break-all;
 }
 
 .composer-status-bar-track {
   height: 6px;
   border-radius: 3px;
-  background: var(--color-token-border);
+  background: var(--cpx-sys-color-border-default);
   overflow: hidden;
   margin: 4px 0;
 }
@@ -70,26 +70,26 @@
   width: 100%;
   height: 100%;
   border-radius: 3px;
-  background: var(--color-token-text-link-foreground);
+  background: var(--cpx-sys-color-accent);
   transform: scaleX(var(--usage-ratio, 0));
   transform-origin: left;
-  transition: transform var(--motion-panel) var(--ease-standard);
+  transition: transform var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
 }
 
 .composer-status-bar-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: var(--type-meta);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .composer-status-bar-percent {
-  color: var(--color-token-foreground);
-  font-weight: var(--font-weight-label);
+  color: var(--cpx-sys-color-fg-primary);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .composer-status-bar-detail {
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .composer-status-quota-row + .composer-status-quota-row {
@@ -98,10 +98,10 @@
 
 .composer-status-empty {
   padding: 8px 0;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
 }
 
 .composer-status-empty-error {
-  color: var(--color-token-error-foreground);
+  color: var(--cpx-sys-color-danger);
 }

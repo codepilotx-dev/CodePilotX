@@ -3,7 +3,7 @@
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--cpx-sys-space-3);
   margin-bottom: 12px;
 }
 
@@ -12,22 +12,22 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
 }
 
 .config-settings-prompt-preview {
   max-height: min(32rem, 60vh);
   padding: 14px 16px;
   overflow: auto;
-  border-top: 0.5px solid var(--color-token-border);
+  border-top: 0.5px solid var(--cpx-sys-color-border-default);
 
   .settings-code-block {
     min-width: max-content;
     margin: 0;
-    color: var(--color-token-text-secondary);
-    font-family: var(--font-family-mono);
-    font-size: var(--type-code);
-    line-height: var(--type-line-code);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-family: var(--cpx-sys-font-family-mono);
+    font-size: var(--cpx-sys-font-size-code);
+    line-height: var(--cpx-sys-line-height-code);
     white-space: pre;
   }
 }

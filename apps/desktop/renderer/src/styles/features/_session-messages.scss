@@ -1,5 +1,5 @@
 ::highlight(conversation-action-selection) {
-  background: color-mix(in srgb, var(--color-token-text-link-foreground) 32%, transparent);
+  background: color-mix(in srgb, var(--cpx-sys-color-accent) 32%, transparent);
   color: inherit;
 }
 
@@ -21,16 +21,16 @@
     gap: 8px;
     min-height: 34px;
     border: 0;
-    border-radius: var(--radius-row);
+    border-radius: var(--cpx-sys-radius-md);
     padding: 6px 10px;
-    color: var(--color-token-foreground);
-    background: var(--color-token-text-preformat-background);
+    color: var(--cpx-sys-color-fg-primary);
+    background: var(--cpx-comp-modal-preformat-bg);
     text-align: left;
     cursor: pointer;
   }
 
   button:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 
   span {
@@ -40,17 +40,17 @@
   }
 
   small {
-    color: var(--color-token-text-secondary);
+    color: var(--cpx-sys-color-fg-secondary);
     white-space: nowrap;
   }
 }
 
 .popover.popover-thread-summary-branch {
   --popover-surface-padding: 6px;
-  --menu-font-size: var(--type-control);
-  --menu-item-padding-block: 6px;
-  --menu-item-padding-inline: 8px;
-  --menu-item-gap: var(--control-gap);
+  --cpx-sys-font-size-md: var(--cpx-sys-font-size-md);
+  --cpx-comp-row-padding-block: 6px;
+  --cpx-comp-row-padding-inline: 8px;
+  --cpx-comp-row-gap: var(--control-gap);
   --menu-icon-size: var(--app-icon-size);
 
   width: min(360px, calc(100vw - 32px));
@@ -60,19 +60,19 @@
   .popover-item,
   .popover-sub-trigger {
     min-height: 32px;
-    border-radius: var(--radius-row);
+    border-radius: var(--cpx-sys-radius-md);
   }
 
   .popover-section-title {
-    padding: var(--space-1) 10px 6px;
-    font-size: var(--type-caption);
-    line-height: var(--menu-detail-line-height);
+    padding: var(--cpx-sys-space-1) 10px 6px;
+    font-size: var(--cpx-sys-font-size-xs);
+    line-height: var(--cpx-sys-line-height-tight);
   }
 
   .popover-empty {
-    padding: var(--space-3) 10px;
-    font-size: var(--type-secondary);
-    line-height: var(--menu-detail-line-height);
+    padding: var(--cpx-sys-space-3) 10px;
+    font-size: var(--cpx-sys-font-size-sm);
+    line-height: var(--cpx-sys-line-height-tight);
   }
 }
 
@@ -127,13 +127,13 @@
   }
 
   small {
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-meta);
-    font-weight: var(--font-weight-body);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-xs);
+    font-weight: var(--cpx-sys-font-weight-regular);
   }
 }
 
 .assistant-thinking {
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-message);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-md);
 }

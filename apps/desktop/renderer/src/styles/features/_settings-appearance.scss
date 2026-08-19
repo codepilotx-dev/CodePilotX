@@ -37,7 +37,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   font: inherit;
   cursor: pointer;
 
@@ -55,17 +55,17 @@
   }
 
   > input:focus-visible + .appearance-mode-visual {
-    outline: 2px solid var(--color-token-text-link-foreground);
+    outline: 2px solid var(--cpx-sys-color-accent);
     outline-offset: 2px;
   }
 
   &[data-state="checked"] .appearance-mode-visual {
     border-width: 2px;
-    border-color: var(--color-token-foreground);
+    border-color: var(--cpx-sys-color-fg-primary);
   }
 
   &[data-state="checked"] .appearance-mode-label {
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
@@ -75,10 +75,10 @@
   display: block;
   aspect-ratio: 17 / 12;
   overflow: hidden;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
   background: #f3f3f3;
-  transition: border-color var(--motion-state) var(--ease-standard);
+  transition: border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   svg {
     display: block;
@@ -99,8 +99,8 @@
   display: block;
   max-width: 100%;
   overflow: hidden;
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-body);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-regular);
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -123,7 +123,7 @@
   .appearance-theme-editor-rows > .settings-row + .settings-row::before {
     right: 16px;
     left: 16px;
-    background: var(--color-token-border-light);
+    background: var(--cpx-sys-color-border-subtle);
   }
 }
 
@@ -134,12 +134,12 @@
   flex: 0 0 28px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-control);
-  background: var(--layer-panel-fill);
-  color: var(--color-token-text-link-foreground);
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-label);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-comp-surface-panel);
+  color: var(--cpx-sys-color-accent);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .settings-dropdown-item-indicator {
@@ -154,14 +154,14 @@
   margin: 0 0 16px;
   overflow: hidden;
   border: 1px solid
-    color-mix(in srgb, var(--color-text-foreground) 16%, transparent);
-  border-radius: var(--radius-card);
-  background: var(--color-token-editor-background);
+    color-mix(in srgb, var(--cpx-sys-color-fg-primary) 16%, transparent);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-editor);
 }
 
 .appearance-theme-editor-rows {
   .settings-row-title {
-    font-size: var(--type-control);
+    font-size: var(--cpx-sys-font-size-md);
   }
 }
 
@@ -173,7 +173,7 @@
   height: 28px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
 
   .ui-input {
     width: 100%;
@@ -184,8 +184,8 @@
     background: transparent;
     color: inherit;
     box-shadow: none;
-    font-family: var(--font-family-mono);
-    font-size: var(--type-code);
+    font-family: var(--cpx-sys-font-family-mono);
+    font-size: var(--cpx-sys-font-size-code);
     text-transform: uppercase;
 
     &:focus {
@@ -239,7 +239,7 @@
 .appearance-color-palette-square {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-control);
+  border-radius: var(--cpx-sys-radius-md);
   background:
     linear-gradient(to top, #000, transparent),
     linear-gradient(to right, #fff, transparent), var(--appearance-picker-hue);
@@ -247,7 +247,7 @@
   touch-action: none;
 
   &:has(.appearance-color-axis-thumb:focus-visible) {
-    outline: 2px solid var(--color-token-focus-border);
+    outline: 2px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;
   }
 }
@@ -272,7 +272,7 @@
   height: 12px;
   margin: 0;
   appearance: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--cpx-sys-radius-full);
   background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
 
   &::-webkit-slider-thumb {
@@ -292,8 +292,8 @@
   height: 28px;
   min-height: 28px;
   padding: 0 8px;
-  border-radius: var(--radius-control);
-  font-size: var(--type-control);
+  border-radius: var(--cpx-sys-radius-md);
+  font-size: var(--cpx-sys-font-size-md);
 }
 
 .appearance-theme-font-row {
@@ -310,8 +310,8 @@
     max-width: none;
     height: 28px;
     min-height: 28px;
-    border-radius: var(--radius-control);
-    background: var(--color-token-input-background);
+    border-radius: var(--cpx-sys-radius-md);
+    background: var(--cpx-comp-input-bg);
   }
 
   .settings-dropdown-value {
@@ -332,20 +332,20 @@
     min-height: 28px;
     min-width: 0;
     padding: 0 8px;
-    border: 1px solid var(--color-token-border);
-    border-radius: var(--radius-control);
-    background: var(--color-token-input-background);
-    color: var(--color-token-foreground);
-    font-size: var(--type-control);
+    border: 1px solid var(--cpx-sys-color-border-default);
+    border-radius: var(--cpx-sys-radius-md);
+    background: var(--cpx-comp-input-bg);
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-md);
     line-height: var(--control-line-height);
     text-align: right;
     box-shadow: none;
   }
 
   span {
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-secondary);
-    line-height: var(--type-line-secondary);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-sm);
+    line-height: var(--cpx-sys-line-height-tight);
   }
 }
 
@@ -362,7 +362,7 @@
     height: 2px;
     flex: 1;
     appearance: none;
-    border-radius: var(--radius-pill);
+    border-radius: var(--cpx-sys-radius-full);
     background: linear-gradient(
       90deg,
       color-mix(
@@ -380,16 +380,16 @@
       width: 20px;
       height: 20px;
       appearance: none;
-      border: 1px solid var(--color-token-border-light);
+      border: 1px solid var(--cpx-sys-color-border-subtle);
       border-radius: 50%;
-      background: var(--control-thumb-fill);
+      background: var(--cpx-comp-switch-thumb-fill);
     }
   }
 
   output {
     width: 36px;
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-meta);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-xs);
     font-variant-numeric: tabular-nums;
     text-align: right;
   }

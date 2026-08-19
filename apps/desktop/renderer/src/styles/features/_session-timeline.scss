@@ -4,47 +4,47 @@
 
 .review-message {
   display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-panel);
-  background: var(--color-token-main-surface-primary);
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-4);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-xl);
+  background: var(--cpx-sys-color-surface);
 }
 
 .review-message-label {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
   margin: 0;
-  font-size: var(--type-body);
-  font-weight: var(--font-weight-label);
-  color: var(--color-token-foreground);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .review-message-body {
   margin: 0;
-  font-size: var(--type-body);
-  color: var(--color-token-foreground);
-  line-height: var(--type-line-body);
+  font-size: var(--cpx-sys-font-size-md);
+  color: var(--cpx-sys-color-fg-primary);
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .review-message-actions {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--cpx-sys-space-2);
 }
 
 /* --- Token Usage --- */
 .token-usage-container {
   display: flex;
   align-items: baseline;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  font-size: var(--type-meta);
-  color: var(--color-token-text-secondary);
+  gap: var(--cpx-sys-space-2);
+  margin-top: var(--cpx-sys-space-2);
+  font-size: var(--cpx-sys-font-size-xs);
+  color: var(--cpx-sys-color-fg-secondary);
 }
 
 .token-usage-label {
-  font-weight: var(--font-weight-label);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .token-usage-value {
@@ -56,14 +56,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--cpx-sys-space-3);
   width: 100%;
   background: transparent;
-  padding: var(--space-2) 0;
+  padding: var(--cpx-sys-space-2) 0;
 }
 
 /* --- Section Label --- */
 .section-label {
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }

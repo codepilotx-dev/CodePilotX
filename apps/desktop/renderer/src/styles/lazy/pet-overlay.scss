@@ -30,11 +30,11 @@
     min-height: 70px;
     max-height: 220px;
     padding: 12px 14px;
-    color: var(--color-token-foreground);
-    background: var(--layer-floating-fill);
-    border: var(--layer-edge-strong);
-    border-radius: var(--radius-floating);
-    box-shadow: var(--shadow-floating);
+    color: var(--cpx-sys-color-fg-primary);
+    background: var(--cpx-comp-surface-floating);
+    border: var(--cpx-comp-surface-edge-strong);
+    border-radius: var(--cpx-sys-radius-xl);
+    box-shadow: var(--cpx-sys-shadow-floating);
     backdrop-filter: none;
     overflow: auto;
   }
@@ -60,8 +60,8 @@
   }
 
   .pet-overlay-pill-copy span {
-    color: var(--color-token-description-foreground);
-    font-size: var(--type-secondary);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   .pet-overlay-pill-actions {
@@ -79,14 +79,14 @@
     color: inherit;
     background: transparent;
     border: 0;
-    border-radius: var(--radius-control);
+    border-radius: var(--cpx-sys-radius-md);
     cursor: pointer;
     place-items: center;
   }
 
   .pet-overlay-pill-actions button:hover,
   .pet-overlay-reply-form button:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 
   .pet-overlay-pill button:disabled {
@@ -96,7 +96,7 @@
 
   .pet-overlay-pill-body {
     padding-top: 4px;
-    border-top: 1px solid var(--color-token-border);
+    border-top: 1px solid var(--cpx-sys-color-border-default);
   }
 
   .pet-overlay-reply-form {
@@ -109,22 +109,22 @@
     min-width: 0;
     height: 30px;
     padding: 0 9px;
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
     font: inherit;
-    background: var(--layer-raised-fill);
-    border: 1px solid var(--color-token-border);
-    border-radius: var(--radius-control);
+    background: var(--cpx-comp-surface-raised);
+    border: 1px solid var(--cpx-sys-color-border-default);
+    border-radius: var(--cpx-sys-radius-md);
     outline: none;
   }
 
   .pet-overlay-reply-form input:focus {
-    border-color: var(--color-token-focus-border);
+    border-color: var(--cpx-sys-color-border-focus);
   }
 
   .pet-overlay-reply-error {
     grid-column: 1 / -1;
-    color: var(--color-token-error-foreground);
-    font-size: var(--type-caption);
+    color: var(--cpx-sys-color-danger);
+    font-size: var(--cpx-sys-font-size-xs);
   }
 
   .pet-overlay-avatar {

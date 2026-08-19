@@ -4,40 +4,40 @@
 
 .whats-new-dialog {
   display: grid;
-  width: min(1040px, calc(100vw - var(--space-8)));
+  width: min(1040px, calc(100vw - var(--cpx-sys-space-8)));
   height: min(80vh, 760px);
   min-height: 0;
   min-width: 0;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-float);
-  color: var(--color-token-foreground);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-xl);
+  background: var(--cpx-sys-color-surface-under);
+  box-shadow: var(--cpx-sys-shadow-floating);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .whats-new-dialog-header {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
-  gap: var(--space-3);
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--color-token-border-light);
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-5) var(--cpx-sys-space-6);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .whats-new-dialog-heading {
   display: grid;
   min-width: 0;
-  gap: var(--space-1);
+  gap: var(--cpx-sys-space-1);
 }
 
 .whats-new-dialog-title {
   margin: 0;
-  color: var(--color-token-foreground);
-  font-size: var(--type-title-md);
-  font-weight: var(--font-weight-heading);
-  line-height: var(--type-line-title-md);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-xl);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  line-height: var(--cpx-sys-line-height-relaxed);
 }
 
 .whats-new-heading-icon {
@@ -47,10 +47,10 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-card);
-  background: var(--color-token-bg-secondary);
-  color: var(--color-token-icon-foreground);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-surface-under);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .whats-new-heading-icon > svg {
@@ -60,9 +60,9 @@
 
 .whats-new-dialog-description {
   margin: 0;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
-  line-height: var(--type-line-secondary);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .whats-new-dialog-body {
@@ -84,17 +84,17 @@
 }
 
 .whats-new-version-scroll {
-  border-right: 1px solid var(--color-token-border-light);
-  background: var(--color-token-panel-background);
+  border-right: 1px solid var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-comp-workbench-panel-bg);
 }
 
 .whats-new-version-scroll-content {
-  padding: var(--space-3);
+  padding: var(--cpx-sys-space-3);
 }
 
 .whats-new-version-list {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--cpx-sys-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -104,10 +104,10 @@
   display: grid;
   width: 100%;
   min-width: 0;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-3);
   border: 1px solid transparent;
-  border-radius: var(--radius-row);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -117,16 +117,16 @@
 
 .whats-new-version-item:hover,
 .whats-new-version-item[data-selected='true'] {
-  background: var(--color-token-list-hover-background);
+  background: var(--cpx-sys-color-hover);
 }
 
 .whats-new-version-item[data-selected='true'] {
-  border-color: var(--color-token-border-light);
+  border-color: var(--cpx-sys-color-border-subtle);
 }
 
 .whats-new-version-item:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring-inset);
+  box-shadow: var(--cpx-sys-focus-ring-inset);
 }
 
 @media (forced-colors: active) {
@@ -138,7 +138,7 @@
 }
 
 .whats-new-detail-scroll-content {
-  padding: var(--space-6);
+  padding: var(--cpx-sys-space-6);
 }
 
 .whats-new-release-details {
@@ -147,10 +147,10 @@
 
 .whats-new-release-details-header {
   display: grid;
-  gap: var(--space-2);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-token-border-light);
-  margin-bottom: var(--space-5);
+  gap: var(--cpx-sys-space-2);
+  padding-bottom: var(--cpx-sys-space-4);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  margin-bottom: var(--cpx-sys-space-5);
 }
 
 .whats-new-release-heading,
@@ -167,7 +167,7 @@
 
 .whats-new-release-heading strong {
   min-width: 0;
-  font-size: var(--type-section-title);
+  font-size: var(--cpx-sys-font-size-md);
 }
 
 .whats-new-version-item .whats-new-release-heading {
@@ -176,8 +176,8 @@
 
 .whats-new-version-item .whats-new-release-heading strong {
   overflow-wrap: anywhere;
-  font-size: var(--type-secondary);
-  line-height: var(--type-line-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .whats-new-release-badges {
@@ -189,24 +189,24 @@
 
 .whats-new-release-badges > span {
   padding: 3px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .whats-new-release-badges > span[data-kind='current'] {
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
 }
 
 .whats-new-release-meta {
   gap: 10px;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .whats-new-release-meta code {
-  font-family: var(--font-family-mono);
+  font-family: var(--cpx-sys-font-family-mono);
 }
 
 .whats-new-release-body {
@@ -226,8 +226,8 @@
 .whats-new-empty-body,
 .whats-new-notice,
 .whats-new-source {
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
 }
 
 .whats-new-empty-body {
@@ -235,21 +235,21 @@
 }
 
 .whats-new-notice {
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--cpx-sys-space-3);
   padding: 10px 12px;
-  border-radius: var(--radius-card);
-  background: var(--color-token-list-hover-background);
-  font-size: var(--type-meta);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-hover);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .whats-new-fallback-notice {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--cpx-sys-space-3);
 }
 
 .whats-new-fallback-notice p {
   margin: 0;
-  line-height: var(--type-line-meta);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .whats-new-fallback-notice .ui-button {
@@ -257,13 +257,13 @@
 }
 
 .whats-new-source {
-  margin: var(--space-6) 0 0;
+  margin: var(--cpx-sys-space-6) 0 0;
   text-align: left;
 }
 
 .whats-new-dialog-body > .whats-new-state,
 .whats-new-dialog-body > .whats-new-skeleton {
-  margin: var(--space-6);
+  margin: var(--cpx-sys-space-6);
 }
 
 .whats-new-state {
@@ -271,16 +271,16 @@
   justify-items: start;
   gap: 8px;
   padding: 28px;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-card);
-  background: var(--color-token-bg-secondary);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-surface-under);
 }
 
 .whats-new-state p {
   max-width: 620px;
   margin: 0 0 8px;
-  color: var(--color-token-description-foreground);
-  line-height: var(--type-line-body);
+  color: var(--cpx-sys-color-fg-tertiary);
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .whats-new-skeleton {
@@ -292,15 +292,15 @@
   display: grid;
   gap: 10px;
   padding: 17px;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
 }
 
 .whats-new-skeleton-card > span {
   display: block;
   height: 13px;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-list-hover-background);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-hover);
   animation: whats-new-skeleton-pulse 1.4s ease-in-out infinite;
 }
 
