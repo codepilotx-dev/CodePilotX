@@ -6,14 +6,14 @@ import type {
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
 
-export const MODEL_CENTER_VIEWS = ['providers', 'keys', 'health'] as const
+export const MODEL_CENTER_VIEWS = ['providers', 'health'] as const
 export type ModelCenterView = (typeof MODEL_CENTER_VIEWS)[number]
 
 export type ModelCenterCapabilityGate = {
   supportsModelHealth: boolean
 }
 
-export const MODEL_CENTER_PROVIDER_SECTIONS = ['connection', 'models', 'router'] as const
+export const MODEL_CENTER_PROVIDER_SECTIONS = ['connection', 'models'] as const
 export type ModelCenterProviderSection = (typeof MODEL_CENTER_PROVIDER_SECTIONS)[number]
 
 export type ModelCenterRouteState = {
@@ -23,9 +23,9 @@ export type ModelCenterRouteState = {
 }
 
 export type ModelCenterRoutePatch = {
-  view?: ModelCenterView | null
+  view?: ModelCenterView | 'keys' | null
   providerId?: string | null
-  section?: ModelCenterProviderSection | null
+  section?: ModelCenterProviderSection | 'router' | null
 }
 
 export type ApiKeyFilters = {
@@ -47,6 +47,7 @@ export type ProviderConnectionStatus =
   | 'configured'
   | 'unconfigured'
 export type ProviderDirectoryStatus = 'current' | ProviderConnectionStatus
+export type ProviderCatalogFilter = 'all' | 'configured' | 'unconfigured'
 
 export type ProviderDirectoryItem = {
   provider: DesktopModelProviderSummary
@@ -54,18 +55,19 @@ export type ProviderDirectoryItem = {
   connectionStatus: ProviderConnectionStatus
   statuses: ProviderDirectoryStatus[]
   sources: ProviderCatalogSource[]
+  keyCount: number
+  hasOAuth: boolean
+  healthTone: 'healthy' | 'warning' | 'neutral'
 }
 
 export type ProviderDirectoryOptions = {
   query?: string
+  filter?: ProviderCatalogFilter
   currentProviderId?: string | null
   currentProviderState?: DesktopModelProviderState | null
   apiKeys?: readonly DesktopApiKeySummary[]
   credentials?: readonly DesktopProviderCredential[]
 }
-
-const isModelCenterView = (value: string | null): value is ModelCenterView =>
-  MODEL_CENTER_VIEWS.some(candidate => candidate === value)
 
 const isProviderSection = (value: string | null): value is ModelCenterProviderSection =>
   MODEL_CENTER_PROVIDER_SECTIONS.some(candidate => candidate === value)
@@ -79,18 +81,20 @@ export function parseModelCenterSearchParams(
   const allowed = new Set(allowedProviderIds)
   const requestedProvider = params.get('provider')
   const requestedView = params.get('view')
-  const resolvedView = !capabilities.supportsModelHealth && requestedView === 'health'
-    ? 'providers'
-    : requestedView
+
+  let resolvedView: ModelCenterView = 'providers'
+  if (requestedView === 'health' && capabilities.supportsModelHealth) {
+    resolvedView = 'health'
+  }
+
+  const requestedSection = params.get('section')
+  const resolvedSection: ModelCenterProviderSection =
+    requestedSection === 'models' ? 'models' : 'connection'
 
   return {
-    view: resolvedView === 'providers' || resolvedView === 'keys' || resolvedView === 'health'
-      ? resolvedView as ModelCenterView
-      : 'providers',
+    view: resolvedView,
     providerId: requestedProvider && allowed.has(requestedProvider) ? requestedProvider : null,
-    section: isProviderSection(params.get('section'))
-      ? params.get('section') as ModelCenterProviderSection
-      : 'connection',
+    section: resolvedSection,
   }
 }
 
@@ -99,17 +103,41 @@ export function projectProviderDirectory(
   options: ProviderDirectoryOptions = {},
 ): ProviderDirectoryItem[] {
   const query = options.query?.trim().toLocaleLowerCase() ?? ''
+  const filter = options.filter ?? 'all'
 
   return providers.flatMap(provider => {
     const sources = providerSources(provider)
     const current = provider.providerID === options.currentProviderId
     const connectionStatus = providerConnectionStatus(provider, options)
+    const providerKeys = options.apiKeys?.filter(k => k.providerId === provider.providerID) ?? []
+    const keyCount = providerKeys.length
+    const hasOAuth = Boolean(
+      options.credentials?.some(
+        c => c.providerId === provider.providerID && c.kind === 'oauth',
+      ),
+    )
+
+    let healthTone: 'healthy' | 'warning' | 'neutral' = 'neutral'
+    if (providerKeys.some(k => k.health.status === 'healthy')) {
+      healthTone = 'healthy'
+    } else if (providerKeys.some(k => k.health.status === 'auth-failed' || k.health.status === 'error')) {
+      healthTone = 'warning'
+    }
+
+    const isConfigured = connectionStatus !== 'unconfigured'
+
+    if (filter === 'configured' && !isConfigured) return []
+    if (filter === 'unconfigured' && isConfigured) return []
+
     const item: ProviderDirectoryItem = {
       provider,
       current,
       connectionStatus,
       statuses: current ? ['current', connectionStatus] : [connectionStatus],
       sources,
+      keyCount,
+      hasOAuth,
+      healthTone,
     }
     if (!query || providerSearchText(provider, sources).includes(query)) return [item]
     return []
@@ -125,9 +153,17 @@ export function updateModelCenterSearchParams(
   patch: ModelCenterRoutePatch,
 ): URLSearchParams {
   const next = new URLSearchParams(current)
-  updateParam(next, 'view', patch.view)
+  if (patch.view === 'keys') {
+    updateParam(next, 'view', 'providers')
+  } else {
+    updateParam(next, 'view', patch.view)
+  }
   updateParam(next, 'provider', patch.providerId)
-  updateParam(next, 'section', patch.section)
+  if (patch.section === 'router') {
+    updateParam(next, 'section', 'connection')
+  } else {
+    updateParam(next, 'section', patch.section)
+  }
   return next
 }
 
@@ -186,10 +222,6 @@ function updateParam(
     return
   }
   params.set(key, value)
-}
-
-function compareApiKeyPriority(left: DesktopApiKeySummary, right: DesktopApiKeySummary): number {
-  return left.priority - right.priority || left.createdAt - right.createdAt
 }
 
 function providerSources(provider: DesktopModelProviderSummary): ProviderCatalogSource[] {

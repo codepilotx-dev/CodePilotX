@@ -38,12 +38,22 @@ const keys: DesktopApiKeySummary[] = [
 describe('model center URL state', () => {
   test('parses valid workspace, provider and section', () => {
     const state = parseModelCenterSearchParams(
+      new URLSearchParams('view=providers&provider=anthropic&section=models'),
+      ['openai', 'anthropic'],
+      'openai',
+    )
+
+    expect(state).toEqual({ view: 'providers', providerId: 'anthropic', section: 'models' })
+  })
+
+  test('gracefully maps legacy keys view to providers workspace', () => {
+    const state = parseModelCenterSearchParams(
       new URLSearchParams('view=keys&provider=anthropic&section=models'),
       ['openai', 'anthropic'],
       'openai',
     )
 
-    expect(state).toEqual({ view: 'keys', providerId: 'anthropic', section: 'models' })
+    expect(state).toEqual({ view: 'providers', providerId: 'anthropic', section: 'models' })
   })
 
   test('falls back for invalid parameters and provider', () => {
@@ -84,12 +94,12 @@ describe('model center URL state', () => {
   test('updates model-center params without mutating unrelated params', () => {
     const current = new URLSearchParams('debug=1&view=providers&section=connection')
     const next = updateModelCenterSearchParams(current, {
-      view: 'keys',
+      view: 'health',
       providerId: 'openai',
       section: null,
     })
 
-    expect(next.toString()).toBe('debug=1&view=keys&provider=openai')
+    expect(next.toString()).toBe('debug=1&view=health&provider=openai')
     expect(current.toString()).toBe('debug=1&view=providers&section=connection')
   })
 })
@@ -118,6 +128,26 @@ describe('model center Provider directory', () => {
       .toEqual(['openai'])
     expect(projectProviderDirectory(providers, { query: '内置' }).map(item => item.provider.providerID))
       .toEqual(['local'])
+  })
+
+  test('supports filtering by configured and unconfigured status', () => {
+    const all = projectProviderDirectory(providers, {
+      filter: 'all',
+      apiKeys: keys,
+    })
+    expect(all).toHaveLength(3)
+
+    const configured = projectProviderDirectory(providers, {
+      filter: 'configured',
+      apiKeys: keys,
+    })
+    expect(configured.map(item => item.provider.providerID)).toEqual(['openai'])
+
+    const unconfigured = projectProviderDirectory(providers, {
+      filter: 'unconfigured',
+      apiKeys: keys,
+    })
+    expect(unconfigured.map(item => item.provider.providerID)).toEqual(['vercel', 'local'])
   })
 
   test('projects current and stored Key status', () => {

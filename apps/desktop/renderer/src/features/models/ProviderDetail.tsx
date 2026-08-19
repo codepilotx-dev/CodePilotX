@@ -9,7 +9,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 
-export const PROVIDER_DETAIL_TABS = ['connection', 'models', 'router'] as const
+export const PROVIDER_DETAIL_TABS = ['connection', 'models'] as const
 export type ProviderDetailTab = (typeof PROVIDER_DETAIL_TABS)[number]
 export type ProviderDetailStatusTone = 'positive' | 'warning' | 'danger' | 'neutral'
 
@@ -35,9 +35,8 @@ export type ProviderDetailProps = {
 }
 
 const TAB_LABELS: Record<ProviderDetailTab, string> = {
-  connection: '连接',
-  models: '模型',
-  router: 'Router',
+  connection: '连接与凭据',
+  models: '模型与测速',
 }
 
 export function ProviderDetail({
@@ -80,7 +79,7 @@ export function ProviderDetail({
             className="model-center-provider-back"
             color="ghostSecondary"
             size="toolbar"
-            title="返回 Provider 列表"
+            title="返回供应商列表"
             onClick={onBack}
           >
             <ArrowLeft aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />

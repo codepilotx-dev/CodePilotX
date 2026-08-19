@@ -1,5 +1,17 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { Plus, Trash2, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  Brain,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Plus,
+  RefreshCw,
+  Server,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react'
 import type React from 'react'
 import { useEffect, useId, useMemo, useState } from 'react'
 import type {
@@ -10,11 +22,20 @@ import type {
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { Input } from '../../../components/ui/Input.js'
+import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
-import { desktopClient } from '../../../services/desktop-client/index.js'
-import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from '../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
+import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
+import {
+  PROVIDER_PRESETS,
+  type ProviderPreset,
+} from './providerEditorPresets.js'
 
 const API_OPTIONS = [
   { value: 'openai-completions', label: 'OpenAI Completions' },
@@ -42,6 +63,8 @@ type EditableModel = {
   compat: string
 }
 
+type DialogTab = 'basic' | 'models' | 'advanced'
+
 export type ProviderEditorDialogProps = {
   open: boolean
   provider?: DesktopModelProviderSummary
@@ -60,6 +83,8 @@ export function ProviderEditorDialog({
   const titleId = useId()
   const editing = provider?.providerKind === 'custom'
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
+
+  const [activeTab, setActiveTab] = useState<DialogTab>('basic')
   const [id, setId] = useState('')
   const [name, setName] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
@@ -69,6 +94,7 @@ export function ProviderEditorDialog({
   const [env, setEnv] = useState('')
   const [headers, setHeaders] = useState('')
   const [models, setModels] = useState<EditableModel[]>([emptyModel()])
+  const [expandedModels, setExpandedModels] = useState<Set<number>>(new Set([0]))
   const [candidates, setCandidates] = useState<DesktopProviderModelDefinition[]>([])
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -76,30 +102,31 @@ export function ProviderEditorDialog({
 
   useEffect(() => {
     if (!open) return
+    setActiveTab('basic')
     const customConfig = provider?.config?.kind === 'custom'
       ? provider.config
       : undefined
     const nextModels = customConfig?.models.map(model => editableModel(model))
       ?? provider?.defaultModels.map(modelId => {
-      const metadata = provider.modelMetadata?.[modelId]
-      return {
-        id: modelId,
-        name: metadata?.name ?? modelId,
-        api: metadata?.providerApi ?? provider.providerApis?.[0] ?? 'openai-completions',
-        enabled: true,
-        contextWindow: metadata?.contextWindow ?? 32_768,
-        maxTokens: metadata?.outputTokens ?? 8_192,
-        reasoning: metadata?.reasoning ?? false,
-        imageInput: metadata?.vision ?? false,
-        inputCost: metadata?.inputCost ?? 0,
-        outputCost: metadata?.outputCost ?? 0,
-        cacheReadCost: metadata?.cacheReadCost ?? 0,
-        cacheWriteCost: metadata?.cacheWriteCost ?? 0,
-        headers: '',
-        thinkingLevelMap: '',
-        compat: '',
-      } satisfies EditableModel
-    }) ?? []
+        const metadata = provider.modelMetadata?.[modelId]
+        return {
+          id: modelId,
+          name: metadata?.name ?? modelId,
+          api: metadata?.providerApi ?? provider.providerApis?.[0] ?? 'openai-completions',
+          enabled: true,
+          contextWindow: metadata?.contextWindow ?? 32_768,
+          maxTokens: metadata?.outputTokens ?? 8_192,
+          reasoning: metadata?.reasoning ?? false,
+          imageInput: metadata?.vision ?? false,
+          inputCost: metadata?.inputCost ?? 0,
+          outputCost: metadata?.outputCost ?? 0,
+          cacheReadCost: metadata?.cacheReadCost ?? 0,
+          cacheWriteCost: metadata?.cacheWriteCost ?? 0,
+          headers: '',
+          thinkingLevelMap: '',
+          compat: '',
+        } satisfies EditableModel
+      }) ?? []
     setId(provider?.providerID ?? '')
     setName(provider?.displayName ?? '')
     setBaseUrl(provider?.baseURL ?? '')
@@ -111,10 +138,41 @@ export function ProviderEditorDialog({
     setEnv(customConfig?.env.join(', ') ?? provider?.envVars?.join(', ') ?? '')
     setHeaders(headersToText(customConfig?.headers ?? {}))
     setModels(nextModels.length > 0 ? nextModels : [emptyModel()])
+    setExpandedModels(new Set([0]))
     setCandidates([])
     setSelectedCandidates(new Set())
     setError(null)
   }, [open, provider])
+
+  function applyPreset(preset: ProviderPreset): void {
+    setId(preset.defaultValues.id)
+    setName(preset.defaultValues.name)
+    setBaseUrl(preset.defaultValues.baseUrl)
+    setAuth(preset.defaultValues.auth)
+    setModels(
+      preset.defaultValues.models.map(item => ({
+        ...emptyModel(),
+        id: item.id,
+        name: item.name,
+        api: item.api,
+        contextWindow: item.contextWindow,
+        maxTokens: item.maxTokens,
+        reasoning: item.reasoning,
+        imageInput: item.imageInput,
+      })),
+    )
+    setExpandedModels(new Set([0]))
+    setError(null)
+  }
+
+  function toggleExpandModel(index: number): void {
+    setExpandedModels(current => {
+      const next = new Set(current)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }
 
   const definition = useMemo(() => {
     const headerEntries = parseHeaders(headers)
@@ -152,7 +210,7 @@ export function ProviderEditorDialog({
     if (!id.trim() || !name.trim() || !baseUrl.trim()) {
       return new Error('Provider ID、名称和 Base URL 不能为空。')
     }
-    if (normalizedModels.length === 0) return new Error('至少添加一个模型。')
+    if (normalizedModels.length === 0) return new Error('至少添加一个有效模型。')
     return {
       kind: 'custom',
       id: id.trim(),
@@ -232,84 +290,365 @@ export function ProviderEditorDialog({
     setSelectedCandidates(new Set())
   }
 
+  const isRemoteHttp = /^http:\/\//i.test(baseUrl) && !isLoopbackUrl(baseUrl)
+
+  const tabOptions: readonly { value: DialogTab; label: React.ReactNode }[] = [
+    { value: 'basic', label: '基本配置' },
+    { value: 'models', label: `模型管理 (${models.length})` },
+    { value: 'advanced', label: '高级与网络' },
+  ]
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-            aria-labelledby={titleId}
-            className="ui-dialog-surface ui-dialog-surface--centered model-center-key-dialog model-center-connection-dialog"
-            onCloseAutoFocus={onCloseAutoFocus}
-          >
-            <header className="model-center-key-dialog-header">
-              <div className="model-center-key-dialog-heading">
-                <div>
-                  <Dialog.Title id={titleId}>
-                    {editing ? `编辑 ${provider.displayName}` : '新增自定义 Provider'}
-                  </Dialog.Title>
-                  <Dialog.Description>
-                    Pi 原生 Provider 配置；内置 Provider 的 Endpoint 与认证不可覆盖。
-                  </Dialog.Description>
-                </div>
+          aria-labelledby={titleId}
+          className="ui-dialog-surface ui-dialog-surface--centered provider-editor-dialog"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
+          <header className="provider-editor-header">
+            <div className="provider-editor-heading">
+              <div className="provider-editor-icon">
+                <Server
+                  aria-hidden
+                  size={APP_ICON_SIZE + 4}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </div>
-              <Dialog.Close asChild><IconButton color="ghostSecondary" size="toolbar" title="关闭"><X aria-hidden /></IconButton></Dialog.Close>
-            </header>
-
-            <div className="model-center-account-fields">
-              <label className="model-center-account-field"><span>Provider ID</span><Input readOnly={editing} value={id} onChange={event => setId(event.target.value)} /></label>
-              <label className="model-center-account-field"><span>名称</span><Input value={name} onChange={event => setName(event.target.value)} /></label>
-              <label className="model-center-account-field"><span>Base URL</span><Input value={baseUrl} onChange={event => setBaseUrl(event.target.value)} placeholder="https://example.com/v1" /></label>
-              <label className="model-center-account-field"><span>认证</span><SettingsDropdown ariaLabel="认证方式" value={auth} width={280} options={[{ value: 'api-key', label: 'API Key' }, { value: 'none', label: '无需认证' }]} onChange={value => setAuth(value as 'api-key' | 'none')} /></label>
-              <label className="model-center-account-field"><span>凭据环境变量（逗号分隔）</span><Input value={env} onChange={event => setEnv(event.target.value)} /></label>
-              <label className="model-center-account-field"><span>非敏感 Headers（每行 name: value）</span><textarea value={headers} onChange={event => setHeaders(event.target.value)} /></label>
-              <label className="model-center-account-field"><span>启用 Provider</span><ToggleSwitch ariaLabel="启用 Provider" checked={enabled} onChange={setEnabled} /></label>
-              <label className="model-center-account-field"><span>允许非 loopback HTTP</span><ToggleSwitch ariaLabel="允许不安全 HTTP" checked={allowInsecureHttp} onChange={setAllowInsecureHttp} /></label>
-
-              <section className="model-center-account-section">
-                <header>
-                  <div><h3>模型</h3><p>只需填写 ID 与 API，其余使用保守默认值。</p></div>
-                  <div className="model-center-account-actions">
-                    {editing ? <Button color="primary" disabled={busy} onClick={() => void discover()}>从 /models 导入</Button> : null}
-                    <Button color="primary" onClick={() => setModels(current => [...current, emptyModel()])}><Plus aria-hidden />新增模型</Button>
-                  </div>
-                </header>
-                {models.map((model, index) => (
-                  <ModelEditor
-                    key={`${index}-${model.id}`}
-                    model={model}
-                    onChange={next => setModels(current => current.map((item, itemIndex) => itemIndex === index ? next : item))}
-                    onRemove={() => setModels(current => current.filter((_, itemIndex) => itemIndex !== index))}
-                  />
-                ))}
-              </section>
-
-              {candidates.length > 0 ? (
-                <section className="model-center-account-section">
-                  <header><div><h3>确认导入候选模型</h3><p>勾选后仅加入表单，保存 Provider 时才会持久化。</p></div></header>
-                  {candidates.map(candidate => (
-                    <label className="model-center-account-field" key={String(candidate.id)}>
-                      <input
-                        checked={selectedCandidates.has(String(candidate.id))}
-                        onChange={event => setSelectedCandidates(current => {
-                          const next = new Set(current)
-                          if (event.target.checked) next.add(String(candidate.id))
-                          else next.delete(String(candidate.id))
-                          return next
-                        })}
-                        type="checkbox"
-                      />
-                      <span>{String(candidate.id)} · {candidate.api}</span>
-                    </label>
-                  ))}
-                  <Button color="primary" disabled={selectedCandidates.size === 0} onClick={importSelected}>导入已选模型</Button>
-                </section>
-              ) : null}
-
-              {error ? <p className="model-center-account-error" role="status">{error}</p> : null}
-              <div className="model-center-account-actions">
-                <Button color="primary" loading={busy} onClick={() => void save()}>保存 Provider</Button>
+              <div>
+                <Dialog.Title id={titleId}>
+                  {editing ? `编辑 ${provider.displayName}` : '新增自定义 Provider'}
+                </Dialog.Title>
+                <Dialog.Description>
+                  配置兼容 OpenAI / Anthropic 协议的自定义模型端点
+                </Dialog.Description>
               </div>
             </div>
+            <Dialog.Close asChild>
+              <IconButton color="ghostSecondary" size="toolbar" title="关闭">
+                <X aria-hidden />
+              </IconButton>
+            </Dialog.Close>
+          </header>
+
+          <div className="provider-editor-tabs-bar">
+            <SegmentedControl<DialogTab>
+              ariaLabel="配置分类"
+              onChange={setActiveTab}
+              options={tabOptions}
+              semantics="tabs"
+              value={activeTab}
+            />
+          </div>
+
+          <div className="provider-editor-body">
+            {activeTab === 'basic' ? (
+              <div className="provider-editor-tab-panel">
+                {!editing ? (
+                  <section className="provider-editor-presets-section">
+                    <div className="provider-editor-presets-header">
+                      <span>快速套用常用预设</span>
+                      <Sparkles
+                        aria-hidden
+                        size={APP_ICON_SIZE - 2}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    </div>
+                    <div className="provider-editor-presets-list">
+                      {PROVIDER_PRESETS.map(preset => (
+                        <button
+                          className="provider-editor-preset-chip"
+                          key={preset.id}
+                          title={preset.description}
+                          type="button"
+                          onClick={() => applyPreset(preset)}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                <div className="provider-editor-grid">
+                  <label className="provider-editor-field provider-editor-field--mono">
+                    <span>
+                      Provider ID
+                      {editing ? <small>（不可修改）</small> : null}
+                    </span>
+                    <Input
+                      placeholder="如：custom-ollama"
+                      readOnly={editing}
+                      value={id}
+                      onChange={event => setId(event.target.value)}
+                    />
+                  </label>
+                  <label className="provider-editor-field">
+                    <span>显示名称</span>
+                    <Input
+                      placeholder="如：Ollama 本地服务"
+                      value={name}
+                      onChange={event => setName(event.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <label className="provider-editor-field provider-editor-field--mono">
+                  <span>Base URL</span>
+                  <Input
+                    placeholder="https://example.com/v1"
+                    value={baseUrl}
+                    onChange={event => setBaseUrl(event.target.value)}
+                  />
+                  <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
+                </label>
+
+                <div className="provider-editor-grid">
+                  <label className="provider-editor-field">
+                    <span>认证方式</span>
+                    <SettingsDropdown
+                      ariaLabel="认证方式"
+                      options={[
+                        { value: 'api-key', label: 'API Key（需要凭据）' },
+                        { value: 'none', label: '无需认证（本地/公开服务）' },
+                      ]}
+                      value={auth}
+                      width="100%"
+                      onChange={value => setAuth(value as 'api-key' | 'none')}
+                    />
+                  </label>
+                  <label className="provider-editor-field provider-editor-field--mono">
+                    <span>凭据环境变量（逗号分隔）</span>
+                    <Input
+                      placeholder="如：OLLAMA_API_KEY, CUSTOM_API_KEY"
+                      value={env}
+                      onChange={event => setEnv(event.target.value)}
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : null}
+
+            {activeTab === 'models' ? (
+              <div className="provider-editor-tab-panel">
+                <header className="provider-editor-models-header">
+                  <div className="provider-editor-models-title">
+                    <h3>模型列表</h3>
+                    <span>{models.length}</span>
+                  </div>
+                  <div className="provider-editor-models-actions">
+                    {editing ? (
+                      <Button
+                        color="secondary"
+                        disabled={busy}
+                        onClick={() => void discover()}
+                      >
+                        <RefreshCw aria-hidden size={APP_ICON_SIZE} />
+                        从 /models 导入
+                      </Button>
+                    ) : null}
+                    <Button
+                      color="secondary"
+                      onClick={() => {
+                        setModels(current => [...current, emptyModel()])
+                        setExpandedModels(current => new Set([...current, models.length]))
+                      }}
+                    >
+                      <Plus aria-hidden size={APP_ICON_SIZE} />
+                      新增模型
+                    </Button>
+                  </div>
+                </header>
+
+                {candidates.length > 0 ? (
+                  <section className="provider-editor-candidates-card">
+                    <header>
+                      <strong>发现 {candidates.length} 个候选模型</strong>
+                      <Button
+                        color="primary"
+                        disabled={selectedCandidates.size === 0}
+                        onClick={importSelected}
+                      >
+                        导入已选 ({selectedCandidates.size})
+                      </Button>
+                    </header>
+                    <div className="provider-editor-candidates-list">
+                      {candidates.map(candidate => (
+                        <label
+                          className="provider-editor-candidate-row"
+                          key={String(candidate.id)}
+                        >
+                          <input
+                            checked={selectedCandidates.has(String(candidate.id))}
+                            type="checkbox"
+                            onChange={event => setSelectedCandidates(current => {
+                              const next = new Set(current)
+                              if (event.target.checked) next.add(String(candidate.id))
+                              else next.delete(String(candidate.id))
+                              return next
+                            })}
+                          />
+                          <span>{String(candidate.id)}</span>
+                          <span className="provider-editor-model-card-badge">{candidate.api}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                <div className="provider-editor-models-list">
+                  {models.map((model, index) => {
+                    const isExpanded = expandedModels.has(index)
+                    return (
+                      <div
+                        className="provider-editor-model-card"
+                        data-expanded={isExpanded}
+                        key={`${index}-${model.id}`}
+                      >
+                        <div
+                          className="provider-editor-model-card-header"
+                          onClick={() => toggleExpandModel(index)}
+                        >
+                          <div className="provider-editor-model-card-summary">
+                            <span className="provider-editor-model-card-chevron">
+                              {isExpanded ? (
+                                <ChevronDown aria-hidden size={APP_ICON_SIZE} />
+                              ) : (
+                                <ChevronRight aria-hidden size={APP_ICON_SIZE} />
+                              )}
+                            </span>
+                            <code>{model.id || '(未命名模型)'}</code>
+                            {model.name && model.name !== model.id ? (
+                              <span className="provider-editor-model-card-name">({model.name})</span>
+                            ) : null}
+                            <span className="provider-editor-model-card-badge">{model.api}</span>
+                            {model.reasoning ? (
+                              <span className="provider-editor-model-card-tag provider-editor-model-tag--reasoning">
+                                <Brain aria-hidden size={12} />
+                                Reasoning
+                              </span>
+                            ) : null}
+                            {model.imageInput ? (
+                              <span className="provider-editor-model-card-tag provider-editor-model-tag--vision">
+                                <Eye aria-hidden size={12} />
+                                Vision
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div
+                            className="provider-editor-model-card-controls"
+                            onClick={event => event.stopPropagation()}
+                          >
+                            <ToggleSwitch
+                              ariaLabel="启用模型"
+                              checked={model.enabled}
+                              onChange={enabledVal => setModels(current => current.map((item, itemIndex) => (
+                                itemIndex === index ? { ...item, enabled: enabledVal } : item
+                              )))}
+                            />
+                            {models.length > 1 ? (
+                              <IconButton
+                                color="danger"
+                                size="toolbar"
+                                title="移除模型"
+                                onClick={() => setModels(current => current.filter((_, itemIndex) => itemIndex !== index))}
+                              >
+                                <Trash2 aria-hidden size={APP_ICON_SIZE} />
+                              </IconButton>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {isExpanded ? (
+                          <div className="provider-editor-model-card-body">
+                            <ModelEditor
+                              model={model}
+                              onChange={next => setModels(current => current.map((item, itemIndex) => (
+                                itemIndex === index ? next : item
+                              )))}
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {activeTab === 'advanced' ? (
+              <div className="provider-editor-tab-panel">
+                <div className="provider-editor-switch-card">
+                  <div className="provider-editor-switch-info">
+                    <strong>启用此 Provider</strong>
+                    <span>在模型选择菜单与 Agent 会话中允许调用此 Provider</span>
+                  </div>
+                  <ToggleSwitch
+                    ariaLabel="启用 Provider"
+                    checked={enabled}
+                    onChange={setEnabled}
+                  />
+                </div>
+
+                <div className="provider-editor-switch-card">
+                  <div className="provider-editor-switch-info">
+                    <strong>允许非 loopback 明文 HTTP</strong>
+                    <span>允许连接局域网或远程非 localhost 的 http:// 端点</span>
+                  </div>
+                  <ToggleSwitch
+                    ariaLabel="允许非 loopback HTTP"
+                    checked={allowInsecureHttp}
+                    onChange={setAllowInsecureHttp}
+                  />
+                </div>
+
+                {isRemoteHttp && !allowInsecureHttp ? (
+                  <div className="provider-editor-alert" data-tone="warning">
+                    <AlertTriangle aria-hidden />
+                    <div>
+                      <strong>检测到非本地明文 HTTP 端点</strong>
+                      <p>当前 Base URL 使用明文 HTTP 且不是本机回环地址，建议开启“允许非 loopback 明文 HTTP”或使用 HTTPS。</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                <label className="provider-editor-field">
+                  <span>
+                    全局非敏感 Headers
+                    <small>每行 name: value</small>
+                  </span>
+                  <textarea
+                    className="provider-editor-textarea"
+                    placeholder="X-Custom-Header: value&#10;Custom-Client: CodePilotX"
+                    rows={4}
+                    value={headers}
+                    onChange={event => setHeaders(event.target.value)}
+                  />
+                  <p>仅填写非敏感请求头。Authorization / API Key 等凭据请勿直接写入此处。</p>
+                </label>
+              </div>
+            ) : null}
+          </div>
+
+          <footer className="provider-editor-footer">
+            <div className="provider-editor-footer-status">
+              {error ? (
+                <p className="provider-editor-error-text" role="status" title={error}>
+                  {error}
+                </p>
+              ) : null}
+            </div>
+            <div className="provider-editor-footer-actions">
+              <Button color="secondary" onClick={() => onOpenChange(false)}>
+                取消
+              </Button>
+              <Button color="primary" loading={busy} onClick={() => void save()}>
+                保存 Provider
+              </Button>
+            </div>
+          </footer>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -319,35 +658,177 @@ export function ProviderEditorDialog({
 function ModelEditor({
   model,
   onChange,
-  onRemove,
 }: {
   model: EditableModel
   onChange: (model: EditableModel) => void
-  onRemove: () => void
 }): React.ReactNode {
   const number = (key: keyof EditableModel, value: string) =>
     onChange({ ...model, [key]: Math.max(0, Number(value) || 0) })
+
   return (
-    <div className="model-center-account-connection">
-      <label className="model-center-account-field"><span>模型 ID</span><Input value={model.id} onChange={event => onChange({ ...model, id: event.target.value })} /></label>
-      <label className="model-center-account-field"><span>名称</span><Input value={model.name} onChange={event => onChange({ ...model, name: event.target.value })} placeholder="默认使用模型 ID" /></label>
-      <label className="model-center-account-field"><span>API</span><SettingsDropdown ariaLabel="模型 API" value={model.api} width={280} options={[...API_OPTIONS]} onChange={value => onChange({ ...model, api: value as Api })} /></label>
-      <label className="model-center-account-field"><span>Context Window</span><Input type="number" value={String(model.contextWindow)} onChange={event => number('contextWindow', event.target.value)} /></label>
-      <label className="model-center-account-field"><span>Max Tokens</span><Input type="number" value={String(model.maxTokens)} onChange={event => number('maxTokens', event.target.value)} /></label>
-      <label className="model-center-account-field"><span>启用模型</span><ToggleSwitch ariaLabel="启用模型" checked={model.enabled} onChange={enabled => onChange({ ...model, enabled })} /></label>
-      <label className="model-center-account-field"><span>推理</span><ToggleSwitch ariaLabel="推理模型" checked={model.reasoning} onChange={reasoning => onChange({ ...model, reasoning })} /></label>
-      <label className="model-center-account-field"><span>图片输入</span><ToggleSwitch ariaLabel="图片输入" checked={model.imageInput} onChange={imageInput => onChange({ ...model, imageInput })} /></label>
-      <details>
-        <summary>成本与 API 高级设置</summary>
-        <label className="model-center-account-field"><span>输入成本</span><Input type="number" value={String(model.inputCost)} onChange={event => number('inputCost', event.target.value)} /></label>
-        <label className="model-center-account-field"><span>输出成本</span><Input type="number" value={String(model.outputCost)} onChange={event => number('outputCost', event.target.value)} /></label>
-        <label className="model-center-account-field"><span>缓存读取成本</span><Input type="number" value={String(model.cacheReadCost)} onChange={event => number('cacheReadCost', event.target.value)} /></label>
-        <label className="model-center-account-field"><span>缓存写入成本</span><Input type="number" value={String(model.cacheWriteCost)} onChange={event => number('cacheWriteCost', event.target.value)} /></label>
-        <label className="model-center-account-field"><span>模型 Headers（每行 name: value）</span><textarea value={model.headers} onChange={event => onChange({ ...model, headers: event.target.value })} /></label>
-        <label className="model-center-account-field"><span>Thinking Level Map（JSON）</span><textarea value={model.thinkingLevelMap} onChange={event => onChange({ ...model, thinkingLevelMap: event.target.value })} placeholder='{"high":"high"}' /></label>
-        <label className="model-center-account-field"><span>API Compat（JSON）</span><textarea value={model.compat} onChange={event => onChange({ ...model, compat: event.target.value })} placeholder="{}" /></label>
+    <div className="provider-editor-tab-panel">
+      <div className="provider-editor-grid">
+        <label className="provider-editor-field provider-editor-field--mono">
+          <span>模型 ID</span>
+          <Input
+            placeholder="如：llama3.2 或 gpt-4o"
+            value={model.id}
+            onChange={event => onChange({ ...model, id: event.target.value })}
+          />
+        </label>
+        <label className="provider-editor-field">
+          <span>显示名称</span>
+          <Input
+            placeholder="默认使用模型 ID"
+            value={model.name}
+            onChange={event => onChange({ ...model, name: event.target.value })}
+          />
+        </label>
+      </div>
+
+      <div className="provider-editor-grid">
+        <label className="provider-editor-field">
+          <span>模型 API 协议</span>
+          <SettingsDropdown
+            ariaLabel="模型 API"
+            options={[...API_OPTIONS]}
+            value={model.api}
+            width="100%"
+            onChange={value => onChange({ ...model, api: value as Api })}
+          />
+        </label>
+        <label className="provider-editor-field">
+          <span>
+            Context Window
+            <small>默认 32,768</small>
+          </span>
+          <Input
+            type="number"
+            value={String(model.contextWindow)}
+            onChange={event => number('contextWindow', event.target.value)}
+          />
+        </label>
+      </div>
+
+      <div className="provider-editor-grid">
+        <label className="provider-editor-field">
+          <span>
+            Max Output Tokens
+            <small>默认 8,192</small>
+          </span>
+          <Input
+            type="number"
+            value={String(model.maxTokens)}
+            onChange={event => number('maxTokens', event.target.value)}
+          />
+        </label>
+      </div>
+
+      <div className="provider-editor-model-toggles-row">
+        <div className="provider-editor-model-toggle-pill">
+          <span>启用此模型</span>
+          <ToggleSwitch
+            ariaLabel="启用模型"
+            checked={model.enabled}
+            onChange={enabled => onChange({ ...model, enabled })}
+          />
+        </div>
+        <div className="provider-editor-model-toggle-pill">
+          <span>推理思考 (Reasoning)</span>
+          <ToggleSwitch
+            ariaLabel="推理模型"
+            checked={model.reasoning}
+            onChange={reasoning => onChange({ ...model, reasoning })}
+          />
+        </div>
+        <div className="provider-editor-model-toggle-pill">
+          <span>图像输入 (Vision)</span>
+          <ToggleSwitch
+            ariaLabel="图片输入"
+            checked={model.imageInput}
+            onChange={imageInput => onChange({ ...model, imageInput })}
+          />
+        </div>
+      </div>
+
+      <details className="provider-editor-model-advanced-details">
+        <summary>高级配置与 Token 计费</summary>
+        <div className="provider-editor-model-advanced-content">
+          <div className="provider-editor-grid">
+            <label className="provider-editor-field">
+              <span>输入成本 ($ / 1M tokens)</span>
+              <Input
+                type="number"
+                value={String(model.inputCost)}
+                onChange={event => number('inputCost', event.target.value)}
+              />
+            </label>
+            <label className="provider-editor-field">
+              <span>输出成本 ($ / 1M tokens)</span>
+              <Input
+                type="number"
+                value={String(model.outputCost)}
+                onChange={event => number('outputCost', event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="provider-editor-grid">
+            <label className="provider-editor-field">
+              <span>缓存读取成本 ($ / 1M tokens)</span>
+              <Input
+                type="number"
+                value={String(model.cacheReadCost)}
+                onChange={event => number('cacheReadCost', event.target.value)}
+              />
+            </label>
+            <label className="provider-editor-field">
+              <span>缓存写入成本 ($ / 1M tokens)</span>
+              <Input
+                type="number"
+                value={String(model.cacheWriteCost)}
+                onChange={event => number('cacheWriteCost', event.target.value)}
+              />
+            </label>
+          </div>
+
+          <label className="provider-editor-field">
+            <span>
+              模型专属 Headers
+              <small>每行 name: value</small>
+            </span>
+            <textarea
+              className="provider-editor-textarea"
+              placeholder="X-Model-Specific: value"
+              rows={3}
+              value={model.headers}
+              onChange={event => onChange({ ...model, headers: event.target.value })}
+            />
+          </label>
+
+          <label className="provider-editor-field provider-editor-field--mono">
+            <span>Thinking Level Map (JSON)</span>
+            <textarea
+              className="provider-editor-textarea"
+              placeholder='{"high": "high"}'
+              rows={3}
+              value={model.thinkingLevelMap}
+              onChange={event => onChange({ ...model, thinkingLevelMap: event.target.value })}
+            />
+          </label>
+
+          <label className="provider-editor-field provider-editor-field--mono">
+            <span>API Compat (JSON)</span>
+            <textarea
+              className="provider-editor-textarea"
+              placeholder="{}"
+              rows={3}
+              value={model.compat}
+              onChange={event => onChange({ ...model, compat: event.target.value })}
+            />
+          </label>
+        </div>
       </details>
-      <Button color="danger" onClick={onRemove}><Trash2 aria-hidden />移除模型</Button>
     </div>
   )
 }

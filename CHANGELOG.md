@@ -24,6 +24,8 @@
 
 ### Changed
 
+- [desktop/renderer] 现代化重构自定义 Provider 新增与编辑弹窗（ProviderEditorDialog）：引入「基本配置 / 模型管理 / 高级与网络」三标签页结构、预设模板一键填入、模型折叠手风琴卡片及底部固定操作栏。
+- [desktop/renderer] 重构供应商与模型中心页面架构：顶层收敛为「供应商」主目录与「全量体检」大盘两级导航；供应商详情页内聚合「连接与凭据」和「模型与测速」双子闭环，在供应商上下文内直接完成 API Key/OAuth 凭据管理、模型目录拉取同步与单模型/批量即时测速，并移除与 Composer 及系统设置冗余的 Router 和默认模型配置。
 - [desktop/renderer] 移除 Coding 新建会话中 Composer 区域的 flex 比例与 min-height 限制，使输入区域高度由内容自然决定。
 
 - [architecture/shared/agent/desktop] 执行全仓简化方案：移除废弃共享会话模型与未消费 IPC 通道；收敛 RPC handler 直接 SQL 查询至仓储层；统一 Electron 窗口状态原子写器与 IPC 契约定义；合并 Renderer 跨端路径归一化比较工具；统一 Review 差异面板按钮复用及样式；提炼 Agent Protocol 基础类型与集成测试 Harness，并修正默认推理哨兵及确定性集成 fixture 的现行契约。

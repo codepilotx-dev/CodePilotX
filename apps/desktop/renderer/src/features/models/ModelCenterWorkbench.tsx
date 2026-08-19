@@ -2,6 +2,7 @@ import { desktopClient } from "../../services/desktop-client/index.js";
 import { withModelCatalogLoading } from "../../hooks/useModelCatalogLoading.js";
 import React, { useEffect, useMemo, useState } from "react";
 import type {
+  DesktopApiKeySummary,
   DesktopModelMetadata,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
@@ -9,30 +10,20 @@ import type {
   ModelProviderID,
 } from "../../../shared/types.js";
 import { useDesktopSettings } from "../settings/useDesktopSettings.js";
-import { SettingsDropdown } from "../settings/SettingsDropdown.js";
-import { ToggleSwitch } from "../../components/ui/ToggleSwitch.js";
 import { fullErrorMessage } from "../../utils/errors.js";
 import {
-  Brain,
-  Braces,
   Cable,
   CircleStop,
-  Eye,
-  Hammer,
   Pencil,
   Plus,
   RefreshCw,
-  Save,
   Trash2,
-  Workflow,
 } from "lucide-react";
-import { SearchInput } from "../../components/ui/SearchInput.js";
 import { Button } from "../../components/ui/Button.js";
-import { Input } from "../../components/ui/Input.js";
+import { ConfirmationDialog } from "../../components/ui/ConfirmationDialog.js";
 import { SegmentedControl } from "../../components/ui/SegmentedControl.js";
 import { SkeletonBlock, SkeletonRegion } from "../../components/ui/Skeleton.js";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { ApiKeyWorkspace } from "./ApiKeyWorkspace.js";
+import { useSearchParams } from "react-router-dom";
 import {
   ProviderCatalog,
   type ProviderCatalogItem,
@@ -40,16 +31,23 @@ import {
 import { ProviderDetail } from "./ProviderDetail.js";
 import { useModelCenterController } from "./useModelCenterController.js";
 import {
+  getApiKeyDeleteConfirmation,
   parseModelCenterSearchParams,
   projectProviderDirectory,
   updateModelCenterSearchParams,
+  type ProviderCatalogFilter,
 } from "./modelCenterState.js";
 import { WorkspaceHeaderItem } from "../layout/workspace-header/index.js";
 import { ModelHealthWorkspace } from "./health/ModelHealthWorkspace.js";
 import { useModelHealthController } from "./health/useModelHealthController.js";
 import { ProviderConnectionDialog } from "./provider-management/ProviderConnectionDialog.js";
 import { ProviderEditorDialog } from "./provider-management/ProviderEditorDialog.js";
-import type { ApiKeyEditorValue } from "./ApiKeyEditorDialog.js";
+import { ProviderConnectionSection } from "./provider-management/ProviderConnectionSection.js";
+import { ProviderModelsSection } from "./provider-management/ProviderModelsSection.js";
+import {
+  ApiKeyEditorDialog,
+  type ApiKeyEditorValue,
+} from "./ApiKeyEditorDialog.js";
 import {
   providerManagementStore,
   selectConfiguredProviderGroups,
@@ -91,23 +89,29 @@ export function ModelCenterWorkbench({
   onNotice,
 }: Props): React.ReactNode {
   const settings = useDesktopSettings();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [providerID, setProviderID] = useState<ModelProviderID>(
     settings.providerID,
   );
-  const [modelQuery, setModelQuery] = useState("");
   const [model, setModel] = useState(settings.model);
   const [variant, setVariant] = useState("");
-  const [modelError, setModelError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [, setModelError] = useState<string | null>(null);
+  const [, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyKeyId, setBusyKeyId] = useState<string | null>(null);
   const [providerSearch, setProviderSearch] = useState("");
+  const [catalogFilter, setCatalogFilter] = useState<ProviderCatalogFilter>("all");
   const [connectionDialogProviderId, setConnectionDialogProviderId] =
     useState<ModelProviderID | null>(null);
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [providerEditorProviderId, setProviderEditorProviderId] =
     useState<ModelProviderID | null>(null);
+
+  // Key editing & deletion state
+  const [editorProviderId, setEditorProviderId] = useState<ModelProviderID | null>(null);
+  const [editingKey, setEditingKey] = useState<DesktopApiKeySummary | null>(null);
+  const [deleteKey, setDeleteKey] = useState<DesktopApiKeySummary | null>(null);
+
   const controller = useModelCenterController({
     onInitialProviderState: (nextState) => applyProviderState(nextState),
     onError: (message) => {
@@ -115,6 +119,7 @@ export function ModelCenterWorkbench({
       onError(message);
     },
   });
+
   const {
     initialLoadState,
     providers,
@@ -124,6 +129,7 @@ export function ModelCenterWorkbench({
     supportsModelHealth,
     setProviderState,
   } = controller;
+
   const configuredGroups = useMemo(
     () => selectConfiguredProviderGroups(snapshot),
     [snapshot],
@@ -139,16 +145,7 @@ export function ModelCenterWorkbench({
       ),
     [configuredGroups],
   );
-  const requestedView =
-    searchParams.get("view") === "keys" ? "keys" : "providers";
-  const requestedProvider = searchParams.get("provider");
-  const requestedSection = searchParams.get("section");
-  const initialSkeletonSection =
-    requestedSection === "models" || requestedSection === "router"
-      ? requestedSection
-      : "connection";
-  const showInitialSkeleton =
-    initialLoadState === "loading" && providers.length === 0;
+
   const routeState = useMemo(
     () =>
       parseModelCenterSearchParams(
@@ -159,39 +156,35 @@ export function ModelCenterWorkbench({
       ),
     [providerID, providers, searchParams, supportsModelHealth],
   );
+
   const workspaceView = routeState.view;
-  // The health controller cancels an accepted batch when this view is hidden;
-  // `active` tracks whether the health workspace is currently rendered.
   const health = useModelHealthController(workspaceView === "health");
   const providerSection = routeState.section;
-  // Leaving the health view keeps completed results but cancels a running
-  // batch; the controller owns that lifecycle through its `active` flag.
+
   const healthRunActive =
     health.state.run !== null &&
     (health.state.run.status === "running" ||
       health.state.run.status === "cancelling");
+
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.providerID === providerID),
     [providerID, providers],
   );
-  const isMiniMax = providerID === "minimax";
+
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null;
+
   const providerModels = (
     selectedProviderState?.models ??
     selectedProvider?.defaultModels ??
     []
   ).filter((item) => item && item !== NO_MODEL_OPTION);
+
   const modelMetadata =
     selectedProviderState?.modelMetadata ??
     selectedProvider?.modelMetadata ??
     {};
-  const modelVariants = modelMetadata[model]?.variants ?? [];
-  const orphanModelId = useMemo<string | null>(() => {
-    if (!model) return null;
-    if (!providerModels.includes(model)) return model;
-    return null;
-  }, [model, providerModels]);
+
   const providerApiKeys = useMemo(
     () =>
       apiKeys
@@ -199,18 +192,7 @@ export function ModelCenterWorkbench({
         .sort((left, right) => left.priority - right.priority),
     [apiKeys, providerID],
   );
-  const storedCredentialConfigured =
-    providerApiKeys.length > 0 ||
-    snapshot.credentials.some(
-      (credential) =>
-        credential.providerId === providerID && credential.enabled,
-    );
-  const apiKeyConfigured =
-    Boolean(selectedProviderState?.apiKeyConfigured) ||
-    storedCredentialConfigured;
-  const apiKeySource =
-    selectedProviderState?.apiKeySource ??
-    (storedCredentialConfigured ? "secureStorage" : null);
+
   const providerDirectory = useMemo(
     () =>
       projectProviderDirectory(
@@ -222,18 +204,20 @@ export function ModelCenterWorkbench({
         ),
         {
           query: providerSearch,
+          filter: catalogFilter,
           currentProviderId: providerState?.selectedProviderID,
           currentProviderState: providerState,
           apiKeys,
           credentials: snapshot.credentials,
         },
       ),
-    [apiKeys, providerSearch, providerState, providers, snapshot.credentials],
+    [apiKeys, catalogFilter, providerSearch, providerState, providers, snapshot.credentials],
   );
+
   const providerCatalogItems = useMemo<ProviderCatalogItem[]>(
     () =>
       providerDirectory.map((item) => {
-        const { connectionStatus, current, provider, sources } = item;
+        const { connectionStatus, current, provider, sources, keyCount, hasOAuth, healthTone } = item;
         const effectiveConnectionStatus =
           connectionStatus === "unconfigured" &&
           configuredProviderIds.has(provider.providerID)
@@ -259,6 +243,9 @@ export function ModelCenterWorkbench({
           modelCount: provider.defaultModels.length,
           current,
           canAddConnection: effectiveConnectionStatus === "unconfigured",
+          keyCount,
+          hasOAuth,
+          healthTone,
           status: provider.unresolvedMigrationIssues?.length
             ? { label: "需要人工修复", tone: "danger" }
             : displayedStatus,
@@ -272,7 +259,6 @@ export function ModelCenterWorkbench({
     const nextSelection = getProviderSelectionState(selectedProvider);
     setModel(nextSelection.model);
     setVariant("");
-    setModelQuery("");
     setStatus(null);
     setModelError(null);
   }, [providerID, providerState, selectedProvider]);
@@ -287,8 +273,6 @@ export function ModelCenterWorkbench({
     }
   }, [providerID, providers, routeState.providerId]);
 
-  // Old agents without model.health.v1 never show the health tab; a direct
-  // ?view=health URL is rewritten back to the provider catalog.
   useEffect(() => {
     if (
       supportsModelHealth === false &&
@@ -299,15 +283,13 @@ export function ModelCenterWorkbench({
         true,
       );
     }
-    // updateLocation is stable per render; the URL fallback only reacts to capability resolution.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supportsModelHealth]);
+  }, [searchParams, supportsModelHealth]);
 
   function updateLocation(
     patch: {
-      view?: "providers" | "keys" | "health";
+      view?: "providers" | "health";
       provider?: string | null;
-      section?: "connection" | "models" | "router" | null;
+      section?: "connection" | "models" | null;
     },
     replace = false,
   ): void {
@@ -343,23 +325,12 @@ export function ModelCenterWorkbench({
     setProviderID(nextProviderID);
     setModel(nextSelection.model);
     setVariant("");
-    setModelQuery("");
     setStatus(null);
     setModelError(null);
   }
 
-  const filteredModelIds = useMemo(() => {
-    const query = modelQuery.trim().toLowerCase();
-    return providerModels.filter((item) => {
-      if (!query) return true;
-      const metadata = modelMetadata[item];
-      return modelSearchText(item, metadata).includes(query);
-    });
-  }, [modelMetadata, modelQuery, providerModels]);
-
   function applyProviderState(
     nextState: DesktopModelProviderState,
-    options: { persistEffectiveSettings?: boolean } = {},
   ): void {
     const nextModel =
       nextState.model ||
@@ -370,17 +341,6 @@ export function ModelCenterWorkbench({
     setProviderID(nextState.selectedProviderID);
     setModel(nextModel);
     setVariant(nextState.variant ?? "");
-    if (options.persistEffectiveSettings) {
-      settings.syncExternalSettingsPatch({
-        providerID: nextState.selectedProviderID,
-        providerBaseURL: nextState.baseURL ?? "",
-        model: nextModel,
-        selectedModelPreset: nextModel,
-      });
-    }
-    settings.draft.setValue("providerID", nextState.selectedProviderID);
-    settings.draft.setValue("providerBaseURL", nextState.baseURL ?? "");
-    settings.draft.setValue("model", nextModel);
   }
 
   function applyFetchedModels(
@@ -418,7 +378,7 @@ export function ModelCenterWorkbench({
   async function fetchModels(): Promise<void> {
     setBusy(true);
     setModelError(null);
-    setStatus("正在刷新模型目录...");
+    onNotice("正在从供应商刷新模型目录...");
     try {
       const result = await withModelCatalogLoading(() =>
         desktopClient.fetchProviderModels({
@@ -426,10 +386,11 @@ export function ModelCenterWorkbench({
         }),
       );
       applyFetchedModels(result.models, result.error, result.modelMetadata);
-      setModelError(result.error ?? null);
-      setStatus(
-        result.error ? null : `已加载 ${result.models.length} 个模型。`,
-      );
+      if (result.error) {
+        onError(`模型目录刷新异常：${result.error}`);
+      } else {
+        onNotice(`模型目录已同步，共加载 ${result.models.length} 个可用模型。`);
+      }
     } catch (error) {
       showOperationError(error);
     } finally {
@@ -440,7 +401,7 @@ export function ModelCenterWorkbench({
   async function testConnection(): Promise<void> {
     setBusy(true);
     setModelError(null);
-    setStatus("正在测试连接...");
+    onNotice("正在测试连接与鉴权有效性...");
     try {
       const testRef: DesktopModelRef | undefined = model
         ? ({
@@ -454,13 +415,13 @@ export function ModelCenterWorkbench({
         testRef,
       );
       if (testResult.status === "reachable") {
-        setModelError(null);
-        setStatus(
-          `“${model || providerID}”连接正常（${testResult.latencyMs} ms）。`,
+        onNotice(
+          `“${selectedProvider?.displayName ?? providerID}”连接正常（响应延迟 ${testResult.latencyMs} ms）。`,
         );
       } else {
-        setModelError(testResult.message ?? "连接测试失败。");
-        setStatus(null);
+        const msg = testResult.message ?? "连接测试失败。";
+        setModelError(msg);
+        onError(`连接测试失败：${msg}`);
       }
     } catch (error) {
       showOperationError(error);
@@ -469,26 +430,105 @@ export function ModelCenterWorkbench({
     }
   }
 
-  async function saveProvider(): Promise<void> {
-    if (!model.trim()) {
-      setModelError("保存前请选择一个具体模型。");
-      return;
-    }
-    setBusy(true);
-    setModelError(null);
+  async function mutateKey(
+    id: string,
+    action: () => Promise<unknown>,
+    successMessage: string,
+  ): Promise<boolean> {
+    setBusyKeyId(id);
     try {
-      const nextState = await desktopClient.saveModelProvider({
-        providerID,
-        id: model.trim(),
-        variant: variant || undefined,
-      });
-      applyProviderState(nextState, { persistEffectiveSettings: true });
-      setStatus("模型连接已保存。");
+      await action();
+      onNotice(successMessage);
+      window.dispatchEvent(new Event("desktop:model-provider-changed"));
+      return true;
+    } catch (error) {
+      onError(fullErrorMessage(error));
+      return false;
+    } finally {
+      setBusyKeyId(null);
+    }
+  }
+
+  async function saveApiKeyEditor(value: ApiKeyEditorValue): Promise<boolean> {
+    if (editingKey) {
+      const replacement = value.key?.trim();
+      return mutateKey(
+        editingKey.id,
+        () =>
+          providerManagementStore.updateApiKey({
+            credentialId: editingKey.id,
+            ...(value.label !== editingKey.label ? { label: value.label } : {}),
+            ...(replacement ? { key: replacement } : {}),
+          }),
+        replacement
+          ? "API Key 已更换，健康状态已重置。"
+          : "API Key 名称已更新。",
+      );
+    }
+    if (!value.key) return false;
+    return mutateKey(
+      "create",
+      () =>
+        providerManagementStore.createApiKey({
+          providerId: value.providerId,
+          label: value.label,
+          key: value.key,
+        }),
+      "API Key 已安全保存。",
+    );
+  }
+
+  async function moveApiKey(
+    key: DesktopApiKeySummary,
+    offset: -1 | 1,
+  ): Promise<void> {
+    const providerKeys = [...providerApiKeys];
+    const index = providerKeys.findIndex((item) => item.id === key.id);
+    const target = index + offset;
+    if (index < 0 || target < 0 || target >= providerKeys.length) return;
+    const [item] = providerKeys.splice(index, 1);
+    if (!item) return;
+    providerKeys.splice(target, 0, item);
+    await mutateKey(
+      key.id,
+      () =>
+        providerManagementStore.reorderApiKeys(
+          key.providerId,
+          providerKeys.map((candidate) => candidate.id),
+        ),
+      "API Key 优先级顺序已更新。",
+    );
+  }
+
+  async function copyApiKey(key: DesktopApiKeySummary): Promise<void> {
+    setBusyKeyId(key.id);
+    try {
+      const result = await desktopClient.copyProviderApiKey(key.id);
+      onNotice(
+        `API Key 已复制到剪贴板，将在 ${Math.round(result.clearAfterMs / 1000)} 秒后自动清理。`,
+      );
+    } catch (error) {
+      onError(fullErrorMessage(error));
+    } finally {
+      setBusyKeyId(null);
+    }
+  }
+
+  async function testSingleApiKey(key: DesktopApiKeySummary): Promise<void> {
+    setBusyKeyId(key.id);
+    try {
+      const result = await providerManagementStore.testApiKey(key.id);
+      onNotice(
+        result.message ??
+          (result.ok ? "API Key 鉴权通过，测试成功。" : "API Key 测试失败。"),
+      );
       window.dispatchEvent(new Event("desktop:model-provider-changed"));
     } catch (error) {
-      showOperationError(error);
+      onError(
+        error instanceof Error ? error.message : "API Key 测试失败，请稍后重试。",
+      );
     } finally {
-      setBusy(false);
+      setBusyKeyId(null);
     }
   }
 
@@ -503,9 +543,9 @@ export function ModelCenterWorkbench({
         label: value.label,
         key: value.key,
       });
-      setStatus("连接已安全保存。");
+      onNotice("供应商连接与凭据已保存。");
       setConnectionDialogProviderId(null);
-      updateLocation({ view: "keys", provider: value.providerId });
+      updateLocation({ provider: value.providerId, section: "connection" });
       window.dispatchEvent(new Event("desktop:model-provider-changed"));
       return true;
     } catch (error) {
@@ -519,7 +559,6 @@ export function ModelCenterWorkbench({
   function showOperationError(error: unknown): void {
     const message = fullErrorMessage(error);
     setModelError(message);
-    setStatus(null);
     onError(message);
   }
 
@@ -527,7 +566,7 @@ export function ModelCenterWorkbench({
     if (!selectedProvider || selectedProvider.providerKind !== "custom") return;
     if (
       !window.confirm(
-        `删除自定义 Provider“${selectedProvider.displayName}”？历史线程引用和凭据将保留。`,
+        `确定删除自定义供应商“${selectedProvider.displayName}”？历史会话引用与已保存凭据将保留。`,
       )
     )
       return;
@@ -536,7 +575,7 @@ export function ModelCenterWorkbench({
       await desktopClient.deleteProvider(selectedProvider.providerID);
       await providerManagementStore.refresh();
       showProviderCatalog();
-      setStatus("自定义 Provider 已删除；历史引用和凭据已保留。");
+      onNotice("自定义供应商已删除。");
     } catch (error) {
       showOperationError(error);
     } finally {
@@ -546,69 +585,68 @@ export function ModelCenterWorkbench({
 
   const showingProviderDetail =
     workspaceView === "providers" && routeState.providerId !== null;
-  const pageTitle =
-    workspaceView === "health"
-      ? "模型测试"
-      : workspaceView === "keys"
-        ? "账户连接"
-        : showingProviderDetail
-          ? (selectedProvider?.displayName ?? providerID)
-          : "供应商";
-  const pageDescription =
-    workspaceView === "health"
-      ? "对全部已启用且已配置凭据的模型执行最小文本请求，实时查看延迟与安全失败分类；结果只保留在当前页面。"
-      : workspaceView === "keys"
-        ? "按供应商统一管理推理 Key、OAuth、订阅与独立账务凭据。"
-        : showingProviderDetail
-          ? providerDescription(selectedProvider)
-          : "浏览 Pi 供应商目录，配置自定义 Endpoint、模型与 Router。";
+
+  const showInitialSkeleton =
+    initialLoadState === "loading" && providers.length === 0;
+
+  const selectedConfiguredGroup = configuredGroups.find(
+    (group) => group.provider.providerID === providerID,
+  );
+
   const connectionDialogProvider = connectionDialogProviderId
     ? (providers.find(
         (provider) => provider.providerID === connectionDialogProviderId,
       ) ?? null)
     : null;
+
   const connectionDialogSources = snapshot.usageSources.filter((source) =>
     source.providerIds.some(
-      (providerId) => String(providerId) === String(connectionDialogProviderId),
+      (pId) => String(pId) === String(connectionDialogProviderId),
     ),
   );
-  const selectedConfiguredGroup = configuredGroups.find(
-    (group) => group.provider.providerID === providerID,
-  );
-  const connectionSummary = providerConnectionSummary({
-    apiKeySource,
-    providerKeys: providerApiKeys,
-    group: selectedConfiguredGroup,
-  });
+
+  const editorProvider = editorProviderId
+    ? snapshot.providers.find((p) => p.providerID === editorProviderId)
+    : undefined;
+
+  const deleteConfirmation = deleteKey
+    ? getApiKeyDeleteConfirmation(
+        deleteKey,
+        [...snapshot.apiKeys],
+        snapshot.providers.find(
+          (p) => p.providerID === deleteKey.providerId,
+        )?.displayName,
+      )
+    : null;
 
   return (
     <div className="model-center-shell">
       <WorkspaceHeaderItem align="start" id="models.tabs" order={0} slot="left">
-        <SegmentedControl<"providers" | "keys" | "health">
-          ariaLabel="模型中心工作区"
+        <SegmentedControl<"providers" | "health">
+          ariaLabel="供应商与模型中心工作区"
           className="model-center-workspace-tabs"
           onChange={(view) =>
             updateLocation({ view, provider: null, section: null })
           }
           overflowMode="fit"
           options={[
-            { value: "providers", label: "供应商" },
             {
-              value: "keys",
+              value: "providers",
               label: (
                 <>
-                  账户连接 <span>{configuredGroups.length}</span>
+                  供应商 <span>{providers.length}</span>
                 </>
               ),
             },
             ...(supportsModelHealth === true
-              ? [{ value: "health" as const, label: "模型测试" }]
+              ? [{ value: "health" as const, label: "全量体检" }]
               : []),
           ]}
           semantics="tabs"
           value={workspaceView}
         />
       </WorkspaceHeaderItem>
+
       <WorkspaceHeaderItem
         align="end"
         id="models.actions"
@@ -634,13 +672,14 @@ export function ModelCenterWorkbench({
               )}
               <span className="model-center-header-action-label">
                 {healthRunActive
-                  ? "停止测试"
+                  ? "停止体检"
                   : health.state.run
-                    ? "重新测试全部"
+                    ? "重新体检全部"
                     : "测试全部模型"}
               </span>
             </Button>
           ) : null}
+
           {!showInitialSkeleton &&
           workspaceView === "providers" &&
           !showingProviderDetail ? (
@@ -657,12 +696,13 @@ export function ModelCenterWorkbench({
               </span>
             </Button>
           ) : null}
+
           {!showInitialSkeleton &&
           showingProviderDetail &&
           selectedProvider?.providerKind === "custom" ? (
             <>
               <Button
-                color="primary"
+                color="secondary"
                 onClick={() => {
                   setProviderEditorProviderId(selectedProvider.providerID);
                   setProviderEditorOpen(true);
@@ -684,382 +724,143 @@ export function ModelCenterWorkbench({
               </Button>
             </>
           ) : null}
+
           {!showInitialSkeleton &&
           showingProviderDetail &&
           providerSection === "connection" ? (
-            <>
-              <Button
-                color="secondary"
-                aria-label="测试连接"
-                disabled={busy}
-                onClick={() => void testConnection()}
-                title="测试连接"
-              >
-                <Cable aria-hidden />
-                <span className="model-center-header-action-label">
-                  测试连接
-                </span>
-              </Button>
-              <Button
-                color="primary"
-                aria-label="保存连接"
-                disabled={busy}
-                onClick={() => void saveProvider()}
-                title="保存连接"
-              >
-                <Save aria-hidden />
-                <span className="model-center-header-action-label">
-                  保存连接
-                </span>
-              </Button>
-            </>
+            <Button
+              color="secondary"
+              aria-label="测试连接"
+              disabled={busy}
+              onClick={() => void testConnection()}
+              title="测试当前连接"
+            >
+              <Cable aria-hidden />
+              <span className="model-center-header-action-label">
+                测试连接
+              </span>
+            </Button>
           ) : null}
+
           {!showInitialSkeleton &&
           showingProviderDetail &&
           providerSection === "models" ? (
-            <>
-              <Button
-                color="secondary"
-                aria-label="刷新目录"
-                disabled={busy}
-                onClick={() => void fetchModels()}
-                title="刷新目录"
-              >
-                <RefreshCw aria-hidden />
-                <span className="model-center-header-action-label">
-                  刷新目录
-                </span>
-              </Button>
-              <Button
-                color="primary"
-                aria-label="保存模型"
-                disabled={busy || !model}
-                onClick={() => void saveProvider()}
-                title="保存模型"
-              >
-                <Save aria-hidden />
-                <span className="model-center-header-action-label">
-                  保存模型
-                </span>
-              </Button>
-            </>
+            <Button
+              color="secondary"
+              aria-label="刷新目录"
+              disabled={busy}
+              onClick={() => void fetchModels()}
+              title="刷新模型目录"
+            >
+              <RefreshCw aria-hidden className={busy ? "spin" : undefined} />
+              <span className="model-center-header-action-label">
+                刷新目录
+              </span>
+            </Button>
           ) : null}
         </div>
       </WorkspaceHeaderItem>
 
-      {!showInitialSkeleton && !showingProviderDetail ? (
-        <header className="model-center-heading">
-          <h1>{pageTitle}</h1>
-          <p>{pageDescription}</p>
-        </header>
-      ) : null}
-
       {showInitialSkeleton ? (
         <ModelCenterInitialSkeleton
-          section={initialSkeletonSection}
-          view={
-            requestedView === "keys"
-              ? "keys"
-              : requestedProvider
-                ? "detail"
-                : "catalog"
-          }
+          view={showingProviderDetail ? "detail" : "catalog"}
+          section={providerSection}
         />
-      ) : workspaceView === "health" ? (
+      ) : workspaceView === "health" && supportsModelHealth === true ? (
         <ModelHealthWorkspace controller={health} />
-      ) : workspaceView === "providers" ? (
-        showingProviderDetail ? (
-          <ProviderDetail
-            activeTab={providerSection}
-            feedback={modelError ?? status}
-            provider={{
-              id: providerID,
-              name: selectedProvider?.displayName ?? providerID,
-              logoURL: selectedProvider?.logoURL,
-              description: providerDescription(selectedProvider),
-              status: {
-                label: formatApiKeyState(apiKeySource, apiKeyConfigured),
-                tone: apiKeyConfigured ? "positive" : "warning",
-              },
-            }}
-            onBack={showProviderCatalog}
-            onTabChange={(section) => {
-              setModelError(null);
-              setStatus(null);
-              updateLocation({ section }, true);
-            }}
-          >
-            {providerSection === "connection" ? (
-              <div className="model-center-detail-body">
-                {selectedProvider?.unresolvedMigrationIssues?.length ? (
-                  <section className="model-center-detail-section">
-                    <header className="model-center-detail-section-heading">
-                      <div>
-                        <h3>需要人工修复</h3>
-                        <p>
-                          旧 Provider
-                          配置包含无法安全映射的字段，当前已停用且原配置保持不变。
-                        </p>
-                      </div>
-                      <span>迁移诊断</span>
-                    </header>
-                    <p>
-                      {selectedProvider.unresolvedMigrationIssues.join("；")}
-                    </p>
-                  </section>
-                ) : null}
-                <section className="model-center-detail-section">
-                  <header className="model-center-detail-section-heading">
-                    <div>
-                      <h3>Endpoint</h3>
-                      <p>{baseURLDescription(selectedProvider, isMiniMax)}</p>
-                    </div>
-                    <span>目录提供</span>
-                  </header>
-                  <label className="model-center-detail-field">
-                    <span>Base URL</span>
-                    <Input
-                      className="model-center-mono"
-                      readOnly
-                      value={selectedProvider?.baseURL ?? ""}
-                      placeholder="https://.../v1"
-                    />
-                  </label>
-                  {selectedProvider?.providerKind === "custom" ? (
-                    <div className="model-center-detail-links">
-                      <Button
-                        color="secondary"
-                        onClick={() => {
-                          setProviderEditorProviderId(
-                            selectedProvider.providerID,
-                          );
-                          setProviderEditorOpen(true);
-                        }}
-                      >
-                        编辑自定义供应商
-                      </Button>
-                    </div>
-                  ) : null}
-                </section>
-                {selectedProvider?.config?.kind === "builtin" ? (
-                  <BuiltinProviderSettings
-                    provider={selectedProvider}
-                    onError={showOperationError}
-                    onSaved={async () => {
-                      await providerManagementStore.refresh();
-                      setStatus("内置 Provider 配置已保存。");
-                    }}
-                  />
-                ) : null}
-
-                <section className="model-center-detail-section">
-                  <header className="model-center-detail-section-heading">
-                    <div>
-                      <h3>连接摘要</h3>
-                      <p>{connectionSummary}</p>
-                    </div>
-                    <div className="model-center-inline-actions">
-                      <Button
-                        color="secondary"
-                        onClick={() =>
-                          updateLocation({
-                            view: "keys",
-                            provider: providerID,
-                          })
-                        }
-                      >
-                        前往账户连接
-                      </Button>
-                    </div>
-                  </header>
-                </section>
-                {selectedProvider?.docURL ? (
-                  <div className="model-center-detail-links">
-                    <a
-                      href={selectedProvider.docURL}
-                      onClick={openExternalLink}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      查看 Provider 文档
-                    </a>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            {providerSection === "models" ? (
-              <div className="model-center-detail-body">
-                <div className="model-center-model-toolbar">
-                  <SearchInput
-                    aria-label="搜索模型"
-                    className="model-center-search"
-                    onChange={setModelQuery}
-                    placeholder="搜索模型、能力或目录来源"
-                    value={modelQuery}
-                    variant="standard"
-                  />
-                </div>
-                <div className="model-center-model-grid-wrapper">
-                  {providerModels.length === 0 ? (
-                    <div className="model-center-empty-state">
-                      暂无模型目录，请先刷新目录。
-                    </div>
-                  ) : filteredModelIds.length === 0 && !orphanModelId ? (
-                    <div className="model-center-empty-state">
-                      {modelQuery.trim()
-                        ? "未搜索到匹配“" + modelQuery + "”的模型。"
-                        : "当前 Provider 暂无可用模型。"}
-                    </div>
-                  ) : (
-                    <div className="model-card-grid">
-                      {orphanModelId ? (
-                        <ModelCard
-                          modelId={orphanModelId}
-                          metadata={modelMetadata[orphanModelId]}
-                          isSelected={orphanModelId === model}
-                          onSelect={(id) => {
-                            setModel(id);
-                            setVariant("");
-                          }}
-                          isOrphan
-                        />
-                      ) : null}
-                      {filteredModelIds.map((id) => (
-                        <ModelCard
-                          key={id}
-                          modelId={id}
-                          metadata={modelMetadata[id]}
-                          isSelected={id === model}
-                          onSelect={(nextModel) => {
-                            setModel(nextModel);
-                            setVariant("");
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {modelVariants.length > 0 ? (
-                  <section className="model-center-detail-section">
-                    <header className="model-center-detail-section-heading">
-                      <div>
-                        <h3>模型变体</h3>
-                        <p>选择当前模型声明的原生请求变体。</p>
-                      </div>
-                      <SettingsDropdown
-                        width={280}
-                        ariaLabel="模型变体"
-                        value={variant}
-                        options={[
-                          { value: "", label: "默认变体" },
-                          ...modelVariants.map((id) => ({
-                            value: id,
-                            label: id,
-                          })),
-                        ]}
-                        onChange={setVariant}
-                      />
-                    </header>
-                  </section>
-                ) : null}
-              </div>
-            ) : null}
-
-            {providerSection === "router" ? (
-              <div className="model-center-detail-body">
-                <div className="model-center-router-list">
-                  <article className="model-center-router-row">
-                    <span>
-                      <Workflow aria-hidden />
-                    </span>
-                    <div>
-                      <h3>Pareto Code Router</h3>
-                      <p>发送消息时在本地为任务选择最合适的模型。</p>
-                    </div>
-                    <ToggleSwitch
-                      checked={
-                        settings.draft.values.enableParetoCodeRouter ?? false
-                      }
-                      onChange={(checked) => {
-                        settings.draft.setValue(
-                          "enableParetoCodeRouter",
-                          checked,
-                        );
-                        settings.draft.autoSave();
-                      }}
-                      ariaLabel="启用 Pareto Code Router"
-                    />
-                  </article>
-                  <article className="model-center-router-row">
-                    <span>
-                      <Braces aria-hidden />
-                    </span>
-                    <div>
-                      <h3>Fusion Router</h3>
-                      <p>在会话中启用多模型并行会审入口。</p>
-                    </div>
-                    <ToggleSwitch
-                      checked={
-                        settings.draft.values.enableFusionRouter ?? false
-                      }
-                      onChange={(checked) => {
-                        settings.draft.setValue("enableFusionRouter", checked);
-                        settings.draft.autoSave();
-                      }}
-                      ariaLabel="启用 Fusion Router"
-                    />
-                  </article>
-                </div>
-              </div>
-            ) : null}
-          </ProviderDetail>
-        ) : (
-          <ProviderCatalog
-            providers={providerCatalogItems}
-            query={providerSearch}
-            onAddConnection={(nextProviderID) =>
-              setConnectionDialogProviderId(nextProviderID)
-            }
-            onManageConnection={(nextProviderID) => {
-              updateLocation({ view: "keys", provider: nextProviderID });
-            }}
-            onQueryChange={setProviderSearch}
-            onSelect={selectProvider}
-          />
-        )
-      ) : (
-        <ApiKeyWorkspace
-          expandedProviderId={routeState.providerId}
-          onError={onError}
-          onNotice={onNotice}
-          onOpenCatalog={() =>
-            updateLocation({
-              view: "providers",
-              provider: null,
-              section: null,
-            })
+      ) : showingProviderDetail && selectedProvider ? (
+        <ProviderDetail
+          activeTab={providerSection}
+          onBack={showProviderCatalog}
+          onTabChange={(tab) =>
+            updateLocation({ provider: providerID, section: tab })
           }
-          onOpenProvider={(nextProviderID) => {
-            applyProviderSelection(
-              nextProviderID,
-              providers.find(
-                (provider) => provider.providerID === nextProviderID,
-              ),
-            );
-            updateLocation({
-              view: "providers",
-              provider: nextProviderID,
-              section: "connection",
-            });
+          provider={{
+            id: selectedProvider.providerID,
+            name: selectedProvider.displayName,
+            logoURL: selectedProvider.logoURL,
+            description: providerDescription(selectedProvider),
+            status: providerDetailStatus(selectedProviderState, selectedConfiguredGroup),
           }}
-          onOpenUsage={(nextProviderID) =>
-            navigate(
-              `/settings/billing?view=accounts&provider=${encodeURIComponent(nextProviderID)}`,
-            )
+        >
+          {providerSection === "connection" ? (
+            <ProviderConnectionSection
+              apiKeys={providerApiKeys}
+              busy={busy || busyKeyId !== null}
+              group={selectedConfiguredGroup}
+              onCopyKey={copyApiKey}
+              onDeleteKey={setDeleteKey}
+              onEditKey={(key) => {
+                setEditingKey(key);
+                setEditorProviderId(key.providerId);
+              }}
+              onError={onError}
+              onMoveKey={moveApiKey}
+              onNotice={onNotice}
+              onOpenNewKey={() => {
+                setEditingKey(null);
+                setEditorProviderId(providerID);
+              }}
+              onRefresh={async () => {
+                await providerManagementStore.refreshConnections();
+              }}
+              onSetActiveKey={(key) =>
+                mutateKey(
+                  key.id,
+                  () =>
+                    providerManagementStore.setActiveCredential(
+                      key.providerId,
+                      key.id,
+                    ),
+                  "当前活动 API Key 已切换。",
+                ).then(() => undefined)
+              }
+              onTestConnection={testConnection}
+              onTestKey={testSingleApiKey}
+              onToggleKeyEnabled={(key) =>
+                mutateKey(
+                  key.id,
+                  () =>
+                    providerManagementStore.setCredentialEnabled(
+                      key.id,
+                      !key.enabled,
+                    ),
+                  key.enabled ? "API Key 已停用。" : "API Key 已启用。",
+                ).then(() => undefined)
+              }
+              provider={selectedProvider}
+              providerState={selectedProviderState}
+            />
+          ) : (
+            <ProviderModelsSection
+              busy={busy}
+              modelMetadata={modelMetadata}
+              models={providerModels}
+              onError={onError}
+              onFetchModels={fetchModels}
+              onNotice={onNotice}
+              provider={selectedProvider}
+            />
+          )}
+        </ProviderDetail>
+      ) : (
+        <ProviderCatalog
+          filter={catalogFilter}
+          onAddConnection={(nextProviderID) =>
+            setConnectionDialogProviderId(nextProviderID)
           }
+          onFilterChange={setCatalogFilter}
+          onManageConnection={(nextProviderID) => {
+            selectProvider(nextProviderID);
+          }}
+          onQueryChange={setProviderSearch}
+          onSelect={selectProvider}
+          providers={providerCatalogItems}
+          query={providerSearch}
         />
       )}
+
+      {/* Dialogs */}
       <ProviderConnectionDialog
         busy={busy}
         open={connectionDialogProviderId !== null}
@@ -1070,8 +871,8 @@ export function ModelCenterWorkbench({
           setConnectionDialogProviderId(null);
           if (connectionDialogProvider) {
             updateLocation({
-              view: "keys",
               provider: connectionDialogProvider.providerID,
+              section: "connection",
             });
           }
         }}
@@ -1079,6 +880,7 @@ export function ModelCenterWorkbench({
           if (!open) setConnectionDialogProviderId(null);
         }}
       />
+
       <ProviderEditorDialog
         open={providerEditorOpen}
         provider={
@@ -1100,63 +902,57 @@ export function ModelCenterWorkbench({
               .providers.find((item) => item.providerID === nextId),
           );
           updateLocation({ provider: nextId, section: "connection" });
-          setStatus("Provider 配置已保存。");
+          onNotice("自定义 Provider 配置已保存。");
         }}
+      />
+
+      <ApiKeyEditorDialog
+        apiKey={editingKey}
+        busy={busyKeyId !== null}
+        initialProviderId={editorProviderId ?? providerID}
+        open={editorProviderId !== null}
+        providers={editorProvider ? [editorProvider] : []}
+        onOpenChange={(open) => {
+          if (open) return;
+          setEditorProviderId(null);
+          setEditingKey(null);
+        }}
+        onSubmit={saveApiKeyEditor}
+      />
+
+      <ConfirmationDialog
+        actionDisabled={busyKeyId !== null}
+        actionLabel="删除"
+        description={deleteConfirmation?.description ?? ""}
+        open={deleteKey !== null}
+        title={deleteConfirmation?.title ?? "删除 API Key？"}
+        tone="danger"
+        onAction={() => {
+          if (!deleteKey) return;
+          const target = deleteKey;
+          void mutateKey(
+            target.id,
+            () => providerManagementStore.deleteCredential(target.id),
+            "API Key 已删除。",
+          ).then((success) => {
+            if (success) setDeleteKey(null);
+          });
+        }}
+        onCancel={() => setDeleteKey(null)}
       />
     </div>
   );
 }
 
 type ModelCenterInitialSkeletonProps = {
-  view: "catalog" | "detail" | "keys";
-  section: "connection" | "models" | "router";
+  view: "catalog" | "detail";
+  section: "connection" | "models";
 };
 
 function ModelCenterInitialSkeleton({
   view,
   section,
 }: ModelCenterInitialSkeletonProps): React.ReactNode {
-  if (view === "keys") {
-    return (
-      <SkeletonRegion
-        className="model-center-initial-skeleton"
-        label="正在加载账户连接"
-      >
-        <div className="model-center-heading model-center-skeleton-heading">
-          <SkeletonBlock className="model-center-skeleton-page-title" />
-          <SkeletonBlock className="model-center-skeleton-page-copy" />
-        </div>
-        <div className="model-center-skeleton-key-toolbar">
-          {Array.from({ length: 4 }, (_, index) => (
-            <SkeletonBlock
-              className="model-center-skeleton-control"
-              key={index}
-            />
-          ))}
-        </div>
-        {Array.from({ length: 2 }, (_, groupIndex) => (
-          <section className="model-center-skeleton-key-group" key={groupIndex}>
-            <header>
-              <SkeletonBlock className="model-center-skeleton-logo" />
-              <SkeletonBlock className="model-center-skeleton-name" />
-              <SkeletonBlock className="model-center-skeleton-count" />
-            </header>
-            {Array.from({ length: 2 }, (_, rowIndex) => (
-              <div className="model-center-skeleton-key-row" key={rowIndex}>
-                <SkeletonBlock className="model-center-skeleton-key-order" />
-                <div>
-                  <SkeletonBlock className="model-center-skeleton-key-title" />
-                  <SkeletonBlock className="model-center-skeleton-key-meta" />
-                </div>
-                <SkeletonBlock className="model-center-skeleton-key-actions" />
-              </div>
-            ))}
-          </section>
-        ))}
-      </SkeletonRegion>
-    );
-  }
-
   if (view === "detail") {
     return (
       <SkeletonRegion
@@ -1172,9 +968,8 @@ function ModelCenterInitialSkeleton({
           </div>
         </header>
         <div className="model-center-skeleton-tabs">
-          {Array.from({ length: 3 }, (_, index) => (
-            <SkeletonBlock className="model-center-skeleton-tab" key={index} />
-          ))}
+          <SkeletonBlock className="model-center-skeleton-tab" />
+          <SkeletonBlock className="model-center-skeleton-tab" />
         </div>
         {section === "models" ? (
           <>
@@ -1188,11 +983,6 @@ function ModelCenterInitialSkeleton({
               ))}
             </div>
           </>
-        ) : section === "router" ? (
-          <div className="model-center-skeleton-router-list">
-            <SkeletonBlock />
-            <SkeletonBlock />
-          </div>
         ) : (
           <div className="model-center-skeleton-detail-sections">
             <SkeletonBlock />
@@ -1235,25 +1025,23 @@ function ModelCenterInitialSkeleton({
 function providerDescription(
   provider: DesktopModelProviderSummary | undefined,
 ): string {
-  if (!provider) return "选择新会话使用的供应商。";
+  if (!provider) return "管理供应商凭据与模型目录。";
   const parts = [provider.providerID];
   parts.push(provider.providerKind === "custom" ? "Pi 自定义" : "Pi 内置");
-  return parts.join(" / ");
+  return parts.join(" · ");
 }
 
-function providerStatusLabel(
-  status:
-    | "stored-key"
-    | "oauth"
-    | "environment"
-    | "configured"
-    | "unconfigured",
-): string {
-  if (status === "stored-key") return "已保存 Key";
-  if (status === "oauth") return "OAuth 已连接";
-  if (status === "environment") return "环境变量";
-  if (status === "configured") return "已配置";
-  return "未配置";
+function providerDetailStatus(
+  providerState: DesktopModelProviderState | null,
+  group: ConfiguredProviderGroup | undefined,
+): { label: string; tone: "positive" | "warning" | "neutral" } {
+  if (group?.activeConnection) {
+    return { label: "已连接", tone: "positive" };
+  }
+  if (providerState?.apiKeyConfigured) {
+    return { label: "已配置", tone: "positive" };
+  }
+  return { label: "未配置", tone: "neutral" };
 }
 
 function providerCatalogConnectionStatus(
@@ -1264,324 +1052,16 @@ function providerCatalogConnectionStatus(
     | "configured"
     | "unconfigured",
   group: ConfiguredProviderGroup | undefined,
-): ProviderCatalogItem["status"] {
-  const onlyInferenceKeys =
-    Boolean(group) &&
-    group.connections.every(
-      (connection) => connection.kind === "inference-key",
-    );
-  if (onlyInferenceKeys && group?.apiKeys.length) {
-    const enabledKeys = group.apiKeys.filter((key) => key.enabled);
-    if (enabledKeys.length === 0) {
-      return { label: "已配置 · 已停用", tone: "warning" };
+): { label: string; tone: "positive" | "warning" | "neutral" } {
+  if (group?.activeConnection) {
+    if (group.activeConnection.kind === "oauth") {
+      return { label: "OAuth 已连接", tone: "positive" };
     }
-    if (enabledKeys.every((key) => key.health.status === "auth-failed")) {
-      return { label: "需要修复", tone: "danger" };
-    }
+    return { label: "已保存 Key", tone: "positive" };
   }
-  return {
-    label: providerStatusLabel(status),
-    tone: status === "unconfigured" ? "neutral" : "positive",
-  };
-}
-
-function baseURLDescription(
-  provider: DesktopModelProviderSummary | undefined,
-  isMiniMax: boolean,
-): string {
-  if (!provider) return "选择供应商后会显示其默认 endpoint。";
-  if (provider.providerID === "deepseek")
-    return "DeepSeek 使用内置的 OpenAI 兼容 endpoint。";
-  if (isMiniMax) return "MiniMax 使用内置的 Anthropic 兼容 endpoint。";
-  return "Base URL 由 Pi 内置 Provider 提供。";
-}
-
-function modelSearchText(
-  model: string,
-  metadata: DesktopModelMetadata | undefined,
-): string {
-  return [
-    model,
-    metadata?.name,
-    metadata?.description,
-    metadata?.gatewayModelId,
-    metadata?.modelType,
-    ...(metadata?.tags ?? []),
-    ...(metadata?.catalogSources ?? []),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
-
-function ModelCard({
-  modelId,
-  metadata,
-  isSelected,
-  onSelect,
-  isOrphan,
-}: {
-  modelId: string;
-  metadata: DesktopModelMetadata | undefined;
-  isSelected: boolean;
-  onSelect: (model: string) => void;
-  isOrphan?: boolean;
-}): React.ReactNode {
-  const displayName = metadata?.name || modelId;
-
-  const metaParts: string[] = [];
-  if (metadata?.contextWindow)
-    metaParts.push(`${formatCompactNumber(metadata.contextWindow)} 上下文`);
-  if (metadata?.outputTokens)
-    metaParts.push(`${formatCompactNumber(metadata.outputTokens)} 输出`);
-  if (metadata?.inputCost !== undefined && metadata?.outputCost !== undefined) {
-    metaParts.push(`$${metadata.inputCost}/${metadata.outputCost}/M`);
-  }
-
-  const caps = [
-    metadata?.reasoning
-      ? { key: "reasoning", icon: Brain, label: "推理" }
-      : null,
-    metadata?.toolCall
-      ? { key: "toolCall", icon: Hammer, label: "工具" }
-      : null,
-    metadata?.structuredOutput
-      ? { key: "structured", icon: Braces, label: "结构化" }
-      : null,
-    metadata?.vision ? { key: "vision", icon: Eye, label: "视觉" } : null,
-  ].filter(Boolean) as {
-    key: string;
-    icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-    label: string;
-  }[];
-
-  return (
-    <button
-      className={`model-card${isSelected ? " selected" : ""}${isOrphan ? " orphan" : ""}`}
-      onClick={() => onSelect(modelId)}
-      type="button"
-    >
-      <div className="model-card-header">
-        <div className="model-card-name" title={displayName || modelId}>
-          {displayName || modelId}
-        </div>
-        <div className="model-card-id" title={modelId}>
-          {modelId}
-        </div>
-      </div>
-      {metaParts.length > 0 && (
-        <div className="model-card-meta">
-          {metaParts.map((part, i) => (
-            <span key={i}>{part}</span>
-          ))}
-        </div>
-      )}
-      {caps.length > 0 && (
-        <div className="model-card-tags">
-          {caps.map((cap) => {
-            const Icon = cap.icon;
-            return (
-              <span key={cap.key} className="model-card-tag">
-                <Icon aria-hidden className="model-card-tag-icon" />
-                {cap.label}
-              </span>
-            );
-          })}
-        </div>
-      )}
-      {isOrphan && <div className="model-card-orphan-label">当前保存</div>}
-    </button>
-  );
-}
-
-function BuiltinProviderSettings({
-  provider,
-  onSaved,
-  onError,
-}: {
-  provider: DesktopModelProviderSummary;
-  onSaved: () => void | Promise<void>;
-  onError: (error: unknown) => void;
-}): React.ReactNode {
-  const config = provider.config?.kind === "builtin" ? provider.config : null;
-  const [allowModels, setAllowModels] = useState("");
-  const [denyModels, setDenyModels] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setAllowModels(config?.allowModels.join(", ") ?? "");
-    setDenyModels(config?.denyModels.join(", ") ?? "");
-  }, [config]);
-
-  if (!config) return null;
-
-  async function update(patch: Partial<typeof config>): Promise<void> {
-    setBusy(true);
-    try {
-      await desktopClient.updateProvider(provider.providerID, {
-        ...config,
-        ...patch,
-      });
-      await onSaved();
-    } catch (error) {
-      onError(error);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="model-center-detail-section">
-      <header className="model-center-detail-section-heading">
-        <div>
-          <h3>Pi 内置 Provider</h3>
-          <p>内置 Endpoint、认证和模型元数据不可覆盖。</p>
-        </div>
-        <ToggleSwitch
-          ariaLabel="启用内置 Provider"
-          checked={config.enabled}
-          onChange={(enabled) => void update({ enabled })}
-        />
-      </header>
-      <label className="model-center-detail-field">
-        <span>允许模型（逗号分隔，留空表示全部）</span>
-        <Input
-          value={allowModels}
-          onChange={(event) => setAllowModels(event.target.value)}
-        />
-      </label>
-      <label className="model-center-detail-field">
-        <span>拒绝模型（逗号分隔）</span>
-        <Input
-          value={denyModels}
-          onChange={(event) => setDenyModels(event.target.value)}
-        />
-      </label>
-      <div className="model-center-inline-actions">
-        <Button
-          color="primary"
-          disabled={busy}
-          onClick={() =>
-            void update({
-              allowModels: commaSeparatedModels(allowModels) as never,
-              denyModels: commaSeparatedModels(denyModels) as never,
-            })
-          }
-        >
-          保存模型筛选
-        </Button>
-      </div>
-      {config.models.length > 0 ? (
-        <div className="model-center-key-list">
-          {config.models.map((modelConfig) => (
-            <div className="model-center-key-row" key={String(modelConfig.id)}>
-              <div>
-                <strong>{String(modelConfig.id)}</strong>
-              </div>
-              <ToggleSwitch
-                ariaLabel={`启用模型 ${String(modelConfig.id)}`}
-                checked={modelConfig.enabled}
-                onChange={(enabled) =>
-                  void update({
-                    models: config.models.map((model) =>
-                      model.id === modelConfig.id
-                        ? { ...model, enabled }
-                        : model,
-                    ),
-                  })
-                }
-              />
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function commaSeparatedModels(value: string): string[] {
-  return [
-    ...new Set(
-      value
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
-    ),
-  ];
-}
-
-function formatCapabilities(metadata: DesktopModelMetadata): string {
-  return [
-    metadata.reasoning ? "推理" : null,
-    metadata.toolCall ? "工具调用" : null,
-    metadata.structuredOutput ? "结构化输出" : null,
-    metadata.vision ? "视觉" : null,
-  ]
-    .filter(Boolean)
-    .join("、");
-}
-
-function formatCompactNumber(value: number): string {
-  if (value >= 1000000) return `${Math.round(value / 100000) / 10}M`;
-  if (value >= 1000) return `${Math.round(value / 1000)}K`;
-  return String(value);
-}
-
-function formatApiKeyState(source: string | null, configured: boolean): string {
-  if (!configured) return "未配置";
-  return source === "secureStorage" ? "已配置" : "环境变量";
-}
-
-function providerConnectionSummary({
-  apiKeySource,
-  providerKeys,
-  group,
-}: {
-  apiKeySource: string | null;
-  providerKeys: readonly {
-    active: boolean;
-    enabled: boolean;
-    health: { status: string };
-    label: string;
-  }[];
-  group: ConfiguredProviderGroup | undefined;
-}): string {
-  if (providerKeys.length > 0) {
-    const enabled = providerKeys.filter((key) => key.enabled);
-    if (enabled.length === 0) {
-      return `已保存 ${providerKeys.length} 个推理 Key，当前均已停用。`;
-    }
-    const active = providerKeys.find((key) => key.active) ?? enabled[0];
-    const health =
-      active?.health.status === "auth-failed"
-        ? "鉴权失败"
-        : active?.health.status === "rate-limited"
-          ? "限流冷却中"
-          : active?.health.status === "healthy"
-            ? "健康"
-            : "尚未验证";
-    return `当前推理 Key：${active?.label ?? "已保存 Key"} · ${health}；共 ${providerKeys.length} 个连接。`;
-  }
-  const activeConnection = group?.activeConnection;
-  if (activeConnection?.kind === "subscription") {
-    return `订阅授权：${activeConnection.label}；可在账户连接中管理。`;
-  }
-  if (activeConnection?.kind === "billing-key") {
-    return `管理凭据：${activeConnection.label}；仅用于余额和账务查询。`;
-  }
-  if (activeConnection?.kind === "oauth") {
-    return `OAuth 已连接${activeConnection?.label ? `：${activeConnection.label}` : ""}。`;
-  }
-  if (
-    activeConnection?.kind === "env" ||
-    (apiKeySource && apiKeySource !== "secureStorage")
-  ) {
-    return `当前凭据来自环境变量${activeConnection?.label ? `：${activeConnection.label}` : ""}。`;
-  }
-  return "尚未建立账户连接；可前往账户连接页查看可用方式。";
-}
-
-function openExternalLink(event: React.MouseEvent<HTMLAnchorElement>): void {
-  event.preventDefault();
-  void desktopClient.openExternalURL(event.currentTarget.href);
+  if (status === "stored-key") return { label: "已保存 Key", tone: "positive" };
+  if (status === "oauth") return { label: "OAuth 已连接", tone: "positive" };
+  if (status === "environment") return { label: "环境变量", tone: "positive" };
+  if (status === "configured") return { label: "已配置", tone: "positive" };
+  return { label: "未配置", tone: "neutral" };
 }
