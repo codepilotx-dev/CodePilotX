@@ -1425,7 +1425,10 @@ export function createAgentSessionDesktopClient(
         }
       },
       refreshThreads: async () => {
-        await refreshAgentSessionStoreChange({ reconcileInteractions: true })
+        await refreshAgentSessionStoreChange({
+          reconcileInteractions: true,
+          reloadActive: true,
+        })
       },
     })
     unsubscribeSessionCatalog = rpc.subscribeEnvelope({

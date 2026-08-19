@@ -4,7 +4,10 @@ import {
   type CanonicalThreadPage,
 } from '@codepilotx/session-view'
 
-import { selectCanonicalConversationAuxiliaryState } from '../src/features/session/conversation/canonicalConversationSelectors.js'
+import {
+  selectCanonicalConversationAuxiliaryState,
+  selectCanonicalSessionStatus,
+} from '../src/features/session/conversation/canonicalConversationSelectors.js'
 import { canRegenerateConversationTitle } from '../src/features/session/conversation/conversationTitleActions.js'
 
 const permissionConfig = {
@@ -337,6 +340,7 @@ describe('canonical conversation auxiliary selector', () => {
       contextUsage: null,
       queuedFollowUps: [],
       queuePauseReason: null,
+      sessionStatus: null,
       sourceLinks: [],
       fallbackTitle: null,
     })
@@ -411,5 +415,82 @@ describe('canonical conversation auxiliary selector', () => {
         createCanonicalThreadState(page),
       ).fallbackTitle,
     ).toBe('# 这是一个超过二十八个字符且不应在投影阶段提前截断的标题')
+  })
+
+  test('derives real-time sessionStatus from canonical state', () => {
+    expect(selectCanonicalSessionStatus(null)).toBeNull()
+
+    const completedPage: CanonicalThreadPage = {
+      thread: {
+        id: 'thread-completed',
+        projectID: null,
+        title: null,
+        gitBranch: null,
+        workspace: {
+          kind: 'projectless',
+          projectID: null,
+          workspaceRoot: 'C:\\workspace',
+          cwd: 'C:\\workspace',
+          outputDirectory: null,
+        },
+        settings: { taskMode: 'chat', permissionConfig },
+        createdAt: 1,
+        updatedAt: 12,
+      },
+      subagents: [],
+      turns: [
+        {
+          turn: {
+            id: 'turn-1',
+            threadId: 'thread-completed',
+            sourceInputID: 'input-1',
+            status: 'completed',
+            mode: 'chat',
+            model,
+            permissionConfig,
+            rootAgentId: 'agent-1',
+            mergedInputIDs: [],
+            startedAt: 2,
+            finishedAt: 5,
+            elapsedSeconds: 3,
+            error: null,
+          },
+          inputs: [],
+          messages: [],
+          agents: [],
+          items: [],
+          approvals: [],
+          attachments: [],
+        },
+      ],
+      olderCursor: null,
+      hasOlder: false,
+      streamPosition: { streamId: 'thread:thread-completed', sequence: 1 },
+    }
+
+    const completedState = createCanonicalThreadState(completedPage)
+    expect(selectCanonicalSessionStatus(completedState)).toBe('done')
+    expect(
+      selectCanonicalConversationAuxiliaryState(completedState).sessionStatus,
+    ).toBe('done')
+
+    const runningPage: CanonicalThreadPage = {
+      ...completedPage,
+      turns: [
+        {
+          ...completedPage.turns[0]!,
+          turn: {
+            ...completedPage.turns[0]!.turn,
+            status: 'running',
+            finishedAt: null,
+          },
+        },
+      ],
+    }
+    const runningState = createCanonicalThreadState(runningPage)
+    expect(selectCanonicalSessionStatus(runningState)).toBe('running')
+    expect(
+      selectCanonicalConversationAuxiliaryState(runningState).sessionStatus,
+    ).toBe('running')
   })
 })

@@ -194,12 +194,17 @@ export function ConversationPage(): React.ReactNode {
       selectCanonicalConversationAuxiliaryState(canonicalConversation.state),
     [canonicalConversation.state],
   );
+  const effectiveSessionStatus =
+    canonicalAuxiliary.sessionStatus ?? sessionStatus;
   const navigateToForkTarget = React.useCallback((targetThreadId: string) => {
     navigate(`/threads/${encodeURIComponent(targetThreadId)}`);
   }, [navigate]);
   const conversationFork = useConversationForkController({
     canUseNewWorktree: Boolean(workspacePath && (branchName || gitStatus)),
-    sourceRunning: sessionStatus === "running" || sessionStatus === "waiting" || sessionStatus === "queued",
+    sourceRunning:
+      effectiveSessionStatus === "running" ||
+      effectiveSessionStatus === "waiting" ||
+      effectiveSessionStatus === "queued",
     sourceThreadId: activeSessionId,
     onNavigateTarget: navigateToForkTarget,
   });
@@ -448,7 +453,7 @@ export function ConversationPage(): React.ReactNode {
     hasActiveSession,
     hasFirstMessage: canonicalAuxiliary.fallbackTitle !== null,
     pending: titleRegenerating,
-    status: sessionStatus,
+    status: effectiveSessionStatus,
   });
   const selectedOpenTarget =
     openTargets.find((target) => target.id === defaultOpenTargetId) ??
@@ -1015,14 +1020,15 @@ export function ConversationPage(): React.ReactNode {
             >
               <ComposerChangeSummary
                 active={
-                  sessionStatus === "running" || sessionStatus === "waiting"
+                  effectiveSessionStatus === "running" ||
+                  effectiveSessionStatus === "waiting"
                 }
                 additions={conversationChangeSummary.additions}
                 canReturnToBottom={canReturnTimelineToBottom}
                 changedFileCount={conversationChangeSummary.changedFileCount}
                 deletions={conversationChangeSummary.deletions}
                 executionPlan={composerExecutionPlan}
-                failed={sessionStatus === "error"}
+                failed={effectiveSessionStatus === "error"}
                 onOpenReview={openReviewSidebar}
                 onReturnToBottom={returnTimelineToBottom}
               />
@@ -1046,6 +1052,7 @@ export function ConversationPage(): React.ReactNode {
         {!activePermissionRequest ? (
           <DesktopComposer
             {...composerProps}
+            sessionStatus={effectiveSessionStatus}
             contextUsage={canonicalAuxiliary.contextUsage}
             queuedFollowUps={canonicalAuxiliary.queuedFollowUps}
             queuePauseReason={canonicalAuxiliary.queuePauseReason}
@@ -1065,7 +1072,7 @@ export function ConversationPage(): React.ReactNode {
       onOpenAttachment,
       onForkFromMessage: conversationFork.onForkFromMessage,
       onSubmitEditedUserMessage,
-      sessionStatus,
+      sessionStatus: effectiveSessionStatus,
       workspacePath,
     }),
     [
@@ -1075,14 +1082,17 @@ export function ConversationPage(): React.ReactNode {
       onOpenAttachment,
       conversationFork.onForkFromMessage,
       onSubmitEditedUserMessage,
-      sessionStatus,
+      effectiveSessionStatus,
       workspacePath,
     ],
   );
   const canonicalThreadView = activeSessionId ? (
     <ConversationItemContext.Provider value={conversationItemContextValue}>
       <CanonicalThreadView
-        active={sessionStatus === "running" || sessionStatus === "waiting"}
+        active={
+          effectiveSessionStatus === "running" ||
+          effectiveSessionStatus === "waiting"
+        }
         diffMarkerStyle={diffMarkerStyle}
         error={canonicalConversation.error}
         hasOlder={canonicalConversation.hasOlder}

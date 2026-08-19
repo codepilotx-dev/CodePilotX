@@ -6,8 +6,10 @@ import type {
   DesktopPermissionRequest,
   DesktopQueuedFollowUp,
   DesktopQueuePauseReason,
+  DesktopSessionStatus,
 } from '../../../../shared/types.js'
 import {
+  agentTurnStatusToDesktopStatus,
   approvalToRequest,
   latestItemContextUsage,
   questionToRequest,
@@ -26,11 +28,32 @@ export type CanonicalConversationAuxiliaryState = {
   contextUsage: DesktopContextUsage | null
   queuedFollowUps: DesktopQueuedFollowUp[]
   queuePauseReason: DesktopQueuePauseReason | null
+  sessionStatus: DesktopSessionStatus | null
   sourceLinks: SourceLink[]
   fallbackTitle: string | null
 }
 
 const completedResultSourceLinks = new WeakMap<object, SourceLink[]>()
+
+export function selectCanonicalSessionStatus(
+  state: CanonicalThreadState | null,
+): DesktopSessionStatus | null {
+  if (!state) return null
+  const queueTurnIds = new Set(state.queue.turnIds)
+  const activeTurn = [...state.turnsById.values()]
+    .filter(
+      turn =>
+        !queueTurnIds.has(turn.id) &&
+        (turn.status === 'running' || turn.status.startsWith('waiting-')),
+    )
+    .sort((left, right) => (right.startedAt ?? 0) - (left.startedAt ?? 0))[0]
+  if (activeTurn) return agentTurnStatusToDesktopStatus(activeTurn.status)
+  const latestTurn = [...state.turnOrder]
+    .reverse()
+    .map(id => state.turnsById.get(id))
+    .find(turn => turn && !queueTurnIds.has(turn.id))
+  return agentTurnStatusToDesktopStatus(latestTurn?.status)
+}
 
 export function selectCanonicalConversationAuxiliaryState(
   state: CanonicalThreadState | null,
@@ -42,6 +65,7 @@ export function selectCanonicalConversationAuxiliaryState(
       contextUsage: null,
       queuedFollowUps: [],
       queuePauseReason: null,
+      sessionStatus: null,
       sourceLinks: [],
       fallbackTitle: null,
     }
@@ -57,6 +81,7 @@ export function selectCanonicalConversationAuxiliaryState(
     contextUsage: latestItemContextUsage(items),
     queuedFollowUps: selectQueuedFollowUps(state),
     queuePauseReason: state.queue.pauseReason,
+    sessionStatus: selectCanonicalSessionStatus(state),
     sourceLinks: extractCanonicalSourceLinks(items),
     fallbackTitle: fallbackTitleFromInput(inputs[0]?.content),
   }
