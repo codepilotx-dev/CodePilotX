@@ -55,12 +55,12 @@ export function buildAccountGroupSummary(
   )
   const quotas = relevantResults
     .flatMap(source => source.groups.flatMap(item =>
-      item.quotaWindows.map(quota => ({ sourceId: source.sourceId, quota }))
+      item.quotaWindows.map(quota => ({ sourceId: source.sourceId, groupId: item.id, quota }))
     ))
     .sort((left, right) => compareQuota(left.quota, right.quota))
     .slice(0, 3)
-    .map(({ sourceId, quota }) => ({
-      id: `${sourceId}:${quota.id}`,
+    .map(({ sourceId, groupId, quota }) => ({
+      id: `${sourceId}:${groupId}:${quota.id}`,
       label: quota.label,
       value: formatQuotaValue(quota),
       reset: formatResetTime(quota.resetsAt),
@@ -155,7 +155,7 @@ export function AccountProviderGroup({
             <span
               className="model-center-account-quota"
               data-state={quota.state}
-              key={`${quota.id}:${quota.label}`}
+              key={quota.id}
               title={`${quota.value}；${quota.reset}`}
             >
               <span>{quota.label}</span>

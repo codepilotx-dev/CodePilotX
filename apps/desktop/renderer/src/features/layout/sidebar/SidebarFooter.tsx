@@ -47,6 +47,7 @@ import { cx } from '../../../utils/cx.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 
 type PopoverUsageRow = {
+  id: string;
   label: string;
   usage: string;
   reset: string;
@@ -307,7 +308,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                         role="group"
                       >
                         {usageRows.map(row => (
-                          <div className="popover-usage-row" key={row.label}>
+                          <div className="popover-usage-row" key={row.id}>
                             <span className="popover-usage-label">{row.label}</span>
                             <span className="popover-usage-value">
                               <span className="popover-usage-amount">
@@ -471,13 +472,15 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
   const quotas = criticalQuotaWindows(usage.source, 3)
   if (quotas.length > 0) {
-    return quotas.map(quota => ({
+    return quotas.map((quota, index) => ({
+      id: `${quota.id}-${index}`,
       label: quota.label,
       usage: formatQuotaValue(quota),
       reset: quota.state === 'unlimited' ? '' : formatResetTime(quota.resetsAt),
     }))
   }
-  return allBalances(usage.source).map(balance => ({
+  return allBalances(usage.source).map((balance, index) => ({
+    id: `${balance.currency}-${index}`,
     label: balance.currency,
     usage: `余额 ${formatAmount(balance.currency, balance.total)}`,
     reset: '',
