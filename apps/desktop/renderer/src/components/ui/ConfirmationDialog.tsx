@@ -68,7 +68,7 @@ export function ConfirmationDialog({
             >
               <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
                 <AlertDialog.Title asChild>
-                  <h2 className="tw:min-w-0 tw:flex-1 tw:text-lg tw:font-[var(--font-weight-heading)] tw:text-app-text">
+                  <h2 className="tw:min-w-0 tw:flex-1 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
                     {title}
                   </h2>
                 </AlertDialog.Title>
@@ -173,7 +173,7 @@ export function InputDialog({
               >
                 <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
                   <Dialog.Title asChild>
-                    <h2 className="tw:min-w-0 tw:flex-1 tw:text-lg tw:font-[var(--font-weight-heading)] tw:text-app-text">
+                    <h2 className="tw:min-w-0 tw:flex-1 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
                       {title}
                     </h2>
                   </Dialog.Title>

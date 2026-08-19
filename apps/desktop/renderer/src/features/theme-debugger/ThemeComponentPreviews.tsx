@@ -220,7 +220,7 @@ export function TooltipScrollChipPreview(): React.ReactNode {
 
         <div className="theme-token-debugger__preview-subitem">
           <span className="theme-token-debugger__preview-label">滚动容器滑块 (ScrollArea)</span>
-          <div style={{ height: '100px', overflowY: 'auto', border: '1px solid var(--color-token-border-light)', borderRadius: '6px', padding: '8px' }}>
+          <div style={{ height: '100px', overflowY: 'auto', border: '1px solid var(--cpx-sys-color-border-subtle)', borderRadius: '6px', padding: '8px' }}>
             <p style={{ margin: '0 0 6px' }}>第一行测试滚动条</p>
             <p style={{ margin: '0 0 6px' }}>第二行测试滚动条内容</p>
             <p style={{ margin: '0 0 6px' }}>第三行测试滚动条内容</p>
@@ -238,15 +238,15 @@ export function SurfacesPreview(): React.ReactNode {
     <div className="theme-token-debugger__preview-card">
       <h4>5 层表面体系 (Layer Surfaces) 阶梯预览</h4>
       <div className="theme-token-debugger__surfaces-stack">
-        <div className="theme-token-debugger__surface-box" style={{ background: 'var(--layer-underlay-fill)' }}>
+        <div className="theme-token-debugger__surface-box" style={{ background: 'var(--cpx-comp-surface-underlay)' }}>
           <span>1. Underlay (底衬层 / 侧栏)</span>
-          <div className="theme-token-debugger__surface-box" style={{ background: 'var(--layer-canvas-fill)' }}>
+          <div className="theme-token-debugger__surface-box" style={{ background: 'var(--cpx-comp-surface-canvas)' }}>
             <span>2. Canvas (视口画布层)</span>
-            <div className="theme-token-debugger__surface-box" style={{ background: 'var(--layer-panel-fill)' }}>
+            <div className="theme-token-debugger__surface-box" style={{ background: 'var(--cpx-comp-surface-panel)' }}>
               <span>3. Panel (工作区面板层)</span>
-              <div className="theme-token-debugger__surface-box" style={{ background: 'var(--layer-raised-fill)', boxShadow: 'var(--shadow-raised)' }}>
+              <div className="theme-token-debugger__surface-box" style={{ background: 'var(--cpx-comp-surface-raised)', boxShadow: 'var(--cpx-sys-shadow-raised)' }}>
                 <span>4. Raised (悬浮抬升层)</span>
-                <div className="theme-token-debugger__surface-box" style={{ background: 'var(--layer-floating-fill)', boxShadow: 'var(--shadow-floating)' }}>
+                <div className="theme-token-debugger__surface-box" style={{ background: 'var(--cpx-comp-surface-floating)', boxShadow: 'var(--cpx-sys-shadow-floating)' }}>
                   <span>5. Floating (顶层浮层 / 弹窗)</span>
                 </div>
               </div>
@@ -263,9 +263,9 @@ export function ModalPreview(): React.ReactNode {
     <div className="theme-token-debugger__preview-card">
       <h4>Modal 对话框浮层预览</h4>
       <div className="permission-modal-backdrop" style={{ position: 'relative', height: '240px', padding: '12px', zIndex: 1 }}>
-        <div className="permission-modal" style={{ background: 'var(--modal-surface-background, var(--layer-floating-fill))', border: 'var(--modal-surface-border, var(--layer-edge))', boxShadow: 'var(--modal-surface-shadow, var(--shadow-floating))', borderRadius: 'var(--modal-surface-radius, var(--radius-floating))', padding: '16px', width: '100%', maxWidth: '380px' }}>
-          <h5 style={{ margin: '0 0 8px', fontSize: '14px', color: 'var(--color-token-foreground)' }}>确认执行操作</h5>
-          <p style={{ margin: '0 0 12px', fontSize: '12px', color: 'var(--color-token-description-foreground)' }}>
+        <div className="permission-modal" style={{ background: 'var(--cpx-comp-modal-bg)', border: 'var(--cpx-comp-modal-border)', boxShadow: 'var(--cpx-comp-modal-shadow)', borderRadius: 'var(--cpx-comp-modal-radius)', padding: '16px', width: '100%', maxWidth: '380px' }}>
+          <h5 style={{ margin: '0 0 8px', fontSize: '14px', color: 'var(--cpx-sys-color-fg-primary)' }}>确认执行操作</h5>
+          <p style={{ margin: '0 0 12px', fontSize: '12px', color: 'var(--cpx-sys-color-fg-tertiary)' }}>
             是否允许在当前工作区运行外部命令？该操作将产生文件修改。
           </p>
           <div className="theme-token-debugger__preview-row-flex" style={{ justifyContent: 'flex-end' }}>
@@ -282,23 +282,23 @@ export function SidebarDockPreview(): React.ReactNode {
   return (
     <div className="theme-token-debugger__preview-card">
       <h4>Left Sidebar & Right Dock 预览</h4>
-      <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '8px', border: '1px solid var(--color-token-border-light)', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '8px', border: '1px solid var(--cpx-sys-color-border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
         {/* Left Sidebar Mock */}
-        <div style={{ background: 'var(--sidebar-background, var(--color-token-side-bar-background))', padding: '8px', borderRight: 'var(--sidebar-border, 1px solid var(--color-token-border-light))' }}>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-token-description-foreground)' }}>会话列表</span>
+        <div style={{ background: 'var(--cpx-comp-sidebar-bg)', padding: '8px', borderRight: 'var(--cpx-comp-sidebar-border, 1px solid var(--cpx-sys-color-border-subtle))' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cpx-sys-color-fg-tertiary)' }}>会话列表</span>
           <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <div style={{ padding: '4px 6px', borderRadius: 'var(--sidebar-item-radius, var(--radius-row))', background: 'var(--sidebar-item-active-background, var(--color-token-list-active-selection-background))', fontSize: '12px', color: 'var(--color-token-foreground)' }}>
+            <div style={{ padding: '4px 6px', borderRadius: 'var(--cpx-comp-sidebar-item-radius, var(--cpx-sys-radius-md))', background: 'var(--cpx-comp-sidebar-item-active-bg)', fontSize: '12px', color: 'var(--cpx-sys-color-fg-primary)' }}>
               主功能重构
             </div>
-            <div style={{ padding: '4px 6px', borderRadius: 'var(--sidebar-item-radius, var(--radius-row))', fontSize: '12px', color: 'var(--color-token-text-secondary)' }}>
+            <div style={{ padding: '4px 6px', borderRadius: 'var(--cpx-comp-sidebar-item-radius, var(--cpx-sys-radius-md))', fontSize: '12px', color: 'var(--cpx-sys-color-fg-secondary)' }}>
               修复内存泄漏
             </div>
           </div>
         </div>
 
         {/* Right Dock Mock */}
-        <div style={{ background: 'var(--right-dock-background, var(--layer-panel-fill))', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ height: '36px', borderBottom: '1px solid var(--right-dock-border-color, var(--color-token-border-light))', display: 'flex', alignItems: 'center', padding: '0 8px', gap: '4px' }}>
+        <div style={{ background: 'var(--cpx-comp-dock-bg)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ height: '36px', borderBottom: '1px solid var(--cpx-comp-dock-border)', display: 'flex', alignItems: 'center', padding: '0 8px', gap: '4px' }}>
             <div className="right-dock-tab-wrap active" style={{ height: '24px', fontSize: '11px' }}>
               <span className="right-dock-tab-title">文档计划</span>
             </div>
@@ -306,7 +306,7 @@ export function SidebarDockPreview(): React.ReactNode {
               <span className="right-dock-tab-title">集成终端</span>
             </div>
           </div>
-          <div style={{ padding: '10px', fontSize: '12px', color: 'var(--color-token-description-foreground)' }}>
+          <div style={{ padding: '10px', fontSize: '12px', color: 'var(--cpx-sys-color-fg-tertiary)' }}>
             右侧停靠栏内容展示区域 (RightDock Body)
           </div>
         </div>
@@ -319,16 +319,16 @@ export function WorkbenchPreview(): React.ReactNode {
   return (
     <div className="theme-token-debugger__preview-card">
       <h4>Workbench Panel & TabStrip 预览</h4>
-      <div style={{ border: '1px solid var(--color-token-border-light)', borderRadius: '8px', overflow: 'hidden', background: 'var(--color-token-panel-background)' }}>
-        <div style={{ height: '40px', borderBottom: '1px solid var(--color-token-border-light)', display: 'flex', alignItems: 'center', padding: '0 8px', background: 'var(--layer-panel-fill)', gap: '4px' }}>
-          <div style={{ padding: '4px 8px', borderRadius: 'var(--radius-row)', background: 'var(--color-token-list-active-selection-background)', color: 'var(--color-token-foreground)', fontSize: '12px', fontWeight: 500 }}>
+      <div style={{ border: '1px solid var(--cpx-sys-color-border-subtle)', borderRadius: '8px', overflow: 'hidden', background: 'var(--cpx-comp-workbench-panel-bg)' }}>
+        <div style={{ height: '40px', borderBottom: '1px solid var(--cpx-sys-color-border-subtle)', display: 'flex', alignItems: 'center', padding: '0 8px', background: 'var(--cpx-comp-surface-panel)', gap: '4px' }}>
+          <div style={{ padding: '4px 8px', borderRadius: 'var(--cpx-sys-radius-md)', background: 'var(--cpx-sys-color-selected)', color: 'var(--cpx-sys-color-fg-primary)', fontSize: '12px', fontWeight: 500 }}>
             Editor.tsx
           </div>
-          <div style={{ padding: '4px 8px', borderRadius: 'var(--radius-row)', color: 'var(--color-token-description-foreground)', fontSize: '12px' }}>
+          <div style={{ padding: '4px 8px', borderRadius: 'var(--cpx-sys-radius-md)', color: 'var(--cpx-sys-color-fg-tertiary)', fontSize: '12px' }}>
             tokens.scss
           </div>
         </div>
-        <div style={{ padding: '16px', background: 'var(--color-token-main-surface-primary)', minHeight: '80px', fontSize: '12px', color: 'var(--color-token-foreground)' }}>
+        <div style={{ padding: '16px', background: 'var(--cpx-sys-color-surface)', minHeight: '80px', fontSize: '12px', color: 'var(--cpx-sys-color-fg-primary)' }}>
           <code>const codePilotX = 'State-of-the-art AI Workspace';</code>
         </div>
       </div>
@@ -340,13 +340,13 @@ export function MenuBarPreview(): React.ReactNode {
   return (
     <div className="theme-token-debugger__preview-card">
       <h4>MenuBar 顶部菜单栏预览</h4>
-      <div style={{ height: '36px', background: 'var(--color-token-side-bar-background)', border: '1px solid var(--color-token-border-light)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px' }}>
-        <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--color-token-foreground)' }}>
-          <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'var(--color-token-menubar-selection-background)' }}>文件 (F)</span>
+      <div style={{ height: '36px', background: 'var(--cpx-comp-sidebar-bg)', border: '1px solid var(--cpx-sys-color-border-subtle)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px' }}>
+        <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--cpx-sys-color-fg-primary)' }}>
+          <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'var(--cpx-comp-menubar-selection-bg)' }}>文件 (F)</span>
           <span style={{ padding: '2px 6px' }}>编辑 (E)</span>
           <span style={{ padding: '2px 6px' }}>视图 (V)</span>
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--color-token-description-foreground)' }}>CodePilotX - Workspace</span>
+        <span style={{ fontSize: '11px', color: 'var(--cpx-sys-color-fg-tertiary)' }}>CodePilotX - Workspace</span>
       </div>
     </div>
   )
@@ -356,11 +356,11 @@ export function ComposerPreview(): React.ReactNode {
   return (
     <div className="theme-token-debugger__preview-card">
       <h4>Composer 消息输入台预览</h4>
-      <div style={{ border: '1px solid var(--color-token-border-light)', borderRadius: '12px', padding: '10px', background: 'var(--color-token-input-background)' }}>
-        <div style={{ fontSize: '13px', color: 'var(--color-token-foreground)', minHeight: '40px' }}>
+      <div style={{ border: '1px solid var(--cpx-sys-color-border-subtle)', borderRadius: '12px', padding: '10px', background: 'var(--cpx-comp-input-bg)' }}>
+        <div style={{ fontSize: '13px', color: 'var(--cpx-sys-color-fg-primary)', minHeight: '40px' }}>
           为所有组件增加主题 Token 调试能力...
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', borderTop: '1px solid var(--color-token-border-light)', paddingTop: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', borderTop: '1px solid var(--cpx-sys-color-border-subtle)', paddingTop: '6px' }}>
           <div style={{ display: 'flex', gap: '6px' }}>
             <IconButton color="secondary" size="iconSm" title="附加文件" type="button"><Paperclip size={13} /></IconButton>
           </div>
@@ -377,18 +377,18 @@ export function TerminalPreview(): React.ReactNode {
   return (
     <div className="theme-token-debugger__preview-card">
       <h4>Terminal 集成终端与 16 色 ANSI 预览</h4>
-      <div style={{ background: 'var(--color-token-terminal-background)', border: '1px solid var(--color-token-terminal-border)', borderRadius: '8px', padding: '12px', fontFamily: 'var(--font-family-mono)', fontSize: '12px', color: 'var(--color-token-terminal-foreground)' }}>
-        <div style={{ color: 'var(--color-token-terminal-ansi-green)', marginBottom: '4px' }}>
+      <div style={{ background: 'var(--cpx-comp-terminal-bg)', border: '1px solid var(--cpx-comp-terminal-border)', borderRadius: '8px', padding: '12px', fontFamily: 'var(--cpx-sys-font-family-mono)', fontSize: '12px', color: 'var(--cpx-comp-terminal-fg)' }}>
+        <div style={{ color: 'var(--cpx-comp-terminal-ansi-green)', marginBottom: '4px' }}>
           ➜ codepilotx-app git:(dev)
         </div>
         <div style={{ marginBottom: '8px' }}>
           $ bun run test
         </div>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          <span style={{ color: 'var(--color-token-terminal-ansi-red)' }}>[FAIL 0]</span>
-          <span style={{ color: 'var(--color-token-terminal-ansi-green)' }}>[PASS 12]</span>
-          <span style={{ color: 'var(--color-token-terminal-ansi-yellow)' }}>[WARN 0]</span>
-          <span style={{ color: 'var(--color-token-terminal-ansi-blue)' }}>[INFO]</span>
+          <span style={{ color: 'var(--cpx-comp-terminal-ansi-red)' }}>[FAIL 0]</span>
+          <span style={{ color: 'var(--cpx-comp-terminal-ansi-green)' }}>[PASS 12]</span>
+          <span style={{ color: 'var(--cpx-comp-terminal-ansi-yellow)' }}>[WARN 0]</span>
+          <span style={{ color: 'var(--cpx-comp-terminal-ansi-blue)' }}>[INFO]</span>
         </div>
       </div>
     </div>
@@ -399,12 +399,12 @@ export function ReviewDiffPreview(): React.ReactNode {
   return (
     <div className="theme-token-debugger__preview-card">
       <h4>Review Diff 差异对比预览</h4>
-      <div style={{ background: 'var(--color-token-diff-surface)', border: '1px solid var(--color-token-border-light)', borderRadius: '6px', overflow: 'hidden', fontSize: '11px', fontFamily: 'var(--font-family-mono)' }}>
-        <div style={{ background: 'var(--color-token-diff-editor-removed-line-background)', padding: '2px 8px', color: 'var(--color-token-foreground)' }}>
-          - <span style={{ background: 'var(--color-token-diff-editor-removed-text-background)' }}>const oldMode = 'single-component'</span>
+      <div style={{ background: 'var(--cpx-comp-diff-surface)', border: '1px solid var(--cpx-sys-color-border-subtle)', borderRadius: '6px', overflow: 'hidden', fontSize: '11px', fontFamily: 'var(--cpx-sys-font-family-mono)' }}>
+        <div style={{ background: 'var(--cpx-comp-diff-removed-line-bg)', padding: '2px 8px', color: 'var(--cpx-sys-color-fg-primary)' }}>
+          - <span style={{ background: 'var(--cpx-comp-diff-removed-text-bg)' }}>const oldMode = 'single-component'</span>
         </div>
-        <div style={{ background: 'var(--color-token-diff-editor-inserted-line-background)', padding: '2px 8px', color: 'var(--color-token-foreground)' }}>
-          + <span style={{ background: 'var(--color-token-diff-editor-inserted-text-background)' }}>const newMode = 'universal-multi-component'</span>
+        <div style={{ background: 'var(--cpx-comp-diff-inserted-line-bg)', padding: '2px 8px', color: 'var(--cpx-sys-color-fg-primary)' }}>
+          + <span style={{ background: 'var(--cpx-comp-diff-inserted-text-bg)' }}>const newMode = 'universal-multi-component'</span>
         </div>
       </div>
     </div>

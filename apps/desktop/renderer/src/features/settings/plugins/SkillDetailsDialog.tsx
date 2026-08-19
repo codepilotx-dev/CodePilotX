@@ -98,7 +98,7 @@ export function SkillDetailsDialog({
                 />
               </span>
               <span className="tw:min-w-0 tw:flex-1">
-                <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--font-weight-heading)]">
+                <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)]">
                   {skill.name}
                 </Dialog.Title>
                 <Dialog.Description className="tw:mt-1 tw:mb-0 tw:text-sm tw:text-app-text-soft">

@@ -255,7 +255,7 @@ export function ConversationEnvironmentControls({
             <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
               <div className="tw:grid tw:gap-1">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 tw:text-xl tw:font-[var(--font-weight-heading)] tw:text-app-text">
+                  <h2 className="tw:m-0 tw:text-xl tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
                     移交当前任务
                   </h2>
                 </Dialog.Title>

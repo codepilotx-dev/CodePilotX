@@ -93,7 +93,7 @@ export function getDefaultLiteralForType(type: ThemeTokenValueType): string {
     case 'shadow':
       return '0 8px 24px -16px rgba(0, 0, 0, 0.25)'
     case 'border':
-      return '1px solid var(--color-token-border-light)'
+      return '1px solid var(--cpx-sys-color-border-subtle)'
     case 'radius':
       return '8px'
     case 'dimension':
@@ -113,13 +113,13 @@ export function getPlaceholderForType(type: ThemeTokenValueType): string {
     case 'shadow':
       return '0 8px 24px -16px rgba(0,0,0,0.25)'
     case 'border':
-      return '1px solid var(--color-token-border-light)'
+      return '1px solid var(--cpx-sys-color-border-subtle)'
     case 'radius':
       return '8px / 12px / 9999px'
     case 'dimension':
       return '24px / 16px / 1.5rem'
     case 'typography':
-      return '14px / var(--font-family-mono)'
+      return '14px / var(--cpx-sys-font-family-mono)'
     case 'custom':
     default:
       return 'CSS 声明值'
@@ -142,28 +142,32 @@ export function detectTokenType(name: string, value?: string): ThemeTokenValueTy
   const lowerVal = (value ?? '').trim().toLowerCase()
 
   if (
-    lowerName.startsWith('--color-') ||
-    lowerName.includes('background') ||
-    lowerName.includes('foreground') ||
-    lowerName.includes('border-color') ||
-    lowerName.startsWith('--vscode-') ||
-    isColorValue(lowerVal)
+    lowerName.startsWith('--cpx-sys-radius') ||
+    lowerName.includes('radius')
   ) {
-    if (lowerName.startsWith('--layer-edge') || lowerName.includes('-border') && (lowerVal.includes('solid') || lowerVal.includes('dashed'))) {
-      return 'border'
-    }
-    return 'color'
-  }
-
-  if (lowerName.includes('shadow') || lowerVal.includes('drop-shadow') || (lowerVal.includes('px') && lowerVal.includes('rgba('))) {
-    return 'shadow'
-  }
-
-  if (lowerName.includes('radius')) {
     return 'radius'
   }
 
   if (
+    lowerName.startsWith('--cpx-sys-shadow') ||
+    lowerName.includes('shadow') ||
+    lowerVal.includes('drop-shadow') ||
+    (lowerVal.includes('px') && lowerVal.includes('rgba('))
+  ) {
+    return 'shadow'
+  }
+
+  if (
+    lowerName.startsWith('--cpx-sys-font') ||
+    lowerName.includes('font') ||
+    lowerName.includes('type-') ||
+    lowerName.includes('line-height')
+  ) {
+    return 'typography'
+  }
+
+  if (
+    lowerName.startsWith('--cpx-sys-space') ||
     lowerName.includes('height') ||
     lowerName.includes('width') ||
     lowerName.includes('size') ||
@@ -178,14 +182,31 @@ export function detectTokenType(name: string, value?: string): ThemeTokenValueTy
   }
 
   if (
-    lowerName.includes('font') ||
-    lowerName.includes('type-') ||
-    lowerName.includes('line-height')
+    lowerName.startsWith('--layer-edge') ||
+    lowerName.includes('edge') ||
+    (lowerName.endsWith('-border') && (lowerVal.includes('solid') || lowerVal.includes('dashed') || lowerVal === '0'))
   ) {
-    return 'typography'
+    return 'border'
   }
 
-  if (lowerName.includes('edge') || lowerName.includes('border') || lowerName.includes('ring')) {
+  if (
+    lowerName.startsWith('--cpx-sys-color-') ||
+    lowerName.startsWith('--color-') ||
+    lowerName.includes('background') ||
+    lowerName.includes('foreground') ||
+    lowerName.includes('-bg') ||
+    lowerName.includes('-fg') ||
+    lowerName.includes('border-color') ||
+    lowerName.includes('focus-border') ||
+    lowerName.includes('-border') ||
+    lowerName.includes('fill') ||
+    lowerName.startsWith('--vscode-') ||
+    isColorValue(lowerVal)
+  ) {
+    return 'color'
+  }
+
+  if (lowerName.includes('border') || lowerName.includes('ring')) {
     return 'border'
   }
 
@@ -398,225 +419,189 @@ export function validateDraft(
   }
   for (const [name, recipe] of Object.entries(recipes)) {
     const tokenType = detectTokenType(name)
-    const cssProperty = getCssPropertyForType(tokenType)
+    const cssProp = getCssPropertyForType(tokenType)
 
     if (recipe.kind === 'reference') {
-      const err = validateOperand(name, recipe.source, tokenType, cssProperty)
+      const err = validateOperand(name, recipe.source, tokenType, cssProp)
       if (err) return err
-    } else if (recipe.kind === 'literal') {
-      if (!isValidCssValue(cssProperty, recipe.value, tokenType)) {
-        return `${name} 的固定值格式无效：${recipe.value}`
+      if (recipe.source.kind === 'token' && !knownTokens.has(recipe.source.token) && !draft.customTokens[recipe.source.token]) {
+        return `${name} 引用的 token 不存在：${recipe.source.token}`
       }
+    } else if (recipe.kind === 'literal') {
+      const operand: ThemeTokenOperand = { kind: 'literal', value: recipe.value }
+      const err = validateOperand(name, operand, tokenType, cssProp)
+      if (err) return err
     } else if (recipe.kind === 'color-mix') {
       if (tokenType !== 'color') {
-        return `${name} 是非颜色 Token（${tokenType}），不能使用 color-mix 混色配方`
+        return `${name} 仅色彩类型 Token 支持 color-mix 混合计算`
       }
-      const fromErr = validateOperand(name, recipe.from, 'color', 'background-color')
-      if (fromErr) return fromErr
-      const toErr = validateOperand(name, recipe.to, 'color', 'background-color')
-      if (toErr) return toErr
-      if (!Number.isFinite(recipe.toAmount) || recipe.toAmount < 0 || recipe.toAmount > 100) {
-        return `${name} 的混色比例无效（必须为 0 到 100 之间的数值）`
+      const errFrom = validateOperand(name, recipe.from, 'color', 'background-color')
+      if (errFrom) return errFrom
+      const errTo = validateOperand(name, recipe.to, 'color', 'background-color')
+      if (errTo) return errTo
+
+      if (recipe.from.kind === 'token' && !knownTokens.has(recipe.from.token) && !draft.customTokens[recipe.from.token]) {
+        return `${name} 混合来源引用的 token 不存在：${recipe.from.token}`
       }
-      if (recipe.from.kind === 'literal' && recipe.to.kind === 'literal') {
-        return `${name} 的混色两端均为固定色，请直接使用固定色模式`
-      }
-    }
-    for (const dependency of recipeDependencies(recipe)) {
-      if (!knownTokens.has(dependency) && !(dependency in draft.customTokens)) {
-        return `${name} 引用了未知 token：${dependency}`
+      if (recipe.to.kind === 'token' && !knownTokens.has(recipe.to.token) && !draft.customTokens[recipe.to.token]) {
+        return `${name} 混合目标引用的 token 不存在：${recipe.to.token}`
       }
     }
   }
 
-  // Check for dependency cycles
+  // Cycle check
+  const graph = new Map<string, string[]>()
+  for (const [name, recipe] of Object.entries(recipes)) {
+    graph.set(name, recipeDependencies(recipe))
+  }
+
+  const visiting = new Set<string>()
   const visited = new Set<string>()
-  const inStack = new Set<string>()
 
-  function checkCycle(token: string): string | null {
-    visited.add(token)
-    inStack.add(token)
-    const recipe = recipes[token as ThemeTokenName]
-    if (recipe) {
-      for (const dep of recipeDependencies(recipe)) {
-        if (!visited.has(dep)) {
-          const err = checkCycle(dep)
-          if (err) return err
-        } else if (inStack.has(dep)) {
-          return `检测到 Token 之间的循环引用：${token} -> ${dep}`
-        }
-      }
+  function hasCycle(node: string): boolean {
+    if (visiting.has(node)) return true
+    if (visited.has(node)) return false
+    visiting.add(node)
+    const deps = graph.get(node) ?? []
+    for (const dep of deps) {
+      if (graph.has(dep) && hasCycle(dep)) return true
     }
-    inStack.delete(token)
-    return null
+    visiting.delete(node)
+    visited.add(node)
+    return false
   }
 
-  for (const token of Object.keys(recipes)) {
-    if (!visited.has(token)) {
-      const cycleError = checkCycle(token)
-      if (cycleError) return cycleError
-    }
+  for (const name of Object.keys(recipes)) {
+    if (hasCycle(name)) return `检测到 Token 循环引用：${name}`
   }
 
   return null
-}
-
-export function sortCustomTokens(
-  customTokens: Record<string, ThemeTokenRecipe>,
-): string[] {
-  const result: string[] = []
-  const visited = new Set<string>()
-
-  function visit(token: string): void {
-    if (visited.has(token)) return
-    visited.add(token)
-    const recipe = customTokens[token as ThemeTokenName]
-    if (recipe) {
-      for (const dep of recipeDependencies(recipe)) {
-        if (dep in customTokens) {
-          visit(dep)
-        }
-      }
-    }
-    result.push(token)
-  }
-
-  for (const token of Object.keys(customTokens).sort()) {
-    visit(token)
-  }
-  return result
 }
 
 export function validateCustomTokenDeletion(
   tokenToDelete: ThemeTokenName,
   draft: ThemeTokenDraft,
-  components: readonly ThemeComponentDefinition[],
-): { canDelete: boolean; references: string[] } {
-  const references: string[] = []
-
-  // Check draft overrides referencing this custom token
-  for (const [targetToken, recipe] of Object.entries(draft.overrides)) {
+): string | null {
+  const allRecipes = { ...draft.customTokens, ...draft.overrides }
+  for (const [name, recipe] of Object.entries(allRecipes)) {
+    if (name === tokenToDelete) continue
     const deps = recipeDependencies(recipe)
     if (deps.includes(tokenToDelete)) {
-      const slotMatch = components
-        .flatMap(c => c.slots.map(s => ({ component: c.label, slot: s.label, token: s.targetToken })))
-        .find(s => s.token === targetToken)
-      if (slotMatch) {
-        references.push(`${slotMatch.component} · ${slotMatch.slot} (${targetToken})`)
-      } else {
-        references.push(`覆盖规则 (${targetToken})`)
-      }
+      return `无法删除 ${tokenToDelete}：正被 ${name} 引用`
     }
-  }
-
-  // Check other custom tokens referencing this token
-  for (const [customName, recipe] of Object.entries(draft.customTokens)) {
-    if (customName !== tokenToDelete) {
-      const deps = recipeDependencies(recipe)
-      if (deps.includes(tokenToDelete)) {
-        references.push(`自定义 Token (${customName})`)
-      }
-    }
-  }
-
-  return {
-    canDelete: references.length === 0,
-    references,
-  }
-}
-
-export function generateThemeTokenCode(
-  draft: ThemeTokenDraft,
-  inlineTokenNames: ReadonlySet<string>,
-  options: {
-    scope?: 'all' | 'component'
-    componentSlots?: readonly ThemePropertySlot[]
-  } = {},
-): string {
-  const { scope = 'all', componentSlots = [] } = options
-  const targetTokenSet = scope === 'component' ? new Set(componentSlots.map(s => s.targetToken)) : null
-
-  const scssCustomLines: string[] = []
-  const sortedCustom = sortCustomTokens(draft.customTokens)
-  for (const name of sortedCustom) {
-    scssCustomLines.push(`  ${name}: ${serializeRecipe(draft.customTokens[name as ThemeTokenName])};`)
-  }
-
-  const scssOverrideLines: string[] = []
-  const tsOverrideLines: string[] = []
-
-  const overrideKeys = Object.keys(draft.overrides).sort() as ThemeTokenName[]
-  for (const name of overrideKeys) {
-    if (targetTokenSet && !targetTokenSet.has(name)) continue
-    const recipe = draft.overrides[name]
-    const serialized = serializeRecipe(recipe)
-    if (inlineTokenNames.has(name)) {
-      tsOverrideLines.push(`  '${name}': '${serialized}',`)
-    } else {
-      scssOverrideLines.push(`  ${name}: ${serialized};`)
-    }
-  }
-
-  const sections: string[] = []
-
-  if (scssCustomLines.length || scssOverrideLines.length) {
-    sections.push(
-      [
-        '// codex-semantic-tokens.scss or _theme-token-debugger.scss',
-        ':root {',
-        ...(scssCustomLines.length ? ['  /* 自定义 Token */', ...scssCustomLines] : []),
-        ...(scssOverrideLines.length ? ['  /* 覆盖规则 */', ...scssOverrideLines] : []),
-        '}',
-      ].join('\n'),
-    )
-  }
-
-  if (tsOverrideLines.length) {
-    sections.push(
-      [
-        '// themeVariables.ts (deriveThemeVariables)',
-        'const overrides: Record<string, string> = {',
-        ...tsOverrideLines,
-        '}',
-      ].join('\n'),
-    )
-  }
-
-  return sections.join('\n\n') || '/* 没有可导出的 Token 修改 */'
-}
-
-export function parseRgbChannels(colorStr: string): [number, number, number] | null {
-  const hexMatch = colorStr.trim().match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
-  if (hexMatch) {
-    return [parseInt(hexMatch[1], 16), parseInt(hexMatch[2], 16), parseInt(hexMatch[3], 16)]
-  }
-  const rgbMatch = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i)
-  if (rgbMatch) {
-    return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])]
   }
   return null
 }
 
-export function calculateLuminance(rgb: [number, number, number]): number {
-  const [r, g, b] = rgb.map(val => {
-    const s = val / 255
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
-  })
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+export function parseRgbChannels(colorString: string): [number, number, number] | null {
+  if (!colorString) return null
+  const trimmed = colorString.trim()
+
+  if (trimmed.startsWith('#')) {
+    const hex = trimmed.slice(1)
+    if (hex.length === 3) {
+      return [
+        parseInt(hex[0]! + hex[0]!, 16),
+        parseInt(hex[1]! + hex[1]!, 16),
+        parseInt(hex[2]! + hex[2]!, 16),
+      ]
+    }
+    if (hex.length === 6) {
+      return [
+        parseInt(hex.slice(0, 2), 16),
+        parseInt(hex.slice(2, 4), 16),
+        parseInt(hex.slice(4, 6), 16),
+      ]
+    }
+    return null
+  }
+
+  const match = trimmed.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
+  if (match && match[1] && match[2] && match[3]) {
+    return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)]
+  }
+
+  return null
 }
 
-export function calculateContrastRatio(
-  foreground: string | undefined,
-  background: string | undefined,
-): number | null {
-  if (!foreground || !background) return null
-  const fgRgb = parseRgbChannels(foreground)
-  const bgRgb = parseRgbChannels(background)
+export function calculateLuminance(r: number, g: number, b: number): number {
+  const [rs, gs, bs] = [r, g, b].map(c => {
+    const val = c / 255
+    return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4)
+  })
+  return 0.2126 * (rs ?? 0) + 0.7152 * (gs ?? 0) + 0.0722 * (bs ?? 0)
+}
+
+export function calculateContrastRatio(fgResolved: string, bgResolved: string): number | null {
+  const fgRgb = parseRgbChannels(fgResolved)
+  const bgRgb = parseRgbChannels(bgResolved)
   if (!fgRgb || !bgRgb) return null
 
-  const lumFg = calculateLuminance(fgRgb)
-  const lumBg = calculateLuminance(bgRgb)
-  const brightest = Math.max(lumFg, lumBg)
-  const darkest = Math.min(lumFg, lumBg)
-  return (brightest + 0.05) / (darkest + 0.05)
+  const l1 = calculateLuminance(...fgRgb)
+  const l2 = calculateLuminance(...bgRgb)
+
+  const lighter = Math.max(l1, l2)
+  const darker = Math.min(l1, l2)
+
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+export function generateThemeTokenCode(
+  draft: ThemeTokenDraft,
+  options: {
+    format: 'scss' | 'css' | 'json'
+    scope?: 'all' | 'custom-only' | 'overrides-only' | string
+    selectedComponentSlots?: readonly ThemePropertySlot[]
+  },
+): string {
+  const { format, scope = 'all', selectedComponentSlots } = options
+
+  let exportOverrides: Record<ThemeTokenName, ThemeTokenRecipe> = { ...draft.overrides }
+  let exportCustoms: Record<ThemeTokenName, ThemeTokenRecipe> = { ...draft.customTokens }
+
+  if (scope === 'custom-only') {
+    exportOverrides = {}
+  } else if (scope === 'overrides-only') {
+    exportCustoms = {}
+  } else if (scope !== 'all' && selectedComponentSlots) {
+    const slotTokenSet = new Set(selectedComponentSlots.map(s => s.targetToken))
+    const filtered: Record<ThemeTokenName, ThemeTokenRecipe> = {}
+    for (const [k, v] of Object.entries(exportOverrides)) {
+      if (slotTokenSet.has(k as ThemeTokenName)) {
+        filtered[k as ThemeTokenName] = v
+      }
+    }
+    exportOverrides = filtered
+    exportCustoms = {}
+  }
+
+  if (format === 'json') {
+    const out: Record<string, string> = {}
+    for (const [k, v] of Object.entries(exportCustoms)) out[k] = serializeRecipe(v)
+    for (const [k, v] of Object.entries(exportOverrides)) out[k] = serializeRecipe(v)
+    return JSON.stringify(out, null, 2)
+  }
+
+  const lines: string[] = []
+  lines.push(':root {')
+
+  const customKeys = Object.keys(exportCustoms)
+  if (customKeys.length > 0) {
+    lines.push('  // 自定义 Token 变量')
+    for (const key of customKeys.sort()) {
+      lines.push(`  ${key}: ${serializeRecipe(exportCustoms[key as ThemeTokenName]!)};`)
+    }
+  }
+
+  const overrideKeys = Object.keys(exportOverrides)
+  if (overrideKeys.length > 0) {
+    if (customKeys.length > 0) lines.push('')
+    lines.push('  // 组件与主题覆盖 Token')
+    for (const key of overrideKeys.sort()) {
+      lines.push(`  ${key}: ${serializeRecipe(exportOverrides[key as ThemeTokenName]!)};`)
+    }
+  }
+
+  lines.push('}')
+  return lines.join('\n')
 }

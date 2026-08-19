@@ -654,27 +654,6 @@ function ThemePreview({
   const variables = deriveThemeVariables({ codeThemeId, theme, variant })
   const style = {
     ...variables,
-    '--color-token-editor-background':
-      'var(--color-background-editor-opaque)',
-    '--color-token-editor-foreground': 'var(--color-text-foreground)',
-    '--color-token-foreground': 'var(--color-text-foreground)',
-    '--color-token-border-light': 'var(--color-border-light)',
-    '--color-token-text-tertiary':
-      'var(--color-text-foreground-tertiary)',
-    '--color-token-elevated-background':
-      'var(--color-background-elevated-secondary-opaque)',
-    '--color-token-diff-editor-inserted-line-background':
-      'var(--color-diff-added-line-background)',
-    '--color-token-diff-editor-inserted-text-background':
-      'var(--color-diff-added-text-background)',
-    '--color-token-diff-editor-removed-line-background':
-      'var(--color-diff-removed-line-background)',
-    '--color-token-diff-editor-removed-text-background':
-      'var(--color-diff-removed-text-background)',
-    '--color-token-git-decoration-added-resource-foreground':
-      'var(--color-diff-added-foreground)',
-    '--color-token-git-decoration-deleted-resource-foreground':
-      'var(--color-diff-removed-foreground)',
   } as React.CSSProperties
 
   return (

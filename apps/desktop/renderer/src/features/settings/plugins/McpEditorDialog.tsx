@@ -324,7 +324,7 @@ export function McpEditorDialog({
           >
             <header className="tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-app-border tw:px-5 tw:py-4">
               <span className="tw:min-w-0 tw:flex-1">
-                <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--font-weight-heading)]">
+                <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)]">
                   {server ? `MCP：${server.name}` : '新增 MCP server'}
                 </Dialog.Title>
                 <Dialog.Description className="tw:mt-1 tw:mb-0 tw:text-sm tw:text-app-text-soft">
@@ -671,7 +671,7 @@ function Field({
 }): React.ReactNode {
   return (
     <label className="tw:grid tw:gap-1.5">
-      <span className="tw:text-sm tw:font-[var(--font-weight-label)]">{label}</span>
+      <span className="tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)]">{label}</span>
       {children}
     </label>
   )
@@ -694,7 +694,7 @@ function FormRow({
 }): React.ReactNode {
   return (
     <div className="tw:grid tw:gap-2 tw:border-b tw:border-app-border tw:px-4 tw:py-3 last:tw:border-b-0">
-      <span className="tw:text-sm tw:font-[var(--font-weight-label)]">{label}</span>
+      <span className="tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)]">{label}</span>
       {children}
     </div>
   )

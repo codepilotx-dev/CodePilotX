@@ -33,7 +33,7 @@ const themeExtensionCache = new Map<string, Promise<Extension>>()
 /**
  * Code editor line box in pixels. The explicit pixel value lets CodeMirror
  * compute cursor, scrolling and syntax-line geometry; the 1.55 ratio matches
- * the shared `--type-line-code` typography token so editor and rendered
+ * the shared `--cpx-sys-line-height-code` typography token so editor and rendered
  * Markdown keep the same density.
  */
 export function codeEditorLineHeight(fontSize: number): number {
@@ -287,8 +287,8 @@ function createThemeExtension(
           color: widgetForeground,
           backgroundColor: widgetBackground,
           border: `1px solid ${widgetBorder}`,
-          borderRadius: 'var(--radius-floating)',
-          boxShadow: 'var(--shadow-raised)',
+          borderRadius: 'var(--cpx-sys-radius-xl)',
+          boxShadow: 'var(--cpx-sys-shadow-raised)',
         },
         '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
           color: themeColor(

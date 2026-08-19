@@ -554,7 +554,7 @@ export function PluginsSettingsPage({
     <SettingsContentArea className="plugins-settings-page">
       <div className="tw:mx-auto tw:flex tw:w-full tw:max-w-[60rem] tw:flex-col tw:px-8 tw:py-16 tw:max-[1023px]:px-5 tw:max-[1023px]:py-10">
         <header className="tw:mb-8">
-          <h2 className="tw:m-0 tw:text-2xl tw:font-[var(--font-weight-heading)] tw:text-app-text">
+          <h2 className="tw:m-0 tw:text-2xl tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
             插件
           </h2>
           <p className="tw:mt-1 tw:mb-0 tw:text-base tw:text-app-text-soft">

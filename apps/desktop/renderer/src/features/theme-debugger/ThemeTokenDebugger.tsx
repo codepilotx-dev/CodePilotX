@@ -69,8 +69,8 @@ function ColorDot({ value }: { value: string }): React.ReactNode {
     <span
       className="theme-token-debugger__color-dot"
       style={{
-        background: isColor ? value : 'var(--color-token-list-hover-background)',
-        border: '1px solid var(--color-token-border)',
+        background: isColor ? value : 'var(--cpx-sys-color-hover)',
+        border: '1px solid var(--cpx-sys-color-border-default)',
       }}
     />
   )
@@ -154,7 +154,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
   const [createLiteralVal, setCreateLiteralVal] = useState<string>('#FFFFFF')
   const [createMixFrom, setCreateMixFrom] = useState<ThemeTokenOperand>({
     kind: 'token',
-    token: '--color-token-bg-primary',
+    token: '--cpx-sys-color-surface-under',
   })
   const [createMixTo, setCreateMixTo] = useState<ThemeTokenOperand>({
     kind: 'literal',
@@ -225,7 +225,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
     const defaultOpt = {
       value: DEFAULT_OPTION_VALUE,
       label: '默认配方 (系统预设)',
-      icon: <span className="theme-token-debugger__option-dot" style={{ background: 'var(--color-token-border-light)' }} />,
+      icon: <span className="theme-token-debugger__option-dot" style={{ background: 'var(--cpx-sys-color-border-subtle)' }} />,
     }
 
     const customOpts = Object.keys(draft.customTokens)
@@ -236,14 +236,14 @@ export function ThemeTokenDebugger(): React.ReactNode {
         return {
           value: name,
           label: `${name} (自定义)`,
-          icon: <span className="theme-token-debugger__option-dot" style={{ background: isColorValue(val) ? val : 'var(--color-token-border)' }} />,
+          icon: <span className="theme-token-debugger__option-dot" style={{ background: isColorValue(val) ? val : 'var(--cpx-sys-color-border-default)' }} />,
         }
       })
 
     const systemOpts = tokens.map(token => ({
       value: token.name,
       label: `${token.name} (${token.resolvedValue})`,
-      icon: <span className="theme-token-debugger__option-dot" style={{ background: isColorValue(token.resolvedValue) ? token.resolvedValue : 'var(--color-token-border)' }} />,
+      icon: <span className="theme-token-debugger__option-dot" style={{ background: isColorValue(token.resolvedValue) ? token.resolvedValue : 'var(--cpx-sys-color-border-default)' }} />,
     }))
 
     return [defaultOpt, ...customOpts, ...systemOpts]
@@ -329,11 +329,9 @@ export function ThemeTokenDebugger(): React.ReactNode {
   }
 
   const handleDeleteCustomToken = (tokenName: ThemeTokenName): void => {
-    const check = validateCustomTokenDeletion(tokenName, draft, THEME_COMPONENTS)
-    if (!check.canDelete) {
-      setAlertMessage(
-        `无法删除自定义 Token "${tokenName}"，仍被以下属性/Token 引用：\n• ${check.references.join('\n• ')}`,
-      )
+    const error = validateCustomTokenDeletion(tokenName, draft)
+    if (error) {
+      setAlertMessage(error)
       return
     }
 
@@ -451,9 +449,10 @@ export function ThemeTokenDebugger(): React.ReactNode {
               title="复制 SCSS / TS 代码"
               type="button"
               onClick={() => {
-                const code = generateThemeTokenCode(draft, inlineTokens, {
-                  scope: exportScope,
-                  componentSlots: activeComponent.slots,
+                const code = generateThemeTokenCode(draft, {
+                  format: 'scss',
+                  scope: exportScope === 'component' ? activeComponent.id : 'all',
+                  selectedComponentSlots: activeComponent.slots,
                 })
                 void navigator.clipboard
                   .writeText(code)
@@ -805,7 +804,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
                     color={editingTokenRecipe?.kind === 'reference' ? 'outlineActive' : 'secondary'}
                     size="compact"
                     type="button"
-                    onClick={() => handleEditingTokenRecipeChange(createReferenceRecipe(tokens[0]?.name ?? '--color-token-bg-primary'))}
+                    onClick={() => handleEditingTokenRecipeChange(createReferenceRecipe(tokens[0]?.name ?? '--cpx-sys-color-surface-under'))}
                   >
                     引用 (Reference)
                   </Button>
@@ -825,7 +824,7 @@ export function ThemeTokenDebugger(): React.ReactNode {
                       onClick={() =>
                         handleEditingTokenRecipeChange(
                           createMixRecipe(
-                            { kind: 'token', token: '--color-token-bg-primary' },
+                            { kind: 'token', token: '--cpx-sys-color-surface-under' },
                             { kind: 'literal', value: '#FFFFFF' },
                             15,
                           ),

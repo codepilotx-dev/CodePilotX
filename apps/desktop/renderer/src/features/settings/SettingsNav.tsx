@@ -153,7 +153,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
               key={group.title}
             >
               <div className="settings-nav-group-title-row tw:grid tw:items-center tw:gap-x-2 tw:px-2 tw:py-1">
-                <h2 className="settings-nav-group-title tw:m-0 tw:font-[var(--font-weight-label)] tw:text-app-text-soft">
+                <h2 className="settings-nav-group-title tw:m-0 tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text-soft">
                   {group.title}
                 </h2>
                 <span aria-hidden="true" className="sidebar-row-main" />
@@ -235,7 +235,7 @@ function SearchResults({
             type="button"
           >
             <span className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-1.5">
-              <span className="tw:truncate tw:text-sm tw:font-[var(--font-weight-label)]">
+              <span className="tw:truncate tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)]">
                 {result.rowTitle ?? result.pageLabel}
               </span>
               {result.rowTitle ? (

@@ -81,7 +81,7 @@ export function RightDockPlanPanel({
       >
         <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
           <ListChecks size={58} strokeWidth={1.8} />
-          <strong className="tw:text-base tw:font-[var(--font-weight-label)] tw:text-app-text">暂无计划</strong>
+          <strong className="tw:text-base tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">暂无计划</strong>
           <span className="tw:max-w-full tw:text-sm tw:text-app-text-soft">从主对话里的计划卡片打开计划书</span>
         </div>
       </ScrollArea>

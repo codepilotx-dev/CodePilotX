@@ -217,7 +217,7 @@ export function ProviderConnectionSection({
             />
 
             {oauthCredentials.length > 0 ? (
-              <div className="model-center-key-list" style={{ marginTop: 'var(--space-3)' }}>
+              <div className="model-center-key-list" style={{ marginTop: 'var(--cpx-sys-space-3)' }}>
                 {oauthCredentials.map(connection => (
                   <div className="model-center-key-row" key={connection.id}>
                     <div>

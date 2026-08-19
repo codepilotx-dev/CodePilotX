@@ -538,7 +538,7 @@ const panelStyle: CSSProperties = {
   flexDirection: 'column',
   overflow: 'hidden',
 }
-const metadataStyle: CSSProperties = { gap: 'var(--space-2)' }
+const metadataStyle: CSSProperties = { gap: 'var(--cpx-sys-space-2)' }
 const metadataTextStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
@@ -551,7 +551,7 @@ const imageViewportStyle: CSSProperties = {
   flex: '1 1 auto',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'var(--color-token-text-preformat-background)',
+  background: 'var(--cpx-comp-modal-preformat-bg)',
   overflow: 'hidden',
 }
 const imageStyle: CSSProperties = {
@@ -565,16 +565,16 @@ const editorFrameStyle: CSSProperties = {
   overflow: 'hidden',
 }
 const noticeStyle: CSSProperties = {
-  padding: '6px var(--space-3)',
-  borderBottom: '1px solid var(--color-token-border-light)',
-  color: 'var(--color-token-description-foreground)',
-  fontSize: 'var(--type-meta)',
+  padding: '6px var(--cpx-sys-space-3)',
+  borderBottom: '1px solid var(--cpx-sys-color-border-subtle)',
+  color: 'var(--cpx-sys-color-fg-tertiary)',
+  fontSize: 'var(--cpx-sys-font-size-xs)',
 }
 const messageStyle: CSSProperties = {
   position: 'absolute',
-  right: 'var(--space-3)',
-  bottom: 'var(--space-3)',
-  color: 'var(--color-token-description-foreground)',
-  fontSize: 'var(--type-meta)',
+  right: 'var(--cpx-sys-space-3)',
+  bottom: 'var(--cpx-sys-space-3)',
+  color: 'var(--cpx-sys-color-fg-tertiary)',
+  fontSize: 'var(--cpx-sys-font-size-xs)',
   pointerEvents: 'none',
 }

@@ -56,7 +56,7 @@ export function ConversationForkDialog({
             >
               <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 tw:text-xl tw:font-[var(--font-weight-heading)] tw:text-app-text">
+                  <h2 className="tw:m-0 tw:text-xl tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
                     在新聊天中继续
                   </h2>
                 </Dialog.Title>
@@ -149,7 +149,7 @@ function DestinationButton({
         strokeWidth={APP_ICON_STROKE_WIDTH}
       />
       <span className="tw:grid tw:min-w-0 tw:gap-1">
-        <strong className="tw:text-sm tw:font-[var(--font-weight-heading)] tw:text-app-text">
+        <strong className="tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
           {title}
         </strong>
         <span className="tw:text-xs tw:font-normal tw:text-app-text-soft">

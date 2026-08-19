@@ -16,7 +16,7 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '触发器 (Trigger)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-dropdown-trigger-background',
+      targetToken: '--cpx-comp-dropdown-trigger-bg',
       description: '触发器常态背景颜色',
     },
     {
@@ -25,9 +25,9 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '触发器 (Trigger)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-dropdown-trigger-foreground',
+      targetToken: '--cpx-comp-dropdown-trigger-fg',
       description: '触发器文字及图标前景色',
-      contrastAgainst: '--color-token-dropdown-trigger-background',
+      contrastAgainst: '--cpx-comp-dropdown-trigger-bg',
     },
     {
       id: 'trigger-border',
@@ -35,7 +35,7 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '触发器 (Trigger)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--color-token-dropdown-trigger-border',
+      targetToken: '--cpx-comp-dropdown-trigger-border',
       description: '触发器常态边框颜色',
     },
     {
@@ -44,7 +44,7 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '触发器 (Trigger)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-dropdown-trigger-hover-background',
+      targetToken: '--cpx-comp-dropdown-trigger-hover-bg',
       description: '触发器悬停背景颜色',
     },
     {
@@ -53,7 +53,7 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '触发器 (Trigger)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-dropdown-trigger-open-background',
+      targetToken: '--cpx-comp-dropdown-trigger-open-bg',
       description: '触发器展开状态背景颜色',
     },
     {
@@ -62,9 +62,9 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '触发器 (Trigger)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-dropdown-trigger-disabled-foreground',
+      targetToken: '--cpx-comp-dropdown-trigger-disabled-fg',
       description: '触发器禁用文字颜色',
-      contrastAgainst: '--color-token-dropdown-trigger-background',
+      contrastAgainst: '--cpx-comp-dropdown-trigger-bg',
     },
     // 菜单组
     {
@@ -73,7 +73,7 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '菜单表面 (Surface)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-dropdown-background',
+      targetToken: '--cpx-comp-dropdown-menu-bg',
       description: '弹出菜单表面背景颜色',
     },
     {
@@ -82,9 +82,9 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '菜单表面 (Surface)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-dropdown-foreground',
+      targetToken: '--cpx-comp-dropdown-menu-fg',
       description: '弹出菜单项常规文字颜色',
-      contrastAgainst: '--color-token-dropdown-background',
+      contrastAgainst: '--cpx-comp-dropdown-menu-bg',
     },
     {
       id: 'surface-border',
@@ -92,7 +92,7 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '菜单表面 (Surface)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--color-token-dropdown-border',
+      targetToken: '--cpx-comp-dropdown-menu-border',
       description: '弹出菜单表面外边框颜色',
     },
     {
@@ -101,9 +101,9 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '菜单表面 (Surface)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-dropdown-item-hover-background',
+      targetToken: '--cpx-comp-dropdown-item-hover-bg',
       description: '菜单项悬停背景颜色',
-      contrastAgainst: '--color-token-dropdown-foreground',
+      contrastAgainst: '--cpx-comp-dropdown-menu-fg',
     },
     {
       id: 'surface-item-selected-background',
@@ -111,9 +111,9 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '菜单表面 (Surface)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-dropdown-item-selected-background',
+      targetToken: '--cpx-comp-dropdown-item-selected-bg',
       description: '菜单项选中状态背景颜色',
-      contrastAgainst: '--color-token-dropdown-foreground',
+      contrastAgainst: '--cpx-comp-dropdown-menu-fg',
     },
     {
       id: 'surface-item-pressed-background',
@@ -121,7 +121,7 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '菜单表面 (Surface)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-dropdown-item-pressed-background',
+      targetToken: '--cpx-comp-dropdown-item-pressed-bg',
       description: '菜单项按下状态背景颜色',
     },
     {
@@ -130,9 +130,9 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '菜单表面 (Surface)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-dropdown-item-disabled-foreground',
+      targetToken: '--cpx-comp-dropdown-item-disabled-fg',
       description: '菜单项禁用文字颜色',
-      contrastAgainst: '--color-token-dropdown-background',
+      contrastAgainst: '--cpx-comp-dropdown-menu-bg',
     },
     {
       id: 'focus-border',
@@ -140,35 +140,35 @@ export const DROPDOWN_COMPONENT: ThemeComponentDefinition = {
       group: '菜单表面 (Surface)',
       valueType: 'color',
       cssProperty: 'outline-color',
-      targetToken: '--color-token-dropdown-focus-border',
+      targetToken: '--cpx-comp-dropdown-focus-border',
       description: '触发器与弹出菜单项键盘聚焦指示边框颜色',
     },
   ],
   contrastChecks: [
     {
       label: '触发器文字 / 背景',
-      foregroundToken: '--color-token-dropdown-trigger-foreground',
-      backgroundToken: '--color-token-dropdown-trigger-background',
+      foregroundToken: '--cpx-comp-dropdown-trigger-fg',
+      backgroundToken: '--cpx-comp-dropdown-trigger-bg',
     },
     {
       label: '菜单文字 / 背景',
-      foregroundToken: '--color-token-dropdown-foreground',
-      backgroundToken: '--color-token-dropdown-background',
+      foregroundToken: '--cpx-comp-dropdown-menu-fg',
+      backgroundToken: '--cpx-comp-dropdown-menu-bg',
     },
     {
       label: '菜单文字 / 悬停',
-      foregroundToken: '--color-token-dropdown-foreground',
-      backgroundToken: '--color-token-dropdown-item-hover-background',
+      foregroundToken: '--cpx-comp-dropdown-menu-fg',
+      backgroundToken: '--cpx-comp-dropdown-item-hover-bg',
     },
     {
       label: '菜单文字 / 选中',
-      foregroundToken: '--color-token-dropdown-foreground',
-      backgroundToken: '--color-token-dropdown-item-selected-background',
+      foregroundToken: '--cpx-comp-dropdown-menu-fg',
+      backgroundToken: '--cpx-comp-dropdown-item-selected-bg',
     },
     {
       label: '禁用文字 / 菜单背景',
-      foregroundToken: '--color-token-dropdown-item-disabled-foreground',
-      backgroundToken: '--color-token-dropdown-background',
+      foregroundToken: '--cpx-comp-dropdown-item-disabled-fg',
+      backgroundToken: '--cpx-comp-dropdown-menu-bg',
     },
   ],
 }
@@ -185,7 +185,7 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '色彩与状态 (Colors & States)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-button-background',
+      targetToken: '--cpx-comp-button-bg',
       description: '标准按钮中性背景颜色',
     },
     {
@@ -194,9 +194,9 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '色彩与状态 (Colors & States)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-button-foreground',
+      targetToken: '--cpx-comp-button-fg',
       description: '标准按钮前景色',
-      contrastAgainst: '--color-token-button-background',
+      contrastAgainst: '--cpx-comp-button-bg',
     },
     {
       id: 'button-border',
@@ -204,7 +204,7 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '色彩与状态 (Colors & States)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--color-token-button-border',
+      targetToken: '--cpx-comp-button-border',
       description: '标准按钮外边框颜色',
     },
     {
@@ -213,7 +213,7 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '色彩与状态 (Colors & States)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-button-secondary-hover-background',
+      targetToken: '--cpx-comp-button-hover-bg',
       description: '次级与中性按钮 Hover 背景色',
     },
     {
@@ -222,7 +222,7 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '色彩与状态 (Colors & States)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-button-pressed',
+      targetToken: '--cpx-comp-button-pressed',
       description: '按钮激活按压时的覆盖遮罩色',
     },
     {
@@ -231,7 +231,7 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '几何尺寸 (Geometry)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--button-radius-md',
+      targetToken: '--cpx-comp-button-radius-md',
       description: '标准按钮圆角大小',
     },
     {
@@ -240,7 +240,7 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '几何尺寸 (Geometry)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--button-radius-lg',
+      targetToken: '--cpx-comp-button-radius-lg',
       description: '大按钮圆角大小',
     },
     {
@@ -249,7 +249,7 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '几何尺寸 (Geometry)',
       valueType: 'dimension',
       cssProperty: 'height',
-      targetToken: '--button-size-compact',
+      targetToken: '--cpx-comp-button-size-compact',
       description: '紧凑型按钮高度 (24px)',
     },
     {
@@ -258,7 +258,7 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '几何尺寸 (Geometry)',
       valueType: 'dimension',
       cssProperty: 'height',
-      targetToken: '--button-size-toolbar',
+      targetToken: '--cpx-comp-button-size-toolbar',
       description: '工具栏动作按钮高度 (28px)',
     },
     {
@@ -267,15 +267,15 @@ export const BUTTON_COMPONENT: ThemeComponentDefinition = {
       group: '几何尺寸 (Geometry)',
       valueType: 'dimension',
       cssProperty: 'height',
-      targetToken: '--button-size-large',
+      targetToken: '--cpx-comp-button-size-large',
       description: '大尺寸按钮高度 (36px)',
     },
   ],
   contrastChecks: [
     {
       label: '按钮文字 / 背景',
-      foregroundToken: '--color-token-button-foreground',
-      backgroundToken: '--color-token-button-background',
+      foregroundToken: '--cpx-comp-button-fg',
+      backgroundToken: '--cpx-comp-button-bg',
     },
   ],
 }
@@ -292,7 +292,7 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '常态与焦点 (Normal & Focus)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-input-background',
+      targetToken: '--cpx-comp-input-bg',
       description: '输入框与搜索框默认底色',
     },
     {
@@ -301,9 +301,9 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '常态与焦点 (Normal & Focus)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-input-foreground',
+      targetToken: '--cpx-comp-input-fg',
       description: '输入框录入文本颜色',
-      contrastAgainst: '--color-token-input-background',
+      contrastAgainst: '--cpx-comp-input-bg',
     },
     {
       id: 'input-border',
@@ -311,7 +311,7 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '常态与焦点 (Normal & Focus)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--color-token-input-border',
+      targetToken: '--cpx-comp-input-border',
       description: '常态边框颜色',
     },
     {
@@ -320,9 +320,9 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '常态与焦点 (Normal & Focus)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-input-placeholder-foreground',
+      targetToken: '--cpx-comp-input-placeholder-fg',
       description: 'Placeholder 提示文字颜色',
-      contrastAgainst: '--color-token-input-background',
+      contrastAgainst: '--cpx-comp-input-bg',
     },
     {
       id: 'focus-border',
@@ -330,7 +330,7 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '常态与焦点 (Normal & Focus)',
       valueType: 'color',
       cssProperty: 'outline-color',
-      targetToken: '--color-token-focus-border',
+      targetToken: '--cpx-comp-input-focus-border',
       description: '聚焦时外环指示色',
     },
     {
@@ -339,7 +339,7 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '常态与焦点 (Normal & Focus)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--radius-input',
+      targetToken: '--cpx-comp-input-radius',
       description: '输入框标准圆角大小',
     },
     {
@@ -348,7 +348,7 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '校验状态 (Validation)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-input-validation-error-background',
+      targetToken: '--cpx-comp-input-validation-error-bg',
       description: '输入校验失败底色',
     },
     {
@@ -357,7 +357,7 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '校验状态 (Validation)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--color-token-input-validation-error-border',
+      targetToken: '--cpx-comp-input-validation-error-border',
       description: '输入校验失败指示边框',
     },
     {
@@ -366,7 +366,7 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '校验状态 (Validation)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-input-validation-warning-background',
+      targetToken: '--cpx-comp-input-validation-warning-bg',
       description: '输入校验警告底色',
     },
     {
@@ -375,20 +375,20 @@ export const INPUT_COMPONENT: ThemeComponentDefinition = {
       group: '校验状态 (Validation)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--color-token-input-validation-warning-border',
+      targetToken: '--cpx-comp-input-validation-warning-border',
       description: '输入校验警告指示边框',
     },
   ],
   contrastChecks: [
     {
       label: '输入文字 / 输入背景',
-      foregroundToken: '--color-token-input-foreground',
-      backgroundToken: '--color-token-input-background',
+      foregroundToken: '--cpx-comp-input-fg',
+      backgroundToken: '--cpx-comp-input-bg',
     },
     {
       label: '占位提示 / 输入背景',
-      foregroundToken: '--color-token-input-placeholder-foreground',
-      backgroundToken: '--color-token-input-background',
+      foregroundToken: '--cpx-comp-input-placeholder-fg',
+      backgroundToken: '--cpx-comp-input-bg',
     },
   ],
 }
@@ -405,7 +405,7 @@ export const SWITCH_SEGMENTED_COMPONENT: ThemeComponentDefinition = {
       group: '分段控件 (SegmentedControl)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-radio-active-foreground',
+      targetToken: '--cpx-comp-segmented-item-selected-fg',
       description: '分段项选中激活时文字颜色',
     },
     {
@@ -414,7 +414,7 @@ export const SWITCH_SEGMENTED_COMPONENT: ThemeComponentDefinition = {
       group: '分段控件 (SegmentedControl)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--color-token-radio-inactive-border',
+      targetToken: '--cpx-comp-segmented-border',
       description: '分段控件外框及分隔线颜色',
     },
     {
@@ -423,7 +423,7 @@ export const SWITCH_SEGMENTED_COMPONENT: ThemeComponentDefinition = {
       group: '分段控件 (SegmentedControl)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--radius-pill',
+      targetToken: '--cpx-comp-switch-radius',
       description: '胶囊控件全圆角',
     },
     {
@@ -432,7 +432,7 @@ export const SWITCH_SEGMENTED_COMPONENT: ThemeComponentDefinition = {
       group: '开关控件 (ToggleSwitch)',
       valueType: 'shadow',
       cssProperty: 'box-shadow',
-      targetToken: '--shadow-control-sm',
+      targetToken: '--cpx-comp-switch-thumb-shadow',
       description: '开关滑块与分段滑块微投影',
     },
     {
@@ -441,7 +441,7 @@ export const SWITCH_SEGMENTED_COMPONENT: ThemeComponentDefinition = {
       group: '开关控件 (ToggleSwitch)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--control-thumb-fill',
+      targetToken: '--cpx-comp-switch-thumb-fill',
       description: '开关滑块实体颜色',
     },
   ],
@@ -459,7 +459,7 @@ export const TOOLTIP_SCROLL_CHIP_COMPONENT: ThemeComponentDefinition = {
       group: '浮层气泡 (Tooltip)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--tooltip-surface-background',
+      targetToken: '--cpx-comp-tooltip-bg',
       description: 'Tooltip 浮层气泡专用背景填充',
     },
     {
@@ -468,7 +468,7 @@ export const TOOLTIP_SCROLL_CHIP_COMPONENT: ThemeComponentDefinition = {
       group: '浮层气泡 (Tooltip)',
       valueType: 'border',
       cssProperty: 'border',
-      targetToken: '--tooltip-surface-border',
+      targetToken: '--cpx-comp-tooltip-border',
       description: 'Tooltip 浮层边框契约',
     },
     {
@@ -477,7 +477,7 @@ export const TOOLTIP_SCROLL_CHIP_COMPONENT: ThemeComponentDefinition = {
       group: '浮层气泡 (Tooltip)',
       valueType: 'shadow',
       cssProperty: 'box-shadow',
-      targetToken: '--tooltip-surface-shadow',
+      targetToken: '--cpx-comp-tooltip-shadow',
       description: 'Tooltip 与浮层专用投影',
     },
     {
@@ -486,7 +486,7 @@ export const TOOLTIP_SCROLL_CHIP_COMPONENT: ThemeComponentDefinition = {
       group: '浮层气泡 (Tooltip)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--tooltip-surface-radius',
+      targetToken: '--cpx-comp-tooltip-radius',
       description: 'Tooltip 标准圆角 (16px)',
     },
     {
@@ -495,7 +495,7 @@ export const TOOLTIP_SCROLL_CHIP_COMPONENT: ThemeComponentDefinition = {
       group: '滚动条 (ScrollArea)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-scrollbar-slider-background',
+      targetToken: '--cpx-comp-scrollbar-slider-bg',
       description: '滚动条滑块默认颜色',
     },
     {
@@ -504,7 +504,7 @@ export const TOOLTIP_SCROLL_CHIP_COMPONENT: ThemeComponentDefinition = {
       group: '滚动条 (ScrollArea)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-scrollbar-slider-hover-background',
+      targetToken: '--cpx-comp-scrollbar-slider-hover-bg',
       description: '滚动条滑块悬停高亮颜色',
     },
     {
@@ -513,7 +513,7 @@ export const TOOLTIP_SCROLL_CHIP_COMPONENT: ThemeComponentDefinition = {
       group: '滚动条 (ScrollArea)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-scrollbar-slider-active-background',
+      targetToken: '--cpx-comp-scrollbar-slider-active-bg',
       description: '滚动条拖拽按压颜色',
     },
   ],
@@ -531,7 +531,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '表面填充体系 (Fills)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--layer-underlay-fill',
+      targetToken: '--cpx-comp-surface-underlay',
       description: '最底层衬底填充色（通常对应侧边栏底色）',
     },
     {
@@ -540,7 +540,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '表面填充体系 (Fills)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--layer-canvas-fill',
+      targetToken: '--cpx-comp-surface-canvas',
       description: '主内容视口画布填充色',
     },
     {
@@ -549,7 +549,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '表面填充体系 (Fills)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--layer-panel-fill',
+      targetToken: '--cpx-comp-surface-panel',
       description: '工作区边栏与停靠面板填充色',
     },
     {
@@ -558,7 +558,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '表面填充体系 (Fills)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--layer-raised-fill',
+      targetToken: '--cpx-comp-surface-raised',
       description: '悬浮卡片与次级抬升表面填充色',
     },
     {
@@ -567,7 +567,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '表面填充体系 (Fills)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--layer-floating-fill',
+      targetToken: '--cpx-comp-surface-floating',
       description: '模态对话框与弹出菜单填充色',
     },
     {
@@ -576,7 +576,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '边框与投影 (Edges & Shadows)',
       valueType: 'border',
       cssProperty: 'border',
-      targetToken: '--layer-edge',
+      targetToken: '--cpx-comp-surface-edge',
       description: '标准表面分界线条契约',
     },
     {
@@ -585,7 +585,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '边框与投影 (Edges & Shadows)',
       valueType: 'border',
       cssProperty: 'border',
-      targetToken: '--layer-edge-strong',
+      targetToken: '--cpx-comp-surface-edge-strong',
       description: '强调层次分界线条契约',
     },
     {
@@ -594,7 +594,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '边框与投影 (Edges & Shadows)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--radius-card',
+      targetToken: '--cpx-comp-surface-card-radius',
       description: '标准卡片圆角 (12px)',
     },
     {
@@ -603,7 +603,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '边框与投影 (Edges & Shadows)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--radius-panel',
+      targetToken: '--cpx-comp-surface-panel-radius',
       description: '面板圆角 (16px)',
     },
     {
@@ -612,7 +612,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '边框与投影 (Edges & Shadows)',
       valueType: 'shadow',
       cssProperty: 'box-shadow',
-      targetToken: '--shadow-floating',
+      targetToken: '--cpx-comp-surface-shadow-floating',
       description: '标准深浮层大投影',
     },
     {
@@ -621,7 +621,7 @@ export const SURFACES_COMPONENT: ThemeComponentDefinition = {
       group: '边框与投影 (Edges & Shadows)',
       valueType: 'shadow',
       cssProperty: 'box-shadow',
-      targetToken: '--shadow-raised',
+      targetToken: '--cpx-comp-surface-shadow-raised',
       description: '卡片抬升微投影',
     },
   ],
@@ -639,7 +639,7 @@ export const MODAL_COMPONENT: ThemeComponentDefinition = {
       group: '浮层视觉 (Modal Surface)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--modal-surface-background',
+      targetToken: '--cpx-comp-modal-bg',
       description: '对话框主表面背景填充（专属别名）',
     },
     {
@@ -648,7 +648,7 @@ export const MODAL_COMPONENT: ThemeComponentDefinition = {
       group: '浮层视觉 (Modal Surface)',
       valueType: 'border',
       cssProperty: 'border',
-      targetToken: '--modal-surface-border',
+      targetToken: '--cpx-comp-modal-border',
       description: '对话框外边框线条契约（专属别名）',
     },
     {
@@ -657,7 +657,7 @@ export const MODAL_COMPONENT: ThemeComponentDefinition = {
       group: '浮层视觉 (Modal Surface)',
       valueType: 'shadow',
       cssProperty: 'box-shadow',
-      targetToken: '--modal-surface-shadow',
+      targetToken: '--cpx-comp-modal-shadow',
       description: '模态对话框高阶深浮层投影（专属别名）',
     },
     {
@@ -666,7 +666,7 @@ export const MODAL_COMPONENT: ThemeComponentDefinition = {
       group: '浮层视觉 (Modal Surface)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--modal-surface-radius',
+      targetToken: '--cpx-comp-modal-radius',
       description: '对话框外围圆角（专属别名）',
     },
     {
@@ -675,7 +675,7 @@ export const MODAL_COMPONENT: ThemeComponentDefinition = {
       group: '内容与辅助 (Content & Meta)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-text-preformat-background',
+      targetToken: '--cpx-comp-modal-preformat-bg',
       description: '对话框参数标签与预格式化块底色',
     },
   ],
@@ -694,7 +694,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '侧边栏 (Left Sidebar)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--sidebar-background',
+      targetToken: '--cpx-comp-sidebar-bg',
       description: '左侧导航与会话列表底色（专属别名）',
     },
     {
@@ -703,7 +703,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '侧边栏 (Left Sidebar)',
       valueType: 'border',
       cssProperty: 'border',
-      targetToken: '--sidebar-border',
+      targetToken: '--cpx-comp-sidebar-border',
       description: '左侧边栏分界边框（默认 0 无边框）',
     },
     {
@@ -712,7 +712,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '侧边栏 (Left Sidebar)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--sidebar-item-hover-background',
+      targetToken: '--cpx-comp-sidebar-item-hover-bg',
       description: '会话条目鼠标悬停背景色（专属别名）',
     },
     {
@@ -721,7 +721,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '侧边栏 (Left Sidebar)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--sidebar-item-active-background',
+      targetToken: '--cpx-comp-sidebar-item-active-bg',
       description: '活动会话条目选中背景色（专属别名）',
     },
     {
@@ -730,7 +730,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '侧边栏 (Left Sidebar)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--sidebar-item-radius',
+      targetToken: '--cpx-comp-sidebar-item-radius',
       description: '左侧栏条目圆角（专属别名）',
     },
     // Right Dock 专属别名
@@ -740,7 +740,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '右侧停靠栏 (RightDock)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--right-dock-background',
+      targetToken: '--cpx-comp-dock-bg',
       description: '右侧停靠面板及空状态底色（专属别名）',
     },
     {
@@ -749,7 +749,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '右侧停靠栏 (RightDock)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--right-dock-border-color',
+      targetToken: '--cpx-comp-dock-border',
       description: '右侧栏左边框颜色（专属别名）',
     },
     {
@@ -758,7 +758,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '右侧停靠栏 (RightDock)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--right-dock-tab-active-background',
+      targetToken: '--cpx-comp-dock-tab-active-bg',
       description: '右侧栏活动标签背景色（专属别名）',
     },
     {
@@ -767,7 +767,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '右侧停靠栏 (RightDock)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--right-dock-tab-hover-background',
+      targetToken: '--cpx-comp-dock-tab-hover-bg',
       description: '右侧栏标签悬停背景色（专属别名）',
     },
     {
@@ -776,7 +776,7 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '右侧停靠栏 (RightDock)',
       valueType: 'radius',
       cssProperty: 'border-radius',
-      targetToken: '--right-dock-tab-radius',
+      targetToken: '--cpx-comp-dock-tab-radius',
       description: '右侧栏标签圆角（专属别名）',
     },
     {
@@ -785,15 +785,15 @@ export const SIDEBAR_DOCK_COMPONENT: ThemeComponentDefinition = {
       group: '右侧停靠栏 (RightDock)',
       valueType: 'dimension',
       cssProperty: 'height',
-      targetToken: '--workbench-tab-strip-height',
+      targetToken: '--cpx-comp-dock-tab-height',
       description: '顶部标签栏固定高度 (46px)',
     },
   ],
   contrastChecks: [
     {
       label: '侧栏文字 / 侧栏背景',
-      foregroundToken: '--color-token-foreground',
-      backgroundToken: '--sidebar-background',
+      foregroundToken: '--cpx-sys-color-fg-primary',
+      backgroundToken: '--cpx-comp-sidebar-bg',
     },
   ],
 }
@@ -810,7 +810,7 @@ export const WORKBENCH_COMPONENT: ThemeComponentDefinition = {
       group: '工作台面板 (Workbench Panel)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-panel-background',
+      targetToken: '--cpx-comp-workbench-panel-bg',
       description: '工作台主面板背景填充',
     },
     {
@@ -819,7 +819,7 @@ export const WORKBENCH_COMPONENT: ThemeComponentDefinition = {
       group: '工作台面板 (Workbench Panel)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-main-surface-primary',
+      targetToken: '--cpx-comp-workbench-main-surface-bg',
       description: '主编辑区表面底色',
     },
     {
@@ -828,7 +828,7 @@ export const WORKBENCH_COMPONENT: ThemeComponentDefinition = {
       group: '标签栏 (Tab Strip)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-list-active-selection-background',
+      targetToken: '--cpx-comp-workbench-tab-active-bg',
       description: '当前激活标签背景色',
     },
     {
@@ -837,7 +837,7 @@ export const WORKBENCH_COMPONENT: ThemeComponentDefinition = {
       group: '标签栏 (Tab Strip)',
       valueType: 'dimension',
       cssProperty: 'height',
-      targetToken: '--workbench-tab-strip-height',
+      targetToken: '--cpx-comp-workbench-tab-height',
       description: '工作台标签栏高度 (46px)',
     },
   ],
@@ -855,7 +855,7 @@ export const MENUBAR_COMPONENT: ThemeComponentDefinition = {
       group: '菜单栏 (MenuBar)',
       valueType: 'dimension',
       cssProperty: 'height',
-      targetToken: '--application-menubar-height',
+      targetToken: '--cpx-comp-menubar-height',
       description: '窗口顶部菜单栏高度 (36px)',
     },
     {
@@ -864,7 +864,7 @@ export const MENUBAR_COMPONENT: ThemeComponentDefinition = {
       group: '菜单栏 (MenuBar)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-menubar-selection-background',
+      targetToken: '--cpx-comp-menubar-selection-bg',
       description: '顶部菜单展开悬停选中背景色',
     },
     {
@@ -873,9 +873,9 @@ export const MENUBAR_COMPONENT: ThemeComponentDefinition = {
       group: '菜单栏 (MenuBar)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-menubar-selection-foreground',
+      targetToken: '--cpx-comp-menubar-selection-fg',
       description: '顶部菜单展开选中文字颜色',
-      contrastAgainst: '--color-token-menubar-selection-background',
+      contrastAgainst: '--cpx-comp-menubar-selection-bg',
     },
   ],
 }
@@ -892,7 +892,7 @@ export const COMPOSER_COMPONENT: ThemeComponentDefinition = {
       group: '布局与间距 (Layout)',
       valueType: 'dimension',
       cssProperty: 'height',
-      targetToken: '--floating-composer-h',
+      targetToken: '--cpx-comp-composer-floating-height',
       description: '输入台默认浮动基准高度',
     },
     {
@@ -901,7 +901,7 @@ export const COMPOSER_COMPONENT: ThemeComponentDefinition = {
       group: '布局与间距 (Layout)',
       valueType: 'dimension',
       cssProperty: 'padding-bottom',
-      targetToken: '--layout-composer-safe-pad',
+      targetToken: '--cpx-comp-composer-safe-pad',
       description: '滚动区域避让输入台的安全高度',
     },
     {
@@ -910,7 +910,7 @@ export const COMPOSER_COMPONENT: ThemeComponentDefinition = {
       group: '色彩 (Colors)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-input-background',
+      targetToken: '--cpx-comp-composer-bg',
       description: 'Composer 输入卡片底色',
     },
     {
@@ -919,7 +919,7 @@ export const COMPOSER_COMPONENT: ThemeComponentDefinition = {
       group: '色彩 (Colors)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-toolbar-hover-background',
+      targetToken: '--cpx-comp-composer-toolbar-hover-bg',
       description: 'Composer 底部动作按钮 Hover 背景色',
     },
   ],
@@ -937,7 +937,7 @@ export const TERMINAL_COMPONENT: ThemeComponentDefinition = {
       group: '基础外观 (Base)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-terminal-background',
+      targetToken: '--cpx-comp-terminal-bg',
       description: '终端面板主背景色',
     },
     {
@@ -946,9 +946,9 @@ export const TERMINAL_COMPONENT: ThemeComponentDefinition = {
       group: '基础外观 (Base)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-terminal-foreground',
+      targetToken: '--cpx-comp-terminal-fg',
       description: '终端控制台前景色',
-      contrastAgainst: '--color-token-terminal-background',
+      contrastAgainst: '--cpx-comp-terminal-bg',
     },
     {
       id: 'terminal-border',
@@ -956,7 +956,7 @@ export const TERMINAL_COMPONENT: ThemeComponentDefinition = {
       group: '基础外观 (Base)',
       valueType: 'color',
       cssProperty: 'border-color',
-      targetToken: '--color-token-terminal-border',
+      targetToken: '--cpx-comp-terminal-border',
       description: '终端窗格分割边框',
     },
     {
@@ -965,7 +965,7 @@ export const TERMINAL_COMPONENT: ThemeComponentDefinition = {
       group: 'ANSI 调色板 (ANSI Palette)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-terminal-ansi-blue',
+      targetToken: '--cpx-comp-terminal-ansi-blue',
       description: '标准 ANSI 蓝色',
     },
     {
@@ -974,7 +974,7 @@ export const TERMINAL_COMPONENT: ThemeComponentDefinition = {
       group: 'ANSI 调色板 (ANSI Palette)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-terminal-ansi-green',
+      targetToken: '--cpx-comp-terminal-ansi-green',
       description: '标准 ANSI 绿色',
     },
     {
@@ -983,7 +983,7 @@ export const TERMINAL_COMPONENT: ThemeComponentDefinition = {
       group: 'ANSI 调色板 (ANSI Palette)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-terminal-ansi-red',
+      targetToken: '--cpx-comp-terminal-ansi-red',
       description: '标准 ANSI 红色',
     },
     {
@@ -992,15 +992,15 @@ export const TERMINAL_COMPONENT: ThemeComponentDefinition = {
       group: 'ANSI 调色板 (ANSI Palette)',
       valueType: 'color',
       cssProperty: 'color',
-      targetToken: '--color-token-terminal-ansi-yellow',
+      targetToken: '--cpx-comp-terminal-ansi-yellow',
       description: '标准 ANSI 黄色',
     },
   ],
   contrastChecks: [
     {
       label: '终端文字 / 终端背景',
-      foregroundToken: '--color-token-terminal-foreground',
-      backgroundToken: '--color-token-terminal-background',
+      foregroundToken: '--cpx-comp-terminal-fg',
+      backgroundToken: '--cpx-comp-terminal-bg',
     },
   ],
 }
@@ -1017,7 +1017,7 @@ export const REVIEW_DIFF_COMPONENT: ThemeComponentDefinition = {
       group: '差异高亮 (Diff Highlights)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-diff-editor-inserted-line-background',
+      targetToken: '--cpx-comp-diff-inserted-line-bg',
       description: 'Git Diff 增加行行级背景色',
     },
     {
@@ -1026,7 +1026,7 @@ export const REVIEW_DIFF_COMPONENT: ThemeComponentDefinition = {
       group: '差异高亮 (Diff Highlights)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-diff-editor-inserted-text-background',
+      targetToken: '--cpx-comp-diff-inserted-text-bg',
       description: '行内具体增加字符强调背景色',
     },
     {
@@ -1035,7 +1035,7 @@ export const REVIEW_DIFF_COMPONENT: ThemeComponentDefinition = {
       group: '差异高亮 (Diff Highlights)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-diff-editor-removed-line-background',
+      targetToken: '--cpx-comp-diff-removed-line-bg',
       description: 'Git Diff 删除行行级背景色',
     },
     {
@@ -1044,7 +1044,7 @@ export const REVIEW_DIFF_COMPONENT: ThemeComponentDefinition = {
       group: '差异高亮 (Diff Highlights)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-diff-editor-removed-text-background',
+      targetToken: '--cpx-comp-diff-removed-text-bg',
       description: '行内具体删除字符强调背景色',
     },
     {
@@ -1053,7 +1053,7 @@ export const REVIEW_DIFF_COMPONENT: ThemeComponentDefinition = {
       group: '差异高亮 (Diff Highlights)',
       valueType: 'color',
       cssProperty: 'background-color',
-      targetToken: '--color-token-diff-surface',
+      targetToken: '--cpx-comp-diff-surface',
       description: 'Diff 窗格衬底背景色',
     },
   ],

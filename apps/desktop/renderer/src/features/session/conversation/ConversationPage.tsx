@@ -314,16 +314,16 @@ export function ConversationPage(): React.ReactNode {
           [
             {
               backgroundColor:
-                "color-mix(in srgb, var(--color-token-foreground) 14%, transparent)",
+                "color-mix(in srgb, var(--cpx-sys-color-fg-primary) 14%, transparent)",
             },
             {
               backgroundColor:
-                "color-mix(in srgb, var(--color-token-foreground) 14%, transparent)",
+                "color-mix(in srgb, var(--cpx-sys-color-fg-primary) 14%, transparent)",
               offset: 0.35,
             },
             {
               backgroundColor:
-                "color-mix(in srgb, var(--color-token-foreground) 5%, transparent)",
+                "color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent)",
             },
           ],
           {

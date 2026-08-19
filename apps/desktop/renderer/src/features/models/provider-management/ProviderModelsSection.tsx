@@ -241,7 +241,7 @@ export function ProviderModelsSection({
             <span className="model-center-catalog-count">
               {filteredModels.length} / {models.length} 个模型
             </span>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-2)' }}>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--cpx-sys-space-2)' }}>
               <Button
                 color="secondary"
                 disabled={busy}
