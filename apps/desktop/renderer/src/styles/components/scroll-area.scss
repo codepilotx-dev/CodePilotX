@@ -1,7 +1,7 @@
 .scroll-area {
   position: relative;
   scrollbar-width: thin;
-  scrollbar-color: var(--color-token-scrollbar-slider-background) transparent;
+  scrollbar-color: var(--cpx-comp-scrollbar-slider-bg) transparent;
 }
 
 .scroll-area::-webkit-scrollbar {
@@ -18,16 +18,16 @@
   min-width: 28px;
   min-height: 28px;
   border: 3px solid transparent;
-  border-radius: var(--radius-pill);
-  background: var(--color-token-scrollbar-slider-background);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-comp-scrollbar-slider-bg);
   background-clip: padding-box;
-  transition: background-color var(--motion-micro) ease;
+  transition: background-color var(--cpx-sys-motion-micro) ease;
 }
 
 .scroll-area::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-token-scrollbar-slider-hover-background);
+  background-color: var(--cpx-comp-scrollbar-slider-hover-bg);
 }
 
 .scroll-area::-webkit-scrollbar-thumb:active {
-  background-color: var(--color-token-scrollbar-slider-active-background);
+  background-color: var(--cpx-comp-scrollbar-slider-active-bg);
 }

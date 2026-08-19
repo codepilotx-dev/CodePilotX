@@ -13,17 +13,18 @@
 .rm-model-menu .rm-sub-trigger {
   position: relative;
   box-sizing: border-box;
+  display: flex;
   min-height: var(--interactive-row-current-min-height);
   align-items: center;
-  gap: var(--interactive-row-current-gap, var(--menu-item-gap));
+  gap: var(--interactive-row-current-gap, var(--cpx-comp-row-gap));
   padding:
     var(--interactive-row-current-padding-block, 0)
     var(--interactive-row-current-padding-inline);
   border-radius: var(--interactive-row-current-radius);
-  background: var(--interactive-row-background, transparent);
+  background: var(--cpx-comp-row-bg, transparent);
   color: var(
-    --interactive-row-foreground,
-    var(--color-token-foreground)
+    --cpx-comp-row-fg,
+    var(--cpx-sys-color-fg-primary)
   );
   font-size: var(--interactive-row-current-font-size);
   line-height: var(--interactive-row-current-line-height);
@@ -33,21 +34,21 @@
   outline: none;
   user-select: none;
   transition:
-    background-color var(--motion-micro) var(--ease-out),
-    color var(--motion-micro) var(--ease-out),
-    opacity var(--motion-state) var(--ease-out);
+    background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
+    opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
 }
 
 .interactive-row--nav {
-  --interactive-row-current-min-height: var(--interactive-row-nav-height);
-  --interactive-row-current-radius: var(--interactive-row-nav-radius);
+  --interactive-row-current-min-height: var(--cpx-comp-row-height-nav);
+  --interactive-row-current-radius: var(--cpx-comp-row-radius);
   --interactive-row-current-padding-inline: var(
-    --interactive-row-nav-padding-inline
+    --cpx-comp-row-padding-inline
   );
-  --interactive-row-current-font-size: var(--interactive-row-nav-font-size);
-  --interactive-row-current-line-height: var(--interactive-row-nav-line-height);
+  --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
+  --interactive-row-current-line-height: var(--cpx-sys-line-height-normal);
 }
 
 .interactive-row--menu,
@@ -61,56 +62,56 @@
 .sidebar-context-menu-sub-trigger,
 .rm-model-menu .rm-menu-item,
 .rm-model-menu .rm-sub-trigger {
-  --interactive-row-current-min-height: var(--interactive-row-menu-height);
-  --interactive-row-current-radius: var(--interactive-row-menu-radius);
+  --interactive-row-current-min-height: var(--cpx-comp-row-height-menu);
+  --interactive-row-current-radius: var(--cpx-comp-row-radius);
   --interactive-row-current-padding-block: var(
-    --interactive-row-menu-padding-block
+    --cpx-comp-row-padding-block
   );
   --interactive-row-current-padding-inline: var(
-    --interactive-row-menu-padding-inline
+    --cpx-comp-row-padding-inline
   );
-  --interactive-row-current-font-size: var(--interactive-row-menu-font-size);
-  --interactive-row-current-line-height: var(--interactive-row-menu-line-height);
+  --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
+  --interactive-row-current-line-height: var(--cpx-sys-line-height-normal);
 }
 
 .interactive-row--toolbar {
-  --interactive-row-current-min-height: var(--interactive-row-toolbar-height);
-  --interactive-row-current-radius: var(--interactive-row-toolbar-radius);
+  --interactive-row-current-min-height: var(--cpx-comp-row-height-toolbar);
+  --interactive-row-current-radius: var(--cpx-comp-row-radius);
   --interactive-row-current-padding-inline: var(
-    --interactive-row-toolbar-padding-inline
+    --cpx-comp-row-padding-inline
   );
   --interactive-row-current-font-size: var(
-    --interactive-row-toolbar-font-size
+    --cpx-sys-font-size-md
   );
   --interactive-row-current-line-height: var(
-    --interactive-row-toolbar-line-height
+    --cpx-sys-line-height-tight
   );
 }
 
 .interactive-row--composer {
-  --interactive-row-current-min-height: var(--interactive-row-composer-height);
-  --interactive-row-current-radius: var(--interactive-row-composer-radius);
+  --interactive-row-current-min-height: var(--cpx-comp-row-height-composer);
+  --interactive-row-current-radius: var(--cpx-sys-radius-full);
   --interactive-row-current-padding-inline: var(
-    --interactive-row-composer-padding-inline
+    --cpx-comp-row-padding-inline
   );
-  --interactive-row-current-gap: var(--interactive-row-composer-gap);
+  --interactive-row-current-gap: var(--cpx-comp-row-gap);
   --interactive-row-current-font-size: var(
-    --interactive-row-composer-font-size
+    --cpx-sys-font-size-md
   );
   --interactive-row-current-line-height: var(
-    --interactive-row-composer-line-height
+    --cpx-sys-line-height-tight
   );
 }
 
 .interactive-row--adaptive {
   --interactive-row-current-min-height: var(
-    --interactive-row-adaptive-min-height
+    --cpx-comp-row-height-nav
   );
-  --interactive-row-current-radius: var(--interactive-row-adaptive-radius);
+  --interactive-row-current-radius: var(--cpx-comp-row-radius);
   --interactive-row-current-padding-inline: var(
-    --interactive-row-adaptive-padding-inline
+    --cpx-comp-row-padding-inline
   );
-  --interactive-row-current-font-size: var(--type-control);
+  --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
   --interactive-row-current-line-height: var(--control-line-height);
 }
 
@@ -125,12 +126,12 @@
 .rm-model-menu .rm-menu-item:hover:not(:where([data-disabled])),
 .rm-model-menu .rm-sub-trigger:hover:not(:where([data-disabled])) {
   background: var(
-    --interactive-row-hover-background,
-    var(--color-token-list-hover-background)
+    --cpx-comp-row-hover-bg,
+    var(--cpx-sys-color-hover)
   );
   color: var(
-    --interactive-row-hover-foreground,
-    var(--interactive-row-foreground, var(--color-token-foreground))
+    --cpx-comp-row-hover-fg,
+    var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary))
   );
 }
 
@@ -146,12 +147,12 @@
 .rm-model-menu .rm-menu-item[data-highlighted],
 .rm-model-menu .rm-sub-trigger[data-highlighted] {
   background: var(
-    --interactive-row-hover-background,
-    var(--color-token-list-hover-background)
+    --cpx-comp-row-hover-bg,
+    var(--cpx-sys-color-hover)
   );
   color: var(
-    --interactive-row-hover-foreground,
-    var(--interactive-row-foreground, var(--color-token-foreground))
+    --cpx-comp-row-hover-fg,
+    var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary))
   );
 }
 
@@ -166,12 +167,12 @@
 .sidebar-context-menu-sub-trigger:active:not(:where([data-disabled])),
 .rm-model-menu .rm-menu-item:active:not(:where([data-disabled])),
 .rm-model-menu .rm-sub-trigger:active:not(:where([data-disabled])) {
-  background: var(--interactive-row-pressed-background, var(--color-token-list-active-selection-background));
-  color: var(--interactive-row-foreground, var(--color-token-foreground));
+  background: var(--cpx-comp-row-pressed-bg, var(--cpx-sys-color-active));
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
 }
 
 .interactive-row:focus-visible {
-  outline: 2px solid var(--interactive-row-focus-border, var(--color-token-focus-border));
+  outline: 2px solid var(--cpx-comp-row-focus-border, var(--cpx-sys-color-border-focus));
   outline-offset: 1px;
 }
 
@@ -187,7 +188,7 @@
 .rm-model-menu .rm-menu-item:focus-visible,
 .rm-model-menu .rm-sub-trigger:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring-inset);
+  box-shadow: var(--cpx-sys-focus-ring-inset);
 }
 
 .interactive-row[data-state="open"],
@@ -195,8 +196,8 @@
 .popover-sub-trigger[data-state="open"],
 .sidebar-context-menu-sub-trigger[data-state="open"],
 .rm-model-menu .rm-sub-trigger[data-state="open"] {
-  background: var(--interactive-row-open-background, var(--color-token-list-active-selection-background));
-  color: var(--color-token-foreground);
+  background: var(--cpx-comp-row-open-bg, var(--cpx-sys-color-selected));
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
 }
 
 .interactive-row.selected,
@@ -214,8 +215,8 @@
 .permission-select-item[data-state="checked"],
 .menubar-item[aria-selected="true"],
 .menubar-item[data-state="checked"] {
-  background: var(--interactive-row-selected-background, var(--color-token-list-active-selection-background));
-  color: var(--color-token-foreground);
+  background: var(--cpx-comp-row-selected-bg, var(--cpx-sys-color-selected));
+  color: var(--cpx-comp-row-selected-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
 }
 
 .interactive-row:disabled,
@@ -235,15 +236,15 @@
 .rm-model-menu .rm-menu-item[data-disabled],
 .rm-model-menu .rm-sub-trigger[data-disabled] {
   color: var(
-    --interactive-row-disabled-foreground,
-    var(--color-token-disabled-foreground)
+    --cpx-comp-row-disabled-fg,
+    var(--cpx-sys-color-fg-disabled)
   );
   background: transparent;
   outline: none;
   box-shadow: none;
   transform: none;
   cursor: default;
-  opacity: var(--interactive-row-disabled-opacity, 0.55);
+  opacity: var(--cpx-comp-row-disabled-opacity, 0.55);
 }
 
 :root[data-reduce-motion="on"] {

@@ -5,7 +5,7 @@
 .ui-skeleton-block {
   --ui-skeleton-highlight: color-mix(
     in srgb,
-    var(--color-token-foreground) 12%,
+    var(--cpx-sys-color-fg-primary) 12%,
     transparent
   );
   position: relative;
@@ -13,8 +13,8 @@
   overflow: hidden;
   background-color: color-mix(
     in srgb,
-    var(--color-token-text-secondary) 7%,
-    var(--layer-panel-fill)
+    var(--cpx-sys-color-fg-secondary) 7%,
+    var(--cpx-comp-surface-panel)
   );
   box-shadow: none;
 
@@ -29,7 +29,7 @@
       transparent 66%
     );
     content: "";
-    animation: ui-skeleton-sweep var(--motion-loading) steps(24, end) infinite;
+    animation: ui-skeleton-sweep var(--cpx-sys-motion-loading) steps(24, end) infinite;
   }
 }
 
@@ -55,7 +55,7 @@
 
 .ui-remote-image-content {
   opacity: 0;
-  transition: opacity var(--motion-enter) var(--ease-standard);
+  transition: opacity var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
 }
 
 .ui-remote-image[data-state='ready'] .ui-remote-image-content {
@@ -72,8 +72,8 @@
 .electron-dark .ui-skeleton-block {
   --ui-skeleton-highlight: color-mix(
     in srgb,
-    var(--color-token-text-secondary) 13%,
-    var(--layer-panel-fill)
+    var(--cpx-sys-color-fg-secondary) 13%,
+    var(--cpx-comp-surface-panel)
   );
 }
 

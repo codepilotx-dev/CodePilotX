@@ -7,9 +7,9 @@
 .message-card,
 .placeholder-card,
 .plugins-empty {
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-card);
-  background: var(--layer-panel-fill);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-comp-surface-panel);
   box-shadow: none;
 }
 
@@ -18,26 +18,26 @@
 .composer,
 .thread-summary-panel,
 .thread-summary-error {
-  border: var(--layer-edge);
-  background: var(--layer-raised-fill);
+  border: var(--cpx-comp-surface-edge);
+  background: var(--cpx-comp-surface-raised);
   backdrop-filter: var(--layer-raised-filter);
-  box-shadow: var(--shadow-glass-raised);
+  box-shadow: var(--cpx-sys-shadow-raised);
 }
 
 .ds-surface-raised {
-  border-radius: var(--radius-panel);
+  border-radius: var(--cpx-sys-radius-xl);
 }
 
 .desktop-sidebar.is-floating {
-  border: var(--layer-edge);
-  background: var(--layer-floating-fill);
-  box-shadow: var(--shadow-floating);
+  border: var(--cpx-comp-surface-edge);
+  background: var(--cpx-comp-surface-floating);
+  box-shadow: var(--cpx-sys-shadow-floating);
 }
 
 /* --- Product / Code Surface --- */
 .ds-product-surface,
 .ds-product-surface code {
-  border-color: var(--color-token-border);
-  background: var(--color-token-bg-secondary);
-  color: var(--color-token-button-foreground);
+  border-color: var(--cpx-sys-color-border-default);
+  background: var(--cpx-sys-color-surface-under);
+  color: var(--cpx-comp-button-fg);
 }

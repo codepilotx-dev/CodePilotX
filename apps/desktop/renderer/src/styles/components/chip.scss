@@ -6,14 +6,14 @@
   display: inline-flex;
   width: auto;
   align-items: center;
-  padding: 0 var(--interactive-row-composer-padding-inline);
+  padding: 0 var(--cpx-comp-row-padding-inline);
   border: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
 
   &.subtle {
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
@@ -23,11 +23,11 @@
   width: auto;
   align-items: center;
   max-width: 220px;
-  padding: 0 var(--interactive-row-composer-padding-inline);
+  padding: 0 var(--cpx-comp-row-padding-inline);
   border: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
 
   span {
     min-width: 0;
@@ -42,19 +42,19 @@
 .composer .chip-button:hover:not(:disabled),
 .menubar-trigger:hover:not(:where(:disabled, [data-disabled])),
 .menubar-trigger[data-highlighted]:not(:where(:disabled, [data-disabled])) {
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-foreground);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .composer .chip-button:active:not(:disabled),
 .menubar-trigger:active:not(:where(:disabled, [data-disabled])) {
-  background: var(--color-token-list-active-selection-background);
-  color: var(--color-token-foreground);
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .menubar-trigger[data-state="open"] {
-  background: var(--color-token-list-active-selection-background);
-  color: var(--color-token-foreground);
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 /* --- Accent-colored chips --- */
@@ -65,5 +65,5 @@
 .profile-repository-row:hover .profile-repository-name,
 .plugins-hero-command,
 .chat-input__dropdown-check {
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
 }

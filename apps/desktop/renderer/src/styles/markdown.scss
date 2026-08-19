@@ -1,10 +1,10 @@
 .md-body {
   width: 100%;
-  color: var(--color-token-foreground);
-  font-family: var(--font-family-sans);
-  font-size: var(--type-body);
-  font-weight: var(--font-weight-body);
-  line-height: var(--type-line-body);
+  color: var(--cpx-sys-color-fg-primary);
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-regular);
+  line-height: var(--cpx-sys-line-height-normal);
   overflow-wrap: anywhere;
 
   > :first-child {
@@ -29,8 +29,8 @@
   h4,
   h5,
   h6 {
-    color: var(--color-token-foreground);
-    font-weight: var(--font-weight-heading);
+    color: var(--cpx-sys-color-fg-primary);
+    font-weight: var(--cpx-sys-font-weight-medium);
     text-wrap: balance;
   }
 
@@ -38,29 +38,29 @@
     margin: 24px 0 8px;
     padding: 0;
     border: 0;
-    font-size: var(--type-page-title);
-    line-height: calc(var(--type-page-title) + 6px);
+    font-size: var(--cpx-sys-font-size-3xl);
+    line-height: calc(var(--cpx-sys-font-size-3xl) + 6px);
   }
 
   h2 {
     margin: 20px 0 8px;
     padding: 0;
-    font-size: var(--type-title-md);
-    line-height: calc(var(--type-title-md) + 6px);
+    font-size: var(--cpx-sys-font-size-xl);
+    line-height: calc(var(--cpx-sys-font-size-xl) + 6px);
   }
 
   h3 {
     margin: 16px 0 6px;
-    font-size: var(--type-panel-title);
-    line-height: calc(var(--type-panel-title) + 6px);
+    font-size: var(--cpx-sys-font-size-lg);
+    line-height: calc(var(--cpx-sys-font-size-lg) + 6px);
   }
 
   h4,
   h5,
   h6 {
     margin: 16px 0 6px;
-    font-size: var(--type-body);
-    line-height: var(--type-line-body);
+    font-size: var(--cpx-sys-font-size-md);
+    line-height: var(--cpx-sys-line-height-normal);
   }
 
   ul,
@@ -109,25 +109,25 @@
 
   ul li::marker,
   ol li::marker {
-    color: var(--color-token-text-secondary);
+    color: var(--cpx-sys-color-fg-secondary);
   }
 
   blockquote {
     padding: 0.55rem 1rem;
-    border-left: 2px solid var(--color-token-border);
-    border-radius: var(--radius-card);
-    background: var(--color-token-text-preformat-background);
-    color: var(--color-token-text-secondary);
+    border-left: 2px solid var(--cpx-sys-color-border-default);
+    border-radius: var(--cpx-sys-radius-lg);
+    background: var(--cpx-comp-modal-preformat-bg);
+    color: var(--cpx-sys-color-fg-secondary);
   }
 
   hr {
     margin: 26px 0;
     border: 0;
-    border-top: 1px solid var(--color-token-border-light);
+    border-top: 1px solid var(--cpx-sys-color-border-subtle);
   }
 
   a {
-    color: var(--color-token-text-link-foreground);
+    color: var(--cpx-sys-color-accent);
     text-decoration: none;
   }
 
@@ -138,8 +138,8 @@
 
   strong,
   b {
-    color: var(--color-token-foreground);
-    font-weight: var(--font-weight-emphasis);
+    color: var(--cpx-sys-color-fg-primary);
+    font-weight: var(--cpx-sys-font-weight-bold);
   }
 
   :not(pre) > code {
@@ -149,11 +149,11 @@
     border-radius: 4px;
     background: color-mix(
       in srgb,
-      var(--color-token-foreground) 6%,
+      var(--cpx-sys-color-fg-primary) 6%,
       transparent
     );
-    color: var(--color-token-foreground);
-    font-family: var(--font-family-mono);
+    color: var(--cpx-sys-color-fg-primary);
+    font-family: var(--cpx-sys-font-family-mono);
     font-size: 0.9em;
     line-height: inherit;
     box-decoration-break: clone;
@@ -169,25 +169,25 @@
 .md-file-reference {
   --md-file-reference-color: color-mix(
     in srgb,
-    var(--color-token-text-link-foreground) 80%,
-    var(--color-token-foreground) 20%
+    var(--cpx-sys-color-accent) 80%,
+    var(--cpx-sys-color-fg-primary) 20%
   );
 
   display: inline;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--md-file-reference-color, var(--color-token-text-link-foreground));
+  color: var(--md-file-reference-color, var(--cpx-sys-color-accent));
   font: inherit;
-  font-weight: var(--font-weight-label);
+  font-weight: var(--cpx-sys-font-weight-medium);
   text-decoration: none;
   cursor: pointer;
   overflow-wrap: anywhere;
 }
 
 .md-file-reference:focus-visible {
-  border-radius: var(--radius-control);
-  outline: 2px solid var(--color-token-text-link-foreground);
+  border-radius: var(--cpx-sys-radius-md);
+  outline: 2px solid var(--cpx-sys-color-accent);
   outline-offset: 2px;
 }
 
@@ -267,11 +267,11 @@
 .md-code-block {
   margin-top: 14px;
   margin-bottom: 18px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
   background: color-mix(
     in srgb,
-    var(--color-token-foreground) 5%,
+    var(--cpx-sys-color-fg-primary) 5%,
     transparent
   );
 }
@@ -291,13 +291,13 @@
 }
 
 .md-code-copy.is-copied {
-  color: var(--color-token-git-decoration-added-resource-foreground);
+  color: var(--cpx-sys-color-success);
 }
 
 .md-code-pre {
   padding: 0.9rem 1rem 0.85rem;
-  font-size: var(--type-code);
-  line-height: var(--type-line-code);
+  font-size: var(--cpx-sys-font-size-code);
+  line-height: var(--cpx-sys-line-height-code);
   scrollbar-gutter: stable;
 }
 
@@ -317,12 +317,12 @@
   margin: 14px 0;
   padding: 8px 12px;
   overflow: auto;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-card);
-  color: var(--color-token-text-secondary);
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
-  line-height: max(20px, var(--type-line-code));
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
+  line-height: max(20px, var(--cpx-sys-line-height-code));
   white-space: pre-wrap;
 }
 
@@ -330,14 +330,14 @@
   border: 0;
   background: color-mix(
     in srgb,
-    var(--color-token-foreground) 5%,
+    var(--cpx-sys-color-fg-primary) 5%,
     transparent
   );
 }
 
 .md-mermaid-fallback,
 .md-math-fallback {
-  background: var(--color-token-editor-background);
+  background: var(--cpx-sys-color-editor);
 }
 
 .md-table-block {
@@ -361,17 +361,17 @@
   height: 28px;
   padding: 0;
   place-items: center;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-control);
-  background: var(--layer-panel-fill);
-  color: var(--color-token-description-foreground);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-comp-surface-panel);
+  color: var(--cpx-sys-color-fg-tertiary);
   opacity: 0;
   pointer-events: none;
   cursor: pointer;
   transition:
-    opacity var(--motion-state) var(--ease-out),
-    background var(--motion-state) var(--ease-out),
-    color var(--motion-state) var(--ease-out);
+    opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
+    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
 }
 
 .md-table-block:hover .md-table-copy,
@@ -382,17 +382,17 @@
 }
 
 .md-table-copy:hover {
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-foreground);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .md-table-copy:focus-visible {
-  outline: 2px solid var(--color-token-text-link-foreground);
+  outline: 2px solid var(--cpx-sys-color-accent);
   outline-offset: 1px;
 }
 
 .md-table-copy.is-copied {
-  color: var(--color-token-git-decoration-added-resource-foreground);
+  color: var(--cpx-sys-color-success);
 }
 
 .md-table-scroll {
@@ -406,12 +406,12 @@
   min-width: 100%;
   table-layout: auto;
   border-collapse: collapse;
-  font-size: var(--type-body);
+  font-size: var(--cpx-sys-font-size-md);
   font-variant-numeric: lining-nums tabular-nums;
 }
 
 .md-table-block tbody tr {
-  border-bottom: 1px solid var(--color-token-border-light);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .md-table-block th,
@@ -425,13 +425,13 @@
   white-space: normal;
   overflow-wrap: normal;
   word-break: normal;
-  line-height: var(--type-line-body);
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .md-table-block th {
   padding-block: 8px;
-  border-bottom: 1px solid var(--color-token-border);
-  font-weight: var(--font-weight-emphasis);
+  border-bottom: 1px solid var(--cpx-sys-color-border-default);
+  font-weight: var(--cpx-sys-font-weight-bold);
 }
 
 .md-table-block td {
@@ -467,8 +467,8 @@
   display: block;
   width: 100%;
   max-height: 32rem;
-  border-radius: var(--radius-card);
-  background: var(--color-token-editor-background);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-editor);
   object-fit: contain;
 }
 
@@ -477,15 +477,15 @@
   min-height: 96px;
   place-items: center;
   padding: 12px;
-  border: 1px dashed var(--color-token-border-light);
-  border-radius: var(--radius-card);
-  color: var(--color-token-text-secondary);
+  border: 1px dashed var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
+  color: var(--cpx-sys-color-fg-secondary);
   text-align: center;
 }
 
 .md-math {
   max-width: 100%;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .md-math-display {
@@ -501,9 +501,9 @@
   margin: 14px 0;
   padding: 12px;
   overflow: auto;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-card);
-  background: var(--color-token-bg-secondary);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-surface-under);
 }
 
 .md-mermaid svg {
@@ -517,22 +517,22 @@
 .md-directive {
   margin: 11px 0;
   padding: 10px 12px;
-  border-left: 3px solid var(--color-token-text-link-foreground);
-  border-radius: 0 var(--radius-card) var(--radius-card) 0;
-  background: var(--color-token-editor-widget-background);
+  border-left: 3px solid var(--cpx-sys-color-accent);
+  border-radius: 0 var(--cpx-sys-radius-lg) var(--cpx-sys-radius-lg) 0;
+  background: var(--cpx-sys-color-elevated-secondary);
 }
 
 .md-directive-unknown {
   overflow-x: auto;
-  border-left-color: var(--color-token-border);
-  color: var(--color-token-text-secondary);
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
+  border-left-color: var(--cpx-sys-color-border-default);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
   white-space: pre-wrap;
 }
 
 .md-code-comment {
-  border-left-color: var(--color-token-editor-warning-foreground);
+  border-left-color: var(--cpx-sys-color-warning);
 }
 
 .md-code-comment__target {
@@ -555,19 +555,19 @@
 
 .md-code-comment__target:not(:disabled):hover strong,
 .md-code-comment__target:not(:disabled):focus-visible strong {
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
 }
 
 .md-code-comment__target:focus-visible {
-  outline: 2px solid var(--color-token-text-link-foreground);
+  outline: 2px solid var(--cpx-sys-color-accent);
   outline-offset: 4px;
   border-radius: 4px;
 }
 
 .md-code-comment__target code {
-  color: var(--color-token-text-secondary);
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
 }
 
 .md-code-comment p {
@@ -575,7 +575,7 @@
 }
 
 .md-streaming-token {
-  animation: md-streaming-fade var(--motion-enter) var(--ease-out);
+  animation: md-streaming-fade var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
 }
 
 @keyframes md-streaming-fade {
