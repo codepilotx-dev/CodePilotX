@@ -70,6 +70,9 @@
 
 ### Fixed
 
+- [Agent/usage] 修复 MiniMax Token Plan 额度解析将已用次数（usage_count）误当成剩余次数、以及纯百分比套餐（total_count 为 0）被误判为耗尽并显示 0% 的问题。
+- [desktop/renderer] 修复多模型套餐（如 MiniMax 同时返回 general 与 video）时侧栏菜单与账户卡片因重复 Quota ID 生成相同 React key 的控制台报错问题。
+- [desktop/renderer] 修复会话任务结束后 Composer 发送按钮、变更摘要与时间线组件状态未即时从运行态更新的问题：在 canonical auxiliary 状态投影中实时派生 active turn 状态，使桌面会话页面组件与流式事件完成精确同步，并在全局会话目录刷新中完整重载活动会话快照。
 - [Agent/Desktop] 修复 Desktop 推理模式被误当成模型 variant，导致已保存模型仍显示“配置模型”的问题。
 - [desktop/renderer] 修复外观 V7 与系统字体接线错误导致 Renderer 解析失败、Electron preload 编译失败及桌面开发环境无法启动的问题，并恢复高版本外观配置的拒绝覆盖保护。
 - [desktop/renderer] 统一外观页主题编辑器与偏好设置卡片的共享表面、圆角、宽度和 16px 内容网格，使标题、控件及分隔线左右对齐；字体家族与样式下拉改为按当前内容自适应宽度，不再截断常规选项。
