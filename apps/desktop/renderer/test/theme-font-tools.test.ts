@@ -156,16 +156,10 @@ describe('theme font loading tool', () => {
       },
     })
 
-    expect(variables['--font-family-sans']).toBe(
+    expect(variables['--cpx-sys-font-family-sans']).toBe(
       '"CodePilotX selected Inter-Bold", Inter',
     )
-    expect(variables['--vscode-font-family']).toBe(
-      '"CodePilotX selected Inter-Bold", Inter',
-    )
-    expect(variables['--font-family-mono']).toBe(
-      '"CodePilotX selected CodeMono-Regular", CodeMono',
-    )
-    expect(variables['--vscode-editor-font-family']).toBe(
+    expect(variables['--cpx-sys-font-family-mono']).toBe(
       '"CodePilotX selected CodeMono-Regular", CodeMono',
     )
   })

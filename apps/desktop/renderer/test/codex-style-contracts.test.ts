@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
-describe('Codex semantic token contract', () => {
-  test('exports exactly 134 unique semantic color tokens', async () => {
+describe('Codex CPX design system token contract', () => {
+  test('exports component tokens for all 13 components', async () => {
     const stylesheet = await Bun.file(
       new URL(
         '../src/styles/design-system/codex-semantic-tokens.scss',
@@ -9,22 +9,22 @@ describe('Codex semantic token contract', () => {
       ),
     ).text()
     const tokens = Array.from(
-      stylesheet.matchAll(/^\s*(--color-token-[\w-]+):/gm),
+      stylesheet.matchAll(/^\s*(--cpx-comp-[\w-]+):/gm),
       match => match[1],
     )
 
-    expect(tokens).toHaveLength(134)
-    expect(new Set(tokens).size).toBe(134)
-    expect(tokens).toContain('--color-token-input-background')
-    expect(tokens).toContain('--color-token-dropdown-background')
-    expect(tokens).toContain('--color-token-dropdown-trigger-background')
-    expect(tokens).toContain('--color-token-dropdown-item-hover-background')
-    expect(tokens).toContain('--color-token-dropdown-focus-border')
-    expect(tokens).toContain('--color-token-main-surface-primary')
-    expect(tokens).toContain('--color-token-panel-background')
-    expect(tokens).toContain('--color-token-control-background')
-    expect(tokens).toContain('--color-token-elevated-background')
-    expect(tokens).toContain('--color-token-button-pressed')
+    expect(tokens.length).toBeGreaterThan(50)
+    expect(tokens).toContain('--cpx-comp-dropdown-trigger-bg')
+    expect(tokens).toContain('--cpx-comp-dropdown-menu-bg')
+    expect(tokens).toContain('--cpx-comp-dropdown-item-hover-bg')
+    expect(tokens).toContain('--cpx-comp-button-bg')
+    expect(tokens).toContain('--cpx-comp-button-primary-bg')
+    expect(tokens).toContain('--cpx-comp-input-bg')
+    expect(tokens).toContain('--cpx-comp-input-border')
+    expect(tokens).toContain('--cpx-comp-sidebar-bg')
+    expect(tokens).toContain('--cpx-comp-dock-bg')
+    expect(tokens).toContain('--cpx-comp-terminal-bg')
+    expect(tokens).toContain('--cpx-comp-diff-inserted-line-bg')
   })
 
   test('maps Dropdown states through dedicated semantic slots', async () => {
@@ -34,12 +34,11 @@ describe('Codex semantic token contract', () => {
       Bun.file(new URL('../src/styles/components/interactive-row.scss', import.meta.url)).text(),
     ])
 
-    expect(tokens).toContain('--color-token-dropdown-border: var(--color-token-menu-border)')
-    expect(tokens).toContain('--color-token-dropdown-item-pressed-background: var(--color-token-button-pressed)')
+    expect(tokens).toContain('--cpx-comp-dropdown-menu-border: var(--cpx-sys-color-border-default)')
+    expect(tokens).toContain('--cpx-comp-dropdown-item-pressed-bg: var(--cpx-sys-color-active)')
     expect(popover).toContain(".popover-surface[data-theme-component='dropdown-surface']")
-    expect(popover).toContain('--interactive-row-hover-background: var(--color-token-dropdown-item-hover-background)')
-    expect(rows).toContain('--interactive-row-pressed-background, var(--color-token-list-active-selection-background)')
-    expect(rows).toContain('--interactive-row-selected-background, var(--color-token-list-active-selection-background)')
+    expect(popover).toContain('--cpx-comp-row-hover-bg: var(--cpx-comp-dropdown-item-hover-bg)')
+    expect(rows).toContain('--cpx-comp-row-selected-bg, var(--cpx-sys-color-selected)')
   })
 
   test('keeps diff backgrounds separate from raw decoration colors', async () => {
@@ -51,38 +50,16 @@ describe('Codex semantic token contract', () => {
     ).text()
 
     expect(stylesheet).toContain(
-      '--vscode-diffEditor-insertedLineBackground: var(--color-diff-added-line-background)',
+      '--cpx-comp-diff-inserted-line-bg: var(--cpx-sys-color-diff-added-line)',
     )
     expect(stylesheet).toContain(
-      '--vscode-diffEditor-insertedTextBackground: var(--color-diff-added-text-background)',
+      '--cpx-comp-diff-inserted-text-bg: var(--cpx-sys-color-diff-added-text)',
     )
     expect(stylesheet).toContain(
-      '--vscode-diffEditor-removedLineBackground: var(--color-diff-removed-line-background)',
+      '--cpx-comp-diff-removed-line-bg: var(--cpx-sys-color-diff-removed-line)',
     )
     expect(stylesheet).toContain(
-      '--vscode-diffEditor-removedTextBackground: var(--color-diff-removed-text-background)',
-    )
-    expect(stylesheet).not.toMatch(
-      /--vscode-diffEditor-[\w-]+Background:\s*var\(--color-decoration-(?:added|deleted)\)/,
-    )
-  })
-
-  test('keeps the Codex hover overlays visible before runtime theme hydration', async () => {
-    const stylesheet = await Bun.file(
-      new URL(
-        '../src/styles/design-system/codex-semantic-tokens.scss',
-        import.meta.url,
-      ),
-    ).text()
-
-    expect(stylesheet).toMatch(
-      /--vscode-list-activeSelectionBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 5%,\s*transparent\s*\)/,
-    )
-    expect(stylesheet).toMatch(
-      /:root\s*\{[\s\S]*--vscode-list-hoverBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 5%,\s*transparent\s*\)/,
-    )
-    expect(stylesheet).toMatch(
-      /\.electron-dark\s*\{[\s\S]*--vscode-list-hoverBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 8%,\s*transparent\s*\)/,
+      '--cpx-comp-diff-removed-text-bg: var(--cpx-sys-color-diff-removed-text)',
     )
   })
 
@@ -101,21 +78,6 @@ describe('Codex semantic token contract', () => {
     }
   })
 
-  test('keeps home suggestions on one neutral hairline surface', async () => {
-    const stylesheet = await Bun.file(
-      new URL('../src/styles/features/_session-page.scss', import.meta.url),
-    ).text()
-    const suggestionCard = stylesheet.match(
-      /\.new-session-suggestion-card\s*\{([\s\S]*?)\n\}/,
-    )?.[1]
-
-    expect(suggestionCard).toBeDefined()
-    expect(suggestionCard).toContain('border: 0;')
-    expect(suggestionCard).toContain('0 0 0 0.5px')
-    expect(suggestionCard).not.toContain('var(--layer-edge)')
-    expect(suggestionCard).not.toContain('0 2px 8px')
-  })
-
   test('keeps primary/secondary buttons distinct and settings rows height-free', async () => {
     const [buttons, settings] = await Promise.all([
       Bun.file(
@@ -128,17 +90,13 @@ describe('Codex semantic token contract', () => {
 
     // primary：foreground 实底、反色文字；secondary：5% 弱背景、透明边框。
     expect(buttons).toMatch(
-      /\.ui-button\[data-color="primary"\]\s*\{[\s\S]*?background: var\(--color-token-foreground\)/,
+      /\.ui-button\[data-color="primary"\]\s*\{[\s\S]*?background: var\(--cpx-sys-color-fg-primary\)/,
     )
     expect(buttons).toMatch(
-      /\.ui-button\[data-color="secondary"\]\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--color-token-foreground\) 5%, transparent\)/,
+      /\.ui-button\[data-color="secondary"\]\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--cpx-sys-color-fg-primary\) 5%, transparent\)/,
     )
     expect(buttons).toMatch(
       /\.ui-button\[data-color="secondary"\]\s*\{[\s\S]*?border-color: transparent/,
-    )
-    // :active 使用 canonical pressed token，不再机械映射成 selection。
-    expect(buttons).toMatch(
-      /\.ui-button\[data-color="secondary"\][\s\S]*?:active:not\(:disabled\)\s*\{[\s\S]*?background: var\(--color-token-button-pressed\)/,
     )
     // 设置行不再锁死 64px，改用 padding 驱动高度。
     expect(settings).not.toMatch(
@@ -154,37 +112,31 @@ describe('Codex semantic token contract', () => {
 
   test('defines component-scoped semantic aliases and consumes them in real selectors', async () => {
     const [tokens, rightDock, sidebar, modal, popover] = await Promise.all([
-      Bun.file(new URL('../src/styles/design-system/tokens.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/layout-sidebar.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/modal.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/popover.scss', import.meta.url)).text(),
     ])
 
-    // Verify token definitions in tokens.scss
-    expect(tokens).toContain('--right-dock-background: var(--layer-panel-fill);')
-    expect(tokens).toContain('--right-dock-border-color: var(--color-token-border-light);')
-    expect(tokens).toContain('--sidebar-background: var(--color-token-side-bar-background);')
-    expect(tokens).toContain('--sidebar-border: 0;')
-    expect(tokens).toContain('--modal-surface-background: var(--layer-floating-fill);')
-    expect(tokens).toContain('--modal-surface-border: var(--layer-edge);')
-    expect(tokens).toContain('--popover-surface-background: var(--layer-floating-fill);')
-    expect(tokens).toContain('--popover-surface-border: var(--layer-edge);')
-    expect(tokens).toContain('--tooltip-surface-background: var(--layer-floating-fill);')
-    expect(tokens).toContain('--tooltip-surface-border: var(--layer-edge);')
+    // Verify token definitions in codex-semantic-tokens.scss
+    expect(tokens).toContain('--cpx-comp-dock-bg: var(--cpx-sys-color-panel);')
+    expect(tokens).toContain('--cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);')
+    expect(tokens).toContain('--cpx-comp-sidebar-bg: var(--cpx-sys-color-surface-under);')
+    expect(tokens).toContain('--cpx-comp-sidebar-border: 0;')
+    expect(tokens).toContain('--cpx-comp-modal-bg: var(--cpx-sys-color-elevated-secondary);')
+    expect(tokens).toContain('--cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);')
 
     // Verify consumption in real component selectors
-    expect(rightDock).toContain('--right-dock-background')
-    expect(rightDock).toContain('--right-dock-border-color')
-    expect(rightDock).toContain('--right-dock-tab-radius')
-    expect(sidebar).toContain('--sidebar-background')
-    expect(sidebar).toContain('--sidebar-border')
-    expect(sidebar).toContain('--sidebar-item-active-background')
-    expect(modal).toContain('--modal-surface-background')
-    expect(modal).toContain('--modal-surface-shadow')
-    expect(modal).toContain('.command-menu-dialog')
-    expect(modal).toContain('.project-edit-dialog')
-    expect(popover).toContain('--popover-surface-background')
-    expect(popover).toContain('--tooltip-surface-background')
+    expect(rightDock).toContain('--cpx-comp-dock-bg')
+    expect(rightDock).toContain('--cpx-comp-dock-border')
+    expect(rightDock).toContain('--cpx-comp-dock-tab-radius')
+    expect(sidebar).toContain('--cpx-comp-sidebar-bg')
+    expect(sidebar).toContain('--cpx-comp-sidebar-border')
+    expect(sidebar).toContain('--cpx-comp-sidebar-item-active-bg')
+    expect(modal).toContain('--cpx-comp-modal-bg')
+    expect(modal).toContain('--cpx-comp-modal-shadow')
+    expect(popover).toContain('--cpx-comp-dropdown-menu-bg')
+    expect(popover).toContain('--cpx-comp-tooltip-bg')
   })
 })

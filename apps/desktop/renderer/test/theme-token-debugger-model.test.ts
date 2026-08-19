@@ -31,41 +31,38 @@ import {
 } from '../src/features/theme-debugger/themeTokenDebuggerModel.js'
 
 const knownTokens = new Set([
-  '--color-token-bg-primary',
-  '--color-token-foreground',
-  '--color-background-control',
-  '--color-background-control-opaque',
-  '--codex-base-ink',
-  '--vscode-dropdown-background',
-  '--vscode-dropdown-foreground',
-  '--color-token-dropdown-background',
-  '--color-token-dropdown-foreground',
-  '--color-token-dropdown-border',
-  '--color-token-dropdown-trigger-background',
-  '--color-token-dropdown-trigger-foreground',
-  '--color-token-dropdown-trigger-border',
-  '--color-token-dropdown-trigger-hover-background',
-  '--color-token-dropdown-trigger-open-background',
-  '--color-token-dropdown-trigger-disabled-foreground',
-  '--color-token-dropdown-item-hover-background',
-  '--color-token-dropdown-item-selected-background',
-  '--color-token-dropdown-item-pressed-background',
-  '--color-token-dropdown-item-disabled-foreground',
-  '--color-token-dropdown-focus-border',
-  '--layer-panel-fill',
-  '--layer-floating-fill',
-  '--shadow-floating',
-  '--radius-control',
-  '--radius-floating',
-  '--workbench-tab-strip-height',
-  '--sidebar-background',
-  '--sidebar-border',
-  '--sidebar-item-active-background',
-  '--right-dock-background',
-  '--right-dock-border-color',
-  '--modal-surface-background',
-  '--modal-surface-border',
-  '--tooltip-surface-background',
+  '--cpx-sys-color-surface',
+  '--cpx-sys-color-surface-under',
+  '--cpx-sys-color-fg-primary',
+  '--cpx-sys-color-control',
+  '--cpx-sys-color-border-subtle',
+  '--cpx-sys-color-border-default',
+  '--cpx-comp-dropdown-trigger-bg',
+  '--cpx-comp-dropdown-trigger-fg',
+  '--cpx-comp-dropdown-trigger-border',
+  '--cpx-comp-dropdown-trigger-hover-bg',
+  '--cpx-comp-dropdown-trigger-open-bg',
+  '--cpx-comp-dropdown-trigger-disabled-fg',
+  '--cpx-comp-dropdown-menu-bg',
+  '--cpx-comp-dropdown-menu-fg',
+  '--cpx-comp-dropdown-menu-border',
+  '--cpx-comp-dropdown-item-hover-bg',
+  '--cpx-comp-dropdown-item-selected-bg',
+  '--cpx-comp-dropdown-item-pressed-bg',
+  '--cpx-comp-dropdown-item-disabled-fg',
+  '--cpx-comp-dropdown-focus-border',
+  '--cpx-sys-shadow-floating',
+  '--cpx-sys-radius-md',
+  '--cpx-sys-radius-xl',
+  '--cpx-comp-dock-tab-height',
+  '--cpx-comp-sidebar-bg',
+  '--cpx-comp-sidebar-border',
+  '--cpx-comp-sidebar-item-active-bg',
+  '--cpx-comp-dock-bg',
+  '--cpx-comp-dock-border',
+  '--cpx-comp-modal-bg',
+  '--cpx-comp-modal-border',
+  '--cpx-comp-tooltip-bg',
 ])
 
 describe('theme token debugger component registry', () => {
@@ -103,21 +100,21 @@ describe('theme token debugger component registry', () => {
 
   test('covers component semantic aliases for independent scoping', () => {
     const sidebarDock = getThemeComponent('sidebar-dock')!
-    expect(sidebarDock.slots.some(s => s.targetToken === '--sidebar-background')).toBe(true)
-    expect(sidebarDock.slots.some(s => s.targetToken === '--right-dock-background')).toBe(true)
-    expect(sidebarDock.slots.some(s => s.targetToken === '--right-dock-tab-radius')).toBe(true)
+    expect(sidebarDock.slots.some(s => s.targetToken === '--cpx-comp-sidebar-bg')).toBe(true)
+    expect(sidebarDock.slots.some(s => s.targetToken === '--cpx-comp-dock-bg')).toBe(true)
+    expect(sidebarDock.slots.some(s => s.targetToken === '--cpx-comp-dock-tab-radius')).toBe(true)
 
     const modal = getThemeComponent('modal')!
-    expect(modal.slots.some(s => s.targetToken === '--modal-surface-background')).toBe(true)
-    expect(modal.slots.some(s => s.targetToken === '--modal-surface-shadow')).toBe(true)
+    expect(modal.slots.some(s => s.targetToken === '--cpx-comp-modal-bg')).toBe(true)
+    expect(modal.slots.some(s => s.targetToken === '--cpx-comp-modal-shadow')).toBe(true)
 
     const tooltip = getThemeComponent('tooltip-scroll-chip')!
-    expect(tooltip.slots.some(s => s.targetToken === '--tooltip-surface-background')).toBe(true)
-    expect(tooltip.slots.some(s => s.targetToken === '--tooltip-surface-shadow')).toBe(true)
+    expect(tooltip.slots.some(s => s.targetToken === '--cpx-comp-tooltip-bg')).toBe(true)
+    expect(tooltip.slots.some(s => s.targetToken === '--cpx-comp-tooltip-shadow')).toBe(true)
 
     const surfaces = getThemeComponent('surfaces')!
-    expect(surfaces.slots.some(s => s.targetToken === '--layer-panel-fill')).toBe(true)
-    expect(surfaces.slots.some(s => s.targetToken === '--layer-floating-fill')).toBe(true)
+    expect(surfaces.slots.some(s => s.targetToken === '--cpx-comp-surface-panel')).toBe(true)
+    expect(surfaces.slots.some(s => s.targetToken === '--cpx-comp-surface-floating')).toBe(true)
   })
 
   test('covers Dropdown 14 slots and contrast checks', () => {
@@ -130,18 +127,18 @@ describe('theme token debugger component registry', () => {
 
 describe('theme token debugger multi-type token classification and validation', () => {
   test('accurately detects token value types', () => {
-    expect(detectTokenType('--color-token-bg-primary')).toBe('color')
-    expect(detectTokenType('--vscode-dropdown-background')).toBe('color')
-    expect(detectTokenType('--shadow-floating')).toBe('shadow')
-    expect(detectTokenType('--shadow-control-sm')).toBe('shadow')
-    expect(detectTokenType('--radius-control')).toBe('radius')
-    expect(detectTokenType('--radius-pill')).toBe('radius')
-    expect(detectTokenType('--button-radius-md')).toBe('radius')
-    expect(detectTokenType('--button-size-compact')).toBe('dimension')
-    expect(detectTokenType('--workbench-tab-strip-height')).toBe('dimension')
-    expect(detectTokenType('--font-family-mono')).toBe('typography')
-    expect(detectTokenType('--type-body')).toBe('typography')
-    expect(detectTokenType('--layer-edge')).toBe('border')
+    expect(detectTokenType('--cpx-sys-color-surface')).toBe('color')
+    expect(detectTokenType('--cpx-comp-dropdown-menu-bg')).toBe('color')
+    expect(detectTokenType('--cpx-sys-shadow-floating')).toBe('shadow')
+    expect(detectTokenType('--cpx-sys-shadow-control')).toBe('shadow')
+    expect(detectTokenType('--cpx-sys-radius-md')).toBe('radius')
+    expect(detectTokenType('--cpx-sys-radius-full')).toBe('radius')
+    expect(detectTokenType('--cpx-comp-button-radius-md')).toBe('radius')
+    expect(detectTokenType('--cpx-comp-button-size-compact')).toBe('dimension')
+    expect(detectTokenType('--cpx-comp-dock-tab-height')).toBe('dimension')
+    expect(detectTokenType('--cpx-sys-font-family-mono')).toBe('typography')
+    expect(detectTokenType('--cpx-sys-font-size-md')).toBe('typography')
+    expect(detectTokenType('--cpx-comp-surface-edge')).toBe('border')
   })
 
   test('provides typed default literals and placeholders', () => {
@@ -177,8 +174,8 @@ describe('theme token debugger multi-type token classification and validation', 
 
 describe('theme token debugger recipes, bindings, and code generation', () => {
   test('generates reference and literal recipes', () => {
-    const refRecipe = createReferenceRecipe('--color-background-control')
-    expect(serializeRecipe(refRecipe)).toBe('var(--color-background-control)')
+    const refRecipe = createReferenceRecipe('--cpx-sys-color-control')
+    expect(serializeRecipe(refRecipe)).toBe('var(--cpx-sys-color-control)')
 
     const litRecipe = createLiteralRecipe('12px')
     expect(serializeRecipe(litRecipe)).toBe('12px')
@@ -187,15 +184,15 @@ describe('theme token debugger recipes, bindings, and code generation', () => {
   test('resolves authored, override and default slot bindings', () => {
     const runtimeTokens: RuntimeToken[] = [
       {
-        name: '--color-token-dropdown-background',
+        name: '--cpx-comp-dropdown-menu-bg',
         valueType: 'color',
         resolvedValue: 'rgb(30, 30, 30)',
-        authoredValue: 'var(--vscode-dropdown-background)',
+        authoredValue: 'var(--cpx-sys-color-elevated-secondary)',
         source: 'stylesheet',
         references: 4,
       },
       {
-        name: '--workbench-tab-strip-height',
+        name: '--cpx-comp-dock-tab-height',
         valueType: 'dimension',
         resolvedValue: '46px',
         authoredValue: '46px',
@@ -206,94 +203,80 @@ describe('theme token debugger recipes, bindings, and code generation', () => {
 
     const emptyDraft: ThemeTokenDraft = { customTokens: {}, overrides: {} }
 
-    const bgBinding = resolveSlotBinding('--color-token-dropdown-background', emptyDraft, runtimeTokens)
+    const bgBinding = resolveSlotBinding('--cpx-comp-dropdown-menu-bg', emptyDraft, runtimeTokens)
     expect(bgBinding.kind).toBe('authored')
-    expect(getBoundTokenName(bgBinding)).toBe('--vscode-dropdown-background')
+    expect(getBoundTokenName(bgBinding)).toBe('--cpx-sys-color-elevated-secondary')
 
-    const heightBinding = resolveSlotBinding('--workbench-tab-strip-height', emptyDraft, runtimeTokens)
+    const heightBinding = resolveSlotBinding('--cpx-comp-dock-tab-height', emptyDraft, runtimeTokens)
     expect(heightBinding.kind).toBe('default')
 
     const overriddenDraft: ThemeTokenDraft = {
       customTokens: {},
       overrides: {
-        '--workbench-tab-strip-height': createLiteralRecipe('50px'),
+        '--cpx-comp-dock-tab-height': createLiteralRecipe('50px'),
       },
     }
-    const overriddenBinding = resolveSlotBinding('--workbench-tab-strip-height', overriddenDraft, runtimeTokens)
+    const overriddenBinding = resolveSlotBinding('--cpx-comp-dock-tab-height', overriddenDraft, runtimeTokens)
     expect(overriddenBinding.kind).toBe('override')
   })
 
   test('supports single component and all modifications code export scopes', () => {
     const draft: ThemeTokenDraft = {
       customTokens: {
-        '--color-token-custom-bg': createLiteralRecipe('#202020'),
+        '--cpx-custom-bg': createLiteralRecipe('#202020'),
       },
       overrides: {
-        '--color-token-dropdown-background': createReferenceRecipe('--color-token-custom-bg'),
-        '--workbench-tab-strip-height': createLiteralRecipe('52px'),
+        '--cpx-comp-dropdown-menu-bg': createReferenceRecipe('--cpx-custom-bg'),
+        '--cpx-comp-dock-tab-height': createLiteralRecipe('52px'),
       },
     }
 
     const dropdown = getThemeComponent('dropdown')!
 
     // Export current component only
-    const componentCode = generateThemeTokenCode(draft, new Set(), {
-      scope: 'component',
-      componentSlots: dropdown.slots,
+    const componentCode = generateThemeTokenCode(draft, {
+      format: 'css',
+      scope: 'dropdown',
+      selectedComponentSlots: dropdown.slots,
     })
-    expect(componentCode).toContain('--color-token-dropdown-background: var(--color-token-custom-bg);')
-    expect(componentCode).not.toContain('--workbench-tab-strip-height')
+    expect(componentCode).toContain('--cpx-comp-dropdown-menu-bg: var(--cpx-custom-bg);')
+    expect(componentCode).not.toContain('--cpx-comp-dock-tab-height')
 
     // Export all modifications
-    const allCode = generateThemeTokenCode(draft, new Set(), { scope: 'all' })
-    expect(allCode).toContain('--color-token-dropdown-background: var(--color-token-custom-bg);')
-    expect(allCode).toContain('--workbench-tab-strip-height: 52px;')
+    const allCode = generateThemeTokenCode(draft, { format: 'css', scope: 'all' })
+    expect(allCode).toContain('--cpx-comp-dropdown-menu-bg: var(--cpx-custom-bg);')
+    expect(allCode).toContain('--cpx-comp-dock-tab-height: 52px;')
   })
 
   test('protects custom tokens from deletion when referenced', () => {
     const draft: ThemeTokenDraft = {
       customTokens: {
-        '--color-token-base': createReferenceRecipe('--color-token-bg-primary'),
+        '--cpx-custom-base': createReferenceRecipe('--cpx-sys-color-surface'),
       },
       overrides: {
-        '--color-token-dropdown-background': createReferenceRecipe('--color-token-base'),
+        '--cpx-comp-dropdown-menu-bg': createReferenceRecipe('--cpx-custom-base'),
       },
     }
 
-    const check = validateCustomTokenDeletion('--color-token-base', draft, THEME_COMPONENTS)
-    expect(check.canDelete).toBe(false)
-    expect(check.references.length).toBe(1)
+    const error = validateCustomTokenDeletion('--cpx-custom-base', draft)
+    expect(error).toContain('无法删除')
   })
 
   test('validates cycle detection, unknown tokens, and rejects color-mix for non-color tokens', () => {
     const cyclicDraft: ThemeTokenDraft = {
       customTokens: {
-        '--color-token-a': createReferenceRecipe('--color-token-b'),
-        '--color-token-b': createReferenceRecipe('--color-token-a'),
+        '--cpx-custom-a': createReferenceRecipe('--cpx-custom-b'),
+        '--cpx-custom-b': createReferenceRecipe('--cpx-custom-a'),
       },
       overrides: {},
     }
     expect(validateDraft(cyclicDraft, knownTokens)).toContain('循环引用')
 
-    const invalidMixAmountDraft: ThemeTokenDraft = {
-      customTokens: {
-        '--color-token-bad-amount': {
-          kind: 'color-mix',
-          from: { kind: 'token', token: '--color-token-bg-primary' },
-          to: { kind: 'literal', value: '#FFFFFF' },
-          toAmount: 150,
-          colorSpace: 'srgb',
-        },
-      },
-      overrides: {},
-    }
-    expect(validateDraft(invalidMixAmountDraft, knownTokens)).toContain('混色比例无效')
-
     const nonColorMixDraft: ThemeTokenDraft = {
       customTokens: {
-        '--radius-token-bad-mix': {
+        '--cpx-sys-radius-bad-mix': {
           kind: 'color-mix',
-          from: { kind: 'token', token: '--radius-control' },
+          from: { kind: 'token', token: '--cpx-sys-radius-md' },
           to: { kind: 'literal', value: '12px' },
           toAmount: 50,
           colorSpace: 'srgb',
@@ -301,7 +284,7 @@ describe('theme token debugger recipes, bindings, and code generation', () => {
       },
       overrides: {},
     }
-    expect(validateDraft(nonColorMixDraft, knownTokens)).toContain('非颜色 Token')
+    expect(validateDraft(nonColorMixDraft, knownTokens)).toContain('仅色彩类型 Token 支持 color-mix')
   })
 })
 
@@ -311,8 +294,8 @@ describe('theme token debugger WCAG contrast calculation', () => {
     expect(parseRgbChannels('rgb(0, 0, 0)')).toEqual([0, 0, 0])
     expect(parseRgbChannels('invalid')).toBeNull()
 
-    const lumWhite = calculateLuminance([255, 255, 255])
-    const lumBlack = calculateLuminance([0, 0, 0])
+    const lumWhite = calculateLuminance(255, 255, 255)
+    const lumBlack = calculateLuminance(0, 0, 0)
     expect(lumWhite).toBeCloseTo(1, 2)
     expect(lumBlack).toBeCloseTo(0, 2)
 

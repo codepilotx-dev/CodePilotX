@@ -19,9 +19,9 @@ describe('terminal theme', () => {
       configurable: true,
       value: () => ({
         getPropertyValue: (name: string) =>
-          name === '--font-family-mono'
+          name === '--cpx-sys-font-family-mono'
             ? 'JetBrains Mono'
-            : name === '--font-size-code'
+            : name === '--cpx-sys-font-size-code'
               ? '15px'
               : '',
       }),
