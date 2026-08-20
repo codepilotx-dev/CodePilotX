@@ -1155,6 +1155,7 @@ export type DesktopSessionListItem = {
   customTitle?: string | null
   tag?: string | null
   summary?: string | null
+  preview?: string | null
   gitBranch?: string | null
   firstPrompt?: string | null
   prNumber?: number | null

@@ -73,6 +73,7 @@ export function agentThreadListItemToDesktop(
     sessionName: thread.title || null,
     customTitle: null,
     aiTitle: null,
+    preview: thread.preview ?? null,
     firstPrompt: thread.firstUserMessage ?? thread.preview,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
@@ -135,12 +136,18 @@ export function agentThreadSnapshotToDesktop(
   const standalone = snapshot.thread.workspace.kind === 'projectless'
   const planModeActive = snapshot.thread.settings.taskMode === 'plan'
   const events = snapshotEvents(snapshot)
+  const latestMessage = events
+    .slice()
+    .reverse()
+    .find(e => (e.type === 'message' || e.type === 'assistant_delta') && typeof e.content === 'string' && e.content.trim())
+  const preview = latestMessage?.content?.slice(0, 180) ?? latestInput?.content?.slice(0, 180) ?? null
   const item: DesktopSessionListItem = {
     id: snapshot.thread.id,
     projectId: snapshot.thread.projectID,
     sessionName: snapshot.thread.title || null,
     customTitle: null,
     aiTitle: null,
+    preview,
     firstPrompt: snapshot.inputs[0]?.content ?? null,
     workspaceName: workspace.name,
     workspacePath: workspace.path,

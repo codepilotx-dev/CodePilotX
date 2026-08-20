@@ -48,6 +48,7 @@ describe('agent thread adapter', () => {
     const item = agentThreadListItemToDesktop(thread, project)
     expect(item.status).toBe('waiting')
     expect(item.workspacePath).toBe(project.rootPath)
+    expect(item.preview).toBe('预览')
     expect(item.firstPrompt).toBe('第一条消息')
     expect(item.permissionMode).toBe('full-access')
     expect(item.planModeActive).toBe(true)
