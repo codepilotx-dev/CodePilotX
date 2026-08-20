@@ -310,6 +310,26 @@
   font: inherit;
 }
 
+.md-code-editor-textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--cpx-sys-color-fg-primary);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
+  line-height: var(--cpx-sys-line-height-code);
+  white-space: pre;
+  overflow-x: auto;
+  resize: vertical;
+}
+
 .md-code-placeholder,
 .md-mermaid-fallback,
 .md-math-fallback {

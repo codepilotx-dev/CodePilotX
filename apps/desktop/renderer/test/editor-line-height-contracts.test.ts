@@ -49,6 +49,20 @@ describe('editor line-height contracts', () => {
     expect(codeBlock.fontSize).toBe('var(--cpx-sys-font-size-code)')
     expect(codeBlock.lineHeight).toBe('var(--cpx-sys-line-height-code)')
     expect(
+      markdownRichThemeSpec['&.cm-markdown-rich .cm-md-rich-code-block-widget'],
+    ).toEqual({
+      display: 'block',
+      boxSizing: 'border-box',
+      margin: '14px 0',
+    })
+    expect(
+      markdownRichThemeSpec[
+        '&.cm-markdown-rich .cm-md-rich-code-block-widget .md-code-block'
+      ],
+    ).toEqual({
+      margin: '0',
+    })
+    expect(
       markdownRichThemeSpec['&.cm-markdown-rich .cm-line.cm-md-rich-horizontal-rule'],
     ).toEqual({
       minHeight: '1lh',

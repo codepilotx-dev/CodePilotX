@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
-import React, { useEffect, useRef, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 
 import {
@@ -7,7 +7,8 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { cx } from '../../utils/cx.js'
-import { useDesktopTheme } from '../theme/themeContext.js'
+import { DesktopThemeContext } from '../theme/themeContext.js'
+import type { DesktopThemeVariant } from '../../../shared/types.js'
 import {
   formatSyntaxLanguageLabel,
   normalizeSyntaxLanguage,
@@ -24,6 +25,8 @@ export type CodeBlockProps = {
   code: string
   language?: string | null
   streaming?: boolean
+  onChangeCode?: (code: string) => void
+  onChangeLanguage?: (language: string) => void
 }
 
 export function CodeBlock({
@@ -32,9 +35,22 @@ export function CodeBlock({
   code,
   language,
   streaming = false,
+  onChangeCode,
+  onChangeLanguage,
 }: CodeBlockProps): ReactNode {
-  const { activeTheme, codeThemeId } = useDesktopTheme()
-  const resolvedTheme = resolveThemeId(codeThemeId, activeTheme.variant)
+  const themeContext = useContext(DesktopThemeContext)
+  const variant: DesktopThemeVariant =
+    themeContext?.activeTheme.variant ??
+    (typeof document !== 'undefined' &&
+    document.documentElement.dataset.theme === 'light'
+      ? 'light'
+      : 'dark')
+  const codeThemeId =
+    themeContext?.codeThemeId ??
+    (typeof document !== 'undefined'
+      ? (document.documentElement.dataset.codeThemeId ?? 'codex-dark')
+      : 'codex-dark')
+  const resolvedTheme = resolveThemeId(codeThemeId, variant)
   const presentation = useHighlightedCode({
     code,
     language,
@@ -42,10 +58,25 @@ export function CodeBlock({
     theme: resolvedTheme,
   })
   const [copied, setCopied] = useState(false)
+  const [isEditingLang, setIsEditingLang] = useState(false)
+  const [editLangValue, setEditLangValue] = useState(language ?? '')
+  const [isEditingCode, setIsEditingCode] = useState(false)
+  const [editCodeValue, setEditCodeValue] = useState(code)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const copyFeedbackTimerRef = useRef<number | null>(null)
   const highlightedLanguage =
     presentation.highlighted?.language ?? normalizeSyntaxLanguage(language)
   const languageLabel = formatSyntaxLanguageLabel(highlightedLanguage)
+
+  useEffect(() => {
+    setEditCodeValue(code)
+  }, [code])
+
+  useEffect(() => {
+    if (isEditingCode && textareaRef.current) {
+      textareaRef.current.focus()
+    }
+  }, [isEditingCode])
 
   useEffect(() => {
     return () => {
@@ -54,6 +85,14 @@ export function CodeBlock({
       }
     }
   }, [])
+
+  function commitLanguageChange(): void {
+    setIsEditingLang(false)
+    const trimmed = editLangValue.trim()
+    if (trimmed !== (language ?? '').trim()) {
+      onChangeLanguage?.(trimmed)
+    }
+  }
 
   async function handleCopy(): Promise<void> {
     try {
@@ -89,9 +128,49 @@ export function CodeBlock({
       )}
     >
       <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-base tw:text-app-text-soft">
-        <span className="md-code-lang tw:font-mono">
-          {languageLabel}
-        </span>
+        {isEditingLang ? (
+          <input
+            autoFocus
+            aria-label="输入代码语言"
+            className="md-code-lang-input tw:h-6 tw:w-28 tw:rounded-xs tw:border tw:border-app-accent tw:bg-app-raised tw:px-1.5 tw:font-mono tw:text-app-text tw:outline-none"
+            placeholder="语言 (如 ts, json)"
+            value={editLangValue}
+            onBlur={commitLanguageChange}
+            onChange={e => setEditLangValue(e.target.value)}
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => {
+              e.stopPropagation()
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commitLanguageChange()
+              } else if (e.key === 'Escape') {
+                e.preventDefault()
+                setIsEditingLang(false)
+                setEditLangValue(language ?? '')
+              }
+            }}
+            onPointerDown={e => e.stopPropagation()}
+          />
+        ) : onChangeLanguage ? (
+          <button
+            aria-label={`修改代码语言：当前为 ${languageLabel}`}
+            className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:rounded-xs tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+            title="点击直接修改代码语言"
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              setEditLangValue(language ?? '')
+              setIsEditingLang(true)
+            }}
+            onPointerDown={e => e.stopPropagation()}
+          >
+            <span>{languageLabel}</span>
+          </button>
+        ) : (
+          <span className="md-code-lang tw:font-mono">
+            {languageLabel}
+          </span>
+        )}
         <span className="md-code-actions tw:flex tw:items-center">
           <button
             aria-label={copied ? '已复制代码' : '复制代码'}
@@ -128,12 +207,65 @@ export function CodeBlock({
           'tw:font-mono',
           'tw:overflow-x-auto',
           'tw:whitespace-pre',
+          onChangeCode && !isEditingCode && 'tw:cursor-text',
         )}
+        onClick={() => {
+          if (onChangeCode && !isEditingCode) {
+            setEditCodeValue(code)
+            setIsEditingCode(true)
+          }
+        }}
       >
-        <code className="md-code-content" style={codeStyle}>
-          <HighlightedTokens result={presentation.highlighted} />
-          {presentation.plainText}
-        </code>
+        {isEditingCode ? (
+          <textarea
+            ref={textareaRef}
+            aria-label="编辑代码内容"
+            className="md-code-editor-textarea tw:m-0 tw:w-full tw:resize-y tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-inherit tw:leading-inherit tw:text-app-text tw:outline-none tw:whitespace-pre tw:overflow-x-auto"
+            style={{
+              ...codeStyle,
+              minHeight: `${Math.max(2, editCodeValue.split('\n').length) * 1.5}em`,
+              fontFamily: 'inherit',
+              fontSize: 'inherit',
+              lineHeight: 'inherit',
+            }}
+            value={editCodeValue}
+            onBlur={() => {
+              setIsEditingCode(false)
+              if (editCodeValue !== code) {
+                onChangeCode?.(editCodeValue)
+              }
+            }}
+            onChange={e => {
+              setEditCodeValue(e.target.value)
+            }}
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => {
+              e.stopPropagation()
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                setIsEditingCode(false)
+                setEditCodeValue(code)
+              } else if (e.key === 'Tab') {
+                e.preventDefault()
+                const target = e.currentTarget
+                const start = target.selectionStart
+                const end = target.selectionEnd
+                const val = target.value
+                const nextVal = `${val.substring(0, start)}  ${val.substring(end)}`
+                setEditCodeValue(nextVal)
+                queueMicrotask(() => {
+                  target.selectionStart = target.selectionEnd = start + 2
+                })
+              }
+            }}
+            onPointerDown={e => e.stopPropagation()}
+          />
+        ) : (
+          <code className="md-code-content" style={codeStyle}>
+            <HighlightedTokens result={presentation.highlighted} />
+            {presentation.plainText}
+          </code>
+        )}
       </pre>
     </figure>
   )

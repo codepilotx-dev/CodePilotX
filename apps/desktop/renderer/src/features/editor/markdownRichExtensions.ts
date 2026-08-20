@@ -17,6 +17,7 @@ import {
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MermaidRenderer } from '../markdown/MermaidRenderer.js'
+import { CodeBlock } from '../syntax/CodeBlock.js'
 
 type RichDecorationSets = {
   atomic: DecorationSet
@@ -54,6 +55,8 @@ const richDecorationField = StateField.define<RichDecorationSets>({
 })
 const mermaidRoots = new WeakMap<HTMLElement, Root>()
 const mermaidObservers = new WeakMap<HTMLElement, ResizeObserver>()
+const codeBlockRoots = new WeakMap<HTMLElement, Root>()
+const codeBlockObservers = new WeakMap<HTMLElement, ResizeObserver>()
 
 const headingClasses = new Map<string, string>([
   ['ATXHeading1', 'cm-md-rich-h1'],
@@ -257,6 +260,18 @@ function buildRichDecorations(view: EditorView): RichDecorationSets {
           case 'FencedCode':
             if (
               addMermaidDecoration(
+                view,
+                node,
+                decorationRanges,
+                atomicRanges,
+                seenDecorations,
+                seenAtomicRanges,
+              )
+            ) {
+              return false
+            }
+            if (
+              addCodeBlockDecoration(
                 view,
                 node,
                 decorationRanges,
@@ -630,6 +645,150 @@ class MermaidBlockWidget extends WidgetType {
   }
 }
 
+function addCodeBlockDecoration(
+  view: EditorView,
+  node: MarkdownSyntaxNode,
+  decorationRanges: Range<Decoration>[],
+  atomicRanges: Range<Decoration>[],
+  seenDecorations: Set<string>,
+  seenAtomicRanges: Set<string>,
+): boolean {
+  const info = node.getChild('CodeInfo')
+  const rawInfo = info
+    ? view.state.doc.sliceString(info.from, info.to).trim()
+    : ''
+  const language = rawInfo.split(/\s+/u, 1)[0] ?? ''
+  if (language.toLowerCase() === 'mermaid') {
+    return false
+  }
+
+  const startLine = view.state.doc.lineAt(node.from)
+  const endLine = view.state.doc.lineAt(node.to)
+
+  let code = ''
+  if (startLine.number < endLine.number) {
+    const firstCodeLine = view.state.doc.line(startLine.number + 1)
+    const lastCodeLine = view.state.doc.line(endLine.number - 1)
+    if (firstCodeLine.number <= lastCodeLine.number) {
+      code = view.state.doc.sliceString(firstCodeLine.from, lastCodeLine.to)
+    }
+  }
+
+  const from = startLine.from
+  const to = endLine.to
+  const key = `code-block:${from}:${to}`
+  if (seenDecorations.has(key)) return true
+  seenDecorations.add(key)
+
+  const decoration = Decoration.replace({
+    block: true,
+    widget: new CodeBlockWidget(code, language, from, to),
+  }).range(from, to)
+
+  decorationRanges.push(decoration)
+  if (!seenAtomicRanges.has(key)) {
+    seenAtomicRanges.add(key)
+    atomicRanges.push(decoration)
+  }
+  return true
+}
+
+class CodeBlockWidget extends WidgetType {
+  constructor(
+    private readonly code: string,
+    private readonly language: string,
+    private readonly sourceFrom: number,
+    private readonly sourceTo: number,
+  ) {
+    super()
+  }
+
+  override eq(other: CodeBlockWidget): boolean {
+    return (
+      this.code === other.code &&
+      this.language === other.language &&
+      this.sourceFrom === other.sourceFrom &&
+      this.sourceTo === other.sourceTo
+    )
+  }
+
+  override toDOM(view: EditorView): HTMLElement {
+    const host = view.dom.ownerDocument.createElement('div')
+    host.className = 'cm-md-rich-code-block-widget'
+    const root = createRoot(host)
+    codeBlockRoots.set(host, root)
+
+    const handleChangeLanguage = (newLanguage: string): void => {
+      if (view.state.readOnly) return
+      queueMicrotask(() => {
+        if (!view.dom.isConnected) return
+        const startLine = view.state.doc.lineAt(this.sourceFrom)
+        const lineText = startLine.text
+        const fenceMatch = lineText.match(/^(\s*)(`{3,}|~{3,})(.*)$/)
+        if (fenceMatch) {
+          const indent = fenceMatch[1] ?? ''
+          const marker = fenceMatch[2] ?? '```'
+          const fromPos = startLine.from + indent.length + marker.length
+          const toPos = startLine.to
+          view.dispatch({
+            changes: { from: fromPos, to: toPos, insert: newLanguage },
+          })
+        }
+      })
+    }
+
+    const handleChangeCode = (newCode: string): void => {
+      if (view.state.readOnly) return
+      queueMicrotask(() => {
+        if (!view.dom.isConnected) return
+        const startLine = view.state.doc.lineAt(this.sourceFrom)
+        const endLine = view.state.doc.lineAt(this.sourceTo)
+        let codeStartPos = startLine.to + 1
+        let codeEndPos = startLine.to + 1
+        if (startLine.number < endLine.number) {
+          const firstCodeLine = view.state.doc.line(startLine.number + 1)
+          const lastCodeLine = view.state.doc.line(endLine.number - 1)
+          if (firstCodeLine.number <= lastCodeLine.number) {
+            codeStartPos = firstCodeLine.from
+            codeEndPos = lastCodeLine.to
+          }
+        }
+        view.dispatch({
+          changes: { from: codeStartPos, to: codeEndPos, insert: newCode },
+        })
+      })
+    }
+
+    root.render(
+      React.createElement(CodeBlock, {
+        code: this.code,
+        language: this.language,
+        onChangeCode: view.state.readOnly ? undefined : handleChangeCode,
+        onChangeLanguage: view.state.readOnly ? undefined : handleChangeLanguage,
+      }),
+    )
+
+    const observer =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => view.requestMeasure())
+    observer?.observe(host)
+    if (observer) {
+      codeBlockObservers.set(host, observer)
+    }
+    queueMicrotask(() => view.requestMeasure())
+    return host
+  }
+
+  override destroy(dom: HTMLElement): void {
+    codeBlockObservers.get(dom)?.disconnect()
+    codeBlockObservers.delete(dom)
+    const root = codeBlockRoots.get(dom)
+    codeBlockRoots.delete(dom)
+    queueMicrotask(() => root?.unmount())
+  }
+}
+
 function selectionEntersNode(
   view: EditorView,
   node: MarkdownSyntaxNode,
@@ -796,6 +955,14 @@ export const markdownRichThemeSpec = {
       borderBottomLeftRadius: 'var(--cpx-sys-radius-lg)',
       borderBottomRightRadius: 'var(--cpx-sys-radius-lg)',
     },
+  '&.cm-markdown-rich .cm-md-rich-code-block-widget': {
+    display: 'block',
+    boxSizing: 'border-box',
+    margin: '14px 0',
+  },
+  '&.cm-markdown-rich .cm-md-rich-code-block-widget .md-code-block': {
+    margin: '0',
+  },
   '&.cm-markdown-rich .cm-md-rich-mermaid': {
     display: 'block',
     boxSizing: 'border-box',
