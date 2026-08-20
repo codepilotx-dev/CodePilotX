@@ -334,7 +334,7 @@ function SidebarSessionGroupComponent({
           </SidebarSessionTitle>
         )}
         {presentation === 'workspace-meta' ? (
-          <SidebarSessionWorkspaceMeta session={session} />
+          <SidebarSessionSubtitle session={session} />
         ) : null}
         </span>
       </button>
@@ -513,21 +513,11 @@ function SidebarSessionGroupComponent({
           layout="position"
           transition={motionTransition(reducedMotion, layoutTween)}
         >
-          <span
-            aria-hidden="true"
-            className={cx(
-              'sidebar-row-leading',
-              'sidebar-row-leading-spacer',
-              'u-min-w-0',
-              'u-flex',
-              'u-items-center',
-            )}
-          />
           <div className={cx('sidebar-row-main', 'u-min-w-0', 'u-flex', 'u-items-center')}>
             {canShowMore ? (
               <Button
                 aria-expanded={canCollapse}
-                className="u-w-auto"
+                className="u-w-auto sidebar-show-more-button"
                 color="ghostTertiary"
                 onClick={() =>
                   setVisibleLimit((current) =>
@@ -542,7 +532,7 @@ function SidebarSessionGroupComponent({
             ) : null}
             {canCollapse ? (
               <Button
-                className="u-w-auto"
+                className="u-w-auto sidebar-show-more-button"
                 color="ghostTertiary"
                 onClick={() => setVisibleLimit(GROUP_LIMIT)}
                 size="compact"
@@ -552,17 +542,6 @@ function SidebarSessionGroupComponent({
               </Button>
             ) : null}
           </div>
-          <span
-            aria-hidden="true"
-            className={cx(
-              'sidebar-row-trailing',
-              'u-min-w-0',
-              'u-flex',
-              'u-items-center',
-              'u-w-full',
-              'u-justify-end',
-            )}
-          />
         </motion.div>
       ) : null}
       </>
@@ -701,6 +680,32 @@ export function getSidebarSessionDisplayGroups<T>(
       : [],
     hasOverflow,
   };
+}
+
+export function sessionSnippet(session: SessionListItem): string | null {
+  const raw = session.summary || session.preview || session.firstPrompt || null
+  if (!raw) return null
+  const cleaned = raw
+    .replace(/^#+\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return cleaned || null
+}
+
+function SidebarSessionSubtitle({
+  session,
+}: {
+  session: SessionListItem
+}): React.ReactNode {
+  const snippet = sessionSnippet(session)
+  if (snippet) {
+    return (
+      <span className="sidebar-session-snippet" title={snippet}>
+        {snippet}
+      </span>
+    )
+  }
+  return <SidebarSessionWorkspaceMeta session={session} />
 }
 
 function SidebarSessionWorkspaceMeta({

@@ -35,7 +35,10 @@ import {
 import {
   countOpenProjectSessions,
 } from '../src/features/layout/sidebar/SidebarProjectHoverCard.js'
-import { getSidebarSessionDisplayGroups } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
+import {
+  getSidebarSessionDisplayGroups,
+  sessionSnippet,
+} from '../src/features/layout/sidebar/SidebarSessionGroup.js'
 import {
   buildSidebarTimelineModel,
   buildSidebarPinnedItems,
@@ -1458,5 +1461,45 @@ describe('侧栏时间线投影', () => {
     expect(model.pinnedSessions).toEqual([])
     expect(model.prioritySessions).toEqual([])
     expect(model.dateSections).toEqual([])
+  })
+
+  test('sessionSnippet 优先提取 summary、preview 或 firstPrompt，并清理 markdown 标题与换行', () => {
+    const baseSession: SessionListItem = {
+      id: 'session-1',
+      sessionName: '测试会话',
+      aiTitle: null,
+      customTitle: null,
+      workspaceName: 'CodePilotX',
+      workspacePath: 'F:\\CodeProject\\CodePilotX',
+      status: 'idle',
+      permissionMode: 'default',
+      model: null,
+      thinkingMode: 'default',
+      hasSystemPrompt: false,
+      hasAppendSystemPrompt: false,
+      additionalDirectoryCount: 0,
+      createdAt: '2026-08-01T00:00:00.000Z',
+    }
+
+    // 1. 无任何文本内容时返回 null
+    expect(sessionSnippet(baseSession)).toBeNull()
+
+    // 2. 提取 firstPrompt
+    expect(sessionSnippet({ ...baseSession, firstPrompt: '你好，帮我分析一下项目结构' })).toBe('你好，帮我分析一下项目结构')
+
+    // 3. preview 优先于 firstPrompt
+    expect(sessionSnippet({
+      ...baseSession,
+      firstPrompt: '第一条消息',
+      preview: '## 最新进展\n已完成侧边栏重构与样式统一。',
+    })).toBe('最新进展 已完成侧边栏重构与样式统一。')
+
+    // 4. summary 优先于 preview
+    expect(sessionSnippet({
+      ...baseSession,
+      firstPrompt: '第一条消息',
+      preview: '最新进展',
+      summary: '### 任务摘要\n全部模块已通过测试与类型检查。',
+    })).toBe('任务摘要 全部模块已通过测试与类型检查。')
   })
 })

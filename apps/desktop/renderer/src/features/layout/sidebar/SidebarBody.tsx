@@ -1018,16 +1018,6 @@ function SidebarShowMoreActions({
 }): React.ReactNode {
   return (
     <div className="sidebar-show-more-actions">
-      <span
-        aria-hidden="true"
-        className={cx(
-          "sidebar-row-leading",
-          "sidebar-row-leading-spacer",
-          "u-min-w-0",
-          "u-flex",
-          "u-items-center",
-        )}
-      />
       <div
         className={cx(
           "sidebar-row-main",
@@ -1039,7 +1029,7 @@ function SidebarShowMoreActions({
         {canShowMore ? (
           <Button
             aria-expanded={canCollapse}
-            className="u-w-auto"
+            className="u-w-auto sidebar-show-more-button"
             color="ghostTertiary"
             onClick={onShowMore}
             size="compact"
@@ -1050,7 +1040,7 @@ function SidebarShowMoreActions({
         ) : null}
         {canCollapse ? (
           <Button
-            className="u-w-auto"
+            className="u-w-auto sidebar-show-more-button"
             color="ghostTertiary"
             onClick={onCollapse}
             size="compact"
@@ -1105,7 +1095,7 @@ function SidebarSection({
       transition={motionTransition(reducedMotion, layoutTween)}
     >
       <div
-        className="sidebar-section-header tw:rounded-sm tw:px-2 tw:py-1.25 tw:text-sm"
+        className="sidebar-section-header tw:rounded-sm tw:px-2 tw:py-1.25 tw:text-base"
       >
         <h2 className="sidebar-section-title">
           <button
