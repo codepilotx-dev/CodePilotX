@@ -339,22 +339,43 @@ export class TaskSuggestionService {
           : cause instanceof TaskSuggestionServiceError
             ? cause.reason
             : "provider"
-      this.logger.warn("task_suggestion.generate.failed", {
-        reason,
-      })
+      if (reason === "timeout" || reason === "provider") {
+        if (reason === "timeout") {
+          this.logger.info("task_suggestion.generate.fallback", { reason })
+        } else {
+          this.logger.warn("task_suggestion.generate.fallback", { reason })
+        }
+        return {
+          contextKey,
+          generatedAt: this.now(),
+          suggestions: this.fallbackSuggestions(contextKey, context),
+        }
+      }
       if (cause instanceof TaskSuggestionServiceError) throw cause
+      this.logger.warn("task_suggestion.generate.failed", { reason })
       throw new TaskSuggestionServiceError(
         reason,
-        reason === "timeout"
-          ? "任务建议生成超时"
-          : reason === "invalid-output"
-            ? "任务建议模型返回无效结果"
-            : "任务建议模型当前不可用",
+        reason === "invalid-output"
+          ? "任务建议模型返回无效结果"
+          : "任务建议生成失败",
         { cause },
       )
     } finally {
       clearTimeout(timer)
     }
+  }
+
+  private fallbackSuggestions(
+    contextKey: string,
+    context: ReturnType<TaskSuggestionService["normalizeContext"]>,
+  ): TaskSuggestion[] {
+    const localCandidates = context.localCandidates
+    return localCandidates.map((candidate, index) => ({
+      id: `${contextKey.slice(0, 16)}:${index}`,
+      categoryId: candidate.categoryId,
+      label: candidate.label,
+      prompt: candidate.prompt,
+    }))
   }
 
   private normalizeGenerated(

@@ -13,7 +13,10 @@ import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { MemoryService } from "../src/memory/MemoryService"
 import { AgentLogger } from "../src/observability/AgentLogger"
 import type { PiModelService } from "../src/provider/pi/PiModelService"
-import { TaskSuggestionService } from "../src/suggestion/TaskSuggestionService"
+import {
+  TaskSuggestionService,
+  TaskSuggestionServiceError,
+} from "../src/suggestion/TaskSuggestionService"
 
 const roots: string[] = []
 
@@ -318,7 +321,7 @@ describe("TaskSuggestionService", () => {
     db.close()
   })
 
-  test("rejects categories that do not belong to the requested surface", async () => {
+test("rejects categories that do not belong to the requested surface", async () => {
     const { db, project, memory, logger } = await fixture()
     const service = new TaskSuggestionService(
       db,
@@ -338,6 +341,217 @@ describe("TaskSuggestionService", () => {
     await expect(service.generate(invalid)).rejects.toMatchObject({
       reason: "invalid-output",
     })
+    db.close()
+  })
+
+  test("hanging provider returns local candidates after the short timeout and caches them", async () => {
+    const { db, project, memory, logger } = await fixture()
+    db.setSetting("desktop.settings.v1", {
+      providerID: "provider:test",
+      smallFastModel: "fast",
+    })
+    const model = { provider: "provider:test", id: "fast" } as PiModel<Api>
+    let generateCalls = 0
+    const logEvents: Array<{ level: "info" | "warn" | "error" | "debug"; event: string; fields?: Record<string, unknown> }> = []
+    const observableLogger = Object.create(logger) as AgentLogger
+    ;(observableLogger as { info: typeof logger.info }).info = (event, fields) => {
+      logEvents.push({ level: "info", event, ...(fields ? { fields } : {}) })
+      logger.info(event, fields)
+    }
+    ;(observableLogger as { warn: typeof logger.warn }).warn = (event, fields) => {
+      logEvents.push({ level: "warn", event, ...(fields ? { fields } : {}) })
+      logger.warn(event, fields)
+    }
+    const service = new TaskSuggestionService(
+      db,
+      { pi: {}, getPiModel: async () => model } as unknown as Pick<PiModelService, "pi" | "getPiModel">,
+      memory,
+      observableLogger,
+      {
+        timeoutMs: 5,
+        generate: async ({ signal }) => new Promise((_, reject) => {
+          generateCalls += 1
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true })
+        }),
+      },
+      {
+        snapshot: () => ({
+          model_provider: "provider:test",
+          task_models: { small_fast: "fast" },
+        }),
+        read: async () => ({
+          config: {
+            model_provider: "provider:test",
+            task_models: { small_fast: "fast" },
+          },
+        }),
+      } as never,
+    )
+
+    const first = await service.generate(params(project.id))
+    const second = await service.generate(params(project.id))
+
+    expect(generateCalls).toBe(1)
+    expect(first.suggestions).toHaveLength(4)
+    expect(first.suggestions.map((suggestion) => suggestion.categoryId)).toEqual([
+      "codex-review",
+      "codex-fix",
+      "codex-explore",
+      "codex-create",
+    ])
+    expect(second).toEqual(first)
+    expect(logEvents.some((entry) => entry.event === "task_suggestion.generate.fallback" && entry.fields?.reason === "timeout")).toBe(true)
+    db.close()
+  })
+
+  test("provider failure returns local candidates, caches them, and logs only once per context", async () => {
+    const { db, project, memory, logger } = await fixture()
+    db.setSetting("desktop.settings.v1", {
+      providerID: "provider:test",
+      smallFastModel: "fast",
+    })
+    const model = { provider: "provider:test", id: "fast" } as PiModel<Api>
+    let generateCalls = 0
+    const logEvents: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const observableLogger = Object.create(logger) as AgentLogger
+    ;(observableLogger as { warn: typeof logger.warn }).warn = (event, fields) => {
+      logEvents.push({ event, ...(fields ? { fields } : {}) })
+      logger.warn(event, fields)
+    }
+    const service = new TaskSuggestionService(
+      db,
+      { pi: {}, getPiModel: async () => model } as unknown as Pick<PiModelService, "pi" | "getPiModel">,
+      memory,
+      observableLogger,
+      {
+        generate: async () => {
+          generateCalls += 1
+          throw new Error("provider offline")
+        },
+      },
+      {
+        snapshot: () => ({
+          model_provider: "provider:test",
+          task_models: { small_fast: "fast" },
+        }),
+        read: async () => ({
+          config: {
+            model_provider: "provider:test",
+            task_models: { small_fast: "fast" },
+          },
+        }),
+      } as never,
+    )
+
+    const first = await service.generate(params(project.id))
+    const second = await service.generate(params(project.id))
+
+    expect(generateCalls).toBe(1)
+    expect(first.suggestions).toHaveLength(4)
+    expect(first.suggestions.map((suggestion) => suggestion.categoryId)).toEqual([
+      "codex-review",
+      "codex-fix",
+      "codex-explore",
+      "codex-create",
+    ])
+    expect(second).toEqual(first)
+    const providerLogs = logEvents.filter((entry) => entry.event === "task_suggestion.generate.fallback" && entry.fields?.reason === "provider")
+    expect(providerLogs).toHaveLength(1)
+    db.close()
+  })
+
+  test("invalid-output still rejects and never returns fallback suggestions", async () => {
+    const { db, project, memory, logger } = await fixture()
+    db.setSetting("desktop.settings.v1", {
+      providerID: "provider:test",
+      smallFastModel: "fast",
+    })
+    const model = { provider: "provider:test", id: "fast" } as PiModel<Api>
+    const service = new TaskSuggestionService(
+      db,
+      { pi: {}, getPiModel: async () => model } as unknown as Pick<PiModelService, "pi" | "getPiModel">,
+      memory,
+      logger,
+      {
+        generate: async () => ({
+          suggestions: [
+            { categoryId: "codex-explore", label: "  ", prompt: "空标签" },
+          ],
+        }),
+      },
+      {
+        snapshot: () => ({
+          model_provider: "provider:test",
+          task_models: { small_fast: "fast" },
+        }),
+        read: async () => ({
+          config: {
+            model_provider: "provider:test",
+            task_models: { small_fast: "fast" },
+          },
+        }),
+      } as never,
+    )
+
+    await expect(service.generate(params(project.id))).rejects.toBeInstanceOf(TaskSuggestionServiceError)
+    await expect(service.generate(params(project.id))).rejects.toMatchObject({ reason: "invalid-output" })
+    db.close()
+  })
+
+  test("configuration failure is not masked by the local fallback", async () => {
+    const { db, memory, logger } = await fixture()
+    const service = new TaskSuggestionService(
+      db,
+      {
+        pi: {},
+        getPiModel: async () => { throw new Error("no model configured") },
+      } as never,
+      memory,
+      logger,
+    )
+
+    await expect(service.generate(params())).rejects.toMatchObject({ reason: "configuration" })
+    db.close()
+  })
+
+  test("Working fallback keeps the three-category, three-row shape", async () => {
+    const { db, project, memory, logger } = await fixture()
+    db.setSetting("desktop.settings.v1", {
+      providerID: "provider:test",
+      smallFastModel: "fast",
+    })
+    const model = { provider: "provider:test", id: "fast" } as PiModel<Api>
+    const service = new TaskSuggestionService(
+      db,
+      { pi: {}, getPiModel: async () => model } as unknown as Pick<PiModelService, "pi" | "getPiModel">,
+      memory,
+      logger,
+      {
+        generate: async () => { throw new Error("provider offline") },
+      },
+      {
+        snapshot: () => ({
+          model_provider: "provider:test",
+          task_models: { small_fast: "fast" },
+        }),
+        read: async () => ({
+          config: {
+            model_provider: "provider:test",
+            task_models: { small_fast: "fast" },
+          },
+        }),
+      } as never,
+    )
+
+    const result = await service.generate(params(project.id, "working"))
+
+    expect(result.suggestions).toHaveLength(3)
+    expect(result.suggestions.map((suggestion) => suggestion.categoryId)).toEqual([
+      "create",
+      "research",
+      "automate",
+    ])
+    expect(result.suggestions[0]?.label).toBe(workingCandidates[0].label)
     db.close()
   })
 })
