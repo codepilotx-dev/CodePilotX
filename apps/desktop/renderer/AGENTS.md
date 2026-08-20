@@ -30,6 +30,7 @@
 
 ## 样式契约与白名单
 
+- 界面全面坚持简约扁平风格：底板、卡片、面板与常规容器零阴影，纯靠 1px 细微边框和底色阶区分；仅浮层（Modal/Popover/Toast/悬浮 Composer）使用克制纯深色微投影（`--cpx-sys-shadow-floating`），遮罩一律使用深色半透明（`--cpx-comp-modal-scrim`）加轻柔化，严禁暗色发白光晕或白雾蒙层。
 - `style-contracts.json` 中的白名单是经过审查的固定例外，不是检查失败后的自动基线；禁止机械增加计数、批量刷新基线或保留已经失效的条目。
 - `literalLineHeightAllowlist` 只允许收录行高直接参与固定桌面控件几何的场景，例如按钮、徽标、菜单、标签、固定控制条和 Review diff。Markdown、会话正文、设置说明、编辑器文本等可缩放内容必须使用 `--type-line-*` 语义 token，或基于语义 token 的 `var()`、`calc()`、`min()`、`max()`、`clamp()`，不得加入白名单。
 - `tailwindLeadingAllowlist` 默认保持为空；TSX 不得通过新增 `tw:leading-*` 绕过语义排版。新增排版角色必须复用或扩展现有 Tailwind 主题、设计 token 或语义样式层。
