@@ -566,6 +566,7 @@ export const ThreadCreateWorkspaceSchema = Schema.Union([
 ])
 
 const ThreadCreateFields = {
+  creationSurface: Schema.optional(AgentThread.ThreadCreationSurfaceSchema),
   title: Schema.optional(Schema.String),
   settings: Schema.optional(AgentThread.ThreadSettingsSchema),
   ...OperationParamsSchema.fields,

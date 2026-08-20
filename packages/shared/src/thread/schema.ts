@@ -104,11 +104,15 @@ export const ThreadWorkspaceSchema = Schema.Union([
 ])
 export type ThreadWorkspace = typeof ThreadWorkspaceSchema.Type
 
+export const ThreadCreationSurfaceSchema = Schema.Literals(["coding", "working", "chat"])
+export type ThreadCreationSurface = typeof ThreadCreationSurfaceSchema.Type
+
 export const ThreadSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   projectID: Schema.NullOr(Schema.String),
   gitBranch: Schema.NullOr(Schema.String),
+  creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
   workspace: Schema.optional(ThreadWorkspaceSchema),
   settings: ThreadSettingsSchema,
   createdAt: Schema.Number,
@@ -120,6 +124,7 @@ export const ThreadListItemSchema = Schema.Struct({
   id: Schema.String,
   projectID: Schema.NullOr(Schema.String),
   gitBranch: Schema.NullOr(Schema.String),
+  creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
   workspace: Schema.optional(ThreadWorkspaceSchema),
   title: Schema.String,
   preview: Schema.NullOr(Schema.String),

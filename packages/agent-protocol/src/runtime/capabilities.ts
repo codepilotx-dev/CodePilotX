@@ -46,6 +46,7 @@ export const Capabilities = [
   "thread.handoff.v1",
   "thread.fork.v1",
   "thread.side-chat.v1",
+  "thread.creation-surface.v1",
   "worktree.manage.v1",
   "taskboard.v1",
 ] as const
