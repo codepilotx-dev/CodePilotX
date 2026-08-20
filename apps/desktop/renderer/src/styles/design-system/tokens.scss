@@ -89,7 +89,7 @@
   --cpx-sys-radius-full: 9999px;
 
   // System Typography
-  --cpx-sys-font-family-sans: ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --cpx-sys-font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --cpx-sys-font-family-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 
   --cpx-sys-font-size-ui: 14px;
@@ -107,7 +107,7 @@
   --cpx-sys-line-height-relaxed: calc(var(--cpx-sys-font-size-lg) + 6px);
   --cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-sm) * 1.55);
 
-  --cpx-sys-font-weight-regular: 445;
+  --cpx-sys-font-weight-regular: 400;
   --cpx-sys-font-weight-medium: 500;
   --cpx-sys-font-weight-bold: 600;
 
