@@ -111,13 +111,11 @@
   border: 0;
   background: transparent;
   color: var(--cpx-sys-color-fg-tertiary);
-  opacity: 0.72;
   transition:
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    opacity var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   .session-follow-up-item:hover & {
-    opacity: 1;
+    color: var(--cpx-sys-color-fg-secondary);
   }
 
   &:hover {

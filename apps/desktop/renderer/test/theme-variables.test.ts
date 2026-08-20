@@ -59,7 +59,7 @@ describe('fixed Codex UI themes', () => {
     expect(normalizedStylesheet).toContain(
       `--cpx-sys-font-family-sans: ${DEFAULT_UI_FONT};`,
     )
-    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-regular: 445;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-regular: 400;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-medium: 500;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-bold: 600;')
     expect(normalizedStylesheet).toContain(
@@ -101,12 +101,8 @@ describe('fixed Codex UI themes', () => {
     expect(light['--cpx-sys-color-surface-under']).toBe('#f6f6f6')
     expect(light['--cpx-sys-color-surface']).toBe('#ffffff')
     expect(light['--cpx-sys-color-fg-primary']).toBe('#1a1c1f')
-    expect(light['--cpx-sys-color-fg-secondary']).toBe(
-      'rgba(26, 28, 31, 0.695)',
-    )
-    expect(light['--cpx-sys-color-fg-tertiary']).toBe(
-      'rgba(26, 28, 31, 0.495)',
-    )
+    expect(light['--cpx-sys-color-fg-secondary']).toBe('#606163')
+    expect(light['--cpx-sys-color-fg-tertiary']).toBe('#8e8f90')
     expect(light['--cpx-sys-color-border-subtle']).toBe('rgba(26, 28, 31, 0.049)')
     expect(light['--cpx-sys-color-border-default']).toBe('rgba(26, 28, 31, 0.078)')
     expect(light['--cpx-sys-color-border-strong']).toBe('rgba(26, 28, 31, 0.117)')
@@ -124,12 +120,8 @@ describe('fixed Codex UI themes', () => {
     expect(dark['--cpx-sys-color-surface']).toBe('#181818')
     expect(dark['--cpx-sys-color-fg-primary']).toBe('#ffffff')
     expect(dark['--cpx-sys-color-panel']).toBe('#232323')
-    expect(dark['--cpx-sys-color-fg-secondary']).toBe(
-      'rgba(255, 255, 255, 0.71)',
-    )
-    expect(dark['--cpx-sys-color-fg-tertiary']).toBe(
-      'rgba(255, 255, 255, 0.498)',
-    )
+    expect(dark['--cpx-sys-color-fg-secondary']).toBe('#bcbcbc')
+    expect(dark['--cpx-sys-color-fg-tertiary']).toBe('#8b8b8b')
     expect(dark['--cpx-sys-color-border-subtle']).toBe(
       'rgba(255, 255, 255, 0.042)',
     )

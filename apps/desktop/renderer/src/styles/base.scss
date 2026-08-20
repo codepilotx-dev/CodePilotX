@@ -13,6 +13,8 @@ body,
 
 html {
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
@@ -25,6 +27,9 @@ body {
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-regular);
   line-height: var(--cpx-sys-line-height-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   scrollbar-color: var(--cpx-comp-scrollbar-slider-bg) transparent;
   scrollbar-width: thin;
 }

@@ -369,11 +369,7 @@
 }
 
 .sidebar-item-icon {
-  color: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 50%,
-    transparent
-  );
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .sidebar-row:hover .sidebar-item-icon,
@@ -837,25 +833,16 @@
 .sidebar-session-row:hover,
 .sidebar-session-row.active {
   .sidebar-session-snippet {
-    color: color-mix(
-      in srgb,
-      var(--cpx-sys-color-fg-primary) 70%,
-      transparent
-    );
+    color: var(--cpx-sys-color-fg-secondary);
   }
   .sidebar-session-workspace-meta {
-    color: color-mix(
-      in srgb,
-      var(--cpx-sys-color-fg-primary) 70%,
-      transparent
-    );
+    color: var(--cpx-sys-color-fg-secondary);
   }
 }
 
 .sidebar-session-workspace-meta__icon,
 .sidebar-session-workspace-meta__glyph {
   flex: 0 0 auto;
-  opacity: 0.82;
 }
 
 .sidebar-session-workspace-meta__name {
@@ -1244,11 +1231,7 @@
   color: var(--cpx-sys-color-fg-primary);
 
   .sidebar-item-icon {
-    color: color-mix(
-      in srgb,
-      var(--cpx-sys-color-fg-primary) 50%,
-      transparent
-    );
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 
   &:hover .sidebar-item-icon,

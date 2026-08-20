@@ -225,11 +225,7 @@
 }
 
 .execution-plan-card__step-index {
-  color: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-tertiary) 80%,
-    transparent
-  );
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .execution-plan-card__step-text {
