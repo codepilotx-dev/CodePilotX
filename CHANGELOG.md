@@ -9,6 +9,7 @@
 
 ### Added
 
+- [Agent/desktop/renderer] 模型目录统一接入 models.dev，在保留 Pi 原生执行、用户自定义 Provider 与加密凭据的同时，自动启用安全的 OpenAI-compatible Provider，并为离线缓存和未适配协议提供明确状态。
 - [desktop/renderer] 支持 GitHub 风格的 Markdown 提示块（Alerts / Callouts，支持 `[!NOTE]`、`[!TIP]`、`[!IMPORTANT]`、`[!WARNING]`、`[!CAUTION]`）：在正文会话时间线与右侧 Markdown 富文本编辑器/预览中统一渲染色彩边框、图标徽标与专属警示色系，富文本编辑中聚焦首行可直接修改围栏标签。
 - [development] 新增 CodePilotX 项目级代码审查、推送前检查、文档规范和简化审计 Skills，使 Agent 按仓库架构与验证契约执行常见工程工作流。
 - [Agent/desktop/renderer] 新增原生任务看板：支持 Project 筛选、五阶段拖拽排序、标签与评论、乐观并发、任务关联执行对话及本地或托管 worktree 启动，并向 Agent 提供受权限约束的任务工具。
@@ -24,6 +25,7 @@
 
 ### Changed
 
+- [desktop/renderer] 全面对齐 Codex 风格的文件浏览与「打开文件」界面：重构「打开文件」标签页为左右分栏布局（左侧呈现根路径与打开文件居中空状态插图，右侧呈现带宽度拖拽分割条的文件树面板）；文件树目录行改用精简 Chevron 展开折叠箭头，文件行全量接入彩色 Material 图标并修复单色样式覆盖，顶部始终呈现「筛选文件...」搜索框，在单工作区模式下隐藏冗余的主目录分组头，并实现文件树展开状态与宽度的跨面板持久化同步。
 - [desktop/renderer] 统一 Markdown 富文本代码块与正文页组件呈现：富文本编辑与预览中代码块升级为统一的 CodeBlock 结构，对齐语言标签、复制代码与 Shiki 语法高亮；支持在代码块头部直接点击语言标签原地修改语言，且点击代码内容区域直接在代码块内部就地编辑代码（不展开裸露的代码围栏反引号 ```），实时双向同步至底层 Markdown 文档。
 - [desktop/renderer] 现代化重构正文与 Markdown 阅读排版体系：正文行高显著提升至 1.7（--cpx-sys-line-height-reading），段落间距增至 14px，列表项间隙增至 10px~12px，标题字重统一定为 600（Semi-bold）并增大上边距（H1 30px / H2 26px / H3 22px），精细化行内代码与代码块/表格垂直留白，并同步用户提问气泡内衬排版，全面消除拥挤感，大幅提升技术长文阅读舒适度。
 - [desktop/renderer] 深度对齐 Codex 侧边栏视觉与交互体验：全量接入并响应系统「界面字号」设计令牌（--cpx-sys-font-size-ui / --cpx-sys-font-size-sm），统一侧栏字号与字重层级规范（导航/项目/常规会话使用界面主字号 400 字重，时间线主标题 500 字重，分组标题使用次级字号 500 字重，二级摘要使用次级字号弱化灰 400 字重），规范 Windows 平台抗锯齿与字体渲染；时间线模式升级为标准双行卡片模式（高度约 50px），优先提取并展示会话最新消息/摘要预览（Snippet，单行截断省略），无内容时优雅回退显示所属工作区标签。
@@ -80,6 +82,8 @@
 
 ### Fixed
 
+- [Agent/desktop] 修复 models.dev 缓存重载时丢失工具调用等模型能力元数据，恢复 Provider 模型数量、兼容状态和模型选择器中的已配置 Provider。
+- [Agent/desktop/renderer] 修复 Provider 模型数量依赖按需缓存、模型选择器仅显示当前 Provider 的问题；模型中心现在展示准确的可执行模型总数，并在选择器打开时加载全部已配置 Provider 的完整模型目录。
 - [desktop/renderer] 修复字体变体应用逻辑：CSS 变量改用系统原生全称（如 "MiSans VF Semibold"、"JetBrains Mono SemiBold"）替代带连字符与自定义前缀的别名，确保 Windows/macOS/Linux 各字重与字形样式即时生效并兼容历史配置。
 - [desktop/renderer] 全局去除文本透明度混合与文字 Alpha 通道：将底层主题 Token（`--cpx-sys-color-fg-secondary`、`--cpx-sys-color-fg-tertiary`、`--cpx-sys-color-fg-disabled`）由 `rgba()` 全面重构为基于背景表面混合的纯实色 Hex；清理侧边栏、工作流卡片、会话状态与设置面板中所有作用于文本与图标的 `color-mix(..., transparent)` 与 `opacity` hack，彻底消除 Windows Chromium DirectWrite 灰阶抗锯齿降级导致的字体边缘发虚发灰问题，全局文字与图标在各种背景下均呈现极致清晰锐利的纯色对比度。
 - [Agent/usage] 修复 MiniMax Token Plan 额度解析将已用次数（usage_count）误当成剩余次数、以及纯百分比套餐（total_count 为 0）被误判为耗尽并显示 0% 的问题。
