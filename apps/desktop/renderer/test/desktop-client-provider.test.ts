@@ -91,6 +91,68 @@ describe('desktop provider client', () => {
     expect(isExecutableDesktopProvider(unavailable)).toBe(false)
   })
 
+  describe('models.dev logo URL', () => {
+    test('仅当 catalogOrigin 为 models-dev 时生成固定域名 SVG URL', () => {
+      const summary = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          catalogOrigin: 'models-dev',
+        },
+        models: provider.models,
+      } as never)
+
+      expect(summary.logoURL).toBe(
+        'https://models.dev/logos/minimax-cn-coding-plan.svg',
+      )
+    })
+
+    test('对含特殊字符的 providerID 安全进行 encodeURIComponent', () => {
+      const summary = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          id: 'prov/中文 id & ?=+#',
+          catalogOrigin: 'models-dev',
+        },
+        models: provider.models,
+      } as never)
+
+      expect(summary.logoURL).toBe(
+        `https://models.dev/logos/${encodeURIComponent('prov/中文 id & ?=+#')}.svg`,
+      )
+      expect(summary.logoURL?.startsWith('https://models.dev/logos/')).toBe(true)
+      expect(summary.logoURL?.endsWith('.svg')).toBe(true)
+    })
+
+    test('用户自定义或非 models-dev 来源不生成 models.dev 图标 URL', () => {
+      const userDefined = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          catalogOrigin: 'user',
+        },
+        models: provider.models,
+      } as never)
+      const piBundled = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          catalogOrigin: 'pi-bundled',
+        },
+        models: provider.models,
+      } as never)
+      const undefinedOrigin = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+        },
+        models: provider.models,
+      } as never)
+
+      expect(userDefined.logoURL).toBeUndefined()
+      expect(piBundled.logoURL).toBeUndefined()
+      expect(undefinedOrigin.logoURL).toBeUndefined()
+      expect(userDefined.logoURL ?? '').not.toContain('models.dev')
+      expect(piBundled.logoURL ?? '').not.toContain('models.dev')
+    })
+  })
+
   test('仅支持 OAuth 的 provider 未认证时不会被 adapter 视为已配置', () => {
     expect(catalogProviderToDesktop({
       provider: {

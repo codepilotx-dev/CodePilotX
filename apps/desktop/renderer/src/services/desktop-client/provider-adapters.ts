@@ -49,6 +49,9 @@ export function catalogProviderToDesktop(
     providerKind: provider.source.kind,
     catalogOrigin: extendedProvider.catalogOrigin,
     availability: extendedProvider.availability,
+    logoURL: extendedProvider.catalogOrigin === 'models-dev'
+      ? modelsDevLogoURL(provider.id)
+      : undefined,
     providerApis: provider.source.apis.filter(isProviderApi),
     enabled: provider.disabled !== true,
     authMethods: [
@@ -87,4 +90,10 @@ function isProviderApi(
   return value === 'openai-completions'
     || value === 'openai-responses'
     || value === 'anthropic-messages'
+}
+
+const MODELS_DEV_LOGO_BASE_URL = 'https://models.dev/logos/'
+
+function modelsDevLogoURL(providerID: string): string {
+  return `${MODELS_DEV_LOGO_BASE_URL}${encodeURIComponent(providerID)}.svg`
 }
