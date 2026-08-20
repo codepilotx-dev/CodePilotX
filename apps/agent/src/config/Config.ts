@@ -13,6 +13,7 @@ export interface AgentConfig {
   profileDatabasePath: string
   legacyDatabasePath: string
   piModelCachePath: string
+  modelsDevCatalogCachePath: string
   rendererDir: string | null
   rendererDevURL: string | null
   githubAuthBrokerURL: string | null
@@ -33,6 +34,7 @@ export interface AgentStorageLayout {
   profileDatabase: string
   legacyDatabase: string
   piModelCache: string
+  modelsDevCatalogCache: string
   hooksFile: string
   skillsRoot: string
   attachmentsRoot: string
@@ -91,6 +93,7 @@ export const resolveAgentStorageLayout = (
     profileDatabase: resolve(dataRoot, "profile.sqlite"),
     legacyDatabase: resolve(dataRoot, "agent.sqlite"),
     piModelCache: resolve(dataRoot, "pi-models.cache.json"),
+    modelsDevCatalogCache: resolve(dataRoot, "models-dev-catalog.cache.json"),
     hooksFile: resolve(dataRoot, "hooks.json"),
     skillsRoot: resolve(dataRoot, "skills"),
     attachmentsRoot: resolve(dataRoot, "attachments"),
@@ -119,6 +122,7 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     profileDatabasePath: storage.profileDatabase,
     legacyDatabasePath: storage.legacyDatabase,
     piModelCachePath: storage.piModelCache,
+    modelsDevCatalogCachePath: storage.modelsDevCatalogCache,
     rendererDir: process.env.CODEPILOTX_RENDERER_DIST ? resolve(process.env.CODEPILOTX_RENDERER_DIST) : process.env.CODEPILOTX_STATIC_DIR ? resolve(process.env.CODEPILOTX_STATIC_DIR) : process.env.CODEPILOTX_RENDERER_DIR ? resolve(process.env.CODEPILOTX_RENDERER_DIR) : null,
     rendererDevURL: process.env.CODEPILOTX_RENDERER_DEV_URL ?? process.env.CODEPILOTX_RENDERER_URL ?? null,
     githubAuthBrokerURL:

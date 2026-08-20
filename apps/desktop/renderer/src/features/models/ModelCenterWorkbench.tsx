@@ -1,4 +1,5 @@
 import { desktopClient } from "../../services/desktop-client/index.js";
+import { isExecutableDesktopProvider } from "../../services/desktop-client/provider-adapters.js";
 import { withModelCatalogLoading } from "../../hooks/useModelCatalogLoading.js";
 import React, { useEffect, useMemo, useState } from "react";
 import type {
@@ -227,6 +228,9 @@ export function ModelCenterWorkbench({
           effectiveConnectionStatus,
           configuredGroupByProvider.get(provider.providerID),
         );
+        const unavailableReason = provider.availability?.status === "unavailable"
+          ? providerAvailabilityLabel(provider.availability.reason)
+          : null;
         return {
           id: provider.providerID,
           name: provider.displayName,
@@ -237,21 +241,36 @@ export function ModelCenterWorkbench({
                 ? "Gateway"
                 : source === "custom"
                   ? "自定义"
-                  : "Pi 内置",
+                  : source === "models-dev"
+                    ? provider.providerKind === "models-dev"
+                      ? "models.dev · OpenAI 兼容"
+                      : "Pi 原生执行 · models.dev 目录"
+                    : "Pi 内置",
             )
             .join(" + "),
-          modelCount: provider.defaultModels.length,
+          modelCount: provider.modelCount ?? provider.defaultModels.length,
           current,
-          canAddConnection: effectiveConnectionStatus === "unconfigured",
+          canAddConnection: unavailableReason === null
+            && effectiveConnectionStatus === "unconfigured",
+          connectionDisabled: unavailableReason !== null,
           keyCount,
           hasOAuth,
           healthTone,
-          status: provider.unresolvedMigrationIssues?.length
+          status: unavailableReason
+            ? { label: unavailableReason, tone: "warning" }
+            : provider.unresolvedMigrationIssues?.length
             ? { label: "需要人工修复", tone: "danger" }
             : displayedStatus,
         };
       }),
     [configuredGroupByProvider, configuredProviderIds, providerDirectory],
+  );
+
+  const catalogSourceLabel = useMemo(
+    () => catalogSourceStatusLabel(
+      providers.find(provider => provider.catalogSource)?.catalogSource,
+    ),
+    [providers],
   );
 
   useEffect(() => {
@@ -376,6 +395,10 @@ export function ModelCenterWorkbench({
   }
 
   async function fetchModels(): Promise<void> {
+    if (!selectedProvider || !isExecutableDesktopProvider(selectedProvider)) {
+      onError("此 Provider 当前没有可执行模型，无法刷新目录。");
+      return;
+    }
     setBusy(true);
     setModelError(null);
     onNotice("正在从供应商刷新模型目录...");
@@ -399,6 +422,10 @@ export function ModelCenterWorkbench({
   }
 
   async function testConnection(): Promise<void> {
+    if (!selectedProvider || !isExecutableDesktopProvider(selectedProvider)) {
+      onError("此 Provider 的协议尚未适配，无法测试连接。");
+      return;
+    }
     setBusy(true);
     setModelError(null);
     onNotice("正在测试连接与鉴权有效性...");
@@ -731,7 +758,7 @@ export function ModelCenterWorkbench({
             <Button
               color="secondary"
               aria-label="测试连接"
-              disabled={busy}
+              disabled={busy || !selectedProvider || !isExecutableDesktopProvider(selectedProvider)}
               onClick={() => void testConnection()}
               title="测试当前连接"
             >
@@ -748,7 +775,7 @@ export function ModelCenterWorkbench({
             <Button
               color="secondary"
               aria-label="刷新目录"
-              disabled={busy}
+              disabled={busy || !selectedProvider || !isExecutableDesktopProvider(selectedProvider)}
               onClick={() => void fetchModels()}
               title="刷新模型目录"
             >
@@ -780,7 +807,11 @@ export function ModelCenterWorkbench({
             name: selectedProvider.displayName,
             logoURL: selectedProvider.logoURL,
             description: providerDescription(selectedProvider),
-            status: providerDetailStatus(selectedProviderState, selectedConfiguredGroup),
+            status: providerDetailStatus(
+              selectedProvider,
+              selectedProviderState,
+              selectedConfiguredGroup,
+            ),
           }}
         >
           {providerSection === "connection" ? (
@@ -845,6 +876,7 @@ export function ModelCenterWorkbench({
         </ProviderDetail>
       ) : (
         <ProviderCatalog
+          catalogSourceLabel={catalogSourceLabel}
           filter={catalogFilter}
           onAddConnection={(nextProviderID) =>
             setConnectionDialogProviderId(nextProviderID)
@@ -1027,14 +1059,29 @@ function providerDescription(
 ): string {
   if (!provider) return "管理供应商凭据与模型目录。";
   const parts = [provider.providerID];
-  parts.push(provider.providerKind === "custom" ? "Pi 自定义" : "Pi 内置");
+  parts.push(
+    provider.providerKind === "custom"
+      ? "自定义 Provider · Pi 执行"
+      : provider.providerKind === "models-dev"
+        ? "models.dev · OpenAI 兼容"
+        : provider.catalogOrigin === "models-dev"
+          ? "Pi 原生执行 · models.dev 目录"
+          : "Pi 内置",
+  );
   return parts.join(" · ");
 }
 
 function providerDetailStatus(
+  provider: DesktopModelProviderSummary,
   providerState: DesktopModelProviderState | null,
   group: ConfiguredProviderGroup | undefined,
 ): { label: string; tone: "positive" | "warning" | "neutral" } {
+  if (provider.availability?.status === "unavailable") {
+    return {
+      label: providerAvailabilityLabel(provider.availability.reason),
+      tone: "warning",
+    };
+  }
   if (group?.activeConnection) {
     return { label: "已连接", tone: "positive" };
   }
@@ -1042,6 +1089,32 @@ function providerDetailStatus(
     return { label: "已配置", tone: "positive" };
   }
   return { label: "未配置", tone: "neutral" };
+}
+
+function providerAvailabilityLabel(
+  reason: "unsupported-protocol"
+    | "missing-api"
+    | "unsafe-endpoint"
+    | "unresolved-endpoint"
+    | "no-compatible-models",
+): string {
+  switch (reason) {
+    case "missing-api": return "缺少 API 地址";
+    case "unsafe-endpoint": return "Endpoint 不安全";
+    case "unresolved-endpoint": return "Endpoint 尚未配置";
+    case "no-compatible-models": return "没有兼容模型";
+    case "unsupported-protocol": return "协议暂未适配";
+  }
+}
+
+function catalogSourceStatusLabel(
+  status: DesktopModelProviderSummary["catalogSource"],
+): string {
+  if (!status || status.mode === "pi-bundled") {
+    return "models.dev 不可用 · 使用 Pi 内置目录";
+  }
+  if (status.mode === "cache") return "models.dev · 使用缓存";
+  return "models.dev · 已更新";
 }
 
 function providerCatalogConnectionStatus(

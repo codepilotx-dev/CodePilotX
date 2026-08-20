@@ -9,5 +9,7 @@ export interface AgentModelCatalog {
   getModel(ref: Model.Ref): Promise<PiModel<Api>>;
   refresh(force?: boolean): Promise<void>;
   reload(): Promise<void>;
+  catalogStatus?(): Provider.CatalogSourceStatus;
+  catalogRevision?(): number;
   dispose(): Promise<void>;
 }

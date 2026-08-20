@@ -53,6 +53,7 @@ const workspaceMutationResult = <const Action extends "apply" | "discard" | "res
 const CatalogResultSchema = Schema.Struct({
   ...ModelCatalogSchema.fields,
   catalogVersion: SequenceSchema,
+  catalogSource: Schema.optional(Provider.CatalogSourceStatus),
   total: Schema.optional(NonNegativeIntSchema),
   nextCursor: Schema.optional(CursorSchema),
 })
@@ -142,15 +143,29 @@ export const CustomProviderDefinitionSchema = Schema.Struct({
   ),
 })
 
+export const ModelsDevProviderDefinitionSchema = Schema.Struct({
+  kind: Schema.Literal("models-dev"),
+  id: Provider.ID,
+  protocol: Schema.Literals(["pi-native", "openai-compatible", "unsupported"]),
+  readOnly: Schema.Literal(true),
+})
+
+export const ConfigurableProviderDefinitionSchema = Schema.Union([
+  BuiltinProviderDefinitionSchema,
+  CustomProviderDefinitionSchema,
+]).pipe(Schema.toTaggedUnion("kind"))
+
 export const ProviderDefinitionSchema = Schema.Union([
   BuiltinProviderDefinitionSchema,
   CustomProviderDefinitionSchema,
+  ModelsDevProviderDefinitionSchema,
 ]).pipe(Schema.toTaggedUnion("kind"))
 
 const ProviderListEntrySchema = Schema.Struct({
   ...Provider.Info.fields,
   authConfigured: Schema.Boolean,
   config: ProviderDefinitionSchema,
+  modelCount: Schema.optional(NonNegativeIntSchema),
 })
 
 const ProviderConfigIssueSchema = Schema.Struct({
@@ -172,6 +187,7 @@ const ProviderListResultSchema = Schema.Struct({
   defaultModel: Schema.NullOr(Model.Ref),
   reviewerModel: Schema.NullOr(Model.Ref),
   catalogVersion: SequenceSchema,
+  catalogSource: Schema.optional(Provider.CatalogSourceStatus),
 })
 
 export const ProviderCredentialHealthSchema = Schema.Struct({
@@ -605,7 +621,7 @@ export const ExtendedRpcMethods = {
   "provider/update": defineMethod({
     params: Schema.Struct({
       providerId: Provider.ID,
-      definition: ProviderDefinitionSchema,
+      definition: ConfigurableProviderDefinitionSchema,
       ...OperationParamsSchema.fields,
     }),
     result: Schema.Struct({

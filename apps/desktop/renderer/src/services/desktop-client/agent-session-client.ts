@@ -455,6 +455,7 @@ export function createAgentSessionDesktopClient(
     query?: string
     cursor?: string
     limit?: number
+    retryCatalogChange?: boolean
   }): Promise<RpcResult<'model/list'>> {
     if (!agentCapabilities.has('model.catalog.paged.v1')) {
       const legacy = await loadModelCatalog()
@@ -499,8 +500,10 @@ export function createAgentSessionDesktopClient(
     const result = await pending
     if (result.catalogVersion !== directory.catalogVersion) {
       invalidateModelCatalog()
-      if (options.cursor) throw new Error('模型目录已更新，请重新查询。')
-      return loadProviderModelPage(options)
+      if (options.cursor || options.retryCatalogChange === false) {
+        throw new Error('模型目录已更新，请重新查询。')
+      }
+      return loadProviderModelPage({ ...options, retryCatalogChange: false })
     }
     const page = result.providers.find(
       item => item.provider.id === options.providerID,
@@ -510,6 +513,61 @@ export function createAgentSessionDesktopClient(
     for (const model of page) merged.set(model.id, model)
     providerModelCache.set(options.providerID, [...merged.values()])
     return result
+  }
+
+  async function loadAllProviderModels(
+    providerID: ModelProviderID,
+  ): Promise<RpcResult<'model/list'>> {
+    const hadPrevious = providerModelCache.has(providerID)
+    const previous = providerModelCache.get(providerID)
+
+    try {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const models = new Map<string, RpcResult<'model/list'>['providers'][number]['models'][number]>()
+        const seenCursors = new Set<string>()
+        let cursor: string | undefined
+        let latest: RpcResult<'model/list'> | undefined
+        try {
+          do {
+            latest = await loadProviderModelPage({
+              providerID,
+              cursor,
+              limit: 100,
+              retryCatalogChange: false,
+            })
+            const provider = latest.providers.find(item => item.provider.id === providerID)
+            if (!provider) throw new Error(`未找到模型提供商：${providerID}`)
+            for (const model of provider.models) models.set(model.id, model)
+            cursor = latest.nextCursor
+            if (cursor && seenCursors.has(cursor)) {
+              throw new Error('模型目录分页游标重复，已停止加载。')
+            }
+            if (cursor) seenCursors.add(cursor)
+          } while (cursor)
+
+          const provider = latest?.providers.find(item => item.provider.id === providerID)
+          if (!latest || !provider) throw new Error(`未找到模型提供商：${providerID}`)
+          const completeModels = [...models.values()]
+          providerModelCache.set(providerID, completeModels)
+          const { nextCursor: _nextCursor, ...completeResult } = latest
+          return {
+            ...completeResult,
+            providers: [{ ...provider, models: completeModels }],
+            total: completeModels.length,
+          }
+        } catch (error) {
+          if (attempt === 0 && error instanceof Error && error.message === '模型目录已更新，请重新查询。') {
+            continue
+          }
+          throw error
+        }
+      }
+      throw new Error('模型目录加载失败。')
+    } catch (error) {
+      if (hadPrevious && previous) providerModelCache.set(providerID, previous)
+      else providerModelCache.delete(providerID)
+      throw error
+    }
   }
 
   async function loadProviderCredentials(
@@ -563,7 +621,12 @@ export function createAgentSessionDesktopClient(
     const catalogProvider: CatalogProvider = { provider, models }
     const summary = {
       ...catalogProviderToDesktop(catalogProvider),
+      modelCount: provider.modelCount,
       config: provider.config,
+      readOnly: provider.config.kind === 'models-dev',
+      protocol: provider.config.kind === 'models-dev'
+        ? provider.config.protocol
+        : undefined,
       unresolvedMigrationIssues: directory.issues
         .filter(issue => issue.providerId === provider.id)
         .map(issue => `${issue.code}:${issue.path}`),
@@ -2386,6 +2449,9 @@ export function createAgentSessionDesktopClient(
     listModelProviders: () => withAgentOrMock(
       async () => {
         const directory = await loadProviderCatalog()
+        const catalogSource = (directory as typeof directory & {
+          catalogSource?: import('../../../shared/types.js').DesktopCatalogSourceStatus
+        }).catalogSource
         return directory.providers.map(provider => ({
           ...catalogProviderToDesktop(
             {
@@ -2394,10 +2460,16 @@ export function createAgentSessionDesktopClient(
             },
           ),
           config: provider.config,
+          readOnly: provider.config.kind === 'models-dev',
+          protocol: provider.config.kind === 'models-dev'
+            ? provider.config.protocol
+            : undefined,
           unresolvedMigrationIssues: directory.issues
             .filter(issue => issue.providerId === provider.id)
             .map(issue => `${issue.code}:${issue.path}`),
           apiKeyConfigured: provider.authConfigured,
+          modelCount: provider.modelCount,
+          catalogSource,
         }))
       },
       () => mockClient.listModelProviders(),
@@ -2408,12 +2480,14 @@ export function createAgentSessionDesktopClient(
         () => mockClient.getModelProviderState(providerID),
       ),
     fetchProviderModels: async options => {
-      const result = await loadProviderModelPage({
-        providerID: options.providerID,
-        query: options.query,
-        cursor: options.cursor,
-        limit: options.limit,
-      })
+      const result = options.all
+        ? await loadAllProviderModels(options.providerID)
+        : await loadProviderModelPage({
+            providerID: options.providerID,
+            query: options.query,
+            cursor: options.cursor,
+            limit: options.limit,
+          })
       const provider = result.providers.find(
         item => item.provider.id === options.providerID,
       )

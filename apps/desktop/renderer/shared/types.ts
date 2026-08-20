@@ -569,12 +569,38 @@ export type DesktopModelMetadata = ModelMetadata & {
   providerApi?: 'openai-completions' | 'openai-responses' | 'anthropic-messages'
 }
 
+export type DesktopProviderAvailability =
+  | { status: 'ready' }
+  | {
+      status: 'unavailable'
+      reason:
+        | 'unsupported-protocol'
+        | 'missing-api'
+        | 'unsafe-endpoint'
+        | 'unresolved-endpoint'
+        | 'no-compatible-models'
+    }
+
+export type DesktopCatalogSourceStatus = {
+  source: 'models-dev'
+  mode: 'live' | 'cache' | 'pi-bundled'
+  stale: boolean
+  refreshedAt?: number
+  issue?: 'offline' | 'invalid-response' | 'cache-unsupported'
+}
+
 export type DesktopModelProviderSummary = Omit<ModelProviderSummary, 'modelMetadata'> & {
-  providerKind?: 'builtin' | 'custom'
+  modelCount?: number
+  providerKind?: 'builtin' | 'custom' | 'models-dev'
+  catalogOrigin?: 'models-dev' | 'user' | 'pi-bundled'
+  availability?: DesktopProviderAvailability
+  catalogSource?: DesktopCatalogSourceStatus
+  readOnly?: boolean
+  protocol?: 'pi-native' | 'openai-compatible' | 'unsupported'
   enabled?: boolean
   authMethods?: readonly ('api-key' | 'oauth')[]
   providerApis?: readonly ('openai-completions' | 'openai-responses' | 'anthropic-messages')[]
-  config?: DesktopProviderDefinition
+  config?: DesktopListedProviderDefinition
   unresolvedMigrationIssues?: readonly string[]
   modelMetadata?: Record<string, DesktopModelMetadata>
 }
@@ -806,6 +832,8 @@ export type SaveDesktopModelProviderOptions = {
 }
 
 export type DesktopProviderDefinition = RpcParams<'provider/update'>['definition']
+export type DesktopListedProviderDefinition =
+  RpcResult<'provider/list'>['providers'][number]['config']
 export type DesktopCustomProviderDefinition =
   RpcParams<'provider/create'>['definition']
 export type DesktopProviderModelDefinition =
@@ -1751,6 +1779,7 @@ export type DesktopApi = {
     query?: string
     cursor?: string
     limit?: number
+    all?: boolean
   }): Promise<DesktopProviderModelListResult>
   saveModelProvider(
     options: SaveDesktopModelProviderOptions,

@@ -287,6 +287,7 @@ export class RpcRouter {
     models: readonly Model.Info[]
     modelsByProvider: ReadonlyMap<string, readonly Model.Info[]>
   }> | null = null
+  private catalogSourceRevision = -1
   private readonly modelPageCache = new Map<string, Promise<ModelCatalogPage>>()
   private readonly handlers: RpcHandlers<RpcRouterContext>
   readonly connections = new Map<string, {
@@ -440,8 +441,10 @@ export class RpcRouter {
   }
 
   private loadCatalogSource() {
-    if (this.catalogSource) return this.catalogSource
     const { providers } = this.dependencies
+    const revision = providers.catalogRevision?.() ?? 0
+    if (this.catalogSource && this.catalogSourceRevision === revision) return this.catalogSource
+    this.catalogSourceRevision = revision
     this.catalogSource = Promise.all([providers.list(), providers.models()]).then(([providerInfos, models]) => {
       const modelsByProvider = new Map<string, Model.Info[]>()
       for (const model of models) {
@@ -463,6 +466,7 @@ export class RpcRouter {
 
   private invalidateCatalogSource() {
     this.catalogSource = null
+    this.catalogSourceRevision = -1
     this.modelPageCache.clear()
   }
 
@@ -502,10 +506,16 @@ export class RpcRouter {
 
   async providerList() {
     const source = await this.loadCatalogSource()
+    const catalogSource = this.dependencies.providers.catalogStatus?.()
     return {
-      providers: [...source.providers],
+      providers: source.providers.map(provider => ({
+        ...provider,
+        modelCount: (source.modelsByProvider.get(provider.id) ?? [])
+          .filter(model => model.enabled).length,
+      })),
       ...await this.configuredModels(),
       catalogVersion: this.catalogVersion,
+      ...(catalogSource ? { catalogSource } : {}),
     }
   }
 
@@ -541,6 +551,7 @@ export class RpcRouter {
 
   private async buildModelCatalog(query: ReturnType<RpcRouter["normalizedModelQuery"]>) {
     const source = await this.loadCatalogSource()
+    const catalogSource = this.dependencies.providers.catalogStatus?.()
     const filterHash = createHash("sha256").update(JSON.stringify(query.filters)).digest("base64url").slice(0, 16)
     let offset = 0
     if (query.cursor) {
@@ -577,6 +588,7 @@ export class RpcRouter {
         .map((provider) => ({ provider, models: pageByProvider.get(provider.id) ?? [] })),
       ...await this.configuredModels(),
       catalogVersion: this.catalogVersion,
+      ...(catalogSource ? { catalogSource } : {}),
       ...(query.limit === undefined ? {} : { total: matches.length }),
       ...(query.limit !== undefined && nextOffset < matches.length
         ? { nextCursor: Buffer.from(JSON.stringify({ version: this.catalogVersion, filter: filterHash, offset: nextOffset })).toString("base64url") }

@@ -2,6 +2,7 @@ import {
   desktopClient,
   loadDesktopTerminalClient,
 } from '../../../services/desktop-client/index.js'
+import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
 import {
   openPathWithPreferredExternalTarget,
   shouldFallbackToExternalOpen,
@@ -1709,19 +1710,21 @@ export function DesktopLayout(): React.ReactNode {
       ) {
         providers.unshift(providerState.provider)
       }
-      return providers.filter(provider => provider.apiKeyConfigured).map(provider => {
-        const isSelected =
-          provider.providerID === providerState?.selectedProviderID
-        const models = isSelected
-          ? providerState?.models ?? provider.defaultModels
-          : provider.defaultModels
-        return {
-          providerID: provider.providerID,
-          displayName: provider.displayName,
-          modelPresets: buildModelPresets(models),
-          baseURL: provider.baseURL,
-        }
-      })
+      return providers
+        .filter(provider => provider.apiKeyConfigured && isExecutableDesktopProvider(provider))
+        .map(provider => {
+          const isSelected =
+            provider.providerID === providerState?.selectedProviderID
+          const models = isSelected
+            ? providerState?.models ?? provider.defaultModels
+            : provider.defaultModels
+          return {
+            providerID: provider.providerID,
+            displayName: provider.displayName,
+            modelPresets: buildModelPresets(models),
+            baseURL: provider.baseURL,
+          }
+        })
     },
     [modelProviders, providerState],
   )
@@ -1757,7 +1760,18 @@ export function DesktopLayout(): React.ReactNode {
     deepSeekThinkingControls ||
     selectedProviderSummary?.kind === 'anthropic' ||
     selectedModelMetadata?.reasoning === true
+  const selectedModelAvailable = Boolean(
+    model
+    && selectedProviderSummary
+    && isExecutableDesktopProvider(selectedProviderSummary)
+    && (
+      selectedProviderID === providerState?.selectedProviderID
+        ? providerState.models.includes(model)
+        : selectedProviderSummary.defaultModels.includes(model)
+    ),
+  )
   const modelConfigured = providerState?.modelConfigured === true
+    && selectedModelAvailable
 
   useEffect(() => {
     const activeModel = activeSessionItem?.model?.trim()
@@ -1997,7 +2011,7 @@ export function DesktopLayout(): React.ReactNode {
     (providerID: ModelProviderID): void => {
       if (openedProviderCatalogsRef.current.has(providerID)) return
       openedProviderCatalogsRef.current.add(providerID)
-      void desktopClient.fetchProviderModels({ providerID, limit: 100 })
+      void desktopClient.fetchProviderModels({ providerID, all: true })
         .then(result => {
           setModelProviders(current => current.map(provider =>
             provider.providerID === providerID
@@ -2011,13 +2025,24 @@ export function DesktopLayout(): React.ReactNode {
                 }
               : provider,
           ))
+          setProviderState(current => current?.selectedProviderID === providerID
+            ? {
+                ...current,
+                models: result.models,
+                modelMetadata: {
+                  ...current.modelMetadata,
+                  ...result.modelMetadata,
+                },
+                error: result.error,
+              }
+            : current)
         })
         .catch(error => {
           openedProviderCatalogsRef.current.delete(providerID)
           setErrorMessage(error instanceof Error ? error.message : String(error))
         })
     },
-    [setModelProviders],
+    [setModelProviders, setProviderState],
   )
 
   const handleProviderSearch = useCallback(

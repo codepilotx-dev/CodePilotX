@@ -23,6 +23,12 @@ export class PiModelCatalogAdapter implements AgentModelCatalog {
   reload() {
     return this.service.reload();
   }
+  catalogStatus() {
+    return this.service.catalogStatus();
+  }
+  catalogRevision() {
+    return this.service.catalogRevision();
+  }
   dispose() {
     return this.service.dispose();
   }

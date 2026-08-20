@@ -94,6 +94,21 @@ export function ProviderConnectionSection({
   const [customBaseUrl, setCustomBaseUrl] = useState(customConfig?.baseUrl ?? '')
   const [savingBaseUrl, setSavingBaseUrl] = useState(false)
 
+  if (provider.availability?.status === 'unavailable') {
+    return (
+      <div className="model-center-connection-section">
+        <section className="model-center-detail-card">
+          <header className="model-center-detail-card-header">
+            <div>
+              <h3>此 Provider 暂不可用</h3>
+              <p>当前协议或 Endpoint 尚未适配，不能新增凭据或测试连接。</p>
+            </div>
+          </header>
+        </section>
+      </div>
+    )
+  }
+
   const oauthCredentials = (group?.connections ?? []).filter(
     connection => connection.kind === 'oauth' && connection.origin === 'credential',
   )

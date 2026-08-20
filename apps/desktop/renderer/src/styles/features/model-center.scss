@@ -95,6 +95,16 @@
   margin-top: var(--cpx-sys-space-2);
 }
 
+.model-center-catalog-source {
+  width: fit-content;
+  padding: 4px 9px;
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-comp-surface-panel);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
+}
+
 .model-center-catalog-toolbar {
   min-width: 0;
   display: flex;
@@ -174,6 +184,10 @@
     background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
     border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
     box-shadow var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
+
+  &[data-unavailable="true"] {
+    opacity: 0.68;
+  }
 
   &:hover {
     border-color: var(--cpx-sys-color-border-subtle);

@@ -1069,6 +1069,9 @@ describe("RPC v4 Router", () => {
     expect(providers.result.providers.map((provider: { authConfigured: boolean }) =>
       provider.authConfigured
     )).toEqual([true, false])
+    expect(providers.result.providers.map((provider: { modelCount: number }) =>
+      provider.modelCount
+    )).toEqual([2, 1])
     expect(authConfiguredCalls).toEqual([String(providerID)])
     const first = await call("model/list", { providerId: providerID, enabled: true, limit: 1 })
     expect(first.result).toMatchObject({ total: 2, catalogVersion: 1 })

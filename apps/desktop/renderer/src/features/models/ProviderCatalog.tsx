@@ -25,6 +25,7 @@ export type ProviderCatalogItem = {
   modelCount: number;
   current: boolean;
   canAddConnection: boolean;
+  connectionDisabled?: boolean;
   keyCount?: number;
   hasOAuth?: boolean;
   healthTone?: "healthy" | "warning" | "neutral";
@@ -43,6 +44,7 @@ export type ProviderCatalogProps = {
   onSelect: (providerId: ModelProviderID) => void;
   onAddConnection: (providerId: ModelProviderID) => void;
   onManageConnection: (providerId: ModelProviderID) => void;
+  catalogSourceLabel?: string;
 };
 
 export function ProviderCatalog({
@@ -54,9 +56,15 @@ export function ProviderCatalog({
   onSelect,
   onAddConnection,
   onManageConnection,
+  catalogSourceLabel,
 }: ProviderCatalogProps): React.ReactNode {
   return (
     <section className="model-center-catalog" aria-label="供应商目录">
+      {catalogSourceLabel ? (
+        <div className="model-center-catalog-source" role="status">
+          {catalogSourceLabel}
+        </div>
+      ) : null}
       <div className="model-center-catalog-toolbar">
         <SearchInput
           aria-label="搜索 Provider"
@@ -101,6 +109,7 @@ export function ProviderCatalog({
               <article
                 className="provider-card"
                 data-current={provider.current || undefined}
+                data-unavailable={provider.connectionDisabled || undefined}
                 key={provider.id}
               >
                 <button
@@ -179,6 +188,7 @@ export function ProviderCatalog({
                 <Button
                   color="secondary"
                   className="provider-card-connection-action"
+                  disabled={provider.connectionDisabled}
                   onClick={() =>
                     provider.canAddConnection
                       ? onAddConnection(provider.id)
@@ -190,7 +200,9 @@ export function ProviderCatalog({
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
-                  {provider.canAddConnection ? "连接" : "查看"}
+                  {provider.connectionDisabled
+                    ? "不可用"
+                    : provider.canAddConnection ? "连接" : "查看"}
                 </Button>
               </article>
             );

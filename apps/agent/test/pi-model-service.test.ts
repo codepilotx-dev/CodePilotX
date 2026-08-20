@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import { Model, type Credential } from "@codepilotx/model-schema"
 import { Effect } from "effect"
+import { mkdtemp, rm } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { EncryptedCredentialRepository } from "../src/auth/EncryptedCredentialRepository"
-import { EncryptedCredentialStore, PiModelService } from "../src/provider/pi"
+import { EncryptedCredentialStore, ModelsDevCatalogStore, PiModelService } from "../src/provider/pi"
 
 type Stored = {
   id: string
@@ -238,5 +241,121 @@ describe("PiModelService", () => {
       id: Model.ID.make(piModel!.id),
       variant: Model.VariantID.make("medium"),
     })).toBe(piModel!)
+  })
+
+  test("loads models.dev providers through Pi while preserving custom-provider precedence", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-models-dev-service-"))
+    const fake = repository([{
+      id: "cred_catalog_gateway",
+      integrationID: "catalog-gateway",
+      methodID: null,
+      label: "default",
+      value: { type: "key", key: "sk-models-dev-secret" },
+    }])
+    const catalog = {
+      "catalog-gateway": {
+        id: "catalog-gateway",
+        name: "Catalog Gateway",
+        npm: "@ai-sdk/openai-compatible",
+        api: "https://catalog-gateway.example/v1",
+        env: ["CATALOG_GATEWAY_API_KEY"],
+        models: {
+          chat: {
+            id: "chat",
+            name: "Catalog Chat",
+            reasoning: false,
+            tool_call: true,
+            modalities: { input: ["text"], output: ["text"] },
+            limit: { context: 64_000, output: 8_000 },
+          },
+        },
+      },
+      unsupported: {
+        id: "unsupported",
+        name: "Unsupported Native SDK",
+        npm: "@ai-sdk/example",
+        env: ["UNSUPPORTED_API_KEY"],
+        models: {
+          chat: {
+            id: "chat",
+            name: "Unsupported Chat",
+            reasoning: false,
+            tool_call: true,
+            modalities: { input: ["text"], output: ["text"] },
+            limit: { context: 32_000, output: 4_000 },
+          },
+        },
+      },
+      "custom-shadow": {
+        id: "custom-shadow",
+        name: "Remote Shadow",
+        npm: "@ai-sdk/openai-compatible",
+        api: "https://remote-shadow.example/v1",
+        env: ["REMOTE_SHADOW_API_KEY"],
+        models: {
+          remote: {
+            id: "remote",
+            name: "Remote",
+            reasoning: false,
+            tool_call: true,
+            modalities: { input: ["text"], output: ["text"] },
+            limit: { context: 32_000, output: 4_000 },
+          },
+        },
+      },
+    }
+    const service = new PiModelService(fake.adapter, {
+      modelsDevStore: new ModelsDevCatalogStore(join(root, "catalog.json")),
+      modelsDevFetch: async () => new Response(JSON.stringify(catalog), {
+        status: 200,
+        headers: { "content-type": "application/json", etag: '"catalog-v1"' },
+      }),
+      config: {
+        schemaVersion: 2,
+        providers: {
+          "custom-shadow": {
+            kind: "custom",
+            name: "User Shadow",
+            enabled: true,
+            base_url: "https://user-shadow.example/v1",
+            auth: "none",
+            env: [],
+            models: { local: { api: "openai-completions" } },
+          },
+        },
+      },
+      env: {},
+    })
+
+    try {
+      await service.refresh(true)
+      const providers = await service.list()
+      expect(providers.find((provider) => provider.id === "catalog-gateway")).toMatchObject({
+        source: { kind: "models-dev" },
+        catalogOrigin: "models-dev",
+        availability: { status: "ready" },
+      })
+      expect(providers.find((provider) => provider.id === "unsupported")).toMatchObject({
+        disabled: true,
+        availability: { status: "unavailable", reason: "unsupported-protocol" },
+      })
+      expect(providers.find((provider) => provider.id === "custom-shadow")).toMatchObject({
+        name: "User Shadow",
+        source: { kind: "custom" },
+        catalogOrigin: "user",
+      })
+      expect((await service.models()).some((model) =>
+        model.providerID === "catalog-gateway" && model.id === "chat" && model.enabled
+      )).toBe(true)
+      expect(service.catalogStatus()).toMatchObject({
+        source: "models-dev",
+        mode: "live",
+        stale: false,
+      })
+      expect(await service.isAuthConfigured("catalog-gateway")).toBe(true)
+    } finally {
+      await service.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
   })
 })

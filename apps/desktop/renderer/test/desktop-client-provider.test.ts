@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { createDesktopClient } from '../src/services/desktop-client/index.js'
-import { catalogProviderToDesktop } from '../src/services/desktop-client/provider-adapters.js'
+import {
+  catalogProviderToDesktop,
+  isExecutableDesktopProvider,
+} from '../src/services/desktop-client/provider-adapters.js'
 
 const provider = {
   provider: {
@@ -58,6 +61,36 @@ const provider = {
 }
 
 describe('desktop provider client', () => {
+  test('preserves models.dev origin and availability while filtering unavailable providers', () => {
+    const ready = catalogProviderToDesktop({
+      provider: {
+        ...provider.provider,
+        source: {
+          ...provider.provider.source,
+          kind: 'models-dev',
+        },
+        catalogOrigin: 'models-dev',
+        availability: { status: 'ready' },
+      },
+      models: provider.models,
+    } as never)
+    const unavailable = {
+      ...ready,
+      availability: {
+        status: 'unavailable' as const,
+        reason: 'unsupported-protocol' as const,
+      },
+    }
+
+    expect(ready).toMatchObject({
+      providerKind: 'models-dev',
+      catalogOrigin: 'models-dev',
+      availability: { status: 'ready' },
+    })
+    expect(isExecutableDesktopProvider(ready)).toBe(true)
+    expect(isExecutableDesktopProvider(unavailable)).toBe(false)
+  })
+
   test('仅支持 OAuth 的 provider 未认证时不会被 adapter 视为已配置', () => {
     expect(catalogProviderToDesktop({
       provider: {
@@ -180,6 +213,63 @@ describe('desktop provider client', () => {
     expect(requests.some(request => request.method === 'model/list' && Object.keys(request.params ?? {}).length === 0)).toBe(false)
   })
 
+  test('完整预加载会遍历 provider 的全部模型分页', async () => {
+    const modelRequests: Array<Record<string, unknown>> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'model.catalog.paged.v1']))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        return rpc(body.id, {
+          providers: [{ ...provider.provider, authConfigured: true, modelCount: 2 }],
+          issues: [],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: 9,
+        })
+      }
+      if (body.method === 'model/list') {
+        modelRequests.push(body.params)
+        const secondPage = body.params.cursor === 'page-2'
+        const modelID = secondPage ? 'MiniMax-M2' : 'MiniMax-M3'
+        return rpc(body.id, {
+          providers: [{
+            ...provider,
+            models: [{
+              ...provider.models[0],
+              id: modelID,
+              name: modelID,
+              api: { ...provider.models[0]!.api, id: modelID },
+            }],
+          }],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: 9,
+          total: 2,
+          ...(secondPage ? {} : { nextCursor: 'page-2' }),
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+
+    const client = createDesktopClient({ fetch: fetcher })
+    await client.listModelProviders()
+    const result = await client.fetchProviderModels({
+      providerID: provider.provider.id,
+      all: true,
+    })
+
+    expect(modelRequests).toEqual([
+      { providerId: provider.provider.id, enabled: true, limit: 100 },
+      { providerId: provider.provider.id, enabled: true, limit: 100, cursor: 'page-2' },
+    ])
+    expect(result.models).toEqual(['MiniMax-M3', 'MiniMax-M2'])
+    expect(result.nextCursor).toBeUndefined()
+  })
+
   test('provider 摘要使用 Agent 认证状态且仅按需加载当前 provider 模型', async () => {
     const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
     const codexProvider = {
@@ -243,8 +333,8 @@ describe('desktop provider client', () => {
       if (body.method === 'provider/list') {
         return rpc(body.id, {
           providers: [
-            { ...codexProvider, authConfigured: true },
-            { ...deepseekProvider, authConfigured: true },
+            { ...codexProvider, authConfigured: true, modelCount: 1 },
+            { ...deepseekProvider, authConfigured: true, modelCount: 1 },
           ],
           issues: [],
           defaultModel: { providerID: 'openai-codex', id: 'gpt-5' },
@@ -287,9 +377,10 @@ describe('desktop provider client', () => {
     expect(providers.map(item => ({
       providerID: item.providerID,
       apiKeyConfigured: item.apiKeyConfigured,
+      executable: isExecutableDesktopProvider(item),
     }))).toEqual([
-      { providerID: 'openai-codex', apiKeyConfigured: true },
-      { providerID: 'deepseek', apiKeyConfigured: true },
+      { providerID: 'openai-codex', apiKeyConfigured: true, executable: true },
+      { providerID: 'deepseek', apiKeyConfigured: true, executable: true },
     ])
     expect(
       requests.filter(request => request.method === 'model/list'),

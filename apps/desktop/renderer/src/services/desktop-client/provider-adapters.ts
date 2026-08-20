@@ -10,6 +10,10 @@ export function catalogProviderToDesktop(
   catalogProvider: CatalogProvider,
 ): DesktopModelProviderSummary {
   const { provider } = catalogProvider
+  const extendedProvider = provider as typeof provider & {
+    availability?: DesktopModelProviderSummary['availability']
+    catalogOrigin?: DesktopModelProviderSummary['catalogOrigin']
+  }
   const models = catalogProvider.models.filter(model => model.enabled)
   const modelMetadata = Object.fromEntries(
     models.map(model => {
@@ -43,6 +47,8 @@ export function catalogProviderToDesktop(
   return {
     providerID: provider.id,
     providerKind: provider.source.kind,
+    catalogOrigin: extendedProvider.catalogOrigin,
+    availability: extendedProvider.availability,
     providerApis: provider.source.apis.filter(isProviderApi),
     enabled: provider.disabled !== true,
     authMethods: [
@@ -65,6 +71,14 @@ export function catalogProviderToDesktop(
     envVars: [],
     requiresBaseURL: provider.source.kind === 'custom' && !provider.source.baseUrl,
   }
+}
+
+export function isExecutableDesktopProvider(
+  provider: DesktopModelProviderSummary,
+): boolean {
+  return provider.enabled !== false
+    && provider.availability?.status !== 'unavailable'
+    && (provider.modelCount ?? provider.defaultModels.length) > 0
 }
 
 function isProviderApi(

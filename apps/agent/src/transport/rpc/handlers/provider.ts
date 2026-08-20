@@ -67,6 +67,21 @@ const emitCredentialUpdated = async (runtime: RpcRouter, providerID: string) => 
   await runtime.emit("provider/credential/updated", { providerId: providerID })
 }
 
+const assertCredentialProviderAvailable = async (
+  providers: RpcRouter["dependencies"]["providers"],
+  providerID: string,
+) => {
+  const provider = (await providers.list()).find(
+    (candidate) => String(candidate.id) === providerID,
+  )
+  if (!provider) {
+    throw new AgentError("PROVIDER_NOT_FOUND", `Provider ${providerID} 不存在`, 404)
+  }
+  if (provider.availability?.status === "unavailable") {
+    throw new AgentError("PROVIDER_UNAVAILABLE", `Provider ${providerID} 协议暂未适配`, 400)
+  }
+}
+
 // The legacy provider/test wire contract only exposes the old category set;
 // timeout/provider are mapped to unknown while keeping a safe, specific message.
 const legacyTestCategory = (
@@ -417,6 +432,7 @@ export const providerHandlers = {
       }
       case "provider/apiKey/create": {
         const providerID = stringParam(params, "providerId")
+        await assertCredentialProviderAvailable(providers, providerID)
         const credential = await apiKeys.create({
           providerID,
           label: stringParam(params, "label"),
@@ -428,8 +444,15 @@ export const providerHandlers = {
         return { credential }
       }
       case "provider/apiKey/update": {
+        const credentialID = stringParam(params, "credentialId")
+        const existing = (await providerCredentials.list()).find(
+          (credential) => String(credential.id) === credentialID,
+        )
+        if (existing) {
+          await assertCredentialProviderAvailable(providers, String(existing.providerId))
+        }
         const credential = await apiKeys.update({
-          credentialID: stringParam(params, "credentialId"),
+          credentialID,
           ...(typeof params.label === "string" ? { label: params.label } : {}),
           ...(typeof params.key === "string" ? { key: params.key } : {}),
         })
@@ -440,6 +463,7 @@ export const providerHandlers = {
       }
       case "provider/apiKey/reorder": {
         const providerID = stringParam(params, "providerId")
+        await assertCredentialProviderAvailable(providers, providerID)
         await apiKeys.reorder(
           providerID,
           stringArray(params.orderedCredentialIds, "orderedCredentialIds"),
@@ -448,7 +472,14 @@ export const providerHandlers = {
         return { credentials: await providerCredentials.list(providerID) }
       }
       case "provider/apiKey/test": {
-        const result = await apiKeys.test(stringParam(params, "credentialId"))
+        const credentialID = stringParam(params, "credentialId")
+        const existing = (await providerCredentials.list()).find(
+          (credential) => String(credential.id) === credentialID,
+        )
+        if (existing) {
+          await assertCredentialProviderAvailable(providers, String(existing.providerId))
+        }
+        const result = await apiKeys.test(credentialID)
         await emitCredentialUpdated(runtime, String(result.credential.providerId))
         return result
       }

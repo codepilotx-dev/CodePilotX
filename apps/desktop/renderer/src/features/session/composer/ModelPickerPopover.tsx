@@ -255,9 +255,9 @@ export function ModelPickerPopover({
   useEffect(() => {
     if (open && !prevOpenRef.current) {
       const targetProviderID = selectedProviderID ?? providerOptions[0]?.providerID
-      if (targetProviderID) {
-        setActiveProviderID(targetProviderID)
-        onProviderOpen?.(targetProviderID)
+      if (targetProviderID) setActiveProviderID(targetProviderID)
+      for (const provider of providerOptions) {
+        onProviderOpen?.(provider.providerID)
       }
     }
     if (!open) {

@@ -17,6 +17,7 @@ import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
 import { WindowControls } from '../../layout/MenuBar.js'
 import { providerManagementStore } from '../../provider-management/providerManagementStore.js'
 import { useProviderManagementSnapshot } from '../../provider-management/useProviderManagementSnapshot.js'
@@ -60,7 +61,7 @@ export function ModelSetupPage(): React.ReactNode {
   const modelListboxId = useRef(`model-setup-model-list-${Math.random().toString(36).slice(2)}`)
 
   const providers = useMemo(
-    () => [...snapshot.providers].sort((left, right) => (
+    () => snapshot.providers.filter(isExecutableDesktopProvider).sort((left, right) => (
       left.displayName.localeCompare(right.displayName, 'zh-CN', {
         numeric: true,
         sensitivity: 'base',

@@ -27,6 +27,7 @@ import { PiOrchestratorAdapter } from "./orchestration/PiOrchestratorAdapter";
 import { ContextCompactionService } from "./context/ContextCompactionService";
 import {
   EncryptedCredentialStore,
+  ModelsDevCatalogStore,
   PiModelService,
   PiModelsFileStore,
 } from "./provider/pi";
@@ -365,6 +366,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const piModels = new PiModelService(providerCredentialStore, {
       ...(options.models ? { models: options.models } : {}),
       modelsStore: new PiModelsFileStore(config.piModelCachePath),
+      modelsDevStore: new ModelsDevCatalogStore(config.modelsDevCatalogCachePath),
       config: () => {
         const snapshot = configService.snapshot();
         const modelCatalog = snapshot.model_catalog as
@@ -825,6 +827,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       startQueues: () => threads.startRecoveredQueues(),
     });
     yield* Effect.promise(() => startupRecovery.run());
+    let disposed = false;
     const app = createApp({
       config,
       configService,
@@ -874,7 +877,14 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       taskboard,
       taskboardStart,
     });
-    let disposed = false;
+    const initialCatalogRevision = providers.catalogRevision?.() ?? 0;
+    void providers.refresh(false).catch(() => undefined).then(async () => {
+      const nextCatalogRevision = providers.catalogRevision?.() ?? 0;
+      if (disposed || nextCatalogRevision === initialCatalogRevision) return;
+      await publishAgentEvent(db, hub, null, null, "catalog/updated", {
+        catalogVersion: Math.max(1, nextCatalogRevision),
+      });
+    }).catch(() => undefined);
     const dispose = async () => {
       if (disposed) return;
       disposed = true;
