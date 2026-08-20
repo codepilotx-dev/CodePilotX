@@ -1,6 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type React from 'react'
-import { Folder, ListChecks } from 'lucide-react'
+import { Check, Copy, Folder, FolderOpen, ListChecks } from 'lucide-react'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from '../../../components/ui/iconTokens.js'
 import {
   AnimatePresence,
   motion,
@@ -110,29 +114,176 @@ export function RightDockFilesPanel({
   onAddComposerFiles,
 }: FilesPanelProps): React.ReactNode {
   const workspacePath = workspace?.path ?? ''
+  const initialTreeState = useRef(readFileTreeViewState(workspacePath, true))
+  const [treeVisible, setTreeVisible] = useState(
+    initialTreeState.current.visible,
+  )
+  const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
+  const [copied, setCopied] = useState(false)
+  const layoutRef = useRef<HTMLDivElement | null>(null)
+  const treeToggleRef = useRef<HTMLButtonElement | null>(null)
+  const treeResize = useEditorFileTreeResize({
+    committedWidth: treeWidth,
+    layoutRef,
+    onCommitWidth: setTreeWidth,
+  })
+
+  useEffect(() => {
+    writeFileTreeViewState(workspacePath, {
+      visible: treeVisible,
+      width: treeWidth,
+    })
+  }, [treeVisible, treeWidth, workspacePath])
+
+  function handleCopyWorkspacePath(): void {
+    if (!workspacePath) return
+    void navigator.clipboard.writeText(workspacePath).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
+  const rootDisplayName = workspacePath
+    ? workspacePath.replace(/\\/g, '/').replace(/\/$/, '')
+    : '/'
 
   return (
     <section className="right-dock-file-browser" aria-label="打开文件">
-      <header className="file-breadcrumb-toolbar file-breadcrumb-toolbar--empty">
-        <div
-          aria-label="文件路径：工作区根目录"
-          className="file-breadcrumb-toolbar__path"
+      <article
+        className={cx(
+          'right-dock-file-document',
+          'u-flex',
+          'u-flex-col',
+          'u-min-w-0',
+          'u-w-full',
+          'u-min-h-0',
+          'u-flex-1',
+          'u-h-full',
+        )}
+      >
+        <header className="file-breadcrumb-toolbar file-breadcrumb-toolbar--empty">
+          <div
+            aria-label={`文件路径：${rootDisplayName}`}
+            className="file-breadcrumb-toolbar__path"
+          >
+            <strong
+              className="file-breadcrumb-toolbar__root"
+              title={workspacePath}
+            >
+              {rootDisplayName}
+            </strong>
+          </div>
+          <div className="file-breadcrumb-toolbar__actions">
+            {workspacePath ? (
+              <button
+                aria-label={copied ? '已复制路径' : '复制工作区路径'}
+                className="file-breadcrumb-toolbar__action"
+                title={copied ? '已复制' : '复制工作区路径'}
+                type="button"
+                onClick={handleCopyWorkspacePath}
+              >
+                {copied ? (
+                  <Check
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                ) : (
+                  <Copy
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                )}
+              </button>
+            ) : null}
+            <button
+              ref={treeToggleRef}
+              aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
+              aria-pressed={treeVisible}
+              className="file-breadcrumb-toolbar__action"
+              title={treeVisible ? '隐藏文件树' : '显示文件树'}
+              type="button"
+              onClick={() => setTreeVisible(current => !current)}
+            >
+              <FolderOpen
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            </button>
+          </div>
+        </header>
+        <motion.div
+          ref={layoutRef}
+          className={cx(
+            'right-dock-file-editor-layout',
+            'u-flex-1',
+            'u-h-full',
+            treeVisible && 'has-file-tree',
+          )}
+          style={treeResize.layoutStyle}
         >
-          <strong className="file-breadcrumb-toolbar__root">/</strong>
-        </div>
-      </header>
-      <aside aria-label="工作区文件树" className="right-dock-open-file-tree">
-        <WorkspaceFileTree
-          key={workspacePath}
-          activePath={activePath}
-          autoFocusSearch
-          files={files}
-          revealToken={revealToken}
-          workspace={workspace}
-          onAddComposerFiles={onAddComposerFiles}
-          onOpenFile={onOpenFile}
-        />
-      </aside>
+          <div className="right-dock-file-selection-target right-dock-open-file-placeholder">
+            <div className="right-dock-empty-state">
+              <svg
+                aria-hidden="true"
+                className="right-dock-open-file-illustration"
+                fill="none"
+                height="58"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.6"
+                viewBox="0 0 24 24"
+                width="58"
+              >
+                <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+                <path d="M9 13h6" />
+                <path d="M12 10v6" />
+              </svg>
+              <strong>打开文件</strong>
+              <span>从工作区目录树中选择文件</span>
+            </div>
+          </div>
+          <EditorFileTreePresence
+            focusReturnRef={treeToggleRef}
+            liveWidth={treeResize.liveWidth}
+            visible={treeVisible}
+          >
+            <div
+              aria-label="调整文件树宽度"
+              aria-orientation="vertical"
+              aria-valuemax={treeResize.maximumWidth}
+              aria-valuemin={FILE_TREE_MIN_WIDTH}
+              aria-valuenow={treeWidth}
+              className="right-dock-editor-tree-resize-handle"
+              role="separator"
+              tabIndex={0}
+              title="拖拽调整文件树宽度，双击恢复默认宽度"
+              onDoubleClick={treeResize.resetWidth}
+              onKeyDown={treeResize.handleKeyDown}
+              onPointerDown={treeResize.startResize}
+            />
+            <aside
+              aria-label="工作区文件树"
+              className="right-dock-editor-file-tree"
+            >
+              <WorkspaceFileTree
+                key={workspacePath}
+                activePath={activePath}
+                autoFocusSearch
+                files={files}
+                revealToken={revealToken}
+                workspace={workspace}
+                onAddComposerFiles={onAddComposerFiles}
+                onEscape={() => setTreeVisible(false)}
+                onOpenFile={onOpenFile}
+              />
+            </aside>
+          </EditorFileTreePresence>
+        </motion.div>
+      </article>
     </section>
   )
 }
@@ -317,6 +468,8 @@ export function RightDockFilePreviewPanel({
           'u-min-w-0',
           'u-w-full',
           'u-min-h-0',
+          'u-flex-1',
+          'u-h-full',
         )}
       >
         <FileBreadcrumbToolbar
@@ -340,6 +493,8 @@ export function RightDockFilePreviewPanel({
           ref={layoutRef}
           className={cx(
             'right-dock-file-editor-layout',
+            'u-flex-1',
+            'u-h-full',
             treeVisible && 'has-file-tree',
           )}
           style={treeResize.layoutStyle}
@@ -809,6 +964,7 @@ function EditorFileTreePresenceItem({
         if (isPresent) setEntryComplete(true)
       }}
       style={{
+        height: '100%',
         width: liveShellWidth,
         minWidth: isPresent ? FILE_TREE_MIN_WIDTH + 8 : 0,
       }}
@@ -830,7 +986,7 @@ function fileTreeViewStorageKey(workspacePath: string): string {
 
 function readFileTreeViewState(
   workspacePath: string,
-  defaultVisible = false,
+  defaultVisible = true,
 ): FileTreeViewState {
   const fallback = {
     visible: defaultVisible,

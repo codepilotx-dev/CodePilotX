@@ -15,8 +15,21 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  width: 100%;
   background: var(--cpx-comp-surface-panel);
   overflow: hidden;
+
+  .right-dock-open-file-placeholder {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 .right-dock-file-preview {
@@ -76,6 +89,14 @@
 }
 
 .right-dock-file-document {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+
   .right-dock-file-code {
     min-height: 100%;
     margin: 0;
@@ -214,10 +235,6 @@
   padding: 0 var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-primary);
 
-  svg {
-    flex: 0 0 auto;
-  }
-
   strong {
     min-width: 0;
     overflow: hidden;
@@ -248,6 +265,7 @@
 .file-breadcrumb-toolbar__view-mode {
   padding: 0 var(--cpx-sys-space-2);
   font-size: var(--cpx-sys-font-size-sm);
+  color: var(--cpx-sys-color-fg-primary);
   white-space: nowrap;
 }
 
@@ -306,11 +324,15 @@
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
 
   > .right-dock-file-selection-target {
     min-width: 0;
+    min-height: 0;
     flex: 1 1 auto;
+    height: 100%;
   }
 }
 
@@ -442,6 +464,7 @@
   }
 }
 
+
 .right-dock-file-tree {
   min-width: 0;
   min-height: 0;
@@ -522,15 +545,18 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: var(--control-gap);
-  padding: 0.41em var(--control-padding-inline);
+  gap: 6px;
+  padding: 0 6px;
+  height: 28px;
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
+  font-size: var(--cpx-sys-font-size-sm);
   line-height: var(--control-line-height);
   text-align: left;
+  cursor: pointer;
+  user-select: none;
 
   &:hover {
     background: var(--cpx-sys-color-hover);
@@ -547,9 +573,32 @@
     white-space: nowrap;
   }
 
-  svg {
+  .right-dock-tree-chevron,
+  &.is-status svg {
     flex: 0 0 auto;
     color: var(--cpx-sys-color-fg-tertiary);
+  }
+
+  .right-dock-tree-file-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.right-dock-tree-chevron {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cpx-sys-color-fg-tertiary);
+  transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+
+  &.is-expanded {
+    transform: rotate(90deg);
   }
 }
 
@@ -580,12 +629,15 @@
 .right-dock-editor-file-tree-presence {
   display: flex;
   min-height: 0;
+  height: 100%;
   flex: 0 0 auto;
   overflow: hidden;
 
   > .right-dock-editor-file-tree {
     width: auto;
     min-width: 0;
+    min-height: 0;
+    height: 100%;
     flex: 1 1 auto;
   }
 }
@@ -681,26 +733,26 @@
 }
 
 .workspace-file-tree.right-dock-file-tree {
-  padding: 8px;
+  padding: 6px 4px;
 }
 
 .workspace-file-tree .right-dock-search {
   height: 28px;
   min-height: 28px;
-  padding: 0 8px;
+  margin-bottom: 4px;
 
   input {
-    font-size: var(--cpx-sys-font-size-md);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 }
 
 .workspace-file-tree .right-dock-tree-row {
-  height: 28px;
-  min-height: 28px;
-  gap: 10px;
+  height: 26px;
+  min-height: 26px;
+  gap: 6px;
   padding-block: 0;
   padding-right: 6px;
-  font-size: var(--cpx-sys-font-size-md);
+  font-size: var(--cpx-sys-font-size-sm);
 }
 .workspace-file-tree-groups {
   display: flex;

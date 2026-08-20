@@ -26,7 +26,6 @@ import {
   loadExternalOpenTargets,
   openPathWithExternalTarget,
 } from '../../../services/externalOpenTargetsStore.js'
-import { FileTypeIcon } from '../FileTypeIcon.js'
 import type { MarkdownFileViewMode } from '../dock/rightDockState.js'
 
 export type FileBreadcrumbToolbarProps = {
@@ -123,12 +122,6 @@ export function FileBreadcrumbToolbar({
                   className="file-breadcrumb-toolbar__filename"
                   title={path}
                 >
-                  <FileTypeIcon
-                    aria-hidden="true"
-                    path={path}
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
                   <strong>{segment.label}</strong>
                 </span>
               ) : (
@@ -159,7 +152,6 @@ export function FileBreadcrumbToolbar({
         <button
           ref={treeToggleRef}
           aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
-          aria-pressed={treeVisible}
           className="file-breadcrumb-toolbar__action"
           disabled={!treeAvailable}
           title={

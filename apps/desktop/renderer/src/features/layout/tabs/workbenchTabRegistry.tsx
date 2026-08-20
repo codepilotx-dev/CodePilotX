@@ -313,12 +313,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
       tab.kind === 'file-preview'
         ? basename(tab.relativePath)
         : '文件预览',
-    getIcon: tab =>
-      tab.kind === 'file-preview' ? (
-        <FileTypeIcon path={tab.relativePath} size={16} />
-      ) : (
-        <FileText size={iconSize} />
-      ),
+    getIcon: () => <FileText size={iconSize} />,
     render: (tab, context) => deferred(
       tab.kind === 'file-preview' ? (
         <RightDockFilePreviewPanel

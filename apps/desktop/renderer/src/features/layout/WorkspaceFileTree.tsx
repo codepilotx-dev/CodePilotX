@@ -8,7 +8,7 @@ import {
 } from 'react'
 import type React from 'react'
 import { FolderIcon } from '@codepilotx/material-icon-theme'
-import { LoaderCircle, RotateCcw } from 'lucide-react'
+import { ChevronRight, LoaderCircle, RotateCcw } from 'lucide-react'
 import type {
   DesktopFileEntry,
   DesktopWorkspace,
@@ -63,7 +63,7 @@ export function WorkspaceFileTree(
   props: WorkspaceFileTreeProps,
 ): React.ReactNode {
   const projectFolders = props.workspace?.folders ?? []
-  if (!props.folderId && projectFolders.length > 0) {
+  if (!props.folderId && projectFolders.length > 1) {
     return (
       <div className={cx('workspace-file-tree-groups', props.className)}>
         {projectFolders.map(folder => (
@@ -73,11 +73,10 @@ export function WorkspaceFileTree(
             key={folder.id}
           >
             <header className="workspace-file-tree-group-header">
-              <FolderIcon
+              <ChevronRight
                 aria-hidden="true"
-                expanded
-                path={folder.path}
-                size={APP_ICON_SIZE}
+                className="right-dock-tree-chevron"
+                size={14}
               />
               <span>{folder.name}</span>
               {folder.role === 'primary' ? <em>主目录</em> : null}
@@ -384,7 +383,7 @@ function WorkspaceFileTreeContent({
           className={cx('right-dock-tree-row', 'is-status', row.kind)}
           disabled={loading}
           role="treeitem"
-          style={{ paddingLeft: `${6 + row.depth * 18}px` }}
+          style={{ paddingLeft: `${4 + row.depth * 14}px` }}
           type="button"
           onClick={() => {
             const directory = entriesRef.current.find(
@@ -434,7 +433,7 @@ function WorkspaceFileTreeContent({
             'active',
         )}
         role="treeitem"
-        style={{ paddingLeft: `${6 + file.depth * 18}px` }}
+        style={{ paddingLeft: `${4 + file.depth * 14}px` }}
         title={file.path}
         type="button"
         onClick={event => {
@@ -502,15 +501,19 @@ function WorkspaceFileTreeContent({
         }}
       >
         {file.type === 'directory' ? (
-          <FolderIcon
+          <ChevronRight
             aria-hidden="true"
-            expanded={expandedDirectories.has(key)}
-            path={file.path}
-            size={APP_ICON_SIZE}
+            className={cx(
+              'right-dock-tree-chevron',
+              expandedDirectories.has(key) && 'is-expanded',
+            )}
+            size={14}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (
           <FileTypeIcon
             aria-hidden="true"
+            className="right-dock-tree-file-icon"
             path={file.path}
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
