@@ -28,7 +28,6 @@
     "src/features/taskboard/TaskboardView.tsx -> src/styles/lazy/taskboard.scss",
     "src/features/plugins/PluginsView.tsx -> src/styles/lazy/marketplace.scss",
     "src/features/settings/SettingsLayout.tsx -> src/styles/lazy/settings.scss",
-    "src/features/theme-debugger/ThemeTokenDebugger.tsx -> src/styles/lazy/theme-token-debugger.scss",
     "src/features/terminal/TerminalPanel.tsx -> src/styles/lazy/terminal.scss",
     "src/features/whats-new/WhatsNewDialog.tsx -> src/styles/lazy/whats-new.scss"
   ],
@@ -39,7 +38,6 @@
     "src/styles/lazy/pet-catalog.scss": "features",
     "src/styles/lazy/pet-overlay.scss": "features",
     "src/styles/lazy/settings.scss": "features",
-    "src/styles/lazy/theme-token-debugger.scss": "features",
     "src/styles/lazy/taskboard.scss": "features",
     "src/styles/lazy/terminal.scss": "vendor",
     "src/styles/lazy/whats-new.scss": "features"
