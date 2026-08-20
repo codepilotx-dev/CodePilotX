@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite"
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
 import { Effect } from "effect"
-import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
+import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadCreationSurface, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
 import type { ReviewComment } from "@codepilotx/agent-protocol"
 import type {
@@ -166,10 +166,12 @@ export type StoredThreadWorkspace =
 export type CreateThreadInput = {
   id?: string
   title?: string | undefined
+  creationSurface?: ThreadCreationSurface | undefined
   settings?: ThreadSettings | undefined
-  workspace:
+  workspace?:
     | { kind: "project"; projectID: string }
     | { kind: "projectless"; workspaceRoot: string; cwd: string; outputDirectory: string }
+    | null
   operationID?: string | undefined
   requestHash?: string | undefined
 }
@@ -179,6 +181,7 @@ export type CreatedThreadRecord = {
   title: string
   projectID: string | null
   gitBranch: string | null
+  creationSurface?: ThreadCreationSurface
   workspace: StoredThreadWorkspace | null
   settings: ThreadSettings
   createdAt: number
@@ -335,6 +338,7 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
         id,
         title,
         workspace,
+        ...(input?.creationSurface ? { creationSurface: input.creationSurface } : {}),
         ...(initialSettings ? { initialSettings } : {}),
         ...(input?.operationID ? { operationID: input.operationID } : {}),
         ...(input?.requestHash ? { requestHash: input.requestHash } : {}),
@@ -344,12 +348,13 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
   private insertThread(input: {
       id: string
       title: string
+      creationSurface?: ThreadCreationSurface
       initialSettings?: ThreadSettings
       workspace: CreateThreadInput["workspace"] | null
       operationID?: string
       requestHash?: string
     }): CreatedThreadRecord {
-      const { id, title, initialSettings } = input
+      const { id, title, creationSurface, initialSettings } = input
       const timestamp = now()
       const settings = initialSettings ?? defaultThreadSettings()
       let projectID: string | null = null
@@ -384,8 +389,8 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
           id, title, project_id, workspace_kind, workspace_root, workspace_cwd,
           workspace_roots, instruction_sources, output_directory,
           create_operation_id, create_request_hash,
-          task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
+          task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at, creation_surface
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
           id,
           title,
           projectID,
@@ -403,14 +408,16 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
           settings.permissionConfig.approvalsReviewer,
           timestamp,
           timestamp,
+          creationSurface ?? null,
         )
         const persistedWorkspace = this.threadWorkspace(id)
         const event = this.insertEvent(id, null, "thread/created", { thread: {
           id, title, projectID, gitBranch: null,
+          ...(creationSurface ? { creationSurface } : {}),
           ...(persistedWorkspace ? { workspace: persistedWorkspace } : {}),
           settings, createdAt: timestamp, updatedAt: timestamp,
         } })
-        return { id, title, projectID, gitBranch: null, workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
+        return { id, title, projectID, gitBranch: null, ...(creationSurface ? { creationSurface } : {}), workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
       })
     }
 

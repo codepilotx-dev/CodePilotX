@@ -14,6 +14,7 @@ import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
 import { RpcRouter } from "./rpc/RpcRouter"
 import { proxyRendererRequest } from "./RendererProxy"
+import { buildEventNextNotification } from "./event-envelope"
 import type { AgentLogger } from "../observability/AgentLogger"
 import type { ApiKeyService } from "../provider/ApiKeyService"
 import type { ProviderCredentialService } from "../provider/ProviderCredentialService"
@@ -335,35 +336,12 @@ const eventNextNotification = (
   streamId: string,
   event: StoredEventEnvelope,
   rpc: RpcRouter,
-) => {
-  if (!(event.method in EventManifest)) return null
-  const type = event.method as EventType
-  const definition = EventManifest[type]
-  if (definition.durability === "live" && event.afterSequence === undefined) return null
-  const payload = rpc.projection.notification(event).notification.params
-  const base = {
-    eventId: definition.durability === "live"
-      ? `live:${event.createdAt}:${crypto.randomUUID()}`
-      : String(event.id),
-    streamId,
-    type,
-    version: definition.version,
-    occurredAt: event.createdAt,
-    ...(event.threadId ? { threadId: event.threadId } : {}),
-    ...(event.turnId ? { turnId: event.turnId } : {}),
-    payload,
-  }
-  return {
-    jsonrpc: "2.0" as const,
-    method: "event/next" as const,
-    params: {
-      subscriptionId,
-      event: definition.durability === "live"
-        ? { ...base, durability: "live" as const, sequence: null, afterSequence: event.afterSequence! }
-        : { ...base, durability: "durable" as const, sequence: event.id },
-    },
-  }
-}
+) => buildEventNextNotification({
+  subscriptionId,
+  streamId,
+  event,
+  projection: rpc.projection,
+})
 
 export const createApp = (dependencies: TransportDependencies) => {
   const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies

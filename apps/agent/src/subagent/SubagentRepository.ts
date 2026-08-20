@@ -166,6 +166,11 @@ export class SubagentRepository {
     return rows.flatMap(({ id }) => { const task = this.task(id); return task ? [{ task, currentRun: task.currentRun }] : [] })
   }
 
+  projectionForTask(taskID: string): SubagentProjection | null {
+    const task = this.task(taskID)
+    return task ? { task, currentRun: task.currentRun } : null
+  }
+
   queuedRunIDs() {
     return (this.db.sqlite.query("SELECT id FROM subagent_runs WHERE status = 'queued' ORDER BY created_at").all() as Array<{ id: string }>).map((row) => row.id)
   }

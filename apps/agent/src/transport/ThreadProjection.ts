@@ -1,12 +1,14 @@
 import type {
   ApprovalRequest,
-  AgentExecution,
+  AgentExecution as WireAgentExecution,
   Attachment,
   LocalContextReference,
   Input,
   Item,
   Message,
   SubagentProjection,
+  SubagentTask,
+  SubagentRun,
   Thread,
   ThreadListItem,
   ThreadSnapshot,
@@ -16,7 +18,7 @@ import type {
 import { realpathSync } from "node:fs"
 import { resolve } from "node:path"
 import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
-import type { EventEnvelope, Item as StoredItem } from "../domain"
+import type { AgentExecution, EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { SubagentRepository } from "../subagent/SubagentRepository"
 
@@ -105,6 +107,7 @@ type ThreadRow = {
   title: string
   project_id: string | null
   git_branch: string | null
+  creation_surface: string | null
   task_mode: Thread["settings"]["taskMode"]
   sandbox_mode: Thread["settings"]["permissionConfig"]["sandboxMode"]
   approval_policy: string
@@ -153,6 +156,85 @@ export class ThreadProjection {
 
   constructor(private readonly db: AgentDatabase) {
     this.subagents = new SubagentRepository(db)
+  }
+
+  private projectAgent(row: Record<string, string | number | null>): WireAgentExecution {
+    return {
+      id: String(row.id),
+      threadId: String(row.thread_id),
+      turnId: String(row.turn_id),
+      parentAgentId: row.parent_agent_id == null ? null : String(row.parent_agent_id),
+      profile: String(row.profile),
+      task: String(row.task),
+      model: JSON.parse(String(row.model_ref)),
+      sessionId: String(row.session_id),
+      depth: Number(row.depth),
+      subagentRunId: row.subagent_run_id == null ? null : String(row.subagent_run_id),
+      runSequence: Number(row.run_sequence ?? 0),
+      status: String(row.status).replaceAll("_", "-") as WireAgentExecution["status"],
+      error: row.error == null ? null : String(row.error),
+      createdAt: Number(row.created_at),
+      updatedAt: Number(row.updated_at),
+    }
+  }
+
+  private projectDomainAgent(agent: AgentExecution): WireAgentExecution {
+    return {
+      id: agent.id,
+      threadId: agent.threadID,
+      turnId: agent.turnID,
+      parentAgentId: agent.parentAgentID ?? null,
+      profile: agent.profile,
+      task: agent.task,
+      model: agent.model,
+      sessionId: agent.sessionID,
+      depth: agent.depth,
+      subagentRunId: agent.subagentRunID ?? null,
+      runSequence: agent.runSequence,
+      status: String(agent.status).replaceAll("_", "-") as WireAgentExecution["status"],
+      error: agent.error ?? null,
+      createdAt: agent.createdAt,
+      updatedAt: agent.updatedAt,
+    }
+  }
+
+  private projectAgentExecutionRow(row: Record<string, string | number | null>): WireAgentExecution {
+    return this.projectAgent(row)
+  }
+
+  private projectAgentExecutionFromInternal(agent: AgentExecution): WireAgentExecution {
+    return this.projectDomainAgent(agent)
+  }
+
+  private projectThreadInternalRow(row: Record<string, string | number | null>, workspace: Thread["workspace"] | undefined): Thread {
+    return this.projectThreadRow(row, workspace)
+  }
+
+  private projectThreadRow(row: Record<string, string | number | null>, workspace: Thread["workspace"] | undefined): Thread {
+    return {
+      id: String(row.id),
+      title: String(row.title),
+      projectID: row.project_id == null ? null : String(row.project_id),
+      gitBranch: row.git_branch == null ? null : String(row.git_branch),
+      ...(row.creation_surface ? { creationSurface: row.creation_surface as Thread["creationSurface"] } : {}),
+      ...(workspace ? { workspace } : {}),
+      settings: {
+        taskMode: String(row.task_mode) as Thread["settings"]["taskMode"],
+        permissionConfig: {
+          sandboxMode: String(row.sandbox_mode) as Thread["settings"]["permissionConfig"]["sandboxMode"],
+          approvalPolicy: decodeApprovalPolicy(String(row.approval_policy)),
+          approvalsReviewer: String(row.approvals_reviewer) as Thread["settings"]["permissionConfig"]["approvalsReviewer"],
+        },
+      },
+      createdAt: Number(row.created_at),
+      updatedAt: Number(row.updated_at),
+    }
+  }
+
+  private projectThread(threadId: string): Thread | null {
+    const threadRow = this.db.sqlite.query("SELECT id, title, project_id, git_branch, creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as Record<string, string | number | null> | null
+    if (!threadRow) return null
+    return this.projectThreadRow(threadRow, this.db.threadWorkspace(threadId) ?? undefined)
   }
 
   private projectInput(row: Record<string, string | number | null>): Input {
@@ -261,11 +343,8 @@ export class ThreadProjection {
   }
 
   snapshot(threadId: string): ThreadSnapshot | null {
-    const thread = this.db.sqlite.query("SELECT id, title, project_id, git_branch, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as
-      | { id: string; title: string; project_id: string | null; git_branch: string | null; task_mode: ThreadSnapshot["thread"]["settings"]["taskMode"]; sandbox_mode: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["sandboxMode"]; approval_policy: string; approvals_reviewer: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalsReviewer"]; created_at: number; updated_at: number }
-      | null
+    const thread = this.projectThread(threadId)
     if (!thread) return null
-    const threadWorkspace = this.db.threadWorkspace(threadId)
     const attachmentRows = this.db.sqlite.query("SELECT id, input_id FROM input_attachments WHERE thread_id = ? AND input_id IS NOT NULL ORDER BY created_at, id").all(threadId) as Array<{ id: string; input_id: string }>
     const attachmentIDsByInput = new Map<string, string[]>()
     for (const attachment of attachmentRows) attachmentIDsByInput.set(attachment.input_id, [...(attachmentIDsByInput.get(attachment.input_id) ?? []), attachment.id])
@@ -322,23 +401,7 @@ export class ThreadProjection {
         error: null,
       }
     })
-    const agents = (this.db.sqlite.query("SELECT id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, subagent_run_id, run_sequence, status, error, created_at, updated_at FROM agent_executions WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): AgentExecution => ({
-      id: String(row.id),
-      threadId: String(row.thread_id),
-      turnId: String(row.turn_id),
-      parentAgentId: row.parent_agent_id == null ? null : String(row.parent_agent_id),
-      profile: String(row.profile),
-      task: String(row.task),
-      model: parse(String(row.model_ref)),
-      sessionId: String(row.session_id),
-      depth: Number(row.depth),
-      subagentRunId: row.subagent_run_id == null ? null : String(row.subagent_run_id),
-      runSequence: Number(row.run_sequence ?? 0),
-      status: String(row.status).replaceAll("_", "-") as AgentExecution["status"],
-      error: row.error == null ? null : String(row.error),
-      createdAt: Number(row.created_at),
-      updatedAt: Number(row.updated_at),
-    }))
+    const agents = (this.db.sqlite.query("SELECT id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, subagent_run_id, run_sequence, status, error, created_at, updated_at FROM agent_executions WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.projectAgent(row))
     const messages = (this.db.sqlite.query("SELECT id, thread_id, turn_id, role, created_at FROM messages WHERE thread_id = ? ORDER BY ordinal, created_at, id").all(threadId) as Array<Record<string, string | number | null>>).map((row): Message => ({
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -361,23 +424,7 @@ export class ThreadProjection {
       .filter((item): item is Item => item !== null)
     const approvals = (this.db.sqlite.query("SELECT id, thread_id, turn_id, agent_id, tool_call_id, risk, reason, status, reply, request_payload, review_payload, created_at FROM approval_requests WHERE thread_id = ? AND status <> 'preparing' ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.approval(row))
     return {
-      thread: {
-        id: thread.id,
-        title: thread.title,
-        projectID: thread.project_id,
-        gitBranch: thread.git_branch,
-        ...(threadWorkspace ? { workspace: threadWorkspace } : {}),
-        settings: {
-          taskMode: thread.task_mode,
-          permissionConfig: {
-            sandboxMode: thread.sandbox_mode,
-            approvalPolicy: decodeApprovalPolicy(thread.approval_policy),
-            approvalsReviewer: thread.approvals_reviewer,
-          },
-        },
-        createdAt: thread.created_at,
-        updatedAt: thread.updated_at,
-      },
+      thread,
       turns,
       agents,
       subagents: this.subagents.projectionForThread(threadId),
@@ -391,7 +438,7 @@ export class ThreadProjection {
   }
 
   historyPage(threadId: string, params: { before?: string; limit?: number } = {}): ThreadHistoryPage | null {
-    const thread = this.db.sqlite.query("SELECT id, title, project_id, git_branch, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as ThreadRow | null
+    const thread = this.projectThread(threadId)
     if (!thread) return null
     const limit = Math.min(50, Math.max(1, params.limit ?? 10))
     const cursor = params.before ? decodeHistoryCursor(params.before) : null
@@ -516,14 +563,7 @@ export class ThreadProjection {
     const agentRows = selectedTurnIDs.length
       ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, subagent_run_id, run_sequence, status, error, created_at, updated_at FROM agent_executions WHERE turn_id IN (${selectedPlaceholders}) ORDER BY created_at, id`).all(...selectedTurnIDs) as Array<Record<string, string | number | null>>
       : []
-    const agents = agentRows.map((row): AgentExecution => ({
-      id: String(row.id), threadId: String(row.thread_id), turnId: String(row.turn_id),
-      parentAgentId: row.parent_agent_id == null ? null : String(row.parent_agent_id),
-      profile: String(row.profile), task: String(row.task), model: parse(String(row.model_ref)), sessionId: String(row.session_id),
-      depth: Number(row.depth), subagentRunId: row.subagent_run_id == null ? null : String(row.subagent_run_id),
-      runSequence: Number(row.run_sequence ?? 0), status: String(row.status).replaceAll("_", "-") as AgentExecution["status"],
-      error: row.error == null ? null : String(row.error), createdAt: Number(row.created_at), updatedAt: Number(row.updated_at),
-    }))
+    const agents = agentRows.map((row) => this.projectAgent(row))
     const messageRows = selectedTurnIDs.length
       ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, role, created_at FROM messages WHERE turn_id IN (${selectedPlaceholders}) ORDER BY ordinal, created_at, id`).all(...selectedTurnIDs) as Array<Record<string, string | number | null>>
       : []
@@ -557,18 +597,10 @@ export class ThreadProjection {
         contextReferences: turnInputs.flatMap((input) => contextByInput.get(input.id) ?? []),
       }
     })
-    const workspace = this.db.threadWorkspace(threadId)
     const oldest = selectedTurnRows.at(-1)
     const queueMetadata = this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
     return {
-      thread: {
-        id: thread.id, title: thread.title, projectID: thread.project_id, gitBranch: thread.git_branch, ...(workspace ? { workspace } : {}),
-        settings: {
-          taskMode: thread.task_mode,
-          permissionConfig: { sandboxMode: thread.sandbox_mode, approvalPolicy: decodeApprovalPolicy(thread.approval_policy), approvalsReviewer: thread.approvals_reviewer },
-        },
-        createdAt: thread.created_at, updatedAt: thread.updated_at,
-      },
+      thread,
       subagents: this.subagents.projectionForThread(threadId),
       turns: bundles,
       queue: { ...queueMetadata, turns: queueTurnRows.map(mapTurn), inputs: inputs.filter((input) => input.turnId != null && queueTurnIDs.includes(input.turnId)) },
@@ -599,7 +631,7 @@ export class ThreadProjection {
       where.push(params.archived ? "t.archived_at IS NOT NULL" : "t.archived_at IS NULL")
     }
     const sql = `
-      SELECT t.id, t.project_id, t.git_branch, t.title, t.preview, t.first_user_message, t.message_count,
+      SELECT t.id, t.project_id, t.git_branch, t.creation_surface, t.title, t.preview, t.first_user_message, t.message_count,
         t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
         read_state.unread_at,
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id
@@ -634,29 +666,31 @@ export class ThreadProjection {
       const id = String(row.id)
       const workspace = this.db.threadWorkspace(id)
       return {
-      id,
-      projectID: row.project_id == null ? null : String(row.project_id),
-      gitBranch: row.git_branch == null ? null : String(row.git_branch),
-      ...(workspace ? { workspace } : {}),
-      title: String(row.title),
-      preview: row.preview == null ? null : String(row.preview),
-      firstUserMessage: row.first_user_message == null ? null : String(row.first_user_message),
-      messageCount: Number(row.message_count ?? 0),
-      latestTurnStatus: row.latest_turn_status == null ? null : turnStatus(String(row.latest_turn_status)),
-      archivedAt: row.archived_at == null ? null : Number(row.archived_at),
-      unreadAt: row.unread_at == null ? null : Number(row.unread_at),
-      pendingPlanApproval: Number(row.pending_plan_approval) === 1,
-      settings: {
-        taskMode: String(row.task_mode) as ThreadListItem["settings"]["taskMode"],
-        permissionConfig: {
-          sandboxMode: String(row.sandbox_mode) as ThreadListItem["settings"]["permissionConfig"]["sandboxMode"],
-          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-          approvalsReviewer: String(row.approvals_reviewer) as ThreadListItem["settings"]["permissionConfig"]["approvalsReviewer"],
+        id,
+        projectID: row.project_id == null ? null : String(row.project_id),
+        gitBranch: row.git_branch == null ? null : String(row.git_branch),
+        ...(row.creation_surface ? { creationSurface: row.creation_surface as ThreadListItem["creationSurface"] } : {}),
+        ...(workspace ? { workspace } : {}),
+        title: String(row.title),
+        preview: row.preview == null ? null : String(row.preview),
+        firstUserMessage: row.first_user_message == null ? null : String(row.first_user_message),
+        messageCount: Number(row.message_count ?? 0),
+        latestTurnStatus: row.latest_turn_status == null ? null : turnStatus(String(row.latest_turn_status)),
+        archivedAt: row.archived_at == null ? null : Number(row.archived_at),
+        unreadAt: row.unread_at == null ? null : Number(row.unread_at),
+        pendingPlanApproval: Number(row.pending_plan_approval) === 1,
+        settings: {
+          taskMode: String(row.task_mode) as ThreadListItem["settings"]["taskMode"],
+          permissionConfig: {
+            sandboxMode: String(row.sandbox_mode) as ThreadListItem["settings"]["permissionConfig"]["sandboxMode"],
+            approvalPolicy: decodeApprovalPolicy(row.approval_policy),
+            approvalsReviewer: String(row.approvals_reviewer) as ThreadListItem["settings"]["permissionConfig"]["approvalsReviewer"],
+          },
         },
-      },
-      createdAt: Number(row.created_at),
-      updatedAt: Number(row.updated_at),
-    }})
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+      }
+    })
   }
 
   item(item: StoredItem): Item | null {
@@ -825,10 +859,39 @@ export class ThreadProjection {
     }
   }
 
-  notification(event: EventEnvelope) {
-    const source = event.params && typeof event.params === "object"
-      ? event.params as Record<string, unknown>
-      : {}
+  private projectEventPayload(event: EventEnvelope, source: Record<string, unknown>): Record<string, unknown> | null {
+    const threadId = event.threadId ?? (typeof source.threadId === "string" ? source.threadId : null)
+    if (event.method === "thread/updated") {
+      const thread = threadId ? this.projectThread(threadId) : null
+      return thread ? { thread, version: thread.updatedAt } : null
+    }
+    if (event.method === "thread/settings/updated") {
+      const thread = threadId ? this.projectThread(threadId) : null
+      return thread ? { threadId, settings: source.settings, version: thread.updatedAt } : null
+    }
+    if (event.method === "agent/upserted") {
+      const agent = source.agent && typeof source.agent === "object" ? this.projectDomainAgent(source.agent as AgentExecution) : null
+      return agent ? { agent } : null
+    }
+    if (event.method === "subagent/created" || event.method === "subagent/updated") {
+      return { projection: { task: source.task, currentRun: source.run } }
+    }
+    if (event.method === "subagent/workspaceUpdated") {
+      const taskId = String(source.taskId)
+      const projection = this.subagents.projectionForTask(taskId)
+      return projection ? { projection } : null
+    }
+    if (event.method === "turn/statusChanged") {
+      return {
+        turnId: String(source.turnId),
+        status: String(source.status).replaceAll("_", "-"),
+        changedAt: typeof source.changedAt === "number" ? source.changedAt : event.createdAt,
+        ...(source.reason ? { reason: String(source.reason) } : source.resumedFrom ? { reason: String(source.resumedFrom) } : {})
+      }
+    }
+    const lifecyclePayload = this.lifecyclePayload(event, source)
+    if (lifecyclePayload) return lifecyclePayload
+
     const storedItem = source.item && typeof source.item === "object"
       ? source.item as Partial<StoredItem>
       : null
@@ -844,12 +907,22 @@ export class ThreadProjection {
       && typeof storedItem.updatedAt === "number"
       ? this.item(storedItem as StoredItem)
       : source.item
-    const lifecyclePayload = this.lifecyclePayload(event, source)
-    const params = {
-      ...(lifecyclePayload ?? source),
+
+    return {
+      ...source,
+      ...(item === undefined ? {} : { item }),
+    }
+  }
+
+  notification(event: EventEnvelope) {
+    const source = event.params && typeof event.params === "object"
+      ? event.params as Record<string, unknown>
+      : {}
+    const payload = this.projectEventPayload(event, source) ?? source
+    const params: Record<string, unknown> = {
+      ...payload,
       ...(event.threadId === null ? {} : { threadId: event.threadId }),
       ...(event.turnId === null ? {} : { turnId: event.turnId }),
-      ...(item === undefined ? {} : { item }),
     }
     return {
       id: event.id,

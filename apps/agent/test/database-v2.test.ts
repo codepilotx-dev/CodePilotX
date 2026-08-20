@@ -20,6 +20,38 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
 describe("数据库兼容与迁移", () => {
+  test("v31 到 v32 新增 creation_surface 列并校验约束与既有数据", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v31-"))
+    paths.push(root)
+    const historyPath = join(root, "agent.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const thread = db.createThread({ title: "v31 migration test", creationSurface: "working" })
+    expect(db.sqlite.query("SELECT creation_surface FROM threads WHERE id = ?").get(thread.id))
+      .toEqual({ creation_surface: "working" })
+    db.close()
+
+    // 重新打开并验证 user_version
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(reopened.sqlite.query("SELECT creation_surface FROM threads WHERE id = ?").get(thread.id))
+      .toEqual({ creation_surface: "working" })
+
+    // 验证 CHECK 约束：支持 coding, working, chat, null；非法值抛错
+    expect(() => {
+      reopened.sqlite.query("INSERT INTO threads (id, title, creation_surface, created_at, updated_at) VALUES ('invalid-surface', 'bad', 'invalid_surface', 1, 1)").run()
+    }).toThrow()
+
+    // 合法 surface
+    reopened.sqlite.query("INSERT INTO threads (id, title, creation_surface, created_at, updated_at) VALUES ('valid-coding', 'coding', 'coding', 1, 1)").run()
+    reopened.sqlite.query("INSERT INTO threads (id, title, creation_surface, created_at, updated_at) VALUES ('valid-null', 'null', NULL, 1, 1)").run()
+    expect(reopened.sqlite.query("SELECT creation_surface FROM threads WHERE id = 'valid-coding'").get())
+      .toEqual({ creation_surface: "coding" })
+    expect(reopened.sqlite.query("SELECT creation_surface FROM threads WHERE id = 'valid-null'").get())
+      .toEqual({ creation_surface: null })
+    reopened.close()
+  })
+
   test("v30 到 v31 新增任务看板表且保留既有会话", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v30-"))
     paths.push(root)

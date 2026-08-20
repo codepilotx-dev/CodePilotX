@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { Model } from "@codepilotx/model-schema"
-import type { ThreadSettings } from "@codepilotx/shared/thread"
+import type { Thread, ThreadSettings } from "@codepilotx/shared/thread"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import { AgentError, type AgentExecution, type EventEnvelope, type SubmitMessage } from "../domain"
 import type { AgentDatabase, QueueMutationMeta } from "../storage/database/AgentDatabase"
@@ -220,6 +220,7 @@ export class ThreadService {
   }
 
   async create(input: {
+    creationSurface?: Thread["creationSurface"]
     title?: string
     settings?: ThreadSettings
     operationID: string
@@ -233,6 +234,7 @@ export class ThreadService {
       | { kind: "projectless"; prompt?: string }
   }) {
     const requestHash = createHash("sha256").update(JSON.stringify({
+      creationSurface: input.creationSurface ?? null,
       title: input.title ?? null,
       settings: input.settings ?? null,
       workspace: input.workspace,
@@ -246,6 +248,7 @@ export class ThreadService {
       const projectID = input.workspace.projectID
       const created = this.db.transaction(() => {
         const record = this.db.createThread({
+          creationSurface: input.creationSurface,
           title: input.title,
           settings: input.settings,
           workspace: { kind: "project", projectID },
@@ -268,6 +271,7 @@ export class ThreadService {
     try {
       const created = this.db.createThread({
         id: threadID,
+        creationSurface: input.creationSurface,
         title: input.title,
         settings: input.settings,
         workspace: {
