@@ -9,6 +9,7 @@
 
 ### Added
 
+- [desktop] 新增侧边栏“查看活动”，集中展示进行中、待处理、未读及最近七天会话，并支持来源筛选和增量加载。
 - [Agent/desktop/renderer] 模型目录统一接入 models.dev，在保留 Pi 原生执行、用户自定义 Provider 与加密凭据的同时，自动启用安全的 OpenAI-compatible Provider，并为离线缓存和未适配协议提供明确状态。
 - [desktop/renderer] 支持 GitHub 风格的 Markdown 提示块（Alerts / Callouts，支持 `[!NOTE]`、`[!TIP]`、`[!IMPORTANT]`、`[!WARNING]`、`[!CAUTION]`）：在正文会话时间线与右侧 Markdown 富文本编辑器/预览中统一渲染色彩边框、图标徽标与专属警示色系，富文本编辑中聚焦首行可直接修改围栏标签。
 - [development] 新增 CodePilotX 项目级代码审查、推送前检查、文档规范和简化审计 Skills，使 Agent 按仓库架构与验证契约执行常见工程工作流。
@@ -102,6 +103,7 @@
 - [desktop/renderer] 修复 Provider 目录或模型状态刷新失败时旧 `modelConfigured` 状态继续放行工作台的问题，配置读取失败统一进入安全恢复态；凭据新增、更新、启停、切换、删除与 `catalog/updated` 事件合并为一次配置刷新，避免重复请求与后返回覆盖新状态。
 - [desktop/renderer] 移除不生效的 `fetchProviderModels`/`saveModelProvider` Base URL 死参数与模型中心的不可达内联 Base URL 分支，自定义供应商 Base URL 只通过 ProviderEditor 保存并统一刷新目录。
 - [Agent/desktop] 修复 Windows PowerShell ZIP 安全扫描未正确接收归档与解压路径，导致本地语音模型及托管 ZIP 工具下载后持续报安全校验失败的问题。
+- [Agent/desktop] 修复 v4 会话事件投影不符合协议而触发 Renderer 历史对账的问题，并在任务建议生成超时或 Provider 暂时不可用时缓存本地建议，避免重复等待与告警。
 - [desktop/renderer] 修复右栏拖拽时工作区 Header、主视口、面板外壳与内容使用不同宽度源造成的错位、空白和松手跳变，并保持主会话当前阅读位置稳定。
 - [desktop/renderer] 减少 Review 文件预览和变更树的重复边界，并修复浅色主题下“再显示 N 个文件”文字不可见。
 - [desktop/renderer] 修复 React StrictMode 重放使 Review 刷新协调器提前停止、变更快照永久停留在刷新状态，并确保 fresh 快照 generation 未变化时仍自动加载文件差异。
