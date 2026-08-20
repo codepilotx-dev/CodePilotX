@@ -8,6 +8,7 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
   ModelProviderID,
+  ThreadCreationSurface,
 } from '../../../../shared/types.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/desktopUserMessage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
@@ -20,6 +21,7 @@ import type {
   ComposerDeliveryIntent,
   ComposerPlacement,
   ComposerSubmitOutcome,
+  ComposerSurface,
 } from './composerTypes.js'
 import { createComposerDocument } from './composerTypes.js'
 import { executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
@@ -47,6 +49,7 @@ type ControllerOptions = {
   workspace: DesktopWorkspace | null
   attachments: DesktopComposerAttachment[]
   subagentMode: boolean
+  surface?: ComposerSurface
   onAttachmentsChange: (attachments: DesktopComposerAttachment[]) => void
   onAppendAttachmentsForDraft?: (
     draftKey: ComposerDraftKey,
@@ -69,6 +72,7 @@ type ControllerOptions = {
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
     projectlessPrompt?: string,
+    creationSurface?: ThreadCreationSurface,
   ) => Promise<string | null>
   submitToSession: (
     targetSessionId: string,
@@ -98,6 +102,7 @@ export function useDesktopComposerController({
   workspace,
   attachments,
   subagentMode,
+  surface,
   onAttachmentsChange,
   onAppendAttachmentsForDraft,
   onRemoveAttachmentForDraft,
@@ -349,6 +354,7 @@ export function useDesktopComposerController({
               workspace,
               initialSessionName,
               projectlessPrompt,
+              surface === 'working' || surface === 'chat' || surface === 'coding' ? surface : undefined,
             )
         : undefined,
       // Keep navigation before submission so the routed page owns all

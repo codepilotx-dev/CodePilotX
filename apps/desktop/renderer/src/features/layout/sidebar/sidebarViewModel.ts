@@ -58,6 +58,17 @@ export type SidebarFocusSection = {
   sessions: SessionListItem[]
 }
 
+export type SidebarActivityIndicatorState = 'attention' | 'active' | 'idle'
+
+export type SlicedSidebarTimelineModel = {
+  prioritySessions: SessionListItem[]
+  pinnedSessions: SessionListItem[]
+  dateSections: SidebarFocusSection[]
+  totalCount: number
+  visibleCount: number
+  hasMore: boolean
+}
+
 export type SidebarTimelineModel = {
   /** 所有需要关注的任务，不受置顶分组开关影响。 */
   attentionSessions: SessionListItem[]
@@ -143,6 +154,93 @@ export function sidebarAttentionUnreadSessions(
 }
 
 /** 安全批量归档集合：仅“已完成但未读”的关注任务，排除等待用户操作或计划审批的任务。 */
+export function filterSidebarActivitySessions(
+  sessions: readonly SessionListItem[],
+  filters: {
+    showWork?: boolean
+    showChat?: boolean
+  } = {},
+): SessionListItem[] {
+  const showWork = filters.showWork ?? true
+  const showChat = filters.showChat ?? true
+  return sessions.filter(session => {
+    if (session.archivedAt) return false
+    const surface = session.creationSurface
+    const isChat = surface === 'chat'
+    const isWork =
+      surface === 'coding' ||
+      surface === 'working' ||
+      surface === undefined ||
+      surface === null
+    if (isChat && showChat) return true
+    if (isWork && showWork) return true
+    return false
+  })
+}
+
+export function deriveSidebarActivityIndicatorState(
+  sessions: readonly SessionListItem[],
+): SidebarActivityIndicatorState {
+  let hasActive = false
+  for (const session of sessions) {
+    if (session.archivedAt) continue
+    const rank = sidebarTimelinePriorityRank(session)
+    if (rank === 0 || rank === 1 || rank === 3) {
+      return 'attention'
+    }
+    if (rank === 2) {
+      hasActive = true
+    }
+  }
+  return hasActive ? 'active' : 'idle'
+}
+
+export function sliceSidebarTimelineModel(
+  model: SidebarTimelineModel,
+  visibleLimit: number,
+): SlicedSidebarTimelineModel {
+  const limit = Math.max(0, visibleLimit)
+  const totalCount =
+    model.prioritySessions.length +
+    model.pinnedSessions.length +
+    model.dateSections.reduce((sum, section) => sum + section.sessions.length, 0)
+
+  let remaining = limit
+  let prioritySessions: SessionListItem[] = []
+  if (remaining > 0 && model.prioritySessions.length > 0) {
+    prioritySessions = model.prioritySessions.slice(0, remaining)
+    remaining -= prioritySessions.length
+  }
+
+  let pinnedSessions: SessionListItem[] = []
+  if (remaining > 0 && model.pinnedSessions.length > 0) {
+    pinnedSessions = model.pinnedSessions.slice(0, remaining)
+    remaining -= pinnedSessions.length
+  }
+
+  const dateSections: SidebarFocusSection[] = []
+  for (const section of model.dateSections) {
+    if (remaining <= 0) break
+    const sliceCount = Math.min(remaining, section.sessions.length)
+    if (sliceCount > 0) {
+      dateSections.push({
+        ...section,
+        sessions: section.sessions.slice(0, sliceCount),
+      })
+      remaining -= sliceCount
+    }
+  }
+
+  return {
+    prioritySessions,
+    pinnedSessions,
+    dateSections,
+    totalCount,
+    visibleCount: limit - remaining,
+    hasMore: totalCount > limit,
+  }
+}
+
 export function sidebarArchivableAttentionSessions(
   sessions: readonly SessionListItem[],
 ): SessionListItem[] {
@@ -153,7 +251,7 @@ export function sidebarArchivableAttentionSessions(
   )
 }
 
-function sidebarTimelinePriorityRank(
+export function sidebarTimelinePriorityRank(
   session: SessionListItem,
 ): number | null {
   if (
@@ -166,10 +264,17 @@ function sidebarTimelinePriorityRank(
     return 1
   }
   if (
+    session.latestTurnStatus === 'running' ||
+    session.latestTurnStatus === 'waiting-subagents' ||
+    session.latestTurnStatus === 'queued'
+  ) {
+    return 2
+  }
+  if (
     session.latestTurnStatus === 'completed' &&
     session.unreadAt != null
   ) {
-    return 2
+    return 3
   }
   return null
 }
@@ -194,8 +299,8 @@ function sortPrioritySessions(
   priorityRankById: ReadonlyMap<string, number>,
 ): SessionListItem[] {
   return [...sessions].sort((left, right) => {
-    const leftRank = priorityRankById.get(left.id) ?? 3
-    const rightRank = priorityRankById.get(right.id) ?? 3
+    const leftRank = priorityRankById.get(left.id) ?? 4
+    const rightRank = priorityRankById.get(right.id) ?? 4
     return (
       leftRank - rightRank ||
       sessionRecencyMs(right) - sessionRecencyMs(left) ||

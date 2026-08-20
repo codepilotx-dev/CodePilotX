@@ -21,6 +21,8 @@ import {
 import {
   buildSidebarViewModel,
   buildSidebarTimelineModel,
+  deriveSidebarActivityIndicatorState,
+  filterSidebarActivitySessions,
   sidebarArchivableAttentionSessions,
   sidebarAttentionUnreadSessions,
   sidebarProjectKey,
@@ -120,6 +122,12 @@ export function DesktopSidebar({
     sidebarSort,
     setSidebarSort,
     sidebarTimelineEnabled,
+    sidebarActivityShowWork,
+    setSidebarActivityShowWork,
+    sidebarActivityShowChat,
+    setSidebarActivityShowChat,
+    sidebarActivityShowPinned,
+    setSidebarActivityShowPinned,
   } = useDesktopSettings()
   const collapsedProjectPaths = useMemo(
     () => new Set(collapsedSidebarProjectPaths),
@@ -185,22 +193,34 @@ export function DesktopSidebar({
     ],
   )
 
-  const [showTimelinePinned, setShowTimelinePinned] = useState(false)
   const [archiveAttentionOpen, setArchiveAttentionOpen] = useState(false)
   const [archivingAttention, setArchivingAttention] = useState(false)
   const archiveAttentionDialogMounted = useEverOpened(archiveAttentionOpen)
+
+  const activityFilteredSessions = useMemo(
+    () =>
+      filterSidebarActivitySessions(viewModel.visibleSessions, {
+        showWork: sidebarActivityShowWork,
+        showChat: sidebarActivityShowChat,
+      }),
+    [sidebarActivityShowChat, sidebarActivityShowWork, viewModel.visibleSessions],
+  )
 
   // 始终构建时间线投影，使铃铛在时间线关闭时也能获得关注状态
   const timelineModel = useMemo(
     () =>
       buildSidebarTimelineModel({
         now: relativeNow,
-        sessions: viewModel.visibleSessions,
-        showPinned: showTimelinePinned,
+        sessions: activityFilteredSessions,
+        showPinned: sidebarActivityShowPinned,
       }),
-    [relativeNow, showTimelinePinned, viewModel.visibleSessions],
+    [activityFilteredSessions, relativeNow, sidebarActivityShowPinned],
   )
   const timeline = sidebarTimelineEnabled ? timelineModel : null
+  const activityIndicatorState = useMemo(
+    () => deriveSidebarActivityIndicatorState(viewModel.visibleSessions),
+    [viewModel.visibleSessions],
+  )
   const hasAttention = timelineModel.attentionSessions.length > 0
   const attentionUnreadSessions = useMemo(
     () => sidebarAttentionUnreadSessions(timelineModel.attentionSessions),
@@ -415,6 +435,7 @@ export function DesktopSidebar({
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:py-2">
       <SidebarHeader
         hasAttention={hasAttention}
+        indicatorState={activityIndicatorState}
         onOpenCommandMenu={onOpenCommandMenu}
       />
       <SidebarNewTaskNav
@@ -448,7 +469,12 @@ export function DesktopSidebar({
         collapsedProjectPaths={collapsedProjectPaths}
         organization={sidebarOrganization}
         timeline={timeline}
-        showTimelinePinned={showTimelinePinned}
+        showTimelinePinned={sidebarActivityShowPinned}
+        showActivityWork={sidebarActivityShowWork}
+        showActivityChat={sidebarActivityShowChat}
+        onShowActivityWorkChange={setSidebarActivityShowWork}
+        onShowActivityChatChange={setSidebarActivityShowChat}
+        onShowTimelinePinnedChange={setSidebarActivityShowPinned}
         now={relativeNow}
         pinnedSessions={viewModel.pinnedSessions}
         pinnedWorkspaces={viewModel.pinnedWorkspaces}
@@ -490,7 +516,6 @@ export function DesktopSidebar({
         hasArchivableAttention={archivableAttentionSessions.length > 0}
         onMarkAttentionRead={() => void markAttentionRead()}
         onRequestArchiveAttention={requestArchiveAttention}
-        onShowTimelinePinnedChange={setShowTimelinePinned}
       />
       <SidebarFooter
         sidebarWidth={sidebarWidth}

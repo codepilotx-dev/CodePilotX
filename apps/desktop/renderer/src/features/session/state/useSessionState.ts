@@ -1,5 +1,6 @@
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
   DesktopComposerAttachment,
   DesktopContextUsage,
@@ -695,10 +696,14 @@ export function useSessionState(
       target: DesktopWorkspace | null,
       initialSessionName?: string,
       projectlessPrompt?: string,
+      creationSurface?: ThreadCreationSurface,
     ): Promise<string | null> => {
       const nextSessionId = await createSessionForWorkspaceAction(
         actionContext,
-        settingsSnapshot,
+        {
+          ...settingsSnapshot,
+          ...(creationSurface ? { creationSurface } : {}),
+        },
         target,
         initialSessionName,
         projectlessPrompt,

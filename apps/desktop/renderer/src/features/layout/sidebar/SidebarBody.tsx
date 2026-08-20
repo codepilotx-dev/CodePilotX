@@ -44,6 +44,7 @@ import {
   type SidebarPinnedItem,
   type SidebarProjectSessionBucket,
   type SidebarTimelineModel,
+  sliceSidebarTimelineModel,
 } from "./sidebarViewModel.js";
 import { cx } from "../../../utils/cx.js";
 import type { SidebarProjectCatalogState } from './useSidebarProjectCatalog.js'
@@ -61,6 +62,10 @@ type Props = {
   organization: DesktopSidebarOrganization;
   timeline?: SidebarTimelineModel | null;
   showTimelinePinned: boolean;
+  showActivityWork: boolean;
+  showActivityChat: boolean;
+  onShowActivityWorkChange: (value: boolean) => void;
+  onShowActivityChatChange: (value: boolean) => void;
   now: number;
   pendingPermissionSessionIds: ReadonlySet<string>;
   titleLoadingIds: ReadonlySet<string>;
@@ -113,6 +118,10 @@ export function SidebarBody({
   organization,
   timeline,
   showTimelinePinned,
+  showActivityWork,
+  showActivityChat,
+  onShowActivityWorkChange,
+  onShowActivityChatChange,
   now,
   pendingPermissionSessionIds,
   titleLoadingIds,
@@ -533,6 +542,8 @@ export function SidebarBody({
             hasUnreadAttention={hasUnreadAttention}
             now={now}
             pendingPermissionSessionIds={pendingPermissionSessionIds}
+            showWork={showActivityWork}
+            showChat={showActivityChat}
             showPinned={showTimelinePinned}
             timeline={timeline}
             titleLoadingIds={titleLoadingIds}
@@ -543,6 +554,8 @@ export function SidebarBody({
             onRequestArchiveAttention={onRequestArchiveAttention}
             onSelectSession={onSelectSession}
             onRenameSession={onRenameSession}
+            onShowWorkChange={onShowActivityWorkChange}
+            onShowChatChange={onShowActivityChatChange}
             onShowPinnedChange={onShowTimelinePinnedChange}
             onUnpinSession={onUnpinSession}
           />
@@ -701,6 +714,8 @@ function Timeline({
   hasUnreadAttention,
   now,
   pendingPermissionSessionIds,
+  showWork,
+  showChat,
   showPinned,
   timeline,
   titleLoadingIds,
@@ -711,6 +726,8 @@ function Timeline({
   onRequestArchiveAttention,
   onSelectSession,
   onRenameSession,
+  onShowWorkChange,
+  onShowChatChange,
   onShowPinnedChange,
   onUnpinSession,
 }: {
@@ -719,6 +736,8 @@ function Timeline({
   hasUnreadAttention: boolean
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
+  showWork: boolean
+  showChat: boolean
   showPinned: boolean
   timeline: SidebarTimelineModel
   titleLoadingIds: ReadonlySet<string>
@@ -729,9 +748,38 @@ function Timeline({
   onRequestArchiveAttention: () => void
   onSelectSession: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
+  onShowWorkChange: (value: boolean) => void
+  onShowChatChange: (value: boolean) => void
   onShowPinnedChange: (value: boolean) => void
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
+  const [visibleLimit, setVisibleLimit] = useState(10)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    setVisibleLimit(10)
+  }, [showWork, showChat, showPinned])
+
+  const sliced = useMemo(
+    () => sliceSidebarTimelineModel(timeline, visibleLimit),
+    [timeline, visibleLimit],
+  )
+
+  useEffect(() => {
+    if (!sliced.hasMore || !sentinelRef.current) return
+    if (typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleLimit(prev => prev + 10)
+        }
+      },
+      { rootMargin: '100px' },
+    )
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [sliced.hasMore])
+
   const sharedSessionProps = {
     activeSessionId,
     now,
@@ -744,40 +792,95 @@ function Timeline({
     onRenameSession,
     onUnpinSession,
   }
+
+  const isCompletelyEmpty = sliced.totalCount === 0
+
+  if (isCompletelyEmpty) {
+    return (
+      <div className="sidebar-timeline">
+        <FocusSectionGroup
+          action={
+            <TimelinePriorityMenu
+              hasArchivableAttention={hasArchivableAttention}
+              hasUnreadAttention={hasUnreadAttention}
+              showWork={showWork}
+              showChat={showChat}
+              showPinned={showPinned}
+              onMarkAttentionRead={onMarkAttentionRead}
+              onRequestArchiveAttention={onRequestArchiveAttention}
+              onShowWorkChange={onShowWorkChange}
+              onShowChatChange={onShowChatChange}
+              onShowPinnedChange={onShowPinnedChange}
+            />
+          }
+          emptyState="当前筛选下没有活动"
+          section={{
+            id: 'priority',
+            label: '优先级',
+            sessions: [],
+          }}
+          sort="preserve"
+          {...sharedSessionProps}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="sidebar-timeline">
-      <FocusSectionGroup
-        action={
+      {sliced.prioritySessions.length > 0 ? (
+        <FocusSectionGroup
+          action={
+            <TimelinePriorityMenu
+              hasArchivableAttention={hasArchivableAttention}
+              hasUnreadAttention={hasUnreadAttention}
+              showWork={showWork}
+              showChat={showChat}
+              showPinned={showPinned}
+              onMarkAttentionRead={onMarkAttentionRead}
+              onRequestArchiveAttention={onRequestArchiveAttention}
+              onShowWorkChange={onShowWorkChange}
+              onShowChatChange={onShowChatChange}
+              onShowPinnedChange={onShowPinnedChange}
+            />
+          }
+          section={{
+            id: 'priority',
+            label: '优先级',
+            sessions: sliced.prioritySessions,
+          }}
+          sort="preserve"
+          {...sharedSessionProps}
+        />
+      ) : (
+        <div className="sidebar-focus-section-header tw:flex tw:justify-between tw:items-center tw:px-3 tw:py-1">
+          <h3 className="sidebar-focus-section-title">优先级</h3>
           <TimelinePriorityMenu
             hasArchivableAttention={hasArchivableAttention}
             hasUnreadAttention={hasUnreadAttention}
+            showWork={showWork}
+            showChat={showChat}
             showPinned={showPinned}
             onMarkAttentionRead={onMarkAttentionRead}
             onRequestArchiveAttention={onRequestArchiveAttention}
+            onShowWorkChange={onShowWorkChange}
+            onShowChatChange={onShowChatChange}
             onShowPinnedChange={onShowPinnedChange}
           />
-        }
-        emptyState="没有需要关注的任务"
-        section={{
-          id: 'priority',
-          label: '优先级',
-          sessions: timeline.prioritySessions,
-        }}
-        sort="preserve"
-        {...sharedSessionProps}
-      />
-      {timeline.pinnedSessions.length > 0 ? (
+        </div>
+      )}
+      {sliced.pinnedSessions.length > 0 ? (
         <FocusSectionGroup
           section={{
             id: 'pinned',
             label: '置顶',
-            sessions: timeline.pinnedSessions,
+            sessions: sliced.pinnedSessions,
           }}
           sort="updated"
           {...sharedSessionProps}
         />
       ) : null}
-      {timeline.dateSections.map(section => (
+      {sliced.dateSections.map(section => (
         <FocusSectionGroup
           key={section.id}
           section={section}
@@ -785,6 +888,9 @@ function Timeline({
           {...sharedSessionProps}
         />
       ))}
+      {sliced.hasMore ? (
+        <div ref={sentinelRef} className="sidebar-activity-sentinel tw:h-4 tw:w-full" />
+      ) : null}
     </div>
   )
 }
@@ -792,16 +898,24 @@ function Timeline({
 function TimelinePriorityMenu({
   hasArchivableAttention,
   hasUnreadAttention,
+  showWork,
+  showChat,
   showPinned,
   onMarkAttentionRead,
   onRequestArchiveAttention,
+  onShowWorkChange,
+  onShowChatChange,
   onShowPinnedChange,
 }: {
   hasArchivableAttention: boolean
   hasUnreadAttention: boolean
+  showWork: boolean
+  showChat: boolean
   showPinned: boolean
   onMarkAttentionRead: () => void
   onRequestArchiveAttention: () => void
+  onShowWorkChange: (value: boolean) => void
+  onShowChatChange: (value: boolean) => void
   onShowPinnedChange: (value: boolean) => void
 }): React.ReactNode {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -829,6 +943,20 @@ function TimelinePriorityMenu({
     >
       <PopoverLabel>显示</PopoverLabel>
       <PopoverCheckboxItem
+        checked={showWork}
+        keepOpen
+        onCheckedChange={onShowWorkChange}
+      >
+        Work
+      </PopoverCheckboxItem>
+      <PopoverCheckboxItem
+        checked={showChat}
+        keepOpen
+        onCheckedChange={onShowChatChange}
+      >
+        Chat
+      </PopoverCheckboxItem>
+      <PopoverCheckboxItem
         checked={showPinned}
         keepOpen
         onCheckedChange={onShowPinnedChange}
@@ -838,7 +966,7 @@ function TimelinePriorityMenu({
       <PopoverCheckboxItem
         checked={false}
         disabled
-        meta="自动化任务尚未接入侧栏时间线"
+        meta="自动化任务将在后续版本接入"
         onCheckedChange={() => undefined}
       >
         已安排

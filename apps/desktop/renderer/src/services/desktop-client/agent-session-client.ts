@@ -114,6 +114,7 @@ export const RENDERER_CAPABILITIES = [
   'memory.v2',
   'pets.management.v1',
   'workspace.editor.v1',
+  'thread.creation-surface.v1',
   'git.review.v1',
   'git.review.batch.v1',
   'git.workspace.v1',
@@ -2712,6 +2713,8 @@ export function createAgentSessionDesktopClient(
               : 'chat',
             permissionConfig: advancedPermission,
           }
+          const supportsCreationSurface = agentCapabilities.has('thread.creation-surface.v1')
+          const creationSurface = supportsCreationSurface && options.creationSurface ? options.creationSurface : undefined
           const { snapshot: sharedSnapshot } = await rpc.call('thread/create', {
             workspace: project
               ? { kind: 'project', projectId: project.id }
@@ -2722,6 +2725,7 @@ export function createAgentSessionDesktopClient(
                     : {}),
                 },
             settings,
+            ...(creationSurface ? { creationSurface } : {}),
             title: options.sessionName,
             operationId: crypto.randomUUID(),
           })

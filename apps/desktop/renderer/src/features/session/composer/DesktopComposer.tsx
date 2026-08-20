@@ -282,6 +282,7 @@ export function DesktopComposer({
     workspace,
     attachments,
     subagentMode,
+    surface,
     onAttachmentsChange,
     onAppendAttachmentsForDraft,
     onRemoveAttachmentForDraft,

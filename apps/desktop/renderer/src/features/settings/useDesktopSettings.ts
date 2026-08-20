@@ -102,6 +102,10 @@ export type UseDesktopSettingsResult = {
   sidebarSort: DesktopSidebarSort
   sidebarTimelineEnabled: boolean
   sidebarTimelinePriorityEnabled: boolean
+  sidebarActivityShowWork: boolean
+  sidebarActivityShowChat: boolean
+  sidebarActivityShowPinned: boolean
+  sidebarActivityCoachmarkDismissed: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
@@ -171,6 +175,18 @@ export type UseDesktopSettingsResult = {
     value: boolean | ((current: boolean) => boolean),
   ) => void
   setSidebarTimelinePriorityEnabled: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarActivityShowWork: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarActivityShowChat: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarActivityShowPinned: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarActivityCoachmarkDismissed: (
     value: boolean | ((current: boolean) => boolean),
   ) => void
   setSidebarManualOrder: (
@@ -472,6 +488,16 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   )
   const [sidebarTimelinePriorityEnabled, setSidebarTimelinePriorityEnabled] =
     useState<boolean>(initial.sidebarTimelinePriorityEnabled ?? false)
+  const [sidebarActivityShowWork, setSidebarActivityShowWork] = useState<boolean>(
+    initial.sidebarActivityShowWork ?? true,
+  )
+  const [sidebarActivityShowChat, setSidebarActivityShowChat] = useState<boolean>(
+    initial.sidebarActivityShowChat ?? true,
+  )
+  const [sidebarActivityShowPinned, setSidebarActivityShowPinned] =
+    useState<boolean>(initial.sidebarActivityShowPinned ?? false)
+  const [sidebarActivityCoachmarkDismissed, setSidebarActivityCoachmarkDismissed] =
+    useState<boolean>(initial.sidebarActivityCoachmarkDismissed ?? false)
   const [sidebarManualOrder, setSidebarManualOrder] = useState<
     Record<string, string[]>
   >(initial.sidebarManualOrder)
@@ -594,6 +620,12 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setSidebarTimelinePriorityEnabled(
           settings.sidebarTimelinePriorityEnabled,
         )
+        setSidebarActivityShowWork(settings.sidebarActivityShowWork ?? true)
+        setSidebarActivityShowChat(settings.sidebarActivityShowChat ?? true)
+        setSidebarActivityShowPinned(settings.sidebarActivityShowPinned ?? false)
+        setSidebarActivityCoachmarkDismissed(
+          settings.sidebarActivityCoachmarkDismissed ?? false,
+        )
         setSidebarManualOrder(settings.sidebarManualOrder)
         setSidebarSessionPins(settings.sidebarSessionPins)
         setCollapsedSidebarProjectPaths(settings.collapsedSidebarProjectPaths)
@@ -681,6 +713,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarSort,
       sidebarTimelineEnabled,
       sidebarTimelinePriorityEnabled,
+      sidebarActivityShowWork,
+      sidebarActivityShowChat,
+      sidebarActivityShowPinned,
+      sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
       sidebarSessionPins,
       collapsedSidebarProjectPaths,
@@ -752,6 +788,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarSort,
       sidebarTimelineEnabled,
       sidebarTimelinePriorityEnabled,
+      sidebarActivityShowWork,
+      sidebarActivityShowChat,
+      sidebarActivityShowPinned,
+      sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
       sidebarSessionPins,
       collapsedSidebarProjectPaths,
@@ -874,6 +914,12 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setSidebarTimelineEnabled(snapshot.sidebarTimelineEnabled)
       setSidebarTimelinePriorityEnabled(
         snapshot.sidebarTimelinePriorityEnabled,
+      )
+      setSidebarActivityShowWork(snapshot.sidebarActivityShowWork ?? true)
+      setSidebarActivityShowChat(snapshot.sidebarActivityShowChat ?? true)
+      setSidebarActivityShowPinned(snapshot.sidebarActivityShowPinned ?? false)
+      setSidebarActivityCoachmarkDismissed(
+        snapshot.sidebarActivityCoachmarkDismissed ?? false,
       )
       setSidebarManualOrder(snapshot.sidebarManualOrder)
       setSidebarSessionPins(snapshot.sidebarSessionPins)
@@ -1051,6 +1097,10 @@ defaultOpenTargetId,
     sidebarSort,
     sidebarTimelineEnabled,
     sidebarTimelinePriorityEnabled,
+    sidebarActivityShowWork,
+    sidebarActivityShowChat,
+    sidebarActivityShowPinned,
+    sidebarActivityCoachmarkDismissed,
     sidebarManualOrder,
     sidebarSessionPins,
     collapsedSidebarProjectPaths,
@@ -1110,6 +1160,10 @@ defaultOpenTargetId,
     setSidebarSort,
     setSidebarTimelineEnabled,
     setSidebarTimelinePriorityEnabled,
+    setSidebarActivityShowWork,
+    setSidebarActivityShowChat,
+    setSidebarActivityShowPinned,
+    setSidebarActivityCoachmarkDismissed,
     setSidebarManualOrder,
     setSidebarSessionPins,
     setCollapsedSidebarProjectPaths,

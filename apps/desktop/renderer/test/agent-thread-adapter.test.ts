@@ -54,6 +54,27 @@ describe('agent thread adapter', () => {
     expect(item.planModeActive).toBe(true)
     expect(item.gitBranch).toBe('codex/hover-card')
     expect(item.unreadAt).toBe('2023-11-14T22:13:20.500Z')
+    expect(item.creationSurface).toBeUndefined()
+  })
+
+  test('maps creationSurface for coding, working, chat, and legacy undefined', () => {
+    const baseThread: ThreadListItem = {
+      id: 'thread-surface-test', projectID: project.id, gitBranch: 'main', workspace: projectWorkspace, title: 'Surface test', preview: 'preview',
+      firstUserMessage: 'hello', messageCount: 1, latestTurnStatus: 'completed',
+      settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+    }
+    const itemCoding = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'coding' }, project)
+    expect(itemCoding.creationSurface).toBe('coding')
+
+    const itemWorking = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'working' }, project)
+    expect(itemWorking.creationSurface).toBe('working')
+
+    const itemChat = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'chat' }, project)
+    expect(itemChat.creationSurface).toBe('chat')
+
+    const itemLegacy = agentThreadListItemToDesktop(baseThread, project)
+    expect(itemLegacy.creationSurface).toBeUndefined()
   })
 
   test('maps a projectless thread to a standalone session with its real cwd', () => {

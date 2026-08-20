@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
   BellDot,
+  BellRing,
   Boxes,
   BrainCircuit,
   ChevronDown,
@@ -27,10 +28,12 @@ import {
   PopoverRadioGroup,
   PopoverRadioItem,
 } from "../../../components/ui/PopoverItem.js";
+import * as Popover from '@radix-ui/react-popover'
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { cx } from "../../../utils/cx.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
 import { SidebarRow } from "./SidebarRow.js";
+import type { SidebarActivityIndicatorState } from "./sidebarViewModel.js";
 
 type SidebarNavAvailability =
   | { kind: 'always' }
@@ -232,9 +235,11 @@ export const SIDEBAR_PRODUCT_MODE_META: Record<
 
 export function SidebarHeader({
   hasAttention,
+  indicatorState = hasAttention ? 'attention' : 'idle',
   onOpenCommandMenu,
 }: {
   hasAttention: boolean
+  indicatorState?: SidebarActivityIndicatorState
   onOpenCommandMenu: () => void
 }): React.ReactNode {
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
@@ -244,15 +249,19 @@ export function SidebarHeader({
     setSidebarProductMode,
     sidebarTimelineEnabled,
     setSidebarTimelineEnabled,
+    sidebarActivityCoachmarkDismissed,
+    setSidebarActivityCoachmarkDismissed,
   } = useDesktopSettings()
   const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
   const timelineToggleLabel = sidebarTimelineEnabled
-    ? "关闭时间线"
-    : hasAttention
-      ? "打开时间线，有需要关注的任务"
-      : "打开时间线"
+    ? "关闭活动视图"
+    : indicatorState === 'attention'
+      ? "查看活动，有需要处理的会话"
+      : indicatorState === 'active'
+        ? "查看活动，有进行中的会话"
+        : "查看活动"
   const timelineToggleTitle = sidebarTimelineEnabled
-    ? "关闭时间线 (Ctrl+Alt+U)"
+    ? "关闭活动视图 (Ctrl+Alt+U)"
     : `${timelineToggleLabel} (Ctrl+Alt+U)`
 
   const handleModeChange = (value: SidebarProductMode): void => {
@@ -318,25 +327,66 @@ export function SidebarHeader({
         >
           <Search size={APP_ICON_SIZE} />
         </IconButton>
-        <Tooltip content={timelineToggleTitle} side="bottom">
-          <IconButton
-            aria-label={timelineToggleLabel}
-            aria-keyshortcuts="Control+Alt+U"
-            aria-pressed={sidebarTimelineEnabled}
-            active={sidebarTimelineEnabled}
-            className="sidebar-timeline-toggle-button"
-            color="ghost"
-            size="icon"
-            onClick={() => setSidebarTimelineEnabled(v => !v)}
-            title={timelineToggleTitle}
-          >
-            {hasAttention ? (
-              <BellDot aria-hidden="true" size={APP_ICON_SIZE} />
-            ) : (
-              <Bell aria-hidden="true" size={APP_ICON_SIZE} />
-            )}
-          </IconButton>
-        </Tooltip>
+        <Popover.Root
+          open={!sidebarActivityCoachmarkDismissed && !sidebarTimelineEnabled}
+          onOpenChange={open => {
+            if (!open) setSidebarActivityCoachmarkDismissed(true)
+          }}
+        >
+          <Popover.Anchor asChild>
+            <div className="tw:inline-flex">
+              <Tooltip content={timelineToggleTitle} side="bottom">
+                <IconButton
+                  aria-label={timelineToggleLabel}
+                  aria-keyshortcuts="Control+Alt+U"
+                  aria-pressed={sidebarTimelineEnabled}
+                  active={sidebarTimelineEnabled}
+                  className="sidebar-timeline-toggle-button"
+                  color="ghost"
+                  size="icon"
+                  onClick={() => {
+                    if (!sidebarActivityCoachmarkDismissed) {
+                      setSidebarActivityCoachmarkDismissed(true)
+                    }
+                    setSidebarTimelineEnabled(v => !v)
+                  }}
+                  title={timelineToggleTitle}
+                >
+                  {indicatorState === 'attention' || (hasAttention && indicatorState !== 'active') ? (
+                    <BellDot aria-hidden="true" size={APP_ICON_SIZE} />
+                  ) : indicatorState === 'active' ? (
+                    <BellRing aria-hidden="true" size={APP_ICON_SIZE} />
+                  ) : (
+                    <Bell aria-hidden="true" size={APP_ICON_SIZE} />
+                  )}
+                </IconButton>
+              </Tooltip>
+            </div>
+          </Popover.Anchor>
+          <Popover.Portal>
+            <Popover.Content
+              align="end"
+              side="bottom"
+              sideOffset={8}
+              className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:rounded-lg tw:border tw:border-border tw:p-3.5 tw:outline-none"
+            >
+              <div className="tw:flex tw:flex-col tw:gap-2.5">
+                <p className="tw:text-xs tw:text-foreground">
+                  新的活动视图——集中查看进行中、待处理和未读会话。
+                </p>
+                <div className="tw:flex tw:justify-end">
+                  <Button
+                    size="compact"
+                    onClick={() => setSidebarActivityCoachmarkDismissed(true)}
+                  >
+                    知道了
+                  </Button>
+                </div>
+              </div>
+              <Popover.Arrow className="tw:fill-popover" />
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
       </div>
     </header>
   )

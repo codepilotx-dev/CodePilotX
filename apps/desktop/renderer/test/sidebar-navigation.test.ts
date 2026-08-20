@@ -44,7 +44,9 @@ import {
   buildSidebarPinnedItems,
   buildProjectSessionBuckets,
   buildSidebarViewModel,
+  deriveSidebarActivityIndicatorState,
   deriveSidebarSessionVisualState,
+  filterSidebarActivitySessions,
   labelForDayOffset,
   localDayOrdinal,
   reorderSidebarPinnedItemKeys,
@@ -53,6 +55,7 @@ import {
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
   sidebarProjectKey,
+  sliceSidebarTimelineModel,
   sortProjectsForSidebar,
   type SidebarTimelineModel,
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
@@ -1204,19 +1207,16 @@ describe('侧栏时间线投影', () => {
     expect(model.dateSections).toEqual([])
   })
 
-  test('waiting-subagents、普通运行中和已读完成任务不进入关注区', () => {
+  test('waiting-subagents、普通运行中和排队中进入进行中优先级(rank 2)，已读完成任务进入日期区', () => {
     const model = focus([
-      timelineSession('subagents', 'waiting-subagents'),
-      timelineSession('running', 'running'),
-      timelineSession('read-completed', 'completed'),
-      timelineSession('queued', 'queued'),
+      timelineSession('subagents', 'waiting-subagents', '2026-08-01T01:00:00.000Z'),
+      timelineSession('running', 'running', '2026-08-01T02:00:00.000Z'),
+      timelineSession('read-completed', 'completed', '2026-08-01T00:00:00.000Z'),
+      timelineSession('queued', 'queued', '2026-08-01T03:00:00.000Z'),
     ])
-    expect(model.attentionSessions).toEqual([])
-    expect(model.prioritySessions).toEqual([])
+    expect(model.prioritySessions.map(s => s.id)).toEqual(['queued', 'running', 'subagents'])
     expect(model.dateSections.map(s => s.id)).toEqual(['day-0'])
-    expect(
-      model.dateSections[0]!.sessions.map(s => s.id).sort(),
-    ).toEqual(['queued', 'read-completed', 'running', 'subagents'])
+    expect(model.dateSections[0]!.sessions.map(s => s.id)).toEqual(['read-completed'])
   })
 
   test('同一优先级内按最近活动时间倒序，再以任务 ID 保证稳定顺序', () => {
@@ -1501,5 +1501,125 @@ describe('侧栏时间线投影', () => {
       preview: '最新进展',
       summary: '### 任务摘要\n全部模块已通过测试与类型检查。',
     })).toBe('任务摘要 全部模块已通过测试与类型检查。')
+  })
+  test('filterSidebarActivitySessions 按 Work 和 Chat 来源正确过滤', () => {
+    const workCoding = timelineSession('work-coding', 'idle', '2026-08-01T00:00:00.000Z', {
+      creationSurface: 'coding',
+    })
+    const workWorking = timelineSession('work-working', 'idle', '2026-08-01T00:00:00.000Z', {
+      creationSurface: 'working',
+    })
+    const workDefault = timelineSession('work-default', 'idle', '2026-08-01T00:00:00.000Z', {
+      creationSurface: undefined,
+    })
+    const chat = timelineSession('chat-only', 'idle', '2026-08-01T00:00:00.000Z', {
+      creationSurface: 'chat',
+    })
+    const archived = timelineSession('archived-item', 'idle', '2026-08-01T00:00:00.000Z', {
+      archivedAt: '2026-08-01T00:00:00.000Z',
+    })
+    const all = [workCoding, workWorking, workDefault, chat, archived]
+
+    // 默认全选
+    expect(filterSidebarActivitySessions(all, { showWork: true, showChat: true }).map(s => s.id)).toEqual([
+      'work-coding',
+      'work-working',
+      'work-default',
+      'chat-only',
+    ])
+
+    // 只选 Work
+    expect(filterSidebarActivitySessions(all, { showWork: true, showChat: false }).map(s => s.id)).toEqual([
+      'work-coding',
+      'work-working',
+      'work-default',
+    ])
+
+    // 只选 Chat
+    expect(filterSidebarActivitySessions(all, { showWork: false, showChat: true }).map(s => s.id)).toEqual([
+      'chat-only',
+    ])
+
+    // 全不选
+    expect(filterSidebarActivitySessions(all, { showWork: false, showChat: false })).toEqual([])
+  })
+
+  test('deriveSidebarActivityIndicatorState 正确计算 3 态指示器', () => {
+    // 1. attention 状态：存在 waiting-question, waiting-permission, pendingPlanApproval 或 unread completed
+    expect(
+      deriveSidebarActivityIndicatorState([
+        timelineSession('q', 'waiting-question'),
+        timelineSession('r', 'running'),
+      ]),
+    ).toBe('attention')
+
+    expect(
+      deriveSidebarActivityIndicatorState([
+        timelineSession('unread', 'completed', '2026-08-01T00:00:00.000Z', {
+          unreadAt: '2026-08-01T00:00:00.000Z',
+        }),
+      ]),
+    ).toBe('attention')
+
+    // 2. active 状态：无 attention，但有 running / waiting-subagents / queued
+    expect(
+      deriveSidebarActivityIndicatorState([
+        timelineSession('r', 'running'),
+        timelineSession('done', 'completed'),
+      ]),
+    ).toBe('active')
+
+    expect(
+      deriveSidebarActivityIndicatorState([
+        timelineSession('sub', 'waiting-subagents'),
+      ]),
+    ).toBe('active')
+
+    // 3. idle 状态：普通 idle 或已读 completed
+    expect(
+      deriveSidebarActivityIndicatorState([
+        timelineSession('i', 'idle'),
+        timelineSession('done', 'completed'),
+      ]),
+    ).toBe('idle')
+  })
+
+  test('sliceSidebarTimelineModel 支持全局 10/+10 分页截断与空组过滤', () => {
+    const sessions: SessionListItem[] = []
+    for (let i = 0; i < 15; i++) {
+      sessions.push(
+        timelineSession(`priority-${i}`, 'waiting-question', `2026-08-01T${String(i).padStart(2, '0')}:00:00.000Z`),
+      )
+    }
+    for (let i = 0; i < 5; i++) {
+      sessions.push(
+        timelineSession(`pinned-${i}`, 'idle', `2026-08-01T${String(i).padStart(2, '0')}:00:00.000Z`, {
+          pinnedAt: `2026-07-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`,
+        }),
+      )
+    }
+    const model = focus(sessions, true)
+
+    // 切片 limit = 10
+    const slice10 = sliceSidebarTimelineModel(model, 10)
+    expect(slice10.totalCount).toBe(20)
+    expect(slice10.visibleCount).toBe(10)
+    expect(slice10.hasMore).toBe(true)
+    expect(slice10.prioritySessions.length).toBe(10)
+    expect(slice10.pinnedSessions.length).toBe(0)
+
+    // 切片 limit = 18
+    const slice18 = sliceSidebarTimelineModel(model, 18)
+    expect(slice18.visibleCount).toBe(18)
+    expect(slice18.hasMore).toBe(true)
+    expect(slice18.prioritySessions.length).toBe(15)
+    expect(slice18.pinnedSessions.length).toBe(3)
+
+    // 切片 limit = 25 (全部展示)
+    const slice25 = sliceSidebarTimelineModel(model, 25)
+    expect(slice25.visibleCount).toBe(20)
+    expect(slice25.hasMore).toBe(false)
+    expect(slice25.prioritySessions.length).toBe(15)
+    expect(slice25.pinnedSessions.length).toBe(5)
   })
 })

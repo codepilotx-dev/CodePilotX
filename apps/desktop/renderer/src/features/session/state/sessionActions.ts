@@ -1,5 +1,6 @@
 import { desktopClient } from '../../../services/desktop-client/index.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
   DesktopPermissionDecision,
   LocalRouterMode,
@@ -49,6 +50,7 @@ export type SessionSettingsSnapshot = {
   installCodePilotXDependencies: boolean
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
+  creationSurface?: ThreadCreationSurface
 }
 
 export type SessionActionContext = {
@@ -139,6 +141,7 @@ export async function createSessionForWorkspaceAction(
     const session = await desktopClient.createSession({
       projectId: target?.projectId,
       workspacePath: target?.path,
+      creationSurface: settings.creationSurface,
       projectlessPrompt: target ? undefined : projectlessPrompt,
       localRouterMode: settings.localRouterMode,
       permissionConfig: settings.permissionConfig,

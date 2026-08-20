@@ -22,6 +22,7 @@ import type {
   SubagentProjection,
   SubagentRun,
   SubagentTask,
+  ThreadCreationSurface,
   ThreadListItem,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
@@ -32,6 +33,7 @@ import type {
 } from '@codepilotx/shared/desktop-data-location-ipc'
 import type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
 export type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
+export type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
   DesktopBrowserBounds as SharedDesktopBrowserBounds,
   DesktopBrowserSitePermission as SharedDesktopBrowserSitePermission,
@@ -1036,6 +1038,10 @@ gitBranchPrefix: string
   sidebarPriorityFilterEnabled?: boolean
   sidebarTimelineEnabled: boolean
   sidebarTimelinePriorityEnabled: boolean
+  sidebarActivityShowWork?: boolean
+  sidebarActivityShowChat?: boolean
+  sidebarActivityShowPinned?: boolean
+  sidebarActivityCoachmarkDismissed?: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
@@ -1221,6 +1227,7 @@ export type DesktopSessionListItem = {
   unreadAt?: string | null
   latestTurnStatus?: ThreadListItem["latestTurnStatus"]
   pendingPlanApproval?: boolean
+  creationSurface?: ThreadCreationSurface
   lastMessageAt?: string | null
   createdAt: string
 }
@@ -1330,6 +1337,7 @@ export type DesktopAgentEvent = AgentRuntimeEvent
 export type DesktopWorkflowEvent = ThreadEvent
 
 export type CreateDesktopSessionOptions = {
+  creationSurface?: ThreadCreationSurface
   appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
   projectId?: string
