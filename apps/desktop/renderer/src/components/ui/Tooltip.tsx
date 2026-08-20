@@ -63,7 +63,6 @@ export function Tooltip({
                   'tw:py-1',
                   'tw:text-xs',
                   'tw:text-app-text-soft',
-                  'tw:shadow-md',
                   className,
                 ]
                   .filter(Boolean)

@@ -457,6 +457,20 @@ describe('fixed Codex UI themes', () => {
       expect(vars['--cpx-comp-chip-accent-bg']).toBeDefined()
     }
   })
+
+  test('derives pure black subtle floating shadows and dark scrims across light and dark modes', () => {
+    const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
+    const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
+
+    // Floating shadow must strictly use pure black (rgb(0 0 0 / ...)) and never use ink or white halos
+    expect(light['--cpx-sys-shadow-floating']).toContain('rgb(0 0 0 /')
+    expect(dark['--cpx-sys-shadow-floating']).toContain('rgb(0 0 0 /')
+    expect(dark['--cpx-sys-shadow-floating']).not.toContain('255')
+
+    // Scrim / backdrop must be pure black alpha
+    expect(light['--cpx-sys-color-scrim']).toMatch(/^rgba\(0, 0, 0, 0\.\d+\)$/)
+    expect(dark['--cpx-sys-color-scrim']).toMatch(/^rgba\(0, 0, 0, 0\.\d+\)$/)
+  })
 })
 
 function contrastRatio(foreground: string, background: string): number {

@@ -70,7 +70,7 @@ function GlobalErrorPresence({
       animate={{ opacity: 1, x: '-50%', y: 0 }}
       aria-hidden={!isPresent ? true : undefined}
       aria-live={isError ? 'assertive' : 'polite'}
-      className={`global-error-toast ${isError ? '' : 'status'} tw:flex tw:max-w-[min(55rem,calc(100vw-2rem))] tw:items-start tw:gap-2 tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-base tw:text-app-text tw:shadow-lg`}
+      className={`global-error-toast ${isError ? '' : 'status'} tw:flex tw:max-w-[min(55rem,calc(100vw-2rem))] tw:items-start tw:gap-2 tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-base tw:text-app-text`}
       data-presence={isPresent ? 'present' : 'exiting'}
       exit={{
         opacity: 0,

@@ -6,7 +6,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--cpx-sys-space-6);
-  background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 14%, transparent);
+  background: var(--cpx-comp-modal-scrim, var(--cpx-sys-color-scrim));
+  backdrop-filter: blur(var(--cpx-sys-blur-sm, 4px));
 }
 
 .ui-dialog-backdrop[data-state="open"] {

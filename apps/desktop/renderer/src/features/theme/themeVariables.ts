@@ -130,7 +130,9 @@ export function deriveThemeVariables(
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
   const shadowResting = 'none'
   const shadowRaised = 'none'
-  const shadowFloating = `0 8px 24px -16px color-mix(in srgb, ${theme.ink} 26%, transparent)`
+  const shadowFloating = dark
+    ? '0 8px 24px -6px rgb(0 0 0 / 38%), 0 2px 8px -2px rgb(0 0 0 / 26%)'
+    : '0 6px 20px -6px rgb(0 0 0 / 9%), 0 2px 6px -2px rgb(0 0 0 / 4%)'
   const shadowControl = '0 1px 2px -1px rgb(0 0 0 / 8%)'
 
   return {
@@ -565,7 +567,7 @@ function deriveLightPalette(
     iconPrimary: hexString(ink),
     iconSecondary: rgba(ink, 0.65 + contrast * 0.1),
     iconTertiary: rgba(ink, 0.45 + contrast * 0.1),
-    simpleScrim: rgba(black, 0.08 + contrast * 0.04),
+    simpleScrim: rgba(black, 0.22 + contrast * 0.05),
     textAccent: hexString(accent),
     textButtonPrimary: hexString(surface),
     textButtonSecondary: hexString(ink),
@@ -629,7 +631,7 @@ function deriveDarkPalette(
     iconPrimary: rgba(ink, 0.82 + contrast * 0.14),
     iconSecondary: rgba(ink, 0.65 + contrast * 0.1),
     iconTertiary: rgba(ink, 0.45 + contrast * 0.1),
-    simpleScrim: rgba(ink, 0.08 + contrast * 0.04),
+    simpleScrim: rgba(black, 0.26 + contrast * 0.05),
     textAccent: rgbString(accentOnDark),
     textButtonPrimary: rgbString(primaryText),
     textButtonSecondary: mixHex(
