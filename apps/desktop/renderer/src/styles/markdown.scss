@@ -4,7 +4,7 @@
   font-family: var(--cpx-sys-font-family-sans);
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-regular);
-  line-height: var(--cpx-sys-line-height-normal);
+  line-height: var(--cpx-sys-line-height-reading, 1.7);
   overflow-wrap: anywhere;
 
   > :first-child {
@@ -20,7 +20,7 @@
   ul,
   ol,
   dl {
-    margin-block: 10px;
+    margin-block: 14px;
   }
 
   h1,
@@ -30,50 +30,50 @@
   h5,
   h6 {
     color: var(--cpx-sys-color-fg-primary);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font-weight: var(--cpx-sys-font-weight-bold);
     text-wrap: balance;
   }
 
   h1 {
-    margin: 24px 0 8px;
+    margin: 30px 0 12px;
     padding: 0;
     border: 0;
     font-size: var(--cpx-sys-font-size-3xl);
-    line-height: calc(var(--cpx-sys-font-size-3xl) + 6px);
+    line-height: calc(var(--cpx-sys-font-size-3xl) + 8px);
   }
 
   h2 {
-    margin: 20px 0 8px;
+    margin: 26px 0 10px;
     padding: 0;
     font-size: var(--cpx-sys-font-size-xl);
-    line-height: calc(var(--cpx-sys-font-size-xl) + 6px);
+    line-height: calc(var(--cpx-sys-font-size-xl) + 7px);
   }
 
   h3 {
-    margin: 16px 0 6px;
+    margin: 22px 0 8px;
     font-size: var(--cpx-sys-font-size-lg);
-    line-height: calc(var(--cpx-sys-font-size-lg) + 6px);
+    line-height: calc(var(--cpx-sys-font-size-lg) + 7px);
   }
 
   h4,
   h5,
   h6 {
-    margin: 16px 0 6px;
+    margin: 18px 0 6px;
     font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-normal);
+    line-height: calc(var(--cpx-sys-font-size-md) + 7px);
   }
 
   ul,
   ol {
-    padding-inline-start: 1.45em;
+    padding-inline-start: 1.5em;
   }
 
   li {
-    padding-inline-start: 0.15em;
+    padding-inline-start: 0.2em;
   }
 
   li + li {
-    margin-top: 8px;
+    margin-top: 10px;
   }
 
   li > :first-child {
@@ -89,12 +89,12 @@
   }
 
   li > p + p {
-    margin-top: 11px;
+    margin-top: 12px;
   }
 
   li > ol,
   li > ul {
-    margin-top: 8px;
+    margin-top: 10px;
     margin-bottom: 0;
   }
 
@@ -104,7 +104,7 @@
   }
 
   .md-lead-description__detail {
-    margin-top: 0.3em;
+    margin-top: 0.35em;
   }
 
   ul li::marker,
@@ -113,7 +113,7 @@
   }
 
   blockquote {
-    padding: 0.55rem 1rem;
+    padding: 0.65rem 1.15rem;
     border-left: 2px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-lg);
     background: var(--cpx-comp-modal-preformat-bg);
@@ -121,7 +121,7 @@
   }
 
   hr {
-    margin: 26px 0;
+    margin: 28px 0;
     border: 0;
     border-top: 1px solid var(--cpx-sys-color-border-subtle);
   }
@@ -144,7 +144,7 @@
 
   :not(pre) > code {
     display: inline;
-    padding: 0.08em 0.34em 0.1em;
+    padding: 0.12em 0.38em 0.14em;
     border: 0;
     border-radius: 4px;
     background: color-mix(
@@ -154,7 +154,7 @@
     );
     color: var(--cpx-sys-color-fg-primary);
     font-family: var(--cpx-sys-font-family-mono);
-    font-size: 0.9em;
+    font-size: 0.88em;
     line-height: inherit;
     box-decoration-break: clone;
     word-break: break-word;
@@ -265,8 +265,8 @@
 }
 
 .md-code-block {
-  margin-top: 14px;
-  margin-bottom: 18px;
+  margin-top: 16px;
+  margin-bottom: 20px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: color-mix(
@@ -314,7 +314,7 @@
 .md-mermaid-fallback,
 .md-math-fallback {
   min-height: 52px;
-  margin: 14px 0;
+  margin: 16px 0;
   padding: 8px 12px;
   overflow: auto;
   border: 1px solid var(--cpx-sys-color-border-subtle);
@@ -342,7 +342,7 @@
 
 .md-table-block {
   position: relative;
-  margin-block: 14px 16px;
+  margin: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -425,17 +425,17 @@
   white-space: normal;
   overflow-wrap: normal;
   word-break: normal;
-  line-height: var(--cpx-sys-line-height-normal);
+  line-height: var(--cpx-sys-line-height-reading, 1.7);
 }
 
 .md-table-block th {
-  padding-block: 8px;
+  padding-block: 9px;
   border-bottom: 1px solid var(--cpx-sys-color-border-default);
   font-weight: var(--cpx-sys-font-weight-bold);
 }
 
 .md-table-block td {
-  padding-block: 10px;
+  padding-block: 11px;
 }
 
 .md-table-block th:last-child {

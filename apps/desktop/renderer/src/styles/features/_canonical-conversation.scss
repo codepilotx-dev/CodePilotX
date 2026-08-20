@@ -510,7 +510,7 @@
     width: fit-content;
     min-width: 0;
     max-width: 77%;
-    padding: 8px 12px;
+    padding: 10px 14px;
     overflow: hidden;
     border: 0;
     border-radius: var(--cpx-sys-radius-lg);
@@ -521,7 +521,7 @@
     );
     color: var(--cpx-sys-color-fg-primary);
     font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-normal);
+    line-height: var(--cpx-sys-line-height-reading, 1.7);
     text-align: left;
     overflow-wrap: anywhere;
   }
