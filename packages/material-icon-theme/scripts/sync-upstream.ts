@@ -270,6 +270,8 @@ function monochromeSvg(rawSvg: string): { viewBox: string; body: string } {
   const viewBox =
     match[1].match(/\bviewBox=(["'])(.*?)\1/i)?.[2] ?? "0 0 32 32"
   const body = match[2]
+    .replace(/<path\b[^>]*\bfill=(["'])(?:none|transparent)\1[^>]*\/?>/gi, "")
+    .replace(/<path\b[^>]*\bd=(["'])M0\s*0h\d+v\d+H0z?\1[^>]*\/?>/gi, "")
     .replace(
       /\b(fill|stroke|color|stop-color|flood-color|lighting-color)=(["'])(?!none\b|transparent\b)[^"']*\2/gi,
       (_attribute, name: string, quote: string) =>
