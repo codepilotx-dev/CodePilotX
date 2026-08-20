@@ -231,10 +231,12 @@ export function deriveThemeVariables(
     '--cpx-sys-font-family-sans': fontFamilyWithFace(
       theme.fonts.uiFace,
       theme.fonts.ui ?? DEFAULT_UI_FONT,
+      'ui',
     ),
     '--cpx-sys-font-family-mono': fontFamilyWithFace(
       theme.fonts.codeFace,
       theme.fonts.code ?? DEFAULT_CODE_FONT,
+      'code',
     ),
 
     // System Layer: Syntax
@@ -549,7 +551,7 @@ function deriveLightPalette(
     buttonPrimaryBackground: hexString(ink),
     buttonPrimaryBackgroundActive: rgba(ink, 0.1 + contrast * 0.12),
     buttonPrimaryBackgroundHover: rgba(ink, 0.05 + contrast * 0.06),
-    buttonPrimaryBackgroundInactive: rgba(ink, 0.18 + contrast * 0.14),
+    buttonPrimaryBackgroundInactive: mixHex(surface, ink, 0.25 + contrast * 0.2),
     buttonSecondaryBackground: rgba(ink, 0.04 + contrast * 0.02),
     buttonSecondaryBackgroundActive: rgba(ink, 0.03 + contrast * 0.02),
     buttonSecondaryBackgroundHover: rgba(ink, 0.04 + contrast * 0.03),
@@ -565,16 +567,16 @@ function deriveLightPalette(
     elevatedSecondaryOpaque: rgbString(elevatedSecondary),
     iconAccent: hexString(accent),
     iconPrimary: hexString(ink),
-    iconSecondary: rgba(ink, 0.65 + contrast * 0.1),
-    iconTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    iconSecondary: mixHex(surface, ink, 0.65 + contrast * 0.1),
+    iconTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     simpleScrim: rgba(black, 0.22 + contrast * 0.05),
     textAccent: hexString(accent),
     textButtonPrimary: hexString(surface),
     textButtonSecondary: hexString(ink),
-    textButtonTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    textButtonTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     textForeground: hexString(ink),
-    textForegroundSecondary: rgba(ink, 0.65 + contrast * 0.1),
-    textForegroundTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    textForegroundSecondary: mixHex(surface, ink, 0.65 + contrast * 0.1),
+    textForegroundTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
   }
 }
 
@@ -609,7 +611,7 @@ function deriveDarkPalette(
     buttonPrimaryBackground: rgbString(primaryText),
     buttonPrimaryBackgroundActive: rgba(ink, 0.07 + contrast * 0.05),
     buttonPrimaryBackgroundHover: rgba(ink, 0.04 + contrast * 0.03),
-    buttonPrimaryBackgroundInactive: rgba(ink, 0.02 + contrast * 0.02),
+    buttonPrimaryBackgroundInactive: mixHex(surface, ink, 0.25 + contrast * 0.15),
     buttonSecondaryBackground: rgba(ink, 0.04 + contrast * 0.02),
     buttonSecondaryBackgroundActive: rgba(ink, 0.09 + contrast * 0.05),
     buttonSecondaryBackgroundHover: rgba(ink, 0.06 + contrast * 0.03),
@@ -628,9 +630,9 @@ function deriveDarkPalette(
       0.04 + contrast * 0.05,
     ),
     iconAccent: rgbString(accentOnDark),
-    iconPrimary: rgba(ink, 0.82 + contrast * 0.14),
-    iconSecondary: rgba(ink, 0.65 + contrast * 0.1),
-    iconTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    iconPrimary: mixHex(surface, ink, 0.82 + contrast * 0.14),
+    iconSecondary: mixHex(surface, ink, 0.65 + contrast * 0.1),
+    iconTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     simpleScrim: rgba(black, 0.26 + contrast * 0.05),
     textAccent: rgbString(accentOnDark),
     textButtonPrimary: rgbString(primaryText),
@@ -639,10 +641,10 @@ function deriveDarkPalette(
       surface,
       0.7 + contrast * 0.1,
     ),
-    textButtonTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    textButtonTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     textForeground: hexString(ink),
-    textForegroundSecondary: rgba(ink, 0.65 + contrast * 0.1),
-    textForegroundTertiary: rgba(ink, 0.42 + contrast * 0.13),
+    textForegroundSecondary: mixHex(surface, ink, 0.65 + contrast * 0.1),
+    textForegroundTertiary: mixHex(surface, ink, 0.42 + contrast * 0.13),
   }
 }
 

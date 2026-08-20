@@ -8,10 +8,10 @@ import {
 import { mergeChromeThemeSeed } from '../src/features/theme/codeThemeSeed.js'
 import {
   escapeCssString,
+  extractWeightFromFace,
   fontFamilyWithFace,
-  loadThemeFontFace,
+  generateThemeFontFaceCss,
   themeFontFaceAlias,
-  themeFontFaceSource,
 } from '../src/features/theme/themeFontFaces.js'
 import {
   isMonospaceFamily,
@@ -94,28 +94,38 @@ describe('theme font loading tool', () => {
     expect(escapeCssString('a"b\\c')).toBe('a\\"b\\\\c')
   })
 
-  test('builds the unique alias and the local() source in reference order', () => {
-    const face = {
-      family: 'JetBrains Mono',
-      fullName: 'JetBrains Mono Regular',
-      postscriptName: 'JetBrainsMono-Regular',
-    }
-    expect(themeFontFaceAlias(face)).toBe(
-      'CodePilotX selected JetBrainsMono-Regular',
-    )
-    expect(themeFontFaceSource(face)).toBe(
-      'local("JetBrainsMono-Regular"), local("JetBrains Mono Regular")',
-    )
+  test('extracts weight axes accurately across named styles', () => {
+    expect(extractWeightFromFace({ family: 'F', fullName: 'F Thin', postscriptName: 'F-Thin' })).toBe(100)
+    expect(extractWeightFromFace({ family: 'F', fullName: 'F Light', postscriptName: 'F-Light' })).toBe(300)
+    expect(extractWeightFromFace({ family: 'F', fullName: 'F Regular', postscriptName: 'F-Regular' })).toBe(400)
+    expect(extractWeightFromFace({ family: 'F', fullName: 'F Medium', postscriptName: 'F-Medium' })).toBe(500)
+    expect(extractWeightFromFace({ family: 'F', fullName: 'F SemiBold', postscriptName: 'F-SemiBold' })).toBe(600)
+    expect(extractWeightFromFace({ family: 'F', fullName: 'F Bold', postscriptName: 'F-Bold' })).toBe(700)
+    expect(extractWeightFromFace({ family: 'F', fullName: 'F Heavy', postscriptName: 'F-Heavy' })).toBe(900)
   })
 
-  test('places the alias before the original family and falls back without a face', () => {
+  test('generates dynamic @font-face CSS with local sources and variation settings', () => {
+    const face = {
+      family: 'MiSans VF',
+      fullName: 'MiSans VF Heavy',
+      postscriptName: 'MiSans-VF-Heavy',
+    }
+    const css = generateThemeFontFaceCss('CodePilotX-Selected-Sans', face)
+    expect(css).toContain('font-family: "CodePilotX-Selected-Sans"')
+    expect(css).toContain('local("MiSans VF Heavy")')
+    expect(css).toContain('local("MiSans-VF-Heavy")')
+    expect(css).toContain('local("MiSans VF")')
+    expect(css).toContain("font-variation-settings: 'wght' 900")
+  })
+
+  test('places the alias and face names before the fallback stack and falls back without a face', () => {
     const face = {
       family: 'JetBrains Mono',
       fullName: 'JetBrains Mono Regular',
       postscriptName: 'JetBrainsMono-Regular',
     }
-    expect(fontFamilyWithFace(face, 'Inter, sans-serif')).toBe(
-      '"CodePilotX selected JetBrainsMono-Regular", Inter, sans-serif',
+    expect(fontFamilyWithFace(face, 'Inter, sans-serif', 'code')).toBe(
+      '"CodePilotX-Selected-Mono", "JetBrains Mono Regular", "JetBrains Mono", Inter, sans-serif',
     )
     expect(fontFamilyWithFace(null, 'Inter, sans-serif')).toBe(
       'Inter, sans-serif',
@@ -125,16 +135,7 @@ describe('theme font loading tool', () => {
     )
   })
 
-  test('failed face loads resolve to null and never affect startup', async () => {
-    // Bun tests have no DOM/FontFace: the loader must degrade to null.
-    expect(await loadThemeFontFace({
-      family: 'Inter',
-      fullName: 'Inter Regular',
-      postscriptName: 'Inter-Regular',
-    })).toBeNull()
-  })
-
-  test('deriveThemeVariables composes face aliases into font variables', () => {
+  test('deriveThemeVariables composes dynamic face aliases into font variables', () => {
     const variables = deriveThemeVariables({
       ...DEFAULT_DARK_THEME,
       theme: {
@@ -157,10 +158,10 @@ describe('theme font loading tool', () => {
     })
 
     expect(variables['--cpx-sys-font-family-sans']).toBe(
-      '"CodePilotX selected Inter-Bold", Inter',
+      '"CodePilotX-Selected-Sans", "Inter Bold", "Inter", Inter',
     )
     expect(variables['--cpx-sys-font-family-mono']).toBe(
-      '"CodePilotX selected CodeMono-Regular", CodeMono',
+      '"CodePilotX-Selected-Mono", "CodeMono Regular", "CodeMono", CodeMono',
     )
   })
 
@@ -334,6 +335,55 @@ describe('theme font picker model', () => {
     ])
   })
 
+  test('variable fonts with identical fullName resolve unique styles and full names', () => {
+    const vfFaces: readonly DesktopSystemFontFace[] = [
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF',
+        postscriptName: 'MiSans-VF-Regular',
+        style: 'Regular',
+      },
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF',
+        postscriptName: 'MiSans-VF-Bold',
+        style: 'Bold',
+      },
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF',
+        postscriptName: 'MiSans-VF-Heavy',
+        style: 'Heavy',
+      },
+    ]
+
+    const options = buildStyleOptions({ faces: vfFaces, currentFace: null })
+    expect(options.map(option => option.value)).toEqual([
+      'MiSans-VF-Regular',
+      'MiSans-VF-Bold',
+      'MiSans-VF-Heavy',
+    ])
+    expect(options.map(option => option.label)).toEqual(['常规', '粗体', '特粗体'])
+
+    const heavyCommit = fontPatchForSelection({
+      familyValue: 'MiSans VF',
+      faceValue: 'MiSans-VF-Heavy',
+      familyFaces: vfFaces,
+      currentFace: null,
+    })
+    expect(heavyCommit).toEqual({
+      family: 'MiSans VF',
+      face: {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF Heavy',
+        postscriptName: 'MiSans-VF-Heavy',
+      },
+    })
+    expect(fontFamilyWithFace(heavyCommit.face, 'MiSans VF')).toBe(
+      '"CodePilotX-Selected-Sans", "MiSans VF Heavy", "MiSans VF", MiSans VF',
+    )
+  })
+
   test('system default commits family null and face null', () => {
     expect(fontPatchForSelection({
       familyValue: SYSTEM_DEFAULT_FAMILY_VALUE,
@@ -352,13 +402,28 @@ describe('theme font picker model', () => {
     })
     expect(regular).toEqual({ family: 'CodeMono', face: null })
 
-    const bold = fontPatchForSelection({
+    const boldByFullName = fontPatchForSelection({
+      familyValue: 'CodeMono',
+      faceValue: 'CodeMono Bold',
+      familyFaces: MONO_FACES,
+      currentFace: null,
+    })
+    expect(boldByFullName).toEqual({
+      family: 'CodeMono',
+      face: {
+        family: 'CodeMono',
+        fullName: 'CodeMono Bold',
+        postscriptName: 'CodeMono-Bold',
+      },
+    })
+
+    const boldByPostscriptName = fontPatchForSelection({
       familyValue: 'CodeMono',
       faceValue: 'CodeMono-Bold',
       familyFaces: MONO_FACES,
       currentFace: null,
     })
-    expect(bold).toEqual({
+    expect(boldByPostscriptName).toEqual({
       family: 'CodeMono',
       face: {
         family: 'CodeMono',
@@ -369,11 +434,19 @@ describe('theme font picker model', () => {
 
     const regularFaceOption = fontPatchForSelection({
       familyValue: 'CodeMono',
-      faceValue: 'CodeMono-Regular',
+      faceValue: 'CodeMono Regular',
       familyFaces: MONO_FACES,
       currentFace: null,
     })
     expect(regularFaceOption).toEqual({ family: 'CodeMono', face: null })
+
+    const regularFaceOptionLegacy = fontPatchForSelection({
+      familyValue: 'CodeMono',
+      faceValue: 'CodeMono-Regular',
+      familyFaces: MONO_FACES,
+      currentFace: null,
+    })
+    expect(regularFaceOptionLegacy).toEqual({ family: 'CodeMono', face: null })
   })
 
   test('an unenumerated stored face is preserved on commit', () => {

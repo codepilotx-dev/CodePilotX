@@ -101,26 +101,41 @@ export function buildStyleOptions({
   currentFace: DesktopThemeFontFace | null
 }): FontPickerOption[] {
   const regular = regularFaceOf(faces)
+  const regularDisplay = regular
+    ? (regular.fullName.trim().toLowerCase() !== regular.family.trim().toLowerCase()
+        ? regular.fullName
+        : `${regular.family} ${regular.style}`)
+    : ''
   const options: FontPickerOption[] = regular
     ? [{
         value: regular.postscriptName,
         label: '常规',
-        detail: regular.fullName,
+        detail: regularDisplay,
       }]
     : [{ value: DEFAULT_FACE_VALUE, label: '常规' }]
   const seen = new Set<string>()
+  if (regular) {
+    seen.add(regular.postscriptName)
+  }
   for (const face of faces) {
     if (seen.has(face.postscriptName)) continue
     seen.add(face.postscriptName)
-    if (regular && face.postscriptName === regular.postscriptName) continue
+    const detail =
+      face.fullName.trim().toLowerCase() !== face.family.trim().toLowerCase()
+        ? face.fullName
+        : `${face.family} ${face.style}`
     options.push({
       value: face.postscriptName,
       label: styleLabel(face.style),
-      detail: face.fullName,
+      detail,
     })
   }
   // A stored face that is no longer in the enumeration stays selectable.
-  if (currentFace && !seen.has(currentFace.postscriptName)) {
+  if (
+    currentFace
+    && !seen.has(currentFace.postscriptName)
+    && (!regular || currentFace.postscriptName !== regular.postscriptName)
+  ) {
     options.push({
       value: currentFace.postscriptName,
       label: currentFace.fullName,
@@ -139,7 +154,12 @@ export function selectedStyleValue({
   if (!currentFace) {
     return regularFaceOf(faces)?.postscriptName ?? DEFAULT_FACE_VALUE
   }
-  return currentFace.postscriptName
+  const matching = faces.find(
+    face =>
+      face.postscriptName === currentFace.postscriptName
+      || (currentFace.fullName && face.fullName === currentFace.fullName),
+  )
+  return matching?.postscriptName ?? currentFace.postscriptName
 }
 
 export type FontSelectionPatch = {
@@ -168,19 +188,23 @@ export function fontPatchForSelection({
   const regular = regularFaceOf(familyFaces)
   if (
     faceValue === DEFAULT_FACE_VALUE
-    || (regular && faceValue === regular.postscriptName)
+    || (regular && (faceValue === regular.postscriptName || faceValue === regular.fullName))
   ) {
     return { family: familyValue, face: null }
   }
   const selected = familyFaces.find(
-    face => face.postscriptName === faceValue,
+    face => face.postscriptName === faceValue || face.fullName === faceValue,
   )
   if (selected) {
+    const fullName =
+      selected.fullName.trim().toLowerCase() !== selected.family.trim().toLowerCase()
+        ? selected.fullName
+        : `${selected.family} ${selected.style}`
     return {
       family: familyValue,
       face: {
         family: selected.family,
-        fullName: selected.fullName,
+        fullName,
         postscriptName: selected.postscriptName,
       },
     }

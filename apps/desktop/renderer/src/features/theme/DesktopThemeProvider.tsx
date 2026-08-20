@@ -20,7 +20,7 @@ import {
   normalizeDesktopThemeSettings,
 } from '../../../shared/theme.js'
 import { deriveThemeVariables } from './themeVariables.js'
-import { loadThemeFontFace } from './themeFontFaces.js'
+import { applyThemeFontFaceStyles } from './themeFontFaces.js'
 import {
   DesktopThemeContext,
   type DesktopThemeContextValue,
@@ -145,16 +145,15 @@ export function DesktopThemeProvider({
   ])
 
   useEffect(() => {
-    // Register the selected local faces under their unique aliases. A failed
-    // load resolves to null and CSS falls back to the original family.
+    // Inject dynamic @font-face rules that bind local font sources and
+    // font-variation-settings ('wght') to dedicated application font aliases.
     const config = getDesktopThemeForSelection(
       draftSettings,
       draftResolvedVariant,
     )
     const uiFace = config.theme.fonts.uiFace ?? null
     const codeFace = config.theme.fonts.codeFace ?? null
-    if (uiFace) void loadThemeFontFace(uiFace)
-    if (codeFace) void loadThemeFontFace(codeFace)
+    applyThemeFontFaceStyles(uiFace, codeFace)
   }, [draftResolvedVariant, draftSettings])
 
   const persistSettings = useCallback(

@@ -78,6 +78,8 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复字体变体应用逻辑：CSS 变量改用系统原生全称（如 "MiSans VF Semibold"、"JetBrains Mono SemiBold"）替代带连字符与自定义前缀的别名，确保 Windows/macOS/Linux 各字重与字形样式即时生效并兼容历史配置。
+- [desktop/renderer] 全局去除文本透明度混合与文字 Alpha 通道：将底层主题 Token（`--cpx-sys-color-fg-secondary`、`--cpx-sys-color-fg-tertiary`、`--cpx-sys-color-fg-disabled`）由 `rgba()` 全面重构为基于背景表面混合的纯实色 Hex；清理侧边栏、工作流卡片、会话状态与设置面板中所有作用于文本与图标的 `color-mix(..., transparent)` 与 `opacity` hack，彻底消除 Windows Chromium DirectWrite 灰阶抗锯齿降级导致的字体边缘发虚发灰问题，全局文字与图标在各种背景下均呈现极致清晰锐利的纯色对比度。
 - [Agent/usage] 修复 MiniMax Token Plan 额度解析将已用次数（usage_count）误当成剩余次数、以及纯百分比套餐（total_count 为 0）被误判为耗尽并显示 0% 的问题。
 - [desktop/renderer] 修复多模型套餐（如 MiniMax 同时返回 general 与 video）时侧栏菜单与账户卡片因重复 Quota ID 生成相同 React key 的控制台报错问题。
 - [desktop/renderer] 修复会话任务结束后 Composer 发送按钮、变更摘要与时间线组件状态未即时从运行态更新的问题：在 canonical auxiliary 状态投影中实时派生 active turn 状态，使桌面会话页面组件与流式事件完成精确同步，并在全局会话目录刷新中完整重载活动会话快照。
