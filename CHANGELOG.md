@@ -9,7 +9,6 @@
 
 ### Added
 
-- [desktop] 新增全组件主题视觉 Token 调试工作台，支持颜色、阴影、边框、圆角、尺寸与排版等多类型 Token 实时覆盖、独立组件作用域别名、高保真沙箱预览与双范围代码导出（仅开发环境可用）。
 - [development] 新增 CodePilotX 项目级代码审查、推送前检查、文档规范和简化审计 Skills，使 Agent 按仓库架构与验证契约执行常见工程工作流。
 - [Agent/desktop/renderer] 新增原生任务看板：支持 Project 筛选、五阶段拖拽排序、标签与评论、乐观并发、任务关联执行对话及本地或托管 worktree 启动，并向 Agent 提供受权限约束的任务工具。
 - [Agent/desktop/renderer] 新增全局模型健康测试，可用活动凭据并发执行真实最小请求、实时查看模型延迟与安全失败分类、取消批次及逐模型重试，并将 Provider 连接测试统一为真实探针。
@@ -128,6 +127,7 @@
 
 ### Removed
 
+- [desktop/renderer] 移除全组件主题视觉 Token 调试工作台（ThemeTokenDebugger）及配套高保真预览、运行时样式注入与配方生成代码，清理相关 SCSS 样式与测试用例。
 - [desktop/renderer] 移除 Codex Labs 导航、页面及视觉原型，旧 `/labs` 地址改为显示现有 404 页面并不再打包相关代码和样式。
 
 ### Security
