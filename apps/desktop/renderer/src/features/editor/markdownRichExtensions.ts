@@ -229,11 +229,10 @@ function buildRichDecorations(view: EditorView): RichDecorationSets {
             )
             break
           case 'Blockquote':
-            addVisibleLineDecorations(
+            addBlockquoteDecoration(
               view,
               node,
               visibleRange,
-              'cm-md-rich-blockquote',
               decorationRanges,
               seenDecorations,
             )
@@ -803,6 +802,123 @@ function selectionEntersNode(
   )
 }
 
+function selectionEntersRange(
+  view: EditorView,
+  from: number,
+  to: number,
+): boolean {
+  if (!view.hasFocus) {
+    return false
+  }
+  return view.state.selection.ranges.some(range =>
+    range.empty
+      ? range.head >= from && range.head <= to
+      : range.from < to && range.to > from,
+  )
+}
+
+type MarkdownAlertType = 'note' | 'tip' | 'important' | 'warning' | 'caution'
+
+const ALERT_SVGS: Record<MarkdownAlertType, string> = {
+  note: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+  tip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+  important: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
+  warning: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>',
+  caution: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
+}
+
+const ALERT_TITLES: Record<MarkdownAlertType, string> = {
+  note: 'Note',
+  tip: 'Tip',
+  important: 'Important',
+  warning: 'Warning',
+  caution: 'Caution',
+}
+
+class AlertHeaderWidget extends WidgetType {
+  constructor(private readonly alertType: MarkdownAlertType) {
+    super()
+  }
+
+  override eq(other: AlertHeaderWidget): boolean {
+    return this.alertType === other.alertType
+  }
+
+  override toDOM(): HTMLElement {
+    const el = document.createElement('div')
+    el.className = `cm-md-rich-alert-header cm-md-rich-alert-header--${this.alertType}`
+    const iconSpan = document.createElement('span')
+    iconSpan.className = 'cm-md-rich-alert-icon'
+    iconSpan.innerHTML = ALERT_SVGS[this.alertType] ?? ''
+    const titleSpan = document.createElement('span')
+    titleSpan.className = 'cm-md-rich-alert-title'
+    titleSpan.textContent = ALERT_TITLES[this.alertType] ?? this.alertType
+    el.append(iconSpan, titleSpan)
+    return el
+  }
+}
+
+function addBlockquoteDecoration(
+  view: EditorView,
+  node: MarkdownSyntaxNode,
+  visibleRange: { from: number; to: number },
+  decorationRanges: Range<Decoration>[],
+  seenDecorations: Set<string>,
+): void {
+  const startLine = view.state.doc.lineAt(node.from)
+  const endLine = view.state.doc.lineAt(node.to)
+
+  const alertMatch = startLine.text.match(
+    /^\s*>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s*|$)/i,
+  )
+  if (!alertMatch) {
+    addVisibleLineDecorations(
+      view,
+      node,
+      visibleRange,
+      'cm-md-rich-blockquote',
+      decorationRanges,
+      seenDecorations,
+    )
+    return
+  }
+
+  const alertType = alertMatch[1].toLowerCase() as MarkdownAlertType
+  const alertClass = `cm-md-rich-alert cm-md-rich-alert--${alertType}`
+
+  for (
+    let lineNumber = startLine.number;
+    lineNumber <= endLine.number;
+    lineNumber += 1
+  ) {
+    const line = view.state.doc.line(lineNumber)
+    if (line.to < visibleRange.from || line.from > visibleRange.to) {
+      continue
+    }
+    const key = `line:${line.from}:${alertClass}`
+    if (!seenDecorations.has(key)) {
+      seenDecorations.add(key)
+      decorationRanges.push(
+        Decoration.line({
+          attributes: { class: alertClass },
+        }).range(line.from),
+      )
+    }
+  }
+
+  if (!selectionEntersRange(view, startLine.from, startLine.to)) {
+    const key = `alert-header:${startLine.from}:${startLine.to}`
+    if (!seenDecorations.has(key)) {
+      seenDecorations.add(key)
+      decorationRanges.push(
+        Decoration.replace({
+          widget: new AlertHeaderWidget(alertType),
+        }).range(startLine.from, startLine.to),
+      )
+    }
+  }
+}
+
 function addMarkDecoration(
   node: MarkdownSyntaxNode,
   className: string,
@@ -921,6 +1037,65 @@ export const markdownRichThemeSpec = {
     borderLeft: '3px solid var(--cpx-sys-color-border-strong)',
     paddingLeft: '12px',
     color: 'var(--cpx-sys-color-fg-secondary)',
+  },
+  '&.cm-markdown-rich .cm-line.cm-md-rich-alert': {
+    boxSizing: 'border-box',
+    borderLeft: '3.5px solid var(--cpx-sys-color-border-default)',
+    paddingLeft: '12px',
+    color: 'var(--cpx-sys-color-fg-primary)',
+  },
+  '&.cm-markdown-rich .cm-line.cm-md-rich-alert--note': {
+    borderLeftColor: 'var(--cpx-sys-color-accent)',
+    background:
+      'color-mix(in srgb, var(--cpx-sys-color-accent) 6%, transparent)',
+  },
+  '&.cm-markdown-rich .cm-line.cm-md-rich-alert--tip': {
+    borderLeftColor: 'var(--cpx-sys-color-success)',
+    background:
+      'color-mix(in srgb, var(--cpx-sys-color-success) 6%, transparent)',
+  },
+  '&.cm-markdown-rich .cm-line.cm-md-rich-alert--important': {
+    borderLeftColor: '#a855f7',
+    background: 'color-mix(in srgb, #a855f7 6%, transparent)',
+  },
+  '&.cm-markdown-rich .cm-line.cm-md-rich-alert--warning': {
+    borderLeftColor: 'var(--cpx-sys-color-warning)',
+    background:
+      'color-mix(in srgb, var(--cpx-sys-color-warning) 6%, transparent)',
+  },
+  '&.cm-markdown-rich .cm-line.cm-md-rich-alert--caution': {
+    borderLeftColor: 'var(--cpx-sys-color-danger)',
+    background:
+      'color-mix(in srgb, var(--cpx-sys-color-danger) 6%, transparent)',
+  },
+  '&.cm-markdown-rich .cm-md-rich-alert-header': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontWeight: '600',
+    fontSize: 'var(--cpx-sys-font-size-sm)',
+    userSelect: 'none',
+  },
+  '&.cm-markdown-rich .cm-md-rich-alert-header--note': {
+    color: 'var(--cpx-sys-color-accent)',
+  },
+  '&.cm-markdown-rich .cm-md-rich-alert-header--tip': {
+    color: 'var(--cpx-sys-color-success)',
+  },
+  '&.cm-markdown-rich .cm-md-rich-alert-header--important': {
+    color: '#a855f7',
+  },
+  '&.cm-markdown-rich .cm-md-rich-alert-header--warning': {
+    color: 'var(--cpx-sys-color-warning)',
+  },
+  '&.cm-markdown-rich .cm-md-rich-alert-header--caution': {
+    color: 'var(--cpx-sys-color-danger)',
+  },
+  '&.cm-markdown-rich .cm-md-rich-alert-icon': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    verticalAlign: 'middle',
   },
   '&.cm-markdown-rich .cm-md-rich-list-marker': {
     display: 'inline-block',

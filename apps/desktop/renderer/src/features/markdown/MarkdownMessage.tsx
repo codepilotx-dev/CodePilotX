@@ -1,6 +1,17 @@
 import React, { useMemo } from 'react'
 import type { Token, Tokens } from 'marked'
-import { Check, Code2, Copy, FileText, FolderOpen } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertOctagon,
+  AlertTriangle,
+  Check,
+  Code2,
+  Copy,
+  FileText,
+  FolderOpen,
+  Info,
+  Lightbulb,
+} from 'lucide-react'
 import type { DesktopExternalOpenTarget } from '../../../shared/types.js'
 import {
   AppContextMenu,
@@ -213,6 +224,105 @@ function markStreamingNode(
   return React.cloneElement(node, { className })
 }
 
+type MarkdownAlertType = 'note' | 'tip' | 'important' | 'warning' | 'caution'
+
+const ALERT_CONFIG: Record<
+  MarkdownAlertType,
+  {
+    title: string
+    icon: React.ComponentType<{
+      className?: string
+      size?: number
+      strokeWidth?: number
+      'aria-hidden'?: boolean | 'true' | 'false'
+    }>
+  }
+> = {
+  note: { title: 'Note', icon: Info },
+  tip: { title: 'Tip', icon: Lightbulb },
+  important: { title: 'Important', icon: AlertCircle },
+  warning: { title: 'Warning', icon: AlertTriangle },
+  caution: { title: 'Caution', icon: AlertOctagon },
+}
+
+function parseAlertBlockquote(tokens: Token[] | undefined): {
+  alertType: MarkdownAlertType
+  title: string
+  contentTokens: Token[]
+} | null {
+  if (!tokens || tokens.length === 0) return null
+  const first = tokens[0]
+  if (!first || (first.type !== 'paragraph' && first.type !== 'text')) {
+    return null
+  }
+
+  const rawText = first.raw ?? (first as { text?: string }).text ?? ''
+  const alertMatch = rawText.match(
+    /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s*\n|\s*$)/i,
+  )
+  if (!alertMatch) {
+    const inlineMatch = rawText.match(
+      /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$/im,
+    )
+    if (!inlineMatch) return null
+  }
+
+  const typeStr = (
+    alertMatch?.[1] ??
+    rawText.match(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i)?.[1]
+  )?.toLowerCase() as MarkdownAlertType
+
+  if (!typeStr || !ALERT_CONFIG[typeStr]) return null
+
+  const remainingTokens = [...tokens]
+  const p = { ...(first as Tokens.Paragraph) }
+  const strippedRaw = p.raw.replace(
+    /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i,
+    '',
+  )
+
+  if (!strippedRaw.trim()) {
+    remainingTokens.shift()
+  } else {
+    p.raw = strippedRaw
+    p.text = (p.text ?? '').replace(
+      /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i,
+      '',
+    )
+    if (p.tokens && p.tokens.length > 0) {
+      const childTokens = [...p.tokens]
+      const firstChild = { ...childTokens[0] }
+      if ('raw' in firstChild) {
+        firstChild.raw = (firstChild.raw ?? '').replace(
+          /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i,
+          '',
+        )
+      }
+      if ('text' in firstChild) {
+        ;(firstChild as { text: string }).text = (
+          (firstChild as { text: string }).text ?? ''
+        ).replace(/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i, '')
+      }
+      if (
+        !firstChild.raw?.trim() &&
+        !((firstChild as { text?: string }).text?.trim())
+      ) {
+        childTokens.shift()
+      } else {
+        childTokens[0] = firstChild
+      }
+      p.tokens = childTokens
+    }
+    remainingTokens[0] = p
+  }
+
+  return {
+    alertType: typeStr,
+    title: ALERT_CONFIG[typeStr].title,
+    contentTokens: remainingTokens,
+  }
+}
+
 function renderToken(
   token: MarkdownToken,
   context: RenderContext,
@@ -246,12 +356,36 @@ function renderToken(
       return <br key={key} />
     case 'code':
       return renderCode(token.text, token.lang, false, context, key)
-    case 'blockquote':
+    case 'blockquote': {
+      const alert = parseAlertBlockquote(token.tokens)
+      if (alert) {
+        const IconComponent = ALERT_CONFIG[alert.alertType].icon
+        return (
+          <div
+            className={cx('md-alert', `md-alert--${alert.alertType}`)}
+            key={key}
+          >
+            <div className="md-alert__header">
+              <IconComponent
+                aria-hidden="true"
+                className="md-alert__icon"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+              <span className="md-alert__title">{alert.title}</span>
+            </div>
+            <div className="md-alert__content">
+              {renderTokens(alert.contentTokens, context, `${key}-alert-body`)}
+            </div>
+          </div>
+        )
+      }
       return (
         <blockquote key={key}>
           {renderTokens(token.tokens, context, `${key}-quote`)}
         </blockquote>
       )
+    }
     case 'heading': {
       const level = Math.max(1, Math.min(6, token.depth))
       return React.createElement(

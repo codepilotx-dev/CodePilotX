@@ -70,6 +70,20 @@ describe('editor line-height contracts', () => {
       color: 'transparent',
       transform: 'translateY(0.5lh)',
     })
+    expect(
+      markdownRichThemeSpec['&.cm-markdown-rich .cm-line.cm-md-rich-alert'],
+    ).toEqual({
+      boxSizing: 'border-box',
+      borderLeft: '3.5px solid var(--cpx-sys-color-border-default)',
+      paddingLeft: '12px',
+      color: 'var(--cpx-sys-color-fg-primary)',
+    })
+    expect(
+      markdownRichThemeSpec['&.cm-markdown-rich .cm-line.cm-md-rich-alert--important'],
+    ).toEqual({
+      borderLeftColor: '#a855f7',
+      background: 'color-mix(in srgb, #a855f7 6%, transparent)',
+    })
     // List items no longer add padding on top of the semantic line height.
     expect(
       markdownRichThemeSpec['&.cm-markdown-rich .cm-line.cm-md-rich-list-item'],

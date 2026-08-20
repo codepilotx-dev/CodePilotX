@@ -9,6 +9,7 @@
 
 ### Added
 
+- [desktop/renderer] 支持 GitHub 风格的 Markdown 提示块（Alerts / Callouts，支持 `[!NOTE]`、`[!TIP]`、`[!IMPORTANT]`、`[!WARNING]`、`[!CAUTION]`）：在正文会话时间线与右侧 Markdown 富文本编辑器/预览中统一渲染色彩边框、图标徽标与专属警示色系，富文本编辑中聚焦首行可直接修改围栏标签。
 - [development] 新增 CodePilotX 项目级代码审查、推送前检查、文档规范和简化审计 Skills，使 Agent 按仓库架构与验证契约执行常见工程工作流。
 - [Agent/desktop/renderer] 新增原生任务看板：支持 Project 筛选、五阶段拖拽排序、标签与评论、乐观并发、任务关联执行对话及本地或托管 worktree 启动，并向 Agent 提供受权限约束的任务工具。
 - [Agent/desktop/renderer] 新增全局模型健康测试，可用活动凭据并发执行真实最小请求、实时查看模型延迟与安全失败分类、取消批次及逐模型重试，并将 Provider 连接测试统一为真实探针。
