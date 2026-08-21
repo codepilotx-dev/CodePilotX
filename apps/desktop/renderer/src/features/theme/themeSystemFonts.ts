@@ -24,6 +24,10 @@ export function listSystemFonts(): Promise<DesktopSystemFontsResult> {
   return cachedResult
 }
 
+export function getCachedSystemFontsPromise(): Promise<DesktopSystemFontsResult> | null {
+  return cachedResult
+}
+
 /** Test hook: clear the renderer-lifetime cache. */
 export function resetSystemFontsCache(): void {
   cachedResult = null

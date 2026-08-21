@@ -22,6 +22,8 @@ import {
   SYSTEM_DEFAULT_FAMILY_VALUE,
   buildFamilyOptions,
   buildStyleOptions,
+  extractStyleNameFromFace,
+  faceStyleLabel,
   fontPatchForSelection,
   styleLabel,
 } from '../src/features/settings/themeFontPickerModel.js'
@@ -319,7 +321,62 @@ describe('theme font picker model', () => {
     expect(options[0]).toEqual({ value: DEFAULT_FACE_VALUE, label: '常规' })
   })
 
-  test('style options preserve a stored face missing from the enumeration', () => {
+  test('extracts style name and localized label from face metadata', () => {
+    expect(
+      extractStyleNameFromFace({
+        family: 'JetBrains Mono',
+        fullName: 'JetBrains Mono Medium',
+        postscriptName: 'JetBrainsMono-Medium',
+      }),
+    ).toBe('Medium')
+    expect(
+      faceStyleLabel({
+        family: 'JetBrains Mono',
+        fullName: 'JetBrains Mono Medium',
+        postscriptName: 'JetBrainsMono-Medium',
+      }),
+    ).toBe('中等')
+
+    expect(
+      extractStyleNameFromFace({
+        family: 'JetBrains Mono',
+        fullName: 'JetBrains Mono SemiBold',
+        postscriptName: 'JetBrainsMono-SemiBold',
+      }),
+    ).toBe('SemiBold')
+    expect(
+      faceStyleLabel({
+        family: 'JetBrains Mono',
+        fullName: 'JetBrains Mono SemiBold',
+        postscriptName: 'JetBrainsMono-SemiBold',
+      }),
+    ).toBe('半粗体')
+
+    expect(
+      extractStyleNameFromFace({
+        family: 'MiSans VF',
+        fullName: 'MiSans VF',
+        postscriptName: 'MiSans-VF-Heavy',
+      }),
+    ).toBe('Heavy')
+    expect(
+      faceStyleLabel({
+        family: 'MiSans VF',
+        fullName: 'MiSans VF',
+        postscriptName: 'MiSans-VF-Heavy',
+      }),
+    ).toBe('特粗体')
+
+    expect(
+      faceStyleLabel({
+        family: 'Inter',
+        fullName: 'Inter Bold Italic',
+        postscriptName: 'Inter-BoldItalic',
+      }),
+    ).toBe('粗斜体')
+  })
+
+  test('style options preserve a stored face missing from the enumeration and use localized style label', () => {
     const options = buildStyleOptions({
       faces: MONO_FACES,
       currentFace: {
@@ -332,6 +389,47 @@ describe('theme font picker model', () => {
       'CodeMono-Regular',
       'CodeMono-Bold',
       'CodeMono-Missing',
+    ])
+    expect(options.find(opt => opt.value === 'CodeMono-Missing')).toEqual({
+      value: 'CodeMono-Missing',
+      label: 'Missing',
+      detail: 'CodeMono Missing',
+    })
+  })
+
+  test('style options resolve localized variant name before system fonts are loaded', () => {
+    const mediumOptions = buildStyleOptions({
+      faces: [],
+      currentFace: {
+        family: 'JetBrains Mono',
+        fullName: 'JetBrains Mono Medium',
+        postscriptName: 'JetBrainsMono-Medium',
+      },
+    })
+    expect(mediumOptions).toEqual([
+      { value: DEFAULT_FACE_VALUE, label: '常规' },
+      {
+        value: 'JetBrainsMono-Medium',
+        label: '中等',
+        detail: 'JetBrains Mono Medium',
+      },
+    ])
+
+    const semiBoldOptions = buildStyleOptions({
+      faces: [],
+      currentFace: {
+        family: 'JetBrains Mono',
+        fullName: 'JetBrains Mono SemiBold',
+        postscriptName: 'JetBrainsMono-SemiBold',
+      },
+    })
+    expect(semiBoldOptions).toEqual([
+      { value: DEFAULT_FACE_VALUE, label: '常规' },
+      {
+        value: 'JetBrainsMono-SemiBold',
+        label: '半粗体',
+        detail: 'JetBrains Mono SemiBold',
+      },
     ])
   })
 

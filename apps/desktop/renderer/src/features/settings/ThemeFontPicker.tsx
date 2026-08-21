@@ -11,6 +11,7 @@ import type {
   DesktopThemeFontFace,
 } from '../../../shared/types.js'
 import {
+  getCachedSystemFontsPromise,
   isMonospaceFamily,
   listSystemFonts,
 } from '../theme/themeSystemFonts.js'
@@ -122,6 +123,21 @@ export function ThemeFontPicker({
     'idle' | 'loading' | 'ready' | 'unavailable'
   >('idle')
   const [faces, setFaces] = useState<readonly DesktopSystemFontFace[]>([])
+
+  useEffect(() => {
+    if (!bridgeAvailable || fontsState !== 'idle') return
+    const cached = getCachedSystemFontsPromise()
+    if (cached) {
+      void cached.then(result => {
+        if (result.ok) {
+          setFaces(result.fonts)
+          setFontsState('ready')
+        } else {
+          setFontsState('unavailable')
+        }
+      })
+    }
+  }, [bridgeAvailable, fontsState])
 
   const handleOpenChange = useCallback(
     (open: boolean): void => {

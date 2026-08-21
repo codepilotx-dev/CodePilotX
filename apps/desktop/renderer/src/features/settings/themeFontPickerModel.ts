@@ -25,15 +25,128 @@ export type FontPickerKind = 'ui' | 'code'
 export function styleLabel(style: string): string {
   const normalized = style.trim().toLowerCase()
   if (/^(regular|normal)$/.test(normalized)) return '常规'
-  if (/^bold\s+italic$/.test(normalized)) return '粗斜体'
+  if (/^(bold\s*italic|bolditalic)$/.test(normalized)) return '粗斜体'
+  if (/^(semi\s*bold\s*italic|demi\s*bold\s*italic|semibolditalic|demibolditalic)$/.test(normalized)) return '半粗斜体'
+  if (/^(medium\s*italic|mediumitalic)$/.test(normalized)) return '中等斜体'
+  if (/^(light\s*italic|lightitalic)$/.test(normalized)) return '细斜体'
+  if (/^(extra\s*bold|ultra\s*bold|extrabold|ultrabold)$/.test(normalized)) return '特粗体'
   if (normalized === 'bold') return '粗体'
-  if (normalized === 'italic') return '斜体'
+  if (/^(italic|oblique)$/.test(normalized)) return '斜体'
   if (normalized === 'medium') return '中等'
-  if (/^(semi\s*bold|demi\s*bold|semibold)$/.test(normalized)) return '半粗体'
+  if (/^(semi\s*bold|demi\s*bold|semibold|demibold)$/.test(normalized)) return '半粗体'
   if (normalized === 'light') return '细体'
+  if (/^(extra\s*light|ultra\s*light|extralight|ultralight)$/.test(normalized)) return '超细体'
   if (normalized === 'thin') return '特细体'
   if (/^(black|heavy)$/.test(normalized)) return '特粗体'
   return style
+}
+
+export function extractStyleNameFromFace(face: DesktopThemeFontFace): string {
+  const family = face.family.trim()
+  const fullName = face.fullName.trim()
+  const postscript = face.postscriptName.trim()
+
+  // 1. Try stripping family prefix from fullName (case-insensitive)
+  if (
+    fullName.toLowerCase().startsWith(family.toLowerCase())
+    && fullName.length > family.length
+  ) {
+    const remainder = fullName
+      .slice(family.length)
+      .replace(/^[\s\-_:]+/, '')
+      .trim()
+    if (remainder) {
+      return remainder
+    }
+  }
+
+  // 2. Try normalized family without spaces (e.g. "JetBrainsMono" from "JetBrains Mono")
+  const flatFamily = family.replace(/[\s\-_]+/g, '').toLowerCase()
+  const flatFullName = fullName.replace(/[\s\-_]+/g, '')
+  if (
+    flatFullName.toLowerCase().startsWith(flatFamily)
+    && flatFullName.length > flatFamily.length
+  ) {
+    const remainder = fullName
+      .replace(new RegExp(`^${family.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\-_:]*`, 'i'), '')
+      .trim()
+    if (remainder) {
+      return remainder
+    }
+  }
+
+  // 3. Try postscriptName (e.g. "MiSans-VF-Heavy" or "JetBrainsMono-Medium")
+  const familyTokens = family
+    .split(/[\s\-_]+/)
+    .filter(Boolean)
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  if (familyTokens.length > 0) {
+    const familyPattern = new RegExp(
+      `^(${familyTokens.join('[\\s\\-_]*')})[\\s\\-_]*(vf[\\s\\-_]*)?`,
+      'i',
+    )
+    if (familyPattern.test(postscript)) {
+      const postscriptRemainder = postscript
+        .replace(familyPattern, '')
+        .replace(/^[\s\-_:]+/, '')
+        .trim()
+      if (postscriptRemainder) {
+        return postscriptRemainder
+      }
+    }
+  }
+
+  // 4. Try matching known style patterns inside fullName / postscriptName
+  const combined = `${fullName} ${postscript}`.toLowerCase()
+  if (/\b(bold\s*italic|bolditalic)\b/.test(combined)) {
+    return 'Bold Italic'
+  }
+  if (/\b(semi\s*bold\s*italic|demi\s*bold\s*italic|semibolditalic|demibolditalic)\b/.test(combined)) {
+    return 'SemiBold Italic'
+  }
+  if (/\b(medium\s*italic|mediumitalic)\b/.test(combined)) {
+    return 'Medium Italic'
+  }
+  if (/\b(light\s*italic|lightitalic)\b/.test(combined)) {
+    return 'Light Italic'
+  }
+  if (/\b(extra\s*bold|ultra\s*bold|extrabold|ultrabold)\b/.test(combined)) {
+    return 'ExtraBold'
+  }
+  if (/\b(semi\s*bold|demi\s*bold|semibold|demibold)\b/.test(combined)) {
+    return 'SemiBold'
+  }
+  if (/\b(black|heavy)\b/.test(combined)) {
+    return 'Heavy'
+  }
+  if (/\bbold\b/.test(combined)) {
+    return 'Bold'
+  }
+  if (/\bmedium\b/.test(combined)) {
+    return 'Medium'
+  }
+  if (/\b(extra\s*light|ultra\s*light|extralight|ultralight)\b/.test(combined)) {
+    return 'ExtraLight'
+  }
+  if (/\blight\b/.test(combined)) {
+    return 'Light'
+  }
+  if (/\bthin\b/.test(combined)) {
+    return 'Thin'
+  }
+  if (/\b(italic|oblique)\b/.test(combined)) {
+    return 'Italic'
+  }
+  if (/\b(regular|normal)\b/.test(combined)) {
+    return 'Regular'
+  }
+
+  return fullName || postscript || '常规'
+}
+
+export function faceStyleLabel(face: DesktopThemeFontFace): string {
+  const extracted = extractStyleNameFromFace(face)
+  return styleLabel(extracted)
 }
 
 export function isDefaultFaceStyle(style: string): boolean {
@@ -138,7 +251,8 @@ export function buildStyleOptions({
   ) {
     options.push({
       value: currentFace.postscriptName,
-      label: currentFace.fullName,
+      label: faceStyleLabel(currentFace),
+      detail: currentFace.fullName,
     })
   }
   return options
