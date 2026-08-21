@@ -84,7 +84,6 @@ const fallbackTextBlock = (value: unknown): ToolResultBlock | null => {
  */
 export const piToolResultBlocks = (
   value: unknown,
-  options: { tool: string },
 ): { blocks: ToolResultBlock[]; artifacts: PiToolArtifactInput[] } => {
   const blocks: ToolResultBlock[] = []
   const artifacts: PiToolArtifactInput[] = []
@@ -140,7 +139,6 @@ export const piToolResultBlocks = (
     const block = jsonBlock(structured)
     if (block) blocks.push(block)
   }
-  void options.tool
   return { blocks, artifacts }
 }
 
@@ -388,7 +386,7 @@ export class PiEventAdapter {
         break
       case "tool_execution_end":
       {
-        const { blocks, artifacts } = piToolResultBlocks(event.result, { tool: event.toolName })
+        const { blocks, artifacts } = piToolResultBlocks(event.result)
         await this.sink.toolFinished?.(this.context, {
           toolCallID: event.toolCallId,
           tool: event.toolName,
