@@ -78,41 +78,6 @@
 
 }
 
-.sidebar-product-mode-menu {
-  .popover-item {
-    min-height: 52px;
-    padding-block: 6px;
-  }
-
-  .popover-item-label {
-    min-width: 0;
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
-  }
-}
-
-.sidebar-product-mode-option {
-  min-width: 0;
-  display: grid;
-  gap: 1px;
-}
-
-.sidebar-product-mode-option__label {
-  color: currentColor;
-  font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
-}
-
-.sidebar-product-mode-option__description {
-  overflow: hidden;
-  color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .sidebar-search-button {
   color: var(--cpx-sys-color-fg-tertiary);
 }

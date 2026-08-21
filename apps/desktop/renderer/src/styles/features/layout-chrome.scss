@@ -79,6 +79,9 @@
 }
 
 .menubar-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cpx-comp-row-gap-y, 2px);
   width: var(--popover-width, max-content);
   max-width: var(--popover-max-width, var(--popover-default-max-width));
   padding: var(--popover-surface-padding);

@@ -197,12 +197,15 @@
   --cpx-comp-row-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-row-height-nav: calc(var(--cpx-sys-font-size-md) + 16px);
   --cpx-comp-row-height-menu: calc(var(--cpx-sys-font-size-md) + 18px);
+  --cpx-comp-row-height-menu-rich: 44px;
   --cpx-comp-row-height-toolbar: 28px;
   --cpx-comp-row-height-composer: 28px;
   --cpx-comp-row-radius: var(--cpx-sys-radius-md);
   --cpx-comp-row-padding-inline: 8px;
   --cpx-comp-row-padding-block: 5px;
+  --cpx-comp-row-padding-block-rich: 6px;
   --cpx-comp-row-gap: 6px;
+  --cpx-comp-row-gap-y: 2px;
   --cpx-comp-row-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-row-hover-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-row-pressed-bg: var(--cpx-sys-color-active);

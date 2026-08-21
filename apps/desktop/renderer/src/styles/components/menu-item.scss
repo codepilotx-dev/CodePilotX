@@ -46,7 +46,7 @@
   .popover-item,
   .popover-sub-trigger {
     display: grid;
-    grid-template-columns: var(--menu-icon-size, 16px) minmax(min-content, 1fr) max-content;
+    grid-template-columns: var(--menu-icon-size, 16px) minmax(0, 1fr) max-content;
     column-gap: var(--cpx-comp-row-gap);
     align-items: center;
   }
@@ -54,9 +54,24 @@
   .popover-item.rich {
     grid-template-columns:
       calc(var(--menu-icon-size, 16px) + 2px)
-      minmax(min-content, 1fr)
+      minmax(0, 1fr)
       max-content;
     align-items: center;
+  }
+}
+
+.popover-menu--no-icons,
+.popover-menu--text-only {
+  .popover-item,
+  .popover-sub-trigger {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    column-gap: var(--cpx-comp-row-gap);
+    align-items: center;
+  }
+
+  .popover-item-leading {
+    display: none;
   }
 }
 

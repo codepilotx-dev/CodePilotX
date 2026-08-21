@@ -83,6 +83,16 @@
   --interactive-row-current-line-height: var(--cpx-sys-line-height-tight);
 }
 
+.interactive-row--rich,
+.popover-item.rich,
+.popover-item--rich {
+  --interactive-row-current-min-height: var(--cpx-comp-row-height-menu-rich, 44px);
+  --interactive-row-current-padding-block: var(
+    --cpx-comp-row-padding-block-rich,
+    6px
+  );
+}
+
 .interactive-row--toolbar {
   --interactive-row-current-min-height: var(--cpx-comp-row-height-toolbar);
   --interactive-row-current-radius: var(--cpx-comp-row-radius);
