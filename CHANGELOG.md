@@ -84,6 +84,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复侧边栏会话项在悬浮或聚焦时未读圆点与置顶/归档操作按钮并存重叠的问题，对标 Codex 实现悬浮态仅展示操作按钮并隐藏未读圆点，并将侧栏会话项与 Hover 详情卡片中的未读圆点统一为主题 Accent 色（var(--cpx-sys-color-accent)）。
 - [Agent/desktop] 修复 models.dev 缓存重载时丢失工具调用等模型能力元数据，恢复 Provider 模型数量、兼容状态和模型选择器中的已配置 Provider。
 - [Agent/desktop/renderer] 修复 Provider 模型数量依赖按需缓存、模型选择器仅显示当前 Provider 的问题；模型中心现在展示准确的可执行模型总数，并在选择器打开时加载全部已配置 Provider 的完整模型目录。
 - [desktop/renderer] 修复字体变体应用逻辑：CSS 变量改用系统原生全称（如 "MiSans VF Semibold"、"JetBrains Mono SemiBold"）替代带连字符与自定义前缀的别名，确保 Windows/macOS/Linux 各字重与字形样式即时生效并兼容历史配置。

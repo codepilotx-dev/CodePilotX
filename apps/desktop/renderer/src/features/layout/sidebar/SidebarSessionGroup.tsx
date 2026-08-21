@@ -452,8 +452,7 @@ function SidebarSessionGroupComponent({
                   <Archive size={APP_ICON_SIZE} />
                 </IconButton>
               </div>
-            ) : null}
-            {session.unreadAt && confirmArchiveSessionId !== session.id ? (
+            ) : session.unreadAt ? (
               <span
                 aria-label="未读"
                 className="sidebar-session-unread-dot"
