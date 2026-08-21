@@ -281,7 +281,8 @@
   cursor: pointer;
 }
 
-.sidebar-session-row.sidebar-row--grid {
+.sidebar-session-row.sidebar-row--grid,
+.sidebar-project-header.sidebar-row--grid {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
@@ -364,7 +365,8 @@
   justify-content: flex-end;
 }
 
-.sidebar-session-row > .sidebar-row-trailing {
+.sidebar-session-row > .sidebar-row-trailing,
+.sidebar-project-header > .sidebar-row-trailing {
   width: auto;
 }
 
@@ -493,13 +495,14 @@
   transition: opacity var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
 }
 
+.sidebar-project-actions,
 .sidebar-project-action-items,
 .sidebar-section-actions,
 .sidebar-session-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
 }
 
 .sidebar-section-actions,
@@ -949,14 +952,14 @@
 
 .sidebar-session-hover-card {
   min-width: 200px;
-  max-width: 268px;
-  padding: 10px 14px;
+  max-width: 280px;
+  padding: 8px 12px;
 }
 
 .sidebar-session-hover-card-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -964,13 +967,21 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
+}
+
+.sidebar-session-hover-card-title-group {
+  min-width: 0;
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }
 
 .sidebar-session-hover-card-title {
   min-width: 0;
-  flex: 1;
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
@@ -981,14 +992,18 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  cursor: pointer;
+}
+
+.sidebar-session-hover-card-device-icon {
+  flex: 0 0 auto;
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .sidebar-session-hover-card-trailing {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding-top: 1px;
 }
 
@@ -1005,6 +1020,20 @@
   line-height: var(--control-line-height);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.sidebar-session-hover-card-time-dot {
+  flex: 0 0 auto;
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+}
+
+.sidebar-session-running-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-accent);
 }
 
 .sidebar-session-hover-card-rename-input {
@@ -1025,23 +1054,23 @@
 .sidebar-session-hover-card-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
 .sidebar-session-hover-card-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: var(--cpx-sys-font-size-md);
+  gap: 5px;
+  font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--control-line-height);
-  color: var(--cpx-sys-color-fg-primary);
+  color: var(--cpx-sys-color-fg-secondary);
 
   svg {
-    flex: 0 0 15px;
-    width: 15px;
-    height: 15px;
-    color: var(--cpx-sys-color-fg-primary);
+    flex: 0 0 14px;
+    width: 14px;
+    height: 14px;
+    color: var(--cpx-sys-color-fg-secondary);
   }
 
   span {
@@ -1050,20 +1079,40 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .sidebar-session-hover-card-stat-separator {
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
 }
 
 .sidebar-project-hover-card {
-  width: min(320px, calc(100vw - 16px));
+  width: min(280px, calc(100vw - 16px));
   max-height: min(640px, calc(100vh - 32px));
+  padding: 8px 12px;
   overflow-y: auto;
 }
 
+.sidebar-project-hover-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .sidebar-project-hover-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
   strong {
     min-width: 0;
     flex: 1;
     overflow-wrap: anywhere;
+    font-size: var(--cpx-sys-font-size-md);
+    font-weight: var(--cpx-sys-font-weight-medium);
     line-height: var(--control-line-height);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
@@ -1075,60 +1124,75 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font-size: var(--cpx-sys-font-size-xs);
+  padding-left: 1px;
 
-  span {
+  .sidebar-project-hover-card-stat-item {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
   }
 
   .sidebar-project-hover-card-stat-separator {
-    color: var(--cpx-sys-color-border-default);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
 .sidebar-project-hover-card-folders {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 2px;
+  margin-top: 2px;
 }
 
 .ui-button.sidebar-project-hover-card-folder,
 .ui-button.sidebar-project-hover-card-edit {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
   width: 100%;
-  min-width: 0;
-  border-color: transparent;
+  height: auto;
+  min-height: 26px;
+  padding: 2px 4px;
+  border-radius: var(--cpx-sys-radius-md);
+  border: none;
   background: transparent;
   box-shadow: none;
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-regular);
+  text-align: left;
 
   &:hover:not(:disabled) {
     border-color: transparent;
     background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
     box-shadow: none;
+  }
+
+  svg {
+    flex: 0 0 14px;
+    width: 14px;
+    height: 14px;
+    color: var(--cpx-sys-color-fg-secondary);
   }
 }
 
 .sidebar-project-hover-card-folder {
-  height: auto;
-  min-height: var(--control-size-sm);
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding-block: var(--control-padding-block-compact);
-  white-space: normal;
-}
-
-.sidebar-project-hover-card-folder span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: var(--cpx-sys-line-height-normal);
-  white-space: normal;
+  .sidebar-project-hover-card-folder-path {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: var(--cpx-sys-line-height-normal);
+  }
 }
 
 .sidebar-project-hover-card-edit {
-  justify-content: center;
+  margin-top: 1px;
 }
 
 .popover-sidebar-organize {

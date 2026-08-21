@@ -1,5 +1,5 @@
 import type React from 'react'
-import { GitBranch, SquareTerminal } from 'lucide-react'
+import { Folder, GitBranch, Laptop } from 'lucide-react'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 import {
@@ -78,7 +78,7 @@ export function SidebarSessionHoverCardOverlay({
             <span
               aria-busy={regeneratingTitle}
               aria-live="polite"
-              className="sidebar-session-hover-card-title"
+              className="sidebar-session-hover-card-title-group"
               title="单击重命名"
               onClick={onStartRename}
             >
@@ -88,7 +88,10 @@ export function SidebarSessionHoverCardOverlay({
                   <span className="u-sr-only">正在更新会话标题</span>
                 </>
               ) : (
-                model.title
+                <>
+                  <span className="sidebar-session-hover-card-title">{model.title}</span>
+                  <Laptop aria-hidden="true" className="sidebar-session-hover-card-device-icon" size={14} strokeWidth={1.75} />
+                </>
               )}
             </span>
           )}
@@ -96,6 +99,15 @@ export function SidebarSessionHoverCardOverlay({
             <span className="sidebar-session-hover-card-time">
               {model.relativeTime}
             </span>
+            {model.isRunning ? (
+              <>
+                <span aria-hidden="true" className="sidebar-session-hover-card-time-dot">·</span>
+                <span
+                  aria-label="运行中"
+                  className="sidebar-session-running-dot"
+                />
+              </>
+            ) : null}
             {model.unread ? (
               <span
                 aria-hidden="true"
@@ -106,15 +118,16 @@ export function SidebarSessionHoverCardOverlay({
         </SidebarHoverCardHeader>
         <div className="sidebar-session-hover-card-meta">
           <SidebarHoverCardRow className="sidebar-session-hover-card-row">
-            <SquareTerminal aria-hidden="true" size={15} strokeWidth={1.75} />
+            <Folder aria-hidden="true" size={14} strokeWidth={1.75} />
             <span>{model.projectLabel}</span>
+            {model.gitBranch ? (
+              <>
+                <span aria-hidden="true" className="sidebar-session-hover-card-stat-separator">·</span>
+                <GitBranch aria-hidden="true" size={13} strokeWidth={1.75} />
+                <span>{model.gitBranch}</span>
+              </>
+            ) : null}
           </SidebarHoverCardRow>
-          {model.gitBranch ? (
-            <SidebarHoverCardRow className="sidebar-session-hover-card-row">
-              <GitBranch aria-hidden="true" size={15} strokeWidth={1.75} />
-              <span>{model.gitBranch}</span>
-            </SidebarHoverCardRow>
-          ) : null}
         </div>
       </SidebarHoverCardFrame>
     </SidebarHoverCardSurface>

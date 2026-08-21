@@ -21,6 +21,7 @@ export type SidebarSessionHoverCardModel = {
   projectLabel: string
   gitBranch: string | null
   unread: boolean
+  isRunning: boolean
 }
 
 export function formatSidebarSessionRelativeTime(
@@ -58,6 +59,7 @@ export function buildSidebarSessionHoverCardModel(
     projectLabel,
     gitBranch,
     unread: Boolean(session.unreadAt),
+    isRunning: session.status === 'running',
   }
 }
 

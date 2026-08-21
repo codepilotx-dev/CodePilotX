@@ -17,6 +17,7 @@ import type {
 } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SessionListItem } from '../../../uiTypes.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SidebarRow } from './SidebarRow.js'
@@ -210,13 +211,7 @@ function SidebarProjectGroupComponent({
       data-sidebar-project-key={projectKey}
       type="button"
     >
-      <span
-        className={cx(
-          'sidebar-project-title-text',
-          'u-min-w-0',
-          'u-truncate',
-        )}
-      >
+      <span>
         {managedProject.name}
       </span>
     </button>
@@ -256,78 +251,80 @@ function SidebarProjectGroupComponent({
               <div
                 className={cx(
                   'sidebar-project-actions',
-                  'tw:gap-3',
                   actionsVisible && 'is-visible',
                 )}
                 onClick={event => event.stopPropagation()}
               >
-                  <PopoverMenu
-                    className="popover-sidebar-project popover-menu--grid"
-                    open={menuOpen}
-                    side="bottom"
-                    width="auto"
-                    trigger={
-                      <button
-                        aria-label="更多"
-                        className="icon-button sidebar-project-action-button"
-                        type="button"
-                      >
-                        <MoreHorizontal size={APP_ICON_SIZE} />
-                      </button>
-                    }
-                    onOpenChange={setMenuOpen}
+                <PopoverMenu
+                  className="popover-sidebar-project popover-menu--grid"
+                  open={menuOpen}
+                  side="bottom"
+                  width="auto"
+                  trigger={
+                    <IconButton
+                      className="sidebar-project-action-button"
+                      color="ghostSecondary"
+                      size="iconMd"
+                      title="更多"
+                    >
+                      <MoreHorizontal size={APP_ICON_SIZE} />
+                    </IconButton>
+                  }
+                  onOpenChange={setMenuOpen}
+                >
+                  <PopoverItem
+                    icon={isPinned
+                      ? <PinOff size={APP_ICON_SIZE} />
+                      : <Pin size={APP_ICON_SIZE} />}
+                    onClick={togglePinned}
                   >
-                    <PopoverItem
-                      icon={isPinned
-                        ? <PinOff size={APP_ICON_SIZE} />
-                        : <Pin size={APP_ICON_SIZE} />}
-                      onClick={togglePinned}
-                    >
-                      {isPinned ? '取消置顶项目' : '置顶项目'}
-                    </PopoverItem>
-                    <PopoverItem
-                      disabled={isUnavailable}
-                      icon={<FolderOpen size={APP_ICON_SIZE} />}
-                      onClick={() => {
-                        void desktopClient.openPathWithDefaultTarget(
-                          managedProject.path,
-                        )
-                      }}
-                    >
-                      在资源管理器中打开
-                    </PopoverItem>
-                    <PopoverItem
-                      icon={<Settings2 size={APP_ICON_SIZE} />}
-                      onClick={() => setManagerOpen(true)}
-                    >
-                      编辑项目
-                    </PopoverItem>
-                    <PopoverItem
-                      disabled={
-                        countedProjectSessions.length === 0 ||
-                        processingAction !== null
-                      }
-                      icon={<Archive size={APP_ICON_SIZE} />}
-                      onClick={archiveAll}
-                    >
-                      {processingAction === 'archive' ? '归档中…' : '归档任务'}
-                    </PopoverItem>
-                    <PopoverItem
-                      icon={<X size={APP_ICON_SIZE} />}
-                      onClick={() => setConfirmRemoveOpen(true)}
-                    >
-                      移除
-                    </PopoverItem>
-                  </PopoverMenu>
-                <button
+                    {isPinned ? '取消置顶项目' : '置顶项目'}
+                  </PopoverItem>
+                  <PopoverItem
+                    disabled={isUnavailable}
+                    icon={<FolderOpen size={APP_ICON_SIZE} />}
+                    onClick={() => {
+                      void desktopClient.openPathWithDefaultTarget(
+                        managedProject.path,
+                      )
+                    }}
+                  >
+                    在资源管理器中打开
+                  </PopoverItem>
+                  <PopoverItem
+                    icon={<Settings2 size={APP_ICON_SIZE} />}
+                    onClick={() => setManagerOpen(true)}
+                  >
+                    编辑项目
+                  </PopoverItem>
+                  <PopoverItem
+                    disabled={
+                      countedProjectSessions.length === 0 ||
+                      processingAction !== null
+                    }
+                    icon={<Archive size={APP_ICON_SIZE} />}
+                    onClick={archiveAll}
+                  >
+                    {processingAction === 'archive' ? '归档中…' : '归档任务'}
+                  </PopoverItem>
+                  <PopoverItem
+                    icon={<X size={APP_ICON_SIZE} />}
+                    onClick={() => setConfirmRemoveOpen(true)}
+                  >
+                    移除
+                  </PopoverItem>
+                </PopoverMenu>
+                <IconButton
                   aria-label="新建对话"
-                  className="icon-button sidebar-project-action-button"
+                  className="sidebar-project-action-button"
+                  color="ghostSecondary"
                   disabled={isUnavailable}
-                  type="button"
+                  size="iconMd"
+                  title="新建对话"
                   onClick={() => onCreateSession(managedProject)}
                 >
                   <SquarePen size={APP_ICON_SIZE} />
-                </button>
+                </IconButton>
               </div>
             }
           >

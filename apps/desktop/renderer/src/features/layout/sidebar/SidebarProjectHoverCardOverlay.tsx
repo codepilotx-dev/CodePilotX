@@ -1,5 +1,5 @@
 import type React from 'react'
-import { FolderOpen, MessageSquare, Pin, PinOff, Settings2 } from 'lucide-react'
+import { FolderOpen, MessageSquare, Pin, PinOff, Settings } from 'lucide-react'
 import { useMemo, useRef } from 'react'
 import type {
   DesktopWorkspace,
@@ -14,7 +14,6 @@ import {
   type SidebarHoverCardOverlayRenderProps,
 } from './SidebarHoverCard.js'
 import {
-  SidebarHoverCardDivider,
   SidebarHoverCardFrame,
   SidebarHoverCardHeader,
   SidebarHoverCardRow,
@@ -111,45 +110,53 @@ export function SidebarProjectHoverCardOverlay({
           </IconButton>
         </SidebarHoverCardHeader>
         <SidebarHoverCardRow className="sidebar-project-hover-card-stats">
-          <span>
+          <span className="sidebar-project-hover-card-stat-item">
             <MessageSquare aria-hidden="true" size={APP_ICON_SIZE} />
-            {conversationCount} 个对话
+            <span>{conversationCount} 个任务</span>
           </span>
-          <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
-          <span>{unreadCount} 条未读</span>
+          {unreadCount > 0 ? (
+            <>
+              <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
+              <span>{unreadCount} 条未读</span>
+            </>
+          ) : null}
           <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
           <span>{openCount} 个已开启</span>
         </SidebarHoverCardRow>
-        <SidebarHoverCardDivider className="sidebar-project-hover-card-divider" />
         <div className="sidebar-project-hover-card-folders">
           {folders.map(folder => (
-            <Button color="primary"
-              className="sidebar-project-hover-card-folder"
-              disabled={
-                isUnavailable || folder.availability === 'missing'
-              }
-              key={folder.id}
-              title={folder.path}
-              onClick={() => {
-                onOpenFolder(folder.path)
-                interactionProps.requestOpenChange(false)
-              }}
-            >
-              <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} />
-              <span>{folder.path}</span>
-            </Button>
+            folder.path ? (
+              <Button
+                color="ghostSecondary"
+                className="sidebar-project-hover-card-folder"
+                disabled={
+                  isUnavailable || folder.availability === 'missing'
+                }
+                key={folder.id}
+                size="compact"
+                title={folder.path}
+                onClick={() => {
+                  onOpenFolder(folder.path)
+                  interactionProps.requestOpenChange(false)
+                }}
+              >
+                <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} />
+                <span className="sidebar-project-hover-card-folder-path">{folder.path}</span>
+              </Button>
+            ) : null
           ))}
         </div>
-        <SidebarHoverCardDivider className="sidebar-project-hover-card-divider" />
-        <Button color="secondary"
+        <Button
+          color="ghostSecondary"
           className="sidebar-project-hover-card-edit"
+          size="compact"
           onClick={() => {
             onEdit()
             interactionProps.requestOpenChange(false)
           }}
         >
-          <Settings2 aria-hidden="true" size={APP_ICON_SIZE} />
-          编辑项目
+          <Settings aria-hidden="true" size={APP_ICON_SIZE} />
+          <span>编辑项目</span>
         </Button>
       </SidebarHoverCardFrame>
     </SidebarHoverCardSurface>

@@ -287,7 +287,6 @@ function SidebarSessionGroupComponent({
       "u-items-center",
       "u-justify-end",
       "u-w-auto",
-      "tw:gap-3",
       awaitingApproval && "sidebar-session-meta--approval",
       confirmArchiveSessionId === session.id && "confirming-archive",
     );
@@ -413,12 +412,6 @@ function SidebarSessionGroupComponent({
                   size={APP_ICON_SIZE}
                 />
               </>
-            ) : session.status === "running" ? (
-              <LoaderCircle
-                aria-label="加载中"
-                className="sidebar-session-spinner"
-                size={APP_ICON_SIZE}
-              />
             ) : hoveredSessionId === session.id || focusedSessionId === session.id ? (
               <div className="sidebar-session-actions">
                 {session.pinnedAt ? (
@@ -452,6 +445,12 @@ function SidebarSessionGroupComponent({
                   <Archive size={APP_ICON_SIZE} />
                 </IconButton>
               </div>
+            ) : session.status === "running" ? (
+              <LoaderCircle
+                aria-label="加载中"
+                className="sidebar-session-spinner"
+                size={APP_ICON_SIZE}
+              />
             ) : session.unreadAt ? (
               <span
                 aria-label="未读"
