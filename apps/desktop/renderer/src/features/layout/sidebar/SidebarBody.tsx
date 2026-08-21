@@ -37,6 +37,7 @@ import {
 } from "./SidebarSessionGroup.js";
 import {
   buildSidebarPinnedItems,
+  clampTimelineVisibleLimit,
   normalizeSidebarPath,
   reorderSidebarPinnedItemKeys,
   sidebarProjectKey,
@@ -755,6 +756,7 @@ function Timeline({
 }): React.ReactNode {
   const [visibleLimit, setVisibleLimit] = useState(10)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const previousTotalRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     setVisibleLimit(10)
@@ -764,6 +766,19 @@ function Timeline({
     () => sliceSidebarTimelineModel(timeline, visibleLimit),
     [timeline, visibleLimit],
   )
+
+  useEffect(() => {
+    const nextTotal = sliced.totalCount
+    const previousTotal = previousTotalRef.current
+    setVisibleLimit(current =>
+      clampTimelineVisibleLimit({
+        previousTotal,
+        nextTotal,
+        currentLimit: current,
+      }),
+    )
+    previousTotalRef.current = nextTotal
+  }, [sliced.totalCount])
 
   useEffect(() => {
     if (!sliced.hasMore || !sentinelRef.current) return

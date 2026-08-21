@@ -12,7 +12,6 @@ import {
   Clock3,
   Columns3,
   FolderKanban,
-  GitPullRequest,
   Search,
   SquarePen,
 } from "lucide-react";
@@ -79,16 +78,6 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
     },
   },
   {
-    view: "pullRequests",
-    label: "拉取请求",
-    icon: <GitPullRequest size={APP_ICON_SIZE} />,
-    path: "/pull-requests",
-    availability: {
-      kind: 'any-capability',
-      capabilities: ['github.pullRequests.v1'],
-    },
-  },
-  {
     view: "automations",
     label: "自动化",
     icon: <Clock3 size={APP_ICON_SIZE} />,
@@ -148,8 +137,9 @@ export function getSidebarTopNavItems({
     ...TOP_NAV_ITEMS.slice(2),
   ] : [newItem, ...TOP_NAV_ITEMS.slice(1)]
 
+  // capability 未就绪或不可用时，仅暴露 always 入口，避免点入未接线的能力。
   if (capabilityState.status !== 'ready') {
-    return items.filter(item => item.view !== 'taskboard')
+    return items.filter(item => item.availability.kind === 'always')
   }
   return items.filter(item =>
     item.availability.kind === 'always'

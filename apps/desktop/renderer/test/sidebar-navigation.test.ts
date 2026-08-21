@@ -55,6 +55,7 @@ import {
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
   sidebarProjectKey,
+  clampTimelineVisibleLimit,
   sliceSidebarTimelineModel,
   sortProjectsForSidebar,
   type SidebarTimelineModel,
@@ -115,15 +116,15 @@ describe('Codex 侧栏导航', () => {
     expect(TOP_NAV_ITEMS.map(item => ({ view: item.view, label: item.label, path: item.path }))).toEqual([
       { view: 'new', label: '新建对话', path: '/new' },
       { view: 'taskboard', label: '任务看板', path: '/taskboard' },
-      { view: 'pullRequests', label: '拉取请求', path: '/pull-requests' },
       { view: 'automations', label: '自动化', path: '/automations' },
       { view: 'plugins', label: '插件', path: '/plugins' },
       { view: 'models', label: '供应商', path: '/models' },
     ])
     expect(TOP_NAV_ITEMS.some(item => item.path === '/search')).toBeFalse()
     expect(TOP_NAV_ITEMS.some(item => item.path === '/sites')).toBeFalse()
+    expect(TOP_NAV_ITEMS.some(item => item.path === '/pull-requests')).toBeFalse()
     expect(sidebarNavItems(false)).toEqual(
-      TOP_NAV_ITEMS.filter(item => item.view !== 'taskboard'),
+      TOP_NAV_ITEMS.filter(item => item.availability.kind === 'always'),
     )
     expect(
       sidebarNavItems(true).map(item => ({
@@ -134,11 +135,14 @@ describe('Codex 侧栏导航', () => {
     ).toEqual([
       { view: 'new', label: '新建对话', path: '/new' },
       { view: 'projects', label: '项目', path: '/projects' },
-      ...TOP_NAV_ITEMS.slice(2).map(item => ({
-        view: item.view,
-        label: item.label,
-        path: item.path,
-      })),
+      ...TOP_NAV_ITEMS
+        .filter(item => item.availability.kind === 'always')
+        .slice(1)
+        .map(item => ({
+          view: item.view,
+          label: item.label,
+          path: item.path,
+        })),
     ])
   })
 
@@ -166,10 +170,13 @@ describe('Codex 侧栏导航', () => {
     ).toEqual([
       { view: 'new', path: '/new?surface=chat' },
       { view: 'projects', path: '/projects' },
-      ...TOP_NAV_ITEMS.slice(2).map(item => ({
-        view: item.view,
-        path: item.path,
-      })),
+      ...TOP_NAV_ITEMS
+        .filter(item => item.availability.kind === 'always')
+        .slice(1)
+        .map(item => ({
+          view: item.view,
+          path: item.path,
+        })),
     ])
     expect(sidebarNavItems(false)[0]!.path).toBe('/new')
   })
@@ -180,10 +187,7 @@ describe('Codex 侧栏导航', () => {
     )
     expect(fixedItems.map(item => item.view)).toEqual(['new'])
     expect(scrollableItems.map(item => item.view)).toEqual([
-      'pullRequests',
       'automations',
-      'plugins',
-      'models',
     ])
   })
 
@@ -194,10 +198,7 @@ describe('Codex 侧栏导航', () => {
     expect(fixedItems.map(item => item.view)).toEqual(['new'])
     expect(scrollableItems.map(item => item.view)).toEqual([
       'projects',
-      'pullRequests',
       'automations',
-      'plugins',
-      'models',
     ])
   })
 
@@ -217,19 +218,19 @@ describe('Codex 侧栏导航', () => {
     }
   })
 
-  test('能力未知或 Agent 暂时不可用时只隐藏尚未协商的任务看板', () => {
+  test('能力未知或 Agent 暂时不可用时只保留 always 入口', () => {
     const unavailable: SidebarCapabilityState = {
       status: 'unavailable',
       capabilities: null,
     }
 
-    const legacyViews = TOP_NAV_ITEMS
-      .filter(item => item.view !== 'taskboard')
+    const alwaysViews = TOP_NAV_ITEMS
+      .filter(item => item.availability.kind === 'always')
       .map(item => item.view)
-    expect(sidebarNavItems(false).map(item => item.view)).toEqual(legacyViews)
+    expect(sidebarNavItems(false).map(item => item.view)).toEqual(alwaysViews)
     expect(
       sidebarNavItems(false, undefined, unavailable).map(item => item.view),
-    ).toEqual(legacyViews)
+    ).toEqual(alwaysViews)
   })
 
   test('协商 taskboard.v1 后任务看板位于新建对话之后、项目之前', () => {
@@ -297,6 +298,9 @@ describe('Codex 侧栏导航', () => {
 
     expect(withoutProjects.some(item => item.view === 'projects')).toBeFalse()
     expect(withProjects.some(item => item.view === 'projects')).toBeTrue()
+    // /pull-requests 仍是占位页面，即使 capability ready 也不在侧栏暴露。
+    expect(withoutProjects.some(item => item.view === 'pullRequests')).toBeFalse()
+    expect(withProjects.some(item => item.view === 'pullRequests')).toBeFalse()
     expect(fixedItems.map(item => item.view)).toEqual(['new'])
     expect(scrollableItems.some(item => item.view === 'new')).toBeFalse()
   })
@@ -1621,5 +1625,79 @@ describe('侧栏时间线投影', () => {
     expect(slice25.hasMore).toBe(false)
     expect(slice25.prioritySessions.length).toBe(15)
     expect(slice25.pinnedSessions.length).toBe(5)
+  })
+
+  test('clampTimelineVisibleLimit 数据减少时 clamp，实时增加与首次加载保留当前 limit', () => {
+    // 首次加载：previousTotal 未定义 → 保留 currentLimit
+    expect(
+      clampTimelineVisibleLimit({
+        previousTotal: undefined,
+        nextTotal: 8,
+        currentLimit: 10,
+      }),
+    ).toBe(10)
+
+    // 实时增加：5 → 8，current 5 → 保持 5
+    expect(
+      clampTimelineVisibleLimit({
+        previousTotal: 5,
+        nextTotal: 8,
+        currentLimit: 5,
+      }),
+    ).toBe(5)
+
+    // 数据减少：20 → 5，current 20 → clamp 到 5
+    expect(
+      clampTimelineVisibleLimit({
+        previousTotal: 20,
+        nextTotal: 5,
+        currentLimit: 20,
+      }),
+    ).toBe(5)
+
+    // 数据持平：10 → 10，current 10 → 保持
+    expect(
+      clampTimelineVisibleLimit({
+        previousTotal: 10,
+        nextTotal: 10,
+        currentLimit: 10,
+      }),
+    ).toBe(10)
+
+    // 数据先减少到 0：20 → 0，current 20 → clamp 到 0
+    expect(
+      clampTimelineVisibleLimit({
+        previousTotal: 20,
+        nextTotal: 0,
+        currentLimit: 20,
+      }),
+    ).toBe(0)
+
+    // 数据从 0 再次增长：0 → 8，current 0 → 恢复到 initialLimit (10)
+    expect(
+      clampTimelineVisibleLimit({
+        previousTotal: 0,
+        nextTotal: 8,
+        currentLimit: 0,
+      }),
+    ).toBe(10)
+
+    // currentLimit 已小于 nextTotal：保持 currentLimit
+    expect(
+      clampTimelineVisibleLimit({
+        previousTotal: 5,
+        nextTotal: 8,
+        currentLimit: 3,
+      }),
+    ).toBe(3)
+
+    // currentLimit 越界（current > nextTotal）：clamp 到 nextTotal
+    expect(
+      clampTimelineVisibleLimit({
+        previousTotal: 20,
+        nextTotal: 5,
+        currentLimit: 50,
+      }),
+    ).toBe(5)
   })
 })

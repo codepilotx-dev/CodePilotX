@@ -241,6 +241,43 @@ export function sliceSidebarTimelineModel(
   }
 }
 
+/**
+ * 时间线 visibleLimit 在 total 数据变更时的纯函数状态转换。
+ *
+ * 规则：
+ * - 首次加载（previousTotal 未定义）：保留 currentLimit（组件初始 10）。
+ * - 数据从较大值减小到较小值：clamp 到 nextTotal，避免越界后空白。
+ * - 数据从 0 再次增长（之前被 clamp 到 0）：恢复到 initialLimit，避免永远停在 0。
+ * - 数据增加或持平：保留 currentLimit。
+ *
+ * 筛选切换由组件单独 `setVisibleLimit(initialLimit)` 触发，不走本函数。
+ */
+export function clampTimelineVisibleLimit({
+  previousTotal,
+  nextTotal,
+  currentLimit,
+  initialLimit = 10,
+}: {
+  previousTotal: number | undefined
+  nextTotal: number
+  currentLimit: number
+  initialLimit?: number
+}): number {
+  if (previousTotal === undefined) {
+    return Math.max(0, currentLimit)
+  }
+  if (previousTotal > 0 && nextTotal === 0 && currentLimit > 0) {
+    return 0
+  }
+  if (previousTotal === 0 && nextTotal > 0 && currentLimit === 0) {
+    return initialLimit
+  }
+  if (nextTotal < previousTotal) {
+    return Math.min(Math.max(0, currentLimit), nextTotal)
+  }
+  return Math.max(0, currentLimit)
+}
+
 export function sidebarArchivableAttentionSessions(
   sessions: readonly SessionListItem[],
 ): SessionListItem[] {
