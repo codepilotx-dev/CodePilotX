@@ -985,6 +985,7 @@ describe('sidebar session hover card projection', () => {
       projectLabel: 'CodePilotX',
       gitBranch: 'codex/hover-card',
       unread: false,
+      isRunning: false,
     })
   })
 
