@@ -25,7 +25,7 @@ import type {
   ModelProviderID,
 } from '../../../../shared/types.js'
 import { IconButton } from "../../../components/ui/IconButton.js";
-import { PopoverItem } from "../../../components/ui/PopoverItem.js";
+import { PopoverItem, PopoverSeparator } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
 import {
@@ -255,7 +255,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             </PopoverItem>
           </div>
         </div>
-        <DropdownMenu.Separator className="popover-divider" />
+        <PopoverSeparator />
         <div className="popover-section">
           {usageAvailable ? (
             <DropdownMenu.Sub>

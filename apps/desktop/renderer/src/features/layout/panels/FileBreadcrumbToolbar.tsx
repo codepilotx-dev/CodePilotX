@@ -243,7 +243,7 @@ export function FileBreadcrumbToolbar({
                 </PopoverRadioItem>
               ))}
             </PopoverRadioGroup>
-            <PopoverSeparator className="sidebar-context-menu-separator" />
+            <PopoverSeparator />
             <PopoverItem
               icon={
                 <FolderOpen

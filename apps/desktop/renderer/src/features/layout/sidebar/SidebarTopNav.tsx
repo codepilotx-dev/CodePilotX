@@ -264,11 +264,11 @@ export function SidebarHeader({
     <header className="sidebar-header">
       <PopoverMenu
         align="start"
-        className="popover-menu--flex sidebar-product-mode-menu"
+        className="popover-menu--no-icons sidebar-product-mode-menu"
         maxWidth="calc(100vw - 24px)"
         open={modeMenuOpen}
         side="bottom"
-        width={248}
+        width={232}
         trigger={
           <Button
             aria-label={`切换工作模式，当前为 ${activeMode.label}`}
@@ -292,15 +292,12 @@ export function SidebarHeader({
           {SIDEBAR_PRODUCT_MODE_ORDER.map(value => {
             const option = SIDEBAR_PRODUCT_MODE_META[value]
             return (
-              <PopoverRadioItem key={value} value={value}>
-                <span className="sidebar-product-mode-option">
-                  <span className="sidebar-product-mode-option__label">
-                    {option.label}
-                  </span>
-                  <span className="sidebar-product-mode-option__description">
-                    {option.description}
-                  </span>
-                </span>
+              <PopoverRadioItem
+                description={option.description}
+                key={value}
+                value={value}
+              >
+                {option.label}
               </PopoverRadioItem>
             )
           })}
