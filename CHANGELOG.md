@@ -88,6 +88,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复外观设置中选择字体变体后重新进入页面变体下拉框回退显示全称（如 JetBrains Mono Medium）而非变体名（如中等、半粗体）的问题：增强变体名提取与本地化解析（`faceStyleLabel`），并在组件挂载时自动复用已就绪的系统字体缓存。
 - [desktop/renderer] 修复侧边栏底部的“设置”按钮因 DropdownMenu.Trigger 传递 data-theme-component="dropdown-trigger" 导致常驻控件实色灰底（被误判为永久 hover/active 态）的问题，使侧栏设置按钮在非激活/非悬停态下恢复为透明底色。
 - [desktop/renderer] 修复侧边栏会话项在悬浮或聚焦时未读圆点与置顶/归档操作按钮并存重叠的问题，对标 Codex 实现悬浮态仅展示操作按钮并隐藏未读圆点，并将侧栏会话项与 Hover 详情卡片中的未读圆点统一为主题 Accent 色（var(--cpx-sys-color-accent)）。
 - [Agent/desktop] 修复 models.dev 缓存重载时丢失工具调用等模型能力元数据，恢复 Provider 模型数量、兼容状态和模型选择器中的已配置 Provider。
