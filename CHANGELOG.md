@@ -26,6 +26,7 @@
 
 ### Changed
 
+- [desktop/renderer] 体系化重构下拉框与弹出菜单（Dropdown / Popover）设计系统：建立 4 级标准化形态规范（Tier 1 标准单行 32px / Tier 2 双行富文本 44px / Tier 3 可搜索选择器 / Tier 4 表单下拉），统一收敛内外边距、垂直行间隙（`--cpx-comp-row-gap-y: 2px`）与垂直节奏（模式切换由 52px 收敛至 44px），重构三栏网格对齐（16px 图标位 + 弹性标题 + 状态/快捷键），标准化搜索框内衬、深色微投影与 Lucide 箭头图标，彻底解决浮层在各模块间“部分过挤、部分过松”的视觉与交互割裂。
 - [desktop/renderer] 全局收敛单行交互控件与芯片体系的 line-height：在 Token 层引入 `--cpx-sys-line-height-none: 1`，将 `interactive-row` 族系、`MetaChip`、`ChipButton`、`Button` 各尺寸变体、Badge/Pill 及单行 Input 默认行高统一收敛为 1，并为图标补齐 `flex-shrink: 0` 与 `display: block` 规则，彻底消除字体不对称 leading 导致的图标与文本垂直基线偏斜失衡；多行排版（Markdown 正文、CodeMirror/Diff、Textarea）继续保持规范的阅读与代码行高。
 - [desktop/renderer] 对齐侧边栏项目标题与会话行的尾部操作图标样式与布局：项目行更多菜单与新建对话按钮统一复用 `IconButton`（ghostSecondary / iconMd），消除多余背景与边框差异；统一项目行与会话行的 CSS 网格列宽与右侧基线，并将动作按钮间距收紧为紧凑的 4px，使两行图标在尺寸、位置与中心线上像素级完美对齐。
 - [desktop/renderer] 深度对齐 Codex 侧边栏项目与会话悬浮卡片（Hover Card）及运行态交互：项目悬浮卡片重构为紧凑四行结构（标题与图钉、任务与开启统计、项目主路径及齿轮图标编辑入口），移除多余分割线并修复路径在亮暗主题下的样式显示；会话悬浮卡片增加设备图标、相对时间及运行中「· 🔵」蓝色状态指示点，元信息统一为文件夹项目归属与 Git 分支展示；侧边栏运行中会话支持悬停即时展示置顶与归档快捷操作，并统一未读与运行状态圆点使用系统 Accent 主题色。
