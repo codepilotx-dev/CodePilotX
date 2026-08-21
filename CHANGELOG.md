@@ -26,6 +26,7 @@
 
 ### Changed
 
+- [desktop/renderer] 全局收敛单行交互控件与芯片体系的 line-height：在 Token 层引入 `--cpx-sys-line-height-none: 1`，将 `interactive-row` 族系、`MetaChip`、`ChipButton`、`Button` 各尺寸变体、Badge/Pill 及单行 Input 默认行高统一收敛为 1，并为图标补齐 `flex-shrink: 0` 与 `display: block` 规则，彻底消除字体不对称 leading 导致的图标与文本垂直基线偏斜失衡；多行排版（Markdown 正文、CodeMirror/Diff、Textarea）继续保持规范的阅读与代码行高。
 - [desktop/renderer] 对齐侧边栏项目标题与会话行的尾部操作图标样式与布局：项目行更多菜单与新建对话按钮统一复用 `IconButton`（ghostSecondary / iconMd），消除多余背景与边框差异；统一项目行与会话行的 CSS 网格列宽与右侧基线，并将动作按钮间距收紧为紧凑的 4px，使两行图标在尺寸、位置与中心线上像素级完美对齐。
 - [desktop/renderer] 深度对齐 Codex 侧边栏项目与会话悬浮卡片（Hover Card）及运行态交互：项目悬浮卡片重构为紧凑四行结构（标题与图钉、任务与开启统计、项目主路径及齿轮图标编辑入口），移除多余分割线并修复路径在亮暗主题下的样式显示；会话悬浮卡片增加设备图标、相对时间及运行中「· 🔵」蓝色状态指示点，元信息统一为文件夹项目归属与 Git 分支展示；侧边栏运行中会话支持悬停即时展示置顶与归档快捷操作，并统一未读与运行状态圆点使用系统 Accent 主题色。
 
@@ -87,6 +88,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复侧边栏底部的“设置”按钮因 DropdownMenu.Trigger 传递 data-theme-component="dropdown-trigger" 导致常驻控件实色灰底（被误判为永久 hover/active 态）的问题，使侧栏设置按钮在非激活/非悬停态下恢复为透明底色。
 - [desktop/renderer] 修复侧边栏会话项在悬浮或聚焦时未读圆点与置顶/归档操作按钮并存重叠的问题，对标 Codex 实现悬浮态仅展示操作按钮并隐藏未读圆点，并将侧栏会话项与 Hover 详情卡片中的未读圆点统一为主题 Accent 色（var(--cpx-sys-color-accent)）。
 - [Agent/desktop] 修复 models.dev 缓存重载时丢失工具调用等模型能力元数据，恢复 Provider 模型数量、兼容状态和模型选择器中的已配置 Provider。
 - [Agent/desktop/renderer] 修复 Provider 模型数量依赖按需缓存、模型选择器仅显示当前 Provider 的问题；模型中心现在展示准确的可执行模型总数，并在选择器打开时加载全部已配置 Provider 的完整模型目录。
