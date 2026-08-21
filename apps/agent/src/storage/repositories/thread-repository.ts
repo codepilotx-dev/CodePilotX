@@ -4,6 +4,7 @@ import { Effect } from "effect"
 import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadCreationSurface, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
 import type { ReviewComment } from "@codepilotx/agent-protocol"
+import { probeThreadsStorageCapabilities } from "../database/storage-capabilities"
 import type {
   EventEnvelope,
   AgentExecution,
@@ -385,39 +386,74 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
         workspaceKind = "projectless"
       }
       return this.transaction(() => {
-        this.sqlite.query(`INSERT INTO threads (
-          id, title, project_id, workspace_kind, workspace_root, workspace_cwd,
-          workspace_roots, instruction_sources, output_directory,
-          create_operation_id, create_request_hash,
-          task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at, creation_surface
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
-          id,
-          title,
-          projectID,
-          workspaceKind,
-          workspaceRoot,
-          workspaceCwd,
-          workspaceRoots,
-          instructionSources,
-          outputDirectory,
-          input.operationID ?? null,
-          input.requestHash ?? null,
-          settings.taskMode,
-          settings.permissionConfig.sandboxMode,
-          encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
-          settings.permissionConfig.approvalsReviewer,
-          timestamp,
-          timestamp,
-          creationSurface ?? null,
-        )
+        const { creationSurface: columnExists } = probeThreadsStorageCapabilities(this.sqlite)
+        // 列缺失时实际可持久化的 creationSurface 必须为 undefined，
+        // 避免 INSERT、event payload、返回值投影出未持久化来源。
+        const persistedCreationSurface = columnExists ? creationSurface : undefined
+        if (columnExists) {
+          this.sqlite.query(`INSERT INTO threads (
+            id, title, project_id, workspace_kind, workspace_root, workspace_cwd,
+            workspace_roots, instruction_sources, output_directory,
+            create_operation_id, create_request_hash,
+            task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at, creation_surface
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
+            id,
+            title,
+            projectID,
+            workspaceKind,
+            workspaceRoot,
+            workspaceCwd,
+            workspaceRoots,
+            instructionSources,
+            outputDirectory,
+            input.operationID ?? null,
+            input.requestHash ?? null,
+            settings.taskMode,
+            settings.permissionConfig.sandboxMode,
+            encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
+            settings.permissionConfig.approvalsReviewer,
+            timestamp,
+            timestamp,
+            persistedCreationSurface ?? null,
+          )
+        } else {
+          // 历史库缺可选列时仍走原 17 列 INSERT，避免在更高 schema 下写入不存在的列。
+          // 防御性边界：即便旧客户端或异常路径把 creationSurface 透传过来，
+          // 这里也会在 INSERT / event payload / 返回值三处统一剔除持久化来源，
+          // 而不是依赖上层 capability gate。
+          this.sqlite.query(`INSERT INTO threads (
+            id, title, project_id, workspace_kind, workspace_root, workspace_cwd,
+            workspace_roots, instruction_sources, output_directory,
+            create_operation_id, create_request_hash,
+            task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
+            id,
+            title,
+            projectID,
+            workspaceKind,
+            workspaceRoot,
+            workspaceCwd,
+            workspaceRoots,
+            instructionSources,
+            outputDirectory,
+            input.operationID ?? null,
+            input.requestHash ?? null,
+            settings.taskMode,
+            settings.permissionConfig.sandboxMode,
+            encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
+            settings.permissionConfig.approvalsReviewer,
+            timestamp,
+            timestamp,
+          )
+        }
         const persistedWorkspace = this.threadWorkspace(id)
         const event = this.insertEvent(id, null, "thread/created", { thread: {
           id, title, projectID, gitBranch: null,
-          ...(creationSurface ? { creationSurface } : {}),
+          ...(persistedCreationSurface ? { creationSurface: persistedCreationSurface } : {}),
           ...(persistedWorkspace ? { workspace: persistedWorkspace } : {}),
           settings, createdAt: timestamp, updatedAt: timestamp,
         } })
-        return { id, title, projectID, gitBranch: null, ...(creationSurface ? { creationSurface } : {}), workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
+        return { id, title, projectID, gitBranch: null, ...(persistedCreationSurface ? { creationSurface: persistedCreationSurface } : {}), workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
       })
     }
 

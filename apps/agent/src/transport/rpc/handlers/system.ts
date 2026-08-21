@@ -1,6 +1,7 @@
 import type { RpcMethod } from "@codepilotx/agent-protocol"
 import type { RpcRouter } from "../RpcRouter"
 import type { RpcRouterContext } from "../request-context"
+import { filterAdvertisedCapabilities } from "./system-capabilities"
 import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
 import {
   AgentError,
@@ -122,7 +123,7 @@ export const systemHandlers = {
         return {
           protocol: "thread-rpc-v4",
           serverInfo: { name: "codepilotx-agent", version: "0.1.0" },
-          capabilities: [...Capabilities],
+          capabilities: filterAdvertisedCapabilities(db),
           limits: {
             maxFrameBytes: 16 * 1024 * 1024,
             maxSubscriptions: 16,

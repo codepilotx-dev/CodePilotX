@@ -136,7 +136,11 @@ export const threadHandlers = {
         let created: Awaited<ReturnType<typeof threads.create>>
         try {
           created = await threads.create({
-            ...(typeof params.creationSurface === "string" ? { creationSurface: params.creationSurface as any } : {}),
+            ...(params.creationSurface === "coding"
+              || params.creationSurface === "working"
+              || params.creationSurface === "chat"
+              ? { creationSurface: params.creationSurface }
+              : {}),
             ...(typeof params.title === "string" ? { title: params.title } : {}),
             ...(settings ? { settings } : {}),
             workspace,

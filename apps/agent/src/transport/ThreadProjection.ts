@@ -20,6 +20,7 @@ import { resolve } from "node:path"
 import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
 import type { AgentExecution, EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
+import { probeThreadsStorageCapabilities } from "../storage/database/storage-capabilities"
 import { SubagentRepository } from "../subagent/SubagentRepository"
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
@@ -232,7 +233,11 @@ export class ThreadProjection {
   }
 
   private projectThread(threadId: string): Thread | null {
-    const threadRow = this.db.sqlite.query("SELECT id, title, project_id, git_branch, creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as Record<string, string | number | null> | null
+    const { creationSurface: columnExists } = probeThreadsStorageCapabilities(this.db.sqlite)
+    const sql = columnExists
+      ? "SELECT id, title, project_id, git_branch, creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?"
+      : "SELECT id, title, project_id, git_branch, NULL AS creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?"
+    const threadRow = this.db.sqlite.query(sql).get(threadId) as Record<string, string | number | null> | null
     if (!threadRow) return null
     return this.projectThreadRow(threadRow, this.db.threadWorkspace(threadId) ?? undefined)
   }
@@ -630,8 +635,12 @@ export class ThreadProjection {
     if (params.archived !== undefined) {
       where.push(params.archived ? "t.archived_at IS NOT NULL" : "t.archived_at IS NULL")
     }
+    const { creationSurface: columnExists } = probeThreadsStorageCapabilities(this.db.sqlite)
+    const creationSurfaceExpr = columnExists
+      ? "t.creation_surface"
+      : "NULL AS creation_surface"
     const sql = `
-      SELECT t.id, t.project_id, t.git_branch, t.creation_surface, t.title, t.preview, t.first_user_message, t.message_count,
+      SELECT t.id, t.project_id, t.git_branch, ${creationSurfaceExpr}, t.title, t.preview, t.first_user_message, t.message_count,
         t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
         read_state.unread_at,
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id

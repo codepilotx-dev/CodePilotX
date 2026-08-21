@@ -7,6 +7,9 @@ import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase, DATA_EPOCH, HISTORY_APPLICATION_ID, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
 import { FINAL_SCHEMA, HISTORY_SCHEMA, initializeSchema } from "../src/storage/database/schema-initializer"
 import { PROFILE_APPLICATION_ID, PROFILE_SCHEMA_VERSION } from "../src/storage/database/schema"
+import { probeThreadsStorageCapabilities } from "../src/storage/database/storage-capabilities"
+import { ThreadProjection } from "../src/transport/ThreadProjection"
+import { filterAdvertisedCapabilities } from "../src/transport/rpc/handlers/system-capabilities"
 
 const paths: string[] = []
 const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
@@ -710,5 +713,91 @@ describe("数据库兼容与迁移", () => {
       },
     })).toThrow("必须位于工作区根目录内")
     db.close()
+  })
+
+  test("higher history schema 缺 creation_surface 列时初始化保持 user_version 与现有会话并兼容 list/snapshot/create", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-future-no-creation-surface-"))
+    paths.push(root)
+    const historyPath = join(root, "agent.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+
+    // 步骤 1：建立完整 SCHEMA_VERSION 数据库并写入示例会话。
+    const initial = new AgentDatabase({ historyPath, profilePath })
+    const existing = initial.createThread({ title: "向前兼容会话" })
+    initial.close()
+
+    // 步骤 2：模拟更高 history schema，且其中 threads 不含 creation_surface 列。
+    const futureVersion = SCHEMA_VERSION + 1
+    const mutator = new Database(historyPath)
+    mutator.exec("ALTER TABLE threads DROP COLUMN creation_surface")
+    mutator.exec(`
+      CREATE TABLE future_feature_records (
+        id TEXT PRIMARY KEY,
+        payload TEXT NOT NULL
+      );
+      INSERT INTO future_feature_records VALUES ('future:1', '{"enabled":true}');
+      PRAGMA user_version = ${futureVersion};
+    `)
+    const columnRows = mutator.query("PRAGMA table_info(threads)").all() as Array<{ name: string }>
+    expect(columnRows.some((col) => col.name === "creation_surface")).toBe(false)
+    mutator.close()
+
+    // 步骤 3：用当前代码初始化数据库；不能改 user_version、不能加列、不能丢记录。
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    const versionRow = reopened.sqlite.query("PRAGMA user_version").get() as { user_version: number }
+    expect(versionRow.user_version).toBe(futureVersion)
+    const afterColumns = reopened.sqlite.query("PRAGMA table_info(threads)").all() as Array<{ name: string }>
+    expect(afterColumns.some((col) => col.name === "creation_surface")).toBe(false)
+    expect(
+      (reopened.sqlite.query("SELECT payload FROM future_feature_records WHERE id = 'future:1'").get() as { payload: string }),
+    ).toEqual({ payload: '{"enabled":true}' })
+
+    // 步骤 4：集中探测必须准确报告缺列；ThreadProjection 与 system.initialize 都依赖此结果。
+    expect(probeThreadsStorageCapabilities(reopened.sqlite).creationSurface).toBe(false)
+
+    // 步骤 5：list/snapshot 历史会话必须可用，且 creationSurface 字段在投影里不存在。
+    const projection = new ThreadProjection(reopened)
+    const listed = projection.list()
+    const legacy = listed.find((item) => item.id === existing.id)
+    expect(legacy?.title).toBe("向前兼容会话")
+    expect((legacy as Record<string, unknown>).creationSurface).toBeUndefined()
+    const snap = projection.snapshot(existing.id)
+    expect(snap?.thread.title).toBe("向前兼容会话")
+    expect((snap?.thread as Record<string, unknown>).creationSurface).toBeUndefined()
+    expect(probeThreadsStorageCapabilities(reopened.sqlite).creationSurface).toBe(false)
+
+    // 步骤 6：create 路径不得写到不存在的列；显式传入 creationSurface 验证 repository 主动丢弃，
+    // 而非仅在调用方不传字段时才不出现。返回值、写入事件、数据库行三者都不应出现该字段。
+    const created = reopened.createThread({ title: "无列库新建", creationSurface: "chat" })
+    expect(created.title).toBe("无列库新建")
+    expect((created as Record<string, unknown>).creationSurface).toBeUndefined()
+    const row = reopened.sqlite.query("SELECT id, title FROM threads WHERE id = ?").get(created.id) as
+      | { id: string; title: string }
+      | null
+    expect(row).toEqual({ id: created.id, title: "无列库新建" })
+    const columnProbe = reopened.sqlite.query("PRAGMA table_info(threads)").all() as Array<{ name: string }>
+    expect(columnProbe.some((col) => col.name === "creation_surface")).toBe(false)
+    // 写入事件亦不能出现 creationSurface 来源。
+    const storedEvents = reopened.sqlite.query(
+      "SELECT params FROM events WHERE method = 'thread/created' ORDER BY id DESC LIMIT 1",
+    ).get() as { params: string } | null
+    expect(storedEvents).not.toBeNull()
+    const parsed = JSON.parse(storedEvents!.params) as { thread: Record<string, unknown> }
+    expect(parsed.thread.creationSurface).toBeUndefined()
+
+    // 步骤 7：能力广告必须过滤 thread.creation-surface.v1；以与生产 system.initialize 一致的边界过滤。
+    const advertised = filterAdvertisedCapabilities(reopened)
+    expect(advertised.includes("thread.creation-surface.v1")).toBe(false)
+
+    // 步骤 8：以相同 fixture 验证列存在时能力广告仍包含该 capability。
+    const normal = new AgentDatabase({
+      historyPath: join(root, "normal.sqlite"),
+      profilePath: join(root, "normal-profile.sqlite"),
+    })
+    const normalCapabilities = filterAdvertisedCapabilities(normal)
+    expect(normalCapabilities.includes("thread.creation-surface.v1")).toBe(true)
+    normal.close()
+
+    reopened.close()
   })
 })
