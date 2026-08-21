@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip.js'
 type BaseProps = {
   children: React.ReactNode
   active?: boolean
+  description?: React.ReactNode
   disabled?: boolean
   icon?: React.ReactNode
   meta?: React.ReactNode
@@ -60,26 +61,27 @@ function buildItemClassName({
     hasRichContent ? 'rich' : '',
     active ? 'active' : '',
     selected ? 'selected' : '',
-  ].join(' ')
+  ].filter(Boolean).join(' ')
 }
 
 function PopoverItemContent({
   children,
+  description,
   icon,
   indicator,
   shortcut,
   withArrow,
   arrowDirection = 'right',
 }: ItemContentProps): React.ReactNode {
-  const hasRichContent = Boolean(shortcut)
   return (
     <>
       <span className="popover-item-leading">
         {icon ? <span className="popover-item-icon">{icon}</span> : null}
       </span>
-      {hasRichContent ? (
-        <span className="popover-item-rich">
-          <span className="popover-item-label">{children}</span>
+      {description ? (
+        <span className="popover-item-label popover-item-label--rich">
+          <span className="popover-item-title">{children}</span>
+          <span className="popover-item-description">{description}</span>
         </span>
       ) : (
         <span className="popover-item-label">{children}</span>
@@ -90,11 +92,11 @@ function PopoverItemContent({
         ) : null}
         {indicator ?? (withArrow ? (
           arrowDirection === 'down' ? (
-            <ChevronDown className="popover-item-arrow" size={APP_ICON_SIZE} />
+            <ChevronDown className="popover-item-arrow" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : arrowDirection === 'up' ? (
-            <ChevronUp className="popover-item-arrow" size={APP_ICON_SIZE} />
+            <ChevronUp className="popover-item-arrow" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : (
-            <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
+            <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           )
         ) : null)}
       </span>
@@ -124,6 +126,7 @@ function withOptionalTooltip(
 export function PopoverItem({
   children,
   active,
+  description,
   disabled,
   icon,
   meta,
@@ -137,7 +140,7 @@ export function PopoverItem({
   onMouseEnter,
   onMouseLeave,
 }: Props): React.ReactNode {
-  const hasRichContent = Boolean(meta) || Boolean(shortcut)
+  const hasRichContent = Boolean(description) || Boolean(meta) || Boolean(shortcut)
   const item = (
     <DropdownMenu.Item
       className={buildItemClassName({ active, hasRichContent, selected })}
@@ -157,6 +160,7 @@ export function PopoverItem({
     >
       <PopoverItemContent
         arrowDirection={arrowDirection}
+        description={description}
         icon={icon}
         indicator={selected && withCheck ? (
           <Check className="popover-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -176,6 +180,7 @@ export function PopoverCheckboxItem({
   children,
   active,
   checked,
+  description,
   disabled,
   icon,
   meta,
@@ -187,7 +192,7 @@ export function PopoverCheckboxItem({
   onMouseEnter,
   onMouseLeave,
 }: CheckboxProps): React.ReactNode {
-  const hasRichContent = Boolean(meta) || Boolean(shortcut)
+  const hasRichContent = Boolean(description) || Boolean(meta) || Boolean(shortcut)
   const item = (
     <DropdownMenu.CheckboxItem
       checked={checked}
@@ -202,6 +207,7 @@ export function PopoverCheckboxItem({
     >
       <PopoverItemContent
         arrowDirection={arrowDirection}
+        description={description}
         icon={icon}
         indicator={(
           <DropdownMenu.ItemIndicator asChild>
@@ -233,6 +239,7 @@ export function PopoverRadioGroup({
 export function PopoverRadioItem({
   children,
   active,
+  description,
   disabled,
   icon,
   meta,
@@ -243,7 +250,7 @@ export function PopoverRadioItem({
   onMouseEnter,
   onMouseLeave,
 }: RadioItemProps): React.ReactNode {
-  const hasRichContent = Boolean(meta) || Boolean(shortcut)
+  const hasRichContent = Boolean(description) || Boolean(meta) || Boolean(shortcut)
   const item = (
     <DropdownMenu.RadioItem
       className={buildItemClassName({ active, hasRichContent })}
@@ -254,6 +261,7 @@ export function PopoverRadioItem({
     >
       <PopoverItemContent
         arrowDirection={arrowDirection}
+        description={description}
         icon={icon}
         indicator={(
           <DropdownMenu.ItemIndicator asChild>
