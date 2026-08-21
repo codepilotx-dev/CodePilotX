@@ -23,9 +23,14 @@
 - [desktop/renderer] 在入口 JS 与主 CSS 就绪前保持静态启动遮罩（复用 Electron 鲸鱼图标视觉），仅在真实 ProseMirror 编辑器可输入后淡出，并在 reduced-motion、离开 `/new` 与 20 秒超时场景安全退出。
 - [desktop/electron] 在 Electron 性能测试的 cold start 中新增 `new-route-ready` 观测样本（真实 Composer 可输入、建议面板与字体、同源 JS/CSS 解码字节），本轮仅观测不设硬预算。
 - [desktop] 外观设置补齐真实系统字体与字体样式选择：preload 新增类型化 `listSystemFonts()`（Local Font Access 只返回 family/fullName/postscriptName/style，字段限长、去重、稳定排序，不支持/拒绝/失败安全降级为自由文本输入）；主题设置保留式升级为 V7（新增可空 `uiFace`/`codeFace`，清除时显式持久化 `null`，V1–V5 历史重置策略与高版本拒绝覆盖不变）；新增主题字体加载工具，以唯一 alias 注册本地 face 并置于原家族之前，加载失败自动回退；UI 字体展示全部家族、代码字体按 Canvas 等宽检测过滤，默认 face 只保存家族；“偏好设置”顺序对齐 Codex：指针光标、减少动态效果、界面字号、代码字号、差异标记、字体平滑（仅 macOS）。
+- [Agent/desktop/renderer] 统一三种上游协议（OpenAI Responses / OpenAI Completions / Anthropic Messages）的富工具结果：在 shared thread 增加可选 `resultBlocks`（text / citation / json / artifact）与完成元数据 `completion`，PiEventAdapter 将工具结果安全投影为同一 canonical item/event；history schema 前向迁移至 33，新增独立 `item_artifacts` 表与受控 blob 存储，新增 `artifact/read` RPC 与 `artifacts.read.v1` capability（跨 thread / 未知 ID / 非法定位拒绝，缺表环境降级 capability）；renderer 在工具卡片渲染四类结果块，图片 artifact 复用附件预览、其他类型为通用文件项，并按状态展示已取消的会话/轮次。
 
 ### Changed
 
+- [desktop/renderer] 优化侧边栏顶部活动通知图标：采用 Lucide 嵌套 SVG 规范，统一使用 Bell 图标并在有活动或待处理会话时于右上角嵌套渲染前景色圆点徽标，简化图标切换逻辑并提升状态呈现的一致性。
+
+- [desktop/renderer] 升级「设置 - 用量与成本」页面：将具备实时余额（如 DeepSeek）与套餐额度（如 MiniMax、Kimi Code）的厂商作为正常卡片发起查询与渲染，支持多币种总余额与充值/赠送明细展示；移除顶部全局时间范围切换器，下沉至仅支持分日历史时序（usage / cost）的厂商卡片右上角内嵌独立控制，并在用量页面隐藏无可用接口厂商的不可查区域；顶部工具栏支持「刷新全部」操作，各卡片右上角提供独立「刷新」按钮并精准追踪单卡片 Loading 加载态，互不干扰。
+- [desktop/renderer] 优化侧栏用量浮层与设置用量页面展示：从侧边栏底部设置菜单的「剩余用量」浮层中移除重置时间文字，解决紧凑宽度下标签断行与文本拥挤问题；同时在「设置 - 用量与成本」的远端厂商卡片中新增额度窗口（Quota Windows）明细，完整呈现各周期名称、剩余比例/数量、进度条及重置时间。
 - [desktop/renderer] 体系化重构下拉框与弹出菜单（Dropdown / Popover）设计系统：建立 4 级标准化形态规范（Tier 1 标准单行 32px / Tier 2 双行富文本 44px / Tier 3 可搜索选择器 / Tier 4 表单下拉），统一收敛内外边距、垂直行间隙（`--cpx-comp-row-gap-y: 2px`）与垂直节奏（模式切换由 52px 收敛至 44px），重构三栏网格对齐（16px 图标位 + 弹性标题 + 状态/快捷键），标准化搜索框内衬、深色微投影与 Lucide 箭头图标，彻底解决浮层在各模块间“部分过挤、部分过松”的视觉与交互割裂。
 - [desktop/renderer] 全局收敛单行交互控件与芯片体系的 line-height：在 Token 层引入 `--cpx-sys-line-height-none: 1`，将 `interactive-row` 族系、`MetaChip`、`ChipButton`、`Button` 各尺寸变体、Badge/Pill 及单行 Input 默认行高统一收敛为 1，并为图标补齐 `flex-shrink: 0` 与 `display: block` 规则，彻底消除字体不对称 leading 导致的图标与文本垂直基线偏斜失衡；多行排版（Markdown 正文、CodeMirror/Diff、Textarea）继续保持规范的阅读与代码行高。
 - [desktop/renderer] 对齐侧边栏项目标题与会话行的尾部操作图标样式与布局：项目行更多菜单与新建对话按钮统一复用 `IconButton`（ghostSecondary / iconMd），消除多余背景与边框差异；统一项目行与会话行的 CSS 网格列宽与右侧基线，并将动作按钮间距收紧为紧凑的 4px，使两行图标在尺寸、位置与中心线上像素级完美对齐。
@@ -96,7 +101,7 @@
 - [Agent/desktop/renderer] 修复 Provider 模型数量依赖按需缓存、模型选择器仅显示当前 Provider 的问题；模型中心现在展示准确的可执行模型总数，并在选择器打开时加载全部已配置 Provider 的完整模型目录。
 - [desktop/renderer] 修复字体变体应用逻辑：CSS 变量改用系统原生全称（如 "MiSans VF Semibold"、"JetBrains Mono SemiBold"）替代带连字符与自定义前缀的别名，确保 Windows/macOS/Linux 各字重与字形样式即时生效并兼容历史配置。
 - [desktop/renderer] 全局去除文本透明度混合与文字 Alpha 通道：将底层主题 Token（`--cpx-sys-color-fg-secondary`、`--cpx-sys-color-fg-tertiary`、`--cpx-sys-color-fg-disabled`）由 `rgba()` 全面重构为基于背景表面混合的纯实色 Hex；清理侧边栏、工作流卡片、会话状态与设置面板中所有作用于文本与图标的 `color-mix(..., transparent)` 与 `opacity` hack，彻底消除 Windows Chromium DirectWrite 灰阶抗锯齿降级导致的字体边缘发虚发灰问题，全局文字与图标在各种背景下均呈现极致清晰锐利的纯色对比度。
-- [Agent/usage] 修复 MiniMax Token Plan 额度解析将已用次数（usage_count）误当成剩余次数、以及纯百分比套餐（total_count 为 0）被误判为耗尽并显示 0% 的问题。
+- [Agent/usage/renderer] 修复 MiniMax Token Plan 额度状态解析错误：纠正 `status: 2`（已耗尽）被误判为无限额度的 bug，保留重置倒计时并准确标注为“已用尽 · 剩余 0%”；过滤未在套餐内的模型窗口（`status: 3`），并优化重置时间到期或超期时统一提示“即将重置”。
 - [desktop/renderer] 修复多模型套餐（如 MiniMax 同时返回 general 与 video）时侧栏菜单与账户卡片因重复 Quota ID 生成相同 React key 的控制台报错问题。
 - [desktop/renderer] 修复会话任务结束后 Composer 发送按钮、变更摘要与时间线组件状态未即时从运行态更新的问题：在 canonical auxiliary 状态投影中实时派生 active turn 状态，使桌面会话页面组件与流式事件完成精确同步，并在全局会话目录刷新中完整重载活动会话快照。
 - [Agent/Desktop] 修复 Desktop 推理模式被误当成模型 variant，导致已保存模型仍显示“配置模型”的问题。
