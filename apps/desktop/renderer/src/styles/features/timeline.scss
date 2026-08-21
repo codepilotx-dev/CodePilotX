@@ -112,6 +112,24 @@
   overflow: visible;
 }
 
+.session-timeline-loaded-presence {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  min-height: 0;
+  width: 100%;
+  animation: session-timeline-fade-in 180ms ease-out both;
+}
+
+@keyframes session-timeline-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* ── Top-level container ──────────────────────────────── */
 
 .session-timeline-container {
@@ -510,6 +528,10 @@
   .conversation-turn-nav-rail,
   .conversation-turn-nav-marker {
     transition: none;
+  }
+
+  .session-timeline-loaded-presence {
+    animation: none;
   }
 }
 

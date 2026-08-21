@@ -194,6 +194,9 @@ export function ConversationPage(): React.ReactNode {
       selectCanonicalConversationAuxiliaryState(canonicalConversation.state),
     [canonicalConversation.state],
   );
+  const isThreadLoading =
+    isConversationLoading ||
+    (canonicalConversation.loading && canonicalConversation.turns.length === 0);
   const effectiveSessionStatus =
     canonicalAuxiliary.sessionStatus ?? sessionStatus;
   const navigateToForkTarget = React.useCallback((targetThreadId: string) => {
@@ -725,7 +728,7 @@ export function ConversationPage(): React.ReactNode {
           aria-live="polite"
           className="chat-session-title__text"
         >
-          {isConversationLoading ? (
+          {isThreadLoading ? (
             "加载对话中"
           ) : titleRegenerating ? (
             <>
@@ -853,7 +856,7 @@ export function ConversationPage(): React.ReactNode {
       canRegenerateSessionTitle,
       conversationFork.onForkFromMessage,
       hasActiveSession,
-      isConversationLoading,
+      isThreadLoading,
       isSessionPinned,
       latestConversationForkPoint,
       openRenameSessionDialog,
@@ -1007,7 +1010,7 @@ export function ConversationPage(): React.ReactNode {
     ],
   );
 
-  const composerFooter = composerProps ? (
+  const composerFooter = !isThreadLoading && composerProps ? (
     <ThreadComposerDock
       ref={composerTransition.ref}
       style={composerTransition.style}
@@ -1239,10 +1242,13 @@ export function ConversationPage(): React.ReactNode {
                   onContextMenu={handleConversationContextMenu}
                 >
                   <div className="session-timeline-main tw:min-w-0">
-                      {isConversationLoading ? (
-                        <FullScreenWhaleLoading label="正在加载会话内容…" />
+                      {isThreadLoading ? (
+                        <FullScreenWhaleLoading
+                          label="正在加载会话内容…"
+                          variant="contained"
+                        />
                       ) : (
-                        <>
+                        <div className="session-timeline-loaded-presence">
                           {subagents.length ? (
                             <div className="subagent-timeline-summary" aria-label="子智能体任务">
                               {subagents.map(({ task, currentRun }) => (
@@ -1255,7 +1261,7 @@ export function ConversationPage(): React.ReactNode {
                             </div>
                           ) : null}
                           {canonicalThreadView}
-                        </>
+                        </div>
                       )}
                   </div>
                 </div>

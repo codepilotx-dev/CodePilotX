@@ -119,7 +119,7 @@ export function ThreadScrollLayout({
       observer?.disconnect()
       if (measureFrame !== null) cancelAnimationFrame(measureFrame)
     }
-  }, [footerRef, scrollRef, writeMeasuredInset])
+  }, [footer, footerRef, scrollRef, writeMeasuredInset])
 
   const handleFooterFocusCapture = React.useCallback((): void => {
     writeMeasuredInset(true)
@@ -140,14 +140,16 @@ export function ThreadScrollLayout({
     >
       <div className="thread-scroll-layout__inner">
         <div className="thread-scroll-layout__content">{children}</div>
-        <footer
-          ref={footerRef}
-          className="thread-scroll-layout__footer"
-          onFocusCapture={handleFooterFocusCapture}
-          onBlurCapture={handleFooterBlurCapture}
-        >
-          {footer}
-        </footer>
+        {footer ? (
+          <footer
+            ref={footerRef}
+            className="thread-scroll-layout__footer"
+            onFocusCapture={handleFooterFocusCapture}
+            onBlurCapture={handleFooterBlurCapture}
+          >
+            {footer}
+          </footer>
+        ) : null}
       </div>
     </div>
   )

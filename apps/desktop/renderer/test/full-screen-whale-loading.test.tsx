@@ -47,6 +47,22 @@ describe('FullScreenWhaleLoading', () => {
     expect(html).not.toContain('ui-button-spinner')
   })
 
+  test('renders contained variant without fullscreen attribute and with contained class', () => {
+    const html = renderToStaticMarkup(
+      <FullScreenWhaleLoading
+        label="正在加载会话内容…"
+        variant="contained"
+      />,
+    )
+
+    expect(html).toContain('class="full-screen-whale-loader full-screen-whale-loader--contained"')
+    expect(html).not.toContain('data-full-screen-loading="true"')
+    expect(html).toContain('data-loading-variant="contained"')
+    expect(html).toContain('data-loading-label="正在加载会话内容…"')
+    expect(html).toContain('role="status"')
+    expect(html).toContain('aria-busy="true"')
+  })
+
   test('resolves real-stage labels from provider and settings state', () => {
     expect(resolveModelSetupLoadingLabel(false, false)).toBe('正在读取模型配置…')
     expect(resolveModelSetupLoadingLabel(false, true)).toBe('正在读取模型配置…')

@@ -108,7 +108,12 @@ const router = createHashRouter([
             path: 'threads/:threadId',
             element: (
               <Suspense
-                fallback={<FullScreenWhaleLoading label="正在打开会话…" />}
+                fallback={
+                  <FullScreenWhaleLoading
+                    label="正在打开会话…"
+                    variant="contained"
+                  />
+                }
               >
                 <ConversationPage />
               </Suspense>

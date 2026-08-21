@@ -11,6 +11,7 @@ import type { RenderBlocker, RenderTurnEntry } from "@codepilotx/session-view";
 import type { Item } from "@codepilotx/shared/thread";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 import type { VirtualizerHandle } from "virtua";
+import { FullScreenWhaleLoading } from "../../../components/ui/FullScreenWhaleLoading.js";
 
 import {
   CanonicalItemRenderer,
@@ -582,10 +583,10 @@ function CanonicalThreadViewComponent({
 
   if (loading && turns.length === 0) {
     return (
-      <div className="canonical-thread-state" role="status" aria-live="polite">
-        <LoaderCircle className="canonical-spin" aria-hidden="true" />
-        <span>正在加载会话</span>
-      </div>
+      <FullScreenWhaleLoading
+        label="正在加载会话内容…"
+        variant="contained"
+      />
     );
   }
 
