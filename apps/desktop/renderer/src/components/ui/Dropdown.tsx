@@ -35,7 +35,7 @@ export function Dropdown({
 }: Props): React.ReactNode {
   return (
     <DropdownMenu.Root modal={modal} open={open} onOpenChange={onOpenChange}>
-      <DropdownMenu.Trigger asChild data-theme-component="dropdown-trigger">
+      <DropdownMenu.Trigger asChild>
         {trigger}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>

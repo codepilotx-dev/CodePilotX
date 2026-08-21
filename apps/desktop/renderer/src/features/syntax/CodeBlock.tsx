@@ -220,7 +220,7 @@ export function CodeBlock({
           <textarea
             ref={textareaRef}
             aria-label="编辑代码内容"
-            className="md-code-editor-textarea tw:m-0 tw:w-full tw:resize-y tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-inherit tw:leading-inherit tw:text-app-text tw:outline-none tw:whitespace-pre tw:overflow-x-auto"
+            className="md-code-editor-textarea tw:m-0 tw:w-full tw:resize-y tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-inherit tw:text-app-text tw:outline-none tw:whitespace-pre tw:overflow-x-auto"
             style={{
               ...codeStyle,
               minHeight: `${Math.max(2, editCodeValue.split('\n').length) * 1.5}em`,
