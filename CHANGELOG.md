@@ -58,6 +58,7 @@
 - [desktop/renderer] 补充 Renderer 样式契约白名单判定规范，明确固定控件几何、语义行高、Tailwind leading 与外部样式契约的准入边界，避免后续检查失败时机械刷新基线。
 - [desktop/renderer] 统一可缩放内容与固定桌面 Chrome 的语义行高，修复大字号代码、设置行、侧栏动作和编辑器排版被局部行高撑高或压缩的问题。
 - [desktop/renderer] 将右栏自动收起改为按整窗 960px 阈值计算并保留 24px 恢复回差，默认宽度改用按主区宽度与工作区高度的动态公式；工作区标题栏不再固定 94% 模糊背景与下边框，仅在会话滚动内容下显示 0.5px 分割线，窄窗口标题始终可见并截断。
+- [docs/agent] 新增 Codex Harness 对标与 Agent 优化报告，明确当前能力基线、关键差距及分阶段实施路线。
 - [desktop/renderer] 按 Codex 证据恢复设置卡片与按钮的主次层级：SettingsSection 默认卡片表面（16px 圆角、fog 背景、inset hairline），移除设置行固定 64px 高度，primary 恢复前景实底反色文字、secondary 使用 5% 弱背景，并新增 canonical pressed token。
 - [desktop/renderer] 补齐 Windows 桌面菜单键盘行为：Alt/F10 聚焦菜单栏、Escape 关闭并恢复焦点、左右键切换菜单、Alt+F/E/V/W/H mnemonic 直接打开对应菜单。
 - [desktop/renderer] 首页建议保留 0.5px ring 并恢复极弱阴影，移除按压位移。
@@ -91,11 +92,13 @@
 - [desktop/renderer] 融合 dashi 信息密度重构任务看板：44px 紧凑工具栏（搜索、Project、优先级/标签筛选菜单、归档）替换 Hero 大标题区；五列始终渲染并保持 296–336px 可读宽度、普通窗口横向滚动；列头以状态色 token 着色并绘制轻量 CSS 流程箭头（暗色与 forced-colors 降级）；任务卡改为 12px 圆角紧凑浮层，移除内部分割框与隐藏的 `<details>` 移动菜单，改用 PopoverMenu；列头 `+` 与顶部“新建任务”统一只保留一个文字入口，列内新增按状态预填（复用 RPC 可选 `status`，无协议变更）。
 - [desktop/renderer] 将任务详情 drawer 从悬浮全窗改为路由区域内右侧面板（480px，与右栏同表面语言，960px 以下近全宽浮层），看板上下文保持可见，字段、标签、对话、评论、活动和危险区按面板分组重排，权限、归档与永久删除行为不变。
 - [desktop/renderer] 为任务看板新增浏览器视觉回归基础设施：`visualCase=taskboard` 静态 fixture（五种状态、长标题、标签、运行中、等待输入与 worktree 卡片）、Playwright 场景与 axe 场景；浏览器 mock 仅提供只读 list/read/label fixture，mutation 保持显式不可用。
+- [Agent] Skills 与可选 MCP server 改为按需发现和加载，单个外部资源故障不再阻断普通对话。
 
 ### Fixed
 
 - [desktop/renderer] 修复外观设置中选择字体变体后重新进入页面变体下拉框回退显示全称（如 JetBrains Mono Medium）而非变体名（如中等、半粗体）的问题：增强变体名提取与本地化解析（`faceStyleLabel`），并在组件挂载时自动复用已就绪的系统字体缓存。
 - [desktop/renderer] 修复侧边栏底部的“设置”按钮因 DropdownMenu.Trigger 传递 data-theme-component="dropdown-trigger" 导致常驻控件实色灰底（被误判为永久 hover/active 态）的问题，使侧栏设置按钮在非激活/非悬停态下恢复为透明底色。
+- [Desktop] 修复失败 turn 未显示安全错误原因、界面仅留下"已处理"状态的问题。
 - [desktop/renderer] 修复侧边栏会话项在悬浮或聚焦时未读圆点与置顶/归档操作按钮并存重叠的问题，对标 Codex 实现悬浮态仅展示操作按钮并隐藏未读圆点，并将侧栏会话项与 Hover 详情卡片中的未读圆点统一为主题 Accent 色（var(--cpx-sys-color-accent)）。
 - [Agent/desktop] 修复 models.dev 缓存重载时丢失工具调用等模型能力元数据，恢复 Provider 模型数量、兼容状态和模型选择器中的已配置 Provider。
 - [Agent/desktop/renderer] 修复 Provider 模型数量依赖按需缓存、模型选择器仅显示当前 Provider 的问题；模型中心现在展示准确的可执行模型总数，并在选择器打开时加载全部已配置 Provider 的完整模型目录。
