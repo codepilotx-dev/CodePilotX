@@ -1,6 +1,7 @@
 import type {
   EventAckParamsSchema,
   EventSubscribeParamsSchema,
+  ProtocolCapability,
 } from "@codepilotx/agent-protocol"
 import type { Schema } from "effect"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
@@ -17,7 +18,7 @@ export type EventSubscription = {
   acknowledged: Map<string, number>
   liveEventTypes: ReadonlySet<string> | null
   /** Capabilities negotiated by the owning connection at initialize time. */
-  capabilities: ReadonlySet<string>
+  capabilities: ReadonlySet<ProtocolCapability>
   createdAt: number
 }
 
@@ -34,7 +35,7 @@ export class EventSubscriptionRegistry {
     private readonly limits = { maxSubscriptions: 16, maxStreamsPerSubscription: 64 },
   ) {}
 
-  subscribe(connectionId: string, params: SubscribeParams, capabilities: ReadonlySet<string> = new Set()) {
+  subscribe(connectionId: string, params: SubscribeParams, capabilities: ReadonlySet<ProtocolCapability> = new Set()) {
     const connectionSubscriptions = [...this.subscriptions.values()].filter((subscription) => subscription.connectionId === connectionId).length
     if (connectionSubscriptions >= this.limits.maxSubscriptions) {
       throw new AgentError("SUBSCRIPTION_OVERFLOW", "事件订阅数量已达到上限", 409)

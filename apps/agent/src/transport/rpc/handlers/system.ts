@@ -1,7 +1,7 @@
-import type { RpcMethod } from "@codepilotx/agent-protocol"
+import type { ProtocolCapability, RpcMethod } from "@codepilotx/agent-protocol"
 import type { RpcRouter } from "../RpcRouter"
 import type { RpcRouterContext } from "../request-context"
-import { filterAdvertisedCapabilities } from "./system-capabilities"
+import { filterAdvertisedCapabilities, negotiateCapabilities } from "./system-capabilities"
 import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
 import {
   AgentError,
@@ -110,11 +110,14 @@ export const systemHandlers = {
         }
         const connectionId = crypto.randomUUID()
         const createdAt = runtime.now()
+        const serverAvailable = filterAdvertisedCapabilities(db)
+        const clientRequested = params.capabilities as readonly ProtocolCapability[]
+        const negotiated = negotiateCapabilities(clientRequested, serverAvailable)
         runtime.connections.set(connectionId, {
           initialized: false,
           createdAt,
           lastSeenAt: createdAt,
-          capabilities: new Set(params.capabilities as string[]),
+          capabilities: negotiated,
           ...(context.transportAuthority ? { transportAuthority: context.transportAuthority } : {}),
           ...(requestedAuthority === "desktop-host"
             ? { authority: "desktop-host" as const }
@@ -123,7 +126,7 @@ export const systemHandlers = {
         return {
           protocol: "thread-rpc-v4",
           serverInfo: { name: "codepilotx-agent", version: "0.1.0" },
-          capabilities: filterAdvertisedCapabilities(db),
+          capabilities: [...negotiated],
           limits: {
             maxFrameBytes: 16 * 1024 * 1024,
             maxSubscriptions: 16,

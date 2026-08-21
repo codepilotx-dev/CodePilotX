@@ -99,6 +99,7 @@
 - [desktop/renderer] 修复外观设置中选择字体变体后重新进入页面变体下拉框回退显示全称（如 JetBrains Mono Medium）而非变体名（如中等、半粗体）的问题：增强变体名提取与本地化解析（`faceStyleLabel`），并在组件挂载时自动复用已就绪的系统字体缓存。
 - [desktop/renderer] 修复侧边栏底部的“设置”按钮因 DropdownMenu.Trigger 传递 data-theme-component="dropdown-trigger" 导致常驻控件实色灰底（被误判为永久 hover/active 态）的问题，使侧栏设置按钮在非激活/非悬停态下恢复为透明底色。
 - [Desktop] 修复失败 turn 未显示安全错误原因、界面仅留下"已处理"状态的问题。
+- [agent/protocol] 修复 initialize capability 协商未取客户端与服务端能力交集的问题，确保 RPC 方法、事件订阅和 initialize 返回值只暴露真实协商能力。
 - [desktop/renderer] 修复侧边栏会话项在悬浮或聚焦时未读圆点与置顶/归档操作按钮并存重叠的问题，对标 Codex 实现悬浮态仅展示操作按钮并隐藏未读圆点，并将侧栏会话项与 Hover 详情卡片中的未读圆点统一为主题 Accent 色（var(--cpx-sys-color-accent)）。
 - [Agent/desktop] 修复 models.dev 缓存重载时丢失工具调用等模型能力元数据，恢复 Provider 模型数量、兼容状态和模型选择器中的已配置 Provider。
 - [Agent/desktop/renderer] 修复 Provider 模型数量依赖按需缓存、模型选择器仅显示当前 Provider 的问题；模型中心现在展示准确的可执行模型总数，并在选择器打开时加载全部已配置 Provider 的完整模型目录。

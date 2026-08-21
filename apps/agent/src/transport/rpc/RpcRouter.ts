@@ -110,6 +110,7 @@ import {
   dispatchRpcMessageWithMethods,
   type ApplicationErrorCode,
   type JsonValue,
+  type ProtocolCapability,
   type RpcHandlers,
   type RpcMethod,
   type ReviewAiTarget,
@@ -296,7 +297,7 @@ export class RpcRouter {
     initialized: boolean
     createdAt: number
     lastSeenAt: number
-    capabilities: ReadonlySet<string>
+    capabilities: ReadonlySet<ProtocolCapability>
     authority?: "desktop-host"
     transportAuthority?: "desktop-host" | "renderer"
   }>()

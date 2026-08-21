@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
-import { EventManifest, type EventType } from "@codepilotx/agent-protocol"
+import { EventManifest, type EventType, type ProtocolCapability } from "@codepilotx/agent-protocol"
 import { relative, resolve, sep } from "node:path"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import type { AgentConfig } from "../config/Config"
@@ -123,24 +123,60 @@ export const resolveEventCursor = (
 }
 
 /**
- * Shared gate for live events: the manifest's negotiated capability and the
- * subscription's explicit liveEventTypes both decide whether an event may be
- * buffered or delivered. Clients that never negotiated e.g. model.health.v1
- * must not receive model/health/updated even when they omit liveEventTypes.
+ * Shared gate: returns false for unregistered events or events whose
+ * negotiated capability is not held by the subscription.
+ * Cursor must always advance even when delivery is denied.
+ */
+export const eventDeliveryAllowed = (
+  event: StoredEventEnvelope,
+  subscription: {
+    capabilities: ReadonlySet<ProtocolCapability>
+  },
+): boolean => {
+  if (!(event.method in EventManifest)) return false
+  const definition = EventManifest[event.method as EventType]
+  if (definition.capability && !subscription.capabilities.has(definition.capability)) return false
+  return true
+}
+
+/**
+ * Live event gate: eventDeliveryAllowed + durability="live" + liveEventTypes.
+ * Clients that never negotiated e.g. model.health.v1 must not receive
+ * model/health/updated even when they omit liveEventTypes.
  */
 export const liveEventDeliveryAllowed = (
   event: StoredEventEnvelope,
   subscription: {
     liveEventTypes: ReadonlySet<string> | null
-    capabilities: ReadonlySet<string>
+    capabilities: ReadonlySet<ProtocolCapability>
   },
 ): boolean => {
   if (!(event.method in EventManifest)) return false
   const definition = EventManifest[event.method as EventType]
   if (definition.durability !== "live") return false
-  if (definition.capability && !subscription.capabilities.has(definition.capability)) return false
+  if (!eventDeliveryAllowed(event, subscription)) return false
   if (subscription.liveEventTypes && !subscription.liveEventTypes.has(event.method)) return false
   return true
+}
+
+export const deliverDurablePage = async (input: {
+  events: readonly StoredEventEnvelope[]
+  target: number
+  subscription: { capabilities: ReadonlySet<ProtocolCapability> }
+  updateCursor: (cursor: number) => void
+  deliver: (event: StoredEventEnvelope) => boolean | Promise<boolean>
+}) => {
+  let lastCursor: number | null = null
+  let delivered = 0
+  for (const event of input.events) {
+    if (event.id > input.target) break
+    lastCursor = event.id
+    input.updateCursor(event.id)
+    if (!(event.method in EventManifest) || EventManifest[event.method as EventType].durability === "live") continue
+    if (!eventDeliveryAllowed(event, input.subscription)) continue
+    if (await input.deliver(event)) delivered += 1
+  }
+  return { lastCursor, delivered }
 }
 
 export const deliverAnchoredLive = async (
@@ -513,18 +549,23 @@ export const createApp = (dependencies: TransportDependencies) => {
         let delivered = 0
         while (cursor < target) {
           const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
-          let advanced = false
-          for (const event of events) {
-            if (event.id > target) break
-            cursor = event.id
-            cursors.set(streamId, cursor)
-            advanced = true
-            if (!(event.method in EventManifest) || EventManifest[event.method as EventType].durability === "live") continue
-            const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
-            if (!notification) continue
-            await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
-            delivered += 1
-          }
+          const page = await deliverDurablePage({
+            events,
+            target,
+            subscription,
+            updateCursor: (nextCursor) => {
+              cursor = nextCursor
+              cursors.set(streamId, nextCursor)
+            },
+            deliver: async (event) => {
+              const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+              if (!notification) return false
+              await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
+              return true
+            },
+          })
+          const advanced = page.lastCursor !== null
+          delivered += page.delivered
           if (!advanced || events.length < 500 || events.at(-1)!.id > target) {
             cursor = target
             cursors.set(streamId, cursor)

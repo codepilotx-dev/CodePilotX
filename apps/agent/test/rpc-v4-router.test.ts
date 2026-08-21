@@ -6,7 +6,7 @@ import { removeFixturePaths } from "./fixture-cleanup"
 import { Effect, Schema } from "effect"
 import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
-import { Capabilities } from "@codepilotx/agent-protocol"
+import { Capabilities, type ProtocolCapability } from "@codepilotx/agent-protocol"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { AgentError } from "../src/domain"
 import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcRouter"
@@ -1363,29 +1363,91 @@ describe("RPC v4 Router", () => {
       params: { runId: "op:1", status: "running" },
       createdAt: Date.now(),
     }
-    const base = { liveEventTypes: null, capabilities: new Set<string>() }
+    const base = { liveEventTypes: null, capabilities: new Set<ProtocolCapability>() }
     // No negotiated capability and no explicit filter: still blocked by capability.
     expect(liveEventDeliveryAllowed(event, base)).toBe(false)
     // Capability negotiated but event not explicitly subscribed: still blocked.
     expect(liveEventDeliveryAllowed(event, {
       liveEventTypes: new Set(["catalog/updated"]),
-      capabilities: new Set(["model.health.v1"]),
+      capabilities: new Set<ProtocolCapability>(["model.health.v1"]),
     })).toBe(false)
     // Capability negotiated and explicitly subscribed: delivered.
     expect(liveEventDeliveryAllowed(event, {
       liveEventTypes: new Set(["model/health/updated"]),
-      capabilities: new Set(["model.health.v1"]),
+      capabilities: new Set<ProtocolCapability>(["model.health.v1"]),
     })).toBe(true)
     // Without liveEventTypes the capability gate alone still applies.
     expect(liveEventDeliveryAllowed(event, {
       liveEventTypes: null,
-      capabilities: new Set(["model.health.v1"]),
+      capabilities: new Set<ProtocolCapability>(["model.health.v1"]),
     })).toBe(true)
     // Durable events are not affected by the live gate.
     expect(liveEventDeliveryAllowed({
       ...event,
       method: "thread/updated",
     }, base)).toBe(false)
+  })
+
+  test("initialize 响应和 connection set 精确等于交集且顺序与 serverAvailable 一致", async () => {
+    const { db, initialize, router } = await fixture()
+    const response = await initialize(["rpc.typed.v1", "events.replay.v1"])
+    const negotiated = response.result.capabilities as ProtocolCapability[]
+    expect(negotiated).toEqual(["rpc.typed.v1", "events.replay.v1"])
+    const [connectionId] = router.connections.keys()
+    const connectionCaps = router.connections.get(connectionId as string)!.capabilities
+    expect([...connectionCaps]).toEqual(negotiated)
+    expect([...connectionCaps]).toEqual(["rpc.typed.v1", "events.replay.v1"])
+    db.close()
+  })
+
+  test("item_artifacts 缺失时 initialize 响应和 connection/subscription 均不含 artifacts.read.v1，artifact/read 返回 CAPABILITY_REQUIRED", async () => {
+    const { db, initialize, call, router } = await fixture()
+    db.sqlite.query("DROP TABLE IF EXISTS item_artifacts").run()
+    const response = await initialize([...Capabilities as unknown as string[]])
+    expect((response.result.capabilities as string[])).not.toContain("artifacts.read.v1")
+    const [connectionId] = router.connections.keys()
+    expect(router.connections.get(connectionId as string)!.capabilities.has("artifacts.read.v1")).toBe(false)
+    const subscribed = await call("event/subscribe", {
+      streams: [{ streamId: "global", after: 0 }],
+    })
+    const subCaps = router.subscriptions.get(subscribed.result.subscriptionId, connectionId as string)!.capabilities
+    expect(subCaps.has("artifacts.read.v1")).toBe(false)
+    expect((await call("artifact/read", { artifactId: "artifact:test" })).error).toMatchObject({
+      data: { code: "CAPABILITY_REQUIRED", details: { capability: "artifacts.read.v1" } },
+    })
+    const tables = new Set(
+      (db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'item_artifacts'").all() as Array<{ name: string }>)
+        .map(({ name }) => name),
+    )
+    expect(tables.has("item_artifacts")).toBe(false)
+    db.close()
+  })
+
+  test("taskboard/changed 缺 taskboard.v1 时不允许 durable 投递，thread/updated 在 events.replay.v1 下允许", async () => {
+    const { eventDeliveryAllowed } = await import("../src/transport/server")
+    const taskboardEvent = {
+      id: 0,
+      afterSequence: 1,
+      threadId: null,
+      turnId: null,
+      method: "taskboard/changed",
+      params: { projectId: "project:1", taskId: null, resource: "task" as const, action: "created" as const, changedAt: 1 },
+      createdAt: Date.now(),
+    }
+    const threadEvent = {
+      id: 0,
+      afterSequence: 1,
+      threadId: null,
+      turnId: null,
+      method: "thread/updated",
+      params: { thread: { id: "thread:1", title: "test", projectId: null, createdAt: 1, updatedAt: 1, deletedAt: null, unreadAt: null, readThroughAt: null }, version: 1 },
+      createdAt: Date.now(),
+    }
+    const withTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1", "taskboard.v1"]) }
+    expect(eventDeliveryAllowed(taskboardEvent, withTaskboard)).toBe(true)
+    const withoutTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1"]) }
+    expect(eventDeliveryAllowed(taskboardEvent, withoutTaskboard)).toBe(false)
+    expect(eventDeliveryAllowed(threadEvent, withoutTaskboard)).toBe(true)
   })
 
   test("event subscriptions track high-watermarks, acknowledgements and closure", async () => {
