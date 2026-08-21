@@ -1566,6 +1566,14 @@ describe('侧栏时间线投影', () => {
       ]),
     ).toBe('attention')
 
+    expect(
+      deriveSidebarActivityIndicatorState([
+        timelineSession('unread-idle', 'idle', '2026-08-01T00:00:00.000Z', {
+          unreadAt: '2026-08-01T00:00:00.000Z',
+        }),
+      ]),
+    ).toBe('attention')
+
     // 2. active 状态：无 attention，但有 running / waiting-subagents / queued
     expect(
       deriveSidebarActivityIndicatorState([

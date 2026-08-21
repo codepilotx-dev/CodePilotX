@@ -4,8 +4,6 @@ import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
-  BellDot,
-  BellRing,
   Boxes,
   BrainCircuit,
   ChevronDown,
@@ -339,13 +337,19 @@ export function SidebarHeader({
                   }}
                   title={timelineToggleTitle}
                 >
-                  {indicatorState === 'attention' || (hasAttention && indicatorState !== 'active') ? (
-                    <BellDot aria-hidden="true" size={APP_ICON_SIZE} />
-                  ) : indicatorState === 'active' ? (
-                    <BellRing aria-hidden="true" size={APP_ICON_SIZE} />
-                  ) : (
-                    <Bell aria-hidden="true" size={APP_ICON_SIZE} />
-                  )}
+                  <Bell aria-hidden="true" size={APP_ICON_SIZE}>
+                    {(indicatorState === 'attention' ||
+                      indicatorState === 'active' ||
+                      hasAttention) && (
+                      <circle
+                        cx="18"
+                        cy="4"
+                        r="4.5"
+                        fill="var(--cpx-sys-color-accent)"
+                        stroke="none"
+                      />
+                    )}
+                  </Bell>
                 </IconButton>
               </Tooltip>
             </div>

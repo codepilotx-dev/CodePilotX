@@ -307,10 +307,7 @@ export function sidebarTimelinePriorityRank(
   ) {
     return 2
   }
-  if (
-    session.latestTurnStatus === 'completed' &&
-    session.unreadAt != null
-  ) {
+  if (session.unreadAt != null) {
     return 3
   }
   return null
