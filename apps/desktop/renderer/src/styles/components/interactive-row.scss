@@ -27,7 +27,7 @@
     var(--cpx-sys-color-fg-primary)
   );
   font-size: var(--interactive-row-current-font-size);
-  line-height: var(--interactive-row-current-line-height);
+  line-height: var(--interactive-row-current-line-height, var(--cpx-sys-line-height-tight));
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -39,6 +39,15 @@
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
+
+  > svg,
+  svg {
+    flex-shrink: 0;
+  }
+
+  > svg {
+    display: block;
+  }
 }
 
 .interactive-row--nav {
@@ -48,7 +57,7 @@
     --cpx-comp-row-padding-inline
   );
   --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
-  --interactive-row-current-line-height: var(--cpx-sys-line-height-normal);
+  --interactive-row-current-line-height: var(--cpx-sys-line-height-tight);
 }
 
 .interactive-row--menu,
@@ -71,7 +80,7 @@
     --cpx-comp-row-padding-inline
   );
   --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
-  --interactive-row-current-line-height: var(--cpx-sys-line-height-normal);
+  --interactive-row-current-line-height: var(--cpx-sys-line-height-tight);
 }
 
 .interactive-row--toolbar {
@@ -112,7 +121,7 @@
     --cpx-comp-row-padding-inline
   );
   --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
-  --interactive-row-current-line-height: var(--control-line-height);
+  --interactive-row-current-line-height: var(--control-line-height, 1);
 }
 
 .interactive-row:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])),

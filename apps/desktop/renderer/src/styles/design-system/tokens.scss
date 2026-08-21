@@ -102,6 +102,7 @@
   --cpx-sys-font-size-2xl: 20px;
   --cpx-sys-font-size-3xl: 24px;
 
+  --cpx-sys-line-height-none: 1;
   --cpx-sys-line-height-tight: calc(var(--cpx-sys-font-size-sm) + 5px);
   --cpx-sys-line-height-normal: calc(var(--cpx-sys-font-size-md) + 6px);
   --cpx-sys-line-height-relaxed: calc(var(--cpx-sys-font-size-lg) + 6px);
@@ -212,7 +213,7 @@
   --app-icon-stroke-width: 1.75;
   --menu-icon-size: calc(var(--cpx-sys-font-size-md) + 2px);
   --menu-font-size: var(--cpx-sys-font-size-md);
-  --menu-line-height: var(--cpx-sys-line-height-normal);
+  --menu-line-height: var(--cpx-sys-line-height-tight);
   --menu-detail-font-size: var(--cpx-sys-font-size-sm);
   --menu-surface-padding: 4px;
   --menu-item-padding-block: 5px;

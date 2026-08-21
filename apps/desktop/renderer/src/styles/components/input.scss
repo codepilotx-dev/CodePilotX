@@ -146,7 +146,7 @@
   color: var(--cpx-sys-color-fg-primary);
   padding: var(--control-padding-block) var(--control-padding-inline);
   font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-normal);
   outline: none;
   transition:
     background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),

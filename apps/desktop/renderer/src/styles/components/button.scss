@@ -232,7 +232,7 @@
   --button-size: var(--cpx-comp-button-size-compact);
   --button-padding-inline: 8px;
   --button-font-size: 11px;
-  --button-line-height: 16px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: var(--button-icon-size-xs);
 }
@@ -242,7 +242,7 @@
 .ui-button[data-size="composerUtility"] {
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-font-size: 12px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-sys-radius-full);
   --button-icon-size: 16px;
 }
@@ -260,7 +260,7 @@
   --button-size: var(--cpx-comp-button-size-compact);
   --button-padding-inline: 8px;
   --button-font-size: 12px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-sys-radius-full);
   --button-icon-size: var(--button-icon-size-xs);
 }
@@ -269,7 +269,7 @@
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-padding-inline: 4px;
   --button-font-size: 14px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-md);
   --button-icon-size: var(--button-icon-size-sm);
 }
@@ -278,7 +278,7 @@
   --button-size: var(--button-size-icon-large);
   --button-padding-inline: 0;
   --button-font-size: 16px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-2xl);
 }
 
@@ -286,7 +286,7 @@
   --button-size: 20px;
   --button-padding-inline: 2px;
   --button-font-size: 14px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-md);
   --button-icon-size: var(--button-icon-size-xs);
 }
@@ -295,7 +295,7 @@
   --button-size: 16px;
   --button-padding-inline: 2px;
   --button-font-size: 12px;
-  --button-line-height: 16px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-md);
   --button-icon-size: var(--button-icon-size-xs);
 }
@@ -304,7 +304,7 @@
   --button-size: var(--cpx-comp-button-size-large);
   --button-padding-inline: 20px;
   --button-font-size: 16px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-sys-radius-full);
 }
 
@@ -312,7 +312,7 @@
   --button-size: var(--cpx-comp-button-size-medium);
   --button-padding-inline: 16px;
   --button-font-size: 14px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
 }
 
@@ -320,7 +320,7 @@
   --button-size: var(--cpx-comp-button-size-large);
   --button-padding-inline: 8px;
   --button-font-size: 14px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: 16px;
 }
@@ -329,7 +329,7 @@
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-padding-inline: 8px;
   --button-font-size: 14px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: 16px;
 }
@@ -338,7 +338,7 @@
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-padding-inline: 10px;
   --button-font-size: 12px;
-  --button-line-height: 18px;
+  --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: 16px;
 }
@@ -382,7 +382,7 @@
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-sm);
   font-weight: var(--cpx-sys-font-weight-regular);
-  line-height: 18px;
+  line-height: var(--cpx-sys-line-height-tight);
   cursor: pointer;
   transition:
     background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),

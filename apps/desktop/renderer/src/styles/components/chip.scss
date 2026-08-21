@@ -11,9 +11,15 @@
   background: transparent;
   box-shadow: none;
   color: var(--cpx-sys-color-accent);
+  line-height: var(--cpx-sys-line-height-tight);
 
   &.subtle {
     color: var(--cpx-sys-color-fg-primary);
+  }
+
+  > svg {
+    display: block;
+    flex-shrink: 0;
   }
 }
 
@@ -28,6 +34,12 @@
   background: transparent;
   box-shadow: none;
   color: var(--cpx-sys-color-fg-tertiary);
+  line-height: var(--cpx-sys-line-height-tight);
+
+  > svg {
+    display: block;
+    flex-shrink: 0;
+  }
 
   span {
     min-width: 0;
@@ -35,6 +47,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+    line-height: var(--cpx-sys-line-height-tight);
   }
 }
 
@@ -79,6 +92,11 @@
   line-height: var(--cpx-sys-line-height-tight);
   font-weight: var(--cpx-sys-font-weight-medium);
   border: 1px solid transparent;
+
+  > svg {
+    display: block;
+    flex-shrink: 0;
+  }
 
   &.success {
     background: var(--cpx-comp-chip-success-bg);

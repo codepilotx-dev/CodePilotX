@@ -121,11 +121,13 @@
   }
 
   .md-alert {
+    --md-alert-color: var(--cpx-sys-color-border-default);
+
     margin: 16px 0;
     padding: 0.75rem 1rem 0.85rem;
-    border-left: 3.5px solid var(--cpx-sys-color-border-default);
+    border-left: 3.5px solid var(--md-alert-color);
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: color-mix(in srgb, var(--md-alert-color) 6%, var(--cpx-comp-modal-preformat-bg));
     color: var(--cpx-sys-color-fg-primary);
 
     &__header {
@@ -135,6 +137,7 @@
       margin-bottom: 6px;
       font-weight: 600;
       font-size: var(--cpx-sys-font-size-sm);
+      color: var(--md-alert-color);
     }
 
     &__icon {
@@ -145,56 +148,35 @@
     }
 
     &__title {
-      line-height: 1;
+      line-height: var(--cpx-sys-line-height-none, 1);
     }
 
-    &__content {
-      > :first-child {
-        margin-top: 0;
-      }
-      > :last-child {
-        margin-bottom: 0;
-      }
+    &__content > :first-child {
+      margin-top: 0;
+    }
+
+    &__content > :last-child {
+      margin-bottom: 0;
     }
 
     &--note {
-      border-left-color: var(--cpx-sys-color-accent);
-      background: color-mix(in srgb, var(--cpx-sys-color-accent) 6%, transparent);
-      .md-alert__header {
-        color: var(--cpx-sys-color-accent);
-      }
+      --md-alert-color: var(--cpx-sys-color-accent);
     }
 
     &--tip {
-      border-left-color: var(--cpx-sys-color-success);
-      background: color-mix(in srgb, var(--cpx-sys-color-success) 6%, transparent);
-      .md-alert__header {
-        color: var(--cpx-sys-color-success);
-      }
+      --md-alert-color: var(--cpx-sys-color-success);
     }
 
     &--important {
-      border-left-color: #a855f7;
-      background: color-mix(in srgb, #a855f7 6%, transparent);
-      .md-alert__header {
-        color: #a855f7;
-      }
+      --md-alert-color: var(--cpx-sys-color-skill);
     }
 
     &--warning {
-      border-left-color: var(--cpx-sys-color-warning);
-      background: color-mix(in srgb, var(--cpx-sys-color-warning) 6%, transparent);
-      .md-alert__header {
-        color: var(--cpx-sys-color-warning);
-      }
+      --md-alert-color: var(--cpx-sys-color-warning);
     }
 
     &--caution {
-      border-left-color: var(--cpx-sys-color-danger);
-      background: color-mix(in srgb, var(--cpx-sys-color-danger) 6%, transparent);
-      .md-alert__header {
-        color: var(--cpx-sys-color-danger);
-      }
+      --md-alert-color: var(--cpx-sys-color-danger);
     }
   }
 
