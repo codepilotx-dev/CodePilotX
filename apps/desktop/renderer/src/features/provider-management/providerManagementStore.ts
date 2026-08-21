@@ -77,6 +77,7 @@ const INITIAL_SNAPSHOT: ProviderManagementSnapshot = {
   loaded: false,
   loading: false,
   refreshingSources: false,
+  refreshingSourceIds: [],
   error: null,
   configurationError: null,
   providers: [],
@@ -155,6 +156,7 @@ export function createProviderManagementStore(
   let queryContextKey: string | null = null
   let queryEpoch = 0
   const pendingQueriesByEpoch = new Map<number, number>()
+  const activeRefreshingSourceCounts = new Map<string, number>()
   const listeners = new Set<() => void>()
 
   const update = (
@@ -392,7 +394,7 @@ export function createProviderManagementStore(
   const querySources = async (
     params: RpcParams<'usage/provider/query'>,
   ): Promise<RpcResult<'usage/provider/query'>> => {
-    const contextKey = `${params.range}\u0000${params.timeZone}`
+    const contextKey = `${params.timeZone}`
     if (queryContextKey !== contextKey) {
       queryContextKey = contextKey
       queryEpoch += 1
@@ -402,16 +404,22 @@ export function createProviderManagementStore(
       requestEpoch,
       (pendingQueriesByEpoch.get(requestEpoch) ?? 0) + 1,
     )
-    update({ refreshingSources: true, error: null })
+    for (const sourceId of params.sourceIds) {
+      activeRefreshingSourceCounts.set(
+        sourceId,
+        (activeRefreshingSourceCounts.get(sourceId) ?? 0) + 1,
+      )
+    }
+    update({
+      refreshingSources: true,
+      refreshingSourceIds: [...activeRefreshingSourceCounts.keys()],
+      error: null,
+    })
     try {
       const result = await client.queryProviderUsage(params)
       if (requestEpoch !== queryEpoch) return result
-      const sameRange = snapshot.usageRange === params.range
-        && snapshot.usageTimeZone === params.timeZone
       update({
-        usageResults: sameRange
-          ? mergeUsageResults(snapshot.usageResults, result.sources)
-          : [...result.sources],
+        usageResults: mergeUsageResults(snapshot.usageResults, result.sources),
         usageGeneratedAt: result.generatedAt,
         usageRange: result.range,
         usageTimeZone: result.timeZone,
@@ -421,14 +429,25 @@ export function createProviderManagementStore(
       if (requestEpoch === queryEpoch) update({ error: errorMessage(error) })
       throw error
     } finally {
+      for (const sourceId of params.sourceIds) {
+        const count = (activeRefreshingSourceCounts.get(sourceId) ?? 1) - 1
+        if (count <= 0) {
+          activeRefreshingSourceCounts.delete(sourceId)
+        } else {
+          activeRefreshingSourceCounts.set(sourceId, count)
+        }
+      }
       const remaining = (pendingQueriesByEpoch.get(requestEpoch) ?? 1) - 1
       if (remaining > 0) {
         pendingQueriesByEpoch.set(requestEpoch, remaining)
       } else {
         pendingQueriesByEpoch.delete(requestEpoch)
-        if (requestEpoch === queryEpoch) {
-          update({ refreshingSources: false })
-        }
+      }
+      if (requestEpoch === queryEpoch) {
+        update({
+          refreshingSources: remaining > 0 || activeRefreshingSourceCounts.size > 0,
+          refreshingSourceIds: [...activeRefreshingSourceCounts.keys()],
+        })
       }
     }
   }

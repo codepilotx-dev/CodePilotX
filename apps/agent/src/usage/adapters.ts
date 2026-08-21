@@ -369,15 +369,15 @@ const minimax = (region: "global" | "cn") => adapter({
           && status === undefined
           && reset === undefined
         ) return
+        if (status === 3) return
         const hasCount = total !== undefined && total > 0
         const limit = hasCount ? total : undefined
         const used = hasCount && usage !== undefined ? Math.min(total, usage) : undefined
         const remaining = hasCount ? Math.max(0, total - (usage ?? 0)) : undefined
-        const unlimited = status === 2 || (!hasCount && remainingPercent === 100)
-        const exhausted = !unlimited && (
-          (remainingPercent !== undefined && remainingPercent === 0)
+        const exhausted = status === 2
+          || (remainingPercent !== undefined && remainingPercent === 0)
           || (hasCount && remaining === 0)
-        )
+        const unlimited = status === 4
         const quotaId = modelItems.length > 1 ? `plan-${index + 1}-${id}` : id
         const finalLabel = modelDisplayName && modelItems.length > 1 ? `${modelDisplayName} ${windowLabel}` : windowLabel
         group.quotaWindows.push({
@@ -386,9 +386,9 @@ const minimax = (region: "global" | "cn") => adapter({
           unit: "requests",
           ...(unlimited ? {} : {
             ...(limit === undefined ? {} : { limit }),
-            ...(remaining === undefined ? {} : { remaining }),
+            ...(remaining === undefined ? (hasCount ? { remaining: 0 } : {}) : { remaining }),
             ...(used === undefined ? {} : { used }),
-            ...(remainingPercent === undefined ? {} : { remainingPercent }),
+            remainingPercent: exhausted ? 0 : (remainingPercent ?? (hasCount && limit ? Math.round(((remaining ?? 0) / limit) * 100) : 100)),
           }),
           ...(reset === undefined ? {} : { resetsAt: reset }),
           state: unlimited ? "unlimited" : exhausted ? "exhausted" : "normal",
@@ -414,7 +414,7 @@ const minimax = (region: "global" | "cn") => adapter({
         remain.weekly_end_time,
         remain.current_weekly_status,
       )
-      return [group]
+      return group.quotaWindows.length > 0 ? [group] : []
     })
     return { ...emptySource(source, "available", credential.connection), checkedAt: context.now, groups }
   },

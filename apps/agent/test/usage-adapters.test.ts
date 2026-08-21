@@ -78,11 +78,19 @@ describe("provider usage adapters", () => {
           current_interval_status: 1,
         },
         {
-          model_name: "unlimited",
+          model_name: "status-2-exhausted",
+          current_interval_total_count: 0,
+          current_interval_usage_count: 0,
+          current_interval_remaining_percent: 0,
+          current_interval_status: 2,
+          end_time: 1_800_000_000,
+        },
+        {
+          model_name: "not-in-plan",
           current_interval_total_count: 0,
           current_interval_usage_count: 0,
           current_interval_remaining_percent: 100,
-          current_interval_status: 2,
+          current_interval_status: 3,
         },
       ],
     }, (url) => { requested = url }))
@@ -96,7 +104,9 @@ describe("provider usage adapters", () => {
     expect(result.groups[1]?.quotaWindows[0]?.used).toBe(1)
     expect(result.groups[1]?.quotaWindows[0]?.remaining).toBe(2)
     expect(result.groups[2]?.quotaWindows[0]?.state).toBe("exhausted")
-    expect(result.groups[3]?.quotaWindows[0]?.state).toBe("unlimited")
+    expect(result.groups[3]?.quotaWindows[0]?.state).toBe("exhausted")
+    expect(result.groups[3]?.quotaWindows[0]?.resetsAt).toBe(1_800_000_000_000)
+    expect(result.groups[4]).toBeUndefined() // not-in-plan (status 3) is omitted
   })
 
   test("Kimi Code 识别官方 TIME_UNIT 窗口", async () => {

@@ -82,10 +82,11 @@ function source({
         components: [],
       }],
       quotaWindows: [{
-        id: 'hidden-quota',
-        label: '不应展示的月额度',
+        id: 'monthly-quota',
+        label: '月度额度',
         unit: 'tokens',
         remainingPercent: 75,
+        resetsAt: Date.now() + 3600_000 * 5,
         state: 'normal',
       }],
       totals: {
@@ -206,7 +207,7 @@ describe('usage billing renderer', () => {
     expect(html).toContain('/models?view=providers&amp;provider=deepseek')
   })
 
-  it('renders only usage and cost data, with metered warning and repair links', () => {
+  it('renders usage, cost, balance, and quota data with metered warning and repair links', () => {
     const vercelDescriptor = descriptor({
       sourceId: 'vercel-ai-gateway',
       displayName: 'Vercel AI Gateway',
@@ -249,9 +250,7 @@ describe('usage billing renderer', () => {
           error={null}
           loading={false}
           onClearFilter={() => undefined}
-          onRangeChange={() => undefined}
           onRefresh={() => undefined}
-          range="7d"
         />
       </MemoryRouter>,
     )
@@ -260,12 +259,18 @@ describe('usage billing renderer', () => {
     expect(html).toContain('总 Token')
     expect(html).toContain('USD 成本')
     expect(html).toContain('修复账户连接')
-    expect(html).not.toContain('不应展示的月额度')
-    expect(html).not.toContain('USD 999')
+    expect(html).toContain('USD 账户余额')
+    expect(html).toContain('$999.00')
+    expect(html).toContain('月度额度')
+    expect(html).toContain('剩余 75%')
+    expect(html).toContain('后重置')
+    expect(html).toContain('Vercel AI Gateway 时间范围')
+    expect(html).toContain('刷新全部')
+    expect(html).not.toContain('账户用量时间范围')
     expect(html).not.toContain('连接管理凭据')
   })
 
-  it('keeps currencies separate and lists configured sources without history APIs', () => {
+  it('keeps currencies separate, renders balance-only sources, and omits unsupported providers', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
         <ProviderUsagePanel
@@ -289,6 +294,29 @@ describe('usage billing renderer', () => {
                   { currency: 'CNY', amount: '1.5' },
                 ],
               }),
+              {
+                sourceId: 'deepseek',
+                providerIds: [protocolProviderId('deepseek')],
+                displayName: 'DeepSeek 余额',
+                scope: 'api-key',
+                stability: 'official',
+                status: 'available',
+                checkedAt: 1_722_000_000_000,
+                connection: { kind: 'provider-key', disconnectible: false },
+                groups: [{
+                  id: 'account',
+                  label: '账户余额',
+                  balances: [{
+                    currency: 'CNY',
+                    total: '88.5',
+                    components: [
+                      { label: '充值余额', amount: '60' },
+                      { label: '赠送余额', amount: '28.5' },
+                    ],
+                  }],
+                  quotaWindows: [],
+                }],
+              },
             ],
           }}
           descriptors={[
@@ -303,6 +331,12 @@ describe('usage billing renderer', () => {
               providerId: 'anthropic',
             }),
             descriptor({
+              sourceId: 'deepseek',
+              displayName: 'DeepSeek 余额',
+              providerId: 'deepseek',
+              capabilities: ['balance'],
+            }),
+            descriptor({
               sourceId: 'groq-console',
               displayName: 'Groq',
               providerId: 'groq',
@@ -313,16 +347,24 @@ describe('usage billing renderer', () => {
           error={null}
           loading={false}
           onClearFilter={() => undefined}
-          onRangeChange={() => undefined}
           onRefresh={() => undefined}
-          range="7d"
         />
       </MemoryRouter>,
     )
     expect(html).toContain('$0.30')
     expect(html).toContain('¥1.50')
-    expect(html).toContain('暂不可查询历史用量')
-    expect(html).toContain('Groq')
+    expect(html).toContain('Source A 时间范围')
+    expect(html).toContain('Source B 时间范围')
+    expect(html).not.toContain('DeepSeek 余额 时间范围')
+    expect(html).toContain('DeepSeek 余额')
+    expect(html).toContain('CNY 账户余额')
+    expect(html).toContain('¥88.50')
+    expect(html).toContain('充值余额')
+    expect(html).toContain('¥60.00')
+    expect(html).toContain('赠送余额')
+    expect(html).toContain('¥28.50')
+    expect(html).not.toContain('Groq')
+    expect(html).not.toContain('暂不可查询历史用量')
     expect(html).not.toContain('其他可连接厂商')
   })
 

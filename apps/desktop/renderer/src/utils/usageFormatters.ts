@@ -104,6 +104,9 @@ export function formatResetTime(
   if (remaining > 0 && remaining <= 8 * 24 * 60 * 60_000) {
     return `${formatDuration(remaining)}后重置`
   }
+  if (remaining <= 0) {
+    return '即将重置'
+  }
   return new Intl.DateTimeFormat('zh-CN', {
     month: 'short',
     day: 'numeric',
@@ -146,6 +149,12 @@ export function quotaRemainingPercent(quota: ProviderQuotaWindow): number {
 
 export function formatQuotaValue(quota: ProviderQuotaWindow): string {
   if (quota.state === 'unlimited') return '无限额度'
+  if (quota.state === 'exhausted') {
+    if (quota.limit !== undefined) {
+      return `已用尽 · 0 / ${formatCount(quota.limit)} ${quotaUnitLabel(quota.unit)}`
+    }
+    return '已用尽 · 剩余 0%'
+  }
   const percent = quotaRemainingPercent(quota)
   const parts = [`剩余 ${percent}%`]
   if (quota.remaining !== undefined) {

@@ -1,5 +1,5 @@
 import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
@@ -9,8 +9,12 @@ import {
   formatCheckedAt,
   formatCompactCount,
   formatCount,
+  formatQuotaValue,
+  formatResetTime,
+  quotaRemainingPercent,
   sumDecimalAmounts,
   usageStatusLabel,
+  type ProviderQuotaWindow,
   type ProviderUsageSource,
 } from '../../../utils/usageFormatters.js'
 
@@ -23,13 +27,12 @@ type Props = {
   descriptors: readonly UsageSourceDescriptor[]
   error: string | null
   loading: boolean
-  range: ProviderRange
   providerNames?: Readonly<Record<string, string>>
+  refreshingSourceIds?: readonly string[]
   selectedProviderId?: string
   selectedSourceId?: string
   onClearFilter: () => void
-  onRangeChange: (range: ProviderRange) => void
-  onRefresh: (sourceIds?: readonly string[], force?: boolean) => void
+  onRefresh: (sourceIds?: readonly string[], force?: boolean, range?: ProviderRange) => void
 }
 
 const RANGE_OPTIONS = [
@@ -43,14 +46,14 @@ export function ProviderUsagePanel({
   descriptors,
   error,
   loading,
-  range,
   providerNames = {},
+  refreshingSourceIds = [],
   selectedProviderId,
   selectedSourceId,
   onClearFilter,
-  onRangeChange,
   onRefresh,
 }: Props): React.ReactNode {
+  const [sourceRanges, setSourceRanges] = useState<Record<string, ProviderRange>>({})
   const descriptorById = useMemo(
     () => new Map(descriptors.map(source => [source.sourceId, source])),
     [descriptors],
@@ -62,24 +65,18 @@ export function ProviderUsagePanel({
   const analyticsDescriptors = useMemo(
     () => descriptors.filter(source =>
       source.availability === 'queryable' &&
-      source.capabilities.some(capability => capability === 'usage' || capability === 'cost'),
-    ),
-    [descriptors],
-  )
-  const unavailableDescriptors = useMemo(
-    () => descriptors.filter(source =>
-      source.availability === 'unsupported' ||
-      !source.capabilities.some(capability => capability === 'usage' || capability === 'cost'),
+      source.capabilities.some(capability =>
+        capability === 'usage' ||
+        capability === 'cost' ||
+        capability === 'balance' ||
+        capability === 'quota',
+      ),
     ),
     [descriptors],
   )
   const visibleAnalytics = useMemo(
     () => filterDescriptors(analyticsDescriptors, selectedProviderId, selectedSourceId),
     [analyticsDescriptors, selectedProviderId, selectedSourceId],
-  )
-  const visibleUnavailable = useMemo(
-    () => filterDescriptors(unavailableDescriptors, selectedProviderId, selectedSourceId),
-    [selectedProviderId, selectedSourceId, unavailableDescriptors],
   )
   const visibleResults = useMemo(
     () => visibleAnalytics
@@ -90,9 +87,18 @@ export function ProviderUsagePanel({
   const totals = useMemo(() => summarizeSources(visibleResults), [visibleResults])
   const hasFilter = Boolean(selectedProviderId || selectedSourceId)
   const activeSource = selectedSourceId ? descriptorById.get(selectedSourceId) : undefined
-  const noMatchingFilter = hasFilter &&
-    visibleAnalytics.length === 0 &&
-    visibleUnavailable.length === 0
+  const noMatchingFilter = hasFilter && visibleAnalytics.length === 0
+
+  const handleSourceRangeChange = useCallback(
+    (sourceId: string, nextRange: ProviderRange) => {
+      setSourceRanges(current => ({ ...current, [sourceId]: nextRange }))
+      onRefresh([sourceId], true, nextRange)
+    },
+    [onRefresh],
+  )
+
+  const isRefreshingAll = visibleAnalytics.length > 0 &&
+    visibleAnalytics.every(source => refreshingSourceIds.includes(source.sourceId))
 
   return (
     <div
@@ -107,17 +113,12 @@ export function ProviderUsagePanel({
           <p>汇总已配置账户的远端历史用量与成本；余额、套餐和凭据请到账户连接管理。</p>
         </div>
         <div className="usage-toolbar-actions">
-          <SegmentedControl
-            ariaLabel="账户用量时间范围"
-            onChange={onRangeChange}
-            options={RANGE_OPTIONS}
-            value={range}
-          />
-          <Button color="secondary"
-            loading={loading}
+          <Button
+            color="secondary"
+            loading={isRefreshingAll || (loading && refreshingSourceIds.length === 0)}
             onClick={() => onRefresh(visibleAnalytics.map(source => source.sourceId), true)}
           >
-            刷新
+            刷新全部
           </Button>
         </div>
       </div>
@@ -156,24 +157,28 @@ export function ProviderUsagePanel({
       ) : null}
 
       <div className="provider-usage-list">
-        {visibleAnalytics.map(descriptor => (
-          <ProviderUsageCard
-            descriptor={descriptor}
-            key={descriptor.sourceId}
-            loading={loading}
-            onRefresh={() => onRefresh([descriptor.sourceId], true)}
-            providerName={
-              providerNames[String(descriptor.canonicalProviderId)] ??
-              String(descriptor.canonicalProviderId)
-            }
-            source={sourceById.get(descriptor.sourceId)}
-          />
-        ))}
+        {visibleAnalytics.map(descriptor => {
+          const isSourceLoading = loading && (
+            refreshingSourceIds.length === 0 ||
+            refreshingSourceIds.includes(descriptor.sourceId)
+          )
+          return (
+            <ProviderUsageCard
+              descriptor={descriptor}
+              key={descriptor.sourceId}
+              loading={isSourceLoading}
+              onRangeChange={range => handleSourceRangeChange(descriptor.sourceId, range)}
+              onRefresh={() => onRefresh([descriptor.sourceId], true, sourceRanges[descriptor.sourceId] ?? '7d')}
+              providerName={
+                providerNames[String(descriptor.canonicalProviderId)] ??
+                String(descriptor.canonicalProviderId)
+              }
+              range={sourceRanges[descriptor.sourceId] ?? '7d'}
+              source={sourceById.get(descriptor.sourceId)}
+            />
+          )
+        })}
       </div>
-
-      {visibleUnavailable.length > 0 ? (
-        <UnavailableSources descriptors={visibleUnavailable} />
-      ) : null}
     </div>
   )
 }
@@ -222,18 +227,25 @@ function ProviderUsageCard({
   providerName,
   source,
   loading,
+  range = '7d',
+  onRangeChange,
   onRefresh,
 }: {
   descriptor: UsageSourceDescriptor
   providerName: string
   source?: ProviderUsageSource
   loading: boolean
+  range?: ProviderRange
+  onRangeChange?: (range: ProviderRange) => void
   onRefresh: () => void
 }): React.ReactNode {
   const providerId = String(descriptor.canonicalProviderId)
   const status = source?.status ?? (descriptor.connection.kind === 'none'
     ? 'not-connected'
     : 'unavailable')
+  const hasTimeSeries = descriptor.capabilities.some(
+    capability => capability === 'usage' || capability === 'cost',
+  )
   return (
     <article
       className="provider-usage-card"
@@ -272,7 +284,17 @@ function ProviderUsageCard({
             {formatCheckedAt(source?.checkedAt)}
           </p>
         </div>
-        <Button color="secondary" loading={loading} onClick={onRefresh}>刷新来源</Button>
+        <div className="provider-usage-card-actions">
+          {hasTimeSeries && onRangeChange ? (
+            <SegmentedControl
+              ariaLabel={`${descriptor.displayName} 时间范围`}
+              onChange={onRangeChange}
+              options={RANGE_OPTIONS}
+              value={range}
+            />
+          ) : null}
+          <Button color="secondary" loading={loading} onClick={onRefresh}>刷新</Button>
+        </div>
       </header>
 
       {descriptor.queryPolicy === 'metered' ? (
@@ -321,6 +343,70 @@ function ProviderUsageGroupCard({
   return (
     <section className="provider-usage-group">
       <h4>{group.label}</h4>
+      {group.balances && group.balances.length > 0 ? (
+        <div aria-label="账户余额" className="provider-balances" role="group">
+          {group.balances.map(balance => (
+            <div
+              className="provider-balance-card"
+              key={balance.currency}
+            >
+              <div className="provider-balance-header">
+                <span className="provider-balance-label">{balance.currency} 账户余额</span>
+                <span className="provider-balance-total">
+                  {formatAmount(balance.currency, balance.total)}
+                </span>
+              </div>
+              {balance.components && balance.components.length > 0 ? (
+                <div className="provider-balance-components">
+                  {balance.components.map(component => (
+                    <span className="provider-balance-component" key={component.label}>
+                      <span className="provider-balance-component-label">{component.label}</span>
+                      <span className="provider-balance-component-amount">
+                        {formatAmount(balance.currency, component.amount)}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {group.quotaWindows && group.quotaWindows.length > 0 ? (
+        <div aria-label="额度与重置" className="provider-quotas" role="group">
+          {group.quotaWindows.map(quota => {
+            const percent = quotaRemainingPercent(quota)
+            const resetText = quota.state === 'unlimited' ? '不重置' : formatResetTime(quota.resetsAt)
+            return (
+              <div
+                className="provider-quota-card"
+                data-state={quota.state}
+                key={quota.id}
+              >
+                <div className="provider-quota-header">
+                  <span className="provider-quota-label">{quota.label}</span>
+                  <span className="provider-quota-reset" title="重置时间">
+                    {resetText}
+                  </span>
+                </div>
+                <div className="provider-quota-progress">
+                  <div className="provider-quota-bar-track">
+                    <div
+                      className="provider-quota-bar-fill"
+                      style={{ '--usage-ratio': percent / 100 } as React.CSSProperties}
+                    />
+                  </div>
+                </div>
+                <div className="provider-quota-meta">
+                  <span className="provider-quota-value">
+                    {formatQuotaValue(quota)}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
       {group.totals ? (
         <dl className="provider-totals">
           <div><dt>输入 Token</dt><dd>{formatCompactCount(group.totals.inputTokens)}</dd></div>
@@ -351,8 +437,8 @@ function ProviderUsageGroupCard({
           ))}
         </ol>
       ) : null}
-      {!group.totals && !group.series?.length && !group.breakdown?.length ? (
-        <p className="usage-chart-empty">当前时间范围没有返回历史数据。</p>
+      {!group.totals && !group.series?.length && !group.breakdown?.length && !group.quotaWindows?.length && !group.balances?.length ? (
+        <p className="usage-chart-empty">当前时间范围没有返回数据。</p>
       ) : null}
     </section>
   )
@@ -424,45 +510,6 @@ function ProviderSeries({
   )
 }
 
-function UnavailableSources({
-  descriptors,
-}: {
-  descriptors: readonly UsageSourceDescriptor[]
-}): React.ReactNode {
-  return (
-    <section className="usage-unavailable-sources">
-      <header>
-        <h3>暂不可查询历史用量</h3>
-        <p>这些已配置厂商没有可用的历史用量或成本接口，连接仍会保留。</p>
-      </header>
-      <ul>
-        {descriptors.map(descriptor => {
-          const providerId = String(descriptor.canonicalProviderId)
-          return (
-            <li key={descriptor.sourceId}>
-              <span>
-                <strong>{descriptor.displayName}</strong>
-                <small>
-                  {descriptor.availability === 'unsupported'
-                    ? '厂商未提供稳定接口'
-                    : '当前来源仅支持余额或套餐查询'}
-                </small>
-              </span>
-              <span className="usage-unavailable-actions">
-                <Link to={`/models?view=providers&provider=${encodeURIComponent(providerId)}`}>
-                  供应商
-                </Link>
-                <Link to={`/models?view=keys&provider=${encodeURIComponent(providerId)}`}>
-                  账户连接
-                </Link>
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
-  )
-}
 
 function filterDescriptors(
   descriptors: readonly UsageSourceDescriptor[],

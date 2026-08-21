@@ -38,7 +38,6 @@ import {
   criticalQuotaWindows,
   formatAmount,
   formatQuotaValue,
-  formatResetTime,
   protocolProviderId,
   sourceForProvider,
   type ProviderUsageSource,
@@ -50,7 +49,6 @@ type PopoverUsageRow = {
   id: string;
   label: string;
   usage: string;
-  reset: string;
 };
 
 type ProviderUsageState = {
@@ -314,11 +312,6 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                               <span className="popover-usage-amount">
                                 {row.usage}
                               </span>
-                              {row.reset ? (
-                                <span className="popover-usage-reset">
-                                  {row.reset}
-                                </span>
-                              ) : null}
                             </span>
                           </div>
                         ))}
@@ -476,13 +469,11 @@ function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
       id: `${quota.id}-${index}`,
       label: quota.label,
       usage: formatQuotaValue(quota),
-      reset: quota.state === 'unlimited' ? '' : formatResetTime(quota.resetsAt),
     }))
   }
   return allBalances(usage.source).map((balance, index) => ({
     id: `${balance.currency}-${index}`,
     label: balance.currency,
     usage: `余额 ${formatAmount(balance.currency, balance.total)}`,
-    reset: '',
   }))
 }
