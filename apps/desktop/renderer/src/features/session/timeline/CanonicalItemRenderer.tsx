@@ -25,7 +25,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import type { Attachment, Input, Item, LocalContextReference } from "@codepilotx/shared/thread";
+import type { Attachment, Input, Item, LocalContextReference, ToolResultBlock } from "@codepilotx/shared/thread";
 import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 import type {
@@ -50,6 +50,11 @@ import {
   WorkflowPlanCard,
   type OpenPlanInDockRequest,
 } from "../workflow/WorkflowPlanCard.js";
+import {
+  AttachmentFilePill,
+  AttachmentImageTile,
+} from "../attachments/AttachmentRowPrimitives.js";
+import { useToolArtifactImageSource } from "./useToolArtifactImageSource.js";
 
 const LazyExpandableFileMutationRow = React.lazy(async () => {
   const module = await import("./ExpandableFileMutationRow.js");
@@ -164,6 +169,8 @@ export type CanonicalItemRendererProps = {
   showAssistantActions?: boolean;
   /** @default "standalone" — "grouped" applies tighter spacing inside a process group. */
   presentation?: "standalone" | "grouped";
+  /** Thread scope used to resolve tool artifact content. */
+  threadId?: string;
 };
 
 export function CanonicalUserInput({
@@ -402,6 +409,7 @@ export function CanonicalItemRenderer({
   rightDockPlanEventId,
   showAssistantActions = false,
   presentation = "standalone",
+  threadId,
 }: CanonicalItemRendererProps): React.ReactNode {
   switch (item.type) {
     case "text":
@@ -416,6 +424,7 @@ export function CanonicalItemRenderer({
           disclosure={disclosure}
           item={item}
           presentation={presentation}
+          threadId={threadId}
         />
       );
     case "plan":
@@ -560,10 +569,12 @@ export function ToolItemView({
   disclosure,
   item,
   presentation = "standalone",
+  threadId,
 }: {
   disclosure?: CanonicalItemDisclosure;
   item: ToolItem;
   presentation?: CanonicalItemRendererProps["presentation"];
+  threadId?: string;
 }): React.ReactNode {
   const view = buildToolItemDisplay(item);
   const [localExpanded, setLocalExpanded] = React.useState(false);
@@ -619,7 +630,7 @@ export function ToolItemView({
         <ChevronRight className="canonical-process-card__chevron" aria-hidden="true" />
       </summary>
       {expanded ? (
-        <ToolExecutionCard item={item} presentation={presentation} view={view} />
+        <ToolExecutionCard item={item} presentation={presentation} threadId={threadId} view={view} />
       ) : null}
     </details>
   );
@@ -628,10 +639,12 @@ export function ToolItemView({
 export function ToolExecutionCard({
   item,
   presentation = "standalone",
+  threadId,
   view,
 }: {
   item: ToolItem;
   presentation?: CanonicalItemRendererProps["presentation"];
+  threadId?: string;
   view: ToolItemDisplay;
 }): React.ReactNode {
   const embedded = presentation === "grouped";
@@ -668,6 +681,9 @@ export function ToolExecutionCard({
           <pre><code>{view.resultText ?? "无输出"}</code></pre>,
         )}
       </section>
+      {item.resultBlocks?.length ? (
+        <ToolResultBlocksView item={item} threadId={threadId} />
+      ) : null}
       <footer className="canonical-command-shell__footer">
         <span className="canonical-command-shell__status">
           {item.state === "completed" ? (
@@ -695,6 +711,136 @@ function wrapEmbeddedOutput(
   return embedded
     ? <CommandShellEmbeddedScroll>{output}</CommandShellEmbeddedScroll>
     : output;
+}
+
+function ToolResultBlocksView({
+  item,
+  threadId,
+}: {
+  item: ToolItem;
+  threadId?: string;
+}): React.ReactNode {
+  const blocks = item.resultBlocks ?? [];
+  return (
+    <section className="canonical-tool-result-blocks" aria-label="结构化返回结果">
+      {blocks.map((block, index) => (
+        <ToolResultBlockView
+          block={block}
+          itemId={item.id}
+          key={`${item.id}:result-block:${index}`}
+          threadId={threadId}
+        />
+      ))}
+    </section>
+  );
+}
+
+function ToolResultBlockView({
+  block,
+  itemId,
+  threadId,
+}: {
+  block: ToolResultBlock;
+  itemId: string;
+  threadId?: string;
+}): React.ReactNode {
+  switch (block.type) {
+    case "text":
+      return (
+        <pre className="canonical-tool-result-block canonical-tool-result-block--text">
+          <code>{block.text}</code>
+        </pre>
+      );
+    case "citation": {
+      const url = safeCitationUrl(block.url);
+      return (
+        <div className="canonical-tool-result-block canonical-tool-result-block--citation">
+          <Globe2 aria-hidden="true" size={APP_ICON_SIZE} />
+          {url ? (
+            <a href={url} rel="noopener noreferrer" target="_blank">
+              {block.title ?? url}
+            </a>
+          ) : (
+            <span>{block.title ?? block.url}</span>
+          )}
+        </div>
+      );
+    }
+    case "json":
+      return (
+        <pre className="canonical-tool-result-block canonical-tool-result-block--json">
+          <code>{formatUnknown(block.value)}</code>
+        </pre>
+      );
+    case "artifact":
+      return (
+        <ToolArtifactBlockView
+          block={block}
+          itemId={itemId}
+          threadId={threadId}
+        />
+      );
+  }
+}
+
+function ToolArtifactBlockView({
+  block,
+  itemId,
+  threadId,
+}: {
+  block: Extract<ToolResultBlock, { type: "artifact" }>;
+  itemId: string;
+  threadId?: string;
+}): React.ReactNode {
+  const isImage = /^image\//i.test(block.mimeType);
+  const detail = `${block.mimeType}${block.size !== undefined ? ` · ${formatArtifactByteSize(block.size)}` : ""}`;
+  if (isImage) {
+    return <ToolArtifactImageBlock block={block} itemId={itemId} threadId={threadId} />;
+  }
+  return (
+    <div className="canonical-tool-result-block canonical-tool-result-block--artifact">
+      <AttachmentFilePill detail={detail} name={block.name} />
+    </div>
+  );
+}
+
+function ToolArtifactImageBlock({
+  block,
+  itemId,
+  threadId,
+}: {
+  block: Extract<ToolResultBlock, { type: "artifact" }>;
+  itemId: string;
+  threadId?: string;
+}): React.ReactNode {
+  const state = useToolArtifactImageSource(threadId, block.artifactId, block.mimeType);
+  return (
+    <div className="canonical-tool-result-block canonical-tool-result-block--artifact" data-item-id={itemId}>
+      <AttachmentImageTile
+        errorMessage={state.status === "error" ? state.message : undefined}
+        name={block.name}
+        source={state.status === "ready" ? state.source : undefined}
+        status={state.status}
+      />
+    </div>
+  );
+}
+
+function safeCitationUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    if (url.username || url.password) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+function formatArtifactByteSize(sizeBytes: number): string {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function CommandShellEmbeddedScroll({

@@ -46,6 +46,7 @@ export const TaskSuggestionRecentTaskSchema = Schema.Struct({
     "done",
     "error",
     "interrupted",
+    "cancelled",
   ]),
   updatedAt: TimestampSchema,
 })

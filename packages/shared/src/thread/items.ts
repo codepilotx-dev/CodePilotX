@@ -56,6 +56,39 @@ export const ToolStateSchema = Schema.Literals([
 ])
 export type ToolState = typeof ToolStateSchema.Type
 
+/** Rich tool-result block projected from any provider protocol. */
+export const ToolResultBlockSchema = Schema.Union([
+  Schema.Struct({
+    type: Schema.Literal("text"),
+    text: Schema.String,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("citation"),
+    title: Schema.optional(Schema.String),
+    url: Schema.String,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("json"),
+    value: Schema.Json,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("artifact"),
+    artifactId: Schema.String,
+    name: Schema.String,
+    mimeType: Schema.String,
+    size: Schema.optional(Schema.Number),
+  }),
+])
+export type ToolResultBlock = typeof ToolResultBlockSchema.Type
+
+export const ToolCompletionMetadataSchema = Schema.Struct({
+  stopReason: Schema.optional(Schema.String),
+  inputTokens: Schema.optional(Schema.Number),
+  outputTokens: Schema.optional(Schema.Number),
+  totalTokens: Schema.optional(Schema.Number),
+})
+export type ToolCompletionMetadata = typeof ToolCompletionMetadataSchema.Type
+
 export const EditedFileSchema = Schema.Struct({
   path: Schema.String,
   additions: Schema.Number,
@@ -94,6 +127,8 @@ export const TextItemSchema = Schema.Struct({
   text: Schema.String,
   status: Schema.Literals(["streaming", "completed", "interrupted"]),
   usage: Schema.optional(ModelUsageSchema),
+  /** Safe completion metadata reported by the provider for this response. */
+  completion: Schema.optional(ToolCompletionMetadataSchema),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
@@ -154,6 +189,7 @@ export const ToolItemSchema = Schema.Struct({
   finishedAt: Schema.NullOr(Schema.Number),
   durationMs: Schema.NullOr(Schema.Number),
   mutationDiffPaths: Schema.optional(Schema.Array(Schema.String)),
+  resultBlocks: Schema.optional(Schema.Array(ToolResultBlockSchema)),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })

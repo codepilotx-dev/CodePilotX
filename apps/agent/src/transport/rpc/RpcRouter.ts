@@ -34,6 +34,7 @@ import type { EventHub } from "../../storage/events/EventHub"
 import { globalEventSequence, publishAgentEvent } from "../../storage/events/EventPublisher"
 import type { SubagentService } from "../../subagent/SubagentService"
 import type { AttachmentService } from "../../subagent/AttachmentService"
+import type { ArtifactService } from "../../storage/ArtifactService"
 import type { LocalContextPathService } from "../../local-context/LocalContextPathService"
 import type { ProjectSourceService } from "../../project/ProjectSourceService"
 import { WorkspaceService } from "../../workspace/WorkspaceService"
@@ -126,6 +127,7 @@ export type RpcRouterDependencies = {
   questions: QuestionService
   subagents: SubagentService
   attachments: AttachmentService
+  artifacts: ArtifactService
   localContextPaths: LocalContextPathService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
@@ -761,6 +763,26 @@ export const attachmentView = (record: { id: string; kind: "text" | "image"; nam
   mediaType: record.mimeType,
   sizeBytes: record.size,
   sha256: record.sha256,
+  createdAt: record.createdAt,
+})
+
+export const artifactMetadataView = (record: {
+  id: string
+  threadId: string
+  turnId: string
+  itemId: string
+  name: string
+  mimeType: string
+  sizeBytes: number
+  createdAt: number
+}) => ({
+  id: record.id,
+  threadId: record.threadId,
+  turnId: record.turnId,
+  itemId: record.itemId,
+  name: record.name,
+  mimeType: record.mimeType,
+  sizeBytes: record.sizeBytes,
   createdAt: record.createdAt,
 })
 

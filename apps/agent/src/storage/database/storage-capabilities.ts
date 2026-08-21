@@ -13,7 +13,13 @@ export type ThreadsStorageCapabilities = {
   creationSurface: boolean
 }
 
+export type ArtifactsStorageCapabilities = {
+  itemArtifactsTable: boolean
+}
+
 const cache = new WeakMap<Database, ThreadsStorageCapabilities>()
+
+const artifactsCache = new WeakMap<Database, ArtifactsStorageCapabilities>()
 
 export function probeThreadsStorageCapabilities(
   sqlite: Database,
@@ -27,5 +33,26 @@ export function probeThreadsStorageCapabilities(
     creationSurface: rows.some((column) => column.name === "creation_surface"),
   }
   cache.set(sqlite, capabilities)
+  return capabilities
+}
+
+/**
+ * Read-only probe for the additive `item_artifacts` table. Older stores without
+ * the table keep their user_version and unknown rows untouched; the caller
+ * downgrades the advertised artifact capability instead of altering storage.
+ */
+export function probeArtifactsStorageCapabilities(
+  sqlite: Database,
+): ArtifactsStorageCapabilities {
+  const cached = artifactsCache.get(sqlite)
+  if (cached) return cached
+  const capabilities: ArtifactsStorageCapabilities = {
+    itemArtifactsTable: Boolean(
+      sqlite.query(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'item_artifacts'",
+      ).get(),
+    ),
+  }
+  artifactsCache.set(sqlite, capabilities)
   return capabilities
 }

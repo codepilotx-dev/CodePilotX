@@ -43,6 +43,7 @@ import { ProviderCredentialService } from "./provider/ProviderCredentialService"
 import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
 import { AttachmentService } from "./subagent/AttachmentService";
+import { ArtifactService } from "./storage/ArtifactService";
 import { SpeechTranscriptionService } from "./speech/SpeechTranscriptionService";
 import { SqliteAttachmentCatalog } from "./subagent/SqliteAttachmentCatalog";
 import { LocalContextPathRepository } from "./storage/repositories/local-context-path-repository";
@@ -605,12 +606,16 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     });
     const questions = new QuestionService(db, hub, false);
+    const artifacts = yield* Effect.promise(() =>
+      ArtifactService.open(config.dataDir, db),
+    );
     const orchestrator = new PiOrchestratorAdapter({
       db,
       hub,
       models: piModels.pi,
       toolExecutor,
       contextCompaction: new ContextCompactionService(db),
+      artifacts,
       observeHarnessEvent: (context, event) =>
         harnessLogs.observe({
           threadId: context.threadID,
@@ -839,6 +844,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       questions,
       subagents,
       attachments,
+      artifacts,
       localContextPaths,
       projectSources,
       providers,

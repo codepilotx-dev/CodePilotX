@@ -13,6 +13,7 @@ import { SideChatRepository } from "../repositories/side-chat-repository"
 import { threadRepository } from "../repositories/thread-repository"
 import { taskboardRepository } from "../repositories/taskboard-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
+import { ArtifactRepository } from "../repositories/artifact-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
 import { configureConnection } from "./connection"
 import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
@@ -72,10 +73,14 @@ export class AgentDatabase extends RepositoryDatabase {
       turnPatches: new TurnPatchRepository(this),
       taskboard: taskboardRepository(this),
     }
+    this.artifacts = new ArtifactRepository(sqlite)
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
   }
 
   readonly repositories
+
+  /** Tool-result artifact catalog over the same history connection. */
+  readonly artifacts: ArtifactRepository
 
   close() {
     this.sqlite.close()

@@ -1204,6 +1204,24 @@ const fixtures = {
     encoding: "utf8",
     range: { offset: 0, length: 7, total: 7 },
   }),
+  "artifact/read": methodFixture("artifact/read", {
+    threadId: threadListItem.id,
+    artifactId: "artifact:1",
+  }, {
+    artifact: {
+      id: "artifact:1",
+      threadId: threadListItem.id,
+      turnId: "turn:1",
+      itemId: "item:1",
+      name: "preview.png",
+      mimeType: "image/png",
+      sizeBytes: 7,
+      createdAt: 1,
+    },
+    data: "Zml4dHVyZQ==",
+    encoding: "base64",
+    sizeBytes: 7,
+  }),
   "context/path/import": methodFixture("context/path/import", {
     threadId: threadListItem.id,
     paths: [localContextReference.path],

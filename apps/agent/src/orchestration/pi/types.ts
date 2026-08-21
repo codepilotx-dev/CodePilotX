@@ -8,6 +8,7 @@ import type {
   ThinkingLevel,
 } from "@codepilotx/pi-agent-core"
 import type { ImageContent, Model, Models } from "@earendil-works/pi-ai"
+import type { ToolResultBlock } from "@codepilotx/shared/thread"
 import type { ModelRef, PermissionConfig, SubagentProfile, SubagentResult, TaskMode } from "../../domain"
 import type { PromptBundle, PromptSection } from "../../prompt/types"
 import type { ToolExecutor } from "../../tool/ToolExecutor"
@@ -66,6 +67,25 @@ export interface PiRuntimeEventContext {
 export type PiAssistantMessagePlacement = "process" | "result"
 
 /**
+ * Base64-encoded artifact content produced by a tool result. The sink persists
+ * the blob under a controlled store and only the artifact ID travels in items
+ * and events.
+ */
+export type PiToolArtifactInput = {
+  artifactId: string
+  name: string
+  mimeType: string
+  data: string
+}
+
+export type PiToolCompletionMetadata = {
+  stopReason?: string
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+}
+
+/**
  * Persistence is deliberately outside the Pi adapter. The eventual Agent integration
  * must implement savePoint/settled with AgentDatabase transactions and publish only
  * after the transaction commits.
@@ -97,6 +117,8 @@ export interface PiRuntimeEventSink {
       cacheWrite: number
       reasoning: number
     }
+    /** Safe completion metadata projected from the provider response. */
+    completion?: PiToolCompletionMetadata
   }): void | Promise<void>
   textDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
   planStarted?(context: PiRuntimeEventContext, input: { itemID: string }): void | Promise<void>
@@ -110,6 +132,8 @@ export interface PiRuntimeEventSink {
     result: string
     details: unknown
     isError: boolean
+    resultBlocks?: ToolResultBlock[]
+    artifactInputs?: PiToolArtifactInput[]
   }): void | Promise<void>
   queueUpdated?(context: PiRuntimeEventContext, input: { steer: number; followUp: number; nextTurn: number }): void | Promise<void>
   queueConsumed?(context: PiRuntimeEventContext, input: { delivery: "steer" | "follow-up" | "next-turn"; inputIDs: string[] }): void | Promise<void>

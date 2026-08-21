@@ -752,6 +752,7 @@ function CanonicalConversationTurnComponent({
       presentation={options.presentation}
       rightDockPlanEventId={rightDockPlanEventId}
       showAssistantActions={options.showAssistantActions}
+      threadId={threadId}
     />
   );
   const renderProcessItem = (

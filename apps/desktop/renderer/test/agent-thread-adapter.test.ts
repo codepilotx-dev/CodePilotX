@@ -626,4 +626,34 @@ describe('agent thread adapter', () => {
       agentThreadSnapshotToDesktop(snapshot, project).item.latestTurnStatus,
     )
   })
+
+  test('maps cancelled turn status to a cancelled session instead of idle', () => {
+    const thread: ThreadListItem = {
+      id: 'thread-cancelled', projectID: project.id, gitBranch: null, workspace: projectWorkspace, title: '已取消会话',
+      preview: null, firstUserMessage: null, messageCount: 1, latestTurnStatus: 'cancelled',
+      settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+    }
+    const item = agentThreadListItemToDesktop(thread, project)
+    expect(item.status).toBe('cancelled')
+    expect(item.latestTurnStatus).toBe('cancelled')
+
+    const snapshot: ThreadSnapshot = {
+      thread: {
+        id: 'thread-cancelled-snap', title: '已取消快照', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
+        settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+        createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+      },
+      turns: [{
+        id: 'turn-cancelled', threadId: 'thread-cancelled-snap', sourceInputID: 'input-cancelled', status: 'cancelled', mode: 'chat',
+        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
+        rootAgentId: 'agent-cancelled', mergedInputIDs: [], startedAt: 1_700_000_000_000,
+        finishedAt: 1_700_000_001_000, elapsedSeconds: 1, error: null,
+      }],
+      agents: [], inputs: [], messages: [], items: [], approvals: [],
+    }
+    const desktop = agentThreadSnapshotToDesktop(snapshot, project)
+    expect(desktop.item.status).toBe('cancelled')
+    expect(desktop.item.latestTurnStatus).toBe('cancelled')
+  })
 })

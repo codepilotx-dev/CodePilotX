@@ -37,6 +37,9 @@ import {
   ContextCompactionService,
   type ContextCompaction,
 } from "../context/ContextCompactionService";
+import { ArtifactService, type ArtifactBlobInput, type StoredArtifactBlob } from "../storage/ArtifactService";
+import type { NewArtifactRecord } from "../storage/repositories/artifact-repository";
+import type { ToolResultBlock } from "@codepilotx/shared/thread";
 
 export type {
   DelegationController,
@@ -310,6 +313,7 @@ export interface PiOrchestratorAdapterOptions {
   models: Models;
   toolExecutor: ToolExecutor;
   contextCompaction: ContextCompactionService;
+  artifacts?: ArtifactService;
   observeHarnessEvent?: (
     context: PiRuntimeEventContext,
     event: AgentHarnessEvent,
@@ -339,6 +343,8 @@ export class PiOrchestratorAdapter {
     output: string;
     details: unknown;
     isError: boolean;
+    resultBlocks?: ToolResultBlock[];
+    artifactRecords?: StoredArtifactBlob[];
   }) {
     let item = finishedPiToolItem({
       current: this.options.db.getItem(input.toolCallID),
@@ -348,6 +354,15 @@ export class PiOrchestratorAdapter {
       timestamp: Date.now(),
     });
     if (!item) return [];
+    if (input.resultBlocks?.length) {
+      item = { ...item, data: { ...item.data, resultBlocks: input.resultBlocks } };
+    }
+    const artifactRows = this.artifactRowsForItem(
+      context,
+      item.id,
+      input.resultBlocks ?? [],
+      input.artifactRecords ?? [],
+    );
     const mutationFiles = input.isError ? [] : piToolMutationFiles(input.tool, input.details);
     if (mutationFiles.length) {
       const timelineInput = item.data.input && typeof item.data.input === "object"
@@ -383,6 +398,11 @@ export class PiOrchestratorAdapter {
     const durable: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
     this.options.db.transaction(() => {
       this.options.db.upsertItem(context.threadID, item);
+      if (artifactRows.length && this.options.db.artifacts.hasArtifactsTable()) {
+        for (const artifact of artifactRows) {
+          this.options.db.artifacts.insert(artifact);
+        }
+      }
       const storedTool = this.options.db.getItem(item.id) ?? item;
       durable.push(this.options.db.insertEvent(
         context.threadID,
@@ -442,14 +462,59 @@ export class PiOrchestratorAdapter {
     return durable;
   }
 
+  private artifactRowsForItem(
+    context: PiRuntimeEventContext,
+    itemId: string,
+    resultBlocks: readonly ToolResultBlock[],
+    artifactRecords: readonly StoredArtifactBlob[],
+  ) {
+    const records = new Map(artifactRecords.map((record) => [record.artifactId, record]));
+    const timestamp = Date.now();
+    const rows: NewArtifactRecord[] = [];
+    for (const block of resultBlocks) {
+      if (block.type !== "artifact") continue;
+      const record = records.get(block.artifactId);
+      if (!record) continue;
+      rows.push({
+        id: block.artifactId,
+        threadId: context.threadID,
+        turnId: context.turnID,
+        itemId,
+        name: block.name,
+        mimeType: block.mimeType,
+        sizeBytes: record.sizeBytes,
+        storagePath: record.sha256,
+        sha256: record.sha256,
+        createdAt: timestamp,
+      });
+    }
+    return rows;
+  }
+
+  private async persistFinishedToolArtifacts(inputs: readonly ArtifactBlobInput[]) {
+    if (!this.options.artifacts || inputs.length === 0) return [];
+    return this.options.artifacts.persistBlobs(inputs);
+  }
+
   private async finishTool(context: PiRuntimeEventContext, input: {
     toolCallID: string;
     tool: string;
     output: string;
     details: unknown;
     isError: boolean;
+    resultBlocks?: ToolResultBlock[];
+    artifactInputs?: ArtifactBlobInput[];
   }) {
-    const events = this.persistFinishedTool(context, input);
+    const artifactRecords = await this.persistFinishedToolArtifacts(input.artifactInputs ?? []);
+    const events = this.persistFinishedTool(context, {
+      toolCallID: input.toolCallID,
+      tool: input.tool,
+      output: input.output,
+      details: input.details,
+      isError: input.isError,
+      ...(input.resultBlocks?.length ? { resultBlocks: input.resultBlocks } : {}),
+      ...(artifactRecords.length ? { artifactRecords } : {}),
+    });
     for (const event of events) await this.publish(event);
   }
 
@@ -563,7 +628,12 @@ export class PiOrchestratorAdapter {
             agentID: context.agentID,
             type: "text",
             status: "completed",
-            data: { placement: input.placement, text, usage },
+            data: {
+              placement: input.placement,
+              text,
+              usage,
+              ...(input.completion ? { completion: input.completion } : {}),
+            },
             ...(currentText?.ordinal === undefined ? {} : { ordinal: currentText.ordinal }),
             createdAt: currentText?.createdAt ?? timestamp,
             updatedAt: timestamp,

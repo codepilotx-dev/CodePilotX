@@ -57,6 +57,7 @@ export function agentTurnStatusToDesktopStatus(
   if (status === 'completed') return 'done'
   if (status === 'failed') return 'error'
   if (status === 'interrupted' || status === 'stopped') return 'interrupted'
+  if (status === 'cancelled') return 'cancelled'
   return 'idle'
 }
 

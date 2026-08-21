@@ -14,6 +14,7 @@ import {
   aiReviewModel,
   aiReviewPrompt,
   aiReviewTitle,
+  artifactMetadataView,
   attachmentView,
   booleanParam,
   decodeOffsetCursor,
@@ -84,6 +85,7 @@ export const threadHandlers = {
     "queue/resume",
     "attachment/import",
     "attachment/read",
+    "artifact/read",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
     const { db, threads, history, approvals, questions, subagents, attachments, apiKeys, memory, review, github, turnPatches } = runtime.dependencies
@@ -361,6 +363,18 @@ export const threadHandlers = {
           data: value.record.kind === "text" ? new TextDecoder().decode(data) : Buffer.from(data).toString("base64"),
           encoding: value.record.kind === "text" ? "utf8" : "base64",
           range: { offset, length: data.byteLength, total: all.byteLength },
+        }
+      }
+      case "artifact/read": {
+        const threadId = stringParam(params, "threadId")
+        const artifactId = stringParam(params, "artifactId")
+        if (!db.getThread(threadId)) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+        const value = await runtime.dependencies.artifacts.read(artifactId, threadId)
+        return {
+          artifact: artifactMetadataView(value.artifact),
+          data: Buffer.from(value.data).toString("base64"),
+          encoding: "base64",
+          sizeBytes: value.data.byteLength,
         }
       }
       default:

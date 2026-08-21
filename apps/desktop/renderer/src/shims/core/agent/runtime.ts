@@ -20,6 +20,7 @@ export type AgentSessionStatus =
   | 'done'
   | 'error'
   | 'interrupted'
+  | 'cancelled'
 
 export type AgentThinkingMode = 'default' | 'enabled' | 'adaptive' | 'disabled'
 

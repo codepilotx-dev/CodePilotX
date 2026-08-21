@@ -686,4 +686,56 @@ describe("canonical tool item display", () => {
       totalDeletions: 1,
     });
   });
+
+  test("renders text, citation, JSON and artifact result blocks without API name branches", () => {
+    const item = toolItem({
+      command: null,
+      input: null,
+      output: "结论",
+      resultBlocks: [
+        { type: "text", text: "结论" },
+        { type: "citation", title: "示例来源", url: "https://example.com/source" },
+        { type: "citation", url: "https://example.com/bare" },
+        { type: "citation", url: "file:///etc/passwd" },
+        { type: "json", value: { items: [{ id: 1, ok: true }] } },
+        { type: "artifact", artifactId: "artifact:1", name: "preview.png", mimeType: "image/png", size: 1024 },
+        { type: "artifact", artifactId: "artifact:2", name: "notes.txt", mimeType: "text/plain", size: 42 },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toContain("canonical-tool-result-blocks");
+    expect(markup).toContain("canonical-tool-result-block--text");
+    expect(markup).toContain("结论");
+    // citation: 安全可点击链接仅放行 http/https，且标题优先。
+    expect(markup).toContain('href="https://example.com/source"');
+    expect(markup).toContain("示例来源");
+    expect(markup).toContain('href="https://example.com/bare"');
+    // 非 http/https 的 citation 渲染为纯文本，不生成可点击链接。
+    expect(markup).not.toContain('href="file:///etc/passwd"');
+    // json: 结构化展示不按工具名分支。
+    expect(markup).toContain("canonical-tool-result-block--json");
+    expect(markup).toContain("&quot;ok&quot;: true");
+    // artifact: 图片走预览 tile，其他类型走通用文件 pill。
+    expect(markup).toContain("attachment-image-tile");
+    expect(markup).toContain("preview.png");
+    expect(markup).toContain("attachment-file-pill");
+    expect(markup).toContain("notes.txt");
+  });
+
+  test("renders a single legacy text block when resultBlocks are absent", () => {
+    const item = toolItem({ command: null, input: null, output: "旧字符串结果" });
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+      </TooltipProvider>,
+    );
+    expect(markup).not.toContain("canonical-tool-result-blocks");
+    expect(markup).toContain("旧字符串结果");
+    expect(markup).toContain('aria-label="复制返回结果"');
+  });
 });

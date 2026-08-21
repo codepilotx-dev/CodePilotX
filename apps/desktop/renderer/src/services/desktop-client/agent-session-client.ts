@@ -1566,6 +1566,10 @@ export function createAgentSessionDesktopClient(
       () => rpc.call('attachment/read', { attachmentId }),
       () => mockClient.readAttachment(attachmentId),
     ),
+    readArtifact: (threadId, artifactId) => withRequiredAgent(() => {
+      requireAgentCapability('artifacts.read.v1')
+      return rpc.call('artifact/read', { threadId, artifactId })
+    }),
     readLocalContextPath: input => withRequiredAgent(() => {
       requireAgentCapability('local-context.paths.v1')
       return rpc.call('context/path/read', input)

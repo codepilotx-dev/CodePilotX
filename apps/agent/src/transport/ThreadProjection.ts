@@ -85,6 +85,66 @@ const modelUsage = (value: unknown): Extract<Item, { type: "text" }>["usage"] =>
 }
 const activityCommandStatus = (value: unknown): "success" | "running" | "error" | "interrupted" | undefined => value === "success" || value === "running" || value === "error" || value === "interrupted" ? value : undefined
 const toolLeaf = (tool: string) => tool.toLowerCase().split(".").at(-1) ?? tool.toLowerCase()
+
+const completionMetadata = (value: unknown): Extract<Item, { type: "text" }>["completion"] => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const completion = value as Record<string, unknown>
+  const projected: Record<string, unknown> = {}
+  const stopReason = typeof completion.stopReason === "string" && completion.stopReason
+    ? completion.stopReason
+    : undefined
+  if (stopReason) projected.stopReason = stopReason
+  for (const key of ["inputTokens", "outputTokens", "totalTokens"] as const) {
+    const number = completion[key]
+    if (typeof number === "number" && Number.isFinite(number) && number >= 0) {
+      projected[key] = Math.trunc(number)
+    }
+  }
+  return Object.keys(projected).length
+    ? projected as Extract<Item, { type: "text" }>["completion"]
+    : undefined
+}
+
+const toolResultBlock = (value: unknown): Extract<Item, { type: "tool" }>["resultBlocks"] extends readonly (infer B)[] | undefined ? B : never => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null as never
+  const block = value as Record<string, unknown>
+  const type = block.type
+  if (type === "text" && typeof block.text === "string") {
+    return { type: "text", text: block.text } as never
+  }
+  if (type === "citation" && typeof block.url === "string" && block.url.trim()) {
+    const title = typeof block.title === "string" && block.title.trim() ? block.title.trim() : undefined
+    return { type: "citation", ...(title ? { title } : {}), url: block.url } as never
+  }
+  if (type === "json") {
+    try {
+      const valueJSON = JSON.parse(JSON.stringify(block.value)) as unknown
+      return { type: "json", value: valueJSON } as never
+    } catch {
+      return null as never
+    }
+  }
+  if (type === "artifact"
+    && typeof block.artifactId === "string"
+    && typeof block.name === "string"
+    && typeof block.mimeType === "string"
+  ) {
+    const size = typeof block.size === "number" && Number.isFinite(block.size) && block.size >= 0
+      ? Math.trunc(block.size)
+      : undefined
+    return { type: "artifact", artifactId: block.artifactId, name: block.name, mimeType: block.mimeType, ...(size === undefined ? {} : { size }) } as never
+  }
+  return null as never
+}
+
+const toolResultBlocks = (value: unknown): Extract<Item, { type: "tool" }>["resultBlocks"] => {
+  if (!Array.isArray(value)) return undefined
+  const blocks = value.flatMap((raw) => {
+    const block = toolResultBlock(raw)
+    return block === null ? [] : [block]
+  })
+  return blocks.length ? blocks as Extract<Item, { type: "tool" }>["resultBlocks"] : undefined
+}
 const isFileMutationTool = (tool: string) => ["edit", "write", "apply_patch"].includes(toolLeaf(tool))
 const activityCommands = (value: unknown): Extract<Item, { type: "activity" }>["commands"] => {
   if (!Array.isArray(value)) return undefined
@@ -710,6 +770,7 @@ export class ThreadProjection {
     if (item.type === "reasoning") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "reasoning", text: asText(item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
     if (item.type === "text" || (item.type === "activity" && typeof item.data.text === "string")) {
       const usage = modelUsage(item.data.usage)
+      const completion = completionMetadata(item.data.completion)
       return {
         id: item.id,
         messageID,
@@ -720,6 +781,7 @@ export class ThreadProjection {
         text: asText(item.data.text) ?? "",
         status,
         ...(usage ? { usage } : {}),
+        ...(completion ? { completion } : {}),
         ...order,
         createdAt: item.createdAt,
       }
@@ -740,7 +802,8 @@ export class ThreadProjection {
       const mutationDiffPaths = execution
         ? this.db.repositories.turnPatches.diffPathsForToolCall(execution.threadID, callID)
         : []
-      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: asText(item.data.command), output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, ...(mutationDiffPaths.length ? { mutationDiffPaths } : {}), ...order, createdAt: item.createdAt }
+      const resultBlocks = toolResultBlocks(item.data.resultBlocks)
+      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: asText(item.data.command), output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, ...(mutationDiffPaths.length ? { mutationDiffPaths } : {}), ...(resultBlocks ? { resultBlocks } : {}), ...order, createdAt: item.createdAt }
     }
     if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
     if (item.type === "execution-plan") {

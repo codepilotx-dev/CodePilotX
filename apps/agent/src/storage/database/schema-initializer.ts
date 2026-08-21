@@ -29,6 +29,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE input_context_paths (\n          input_id TEXT NOT NULL REFERENCES inputs(id) ON DELETE CASCADE,\n          context_path_id TEXT NOT NULL REFERENCES thread_context_paths(id) ON DELETE CASCADE,\n          sort_order INTEGER NOT NULL DEFAULT 0,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY(input_id, context_path_id)\n        )",
   "CREATE TABLE context_path_operations (\n          operation_id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          request_hash TEXT NOT NULL,\n          reference_ids TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE inputs (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        content TEXT NOT NULL,\n        model_ref TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        strategy TEXT NOT NULL,\n        task_mode TEXT NOT NULL,\n        status TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE item_artifacts (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,\n          name TEXT NOT NULL,\n          mime_type TEXT NOT NULL,\n          size_bytes INTEGER NOT NULL DEFAULT 0,\n          storage_kind TEXT NOT NULL CHECK(storage_kind IN ('managed')),\n          storage_path TEXT NOT NULL,\n          sha256 TEXT,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE integration_credential_bindings (\n          integration_id TEXT PRIMARY KEY,\n          credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE interaction_operations (\n          operation_id TEXT PRIMARY KEY,\n          interaction_id TEXT NOT NULL,\n          response TEXT NOT NULL,\n          result TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE items (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        type TEXT NOT NULL,\n        status TEXT NOT NULL,\n        data TEXT NOT NULL,\n        ordinal INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
@@ -96,6 +97,8 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX thread_context_paths_thread ON thread_context_paths(thread_id, created_at)",
   "CREATE INDEX interaction_operations_interaction\n          ON interaction_operations(interaction_id, created_at)",
   "CREATE INDEX items_turn_created ON items(turn_id, created_at)",
+  "CREATE INDEX item_artifacts_item ON item_artifacts(item_id, created_at)",
+  "CREATE INDEX item_artifacts_thread ON item_artifacts(thread_id, created_at)",
   "CREATE UNIQUE INDEX items_turn_ordinal_unique ON items(turn_id, ordinal)",
   "CREATE INDEX memory_entries_scope ON memory_entries(scope, project_key, updated_at DESC)",
   "CREATE INDEX memory_jobs_status ON memory_jobs(status, created_at)",
@@ -902,6 +905,26 @@ const migrateHistory31To32 = (sqlite: Database) => {
   }
 }
 
+const migrateHistory32To33 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS item_artifacts (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+      item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL DEFAULT 0,
+      storage_kind TEXT NOT NULL CHECK(storage_kind IN ('managed')),
+      storage_path TEXT NOT NULL,
+      sha256 TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS item_artifacts_item ON item_artifacts(item_id, created_at);
+    CREATE INDEX IF NOT EXISTS item_artifacts_thread ON item_artifacts(thread_id, created_at);
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1004,6 +1027,7 @@ class SchemaInitializer {
           29: () => migrateHistory29To30(this.sqlite),
           30: () => migrateHistory30To31(this.sqlite),
           31: () => migrateHistory31To32(this.sqlite),
+          32: () => migrateHistory32To33(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

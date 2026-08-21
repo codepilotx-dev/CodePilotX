@@ -398,6 +398,10 @@ export type DesktopAttachmentApi = {
   readAttachment(
     attachmentId: string,
   ): Promise<RpcResult<'attachment/read'>>
+  readArtifact(
+    threadId: string,
+    artifactId: string,
+  ): Promise<RpcResult<'artifact/read'>>
   saveAttachmentToDownloads(
     input: DesktopAttachmentSaveInput,
   ): Promise<DesktopAttachmentSaveResult>

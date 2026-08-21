@@ -340,8 +340,113 @@ describe("PiEventAdapter", () => {
         additions: 2,
         deletions: 1,
       },
+      resultBlocks: [{ type: "text", text: "已编辑 src/source.ts（+2 -1）" }],
       isError: false,
     }])
+  })
+
+  test("projects text, citation, JSON and artifact result blocks from a normalized tool result", async () => {
+    const seen: Array<{ toolCallID: string; resultBlocks?: unknown[]; artifactInputs?: unknown[] }> = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      toolFinished: async (_context, result) => { seen.push(result) },
+    })
+
+    await adapter.handle({
+      type: "tool_execution_end",
+      toolCallId: "call-1",
+      toolName: "web_search",
+      result: {
+        content: [
+          { type: "text", text: "结论",
+            citations: [
+              { type: "url_citation", url: "https://example.com/a", title: "示例 A" },
+              { type: "url_citation", url: "https://example.com/b" },
+            ] },
+          { type: "image", data: Buffer.from("png-bytes").toString("base64"), mimeType: "image/png", size: 9 },
+          { type: "unknown_part", payload: "anything" },
+        ],
+        structuredContent: { items: [{ id: 1, ok: true }] },
+      },
+      isError: false,
+    } as unknown as AgentHarnessEvent)
+
+    const projected = seen[0]!
+    expect(projected.toolCallID).toBe("call-1")
+    expect(projected.resultBlocks).toEqual([
+      { type: "text", text: "结论" },
+      { type: "citation", title: "示例 A", url: "https://example.com/a" },
+      { type: "citation", url: "https://example.com/b" },
+      { type: "artifact", artifactId: expect.any(String), name: expect.any(String), mimeType: "image/png", size: 9 },
+      { type: "text", text: '{"type":"unknown_part","payload":"anything"}' },
+      { type: "json", value: { items: [{ id: 1, ok: true }] } },
+    ])
+    expect(projected.artifactInputs).toHaveLength(1)
+    expect(projected.artifactInputs![0]).toMatchObject({
+      mimeType: "image/png",
+      data: Buffer.from("png-bytes").toString("base64"),
+    })
+  })
+
+  test("degrades unknown or non-JSON tool parts to bounded text instead of throwing", async () => {
+    const circular: Record<string, unknown> = {}
+    circular.self = circular
+    const seen: Array<{ resultBlocks?: unknown[] }> = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      toolFinished: async (_context, result) => { seen.push(result) },
+    })
+
+    await adapter.handle({
+      type: "tool_execution_end",
+      toolCallId: "call-1",
+      toolName: "read_file",
+      result: {
+        content: [{ type: "text", text: "plain" }],
+        structuredContent: circular,
+      },
+      isError: false,
+    } as unknown as AgentHarnessEvent)
+
+    expect(seen[0]?.resultBlocks).toEqual([
+      { type: "text", text: "plain" },
+    ])
+  })
+
+  test("projects safe completion metadata and tolerates missing stop reason and usage", async () => {
+    const completed: Array<{ completion?: unknown }> = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      assistantMessageCompleted: async (_context, input) => { completed.push(input) },
+    })
+
+    await adapter.handle({
+      type: "message_end",
+      message: {
+        role: "assistant",
+        provider: "openai",
+        api: "openai-responses",
+        model: "requested-model",
+        content: [{ type: "text", text: "done" }],
+        stopReason: "stop",
+        usage: { input: 10, output: 4, cacheRead: 20, cacheWrite: 5, reasoning: 2, totalTokens: 14 },
+      },
+    } as unknown as AgentHarnessEvent)
+    expect(completed[0]?.completion).toEqual({
+      stopReason: "stop",
+      inputTokens: 10,
+      outputTokens: 4,
+      totalTokens: 14,
+    })
+
+    await adapter.handle({
+      type: "message_end",
+      message: {
+        role: "assistant",
+        provider: "anthropic",
+        api: "anthropic-messages",
+        model: "claude-test",
+        content: [{ type: "text", text: "done" }],
+      },
+    } as unknown as AgentHarnessEvent)
+    expect(completed[1]?.completion).toBeUndefined()
   })
 
   test("unwraps semantic progress and shell output instead of displaying AgentToolResult JSON", () => {

@@ -995,6 +995,29 @@ export const AttachmentReadResultSchema = Schema.Struct({
   }),
 })
 
+export const ArtifactMetadataSchema = Schema.Struct({
+  id: OpaqueIDSchema,
+  threadId: OpaqueIDSchema,
+  turnId: OpaqueIDSchema,
+  itemId: OpaqueIDSchema,
+  name: NonEmptyStringSchema,
+  mimeType: NonEmptyStringSchema,
+  sizeBytes: NonNegativeIntSchema,
+  createdAt: TimestampSchema,
+})
+
+export const ArtifactReadParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  artifactId: OpaqueIDSchema,
+})
+
+export const ArtifactReadResultSchema = Schema.Struct({
+  artifact: ArtifactMetadataSchema,
+  data: Schema.String,
+  encoding: Schema.Literals(["base64"]),
+  sizeBytes: NonNegativeIntSchema,
+})
+
 export const LocalContextPathImportParamsSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   paths: Schema.Array(NonEmptyStringSchema),
@@ -1168,6 +1191,7 @@ export const CoreRpcMethods = {
   "sandbox/uninstall": defineMethod({ params: SandboxUninstallParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "attachment/import": defineMethod({ params: AttachmentImportParamsSchema, result: AttachmentImportResultSchema, errors: AttachmentErrors, capability: "attachments.v1", mutation: true, exactParams: true }),
   "attachment/read": defineMethod({ params: AttachmentReadParamsSchema, result: AttachmentReadResultSchema, errors: AttachmentErrors, capability: "attachments.v1", mutation: false }),
+  "artifact/read": defineMethod({ params: ArtifactReadParamsSchema, result: ArtifactReadResultSchema, errors: ["THREAD_NOT_FOUND", "ARTIFACT_NOT_FOUND", "ARTIFACT_LOCATION_INVALID", "PERMISSION_DENIED", ...CommonErrors] as const, capability: "artifacts.read.v1", mutation: false, exactParams: true, exactResult: true }),
   "context/path/import": defineMethod({ params: LocalContextPathImportParamsSchema, result: LocalContextPathImportResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: true, exactParams: true, exactResult: true }),
   "context/path/read": defineMethod({ params: LocalContextPathReadParamsSchema, result: LocalContextPathReadResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: false, exactParams: true, exactResult: true }),
   "context/path/list": defineMethod({ params: LocalContextPathListParamsSchema, result: LocalContextPathListResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: false, exactParams: true, exactResult: true }),

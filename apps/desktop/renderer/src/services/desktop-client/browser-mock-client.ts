@@ -306,6 +306,9 @@ export function createBrowserMockDesktopClient(
     openMicrophonePrivacySettings: async () => {},
     readAttachment: async attachmentId =>
       readBrowserFixtureAttachment(attachmentId),
+    readArtifact: async () => {
+      throw new Error('浏览器模拟环境不支持 artifact 读取。')
+    },
     readLocalContextPath: async () => {
       throw new Error('浏览器模拟环境不支持本地路径上下文。')
     },

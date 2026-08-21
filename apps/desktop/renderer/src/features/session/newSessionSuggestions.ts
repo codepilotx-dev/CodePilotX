@@ -42,7 +42,8 @@ export type NewSessionRecentTask = {
     | "running"
     | "done"
     | "error"
-    | "interrupted";
+    | "interrupted"
+    | "cancelled";
   updatedAt: number;
 };
 

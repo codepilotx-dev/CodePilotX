@@ -13,6 +13,7 @@ export const Capabilities = [
   "turn.resume.v1",
   "turn.queue.management.v1",
   "attachments.v1",
+  "artifacts.read.v1",
   "local-context.paths.v1",
   "speech.transcription.v1",
   "memory.v2",
