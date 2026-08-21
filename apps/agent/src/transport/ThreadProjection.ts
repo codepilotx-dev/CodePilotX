@@ -332,6 +332,7 @@ export class ThreadProjection {
   private projectTurn(row: Record<string, string | number | null>, inputs: Input[], status = String(row.status)): Turn {
     const startedAt = row.started_at == null ? null : Number(row.started_at)
     const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
+    const turnError = status === "failed" ? this.turnErrorForRow(row) : null
     return {
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -350,8 +351,17 @@ export class ThreadProjection {
       startedAt,
       finishedAt,
       elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
-      error: null,
+      error: turnError,
     }
+  }
+
+  private turnErrorForRow(row: Record<string, string | number | null>): string | null {
+    const rootAgentId = row.root_agent_id
+    if (!rootAgentId) return null
+    const agentRow = this.db.sqlite.query(
+      "SELECT error FROM agent_executions WHERE id = ?"
+    ).get(String(rootAgentId)) as { error: string | null } | null
+    return agentRow?.error ?? null
   }
 
   private lifecyclePayload(event: EventEnvelope, source: Record<string, unknown>): Record<string, unknown> | null {
@@ -445,11 +455,13 @@ export class ThreadProjection {
       const turnInputs = inputs.filter((input) => input.turnId === row.id)
       const startedAt = row.started_at == null ? null : Number(row.started_at)
       const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
+      const turnStatusStr = String(row.status)
+      const turnError = turnStatusStr === "failed" ? this.turnErrorForRow(row) : null
       return {
         id: String(row.id),
         threadId: String(row.thread_id),
         sourceInputID: turnInputs[0]?.id ?? "",
-        status: turnStatus(String(row.status)),
+        status: turnStatus(turnStatusStr),
         mode: String(row.mode) as Turn["mode"],
         model: parse(String(row.model_ref)),
         permissionConfig: {
@@ -463,7 +475,7 @@ export class ThreadProjection {
         startedAt,
         finishedAt,
         elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
-        error: null,
+        error: turnError,
       }
     })
     const agents = (this.db.sqlite.query("SELECT id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, subagent_run_id, run_sequence, status, error, created_at, updated_at FROM agent_executions WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.projectAgent(row))
@@ -602,11 +614,13 @@ export class ThreadProjection {
       const turnInputs = inputsByTurn.get(String(row.id)) ?? []
       const startedAt = row.started_at == null ? null : Number(row.started_at)
       const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
+      const turnStatusStr = String(row.status)
+      const turnError = turnStatusStr === "failed" ? this.turnErrorForRow(row) : null
       return {
         id: String(row.id),
         threadId: String(row.thread_id),
         sourceInputID: turnInputs[0]?.id ?? "",
-        status: turnStatus(String(row.status)),
+        status: turnStatus(turnStatusStr),
         mode: String(row.mode) as Turn["mode"],
         model: parse(String(row.model_ref)),
         permissionConfig: {
@@ -620,7 +634,7 @@ export class ThreadProjection {
         startedAt,
         finishedAt,
         elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
-        error: null,
+        error: turnError,
       }
     }
 
