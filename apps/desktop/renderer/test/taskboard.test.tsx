@@ -9,7 +9,7 @@ import { parseTaskboardFilters } from '../src/features/taskboard/TaskboardView.j
 import { optimisticallyMoveTask, taskboardCreateTaskRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
 import { resolveTaskDropPlacement } from '../src/features/taskboard/components/BoardColumn.js'
 import { BoardColumn } from '../src/features/taskboard/components/BoardColumn.js'
-import { TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
+import { taskboardBoardColumns, TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
 import { OtherTasksPanel } from '../src/features/taskboard/components/OtherTasksPanel.js'
 import { moveTaskDetailsStatus, TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
 import { ComposerDraftStore } from '../src/features/session/composer/composerDraftStore.js'
@@ -110,6 +110,15 @@ describe('taskboard board structure', () => {
     ])
     expect(markup).toContain('data-column-count="4"')
     expect((markup.match(/class="taskboard-card"/g) ?? []).length).toBe(2)
+  })
+
+  test('temporarily exposes the empty blocked drop target during an active task drag', () => {
+    expect(taskboardBoardColumns([task('a', 'todo', 1024)], true).map(column => column.status)).toEqual([
+      'todo',
+      'in_progress',
+      'blocked',
+      'in_review',
+    ])
   })
 
   test('other tasks panel keeps archived selection aligned with archived data', () => {

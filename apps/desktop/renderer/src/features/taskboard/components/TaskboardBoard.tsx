@@ -1,4 +1,5 @@
 import type React from 'react'
+import { useState } from 'react'
 import type {
   TaskboardWorkflowStatus,
   TaskboardWorkflowTaskSummary,
@@ -34,10 +35,8 @@ export function TaskboardBoard({
   onMove,
   onLinkThread,
 }: Props): React.ReactNode {
-  const visibleColumns = TASKBOARD_COLUMNS.filter(column => (
-    column.status !== 'blocked'
-    || tasks.some(task => task.status === 'blocked')
-  ))
+  const [taskDragActive, setTaskDragActive] = useState(false)
+  const visibleColumns = taskboardBoardColumns(tasks, taskDragActive)
   return (
     <div
       className="taskboard-board"
@@ -60,8 +59,20 @@ export function TaskboardBoard({
           onNewTask={() => onNewTask(column.status)}
           onOpen={onOpen}
           onStart={onStart}
+          onTaskDragActiveChange={setTaskDragActive}
         />
       ))}
     </div>
   )
+}
+
+export function taskboardBoardColumns(
+  tasks: readonly Pick<TaskboardWorkflowTaskSummary, 'status'>[],
+  taskDragActive: boolean,
+): typeof TASKBOARD_COLUMNS {
+  return TASKBOARD_COLUMNS.filter(column => (
+    column.status !== 'blocked'
+    || taskDragActive
+    || tasks.some(task => task.status === 'blocked')
+  ))
 }

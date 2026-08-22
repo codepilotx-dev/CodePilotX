@@ -10,7 +10,7 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/ico
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { PopoverItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { TASKBOARD_ALL_COLUMNS, taskboardStatusLabel } from '../taskboardConstants.js'
+import { canStartTask, TASKBOARD_ALL_COLUMNS, taskboardStatusLabel } from '../taskboardConstants.js'
 import {
   hasSidebarSessionDrag,
   readSidebarSessionDrag,
@@ -48,6 +48,7 @@ type Props = {
     placement?: { beforeTaskId: string | null; afterTaskId: string | null },
   ) => Promise<void>
   onLinkThread: (taskId: string, threadId: string) => Promise<void>
+  onTaskDragActiveChange?: (active: boolean) => void
 }
 
 export function BoardColumn({
@@ -61,6 +62,7 @@ export function BoardColumn({
   onNewTask,
   onMove,
   onLinkThread,
+  onTaskDragActiveChange,
 }: Props): React.ReactNode {
   const [announcement, setAnnouncement] = useState('')
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
@@ -73,6 +75,7 @@ export function BoardColumn({
       setDraggingTaskId(null)
       setDragInsert(null)
       setSessionDropTaskId(null)
+      onTaskDragActiveChange?.(false)
     }
     window.addEventListener('dragend', clear)
     window.addEventListener('drop', clear)
@@ -80,7 +83,7 @@ export function BoardColumn({
       window.removeEventListener('dragend', clear)
       window.removeEventListener('drop', clear)
     }
-  }, [])
+  }, [onTaskDragActiveChange])
 
   const announceMove = (message: string): void => setAnnouncement(message)
 
@@ -265,6 +268,7 @@ export function BoardColumn({
                 task={task}
                 onDragStart={event => {
                   setDraggingTaskId(task.id)
+                  onTaskDragActiveChange?.(canStartTask(task))
                   event.dataTransfer.effectAllowed = 'move'
                   event.dataTransfer.setData(
                     TASK_DRAG_TYPE,
