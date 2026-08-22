@@ -893,7 +893,7 @@ function CanonicalConversationTurnComponent({
         <motion.section
           className="canonical-turn__result"
           aria-label="助手回复"
-          layout="position"
+          layout={active ? false : 'position'}
           transition={processRowTransition}
         >
           {entry.assistantResultItems.map((item) => renderItem(item, {

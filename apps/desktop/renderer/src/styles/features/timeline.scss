@@ -23,6 +23,9 @@
 /* ── Single thread scroller + sticky footer ───────────── */
 
 .thread-scroll-layout {
+  --thread-scroll-footer-fade-height: 32px;
+  --thread-scroll-content-bottom-gap: 16px;
+  --thread-scroll-footer-height: 0px;
   --thread-scroll-padding-bottom: 16px;
   --thread-scroll-viewport-height: 100%;
 
@@ -88,12 +91,13 @@
     content: "";
     position: absolute;
     z-index: -1;
-    inset: -32px 0 0;
+    inset: calc(0px - var(--thread-scroll-footer-fade-height)) 0 0;
     pointer-events: none;
     background: linear-gradient(
       to bottom,
       transparent,
-      color-mix(in srgb, var(--cpx-sys-color-surface) 88%, transparent) 32px,
+      color-mix(in srgb, var(--cpx-sys-color-surface) 88%, transparent)
+        var(--thread-scroll-footer-fade-height),
       var(--cpx-sys-color-surface) 100%
     );
   }
@@ -164,7 +168,18 @@
 }
 
 .session-timeline-bottom-sentinel {
+  position: relative;
   width: 100%;
+  height: calc(
+    var(--thread-scroll-footer-fade-height) +
+      var(--thread-scroll-content-bottom-gap)
+  );
+  pointer-events: none;
+}
+
+.session-timeline-bottom-observer {
+  position: absolute;
+  inset: auto 0 0;
   height: 1px;
   pointer-events: none;
 }

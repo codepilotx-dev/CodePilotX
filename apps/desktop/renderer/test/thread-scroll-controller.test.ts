@@ -7,8 +7,10 @@ import {
   distanceFromThreadBottom,
   isProgrammaticScrollActive,
   LATEST_TURN_PLACEMENT_THRESHOLD_PX,
+  normalizeThreadFooterOffset,
   resolveThreadScrollMode,
   resolveThreadAtBottomDuringExplicitReturn,
+  scrollVirtualizerToThreadBottom,
   scrollOffsetForThreadResizeAnchor,
   scrollOffsetForThreadBottomDistance,
   THREAD_BOTTOM_THRESHOLD_PX,
@@ -168,6 +170,35 @@ describe('thread scroll controller', () => {
         programmaticScrollUntil: 1_500,
       }),
     ).toBe(true)
+  })
+
+  test('scrolls through virtua to the bottom sentinel index', () => {
+    const calls: Array<[number, { align?: string; smooth?: boolean }]> = []
+    const handle = {
+      scrollToIndex: (
+        index: number,
+        options: { align?: string; smooth?: boolean },
+      ) => calls.push([index, options]),
+    }
+
+    expect(
+      scrollVirtualizerToThreadBottom(handle as never, 7, true),
+    ).toBe(true)
+    expect(calls).toEqual([[7, { align: 'end', offset: 0, smooth: true }]])
+    expect(
+      scrollVirtualizerToThreadBottom(handle as never, 8, false, 142),
+    ).toBe(true)
+    expect(calls[1]).toEqual([
+      8,
+      { align: 'end', offset: 142, smooth: false },
+    ])
+    expect(scrollVirtualizerToThreadBottom(null, 7, false)).toBe(false)
+  })
+
+  test('normalizes missing and invalid footer offsets safely', () => {
+    expect(normalizeThreadFooterOffset(96)).toBe(96)
+    expect(normalizeThreadFooterOffset(-12)).toBe(0)
+    expect(normalizeThreadFooterOffset(Number.NaN)).toBe(0)
   })
 
   test('keeps prework watch stable until placement is evaluated', () => {

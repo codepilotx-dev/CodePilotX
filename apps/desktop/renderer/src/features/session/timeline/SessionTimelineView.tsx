@@ -146,11 +146,15 @@ export function SessionTimelineView<T>({
           {(item, index) =>
             item === TIMELINE_BOTTOM_SENTINEL ? (
               <div
-                ref={scrollController.bottomSentinelRef}
                 aria-hidden="true"
                 className="session-timeline-bottom-sentinel"
                 key="timeline-bottom-sentinel"
-              />
+              >
+                <div
+                  ref={scrollController.bottomSentinelRef}
+                  className="session-timeline-bottom-observer"
+                />
+              </div>
             ) : (
               renderItem(item as T, index)
             )

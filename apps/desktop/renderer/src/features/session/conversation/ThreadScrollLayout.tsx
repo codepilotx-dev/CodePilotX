@@ -47,7 +47,11 @@ export function ThreadScrollLayout({
   React.useLayoutEffect(() => {
     const scrollElement = scrollRef.current
     const footerElement = footerRef.current
-    if (!scrollElement || !footerElement) return
+    if (!scrollElement) return
+    if (!footerElement) {
+      scrollElement.style.setProperty('--thread-scroll-footer-height', '0px')
+      return
+    }
     writtenInsetRef.current = null
 
     let measureFrame: number | null = null
@@ -77,6 +81,10 @@ export function ThreadScrollLayout({
       )
       previousFooterHeightRef.current = footerHeight
       measuredInsetRef.current = footerHeight + THREAD_FOOTER_GAP_PX
+      scrollElement.style.setProperty(
+        '--thread-scroll-footer-height',
+        `${footerHeight}px`,
+      )
       if (previousViewportHeightRef.current !== viewportHeight) {
         previousViewportHeightRef.current = viewportHeight
         scrollElement.style.setProperty(
