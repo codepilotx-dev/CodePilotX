@@ -1,6 +1,7 @@
 import { Effect } from "effect"
+import { existsSync } from "node:fs"
 import { homedir } from "node:os"
-import { join, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 
 export interface AgentConfig {
   host: string
@@ -24,6 +25,7 @@ export interface AgentConfig {
   relocationSourceDir: string | null
   relocationOperationId: string | null
   legacyAppearanceSettingsPath: string | null
+  builtinSkillsRoot: string
   storage: AgentStorageLayout
 }
 
@@ -79,6 +81,18 @@ export const resolveAgentPetsDirectory = (
     environment.CODEPILOTX_PETS_DIR?.trim()
       || join(dataDir, "pets"),
   )
+}
+
+export const resolveBuiltinSkillsDirectory = (
+  environment: NodeJS.ProcessEnv = process.env,
+): string => {
+  const configured = environment.CODEPILOTX_BUILTIN_SKILLS_DIR?.trim()
+  if (configured) return resolve(configured)
+
+  const executableSibling = resolve(dirname(process.execPath), "skills")
+  if (existsSync(executableSibling)) return executableSibling
+
+  return resolve(import.meta.dir, "../../resources/skills")
 }
 
 export const resolveAgentStorageLayout = (
@@ -147,6 +161,7 @@ export const loadConfig = Effect.sync((): AgentConfig => {
       process.env.CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH?.trim()
         ? resolve(process.env.CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH)
         : null,
+    builtinSkillsRoot: resolveBuiltinSkillsDirectory(),
     storage,
   }
 })

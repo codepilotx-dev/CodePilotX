@@ -292,7 +292,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const pets = new PetService(config.petsDir);
     const skills = new SkillManagementService(
       new SkillSettingsRepository(db),
-      { dataRoot: config.dataDir, userHome: homedir() },
+      {
+        dataRoot: config.dataDir,
+        userHome: homedir(),
+        builtinSkillsRoot: config.builtinSkillsRoot,
+      },
       configService,
     );
     const unsubscribeTooling = tooling.subscribe((status) => {

@@ -9,6 +9,8 @@
 
 ### Added
 
+- [agent/desktop] 内置不可卸载的任务规划 Skill，可在确认后将工作目标拆分并创建为任务看板任务。
+- [desktop/renderer] 为任务工作台新增可拖动排期的甘特图，支持日周月缩放、状态分组、定位今天和未排期任务展示。
 - [desktop/renderer] 增加侧边栏会话标记为未读及已读切换功能，并持久化同步会话行、Bell 与活动时间线状态。
 - [agent] 新增 HarnessCompositionIdentity、HarnessToolComposition、HarnessTurnComposition、HarnessTurnContext、HarnessStepContext 类型及相关纯函数，实现 Agent Turn 组合身份计算、上下文构建与工具 envelope 校验。
 - [desktop] 新增侧边栏“查看活动”，集中展示进行中、待处理、未读及最近七天会话，并支持来源筛选和增量加载。
@@ -32,6 +34,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将 Working“规划任务”入口接入真实 Skill 调用链，并为 Composer 与 Skills 设置增加统一任务规划图标。
 - [desktop/renderer] 支持从侧栏拖动会话到任务卡片完成主/辅助会话关联，并精简新建任务弹窗的会话选择区域。
 - [agent/desktop/renderer] 将 Material 图标与代码高亮主题收敛为少量按需分片，统一 Repository 公共声明和 Electron 原子 JSON 写入，并简化性能报告为当前指标与预算对比，显著减少源码文件且保持现有运行能力。
 - [docs/agent] 基于当前 CodePilotX 与 OpenAI Codex 固定提交重写 Harness 对标报告，校正已完成能力，并给出以运行组合完整性、Skills/MCP 真按需、Hook、Sandbox/凭据决策和 Durable Goal 为核心的证据化优化路线。

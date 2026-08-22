@@ -19,11 +19,14 @@ export interface SkillMetadata {
   description: string;
   path: string;
   root: string;
-  origin: "workspace" | "user";
+  origin: "workspace" | "user" | "builtin";
   format: "codepilotx" | "agents" | "codex" | "claude";
+  /** Public identity. Built-in Skills deliberately use a stable builtin:// URI. */
   hash: string;
   metadata: Record<string, unknown>;
   allowedTools?: string[];
+  /** Canonical on-disk SKILL.md path used only inside the Agent process. */
+  documentPath: string;
 }
 
 export interface LoadedSkill extends SkillMetadata {
@@ -41,14 +44,17 @@ export interface SkillScanOptions {
   dataRoot: string;
   userHome: string;
   includeWorkspace?: boolean;
+  /** Read-only root containing application-provided Skills. */
+  builtinSkillsRoot?: string;
 }
 
 export type SkillServiceOptions = {
-  enabled?: (skill: SkillMetadata) => boolean
+  enabled?: (skill: SkillMetadata) => boolean;
+  builtinSkillsRoot?: string;
 }
 
 export type SkillSearchResult =
-  | { ok: true; name: string; path: string; root: string; origin: "workspace" | "user"; format: string }
+  | { ok: true; name: string; path: string; root: string; origin: SkillMetadata["origin"]; format: string }
   | { ok: false; name?: string; path: string; root: string; error: "SKILL_PARSE_FAILED" | "SKILL_METADATA_INVALID" | "SKILL_READ_FAILED" | "SKILL_SIZE_EXCEEDED" }
 
 export type SkillSearchDiagnostics = {
@@ -65,6 +71,7 @@ const sha256 = (value: Uint8Array) =>
   createHash("sha256").update(value).digest("hex");
 const missing = (cause: unknown) =>
   cause instanceof Error && "code" in cause && cause.code === "ENOENT";
+const builtinSkillPath = (directory: string) => `builtin://${directory}/SKILL.md`;
 
 export const parseSkillDocument = (content: string) => {
   if (content.charCodeAt(0) === 0xfeff) content = content.slice(1);
@@ -109,8 +116,17 @@ export class SkillService {
 
   constructor(private readonly options: SkillServiceOptions = {}) {}
 
-  private computeRootsHash(workspace: string, dataRoot: string, userHome: string): string {
-    return sha256(new TextEncoder().encode(`${workspace}:${dataRoot}:${userHome}`))
+  private builtinSkillsRoot(options?: SkillScanOptions): string | undefined {
+    return options?.builtinSkillsRoot ?? this.options.builtinSkillsRoot;
+  }
+
+  private computeRootsHash(
+    workspace: string,
+    dataRoot: string,
+    userHome: string,
+    builtinSkillsRoot: string | undefined,
+  ): string {
+    return sha256(new TextEncoder().encode(`${workspace}:${dataRoot}:${userHome}:${builtinSkillsRoot ?? ""}`))
   }
 
   async skill_search(query: string, limit?: number): Promise<SkillSearchDiagnostics> {
@@ -157,7 +173,14 @@ export class SkillService {
             failedCount++
             continue
           }
-          results.push({ ok: true, name: skillName, path: canonicalDocument, root: directory, origin: base.origin, format: base.format })
+          results.push({
+            ok: true,
+            name: skillName,
+            path: base.origin === "builtin" ? builtinSkillPath(entry.name) : canonicalDocument,
+            root: directory,
+            origin: base.origin,
+            format: base.format,
+          })
           successfulCount++
         } catch {
           results.push({ ok: false, name, path: canonicalDocument, root: directory, error: "SKILL_PARSE_FAILED" })
@@ -217,7 +240,14 @@ export class SkillService {
             failedCount++
             continue
           }
-          results.push({ ok: true, name: skillName, path: canonicalDocument, root: directory, origin: base.origin, format: base.format })
+          results.push({
+            ok: true,
+            name: skillName,
+            path: base.origin === "builtin" ? builtinSkillPath(entry.name) : canonicalDocument,
+            root: directory,
+            origin: base.origin,
+            format: base.format,
+          })
           successfulCount++
         } catch {
           results.push({ ok: false, name, path: canonicalDocument, root: directory, error: "SKILL_PARSE_FAILED" })
@@ -233,7 +263,8 @@ export class SkillService {
     const workspace = await realpath(resolve(options.workspaceRoot));
     const dataRoot = await realpath(resolve(options.dataRoot));
     const userHome = await realpath(resolve(options.userHome));
-    const rootsHash = this.computeRootsHash(workspace, dataRoot, userHome)
+    const builtinSkillsRoot = this.builtinSkillsRoot(options);
+    const rootsHash = this.computeRootsHash(workspace, dataRoot, userHome, builtinSkillsRoot)
 
     if (this.catalogCache?.hash === rootsHash) {
       const filtered = this.catalogCache.skills.filter(s => this.options.enabled?.(s) !== false)
@@ -242,7 +273,12 @@ export class SkillService {
 
     const found = new Map<string, SkillMetadata>();
     const shadowed: SkillCatalog["shadowed"] = [];
-    const configuredBases = [
+    const configuredBases: Array<{
+      containmentRoot: string;
+      skillsRoot: string;
+      origin: SkillMetadata["origin"];
+      format: SkillMetadata["format"];
+    }> = [
       ...(options.includeWorkspace === false
         ? []
         : COMPATIBILITY_DIRS.map(compatibilityDir => ({
@@ -263,6 +299,14 @@ export class SkillService {
         origin: "user" as const,
         format: compatibilityDir.slice(1) as SkillMetadata["format"],
       })),
+      ...(builtinSkillsRoot
+        ? [{
+            containmentRoot: builtinSkillsRoot,
+            skillsRoot: builtinSkillsRoot,
+            origin: "builtin" as const,
+            format: "codepilotx" as const,
+          }]
+        : []),
     ];
 
     const bases: Array<(typeof configuredBases)[number] & {
@@ -351,12 +395,13 @@ export class SkillService {
         const metadata: SkillMetadata = {
           name,
           description,
-          path: canonicalDocument,
+          path: base.origin === "builtin" ? builtinSkillPath(entry.name) : canonicalDocument,
           root: directory,
           origin: base.origin,
           format: base.format,
           hash: sha256(bytes),
           metadata: parsed.metadata,
+          documentPath: canonicalDocument,
           ...(allowedTools ? { allowedTools } : {}),
         };
         const current = found.get(name);
@@ -383,6 +428,9 @@ export class SkillService {
       workspaceRoot: process.cwd(),
       dataRoot: "",
       userHome: "",
+      ...(this.options.builtinSkillsRoot
+        ? { builtinSkillsRoot: this.options.builtinSkillsRoot }
+        : {}),
     }
   }
 
@@ -390,7 +438,13 @@ export class SkillService {
     const workspace = await realpath(resolve(options.workspaceRoot));
     const dataRoot = await realpath(resolve(options.dataRoot));
     const userHome = await realpath(resolve(options.userHome));
-    const configuredBases = [
+    const builtinSkillsRoot = this.builtinSkillsRoot(options);
+    const configuredBases: Array<{
+      containmentRoot: string;
+      skillsRoot: string;
+      origin: SkillMetadata["origin"];
+      format: SkillMetadata["format"];
+    }> = [
       ...(options.includeWorkspace === false
         ? []
         : COMPATIBILITY_DIRS.map(compatibilityDir => ({
@@ -411,6 +465,14 @@ export class SkillService {
         origin: "user" as const,
         format: compatibilityDir.slice(1) as SkillMetadata["format"],
       })),
+      ...(builtinSkillsRoot
+        ? [{
+            containmentRoot: builtinSkillsRoot,
+            skillsRoot: builtinSkillsRoot,
+            origin: "builtin" as const,
+            format: "codepilotx" as const,
+          }]
+        : []),
     ];
 
     const bases: Array<(typeof configuredBases)[number] & { canonicalSkillsRoot: string }> = []
@@ -442,7 +504,7 @@ export class SkillService {
   async read(name: string): Promise<LoadedSkill> {
     const metadata = this.catalog.get(name);
     if (!metadata) throw new Error(`未知 Skill: ${name}`);
-    const bytes = await readFile(metadata.path);
+    const bytes = await readFile(metadata.documentPath);
     if (bytes.byteLength > MAX_SKILL_BYTES)
       throw new Error(`SKILL.md 超过 1 MiB: ${metadata.path}`);
     const content = decoder.decode(bytes);
@@ -457,54 +519,8 @@ export class SkillService {
   }
 
   async skill_read(name: string, options: SkillScanOptions): Promise<LoadedSkill> {
-    const roots = await this.locateSkillRoots(options)
-    let targetMetadata: SkillMetadata | null = null
-    let targetRoot: string | null = null
-
-    for (const base of roots) {
-      const directory = await realpath(join(base.canonicalSkillsRoot, name)).catch(() => null)
-      if (!directory || !contained(base.canonicalSkillsRoot, directory)) continue
-
-      const documentPath = join(directory, "SKILL.md")
-      let canonicalDocument: string
-      try {
-        canonicalDocument = await realpath(documentPath)
-      } catch {
-        continue
-      }
-      if (!contained(directory, canonicalDocument)) continue
-
-      const bytes = await readFile(canonicalDocument)
-      if (bytes.byteLength > MAX_SKILL_BYTES)
-        throw new Error(`SKILL.md 超过 1 MiB: ${canonicalDocument}`)
-      const content = decoder.decode(bytes)
-      const parsed = parseSkillDocument(content)
-      const declaredName = parsed.metadata.name
-      const skillName = typeof declaredName === "string" && declaredName ? declaredName : name
-      if (!skillNamePattern.test(skillName))
-        throw new Error(`无效 Skill 名称: ${skillName}`)
-      const description = typeof parsed.metadata.description === "string" ? parsed.metadata.description : ""
-      const allowedTools = parseAllowedTools(parsed.metadata)
-      targetMetadata = {
-        name: skillName,
-        description,
-        path: canonicalDocument,
-        root: directory,
-        origin: base.origin,
-        format: base.format,
-        hash: sha256(bytes),
-        metadata: parsed.metadata,
-        ...(allowedTools ? { allowedTools } : {}),
-      }
-      targetRoot = directory
-      break
-    }
-
-    if (!targetMetadata || !targetRoot) throw new Error(`未知 Skill: ${name}`)
-    const bytes = await readFile(targetMetadata.path)
-    const content = decoder.decode(bytes)
-    const parsed = parseSkillDocument(content)
-    return { ...targetMetadata, content, body: parsed.body }
+    await this.scan(options)
+    return this.read(name)
   }
 
   allowedTools(name: string): readonly string[] | undefined {

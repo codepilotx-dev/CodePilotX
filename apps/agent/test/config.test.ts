@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { join, resolve } from "node:path"
 import {
   resolveAgentDataDirectory,
+  resolveBuiltinSkillsDirectory,
   resolveAgentLogDirectory,
   resolveAgentPetsDirectory,
   resolveAgentStorageLayout,
@@ -40,6 +41,9 @@ describe("Agent data directories", () => {
     expect(resolveAgentPetsDirectory(environment)).toBe(
       environment.CODEPILOTX_PETS_DIR,
     )
+    expect(resolveBuiltinSkillsDirectory({
+      CODEPILOTX_BUILTIN_SKILLS_DIR: resolve("D:/agent-skills"),
+    })).toBe(resolve("D:/agent-skills"))
   })
 
   test("derives every managed directory from the selected data root", () => {
