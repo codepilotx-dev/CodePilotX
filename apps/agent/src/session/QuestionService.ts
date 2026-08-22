@@ -22,7 +22,15 @@ const record = (value: unknown): Record<string, unknown> => value && typeof valu
 const toolCallID = (value: unknown) => {
   const item = record(value)
   const rawItem = record(item.rawItem)
-  const direct = [item.callId, item.toolCallId, rawItem.callId, rawItem.id]
+  const direct = [
+    item.callId,
+    item.toolCallId,
+    item.toolCallID,
+    rawItem.callId,
+    rawItem.toolCallId,
+    rawItem.toolCallID,
+    rawItem.id,
+  ]
   return direct.find((candidate): candidate is string => typeof candidate === "string") ?? crypto.randomUUID()
 }
 
