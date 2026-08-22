@@ -117,6 +117,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复任务启动创建主会话后会话目录尚未同步便导航、导致提示“找不到对话”的竞态。
 - [desktop/renderer] 修复任务验收说明可选却无法空提交，以及完成、取消和归档任务仍显示执行入口的问题。
 - [desktop/renderer] 还原 Working Composer 内联 Skill 的 Codex 字体比例与透明 mention 样式。
 - [desktop/renderer] 修复新建任务加载历史会话时因瞬时空候选导致页面崩溃，并在候选 RPC 失败时显示明确错误。

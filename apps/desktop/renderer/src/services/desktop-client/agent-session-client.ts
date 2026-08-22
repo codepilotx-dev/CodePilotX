@@ -94,6 +94,7 @@ import { createAgentTurnQueueClient } from './agent-turn-queue-client.js'
 import { AGENT_LIVE_EVENT_FILTERS } from './eventSubscriptionFilters.js'
 import { SessionCatalogCoordinator } from './SessionCatalogCoordinator.js'
 import type { SessionLifecycleUpdate } from './SessionCatalogCoordinator.js'
+import { reconcileTaskboardStartSession } from './taskboardStartSessionReconcile.js'
 
 export const WORKSPACE_FILE_CHANGED_EVENT =
   'codepilotx-workspace-file-changed'
@@ -1811,8 +1812,10 @@ export function createAgentSessionDesktopClient(
       loadAgentTaskboardApi().then(api => api.findTaskboardWorkflowTaskByThread!(input)),
     linkTaskboardWorkflowThreads: input =>
       loadAgentTaskboardApi().then(api => api.linkTaskboardWorkflowThreads!(input)),
-    startTaskboardWorkflowTask: input =>
-      loadAgentTaskboardApi().then(api => api.startTaskboardWorkflowTask!(input)),
+    startTaskboardWorkflowTask: input => reconcileTaskboardStartSession(
+      () => loadAgentTaskboardApi().then(api => api.startTaskboardWorkflowTask!(input)),
+      reconcileAgentSessionStore,
+    ),
     listTaskboardTasks: input =>
       loadAgentTaskboardApi().then(api => api.listTaskboardTasks(input)),
     readTaskboardTask: input =>
@@ -1849,16 +1852,22 @@ export function createAgentSessionDesktopClient(
       loadAgentTaskboardApi().then(api => api.updateTaskboardLabel(input)),
     deleteTaskboardLabel: input =>
       loadAgentTaskboardApi().then(api => api.deleteTaskboardLabel(input)),
-    startTaskboardTask: input =>
-      loadAgentTaskboardApi().then(api => api.startTaskboardTask(input)),
-    readTaskboardStartStatus: input =>
-      loadAgentTaskboardApi().then(api => api.readTaskboardStartStatus(input)),
-    retryTaskboardStartSetup: input =>
-      loadAgentTaskboardApi().then(api => api.retryTaskboardStartSetup(input)),
-    continueTaskboardStartWithoutSetup: input =>
-      loadAgentTaskboardApi().then(api =>
-        api.continueTaskboardStartWithoutSetup(input),
-      ),
+    startTaskboardTask: input => reconcileTaskboardStartSession(
+      () => loadAgentTaskboardApi().then(api => api.startTaskboardTask(input)),
+      reconcileAgentSessionStore,
+    ),
+    readTaskboardStartStatus: input => reconcileTaskboardStartSession(
+      () => loadAgentTaskboardApi().then(api => api.readTaskboardStartStatus(input)),
+      reconcileAgentSessionStore,
+    ),
+    retryTaskboardStartSetup: input => reconcileTaskboardStartSession(
+      () => loadAgentTaskboardApi().then(api => api.retryTaskboardStartSetup(input)),
+      reconcileAgentSessionStore,
+    ),
+    continueTaskboardStartWithoutSetup: input => reconcileTaskboardStartSession(
+      () => loadAgentTaskboardApi().then(api => api.continueTaskboardStartWithoutSetup(input)),
+      reconcileAgentSessionStore,
+    ),
     getGithubAuthStatus: () =>
       loadAgentGitApi().then(api => api.getGithubAuthStatus()),
     startGithubLogin: input =>

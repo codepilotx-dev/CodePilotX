@@ -5,6 +5,7 @@ import { readTaskboardGanttHideCompleted, readTaskboardGanttZoom, readTaskboardL
 import { beginSidebarSessionDrag, readSidebarSessionDrag, SIDEBAR_SESSION_DRAG_TYPE } from '../src/features/taskboard/taskboardDragData.js'
 import { deriveThreadTaskboardAction } from '../src/features/taskboard/state/threadTaskboardAction.js'
 import { executeBlockedTransition } from '../src/features/taskboard/state/taskboardBlockedTransition.js'
+import { reconcileTaskboardStartSession } from '../src/services/desktop-client/taskboardStartSessionReconcile.js'
 import { mergeUniqueTaskboardThreadCandidates } from '../src/features/taskboard/state/useTaskboardThreadCandidates.js'
 import {
   formatTaskboardLocalDate,
@@ -18,6 +19,19 @@ import {
 } from '../src/features/taskboard/taskboardGanttModel.js'
 
 describe('taskboard workflow renderer behavior', () => {
+  test('new task threads are reconciled before start navigation continues', async () => {
+    const calls: string[] = []
+    const result = await reconcileTaskboardStartSession(async () => {
+      calls.push('start')
+      return { operation: { threadId: 'thread:new' } }
+    }, async () => {
+      calls.push('reconcile')
+    })
+
+    expect(result.operation.threadId).toBe('thread:new')
+    expect(calls).toEqual(['start', 'reconcile'])
+  })
+
   test('gantt URL state accepts explicit values and falls back safely', () => {
     const params = new URLSearchParams('view=gantt&zoom=month&hideCompleted=1')
     expect(readTaskboardLayout(params)).toBe('gantt')
