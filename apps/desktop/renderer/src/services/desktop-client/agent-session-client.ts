@@ -948,6 +948,33 @@ export function createAgentSessionDesktopClient(
     return sessionSnapshots.get(sessionId)!
   }
 
+  async function updateAgentSessionMetadata(
+    sessionId: string,
+    patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot> {
+    if (patch.archivedAt !== undefined) {
+      const response = await rpc.call('thread/update', {
+        threadId: sessionId,
+        patch: { archived: patch.archivedAt !== null },
+        operationId: crypto.randomUUID(),
+      })
+      return cacheThreadListItem(response.thread)
+    }
+    const snapshot =
+      sessionSnapshots.get(sessionId) ??
+      (await loadAgentSessionSnapshot(sessionId))
+    sessionSnapshots.set(sessionId, snapshot)
+    await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
+    return snapshot
+  }
+
+  async function restoreArchivedAgentSession(sessionId: string): Promise<void> {
+    const snapshot = await loadAgentSessionSnapshot(sessionId)
+    if (snapshot.item.archivedAt) {
+      await updateAgentSessionMetadata(sessionId, { archivedAt: null })
+    }
+  }
+
   async function refreshAgentSessionStoreChange(
     options: { reloadActive?: boolean; reconcileInteractions?: boolean } = {},
   ): Promise<void> {
@@ -1815,6 +1842,10 @@ export function createAgentSessionDesktopClient(
     startTaskboardWorkflowTask: input => reconcileTaskboardStartSession(
       () => loadAgentTaskboardApi().then(api => api.startTaskboardWorkflowTask!(input)),
       reconcileAgentSessionStore,
+      {
+        mode: input.mode,
+        prepareContinuePrimarySession: restoreArchivedAgentSession,
+      },
     ),
     listTaskboardTasks: input =>
       loadAgentTaskboardApi().then(api => api.listTaskboardTasks(input)),
@@ -3024,22 +3055,7 @@ export function createAgentSessionDesktopClient(
       patch: DesktopSessionMetadataPatch,
     ) =>
       withAgentOrMock(
-        async () => {
-          if (patch.archivedAt !== undefined) {
-            const response = await rpc.call('thread/update', {
-              threadId: sessionId,
-              patch: { archived: patch.archivedAt !== null },
-              operationId: crypto.randomUUID(),
-            })
-            return cacheThreadListItem(response.thread)
-          }
-          const snapshot =
-            sessionSnapshots.get(sessionId) ??
-            (await loadAgentSessionSnapshot(sessionId))
-          sessionSnapshots.set(sessionId, snapshot)
-          await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
-          return snapshot
-        },
+        () => updateAgentSessionMetadata(sessionId, patch),
         () => mockClient.updateSessionMetadata(sessionId, patch),
       ),
     renameSession: async (sessionId: string, name: string) =>

@@ -117,6 +117,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复任务工作台继续已归档主会话时无法导航的问题，在会话列表协调前恢复对应会话。
 - [desktop] ConversationEnvironmentControls 在 gitStatus 成功加载前或已确认非 Git 时不调用 local-environment/action/list、worktree/list 与 thread/handoff/pending，清空既有 Git actions/worktrees/遗留错误，请求期间由 Git 变非 Git 时忽略迟到结果与错误；移交等 Git 专属入口保持可发现但禁用并说明“仅 Git 项目可用”，Git 后续成功才加载。
 - [desktop/renderer] canonical 会话批次收到 turn/completed/turn/failed/turn/interrupted 终态事件后，先 deliver 再只读取一次最新历史并 rehydrate 当前 coordinator，用 threadId + generation 双校验拒绝旧结果；对账失败保留实时投影、不设置页面错误、不清空时间线、不循环重连，仅做安全诊断。
 - [desktop] 非 Git 普通项目与无项目会话在 Git status 返回 REPOSITORY_NOT_FOUND（或失败）后跳过 branches 与 Review RPC，避免 review.snapshot/review.summary 因仓库缺失而报错阻断会话，仅投影为 isGitRepo=false、gitStatus=null 与空分支/Review；Git 仓库继续加载 branches 与 unstaged/staged Review。Composer 发送门禁仍仅为空输入、模型未配置、会话未解析、附件错误与正在提交，非 Git 项目仍可正常发送。

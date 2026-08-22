@@ -32,6 +32,42 @@ describe('taskboard workflow renderer behavior', () => {
     expect(calls).toEqual(['start', 'reconcile'])
   })
 
+  test('archived primary session is prepared before continue navigation reconciles', async () => {
+    const calls: string[] = []
+    const result = await reconcileTaskboardStartSession(async () => {
+      calls.push('start')
+      return { operation: { threadId: 'thread:archived' } }
+    }, async () => {
+      calls.push('reconcile')
+    }, {
+      mode: 'continue_primary',
+      prepareContinuePrimarySession: async threadId => {
+        expect(threadId).toBe('thread:archived')
+        calls.push('restore')
+      },
+    })
+
+    expect(result.operation.threadId).toBe('thread:archived')
+    expect(calls).toEqual(['start', 'restore', 'reconcile'])
+  })
+
+  test('new primary session does not use archived-session recovery', async () => {
+    const calls: string[] = []
+    await reconcileTaskboardStartSession(async () => {
+      calls.push('start')
+      return { operation: { threadId: 'thread:new' } }
+    }, async () => {
+      calls.push('reconcile')
+    }, {
+      mode: 'new_primary',
+      prepareContinuePrimarySession: async () => {
+        calls.push('restore')
+      },
+    })
+
+    expect(calls).toEqual(['start', 'reconcile'])
+  })
+
   test('gantt URL state accepts explicit values and falls back safely', () => {
     const params = new URLSearchParams('view=gantt&zoom=month&hideCompleted=1')
     expect(readTaskboardLayout(params)).toBe('gantt')
