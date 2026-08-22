@@ -1235,6 +1235,7 @@ export function ConversationPage(): React.ReactNode {
       {activeSessionId && workspacePath ? (
         <React.Suspense fallback={null}>
           <ConversationEnvironmentControls
+            gitAvailable={Boolean(gitStatus)}
             terminalProfileId={settingsDraft.values.terminalProfileId}
             threadId={activeSessionId}
             workspacePath={workspacePath}

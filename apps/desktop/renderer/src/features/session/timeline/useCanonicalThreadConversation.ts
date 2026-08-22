@@ -46,6 +46,56 @@ export function isCurrentCanonicalThreadRequest(
     && currentGeneration === requestGeneration
 }
 
+const TERMINAL_TURN_EVENT_TYPES: ReadonlySet<string> = new Set([
+  'turn/completed',
+  'turn/failed',
+  'turn/interrupted',
+])
+
+export function isTerminalTurnEnvelope(envelope: EventEnvelope): boolean {
+  return TERMINAL_TURN_EVENT_TYPES.has(envelope.type)
+}
+
+export function hasTerminalTurnEvent(
+  envelopes: readonly EventEnvelope[],
+): boolean {
+  return envelopes.some(isTerminalTurnEnvelope)
+}
+
+export type DeliverCanonicalBatchOptions = {
+  coordinator: CanonicalThreadIngestionCoordinator
+  readLatest: () => Promise<ThreadHistoryPageLike | null>
+  isCurrent: () => boolean
+  onReconciliationError?: (cause: unknown) => void
+}
+
+/**
+ * 先 deliverBatch，再检查同一批是否含终态 turn 事件（turn/completed、
+ * turn/failed、turn/interrupted 任一个或多个）。含终态时只读取一次最新
+ * 历史并 rehydrate 当前 coordinator，且用 threadId + generation 双校验拒绝
+ * 旧结果；对账失败保留实时投影，仅通过 onReconciliationError 做安全诊断，
+ * 不设置页面错误、不清空时间线、不循环重连。
+ * @returns 是否对终态批次执行了对账读取。
+ */
+export async function deliverCanonicalBatch(
+  envelopes: readonly EventEnvelope[],
+  options: DeliverCanonicalBatchOptions,
+): Promise<boolean> {
+  if (!options.isCurrent()) return false
+  await options.coordinator.deliverBatch(envelopes)
+  if (!hasTerminalTurnEvent(envelopes)) return false
+  if (!options.isCurrent()) return false
+  try {
+    const replacement = await options.readLatest()
+    if (!replacement || !options.isCurrent()) return false
+    options.coordinator.rehydrate(replacement)
+  } catch (cause) {
+    if (!options.isCurrent()) return false
+    options.onReconciliationError?.(cause)
+  }
+  return true
+}
+
 export function useCanonicalThreadConversation(
   threadId: string | null,
   scope: ThreadConversationScope = MAIN_CONVERSATION_SCOPE,
@@ -162,7 +212,14 @@ export function useCanonicalThreadConversation(
           if (!isCurrent()) {
             throw new Error('会话已切换，拒绝确认旧订阅事件。')
           }
-          await coordinator.deliverBatch(envelopes)
+          await deliverCanonicalBatch(envelopes, {
+            coordinator,
+            readLatest,
+            isCurrent,
+            onReconciliationError: () => {
+              console.error('终态事件对账失败，保留实时投影。')
+            },
+          })
         },
       )
       if (!isCurrent()) {

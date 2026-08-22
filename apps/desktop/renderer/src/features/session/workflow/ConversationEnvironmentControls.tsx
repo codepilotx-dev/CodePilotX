@@ -29,10 +29,66 @@ type Props = {
   threadId: string
   workspacePath: string
   terminalProfileId: string | null
+  gitAvailable: boolean
   onNavigateTarget: (threadId: string) => void
   onOpenEnvironmentSettings: () => void
   onOpenWorktreeSettings: (projectId: string) => void
   onTransferAuxiliaryState: (targetThreadId: string) => void
+}
+
+export type GitEnvironmentSnapshot = {
+  actions: readonly LocalEnvironmentActionMetadata[]
+  worktrees: readonly ManagedWorktree[]
+  projectId: string | null
+}
+
+export type GitEnvironmentLoaders = {
+  listActions: (threadId: string) => Promise<readonly LocalEnvironmentActionMetadata[]>
+  projectForThread: (threadId: string) => Promise<string | null>
+  listWorktrees: (projectId: string) => Promise<readonly ManagedWorktree[]>
+}
+
+export type GitEnvironmentProjectionResult =
+  | { status: 'not-git' }
+  | { status: 'loaded'; snapshot: GitEnvironmentSnapshot }
+  | { status: 'stale' }
+  | { status: 'failed'; error: string }
+
+/**
+ * 仅在 gitAvailable 时加载 Git 环境（actions/worktrees/projectId），并在
+ * 返回前用 isCurrent 双校验拒绝迟到结果。非 Git 是受支持状态：不调用任何
+ * Git RPC，也绝不因迟到错误向上抛给调用方。
+ */
+export async function loadGitEnvironmentProjection(
+  gitAvailable: boolean,
+  threadId: string,
+  loaders: GitEnvironmentLoaders,
+  isCurrent: () => boolean,
+): Promise<GitEnvironmentProjectionResult> {
+  if (!gitAvailable) return { status: 'not-git' }
+  try {
+    const actions = await loaders.listActions(threadId)
+    const projectId = await loaders.projectForThread(threadId)
+    const worktrees = projectId ? await loaders.listWorktrees(projectId) : []
+    if (!isCurrent()) return { status: 'stale' }
+    return { status: 'loaded', snapshot: { actions, worktrees, projectId } }
+  } catch (cause) {
+    if (!isCurrent()) return { status: 'stale' }
+    return { status: 'failed', error: message(cause) }
+  }
+}
+
+/** 非 Git 或请求期间 Git 变为不可用时，不得恢复 pending handoff。 */
+export function shouldResumePendingHandoff(
+  gitAvailable: boolean,
+  threadId: string,
+  workspacePath: string,
+  resumedThreadId: string | null,
+): boolean {
+  return gitAvailable
+    && Boolean(threadId)
+    && Boolean(workspacePath)
+    && resumedThreadId !== threadId
 }
 
 const stepLabel: Record<(typeof HANDOFF_PROGRESS_STEPS)[number], string> = {
@@ -54,6 +110,7 @@ export function ConversationEnvironmentControls({
   threadId,
   workspacePath,
   terminalProfileId,
+  gitAvailable,
   onNavigateTarget,
   onOpenEnvironmentSettings,
   onOpenWorktreeSettings,
@@ -73,33 +130,76 @@ export function ConversationEnvironmentControls({
   const callbacksRef = React.useRef({ onNavigateTarget, onTransferAuxiliaryState })
   callbacksRef.current = { onNavigateTarget, onTransferAuxiliaryState }
   const { onCloseAutoFocus } = useDialogFocusRestore(handoffOpen)
+  const gitAvailableRef = React.useRef(gitAvailable)
+  gitAvailableRef.current = gitAvailable
+  const refreshGenerationRef = React.useRef(0)
+
+  const clearGitEnvironment = React.useCallback((): void => {
+    setActions([])
+    setWorktrees([])
+    setProjectId(null)
+    setError(null)
+    setNotice(null)
+    setHandoff(null)
+    setHandoffOpen(false)
+    setLoading(false)
+    setBusy(false)
+  }, [])
 
   const refresh = React.useCallback(async () => {
-    const [nextActions, nextProjectId] = await Promise.all([
-      listTerminalActions(client, threadId),
-      client.projectForThread(threadId),
-    ])
-    setActions(nextActions)
-    setProjectId(nextProjectId)
-    setWorktrees(nextProjectId ? (await client.listWorktrees(nextProjectId)).worktrees : [])
+    const generation = ++refreshGenerationRef.current
+    if (!gitAvailableRef.current) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    setError(null)
+    const result = await loadGitEnvironmentProjection(
+      gitAvailableRef.current,
+      threadId,
+      {
+        listActions: targetThreadId => listTerminalActions(client, targetThreadId),
+        projectForThread: targetThreadId => client.projectForThread(targetThreadId),
+        listWorktrees: targetProjectId =>
+          client.listWorktrees(targetProjectId).then(value => value.worktrees),
+      },
+      () => generation === refreshGenerationRef.current,
+    )
+    if (result.status === 'stale') return
+    if (result.status === 'not-git') {
+      setLoading(false)
+      return
+    }
+    if (result.status === 'failed') {
+      setError(result.error)
+      setLoading(false)
+      return
+    }
+    setActions(result.snapshot.actions)
+    setProjectId(result.snapshot.projectId)
+    setWorktrees(result.snapshot.worktrees)
+    setLoading(false)
   }, [client, threadId])
 
   React.useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    void refresh()
-      .catch(cause => {
-        if (!cancelled) setError(message(cause))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => { cancelled = true }
-  }, [refresh])
+    if (gitAvailable) {
+      void refresh()
+      return
+    }
+    // Git status 尚未成功或已确认非 Git：不调用 Git 环境 RPC，清空既有
+    // actions/worktrees/遗留错误，并让在途请求的迟到结果失效。
+    refreshGenerationRef.current += 1
+    resumedThreadRef.current = null
+    clearGitEnvironment()
+  }, [clearGitEnvironment, gitAvailable, refresh])
 
   React.useEffect(() => {
-    if (!threadId || !workspacePath || resumedThreadRef.current === threadId) return
+    if (!shouldResumePendingHandoff(
+      gitAvailableRef.current,
+      threadId,
+      workspacePath,
+      resumedThreadRef.current,
+    )) return
     resumedThreadRef.current = threadId
     let cancelled = false
     setBusy(true)
@@ -128,7 +228,7 @@ export function ConversationEnvironmentControls({
       if (!cancelled) setBusy(false)
     })
     return () => { cancelled = true }
-  }, [client, threadId, workspacePath])
+  }, [client, gitAvailable, threadId, workspacePath])
 
   const executeAction = React.useCallback(async (action: LocalEnvironmentActionMetadata) => {
     setBusy(true)
@@ -228,13 +328,17 @@ export function ConversationEnvironmentControls({
       keywords: ['handoff', '移交', '迁移', 'local', 'worktree'],
       icon: <GitFork aria-hidden="true" size={APP_ICON_SIZE} />,
       order: 500,
-      availability: busy ? 'disabled' : 'available',
-      disabledReason: busy ? '另一项工作区操作正在进行中' : undefined,
+      availability: busy || !gitAvailable ? 'disabled' : 'available',
+      disabledReason: busy
+        ? '另一项工作区操作正在进行中'
+        : !gitAvailable
+          ? '仅 Git 项目可用'
+          : undefined,
       execute: () => setHandoffOpen(true),
     })
 
     return registrations
-  }, [actions, busy, executeAction, loading, threadId])
+  }, [actions, busy, executeAction, gitAvailable, loading, threadId])
 
   React.useEffect(() => {
     return registerCommandMenuActions(commandMenuActionStore, commandActions)
@@ -284,7 +388,16 @@ export function ConversationEnvironmentControls({
               </div>
             ) : (
               <div className="tw:grid tw:gap-2">
-                <Button color="secondary" disabled={busy} onClick={() => void start({ kind: 'local' })}>
+                {!gitAvailable ? (
+                  <p className="tw:m-0 tw:text-sm tw:text-app-text-soft">
+                    仅 Git 项目可用。
+                  </p>
+                ) : null}
+                <Button
+                  color="secondary"
+                  disabled={busy || !gitAvailable}
+                  onClick={() => void start({ kind: 'local' })}
+                >
                   移交到 Local
                 </Button>
                 {readyWorktrees.map(worktree => (
@@ -297,7 +410,7 @@ export function ConversationEnvironmentControls({
                     移交到 {worktree.branchName ?? worktree.id.slice(0, 8)}
                   </Button>
                 ))}
-                <Button color="secondary" disabled={!projectId || busy} onClick={() => void createWorktree()}>
+                <Button color="secondary" disabled={!projectId || busy || !gitAvailable} onClick={() => void createWorktree()}>
                   新建托管工作树…
                 </Button>
               </div>
@@ -310,7 +423,7 @@ export function ConversationEnvironmentControls({
               }}>
                 配置 Local environment…
               </Button>
-              <Button color="ghostSecondary" disabled={!projectId} onClick={() => {
+              <Button color="ghostSecondary" disabled={!projectId || !gitAvailable} onClick={() => {
                 if (!projectId) return
                 setHandoffOpen(false)
                 onOpenWorktreeSettings(projectId)

@@ -1,6 +1,7 @@
 import {
   desktopClient,
   type DesktopReviewAgentSummary,
+  type DesktopReviewAgentSummaryResult,
 } from '../../services/desktop-client/index.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
@@ -8,6 +9,8 @@ import type {
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopGitStatus,
+  DesktopGitStatusResult,
+  DesktopReviewSource,
   DesktopRuntimeStatus,
   DesktopWorkspace,
 } from '../../../shared/types.js'
@@ -104,7 +107,10 @@ export function mergeWorkspaceGitProjection(
     ...context,
     branchName,
     branches,
-    isGitRepo: gitStatus ? true : context.isGitRepo,
+    // Git status/branches/Review 全部不可用（如非 Git 项目返回
+    // REPOSITORY_NOT_FOUND）时必须投影为 isGitRepo=false，不能继承
+    // 旧会话的陈旧 Git 标记，否则会把非 Git 项目误判为 Git 项目。
+    isGitRepo: gitStatus ? true : false,
   }
 }
 
@@ -133,6 +139,59 @@ export function mergeWorkspaceReviewFileStats(
       const stats = statsByPath.get(normalizeWorkspacePath(file.path))
       return stats ? { ...file, ...stats } : file
     }),
+  }
+}
+
+export type WorkspaceGitProjectionLoaders = {
+  loadGitStatus: () => Promise<DesktopGitStatusResult>
+  loadBranches: () => Promise<readonly WorkspaceBranchRef[]>
+  loadReviewSummary: (source: DesktopReviewSource) => Promise<DesktopReviewAgentSummaryResult>
+}
+
+export type WorkspaceGitProjectionResult = {
+  workspace: DesktopWorkspace
+  gitStatus: DesktopGitStatus | null
+}
+
+export async function resolveWorkspaceGitProjection(
+  context: DesktopWorkspace,
+  loaders: WorkspaceGitProjectionLoaders,
+): Promise<WorkspaceGitProjectionResult> {
+  let gitStatusResult: DesktopGitStatusResult | null = null
+  try {
+    gitStatusResult = await loaders.loadGitStatus()
+  } catch {
+    gitStatusResult = null
+  }
+
+  // 非 Git 是受支持状态：Git status 返回 ok=false（含 REPOSITORY_NOT_FOUND）
+  // 或 reject 时直接投影为空 Git 表面，绝不继续调用 branches/Review RPC，
+  // 也无需向全局 onError 上报。
+  if (!gitStatusResult?.ok) {
+    return {
+      workspace: mergeWorkspaceGitProjection(context, null, []),
+      gitStatus: null,
+    }
+  }
+
+  const [branchesResult, unstagedResult, stagedResult] =
+    await Promise.allSettled([
+      loaders.loadBranches(),
+      loaders.loadReviewSummary({ kind: 'unstaged' }),
+      loaders.loadReviewSummary({ kind: 'staged' }),
+    ])
+  const summaries = [unstagedResult, stagedResult].map(result =>
+    result.status === 'fulfilled' ? result.value.snapshot : null,
+  )
+  const nextGitStatus = mergeWorkspaceReviewFileStats(
+    gitStatusResult.status,
+    summaries,
+  )
+  const branches =
+    branchesResult.status === 'fulfilled' ? branchesResult.value : []
+  return {
+    workspace: mergeWorkspaceGitProjection(context, nextGitStatus, branches),
+    gitStatus: nextGitStatus,
   }
 }
 
@@ -346,40 +405,21 @@ export function useWorkspaceState(
     target: DesktopWorkspace,
   ): Promise<void> {
     const identity = workspaceIdentity(target)
-    const [gitStatusResult, branchesResult, unstagedResult, stagedResult] =
-      await Promise.allSettled([
-        desktopClient.getWorkspaceGitStatus(target.path, target.projectId),
-        desktopClient.getAgentReviewBranches(target.path, target.projectId),
-        desktopClient.getAgentReviewSummary({
-          ...(target.projectId ? { projectId: target.projectId } : {}),
-          workspacePath: target.path,
-          source: { kind: 'unstaged' },
-          refresh: true,
-        }),
-        desktopClient.getAgentReviewSummary({
-          ...(target.projectId ? { projectId: target.projectId } : {}),
-          workspacePath: target.path,
-          source: { kind: 'staged' },
-          refresh: true,
-        }),
-      ])
+    const { workspace: projected, gitStatus: nextGitStatus } =
+      await resolveWorkspaceGitProjection(target, {
+        loadGitStatus: () =>
+          desktopClient.getWorkspaceGitStatus(target.path, target.projectId),
+        loadBranches: () =>
+          desktopClient.getAgentReviewBranches(target.path, target.projectId),
+        loadReviewSummary: source =>
+          desktopClient.getAgentReviewSummary({
+            ...(target.projectId ? { projectId: target.projectId } : {}),
+            workspacePath: target.path,
+            source,
+            refresh: true,
+          }),
+      })
     if (appliedWorkspaceIdentityRef.current !== identity) return
-
-    const statusResult =
-      gitStatusResult.status === 'fulfilled' ? gitStatusResult.value : null
-    const summaries = [unstagedResult, stagedResult].map(result =>
-      result.status === 'fulfilled' ? result.value.snapshot : null,
-    )
-    const nextGitStatus = statusResult?.ok
-      ? mergeWorkspaceReviewFileStats(statusResult.status, summaries)
-      : null
-    const branches =
-      branchesResult.status === 'fulfilled' ? branchesResult.value : []
-    const projected = mergeWorkspaceGitProjection(
-      target,
-      nextGitStatus,
-      branches,
-    )
     setWorkspaceState(projected)
     setGitStatus(nextGitStatus)
     onRecentWorkspacesChangeRef.current(current =>

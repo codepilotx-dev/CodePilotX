@@ -103,6 +103,38 @@ export function resolveActiveComposerSkillToken(
   ) ?? null
 }
 
+export type ResolveComposerCanSubmitInput = {
+  workingPluginSkillUnavailable: boolean
+  hasContent: boolean
+  hasAttachmentErrors: boolean
+  unsupportedAttachmentReason: string | null
+  modelConfigured: boolean
+  isSubmitting: boolean
+  placement: ComposerPlacement
+  routedSessionId: string | null
+}
+
+export function resolveComposerCanSubmit({
+  workingPluginSkillUnavailable,
+  hasContent,
+  hasAttachmentErrors,
+  unsupportedAttachmentReason,
+  modelConfigured,
+  isSubmitting,
+  placement,
+  routedSessionId,
+}: ResolveComposerCanSubmitInput): boolean {
+  return (
+    !workingPluginSkillUnavailable &&
+    hasContent &&
+    !hasAttachmentErrors &&
+    !unsupportedAttachmentReason &&
+    modelConfigured &&
+    !isSubmitting &&
+    (placement === 'new-session' || Boolean(routedSessionId))
+  )
+}
+
 export function useDesktopComposerController({
   input,
   messages,
@@ -183,16 +215,20 @@ export function useDesktopComposerController({
     attachments,
     selectedModelMetadata,
   )
-  const canSubmit =
-    !workingPluginSkillUnavailable &&
-    (Boolean(input.trim()) ||
-      attachments.length > 0 ||
-      activeSkillToken !== null) &&
-    !hasAttachmentErrors &&
-    !unsupportedAttachmentReason &&
-    modelConfigured &&
-    !isSubmitting &&
-    (placement === 'new-session' || Boolean(routedSessionId))
+  const hasComposerContent =
+    Boolean(input.trim()) ||
+    attachments.length > 0 ||
+    activeSkillToken !== null
+  const canSubmit = resolveComposerCanSubmit({
+    workingPluginSkillUnavailable,
+    hasContent: hasComposerContent,
+    hasAttachmentErrors,
+    unsupportedAttachmentReason,
+    modelConfigured,
+    isSubmitting,
+    placement,
+    routedSessionId,
+  })
   const attachmentIds = useMemo(
     () => new Set(attachments.map(attachment => attachment.id)),
     [attachments],

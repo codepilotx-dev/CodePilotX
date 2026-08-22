@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { DesktopWorkspace } from '../shared/types.js'
 import { ComposerCard } from '../src/features/session/composer/ComposerCard.js'
 import type { ComposerSkillCommand } from '../src/features/session/composer/composerSlashCommands.js'
-import { resolveActiveComposerSkillToken } from '../src/features/session/composer/useDesktopComposerController.js'
+import {
+  resolveActiveComposerSkillToken,
+  resolveComposerCanSubmit,
+} from '../src/features/session/composer/useDesktopComposerController.js'
 
 type ComposerCardProps = Parameters<typeof ComposerCard>[0]
 
@@ -205,4 +208,58 @@ describe('composer surface variant', () => {
     expect(html).toContain('选择工作插件')
     expect(html).not.toContain('取消工作插件')
   })
+
+  test('Composer 发送门禁不依赖 Git/Review 状态，非 Git 项目仍可提交', () => {
+    expect(resolveComposerCanSubmit(canSubmitInput())).toBe(true)
+    expect(
+      resolveComposerCanSubmit(
+        canSubmitInput({ placement: 'new-session', routedSessionId: null }),
+      ),
+    ).toBe(true)
+    expect(
+      resolveComposerCanSubmit(
+        canSubmitInput({
+          workingPluginSkillUnavailable: true,
+          placement: 'new-session',
+          routedSessionId: null,
+        }),
+      ),
+    ).toBe(false)
+  })
+
+  test('模型未配置与空输入仍禁止提交', () => {
+    expect(
+      resolveComposerCanSubmit(canSubmitInput({ hasContent: false })),
+    ).toBe(false)
+    expect(
+      resolveComposerCanSubmit(canSubmitInput({ modelConfigured: false })),
+    ).toBe(false)
+    expect(
+      resolveComposerCanSubmit(
+        canSubmitInput({ placement: 'thread', routedSessionId: null }),
+      ),
+    ).toBe(false)
+    expect(
+      resolveComposerCanSubmit(canSubmitInput({ isSubmitting: true })),
+    ).toBe(false)
+    expect(
+      resolveComposerCanSubmit(canSubmitInput({ hasAttachmentErrors: true })),
+    ).toBe(false)
+  })
 })
+
+function canSubmitInput(
+  overrides: Partial<Parameters<typeof resolveComposerCanSubmit>[0]> = {},
+): Parameters<typeof resolveComposerCanSubmit>[0] {
+  return {
+    workingPluginSkillUnavailable: false,
+    hasContent: true,
+    hasAttachmentErrors: false,
+    unsupportedAttachmentReason: null,
+    modelConfigured: true,
+    isSubmitting: false,
+    placement: 'thread',
+    routedSessionId: 'session-1',
+    ...overrides,
+  }
+}
