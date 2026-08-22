@@ -34,6 +34,7 @@
 
 ### Changed
 
+- [desktop/renderer] 为任务详情属性布局预留不可见的负责人扩展插槽，不引入未实现的负责人字段或持久化。
 - [desktop/renderer] 统一任务“待整理”术语，明确打开、继续与新建主会话的启动动作，并在甘特图增加独立未排期区域。
 - [desktop/renderer] 将 Skill 选择统一为 Composer 内联 token；内置扩展跳转产品详情，工作区和用户 Skill 在右侧只读打开 SKILL.md。
 - [desktop/renderer] 将 Working“规划任务”入口接入真实 Skill 调用链，并为 Composer 与 Skills 设置增加统一任务规划图标。

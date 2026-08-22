@@ -410,6 +410,10 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .taskboard-edit-form__primary-properties[data-has-assignee='true'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .taskboard-gantt {
     position: relative;
     flex: 1;

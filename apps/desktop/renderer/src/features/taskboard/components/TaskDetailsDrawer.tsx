@@ -52,6 +52,26 @@ type Props = {
   onSetPrimaryThread: (taskId: string, threadId: string) => Promise<void>
 }
 
+type TaskboardTaskPropertiesProps = {
+  statusField: React.ReactNode
+  assigneeSlot?: React.ReactNode
+  priorityField: React.ReactNode
+}
+
+function TaskboardTaskProperties({
+  statusField,
+  assigneeSlot,
+  priorityField,
+}: TaskboardTaskPropertiesProps): React.ReactNode {
+  return (
+    <div className="taskboard-edit-form__primary-properties" data-has-assignee={assigneeSlot ? 'true' : undefined}>
+      {statusField}
+      {assigneeSlot ? <div className="taskboard-edit-form__assignee-slot">{assigneeSlot}</div> : null}
+      {priorityField}
+    </div>
+  )
+}
+
 export function TaskDetailsDrawer({
   open,
   detail,
@@ -314,14 +334,14 @@ export function TaskDetailsDrawer({
                 <h3>属性</h3>
               </div>
                 <form className="taskboard-edit-form taskboard-edit-form--properties" onSubmit={event => { event.preventDefault(); void saveTask() }}>
-                  <div>
-                    <label><span>阶段</span><select disabled={taskMutationReadOnly || pending} value={status} onChange={event => {
+                  <TaskboardTaskProperties
+                    statusField={<label><span>阶段</span><select disabled={taskMutationReadOnly || pending} value={status} onChange={event => {
                       const nextStatus = event.currentTarget.value as TaskboardWorkflowStatus
                       setStatus(nextStatus)
                       void onMove(task.id, nextStatus)
-                    }}>{TASKBOARD_ALL_COLUMNS.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></label>
-                    <label><span>优先级</span><select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>{(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>)}</select></label>
-                  </div>
+                    }}>{TASKBOARD_ALL_COLUMNS.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></label>}
+                    priorityField={<label><span>优先级</span><select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>{(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>)}</select></label>}
+                  />
                   <div>
                     <label><span>开始日期</span><input type="date" value={startDate} onChange={event => setStartDate(event.currentTarget.value)} /></label>
                     <label><span>截止日期</span><input type="date" value={dueDate} onChange={event => setDueDate(event.currentTarget.value)} /></label>

@@ -211,6 +211,8 @@ describe('taskboard board structure', () => {
     )
     expect(editable).toContain('开始执行')
     expect(editable).not.toContain('项目已移除，仅可查看任务内容和历史记录。')
+    expect(editable).not.toContain('taskboard-edit-form__assignee-slot')
+    expect(editable).not.toContain('负责人')
 
     const readOnly = renderToStaticMarkup(
       <TaskDetailsDrawer {...base} readOnly />,
