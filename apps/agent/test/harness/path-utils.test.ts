@@ -6,7 +6,7 @@ import {
 	relativeEnvPath,
 	trimLeadingEnvPathSeparators,
 	trimTrailingEnvPathSeparators,
-} from "../src/harness/path-utils.ts";
+} from "../../src/prompt/harness/path-utils.ts";
 
 describe("linear environment path helpers", () => {
 	test("normalizes long attacker-controlled separator runs", () => {

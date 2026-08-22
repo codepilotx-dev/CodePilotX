@@ -6,7 +6,7 @@ import {
 	type SessionMetadata,
 	type SessionStorage,
 	type SessionTreeEntry,
-} from "../types.ts";
+} from "../../orchestration/harness/types.ts";
 
 function updateLabelCache(labelsById: Map<string, string>, entry: SessionTreeEntry): void {
 	if (entry.type !== "label") return;

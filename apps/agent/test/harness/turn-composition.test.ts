@@ -8,7 +8,7 @@ import {
 	validateDeferredActivation,
 	type HarnessCompositionIdentity,
 	type HarnessToolComposition,
-} from "../src/index.ts";
+} from "../../src/orchestration/harness/turn-composition.ts";
 import type { Model } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 

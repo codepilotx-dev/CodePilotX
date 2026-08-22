@@ -1,6 +1,6 @@
 import type { ImageContent, TextContent, Usage } from "@earendil-works/pi-ai";
-import type { AgentMessage } from "../../types.ts";
-import { createBranchSummaryMessage, createCompactionSummaryMessage, createCustomMessage } from "../messages.ts";
+import type { AgentMessage } from "../../orchestration/harness/agent-types.ts";
+import { createBranchSummaryMessage, createCompactionSummaryMessage, createCustomMessage } from "../../orchestration/harness/messages.ts";
 import type {
 	ActiveToolsChangeEntry,
 	BranchSummaryEntry,
@@ -18,8 +18,8 @@ import type {
 	SessionStorage,
 	SessionTreeEntry,
 	ThinkingLevelChangeEntry,
-} from "../types.ts";
-import { SessionError } from "../types.ts";
+} from "../../orchestration/harness/types.ts";
+import { SessionError } from "../../orchestration/harness/types.ts";
 
 export type ContextEntryTransform = (entries: readonly SessionTreeEntry[]) => readonly SessionTreeEntry[];
 
@@ -272,12 +272,12 @@ export class Session<TMetadata extends SessionMetadata = SessionMetadata> {
 			parentId: await this.storage.getLeafId(),
 			timestamp: new Date().toISOString(),
 			summary,
-			firstKeptEntryId,
+			...(firstKeptEntryId !== undefined ? { firstKeptEntryId } : {}),
 			tokensBefore,
-			retainedTail,
-			details,
-			usage,
-			fromHook,
+			...(retainedTail !== undefined ? { retainedTail } : {}),
+			...(details !== undefined ? { details } : {}),
+			...(usage !== undefined ? { usage } : {}),
+			...(fromHook !== undefined ? { fromHook } : {}),
 		} satisfies CompactionEntry<T>);
 	}
 
@@ -306,7 +306,7 @@ export class Session<TMetadata extends SessionMetadata = SessionMetadata> {
 			customType,
 			content,
 			display,
-			details,
+			...(details !== undefined ? { details } : {}),
 		} satisfies CustomMessageEntry<T>);
 	}
 
@@ -351,9 +351,9 @@ export class Session<TMetadata extends SessionMetadata = SessionMetadata> {
 			timestamp: new Date().toISOString(),
 			fromId: entryId ?? "root",
 			summary: summary.summary,
-			details: summary.details,
-			usage: summary.usage,
-			fromHook: summary.fromHook,
+			...(summary.details !== undefined ? { details: summary.details } : {}),
+			...(summary.usage !== undefined ? { usage: summary.usage } : {}),
+			...(summary.fromHook !== undefined ? { fromHook: summary.fromHook } : {}),
 		} satisfies BranchSummaryEntry);
 	}
 }

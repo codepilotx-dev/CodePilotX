@@ -19,9 +19,9 @@ import type {
 	QueueMode,
 	ThinkingLevel,
 	ToolExecutionMode,
-} from "../index.ts";
-import type { DeferredToolCatalog } from "./deferred-tool-catalog.ts";
-import type { Session } from "./session/session.ts";
+} from "./agent-types.ts";
+import type { DeferredToolCatalog } from "../../tool/harness/deferred-tool-catalog.ts";
+import type { Session } from "../../storage/pi-session/session.ts";
 
 /** Result of a fallible operation. Expected failures are returned as `ok: false` instead of thrown. */
 export type Result<TValue, TError> = { ok: true; value: TValue } | { ok: false; error: TError };
@@ -165,7 +165,7 @@ export class FileError extends Error {
 	/** Backend-independent error code. */
 	public code: FileErrorCode;
 	/** Absolute addressed path associated with the failure, when available. */
-	public path?: string;
+	public path: string | undefined;
 
 	constructor(code: FileErrorCode, message: string, path?: string, cause?: Error) {
 		super(message, cause === undefined ? undefined : { cause });
@@ -516,7 +516,7 @@ export interface SessionStorage<TMetadata extends SessionMetadata = SessionMetad
 	getEntries(options?: SessionEntryCursorOptions): Promise<SessionTreeEntry[]>;
 }
 
-export type { Session } from "./session/session.ts";
+export type { Session } from "../../storage/pi-session/session.ts";
 
 export interface SessionCreateOptions {
 	id?: string;
@@ -581,6 +581,14 @@ export interface SavePointEvent {
 	activeToolNames: string[];
 }
 
+export interface TurnCompositionEvent {
+	type: "turn_composition";
+	compositionId: string;
+	compositionHash: string;
+	stepIndex: number;
+	activeToolNames: string[];
+}
+
 export interface AbortEvent {
 	type: "abort";
 	clearedSteer: AgentMessage[];
@@ -598,7 +606,7 @@ export interface BeforeAgentStartEvent<
 > {
 	type: "before_agent_start";
 	prompt: string;
-	images?: ImageContent[];
+	images?: ImageContent[] | undefined;
 	systemPrompt: string;
 	resources: AgentHarnessResources<TSkill, TPromptTemplate>;
 }
@@ -642,16 +650,16 @@ export interface ToolResultEvent {
 	content: Array<TextContent | ImageContent>;
 	details: unknown;
 	isError: boolean;
-	usage?: Usage;
-	structuredContent?: unknown;
-	progress?: AgentToolProgress;
+	usage?: Usage | undefined;
+	structuredContent?: unknown | undefined;
+	progress?: AgentToolProgress | undefined;
 }
 
 export interface SessionBeforeCompactEvent {
 	type: "session_before_compact";
 	preparation: CompactionPreparation;
 	branchEntries: SessionTreeEntry[];
-	customInstructions?: string;
+	customInstructions?: string | undefined;
 	signal: AbortSignal;
 }
 
@@ -671,7 +679,7 @@ export interface SessionTreeEvent {
 	type: "session_tree";
 	newLeafId: string | null;
 	oldLeafId: string | null;
-	summaryEntry?: BranchSummaryEntry;
+	summaryEntry?: BranchSummaryEntry | undefined;
 	fromHook?: boolean;
 }
 
@@ -732,6 +740,7 @@ export type AgentHarnessOwnEvent<
 	| QueueUpdateEvent
 	| QueueConsumedEvent
 	| SavePointEvent
+	| TurnCompositionEvent
 	| AbortEvent
 	| SettledEvent
 	| BeforeAgentStartEvent<TSkill, TPromptTemplate>
@@ -780,13 +789,13 @@ export interface ToolCallResult {
 }
 
 export interface ToolResultPatch {
-	content?: Array<TextContent | ImageContent>;
-	details?: unknown;
-	isError?: boolean;
-	usage?: Usage;
-	terminate?: boolean;
-	structuredContent?: unknown;
-	progress?: AgentToolProgress;
+	content?: Array<TextContent | ImageContent> | undefined;
+	details?: unknown | undefined;
+	isError?: boolean | undefined;
+	usage?: Usage | undefined;
+	terminate?: boolean | undefined;
+	structuredContent?: unknown | undefined;
+	progress?: AgentToolProgress | undefined;
 }
 
 export interface SessionBeforeCompactResult {
@@ -829,6 +838,7 @@ export type AgentHarnessEventResultMap = {
 	queue_update: undefined;
 	queue_consumed: undefined;
 	save_point: undefined;
+	turn_composition: undefined;
 	abort: undefined;
 	settled: undefined;
 };
@@ -854,8 +864,8 @@ export interface CompactResult {
 
 export interface NavigateTreeResult {
 	cancelled: boolean;
-	editorText?: string;
-	summaryEntry?: BranchSummaryEntry;
+	editorText?: string | undefined;
+	summaryEntry?: BranchSummaryEntry | undefined;
 }
 
 export interface CompactionSettings {
@@ -888,19 +898,19 @@ export interface TreePreparation {
 	commonAncestorId: string | null;
 	entriesToSummarize: SessionTreeEntry[];
 	userWantsSummary: boolean;
-	customInstructions?: string;
-	replaceInstructions?: boolean;
-	label?: string;
+	customInstructions?: string | undefined;
+	replaceInstructions?: boolean | undefined;
+	label?: string | undefined;
 }
 
 export interface GenerateBranchSummaryOptions {
 	model: Model<any>;
 	apiKey: string;
-	headers?: Record<string, string>;
+	headers?: Record<string, string> | undefined;
 	signal: AbortSignal;
-	customInstructions?: string;
-	replaceInstructions?: boolean;
-	reserveTokens?: number;
+	customInstructions?: string | undefined;
+	replaceInstructions?: boolean | undefined;
+	reserveTokens?: number | undefined;
 }
 
 export interface BranchSummaryResult {

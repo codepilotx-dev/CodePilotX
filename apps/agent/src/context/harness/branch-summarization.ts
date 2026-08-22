@@ -1,14 +1,14 @@
 import { contentText, type Model, type Models, type RetryCallbacks, type RetryPolicy } from "@earendil-works/pi-ai";
 
-import type { AgentMessage } from "../../types.ts";
+import type { AgentMessage } from "../../orchestration/harness/agent-types.ts";
 import {
 	convertToLlm,
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "../messages.ts";
-import type { BranchSummaryResult, Session, SessionTreeEntry } from "../types.ts";
-import { BranchSummaryError, err, ok, type Result, SessionError } from "../types.ts";
+} from "../../orchestration/harness/messages.ts";
+import type { BranchSummaryResult, Session, SessionTreeEntry } from "../../orchestration/harness/types.ts";
+import { BranchSummaryError, err, ok, type Result, SessionError } from "../../orchestration/harness/types.ts";
 import { completeSimpleWithRetries, estimateTokens, SUMMARIZATION_SYSTEM_PROMPT } from "./compaction.ts";
 import {
 	computeFileLists,
@@ -17,7 +17,7 @@ import {
 	type FileOperations,
 	formatFileOperations,
 	serializeConversation,
-} from "./utils.ts";
+} from "./compaction-utils.ts";
 
 /** File-operation details stored on generated branch summary entries. */
 export interface BranchSummaryDetails {
@@ -27,7 +27,7 @@ export interface BranchSummaryDetails {
 	modifiedFiles: string[];
 }
 
-export type { FileOperations } from "./utils.ts";
+export type { FileOperations } from "./compaction-utils.ts";
 
 /** Prepared branch content for summarization. */
 export interface BranchPreparation {
@@ -80,8 +80,9 @@ export async function collectEntriesForBranchSummary(
 	const targetPath = await session.getBranch(targetId);
 	let commonAncestorId: string | null = null;
 	for (let i = targetPath.length - 1; i >= 0; i--) {
-		if (oldPath.has(targetPath[i].id)) {
-			commonAncestorId = targetPath[i].id;
+		const entry = targetPath[i];
+		if (entry && oldPath.has(entry.id)) {
+			commonAncestorId = entry.id;
 			break;
 		}
 	}
@@ -143,6 +144,7 @@ export function prepareBranchEntries(entries: SessionTreeEntry[], tokenBudget: n
 	}
 	for (let i = entries.length - 1; i >= 0; i--) {
 		const entry = entries[i];
+		if (!entry) continue;
 		const message = getMessageFromEntry(entry);
 		if (!message) continue;
 		extractFileOpsFromMessage(message, fileOps);

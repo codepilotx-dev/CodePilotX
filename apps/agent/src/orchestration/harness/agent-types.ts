@@ -85,18 +85,18 @@ export interface BeforeToolCallResult {
  * There is no deep merge for `content`, `details`, or `usage`.
  */
 export interface AfterToolCallResult {
-	content?: (TextContent | ImageContent)[];
-	details?: unknown;
-	structuredContent?: unknown;
-	progress?: AgentToolProgress;
-	isError?: boolean;
+	content?: (TextContent | ImageContent)[] | undefined;
+	details?: unknown | undefined;
+	structuredContent?: unknown | undefined;
+	progress?: AgentToolProgress | undefined;
+	isError?: boolean | undefined;
 	/** Usage from the final tool execution itself, if available. Not used for main LLM context accounting. */
-	usage?: Usage;
+	usage?: Usage | undefined;
 	/**
 	 * Hint that the agent should stop after the current tool batch.
 	 * Early termination only happens when every finalized tool result in the batch sets this to true.
 	 */
-	terminate?: boolean;
+	terminate?: boolean | undefined;
 }
 
 /** Context passed to `beforeToolCall`. */

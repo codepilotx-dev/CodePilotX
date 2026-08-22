@@ -1,5 +1,5 @@
 import type { Model } from "@earendil-works/pi-ai";
-import type { ThinkingLevel } from "../index.ts";
+import type { ThinkingLevel } from "./agent-types.ts";
 import type { AgentHarnessStreamOptions, AgentHarnessTool, AgentHarnessResources } from "./types.ts";
 import type { Skill, PromptTemplate } from "./types.ts";
 
@@ -115,8 +115,8 @@ function cloneStreamOptions(options?: AgentHarnessStreamOptions): Readonly<Agent
 	if (!options) return undefined;
 	return Object.freeze({
 		...options,
-		headers: options.headers ? Object.freeze({ ...options.headers }) : undefined,
-		metadata: options.metadata ? Object.freeze({ ...options.metadata }) : undefined,
+		...(options.headers ? { headers: Object.freeze({ ...options.headers }) } : {}),
+		...(options.metadata ? { metadata: Object.freeze({ ...options.metadata }) } : {}),
 	});
 }
 

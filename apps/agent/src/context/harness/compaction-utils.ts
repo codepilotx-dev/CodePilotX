@@ -1,5 +1,5 @@
 import { contentText, type Message } from "@earendil-works/pi-ai";
-import type { AgentMessage } from "../../types.ts";
+import type { AgentMessage } from "../../orchestration/harness/agent-types.ts";
 
 /** File paths touched by a session branch or compaction range. */
 export interface FileOperations {

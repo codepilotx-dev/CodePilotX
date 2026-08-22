@@ -6,7 +6,7 @@ import {
 	type SessionMetadata,
 	type SessionStorage,
 	type SessionTreeEntry,
-} from "../types.ts";
+} from "../../orchestration/harness/types.ts";
 import { Session } from "./session.ts";
 
 export function createSessionId(): string {

@@ -1,4 +1,4 @@
-import type { AgentTool } from "../types.ts";
+import type { AgentTool } from "../../orchestration/harness/agent-types.ts";
 
 interface NamedTool {
 	name: string;
@@ -39,6 +39,10 @@ export class DeferredToolCatalog<TTool extends NamedTool = AgentTool> {
 
 	has(name: string): boolean {
 		return this.entries.has(name);
+	}
+
+	names(): string[] {
+		return [...this.entries.keys()];
 	}
 
 	search(query: string, limit = 20): DeferredToolSummary[] {

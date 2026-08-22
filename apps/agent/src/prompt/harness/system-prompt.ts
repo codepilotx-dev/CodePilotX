@@ -1,4 +1,4 @@
-import type { Skill } from "./types.ts";
+import type { Skill } from "../../orchestration/harness/types.ts";
 
 export function formatSkillsForSystemPrompt(skills: Skill[]): string {
 	const visibleSkills = skills.filter((skill) => !skill.disableModelInvocation);

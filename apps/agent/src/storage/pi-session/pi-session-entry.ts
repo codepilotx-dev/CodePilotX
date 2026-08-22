@@ -1,7 +1,7 @@
 import {
   SessionError,
   type SessionTreeEntry,
-} from "@codepilotx/pi-agent-core"
+} from "../../orchestration/harness/types"
 
 export type PiSessionEntryRow = {
   id: string

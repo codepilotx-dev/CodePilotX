@@ -13,15 +13,15 @@ import {
 	type Usage,
 	uuidv7,
 } from "@earendil-works/pi-ai";
-import type { AgentMessage, ThinkingLevel } from "../../types.ts";
+import type { AgentMessage, ThinkingLevel } from "../../orchestration/harness/agent-types.ts";
 import {
 	convertToLlm,
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "../messages.ts";
-import { buildSessionContext } from "../session/session.ts";
-import { type CompactionEntry, CompactionError, err, ok, type Result, type SessionTreeEntry } from "../types.ts";
+} from "../../orchestration/harness/messages.ts";
+import { buildSessionContext } from "../../storage/pi-session/session.ts";
+import { type CompactionEntry, CompactionError, err, ok, type Result, type SessionTreeEntry } from "../../orchestration/harness/types.ts";
 import {
 	computeFileLists,
 	createFileOps,
@@ -29,7 +29,7 @@ import {
 	type FileOperations,
 	formatFileOperations,
 	serializeConversation,
-} from "./utils.ts";
+} from "./compaction-utils.ts";
 
 /** File-operation details stored on generated compaction entries. */
 export interface CompactionDetails {
@@ -200,6 +200,7 @@ function getAssistantUsage(msg: AgentMessage): Usage | undefined {
 export function getLastAssistantUsage(entries: SessionTreeEntry[]): Usage | undefined {
 	for (let i = entries.length - 1; i >= 0; i--) {
 		const entry = entries[i];
+		if (!entry) continue;
 		if (entry.type === "message") {
 			const usage = getAssistantUsage(entry.message as AgentMessage);
 			if (usage) return usage;
@@ -222,7 +223,9 @@ export interface ContextUsageEstimate {
 
 function getLastAssistantUsageInfo(messages: AgentMessage[]): { usage: Usage; index: number } | undefined {
 	for (let i = messages.length - 1; i >= 0; i--) {
-		const usage = getAssistantUsage(messages[i]);
+		const message = messages[i];
+		if (!message) continue;
+		const usage = getAssistantUsage(message);
 		if (usage) return { usage, index: i };
 	}
 	return undefined;
@@ -248,7 +251,8 @@ export function estimateContextTokens(messages: AgentMessage[]): ContextUsageEst
 	const usageTokens = calculateContextTokens(usageInfo.usage);
 	let trailingTokens = 0;
 	for (let i = usageInfo.index + 1; i < messages.length; i++) {
-		trailingTokens += estimateTokens(messages[i]);
+		const message = messages[i];
+		if (message) trailingTokens += estimateTokens(message);
 	}
 
 	return {
@@ -329,6 +333,7 @@ function findValidCutPoints(entries: SessionTreeEntry[], startIndex: number, end
 	const cutPoints: number[] = [];
 	for (let i = startIndex; i < endIndex; i++) {
 		const entry = entries[i];
+		if (!entry) continue;
 		switch (entry.type) {
 			case "message": {
 				const role = entry.message.role;
@@ -369,6 +374,7 @@ function findValidCutPoints(entries: SessionTreeEntry[], startIndex: number, end
 export function findTurnStartIndex(entries: SessionTreeEntry[], entryIndex: number, startIndex: number): number {
 	for (let i = entryIndex; i >= startIndex; i--) {
 		const entry = entries[i];
+		if (!entry) continue;
 		if (entry.type === "branch_summary" || entry.type === "custom_message") {
 			return i;
 		}
@@ -405,17 +411,19 @@ export function findCutPoint(
 		return { firstKeptEntryIndex: startIndex, turnStartIndex: -1, isSplitTurn: false };
 	}
 	let accumulatedTokens = 0;
-	let cutIndex = cutPoints[0];
+	let cutIndex = cutPoints[0]!;
 
 	for (let i = endIndex - 1; i >= startIndex; i--) {
 		const entry = entries[i];
+		if (!entry) continue;
 		if (entry.type !== "message") continue;
 		const messageTokens = estimateTokens(entry.message as AgentMessage);
 		accumulatedTokens += messageTokens;
 		if (accumulatedTokens >= keepRecentTokens) {
 			for (let c = 0; c < cutPoints.length; c++) {
-				if (cutPoints[c] >= i) {
-					cutIndex = cutPoints[c];
+				const candidate = cutPoints[c];
+				if (candidate !== undefined && candidate >= i) {
+					cutIndex = candidate;
 					break;
 				}
 			}
@@ -424,6 +432,7 @@ export function findCutPoint(
 	}
 	while (cutIndex > startIndex) {
 		const prevEntry = entries[cutIndex - 1];
+		if (!prevEntry) break;
 		if (prevEntry.type === "compaction") {
 			break;
 		}
@@ -433,7 +442,7 @@ export function findCutPoint(
 		cutIndex--;
 	}
 	const cutEntry = entries[cutIndex];
-	const isUserMessage = cutEntry.type === "message" && cutEntry.message.role === "user";
+	const isUserMessage = cutEntry?.type === "message" && cutEntry.message.role === "user";
 	const turnStartIndex = isUserMessage ? -1 : findTurnStartIndex(entries, cutIndex, startIndex);
 
 	return {
@@ -586,8 +595,8 @@ export async function generateSummaryWithUsage(
 
 	const completionOptions =
 		model.reasoning && thinkingLevel && thinkingLevel !== "off"
-			? { maxTokens, signal, reasoning: thinkingLevel }
-			: { maxTokens, signal };
+			? { maxTokens, ...(signal ? { signal } : {}), reasoning: thinkingLevel }
+			: { maxTokens, ...(signal ? { signal } : {}) };
 
 	const response = await completeSimpleWithRetries(
 		models,
@@ -641,13 +650,13 @@ export function prepareCompaction(
 	pathEntries: SessionTreeEntry[],
 	settings: CompactionSettings,
 ): Result<CompactionPreparation | undefined, CompactionError> {
-	if (pathEntries.length === 0 || pathEntries[pathEntries.length - 1].type === "compaction") {
+	if (pathEntries.length === 0 || pathEntries.at(-1)?.type === "compaction") {
 		return ok(undefined);
 	}
 
 	let prevCompactionIndex = -1;
 	for (let i = pathEntries.length - 1; i >= 0; i--) {
-		if (pathEntries[i].type === "compaction") {
+		if (pathEntries[i]?.type === "compaction") {
 			prevCompactionIndex = i;
 			break;
 		}
@@ -677,19 +686,25 @@ export function prepareCompaction(
 	const historyEnd = cutPoint.isSplitTurn ? cutPoint.turnStartIndex : cutPoint.firstKeptEntryIndex;
 	const messagesToSummarize: AgentMessage[] = [];
 	for (let i = boundaryStart; i < historyEnd; i++) {
-		const msg = getMessageFromEntryForCompaction(pathEntries[i]);
+		const entry = pathEntries[i];
+		if (!entry) continue;
+		const msg = getMessageFromEntryForCompaction(entry);
 		if (msg) messagesToSummarize.push(msg);
 	}
 	const turnPrefixMessages: AgentMessage[] = [];
 	if (cutPoint.isSplitTurn) {
 		for (let i = cutPoint.turnStartIndex; i < cutPoint.firstKeptEntryIndex; i++) {
-			const msg = getMessageFromEntryForCompaction(pathEntries[i]);
+			const entry = pathEntries[i];
+			if (!entry) continue;
+			const msg = getMessageFromEntryForCompaction(entry);
 			if (msg) turnPrefixMessages.push(msg);
 		}
 	}
 	const retainedTail: AgentMessage[] = [];
 	for (let i = cutPoint.firstKeptEntryIndex; i < boundaryEnd; i++) {
-		const msg = getMessageFromEntryForCompaction(pathEntries[i]);
+		const entry = pathEntries[i];
+		if (!entry) continue;
+		const msg = getMessageFromEntryForCompaction(entry);
 		if (msg) retainedTail.push(msg);
 	}
 	const fileOps = extractFileOperations(messagesToSummarize, pathEntries, prevCompactionIndex);
@@ -706,7 +721,7 @@ export function prepareCompaction(
 		retainedTail,
 		isSplitTurn: cutPoint.isSplitTurn,
 		tokensBefore,
-		previousSummary,
+		...(previousSummary !== undefined ? { previousSummary } : {}),
 		fileOps,
 		settings,
 	});
@@ -727,7 +742,7 @@ Summarize the prefix to provide context for the retained suffix:
 
 Be concise. Focus on what's needed to understand the kept suffix.`;
 
-export { serializeConversation } from "./utils.ts";
+export { serializeConversation } from "./compaction-utils.ts";
 
 /** Generate compaction summary data from prepared session history. */
 export async function compact(
@@ -851,8 +866,8 @@ async function generateTurnPrefixSummary(
 
 	const completionOptions =
 		model.reasoning && thinkingLevel && thinkingLevel !== "off"
-			? { maxTokens, signal, reasoning: thinkingLevel }
-			: { maxTokens, signal };
+			? { maxTokens, ...(signal ? { signal } : {}), reasoning: thinkingLevel }
+			: { maxTokens, ...(signal ? { signal } : {}) };
 	const response = await completeSimpleWithRetries(
 		models,
 		model,

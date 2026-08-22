@@ -1,17 +1,15 @@
 import {
-  Session,
   SessionError,
-  createSessionId,
-  createTimestamp,
-  getEntriesToFork,
   type SessionEntryCursorOptions,
   type SessionMetadata,
   type SessionRepo,
   type SessionStats,
   type SessionStorage,
   type SessionTreeEntry,
-} from "@codepilotx/pi-agent-core"
-import type { AgentDatabase } from "./database/AgentDatabase"
+} from "../../orchestration/harness/types"
+import { Session } from "./session"
+import { createSessionId, createTimestamp, getEntriesToFork } from "./repo-utils"
+import type { AgentDatabase } from "../database/AgentDatabase"
 import { parsePiSessionEntry } from "./pi-session-entry"
 
 export interface SqlitePiSessionMetadata extends SessionMetadata {

@@ -1,7 +1,7 @@
 import ignore from "ignore";
 import { parse } from "yaml";
 import { basenameEnvPath, dirnameEnvPath, joinEnvPath, relativeEnvPath } from "./path-utils.ts";
-import { type ExecutionEnv, type FileInfo, type Result, type Skill, toError } from "./types.ts";
+import { type ExecutionEnv, type FileInfo, type Result, type Skill, toError } from "../../orchestration/harness/types.ts";
 
 const MAX_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 1024;

@@ -1,12 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import {
-	Agent,
-	AgentHarness,
-	DeferredToolCatalog,
-	InMemorySessionRepo,
-	type AgentHarnessTool,
-	type AgentTool,
-} from "../src/index.ts";
+import { AgentHarness } from "../../src/orchestration/harness/agent-harness.ts";
+import type { AgentHarnessTool } from "../../src/orchestration/harness/types.ts";
+import type { AgentTool } from "../../src/orchestration/harness/agent-types.ts";
+import { DeferredToolCatalog } from "../../src/tool/harness/deferred-tool-catalog.ts";
+import { InMemorySessionRepo } from "../../src/storage/pi-session/memory-repo.ts";
 import {
 	Type,
 	createModels,
@@ -23,49 +20,6 @@ function setupProvider(responses: Parameters<ReturnType<typeof fauxProvider>["se
 	models.setProvider(faux.provider);
 	return { faux, models };
 }
-
-describe("dynamic tool execution", () => {
-	test("resolves mode from prepared and schema-validated input", async () => {
-		let running = 0;
-		let maxRunning = 0;
-		const resolverInputs: unknown[] = [];
-		const parameters = Type.Object({ serial: Type.Boolean() });
-		const createTool = (name: string): AgentTool<typeof parameters> => ({
-			name,
-			label: name,
-			description: name,
-			parameters,
-			prepareArguments: (input) => ({ serial: Boolean((input as { requiresSerial?: boolean }).requiresSerial) }),
-			execute: async () => {
-				running += 1;
-				maxRunning = Math.max(maxRunning, running);
-				await new Promise((resolve) => setTimeout(resolve, 10));
-				running -= 1;
-				return { structuredContent: { ok: true } };
-			},
-		});
-		const tools = [createTool("first"), createTool("second")];
-		const { faux, models } = setupProvider([
-			fauxAssistantMessage(
-				[fauxToolCall("first", { requiresSerial: true }), fauxToolCall("second", { requiresSerial: false })],
-				{ stopReason: "toolUse" },
-			),
-			fauxAssistantMessage("done"),
-		]);
-		const agent = new Agent({
-			initialState: { model: faux.getModel(), tools },
-			streamFn: models.streamSimple.bind(models),
-			toolExecution: async (input) => {
-				resolverInputs.push(input);
-				return (input as { serial: boolean }).serial ? "sequential" : "parallel";
-			},
-		});
-
-		await agent.prompt("run");
-		expect(resolverInputs).toEqual([{ serial: true }, { serial: false }]);
-		expect(maxRunning).toBe(1);
-	});
-});
 
 describe("DeferredToolCatalog", () => {
 	test("searches metadata without loading and resolves exact names once", async () => {
@@ -125,6 +79,7 @@ describe("AgentHarness deferred activation", () => {
 		};
 		const firstSetup = setupProvider([
 			fauxAssistantMessage(fauxToolCall("discover", {}), { stopReason: "toolUse" }),
+			fauxAssistantMessage(fauxToolCall("discover", {}), { stopReason: "toolUse" }),
 			fauxAssistantMessage("activated"),
 		]);
 		const repo = new InMemorySessionRepo();
@@ -139,17 +94,21 @@ describe("AgentHarness deferred activation", () => {
 		});
 		const updates: unknown[] = [];
 		const savePoints: string[][] = [];
+		const compositionTools: string[][] = [];
 		harness.subscribe((event) => {
 			if (event.type === "tool_execution_update") updates.push(event.partialResult);
 			if (event.type === "save_point") savePoints.push(event.activeToolNames);
+			if (event.type === "turn_composition") compositionTools.push(event.activeToolNames);
 		});
 
 		await harness.prompt("discover");
 		expect(harness.getActiveToolNames()).toEqual(["discover", "deferred"]);
 		expect(updates).toEqual([
 			{ progress: { current: 1, total: 2, message: "searching" }, structuredContent: { phase: 1 } },
+			{ progress: { current: 1, total: 2, message: "searching" }, structuredContent: { phase: 1 } },
 		]);
 		expect(savePoints.at(-1)).toEqual(["discover", "deferred"]);
+		expect(compositionTools.at(-1)).toEqual(["deferred", "discover"]);
 		expect((await session.buildContext()).activeToolNames).toEqual(["discover", "deferred"]);
 
 		let restoredProviderTools: string[] = [];
@@ -172,6 +131,61 @@ describe("AgentHarness deferred activation", () => {
 		expect(restoredProviderTools).toEqual(["discover", "deferred"]);
 		expect(restored.getActiveToolNames()).toEqual(["discover", "deferred"]);
 		expect(deferredToolContext).toEqual({ workspace: "restored" });
+	});
+
+	test("rejects activation outside the current turn deferred envelope", async () => {
+		const discover: AgentHarnessTool<undefined> = {
+			name: "discover",
+			label: "Discover",
+			description: "Returns an unregistered tool name",
+			parameters: Type.Object({}),
+			execute: async () => ({ addedToolNames: ["not-in-envelope"] }),
+		};
+		const setup = setupProvider([
+			fauxAssistantMessage(fauxToolCall("discover", {}), { stopReason: "toolUse" }),
+		]);
+		const repo = new InMemorySessionRepo();
+		const session = await repo.create({ id: crypto.randomUUID() });
+		const harness = new AgentHarness({
+			session,
+			models: setup.models,
+			model: setup.faux.getModel(),
+			tools: [discover],
+		});
+
+		const result = await harness.prompt("discover");
+		expect(result.stopReason).toBe("error");
+		expect(result.errorMessage).toContain("Deferred activation not allowed");
+	});
+});
+
+describe("AgentHarness turn composition", () => {
+		test("resolves an async system prompt at each turn boundary, never in the constructor", async () => {
+		let resolutions = 0;
+		const setup = setupProvider([
+			fauxAssistantMessage("first"),
+			fauxAssistantMessage("second"),
+		]);
+		const repo = new InMemorySessionRepo();
+		const session = await repo.create({ id: crypto.randomUUID() });
+		const harness = new AgentHarness({
+			session,
+			models: setup.models,
+			model: setup.faux.getModel(),
+			systemPrompt: async () => `dynamic-${++resolutions}`,
+		});
+		const compositionIds: string[] = [];
+		harness.subscribe((event) => {
+			if (event.type === "turn_composition") compositionIds.push(event.compositionId);
+		});
+
+		expect(resolutions).toBe(0);
+		await harness.prompt("first");
+		expect(resolutions).toBe(1);
+		await harness.prompt("second");
+		expect(resolutions).toBe(2);
+		expect(compositionIds).toHaveLength(2);
+		expect(compositionIds[0]).not.toBe(compositionIds[1]);
 	});
 });
 

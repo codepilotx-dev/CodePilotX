@@ -19,8 +19,9 @@ import type {
 	AgentTool,
 	AgentToolCall,
 	AgentToolResult,
+	PrepareNextTurnContext,
 	StreamFn,
-} from "./types.ts";
+} from "./agent-types.ts";
 
 export type AgentEventSink = (event: AgentEvent) => Promise<void> | void;
 
@@ -71,7 +72,7 @@ export function agentLoopContinue(
 		throw new Error("Cannot continue: no messages in context");
 	}
 
-	if (context.messages[context.messages.length - 1].role === "assistant") {
+	if (context.messages.at(-1)!.role === "assistant") {
 		throw new Error("Cannot continue from message role: assistant");
 	}
 
@@ -128,7 +129,7 @@ export async function runAgentLoopContinue(
 		throw new Error("Cannot continue: no messages in context");
 	}
 
-	if (context.messages[context.messages.length - 1].role === "assistant") {
+	if (context.messages.at(-1)!.role === "assistant") {
 		throw new Error("Cannot continue from message role: assistant");
 	}
 
@@ -163,6 +164,16 @@ async function runLoop(
 	let currentContext = initialContext;
 	let config = initialConfig;
 	let firstTurn = true;
+	let lastCompletedTurn: PrepareNextTurnContext | undefined;
+	const prepareNextTurn = async (turn: PrepareNextTurnContext) => {
+		const snapshot = await config.prepareNextTurn?.(turn);
+		if (!snapshot) return;
+		currentContext = snapshot.context ?? currentContext;
+		const nextConfig: AgentLoopConfig = { ...config, model: snapshot.model ?? config.model };
+		if (snapshot.thinkingLevel === "off") delete nextConfig.reasoning;
+		else if (snapshot.thinkingLevel !== undefined) nextConfig.reasoning = snapshot.thinkingLevel;
+		config = nextConfig;
+	};
 	// Check for steering messages at start (user may have typed while waiting)
 	let pendingMessages: AgentMessage[] = (await config.getSteeringMessages?.()) || [];
 
@@ -229,20 +240,7 @@ async function runLoop(
 				context: currentContext,
 				newMessages,
 			};
-			const nextTurnSnapshot = await config.prepareNextTurn?.(nextTurnContext);
-			if (nextTurnSnapshot) {
-				currentContext = nextTurnSnapshot.context ?? currentContext;
-				config = {
-					...config,
-					model: nextTurnSnapshot.model ?? config.model,
-					reasoning:
-						nextTurnSnapshot.thinkingLevel === undefined
-							? config.reasoning
-							: nextTurnSnapshot.thinkingLevel === "off"
-								? undefined
-								: nextTurnSnapshot.thinkingLevel,
-				};
-			}
+			lastCompletedTurn = nextTurnContext;
 
 			if (
 				await config.shouldStopAfterTurn?.({
@@ -257,11 +255,13 @@ async function runLoop(
 			}
 
 			pendingMessages = (await config.getSteeringMessages?.()) || [];
+			if (hasMoreToolCalls || pendingMessages.length > 0) await prepareNextTurn(nextTurnContext);
 		}
 
 		// Agent would stop here. Check for follow-up messages.
 		const followUpMessages = (await config.getFollowUpMessages?.()) || [];
 		if (followUpMessages.length > 0) {
+			if (lastCompletedTurn) await prepareNextTurn(lastCompletedTurn);
 			// Set as pending so inner loop processes them
 			pendingMessages = followUpMessages;
 			continue;
@@ -298,18 +298,19 @@ async function streamAssistantResponse(
 	const llmContext: Context = {
 		systemPrompt: context.systemPrompt,
 		messages: llmMessages,
-		tools: context.tools,
+		...(context.tools !== undefined ? { tools: context.tools } : {}),
 	};
 
 	// Resolve API key (important for expiring tokens)
 	const resolvedApiKey =
 		(config.getApiKey ? await config.getApiKey(config.model.provider) : undefined) || config.apiKey;
 
-	const response = await streamFunction(config.model, llmContext, {
+	const streamOptions = {
 		...config,
-		apiKey: resolvedApiKey,
-		signal,
-	});
+		...(resolvedApiKey !== undefined ? { apiKey: resolvedApiKey } : {}),
+		...(signal !== undefined ? { signal } : {}),
+	};
+	const response = await streamFunction(config.model, llmContext, streamOptions);
 
 	let partialMessage: AssistantMessage | null = null;
 	let addedPartial = false;
@@ -789,12 +790,12 @@ async function finalizeExecutedToolCall(
 			if (afterResult) {
 				result = {
 					...result,
-					content: afterResult.content ?? result.content,
-					details: afterResult.details ?? result.details,
-					structuredContent: afterResult.structuredContent ?? result.structuredContent,
-					progress: afterResult.progress ?? result.progress,
-					usage: afterResult.usage ?? result.usage,
-					terminate: afterResult.terminate ?? result.terminate,
+					...(afterResult.content !== undefined ? { content: afterResult.content } : {}),
+					...(afterResult.details !== undefined ? { details: afterResult.details } : {}),
+					...(afterResult.structuredContent !== undefined ? { structuredContent: afterResult.structuredContent } : {}),
+					...(afterResult.progress !== undefined ? { progress: afterResult.progress } : {}),
+					...(afterResult.usage !== undefined ? { usage: afterResult.usage } : {}),
+					...(afterResult.terminate !== undefined ? { terminate: afterResult.terminate } : {}),
 				};
 				isError = afterResult.isError ?? isError;
 			}
@@ -837,7 +838,7 @@ function createToolResultMessage(finalized: FinalizedToolCallOutcome): ToolResul
 		// so the null never enters session history or provider payloads.
 		content: finalized.result.content ?? [],
 		details: finalized.result.details ?? finalized.result.structuredContent,
-		usage: finalized.result.usage,
+		...(finalized.result.usage !== undefined ? { usage: finalized.result.usage } : {}),
 		...(finalized.result.addedToolNames?.length ? { addedToolNames: finalized.result.addedToolNames } : {}),
 		isError: finalized.isError,
 		timestamp: Date.now(),
