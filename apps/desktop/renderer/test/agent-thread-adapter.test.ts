@@ -123,7 +123,7 @@ describe('agent thread adapter', () => {
 
   test('maps native snapshot text, plan, tool, patch, approval, and question', () => {
     const snapshot: ThreadSnapshot = {
-      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, gitBranch: 'dev', workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
+      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, gitBranch: 'dev', workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, archivedAt: 1_700_000_007_000, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
         model: { providerID: 'deepseek', id: 'deepseek-chat' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
@@ -162,6 +162,7 @@ describe('agent thread adapter', () => {
     expect(desktop.item.model).toBe('deepseek-chat')
     expect(desktop.item.planModeActive).toBe(true)
     expect(desktop.item.permissionMode).toBe('auto-review')
+    expect(desktop.item.archivedAt).toBe('2023-11-14T22:13:27.000Z')
     expect(desktop.view.messages.map(message => message.text)).toContain('实现历史对话')
     expect(desktop.view.messages.map(message => message.text)).toContain('可以开始。')
     expect(desktop.view.toolLog).toHaveLength(2)

@@ -89,9 +89,11 @@ describe("Thread 历史", () => {
     expect(typeof renamed.archivedAt).toBe("number")
     expect(projection.list({ projectID: project.id, archived: false })).toEqual([])
     expect(projection.list({ projectID: project.id, archived: true }).map((item) => item.id)).toEqual([thread.id])
+    expect(projection.snapshot(thread.id)?.thread.archivedAt).toBe(renamed.archivedAt)
 
     const active = await history.patch(thread.id, { archived: false })
     expect(active.archivedAt).toBeNull()
+    expect(projection.snapshot(thread.id)?.thread.archivedAt).toBeNull()
     db.createTurn(thread.id, input("# 这是一个用于验证重置行为的非常长的首条用户消息"))
     const reset = await history.patch(thread.id, { title: null })
     expect(reset.title).toBe("这是一个用于验证重置行为的非常长的首条…")

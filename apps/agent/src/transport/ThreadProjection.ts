@@ -263,6 +263,7 @@ export class ThreadProjection {
           approvalsReviewer: String(row.approvals_reviewer) as Thread["settings"]["permissionConfig"]["approvalsReviewer"],
         },
       },
+      archivedAt: row.archived_at == null ? null : Number(row.archived_at),
       createdAt: Number(row.created_at),
       updatedAt: Number(row.updated_at),
     }
@@ -271,8 +272,8 @@ export class ThreadProjection {
   private projectThread(threadId: string): Thread | null {
     const { creationSurface: columnExists } = probeThreadsStorageCapabilities(this.db.sqlite)
     const sql = columnExists
-      ? "SELECT id, title, project_id, git_branch, creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?"
-      : "SELECT id, title, project_id, git_branch, NULL AS creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?"
+      ? "SELECT id, title, project_id, git_branch, creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, archived_at, created_at, updated_at FROM threads WHERE id = ?"
+      : "SELECT id, title, project_id, git_branch, NULL AS creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, archived_at, created_at, updated_at FROM threads WHERE id = ?"
     const threadRow = this.db.sqlite.query(sql).get(threadId) as Record<string, string | number | null> | null
     if (!threadRow) return null
     return this.projectThreadRow(threadRow, this.db.threadWorkspace(threadId) ?? undefined)

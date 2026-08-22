@@ -156,6 +156,7 @@ export function agentThreadSnapshotToDesktop(
     gitBranch: snapshot.thread.gitBranch,
     creationSurface: snapshot.thread.creationSurface,
     standalone,
+    archivedAt: isoOrNull(snapshot.thread.archivedAt),
     permissionMode: permissionModeFromPermissionConfig(snapshot.thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,

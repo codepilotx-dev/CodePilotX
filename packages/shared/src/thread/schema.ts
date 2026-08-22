@@ -115,6 +115,7 @@ export const ThreadSchema = Schema.Struct({
   creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
   workspace: Schema.optional(ThreadWorkspaceSchema),
   settings: ThreadSettingsSchema,
+  archivedAt: Schema.optional(Schema.NullOr(Schema.Number)),
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 })
