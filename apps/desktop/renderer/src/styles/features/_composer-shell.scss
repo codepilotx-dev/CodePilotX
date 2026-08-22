@@ -145,6 +145,11 @@
       var(--cpx-comp-dropdown-menu-bg)
     );
   }
+
+  .composer-editor-content {
+    font-size: var(--cpx-sys-font-size-lg);
+    line-height: var(--cpx-sys-line-height-reading);
+  }
 }
 
 /* Working 新建页的工作插件：选中状态与菜单底部说明 */
@@ -485,34 +490,52 @@
   }
 }
 
-.composer-skill-token {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--control-gap-compact);
-  padding: 0.2em 0.5em 0.2em 0.35em;
-  margin-top: 9px;
-  flex-shrink: 0;
-  border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-sys-color-selected);
-  color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-xs);
+.composer-inline-skill-token {
+  display: inline;
+  padding-inline: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(
+    in srgb,
+    var(--cpx-sys-color-accent) 80%,
+    var(--cpx-sys-color-fg-primary) 20%
+  );
+  box-decoration-break: clone;
+  font-size: inherit;
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--control-line-height);
+  line-height: inherit;
+  vertical-align: baseline;
   white-space: nowrap;
   user-select: none;
+
+  &:hover .composer-inline-skill-token-label {
+    text-decoration: underline dashed;
+    text-decoration-thickness: 0.5px;
+    text-underline-offset: 2px;
+  }
 }
 
-.composer-skill-token-icon {
+.composer-inline-skill-token-icon,
+.composer-inline-skill-token-fallback-icon {
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 3px;
+  border-radius: 3px;
+  object-fit: cover;
+  vertical-align: text-bottom;
+}
+
+.composer-inline-skill-token-fallback-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  color: var(--cpx-sys-color-accent);
 }
 
-.composer-skill-token-label {
-  white-space: nowrap;
+.composer-inline-skill-token:is(.ProseMirror-selectednode, :focus-visible) {
+  border-radius: var(--cpx-sys-radius-md);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--cpx-sys-color-accent);
 }
 
 .composer .icon-button {

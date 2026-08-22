@@ -94,6 +94,7 @@ export type ComposerTokenKind =
 export type ComposerDocumentToken = {
   id: string
   kind: ComposerTokenKind
+  name?: string
   label: string
   value: string
   from: number

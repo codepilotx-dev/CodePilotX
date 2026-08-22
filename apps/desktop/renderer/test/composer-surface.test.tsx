@@ -191,7 +191,7 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('选择分支')
   })
 
-  test('Working 选择规划任务插件后芯片显示选中状态', () => {
+  test('Working 选择规划任务后底栏保持通用插件入口', () => {
     const html = renderToStaticMarkup(
       <ComposerCard
         {...composerCardProps({
@@ -202,7 +202,7 @@ describe('composer surface variant', () => {
         })}
       />,
     )
-    expect(html).toContain('规划任务')
-    expect(html).toContain('取消工作插件')
+    expect(html).toContain('选择工作插件')
+    expect(html).not.toContain('取消工作插件')
   })
 })

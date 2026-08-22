@@ -7,8 +7,13 @@ import {
 } from 'prosemirror-history'
 import { baseKeymap, splitBlock } from 'prosemirror-commands'
 import { keymap } from 'prosemirror-keymap'
-import { Schema } from 'prosemirror-model'
-import { AllSelection, EditorState, TextSelection } from 'prosemirror-state'
+import { Schema, type Node as ProseMirrorNode } from 'prosemirror-model'
+import {
+  AllSelection,
+  EditorState,
+  NodeSelection,
+  TextSelection,
+} from 'prosemirror-state'
 import type { Transaction } from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
 import {
@@ -18,12 +23,53 @@ import {
   useRef,
 } from 'react'
 import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
+import type { ComposerDocument, ComposerDocumentToken } from './composerTypes.js'
+import { composerDocumentsEqual } from './composerSkillToken.js'
+import taskboardPlannerIcon from '../../../assets/builtin-skills/taskboard-planner.png'
 
 export const composerSchema = new Schema({
   nodes: {
     doc: { content: 'paragraph+' },
-    paragraph: { content: 'text*', toDOM: () => ['p', 0] },
-    text: { inline: true },
+    paragraph: { content: 'inline*', toDOM: () => ['p', 0] },
+    text: { group: 'inline' },
+    skill_token: {
+      atom: true,
+      attrs: {
+        id: { default: '' },
+        name: { default: '' },
+        label: { default: '' },
+        value: { default: '' },
+      },
+      group: 'inline',
+      inline: true,
+      selectable: true,
+      toDOM: node => {
+        const name = String(node.attrs.name || node.attrs.label)
+        return ['span', {
+          'aria-label': `技能 ${node.attrs.label}`,
+          'data-composer-token': 'skill',
+          'data-token-id': node.attrs.id,
+          'data-token-skill': node.attrs.label,
+          contenteditable: 'false',
+          role: 'link',
+          tabindex: '0',
+          class: 'composer-inline-skill-token',
+        },
+        name === 'taskboard-planner'
+          ? ['img', {
+              alt: '',
+              'aria-hidden': 'true',
+              class: 'composer-inline-skill-token-icon',
+              src: taskboardPlannerIcon,
+            }]
+          : ['span', {
+              'aria-hidden': 'true',
+              class: 'composer-inline-skill-token-fallback-icon',
+            }, '✦'],
+        ['span', { class: 'composer-inline-skill-token-label' }, String(node.attrs.label)],
+        ]
+      },
+    },
   },
 })
 
@@ -34,12 +80,15 @@ export type ComposerEditorHandle = {
 
 export type ComposerEditorProps = {
   value: string
+  document?: ComposerDocument
   placeholder: string
   ariaControls?: string
   ariaDescribedBy?: string
   ariaActiveDescendant?: string
   ariaExpanded: boolean
   onChange: (value: string) => void
+  onDocumentChange?: (document: ComposerDocument) => void
+  onTokenActivate?: (token: ComposerDocumentToken) => void
   onSelectionChange: (offset: number) => void
   onCompositionChange: (composing: boolean) => void
   onKeyDown: (event: KeyboardEvent) => boolean
@@ -50,12 +99,15 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
   function ComposerEditor(
     {
       value,
+      document,
       placeholder,
       ariaControls,
       ariaDescribedBy,
       ariaActiveDescendant,
       ariaExpanded,
       onChange,
+      onDocumentChange,
+      onTokenActivate,
       onSelectionChange,
       onCompositionChange,
       onKeyDown,
@@ -68,6 +120,8 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
     const viewRef = useRef<EditorView | null>(null)
     const callbacksRef = useRef({
       onChange,
+      onDocumentChange,
+      onTokenActivate,
       onSelectionChange,
       onCompositionChange,
       onKeyDown,
@@ -76,6 +130,8 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
 
     callbacksRef.current = {
       onChange,
+      onDocumentChange,
+      onTokenActivate,
       onSelectionChange,
       onCompositionChange,
       onKeyDown,
@@ -96,8 +152,15 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       const mount = mountRef.current
       if (!mount) return
 
+      const initialDocument = composerDocumentToProseMirrorDocument(
+        document ?? { text: value, tokens: [] },
+      )
       const state = EditorState.create({
-        doc: documentFromText(value),
+        doc: initialDocument,
+        selection: TextSelection.create(
+          initialDocument,
+          positionAtTextOffset(initialDocument, 0),
+        ),
         plugins: [
           history(),
           keymap({
@@ -124,7 +187,14 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
           view.updateState(nextState)
           const documentChanged = transaction.steps.length > 0
           if (documentChanged) {
-            callbacksRef.current.onChange(textFromDocument(nextState.doc))
+            const nextDocument = composerDocumentFromProseMirrorDocument(
+              nextState.doc,
+            )
+            if (callbacksRef.current.onDocumentChange) {
+              callbacksRef.current.onDocumentChange(nextDocument)
+            } else {
+              callbacksRef.current.onChange(nextDocument.text)
+            }
           }
           if (transaction.selectionSet || documentChanged) {
             callbacksRef.current.onSelectionChange(
@@ -132,7 +202,26 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
             )
           }
         },
-        handleKeyDown: (_view, event) => callbacksRef.current.onKeyDown(event),
+        handleKeyDown: (_view, event) => {
+          if (
+            (event.key === 'Enter' || event.key === ' ') &&
+            view.state.selection instanceof NodeSelection
+          ) {
+            const token = composerTokenFromNode(view.state.selection.node)
+            if (token && callbacksRef.current.onTokenActivate) {
+              event.preventDefault()
+              callbacksRef.current.onTokenActivate(token)
+              return true
+            }
+          }
+          return callbacksRef.current.onKeyDown(event)
+        },
+        handleClickOn: (_view, _pos, node) => {
+          const token = composerTokenFromNode(node)
+          if (!token || !callbacksRef.current.onTokenActivate) return false
+          callbacksRef.current.onTokenActivate(token)
+          return true
+        },
         handlePaste: (_view, event) => {
           const files = event.clipboardData?.files
           return files && files.length > 0
@@ -209,29 +298,42 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
 
     useEffect(() => {
       const view = viewRef.current
-      if (!view || textFromDocument(view.state.doc) === value) return
+      const nextDocument = document ?? { text: value, tokens: [] }
+      if (
+        !view ||
+        composerDocumentsEqual(
+          composerDocumentFromProseMirrorDocument(view.state.doc),
+          nextDocument,
+        )
+      ) return
 
       const previousOffset = textOffsetAtPosition(
         view.state,
         view.state.selection.from,
       )
-      const nextDocument = documentFromText(value)
+      const nextProseMirrorDocument = composerDocumentToProseMirrorDocument(
+        nextDocument,
+      )
       const nextState = EditorState.create({
-        doc: nextDocument,
+        doc: nextProseMirrorDocument,
         plugins: view.state.plugins,
         selection: TextSelection.create(
-          nextDocument,
-          positionAtTextOffset(nextDocument, previousOffset),
+          nextProseMirrorDocument,
+          positionAtTextOffset(nextProseMirrorDocument, previousOffset),
         ),
       })
       view.updateState(nextState)
-    }, [value])
+    }, [document, value])
 
     useEffect(() => {
       const dom = viewRef.current?.dom
       if (!dom) return
       dom.setAttribute('data-placeholder', placeholder)
-      dom.classList.toggle('is-empty', value.length === 0)
+      const nextDocument = document ?? { text: value, tokens: [] }
+      dom.classList.toggle(
+        'is-empty',
+        nextDocument.text.length === 0 && nextDocument.tokens.length === 0,
+      )
       dom.setAttribute('aria-expanded', String(ariaExpanded))
       dom.setAttribute('aria-haspopup', 'menu')
       setOptionalAttribute(dom, 'aria-controls', ariaControls)
@@ -247,6 +349,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       ariaDescribedBy,
       ariaExpanded,
       placeholder,
+      document,
       value,
     ])
 
@@ -254,13 +357,26 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
   },
 )
 
-function documentFromText(value: string) {
-  const paragraphs = value.split('\n').map((line) =>
-    composerSchema.nodes.paragraph.create(
-      null,
-      line ? composerSchema.text(line) : undefined,
-    ),
-  )
+export function composerDocumentToProseMirrorDocument(
+  document: ComposerDocument,
+) {
+  const skillToken = document.tokens.find(token => token.kind === 'skill')
+  const paragraphs = document.text.split('\n').map((line, index) => {
+    const content: ProseMirrorNode[] = []
+    if (index === 0) {
+      if (skillToken) {
+        const token = skillToken
+        content.push(composerSchema.nodes.skill_token.create({
+          id: token.id,
+          name: token.name ?? token.label,
+          label: token.label,
+          value: token.value,
+        }))
+      }
+    }
+    if (line) content.push(composerSchema.text(line))
+    return composerSchema.nodes.paragraph.create(null, content)
+  })
   return composerSchema.nodes.doc.create(null, paragraphs)
 }
 
@@ -271,8 +387,54 @@ export function insertTextTransaction(
   return state.tr.insertText(text, state.selection.from, state.selection.to)
 }
 
+export function composerDocumentFromProseMirrorDocument(
+  doc: EditorState['doc'],
+): ComposerDocument {
+  const lines: string[] = []
+  const tokens: ComposerDocumentToken[] = []
+  let textOffset = 0
+
+  doc.forEach((paragraph, paragraphIndex) => {
+    let line = ''
+    paragraph.forEach(node => {
+      const token = composerTokenFromNode(node)
+      if (token) {
+        if (tokens.length === 0) {
+          tokens.push({
+            ...token,
+            from: textOffset + line.length,
+            to: textOffset + line.length,
+          })
+        }
+        return
+      }
+      line += node.textContent
+    })
+    lines.push(line)
+    textOffset += line.length
+    if (paragraphIndex < doc.childCount - 1) textOffset += 1
+  })
+
+  return { text: lines.join('\n'), tokens }
+}
+
 function textFromDocument(doc: EditorState['doc']): string {
-  return doc.textBetween(0, doc.content.size, '\n')
+  return composerDocumentFromProseMirrorDocument(doc).text
+}
+
+function composerTokenFromNode(
+  node: ProseMirrorNode,
+): ComposerDocumentToken | null {
+  if (node.type.name !== 'skill_token') return null
+  return {
+    id: String(node.attrs.id),
+    kind: 'skill',
+    name: String(node.attrs.name || node.attrs.label),
+    label: String(node.attrs.label),
+    value: String(node.attrs.value),
+    from: 0,
+    to: 0,
+  }
 }
 
 function textOffsetAtPosition(state: EditorState, position: number): number {
@@ -285,13 +447,34 @@ function positionAtTextOffset(doc: EditorState['doc'], offset: number): number {
 
   doc.forEach((paragraph, paragraphOffset) => {
     if (remaining < 0) return
-    const length = paragraph.textContent.length
-    if (remaining <= length) {
-      result = paragraphOffset + 1 + remaining
+    let inlinePosition = paragraphOffset + 1
+
+    paragraph.forEach(node => {
+      if (remaining < 0) return
+      const token = composerTokenFromNode(node)
+      if (token) {
+        inlinePosition += node.nodeSize
+        return
+      }
+
+      const length = node.textContent.length
+      if (remaining <= length) {
+        result = inlinePosition + remaining
+        remaining = -1
+        return
+      }
+      remaining -= length
+      inlinePosition += node.nodeSize
+    })
+
+    if (remaining < 0) return
+    if (remaining === 0) {
+      result = inlinePosition
       remaining = -1
       return
     }
-    remaining -= length + 1
+
+    remaining -= 1
     result = paragraphOffset + paragraph.nodeSize - 1
   })
 

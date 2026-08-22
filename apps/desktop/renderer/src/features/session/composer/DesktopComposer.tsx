@@ -24,6 +24,7 @@ import type {
   ComposerDeliveryIntent,
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
+  ComposerDocument,
   ComposerPlacement,
   ComposerSubmitShortcut,
   ComposerSurface,
@@ -64,6 +65,7 @@ export type DesktopComposerProps = {
   workingPlugin?: WorkingPlugin | null
   onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void
   onWorkingPluginAvailabilityChange?: (available: boolean) => void
+  onSkillTokenActivate?: (skill: { name: string; path: string }) => void
   placeholder?: string
   routedSessionId: string | null
   sessionStatus: DesktopSessionStatus
@@ -170,6 +172,7 @@ export function DesktopComposer({
   workingPlugin,
   onWorkingPluginChange,
   onWorkingPluginAvailabilityChange,
+  onSkillTokenActivate,
   placeholder: placeholderOverride,
   routedSessionId,
   sessionStatus,
@@ -253,6 +256,7 @@ export function DesktopComposer({
     handleAddFiles,
     handleCommandError,
     handleCompact,
+    handleComposerDocumentChange,
     handleOpenFiles,
     handleRemoveAttachment,
     handleSkillDeselect,
@@ -264,7 +268,8 @@ export function DesktopComposer({
     isSubmitting,
     lastSubmitOutcome,
     permissionOptions,
-    selectedSkillToken,
+    activeSkillToken,
+    composerDocument,
     setGoalModeEnabled,
     skillCommands,
     taskPlanningAvailable,
@@ -327,6 +332,13 @@ export function DesktopComposer({
     handleSkillSelect(skill)
   }
 
+  function handleComposerDocumentChangeWithInput(
+    document: ComposerDocument,
+  ): void {
+    handleComposerDocumentChange(document)
+    onInputChange(document.text)
+  }
+
   return (
     <ComposerCard
       draftKey={draftKey}
@@ -374,7 +386,8 @@ export function DesktopComposer({
       workspace={workspace}
       attachments={attachments}
       skillCommands={skillCommands}
-      selectedSkillToken={selectedSkillToken ?? undefined}
+      document={composerDocument}
+      selectedSkillToken={activeSkillToken ?? undefined}
       hasConversationMessages={hasConversationMessages}
       placeholder={
         placeholderOverride ??
@@ -386,6 +399,8 @@ export function DesktopComposer({
       }
       onChooseWorkspace={() => void onChooseWorkspace()}
       onInputChange={onInputChange}
+      onDocumentChange={handleComposerDocumentChangeWithInput}
+      onSkillTokenActivate={onSkillTokenActivate}
       onCompositionStart={handleCompositionStart}
       onCompositionEnd={handleCompositionEnd}
       onInterrupt={() => void onInterrupt()}
@@ -412,7 +427,6 @@ export function DesktopComposer({
       onCommandError={handleCommandError}
       onThinkingChange={onThinkingChange}
       onSkillSelect={handleSkillSelectWithWorkingPluginClear}
-      onSkillDeselect={handleSkillDeselect}
       routedSessionId={routedSessionId}
       contextDropdownSide="top"
       queuedFollowUps={queuedFollowUps}

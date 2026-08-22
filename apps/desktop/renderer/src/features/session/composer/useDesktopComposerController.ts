@@ -28,6 +28,10 @@ import { createComposerDocument } from './composerTypes.js'
 import { executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
 import { composerDraftStore } from './composerDraftStore.js'
 import {
+  createComposerDocumentWithSkill,
+  skillInvocationFromComposerDocument,
+} from './composerSkillToken.js'
+import {
   skillToComposerCommand,
   type ComposerSkillCommand,
 } from './composerSlashCommands.js'
@@ -155,6 +159,22 @@ export function useDesktopComposerController({
     selectedSkillToken,
     skillCommands,
   )
+  const activeSkillInvocation = useMemo(
+    () =>
+      activeSkillToken
+        ? {
+            name: activeSkillToken.skill.name,
+            path: activeSkillToken.skill.path,
+          }
+        : undefined,
+    [activeSkillToken?.skill.name, activeSkillToken?.skill.path],
+  )
+  const composerDocument = useMemo(
+    () => activeSkillInvocation
+      ? createComposerDocumentWithSkill(input, activeSkillInvocation)
+      : undefined,
+    [activeSkillInvocation?.name, activeSkillInvocation?.path, input],
+  )
   const workingPluginSkillUnavailable =
     workingPlugin === 'task-planning' && taskPlanningSkill === undefined
 
@@ -245,11 +265,18 @@ export function useDesktopComposerController({
     composerDraftStore.update(draftKey, current => ({
       ...current,
       clientId: draftClientIdRef.current,
-      document: createComposerDocument(input),
+      document: composerDocument ?? createComposerDocument(input),
       attachments,
+      skillInvocation: activeSkillInvocation,
       collaborationMode: planModeActive ? 'plan' : 'default',
     }))
-  }, [attachments, draftKey, input, planModeActive])
+  }, [
+    activeSkillInvocation,
+    attachments,
+    composerDocument,
+    draftKey,
+    planModeActive,
+  ])
 
   useEffect(() => {
     if (workingPlugin !== 'task-planning' || !selectedSkillToken) return
@@ -400,14 +427,9 @@ export function useDesktopComposerController({
 
     const draft: ComposerDraft = {
       clientId: draftClientIdRef.current,
-      document: createComposerDocument(input),
+      document: composerDocument ?? createComposerDocument(input),
       attachments,
-      skillInvocation: activeSkillToken
-        ? {
-            name: activeSkillToken.skill.name,
-            path: activeSkillToken.skill.path,
-          }
-        : undefined,
+      skillInvocation: activeSkillInvocation,
       collaborationMode: planModeActive ? 'plan' : 'default',
     }
     const isNewSession = placement === 'new-session'
@@ -583,6 +605,15 @@ export function useDesktopComposerController({
     handleCompact,
     handleOpenFiles,
     handleRemoveAttachment,
+    handleComposerDocumentChange: (document: ComposerDraft['document']) => {
+      const skillInvocation = skillInvocationFromComposerDocument(document)
+      if (sameSkillInvocation(skillInvocation, activeSkillInvocation)) return
+      composerDraftStore.setSkillInvocation(draftKey, skillInvocation ?? undefined)
+      setSelectedSkillToken(
+        restoreSkillToken(skillInvocation ?? undefined, skillCommands),
+      )
+      if (!skillInvocation && workingPlugin) onWorkingPluginChange?.(null)
+    },
     handleSkillDeselect: () => {
       composerDraftStore.setSkillInvocation(draftKey, undefined)
       setSelectedSkillToken(null)
@@ -610,6 +641,8 @@ export function useDesktopComposerController({
       composerDraftStore.getSubmitOutcome(draftKey) ?? lastSubmitOutcome,
     permissionOptions,
     selectedSkillToken,
+    activeSkillToken,
+    composerDocument,
     setGoalModeEnabled,
     skillCommands,
     taskPlanningAvailable: runtimeSkillsLoaded && taskPlanningSkill !== undefined,
@@ -717,6 +750,13 @@ function restoreSkillToken(
       scope: command?.skill.scope ?? 'repo',
     },
   }
+}
+
+function sameSkillInvocation(
+  left: ComposerDraft['skillInvocation'] | null | undefined,
+  right: ComposerDraft['skillInvocation'] | null | undefined,
+): boolean {
+  return left?.name === right?.name && left?.path === right?.path
 }
 
 function nextAttachmentGeneration(

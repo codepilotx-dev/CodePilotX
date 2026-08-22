@@ -84,6 +84,7 @@ import {
   DEFAULT_COMPOSER_CAPABILITIES,
   isInlineComposerFailure,
   type ComposerCapabilities,
+  type ComposerDocument,
   type ComposerDraftKey,
   type ComposerDeliveryIntent,
   type ComposerPlacement,
@@ -92,6 +93,10 @@ import {
   type ComposerSurface,
   type WorkingPlugin,
 } from "./composerTypes.js";
+import {
+  createComposerDocumentWithSkill,
+  skillInvocationFromComposerToken,
+} from './composerSkillToken.js';
 import {
   getActiveSkillTokenQuery,
   isSlashCommandQuery,
@@ -272,11 +277,14 @@ type Props = {
   recentWorkspaces: DesktopWorkspace[];
   workspace: DesktopWorkspace | null;
   attachments?: DesktopComposerAttachment[];
+  document?: ComposerDocument;
   skillCommands?: ComposerSkillCommand[];
   selectedSkillToken?: ComposerSkillCommand;
   placeholder?: string;
   onChooseWorkspace: () => void;
   onInputChange: (value: string) => void;
+  onDocumentChange?: (document: ComposerDocument) => void;
+  onSkillTokenActivate?: (skill: { name: string; path: string }) => void;
   onInterrupt: () => void;
   onProviderModelChange: (
     providerID: ModelProviderID,
@@ -308,7 +316,6 @@ type Props = {
   onCommandError?: (message: string) => void;
   onThinkingChange: (value: DesktopThinkingMode) => void;
   onSkillSelect?: (skill: ComposerSkillCommand) => void;
-  onSkillDeselect?: () => void;
   hasConversationMessages?: boolean;
   routedSessionId?: string | null;
   contextDropdownSide?: "top" | "bottom";
@@ -384,11 +391,14 @@ export function ComposerCard({
   recentWorkspaces,
   workspace,
   attachments = [],
+  document,
   skillCommands = [],
   selectedSkillToken,
   placeholder = "随心输入",
   onChooseWorkspace,
   onInputChange,
+  onDocumentChange,
+  onSkillTokenActivate,
   onInterrupt,
   onProviderModelChange,
   onProviderOpen,
@@ -413,7 +423,6 @@ export function ComposerCard({
   onCommandError,
   onThinkingChange,
   onSkillSelect,
-  onSkillDeselect,
   hasConversationMessages = false,
   routedSessionId,
   contextDropdownSide: contextDropdownSideOverride,
@@ -530,6 +539,15 @@ export function ComposerCard({
     />
   ) : (
     <Blocks size={APP_ICON_SIZE} />
+  );
+  const composerDocument = useMemo(
+    () => document ?? (selectedSkillToken
+      ? createComposerDocumentWithSkill(input, {
+          name: selectedSkillToken.skill.name,
+          path: selectedSkillToken.skill.path,
+        })
+      : undefined),
+    [document, input, selectedSkillToken],
   );
 
   const sessionBusy =
@@ -1248,32 +1266,12 @@ export function ComposerCard({
               editorRef.current?.focus();
           }}
         >
-          {selectedSkillToken ? (
-            <button
-              aria-label={`移除技能 ${selectedSkillToken.title}`}
-              className="composer-skill-token"
-              onClick={() => onSkillDeselect?.()}
-              title="移除技能"
-              type="button"
-            >
-              <Sparkles
-                className="composer-skill-token-icon"
-                size={14}
-                strokeWidth={2}
-              />
-              <span className="composer-skill-token-label">
-                {selectedSkillToken.title}
-              </span>
-            </button>
-          ) : null}
           <Suspense
             fallback={
               <div aria-hidden="true" className="composer-editor">
                 <div
                   className="composer-editor-content is-empty"
-                  data-placeholder={
-                    selectedSkillToken ? "" : composerPlaceholder
-                  }
+                  data-placeholder={composerPlaceholder}
                 />
               </div>
             }
@@ -1290,8 +1288,17 @@ export function ComposerCard({
               }
               ariaExpanded={unifiedMenuOpen}
               ref={editorRef}
+              document={composerDocument}
               value={input}
               onChange={onInputChange}
+              onDocumentChange={(nextDocument) => {
+                if (onDocumentChange) onDocumentChange(nextDocument);
+                else onInputChange(nextDocument.text);
+              }}
+              onTokenActivate={(token) => {
+                const skill = skillInvocationFromComposerToken(token);
+                if (skill) onSkillTokenActivate?.(skill);
+              }}
               onSelectionChange={setSelectionStart}
               onCompositionChange={(composing) => {
                 setIsComposing(composing);
@@ -1375,17 +1382,6 @@ export function ComposerCard({
                   }
                 }
 
-                // Backspace: remove skill chip when input is empty
-                if (
-                  event.key === "Backspace" &&
-                  input.length === 0 &&
-                  selectedSkillToken
-                ) {
-                  event.preventDefault();
-                  onSkillDeselect?.();
-                  return true;
-                }
-
                 if (event.key === "Backspace" && input.length === 0) {
                   if (goalModeEnabled) {
                     event.preventDefault();
@@ -1416,7 +1412,7 @@ export function ComposerCard({
                 onAddFiles(files);
                 return true;
               }}
-              placeholder={selectedSkillToken ? "" : composerPlaceholder}
+              placeholder={composerPlaceholder}
             />
           </Suspense>
         </div>
@@ -1916,20 +1912,9 @@ export function ComposerCard({
               trigger={
                 <MetaChip
                   active={openDropdown === "plugin"}
-                  className={workingPlugin ? "is-selected" : undefined}
-                  icon={taskPlanningIcon}
-                  label={workingPlugin === "task-planning" ? "规划任务" : "插件"}
-                  title={
-                    workingPlugin ? "取消工作插件" : "选择工作插件"
-                  }
-                  onClick={(event) => {
-                    if (workingPlugin) {
-                      // 选中状态下再次点击芯片直接取消，并阻止菜单展开
-                      event.preventDefault();
-                      onWorkingPluginChange?.(null);
-                      setOpenDropdown(null);
-                    }
-                  }}
+                  icon={<Blocks size={APP_ICON_SIZE} />}
+                  label="插件"
+                  title="选择工作插件"
                 />
               }
             >
