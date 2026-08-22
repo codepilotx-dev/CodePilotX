@@ -763,6 +763,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       false,
       localContextPaths,
       (threadId) => taskboard.admitPrimaryThread(threadId),
+      (threadId) => taskboard.primaryExecutionContext(threadId),
     );
     const taskboardStart = new TaskboardStartService(
       db,

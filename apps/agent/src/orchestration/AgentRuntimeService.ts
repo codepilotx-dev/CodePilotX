@@ -1409,6 +1409,7 @@ export class AgentRuntimeService implements AgentRuntime {
       ...(runtime.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : "defaultModeRequestUserInput" in request && request.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
       ...(request.delegationEnabled === false ? { delegationEnabled: false } : {}),
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+      ...(request.activeDeferredTools ? { activeDeferredTools: request.activeDeferredTools } : {}),
     }, runtime.toolCatalog);
   }
 

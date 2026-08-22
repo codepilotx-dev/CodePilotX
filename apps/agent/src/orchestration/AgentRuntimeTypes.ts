@@ -102,6 +102,7 @@ export interface AgentRuntimeRequest {
   skillService?: SkillService
   projectSources?: ProjectSourceRuntimeAccess
   allowedTools?: readonly string[]
+  activeDeferredTools?: readonly string[]
   toolCatalog?: ToolCatalog
   onPromptComposed?: (bundle: PromptBundle, context: { budgetText: string }) => void | Promise<void>
   onUsage?: (usage: { inputTokens: number; outputTokens: number; totalTokens: number; requests: number }) => void | Promise<void>

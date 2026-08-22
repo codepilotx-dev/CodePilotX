@@ -140,6 +140,10 @@ export class ThreadService {
     resumeOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
     private readonly firstTurnAdmission?: (threadID: string) => readonly EventEnvelope[],
+    private readonly taskboardExecutionContext?: (threadID: string) => {
+      instruction: string
+      activeTools: readonly string[]
+    } | null,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -805,6 +809,7 @@ export class ThreadService {
       const sideChat = this.sideChat(threadID)
       const desktopSettings = this.promptSettingsSnapshot(threadID).settings
       const defaultModeRequestUserInput = desktopSettings?.defaultModeRequestUserInput === true
+      const taskboardContext = this.taskboardExecutionContext?.(threadID) ?? null
       const project = runtime.kind === "project"
         ? this.db.getProject(runtime.projectID) as unknown as {
             settings?: { instructions?: string }
@@ -849,6 +854,7 @@ export class ThreadService {
         ...(sideChat ? { delegationEnabled: false } : {}),
         ...(runtime.kind === "project" && this.projectSources ? { hasProjectSources: true } : {}),
         ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
+        ...(taskboardContext ? { activeDeferredTools: taskboardContext.activeTools } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
       }).exposed
@@ -907,6 +913,15 @@ export class ThreadService {
       promptSections.splice(
         promptSections.length - 1,
         0,
+        ...(taskboardContext ? [{
+          id: "taskboard.execution",
+          role: "developer" as const,
+          cache: "dynamic" as const,
+          authority: "builtin" as const,
+          source: { type: "runtime" as const, name: "taskboard-primary" },
+          content: taskboardContext.instruction,
+          requiredTools: [...taskboardContext.activeTools],
+        }] : []),
         ...(sideChat ? [sideChatSection(sideChat.referenceText)] : []),
         ...(exposedTools.some((tool) => tool === "Edit" || tool === "Write" || tool === "apply_patch")
           ? [workspaceEditingSection()]
@@ -947,6 +962,7 @@ export class ThreadService {
           },
         } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
+        ...(taskboardContext ? { activeDeferredTools: taskboardContext.activeTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         onPromptComposed: async (bundle) => {
           composedBundle = bundle

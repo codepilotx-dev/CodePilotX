@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp } from "node:fs/promises"
+import { mkdir, mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
+import { Model, Provider } from "@codepilotx/model-schema"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { EventHub } from "../src/storage/events/EventHub"
 import { TaskboardService } from "../src/taskboard/TaskboardService"
@@ -15,6 +16,10 @@ import type { ThreadService } from "../src/session/ThreadService"
 import type { ManagedWorktreeService } from "../src/worktree/ManagedWorktreeService"
 import { createTaskboardDefinitions } from "../src/tool/Taskboard/definitions"
 import type { ToolContext } from "../src/tool/ToolRegistry"
+import { ToolRegistry } from "../src/tool/ToolRegistry"
+import { ToolExecutor } from "../src/tool/ToolExecutor"
+import { ThreadService as RuntimeThreadService } from "../src/session/ThreadService"
+import { WorkspaceService } from "../src/workspace/WorkspaceService"
 import { removeFixturePaths } from "./fixture-cleanup"
 
 const paths: string[] = []
@@ -215,6 +220,149 @@ describe("TaskboardService", () => {
     const operation = await start.start({ taskId: task.task.id, execution: { kind: "local" }, operationId: crypto.randomUUID() })
     expect(operation).toMatchObject({ status: "completed", threadId: thread.id })
     expect(db.readTask(task.task.id)?.threads).toHaveLength(1)
+    db.close()
+  })
+
+  test("任务 primary 获得可信执行提示和条件激活工具，supporting 不扩权", async () => {
+    const { db, project, service } = await fixture()
+    const task = db.createWorkflowTask({ projectId: project.id, title: "真实执行任务", status: "in_progress" })
+    const primary = db.createThread({ title: "主会话", workspace: { kind: "project", projectID: project.id } })
+    const supporting = db.createThread({ title: "辅助会话", workspace: { kind: "project", projectID: project.id } })
+    db.linkPrimaryThread({ taskId: task.task.id, threadId: primary.id, expectedVersion: task.task.version })
+    db.linkThread({ taskId: task.task.id, threadId: supporting.id, role: "supporting" })
+
+    const context = service.primaryExecutionContext(primary.id)
+    expect(context?.instruction).toContain(`${project.name} #${task.task.number}：${task.task.title}`)
+    expect(context?.instruction).toContain("taskboard_transition")
+    expect(service.primaryExecutionContext(supporting.id)).toBeNull()
+
+    const registry = new ToolRegistry()
+    for (const definition of createTaskboardDefinitions(service)) registry.register(definition)
+    const executor = new ToolExecutor(registry)
+    const ordinary = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main" })
+    const linked = executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      profile: "main",
+      activeDeferredTools: context!.activeTools,
+    })
+    expect(ordinary.exposed).not.toContain("taskboard_read")
+    expect(linked.exposed).toEqual(expect.arrayContaining(["taskboard_read", "taskboard_transition"]))
+    const done = db.repositories.taskboard.updateTask({
+      taskId: task.task.id,
+      expectedVersion: db.readTask(task.task.id)!.task.version,
+      patch: { status: "done" },
+    })
+    expect(service.primaryExecutionContext(primary.id)?.activeTools).toContain("taskboard_comment")
+    await service.agentComment({
+      threadId: primary.id,
+      expectedVersion: done.task.version,
+      operationId: crypto.randomUUID(),
+      body: "已完成最终回归复核",
+    })
+    expect(db.readTask(task.task.id)?.task.status).toBe("done")
+    expect(db.readTask(task.task.id)?.comments.at(-1)).toMatchObject({
+      body: "已完成最终回归复核",
+      sourceThreadId: primary.id,
+    })
+    db.close()
+  })
+
+  test("ThreadService 将 primary 执行上下文注入可信提示并传入 runtime", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-taskboard-runtime-"))
+    paths.push(root)
+    const workspaceRoot = join(root, "workspace")
+    const cwd = join(workspaceRoot, "work")
+    const outputDirectory = join(workspaceRoot, "outputs")
+    await Promise.all([mkdir(cwd, { recursive: true }), mkdir(outputDirectory, { recursive: true })])
+    const workspace = await WorkspaceService.open(workspaceRoot)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const hub = await Effect.runPromise(EventHub.make)
+    const thread = db.createThread()
+    const turn = db.createTurn(thread.id, {
+      content: "完成关联任务",
+      model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }),
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      strategy: "queue",
+      taskMode: "chat",
+    })
+    const activeTools = ["taskboard_read", "taskboard_transition"] as const
+    const exposureInputs: Array<Record<string, unknown>> = []
+    const runInputs: Array<Record<string, unknown>> = []
+    const orchestrator = {
+      toolExposure: (input: Record<string, unknown>) => {
+        exposureInputs.push(input)
+        return { eager: [], deferred: [], exposed: [...activeTools] }
+      },
+      run: async (input: Record<string, unknown>) => {
+        runInputs.push(input)
+        return { status: "paused" as const }
+      },
+      clearTurnPermissionGrants: () => undefined,
+    }
+    const questions = { setResumeHandler: () => undefined }
+    const subagents = {
+      setParentResumeHandler: () => undefined,
+      resolvedWaitCheckpoint: () => null,
+      delegationFor: () => undefined,
+    }
+    const service = new RuntimeThreadService(
+      db,
+      hub,
+      {
+        resolve: async () => ({ providerID: "openai", id: "test", variant: null }),
+        models: async () => [],
+        getModel: async () => ({ contextWindow: 128_000 }),
+      } as never,
+      null as never,
+      questions as never,
+      orchestrator as never,
+      subagents as never,
+      { listByBinding: async () => [], read: async () => { throw new Error("unused") } } as never,
+      { dataRoot: root, userHome: root },
+      { recall: () => [], enqueue: () => null } as never,
+      { load: () => undefined, run: async () => [] } as never,
+      {
+        resolve: async () => ({
+          kind: "projectless",
+          projectID: null,
+          workspaceRoot,
+          cwd,
+          runtimeWorkspaceRoots: [],
+          instructionSources: [],
+          outputDirectory,
+          workspace,
+          executionBinding: {} as never,
+        }),
+      } as never,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      false,
+      undefined,
+      undefined,
+      (threadID) => threadID === thread.id
+        ? { instruction: "关联 Taskboard 任务 #7；完成后使用 taskboard_transition 提交验收。", activeTools }
+        : null,
+    )
+
+    await (service as unknown as { executeTurn(threadID: string, turnID: string): Promise<void> })
+      .executeTurn(thread.id, turn.turnID)
+
+    expect(exposureInputs).toHaveLength(1)
+    expect(exposureInputs[0]?.activeDeferredTools).toEqual(activeTools)
+    expect(runInputs).toHaveLength(1)
+    expect(runInputs[0]?.activeDeferredTools).toEqual(activeTools)
+    expect((runInputs[0]?.promptSections as Array<Record<string, unknown>>).find(({ id }) => id === "taskboard.execution")).toMatchObject({
+      role: "developer",
+      authority: "builtin",
+      content: "关联 Taskboard 任务 #7；完成后使用 taskboard_transition 提交验收。",
+      requiredTools: [...activeTools],
+    })
     db.close()
   })
 

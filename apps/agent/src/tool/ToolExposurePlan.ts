@@ -18,6 +18,7 @@ export interface ToolExposureInput {
   defaultModeRequestUserInput?: boolean
   delegationEnabled?: boolean
   allowedTools?: readonly string[]
+  activeDeferredTools?: readonly string[]
 }
 
 export interface ToolExposurePlan {
@@ -46,12 +47,20 @@ export function createToolExposurePlan(catalog: ToolCatalog, input: ToolExposure
 
   const allowlist = input.allowedTools ? new Set(input.allowedTools) : null
   const deferred = deferredCandidates.filter((name) => !allowlist || allowlist.has(name))
+  const activeDeferred = new Set(input.activeDeferredTools ?? [])
+  const contextuallyActiveDeferred = deferredCandidates.filter((name) => (
+    activeDeferred.has(name) && (!allowlist || allowlist.has(name))
+  ))
   const explicitlyAllowedDeferred = allowlist
     ? deferredCandidates.filter((name) => allowlist.has(name))
     : []
   const finalizers = new Set(["finalize_result"])
-  const exposed = [...eager, ...explicitlyAllowedDeferred, ...lifecycle]
-    .filter((name) => !allowlist || allowlist.has(name) || finalizers.has(name))
+  const exposed = [...new Set([
+    ...eager,
+    ...contextuallyActiveDeferred,
+    ...explicitlyAllowedDeferred,
+    ...lifecycle,
+  ])].filter((name) => !allowlist || allowlist.has(name) || finalizers.has(name))
   const exposedSet = new Set(exposed)
   return { eager: eager.filter((name) => exposedSet.has(name)), deferred, exposed, allows: (name) => exposedSet.has(name) }
 }

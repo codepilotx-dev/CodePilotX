@@ -21,6 +21,19 @@ import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
 import type { TaskboardRepository } from "../storage/repositories/taskboard-repository"
 
+export const TASKBOARD_EXECUTION_TOOLS = [
+  "taskboard_read",
+  "taskboard_update",
+  "taskboard_comment",
+  "taskboard_transition",
+] as const
+
+export const taskboardExecutionInstruction = (
+  projectName: string,
+  number: number,
+  title: string,
+) => `你正在执行任务 ${projectName} #${number}：${title}\n请先调用 taskboard_read，读取任务详情和当前版本，然后再开始修改。验证完成后，用 taskboard_transition 的 submit_review 动作和交付说明原子提交验收；遇到无法继续的阻碍时，用 report_blocked 动作和阻碍原因报告；不要将任务标记为已完成。`
+
 export type TaskboardMutationActor = {
   kind: "user" | "agent" | "system"
   sourceThreadId: string | null
@@ -38,6 +51,18 @@ export class TaskboardService {
     private readonly repository: TaskboardRepository,
     private readonly now: () => number = Date.now,
   ) {}
+
+  primaryExecutionContext(threadId: string) {
+    const link = this.repository.taskLinkForThread(threadId)
+    if (!link || link.role !== "primary") return null
+    const task = this.repository.readWorkflowTask(link.taskId)
+    if (!task || task.task.archivedAt !== null) return null
+    const projectName = this.db.getProject(task.task.projectId)?.name ?? "项目"
+    return {
+      instruction: taskboardExecutionInstruction(projectName, task.task.number, task.task.title),
+      activeTools: TASKBOARD_EXECUTION_TOOLS,
+    }
+  }
 
   private project(projectId: string) {
     const project = this.db.getProject(projectId)

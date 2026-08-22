@@ -9,6 +9,7 @@ import type { EventHub } from "../storage/events/EventHub"
 import type { TaskboardRepository } from "../storage/repositories/taskboard-repository"
 import type { ManagedWorktreeService } from "../worktree/ManagedWorktreeService"
 import type { ThreadExecutionPreparationService } from "../worktree/ThreadExecutionPreparationService"
+import { taskboardExecutionInstruction } from "./TaskboardService"
 
 const requestHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex")
 
@@ -256,7 +257,7 @@ export class TaskboardStartService {
   private requireAwaiting(operationId: string, revision: number) { const operation = this.requireOperation(operationId); if (operation.revision !== revision || operation.status !== "awaiting_setup_decision") throw new AgentError("CONFLICT", "任务启动状态已变化", 409); return operation }
   private startupInstruction(projectId: string, number: number, title: string) {
     const projectName = this.db.getProject(projectId)?.name ?? "项目"
-    return `你正在执行任务 ${projectName} #${number}：${title}\n请先启用并调用 taskboard_read，读取任务详情和当前版本，然后再开始修改。验证完成后，用 taskboard_transition 的 submit_review 动作和交付说明原子提交验收；遇到无法继续的阻碍时，用 report_blocked 动作和阻碍原因报告；不要将任务标记为已完成。`
+    return taskboardExecutionInstruction(projectName, number, title)
   }
   private publish(event: EventEnvelope) { return Effect.runPromise(this.hub.publish(event)).then(() => undefined) }
 }
