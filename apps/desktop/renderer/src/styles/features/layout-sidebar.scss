@@ -570,10 +570,12 @@
 }
 
 .sidebar-session-title--loading {
-  flex: 0 1 7.5rem;
+  flex: 0 0 auto;
   width: min(7.5rem, 72%);
-  height: 0.75rem;
-  border-radius: var(--cpx-sys-radius-full);
+  height: 0.8125rem;
+  max-height: 0.8125rem;
+  min-height: 0.8125rem;
+  border-radius: var(--cpx-sys-radius-sm);
 }
 
 .sidebar-session-unread-dot {
@@ -973,9 +975,12 @@
 }
 
 .sidebar-session-hover-card-title__skeleton {
+  flex: 0 0 auto;
   width: 8.5rem;
   height: 0.875rem;
-  border-radius: var(--cpx-sys-radius-full);
+  max-height: 0.875rem;
+  min-height: 0.875rem;
+  border-radius: var(--cpx-sys-radius-sm);
 }
 
 .sidebar-session-hover-card-time {
