@@ -25,10 +25,13 @@
 - [desktop/electron] 在 Electron 性能测试的 cold start 中新增 `new-route-ready` 观测样本（真实 Composer 可输入、建议面板与字体、同源 JS/CSS 解码字节），本轮仅观测不设硬预算。
 - [desktop] 外观设置补齐真实系统字体与字体样式选择：preload 新增类型化 `listSystemFonts()`（Local Font Access 只返回 family/fullName/postscriptName/style，字段限长、去重、稳定排序，不支持/拒绝/失败安全降级为自由文本输入）；主题设置保留式升级为 V7（新增可空 `uiFace`/`codeFace`，清除时显式持久化 `null`，V1–V5 历史重置策略与高版本拒绝覆盖不变）；新增主题字体加载工具，以唯一 alias 注册本地 face 并置于原家族之前，加载失败自动回退；UI 字体展示全部家族、代码字体按 Canvas 等宽检测过滤，默认 face 只保存家族；“偏好设置”顺序对齐 Codex：指针光标、减少动态效果、界面字号、代码字号、差异标记、字体平滑（仅 macOS）。
 - [Agent/desktop/renderer] 统一三种上游协议（OpenAI Responses / OpenAI Completions / Anthropic Messages）的富工具结果：在 shared thread 增加可选 `resultBlocks`（text / citation / json / artifact）与完成元数据 `completion`，PiEventAdapter 将工具结果安全投影为同一 canonical item/event；history schema 前向迁移至 33，新增独立 `item_artifacts` 表与受控 blob 存储，新增 `artifact/read` RPC 与 `artifacts.read.v1` capability（跨 thread / 未知 ID / 非法定位拒绝，缺表环境降级 capability）；renderer 在工具卡片渲染四类结果块，图片 artifact 复用附件预览、其他类型为通用文件项，并按状态展示已取消的会话/轮次。
+- [agent/runtime] 新增 `runtime_composition_plans` 表（history schema 34）与 RuntimeCompositionService/Repository，持久化 Turn 的模型、权限、Skills、MCP、工具和 Prompt 快照；缺表环境 fresh turn 走 ephemeral、恢复时 fail-closed。
 
 ### Changed
 
 - [agent] 将 Pi Harness 物理并入 App Agent，并统一 AgentRuntime 执行门面，减少重复编排层。
+- [agent/runtime] 为 Harness 增加不可变 Turn/Step composition 契约，并统一持久化主 Agent 与子 Agent 的模型、权限、Skills、MCP、工具和 Prompt 快照，确保暂停及恢复期间运行配置保持一致。
+- [agent/runtime] 将 schema 34 的持久化 Runtime Composition（快照、rebind、capability probe 与幂等 release 生命周期）整合进 AgentRuntimeService 内部：同一持久化产品 Turn 在首次 Provider sample 前持久化快照，pause/resume 只 rebind，下一产品 Turn 才重新 compose。
 - [desktop/renderer] 统一会话区域加载态展示：将鲸鱼闪光效果约束在会话内容主区域（variant="contained"），保留侧边栏、右侧面板与顶部菜单栏正常交互；加载期间隐藏底部 Composer，并在数据就绪后平滑淡入时间线；替换时间线旧有旋转 Spinner，彻底消除会话切换与加载时的重复动画问题。
 - [desktop/renderer] 优化侧边栏顶部活动通知图标：采用 Lucide 嵌套 SVG 规范，统一使用 Bell 图标并在有活动或待处理会话时于右上角嵌套渲染前景色圆点徽标，简化图标切换逻辑并提升状态呈现的一致性。
 
@@ -99,6 +102,14 @@
 
 ### Fixed
 
+- [desktop] 优化 Windows 下 Electron 窗口边框与控制按钮：改用 titleBarStyle: 'hidden' 和 titleBarOverlay 支持原生贴靠布局并精确同步顶栏底色 (surfaceUnder) 与 36px 贴合高度；主内容区对齐简约扁平规范，移除卡片外阴影与冗余边框，彻底消除粗黑边与颜色高度断层。
+- [desktop/renderer] 修复侧边栏在更新/生成会话标题时的骨架屏显示异常：标题生成期间禁用会话悬停卡片（HoverCard）弹出，避免出现大尺寸卡片浮层；同时将骨架屏圆角从全圆角修正为与文字行高贴合的 4px 微圆角长方形（`--cpx-sys-radius-sm`），保持平滑扫光动画。
+
+- [desktop] 修复会话自动追底对齐到 Composer 渐变遮挡区的问题，使最新正文完整停留在可视区并保留底部阅读间距
+- [agent/security] 修复 Skills 扫描静默忽略指向可信根之外 Junction 的问题，改为安全拒绝，同时保留跨已配置 Skills 根别名的去重行为。
+- [desktop] 稳定 AI 流式 Markdown 的分块渲染、增量动效、代码高亮与自动追底，避免回复期间旧内容重复淡入和会话正文往返闪烁
+- [desktop/renderer] 修复新建会话路由切换后复用已消费 inputId、完成任务仍显示运行中及发送错误重复提示的问题。
+- [agent/security] Skills 快照升级为 V2（RuntimeCompositionSnapshotV2）：仅冻结实际引用项，无关 Skill 变化不再阻断暂停恢复；已显式展开到 prompt 或成功 skill_read 的 Skill 变化/缺失 fail-closed，并为成功 skill_read 持久化可用于恢复校验的证据；旧 V1 快照保持兼容并按旧全量 catalog fail-closed。
 - [desktop/renderer] 修复外观设置中选择字体变体后重新进入页面变体下拉框回退显示全称（如 JetBrains Mono Medium）而非变体名（如中等、半粗体）的问题：增强变体名提取与本地化解析（`faceStyleLabel`），并在组件挂载时自动复用已就绪的系统字体缓存。
 - [desktop/renderer] 修复侧边栏底部的“设置”按钮因 DropdownMenu.Trigger 传递 data-theme-component="dropdown-trigger" 导致常驻控件实色灰底（被误判为永久 hover/active 态）的问题，使侧栏设置按钮在非激活/非悬停态下恢复为透明底色。
 - [Desktop] 修复失败 turn 未显示安全错误原因、界面仅留下"已处理"状态的问题。

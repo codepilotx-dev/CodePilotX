@@ -42,6 +42,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE turn_patch_batches (\n        turn_id TEXT NOT NULL REFERENCES turn_patch_sets(turn_id) ON DELETE CASCADE,\n        ordinal INTEGER NOT NULL,\n        tool_call_id TEXT NOT NULL UNIQUE,\n        files TEXT NOT NULL,\n        created_at INTEGER NOT NULL,\n        PRIMARY KEY (turn_id, ordinal)\n      )",
   "CREATE TABLE turn_patch_operations (\n        operation_id TEXT PRIMARY KEY,\n        turn_id TEXT NOT NULL REFERENCES turn_patch_sets(turn_id) ON DELETE CASCADE,\n        request_hash TEXT NOT NULL,\n        result TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE \"pi_session_entries\" (\n          session_id TEXT NOT NULL REFERENCES \"pi_sessions\"(id) ON DELETE CASCADE,\n          sequence INTEGER NOT NULL,\n          id TEXT NOT NULL,\n          parent_id TEXT,\n          type TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY (session_id, sequence),\n          UNIQUE (session_id, id)\n        )",
+  "CREATE TABLE runtime_composition_plans (\n        turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        composition_id TEXT NOT NULL UNIQUE,\n        snapshot_version INTEGER NOT NULL,\n        snapshot_json TEXT NOT NULL,\n        snapshot_hash TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE \"pi_sessions\" (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          agent_id TEXT NOT NULL,\n          leaf_id TEXT,\n          name TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE project_settings (\n        project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,\n        default_model TEXT,\n        instructions TEXT NOT NULL DEFAULT '',\n        version INTEGER NOT NULL DEFAULT 1,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE projects (\n        id TEXT PRIMARY KEY,\n        name TEXT NOT NULL,\n        removed_at INTEGER,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        last_opened_at INTEGER NOT NULL\n      )",
@@ -105,6 +106,7 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX messages_session_ordinal ON messages(thread_id, ordinal, id)",
   "CREATE INDEX pi_session_entries_type\n          ON pi_session_entries(session_id, type, sequence)",
   "CREATE INDEX pi_sessions_thread_agent\n          ON pi_sessions(thread_id, agent_id, updated_at DESC)",
+  "CREATE INDEX runtime_composition_plans_agent ON runtime_composition_plans(agent_id, created_at DESC)",
   "CREATE INDEX projects_last_opened ON projects(last_opened_at DESC)",
   "CREATE UNIQUE INDEX project_one_primary ON project_folders(project_id) WHERE role = 'primary'",
   "CREATE INDEX project_folders_project_order ON project_folders(project_id, role, sort_order, created_at)",
@@ -925,6 +927,22 @@ const migrateHistory32To33 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory33To34 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS runtime_composition_plans (
+      turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+      composition_id TEXT NOT NULL UNIQUE,
+      snapshot_version INTEGER NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      snapshot_hash TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS runtime_composition_plans_agent
+      ON runtime_composition_plans(agent_id, created_at DESC);
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1028,6 +1046,7 @@ class SchemaInitializer {
           30: () => migrateHistory30To31(this.sqlite),
           31: () => migrateHistory31To32(this.sqlite),
           32: () => migrateHistory32To33(this.sqlite),
+          33: () => migrateHistory33To34(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

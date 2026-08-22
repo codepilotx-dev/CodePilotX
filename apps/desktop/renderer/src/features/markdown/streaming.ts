@@ -67,6 +67,66 @@ export function segmentStreamingMarkdown(
   }
 }
 
+/**
+ * Produces a parse-only copy of an unfinished prose block. Synthetic closing
+ * characters never escape this function, so persisted and copied text remains
+ * exactly what the model emitted.
+ */
+export function completePendingMarkdown(source: string): string {
+  if (!source) return source
+
+  // A partial image or link must not become actionable before its destination
+  // is complete. Keep just the label until the closing parenthesis arrives.
+  let completed = source.replace(/!\[([^\]]*)\]\([^)]*$/u, '$1')
+  completed = completed.replace(/\[([^\]]*)\]\([^)]*$/u, '$1')
+
+  const closers: string[] = []
+  let inlineCodeOpen = false
+  let escaped = false
+  const delimiterCounts = new Map<string, number>()
+  for (let index = 0; index < completed.length; index += 1) {
+    const character = completed[index]
+    if (escaped) {
+      escaped = false
+      continue
+    }
+    if (character === '\\') {
+      escaped = true
+      continue
+    }
+    if (character === '`') {
+      inlineCodeOpen = !inlineCodeOpen
+      continue
+    }
+    if (inlineCodeOpen) continue
+
+    const pair = completed.slice(index, index + 2)
+    if (pair === '**' || pair === '__' || pair === '~~') {
+      delimiterCounts.set(pair, (delimiterCounts.get(pair) ?? 0) + 1)
+      index += 1
+      continue
+    }
+    if (character !== '*' && character !== '_') continue
+    if (character === '_' && isWordCharacter(completed[index - 1]) && isWordCharacter(completed[index + 1])) {
+      continue
+    }
+    delimiterCounts.set(character, (delimiterCounts.get(character) ?? 0) + 1)
+  }
+
+  for (const delimiter of ['~~', '**', '__', '*', '_']) {
+    if ((delimiterCounts.get(delimiter) ?? 0) % 2 === 1) closers.unshift(delimiter)
+  }
+  if (inlineCodeOpen) closers.unshift('`')
+
+  const displayMathCount = [...completed.matchAll(/(?<!\\)\$\$/gu)].length
+  if (displayMathCount % 2 === 1) closers.unshift('$$')
+  return completed + closers.join('')
+}
+
+function isWordCharacter(character: string | undefined): boolean {
+  return character !== undefined && /[\p{L}\p{N}]/u.test(character)
+}
+
 function findUnclosedFence(source: string): OpenFence | null {
   let open: OpenFence | null = null
   let offset = 0

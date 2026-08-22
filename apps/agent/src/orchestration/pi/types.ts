@@ -34,6 +34,8 @@ export interface HarnessRuntimeRequest {
   thinkingLevel?: ThinkingLevel
   exposedTools: readonly string[]
   promptSections: readonly PromptSection[]
+  /** Authoritative pre-composed prompt bundle (frozen by the turn composition). */
+  bundle?: PromptBundle
   attachments?: Array<{ kind: "text"; name: string; text: string } | { kind: "image"; name: string; mediaType: string; base64: string }>
   allowedTools?: readonly string[]
   toolCatalog?: ToolCatalog

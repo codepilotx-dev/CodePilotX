@@ -461,15 +461,19 @@ function SidebarSessionGroupComponent({
         }
       >
         <Suspense fallback={sessionButton}>
-          <SidebarSessionHoverCard
-            fallbackTitle={sessionFallbackTitles[session.id]}
-            now={now}
-            regeneratingTitle={regeneratingTitle}
-            session={session}
-            onRename={title => onRenameSession(session.id, title)}
-          >
-            {sessionButton}
-          </SidebarSessionHoverCard>
+          {regeneratingTitle ? (
+            sessionButton
+          ) : (
+            <SidebarSessionHoverCard
+              fallbackTitle={sessionFallbackTitles[session.id]}
+              now={now}
+              regeneratingTitle={regeneratingTitle}
+              session={session}
+              onRename={title => onRenameSession(session.id, title)}
+            >
+              {sessionButton}
+            </SidebarSessionHoverCard>
+          )}
         </Suspense>
       </SidebarRow>
     );

@@ -8,7 +8,42 @@ export type StartupStatusKind = "progress" | "terminal-error"
 export interface StartupPageOptions {
   logoDataUrl: string
   variant: "light" | "dark"
-  theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent">
+  theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent"> & {
+    surfaceUnder: string
+  }
+}
+
+export function deriveSurfaceUnder(
+  surface: string,
+  ink: string,
+  dark: boolean,
+  contrast = dark ? 60 : 45,
+): string {
+  const parseHex = (val: string) => {
+    const hex = val.replace("#", "")
+    return {
+      r: Number.parseInt(hex.slice(0, 2), 16),
+      g: Number.parseInt(hex.slice(2, 4), 16),
+      b: Number.parseInt(hex.slice(4, 6), 16),
+    }
+  }
+  const sRgb = parseHex(surface)
+  const iRgb = parseHex(ink)
+  const bRgb = { r: 0, g: 0, b: 0 }
+  const target = dark ? bRgb : iRgb
+  const amount = Math.max(
+    0,
+    Math.min(
+      1,
+      (dark ? 0.16 : 0.04)
+        + (contrast - (dark ? 60 : 45)) * (dark ? 0.0015 : 0.0012),
+    ),
+  )
+  const r = Math.round(sRgb.r + (target.r - sRgb.r) * amount)
+  const g = Math.round(sRgb.g + (target.g - sRgb.g) * amount)
+  const b = Math.round(sRgb.b + (target.b - sRgb.b) * amount)
+  const toHex = (n: number) => n.toString(16).padStart(2, "0")
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 }
 
 export function resolveStartupPageTheme(
@@ -16,10 +51,12 @@ export function resolveStartupPageTheme(
   systemVariant: "light" | "dark",
 ): Omit<StartupPageOptions, "logoDataUrl"> {
   const variant = settings.mode === "system" ? systemVariant : settings.mode
-  const { surface, ink, accent } = settings.chromeThemes[variant]
+  const { surface, ink, accent, contrast } = settings.chromeThemes[variant]
+  const dark = variant === "dark"
+  const surfaceUnder = deriveSurfaceUnder(surface, ink, dark, contrast)
   return {
     variant,
-    theme: { surface, ink, accent },
+    theme: { surface, ink, accent, surfaceUnder },
   }
 }
 

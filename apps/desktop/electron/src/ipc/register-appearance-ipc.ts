@@ -21,6 +21,7 @@ export function registerAppearanceIpc(
       const next = migrateAppearanceSettings(value)
       await store.save(next)
       settings = next
+      appearance.updateSettings(next)
       appearance.broadcastAppearanceSettings(next)
     },
   )

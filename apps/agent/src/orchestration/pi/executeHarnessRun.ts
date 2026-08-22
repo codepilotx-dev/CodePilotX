@@ -48,10 +48,11 @@ const promptImages = (request: HarnessRuntimeRequest): ImageContent[] => request
  * this class never publishes a durable event before the sink's transaction completes.
  */
 export async function executeHarnessRun(options: HarnessRuntimeOptions, request: HarnessRuntimeRequest): Promise<HarnessRunResult> {
-    const composer = new PromptComposer()
     if (request.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
     const dependencies = await options.harnessFactory.resolve(request)
-    const bundle = composer.compose({
+    // A pre-composed bundle is authoritative (frozen by the turn composition);
+    // otherwise compose here so this function stays usable as a stateless facade.
+    const bundle = request.bundle ?? new PromptComposer().compose({
       threadID: request.threadID,
       mode: request.taskMode,
       profile: request.profile ?? "main",

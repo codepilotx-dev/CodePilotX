@@ -82,6 +82,7 @@ import type {
 } from "./ComposerEditor.js";
 import {
   DEFAULT_COMPOSER_CAPABILITIES,
+  isInlineComposerFailure,
   type ComposerCapabilities,
   type ComposerDraftKey,
   type ComposerDeliveryIntent,
@@ -448,6 +449,9 @@ export function ComposerCard({
     dictationToggleRef.current = toggle;
   }, []);
   const submitErrorId = `${menuId}-submit-error`;
+  const inlineSubmitFailure = isInlineComposerFailure(submitOutcome)
+    ? submitOutcome
+    : null;
   const subagentMode = placement === "side-task";
   const contextDropdownSide = contextDropdownSideOverride ?? "top";
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
@@ -1200,13 +1204,13 @@ export function ComposerCard({
         className="composer composer-input-surface composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between"
         inert={submitting || undefined}
       >
-        {submitOutcome?.status === "failed" ? (
+        {inlineSubmitFailure ? (
           <div
             className="composer-submit-error"
             id={submitErrorId}
             role="alert"
           >
-            {submitOutcome.message}，请修改后重试。
+            {inlineSubmitFailure.message}，请修改后重试。
           </div>
         ) : null}
         {attachments.length > 0 ? (
@@ -1263,7 +1267,7 @@ export function ComposerCard({
               }
               ariaControls={unifiedMenuOpen ? menuId : undefined}
               ariaDescribedBy={
-                submitOutcome?.status === "failed" ? submitErrorId : undefined
+                inlineSubmitFailure ? submitErrorId : undefined
               }
               ariaExpanded={unifiedMenuOpen}
               ref={editorRef}

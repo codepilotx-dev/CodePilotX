@@ -199,7 +199,7 @@
   --layout-sidebar-section-gap: 18px;
   --layout-content-w: 48rem;
   --layout-bento-w: 1250px;
-  --application-menubar-height: 36px;
+  --application-menubar-height: env(titlebar-area-height, 40px);
   --workspace-toolbar-height: 46px;
   --workspace-fixed-controls-width: 90px;
   --pane-toolbar-height: 40px;

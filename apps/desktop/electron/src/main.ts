@@ -201,7 +201,10 @@ async function startDesktop(): Promise<void> {
     petOverlayStateStore,
     initialPetOverlayState,
   )
-  const appearance = new WindowAppearanceController()
+  const appearance = new WindowAppearanceController(appearanceSettings)
+  appearance.onThemeChange(theme => {
+    windows?.updateTitleBarOverlayTheme(theme)
+  })
   const externalOpenTargets = new ExternalOpenTargetService({
     platform: process.platform,
     env: process.env,

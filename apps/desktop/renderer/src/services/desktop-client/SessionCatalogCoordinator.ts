@@ -1,4 +1,5 @@
 import type { EventEnvelope } from '@codepilotx/agent-protocol'
+import type { Turn } from '@codepilotx/shared/thread'
 
 const THREAD_CATALOG_EVENT_TYPES: ReadonlySet<EventEnvelope['type']> = new Set([
   'thread/created',
@@ -27,7 +28,15 @@ export type SessionCatalogCoordinatorHandlers = {
   onConfigUpdated: (payload: unknown) => void
   onWorkspaceFileChanged: (payload: unknown) => void
   onWorkspaceGitChanged: (payload: unknown) => void
+  onLifecycleUpdated: (update: SessionLifecycleUpdate) => void
   refreshThreads: (threadIds: readonly string[]) => Promise<void>
+}
+
+export type SessionLifecycleUpdate = {
+  threadId: string
+  turnId: string
+  status: Turn['status']
+  sequence: number
 }
 
 /**
@@ -44,6 +53,7 @@ export class SessionCatalogCoordinator {
 
   async deliverBatch(events: readonly EventEnvelope[]): Promise<void> {
     const threadIds = new Set<string>()
+    const lifecycleUpdates = new Map<string, SessionLifecycleUpdate>()
     for (const event of events) {
       switch (event.type) {
         case 'catalog/updated':
@@ -66,10 +76,48 @@ export class SessionCatalogCoordinator {
         const threadId = catalogThreadId(event)
         if (threadId) threadIds.add(threadId)
       }
+      const lifecycleUpdate = sessionLifecycleUpdate(event)
+      if (lifecycleUpdate) {
+        lifecycleUpdates.set(lifecycleUpdate.threadId, lifecycleUpdate)
+      }
+    }
+    for (const update of lifecycleUpdates.values()) {
+      this.#handlers.onLifecycleUpdated(update)
     }
     if (threadIds.size > 0) {
       await this.#handlers.refreshThreads([...threadIds])
     }
+  }
+}
+
+function sessionLifecycleUpdate(
+  event: EventEnvelope,
+): SessionLifecycleUpdate | null {
+  switch (event.type) {
+    case 'turn/queued':
+    case 'turn/started':
+    case 'turn/completed':
+    case 'turn/failed':
+    case 'turn/interrupted':
+      return event.threadId
+        ? {
+            threadId: event.threadId,
+            turnId: event.payload.turn.id,
+            status: event.payload.turn.status,
+            sequence: event.sequence,
+          }
+        : null
+    case 'turn/statusChanged':
+      return event.threadId
+        ? {
+            threadId: event.threadId,
+            turnId: event.payload.turnId,
+            status: event.payload.status,
+            sequence: event.sequence,
+          }
+        : null
+    default:
+      return null
   }
 }
 

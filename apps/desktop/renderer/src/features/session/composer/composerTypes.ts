@@ -145,6 +145,12 @@ export type ComposerSubmitOutcome =
       sessionId?: string
     }
 
+export function isInlineComposerFailure(
+  outcome: ComposerSubmitOutcome | null | undefined,
+): outcome is Extract<ComposerSubmitOutcome, { status: 'failed' }> {
+  return outcome?.status === 'failed' && outcome.phase === 'prepare'
+}
+
 export type PreparedComposerSubmission = {
   clientId: string
   input: DesktopUserMessageInput

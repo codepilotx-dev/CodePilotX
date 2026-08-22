@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { memo, useMemo, useRef } from 'react'
 import type { Token, Tokens } from 'marked'
 import {
   AlertCircle,
@@ -39,7 +39,7 @@ import {
 import { MathRenderer } from './MathRenderer.js'
 import { MermaidRenderer } from './MermaidRenderer.js'
 import { LazyRender } from './LazyRender.js'
-import { parseMarkdown } from './parser.js'
+import { buildMarkdownBlocks } from './parser.js'
 import { renderSafeHtml } from './safeHtml.js'
 import {
   classifyMarkdownTarget,
@@ -57,6 +57,7 @@ import type {
   MarkdownMathToken,
   MarkdownStreamingCodeToken,
   MarkdownToken,
+  MarkdownRenderBlock,
 } from './types.js'
 
 export type MarkdownMessageProps = {
@@ -104,6 +105,7 @@ type RenderContext = {
     | ((reference: MarkdownFileReference) => void | Promise<void>)
     | undefined
   streaming: boolean
+  streamingFragment: string
 }
 
 export function MarkdownMessage({
@@ -121,10 +123,20 @@ export function MarkdownMessage({
   text,
 }: MarkdownMessageProps): React.ReactNode {
   const sourceText = streamingChunks?.join('') ?? text
-  const parsed = useMemo(
-    () => parseMarkdown(sourceText, streaming),
-    [sourceText, streaming],
-  )
+  const priorRef = useRef<{ blocks: MarkdownRenderBlock[]; text: string }>({
+    blocks: [],
+    text: '',
+  })
+  const blocks = useMemo(() => {
+    const next = buildMarkdownBlocks(
+      sourceText,
+      streaming,
+      priorRef.current.blocks,
+      priorRef.current.text,
+    )
+    priorRef.current = { blocks: next, text: sourceText }
+    return next
+  }, [sourceText, streaming])
   const context = useMemo<RenderContext>(
     () => ({
       allowBasicHtml,
@@ -144,6 +156,7 @@ export function MarkdownMessage({
       onCopyFileReferenceContents,
       onOpenFileReference,
       streaming,
+      streamingFragment: '',
     }),
     [
       allowWideBlocks,
@@ -160,23 +173,47 @@ export function MarkdownMessage({
       streaming,
     ],
   )
-  if (parsed.tokens.length === 0) return null
-  const stableTokenCount =
-    streaming && parsed.pendingText
-      ? parseMarkdown(parsed.stableText, false).tokens.length
-      : parsed.tokens.length
+  if (blocks.length === 0) return null
   return (
     <div className={streaming ? 'md-body is-streaming' : 'md-body'}>
-      {renderTokens(parsed.tokens, context, 'md', stableTokenCount)}
+      {blocks.map(block => (
+        <MemoizedMarkdownBlock block={block} context={context} key={block.id} />
+      ))}
     </div>
   )
+}
+
+const MemoizedMarkdownBlock = memo(function MemoizedMarkdownBlock({
+  block,
+  context,
+}: {
+  block: MarkdownRenderBlock
+  context: RenderContext
+}): React.ReactNode {
+  const previousVisibleTextRef = useRef('')
+  const previous = previousVisibleTextRef.current
+  const prefixLength = commonPrefixLength(previous, block.visibleText)
+  const fragment = block.state === 'pending' && context.streaming
+    ? block.visibleText.slice(prefixLength)
+    : ''
+  previousVisibleTextRef.current = block.visibleText
+  const blockContext = fragment
+    ? { ...context, streamingFragment: fragment }
+    : context
+  return renderTokens(block.tokens, blockContext, block.id)
+})
+
+function commonPrefixLength(left: string, right: string): number {
+  let index = 0
+  const limit = Math.min(left.length, right.length)
+  while (index < limit && left[index] === right[index]) index += 1
+  return index
 }
 
 function renderTokens(
   tokens: MarkdownToken[],
   context: RenderContext,
   keyPrefix: string,
-  animateFromIndex = Number.POSITIVE_INFINITY,
 ): React.ReactNode[] {
   const rendered: React.ReactNode[] = []
   for (let index = 0; index < tokens.length; index += 1) {
@@ -193,35 +230,15 @@ function renderTokens(
             : inlineHtml.html}
         </React.Fragment>
       )
-      rendered.push(markStreamingNode(node, index >= animateFromIndex))
+      rendered.push(node)
       index = inlineHtml.end
       continue
     }
     rendered.push(
-      markStreamingNode(
-        renderToken(tokens[index], context, key),
-        index >= animateFromIndex,
-      ),
+      renderToken(tokens[index], context, key),
     )
   }
   return rendered
-}
-
-function markStreamingNode(
-  node: React.ReactNode,
-  streaming: boolean,
-): React.ReactNode {
-  if (
-    !streaming ||
-    !React.isValidElement<{ className?: string }>(node) ||
-    node.type === React.Fragment
-  ) {
-    return node
-  }
-  const className = [node.props.className, 'md-streaming-token']
-    .filter(Boolean)
-    .join(' ')
-  return React.cloneElement(node, { className })
 }
 
 type MarkdownAlertType = 'note' | 'tip' | 'important' | 'warning' | 'caution'
@@ -486,7 +503,7 @@ function renderToken(
       }
       return (
         <React.Fragment key={key}>
-          {renderTextWithFileReferences(token.text, context, key)}
+          {renderStreamingText(token.text, context, key)}
         </React.Fragment>
       )
     case 'checkbox':
@@ -502,6 +519,26 @@ function renderToken(
     default:
       return renderGenericToken(token, context, key)
   }
+}
+
+function renderStreamingText(
+  text: string,
+  context: RenderContext,
+  key: string,
+): React.ReactNode {
+  const fragment = context.streamingFragment
+  if (!fragment || !text.endsWith(fragment)) {
+    return renderTextWithFileReferences(text, context, key)
+  }
+  const stable = text.slice(0, -fragment.length)
+  return (
+    <>
+      {renderTextWithFileReferences(stable, context, `${key}-stable`)}
+      <span className="md-streaming-fragment">
+        {renderTextWithFileReferences(fragment, context, `${key}-fragment`)}
+      </span>
+    </>
+  )
 }
 
 function splitLeadDescriptionTokens(
@@ -1014,18 +1051,7 @@ function escapeRegExp(value: string): string {
 
 function stableTokenKey(token: MarkdownToken | undefined, index: number): string {
   if (!token) return String(index)
-  const source =
-    typeof token.raw === 'string'
-      ? token.raw
-      : 'text' in token && typeof token.text === 'string'
-        ? token.text
-        : ''
-  let hash = 2_166_136_261
-  for (let offset = 0; offset < source.length; offset += 1) {
-    hash ^= source.charCodeAt(offset)
-    hash = Math.imul(hash, 16_777_619)
-  }
-  return `${token.type}-${index}-${(hash >>> 0).toString(36)}`
+  return `${token.type}-${index}`
 }
 
 function renderTextWithFileReferences(

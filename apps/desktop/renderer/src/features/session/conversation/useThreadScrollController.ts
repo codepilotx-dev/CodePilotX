@@ -246,6 +246,41 @@ export function resolveThreadAtBottomDuringExplicitReturn({
   )
 }
 
+export function scrollVirtualizerToThreadBottom(
+  handle: VirtualizerHandle | null,
+  bottomSentinelIndex: number,
+  smooth: boolean,
+  footerOffset = 0,
+): boolean {
+  if (!handle) return false
+  try {
+    handle.scrollToIndex(bottomSentinelIndex, {
+      align: 'end',
+      offset: normalizeThreadFooterOffset(footerOffset),
+      smooth,
+    })
+    return true
+  } catch {
+    // The sentinel can briefly be unavailable while virtua applies new data.
+    // A later resize/count observation will request the bottom again.
+    return false
+  }
+}
+
+export function normalizeThreadFooterOffset(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, value) : 0
+}
+
+function readThreadFooterOffset(scrollElement: HTMLElement | null): number {
+  if (!scrollElement || typeof getComputedStyle === 'undefined') return 0
+  const value = Number.parseFloat(
+    getComputedStyle(scrollElement).getPropertyValue(
+      '--thread-scroll-footer-height',
+    ),
+  )
+  return normalizeThreadFooterOffset(value)
+}
+
 function readMetrics(
   handle: VirtualizerHandle | null,
   scrollElement?: HTMLElement | null,
@@ -386,27 +421,23 @@ export function useThreadScrollController({
       scrollFrameRef.current = requestAnimationFrame(() => {
         scrollFrameRef.current = null
         const handle = listRef.current
-        const viewport = scrollRef.current
-        const metrics = readMetrics(handle, viewport)
-        if (!handle || !metrics) {
+        if (!handle) {
           explicitReturnInProgressRef.current = false
           return
         }
-        const target = Math.max(0, metrics.scrollSize - metrics.viewportSize)
         const useSmoothScroll = beginProgrammaticScroll(smooth)
         explicitReturnInProgressRef.current = explicitReturn
-        if (viewport) {
-          viewport.scrollTo({
-            top: target,
-            behavior: useSmoothScroll ? 'smooth' : 'auto',
-          })
-        } else {
-          handle.scrollTo(target)
+        if (!scrollVirtualizerToThreadBottom(
+          handle,
+          itemCountRef.current,
+          useSmoothScroll,
+          readThreadFooterOffset(scrollRef.current),
+        )) {
+          explicitReturnInProgressRef.current = false
         }
-        updateAtBottom(true)
       })
     },
-    [beginProgrammaticScroll, listRef, scrollRef, updateAtBottom],
+    [beginProgrammaticScroll, listRef, scrollRef],
   )
 
   const applyDecision = React.useCallback(

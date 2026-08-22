@@ -98,6 +98,24 @@ export class ComposerDraftStore {
     return cloneDraft(next)
   }
 
+  completeSubmission(
+    key: ComposerDraftKey,
+    consumedClientId: string,
+    options: { clearContent: boolean },
+  ): ComposerDraft {
+    const current = this.#drafts.get(key)
+    if (!current || current.clientId !== consumedClientId) {
+      return current ? cloneDraft(current) : this.get(key)
+    }
+    const nextClientId = this.#createClientId()
+    const next = options.clearContent
+      ? createEmptyComposerDraft(nextClientId)
+      : { ...current, clientId: nextClientId }
+    this.#drafts.set(key, next)
+    this.#emit()
+    return cloneDraft(next)
+  }
+
   delete(key: ComposerDraftKey): void {
     this.#drafts.delete(key)
     this.clearSubmitOutcome(key)

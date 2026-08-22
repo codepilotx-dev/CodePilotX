@@ -80,6 +80,10 @@ export function SidebarSessionHoverCard({
   session,
   onRename,
 }: Props): React.ReactNode {
+  if (regeneratingTitle) {
+    return children
+  }
+
   const model = buildSidebarSessionHoverCardModel(
     session,
     fallbackTitle,

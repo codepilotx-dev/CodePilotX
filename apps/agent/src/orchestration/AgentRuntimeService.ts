@@ -19,10 +19,10 @@ import type { AgentDatabase } from "../storage/database/AgentDatabase";
 import type { EventHub } from "../storage/events/EventHub";
 import type { ToolExecutor } from "../tool/ToolExecutor";
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan";
+import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
 import { AgentError, type Item, type SubagentResult } from "../domain";
 import { createLiveEvent } from "../storage/events/EventPublisher";
 import { secretScrubber } from "../security/SecretScrubber";
-import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
 import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
 import { parseApplyPatch } from "../tool/ApplyPatch/parseApplyPatch";
 import { TurnPiBoundaryRepository } from "../storage/repositories/turn-pi-boundary-repository";
@@ -33,6 +33,15 @@ import {
 import { ArtifactService, type ArtifactBlobInput, type StoredArtifactBlob } from "../storage/ArtifactService";
 import type { NewArtifactRecord } from "../storage/repositories/artifact-repository";
 import type { ToolResultBlock } from "@codepilotx/shared/thread";
+import { PromptComposer } from "../prompt/PromptComposer";
+import { RuntimeCompositionService } from "../runtime-composition/service";
+import {
+  composeRuntimeComposition,
+  createMcpGenerationBinding,
+  rebindRuntimeComposition,
+} from "../runtime-composition/composer";
+import type { RuntimeWorkspaceScope, BoundRuntimeComposition, McpGenerationBinding } from "../runtime-composition/types";
+import { SkillService } from "../prompt/SkillService";
 
 export type {
   DelegationController,
@@ -311,6 +320,7 @@ export interface AgentRuntimeServiceOptions {
 export class AgentRuntimeService implements AgentRuntime {
   private readonly repo: SqlitePiSessionRepo;
   private readonly turnPiBoundaries: TurnPiBoundaryRepository;
+  private readonly runtimeCompositions: RuntimeCompositionService;
   private readonly active = new Map<string, ActiveHarness>();
   private readonly pending = new Map<string, PendingTurn>();
   private readonly completedCompactions = new Map<string, ContextCompaction>();
@@ -318,6 +328,7 @@ export class AgentRuntimeService implements AgentRuntime {
   constructor(private readonly options: AgentRuntimeServiceOptions) {
     this.repo = new SqlitePiSessionRepo(options.db);
     this.turnPiBoundaries = new TurnPiBoundaryRepository(options.db);
+    this.runtimeCompositions = new RuntimeCompositionService({ db: options.db });
   }
 
   private async publish(event: ReturnType<AgentDatabase["insertEvent"]>) {
@@ -810,7 +821,7 @@ export class AgentRuntimeService implements AgentRuntime {
     // Serialized OpenAI RunState cannot be replayed safely. Continue only from
     // durable Pi session context; side effects remain protected by toolCallID.
     const resolved = await request.resolveModel(request.fallbackModel);
-    const effectivePermissionConfig = resolveEffectivePermissionConfig(
+    let effectivePermissionConfig = resolveEffectivePermissionConfig(
       request.taskMode,
       request.permissionConfig,
     );
@@ -835,6 +846,113 @@ export class AgentRuntimeService implements AgentRuntime {
       });
     }
     const storage = session.getStorage() as SqlitePiSessionStorage;
+    // Freeze a durable runtime composition before any provider sample. The same
+    // product turn always rebinds the persisted snapshot (pause/resume); a new
+    // product turn recomposes. Missing storage falls back to fresh ephemeral and
+    // fails resume closed.
+    const exposurePlan = this.toolExposure({
+      ...request,
+      permissionConfig: effectivePermissionConfig,
+    });
+    const composeBundle = () => new PromptComposer().compose({
+      threadID: request.threadID,
+      mode: request.taskMode,
+      profile: request.profile ?? "main",
+      exposedTools: exposurePlan.exposed,
+      sections: effectivePromptSections,
+    });
+    const skillService = request.skillService ?? new SkillService();
+    const mcpBinding = this.mcpGenerationFor(request);
+    const workspaceScope: RuntimeWorkspaceScope = {
+      kind: request.workspace.roots.length > 0 ? "project" : "legacy",
+      cwd: request.workspace.rootPath,
+      roots: [...request.workspace.roots],
+      outputDirectory: null,
+      instructionSources: [],
+    };
+    const recordReferenced = (name: string, hash: string) => {
+      try {
+        this.runtimeCompositions.repository.recordReferencedSkills(request.turnID, [{ name, hash }]);
+      } catch {
+        // Referenced evidence persistence is best-effort; the frozen snapshot still guards resume.
+      }
+    };
+    let composition: BoundRuntimeComposition;
+    composition = await this.runtimeCompositions.loadOrCompose({
+        turnID: request.turnID,
+        agentID: request.agentID,
+        allowEphemeralFresh: !request.resume,
+        compose: async () => {
+          const fresh = composeRuntimeComposition({
+            turnID: request.turnID,
+            threadID: request.threadID,
+            profile: request.profile ?? "main",
+            taskMode: request.taskMode,
+            ...(resolved.ref.variant
+              ? { thinkingLevel: String(resolved.ref.variant) as import("./harness/agent-types").ThinkingLevel }
+              : {}),
+            model,
+            modelRef: resolved.ref,
+            toolCatalog: request.toolCatalog ?? this.options.toolExecutor.catalog(),
+            workspace: request.workspace,
+            workspaceScope,
+            sessionEntryID: null,
+            skillService,
+            mcpBinding,
+            effectivePermissionConfig,
+            toolContext: {
+              threadID: request.threadID,
+              turnID: request.turnID,
+              agentID: request.agentID,
+              profile: request.profile ?? "main",
+              taskMode: request.taskMode,
+              signal: request.signal,
+              workspace: request.workspace,
+              ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+              permissionConfig: effectivePermissionConfig,
+              model: request.fallbackModel,
+              taskSummary: request.content,
+            },
+            promptBundle: composeBundle(),
+            exposurePlan: {
+              eager: [...exposurePlan.eager],
+              deferred: [...exposurePlan.deferred],
+              exposed: [...exposurePlan.exposed],
+            },
+            recordReferenced,
+          });
+          return { snapshot: fresh.snapshot, bindings: fresh.bindings };
+        },
+        rebind: async (snapshot) =>
+          rebindRuntimeComposition(snapshot, {
+            model,
+            modelRef: resolved.ref,
+            workspace: request.workspace,
+            workspaceScope,
+            skillService,
+            mcpBinding,
+            toolContext: {
+              threadID: request.threadID,
+              turnID: request.turnID,
+              agentID: request.agentID,
+              profile: request.profile ?? "main",
+              taskMode: request.taskMode,
+              signal: request.signal,
+              workspace: request.workspace,
+              ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+              permissionConfig: effectivePermissionConfig,
+              model: request.fallbackModel,
+              taskSummary: request.content,
+            },
+            toolCatalog: request.toolCatalog ?? this.options.toolExecutor.catalog(),
+            ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+            recordReferenced,
+          }),
+      });
+    const composedBundle = composition.plan.snapshot.prompt;
+    effectivePermissionConfig = composition.plan.snapshot.permissions;
+    let exposedTools = composition.plan.snapshot.tools.exposed;
+    try {
     if (request.resume?.toolCallID) {
       const entries = await session.getEntries();
       const assistantEntry = [...entries]
@@ -995,10 +1113,6 @@ export class AgentRuntimeService implements AgentRuntime {
         }
       }
     }
-    const exposedTools = this.toolExposure({
-      ...request,
-      permissionConfig: effectivePermissionConfig,
-    }).exposed;
     let paused = false;
     const preapprovedToolCalls = new Map<string, string | undefined>();
     const pause = async (approval: PendingApproval) => {
@@ -1070,8 +1184,8 @@ export class AgentRuntimeService implements AgentRuntime {
       },
       lifecycle: {
         skillList: async () =>
-          request.skillService
-            ?.list()
+          composition.bindings.skills
+            .list()
             .map(({ name, description, origin, format, hash }) => ({
               name,
               description,
@@ -1080,9 +1194,7 @@ export class AgentRuntimeService implements AgentRuntime {
               hash,
             })) ?? [],
         skillRead: async (input) => {
-          if (!request.skillService)
-            throw new Error("当前 turn 未启用 SkillService");
-          return request.skillService.read(String(input.name));
+          return composition.bindings.skills.read(String(input.name));
         },
         projectSourceList: async () => {
           if (!request.projectSources)
@@ -1236,6 +1348,7 @@ export class AgentRuntimeService implements AgentRuntime {
           : {}),
         exposedTools,
         promptSections: effectivePromptSections,
+        bundle: composedBundle,
         ...(request.attachments ? { attachments: request.attachments } : {}),
         preapprovedToolCalls,
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
@@ -1276,6 +1389,9 @@ export class AgentRuntimeService implements AgentRuntime {
     return paused
       ? { status: "paused" as const, output: result.output }
       : result;
+    } finally {
+      await composition.release().catch(() => undefined);
+    }
   }
 
   toolExposure(request: AgentRuntimeRequest | (ToolExposureInput & { permissionConfig?: never })) {
@@ -1296,6 +1412,22 @@ export class AgentRuntimeService implements AgentRuntime {
     }, runtime.toolCatalog);
   }
 
+  private mcpGenerationFor(request: AgentRuntimeRequest) {
+    const definitions = (request.toolCatalog?.all() ?? [])
+      .filter((definition) => definition.origin?.kind === "mcp")
+      .map((definition) => {
+        const origin = definition.origin as { kind: "mcp"; serverName: string; rawToolName: string };
+        return {
+          sdkName: definition.sdkName,
+          serverName: origin.serverName,
+          rawToolName: origin.rawToolName,
+        };
+      });
+    const serverInstructions = (request.promptSections ?? [])
+      .filter((section) => section.source.type === "runtime" && typeof (section.source as { name?: string }).name === "string" && (section.source as { name: string }).name.startsWith("mcp:"))
+      .map((section) => ({ serverName: (section.source as { name: string }).name.slice(4), content: section.content }));
+    return createMcpGenerationBinding(request.workspace.rootPath, { serverInstructions, definitions });
+  }
   async compact(threadID: string, instructions?: string, promptText?: string) {
     const runtime = this.active.get(threadID);
     if (runtime) {

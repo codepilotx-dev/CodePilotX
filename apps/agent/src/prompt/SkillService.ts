@@ -113,6 +113,8 @@ const parseAllowedTools = (metadata: Record<string, unknown>) => {
 export class SkillService {
   private catalog = new Map<string, SkillMetadata>();
   private catalogCache: { hash: string; skills: SkillMetadata[]; shadowed: SkillCatalog["shadowed"] } | null = null;
+  /** Successfully read skills, tracked so a composition can freeze referenced-only evidence. */
+  private referenced = new Map<string, { name: string; hash: string }>();
 
   constructor(private readonly options: SkillServiceOptions = {}) {}
 
@@ -312,7 +314,7 @@ export class SkillService {
         if (!contained(canonicalSkillsRoot, directory)) {
           if (trustedSkillsRoots.some(root => contained(root, directory)))
             continue;
-          continue;
+          throw new Error("Skill 目录逃出 Skills 根");
         }
         const documentPath = join(directory, "SKILL.md");
         let canonicalDocument: string;
@@ -379,6 +381,7 @@ export class SkillService {
     this.catalog = new Map(
       [...found].filter(([, skill]) => this.options.enabled?.(skill) !== false),
     );
+    this.referenced.clear();
     const skills = [...this.catalog.values()]
     this.catalogCache = { hash: rootsHash, skills, shadowed }
     return { skills, shadowed };
@@ -453,7 +456,13 @@ export class SkillService {
       throw new Error(`SKILL.md 超过 1 MiB: ${metadata.path}`);
     const content = decoder.decode(bytes);
     const parsed = parseSkillDocument(content);
+    this.referenced.set(name, { name, hash: metadata.hash });
     return { ...metadata, content, body: parsed.body };
+  }
+
+  /** Skills whose content was successfully read this run (invocation or skill_read). */
+  referencedSkills(): Array<{ name: string; hash: string }> {
+    return [...this.referenced.values()];
   }
 
   async skill_read(name: string, options: SkillScanOptions): Promise<LoadedSkill> {

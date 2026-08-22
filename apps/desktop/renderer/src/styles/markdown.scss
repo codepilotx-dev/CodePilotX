@@ -654,7 +654,8 @@
   margin: 8px 0 0;
 }
 
-.md-streaming-token {
+.md-streaming-fragment {
+  display: inline;
   animation: md-streaming-fade var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
 }
 
@@ -671,7 +672,7 @@
 }
 
 :root[data-reduce-motion='on'] {
-  .md-streaming-token,
+  .md-streaming-fragment,
   .md-table-copy {
     animation: none;
     transition: none;

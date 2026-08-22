@@ -1163,6 +1163,138 @@ describe('desktop thread settings client', () => {
     expect(observedStatuses).toContain('done')
   })
 
+  test('does not let a stale running snapshot overwrite a completed lifecycle event', async () => {
+    let completed = false
+    let readRequests = 0
+    let releaseStaleRead = () => {}
+    const staleReadGate = new Promise<void>(resolve => {
+      releaseStaleRead = resolve
+    })
+    const observedStatuses: string[] = []
+    const source = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      onerror: null as (() => void) | null,
+      close: () => {},
+    }
+    const currentSnapshot = (): ThreadSnapshot => ({
+      ...snapshot('session-1', defaultSettings),
+      turns: [{
+        id: 'turn-1',
+        threadId: 'session-1',
+        sourceInputID: 'input-1',
+        status: completed ? 'completed' : 'running',
+        mode: 'chat',
+        model: { providerID: 'openai', id: 'gpt-5' },
+        permissionConfig: defaultSettings.permissionConfig,
+        rootAgentId: 'agent-1',
+        mergedInputIDs: [],
+        startedAt: now,
+        finishedAt: completed ? now + 1_000 : null,
+        elapsedSeconds: completed ? 1 : 0,
+        error: null,
+      }],
+    })
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      const params = body?.params ?? {}
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'event/subscribe') {
+        return rpc(body.id, {
+          subscriptionId: 'subscription-1',
+          highWatermarks: [{ streamId: 'global', sequence: 12 }],
+        })
+      }
+      if (body?.method === 'event/unsubscribe') return rpc(body.id, { ok: true })
+      if (body?.method === 'event/ack') {
+        return rpc(body.id, {
+          subscriptionId: params.subscriptionId,
+          acknowledged: params.positions,
+        })
+      }
+      if (body?.method === 'interaction/listPending') {
+        return rpc(body.id, { interactions: [], nextCursor: null })
+      }
+      if (body?.method === 'project/list') {
+        return rpc(body.id, { projects: [project], nextCursor: null })
+      }
+      if (body?.method === 'thread/list') {
+        return rpc(body.id, {
+          threads: [{
+            ...listItem('session-1', defaultSettings),
+            latestTurnStatus: completed ? 'completed' : 'running',
+          }],
+          nextCursor: null,
+        })
+      }
+      if (body?.method === 'thread/read') {
+        readRequests += 1
+        const responseSnapshot = currentSnapshot()
+        if (!completed) await staleReadGate
+        return rpc(body.id, snapshotResult(responseSnapshot))
+      }
+      throw new Error(`Unhandled RPC method: ${body?.method}`)
+    }
+    const client = createDesktopClient({
+      fetch: fetcher,
+      eventSourceFactory: () => source as unknown as EventSource,
+    })
+    await client.listSessions()
+    await client.setActiveSession('session-1')
+    const unsubscribeStore = client.onSessionStoreChange(change => {
+      const status = change.sessions.find(item => item.item.id === 'session-1')?.item.status
+      if (status) observedStatuses.push(status)
+    })
+    for (let index = 0; index < 20 && !source.onmessage; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+
+    const staleRead = client.getSession('session-1')
+    for (let index = 0; index < 20 && readRequests === 0; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+    completed = true
+    source.onmessage?.({
+      data: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'event/next',
+        params: {
+          subscriptionId: 'subscription-1',
+          event: {
+            eventId: 'event-13',
+            streamId: 'global',
+            type: 'turn/completed',
+            version: 2,
+            occurredAt: now + 1_000,
+            threadId: 'session-1',
+            turnId: 'turn-1',
+            durability: 'durable',
+            sequence: 13,
+            payload: { turn: currentSnapshot().turns[0] },
+          },
+        },
+      }),
+    } as MessageEvent)
+    for (
+      let index = 0;
+      index < 50 && (!observedStatuses.includes('done') || readRequests < 2);
+      index += 1
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+
+    releaseStaleRead()
+    const staleResult = await staleRead
+    await new Promise(resolve => setTimeout(resolve, 0))
+    unsubscribeStore()
+
+    const completedIndex = observedStatuses.indexOf('done')
+    expect(completedIndex).toBeGreaterThanOrEqual(0)
+    expect(observedStatuses.slice(completedIndex)).not.toContain('running')
+    expect(staleResult?.item.status).toBe('done')
+  })
+
   test('routes GitHub auth, profile, repositories, push and PR creation through Agent RPC', async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = []
     const githubUser = {

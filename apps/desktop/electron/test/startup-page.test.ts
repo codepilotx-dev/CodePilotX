@@ -135,6 +135,7 @@ describe("startup page", () => {
         surface: "#ffffff",
         ink: "#1a1c1f",
         accent: "#339cff",
+        surfaceUnder: "#f6f6f6",
       },
     })
     expect(
@@ -145,6 +146,7 @@ describe("startup page", () => {
         surface: "#181818",
         ink: "#ffffff",
         accent: "#339cff",
+        surfaceUnder: "#141414",
       },
     })
   })
