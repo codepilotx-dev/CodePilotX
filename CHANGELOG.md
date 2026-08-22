@@ -32,6 +32,7 @@
 - [agent] 将 Pi Harness 物理并入 App Agent，并统一 AgentRuntime 执行门面，减少重复编排层。
 - [agent/runtime] 为 Harness 增加不可变 Turn/Step composition 契约，并统一持久化主 Agent 与子 Agent 的模型、权限、Skills、MCP、工具和 Prompt 快照，确保暂停及恢复期间运行配置保持一致。
 - [agent/runtime] 将 schema 34 的持久化 Runtime Composition（快照、rebind、capability probe 与幂等 release 生命周期）整合进 AgentRuntimeService 内部：同一持久化产品 Turn 在首次 Provider sample 前持久化快照，pause/resume 只 rebind，下一产品 Turn 才重新 compose。
+- [build/session-view] 补齐移除 Pi Core workspace 后缺失的共享类型环境：`packages/session-view/tsconfig.json` 的 `lib` 由仅 `ES2022` 对齐为 `ES2022 + DOM`（与 shared、agent-protocol 等包一致），使 session-view 自身声明其传递编译所需的 `URL`/`File` 全局类型，不再依赖被删除 workspace 经根 node_modules 泄漏的 `@types/bun`；干净 frozen install 后 `bun run typecheck` 可全绿。
 - [desktop/renderer] 统一会话区域加载态展示：将鲸鱼闪光效果约束在会话内容主区域（variant="contained"），保留侧边栏、右侧面板与顶部菜单栏正常交互；加载期间隐藏底部 Composer，并在数据就绪后平滑淡入时间线；替换时间线旧有旋转 Spinner，彻底消除会话切换与加载时的重复动画问题。
 - [desktop/renderer] 优化侧边栏顶部活动通知图标：采用 Lucide 嵌套 SVG 规范，统一使用 Bell 图标并在有活动或待处理会话时于右上角嵌套渲染前景色圆点徽标，简化图标切换逻辑并提升状态呈现的一致性。
 
