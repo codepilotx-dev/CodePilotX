@@ -129,6 +129,7 @@ export function ConfirmationDialog({
 type InputDialogProps = Omit<Props, 'description' | 'tone'> & {
   description: React.ReactNode
   input: ConfirmationInput
+  allowEmpty?: boolean
 }
 
 export function InputDialog({
@@ -138,13 +139,14 @@ export function InputDialog({
   cancelLabel = '取消',
   actionLabel,
   input,
+  allowEmpty = false,
   actionDisabled = false,
   onCancel,
   onAction,
 }: InputDialogProps): React.ReactNode {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
-  const submitDisabled = actionDisabled || input.value.trim().length === 0
+  const submitDisabled = isInputDialogSubmitDisabled(input.value, allowEmpty, actionDisabled)
 
   return (
     <Dialog.Root
@@ -220,4 +222,12 @@ export function InputDialog({
       </Dialog.Portal>
     </Dialog.Root>
   )
+}
+
+export function isInputDialogSubmitDisabled(
+  value: string,
+  allowEmpty = false,
+  actionDisabled = false,
+): boolean {
+  return actionDisabled || (!allowEmpty && value.trim().length === 0)
 }

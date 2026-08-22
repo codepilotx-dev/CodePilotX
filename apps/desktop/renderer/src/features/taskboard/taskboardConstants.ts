@@ -1,5 +1,6 @@
 import type {
   TaskboardPriority,
+  TaskboardWorkflowTaskSummary,
   TaskboardWorkflowStatus,
 } from '@codepilotx/shared/taskboard'
 
@@ -44,4 +45,20 @@ export const TASKBOARD_PRIORITY_ORDER: Record<TaskboardPriority, number> = {
 
 export function taskboardStatusLabel(status: TaskboardWorkflowStatus): string {
   return TASKBOARD_ALL_COLUMNS.find(column => column.status === status)?.label ?? status
+}
+
+export function canStartTask(task: {
+  status: TaskboardWorkflowStatus
+  archivedAt: number | null
+}): boolean {
+  return task.archivedAt === null && task.status !== 'done' && task.status !== 'canceled'
+}
+
+export function activeTaskboardPrimaryThreadId(
+  task: Pick<TaskboardWorkflowTaskSummary, 'threads'>,
+): string | null {
+  const primary = task.threads.find(thread => thread.role === 'primary')
+  return primary?.attention === 'running' || primary?.attention === 'needs_input'
+    ? primary.threadId
+    : null
 }

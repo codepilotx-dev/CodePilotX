@@ -12,7 +12,7 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import { ConfirmationDialog, InputDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { MarkdownMessage } from '../../markdown/index.js'
-import { TASKBOARD_ALL_COLUMNS, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
+import { canStartTask, TASKBOARD_ALL_COLUMNS, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { useTaskboardThreadCandidates } from '../state/useTaskboardThreadCandidates.js'
 
 type Props = {
@@ -284,10 +284,12 @@ export function TaskDetailsDrawer({
             </main>
             <aside className="taskboard-detail__aside" aria-label="任务属性和活动">
             <div className="taskboard-drawer__actions">
-              <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => onStart(task.id)}>
-                <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                开始执行
-              </Button>
+              {canStartTask(task) ? (
+                <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => onStart(task.id)}>
+                  <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  开始执行
+                </Button>
+              ) : null}
               {task.status === 'in_review' ? (
                 <>
                   <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => { setTransitionNote(''); setTransitionAction('accept') }}>通过审核</Button>
@@ -364,6 +366,7 @@ export function TaskDetailsDrawer({
           onCancel={() => setDeleteOpen(false)}
         />
         <InputDialog
+          allowEmpty={transitionAction === 'accept'}
           actionDisabled={transitionAction !== 'accept' && !transitionNote.trim()}
           actionLabel={transitionAction === 'accept' ? '通过审核' : transitionAction === 'return_work' ? '退回修改' : '报告阻碍'}
           description={transitionAction === 'accept' ? '可以选填审核说明。' : transitionAction === 'return_work' ? '填写需要继续修改的反馈。' : '填写阻碍任务继续进行的原因。'}
@@ -377,7 +380,8 @@ export function TaskDetailsDrawer({
           title={transitionAction === 'accept' ? '通过任务审核？' : transitionAction === 'return_work' ? '退回任务继续修改？' : '将任务标记为遇到阻碍？'}
           onAction={() => {
             if (!task || !transitionAction) return
-            void onTransition(task.id, transitionAction, transitionNote).then(() => setTransitionAction(null))
+            const note = transitionNote.trim()
+            void onTransition(task.id, transitionAction, note || undefined).then(() => setTransitionAction(null))
           }}
           onCancel={() => setTransitionAction(null)}
         />

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { TaskboardPriority, TaskboardWorkflowStatus, TaskboardWorkflowTaskSummary } from '@codepilotx/shared/taskboard'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
-import { TASKBOARD_ALL_STATUSES, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
+import { canStartTask, TASKBOARD_ALL_STATUSES, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { readTaskboardCollapsedStatuses, rememberTaskboardCollapsedStatuses } from '../state/taskboardViewPreferences.js'
 
 type Props = {
@@ -58,7 +58,7 @@ export function TaskboardList(props: Props): React.ReactNode {
                           <small>{props.projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>
                           <strong>{task.title}</strong>
                         </span>
-                        {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="未读更新" /> : null}
+                        {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="待整理任务" /> : null}
                       </button>
                       <select aria-label={`${task.title}的状态`} disabled={props.pendingTaskIds.has(task.id)} value={task.status} onChange={event => void props.onMove(task.id, event.currentTarget.value as TaskboardWorkflowStatus)}>
                         {TASKBOARD_ALL_STATUSES.map(value => <option key={value} value={value}>{taskboardStatusLabel(value)}</option>)}
@@ -70,9 +70,11 @@ export function TaskboardList(props: Props): React.ReactNode {
                         {needsInput ? <TriangleAlert aria-label="等待处理" size={APP_ICON_SIZE - 2} /> : <MessageSquare aria-hidden="true" size={APP_ICON_SIZE - 2} />}{task.threads.length}
                       </span>
                       <span>{formatDate(task.startDate)}</span><span>{formatDate(task.dueDate)}</span>
-                      <IconButton color="ghostSecondary" disabled={props.pendingTaskIds.has(task.id) || task.archivedAt !== null} size="toolbar" title="开始执行" onClick={() => props.onStart(task.id)}>
-                        <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                      </IconButton>
+                      {canStartTask(task) ? (
+                        <IconButton color="ghostSecondary" disabled={props.pendingTaskIds.has(task.id)} size="toolbar" title="开始执行" onClick={() => props.onStart(task.id)}>
+                          <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        </IconButton>
+                      ) : null}
                     </article>
                   )
                 })}

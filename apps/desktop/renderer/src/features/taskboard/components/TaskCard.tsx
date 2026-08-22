@@ -3,7 +3,7 @@ import { CalendarDays, MessageSquare, Play, TriangleAlert } from 'lucide-react'
 import type { TaskboardWorkflowTaskSummary, TaskboardWorktreeStatus } from '@codepilotx/shared/taskboard'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import { TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
+import { canStartTask, TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
 
 type Props = {
   task: TaskboardWorkflowTaskSummary
@@ -75,7 +75,7 @@ export function TaskCard({
               />
             </span>
           ) : null}
-          {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="未读更新" /> : null}
+          {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="待整理任务" /> : null}
           {task.priority !== 'none' ? (
             <span className="taskboard-card__priority">
               {TASKBOARD_PRIORITY_LABELS[task.priority]}
@@ -124,19 +124,21 @@ export function TaskCard({
         </span>
         <span className="taskboard-card__actions">
           {menu}
-          <IconButton
-            color="ghostSecondary"
-            disabled={pending}
-            size="toolbar"
-            title="开始执行"
-            onClick={onStart}
-          >
-            <Play
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          </IconButton>
+          {canStartTask(task) ? (
+            <IconButton
+              color="ghostSecondary"
+              disabled={pending}
+              size="toolbar"
+              title="开始执行"
+              onClick={onStart}
+            >
+              <Play
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            </IconButton>
+          ) : null}
         </span>
       </footer>
     </article>

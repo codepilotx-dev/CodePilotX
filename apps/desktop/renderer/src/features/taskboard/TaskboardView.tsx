@@ -22,7 +22,7 @@ import { TaskboardToolbar } from './components/TaskboardToolbar.js'
 import { CreateTaskDialog } from './components/CreateTaskDialog.js'
 import { StartTaskDialog } from './components/StartTaskDialog.js'
 import { TaskDetailsDrawer } from './components/TaskDetailsDrawer.js'
-import { TASKBOARD_PRIORITY_LABELS } from './taskboardConstants.js'
+import { activeTaskboardPrimaryThreadId, canStartTask, TASKBOARD_PRIORITY_LABELS } from './taskboardConstants.js'
 import { useTaskboardController, type TaskboardFilters } from './state/useTaskboardController.js'
 import {
   readTaskboardGanttHideCompleted,
@@ -131,6 +131,16 @@ export function TaskboardView(): React.ReactNode {
       throw cause
     }
   }
+  const requestStart = (nextTaskId: string): void => {
+    const task = findTask(controller.tasks, controller.detail, nextTaskId)
+    if (!task || !canStartTask(task)) return
+    const activePrimaryThreadId = activeTaskboardPrimaryThreadId(task)
+    if (activePrimaryThreadId) {
+      navigate(`/threads/${encodeURIComponent(activePrimaryThreadId)}`)
+      return
+    }
+    setStartTaskId(nextTaskId)
+  }
 
   return (
     <section className="taskboard-view" data-detail={taskId ? '' : undefined}>
@@ -192,11 +202,7 @@ export function TaskboardView(): React.ReactNode {
                 onLinkThread={linkDroppedThread}
                 onNewTask={setCreateStatus}
                 onOpen={openTask}
-                onStart={id => {
-                  if (controller.tasks.find(task => task.id === id)?.archivedAt == null) {
-                    setStartTaskId(id)
-                  }
-                }}
+                onStart={requestStart}
               />
             </div>
             {otherTasksOpen ? (
@@ -214,7 +220,7 @@ export function TaskboardView(): React.ReactNode {
                 onArchivedChange={archived => updateFilter({ archived: archived ? '1' : null })}
                 onNewTask={setCreateStatus}
                 onOpen={openTask}
-                onStart={id => setStartTaskId(id)}
+                onStart={requestStart}
               />
             ) : null}
           </div>
@@ -227,7 +233,7 @@ export function TaskboardView(): React.ReactNode {
             tasks={controller.tasks}
             onMove={moveTask}
             onOpen={openTask}
-            onStart={id => setStartTaskId(id)}
+            onStart={requestStart}
             onUpdate={controller.updateTask}
           />
         ) : null}
@@ -268,11 +274,7 @@ export function TaskboardView(): React.ReactNode {
           onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
           onRestore={controller.restoreTask}
           onSetPrimaryThread={controller.setPrimaryThread}
-          onStart={id => {
-            if (controller.detail?.task.id === id && controller.detail.task.archivedAt === null) {
-              setStartTaskId(id)
-            }
-          }}
+          onStart={requestStart}
           onUnlinkThread={controller.unlinkThread}
           onTransition={controller.transitionTask}
           onUpdateComment={controller.updateComment}
@@ -289,7 +291,7 @@ export function TaskboardView(): React.ReactNode {
         onCreate={async input => { openTask(await controller.createTask(input)) }}
       />
       <StartTaskDialog
-        open={Boolean(startTaskId && startTask?.archivedAt === null)}
+        open={Boolean(startTaskId && startTask && canStartTask(startTask))}
         projectName={startTask ? projectNames.get(startTask.projectId) ?? '项目已移除' : ''}
         projectAvailable={Boolean(startTask && projectNames.has(startTask.projectId))}
         task={startTask}

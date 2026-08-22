@@ -61,6 +61,8 @@ export function StartTaskDialog({
   ), [worktrees])
   const primaryThread = task?.threads.find(thread => thread.role === 'primary')
   const primaryActive = primaryThread?.attention === 'running' || primaryThread?.attention === 'needs_input'
+  const createsPrimary = taskboardStartCreatesPrimary(Boolean(primaryThread), startMode)
+  const actionLabel = taskboardStartActionLabel(Boolean(primaryThread), startMode)
 
   useEffect(() => {
     if (!open || !task) return
@@ -83,7 +85,7 @@ export function StartTaskDialog({
     setOperation(next)
     if (next.status === 'completed' && next.threadId && openRef.current) onReady(next)
     else if (next.status === 'failed' || next.status === 'rollback_failed') {
-      setError(next.errorCode ?? '创建对话失败，请重试。')
+      setError(next.errorCode ?? '创建主会话失败，请重试。')
     }
   }
 
@@ -102,7 +104,7 @@ export function StartTaskDialog({
   const submit = (): void => {
     if (!task) return
     let execution: TaskboardStartExecution
-    if (mode === 'local') execution = { kind: 'local' }
+    if (!createsPrimary || mode === 'local') execution = { kind: 'local' }
     else if (mode === 'existing_worktree') {
       if (!worktreeId) return
       execution = { kind: 'existing_worktree', worktreeId }
@@ -155,12 +157,14 @@ export function StartTaskDialog({
               ) : <small>主会话正在运行或等待处理，将直接打开现有会话。</small>}
             </fieldset>
           ) : null}
-          <div className="taskboard-execution-options" role="radiogroup" aria-label="执行位置">
-            <ExecutionOption checked={mode === 'local'} icon={<HardDrive />} label="当前项目" detail="直接使用项目的本地工作目录" onChange={() => setMode('local')} />
-            <ExecutionOption checked={mode === 'existing_worktree'} icon={<Trees />} label="已有工作树" detail="在已就绪的托管工作树中继续" onChange={() => setMode('existing_worktree')} />
-            <ExecutionOption checked={mode === 'new_worktree'} icon={<GitBranch />} label="新工作树" detail="隔离创建分支或复制当前改动" onChange={() => setMode('new_worktree')} />
-          </div>
-          {mode === 'existing_worktree' ? (
+          {createsPrimary ? (
+            <div className="taskboard-execution-options" role="radiogroup" aria-label="执行位置">
+              <ExecutionOption checked={mode === 'local'} icon={<HardDrive />} label="当前项目" detail="直接使用项目的本地工作目录" onChange={() => setMode('local')} />
+              <ExecutionOption checked={mode === 'existing_worktree'} icon={<Trees />} label="已有工作树" detail="在已就绪的托管工作树中继续" onChange={() => setMode('existing_worktree')} />
+              <ExecutionOption checked={mode === 'new_worktree'} icon={<GitBranch />} label="新工作树" detail="隔离创建分支或复制当前改动" onChange={() => setMode('new_worktree')} />
+            </div>
+          ) : null}
+          {createsPrimary && mode === 'existing_worktree' ? (
             <label className="taskboard-dialog__field">
               <span>托管工作树</span>
               <select value={worktreeId} onChange={event => setWorktreeId(event.currentTarget.value)}>
@@ -172,7 +176,7 @@ export function StartTaskDialog({
               {readyWorktrees.length === 0 ? <small>当前项目没有已就绪的托管工作树。</small> : null}
             </label>
           ) : null}
-          {mode === 'new_worktree' ? (
+          {createsPrimary && mode === 'new_worktree' ? (
             <div className="taskboard-dialog__nested">
               <label><input checked={startingState === 'working_tree'} name="starting-state" type="radio" onChange={() => setStartingState('working_tree')} />复制当前工作目录改动</label>
               <label><input checked={startingState === 'branch'} name="starting-state" type="radio" onChange={() => setStartingState('branch')} />从分支创建</label>
@@ -206,11 +210,11 @@ export function StartTaskDialog({
             {operation?.status !== 'awaiting_setup_decision' ? (
               <Button
                 color="secondary"
-                disabled={!projectAvailable || mode === 'existing_worktree' && !worktreeId || mode === 'new_worktree' && startingState === 'branch' && !branchName.trim()}
+                disabled={!projectAvailable || createsPrimary && mode === 'existing_worktree' && !worktreeId || createsPrimary && mode === 'new_worktree' && startingState === 'branch' && !branchName.trim()}
                 loading={submitting}
                 onClick={submit}
               >
-                {operation?.status === 'rollback_failed' ? '重试' : '创建对话'}
+                {operation?.status === 'rollback_failed' ? '重试' : actionLabel}
               </Button>
             ) : null}
           </footer>
@@ -218,6 +222,22 @@ export function StartTaskDialog({
       </Dialog.Portal>
     </Dialog.Root>
   )
+}
+
+export function taskboardStartCreatesPrimary(
+  hasPrimaryThread: boolean,
+  startMode: TaskboardWorkflowStartMode,
+): boolean {
+  return !hasPrimaryThread || startMode === 'new_primary'
+}
+
+export function taskboardStartActionLabel(
+  hasPrimaryThread: boolean,
+  startMode: TaskboardWorkflowStartMode,
+): '继续主会话' | '创建主会话' {
+  return hasPrimaryThread && startMode === 'continue_primary'
+    ? '继续主会话'
+    : '创建主会话'
 }
 
 function ExecutionOption({
