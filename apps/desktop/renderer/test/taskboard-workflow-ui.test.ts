@@ -1,12 +1,44 @@
 import { describe, expect, test } from 'bun:test'
 import { taskboardInitialThreadLinks } from '../src/features/taskboard/components/CreateTaskDialog.js'
-import { taskboardCreateTaskRpcInput, taskboardStartMode, taskboardThreadLinksForDrop, taskboardTransitionRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
+import { collectTaskboardWorkflowPages, taskboardCreateTaskRpcInput, taskboardStartMode, taskboardThreadLinksForDrop, taskboardTransitionRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
+import { readTaskboardGanttHideCompleted, readTaskboardGanttZoom, readTaskboardLayout } from '../src/features/taskboard/state/taskboardViewPreferences.js'
 import { beginSidebarSessionDrag, readSidebarSessionDrag, SIDEBAR_SESSION_DRAG_TYPE } from '../src/features/taskboard/taskboardDragData.js'
 import { deriveThreadTaskboardAction } from '../src/features/taskboard/state/threadTaskboardAction.js'
 import { executeBlockedTransition } from '../src/features/taskboard/state/taskboardBlockedTransition.js'
 import { mergeUniqueTaskboardThreadCandidates } from '../src/features/taskboard/state/useTaskboardThreadCandidates.js'
+import {
+  formatTaskboardLocalDate,
+  parseTaskboardLocalDate,
+  projectTaskboardGanttGroups,
+  projectTaskboardGanttTask,
+  taskboardExclusiveEndDate,
+  taskboardInclusiveDatesFromGanttRange,
+  type TaskboardGanttTaskInput,
+} from '../src/features/taskboard/taskboardGanttModel.js'
 
 describe('taskboard workflow renderer behavior', () => {
+  test('gantt URL state accepts explicit values and falls back safely', () => {
+    const params = new URLSearchParams('view=gantt&zoom=month&hideCompleted=1')
+    expect(readTaskboardLayout(params)).toBe('gantt')
+    expect(readTaskboardGanttZoom(params)).toBe('month')
+    expect(readTaskboardGanttHideCompleted(params)).toBe(true)
+    expect(readTaskboardGanttZoom(new URLSearchParams('zoom=quarter'))).toBe('week')
+  })
+
+  test('workflow pagination collects every page in cursor order', async () => {
+    const cursors: Array<string | undefined> = []
+    const result = await collectTaskboardWorkflowPages(async cursor => {
+      cursors.push(cursor)
+      return cursor
+        ? { tasks: [501, 502], unreadCount: 7, nextCursor: null }
+        : { tasks: Array.from({ length: 500 }, (_, index) => index + 1), unreadCount: 7, nextCursor: 'page:2' }
+    })
+    expect(cursors).toEqual([undefined, 'page:2'])
+    expect(result.tasks).toHaveLength(502)
+    expect(result.tasks.at(-1)).toBe(502)
+    expect(result.unreadCount).toBe(7)
+  })
+
   test('start mode is derived from the current task links', () => {
     expect(taskboardStartMode([])).toBe('new_primary')
     expect(taskboardStartMode([{ role: 'supporting' }])).toBe('new_primary')
@@ -123,4 +155,70 @@ describe('taskboard workflow renderer behavior', () => {
       updatedAt: 1,
     })).toEqual([{ threadId: 'thread:1', role: 'primary' }])
   })
+
+  test('gantt projection keeps workflow group order and can hide completed tasks', () => {
+    const tasks = [
+      ganttTask('done'),
+      ganttTask('backlog'),
+      ganttTask('in_review'),
+      ganttTask('todo'),
+      ganttTask('blocked'),
+      ganttTask('canceled'),
+      ganttTask('in_progress'),
+    ]
+
+    expect(projectTaskboardGanttGroups(tasks).map(group => group.status)).toEqual([
+      'todo',
+      'in_progress',
+      'blocked',
+      'in_review',
+      'backlog',
+      'done',
+      'canceled',
+    ])
+    expect(projectTaskboardGanttGroups(tasks, true).map(group => group.status)).toEqual([
+      'todo',
+      'in_progress',
+      'blocked',
+      'in_review',
+      'backlog',
+    ])
+  })
+
+  test('gantt schedules only complete valid inclusive date ranges', () => {
+    expect(projectTaskboardGanttTask(ganttTask('todo', '2026-08-22', '2026-08-22')).scheduled).toBe(true)
+    expect(projectTaskboardGanttTask(ganttTask('todo', '2026-08-22', null)).scheduled).toBe(false)
+    expect(projectTaskboardGanttTask(ganttTask('todo', null, '2026-08-23')).scheduled).toBe(false)
+    expect(projectTaskboardGanttTask(ganttTask('todo', '2026-08-24', '2026-08-23')).scheduled).toBe(false)
+    expect(projectTaskboardGanttTask(ganttTask('todo', '2026-02-29', '2026-03-01')).scheduled).toBe(false)
+  })
+
+  test('gantt converts inclusive task dates to and from an exclusive end date', () => {
+    const dueDateExclusive = taskboardExclusiveEndDate('2026-08-22')
+    expect(dueDateExclusive && formatTaskboardLocalDate(dueDateExclusive)).toBe('2026-08-23')
+
+    const startDate = parseTaskboardLocalDate('2026-08-20')
+    const endDateExclusive = parseTaskboardLocalDate('2026-08-23')
+    expect(startDate).not.toBeNull()
+    expect(endDateExclusive).not.toBeNull()
+    expect(taskboardInclusiveDatesFromGanttRange(startDate!, endDateExclusive!)).toEqual({
+      startDate: '2026-08-20',
+      dueDate: '2026-08-22',
+    })
+  })
 })
+
+function ganttTask(
+  status: TaskboardGanttTaskInput['status'],
+  startDate: string | null = '2026-08-20',
+  dueDate: string | null = '2026-08-22',
+): TaskboardGanttTaskInput {
+  return {
+    id: `task:${status}`,
+    number: 1,
+    title: status,
+    status,
+    startDate,
+    dueDate,
+  }
+}

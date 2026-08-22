@@ -115,7 +115,7 @@ export function useTaskboardController(
         throw new Error('当前 Agent 不支持任务看板。请更新 Agent 后重试。')
       }
       const [result, projects, sessions] = await Promise.all([
-        desktopClient.listTaskboardWorkflowTasks!({
+        collectTaskboardWorkflowPages(cursor => desktopClient.listTaskboardWorkflowTasks!({
           ...(current.projectId ? { projectId: current.projectId } : {}),
           ...(current.query ? { query: current.query } : {}),
           ...(current.labelIds?.length ? { labelIds: [...current.labelIds] } : {}),
@@ -123,9 +123,10 @@ export function useTaskboardController(
           ...(current.unread !== undefined ? { unread: current.unread } : {}),
           ...(current.datePreset ? { datePreset: current.datePreset } : {}),
           ...(current.sort ? { sort: current.sort } : {}),
+          ...(cursor ? { cursor } : {}),
           archived: current.archived,
           limit: 500,
-        }),
+        })),
         desktopClient.listProjects(),
         desktopClient.listSessions(),
       ])
@@ -551,6 +552,25 @@ export function useTaskboardController(
       return waitForStart(result.operation)
     },
   }), [applyDetails, handleMutationError, refresh, runTaskMutation, selectedTaskId, state, store])
+}
+
+export async function collectTaskboardWorkflowPages<T>(
+  loadPage: (cursor?: string) => Promise<{
+    tasks: readonly T[]
+    unreadCount: number
+    nextCursor: string | null
+  }>,
+): Promise<{ tasks: T[]; unreadCount: number }> {
+  const tasks: T[] = []
+  let cursor: string | undefined
+  let unreadCount = 0
+  do {
+    const page = await loadPage(cursor)
+    tasks.push(...page.tasks)
+    unreadCount = page.unreadCount
+    cursor = page.nextCursor ?? undefined
+  } while (cursor)
+  return { tasks, unreadCount }
 }
 
 /** 把创建任务的 UI 输入映射为 workflow/create 参数。 */

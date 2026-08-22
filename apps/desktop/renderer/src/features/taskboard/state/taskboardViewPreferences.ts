@@ -1,6 +1,8 @@
 import type { TaskboardWorkflowStatus } from '@codepilotx/shared/taskboard'
+import type { TaskboardGanttZoom } from '../taskboardGanttModel.js'
+export type { TaskboardGanttZoom } from '../taskboardGanttModel.js'
 
-export type TaskboardLayout = 'board' | 'list'
+export type TaskboardLayout = 'board' | 'list' | 'gantt'
 
 const VIEW_STORAGE_PREFIX = 'codepilotx.taskboard.view.'
 const COLLAPSED_STORAGE_PREFIX = 'codepilotx.taskboard.list.collapsed.'
@@ -10,13 +12,22 @@ export function readTaskboardLayout(
   projectId?: string,
 ): TaskboardLayout {
   const routeView = params.get('view')
-  if (routeView === 'board' || routeView === 'list') return routeView
+  if (routeView === 'board' || routeView === 'list' || routeView === 'gantt') return routeView
   try {
     const stored = window.localStorage.getItem(`${VIEW_STORAGE_PREFIX}${projectId ?? 'all'}`)
-    return stored === 'list' ? 'list' : 'board'
+    return stored === 'list' || stored === 'gantt' ? stored : 'board'
   } catch {
     return 'board'
   }
+}
+
+export function readTaskboardGanttZoom(params: URLSearchParams): TaskboardGanttZoom {
+  const value = params.get('zoom')
+  return value === 'day' || value === 'month' ? value : 'week'
+}
+
+export function readTaskboardGanttHideCompleted(params: URLSearchParams): boolean {
+  return params.get('hideCompleted') === '1'
 }
 
 export function readTaskboardCollapsedStatuses(

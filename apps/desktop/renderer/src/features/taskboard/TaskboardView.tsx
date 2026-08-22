@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type {
@@ -24,9 +24,18 @@ import { StartTaskDialog } from './components/StartTaskDialog.js'
 import { TaskDetailsDrawer } from './components/TaskDetailsDrawer.js'
 import { TASKBOARD_PRIORITY_LABELS } from './taskboardConstants.js'
 import { useTaskboardController, type TaskboardFilters } from './state/useTaskboardController.js'
-import { readTaskboardLayout, rememberTaskboardLayout, type TaskboardLayout } from './state/taskboardViewPreferences.js'
+import {
+  readTaskboardGanttHideCompleted,
+  readTaskboardGanttZoom,
+  readTaskboardLayout,
+  rememberTaskboardLayout,
+  type TaskboardGanttZoom,
+  type TaskboardLayout,
+} from './state/taskboardViewPreferences.js'
 import { executeBlockedTransition } from './state/taskboardBlockedTransition.js'
 import '../../styles/lazy/taskboard.scss'
+
+const TaskboardGantt = lazy(() => import('./components/TaskboardGantt.js'))
 
 export function TaskboardView(): React.ReactNode {
   const { taskId } = useParams<{ taskId: string }>()
@@ -39,6 +48,7 @@ export function TaskboardView(): React.ReactNode {
   const [otherTasksOpen, setOtherTasksOpen] = useState(false)
   const [dropNotice, setDropNotice] = useState<string | null>(null)
   const [dropError, setDropError] = useState<string | null>(null)
+  const [ganttTodayRequest, setGanttTodayRequest] = useState(0)
   const otherTasksTriggerRef = useRef<HTMLButtonElement>(null)
   const [blockedRequest, setBlockedRequest] = useState<{
     taskId: string
@@ -47,6 +57,8 @@ export function TaskboardView(): React.ReactNode {
   } | null>(null)
   const [blockedReason, setBlockedReason] = useState('')
   const view = readTaskboardLayout(searchParams, filters.projectId)
+  const ganttZoom = readTaskboardGanttZoom(searchParams)
+  const ganttHideCompleted = readTaskboardGanttHideCompleted(searchParams)
   const projectNames = useMemo(() => new Map(
     controller.projects.map(project => [project.projectId ?? '', project.name]),
   ), [controller.projects])
@@ -143,6 +155,8 @@ export function TaskboardView(): React.ReactNode {
         datePreset={filters.datePreset}
         sort={filters.sort}
         otherTasksOpen={otherTasksOpen}
+        ganttZoom={ganttZoom}
+        ganttHideCompleted={ganttHideCompleted}
         otherTasksTriggerRef={otherTasksTriggerRef}
         priority={filters.priorities?.[0]}
         projectId={filters.projectId}
@@ -151,6 +165,9 @@ export function TaskboardView(): React.ReactNode {
         onChange={updateFilter}
         onViewChange={changeView}
         onOtherTasksToggle={() => setOtherTasksOpen(value => !value)}
+        onGanttToday={() => setGanttTodayRequest(value => value + 1)}
+        onGanttZoomChange={(zoom: TaskboardGanttZoom) => updateFilter({ zoom })}
+        onGanttHideCompletedChange={hidden => updateFilter({ hideCompleted: hidden ? '1' : null })}
       /> : null}
       <div className="taskboard-board-area">
         {controller.error ? (
@@ -213,6 +230,21 @@ export function TaskboardView(): React.ReactNode {
             onStart={id => setStartTaskId(id)}
             onUpdate={controller.updateTask}
           />
+        ) : null}
+        {!taskId && view === 'gantt' ? (
+          <Suspense fallback={<div className="taskboard-loading" role="status">正在展开任务时间轴…</div>}>
+            <TaskboardGantt
+              hasActiveFilters={hasActiveFilters}
+              hideCompleted={ganttHideCompleted}
+              pendingTaskIds={controller.pendingTaskIds}
+              projectNames={projectNames}
+              tasks={controller.tasks}
+              todayRequest={ganttTodayRequest}
+              zoom={ganttZoom}
+              onOpen={openTask}
+              onUpdateDates={(id, startDate, dueDate) => controller.updateTask(id, { startDate, dueDate })}
+            />
+          </Suspense>
         ) : null}
         <TaskDetailsDrawer
           detail={controller.detail}

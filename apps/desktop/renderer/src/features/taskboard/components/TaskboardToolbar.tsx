@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { Archive, Columns3, List, PanelRight, SlidersHorizontal } from 'lucide-react'
+import { Archive, CalendarClock, ChartGantt, Columns3, EyeOff, List, PanelRight, SlidersHorizontal } from 'lucide-react'
 import type {
   TaskboardLabel,
   TaskboardPriority,
@@ -14,7 +14,7 @@ import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
-import type { TaskboardLayout } from '../state/taskboardViewPreferences.js'
+import type { TaskboardGanttZoom, TaskboardLayout } from '../state/taskboardViewPreferences.js'
 
 type Props = {
   projects: readonly DesktopWorkspace[]
@@ -33,9 +33,14 @@ type Props = {
   datePreset?: TaskboardWorkflowDatePreset
   sort?: TaskboardWorkflowSort
   otherTasksOpen: boolean
+  ganttZoom: TaskboardGanttZoom
+  ganttHideCompleted: boolean
   otherTasksTriggerRef: React.Ref<HTMLButtonElement>
   onViewChange: (view: TaskboardLayout) => void
   onOtherTasksToggle: () => void
+  onGanttToday: () => void
+  onGanttZoomChange: (zoom: TaskboardGanttZoom) => void
+  onGanttHideCompletedChange: (hidden: boolean) => void
   onChange: (patch: Record<string, string | null>) => void
 }
 
@@ -56,13 +61,19 @@ export function TaskboardToolbar({
   datePreset,
   sort,
   otherTasksOpen,
+  ganttZoom,
+  ganttHideCompleted,
   otherTasksTriggerRef,
   onViewChange,
   onOtherTasksToggle,
+  onGanttToday,
+  onGanttZoomChange,
+  onGanttHideCompletedChange,
   onChange,
 }: Props): React.ReactNode {
   const [query, setQuery] = useState(appliedQuery ?? '')
   const [filterOpen, setFilterOpen] = useState(false)
+  const [ganttZoomOpen, setGanttZoomOpen] = useState(false)
   useEffect(() => setQuery(appliedQuery ?? ''), [appliedQuery])
 
   const clearFilters = (): void => {
@@ -89,6 +100,10 @@ export function TaskboardToolbar({
         <Button aria-pressed={view === 'list'} className="taskboard-toolbar__view" color={view === 'list' ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={() => onViewChange('list')}>
           <List aria-hidden="true" size={APP_ICON_SIZE} />
           列表视图
+        </Button>
+        <Button aria-pressed={view === 'gantt'} className="taskboard-toolbar__view" color={view === 'gantt' ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={() => onViewChange('gantt')}>
+          <ChartGantt aria-hidden="true" size={APP_ICON_SIZE} />
+          甘特图
         </Button>
       </div>
       <div className="taskboard-toolbar__tools">
@@ -208,6 +223,33 @@ export function TaskboardToolbar({
             <PanelRight aria-hidden="true" size={APP_ICON_SIZE} />其他任务
           </Button>
         ) : null}
+        {view === 'gantt' ? (
+          <>
+            <Button color="ghostSecondary" size="compact" type="button" onClick={onGanttToday}>
+              <CalendarClock aria-hidden="true" size={APP_ICON_SIZE} />今天
+            </Button>
+            <Button aria-pressed={ganttHideCompleted} color={ganttHideCompleted ? 'ghostActive' : 'ghostSecondary'} size="compact" type="button" onClick={() => onGanttHideCompletedChange(!ganttHideCompleted)}>
+              <EyeOff aria-hidden="true" size={APP_ICON_SIZE} />隐藏完成
+            </Button>
+            <PopoverMenu
+              align="end"
+              open={ganttZoomOpen}
+              width={156}
+              trigger={<Button color="ghostSecondary" size="compact" type="button">{ganttZoomLabel(ganttZoom)}</Button>}
+              onOpenChange={setGanttZoomOpen}
+            >
+              <PopoverLabel>时间刻度</PopoverLabel>
+              <PopoverRadioGroup value={ganttZoom} onValueChange={value => {
+                onGanttZoomChange(value as TaskboardGanttZoom)
+                setGanttZoomOpen(false)
+              }}>
+                <PopoverRadioItem value="day">日视图</PopoverRadioItem>
+                <PopoverRadioItem value="week">周视图</PopoverRadioItem>
+                <PopoverRadioItem value="month">月视图</PopoverRadioItem>
+              </PopoverRadioGroup>
+            </PopoverMenu>
+          </>
+        ) : null}
         <Button
           aria-pressed={archived}
           color={archived ? 'ghostActive' : 'ghostSecondary'}
@@ -229,4 +271,10 @@ export function TaskboardToolbar({
       </div>
     </div>
   )
+}
+
+function ganttZoomLabel(zoom: TaskboardGanttZoom): string {
+  if (zoom === 'day') return '日'
+  if (zoom === 'month') return '月'
+  return '周'
 }
