@@ -1,7 +1,7 @@
 import type React from 'react'
-import { lazy, Suspense, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type {
   TaskboardPriority,
   TaskboardWorkflowStatus,
@@ -33,12 +33,21 @@ import {
   type TaskboardLayout,
 } from './state/taskboardViewPreferences.js'
 import { executeBlockedTransition } from './state/taskboardBlockedTransition.js'
+import {
+  applyTaskboardReturnScroll,
+  markTaskboardReturnPending,
+  readPendingTaskboardReturnSnapshot,
+  taskboardReturnSnapshot,
+  taskboardReturnToken,
+  type TaskboardReturnSnapshot,
+} from './state/taskboardNavigationRestore.js'
 import '../../styles/lazy/taskboard.scss'
 
 const TaskboardGantt = lazy(() => import('./components/TaskboardGantt.js'))
 
 export function TaskboardView(): React.ReactNode {
   const { taskId } = useParams<{ taskId: string }>()
+  const location = useLocation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = useMemo(() => parseTaskboardFilters(searchParams), [searchParams])
@@ -49,6 +58,8 @@ export function TaskboardView(): React.ReactNode {
   const [dropNotice, setDropNotice] = useState<string | null>(null)
   const [dropError, setDropError] = useState<string | null>(null)
   const [ganttTodayRequest, setGanttTodayRequest] = useState(0)
+  const [returnSnapshot, setReturnSnapshot] = useState<TaskboardReturnSnapshot | null>(null)
+  const boardAreaRef = useRef<HTMLDivElement>(null)
   const otherTasksTriggerRef = useRef<HTMLButtonElement>(null)
   const [blockedRequest, setBlockedRequest] = useState<{
     taskId: string
@@ -59,6 +70,37 @@ export function TaskboardView(): React.ReactNode {
   const view = readTaskboardLayout(searchParams, filters.projectId)
   const ganttZoom = readTaskboardGanttZoom(searchParams)
   const ganttHideCompleted = readTaskboardGanttHideCompleted(searchParams)
+
+  useEffect(() => {
+    const snapshot = taskboardReturnSnapshot(location.state)
+    if (taskId && snapshot) {
+      markTaskboardReturnPending(snapshot)
+      return
+    }
+    if (!taskId) setReturnSnapshot(readPendingTaskboardReturnSnapshot())
+  }, [location.key, location.state, taskId])
+
+  useEffect(() => {
+    if (taskId || !returnSnapshot || returnSnapshot.view !== view || returnSnapshot.search !== searchParams.toString()) return
+    const frame = requestAnimationFrame(() => {
+      const area = boardAreaRef.current
+      const anchor = area?.querySelector<HTMLElement>(`[data-taskboard-task-id="${CSS.escape(returnSnapshot.taskId)}"]`)
+      if (!area || !anchor) return
+      const container = view === 'board'
+        ? area.querySelector<HTMLElement>('.taskboard-board-scroll')
+        : view === 'list'
+          ? area.querySelector<HTMLElement>('.taskboard-list')
+          : area.querySelector<HTMLElement>('.taskboard-gantt__unscheduled')
+      if (!container) return
+      const verticalContainer = view === 'board'
+        ? anchor.closest<HTMLElement>('.taskboard-column__cards')
+        : container
+      applyTaskboardReturnScroll(returnSnapshot, container, verticalContainer ?? container)
+      anchor.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
+      setReturnSnapshot(null)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [controller.tasks, returnSnapshot, searchParams, taskId, view])
   const projectNames = useMemo(() => new Map(
     controller.projects.map(project => [project.projectId ?? '', project.name]),
   ), [controller.projects])
@@ -88,10 +130,35 @@ export function TaskboardView(): React.ReactNode {
     setSearchParams(next, { replace: true })
   }
 
-  const openTask = (nextTaskId: string): void => {
-    navigate(`/taskboard/${encodeURIComponent(nextTaskId)}?${searchParams.toString()}`)
+  const openTask = (nextTaskId: string, viewport?: { scrollLeft: number; scrollTop: number }): void => {
+    const area = boardAreaRef.current
+    const anchor = area?.querySelector<HTMLElement>(`[data-taskboard-task-id="${CSS.escape(nextTaskId)}"]`)
+    const container = view === 'board'
+      ? area?.querySelector<HTMLElement>('.taskboard-board-scroll')
+      : view === 'list'
+        ? area?.querySelector<HTMLElement>('.taskboard-list')
+        : area?.querySelector<HTMLElement>('.taskboard-gantt__unscheduled')
+    const verticalContainer = view === 'board'
+      ? anchor?.closest<HTMLElement>('.taskboard-column__cards')
+      : container
+    const token = crypto.randomUUID()
+    const snapshot: TaskboardReturnSnapshot = {
+      view,
+      search: searchParams.toString(),
+      taskId: nextTaskId,
+      scrollLeft: viewport?.scrollLeft ?? container?.scrollLeft ?? 0,
+      scrollTop: viewport?.scrollTop ?? verticalContainer?.scrollTop ?? 0,
+    }
+    markTaskboardReturnPending(snapshot)
+    navigate(`/taskboard/${encodeURIComponent(nextTaskId)}?${searchParams.toString()}`, {
+      state: { taskboardReturnToken: token, taskboardReturnSnapshot: snapshot },
+    })
   }
   const closeTask = (): void => {
+    if (taskboardReturnToken(location.state)) {
+      navigate(-1)
+      return
+    }
     navigate(`/taskboard${searchParams.size ? `?${searchParams.toString()}` : ''}`)
   }
   const changeView = (nextView: TaskboardLayout): void => {
@@ -179,7 +246,7 @@ export function TaskboardView(): React.ReactNode {
         onGanttZoomChange={(zoom: TaskboardGanttZoom) => updateFilter({ zoom })}
         onGanttHideCompletedChange={hidden => updateFilter({ hideCompleted: hidden ? '1' : null })}
       /> : null}
-      <div className="taskboard-board-area">
+      <div className="taskboard-board-area" ref={boardAreaRef}>
         {controller.error ? (
           <div className="taskboard-notice" role="alert">
             <strong>无法读取任务看板</strong>
@@ -246,8 +313,12 @@ export function TaskboardView(): React.ReactNode {
               projectNames={projectNames}
               tasks={controller.tasks}
               todayRequest={ganttTodayRequest}
+              restoreViewport={returnSnapshot?.view === 'gantt' && returnSnapshot.search === searchParams.toString()
+                ? returnSnapshot
+                : null}
               zoom={ganttZoom}
               onOpen={openTask}
+              onViewportRestored={() => setReturnSnapshot(null)}
               onUpdateDates={(id, startDate, dueDate) => controller.updateTask(id, { startDate, dueDate })}
             />
           </Suspense>

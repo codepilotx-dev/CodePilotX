@@ -52,7 +52,7 @@ export function TaskboardList(props: Props): React.ReactNode {
                 {statusTasks.map(task => {
                   const needsInput = task.threads.some(thread => thread.attention === 'needs_input')
                   return (
-                    <article className="taskboard-list__row" data-unread={task.attention.unread || undefined} key={task.id}>
+                    <article className="taskboard-list__row" data-taskboard-task-id={task.id} data-unread={task.attention.unread || undefined} key={task.id}>
                       <button className="taskboard-list__open" type="button" onClick={() => props.onOpen(task.id)}>
                         <span className="taskboard-list__identity">
                           <small>{props.projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>

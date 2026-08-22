@@ -117,6 +117,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复任务工作台从带筛选的 Board、List 或 Gantt 打开详情后，返回、前进后退及刷新详情再返回时丢失滚动位置和任务锚点的问题。
 - [agent] 修复任务工作台新建主会话仅将执行说明预填到草稿、未注入 Agent Turn 且未激活任务工具的问题，使关联 primary 可读取任务并原子提交验收。
 - [agent] 修复正式提问 checkpoint 使用 `toolCallID` 时被替换为随机标识，导致用户回答后无法恢复原工具调用、Turn 直接失败的问题。
 - [desktop/renderer] 修复正式提问从会话历史恢复后使用交互 ID、却只按内部问题 ID 查找待处理请求，导致回答被误报为已失效的问题。

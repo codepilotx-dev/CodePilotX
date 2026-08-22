@@ -5,6 +5,14 @@ import { readTaskboardGanttHideCompleted, readTaskboardGanttZoom, readTaskboardL
 import { beginSidebarSessionDrag, readSidebarSessionDrag, SIDEBAR_SESSION_DRAG_TYPE } from '../src/features/taskboard/taskboardDragData.js'
 import { deriveThreadTaskboardAction } from '../src/features/taskboard/state/threadTaskboardAction.js'
 import { executeBlockedTransition } from '../src/features/taskboard/state/taskboardBlockedTransition.js'
+import {
+  applyTaskboardReturnScroll,
+  focusTaskboardReturnAnchor,
+  markTaskboardReturnPending,
+  readPendingTaskboardReturnSnapshot,
+  taskboardReturnSnapshot,
+  taskboardReturnToken,
+} from '../src/features/taskboard/state/taskboardNavigationRestore.js'
 import { reconcileTaskboardStartSession } from '../src/services/desktop-client/taskboardStartSessionReconcile.js'
 import { mergeUniqueTaskboardThreadCandidates } from '../src/features/taskboard/state/useTaskboardThreadCandidates.js'
 import {
@@ -74,6 +82,56 @@ describe('taskboard workflow renderer behavior', () => {
     expect(readTaskboardGanttZoom(params)).toBe('month')
     expect(readTaskboardGanttHideCompleted(params)).toBe(true)
     expect(readTaskboardGanttZoom(new URLSearchParams('zoom=quarter'))).toBe('week')
+  })
+
+  test('detail navigation restores the saved view scroll and task anchor after reload or history return', () => {
+    const values = new Map<string, string>()
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value) },
+      removeItem: (key: string) => { values.delete(key) },
+    }
+    const snapshot = {
+      view: 'list' as const,
+      search: 'projectId=p1&view=list&unread=1',
+      taskId: 'task:42',
+      scrollLeft: 18,
+      scrollTop: 640,
+    }
+
+    const historyState = {
+      taskboardReturnToken: 'return:1',
+      taskboardReturnSnapshot: snapshot,
+    }
+    markTaskboardReturnPending(snapshot, storage)
+
+    expect(taskboardReturnToken(historyState)).toBe('return:1')
+    expect(taskboardReturnSnapshot(historyState)).toEqual(snapshot)
+    const restored = readPendingTaskboardReturnSnapshot(storage)
+    expect(restored).toEqual(snapshot)
+    const horizontal = { scrollLeft: 0, scrollTop: 0 }
+    const vertical = { scrollTop: 0 }
+    applyTaskboardReturnScroll(restored!, horizontal, vertical)
+    expect(horizontal.scrollLeft).toBe(18)
+    expect(vertical.scrollTop).toBe(640)
+    expect(readPendingTaskboardReturnSnapshot(storage)).toBeNull()
+
+    // Forwarding to the same detail entry re-arms its history-owned snapshot.
+    markTaskboardReturnPending(taskboardReturnSnapshot(historyState)!, storage)
+    expect(readPendingTaskboardReturnSnapshot(storage)).toEqual(snapshot)
+
+    const node = {
+      dataset: {},
+      tabIndex: 0,
+      focusOptions: null as FocusOptions | null,
+      focus(options?: FocusOptions) { this.focusOptions = options ?? null },
+    } as unknown as HTMLElement
+    expect(focusTaskboardReturnAnchor('task:42', () => node)).toBe(true)
+    expect(node.dataset.taskboardReturnAnchor).toBe('task:42')
+    expect(node.tabIndex).toBe(-1)
+    let selected = ''
+    expect(focusTaskboardReturnAnchor('task:42', () => null, taskId => { selected = taskId })).toBe(true)
+    expect(selected).toBe('task:42')
   })
 
   test('workflow pagination collects every page in cursor order', async () => {

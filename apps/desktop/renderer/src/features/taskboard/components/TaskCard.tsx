@@ -49,6 +49,7 @@ export function TaskCard({
       data-session-drop={sessionDropActive ? '' : undefined}
       data-pending={pending || undefined}
       data-priority={task.priority}
+      data-taskboard-task-id={task.id}
       data-unread={task.attention.unread || undefined}
       draggable={!pending}
       onDragStart={onDragStart}

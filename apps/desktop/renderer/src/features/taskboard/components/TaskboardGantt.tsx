@@ -12,6 +12,7 @@ import {
   taskboardInclusiveDatesFromGanttRange,
 } from '../taskboardGanttModel.js'
 import { TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
+import { focusTaskboardReturnAnchor } from '../state/taskboardNavigationRestore.js'
 
 type Props = {
   tasks: readonly TaskboardWorkflowTaskSummary[]
@@ -21,7 +22,9 @@ type Props = {
   hideCompleted: boolean
   todayRequest: number
   hasActiveFilters: boolean
-  onOpen: (taskId: string) => void
+  restoreViewport: { taskId: string; scrollLeft: number; scrollTop: number } | null
+  onOpen: (taskId: string, viewport?: { scrollLeft: number; scrollTop: number }) => void
+  onViewportRestored: () => void
   onUpdateDates: (taskId: string, startDate: string, dueDate: string) => Promise<void>
 }
 
@@ -34,8 +37,6 @@ type TaskboardGanttItem = GanttTask & {
   taskboardCount: number
 }
 
-let pendingViewport: { signature: string; x: number; y: number } | null = null
-
 export default function TaskboardGantt({
   tasks,
   pendingTaskIds,
@@ -44,7 +45,9 @@ export default function TaskboardGantt({
   hideCompleted,
   todayRequest,
   hasActiveFilters,
+  restoreViewport,
   onOpen,
+  onViewportRestored,
   onUpdateDates,
 }: Props): React.ReactNode {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -54,7 +57,8 @@ export default function TaskboardGantt({
   const projectNamesRef = useRef(projectNames)
   const onOpenRef = useRef(onOpen)
   const onUpdateDatesRef = useRef(onUpdateDates)
-  const viewportSignatureRef = useRef('empty')
+  const onViewportRestoredRef = useRef(onViewportRestored)
+  const restoredViewportRef = useRef<typeof restoreViewport>(null)
   const restoringRef = useRef(new Set<string>())
   const parsedRef = useRef(false)
   const gridCollapsedRef = useRef(false)
@@ -68,6 +72,7 @@ export default function TaskboardGantt({
   projectNamesRef.current = projectNames
   onOpenRef.current = onOpen
   onUpdateDatesRef.current = onUpdateDates
+  onViewportRestoredRef.current = onViewportRestored
 
   const visibleTasks = useMemo(() => (
     hideCompleted
@@ -80,11 +85,6 @@ export default function TaskboardGantt({
   const unscheduledTasks = useMemo(() => visibleTasks.filter(task => (
     !projectTaskboardGanttTask(task).scheduled
   )), [visibleTasks])
-  const viewportSignature = useMemo(() => (
-    [...new Set(scheduledTasks.map(task => task.projectId))].sort().join(':') || 'empty'
-  ), [scheduledTasks])
-  viewportSignatureRef.current = viewportSignature
-
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -193,8 +193,7 @@ export default function TaskboardGantt({
       const task = tasksRef.current.find(candidate => candidate.id === String(id))
       if (!task) return false
       const scroll = instance.getScrollState()
-      pendingViewport = { signature: viewportSignatureRef.current, x: scroll.x, y: scroll.y }
-      onOpenRef.current(task.id)
+      onOpenRef.current(task.id, { scrollLeft: scroll.x, scrollTop: scroll.y })
       return false
     })
     instance.init(container)
@@ -274,17 +273,30 @@ export default function TaskboardGantt({
     const anchorDate = parsedRef.current && timelineWidth
       ? instance.dateFromPos(previousScroll.x + timelineWidth / 2)
       : null
-    const restored = pendingViewport?.signature === viewportSignature ? pendingViewport : null
     instance.config.start_date = addTaskboardGanttDays(rangeStart, -7)
     instance.config.end_date = addTaskboardGanttDays(rangeEnd, 8)
     instance.clearAll()
     instance.parse({ data })
-    if (restored) instance.scrollTo(restored.x, restored.y)
-    else if (anchorDate) instance.scrollTo(Math.max(0, instance.posFromDate(anchorDate) - timelineWidth / 2), previousScroll.y)
+    if (anchorDate) instance.scrollTo(Math.max(0, instance.posFromDate(anchorDate) - timelineWidth / 2), previousScroll.y)
     else if (starts.length > 0) instance.showDate(new Date(Math.min(...starts)))
-    if (restored) pendingViewport = null
     parsedRef.current = true
-  }, [pendingTaskIds, projectNames, scheduledTasks, viewportSignature])
+  }, [pendingTaskIds, projectNames, scheduledTasks])
+
+  useEffect(() => {
+    const instance = ganttRef.current
+    if (!restoreViewport
+      || restoredViewportRef.current === restoreViewport
+      || !instance?.isTaskExists(restoreViewport.taskId)
+    ) return
+    instance.scrollTo(restoreViewport.scrollLeft, restoreViewport.scrollTop)
+    focusTaskboardReturnAnchor(
+      restoreViewport.taskId,
+      taskId => instance.getTaskNode(taskId) ?? null,
+      taskId => { instance.selectTask(taskId) },
+    )
+    restoredViewportRef.current = restoreViewport
+    onViewportRestoredRef.current()
+  }, [restoreViewport, scheduledTasks])
 
   useEffect(() => {
     ganttRef.current?.ext.zoom.setLevel(zoom)
@@ -335,7 +347,7 @@ export default function TaskboardGantt({
           <header><strong>未排期</strong><span>{unscheduledTasks.length}</span></header>
           <div className="taskboard-gantt__unscheduled-list">
             {unscheduledTasks.map(task => (
-              <button key={task.id} type="button" onClick={() => onOpen(task.id)}>
+              <button data-taskboard-task-id={task.id} key={task.id} type="button" onClick={() => onOpen(task.id)}>
                 <span className="taskboard-gantt__unscheduled-identity">
                   <small>{projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>
                   <strong>{task.title}</strong>
