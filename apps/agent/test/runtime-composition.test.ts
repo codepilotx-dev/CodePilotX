@@ -243,3 +243,138 @@ describe("RuntimeCompositionSnapshotV2 Skills 引用冻结", () => {
       .toThrow(/Frozen Skill alpha/)
   })
 })
+
+describe("RuntimeCompositionSnapshotV2 引用证据持久化与组合身份", () => {
+  const writeSkill = async (root: string, name: string, body: string) => {
+    const dir = join(root, ".codepilotx", "skills", name)
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, "SKILL.md"), `---\nname: ${name}\ndescription: ${name} skill\n---\n${body}`, "utf8")
+  }
+  const scan = async (workspace: string) => {
+    const service = new SkillService()
+    await service.scan({ workspaceRoot: workspace, dataRoot: workspace, userHome: workspace })
+    return service
+  }
+  const baseComposeInput = async (workspace: string, skillService: SkillService, overrides: Record<string, unknown> = {}) => {
+    const faux = fauxProvider()
+    const models = createModels()
+    models.setProvider(faux.provider)
+    const model = faux.getModel()
+    const mcpBinding = createMcpGenerationBinding(workspace, { serverInstructions: [], definitions: [] })
+    const promptBundle = {
+      instructions: "frozen prompt",
+      stableContextText: "frozen prompt",
+      baseHash: "base", contextHash: "context", cacheHash: "cache", cacheKey: "cache",
+      diagnostics: [], contextItems: [], cacheSegments: [], cacheBoundaries: [],
+    }
+    const toolContext = {
+      threadID: "thread-rc-persist", turnID: "turn-rc-persist", agentID: "agent-rc-persist",
+      profile: "main", taskMode: "chat",
+      signal: new AbortController().signal,
+      workspace: {} as never,
+      permissionConfig: DEFAULT_PERMISSION_CONFIG,
+      model: { providerID: "faux", id: "test" } as never,
+      taskSummary: "x",
+    } as never
+    return {
+      turnID: "turn-rc-persist",
+      threadID: "thread-rc-persist",
+      profile: "main" as const,
+      taskMode: "chat" as const,
+      model,
+      modelRef: { providerID: "faux", id: "test" } as never,
+      toolCatalog: {} as never,
+      workspace: {} as never,
+      workspaceScope: { kind: "project" as const, cwd: workspace, roots: [workspace], outputDirectory: null, instructionSources: [] },
+      sessionEntryID: null,
+      skillService,
+      mcpBinding,
+      effectivePermissionConfig: DEFAULT_PERMISSION_CONFIG,
+      toolContext,
+      promptBundle,
+      exposurePlan: { eager: [], deferred: [], exposed: [] },
+      ...overrides,
+    }
+  }
+
+  test("引用证据持久化失败时 skill_read fail-closed，不静默成功", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "codepilotx-rc-failclosed-"))
+    paths.push(workspace)
+    await writeSkill(workspace, "alpha", "alpha body")
+    await writeSkill(workspace, "beta", "beta body")
+    const skillService = await scan(workspace)
+    await skillService.read("alpha")
+    const input = await baseComposeInput(workspace, skillService)
+
+    const failing = composeRuntimeComposition({
+      ...input,
+      recordReferenced: () => { throw new Error("durable write failed") },
+    })
+    await expect(failing.bindings.skills.read("beta")).rejects.toThrow("durable write failed")
+
+    const ok = composeRuntimeComposition({ ...input, recordReferenced: () => undefined })
+    await expect(ok.bindings.skills.read("beta")).resolves.toMatchObject({ name: "beta" })
+  })
+
+  test("repository 持久化 V2 引用证据；缺表时 no-op 且 fresh ephemeral 仍可工作", async () => {
+    const { db, turnID, agentID } = setup()
+    const repository = db.repositories.runtimeCompositions
+    const workspace = await mkdtemp(join(tmpdir(), "codepilotx-rc-ephemeral-"))
+    paths.push(workspace)
+    await writeSkill(workspace, "alpha", "alpha body")
+    await writeSkill(workspace, "beta", "beta body")
+    const skillService = await scan(workspace)
+    await skillService.read("alpha")
+    const input = await baseComposeInput(workspace, skillService, { turnID })
+
+    const fresh = composeRuntimeComposition(input)
+    const inserted = repository.insertOrGet({ turnID, agentID, compositionID: fresh.snapshot.identity.id, snapshot: fresh.snapshot })
+    expect(inserted.inserted).toBe(true)
+    const beta = skillService.list().find((skill) => skill.name === "beta")!
+    repository.recordReferencedSkills(turnID, [{ name: beta.name, hash: beta.hash }])
+    const after = repository.get(turnID)!
+    expect(after.snapshot.version).toBe(2)
+    expect((after.snapshot as RuntimeCompositionSnapshotV2).skills.referenced.map(({ name }) => name).sort())
+      .toEqual(["alpha", "beta"])
+
+    db.sqlite.exec("DROP TABLE runtime_composition_plans")
+    expect(() => repository.recordReferencedSkills(turnID, [{ name: "alpha", hash: "stale" }])).not.toThrow()
+
+    const ephemeral = composeRuntimeComposition({
+      ...input,
+      turnID: "turn-rc-ephemeral",
+      recordReferenced: (name: string, hash: string) =>
+        repository.recordReferencedSkills("turn-rc-ephemeral", [{ name, hash }]),
+    })
+    await expect(ephemeral.bindings.skills.read("beta")).resolves.toMatchObject({ name: "beta" })
+  })
+
+  test("thinking level / variant 参与组合 identity hash 且不携带凭据", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "codepilotx-rc-identity-"))
+    paths.push(workspace)
+    const skillService = await scan(workspace)
+    const input = await baseComposeInput(workspace, skillService)
+
+    const off = composeRuntimeComposition({ ...input, thinkingLevel: "off" })
+    const high = composeRuntimeComposition({ ...input, thinkingLevel: "high" })
+    expect(high.snapshot.identity.hash).not.toBe(off.snapshot.identity.hash)
+
+    const variantRef = { providerID: "faux", id: "test", variant: "high" } as never
+    const variant = composeRuntimeComposition({ ...input, modelRef: variantRef, thinkingLevel: "high" })
+    expect(variant.snapshot.identity.hash).not.toBe(high.snapshot.identity.hash)
+    const variantAgain = composeRuntimeComposition({ ...input, modelRef: variantRef, thinkingLevel: "high" })
+    expect(variantAgain.snapshot.identity.hash).toBe(variant.snapshot.identity.hash)
+
+    const secret = "super-secret-credential"
+    const leaking = composeRuntimeComposition({
+      ...input,
+      model: {
+        ...input.model,
+        credentials: { apiKey: secret },
+        headers: { Authorization: `Bearer ${secret}` },
+        metadata: { secret },
+      } as never,
+    })
+    expect(JSON.stringify(leaking.snapshot)).not.toContain(secret)
+  })
+})

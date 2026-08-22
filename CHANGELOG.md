@@ -110,6 +110,8 @@
 - [desktop] 稳定 AI 流式 Markdown 的分块渲染、增量动效、代码高亮与自动追底，避免回复期间旧内容重复淡入和会话正文往返闪烁
 - [desktop/renderer] 修复新建会话路由切换后复用已消费 inputId、完成任务仍显示运行中及发送错误重复提示的问题。
 - [agent/security] Skills 快照升级为 V2（RuntimeCompositionSnapshotV2）：仅冻结实际引用项，无关 Skill 变化不再阻断暂停恢复；已显式展开到 prompt 或成功 skill_read 的 Skill 变化/缺失 fail-closed，并为成功 skill_read 持久化可用于恢复校验的证据；旧 V1 快照保持兼容并按旧全量 catalog fail-closed。
+- [agent/security] 收紧 Skills 引用证据持久化边界：存在 durable composition storage 时，成功 skill_read 后的引用证据持久化失败即安全失败，不再把工具读取静默当作成功；缺表 ephemeral fresh 场景不受影响。
+- [agent/runtime] 将无凭据的 thinking level 与 modelRef variant 纳入组合 identity hash，仅调整推理强度/变体即改变 composition 身份，凭据、headers、metadata 等不进入 hash 或快照。
 - [desktop/renderer] 修复外观设置中选择字体变体后重新进入页面变体下拉框回退显示全称（如 JetBrains Mono Medium）而非变体名（如中等、半粗体）的问题：增强变体名提取与本地化解析（`faceStyleLabel`），并在组件挂载时自动复用已就绪的系统字体缓存。
 - [desktop/renderer] 修复侧边栏底部的“设置”按钮因 DropdownMenu.Trigger 传递 data-theme-component="dropdown-trigger" 导致常驻控件实色灰底（被误判为永久 hover/active 态）的问题，使侧栏设置按钮在非激活/非悬停态下恢复为透明底色。
 - [Desktop] 修复失败 turn 未显示安全错误原因、界面仅留下"已处理"状态的问题。

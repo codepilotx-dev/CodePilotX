@@ -289,11 +289,16 @@ export function composeRuntimeComposition(input: RuntimeCompositionInput): Compo
   }
 
   const compositionID = `rc:${input.turnID}`
+  // Stable, credential-free identity: only model scalars, the thinking level and
+  // the resolved variant participate. Provider objects, credentials, headers,
+  // metadata and tool contexts are never hashed or serialized.
   const modelHash = hashJson({
     provider: input.model.provider,
     id: input.model.id,
     api: input.model.api,
     contextWindow: input.model.contextWindow,
+    thinkingLevel: input.thinkingLevel ?? null,
+    variant: input.modelRef?.variant ? String(input.modelRef.variant) : null,
   })
   const permissionHash = permissionHashFor(effectivePermissionConfig)
   const workspaceHash = workspaceHashFor(input.workspaceScope)

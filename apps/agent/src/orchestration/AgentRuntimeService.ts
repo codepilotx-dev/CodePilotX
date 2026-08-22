@@ -870,12 +870,11 @@ export class AgentRuntimeService implements AgentRuntime {
       outputDirectory: null,
       instructionSources: [],
     };
+    // Successful skill_read must leave durable evidence once composition storage
+    // exists; a persistence failure is fail-closed so the read is NOT reported
+    // as success. Missing-table ephemeral turns no-op inside the repository.
     const recordReferenced = (name: string, hash: string) => {
-      try {
-        this.runtimeCompositions.repository.recordReferencedSkills(request.turnID, [{ name, hash }]);
-      } catch {
-        // Referenced evidence persistence is best-effort; the frozen snapshot still guards resume.
-      }
+      this.runtimeCompositions.repository.recordReferencedSkills(request.turnID, [{ name, hash }]);
     };
     let composition: BoundRuntimeComposition;
     composition = await this.runtimeCompositions.loadOrCompose({
