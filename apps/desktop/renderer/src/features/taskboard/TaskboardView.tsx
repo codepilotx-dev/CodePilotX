@@ -9,10 +9,12 @@ import type {
   TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import { Button } from '../../components/ui/Button.js'
+import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { InputDialog } from '../../components/ui/ConfirmationDialog.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { composerDraftStore } from '../session/composer/composerDraftStore.js'
+import { AgentRpcError } from '../../services/agentRpcClient.js'
 import { TaskboardBoard } from './components/TaskboardBoard.js'
 import { TaskboardList } from './components/TaskboardList.js'
 import { OtherTasksPanel } from './components/OtherTasksPanel.js'
@@ -35,6 +37,8 @@ export function TaskboardView(): React.ReactNode {
   const [createStatus, setCreateStatus] = useState<TaskboardWorkflowStatus | null>(null)
   const [startTaskId, setStartTaskId] = useState<string | null>(null)
   const [otherTasksOpen, setOtherTasksOpen] = useState(false)
+  const [dropNotice, setDropNotice] = useState<string | null>(null)
+  const [dropError, setDropError] = useState<string | null>(null)
   const otherTasksTriggerRef = useRef<HTMLButtonElement>(null)
   const [blockedRequest, setBlockedRequest] = useState<{
     taskId: string
@@ -94,6 +98,27 @@ export function TaskboardView(): React.ReactNode {
     setBlockedReason('')
     return new Promise((resolve, reject) => setBlockedRequest({ taskId: nextTaskId, resolve, reject }))
   }
+  const linkDroppedThread = async (nextTaskId: string, threadId: string): Promise<void> => {
+    setDropNotice(null)
+    setDropError(null)
+    try {
+      const role = await controller.linkThreadByDrop(nextTaskId, threadId)
+      setDropNotice(role === 'already_linked'
+        ? '该会话已关联此任务。'
+        : role === 'primary'
+          ? '已关联为主会话。'
+          : '已关联为辅助会话。')
+    } catch (cause) {
+      setDropError(
+        cause instanceof AgentRpcError && cause.errorCode === 'CONFLICT'
+          ? '任务已在其他窗口更新，请重新拖入会话。'
+          : cause instanceof Error
+            ? cause.message
+            : String(cause),
+      )
+      throw cause
+    }
+  }
 
   return (
     <section className="taskboard-view" data-detail={taskId ? '' : undefined}>
@@ -147,6 +172,7 @@ export function TaskboardView(): React.ReactNode {
                 projectNames={projectNames}
                 tasks={controller.tasks}
                 onMove={moveTask}
+                onLinkThread={linkDroppedThread}
                 onNewTask={setCreateStatus}
                 onOpen={openTask}
                 onStart={id => {
@@ -167,6 +193,7 @@ export function TaskboardView(): React.ReactNode {
                   requestAnimationFrame(() => otherTasksTriggerRef.current?.focus())
                 }}
                 onMove={moveTask}
+                onLinkThread={linkDroppedThread}
                 onArchivedChange={archived => updateFilter({ archived: archived ? '1' : null })}
                 onNewTask={setCreateStatus}
                 onOpen={openTask}
@@ -272,6 +299,15 @@ export function TaskboardView(): React.ReactNode {
           blockedRequest?.reject(new Error('已取消移动'))
           setBlockedRequest(null)
         }}
+      />
+      <GlobalErrorModal
+        message={dropNotice}
+        tone="status"
+        onDismiss={() => setDropNotice(null)}
+      />
+      <GlobalErrorModal
+        message={dropError}
+        onDismiss={() => setDropError(null)}
       />
     </section>
   )

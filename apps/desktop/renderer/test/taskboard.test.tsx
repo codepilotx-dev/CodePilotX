@@ -89,6 +89,7 @@ describe('taskboard board structure', () => {
         onArchivedChange={() => {}}
         onClose={() => {}}
         onMove={async () => {}}
+        onLinkThread={async () => {}}
         onNewTask={() => {}}
         onOpen={() => {}}
         onStart={() => {}}
@@ -109,6 +110,7 @@ describe('taskboard board structure', () => {
         status="todo"
         tasks={[]}
         onMove={async () => {}}
+        onLinkThread={async () => {}}
         onNewTask={() => {}}
         onOpen={() => {}}
         onStart={() => {}}
@@ -268,6 +270,7 @@ function renderBoard(tasks: readonly TaskboardWorkflowTaskSummary[]): string {
       projectNames={new Map()}
       tasks={tasks}
       onMove={async () => {}}
+      onLinkThread={async () => {}}
       onNewTask={() => {}}
       onOpen={() => {}}
       onStart={() => {}}

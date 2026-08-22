@@ -36,6 +36,10 @@ import type { DesktopSidebarSort } from '../../../../shared/types.js'
 import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { CreateTaskDialog } from '../../taskboard/components/CreateTaskDialog.js'
+import {
+  beginSidebarSessionDrag,
+  readSidebarSessionDrag,
+} from '../../taskboard/taskboardDragData.js'
 import { deriveThreadTaskboardAction } from '../../taskboard/state/threadTaskboardAction.js'
 import { useThreadTaskboardAction } from '../../taskboard/state/useThreadTaskboardAction.js'
 
@@ -198,10 +202,6 @@ function SidebarSessionGroupComponent({
     event: React.DragEvent<HTMLElement>,
     sessionId: string,
   ): void {
-    if (!onManualOrderChange) {
-      event.preventDefault()
-      return
-    }
     const target = event.target as Element
     if (
       target.closest(
@@ -211,11 +211,7 @@ function SidebarSessionGroupComponent({
       event.preventDefault()
       return
     }
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData(
-      'application/x-codepilotx-sidebar-session',
-      sessionId,
-    )
+    beginSidebarSessionDrag(event.dataTransfer, sessionId)
     setDraggedSessionId(sessionId)
   }
 
@@ -223,11 +219,13 @@ function SidebarSessionGroupComponent({
     event: React.DragEvent<HTMLElement>,
     targetSessionId: string,
   ): void {
+    if (!onManualOrderChange) {
+      setDragOverSessionId(null)
+      return
+    }
     const sourceSessionId =
       draggedSessionId ||
-      event.dataTransfer.getData(
-        'application/x-codepilotx-sidebar-session',
-      )
+      readSidebarSessionDrag(event.dataTransfer)
     if (!sourceSessionId || sourceSessionId === targetSessionId) {
       setDragOverSessionId(null)
       return
@@ -390,7 +388,7 @@ function SidebarSessionGroupComponent({
           dragOverSessionId === session.id && 'is-drag-over',
         )}
         data-sidebar-session-id={session.id}
-        draggable={Boolean(onManualOrderChange)}
+        draggable
         indent="session"
         key={session.id}
         layout="grid"
@@ -411,6 +409,7 @@ function SidebarSessionGroupComponent({
           )
         }}
         onDragOver={event => {
+          if (!onManualOrderChange) return
           if (!draggedSessionId || draggedSessionId === session.id) return
           event.preventDefault()
           event.dataTransfer.dropEffect = 'move'

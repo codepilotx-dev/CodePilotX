@@ -32,6 +32,7 @@
 
 ### Changed
 
+- [desktop/renderer] 支持从侧栏拖动会话到任务卡片完成主/辅助会话关联，并精简新建任务弹窗的会话选择区域。
 - [agent/desktop/renderer] 将 Material 图标与代码高亮主题收敛为少量按需分片，统一 Repository 公共声明和 Electron 原子 JSON 写入，并简化性能报告为当前指标与预算对比，显著减少源码文件且保持现有运行能力。
 - [docs/agent] 基于当前 CodePilotX 与 OpenAI Codex 固定提交重写 Harness 对标报告，校正已完成能力，并给出以运行组合完整性、Skills/MCP 真按需、Hook、Sandbox/凭据决策和 Durable Goal 为核心的证据化优化路线。
 - [desktop/renderer] 将侧边栏“任务看板”入口图标替换为 `Presentation`。
@@ -110,6 +111,8 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复新建任务加载历史会话时因瞬时空候选导致页面崩溃，并在候选 RPC 失败时显示明确错误。
+- [agent/storage] 修复早期任务工作流数据库缺少排序位置时导致任务看板无法加载，并前向回填已有任务顺序。
 - [desktop/renderer] 统一对话发送按钮、侧边栏会话行与 Bell 的运行及未读状态来源，修复回复完成后仍显示运行中的问题。
 - [desktop/renderer] 修复侧边栏活动视图引导提示（Coachmark）在每次启动桌面端时重复弹出的问题：补齐桌面设置反序列化中的活动视图字段归一化，确保用户确认关闭后持久化生效且不再弹出。
 

@@ -11,6 +11,10 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import { PopoverItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { TASKBOARD_ALL_COLUMNS, taskboardStatusLabel } from '../taskboardConstants.js'
+import {
+  hasSidebarSessionDrag,
+  readSidebarSessionDrag,
+} from '../taskboardDragData.js'
 import { TaskCard } from './TaskCard.js'
 
 type ProjectNames = ReadonlyMap<string, string>
@@ -43,6 +47,7 @@ type Props = {
     status: TaskboardWorkflowStatus,
     placement?: { beforeTaskId: string | null; afterTaskId: string | null },
   ) => Promise<void>
+  onLinkThread: (taskId: string, threadId: string) => Promise<void>
 }
 
 export function BoardColumn({
@@ -55,17 +60,19 @@ export function BoardColumn({
   onStart,
   onNewTask,
   onMove,
+  onLinkThread,
 }: Props): React.ReactNode {
   const [announcement, setAnnouncement] = useState('')
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
   const [dragInsert, setDragInsert] = useState<DragInsertState>(null)
+  const [sessionDropTaskId, setSessionDropTaskId] = useState<string | null>(null)
   const dragDepth = useRef(0)
 
   useEffect(() => {
-    if (!draggingTaskId) return
     const clear = (): void => {
       setDraggingTaskId(null)
       setDragInsert(null)
+      setSessionDropTaskId(null)
     }
     window.addEventListener('dragend', clear)
     window.addEventListener('drop', clear)
@@ -73,7 +80,7 @@ export function BoardColumn({
       window.removeEventListener('dragend', clear)
       window.removeEventListener('drop', clear)
     }
-  }, [draggingTaskId])
+  }, [])
 
   const announceMove = (message: string): void => setAnnouncement(message)
 
@@ -88,6 +95,7 @@ export function BoardColumn({
   }
 
   const handleDrop = (event: React.DragEvent<HTMLElement>): void => {
+    if (!hasTaskDrag(event.dataTransfer)) return
     event.preventDefault()
     dragDepth.current = 0
     const payload = readTaskDragPayload(event.dataTransfer)
@@ -106,6 +114,19 @@ export function BoardColumn({
     event: React.DragEvent<HTMLElement>,
     targetTaskId: string,
   ): void => {
+    const sessionId = readSidebarSessionDrag(event.dataTransfer)
+    if (sessionId) {
+      const targetTask = tasks.find(task => task.id === targetTaskId)
+      setSessionDropTaskId(null)
+      if (!targetTask || !canAcceptSessionDrop(targetTask, pendingTaskIds, projectNames)) return
+      event.preventDefault()
+      event.stopPropagation()
+      void onLinkThread(targetTaskId, sessionId)
+        .then(() => announceMove(`已将会话关联到 ${targetTask.title}`))
+        .catch(() => announceMove('会话关联失败，任务保持不变'))
+      return
+    }
+    if (!hasTaskDrag(event.dataTransfer)) return
     event.preventDefault()
     event.stopPropagation()
     dragDepth.current = 0
@@ -127,6 +148,15 @@ export function BoardColumn({
     event: React.DragEvent<HTMLElement>,
     targetTaskId: string,
   ): void => {
+    if (hasSidebarSessionDrag(event.dataTransfer)) {
+      const targetTask = tasks.find(task => task.id === targetTaskId)
+      if (!targetTask || !canAcceptSessionDrop(targetTask, pendingTaskIds, projectNames)) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'copy'
+      setSessionDropTaskId(targetTaskId)
+      return
+    }
+    if (!hasTaskDrag(event.dataTransfer)) return
     event.preventDefault()
     const payload = readTaskDragPayload(event.dataTransfer)
     if (!payload || payload.taskId === targetTaskId) return
@@ -137,6 +167,14 @@ export function BoardColumn({
   }
 
   const handleCardDragLeave = (event: React.DragEvent<HTMLElement>): void => {
+    if (hasSidebarSessionDrag(event.dataTransfer)) {
+      if (
+        event.relatedTarget instanceof Node
+        && event.currentTarget.contains(event.relatedTarget)
+      ) return
+      setSessionDropTaskId(null)
+      return
+    }
     event.preventDefault()
     dragDepth.current = Math.max(0, dragDepth.current - 1)
     if (dragDepth.current === 0) setDragInsert(null)
@@ -154,8 +192,12 @@ export function BoardColumn({
       aria-label={`${label}，${tasks.length} 个任务`}
       className="taskboard-column"
       data-status={status}
-      onDragOver={event => event.preventDefault()}
-      onDrop={handleDrop}
+      onDragOver={event => {
+        if (hasTaskDrag(event.dataTransfer)) event.preventDefault()
+      }}
+      onDrop={event => {
+        if (hasTaskDrag(event.dataTransfer)) handleDrop(event)
+      }}
     >
       <header className="taskboard-column__header">
         <span className="taskboard-column__dot" aria-hidden="true" />
@@ -193,7 +235,16 @@ export function BoardColumn({
               key={task.id}
               onDragEnter={event => handleCardDragEnter(event, task.id)}
               onDragLeave={handleCardDragLeave}
-              onDragOver={event => event.preventDefault()}
+              onDragOver={event => {
+                if (hasSidebarSessionDrag(event.dataTransfer)) {
+                  if (!canAcceptSessionDrop(task, pendingTaskIds, projectNames)) return
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'copy'
+                  setSessionDropTaskId(task.id)
+                  return
+                }
+                if (hasTaskDrag(event.dataTransfer)) event.preventDefault()
+              }}
               onDrop={event => handleCardDrop(event, task.id)}
             >
               <TaskCard
@@ -210,6 +261,7 @@ export function BoardColumn({
                 )}
                 pending={pendingTaskIds.has(task.id)}
                 projectName={projectNames.get(task.projectId) ?? '项目已移除'}
+                sessionDropActive={sessionDropTaskId === task.id}
                 task={task}
                 onDragStart={event => {
                   setDraggingTaskId(task.id)
@@ -360,6 +412,20 @@ function readTaskDragPayload(dataTransfer: DataTransfer): TaskDragPayload | null
   } catch {
     return null
   }
+}
+
+function hasTaskDrag(dataTransfer: DataTransfer): boolean {
+  return Array.from(dataTransfer.types).includes(TASK_DRAG_TYPE)
+}
+
+function canAcceptSessionDrop(
+  task: TaskboardWorkflowTaskSummary,
+  pendingTaskIds: ReadonlySet<string>,
+  projectNames: ReadonlyMap<string, string>,
+): boolean {
+  return task.archivedAt === null
+    && !pendingTaskIds.has(task.id)
+    && projectNames.has(task.projectId)
 }
 
 function moveLabel(status: TaskboardWorkflowStatus): string {

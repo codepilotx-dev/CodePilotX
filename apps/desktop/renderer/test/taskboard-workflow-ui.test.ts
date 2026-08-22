@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { taskboardCreateTaskRpcInput, taskboardStartMode, taskboardTransitionRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
+import { taskboardInitialThreadLinks } from '../src/features/taskboard/components/CreateTaskDialog.js'
+import { taskboardCreateTaskRpcInput, taskboardStartMode, taskboardThreadLinksForDrop, taskboardTransitionRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
+import { beginSidebarSessionDrag, readSidebarSessionDrag, SIDEBAR_SESSION_DRAG_TYPE } from '../src/features/taskboard/taskboardDragData.js'
 import { deriveThreadTaskboardAction } from '../src/features/taskboard/state/threadTaskboardAction.js'
 import { executeBlockedTransition } from '../src/features/taskboard/state/taskboardBlockedTransition.js'
+import { mergeUniqueTaskboardThreadCandidates } from '../src/features/taskboard/state/useTaskboardThreadCandidates.js'
 
 describe('taskboard workflow renderer behavior', () => {
   test('start mode is derived from the current task links', () => {
@@ -55,5 +58,69 @@ describe('taskboard workflow renderer behavior', () => {
     })
     expect(active.disabled).toBe(true)
     expect(active.label).toContain('运行中')
+  })
+
+  test('thread candidate merge ignores transient empty entries', () => {
+    const candidate = {
+      threadId: 'thread:1',
+      projectId: 'project:1',
+      title: '历史会话',
+      latestTurnStatus: 'completed' as const,
+      pendingPlanApproval: false,
+      updatedAt: 1,
+    }
+    expect(mergeUniqueTaskboardThreadCandidates(
+      [undefined, candidate],
+      [null, { ...candidate, title: '最新标题' }],
+    )).toEqual([{ ...candidate, title: '最新标题' }])
+  })
+
+  test('sidebar session drag keeps reorder data and allows card copy', () => {
+    const values = new Map<string, string>()
+    const dataTransfer = {
+      effectAllowed: 'none',
+      types: [] as string[],
+      getData: (type: string) => values.get(type) ?? '',
+      setData(type: string, value: string) {
+        values.set(type, value)
+        this.types = [...values.keys()]
+      },
+    } as unknown as DataTransfer
+
+    beginSidebarSessionDrag(dataTransfer, 'thread:1')
+
+    expect(dataTransfer.effectAllowed).toBe('copyMove')
+    expect(Array.from(dataTransfer.types)).toContain(SIDEBAR_SESSION_DRAG_TYPE)
+    expect(readSidebarSessionDrag(dataTransfer)).toBe('thread:1')
+  })
+
+  test('thread drop preserves links and assigns primary then supporting', () => {
+    const first = taskboardThreadLinksForDrop([], 'thread:1')
+    expect(first).toEqual({
+      role: 'primary',
+      links: [{ threadId: 'thread:1', role: 'primary' }],
+    })
+
+    const second = taskboardThreadLinksForDrop(first.links, 'thread:2')
+    expect(second).toEqual({
+      role: 'supporting',
+      links: [
+        { threadId: 'thread:1', role: 'primary' },
+        { threadId: 'thread:2', role: 'supporting' },
+      ],
+    })
+    expect(taskboardThreadLinksForDrop(second.links, 'thread:2').role).toBe('already_linked')
+  })
+
+  test('create dialog only submits its compact initial thread as primary', () => {
+    expect(taskboardInitialThreadLinks(undefined)).toBeUndefined()
+    expect(taskboardInitialThreadLinks({
+      threadId: 'thread:1',
+      projectId: 'project:1',
+      title: '历史会话',
+      latestTurnStatus: 'completed',
+      pendingPlanApproval: false,
+      updatedAt: 1,
+    })).toEqual([{ threadId: 'thread:1', role: 'primary' }])
   })
 })

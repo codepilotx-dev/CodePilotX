@@ -12,6 +12,7 @@ type Props = {
   menu?: React.ReactNode
   dataDragging?: boolean
   dataDragDisplaced?: boolean
+  sessionDropActive?: boolean
   onOpen: () => void
   onStart: () => void
   onDragStart: (event: React.DragEvent<HTMLElement>) => void
@@ -24,6 +25,7 @@ export function TaskCard({
   menu,
   dataDragging,
   dataDragDisplaced,
+  sessionDropActive,
   onOpen,
   onStart,
   onDragStart,
@@ -44,12 +46,16 @@ export function TaskCard({
       className="taskboard-card"
       data-drag-displaced={dataDragDisplaced ? '' : undefined}
       data-dragging={dataDragging ? '' : undefined}
+      data-session-drop={sessionDropActive ? '' : undefined}
       data-pending={pending || undefined}
       data-priority={task.priority}
       data-unread={task.attention.unread || undefined}
       draggable={!pending}
       onDragStart={onDragStart}
     >
+      {sessionDropActive ? (
+        <span className="taskboard-card__drop-hint">松开以关联会话</span>
+      ) : null}
       <button
         aria-label={`打开任务：${task.title}`}
         className="taskboard-card__open"

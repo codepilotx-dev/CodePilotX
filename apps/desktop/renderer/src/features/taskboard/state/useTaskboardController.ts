@@ -77,6 +77,10 @@ export function useTaskboardController(
   updateLabel: (labelId: string, name: string) => Promise<void>
   deleteLabel: (labelId: string) => Promise<void>
   linkThread: (taskId: string, threadId: string) => Promise<void>
+  linkThreadByDrop: (
+    taskId: string,
+    threadId: string,
+  ) => Promise<'primary' | 'supporting' | 'already_linked'>
   unlinkThread: (taskId: string, threadId: string) => Promise<void>
   setPrimaryThread: (taskId: string, threadId: string) => Promise<void>
   startTask: (
@@ -444,15 +448,41 @@ export function useTaskboardController(
     linkThread: async (taskId, threadId) => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
+      const prepared = taskboardThreadLinksForDrop(
+        taskThreads(state.tasks, state.detail, taskId),
+        threadId,
+      )
+      if (prepared.role === 'already_linked') return
       const result = await runTaskMutation(taskId, () => desktopClient.linkTaskboardWorkflowThreads!({
         taskId,
-        links: [
-          ...(state.detail?.threads.map(thread => ({ threadId: thread.threadId, role: thread.role })) ?? []),
-          { threadId, role: state.detail?.threads.length ? 'supporting' as const : 'primary' as const },
-        ],
+        links: prepared.links,
         expectedVersion: task.version,
       }))
       applyDetails(result.task)
+    },
+    linkThreadByDrop: async (taskId, threadId) => {
+      const task = state.tasks.find(candidate => candidate.id === taskId)
+      if (!task || task.archivedAt !== null) throw new Error('该任务当前不可关联会话。')
+      const prepared = taskboardThreadLinksForDrop(task.threads, threadId)
+      if (prepared.role === 'already_linked') return prepared.role
+      store.setTaskPending(taskId, true)
+      try {
+        const result = await desktopClient.linkTaskboardWorkflowThreads!({
+          taskId,
+          links: prepared.links,
+          expectedVersion: task.version,
+        })
+        applyDetails(result.task)
+        return prepared.role
+      } catch (error) {
+        if (error instanceof AgentRpcError && error.errorCode === 'CONFLICT') {
+          await refresh()
+          if (selectedTaskId === taskId) await refreshDetail(taskId)
+        }
+        throw error
+      } finally {
+        store.setTaskPending(taskId, false)
+      }
     },
     unlinkThread: async (taskId, threadId) => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
@@ -552,6 +582,26 @@ export function taskboardStartMode(
   return threads.some(thread => thread.role === 'primary')
     ? 'continue_primary'
     : 'new_primary'
+}
+
+export function taskboardThreadLinksForDrop(
+  threads: readonly { threadId: string; role: 'primary' | 'supporting' }[],
+  threadId: string,
+): {
+  role: 'primary' | 'supporting' | 'already_linked'
+  links: Array<{ threadId: string; role: 'primary' | 'supporting' }>
+} {
+  const links = threads.map(thread => ({
+    threadId: thread.threadId,
+    role: thread.role,
+  }))
+  if (links.some(thread => thread.threadId === threadId)) {
+    return { role: 'already_linked', links }
+  }
+  const role = links.some(thread => thread.role === 'primary')
+    ? 'supporting' as const
+    : 'primary' as const
+  return { role, links: [...links, { threadId, role }] }
 }
 
 export function taskboardTransitionRpcInput(
@@ -698,6 +748,15 @@ function findTask(
 ): Pick<TaskboardWorkflowTask, 'id' | 'version'> | undefined {
   return tasks.find(task => task.id === taskId)
     ?? (detailTask?.id === taskId ? detailTask : undefined)
+}
+
+function taskThreads(
+  tasks: readonly TaskboardWorkflowTaskSummary[],
+  detail: TaskboardWorkflowTaskDetails | null,
+  taskId: string,
+): readonly { threadId: string; role: 'primary' | 'supporting' }[] {
+  return tasks.find(task => task.id === taskId)?.threads
+    ?? (detail?.task.id === taskId ? detail.threads : [])
 }
 
 function errorMessage(error: unknown): string {

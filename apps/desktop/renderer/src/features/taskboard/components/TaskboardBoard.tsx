@@ -20,6 +20,7 @@ type Props = {
     status: TaskboardWorkflowStatus,
     placement?: TaskMovePlacement,
   ) => Promise<void>
+  onLinkThread: (taskId: string, threadId: string) => Promise<void>
 }
 
 export function TaskboardBoard({
@@ -31,6 +32,7 @@ export function TaskboardBoard({
   onStart,
   onNewTask,
   onMove,
+  onLinkThread,
 }: Props): React.ReactNode {
   const visibleColumns = TASKBOARD_COLUMNS.filter(column => (
     column.status !== 'blocked'
@@ -54,6 +56,7 @@ export function TaskboardBoard({
           projectNames={projectNames}
           tasks={tasks.filter(task => task.status === column.status)}
           onMove={onMove}
+          onLinkThread={onLinkThread}
           onNewTask={() => onNewTask(column.status)}
           onOpen={onOpen}
           onStart={onStart}

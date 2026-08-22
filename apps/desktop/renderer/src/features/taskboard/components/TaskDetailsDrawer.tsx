@@ -243,6 +243,7 @@ export function TaskDetailsDrawer({
                   void onLinkThread(task.id, linkThreadId).then(() => setLinkThreadId(''))
                 }}>{detail.threads.length === 0 ? '关联为主要对话' : '关联为辅助对话'}</Button>
                 {threadCandidates.hasMore ? <Button color="secondary" loading={threadCandidates.loadingMore} size="compact" onClick={() => void threadCandidates.loadMore()}>加载更多</Button> : null}
+                {threadCandidates.error ? <p className="taskboard-dialog__error" role="alert">会话加载失败：{threadCandidates.error}</p> : null}
               </div>
             </section>
             <section className="taskboard-drawer__section">

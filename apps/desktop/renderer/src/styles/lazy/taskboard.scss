@@ -166,6 +166,25 @@
     &[data-unread] {
       border-color: color-mix(in srgb, var(--cpx-sys-color-border-focus) 58%, var(--cpx-sys-color-border-default));
     }
+
+    &[data-session-drop] {
+      border-color: var(--cpx-sys-color-border-focus);
+      background: color-mix(in srgb, var(--cpx-sys-color-selected) 68%, var(--cpx-comp-surface-raised));
+    }
+  }
+
+  .taskboard-card__drop-hint {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--cpx-sys-space-3);
+    background: color-mix(in srgb, var(--cpx-sys-color-selected) 88%, transparent);
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-sm);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    pointer-events: none;
   }
 
   .taskboard-unread-dot {
@@ -316,20 +335,12 @@
     border-radius: var(--cpx-sys-radius-md);
   }
 
-  .taskboard-dialog__thread-list {
+  .taskboard-dialog__thread-summary {
     display: grid;
-    max-height: 220px;
-    overflow-y: auto;
-    border-block-start: var(--cpx-comp-surface-edge);
-  }
-
-  .taskboard-dialog__thread-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--cpx-sys-space-3);
-    min-height: 42px;
-    border-block-end: var(--cpx-comp-surface-edge);
+    min-height: 36px;
 
     > span {
       display: grid;
@@ -343,11 +354,11 @@
     }
 
     small { color: var(--cpx-sys-color-fg-tertiary); }
-    label {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--cpx-sys-space-1);
-    }
+  }
+
+  .taskboard-dialog__thread-role {
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-sm);
   }
   .taskboard-list__empty {
     margin: 0;

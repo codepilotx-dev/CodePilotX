@@ -18,6 +18,7 @@ type Props = {
   onStart: (taskId: string) => void
   onNewTask: (status: TaskboardWorkflowStatus) => void
   onMove: (taskId: string, status: TaskboardWorkflowStatus, placement?: TaskMovePlacement) => Promise<void>
+  onLinkThread: (taskId: string, threadId: string) => Promise<void>
   onArchivedChange: (archived: boolean) => void
   onClose: () => void
 }
@@ -74,6 +75,7 @@ export function OtherTasksPanel(props: Props): React.ReactNode {
         status={props.archived ? 'done' : status}
         tasks={props.archived ? props.tasks : props.tasks.filter(task => task.status === status)}
         onMove={props.onMove}
+        onLinkThread={props.onLinkThread}
         onNewTask={() => props.onNewTask(status)}
         onOpen={props.onOpen}
         onStart={props.onStart}
