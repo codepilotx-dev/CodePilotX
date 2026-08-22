@@ -93,6 +93,16 @@ export class ThreadHistoryService {
     })
   }
 
+  markUnread(threadID: string, unreadAt: number) {
+    return this.db.transaction(() => {
+      if (!this.getListItem(threadID)) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+      this.db.markThreadUnread(threadID, unreadAt)
+      const thread = this.getListItem(threadID)
+      if (!thread) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+      return thread
+    })
+  }
+
   async patch(threadID: string, patch: ThreadMetadataPatch) {
     const existing = this.getListItem(threadID)
     if (!existing) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)

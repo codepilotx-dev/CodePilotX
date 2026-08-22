@@ -378,6 +378,15 @@ export function DesktopSidebar({
     removePinnedManualOrder([sidebarPinnedSessionKey(session)])
   }
 
+  function toggleSessionUnread(session: SessionListItem): void {
+    const operation = session.unreadAt
+      ? desktopClient.markSessionRead(session.id, session.unreadAt)
+      : desktopClient.markSessionUnread(session.id, new Date().toISOString())
+    void operation.catch(() => {
+      onReport('更新会话已读状态失败，请重试。')
+    })
+  }
+
   async function archiveSessions(targetSessions: readonly SessionListItem[]): Promise<boolean> {
     const result = await onArchiveSessions(targetSessions.map(session => session.id))
     if (result.succeededSessionIds.length > 0) {
@@ -500,6 +509,7 @@ export function DesktopSidebar({
           onRemoveWorkspace(target)
         }}
         onSelectSession={onSelectSession}
+        onToggleSessionUnread={toggleSessionUnread}
         onRenameSession={onRenameSession}
         onToggleProjectCollapsed={toggleProjectCollapsed}
         onUnpinSession={unpinSession}

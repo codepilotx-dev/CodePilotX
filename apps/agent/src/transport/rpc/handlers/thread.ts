@@ -70,6 +70,7 @@ export const threadHandlers = {
     "thread/compact",
     "thread/update",
     "thread/mark-read",
+    "thread/mark-unread",
     "thread/title/regenerate",
     "thread/settings/update",
     "thread/delete",
@@ -229,6 +230,14 @@ export const threadHandlers = {
           throw new AgentError("INVALID_REQUEST", "readThroughAt 参数无效", 400)
         }
         return { thread: history.markRead(threadId, readThroughAt) }
+      }
+      case "thread/mark-unread": {
+        const threadId = stringParam(params, "threadId")
+        const unreadAt = params.unreadAt
+        if (typeof unreadAt !== "number" || !Number.isFinite(unreadAt) || unreadAt < 0) {
+          throw new AgentError("INVALID_REQUEST", "unreadAt 参数无效", 400)
+        }
+        return { thread: history.markUnread(threadId, unreadAt) }
       }
       case "thread/title/regenerate":
         return { thread: await threads.regenerateTitle(stringParam(params, "threadId")) }

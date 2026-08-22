@@ -1171,29 +1171,36 @@ describe('desktop thread settings client', () => {
       releaseStaleRead = resolve
     })
     const observedStatuses: string[] = []
+    let observedUnreadAt: string | null | undefined
     const source = {
       onmessage: null as ((event: MessageEvent) => void) | null,
       onerror: null as (() => void) | null,
       close: () => {},
     }
-    const currentSnapshot = (): ThreadSnapshot => ({
+    const runningSnapshot = (): ThreadSnapshot => ({
       ...snapshot('session-1', defaultSettings),
       turns: [{
         id: 'turn-1',
         threadId: 'session-1',
         sourceInputID: 'input-1',
-        status: completed ? 'completed' : 'running',
+        status: 'running',
         mode: 'chat',
         model: { providerID: 'openai', id: 'gpt-5' },
         permissionConfig: defaultSettings.permissionConfig,
         rootAgentId: 'agent-1',
         mergedInputIDs: [],
         startedAt: now,
-        finishedAt: completed ? now + 1_000 : null,
-        elapsedSeconds: completed ? 1 : 0,
+        finishedAt: null,
+        elapsedSeconds: 0,
         error: null,
       }],
     })
+    const completedTurn: ThreadSnapshot['turns'][number] = {
+      ...runningSnapshot().turns[0]!,
+      status: 'completed',
+      finishedAt: now + 1_000,
+      elapsedSeconds: 1,
+    }
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
       const params = body?.params ?? {}
@@ -1223,14 +1230,15 @@ describe('desktop thread settings client', () => {
         return rpc(body.id, {
           threads: [{
             ...listItem('session-1', defaultSettings),
-            latestTurnStatus: completed ? 'completed' : 'running',
+            latestTurnStatus: 'running',
+            unreadAt: completed ? now + 1_000 : null,
           }],
           nextCursor: null,
         })
       }
       if (body?.method === 'thread/read') {
         readRequests += 1
-        const responseSnapshot = currentSnapshot()
+        const responseSnapshot = runningSnapshot()
         if (!completed) await staleReadGate
         return rpc(body.id, snapshotResult(responseSnapshot))
       }
@@ -1243,8 +1251,10 @@ describe('desktop thread settings client', () => {
     await client.listSessions()
     await client.setActiveSession('session-1')
     const unsubscribeStore = client.onSessionStoreChange(change => {
-      const status = change.sessions.find(item => item.item.id === 'session-1')?.item.status
+      const item = change.sessions.find(item => item.item.id === 'session-1')?.item
+      const status = item?.status
       if (status) observedStatuses.push(status)
+      observedUnreadAt = item?.unreadAt
     })
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 0))
@@ -1271,7 +1281,7 @@ describe('desktop thread settings client', () => {
             turnId: 'turn-1',
             durability: 'durable',
             sequence: 13,
-            payload: { turn: currentSnapshot().turns[0] },
+            payload: { turn: completedTurn },
           },
         },
       }),
@@ -1287,12 +1297,65 @@ describe('desktop thread settings client', () => {
     releaseStaleRead()
     const staleResult = await staleRead
     await new Promise(resolve => setTimeout(resolve, 0))
-    unsubscribeStore()
 
     const completedIndex = observedStatuses.indexOf('done')
     expect(completedIndex).toBeGreaterThanOrEqual(0)
     expect(observedStatuses.slice(completedIndex)).not.toContain('running')
     expect(staleResult?.item.status).toBe('done')
+    expect(observedUnreadAt).toBe(new Date(now + 1_000).toISOString())
+
+    const statusCountBeforeNextTurn = observedStatuses.length
+    const nextTurn = {
+      ...runningSnapshot().turns[0]!,
+      id: 'turn-2',
+      sourceInputID: 'input-2',
+      startedAt: now + 2_000,
+    }
+    source.onmessage?.({
+      data: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'event/next',
+        params: {
+          subscriptionId: 'subscription-1',
+          event: {
+            eventId: 'event-14',
+            streamId: 'global',
+            type: 'turn/started',
+            version: 2,
+            occurredAt: now + 2_000,
+            threadId: 'session-1',
+            turnId: 'turn-2',
+            durability: 'durable',
+            sequence: 14,
+            payload: {
+              turn: nextTurn,
+              input: {
+                id: 'input-2',
+                threadId: 'session-1',
+                turnId: 'turn-2',
+                content: 'next turn',
+                delivery: 'start',
+                mode: 'chat',
+                model: { providerID: 'openai', id: 'gpt-5' },
+                permissionConfig: defaultSettings.permissionConfig,
+                state: 'active',
+                createdAt: now + 2_000,
+              },
+            },
+          },
+        },
+      }),
+    } as MessageEvent)
+    for (
+      let index = 0;
+      index < 50 && !observedStatuses.slice(statusCountBeforeNextTurn).includes('running');
+      index += 1
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+    unsubscribeStore()
+
+    expect(observedStatuses.slice(statusCountBeforeNextTurn)).toContain('running')
   })
 
   test('routes GitHub auth, profile, repositories, push and PR creation through Agent RPC', async () => {

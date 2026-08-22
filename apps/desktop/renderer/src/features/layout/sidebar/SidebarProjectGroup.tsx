@@ -69,6 +69,7 @@ type Props = {
   onPinWorkspace: (workspace: DesktopWorkspace) => void
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void
   onSelectSession: (session: SessionListItem) => void
+  onToggleSessionUnread: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
   onToggleProjectCollapsed: (projectKey: string) => void
   onManualOrderChange?: (scopeKey: string, order: string[]) => void
@@ -97,6 +98,7 @@ function SidebarProjectGroupComponent({
   onPinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
+  onToggleSessionUnread,
   onRenameSession,
   onToggleProjectCollapsed,
   onManualOrderChange,
@@ -364,6 +366,7 @@ function SidebarProjectGroupComponent({
           onManualOrderChange={onManualOrderChange}
           onPinSession={onPinSession}
           onSelectSession={onSelectSession}
+          onToggleSessionUnread={onToggleSessionUnread}
           onRenameSession={onRenameSession}
           onSortChange={onSortChange}
           onUnpinSession={onUnpinSession}

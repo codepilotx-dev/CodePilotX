@@ -812,6 +812,11 @@ const fixtures = {
     readThroughAt: 2,
     operationId: "operation:thread-mark-read",
   }, { thread: { ...threadListItem, unreadAt: null } }),
+  "thread/mark-unread": methodFixture("thread/mark-unread", {
+    threadId: threadListItem.id,
+    unreadAt: 3,
+    operationId: "operation:thread-mark-unread",
+  }, { thread: { ...threadListItem, unreadAt: 3 } }),
   "thread/title/regenerate": methodFixture("thread/title/regenerate", {
     threadId: threadListItem.id,
     operationId: "operation:thread-title-regenerate",
@@ -2738,7 +2743,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(226)
+    expect(methods).toHaveLength(227)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -3059,7 +3064,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(220)
+    expect(Object.keys(RpcMethods)).toHaveLength(221)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

@@ -195,6 +195,14 @@ export function deriveSidebarActivityIndicatorState(
   return hasActive ? 'active' : 'idle'
 }
 
+export function hasSidebarUnreadSessions(
+  sessions: readonly SessionListItem[],
+): boolean {
+  return sessions.some(
+    session => session.archivedAt == null && session.unreadAt != null,
+  )
+}
+
 export function sliceSidebarTimelineModel(
   model: SidebarTimelineModel,
   visibleLimit: number,

@@ -297,6 +297,15 @@ describe('desktop history client', () => {
         currentItem = { ...currentItem, unreadAt: null }
         return rpc(body.id, { thread: currentItem })
       }
+      if (rpcMethod === 'thread/mark-unread') {
+        expect(params).toEqual({
+          threadId: 'session-1',
+          unreadAt: now + 600,
+          operationId: expect.any(String),
+        })
+        currentItem = { ...currentItem, unreadAt: now + 600 }
+        return rpc(body.id, { thread: currentItem })
+      }
       if (rpcMethod === 'thread/title/regenerate') {
         currentItem = sessionItem({ title: '自动更新后的标题' })
         return rpc(body.id, { thread: currentItem })
@@ -333,6 +342,12 @@ describe('desktop history client', () => {
     expect(read.unreadAt).toBeNull()
     currentItem = { ...currentItem, unreadAt: now + 500 }
     expect((await client.listSessions())[0]?.item.unreadAt).toBeNull()
+
+    const unread = await client.markSessionUnread(
+      'session-1',
+      new Date(now + 600).toISOString(),
+    )
+    expect(unread.unreadAt).toBe(new Date(now + 600).toISOString())
 
     const created = await client.createSession({
       workspacePath: projectRootPath,
@@ -590,6 +605,47 @@ describe('desktop history client', () => {
     expect((await client.listSessions())[0]?.item.unreadAt).toBe(
       new Date(now + 500).toISOString(),
     )
+  })
+
+  test('restores authoritative read state when mark-unread fails', async () => {
+    const readItem = sessionItem({ unreadAt: null })
+    let optimisticUnreadAt: string | null | undefined
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') {
+          return rpc(body.id, initializedResult())
+        }
+        if (body?.method === 'initialized') {
+          return new Response(null, { status: 204 })
+        }
+        if (body?.method === 'project/list') {
+          return rpc(body.id, { projects: [project], nextCursor: null })
+        }
+        if (body?.method === 'thread/list') {
+          return rpc(body.id, { threads: [readItem], nextCursor: null })
+        }
+        if (body?.method === 'thread/mark-unread') {
+          return new Response('mark unread failed', { status: 500 })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+    })
+
+    await client.listSessions()
+    const unsubscribe = client.onSessionStoreChange(change => {
+      const unreadAt = change.sessions.find(
+        session => session.item.id === 'session-1',
+      )?.item.unreadAt
+      if (unreadAt) optimisticUnreadAt ??= unreadAt
+    })
+    await expect(client.markSessionUnread(
+      'session-1',
+      new Date(now + 600).toISOString(),
+    )).rejects.toThrow()
+    unsubscribe()
+    expect(optimisticUnreadAt).toBe(new Date(now + 600).toISOString())
+    expect((await client.listSessions())[0]?.item.unreadAt).toBeNull()
   })
 
   test('selects a workspace through preload, trusts imported folders and persists desktop settings', async () => {

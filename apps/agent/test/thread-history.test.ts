@@ -70,6 +70,13 @@ describe("Thread 历史", () => {
     expect(stale.unreadAt).toBe(100)
     const read = history.markRead(thread.id, 100)
     expect(read.unreadAt).toBeNull()
+
+    const unread = history.markUnread(thread.id, 120)
+    expect(unread.unreadAt).toBe(120)
+    expect(history.markUnread(thread.id, 110).unreadAt).toBe(120)
+    expect(history.markRead(thread.id, 119).unreadAt).toBe(120)
+    expect(history.markRead(thread.id, 120).unreadAt).toBeNull()
+    expect(() => history.markUnread("missing-thread", 130)).toThrow("Thread 不存在")
   })
 
   test("支持重命名、归档、取消归档和删除", async () => {

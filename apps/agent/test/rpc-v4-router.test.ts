@@ -671,6 +671,39 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
+  test("thread/mark-unread 持久化未读标记并校验时间", async () => {
+    let database: AgentDatabase
+    const history = {
+      markUnread: (threadID: string, unreadAt: number) => {
+        database.markThreadUnread(threadID, unreadAt)
+        return new ThreadProjection(database).list().find((item) => item.id === threadID)!
+      },
+    } as unknown as RpcRouterDependencies["history"]
+    const { db, initialize, call } = await fixture({ history })
+    database = db
+    await initialize()
+    const thread = db.createThread("手动未读 RPC")
+
+    const invalid = await call("thread/mark-unread", {
+      threadId: thread.id,
+      unreadAt: -1,
+      operationId: "operation:mark-unread-invalid",
+    })
+    expect(invalid.error?.code).toBe(-32602)
+
+    const unread = await call("thread/mark-unread", {
+      threadId: thread.id,
+      unreadAt: 200,
+      operationId: "operation:mark-unread",
+    })
+    expect(unread.error).toBeUndefined()
+    expect(unread.result.thread.unreadAt).toBe(200)
+    expect(db.sqlite.query(
+      "SELECT read_at, unread_at FROM thread_read_state WHERE thread_id = ?",
+    ).get(thread.id)).toEqual({ read_at: 0, unread_at: 200 })
+    db.close()
+  })
+
   test("RpcMethods is the only method allowlist and params are validated before services", async () => {
     const { db, call, counts, initialize } = await fixture()
     await initialize()

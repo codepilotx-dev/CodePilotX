@@ -1077,6 +1077,27 @@ export function createBrowserMockDesktopClient(
       emitSessionStoreChange()
       return next.item
     },
+    markSessionUnread: async (sessionId, unreadAt) => {
+      const snapshot = sessions.get(sessionId)
+      if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
+      const unreadTimestamp = Date.parse(unreadAt)
+      if (!Number.isFinite(unreadTimestamp) || unreadTimestamp < 0) {
+        throw new Error('INVALID_UNREAD_AT')
+      }
+      const currentTimestamp = snapshot.item.unreadAt
+        ? Date.parse(snapshot.item.unreadAt)
+        : 0
+      const nextUnreadAt = new Date(
+        Math.max(currentTimestamp, unreadTimestamp),
+      ).toISOString()
+      const next = {
+        ...snapshot,
+        item: { ...snapshot.item, unreadAt: nextUnreadAt },
+      }
+      sessions.set(sessionId, next)
+      emitSessionStoreChange()
+      return next.item
+    },
     updateSessionMetadata: async (sessionId, patch) => {
       const snapshot = sessions.get(sessionId)
       if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)

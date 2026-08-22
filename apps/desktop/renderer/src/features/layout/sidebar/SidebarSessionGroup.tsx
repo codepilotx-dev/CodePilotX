@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Archive, Copy, Folder, LoaderCircle, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
+import { Archive, Copy, Eye, EyeOff, Folder, LoaderCircle, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
@@ -31,6 +31,7 @@ import {
   type ContextMenuAction,
 } from "./SidebarContextMenu.js";
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
+import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
 
 const SidebarSessionHoverCard = lazy(async () => {
   const module = await import('./SidebarSessionHoverCard.js')
@@ -63,6 +64,7 @@ type Props = {
   onManualOrderChange?: (scopeKey: string, order: string[]) => void
   onPinSession: (session: SessionListItem) => void;
   onSelectSession: (session: SessionListItem) => void;
+  onToggleSessionUnread: (session: SessionListItem) => void;
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>;
   onSortChange?: (sort: 'manual') => void
   onUnpinSession: (session: SessionListItem) => void;
@@ -84,6 +86,7 @@ function SidebarSessionGroupComponent({
   onManualOrderChange,
   onPinSession,
   onSelectSession,
+  onToggleSessionUnread,
   onRenameSession,
   onSortChange,
   onUnpinSession,
@@ -253,6 +256,14 @@ function SidebarSessionGroupComponent({
           void navigator.clipboard.writeText(session.id);
         },
       },
+      {
+        kind: "item",
+        label: sessionReadStatusActionLabel(session),
+        icon: session.unreadAt
+          ? <Eye size={APP_ICON_SIZE} />
+          : <EyeOff size={APP_ICON_SIZE} />,
+        onSelect: () => onToggleSessionUnread(session),
+      },
       { kind: "separator" },
       session.pinnedAt
         ? {
@@ -278,9 +289,11 @@ function SidebarSessionGroupComponent({
 
   function renderSessionRow(session: SessionListItem): React.ReactNode {
     const regeneratingTitle = titleLoadingIds.has(session.id)
-    const awaitingApproval =
-      session.status === "waiting" ||
-      pendingPermissionSessionIds.has(session.id);
+    const visualState = deriveSidebarSessionVisualState(
+      session,
+      pendingPermissionSessionIds,
+    )
+    const awaitingApproval = visualState === 'needs-input'
     const metaClassName = cx(
       "sidebar-session-meta",
       "u-flex",
@@ -445,16 +458,16 @@ function SidebarSessionGroupComponent({
                   <Archive size={APP_ICON_SIZE} />
                 </IconButton>
               </div>
-            ) : session.status === "running" ? (
+            ) : visualState === 'unread' ? (
+              <span
+                aria-label="未读"
+                className="sidebar-session-unread-dot"
+              />
+            ) : visualState === 'running' ? (
               <LoaderCircle
                 aria-label="加载中"
                 className="sidebar-session-spinner"
                 size={APP_ICON_SIZE}
-              />
-            ) : session.unreadAt ? (
-              <span
-                aria-label="未读"
-                className="sidebar-session-unread-dot"
               />
             ) : null}
           </div>
@@ -582,6 +595,12 @@ function SidebarSessionGroupComponent({
 }
 
 export const SidebarSessionGroup = memo(SidebarSessionGroupComponent);
+
+export function sessionReadStatusActionLabel(
+  session: Pick<SessionListItem, 'unreadAt'>,
+): '标记为已读' | '标记为未读' {
+  return session.unreadAt ? '标记为已读' : '标记为未读'
+}
 
 function SidebarSessionTitle({
   active,

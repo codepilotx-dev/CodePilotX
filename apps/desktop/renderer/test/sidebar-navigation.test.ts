@@ -37,6 +37,7 @@ import {
 } from '../src/features/layout/sidebar/SidebarProjectHoverCard.js'
 import {
   getSidebarSessionDisplayGroups,
+  sessionReadStatusActionLabel,
   sessionSnippet,
 } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
 import {
@@ -47,6 +48,7 @@ import {
   deriveSidebarActivityIndicatorState,
   deriveSidebarSessionVisualState,
   filterSidebarActivitySessions,
+  hasSidebarUnreadSessions,
   labelForDayOffset,
   localDayOrdinal,
   reorderSidebarPinnedItemKeys,
@@ -843,6 +845,30 @@ describe('sidebar view model', () => {
         new Set(),
       ),
     ).toBe('unread')
+  })
+
+  test('uses a dynamic read status action for every session', () => {
+    expect(sessionReadStatusActionLabel({ unreadAt: null })).toBe('标记为未读')
+    expect(sessionReadStatusActionLabel({
+      unreadAt: '2026-07-18T00:00:00Z',
+    })).toBe('标记为已读')
+  })
+
+  test('derives the Bell badge from unread sessions only', () => {
+    expect(hasSidebarUnreadSessions([
+      { ...sessions[0]!, status: 'running', unreadAt: null },
+      { ...sessions[1]!, status: 'waiting', unreadAt: null },
+    ])).toBe(false)
+    expect(hasSidebarUnreadSessions([
+      { ...sessions[0]!, status: 'running', unreadAt: '2026-07-18T00:00:00Z' },
+    ])).toBe(true)
+    expect(hasSidebarUnreadSessions([
+      {
+        ...sessions[0]!,
+        archivedAt: '2026-07-18T01:00:00Z',
+        unreadAt: '2026-07-18T00:00:00Z',
+      },
+    ])).toBe(false)
   })
 
   test('supports updated, priority, and manual task sorting', () => {

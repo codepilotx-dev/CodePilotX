@@ -9,6 +9,7 @@
 
 ### Added
 
+- [desktop/renderer] 增加侧边栏会话标记为未读及已读切换功能，并持久化同步会话行、Bell 与活动时间线状态。
 - [agent] 新增 HarnessCompositionIdentity、HarnessToolComposition、HarnessTurnComposition、HarnessTurnContext、HarnessStepContext 类型及相关纯函数，实现 Agent Turn 组合身份计算、上下文构建与工具 envelope 校验。
 - [desktop] 新增侧边栏“查看活动”，集中展示进行中、待处理、未读及最近七天会话，并支持来源筛选和增量加载。
 - [Agent/desktop/renderer] 模型目录统一接入 models.dev，在保留 Pi 原生执行、用户自定义 Provider 与加密凭据的同时，自动启用安全的 OpenAI-compatible Provider，并为离线缓存和未适配协议提供明确状态。

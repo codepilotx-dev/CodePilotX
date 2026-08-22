@@ -1986,6 +1986,10 @@ export type DesktopApi = {
     sessionId: string,
     readThroughAt: string,
   ): Promise<DesktopSessionListItem>
+  markSessionUnread(
+    sessionId: string,
+    unreadAt: string,
+  ): Promise<DesktopSessionListItem>
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,

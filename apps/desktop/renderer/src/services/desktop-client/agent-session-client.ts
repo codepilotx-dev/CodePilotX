@@ -827,9 +827,20 @@ export function createAgentSessionDesktopClient(
     requestEpoch: number,
   ): DesktopSessionSnapshot {
     const currentEpoch = lifecycleEpochBySessionId.get(snapshot.item.id) ?? 0
-    if (currentEpoch <= requestEpoch) return snapshot
     const lifecycle = latestLifecycleBySessionId.get(snapshot.item.id)
     if (!lifecycle) return snapshot
+    const lifecycleIsTerminal =
+      lifecycle.status === 'completed' ||
+      lifecycle.status === 'failed' ||
+      lifecycle.status === 'interrupted' ||
+      lifecycle.status === 'stopped' ||
+      lifecycle.status === 'cancelled'
+    // A terminal durable lifecycle event is authoritative for its turn until a
+    // higher-sequence lifecycle event starts the next turn. This also protects
+    // refreshes launched by the terminal event itself: their request epoch
+    // already includes the event, but an older list/read snapshot must not
+    // restore the session to running.
+    if (!lifecycleIsTerminal && currentEpoch <= requestEpoch) return snapshot
     return {
       ...snapshot,
       item: {
@@ -1358,6 +1369,7 @@ export function createAgentSessionDesktopClient(
   const cacheThreadListItem = async (
     rawThread: ThreadListItem,
   ): Promise<DesktopSessionSnapshot> => {
+    const requestEpoch = lifecycleEpochBySessionId.get(rawThread.id) ?? 0
     const thread = applySessionReadThrough(rawThread)
     const projectsById = await loadProjectsById()
     const listSnapshot = agentThreadListItemToDesktopSnapshot(
@@ -1367,9 +1379,10 @@ export function createAgentSessionDesktopClient(
     const snapshot = sessionSnapshots.get(thread.id) ?? listSnapshot
     snapshot.item = { ...snapshot.item, ...listSnapshot.item }
     snapshot.updatedAt = listSnapshot.updatedAt
-    sessionSnapshots.set(thread.id, snapshot)
+    const reconciled = applyLifecycleSnapshotFreshness(snapshot, requestEpoch)
+    sessionSnapshots.set(thread.id, reconciled)
     emitSessionStoreChange()
-    return snapshot
+    return reconciled
   }
 
   type AgentReviewApi = ReturnType<
@@ -2937,6 +2950,42 @@ export function createAgentSessionDesktopClient(
           }
         },
         () => mockClient.markSessionRead(sessionId, readThroughAt),
+      ),
+    markSessionUnread: (sessionId: string, unreadAt: string) =>
+      withAgentOrMock(
+        async () => {
+          const unreadTimestamp = Date.parse(unreadAt)
+          if (!Number.isFinite(unreadTimestamp) || unreadTimestamp < 0) {
+            throw new Error('INVALID_UNREAD_AT')
+          }
+          const requestId = crypto.randomUUID()
+          const cached = sessionSnapshots.get(sessionId)
+          if (cached) {
+            const currentTimestamp = cached.item.unreadAt
+              ? Date.parse(cached.item.unreadAt)
+              : 0
+            cached.item = {
+              ...cached.item,
+              unreadAt: new Date(
+                Math.max(currentTimestamp, unreadTimestamp),
+              ).toISOString(),
+            }
+            sessionSnapshots.set(sessionId, cached)
+            emitSessionStoreChange()
+          }
+          try {
+            const response = await rpc.call('thread/mark-unread', {
+              threadId: sessionId,
+              unreadAt: unreadTimestamp,
+              operationId: requestId,
+            })
+            return (await cacheThreadListItem(response.thread)).item
+          } catch (error) {
+            await refreshAgentSessionStoreChange().catch(() => {})
+            throw error
+          }
+        },
+        () => mockClient.markSessionUnread(sessionId, unreadAt),
       ),
     updateSessionMetadata: async (
       sessionId: string,

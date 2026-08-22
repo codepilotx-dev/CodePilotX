@@ -95,6 +95,7 @@ type Props = {
   onPinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
+  onToggleSessionUnread: (session: SessionListItem) => void;
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>;
   onToggleProjectCollapsed: (projectKey: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
@@ -149,6 +150,7 @@ export function SidebarBody({
   onPinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
+  onToggleSessionUnread,
   onRenameSession,
   onToggleProjectCollapsed,
   onUnpinSession,
@@ -324,6 +326,7 @@ export function SidebarBody({
         onRemoveWorkspace={onRemoveWorkspace}
         onReport={onReport}
         onSelectSession={onSelectSession}
+        onToggleSessionUnread={onToggleSessionUnread}
         onRenameSession={onRenameSession}
         onSortChange={onProjectSortChange}
         onToggleProjectCollapsed={onToggleProjectCollapsed}
@@ -518,6 +521,7 @@ export function SidebarBody({
             onArchiveSessions={onArchiveSessions}
             onPinSession={onPinSession}
             onSelectSession={onSelectSession}
+            onToggleSessionUnread={onToggleSessionUnread}
             onRenameSession={onRenameSession}
             onUnpinSession={onUnpinSession}
           />
@@ -554,6 +558,7 @@ export function SidebarBody({
             onPinSession={onPinSession}
             onRequestArchiveAttention={onRequestArchiveAttention}
             onSelectSession={onSelectSession}
+            onToggleSessionUnread={onToggleSessionUnread}
             onRenameSession={onRenameSession}
             onShowWorkChange={onShowActivityWorkChange}
             onShowChatChange={onShowActivityChatChange}
@@ -696,6 +701,7 @@ export function SidebarBody({
                 onManualOrderChange={onManualOrderChange}
                 onPinSession={onPinSession}
                 onSelectSession={onSelectSession}
+                onToggleSessionUnread={onToggleSessionUnread}
                 onRenameSession={onRenameSession}
                 onSortChange={onSessionSortChange}
                 onUnpinSession={onUnpinSession}
@@ -726,6 +732,7 @@ function Timeline({
   onPinSession,
   onRequestArchiveAttention,
   onSelectSession,
+  onToggleSessionUnread,
   onRenameSession,
   onShowWorkChange,
   onShowChatChange,
@@ -748,6 +755,7 @@ function Timeline({
   onPinSession: (session: SessionListItem) => void
   onRequestArchiveAttention: () => void
   onSelectSession: (session: SessionListItem) => void
+  onToggleSessionUnread: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
   onShowWorkChange: (value: boolean) => void
   onShowChatChange: (value: boolean) => void
@@ -804,6 +812,7 @@ function Timeline({
     onArchiveSessions,
     onPinSession,
     onSelectSession,
+    onToggleSessionUnread,
     onRenameSession,
     onUnpinSession,
   }
@@ -1016,6 +1025,7 @@ function FocusSectionGroup({
   onArchiveSessions,
   onPinSession,
   onSelectSession,
+  onToggleSessionUnread,
   onRenameSession,
   onUnpinSession,
 }: {
@@ -1031,6 +1041,7 @@ function FocusSectionGroup({
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onPinSession: (session: SessionListItem) => void
   onSelectSession: (session: SessionListItem) => void
+  onToggleSessionUnread: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
@@ -1059,6 +1070,7 @@ function FocusSectionGroup({
               onArchiveSessions={onArchiveSessions}
               onPinSession={onPinSession}
               onSelectSession={onSelectSession}
+              onToggleSessionUnread={onToggleSessionUnread}
               onRenameSession={onRenameSession}
               onUnpinSession={onUnpinSession}
             />
