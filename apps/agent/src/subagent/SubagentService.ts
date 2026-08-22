@@ -18,7 +18,6 @@ import type { LocalContextPathService } from "../local-context/LocalContextPathS
 import { InstructionDiscoveryService, SkillService, createPromptSections, type PromptBundle } from "../prompt"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
-import type { HookService } from "../hooks/HookService"
 import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
 import { createMcpInstructionSections } from "../mcp/McpPromptSections"
@@ -106,7 +105,6 @@ export class SubagentService {
     private readonly workspaces?: SubagentWorkspaceProvider,
     private readonly promptStorage?: PromptStorageRoots,
     private readonly memory?: MemoryService,
-    private readonly hooks?: HookService,
     private readonly skillManagement?: SkillManagementService,
     private readonly mcp?: McpConnectionManager,
     private readonly projectSources?: ProjectSourceService,
@@ -561,7 +559,6 @@ export class SubagentService {
       const piModel = await this.providers.getModel(run.model)
       const contextManager = new ContextManager(this.db)
       const attachments = await this.agentAttachments(input.id)
-      let budgetText = ""
       let composedBundle: PromptBundle | null = null
       let pausedKind: PendingApproval["kind"] | null = null
       const result = await this.orchestrator.run({
@@ -585,9 +582,8 @@ export class SubagentService {
         ...(startupGate ? { startupGateLeaseID: startupGate.leaseID } : {}),
         ...(checkpoint ? { resume: checkpoint.approval } : {}),
         resolveModel: async () => ({ ref: run.model, model: piModel }),
-        onPromptComposed: async (bundle, context) => {
+        onPromptComposed: async (bundle) => {
           composedBundle = bundle
-          budgetText = context.budgetText
           const timestamp = Date.now()
           const previous = contextManager.state(task.childThreadId)
           const fragments: ContextFragment[] = bundle.diagnostics.filter((item) => item.included && item.cache !== "global-stable").map((item, index) => ({
@@ -706,7 +702,7 @@ export class SubagentService {
     return canonicalSubagentChangedFiles(reported, patches)
   }
 
-  async resumeTurn(threadID: string, turnID: string) {
+  async resumeTurn(_threadID: string, turnID: string) {
     const row = this.db.sqlite.query("SELECT subagent_run_id, id FROM agent_executions WHERE turn_id = ?").get(turnID) as { subagent_run_id: string | null; id: string } | null
     if (!row?.subagent_run_id) return
     if (this.controllers.has(row.subagent_run_id)) return

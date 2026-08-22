@@ -21,9 +21,7 @@ import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import {
   normalizedPath,
   parseHunks,
-  parseNameStatus,
   parseNumstat,
-  parseRawDiff,
   parseRawNumstatDiff,
   parsePorcelainStatus,
   sha256,

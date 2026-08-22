@@ -30,6 +30,7 @@
 
 ### Changed
 
+- [agent/desktop/renderer] 将 Material 图标与代码高亮主题收敛为少量按需分片，统一 Repository 公共声明和 Electron 原子 JSON 写入，并简化性能报告为当前指标与预算对比，显著减少源码文件且保持现有运行能力。
 - [docs/agent] 基于当前 CodePilotX 与 OpenAI Codex 固定提交重写 Harness 对标报告，校正已完成能力，并给出以运行组合完整性、Skills/MCP 真按需、Hook、Sandbox/凭据决策和 Durable Goal 为核心的证据化优化路线。
 - [desktop/renderer] 将侧边栏“任务看板”入口图标替换为 `Presentation`。
 - [agent] 将 Pi Harness 物理并入 App Agent，并统一 AgentRuntime 执行门面，减少重复编排层。
@@ -179,6 +180,7 @@
 
 ### Removed
 
+- [repository/agent/desktop/renderer] 移除过期排障备忘、历史性能基线、未接入的 Renderer/Agent/Electron 实现、测试孤岛与生成资产逐文件副本，降低目录树和维护噪声；本地性能结果继续按忽略规则按需重建。
 - [desktop/renderer] 移除全组件主题视觉 Token 调试工作台（ThemeTokenDebugger）及配套高保真预览、运行时样式注入与配方生成代码，清理相关 SCSS 样式与测试用例。
 - [desktop/renderer] 移除 Codex Labs 导航、页面及视觉原型，旧 `/labs` 地址改为显示现有 404 页面并不再打包相关代码和样式。
 

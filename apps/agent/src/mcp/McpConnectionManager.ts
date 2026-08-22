@@ -5,7 +5,6 @@ import type {
   McpSanitizedError,
   McpServerDeclaration,
 } from "@codepilotx/agent-protocol"
-import type { Schema } from "effect"
 import { createHash } from "node:crypto"
 import { AgentError } from "../domain"
 import { TurnToolCatalog, type ToolCatalog, type ToolDefinition } from "../tool/ToolRegistry"

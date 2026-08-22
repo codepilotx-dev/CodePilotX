@@ -40,7 +40,7 @@ import {
   createMcpGenerationBinding,
   rebindRuntimeComposition,
 } from "../runtime-composition/composer";
-import type { RuntimeWorkspaceScope, BoundRuntimeComposition, McpGenerationBinding } from "../runtime-composition/types";
+import type { RuntimeWorkspaceScope, BoundRuntimeComposition } from "../runtime-composition/types";
 import { SkillService } from "../prompt/SkillService";
 
 export type {

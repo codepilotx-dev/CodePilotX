@@ -1,7 +1,7 @@
 import React from "react";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { FileTypeIcon } from "../../layout/FileTypeIcon.js";
-import { MarkdownMessage } from "../MarkdownMessage.js";
+import { MarkdownMessage } from "../../markdown/index.js";
 import { parseMarkdown } from "../../markdown/parser.js";
 import type { MarkdownToken } from "../../markdown/types.js";
 import type { ConversationTurnNavItem } from "./turnNavigationModel.js";

@@ -10,7 +10,7 @@ import {
   DictationGeneration,
   stopMediaStream,
 } from '../src/features/session/composer/useComposerDictation.js'
-import { isDictationShortcut } from '../src/features/session/composer/composerDictation.js'
+import { isDictationShortcut } from '../src/features/session/composer/useComposerDictation.js'
 
 describe('听写录音设备', () => {
   test('首选设备失效时回退默认设备，并可停止所有轨道', async () => {

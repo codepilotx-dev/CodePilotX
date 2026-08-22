@@ -155,8 +155,6 @@ const failureMessage = (category: ModelHealthFailureCategory): string => {
   }
 }
 
-const noEligibleMessage = (providerID: Provider.ID): string =>
-  `Provider ${providerID} 没有可测试的已配置模型`
 
 const emptyCounts = (): ModelHealthCounts => ({
   total: 0,

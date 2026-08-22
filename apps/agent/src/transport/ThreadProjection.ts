@@ -7,8 +7,6 @@ import type {
   Item,
   Message,
   SubagentProjection,
-  SubagentTask,
-  SubagentRun,
   Thread,
   ThreadListItem,
   ThreadSnapshot,
@@ -163,19 +161,6 @@ const activityCommands = (value: unknown): Extract<Item, { type: "activity" }>["
   return commands.length ? commands : undefined
 }
 
-type ThreadRow = {
-  id: string
-  title: string
-  project_id: string | null
-  git_branch: string | null
-  creation_surface: string | null
-  task_mode: Thread["settings"]["taskMode"]
-  sandbox_mode: Thread["settings"]["permissionConfig"]["sandboxMode"]
-  approval_policy: string
-  approvals_reviewer: Thread["settings"]["permissionConfig"]["approvalsReviewer"]
-  created_at: number
-  updated_at: number
-}
 
 type HistoryCursor = { v: 1; createdAt: number; id: string }
 
@@ -259,17 +244,8 @@ export class ThreadProjection {
     }
   }
 
-  private projectAgentExecutionRow(row: Record<string, string | number | null>): WireAgentExecution {
-    return this.projectAgent(row)
-  }
 
-  private projectAgentExecutionFromInternal(agent: AgentExecution): WireAgentExecution {
-    return this.projectDomainAgent(agent)
-  }
 
-  private projectThreadInternalRow(row: Record<string, string | number | null>, workspace: Thread["workspace"] | undefined): Thread {
-    return this.projectThreadRow(row, workspace)
-  }
 
   private projectThreadRow(row: Record<string, string | number | null>, workspace: Thread["workspace"] | undefined): Thread {
     return {

@@ -1,6 +1,6 @@
 import { isGranularApprovalPolicy } from "@codepilotx/shared/thread"
 import type { PermissionDecision, ToolInvocation } from "../domain"
-import type { ApprovalStrategy, ToolCatalogEntry } from "../tool/ToolRegistry"
+import type { ToolCatalogEntry } from "../tool/ToolRegistry"
 import { toolAllowedForFileAccess, toolAllowedInTaskMode } from "../tool/ToolRegistry"
 import { resolveEffectivePermissionConfig } from "./EffectivePermissionConfig"
 import { executionPolicyFromV4, type EffectiveExecutionPolicy, type FileAccessProfile } from "./ExecutionPolicy"

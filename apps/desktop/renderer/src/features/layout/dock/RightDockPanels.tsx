@@ -20,10 +20,11 @@ import type {
 } from '../../../../shared/types.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
-import { MarkdownMessage } from '../../session/MarkdownMessage.js'
+import { MarkdownMessage } from '../../markdown/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import { cx } from '../../../utils/cx.js'
-import { ConflictMergeEditor, FileEditor } from '../../editor/index.js'
+import { ConflictMergeEditor } from '../../editor/ConflictMergeEditor.js'
+import { FileEditor } from '../../editor/FileEditor.js'
 import {
   prefetchFileDocument,
   fileDocumentLoadErrorMessage,

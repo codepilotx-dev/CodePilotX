@@ -8,7 +8,7 @@ import type {
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { SegmentedControl } from './SegmentedControl.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js'

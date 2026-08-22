@@ -725,7 +725,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         userHome: homedir(),
       },
       memory,
-      hooks,
       skills,
       mcpConnections,
       projectSources,

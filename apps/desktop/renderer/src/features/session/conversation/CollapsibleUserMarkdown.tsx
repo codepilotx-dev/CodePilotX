@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 import {
   MarkdownMessage,
   type MarkdownMessageProps,
-} from "../MarkdownMessage.js";
+} from "../../markdown/index.js";
 import { ConversationMarkdownErrorBoundary } from "./ConversationTurnErrorBoundary.js";
 
 const DEFAULT_COLLAPSED_LINE_COUNT = 20;

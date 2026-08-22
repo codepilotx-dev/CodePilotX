@@ -21,7 +21,6 @@ import type {
   RuntimeCompositionIdentity,
   RuntimeCompositionProfile,
   RuntimeCompositionSnapshot,
-  RuntimeCompositionSnapshotV1,
   RuntimeCompositionSnapshotV2,
   RuntimeWorkspaceScope,
   SerializableToolExposurePlan,
@@ -138,8 +137,6 @@ const promptHashFor = (bundle: PromptBundle) =>
 const permissionHashFor = (config: PermissionConfig) =>
   hashJson(config)
 
-const contextHashFor = (baseline: ContextBaseline) =>
-  hashJson(baseline)
 
 const frozenMcpInstructions = (
   binding: McpGenerationBinding,

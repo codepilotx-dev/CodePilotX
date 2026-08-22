@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { InMemorySessionRepo } from "../src/storage/pi-session/memory-repo"
+import { InMemorySessionRepo } from "../scripts/support/pi-session-memory"
 import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import {
   createModels,

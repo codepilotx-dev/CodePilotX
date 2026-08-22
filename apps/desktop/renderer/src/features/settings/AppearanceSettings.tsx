@@ -27,7 +27,7 @@ import {
   deriveThemeVariables,
   ensureThemePreviewContrast,
 } from '../theme/themeVariables.js'
-import { SegmentedControl } from './SegmentedControl.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'

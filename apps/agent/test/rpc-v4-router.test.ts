@@ -977,7 +977,6 @@ describe("RPC v4 Router", () => {
     const otherProviderID = Schema.decodeUnknownSync(Provider.ID)("provider:other")
     const modelID = Schema.decodeUnknownSync(Model.ID)("alpha")
     const disabledModelID = Schema.decodeUnknownSync(Model.ID)("disabled")
-    const missingModelID = Schema.decodeUnknownSync(Model.ID)("missing")
     const variantID = Schema.decodeUnknownSync(Model.VariantID)("reasoning")
     const models = [
       { ...Model.Info.empty(providerID, modelID), variants: [{ id: variantID }] },
@@ -1319,7 +1318,7 @@ describe("RPC v4 Router", () => {
     const provider = Provider.Info.empty(Provider.ID.make("provider:mismatch"))
     const model = Model.ID.make("model:mismatch")
     const modelHealth = {
-      start: async (operationId: string) => {
+      start: async () => {
         throw new AgentError("CONFLICT", "另一个模型健康测试批次正在进行", 409)
       },
       cancel: async () => {

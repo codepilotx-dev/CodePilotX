@@ -9,7 +9,6 @@ import {
   MODELS_DEV_CATALOG_MAX_BYTES,
   ModelsDevCatalogStore,
   validateModelsDevCatalog,
-  type ModelsDevCatalog,
 } from "../src/provider/pi";
 
 const roots: string[] = [];

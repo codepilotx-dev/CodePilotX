@@ -3,7 +3,6 @@ import type {
   EventSubscribeParamsSchema,
   ProtocolCapability,
 } from "@codepilotx/agent-protocol"
-import type { Schema } from "effect"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { AgentError } from "../domain"
 import { globalEventSequence } from "../storage/events/EventPublisher"

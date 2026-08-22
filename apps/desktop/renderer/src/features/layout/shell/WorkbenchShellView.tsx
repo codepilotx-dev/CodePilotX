@@ -1,5 +1,4 @@
 import type React from 'react'
-import { DesktopAppShell } from './DesktopAppShell.js'
 
 export function WorkbenchShellView({
   menuBar,
@@ -13,12 +12,17 @@ export function WorkbenchShellView({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <DesktopAppShell
-      menuBar={menuBar}
-      sidebar={sidebar}
-      appBodyRef={appBodyRef}
-    >
-      {children}
-    </DesktopAppShell>
+    <div className="app-shell tw:flex tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:text-app-text">
+      <div className="desktop-menubar tw:shrink-0">{menuBar}</div>
+      <div
+        className="app-body tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden"
+        ref={appBodyRef}
+      >
+        {sidebar}
+        <section className="desktop-main tw:flex tw:min-w-0 tw:flex-1 tw:overflow-hidden">
+          <div className="desktop-main-stage tw:min-w-0 tw:flex-1 tw:overflow-hidden">{children}</div>
+        </section>
+      </div>
+    </div>
   )
 }

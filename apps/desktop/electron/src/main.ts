@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { app, ipcMain, nativeTheme, screen, session, shell } from "electron"
+import electronUpdater from "electron-updater"
 import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
   type DesktopSettingsPayload,
@@ -20,9 +21,9 @@ import { AttachmentDownloadService } from "./ipc/attachment-download-service.js"
 import { ComposerPathGrantService } from "./ipc/composer-path-grant-service.js"
 import {
   createDesktopLogger,
+  resolveDesktopLogDirectory,
   type DesktopLogger,
 } from "./logging/desktop-logger.js"
-import { resolveDesktopLogDirectory } from "./logging/log-directory.js"
 import {
   configureAuthCookie,
   verifyAuthCookie,
@@ -49,8 +50,10 @@ import {
 import { DesktopNotificationService } from "./notifications/desktop-notification-service.js"
 import { PetOverlayWindowController } from "./windows/pet-overlay-window.js"
 import { PetOverlayWindowStateStore } from "./windows/pet-overlay-window-state.js"
-import { DesktopAutoUpdater } from "./update/desktop-auto-updater.js"
-import { electronAutoUpdater } from "./update/electron-updater-adapter.js"
+import {
+  DesktopAutoUpdater,
+  type ElectronAutoUpdaterLike,
+} from "./update/desktop-auto-updater.js"
 import { resolveStartupPageTheme } from "./windows/startup-page.js"
 import {
   type DesktopDisplayWorkArea,
@@ -217,7 +220,7 @@ async function startDesktop(): Promise<void> {
     packaged: app.isPackaged,
     version: app.getVersion(),
     logger,
-    updater: electronAutoUpdater(),
+    updater: electronUpdater.autoUpdater as ElectronAutoUpdaterLike,
     onStatusChange: status => {
       windows?.send(DESKTOP_UPDATE_IPC_CHANNELS.status, status)
     },

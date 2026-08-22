@@ -1,56 +1,14 @@
 import type { RpcMethod } from "@codepilotx/agent-protocol"
 import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
-import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
+import { optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
 import {
   AgentError,
-  Capabilities,
-  Effect,
-  Model,
   WorkspaceService,
-  globalEventSequence,
-  secretScrubber,
-  aiReviewModel,
-  aiReviewPrompt,
-  aiReviewTitle,
-  attachmentView,
-  booleanParam,
   decodeOffsetCursor,
-  decodePermissionConfig,
-  decodeQueueInput,
-  decodeQueueResume,
-  decodeQueueUpdate,
-  decodeReviewAiStart,
-  decodeReviewApply,
-  decodeReviewBranches,
-  decodeReviewCommentID,
-  decodeReviewCommentList,
-  decodeReviewCommentSave,
-  decodeReviewCommit,
-  decodeReviewCommits,
-  decodeReviewFileDiff,
-  decodeReviewStatus,
-  decodeReviewSummary,
-  decodeSandboxUninstall,
-  decodeThreadSettings,
-  decodeThreadSettingsPatch,
   encodeOffsetCursor,
-  enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRef,
   modelRefOrNull,
-  parseJsonRecord,
   positiveIntegerParam,
-  providerFailureCategory,
-  resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
-  resolveProjectWorkspace,
   stringParam,
-  submitMessage,
-  supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 import { ProjectService } from "../../../project/ProjectService"
@@ -80,7 +38,7 @@ export const workspaceHandlers = {
     "workspace/file/unwatch",
     "project/settings/update",
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
+  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
     const { db, projectSources } = runtime.dependencies
     const params = optionalRecord(rawParams)
     const projects = new ProjectService(db, projectSources)

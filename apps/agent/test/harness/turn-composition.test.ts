@@ -6,7 +6,6 @@ import {
 	buildStepContext,
 	validateToolEnvelope,
 	validateDeferredActivation,
-	type HarnessCompositionIdentity,
 	type HarnessToolComposition,
 } from "../../src/orchestration/harness/turn-composition.ts";
 import type { Model } from "@earendil-works/pi-ai";
@@ -160,7 +159,6 @@ describe("HarnessTurnComposition", () => {
 
 	test("tool execute callback is NOT frozen", async () => {
 		const toolWithCallback = { ...mockTool, execute: async () => ({ content: [] }) };
-		const composition = await buildHarnessTurnComposition({ model: mockModel, thinkingLevel: "medium", systemPrompt: "You are a helpful assistant.", tools: [toolWithCallback], toolContext: undefined });
 		expect(Object.isFrozen(toolWithCallback.execute)).toBe(false);
 	});
 

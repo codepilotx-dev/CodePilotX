@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from "node:crypto"
 import { Effect } from "effect"
 import type {
-  TaskboardComment,
   TaskboardPriority,
   TaskboardStatus,
   TaskboardTaskDetails,

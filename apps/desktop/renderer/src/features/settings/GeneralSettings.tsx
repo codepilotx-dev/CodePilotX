@@ -11,7 +11,7 @@ import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js';
 import { SettingsRow } from './SettingsRow.js';
 import { SettingsSection } from './SettingsSection.js';
 import { SettingsDropdown } from './SettingsDropdown.js';
-import { SegmentedControl } from './SegmentedControl.js';
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js';
 import { useDesktopSettings } from './useDesktopSettings.js';
 import { SettingsContentArea } from './SettingsContentArea.js';
 import { permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'

@@ -293,16 +293,6 @@ export class TerminalManager {
   }
 }
 
-export class UnavailableTerminalLaunchContextResolver
-implements TerminalLaunchContextResolver {
-  async resolve(_threadId: string): Promise<TerminalLaunchContext> {
-    throw new TerminalError(
-      "TERMINAL_UNAVAILABLE",
-      "Agent 尚未提供终端工作目录",
-    )
-  }
-}
-
 function validateThreadId(threadId: string): void {
   if (
     typeof threadId !== "string"

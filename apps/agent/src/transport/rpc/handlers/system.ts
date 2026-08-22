@@ -5,53 +5,8 @@ import { filterAdvertisedCapabilities, negotiateCapabilities } from "./system-ca
 import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
 import {
   AgentError,
-  Capabilities,
-  Effect,
-  Model,
-  WorkspaceService,
-  globalEventSequence,
-  secretScrubber,
-  aiReviewModel,
-  aiReviewPrompt,
-  aiReviewTitle,
-  attachmentView,
-  booleanParam,
-  decodeOffsetCursor,
-  decodePermissionConfig,
-  decodeQueueInput,
-  decodeQueueResume,
-  decodeQueueUpdate,
-  decodeReviewAiStart,
-  decodeReviewApply,
-  decodeReviewBranches,
-  decodeReviewCommentID,
-  decodeReviewCommentList,
-  decodeReviewCommentSave,
-  decodeReviewCommit,
-  decodeReviewCommits,
-  decodeReviewFileDiff,
-  decodeReviewStatus,
-  decodeReviewSummary,
   decodeSandboxUninstall,
-  decodeThreadSettings,
-  decodeThreadSettingsPatch,
-  encodeOffsetCursor,
-  enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRef,
-  modelRefOrNull,
-  parseJsonRecord,
-  positiveIntegerParam,
-  providerFailureCategory,
-  resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
-  resolveProjectWorkspace,
   stringParam,
-  submitMessage,
-  supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 
@@ -87,7 +42,7 @@ export const systemHandlers = {
     "event/unsubscribe",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, apiKeys, memory, review, github } = runtime.dependencies
+    const { db } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":

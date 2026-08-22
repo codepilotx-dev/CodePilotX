@@ -1,21 +1,13 @@
 import { Database } from "bun:sqlite"
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
-import { Effect } from "effect"
-import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
-import { AgentError } from "../../domain"
-import type { ReviewComment } from "@codepilotx/agent-protocol"
+import { isAbsolute, relative } from "node:path"
+import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, type ThreadSettings } from "@codepilotx/shared/thread"
 import type {
   EventEnvelope,
   AgentExecution,
-  Item,
   ModelRef,
   PermissionConfig,
-  StoredInputDelivery,
-  SubmitMessage,
   TaskMode,
-  ThreadSnapshot,
   ToolInvocation,
-  TurnStatus,
 } from "../../domain"
 
 export type ProjectModelSettings = {
@@ -163,13 +155,13 @@ export type HookTrustRequest = {
   resolvedAt: number | null
 }
 
-type SqlValue = string | number | boolean | Uint8Array | null
+export type SqlValue = string | number | boolean | Uint8Array | null
 
-const stringify = (value: unknown) => JSON.stringify(value ?? null)
-const parse = <T>(value: string): T => JSON.parse(value) as T
-const now = () => Date.now()
-const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-const containedPath = (root: string, candidate: string) => {
+export const stringify = (value: unknown) => JSON.stringify(value ?? null)
+export const parse = <T>(value: string): T => JSON.parse(value) as T
+export const now = () => Date.now()
+export const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
+export const containedPath = (root: string, candidate: string) => {
   const path = relative(root, candidate)
   return path === "" || (!path.startsWith("..") && !isAbsolute(path))
 }
@@ -209,28 +201,28 @@ export type CreatedThreadRecord = {
   event: EventEnvelope
 }
 
-type PermissionColumns = {
+export type PermissionColumns = {
   sandbox_mode: PermissionConfig["sandboxMode"]
   approval_policy: string
   approvals_reviewer: PermissionConfig["approvalsReviewer"]
 }
 
-type ThreadSettingsColumns = PermissionColumns & {
+export type ThreadSettingsColumns = PermissionColumns & {
   task_mode: TaskMode
 }
 
-const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
+export const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
   sandboxMode: row.sandbox_mode,
   approvalPolicy: decodeApprovalPolicy(row.approval_policy),
   approvalsReviewer: row.approvals_reviewer,
 })
 
-const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSettings => ({
+export const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSettings => ({
   taskMode: row.task_mode,
   permissionConfig: permissionConfigFromRow(row),
 })
 
-const defaultThreadSettings = (): ThreadSettings => ({
+export const defaultThreadSettings = (): ThreadSettings => ({
   taskMode: "chat",
   permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
 })

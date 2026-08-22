@@ -73,7 +73,7 @@ import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
 import type { RpcRouterContext } from "./request-context"
-import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "./decoders"
+import { decodeRpcParams as decodeParams, rpcRecord as record } from "./decoders"
 import {
   capabilityRequiredResponse,
   unauthorizedNotificationResponse,
@@ -106,7 +106,6 @@ import {
   ReviewSummaryParamsSchema,
   Capabilities,
   RpcApplicationError,
-  InitializedNotificationSchema,
   dispatchRpcMessageWithMethods,
   type ApplicationErrorCode,
   type JsonValue,
@@ -333,7 +332,6 @@ export class RpcRouter {
     }
     else this.reapExpiredConnections()
     if (isInitializedNotification(input)) {
-      const notification = Schema.decodeUnknownSync(InitializedNotificationSchema)(input)
       const connectionId = context.connectionId
       const connection = connectionId ? this.connections.get(connectionId) : undefined
       if (!connection) return unauthorizedNotificationResponse()

@@ -157,7 +157,7 @@ export class PromptComposer {
     );
     const leadingGlobal = stablePrefix
       .filter(
-        (segment, index) =>
+        (_segment, index) =>
           index === 0 ||
           stablePrefix
             .slice(0, index)

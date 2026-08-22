@@ -75,25 +75,29 @@ export class DebouncedAtomicJsonWriter<T> {
     const state = this.#pending
     if (!state) return
     this.#pending = undefined
-    const write = this.#queue.then(() => this.#writeAtomically(state))
+    const write = this.#queue.then(() => writeJsonAtomically(this.#filePath, state))
     this.#queue = write.catch((error) => {
       this.#logger?.warn(`${this.#logCategory}.save-failed`, { error })
     })
   }
 
-  async #writeAtomically(state: T): Promise<void> {
-    const directory = dirname(this.#filePath)
-    const temporaryPath = `${this.#filePath}.${process.pid}.${randomUUID()}.tmp`
-    await mkdir(directory, { recursive: true })
-    try {
-      await writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, {
-        encoding: "utf8",
-        mode: 0o600,
-      })
-      await rename(temporaryPath, this.#filePath)
-    } finally {
-      await rm(temporaryPath, { force: true }).catch(() => undefined)
-    }
+}
+
+export async function writeJsonAtomically(
+  filePath: string,
+  value: unknown,
+): Promise<void> {
+  const directory = dirname(filePath)
+  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`
+  await mkdir(directory, { recursive: true })
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    })
+    await rename(temporaryPath, filePath)
+  } finally {
+    await rm(temporaryPath, { force: true }).catch(() => undefined)
   }
 }
 

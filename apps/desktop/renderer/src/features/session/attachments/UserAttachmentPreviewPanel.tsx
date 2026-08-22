@@ -19,7 +19,7 @@ import {
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { FileEditor } from '../../editor/index.js'
+import { FileEditor } from '../../editor/FileEditor.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import type { UserAttachmentPreviewTab } from '../../layout/dock/rightDockState.js'
 import {

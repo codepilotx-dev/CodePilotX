@@ -23,9 +23,9 @@ import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SidebarRow } from './SidebarRow.js'
 import { SidebarSessionGroup } from './SidebarSessionGroup.js'
 import {
-  SidebarContextMenu,
-  type ContextMenuAction,
-} from './SidebarContextMenu.js'
+  AppContextMenu as SidebarContextMenu,
+  type AppContextMenuAction as ContextMenuAction,
+} from '../../../components/ui/AppContextMenu.js'
 import { cx } from '../../../utils/cx.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import {

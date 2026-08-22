@@ -27,9 +27,9 @@ import { SidebarRow } from "./SidebarRow.js";
 import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
 import { cx } from "../../../utils/cx.js";
 import {
-  SidebarContextMenu,
-  type ContextMenuAction,
-} from "./SidebarContextMenu.js";
+  AppContextMenu as SidebarContextMenu,
+  type AppContextMenuAction as ContextMenuAction,
+} from "../../../components/ui/AppContextMenu.js";
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
 import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
 

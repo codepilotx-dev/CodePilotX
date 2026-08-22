@@ -83,15 +83,6 @@ export const parseSkillDocument = (content: string) => {
   return { metadata, body: rest.slice(bodyStart).replace(/^\n/, "") };
 };
 
-const safeErrorMessage = (cause: unknown): string => {
-  if (cause instanceof Error) {
-    if (cause.message.includes("ENOENT")) return "文件不存在"
-    if (cause.message.includes("frontmatter")) return "frontmatter 格式错误"
-    if (cause.message.includes("YAML")) return "YAML 解析失败"
-    return "读取失败"
-  }
-  return "未知错误"
-};
 
 const parseAllowedTools = (metadata: Record<string, unknown>) => {
   const value = metadata.allowedTools ?? metadata["allowed-tools"];

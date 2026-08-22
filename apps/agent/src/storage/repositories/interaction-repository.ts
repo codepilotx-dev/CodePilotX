@@ -1,21 +1,11 @@
-import { Database } from "bun:sqlite"
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
-import { Effect } from "effect"
-import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
+import type { ThreadSettings } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
-import type { ReviewComment, ServerRequestResponse } from "@codepilotx/agent-protocol"
+import type { ServerRequestResponse } from "@codepilotx/agent-protocol"
 import type {
   EventEnvelope,
-  AgentExecution,
-  Item,
   ModelRef,
   PermissionConfig,
-  StoredInputDelivery,
-  SubmitMessage,
-  TaskMode,
-  ThreadSnapshot,
   ToolInvocation,
-  TurnStatus,
 } from "../../domain"
 import {
   approvalCancelledPayload,
@@ -161,7 +151,6 @@ export type HookTrustRequest = {
   resolvedAt: number | null
 }
 
-type SqlValue = string | number | boolean | Uint8Array | null
 
 const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
@@ -245,11 +234,6 @@ const questionInteractionResult = (
     }],
   }
 }
-const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-const containedPath = (root: string, candidate: string) => {
-  const path = relative(root, candidate)
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
-}
 export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
 export type InteractionOperationInput = {
@@ -285,31 +269,9 @@ export type CreatedThreadRecord = {
   event: EventEnvelope
 }
 
-type PermissionColumns = {
-  sandbox_mode: PermissionConfig["sandboxMode"]
-  approval_policy: string
-  approvals_reviewer: PermissionConfig["approvalsReviewer"]
-}
 
-type ThreadSettingsColumns = PermissionColumns & {
-  task_mode: TaskMode
-}
 
-const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
-  sandboxMode: row.sandbox_mode,
-  approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-  approvalsReviewer: row.approvals_reviewer,
-})
 
-const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSettings => ({
-  taskMode: row.task_mode,
-  permissionConfig: permissionConfigFromRow(row),
-})
-
-const defaultThreadSettings = (): ThreadSettings => ({
-  taskMode: "chat",
-  permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
-})
 
 import { ExecutionRepositoryDatabase } from "./execution-repository"
 

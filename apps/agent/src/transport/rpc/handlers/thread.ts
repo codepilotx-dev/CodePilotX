@@ -1,57 +1,22 @@
 import type { RpcMethod } from "@codepilotx/agent-protocol"
 import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
 import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
 import {
   AgentError,
-  Capabilities,
-  Effect,
   InvalidThreadHistoryCursorError,
-  Model,
-  WorkspaceService,
   globalEventSequence,
-  secretScrubber,
-  aiReviewModel,
-  aiReviewPrompt,
-  aiReviewTitle,
   artifactMetadataView,
   attachmentView,
-  booleanParam,
-  decodeOffsetCursor,
   decodeQueueAdd,
   decodeQueueInput,
   decodeQueueResume,
   decodeQueueUpdate,
-  decodeReviewAiStart,
-  decodeReviewApply,
-  decodeReviewBranches,
-  decodeReviewCommentID,
-  decodeReviewCommentList,
-  decodeReviewCommentSave,
-  decodeReviewCommit,
-  decodeReviewCommits,
-  decodeReviewFileDiff,
-  decodeReviewStatus,
-  decodeReviewSummary,
-  decodeSandboxUninstall,
   decodeThreadSettings,
   decodeThreadSettingsPatch,
   decodeTurnInterrupt,
   decodeTurnStart,
   decodeTurnSteer,
-  encodeOffsetCursor,
   enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRefOrNull,
-  parseJsonRecord,
-  positiveIntegerParam,
-  providerFailureCategory,
-  resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
-  resolveProjectWorkspace,
   stringParam,
   submitMessage,
   supportedPermissionConfig,
@@ -88,8 +53,8 @@ export const threadHandlers = {
     "attachment/read",
     "artifact/read",
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, apiKeys, memory, review, github, turnPatches } = runtime.dependencies
+  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
+    const { db, threads, history, attachments, turnPatches } = runtime.dependencies
     const params = optionalRecord(rawParams)
     if (([
       "turn/start",

@@ -3,7 +3,7 @@ import { AgentHarness } from "../../src/orchestration/harness/agent-harness.ts";
 import type { AgentHarnessTool } from "../../src/orchestration/harness/types.ts";
 import type { AgentTool } from "../../src/orchestration/harness/agent-types.ts";
 import { DeferredToolCatalog } from "../../src/tool/harness/deferred-tool-catalog.ts";
-import { InMemorySessionRepo } from "../../src/storage/pi-session/memory-repo.ts";
+import { InMemorySessionRepo } from "../../scripts/support/pi-session-memory.ts";
 import {
 	Type,
 	createModels,

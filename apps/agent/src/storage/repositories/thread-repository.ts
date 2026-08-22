@@ -1,18 +1,12 @@
-import { Database } from "bun:sqlite"
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
-import { Effect } from "effect"
+import { isAbsolute, relative, resolve } from "node:path"
 import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadCreationSurface, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
-import type { ReviewComment } from "@codepilotx/agent-protocol"
 import { probeThreadsStorageCapabilities } from "../database/storage-capabilities"
 import type {
   EventEnvelope,
-  AgentExecution,
   Item,
   ModelRef,
   PermissionConfig,
-  StoredInputDelivery,
-  SubmitMessage,
   TaskMode,
   ThreadSnapshot,
   ToolInvocation,
@@ -147,12 +141,10 @@ export type HookTrustRequest = {
   resolvedAt: number | null
 }
 
-type SqlValue = string | number | boolean | Uint8Array | null
 
 const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
-const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
 const containedPath = (root: string, candidate: string) => {
   const path = relative(root, candidate)
   return path === "" || (!path.startsWith("..") && !isAbsolute(path))

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
-import { SegmentedControl } from './SegmentedControl.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import {

@@ -920,7 +920,6 @@ export class ThreadService {
       const selectedModel = Model.Ref.make({ providerID: selectedInfo.providerID, id: selectedInfo.id, ...(selectedInfo.variant ? { variant: Model.VariantID.make(selectedInfo.variant) } : {}) })
       const piModel = await this.providers.getModel(selectedModel)
       const attachments = await this.agentAttachments(input.id)
-      let budgetText = ""
       let composedBundle: PromptBundle | null = null
       const result = await this.orchestrator.run({
         threadID,
@@ -949,9 +948,8 @@ export class ThreadService {
         } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
-        onPromptComposed: async (bundle, context) => {
+        onPromptComposed: async (bundle) => {
           composedBundle = bundle
-          budgetText = context.budgetText
           const timestamp = Date.now()
           const previous = contextManager.state(threadID)
           const promptSnapshot = this.promptSettingsSnapshot(threadID)

@@ -19,9 +19,6 @@ export interface ResolvedCheckpoint {
 }
 
 const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" ? value as Record<string, unknown> : {}
-const parse = (value: string) => {
-  try { return record(JSON.parse(value)) } catch { return {} }
-}
 const toolCallID = (value: unknown) => {
   const item = record(value)
   const rawItem = record(item.rawItem)

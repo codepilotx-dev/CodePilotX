@@ -20,11 +20,6 @@ const paths: string[] = []
 
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
-const context: PiRuntimeEventContext = {
-  threadID: "thread-1",
-  turnID: "turn-1",
-  agentID: "agent-1",
-}
 
 const model = Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
 const permission = { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" } as const

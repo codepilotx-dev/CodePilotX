@@ -13,10 +13,6 @@ const record = (value: unknown): Record<string, unknown> =>
     ? value as Record<string, unknown>
     : {}
 
-const parse = (value: string | null): Record<string, unknown> => {
-  if (!value) return {}
-  try { return record(JSON.parse(value)) } catch { return {} }
-}
 
 export interface ResumeCheckpointResolverOptions {
   resolvedSubagentWait?: (turnID: string) => PlanCheckpoint | null

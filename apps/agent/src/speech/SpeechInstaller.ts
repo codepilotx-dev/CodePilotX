@@ -82,7 +82,7 @@ export class SpeechInstaller {
       const expectedTotal = Object.values(SPEECH_ARTIFACTS).reduce((total, artifact) => total + artifact.expectedBytes, 0)
       for (const [name, artifact] of Object.entries(SPEECH_ARTIFACTS) as Array<[keyof typeof SPEECH_ARTIFACTS, Artifact]>) {
         const partial = join(job, `${name}.partial`)
-        const received = await this.download(artifact, partial, signal, (current, total) => {
+        const received = await this.download(artifact, partial, signal, (current) => {
           this.progress({ receivedBytes: receivedTotal + current, totalBytes: expectedTotal }, false)
         })
         receivedTotal += received

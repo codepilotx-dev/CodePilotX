@@ -13,7 +13,6 @@ import {
   AgentError,
   booleanParam,
   modelRefOrNull,
-  providerFailureCategory,
   stringParam,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"

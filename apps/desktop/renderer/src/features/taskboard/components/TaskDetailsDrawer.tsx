@@ -1,7 +1,6 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import { Archive, MessageSquare, Play, RotateCcw, Star, Unlink, X } from 'lucide-react'
+import { Archive, ArrowLeft, MessageSquare, Play, RotateCcw, Star, Unlink } from 'lucide-react'
 import type {
   TaskboardPriority,
   TaskboardLabel,
@@ -14,7 +13,6 @@ import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
-import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { TASKBOARD_COLUMNS, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 
@@ -99,7 +97,6 @@ export function TaskDetailsDrawer({
   const task = detail?.task ?? null
   const taskArchived = task?.archivedAt !== null && task?.archivedAt !== undefined
   const taskMutationReadOnly = readOnly || taskArchived
-  const { onCloseAutoFocus } = useDialogFocusRestore(open)
   const availableSessions = useMemo(() => {
     const linked = new Set(detail?.threads.map(thread => thread.threadId) ?? [])
     return sessions.filter(session =>
@@ -153,27 +150,25 @@ export function TaskDetailsDrawer({
     }
   }
 
+  if (!open) return null
+
   return (
-    <Dialog.Root modal={false} open={open} onOpenChange={next => !next && onClose()}>
-      <Dialog.Content
+      <section
         aria-describedby="taskboard-details-description"
+        aria-label={task ? `任务详情：${task.title}` : '任务详情'}
         className="taskboard-drawer"
-        onCloseAutoFocus={onCloseAutoFocus}
-        onOpenAutoFocus={event => event.preventDefault()}
       >
         <header className="taskboard-drawer__header">
+          <IconButton color="ghostSecondary" size="toolbar" title="返回任务看板" onClick={onClose}>
+            <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          </IconButton>
           <div>
             <span>{task ? `${projectName} · #${task.number}` : '任务详情'}</span>
-            <Dialog.Title asChild><h2>{task?.title ?? '加载任务'}</h2></Dialog.Title>
-            <Dialog.Description id="taskboard-details-description">
+            <h2>{task?.title ?? '加载任务'}</h2>
+            <p id="taskboard-details-description">
               {task ? `${taskboardStatusLabel(task.status)} · ${TASKBOARD_PRIORITY_LABELS[task.priority]}` : '正在读取任务详情。'}
-            </Dialog.Description>
+            </p>
           </div>
-          <Dialog.Close asChild>
-            <IconButton color="ghostSecondary" size="toolbar" title="关闭任务详情">
-              <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
-          </Dialog.Close>
         </header>
         {loading ? <div className="taskboard-drawer__state" role="status">正在加载任务详情…</div> : null}
         {error ? (
@@ -183,63 +178,27 @@ export function TaskDetailsDrawer({
         ) : null}
         {task && detail ? (
           <div className="taskboard-drawer__content">
-            <div className="taskboard-drawer__actions">
-              <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => onStart(task.id)}>
-                <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                开始执行
-              </Button>
-              {task.archivedAt === null ? (
-                <Button color="secondary" disabled={pending || readOnly} onClick={() => void onArchive(task.id)}>
-                  <Archive aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />归档
-                </Button>
-              ) : (
-                <Button color="secondary" disabled={pending || readOnly} onClick={() => void onRestore(task.id)}>
-                  <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />恢复
-                </Button>
-              )}
-            </div>
+            <main className="taskboard-detail__main">
             {readOnly ? <p className="taskboard-drawer__project-removed" role="status">项目已移除，仅可查看任务内容和历史记录。</p> : null}
             <section className="taskboard-drawer__section">
               <div className="taskboard-drawer__section-heading">
-                <h3>任务字段</h3>
+                <h3>任务内容</h3>
                 <Button color="ghostSecondary" disabled={taskMutationReadOnly} size="compact" onClick={() => setEditing(value => !value)}>{editing ? '取消编辑' : '编辑'}</Button>
               </div>
               {editing ? (
                 <form className="taskboard-edit-form" onSubmit={event => { event.preventDefault(); void saveTask() }}>
                   <label><span>标题</span><input maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} /></label>
-                  <label><span>说明</span><textarea rows={6} value={description} onChange={event => setDescription(event.currentTarget.value)} /></label>
-                  <div>
-                    <label><span>阶段</span><select value={status} onChange={event => setStatus(event.currentTarget.value as TaskboardStatus)}>{TASKBOARD_COLUMNS.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></label>
-                    <label><span>优先级</span><select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>{(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>)}</select></label>
-                  </div>
+                  <label><span>说明</span><textarea rows={10} value={description} onChange={event => setDescription(event.currentTarget.value)} /></label>
                   {labels.length > 0 ? (
                     <fieldset className="taskboard-edit-form__labels">
                       <legend>标签</legend>
                       {labels.map(label => <label key={label.id}><input checked={labelIds.includes(label.id)} type="checkbox" onChange={() => setLabelIds(current => current.includes(label.id) ? current.filter(id => id !== label.id) : [...current, label.id])} />{label.name}</label>)}
                     </fieldset>
                   ) : null}
-                  <fieldset className="taskboard-label-manager">
-                    <legend>标签管理</legend>
-                    {labels.map(label => (
-                      <div key={label.id}>
-                        <input aria-label={`标签名称：${label.name}`} maxLength={40} value={labelNames[label.id] ?? label.name} onChange={event => setLabelNames(current => ({ ...current, [label.id]: event.currentTarget.value }))} />
-                        <Button color="ghostSecondary" disabled={taskMutationReadOnly || !(labelNames[label.id] ?? '').trim() || (labelNames[label.id] ?? '').trim() === label.name} size="compact" onClick={() => void onUpdateLabel(label.id, (labelNames[label.id] ?? '').trim())}>重命名</Button>
-                        <Button color="danger" disabled={taskMutationReadOnly} size="compact" onClick={() => void onDeleteLabel(label.id)}>删除</Button>
-                      </div>
-                    ))}
-                    <div>
-                      <input aria-label="新标签名称" maxLength={40} placeholder="新标签名称" value={newLabelName} onChange={event => setNewLabelName(event.currentTarget.value)} />
-                      <Button color="secondary" disabled={taskMutationReadOnly || !newLabelName.trim()} size="compact" onClick={() => void onCreateLabel(task.projectId, newLabelName.trim()).then(() => setNewLabelName(''))}>新建标签</Button>
-                    </div>
-                  </fieldset>
-                  <Button color="secondary" disabled={!title.trim()} loading={saving} type="submit">保存更改</Button>
+                  <Button color="secondary" disabled={!title.trim()} loading={saving} type="submit">保存内容</Button>
                 </form>
               ) : (
                 <>
-                  <div className="taskboard-drawer__meta">
-                    <span className="taskboard-drawer__status" data-status={task.status}>{taskboardStatusLabel(task.status)}</span>
-                    <span className="taskboard-drawer__priority" data-priority={task.priority}>{TASKBOARD_PRIORITY_LABELS[task.priority]}</span>
-                  </div>
                   {task.description ? (
                     <div className="taskboard-drawer__description">
                       <MarkdownMessage text={task.description} />
@@ -305,6 +264,49 @@ export function TaskDetailsDrawer({
                 </Button>
               </form>
             </section>
+            </main>
+            <aside className="taskboard-detail__aside" aria-label="任务属性和活动">
+            <div className="taskboard-drawer__actions">
+              <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => onStart(task.id)}>
+                <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                开始执行
+              </Button>
+              {task.archivedAt === null ? (
+                <Button color="secondary" disabled={pending || readOnly} onClick={() => void onArchive(task.id)}>
+                  <Archive aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />归档
+                </Button>
+              ) : (
+                <Button color="secondary" disabled={pending || readOnly} onClick={() => void onRestore(task.id)}>
+                  <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />恢复
+                </Button>
+              )}
+            </div>
+            <section className="taskboard-drawer__section">
+              <div className="taskboard-drawer__section-heading">
+                <h3>属性</h3>
+              </div>
+                <form className="taskboard-edit-form taskboard-edit-form--properties" onSubmit={event => { event.preventDefault(); void saveTask() }}>
+                  <div>
+                    <label><span>阶段</span><select value={status} onChange={event => setStatus(event.currentTarget.value as TaskboardStatus)}>{TASKBOARD_COLUMNS.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></label>
+                    <label><span>优先级</span><select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>{(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>)}</select></label>
+                  </div>
+                  <fieldset className="taskboard-label-manager">
+                    <legend>标签管理</legend>
+                    {labels.map(label => (
+                      <div key={label.id}>
+                        <input aria-label={`标签名称：${label.name}`} maxLength={40} value={labelNames[label.id] ?? label.name} onChange={event => setLabelNames(current => ({ ...current, [label.id]: event.currentTarget.value }))} />
+                        <Button color="ghostSecondary" disabled={taskMutationReadOnly || !(labelNames[label.id] ?? '').trim() || (labelNames[label.id] ?? '').trim() === label.name} size="compact" onClick={() => void onUpdateLabel(label.id, (labelNames[label.id] ?? '').trim())}>重命名</Button>
+                        <Button color="danger" disabled={taskMutationReadOnly} size="compact" onClick={() => void onDeleteLabel(label.id)}>删除</Button>
+                      </div>
+                    ))}
+                    <div>
+                      <input aria-label="新标签名称" maxLength={40} placeholder="新标签名称" value={newLabelName} onChange={event => setNewLabelName(event.currentTarget.value)} />
+                      <Button color="secondary" disabled={taskMutationReadOnly || !newLabelName.trim()} size="compact" onClick={() => void onCreateLabel(task.projectId, newLabelName.trim()).then(() => setNewLabelName(''))}>新建标签</Button>
+                    </div>
+                  </fieldset>
+                  <Button color="secondary" disabled={taskMutationReadOnly || !title.trim()} loading={saving} type="submit">保存属性</Button>
+                </form>
+            </section>
             <section className="taskboard-drawer__section">
               <h3>活动</h3>
               <ol className="taskboard-activity">
@@ -320,6 +322,7 @@ export function TaskDetailsDrawer({
               </div>
               <Button color="danger" disabled={readOnly || task.archivedAt === null} onClick={() => setDeleteOpen(true)}>永久删除任务</Button>
             </section>
+            </aside>
           </div>
         ) : null}
         <ConfirmationDialog
@@ -334,8 +337,7 @@ export function TaskDetailsDrawer({
           }}
           onCancel={() => setDeleteOpen(false)}
         />
-      </Dialog.Content>
-    </Dialog.Root>
+      </section>
   )
 }
 

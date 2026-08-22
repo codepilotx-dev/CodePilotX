@@ -1,4 +1,3 @@
-import type { Credential } from "@codepilotx/model-schema"
 import { UsageRequestError } from "./safe-fetch"
 import {
   emptySource,
@@ -22,7 +21,6 @@ type MutableUsageGroup = {
 
 const record = (value: unknown): Json | null =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? value as Json : null
-const list = (value: unknown): unknown[] => Array.isArray(value) ? value : []
 const requiredRecord = (value: unknown, label: string): Json => {
   const parsed = record(value)
   if (!parsed) throw new UsageRequestError("invalid-response", `${label} 响应结构无效`, false)

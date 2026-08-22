@@ -1,6 +1,5 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
-import { randomUUID } from "node:crypto"
+import { readFile, rm } from "node:fs/promises"
+import { join } from "node:path"
 import type {
   DesktopChromeTheme,
   DesktopHexColor,
@@ -11,6 +10,7 @@ import type {
 import {
   desktopThemeFontFaceMatchesFamily,
 } from "@codepilotx/shared/desktop-theme"
+import { writeJsonAtomically } from "../windows/debounced-atomic-json-writer.js"
 
 export type {
   DesktopChromeTheme,
@@ -301,18 +301,7 @@ export class AppearanceSettingsStore {
   }
 
   async #writeAtomically(settings: DesktopThemeSettingsV7): Promise<void> {
-    const directory = dirname(this.#filePath)
-    const temporaryPath = `${this.#filePath}.${process.pid}.${randomUUID()}.tmp`
-    await mkdir(directory, { recursive: true })
-    try {
-      await writeFile(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`, {
-        encoding: "utf8",
-        mode: 0o600,
-      })
-      await rename(temporaryPath, this.#filePath)
-    } finally {
-      await rm(temporaryPath, { force: true }).catch(() => undefined)
-    }
+    await writeJsonAtomically(this.#filePath, settings)
   }
 }
 

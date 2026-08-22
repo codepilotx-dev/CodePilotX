@@ -1,7 +1,7 @@
 import type { AgentHarness } from "../harness/agent-harness"
 import type { AgentHarnessEvent, AgentHarnessResources, CompactResult, Session } from "../harness/types"
 import type { AgentTool, ThinkingLevel } from "../harness/agent-types"
-import type { ImageContent, Model, Models } from "@earendil-works/pi-ai"
+import type { Model, Models } from "@earendil-works/pi-ai"
 import type { ToolResultBlock } from "@codepilotx/shared/thread"
 import type { ModelRef, PermissionConfig, SubagentProfile, SubagentResult, TaskMode } from "../../domain"
 import type { PromptBundle, PromptSection } from "../../prompt/types"

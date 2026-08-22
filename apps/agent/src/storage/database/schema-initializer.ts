@@ -165,10 +165,6 @@ const PROFILE_TABLES = new Set([
   "memory_entries",
 ])
 
-const objectName = (statement: string) => {
-  const match = statement.match(/^CREATE (?:UNIQUE )?(?:TABLE|INDEX|TRIGGER)\s+(?:IF NOT EXISTS\s+)?(?:"([^"]+)"|([^\s(]+))/)
-  return match?.[1] ?? match?.[2] ?? ""
-}
 
 const tableName = (statement: string) => {
   const match = statement.match(/^CREATE TABLE\s+(?:"([^"]+)"|([^\s(]+))/)
