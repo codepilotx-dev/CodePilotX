@@ -62,9 +62,8 @@ sequenceDiagram
     participant Router as RpcRouter
     participant TC as TurnCoordinator
     participant TS as ThreadService
-    participant POA as PiOrchestratorAdapter
-    participant RT as PiAgentRuntime
-    participant Harness as pi-agent-core
+    participant RT as AgentRuntimeService
+    participant Harness as App Agent Harness
     participant TED as ToolExecutor
     participant PDE as PermissionDecisionEngine
     participant DB as AgentDatabase
@@ -78,9 +77,8 @@ sequenceDiagram
     TC-->>TS: ActiveTurnHandle
 
     TS->>DB: transaction: durable Turn + input + outbox
-    TS->>POA: run(AgentRuntimeRequest)
-    POA->>POA: resolve model / permissions / skills / MCP / tools / prompt
-    POA->>RT: new PiAgentRuntime({ eventSink, lifecycle, toolExecutor })
+    TS->>RT: run(AgentRuntimeRequest)
+    RT->>RT: resolve model / permissions / skills / MCP / tools / prompt
 
     loop 多 Sampling Step（单 Turn）
         RT->>Harness: run(TurnRequest)
@@ -106,23 +104,23 @@ sequenceDiagram
         RPC->>Router: turn/steer or queue/add
         Router->>TS: steerTurn() / enqueue()
         TS->>DB: persist guide mailbox
-        TS->>POA: steer(threadId, input)
+        TS->>RT: steer(threadId, input)
     end
 
     opt compaction / restart recovery
         RT->>DB: persist compaction or resume checkpoint
-        POA->>RT: resume from durable Pi session state
+        RT->>Harness: resume from durable Pi session state
     end
 
     alt 完成或失败
-        RT-->>POA: { status: "output" }
-        POA->>DB: terminal transaction: flush + state + item + outbox
-        POA->>TC: finish(threadId, turnId)
-        POA->>EH: durable wake signal
+        Harness-->>RT: { status: "output" }
+        RT->>DB: terminal transaction: flush + state + item + outbox
+        RT->>TC: finish(threadId, turnId)
+        RT->>EH: durable wake signal
         EH->>SSE: wake and replay rows by monotonic cursor
         SSE->>DB: canonical/thread projection read
     else 中断/审批/提问
-        POA-->>TS: { status: "paused" }
+        RT-->>TS: { status: "paused" }
         TS-->>RPC: { disposition: "started" }
     end
 ```
@@ -146,12 +144,8 @@ graph TB
     end
 
     subgraph "编排层"
-        POA[PiOrchestratorAdapter]
-    end
-
-    subgraph "运行时层"
-        PAR[PiAgentRuntime]
-        CORE[pi-agent-core / agent-loop.ts]
+        RT[AgentRuntimeService]
+        CORE[App Agent Harness / agent-loop.ts]
     end
 
     subgraph "执行层"
@@ -170,23 +164,22 @@ graph TB
     D & CLI --> RPC
     RPC --> TS
     RPC --> SAS
-    TS & SAS --> POA
-    POA --> PAR
-    PAR --> CORE
+    TS & SAS --> RT
+    RT --> CORE
     CORE --> TED
     CORE --> PDE
-    PAR --> MCPM
+    RT --> MCPM
     TED & PDE --> REP
     MCPM --> REP
-    POA --> PRC
-    POA --> REP
+    RT --> PRC
+    RT --> REP
     REP --> DB
     DB --> EVT
 ```
 
 | Composition 方面 | 主 Agent | 子 Agent | 当前问题 |
 |---|---|---|---|
-| 共用输入 | model、workspace、permissionConfig、Skills、MCP lease、tool exposure、prompt/context | 同左 | 两条入口最终都把分散参数交给 `PiOrchestratorAdapter` 二次推导 |
+| 共用输入 | model、workspace、permissionConfig、Skills、MCP lease、tool exposure、prompt/context | 同左 | 两条入口把分散参数交给唯一 `AgentRuntimeService` 组合 |
 | 保留差异 | `main` profile、用户 Turn、queue 与 steer | `default`/`explorer`/`worker` profile、独立 child thread/session、shared/worktree 策略 | 差异应成为 compose 输入，而不是复制一套 composition |
 | 目标边界 | `ThreadService` 与 `SubagentService` 调用同一个 `RuntimeCompositionService.compose()` | 同左 | 目标服务当前不存在；应由 P0-2 新增，不能在当前图中冒充已实现 |
 
@@ -205,7 +198,7 @@ graph TB
 | # | 上游机制 | 固定 SHA 链接 | CPX 等价 | 差距 | 吸收 | 不复制 |
 |---|---|---|---|---|---|---|
 | 1 | TurnContext 不可变上下文 | [`turn_context.rs:142`](https://github.com/openai/codex/blob/536f86e5cc9ec1ff38457d099bf320b9d08eeeba/codex-rs/core/src/session/turn_context.rs#L142) | `PiRuntimeEventContext` per-event | 无统一不可变快照 | 待验证 | 不等于 per-step 重配 |
-| 2 | 单 Turn 多 sampling step | [`turn_context.rs`](https://github.com/openai/codex/blob/536f86e5cc9ec1ff38457d099bf320b9d08eeeba/codex-rs/core/src/session/turn_context.rs) | PiAgentRuntime 循环 | 基本对齐 | 是 | — |
+| 2 | 单 Turn 多 sampling step | [`turn_context.rs`](https://github.com/openai/codex/blob/536f86e5cc9ec1ff38457d099bf320b9d08eeeba/codex-rs/core/src/session/turn_context.rs) | App Agent Harness 循环 | 基本对齐 | 是 | — |
 | 3 | steer/mailbox phase | [`input_queue.rs:17`](https://github.com/openai/codex/blob/536f86e5cc9ec1ff38457d099bf320b9d08eeeba/codex-rs/core/src/session/input_queue.rs#L17) | `guideMailbox` 未分型 | 部分对齐 | 待验证 | CPX 用 TurnCoordinator |
 | 4 | canonical history 与 model-visible prompt 分离 | [`turn_context.rs`](https://github.com/openai/codex/blob/536f86e5cc9ec1ff38457d099bf320b9d08eeeba/codex-rs/core/src/session/turn_context.rs) | `ThreadReadViewRepository` 投影 | 部分对齐 | 待验证 | 投影逻辑分散 |
 | 5 | registered/callable/advertised tools 分离 | [`registry.rs`](https://github.com/openai/codex/blob/536f86e5cc9ec1ff38457d099bf320b9d08eeeba/codex-rs/core/src/tools/registry.rs) | `eager/deferred/exposed` 三集 | 部分对齐 | 部分 | 三集语义不同 |
@@ -284,7 +277,7 @@ connection.capabilities = negotiated  // 覆盖 initialize 时存入的 raw set
 ### P0-2 接口草案
 
 ```typescript
-// 拟新增：packages/pi-agent-core/src/harness/runtime-composition.ts
+// App Agent 内部：apps/agent/src/orchestration/harness/turn-composition.ts
 interface RuntimeCompositionPlan {
   readonly identity: RuntimeCompositionIdentity
   readonly model: ResolvedModelSnapshot
@@ -418,7 +411,7 @@ Plugin SDK 在 RuntimeCompositionPlan 稳定前禁做。必须遵守：immutable
 ### CPX 证据（HEAD 1182b4b1）
 
 - **E1 Capability**：`handlers/system.ts:103-126` 保存 raw client set 并返回 server set；`RpcRouter.ts:339-350` 已有 method gate。测试：`rpc-v4-router.test.ts`、`method-contracts.test.ts`。
-- **E2 Composition**：`ThreadService.ts:100,750-1094`、`SubagentService.ts:92-167`、`PiOrchestratorAdapter.ts:822-877`。测试：`orchestration.test.ts`、`subagent-workspace-coordinator.test.ts`。
+- **E2 Composition**：`ThreadService.ts`、`SubagentService.ts`、`AgentRuntimeService.ts` 与 `orchestration/harness/turn-composition.ts`。测试：`orchestration.test.ts`、`subagent-workspace-coordinator.test.ts`。
 - **E3 Sandbox**：`handlers/system.ts:58-63,135-142` 明示 unsupported/当前用户执行；`Shell/HostProcess.ts:159` 直接 spawn。测试：`tool-permission.test.ts`、`tooling-manager.test.ts`。
 - **E4 MCP/Skill**：`McpConnectionManager.ts:55-61,186-235` generation lease；`SkillService.ts:93-255` root/containment。测试：`mcp.test.ts`、`skill-management.test.ts`。
 - **E5 Context/recovery**：`ResumeCheckpointResolver.ts:29-117`、`ContextCompactionService.ts:43-172`。测试：`execution-recovery-invariants.test.ts`、`pi-runtime-compaction.test.ts`。

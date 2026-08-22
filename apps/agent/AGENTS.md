@@ -10,6 +10,7 @@
 - Agent 保持 Bun + Effect 模块化单体，不得把业务逻辑移动到 Electron 或 renderer。
 - HTTP、RPC、SSE、projection 和 renderer proxy 放在 `src/transport/`。
 - 会话状态与历史放在 `src/session/`，执行编排放在 `src/orchestration/`。
+- Harness 是 App Agent 内部、由 CodePilotX 自主维护的执行内核，不建立 Pi 上游同步或版本对齐流程；Provider、模型请求与 OAuth 仍统一使用 `pi-ai`。
 - SQLite 按 `storage/database/`、`storage/repositories/`、`storage/events/`、`storage/recovery/` 分层。
 - 实际 SQL 必须位于领域 repository；`AgentDatabase` 只做连接、最终 schema、装配和恢复。
 - 所有 repository 复用同一连接和事务状态。业务状态与 outbox event 必须在同一 transaction 中提交。
@@ -51,6 +52,7 @@
 - 工具 UI 归 renderer 所有，不得为了仿照其他项目把 React 展示组件放入 Agent；Agent 仅输出稳定、可投影的工具结果和进度数据。
 - 提问、Skills、Plan 和子 Agent 等产品生命周期工具继续由对应领域 service 持有，通过 orchestration adapter callback 暴露；不得在 `src/tool/` 中复制另一套状态机或 checkpoint 实现。
 - 所有新增工具必须接入既有 `ToolRegistry -> ToolExposurePlan -> ToolExecutor -> PermissionDecisionEngine` 链路，并保持审批、沙箱、幂等、延迟暴露和中断恢复语义。
+- Harness 内置或适配的工具也必须回到上述产品执行链路，禁止以独立工具工厂绕过注册、权限与审批。
 - 参考成熟工具实现时先映射 CodePilotX 现有领域边界、权限模型和桌面架构，不机械复制对方目录、命名或重复逻辑。
 - 新增工具能力时默认按以下顺序推进：先补齐 MCP 工具、资源读取与认证闭环；再实现 Web Search/Web Fetch；最后建设 LSP 代码智能。更低优先级工具需有明确产品需求后再加入。
 

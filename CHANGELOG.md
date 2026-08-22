@@ -9,6 +9,7 @@
 
 ### Added
 
+- [agent] 新增 HarnessCompositionIdentity、HarnessToolComposition、HarnessTurnComposition、HarnessTurnContext、HarnessStepContext 类型及相关纯函数，实现 Agent Turn 组合身份计算、上下文构建与工具 envelope 校验。
 - [desktop] 新增侧边栏“查看活动”，集中展示进行中、待处理、未读及最近七天会话，并支持来源筛选和增量加载。
 - [Agent/desktop/renderer] 模型目录统一接入 models.dev，在保留 Pi 原生执行、用户自定义 Provider 与加密凭据的同时，自动启用安全的 OpenAI-compatible Provider，并为离线缓存和未适配协议提供明确状态。
 - [desktop/renderer] 支持 GitHub 风格的 Markdown 提示块（Alerts / Callouts，支持 `[!NOTE]`、`[!TIP]`、`[!IMPORTANT]`、`[!WARNING]`、`[!CAUTION]`）：在正文会话时间线与右侧 Markdown 富文本编辑器/预览中统一渲染色彩边框、图标徽标与专属警示色系，富文本编辑中聚焦首行可直接修改围栏标签。
@@ -27,6 +28,7 @@
 
 ### Changed
 
+- [agent] 将 Pi Harness 物理并入 App Agent，并统一 AgentRuntime 执行门面，减少重复编排层。
 - [desktop/renderer] 统一会话区域加载态展示：将鲸鱼闪光效果约束在会话内容主区域（variant="contained"），保留侧边栏、右侧面板与顶部菜单栏正常交互；加载期间隐藏底部 Composer，并在数据就绪后平滑淡入时间线；替换时间线旧有旋转 Spinner，彻底消除会话切换与加载时的重复动画问题。
 - [desktop/renderer] 优化侧边栏顶部活动通知图标：采用 Lucide 嵌套 SVG 规范，统一使用 Bell 图标并在有活动或待处理会话时于右上角嵌套渲染前景色圆点徽标，简化图标切换逻辑并提升状态呈现的一致性。
 

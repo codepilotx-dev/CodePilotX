@@ -32,11 +32,10 @@ CodePilotX uses Microsoft node-pty to provide native pseudoterminal support,
 including Windows ConPTY integration. node-pty is licensed under the MIT
 License; its license notice is distributed with the packaged dependency.
 
-CodePilotX includes the `@codepilotx/pi-agent-core` workspace fork of
-pi-agent-core 0.82.1
-under the MIT License. The fork preserves upstream attribution and contains
-CodePilotX changes for dynamic tool execution, deferred activation and session
-recovery. See `packages/pi-agent-core/LICENSE`.
+CodePilotX includes source derived from pi-agent-core 0.82.1 as an internal
+part of the App Agent Harness under the MIT License. CodePilotX maintains this
+Harness independently; the retained attribution and license are provided for
+distribution compliance. See `apps/agent/third_party/pi-agent-core/LICENSE`.
 
 CodePilotX uses Marked, Shiki, KaTeX, and Mermaid to render Markdown, syntax
 highlighting, mathematical notation, and diagrams. These packages retain the

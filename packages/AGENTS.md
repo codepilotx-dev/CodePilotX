@@ -7,7 +7,6 @@
 ## 包职责与依赖方向
 
 - `model-schema` 定义 provider、model、integration、connection 和 credential 的基础 schema。
-- `pi-agent-core` 保持上游同步，并承载 CodePilotX 的 deferred tools、动态执行、结构化结果和活动工具恢复补丁。
 - Provider、模型目录、请求与 OAuth 统一由 `pi-ai` 提供；禁止恢复独立 Provider plugin/runtime 或自动 Key failover。
 - `shared` 定义跨进程复用的应用领域模型；`shared/thread` 不拥有 RPC 编排类型。
 - `agent-protocol` 是 v4 method、event、wire error、capability 和 runtime dispatcher 的唯一协议来源。
@@ -32,10 +31,10 @@
 
 ## Provider 上游代码
 
-- 修改 `model-schema` 或 `pi-agent-core` 时遵守对应 `UPSTREAM.md`。
+- 修改包含上游来源的 package 时遵守对应 `UPSTREAM.md`。
 - 保留上游署名和许可证；优先复制或改造记录的上游实现。
 - 不得恢复运行时 npm 安装、任意文件插件、不受限动态 import 或外部插件执行。
-- 上游同步时更新来源、导入日期及 checksum/revision。
+- package 上游同步时更新来源、导入日期及 checksum/revision。
 - 除非任务明确改变，保留 provider 注册顺序、安全过滤、静态 allowlist、failover 和错误规范化。
 
 ## 目录约定
