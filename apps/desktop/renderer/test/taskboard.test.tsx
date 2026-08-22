@@ -14,10 +14,20 @@ import { OtherTasksPanel } from '../src/features/taskboard/components/OtherTasks
 import { TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
 import { ComposerDraftStore } from '../src/features/session/composer/composerDraftStore.js'
 import { RENDERER_CAPABILITIES } from '../src/services/desktop-client/agent-session-client.js'
+import { canStartTask } from '../src/features/taskboard/taskboardConstants.js'
+import { activeTaskboardPrimaryThreadId } from '../src/features/taskboard/taskboardConstants.js'
+import { isInputDialogSubmitDisabled } from '../src/components/ui/ConfirmationDialog.js'
+import { taskboardStartActionLabel, taskboardStartCreatesPrimary } from '../src/features/taskboard/components/StartTaskDialog.js'
 
 test('renderer negotiates the taskboard capability', () => {
   expect(RENDERER_CAPABILITIES).toContain('taskboard.v1')
   expect(RENDERER_CAPABILITIES).toContain('taskboard.workflow.v1')
+})
+
+test('input dialog permits empty input only when the caller opts in', () => {
+  expect(isInputDialogSubmitDisabled('')).toBe(true)
+  expect(isInputDialogSubmitDisabled('', true)).toBe(false)
+  expect(isInputDialogSubmitDisabled('说明', true, true)).toBe(true)
 })
 
 describe('taskboard URL filters', () => {
@@ -42,6 +52,33 @@ describe('taskboard URL filters', () => {
 })
 
 describe('taskboard board structure', () => {
+  test('only active and unarchived workflow tasks can start', () => {
+    expect(canStartTask(task('backlog', 'backlog', 1024))).toBe(true)
+    expect(canStartTask(task('review', 'in_review', 1024))).toBe(true)
+    expect(canStartTask(task('done', 'done', 1024))).toBe(false)
+    expect(canStartTask(task('canceled', 'canceled', 1024))).toBe(false)
+    expect(canStartTask({ ...task('archived', 'todo', 1024), archivedAt: 2048 })).toBe(false)
+  })
+
+  test('start action distinguishes active, continued, and newly created primary threads', () => {
+    const active = {
+      ...task('active', 'in_progress', 1024),
+      threads: [{
+        threadId: 'thread:active',
+        role: 'primary' as const,
+        title: '执行中',
+        attention: 'running' as const,
+        execution: { kind: 'local' as const },
+      }],
+    }
+    expect(activeTaskboardPrimaryThreadId(active)).toBe('thread:active')
+    expect(taskboardStartCreatesPrimary(true, 'continue_primary')).toBe(false)
+    expect(taskboardStartActionLabel(true, 'continue_primary')).toBe('继续主会话')
+    expect(taskboardStartCreatesPrimary(true, 'new_primary')).toBe(true)
+    expect(taskboardStartActionLabel(true, 'new_primary')).toBe('创建主会话')
+    expect(taskboardStartActionLabel(false, 'new_primary')).toBe('创建主会话')
+  })
+
   test('renders the active workflow columns and hides an empty blocked column', () => {
     const markup = renderBoard([])
 
@@ -180,6 +217,11 @@ describe('taskboard board structure', () => {
     )
     expect(readOnly).toContain('项目已移除，仅可查看任务内容和历史记录。')
     expect(readOnly).toContain('永久删除任务')
+
+    const completed = renderToStaticMarkup(
+      <TaskDetailsDrawer {...base} detail={detailsOf(task('done', 'done', 1024))} readOnly={false} />,
+    )
+    expect(completed).not.toContain('lucide-play')
   })
 })
 

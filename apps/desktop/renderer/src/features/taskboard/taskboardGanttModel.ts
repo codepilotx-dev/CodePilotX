@@ -112,6 +112,22 @@ export function projectTaskboardGanttTask<T extends TaskboardGanttTaskInput>(
   }
 }
 
+export function taskboardGanttUnscheduledReason(
+  task: Pick<TaskboardGanttTaskInput, 'startDate' | 'dueDate'>,
+): '未设置日期' | '缺少开始日期' | '缺少截止日期' | '日期范围无效' | null {
+  if (!task.startDate && !task.dueDate) return '未设置日期'
+  if (!task.startDate) return '缺少开始日期'
+  if (!task.dueDate) return '缺少截止日期'
+  return projectTaskboardGanttTask({
+    id: '',
+    number: 0,
+    title: '',
+    status: 'backlog',
+    startDate: task.startDate,
+    dueDate: task.dueDate,
+  }).scheduled ? null : '日期范围无效'
+}
+
 export function projectTaskboardGanttGroups<T extends TaskboardGanttTaskInput>(
   tasks: readonly T[],
   hideCompleted = false,

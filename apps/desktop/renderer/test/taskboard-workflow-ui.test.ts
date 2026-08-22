@@ -11,6 +11,7 @@ import {
   parseTaskboardLocalDate,
   projectTaskboardGanttGroups,
   projectTaskboardGanttTask,
+  taskboardGanttUnscheduledReason,
   taskboardExclusiveEndDate,
   taskboardInclusiveDatesFromGanttRange,
   type TaskboardGanttTaskInput,
@@ -191,6 +192,14 @@ describe('taskboard workflow renderer behavior', () => {
     expect(projectTaskboardGanttTask(ganttTask('todo', null, '2026-08-23')).scheduled).toBe(false)
     expect(projectTaskboardGanttTask(ganttTask('todo', '2026-08-24', '2026-08-23')).scheduled).toBe(false)
     expect(projectTaskboardGanttTask(ganttTask('todo', '2026-02-29', '2026-03-01')).scheduled).toBe(false)
+  })
+
+  test('gantt explains why a task is not scheduled', () => {
+    expect(taskboardGanttUnscheduledReason(ganttTask('todo', null, null))).toBe('未设置日期')
+    expect(taskboardGanttUnscheduledReason(ganttTask('todo', null, '2026-08-23'))).toBe('缺少开始日期')
+    expect(taskboardGanttUnscheduledReason(ganttTask('todo', '2026-08-22', null))).toBe('缺少截止日期')
+    expect(taskboardGanttUnscheduledReason(ganttTask('todo', '2026-08-24', '2026-08-23'))).toBe('日期范围无效')
+    expect(taskboardGanttUnscheduledReason(ganttTask('todo', '2026-08-22', '2026-08-23'))).toBeNull()
   })
 
   test('gantt converts inclusive task dates to and from an exclusive end date', () => {

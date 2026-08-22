@@ -183,7 +183,7 @@ function SidebarNavItems({
             layout="flex"
             leading={item.icon}
             trailing={item.view === 'taskboard' && taskboardUnreadCount > 0 ? (
-              <span className="sidebar-nav-unread-count" aria-label={`${taskboardUnreadCount} 个未读任务`}>
+              <span className="sidebar-nav-unread-count" aria-label={`${taskboardUnreadCount} 个待整理任务`}>
                 {taskboardUnreadCount > 99 ? '99+' : taskboardUnreadCount}
               </span>
             ) : undefined}

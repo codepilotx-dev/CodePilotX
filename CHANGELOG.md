@@ -34,6 +34,7 @@
 
 ### Changed
 
+- [desktop/renderer] 统一任务“待整理”术语，明确打开、继续与新建主会话的启动动作，并在甘特图增加独立未排期区域。
 - [desktop/renderer] 将 Skill 选择统一为 Composer 内联 token；内置扩展跳转产品详情，工作区和用户 Skill 在右侧只读打开 SKILL.md。
 - [desktop/renderer] 将 Working“规划任务”入口接入真实 Skill 调用链，并为 Composer 与 Skills 设置增加统一任务规划图标。
 - [desktop/renderer] 支持从侧栏拖动会话到任务卡片完成主/辅助会话关联，并精简新建任务弹窗的会话选择区域。
@@ -115,6 +116,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复任务验收说明可选却无法空提交，以及完成、取消和归档任务仍显示执行入口的问题。
 - [desktop/renderer] 还原 Working Composer 内联 Skill 的 Codex 字体比例与透明 mention 样式。
 - [desktop/renderer] 修复新建任务加载历史会话时因瞬时空候选导致页面崩溃，并在候选 RPC 失败时显示明确错误。
 - [agent/storage] 修复早期任务工作流数据库缺少排序位置时导致任务看板无法加载，并前向回填已有任务顺序。

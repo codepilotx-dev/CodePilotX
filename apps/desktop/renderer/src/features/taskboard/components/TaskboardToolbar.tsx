@@ -193,7 +193,7 @@ export function TaskboardToolbar({
         ) : null}
         <PopoverSeparator />
         <PopoverCheckboxItem checked={unread} onCheckedChange={() => onChange({ unread: unread ? null : '1' })}>
-          未读更新（{unreadCount}）
+          待整理（{unreadCount}）
         </PopoverCheckboxItem>
         <PopoverLabel>截止日期</PopoverLabel>
         <PopoverRadioGroup value={datePreset ?? 'all'} onValueChange={value => onChange({ date: value === 'all' ? null : value })}>

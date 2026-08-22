@@ -8,8 +8,10 @@ import {
   parseTaskboardLocalDate,
   projectTaskboardGanttTask,
   TASKBOARD_GANTT_GROUPS,
+  taskboardGanttUnscheduledReason,
   taskboardInclusiveDatesFromGanttRange,
 } from '../taskboardGanttModel.js'
+import { TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 
 type Props = {
   tasks: readonly TaskboardWorkflowTaskSummary[]
@@ -72,9 +74,15 @@ export default function TaskboardGantt({
       ? tasks.filter(task => task.status !== 'done' && task.status !== 'canceled')
       : tasks
   ), [hideCompleted, tasks])
+  const scheduledTasks = useMemo(() => visibleTasks.filter(task => (
+    projectTaskboardGanttTask(task).scheduled
+  )), [visibleTasks])
+  const unscheduledTasks = useMemo(() => visibleTasks.filter(task => (
+    !projectTaskboardGanttTask(task).scheduled
+  )), [visibleTasks])
   const viewportSignature = useMemo(() => (
-    [...new Set(visibleTasks.map(task => task.projectId))].sort().join(':') || 'empty'
-  ), [visibleTasks])
+    [...new Set(scheduledTasks.map(task => task.projectId))].sort().join(':') || 'empty'
+  ), [scheduledTasks])
   viewportSignatureRef.current = viewportSignature
 
   useEffect(() => {
@@ -93,7 +101,7 @@ export default function TaskboardGantt({
     instance.config.drag_progress = false
     instance.config.drag_links = false
     instance.config.show_progress = false
-    instance.config.show_unscheduled = true
+    instance.config.show_unscheduled = false
     instance.config.smart_rendering = true
     instance.config.details_on_dblclick = false
     instance.config.round_dnd_dates = true
@@ -109,7 +117,7 @@ export default function TaskboardGantt({
         if (task.taskboardGroup) {
           return `<span class="taskboard-gantt__group"><strong>${escapeHtml(task.taskboardTitle)}</strong><small>${task.taskboardCount}</small></span>`
         }
-        return `<span class="taskboard-gantt__issue"><small>#${task.taskboardNumber}</small><strong>${escapeHtml(task.taskboardTitle)}</strong>${task.taskboardUnread ? '<i aria-label="有未读更新"></i>' : ''}</span>`
+        return `<span class="taskboard-gantt__issue"><small>#${task.taskboardNumber}</small><strong>${escapeHtml(task.taskboardTitle)}</strong>${task.taskboardUnread ? '<i aria-label="待整理任务"></i>' : ''}</span>`
       },
     }]
     instance.templates.grid_folder = () => ''
@@ -218,7 +226,7 @@ export default function TaskboardGantt({
     }
     const data: TaskboardGanttItem[] = []
     for (const group of TASKBOARD_GANTT_GROUPS) {
-      const grouped = visibleTasks.filter(task => task.status === group.status)
+      const grouped = scheduledTasks.filter(task => task.status === group.status)
       if (grouped.length === 0) continue
       const groupId = `taskboard-gantt-group-${group.status}`
       data.push({
@@ -238,13 +246,14 @@ export default function TaskboardGantt({
         taskboardCount: grouped.length,
       } as TaskboardGanttItem)
       for (const task of grouped) {
-        const schedule = taskboardGanttSchedule(task)
+        const schedule = taskboardGanttSchedule(task)!
         data.push({
           id: task.id,
           parent: groupId,
           text: task.title,
           readonly: !isTaskEditable(task, pendingTaskIds, projectNames),
-          ...(schedule ? { start_date: schedule.start, end_date: schedule.end } : { unscheduled: true }),
+          start_date: schedule.start,
+          end_date: schedule.end,
           taskboardGroup: false,
           taskboardStatus: task.status,
           taskboardTitle: task.title,
@@ -254,7 +263,7 @@ export default function TaskboardGantt({
         } as TaskboardGanttItem)
       }
     }
-    const scheduled = visibleTasks.map(taskboardGanttSchedule).filter((value): value is NonNullable<typeof value> => value !== null)
+    const scheduled = scheduledTasks.map(taskboardGanttSchedule).filter((value): value is NonNullable<typeof value> => value !== null)
     const today = taskboardGanttLocalDate(formatTaskboardLocalDate(new Date()))
     const starts = scheduled.map(item => item.start.getTime())
     const ends = scheduled.map(item => addTaskboardGanttDays(item.end, -1).getTime())
@@ -275,7 +284,7 @@ export default function TaskboardGantt({
     else if (starts.length > 0) instance.showDate(new Date(Math.min(...starts)))
     if (restored) pendingViewport = null
     parsedRef.current = true
-  }, [pendingTaskIds, projectNames, viewportSignature, visibleTasks])
+  }, [pendingTaskIds, projectNames, scheduledTasks, viewportSignature])
 
   useEffect(() => {
     ganttRef.current?.ext.zoom.setLevel(zoom)
@@ -300,22 +309,45 @@ export default function TaskboardGantt({
 
   return (
     <div className="taskboard-gantt" aria-label="任务甘特图">
-      <div className="taskboard-gantt__canvas" ref={containerRef} />
-      {todayMarkerLeft !== null ? <div className="taskboard-gantt__today" style={{ left: todayMarkerLeft }}><span>今天</span></div> : null}
-      <button
-        aria-expanded={!gridCollapsed}
-        aria-label={gridCollapsed ? '展开任务标题' : '收起任务标题'}
-        className="taskboard-gantt__grid-toggle"
-        style={{ left: gridCollapsed ? 12 : gridWidth }}
-        type="button"
-        onClick={toggleGrid}
-      >
-        {gridCollapsed ? '›' : '‹'}
-      </button>
-      {visibleTasks.length === 0 ? (
-        <div className="taskboard-gantt__empty">
-          {hasActiveFilters ? '当前筛选下没有任务' : '创建任务后，可在这里安排时间线'}
-        </div>
+      <div className="taskboard-gantt__timeline">
+        <div className="taskboard-gantt__canvas" ref={containerRef} />
+        {todayMarkerLeft !== null ? <div className="taskboard-gantt__today" style={{ left: todayMarkerLeft }}><span>今天</span></div> : null}
+        <button
+          aria-expanded={!gridCollapsed}
+          aria-label={gridCollapsed ? '展开任务标题' : '收起任务标题'}
+          className="taskboard-gantt__grid-toggle"
+          style={{ left: gridCollapsed ? 12 : gridWidth }}
+          type="button"
+          onClick={toggleGrid}
+        >
+          {gridCollapsed ? '›' : '‹'}
+        </button>
+        {scheduledTasks.length === 0 ? (
+          <div className="taskboard-gantt__empty">
+            {visibleTasks.length === 0
+              ? hasActiveFilters ? '当前筛选下没有任务' : '创建任务后，可在这里安排时间线'
+              : '暂无已排期任务'}
+          </div>
+        ) : null}
+      </div>
+      {unscheduledTasks.length > 0 ? (
+        <section className="taskboard-gantt__unscheduled" aria-label={`未排期任务，共 ${unscheduledTasks.length} 项`}>
+          <header><strong>未排期</strong><span>{unscheduledTasks.length}</span></header>
+          <div className="taskboard-gantt__unscheduled-list">
+            {unscheduledTasks.map(task => (
+              <button key={task.id} type="button" onClick={() => onOpen(task.id)}>
+                <span className="taskboard-gantt__unscheduled-identity">
+                  <small>{projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>
+                  <strong>{task.title}</strong>
+                </span>
+                {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="待整理任务" /> : null}
+                <span>{taskboardStatusLabel(task.status)}</span>
+                <span>{TASKBOARD_PRIORITY_LABELS[task.priority]}</span>
+                <span>{taskboardGanttUnscheduledReason(task)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       ) : null}
     </div>
   )

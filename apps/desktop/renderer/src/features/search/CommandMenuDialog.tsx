@@ -389,7 +389,7 @@ function TaskStatus({
   if (task.visualState === 'unread') {
     return (
       <span
-        aria-label="任务有未读更新"
+        aria-label="任务有待整理更新"
         className="command-menu-item-status"
         role="img"
       >
