@@ -1,6 +1,7 @@
-import type { Model } from "@codepilotx/model-schema"
+import { Model, Provider } from "@codepilotx/model-schema"
 import type { PermissionConfig, SubagentProfile } from "@codepilotx/shared/thread"
 import { Effect } from "effect"
+import { join } from "node:path"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import { AgentError } from "../domain"
 import { SafeBoundaryInterrupt, type PiOrchestratorAdapter, type DelegationController, type PendingApproval, type PlanCheckpoint } from "../orchestration/PiOrchestratorAdapter"
@@ -15,7 +16,7 @@ import { WorkspaceService } from "../workspace/WorkspaceService"
 import { SubagentRepository, type SpawnSubagentInput } from "./SubagentRepository"
 import type { AttachmentService } from "./AttachmentService"
 import type { LocalContextPathService } from "../local-context/LocalContextPathService"
-import { InstructionDiscoveryService, SkillService, createPromptSections, type PromptBundle } from "../prompt"
+import { InstructionDiscoveryService, PromptComposer, SkillService, createPromptSections } from "../prompt"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
@@ -23,6 +24,10 @@ import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
 import { createMcpInstructionSections } from "../mcp/McpPromptSections"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
+import { createToolExposurePlan } from "../tool/ToolExposurePlan"
+import { composeRuntimeComposition, createMcpGenerationBinding, rebindRuntimeComposition } from "../runtime-composition/composer"
+import { RuntimeCompositionService } from "../runtime-composition/service"
+import type { BoundRuntimeComposition, RuntimeWorkspaceScope } from "../runtime-composition/types"
 
 const terminal = new Set(["completed", "failed", "stopped", "interrupted"])
 export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => kind === "permission" ? "waiting_permission" as const : "waiting_question" as const
@@ -113,6 +118,7 @@ export class SubagentService {
     resumeCheckpoints?: ResumeCheckpointResolver,
     recoverOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
+    private readonly runtimeCompositions = new RuntimeCompositionService({ db }),
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals)
     this.repository = new SubagentRepository(db)
@@ -447,6 +453,7 @@ export class SubagentService {
     const controller = new AbortController()
     let isolationPrepared = false
     let mcpLease: McpTurnLease | undefined
+    let runtimeComposition: BoundRuntimeComposition | undefined
     let startupGate: { leaseID: string; requestID: string } | undefined
     let startupGateSafe = false
     let acquiredResumeLeaseID: string | undefined
@@ -454,6 +461,9 @@ export class SubagentService {
     await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task, run })
     await this.emit(task.childThreadId, agent.turnID, "agent/upserted", { agent })
     await this.emit(task.childThreadId, agent.turnID, "turn/started", { turnId: agent.turnID, rootAgentId: agent.id, startedAt: Date.now() })
+    const startEventCount = (this.db.sqlite.query(
+      "SELECT COUNT(*) AS count FROM events WHERE turn_id = ? AND method = 'turn/started'",
+    ).get(agent.turnID) as { count: number }).count
     try {
       const rootPath = task.workspace.rootPath
       if (!rootPath) throw new AgentError("WORKSPACE_REQUIRED", "子 Agent 没有工作区", 409)
@@ -482,7 +492,8 @@ export class SubagentService {
       const localContextReferences = this.localContextPaths?.repository.listAuthorized(task.parentThreadId) ?? []
       workspace.grantReadOnlyPaths(localContextReferences.map(({ path, kind }) => ({ path, kind })))
       mcpLease = await this.mcp?.acquire(workspace.rootPath)
-      const permissionConfig = run.permissionConfig
+      const persistedComposition = this.db.repositories.runtimeCompositions.get(agent.turnID)?.snapshot
+      const permissionConfig = persistedComposition?.permissions ?? run.permissionConfig
       const executionPolicy = executionPolicyFromV4(permissionConfig)
       const input = this.db.getTurnInput(agent.turnID)
       if (!input) throw new Error(`Subagent turn ${agent.turnID} 没有输入`)
@@ -494,6 +505,25 @@ export class SubagentService {
       const checkpoint = acquiredResume && acquiredResume.checkpoint.kind !== "hook-trust"
         ? { approval: toPlanCheckpoint({ leaseID: acquiredResume.leaseID, checkpoint: acquiredResume.checkpoint }) }
         : null
+      this.hooks?.load({
+        ...(this.promptStorage ? { userConfigPath: join(this.promptStorage.dataRoot, "hooks.json") } : {}),
+        projectRoot: workspace.rootPath,
+        includeProjectHooks: true,
+      })
+      await this.hooks?.run(
+        persistedComposition || acquiredResume ? "session_resume" : "session_start",
+        { threadID: task.childThreadId, turnID: agent.turnID, workspace: workspace.rootPath },
+        { threadID: task.childThreadId, turnID: agent.turnID },
+      )
+      const promptHookResults = persistedComposition
+        ? []
+        : await this.hooks?.run("user_prompt_submit", { content: input.content }, { threadID: task.childThreadId, turnID: agent.turnID }) ?? []
+      const promptDenied = promptHookResults.find(({ result }) => result.decision === "deny")
+      if (promptDenied) throw new AgentError("HOOK_DENIED", promptDenied.result.reason ?? "user_prompt_submit Hook 拒绝任务", 403)
+      if (promptHookResults.some(({ result }) => result.decision === "ask")) throw new AgentError("HOOK_CONFIRMATION_REQUIRED", "user_prompt_submit Hook 要求人工确认", 409)
+      const hookFeedback = promptHookResults.flatMap(({ hook, result }) =>
+        (result.suggestions ?? []).map((suggestion) => `Hook ${hook.id} 建议：${suggestion}`),
+      )
       const parentMode = (this.db.sqlite.query("SELECT mode FROM turns WHERE id = ?").get(task.parentTurnId) as { mode: "chat" | "plan" } | null)?.mode ?? "chat"
       const instructionSources = await new InstructionDiscoveryService().discover(workspace.rootPath)
       const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
@@ -504,6 +534,17 @@ export class SubagentService {
             userHome: this.promptStorage.userHome,
           })
         : { skills: [], shadowed: [] }
+      const toolCatalog = mcpLease?.catalog ?? this.orchestrator.toolCatalog()
+      const mcpBinding = createMcpGenerationBinding(workspace.rootPath, mcpLease ?? null)
+      const exposurePlan = persistedComposition?.tools ?? createToolExposurePlan(toolCatalog, {
+        taskMode: parentMode,
+        sandboxMode: parentMode === "plan" ? "read-only" : permissionConfig.sandboxMode,
+        profile: task.profile,
+        hasSkillService: true,
+        hasProjectSources: parentWorkspace?.kind === "project",
+        defaultModeRequestUserInput: false,
+        delegationEnabled: false,
+      })
       const invokedSkill = skillService.resolveInvocation(input.content)
       const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
       const projectSourceCatalog = parentWorkspace?.kind === "project"
@@ -530,6 +571,7 @@ export class SubagentService {
         externalData: [
           ...localContextReferences.map((reference) =>
             `<local_context kind=${JSON.stringify(reference.kind)} path=${JSON.stringify(reference.path)}>${reference.name.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</local_context>`),
+          ...hookFeedback,
           ...invokedSkillData,
         ],
         userMessage: input.content,
@@ -557,19 +599,109 @@ export class SubagentService {
         0,
         ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
       )
-      await this.resolveModel(run.model)
-      const piModel = await this.providers.getModel(run.model)
+      const selectedModel = persistedComposition
+        ? Model.Ref.make({
+            providerID: Provider.ID.make(persistedComposition.model.providerID),
+            id: Model.ID.make(persistedComposition.model.id),
+            ...(persistedComposition.model.variant ? { variant: Model.VariantID.make(persistedComposition.model.variant) } : {}),
+          })
+        : run.model
+      await this.resolveModel(selectedModel)
+      const piModel = await this.providers.getModel(selectedModel)
       const contextManager = new ContextManager(this.db)
       const attachments = await this.agentAttachments(input.id)
-      let budgetText = ""
-      let composedBundle: PromptBundle | null = null
+      const composedBundle = persistedComposition?.prompt ?? new PromptComposer().compose({
+        threadID: task.childThreadId,
+        mode: parentMode,
+        profile: task.profile,
+        exposedTools: exposurePlan.exposed,
+        sections: promptSections,
+      })
+      const workspaceScope: RuntimeWorkspaceScope = {
+        kind: "project",
+        cwd: workspace.rootPath,
+        roots: [...workspace.roots],
+        outputDirectory: null,
+        instructionSources: instructionSources.sources.map((source) => source.path),
+      }
+      const toolContext = {
+        threadID: task.childThreadId,
+        turnID: agent.turnID,
+        agentID: agent.id,
+        profile: task.profile,
+        taskMode: parentMode,
+        signal: controller.signal,
+        workspace,
+        defaultCwd: workspace.rootPath,
+        permissionConfig,
+        model: selectedModel,
+        taskSummary: input.content,
+      }
+      runtimeComposition = await this.runtimeCompositions.loadOrCompose({
+        turnID: agent.turnID,
+        agentID: agent.id,
+        allowEphemeralFresh: startEventCount === 1 && !acquiredResume,
+        compose: async () => {
+          const fresh = composeRuntimeComposition({
+            turnID: agent.turnID,
+            threadID: task.childThreadId,
+            profile: task.profile,
+            taskMode: parentMode,
+            thinkingLevel: selectedModel.variant ? String(selectedModel.variant) as import("@codepilotx/pi-agent-core").ThinkingLevel : "off",
+            model: piModel,
+            modelRef: selectedModel,
+            toolCatalog,
+            workspace,
+            workspaceScope,
+            sessionEntryID: null,
+            skillService,
+            mcpBinding,
+            mcpLease: mcpLease ?? null,
+            effectivePermissionConfig: permissionConfig,
+            toolContext,
+            promptBundle: composedBundle,
+            tools: [],
+            initialActiveNames: [],
+            deferredAllowedNames: [],
+          })
+          mcpLease = undefined
+          return { snapshot: fresh.snapshot, harness: fresh.harnessComposition, bindings: fresh.bindings }
+        },
+        rebind: async (snapshot) => {
+          const rebound = rebindRuntimeComposition(snapshot, {
+            model: piModel,
+            modelRef: selectedModel,
+            workspace,
+            workspaceScope,
+            skillService,
+            mcpBinding,
+            mcpLease: mcpLease ?? null,
+            toolContext,
+            toolCatalog,
+            defaultCwd: workspace.rootPath,
+          })
+          mcpLease = undefined
+          return { harness: rebound.harnessComposition, bindings: rebound.bindings }
+        },
+      })
+      const timestamp = Date.now()
+      const previous = contextManager.state(task.childThreadId)
+      const fragments: ContextFragment[] = composedBundle.diagnostics.filter((item) => item.included && item.cache !== "global-stable").map((item, index) => ({
+        id: item.id,
+        kind: item.id.startsWith("mode.") ? "mode" : item.id.startsWith("permission.") ? "permission" : item.id.startsWith("project-") ? "project" : item.id.startsWith("skills.") ? "skill" : item.id.startsWith("memory.") ? "memory" : "settings",
+        version: (previous?.baselineVersion ?? 0) + index + 1,
+        hash: item.hash,
+        payload: { source: item.source, cache: item.cache, bytes: item.bytes },
+        createdAt: timestamp,
+      }))
+      if (!previous) contextManager.establishBaseline({ threadID: task.childThreadId, promptVersion: "prompt-engine-v2", baseHash: composedBundle.baseHash, contextHash: composedBundle.contextHash, cacheKey: composedBundle.cacheKey, fragments })
+      else contextManager.appendFragments(task.childThreadId, fragments, composedBundle.contextHash)
       let pausedKind: PendingApproval["kind"] | null = null
       const result = await this.orchestrator.run({
         threadID: task.childThreadId, turnID: agent.turnID, agentID: agent.id, sessionID: agent.sessionID,
-        profile: task.profile, depth: 1, content: input.content, taskMode: parentMode, fallbackModel: run.model,
-        permissionConfig, signal: controller.signal, workspace,
-        promptSections,
-        skillService,
+        profile: task.profile, depth: 1, content: input.content, taskMode: parentMode,
+        composition: runtimeComposition,
+        signal: controller.signal,
         ...(parentWorkspace?.kind === "project" && this.projectSources ? {
           projectSources: {
             list: () => this.projectSources!.list(parentWorkspace.projectID),
@@ -579,30 +711,10 @@ export class SubagentService {
             ) => this.projectSources!.read(parentWorkspace.projectID, sourceID, range),
           },
         } : {}),
-        ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
-        ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         attachments,
         ...(startupGate ? { startupGateLeaseID: startupGate.leaseID } : {}),
         ...(checkpoint ? { resume: checkpoint.approval } : {}),
-        resolveModel: async () => ({ ref: run.model, model: piModel }),
-        onPromptComposed: async (bundle, context) => {
-          composedBundle = bundle
-          budgetText = context.budgetText
-          const timestamp = Date.now()
-          const previous = contextManager.state(task.childThreadId)
-          const fragments: ContextFragment[] = bundle.diagnostics.filter((item) => item.included && item.cache !== "global-stable").map((item, index) => ({
-            id: item.id,
-            kind: item.id.startsWith("mode.") ? "mode" : item.id.startsWith("permission.") ? "permission" : item.id.startsWith("project-") ? "project" : item.id.startsWith("skills.") ? "skill" : item.id.startsWith("memory.") ? "memory" : "settings",
-            version: (previous?.baselineVersion ?? 0) + index + 1,
-            hash: item.hash,
-            payload: { source: item.source, cache: item.cache, bytes: item.bytes },
-            createdAt: timestamp,
-          }))
-          if (!previous) contextManager.establishBaseline({ threadID: task.childThreadId, promptVersion: "prompt-engine-v2", baseHash: bundle.baseHash, contextHash: bundle.contextHash, cacheKey: bundle.cacheKey, fragments })
-          else contextManager.appendFragments(task.childThreadId, fragments, bundle.contextHash)
-        },
         onUsage: async (usage) => {
-          if (!composedBundle) return
           contextManager.recordMeasuredUsage({
             threadID: task.childThreadId,
             turnID: agent.turnID,
@@ -685,6 +797,7 @@ export class SubagentService {
           && checkpoint.payload.requestID === startupGate.requestID
         if (startupGateSafe || durableTerminal || !stillOwnsGate) this.resumeCheckpoints.complete(startupGate.leaseID)
       }
+      await runtimeComposition?.release()
       await mcpLease?.release()
       this.controllers.delete(runID)
       await this.resumeSatisfiedParents()

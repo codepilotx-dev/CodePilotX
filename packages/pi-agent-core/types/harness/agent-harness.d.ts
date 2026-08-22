@@ -1,6 +1,6 @@
 import { type AssistantMessage, type ImageContent, type Model, type Models } from "@earendil-works/pi-ai";
 import type { AgentMessage, QueueMode, ThinkingLevel } from "../types.ts";
-import type { AbortResult, AgentHarnessEvent, AgentHarnessEventResultMap, AgentHarnessOptions, AgentHarnessOwnEvent, AgentHarnessResources, AgentHarnessStreamOptions, AgentHarnessTool, CompactResult, NavigateTreeResult, PromptTemplate, Skill } from "./types.ts";
+import type { AbortResult, AgentHarnessEvent, AgentHarnessEventResultMap, AgentHarnessOptions, AgentHarnessOwnEvent, AgentHarnessResources, AgentHarnessStreamOptions, AgentHarnessTool, CompactResult, HarnessTurnComposition, HarnessTurnContext, NavigateTreeResult, PromptTemplate, Skill } from "./types.ts";
 export declare class AgentHarness<TContext extends object | undefined = undefined, TSkill extends Skill = Skill, TPromptTemplate extends PromptTemplate = PromptTemplate, TTool extends AgentHarnessTool<TContext> = AgentHarnessTool<TContext>> {
     private session;
     readonly models: Models;
@@ -8,15 +8,22 @@ export declare class AgentHarness<TContext extends object | undefined = undefine
     private runAbortController?;
     private runPromise?;
     private pendingSessionWrites;
+    /** Composition that this turn was constructed from; immutable. */
+    private readonly composition;
     private model;
     private thinkingLevel;
     private systemPrompt;
-    private toolContext;
     private streamOptions;
     private retry;
     private resources;
+    /** Tools registered with this turn. New tools added after construction stay out. */
     private tools;
+    /** Active tool names live within the composition envelope. */
     private activeToolNames;
+    /** Names allowed to be activated mid-turn (subset of registered or deferred). */
+    private readonly deferredAllowedNames;
+    /** Names that are accepted as the composition's initial active set. */
+    private readonly initialActiveNames;
     private readonly deferredToolCatalog?;
     private toolExecution;
     private restoredActiveTools;
@@ -28,7 +35,12 @@ export declare class AgentHarness<TContext extends object | undefined = undefine
     private nextTurnQueue;
     private readonly queuedInputIds;
     private handlers;
+    /** Monotonic step counter for provider sampling within an active turn. */
+    private stepCounter;
     constructor(options: AgentHarnessOptions<TContext, TSkill, TPromptTemplate, TTool>);
+    private validateActiveNamesAgainstPolicy;
+    getComposition(): HarnessTurnComposition<TContext, TSkill, TPromptTemplate, TTool>;
+    getTurnContext(): HarnessTurnContext;
     private getHandlers;
     private emitOwn;
     private emitAny;
@@ -71,6 +83,8 @@ export declare class AgentHarness<TContext extends object | undefined = undefine
     }): Promise<void>;
     appendMessage(message: AgentMessage): Promise<void>;
     compact(customInstructions?: string): Promise<CompactResult>;
+    /** Minimal composition used by manual compaction. */
+    createCompactionComposition(): HarnessTurnComposition<TContext, TSkill, TPromptTemplate, TTool>;
     navigateTree(targetId: string, options?: {
         summarize?: boolean;
         customInstructions?: string;

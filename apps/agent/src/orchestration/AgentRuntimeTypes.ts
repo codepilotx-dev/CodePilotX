@@ -1,8 +1,5 @@
-import type { ModelRef, PermissionConfig, SubagentProfile, SubagentResult, TaskMode } from "../domain"
-import type { WorkspaceService } from "../workspace/WorkspaceService"
-import type { PromptBundle, PromptSection } from "../prompt/types"
-import type { SkillService } from "../prompt/SkillService"
-import type { ToolCatalog } from "../tool/ToolRegistry"
+import type { ModelRef, SubagentProfile, SubagentResult, TaskMode } from "../domain"
+import type { BoundRuntimeComposition } from "../runtime-composition"
 import type { ExecutionPlanInput } from "./plan/ExecutionPlanInput"
 import type { RichQuestion } from "../session/QuestionInput"
 
@@ -77,25 +74,16 @@ export interface AgentRuntimeRequest {
   delegation?: DelegationController
   content: string
   taskMode: TaskMode
-  fallbackModel: ModelRef
-  permissionConfig: PermissionConfig
+  composition: BoundRuntimeComposition
   signal: AbortSignal
-  workspace: WorkspaceService
-  defaultCwd?: string
   resume?: PlanCheckpoint
   /** Durable gate acquired before starting a fresh runtime (for example Hook trust). */
   startupGateLeaseID?: string
   defaultModeRequestUserInput?: boolean
   delegationEnabled?: boolean
-  promptSections?: PromptSection[]
-  skillService?: SkillService
   projectSources?: ProjectSourceRuntimeAccess
-  allowedTools?: readonly string[]
-  toolCatalog?: ToolCatalog
-  onPromptComposed?: (bundle: PromptBundle, context: { budgetText: string }) => void | Promise<void>
   onUsage?: (usage: { inputTokens: number; outputTokens: number; totalTokens: number; requests: number }) => void | Promise<void>
   onRuntimeReady?: () => void | Promise<void>
-  resolveModel(fallback: ModelRef): Promise<{ ref: ModelRef; model: unknown }>
   pause(approval: PendingApproval): Promise<void>
   updatePlan?(input: ExecutionPlanInput, toolCallID: string): Promise<unknown>
   /** Subagent-only safe-boundary control; main Chat steer does not use this callback. */

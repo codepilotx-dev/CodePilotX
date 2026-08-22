@@ -111,6 +111,9 @@ export class ToolExecutor {
     this.permissionGrants = options?.permissionGrants ?? new PermissionGrantStore()
   }
 
+  /** Process-wide catalog used only to bind names already frozen in a turn snapshot. */
+  catalog(): ToolCatalog { return this.registry }
+
   definition(name: string, catalog: ToolCatalog = this.registry) {
     return catalog.get(name)
   }

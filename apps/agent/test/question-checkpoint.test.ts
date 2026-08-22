@@ -35,9 +35,9 @@ describe("问题 checkpoint", () => {
       }],
       autoResolutionMs: 60_000,
     }
-    await tool!.execute("question-call", input as never, new AbortController().signal)
+    await tool!.execute("question-call", input as never, new AbortController().signal, undefined, undefined)
     expect(received).toEqual([input])
-    await expect(tool!.execute("question-call-2", { ...input, autoResolutionMs: 59_999 } as never, new AbortController().signal)).rejects.toThrow()
+    await expect(tool!.execute("question-call-2", { ...input, autoResolutionMs: 59_999 } as never, new AbortController().signal, undefined, undefined)).rejects.toThrow()
   })
 
   test("rich questions 按结构化 answers 恢复，不压平多题答案", async () => {

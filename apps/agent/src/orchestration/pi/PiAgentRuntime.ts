@@ -1,9 +1,8 @@
-import { AgentHarness, DeferredToolCatalog } from "@codepilotx/pi-agent-core"
+import { AgentHarness, createTurnComposition, DeferredToolCatalog } from "@codepilotx/pi-agent-core"
 import { type AssistantMessage, type ImageContent } from "@earendil-works/pi-ai"
 import { z } from "zod"
 import { AgentError } from "../../domain"
 import type { SubagentResult } from "../../domain"
-import { PromptComposer } from "../../prompt/PromptComposer"
 import { inferPromptCacheRuntimePolicy } from "../../prompt/PromptCache"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { PiEventAdapter } from "./PiEventAdapter"
@@ -16,6 +15,7 @@ import {
   REACTIVE_COMPACTION_INSTRUCTIONS,
   REACTIVE_CONTINUATION_PROMPT,
 } from "./ContextOverflow"
+import type { BoundRuntimeComposition } from "../../runtime-composition"
 
 const subagentResultSchema = z.object({
   outcome: z.enum(["succeeded", "partial", "blocked"]),
@@ -48,7 +48,8 @@ const promptImages = (request: PiRuntimeRequest): ImageContent[] => request.atta
  */
 export class PiAgentRuntime implements PiAgentRuntimeApi {
   private readonly harnesses = new Map<string, ActivePiHarness>()
-  private readonly composer = new PromptComposer()
+  /** Cached composed turns released via {@link PiAgentRuntime.run}. */
+  private readonly releasedCompositions = new WeakSet<BoundRuntimeComposition>()
 
   constructor(private readonly options: PiAgentRuntimeOptions) {}
 
@@ -60,16 +61,10 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
       previous.unsubscribe()
     }
     const dependencies = await this.options.harnessFactory.resolve(request)
-    const bundle = this.composer.compose({
-      threadID: request.threadID,
-      mode: request.taskMode,
-      profile: request.profile ?? "main",
-      exposedTools: request.exposedTools,
-      sections: request.promptSections,
-    })
-    const initialCachePolicy = inferPromptCacheRuntimePolicy(request.model, bundle.cacheKey)
-    await request.onPromptComposed?.(bundle)
-
+    const composition = request.composition
+    const snapshot = composition.plan.snapshot
+    const bundle = snapshot.prompt
+    const initialCachePolicy = inferPromptCacheRuntimePolicy(composition.harness.model, snapshot.hashes.promptHash)
     let finalizedResult: SubagentResult | undefined
     const lifecycle = {
       ...this.options.lifecycle,
@@ -80,47 +75,56 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
         },
       } : {}),
     }
-    const tools = createPiTools({ executor: this.options.toolExecutor, request }, lifecycle)
-    const deferredDefinitions = this.options.toolExecutor.deferredDefinitions({
-      taskMode: request.taskMode,
-      sandboxMode: request.permissionConfig.sandboxMode,
-      profile: request.profile ?? "main",
-      ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
-    }, request.toolCatalog)
-    const deferredToolCatalog = new DeferredToolCatalog(deferredDefinitions.map((definition) => ({
-      name: definition.sdkName,
-      label: definition.sdkName,
-      description: typeof definition.description === "string" ? definition.description : definition.sdkName,
-      load: () => adaptToolDefinition(definition, { executor: this.options.toolExecutor, request }),
-    })))
+    const adapterTools = createPiTools({ executor: this.options.toolExecutor, request }, lifecycle)
+    const deferredNames = new Set(snapshot.tools.deferred)
+    const registeredTools = adapterTools.filter((tool) => !deferredNames.has(tool.name))
+    const expectedRegistered = snapshot.tools.exposed.filter((name) => !deferredNames.has(name))
+    if (
+      registeredTools.length !== expectedRegistered.length
+      || expectedRegistered.some((name) => !registeredTools.some((tool) => tool.name === name))
+    ) throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", "Frozen tool bindings are unavailable", 409)
+    const deferredToolCatalog = new DeferredToolCatalog(
+      snapshot.tools.deferred.map((name) => ({
+        name,
+        label: name,
+        description: name,
+        load: async () => {
+          const definition = this.options.toolExecutor.definition(name)
+          if (!definition) throw new Error(`Deferred tool ${name} missing from registry`)
+          return adaptToolDefinition(definition, { executor: this.options.toolExecutor, request })
+        },
+      })),
+    )
+    const harnessComposition = createTurnComposition({
+      compositionID: snapshot.identity.id,
+      compositionHash: snapshot.identity.hash,
+      compositionVersion: snapshot.identity.version,
+      model: composition.harness.model,
+      thinkingLevel: composition.harness.thinkingLevel,
+      systemPrompt: bundle.instructions,
+      tools: registeredTools,
+      initialActiveNames: expectedRegistered,
+      deferredAllowedNames: snapshot.tools.deferred,
+      resources: composition.harness.resources,
+      toolContext: composition.harness.toolContext,
+      streamOptions: composition.harness.streamOptions,
+    })
     const harness = new AgentHarness({
       session: dependencies.session,
       models: dependencies.models,
-      ...(dependencies.resources ? { resources: dependencies.resources } : {}),
-      model: request.model,
-      thinkingLevel: request.thinkingLevel ?? "off",
-      systemPrompt: bundle.instructions,
-      tools,
-      activeToolNames: tools.map((tool) => tool.name),
+      composition: harnessComposition,
       deferredToolCatalog,
       steeringMode: "one-at-a-time",
       followUpMode: "one-at-a-time",
-      streamOptions: {
-        timeoutMs: 120_000,
-        maxRetries: 2,
-        maxRetryDelayMs: 10_000,
-        cacheRetention: initialCachePolicy.cacheRetention,
-        metadata: { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID },
-      },
     })
     harness.on("before_provider_request", (event) => ({
       streamOptions: {
-        cacheRetention: inferPromptCacheRuntimePolicy(event.model, bundle.cacheKey).cacheRetention,
+        cacheRetention: inferPromptCacheRuntimePolicy(event.model ?? composition.harness.model, snapshot.hashes.promptHash).cacheRetention,
         metadata: { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID },
       },
     }))
     harness.on("before_provider_payload", (event) => {
-      const policy = inferPromptCacheRuntimePolicy(event.model, bundle.cacheKey)
+      const policy = inferPromptCacheRuntimePolicy(event.model ?? composition.harness.model, snapshot.hashes.promptHash)
       const applied = applyPromptCacheRuntimePolicy(event.payload, policy, bundle.stableContextText)
       return { payload: secretScrubber.scrub(applied.payload) }
     })
@@ -190,7 +194,14 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
       return { status: "completed", output, ...(finalizedResult ? { result: finalizedResult } : {}) }
     } finally {
       request.signal.removeEventListener("abort", onAbort)
+      this.releaseComposition(request.composition)
     }
+  }
+
+  private releaseComposition(composition: BoundRuntimeComposition) {
+    if (this.releasedCompositions.has(composition)) return
+    this.releasedCompositions.add(composition)
+    void composition.release().catch(() => undefined)
   }
 
   private active(threadID: string) {

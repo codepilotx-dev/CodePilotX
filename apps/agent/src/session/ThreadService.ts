@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { Model } from "@codepilotx/model-schema"
+import { Model, Provider } from "@codepilotx/model-schema"
 import type { Thread, ThreadSettings } from "@codepilotx/shared/thread"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import { AgentError, type AgentExecution, type EventEnvelope, type SubmitMessage } from "../domain"
@@ -32,6 +32,10 @@ import { resolveEffectivePermissionConfig } from "../permission/EffectivePermiss
 import { TurnCoordinator, type TurnTerminalStatus } from "./TurnCoordinator"
 import { TurnRunner } from "./TurnRunner"
 import type { ThreadTitleService } from "./ThreadTitleService"
+import { createToolExposurePlan } from "../tool/ToolExposurePlan"
+import { composeRuntimeComposition, createMcpGenerationBinding, rebindRuntimeComposition } from "../runtime-composition/composer"
+import { RuntimeCompositionService } from "../runtime-composition/service"
+import type { BoundRuntimeComposition, RuntimeWorkspaceScope } from "../runtime-composition/types"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 type PromptStorageRoots = { dataRoot: string; userHome: string }
@@ -140,6 +144,7 @@ export class ThreadService {
     resumeOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
     private readonly firstTurnAdmission?: (threadID: string) => EventEnvelope | null,
+    private readonly runtimeCompositions = new RuntimeCompositionService({ db }),
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -377,7 +382,7 @@ export class ThreadService {
     const latest = this.db.sqlite.query("SELECT content, model_ref FROM inputs WHERE thread_id = ? ORDER BY created_at DESC LIMIT 1").get(threadID) as { content: string; model_ref: string } | null
     const userMessage = latest?.content ?? ""
     const memories = this.memory.recall({ query: userMessage, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.projectID) } : {}) })
-    const exposedTools = this.orchestrator.toolExposure({
+    const exposedTools = createToolExposurePlan(this.orchestrator.toolCatalog(), {
       taskMode: thread.settings.taskMode,
       sandboxMode: thread.settings.permissionConfig.sandboxMode,
       profile: "main",
@@ -760,6 +765,7 @@ export class ThreadService {
       : null
     const controller = handle.controller
     let mcpLease: McpTurnLease | undefined
+    let runtimeComposition: BoundRuntimeComposition | undefined
     let terminalStatus: TurnTerminalStatus | null = null
     let continuedForSteer = false
     const workspace = this.db.threadWorkspace(threadID)
@@ -768,6 +774,9 @@ export class ThreadService {
       if (branch) this.db.updateThreadGitBranch(threadID, branch)
     }
     await this.publish(started.events)
+    const startEventCount = (this.db.sqlite.query(
+      "SELECT COUNT(*) AS count FROM events WHERE turn_id = ? AND method = 'turn/started'",
+    ).get(turnID) as { count: number }).count
     try {
       const activeModel = input.model
       const content = input.content
@@ -785,7 +794,8 @@ export class ThreadService {
           phase: "before",
         }).catch(() => undefined)
       }
-      if (runtime.workspaceRoot) {
+      const persistedComposition = this.runtimeCompositions.repository.get(turnID)?.snapshot ?? null
+      if (!persistedComposition && runtime.workspaceRoot) {
         await this.configService?.resolveUnresolvedMcp(runtime.workspaceRoot)
         await this.configService?.read({ cwd: runtime.workspaceRoot })
       }
@@ -795,9 +805,11 @@ export class ThreadService {
         includeProjectHooks: runtime.kind === "project",
       })
       const priorHistory = (this.db.sqlite.query("SELECT COUNT(*) AS count FROM pi_session_entries WHERE session_id = ?").get(agent.sessionID) as { count: number }).count
-      const lifecycleEvent = priorHistory > 0 || resumeCheckpoint || sideEffectRecovery ? "session_resume" as const : "session_start" as const
+      const lifecycleEvent = persistedComposition || priorHistory > 0 || resumeCheckpoint || sideEffectRecovery ? "session_resume" as const : "session_start" as const
       await this.hooks.run(lifecycleEvent, { threadID, turnID, workspace: workspace.rootPath }, { threadID, turnID })
-      const promptHookResults = await this.hooks.run("user_prompt_submit", { content }, { threadID, turnID })
+      const promptHookResults = persistedComposition
+        ? []
+        : await this.hooks.run("user_prompt_submit", { content }, { threadID, turnID })
       const promptDenied = promptHookResults.find(({ result }) => result.decision === "deny")
       if (promptDenied) throw new AgentError("HOOK_DENIED", promptDenied.result.reason ?? "user_prompt_submit Hook 拒绝任务", 403)
       if (promptHookResults.some(({ result }) => result.decision === "ask")) throw new AgentError("HOOK_CONFIRMATION_REQUIRED", "user_prompt_submit Hook 要求人工确认", 409)
@@ -836,12 +848,15 @@ export class ThreadService {
         includeWorkspace: runtime.kind === "project",
       })
       mcpLease = await this.mcp?.acquire(runtime.workspaceRoot)
+      const toolCatalog = mcpLease?.catalog ?? this.orchestrator.toolCatalog()
+      const mcpBinding = createMcpGenerationBinding(runtime.workspaceRoot, mcpLease ?? null)
       const invokedSkill = skillService.resolveInvocation(content)
       const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
       const memories = this.memory.recall({ query: content, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.projectID) } : {}) })
       const stringSetting = (key: string) => typeof desktopSettings?.[key] === "string" && desktopSettings[key].trim() ? desktopSettings[key] as string : null
-      const effectivePermissionConfig = resolveEffectivePermissionConfig(input.taskMode, input.permissionConfig)
-      const exposedTools = this.orchestrator.toolExposure({
+      const effectivePermissionConfig = persistedComposition?.permissions
+        ?? resolveEffectivePermissionConfig(input.taskMode, input.permissionConfig)
+      const exposurePlan = persistedComposition?.tools ?? createToolExposurePlan(toolCatalog, {
         taskMode: input.taskMode,
         sandboxMode: effectivePermissionConfig.sandboxMode,
         profile: "main",
@@ -850,8 +865,8 @@ export class ThreadService {
         ...(runtime.kind === "project" && this.projectSources ? { hasProjectSources: true } : {}),
         ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
-        ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
-      }).exposed
+      })
+      const exposedTools = exposurePlan.exposed
       const executionPolicy = executionPolicyFromV4(effectivePermissionConfig)
       const permissionInstructions = [
         `Resolved file access: ${executionPolicy.fileAccess}; Shell environment: ${executionPolicy.shellEnvironment}.`,
@@ -915,13 +930,111 @@ export class ThreadService {
         ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
       )
       const contextManager = new ContextManager(this.db)
-      const configuredDefault = await this.effectiveDefaultModel(runtime.workspaceRoot)
-      const selectedInfo = await this.resolveAvailableModel([activeModel, configuredDefault])
-      const selectedModel = Model.Ref.make({ providerID: selectedInfo.providerID, id: selectedInfo.id, ...(selectedInfo.variant ? { variant: Model.VariantID.make(selectedInfo.variant) } : {}) })
+      const configuredDefault = persistedComposition ? null : await this.effectiveDefaultModel(runtime.workspaceRoot)
+      const selectedInfo = persistedComposition
+        ? persistedComposition.model
+        : await this.resolveAvailableModel([activeModel, configuredDefault])
+      const selectedModel = Model.Ref.make({
+        providerID: Provider.ID.make(selectedInfo.providerID),
+        id: Model.ID.make(selectedInfo.id),
+        ...(selectedInfo.variant ? { variant: Model.VariantID.make(selectedInfo.variant) } : {}),
+      })
       const piModel = await this.providers.getModel(selectedModel)
       const attachments = await this.agentAttachments(input.id)
-      let budgetText = ""
-      let composedBundle: PromptBundle | null = null
+      const composedBundle = persistedComposition?.prompt ?? new PromptComposer().compose({
+        threadID,
+        mode: input.taskMode,
+        profile: "main",
+        exposedTools,
+        sections: promptSections,
+      })
+      const workspaceScope: RuntimeWorkspaceScope = {
+        kind: runtime.kind,
+        cwd: runtime.cwd,
+        roots: runtime.runtimeWorkspaceRoots.map((root) => root.path),
+        outputDirectory: null,
+        instructionSources: [...runtime.instructionSources],
+      }
+      const toolContext = {
+        threadID,
+        turnID,
+        agentID: agent.id,
+        profile: "main" as const,
+        taskMode: input.taskMode,
+        signal: controller.signal,
+        workspace,
+        defaultCwd: runtime.cwd,
+        permissionConfig: effectivePermissionConfig,
+        model: selectedModel,
+        taskSummary: content,
+      }
+      runtimeComposition = await this.runtimeCompositions.loadOrCompose({
+        turnID,
+        agentID: agent.id,
+        allowEphemeralFresh: startEventCount === 1 && !resumeCheckpoint && priorHistory === 0,
+        compose: async () => {
+          const fresh = composeRuntimeComposition({
+            turnID,
+            threadID,
+            profile: "main",
+            taskMode: input.taskMode,
+            thinkingLevel: selectedModel.variant ? String(selectedModel.variant) as import("@codepilotx/pi-agent-core").ThinkingLevel : "off",
+            model: piModel,
+            modelRef: selectedModel,
+            toolCatalog,
+            workspace,
+            workspaceScope,
+            sessionEntryID: null,
+            skillService,
+            mcpBinding,
+            mcpLease: mcpLease ?? null,
+            effectivePermissionConfig,
+            toolContext,
+            promptBundle: composedBundle,
+            tools: [],
+            initialActiveNames: [],
+            deferredAllowedNames: [],
+            ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
+          })
+          mcpLease = undefined
+          return { snapshot: fresh.snapshot, harness: fresh.harnessComposition, bindings: fresh.bindings }
+        },
+        rebind: async (snapshot) => {
+          const rebound = rebindRuntimeComposition(snapshot, {
+            model: piModel,
+            modelRef: selectedModel,
+            workspace,
+            workspaceScope,
+            skillService,
+            mcpBinding,
+            mcpLease: mcpLease ?? null,
+            toolContext,
+            toolCatalog,
+            defaultCwd: runtime.cwd,
+          })
+          mcpLease = undefined
+          return { harness: rebound.harnessComposition, bindings: rebound.bindings }
+        },
+      })
+      const timestamp = Date.now()
+      const previous = contextManager.state(threadID)
+      const promptSnapshot = this.promptSettingsSnapshot(threadID)
+      this.db.sqlite.query("UPDATE threads SET prompt_settings = ? WHERE id = ?").run(JSON.stringify({
+        ...promptSnapshot,
+        baseHash: composedBundle.baseHash,
+        contextHash: composedBundle.contextHash,
+        cacheKey: composedBundle.cacheKey,
+      }), threadID)
+      const fragments: ContextFragment[] = composedBundle.diagnostics.filter((item) => item.included && item.cache !== "global-stable").map((item, index) => ({
+        id: item.id,
+        kind: item.id.startsWith("mode.") ? "mode" : item.id.startsWith("permission.") ? "permission" : item.id.startsWith("project-") ? "project" : item.id.startsWith("skills.") ? "skill" : item.id.startsWith("memory.") ? "memory" : "settings",
+        version: (previous?.baselineVersion ?? 0) + index + 1,
+        hash: item.hash,
+        payload: { source: item.source, cache: item.cache, bytes: item.bytes },
+        createdAt: timestamp,
+      }))
+      if (!previous) contextManager.establishBaseline({ threadID, promptVersion: "prompt-engine-v2", baseHash: composedBundle.baseHash, contextHash: composedBundle.contextHash, cacheKey: composedBundle.cacheKey, fragments })
+      else contextManager.appendFragments(threadID, fragments, composedBundle.contextHash)
       const result = await this.orchestrator.run({
         threadID,
         turnID,
@@ -929,15 +1042,10 @@ export class ThreadService {
         sessionID: agent.sessionID,
         content,
         taskMode: input.taskMode,
-        permissionConfig: effectivePermissionConfig,
-        fallbackModel: activeModel,
+        composition: runtimeComposition,
         signal: controller.signal,
-        workspace,
-        defaultCwd: runtime.cwd,
         defaultModeRequestUserInput,
         ...(sideChat ? { delegationEnabled: false } : {}),
-        promptSections,
-        skillService,
         ...(runtime.kind === "project" && this.projectSources ? {
           projectSources: {
             list: () => this.projectSources!.list(runtime.projectID),
@@ -947,28 +1055,7 @@ export class ThreadService {
             ) => this.projectSources!.read(runtime.projectID, sourceID, range),
           },
         } : {}),
-        ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
-        ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
-        onPromptComposed: async (bundle, context) => {
-          composedBundle = bundle
-          budgetText = context.budgetText
-          const timestamp = Date.now()
-          const previous = contextManager.state(threadID)
-          const promptSnapshot = this.promptSettingsSnapshot(threadID)
-          this.db.sqlite.query("UPDATE threads SET prompt_settings = ? WHERE id = ?").run(JSON.stringify({ ...promptSnapshot, baseHash: bundle.baseHash, contextHash: bundle.contextHash, cacheKey: bundle.cacheKey }), threadID)
-          const fragments: ContextFragment[] = bundle.diagnostics.filter((item) => item.included && item.cache !== "global-stable").map((item, index) => ({
-            id: item.id,
-            kind: item.id.startsWith("mode.") ? "mode" : item.id.startsWith("permission.") ? "permission" : item.id.startsWith("project-") ? "project" : item.id.startsWith("skills.") ? "skill" : item.id.startsWith("memory.") ? "memory" : "settings",
-            version: (previous?.baselineVersion ?? 0) + index + 1,
-            hash: item.hash,
-            payload: { source: item.source, cache: item.cache, bytes: item.bytes },
-            createdAt: timestamp,
-          }))
-          if (!previous) contextManager.establishBaseline({ threadID, promptVersion: "prompt-engine-v2", baseHash: bundle.baseHash, contextHash: bundle.contextHash, cacheKey: bundle.cacheKey, fragments })
-          else contextManager.appendFragments(threadID, fragments, bundle.contextHash)
-        },
         onUsage: async (usage) => {
-          if (!composedBundle) return
           contextManager.recordMeasuredUsage({
             threadID,
             turnID,
@@ -1006,7 +1093,6 @@ export class ThreadService {
             plan: update.plan,
           }
         },
-        resolveModel: async () => ({ ref: selectedModel, model: piModel as never }),
         onRuntimeReady: async () => {
           await this.coordinator.exclusive(threadID, async () => {
             this.coordinator.markRuntimeReady(threadID, turnID)
@@ -1089,6 +1175,7 @@ export class ThreadService {
           && checkpoint.payload.requestID === startupGate.requestID
         if (terminalStatus || !stillOwnsGate) this.resumeCheckpoints.complete(startupGate.leaseID)
       }
+      await runtimeComposition?.release().catch(() => undefined)
       await mcpLease?.release()
       if (terminalStatus) this.coordinator.finish(threadID, turnID, terminalStatus)
       else this.coordinator.release(threadID, turnID)

@@ -98,6 +98,26 @@ export interface AgentHarnessResources<
 	skills?: TSkill[];
 }
 
+/** Stable identity for an immutable turn composition. */
+export interface HarnessCompositionIdentity {
+	/** Composition identifier (e.g. `rc:<turnID>`); unique per turn. */
+	readonly id: string;
+	/** Schema version for the composition envelope. */
+	readonly version: number;
+	/** Stable hash of all composition inputs; the canonical equality key. */
+	readonly hash: string;
+}
+
+/** Tool policy attached to a turn composition. */
+export interface HarnessToolComposition {
+	/** Names of every tool registered with the harness for this turn. */
+	readonly registeredNames: readonly string[];
+	/** Active tool names captured at composition time. */
+	readonly initialActiveNames: readonly string[];
+	/** Deferred tool names that may be activated mid-turn. */
+	readonly deferredAllowedNames: readonly string[];
+}
+
 /** Tool definition executed by an {@link AgentHarness} with an application-defined context. */
 export type AgentHarnessTool<
 	TContext extends object | undefined,
@@ -113,6 +133,48 @@ export type AgentHarnessTool<
 		context: TContext,
 	): Promise<AgentToolResult<TDetails>>;
 };
+
+/** Immutable Turn/Step composition envelope owned by an {@link AgentHarness}. */
+export interface HarnessTurnComposition<
+	TContext extends object | undefined,
+	TSkill extends Skill = Skill,
+	TPromptTemplate extends PromptTemplate = PromptTemplate,
+	TTool extends AgentHarnessTool<TContext> = AgentHarnessTool<TContext>,
+> {
+	readonly identity: HarnessCompositionIdentity;
+	readonly model: Model<any>;
+	readonly thinkingLevel: ThinkingLevel;
+	readonly systemPrompt: string;
+	readonly tools: readonly TTool[];
+	readonly toolPolicy: HarnessToolComposition;
+	readonly resources: Readonly<AgentHarnessResources<TSkill, TPromptTemplate>>;
+	readonly toolContext: TContext;
+	readonly streamOptions: Readonly<AgentHarnessStreamOptions>;
+}
+
+/** Turn-level context surfaced for observers and step planning. */
+export interface HarnessTurnContext<TTool extends AgentTool = AgentTool> {
+	readonly compositionID: string;
+	readonly compositionHash: string;
+	readonly model: Model<any>;
+	readonly thinkingLevel: ThinkingLevel;
+	readonly systemPrompt: string;
+	readonly registeredTools: readonly TTool[];
+	readonly activeTools: readonly TTool[];
+	readonly deferredAllowedNames: readonly string[];
+	readonly streamOptions: Readonly<AgentHarnessStreamOptions>;
+}
+
+/** Per provider-sampling step context. `stepIndex` is monotonic per active turn. */
+export interface HarnessStepContext<TTool extends AgentTool = AgentTool> {
+	readonly compositionID: string;
+	readonly compositionHash: string;
+	readonly stepIndex: number;
+	readonly model: Model<any>;
+	readonly systemPrompt: string;
+	readonly activeTools: readonly TTool[];
+	readonly streamOptions: Readonly<AgentHarnessStreamOptions>;
+}
 
 /** Static tool context or zero-argument provider resolved for each turn snapshot. */
 export type AgentHarnessToolContextSource<TContext extends object | undefined> =
@@ -613,6 +675,12 @@ export interface BeforeProviderRequestEvent {
 	model: Model<any>;
 	sessionId: string;
 	streamOptions: AgentHarnessStreamOptions;
+	/** Composition identifier from the owning turn snapshot. */
+	compositionID: string;
+	/** Stable composition hash from the owning turn snapshot. */
+	compositionHash: string;
+	/** Monotonic step index for this provider sampling round. */
+	stepIndex: number;
 }
 
 export interface BeforeProviderPayloadEvent {
@@ -910,20 +978,16 @@ export interface BranchSummaryResult {
 	modifiedFiles: string[];
 }
 
+/**
+ * System prompt input accepted by the harness. Composition already freezes the
+ * final prompt text, so the harness no longer supports dynamic prompt callbacks.
+ */
 export type AgentHarnessSystemPrompt<
 	TContext extends object | undefined = undefined,
 	TSkill extends Skill = Skill,
 	TPromptTemplate extends PromptTemplate = PromptTemplate,
 	TTool extends AgentHarnessTool<TContext> = AgentHarnessTool<TContext>,
-> =
-	| string
-	| ((context: {
-			session: Session;
-			model: Model<any>;
-			thinkingLevel: ThinkingLevel;
-			activeTools: TTool[];
-			resources: AgentHarnessResources<TSkill, TPromptTemplate>;
-	  }) => string | Promise<string>);
+> = string;
 
 interface AgentHarnessOptionsBase<
 	TContext extends object | undefined,
@@ -938,26 +1002,20 @@ interface AgentHarnessOptionsBase<
 	 * auth.
 	 */
 	models: Models;
-	tools?: TTool[];
 	/** Lazily loaded tools that can be searched and activated by exact name. */
 	deferredToolCatalog?: DeferredToolCatalog<TTool>;
-	/**
-	 * Concrete resources available to explicit invocation methods and system-prompt callbacks.
-	 * Applications own loading/reloading resources and should call `setResources()` with new values.
-	 */
-	resources?: AgentHarnessResources<TSkill, TPromptTemplate>;
-	systemPrompt?: AgentHarnessSystemPrompt<TContext, TSkill, TPromptTemplate, TTool>;
-	/** Curated stream/provider request options. Snapshotted at turn start. */
-	streamOptions?: AgentHarnessStreamOptions;
 	/** Optional retry policy for generated compaction and branch-summary requests. */
 	retry?: RetryPolicy;
-	model: Model<any>;
-	thinkingLevel?: ThinkingLevel;
-	activeToolNames?: string[];
 	/** Static or input-sensitive tool scheduling policy. */
 	toolExecution?: ToolExecutionMode;
 	steeringMode?: QueueMode;
 	followUpMode?: QueueMode;
+	/**
+	 * Immutable turn composition. All model, system prompt, tool, resource and
+	 * stream-option inputs come from the composition; the harness rejects inputs
+	 * outside the composition envelope.
+	 */
+	composition: HarnessTurnComposition<TContext, TSkill, TPromptTemplate, TTool>;
 }
 
 export type AgentHarnessOptions<
@@ -965,15 +1023,6 @@ export type AgentHarnessOptions<
 	TSkill extends Skill = Skill,
 	TPromptTemplate extends PromptTemplate = PromptTemplate,
 	TTool extends AgentHarnessTool<TContext> = AgentHarnessTool<TContext>,
-> = AgentHarnessOptionsBase<TContext, TSkill, TPromptTemplate, TTool> &
-	([TContext] extends [undefined]
-		? {
-				/** Context-free harnesses do not need a tool context. */
-				toolContext?: undefined;
-			}
-		: {
-				/** Static context or zero-argument context provider resolved for each turn snapshot. */
-				toolContext: AgentHarnessToolContextSource<TContext>;
-			});
+> = AgentHarnessOptionsBase<TContext, TSkill, TPromptTemplate, TTool>;
 
 export type { AgentHarness } from "./agent-harness.ts";

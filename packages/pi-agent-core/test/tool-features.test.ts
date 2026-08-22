@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	Agent,
 	AgentHarness,
+	createTurnComposition,
 	DeferredToolCatalog,
 	InMemorySessionRepo,
 	type AgentHarnessTool,
@@ -129,13 +130,23 @@ describe("AgentHarness deferred activation", () => {
 		]);
 		const repo = new InMemorySessionRepo();
 		const session = await repo.create({ id: crypto.randomUUID() });
+		const composition = createTurnComposition<ToolContext>({
+			compositionID: "rc:test:deferred:initial",
+			model: firstSetup.faux.getModel(),
+			thinkingLevel: "off",
+			systemPrompt: "test",
+			tools: [discover],
+			initialActiveNames: ["discover"],
+			deferredAllowedNames: ["deferred"],
+			resources: {},
+			toolContext: { workspace: "initial" },
+			streamOptions: {},
+		});
 		const harness = new AgentHarness({
 			session,
 			models: firstSetup.models,
-			model: firstSetup.faux.getModel(),
-			tools: [discover],
+			composition,
 			deferredToolCatalog: catalog,
-			toolContext: { workspace: "initial" },
 		});
 		const updates: unknown[] = [];
 		const savePoints: string[][] = [];
@@ -160,18 +171,131 @@ describe("AgentHarness deferred activation", () => {
 			},
 			fauxAssistantMessage("restored"),
 		]);
+		const restoredComposition = createTurnComposition<ToolContext>({
+			compositionID: "rc:test:deferred:restored",
+			model: secondSetup.faux.getModel(),
+			thinkingLevel: "off",
+			systemPrompt: "test",
+			tools: [discover],
+			initialActiveNames: ["discover"],
+			deferredAllowedNames: ["deferred"],
+			resources: {},
+			toolContext: { workspace: "restored" },
+			streamOptions: {},
+		});
 		const restored = new AgentHarness({
 			session,
 			models: secondSetup.models,
-			model: secondSetup.faux.getModel(),
-			tools: [discover],
+			composition: restoredComposition,
 			deferredToolCatalog: catalog,
-			toolContext: { workspace: "restored" },
 		});
 		await restored.prompt("continue");
 		expect(restoredProviderTools).toEqual(["discover", "deferred"]);
 		expect(restored.getActiveToolNames()).toEqual(["discover", "deferred"]);
 		expect(deferredToolContext).toEqual({ workspace: "restored" });
+	});
+
+	test("rejects restored tools outside the frozen envelope", async () => {
+		const setup = setupProvider([fauxAssistantMessage("unused")]);
+		const repo = new InMemorySessionRepo();
+		const session = await repo.create({ id: crypto.randomUUID() });
+		await session.appendActiveToolsChange(["rogue"]);
+		const harness = new AgentHarness({
+			session,
+			models: setup.models,
+			composition: createTurnComposition({
+				compositionID: "rc:test:restore-envelope",
+				model: setup.faux.getModel(),
+				thinkingLevel: "off",
+				systemPrompt: "frozen",
+				tools: [],
+				initialActiveNames: [],
+				deferredAllowedNames: [],
+				resources: {},
+				toolContext: undefined,
+				streamOptions: {},
+			}),
+		});
+		await expect(harness.prompt("resume")).rejects.toThrow("outside the composition envelope");
+	});
+
+	test("keeps identity, prompt and monotonic step indexes across provider samples", async () => {
+		let harness!: AgentHarness;
+		const mutationErrors: string[] = [];
+		const tool: AgentHarnessTool<undefined> = {
+			name: "sample_again",
+			label: "Sample again",
+			description: "forces a second sample",
+			parameters: Type.Object({}),
+			execute: async () => ({ content: [] }),
+		};
+		const setup = setupProvider([
+			async (context: Context) => {
+				try {
+					await harness.setActiveTools([]);
+				} catch (error) {
+					mutationErrors.push((error as Error).message);
+				}
+				expect(context.systemPrompt).toBe("frozen prompt");
+				return fauxAssistantMessage(fauxToolCall("sample_again", {}), { stopReason: "toolUse" });
+			},
+			(context: Context) => {
+				expect(context.systemPrompt).toBe("frozen prompt");
+				return fauxAssistantMessage("done");
+			},
+		]);
+		const repo = new InMemorySessionRepo();
+		const session = await repo.create({ id: crypto.randomUUID() });
+		harness = new AgentHarness({
+			session,
+			models: setup.models,
+			composition: createTurnComposition({
+				compositionID: "rc:test:steps",
+				model: setup.faux.getModel(),
+				thinkingLevel: "off",
+				systemPrompt: "frozen prompt",
+				tools: [tool],
+				initialActiveNames: ["sample_again"],
+				deferredAllowedNames: [],
+				resources: {},
+				toolContext: undefined,
+				streamOptions: {},
+			}),
+		});
+		const steps: Array<{ id: string; hash: string; index: number }> = [];
+		harness.on("before_provider_request", (event) => {
+			steps.push({ id: event.compositionID, hash: event.compositionHash, index: event.stepIndex });
+			return {};
+		});
+		await harness.prompt("run");
+		expect(steps.map((step) => step.index)).toEqual([0, 1]);
+		expect(new Set(steps.map((step) => step.id))).toEqual(new Set(["rc:test:steps"]));
+		expect(new Set(steps.map((step) => step.hash)).size).toBe(1);
+		expect(mutationErrors[0]).toContain("cannot change inside an active turn composition");
+	});
+
+	test("does not allow before_agent_start to replace the frozen prompt", async () => {
+		const setup = setupProvider([fauxAssistantMessage("unused")]);
+		const repo = new InMemorySessionRepo();
+		const session = await repo.create({ id: crypto.randomUUID() });
+		const harness = new AgentHarness({
+			session,
+			models: setup.models,
+			composition: createTurnComposition({
+				compositionID: "rc:test:hook-prompt",
+				model: setup.faux.getModel(),
+				thinkingLevel: "off",
+				systemPrompt: "frozen",
+				tools: [],
+				initialActiveNames: [],
+				deferredAllowedNames: [],
+				resources: {},
+				toolContext: undefined,
+				streamOptions: {},
+			}),
+		});
+		harness.on("before_agent_start", () => ({ systemPrompt: "replacement", messages: [] }));
+		await expect(harness.prompt("run")).rejects.toThrow("must not replace the frozen system prompt");
 	});
 });
 
@@ -197,7 +321,18 @@ describe("AgentHarness live steering", () => {
 		harness = new AgentHarness({
 			session,
 			models: setup.models,
-			model: setup.faux.getModel(),
+			composition: createTurnComposition({
+				compositionID: "rc:test:steering",
+				model: setup.faux.getModel(),
+				thinkingLevel: "off",
+				systemPrompt: "steer test",
+				tools: [],
+				initialActiveNames: [],
+				deferredAllowedNames: [],
+				resources: {},
+				toolContext: undefined,
+				streamOptions: {},
+			}),
 		});
 		const consumed: string[][] = [];
 		harness.subscribe((event) => {

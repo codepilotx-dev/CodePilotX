@@ -1,21 +1,21 @@
 import type {
   AgentHarness,
   AgentHarnessEvent,
-  AgentHarnessResources,
-  AgentTool,
   CompactResult,
-  Session,
-  ThinkingLevel,
+  AgentHarnessTool,
 } from "@codepilotx/pi-agent-core"
 import type { ImageContent, Model, Models } from "@earendil-works/pi-ai"
 import type { ToolResultBlock } from "@codepilotx/shared/thread"
-import type { ModelRef, PermissionConfig, SubagentProfile, SubagentResult, TaskMode } from "../../domain"
-import type { PromptBundle, PromptSection } from "../../prompt/types"
+import type { ModelRef, SubagentResult } from "../../domain"
 import type { ToolExecutor } from "../../tool/ToolExecutor"
-import type { ToolCatalog } from "../../tool/ToolRegistry"
+import type { Session } from "@codepilotx/pi-agent-core"
+import type { BoundRuntimeComposition } from "../../runtime-composition"
 import type { WorkspaceService } from "../../workspace/WorkspaceService"
-import type { ExecutionPlanInput } from "../plan/ExecutionPlanInput"
 import type { RequestUserInput } from "../../session/QuestionInput"
+import type { SubagentProfile, TaskMode } from "../../domain"
+import type { PermissionConfig } from "../../domain"
+import type { ToolCatalog } from "../../tool/ToolRegistry"
+import type { PromptBundle } from "../../prompt/types"
 
 export type PiRunResult =
   | { status: "completed"; output: string; result?: SubagentResult }
@@ -23,35 +23,46 @@ export type PiRunResult =
 
 export type RuntimeCompactionTrigger = "manual" | "automatic" | "reactive"
 
+/**
+ * Inputs the Pi runtime needs from the caller. The runtime composition is
+ * authoritative; legacy fields (fallbackModel, promptSections, allowedTools,
+ * toolCatalog, resolveModel) are removed because they are all owned by the
+ * composition snapshot.
+ */
 export interface PiRuntimeRequest {
   threadID: string
   turnID: string
   agentID: string
   sessionID: string
-  profile?: SubagentProfile
-  content: string
+  /** Authoritative turn composition with frozen model/permissions/workspace/tools/prompt. */
+  composition: BoundRuntimeComposition
+  /** Task mode carried alongside the composition; orchestrator knows it from the turn input. */
   taskMode: TaskMode
-  permissionConfig: PermissionConfig
-  signal: AbortSignal
+  /** Profile carried alongside the composition; orchestrator knows it from the agent. */
+  profile: SubagentProfile
+  /** User-visible message body. May include attachments. */
+  content: string
+  /** Workspace forwarded to the harness tool context. Sourced from the composition. */
   workspace: WorkspaceService
+  /** Live adapters rebound from the frozen composition; never independently derived here. */
   defaultCwd?: string
-  model: Model<any>
+  permissionConfig: PermissionConfig
   policyModel: ModelRef
-  thinkingLevel?: ThinkingLevel
   exposedTools: readonly string[]
-  promptSections: readonly PromptSection[]
-  attachments?: Array<{ kind: "text"; name: string; text: string } | { kind: "image"; name: string; mediaType: string; base64: string }>
   allowedTools?: readonly string[]
   toolCatalog?: ToolCatalog
-  onPromptComposed?: (bundle: PromptBundle) => void | Promise<void>
+  /** AbortSignal for the runtime. */
+  signal: AbortSignal
+  /** Optional attachments; carried alongside the user message. */
+  attachments?: Array<{ kind: "text"; name: string; text: string } | { kind: "image"; name: string; mediaType: string; base64: string }>
   preapprovedToolCalls?: ReadonlyMap<string, string | undefined>
   canAutoCompact?: () => boolean | Promise<boolean>
+  onPromptComposed?: (bundle: PromptBundle) => void | Promise<void>
 }
 
 export interface PiHarnessDependencies {
   models: Models
   session: Session
-  resources?: AgentHarnessResources
 }
 
 export interface PiHarnessFactory {
@@ -66,11 +77,6 @@ export interface PiRuntimeEventContext {
 
 export type PiAssistantMessagePlacement = "process" | "result"
 
-/**
- * Base64-encoded artifact content produced by a tool result. The sink persists
- * the blob under a controlled store and only the artifact ID travels in items
- * and events.
- */
 export type PiToolArtifactInput = {
   artifactId: string
   name: string
@@ -108,7 +114,6 @@ export interface PiRuntimeEventSink {
     provider: string
     api: string
     model: string
-    /** Final assistant message entry in the private Pi session tree. */
     sessionEntryID?: string
     usage: {
       input: number
@@ -117,7 +122,6 @@ export interface PiRuntimeEventSink {
       cacheWrite: number
       reasoning: number
     }
-    /** Safe completion metadata projected from the provider response. */
     completion?: PiToolCompletionMetadata
   }): void | Promise<void>
   textDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
@@ -172,7 +176,7 @@ export interface PiLifecycleCallbacks {
   }>
   requestUserInput?(input: RequestUserInput & { question?: string; options?: string[] }, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   requestPermissions?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
-  updatePlan?(input: ExecutionPlanInput, toolCallID: string, signal?: AbortSignal): Promise<unknown>
+  updatePlan?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   spawnAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   waitAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   sendAgent?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
@@ -188,7 +192,7 @@ export interface PiAgentRuntimeOptions {
   beforeToolCall?: (request: PiRuntimeRequest, input: { toolCallID: string; tool: string; input: Record<string, unknown> }) => Promise<{ block?: boolean; reason?: string; pause?: boolean } | undefined>
   compaction?: {
     shouldAutoCompact(threadID: string): boolean | Promise<boolean>
-    recordFailure(threadID: string, trigger: RuntimeCompactionTrigger): void | Promise<void>
+    recordFailure(threadID: string, trigger: RuntimeCompactionTrigger): Promise<void> | void
   }
 }
 
@@ -207,4 +211,9 @@ export interface PiAgentRuntimeApi {
   dispose(): Promise<void>
 }
 
-export type PiTool = AgentTool<any, unknown>
+export interface PiRuntimeModelRef {
+  ref: ModelRef
+  model: Model<any>
+}
+
+export type PiTool = AgentHarnessTool<any>

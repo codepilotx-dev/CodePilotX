@@ -119,6 +119,7 @@ import { ThreadMessageForkRepository } from "./session/fork/ThreadMessageForkRep
 import { ThreadMessageForkService } from "./session/fork/ThreadMessageForkService";
 import { SideChatService } from "./session/side-chat/SideChatService";
 import { SideChatEnvironmentCleanup } from "./session/side-chat/SideChatEnvironmentCleanup";
+import { RuntimeCompositionService } from "./runtime-composition/service";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -711,6 +712,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       config.storage.workspacesRoot,
     );
     const resumeCheckpoints = new ResumeCheckpointResolver(db, approvals);
+    const runtimeCompositions = new RuntimeCompositionService({ db });
     const subagents = new SubagentService(
       db,
       hub,
@@ -732,6 +734,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       resumeCheckpoints,
       false,
       localContextPaths,
+      runtimeCompositions,
     );
     resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID));
     const threads = new ThreadService(
@@ -760,6 +763,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       false,
       localContextPaths,
       (threadId) => taskboard.admitPrimaryThread(threadId),
+      runtimeCompositions,
     );
     const taskboardStart = new TaskboardStartService(
       db,

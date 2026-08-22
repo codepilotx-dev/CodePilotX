@@ -15,6 +15,7 @@ import { taskboardRepository } from "../repositories/taskboard-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
 import { ArtifactRepository } from "../repositories/artifact-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
+import { RuntimeCompositionRepository } from "../repositories/runtime-composition-repository"
 import { configureConnection } from "./connection"
 import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
 import { HISTORY_APPLICATION_ID } from "./schema"
@@ -72,6 +73,7 @@ export class AgentDatabase extends RepositoryDatabase {
       context: new ContextRepository(this),
       turnPatches: new TurnPatchRepository(this),
       taskboard: taskboardRepository(this),
+      runtimeCompositions: new RuntimeCompositionRepository(this),
     }
     this.artifacts = new ArtifactRepository(sqlite)
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)

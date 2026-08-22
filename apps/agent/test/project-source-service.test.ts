@@ -79,6 +79,7 @@ describe("ProjectSourceService", () => {
       { sourceId: "source-image" },
       undefined,
       undefined,
+      undefined,
     )
     expect(result.content).toContainEqual({
       type: "image",

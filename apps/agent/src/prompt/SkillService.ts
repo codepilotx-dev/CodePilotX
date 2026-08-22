@@ -312,7 +312,7 @@ export class SkillService {
         if (!contained(canonicalSkillsRoot, directory)) {
           if (trustedSkillsRoots.some(root => contained(root, directory)))
             continue;
-          continue;
+          throw new Error("Skill 目录逃出 Skills 根");
         }
         const documentPath = join(directory, "SKILL.md");
         let canonicalDocument: string;

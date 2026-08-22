@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { InMemorySessionRepo } from "@codepilotx/pi-agent-core"
+import { createTurnComposition, InMemorySessionRepo } from "@codepilotx/pi-agent-core"
 import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import {
   createModels,
@@ -14,6 +14,7 @@ import type {
   PiRuntimeRequest,
   RuntimeCompactionTrigger,
 } from "../src/orchestration/pi/types"
+import { PromptComposer } from "../src/prompt"
 
 const providerError = () => fauxAssistantMessage([], {
   stopReason: "error",
@@ -44,6 +45,53 @@ async function createRuntime(input: {
   const session = await repo.create({ id: sessionID })
   const compacted: RuntimeCompactionTrigger[] = []
   const failures: RuntimeCompactionTrigger[] = []
+  const model = faux.getModel()
+  const prompt = new PromptComposer().compose({
+    threadID: "thread-runtime-compaction",
+    mode: "chat",
+    profile: "default",
+    exposedTools: [],
+    sections: [{
+      id: "test-system",
+      role: "system",
+      cache: "global-stable",
+      authority: "builtin",
+      source: { type: "builtin", name: "test" },
+      content: "runtime compaction test",
+    }],
+  })
+  const harness = createTurnComposition({
+    compositionID: "rc:turn-runtime-compaction",
+    compositionHash: "runtime-compaction-hash",
+    model,
+    thinkingLevel: "off",
+    systemPrompt: prompt.instructions,
+    tools: [],
+    initialActiveNames: [],
+    deferredAllowedNames: [],
+    resources: {},
+    toolContext: undefined,
+    streamOptions: {},
+  })
+  const composition = {
+    plan: { snapshot: {
+      version: 1,
+      identity: { id: "rc:turn-runtime-compaction", version: 1, hash: "runtime-compaction-hash" },
+      model: { providerID: model.provider, id: model.id, variant: null, contextWindow: model.contextWindow, capabilities: { tools: true, input: ["text"], output: [] } },
+      workspace: { kind: "project", cwd: ".", roots: ["."], outputDirectory: null, instructionSources: [] },
+      permissions: DEFAULT_PERMISSION_CONFIG,
+      skills: { skills: [] },
+      mcp: { workspaceKey: ".", bindingHash: "mcp", serverInstructions: [] },
+      tools: { eager: [], deferred: [], exposed: [] },
+      prompt,
+      context: { threadsActiveTurnID: "thread-runtime-compaction", sessionEntryID: null },
+      capabilities: [],
+      hashes: { modelHash: "model", permissionHash: "permission", workspaceHash: "workspace", skillsHash: "skills", mcpHash: "mcp", toolsHash: "tools", promptHash: "prompt", contextHash: "context", overall: "runtime-compaction-hash" },
+    } },
+    harness,
+    bindings: { model, modelRef: { providerID: "faux", id: "runtime-compaction" }, workspace: {} as never, toolCatalog: {} as never, toolContext: undefined, mcpLease: null, skills: { list: () => [], read: async () => undefined }, release: async () => undefined },
+    release: async () => undefined,
+  } as unknown as PiRuntimeRequest["composition"]
   const runtime = new PiAgentRuntime({
     harnessFactory: {
       resolve: async () => ({ models, session }),
@@ -70,20 +118,13 @@ async function createRuntime(input: {
     sessionID,
     content: "original runtime request",
     taskMode: "chat",
+    profile: "default",
+    composition,
     permissionConfig: DEFAULT_PERMISSION_CONFIG,
     signal: new AbortController().signal,
     workspace: {} as never,
-    model: faux.getModel(),
     policyModel: { providerID: "faux", id: "runtime-compaction" } as never,
     exposedTools: [],
-    promptSections: [{
-      id: "test-system",
-      role: "system",
-      cache: "global-stable",
-      authority: "builtin",
-      source: { type: "builtin", name: "test" },
-      content: "runtime compaction test",
-    }],
   }
   return { runtime, request, compacted, failures }
 }

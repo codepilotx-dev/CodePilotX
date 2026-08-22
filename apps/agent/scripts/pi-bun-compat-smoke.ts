@@ -1,5 +1,6 @@
 import {
   AgentHarness,
+  createTurnComposition,
   InMemorySessionRepo,
   type AgentTool,
 } from "@codepilotx/pi-agent-core"
@@ -27,13 +28,25 @@ async function createHarness(options?: {
   const models = createModels()
   models.setProvider(faux.provider)
   const repo = new InMemorySessionRepo()
-  const session = await repo.create({ id: crypto.randomUUID() })
+  const sessionID = crypto.randomUUID()
+  const session = await repo.create({ id: sessionID })
+  const tools = options?.tools ?? []
+  const composition = createTurnComposition({
+    compositionID: `smoke:${sessionID}`,
+    model: faux.getModel(),
+    thinkingLevel: "off",
+    systemPrompt: "Bun compatibility smoke",
+    tools,
+    initialActiveNames: tools.map((tool) => tool.name),
+    deferredAllowedNames: [],
+    resources: {},
+    toolContext: undefined,
+    streamOptions: {},
+  })
   const harness = new AgentHarness({
     session,
     models,
-    model: faux.getModel(),
-    ...(options?.tools ? { tools: options.tools } : {}),
-    systemPrompt: "Bun compatibility smoke",
+    composition,
   })
   return { faux, harness, session }
 }

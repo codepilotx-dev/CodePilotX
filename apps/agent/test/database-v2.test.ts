@@ -800,4 +800,46 @@ describe("数据库兼容与迁移", () => {
 
     reopened.close()
   })
+
+  test("v33 到 v34 只新增 immutable runtime composition 表和索引", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v33-runtime-composition-"))
+    paths.push(root)
+    const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
+    const initial = new AgentDatabase(databasePaths)
+    initial.close()
+    const legacy = new Database(databasePaths.historyPath)
+    legacy.exec(`
+      DROP TABLE runtime_composition_plans;
+      PRAGMA user_version = 33;
+    `)
+    legacy.close()
+
+    const migrated = new AgentDatabase(databasePaths)
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 34 })
+    expect(migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'").get()).toEqual({ name: "runtime_composition_plans" })
+    expect(migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'runtime_composition_plans_agent'").get()).toEqual({ name: "runtime_composition_plans_agent" })
+    migrated.close()
+  })
+
+  test("高版本 history 缺 runtime composition 表时不迁移也不创建", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-future-runtime-composition-"))
+    paths.push(root)
+    const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
+    const initial = new AgentDatabase(databasePaths)
+    initial.close()
+    const future = new Database(databasePaths.historyPath)
+    future.exec(`
+      DROP TABLE runtime_composition_plans;
+      CREATE TABLE future_runtime_data (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+      INSERT INTO future_runtime_data VALUES ('future:1', 'keep');
+      PRAGMA user_version = ${SCHEMA_VERSION + 1};
+    `)
+    future.close()
+
+    const reopened = new AgentDatabase(databasePaths)
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION + 1 })
+    expect(reopened.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'").get()).toBeNull()
+    expect(reopened.sqlite.query("SELECT payload FROM future_runtime_data WHERE id = 'future:1'").get()).toEqual({ payload: "keep" })
+    reopened.close()
+  })
 })

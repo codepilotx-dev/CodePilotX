@@ -7,6 +7,7 @@ import {
 } from "@earendil-works/pi-ai";
 import {
   AgentHarness,
+  createTurnComposition,
   SessionError,
   type Session,
   type AgentHarnessEvent,
@@ -25,11 +26,10 @@ import {
 import type { AgentDatabase } from "../storage/database/AgentDatabase";
 import type { EventHub } from "../storage/events/EventHub";
 import type { ToolExecutor } from "../tool/ToolExecutor";
-import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan";
+import { PI_LIFECYCLE_TOOLS } from "../tool/ToolExposurePlan";
 import { AgentError, type Item, type SubagentResult } from "../domain";
 import { createLiveEvent } from "../storage/events/EventPublisher";
 import { secretScrubber } from "../security/SecretScrubber";
-import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
 import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
 import { parseApplyPatch } from "../tool/ApplyPatch/parseApplyPatch";
 import { TurnPiBoundaryRepository } from "../storage/repositories/turn-pi-boundary-repository";
@@ -332,6 +332,8 @@ export class PiOrchestratorAdapter {
     this.repo = new SqlitePiSessionRepo(options.db);
     this.turnPiBoundaries = new TurnPiBoundaryRepository(options.db);
   }
+
+  toolCatalog() { return this.options.toolExecutor.catalog(); }
 
   private async publish(event: ReturnType<AgentDatabase["insertEvent"]>) {
     await Effect.runPromise(this.options.hub.publish(event));
@@ -822,20 +824,13 @@ export class PiOrchestratorAdapter {
   async run(request: AgentRuntimeRequest) {
     // Serialized OpenAI RunState cannot be replayed safely. Continue only from
     // durable Pi session context; side effects remain protected by toolCallID.
-    const resolved = await request.resolveModel(request.fallbackModel);
-    const effectivePermissionConfig = resolveEffectivePermissionConfig(
-      request.taskMode,
-      request.permissionConfig,
-    );
-    const effectivePromptSections = (request.promptSections ?? []).map((section) =>
-      section.id === "permission.resolved"
-        ? {
-            ...section,
-            content: `Resolved permission config: ${JSON.stringify(effectivePermissionConfig)}.`,
-          }
-        : section
-    );
-    const model = resolved.model as unknown as PiModel<Api>;
+    const snapshot = request.composition.plan.snapshot;
+    const bindings = request.composition.bindings;
+    const effectivePermissionConfig = snapshot.permissions;
+    const model = bindings.model as unknown as PiModel<Api>;
+    const workspace = bindings.workspace;
+    const defaultCwd = bindings.defaultCwd;
+    const policyModel = bindings.modelRef;
     let session;
     try {
       session = await this.repo.openForThread(request.sessionID, request.threadID);
@@ -909,10 +904,10 @@ export class PiOrchestratorAdapter {
             profile: request.profile ?? "main",
             taskMode: request.taskMode,
             signal: request.signal,
-            workspace: request.workspace,
-            ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+            workspace,
+            ...(defaultCwd ? { defaultCwd } : {}),
             permissionConfig: effectivePermissionConfig,
-            model: request.fallbackModel,
+            model: policyModel,
             taskSummary: request.content,
             toolCallID: request.resume.toolCallID,
           });
@@ -942,10 +937,10 @@ export class PiOrchestratorAdapter {
               profile: request.profile ?? "main",
               taskMode: request.taskMode,
               signal: request.signal,
-              workspace: request.workspace,
-              ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+              workspace,
+              ...(defaultCwd ? { defaultCwd } : {}),
               permissionConfig: effectivePermissionConfig,
-              model: request.fallbackModel,
+              model: policyModel,
               taskSummary: request.content,
               toolCallID: request.resume.toolCallID,
               approvedToolCallID: request.resume.toolCallID,
@@ -998,10 +993,7 @@ export class PiOrchestratorAdapter {
     }
     const previousRuntime = this.active.get(request.threadID);
     if (previousRuntime) await previousRuntime.dispose();
-    const exposedTools = this.toolExposure({
-      ...request,
-      permissionConfig: effectivePermissionConfig,
-    }).exposed;
+    const exposedTools = snapshot.tools.exposed;
     let paused = false;
     const preapprovedToolCalls = new Map<string, string | undefined>();
     const pause = async (approval: PendingApproval) => {
@@ -1015,10 +1007,10 @@ export class PiOrchestratorAdapter {
       profile: request.profile ?? "main",
       taskMode: request.taskMode,
       signal: request.signal,
-      workspace: request.workspace,
-      ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+      workspace,
+      ...(defaultCwd ? { defaultCwd } : {}),
       permissionConfig: effectivePermissionConfig,
-      model: request.fallbackModel,
+      model: policyModel,
       taskSummary: request.content,
     };
     const runtime = new PiAgentRuntime({
@@ -1072,8 +1064,8 @@ export class PiOrchestratorAdapter {
       },
       lifecycle: {
         skillList: async () =>
-          request.skillService
-            ?.list()
+          bindings.skills
+            .list()
             .map(({ name, description, origin, format, hash }) => ({
               name,
               description,
@@ -1082,9 +1074,7 @@ export class PiOrchestratorAdapter {
               hash,
             })) ?? [],
         skillRead: async (input) => {
-          if (!request.skillService)
-            throw new Error("当前 turn 未启用 SkillService");
-          return request.skillService.read(String(input.name));
+          return bindings.skills.read(String(input.name));
         },
         projectSourceList: async () => {
           if (!request.projectSources)
@@ -1163,7 +1153,7 @@ export class PiOrchestratorAdapter {
           if (request.taskMode !== "chat" || (request.profile ?? "main") !== "main")
             throw new Error("update_plan 仅允许 Chat 模式的主 Agent 使用");
           if (!request.updatePlan) throw new Error("当前 turn 未配置执行计划服务");
-          return request.updatePlan(input, toolCallID);
+          return request.updatePlan(input as Parameters<NonNullable<AgentRuntimeRequest["updatePlan"]>>[0], toolCallID);
         },
         spawnAgents: async (input) => {
           const agents = Array.isArray(input.agents) ? input.agents : [];
@@ -1225,26 +1215,20 @@ export class PiOrchestratorAdapter {
         turnID: request.turnID,
         agentID: request.agentID,
         sessionID: request.sessionID,
-        ...(request.profile ? { profile: request.profile } : {}),
+        profile: request.profile ?? "main",
         content: resumedContent,
         taskMode: request.taskMode,
+        composition: request.composition,
         permissionConfig: effectivePermissionConfig,
         signal: request.signal,
-        workspace: request.workspace,
-        ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
-        model,
-        policyModel: request.fallbackModel,
-        ...(resolved.ref.variant
-          ? { thinkingLevel: String(resolved.ref.variant) as import("@codepilotx/pi-agent-core").ThinkingLevel }
-          : {}),
+        workspace,
+        ...(defaultCwd ? { defaultCwd } : {}),
+        policyModel,
         exposedTools,
-        promptSections: effectivePromptSections,
         ...(request.attachments ? { attachments: request.attachments } : {}),
         preapprovedToolCalls,
-        ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
-        ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
-        onPromptComposed: async (bundle) =>
-          request.onPromptComposed?.(bundle, { budgetText: bundle.instructions }),
+        allowedTools: snapshot.tools.exposed,
+        toolCatalog: bindings.toolCatalog,
         canAutoCompact: () => !paused && !request.signal.aborted,
       });
     } catch (cause) {
@@ -1279,24 +1263,6 @@ export class PiOrchestratorAdapter {
     return paused
       ? { status: "paused" as const, output: result.output }
       : result;
-  }
-
-  toolExposure(request: AgentRuntimeRequest | (ToolExposureInput & { permissionConfig?: never })) {
-    const runtime = request as AgentRuntimeRequest;
-    return this.options.toolExecutor.exposurePlan({
-      taskMode: request.taskMode,
-      sandboxMode: request.taskMode === "plan"
-        ? "read-only"
-        : "permissionConfig" in request
-          ? request.permissionConfig.sandboxMode
-          : request.sandboxMode,
-      ...(request.profile ? { profile: request.profile } : {}),
-      ...(runtime.skillService ? { hasSkillService: true } : "hasSkillService" in request && request.hasSkillService ? { hasSkillService: true } : {}),
-      ...(runtime.projectSources ? { hasProjectSources: true } : "hasProjectSources" in request && request.hasProjectSources ? { hasProjectSources: true } : {}),
-      ...(runtime.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : "defaultModeRequestUserInput" in request && request.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
-      ...(request.delegationEnabled === false ? { delegationEnabled: false } : {}),
-      ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
-    }, runtime.toolCatalog);
   }
 
   async compact(threadID: string, instructions?: string, promptText?: string) {
@@ -1334,9 +1300,18 @@ export class PiOrchestratorAdapter {
     const harness = new AgentHarness({
       session,
       models: this.options.models,
-      model,
-      tools: [],
-      systemPrompt: "",
+      composition: createTurnComposition({
+        compositionID: `manual-compaction:${row.session_id}`,
+        model,
+        thinkingLevel: "off",
+        systemPrompt: "",
+        tools: [],
+        initialActiveNames: [],
+        deferredAllowedNames: [],
+        resources: {},
+        toolContext: undefined,
+        streamOptions: {},
+      }),
     });
     const beforeCount = (await session.getEntries()).length;
     const result = await harness.compact(instructions);

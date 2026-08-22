@@ -34,10 +34,11 @@ import type {
 	AgentHarnessResources,
 	AgentHarnessStreamOptions,
 	AgentHarnessStreamOptionsPatch,
-	AgentHarnessSystemPrompt,
 	AgentHarnessTool,
-	AgentHarnessToolContextSource,
 	CompactResult,
+	HarnessStepContext,
+	HarnessTurnComposition,
+	HarnessTurnContext,
 	NavigateTreeResult,
 	PendingSessionWrite,
 	PromptTemplate,
@@ -46,6 +47,7 @@ import type {
 } from "./types.ts";
 import { AgentHarnessError, BranchSummaryError, CompactionError, SessionError, toError } from "./types.ts";
 import type { DeferredToolCatalog } from "./deferred-tool-catalog.ts";
+import { createTurnComposition } from "./turn-composition.ts";
 
 function createUserMessage(text: string, images?: ImageContent[]): UserMessage {
 	const content: Array<{ type: "text"; text: string } | ImageContent> = [{ type: "text", text }];
@@ -181,15 +183,22 @@ export class AgentHarness<
 	private runAbortController?: AbortController;
 	private runPromise?: Promise<void>;
 	private pendingSessionWrites: PendingSessionWrite[] = [];
+	/** Composition that this turn was constructed from; immutable. */
+	private readonly composition: HarnessTurnComposition<TContext, TSkill, TPromptTemplate, TTool>;
 	private model: Model<any>;
 	private thinkingLevel: ThinkingLevel;
-	private systemPrompt: AgentHarnessSystemPrompt<TContext, TSkill, TPromptTemplate, TTool> | undefined;
-	private toolContext: AgentHarnessToolContextSource<TContext> | undefined;
+	private systemPrompt: string;
 	private streamOptions: AgentHarnessStreamOptions;
 	private retry: RetryPolicy | undefined;
 	private resources: AgentHarnessResources<TSkill, TPromptTemplate>;
+	/** Tools registered with this turn. New tools added after construction stay out. */
 	private tools = new Map<string, TTool>();
+	/** Active tool names live within the composition envelope. */
 	private activeToolNames: string[];
+	/** Names allowed to be activated mid-turn (subset of registered or deferred). */
+	private readonly deferredAllowedNames: ReadonlySet<string>;
+	/** Names that are accepted as the composition's initial active set. */
+	private readonly initialActiveNames: ReadonlySet<string>;
 	private readonly deferredToolCatalog?: DeferredToolCatalog<TTool>;
 	private toolExecution: import("../types.ts").ToolExecutionMode;
 	private restoredActiveTools = false;
@@ -201,38 +210,81 @@ export class AgentHarness<
 	private nextTurnQueue: AgentMessage[] = [];
 	private readonly queuedInputIds = new WeakMap<AgentMessage, string>();
 	private handlers = new Map<string, Set<AgentHarnessHandler>>();
+	/** Monotonic step counter for provider sampling within an active turn. */
+	private stepCounter = 0;
 
 	constructor(options: AgentHarnessOptions<TContext, TSkill, TPromptTemplate, TTool>) {
+		const composition = options.composition;
+		if (!composition) {
+			throw new AgentHarnessError("invalid_argument", "AgentHarness requires a composition envelope");
+		}
+		this.composition = composition;
 		this.session = options.session;
 		this.models = options.models;
-		this.resources = options.resources ?? {};
-		this.streamOptions = cloneStreamOptions(options.streamOptions);
+		this.resources = {
+			skills: composition.resources.skills?.slice(),
+			promptTemplates: composition.resources.promptTemplates?.slice(),
+		};
 		this.retry = options.retry;
-		this.systemPrompt = options.systemPrompt;
-		this.toolContext = options.toolContext;
 		this.deferredToolCatalog = options.deferredToolCatalog;
 		this.toolExecution = options.toolExecution ?? "parallel";
 		this.validateUniqueNames(
-			(options.tools ?? []).map((tool) => tool.name),
+			composition.tools.map((tool) => tool.name),
 			"Duplicate tool name(s)",
 		);
-		for (const tool of options.tools ?? []) {
+		for (const tool of composition.tools) {
 			this.tools.set(tool.name, tool);
 		}
-		this.model = options.model;
-		this.thinkingLevel = options.thinkingLevel ?? "off";
-		this.activeToolNames = options.activeToolNames
-			? [...options.activeToolNames]
-			: (options.tools ?? []).map((tool) => tool.name);
+		this.model = composition.model;
+		this.thinkingLevel = composition.thinkingLevel;
+		this.systemPrompt = composition.systemPrompt;
+		const policy = composition.toolPolicy;
+		this.initialActiveNames = new Set(policy.initialActiveNames);
+		this.deferredAllowedNames = new Set(policy.deferredAllowedNames);
+		this.activeToolNames = [...policy.initialActiveNames];
 		this.validateUniqueNames(this.activeToolNames, "Duplicate active tool name(s)");
-		const unknownInitialTools = this.activeToolNames.filter(
-			(name) => !this.tools.has(name) && !this.deferredToolCatalog?.has(name),
-		);
-		if (unknownInitialTools.length > 0) {
-			throw new AgentHarnessError("invalid_argument", `Unknown tool(s): ${unknownInitialTools.join(", ")}`);
+		for (const name of this.deferredAllowedNames) {
+			if (!this.deferredToolCatalog?.has(name)) {
+				throw new AgentHarnessError("invalid_argument", `Unknown deferred tool(s): ${name}`);
+			}
 		}
+		this.validateActiveNamesAgainstPolicy();
+		this.streamOptions = cloneStreamOptions(composition.streamOptions);
 		this.steeringQueueMode = options.steeringMode ?? "one-at-a-time";
 		this.followUpQueueMode = options.followUpMode ?? "one-at-a-time";
+	}
+
+	private validateActiveNamesAgainstPolicy(): void {
+		const registered = new Set(this.composition.toolPolicy.registeredNames);
+		for (const name of this.activeToolNames) {
+			if (!registered.has(name)) {
+				throw new AgentHarnessError(
+					"invalid_argument",
+					`Active tool ${name} is outside the composition envelope`,
+				);
+			}
+		}
+	}
+
+	getComposition(): HarnessTurnComposition<TContext, TSkill, TPromptTemplate, TTool> {
+		return this.composition;
+	}
+
+	getTurnContext(): HarnessTurnContext {
+		const context = this.composition.toolContext;
+		const registeredTools = this.composition.tools.map((tool) => this.bindToolContext(tool, context));
+		const activeNames = new Set(this.activeToolNames);
+		return {
+			compositionID: this.composition.identity.id,
+			compositionHash: this.composition.identity.hash,
+			model: this.model,
+			thinkingLevel: this.thinkingLevel,
+			systemPrompt: this.systemPrompt,
+			registeredTools,
+			activeTools: registeredTools.filter((tool) => activeNames.has(tool.name)),
+			deferredAllowedNames: [...this.composition.toolPolicy.deferredAllowedNames],
+			streamOptions: cloneStreamOptions(this.streamOptions),
+		};
 	}
 
 	private getHandlers(type: string): Set<AgentHarnessHandler> | undefined {
@@ -294,6 +346,7 @@ export class AgentHarness<
 	): Promise<AgentHarnessStreamOptions> {
 		const handlers = this.getHandlers("before_provider_request");
 		let current = cloneStreamOptions(streamOptions);
+		const stepIndex = this.stepCounter++;
 		if (!handlers || handlers.size === 0) return current;
 		for (const handler of handlers) {
 			try {
@@ -302,6 +355,9 @@ export class AgentHarness<
 					model,
 					sessionId,
 					streamOptions: cloneStreamOptions(current),
+					compositionID: this.composition.identity.id,
+					compositionHash: this.composition.identity.hash,
+					stepIndex,
 				});
 				if (result?.streamOptions) {
 					current = applyStreamOptionsPatch(current, result.streamOptions);
@@ -351,10 +407,7 @@ export class AgentHarness<
 	}
 
 	private async resolveToolContext(): Promise<TContext> {
-		if (typeof this.toolContext === "function") {
-			return await (this.toolContext as () => TContext | Promise<TContext>)();
-		}
-		return this.toolContext as TContext;
+		return this.composition.toolContext;
 	}
 
 	private bindToolContext(tool: TTool, context: TContext): AgentTool {
@@ -367,14 +420,24 @@ export class AgentHarness<
 	private async createTurnState(): Promise<AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>> {
 		const context = await this.session.buildContext();
 		if (!this.restoredActiveTools) {
-			const restoredNames = context.activeToolNames ?? this.activeToolNames;
+			const sessionNames = context.activeToolNames;
+			const restoredNames = sessionNames ?? this.activeToolNames;
+			const outsideEnvelope = restoredNames.filter(
+				(name) => !this.tools.has(name) && !this.deferredAllowedNames.has(name),
+			);
+			if (outsideEnvelope.length > 0) {
+				throw new AgentHarnessError(
+					"invalid_state",
+					`Session active tools fall outside the composition envelope: ${outsideEnvelope.join(", ")}`,
+				);
+			}
 			await this.loadDeferredTools(restoredNames);
 			this.validateToolNames(restoredNames);
 			const previousToolNames = [...this.tools.keys()];
 			const previousActiveToolNames = [...this.activeToolNames];
 			this.activeToolNames = [...restoredNames];
 			this.restoredActiveTools = true;
-			if (context.activeToolNames) {
+			if (sessionNames && sessionNames.length > 0) {
 				await this.emitOwn({
 					type: "tools_update",
 					toolNames: [...this.tools.keys()],
@@ -392,18 +455,7 @@ export class AgentHarness<
 		const activeTools = this.activeToolNames
 			.map((name) => this.tools.get(name))
 			.filter((tool): tool is TTool => tool !== undefined);
-		let systemPrompt = "You are a helpful assistant.";
-		if (typeof this.systemPrompt === "string") {
-			systemPrompt = this.systemPrompt;
-		} else if (this.systemPrompt) {
-			systemPrompt = await this.systemPrompt({
-				session: this.session,
-				model: this.model,
-				thinkingLevel: this.thinkingLevel,
-				activeTools,
-				resources,
-			});
-		}
+		const systemPrompt = this.systemPrompt;
 		return {
 			messages: context.messages,
 			resources,
@@ -420,10 +472,9 @@ export class AgentHarness<
 
 	private createContext(
 		turnState: AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>,
-		systemPrompt?: string,
 	): AgentContext {
 		return {
-			systemPrompt: systemPrompt ?? turnState.systemPrompt,
+			systemPrompt: turnState.systemPrompt,
 			messages: turnState.messages.slice(),
 			tools: turnState.activeTools.map((tool) => this.bindToolContext(tool, turnState.toolContext)),
 		};
@@ -676,6 +727,12 @@ export class AgentHarness<
 			resources: turnState.resources,
 		});
 		if (beforeResult?.messages) messages = [...messages, ...beforeResult.messages];
+		if (beforeResult?.systemPrompt && beforeResult.systemPrompt !== turnState.systemPrompt) {
+			throw new AgentHarnessError(
+				"hook",
+				"before_agent_start must not replace the frozen system prompt",
+			);
+		}
 
 		const abortController = new AbortController();
 		const getTurnState = () => activeTurnState;
@@ -683,11 +740,12 @@ export class AgentHarness<
 			activeTurnState = nextTurnState;
 		};
 		this.runAbortController = abortController;
+		this.stepCounter = 0;
 		const runResultPromise = (async () => {
 			try {
 				return await runAgentLoop(
 					messages,
-					this.createContext(turnState, beforeResult?.systemPrompt),
+					this.createContext(turnState),
 					this.createLoopConfig(getTurnState, setTurnState),
 					(event) => this.handleAgentEvent(event, abortController.signal),
 					abortController.signal,
@@ -816,7 +874,8 @@ export class AgentHarness<
 		if (this.phase !== "idle") throw new AgentHarnessError("busy", "compact() requires idle harness");
 		this.phase = "compaction";
 		try {
-			const model = this.model;
+			const composition = this.createCompactionComposition();
+			const model = composition.model;
 			if (!model) throw new AgentHarnessError("invalid_state", "No model set for compaction");
 			const branchEntries = await this.session.getBranch();
 			const preparationResult = prepareCompaction(branchEntries, DEFAULT_COMPACTION_SETTINGS);
@@ -840,7 +899,7 @@ export class AgentHarness<
 						model,
 						customInstructions,
 						undefined,
-						this.thinkingLevel,
+						composition.thinkingLevel,
 						this.retry,
 						this.retryCallbacks("compaction"),
 					);
@@ -865,6 +924,27 @@ export class AgentHarness<
 		} finally {
 			this.phase = "idle";
 		}
+	}
+
+	/** Minimal composition used by manual compaction. */
+	createCompactionComposition(): HarnessTurnComposition<
+		TContext,
+		TSkill,
+		TPromptTemplate,
+		TTool
+	> {
+		return createTurnComposition({
+			compositionID: `${this.composition.identity.id}:compaction`,
+			model: this.model,
+			thinkingLevel: this.thinkingLevel,
+			systemPrompt: "",
+			tools: [],
+			initialActiveNames: [],
+			deferredAllowedNames: [],
+			resources: {},
+			toolContext: this.composition.toolContext,
+			streamOptions: this.streamOptions,
+		});
 	}
 
 	async navigateTree(
@@ -970,11 +1050,13 @@ export class AgentHarness<
 	async setModel(model: Model<any>): Promise<void> {
 		try {
 			const previousModel = this.model;
-			if (this.phase === "idle") {
-				await this.session.appendModelChange(model.provider, model.id);
-			} else {
-				this.pendingSessionWrites.push({ type: "model_change", provider: model.provider, modelId: model.id });
+			if (this.phase !== "idle") {
+				throw new AgentHarnessError(
+					"invalid_state",
+					"Model cannot change inside an active turn composition",
+				);
 			}
+			await this.session.appendModelChange(model.provider, model.id);
 			this.model = model;
 			await this.emitOwn({ type: "model_update", model, previousModel, source: "set" });
 		} catch (error) {
@@ -989,11 +1071,13 @@ export class AgentHarness<
 	async setThinkingLevel(level: ThinkingLevel): Promise<void> {
 		try {
 			const previousLevel = this.thinkingLevel;
-			if (this.phase === "idle") {
-				await this.session.appendThinkingLevelChange(level);
-			} else {
-				this.pendingSessionWrites.push({ type: "thinking_level_change", thinkingLevel: level });
+			if (this.phase !== "idle") {
+				throw new AgentHarnessError(
+					"invalid_state",
+					"Thinking level cannot change inside an active turn composition",
+				);
 			}
+			await this.session.appendThinkingLevelChange(level);
 			this.thinkingLevel = level;
 			await this.emitOwn({ type: "thinking_level_update", level, previousLevel });
 		} catch (error) {
@@ -1007,16 +1091,36 @@ export class AgentHarness<
 
 	async setTools(tools: TTool[], activeToolNames?: string[]): Promise<void> {
 		try {
+			if (this.phase !== "idle") {
+				throw new AgentHarnessError("invalid_state", "Tools cannot change inside an active turn composition");
+			}
 			this.validateUniqueNames(
 				tools.map((tool) => tool.name),
 				"Duplicate tool name(s)",
 			);
+			const envelope = new Set(this.composition.toolPolicy.registeredNames);
+			for (const tool of tools) {
+				if (!envelope.has(tool.name)) {
+					throw new AgentHarnessError(
+						"invalid_argument",
+						`Tool ${tool.name} is outside the composition envelope`,
+					);
+				}
+			}
 			const nextTools = new Map(tools.map((tool) => [tool.name, tool]));
 			const nextActiveToolNames = activeToolNames ? [...activeToolNames] : this.activeToolNames;
 			const missing = nextActiveToolNames.filter((name) => !nextTools.has(name));
 			if (missing.length > 0) {
 				if (!this.deferredToolCatalog) throw new AgentHarnessError("invalid_argument", `Unknown tool(s): ${missing.join(", ")}`);
-				for (const tool of await this.deferredToolCatalog.activate(missing)) nextTools.set(tool.name, tool);
+				for (const tool of await this.deferredToolCatalog.activate(missing)) {
+					if (!envelope.has(tool.name) && !this.deferredAllowedNames.has(tool.name)) {
+						throw new AgentHarnessError(
+							"invalid_argument",
+							`Deferred tool ${tool.name} is outside the composition envelope`,
+						);
+					}
+					nextTools.set(tool.name, tool);
+				}
 			}
 			this.validateToolNames(nextActiveToolNames, nextTools);
 			const previousToolNames = [...this.tools.keys()];
@@ -1047,8 +1151,20 @@ export class AgentHarness<
 
 	async setActiveTools(toolNames: string[]): Promise<void> {
 		try {
+			if (this.phase !== "idle") {
+				throw new AgentHarnessError("invalid_state", "Active tools cannot change inside an active turn composition");
+			}
 			await this.loadDeferredTools(toolNames);
 			this.validateToolNames(toolNames);
+			const envelope = new Set(this.composition.toolPolicy.registeredNames);
+			for (const name of toolNames) {
+				if (!envelope.has(name) && !this.deferredAllowedNames.has(name)) {
+					throw new AgentHarnessError(
+						"invalid_argument",
+						`Active tool ${name} is outside the composition envelope`,
+					);
+				}
+			}
 			const previousToolNames = [...this.tools.keys()];
 			const previousActiveToolNames = [...this.activeToolNames];
 			if (this.phase === "idle") {
@@ -1072,6 +1188,15 @@ export class AgentHarness<
 
 	/** Resolve deferred tools by exact name and add them to the active set. */
 	async activateTools(toolNames: string[]): Promise<void> {
+		const allowed = this.deferredAllowedNames;
+		for (const name of toolNames) {
+			if (!allowed.has(name)) {
+				throw new AgentHarnessError(
+					"invalid_argument",
+					`Deferred tool ${name} is outside the composition envelope`,
+				);
+			}
+		}
 		const activation = this.activationQueue.then(async () => {
 			const nextActiveToolNames = [...this.activeToolNames];
 			let changed = false;
@@ -1082,7 +1207,24 @@ export class AgentHarness<
 				}
 			}
 			if (!changed) return;
-			await this.setActiveTools(nextActiveToolNames);
+			await this.loadDeferredTools(nextActiveToolNames);
+			this.validateToolNames(nextActiveToolNames);
+			const previousToolNames = [...this.tools.keys()];
+			const previousActiveToolNames = [...this.activeToolNames];
+			this.activeToolNames = nextActiveToolNames;
+			if (this.phase === "idle") {
+				await this.session.appendActiveToolsChange(nextActiveToolNames);
+			} else {
+				this.pendingSessionWrites.push({ type: "active_tools_change", activeToolNames: [...nextActiveToolNames] });
+			}
+			await this.emitOwn({
+				type: "tools_update",
+				toolNames: [...this.tools.keys()],
+				previousToolNames,
+				activeToolNames: [...this.activeToolNames],
+				previousActiveToolNames,
+				source: "set",
+			});
 		});
 		this.activationQueue = activation.catch(() => undefined);
 		await activation;

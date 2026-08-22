@@ -17,9 +17,15 @@ export type ArtifactsStorageCapabilities = {
   itemArtifactsTable: boolean
 }
 
+export type RuntimeCompositionStorageCapabilities = {
+  runtimeCompositionPlans: boolean
+}
+
 const cache = new WeakMap<Database, ThreadsStorageCapabilities>()
 
 const artifactsCache = new WeakMap<Database, ArtifactsStorageCapabilities>()
+
+const runtimeCompositionCache = new WeakMap<Database, RuntimeCompositionStorageCapabilities>()
 
 export function probeThreadsStorageCapabilities(
   sqlite: Database,
@@ -54,5 +60,26 @@ export function probeArtifactsStorageCapabilities(
     ),
   }
   artifactsCache.set(sqlite, capabilities)
+  return capabilities
+}
+
+/**
+ * Read-only probe for the additive `runtime_composition_plans` table. Older
+ * stores without the table fall back to ephemeral composition; the caller must
+ * not migrate data into the table or assume the schema exists.
+ */
+export function probeRuntimeCompositionStorageCapabilities(
+  sqlite: Database,
+): RuntimeCompositionStorageCapabilities {
+  const cached = runtimeCompositionCache.get(sqlite)
+  if (cached) return cached
+  const capabilities: RuntimeCompositionStorageCapabilities = {
+    runtimeCompositionPlans: Boolean(
+      sqlite.query(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'",
+      ).get(),
+    ),
+  }
+  runtimeCompositionCache.set(sqlite, capabilities)
   return capabilities
 }

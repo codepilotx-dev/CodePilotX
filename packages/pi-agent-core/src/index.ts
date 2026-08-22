@@ -39,6 +39,12 @@ export * from "./harness/session/session.ts";
 export * from "./harness/skills.ts";
 export * from "./harness/system-prompt.ts";
 export * from "./harness/tools/index.ts";
+export {
+	createCompositionIdentity,
+	createToolComposition,
+	createTurnComposition,
+	hashCompositionParts,
+} from "./harness/turn-composition.ts";
 // Harness
 export * from "./harness/types.ts";
 export * from "./harness/utils/shell-output.ts";
