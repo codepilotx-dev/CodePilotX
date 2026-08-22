@@ -35,7 +35,9 @@ export interface WindowManagerOptions {
   initialWindowState: DesktopWindowStateV1
   startupTheme: {
     variant: "light" | "dark"
-    theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent">
+    theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent"> & {
+      surfaceUnder: string
+    }
   }
   windowStateStore: WindowStateStore
 }
@@ -211,6 +213,24 @@ export class WindowManager {
     }
   }
 
+  updateTitleBarOverlayTheme(theme: { surfaceUnder: string; ink: string }): void {
+    const mainWindow = this.#mainWindow
+    if (
+      process.platform === "win32"
+      && mainWindow
+      && !mainWindow.isDestroyed()
+    ) {
+      try {
+        mainWindow.setTitleBarOverlay({
+          color: theme.surfaceUnder,
+          symbolColor: theme.ink,
+        })
+      } catch (error) {
+        this.#logger.warn("desktop.set-title-bar-overlay-failed", { error })
+      }
+    }
+  }
+
   #ensureMainWindow(): BrowserWindow {
     const existingWindow = this.#mainWindow
     if (existingWindow && !existingWindow.isDestroyed()) return existingWindow
@@ -220,7 +240,13 @@ export class WindowManager {
       minWidth: MAIN_WINDOW_MIN_WIDTH,
       minHeight: MAIN_WINDOW_MIN_HEIGHT,
       show: false,
-      frame: false,
+      titleBarStyle: "hidden",
+      titleBarOverlay: process.platform === "win32"
+        ? {
+            color: this.#options.startupTheme.theme.surfaceUnder,
+            symbolColor: this.#options.startupTheme.theme.ink,
+          }
+        : false,
       backgroundColor: this.#options.startupTheme.theme.surface,
       autoHideMenuBar: true,
       title: "CodePilotX",

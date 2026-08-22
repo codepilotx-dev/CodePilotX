@@ -1,11 +1,6 @@
 .desktop-main {
-  --elevation-stroke: 0 0 0 0.5px var(--cpx-sys-color-border-strong);
-  --elevation-prominent:
-    var(--elevation-stroke),
-    0 3px 7.5px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 4%, transparent),
-    0 0 20px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
   background: var(--cpx-comp-surface-canvas);
-  border-radius: 10px 0 0 0;
+  border-left: 1px solid var(--cpx-sys-color-border-subtle);
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -15,7 +10,6 @@
   justify-content: flex-start;
   width: 100%;
   position: relative;
-  box-shadow: var(--elevation-prominent);
 }
 
 .desktop-main-stage {
