@@ -118,6 +118,7 @@
 ### Fixed
 
 - [agent/desktop] 修复任务主会话提交计划等待确认时仍显示空闲的问题，使任务摘要正确提示需要处理且不改变任务工作流阶段。
+- [desktop/renderer] 修复任务详情内联切换阶段到受阻后取消或移动请求失败时选择框未回滚并产生未处理 Promise 拒绝的问题。
 - [desktop/renderer] 修复任务工作台继续已归档主会话时无法导航的问题，在会话列表协调前恢复对应会话。
 - [desktop] ConversationEnvironmentControls 在 gitStatus 成功加载前或已确认非 Git 时不调用 local-environment/action/list、worktree/list 与 thread/handoff/pending，清空既有 Git actions/worktrees/遗留错误，请求期间由 Git 变非 Git 时忽略迟到结果与错误；移交等 Git 专属入口保持可发现但禁用并说明“仅 Git 项目可用”，Git 后续成功才加载。
 - [desktop/renderer] canonical 会话批次收到 turn/completed/turn/failed/turn/interrupted 终态事件后，先 deliver 再只读取一次最新历史并 rehydrate 当前 coordinator，用 threadId + generation 双校验拒绝旧结果；对账失败保留实时投影、不设置页面错误、不清空时间线、不循环重连，仅做安全诊断。

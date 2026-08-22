@@ -72,6 +72,25 @@ function TaskboardTaskProperties({
   )
 }
 
+export async function moveTaskDetailsStatus({
+  previousStatus,
+  nextStatus,
+  setStatus,
+  onMove,
+}: {
+  previousStatus: TaskboardWorkflowStatus
+  nextStatus: TaskboardWorkflowStatus
+  setStatus: (status: TaskboardWorkflowStatus) => void
+  onMove: (status: TaskboardWorkflowStatus) => Promise<void>
+}): Promise<void> {
+  setStatus(nextStatus)
+  try {
+    await onMove(nextStatus)
+  } catch {
+    setStatus(previousStatus)
+  }
+}
+
 export function TaskDetailsDrawer({
   open,
   detail,
@@ -337,8 +356,12 @@ export function TaskDetailsDrawer({
                   <TaskboardTaskProperties
                     statusField={<label><span>阶段</span><select disabled={taskMutationReadOnly || pending} value={status} onChange={event => {
                       const nextStatus = event.currentTarget.value as TaskboardWorkflowStatus
-                      setStatus(nextStatus)
-                      void onMove(task.id, nextStatus)
+                      void moveTaskDetailsStatus({
+                        previousStatus: status,
+                        nextStatus,
+                        setStatus,
+                        onMove: next => onMove(task.id, next),
+                      })
                     }}>{TASKBOARD_ALL_COLUMNS.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></label>}
                     priorityField={<label><span>优先级</span><select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>{(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>)}</select></label>}
                   />

@@ -11,7 +11,7 @@ import { resolveTaskDropPlacement } from '../src/features/taskboard/components/B
 import { BoardColumn } from '../src/features/taskboard/components/BoardColumn.js'
 import { TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
 import { OtherTasksPanel } from '../src/features/taskboard/components/OtherTasksPanel.js'
-import { TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
+import { moveTaskDetailsStatus, TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
 import { ComposerDraftStore } from '../src/features/session/composer/composerDraftStore.js'
 import { RENDERER_CAPABILITIES } from '../src/services/desktop-client/agent-session-client.js'
 import { canStartTask } from '../src/features/taskboard/taskboardConstants.js'
@@ -174,6 +174,22 @@ describe('taskboard board structure', () => {
       status: 'backlog',
       priority: 'none',
     }).status).toBe('backlog')
+  })
+
+  test.each([
+    ['用户取消 blocked 移动', new Error('已取消移动')],
+    ['move RPC 拒绝', new Error('RPC failed')],
+  ])('%s 时回滚阶段且消费 rejection', async (_scenario, rejection) => {
+    const statuses: string[] = []
+
+    await expect(moveTaskDetailsStatus({
+      previousStatus: 'in_progress',
+      nextStatus: 'blocked',
+      setStatus: status => statuses.push(status),
+      onMove: async () => { throw rejection },
+    })).resolves.toBeUndefined()
+
+    expect(statuses).toEqual(['blocked', 'in_progress'])
   })
 
   test('details drawer shows read-only notice only when the project is removed', () => {
