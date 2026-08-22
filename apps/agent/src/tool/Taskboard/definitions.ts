@@ -12,7 +12,6 @@ import type { ToolContext, ToolDefinition } from "../ToolRegistry"
 const taskId = z.string().uuid().optional()
 const expectedVersion = z.number().int().positive()
 const priority = z.enum(["none", "urgent", "high", "medium", "low"])
-const agentStatus = z.enum(["in_progress", "in_review"])
 const labelIds = z.array(z.string().uuid())
   .max(TASKBOARD_LABELS_PER_TASK_MAX)
 
@@ -55,7 +54,6 @@ const updateSchema = z.object({
   title: z.string().trim().min(1).max(TASKBOARD_TITLE_MAX_LENGTH).optional(),
   description: z.string().max(TASKBOARD_DESCRIPTION_MAX_LENGTH).optional(),
   priority: priority.optional(),
-  status: agentStatus.optional(),
   labelIds: labelIds.optional(),
 }).strict().refine(
   ({ taskId: _taskId, expectedVersion: _version, ...patch }) => Object.values(patch).some((value) => value !== undefined),
@@ -65,6 +63,12 @@ const commentSchema = z.object({
   taskId,
   expectedVersion,
   body: z.string().trim().min(1).max(TASKBOARD_COMMENT_MAX_LENGTH),
+}).strict()
+const transitionSchema = z.object({
+  taskId,
+  expectedVersion,
+  action: z.enum(["submit_review", "report_blocked"]),
+  note: z.string().trim().min(1).max(TASKBOARD_COMMENT_MAX_LENGTH),
 }).strict()
 
 export const createTaskboardDefinitions = (
@@ -90,7 +94,7 @@ export const createTaskboardDefinitions = (
     sdkName: "taskboard_create",
     name: "taskboard.create",
     schema: createSchema,
-    description: "在当前项目创建一条待整理任务。用于记录新发现的、独立于当前工作的后续事项；不会自动关联当前对话。",
+    description: "在当前项目创建一条待立项任务。用于记录新发现的、独立于当前工作的后续事项；不会自动关联当前对话。",
     capabilities: capabilities(true),
     allowedModes: ["chat"],
     inputSchema: {
@@ -111,7 +115,7 @@ export const createTaskboardDefinitions = (
     sdkName: "taskboard_update",
     name: "taskboard.update",
     schema: updateSchema,
-    description: "更新当前主执行对话关联的任务。Agent 只能编辑任务内容，领取为进行中，或在验证后提交待审核；不能标记完成。",
+    description: "更新当前主执行对话关联任务的标题、描述、优先级或标签。提交验收和报告阻碍必须使用 taskboard_transition。",
     capabilities: capabilities(true),
     allowedModes: ["chat"],
     inputSchema: {
@@ -122,7 +126,6 @@ export const createTaskboardDefinitions = (
         title: { type: "string", minLength: 1, maxLength: TASKBOARD_TITLE_MAX_LENGTH },
         description: { type: "string", maxLength: TASKBOARD_DESCRIPTION_MAX_LENGTH },
         priority: { type: "string", enum: ["none", "urgent", "high", "medium", "low"] },
-        status: { type: "string", enum: ["in_progress", "in_review"] },
         labelIds: { type: "array", maxItems: TASKBOARD_LABELS_PER_TASK_MAX, items: { type: "string", format: "uuid" } },
       },
       required: ["expectedVersion"],
@@ -149,5 +152,26 @@ export const createTaskboardDefinitions = (
       additionalProperties: false,
     },
     execute: (input, context) => service.agentComment({ ...identity(context), ...input }),
+  },
+  {
+    ...base,
+    sdkName: "taskboard_transition",
+    name: "taskboard.transition",
+    schema: transitionSchema,
+    description: "原子提交任务验收或报告阻碍。说明、工作流状态、未读提醒和活动记录会一起提交；只有任务主执行对话可以调用。",
+    capabilities: capabilities(true),
+    allowedModes: ["chat"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        taskId: { type: "string", format: "uuid" },
+        expectedVersion: { type: "integer", minimum: 1 },
+        action: { type: "string", enum: ["submit_review", "report_blocked"] },
+        note: { type: "string", minLength: 1, maxLength: TASKBOARD_COMMENT_MAX_LENGTH },
+      },
+      required: ["expectedVersion", "action", "note"],
+      additionalProperties: false,
+    },
+    execute: (input, context) => service.agentTransition({ ...identity(context), ...input }),
   },
 ]

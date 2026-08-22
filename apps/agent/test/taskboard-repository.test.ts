@@ -17,6 +17,45 @@ const fixture = async () => {
 }
 
 describe("TaskboardRepository", () => {
+  test("五态核心记录前向投影为七态，兼容状态和标题更新不会清除扩展状态", async () => {
+    const { db, project } = await fixture()
+    const created = db.createTask({ projectId: project.id, title: "兼容投影", status: "in_progress" })
+    expect(db.readWorkflowTask(created.task.id)?.task).toMatchObject({ status: "in_progress", startDate: null, dueDate: null })
+
+    const blocked = db.transitionWorkflowTask({
+      taskId: created.task.id,
+      expectedVersion: created.task.version,
+      status: "blocked",
+      workflowAction: "report_blocked",
+      actor: "user",
+      attentionReason: "blocked",
+      note: "等待外部条件",
+    })
+    expect(blocked.task.status).toBe("blocked")
+    expect(db.readTask(created.task.id)?.task.status).toBe("in_progress")
+
+    const renamed = db.updateTask({ taskId: created.task.id, expectedVersion: blocked.task.version, patch: { title: "只改标题" } })
+    expect(db.readWorkflowTask(created.task.id)?.task.status).toBe("blocked")
+
+    db.moveTask({ taskId: created.task.id, expectedVersion: renamed.task.version, status: "done" })
+    expect(db.readWorkflowTask(created.task.id)?.task.status).toBe("done")
+
+    const cancelCandidate = db.createTask({ projectId: project.id, title: "取消任务", status: "todo" })
+    const canceled = db.transitionWorkflowTask({
+      taskId: cancelCandidate.task.id,
+      expectedVersion: cancelCandidate.task.version,
+      status: "canceled",
+      workflowAction: "cancel",
+      actor: "user",
+    })
+    expect(canceled.task.status).toBe("canceled")
+    expect(db.readTask(cancelCandidate.task.id)?.task.status).toBe("done")
+    const canceledRenamed = db.updateTask({ taskId: cancelCandidate.task.id, expectedVersion: canceled.task.version, patch: { title: "取消后改标题" } })
+    expect(canceledRenamed.task.status).toBe("done")
+    expect(db.readWorkflowTask(cancelCandidate.task.id)?.task.status).toBe("canceled")
+    db.close()
+  })
+
   test("项目编号永久递增，归档删除后不复用", async () => {
     const { db, project } = await fixture()
     const first = db.createTask({ projectId: project.id, title: "一号任务" })
@@ -85,6 +124,32 @@ describe("TaskboardRepository", () => {
     db.close()
   })
 
+  test("七态排序使用独立位置，阻碍列重排不改动处理中任务版本", async () => {
+    const { db, project } = await fixture()
+    const first = db.createWorkflowTask({ projectId: project.id, title: "阻碍一", status: "blocked" })
+    const second = db.createWorkflowTask({ projectId: project.id, title: "阻碍二", status: "blocked" })
+    const moved = db.createWorkflowTask({ projectId: project.id, title: "待插入阻碍", status: "blocked" })
+    const running = db.createWorkflowTask({ projectId: project.id, title: "处理中", status: "in_progress" })
+    db.sqlite.query("UPDATE taskboard_task_workflows SET position = 1 WHERE task_id = ?").run(first.task.id)
+    db.sqlite.query("UPDATE taskboard_task_workflows SET position = 2 WHERE task_id = ?").run(second.task.id)
+
+    db.moveWorkflowTask({
+      taskId: moved.task.id,
+      status: "blocked",
+      beforeTaskId: first.task.id,
+      afterTaskId: second.task.id,
+      expectedVersion: moved.task.version,
+    })
+    expect(db.listWorkflowTasks({ projectId: project.id, statuses: ["blocked"] }).tasks.map(task => task.title)).toEqual([
+      "阻碍一",
+      "待插入阻碍",
+      "阻碍二",
+    ])
+    expect(db.readWorkflowTask(running.task.id)?.task.version).toBe(running.task.version)
+    expect(db.readWorkflowTask(running.task.id)?.task.status).toBe("in_progress")
+    db.close()
+  })
+
   test("一个 thread 只能属于一个任务，删除 thread 只移除 link", async () => {
     const { db, project } = await fixture()
     const first = db.createTask({ projectId: project.id, title: "主任务" })
@@ -98,6 +163,51 @@ describe("TaskboardRepository", () => {
     db.sqlite.query("DELETE FROM threads WHERE id = ?").run(thread.id)
     expect(db.taskLinkForThread(thread.id)).toBeNull()
     expect(db.readTask(first.task.id)?.task.title).toBe("主任务")
+    db.close()
+  })
+
+  test("历史会话候选拒绝运行中会话，任务与多会话绑定失败时整体回滚", async () => {
+    const { db, project } = await fixture()
+    const eligible = db.createThread({ title: "已结束会话", workspace: { kind: "project", projectID: project.id } })
+    const active = db.createThread({ title: "运行中会话", workspace: { kind: "project", projectID: project.id } })
+    db.sqlite.query(`
+      INSERT INTO turns (id, thread_id, status, mode, model_ref, strategy, created_at, updated_at)
+      VALUES (?, ?, 'running', 'chat', '{}', 'auto', 1, 1)
+    `).run("turn:active-candidate", active.id)
+
+    expect(db.findWorkflowByThread({ threadId: eligible.id, projectId: project.id })).toMatchObject({ eligible: true, ineligibleReason: null })
+    expect(db.findWorkflowByThread({ threadId: active.id, projectId: project.id })).toMatchObject({ eligible: false, ineligibleReason: "active" })
+    expect(() => db.createWorkflowTask({
+      projectId: project.id,
+      title: "不得部分创建",
+      status: "in_review",
+      threadLinks: [
+        { threadId: eligible.id, role: "primary" },
+        { threadId: active.id, role: "supporting" },
+      ],
+    })).toThrow("结束后")
+    expect(db.listWorkflowTasks({ projectId: project.id }).tasks).toHaveLength(0)
+    expect(db.taskLinkForThread(eligible.id)).toBeNull()
+    db.close()
+  })
+
+  test("主会话等待用户或执行失败时只产生任务级待整理提醒", async () => {
+    const { db, project } = await fixture()
+    const task = db.createTask({ projectId: project.id, title: "等待处理", status: "in_progress" })
+    const thread = db.createThread({ title: "主会话", workspace: { kind: "project", projectID: project.id } })
+    db.linkPrimaryThread({ taskId: task.task.id, threadId: thread.id, expectedVersion: task.task.version })
+    db.sqlite.query(`
+      INSERT INTO turns (id, thread_id, status, mode, model_ref, strategy, created_at, updated_at)
+      VALUES (?, ?, 'running', 'chat', '{}', 'auto', 1, 1)
+    `).run("turn:needs-user", thread.id)
+    db.sqlite.query("UPDATE turns SET status = 'waiting_question', updated_at = 2 WHERE id = ?").run("turn:needs-user")
+
+    expect(db.readWorkflowTask(task.task.id)?.task.attention).toMatchObject({
+      unread: true,
+      unreadAt: 2,
+      reason: "execution_attention",
+    })
+    expect(db.readWorkflowTask(task.task.id)?.task.status).toBe("in_progress")
     db.close()
   })
 

@@ -82,6 +82,8 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE taskboard_activities (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          kind TEXT NOT NULL CHECK(kind IN ('task_created','task_updated','task_moved','task_archived','task_restored','comment_created','comment_updated','comment_deleted','thread_linked','thread_unlinked','primary_changed','label_created','label_updated','label_deleted','execution_started')),\n          actor TEXT NOT NULL CHECK(actor IN ('user','agent','system')),\n          source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          data TEXT NOT NULL DEFAULT '{}',\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE taskboard_operations (\n          operation_id TEXT PRIMARY KEY,\n          project_id TEXT NOT NULL,\n          task_id TEXT,\n          method TEXT NOT NULL,\n          request_hash TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('pending','completed')),\n          result TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE taskboard_start_operations (\n          operation_id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          project_id TEXT NOT NULL,\n          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          request_hash TEXT NOT NULL,\n          execution TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('running','awaiting_setup_decision','completed','failed','rollback_failed')),\n          step TEXT NOT NULL CHECK(step IN ('preflight','prepare_worktree','create_thread','link','complete')),\n          revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1),\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          startup_instruction TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
+  "CREATE TABLE taskboard_task_workflows (\n          task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          status TEXT NOT NULL CHECK(status IN ('backlog','todo','in_progress','in_review','blocked','done','canceled')),\n          position REAL NOT NULL,\n          start_date TEXT CHECK(start_date IS NULL OR start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),\n          due_date TEXT CHECK(due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE taskboard_task_attention (\n          task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          unread INTEGER NOT NULL DEFAULT 0 CHECK(unread IN (0,1)),\n          unread_at INTEGER,\n          read_at INTEGER,\n          reason TEXT CHECK(reason IS NULL OR reason IN ('review_requested','blocked','agent_comment','execution_attention')),\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -145,6 +147,12 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX taskboard_activities_task_created ON taskboard_activities(task_id, created_at, id)",
   "CREATE INDEX taskboard_operations_status ON taskboard_operations(status, created_at)",
   "CREATE INDEX taskboard_start_operations_status ON taskboard_start_operations(status, updated_at)",
+  "CREATE INDEX taskboard_task_workflows_board ON taskboard_task_workflows(status, task_id)",
+  "CREATE INDEX taskboard_task_attention_unread ON taskboard_task_attention(unread, unread_at DESC, task_id)",
+  "CREATE TRIGGER taskboard_workflow_after_task_insert\n        AFTER INSERT ON taskboard_tasks\n        BEGIN\n          INSERT OR IGNORE INTO taskboard_task_workflows (task_id, status, position, start_date, due_date, created_at, updated_at)\n            VALUES (NEW.id, NEW.status, NEW.position, NULL, NULL, NEW.created_at, NEW.updated_at);\n          INSERT OR IGNORE INTO taskboard_task_attention (task_id, unread, unread_at, read_at, reason, updated_at)\n            VALUES (NEW.id, 0, NULL, NULL, NULL, NEW.updated_at);\n        END",
+  "CREATE TRIGGER taskboard_workflow_after_legacy_status_change\n        AFTER UPDATE OF status ON taskboard_tasks\n        WHEN OLD.status IS NOT NEW.status\n        BEGIN\n          INSERT INTO taskboard_task_workflows (task_id, status, position, start_date, due_date, created_at, updated_at)\n            VALUES (NEW.id, NEW.status, NEW.position, NULL, NULL, NEW.created_at, NEW.updated_at)\n            ON CONFLICT(task_id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at;\n        END",
+  "CREATE TRIGGER taskboard_workflow_after_legacy_position_change\n        AFTER UPDATE OF position ON taskboard_tasks\n        WHEN OLD.position IS NOT NEW.position\n        BEGIN\n          UPDATE taskboard_task_workflows SET position = NEW.position, updated_at = NEW.updated_at WHERE task_id = NEW.id;\n        END",
+  "CREATE TRIGGER taskboard_attention_after_primary_turn_needs_user\n        AFTER UPDATE OF status ON turns\n        WHEN OLD.status IS NOT NEW.status AND NEW.status IN ('waiting_permission','waiting_question','failed')\n        BEGIN\n          UPDATE taskboard_task_attention\n          SET unread = 1, unread_at = MAX(COALESCE(unread_at, 0), NEW.updated_at), reason = 'execution_attention', updated_at = NEW.updated_at\n          WHERE task_id IN (\n            SELECT links.task_id FROM taskboard_task_threads links\n            JOIN taskboard_tasks tasks ON tasks.id = links.task_id\n            WHERE links.thread_id = NEW.thread_id AND links.role = 'primary' AND tasks.archived_at IS NULL\n          );\n        END",
   "CREATE TRIGGER thread_side_chats_delete_with_source\n        BEFORE DELETE ON threads\n        BEGIN\n          DELETE FROM threads\n          WHERE id IN (\n            SELECT thread_id FROM thread_side_chats WHERE source_thread_id = OLD.id\n          ) AND archived_at = -1;\n        END",
   "CREATE TRIGGER threads_workspace_insert_valid\n        BEFORE INSERT ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END",
   "CREATE TRIGGER threads_workspace_update_valid\n        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, workspace_roots, instruction_sources, output_directory ON threads\n        WHEN NOT (\n          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NOT NULL\n            AND NEW.workspace_roots IS NOT NULL AND NEW.instruction_sources IS NOT NULL\n            AND NEW.output_directory IS NULL)\n          OR\n          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)\n          OR\n          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL\n            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)\n        )\n        BEGIN\n          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');\n        END"
@@ -939,6 +947,73 @@ const migrateHistory33To34 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory34To35 = (sqlite: Database) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS taskboard_task_workflows (
+      task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK(status IN ('backlog','todo','in_progress','in_review','blocked','done','canceled')),
+      position REAL NOT NULL,
+      start_date TEXT CHECK(start_date IS NULL OR start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+      due_date TEXT CHECK(due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS taskboard_task_attention (
+      task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,
+      unread INTEGER NOT NULL DEFAULT 0 CHECK(unread IN (0,1)),
+      unread_at INTEGER,
+      read_at INTEGER,
+      reason TEXT CHECK(reason IS NULL OR reason IN ('review_requested','blocked','agent_comment','execution_attention')),
+      updated_at INTEGER NOT NULL
+    );
+    INSERT OR IGNORE INTO taskboard_task_workflows (task_id, status, position, start_date, due_date, created_at, updated_at)
+      SELECT id, status, position, NULL, NULL, created_at, updated_at FROM taskboard_tasks;
+    INSERT OR IGNORE INTO taskboard_task_attention (task_id, unread, unread_at, read_at, reason, updated_at)
+      SELECT id, 0, NULL, NULL, NULL, updated_at FROM taskboard_tasks;
+    CREATE INDEX IF NOT EXISTS taskboard_task_workflows_board
+      ON taskboard_task_workflows(status, task_id);
+    CREATE INDEX IF NOT EXISTS taskboard_task_attention_unread
+      ON taskboard_task_attention(unread, unread_at DESC, task_id);
+    CREATE TRIGGER IF NOT EXISTS taskboard_workflow_after_task_insert
+      AFTER INSERT ON taskboard_tasks
+      BEGIN
+        INSERT OR IGNORE INTO taskboard_task_workflows (task_id, status, position, start_date, due_date, created_at, updated_at)
+          VALUES (NEW.id, NEW.status, NEW.position, NULL, NULL, NEW.created_at, NEW.updated_at);
+        INSERT OR IGNORE INTO taskboard_task_attention (task_id, unread, unread_at, read_at, reason, updated_at)
+          VALUES (NEW.id, 0, NULL, NULL, NULL, NEW.updated_at);
+      END;
+    CREATE TRIGGER IF NOT EXISTS taskboard_workflow_after_legacy_status_change
+      AFTER UPDATE OF status ON taskboard_tasks
+      WHEN OLD.status IS NOT NEW.status
+      BEGIN
+        INSERT INTO taskboard_task_workflows (task_id, status, position, start_date, due_date, created_at, updated_at)
+          VALUES (NEW.id, NEW.status, NEW.position, NULL, NULL, NEW.created_at, NEW.updated_at)
+          ON CONFLICT(task_id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at;
+      END;
+    CREATE TRIGGER IF NOT EXISTS taskboard_workflow_after_legacy_position_change
+      AFTER UPDATE OF position ON taskboard_tasks
+      WHEN OLD.position IS NOT NEW.position
+      BEGIN
+        UPDATE taskboard_task_workflows SET position = NEW.position, updated_at = NEW.updated_at WHERE task_id = NEW.id;
+      END;
+  `)
+  const hasTurns = sqlite.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'turns'").get()
+  if (hasTurns) sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS taskboard_attention_after_primary_turn_needs_user
+      AFTER UPDATE OF status ON turns
+      WHEN OLD.status IS NOT NEW.status AND NEW.status IN ('waiting_permission','waiting_question','failed')
+      BEGIN
+        UPDATE taskboard_task_attention
+        SET unread = 1, unread_at = MAX(COALESCE(unread_at, 0), NEW.updated_at), reason = 'execution_attention', updated_at = NEW.updated_at
+        WHERE task_id IN (
+          SELECT links.task_id FROM taskboard_task_threads links
+          JOIN taskboard_tasks tasks ON tasks.id = links.task_id
+          WHERE links.thread_id = NEW.thread_id AND links.role = 'primary' AND tasks.archived_at IS NULL
+        );
+      END;
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1043,6 +1118,7 @@ class SchemaInitializer {
           31: () => migrateHistory31To32(this.sqlite),
           32: () => migrateHistory32To33(this.sqlite),
           33: () => migrateHistory33To34(this.sqlite),
+          34: () => migrateHistory34To35(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

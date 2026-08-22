@@ -73,7 +73,7 @@ describe("TaskboardService", () => {
     db.close()
   })
 
-  test("Agent 权限、单次冲突重试与首次 Turn 自动领取保持一致", async () => {
+  test("Agent 权限、冲突拒绝与已授权任务首次 Turn 自动领取保持一致", async () => {
     const { db, project, service } = await fixture()
     const created = await service.create({
       projectId: project.id,
@@ -92,27 +92,90 @@ describe("TaskboardService", () => {
       actor: { kind: "agent", sourceThreadId: thread.id },
     })).rejects.toMatchObject({ code: "PERMISSION_DENIED" })
 
-    const externallyUpdated = db.updateTask({ taskId: created.task.id, expectedVersion: linked.task.version, patch: { priority: "high" } })
-    const retried = await service.agentUpdate({
+    db.updateTask({ taskId: created.task.id, expectedVersion: linked.task.version, patch: { priority: "high" } })
+    await expect(service.agentUpdate({
       threadId: thread.id,
       taskId: created.task.id,
       expectedVersion: linked.task.version,
       operationId: crypto.randomUUID(),
-      status: "in_progress",
-    })
-    expect(retried.task.task).toMatchObject({ status: "in_progress", priority: externallyUpdated.task.priority })
+      title: "不得盲目覆盖",
+    })).rejects.toMatchObject({ code: "CONFLICT" })
 
     const second = await service.create({
       projectId: project.id,
       title: "首次消息领取",
+      status: "todo",
       operationId: crypto.randomUUID(),
       actor: { kind: "user", sourceThreadId: null },
     })
     const secondThread = db.createThread({ title: "第二个执行对话", workspace: { kind: "project", projectID: project.id } })
     db.linkPrimaryThread({ taskId: second.task.id, threadId: secondThread.id, expectedVersion: second.task.version })
-    expect(service.admitPrimaryThread(secondThread.id)).not.toBeNull()
+    expect(service.admitPrimaryThread(secondThread.id)).toHaveLength(2)
     expect(db.readTask(second.task.id)?.task.status).toBe("in_progress")
-    expect(service.admitPrimaryThread(secondThread.id)).toBeNull()
+    expect(service.admitPrimaryThread(secondThread.id)).toEqual([])
+
+    const backlog = await service.create({
+      projectId: project.id,
+      title: "尚未授权的任务",
+      operationId: crypto.randomUUID(),
+      actor: { kind: "user", sourceThreadId: null },
+    })
+    const backlogThread = db.createThread({ title: "未授权对话", workspace: { kind: "project", projectID: project.id } })
+    db.linkPrimaryThread({ taskId: backlog.task.id, threadId: backlogThread.id, expectedVersion: backlog.task.version })
+    expect(service.admitPrimaryThread(backlogThread.id)).toEqual([])
+    expect(db.readTask(backlog.task.id)?.task.status).toBe("backlog")
+    db.close()
+  })
+
+  test("主会话可原子提交验收并产生评论与未读，辅助会话不能推进", async () => {
+    const { db, project, service } = await fixture()
+    const created = await service.create({
+      projectId: project.id,
+      title: "原子交付",
+      status: "in_progress",
+      operationId: crypto.randomUUID(),
+      actor: { kind: "user", sourceThreadId: null },
+    })
+    const primary = db.createThread({ title: "主会话", workspace: { kind: "project", projectID: project.id } })
+    const supporting = db.createThread({ title: "辅助会话", workspace: { kind: "project", projectID: project.id } })
+    const linked = db.linkPrimaryThread({ taskId: created.task.id, threadId: primary.id, expectedVersion: created.task.version })
+    const withSupporting = db.linkThread({ taskId: created.task.id, threadId: supporting.id, role: "supporting", expectedVersion: linked.task.version })
+
+    await expect(service.agentTransition({
+      threadId: supporting.id,
+      taskId: created.task.id,
+      expectedVersion: withSupporting.task.version,
+      operationId: crypto.randomUUID(),
+      action: "submit_review",
+      note: "不应成功",
+    })).rejects.toMatchObject({ code: "PERMISSION_DENIED" })
+
+    const delivered = await service.agentTransition({
+      threadId: primary.id,
+      taskId: created.task.id,
+      expectedVersion: withSupporting.task.version,
+      operationId: crypto.randomUUID(),
+      action: "submit_review",
+      note: "实现与验证均已完成",
+    })
+    expect(delivered.task.task.status).toBe("in_review")
+    expect(delivered.task.task.attention).toMatchObject({ unread: true, reason: "review_requested" })
+    expect(delivered.task.comments.at(-1)).toMatchObject({ author: "agent", body: "实现与验证均已完成", sourceThreadId: primary.id })
+    expect(delivered.task.activities.at(-1)?.data).toMatchObject({ workflowAction: "submit_review", after: "in_review" })
+    db.close()
+  })
+
+  test("从历史会话创建任务时默认进入等你确认", async () => {
+    const { db, project, service } = await fixture()
+    const thread = db.createThread({ title: "历史交付", workspace: { kind: "project", projectID: project.id } })
+    const created = await service.createWorkflow({
+      operationId: crypto.randomUUID(),
+      projectId: project.id,
+      title: "整理历史交付",
+      threadLinks: [{ threadId: thread.id, role: "primary" }],
+    })
+    expect(created.task.status).toBe("in_review")
+    expect(created.threads).toEqual([expect.objectContaining({ threadId: thread.id, role: "primary" })])
     db.close()
   })
 
@@ -162,10 +225,14 @@ describe("TaskboardService", () => {
     } as unknown as TaskboardService
     const definitions = createTaskboardDefinitions(fake)
     const create = definitions.find(({ sdkName }) => sdkName === "taskboard_create")!
+    const transition = definitions.find(({ sdkName }) => sdkName === "taskboard_transition")!
     expect(create.allowedProfiles).toEqual(["main"])
     expect(create.allowedModes).toEqual(["chat"])
     expect(create.visibility).toBe("deferred")
     expect(create.schema.safeParse({ title: "伪造", threadId: "model-thread" }).success).toBe(false)
+    expect(transition.allowedProfiles).toEqual(["main"])
+    expect(transition.schema.safeParse({ expectedVersion: 1, action: "submit_review" }).success).toBe(false)
+    expect(transition.schema.safeParse({ expectedVersion: 1, action: "accept", note: "越权验收" }).success).toBe(false)
 
     await create.execute({ title: "可信来源" }, {
       invocation: { threadID: "host-thread", turnID: "host-turn", agentID: "host-agent", toolCallID: "host-tool-call" },

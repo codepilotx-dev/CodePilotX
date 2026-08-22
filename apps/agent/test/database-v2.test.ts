@@ -80,9 +80,11 @@ describe("数据库兼容与迁移", () => {
     expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(reopened.sqlite.query("SELECT title FROM threads WHERE id = ?").get(thread.id)).toEqual({ title: "v30 taskboard migration" })
     const tables = new Set((reopened.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'taskboard_%'").all() as Array<{ name: string }>).map(({ name }) => name))
-    expect(tables.size).toBe(9)
+    expect(tables.size).toBe(11)
     expect(tables.has("taskboard_tasks")).toBe(true)
     expect(tables.has("taskboard_start_operations")).toBe(true)
+    expect(tables.has("taskboard_task_workflows")).toBe(true)
+    expect(tables.has("taskboard_task_attention")).toBe(true)
     reopened.close()
   })
 
@@ -801,7 +803,7 @@ describe("数据库兼容与迁移", () => {
     reopened.close()
   })
 
-  test("v33 到 v34 只新增 immutable runtime composition 表和索引", async () => {
+  test("v33 升至当前版本后保留 immutable runtime composition 表和索引", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v33-runtime-composition-"))
     paths.push(root)
     const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
@@ -815,7 +817,7 @@ describe("数据库兼容与迁移", () => {
     legacy.close()
 
     const migrated = new AgentDatabase(databasePaths)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 34 })
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'").get()).toEqual({ name: "runtime_composition_plans" })
     expect(migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'runtime_composition_plans_agent'").get()).toEqual({ name: "runtime_composition_plans_agent" })
     migrated.close()

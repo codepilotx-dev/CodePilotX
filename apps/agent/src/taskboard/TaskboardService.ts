@@ -5,6 +5,8 @@ import type {
   TaskboardStatus,
   TaskboardTaskDetails,
   TaskboardThreadRole,
+  TaskboardWorkflowStatus,
+  TaskboardWorkflowTransitionAction,
 } from "@codepilotx/shared/taskboard"
 import {
   TASKBOARD_COMMENT_MAX_LENGTH,
@@ -57,6 +59,7 @@ export class TaskboardService {
     request: unknown
     resource: ChangedResource
     action: ChangedAction
+    workflow?: { resource: "workflow" | "attention" | "thread"; action: "created" | "updated" | "deleted" }
     mutate: (timestamp: number) => T
   }): Promise<T> {
     const requestHash = digest(input.request)
@@ -78,10 +81,16 @@ export class TaskboardService {
         action: input.action,
         changedAt: timestamp,
       })
+      const workflowEvent = input.workflow && input.taskId
+        ? this.repository.insertTaskboardWorkflowChanged({ projectId: input.projectId, taskId: input.taskId, ...input.workflow, changedAt: timestamp })
+        : null
       this.repository.completeTaskboardOperation(input.operationId, value, timestamp)
-      return { value, event, replay: false }
+      return { value, event, workflowEvent, replay: false }
     })
-    if (!committed.replay) await Effect.runPromise(this.hub.publish(committed.event!))
+    if (!committed.replay) {
+      await Effect.runPromise(this.hub.publish(committed.event!))
+      if (committed.workflowEvent) await Effect.runPromise(this.hub.publish(committed.workflowEvent))
+    }
     return committed.value
   }
 
@@ -92,6 +101,145 @@ export class TaskboardService {
   }
 
   read(taskId: string) { return this.details(taskId) }
+
+  listWorkflow(input: Parameters<TaskboardRepository["listWorkflowTasks"]>[0] = {}) {
+    if (input.projectId) this.project(input.projectId)
+    const page = this.repository.listWorkflowTasks({ ...input, limit: Math.min(500, Math.max(1, input.limit ?? 200)) })
+    return input.projectId ? page : { ...page, tasks: page.tasks.filter((task) => Boolean(this.db.getProject(task.projectId))) }
+  }
+
+  readWorkflow(taskId: string) {
+    const task = this.repository.readWorkflowTask(taskId)
+    if (!task) throw new AgentError("TASKBOARD_TASK_NOT_FOUND", "任务不存在", 404)
+    return task
+  }
+
+  listWorkflowThreadCandidates(input: Parameters<TaskboardRepository["listWorkflowThreadCandidates"]>[0]) {
+    this.project(input.projectId)
+    return this.repository.listWorkflowThreadCandidates(input)
+  }
+
+  findWorkflowByThread(input: Parameters<TaskboardRepository["findWorkflowByThread"]>[0]) {
+    if (input.projectId) this.project(input.projectId)
+    return { lookup: this.repository.findWorkflowByThread(input) }
+  }
+
+  async createWorkflow(input: {
+    operationId: string; projectId: string; title: string; description?: string
+    status?: TaskboardWorkflowStatus; priority?: TaskboardPriority; labelIds?: readonly string[]
+    startDate?: string | null; dueDate?: string | null
+    threadLinks?: readonly { threadId: string; role: TaskboardThreadRole }[]
+  }) {
+    this.project(input.projectId)
+    const taskId = randomUUID()
+    const request = {
+      ...input,
+      status: input.status ?? (input.threadLinks?.length ? "in_review" as const : "backlog" as const),
+      title: this.title(input.title),
+      description: this.description(input.description),
+      labelIds: this.labelIds(input.labelIds) ?? [],
+    }
+    return this.operation({ operationId: input.operationId, projectId: input.projectId, taskId, method: "taskboard/workflow/create", request, resource: "task", action: "created", workflow: { resource: "workflow", action: "created" }, mutate: (timestamp) => {
+      const task = this.repository.createWorkflowTask({ ...request, createdAt: timestamp })
+      this.repository.recordActivity({ taskId: task.task.id, kind: "task_created", actor: "user", createdAt: timestamp })
+      if (request.threadLinks?.length) this.repository.recordActivity({ taskId: task.task.id, kind: "thread_linked", actor: "user", data: { links: request.threadLinks }, createdAt: timestamp })
+      return task
+    } })
+  }
+
+  async updateWorkflow(input: {
+    operationId: string; taskId: string; expectedVersion: number
+    patch: { title?: string; description?: string; priority?: TaskboardPriority; labelIds?: readonly string[]; startDate?: string | null; dueDate?: string | null }
+  }) {
+    const current = this.readWorkflow(input.taskId)
+    this.project(current.task.projectId)
+    const patch = {
+      ...(input.patch.title === undefined ? {} : { title: this.title(input.patch.title) }),
+      ...(input.patch.description === undefined ? {} : { description: this.description(input.patch.description) }),
+      ...(input.patch.priority === undefined ? {} : { priority: input.patch.priority }),
+      ...(input.patch.labelIds === undefined ? {} : { labelIds: this.labelIds(input.patch.labelIds)! }),
+      ...(input.patch.startDate === undefined ? {} : { startDate: input.patch.startDate }),
+      ...(input.patch.dueDate === undefined ? {} : { dueDate: input.patch.dueDate }),
+    }
+    if (!Object.keys(patch).length) throw new AgentError("INVALID_REQUEST", "任务更新缺少字段", 400)
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/update", request: { ...input, patch }, resource: "task", action: "updated", workflow: { resource: "workflow", action: "updated" }, mutate: (timestamp) => {
+      const task = this.repository.updateWorkflowTask({ taskId: input.taskId, expectedVersion: input.expectedVersion, patch, updatedAt: timestamp })
+      this.repository.recordActivity({ taskId: input.taskId, kind: "task_updated", actor: "user", data: { fields: Object.keys(patch) }, createdAt: timestamp })
+      return task
+    } })
+  }
+
+  async moveWorkflow(input: { operationId: string; taskId: string; expectedVersion: number; status: TaskboardWorkflowStatus; beforeTaskId?: string | null; afterTaskId?: string | null; note?: string }) {
+    const current = this.readWorkflow(input.taskId)
+    this.project(current.task.projectId)
+    if (input.status === "blocked" && input.note === undefined) throw new AgentError("INVALID_REQUEST", "移动到阻塞状态必须填写说明", 400)
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/move", request: input, resource: "task", action: "updated", workflow: { resource: "workflow", action: "updated" }, mutate: (timestamp) => {
+      const task = this.repository.moveWorkflowTask({ ...input, ...(input.note === undefined ? {} : { note: this.comment(input.note) }), updatedAt: timestamp })
+      this.repository.recordActivity({
+        taskId: input.taskId,
+        kind: "task_moved",
+        actor: "user",
+        data: { field: "status", before: current.task.status, after: input.status, workflowAction: "manual_move" },
+        createdAt: timestamp,
+      })
+      return task
+    } })
+  }
+
+  async transitionWorkflow(input: { operationId: string; taskId: string; expectedVersion: number; action: TaskboardWorkflowTransitionAction; note?: string; sourceThreadId?: string }) {
+    return this.performWorkflowTransition({ ...input, actor: { kind: "user", sourceThreadId: null } })
+  }
+
+  private async performWorkflowTransition(input: { operationId: string; taskId: string; expectedVersion: number; action: TaskboardWorkflowTransitionAction; note?: string; actor: TaskboardMutationActor }) {
+    const current = this.readWorkflow(input.taskId)
+    this.project(current.task.projectId)
+    if ((input.action === "submit_review" || input.action === "report_blocked" || input.action === "return_work") && input.note === undefined) {
+      throw new AgentError("INVALID_REQUEST", "该状态转换必须填写说明", 400)
+    }
+    const transition = this.workflowTransition(current.task.status, input.action)
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/transition", request: input, resource: "task", action: "updated", workflow: { resource: "workflow", action: "updated" }, mutate: (timestamp) => this.repository.transitionWorkflowTask({
+      taskId: input.taskId, expectedVersion: input.expectedVersion, status: transition.status,
+      workflowAction: input.action,
+      actor: input.actor.kind,
+      attentionReason: transition.reason,
+      ...(input.note === undefined ? {} : { note: this.comment(input.note) }),
+      ...(input.actor.sourceThreadId === null ? {} : { sourceThreadId: input.actor.sourceThreadId }),
+      updatedAt: timestamp,
+    }) })
+  }
+
+  async markWorkflowRead(input: { operationId: string; taskId: string; expectedUnreadAt?: number }) {
+    const current = this.readWorkflow(input.taskId)
+    this.project(current.task.projectId)
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/mark-read", request: input, resource: "task", action: "updated", workflow: { resource: "attention", action: "updated" }, mutate: (timestamp) => this.repository.markWorkflowTaskRead({ taskId: input.taskId, ...(input.expectedUnreadAt === undefined ? {} : { expectedUnreadAt: input.expectedUnreadAt }), readAt: timestamp }) })
+  }
+
+  async linkWorkflowThreads(input: { operationId: string; taskId: string; expectedVersion: number; links: readonly { threadId: string; role: TaskboardThreadRole }[] }) {
+    const current = this.readWorkflow(input.taskId)
+    this.project(current.task.projectId)
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/link-threads", request: input, resource: "thread_link", action: "updated", workflow: { resource: "thread", action: "updated" }, mutate: (timestamp) => {
+      const task = this.repository.linkWorkflowThreads({ ...input, updatedAt: timestamp })
+      this.repository.recordActivity({ taskId: input.taskId, kind: "thread_linked", actor: "user", data: { links: input.links }, createdAt: timestamp })
+      return task
+    } })
+  }
+
+  private workflowTransition(status: TaskboardWorkflowStatus, action: TaskboardWorkflowTransitionAction): { status: TaskboardWorkflowStatus; reason: "review_requested" | "blocked" | null } {
+    const target = action === "submit_review" ? "in_review"
+      : action === "report_blocked" ? "blocked"
+        : action === "return_work" ? "todo"
+          : action === "accept" ? "done"
+            : action === "cancel" ? "canceled"
+              : null
+    if (!target) throw new AgentError("INVALID_REQUEST", "manual_move 请使用 workflow/move", 400)
+    const allowed = action === "submit_review" ? status === "in_progress"
+      : action === "report_blocked" ? status === "todo" || status === "in_progress" || status === "in_review"
+        : action === "return_work" ? status === "blocked" || status === "in_review"
+          : action === "accept" ? status === "in_review"
+            : status !== "done" && status !== "canceled"
+    if (!allowed) throw new AgentError("INVALID_REQUEST", `不能从 ${status} 执行 ${action}`, 409)
+    return { status: target, reason: target === "in_review" ? "review_requested" : target === "blocked" ? "blocked" : null }
+  }
 
   async create(input: {
     projectId: string
@@ -105,7 +253,7 @@ export class TaskboardService {
   }) {
     this.project(input.projectId)
     if (input.actor.kind === "agent" && input.status !== undefined && input.status !== "backlog") {
-      throw new AgentError("PERMISSION_DENIED", "Agent 只能创建待整理任务", 403)
+      throw new AgentError("PERMISSION_DENIED", "Agent 只能创建待立项任务", 403)
     }
     const taskId = randomUUID()
     const title = this.title(input.title)
@@ -180,7 +328,7 @@ export class TaskboardService {
 
   async archive(input: { taskId: string; expectedVersion: number; operationId: string; actor: TaskboardMutationActor }) {
     const current = this.assertUserMutableTask(input.taskId, input.actor)
-    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/task/archive", request: input, resource: "task", action: "archived", mutate: (timestamp) => {
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/task/archive", request: input, resource: "task", action: "archived", workflow: { resource: "attention", action: "updated" }, mutate: (timestamp) => {
       const task = this.repository.archiveTask({ taskId: input.taskId, expectedVersion: input.expectedVersion, archivedAt: timestamp })
       this.repository.recordActivity({ taskId: input.taskId, kind: "task_archived", actor: "user", createdAt: timestamp })
       return task
@@ -189,7 +337,7 @@ export class TaskboardService {
 
   async restore(input: { taskId: string; expectedVersion: number; operationId: string; actor: TaskboardMutationActor }) {
     const current = this.assertUserMutableTask(input.taskId, input.actor)
-    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/task/restore", request: input, resource: "task", action: "restored", mutate: (timestamp) => {
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/task/restore", request: input, resource: "task", action: "restored", workflow: { resource: "workflow", action: "updated" }, mutate: (timestamp) => {
       const task = this.repository.restoreTask({ taskId: input.taskId, expectedVersion: input.expectedVersion, restoredAt: timestamp })
       this.repository.recordActivity({ taskId: input.taskId, kind: "task_restored", actor: "user", createdAt: timestamp })
       return task
@@ -198,7 +346,7 @@ export class TaskboardService {
 
   async delete(input: { taskId: string; expectedVersion: number; operationId: string; actor: TaskboardMutationActor }) {
     const current = this.assertUserMutableTask(input.taskId, input.actor)
-    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/task/delete", request: input, resource: "task", action: "deleted", mutate: () => {
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/task/delete", request: input, resource: "task", action: "deleted", workflow: { resource: "workflow", action: "deleted" }, mutate: () => {
       this.repository.deleteTask({ taskId: input.taskId, expectedVersion: input.expectedVersion })
       return { deleted: true as const, taskId: input.taskId }
     } })
@@ -244,7 +392,7 @@ export class TaskboardService {
     if (current.task.version !== input.expectedVersion) throw new AgentError("CONFLICT", "任务已在其他窗口更新", 409)
     if (input.actor.kind === "agent") this.assertLinked(input.taskId, input.actor.sourceThreadId)
     const body = this.comment(input.body)
-    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/comment/create", request: { ...input, body }, resource: "comment", action: "created", mutate: (timestamp) => {
+    return this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/comment/create", request: { ...input, body }, resource: "comment", action: "created", ...(input.actor.kind === "agent" ? { workflow: { resource: "attention" as const, action: "updated" as const } } : {}), mutate: (timestamp) => {
       if (this.details(input.taskId).task.version !== input.expectedVersion) throw new AgentError("CONFLICT", "任务已在其他窗口更新", 409)
       const comment = this.repository.createComment({ taskId: input.taskId, body, author: input.actor.kind === "agent" ? "agent" : "user", sourceThreadId: input.actor.sourceThreadId, expectedTaskVersion: input.expectedVersion, createdAt: timestamp })
       this.repository.recordActivity({ taskId: input.taskId, kind: "comment_created", actor: input.actor.kind, sourceThreadId: input.actor.sourceThreadId, data: { commentId: comment.id }, createdAt: timestamp })
@@ -314,36 +462,38 @@ export class TaskboardService {
     return this.create({ ...input, projectId, status: "backlog", actor: { kind: "agent", sourceThreadId: input.threadId } }).then((task) => ({ task }))
   }
 
-  async agentUpdate(input: { threadId: string; operationId: string; taskId?: string; expectedVersion: number; title?: string; description?: string; priority?: TaskboardPriority; status?: "in_progress" | "in_review"; labelIds?: readonly string[] }) {
+  async agentUpdate(input: { threadId: string; operationId: string; taskId?: string; expectedVersion: number; title?: string; description?: string; priority?: TaskboardPriority; labelIds?: readonly string[] }) {
     const task = input.taskId ? this.details(input.taskId) : this.taskForThread(input.threadId)
     const { threadId, taskId: _taskId, expectedVersion, operationId, ...patch } = input
-    try {
-      return { task: await this.update({ taskId: task.task.id, patch, expectedVersion, operationId, actor: { kind: "agent", sourceThreadId: threadId } }) }
-    } catch (cause) {
-      if (!(cause instanceof AgentError) || cause.code !== "CONFLICT") throw cause
-      const refreshed = this.details(task.task.id)
-      return { task: await this.update({ taskId: task.task.id, patch, expectedVersion: refreshed.task.version, operationId: `${operationId}:retry`, actor: { kind: "agent", sourceThreadId: threadId } }) }
-    }
+    return { task: await this.update({ taskId: task.task.id, patch, expectedVersion, operationId, actor: { kind: "agent", sourceThreadId: threadId } }) }
   }
 
   async agentComment(input: { threadId: string; operationId: string; taskId?: string; expectedVersion: number; body: string }) {
     const task = input.taskId ? this.details(input.taskId) : this.taskForThread(input.threadId)
-    try {
-      return await this.createComment({ taskId: task.task.id, body: input.body, expectedVersion: input.expectedVersion, operationId: input.operationId, actor: { kind: "agent", sourceThreadId: input.threadId } })
-    } catch (cause) {
-      if (!(cause instanceof AgentError) || cause.code !== "CONFLICT") throw cause
-      const refreshed = this.details(task.task.id)
-      return this.createComment({ taskId: task.task.id, body: input.body, expectedVersion: refreshed.task.version, operationId: `${input.operationId}:retry`, actor: { kind: "agent", sourceThreadId: input.threadId } })
-    }
+    return this.createComment({ taskId: task.task.id, body: input.body, expectedVersion: input.expectedVersion, operationId: input.operationId, actor: { kind: "agent", sourceThreadId: input.threadId } })
+  }
+
+  async agentTransition(input: { threadId: string; operationId: string; taskId?: string; expectedVersion: number; action: "submit_review" | "report_blocked"; note: string }) {
+    const task = input.taskId ? this.details(input.taskId) : this.taskForThread(input.threadId)
+    this.assertThreadProject(input.threadId, task.task.projectId)
+    return { task: await this.performWorkflowTransition({
+      operationId: input.operationId,
+      taskId: task.task.id,
+      expectedVersion: input.expectedVersion,
+      action: input.action,
+      note: input.note,
+      actor: { kind: "agent", sourceThreadId: input.threadId },
+    }) }
   }
 
   /** Called inside ThreadService's existing admission transaction. */
-  admitPrimaryThread(threadId: string): EventEnvelope | null {
+  admitPrimaryThread(threadId: string): readonly EventEnvelope[] {
     const link = this.repository.taskLinkForThread(threadId)
-    if (!link) return null
+    if (!link) return []
     const task = this.repository.readTask(link.taskId)
-    if (!task || !this.db.getProject(task.task.projectId)) return null
-    return this.repository.advancePrimaryTaskForFirstTurn(threadId, this.now())?.event ?? null
+    if (!task || !this.db.getProject(task.task.projectId)) return []
+    const result = this.repository.advancePrimaryTaskForFirstTurn(threadId, this.now())
+    return result ? [result.event, result.workflowEvent] : []
   }
 
   private taskForThread(threadId: string) {

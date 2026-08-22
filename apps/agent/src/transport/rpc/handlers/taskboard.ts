@@ -40,6 +40,17 @@ export const taskboardHandlers = {
       case "taskboard/task/start/status": return runtime.dependencies.taskboardStart.status(params)
       case "taskboard/task/start/retry-setup": return { operation: await runtime.dependencies.taskboardStart.retrySetup(params) }
       case "taskboard/task/start/continue-without-setup": return { operation: await runtime.dependencies.taskboardStart.continueWithoutSetup(params) }
+      case "taskboard/workflow/list": return service.listWorkflow(params)
+      case "taskboard/workflow/read": return { task: service.readWorkflow(params.taskId) }
+      case "taskboard/workflow/create": return { task: await service.createWorkflow(params) }
+      case "taskboard/workflow/update": return { task: await service.updateWorkflow(params) }
+      case "taskboard/workflow/move": return { task: await service.moveWorkflow(params) }
+      case "taskboard/workflow/transition": return { task: await service.transitionWorkflow(params) }
+      case "taskboard/workflow/mark-read": return { task: await service.markWorkflowRead(params) }
+      case "taskboard/workflow/thread-candidates": return service.listWorkflowThreadCandidates(params)
+      case "taskboard/workflow/find-by-thread": return service.findWorkflowByThread(params)
+      case "taskboard/workflow/link-threads": return { task: await service.linkWorkflowThreads(params) }
+      case "taskboard/workflow/start": return { operation: await runtime.dependencies.taskboardStart.startWorkflow(params) }
       default: return undefined
     }
   },

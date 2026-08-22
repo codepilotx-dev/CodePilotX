@@ -139,7 +139,7 @@ export class ThreadService {
     resumeCheckpoints?: ResumeCheckpointResolver,
     resumeOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
-    private readonly firstTurnAdmission?: (threadID: string) => EventEnvelope | null,
+    private readonly firstTurnAdmission?: (threadID: string) => readonly EventEnvelope[],
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -516,12 +516,12 @@ export class ThreadService {
       }
       await this.bindInputAttachments(inputID, attachmentIDs, input.model)
       let created
-      let taskboardEvent: EventEnvelope | null = null
+      let taskboardEvents: readonly EventEnvelope[] = []
       try {
         created = this.db.transaction(() => {
           const value = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
           this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
-          taskboardEvent = this.firstTurnAdmission?.(threadID) ?? null
+          taskboardEvents = this.firstTurnAdmission?.(threadID) ?? []
           return value
         })
       } catch (cause) {
@@ -529,7 +529,7 @@ export class ThreadService {
         throw cause
       }
       await this.publishCreatedTurn(created)
-      if (taskboardEvent) await Effect.runPromise(this.hub.publish(taskboardEvent))
+      for (const taskboardEvent of taskboardEvents) await Effect.runPromise(this.hub.publish(taskboardEvent))
       if (!this.sideChat(threadID)) void this.threadTitles?.generateForFirstMessage(threadID, input.content)
       this.coordinator.reserve(threadID, created.turnID)
       void this.executeTurn(threadID, created.turnID)

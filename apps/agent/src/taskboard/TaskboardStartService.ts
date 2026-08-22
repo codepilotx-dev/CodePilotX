@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { Effect } from "effect"
 import type { TaskboardStartExecution, TaskboardStartOperation } from "@codepilotx/agent-protocol/taskboard"
+import type { TaskboardWorkflowStartMode } from "@codepilotx/shared/taskboard"
 import { AgentError, type EventEnvelope } from "../domain"
 import type { ThreadService } from "../session/ThreadService"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
@@ -22,7 +23,7 @@ export class TaskboardStartService {
     private readonly now: () => number = Date.now,
   ) {}
 
-  async start(input: { taskId: string; execution: TaskboardStartExecution; operationId: string }) {
+  async start(input: { taskId: string; execution: TaskboardStartExecution; operationId: string }, requestIdentity?: unknown) {
     const task = this.requireTask(input.taskId)
     this.requireProject(task.task.projectId)
     const active = this.repository.activeTaskboardStartOperation(input.taskId)
@@ -35,7 +36,7 @@ export class TaskboardStartService {
         operationId: input.operationId,
         taskId: input.taskId,
         projectId: task.task.projectId,
-        requestHash: requestHash({ taskId: input.taskId, execution: input.execution }),
+        requestHash: requestHash(requestIdentity ?? { taskId: input.taskId, execution: input.execution }),
         execution: input.execution,
       })
       if (validated.status !== "running") return validated
@@ -47,7 +48,7 @@ export class TaskboardStartService {
         operationId: input.operationId,
         taskId: input.taskId,
         projectId: task.task.projectId,
-        requestHash: requestHash({ taskId: input.taskId, execution: input.execution }),
+        requestHash: requestHash(requestIdentity ?? { taskId: input.taskId, execution: input.execution }),
         execution: input.execution,
       })
       const event = this.repository.insertTaskboardChanged({ projectId: task.task.projectId, taskId: input.taskId, resource: "start", action: "created" })
@@ -55,6 +56,37 @@ export class TaskboardStartService {
     })
     await this.publish(created.event)
     return this.continueStart(created.operation)
+  }
+
+  async startWorkflow(input: { taskId: string; execution: TaskboardStartExecution; operationId: string; expectedVersion: number; mode: TaskboardWorkflowStartMode; authorizeBacklog?: boolean }) {
+    const workflowRequest = {
+      taskId: input.taskId,
+      execution: input.execution,
+      expectedVersion: input.expectedVersion,
+      mode: input.mode,
+      authorizeBacklog: input.authorizeBacklog ?? false,
+    }
+    if (this.repository.getTaskboardStartOperation(input.operationId) || this.repository.activeTaskboardStartOperation(input.taskId)) {
+      return this.start({ taskId: input.taskId, execution: input.execution, operationId: input.operationId }, workflowRequest)
+    }
+    const prepared = this.db.transaction(() => {
+      const timestamp = this.now()
+      const task = this.repository.prepareWorkflowStart({
+        taskId: input.taskId,
+        expectedVersion: input.expectedVersion,
+        mode: input.mode,
+        ...(input.authorizeBacklog === undefined ? {} : { authorizeBacklog: input.authorizeBacklog }),
+        updatedAt: timestamp,
+      })
+      return {
+        task,
+        legacyEvent: this.repository.insertTaskboardChanged({ projectId: task.task.projectId, taskId: input.taskId, resource: "start", action: "updated", changedAt: timestamp }),
+        workflowEvent: this.repository.insertTaskboardWorkflowChanged({ projectId: task.task.projectId, taskId: input.taskId, resource: input.mode === "new_primary" ? "thread" : "workflow", action: "updated", changedAt: timestamp }),
+      }
+    })
+    await this.publish(prepared.legacyEvent)
+    await this.publish(prepared.workflowEvent)
+    return this.start({ taskId: input.taskId, execution: input.execution, operationId: input.operationId }, workflowRequest)
   }
 
   status(input: { operationId: string; afterRevision?: number }) {
@@ -224,7 +256,7 @@ export class TaskboardStartService {
   private requireAwaiting(operationId: string, revision: number) { const operation = this.requireOperation(operationId); if (operation.revision !== revision || operation.status !== "awaiting_setup_decision") throw new AgentError("CONFLICT", "任务启动状态已变化", 409); return operation }
   private startupInstruction(projectId: string, number: number, title: string) {
     const projectName = this.db.getProject(projectId)?.name ?? "项目"
-    return `你正在执行任务 ${projectName} #${number}：${title}\n请先启用并调用 taskboard_read，读取任务详情和当前版本，然后再开始修改。验证完成后，用 taskboard_comment 记录结果，并用 taskboard_update 提交待审核；不要将任务标记为已完成。`
+    return `你正在执行任务 ${projectName} #${number}：${title}\n请先启用并调用 taskboard_read，读取任务详情和当前版本，然后再开始修改。验证完成后，用 taskboard_transition 的 submit_review 动作和交付说明原子提交验收；遇到无法继续的阻碍时，用 report_blocked 动作和阻碍原因报告；不要将任务标记为已完成。`
   }
   private publish(event: EventEnvelope) { return Effect.runPromise(this.hub.publish(event)).then(() => undefined) }
 }
