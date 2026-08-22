@@ -363,7 +363,19 @@ describe('desktop thread settings client', () => {
     }
     expect(eventSubscribeParams).toEqual({
       streams: [{ streamId: 'global', after: 'latest' }],
-      liveEventTypes: ['tooling/updated'],
+      liveEventTypes: [
+        'catalog/updated',
+        'provider/credential/updated',
+        'config/updated',
+        'workspace/file/changed',
+        'workspace/git/changed',
+        'usage/source/updated',
+        'model/health/updated',
+        'skill/updated',
+        'tooling/updated',
+        'mcp/updated',
+        'speech/statusChanged',
+      ],
     })
     source.onmessage?.({
       data: JSON.stringify({
@@ -1005,9 +1017,16 @@ describe('desktop thread settings client', () => {
       eventSourceFactory: () => source as unknown as EventSource,
     })
     await client.listSessions()
+    const sharedGlobalEventIds: string[] = []
     const unsubscribeStore = client.onSessionStoreChange(change => {
       pendingInteractionThreadIds = change.pendingInteractionThreadIds ?? []
     })
+    const unsubscribeShared = client.subscribeAgentEventEnvelopes(
+      { liveEventTypes: [] },
+      events => {
+        sharedGlobalEventIds.push(...events.map(event => event.eventId))
+      },
+    )
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
@@ -1040,8 +1059,11 @@ describe('desktop thread settings client', () => {
     ) {
       await new Promise(resolve => setTimeout(resolve, 10))
     }
+    unsubscribeShared()
     unsubscribeStore()
 
+    expect(subscriptionCount).toBe(1)
+    expect(sharedGlobalEventIds).toEqual(['event-13'])
     expect(readThreadIds).toEqual([])
     expect(threadListRequests).toBe(2)
     expect(interactionListRequests).toBe(1)
@@ -1090,6 +1112,12 @@ describe('desktop thread settings client', () => {
             'config/updated',
             'workspace/file/changed',
             'workspace/git/changed',
+            'usage/source/updated',
+            'model/health/updated',
+            'skill/updated',
+            'tooling/updated',
+            'mcp/updated',
+            'speech/statusChanged',
           ],
         })
         return rpc(body.id, {

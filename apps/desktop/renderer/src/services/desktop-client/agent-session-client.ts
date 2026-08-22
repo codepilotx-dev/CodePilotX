@@ -23,6 +23,7 @@ import type {
   ModelRef,
   Project,
 } from '@codepilotx/shared'
+import { ModelRefSchema } from '@codepilotx/shared'
 import type {
   PermissionConfig,
   SubagentProjection,
@@ -32,6 +33,7 @@ import type {
 } from '@codepilotx/shared/thread'
 import type {
   EventEnvelope,
+  LiveEventType,
   ProtocolCapability,
   RpcParams,
   RpcResult,
@@ -43,6 +45,8 @@ import {
 } from '../../../shared/theme.js'
 import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import { resolvePreferredOpenTarget } from './openTargetSelection.js'
+import { buildAgentAttachmentUploads } from './attachmentUploadSupport.js'
+import { importLocalContextReferences } from './localContextImportSupport.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -229,6 +233,10 @@ export function createAgentSessionDesktopClient(
   const sessionPermissionConfigs = new Map<string, PermissionConfig>()
   let pendingInteractionThreadIds = new Set<string>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
+  const sharedGlobalEventListeners = new Set<{
+    liveEventTypes: ReadonlySet<LiveEventType>
+    callback: (events: readonly EventEnvelope[]) => void | Promise<void>
+  }>()
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const confirmedReadThroughBySessionId = new Map<string, number>()
   const pendingReadThroughBySessionId =
@@ -1122,7 +1130,6 @@ export function createAgentSessionDesktopClient(
   }
 
   async function importAgentAttachments(input: DesktopUserMessageInput) {
-    const { buildAgentAttachmentUploads } = await import('./attachmentUploadSupport.js')
     const payload = await buildAgentAttachmentUploads(
       input,
       attachmentId => rpc.call('attachment/read', { attachmentId }),
@@ -1140,9 +1147,6 @@ export function createAgentSessionDesktopClient(
     input: DesktopUserMessageInput,
   ): Promise<{ attachmentIds: string[]; contextReferenceIds: string[] }> {
     const attachmentIds = await importAgentAttachments(input)
-    const { importLocalContextReferences } = await import(
-      './localContextImportSupport.js'
-    )
     const contextReferenceIds = await importLocalContextReferences(
       sessionId,
       input,
@@ -1307,24 +1311,16 @@ export function createAgentSessionDesktopClient(
     selection: string | DesktopModelSelection | undefined,
     sessionId: string,
   ): Promise<ModelRef> {
-    const providers = await loadModelCatalog()
     if (typeof selection === 'object' && selection?.providerID && selection.model) {
-      const provider = providers.providers.find(
-        item => item.provider.id === selection.providerID,
-      )
-      const model = provider?.models.find(item => item.id === selection.model)
-      if (!provider || !model) {
-        throw new Error(`未找到模型：${selection.providerID}/${selection.model}`)
-      }
-      const variant = selection.variant
-        ? model.variants.find(item => item.id === selection.variant)?.id
-        : undefined
-      return {
-        providerID: provider.provider.id,
-        id: model.id,
-        ...(variant ? { variant } : {}),
-      }
+      return ModelRefSchema.make({
+        providerID: ModelRefSchema.fields.providerID.make(selection.providerID),
+        id: ModelRefSchema.fields.id.make(selection.model),
+        ...(selection.variant
+          ? { variant: ModelRefSchema.fields.variant.from.make(selection.variant) }
+          : {}),
+      })
     }
+    const providers = await loadModelCatalog()
     if (typeof selection === 'string' && selection.trim()) {
       const providerID = sessionSnapshots.get(sessionId)?.settings.providerID
       const provider = providers.providers.find(
@@ -1489,7 +1485,10 @@ export function createAgentSessionDesktopClient(
         currentAppVersion: CURRENT_APP_VERSION,
         mockClient,
         requireAgentCapability,
-        rpc,
+        rpc: {
+          call: rpc.call,
+          subscribeEnvelope: subscribeGlobalEventEnvelopes,
+        },
         withAgentOrMock,
         withRequiredAgent,
       }),
@@ -1557,6 +1556,48 @@ export function createAgentSessionDesktopClient(
   }
 
   let unsubscribeSessionCatalog: (() => void) | null = null
+  const sharedGlobalLiveEventTypes = [
+    ...new Set<LiveEventType>([
+      ...AGENT_LIVE_EVENT_FILTERS.global,
+      ...AGENT_LIVE_EVENT_FILTERS.provider,
+      ...AGENT_LIVE_EVENT_FILTERS.modelHealth,
+      ...AGENT_LIVE_EVENT_FILTERS.skills,
+      ...AGENT_LIVE_EVENT_FILTERS.tooling,
+      ...AGENT_LIVE_EVENT_FILTERS.mcp,
+      'speech/statusChanged',
+    ]),
+  ]
+
+  function subscribeGlobalEventEnvelopes(
+    options: AgentRpcSubscription,
+    callback: (events: readonly EventEnvelope[]) => void | Promise<void>,
+  ): () => void {
+    if (
+      options.threadId
+      || options.after !== undefined
+      || options.onReplayComplete
+      || options.onCursorExpired
+      || options.onDeliveryError
+    ) {
+      return rpc.subscribeEnvelope(options, callback)
+    }
+    const entry = {
+      liveEventTypes: new Set(options.liveEventTypes ?? []),
+      callback,
+    }
+    sharedGlobalEventListeners.add(entry)
+    startSessionCatalogSubscription()
+    return () => {
+      sharedGlobalEventListeners.delete(entry)
+      if (
+        sharedGlobalEventListeners.size === 0
+        && sessionStoreListeners.size === 0
+      ) {
+        stopSessionCatalogSubscription()
+      }
+    }
+  }
+
   const startSessionCatalogSubscription = (): void => {
     if (unsubscribeSessionCatalog || !eventSourceFactory()) return
     const catalogCoordinator = new SessionCatalogCoordinator({
@@ -1600,9 +1641,25 @@ export function createAgentSessionDesktopClient(
       },
     })
     unsubscribeSessionCatalog = rpc.subscribeEnvelope({
-      liveEventTypes: AGENT_LIVE_EVENT_FILTERS.global,
+      liveEventTypes: sharedGlobalLiveEventTypes,
       onReplayComplete: () => reconcileAgentSessionStore(),
-    }, events => catalogCoordinator.deliverBatch(events))
+    }, async events => {
+      await catalogCoordinator.deliverBatch(events)
+      const results = await Promise.allSettled(
+        [...sharedGlobalEventListeners].map(entry => {
+          const selected = events.filter(event => (
+            event.durability === 'durable'
+            || entry.liveEventTypes.has(event.type)
+          ))
+          return selected.length > 0 ? entry.callback(selected) : undefined
+        }),
+      )
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          console.error('共享全局事件监听失败：', result.reason)
+        }
+      }
+    })
   }
 
   const stopSessionCatalogSubscription = (): void => {
@@ -1694,7 +1751,7 @@ export function createAgentSessionDesktopClient(
       (await loadSpeechApi()).transcribeSpeech(input)),
     cancelSpeech: operationId => withRequiredAgent(async () =>
       (await loadSpeechApi()).cancelSpeech(operationId)),
-    onSpeechStatusUpdated: callback => rpc.subscribeEnvelope(
+    onSpeechStatusUpdated: callback => subscribeGlobalEventEnvelopes(
       { liveEventTypes: ['speech/statusChanged'] },
       events => {
         for (const event of events) {
@@ -3354,7 +3411,7 @@ export function createAgentSessionDesktopClient(
     subscribeAgentEventEnvelopes: (options, callback) => {
       const makeEventSource = eventSourceFactory()
       if (!makeEventSource) return noop
-      return rpc.subscribeEnvelope(options, callback)
+      return subscribeGlobalEventEnvelopes(options, callback)
     },
     onAgentEvent: callback => allowBrowserMockFallback
       ? mockClient.onAgentEvent(callback)
@@ -3367,7 +3424,12 @@ export function createAgentSessionDesktopClient(
         : noop
       return () => {
         sessionStoreListeners.delete(callback)
-        if (sessionStoreListeners.size === 0) stopSessionCatalogSubscription()
+        if (
+          sessionStoreListeners.size === 0
+          && sharedGlobalEventListeners.size === 0
+        ) {
+          stopSessionCatalogSubscription()
+        }
         unsubscribeMock()
       }
     },

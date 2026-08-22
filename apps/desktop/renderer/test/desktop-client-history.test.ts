@@ -364,6 +364,11 @@ describe('desktop history client', () => {
       providerID: 'openai',
       model: 'gpt-5',
     })
+    expect(
+      requests.some(request =>
+        (request.body as { method?: string } | null)?.method === 'model/list',
+      ),
+    ).toBe(false)
 
     let renamedStoreItem:
       | Awaited<ReturnType<typeof client.getSession>>['item']
