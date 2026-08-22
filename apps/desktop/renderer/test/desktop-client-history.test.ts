@@ -499,6 +499,70 @@ describe('desktop history client', () => {
     expect(respondRequests).toHaveLength(0)
   })
 
+  test('responds to a projected question by its interaction id', async () => {
+    const respondRequests: Array<Record<string, unknown>> = []
+    const pendingInteraction = {
+      kind: 'question' as const,
+      interactionId: 'question-request-1',
+      threadId: 'session-1',
+      turnId: 'turn-1',
+      agentId: 'agent-1',
+      createdAt: now,
+      version: 1,
+      questions: [{
+        id: 'filter_mode',
+        header: '筛选模式',
+        prompt: '状态筛选使用单选还是多选？',
+        choices: [
+          { id: 'single', label: '单选', description: '一次选择一个状态', recommended: true },
+          { id: 'multiple', label: '多选', description: '可选择多个状态', recommended: false },
+        ],
+        allowFreeform: true,
+        required: true,
+      }],
+    }
+    const client = createDesktopClient({
+      fetch: async (path, init) => {
+        if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        if (body?.method === 'interaction/listPending') {
+          return rpc(body.id, { interactions: [pendingInteraction], nextCursor: null })
+        }
+        if (body?.method === 'interaction/respond') {
+          respondRequests.push(body.params)
+          return rpc(body.id, {
+            interactionId: pendingInteraction.interactionId,
+            kind: 'question',
+            state: 'resolved',
+            version: 2,
+            resolvedAt: now + 100,
+            response: body.params.response,
+          })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+    })
+
+    await client.respondToPermission(
+      'session-1',
+      'question:question-request-1',
+      { behavior: 'allow', updatedInput: { answer: '单选' } },
+    )
+
+    expect(respondRequests).toEqual([expect.objectContaining({
+      interactionId: 'question-request-1',
+      expectedVersion: 1,
+      response: {
+        kind: 'question',
+        status: 'answered',
+        resolution: 'user',
+        answers: [{ questionId: 'filter_mode', choiceIds: ['single'] }],
+      },
+    })])
+  })
+
   test('responds to hook trust through the typed hookTrust decision', async () => {
     const responses: Array<Record<string, unknown>> = []
     const pendingInteraction = {

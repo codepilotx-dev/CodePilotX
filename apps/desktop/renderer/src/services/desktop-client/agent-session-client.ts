@@ -1263,7 +1263,10 @@ export function createAgentSessionDesktopClient(
       candidate =>
         questionId
           ? candidate.kind === 'question' &&
-            candidate.questions.some(question => question.id === questionId)
+            (
+              candidate.interactionId === questionId ||
+              candidate.questions.some(question => question.id === questionId)
+            )
           : (
               candidate.kind === 'approval' ||
               candidate.kind === 'permission' ||
