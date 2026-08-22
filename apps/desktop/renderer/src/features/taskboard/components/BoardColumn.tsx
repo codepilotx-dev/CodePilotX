@@ -3,13 +3,14 @@ import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, ChevronUp, MoreHorizontal, Plus } from 'lucide-react'
 import type {
-  TaskboardStatus,
-  TaskboardTaskSummary,
+  TaskboardWorkflowStatus,
+  TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { PopoverItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { TASKBOARD_ALL_COLUMNS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { TaskCard } from './TaskCard.js'
 
 type ProjectNames = ReadonlyMap<string, string>
@@ -29,9 +30,9 @@ type DragInsertState = {
 } | null
 
 type Props = {
-  status: TaskboardStatus
+  status: TaskboardWorkflowStatus
   label: string
-  tasks: readonly TaskboardTaskSummary[]
+  tasks: readonly TaskboardWorkflowTaskSummary[]
   projectNames: ProjectNames
   pendingTaskIds: ReadonlySet<string>
   onOpen: (taskId: string) => void
@@ -39,7 +40,7 @@ type Props = {
   onNewTask: () => void
   onMove: (
     taskId: string,
-    status: TaskboardStatus,
+    status: TaskboardWorkflowStatus,
     placement?: { beforeTaskId: string | null; afterTaskId: string | null },
   ) => Promise<void>
 }
@@ -77,8 +78,8 @@ export function BoardColumn({
   const announceMove = (message: string): void => setAnnouncement(message)
 
   const moveAndAnnounce = (
-    task: TaskboardTaskSummary,
-    nextStatus: TaskboardStatus,
+    task: TaskboardWorkflowTaskSummary,
+    nextStatus: TaskboardWorkflowStatus,
     placement?: { beforeTaskId: string | null; afterTaskId: string | null },
   ): void => {
     void onMove(task.id, nextStatus, placement).then(() => {
@@ -141,7 +142,7 @@ export function BoardColumn({
     if (dragDepth.current === 0) setDragInsert(null)
   }
 
-  const projectPeersOf = (taskId: string): TaskboardTaskSummary[] => {
+  const projectPeersOf = (taskId: string): TaskboardWorkflowTaskSummary[] => {
     const task = tasks.find(candidate => candidate.id === taskId)
     return task
       ? tasks.filter(candidate => candidate.projectId === task.projectId)
@@ -255,12 +256,12 @@ function TaskMoveMenu({
   onMove,
 }: {
   pending: boolean
-  projectPeers: readonly TaskboardTaskSummary[]
-  status: TaskboardStatus
-  task: TaskboardTaskSummary
+  projectPeers: readonly TaskboardWorkflowTaskSummary[]
+  status: TaskboardWorkflowStatus
+  task: TaskboardWorkflowTaskSummary
   onMove: (
-    task: TaskboardTaskSummary,
-    status: TaskboardStatus,
+    task: TaskboardWorkflowTaskSummary,
+    status: TaskboardWorkflowStatus,
     placement?: { beforeTaskId: string | null; afterTaskId: string | null },
   ) => void
 }): React.ReactNode {
@@ -309,7 +310,7 @@ function TaskMoveMenu({
         下移
       </PopoverItem>
       <PopoverSeparator />
-      {(['backlog', 'todo', 'in_progress', 'in_review', 'done'] as const)
+      {TASKBOARD_ALL_COLUMNS.map(column => column.status)
         .filter(nextStatus => nextStatus !== task.status)
         .map(nextStatus => (
           <PopoverItem
@@ -329,7 +330,7 @@ function TaskMoveMenu({
 }
 
 export function resolveTaskDropPlacement(
-  tasks: readonly Pick<TaskboardTaskSummary, 'id' | 'projectId'>[],
+  tasks: readonly Pick<TaskboardWorkflowTaskSummary, 'id' | 'projectId'>[],
   payload: TaskDragPayload,
   targetTaskId?: string,
   placeAfter = false,
@@ -361,12 +362,6 @@ function readTaskDragPayload(dataTransfer: DataTransfer): TaskDragPayload | null
   }
 }
 
-function moveLabel(status: TaskboardStatus): string {
-  switch (status) {
-    case 'backlog': return '移到待整理'
-    case 'todo': return '移到待办'
-    case 'in_progress': return '移到进行中'
-    case 'in_review': return '移到待审核'
-    case 'done': return '移到已完成'
-  }
+function moveLabel(status: TaskboardWorkflowStatus): string {
+  return `移到${taskboardStatusLabel(status)}`
 }

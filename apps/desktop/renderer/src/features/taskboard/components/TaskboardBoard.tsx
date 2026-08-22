@@ -1,23 +1,23 @@
 import type React from 'react'
 import type {
-  TaskboardStatus,
-  TaskboardTaskSummary,
+  TaskboardWorkflowStatus,
+  TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import { TASKBOARD_COLUMNS } from '../taskboardConstants.js'
 import type { TaskMovePlacement } from '../state/useTaskboardController.js'
 import { BoardColumn } from './BoardColumn.js'
 
 type Props = {
-  tasks: readonly TaskboardTaskSummary[]
+  tasks: readonly TaskboardWorkflowTaskSummary[]
   projectNames: ReadonlyMap<string, string>
   pendingTaskIds: ReadonlySet<string>
   archived: boolean
   onOpen: (taskId: string) => void
   onStart: (taskId: string) => void
-  onNewTask: (status: TaskboardStatus) => void
+  onNewTask: (status: TaskboardWorkflowStatus) => void
   onMove: (
     taskId: string,
-    status: TaskboardStatus,
+    status: TaskboardWorkflowStatus,
     placement?: TaskMovePlacement,
   ) => Promise<void>
 }
@@ -32,9 +32,21 @@ export function TaskboardBoard({
   onNewTask,
   onMove,
 }: Props): React.ReactNode {
+  const visibleColumns = TASKBOARD_COLUMNS.filter(column => (
+    column.status !== 'blocked'
+    || tasks.some(task => task.status === 'blocked')
+  ))
   return (
-    <div className="taskboard-board" data-archived={archived || undefined}>
-      {TASKBOARD_COLUMNS.map(column => (
+    <div
+      className="taskboard-board"
+      data-archived={archived || undefined}
+      data-column-count={visibleColumns.length}
+      style={{
+        '--taskboard-main-column-count': visibleColumns.length,
+        '--taskboard-main-min-width': `${visibleColumns.length * 300 + Math.max(0, visibleColumns.length - 1) * 24}px`,
+      } as React.CSSProperties}
+    >
+      {visibleColumns.map(column => (
         <BoardColumn
           key={column.status}
           {...column}

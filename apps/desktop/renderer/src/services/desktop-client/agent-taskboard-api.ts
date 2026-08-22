@@ -4,7 +4,7 @@ import type { DesktopTaskboardApi } from './types.js'
 
 type Dependencies = {
   requireAgentCapability: (
-    name: Extract<ProtocolCapability, 'taskboard.v1'>,
+    name: Extract<ProtocolCapability, 'taskboard.v1' | 'taskboard.workflow.v1'>,
   ) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
   mockClient: DesktopTaskboardApi
@@ -34,9 +34,51 @@ export function createAgentTaskboardApi({
     requireAgentCapability('taskboard.v1')
     return agentOperation()
   }, mockOperation)
+  const executeWorkflow = <T>(operation: () => Promise<T>): Promise<T> =>
+    withRequiredAgent(async () => {
+      requireAgentCapability('taskboard.workflow.v1')
+      return operation()
+    })
+  const executeWorkflowRead = <T>(operation: () => Promise<T>): Promise<T> =>
+    withAgentOrMock(async () => {
+      requireAgentCapability('taskboard.workflow.v1')
+      return operation()
+    }, () => Promise.reject(new Error('浏览器预览不支持会话任务看板。')))
   const operationId = (): string => crypto.randomUUID()
 
   return {
+    listTaskboardWorkflowTasks: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/list', params)),
+    readTaskboardWorkflowTask: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/read', params)),
+    createTaskboardWorkflowTask: params => executeWorkflow(() => rpc.call('taskboard/workflow/create', {
+      ...params,
+      operationId: operationId(),
+    })),
+    updateTaskboardWorkflowTask: params => executeWorkflow(() => rpc.call('taskboard/workflow/update', {
+      ...params,
+      operationId: operationId(),
+    })),
+    moveTaskboardWorkflowTask: params => executeWorkflow(() => rpc.call('taskboard/workflow/move', {
+      ...params,
+      operationId: operationId(),
+    })),
+    transitionTaskboardWorkflowTask: params => executeWorkflow(() => rpc.call('taskboard/workflow/transition', {
+      ...params,
+      operationId: operationId(),
+    })),
+    markTaskboardWorkflowTaskRead: params => executeWorkflow(() => rpc.call('taskboard/workflow/mark-read', {
+      ...params,
+      operationId: operationId(),
+    })),
+    listTaskboardWorkflowThreadCandidates: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/thread-candidates', params)),
+    findTaskboardWorkflowTaskByThread: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/find-by-thread', params)),
+    linkTaskboardWorkflowThreads: params => executeWorkflow(() => rpc.call('taskboard/workflow/link-threads', {
+      ...params,
+      operationId: operationId(),
+    })),
+    startTaskboardWorkflowTask: params => executeWorkflow(() => rpc.call('taskboard/workflow/start', {
+      ...params,
+      operationId: operationId(),
+    })),
     listTaskboardTasks: params => executeRead(
       () => rpc.call('taskboard/task/list', params),
       () => mockClient.listTaskboardTasks(params),

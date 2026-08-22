@@ -30,6 +30,7 @@ import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { cx } from "../../../utils/cx.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
 import { SidebarRow } from "./SidebarRow.js";
+import { useTaskboardUnreadCount } from '../../taskboard/state/useTaskboardUnreadCount.js'
 
 type SidebarNavAvailability =
   | { kind: 'always' }
@@ -71,7 +72,7 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
     path: '/taskboard',
     availability: {
       kind: 'any-capability',
-      capabilities: ['taskboard.v1'],
+      capabilities: ['taskboard.workflow.v1', 'taskboard.v1'],
     },
   },
   {
@@ -162,9 +163,11 @@ export function splitSidebarTopNavItems(
 function SidebarNavItems({
   items,
   isActiveView,
+  taskboardUnreadCount = 0,
 }: {
   items: readonly SidebarNavItem[];
   isActiveView: (view: AppView) => boolean;
+  taskboardUnreadCount?: number
 }): React.ReactNode {
   return (
     <>
@@ -179,6 +182,11 @@ function SidebarNavItems({
             labelClassName={cx('sidebar-item-label', 'u-min-w-0', 'u-truncate')}
             layout="flex"
             leading={item.icon}
+            trailing={item.view === 'taskboard' && taskboardUnreadCount > 0 ? (
+              <span className="sidebar-nav-unread-count" aria-label={`${taskboardUnreadCount} 个未读任务`}>
+                {taskboardUnreadCount > 99 ? '99+' : taskboardUnreadCount}
+              </span>
+            ) : undefined}
           >
             <Link aria-current={active ? 'page' : undefined} to={item.path}>
               {item.label}
@@ -378,6 +386,9 @@ export function SidebarTopNav({
   showProjects,
 }: Props): React.ReactNode {
   const { sidebarProductMode } = useDesktopSettings()
+  const workflowAvailable = capabilityState.status === 'ready'
+    && capabilityState.capabilities.has('taskboard.workflow.v1')
+  const taskboardUnreadCount = useTaskboardUnreadCount(workflowAvailable)
   const { scrollableItems } = splitSidebarTopNavItems(
     getSidebarTopNavItems({
       showProjects,
@@ -387,7 +398,7 @@ export function SidebarTopNav({
   )
   return (
     <nav className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5" aria-label="主要导航">
-      <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
+      <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} taskboardUnreadCount={taskboardUnreadCount} />
     </nav>
   );
 }

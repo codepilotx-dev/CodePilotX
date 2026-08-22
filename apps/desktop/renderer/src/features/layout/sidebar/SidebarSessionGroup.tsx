@@ -11,6 +11,8 @@ import {
 } from "react";
 import { Archive, Copy, Eye, EyeOff, Folder, LoaderCircle, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useNavigate } from 'react-router-dom'
+import type { TaskboardWorkflowThreadCandidate } from '@codepilotx/shared/taskboard'
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
 import {
@@ -32,6 +34,10 @@ import {
 } from "../../../components/ui/AppContextMenu.js";
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
 import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
+import { CreateTaskDialog } from '../../taskboard/components/CreateTaskDialog.js'
+import { deriveThreadTaskboardAction } from '../../taskboard/state/threadTaskboardAction.js'
+import { useThreadTaskboardAction } from '../../taskboard/state/useThreadTaskboardAction.js'
 
 const SidebarSessionHoverCard = lazy(async () => {
   const module = await import('./SidebarSessionHoverCard.js')
@@ -91,6 +97,7 @@ function SidebarSessionGroupComponent({
   onSortChange,
   onUnpinSession,
 }: Props): React.ReactNode {
+  const navigate = useNavigate()
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<
@@ -103,6 +110,10 @@ function SidebarSessionGroupComponent({
   const [renaming, setRenaming] = useState(false)
   const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null)
   const [dragOverSessionId, setDragOverSessionId] = useState<string | null>(null)
+  const [taskboardSession, setTaskboardSession] = useState<SessionListItem | null>(null)
+  const [createTaskSession, setCreateTaskSession] = useState<SessionListItem | null>(null)
+  const [taskboardProjects, setTaskboardProjects] = useState<Awaited<ReturnType<typeof desktopClient.listProjects>>>([])
+  const threadTaskboard = useThreadTaskboardAction()
   const reducedMotion = usePrefersReducedMotion()
   const needsInputSessionIds = pendingPermissionSessionIds
   const unreadSessionIds = useMemo(
@@ -238,7 +249,25 @@ function SidebarSessionGroupComponent({
   function getSessionContextMenuActions(
     session: SessionListItem,
   ): ContextMenuAction[] {
+    const taskAction = deriveThreadTaskboardAction(
+      threadTaskboard.loading || taskboardSession?.id !== session.id,
+      taskboardSession?.id === session.id ? threadTaskboard.lookup : null,
+    )
     return [
+      {
+        kind: 'item',
+        label: taskAction.label,
+        disabled: taskAction.disabled,
+        onSelect: () => {
+          if (taskAction.kind === 'open' && threadTaskboard.lookup?.taskId) {
+            navigate(`/taskboard/${encodeURIComponent(threadTaskboard.lookup.taskId)}`)
+          } else if (taskAction.kind === 'create') {
+            setCreateTaskSession(session)
+            void desktopClient.listProjects().then(setTaskboardProjects)
+          }
+        },
+      },
+      { kind: 'separator' },
       {
         kind: "item",
         label: "重命名",
@@ -495,6 +524,11 @@ function SidebarSessionGroupComponent({
         key={session.id}
         actions={getSessionContextMenuActions(session)}
         layout="grid"
+        onOpenChange={open => {
+          if (!open) return
+          setTaskboardSession(session)
+          void threadTaskboard.load(session.id, session.projectId)
+        }}
         width={240}
         trigger={row}
       />
@@ -590,6 +624,20 @@ function SidebarSessionGroupComponent({
           />
         </Suspense>
       ) : null}
+      <CreateTaskDialog
+        initialProjectId={createTaskSession?.projectId ?? undefined}
+        initialStatus="in_review"
+        initialThread={createTaskSession ? sessionCandidate(createTaskSession) : undefined}
+        initialTitle={createTaskSession ? sessionDisplayTitle(createTaskSession, sessionFallbackTitles[createTaskSession.id]) : undefined}
+        open={createTaskSession !== null}
+        projects={taskboardProjects}
+        onClose={() => setCreateTaskSession(null)}
+        onCreate={async input => {
+          const result = await desktopClient.createTaskboardWorkflowTask!(input)
+          setCreateTaskSession(null)
+          navigate(`/taskboard/${encodeURIComponent(result.task.task.id)}`)
+        }}
+      />
     </>
   );
 }
@@ -600,6 +648,17 @@ export function sessionReadStatusActionLabel(
   session: Pick<SessionListItem, 'unreadAt'>,
 ): '标记为已读' | '标记为未读' {
   return session.unreadAt ? '标记为已读' : '标记为未读'
+}
+
+function sessionCandidate(session: SessionListItem): TaskboardWorkflowThreadCandidate {
+  return {
+    threadId: session.id,
+    projectId: session.projectId ?? '',
+    title: sessionDisplayTitle(session),
+    latestTurnStatus: session.latestTurnStatus ?? null,
+    pendingPlanApproval: Boolean(session.pendingPlanApproval),
+    updatedAt: Date.parse(session.lastMessageAt ?? session.createdAt),
+  }
 }
 
 function SidebarSessionTitle({

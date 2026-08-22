@@ -6,10 +6,13 @@ import type {
 } from '@codepilotx/agent-protocol'
 import type {
   TaskboardPriority,
-  TaskboardStatus,
-  TaskboardTask,
-  TaskboardTaskDetails,
-  TaskboardTaskSummary,
+  TaskboardWorkflowDatePreset,
+  TaskboardWorkflowSort,
+  TaskboardWorkflowStartMode,
+  TaskboardWorkflowStatus,
+  TaskboardWorkflowTask,
+  TaskboardWorkflowTaskDetails,
+  TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { AgentRpcError } from '../../../services/agentRpcClient.js'
@@ -25,6 +28,9 @@ export type TaskboardFilters = {
   labelIds?: readonly string[]
   priorities?: readonly TaskboardPriority[]
   archived: boolean
+  unread?: boolean
+  datePreset?: TaskboardWorkflowDatePreset
+  sort?: TaskboardWorkflowSort
 }
 
 export type TaskMovePlacement = {
@@ -41,19 +47,27 @@ export function useTaskboardController(
     projectId: string
     title: string
     description?: string
-    status: TaskboardStatus
+    status: TaskboardWorkflowStatus
     priority: TaskboardPriority
+    startDate?: string | null
+    dueDate?: string | null
+    threadLinks?: readonly { threadId: string; role: 'primary' | 'supporting' }[]
   }) => Promise<string>
   moveTask: (
     taskId: string,
-    status: TaskboardStatus,
+    status: TaskboardWorkflowStatus,
     placement?: TaskMovePlacement,
+  ) => Promise<void>
+  transitionTask: (
+    taskId: string,
+    action: RpcParams<'taskboard/workflow/transition'>['action'],
+    note?: string,
   ) => Promise<void>
   archiveTask: (taskId: string) => Promise<void>
   restoreTask: (taskId: string) => Promise<void>
   updateTask: (
     taskId: string,
-    patch: RpcParams<'taskboard/task/update'>['patch'],
+    patch: RpcParams<'taskboard/workflow/update'>['patch'],
   ) => Promise<void>
   deleteTask: (taskId: string) => Promise<void>
   addComment: (taskId: string, body: string) => Promise<void>
@@ -68,6 +82,7 @@ export function useTaskboardController(
   startTask: (
     taskId: string,
     execution: TaskboardStartExecution,
+    mode?: TaskboardWorkflowStartMode,
   ) => Promise<TaskboardStartOperation>
   retryStartSetup: (operation: TaskboardStartOperation) => Promise<TaskboardStartOperation>
   continueStartWithoutSetup: (operation: TaskboardStartOperation) => Promise<TaskboardStartOperation>
@@ -92,15 +107,18 @@ export function useTaskboardController(
     try {
       const current = filtersRef.current
       const capabilities = await desktopClient.getRuntimeCapabilities()
-      if (!capabilities.includes('taskboard.v1')) {
+      if (!capabilities.includes('taskboard.workflow.v1')) {
         throw new Error('当前 Agent 不支持任务看板。请更新 Agent 后重试。')
       }
       const [result, projects, sessions] = await Promise.all([
-        desktopClient.listTaskboardTasks({
+        desktopClient.listTaskboardWorkflowTasks!({
           ...(current.projectId ? { projectId: current.projectId } : {}),
           ...(current.query ? { query: current.query } : {}),
           ...(current.labelIds?.length ? { labelIds: [...current.labelIds] } : {}),
           ...(current.priorities?.length ? { priorities: [...current.priorities] } : {}),
+          ...(current.unread !== undefined ? { unread: current.unread } : {}),
+          ...(current.datePreset ? { datePreset: current.datePreset } : {}),
+          ...(current.sort ? { sort: current.sort } : {}),
           archived: current.archived,
           limit: 500,
         }),
@@ -109,7 +127,8 @@ export function useTaskboardController(
       ])
       if (request !== listRequestRef.current) return
       store.patch({
-        tasks: sortTasks(result.tasks),
+        tasks: sortTasks(result.tasks, current.sort),
+        unreadCount: result.unreadCount,
         projects,
         sessions: sessions.map(session => session.item),
         loading: false,
@@ -124,7 +143,20 @@ export function useTaskboardController(
     const request = ++detailRequestRef.current
     store.patch({ detailLoading: true, detailError: null })
     try {
-      const result = await desktopClient.readTaskboardTask({ taskId })
+      let result = await desktopClient.readTaskboardWorkflowTask!({ taskId })
+      if (result.task.task.attention.unread) {
+        try {
+          result = await desktopClient.markTaskboardWorkflowTaskRead!({
+            taskId,
+            ...(result.task.task.attention.unreadAt !== null
+              ? { expectedUnreadAt: result.task.task.attention.unreadAt }
+              : {}),
+          })
+        } catch {
+          // A concurrent activity may supersede this read marker. Keep the detail usable;
+          // the durable workflow event will reconcile the latest attention state.
+        }
+      }
       let detailReadOnly = false
       const labels = await desktopClient.listTaskboardLabels({
         projectId: result.task.task.projectId,
@@ -137,6 +169,10 @@ export function useTaskboardController(
       })
       if (request !== detailRequestRef.current) return
       store.patch({
+        tasks: upsertTask(store.getSnapshot().tasks, {
+          ...result.task.task,
+          threads: result.task.threads,
+        }, filtersRef.current),
         detail: result.task,
         labels,
         detailReadOnly,
@@ -168,18 +204,23 @@ export function useTaskboardController(
   useEffect(() => desktopClient.subscribeAgentEventEnvelopes(
     { liveEventTypes: AGENT_LIVE_EVENT_FILTERS.taskboard },
     events => {
-      if (!events.some(event => event.type === 'taskboard/changed')) return
+      if (!events.some(event => (
+        event.type === 'taskboard/changed'
+        || event.type === 'taskboard/workflow/changed'
+        || event.type === 'turn/statusChanged'
+      ))) return
       void refresh()
       if (selectedTaskId) void refreshDetail(selectedTaskId)
     },
   ), [refresh, refreshDetail, selectedTaskId])
 
-  const applyDetails = useCallback((details: TaskboardTaskDetails): void => {
-    const summary: TaskboardTaskSummary = {
+  const applyDetails = useCallback((details: TaskboardWorkflowTaskDetails): void => {
+    const summary: TaskboardWorkflowTaskSummary = {
       ...details.task,
       threads: details.threads,
     }
     const current = store.getSnapshot()
+    const previous = current.tasks.find(task => task.id === summary.id)
     store.patch({
       tasks: upsertTask(
         current.tasks,
@@ -187,6 +228,9 @@ export function useTaskboardController(
         filtersRef.current,
       ),
       ...(selectedTaskId === details.task.id ? { detail: details } : {}),
+      unreadCount: previous?.attention.unread && !summary.attention.unread
+        ? Math.max(0, current.unreadCount - 1)
+        : current.unreadCount,
       error: null,
     })
   }, [selectedTaskId, store])
@@ -224,7 +268,7 @@ export function useTaskboardController(
     ...state,
     refresh,
     createTask: async input => {
-      const result = await desktopClient.createTaskboardTask(
+      const result = await desktopClient.createTaskboardWorkflowTask!(
         taskboardCreateTaskRpcInput(input),
       )
       applyDetails(result.task)
@@ -236,7 +280,7 @@ export function useTaskboardController(
       const rollback = state.tasks
       store.patch({ tasks: optimisticallyMoveTask(rollback, task, status, placement) })
       try {
-        const result = await runTaskMutation(taskId, () => desktopClient.moveTaskboardTask({
+        const result = await runTaskMutation(taskId, () => desktopClient.moveTaskboardWorkflowTask!({
           taskId,
           status,
           expectedVersion: task.version,
@@ -250,28 +294,37 @@ export function useTaskboardController(
         throw error
       }
     },
+    transitionTask: async (taskId, action, note) => {
+      const task = findTask(state.tasks, state.detail?.task, taskId)
+      if (!task) return
+      const result = await runTaskMutation(taskId, () => desktopClient.transitionTaskboardWorkflowTask!(
+        taskboardTransitionRpcInput(taskId, task.version, action, note),
+      ))
+      applyDetails(result.task)
+    },
     archiveTask: async taskId => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      const result = await runTaskMutation(taskId, () => desktopClient.archiveTaskboardTask({
+      await runTaskMutation(taskId, () => desktopClient.archiveTaskboardTask({
         taskId,
         expectedVersion: task.version,
       }))
-      applyDetails(result.task)
+      await refresh()
     },
     restoreTask: async taskId => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      const result = await runTaskMutation(taskId, () => desktopClient.restoreTaskboardTask({
+      await runTaskMutation(taskId, () => desktopClient.restoreTaskboardTask({
         taskId,
         expectedVersion: task.version,
       }))
-      applyDetails(result.task)
+      await refresh()
+      if (selectedTaskId === taskId) await refreshDetail(taskId)
     },
     updateTask: async (taskId, patch) => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      const result = await runTaskMutation(taskId, () => desktopClient.updateTaskboardTask({
+      const result = await runTaskMutation(taskId, () => desktopClient.updateTaskboardWorkflowTask!({
         taskId,
         patch,
         expectedVersion: task.version,
@@ -293,31 +346,34 @@ export function useTaskboardController(
     addComment: async (taskId, body) => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      const result = await runTaskMutation(taskId, () => desktopClient.createTaskboardComment({
+      await runTaskMutation(taskId, () => desktopClient.createTaskboardComment({
         taskId,
         body,
         expectedVersion: task.version,
       }))
-      applyDetails(result.task)
+      await refresh()
+      await refreshDetail(taskId)
     },
     updateComment: async (commentId, body) => {
       const comment = state.detail?.comments.find(candidate => candidate.id === commentId)
       if (!comment) return
-      const result = await runTaskMutation(comment.taskId, () => desktopClient.updateTaskboardComment({
+      await runTaskMutation(comment.taskId, () => desktopClient.updateTaskboardComment({
         commentId,
         body,
         expectedVersion: comment.version,
       }))
-      applyDetails(result.task)
+      await refresh()
+      await refreshDetail(comment.taskId)
     },
     deleteComment: async commentId => {
       const comment = state.detail?.comments.find(candidate => candidate.id === commentId)
       if (!comment) return
-      const result = await runTaskMutation(comment.taskId, () => desktopClient.deleteTaskboardComment({
+      await runTaskMutation(comment.taskId, () => desktopClient.deleteTaskboardComment({
         commentId,
         expectedVersion: comment.version,
       }))
-      applyDetails(result.task)
+      await refresh()
+      await refreshDetail(comment.taskId)
     },
     createLabel: async (projectId, name) => {
       try {
@@ -388,10 +444,12 @@ export function useTaskboardController(
     linkThread: async (taskId, threadId) => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      const result = await runTaskMutation(taskId, () => desktopClient.linkTaskboardThread({
+      const result = await runTaskMutation(taskId, () => desktopClient.linkTaskboardWorkflowThreads!({
         taskId,
-        threadId,
-        role: state.detail?.threads.length ? 'supporting' : 'primary',
+        links: [
+          ...(state.detail?.threads.map(thread => ({ threadId: thread.threadId, role: thread.role })) ?? []),
+          { threadId, role: state.detail?.threads.length ? 'supporting' as const : 'primary' as const },
+        ],
         expectedVersion: task.version,
       }))
       applyDetails(result.task)
@@ -399,9 +457,15 @@ export function useTaskboardController(
     unlinkThread: async (taskId, threadId) => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      const result = await runTaskMutation(taskId, () => desktopClient.unlinkTaskboardThread({
+      const remaining = state.detail?.threads.filter(thread => thread.threadId !== threadId) ?? []
+      const result = await runTaskMutation(taskId, () => desktopClient.linkTaskboardWorkflowThreads!({
         taskId,
-        threadId,
+        links: remaining.map((thread, index) => ({
+          threadId: thread.threadId,
+          role: index === 0 && !remaining.some(candidate => candidate.role === 'primary')
+            ? 'primary' as const
+            : thread.role,
+        })),
         expectedVersion: task.version,
       }))
       applyDetails(result.task)
@@ -409,17 +473,31 @@ export function useTaskboardController(
     setPrimaryThread: async (taskId, threadId) => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      const result = await runTaskMutation(taskId, () => desktopClient.setPrimaryTaskboardThread({
+      const result = await runTaskMutation(taskId, () => desktopClient.linkTaskboardWorkflowThreads!({
         taskId,
-        threadId,
+        links: state.detail?.threads.map(thread => ({
+          threadId: thread.threadId,
+          role: thread.threadId === threadId ? 'primary' as const : 'supporting' as const,
+        })) ?? [],
         expectedVersion: task.version,
       }))
       applyDetails(result.task)
     },
-    startTask: async (taskId, execution) => {
+    startTask: async (taskId, execution, mode) => {
       store.setTaskPending(taskId, true)
       try {
-        const result = await desktopClient.startTaskboardTask({ taskId, execution })
+        const task = findTask(state.tasks, state.detail?.task, taskId)
+        if (!task) throw new Error('任务不存在或已移除。')
+        const result = await desktopClient.startTaskboardWorkflowTask!({
+          taskId,
+          expectedVersion: task.version,
+          execution,
+          mode: mode ?? taskboardStartMode(
+            state.tasks.find(candidate => candidate.id === taskId)?.threads
+              ?? (state.detail?.task.id === taskId ? state.detail.threads : []),
+          ),
+          authorizeBacklog: true,
+        })
         return await waitForStart(result.operation)
       } catch (error) {
         await handleMutationError(error, taskId)
@@ -445,20 +523,49 @@ export function useTaskboardController(
   }), [applyDetails, handleMutationError, refresh, runTaskMutation, selectedTaskId, state, store])
 }
 
-/** 把创建任务的 UI 输入映射为 taskboard/task/create 参数；status 使用 RPC 已有的可选字段。 */
+/** 把创建任务的 UI 输入映射为 workflow/create 参数。 */
 export function taskboardCreateTaskRpcInput(input: {
   projectId: string
   title: string
   description?: string
-  status: TaskboardStatus
+  status: TaskboardWorkflowStatus
   priority: TaskboardPriority
-}): Omit<RpcParams<'taskboard/task/create'>, 'operationId'> {
+  startDate?: string | null
+  dueDate?: string | null
+  threadLinks?: readonly { threadId: string; role: 'primary' | 'supporting' }[]
+}): Omit<RpcParams<'taskboard/workflow/create'>, 'operationId'> {
   return {
     projectId: input.projectId,
     title: input.title,
     description: input.description,
     status: input.status,
     priority: input.priority,
+    ...(input.startDate !== undefined ? { startDate: input.startDate } : {}),
+    ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
+    ...(input.threadLinks?.length ? { threadLinks: [...input.threadLinks] } : {}),
+  }
+}
+
+export function taskboardStartMode(
+  threads: readonly { role: 'primary' | 'supporting' }[],
+): 'continue_primary' | 'new_primary' {
+  return threads.some(thread => thread.role === 'primary')
+    ? 'continue_primary'
+    : 'new_primary'
+}
+
+export function taskboardTransitionRpcInput(
+  taskId: string,
+  expectedVersion: number,
+  action: RpcParams<'taskboard/workflow/transition'>['action'],
+  note?: string,
+): Omit<RpcParams<'taskboard/workflow/transition'>, 'operationId'> {
+  const trimmedNote = note?.trim()
+  return {
+    taskId,
+    expectedVersion,
+    action,
+    ...(trimmedNote ? { note: trimmedNote } : {}),
   }
 }
 
@@ -476,40 +583,56 @@ async function waitForStart(
   return operation
 }
 
-function sortTasks(tasks: readonly TaskboardTaskSummary[]): TaskboardTaskSummary[] {
-  const statusOrder: Record<TaskboardStatus, number> = {
+function sortTasks(
+  tasks: readonly TaskboardWorkflowTaskSummary[],
+  sort: TaskboardWorkflowSort = 'position',
+): TaskboardWorkflowTaskSummary[] {
+  const statusOrder: Record<TaskboardWorkflowStatus, number> = {
     backlog: 0,
     todo: 1,
     in_progress: 2,
-    in_review: 3,
-    done: 4,
+    blocked: 3,
+    in_review: 4,
+    done: 5,
+    canceled: 6,
   }
-  return [...tasks].sort((left, right) =>
-    statusOrder[left.status] - statusOrder[right.status]
-    || left.projectId.localeCompare(right.projectId)
-    || left.position - right.position
-    || left.id.localeCompare(right.id),
-  )
+  return [...tasks].sort((left, right) => {
+    const statusDifference = statusOrder[left.status] - statusOrder[right.status]
+    if (statusDifference !== 0) return statusDifference
+    if (sort === 'due_date') {
+      const dueDifference = nullableDateValue(left.dueDate) - nullableDateValue(right.dueDate)
+      if (dueDifference !== 0) return dueDifference
+    }
+    if (sort === 'updated_at') {
+      const updatedDifference = right.updatedAt - left.updatedAt
+      if (updatedDifference !== 0) return updatedDifference
+    }
+    return left.projectId.localeCompare(right.projectId)
+      || left.position - right.position
+      || left.id.localeCompare(right.id)
+  })
 }
 
 function upsertTask(
-  tasks: readonly TaskboardTaskSummary[],
-  task: TaskboardTaskSummary,
+  tasks: readonly TaskboardWorkflowTaskSummary[],
+  task: TaskboardWorkflowTaskSummary,
   filters: TaskboardFilters,
-): TaskboardTaskSummary[] {
+): TaskboardWorkflowTaskSummary[] {
   const withoutTask = tasks.filter(candidate => candidate.id !== task.id)
   return taskMatchesFilters(task, filters)
-    ? sortTasks([...withoutTask, task])
-    : sortTasks(withoutTask)
+    ? sortTasks([...withoutTask, task], filters.sort)
+    : sortTasks(withoutTask, filters.sort)
 }
 
 function taskMatchesFilters(
-  task: TaskboardTaskSummary,
+  task: TaskboardWorkflowTaskSummary,
   filters: TaskboardFilters,
 ): boolean {
   if ((task.archivedAt !== null) !== filters.archived) return false
   if (filters.projectId && task.projectId !== filters.projectId) return false
   if (filters.priorities?.length && !filters.priorities.includes(task.priority)) return false
+  if (filters.unread !== undefined && task.attention.unread !== filters.unread) return false
+  if (filters.datePreset && !matchesDatePreset(task.dueDate, filters.datePreset)) return false
   if (
     filters.labelIds?.length
     && !filters.labelIds.every(id => task.labels.some(label => label.id === id))
@@ -518,12 +641,37 @@ function taskMatchesFilters(
   return !query || `${task.title}\n${task.description}`.toLocaleLowerCase('zh-CN').includes(query)
 }
 
+function matchesDatePreset(
+  dueDate: string | null,
+  preset: TaskboardWorkflowDatePreset,
+): boolean {
+  if (preset === 'no_due_date') return dueDate === null
+  if (dueDate === null) return false
+  const today = localDateKey(new Date())
+  if (preset === 'overdue') return dueDate < today
+  if (preset === 'due_today') return dueDate === today
+  const weekEnd = new Date()
+  weekEnd.setDate(weekEnd.getDate() + 7)
+  return dueDate >= today && dueDate <= localDateKey(weekEnd)
+}
+
+function localDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function nullableDateValue(value: string | null): number {
+  return value === null ? Number.POSITIVE_INFINITY : Date.parse(`${value}T12:00:00`)
+}
+
 export function optimisticallyMoveTask(
-  tasks: readonly TaskboardTaskSummary[],
-  task: TaskboardTaskSummary,
-  status: TaskboardStatus,
+  tasks: readonly TaskboardWorkflowTaskSummary[],
+  task: TaskboardWorkflowTaskSummary,
+  status: TaskboardWorkflowStatus,
   placement?: TaskMovePlacement,
-): TaskboardTaskSummary[] {
+): TaskboardWorkflowTaskSummary[] {
   const withoutTask = tasks.filter(candidate => candidate.id !== task.id)
   const moved = { ...task, status }
   if (!placement) return sortTasks([...withoutTask, moved])
@@ -544,10 +692,10 @@ export function optimisticallyMoveTask(
 }
 
 function findTask(
-  tasks: readonly TaskboardTaskSummary[],
-  detailTask: TaskboardTask | undefined,
+  tasks: readonly TaskboardWorkflowTaskSummary[],
+  detailTask: TaskboardWorkflowTask | undefined,
   taskId: string,
-): Pick<TaskboardTask, 'id' | 'version'> | undefined {
+): Pick<TaskboardWorkflowTask, 'id' | 'version'> | undefined {
   return tasks.find(task => task.id === taskId)
     ?? (detailTask?.id === taskId ? detailTask : undefined)
 }

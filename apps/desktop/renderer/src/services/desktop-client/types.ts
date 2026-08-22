@@ -351,6 +351,17 @@ type WithoutOperationId<T> = T extends { operationId: unknown }
   : T
 
 export type DesktopTaskboardApi = {
+  listTaskboardWorkflowTasks?(input: RpcParams<'taskboard/workflow/list'>): Promise<RpcResult<'taskboard/workflow/list'>>
+  readTaskboardWorkflowTask?(input: RpcParams<'taskboard/workflow/read'>): Promise<RpcResult<'taskboard/workflow/read'>>
+  createTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/create'>>): Promise<RpcResult<'taskboard/workflow/create'>>
+  updateTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/update'>>): Promise<RpcResult<'taskboard/workflow/update'>>
+  moveTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/move'>>): Promise<RpcResult<'taskboard/workflow/move'>>
+  transitionTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/transition'>>): Promise<RpcResult<'taskboard/workflow/transition'>>
+  markTaskboardWorkflowTaskRead?(input: WithoutOperationId<RpcParams<'taskboard/workflow/mark-read'>>): Promise<RpcResult<'taskboard/workflow/mark-read'>>
+  listTaskboardWorkflowThreadCandidates?(input: RpcParams<'taskboard/workflow/thread-candidates'>): Promise<RpcResult<'taskboard/workflow/thread-candidates'>>
+  findTaskboardWorkflowTaskByThread?(input: RpcParams<'taskboard/workflow/find-by-thread'>): Promise<RpcResult<'taskboard/workflow/find-by-thread'>>
+  linkTaskboardWorkflowThreads?(input: WithoutOperationId<RpcParams<'taskboard/workflow/link-threads'>>): Promise<RpcResult<'taskboard/workflow/link-threads'>>
+  startTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/start'>>): Promise<RpcResult<'taskboard/workflow/start'>>
   listTaskboardTasks(input: RpcParams<'taskboard/task/list'>): Promise<RpcResult<'taskboard/task/list'>>
   readTaskboardTask(input: RpcParams<'taskboard/task/read'>): Promise<RpcResult<'taskboard/task/read'>>
   createTaskboardTask(input: WithoutOperationId<RpcParams<'taskboard/task/create'>>): Promise<RpcResult<'taskboard/task/create'>>

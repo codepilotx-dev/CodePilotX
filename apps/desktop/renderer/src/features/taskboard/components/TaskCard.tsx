@@ -1,12 +1,12 @@
 import type React from 'react'
-import { MessageSquare, Play, TriangleAlert } from 'lucide-react'
-import type { TaskboardTaskSummary, TaskboardWorktreeStatus } from '@codepilotx/shared/taskboard'
+import { CalendarDays, MessageSquare, Play, TriangleAlert } from 'lucide-react'
+import type { TaskboardWorkflowTaskSummary, TaskboardWorktreeStatus } from '@codepilotx/shared/taskboard'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
 
 type Props = {
-  task: TaskboardTaskSummary
+  task: TaskboardWorkflowTaskSummary
   projectName: string
   pending: boolean
   menu?: React.ReactNode
@@ -46,6 +46,7 @@ export function TaskCard({
       data-dragging={dataDragging ? '' : undefined}
       data-pending={pending || undefined}
       data-priority={task.priority}
+      data-unread={task.attention.unread || undefined}
       draggable={!pending}
       onDragStart={onDragStart}
     >
@@ -68,6 +69,7 @@ export function TaskCard({
               />
             </span>
           ) : null}
+          {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="未读更新" /> : null}
           {task.priority !== 'none' ? (
             <span className="taskboard-card__priority">
               {TASKBOARD_PRIORITY_LABELS[task.priority]}
@@ -82,6 +84,12 @@ export function TaskCard({
               <span key={label.id}>{label.name}</span>
             ))}
             {task.labels.length > 2 ? <span>+{task.labels.length - 2}</span> : null}
+          </span>
+        ) : null}
+        {task.dueDate ? (
+          <span className="taskboard-card__due" data-overdue={isOverdue(task.dueDate) || undefined}>
+            <CalendarDays aria-hidden="true" size={APP_ICON_SIZE - 2} />
+            {formatTaskDate(task.dueDate)}
           </span>
         ) : null}
       </button>
@@ -127,6 +135,17 @@ export function TaskCard({
       </footer>
     </article>
   )
+}
+
+function formatTaskDate(value: string): string {
+  return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' })
+    .format(new Date(`${value}T12:00:00`))
+}
+
+function isOverdue(value: string): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return new Date(`${value}T00:00:00`).getTime() < today.getTime()
 }
 
 function worktreeStatusLabel(status: TaskboardWorktreeStatus): string {

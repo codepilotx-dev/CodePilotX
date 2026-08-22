@@ -143,6 +143,7 @@ export const RENDERER_CAPABILITIES = [
   'thread.side-chat.v1',
   'speech.transcription.v1',
   'taskboard.v1',
+  'taskboard.workflow.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -1790,6 +1791,28 @@ export function createAgentSessionDesktopClient(
       loadAgentToolingApi().then(api => api.installPet(url)),
     removePet: id =>
       loadAgentToolingApi().then(api => api.removePet(id)),
+    listTaskboardWorkflowTasks: input =>
+      loadAgentTaskboardApi().then(api => api.listTaskboardWorkflowTasks!(input)),
+    readTaskboardWorkflowTask: input =>
+      loadAgentTaskboardApi().then(api => api.readTaskboardWorkflowTask!(input)),
+    createTaskboardWorkflowTask: input =>
+      loadAgentTaskboardApi().then(api => api.createTaskboardWorkflowTask!(input)),
+    updateTaskboardWorkflowTask: input =>
+      loadAgentTaskboardApi().then(api => api.updateTaskboardWorkflowTask!(input)),
+    moveTaskboardWorkflowTask: input =>
+      loadAgentTaskboardApi().then(api => api.moveTaskboardWorkflowTask!(input)),
+    transitionTaskboardWorkflowTask: input =>
+      loadAgentTaskboardApi().then(api => api.transitionTaskboardWorkflowTask!(input)),
+    markTaskboardWorkflowTaskRead: input =>
+      loadAgentTaskboardApi().then(api => api.markTaskboardWorkflowTaskRead!(input)),
+    listTaskboardWorkflowThreadCandidates: input =>
+      loadAgentTaskboardApi().then(api => api.listTaskboardWorkflowThreadCandidates!(input)),
+    findTaskboardWorkflowTaskByThread: input =>
+      loadAgentTaskboardApi().then(api => api.findTaskboardWorkflowTaskByThread!(input)),
+    linkTaskboardWorkflowThreads: input =>
+      loadAgentTaskboardApi().then(api => api.linkTaskboardWorkflowThreads!(input)),
+    startTaskboardWorkflowTask: input =>
+      loadAgentTaskboardApi().then(api => api.startTaskboardWorkflowTask!(input)),
     listTaskboardTasks: input =>
       loadAgentTaskboardApi().then(api => api.listTaskboardTasks(input)),
     readTaskboardTask: input =>

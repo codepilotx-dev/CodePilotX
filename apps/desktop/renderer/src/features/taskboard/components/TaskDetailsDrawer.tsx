@@ -1,31 +1,29 @@
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Archive, ArrowLeft, MessageSquare, Play, RotateCcw, Star, Unlink } from 'lucide-react'
 import type {
   TaskboardPriority,
   TaskboardLabel,
-  TaskboardStatus,
-  TaskboardTaskDetails,
+  TaskboardWorkflowStatus,
+  TaskboardWorkflowTaskDetails,
 } from '@codepilotx/shared/taskboard'
-import type { SessionListItem } from '../../../uiTypes.js'
-import { sessionDisplayTitle } from '../../../uiTypes.js'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { ConfirmationDialog, InputDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { MarkdownMessage } from '../../markdown/index.js'
-import { TASKBOARD_COLUMNS, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
+import { TASKBOARD_ALL_COLUMNS, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
+import { useTaskboardThreadCandidates } from '../state/useTaskboardThreadCandidates.js'
 
 type Props = {
   open: boolean
-  detail: TaskboardTaskDetails | null
+  detail: TaskboardWorkflowTaskDetails | null
   loading: boolean
   error: string | null
   pending: boolean
   projectName: string
   projectAvailable: boolean
   readOnly: boolean
-  sessions: readonly SessionListItem[]
   labels: readonly TaskboardLabel[]
   onClose: () => void
   onStart: (taskId: string) => void
@@ -34,10 +32,13 @@ type Props = {
   onUpdate: (taskId: string, patch: {
     title?: string
     description?: string
-    status?: TaskboardStatus
     priority?: TaskboardPriority
     labelIds?: readonly string[]
+    startDate?: string | null
+    dueDate?: string | null
   }) => Promise<void>
+  onMove: (taskId: string, status: TaskboardWorkflowStatus) => Promise<void>
+  onTransition: (taskId: string, action: 'accept' | 'return_work' | 'report_blocked', note?: string) => Promise<void>
   onDelete: (taskId: string) => Promise<void>
   onCreateLabel: (projectId: string, name: string) => Promise<void>
   onUpdateLabel: (labelId: string, name: string) => Promise<void>
@@ -60,13 +61,14 @@ export function TaskDetailsDrawer({
   projectName,
   projectAvailable,
   readOnly,
-  sessions,
   labels,
   onClose,
   onStart,
   onArchive,
   onRestore,
   onUpdate,
+  onMove,
+  onTransition,
   onDelete,
   onCreateLabel,
   onUpdateLabel,
@@ -86,24 +88,27 @@ export function TaskDetailsDrawer({
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [status, setStatus] = useState<TaskboardStatus>('backlog')
+  const [status, setStatus] = useState<TaskboardWorkflowStatus>('backlog')
   const [priority, setPriority] = useState<TaskboardPriority>('none')
   const [labelIds, setLabelIds] = useState<readonly string[]>([])
+  const [startDate, setStartDate] = useState('')
+  const [dueDate, setDueDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [transitionAction, setTransitionAction] = useState<'accept' | 'return_work' | 'report_blocked' | null>(null)
+  const [transitionNote, setTransitionNote] = useState('')
   const [linkThreadId, setLinkThreadId] = useState('')
+  const [linkThreadQuery, setLinkThreadQuery] = useState('')
   const [newLabelName, setNewLabelName] = useState('')
   const [labelNames, setLabelNames] = useState<Record<string, string>>({})
   const task = detail?.task ?? null
   const taskArchived = task?.archivedAt !== null && task?.archivedAt !== undefined
   const taskMutationReadOnly = readOnly || taskArchived
-  const availableSessions = useMemo(() => {
-    const linked = new Set(detail?.threads.map(thread => thread.threadId) ?? [])
-    return sessions.filter(session =>
-      session.projectId === task?.projectId
-      && !linked.has(session.id),
-    )
-  }, [detail?.threads, sessions, task?.projectId])
+  const threadCandidates = useTaskboardThreadCandidates({
+    open: open && Boolean(task),
+    projectId: task?.projectId ?? '',
+    query: linkThreadQuery,
+  })
 
   useEffect(() => {
     if (!task) return
@@ -112,10 +117,13 @@ export function TaskDetailsDrawer({
     setStatus(task.status)
     setPriority(task.priority)
     setLabelIds(task.labels.map(label => label.id))
+    setStartDate(task.startDate ?? '')
+    setDueDate(task.dueDate ?? '')
     setEditing(false)
     setEditingCommentId(null)
     setDeleteOpen(false)
     setLinkThreadId('')
+    setLinkThreadQuery('')
   }, [task?.id, task?.version])
 
   useEffect(() => {
@@ -140,9 +148,10 @@ export function TaskDetailsDrawer({
       await onUpdate(task.id, {
         title: title.trim(),
         description,
-        status,
         priority,
         labelIds: [...labelIds],
+        startDate: startDate || null,
+        dueDate: dueDate || null,
       })
       setEditing(false)
     } finally {
@@ -224,38 +233,45 @@ export function TaskDetailsDrawer({
                 </ul>
               )}
               <div className="taskboard-thread-linker">
+                <input aria-label="搜索要关联的对话" placeholder="搜索历史会话" value={linkThreadQuery} onChange={event => setLinkThreadQuery(event.currentTarget.value)} />
                 <select aria-label="选择要关联的对话" disabled={taskMutationReadOnly} value={linkThreadId} onChange={event => setLinkThreadId(event.currentTarget.value)}>
                   <option value="">选择项目中的对话</option>
-                  {availableSessions.map(session => <option key={session.id} value={session.id}>{sessionDisplayTitle(session)}</option>)}
+                  {threadCandidates.threads.map(thread => <option key={thread.threadId} value={thread.threadId}>{thread.title || '未命名会话'}</option>)}
                 </select>
                 <Button color="secondary" disabled={taskMutationReadOnly || !linkThreadId} onClick={() => {
                   if (!linkThreadId) return
                   void onLinkThread(task.id, linkThreadId).then(() => setLinkThreadId(''))
                 }}>{detail.threads.length === 0 ? '关联为主要对话' : '关联为辅助对话'}</Button>
+                {threadCandidates.hasMore ? <Button color="secondary" loading={threadCandidates.loadingMore} size="compact" onClick={() => void threadCandidates.loadMore()}>加载更多</Button> : null}
               </div>
             </section>
             <section className="taskboard-drawer__section">
-              <h3>评论 <span>{detail.comments.filter(item => item.deletedAt === null).length}</span></h3>
+              <h3>动态与评论 <span>{mergeTaskTimeline(detail).length}</span></h3>
               <div className="taskboard-comments">
-                {detail.comments.filter(item => item.deletedAt === null).map(item => (
-                  <article key={item.id}>
-                    <span>{item.author === 'agent' ? 'Agent' : '你'} · {formatTime(item.createdAt)}</span>
-                    {editingCommentId === item.id ? (
+                {mergeTaskTimeline(detail).map(item => item.kind === 'activity' ? (
+                  <article className="taskboard-comments__activity" key={`activity:${item.value.id}`}>
+                    <span>{formatTime(item.value.createdAt)}</span>
+                    <p><strong>{activityLabel(item.value.kind)}</strong></p>
+                  </article>
+                ) : (
+                  <article key={`comment:${item.value.id}`}>
+                    <span>{item.value.author === 'agent' ? 'Agent' : '你'} · {formatTime(item.value.createdAt)}</span>
+                    {editingCommentId === item.value.id ? (
                       <form onSubmit={event => {
                         event.preventDefault()
                         if (!editingCommentBody.trim()) return
-                        void onUpdateComment(item.id, editingCommentBody.trim()).then(() => setEditingCommentId(null))
+                        void onUpdateComment(item.value.id, editingCommentBody.trim()).then(() => setEditingCommentId(null))
                       }}>
                         <textarea aria-label="编辑评论" rows={3} value={editingCommentBody} onChange={event => setEditingCommentBody(event.currentTarget.value)} />
                         <Button color="ghostSecondary" size="compact" type="button" onClick={() => setEditingCommentId(null)}>取消</Button>
                         <Button color="secondary" disabled={!editingCommentBody.trim()} size="compact" type="submit">保存</Button>
                       </form>
                     ) : (
-                      <><p>{item.body}</p><footer><Button color="ghostSecondary" disabled={taskMutationReadOnly} size="compact" onClick={() => { setEditingCommentId(item.id); setEditingCommentBody(item.body) }}>编辑</Button><Button color="danger" disabled={taskMutationReadOnly} size="compact" onClick={() => void onDeleteComment(item.id)}>删除</Button></footer></>
+                      <><p>{item.value.body}</p><footer><Button color="ghostSecondary" disabled={taskMutationReadOnly} size="compact" onClick={() => { setEditingCommentId(item.value.id); setEditingCommentBody(item.value.body) }}>编辑</Button><Button color="danger" disabled={taskMutationReadOnly} size="compact" onClick={() => void onDeleteComment(item.value.id)}>删除</Button></footer></>
                     )}
                   </article>
                 ))}
-                {detail.comments.length === 0 ? <p className="taskboard-drawer__empty">用评论记录决策、检查结果或下一步。</p> : null}
+                {mergeTaskTimeline(detail).length === 0 ? <p className="taskboard-drawer__empty">用评论记录决策、检查结果或下一步。</p> : null}
               </div>
               <form className="taskboard-comment-form" onSubmit={event => { event.preventDefault(); void addComment() }}>
                 <textarea aria-label="添加评论" disabled={taskMutationReadOnly} placeholder="记录一个执行备注…" rows={3} value={comment} onChange={event => setComment(event.currentTarget.value)} />
@@ -271,6 +287,15 @@ export function TaskDetailsDrawer({
                 <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 开始执行
               </Button>
+              {task.status === 'in_review' ? (
+                <>
+                  <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => { setTransitionNote(''); setTransitionAction('accept') }}>通过审核</Button>
+                  <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => { setTransitionNote(''); setTransitionAction('return_work') }}>退回修改</Button>
+                </>
+              ) : null}
+              {task.status === 'todo' || task.status === 'in_progress' ? (
+                <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => { setTransitionNote(''); setTransitionAction('report_blocked') }}>报告阻碍</Button>
+              ) : null}
               {task.archivedAt === null ? (
                 <Button color="secondary" disabled={pending || readOnly} onClick={() => void onArchive(task.id)}>
                   <Archive aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />归档
@@ -287,8 +312,16 @@ export function TaskDetailsDrawer({
               </div>
                 <form className="taskboard-edit-form taskboard-edit-form--properties" onSubmit={event => { event.preventDefault(); void saveTask() }}>
                   <div>
-                    <label><span>阶段</span><select value={status} onChange={event => setStatus(event.currentTarget.value as TaskboardStatus)}>{TASKBOARD_COLUMNS.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></label>
+                    <label><span>阶段</span><select disabled={taskMutationReadOnly || pending} value={status} onChange={event => {
+                      const nextStatus = event.currentTarget.value as TaskboardWorkflowStatus
+                      setStatus(nextStatus)
+                      void onMove(task.id, nextStatus)
+                    }}>{TASKBOARD_ALL_COLUMNS.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></label>
                     <label><span>优先级</span><select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>{(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>)}</select></label>
+                  </div>
+                  <div>
+                    <label><span>开始日期</span><input type="date" value={startDate} onChange={event => setStartDate(event.currentTarget.value)} /></label>
+                    <label><span>截止日期</span><input type="date" value={dueDate} onChange={event => setDueDate(event.currentTarget.value)} /></label>
                   </div>
                   <fieldset className="taskboard-label-manager">
                     <legend>标签管理</legend>
@@ -306,14 +339,6 @@ export function TaskDetailsDrawer({
                   </fieldset>
                   <Button color="secondary" disabled={taskMutationReadOnly || !title.trim()} loading={saving} type="submit">保存属性</Button>
                 </form>
-            </section>
-            <section className="taskboard-drawer__section">
-              <h3>活动</h3>
-              <ol className="taskboard-activity">
-                {detail.activities.map(activity => (
-                  <li key={activity.id}><span aria-hidden="true" /><p><strong>{activityLabel(activity.kind)}</strong><small>{formatTime(activity.createdAt)}</small></p></li>
-                ))}
-              </ol>
             </section>
             <section className="taskboard-drawer__danger-zone">
               <div>
@@ -337,6 +362,24 @@ export function TaskDetailsDrawer({
           }}
           onCancel={() => setDeleteOpen(false)}
         />
+        <InputDialog
+          actionDisabled={transitionAction !== 'accept' && !transitionNote.trim()}
+          actionLabel={transitionAction === 'accept' ? '通过审核' : transitionAction === 'return_work' ? '退回修改' : '报告阻碍'}
+          description={transitionAction === 'accept' ? '可以选填审核说明。' : transitionAction === 'return_work' ? '填写需要继续修改的反馈。' : '填写阻碍任务继续进行的原因。'}
+          input={{
+            value: transitionNote,
+            onChange: setTransitionNote,
+            maxLength: 2_000,
+            placeholder: transitionAction === 'accept' ? '审核说明（可选）' : '填写原因或反馈',
+          }}
+          open={transitionAction !== null}
+          title={transitionAction === 'accept' ? '通过任务审核？' : transitionAction === 'return_work' ? '退回任务继续修改？' : '将任务标记为遇到阻碍？'}
+          onAction={() => {
+            if (!task || !transitionAction) return
+            void onTransition(task.id, transitionAction, transitionNote).then(() => setTransitionAction(null))
+          }}
+          onCancel={() => setTransitionAction(null)}
+        />
       </section>
   )
 }
@@ -345,7 +388,23 @@ function formatTime(value: number): string {
   return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(value)
 }
 
-function activityLabel(kind: TaskboardTaskDetails['activities'][number]['kind']): string {
+export function mergeTaskTimeline(detail: TaskboardWorkflowTaskDetails): Array<
+  | { kind: 'comment'; value: TaskboardWorkflowTaskDetails['comments'][number] }
+  | { kind: 'activity'; value: TaskboardWorkflowTaskDetails['activities'][number] }
+> {
+  const comments = detail.comments.filter(comment => comment.deletedAt === null)
+  const commentActivityKinds = new Set(['comment_created', 'comment_updated', 'comment_deleted'])
+  const activities = detail.activities.filter(activity => !(
+    commentActivityKinds.has(activity.kind)
+    && comments.some(comment => Math.abs(comment.createdAt - activity.createdAt) <= 1_000)
+  ))
+  return [
+    ...comments.map(value => ({ kind: 'comment' as const, value })),
+    ...activities.map(value => ({ kind: 'activity' as const, value })),
+  ].sort((left, right) => right.value.createdAt - left.value.createdAt)
+}
+
+function activityLabel(kind: TaskboardWorkflowTaskDetails['activities'][number]['kind']): string {
   const labels: Record<typeof kind, string> = {
     task_created: '创建任务', task_updated: '更新任务', task_moved: '移动阶段', task_archived: '归档任务', task_restored: '恢复任务',
     comment_created: '添加评论', comment_updated: '更新评论', comment_deleted: '删除评论', thread_linked: '关联对话', thread_unlinked: '取消关联对话',

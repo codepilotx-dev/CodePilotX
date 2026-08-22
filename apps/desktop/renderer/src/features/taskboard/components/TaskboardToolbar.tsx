@@ -1,9 +1,11 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { Archive, SlidersHorizontal } from 'lucide-react'
+import { Archive, Columns3, List, PanelRight, SlidersHorizontal } from 'lucide-react'
 import type {
   TaskboardLabel,
   TaskboardPriority,
+  TaskboardWorkflowDatePreset,
+  TaskboardWorkflowSort,
 } from '@codepilotx/shared/taskboard'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
@@ -12,6 +14,7 @@ import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
+import type { TaskboardLayout } from '../state/taskboardViewPreferences.js'
 
 type Props = {
   projects: readonly DesktopWorkspace[]
@@ -24,6 +27,15 @@ type Props = {
   archived: boolean
   loading: boolean
   hasActiveFilters: boolean
+  view: TaskboardLayout
+  unread: boolean
+  unreadCount: number
+  datePreset?: TaskboardWorkflowDatePreset
+  sort?: TaskboardWorkflowSort
+  otherTasksOpen: boolean
+  otherTasksTriggerRef: React.Ref<HTMLButtonElement>
+  onViewChange: (view: TaskboardLayout) => void
+  onOtherTasksToggle: () => void
   onChange: (patch: Record<string, string | null>) => void
 }
 
@@ -38,6 +50,15 @@ export function TaskboardToolbar({
   archived,
   loading,
   hasActiveFilters,
+  view,
+  unread,
+  unreadCount,
+  datePreset,
+  sort,
+  otherTasksOpen,
+  otherTasksTriggerRef,
+  onViewChange,
+  onOtherTasksToggle,
   onChange,
 }: Props): React.ReactNode {
   const [query, setQuery] = useState(appliedQuery ?? '')
@@ -45,7 +66,7 @@ export function TaskboardToolbar({
   useEffect(() => setQuery(appliedQuery ?? ''), [appliedQuery])
 
   const clearFilters = (): void => {
-    onChange({ projectId: null, query: null, priority: null, label: null })
+    onChange({ projectId: null, query: null, priority: null, label: null, unread: null, date: null, sort: null })
   }
 
   const toggleLabel = (labelId: string): void => {
@@ -55,50 +76,56 @@ export function TaskboardToolbar({
     onChange({ label: next.length ? next.join(',') : null })
   }
 
-  const activeFilterCount = (priority ? 1 : 0) + labelIds.length
+  const activeFilterCount = (priority ? 1 : 0) + labelIds.length + (unread ? 1 : 0) + (datePreset ? 1 : 0)
 
   return (
     <div className="taskboard-toolbar" aria-label="任务看板工具栏">
-      <h1 className="taskboard-toolbar__title">
-        任务看板
-        <span className="taskboard-toolbar__count" aria-label={`${count} 个任务`}>
-          {count}
-        </span>
-      </h1>
-      <form
-        className="taskboard-toolbar__search"
-        onSubmit={event => {
-          event.preventDefault()
-          onChange({ query: query.trim() || null })
-        }}
-      >
-        <SearchInput
-          aria-label="搜索任务"
-          clearLabel="清除搜索"
-          onChange={value => {
-            setQuery(value)
-            if (value === '') onChange({ query: null })
+      <div className="taskboard-toolbar__views" role="group" aria-label="任务视图">
+        <Button aria-pressed={view === 'board'} className="taskboard-toolbar__view" color={view === 'board' ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={() => onViewChange('board')}>
+          <Columns3 aria-hidden="true" size={APP_ICON_SIZE} />
+          议题看板
+          <span className="taskboard-toolbar__count" aria-label={`${count} 个任务`}>{count}</span>
+        </Button>
+        <Button aria-pressed={view === 'list'} className="taskboard-toolbar__view" color={view === 'list' ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={() => onViewChange('list')}>
+          <List aria-hidden="true" size={APP_ICON_SIZE} />
+          列表视图
+        </Button>
+      </div>
+      <div className="taskboard-toolbar__tools">
+        <form
+          className="taskboard-toolbar__search"
+          onSubmit={event => {
+            event.preventDefault()
+            onChange({ query: query.trim() || null })
           }}
-          onEscapeEmpty={() => onChange({ query: null })}
-          placeholder="搜索标题或说明"
-          value={query}
-          variant="compact"
-        />
-      </form>
-      <label className="taskboard-filter">
-        <span className="taskboard-filter__label">项目</span>
-        <select
-          aria-label="项目"
-          value={projectId ?? ''}
-          onChange={event => onChange({ projectId: event.currentTarget.value || null })}
         >
-          <option value="">全部项目</option>
-          {projects.filter(project => project.projectId).map(project => (
-            <option key={project.projectId} value={project.projectId}>{project.name}</option>
-          ))}
-        </select>
-      </label>
-      <PopoverMenu
+          <SearchInput
+            aria-label="搜索任务"
+            clearLabel="清除搜索"
+            onChange={value => {
+              setQuery(value)
+              if (value === '') onChange({ query: null })
+            }}
+            onEscapeEmpty={() => onChange({ query: null })}
+            placeholder="搜索标题或说明"
+            value={query}
+            variant="compact"
+          />
+        </form>
+        <label className="taskboard-filter">
+          <span className="taskboard-filter__label">项目</span>
+          <select
+            aria-label="项目"
+            value={projectId ?? ''}
+            onChange={event => onChange({ projectId: event.currentTarget.value || null, view: null })}
+          >
+            <option value="">全部项目</option>
+            {projects.filter(project => project.projectId).map(project => (
+              <option key={project.projectId} value={project.projectId}>{project.name}</option>
+            ))}
+          </select>
+        </label>
+        <PopoverMenu
         align="end"
         open={filterOpen}
         width={224}
@@ -149,6 +176,24 @@ export function TaskboardToolbar({
             ))}
           </>
         ) : null}
+        <PopoverSeparator />
+        <PopoverCheckboxItem checked={unread} onCheckedChange={() => onChange({ unread: unread ? null : '1' })}>
+          未读更新（{unreadCount}）
+        </PopoverCheckboxItem>
+        <PopoverLabel>截止日期</PopoverLabel>
+        <PopoverRadioGroup value={datePreset ?? 'all'} onValueChange={value => onChange({ date: value === 'all' ? null : value })}>
+          <PopoverRadioItem value="all">全部日期</PopoverRadioItem>
+          <PopoverRadioItem value="overdue">已逾期</PopoverRadioItem>
+          <PopoverRadioItem value="due_today">今天到期</PopoverRadioItem>
+          <PopoverRadioItem value="due_7_days">7 天内到期</PopoverRadioItem>
+          <PopoverRadioItem value="no_due_date">无截止日期</PopoverRadioItem>
+        </PopoverRadioGroup>
+        <PopoverLabel>排序</PopoverLabel>
+        <PopoverRadioGroup value={sort ?? 'position'} onValueChange={value => onChange({ sort: value === 'position' ? null : value })}>
+          <PopoverRadioItem value="position">看板顺序</PopoverRadioItem>
+          <PopoverRadioItem value="due_date">截止日期</PopoverRadioItem>
+          <PopoverRadioItem value="updated_at">最近更新</PopoverRadioItem>
+        </PopoverRadioGroup>
         {activeFilterCount > 0 ? (
           <>
             <PopoverSeparator />
@@ -157,25 +202,31 @@ export function TaskboardToolbar({
             </PopoverItem>
           </>
         ) : null}
-      </PopoverMenu>
-      <Button
-        aria-pressed={archived}
-        color={archived ? 'ghostActive' : 'ghostSecondary'}
-        size="compact"
-        type="button"
-        onClick={() => onChange({ archived: archived ? null : '1' })}
-      >
-        <Archive aria-hidden="true" size={APP_ICON_SIZE} />
-        {archived ? '返回看板' : '归档区'}
-      </Button>
-      {!loading && count === 0 && hasActiveFilters ? (
-        <span className="taskboard-toolbar__no-results">
-          <span>0 个结果</span>
-          <Button color="ghostSecondary" size="compact" type="button" onClick={clearFilters}>
-            清除筛选
+        </PopoverMenu>
+        {view === 'board' ? (
+          <Button ref={otherTasksTriggerRef} aria-controls="taskboard-other-tasks" aria-expanded={otherTasksOpen} aria-pressed={otherTasksOpen} color={otherTasksOpen ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={onOtherTasksToggle}>
+            <PanelRight aria-hidden="true" size={APP_ICON_SIZE} />其他任务
           </Button>
-        </span>
-      ) : null}
+        ) : null}
+        <Button
+          aria-pressed={archived}
+          color={archived ? 'ghostActive' : 'ghostSecondary'}
+          size="compact"
+          type="button"
+          onClick={() => onChange({ archived: archived ? null : '1' })}
+        >
+          <Archive aria-hidden="true" size={APP_ICON_SIZE} />
+          {archived ? '返回看板' : '归档区'}
+        </Button>
+        {!loading && count === 0 && hasActiveFilters ? (
+          <span className="taskboard-toolbar__no-results">
+            <span>0 个结果</span>
+            <Button color="ghostSecondary" size="compact" type="button" onClick={clearFilters}>
+              清除筛选
+            </Button>
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }

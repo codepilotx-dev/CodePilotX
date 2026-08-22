@@ -1,17 +1,18 @@
 import type {
   TaskboardLabel,
-  TaskboardTaskDetails,
-  TaskboardTaskSummary,
+  TaskboardWorkflowTaskDetails,
+  TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 
 export type TaskboardViewState = {
-  tasks: readonly TaskboardTaskSummary[]
+  tasks: readonly TaskboardWorkflowTaskSummary[]
   projects: readonly DesktopWorkspace[]
   sessions: readonly SessionListItem[]
   labels: readonly TaskboardLabel[]
-  detail: TaskboardTaskDetails | null
+  detail: TaskboardWorkflowTaskDetails | null
+  unreadCount: number
   loading: boolean
   detailLoading: boolean
   error: string | null
@@ -26,6 +27,7 @@ const INITIAL_STATE: TaskboardViewState = {
   sessions: [],
   labels: [],
   detail: null,
+  unreadCount: 0,
   loading: true,
   detailLoading: false,
   error: null,

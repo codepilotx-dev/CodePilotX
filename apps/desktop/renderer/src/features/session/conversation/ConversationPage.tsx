@@ -12,6 +12,7 @@ import {
   FolderOpen,
   GitFork,
   LayoutList,
+  ListTodo,
   MessageSquarePlus,
   MoreHorizontal,
   Pencil,
@@ -19,6 +20,7 @@ import {
   Sparkles,
   Workflow,
 } from "lucide-react";
+import type { TaskboardWorkflowThreadCandidate } from '@codepilotx/shared/taskboard'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -102,6 +104,9 @@ import {
 } from "./conversationTitleActions.js";
 import { useConversationForkController } from "../workflow/fork/useConversationForkController.js";
 import { findLatestConversationForkPoint } from "../workflow/fork/latestConversationForkPoint.js";
+import { CreateTaskDialog } from '../../taskboard/components/CreateTaskDialog.js'
+import { deriveThreadTaskboardAction } from '../../taskboard/state/threadTaskboardAction.js'
+import { useThreadTaskboardAction } from '../../taskboard/state/useThreadTaskboardAction.js'
 export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
 export type { ConversationTurnNavItem } from "./turnNavigationModel.js";
 const DesktopComposer = React.lazy(() => import("../composer/DesktopComposer.js").then(module => ({ default: module.DesktopComposer })));
@@ -222,6 +227,10 @@ export function ConversationPage(): React.ReactNode {
     [canonicalConversation.turns],
   );
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
+  const [createTaskOpen, setCreateTaskOpen] = React.useState(false)
+  const [taskboardCandidate, setTaskboardCandidate] = React.useState<TaskboardWorkflowThreadCandidate | undefined>()
+  const [taskboardProjects, setTaskboardProjects] = React.useState<Awaited<ReturnType<typeof desktopClient.listProjects>>>([])
+  const threadTaskboard = useThreadTaskboardAction()
   const [renameDialogOpen, setRenameDialogOpen] = React.useState(false);
   const [renameValue, setRenameValue] = React.useState("");
   const [renamingSession, setRenamingSession] = React.useState(false);
@@ -450,6 +459,25 @@ export function ConversationPage(): React.ReactNode {
   const threadSummary = useThreadSummaryController(workflowMainRef);
   const fallbackTitle = canonicalAuxiliary.fallbackTitle ?? "新对话";
   const renderedSessionTitle = sessionTitle ?? fallbackTitle;
+  React.useEffect(() => {
+    if (!sessionMenuOpen || !activeSessionId) return
+    void threadTaskboard.load(activeSessionId)
+    void desktopClient.listSessions().then(sessions => {
+      const session = sessions.find(candidate => candidate.item.id === activeSessionId)?.item
+      if (!session?.projectId) {
+        setTaskboardCandidate(undefined)
+        return
+      }
+      setTaskboardCandidate({
+        threadId: session.id,
+        projectId: session.projectId,
+        title: session.customTitle ?? session.aiTitle ?? session.sessionName ?? renderedSessionTitle,
+        latestTurnStatus: session.latestTurnStatus ?? null,
+        pendingPlanApproval: Boolean(session.pendingPlanApproval),
+        updatedAt: Date.parse(session.lastMessageAt ?? session.createdAt),
+      })
+    })
+  }, [activeSessionId, renderedSessionTitle, sessionMenuOpen, threadTaskboard.load])
   const hasActiveSession = Boolean(activeSessionId);
   const isSessionPinned = Boolean(activeSessionPinnedAt);
   const canRegenerateSessionTitle = canRegenerateConversationTitle({
@@ -715,7 +743,12 @@ export function ConversationPage(): React.ReactNode {
     conversationSelectedText.trim().length > 0;
 
   const workspaceHeaderTitle = React.useMemo(
-    () => (
+    () => {
+      const taskboardAction = deriveThreadTaskboardAction(threadTaskboard.loading, threadTaskboard.lookup)
+      const displayedTaskboardAction = taskboardAction.kind === 'create' && !taskboardCandidate
+        ? { ...taskboardAction, label: '正在读取会话信息…', disabled: true }
+        : taskboardAction
+      return (
       <div className="chat-session-title">
         <FolderOpen
           aria-hidden="true"
@@ -789,6 +822,22 @@ export function ConversationPage(): React.ReactNode {
           </PopoverItem>
           <PopoverSeparator />
           <PopoverItem
+            disabled={displayedTaskboardAction.disabled}
+            icon={<ListTodo size={APP_ICON_SIZE} />}
+            onClick={() => {
+              closeSessionMenu()
+              if (displayedTaskboardAction.kind === 'open' && threadTaskboard.lookup?.taskId) {
+                navigate(`/taskboard/${encodeURIComponent(threadTaskboard.lookup.taskId)}`)
+              } else if (displayedTaskboardAction.kind === 'create' && taskboardCandidate) {
+                setCreateTaskOpen(true)
+                void desktopClient.listProjects().then(setTaskboardProjects)
+              }
+            }}
+          >
+            {displayedTaskboardAction.label}
+          </PopoverItem>
+          <PopoverSeparator />
+          <PopoverItem
             disabled={!hasActiveSession || !sideChatAvailable}
             icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
             onClick={onOpenSideChat}
@@ -850,7 +899,8 @@ export function ConversationPage(): React.ReactNode {
           </PopoverItem>
         </PopoverMenu>
       </div>
-    ),
+      )
+    },
     [
       activeSessionId,
       canRegenerateSessionTitle,
@@ -866,6 +916,9 @@ export function ConversationPage(): React.ReactNode {
       renderedSessionTitle,
       sessionMenuOpen,
       workspacePath,
+      taskboardCandidate,
+      threadTaskboard.loading,
+      threadTaskboard.lookup,
     ],
   );
 
@@ -1162,6 +1215,20 @@ export function ConversationPage(): React.ReactNode {
         onAction={() => void submitSessionRename()}
         onCancel={() => {
           if (!renamingSession) setRenameDialogOpen(false);
+        }}
+      />
+      <CreateTaskDialog
+        initialProjectId={taskboardCandidate?.projectId}
+        initialStatus="in_review"
+        initialThread={taskboardCandidate}
+        initialTitle={taskboardCandidate?.title}
+        open={createTaskOpen}
+        projects={taskboardProjects}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreate={async input => {
+          const result = await desktopClient.createTaskboardWorkflowTask!(input)
+          setCreateTaskOpen(false)
+          navigate(`/taskboard/${encodeURIComponent(result.task.task.id)}`)
         }}
       />
       {conversationFork.dialog}

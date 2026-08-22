@@ -7,7 +7,7 @@ import type {
   TaskboardStartExecution,
   TaskboardStartOperation,
 } from '@codepilotx/agent-protocol'
-import type { TaskboardTask } from '@codepilotx/shared/taskboard'
+import type { TaskboardWorkflowStartMode, TaskboardWorkflowTaskSummary } from '@codepilotx/shared/taskboard'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
@@ -18,13 +18,14 @@ type Mode = 'local' | 'existing_worktree' | 'new_worktree'
 
 type Props = {
   open: boolean
-  task: TaskboardTask | null
+  task: TaskboardWorkflowTaskSummary | null
   projectName: string
   projectAvailable: boolean
   onClose: () => void
   onStart: (
     taskId: string,
     execution: TaskboardStartExecution,
+    startMode?: TaskboardWorkflowStartMode,
   ) => Promise<TaskboardStartOperation>
   onRetrySetup: (operation: TaskboardStartOperation) => Promise<TaskboardStartOperation>
   onContinueWithoutSetup: (operation: TaskboardStartOperation) => Promise<TaskboardStartOperation>
@@ -43,6 +44,7 @@ export function StartTaskDialog({
   onReady,
 }: Props): React.ReactNode {
   const [mode, setMode] = useState<Mode>('local')
+  const [startMode, setStartMode] = useState<TaskboardWorkflowStartMode>('new_primary')
   const [worktrees, setWorktrees] = useState<readonly ManagedWorktree[]>([])
   const [worktreeId, setWorktreeId] = useState('')
   const [startingState, setStartingState] = useState<'working_tree' | 'branch'>('working_tree')
@@ -57,10 +59,13 @@ export function StartTaskDialog({
     worktree.status === 'ready'
     || worktree.status === 'ready-with-setup-error' && worktree.continuedWithoutSetup,
   ), [worktrees])
+  const primaryThread = task?.threads.find(thread => thread.role === 'primary')
+  const primaryActive = primaryThread?.attention === 'running' || primaryThread?.attention === 'needs_input'
 
   useEffect(() => {
     if (!open || !task) return
     setMode('local')
+    setStartMode(task.threads.some(thread => thread.role === 'primary') ? 'continue_primary' : 'new_primary')
     setOperation(null)
     setError(null)
     setSubmitting(false)
@@ -110,7 +115,7 @@ export function StartTaskDialog({
           : { type: 'working_tree' },
       }
     }
-    void run(() => onStart(task.id, execution))
+    void run(() => onStart(task.id, execution, primaryActive ? 'continue_primary' : startMode))
   }
 
   return (
@@ -135,6 +140,21 @@ export function StartTaskDialog({
               </IconButton>
             </Dialog.Close>
           </header>
+          {primaryThread ? (
+            <fieldset className="taskboard-dialog__threads">
+              <legend>主会话</legend>
+              <label>
+                <input checked={startMode === 'continue_primary'} name="task-start-mode" type="radio" onChange={() => setStartMode('continue_primary')} />
+                继续当前主会话
+              </label>
+              {!primaryActive ? (
+                <label>
+                  <input checked={startMode === 'new_primary'} name="task-start-mode" type="radio" onChange={() => setStartMode('new_primary')} />
+                  新建主会话（原主会话保留为辅助会话）
+                </label>
+              ) : <small>主会话正在运行或等待处理，将直接打开现有会话。</small>}
+            </fieldset>
+          ) : null}
           <div className="taskboard-execution-options" role="radiogroup" aria-label="执行位置">
             <ExecutionOption checked={mode === 'local'} icon={<HardDrive />} label="当前项目" detail="直接使用项目的本地工作目录" onChange={() => setMode('local')} />
             <ExecutionOption checked={mode === 'existing_worktree'} icon={<Trees />} label="已有工作树" detail="在已就绪的托管工作树中继续" onChange={() => setMode('existing_worktree')} />

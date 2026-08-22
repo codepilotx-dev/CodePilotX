@@ -2,20 +2,22 @@ import { describe, expect, test } from 'bun:test'
 import type React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type {
-  TaskboardTaskDetails,
-  TaskboardTaskSummary,
+  TaskboardWorkflowTaskDetails,
+  TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import { parseTaskboardFilters } from '../src/features/taskboard/TaskboardView.js'
 import { optimisticallyMoveTask, taskboardCreateTaskRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
 import { resolveTaskDropPlacement } from '../src/features/taskboard/components/BoardColumn.js'
 import { BoardColumn } from '../src/features/taskboard/components/BoardColumn.js'
 import { TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
+import { OtherTasksPanel } from '../src/features/taskboard/components/OtherTasksPanel.js'
 import { TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
 import { ComposerDraftStore } from '../src/features/session/composer/composerDraftStore.js'
 import { RENDERER_CAPABILITIES } from '../src/services/desktop-client/agent-session-client.js'
 
 test('renderer negotiates the taskboard capability', () => {
   expect(RENDERER_CAPABILITIES).toContain('taskboard.v1')
+  expect(RENDERER_CAPABILITIES).toContain('taskboard.workflow.v1')
 })
 
 describe('taskboard URL filters', () => {
@@ -40,40 +42,62 @@ describe('taskboard URL filters', () => {
 })
 
 describe('taskboard board structure', () => {
-  test('renders all five status columns even without tasks', () => {
+  test('renders the active workflow columns and hides an empty blocked column', () => {
     const markup = renderBoard([])
 
     expect(columnStatuses(markup)).toEqual([
-      'backlog',
       'todo',
       'in_progress',
       'in_review',
-      'done',
     ])
+    expect(markup).toContain('data-column-count="3"')
     expect(markup).toContain('暂无任务')
     const columnAddLabels = new Set(
       [...markup.matchAll(/aria-label="(新建任务到[^"]+)"/g)].map(match => match[1]),
     )
     expect(columnAddLabels).toEqual(new Set([
-      '新建任务到待整理',
-      '新建任务到待办',
-      '新建任务到进行中',
-      '新建任务到待审核',
-      '新建任务到已完成',
+      '新建任务到等待认领',
+      '新建任务到处理中',
+      '新建任务到等你确认',
     ]))
   })
 
-  test('keeps five columns when a filter matches no tasks', () => {
-    const markup = renderBoard([task('a', 'todo', 1024)])
+  test('adds the blocked column only when a blocked task exists', () => {
+    const markup = renderBoard([task('a', 'todo', 1024), task('b', 'blocked', 2048)])
 
     expect(columnStatuses(markup)).toEqual([
-      'backlog',
       'todo',
       'in_progress',
+      'blocked',
       'in_review',
-      'done',
     ])
-    expect((markup.match(/class="taskboard-card"/g) ?? []).length).toBe(1)
+    expect(markup).toContain('data-column-count="4"')
+    expect((markup.match(/class="taskboard-card"/g) ?? []).length).toBe(2)
+  })
+
+  test('other tasks panel keeps archived selection aligned with archived data', () => {
+    const archivedTasks = [
+      { ...task('a', 'done', 1024), archivedAt: 2048 },
+      { ...task('b', 'canceled', 2048), archivedAt: 3072 },
+    ]
+    const markup = renderToStaticMarkup(
+      <OtherTasksPanel
+        archived
+        pendingTaskIds={new Set()}
+        projectNames={new Map()}
+        tasks={archivedTasks}
+        onArchivedChange={() => {}}
+        onClose={() => {}}
+        onMove={async () => {}}
+        onNewTask={() => {}}
+        onOpen={() => {}}
+        onStart={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('aria-selected="true"')
+    expect(markup).toContain('aria-label="已归档，2 个任务"')
+    expect((markup.match(/class="taskboard-card"/g) ?? []).length).toBe(2)
   })
 
   test('column header add button carries its own status', () => {
@@ -236,7 +260,7 @@ describe('taskboard composer handoff', () => {
   })
 })
 
-function renderBoard(tasks: readonly TaskboardTaskSummary[]): string {
+function renderBoard(tasks: readonly TaskboardWorkflowTaskSummary[]): string {
   return renderToStaticMarkup(
     <TaskboardBoard
       archived={false}
@@ -258,10 +282,10 @@ function columnStatuses(markup: string): string[] {
 
 function task(
   id: string,
-  status: TaskboardTaskSummary['status'],
+  status: TaskboardWorkflowTaskSummary['status'],
   position: number,
   projectId = 'project-1',
-): TaskboardTaskSummary {
+): TaskboardWorkflowTaskSummary {
   return {
     id,
     projectId,
@@ -275,12 +299,15 @@ function task(
     labels: [],
     threads: [],
     archivedAt: null,
+    startDate: null,
+    dueDate: null,
+    attention: { unread: false, unreadAt: null, readAt: null, reason: null },
     createdAt: 1,
     updatedAt: 1,
   }
 }
 
-function detailsOf(task: TaskboardTaskSummary): TaskboardTaskDetails {
+function detailsOf(task: TaskboardWorkflowTaskSummary): TaskboardWorkflowTaskDetails {
   return {
     task,
     threads: task.threads,

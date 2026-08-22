@@ -134,6 +134,20 @@
   }
 }
 
+.sidebar-nav-unread-count {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--cpx-sys-space-1);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-danger);
+  color: var(--cpx-sys-color-fg-on-accent);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
+}
+
 .sidebar-nav-link.active,
 .sidebar-session-row.active,
 .sidebar-settings-link.active {
