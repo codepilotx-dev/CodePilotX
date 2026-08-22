@@ -1014,6 +1014,20 @@ const migrateHistory34To35 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory35To36 = (sqlite: Database) => {
+  const workflowColumns = sqlite.query("PRAGMA table_info(taskboard_task_workflows)").all() as Array<{ name: string }>
+  if (!workflowColumns.some(({ name }) => name === "position")) {
+    sqlite.exec("ALTER TABLE taskboard_task_workflows ADD COLUMN position REAL NOT NULL DEFAULT 0")
+  }
+  sqlite.exec(`
+    UPDATE taskboard_task_workflows
+    SET position = COALESCE(
+      (SELECT tasks.position FROM taskboard_tasks tasks WHERE tasks.id = taskboard_task_workflows.task_id),
+      position
+    );
+  `)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1119,6 +1133,7 @@ class SchemaInitializer {
           32: () => migrateHistory32To33(this.sqlite),
           33: () => migrateHistory33To34(this.sqlite),
           34: () => migrateHistory34To35(this.sqlite),
+          35: () => migrateHistory35To36(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

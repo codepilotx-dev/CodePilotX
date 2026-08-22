@@ -23,6 +23,43 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
 describe("数据库兼容与迁移", () => {
+  test("v35 工作流表补齐排序位置并保留已有任务", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v35-"))
+    paths.push(root)
+    const historyPath = join(root, "agent.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const task = db.createTask({ projectId: "project:migration", title: "保留的任务", status: "todo" })
+    const expectedPosition = task.task.position
+    db.sqlite.exec(`
+      DROP TRIGGER taskboard_workflow_after_task_insert;
+      DROP TRIGGER taskboard_workflow_after_legacy_status_change;
+      DROP TRIGGER taskboard_workflow_after_legacy_position_change;
+      ALTER TABLE taskboard_task_workflows RENAME TO taskboard_task_workflows_current;
+      CREATE TABLE taskboard_task_workflows (
+        task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,
+        status TEXT NOT NULL CHECK(status IN ('backlog','todo','in_progress','in_review','blocked','done','canceled')),
+        start_date TEXT,
+        due_date TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      INSERT INTO taskboard_task_workflows (task_id, status, start_date, due_date, created_at, updated_at)
+        SELECT task_id, status, start_date, due_date, created_at, updated_at FROM taskboard_task_workflows_current;
+      DROP TABLE taskboard_task_workflows_current;
+      PRAGMA user_version = 35;
+    `)
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(reopened.sqlite.query("SELECT position FROM taskboard_task_workflows WHERE task_id = ?").get(task.task.id))
+      .toEqual({ position: expectedPosition })
+    expect(reopened.listWorkflowTasks({ projectId: "project:migration" }).tasks.map(({ id }) => id))
+      .toEqual([task.task.id])
+    reopened.close()
+  })
+
   test("v31 到 v32 新增 creation_surface 列并校验约束与既有数据", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v31-"))
     paths.push(root)
