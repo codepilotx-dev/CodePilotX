@@ -30,13 +30,15 @@
 
 ### Changed
 
+- [docs/agent] 基于当前 CodePilotX 与 OpenAI Codex 固定提交重写 Harness 对标报告，校正已完成能力，并给出以运行组合完整性、Skills/MCP 真按需、Hook、Sandbox/凭据决策和 Durable Goal 为核心的证据化优化路线。
+- [desktop/renderer] 将侧边栏“任务看板”入口图标替换为 `Presentation`。
 - [agent] 将 Pi Harness 物理并入 App Agent，并统一 AgentRuntime 执行门面，减少重复编排层。
 - [development] 明确 OpenCode、MiniMax 等外部 Coding Agent 的受控实施边界，要求核心改造采用小任务串行、冻结行为测试、禁止类型绕过并由主 Agent 独立验收。
 - [agent/runtime] 为 Harness 增加不可变 Turn/Step composition 契约，并统一持久化主 Agent 与子 Agent 的模型、权限、Skills、MCP、工具和 Prompt 快照，确保暂停及恢复期间运行配置保持一致。
 - [agent/runtime] 将 schema 34 的持久化 Runtime Composition（快照、rebind、capability probe 与幂等 release 生命周期）整合进 AgentRuntimeService 内部：同一持久化产品 Turn 在首次 Provider sample 前持久化快照，pause/resume 只 rebind，下一产品 Turn 才重新 compose。
 - [build/session-view] 补齐移除 Pi Core workspace 后缺失的共享类型环境：`packages/session-view/tsconfig.json` 的 `lib` 由仅 `ES2022` 对齐为 `ES2022 + DOM`（与 shared、agent-protocol 等包一致），使 session-view 自身声明其传递编译所需的 `URL`/`File` 全局类型，不再依赖被删除 workspace 经根 node_modules 泄漏的 `@types/bun`；干净 frozen install 后 `bun run typecheck` 可全绿。
 - [desktop/renderer] 统一会话区域加载态展示：将鲸鱼闪光效果约束在会话内容主区域（variant="contained"），保留侧边栏、右侧面板与顶部菜单栏正常交互；加载期间隐藏底部 Composer，并在数据就绪后平滑淡入时间线；替换时间线旧有旋转 Spinner，彻底消除会话切换与加载时的重复动画问题。
-- [desktop/renderer] 优化侧边栏顶部活动通知图标：采用 Lucide 嵌套 SVG 规范，统一使用 Bell 图标并在有活动或待处理会话时于右上角嵌套渲染前景色圆点徽标，简化图标切换逻辑并提升状态呈现的一致性。
+- [desktop/renderer] 优化侧边栏顶部活动通知图标：采用 Lucide 嵌套 SVG 规范，统一使用 Bell 图标并将其小圆点收敛为纯未读消息指示器，仅在存在未读会话时显示与会话行一致的主题色小圆点，会话进行中或等待用户操作时不亮起圆点，提示文案固定为“查看活动”。
 
 - [desktop/renderer] 升级「设置 - 用量与成本」页面：将具备实时余额（如 DeepSeek）与套餐额度（如 MiniMax、Kimi Code）的厂商作为正常卡片发起查询与渲染，支持多币种总余额与充值/赠送明细展示；移除顶部全局时间范围切换器，下沉至仅支持分日历史时序（usage / cost）的厂商卡片右上角内嵌独立控制，并在用量页面隐藏无可用接口厂商的不可查区域；顶部工具栏支持「刷新全部」操作，各卡片右上角提供独立「刷新」按钮并精准追踪单卡片 Loading 加载态，互不干扰。
 - [desktop/renderer] 优化侧栏用量浮层与设置用量页面展示：从侧边栏底部设置菜单的「剩余用量」浮层中移除重置时间文字，解决紧凑宽度下标签断行与文本拥挤问题；同时在「设置 - 用量与成本」的远端厂商卡片中新增额度窗口（Quota Windows）明细，完整呈现各周期名称、剩余比例/数量、进度条及重置时间。
@@ -104,6 +106,9 @@
 - [Agent] Skills 与可选 MCP server 改为按需发现和加载，单个外部资源故障不再阻断普通对话。
 
 ### Fixed
+
+- [desktop/renderer] 统一对话发送按钮、侧边栏会话行与 Bell 的运行及未读状态来源，修复回复完成后仍显示运行中的问题。
+- [desktop/renderer] 修复侧边栏活动视图引导提示（Coachmark）在每次启动桌面端时重复弹出的问题：补齐桌面设置反序列化中的活动视图字段归一化，确保用户确认关闭后持久化生效且不再弹出。
 
 - [agent/runtime] 固定同一产品 Turn 的 Harness composition 与 deferred 工具边界，确保多步执行和恢复不会重组模型、Prompt 或扩宽 ToolSearch 可见范围。
 - [desktop] 优化 Windows 下 Electron 窗口边框与控制按钮：改用 titleBarStyle: 'hidden' 和 titleBarOverlay 支持原生贴靠布局并精确同步顶栏底色 (surfaceUnder) 与 36px 贴合高度；主内容区对齐简约扁平规范，移除卡片外阴影与冗余边框，彻底消除粗黑边与颜色高度断层。
