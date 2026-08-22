@@ -8,8 +8,8 @@ import {
   BrainCircuit,
   ChevronDown,
   Clock3,
-  Columns3,
   FolderKanban,
+  Presentation,
   Search,
   SquarePen,
 } from "lucide-react";
@@ -30,7 +30,6 @@ import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { cx } from "../../../utils/cx.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
 import { SidebarRow } from "./SidebarRow.js";
-import type { SidebarActivityIndicatorState } from "./sidebarViewModel.js";
 
 type SidebarNavAvailability =
   | { kind: 'always' }
@@ -68,7 +67,7 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
     view: 'taskboard',
     label: '任务看板',
-    icon: <Columns3 size={APP_ICON_SIZE} />,
+    icon: <Presentation size={APP_ICON_SIZE} />,
     path: '/taskboard',
     availability: {
       kind: 'any-capability',
@@ -222,12 +221,10 @@ export const SIDEBAR_PRODUCT_MODE_META: Record<
 }
 
 export function SidebarHeader({
-  hasAttention,
-  indicatorState = hasAttention ? 'attention' : 'idle',
+  hasUnread = false,
   onOpenCommandMenu,
 }: {
-  hasAttention: boolean
-  indicatorState?: SidebarActivityIndicatorState
+  hasUnread?: boolean
   onOpenCommandMenu: () => void
 }): React.ReactNode {
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
@@ -243,14 +240,8 @@ export function SidebarHeader({
   const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
   const timelineToggleLabel = sidebarTimelineEnabled
     ? "关闭活动视图"
-    : indicatorState === 'attention'
-      ? "查看活动，有需要处理的会话"
-      : indicatorState === 'active'
-        ? "查看活动，有进行中的会话"
-        : "查看活动"
-  const timelineToggleTitle = sidebarTimelineEnabled
-    ? "关闭活动视图 (Ctrl+Alt+U)"
-    : `${timelineToggleLabel} (Ctrl+Alt+U)`
+    : "查看活动"
+  const timelineToggleTitle = `${timelineToggleLabel} (Ctrl+Alt+U)`
 
   const handleModeChange = (value: SidebarProductMode): void => {
     setSidebarProductMode(value)
@@ -338,9 +329,7 @@ export function SidebarHeader({
                   title={timelineToggleTitle}
                 >
                   <Bell aria-hidden="true" size={APP_ICON_SIZE}>
-                    {(indicatorState === 'attention' ||
-                      indicatorState === 'active' ||
-                      hasAttention) && (
+                    {hasUnread && (
                       <circle
                         cx="18"
                         cy="4"

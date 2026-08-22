@@ -409,17 +409,22 @@ describe("侧边栏设置归一化", () => {
     })
   })
 
-  test("重置侧栏状态会关闭时间线并取消优先级勾选", () => {
+  test("重置侧栏状态会关闭时间线并保留已关闭的引导状态", () => {
     const settings = normalizeDesktopStoredSettings({
       sidebarTimelineEnabled: true,
       sidebarTimelinePriorityEnabled: true,
+      sidebarActivityCoachmarkDismissed: true,
+      sidebarActivityShowWork: false,
     })
+    expect(settings.sidebarActivityCoachmarkDismissed).toBe(true)
+    expect(settings.sidebarActivityShowWork).toBe(false)
     const reset = {
       ...settings,
       ...createSidebarStateResetPatch(settings),
     }
     expect(reset.sidebarTimelineEnabled).toBe(false)
     expect(reset.sidebarTimelinePriorityEnabled).toBe(false)
+    expect(reset.sidebarActivityCoachmarkDismissed).toBe(true)
   })
 })
 

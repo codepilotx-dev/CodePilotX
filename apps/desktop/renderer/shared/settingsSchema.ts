@@ -510,6 +510,22 @@ export function normalizeDesktopStoredSettings(
       : typeof parsed.sidebarTimelinePriorityEnabled === 'boolean'
         ? parsed.sidebarTimelinePriorityEnabled
         : defaults.sidebarTimelinePriorityEnabled,
+    sidebarActivityShowWork:
+      typeof parsed.sidebarActivityShowWork === 'boolean'
+        ? parsed.sidebarActivityShowWork
+        : defaults.sidebarActivityShowWork,
+    sidebarActivityShowChat:
+      typeof parsed.sidebarActivityShowChat === 'boolean'
+        ? parsed.sidebarActivityShowChat
+        : defaults.sidebarActivityShowChat,
+    sidebarActivityShowPinned:
+      typeof parsed.sidebarActivityShowPinned === 'boolean'
+        ? parsed.sidebarActivityShowPinned
+        : defaults.sidebarActivityShowPinned,
+    sidebarActivityCoachmarkDismissed:
+      typeof parsed.sidebarActivityCoachmarkDismissed === 'boolean'
+        ? parsed.sidebarActivityCoachmarkDismissed
+        : defaults.sidebarActivityCoachmarkDismissed,
     sidebarManualOrder: normalizeSidebarManualOrder(
       parsed.sidebarManualOrder,
       defaults.sidebarManualOrder,
@@ -562,6 +578,10 @@ export function createSidebarStateResetPatch(
     sidebarSort: 'priority',
     sidebarTimelineEnabled: false,
     sidebarTimelinePriorityEnabled: false,
+    sidebarActivityShowWork: true,
+    sidebarActivityShowChat: true,
+    sidebarActivityShowPinned: false,
+    sidebarActivityCoachmarkDismissed: settings.sidebarActivityCoachmarkDismissed ?? false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
     collapsedSidebarProjectPaths: [],

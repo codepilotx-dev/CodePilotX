@@ -21,8 +21,8 @@ import {
 import {
   buildSidebarViewModel,
   buildSidebarTimelineModel,
-  deriveSidebarActivityIndicatorState,
   filterSidebarActivitySessions,
+  hasSidebarUnreadSessions,
   sidebarArchivableAttentionSessions,
   sidebarAttentionUnreadSessions,
   sidebarProjectKey,
@@ -217,11 +217,10 @@ export function DesktopSidebar({
     [activityFilteredSessions, relativeNow, sidebarActivityShowPinned],
   )
   const timeline = sidebarTimelineEnabled ? timelineModel : null
-  const activityIndicatorState = useMemo(
-    () => deriveSidebarActivityIndicatorState(viewModel.visibleSessions),
+  const hasUnread = useMemo(
+    () => hasSidebarUnreadSessions(viewModel.visibleSessions),
     [viewModel.visibleSessions],
   )
-  const hasAttention = timelineModel.attentionSessions.length > 0
   const attentionUnreadSessions = useMemo(
     () => sidebarAttentionUnreadSessions(timelineModel.attentionSessions),
     [timelineModel],
@@ -443,8 +442,7 @@ export function DesktopSidebar({
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:py-2">
       <SidebarHeader
-        hasAttention={hasAttention}
-        indicatorState={activityIndicatorState}
+        hasUnread={hasUnread}
         onOpenCommandMenu={onOpenCommandMenu}
       />
       <SidebarNewTaskNav
