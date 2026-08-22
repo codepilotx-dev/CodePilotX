@@ -1,10 +1,11 @@
 import { marked, type Token, type Tokens } from 'marked'
 import { LruCache } from './lru.js'
-import { segmentStreamingMarkdown } from './streaming.js'
+import { completePendingMarkdown, segmentStreamingMarkdown } from './streaming.js'
 import type {
   MarkdownDirectiveToken,
   MarkdownMathToken,
   MarkdownParseResult,
+  MarkdownRenderBlock,
   MarkdownStreamingCodeToken,
   MarkdownToken,
 } from './types.js'
@@ -40,13 +41,83 @@ export function parseMarkdown(
     }
     tokens.push(pendingCode)
   } else if (segment.pendingText) {
-    tokens.push(...lexMarkdown(segment.pendingText))
+    tokens.push(...lexMarkdown(completePendingMarkdown(segment.pendingText)))
   }
   return {
     tokens,
     stableText: segment.stableText,
     pendingText: segment.pendingText,
   }
+}
+
+export function buildMarkdownBlocks(
+  text: string,
+  streaming = false,
+  previous: readonly MarkdownRenderBlock[] = [],
+  previousText = '',
+): MarkdownRenderBlock[] {
+  const source = text ?? ''
+  const canReuse = source.startsWith(previousText)
+  const parsed = parseMarkdown(source, streaming)
+  const stableLength = parsed.stableText.length
+  const candidates: MarkdownRenderBlock[] = []
+  let rawOffset = 0
+
+  for (const token of parsed.tokens) {
+    const raw = token.raw ?? ''
+    const invisible = token.type === 'space' || token.type === 'def'
+    if (invisible && candidates.length > 0) {
+      const prior = candidates[candidates.length - 1]
+      prior.raw += raw
+      rawOffset += raw.length
+      continue
+    }
+    const state = rawOffset + raw.length <= stableLength ? 'stable' : 'pending'
+    const index = candidates.length
+    const candidate: MarkdownRenderBlock = {
+      id: `block:${index}`,
+      raw,
+      tokens: [token],
+      state,
+      visibleText: visibleTextForToken(token),
+    }
+    candidates.push(candidate)
+    rawOffset += raw.length
+  }
+  const pendingIndex = candidates.findLastIndex(block => block.state === 'pending')
+  if (pendingIndex >= 0 && parsed.pendingText) {
+    // Pending tokens are produced from a parse-only completed copy. Keep the
+    // block identity/source tied to the model output, never to synthetic
+    // delimiters (or to the label-only fallback used for partial links).
+    candidates[pendingIndex].raw = parsed.pendingText
+  }
+  return candidates.map((candidate, index) => {
+    const old = canReuse ? previous[index] : undefined
+    return old && old.raw === candidate.raw && old.state === candidate.state
+      ? old
+      : candidate
+  })
+}
+
+function visibleTextForToken(token: MarkdownToken): string {
+  if (token.type === 'streaming_code') return token.text
+  if ('tokens' in token && Array.isArray(token.tokens)) {
+    return token.tokens.map(child => visibleTextForToken(child)).join('')
+  }
+  if (token.type === 'list') {
+    return token.items
+      .flatMap(item => item.tokens)
+      .map(child => visibleTextForToken(child))
+      .join('')
+  }
+  if (token.type === 'table') {
+    return [...token.header, ...token.rows.flat()]
+      .flatMap(cell => cell.tokens)
+      .map(child => visibleTextForToken(child))
+      .join('')
+  }
+  if ('text' in token && typeof token.text === 'string') return token.text
+  return token.raw ?? ''
 }
 
 export function lexMarkdown(text: string): MarkdownToken[] {
@@ -88,7 +159,7 @@ export function lexMarkdown(text: string): MarkdownToken[] {
   return tokens
 }
 
-function lexWithCache(text: string): MarkdownToken[] {
+export function lexWithCache(text: string): MarkdownToken[] {
   if (!text) return []
   const cached = TOKEN_CACHE.get(text)
   if (cached) return cached
