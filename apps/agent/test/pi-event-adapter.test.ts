@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test"
-import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
+import type { AgentHarnessEvent } from "../src/orchestration/harness/types"
 import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { PiEventAdapter, piToolResultText } from "../src/orchestration/pi/PiEventAdapter"
 import {
   finishedPiToolItem,
   mergeTimelineMutationFiles,
-  PiOrchestratorAdapter,
+  AgentRuntimeService,
   piItemDeltaPayload,
   piToolItemPayload,
   piToolMutationFiles,
   piToolTimelineInput,
-} from "../src/orchestration/PiOrchestratorAdapter"
+} from "../src/orchestration/AgentRuntimeService"
 import { isProviderContextOverflow } from "../src/orchestration/pi/ContextOverflow"
 import type { PiRuntimeEventSink } from "../src/orchestration/pi/types"
 
@@ -127,7 +127,7 @@ describe("PiEventAdapter", () => {
     const db = {
       getItem: () => null,
     }
-    const orchestrator = new PiOrchestratorAdapter({
+    const orchestrator = new AgentRuntimeService({
       db: db as never,
       hub: {} as never,
       models: {} as never,
@@ -567,7 +567,7 @@ describe("PiEventAdapter", () => {
         createdAt: 200,
       }),
     }
-    const orchestrator = new PiOrchestratorAdapter({
+    const orchestrator = new AgentRuntimeService({
       db: db as never,
       hub: {} as never,
       models: {} as never,

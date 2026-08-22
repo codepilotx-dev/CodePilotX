@@ -6,7 +6,7 @@ import { removeFixturePaths } from "./fixture-cleanup"
 import { PiEventAdapter } from "../src/orchestration/pi/PiEventAdapter"
 import { ConversationHistoryForkRepository } from "../src/session/fork/ConversationHistoryForkRepository"
 import { ThreadMessageForkRepository } from "../src/session/fork/ThreadMessageForkRepository"
-import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
+import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/pi-session/SqlitePiSession"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { TurnPiBoundaryRepository } from "../src/storage/repositories/turn-pi-boundary-repository"
 

@@ -9,7 +9,7 @@ import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "./QuestionService"
 import { ResumeCheckpointResolver, toPlanCheckpoint } from "../interaction/ResumeCheckpointResolver"
 import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
-import type { PiOrchestratorAdapter } from "../orchestration/PiOrchestratorAdapter"
+import type { AgentRuntime } from "../orchestration/AgentRuntimeTypes"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { LocalContextPathService } from "../local-context/LocalContextPathService"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
@@ -123,7 +123,7 @@ export class ThreadService {
     private readonly providers: AgentModelCatalog,
     private readonly approvals: ApprovalService,
     private readonly questions: QuestionService,
-    private readonly orchestrator: PiOrchestratorAdapter,
+    private readonly orchestrator: AgentRuntime,
     private readonly subagents: SubagentService,
     private readonly attachments: AttachmentService,
     private readonly promptStorage: PromptStorageRoots,

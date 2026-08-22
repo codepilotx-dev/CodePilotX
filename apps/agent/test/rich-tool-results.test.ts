@@ -11,7 +11,7 @@ import { ArtifactService } from "../src/storage/ArtifactService"
 import { ArtifactRepository } from "../src/storage/repositories/artifact-repository"
 import { probeArtifactsStorageCapabilities } from "../src/storage/database/storage-capabilities"
 import { filterAdvertisedCapabilities } from "../src/transport/rpc/handlers/system-capabilities"
-import { PiOrchestratorAdapter } from "../src/orchestration/PiOrchestratorAdapter"
+import { AgentRuntimeService } from "../src/orchestration/AgentRuntimeService"
 import type { PiRuntimeEventContext } from "../src/orchestration/pi/types"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
 import { Model, Provider } from "@codepilotx/model-schema"
@@ -235,7 +235,7 @@ describe("富工具结果投影与 artifact", () => {
     const threadID = db.createThread("replay thread").id
     const { turnID, agentID } = seedTurn(db, threadID)
     const localContext: PiRuntimeEventContext = { threadID, turnID, agentID }
-    const orchestrator = new PiOrchestratorAdapter({
+    const orchestrator = new AgentRuntimeService({
       db: db as never,
       hub: {} as never,
       models: {} as never,

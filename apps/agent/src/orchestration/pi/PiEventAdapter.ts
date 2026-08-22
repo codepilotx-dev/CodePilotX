@@ -1,4 +1,4 @@
-import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
+import type { AgentHarnessEvent } from "../harness/types"
 import type { ToolResultBlock } from "@codepilotx/shared/thread"
 import { ProposedPlanStreamParser, type ProposedPlanChunk } from "../plan/ProposedPlanStreamParser"
 import type { PiRuntimeEventContext, PiRuntimeEventSink, PiToolArtifactInput, RuntimeCompactionTrigger } from "./types"

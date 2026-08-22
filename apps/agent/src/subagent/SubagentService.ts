@@ -3,7 +3,7 @@ import type { PermissionConfig, SubagentProfile } from "@codepilotx/shared/threa
 import { Effect } from "effect"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import { AgentError } from "../domain"
-import { SafeBoundaryInterrupt, type PiOrchestratorAdapter, type DelegationController, type PendingApproval, type PlanCheckpoint } from "../orchestration/PiOrchestratorAdapter"
+import { SafeBoundaryInterrupt, type AgentRuntime, type DelegationController, type PendingApproval, type PlanCheckpoint } from "../orchestration/AgentRuntimeTypes"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
 import { ResumeCheckpointResolver, toPlanCheckpoint } from "../interaction/ResumeCheckpointResolver"
@@ -101,7 +101,7 @@ export class SubagentService {
     private readonly providers: AgentModelCatalog,
     private readonly approvals: ApprovalService,
     private readonly questions: QuestionService,
-    private readonly orchestrator: PiOrchestratorAdapter,
+    private readonly orchestrator: AgentRuntime,
     private readonly attachments: AttachmentService,
     private readonly workspaces?: SubagentWorkspaceProvider,
     private readonly promptStorage?: PromptStorageRoots,

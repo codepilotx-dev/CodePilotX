@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto"
-import type { SessionTreeEntry } from "@codepilotx/pi-agent-core"
+import type { SessionTreeEntry } from "../../orchestration/harness/types"
 import { AgentError } from "../../domain"
-import { SqlitePiSessionRepo, type SqlitePiSessionMetadata } from "../../storage/SqlitePiSession"
+import { SqlitePiSessionRepo, type SqlitePiSessionMetadata } from "../../storage/pi-session/SqlitePiSession"
 import type { AgentDatabase } from "../../storage/database/AgentDatabase"
-import { parsePiSessionEntry } from "../../storage/pi-session-entry"
+import { parsePiSessionEntry } from "../../storage/pi-session/pi-session-entry"
 import { TurnPiBoundaryRepository } from "../../storage/repositories/turn-pi-boundary-repository"
 import type { SideChatRepository, StoredSideChat } from "../../storage/repositories/side-chat-repository"
 

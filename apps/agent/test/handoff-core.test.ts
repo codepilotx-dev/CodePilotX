@@ -10,7 +10,7 @@ import { HandoffService, type HandoffLifecyclePort, type HandoffWorkspacePort } 
 import { HandoffLifecycle } from "../src/handoff/HandoffLifecycle"
 import { BindingHandoffWorkspace } from "../src/handoff/BindingHandoffWorkspace"
 import { ThreadForkRepository } from "../src/handoff/ThreadForkRepository"
-import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
+import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/pi-session/SqlitePiSession"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
 import { EnvironmentDeltaStore } from "../src/local-environment/EnvironmentDeltaStore"

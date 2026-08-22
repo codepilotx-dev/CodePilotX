@@ -1,8 +1,6 @@
-import {
-  AgentHarness,
-  InMemorySessionRepo,
-  type AgentTool,
-} from "@codepilotx/pi-agent-core"
+import { AgentHarness } from "../src/orchestration/harness/agent-harness"
+import type { AgentTool } from "../src/orchestration/harness/agent-types"
+import { InMemorySessionRepo } from "../src/storage/pi-session/memory-repo"
 import {
   Type,
   createModels,

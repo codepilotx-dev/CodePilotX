@@ -1,12 +1,6 @@
-import type {
-  AgentHarness,
-  AgentHarnessEvent,
-  AgentHarnessResources,
-  AgentTool,
-  CompactResult,
-  Session,
-  ThinkingLevel,
-} from "@codepilotx/pi-agent-core"
+import type { AgentHarness } from "../harness/agent-harness"
+import type { AgentHarnessEvent, AgentHarnessResources, CompactResult, Session } from "../harness/types"
+import type { AgentTool, ThinkingLevel } from "../harness/agent-types"
 import type { ImageContent, Model, Models } from "@earendil-works/pi-ai"
 import type { ToolResultBlock } from "@codepilotx/shared/thread"
 import type { ModelRef, PermissionConfig, SubagentProfile, SubagentResult, TaskMode } from "../../domain"
@@ -17,13 +11,13 @@ import type { WorkspaceService } from "../../workspace/WorkspaceService"
 import type { ExecutionPlanInput } from "../plan/ExecutionPlanInput"
 import type { RequestUserInput } from "../../session/QuestionInput"
 
-export type PiRunResult =
+export type HarnessRunResult =
   | { status: "completed"; output: string; result?: SubagentResult }
   | { status: "paused"; output: string }
 
 export type RuntimeCompactionTrigger = "manual" | "automatic" | "reactive"
 
-export interface PiRuntimeRequest {
+export interface HarnessRuntimeRequest {
   threadID: string
   turnID: string
   agentID: string
@@ -55,7 +49,7 @@ export interface PiHarnessDependencies {
 }
 
 export interface PiHarnessFactory {
-  resolve(request: PiRuntimeRequest): Promise<PiHarnessDependencies>
+  resolve(request: HarnessRuntimeRequest): Promise<PiHarnessDependencies>
 }
 
 export interface PiRuntimeEventContext {
@@ -153,7 +147,7 @@ export interface PiRuntimeEventSink {
 
 export interface PiToolAdapterOptions {
   executor: ToolExecutor
-  request: PiRuntimeRequest
+  request: HarnessRuntimeRequest
 }
 
 export interface PiLifecycleCallbacks {
@@ -180,31 +174,23 @@ export interface PiLifecycleCallbacks {
   finalizeResult?(input: SubagentResult, toolCallID: string): Promise<unknown>
 }
 
-export interface PiAgentRuntimeOptions {
+export interface HarnessRuntimeOptions {
   harnessFactory: PiHarnessFactory
   toolExecutor: ToolExecutor
   eventSink?: PiRuntimeEventSink
+  activated?(threadID: string, active: ActiveHarness): void
   lifecycle?: PiLifecycleCallbacks
-  beforeToolCall?: (request: PiRuntimeRequest, input: { toolCallID: string; tool: string; input: Record<string, unknown> }) => Promise<{ block?: boolean; reason?: string; pause?: boolean } | undefined>
+  beforeToolCall?: (request: HarnessRuntimeRequest, input: { toolCallID: string; tool: string; input: Record<string, unknown> }) => Promise<{ block?: boolean; reason?: string; pause?: boolean } | undefined>
   compaction?: {
     shouldAutoCompact(threadID: string): boolean | Promise<boolean>
     recordFailure(threadID: string, trigger: RuntimeCompactionTrigger): void | Promise<void>
   }
 }
 
-export interface ActivePiHarness {
+export interface ActiveHarness {
   harness: AgentHarness
   unsubscribe: () => void
   compact(trigger: RuntimeCompactionTrigger, instructions?: string): Promise<CompactResult>
-}
-
-export interface PiAgentRuntimeApi {
-  run(request: PiRuntimeRequest): Promise<PiRunResult>
-  steer(threadID: string, content: string, images?: ImageContent[], inputID?: string): Promise<void>
-  followUp(threadID: string, content: string, images?: ImageContent[]): Promise<void>
-  abort(threadID: string): Promise<void>
-  compact(threadID: string, instructions?: string): Promise<CompactResult>
-  dispose(): Promise<void>
 }
 
 export type PiTool = AgentTool<any, unknown>

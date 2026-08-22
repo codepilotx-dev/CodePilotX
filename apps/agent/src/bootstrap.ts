@@ -23,7 +23,7 @@ import { QuestionService } from "./session/QuestionService";
 import { ResumeCheckpointResolver } from "./interaction/ResumeCheckpointResolver";
 import { ThreadService } from "./session/ThreadService";
 import { ThreadHistoryService } from "./session/ThreadHistoryService";
-import { PiOrchestratorAdapter } from "./orchestration/PiOrchestratorAdapter";
+import { AgentRuntimeService } from "./orchestration/AgentRuntimeService";
 import { ContextCompactionService } from "./context/ContextCompactionService";
 import {
   EncryptedCredentialStore,
@@ -609,7 +609,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const artifacts = yield* Effect.promise(() =>
       ArtifactService.open(config.dataDir, db),
     );
-    const orchestrator = new PiOrchestratorAdapter({
+    const orchestrator = new AgentRuntimeService({
       db,
       hub,
       models: piModels.pi,
@@ -899,6 +899,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeTooling();
       unsubscribeConfig();
       await sideChats.discardAll(true);
+      await orchestrator.dispose();
       await configService.dispose();
       await mcpConnections.dispose();
       // Stop background model-health workers before tearing down the provider,

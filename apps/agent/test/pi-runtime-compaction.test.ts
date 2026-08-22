@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { InMemorySessionRepo } from "@codepilotx/pi-agent-core"
+import { InMemorySessionRepo } from "../src/storage/pi-session/memory-repo"
 import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import {
   createModels,
@@ -8,10 +8,12 @@ import {
   type Context,
 } from "@earendil-works/pi-ai"
 import { AgentError } from "../src/domain"
-import { PiAgentRuntime } from "../src/orchestration/pi/PiAgentRuntime"
+import { executeHarnessRun } from "../src/orchestration/pi/executeHarnessRun"
 import { REACTIVE_CONTINUATION_PROMPT } from "../src/orchestration/pi/ContextOverflow"
 import type {
-  PiRuntimeRequest,
+  ActiveHarness,
+  HarnessRuntimeOptions,
+  HarnessRuntimeRequest,
   RuntimeCompactionTrigger,
 } from "../src/orchestration/pi/types"
 
@@ -44,7 +46,9 @@ async function createRuntime(input: {
   const session = await repo.create({ id: sessionID })
   const compacted: RuntimeCompactionTrigger[] = []
   const failures: RuntimeCompactionTrigger[] = []
-  const runtime = new PiAgentRuntime({
+  let active: ActiveHarness | undefined
+  const runtimeOptions: HarnessRuntimeOptions = {
+    activated: (_threadID, value) => { active = value },
     harnessFactory: {
       resolve: async () => ({ models, session }),
     },
@@ -62,8 +66,8 @@ async function createRuntime(input: {
         failures.push(trigger)
       },
     },
-  })
-  const request: PiRuntimeRequest = {
+  }
+  const request: HarnessRuntimeRequest = {
     threadID: "thread-runtime-compaction",
     turnID: "turn-runtime-compaction",
     agentID: "agent-runtime-compaction",
@@ -85,10 +89,10 @@ async function createRuntime(input: {
       content: "runtime compaction test",
     }],
   }
-  return { runtime, request, compacted, failures }
+  return { runtime: { run: (request: HarnessRuntimeRequest) => executeHarnessRun(runtimeOptions, request), dispose: () => active?.harness.abort() ?? Promise.resolve() }, request, compacted, failures }
 }
 
-describe("PiAgentRuntime context compaction", () => {
+describe("Harness runtime context compaction", () => {
   test("successful turns remain successful when automatic compaction runs afterward", async () => {
     const setup = await createRuntime({
       responses: [

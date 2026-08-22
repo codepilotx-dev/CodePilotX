@@ -11,7 +11,7 @@ import {
 } from "../workspace/WorkspaceService"
 import type { PermissionConfig, SandboxMode } from "@codepilotx/shared/thread"
 import type { Model } from "@codepilotx/model-schema"
-import type { ToolExecutionMode as PiToolExecutionMode } from "@codepilotx/pi-agent-core"
+import type { ToolExecutionMode as PiToolExecutionMode } from "../orchestration/harness/agent-types"
 import type { Tool as PiAiTool } from "@earendil-works/pi-ai"
 import { isAbsolute, relative, resolve } from "node:path"
 import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"

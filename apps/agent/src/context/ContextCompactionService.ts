@@ -1,5 +1,5 @@
 import type { RpcResult } from "@codepilotx/agent-protocol"
-import type { CompactionEntry } from "@codepilotx/pi-agent-core"
+import type { CompactionEntry } from "../orchestration/harness/types"
 import type { EventEnvelope } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { StoredContextCompaction } from "../storage/repositories/context-repository"

@@ -1,10 +1,10 @@
-import type { AgentToolResult } from "@codepilotx/pi-agent-core"
+import type { AgentToolResult } from "../harness/agent-types"
 import { Type, type TSchema } from "@earendil-works/pi-ai"
 import { AgentError } from "../../domain"
 import { secretScrubber } from "../../security/SecretScrubber"
 import type { ToolDefinition } from "../../tool/ToolRegistry"
 import { executionPlanInputSchema } from "../plan/ExecutionPlanInput"
-import type { PiLifecycleCallbacks, PiRuntimeRequest, PiTool, PiToolAdapterOptions } from "./types"
+import type { HarnessRuntimeRequest, PiLifecycleCallbacks, PiTool, PiToolAdapterOptions } from "./types"
 import { requestUserInputSchema } from "../../session/QuestionInput"
 
 const textResult = (value: unknown, terminate = false): AgentToolResult<unknown> => {
@@ -13,7 +13,7 @@ const textResult = (value: unknown, terminate = false): AgentToolResult<unknown>
   return { content: [{ type: "text", text: text ?? "null" }], details: safe, ...(terminate ? { terminate: true } : {}) }
 }
 
-const descriptionFor = (definition: ToolDefinition, request: PiRuntimeRequest) => typeof definition.description === "string"
+const descriptionFor = (definition: ToolDefinition, request: HarnessRuntimeRequest) => typeof definition.description === "string"
   ? definition.description
   : definition.description({
       signal: request.signal,
@@ -162,7 +162,7 @@ const projectSourceReadTool = (
 })
 
 /** Product lifecycle tools remain callbacks so durable pause/recovery stays owned by ThreadService. */
-export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: PiRuntimeRequest): PiTool[] {
+export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: HarnessRuntimeRequest): PiTool[] {
   const tools: PiTool[] = []
   const exposed = new Set(request.exposedTools)
   const add = (tool: PiTool) => { if (exposed.has(tool.name)) tools.push(tool) }
