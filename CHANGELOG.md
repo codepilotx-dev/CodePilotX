@@ -98,6 +98,9 @@
 
 ### Fixed
 
+- [desktop] 优化 Windows 下 Electron 窗口边框与控制按钮：改用 titleBarStyle: 'hidden' 和 titleBarOverlay 支持原生贴靠布局并精确同步顶栏底色 (surfaceUnder) 与 36px 贴合高度；主内容区对齐简约扁平规范，移除卡片外阴影与冗余边框，彻底消除粗黑边与颜色高度断层。
+- [desktop/renderer] 修复侧边栏在更新/生成会话标题时的骨架屏显示异常：标题生成期间禁用会话悬停卡片（HoverCard）弹出，避免出现大尺寸卡片浮层；同时将骨架屏圆角从全圆角修正为与文字行高贴合的 4px 微圆角长方形（`--cpx-sys-radius-sm`），保持平滑扫光动画。
+
 - [desktop] 修复会话自动追底对齐到 Composer 渐变遮挡区的问题，使最新正文完整停留在可视区并保留底部阅读间距
 - [agent/security] 修复 Skills 扫描静默忽略指向可信根之外 Junction 的问题，改为安全拒绝，同时保留跨已配置 Skills 根别名的去重行为。
 - [desktop] 稳定 AI 流式 Markdown 的分块渲染、增量动效、代码高亮与自动追底，避免回复期间旧内容重复淡入和会话正文往返闪烁
