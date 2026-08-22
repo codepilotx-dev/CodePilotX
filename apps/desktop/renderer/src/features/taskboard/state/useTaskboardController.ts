@@ -121,7 +121,10 @@ export function useTaskboardController(
           ...(current.labelIds?.length ? { labelIds: [...current.labelIds] } : {}),
           ...(current.priorities?.length ? { priorities: [...current.priorities] } : {}),
           ...(current.unread !== undefined ? { unread: current.unread } : {}),
-          ...(current.datePreset ? { datePreset: current.datePreset } : {}),
+          ...(current.datePreset ? {
+            datePreset: current.datePreset,
+            today: taskboardLocalDateKey(new Date()),
+          } : {}),
           ...(current.sort ? { sort: current.sort } : {}),
           ...(cursor ? { cursor } : {}),
           archived: current.archived,
@@ -717,15 +720,15 @@ function matchesDatePreset(
 ): boolean {
   if (preset === 'no_due_date') return dueDate === null
   if (dueDate === null) return false
-  const today = localDateKey(new Date())
+  const today = taskboardLocalDateKey(new Date())
   if (preset === 'overdue') return dueDate < today
   if (preset === 'due_today') return dueDate === today
   const weekEnd = new Date()
   weekEnd.setDate(weekEnd.getDate() + 7)
-  return dueDate >= today && dueDate <= localDateKey(weekEnd)
+  return dueDate >= today && dueDate <= taskboardLocalDateKey(weekEnd)
 }
 
-function localDateKey(date: Date): string {
+export function taskboardLocalDateKey(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')

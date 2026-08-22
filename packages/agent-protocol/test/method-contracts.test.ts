@@ -2571,6 +2571,7 @@ const fixtures = {
     archived: false,
     unread: true,
     datePreset: "due_7_days",
+    today: "2026-08-23",
     sort: "due_date",
     limit: 200,
   }, {

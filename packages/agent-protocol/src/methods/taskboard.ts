@@ -375,6 +375,7 @@ export const TaskboardRpcMethods = {
       archived: Schema.optional(Schema.Boolean),
       unread: Schema.optional(Schema.Boolean),
       datePreset: Schema.optional(TaskboardWorkflowDatePresetSchema),
+      today: Schema.optional(TaskboardWorkflowDateSchema),
       sort: Schema.optional(TaskboardWorkflowSortSchema),
       cursor: Schema.optional(CursorSchema),
       limit: Schema.optional(LimitSchema),

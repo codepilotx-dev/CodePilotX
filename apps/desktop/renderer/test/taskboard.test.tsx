@@ -6,7 +6,7 @@ import type {
   TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import { parseTaskboardFilters } from '../src/features/taskboard/TaskboardView.js'
-import { optimisticallyMoveTask, taskboardCreateTaskRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
+import { optimisticallyMoveTask, taskboardCreateTaskRpcInput, taskboardLocalDateKey } from '../src/features/taskboard/state/useTaskboardController.js'
 import { resolveTaskDropPlacement } from '../src/features/taskboard/components/BoardColumn.js'
 import { BoardColumn } from '../src/features/taskboard/components/BoardColumn.js'
 import { taskboardBoardColumns, TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
@@ -31,6 +31,10 @@ test('input dialog permits empty input only when the caller opts in', () => {
 })
 
 describe('taskboard URL filters', () => {
+  test('formats the workflow filter date from the renderer local calendar', () => {
+    expect(taskboardLocalDateKey(new Date(2026, 7, 23, 0, 30))).toBe('2026-08-23')
+  })
+
   test('uses stable query and repeatable label keys', () => {
     const filters = parseTaskboardFilters(new URLSearchParams(
       'projectId=p1&query=fix&priority=high&label=l1,l2&archived=1',

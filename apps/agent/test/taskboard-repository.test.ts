@@ -70,6 +70,28 @@ describe("TaskboardRepository", () => {
     db.close()
   })
 
+  test("日期筛选使用客户端显式提供的本地当天日期", async () => {
+    const { db, project } = await fixture()
+    const dueToday = db.createWorkflowTask({
+      projectId: project.id,
+      title: "本地今天到期",
+      dueDate: "2026-08-23",
+    })
+    db.createWorkflowTask({
+      projectId: project.id,
+      title: "UTC 前一天到期",
+      dueDate: "2026-08-22",
+    })
+
+    const result = db.listWorkflowTasks({
+      projectId: project.id,
+      datePreset: "due_today",
+      today: "2026-08-23",
+    })
+    expect(result.tasks.map(task => task.id)).toEqual([dueToday.task.id])
+    db.close()
+  })
+
   test("CAS 更新、标签、评论 tombstone 与 operation replay 保持稳定", async () => {
     const { db, project } = await fixture()
     const label = db.createLabel({ projectId: project.id, name: "Desktop", normalizedName: "desktop" })
