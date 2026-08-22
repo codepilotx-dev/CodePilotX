@@ -66,15 +66,18 @@ export function createAgentToolingApi({
 }: Dependencies): ToolingApi {
   const desktopInstalledSkill = (
     skill: RpcResult<'skill/list'>['skills'][number],
-  ): DesktopInstalledSkill => ({
-    name: skill.name,
-    description: skill.description,
-    path: skill.path,
-    scope: skill.scope === 'workspace' ? 'repo' : 'user',
-    source: skill.scope,
-    format: skill.format,
-    enabled: skill.enabled,
-  })
+  ): DesktopInstalledSkill => {
+    const builtin = skill.path.startsWith('builtin://')
+    return {
+      name: skill.name,
+      description: skill.description,
+      path: skill.path,
+      scope: builtin ? 'system' : skill.scope === 'workspace' ? 'repo' : 'user',
+      source: builtin ? 'system' : skill.scope,
+      format: skill.format,
+      enabled: skill.enabled,
+    }
+  }
   const isToolingStatus = (value: unknown): value is ToolingStatus => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false
     const status = value as Partial<ToolingStatus>

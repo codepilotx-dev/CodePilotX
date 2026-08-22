@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type React from 'react'
 import type {
   DesktopComposerAttachment,
@@ -62,6 +63,7 @@ export type DesktopComposerProps = {
   surface?: ComposerSurface
   workingPlugin?: WorkingPlugin | null
   onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void
+  onWorkingPluginAvailabilityChange?: (available: boolean) => void
   placeholder?: string
   routedSessionId: string | null
   sessionStatus: DesktopSessionStatus
@@ -167,6 +169,7 @@ export function DesktopComposer({
   surface,
   workingPlugin,
   onWorkingPluginChange,
+  onWorkingPluginAvailabilityChange,
   placeholder: placeholderOverride,
   routedSessionId,
   sessionStatus,
@@ -264,6 +267,7 @@ export function DesktopComposer({
     selectedSkillToken,
     setGoalModeEnabled,
     skillCommands,
+    taskPlanningAvailable,
     unsupportedAttachmentReason,
   } = useDesktopComposerController({
     input,
@@ -283,6 +287,8 @@ export function DesktopComposer({
     attachments,
     subagentMode,
     surface,
+    workingPlugin,
+    onWorkingPluginChange,
     onAttachmentsChange,
     onAppendAttachmentsForDraft,
     onRemoveAttachmentForDraft,
@@ -292,6 +298,34 @@ export function DesktopComposer({
     createSessionForWorkspace,
     submitToSession,
   })
+
+  useEffect(() => {
+    onWorkingPluginAvailabilityChange?.(taskPlanningAvailable)
+  }, [onWorkingPluginAvailabilityChange, taskPlanningAvailable])
+
+  useEffect(() => {
+    if (workingPlugin && planModeActive) onPlanModeChange(false)
+  }, [onPlanModeChange, planModeActive, workingPlugin])
+
+  function handleWorkingPluginChange(plugin: WorkingPlugin | null): void {
+    if (plugin === 'task-planning') {
+      onPlanModeChange(false)
+      handleSkillDeselect()
+    }
+    onWorkingPluginChange?.(plugin)
+  }
+
+  function handlePlanModeChange(active: boolean): void {
+    if (active && workingPlugin) onWorkingPluginChange?.(null)
+    onPlanModeChange(active)
+  }
+
+  function handleSkillSelectWithWorkingPluginClear(
+    skill: Parameters<typeof handleSkillSelect>[0],
+  ): void {
+    if (workingPlugin) onWorkingPluginChange?.(null)
+    handleSkillSelect(skill)
+  }
 
   return (
     <ComposerCard
@@ -311,7 +345,8 @@ export function DesktopComposer({
       submitShortcut={submitShortcut}
       surface={surface}
       workingPlugin={workingPlugin}
-      onWorkingPluginChange={onWorkingPluginChange}
+      taskPlanningAvailable={taskPlanningAvailable}
+      onWorkingPluginChange={handleWorkingPluginChange}
       submitting={isSubmitting}
       submitOutcome={lastSubmitOutcome}
       goalModeEnabled={goalModeEnabled}
@@ -370,13 +405,13 @@ export function DesktopComposer({
       onCreateBranch={onCreateBranch}
       onStartReview={onStartReview}
       onPermissionChange={onPermissionChange}
-      onPlanModeChange={onPlanModeChange}
+      onPlanModeChange={handlePlanModeChange}
       onLocalRouterModeChange={onLocalRouterModeChange}
       onSubmit={handleSubmit}
       onCompact={handleCompact}
       onCommandError={handleCommandError}
       onThinkingChange={onThinkingChange}
-      onSkillSelect={handleSkillSelect}
+      onSkillSelect={handleSkillSelectWithWorkingPluginClear}
       onSkillDeselect={handleSkillDeselect}
       routedSessionId={routedSessionId}
       contextDropdownSide="top"

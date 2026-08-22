@@ -46,6 +46,7 @@ export function WorkingNewSessionView(): React.ReactNode {
   const [workingPlugin, setWorkingPlugin] = useState<WorkingPlugin | null>(
     null,
   );
+  const [taskPlanningAvailable, setTaskPlanningAvailable] = useState(false);
   const [observedComposerValue, setObservedComposerValue] = useState(
     composerDraft?.value ?? "",
   );
@@ -121,10 +122,10 @@ export function WorkingNewSessionView(): React.ReactNode {
       markInteracted();
       const result = selectWorkingContextualSuggestion(suggestion);
       setSuggestionState(result.state);
-      setWorkingPlugin(result.plugin);
+      setWorkingPlugin(taskPlanningAvailable ? result.plugin : null);
       replaceComposerValue(result.prompt);
     },
-    [markInteracted, replaceComposerValue],
+    [markInteracted, replaceComposerValue, taskPlanningAvailable],
   );
 
   const handleShowTemplates = useCallback(() => {
@@ -143,10 +144,10 @@ export function WorkingNewSessionView(): React.ReactNode {
       const result = selectWorkingSuggestionTask(suggestionState, task.id);
       if (!result) return;
       setSuggestionState(result.state);
-      setWorkingPlugin(result.plugin);
+      setWorkingPlugin(taskPlanningAvailable ? result.plugin : null);
       replaceComposerValue(result.prompt);
     },
-    [markInteracted, replaceComposerValue, suggestionState],
+    [markInteracted, replaceComposerValue, suggestionState, taskPlanningAvailable],
   );
 
   const handleBack = useCallback(
@@ -214,6 +215,7 @@ export function WorkingNewSessionView(): React.ReactNode {
                   surface="working"
                   workingPlugin={workingPlugin}
                   onWorkingPluginChange={setWorkingPlugin}
+                  onWorkingPluginAvailabilityChange={setTaskPlanningAvailable}
                   placeholder={WORKING_COMPOSER_PLACEHOLDER}
                 />
               </div>

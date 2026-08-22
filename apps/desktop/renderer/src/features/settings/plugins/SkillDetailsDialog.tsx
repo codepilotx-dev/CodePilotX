@@ -11,6 +11,11 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { readRuntimeSkill } from './skillClientAdapter.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+import {
+  BuiltinSkillIcon,
+  getBuiltinSkillPresentation,
+  isBuiltinSkill,
+} from '../../plugins/builtinSkillPresentation.js'
 
 type Props = {
   workspacePath: string | null
@@ -70,6 +75,8 @@ export function SkillDetailsDialog({
   }, [open, skill, workspacePath])
 
   if (!skill) return null
+  const presentation = getBuiltinSkillPresentation(skill)
+  const builtin = isBuiltinSkill(skill)
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -92,10 +99,18 @@ export function SkillDetailsDialog({
                 aria-hidden="true"
                 className="tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border tw:bg-app-canvas tw:text-app-text-soft"
               >
-                <FileCode2
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
+                {presentation ? (
+                  <BuiltinSkillIcon
+                    className="tw:size-7 tw:rounded-md"
+                    size={28}
+                    skill={skill}
+                  />
+                ) : (
+                  <FileCode2
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                )}
               </span>
               <span className="tw:min-w-0 tw:flex-1">
                 <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)]">
@@ -142,14 +157,16 @@ export function SkillDetailsDialog({
             </div>
 
             <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
-              <Button color="secondary" onClick={() => onOpenSkill(skill)}>
-                <FolderOpen
-                  aria-hidden="true"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-                打开
-              </Button>
+              {!builtin ? (
+                <Button color="secondary" onClick={() => onOpenSkill(skill)}>
+                  <FolderOpen
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                  打开
+                </Button>
+              ) : null}
               <Button color="primary"
                 disabled={!skill.enabled}
                 onClick={() => onUseSkill(skill)}
@@ -177,7 +194,7 @@ export function skillScopeLabel(
     case 'user':
       return '个人'
     case 'system':
-      return '系统'
+      return '内置'
     case 'admin':
       return '管理员安装'
   }

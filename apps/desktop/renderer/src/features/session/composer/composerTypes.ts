@@ -11,7 +11,7 @@ export type ComposerPlacement =
 /** 新建页展示上下文；thread 内不设置，保持现有行为。 */
 export type ComposerSurface = 'coding' | 'working' | 'chat'
 
-/** 当前唯一的工作插件；仅属于新建页草稿的本地 UI 状态。 */
+/** Working 首页的任务规划 Skill 快捷入口。 */
 export type WorkingPlugin = 'task-planning'
 
 export type ComposerExecutionMode = 'local' | 'worktree' | 'cloud'

@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { DesktopWorkspace } from '../shared/types.js'
 import { ComposerCard } from '../src/features/session/composer/ComposerCard.js'
+import type { ComposerSkillCommand } from '../src/features/session/composer/composerSlashCommands.js'
+import { resolveActiveComposerSkillToken } from '../src/features/session/composer/useDesktopComposerController.js'
 
 type ComposerCardProps = Parameters<typeof ComposerCard>[0]
 
@@ -9,6 +11,19 @@ const WORKSPACE: DesktopWorkspace = {
   name: 'Alpha 工作区',
   path: 'C:\\alpha',
   branchName: 'feature/working-surface',
+}
+
+const TASKBOARD_PLANNER: ComposerSkillCommand = {
+  id: 'skill:taskboard-planner',
+  trigger: 'taskboard-planner',
+  title: 'taskboard-planner',
+  description: '规划任务',
+  source: 'skill',
+  skill: {
+    name: 'taskboard-planner',
+    path: 'builtin://taskboard-planner/SKILL.md',
+    scope: 'system',
+  },
 }
 
 function composerCardProps(
@@ -53,6 +68,24 @@ function composerCardProps(
 }
 
 describe('composer surface variant', () => {
+  test('Working 任务规划使用实际生效的同名 Skill 路径', () => {
+    const workspaceOverride: ComposerSkillCommand = {
+      ...TASKBOARD_PLANNER,
+      skill: {
+        ...TASKBOARD_PLANNER.skill,
+        path: 'C:/workspace/.codepilotx/skills/taskboard-planner/SKILL.md',
+        scope: 'repo',
+      },
+    }
+
+    expect(resolveActiveComposerSkillToken(
+      'task-planning',
+      null,
+      [workspaceOverride],
+    )?.skill.path).toBe(workspaceOverride.skill.path)
+    expect(resolveActiveComposerSkillToken('task-planning', null, [])).toBeNull()
+  })
+
   test('Coding、Working 与 Chat 输出各自的 data-surface 标记', () => {
     const coding = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'coding' })} />,
@@ -127,13 +160,23 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('class="rm-empty"')
   })
 
-  test('Working 新建页未选 workspace 时显示选择文件夹与插件入口', () => {
-    const html = renderToStaticMarkup(
+  test('Working 仅在任务规划 Skill 可用时显示插件入口', () => {
+    const unavailable = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'working' })} />,
+    )
+    const html = renderToStaticMarkup(
+      <ComposerCard
+        {...composerCardProps({
+          surface: 'working',
+          skillCommands: [TASKBOARD_PLANNER],
+          taskPlanningAvailable: true,
+        })}
+      />,
     )
     expect(html).toContain('选择文件夹')
     expect(html).toContain('插件')
     expect(html).not.toContain('进入项目工作')
+    expect(unavailable).not.toContain('插件')
   })
 
   test('Working 选中 workspace 后显示工作区名称并隐藏 Local 和分支', () => {
@@ -154,6 +197,8 @@ describe('composer surface variant', () => {
         {...composerCardProps({
           surface: 'working',
           workingPlugin: 'task-planning',
+          skillCommands: [TASKBOARD_PLANNER],
+          taskPlanningAvailable: true,
         })}
       />,
     )

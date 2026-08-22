@@ -103,6 +103,7 @@ import {
   type ComposerSlashCommandId,
 } from "./composerSlashCommands.js";
 import { useComposerSlashCommands } from "./useComposerSlashCommands.js";
+import { BuiltinSkillIcon } from "../../plugins/builtinSkillPresentation.js";
 
 type Option<T extends string> = {
   value: T;
@@ -330,6 +331,7 @@ type Props = {
   submitShortcut?: ComposerSubmitShortcut;
   surface?: ComposerSurface;
   workingPlugin?: WorkingPlugin | null;
+  taskPlanningAvailable?: boolean;
   onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void;
 };
 
@@ -434,6 +436,7 @@ export function ComposerCard({
   submitShortcut = "enter",
   surface,
   workingPlugin,
+  taskPlanningAvailable = false,
   onWorkingPluginChange,
 }: Props): React.ReactNode {
   const editorRef = useRef<ComposerEditorHandle | null>(null);
@@ -512,6 +515,22 @@ export function ComposerCard({
         ? "超高"
         : "高"
     : (selectedThinking?.label ?? "默认");
+  const taskPlanningSkill = skillCommands.find(
+    command => command.skill.name === "taskboard-planner",
+  );
+  const taskPlanningIcon = taskPlanningSkill ? (
+    <BuiltinSkillIcon
+      className="tw:rounded-[4px]"
+      skill={{
+        name: "taskboard-planner",
+        path: "builtin://taskboard-planner/SKILL.md",
+        scope: "system",
+        source: "system",
+      }}
+    />
+  ) : (
+    <Blocks size={APP_ICON_SIZE} />
+  );
 
   const sessionBusy =
     sessionStatus === "running" || sessionStatus === "waiting";
@@ -1887,7 +1906,7 @@ export function ComposerCard({
             />
           )}
 
-          {surface === "working" ? (
+          {surface === "working" && taskPlanningAvailable ? (
             <PopoverMenu
               className="popover-plugin"
               open={openDropdown === "plugin"}
@@ -1898,7 +1917,7 @@ export function ComposerCard({
                 <MetaChip
                   active={openDropdown === "plugin"}
                   className={workingPlugin ? "is-selected" : undefined}
-                  icon={<Blocks size={APP_ICON_SIZE} />}
+                  icon={taskPlanningIcon}
                   label={workingPlugin === "task-planning" ? "规划任务" : "插件"}
                   title={
                     workingPlugin ? "取消工作插件" : "选择工作插件"
@@ -1917,7 +1936,7 @@ export function ComposerCard({
               <div className="popover-header">插件</div>
               <div className="popover-section">
                 <PopoverItem
-                  icon={<Blocks size={APP_ICON_SIZE} />}
+                  icon={taskPlanningIcon}
                   selected={workingPlugin === "task-planning"}
                   withCheck
                   onClick={() => {

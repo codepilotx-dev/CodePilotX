@@ -22,6 +22,7 @@ import type {
   ComposerPlacement,
   ComposerSubmitOutcome,
   ComposerSurface,
+  WorkingPlugin,
 } from './composerTypes.js'
 import { createComposerDocument } from './composerTypes.js'
 import { executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
@@ -50,6 +51,8 @@ type ControllerOptions = {
   attachments: DesktopComposerAttachment[]
   subagentMode: boolean
   surface?: ComposerSurface
+  workingPlugin?: WorkingPlugin | null
+  onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void
   onAttachmentsChange: (attachments: DesktopComposerAttachment[]) => void
   onAppendAttachmentsForDraft?: (
     draftKey: ComposerDraftKey,
@@ -85,6 +88,17 @@ type ControllerOptions = {
   ) => Promise<'sent' | 'queued' | 'steered' | null>
 }
 
+export function resolveActiveComposerSkillToken(
+  workingPlugin: WorkingPlugin | null | undefined,
+  selectedSkillToken: ComposerSkillCommand | null,
+  skillCommands: readonly ComposerSkillCommand[],
+): ComposerSkillCommand | null {
+  if (workingPlugin !== 'task-planning') return selectedSkillToken
+  return skillCommands.find(
+    command => command.skill.name === 'taskboard-planner',
+  ) ?? null
+}
+
 export function useDesktopComposerController({
   input,
   messages,
@@ -103,6 +117,8 @@ export function useDesktopComposerController({
   attachments,
   subagentMode,
   surface,
+  workingPlugin,
+  onWorkingPluginChange,
   onAttachmentsChange,
   onAppendAttachmentsForDraft,
   onRemoveAttachmentForDraft,
@@ -127,8 +143,20 @@ export function useDesktopComposerController({
   const draftClientIdRef = useRef(initialDraftRef.current.clientId)
   const activeDraftKeyRef = useRef<ComposerDraftKey>(draftKey)
   const [skillCommands, setSkillCommands] = useState<ComposerSkillCommand[]>([])
+  const [runtimeSkillsLoaded, setRuntimeSkillsLoaded] = useState(false)
   const [selectedSkillToken, setSelectedSkillToken] =
     useState<ComposerSkillCommand | null>(null)
+
+  const taskPlanningSkill = skillCommands.find(
+    command => command.skill.name === 'taskboard-planner',
+  )
+  const activeSkillToken = resolveActiveComposerSkillToken(
+    workingPlugin,
+    selectedSkillToken,
+    skillCommands,
+  )
+  const workingPluginSkillUnavailable =
+    workingPlugin === 'task-planning' && taskPlanningSkill === undefined
 
   const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
   const unsupportedAttachmentReason = getUnsupportedAttachmentReason(
@@ -136,9 +164,10 @@ export function useDesktopComposerController({
     selectedModelMetadata,
   )
   const canSubmit =
+    !workingPluginSkillUnavailable &&
     (Boolean(input.trim()) ||
       attachments.length > 0 ||
-      selectedSkillToken !== null) &&
+      activeSkillToken !== null) &&
     !hasAttachmentErrors &&
     !unsupportedAttachmentReason &&
     modelConfigured &&
@@ -223,18 +252,42 @@ export function useDesktopComposerController({
   }, [attachments, draftKey, input, planModeActive])
 
   useEffect(() => {
+    if (workingPlugin !== 'task-planning' || !selectedSkillToken) return
+    composerDraftStore.setSkillInvocation(draftKey, undefined)
+    setSelectedSkillToken(null)
+  }, [draftKey, selectedSkillToken, workingPlugin])
+
+  useEffect(() => {
+    if (
+      runtimeSkillsLoaded &&
+      workingPlugin === 'task-planning' &&
+      !taskPlanningSkill
+    ) {
+      onWorkingPluginChange?.(null)
+    }
+  }, [
+    onWorkingPluginChange,
+    runtimeSkillsLoaded,
+    taskPlanningSkill,
+    workingPlugin,
+  ])
+
+  useEffect(() => {
     if (subagentMode) {
       setSkillCommands([])
       setSelectedSkillToken(null)
+      setRuntimeSkillsLoaded(true)
       return
     }
     let cancelled = false
+    setRuntimeSkillsLoaded(false)
     const load = (forceReload = false) =>
       loadCachedRuntimeSkills(workspace?.path, forceReload)
         .then(skills => skills.map(skillToComposerCommand))
         .then(commands => {
           if (!cancelled) {
             setSkillCommands(commands)
+            setRuntimeSkillsLoaded(true)
             setSelectedSkillToken(
               restoreSkillToken(
                 composerDraftStore.get(draftKey).skillInvocation,
@@ -244,7 +297,10 @@ export function useDesktopComposerController({
           }
         })
         .catch(() => {
-          if (!cancelled) setSkillCommands([])
+          if (!cancelled) {
+            setSkillCommands([])
+            setRuntimeSkillsLoaded(true)
+          }
         })
     void load()
     const unsubscribe = desktopClient.onRuntimeSkillsUpdated(() => {
@@ -346,10 +402,10 @@ export function useDesktopComposerController({
       clientId: draftClientIdRef.current,
       document: createComposerDocument(input),
       attachments,
-      skillInvocation: selectedSkillToken
+      skillInvocation: activeSkillToken
         ? {
-            name: selectedSkillToken.skill.name,
-            path: selectedSkillToken.skill.path,
+            name: activeSkillToken.skill.name,
+            path: activeSkillToken.skill.path,
           }
         : undefined,
       collaborationMode: planModeActive ? 'plan' : 'default',
@@ -419,6 +475,7 @@ export function useDesktopComposerController({
       }
       draftClientIdRef.current = nextDraft.clientId
     }
+    if (workingPlugin) onWorkingPluginChange?.(null)
   }
 
   function applyPlanExecutionModel(): void {
@@ -555,6 +612,7 @@ export function useDesktopComposerController({
     selectedSkillToken,
     setGoalModeEnabled,
     skillCommands,
+    taskPlanningAvailable: runtimeSkillsLoaded && taskPlanningSkill !== undefined,
     unsupportedAttachmentReason,
   }
 }

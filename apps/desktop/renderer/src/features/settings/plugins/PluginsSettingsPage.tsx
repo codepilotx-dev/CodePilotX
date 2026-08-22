@@ -32,6 +32,11 @@ import {
 import { PluginDetailsDialog } from '../../plugins/PluginDetailsDialog.js'
 import { PluginIcon } from '../../plugins/PluginIcon.js'
 import { useBuiltinPluginCatalog } from '../../plugins/useBuiltinPluginCatalog.js'
+import {
+  BuiltinSkillIcon,
+  getBuiltinSkillPresentation,
+  isBuiltinSkill,
+} from '../../plugins/builtinSkillPresentation.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/eventSubscriptionFilters.js'
 import { SettingsContentArea } from '../SettingsContentArea.js'
@@ -674,10 +679,14 @@ export function PluginsSettingsPage({
                   title={skill.name}
                   description={skill.shortDescription || skill.description || '未提供技能说明。'}
                   icon={
-                    <FileCode2
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
+                    getBuiltinSkillPresentation(skill) ? (
+                      <BuiltinSkillIcon skill={skill} />
+                    ) : (
+                      <FileCode2
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    )
                   }
                   metadata={skillScopeLabel(skill.scope)}
                   dimmed={!skill.enabled}
@@ -761,6 +770,7 @@ export function PluginsSettingsPage({
         restoreFocusElement={skillDialogTrigger}
         onOpenChange={setSkillDialogOpen}
         onOpenSkill={skill => {
+          if (isBuiltinSkill(skill)) return
           void desktopClient.openPathWithDefaultTarget(skill.path).catch(error => {
             onError(errorMessageOf(error, '无法打开技能文件。'))
           })

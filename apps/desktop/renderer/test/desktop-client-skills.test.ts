@@ -154,6 +154,41 @@ describe('desktop runtime skills client', () => {
     unsubscribe()
   })
 
+  test('maps the stable builtin skill URI to the non-editable system source', async () => {
+    const builtinSkill = {
+      name: 'taskboard-planner',
+      description: 'Plan taskboard tasks.',
+      path: 'builtin://taskboard-planner/SKILL.md',
+      scope: 'user',
+      format: 'codepilotx',
+      enabled: true,
+    } as const
+    const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'skill/list') {
+        return rpc(body.id, {
+          skills: [builtinSkill],
+          generation: 1,
+          updatedAt: 1_753_392_000_000,
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await expect(client.listRuntimeSkills(workspace)).resolves.toMatchObject({
+      state: 'ready',
+      data: [{
+        name: 'taskboard-planner',
+        path: builtinSkill.path,
+        scope: 'system',
+        source: 'system',
+      }],
+    })
+  })
+
   test('browser mock reports local skill management as unavailable', async () => {
     const client = createBrowserMockDesktopClient()
 
