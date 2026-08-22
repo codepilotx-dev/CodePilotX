@@ -15,7 +15,6 @@
   "dependencies": {
     "@codepilotx/agent-protocol": "workspace:*",
     "@codepilotx/model-schema": "workspace:*",
-    "@codepilotx/pi-agent-core": "workspace:*",
     "@codepilotx/shared": "workspace:*",
     "@earendil-works/pi-ai": "0.82.1",
     "@modelcontextprotocol/sdk": "1.30.0",
@@ -25,8 +24,10 @@
     "effect": "4.0.0-beta.83",
     "extract-zip": "2.0.1",
     "hono": "4.12.32",
+    "ignore": "7.0.5",
     "jsonc-parser": "3.3.1",
     "smol-toml": "^1.7.0",
+    "typebox": "1.1.38",
     "yaml": "2.9.0",
     "zod": "4"
   },

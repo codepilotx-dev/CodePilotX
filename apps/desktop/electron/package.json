@@ -69,8 +69,8 @@
         "to": "third_party"
       },
       {
-        "from": "../../../packages/pi-agent-core/LICENSE",
-        "to": "packages/pi-agent-core/LICENSE"
+        "from": "../../agent/third_party/pi-agent-core/LICENSE",
+        "to": "agent/third_party/pi-agent-core/LICENSE"
       }
     ],
     "win": {
