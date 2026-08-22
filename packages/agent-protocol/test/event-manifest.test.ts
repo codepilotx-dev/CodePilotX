@@ -172,4 +172,26 @@ describe("event manifest invariants", () => {
     expect(() => decode({ ...payload, description: "不得进入事件日志" })).toThrow()
     expect(() => decode({ ...payload, cwd: "C:\\sensitive" })).toThrow()
   })
+
+  test("publishes workflow changes without task content", () => {
+    expect(EventManifest["taskboard/workflow/changed"]).toMatchObject({
+      durability: "durable",
+      stream: "global",
+      capability: "taskboard.workflow.v1",
+      reconcilesWith: "taskboard/workflow/list",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["taskboard/workflow/changed"].payload,
+      { onExcessProperty: "error" },
+    )
+    const payload = {
+      projectId: "project:1",
+      taskId: "task:1",
+      resource: "attention" as const,
+      action: "updated" as const,
+      changedAt: 1,
+    }
+    expect(decode(payload)).toEqual(payload)
+    expect(() => decode({ ...payload, note: "不得进入事件日志" })).toThrow()
+  })
 })

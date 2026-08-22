@@ -107,6 +107,20 @@ export const EventManifest = {
     capability: "taskboard.v1",
     reconcilesWith: "taskboard/task/list",
   }),
+  "taskboard/workflow/changed": defineEvent({
+    payload: Schema.Struct({
+      projectId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      resource: Schema.Literals(["workflow", "attention", "thread"]),
+      action: Schema.Literals(["created", "updated", "deleted"]),
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "taskboard.workflow.v1",
+    reconcilesWith: "taskboard/workflow/list",
+  }),
   "tooling/updated": defineEvent({
     payload: Schema.Struct({
       status: ToolingStatusSchema,

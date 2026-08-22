@@ -171,6 +171,133 @@ export const TaskboardTaskDetailsSchema = Schema.Struct({
 })
 export type TaskboardTaskDetails = typeof TaskboardTaskDetailsSchema.Type
 
+export const TaskboardWorkflowStatusSchema = Schema.Literals([
+  "backlog",
+  "todo",
+  "in_progress",
+  "blocked",
+  "in_review",
+  "done",
+  "canceled",
+])
+export type TaskboardWorkflowStatus = typeof TaskboardWorkflowStatusSchema.Type
+
+export const TaskboardWorkflowDateSchema = Schema.String.check(
+  Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/),
+)
+export type TaskboardWorkflowDate = typeof TaskboardWorkflowDateSchema.Type
+
+export const TaskboardWorkflowDatePresetSchema = Schema.Literals([
+  "overdue",
+  "due_today",
+  "due_7_days",
+  "no_due_date",
+])
+export type TaskboardWorkflowDatePreset = typeof TaskboardWorkflowDatePresetSchema.Type
+
+export const TaskboardWorkflowSortSchema = Schema.Literals([
+  "position",
+  "due_date",
+  "updated_at",
+])
+export type TaskboardWorkflowSort = typeof TaskboardWorkflowSortSchema.Type
+
+export const TaskboardWorkflowAttentionReasonSchema = Schema.Literals([
+  "review_requested",
+  "blocked",
+  "agent_comment",
+  "execution_attention",
+])
+export type TaskboardWorkflowAttentionReason = typeof TaskboardWorkflowAttentionReasonSchema.Type
+
+export const TaskboardWorkflowTransitionActionSchema = Schema.Literals([
+  "submit_review",
+  "report_blocked",
+  "return_work",
+  "accept",
+  "cancel",
+  "manual_move",
+])
+export type TaskboardWorkflowTransitionAction = typeof TaskboardWorkflowTransitionActionSchema.Type
+
+export const TaskboardWorkflowStartModeSchema = Schema.Literals([
+  "continue_primary",
+  "new_primary",
+])
+export type TaskboardWorkflowStartMode = typeof TaskboardWorkflowStartModeSchema.Type
+
+export const TaskboardWorkflowAttentionSchema = Schema.Struct({
+  unread: Schema.Boolean,
+  unreadAt: Schema.NullOr(Schema.Number),
+  readAt: Schema.NullOr(Schema.Number),
+  reason: Schema.NullOr(TaskboardWorkflowAttentionReasonSchema),
+})
+export type TaskboardWorkflowAttention = typeof TaskboardWorkflowAttentionSchema.Type
+
+const TaskboardWorkflowTaskFields = {
+  id: NonEmptyStringSchema,
+  projectId: NonEmptyStringSchema,
+  number: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  title: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_TITLE_MAX_LENGTH)),
+  description: Schema.String.check(Schema.isMaxLength(TASKBOARD_DESCRIPTION_MAX_LENGTH)),
+  status: TaskboardWorkflowStatusSchema,
+  priority: TaskboardPrioritySchema,
+  position: PositionSchema,
+  version: VersionSchema,
+  labels: Schema.Array(TaskboardLabelSchema).check(Schema.isMaxLength(TASKBOARD_LABELS_PER_TASK_MAX)),
+  archivedAt: Schema.NullOr(Schema.Number),
+  startDate: Schema.NullOr(TaskboardWorkflowDateSchema),
+  dueDate: Schema.NullOr(TaskboardWorkflowDateSchema),
+  attention: TaskboardWorkflowAttentionSchema,
+  createdAt: Schema.Number,
+  updatedAt: Schema.Number,
+} as const
+
+export const TaskboardWorkflowTaskSchema = Schema.Struct(TaskboardWorkflowTaskFields)
+export type TaskboardWorkflowTask = typeof TaskboardWorkflowTaskSchema.Type
+
+export const TaskboardWorkflowTaskSummarySchema = Schema.Struct({
+  ...TaskboardWorkflowTaskFields,
+  threads: Schema.Array(TaskboardThreadLinkSchema),
+})
+export type TaskboardWorkflowTaskSummary = typeof TaskboardWorkflowTaskSummarySchema.Type
+
+export const TaskboardWorkflowTaskDetailsSchema = Schema.Struct({
+  task: TaskboardWorkflowTaskSchema,
+  threads: Schema.Array(TaskboardThreadLinkSchema),
+  comments: Schema.Array(TaskboardCommentSchema),
+  activities: Schema.Array(TaskboardActivitySchema),
+})
+export type TaskboardWorkflowTaskDetails = typeof TaskboardWorkflowTaskDetailsSchema.Type
+
+export const TaskboardWorkflowThreadCandidateSchema = Schema.Struct({
+  threadId: NonEmptyStringSchema,
+  projectId: NonEmptyStringSchema,
+  title: Schema.String,
+  latestTurnStatus: Schema.NullOr(TurnStatusSchema),
+  pendingPlanApproval: Schema.Boolean,
+  updatedAt: Schema.Number,
+})
+export type TaskboardWorkflowThreadCandidate = typeof TaskboardWorkflowThreadCandidateSchema.Type
+
+export const TaskboardWorkflowThreadIneligibleReasonSchema = Schema.Literals([
+  "archived",
+  "project_mismatch",
+  "already_linked",
+  "active",
+  "pending_plan",
+  "not_main",
+])
+export type TaskboardWorkflowThreadIneligibleReason = typeof TaskboardWorkflowThreadIneligibleReasonSchema.Type
+
+export const TaskboardWorkflowThreadLookupSchema = Schema.Struct({
+  threadId: NonEmptyStringSchema,
+  taskId: Schema.NullOr(NonEmptyStringSchema),
+  eligible: Schema.Boolean,
+  ineligibleReason: Schema.NullOr(TaskboardWorkflowThreadIneligibleReasonSchema),
+})
+export type TaskboardWorkflowThreadLookup = typeof TaskboardWorkflowThreadLookupSchema.Type
+
 export const normalizeTaskboardLabelName = (name: string) => name.trim().normalize("NFKC").toLocaleLowerCase("en-US")
 
 export const taskboardAttentionFromTurnStatus = (

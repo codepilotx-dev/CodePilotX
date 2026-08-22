@@ -447,6 +447,26 @@ const taskboardDetails = {
   activities: [],
 } as const
 
+const taskboardWorkflowTask = {
+  ...taskboardTask,
+  status: "blocked",
+  startDate: "2026-08-20",
+  dueDate: "2026-08-25",
+  attention: {
+    unread: true,
+    unreadAt: 3,
+    readAt: null,
+    reason: "blocked",
+  },
+} as const
+
+const taskboardWorkflowDetails = {
+  task: taskboardWorkflowTask,
+  threads: [],
+  comments: [],
+  activities: [],
+} as const
+
 const taskboardComment = {
   id: "taskboard-comment:1",
   taskId: taskboardTask.id,
@@ -2542,6 +2562,104 @@ const fixtures = {
     operationId: taskboardStartOperation.operationId,
     revision: 2,
   }, { operation: taskboardStartOperation }),
+  "taskboard/workflow/list": methodFixture("taskboard/workflow/list", {
+    projectId: project.id,
+    statuses: ["blocked"],
+    priorities: ["high"],
+    labelIds: [],
+    query: "任务工作台",
+    archived: false,
+    unread: true,
+    datePreset: "due_7_days",
+    sort: "due_date",
+    limit: 200,
+  }, {
+    tasks: [{ ...taskboardWorkflowTask, threads: [] }],
+    unreadCount: 1,
+    nextCursor: null,
+  }),
+  "taskboard/workflow/read": methodFixture("taskboard/workflow/read", {
+    taskId: taskboardTask.id,
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/create": methodFixture("taskboard/workflow/create", {
+    operationId: "operation:workflow-create",
+    projectId: project.id,
+    title: taskboardTask.title,
+    description: taskboardTask.description,
+    status: "in_review",
+    priority: "high",
+    labelIds: [],
+    startDate: "2026-08-20",
+    dueDate: "2026-08-25",
+    threadLinks: [{ threadId: "thread:taskboard", role: "primary" }],
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/update": methodFixture("taskboard/workflow/update", {
+    operationId: "operation:workflow-update",
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    patch: { priority: "high", startDate: null, dueDate: "2026-08-25" },
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/move": methodFixture("taskboard/workflow/move", {
+    operationId: "operation:workflow-move",
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    status: "blocked",
+    beforeTaskId: null,
+    afterTaskId: null,
+    note: "等待用户确认权限。",
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/transition": methodFixture("taskboard/workflow/transition", {
+    operationId: "operation:workflow-transition",
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    action: "report_blocked",
+    note: "等待用户确认权限。",
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/mark-read": methodFixture("taskboard/workflow/mark-read", {
+    operationId: "operation:workflow-mark-read",
+    taskId: taskboardTask.id,
+    expectedUnreadAt: 3,
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/thread-candidates": methodFixture("taskboard/workflow/thread-candidates", {
+    projectId: project.id,
+    query: "任务",
+    limit: 100,
+  }, {
+    threads: [{
+      threadId: "thread:taskboard",
+      projectId: project.id,
+      title: "任务工作台",
+      latestTurnStatus: "completed",
+      pendingPlanApproval: false,
+      updatedAt: 2,
+    }],
+    nextCursor: null,
+  }),
+  "taskboard/workflow/find-by-thread": methodFixture("taskboard/workflow/find-by-thread", {
+    threadId: "thread:taskboard",
+    projectId: project.id,
+  }, {
+    lookup: {
+      threadId: "thread:taskboard",
+      taskId: taskboardTask.id,
+      eligible: false,
+      ineligibleReason: "already_linked",
+    },
+  }),
+  "taskboard/workflow/link-threads": methodFixture("taskboard/workflow/link-threads", {
+    operationId: "operation:workflow-link",
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    links: [{ threadId: "thread:taskboard", role: "primary" }],
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/start": methodFixture("taskboard/workflow/start", {
+    operationId: taskboardStartOperation.operationId,
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    execution: { kind: "local" },
+    mode: "continue_primary",
+    authorizeBacklog: true,
+  }, { operation: taskboardStartOperation }),
   "usage/source/list": methodFixture("usage/source/list", {}, {
     sources: [{
       sourceId: "fixture-key",
@@ -2659,11 +2777,16 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("任务看板方法统一使用 taskboard.v1 并在 wire 边界限制正文和标签", () => {
+  test("任务看板按兼容能力分组并在 wire 边界限制正文和标签", () => {
     const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("taskboard/"))
-    expect(methods).toHaveLength(22)
-    expect(methods.every(([, definition]) => definition.capability === "taskboard.v1")).toBe(true)
+    expect(methods).toHaveLength(33)
+    const workflowMethods = methods.filter(([method]) => method.startsWith("taskboard/workflow/"))
+    const legacyMethods = methods.filter(([method]) => !method.startsWith("taskboard/workflow/"))
+    expect(workflowMethods).toHaveLength(11)
+    expect(workflowMethods.every(([, definition]) => definition.capability === "taskboard.workflow.v1")).toBe(true)
+    expect(legacyMethods.every(([, definition]) => definition.capability === "taskboard.v1")).toBe(true)
     expect(Capabilities).toContain("taskboard.v1")
+    expect(Capabilities).toContain("taskboard.workflow.v1")
 
     const decodeCreate = Schema.decodeUnknownSync(RpcMethods["taskboard/task/create"].params)
     expect(() => decodeCreate({
@@ -2743,7 +2866,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(227)
+    expect(methods).toHaveLength(238)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -3064,7 +3187,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(221)
+    expect(Object.keys(RpcMethods)).toHaveLength(232)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

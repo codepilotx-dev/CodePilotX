@@ -11,6 +11,16 @@ import {
   TaskboardTaskDetailsSchema,
   TaskboardTaskSummarySchema,
   TaskboardThreadRoleSchema,
+  TaskboardWorkflowDatePresetSchema,
+  TaskboardWorkflowDateSchema,
+  TaskboardWorkflowSortSchema,
+  TaskboardWorkflowStartModeSchema,
+  TaskboardWorkflowStatusSchema,
+  TaskboardWorkflowTaskDetailsSchema,
+  TaskboardWorkflowTaskSummarySchema,
+  TaskboardWorkflowThreadCandidateSchema,
+  TaskboardWorkflowThreadLookupSchema,
+  TaskboardWorkflowTransitionActionSchema,
 } from "@codepilotx/shared/taskboard"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
@@ -28,6 +38,7 @@ const TaskCommentBodySchema = Schema.String.check(Schema.isMinLength(1), Schema.
 const TaskLabelNameSchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_LABEL_MAX_LENGTH))
 const TaskLabelIdsSchema = Schema.Array(OpaqueIDSchema).check(Schema.isMaxLength(TASKBOARD_LABELS_PER_TASK_MAX))
 const ExpectedVersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
+const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
 export const TaskboardStartExecutionSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("local") }),
@@ -101,6 +112,11 @@ const TaskboardErrors = [
 const TaskResultSchema = Schema.Struct({ task: TaskboardTaskDetailsSchema })
 const OperationIdField = { operationId: OpaqueIDSchema } as const
 const ExpectedVersionField = { expectedVersion: ExpectedVersionSchema } as const
+const WorkflowTaskResultSchema = Schema.Struct({ task: TaskboardWorkflowTaskDetailsSchema })
+const WorkflowThreadLinkInputSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  role: TaskboardThreadRoleSchema,
+})
 
 export const TaskboardRpcMethods = {
   "taskboard/task/list": defineMethod({
@@ -345,6 +361,185 @@ export const TaskboardRpcMethods = {
     result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
     errors: TaskboardErrors,
     capability: "taskboard.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/list": defineMethod({
+    params: Schema.Struct({
+      projectId: Schema.optional(OpaqueIDSchema),
+      statuses: Schema.optional(Schema.Array(TaskboardWorkflowStatusSchema)),
+      priorities: Schema.optional(Schema.Array(TaskboardPrioritySchema)),
+      labelIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
+      query: Schema.optional(Schema.String),
+      archived: Schema.optional(Schema.Boolean),
+      unread: Schema.optional(Schema.Boolean),
+      datePreset: Schema.optional(TaskboardWorkflowDatePresetSchema),
+      sort: Schema.optional(TaskboardWorkflowSortSchema),
+      cursor: Schema.optional(CursorSchema),
+      limit: Schema.optional(LimitSchema),
+    }),
+    result: Schema.Struct({
+      tasks: Schema.Array(TaskboardWorkflowTaskSummarySchema),
+      unreadCount: NonNegativeIntSchema,
+      nextCursor: Schema.NullOr(CursorSchema),
+    }),
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/read": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema }),
+    result: WorkflowTaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/create": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      projectId: OpaqueIDSchema,
+      title: TaskTitleSchema,
+      description: Schema.optional(TaskDescriptionSchema),
+      status: Schema.optional(TaskboardWorkflowStatusSchema),
+      priority: Schema.optional(TaskboardPrioritySchema),
+      labelIds: Schema.optional(TaskLabelIdsSchema),
+      startDate: Schema.optional(Schema.NullOr(TaskboardWorkflowDateSchema)),
+      dueDate: Schema.optional(Schema.NullOr(TaskboardWorkflowDateSchema)),
+      threadLinks: Schema.optional(Schema.Array(WorkflowThreadLinkInputSchema)),
+    }),
+    result: WorkflowTaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/update": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      patch: Schema.Struct({
+        title: Schema.optional(TaskTitleSchema),
+        description: Schema.optional(TaskDescriptionSchema),
+        priority: Schema.optional(TaskboardPrioritySchema),
+        labelIds: Schema.optional(TaskLabelIdsSchema),
+        startDate: Schema.optional(Schema.NullOr(TaskboardWorkflowDateSchema)),
+        dueDate: Schema.optional(Schema.NullOr(TaskboardWorkflowDateSchema)),
+      }),
+    }),
+    result: WorkflowTaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/move": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      status: TaskboardWorkflowStatusSchema,
+      beforeTaskId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+      afterTaskId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+      note: Schema.optional(TaskCommentBodySchema),
+    }),
+    result: WorkflowTaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/transition": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      action: TaskboardWorkflowTransitionActionSchema,
+      note: Schema.optional(TaskCommentBodySchema),
+    }),
+    result: WorkflowTaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/mark-read": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      expectedUnreadAt: Schema.optional(TimestampSchema),
+    }),
+    result: WorkflowTaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/thread-candidates": defineMethod({
+    params: Schema.Struct({
+      projectId: OpaqueIDSchema,
+      query: Schema.optional(Schema.String),
+      cursor: Schema.optional(CursorSchema),
+      limit: Schema.optional(LimitSchema),
+    }),
+    result: Schema.Struct({
+      threads: Schema.Array(TaskboardWorkflowThreadCandidateSchema),
+      nextCursor: Schema.NullOr(CursorSchema),
+    }),
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/find-by-thread": defineMethod({
+    params: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      projectId: Schema.optional(OpaqueIDSchema),
+    }),
+    result: Schema.Struct({ lookup: TaskboardWorkflowThreadLookupSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/link-threads": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      links: Schema.Array(WorkflowThreadLinkInputSchema),
+    }),
+    result: WorkflowTaskResultSchema,
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/start": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      execution: TaskboardStartExecutionSchema,
+      mode: TaskboardWorkflowStartModeSchema,
+      authorizeBacklog: Schema.optional(Schema.Boolean),
+    }),
+    result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.v1",
     mutation: true,
     exactParams: true,
     exactResult: true,
