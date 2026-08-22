@@ -454,6 +454,9 @@ export class SidecarSupervisor {
       CODEPILOTX_DATA_DIR: dataDirectory,
       CODEPILOTX_PETS_DIR: join(dataDirectory, "pets"),
       CODEPILOTX_TOOLING_HOME: join(dataDirectory, "tooling"),
+      CODEPILOTX_BUILTIN_SKILLS_DIR: this.#app.isPackaged
+        ? join(this.#app.resourcesPath, "agent", "skills")
+        : process.env.CODEPILOTX_BUILTIN_SKILLS_DIR,
       CODEPILOTX_LEGACY_DATA_DIR: join(this.#app.getPath("userData"), "agent"),
       CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH: join(
         this.#app.getPath("userData"),

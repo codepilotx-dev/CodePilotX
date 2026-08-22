@@ -172,6 +172,7 @@ const agent = spawn([bunExecutable, "apps/agent/src/index.ts"], {
   CODEPILOTX_DATA_DIR: agentDataDir,
   CODEPILOTX_PETS_DIR: join(agentDataDir, "pets"),
   CODEPILOTX_TOOLING_HOME: join(agentDataDir, "tooling"),
+  CODEPILOTX_BUILTIN_SKILLS_DIR: join(root, "apps", "agent", "resources", "skills"),
   CODEPILOTX_LEGACY_DATA_DIR: join(root, ".codepilotx"),
   CODEPILOTX_LOG_DIR: agentLogDir,
   CODEPILOTX_CONSOLE_LOG: "debug",

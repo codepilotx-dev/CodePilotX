@@ -14,6 +14,7 @@ describe("开发编排器 Agent 环境", () => {
     expect(agentSpawnBlock).toContain('CODEPILOTX_DESKTOP_MANAGED: "1"')
     expect(agentSpawnBlock).toContain("CODEPILOTX_AUTH_TOKEN: authToken")
     expect(agentSpawnBlock).toContain("CODEPILOTX_DATA_DIR: agentDataDir")
+    expect(agentSpawnBlock).toContain("CODEPILOTX_BUILTIN_SKILLS_DIR:")
     expect(agentSpawnBlock).toContain("CODEPILOTX_LOG_DIR: agentLogDir")
   })
 })

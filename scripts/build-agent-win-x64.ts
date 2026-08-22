@@ -1,4 +1,4 @@
-import { mkdir, rename, rm } from "node:fs/promises"
+import { cp, mkdir, rename, rm } from "node:fs/promises"
 import { resolve } from "node:path"
 import { assertAgentBinaryHasNoStaticRiskFeatures } from "./agent-pe-signatures"
 
@@ -8,6 +8,8 @@ const outputDirectory = resolve(agentRoot, "dist/x64")
 const output = resolve(outputDirectory, "codepilotx-agent.exe")
 const temporaryOutput = `${output}.building.exe`
 const legacyOutput = resolve(agentRoot, "dist/codepilotx-agent.exe")
+const builtinSkillsSource = resolve(agentRoot, "resources/skills")
+const builtinSkillsOutput = resolve(outputDirectory, "skills")
 
 await mkdir(outputDirectory, { recursive: true })
 await rm(temporaryOutput, { force: true })
@@ -33,6 +35,8 @@ try {
   await assertAgentBinaryHasNoStaticRiskFeatures(temporaryOutput)
   await rm(output, { force: true })
   await rename(temporaryOutput, output)
+  await rm(builtinSkillsOutput, { recursive: true, force: true })
+  await cp(builtinSkillsSource, builtinSkillsOutput, { recursive: true })
   await rm(legacyOutput, { force: true })
   console.log(`[CodePilotX] Agent x64 PE verified: ${output}`)
 } catch (error) {

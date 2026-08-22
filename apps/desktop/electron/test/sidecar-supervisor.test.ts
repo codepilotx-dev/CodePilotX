@@ -23,6 +23,25 @@ afterEach(() => {
 })
 
 describe("SidecarSupervisor owned 生命周期", () => {
+  test("打包 sidecar 使用安装资源中的内置 Skills", async () => {
+    delete process.env.CODEPILOTX_AGENT_URL
+    const harness = createHarness({
+      appRuntime: {
+        isPackaged: true,
+        resourcesPath: "C:\\resources",
+        getPath: name => `C:\\${name}`,
+      },
+    })
+    const supervisor = harness.supervisor()
+    await supervisor.connect(async () => undefined)
+
+    expect(harness.environments[0]?.CODEPILOTX_BUILTIN_SKILLS_DIR).toBe(
+      "C:\\resources\\agent\\skills",
+    )
+    harness.children[0]?.exitOnSignal()
+    await supervisor.stop()
+  })
+
   test("每次 spawn 注入新 identity，并同时校验 stdout 与 /api/ready", async () => {
     delete process.env.CODEPILOTX_AGENT_URL
     const harness = createHarness()

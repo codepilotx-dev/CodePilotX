@@ -57,6 +57,10 @@
         "to": "agent/codepilotx-agent.exe"
       },
       {
+        "from": "../../agent/resources/skills",
+        "to": "agent/skills"
+      },
+      {
         "from": "../../../dist/renderer",
         "to": "renderer"
       },
