@@ -45,8 +45,6 @@ import {
 } from '../../../shared/theme.js'
 import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import { resolvePreferredOpenTarget } from './openTargetSelection.js'
-import { buildAgentAttachmentUploads } from './attachmentUploadSupport.js'
-import { importLocalContextReferences } from './localContextImportSupport.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
@@ -180,6 +178,12 @@ import type {
   DesktopSpeechApi,
   DesktopTaskboardApi,
 } from './types.js'
+
+// Start the two small message-input chunks while the desktop client initializes,
+// so the first send does not initiate new module requests and the entry bundle
+// does not need to retain their implementation.
+const attachmentUploadSupport = import('./attachmentUploadSupport.js')
+const localContextImportSupport = import('./localContextImportSupport.js')
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
@@ -1130,6 +1134,7 @@ export function createAgentSessionDesktopClient(
   }
 
   async function importAgentAttachments(input: DesktopUserMessageInput) {
+    const { buildAgentAttachmentUploads } = await attachmentUploadSupport
     const payload = await buildAgentAttachmentUploads(
       input,
       attachmentId => rpc.call('attachment/read', { attachmentId }),
@@ -1147,6 +1152,7 @@ export function createAgentSessionDesktopClient(
     input: DesktopUserMessageInput,
   ): Promise<{ attachmentIds: string[]; contextReferenceIds: string[] }> {
     const attachmentIds = await importAgentAttachments(input)
+    const { importLocalContextReferences } = await localContextImportSupport
     const contextReferenceIds = await importLocalContextReferences(
       sessionId,
       input,

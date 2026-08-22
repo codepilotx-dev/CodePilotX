@@ -34,6 +34,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将消息附件与本地上下文导入改为客户端启动时预热的延迟模块，保持首次发送无需临时加载模块，同时恢复 Renderer 入口体积预算。
 - [desktop/renderer] 为任务详情属性布局预留不可见的负责人扩展插槽，不引入未实现的负责人字段或持久化。
 - [desktop/renderer] 统一任务“待整理”术语，明确打开、继续与新建主会话的启动动作，并在甘特图增加独立未排期区域。
 - [desktop/renderer] 将 Skill 选择统一为 Composer 内联 token；内置扩展跳转产品详情，工作区和用户 Skill 在右侧只读打开 SKILL.md。
