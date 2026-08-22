@@ -34,6 +34,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将 Skill 选择统一为 Composer 内联 token；内置扩展跳转产品详情，工作区和用户 Skill 在右侧只读打开 SKILL.md。
 - [desktop/renderer] 将 Working“规划任务”入口接入真实 Skill 调用链，并为 Composer 与 Skills 设置增加统一任务规划图标。
 - [desktop/renderer] 支持从侧栏拖动会话到任务卡片完成主/辅助会话关联，并精简新建任务弹窗的会话选择区域。
 - [agent/desktop/renderer] 将 Material 图标与代码高亮主题收敛为少量按需分片，统一 Repository 公共声明和 Electron 原子 JSON 写入，并简化性能报告为当前指标与预算对比，显著减少源码文件且保持现有运行能力。
@@ -114,6 +115,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 还原 Working Composer 内联 Skill 的 Codex 字体比例与透明 mention 样式。
 - [desktop/renderer] 修复新建任务加载历史会话时因瞬时空候选导致页面崩溃，并在候选 RPC 失败时显示明确错误。
 - [agent/storage] 修复早期任务工作流数据库缺少排序位置时导致任务看板无法加载，并前向回填已有任务顺序。
 - [desktop/renderer] 统一对话发送按钮、侧边栏会话行与 Bell 的运行及未读状态来源，修复回复完成后仍显示运行中的问题。

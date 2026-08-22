@@ -39,12 +39,24 @@ export type UserAttachmentPreviewTab = {
   source: UserAttachmentPreviewSource
 }
 
+/** A process-local, read-only preview for an installed non-builtin SKILL.md. */
+export type SkillPreviewTab = {
+  id: `skill-preview:${string}`
+  kind: 'skill-preview'
+  skill: {
+    name: string
+    path: string
+    workspacePath: string | null
+  }
+}
+
 export type WorkbenchTabKind =
   | 'review'
   | 'browser'
   | 'file-browser'
   | 'file-preview'
   | 'attachment-preview'
+  | 'skill-preview'
   | 'plan'
   | 'side-chat'
   | 'side-task'
@@ -88,6 +100,7 @@ export type WorkbenchTabDescriptor =
       title: string
     }
   | UserAttachmentPreviewTab
+  | SkillPreviewTab
   | { id: 'terminal'; kind: 'terminal' }
   | {
       id: `side-task:${string}`
@@ -97,6 +110,36 @@ export type WorkbenchTabDescriptor =
     }
 
 export type WorkbenchTabId = WorkbenchTabDescriptor['id']
+
+export function createSkillPreviewTab(input: {
+  name: string
+  path: string
+  workspacePath: string | null
+}): SkillPreviewTab {
+  return {
+    id: `skill-preview:${skillPreviewFingerprint(input.path)}`,
+    kind: 'skill-preview',
+    skill: input,
+  }
+}
+
+/**
+ * Keeps a tab identity stable without placing a local absolute path in DOM,
+ * UI persistence, logs, or drag payloads. This is an identifier, not a
+ * security primitive: the original path remains only in the in-memory tab.
+ */
+function skillPreviewFingerprint(path: string): string {
+  return `${fnv1a(path).toString(36)}-${fnv1a(`${path}\u0000`).toString(36)}`
+}
+
+function fnv1a(value: string): number {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return hash >>> 0
+}
 
 export type WorkbenchPanelSnapshot = {
   open: boolean

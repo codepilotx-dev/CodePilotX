@@ -162,7 +162,9 @@ export function omitEphemeralSideChatTabs(
   const sideChatIds = new Set(
     Object.entries(workbench.tabsById)
       .filter(([, tab]) =>
-        tab?.kind === 'side-chat' || tab?.kind === 'attachment-preview',
+        tab?.kind === 'side-chat' ||
+        tab?.kind === 'attachment-preview' ||
+        tab?.kind === 'skill-preview',
       )
       .map(([tabId]) => tabId),
   )
@@ -241,6 +243,7 @@ export function transferConversationUiStateForHandoff(input: {
         tab?.kind !== 'plan' &&
         tab?.kind !== 'side-chat' &&
         tab?.kind !== 'attachment-preview' &&
+        tab?.kind !== 'skill-preview' &&
         tab?.kind !== 'side-task' &&
         tab?.kind !== 'file-preview'),
     )

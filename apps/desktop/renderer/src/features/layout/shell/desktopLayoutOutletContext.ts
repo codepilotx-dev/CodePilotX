@@ -4,6 +4,7 @@ import type { DesktopInstalledSkill } from '../../../../shared/types.js'
 export type DesktopLayoutOutletContextValue = {
   workspacePath: string | null
   useSkill: (skill: DesktopInstalledSkill) => void
+  openSkillPreview: (skill: DesktopInstalledSkill) => void
 }
 
 export function useDesktopLayoutOutletContext(): DesktopLayoutOutletContextValue {

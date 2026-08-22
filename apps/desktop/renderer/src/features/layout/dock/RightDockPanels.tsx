@@ -34,9 +34,15 @@ import {
   updateFileDocument,
   useFileDocument,
 } from '../../workspace/fileDocumentStore.js'
-import { WorkbenchPanelError } from '../panels/WorkbenchPanelStates.js'
+import {
+  WorkbenchPanelError,
+  WorkbenchPanelLoading,
+} from '../panels/WorkbenchPanelStates.js'
 import { FileBreadcrumbToolbar } from '../panels/FileBreadcrumbToolbar.js'
-import type { MarkdownFileViewMode } from './rightDockState.js'
+import type {
+  MarkdownFileViewMode,
+  SkillPreviewTab,
+} from './rightDockState.js'
 import {
   getSendableFilePath,
   WorkspaceFileTree,
@@ -50,6 +56,7 @@ import {
   layoutTween,
   motionTransition,
 } from '../../motion/motionTransitions.js'
+import { readRuntimeSkill } from '../../settings/plugins/skillClientAdapter.js'
 
 const FILE_TREE_DEFAULT_WIDTH = 280
 const FILE_TREE_MIN_WIDTH = 200
@@ -72,6 +79,69 @@ type FilesPanelProps = {
 
 type PlanPanelProps = {
   content: string | null
+}
+
+export function RightDockSkillPreviewPanel({
+  tab,
+}: {
+  tab: SkillPreviewTab
+}): React.ReactNode {
+  const [content, setContent] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [retryVersion, setRetryVersion] = useState(0)
+
+  useEffect(() => {
+    if (tab.skill.path.startsWith('builtin://')) {
+      setContent(null)
+      setError('内置技能仅可在技能详情中查看。')
+      return
+    }
+    let cancelled = false
+    setContent(null)
+    setError(null)
+    void readRuntimeSkill(tab.skill.workspacePath, tab.skill.path)
+      .then(result => {
+        if (!cancelled) setContent(result.content)
+      })
+      .catch(cause => {
+        if (cancelled) return
+        setError(
+          cause instanceof Error && cause.message
+            ? cause.message
+            : '技能内容读取失败。',
+        )
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [retryVersion, tab.skill.path, tab.skill.workspacePath])
+
+  if (error) {
+    return (
+      <WorkbenchPanelError
+        title="无法打开技能"
+        message={error}
+        retryable={!tab.skill.path.startsWith('builtin://')}
+        onRetry={() => setRetryVersion(version => version + 1)}
+      />
+    )
+  }
+  if (content === null) {
+    return <WorkbenchPanelLoading label="正在加载技能内容…" />
+  }
+  return (
+    <ScrollArea
+      aria-label={`${tab.skill.name} 技能内容`}
+      className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1 tw:bg-app-canvas"
+      contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
+    >
+      <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
+        <pre className="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:font-mono tw:text-sm">
+          {content}
+        </pre>
+      </article>
+    </ScrollArea>
+  )
 }
 
 export function RightDockPlanPanel({

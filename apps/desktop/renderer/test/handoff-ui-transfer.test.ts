@@ -6,6 +6,7 @@ import {
   saveConversationUiState,
   transferConversationUiStateForHandoff,
 } from '../src/features/layout/tabs/conversationUiState.js'
+import { createSkillPreviewTab } from '../src/features/layout/dock/rightDockState.js'
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
   globalThis,
@@ -92,7 +93,7 @@ describe('Handoff UI transfer', () => {
     })
   })
 
-  test('never persists dynamic side-chat, attachment preview tabs or drafts', () => {
+  test('never persists dynamic side-chat, attachment preview, Skill preview tabs or drafts', () => {
     const state = createDefaultConversationUiState()
     const tab = {
       id: 'side-chat:temporary-thread',
@@ -116,10 +117,16 @@ describe('Handoff UI transfer', () => {
       },
       source: { storage: 'draft', encoding: 'utf8', data: 'draft' },
     }
+    const skillPreview = createSkillPreviewTab({
+      name: 'release-check',
+      path: 'F:\\private-workspace\\skills\\release-check\\SKILL.md',
+      workspacePath: 'F:\\private-workspace',
+    })
+    state.workbench.tabsById[skillPreview.id] = skillPreview
     state.workbench.right = {
       open: true,
       activeTabId: tab.id,
-      tabIds: [tab.id, 'user-attachment-preview'],
+      tabIds: [tab.id, 'user-attachment-preview', skillPreview.id],
     }
 
     saveConversationUiState('thread-1', state)
@@ -132,6 +139,12 @@ describe('Handoff UI transfer', () => {
         right: { activeTabId: null, tabIds: [] },
       },
     })
+    expect(
+      window.localStorage.getItem('conversation.ui-state.thread-1'),
+    ).not.toContain('private-workspace')
+    expect(
+      window.localStorage.getItem('conversation.ui-state.thread-1'),
+    ).not.toContain('release-check')
   })
 })
 

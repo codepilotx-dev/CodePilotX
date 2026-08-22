@@ -3,6 +3,7 @@ import {
   Bot,
   Folder,
   FileText,
+  FileCode2,
   GitPullRequest,
   Globe2,
   ListChecks,
@@ -46,6 +47,7 @@ const WorkspaceReviewSidebar = React.lazy(() => import('../../review/workspace/W
 const RightDockFilePreviewPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilePreviewPanel })))
 const RightDockFilesPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilesPanel })))
 const RightDockPlanPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockPlanPanel })))
+const RightDockSkillPreviewPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockSkillPreviewPanel })))
 const SideChatThreadPanel = React.lazy(() => import('../../session/conversation/SideChatThreadPanel.js').then(module => ({ default: module.SideChatThreadPanel })))
 const TerminalPanel = React.lazy(() => import('../../terminal/TerminalPanel.js').then(module => ({ default: module.TerminalPanel })))
 const UserAttachmentPreviewPanel = React.lazy(() => import('../../session/attachments/UserAttachmentPreviewPanel.js').then(module => ({ default: module.UserAttachmentPreviewPanel })))
@@ -367,6 +369,19 @@ const definitions: readonly WorkbenchTabDefinition[] = [
             : null
         }
       />,
+    ),
+  },
+  {
+    kind: 'skill-preview',
+    label: '技能预览',
+    icon: <FileCode2 size={iconSize} />,
+    launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getTitle: tab => tab.kind === 'skill-preview' ? tab.skill.name : '技能预览',
+    render: tab => deferred(
+      tab.kind === 'skill-preview' ? (
+        <RightDockSkillPreviewPanel tab={tab} />
+      ) : null,
     ),
   },
   {

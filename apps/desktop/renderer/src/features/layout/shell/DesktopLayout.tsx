@@ -13,6 +13,8 @@ import { normalizePathForComparison } from '../../../utils/pathUtils.js'
 import type { DesktopComposerProps } from '../../session/composer/DesktopComposer.js'
 import { getDesktopComposerBranchName } from '../../session/composer/composerWorkspacePresentation.js'
 import { composerDraftStore } from '../../session/composer/composerDraftStore.js'
+import { isBuiltinSkill } from '../../plugins/builtinSkillPresentation.js'
+import { listRuntimeSkills } from '../../settings/plugins/skillClientAdapter.js'
 import type { ComposerDraftKey } from '../../session/composer/composerTypes.js'
 import { deriveWorkflowSessionState } from '../../../../shared/workflowReducer.js'
 import type { WorkbenchFileLoadErrorEvent } from '../dock/RightDock.js'
@@ -24,6 +26,7 @@ import {
 import {
   applyWorkbenchPanelAction,
   createDefaultWorkbenchTabsState,
+  createSkillPreviewTab,
   type WorkbenchPanelTarget,
   type WorkbenchTabDescriptor,
   type WorkbenchTabId,
@@ -1194,12 +1197,60 @@ export function DesktopLayout(): React.ReactNode {
     ],
   )
 
+  const handleOpenSkillPreview = useCallback(
+    (skill: DesktopInstalledSkill): void => {
+      if (skill.path.startsWith('builtin://')) return
+      openRightDockTab(createSkillPreviewTab({
+        name: skill.name,
+        path: skill.path,
+        workspacePath: currentWorkspace?.path ?? null,
+      }))
+    },
+    [currentWorkspace?.path, openRightDockTab],
+  )
+
+  const handleActivateComposerSkill = useCallback(
+    async (invocation: { name: string; path: string }): Promise<void> => {
+      try {
+        const result = await listRuntimeSkills(currentWorkspace?.path ?? null, true)
+        if (result.state === 'unavailable') {
+          setErrorMessage('无法读取技能信息，请稍后重试。')
+          return
+        }
+        const skill = result.data.find(candidate => candidate.path === invocation.path)
+        if (!skill || !skill.enabled) {
+          setErrorMessage('该技能已不可用，请重新选择。')
+          return
+        }
+        if (isBuiltinSkill(skill)) {
+          const source = `${location.pathname}${location.search}${location.hash}`
+          navigate(
+            `/settings/plugins?tab=skills&skill=${encodeURIComponent(skill.path)}&from=${encodeURIComponent(source)}`,
+          )
+          return
+        }
+        handleOpenSkillPreview(skill)
+      } catch {
+        setErrorMessage('无法读取技能信息，请稍后重试。')
+      }
+    },
+    [
+      currentWorkspace?.path,
+      handleOpenSkillPreview,
+      location.hash,
+      location.pathname,
+      location.search,
+      navigate,
+    ],
+  )
+
   const outletContext = useMemo<DesktopLayoutOutletContextValue>(
     () => ({
       workspacePath: currentWorkspace?.path ?? null,
       useSkill: handleUseSkill,
+      openSkillPreview: handleOpenSkillPreview,
     }),
-    [currentWorkspace?.path, handleUseSkill],
+    [currentWorkspace?.path, handleOpenSkillPreview, handleUseSkill],
   )
 
   useDesktopCommands({
@@ -2468,6 +2519,9 @@ export function DesktopLayout(): React.ReactNode {
           onClearWorkspace: handleClearWorkspace,
           onOpenBrowser: handleOpenBrowser,
           onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
+          onSkillTokenActivate: invocation => {
+            void handleActivateComposerSkill(invocation)
+          },
           onBranchSelect: handleBranchSelect,
           onCreateBranch: handleCreateBranch,
           onStartReview: handleStartAiReview,
@@ -2585,6 +2639,9 @@ export function DesktopLayout(): React.ReactNode {
         onClearWorkspace={handleClearWorkspace}
         onOpenBrowser={handleOpenBrowser}
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
+        onSkillTokenActivate={invocation => {
+          void handleActivateComposerSkill(invocation)
+        }}
         onBranchSelect={handleBranchSelect}
         onCreateBranch={handleCreateBranch}
         capabilities={{ goals: false, review: false, status: false }}

@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   applyWorkbenchPanelAction,
+  createSkillPreviewTab,
   createDefaultWorkbenchTabsState,
   type WorkbenchTabDescriptor,
 } from '../src/features/layout/dock/rightDockState.js'
@@ -131,6 +132,41 @@ describe('workbench dynamic tab state', () => {
 
     expect(definition.label).toBe('打开文件')
     expect(definition.getTitle(tab)).toBe('打开文件')
+  })
+
+  test('将非内置 Skill 打开为右侧临时只读预览标签', () => {
+    const tab = createSkillPreviewTab({
+      name: 'release-check',
+      path: 'F:\\skills\\release-check\\SKILL.md',
+      workspacePath: 'F:\\workspace',
+    })
+    const state = open(createDefaultWorkbenchTabsState(), tab)
+
+    expect(tab.id).toMatch(/^skill-preview:[a-z0-9]+-[a-z0-9]+$/)
+    expect(tab.id).not.toContain('release-check')
+    expect(tab.id).not.toContain('F:')
+    expect(state.right).toMatchObject({ open: true, activeTabId: tab.id })
+    expect(getWorkbenchTabDefinition(tab).getTitle(tab)).toBe('release-check')
+    expect(getWorkbenchTabDefinition(tab).launcher).toBe(false)
+  })
+
+  test('不会从会话 UI 状态恢复临时 Skill 预览标签', () => {
+    const tab = createSkillPreviewTab({
+      name: 'release-check',
+      path: 'F:\\skills\\release-check\\SKILL.md',
+      workspacePath: 'F:\\workspace',
+    })
+    const persisted = open(createDefaultWorkbenchTabsState(), tab)
+    const restored = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: persisted,
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    })
+
+    expect(restored.workbench.tabsById).toEqual({})
+    expect(restored.workbench.right.tabIds).toEqual([])
   })
 
   test('matches the Codex launcher order and presentation without changing tab titles', () => {

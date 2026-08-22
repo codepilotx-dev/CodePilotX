@@ -7,7 +7,7 @@ import {
   Server,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   DesktopInstalledSkill,
   DesktopMcpServerListItem,
@@ -42,6 +42,10 @@ import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/event
 import { SettingsContentArea } from '../SettingsContentArea.js'
 import { ExtensionManagementRow } from './ExtensionManagementRow.js'
 import { McpEditorDialog } from './McpEditorDialog.js'
+import {
+  clearPluginDetailsDeepLink,
+  resolvePluginDetailsDeepLink,
+} from './pluginDetailsDeepLink.js'
 import { SkillDetailsDialog, skillScopeLabel } from './SkillDetailsDialog.js'
 import {
   listRuntimeSkills,
@@ -74,6 +78,7 @@ export function PluginsSettingsPage({
   onNotice,
 }: PluginsSettingsPageProps): React.ReactNode {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const requestedTab = parseTab(searchParams.get('tab'))
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement | null>(null)
@@ -164,6 +169,43 @@ export function PluginsSettingsPage({
   const tab = availableTabs.has(requestedTab)
     ? requestedTab
     : (tabOptions[0]?.value ?? 'mcps')
+  const requestedPluginId = searchParams.get('plugin')
+  const requestedSkillPath = searchParams.get('skill')
+  const detailDeepLink = useMemo(
+    () => resolvePluginDetailsDeepLink(searchParams, pluginItems, skills ?? []),
+    [pluginItems, searchParams, skills],
+  )
+
+  function clearDetailsDeepLink(): void {
+    setSearchParams(
+      current => clearPluginDetailsDeepLink(current),
+      { replace: true },
+    )
+  }
+
+  function closeDeepLinkedDetails(kind: 'plugin' | 'skill'): void {
+    const activeLink = resolvePluginDetailsDeepLink(
+      searchParams,
+      pluginItems,
+      skills ?? [],
+    )
+    if (activeLink?.kind !== kind) return
+    if (activeLink.from) {
+      navigate(activeLink.from)
+      return
+    }
+    clearDetailsDeepLink()
+  }
+
+  function handlePluginDialogOpenChange(open: boolean): void {
+    setPluginDialogOpen(open)
+    if (!open) closeDeepLinkedDetails('plugin')
+  }
+
+  function handleSkillDialogOpenChange(open: boolean): void {
+    setSkillDialogOpen(open)
+    if (!open) closeDeepLinkedDetails('skill')
+  }
 
   useEffect(() => {
     if (tab === requestedTab && searchParams.get('tab') === requestedTab) return
@@ -173,6 +215,45 @@ export function PluginsSettingsPage({
       return next
     }, { replace: true })
   }, [requestedTab, searchParams, setSearchParams, tab])
+
+  useEffect(() => {
+    if (!requestedPluginId && !requestedSkillPath) return
+    if (requestedPluginId && requestedSkillPath) {
+      clearDetailsDeepLink()
+      return
+    }
+
+    const targetTab: Tab = requestedPluginId ? 'plugins' : 'skills'
+    if (tab !== targetTab) {
+      clearDetailsDeepLink()
+      return
+    }
+    const catalogReady = requestedPluginId
+      ? !pluginsLoading
+      : skills !== undefined
+    if (!catalogReady) return
+    if (!detailDeepLink) {
+      clearDetailsDeepLink()
+      return
+    }
+
+    if (detailDeepLink.kind === 'plugin') {
+      setSelectedPluginId(detailDeepLink.item.id)
+      setPluginDialogTrigger(null)
+      setPluginDialogOpen(true)
+      return
+    }
+    setSelectedSkill(detailDeepLink.skill)
+    setSkillDialogTrigger(null)
+    setSkillDialogOpen(true)
+  }, [
+    detailDeepLink,
+    pluginsLoading,
+    requestedPluginId,
+    requestedSkillPath,
+    skills,
+    tab,
+  ])
 
   useEffect(() => {
     setMcpOAuthAttempts({})
@@ -755,7 +836,7 @@ export function PluginsSettingsPage({
         busy={selectedPlugin ? busyPluginIds.has(selectedPlugin.id) : false}
         error={selectedPlugin ? pluginErrors[selectedPlugin.id] : null}
         restoreFocusElement={pluginDialogTrigger}
-        onOpenChange={setPluginDialogOpen}
+        onOpenChange={handlePluginDialogOpenChange}
         onPrimaryAction={(item, trigger) => {
           setPluginDialogTrigger(trigger)
           if (item.status === 'enabled' || item.status === 'disabled') {
@@ -768,7 +849,7 @@ export function PluginsSettingsPage({
         skill={selectedSkill}
         open={skillDialogOpen}
         restoreFocusElement={skillDialogTrigger}
-        onOpenChange={setSkillDialogOpen}
+        onOpenChange={handleSkillDialogOpenChange}
         onOpenSkill={skill => {
           if (isBuiltinSkill(skill)) return
           void desktopClient.openPathWithDefaultTarget(skill.path).catch(error => {
