@@ -252,6 +252,22 @@ export class TaskboardRepositoryDatabase extends ReviewRepositoryDatabase {
                WHERE thread_id = t.id
                ORDER BY created_at DESC, id DESC LIMIT 1
              ) AS latest_turn_status
+             ,EXISTS (
+               SELECT 1 FROM turns AS plan_turn
+               WHERE plan_turn.thread_id = t.id
+                 AND plan_turn.status = 'completed'
+                 AND plan_turn.id = (
+                   SELECT u.id FROM turns AS u
+                   WHERE u.thread_id = t.id
+                   ORDER BY u.created_at DESC, u.id DESC LIMIT 1
+                 )
+                 AND EXISTS (
+                   SELECT 1 FROM items AS plan_item
+                   WHERE plan_item.turn_id = plan_turn.id
+                     AND plan_item.type = 'plan'
+                     AND plan_item.status NOT IN ('pending', 'running', 'interrupted')
+                 )
+             ) AS pending_plan_approval
              ,(
                SELECT created_at FROM turns
                WHERE thread_id = t.id
@@ -276,11 +292,13 @@ export class TaskboardRepositoryDatabase extends ReviewRepositoryDatabase {
       worktree_id: string | null
       worktree_status: TaskboardWorktreeStatus | null
       worktree_branch: string | null
-      latest_turn_status: TurnStatus | null
+      latest_turn_status: string | null
+      pending_plan_approval: number
       latest_turn_created_at: number | null
     }>
     const projected = rows.map((row) => {
-      const latestTurnStatus = row.latest_turn_status
+      const latestTurnStatus = wireTurnStatus(row.latest_turn_status)
+      const pendingPlanApproval = row.pending_plan_approval === 1
       const execution: TaskboardThreadLink["execution"] = row.execution_kind === "worktree" && row.worktree_id && row.worktree_status
         ? {
             kind: "worktree",
@@ -295,7 +313,8 @@ export class TaskboardRepositoryDatabase extends ReviewRepositoryDatabase {
           role: row.role,
           title: row.title,
           latestTurnStatus,
-          attention: taskboardAttentionFromTurnStatus(latestTurnStatus),
+          pendingPlanApproval,
+          attention: taskboardAttentionFromTurnStatus(latestTurnStatus, pendingPlanApproval),
           execution,
           version: row.version,
           linkedAt: row.linked_at,

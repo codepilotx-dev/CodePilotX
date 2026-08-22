@@ -202,12 +202,48 @@ describe("TaskboardRepository", () => {
     `).run("turn:needs-user", thread.id)
     db.sqlite.query("UPDATE turns SET status = 'waiting_question', updated_at = 2 WHERE id = ?").run("turn:needs-user")
 
-    expect(db.readWorkflowTask(task.task.id)?.task.attention).toMatchObject({
+    const waiting = db.readWorkflowTask(task.task.id)
+    expect(waiting?.task.attention).toMatchObject({
       unread: true,
       unreadAt: 2,
       reason: "execution_attention",
     })
-    expect(db.readWorkflowTask(task.task.id)?.task.status).toBe("in_progress")
+    expect(waiting?.threads[0]).toMatchObject({
+      latestTurnStatus: "waiting-question",
+      pendingPlanApproval: false,
+      attention: "needs_input",
+    })
+    expect(waiting?.task.status).toBe("in_progress")
+    db.close()
+  })
+
+  test("主会话的待确认计划投影为需要处理且不改变任务工作流状态", async () => {
+    const { db, project } = await fixture()
+    const task = db.createTask({ projectId: project.id, title: "等待计划确认", status: "in_progress" })
+    const thread = db.createThread({ title: "计划主会话", workspace: { kind: "project", projectID: project.id } })
+    db.linkPrimaryThread({ taskId: task.task.id, threadId: thread.id, expectedVersion: task.task.version })
+    db.sqlite.query(`
+      INSERT INTO turns (id, thread_id, status, mode, model_ref, strategy, created_at, updated_at)
+      VALUES ('turn:pending-plan', ?, 'completed', 'chat', '{}', 'auto', 1, 1)
+    `).run(thread.id)
+    db.sqlite.query(`
+      INSERT INTO agent_executions (
+        id, thread_id, turn_id, profile, task, model_ref, session_id,
+        depth, run_sequence, status, created_at, updated_at
+      ) VALUES ('agent:pending-plan', ?, 'turn:pending-plan', 'main', '', '{}', 'session:pending-plan', 0, 0, 'completed', 1, 1)
+    `).run(thread.id)
+    db.sqlite.query(`
+      INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at)
+      VALUES ('item:pending-plan', ?, 'turn:pending-plan', 'agent:pending-plan', 'plan', 'completed', '{}', 0, 1, 1)
+    `).run(thread.id)
+
+    const projected = db.readWorkflowTask(task.task.id)
+    expect(projected?.threads[0]).toMatchObject({
+      latestTurnStatus: "completed",
+      pendingPlanApproval: true,
+      attention: "needs_input",
+    })
+    expect(projected?.task.status).toBe("in_progress")
     db.close()
   })
 

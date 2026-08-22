@@ -107,6 +107,7 @@ export const TaskboardThreadLinkSchema = Schema.Struct({
   role: TaskboardThreadRoleSchema,
   title: Schema.String,
   latestTurnStatus: Schema.NullOr(TurnStatusSchema),
+  pendingPlanApproval: Schema.optional(Schema.Boolean),
   attention: TaskboardThreadAttentionSchema,
   execution: TaskboardThreadExecutionSchema,
   version: VersionSchema,
@@ -302,9 +303,11 @@ export const normalizeTaskboardLabelName = (name: string) => name.trim().normali
 
 export const taskboardAttentionFromTurnStatus = (
   status: typeof TurnStatusSchema.Type | null,
+  pendingPlanApproval = false,
 ): TaskboardThreadAttention => {
   if (status === "running" || status === "queued" || status === "waiting-subagents") return "running"
   if (status === "waiting-permission" || status === "waiting-question") return "needs_input"
+  if (pendingPlanApproval) return "needs_input"
   if (status === "completed" || status === "failed" || status === "stopped" || status === "interrupted" || status === "cancelled") return "completed"
   return "idle"
 }
