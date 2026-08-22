@@ -27,6 +27,7 @@
 
 ### Changed
 
+- [development] 明确 OpenCode、MiniMax 等外部 Coding Agent 的受控实施边界，要求核心改造采用小任务串行、冻结行为测试、禁止类型绕过并由主 Agent 独立验收。
 - [agent/runtime] 为 Harness 增加不可变 Turn/Step composition 契约，并统一持久化主 Agent 与子 Agent 的模型、权限、Skills、MCP、工具和 Prompt 快照，确保暂停及恢复期间运行配置保持一致。
 - [desktop/renderer] 统一会话区域加载态展示：将鲸鱼闪光效果约束在会话内容主区域（variant="contained"），保留侧边栏、右侧面板与顶部菜单栏正常交互；加载期间隐藏底部 Composer，并在数据就绪后平滑淡入时间线；替换时间线旧有旋转 Spinner，彻底消除会话切换与加载时的重复动画问题。
 - [desktop/renderer] 优化侧边栏顶部活动通知图标：采用 Lucide 嵌套 SVG 规范，统一使用 Bell 图标并在有活动或待处理会话时于右上角嵌套渲染前景色圆点徽标，简化图标切换逻辑并提升状态呈现的一致性。
