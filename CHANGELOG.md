@@ -98,7 +98,9 @@
 
 ### Fixed
 
+- [desktop] 修复会话自动追底对齐到 Composer 渐变遮挡区的问题，使最新正文完整停留在可视区并保留底部阅读间距
 - [agent/security] 修复 Skills 扫描静默忽略指向可信根之外 Junction 的问题，改为安全拒绝，同时保留跨已配置 Skills 根别名的去重行为。
+- [desktop] 稳定 AI 流式 Markdown 的分块渲染、增量动效、代码高亮与自动追底，避免回复期间旧内容重复淡入和会话正文往返闪烁
 - [desktop/renderer] 修复新建会话路由切换后复用已消费 inputId、完成任务仍显示运行中及发送错误重复提示的问题。
 - [desktop/renderer] 修复外观设置中选择字体变体后重新进入页面变体下拉框回退显示全称（如 JetBrains Mono Medium）而非变体名（如中等、半粗体）的问题：增强变体名提取与本地化解析（`faceStyleLabel`），并在组件挂载时自动复用已就绪的系统字体缓存。
 - [desktop/renderer] 修复侧边栏底部的“设置”按钮因 DropdownMenu.Trigger 传递 data-theme-component="dropdown-trigger" 导致常驻控件实色灰底（被误判为永久 hover/active 态）的问题，使侧栏设置按钮在非激活/非悬停态下恢复为透明底色。
