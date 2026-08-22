@@ -193,6 +193,8 @@ export class AgentHarness<
 	private model: Model<any>;
 	private thinkingLevel: ThinkingLevel;
 	private activeComposition?: Readonly<HarnessTurnComposition<TContext, TSkill, TPromptTemplate, TTool>>;
+	/** Immutable composition for the current product turn; built once and reused by later provider/tool steps. */
+	private currentTurnComposition: Readonly<HarnessTurnComposition<TContext, TSkill, TPromptTemplate, TTool>> | undefined;
 	private systemPrompt: AgentHarnessSystemPrompt<TContext, TSkill, TPromptTemplate, TTool> | undefined;
 	private toolContext: AgentHarnessToolContextSource<TContext> | undefined;
 	private streamOptions: AgentHarnessStreamOptions;
@@ -395,46 +397,58 @@ export class AgentHarness<
 				});
 			}
 		}
-		const resources = this.getResources();
 		const sessionMetadata = await this.session.getMetadata();
-		const toolContext = await this.resolveToolContext();
-		const tools = [...this.tools.values()];
+		// One immutable composition per product turn: the first step builds it
+		// (model, thinking level, frozen system prompt, tool envelope), later
+		// provider/tool steps reuse it so composition identity/hash never change
+		// within the turn. Deferred activations are reflected per-step via
+		// buildStepContext(currentActiveNames), never by recomposing.
+		let composition = this.currentTurnComposition;
+		if (!composition) {
+			const resources = this.getResources();
+			const toolContext = await this.resolveToolContext();
+			const tools = [...this.tools.values()];
+			const activeTools = this.activeToolNames
+				.map((name) => this.tools.get(name))
+				.filter((tool): tool is TTool => tool !== undefined);
+			let systemPrompt = "You are a helpful assistant.";
+			if (typeof this.systemPrompt === "string") {
+				systemPrompt = this.systemPrompt;
+			} else if (this.systemPrompt) {
+				systemPrompt = await this.systemPrompt({
+					session: this.session,
+					model: this.model,
+					thinkingLevel: this.thinkingLevel,
+					activeTools,
+					resources,
+				});
+			}
+			composition = await buildHarnessTurnComposition({
+				model: this.model,
+				thinkingLevel: this.thinkingLevel,
+				systemPrompt,
+				tools,
+				initialActiveToolNames: this.activeToolNames,
+				deferredToolNames: (this.deferredToolCatalog?.names() ?? []).filter((name) => !this.tools.has(name)),
+				resources,
+				toolContext,
+				streamOptions: this.streamOptions,
+			});
+			this.currentTurnComposition = composition;
+		}
 		const activeTools = this.activeToolNames
 			.map((name) => this.tools.get(name))
 			.filter((tool): tool is TTool => tool !== undefined);
-		let systemPrompt = "You are a helpful assistant.";
-		if (typeof this.systemPrompt === "string") {
-			systemPrompt = this.systemPrompt;
-		} else if (this.systemPrompt) {
-			systemPrompt = await this.systemPrompt({
-				session: this.session,
-				model: this.model,
-				thinkingLevel: this.thinkingLevel,
-				activeTools,
-				resources,
-			});
-		}
-		const composition = await buildHarnessTurnComposition({
-			model: this.model,
-			thinkingLevel: this.thinkingLevel,
-			systemPrompt,
-			tools,
-			initialActiveToolNames: this.activeToolNames,
-			deferredToolNames: (this.deferredToolCatalog?.names() ?? []).filter((name) => !this.tools.has(name)),
-			resources,
-			toolContext,
-			streamOptions: this.streamOptions,
-		});
 		return {
 			messages: context.messages,
-			resources,
-			toolContext,
-			streamOptions: cloneStreamOptions(this.streamOptions),
+			resources: composition.resources,
+			toolContext: composition.toolContext,
+			streamOptions: cloneStreamOptions(composition.streamOptions),
 			sessionId: sessionMetadata.id,
-			systemPrompt,
-			model: this.model,
-			thinkingLevel: this.thinkingLevel,
-			tools,
+			systemPrompt: composition.systemPrompt,
+			model: composition.model,
+			thinkingLevel: composition.thinkingLevel,
+			tools: [...composition.tools],
 			activeTools,
 			composition,
 		};
@@ -792,6 +806,7 @@ export class AgentHarness<
 		this.phase = "turn";
 		const finishRunPromise = this.startRunPromise();
 		try {
+			this.currentTurnComposition = undefined;
 			const turnState = await this.createTurnState();
 			return await this.executeTurn(turnState, text, options);
 		} catch (error) {
@@ -807,6 +822,7 @@ export class AgentHarness<
 		this.phase = "turn";
 		const finishRunPromise = this.startRunPromise();
 		try {
+			this.currentTurnComposition = undefined;
 			const turnState = await this.createTurnState();
 			const skill = (turnState.resources.skills ?? []).find((candidate) => candidate.name === name);
 			if (!skill) throw new AgentHarnessError("invalid_argument", `Unknown skill: ${name}`);
@@ -824,6 +840,7 @@ export class AgentHarness<
 		this.phase = "turn";
 		const finishRunPromise = this.startRunPromise();
 		try {
+			this.currentTurnComposition = undefined;
 			const turnState = await this.createTurnState();
 			const template = (turnState.resources.promptTemplates ?? []).find((candidate) => candidate.name === name);
 			if (!template) throw new AgentHarnessError("invalid_argument", `Unknown prompt template: ${name}`);

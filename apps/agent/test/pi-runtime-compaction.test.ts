@@ -9,6 +9,7 @@ import {
 } from "@earendil-works/pi-ai"
 import { AgentError } from "../src/domain"
 import { executeHarnessRun } from "../src/orchestration/pi/executeHarnessRun"
+import { frozenDeferredEnvelope } from "../src/tool/ToolExecutor"
 import { REACTIVE_CONTINUATION_PROMPT } from "../src/orchestration/pi/ContextOverflow"
 import type {
   ActiveHarness,
@@ -53,7 +54,9 @@ async function createRuntime(input: {
       resolve: async () => ({ models, session }),
     },
     toolExecutor: {
-      deferredDefinitions: () => [],
+      deferredDefinitions: (exposure: { frozenDeferredToolNames?: readonly string[] }) => (
+        frozenDeferredEnvelope([], exposure.frozenDeferredToolNames)
+      ),
     } as never,
     eventSink: {
       compacted: async (_context, event) => {
@@ -174,6 +177,43 @@ describe("Harness runtime context compaction", () => {
     expect((error as AgentError).status).toBe(413)
     expect(setup.compacted).toEqual(["reactive"])
     expect(setup.failures).toEqual(["reactive"])
+    await setup.runtime.dispose()
+  })
+})
+
+describe("Frozen deferred tool envelope", () => {
+  test("binds only frozen names, excludes newly registered tools, and fails closed on missing names", () => {
+    const registry = [
+      { sdkName: "frozen-a" },
+      { sdkName: "frozen-b" },
+      { sdkName: "new-tool" },
+    ]
+    const bound = frozenDeferredEnvelope(registry, ["frozen-a", "frozen-b"])
+    expect(bound.map((definition) => definition.sdkName)).toEqual(["frozen-a", "frozen-b"])
+    // No frozen envelope → every live definition stays bindable (fresh turns).
+    expect(frozenDeferredEnvelope(registry, undefined).map((definition) => definition.sdkName))
+      .toEqual(["frozen-a", "frozen-b", "new-tool"])
+    // A frozen name missing from the live registry fails closed.
+    let caught: unknown
+    try {
+      frozenDeferredEnvelope(registry, ["frozen-a", "missing"])
+    } catch (cause) {
+      caught = cause
+    }
+    expect(caught).toBeInstanceOf(AgentError)
+    expect((caught as AgentError).code).toBe("RUNTIME_COMPOSITION_UNAVAILABLE")
+  })
+
+  test("resume with a missing frozen deferred tool rejects before running the harness", async () => {
+    const setup = await createRuntime({
+      responses: [fauxAssistantMessage("completed")],
+    })
+    const error = await setup.runtime.run({
+      ...setup.request,
+      frozenDeferredToolNames: ["missing-deferred"],
+    }).catch((cause) => cause)
+    expect(error).toBeInstanceOf(AgentError)
+    expect((error as AgentError).code).toBe("RUNTIME_COMPOSITION_UNAVAILABLE")
     await setup.runtime.dispose()
   })
 })

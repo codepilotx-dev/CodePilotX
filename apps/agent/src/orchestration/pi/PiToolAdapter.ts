@@ -74,6 +74,9 @@ export function adaptToolDefinition(definition: ToolDefinition, options: PiToolA
           : {}),
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
         ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
+        ...(request.frozenDeferredToolNames
+          ? { frozenDeferredToolNames: request.frozenDeferredToolNames }
+          : {}),
         onProgress: (progress) => onUpdate?.(textResult(progress)),
       })
       if (definition.formatResult) {

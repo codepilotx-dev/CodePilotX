@@ -78,7 +78,13 @@ export async function executeHarnessRun(options: HarnessRuntimeOptions, request:
       sandboxMode: request.permissionConfig.sandboxMode,
       profile: request.profile ?? "main",
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+      ...(request.frozenDeferredToolNames
+        ? { frozenDeferredToolNames: request.frozenDeferredToolNames }
+        : {}),
     }, request.toolCatalog)
+    // The deferred envelope is frozen by the persisted turn snapshot. A resumed
+    // turn may only bind those names; tools added to the live registry after the
+    // snapshot must not widen it, and missing frozen names fail closed.
     const deferredToolCatalog = new DeferredToolCatalog(deferredDefinitions.map((definition) => ({
       name: definition.sdkName,
       label: definition.sdkName,

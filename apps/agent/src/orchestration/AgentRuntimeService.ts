@@ -1352,6 +1352,7 @@ export class AgentRuntimeService implements AgentRuntime {
         preapprovedToolCalls,
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
         ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
+        frozenDeferredToolNames: composition.plan.snapshot.tools.deferred,
         onPromptComposed: async (bundle) =>
           request.onPromptComposed?.(bundle, { budgetText: bundle.instructions }),
         canAutoCompact: () => !paused && !request.signal.aborted,

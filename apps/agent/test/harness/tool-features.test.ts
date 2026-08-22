@@ -187,6 +187,95 @@ describe("AgentHarness turn composition", () => {
 		expect(compositionIds).toHaveLength(2);
 		expect(compositionIds[0]).not.toBe(compositionIds[1]);
 	});
+
+	test("keeps one immutable composition across provider/tool steps and reflects latest active tools per step", async () => {
+		const deferredTool: AgentHarnessTool<{ workspace: string }> = {
+			name: "deferred",
+			label: "Deferred",
+			description: "Loaded on demand",
+			parameters: Type.Object({}),
+			execute: async () => ({ content: [], details: {} }),
+		};
+		const catalog = new DeferredToolCatalog<AgentHarnessTool<{ workspace: string }>>([
+			{ name: "deferred", label: "Deferred", description: "Loaded on demand", load: () => deferredTool },
+		]);
+		const discover: AgentHarnessTool<{ workspace: string }> = {
+			name: "discover",
+			label: "Discover",
+			description: "Discovers deferred tools",
+			parameters: Type.Object({}),
+			execute: async () => ({ addedToolNames: ["deferred"] }),
+		};
+		const setup = setupProvider([
+			fauxAssistantMessage(fauxToolCall("discover", {}), { stopReason: "toolUse" }),
+			fauxAssistantMessage(fauxToolCall("discover", {}), { stopReason: "toolUse" }),
+			fauxAssistantMessage("activated"),
+		]);
+		const repo = new InMemorySessionRepo();
+		const session = await repo.create({ id: crypto.randomUUID() });
+		const harness = new AgentHarness({
+			session,
+			models: setup.models,
+			model: setup.faux.getModel(),
+			tools: [discover],
+			deferredToolCatalog: catalog,
+			toolContext: { workspace: "initial" },
+		});
+		const compositionIds: string[] = [];
+		const compositionHashes: string[] = [];
+		const compositionTools: string[][] = [];
+		harness.subscribe((event) => {
+			if (event.type === "turn_composition") {
+				compositionIds.push(event.compositionId);
+				compositionHashes.push(event.compositionHash);
+				compositionTools.push(event.activeToolNames);
+			}
+		});
+
+		await harness.prompt("discover");
+
+		// Multiple provider/tool steps share the same immutable composition.
+		expect(compositionIds.length).toBeGreaterThanOrEqual(2);
+		expect(new Set(compositionIds).size).toBe(1);
+		expect(new Set(compositionHashes).size).toBe(1);
+		// The step context (not the composition) reflects the latest active tools.
+		expect(compositionTools.at(-1)).toEqual(["deferred", "discover"]);
+		expect(harness.getActiveToolNames()).toEqual(["discover", "deferred"]);
+	});
+
+	test("resolves an async system prompt once per product turn even across tool steps", async () => {
+		let resolutions = 0;
+		const greet: AgentHarnessTool<undefined> = {
+			name: "greet",
+			label: "Greet",
+			description: "greets",
+			parameters: Type.Object({}),
+			execute: async () => ({ content: [{ type: "text", text: "hi" }], details: {} }),
+		};
+		const setup = setupProvider([
+			fauxAssistantMessage(fauxToolCall("greet", {}), { stopReason: "toolUse" }),
+			fauxAssistantMessage("done"),
+		]);
+		const repo = new InMemorySessionRepo();
+		const session = await repo.create({ id: crypto.randomUUID() });
+		const harness = new AgentHarness({
+			session,
+			models: setup.models,
+			model: setup.faux.getModel(),
+			tools: [greet],
+			systemPrompt: async () => `dynamic-${++resolutions}`,
+		});
+		const compositionIds: string[] = [];
+		harness.subscribe((event) => {
+			if (event.type === "turn_composition") compositionIds.push(event.compositionId);
+		});
+
+		expect(resolutions).toBe(0);
+		await harness.prompt("start");
+
+		expect(resolutions).toBe(1);
+		expect(new Set(compositionIds).size).toBe(1);
+	});
 });
 
 describe("AgentHarness live steering", () => {

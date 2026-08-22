@@ -103,6 +103,7 @@
 
 ### Fixed
 
+- [agent/runtime] 固定同一产品 Turn 的 Harness composition 与 deferred 工具边界，确保多步执行和恢复不会重组模型、Prompt 或扩宽 ToolSearch 可见范围。
 - [desktop] 优化 Windows 下 Electron 窗口边框与控制按钮：改用 titleBarStyle: 'hidden' 和 titleBarOverlay 支持原生贴靠布局并精确同步顶栏底色 (surfaceUnder) 与 36px 贴合高度；主内容区对齐简约扁平规范，移除卡片外阴影与冗余边框，彻底消除粗黑边与颜色高度断层。
 - [desktop/renderer] 修复侧边栏在更新/生成会话标题时的骨架屏显示异常：标题生成期间禁用会话悬停卡片（HoverCard）弹出，避免出现大尺寸卡片浮层；同时将骨架屏圆角从全圆角修正为与文字行高贴合的 4px 微圆角长方形（`--cpx-sys-radius-sm`），保持平滑扫光动画。
 

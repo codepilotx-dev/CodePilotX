@@ -78,6 +78,21 @@ export interface ToolExecutionContext {
   onProgress?: (progress: ToolProgress) => void
   /** Immutable tool catalog captured for this turn. */
   toolCatalog?: ToolCatalog
+  /** Deferred tool names frozen in the durable turn composition. */
+  frozenDeferredToolNames?: readonly string[]
+}
+
+export const frozenDeferredEnvelope = <T extends { sdkName: string }>(
+  definitions: readonly T[],
+  frozenNames: readonly string[] | undefined,
+): T[] => {
+  if (!frozenNames) return [...definitions]
+  const definitionsByName = new Map(definitions.map((definition) => [definition.sdkName, definition]))
+  const missing = frozenNames.filter((name) => !definitionsByName.has(name))
+  if (missing.length > 0) {
+    throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", `冻结的 deferred 工具缺失: ${missing.join(", ")}`, 409)
+  }
+  return frozenNames.map((name) => definitionsByName.get(name)!)
 }
 
 export interface ToolExecutorOptions {
@@ -122,8 +137,12 @@ export class ToolExecutor {
     return createToolExposurePlan(catalog, input)
   }
 
-  deferredDefinitions(input: ToolExposureInput, catalog: ToolCatalog = this.registry) {
-    return this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
+  deferredDefinitions(
+    input: ToolExposureInput & { frozenDeferredToolNames?: readonly string[] },
+    catalog: ToolCatalog = this.registry,
+  ) {
+    const definitions = this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
+    return frozenDeferredEnvelope(definitions, input.frozenDeferredToolNames)
   }
 
   async previewApproval(name: string, input: Record<string, unknown>, context: ToolExecutionContext, toolCallID: string) {
@@ -362,6 +381,9 @@ export class ToolExecutor {
         sandboxMode: permissionConfig.sandboxMode,
         profile: context.profile ?? "main",
         ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
+        ...(context.frozenDeferredToolNames
+          ? { frozenDeferredToolNames: context.frozenDeferredToolNames }
+          : {}),
       }, catalog)
       for (const configWrite of inspection?.configWrites ?? []) {
         this.options?.validateConfigDocument?.(configWrite.content, configWrite.scope)
