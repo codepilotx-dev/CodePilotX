@@ -62,7 +62,7 @@ type ControllerOptions = {
   onDraftAccepted?: (
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
-  ) => void
+  ) => boolean | void
   onPermissionChange: (value: DesktopPermissionMode) => void
   onProviderModelChange: (
     providerID: ModelProviderID,
@@ -188,9 +188,11 @@ export function useDesktopComposerController({
     () =>
       composerDraftStore.subscribe(() => {
         setDraftStoreVersion(value => value + 1)
+        const currentDraft = composerDraftStore.get(draftKey)
+        draftClientIdRef.current = currentDraft.clientId
         setSelectedSkillToken(
           restoreSkillToken(
-            composerDraftStore.get(draftKey).skillInvocation,
+            currentDraft.skillInvocation,
             skillCommands,
           ),
         )
@@ -305,12 +307,20 @@ export function useDesktopComposerController({
           status: 'active',
         })
         applyPlanExecutionModel()
-        onDraftAccepted?.(sourceDraftKey, snapshot)
-        composerDraftStore.clear(sourceDraftKey)
+        const clearContent = onDraftAccepted
+          ? onDraftAccepted(sourceDraftKey, snapshot) !== false
+          : true
+        const nextDraft = composerDraftStore.completeSubmission(
+          sourceDraftKey,
+          draftClientIdRef.current,
+          { clearContent },
+        )
         if (activeDraftKeyRef.current === sourceDraftKey) {
-          setSelectedSkillToken(null)
-          setGoalModeEnabled(false)
-          draftClientIdRef.current = crypto.randomUUID()
+          if (clearContent) {
+            setSelectedSkillToken(null)
+            setGoalModeEnabled(false)
+          }
+          draftClientIdRef.current = nextDraft.clientId
         }
         const successOutcome: ComposerSubmitOutcome = {
           status: 'sent',
@@ -393,13 +403,21 @@ export function useDesktopComposerController({
     const acceptedDraftKey: ComposerDraftKey = isNewSession
       ? `session:${outcome.sessionId}`
       : sourceDraftKey
-    onDraftAccepted?.(acceptedDraftKey, snapshot)
-    composerDraftStore.clear(acceptedDraftKey)
+    const clearContent = onDraftAccepted
+      ? onDraftAccepted(acceptedDraftKey, snapshot) !== false
+      : true
+    const nextDraft = composerDraftStore.completeSubmission(
+      acceptedDraftKey,
+      draft.clientId,
+      { clearContent },
+    )
     composerDraftStore.clearSubmitOutcome(acceptedDraftKey)
     if (activeDraftKeyRef.current === acceptedDraftKey) {
-      setSelectedSkillToken(null)
-      setGoalModeEnabled(false)
-      draftClientIdRef.current = crypto.randomUUID()
+      if (clearContent) {
+        setSelectedSkillToken(null)
+        setGoalModeEnabled(false)
+      }
+      draftClientIdRef.current = nextDraft.clientId
     }
   }
 

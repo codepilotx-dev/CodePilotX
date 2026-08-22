@@ -9,7 +9,10 @@ import {
   prepareComposerSubmission,
 } from '../src/features/session/composer/composerSubmitTransaction.js'
 import type { ComposerDraft } from '../src/features/session/composer/composerTypes.js'
-import { createComposerDocument } from '../src/features/session/composer/composerTypes.js'
+import {
+  createComposerDocument,
+  isInlineComposerFailure,
+} from '../src/features/session/composer/composerTypes.js'
 
 function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
   return {
@@ -83,6 +86,85 @@ describe('composer submit transaction', () => {
     })
 
     expect(submittedIds).toEqual(['draft-1', 'draft-2'])
+  })
+
+  test('notifies the routed composer when a submitted id is consumed', () => {
+    let nextId = 0
+    const store = new ComposerDraftStore(() => `draft-${++nextId}`)
+    store.update('home', current => ({
+      ...current,
+      document: createComposerDocument('第一条消息'),
+    }))
+    store.handoff('home', 'session:created')
+    let mountedClientId = store.get('session:created').clientId
+    const unsubscribe = store.subscribe(() => {
+      mountedClientId = store.get('session:created').clientId
+    })
+
+    const completed = store.completeSubmission(
+      'session:created',
+      'draft-1',
+      { clearContent: true },
+    )
+
+    expect(completed.clientId).toBe('draft-3')
+    expect(completed.document.text).toBe('')
+    expect(mountedClientId).toBe('draft-3')
+    unsubscribe()
+  })
+
+  test('rotates the consumed id without clearing edits made during submission', () => {
+    let nextId = 0
+    const store = new ComposerDraftStore(() => `draft-${++nextId}`)
+    const initial = store.get('session:active')
+    store.set('session:active', {
+      ...initial,
+      document: createComposerDocument('第二条消息'),
+      attachments: [{
+        id: 'attachment-1',
+        name: 'notes.txt',
+        path: 'notes.txt',
+        mediaType: 'text/plain',
+        sizeBytes: 5,
+        kind: 'text',
+        status: 'ready',
+      }],
+      skillInvocation: { name: 'review', path: 'skills/review' },
+    })
+
+    const completed = store.completeSubmission(
+      'session:active',
+      initial.clientId,
+      { clearContent: false },
+    )
+
+    expect(completed.clientId).toBe('draft-2')
+    expect(completed.document.text).toBe('第二条消息')
+    expect(completed.attachments.map(item => item.id)).toEqual(['attachment-1'])
+    expect(completed.skillInvocation?.name).toBe('review')
+  })
+
+  test('keeps failed submission ids retryable and only prepares errors inline', () => {
+    const store = new ComposerDraftStore(() => 'draft-1')
+    const failedDraft = store.get('session:active')
+
+    expect(store.get('session:active').clientId).toBe(failedDraft.clientId)
+    expect(isInlineComposerFailure({
+      status: 'failed',
+      phase: 'prepare',
+      message: '附件不可用',
+    })).toBe(true)
+    expect(isInlineComposerFailure({
+      status: 'failed',
+      phase: 'create',
+      message: '创建失败',
+    })).toBe(false)
+    expect(isInlineComposerFailure({
+      status: 'failed',
+      phase: 'send',
+      message: '发送失败',
+      sessionId: 'session:active',
+    })).toBe(false)
   })
 
   test('publishes an externally selected skill invocation to the active composer', () => {

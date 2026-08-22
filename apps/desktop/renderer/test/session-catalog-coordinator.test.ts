@@ -9,6 +9,7 @@ describe('SessionCatalogCoordinator', () => {
       releaseRefresh = resolve
     })
     const refreshed: string[][] = []
+    const lifecycleUpdates: string[] = []
     let providerUpdates = 0
     const coordinator = new SessionCatalogCoordinator({
       onCatalogUpdated: () => {},
@@ -18,6 +19,9 @@ describe('SessionCatalogCoordinator', () => {
       onConfigUpdated: () => {},
       onWorkspaceFileChanged: () => {},
       onWorkspaceGitChanged: () => {},
+      onLifecycleUpdated: update => {
+        lifecycleUpdates.push(update.status)
+      },
       refreshThreads: async threadIds => {
         refreshed.push([...threadIds])
         await refreshGate
@@ -36,13 +40,94 @@ describe('SessionCatalogCoordinator', () => {
     await Promise.resolve()
     expect(refreshed).toEqual([['thread-1']])
     expect(providerUpdates).toBe(1)
+    expect(lifecycleUpdates).toEqual([])
     expect(committed).toBe(false)
 
     releaseRefresh()
     await delivery
     expect(committed).toBe(true)
   })
+
+  test('applies only the latest lifecycle state for each thread before refresh', async () => {
+    const calls: string[] = []
+    const coordinator = new SessionCatalogCoordinator({
+      onCatalogUpdated: () => {},
+      onProviderCredentialUpdated: () => {},
+      onConfigUpdated: () => {},
+      onWorkspaceFileChanged: () => {},
+      onWorkspaceGitChanged: () => {},
+      onLifecycleUpdated: update => {
+        calls.push(`lifecycle:${update.status}:${update.sequence}`)
+      },
+      refreshThreads: async threadIds => {
+        calls.push(`refresh:${threadIds.join(',')}`)
+      },
+    })
+
+    await coordinator.deliverBatch([
+      lifecycleEvent('turn/started', 'running', 3),
+      lifecycleEvent('turn/statusChanged', 'waiting-user-input', 4),
+      lifecycleEvent('turn/completed', 'completed', 5),
+    ])
+
+    expect(calls).toEqual([
+      'lifecycle:completed:5',
+      'refresh:thread-1',
+    ])
+  })
 })
+
+function lifecycleEvent(
+  type: 'turn/started' | 'turn/statusChanged' | 'turn/completed',
+  status: 'running' | 'waiting-user-input' | 'completed',
+  sequence: number,
+): EventEnvelope {
+  const turn = {
+    id: 'turn-1',
+    threadId: 'thread-1',
+    sourceInputID: 'input-1',
+    status,
+    mode: 'chat' as const,
+    model: { providerID: 'openai', id: 'gpt-5' },
+    permissionConfig: {
+      sandboxMode: 'workspace-write' as const,
+      approvalPolicy: 'on-request' as const,
+      approvalsReviewer: 'user' as const,
+    },
+    rootAgentId: 'agent-1',
+    mergedInputIDs: [],
+    startedAt: 1,
+    finishedAt: status === 'completed' ? 2 : null,
+    elapsedSeconds: status === 'completed' ? 1 : 0,
+    error: null,
+  }
+  const base = {
+    eventId: `event-${sequence}`,
+    streamId: 'thread-1',
+    version: type === 'turn/statusChanged' ? 1 : 2,
+    occurredAt: 2,
+    threadId: 'thread-1',
+    turnId: 'turn-1',
+    durability: 'durable' as const,
+    sequence,
+  }
+  if (type === 'turn/statusChanged') {
+    return {
+      ...base,
+      type,
+      version: 1,
+      payload: { turnId: 'turn-1', status, changedAt: 2 },
+    }
+  }
+  return {
+    ...base,
+    type,
+    version: 2,
+    payload: type === 'turn/started'
+      ? { turn, input: { id: 'input-1', threadId: 'thread-1', content: [], createdAt: 1 } }
+      : { turn },
+  } as EventEnvelope
+}
 
 function threadEvent(
   type: 'thread/created' | 'thread/updated',

@@ -101,7 +101,7 @@ export type DesktopComposerProps = {
   onDraftAccepted?: (
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
-  ) => void
+  ) => boolean | void
   onChooseWorkspace: () => Promise<DesktopWorkspace | null>
   onInputChange: (value: string) => void
   onInterrupt: () => Promise<void>

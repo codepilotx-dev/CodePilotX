@@ -82,6 +82,7 @@ import {
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktopSnapshot,
   agentThreadSnapshotToDesktop,
+  agentTurnStatusToDesktopStatus,
   desktopPermissionModeToPermissionConfig,
   projectToDesktopWorkspace,
 } from '../agentThreadAdapter.js'
@@ -92,6 +93,7 @@ import {
 import { createAgentTurnQueueClient } from './agent-turn-queue-client.js'
 import { AGENT_LIVE_EVENT_FILTERS } from './eventSubscriptionFilters.js'
 import { SessionCatalogCoordinator } from './SessionCatalogCoordinator.js'
+import type { SessionLifecycleUpdate } from './SessionCatalogCoordinator.js'
 
 export const WORKSPACE_FILE_CHANGED_EVENT =
   'codepilotx-workspace-file-changed'
@@ -217,6 +219,11 @@ export function createAgentSessionDesktopClient(
   const providerModelRequests = new Map<string, Promise<RpcResult<'model/list'>>>()
   let providerCredentialsCache: DesktopProviderCredential[] | null = null
   const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
+  const lifecycleEpochBySessionId = new Map<string, number>()
+  const latestLifecycleBySessionId = new Map<
+    string,
+    SessionLifecycleUpdate
+  >()
   const sessionPermissionConfigs = new Map<string, PermissionConfig>()
   let pendingInteractionThreadIds = new Set<string>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
@@ -815,10 +822,55 @@ export function createAgentSessionDesktopClient(
       : thread
   }
 
+  function applyLifecycleSnapshotFreshness(
+    snapshot: DesktopSessionSnapshot,
+    requestEpoch: number,
+  ): DesktopSessionSnapshot {
+    const currentEpoch = lifecycleEpochBySessionId.get(snapshot.item.id) ?? 0
+    if (currentEpoch <= requestEpoch) return snapshot
+    const lifecycle = latestLifecycleBySessionId.get(snapshot.item.id)
+    if (!lifecycle) return snapshot
+    return {
+      ...snapshot,
+      item: {
+        ...snapshot.item,
+        status: agentTurnStatusToDesktopStatus(lifecycle.status),
+        latestTurnStatus: lifecycle.status,
+      },
+    }
+  }
+
+  function applySessionLifecycleUpdate(update: SessionLifecycleUpdate): void {
+    const previous = latestLifecycleBySessionId.get(update.threadId)
+    if (previous && previous.sequence >= update.sequence) return
+    latestLifecycleBySessionId.set(update.threadId, update)
+    lifecycleEpochBySessionId.set(
+      update.threadId,
+      (lifecycleEpochBySessionId.get(update.threadId) ?? 0) + 1,
+    )
+    const cached = sessionSnapshots.get(update.threadId)
+    if (!cached) return
+    sessionSnapshots.set(update.threadId, {
+      ...cached,
+      item: {
+        ...cached.item,
+        status: agentTurnStatusToDesktopStatus(update.status),
+        latestTurnStatus: update.status,
+      },
+    })
+    emitSessionStoreChange()
+  }
+
+  function clearSessionLifecycle(sessionId: string): void {
+    lifecycleEpochBySessionId.delete(sessionId)
+    latestLifecycleBySessionId.delete(sessionId)
+  }
+
   async function listAgentSessions(
     options?: { archived?: boolean },
   ): Promise<DesktopSessionSnapshot[]> {
     const archived = options?.archived === true
+    const requestEpochs = new Map(lifecycleEpochBySessionId)
     const [projectsById, response] = await Promise.all([
       loadProjectsById(),
       rpc.call('thread/list', {
@@ -833,7 +885,7 @@ export function createAgentSessionDesktopClient(
         item.projectID ? projectsById.get(item.projectID) : null,
       )
       const cached = sessionSnapshots.get(item.id)
-      const snapshot = cached
+      let snapshot = cached
         ? {
             ...cached,
             item: {
@@ -845,6 +897,10 @@ export function createAgentSessionDesktopClient(
             updatedAt: listSnapshot.updatedAt,
           }
         : listSnapshot
+      snapshot = applyLifecycleSnapshotFreshness(
+        snapshot,
+        requestEpochs.get(item.id) ?? 0,
+      )
       sessionSnapshots.set(item.id, snapshot)
       return snapshot
     })
@@ -854,17 +910,19 @@ export function createAgentSessionDesktopClient(
   async function loadAgentSessionSnapshot(
     sessionId: string,
   ): Promise<DesktopSessionSnapshot> {
+    const requestEpoch = lifecycleEpochBySessionId.get(sessionId) ?? 0
     const { snapshot: sharedSnapshot } = await rpc.call('thread/read', {
       threadId: sessionId,
     })
     sessionPermissionConfigs.set(sessionId, sharedSnapshot.thread.settings.permissionConfig)
     const projectsById = await loadProjectsById()
-    const snapshot = agentThreadSnapshotToDesktop(
+    let snapshot = agentThreadSnapshotToDesktop(
       sharedSnapshot,
       sharedSnapshot.thread.projectID
         ? projectsById.get(sharedSnapshot.thread.projectID)
         : null,
     )
+    snapshot = applyLifecycleSnapshotFreshness(snapshot, requestEpoch)
     const cached = sessionSnapshots.get(sessionId)
     sessionSnapshots.set(sessionId, {
       ...snapshot,
@@ -890,7 +948,10 @@ export function createAgentSessionDesktopClient(
     for (const sessionId of [...sessionSnapshots.keys()]) {
       if (!visibleIds.has(sessionId)) {
         const snapshot = sessionSnapshots.get(sessionId)
-        if (!snapshot?.item.archivedAt) sessionSnapshots.delete(sessionId)
+        if (!snapshot?.item.archivedAt) {
+          sessionSnapshots.delete(sessionId)
+          clearSessionLifecycle(sessionId)
+        }
       }
     }
     if (activeSessionId && !visibleIds.has(activeSessionId)) {
@@ -1488,6 +1549,7 @@ export function createAgentSessionDesktopClient(
           }))
         }
       },
+      onLifecycleUpdated: applySessionLifecycleUpdate,
       refreshThreads: async () => {
         await refreshAgentSessionStoreChange({
           reconcileInteractions: true,
@@ -2963,6 +3025,7 @@ export function createAgentSessionDesktopClient(
             operationId: crypto.randomUUID(),
           })
           sessionSnapshots.delete(sessionId)
+          clearSessionLifecycle(sessionId)
           if (activeSessionId === sessionId) {
             activeSessionId =
               [...sessionSnapshots.values()].find(snapshot => !snapshot.item.archivedAt)

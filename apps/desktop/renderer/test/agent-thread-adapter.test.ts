@@ -5,6 +5,7 @@ import {
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktop,
   agentThreadSnapshotToDesktop,
+  agentTurnStatusToDesktopStatus,
   desktopPermissionModeToPermissionConfig,
   permissionModeFromPermissionConfig,
 } from '../src/services/agentThreadAdapter.js'
@@ -28,6 +29,12 @@ const projectWorkspace = {
 }
 
 describe('agent thread adapter', () => {
+  test('maps terminal lifecycle states out of the sidebar running state', () => {
+    expect(agentTurnStatusToDesktopStatus('completed')).toBe('done')
+    expect(agentTurnStatusToDesktopStatus('failed')).toBe('error')
+    expect(agentTurnStatusToDesktopStatus('interrupted')).toBe('interrupted')
+  })
+
   test('maps built-in permission modes without widening the default sandbox', () => {
     expect(desktopPermissionModeToPermissionConfig('default')).toEqual({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' })
     expect(desktopPermissionModeToPermissionConfig('auto-review')).toEqual({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' })
