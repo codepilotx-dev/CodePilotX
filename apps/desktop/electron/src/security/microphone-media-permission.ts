@@ -22,10 +22,7 @@ interface MicrophoneMediaPermissionDependencies {
 export function isMicrophoneMediaPermissionAllowed(
   input: MicrophoneMediaPermissionInput,
 ): boolean {
-  if (
-    input.permission === "local-fonts"
-    || input.permission === "clipboard-sanitized-write"
-  ) {
+  if (input.permission === "local-fonts") {
     return isTrustedMainWindowPermissionRequest(input)
   }
   if (

@@ -43,13 +43,13 @@ describe("microphone media permission policy", () => {
     })).toBe(false)
   })
 
-  test("permits clipboard-sanitized-write only for the trusted main application frame", () => {
+  test("rejects clipboard-sanitized-write for every frame and origin", () => {
     const sanitizedWrite = {
       ...allowed,
       permission: "clipboard-sanitized-write",
       requestedMediaTypes: undefined,
     }
-    expect(isMicrophoneMediaPermissionAllowed(sanitizedWrite)).toBe(true)
+    expect(isMicrophoneMediaPermissionAllowed(sanitizedWrite)).toBe(false)
     expect(isMicrophoneMediaPermissionAllowed({
       ...sanitizedWrite,
       isMainWindowSender: false,
@@ -159,7 +159,7 @@ describe("microphone media permission policy", () => {
         securityOrigin: allowedOrigin,
       },
     )
-    expect(requestGranted).toBe(true)
+    expect(requestGranted).toBe(false)
     requestHandler!(
       mainWindow,
       "clipboard-read",
@@ -182,7 +182,7 @@ describe("microphone media permission policy", () => {
         requestingUrl: `${allowedOrigin}/session/thread-1`,
         securityOrigin: allowedOrigin,
       },
-    )).toBe(true)
+    )).toBe(false)
     expect(checkHandler!(
       mainWindow,
       "clipboard-read",
