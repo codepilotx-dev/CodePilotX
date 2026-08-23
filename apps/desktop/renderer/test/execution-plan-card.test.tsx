@@ -90,11 +90,12 @@ describe("ExecutionPlanCard", () => {
         active
         additions={279}
         canReturnToBottom
-        changedFileCount={5}
+        changedFiles={changedFiles(5, 279, 155)}
         deletions={155}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed={false}
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -103,7 +104,7 @@ describe("ExecutionPlanCard", () => {
         active
         additions={0}
         canReturnToBottom={false}
-        changedFileCount={0}
+        changedFiles={[]}
         deletions={0}
         executionPlan={executionPlanItem({
           steps: [
@@ -114,6 +115,7 @@ describe("ExecutionPlanCard", () => {
         })}
         failed={false}
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -122,11 +124,12 @@ describe("ExecutionPlanCard", () => {
         active={false}
         additions={0}
         canReturnToBottom
-        changedFileCount={0}
+        changedFiles={[]}
         deletions={0}
         executionPlan={executionPlanItem({ status: "completed" })}
         failed={false}
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -135,11 +138,26 @@ describe("ExecutionPlanCard", () => {
         active={false}
         additions={0}
         canReturnToBottom
-        changedFileCount={0}
+        changedFiles={[]}
         deletions={0}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed={false}
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
+        onReturnToBottom={() => undefined}
+      />,
+    );
+    const completedWithFilesHtml = renderToStaticMarkup(
+      <ComposerChangeSummary
+        active={false}
+        additions={2}
+        canReturnToBottom={false}
+        changedFiles={changedFiles(1, 2, 0)}
+        deletions={0}
+        executionPlan={executionPlanItem({ status: "completed" })}
+        failed={false}
+        onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -148,11 +166,12 @@ describe("ExecutionPlanCard", () => {
         active={false}
         additions={0}
         canReturnToBottom={false}
-        changedFileCount={0}
+        changedFiles={[]}
         deletions={0}
         executionPlan={executionPlanItem({ status: "interrupted" })}
         failed
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -161,11 +180,12 @@ describe("ExecutionPlanCard", () => {
         active
         additions={0}
         canReturnToBottom={false}
-        changedFileCount={0}
+        changedFiles={[]}
         deletions={0}
         executionPlan={executionPlanItem({ steps: [] })}
         failed={false}
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -174,11 +194,12 @@ describe("ExecutionPlanCard", () => {
         active={false}
         additions={12}
         canReturnToBottom
-        changedFileCount={1}
+        changedFiles={changedFiles(1, 12, 3)}
         deletions={3}
         executionPlan={null}
         failed={false}
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -187,11 +208,12 @@ describe("ExecutionPlanCard", () => {
         active={false}
         additions={12}
         canReturnToBottom={false}
-        changedFileCount={1}
+        changedFiles={changedFiles(1, 12, 3)}
         deletions={3}
         executionPlan={null}
         failed={false}
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -200,11 +222,12 @@ describe("ExecutionPlanCard", () => {
         active={false}
         additions={null}
         canReturnToBottom={false}
-        changedFileCount={1}
+        changedFiles={[{ path: "src/file-1.ts", additions: null, deletions: null }]}
         deletions={null}
         executionPlan={null}
         failed={false}
         onOpenReview={() => undefined}
+        onOpenReviewFile={() => undefined}
         onReturnToBottom={() => undefined}
       />,
     );
@@ -235,6 +258,9 @@ describe("ExecutionPlanCard", () => {
     expect(streamingHtml).toContain("ui-button");
     expect(streamingHtml).toContain("composer-change-summary__plan");
     expect(streamingHtml).toContain("composer-change-summary__changes");
+    expect(
+      streamingHtml.match(/data-color="ghostSecondary"/g),
+    ).toHaveLength(2);
     expect(streamingHtml).toContain(
       "composer-change-summary__return-presence",
     );
@@ -265,6 +291,12 @@ describe("ExecutionPlanCard", () => {
     expect(completedHtml).not.toContain("composer-change-summary__separator");
     expect(completedHtml).toContain("composer-change-summary__down-arrow");
     expect(completedHtml.match(/<button/g)).toHaveLength(2);
+    expect(completedWithFilesHtml).toContain("已全部完成");
+    expect(completedWithFilesHtml).toContain("1 个文件已更改");
+    expect(completedWithFilesHtml).toContain("composer-change-summary__separator");
+    expect(
+      completedWithFilesHtml.match(/data-color="ghostSecondary"/g),
+    ).toHaveLength(2);
     expect(interruptedHtml).toContain(
       'aria-label="执行计划已中断，已完成 1 / 3 步"',
     );
@@ -293,6 +325,8 @@ describe("ExecutionPlanCard", () => {
     expect(fileOnlyHtml).not.toContain("composer-change-summary__plan");
     expect(fileOnlyHtml).not.toContain("composer-change-summary__separator");
     expect(fileOnlyHtml).toContain("composer-change-summary__diff");
+    expect(fileOnlyHtml).toContain('aria-expanded="false"');
+    expect(fileOnlyHtml).toContain("aria-controls=");
     expect(fileOnlyHtml).toContain("composer-change-summary__return");
     expect(fileOnlyAtBottomHtml.match(/<button/g)).toHaveLength(1);
     expect(fileOnlyAtBottomHtml).not.toContain(
@@ -323,4 +357,12 @@ function executionPlanItem(
     createdAt: 1_700_000_000_000,
     ...overrides,
   };
+}
+
+function changedFiles(count: number, additions: number, deletions: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    path: `src/file-${index + 1}.ts`,
+    additions: index === 0 ? additions : 0,
+    deletions: index === 0 ? deletions : 0,
+  }));
 }

@@ -419,7 +419,7 @@ export function ConversationPage(): React.ReactNode {
   );
   const showComposerStatusSummary = shouldShowComposerStatusSummary({
     hasPlan: composerExecutionPlan !== null,
-    changedFileCount: conversationChangeSummary.changedFileCount,
+    changedFileCount: conversationChangeSummary.files.length,
   });
   const workspaceDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
   const sourceLinks = canonicalAuxiliary.sourceLinks;
@@ -1120,11 +1120,12 @@ export function ConversationPage(): React.ReactNode {
                 }
                 additions={conversationChangeSummary.additions}
                 canReturnToBottom={canReturnTimelineToBottom}
-                changedFileCount={conversationChangeSummary.changedFileCount}
+                changedFiles={conversationChangeSummary.files}
                 deletions={conversationChangeSummary.deletions}
                 executionPlan={composerExecutionPlan}
                 failed={effectiveSessionStatus === "error"}
                 onOpenReview={openReviewSidebar}
+                onOpenReviewFile={onOpenPatchReview}
                 onReturnToBottom={returnTimelineToBottom}
               />
             </ComposerFooterPresence>

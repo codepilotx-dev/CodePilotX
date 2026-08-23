@@ -222,6 +222,81 @@ test.describe('animation contracts', () => {
       await scrollNested(steps, 0)
       await expect(stepsFrame).toHaveAttribute('data-at-end', 'false')
     })
+
+    test(`execution plan preview enters at its final width (${motion})`, async ({
+      page,
+    }) => {
+      await openVisualFixture(page, 'execution-plan', motion)
+      const capsule = page.locator('.composer-change-summary__bar')
+      const planButton = page.locator('.composer-change-summary__plan')
+      const preview = page.locator('.composer-change-summary__plan-preview')
+      const planCard = preview.locator('.execution-plan-card')
+      const capsuleBefore = await capsule.boundingBox()
+      expect(capsuleBefore).not.toBeNull()
+
+      await page.evaluate(() => {
+        type PlanPreviewSample = {
+          animationName: string
+          transform: string
+          width: number
+        }
+        const runtimeWindow = window as typeof window & {
+          __planPreviewSamples?: PlanPreviewSample[]
+        }
+        runtimeWindow.__planPreviewSamples = []
+        const host = document.querySelector('.composer-change-summary')
+        if (!host) throw new Error('缺少 Composer 变更摘要容器')
+
+        const observer = new MutationObserver(() => {
+          const previewElement = host.querySelector<HTMLElement>(
+            '.composer-change-summary__plan-preview',
+          )
+          const card = previewElement?.querySelector<HTMLElement>(
+            '.execution-plan-card',
+          )
+          if (!previewElement || !card) return
+          observer.disconnect()
+          const deadline = performance.now() + 220
+          const sample = (): void => {
+            runtimeWindow.__planPreviewSamples?.push({
+              animationName: getComputedStyle(card).animationName,
+              transform: getComputedStyle(previewElement).transform,
+              width: card.getBoundingClientRect().width,
+            })
+            if (performance.now() < deadline) requestAnimationFrame(sample)
+          }
+          sample()
+        })
+        observer.observe(host, { childList: true, subtree: true })
+      })
+
+      await planButton.focus()
+      await expect(planCard).toBeVisible()
+      await page.waitForTimeout(240)
+
+      const samples = await page.evaluate(() => {
+        const runtimeWindow = window as typeof window & {
+          __planPreviewSamples?: Array<{
+            animationName: string
+            transform: string
+            width: number
+          }>
+        }
+        return runtimeWindow.__planPreviewSamples ?? []
+      })
+      expect(samples.length).toBeGreaterThan(0)
+      expect(Math.min(...samples.map(sample => sample.width))).toBeGreaterThanOrEqual(480)
+      expect(Math.max(...samples.map(sample => sample.width))).toBeLessThanOrEqual(760)
+      expect(samples.every(sample => sample.transform === 'none')).toBe(true)
+      expect(samples.every(sample => sample.animationName === 'none')).toBe(true)
+
+      const capsuleAfter = await capsule.boundingBox()
+      expect(capsuleAfter).not.toBeNull()
+      expect(capsuleAfter!.width).toBeCloseTo(capsuleBefore!.width, 0)
+
+      await planButton.evaluate(element => element.blur())
+      await expect(preview).toHaveCount(0)
+    })
   }
 
   test('skeleton shimmer and progress bars keep their compositor contract', async ({
