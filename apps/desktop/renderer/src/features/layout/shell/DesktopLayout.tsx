@@ -359,6 +359,7 @@ export function DesktopLayout(): React.ReactNode {
     sidebarShell,
     sidebarMinWidth,
     sidebarMaxWidth,
+    workbenchLayoutState,
     workbenchPanelState,
     setWorkbenchPanelState,
     rightDockState,
@@ -3398,13 +3399,8 @@ export function DesktopLayout(): React.ReactNode {
         </Suspense>
       ) : null}
 
-      <WorkbenchShellView
-        menuBar={menuBar}
-        sidebar={sidebar}
-        appBodyRef={sidebarShell.appBodyRef}
-      >
-        <QuickChatContext.Provider
-            value={{
+      <QuickChatContext.Provider
+        value={{
             isConversationRoute,
             isConversationLoading,
             sidebarCollapsed: sidebarShell.mode === 'collapsed',
@@ -3506,18 +3502,20 @@ export function DesktopLayout(): React.ReactNode {
             layoutResizeActive: rightResizePhase !== 'idle',
             onToggleBottomPanel: toggleBottomPanelVisible,
             rightDockPlanEventId,
-            }}
-          >
-            <WorkspaceHeaderProvider routeScope={location.pathname}>
-                <div
-                  ref={workspaceRef}
-                  className="desktop-workspace"
-                  style={
-                    {
-                      '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-                    } as React.CSSProperties
-                  }
-                >
+        }}
+      >
+        <WorkspaceHeaderProvider routeScope={location.pathname}>
+          <WorkbenchShellView
+                menuBar={menuBar}
+                primarySidebar={sidebar}
+                appBodyRef={sidebarShell.appBodyRef}
+                workspaceRef={workspaceRef}
+                workspaceStyle={
+                  {
+                    '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
+                  } as React.CSSProperties
+                }
+                workspaceHeader={
                   <DesktopWorkspaceHeader
                     divider={isConversationRoute}
                     fullWidth={rightDockFullWidth}
@@ -3537,34 +3535,38 @@ export function DesktopLayout(): React.ReactNode {
                       />
                     }
                   />
-                  <div className="desktop-workspace__upper">
-                    <div
-                      aria-label="主要内容"
-                      ref={mainRouteRef}
-                      className="desktop-main-route"
-                      id="desktop-main-content"
-                      tabIndex={-1}
-                      role="region"
-                    >
-                      <div aria-hidden="true" className="desktop-main-route__header-spacer" />
-                      <div className="desktop-main-route__body">
-                        <Outlet context={outletContext} />
-                      </div>
+                }
+                mainContent={
+                  <div
+                    aria-label="主要内容"
+                    ref={mainRouteRef}
+                    className="desktop-main-route"
+                    id="desktop-main-content"
+                    tabIndex={-1}
+                    role="region"
+                  >
+                    <div aria-hidden="true" className="desktop-main-route__header-spacer" />
+                    <div className="desktop-main-route__body">
+                      <Outlet context={outletContext} />
                     </div>
-                    <WorkbenchPanelPresence
-                      fullWidth={rightDockFullWidth}
-                      liveResize={rightPanelLiveResize}
-                      mainRouteRef={mainRouteRef}
-                      workspaceRef={workspaceRef}
-                      minSize={rightDockMinWidth}
-                      size={rightPanelCommittedSize}
-                      target="right"
-                      visible={rightDockVisible}
-                      onResizePhaseChange={setRightResizePhase}
-                    >
-                      {rightDockNode}
-                    </WorkbenchPanelPresence>
                   </div>
+                }
+                auxiliaryPanel={
+                  <WorkbenchPanelPresence
+                    fullWidth={rightDockFullWidth}
+                    liveResize={rightPanelLiveResize}
+                    mainRouteRef={mainRouteRef}
+                    workspaceRef={workspaceRef}
+                    minSize={rightDockMinWidth}
+                    size={rightPanelCommittedSize}
+                    target="right"
+                    visible={rightDockVisible}
+                    onResizePhaseChange={setRightResizePhase}
+                  >
+                    {rightDockNode}
+                  </WorkbenchPanelPresence>
+                }
+                bottomPanel={
                   <WorkbenchPanelPresence
                     liveResize={bottomPanelLiveResize}
                     mainRouteRef={mainRouteRef}
@@ -3576,10 +3578,20 @@ export function DesktopLayout(): React.ReactNode {
                   >
                     {bottomPanelNode}
                   </WorkbenchPanelPresence>
-                </div>
-            </WorkspaceHeaderProvider>
-          </QuickChatContext.Provider>
-      </WorkbenchShellView>
+                }
+                primarySidebarVisible={
+                  workbenchLayoutState?.visibility.primarySidebar ??
+                  !sidebarCollapsed
+                }
+                auxiliaryPanelVisible={rightDockVisible}
+                bottomPanelVisible={bottomPanelVisible}
+                auxiliaryMaximized={
+                  workbenchLayoutState?.auxiliaryMaximized ?? false
+                }
+                resizeActive={rightResizePhase !== 'idle'}
+          />
+        </WorkspaceHeaderProvider>
+      </QuickChatContext.Provider>
     </div>
   )
 }

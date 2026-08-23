@@ -92,6 +92,21 @@
   }
 }
 
+.app-shell[data-resize-active='true'] {
+  .desktop-workspace-panel--right {
+    will-change: width;
+  }
+
+  .desktop-main-route,
+  .desktop-workspace-panel--right .workbench-panel-content {
+    pointer-events: none;
+  }
+}
+
+.app-shell[data-auxiliary-maximized='true'] .desktop-main {
+  border-left: 0;
+}
+
 .bottom-panel-is-resizing {
   .desktop-workspace-panel--bottom,
   .desktop-workspace-panel-spacer--bottom {

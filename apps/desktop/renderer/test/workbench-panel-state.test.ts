@@ -38,6 +38,22 @@ import {
   resolveInitialBottomPanelHeightRatio,
   resolveInitialRightDockWidthRatio,
 } from '../src/features/layout/shell/workbenchLayoutStorage.js'
+import {
+  WORKBENCH_LAYOUT_SCHEMA_VERSION,
+  WORKBENCH_LAYOUT_STORAGE_KEY,
+  createDefaultWorkbenchLayoutSnapshot,
+  readWorkbenchLayoutSnapshot,
+  saveWorkbenchLayoutSnapshot,
+} from '../src/features/layout/shell/workbenchLayoutStorage.js'
+import {
+  applyWorkbenchLayoutAction,
+  clampAuxiliaryPanelWidth,
+  clampBottomPanelHeight,
+  createDefaultWorkbenchLayoutState,
+  createDefaultVisibility,
+  type WorkbenchLayoutSnapshot,
+  type WorkbenchLayoutState,
+} from '../src/features/layout/shell/workbenchLayoutState.js'
 import { resolveIntegratedTerminalToggleAction } from '../src/features/layout/shell/useIntegratedTerminalController.js'
 import { WorkbenchTabsHeader } from '../src/features/layout/dock/RightDock.js'
 import { WorkbenchDockFrame } from '../src/features/layout/dock/WorkbenchDockFrame.js'
@@ -1324,5 +1340,378 @@ describe('workbench right panel sizing', () => {
       800,
     )
     expect(bottomPanelHeightFromRatio(bottomRatio, 800)).toBe(220)
+  })
+})
+
+describe('workbench layout snapshot v1', () => {
+  const baselineInput = {
+    workspaceWidth: 1_600,
+    workspaceHeight: 900,
+    sidebarCollapsed: false,
+    sidebarWidth: 300,
+    rightDockRatio: 0.4,
+    bottomPanelRatio: 0.25,
+  } as const
+
+  function makeSnapshot(
+    overrides: Partial<WorkbenchLayoutSnapshot> = {},
+  ): WorkbenchLayoutSnapshot {
+    const base = createDefaultWorkbenchLayoutSnapshot(baselineInput)
+    return { ...base, ...overrides }
+  }
+
+  function makeMemoryStorage(): Storage {
+    const map = new Map<string, string>()
+    return {
+      get length() {
+        return map.size
+      },
+      clear() {
+        map.clear()
+      },
+      getItem(key) {
+        return map.get(key) ?? null
+      },
+      key(index) {
+        return Array.from(map.keys())[index] ?? null
+      },
+      removeItem(key) {
+        map.delete(key)
+      },
+      setItem(key, value) {
+        map.set(key, String(value))
+      },
+    } as Storage
+  }
+
+  test('默认可见态下 mainContent 必须为 true', () => {
+    const state = createDefaultWorkbenchLayoutState(1_600, 900)
+
+    expect(state.visibility.mainContent).toBe(true)
+    expect(state.visibility.primarySidebar).toBe(true)
+    expect(state.auxiliaryMaximized).toBe(false)
+    expect(state.beforeAuxiliaryMaximized).toBeNull()
+    expect(state.beforeAuxiliaryMaximizedAuxiliaryWidth).toBeNull()
+  })
+
+  test('legacy/default 构造以调用方传入的 sidebar 状态覆盖 primarySidebar', () => {
+    const visible = createDefaultWorkbenchLayoutSnapshot(baselineInput)
+    const collapsed = createDefaultWorkbenchLayoutSnapshot({
+      ...baselineInput,
+      sidebarCollapsed: true,
+      sidebarWidth: 480,
+    })
+
+    expect(visible.visibility.primarySidebar).toBe(true)
+    expect(visible.primarySidebarWidth).toBe(300)
+    expect(visible.auxiliaryPanelWidth).toBe(640)
+    expect(visible.bottomPanelHeight).toBe(225)
+    expect(visible.visibility.mainContent).toBe(true)
+
+    expect(collapsed.visibility.primarySidebar).toBe(false)
+    expect(collapsed.primarySidebarWidth).toBe(480)
+  })
+
+  test('合法 v1 解析并返回 clamp 后的快照', () => {
+    const storage = makeMemoryStorage()
+    const oversized: WorkbenchLayoutSnapshot = makeSnapshot({
+      primarySidebarWidth: 9_999,
+      auxiliaryPanelWidth: 9_999,
+      bottomPanelHeight: 9_999,
+    })
+    storage.setItem(WORKBENCH_LAYOUT_STORAGE_KEY, JSON.stringify(oversized))
+
+    const result = readWorkbenchLayoutSnapshot(
+      { ...baselineInput, sidebarCollapsed: true },
+      { storage },
+    )
+
+    expect(result.schemaVersion).toBe(WORKBENCH_LAYOUT_SCHEMA_VERSION)
+    expect(result.primarySidebarWidth).toBeLessThanOrEqual(520)
+    expect(result.primarySidebarWidth).toBeGreaterThanOrEqual(240)
+    expect(result.auxiliaryPanelWidth).toBeLessThanOrEqual(
+      1_600 - 352,
+    )
+    expect(result.auxiliaryPanelWidth).toBeGreaterThanOrEqual(320)
+    expect(result.bottomPanelHeight).toBeGreaterThanOrEqual(160)
+    expect(result.visibility.mainContent).toBe(true)
+  })
+
+  test('非法 v1 字符串回退到调用方输入构造的默认快照', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(WORKBENCH_LAYOUT_STORAGE_KEY, '{"schemaVersion":1')
+
+    const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(result.schemaVersion).toBe(WORKBENCH_LAYOUT_SCHEMA_VERSION)
+    expect(result.primarySidebarWidth).toBe(300)
+    expect(result.auxiliaryPanelWidth).toBe(640)
+    expect(result.bottomPanelHeight).toBe(225)
+    expect(result.auxiliaryMaximized).toBe(false)
+  })
+
+  test('schemaVersion 不匹配时回退到默认快照', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(
+      WORKBENCH_LAYOUT_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 99,
+        visibility: createDefaultVisibility(),
+        primarySidebarWidth: 300,
+        auxiliaryPanelWidth: 500,
+        bottomPanelHeight: 200,
+        auxiliaryMaximized: false,
+        beforeAuxiliaryMaximized: null,
+        beforeAuxiliaryMaximizedAuxiliaryWidth: null,
+      }),
+    )
+
+    const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(result.auxiliaryPanelWidth).toBe(640)
+    expect(result.primarySidebarWidth).toBe(300)
+  })
+
+  test('缺失关键字段的 v1 回退到默认快照', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(
+      WORKBENCH_LAYOUT_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        visibility: createDefaultVisibility(),
+        auxiliaryMaximized: false,
+        beforeAuxiliaryMaximized: null,
+        beforeAuxiliaryMaximizedAuxiliaryWidth: null,
+      }),
+    )
+
+    const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(result.auxiliaryPanelWidth).toBe(640)
+    expect(result.bottomPanelHeight).toBe(225)
+  })
+
+  test('visibility 字段非 boolean 时整体回退默认快照', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(
+      WORKBENCH_LAYOUT_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        visibility: {
+          primarySidebar: true,
+          mainContent: true,
+          auxiliaryPanel: 'yes',
+          bottomPanel: false,
+        },
+        primarySidebarWidth: 300,
+        auxiliaryPanelWidth: 500,
+        bottomPanelHeight: 200,
+        auxiliaryMaximized: false,
+        beforeAuxiliaryMaximized: null,
+        beforeAuxiliaryMaximizedAuxiliaryWidth: null,
+      }),
+    )
+
+    const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(result.auxiliaryPanelWidth).toBe(640)
+    expect(result.bottomPanelHeight).toBe(225)
+    expect(result.visibility.auxiliaryPanel).toBe(true)
+  })
+
+  test('save helper 只写 v1 key，不破坏其他 key', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY, '.5')
+    storage.setItem('codepilotx.legacy.otherKey', 'untouched')
+
+    const snapshot = makeSnapshot({ primarySidebarWidth: 305 })
+    saveWorkbenchLayoutSnapshot(snapshot, { storage })
+
+    expect(storage.getItem(WORKBENCH_LAYOUT_STORAGE_KEY)).not.toBeNull()
+    expect(storage.getItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY)).toBe('.5')
+    expect(storage.getItem('codepilotx.legacy.otherKey')).toBe('untouched')
+    const written = JSON.parse(
+      storage.getItem(WORKBENCH_LAYOUT_STORAGE_KEY) as string,
+    )
+    expect(written.schemaVersion).toBe(WORKBENCH_LAYOUT_SCHEMA_VERSION)
+    expect(written.primarySidebarWidth).toBe(305)
+  })
+
+  test('尺寸 clamp 在 reducer 中统一应用', () => {
+    const state = createDefaultWorkbenchLayoutState(1_600, 900)
+
+    const tooSmall = applyWorkbenchLayoutAction(state, {
+      type: 'commitPrimarySidebarSize',
+      size: 10,
+    })
+    const tooLarge = applyWorkbenchLayoutAction(state, {
+      type: 'commitAuxiliaryPanelSize',
+      size: 9_999,
+      workspaceWidth: 1_600,
+    })
+    const tooTall = applyWorkbenchLayoutAction(state, {
+      type: 'commitBottomPanelSize',
+      size: 9_999,
+      workspaceHeight: 900,
+    })
+
+    expect(tooSmall.primarySidebarWidth).toBe(240)
+    expect(tooLarge.auxiliaryPanelWidth).toBe(1_248)
+    expect(tooTall.bottomPanelHeight).toBeLessThanOrEqual(450)
+    expect(tooTall.bottomPanelHeight).toBeGreaterThanOrEqual(160)
+  })
+
+  test('辅助栏宽度 clamp helper 与 right dock 范围一致', () => {
+    expect(clampAuxiliaryPanelWidth(9_999, 1_600)).toBe(1_248)
+    expect(clampAuxiliaryPanelWidth(0, 1_600)).toBe(320)
+    expect(clampBottomPanelHeight(9_999, 900)).toBeLessThanOrEqual(450)
+    expect(clampBottomPanelHeight(0, 900)).toBe(160)
+  })
+
+  test('隐藏 Part 后再显示保持原始尺寸', () => {
+    const initial = applyWorkbenchLayoutAction(
+      createDefaultWorkbenchLayoutState(1_600, 900),
+      { type: 'commitPrimarySidebarSize', size: 320 },
+    )
+
+    const hidden = applyWorkbenchLayoutAction(initial, {
+      type: 'setVisibility',
+      part: 'primary-sidebar',
+      visible: false,
+    })
+    const shown = applyWorkbenchLayoutAction(hidden, {
+      type: 'setVisibility',
+      part: 'primary-sidebar',
+      visible: true,
+    })
+
+    expect(shown.visibility.primarySidebar).toBe(true)
+    expect(shown.primarySidebarWidth).toBe(initial.primarySidebarWidth)
+  })
+
+  test('进入/退出辅助栏最大化完整恢复可见集合与宽度', () => {
+    const baseline = createDefaultWorkbenchLayoutState(1_600, 900)
+    baseline.auxiliaryPanelWidth = 720
+    baseline.visibility.bottomPanel = true
+
+    const entered = applyWorkbenchLayoutAction(baseline, {
+      type: 'enterAuxiliaryMaximized',
+    })
+    expect(entered.auxiliaryMaximized).toBe(true)
+    expect(entered.visibility).toEqual({
+      primarySidebar: false,
+      mainContent: false,
+      auxiliaryPanel: true,
+      bottomPanel: false,
+    })
+    expect(entered.beforeAuxiliaryMaximized).toEqual(baseline.visibility)
+    expect(entered.beforeAuxiliaryMaximizedAuxiliaryWidth).toBe(720)
+    expect(entered.auxiliaryPanelWidth).toBe(720)
+
+    const exited = applyWorkbenchLayoutAction(entered, {
+      type: 'exitAuxiliaryMaximized',
+    })
+    expect(exited.auxiliaryMaximized).toBe(false)
+    expect(exited.visibility).toEqual(baseline.visibility)
+    expect(exited.auxiliaryPanelWidth).toBe(720)
+    expect(exited.beforeAuxiliaryMaximized).toBeNull()
+    expect(exited.beforeAuxiliaryMaximizedAuxiliaryWidth).toBeNull()
+  })
+
+  test('重复进入或退出最大化是无操作', () => {
+    const state = createDefaultWorkbenchLayoutState(1_600, 900)
+    const entered = applyWorkbenchLayoutAction(state, {
+      type: 'enterAuxiliaryMaximized',
+    })
+    const enteredAgain = applyWorkbenchLayoutAction(entered, {
+      type: 'enterAuxiliaryMaximized',
+    })
+    expect(enteredAgain).toBe(entered)
+
+    const exited = applyWorkbenchLayoutAction(enteredAgain, {
+      type: 'exitAuxiliaryMaximized',
+    })
+    const exitedAgain = applyWorkbenchLayoutAction(exited, {
+      type: 'exitAuxiliaryMaximized',
+    })
+    expect(exitedAgain).toBe(exited)
+  })
+
+  test('普通态下关闭 main-content 是无操作，最大化内部仍由 enter 切换', () => {
+    const state = createDefaultWorkbenchLayoutState(1_600, 900)
+    const rejected = applyWorkbenchLayoutAction(state, {
+      type: 'setVisibility',
+      part: 'main-content',
+      visible: false,
+    })
+    expect(rejected).toBe(state)
+    expect(rejected.visibility.mainContent).toBe(true)
+
+    const maximized = applyWorkbenchLayoutAction(state, {
+      type: 'enterAuxiliaryMaximized',
+    })
+    expect(maximized.visibility.mainContent).toBe(false)
+
+    const restored = applyWorkbenchLayoutAction(maximized, {
+      type: 'exitAuxiliaryMaximized',
+    })
+    expect(restored.visibility.mainContent).toBe(true)
+  })
+
+  test('最大化期间隐藏辅助栏恢复 mainContent 且保留可见集合', () => {
+    const baseline = createDefaultWorkbenchLayoutState(1_600, 900)
+    baseline.visibility.mainContent = true
+    baseline.auxiliaryPanelWidth = 700
+
+    const maximized: WorkbenchLayoutState = applyWorkbenchLayoutAction(
+      baseline,
+      { type: 'enterAuxiliaryMaximized' },
+    )
+    const restored: WorkbenchLayoutState = applyWorkbenchLayoutAction(
+      maximized,
+      { type: 'setVisibility', part: 'auxiliary-panel', visible: false },
+    )
+
+    expect(restored.auxiliaryMaximized).toBe(false)
+    expect(restored.visibility.auxiliaryPanel).toBe(false)
+    expect(restored.visibility.mainContent).toBe(true)
+    expect(restored.visibility.primarySidebar).toBe(
+      maximized.beforeAuxiliaryMaximized?.primarySidebar,
+    )
+    expect(restored.visibility.bottomPanel).toBe(
+      maximized.beforeAuxiliaryMaximized?.bottomPanel,
+    )
+    expect(restored.auxiliaryPanelWidth).toBe(700)
+    expect(restored.beforeAuxiliaryMaximized).toBeNull()
+    expect(restored.beforeAuxiliaryMaximizedAuxiliaryWidth).toBeNull()
+  })
+
+  test('持久化时最大化快照保持 beforeAuxiliaryMaximized 字段以便恢复', () => {
+    const storage = makeMemoryStorage()
+    const baseline: WorkbenchLayoutState =
+      createDefaultWorkbenchLayoutState(1_600, 900)
+    baseline.visibility.bottomPanel = true
+    baseline.auxiliaryPanelWidth = 660
+
+    const snapshot: WorkbenchLayoutSnapshot = {
+      ...applyWorkbenchLayoutAction(baseline, {
+        type: 'enterAuxiliaryMaximized',
+      }),
+      schemaVersion: WORKBENCH_LAYOUT_SCHEMA_VERSION,
+    }
+    saveWorkbenchLayoutSnapshot(snapshot, { storage })
+
+    const restored = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(restored.auxiliaryMaximized).toBe(true)
+    expect(restored.beforeAuxiliaryMaximized).not.toBeNull()
+    expect(restored.beforeAuxiliaryMaximizedAuxiliaryWidth).toBe(660)
+
+    const exited: WorkbenchLayoutState = applyWorkbenchLayoutAction(
+      restored as WorkbenchLayoutState,
+      { type: 'exitAuxiliaryMaximized' },
+    )
+    expect(exited.visibility).toEqual(baseline.visibility)
+    expect(exited.auxiliaryPanelWidth).toBe(660)
   })
 })

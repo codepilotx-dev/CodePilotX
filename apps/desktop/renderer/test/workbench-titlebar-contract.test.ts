@@ -37,3 +37,29 @@ describe('workbench chrome contract', () => {
     }
   })
 })
+
+describe('workbench resize commit contract', () => {
+  test('commits panel ratios synchronously without layout-state feedback', () => {
+    const controller = readRendererFile(
+      'src/features/layout/shell/useWorkbenchShellController.ts',
+    )
+    const responsiveSyncStart = controller.indexOf(
+      'if (workspaceSize.width <= 0 || workspaceSize.height <= 0) return',
+    )
+    const responsiveSyncEnd = controller.indexOf(
+      "void import('./workbenchLayoutStorage.js')",
+      responsiveSyncStart,
+    )
+    const responsiveSync = controller.slice(
+      responsiveSyncStart,
+      responsiveSyncEnd,
+    )
+
+    expect(controller).not.toContain('startTransition')
+    expect(controller).toContain('setRightDockWidthRatio(nextRatio)')
+    expect(controller).toContain('setBottomPanelHeightRatio(nextRatio)')
+    expect(responsiveSync).toContain('responsiveRightDockWidth')
+    expect(responsiveSync).toContain('responsiveBottomPanelHeight')
+    expect(responsiveSync).not.toContain('workbenchLayoutState,')
+  })
+})

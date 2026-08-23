@@ -1,3 +1,15 @@
+import {
+  DEFAULT_SIDEBAR_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  clampSidebarWidth as clampPrimarySidebarWidth,
+} from '../useDesktopLayout.js'
+
+export const PRIMARY_SIDEBAR_MIN_WIDTH = SIDEBAR_MIN_WIDTH
+export const PRIMARY_SIDEBAR_MAX_WIDTH = SIDEBAR_MAX_WIDTH
+export const DEFAULT_PRIMARY_SIDEBAR_WIDTH = DEFAULT_SIDEBAR_WIDTH
+export { clampPrimarySidebarWidth }
+
 export const RIGHT_DOCK_MIN_WIDTH = 320
 export const RIGHT_DOCK_MAIN_MIN_WIDTH = 352
 export const RIGHT_DOCK_DEFAULT_WIDTH = 600
@@ -155,4 +167,12 @@ function clampUnitInterval(value: number): number {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value))
+}
+
+export function clampWorkbenchSize(
+  value: number,
+  minimum: number,
+  maximum: number,
+): number {
+  return Math.round(clamp(value, minimum, maximum))
 }
