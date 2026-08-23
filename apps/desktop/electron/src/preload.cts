@@ -73,6 +73,10 @@ import type {
 import type { DesktopApiKeyIpcBridge } from "@codepilotx/shared/desktop-api-key-ipc"
 import type { DesktopStartupIpcBridge } from "@codepilotx/shared/desktop-startup-ipc"
 import type { DesktopAppearanceIpcBridge } from "@codepilotx/shared/desktop-appearance-ipc"
+import type {
+  DesktopDeepLinkIpcBridge,
+  DesktopThreadDeepLinkPayload,
+} from "@codepilotx/shared/desktop-deep-link-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -196,6 +200,11 @@ const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   systemThemeChanged: "appearance:system-theme:changed",
 } as const satisfies typeof import("@codepilotx/shared/desktop-appearance-ipc").DESKTOP_APPEARANCE_IPC_CHANNELS
 
+const DESKTOP_DEEP_LINK_IPC_CHANNELS = {
+  consumePending: "desktop-deep-link:consume-pending",
+  activated: "desktop-deep-link:activated",
+} as const satisfies typeof import("@codepilotx/shared/desktop-deep-link-ipc").DESKTOP_DEEP_LINK_IPC_CHANNELS
+
 function isDesktopNotificationActivation(
   value: unknown,
 ): value is DesktopNotificationActivation {
@@ -212,6 +221,22 @@ function isNotificationIdentifier(value: unknown): value is string {
     && value.length >= 1
     && value.length <= 200
     && /^[A-Za-z0-9._:-]+$/.test(value)
+}
+
+const DESKTOP_THREAD_DEEP_LINK_ID_MAX_LENGTH = 512
+
+function normalizeDesktopThreadDeepLinkPayload(
+  value: unknown,
+): DesktopThreadDeepLinkPayload | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null
+  }
+  const payload = value as Record<string, unknown>
+  if (typeof payload.threadId !== "string") return null
+  const threadId = payload.threadId
+  if (threadId.trim().length < 1) return null
+  if (threadId.length > DESKTOP_THREAD_DEEP_LINK_ID_MAX_LENGTH) return null
+  return { threadId }
 }
 
 type SystemThemeVariant = "light" | "dark"
@@ -543,6 +568,32 @@ const desktop = {
         handler,
       )
   },
+  consumePendingThreadDeepLink: async (): Promise<DesktopThreadDeepLinkPayload | null> => {
+    const result: unknown = await ipcRenderer.invoke(
+      DESKTOP_DEEP_LINK_IPC_CHANNELS.consumePending,
+    )
+    if (result === null) return null
+    const normalized = normalizeDesktopThreadDeepLinkPayload(result)
+    if (normalized === null) return null
+    return normalized
+  },
+  onThreadDeepLinkActivated: (
+    listener: (payload: DesktopThreadDeepLinkPayload) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: unknown,
+    ): void => {
+      const normalized = normalizeDesktopThreadDeepLinkPayload(payload)
+      if (normalized !== null) listener(normalized)
+    }
+    ipcRenderer.on(DESKTOP_DEEP_LINK_IPC_CHANNELS.activated, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_DEEP_LINK_IPC_CHANNELS.activated,
+        handler,
+      )
+  },
 } satisfies DesktopPetOverlayBridge
   & DesktopSettingsIpcBridge
   & DesktopDataLocationIpcBridge
@@ -559,6 +610,7 @@ const desktop = {
   & DesktopApiKeyIpcBridge
   & DesktopStartupIpcBridge
   & DesktopAppearanceIpcBridge
+  & DesktopDeepLinkIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

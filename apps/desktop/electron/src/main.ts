@@ -67,6 +67,10 @@ import { stopTerminalsBeforeSupervisor } from "./terminal/terminal-shutdown.js"
 import { runPackagedTerminalSmoke } from "./terminal/packaged-terminal-smoke.js"
 import { DESKTOP_TERMINAL_IPC_CHANNELS } from "@codepilotx/shared/desktop-terminal-ipc"
 import { DESKTOP_BROWSER_IPC_CHANNELS } from "@codepilotx/shared/desktop-browser-ipc"
+import {
+  DESKTOP_DEEP_LINK_IPC_CHANNELS,
+  normalizeDesktopThreadDeepLinkPayload,
+} from "@codepilotx/shared/desktop-deep-link-ipc"
 import { DesktopBrowserController } from "./browser/browser-controller.js"
 import {
   registerMicrophoneIpc,
@@ -75,6 +79,10 @@ import {
 import {
   registerMicrophoneMediaPermissions,
 } from "./security/microphone-media-permission.js"
+import {
+  createThreadDeepLinkController,
+  type ThreadDeepLinkController,
+} from "./deep-link/thread-deep-link-controller.js"
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const configuredUserDataDirectory =
@@ -93,6 +101,21 @@ if (process.platform === "win32") {
   )
 }
 
+// Windows codepilotx:// 默认协议客户端注册保持最小：packaged 安装由
+// electron-builder protocols 注册，这里只补充运行时默认客户端注册，
+// 不改变开发/打包启动路径。
+if (process.platform === "win32") {
+  if (process.defaultApp && process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(
+      "codepilotx",
+      process.execPath,
+      [resolve(process.argv[1])],
+    )
+  } else {
+    app.setAsDefaultProtocolClient("codepilotx")
+  }
+}
+
 let supervisor: SidecarSupervisor | undefined
 let logger: DesktopLogger | undefined
 let windows: WindowManager | undefined
@@ -104,6 +127,8 @@ let dataLocationLaunch: DataLocationLaunch | undefined
 let terminalManager: TerminalManager | undefined
 let terminalHost: TerminalHostRpcClient | undefined
 let browserController: DesktopBrowserController | undefined
+let deepLinkController: ThreadDeepLinkController | undefined
+let rendererDeepLinkReady = false
 
 const packagedTerminalSmokeResult = process.env.CODEPILOTX_PACKAGED_TERMINAL_SMOKE_RESULT?.trim()
 const packagedTerminalSmokeRequested = process.argv.includes("--codepilotx-packaged-terminal-smoke")
@@ -121,10 +146,34 @@ if (
   if (!hasSingleInstanceLock) {
     app.quit()
   } else {
-    app.on("second-instance", () => {
-      windows?.focus(
-        connectionCoordinator?.status.connectionState === "connected",
-      )
+    // 唯一深链 controller 在生命周期监听注册前创建，从一开始接收
+    // process.argv、second-instance 与 open-url；依赖闭包在 windows /
+    // rendererDeepLinkReady 建立后自然生效。冷启动 pending 只保存
+    // 解析后的 threadId，并由 Renderer 主动 consume。
+    deepLinkController = createThreadDeepLinkController({
+      getInitialArgv: () => process.argv,
+      subscribeRendererReady: () => () => {},
+      isRendererReady: () => rendererDeepLinkReady,
+      focusMainWindow: () => windows?.focus(true),
+      notify: payload => {
+        const normalized = normalizeDesktopThreadDeepLinkPayload(payload)
+        if (normalized !== null) {
+          windows?.send(DESKTOP_DEEP_LINK_IPC_CHANNELS.activated, normalized)
+        }
+      },
+    })
+    app.on("second-instance", (_event, argv) => {
+      const handled = deepLinkController?.pushRuntimeActivation(argv) === true
+      if (!handled) {
+        windows?.focus(
+          connectionCoordinator?.status.connectionState === "connected",
+        )
+      }
+    })
+    app.on("open-url", (event, url) => {
+      if (deepLinkController?.pushRuntimeActivation([url]) === true) {
+        event.preventDefault()
+      }
     })
     app.whenReady().then(startDesktop).catch((error: unknown) => {
       logger?.error("desktop.startup-failed", { error })
@@ -296,7 +345,15 @@ async function startDesktop(): Promise<void> {
       publishNotificationActivation(windows, activation),
   })
   registerNotificationIpc(windows, notificationService)
+  ipcMain.handle(DESKTOP_DEEP_LINK_IPC_CHANNELS.consumePending, (event) => {
+    if (windows?.isMainSender(event.sender) !== true) return null
+    // 11B 保证 Renderer 先注册 activated listener 再调用 consume，因此
+    // 经过主窗口 sender 校验的该 invoke 是可靠的 ready 握手。
+    rendererDeepLinkReady = true
+    return deepLinkController?.consumePendingThreadDeepLink() ?? null
+  })
   windows.createStartupWindow()
+  attachDeepLinkReadyLifecycle()
 
   const token = process.env.CODEPILOTX_AUTH_TOKEN
     ?? randomBytes(32).toString("base64url")
@@ -354,6 +411,7 @@ async function startDesktop(): Promise<void> {
       activeWindows.showApplication()
     },
     onReconnecting: () => {
+      rendererDeepLinkReady = false
       browserController?.suspendAll()
       windows?.showReconnectWindow()
     },
@@ -426,6 +484,7 @@ app.on("before-quit", (event) => {
   void orchestrateDesktopQuit({
     stopRuntime: () => {
       browserController?.dispose()
+      disposeDeepLinkController()
       return stopTerminalsBeforeSupervisor({
         manager: terminalManager,
         stopSupervisor: async () => {
@@ -460,6 +519,29 @@ function broadcastDesktopSettingsChanged(
 ): void {
   windows?.send(DESKTOP_SETTINGS_IPC_CHANNELS.changed, settings)
   petOverlay?.send(DESKTOP_SETTINGS_IPC_CHANNELS.changed, settings)
+}
+
+function disposeDeepLinkController(): void {
+  deepLinkController?.dispose()
+  deepLinkController = undefined
+  ipcMain.removeHandler(DESKTOP_DEEP_LINK_IPC_CHANNELS.consumePending)
+}
+
+// 主窗口主框架重新导航或销毁时重置 ready，避免 reload 后沿用旧 ready；
+// 同文档导航（SPA pushState 等）不重置。窗口/WebContents 在重连与导航间
+// 复用，仅在窗口销毁时更换，因此一次装配覆盖整个生命周期。
+function attachDeepLinkReadyLifecycle(): void {
+  const mainWindow = windows?.mainWindow
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const webContents = mainWindow.webContents
+  webContents.on("did-start-navigation", (details) => {
+    if (details.isMainFrame && !details.isSameDocument) {
+      rendererDeepLinkReady = false
+    }
+  })
+  webContents.on("destroyed", () => {
+    rendererDeepLinkReady = false
+  })
 }
 
 app.on("window-all-closed", () => app.quit())

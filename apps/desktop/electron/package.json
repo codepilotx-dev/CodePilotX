@@ -77,6 +77,14 @@
         "to": "agent/third_party/pi-agent-core/LICENSE"
       }
     ],
+    "protocols": [
+      {
+        "name": "CodePilotX Deep Link",
+        "schemes": [
+          "codepilotx"
+        ]
+      }
+    ],
     "win": {
       "icon": "icon.ico",
       "target": "nsis",
