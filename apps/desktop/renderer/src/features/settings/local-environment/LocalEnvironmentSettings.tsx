@@ -1,8 +1,7 @@
 import React from 'react'
 import { useSearchParams } from 'react-router-dom'
-import * as Popover from '@radix-ui/react-popover'
+import { AnchoredPopover } from '../../../components/ui/AnchoredPopover.js'
 import { Button } from '../../../components/ui/Button.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
 import { environmentDomainClient, type EnvironmentReadResult } from '../../../services/desktop-client/environment-domain-client.js'
 import { SettingsContentArea } from '../SettingsContentArea.js'
 import { SettingsSection } from '../SettingsSection.js'
@@ -144,31 +143,26 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
 
 function SetupVariablesPopover(): React.ReactNode {
   return (
-    <Popover.Root>
-      <Popover.Trigger asChild>
-        <Button color="secondary">变量</Button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          align="end"
-          className="popover-surface popover tw:grid tw:gap-3 tw:p-3 tw:text-app-text"
-          collisionPadding={8}
-          sideOffset={6}
-          style={buildPopoverSizingStyle({ width: 320, maxWidth: 'calc(100vw - 2rem)' })}
-        >
-          <div>
-            <strong className="tw:text-sm">设置脚本环境变量</strong>
-            <p className="tw:m-0 tw:mt-1 tw:text-xs tw:text-app-text-soft">
-              创建托管工作树时由 Agent 注入；这里只显示变量名，不显示路径值。
-            </p>
-          </div>
-          {WORKTREE_SETUP_VARIABLES.map(variable => (
-            <EnvironmentVariable {...variable} key={variable.name} />
-          ))}
-          <Popover.Arrow className="popover-arrow" />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+    <AnchoredPopover
+      align="end"
+      arrow
+      className="tw:grid tw:gap-3 tw:p-3"
+      collisionPadding={8}
+      maxWidth="calc(100vw - 2rem)"
+      sideOffset={6}
+      trigger={<Button color="secondary">变量</Button>}
+      width={320}
+    >
+      <div>
+        <strong className="tw:text-sm">设置脚本环境变量</strong>
+        <p className="tw:m-0 tw:mt-1 tw:text-xs tw:text-app-text-soft">
+          创建托管工作树时由 Agent 注入；这里只显示变量名，不显示路径值。
+        </p>
+      </div>
+      {WORKTREE_SETUP_VARIABLES.map(variable => (
+        <EnvironmentVariable {...variable} key={variable.name} />
+      ))}
+    </AnchoredPopover>
   )
 }
 

@@ -592,18 +592,7 @@
 }
 
 .workbench-panel-state__spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--cpx-sys-color-border-default);
-  border-top-color: var(--cpx-sys-color-fg-primary);
-  border-radius: var(--cpx-sys-radius-full);
-  animation: workbench-panel-state-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
-}
-
-@keyframes workbench-panel-state-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .right-dock-plan-scroll-area {

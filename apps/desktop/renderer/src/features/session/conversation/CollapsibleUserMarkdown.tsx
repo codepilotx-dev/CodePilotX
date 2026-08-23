@@ -150,7 +150,7 @@ export function CollapsibleUserMarkdown({
           }}
           type="button"
         >
-          <span>{collapseState === "expanded" ? "收起" : "显示更多"}</span>
+          <span>{collapseState === "expanded" ? "收起" : "展开全文"}</span>
           <ChevronDown aria-hidden="true" />
         </button>
       )}

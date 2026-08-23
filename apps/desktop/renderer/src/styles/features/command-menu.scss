@@ -197,7 +197,6 @@
 
 .command-menu-spinner {
   flex: 0 0 auto;
-  animation: command-menu-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
 }
 
 .command-menu-unread-dot {
@@ -219,12 +218,6 @@
   }
 }
 
-@keyframes command-menu-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @media (max-width: 560px) {
   .command-menu-backdrop {
     padding-inline: var(--cpx-sys-space-2);
@@ -240,8 +233,7 @@
 }
 
 :root[data-reduce-motion='on'] {
-  .command-menu-dialog,
-  .command-menu-spinner {
+  .command-menu-dialog {
     animation: none;
   }
 }

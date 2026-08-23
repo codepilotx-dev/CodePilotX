@@ -380,6 +380,7 @@ function WorkspaceFileTreeContent({
       return (
         <button
           aria-disabled={loading}
+          aria-level={row.depth + 1}
           className={cx('right-dock-tree-row', 'is-status', row.kind)}
           disabled={loading}
           role="treeitem"
@@ -424,6 +425,12 @@ function WorkspaceFileTreeContent({
         aria-expanded={
           file.type === 'directory'
             ? expandedDirectories.has(key)
+            : undefined
+        }
+        aria-level={file.depth + 1}
+        aria-selected={
+          file.type === 'file' && activePath != null
+            ? normalizePath(activePath) === key
             : undefined
         }
         className={cx(

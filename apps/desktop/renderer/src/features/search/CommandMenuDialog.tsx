@@ -5,7 +5,6 @@ import { Command } from 'cmdk'
 import {
   FileSearch,
   FolderOpen,
-  LoaderCircle,
   Search,
   SquarePen,
 } from 'lucide-react'
@@ -13,6 +12,7 @@ import type {
   DesktopSessionCatalogStatus,
 } from '../../../shared/types.js'
 import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
+import { Spinner } from '../../components/ui/Spinner.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -258,11 +258,7 @@ function CommandMenuActionGroups({
             >
               <span className="command-menu-item-status command-menu-item-icon">
                 {action.availability === 'loading' ? (
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="command-menu-spinner"
-                    size={APP_ICON_SIZE}
-                  />
+                  <Spinner className="command-menu-spinner" />
                 ) : action.icon}
               </span>
               <span className="command-menu-item-copy">
@@ -348,11 +344,7 @@ function CommandMenuStatus({
       value="command-menu-status"
     >
       {busy ? (
-        <LoaderCircle
-          aria-hidden="true"
-          className="command-menu-spinner"
-          size={APP_ICON_SIZE}
-        />
+        <Spinner className="command-menu-spinner" />
       ) : null}
       <span>{children}</span>
     </Command.Item>
@@ -378,11 +370,7 @@ function TaskStatus({
         className="command-menu-item-status"
         role="img"
       >
-        <LoaderCircle
-          aria-hidden="true"
-          className="command-menu-spinner"
-          size={APP_ICON_SIZE}
-        />
+        <Spinner className="command-menu-spinner" />
       </span>
     )
   }

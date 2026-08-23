@@ -2,6 +2,7 @@ import { Component, Fragment } from 'react'
 import type React from 'react'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Button } from '../../../components/ui/Button.js'
+import { Spinner } from '../../../components/ui/Spinner.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -65,7 +66,7 @@ export function WorkbenchPanelLoading({
 }): React.ReactNode {
   return (
     <WorkbenchPanelStateSurface title={label}>
-      <span aria-hidden="true" className="workbench-panel-state__spinner" />
+      <Spinner className="workbench-panel-state__spinner" />
     </WorkbenchPanelStateSurface>
   )
 }

@@ -2,6 +2,7 @@ import { forwardRef } from 'react'
 import type React from 'react'
 import { cx } from '../../utils/cx.js'
 import { useResolvedButtonSize } from './TabStripButtonContext.js'
+import { Spinner } from './Spinner.js'
 
 export type ButtonColor =
   | 'accent'
@@ -85,7 +86,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       type={type}
     >
-      {loading ? <span aria-hidden="true" className="ui-button-spinner" /> : null}
+      {loading ? <Spinner className="ui-button-spinner" /> : null}
       {children}
     </button>
   )

@@ -3,9 +3,9 @@ import React, {
   useMemo,
   useState,
 } from 'react'
-import * as Popover from '@radix-ui/react-popover'
 import * as Slider from '@radix-ui/react-slider'
 
+import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import type {
@@ -151,8 +151,12 @@ function ColorControl({
         color: foreground,
       }}
     >
-      <Popover.Root>
-        <Popover.Trigger asChild>
+      <AnchoredPopover
+        align="end"
+        className="appearance-color-popover"
+        contentLabel={`${ariaLabel}颜色选项`}
+        contentRole="dialog"
+        trigger={(
           <button
             aria-label={`${ariaLabel}颜色选择器`}
             className="appearance-color-swatch"
@@ -161,26 +165,17 @@ function ColorControl({
             } as React.CSSProperties}
             type="button"
           />
-        </Popover.Trigger>
-        <Popover.Portal>
-          <Popover.Content
-            align="end"
-            aria-label={`${ariaLabel}颜色选项`}
-            className="popover-surface appearance-color-popover"
-            collisionPadding={6}
-            role="dialog"
-            sideOffset={4}
-          >
-            <ColorPalette
-              value={normalizedValue}
-              onChange={next => {
-                setDraft(next)
-                onCommit(next)
-              }}
-            />
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
+        )}
+        width="auto"
+      >
+        <ColorPalette
+          value={normalizedValue}
+          onChange={next => {
+            setDraft(next)
+            onCommit(next)
+          }}
+        />
+      </AnchoredPopover>
       <Input
         aria-label={ariaLabel}
         invalid={!HEX_COLOR.test(draft)}

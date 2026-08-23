@@ -479,6 +479,19 @@ export function ComposerCard({
   const fileDragDepthRef = useRef(0);
 
   useEffect(() => {
+    const clearFileDrag = (): void => {
+      fileDragDepthRef.current = 0;
+      setFileDragActive(false);
+    };
+    window.addEventListener("dragend", clearFileDrag);
+    window.addEventListener("drop", clearFileDrag);
+    return () => {
+      window.removeEventListener("dragend", clearFileDrag);
+      window.removeEventListener("drop", clearFileDrag);
+    };
+  }, []);
+
+  useEffect(() => {
     if (submitOutcome?.status === "failed") editorRef.current?.focus();
   }, [submitOutcome]);
   const [dismissedMention, setDismissedMention] = useState<number | null>(null);
@@ -1218,7 +1231,11 @@ export function ComposerCard({
         fileDragDepthRef.current += 1;
         setFileDragActive(true);
       }}
-      onDragLeave={() => {
+      onDragLeave={(event) => {
+        if (
+          event.relatedTarget instanceof Node &&
+          event.currentTarget.contains(event.relatedTarget)
+        ) return;
         fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
         if (fileDragDepthRef.current === 0) setFileDragActive(false);
       }}
@@ -1234,7 +1251,7 @@ export function ComposerCard({
           className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:rounded-xl tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised tw:text-sm tw:font-medium"
           role="status"
         >
-          Drop to attach
+          松开以添加文件
         </div>
       ) : null}
       <div

@@ -1206,7 +1206,6 @@
 
 .sidebar-session-spinner {
   color: var(--cpx-sys-color-fg-secondary);
-  animation: sidebar-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
 }
 
 .sidebar-show-more-actions {
@@ -1602,12 +1601,6 @@
   display: none;
 }
 
-@keyframes sidebar-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 :root[data-reduce-motion="on"] :is(
   .desktop-sidebar,
   .desktop-sidebar-spacer,
@@ -1618,7 +1611,6 @@
 
 :root[data-reduce-motion="on"] :is(
   .sidebar-hover-card-surface,
-  .sidebar-session-spinner,
   .sidebar-collapse-confirm-target,
   .sidebar-focus-section-clip-window,
   .sidebar-focus-section-clip-content,

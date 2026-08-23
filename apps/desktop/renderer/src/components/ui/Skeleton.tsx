@@ -9,6 +9,7 @@ export type SkeletonRegionProps = {
 
 export type SkeletonBlockProps = {
   className?: string
+  label?: string
 }
 
 export function SkeletonRegion({
@@ -31,11 +32,14 @@ export function SkeletonRegion({
 
 export function SkeletonBlock({
   className,
+  label,
 }: SkeletonBlockProps): React.ReactNode {
   return (
     <span
-      aria-hidden="true"
+      aria-hidden={label ? undefined : 'true'}
+      aria-label={label}
       className={cx('ui-skeleton-block', className)}
+      role={label ? 'status' : undefined}
     />
   )
 }

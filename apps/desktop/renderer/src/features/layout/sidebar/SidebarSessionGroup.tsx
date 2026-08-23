@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Archive, Copy, Eye, EyeOff, Folder, LoaderCircle, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
+import { Archive, Copy, Eye, EyeOff, Folder, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useNavigate } from 'react-router-dom'
 import type { TaskboardWorkflowThreadCandidate } from '@codepilotx/shared/taskboard'
@@ -22,6 +22,8 @@ import {
 } from "../../../uiTypes.js";
 import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
+import { Spinner } from "../../../components/ui/Spinner.js";
+import { SkeletonBlock } from "../../../components/ui/Skeleton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { motionTransition, layoutTween, standardTween } from '../../motion/motionTransitions.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
@@ -355,11 +357,9 @@ function SidebarSessionGroupComponent({
       >
         <span className={cx('sidebar-session-button-lines', presentation === 'workspace-meta' && 'sidebar-session-button-lines--meta')}>
         {regeneratingTitle ? (
-          <span
-            aria-busy="true"
-            aria-label="正在更新会话标题"
-            aria-live="polite"
-            className="sidebar-session-title sidebar-session-title--loading ui-skeleton-block"
+          <SkeletonBlock
+            className="sidebar-session-title sidebar-session-title--loading"
+            label="正在更新会话标题"
           />
         ) : (
           <SidebarSessionTitle
@@ -447,11 +447,7 @@ function SidebarSessionGroupComponent({
                 <span className="sidebar-session-approval" title="等待审批">
                   等待审批
                 </span>
-                <LoaderCircle
-                  aria-label="加载中"
-                  className="sidebar-session-spinner"
-                  size={APP_ICON_SIZE}
-                />
+                <Spinner className="sidebar-session-spinner" label="加载中" />
               </>
             ) : hoveredSessionId === session.id || focusedSessionId === session.id ? (
               <div className="sidebar-session-actions">
@@ -492,11 +488,7 @@ function SidebarSessionGroupComponent({
                 className="sidebar-session-unread-dot"
               />
             ) : visualState === 'running' ? (
-              <LoaderCircle
-                aria-label="加载中"
-                className="sidebar-session-spinner"
-                size={APP_ICON_SIZE}
-              />
+              <Spinner className="sidebar-session-spinner" label="加载中" />
             ) : null}
           </div>
         }
