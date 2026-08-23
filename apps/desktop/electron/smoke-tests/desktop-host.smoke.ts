@@ -18,6 +18,11 @@ import type { DesktopEditIpcBridge } from "@codepilotx/shared/desktop-edit-ipc"
 
 declare global {
   interface Window {
+    __codePilotXStartupThemeSamples?: Array<{
+      background: string
+      label: string
+      theme: string | null
+    }>
     codePilotXDesktop: {
       getAppearanceSettings(): Promise<DesktopThemeSettingsV7>
       saveAppearanceSettings(settings: DesktopThemeSettingsV7): Promise<void>
@@ -292,9 +297,47 @@ test.describe("真实 Electron 宿主", () => {
       })
     }, settings)
 
+    await page.addInitScript(() => {
+      const samples: NonNullable<Window["__codePilotXStartupThemeSamples"]> = []
+      window.__codePilotXStartupThemeSamples = samples
+      let frames = 0
+      const sample = (): void => {
+        const splash = document.getElementById("startup-splash")
+        if (splash) {
+          samples.push({
+            background: getComputedStyle(splash).backgroundColor,
+            label: splash.querySelector(
+              ".full-screen-whale-loader__status",
+            )?.textContent ?? "",
+            theme: document.documentElement.dataset.theme ?? null,
+          })
+        }
+        frames += 1
+        if (frames < 600 && (splash || document.readyState !== "complete")) {
+          requestAnimationFrame(sample)
+        }
+      }
+      requestAnimationFrame(sample)
+    })
     await page.reload()
     await waitForApplication(page)
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+    const startupThemeSamples = await page.evaluate(
+      () => window.__codePilotXStartupThemeSamples ?? [],
+    )
+    expect(startupThemeSamples.length).toBeGreaterThan(0)
+    expect(startupThemeSamples.some(sample =>
+      sample.label === "正在加载桌面界面…"
+      || sample.label === "正在读取模型配置…"
+    )).toBe(true)
+    expect(startupThemeSamples.every(sample => sample.theme === "dark")).toBe(
+      true,
+    )
+    expect(startupThemeSamples.every(sample => {
+      const channels = sample.background.match(/\d+(?:\.\d+)?/g)?.slice(0, 3)
+        .map(Number) ?? []
+      return channels.length === 3 && Math.max(...channels) < 128
+    })).toBe(true)
     await expect(page.locator("html")).toHaveAttribute(
       "data-pointer-cursor",
       "on",

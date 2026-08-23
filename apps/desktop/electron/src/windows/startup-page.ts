@@ -28,6 +28,33 @@ export function deriveSurfaceUnder(
   )
 }
 
+export const RENDERER_STARTUP_THEME_QUERY_PARAM = "cpx-startup-theme"
+
+export interface RendererStartupThemeSeed {
+  version: 1
+  variant: "light" | "dark"
+  surface: `#${string}`
+  ink: `#${string}`
+}
+
+export function createRendererApplicationUrl(
+  applicationOrigin: string,
+  startupTheme: Omit<StartupPageOptions, "logoDataUrl">,
+): string {
+  const target = new URL(applicationOrigin)
+  const seed: RendererStartupThemeSeed = {
+    version: 1,
+    variant: startupTheme.variant,
+    surface: startupTheme.theme.surface,
+    ink: startupTheme.theme.ink,
+  }
+  target.searchParams.set(
+    RENDERER_STARTUP_THEME_QUERY_PARAM,
+    JSON.stringify(seed),
+  )
+  return target.href
+}
+
 export function resolveStartupPageTheme(
   settings: DesktopThemeSettingsV7,
   systemVariant: "light" | "dark",

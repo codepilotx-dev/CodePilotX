@@ -17,6 +17,7 @@ import {
   normalizeOrigin,
 } from "../security/navigation.js"
 import {
+  createRendererApplicationUrl,
   renderStartupPage,
   type StartupStatusKind,
 } from "./startup-page.js"
@@ -117,6 +118,10 @@ export class WindowManager {
     this.#startupPageActive = false
     const mainWindow = this.#ensureMainWindow()
     const applicationOrigin = normalizeOrigin(agentOrigin)
+    const applicationUrl = createRendererApplicationUrl(
+      applicationOrigin,
+      this.#options.startupTheme,
+    )
     this.#allowedApplicationOrigin = applicationOrigin
     this.#setThemeBackground(mainWindow)
     try {
@@ -175,7 +180,7 @@ export class WindowManager {
         mainWindow.webContents.on("did-finish-load", onFinished)
         mainWindow.webContents.on("did-fail-load", onFailed)
         void mainWindow
-          .loadURL(applicationOrigin)
+          .loadURL(applicationUrl)
           .catch((error) => {
             cleanup()
             rejectLoad(error)

@@ -10,6 +10,7 @@
     />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>CodePilotX</title>
+    <script src="/startup-theme.js"></script>
     <style>
       /* 全窗鲸鱼加载契约：静态启动遮罩（id="startup-splash"）与 React
          FullScreenWhaleLoading 共用同一套 DOM/CSS，视觉与
@@ -25,8 +26,18 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--layer-canvas-fill, #f8f8f6);
-        color: var(--color-token-text-secondary, #6d6d68);
+        background: var(
+          --cpx-sys-color-surface-canvas,
+          var(--startup-splash-background, #f8f8f6)
+        );
+        color: var(
+          --cpx-sys-color-fg-secondary,
+          color-mix(
+            in srgb,
+            var(--startup-splash-foreground, #1a1c1f) 62%,
+            transparent
+          )
+        );
         transition: opacity 200ms ease-out;
       }
 

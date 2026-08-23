@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { DEFAULT_APPEARANCE_SETTINGS } from "../src/settings/appearance-settings-store.js"
 import {
+  createRendererApplicationUrl,
+  RENDERER_STARTUP_THEME_QUERY_PARAM,
   renderStartupPage,
   resolveStartupPageTheme,
 } from "../src/windows/startup-page.js"
@@ -148,6 +150,32 @@ describe("startup page", () => {
         accent: "#339cff",
         surfaceUnder: "#141414",
       },
+    })
+  })
+
+  test("carries the resolved startup theme into the renderer URL", () => {
+    const target = new URL(createRendererApplicationUrl(
+      "http://127.0.0.1:4210/?existing=kept",
+      {
+        variant: "dark",
+        theme: {
+          surface: "#121725",
+          ink: "#f4f6ff",
+          accent: "#8db8ff",
+          surfaceUnder: "#0f1420",
+        },
+      },
+    ))
+
+    expect(target.origin).toBe("http://127.0.0.1:4210")
+    expect(target.searchParams.get("existing")).toBe("kept")
+    expect(JSON.parse(
+      target.searchParams.get(RENDERER_STARTUP_THEME_QUERY_PARAM) ?? "null",
+    )).toEqual({
+      version: 1,
+      variant: "dark",
+      surface: "#121725",
+      ink: "#f4f6ff",
     })
   })
 

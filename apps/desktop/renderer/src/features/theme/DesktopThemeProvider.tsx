@@ -13,7 +13,6 @@ import type {
   DesktopThemeVariant,
 } from '../../../shared/types.js'
 import {
-  DEFAULT_DESKTOP_THEME_SETTINGS,
   getCodeThemeSelectionForVariant,
   getDesktopThemeForSelection,
   getDesktopThemeIdForVariant,
@@ -21,6 +20,10 @@ import {
 } from '../../../shared/theme.js'
 import { deriveThemeVariables } from './themeVariables.js'
 import { applyThemeFontFaceStyles } from './themeFontFaces.js'
+import {
+  resolveStartupThemeSettings,
+  withStartupThemeSeed,
+} from '../../startup/startupThemeSeed.js'
 import {
   DesktopThemeContext,
   type DesktopThemeContextValue,
@@ -48,12 +51,12 @@ export function DesktopThemeProvider({
 }: {
   children: React.ReactNode
 }): React.ReactNode {
-  const [settings, setSettings] = useState<DesktopThemeSettings>(
-    DEFAULT_DESKTOP_THEME_SETTINGS,
+  const [startupSettings] = useState(() =>
+    resolveStartupThemeSettings(window.location.href),
   )
-  const [draftSettings, setDraftSettings] = useState<DesktopThemeSettings>(
-    DEFAULT_DESKTOP_THEME_SETTINGS,
-  )
+  const [settings, setSettings] = useState<DesktopThemeSettings>(startupSettings)
+  const [draftSettings, setDraftSettings] =
+    useState<DesktopThemeSettings>(startupSettings)
   const draftSettingsRef = useRef(draftSettings)
   draftSettingsRef.current = draftSettings
   const committedSettingsRef = useRef(settings)
@@ -79,13 +82,7 @@ export function DesktopThemeProvider({
         setSettings(normalized)
         setDraftSettings(normalized)
       })
-      .catch(() => {
-        if (!mounted) return
-        committedSettingsRef.current = DEFAULT_DESKTOP_THEME_SETTINGS
-        draftSettingsRef.current = DEFAULT_DESKTOP_THEME_SETTINGS
-        setSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
-        setDraftSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
-      })
+      .catch(() => undefined)
     return () => {
       mounted = false
     }
@@ -131,6 +128,25 @@ export function DesktopThemeProvider({
     () => getDesktopThemeForSelection(draftSettings, draftResolvedVariant),
     [draftResolvedVariant, draftSettings],
   )
+
+  useEffect(() => {
+    if (!window.codePilotXDesktop) return
+    const committedVariant = settings.mode === 'system'
+      ? systemVariant
+      : settings.mode
+    const committedTheme = settings.chromeThemes[committedVariant]
+    const nextUrl = withStartupThemeSeed(window.location.href, {
+      version: 1,
+      variant: committedVariant,
+      surface: committedTheme.surface,
+      ink: committedTheme.ink,
+    })
+    window.history.replaceState(
+      window.history.state,
+      '',
+      relativeApplicationUrl(nextUrl),
+    )
+  }, [settings, systemVariant])
 
   useEffect(() => {
     applyDesktopTheme(
@@ -366,6 +382,11 @@ function applyDesktopTheme(
   root.style.setProperty('--cpx-sys-font-size-xl', `${uiFontSize + 4}px`)
   root.style.setProperty('--cpx-sys-font-size-2xl', `${uiFontSize + 6}px`)
   root.style.setProperty('--cpx-sys-font-size-3xl', `${uiFontSize + 10}px`)
+}
+
+function relativeApplicationUrl(url: string): string {
+  const parsed = new URL(url)
+  return parsed.pathname + parsed.search + parsed.hash
 }
 
 function getSystemThemeVariant(): DesktopThemeVariant {
