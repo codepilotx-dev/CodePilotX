@@ -1,5 +1,5 @@
 .desktop-main {
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
   border-left: 1px solid var(--cpx-sys-color-border-subtle);
   flex: 1;
   min-width: 0;
@@ -56,7 +56,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
 }
 
 .desktop-workspace__upper {

@@ -136,7 +136,7 @@
   justify-content: center;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-accent);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -156,7 +156,7 @@
   border: 1px solid
     color-mix(in srgb, var(--cpx-sys-color-fg-primary) 16%, transparent);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-sys-color-editor);
+  background: var(--cpx-sys-color-surface-editor);
 }
 
 .appearance-theme-editor-rows {
@@ -311,7 +311,7 @@
     height: 28px;
     min-height: 28px;
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-input-bg);
+    background: var(--cpx-sys-color-surface-control);
   }
 
   .settings-dropdown-value {
@@ -334,7 +334,7 @@
     padding: 0 8px;
     border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-input-bg);
+    background: var(--cpx-sys-color-surface-control);
     color: var(--cpx-sys-color-fg-primary);
     font-size: var(--cpx-sys-font-size-md);
     line-height: var(--control-line-height);
@@ -365,12 +365,7 @@
     border-radius: var(--cpx-sys-radius-full);
     background: linear-gradient(
       90deg,
-      color-mix(
-          in srgb,
-          var(--appearance-slider-accent) 35%,
-          var(--appearance-slider-surface)
-        )
-        0%,
+      var(--appearance-slider-surface) 0%,
       var(--appearance-slider-accent) 32%,
       var(--appearance-slider-accent) 100%
     );
@@ -382,7 +377,7 @@
       appearance: none;
       border: 1px solid var(--cpx-sys-color-border-subtle);
       border-radius: 50%;
-      background: var(--cpx-comp-switch-thumb-fill);
+      background: var(--cpx-sys-color-fg-on-accent);
     }
   }
 

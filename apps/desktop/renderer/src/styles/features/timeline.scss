@@ -96,9 +96,9 @@
     background: linear-gradient(
       to bottom,
       transparent,
-      color-mix(in srgb, var(--cpx-sys-color-surface) 88%, transparent)
+      color-mix(in srgb, var(--cpx-sys-color-surface-canvas) 88%, transparent)
         var(--thread-scroll-footer-fade-height),
-      var(--cpx-sys-color-surface) 100%
+      var(--cpx-sys-color-surface-canvas) 100%
     );
   }
 
@@ -432,9 +432,9 @@
   width: 320px;
   max-width: calc(100vw - 16px);
   padding: 8px;
-  border: 0.5px solid var(--cpx-comp-dropdown-menu-border, var(--cpx-sys-color-border-subtle));
+  border: 0.5px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
-  background-color: var(--cpx-comp-surface-floating);
+  background-color: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);

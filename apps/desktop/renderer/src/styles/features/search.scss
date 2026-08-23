@@ -59,7 +59,7 @@
   padding: 1.15em 1em;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: var(--cpx-sys-shadow-raised);
   transition:
@@ -67,7 +67,7 @@
     box-shadow var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
 
   &:focus-within {
-    border-color: color-mix(in srgb, var(--cpx-sys-color-accent) 42%, var(--cpx-sys-color-border-subtle));
+    border-color: var(--cpx-sys-color-accent-subtle-border);
     box-shadow:
       var(--cpx-sys-shadow-raised),
       var(--cpx-sys-focus-ring);

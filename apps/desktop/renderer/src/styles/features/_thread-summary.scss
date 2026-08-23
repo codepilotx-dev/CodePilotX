@@ -36,6 +36,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: 10px 0 6px;
+  border: 1px solid var(--cpx-sys-color-border-default);
+  background: var(--cpx-sys-color-surface-panel);
   scrollbar-width: thin;
   box-shadow: none;
 }
@@ -78,7 +80,7 @@
     height: 28px;
     padding: 0 10px 2px 14px;
     background: transparent;
-    color: var(--cpx-sys-color-fg-tertiary);
+    color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
 
@@ -340,9 +342,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--cpx-sys-color-surface-under);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: 50%;
-    background: var(--cpx-sys-color-elevated-secondary);
+    background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-primary);
 
     + span {
@@ -503,7 +505,7 @@
     padding: 6px 10px;
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-comp-button-radius-md);
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
     cursor: pointer;

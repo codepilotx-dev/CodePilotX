@@ -177,7 +177,7 @@
 .ui-button[data-color="primary"] {
   border-color: var(--cpx-sys-color-border-strong);
   background: var(--cpx-sys-color-fg-primary);
-  color: var(--cpx-sys-color-surface);
+  color: var(--cpx-sys-color-surface-canvas);
 
   &:enabled:hover,
   &[data-state="open"],
@@ -213,14 +213,14 @@
 
 .ui-button[data-color="segmentedInsetSelected"] {
   border-color: transparent;
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: var(--cpx-sys-shadow-control);
 
   &:enabled:hover,
   &[data-state="open"],
   &[data-active] {
-    background: var(--cpx-sys-color-surface);
+    background: var(--cpx-sys-color-surface-canvas);
   }
 }
 
@@ -369,7 +369,7 @@
 .segmented-control[data-variant="inset"] {
   padding: 2px;
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 .segmented-control-item {
@@ -427,7 +427,7 @@
   padding: 0;
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-fg-primary);
-  color: var(--cpx-sys-color-surface);
+  color: var(--cpx-sys-color-surface-canvas);
   transition:
     background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
     color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
@@ -463,7 +463,7 @@
 .right-dock-search {
   border-color: var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-comp-input-radius);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
 }
 

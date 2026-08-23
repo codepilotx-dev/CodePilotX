@@ -6,7 +6,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .right-dock-file-browser {
@@ -17,7 +17,7 @@
   min-height: 0;
   height: 100%;
   width: 100%;
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   overflow: hidden;
 
   .right-dock-open-file-placeholder {
@@ -128,7 +128,7 @@
   gap: var(--cpx-sys-space-2);
   padding: 0 var(--cpx-sys-space-2);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-secondary);
 }
 
@@ -219,11 +219,7 @@
 }
 
 .file-breadcrumb-toolbar__action[aria-pressed="true"] {
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 6%,
-    var(--cpx-sys-color-surface)
-  );
+  background: var(--cpx-sys-color-selected);
   color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -337,7 +333,7 @@
 }
 
 .right-dock-open-file-layout {
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .right-dock-open-file-tree {
@@ -346,7 +342,7 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 .right-dock-open-file-empty {
@@ -384,7 +380,7 @@
   flex: 0 0 min(var(--right-dock-editor-tree-width, 280px), 60%);
   overflow: hidden;
   border-left: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 .right-dock-editor-tree-resize-handle {
@@ -434,7 +430,7 @@
 
 .workspace-file-tree--popover {
   padding: var(--cpx-sys-space-2);
-  background: var(--cpx-sys-color-elevated-secondary);
+  background: var(--cpx-sys-color-surface-raised);
 }
 
 .workspace-file-tree--standalone {
@@ -615,7 +611,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--cpx-comp-workbench-panel-bg);
+  background: var(--cpx-sys-color-surface-panel);
   overflow: hidden;
 }
 
@@ -685,7 +681,7 @@
   height: 42px;
   place-items: center;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 .desktop-main-stage,
@@ -706,7 +702,7 @@
 .workspace-file-tree--standalone .right-dock-search {
   border-color: var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   box-shadow: none;
 }
 

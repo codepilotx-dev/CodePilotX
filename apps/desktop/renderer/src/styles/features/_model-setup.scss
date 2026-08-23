@@ -3,7 +3,7 @@
   min-width: 0;
   height: 100vh;
   color: var(--cpx-sys-color-fg-primary);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
 }
 
 .model-setup-page {
@@ -97,7 +97,7 @@
   border: 0.5px solid var(--cpx-sys-color-border-strong);
   border-radius: var(--cpx-sys-radius-full);
   color: var(--cpx-sys-color-fg-tertiary);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   font-size: var(--cpx-sys-font-size-sm);
   font-weight: var(--cpx-sys-font-weight-medium);
 }
@@ -153,7 +153,7 @@
 .model-setup-model-row:hover,
 .model-setup-provider-row[data-active='true'],
 .model-setup-model-row[data-active='true'] {
-  background: var(--cpx-comp-surface-fog);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 .model-setup-provider-row[data-selected='true'],
@@ -303,7 +303,7 @@
   border: 0.5px solid var(--cpx-sys-color-border-strong);
   border-radius: var(--cpx-comp-input-radius);
   color: var(--cpx-sys-color-fg-primary);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   font: inherit;
 }
 

@@ -19,8 +19,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-left: var(--cpx-comp-surface-edge);
-  background: var(--cpx-comp-surface-panel);
+  border-left: 1px solid var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: none;
   overflow: hidden;
@@ -34,7 +34,7 @@
   gap: var(--control-gap);
   padding: var(--control-padding-block-compact) 1em;
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
 }
 
@@ -86,9 +86,9 @@
   align-items: center;
   gap: 2px;
   padding: 2px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
 
   button {
     position: relative;
@@ -148,7 +148,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .review-sidebar-action-label {
@@ -195,7 +195,7 @@
   display: flex;
   flex-direction: column;
   border-right: 0;
-  background: var(--cpx-sys-color-editor);
+  background: var(--cpx-sys-color-surface-editor);
   contain: size layout paint;
   overflow: hidden;
 }
@@ -214,7 +214,7 @@
   min-height: 0;
   display: flex;
   align-items: stretch;
-  background: var(--cpx-sys-color-editor);
+  background: var(--cpx-sys-color-surface-editor);
   contain: size layout paint;
   overflow: hidden;
   position: relative;
@@ -228,7 +228,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   contain: size layout paint;
   overflow: hidden;
@@ -433,7 +433,7 @@
   gap: 8px;
   flex: 0 0 auto;
   padding: 8px 14px;
-  border-bottom: var(--cpx-comp-surface-edge);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   background: color-mix(in srgb, var(--cpx-sys-color-danger) 10%, transparent);
   color: var(--cpx-sys-color-danger);
   font-size: var(--cpx-sys-font-size-sm);
@@ -448,15 +448,15 @@
   white-space: pre;
 
   &.added {
-    background: var(--cpx-comp-diff-inserted-line-bg);
+    background: var(--cpx-sys-color-diff-added-line);
   }
 
   &.removed {
-    background: var(--cpx-comp-diff-removed-line-bg);
+    background: var(--cpx-sys-color-diff-removed-line);
   }
 
   &.hunk {
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
     color: var(--cpx-sys-color-fg-tertiary);
   }
 
@@ -656,7 +656,7 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: var(--cpx-sys-color-editor);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-primary, var(--cpx-sys-color-fg-primary));
   font-family: var(--cpx-sys-font-family-mono);
   font-size: var(--review-diffs-font-size);
@@ -681,7 +681,7 @@
   overflow-y: clip;
   overscroll-behavior-x: none;
   scrollbar-width: thin;
-  scrollbar-color: var(--cpx-comp-scrollbar-slider-bg) transparent;
+  scrollbar-color: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 22%, transparent) transparent;
 }
 
 .review-codex-diff [data-gutter],
@@ -689,7 +689,7 @@
   min-width: 0;
   display: grid;
   grid-template-rows: subgrid;
-  background: var(--cpx-sys-color-editor);
+  background: var(--cpx-sys-color-surface-editor);
 }
 
 .review-codex-diff [data-gutter] {
@@ -725,7 +725,7 @@
 .review-codex-diff[data-diff-type="split"][data-overflow="scroll"]
   [data-additions] {
   grid-column: 2;
-  border-left: 1px solid var(--cpx-sys-color-editor);
+  border-left: 1px solid var(--cpx-sys-color-surface-editor);
 }
 
 .review-codex-diff[data-diff-type="split"] [data-code] {
@@ -776,7 +776,7 @@
 .review-codex-diff__number {
   min-width: var(--review-diffs-min-number-column-width);
   padding-inline: 2ch 1ch;
-  border-right: 2px solid var(--cpx-sys-color-editor);
+  border-right: 2px solid var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   text-align: right;
   user-select: none;
@@ -802,11 +802,11 @@
 }
 
 .review-codex-diff [data-line-type="change-addition"] {
-  background: var(--cpx-comp-diff-inserted-line-bg);
+  background: var(--cpx-sys-color-diff-added-line);
 }
 
 .review-codex-diff [data-line-type="change-deletion"] {
-  background: var(--cpx-comp-diff-removed-line-bg);
+  background: var(--cpx-sys-color-diff-removed-line);
 }
 
 .review-codex-diff__number[data-line-type="change-addition"] {
@@ -825,15 +825,15 @@
 }
 
 .review-diff-word[data-tone="added"] {
-  background: var(--cpx-comp-diff-inserted-text-bg);
+  background: var(--cpx-sys-color-diff-added-text);
 }
 
 .review-diff-word[data-tone="removed"] {
-  background: var(--cpx-comp-diff-removed-text-bg);
+  background: var(--cpx-sys-color-diff-removed-text);
 }
 
 .review-codex-diff [data-line-type="metadata"] {
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
 }
 
@@ -919,7 +919,7 @@
   box-sizing: content-box;
   height: 32px;
   margin-block: var(--review-diffs-gap-block);
-  background: var(--cpx-sys-color-elevated-secondary);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-secondary);
   font-family: var(--cpx-sys-font-family-sans);
   font-size: var(--cpx-sys-font-size-xs);
@@ -939,7 +939,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   border-radius: 0 var(--cpx-sys-radius-md) var(--cpx-sys-radius-md) 0;
 }
 
@@ -948,7 +948,7 @@
   width: 100%;
   height: 100%;
   display: block;
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   border-radius: var(--cpx-sys-radius-md) 0 0 var(--cpx-sys-radius-md);
 }
 
@@ -994,7 +994,7 @@
   right: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-accent);
-  color: var(--cpx-sys-color-surface);
+  color: var(--cpx-sys-color-surface-canvas);
 }
 
 .review-codex-diff__number:hover .review-line-comment-button,
@@ -1021,9 +1021,9 @@
   flex-direction: column;
   gap: 5px;
   padding: 8px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-primary);
   font-family: var(--cpx-sys-font-family-sans);
   font-size: var(--cpx-sys-font-size-md);
@@ -1058,9 +1058,9 @@
   min-height: 5.385em;
   resize: vertical;
   padding: var(--control-padding-block) var(--control-padding-inline);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   font-family: var(--cpx-sys-font-family-sans);
   font-size: var(--cpx-sys-font-size-md);
@@ -1074,8 +1074,8 @@
 
 .review-stale-comments {
   padding: 10px 12px;
-  border-top: var(--cpx-comp-surface-edge);
-  background: var(--cpx-comp-surface-panel);
+  border-top: 1px solid var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .review-stale-title {
@@ -1113,7 +1113,7 @@
 
 .review-empty-state {
   padding: 22px 14px;
-  color: var(--cpx-comp-input-placeholder-fg);
+  color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-md);
 }
 
@@ -1277,21 +1277,21 @@
   .review-scope-trigger .review-sidebar-counts {
     margin-left: 6px;
     padding-left: 6px;
-    border-left: var(--cpx-comp-surface-edge);
+    border-left: 1px solid var(--cpx-sys-color-border-subtle);
   }
 
   .review-file-search-region {
     flex: 0 0 auto;
     padding: 12px 12px 8px;
-    background: var(--cpx-comp-surface-panel);
+    background: var(--cpx-sys-color-surface-panel);
   }
 
   .review-file-search {
     width: 100%;
     min-height: 32px;
-    border: var(--cpx-comp-surface-edge);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
   }
 
   .review-file-tree-scroll {
@@ -1468,13 +1468,13 @@
     gap: 15px;
     position: absolute;
     bottom: 10px;
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
     padding: 0 4px;
     left: 50%;
     transform: translateX(-50%);
     border-radius: var(--cpx-sys-radius-lg);
     z-index: 10;
-    border: var(--cpx-comp-surface-edge);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
     box-shadow: none;
 
     button {
@@ -1549,9 +1549,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 8px;
-  border: var(--cpx-comp-surface-edge-strong);
+  border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-floating);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-floating);
   font-family: var(--cpx-sys-font-family-sans);
 }
@@ -1651,9 +1651,9 @@
 .review-popover-field input[type="text"] {
   width: 100%;
   padding: 5px 8px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   font-family: var(--cpx-sys-font-family-sans);
   font-size: var(--cpx-sys-font-size-md);
@@ -1681,7 +1681,7 @@
   flex-direction: column;
   gap: 2px;
   padding-top: 4px;
-  border-top: var(--cpx-comp-surface-edge-strong);
+  border-top: 1px solid var(--cpx-sys-color-border-default);
 }
 
 .review-popover-action {

@@ -4,7 +4,7 @@
   --inline-approval-card-gap: 8px;
   --inline-approval-card-padding: 16px 10px 10px;
   --inline-approval-card-border: 1px solid var(--cpx-sys-color-border-subtle);
-  --inline-approval-card-bg: var(--cpx-comp-surface-raised);
+  --inline-approval-card-bg: var(--cpx-sys-color-surface-panel);
   --inline-approval-card-shadow: none;
   --inline-approval-header-padding: 0 12px 2px;
   --mcp-form-gap: var(--control-gap);
@@ -13,7 +13,7 @@
     var(--control-padding-inline);
   --mcp-form-input-radius: var(--cpx-comp-input-radius);
   --mcp-form-input-border: 1px solid var(--cpx-sys-color-border-subtle);
-  --mcp-form-input-bg: color-mix(in srgb, var(--cpx-sys-color-surface) 74%, transparent);
+  --mcp-form-input-bg: var(--cpx-sys-color-surface-control);
   --mcp-form-input-focus-border: var(--cpx-sys-color-accent);
   --mcp-form-input-focus-shadow: 0 0 0 2px var(--cpx-sys-color-accent);
   --mcp-form-actions-gap: var(--control-gap-compact);
@@ -23,18 +23,14 @@
     color-mix(in srgb, var(--cpx-sys-color-fg-primary) 18%, transparent);
   --mcp-form-submit-radius: var(--cpx-comp-button-radius-md);
   --mcp-form-submit-bg: var(--cpx-sys-color-fg-primary);
-  --mcp-form-submit-color: var(--cpx-sys-color-surface);
-  --mcp-form-submit-hover-bg: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 88%,
-    var(--cpx-sys-color-surface)
-  );
+  --mcp-form-submit-color: var(--cpx-sys-color-surface-canvas);
+  --mcp-form-submit-hover-bg: var(--cpx-sys-color-fg-secondary);
   --mcp-form-submit-hover-border: color-mix(
     in srgb,
     var(--cpx-sys-color-fg-primary) 26%,
     transparent
   );
-  --mcp-form-submit-hover-color: var(--cpx-sys-color-surface);
+  --mcp-form-submit-hover-color: var(--cpx-sys-color-surface-canvas);
 }
 
 .workflow-composer-card-mcp-form .inline-approval-header {
@@ -249,7 +245,7 @@
 
 .mcp-form-option.selected .mcp-form-option-index {
   background: var(--cpx-sys-color-accent);
-  color: var(--cpx-sys-color-surface);
+  color: var(--cpx-sys-color-surface-canvas);
 }
 
 .mcp-form-option-label {

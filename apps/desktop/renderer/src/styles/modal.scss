@@ -99,7 +99,7 @@
       var(--control-padding-inline);
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-sys-color-control);
+    background: var(--cpx-sys-color-surface-control);
     line-height: var(--control-line-height);
 
     &:hover {
@@ -246,7 +246,7 @@
     padding: 0.57em var(--control-padding-inline);
     border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-comp-input-radius);
-    background: var(--cpx-sys-color-control);
+    background: var(--cpx-sys-color-surface-control);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
     line-height: var(--control-line-height);
@@ -289,7 +289,7 @@
       var(--control-padding-inline-compact);
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-comp-button-radius-md);
-    background: var(--cpx-sys-color-control);
+    background: var(--cpx-sys-color-surface-control);
     line-height: var(--control-line-height);
   }
 
@@ -368,7 +368,7 @@
     var(--control-padding-inline);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-comp-input-radius);
-  background: var(--cpx-sys-color-control);
+  background: var(--cpx-sys-color-surface-control);
 
   input {
     min-width: 0;
@@ -389,7 +389,7 @@
   overflow-y: auto;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-sys-color-control);
+  background: var(--cpx-sys-color-surface-control);
 }
 
 .github-repository-row {
@@ -475,11 +475,11 @@
   }
 
   &.danger {
-    background: color-mix(in srgb, var(--cpx-sys-color-danger) 18%, var(--cpx-sys-color-surface));
+    background: color-mix(in srgb, var(--cpx-sys-color-danger) 18%, var(--cpx-sys-color-surface-canvas));
     color: var(--cpx-sys-color-danger);
 
     &:hover {
-      background: color-mix(in srgb, var(--cpx-sys-color-danger) 24%, var(--cpx-sys-color-surface));
+      background: color-mix(in srgb, var(--cpx-sys-color-danger) 24%, var(--cpx-sys-color-surface-canvas));
     }
   }
 

@@ -205,7 +205,7 @@
   min-height: 28px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-comp-input-radius);
-  background: var(--cpx-sys-color-control);
+  background: var(--cpx-sys-color-surface-control);
 }
 
 .searchable-popover-list-scroll {
@@ -529,7 +529,7 @@
 }
 
 .context-plugin-icon-github {
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
   color: var(--cpx-comp-button-fg);
 }
 

@@ -35,11 +35,11 @@
 @theme inline {
   --font-sans: var(--cpx-sys-font-family-sans);
   --font-mono: var(--cpx-sys-font-family-mono);
-  --color-app-canvas: var(--cpx-sys-color-surface);
-  --color-app-underlay: var(--cpx-sys-color-surface-under);
-  --color-app-chrome: var(--cpx-sys-color-surface-under);
-  --color-app-panel: var(--cpx-sys-color-panel);
-  --color-app-raised: var(--cpx-sys-color-elevated-secondary);
+  --color-app-canvas: var(--cpx-sys-color-surface-canvas);
+  --color-app-underlay: var(--cpx-sys-color-surface-recessed);
+  --color-app-chrome: var(--cpx-sys-color-surface-recessed);
+  --color-app-panel: var(--cpx-sys-color-surface-panel);
+  --color-app-raised: var(--cpx-sys-color-surface-raised);
   --color-app-text: var(--cpx-sys-color-fg-primary);
   --color-app-text-soft: var(--cpx-sys-color-fg-secondary);
   --color-app-border: var(--cpx-sys-color-border-default);

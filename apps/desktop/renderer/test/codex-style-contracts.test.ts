@@ -1,6 +1,44 @@
 import { describe, expect, test } from 'bun:test'
 
 describe('Codex CPX design system token contract', () => {
+  test('governs feature colors through precise, stale-detectable exceptions', async () => {
+    const [checker, manifestText, guidance] = await Promise.all([
+      Bun.file(new URL('../scripts/check-style-contracts.ts', import.meta.url)).text(),
+      Bun.file(new URL('../style-contracts.json', import.meta.url)).text(),
+      Bun.file(new URL('../../../../docs/design/renderer-color-system.md', import.meta.url)).text(),
+    ])
+    const manifest = JSON.parse(manifestText) as {
+      featureColorContract: {
+        roots: string[]
+        componentTokenExceptions: Array<{ file: string; token: string; reason: string }>
+        literalColorExceptions: Array<{ file: string; value: string; reason: string }>
+        colorMixExceptions: Array<{ file: string; localProperty: string; reason: string }>
+      }
+    }
+
+    expect(manifest.featureColorContract.roots).toEqual([
+      'src/styles/features',
+      'src/styles/lazy',
+    ])
+    for (const exception of [
+      ...manifest.featureColorContract.componentTokenExceptions,
+      ...manifest.featureColorContract.literalColorExceptions,
+      ...manifest.featureColorContract.colorMixExceptions,
+    ]) {
+      expect(exception.file).not.toContain('*')
+      expect(exception.reason.length).toBeGreaterThan(15)
+    }
+    expect(checker).toContain('feature styles must use system semantic colors')
+    expect(checker).toContain('feature styles must not use literal color')
+    expect(checker).toContain('feature color-mix must not combine multiple semantic/local colors')
+    expect(checker).toContain('stale feature component-token exception')
+    expect(checker).toContain('stale feature literal-color exception')
+    expect(checker).toContain('stale feature color-mix exception')
+    expect(guidance).toContain('系统语义颜色')
+    expect(guidance).toContain('组件私有实现')
+    expect(guidance).toContain('Agent 选择流程')
+  })
+
   test('exports component tokens for all 13 components', async () => {
     const stylesheet = await Bun.file(
       new URL(
@@ -110,7 +148,7 @@ describe('Codex CPX design system token contract', () => {
     )
   })
 
-  test('defines component-scoped semantic aliases and consumes them in real selectors', async () => {
+  test('keeps component colors private to shared component styles', async () => {
     const [tokens, rightDock, sidebar, modal, popover] = await Promise.all([
       Bun.file(new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url)).text(),
@@ -120,20 +158,21 @@ describe('Codex CPX design system token contract', () => {
     ])
 
     // Verify token definitions in codex-semantic-tokens.scss
-    expect(tokens).toContain('--cpx-comp-dock-bg: var(--cpx-sys-color-panel);')
+    expect(tokens).toContain('--cpx-comp-dock-bg: var(--cpx-sys-color-surface-panel);')
     expect(tokens).toContain('--cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);')
-    expect(tokens).toContain('--cpx-comp-sidebar-bg: var(--cpx-sys-color-surface-under);')
+    expect(tokens).toContain('--cpx-comp-sidebar-bg: var(--cpx-sys-color-surface-recessed);')
     expect(tokens).toContain('--cpx-comp-sidebar-border: 0;')
-    expect(tokens).toContain('--cpx-comp-modal-bg: var(--cpx-sys-color-elevated-secondary);')
+    expect(tokens).toContain('--cpx-comp-modal-bg: var(--cpx-sys-color-surface-raised);')
     expect(tokens).toContain('--cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);')
 
-    // Verify consumption in real component selectors
-    expect(rightDock).toContain('--cpx-comp-dock-bg')
-    expect(rightDock).toContain('--cpx-comp-dock-border')
+    // Feature styles consume public system semantics instead of component aliases.
+    expect(rightDock).not.toContain('--cpx-comp-dock-bg')
+    expect(rightDock).not.toContain('--cpx-comp-dock-border')
     expect(rightDock).toContain('--cpx-comp-dock-tab-radius')
-    expect(sidebar).toContain('--cpx-comp-sidebar-bg')
-    expect(sidebar).toContain('--cpx-comp-sidebar-border')
-    expect(sidebar).toContain('--cpx-comp-sidebar-item-active-bg')
+    expect(sidebar).not.toContain('--cpx-comp-sidebar-bg')
+    expect(sidebar).not.toContain('--cpx-comp-sidebar-border')
+    expect(sidebar).not.toContain('--cpx-comp-sidebar-item-active-bg')
+    expect(sidebar).toContain('--cpx-sys-color-surface-recessed')
     expect(modal).toContain('--cpx-comp-modal-bg')
     expect(modal).toContain('--cpx-comp-modal-shadow')
     expect(popover).toContain('--cpx-comp-dropdown-menu-bg')

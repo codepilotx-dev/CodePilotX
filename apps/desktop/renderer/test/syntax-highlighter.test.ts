@@ -109,10 +109,10 @@ describe('Shiki highlighter', () => {
       })
       const variables = deriveThemeVariables(config)
       const backgrounds = [
-        variables['--cpx-comp-diff-inserted-line-bg'],
-        variables['--cpx-comp-diff-inserted-text-bg'],
-        variables['--cpx-comp-diff-removed-line-bg'],
-        variables['--cpx-comp-diff-removed-text-bg'],
+        variables['--cpx-sys-color-diff-added-line'],
+        variables['--cpx-sys-color-diff-added-text'],
+        variables['--cpx-sys-color-diff-removed-line'],
+        variables['--cpx-sys-color-diff-removed-text'],
       ]
 
       for (const token of result.tokens.flat()) {

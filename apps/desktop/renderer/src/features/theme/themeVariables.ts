@@ -9,12 +9,11 @@ export type ThemeVariableName = `--${string}`
 export type ThemeVariableMap = Record<ThemeVariableName, string>
 
 type CodexRoles = {
-  surfaceUnder: string
+  surfaceRecessed: string
   panel: string
+  control: string
+  raised: string
   editorBackground: string
-  elevatedPrimary: string
-  elevatedSecondary: string
-  controlBackgroundOpaque: string
   borderLight: string
   border: string
   borderHeavy: string
@@ -141,13 +140,12 @@ export function deriveThemeVariables(
     '--cpx-sys-color-accent': theme.accent,
     '--cpx-sys-color-fg-on-accent': textOnAccent(theme.accent),
     '--cpx-sys-color-fg-primary': theme.ink,
-    '--cpx-sys-color-surface': theme.surface,
-    '--cpx-sys-color-surface-under': roles.surfaceUnder,
-    '--cpx-sys-color-panel': roles.panel,
-    '--cpx-sys-color-editor': roles.editorBackground,
-    '--cpx-sys-color-elevated-primary': roles.elevatedPrimary,
-    '--cpx-sys-color-elevated-secondary': roles.elevatedSecondary,
-    '--cpx-sys-color-control': roles.controlBackgroundOpaque,
+    '--cpx-sys-color-surface-canvas': theme.surface,
+    '--cpx-sys-color-surface-recessed': roles.surfaceRecessed,
+    '--cpx-sys-color-surface-panel': roles.panel,
+    '--cpx-sys-color-surface-control': roles.control,
+    '--cpx-sys-color-surface-raised': roles.raised,
+    '--cpx-sys-color-surface-editor': roles.editorBackground,
 
     // System Layer: Foreground / text
     '--cpx-sys-color-fg-secondary': roles.textSecondary,
@@ -161,7 +159,7 @@ export function deriveThemeVariables(
     '--cpx-sys-color-border-focus': roles.borderFocus,
 
     // System Layer: Accent & semantic multi-hues
-    '--cpx-sys-color-accent-subtle': roles.accentSubtle,
+    '--cpx-sys-color-accent-subtle-bg': accentTone.lineBackground,
     '--cpx-sys-color-accent-subtle-border': rgba(parseHex(theme.accent), 0.22),
     '--cpx-sys-color-accent-fg': accentTone.foreground,
     '--cpx-sys-color-accent-hover': roles.accentHover,
@@ -202,7 +200,7 @@ export function deriveThemeVariables(
     '--cpx-sys-blur-md': '16px',
     '--cpx-sys-blur-lg': '24px',
     '--cpx-sys-glass-filter': 'blur(16px)',
-    '--cpx-sys-glass-bg': `color-mix(in srgb, ${roles.elevatedSecondary} 85%, transparent)`,
+    '--cpx-sys-glass-bg': `color-mix(in srgb, ${roles.raised} 85%, transparent)`,
     '--cpx-sys-glass-border': roles.borderLight,
     '--cpx-sys-glass-shadow': shadowFloating,
 
@@ -248,125 +246,21 @@ export function deriveThemeVariables(
     '--cpx-sys-color-syntax-variable': syntax.variable,
     '--cpx-sys-color-syntax-punctuation': syntax.punctuation,
 
-    // Component Layer: 13 Theme Debugger Component Slots
-    '--cpx-comp-button-bg': roles.buttonSecondaryBg,
-    '--cpx-comp-button-fg': roles.buttonSecondaryFg,
-    '--cpx-comp-button-border': roles.borderLight,
-    '--cpx-comp-button-hover-bg': roles.buttonSecondaryHover,
-    '--cpx-comp-button-active-bg': roles.buttonSecondaryActive,
-    '--cpx-comp-button-pressed': interactionSelected,
-    '--cpx-comp-button-primary-bg': roles.buttonPrimaryBg,
-    '--cpx-comp-button-primary-fg': roles.buttonPrimaryFg,
-    '--cpx-comp-button-primary-hover-bg': roles.buttonPrimaryHover,
-    '--cpx-comp-button-primary-active-bg': roles.buttonPrimaryActive,
-    '--cpx-comp-button-primary-disabled-bg': roles.textDisabled,
-
-    '--cpx-comp-dropdown-trigger-bg': roles.controlBackgroundOpaque,
-    '--cpx-comp-dropdown-trigger-fg': theme.ink,
-    '--cpx-comp-dropdown-trigger-border': roles.borderLight,
-    '--cpx-comp-dropdown-trigger-hover-bg': interactionHover,
-    '--cpx-comp-dropdown-trigger-open-bg': interactionSelected,
-    '--cpx-comp-dropdown-trigger-disabled-fg': roles.textDisabled,
-    '--cpx-comp-dropdown-menu-bg': roles.elevatedSecondary,
-    '--cpx-comp-dropdown-menu-fg': theme.ink,
-    '--cpx-comp-dropdown-menu-border': roles.border,
-    '--cpx-comp-dropdown-item-hover-bg': interactionHover,
-    '--cpx-comp-dropdown-item-selected-bg': interactionSelected,
-    '--cpx-comp-dropdown-item-pressed-bg': interactionSelected,
-    '--cpx-comp-dropdown-item-disabled-fg': roles.textDisabled,
-    '--cpx-comp-dropdown-focus-border': roles.borderFocus,
-
-    '--cpx-comp-input-bg': roles.controlBackgroundOpaque,
-    '--cpx-comp-input-fg': theme.ink,
-    '--cpx-comp-input-border': roles.borderLight,
-    '--cpx-comp-input-placeholder-fg': roles.textTertiary,
-    '--cpx-comp-input-focus-border': roles.borderFocus,
-    '--cpx-comp-input-validation-error-bg': theme.semanticColors.diffRemoved,
-    '--cpx-comp-input-validation-error-border': theme.semanticColors.diffRemoved,
-    '--cpx-comp-input-validation-warning-bg': dark ? '#f0a33b' : '#a05a00',
-    '--cpx-comp-input-validation-warning-border': dark ? '#f0a33b' : '#a05a00',
-
-    '--cpx-comp-segmented-item-selected-fg': theme.ink,
-    '--cpx-comp-segmented-border': roles.border,
+    // Component Layer: only genuinely composite or component-specific values.
     '--cpx-comp-switch-thumb-fill': '#ffffff',
-
-    '--cpx-comp-tooltip-bg': roles.elevatedSecondary,
     '--cpx-comp-tooltip-border': `1px solid ${roles.borderLight}`,
     '--cpx-comp-tooltip-shadow': shadowFloating,
     '--cpx-comp-scrollbar-slider-bg': rgba(interactionInk, 0.22),
     '--cpx-comp-scrollbar-slider-hover-bg': rgba(interactionInk, 0.32),
     '--cpx-comp-scrollbar-slider-active-bg': rgba(interactionInk, 0.42),
 
-    '--cpx-comp-chip-success-bg': added.lineBackground,
-    '--cpx-comp-chip-success-fg': added.foreground,
-    '--cpx-comp-chip-success-border': rgba(parseHex(theme.semanticColors.diffAdded), 0.22),
-    '--cpx-comp-chip-danger-bg': removed.lineBackground,
-    '--cpx-comp-chip-danger-fg': removed.foreground,
-    '--cpx-comp-chip-danger-border': rgba(parseHex(theme.semanticColors.diffRemoved), 0.22),
-    '--cpx-comp-chip-warning-bg': warningTone.lineBackground,
-    '--cpx-comp-chip-warning-fg': warningTone.foreground,
-    '--cpx-comp-chip-warning-border': rgba(parseHex(warningHue), 0.22),
-    '--cpx-comp-chip-skill-bg': skillTone.lineBackground,
-    '--cpx-comp-chip-skill-fg': skillTone.foreground,
-    '--cpx-comp-chip-skill-border': rgba(parseHex(theme.semanticColors.skill), 0.22),
-    '--cpx-comp-chip-info-bg': infoTone.lineBackground,
-    '--cpx-comp-chip-info-fg': infoTone.foreground,
-    '--cpx-comp-chip-info-border': rgba(parseHex(infoHue), 0.22),
-    '--cpx-comp-chip-accent-bg': roles.accentSubtle,
-    '--cpx-comp-chip-accent-fg': accentTone.foreground,
-    '--cpx-comp-chip-accent-border': rgba(parseHex(theme.accent), 0.22),
-
-    '--cpx-comp-surface-canvas': theme.surface,
-    '--cpx-comp-surface-underlay': roles.surfaceUnder,
-    '--cpx-comp-surface-panel': roles.panel,
-    '--cpx-comp-surface-raised': roles.elevatedSecondary,
-    '--cpx-comp-surface-floating': roles.elevatedSecondary,
     '--cpx-comp-surface-edge': `1px solid ${roles.borderLight}`,
     '--cpx-comp-surface-edge-strong': `1px solid ${roles.border}`,
-
-    '--cpx-comp-glass-bg': `color-mix(in srgb, ${roles.elevatedSecondary} 85%, transparent)`,
-    '--cpx-comp-glass-border': roles.borderLight,
     '--cpx-comp-glass-shadow': shadowFloating,
     '--cpx-comp-glass-filter': 'blur(16px)',
-
-    '--cpx-comp-modal-bg': roles.elevatedSecondary,
     '--cpx-comp-modal-border': `1px solid ${roles.borderLight}`,
     '--cpx-comp-modal-shadow': shadowFloating,
-    '--cpx-comp-modal-preformat-bg': theme.surface,
-
-    '--cpx-comp-sidebar-bg': roles.surfaceUnder,
     '--cpx-comp-sidebar-border': '0',
-    '--cpx-comp-sidebar-item-hover-bg': interactionHover,
-    '--cpx-comp-sidebar-item-active-bg': interactionSelected,
-
-    '--cpx-comp-dock-bg': roles.panel,
-    '--cpx-comp-dock-border': roles.borderLight,
-    '--cpx-comp-dock-tab-hover-bg': interactionHover,
-    '--cpx-comp-dock-tab-active-bg': interactionSelected,
-
-    '--cpx-comp-workbench-panel-bg': roles.panel,
-    '--cpx-comp-workbench-main-surface-bg': theme.surface,
-    '--cpx-comp-workbench-tab-active-bg': interactionSelected,
-
-    '--cpx-comp-menubar-selection-bg': interactionSelected,
-    '--cpx-comp-menubar-selection-fg': theme.ink,
-
-    '--cpx-comp-composer-bg': roles.controlBackgroundOpaque,
-    '--cpx-comp-composer-toolbar-hover-bg': interactionHover,
-
-    '--cpx-comp-terminal-bg': theme.surface,
-    '--cpx-comp-terminal-fg': theme.ink,
-    '--cpx-comp-terminal-border': roles.border,
-    '--cpx-comp-terminal-ansi-blue': theme.accent,
-    '--cpx-comp-terminal-ansi-green': theme.semanticColors.diffAdded,
-    '--cpx-comp-terminal-ansi-red': theme.semanticColors.diffRemoved,
-    '--cpx-comp-terminal-ansi-yellow': dark ? '#f0a33b' : '#a05a00',
-
-    '--cpx-comp-diff-surface': mixHex(parseHex(theme.surface), interactionInk, 0.06),
-    '--cpx-comp-diff-inserted-line-bg': added.lineBackground,
-    '--cpx-comp-diff-inserted-text-bg': added.textBackground,
-    '--cpx-comp-diff-removed-line-bg': removed.lineBackground,
-    '--cpx-comp-diff-removed-text-bg': removed.textBackground,
   }
 }
 
@@ -382,25 +276,25 @@ function deriveCodexRoles(
   const inkRgb = parseHex(ink)
   const accentRgb = parseHex(accent)
   const normalizedContrast = normalizeCodexContrast(contrast, variant)
-  const white = { red: 255, green: 255, blue: 255 }
   const black = { red: 0, green: 0, blue: 0 }
-  const editorBackground = mixRgb(
-    surfaceRgb,
-    dark ? inkRgb : white,
-    dark ? 0.07 : 0.12,
-  )
-  const surfaceUnder = mixHex(
+  const hierarchy = Math.min(1, Math.max(0, normalizedContrast))
+  const surfaceRecessed = mixHex(
     surfaceRgb,
     dark ? black : inkRgb,
-    (dark ? 0.16 : 0.04) +
-      (contrast - (dark ? 60 : 45)) * (dark ? 0.0015 : 0.0012),
+    dark ? 0.13 + hierarchy * 0.07 : 0.055 + hierarchy * 0.035,
   )
-  const panel = mixHex(
-    surfaceRgb,
-    dark ? inkRgb : white,
-    (dark ? 0.03 : 0.18) +
-      normalizedContrast * (dark ? 0.03 : 0.008),
-  )
+  const panel = mixHex(surfaceRgb, inkRgb, dark
+    ? 0.045 + hierarchy * 0.025
+    : 0.018 + hierarchy * 0.012)
+  const raised = mixHex(surfaceRgb, inkRgb, dark
+    ? 0.105 + hierarchy * 0.035
+    : 0.008 + hierarchy * 0.007)
+  const control = mixHex(surfaceRgb, inkRgb, dark
+    ? 0.07 + hierarchy * 0.03
+    : 0.032 + hierarchy * 0.018)
+  const editorBackground = mixHex(surfaceRgb, inkRgb, dark
+    ? 0.07
+    : 0.012 + hierarchy * 0.008)
   const palette = dark
     ? deriveDarkPalette(
         surfaceRgb,
@@ -416,12 +310,11 @@ function deriveCodexRoles(
       )
 
   return {
-    surfaceUnder,
+    surfaceRecessed,
     panel,
-    editorBackground: rgbString(editorBackground),
-    elevatedPrimary: palette.elevatedPrimaryOpaque,
-    elevatedSecondary: palette.elevatedSecondaryOpaque,
-    controlBackgroundOpaque: palette.controlBackgroundOpaque,
+    control,
+    raised,
+    editorBackground,
     borderLight: palette.borderLight,
     border: palette.border,
     borderHeavy: palette.borderHeavy,
@@ -456,16 +349,22 @@ function deriveSemanticTone({
   const hueRgb = parseHex(hue)
   const editorRgb = parseColor(editorBackground)
   const inkRgb = parseHex(ink)
+  const dark = relativeLuminance(editorRgb) < 0.3
   const lineBackground = mixHex(editorRgb, hueRgb, 0.02)
   const textBackground = mixHex(editorRgb, hueRgb, 0.04)
-
-  return {
-    foreground: ensureContrast(
-      hueRgb,
+  const backgrounds = [editorBackground, lineBackground, textBackground]
+  const foreground = backgrounds.reduce(
+    (candidate, background) => ensureContrast(
+      parseHex(candidate),
       inkRgb,
-      parseHex(textBackground),
+      parseColor(background),
       4.5,
     ),
+    hue,
+  )
+
+  return {
+    foreground,
     indicator: hue,
     lineBackground,
     textBackground,
@@ -655,9 +554,10 @@ function normalizeCodexContrast(
   const base = variant === 'dark' ? 60 : 45
   const baseRatio = base / 100
   const adjusted = value / 100 + ((value - base) / 60) * 0.7
-  return value <= base
+  const normalized = value <= base
     ? adjusted
     : baseRatio + (adjusted - baseRatio) * 2
+  return Math.min(1, Math.max(0, normalized))
 }
 
 function parseHex(value: string): Rgb {

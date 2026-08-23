@@ -34,6 +34,7 @@
 
 ### Changed
 
+- [desktop/renderer] 统一 Renderer 颜色语义与表面层级，收敛 feature 对组件颜色别名和临时混色的依赖，为后续 Agent 增加可执行的选色规范与样式检查，并增强 Composer、会话摘要、审批及 Review Diff 在明暗和自定义主题下的信息层级。
 - [desktop/renderer] 将消息附件与本地上下文导入改为客户端启动时预热的延迟模块，保持首次发送无需临时加载模块，同时恢复 Renderer 入口体积预算。
 - [desktop/renderer] 为任务详情属性布局预留不可见的负责人扩展插槽，不引入未实现的负责人字段或持久化。
 - [desktop/renderer] 统一任务“待整理”术语，明确打开、继续与新建主会话的启动动作，并在甘特图增加独立未排期区域。

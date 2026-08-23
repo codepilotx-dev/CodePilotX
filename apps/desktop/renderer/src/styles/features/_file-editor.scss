@@ -6,7 +6,7 @@
   height: 100%;
   overflow: hidden;
   color: var(--cpx-sys-color-fg-primary);
-  background: var(--cpx-sys-color-editor);
+  background: var(--cpx-sys-color-surface-editor);
 }
 
 .file-editor-host {
@@ -39,8 +39,8 @@
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--cpx-comp-surface-raised);
-  border: var(--cpx-comp-surface-edge-strong);
+  background: var(--cpx-sys-color-surface-raised);
+  border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
   box-shadow: none;
 }
@@ -80,8 +80,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--cpx-sys-space-3);
-  background: var(--cpx-comp-surface-panel);
-  border-bottom: var(--cpx-comp-surface-edge-strong);
+  background: var(--cpx-sys-color-surface-panel);
+  border-bottom: 1px solid var(--cpx-sys-color-border-default);
   box-shadow: none;
 }
 
@@ -112,8 +112,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
-  background: var(--cpx-comp-surface-panel);
-  border-bottom: var(--cpx-comp-surface-edge-strong);
+  background: var(--cpx-sys-color-surface-panel);
+  border-bottom: 1px solid var(--cpx-sys-color-border-default);
 }
 
 .conflict-merge-editor-labels span {
@@ -121,7 +121,7 @@
 }
 
 .conflict-merge-editor-labels span + span {
-  border-left: var(--cpx-comp-surface-edge-strong);
+  border-left: 1px solid var(--cpx-sys-color-border-default);
 }
 
 .conflict-merge-editor-host {
@@ -139,7 +139,7 @@
 }
 
 .conflict-merge-editor-host .cm-mergeViewEditor + .cm-mergeViewEditor {
-  border-left: var(--cpx-comp-surface-edge-strong);
+  border-left: 1px solid var(--cpx-sys-color-border-default);
 }
 
 .conflict-merge-editor-host .cm-changedLine {
@@ -147,7 +147,7 @@
 }
 
 .conflict-merge-editor-host .cm-changeGutter {
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 @media (max-width: 720px) {
@@ -162,7 +162,7 @@
   }
 
   .conflict-merge-editor-host .cm-mergeViewEditor + .cm-mergeViewEditor {
-    border-top: var(--cpx-comp-surface-edge-strong);
+    border-top: 1px solid var(--cpx-sys-color-border-default);
     border-left: 0;
   }
 }

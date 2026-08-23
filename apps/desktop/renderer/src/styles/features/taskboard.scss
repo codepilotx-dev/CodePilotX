@@ -35,7 +35,7 @@
 .taskboard-toolbar__count {
   min-width: 24px;
   padding: 1px var(--cpx-sys-space-1);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
@@ -81,10 +81,10 @@
     min-width: 108px;
     height: 28px;
     padding: 0 var(--cpx-sys-space-2);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
 
@@ -111,9 +111,9 @@
   flex: none;
   margin-bottom: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 
   strong {
     font-size: var(--cpx-sys-font-size-md);
@@ -158,9 +158,9 @@
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: color-mix(in srgb, var(--cpx-comp-surface-panel) 72%, transparent);
+  background: color-mix(in srgb, var(--cpx-sys-color-surface-panel) 72%, transparent);
   overflow: hidden;
   scroll-snap-align: start;
 }
@@ -212,8 +212,8 @@
   gap: var(--cpx-sys-space-2);
   height: 36px;
   padding: 0 var(--cpx-sys-space-2) 0 var(--cpx-sys-space-3);
-  border-bottom: var(--cpx-comp-surface-edge);
-  background: color-mix(in srgb, var(--status-color) 12%, transparent);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-sys-color-surface-panel);
 
   h2 {
     margin: 0;
@@ -233,7 +233,7 @@
   min-width: 22px;
   padding: 1px var(--cpx-sys-space-1);
   border-radius: var(--cpx-sys-radius-full);
-  background: color-mix(in srgb, var(--cpx-comp-surface-panel) 70%, transparent);
+  background: color-mix(in srgb, var(--cpx-sys-color-surface-panel) 70%, transparent);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   text-align: center;
@@ -303,9 +303,9 @@
 
 .taskboard-card {
   position: relative;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-resting);
   overflow: hidden;
 
@@ -386,7 +386,7 @@
   flex: none;
   padding: 1px 6px;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-secondary);
   font-family: var(--font-sans);
   font-size: var(--cpx-sys-font-size-xs);
@@ -406,9 +406,9 @@
 
   span {
     padding: 1px 6px;
-    border: var(--cpx-comp-surface-edge);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-comp-surface-panel);
+    background: var(--cpx-sys-color-surface-panel);
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-xs);
   }
@@ -421,7 +421,7 @@
   gap: var(--cpx-sys-space-1);
   min-height: 32px;
   padding: 2px var(--cpx-sys-space-1) 2px var(--cpx-sys-space-3);
-  border-top: var(--cpx-comp-surface-edge);
+  border-top: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .taskboard-card__execution-summary {
@@ -478,9 +478,9 @@
   gap: var(--cpx-sys-space-4);
   width: min(30rem, calc(100vw - var(--cpx-sys-space-6)));
   padding: var(--cpx-sys-space-5);
-  border: var(--cpx-comp-surface-edge-strong);
+  border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-floating);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-primary);
 }
@@ -521,10 +521,10 @@
   input,
   textarea {
     padding: var(--control-padding-block) var(--control-padding-inline);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
 
@@ -547,10 +547,10 @@
   select,
   input {
     padding: var(--control-padding-block) var(--control-padding-inline);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
 
@@ -587,7 +587,7 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   cursor: pointer;
 
@@ -632,7 +632,7 @@
   display: grid;
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-3);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
 
   label {
@@ -642,10 +642,10 @@
 
   input[aria-label="起始分支"] {
     padding: var(--control-padding-block) var(--control-padding-inline);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
 
@@ -717,9 +717,9 @@
   grid-template-rows: auto minmax(0, 1fr);
   width: 480px;
   max-width: 100%;
-  border: var(--cpx-comp-surface-edge-strong);
+  border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-floating);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-floating);
   overflow: hidden;
 }
@@ -737,7 +737,7 @@
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-4);
-  border-bottom: var(--cpx-comp-surface-edge);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 
   > div {
     min-width: 0;
@@ -783,7 +783,7 @@
   display: grid;
   gap: var(--cpx-sys-space-2);
   padding-block: var(--cpx-sys-space-4);
-  border-bottom: var(--cpx-comp-surface-edge);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 
   h3 {
     display: flex;
@@ -813,7 +813,7 @@
 .taskboard-drawer__status,
 .taskboard-drawer__priority {
   padding: 2px 8px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
   font-size: var(--cpx-sys-font-size-xs);
 }
@@ -865,10 +865,10 @@
   select,
   textarea {
     padding: var(--cpx-sys-space-2);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
 
@@ -888,7 +888,7 @@
   gap: var(--cpx-sys-space-2);
   margin: 0;
   padding: var(--cpx-sys-space-2);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
 
   legend {
@@ -911,7 +911,7 @@
   gap: var(--cpx-sys-space-1);
   margin: 0;
   padding: var(--cpx-sys-space-2);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
 
   legend {
@@ -928,10 +928,10 @@
 
   input {
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
 
@@ -963,9 +963,9 @@
 
   span {
     padding: 2px 6px;
-    border: var(--cpx-comp-surface-edge);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-comp-surface-panel);
+    background: var(--cpx-sys-color-surface-panel);
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-xs);
   }
@@ -1023,10 +1023,10 @@
   select {
     min-width: 0;
     padding: var(--control-padding-block) var(--control-padding-inline);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
 
     &:focus {
@@ -1042,9 +1042,9 @@
 
 .taskboard-comments article {
   padding: var(--cpx-sys-space-2);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 
   > span {
     color: var(--cpx-sys-color-fg-tertiary);
@@ -1066,10 +1066,10 @@
     grid-column: 1 / -1;
     width: 100%;
     padding: var(--cpx-sys-space-2);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
 
@@ -1093,10 +1093,10 @@
   textarea {
     width: 100%;
     padding: var(--cpx-sys-space-2);
-    border: var(--cpx-comp-surface-edge-strong);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: 0;
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
     resize: vertical;

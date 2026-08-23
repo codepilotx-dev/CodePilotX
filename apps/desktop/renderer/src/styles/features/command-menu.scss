@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--cpx-comp-modal-scrim, var(--cpx-sys-color-scrim));
+  background: var(--cpx-sys-color-scrim);
   backdrop-filter: blur(var(--cpx-sys-blur-sm, 4px));
 }
 
@@ -15,7 +15,7 @@
   overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-sys-color-elevated-secondary);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-primary);
   outline: 0;
@@ -54,14 +54,14 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--cpx-comp-input-fg);
+  color: var(--cpx-sys-color-fg-primary);
   font: inherit;
   font-size: var(--cpx-sys-font-size-md);
   line-height: var(--control-line-height);
   outline: 0;
 
   &::placeholder {
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -169,7 +169,7 @@
   border-radius: var(--cpx-sys-radius-md);
   background: color-mix(
     in srgb,
-    var(--cpx-sys-color-control) 72%,
+    var(--cpx-sys-color-surface-control) 72%,
     transparent
   );
   color: var(--cpx-sys-color-fg-secondary);

@@ -26,7 +26,7 @@
   --composer-surface-top-radius: var(--cpx-sys-radius-xl);
   --composer-surface-top-bg: color-mix(
     in srgb,
-    var(--cpx-sys-color-surface-under) 92%,
+    var(--cpx-sys-color-surface-recessed) 92%,
     transparent
   );
   --composer-surface-footer-margin-top: 2px;
@@ -307,7 +307,7 @@
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 0;
   border-radius: 16px;
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   box-shadow:
     0 0 0 0.5px var(--cpx-sys-color-border-strong),
     0 2px 4px -1px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 10%, transparent);
@@ -372,9 +372,9 @@
   display: grid;
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-2);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   animation: new-session-suggestion-list-enter var(--cpx-sys-motion-enter)
     var(--cpx-sys-ease-standard) both;
@@ -642,7 +642,7 @@
 
   .icon-button {
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    background: var(--cpx-sys-color-surface);
+    background: var(--cpx-sys-color-surface-canvas);
 
     &:hover:not([aria-disabled="true"]),
     &[data-state="open"] {
@@ -760,9 +760,9 @@
     overflow: hidden;
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-lg);
-    background: var(--cpx-sys-color-surface);
+    background: var(--cpx-sys-color-surface-canvas);
     box-shadow: var(--cpx-sys-shadow-resting);
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
     font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
   }
@@ -897,7 +897,7 @@
     overflow: hidden;
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-sys-color-surface);
+    background: var(--cpx-sys-color-surface-canvas);
     box-shadow: var(--cpx-sys-shadow-resting);
     color: var(--cpx-sys-color-fg-primary);
     cursor: pointer;

@@ -22,8 +22,8 @@
 .pet-settings-preview {
   margin: 0 14px 14px;
   padding: 12px;
-  background: var(--cpx-comp-surface-panel);
-  border: var(--cpx-comp-surface-edge);
+  background: var(--cpx-sys-color-surface-panel);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
 }
 

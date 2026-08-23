@@ -249,7 +249,7 @@
     position: absolute;
     inset: 2px;
     border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-sys-color-surface);
+    background: var(--cpx-sys-color-surface-canvas);
   }
 }
 
@@ -273,10 +273,10 @@
   display: grid;
   gap: 4px;
   padding: 8px 12px 10px;
-  border: 1px solid var(--cpx-comp-dropdown-menu-border);
+  border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-comp-dropdown-menu-radius);
-  background: var(--cpx-comp-dropdown-menu-bg);
-  box-shadow: var(--cpx-comp-dropdown-menu-shadow);
+  background: var(--cpx-sys-color-surface-raised);
+  box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
@@ -336,8 +336,8 @@
   display: flex;
   gap: 6px;
   padding: 6px;
-  background: var(--cpx-comp-surface-floating);
-  border: var(--cpx-comp-surface-edge);
+  background: var(--cpx-sys-color-surface-raised);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
   box-shadow: var(--cpx-sys-shadow-floating);
   z-index: var(--cpx-sys-z-popover);
@@ -365,11 +365,11 @@
 
   &.active {
     background: var(--cpx-sys-color-fg-primary);
-    color: var(--cpx-sys-color-surface);
+    color: var(--cpx-sys-color-surface-canvas);
 
     &:hover {
-      background: var(--cpx-comp-button-bg);
-      color: var(--cpx-sys-color-surface);
+      background: var(--cpx-sys-color-surface-control);
+      color: var(--cpx-sys-color-surface-canvas);
     }
   }
 }

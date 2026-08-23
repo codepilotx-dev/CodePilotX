@@ -3,7 +3,7 @@
   border-color: var(--cpx-sys-color-border-subtle);
   background: color-mix(
     in srgb,
-    var(--cpx-sys-color-surface-under) 74%,
+    var(--cpx-sys-color-surface-recessed) 74%,
     transparent
   );
   color: var(--cpx-sys-color-fg-tertiary);
@@ -37,11 +37,7 @@
   border: 0;
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl) var(--cpx-sys-radius-xl) 0 0;
-  background: color-mix(
-    in srgb,
-    var(--cpx-comp-surface-panel) 68%,
-    var(--cpx-comp-surface-raised)
-  );
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   scrollbar-width: none;
   white-space: nowrap;
@@ -75,11 +71,7 @@
     padding: 6px;
     border: 0;
     border-radius: 0 0 16px 16px;
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-surface-under) 92%,
-      var(--cpx-comp-dropdown-menu-bg)
-    );
+    background: var(--cpx-sys-color-surface-recessed);
   }
 }
 
@@ -109,14 +101,11 @@
     border-radius: 20px;
     background: color-mix(
       in srgb,
-      var(--cpx-comp-input-bg) 90%,
+      var(--cpx-sys-color-surface-control) 90%,
       transparent
     );
     backdrop-filter: blur(20px);
-    box-shadow:
-      0 0 0 0.5px var(--cpx-sys-color-border-strong),
-      0 3px 7.5px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 4%, transparent),
-      0 0 20px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
+    box-shadow: var(--cpx-sys-shadow-floating);
   }
 
   .composer-editor-content {
@@ -139,11 +128,7 @@
     padding: 6px 6px 24px;
     border: 0;
     border-radius: 16px 16px 0 0;
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-surface-under) 92%,
-      var(--cpx-comp-dropdown-menu-bg)
-    );
+    background: var(--cpx-sys-color-surface-recessed);
   }
 
   .composer-editor-content {
@@ -258,22 +243,14 @@
   overflow: visible;
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   box-shadow: var(--cpx-sys-shadow-resting);
 
   &[data-status='error'] {
     width: 64px;
     height: 64px;
-    border-color: color-mix(
-      in srgb,
-      var(--cpx-sys-color-warning) 50%,
-      transparent
-    );
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-warning) 10%,
-      var(--cpx-sys-color-surface)
-    );
+    border-color: var(--cpx-sys-color-warning-subtle-border);
+    background: var(--cpx-sys-color-warning-subtle-bg);
   }
 }
 
@@ -322,9 +299,9 @@
 .attachment-image-tile__loading {
   background: linear-gradient(
     100deg,
-    var(--cpx-comp-modal-preformat-bg) 30%,
+    var(--cpx-sys-color-surface-editor) 30%,
     var(--cpx-sys-color-hover) 50%,
-    var(--cpx-comp-modal-preformat-bg) 70%
+    var(--cpx-sys-color-surface-editor) 70%
   );
   background-size: 200% 100%;
   animation: attachment-loading calc(var(--cpx-sys-motion-loading) * 2) ease-in-out infinite;
@@ -345,7 +322,7 @@
   overflow: visible;
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-dropdown-menu-bg);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-primary);
 
   &[data-status='error'] {
@@ -435,12 +412,12 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-button-bg);
-  color: var(--cpx-comp-button-fg);
+  background: var(--cpx-sys-color-surface-control);
+  color: var(--cpx-sys-color-fg-primary);
   box-shadow: var(--cpx-sys-shadow-resting);
 
   &:hover {
-    background: var(--cpx-comp-button-bg);
+    background: var(--cpx-sys-color-surface-control);
   }
 
 }
@@ -496,11 +473,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: color-mix(
-    in srgb,
-    var(--cpx-sys-color-accent) 80%,
-    var(--cpx-sys-color-fg-primary) 20%
-  );
+  color: var(--cpx-sys-color-accent-fg);
   box-decoration-break: clone;
   font-size: inherit;
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -664,7 +637,7 @@
   line-height: var(--cpx-sys-line-height-tight);
   padding: 1px 5px;
   border-radius: var(--cpx-sys-radius-xs);
-  background: var(--cpx-sys-color-control);
+  background: var(--cpx-sys-color-surface-control);
   color: var(--cpx-sys-color-fg-secondary);
 }
 

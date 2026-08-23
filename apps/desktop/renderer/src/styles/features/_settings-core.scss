@@ -58,7 +58,7 @@
 /* --- Right Content --- */
 .settings-content-scroll-area {
   flex: 1;
-  background-color: var(--cpx-comp-surface-canvas);
+  background-color: var(--cpx-sys-color-surface-canvas);
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -170,9 +170,9 @@
 .settings-card,
 .settings-section-content[data-surface="card"] {
   overflow: hidden;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-fog);
+  background: var(--cpx-sys-color-surface-recessed);
   box-shadow: none;
   transition:
     background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
