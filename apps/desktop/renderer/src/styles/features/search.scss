@@ -23,11 +23,11 @@
 .utility-view {
   display: grid;
   align-content: start;
-  gap: var(--layout-section-gap);
-  width: min(var(--layout-bento-w), 100%);
+  gap: var(--cpx-sys-layout-section-gap);
+  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
   margin: 0 auto;
-  padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
-    var(--layout-page-pad-bottom);
+  padding: var(--cpx-sys-layout-page-padding-block) var(--cpx-sys-layout-page-padding-inline)
+    var(--cpx-sys-layout-page-padding-bottom);
 }
 
 .utility-view-header {
@@ -40,7 +40,7 @@
 .utility-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--layout-card-gap);
+  gap: var(--cpx-sys-layout-card-gap);
 }
 
 .utility-card {
@@ -54,9 +54,9 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: var(--control-gap);
+  gap: var(--cpx-sys-space-2);
   margin: 0 auto;
-  padding: 1.15em 1em;
+  padding: var(--cpx-sys-space-5) var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-recessed);
@@ -77,15 +77,15 @@
     flex: 1;
     padding: 0;
     border: 0;
-    line-height: var(--control-line-height);
+    line-height: var(--cpx-sys-line-height-tight);
   }
 }
 
 .search-result-row {
   display: grid;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   justify-items: start;
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid transparent;
   border-radius: var(--cpx-sys-radius-md);
   text-align: left;

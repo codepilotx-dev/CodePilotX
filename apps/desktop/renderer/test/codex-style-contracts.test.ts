@@ -141,14 +141,14 @@ describe('Codex CPX design system token contract', () => {
       /\.settings-row\s*\{[\s\S]*?min-height: 64px;/,
     )
     expect(settings).toMatch(
-      /\.settings-row\s*\{[\s\S]*?padding: 12px 0;/,
+      /\.settings-row\s*\{[\s\S]*?padding: var\(--cpx-sys-space-3\) 0;/,
     )
     expect(settings).toMatch(
       /\.settings-row \+ \.settings-row[\s\S]*?height: 0\.5px;/,
     )
   })
 
-  test('keeps component colors private to shared component styles', async () => {
+  test('keeps component tokens private to shared component styles', async () => {
     const [tokens, rightDock, sidebar, modal, popover] = await Promise.all([
       Bun.file(new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url)).text(),
@@ -168,7 +168,8 @@ describe('Codex CPX design system token contract', () => {
     // Feature styles consume public system semantics instead of component aliases.
     expect(rightDock).not.toContain('--cpx-comp-dock-bg')
     expect(rightDock).not.toContain('--cpx-comp-dock-border')
-    expect(rightDock).toContain('--cpx-comp-dock-tab-radius')
+    expect(rightDock).not.toContain('--cpx-comp-dock-tab-radius')
+    expect(rightDock).toContain('--cpx-sys-radius-control')
     expect(sidebar).not.toContain('--cpx-comp-sidebar-bg')
     expect(sidebar).not.toContain('--cpx-comp-sidebar-border')
     expect(sidebar).not.toContain('--cpx-comp-sidebar-item-active-bg')

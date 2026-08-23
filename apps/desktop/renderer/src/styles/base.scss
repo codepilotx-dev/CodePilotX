@@ -225,12 +225,13 @@ p {
 
 :root[data-reduce-motion="on"] {
   --cpx-sys-motion-instant: 0ms;
-  --cpx-sys-motion-micro: 1ms;
-  --cpx-sys-motion-state: 1ms;
-  --cpx-sys-motion-panel: 1ms;
-  --cpx-sys-motion-loading: 1ms;
-  --cpx-sys-motion-enter: 1ms;
-  --cpx-sys-motion-exit: 1ms;
+  --cpx-sys-motion-micro: 0ms;
+  --cpx-sys-motion-feedback: 0ms;
+  --cpx-sys-motion-exit: 0ms;
+  --cpx-sys-motion-state: 0ms;
+  --cpx-sys-motion-enter: 0ms;
+  --cpx-sys-motion-panel: 0ms;
+  --cpx-sys-motion-loading: 0ms;
 }
 
 :root[data-reduce-motion="on"] *,

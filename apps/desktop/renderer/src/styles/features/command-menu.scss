@@ -30,7 +30,7 @@
 
 .command-menu-search {
   display: flex;
-  min-height: var(--control-size-lg);
+  min-height: var(--cpx-sys-space-8);
   flex: 0 0 auto;
   align-items: center;
   gap: var(--cpx-sys-space-2);
@@ -49,7 +49,7 @@
 
 .command-menu-input {
   min-width: 0;
-  min-height: var(--control-size-lg);
+  min-height: var(--cpx-sys-space-8);
   flex: 1;
   padding: 0;
   border: 0;
@@ -57,7 +57,7 @@
   color: var(--cpx-sys-color-fg-primary);
   font: inherit;
   font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   outline: 0;
 
   &::placeholder {
@@ -85,23 +85,23 @@
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-xs);
     font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: var(--control-line-height);
+    line-height: var(--cpx-sys-line-height-tight);
   }
 }
 
 .command-menu-item {
   width: 100%;
   min-width: 0;
-  min-height: var(--control-size-md);
+  min-height: var(--cpx-sys-space-7);
   display: grid;
-  grid-template-columns: var(--app-icon-size) minmax(0, 1fr) auto auto;
+  grid-template-columns: var(--cpx-sys-space-4) minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   cursor: default;
   outline: 0;
   user-select: none;
@@ -122,8 +122,8 @@
 }
 
 .command-menu-item-status {
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -164,7 +164,7 @@
 
 .command-menu-shortcut {
   min-width: max-content;
-  padding: 0.1em 0.45em;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: color-mix(
@@ -180,11 +180,11 @@
 }
 
 .command-menu-recommendation {
-  grid-template-columns: var(--app-icon-size) minmax(0, 1fr) auto;
+  grid-template-columns: var(--cpx-sys-space-4) minmax(0, 1fr) auto;
 }
 
 .command-menu-status {
-  min-height: calc(var(--control-size-md) + var(--cpx-sys-space-2));
+  min-height: calc(var(--cpx-sys-space-7) + var(--cpx-sys-space-2));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -197,7 +197,7 @@
 
 .command-menu-spinner {
   flex: 0 0 auto;
-  animation: command-menu-spin var(--cpx-sys-motion-loading) linear infinite;
+  animation: command-menu-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
 }
 
 .command-menu-unread-dot {

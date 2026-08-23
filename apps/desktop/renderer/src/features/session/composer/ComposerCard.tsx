@@ -529,7 +529,7 @@ export function ComposerCard({
   );
   const taskPlanningIcon = taskPlanningSkill ? (
     <BuiltinSkillIcon
-      className="tw:rounded-[4px]"
+      className="tw:rounded-xs"
       skill={{
         name: "taskboard-planner",
         path: "builtin://taskboard-planner/SKILL.md",

@@ -34,8 +34,8 @@
   outline: none;
   user-select: none;
   transition:
-    background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
@@ -131,7 +131,7 @@
     --cpx-comp-row-padding-inline
   );
   --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
-  --interactive-row-current-line-height: var(--control-line-height, 1);
+  --interactive-row-current-line-height: var(--cpx-sys-line-height-tight);
 }
 
 .interactive-row:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])),

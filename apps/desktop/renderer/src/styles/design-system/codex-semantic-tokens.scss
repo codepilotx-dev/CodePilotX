@@ -215,4 +215,74 @@
   --cpx-comp-row-focus-border: var(--cpx-sys-color-border-focus);
   --cpx-comp-row-disabled-fg: var(--cpx-sys-color-fg-disabled);
   --cpx-comp-row-disabled-opacity: 0.55;
+
+  // ---------------------------------------------------------------------------
+  // Component Geometry (Comp: private to the matching base component only).
+  // Reuses the pre-2A size semantics/values; cross-feature layout roles live
+  // in --cpx-sys-layout-*; selector-scoped locals stay inside Feature styles.
+  // ---------------------------------------------------------------------------
+
+  // Button / IconButton
+  --cpx-comp-button-padding-block: 5px;
+  --cpx-comp-button-padding-inline: 8px;
+  --cpx-comp-button-gap: 6px;
+  --cpx-comp-button-padding-block-compact: 3px;
+  --cpx-comp-button-padding-inline-compact: 6px;
+  --cpx-comp-button-gap-compact: 4px;
+  --cpx-comp-button-font: var(--cpx-sys-type-body);
+
+  // Input / SearchInput
+  --cpx-comp-input-height-sm: 24px;
+  --cpx-comp-input-height-md: 28px;
+  --cpx-comp-input-height-lg: 32px;
+  --cpx-comp-input-padding-block: 5px;
+  --cpx-comp-input-padding-inline: 8px;
+  --cpx-comp-input-gap: 6px;
+  --cpx-comp-input-font: var(--cpx-sys-type-body);
+
+  // Menu
+  --cpx-comp-menu-surface-padding: 4px;
+  --cpx-comp-menu-item-padding-block: 5px;
+  --cpx-comp-menu-item-padding-inline: 8px;
+  --cpx-comp-menu-item-gap: 6px;
+  --cpx-comp-menu-item-gap-y: 2px;
+  --cpx-comp-menu-rich-item-height: 44px;
+  --cpx-comp-menu-rich-item-padding-block: 6px;
+  --cpx-comp-menu-icon-size: 16px;
+  --cpx-comp-menu-font: var(--cpx-sys-type-body);
+  --cpx-comp-menu-detail-font: var(--cpx-sys-type-body-sm);
+
+  // Dropdown (trigger + menu surface)
+  --cpx-comp-dropdown-menu-padding: 4px;
+  --cpx-comp-dropdown-item-padding-block: 5px;
+  --cpx-comp-dropdown-item-padding-inline: 8px;
+  --cpx-comp-dropdown-item-gap: 6px;
+  --cpx-comp-dropdown-item-gap-y: 2px;
+  --cpx-comp-dropdown-rich-item-height: 44px;
+  --cpx-comp-dropdown-rich-item-padding-block: 6px;
+  --cpx-comp-dropdown-icon-size: 16px;
+
+  // Icon
+  --cpx-comp-icon-size-sm: 14px;
+  --cpx-comp-icon-size-md: 16px;
+  --cpx-comp-icon-size-lg: 18px;
+  --cpx-comp-icon-stroke-width: 1.75;
+
+  // Navigation row
+  --cpx-comp-nav-row-height: calc(var(--cpx-sys-font-size-md) + 16px);
+  --cpx-comp-nav-row-padding-block: 5px;
+  --cpx-comp-nav-row-padding-inline: 5px;
+  --cpx-comp-nav-section-gap: 18px;
+  --cpx-comp-nav-session-indent: 30px;
+
+  // Switch
+  --cpx-comp-switch-width: 32px;
+  --cpx-comp-switch-height: 18px;
+  --cpx-comp-switch-thumb-size: 14px;
+  --cpx-comp-switch-thumb-gap: 2px;
+
+  // Card
+  --cpx-comp-card-padding: var(--cpx-sys-layout-card-padding);
+  --cpx-comp-card-gap: var(--cpx-sys-layout-card-gap);
+  --cpx-comp-card-radius: var(--cpx-sys-radius-container);
 }

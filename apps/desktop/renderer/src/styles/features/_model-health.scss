@@ -36,7 +36,7 @@
   color: var(--cpx-sys-color-fg-secondary);
 
   strong {
-    margin-left: 4px;
+    margin-left: var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-primary);
     font-variant-numeric: tabular-nums;
   }
@@ -46,13 +46,13 @@
   height: 6px;
   margin-top: var(--cpx-sys-space-3);
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--cpx-sys-radius-pill);
   background: var(--cpx-sys-color-border-subtle);
 
   .model-health-progress-fill {
     width: 100%;
     height: 100%;
-    border-radius: 999px;
+    border-radius: var(--cpx-sys-radius-pill);
     background: var(--cpx-sys-color-accent);
     transform: scaleX(var(--model-health-progress, 0));
     transform-origin: left;
@@ -113,7 +113,7 @@
 .model-health-row-main {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .model-health-row-title {
@@ -156,8 +156,8 @@
 
 .model-health-status {
   flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-pill);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
   white-space: nowrap;

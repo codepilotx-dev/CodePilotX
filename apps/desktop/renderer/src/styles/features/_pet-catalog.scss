@@ -18,15 +18,15 @@
 .pet-catalog-content {
   width: min(1180px, 100%);
   margin: 0 auto;
-  padding: 36px 40px 64px;
+  padding: calc(var(--cpx-sys-space-1) * 9) calc(var(--cpx-sys-space-1) * 10) calc(var(--cpx-sys-space-1) * 16);
 }
 
 .pet-catalog-page-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 28px;
+  gap: var(--cpx-sys-space-6);
+  margin-bottom: var(--cpx-sys-space-7);
 }
 
 .pet-catalog-page-heading h1 {
@@ -37,7 +37,7 @@
 
 .pet-catalog-page-heading p {
   max-width: 680px;
-  margin: 8px 0 0;
+  margin: var(--cpx-sys-space-2) 0 0;
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-sm);
 }
@@ -47,7 +47,7 @@
 }
 
 .pet-catalog-panel {
-  padding: 16px;
+  padding: var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
   background: var(--cpx-sys-color-surface-panel);
@@ -63,7 +63,7 @@
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(140px, auto) minmax(140px, auto);
   align-items: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-catalog-filters .settings-dropdown {
@@ -73,8 +73,8 @@
 }
 
 .pet-catalog-status {
-  margin: 12px 0 0;
-  padding: 9px 12px;
+  margin: var(--cpx-sys-space-3) 0 0;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-hover);
   color: var(--cpx-sys-color-fg-tertiary);
@@ -85,9 +85,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 10px 12px;
+  gap: var(--cpx-sys-space-3);
+  margin-top: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-raised);
@@ -97,8 +97,8 @@
 .pet-catalog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  gap: var(--cpx-sys-space-3);
+  margin-top: var(--cpx-sys-space-4);
 }
 
 .pet-catalog-card {
@@ -117,7 +117,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 10px;
+  padding: var(--cpx-sys-space-3);
   background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-primary);
 }
@@ -156,16 +156,16 @@
 .pet-catalog-card-body {
   display: grid;
   grid-template-rows: auto auto minmax(3.5em, 1fr) auto auto;
-  gap: 7px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
-  padding: 12px;
+  padding: var(--cpx-sys-space-3);
 }
 
 .pet-catalog-card-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -193,11 +193,11 @@
 .pet-catalog-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-catalog-tags > span {
-  padding: 3px 7px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
   color: var(--cpx-sys-color-fg-tertiary);
@@ -212,8 +212,8 @@
 .pet-catalog-empty {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  padding: 48px 16px;
+  gap: var(--cpx-sys-space-2);
+  padding: calc(var(--cpx-sys-space-1) * 12) var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-tertiary);
   text-align: center;
 }
@@ -251,7 +251,7 @@
 
 .pet-catalog-skeleton-tags {
   display: flex;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-catalog-skeleton-tags > * {
@@ -262,19 +262,19 @@
 
 .pet-catalog-skeleton-action {
   width: 100%;
-  height: var(--control-size-md);
+  height: var(--cpx-sys-space-7);
   border-radius: var(--cpx-sys-radius-md);
 }
 
 .pet-license-confirmation {
   display: grid;
-  gap: 9px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-license-confirmation-text {
   max-height: 112px;
   overflow: auto;
-  padding: 9px 10px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-raised);
@@ -284,7 +284,7 @@
 
 @media (max-width: 900px) {
   .pet-catalog-content {
-    padding-inline: 24px;
+    padding-inline: var(--cpx-sys-space-6);
   }
 
   .pet-catalog-filters {

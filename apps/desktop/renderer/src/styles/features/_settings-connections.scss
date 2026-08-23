@@ -5,7 +5,7 @@
   background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   overflow: hidden;
-  margin-bottom: var(--layout-section-gap);
+  margin-bottom: var(--cpx-sys-layout-section-gap);
 
   &-header {
     display: flex;
@@ -28,21 +28,21 @@
   }
 
   &-icon {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
+    width: var(--cpx-sys-space-4);
+    height: var(--cpx-sys-space-4);
     color: var(--cpx-sys-color-fg-secondary);
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: 1.75;
   }
 
   &-badge {
     display: inline-flex;
     align-items: center;
-    gap: var(--control-gap-compact);
-    padding: var(--control-padding-block-compact) var(--control-padding-inline);
+    gap: var(--cpx-sys-space-1);
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border-radius: var(--cpx-sys-radius-full);
     font-size: var(--cpx-sys-font-size-xs);
     font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: 1;
+    line-height: var(--cpx-sys-line-height-none);
     white-space: nowrap;
 
     &.ok {
@@ -92,7 +92,7 @@
   }
 
   &-detail {
-    margin-top: 4px;
+    margin-top: var(--cpx-sys-space-1);
     font-size: var(--cpx-sys-font-size-xs);
     font-family: var(--cpx-sys-font-family-mono);
     color: var(--cpx-sys-color-fg-secondary);
@@ -114,7 +114,7 @@
 
   &-meta-item {
     display: grid;
-    gap: 2px;
+    gap: var(--cpx-sys-space-1);
   }
 
   &-meta-label {
@@ -128,7 +128,7 @@
     color: var(--cpx-sys-color-fg-primary);
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--cpx-sys-space-1);
   }
 }
 
@@ -200,15 +200,15 @@
 .settings-copilot-auth {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
   width: 100%;
 }
 
 .settings-copilot-device-code {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-raised);
@@ -223,7 +223,7 @@
 
 .settings-copilot-device-code-row {
   display: flex;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   align-items: center;
 
   .settings-input {
@@ -254,13 +254,13 @@
 .settings-chip {
   display: inline-flex;
   align-items: center;
-  padding: var(--control-padding-block) 0.833em;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-surface-raised);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   white-space: nowrap;
 
   &.ok {
@@ -277,8 +277,8 @@
 }
 
 .settings-provider-logo {
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   border-radius: var(--cpx-sys-radius-md);
   flex-shrink: 0;
   object-fit: contain;
@@ -294,7 +294,7 @@
 
 .settings-empty-state {
   margin: 0;
-  padding: 18px;
+  padding: var(--cpx-sys-space-5);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
 }
@@ -302,7 +302,7 @@
 .settings-inline-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -310,6 +310,6 @@
 .settings-provider-links {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
   white-space: nowrap;
 }

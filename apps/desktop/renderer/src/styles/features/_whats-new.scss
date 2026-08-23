@@ -162,7 +162,7 @@
 
 .whats-new-release-heading {
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--cpx-sys-space-4);
 }
 
 .whats-new-release-heading strong {
@@ -184,11 +184,11 @@
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .whats-new-release-badges > span {
-  padding: 3px 8px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
   color: var(--cpx-sys-color-fg-tertiary);
@@ -200,7 +200,7 @@
 }
 
 .whats-new-release-meta {
-  gap: 10px;
+  gap: var(--cpx-sys-space-3);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
 }
@@ -220,7 +220,7 @@
 .whats-new-release-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: var(--cpx-sys-space-5);
 }
 
 .whats-new-empty-body,
@@ -236,7 +236,7 @@
 
 .whats-new-notice {
   margin: 0 0 var(--cpx-sys-space-3);
-  padding: 10px 12px;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-hover);
   font-size: var(--cpx-sys-font-size-xs);
@@ -269,8 +269,8 @@
 .whats-new-state {
   display: grid;
   justify-items: start;
-  gap: 8px;
-  padding: 28px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-7);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-recessed);
@@ -278,20 +278,20 @@
 
 .whats-new-state p {
   max-width: 620px;
-  margin: 0 0 8px;
+  margin: 0 0 var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
   line-height: var(--cpx-sys-line-height-normal);
 }
 
 .whats-new-skeleton {
   display: grid;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
 }
 
 .whats-new-skeleton-card {
   display: grid;
-  gap: 10px;
-  padding: 17px;
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
 }
@@ -301,7 +301,7 @@
   height: 13px;
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
-  animation: whats-new-skeleton-pulse 1.4s ease-in-out infinite;
+  animation: whats-new-skeleton-pulse var(--cpx-sys-motion-loading) var(--cpx-sys-ease-standard) infinite;
 }
 
 .whats-new-skeleton-card > span:first-child {

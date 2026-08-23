@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
-  padding: 10px 14px;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   background: var(--cpx-sys-color-surface-raised);
 }
@@ -34,7 +34,7 @@
 
 .subagent-thread-panel__identity {
   min-width: 0;
-  gap: 10px;
+  gap: var(--cpx-sys-space-3);
 }
 
 .subagent-thread-panel__back {
@@ -72,8 +72,8 @@
 
 .subagent-thread-panel__status-badge {
   flex: 0 0 auto;
-  gap: 4px;
-  padding: 2px 6px;
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-surface-editor);
@@ -95,7 +95,7 @@
 }
 
 .subagent-thread-panel__run-actions {
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .subagent-thread-panel__scroll-region {
@@ -108,18 +108,18 @@
   width: min(760px, calc(100% - 28px));
   min-width: 0;
   display: grid;
-  gap: 14px;
+  gap: var(--cpx-sys-space-4);
   margin: 0 auto;
-  padding: 18px 0 28px;
+  padding: var(--cpx-sys-space-5) 0 var(--cpx-sys-space-7);
 }
 
 .subagent-thread-panel__timeline {
   display: grid;
-  gap: 14px;
+  gap: var(--cpx-sys-space-4);
 }
 
 .subagent-thread-panel__empty {
-  padding: 28px 0;
+  padding: var(--cpx-sys-space-7) 0;
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-md);
   text-align: center;
@@ -128,8 +128,8 @@
 .subagent-thread-panel__notice,
 .subagent-thread-panel__blocked,
 .subagent-thread-panel__error {
-  gap: 7px;
-  padding: 8px 10px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border-radius: var(--cpx-sys-radius-lg);
   font-size: var(--cpx-sys-font-size-sm);
 }
@@ -161,8 +161,8 @@
 .subagent-thread-row--approval,
 .subagent-thread-panel__result {
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-panel);
@@ -170,7 +170,7 @@
 
 .subagent-thread-row--question > header {
   display: grid;
-  gap: 3px;
+  gap: var(--cpx-sys-space-1);
 
   > span {
     color: var(--cpx-sys-color-fg-tertiary);
@@ -188,18 +188,18 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--control-gap-compact);
+  gap: var(--cpx-sys-space-1);
 }
 
 .subagent-thread-row__choices {
   display: grid;
-  gap: 7px;
+  gap: var(--cpx-sys-space-2);
 
   label {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    gap: 8px;
-    padding: 8px;
+    gap: var(--cpx-sys-space-2);
+    padding: var(--cpx-sys-space-2);
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-md);
     cursor: pointer;
@@ -211,13 +211,13 @@
   }
 
   input {
-    margin-top: 2px;
+    margin-top: var(--cpx-sys-space-1);
   }
 
   label > span {
     min-width: 0;
     display: grid;
-    gap: 2px;
+    gap: var(--cpx-sys-space-1);
 
     strong {
       color: var(--cpx-sys-color-fg-primary);
@@ -236,9 +236,9 @@
   width: 100%;
   min-height: 54px;
   resize: vertical;
-  padding: 8px 9px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-comp-input-radius);
+  border-radius: var(--cpx-sys-radius-control);
   outline: none;
   background: var(--cpx-sys-color-surface-control);
   color: var(--cpx-sys-color-fg-primary);
@@ -246,14 +246,14 @@
 
   &:focus {
     border-color: var(--cpx-sys-color-accent);
-    box-shadow: 0 0 0 2px var(--cpx-sys-color-accent);
+  box-shadow: var(--cpx-sys-focus-ring-soft);
   }
 }
 
 .subagent-thread-row--answer {
   display: grid;
-  gap: 4px;
-  padding-left: 10px;
+  gap: var(--cpx-sys-space-1);
+  padding-left: var(--cpx-sys-space-3);
   border-left: 2px solid var(--cpx-sys-color-border-subtle);
 
   p {
@@ -263,13 +263,13 @@
 }
 
 .subagent-thread-row--approval > header {
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 
   > span {
     min-width: 0;
     display: grid;
     flex: 1 1 auto;
-    gap: 2px;
+    gap: var(--cpx-sys-space-1);
 
     small {
       color: var(--cpx-sys-color-fg-tertiary);
@@ -296,7 +296,7 @@
   max-height: 180px;
   margin: 0;
   overflow: auto;
-  padding: 9px;
+  padding: var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-editor);
   font-family: var(--cpx-sys-font-family-mono);
@@ -307,7 +307,7 @@
 }
 
 .subagent-thread-panel__result > header {
-  gap: 7px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .subagent-thread-panel__result[data-outcome='succeeded'] > header svg {
@@ -316,7 +316,7 @@
 
 .subagent-thread-panel__result ul {
   display: grid;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -324,8 +324,8 @@
 
 .subagent-thread-panel__result li {
   display: grid;
-  gap: 2px;
-  padding-top: 8px;
+  gap: var(--cpx-sys-space-1);
+  padding-top: var(--cpx-sys-space-2);
   border-top: 1px solid var(--cpx-sys-color-border-subtle, var(--cpx-sys-color-border-subtle));
 
   span {
@@ -335,7 +335,7 @@
 }
 
 .subagent-thread-panel .is-spinning {
-  animation: subagent-thread-spin var(--cpx-sys-motion-loading) linear infinite;
+  animation: subagent-thread-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
 }
 
 @keyframes subagent-thread-spin {

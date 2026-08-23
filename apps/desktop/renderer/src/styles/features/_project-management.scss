@@ -41,7 +41,7 @@
 
 .project-edit-backdrop {
   position: fixed;
-  z-index: 100;
+  z-index: var(--cpx-sys-z-composer);
   inset: 0;
   display: grid;
   place-items: center;
@@ -54,12 +54,12 @@
   width: min(35rem, calc(100vw - 2rem));
   max-height: min(42rem, calc(100vh - 2rem));
   overflow: auto;
-  gap: 1.25rem;
+  gap: var(--cpx-sys-space-5);
   border: 1px solid var(--color-app-border);
   border-radius: var(--cpx-sys-radius-xl);
   outline: none;
   background: var(--color-app-chrome);
-  padding: 1.5rem;
+  padding: var(--cpx-sys-space-6);
   color: var(--color-app-text);
   box-shadow: var(--cpx-sys-shadow-floating);
 }
@@ -68,11 +68,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--cpx-sys-space-4);
 
   h2 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: var(--cpx-sys-font-size-2xl);
     font-weight: var(--cpx-sys-font-weight-medium);
   }
 }
@@ -110,7 +110,7 @@
 
   &:focus-within {
     border-color: var(--color-app-accent);
-    box-shadow: 0 0 0 1px var(--color-app-accent);
+    box-shadow: var(--cpx-sys-focus-ring-inset);
   }
 }
 
@@ -138,19 +138,19 @@
   border: 0;
   outline: 0;
   background: transparent;
-  padding: 0 0.875rem;
+  padding: 0 var(--cpx-sys-space-4);
   color: var(--color-app-text);
   font: inherit;
-  font-size: 0.9375rem;
+  font-size: var(--cpx-sys-font-size-md);
 }
 
 .project-edit-folders {
   display: grid;
-  gap: 0.65rem;
+  gap: var(--cpx-sys-space-3);
 
   h3 {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
   }
 }
@@ -168,11 +168,11 @@
   min-height: 3.25rem;
   width: 100%;
   align-items: center;
-  gap: 0.625rem;
+  gap: var(--cpx-sys-space-3);
   border: 0;
   border-bottom: 1px solid var(--color-app-border);
   background: transparent;
-  padding: 0.625rem 0.75rem;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
   color: var(--color-app-text);
   text-align: start;
 }
@@ -185,7 +185,7 @@
   display: grid;
   min-width: 0;
   flex: 1;
-  gap: 0.125rem;
+  gap: var(--cpx-sys-space-1);
 
   strong,
   span {
@@ -195,12 +195,12 @@
   }
 
   strong {
-    font-size: 0.875rem;
+    font-size: var(--cpx-sys-font-size-md);
   }
 
   span {
     color: var(--color-app-text-soft);
-    font-size: 0.6875rem;
+    font-size: var(--cpx-sys-font-size-xs);
   }
 }
 
@@ -208,9 +208,9 @@
   flex: 0 0 auto;
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
-  padding: 0.1875rem 0.5rem;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--color-app-text-soft);
-  font-size: 0.6875rem;
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .project-edit-folder-action {
@@ -223,7 +223,7 @@
   color: var(--color-app-text-soft);
   cursor: pointer;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--cpx-sys-font-size-md);
 
   &:hover:not(:disabled) {
     background: var(--cpx-sys-color-hover);
@@ -235,12 +235,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--cpx-sys-space-3);
 
   > div {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
+    gap: var(--cpx-sys-space-3);
   }
 }
 
@@ -251,17 +251,17 @@
 .project-edit-empty {
   margin: 0;
   color: var(--color-app-text-soft);
-  font-size: 0.875rem;
+  font-size: var(--cpx-sys-font-size-md);
 }
 
 .project-appearance-popover {
-  z-index: 120;
+  z-index: var(--cpx-sys-z-composer);
   width: 16.25rem;
   border: 1px solid var(--color-app-border);
   border-radius: var(--cpx-sys-radius-xl);
   outline: none;
   background: var(--color-app-chrome);
-  padding: 0.5rem;
+  padding: var(--cpx-sys-space-2);
   color: var(--color-app-text);
   box-shadow: var(--cpx-sys-shadow-floating);
 }
@@ -269,8 +269,8 @@
 .project-appearance-colors {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 0.5rem;
-  padding: 0.125rem 0.125rem 0.75rem;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1) var(--cpx-sys-space-3);
   border-bottom: 1px solid var(--color-app-border);
 }
 
@@ -285,9 +285,7 @@
   background: currentcolor;
   color: var(--color-app-text-soft);
   cursor: pointer;
-  box-shadow:
-    inset 0 0 0 1px
-      color-mix(in srgb, currentcolor 85%, var(--cpx-sys-color-fg-on-accent));
+  box-shadow: var(--cpx-sys-focus-ring-inset);
 
   &[data-project-color='default'] {
     background: var(--color-app-text-soft);
@@ -306,8 +304,8 @@
 .project-appearance-icons {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 0.25rem;
-  padding: 0.5rem 0;
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-2) 0;
 }
 
 .project-appearance-icon {

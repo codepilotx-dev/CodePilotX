@@ -43,15 +43,18 @@
 }
 
 .right-dock-empty-state {
+  --right-dock-empty-state-gap: clamp(var(--cpx-sys-space-2), 2vh, var(--cpx-sys-space-5));
+  --right-dock-empty-state-padding: clamp(var(--cpx-sys-space-3), 4vh, var(--cpx-sys-space-6));
+
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: clamp(8px, 2vh, 18px);
+  gap: var(--right-dock-empty-state-gap);
   width: 100%;
   min-width: 0;
   min-height: 0;
   height: 100%;
-  padding: clamp(12px, 4vh, var(--cpx-sys-space-6));
+  padding: var(--right-dock-empty-state-padding);
   color: var(--cpx-sys-color-fg-tertiary);
   text-align: center;
 
@@ -111,7 +114,7 @@
 
   p {
     margin: 0;
-    padding: 8px 16px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
     border-top: 1px solid var(--cpx-sys-color-border-subtle);
     color: var(--cpx-sys-color-fg-tertiary);
     font-size: var(--cpx-sys-font-size-xs);
@@ -179,7 +182,7 @@
 .file-breadcrumb-toolbar__view-mode,
 .file-breadcrumb-toolbar__open-menu {
   display: inline-flex;
-  height: var(--control-size-sm);
+  height: var(--cpx-sys-space-6);
   align-items: center;
   justify-content: center;
   border: 0;
@@ -205,7 +208,7 @@
 
 .file-breadcrumb-toolbar__directory {
   display: inline-flex;
-  height: var(--control-size-sm);
+  height: var(--cpx-sys-space-6);
   min-width: 0;
   max-width: 144px;
   align-items: center;
@@ -254,7 +257,7 @@
 }
 
 .file-breadcrumb-toolbar__action {
-  width: var(--control-size-sm);
+  width: var(--cpx-sys-space-6);
   padding: 0;
 }
 
@@ -280,7 +283,7 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: var(--layout-toolbar-gap);
+  gap: var(--cpx-sys-layout-toolbar-gap);
 }
 
 .file-breadcrumb-toolbar__open-menu {
@@ -290,8 +293,8 @@
 }
 
 .file-breadcrumb-open-target-icon {
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   object-fit: contain;
 }
 
@@ -352,8 +355,8 @@
   flex: 1 1 auto;
   align-content: center;
   justify-items: center;
-  gap: 12px;
-  padding: 24px;
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-6);
   color: var(--cpx-sys-color-fg-tertiary);
   text-align: center;
 
@@ -466,7 +469,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 14px 12px;
+  padding: var(--cpx-sys-space-4) var(--cpx-sys-space-3);
   overflow: hidden;
 }
 
@@ -502,13 +505,13 @@
 .right-dock-search {
   display: flex;
   align-items: center;
-  gap: var(--control-gap);
-  padding: 0.91em 0.9em;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-4) var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-tertiary);
   flex: 0 0 auto;
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
 
   input {
     min-width: 0;
@@ -534,22 +537,22 @@
 
 .right-dock-tree-scroll-content {
   min-width: 0;
-  padding-top: 8px;
+  padding-top: var(--cpx-sys-space-2);
 }
 
 .right-dock-tree-row {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 6px;
+  gap: var(--cpx-sys-space-2);
+  padding: 0 var(--cpx-sys-space-2);
   height: 28px;
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   text-align: left;
   cursor: pointer;
   user-select: none;
@@ -599,7 +602,7 @@
 }
 
 .right-dock-tree-empty {
-  padding: 18px 8px;
+  padding: var(--cpx-sys-space-5) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-sm);
 }
@@ -618,7 +621,7 @@
 .right-dock-side-chat__timeline {
   .session-timeline-container {
     width: min(100%, var(--composer-width));
-    padding: 8px 16px 20px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4) var(--cpx-sys-space-5);
   }
 }
 
@@ -654,24 +657,24 @@
   align-items: center;
   justify-content: center;
   min-height: 100%;
-  padding: 32px 24px;
+  padding: var(--cpx-sys-space-8) var(--cpx-sys-space-6);
   color: var(--cpx-sys-color-fg-tertiary);
   text-align: center;
 
   > strong {
-    margin-top: 14px;
+    margin-top: var(--cpx-sys-space-4);
     color: var(--cpx-sys-color-fg-primary);
     font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   > span:not(.right-dock-side-chat__empty-icon) {
-    margin-top: 6px;
+    margin-top: var(--cpx-sys-space-2);
     font-size: var(--cpx-sys-font-size-sm);
   }
 
   > button {
-    margin-top: 16px;
+    margin-top: var(--cpx-sys-space-4);
   }
 }
 
@@ -695,7 +698,7 @@
 
 .right-dock-plan-scroll-content,
 .right-dock-file-tree {
-  padding: var(--layout-card-gap);
+  padding: var(--cpx-sys-layout-card-gap);
 }
 
 .right-dock-search,
@@ -729,13 +732,13 @@
 }
 
 .workspace-file-tree.right-dock-file-tree {
-  padding: 6px 4px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-1);
 }
 
 .workspace-file-tree .right-dock-search {
   height: 28px;
   min-height: 28px;
-  margin-bottom: 4px;
+  margin-bottom: var(--cpx-sys-space-1);
 
   input {
     font-size: var(--cpx-sys-font-size-sm);
@@ -745,9 +748,9 @@
 .workspace-file-tree .right-dock-tree-row {
   height: 26px;
   min-height: 26px;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   padding-block: 0;
-  padding-right: 6px;
+  padding-right: var(--cpx-sys-space-2);
   font-size: var(--cpx-sys-font-size-sm);
 }
 .workspace-file-tree-groups {
@@ -775,11 +778,11 @@
   display: flex;
   height: 2rem;
   align-items: center;
-  gap: 0.45rem;
+  gap: var(--cpx-sys-space-2);
   background: var(--color-app-chrome);
-  padding: 0 0.625rem;
+  padding: 0 var(--cpx-sys-space-3);
   color: var(--color-app-text);
-  font-size: 0.75rem;
+  font-size: var(--cpx-sys-font-size-sm);
   font-weight: var(--cpx-sys-font-weight-medium);
 
   span {
@@ -793,9 +796,9 @@
   em {
     border-radius: var(--cpx-sys-radius-full);
     background: var(--color-app-panel);
-    padding: 0.125rem 0.4rem;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     color: var(--color-app-accent);
-    font-size: 0.625rem;
+    font-size: var(--cpx-sys-font-size-xs);
     font-style: normal;
   }
 }

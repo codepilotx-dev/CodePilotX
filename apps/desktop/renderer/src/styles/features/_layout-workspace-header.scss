@@ -9,7 +9,7 @@
     100% - var(--workspace-header-route-end-inset)
   );
   position: absolute;
-  z-index: calc(var(--cpx-sys-z-right-dock) + 1);
+  z-index: var(--cpx-sys-z-dock);
   top: 0;
   right: 0;
   left: 0;
@@ -77,14 +77,16 @@
 }
 
 .desktop-workspace-header-center {
+  --workspace-header-center-padding: calc(
+    var(--workspace-header-center-safe-inset, 0) +
+      var(--cpx-sys-layout-toolbar-gap)
+  );
+
   position: absolute;
   inset: 0;
   justify-content: center;
   overflow: hidden;
-  padding-inline: calc(
-    var(--workspace-header-center-safe-inset, 0px) +
-      var(--layout-toolbar-gap)
-  );
+  padding-inline: var(--workspace-header-center-padding);
 }
 
 .desktop-workspace-header-route-right {

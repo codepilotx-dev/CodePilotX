@@ -2,19 +2,19 @@
 
 .ui-input {
   min-width: 0;
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
   border: 1px solid var(--cpx-comp-input-border);
   border-radius: var(--cpx-comp-input-radius);
   color: var(--cpx-comp-input-fg);
   background: var(--cpx-comp-input-bg);
   box-shadow: none;
   font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   outline: none;
   transition:
-    background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    border-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:hover:not(:disabled) {
@@ -44,7 +44,7 @@
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: var(--cpx-comp-input-gap);
   border: 1px solid var(--cpx-sys-color-border-default);
 }
 
@@ -60,7 +60,7 @@
   display: flex;
   align-items: center;
   flex: 1 1 auto;
-  gap: 6px;
+  gap: var(--cpx-comp-input-gap);
   min-width: 0;
   font-size: var(--cpx-sys-font-size-md);
   line-height: var(--cpx-sys-line-height-tight);
@@ -70,8 +70,8 @@
 }
 
 .settings-dropdown-icon {
-  width: var(--app-icon-size-sm);
-  height: var(--app-icon-size-sm);
+  width: var(--cpx-comp-icon-size-sm);
+  height: var(--cpx-comp-icon-size-sm);
   color: var(--cpx-comp-input-placeholder-fg);
   flex-shrink: 0;
 }
@@ -82,13 +82,13 @@
   border-radius: var(--cpx-comp-input-radius);
   background: var(--cpx-sys-color-surface-recessed);
   color: var(--cpx-sys-color-fg-primary);
-  padding: var(--control-padding-block) var(--control-padding-inline);
-  line-height: var(--control-line-height);
+  padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
+  line-height: var(--cpx-sys-line-height-tight);
   outline: none;
   transition:
-    background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    border-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
@@ -104,17 +104,17 @@
   min-width: 0;
   width: 200px;
   max-width: 100%;
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
 }
 
 .settings-input-compact {
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap);
+  gap: var(--cpx-comp-input-gap);
   min-width: 0;
   width: auto;
-  padding: var(--control-padding-block-compact)
-    var(--control-padding-inline-compact);
+  padding: var(--cpx-sys-space-1)
+    var(--cpx-comp-input-padding-inline);
 }
 
 .settings-input-number {
@@ -144,14 +144,14 @@
   border-radius: var(--cpx-comp-input-radius);
   background: var(--cpx-sys-color-surface-recessed);
   color: var(--cpx-sys-color-fg-primary);
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
   font-size: var(--cpx-sys-font-size-md);
   line-height: var(--cpx-sys-line-height-normal);
   outline: none;
   transition:
-    background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    border-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
@@ -193,14 +193,14 @@
 .search-input {
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap);
+  gap: var(--cpx-comp-input-gap);
   min-width: 0;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   background: var(--cpx-sys-color-surface-canvas);
   transition:
-    background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    border-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:hover:not(.search-input--disabled):not(:has(input:disabled)) {
@@ -239,14 +239,14 @@
 
 /* --- Variant: standard --- */
 .search-input--standard {
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
   border-radius: var(--cpx-comp-input-radius);
   font-size: var(--cpx-sys-font-size-md);
 }
 
 /* --- Variant: compact --- */
 .search-input--compact {
-  padding: var(--control-padding-block-compact) var(--control-padding-inline-compact);
+  padding: var(--cpx-sys-space-1) var(--cpx-comp-input-padding-inline);
   border-radius: var(--cpx-comp-input-radius);
   font-size: var(--cpx-sys-font-size-md);
 }
@@ -279,7 +279,7 @@
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
   font-size: inherit;
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   outline: none;
   box-shadow: none;
 
@@ -296,10 +296,10 @@
 /* --- Icon --- */
 .search-input-icon {
   flex-shrink: 0;
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-comp-icon-size-md);
+  height: var(--cpx-comp-icon-size-md);
   color: var(--cpx-sys-color-fg-primary);
-  stroke-width: var(--app-icon-stroke-width);
+  stroke-width: var(--cpx-comp-icon-stroke-width);
   pointer-events: none;
 }
 

@@ -20,10 +20,10 @@
   user-select: none;
   cursor: pointer;
   transition:
-    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    border-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    opacity var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
+    background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    opacity var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
   -webkit-app-region: no-drag;
 
   &:focus-visible {
@@ -231,7 +231,7 @@
 .ui-button[data-size="compact"] {
   --button-size: var(--cpx-comp-button-size-compact);
   --button-padding-inline: 8px;
-  --button-font-size: 11px;
+  --button-font-size: var(--cpx-sys-font-size-xs);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: var(--button-icon-size-xs);
@@ -241,7 +241,7 @@
 .ui-button[data-size="composerSm"],
 .ui-button[data-size="composerUtility"] {
   --button-size: var(--cpx-comp-button-size-toolbar);
-  --button-font-size: 12px;
+  --button-font-size: var(--cpx-sys-font-size-sm);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-sys-radius-full);
   --button-icon-size: 16px;
@@ -259,7 +259,7 @@
 .ui-button[data-size="default"] {
   --button-size: var(--cpx-comp-button-size-compact);
   --button-padding-inline: 8px;
-  --button-font-size: 12px;
+  --button-font-size: var(--cpx-sys-font-size-sm);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-sys-radius-full);
   --button-icon-size: var(--button-icon-size-xs);
@@ -268,7 +268,7 @@
 .ui-button[data-size="icon"] {
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-padding-inline: 4px;
-  --button-font-size: 14px;
+  --button-font-size: var(--cpx-sys-font-size-md);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-md);
   --button-icon-size: var(--button-icon-size-sm);
@@ -277,7 +277,7 @@
 .ui-button[data-size="iconLarge"] {
   --button-size: var(--button-size-icon-large);
   --button-padding-inline: 0;
-  --button-font-size: 16px;
+  --button-font-size: var(--cpx-sys-font-size-lg);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-2xl);
 }
@@ -285,7 +285,7 @@
 .ui-button[data-size="iconMd"] {
   --button-size: 20px;
   --button-padding-inline: 2px;
-  --button-font-size: 14px;
+  --button-font-size: var(--cpx-sys-font-size-md);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-md);
   --button-icon-size: var(--button-icon-size-xs);
@@ -294,7 +294,7 @@
 .ui-button[data-size="iconSm"] {
   --button-size: 16px;
   --button-padding-inline: 2px;
-  --button-font-size: 12px;
+  --button-font-size: var(--cpx-sys-font-size-sm);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-md);
   --button-icon-size: var(--button-icon-size-xs);
@@ -303,7 +303,7 @@
 .ui-button[data-size="large"] {
   --button-size: var(--cpx-comp-button-size-large);
   --button-padding-inline: 20px;
-  --button-font-size: 16px;
+  --button-font-size: var(--cpx-sys-font-size-lg);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-sys-radius-full);
 }
@@ -311,7 +311,7 @@
 .ui-button[data-size="medium"] {
   --button-size: var(--cpx-comp-button-size-medium);
   --button-padding-inline: 16px;
-  --button-font-size: 14px;
+  --button-font-size: var(--cpx-sys-font-size-md);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
 }
@@ -319,7 +319,7 @@
 .ui-button[data-size="tabStripAction"] {
   --button-size: var(--cpx-comp-button-size-large);
   --button-padding-inline: 8px;
-  --button-font-size: 14px;
+  --button-font-size: var(--cpx-sys-font-size-md);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: 16px;
@@ -328,7 +328,7 @@
 .ui-button[data-size="toolbar"] {
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-padding-inline: 8px;
-  --button-font-size: 14px;
+  --button-font-size: var(--cpx-sys-font-size-md);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: 16px;
@@ -337,7 +337,7 @@
 .ui-button[data-size="toolbarLabel"] {
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-padding-inline: 10px;
-  --button-font-size: 12px;
+  --button-font-size: var(--cpx-sys-font-size-sm);
   --button-line-height: var(--cpx-sys-line-height-tight);
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: 16px;
@@ -385,10 +385,10 @@
   line-height: var(--cpx-sys-line-height-tight);
   cursor: pointer;
   transition:
-    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
     border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
     box-shadow var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
   &:hover:not(:disabled) {
     background: var(--cpx-sys-color-hover);

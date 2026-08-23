@@ -1,7 +1,7 @@
 :root {
   --popover-width-extra: 0px;
   --popover-default-max-width: min(360px, calc(100vw - 16px));
-  --popover-surface-padding: var(--menu-surface-padding);
+  --popover-surface-padding: var(--cpx-comp-menu-surface-padding);
 }
 
 /* Developer-themeable Dropdown family contract. The data attributes mark only
@@ -295,7 +295,7 @@
   gap: var(--cpx-comp-row-gap-y, 2px);
   width: var(--popover-width, max-content);
   max-width: var(--popover-max-width, var(--popover-default-max-width));
-  padding: var(--menu-surface-padding);
+  padding: var(--cpx-comp-menu-surface-padding);
 }
 
 .app-context-menu-root {
@@ -323,8 +323,8 @@
 }
 
 .sidebar-context-menu-leading {
-  width: calc(var(--menu-icon-size) + 2px);
-  height: calc(var(--menu-icon-size) + 2px);
+  width: calc(var(--cpx-comp-menu-icon-size) + 2px);
+  height: calc(var(--cpx-comp-menu-icon-size) + 2px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -333,15 +333,15 @@
 
 .sidebar-context-menu-leading > svg,
 .sidebar-context-menu-leading > img {
-  width: calc(var(--menu-icon-size) + 2px);
-  height: calc(var(--menu-icon-size) + 2px);
-  stroke-width: var(--app-icon-stroke-width);
+  width: calc(var(--cpx-comp-menu-icon-size) + 2px);
+  height: calc(var(--cpx-comp-menu-icon-size) + 2px);
+  stroke-width: var(--cpx-comp-icon-stroke-width);
 }
 
 .sidebar-context-menu-arrow {
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
-  stroke-width: var(--app-icon-stroke-width);
+  width: var(--cpx-comp-menu-icon-size);
+  height: var(--cpx-comp-menu-icon-size);
+  stroke-width: var(--cpx-comp-icon-stroke-width);
 }
 
 .sidebar-context-menu-trailing {
@@ -388,8 +388,8 @@
 .rm-model-menu .rm-sub-trigger,
 .chat-input__dropdown-item {
   transition:
-    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
+    background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 }
 
 .popover-provider-list {
@@ -400,7 +400,7 @@
 }
 
 .popover-sub-content {
-  padding: var(--menu-surface-padding);
+  padding: var(--cpx-comp-menu-surface-padding);
 }
 
 .popover-menu-heading {
@@ -484,7 +484,7 @@
 }
 
 .context-plugin-submenu .popover-scroll-content {
-  padding: var(--menu-surface-padding);
+  padding: var(--cpx-comp-menu-surface-padding);
 }
 
 .context-plugin-item {
@@ -600,8 +600,8 @@
 
 /* --- Popover item children --- */
 .popover-item-leading {
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
+  width: var(--cpx-comp-menu-icon-size);
+  height: var(--cpx-comp-menu-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -616,8 +616,8 @@
 }
 
 .popover-item-icon {
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
+  width: var(--cpx-comp-menu-icon-size);
+  height: var(--cpx-comp-menu-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -628,10 +628,10 @@
 .popover-item-icon img,
 .popover-item-check,
 .popover-item-arrow {
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
+  width: var(--cpx-comp-menu-icon-size);
+  height: var(--cpx-comp-menu-icon-size);
   display: block;
-  stroke-width: var(--app-icon-stroke-width);
+  stroke-width: var(--cpx-comp-icon-stroke-width);
   object-fit: contain;
 }
 
@@ -702,8 +702,8 @@
   .popover-item-icon,
   .popover-item-icon svg,
   .popover-item-icon img {
-    width: calc(var(--menu-icon-size) + 2px);
-    height: calc(var(--menu-icon-size) + 2px);
+    width: calc(var(--cpx-comp-menu-icon-size) + 2px);
+    height: calc(var(--cpx-comp-menu-icon-size) + 2px);
   }
 }
 

@@ -7,14 +7,15 @@
   );
   --conversation-item-gap: 16px;
   --conversation-grouped-item-gap: 4px;
-  --thread-reading-width: var(--layout-content-w);
+  --thread-reading-width: var(--cpx-sys-layout-content-max-width);
   --thread-resource-row-padding-x: 12px;
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
 }
 
 .conversation-page .chat-session-header {
   min-height: 44px;
-  padding-inline: 16px calc(var(--workspace-fixed-controls-width) + 6px);
+  padding-inline: var(--cpx-sys-space-4)
+    calc(var(--cpx-sys-layout-workspace-fixed-controls-width) + var(--cpx-sys-space-2));
   border-bottom-color: color-mix(
     in srgb,
     var(--cpx-sys-color-border-subtle) 76%,
@@ -24,7 +25,7 @@
 }
 
 .conversation-page .chat-session-title {
-  gap: 7px;
+  gap: var(--cpx-sys-space-2);
   font-size: var(--cpx-sys-font-size-md);
 }
 
@@ -35,7 +36,7 @@
 }
 
 .conversation-page .thread-scroll-layout__footer {
-  padding: 0 0 16px;
+  padding: 0 0 var(--cpx-sys-space-4);
 }
 
 .conversation-page .session-timeline-container {
@@ -65,16 +66,16 @@
   content-visibility: auto;
   contain-intrinsic-block-size: auto 420px;
   display: grid;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
   width: min(var(--thread-reading-width), var(--session-content-w));
   max-width: var(--thread-reading-width);
   min-width: 0;
   margin-inline: auto;
-  padding: 18px 0 24px;
+  padding: var(--cpx-sys-space-5) 0 var(--cpx-sys-space-6);
 }
 
 .canonical-turn + .canonical-turn {
-  padding-top: 24px;
+  padding-top: var(--cpx-sys-space-6);
 }
 
 .canonical-thread-view {
@@ -86,11 +87,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   min-height: 160px;
   width: min(var(--thread-reading-width), var(--session-content-w));
   margin-inline: auto;
-  padding: 24px;
+  padding: var(--cpx-sys-space-6);
   color: var(--cpx-sys-color-fg-secondary);
 
   > span {
@@ -105,12 +106,12 @@
   button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
     min-height: 34px;
-    padding: 6px 10px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-comp-button-radius-md);
-    background: var(--cpx-comp-surface-panel);
+    border-radius: var(--cpx-sys-radius-control);
+    background: var(--cpx-sys-color-surface-panel);
     color: var(--cpx-sys-color-fg-primary);
     cursor: pointer;
   }
@@ -120,16 +121,16 @@
   display: flex;
   justify-content: center;
   width: min(var(--thread-reading-width), var(--session-content-w));
-  margin: 10px auto 2px;
+  margin: var(--cpx-sys-space-3) auto var(--cpx-sys-space-1);
 
   button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
     min-height: 32px;
-    padding: 5px 10px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
     border: 0;
-    border-radius: var(--cpx-comp-button-radius-md);
+    border-radius: var(--cpx-sys-radius-control);
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
     cursor: pointer;
@@ -153,7 +154,7 @@
 .canonical-turn__status {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--cpx-sys-space-2);
   min-height: 28px;
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
@@ -172,12 +173,12 @@
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: var(--cpx-sys-space-3);
   width: min(var(--thread-reading-width), var(--session-content-w));
   max-width: var(--thread-reading-width);
   min-width: 0;
-  margin: 12px auto;
-  padding: 11px 12px;
+  margin: var(--cpx-sys-space-3) auto;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-danger-subtle-border);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-danger-subtle-bg);
@@ -198,12 +199,12 @@
   button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
     min-height: 32px;
-    padding: 5px 9px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-comp-button-radius-md);
-    background: var(--cpx-comp-surface-panel);
+    border-radius: var(--cpx-sys-radius-control);
+    background: var(--cpx-sys-color-surface-panel);
     color: var(--cpx-sys-color-fg-primary);
     cursor: pointer;
 
@@ -220,15 +221,15 @@
 .canonical-turn__post,
 .canonical-turn__blockers {
   display: grid;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
 }
 
 .canonical-markdown-error {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 10px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-danger-subtle-border);
   border-radius: var(--cpx-sys-radius-lg);
   color: var(--cpx-sys-color-fg-tertiary);
@@ -245,11 +246,11 @@
 
 .canonical-turn__user {
   justify-items: end;
-  margin-bottom: 4px;
+  margin-bottom: var(--cpx-sys-space-1);
 }
 
 .canonical-turn__process {
-  gap: var(--conversation-item-gap, 16px);
+  gap: var(--conversation-item-gap, var(--cpx-sys-space-4));
 }
 
 /* ── Process group (wraps reasoning / activity / tool / subagent items) ── */
@@ -264,7 +265,7 @@
   &__summary {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
     min-height: 32px;
     width: fit-content;
     max-width: 100%;
@@ -291,7 +292,7 @@
       flex: 0 0 auto;
       width: 15px;
       height: 15px;
-      stroke-width: var(--app-icon-stroke-width);
+      stroke-width: 1.75;
     }
 
     > span {
@@ -330,7 +331,7 @@
 
   &__content {
     min-width: 0;
-    margin-block: 4px 6px;
+    margin-block: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   }
 
   &__items {
@@ -342,7 +343,7 @@
 
   &__items-content {
     display: grid;
-    gap: var(--conversation-grouped-item-gap, 4px);
+    gap: var(--conversation-grouped-item-gap, var(--cpx-sys-space-1));
   }
 
   /* Semantic state colours */
@@ -382,7 +383,7 @@
     top: 0;
     background: linear-gradient(
       to bottom,
-      var(--edge-fade-fill, var(--cpx-comp-surface-canvas)),
+      var(--edge-fade-fill, var(--cpx-sys-color-surface-canvas)),
       transparent
     );
   }
@@ -391,7 +392,7 @@
     bottom: 0;
     background: linear-gradient(
       to top,
-      var(--edge-fade-fill, var(--cpx-comp-surface-canvas)),
+      var(--edge-fade-fill, var(--cpx-sys-color-surface-canvas)),
       transparent
     );
   }
@@ -421,7 +422,7 @@
   &__summary {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
     width: fit-content;
     max-width: 100%;
     min-height: 32px;
@@ -475,35 +476,35 @@
 
   &__content {
     min-width: 0;
-    padding-top: var(--conversation-item-gap, 16px);
+    padding-top: var(--conversation-item-gap, var(--cpx-sys-space-4));
   }
 }
 
 .canonical-user-message {
   display: grid;
   justify-items: end;
-  gap: 5px;
+  gap: var(--cpx-sys-space-1);
   width: 100%;
   min-width: 0;
 
   &__bubble {
     display: grid;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
     width: fit-content;
     min-width: 0;
     max-width: 77%;
-    padding: 10px 14px;
+    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
     overflow: hidden;
     border: 0;
     border-radius: var(--cpx-sys-radius-lg);
     background: color-mix(
       in srgb,
-      var(--cpx-comp-surface-panel) 78%,
-      var(--cpx-comp-surface-canvas)
+      var(--cpx-sys-color-surface-panel) 78%,
+      transparent
     );
     color: var(--cpx-sys-color-fg-primary);
     font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-reading, 1.7);
+    line-height: var(--cpx-sys-line-height-reading);
     text-align: left;
     overflow-wrap: anywhere;
   }
@@ -515,16 +516,16 @@
   &__editor-surface {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
     width: 100%;
     min-width: 0;
-    padding: 12px;
+    padding: var(--cpx-sys-space-3);
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-lg);
     background: color-mix(
       in srgb,
       var(--cpx-sys-color-fg-primary) 5%,
-      var(--cpx-comp-surface-canvas)
+      transparent
     );
 
     &:focus-within {
@@ -536,7 +537,7 @@
   &__editor-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
   }
 
   &__editor-error {
@@ -617,8 +618,8 @@
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  gap: 4px;
-  margin-top: 6px;
+  gap: var(--cpx-sys-space-1);
+  margin-top: var(--cpx-sys-space-2);
   padding: 0;
   border: 0;
   outline: none;
@@ -626,7 +627,7 @@
   color: var(--cpx-sys-color-fg-secondary);
   font: inherit;
   font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   cursor: pointer;
 
   &:hover {
@@ -640,8 +641,8 @@
   }
 
   svg {
-    width: var(--app-icon-size-sm);
-    height: var(--app-icon-size-sm);
+    width: var(--cpx-sys-space-3);
+    height: var(--cpx-sys-space-3);
     transition: transform var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
   }
 
@@ -664,14 +665,14 @@
 .canonical-message-actions {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--cpx-sys-space-1);
   min-height: 26px;
   opacity: 0;
   transition: opacity var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
 
   &--assistant {
     justify-content: flex-start;
-    margin-top: 5px;
+    margin-top: var(--cpx-sys-space-1);
     opacity: 1;
   }
 }
@@ -719,7 +720,7 @@
     display: grid;
     grid-template-columns: 18px minmax(0, auto) minmax(0, 1fr) 18px;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
     min-height: 30px;
     width: fit-content;
     max-width: 100%;
@@ -747,7 +748,7 @@
     svg {
       width: 15px;
       height: 15px;
-      stroke-width: var(--app-icon-stroke-width);
+      stroke-width: 1.75;
     }
 
     small {
@@ -773,8 +774,8 @@
 
   &__body {
     min-width: 0;
-    margin: 3px 0 5px 25px;
-    padding: 8px 10px;
+    margin: var(--cpx-sys-space-1) 0 var(--cpx-sys-space-1) var(--cpx-sys-space-6);
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border-left: 1px solid var(--cpx-sys-color-border-subtle);
     color: var(--cpx-sys-color-fg-secondary);
     overflow-wrap: anywhere;
@@ -785,8 +786,8 @@
 
     pre {
       max-height: 360px;
-      margin: 5px 0;
-      padding: 9px 10px;
+      margin: var(--cpx-sys-space-1) 0;
+      padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
       border-radius: var(--cpx-sys-radius-lg);
       background: color-mix(
         in srgb,
@@ -858,22 +859,22 @@
 
 .canonical-command-shell {
   min-width: 0;
-  margin: 5px 0;
+  margin: var(--cpx-sys-space-1) 0;
   overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
 
   &__header {
     min-height: 34px;
-    padding: 7px 10px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
     background: color-mix(
       in srgb,
-      var(--cpx-comp-surface-panel) 82%,
-      var(--cpx-comp-surface-canvas)
+      var(--cpx-sys-color-surface-panel) 82%,
+      transparent
     );
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-sm);
@@ -895,7 +896,7 @@
     pre {
       max-height: 260px;
       margin: 0;
-      padding: 10px 42px 10px 10px;
+      padding: var(--cpx-sys-space-3) calc(var(--cpx-sys-space-1) * 11) var(--cpx-sys-space-3) var(--cpx-sys-space-3);
       overflow: auto;
       font-family: var(--cpx-sys-font-family-mono);
       font-size: var(--cpx-sys-font-size-code);
@@ -928,25 +929,25 @@
     display: flex;
     justify-content: flex-end;
     min-height: 34px;
-    padding: 7px 10px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     background: color-mix(
       in srgb,
-      var(--cpx-comp-surface-panel) 82%,
-      var(--cpx-comp-surface-canvas)
+      var(--cpx-sys-color-surface-panel) 82%,
+      transparent
     );
   }
 
   &__status {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-sm);
 
     svg {
       width: 15px;
       height: 15px;
-      stroke-width: var(--app-icon-stroke-width);
+      stroke-width: 1.75;
     }
   }
 
@@ -983,14 +984,14 @@
     .canonical-command-shell__footer {
       justify-content: flex-start;
       min-height: 0;
-      padding: 4px 10px;
+      padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
       background: transparent;
     }
   }
 }
 
 .canonical-spin {
-  animation: canonical-spin var(--cpx-sys-motion-loading) linear infinite;
+  animation: canonical-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
 }
 
 @keyframes canonical-spin {
@@ -1008,14 +1009,14 @@
     }
 
     &__body {
-      margin-left: 25px;
-      padding: 6px 10px;
+      margin-left: var(--cpx-sys-space-6);
+      padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     }
   }
 
   .canonical-subagent-card {
     min-height: 38px;
-    padding: 5px 10px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
   }
 }
 
@@ -1032,11 +1033,11 @@
       display: grid;
       grid-template-columns: 18px minmax(0, auto) auto 18px;
       align-items: center;
-      gap: 6px;
+      gap: var(--cpx-sys-space-2);
       width: fit-content;
       max-width: 100%;
       min-height: 28px;
-      padding: 1px 4px;
+      padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
       border-radius: var(--cpx-sys-radius-md);
       cursor: pointer;
       list-style: none;
@@ -1082,14 +1083,14 @@
   &__message > svg {
     width: 15px;
     height: 15px;
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: 1.75;
   }
 
   &__stats {
     display: inline-flex;
     flex: none;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
 
     > small {
       font-size: var(--cpx-sys-font-size-xs);
@@ -1103,11 +1104,11 @@
   &__diff {
     width: 100%;
     max-height: 420px;
-    margin: 4px 0 6px;
+    margin: var(--cpx-sys-space-1) 0 var(--cpx-sys-space-2);
     overflow: auto;
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-lg);
-    background: var(--cpx-comp-surface-panel);
+    background: var(--cpx-sys-color-surface-panel);
 
     > .review-codex-diff {
       margin: 0;
@@ -1123,9 +1124,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
     min-height: 72px;
-    padding: 12px;
+    padding: var(--cpx-sys-space-3);
     color: var(--cpx-sys-color-fg-secondary);
 
     > .button {
@@ -1138,16 +1139,16 @@
     display: grid;
     grid-template-columns: 18px minmax(0, auto) auto;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
     width: fit-content;
     max-width: 100%;
     min-height: 28px;
-    padding: 1px 4px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
 
     > svg {
       width: 15px;
       height: 15px;
-      stroke-width: var(--app-icon-stroke-width);
+      stroke-width: 1.75;
     }
 
     > span {
@@ -1172,12 +1173,12 @@
   display: grid;
   grid-template-columns: 18px minmax(0, auto);
   align-items: center;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   width: fit-content;
   max-width: 100%;
   min-width: 0;
   min-height: 28px;
-  padding: 1px 0;
+  padding: var(--cpx-sys-space-1) 0;
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-md);
 
@@ -1185,7 +1186,7 @@
   &__icon > svg {
     width: 15px;
     height: 15px;
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: 1.75;
   }
 
   &__icon {
@@ -1203,7 +1204,7 @@
   &__icon-flash {
     color: var(--cpx-sys-color-fg-primary);
     animation: canonical-lifecycle-icon-flash
-      calc(var(--cpx-sys-motion-loading) * 2) ease-in-out infinite;
+      calc(var(--cpx-sys-motion-loading) * 2) var(--cpx-sys-ease-standard) infinite;
   }
 
   > span {
@@ -1232,21 +1233,21 @@
 
 .canonical-blocker-card,
 .canonical-patch-card {
-  padding: 12px;
+  padding: var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
 }
 
 .canonical-blocker-card {
   display: grid;
-  gap: 10px;
+  gap: var(--cpx-sys-space-3);
 
   header {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
 
     svg {
       flex: 0 0 auto;
@@ -1266,10 +1267,10 @@
 .canonical-question-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
 
   span {
-    padding: 4px 8px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-full);
     color: var(--cpx-sys-color-fg-secondary);
@@ -1292,9 +1293,9 @@
   &__header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
     min-height: 52px;
-    padding: 8px 12px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   }
 
@@ -1321,11 +1322,11 @@
     display: grid;
     flex: 1;
     min-width: 0;
-    gap: 2px;
+    gap: var(--cpx-sys-space-1);
 
     > span {
       display: flex;
-      gap: 4px;
+      gap: var(--cpx-sys-space-1);
       font-size: var(--cpx-sys-font-size-xs);
     }
   }
@@ -1336,13 +1337,13 @@
     flex: 0 0 auto;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
   }
 
   &__action.ui-button {
     min-height: 30px;
-    padding-inline: 10px;
-    gap: 5px;
+    padding-inline: var(--cpx-sys-space-3);
+    gap: var(--cpx-sys-space-1);
   }
 
   &__files {
@@ -1352,10 +1353,10 @@
   &__file {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
     width: 100%;
     min-height: 36px;
-    padding: 5px 12px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
     border: 0;
     border-radius: var(--cpx-sys-radius-md);
     background: transparent;
@@ -1390,7 +1391,7 @@
     justify-content: flex-start;
     width: 100%;
     min-height: 36px;
-    padding-inline: 12px;
+    padding-inline: var(--cpx-sys-space-3);
     border: 0;
     border-top: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: 0;
@@ -1419,7 +1420,7 @@
 
   &__error {
     margin: 0;
-    padding: 8px 12px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border-top: 1px solid var(--cpx-sys-color-border-subtle);
     color: var(--cpx-sys-color-danger);
     font-size: var(--cpx-sys-font-size-xs);
@@ -1448,13 +1449,13 @@
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
+  gap: var(--cpx-sys-space-2);
   width: 100%;
   min-height: 48px;
-  padding: 8px 10px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
   text-align: left;
@@ -1502,11 +1503,11 @@
 
 @container (max-width: 520px) {
   .canonical-turn {
-    padding-block: 14px 20px;
+    padding-block: var(--cpx-sys-space-4) var(--cpx-sys-space-5);
   }
 
   .canonical-process-card__body {
-    margin-left: 14px;
+    margin-left: var(--cpx-sys-space-4);
   }
 
 }
@@ -1537,11 +1538,11 @@
   }
 
   .conversation-page .chat-session-header {
-    padding-left: 10px;
+    padding-left: var(--cpx-sys-space-3);
   }
 
   .conversation-page .chat-session-actions {
-    gap: 2px;
+    gap: var(--cpx-sys-space-1);
   }
 
   .conversation-page .thread-scroll-layout__footer {

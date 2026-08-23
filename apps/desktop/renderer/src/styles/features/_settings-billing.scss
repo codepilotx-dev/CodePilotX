@@ -20,7 +20,7 @@
 .usage-panel-toolbar p,
 .provider-usage-header p,
 .usage-visual-card header p {
-  margin: 4px 0 0;
+  margin: var(--cpx-sys-space-1) 0 0;
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
   line-height: var(--cpx-sys-line-height-tight);
@@ -71,8 +71,8 @@
 
 .usage-metric-card {
   display: grid;
-  gap: 4px;
-  padding: 14px;
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-4);
 }
 
 .usage-metric-card span,
@@ -92,7 +92,7 @@
 .usage-visual-card {
   display: grid;
   gap: var(--cpx-sys-space-3);
-  padding: 16px;
+  padding: var(--cpx-sys-space-4);
 }
 
 .usage-visual-card header {
@@ -111,14 +111,14 @@
 .usage-heatmap {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(13px, 1fr));
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .usage-heatmap-cell {
   min-width: 10px;
   aspect-ratio: 1;
   border: 1px solid color-mix(in srgb, var(--usage-chart-1) 10%, var(--cpx-sys-color-border-subtle));
-  border-radius: 3px;
+  border-radius: var(--cpx-sys-radius-compact);
   background: color-mix(in srgb, var(--usage-chart-1) 8%, var(--cpx-sys-color-surface-canvas));
 }
 
@@ -185,7 +185,7 @@
 .usage-chart-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .usage-chart-detail i,
@@ -194,7 +194,7 @@
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: var(--cpx-sys-radius-indicator);
   flex-shrink: 0;
 }
 
@@ -208,7 +208,7 @@
   display: grid;
   width: 150px;
   aspect-ratio: 1;
-  border-radius: 50%;
+  border-radius: var(--cpx-sys-radius-pill);
   place-items: center;
 }
 
@@ -217,7 +217,7 @@
   width: 72%;
   aspect-ratio: 1;
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: 50%;
+  border-radius: var(--cpx-sys-radius-pill);
   background: var(--cpx-sys-color-surface-raised);
   place-content: center;
   text-align: center;
@@ -249,7 +249,7 @@
   display: flex;
   align-items: center;
   gap: var(--cpx-sys-space-2);
-  padding: 9px 0;
+  padding: var(--cpx-sys-space-2) 0;
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
@@ -289,7 +289,7 @@
 .usage-source-error,
 .usage-cost-notice,
 .usage-experimental-note {
-  padding: 14px;
+  padding: var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-raised);
@@ -299,7 +299,7 @@
 }
 
 .usage-empty-state h3 {
-  margin: 0 0 4px;
+  margin: 0 0 var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
 }
@@ -341,7 +341,7 @@
 }
 
 .usage-experimental-note {
-  padding-block: 10px;
+  padding-block: var(--cpx-sys-space-3);
 }
 
 .provider-usage-list {
@@ -354,7 +354,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
-  padding: 10px 12px;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-raised);
@@ -371,9 +371,9 @@
 
 .usage-account-summary > div {
   display: grid;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
-  padding: 12px;
+  padding: var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-raised);
@@ -394,7 +394,7 @@
 .provider-usage-card {
   display: grid;
   gap: var(--cpx-sys-space-3);
-  padding: 16px;
+  padding: var(--cpx-sys-space-4);
 }
 
 .provider-usage-card[data-status='exhausted'] {
@@ -424,12 +424,12 @@
   display: inline-flex;
   align-items: center;
   min-height: 20px;
-  padding: 2px 7px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
-  line-height: 1;
+  line-height: var(--cpx-sys-line-height-none);
 }
 
 .usage-badge[data-status='available'] {
@@ -443,7 +443,7 @@
 
 .usage-source-error {
   display: grid;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .provider-usage-groups {
@@ -472,9 +472,9 @@
 
 .provider-balance-card {
   display: grid;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
-  padding: 12px 14px;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-raised);
@@ -510,14 +510,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-  padding-top: 6px;
+  padding-top: var(--cpx-sys-space-2);
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .provider-balance-component {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   font-variant-numeric: tabular-nums;
@@ -540,9 +540,9 @@
 
 .provider-quota-card {
   display: grid;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
-  padding: 12px 14px;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-raised);
@@ -626,9 +626,9 @@
 
 .provider-totals > div {
   display: grid;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
-  padding: 12px;
+  padding: var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-raised);
@@ -673,7 +673,7 @@
 
 .usage-chart-empty {
   margin: 0;
-  padding: 16px 0;
+  padding: var(--cpx-sys-space-4) 0;
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
   text-align: center;
@@ -758,7 +758,7 @@
 /* --- Archive --- */
 .archived-empty {
   margin: 0;
-  padding: 18px;
+  padding: var(--cpx-sys-space-5);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
 }
@@ -767,7 +767,7 @@
   display: flex;
   align-items: center;
   gap: var(--cpx-sys-space-4);
-  padding: 14px var(--cpx-sys-space-4);
+  padding: var(--cpx-sys-space-4) var(--cpx-sys-space-4);
   background: transparent;
 }
 
@@ -776,7 +776,7 @@
   flex: 1;
 
   h3 {
-    margin: 0 0 4px;
+    margin: 0 0 var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-primary);
     font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
@@ -887,7 +887,7 @@
 
 /* --- Keyboard shortcuts settings --- */
 .keyboard-shortcuts-settings {
-  max-width: var(--layout-bento-w);
+  max-width: var(--cpx-sys-layout-wide-max-width);
 }
 
 .keyboard-shortcuts-search {
@@ -901,21 +901,21 @@
 .keyboard-shortcuts-search-icon {
   position: absolute;
   left: 0.786em;
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-tertiary);
   pointer-events: none;
 }
 
 .keyboard-shortcuts-search input {
   width: 100%;
-  padding: 0.531em 0.923em 0.531em 2.615em;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4) var(--cpx-sys-space-2) calc(var(--cpx-sys-space-1) * 10);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
 
   &::placeholder {
     color: var(--cpx-sys-color-fg-tertiary);
@@ -947,10 +947,10 @@
 .keyboard-shortcuts-header {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) var(
-      --control-size-md
+      --cpx-sys-space-7
     );
   gap: var(--cpx-sys-space-3);
-  padding: 8px 14px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
@@ -964,11 +964,11 @@
 .keyboard-shortcuts-row {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) var(
-      --control-size-md
+      --cpx-sys-space-7
     );
   align-items: center;
   gap: var(--cpx-sys-space-3);
-  padding: 0.5em 0.714em 0.5em 1em;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3) var(--cpx-sys-space-2) var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 
   &:last-child {
@@ -982,7 +982,7 @@
 
 .keyboard-shortcuts-command {
   display: grid;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
 }
 
@@ -1008,7 +1008,7 @@
 .keyboard-shortcuts-keys {
   display: flex;
   align-items: center;
-  gap: var(--control-gap-compact);
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
   flex-wrap: wrap;
 }
@@ -1018,7 +1018,7 @@
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  padding: 0.318em 0.727em;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
@@ -1026,7 +1026,7 @@
   font-family: var(--cpx-sys-font-family-mono);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: 1;
+  line-height: var(--cpx-sys-line-height-none);
   white-space: nowrap;
 }
 
@@ -1041,8 +1041,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+  width: var(--cpx-sys-space-6);
+  height: var(--cpx-sys-space-6);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-tertiary);
 
@@ -1053,7 +1053,7 @@
 }
 
 .keyboard-shortcuts-empty {
-  padding: 18px 14px;
+  padding: var(--cpx-sys-space-5) var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
 }

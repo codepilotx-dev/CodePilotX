@@ -35,6 +35,8 @@
 
 ### Changed
 
+- [desktop/renderer] 将 Composer 输入面及其新建会话形态的圆角统一为双倍 `--cpx-sys-radius-xl`，使输入区域保持更明确的圆润层级。
+- [desktop/renderer] 统一排版、间距、圆角、动效、阴影与层级 Token 的语义选择规则，迁移 Feature、lazy 样式和 Tailwind 任意值，并新增可检测组件私有边界、裸值及 stale 精确例外的自动契约。
 - [development] 允许主 Agent 按任务范围和上下文复杂度自主选择 OpenCode 的 DeepSeek 或 MiniMax 模型执行受控小阶段，同时保留文件冻结、同 session 返修和独立验收要求。
 - [desktop/renderer] 统一 Renderer 颜色语义与表面层级，收敛 feature 对组件颜色别名和临时混色的依赖，为后续 Agent 增加可执行的选色规范与样式检查，并增强 Composer、会话摘要、审批及 Review Diff 在明暗和自定义主题下的信息层级。
 - [desktop/renderer] 将消息附件与本地上下文导入改为客户端启动时预热的延迟模块，保持首次发送无需临时加载模块，同时恢复 Renderer 入口体积预算。

@@ -6,6 +6,12 @@
  */
 
 .plugins-view {
+  --plugins-page-padding-inline: clamp(
+    var(--cpx-sys-space-4),
+    4vw,
+    var(--cpx-sys-layout-page-padding-inline)
+  );
+
   container-name: plugins-page;
   container-type: inline-size;
   display: grid;
@@ -13,11 +19,11 @@
   gap: var(--cpx-sys-space-6);
   width: 100%;
   min-width: 0;
-  max-width: var(--layout-bento-w);
+  max-width: var(--cpx-sys-layout-wide-max-width);
   margin: 0 auto;
-  padding: var(--layout-page-pad-y)
-    clamp(var(--cpx-sys-space-4), 4vw, var(--layout-page-pad-x))
-    var(--layout-page-pad-bottom);
+  padding: var(--cpx-sys-layout-page-padding-block)
+    var(--plugins-page-padding-inline)
+    var(--cpx-sys-layout-page-padding-bottom);
   color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -54,7 +60,7 @@
 }
 
 .plugins-page-description {
-  max-width: var(--layout-content-w);
+  max-width: var(--cpx-sys-layout-content-max-width);
   margin: 0;
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-sm);
@@ -71,7 +77,7 @@
 
 .plugins-tab {
   position: relative;
-  min-height: var(--control-size-md);
+  min-height: var(--cpx-sys-space-7);
   padding: 0 var(--cpx-sys-space-2);
   border: 0;
   background: transparent;
@@ -95,9 +101,9 @@
   display: inline-flex;
   width: 100%;
   min-width: 0;
-  min-height: var(--control-size-md);
+  min-height: var(--cpx-sys-space-7);
   align-items: center;
-  gap: var(--control-gap);
+  gap: var(--cpx-sys-space-2);
   padding: 0 var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
@@ -126,7 +132,7 @@
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
     font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--control-line-height);
+    line-height: var(--cpx-sys-line-height-tight);
 
     &::placeholder {
       color: var(--cpx-sys-color-fg-tertiary);
@@ -145,7 +151,7 @@
 
 .plugins-category-filter .segmented-control-item,
 .plugins-skill-owner-filter .segmented-control-item {
-  min-height: var(--control-size-sm);
+  min-height: var(--cpx-sys-space-6);
   padding: 0 var(--cpx-sys-space-3);
   font-size: var(--cpx-sys-font-size-md);
 }
@@ -153,10 +159,10 @@
 .plugins-status-trigger {
   display: inline-flex;
   max-width: 100%;
-  min-height: var(--control-size-md);
+  min-height: var(--cpx-sys-space-7);
   align-items: center;
   justify-content: space-between;
-  gap: var(--control-gap-compact);
+  gap: var(--cpx-sys-space-1);
   padding: 0 var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
@@ -164,7 +170,7 @@
   color: var(--cpx-sys-color-fg-primary);
   font: inherit;
   font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -232,12 +238,12 @@
   border-radius: var(--cpx-sys-radius-full);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: 1;
+  line-height: var(--cpx-sys-line-height-none);
   text-transform: uppercase;
 
   svg {
-    width: var(--app-icon-size-sm);
-    height: var(--app-icon-size-sm);
+    width: var(--cpx-sys-space-3);
+    height: var(--cpx-sys-space-3);
   }
 
   &.is-pass {
@@ -262,11 +268,11 @@
 .plugins-skeleton-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--layout-card-gap);
+  gap: var(--cpx-sys-layout-card-gap);
 }
 
 .plugins-skeleton {
-  min-height: calc(var(--control-size-lg) + var(--cpx-sys-space-7));
+  min-height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-7));
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
 }
@@ -296,7 +302,7 @@
   }
 
   p {
-    max-width: var(--layout-content-w);
+    max-width: var(--cpx-sys-layout-content-max-width);
     overflow-wrap: anywhere;
     font-size: var(--cpx-sys-font-size-sm);
     line-height: var(--cpx-sys-line-height-tight);
@@ -443,11 +449,11 @@
 
 .plugins-content {
   display: grid;
-  width: min(var(--layout-bento-w), 100%);
+  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
   min-width: 0;
   margin: 0 auto;
-  padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
-    var(--layout-page-pad-bottom);
+  padding: var(--cpx-sys-layout-page-padding-block) var(--cpx-sys-layout-page-padding-inline)
+    var(--cpx-sys-layout-page-padding-bottom);
   gap: var(--cpx-sys-space-6);
 }
 
@@ -504,8 +510,8 @@
 
 .plugins-included-overview__item {
   display: inline-flex;
-  width: var(--control-size-lg);
-  height: var(--control-size-lg);
+  width: var(--cpx-sys-space-8);
+  height: var(--cpx-sys-space-8);
   align-items: center;
   justify-content: center;
   border: 1px solid var(--cpx-sys-color-border-subtle);
@@ -564,8 +570,8 @@
 
 .plugin-catalog-row__icon {
   display: inline-flex;
-  width: var(--control-size-lg);
-  height: var(--control-size-lg);
+  width: var(--cpx-sys-space-8);
+  height: var(--cpx-sys-space-8);
   grid-row: 1 / span 2;
   align-items: center;
   justify-content: center;
@@ -766,7 +772,7 @@ button.plugins-card-title:focus-visible,
   }
 
   .plugins-content {
-    padding: var(--cpx-sys-space-5) var(--cpx-sys-space-4) var(--layout-page-pad-bottom);
+    padding: var(--cpx-sys-space-5) var(--cpx-sys-space-4) var(--cpx-sys-layout-page-padding-bottom);
   }
 
   .plugins-directory-toolbar,
@@ -839,7 +845,7 @@ button.plugins-card-title:focus-visible,
   .plugin-details-dialog,
   .plugin-details-dialog * {
     scroll-behavior: auto;
-    transition-duration: 0.01ms;
+    transition-duration: var(--cpx-sys-motion-feedback);
     animation: none;
   }
 }
@@ -951,11 +957,11 @@ button.plugins-card-title:focus-visible,
 
 .plugins-content {
   display: grid;
-  width: min(var(--layout-bento-w), 100%);
+  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
   min-width: 0;
   margin: 0 auto;
-  padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
-    var(--layout-page-pad-bottom);
+  padding: var(--cpx-sys-layout-page-padding-block) var(--cpx-sys-layout-page-padding-inline)
+    var(--cpx-sys-layout-page-padding-bottom);
   gap: var(--cpx-sys-space-6);
 }
 
@@ -990,9 +996,9 @@ button.plugins-card-title:focus-visible,
 }
 
 .plugins-status-trigger.icon-button {
-  width: var(--control-size-md);
-  height: var(--control-size-md);
-  min-height: var(--control-size-md);
+  width: var(--cpx-sys-space-7);
+  height: var(--cpx-sys-space-7);
+  min-height: var(--cpx-sys-space-7);
   flex: 0 0 auto;
   padding: 0;
 }
@@ -1027,8 +1033,8 @@ button.plugins-card-title:focus-visible,
 .plugin-catalog-row__icon,
 .skill-catalog-row__icon {
   display: inline-flex;
-  width: var(--control-size-lg);
-  height: var(--control-size-lg);
+  width: var(--cpx-sys-space-8);
+  height: var(--cpx-sys-space-8);
   align-items: center;
   justify-content: center;
   border: 1px solid var(--cpx-sys-color-border-subtle);
@@ -1113,8 +1119,8 @@ button.plugins-card-title:focus-visible,
 }
 
 .plugins-skill-skeleton__icon {
-  width: var(--control-size-lg);
-  height: var(--control-size-lg);
+  width: var(--cpx-sys-space-8);
+  height: var(--cpx-sys-space-8);
   border-radius: var(--cpx-sys-radius-md);
 }
 
@@ -1138,7 +1144,7 @@ button.plugins-card-title:focus-visible,
 
 .plugins-skill-skeleton__action {
   width: 4.25rem;
-  height: var(--control-size-sm);
+  height: var(--cpx-sys-space-6);
   border-radius: var(--cpx-sys-radius-md);
 }
 
@@ -1177,7 +1183,7 @@ button.plugins-card-title:focus-visible,
 
 @container plugins-page (max-width: 479px) {
   .plugins-content {
-    padding: var(--cpx-sys-space-5) var(--cpx-sys-space-4) var(--layout-page-pad-bottom);
+    padding: var(--cpx-sys-space-5) var(--cpx-sys-space-4) var(--cpx-sys-layout-page-padding-bottom);
   }
 
   .plugins-category-filter,
@@ -1217,7 +1223,7 @@ button.plugins-card-title:focus-visible,
   .plugin-details-dialog,
   .plugin-details-dialog * {
     scroll-behavior: auto;
-    transition-duration: 0.01ms;
+    transition-duration: var(--cpx-sys-motion-feedback);
     animation: none;
   }
 }
