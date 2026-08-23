@@ -21,10 +21,10 @@ describe("ExecutionPlanCard", () => {
     expect(html).toContain("lucide-circle-check");
     expect(html).toContain("lucide-loader-circle");
     expect(html).toContain("lucide-circle");
-    expect(html).toContain("execution-plan-card__step-index");
-    expect(html).toContain(">1.</span>");
-    expect(html).toContain(">2.</span>");
-    expect(html).toContain(">3.</span>");
+    expect(html).not.toContain("execution-plan-card__step-index");
+    expect(html).toContain('aria-label="第 1 步，更新协议，已完成"');
+    expect(html).toContain('aria-label="第 2 步，接入时间线，进行中"');
+    expect(html).toContain('aria-label="第 3 步，运行验证，待处理"');
     expect(html).not.toContain("execution-plan-card__header");
     expect(html).not.toContain("先完成协议，再接入界面。");
     expect(html).not.toContain("<small");

@@ -163,16 +163,7 @@
 .execution-plan-card {
   position: absolute;
   z-index: 0;
-  bottom: calc(100% + 5px);
-  left: -40%;
-  width: 100%;
-  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-  overflow: hidden;
-  border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-sys-color-surface-panel);
-  color: var(--cpx-sys-color-fg-primary);
-  box-shadow: none;
+  padding: var(--cpx-sys-space-2);
 }
 
 .execution-plan-card__steps-scroller {
@@ -183,20 +174,20 @@
 
 .execution-plan-card__steps {
   display: grid;
-  gap: var(--cpx-sys-space-1);
+  gap: var(--cpx-sys-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 
   li {
     display: grid;
-    grid-template-columns: 18px max-content minmax(0, 1fr);
+    grid-template-columns: var(--cpx-sys-space-4) minmax(0, 1fr);
     align-items: start;
     gap: var(--cpx-sys-space-2);
-    min-height: 20px;
+    min-height: var(--cpx-sys-space-4);
     color: var(--cpx-sys-color-fg-tertiary);
     font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-normal);
+    line-height: var(--cpx-sys-line-height-tight);
   }
 
   li[data-status="in_progress"] .execution-plan-card__step-text {
@@ -207,7 +198,7 @@
 /* 与 canonical 共用滚动边界渐隐 frame；向卡片底色渐隐。 */
 .execution-plan-card__edge-fade {
   --edge-fade-distance: 2rem;
-  --edge-fade-fill: var(--cpx-sys-color-surface-panel);
+  --edge-fade-fill: var(--cpx-sys-glass-bg);
 }
 
 .execution-plan-card__step-icon {
@@ -221,10 +212,6 @@
     width: 15px;
     height: 15px;
   }
-}
-
-.execution-plan-card__step-index {
-  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .execution-plan-card__step-text {

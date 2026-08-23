@@ -981,10 +981,11 @@
   }
 
   &__plan-preview .execution-plan-card {
+    bottom: calc(100% + var(--cpx-sys-space-2));
     left: 50%;
     width: max-content;
-    max-width: 100%;
-    min-width: min(30rem, 100%);
+    min-width: 0;
+    max-width: min(20rem, 100%);
     pointer-events: none;
     translate: -50% 0;
   }
@@ -993,20 +994,26 @@
     pointer-events: auto;
   }
 
+  &__plan-preview .execution-plan-card,
+  &__files-card {
+    overflow: hidden;
+    border: 1px solid var(--cpx-sys-glass-border);
+    border-radius: var(--cpx-sys-radius-floating);
+    background: var(--cpx-sys-glass-bg);
+    backdrop-filter: blur(var(--cpx-sys-blur-sm));
+    box-shadow: var(--cpx-sys-shadow-floating);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
   &__files-card {
     position: absolute;
     z-index: 0;
-    bottom: calc(100% + 5px);
+    bottom: calc(100% + var(--cpx-sys-space-1));
     left: 50%;
-    width: min(34rem, 100%);
-    max-width: 100%;
-    padding: var(--cpx-sys-space-2);
-    overflow: hidden;
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-floating);
-    background: var(--cpx-sys-color-surface-raised);
-    box-shadow: var(--cpx-sys-shadow-floating);
-    color: var(--cpx-sys-color-fg-primary);
+    width: max-content;
+    min-width: min(16rem, 100%);
+    max-width: min(20rem, 100%);
+    padding: var(--cpx-sys-space-1);
     pointer-events: none;
     translate: -50% 0;
   }
@@ -1017,25 +1024,28 @@
 
   &__files-list {
     display: grid;
-    max-height: 20rem;
+    width: 100%;
+    gap: var(--cpx-sys-space-2);
+    max-height: 18rem;
     overflow-y: auto;
     scrollbar-gutter: stable;
 
     > [role="listitem"] {
+      width: 100%;
       min-width: 0;
     }
   }
 
   &__file-row.ui-button {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
     width: 100%;
     min-width: 0;
     height: auto;
-    min-height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-2));
-    justify-content: stretch;
+    min-height: var(--cpx-sys-space-8);
+    align-items: center;
+    justify-content: space-between;
     gap: var(--cpx-sys-space-4);
-    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
     border: 0;
     border-radius: var(--cpx-sys-radius-compact);
     background: transparent;
@@ -1052,10 +1062,12 @@
   }
 
   &__file-name {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: start;
   }
 
   &__file-diff {
@@ -1063,7 +1075,9 @@
     flex: 0 0 auto;
     align-items: center;
     gap: var(--cpx-sys-space-2);
+    font-size: var(--cpx-sys-font-size-sm);
     font-variant-numeric: tabular-nums;
+    margin-inline-start: auto;
   }
 
   strong {

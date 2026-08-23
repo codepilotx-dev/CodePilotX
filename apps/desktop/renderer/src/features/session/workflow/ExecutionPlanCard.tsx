@@ -74,9 +74,6 @@ function ExecutionPlanStepView({
           <Circle />
         )}
       </span>
-      <span className="execution-plan-card__step-index" aria-hidden="true">
-        {index + 1}.
-      </span>
       <span className="execution-plan-card__step-text">{step.step}</span>
     </li>
   );
