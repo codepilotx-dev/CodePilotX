@@ -10,6 +10,7 @@
     "./desktop-theme": "./src/desktop-theme.ts",
     "./desktop-pet-overlay": "./src/desktop-pet-overlay.ts",
     "./desktop-data-location-ipc": "./src/desktop-data-location-ipc.ts",
+    "./desktop-deep-link-ipc": "./src/desktop-deep-link-ipc.ts",
     "./desktop-window-ipc": "./src/desktop-window-ipc.ts",
     "./desktop-workspace-ipc": "./src/desktop-workspace-ipc.ts",
     "./desktop-shell-ipc": "./src/desktop-shell-ipc.ts",
@@ -26,7 +27,8 @@
     "./desktop-update-ipc": "./src/desktop-update-ipc.ts",
     "./model": "./src/model.ts",
     "./taskboard": "./src/taskboard.ts",
-    "./thread": "./src/thread/index.ts"
+    "./thread": "./src/thread/index.ts",
+    "./thread-reference": "./src/thread-reference.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
