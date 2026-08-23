@@ -2437,6 +2437,27 @@ const fixtures = {
     environmentRevision: 1,
     command: "bun run dev",
   }),
+  "taskboard/context/read": methodFixture("taskboard/context/read", {
+    taskId: taskboardTask.id,
+    sections: ["objective"],
+    includeEvidence: true,
+    includeUnverified: false,
+    limit: 20,
+    offset: 0,
+  }, {
+    snapshot: { taskId: taskboardTask.id, evidenceRevision: 0, contextRevision: 1, summarizedThroughEvidenceRevision: 0, pendingEvidenceCount: 0, digest: "目标：任务看板", frozen: false, frozenAt: null, promotedContextRevision: null },
+    entries: [],
+    evidence: [],
+  }),
+  "taskboard/context/update": methodFixture("taskboard/context/update", {
+    taskId: taskboardTask.id,
+    expectedContextRevision: 1,
+    changes: [{ op: "add", section: "objective", title: "目标", content: "实现任务上下文" }],
+  }, { snapshot: { taskId: taskboardTask.id, evidenceRevision: 0, contextRevision: 2, summarizedThroughEvidenceRevision: 0, pendingEvidenceCount: 0, digest: "目标：任务看板", frozen: false, frozenAt: null, promotedContextRevision: null } }),
+  "taskboard/context/ai-preview": methodFixture("taskboard/context/ai-preview", { taskId: taskboardTask.id }, { proposal: { id: "proposal:1", taskId: taskboardTask.id, baseContextRevision: 1, throughEvidenceRevision: 0, changes: [], status: "draft", modelRef: "provider/model", createdAt: 1, updatedAt: 1 } }),
+  "taskboard/context/ai-apply": methodFixture("taskboard/context/ai-apply", { proposalId: "proposal:1" }, { proposal: { id: "proposal:1", taskId: taskboardTask.id, baseContextRevision: 1, throughEvidenceRevision: 0, changes: [], status: "applied", modelRef: "provider/model", createdAt: 1, updatedAt: 2 }, snapshot: { taskId: taskboardTask.id, evidenceRevision: 0, contextRevision: 2, summarizedThroughEvidenceRevision: 0, pendingEvidenceCount: 0, digest: "目标：任务看板", frozen: false, frozenAt: null, promotedContextRevision: null } }),
+  "taskboard/context/ai-discard": methodFixture("taskboard/context/ai-discard", { proposalId: "proposal:1" }, { proposal: { id: "proposal:1", taskId: taskboardTask.id, baseContextRevision: 1, throughEvidenceRevision: 0, changes: [], status: "discarded", modelRef: null, createdAt: 1, updatedAt: 2 } }),
+  "taskboard/context/promotion-status": methodFixture("taskboard/context/promotion-status", { taskId: taskboardTask.id }, { promotion: null }),
   "taskboard/task/list": methodFixture("taskboard/task/list", {
     projectId: project.id,
     statuses: ["in_progress"],
@@ -2780,14 +2801,18 @@ const fixtures = {
 describe("RPC method schema contracts", () => {
   test("任务看板按兼容能力分组并在 wire 边界限制正文和标签", () => {
     const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("taskboard/"))
-    expect(methods).toHaveLength(33)
+    expect(methods).toHaveLength(39)
     const workflowMethods = methods.filter(([method]) => method.startsWith("taskboard/workflow/"))
-    const legacyMethods = methods.filter(([method]) => !method.startsWith("taskboard/workflow/"))
+    const contextMethods = methods.filter(([method]) => method.startsWith("taskboard/context/"))
+    const legacyMethods = methods.filter(([method]) => !method.startsWith("taskboard/workflow/") && !method.startsWith("taskboard/context/"))
     expect(workflowMethods).toHaveLength(11)
+    expect(contextMethods).toHaveLength(6)
     expect(workflowMethods.every(([, definition]) => definition.capability === "taskboard.workflow.v1")).toBe(true)
+    expect(contextMethods.every(([, definition]) => definition.capability === "taskboard.context.v1")).toBe(true)
     expect(legacyMethods.every(([, definition]) => definition.capability === "taskboard.v1")).toBe(true)
     expect(Capabilities).toContain("taskboard.v1")
     expect(Capabilities).toContain("taskboard.workflow.v1")
+    expect(Capabilities).toContain("taskboard.context.v1")
 
     const decodeCreate = Schema.decodeUnknownSync(RpcMethods["taskboard/task/create"].params)
     expect(() => decodeCreate({
@@ -2867,7 +2892,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(238)
+    expect(methods).toHaveLength(244)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -3188,7 +3213,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(232)
+    expect(Object.keys(RpcMethods)).toHaveLength(238)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

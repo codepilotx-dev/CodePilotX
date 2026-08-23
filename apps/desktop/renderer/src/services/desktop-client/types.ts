@@ -350,6 +350,12 @@ type WithoutOperationId<T> = T extends { operationId: unknown }
   : T
 
 export type DesktopTaskboardApi = {
+  readTaskContext?(input: RpcParams<'taskboard/context/read'>): Promise<RpcResult<'taskboard/context/read'>>
+  updateTaskContext?(input: RpcParams<'taskboard/context/update'>): Promise<RpcResult<'taskboard/context/update'>>
+  previewTaskContext?(input: RpcParams<'taskboard/context/ai-preview'>): Promise<RpcResult<'taskboard/context/ai-preview'>>
+  applyTaskContextProposal?(input: RpcParams<'taskboard/context/ai-apply'>): Promise<RpcResult<'taskboard/context/ai-apply'>>
+  discardTaskContextProposal?(input: RpcParams<'taskboard/context/ai-discard'>): Promise<RpcResult<'taskboard/context/ai-discard'>>
+  readTaskContextPromotion?(input: RpcParams<'taskboard/context/promotion-status'>): Promise<RpcResult<'taskboard/context/promotion-status'>>
   listTaskboardWorkflowTasks?(input: RpcParams<'taskboard/workflow/list'>): Promise<RpcResult<'taskboard/workflow/list'>>
   readTaskboardWorkflowTask?(input: RpcParams<'taskboard/workflow/read'>): Promise<RpcResult<'taskboard/workflow/read'>>
   createTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/create'>>): Promise<RpcResult<'taskboard/workflow/create'>>

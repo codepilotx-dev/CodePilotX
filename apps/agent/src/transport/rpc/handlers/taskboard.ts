@@ -16,8 +16,23 @@ export const taskboardHandlers = {
     if (!(method in TaskboardRpcMethods)) return undefined
     const params = decode(method as keyof typeof TaskboardRpcMethods, rawParams)
     const service = runtime.dependencies.taskboard
+    const contextService = runtime.dependencies.taskContext
     const actor = { kind: "user" as const, sourceThreadId: null }
     switch (method) {
+      case "taskboard/context/read": return contextService.read(params.taskId, params)
+      case "taskboard/context/update": {
+        const result = contextService.publish({ ...params, sourceKind: "user" })
+        await contextService.broadcast(result.event)
+        return { snapshot: result.snapshot }
+      }
+      case "taskboard/context/ai-preview": return { proposal: await runtime.dependencies.taskContextSummary.preview(params.taskId) }
+      case "taskboard/context/ai-apply": {
+        const result = contextService.applyProposal(params.proposalId)
+        await contextService.broadcast(result.event)
+        return { proposal: result.proposal, snapshot: result.snapshot }
+      }
+      case "taskboard/context/ai-discard": return { proposal: contextService.discardProposal(params.proposalId) }
+      case "taskboard/context/promotion-status": return { promotion: contextService.promotionStatus(params.taskId) }
       case "taskboard/task/list": return service.list(params)
       case "taskboard/task/read": return { task: service.read(params.taskId) }
       case "taskboard/task/create": return { task: await service.create({ ...params, actor }) }

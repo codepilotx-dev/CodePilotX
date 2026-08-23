@@ -21,8 +21,7 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
         .replace(", git_branch TEXT)", ")")
     : statement)
 
-// schema 37 冻结的语义历史视图契约。生产 schema 目前仍为 36，
-// 这些测试应因目标视图/版本缺失而失败；实现 37 后必须满足下列外部语义。
+// schema 37 冻结的语义历史视图契约；后续 schema 必须继续保留。
 const SEMANTIC_VIEW_NAME = "thread_semantic_history_v1"
 const SEMANTIC_VIEW_VERSION = 37
 const TOOL_OUTPUT_SUMMARY_LIMIT = 4000
@@ -934,7 +933,7 @@ describe("数据库兼容与迁移", () => {
     paths.push(root)
     const db = new AgentDatabase({ historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") })
 
-    expect(db.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SEMANTIC_VIEW_VERSION })
+    expect(db.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'view' AND name = ?").get(SEMANTIC_VIEW_NAME))
       .toEqual({ name: SEMANTIC_VIEW_NAME })
     const columns = (db.sqlite.query(`PRAGMA table_info(${SEMANTIC_VIEW_NAME})`).all() as Array<{ name: string }>).map(({ name }) => name)
@@ -970,7 +969,7 @@ describe("数据库兼容与迁移", () => {
     legacy.close()
 
     const migrated = new AgentDatabase(databasePaths)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SEMANTIC_VIEW_VERSION })
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(migrated.getThread(thread.id)?.title).toBe("迁移保留会话")
     expect(migrated.sqlite.query("SELECT data FROM items WHERE id = ?").get(textItemID)).toMatchObject({
       data: expect.stringContaining("迁移保留的助手回复"),
@@ -980,6 +979,25 @@ describe("数据库兼容与迁移", () => {
     const rows = migrated.sqlite.query(`SELECT role, kind, content FROM ${SEMANTIC_VIEW_NAME} WHERE thread_id = ?`).all(thread.id) as Array<{ role: string; kind: string; content: string }>
     expect(rows).toContainEqual({ role: "user", kind: "message", content: "迁移保留的输入" })
     expect(rows).toContainEqual({ role: "assistant", kind: "text", content: "迁移保留的助手回复" })
+    migrated.close()
+  })
+
+  test("schema 37 前向迁移到 38 只新增任务上下文表并保留未知对象", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v37-to-v38-"))
+    paths.push(root)
+    const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
+    new AgentDatabase(databasePaths).close()
+    const legacy = new Database(databasePaths.historyPath)
+    for (const table of ["task_context_promotion_jobs", "task_context_memory_promotions", "task_context_operations", "task_context_ai_proposals", "task_context_evidence", "task_context_entries", "task_context_state"]) legacy.exec(`DROP TABLE ${table}`)
+    legacy.exec("CREATE TABLE future_extension (id TEXT PRIMARY KEY, value TEXT); INSERT INTO future_extension VALUES ('kept', 'unknown'); PRAGMA user_version = 37;")
+    legacy.close()
+
+    const migrated = new AgentDatabase(databasePaths)
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 38 })
+    expect((migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'task_context_%'").all() as Array<{ name: string }>).map(row => row.name).sort()).toEqual([
+      "task_context_ai_proposals", "task_context_entries", "task_context_evidence", "task_context_memory_promotions", "task_context_operations", "task_context_promotion_jobs", "task_context_state",
+    ])
+    expect(migrated.sqlite.query("SELECT * FROM future_extension").get()).toEqual({ id: "kept", value: "unknown" })
     migrated.close()
   })
 

@@ -775,10 +775,10 @@ export class TaskboardRepositoryDatabase extends ReviewRepositoryDatabase {
       if (!workflow) throw taskNotFound()
       if (workflow.status === "backlog" && !input.authorizeBacklog) throw new AgentError("PERMISSION_DENIED", "开始待立项任务前需要用户授权", 403)
       if (workflow.status === "done" || workflow.status === "canceled") throw new AgentError("INVALID_REQUEST", "已结束任务不能开始执行", 409)
-      const primary = this.sqlite.query("SELECT thread_id FROM taskboard_task_threads WHERE task_id = ? AND role = 'primary'").get(input.taskId) as { thread_id: string } | null
-      if (input.mode === "continue_primary" && !primary) throw new AgentError("INVALID_REQUEST", "任务没有可继续的主对话", 409)
+      const primary = this.sqlite.query("SELECT links.thread_id, threads.archived_at FROM taskboard_task_threads links JOIN threads ON threads.id = links.thread_id WHERE links.task_id = ? AND links.role = 'primary'").get(input.taskId) as { thread_id: string; archived_at: number | null } | null
+      if (input.mode === "continue_primary" && (!primary || primary.archived_at !== null)) throw new AgentError("INVALID_REQUEST", "任务没有可继续的未归档主对话", 409)
       const primaryActive = primary
-        ? Boolean(this.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status IN ('queued','running','waiting_permission','waiting_question','waiting_subagents') LIMIT 1").get(primary.thread_id))
+        ? primary.archived_at === null && Boolean(this.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status IN ('queued','running','waiting_permission','waiting_question','waiting_subagents') LIMIT 1").get(primary.thread_id))
         : false
       const timestamp = input.updatedAt ?? now()
       if (input.mode === "new_primary" && primary && !primaryActive) {

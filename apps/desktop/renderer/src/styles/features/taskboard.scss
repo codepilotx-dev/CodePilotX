@@ -808,6 +808,35 @@
   gap: var(--cpx-sys-space-2);
 }
 
+.task-context-panel__group,
+.task-context-panel__proposal {
+  display: grid;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-3);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-sys-color-surface-raised);
+}
+
+.task-context-panel__group article {
+  display: grid;
+  gap: var(--cpx-sys-space-1);
+  padding-block: var(--cpx-sys-space-2);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+}
+
+.task-context-panel__group article:last-child {
+  border-bottom: 0;
+}
+.task-context-panel__group p,
+.task-context-panel__proposal p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.task-context-panel__group small {
+  color: var(--cpx-sys-color-fg-tertiary);
+}
+
 .taskboard-drawer__meta {
   display: flex;
   flex-wrap: wrap;

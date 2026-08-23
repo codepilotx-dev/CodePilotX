@@ -61,6 +61,7 @@ import { GitReviewService } from "./review/GitReviewService";
 import { GithubService } from "./github/GithubService";
 import { GitWorkspaceService } from "./git/GitWorkspaceService";
 import type { Models } from "@earendil-works/pi-ai";
+import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
 import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver";
@@ -106,6 +107,10 @@ import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPre
 import { TaskboardService } from "./taskboard/TaskboardService";
 import { TaskboardStartService } from "./taskboard/TaskboardStartService";
 import { createTaskboardDefinitions } from "./tool/Taskboard/definitions";
+import { TaskContextService } from "./task-context/TaskContextService";
+import { createTaskContextDefinitions } from "./tool/TaskContext/definitions";
+import { TaskContextSummaryService } from "./task-context/TaskContextSummaryService";
+import { TaskContextPromotionService } from "./task-context/TaskContextPromotionService";
 import { createThreadReadDefinition } from "./tool/ThreadRead/definition";
 import { ThreadReadViewRepository } from "./session/ThreadReadViewRepository";
 import {
@@ -121,6 +126,8 @@ import { ThreadMessageForkRepository } from "./session/fork/ThreadMessageForkRep
 import { ThreadMessageForkService } from "./session/fork/ThreadMessageForkService";
 import { SideChatService } from "./session/side-chat/SideChatService";
 import { SideChatEnvironmentCleanup } from "./session/side-chat/SideChatEnvironmentCleanup";
+
+registerBunOAuthFlows();
 
 export interface BootstrapOptions {
   models?: Models;
@@ -222,7 +229,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     }));
     const hub = yield* EventHub.make;
-    const taskboard = new TaskboardService(db, hub, db.repositories.taskboard);
+    const taskContext = new TaskContextService(db, hub);
+    const taskboard = new TaskboardService(db, hub, db.repositories.taskboard, taskContext);
     const speech = new SpeechTranscriptionService(config.storage.speechRoot, async (status) => {
       await publishAgentEvent(db, hub, null, null, "speech/statusChanged", { status });
     });
@@ -391,6 +399,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         };
       },
     });
+    const taskContextSummary = new TaskContextSummaryService(db, piModels, configService, taskContext);
     const providers = new PiModelCatalogAdapter(piModels);
     const modelHealth = new ModelHealthService(
       piModels,
@@ -481,6 +490,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const tools = new ToolRegistry();
     tools.register(createTerminalReadDefinition(terminalOutput));
     for (const definition of createTaskboardDefinitions(taskboard)) tools.register(definition);
+    for (const definition of createTaskContextDefinitions(taskContext)) tools.register(definition);
     tools.register(createThreadReadDefinition(new ThreadReadViewRepository(db)));
     const mcpConfigs = new McpConfigService(
       new McpSettingsRepository(db),
@@ -705,6 +715,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           review.prepareThreadSnapshotCleanup(threadID),
         );
       },
+      taskContext,
     );
     const threadTitles = new ThreadTitleService(
       db,
@@ -738,6 +749,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       resumeCheckpoints,
       false,
       localContextPaths,
+      taskContext,
     );
     resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID));
     const threads = new ThreadService(
@@ -767,6 +779,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       localContextPaths,
       (threadId) => taskboard.admitPrimaryThread(threadId),
       (threadId) => taskboard.primaryExecutionContext(threadId),
+      taskContext,
     );
     const taskboardStart = new TaskboardStartService(
       db,
@@ -889,7 +902,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threadExecutions,
       taskboard,
       taskboardStart,
+      taskContext,
+      taskContextSummary,
     });
+    const taskContextPromotion = new TaskContextPromotionService(db, memory);
+    taskContext.setPromotionDrain(() => { void taskContextPromotion.drain() });
+    queueMicrotask(() => { void taskContextPromotion.drain() });
     const initialCatalogRevision = providers.catalogRevision?.() ?? 0;
     void providers.refresh(false).catch(() => undefined).then(async () => {
       const nextCatalogRevision = providers.catalogRevision?.() ?? 0;

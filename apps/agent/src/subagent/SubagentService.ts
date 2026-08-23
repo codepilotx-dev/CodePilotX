@@ -22,6 +22,8 @@ import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
 import { createMcpInstructionSections } from "../mcp/McpPromptSections"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
+import type { TaskContextService } from "../task-context/TaskContextService"
+import { secretScrubber } from "../security/SecretScrubber"
 
 const terminal = new Set(["completed", "failed", "stopped", "interrupted"])
 export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => kind === "permission" ? "waiting_permission" as const : "waiting_question" as const
@@ -111,6 +113,7 @@ export class SubagentService {
     resumeCheckpoints?: ResumeCheckpointResolver,
     recoverOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
+    private readonly taskContext?: TaskContextService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals)
     this.repository = new SubagentRepository(db)
@@ -553,6 +556,14 @@ export class SubagentService {
       promptSections.splice(
         promptSections.length - 1,
         0,
+        ...(this.taskContext?.promptForThread(task.childThreadId) ? [{
+          id: "task-context.shared",
+          role: "developer" as const,
+          cache: "dynamic" as const,
+          authority: "builtin" as const,
+          source: { type: "runtime" as const, name: "task-context" },
+          content: this.taskContext.promptForThread(task.childThreadId)!,
+        }] : []),
         ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
       )
       await this.resolveModel(run.model)
@@ -646,6 +657,7 @@ export class SubagentService {
         changedFiles: this.canonicalChangedFiles(runID, structured.changedFiles),
       }
       const finished = this.repository.finish(runID, "completed", canonicalResult, null)
+      await this.taskContext?.captureAndBroadcast({ threadId: task.childThreadId, turnId: agent.turnID, sourceKind: "subagent", sourceId: runID, verified: true, summary: secretScrubber.scrubText(JSON.stringify(canonicalResult)) })
       startupGateSafe = true
       if (finished) await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", finished)
       await this.emit(task.childThreadId, agent.turnID, "turn/completed", { turnId: agent.turnID, rootAgentId: agent.id, finishedAt: Date.now() })
@@ -666,6 +678,7 @@ export class SubagentService {
         const error = cause instanceof Error ? cause.message : String(cause)
         if (isolationPrepared) await this.workspaces?.finalize(taskID).catch(() => undefined)
         const finished = this.repository.finish(runID, "failed", null, error)
+        await this.taskContext?.captureAndBroadcast({ threadId: task.childThreadId, turnId: agent.turnID, sourceKind: "subagent", sourceId: runID, verified: false, summary: "子 Agent 执行失败；只保留可能已经发生的副作用供人工核对。" })
         startupGateSafe = true
         if (finished) await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", finished)
         await this.emit(task.childThreadId, agent.turnID, "turn/failed", { turnId: agent.turnID, rootAgentId: agent.id, message: error, finishedAt: Date.now() })

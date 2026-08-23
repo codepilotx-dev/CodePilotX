@@ -60,6 +60,18 @@ const insertWorktree = (db: AgentDatabase, projectId: string, id: string, status
 }
 
 describe("TaskboardService", () => {
+  test("归档 primary 不能 continue，new_primary 会降级旧关联", async () => {
+    const { db, project, service } = await fixture()
+    const created = await service.create({ projectId: project.id, title: "归档主会话", status: "todo", operationId: crypto.randomUUID(), actor: { kind: "user", sourceThreadId: null } })
+    const thread = db.createThread({ title: "旧主会话", workspace: { kind: "project", projectID: project.id } })
+    const linked = db.linkPrimaryThread({ taskId: created.task.id, threadId: thread.id, expectedVersion: created.task.version })
+    db.sqlite.query("UPDATE threads SET archived_at = ? WHERE id = ?").run(Date.now(), thread.id)
+    expect(() => db.repositories.taskboard.prepareWorkflowStart({ taskId: created.task.id, expectedVersion: linked.task.version, mode: "continue_primary" })).toThrow()
+    db.repositories.taskboard.prepareWorkflowStart({ taskId: created.task.id, expectedVersion: linked.task.version, mode: "new_primary" })
+    expect(db.repositories.taskboard.taskLinkForThread(thread.id)?.role).toBe("supporting")
+    db.close()
+  })
+
   test("operation replay 不重复任务、活动或 durable event", async () => {
     const { db, project, service } = await fixture()
     const input = {

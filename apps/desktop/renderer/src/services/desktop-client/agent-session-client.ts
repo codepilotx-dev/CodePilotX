@@ -1887,6 +1887,12 @@ export function createAgentSessionDesktopClient(
       loadAgentToolingApi().then(api => api.removePet(id)),
     listTaskboardWorkflowTasks: input =>
       loadAgentTaskboardApi().then(api => api.listTaskboardWorkflowTasks!(input)),
+    readTaskContext: input => loadAgentTaskboardApi().then(api => api.readTaskContext!(input)),
+    updateTaskContext: input => loadAgentTaskboardApi().then(api => api.updateTaskContext!(input)),
+    previewTaskContext: input => loadAgentTaskboardApi().then(api => api.previewTaskContext!(input)),
+    applyTaskContextProposal: input => loadAgentTaskboardApi().then(api => api.applyTaskContextProposal!(input)),
+    discardTaskContextProposal: input => loadAgentTaskboardApi().then(api => api.discardTaskContextProposal!(input)),
+    readTaskContextPromotion: input => loadAgentTaskboardApi().then(api => api.readTaskContextPromotion!(input)),
     readTaskboardWorkflowTask: input =>
       loadAgentTaskboardApi().then(api => api.readTaskboardWorkflowTask!(input)),
     createTaskboardWorkflowTask: input =>

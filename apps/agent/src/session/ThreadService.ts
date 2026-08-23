@@ -32,6 +32,7 @@ import { resolveEffectivePermissionConfig } from "../permission/EffectivePermiss
 import { TurnCoordinator, type TurnTerminalStatus } from "./TurnCoordinator"
 import { TurnRunner } from "./TurnRunner"
 import type { ThreadTitleService } from "./ThreadTitleService"
+import type { TaskContextService } from "../task-context/TaskContextService"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 type PromptStorageRoots = { dataRoot: string; userHome: string }
@@ -144,6 +145,7 @@ export class ThreadService {
       instruction: string
       activeTools: readonly string[]
     } | null,
+    private readonly taskContext?: TaskContextService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -908,6 +910,14 @@ export class ThreadService {
           content: taskboardContext.instruction,
           requiredTools: [...taskboardContext.activeTools],
         }] : []),
+        ...(this.taskContext?.promptForThread(threadID) ? [{
+          id: "task-context.shared",
+          role: "developer" as const,
+          cache: "dynamic" as const,
+          authority: "builtin" as const,
+          source: { type: "runtime" as const, name: "task-context" },
+          content: this.taskContext.promptForThread(threadID)!,
+        }] : []),
         ...(sideChat ? [sideChatSection(sideChat.referenceText)] : []),
         ...(exposedTools.some((tool) => tool === "Edit" || tool === "Write" || tool === "apply_patch")
           ? [workspaceEditingSection()]
@@ -1038,6 +1048,12 @@ export class ThreadService {
           phase: "after",
         }).catch(() => undefined)
       }
+      await this.taskContext?.captureAndBroadcast({
+        threadId: threadID,
+        turnId: turnID,
+        verified: true,
+        summary: secretScrubber.scrubText(result.output),
+      })
       await this.coordinator.exclusive(threadID, async () => {
         this.coordinator.closeAdmission(threadID, turnID)
         if (this.db.hasGuideMailbox(turnID)) {
@@ -1050,6 +1066,7 @@ export class ThreadService {
       })
     } catch (cause) {
       if (controller.signal.aborted) {
+        await this.taskContext?.captureAndBroadcast({ threadId: threadID, turnId: turnID, verified: false, summary: "Turn 被中断；只保留可能已经发生的副作用供人工核对。" })
         await this.coordinator.exclusive(threadID, async () => {
           const current = this.db.activeTurn(threadID)
           if (current?.id !== turnID) return
@@ -1070,6 +1087,7 @@ export class ThreadService {
         return
       }
       const message = cause instanceof Error ? cause.message : String(cause)
+      await this.taskContext?.captureAndBroadcast({ threadId: threadID, turnId: turnID, verified: false, summary: "Turn 执行失败；只保留可能已经发生的副作用供人工核对。" })
       terminalStatus = await this.runner.terminalize({
         threadID,
         turnID,

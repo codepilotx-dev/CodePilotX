@@ -14,6 +14,7 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/ico
 import { MarkdownMessage } from '../../markdown/index.js'
 import { canStartTask, TASKBOARD_ALL_COLUMNS, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { useTaskboardThreadCandidates } from '../state/useTaskboardThreadCandidates.js'
+import { TaskContextPanel } from './TaskContextPanel.js'
 
 type Props = {
   open: boolean
@@ -256,6 +257,7 @@ export function TaskDetailsDrawer({
                 </>
               )}
             </section>
+            <TaskContextPanel taskId={task.id} readOnly={taskMutationReadOnly || task.status === 'done' || task.status === 'canceled'} />
             <section className="taskboard-drawer__section">
               <h3>关联对话 <span>{detail.threads.length}</span></h3>
               {detail.threads.length === 0 ? <p className="taskboard-drawer__empty">开始执行后，对话会出现在这里。</p> : (

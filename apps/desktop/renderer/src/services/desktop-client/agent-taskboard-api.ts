@@ -4,7 +4,7 @@ import type { DesktopTaskboardApi } from './types.js'
 
 type Dependencies = {
   requireAgentCapability: (
-    name: Extract<ProtocolCapability, 'taskboard.v1' | 'taskboard.workflow.v1'>,
+    name: Extract<ProtocolCapability, 'taskboard.v1' | 'taskboard.workflow.v1' | 'taskboard.context.v1'>,
   ) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
   mockClient: DesktopTaskboardApi
@@ -45,8 +45,18 @@ export function createAgentTaskboardApi({
       return operation()
     }, () => Promise.reject(new Error('浏览器预览不支持会话任务看板。')))
   const operationId = (): string => crypto.randomUUID()
+  const executeContext = <T>(operation: () => Promise<T>): Promise<T> => withRequiredAgent(async () => {
+    requireAgentCapability('taskboard.context.v1')
+    return operation()
+  })
 
   return {
+    readTaskContext: params => executeContext(() => rpc.call('taskboard/context/read', params)),
+    updateTaskContext: params => executeContext(() => rpc.call('taskboard/context/update', params)),
+    previewTaskContext: params => executeContext(() => rpc.call('taskboard/context/ai-preview', params)),
+    applyTaskContextProposal: params => executeContext(() => rpc.call('taskboard/context/ai-apply', params)),
+    discardTaskContextProposal: params => executeContext(() => rpc.call('taskboard/context/ai-discard', params)),
+    readTaskContextPromotion: params => executeContext(() => rpc.call('taskboard/context/promotion-status', params)),
     listTaskboardWorkflowTasks: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/list', params)),
     readTaskboardWorkflowTask: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/read', params)),
     createTaskboardWorkflowTask: params => executeWorkflow(() => rpc.call('taskboard/workflow/create', {

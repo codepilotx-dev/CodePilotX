@@ -121,6 +121,22 @@ export const EventManifest = {
     capability: "taskboard.workflow.v1",
     reconcilesWith: "taskboard/workflow/list",
   }),
+  "taskboard/context/changed": defineEvent({
+    payload: Schema.Struct({
+      projectId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      evidenceRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      contextRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+      pendingEvidenceCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      frozen: Schema.Boolean,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "taskboard.context.v1",
+    reconcilesWith: "taskboard/context/read",
+  }),
   "tooling/updated": defineEvent({
     payload: Schema.Struct({
       status: ToolingStatusSchema,

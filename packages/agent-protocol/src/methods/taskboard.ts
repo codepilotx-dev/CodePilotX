@@ -21,6 +21,12 @@ import {
   TaskboardWorkflowThreadCandidateSchema,
   TaskboardWorkflowThreadLookupSchema,
   TaskboardWorkflowTransitionActionSchema,
+  TaskContextChangeSchema,
+  TaskContextEntrySchema,
+  TaskContextEvidenceSchema,
+  TaskContextProposalSchema,
+  TaskContextSectionSchema,
+  TaskContextSnapshotSchema,
 } from "@codepilotx/shared/taskboard"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
@@ -117,8 +123,30 @@ const WorkflowThreadLinkInputSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   role: TaskboardThreadRoleSchema,
 })
+const ContextReadResultSchema = Schema.Struct({ snapshot: TaskContextSnapshotSchema, entries: Schema.Array(TaskContextEntrySchema), evidence: Schema.Array(TaskContextEvidenceSchema) })
+const ContextErrors = [...TaskboardErrors, "TASKBOARD_CONTEXT_REVISION_CONFLICT", "TASKBOARD_CONTEXT_FROZEN", "TASKBOARD_PROPOSAL_STALE", "TASKBOARD_PROPOSAL_NOT_FOUND", "TASKBOARD_AI_MODEL_UNAVAILABLE"] as const
 
 export const TaskboardRpcMethods = {
+  "taskboard/context/read": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema, sections: Schema.optional(Schema.Array(TaskContextSectionSchema)), includeEvidence: Schema.optional(Schema.Boolean), includeUnverified: Schema.optional(Schema.Boolean), limit: Schema.optional(LimitSchema), offset: Schema.optional(NonNegativeIntSchema) }),
+    result: ContextReadResultSchema, errors: ContextErrors, capability: "taskboard.context.v1", mutation: false, exactParams: true, exactResult: true,
+  }),
+  "taskboard/context/update": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema, expectedContextRevision: ExpectedVersionSchema, changes: Schema.Array(TaskContextChangeSchema).check(Schema.isMinLength(1), Schema.isMaxLength(10)) }),
+    result: Schema.Struct({ snapshot: TaskContextSnapshotSchema }), errors: ContextErrors, capability: "taskboard.context.v1", mutation: true, exactParams: true, exactResult: true,
+  }),
+  "taskboard/context/ai-preview": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema }), result: Schema.Struct({ proposal: TaskContextProposalSchema }), errors: ContextErrors, capability: "taskboard.context.v1", mutation: true, exactParams: true, exactResult: true,
+  }),
+  "taskboard/context/ai-apply": defineMethod({
+    params: Schema.Struct({ proposalId: OpaqueIDSchema }), result: Schema.Struct({ proposal: TaskContextProposalSchema, snapshot: TaskContextSnapshotSchema }), errors: ContextErrors, capability: "taskboard.context.v1", mutation: true, exactParams: true, exactResult: true,
+  }),
+  "taskboard/context/ai-discard": defineMethod({
+    params: Schema.Struct({ proposalId: OpaqueIDSchema }), result: Schema.Struct({ proposal: TaskContextProposalSchema }), errors: ContextErrors, capability: "taskboard.context.v1", mutation: true, exactParams: true, exactResult: true,
+  }),
+  "taskboard/context/promotion-status": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema }), result: Schema.Struct({ promotion: Schema.NullOr(Schema.Struct({ id: OpaqueIDSchema, taskId: OpaqueIDSchema, contextRevision: ExpectedVersionSchema, status: Schema.Literals(["pending", "running", "completed", "failed", "retryable"]), error: Schema.NullOr(Schema.String), createdAt: TimestampSchema, startedAt: Schema.NullOr(TimestampSchema), finishedAt: Schema.NullOr(TimestampSchema), updatedAt: TimestampSchema })) }), errors: ContextErrors, capability: "taskboard.context.v1", mutation: false, exactParams: true, exactResult: true,
+  }),
   "taskboard/task/list": defineMethod({
     params: Schema.Struct({
       projectId: Schema.optional(OpaqueIDSchema),

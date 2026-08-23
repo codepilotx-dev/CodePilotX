@@ -51,6 +51,7 @@ export const Capabilities = [
   "worktree.manage.v1",
   "taskboard.v1",
   "taskboard.workflow.v1",
+  "taskboard.context.v1",
 ] as const
 
 export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)

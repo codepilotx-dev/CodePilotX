@@ -11,6 +11,58 @@ export const TASKBOARD_DESCRIPTION_MAX_LENGTH = 65_536
 export const TASKBOARD_COMMENT_MAX_LENGTH = 32_768
 export const TASKBOARD_LABEL_MAX_LENGTH = 40
 export const TASKBOARD_LABELS_PER_TASK_MAX = 20
+export const TASK_CONTEXT_TITLE_MAX_LENGTH = 120
+export const TASK_CONTEXT_CONTENT_MAX_LENGTH = 2_000
+export const TASK_CONTEXT_PUBLISH_MAX_CHANGES = 10
+export const TASK_CONTEXT_DIGEST_MAX_LENGTH = 6_000
+
+export const TaskContextSectionSchema = Schema.Literals(["objective", "code_map", "decision", "finding", "progress", "validation", "risk"])
+export type TaskContextSection = typeof TaskContextSectionSchema.Type
+export const TaskContextEntryStatusSchema = Schema.Literals(["active", "superseded", "retired"])
+export const TaskContextSourceKindSchema = Schema.Literals(["user", "agent", "system", "ai"])
+export type TaskContextSourceKind = typeof TaskContextSourceKindSchema.Type
+export const TaskContextEntrySchema = Schema.Struct({
+  id: NonEmptyStringSchema, taskId: NonEmptyStringSchema, section: TaskContextSectionSchema,
+  title: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASK_CONTEXT_TITLE_MAX_LENGTH)),
+  content: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASK_CONTEXT_CONTENT_MAX_LENGTH)),
+  status: TaskContextEntryStatusSchema, version: VersionSchema, sourceKind: TaskContextSourceKindSchema,
+  sourceThreadId: Schema.NullOr(NonEmptyStringSchema), sourceTurnId: Schema.NullOr(NonEmptyStringSchema),
+  supersedesEntryId: Schema.NullOr(NonEmptyStringSchema), createdAt: Schema.Number, updatedAt: Schema.Number,
+})
+export type TaskContextEntry = typeof TaskContextEntrySchema.Type
+export const TaskContextEvidenceSchema = Schema.Struct({
+  id: NonEmptyStringSchema, taskId: NonEmptyStringSchema, revision: VersionSchema,
+  sourceKind: Schema.Literals(["turn", "subagent", "thread", "task"]), sourceId: NonEmptyStringSchema,
+  sourceThreadId: Schema.NullOr(NonEmptyStringSchema), sourceTurnId: Schema.NullOr(NonEmptyStringSchema),
+  verified: Schema.Boolean, summary: Schema.String, createdAt: Schema.Number,
+})
+export type TaskContextEvidence = typeof TaskContextEvidenceSchema.Type
+export const TaskContextSnapshotSchema = Schema.Struct({
+  taskId: NonEmptyStringSchema, evidenceRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  contextRevision: VersionSchema, summarizedThroughEvidenceRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  pendingEvidenceCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  digest: Schema.String.check(Schema.isMaxLength(TASK_CONTEXT_DIGEST_MAX_LENGTH)), frozen: Schema.Boolean,
+  frozenAt: Schema.NullOr(Schema.Number), promotedContextRevision: Schema.NullOr(VersionSchema),
+})
+export type TaskContextSnapshot = typeof TaskContextSnapshotSchema.Type
+export const TaskContextChangeSchema = Schema.Union([
+  Schema.Struct({ op: Schema.Literal("add"), section: TaskContextSectionSchema, title: Schema.String, content: Schema.String }),
+  Schema.Struct({ op: Schema.Literal("replace"), entryId: NonEmptyStringSchema, expectedEntryVersion: VersionSchema, title: Schema.String, content: Schema.String }),
+  Schema.Struct({ op: Schema.Literal("retire"), entryId: NonEmptyStringSchema, expectedEntryVersion: VersionSchema, reason: Schema.String }),
+])
+export type TaskContextChange = typeof TaskContextChangeSchema.Type
+export const TaskContextProposalSchema = Schema.Struct({
+  id: NonEmptyStringSchema,
+  taskId: NonEmptyStringSchema,
+  baseContextRevision: VersionSchema,
+  throughEvidenceRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  changes: Schema.Array(TaskContextChangeSchema),
+  status: Schema.Literals(["draft", "applied", "discarded", "stale"]),
+  modelRef: Schema.NullOr(Schema.String),
+  createdAt: Schema.Number,
+  updatedAt: Schema.Number,
+})
+export type TaskContextProposal = typeof TaskContextProposalSchema.Type
 
 export const TaskboardStatusSchema = Schema.Literals([
   "backlog",

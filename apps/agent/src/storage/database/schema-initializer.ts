@@ -8,6 +8,19 @@ import {
   SCHEMA_VERSION,
 } from "./schema"
 
+const TASK_CONTEXT_SCHEMA = [
+  "CREATE TABLE task_context_state (task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE, evidence_revision INTEGER NOT NULL DEFAULT 0, context_revision INTEGER NOT NULL DEFAULT 1, summarized_through_evidence_revision INTEGER NOT NULL DEFAULT 0, frozen_at INTEGER, promoted_context_revision INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE task_context_entries (id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE, section TEXT NOT NULL CHECK(section IN ('objective','code_map','decision','finding','progress','validation','risk')), title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 120), content TEXT NOT NULL CHECK(length(content) BETWEEN 1 AND 2000), status TEXT NOT NULL CHECK(status IN ('active','superseded','retired')), version INTEGER NOT NULL DEFAULT 1, source_kind TEXT NOT NULL CHECK(source_kind IN ('user','agent','system','ai')), source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, source_turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL, supersedes_entry_id TEXT REFERENCES task_context_entries(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE task_context_evidence (id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE, revision INTEGER NOT NULL, source_kind TEXT NOT NULL CHECK(source_kind IN ('turn','subagent','thread','task')), source_id TEXT NOT NULL, source_thread_id TEXT, source_turn_id TEXT, verified INTEGER NOT NULL CHECK(verified IN (0,1)), summary TEXT NOT NULL CHECK(length(summary) <= 8000), created_at INTEGER NOT NULL, UNIQUE(task_id, source_kind, source_id), UNIQUE(task_id, revision))",
+  "CREATE TABLE task_context_ai_proposals (id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE, base_context_revision INTEGER NOT NULL, through_evidence_revision INTEGER NOT NULL, changes TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('draft','applied','discarded','stale')), model_ref TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE task_context_operations (operation_id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE, method TEXT NOT NULL, request_hash TEXT NOT NULL, result TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE task_context_memory_promotions (id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE, context_revision INTEGER NOT NULL, memory_entry_id TEXT, content TEXT, content_hash TEXT, supersedes_promotion_id TEXT REFERENCES task_context_memory_promotions(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, completed_at INTEGER)",
+  "CREATE TABLE task_context_promotion_jobs (id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE, context_revision INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending','running','completed','failed','retryable')), error TEXT, created_at INTEGER NOT NULL, started_at INTEGER, finished_at INTEGER, updated_at INTEGER NOT NULL, UNIQUE(task_id, context_revision))",
+  "CREATE INDEX task_context_entries_task_section ON task_context_entries(task_id, section, status, updated_at DESC)",
+  "CREATE INDEX task_context_evidence_pending ON task_context_evidence(task_id, revision)",
+  "CREATE INDEX task_context_promotion_jobs_status ON task_context_promotion_jobs(status, created_at)",
+] as const
+
 export const FINAL_SCHEMA = [
   "CREATE TABLE agent_checkpoints (\n        agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        state TEXT NOT NULL,\n        payload TEXT NOT NULL,\n        version INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE agent_compactions (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          baseline_version INTEGER NOT NULL,\n          before_count INTEGER NOT NULL,\n          after_count INTEGER NOT NULL,\n          summary TEXT NOT NULL,\n          replacement_history TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        , before_tokens INTEGER NOT NULL DEFAULT 0, after_tokens INTEGER NOT NULL DEFAULT 0, target_tokens INTEGER NOT NULL DEFAULT 0, usage_sample_id TEXT)",
@@ -84,6 +97,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE taskboard_start_operations (\n          operation_id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          project_id TEXT NOT NULL,\n          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          request_hash TEXT NOT NULL,\n          execution TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('running','awaiting_setup_decision','completed','failed','rollback_failed')),\n          step TEXT NOT NULL CHECK(step IN ('preflight','prepare_worktree','create_thread','link','complete')),\n          revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1),\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          startup_instruction TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
   "CREATE TABLE taskboard_task_workflows (\n          task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          status TEXT NOT NULL CHECK(status IN ('backlog','todo','in_progress','in_review','blocked','done','canceled')),\n          position REAL NOT NULL,\n          start_date TEXT CHECK(start_date IS NULL OR start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),\n          due_date TEXT CHECK(due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE taskboard_task_attention (\n          task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          unread INTEGER NOT NULL DEFAULT 0 CHECK(unread IN (0,1)),\n          unread_at INTEGER,\n          read_at INTEGER,\n          reason TEXT CHECK(reason IS NULL OR reason IN ('review_requested','blocked','agent_comment','execution_attention')),\n          updated_at INTEGER NOT NULL\n        )",
+  ...TASK_CONTEXT_SCHEMA,
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -1033,6 +1047,10 @@ const migrateHistory36To37 = (sqlite: Database) => {
   sqlite.exec(SEMANTIC_VIEW_SQL)
 }
 
+const migrateHistory37To38 = (sqlite: Database) => sqlite.exec(TASK_CONTEXT_SCHEMA.map(statement => statement
+  .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
+  .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")).join(";\n"))
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1242,6 +1260,7 @@ class SchemaInitializer {
           34: () => migrateHistory34To35(this.sqlite),
           35: () => migrateHistory35To36(this.sqlite),
           36: () => migrateHistory36To37(this.sqlite),
+          37: () => migrateHistory37To38(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

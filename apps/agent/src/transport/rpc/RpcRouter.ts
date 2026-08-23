@@ -65,6 +65,8 @@ import type { SpeechTranscriptionService } from "../../speech/SpeechTranscriptio
 import type { ThreadExecutionPreparationService } from "../../worktree/ThreadExecutionPreparationService"
 import type { TaskboardService } from "../../taskboard/TaskboardService"
 import type { TaskboardStartService } from "../../taskboard/TaskboardStartService"
+import type { TaskContextService } from "../../task-context/TaskContextService"
+import type { TaskContextSummaryService } from "../../task-context/TaskContextSummaryService"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
 import type { SideChatService } from "../../session/side-chat/SideChatService"
 import { InteractionService } from "../../interaction/InteractionService"
@@ -164,6 +166,8 @@ export type RpcRouterDependencies = {
   threadExecutions: ThreadExecutionPreparationService
   taskboard: TaskboardService
   taskboardStart: TaskboardStartService
+  taskContext: TaskContextService
+  taskContextSummary: TaskContextSummaryService
 }
 
 export type { RpcRouterContext } from "./request-context"
