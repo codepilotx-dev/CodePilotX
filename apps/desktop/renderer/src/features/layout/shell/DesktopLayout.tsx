@@ -114,6 +114,7 @@ import type {
   MarkdownFileOpenOptions,
   MarkdownFileReference,
 } from '../../markdown/index.js'
+import { MARKDOWN_THREAD_NAVIGATION_EVENT } from '../../markdown/MarkdownMessage.js'
 import {
   hasDirtyFileDocuments,
   fileDocumentLoadErrorMessage,
@@ -583,6 +584,50 @@ export function DesktopLayout(): React.ReactNode {
       // pending interaction，避免对失效请求提交响应。
       navigate(sessionPath(activation.threadId))
     })
+  }, [navigate])
+  useEffect(() => {
+    const bridge = window.codePilotXDesktop
+    if (typeof bridge?.onThreadDeepLinkActivated !== 'function') return
+    if (typeof bridge?.consumePendingThreadDeepLink !== 'function') return
+    let mounted = true
+    const openThread = (payload: { threadId: string }): void => {
+      navigate(sessionPath(payload.threadId))
+    }
+    const unsubscribe = bridge.onThreadDeepLinkActivated(openThread)
+    // 先订阅再消费，避免挂载期间到达的深链在订阅/消费间隙丢失。
+    void bridge
+      .consumePendingThreadDeepLink()
+      .then(payload => {
+        if (!mounted || payload === null) return
+        openThread(payload)
+      })
+      .catch(() => {
+        window.dispatchEvent(new CustomEvent('desktop:error', {
+          detail: '无法打开会话深链，请重试。',
+        }))
+      })
+    return () => {
+      mounted = false
+      unsubscribe()
+    }
+  }, [navigate])
+  useEffect(() => {
+    const handleMarkdownThreadNavigation = (event: Event): void => {
+      const detail = (event as CustomEvent<{ threadId?: unknown }>).detail
+      if (!detail || typeof detail !== 'object') return
+      const threadId = (detail as { threadId?: unknown }).threadId
+      if (typeof threadId !== 'string' || threadId.trim() === '') return
+      navigate(sessionPath(threadId))
+    }
+    window.addEventListener(
+      MARKDOWN_THREAD_NAVIGATION_EVENT,
+      handleMarkdownThreadNavigation,
+    )
+    return () =>
+      window.removeEventListener(
+        MARKDOWN_THREAD_NAVIGATION_EVENT,
+        handleMarkdownThreadNavigation,
+      )
   }, [navigate])
   const mainComposerDraftKey: ComposerDraftKey = routedSessionId
     ? `session:${routedSessionId}`

@@ -17,6 +17,7 @@ import type { DesktopShellIpcBridge } from '@codepilotx/shared/desktop-shell-ipc
 import type { DesktopApiKeyIpcBridge } from '@codepilotx/shared/desktop-api-key-ipc'
 import type { DesktopStartupIpcBridge } from '@codepilotx/shared/desktop-startup-ipc'
 import type { DesktopAppearanceIpcBridge } from '@codepilotx/shared/desktop-appearance-ipc'
+import type { DesktopDeepLinkIpcBridge } from '@codepilotx/shared/desktop-deep-link-ipc'
 
 declare global {
   const __CODEPILOTX_VERSION__: string
@@ -49,6 +50,7 @@ declare global {
       & DesktopApiKeyIpcBridge
       & DesktopStartupIpcBridge
       & DesktopAppearanceIpcBridge<DesktopThemeSettings['codeThemeIds']['light']>
+      & DesktopDeepLinkIpcBridge
   }
 }
 

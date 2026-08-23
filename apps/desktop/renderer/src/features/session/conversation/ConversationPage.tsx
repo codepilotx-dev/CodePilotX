@@ -104,6 +104,14 @@ import {
 } from "./conversationTitleActions.js";
 import { useConversationForkController } from "../workflow/fork/useConversationForkController.js";
 import { findLatestConversationForkPoint } from "../workflow/fork/latestConversationForkPoint.js";
+import {
+  copySessionReference,
+  copyThreadDeepLink,
+  copyThreadId,
+  copyWorkspaceCwd,
+  resolveSessionReferenceShortcut,
+  type SessionReferenceContext,
+} from "./sessionReferenceActions.js";
 import { CreateTaskDialog } from '../../taskboard/components/CreateTaskDialog.js'
 import { deriveThreadTaskboardAction } from '../../taskboard/state/threadTaskboardAction.js'
 import { useThreadTaskboardAction } from '../../taskboard/state/useThreadTaskboardAction.js'
@@ -577,6 +585,33 @@ export function ConversationPage(): React.ReactNode {
     setSessionMenuOpen(false);
   }
 
+  const sessionReferenceContext = React.useMemo<SessionReferenceContext>(
+    () => ({
+      workspaceCwd: workspacePath ?? "",
+      threadId: activeSessionId ?? "",
+    }),
+    [activeSessionId, workspacePath],
+  );
+
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const payload = resolveSessionReferenceShortcut(
+        event,
+        sessionReferenceContext,
+      );
+      if (!payload) return;
+      const value =
+        payload.kind === "workspaceCwd"
+          ? payload.workspaceCwd
+          : payload.threadId;
+      if (!value) return;
+      event.preventDefault();
+      void copySessionReference(payload);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [sessionReferenceContext]);
+
   const openRenameSessionDialog = React.useCallback((): void => {
     if (!hasActiveSession || renameDialogOpen || renamingSession) return;
     setSessionMenuOpen(false);
@@ -624,18 +659,22 @@ export function ConversationPage(): React.ReactNode {
     setRenameValue("");
   }, [activeSessionId]);
 
-  function copyText(text: string): void {
+  function copyWorkspaceReference(): void {
     closeSessionMenu();
-    void navigator.clipboard?.writeText(text).catch(() => undefined);
+    if (!workspacePath) return;
+    void copyWorkspaceCwd(workspacePath);
   }
 
-  function copySessionDeepLink(): void {
+  function copyThreadReference(): void {
+    closeSessionMenu();
     if (!activeSessionId) return;
-    const url = new URL(window.location.href);
-    url.pathname = `/threads/${encodeURIComponent(activeSessionId)}`;
-    url.search = "";
-    url.hash = "";
-    copyText(url.toString());
+    void copyThreadId(activeSessionId);
+  }
+
+  function copyThreadDeepLinkReference(): void {
+    closeSessionMenu();
+    if (!activeSessionId) return;
+    void copyThreadDeepLink(activeSessionId);
   }
 
   function continueInNewConversation(): void {
@@ -853,7 +892,7 @@ export function ConversationPage(): React.ReactNode {
               disabled={!workspacePath}
               icon={<Copy size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Shift+C"
-              onClick={() => copyText(workspacePath ?? "")}
+              onClick={copyWorkspaceReference}
             >
               复制工作目录
             </PopoverItem>
@@ -861,7 +900,7 @@ export function ConversationPage(): React.ReactNode {
               disabled={!hasActiveSession}
               icon={<Copy size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Alt+C"
-              onClick={() => copyText(activeSessionId ?? "")}
+              onClick={copyThreadReference}
             >
               复制会话 ID
             </PopoverItem>
@@ -869,7 +908,7 @@ export function ConversationPage(): React.ReactNode {
               disabled={!hasActiveSession}
               icon={<Copy size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Alt+L"
-              onClick={copySessionDeepLink}
+              onClick={copyThreadDeepLinkReference}
             >
               复制深度链接
             </PopoverItem>

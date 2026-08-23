@@ -60,6 +60,21 @@ import type {
   MarkdownRenderBlock,
 } from './types.js'
 
+export const MARKDOWN_THREAD_NAVIGATION_EVENT =
+  'codepilotx:markdown-thread-navigation'
+
+export function handleMarkdownThreadLinkClick(
+  event: { preventDefault: () => void },
+  threadId: string,
+): void {
+  event.preventDefault()
+  window.dispatchEvent(
+    new CustomEvent<{ threadId: string }>(MARKDOWN_THREAD_NAVIGATION_EVENT, {
+      detail: { threadId },
+    }),
+  )
+}
+
 export type MarkdownMessageProps = {
   allowBasicHtml?: boolean
   allowWideBlocks?: boolean
@@ -835,6 +850,20 @@ function renderLink(
 ): React.ReactNode {
   const children = renderTokens(link.tokens, context, `${key}-label`)
   const target = classifyMarkdownTarget(link.href)
+  if (target.kind === 'thread') {
+    return (
+      <a
+        href={link.href}
+        key={key}
+        onClick={event => {
+          handleMarkdownThreadLinkClick(event, target.threadId)
+        }}
+        title={link.title ?? undefined}
+      >
+        {children}
+      </a>
+    )
+  }
   if (target.kind === 'external') {
     if (
       !context.externalResourcePolicy.allowExternalLinks ||
