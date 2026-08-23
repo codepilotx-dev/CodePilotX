@@ -9,6 +9,7 @@
 
 ### Added
 
+- [taskboard] 支持递归子任务、轻量步骤、执行条件、结构化阻碍及任务树跨会话上下文。
 - [desktop/renderer] 为 Composer 文件变更汇总增加会话级 Diff 文件预览，支持查看逐文件增删统计并点击定位到 Review。
 - [agent/desktop/renderer] 新增任务级共享上下文 Capsule：关联的主会话、辅助会话与子 Agent 共享确定性摘要和按需条目，终态执行结果以幂等 Evidence 增量收录，并支持乐观并发发布、AI 预览应用、生命周期冻结及验收后项目记忆提升。
 - [agent/desktop] 内置不可卸载的任务规划 Skill，可在确认后将工作目标拆分并创建为任务看板任务。
@@ -37,6 +38,7 @@
 
 ### Changed
 
+- [desktop/renderer] 收紧 Composer 执行计划与 Diff 文件预览卡片的宽度、间距和排版，并统一为主题自适应的 Codex 风格 rich tooltip 层级。
 - [desktop/renderer] 对齐 Codex 的紧凑比例，收窄思考等级弹层及其轨道、滑块和内部留白，避免遮挡会话内容。
 - [desktop/renderer] 按主题语义重塑思考等级弹层，以当前等级、粗轨道、大滑块和离散刻度提供更直观的调节反馈。
 - [desktop/renderer] 将思考等级从模型选择器拆分为独立等级按钮，使模型与推理设置可以分别调整。
