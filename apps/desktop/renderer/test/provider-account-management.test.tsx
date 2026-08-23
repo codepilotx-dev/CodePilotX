@@ -28,7 +28,7 @@ describe('model center account management', () => {
     const html = renderToStaticMarkup(
       <ProviderCatalog
         providers={[
-          catalogItem('openai', false),
+          { ...catalogItem('openai', false), logoURL: '/favicon.png' },
           catalogItem('anthropic', true),
         ]}
         query=""
@@ -40,9 +40,15 @@ describe('model center account management', () => {
     )
     expect(html).not.toContain('<h2>供应商</h2>')
     expect(html).not.toContain('浏览完整目录')
+    expect(html).not.toContain('model-center-catalog-source')
     expect(html).toContain('2 个')
     expect(html).toContain('>查看<')
     expect(html).toContain('>连接<')
+    expect(html).toContain(
+      '<span class="provider-card-logo"><span class="ui-remote-image"',
+    )
+    expect(html).not.toContain('class="ui-remote-image provider-card-logo"')
+    expect(html.match(/class="provider-card-logo"/g)).toHaveLength(2)
   })
 })
 

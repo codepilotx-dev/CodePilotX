@@ -14,6 +14,7 @@ import type {
 
 export type ProviderManagementClient = Pick<
   CodePilotXDesktopClient,
+  | 'refreshModelProviders'
   | 'listModelProviders'
   | 'getModelProviderState'
   | 'listProviderCredentials'
@@ -36,6 +37,7 @@ export type ProviderManagementStore = {
   subscribe(listener: () => void): () => void
   ensureLoaded(): Promise<ProviderManagementSnapshot>
   refresh(): Promise<ProviderManagementSnapshot>
+  refreshAllProviderData(): Promise<ProviderManagementSnapshot>
   refreshConnections(): Promise<ProviderManagementSnapshot>
   refreshSources(): Promise<RpcResult<'usage/source/list'>>
   querySources(
@@ -110,6 +112,11 @@ const errorMessage = (error: unknown): string =>
   error instanceof Error && error.message.trim()
     ? error.message
     : '供应商连接状态暂时无法加载。'
+
+const fulfilledValue = <T>(result: PromiseSettledResult<T>): T => {
+  if (result.status === 'rejected') throw result.reason
+  return result.value
+}
 
 const mergeUsageResults = (
   current: ProviderManagementSnapshot['usageResults'],
@@ -225,6 +232,46 @@ export function createProviderManagementStore(
     })
     loadRequest = pending
     return pending
+  }
+
+  const refreshAllProviderData = async (): Promise<ProviderManagementSnapshot> => {
+    update({ loading: true })
+    try {
+      await client.refreshModelProviders()
+      const results = await Promise.allSettled([
+        client.listModelProviders(),
+        client.getModelProviderState(),
+        client.listProviderCredentials(),
+        client.listUsageSources(),
+      ])
+      const providers = fulfilledValue(results[0])
+      const currentProviderState = fulfilledValue(results[1])
+      const credentialsResult = fulfilledValue(results[2])
+      const usageSourceResult = fulfilledValue(results[3])
+      const credentials = [...credentialsResult]
+      const usageSources = [...usageSourceResult.sources]
+      return update({
+        loaded: true,
+        loading: false,
+        error: null,
+        configurationError: null,
+        providers: [...providers],
+        currentProviderState,
+        credentials,
+        apiKeys: credentials
+          .filter(credential => credential.kind === 'api-key')
+          .map(providerCredentialToApiKey),
+        usageSources,
+        usageResults: reconcileUsageResults(
+          snapshot.usageResults,
+          snapshot.usageSources,
+          usageSources,
+        ),
+      })
+    } catch (error) {
+      update({ loading: false })
+      throw error
+    }
   }
 
   const refreshSources = async (): Promise<RpcResult<'usage/source/list'>> => {
@@ -466,6 +513,7 @@ export function createProviderManagementStore(
         : loadRequest ?? refresh()
     },
     refresh,
+    refreshAllProviderData,
     refreshConnections,
     refreshSources,
     querySources,

@@ -495,6 +495,11 @@ export class PiModelService {
     return this.catalogVersion;
   }
 
+  modelsDevModelCount(providerID: string): number | undefined {
+    const models = this.modelsDevMetadata[providerID];
+    return models ? Object.keys(models).length : undefined;
+  }
+
   async discoverModels(
     providerID: string,
     options: {
@@ -640,9 +645,6 @@ export class PiModelService {
     if (!this.modelsDevStore) return Promise.resolve();
     return this.enqueueModelsDev(async () => {
       const current = this.modelsDevCache;
-      if (!force && current && this.now() - current.fetchedAt < MODELS_DEV_FRESH_MS) {
-        return;
-      }
       const result = await fetchModelsDevCatalog({
         ...(current?.etag ? { etag: current.etag } : {}),
         ...(current?.lastModified ? { lastModified: current.lastModified } : {}),

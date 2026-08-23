@@ -174,6 +174,7 @@ import type {
   DesktopAttachmentApi,
   DesktopClientEnvironment,
   DesktopLocalContextApi,
+  DesktopModelProviderRefreshApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
   DesktopTaskboardApi,
@@ -187,7 +188,8 @@ const localContextImportSupport = import('./localContextImportSupport.js')
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
-    & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi,
+    & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi
+    & DesktopModelProviderRefreshApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -2661,6 +2663,16 @@ export function createAgentSessionDesktopClient(
           context: input.context,
         })
       }),
+    refreshModelProviders: () => withAgentOrMock(
+      async () => {
+        await rpc.call('model/refresh', {
+          operationId: crypto.randomUUID(),
+        })
+        invalidateModelCatalog()
+        providerCredentialsCache = null
+      },
+      () => mockClient.refreshModelProviders(),
+    ),
     listModelProviders: () => withAgentOrMock(
       async () => {
         const directory = await loadProviderCatalog()

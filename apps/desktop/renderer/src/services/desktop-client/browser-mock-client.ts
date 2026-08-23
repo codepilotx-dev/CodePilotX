@@ -125,6 +125,7 @@ import {
 import type {
   DesktopAttachmentApi,
   DesktopLocalContextApi,
+  DesktopModelProviderRefreshApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
   DesktopSpeechStatus,
@@ -169,7 +170,8 @@ function taskboardMutationUnavailable(): never {
 export function createBrowserMockDesktopClient(
   storage?: Storage,
 ): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
-  & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi {
+  & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi
+  & DesktopModelProviderRefreshApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
   const performanceFixture = createBrowserPerformanceFixture()
@@ -194,6 +196,26 @@ export function createBrowserMockDesktopClient(
     ...mockModelProvider(settings.providerID),
     ...(visualFixture || performanceFixture ? { defaultModels: ['mock'] } : {}),
   }
+  const providerCatalogVisualFixture: DesktopModelProviderSummary[] | null =
+    import.meta.env.DEV
+    && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('visualProviderCatalog') === 'logos'
+      ? [
+          ['mock', 'Loaded Logo', '/favicon.png'],
+          ['visual-logo-error', 'Fallback Logo', '/missing-provider-logo.svg'],
+          ['visual-logo-3', 'Provider Three', undefined],
+          ['visual-logo-4', 'Provider Four', undefined],
+          ['visual-logo-5', 'Provider Five', undefined],
+          ['visual-logo-6', 'Provider Six', undefined],
+        ].map(([providerID, displayName, logoURL]) => ({
+          ...mockModelProvider(providerID as ModelProviderID),
+          displayName,
+          logoURL,
+          modelCount: 1,
+          providerKind: 'models-dev' as const,
+          catalogOrigin: 'models-dev' as const,
+        }))
+      : null
   const providerState = (): DesktopModelProviderState => ({
     selectedProviderID: settings.providerID,
     provider,
@@ -570,7 +592,8 @@ export function createBrowserMockDesktopClient(
     openPathWithTarget: async () => {},
     openPathWithDefaultTarget: async () => {},
     revealPathInFolder: async () => {},
-    listModelProviders: async () => [provider],
+    refreshModelProviders: async () => {},
+    listModelProviders: async () => providerCatalogVisualFixture ?? [provider],
     getModelProviderState: async () => providerState(),
     fetchProviderModels: async () => ({ models: provider.defaultModels }),
     saveModelProvider: async options => {

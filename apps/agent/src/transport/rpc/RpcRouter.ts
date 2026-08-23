@@ -513,11 +513,16 @@ export class RpcRouter {
     const source = await this.loadCatalogSource()
     const catalogSource = this.dependencies.providers.catalogStatus?.()
     return {
-      providers: source.providers.map(provider => ({
-        ...provider,
-        modelCount: (source.modelsByProvider.get(provider.id) ?? [])
-          .filter(model => model.enabled).length,
-      })),
+      providers: source.providers.map(provider => {
+        const runtimeModels = source.modelsByProvider.get(provider.id) ?? []
+        const modelsDevCount = provider.catalogOrigin === "models-dev"
+          ? this.dependencies.piModels.modelsDevModelCount(String(provider.id))
+          : undefined
+        return {
+          ...provider,
+          modelCount: modelsDevCount ?? runtimeModels.length,
+        }
+      }),
       ...await this.configuredModels(),
       catalogVersion: this.catalogVersion,
       ...(catalogSource ? { catalogSource } : {}),

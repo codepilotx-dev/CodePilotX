@@ -438,6 +438,10 @@ export type DesktopLocalContextApi = {
   ): Promise<RpcResult<'context/path/list'>>
 }
 
+export type DesktopModelProviderRefreshApi = {
+  refreshModelProviders(): Promise<void>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
@@ -450,4 +454,5 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopTaskboardApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &
-  DesktopLocalContextApi
+  DesktopLocalContextApi &
+  DesktopModelProviderRefreshApi

@@ -472,6 +472,63 @@ describe('desktop provider client', () => {
     })
   })
 
+  test('手动刷新使用 model/refresh 并清理 Provider、模型与凭据缓存', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'model.catalog.paged.v1']))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        return rpc(body.id, {
+          providers: [{ ...provider.provider, authConfigured: true, modelCount: 1 }],
+          issues: [],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 7,
+        })
+      }
+      if (body.method === 'model/list') {
+        return rpc(body.id, {
+          providers: [provider],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 7,
+          total: 1,
+        })
+      }
+      if (body.method === 'model/refresh') {
+        expect(body.params).toEqual({ operationId: expect.any(String) })
+        return rpc(body.id, {
+          providers: [provider],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 8,
+        })
+      }
+      if (body.method === 'provider/credential/list') {
+        return rpc(body.id, { credentials: [credential()] })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await client.getModelProviderState()
+    await client.listModelProviders()
+    await client.refreshModelProviders()
+    await client.getModelProviderState()
+    await client.listModelProviders()
+
+    expect(requests.filter(request => request.method === 'model/refresh')).toHaveLength(1)
+    expect(requests.filter(request => request.method === 'provider/list')).toHaveLength(2)
+    expect(requests.filter(request => request.method === 'model/list')).toHaveLength(2)
+    expect(requests.filter(request => request.method === 'provider/credential/list'))
+      .toHaveLength(2)
+  })
+
   test('凭据更新事件会清理 provider 目录缓存并通知工作台刷新', async () => {
     let authConfigured = false
     let providerListRequests = 0

@@ -123,12 +123,80 @@ describe('provider management store', () => {
     expect(store.getSnapshot().currentProviderState?.modelConfigured).toBe(false)
     unsubscribe()
   })
+
+  test('manual refresh forces the catalog before reloading page data without querying usage', async () => {
+    const calls: string[] = []
+    const client = createClient({
+      refreshModelProviders: async () => {
+        calls.push('refresh-models')
+      },
+      listModelProviders: async () => {
+        calls.push('providers')
+        return [provider]
+      },
+      getModelProviderState: async () => {
+        calls.push('state')
+        return providerState
+      },
+      listProviderCredentials: async () => {
+        calls.push('credentials')
+        return []
+      },
+      listUsageSources: async () => {
+        calls.push('sources')
+        return { sources: [] }
+      },
+      queryProviderUsage: async input => {
+        calls.push('usage')
+        return {
+          sources: [],
+          generatedAt: Date.now(),
+          range: input.range,
+          timeZone: input.timeZone,
+        }
+      },
+    })
+    const store = createProviderManagementStore(client)
+
+    await store.refreshAllProviderData()
+
+    expect(calls).toEqual([
+      'refresh-models',
+      'providers',
+      'state',
+      'credentials',
+      'sources',
+    ])
+    expect(store.getSnapshot().loading).toBe(false)
+  })
+
+  test('failed manual refresh preserves the previous page data and clears loading', async () => {
+    let shouldFail = false
+    const client = createClient({
+      refreshModelProviders: async () => {
+        if (shouldFail) throw new Error('catalog offline')
+      },
+    })
+    const store = createProviderManagementStore(client)
+    const before = await store.ensureLoaded()
+    shouldFail = true
+
+    await expect(store.refreshAllProviderData()).rejects.toThrow('catalog offline')
+
+    const after = store.getSnapshot()
+    expect(after.providers).toEqual(before.providers)
+    expect(after.currentProviderState).toEqual(before.currentProviderState)
+    expect(after.credentials).toEqual(before.credentials)
+    expect(after.usageSources).toEqual(before.usageSources)
+    expect(after.loading).toBe(false)
+  })
 })
 
 function createClient(
   overrides: Partial<ProviderManagementClient> = {},
 ): ProviderManagementClient {
   return {
+    refreshModelProviders: async () => {},
     listModelProviders: async () => [provider],
     getModelProviderState: async () => providerState,
     listProviderCredentials: async () => [],

@@ -138,6 +138,70 @@ for (const mode of VISUAL_MODES) {
   }
 }
 
+visualTest('provider catalog preserves logo slot and three-column spacing', async ({ page }) => {
+  await page.setViewportSize(DESKTOP_VIEWPORT)
+  await prepareVisualTheme(page, 'dark')
+  await page.goto('/?visualCase=rich&visualProviderCatalog=logos#/models')
+  await waitForVisualPage(page, 'dark', page.locator('.model-center-shell'))
+
+  const cards = page.locator('.provider-card')
+  await expect(cards).toHaveCount(6)
+  await expect(page.locator('.model-center-catalog-source')).toHaveCount(0)
+  await expect(cards.nth(0).locator('.ui-remote-image')).toHaveAttribute('data-state', 'ready')
+  await expect(cards.nth(1).locator('.ui-remote-image')).toHaveAttribute('data-state', 'error')
+  await expect(cards.nth(1).locator('.ui-remote-image-fallback')).toBeVisible()
+
+  const contract = await page.locator('.model-center-catalog-list').evaluate(element => {
+    const gridStyle = getComputedStyle(element)
+    const cardElements = Array.from(element.querySelectorAll<HTMLElement>('.provider-card'))
+    return {
+      columnCount: gridStyle.gridTemplateColumns.split(' ').filter(Boolean).length,
+      cards: cardElements.map(card => {
+        const main = card.querySelector<HTMLElement>('.provider-card-main')!
+        const logo = card.querySelector<HTMLElement>('.provider-card-logo')!
+        const copy = card.querySelector<HTMLElement>('.provider-card-copy')!
+        const action = card.querySelector<HTMLElement>('.provider-card-connection-action')!
+        const cardStyle = getComputedStyle(card)
+        const mainStyle = getComputedStyle(main)
+        const cardRect = card.getBoundingClientRect()
+        const logoRect = logo.getBoundingClientRect()
+        const copyRect = copy.getBoundingClientRect()
+        const actionRect = action.getBoundingClientRect()
+        return {
+          gap: mainStyle.columnGap,
+          logoHeight: logoRect.height,
+          logoWidth: logoRect.width,
+          cardPadding: [
+            cardStyle.paddingTop,
+            cardStyle.paddingRight,
+            cardStyle.paddingBottom,
+            cardStyle.paddingLeft,
+          ],
+          mainPadding: [
+            mainStyle.paddingTop,
+            mainStyle.paddingRight,
+            mainStyle.paddingBottom,
+            mainStyle.paddingLeft,
+          ],
+          copyOffset: copyRect.left - cardRect.left,
+          actionRightOffset: cardRect.right - actionRect.right,
+        }
+      }),
+    }
+  })
+
+  expect(contract.columnCount).toBe(3)
+  for (const card of contract.cards) {
+    expect(card.logoWidth).toBe(36)
+    expect(card.logoHeight).toBe(36)
+    expect(card.gap).toBe('16px')
+    expect(card.cardPadding).toEqual(['20px', '20px', '20px', '20px'])
+    expect(card.mainPadding).toEqual(['0px', '0px', '0px', '0px'])
+    expect(card.copyOffset).toBe(72)
+    expect(card.actionRightOffset).toBe(20)
+  }
+})
+
 for (const mode of VISUAL_MODES) {
   for (const scenario of FORMAL_ROUTES.filter(
     route =>

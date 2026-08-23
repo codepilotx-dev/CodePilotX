@@ -105,6 +105,7 @@ export function ModelCenterWorkbench({
   const [, setModelError] = useState<string | null>(null);
   const [, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [refreshingProviderData, setRefreshingProviderData] = useState(false);
   const [busyKeyId, setBusyKeyId] = useState<string | null>(null);
   const [providerSearch, setProviderSearch] = useState("");
   const [catalogFilter, setCatalogFilter] = useState<ProviderCatalogFilter>("all");
@@ -135,6 +136,7 @@ export function ModelCenterWorkbench({
     snapshot,
     supportsModelHealth,
     setProviderState,
+    refreshAllProviderData,
   } = controller;
 
   const configuredGroups = useMemo(
@@ -270,13 +272,6 @@ export function ModelCenterWorkbench({
         };
       }),
     [configuredGroupByProvider, configuredProviderIds, providerDirectory],
-  );
-
-  const catalogSourceLabel = useMemo(
-    () => catalogSourceStatusLabel(
-      providers.find(provider => provider.catalogSource)?.catalogSource,
-    ),
-    [providers],
   );
 
   useEffect(() => {
@@ -596,6 +591,19 @@ export function ModelCenterWorkbench({
     onError(message);
   }
 
+  async function refreshProviderData(): Promise<void> {
+    if (refreshingProviderData) return;
+    setRefreshingProviderData(true);
+    try {
+      await refreshAllProviderData();
+      onNotice("供应商与模型数据已刷新。");
+    } catch (error) {
+      showOperationError(error);
+    } finally {
+      setRefreshingProviderData(false);
+    }
+  }
+
   async function deleteCustomProvider(): Promise<void> {
     if (!selectedProvider || selectedProvider.providerKind !== "custom") return;
     if (
@@ -711,6 +719,18 @@ export function ModelCenterWorkbench({
                     ? "重新体检全部"
                     : "测试全部模型"}
               </span>
+            </Button>
+          ) : null}
+
+          {!showInitialSkeleton && workspaceView === "providers" ? (
+            <Button
+              color="primary"
+              disabled={refreshingProviderData}
+              loading={refreshingProviderData}
+              onClick={() => void refreshProviderData()}
+            >
+              {!refreshingProviderData ? <RefreshCw aria-hidden /> : null}
+              <span className="model-center-header-action-label">刷新</span>
             </Button>
           ) : null}
 
@@ -883,7 +903,6 @@ export function ModelCenterWorkbench({
         </ProviderDetail>
       ) : (
         <ProviderCatalog
-          catalogSourceLabel={catalogSourceLabel}
           filter={catalogFilter}
           onAddConnection={(nextProviderID) =>
             setConnectionDialogProviderId(nextProviderID)
@@ -1112,16 +1131,6 @@ function providerAvailabilityLabel(
     case "no-compatible-models": return "没有兼容模型";
     case "unsupported-protocol": return "协议暂未适配";
   }
-}
-
-function catalogSourceStatusLabel(
-  status: DesktopModelProviderSummary["catalogSource"],
-): string {
-  if (!status || status.mode === "pi-bundled") {
-    return "models.dev 不可用 · 使用 Pi 内置目录";
-  }
-  if (status.mode === "cache") return "models.dev · 使用缓存";
-  return "models.dev · 已更新";
 }
 
 function providerCatalogConnectionStatus(

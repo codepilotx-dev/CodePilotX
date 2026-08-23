@@ -38,6 +38,7 @@ export type ModelCenterController = {
   refreshProviderContext: () => Promise<{
     providerState: DesktopModelProviderState
   }>
+  refreshAllProviderData: () => Promise<ProviderManagementSnapshot>
 }
 
 export function useModelCenterController({
@@ -105,6 +106,15 @@ export function useModelCenterController({
     }
   }, [])
 
+  const refreshAllProviderData = useCallback(async () => {
+    const nextSnapshot = await providerManagementStore.refreshAllProviderData()
+    if (nextSnapshot.currentProviderState) {
+      setProviderState(nextSnapshot.currentProviderState)
+    }
+    setApiKeys([...nextSnapshot.apiKeys])
+    return nextSnapshot
+  }, [])
+
   const initialLoadState: ModelCenterInitialLoadState = !snapshot.loaded
     ? 'loading'
     : snapshot.error && snapshot.providers.length === 0
@@ -121,5 +131,6 @@ export function useModelCenterController({
     setProviderState,
     setApiKeys,
     refreshProviderContext,
+    refreshAllProviderData,
   }
 }

@@ -44,7 +44,6 @@ export type ProviderCatalogProps = {
   onSelect: (providerId: ModelProviderID) => void;
   onAddConnection: (providerId: ModelProviderID) => void;
   onManageConnection: (providerId: ModelProviderID) => void;
-  catalogSourceLabel?: string;
 };
 
 export function ProviderCatalog({
@@ -56,15 +55,9 @@ export function ProviderCatalog({
   onSelect,
   onAddConnection,
   onManageConnection,
-  catalogSourceLabel,
 }: ProviderCatalogProps): React.ReactNode {
   return (
     <section className="model-center-catalog" aria-label="供应商目录">
-      {catalogSourceLabel ? (
-        <div className="model-center-catalog-source" role="status">
-          {catalogSourceLabel}
-        </div>
-      ) : null}
       <div className="model-center-catalog-toolbar">
         <SearchInput
           aria-label="搜索 Provider"
@@ -118,28 +111,27 @@ export function ProviderCatalog({
                   type="button"
                   onClick={() => onSelect(provider.id)}
                 >
-                  {provider.logoURL ? (
-                    <RemoteImage
-                      alt=""
-                      className="provider-card-logo"
-                      fallback={
-                        <Server
-                          aria-hidden
-                          size={APP_ICON_SIZE + 4}
-                          strokeWidth={APP_ICON_STROKE_WIDTH}
-                        />
-                      }
-                      src={provider.logoURL}
-                    />
-                  ) : (
-                    <span className="provider-card-logo">
+                  <span className="provider-card-logo">
+                    {provider.logoURL ? (
+                      <RemoteImage
+                        alt=""
+                        fallback={
+                          <Server
+                            aria-hidden
+                            size={APP_ICON_SIZE + 4}
+                            strokeWidth={APP_ICON_STROKE_WIDTH}
+                          />
+                        }
+                        src={provider.logoURL}
+                      />
+                    ) : (
                       <Server
                         aria-hidden
                         size={APP_ICON_SIZE + 4}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
-                    </span>
-                  )}
+                    )}
+                  </span>
                   <span className="provider-card-copy">
                     <span className="provider-card-heading">
                       <strong title={provider.name}>{provider.name}</strong>

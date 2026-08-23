@@ -5,7 +5,12 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { EncryptedCredentialRepository } from "../src/auth/EncryptedCredentialRepository"
-import { EncryptedCredentialStore, ModelsDevCatalogStore, PiModelService } from "../src/provider/pi"
+import {
+  EncryptedCredentialStore,
+  ModelsDevCatalogStore,
+  PiModelService,
+  validateModelsDevCatalog,
+} from "../src/provider/pi"
 
 type Stored = {
   id: string
@@ -66,6 +71,26 @@ const repository = (initial: Stored[] = []) => {
       remove: (integrationID: string) => Effect.sync(() => values.delete(integrationID)),
     } as unknown as EncryptedCredentialRepository,
   }
+}
+
+const cachedModelsDevCatalog = {
+  "cache-provider": {
+    id: "cache-provider",
+    name: "Cache Provider",
+    npm: "@ai-sdk/openai-compatible",
+    api: "https://cache-provider.example/v1",
+    env: ["CACHE_PROVIDER_API_KEY"],
+    models: {
+      chat: {
+        id: "chat",
+        name: "Cache Chat",
+        reasoning: false,
+        tool_call: true,
+        modalities: { input: ["text"], output: ["text"] },
+        limit: { context: 32_000, output: 4_000 },
+      },
+    },
+  },
 }
 
 describe("EncryptedCredentialStore", () => {
@@ -370,6 +395,8 @@ describe("PiModelService", () => {
         source: { kind: "custom" },
         catalogOrigin: "user",
       })
+      expect(service.modelsDevModelCount("unsupported")).toBe(1)
+      expect(service.modelsDevModelCount("not-in-models-dev")).toBeUndefined()
       expect((await service.models()).some((model) =>
         model.providerID === "catalog-gateway" && model.id === "chat" && model.enabled
       )).toBe(true)
@@ -381,6 +408,104 @@ describe("PiModelService", () => {
       expect(await service.isAuthConfigured("catalog-gateway")).toBe(true)
     } finally {
       await service.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  test("revalidates a fresh models.dev cache with conditional headers", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-models-dev-revalidate-"))
+    const store = new ModelsDevCatalogStore(join(root, "catalog.json"))
+    const fetchedAt = 1_000
+    const now = 1_001
+    await store.write({
+      fetchedAt,
+      etag: '"catalog-v1"',
+      lastModified: "Sat, 23 Aug 2026 00:00:00 GMT",
+      catalog: validateModelsDevCatalog(cachedModelsDevCatalog),
+    })
+    const requestHeaders: Headers[] = []
+    const service = new PiModelService(repository().adapter, {
+      modelsDevStore: store,
+      modelsDevFetch: async (_input, init) => {
+        requestHeaders.push(new Headers(init?.headers))
+        return new Response(null, { status: 304 })
+      },
+      now: () => now,
+      env: {},
+    })
+
+    try {
+      await service.reload()
+      expect(service.catalogStatus()).toMatchObject({ mode: "cache" })
+      expect(service.modelsDevModelCount("cache-provider")).toBe(1)
+      expect((await service.models()).find((model) =>
+        model.providerID === "cache-provider" && model.id === "chat"
+      )).toMatchObject({ enabled: false })
+      await service.refresh(false)
+
+      expect(requestHeaders[0]?.get("if-none-match")).toBe('"catalog-v1"')
+      expect(requestHeaders[0]?.get("if-modified-since")).toBe(
+        "Sat, 23 Aug 2026 00:00:00 GMT",
+      )
+      expect(service.catalogStatus()).toMatchObject({
+        mode: "live",
+        stale: false,
+        refreshedAt: now,
+      })
+      const cached = await store.read()
+      expect(cached.status).toBe("valid")
+      if (cached.status === "valid") expect(cached.value.fetchedAt).toBe(now)
+    } finally {
+      await service.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  test("keeps a cached catalog on failure and only falls back to bundled without cache", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-models-dev-fallback-"))
+    const cachedStore = new ModelsDevCatalogStore(join(root, "cached.json"))
+    await cachedStore.write({
+      fetchedAt: 1_000,
+      catalog: validateModelsDevCatalog(cachedModelsDevCatalog),
+    })
+    const cachedService = new PiModelService(repository().adapter, {
+      modelsDevStore: cachedStore,
+      modelsDevFetch: async () => {
+        throw new Error("offline")
+      },
+      now: () => 1_001,
+      env: {},
+    })
+    const bundledService = new PiModelService(repository().adapter, {
+      modelsDevStore: new ModelsDevCatalogStore(join(root, "missing.json")),
+      modelsDevFetch: async () => {
+        throw new Error("offline")
+      },
+      now: () => 1_001,
+      env: {},
+    })
+
+    try {
+      await cachedService.reload()
+      await cachedService.refresh(false)
+      expect((await cachedService.list()).some(provider => provider.id === "cache-provider"))
+        .toBe(true)
+      expect(cachedService.catalogStatus()).toMatchObject({
+        mode: "cache",
+        stale: true,
+        issue: "offline",
+        refreshedAt: 1_000,
+      })
+
+      await bundledService.reload()
+      await bundledService.refresh(false)
+      expect(bundledService.catalogStatus()).toMatchObject({
+        mode: "pi-bundled",
+        stale: true,
+        issue: "offline",
+      })
+    } finally {
+      await Promise.all([cachedService.dispose(), bundledService.dispose()])
       await rm(root, { recursive: true, force: true })
     }
   })
