@@ -30,6 +30,19 @@
 
 常驻容器通过相邻表面与 1px 边框形成层级，不加阴影。只有真实浮层使用 `--cpx-sys-shadow-floating`。
 
+### Workbench 区域
+
+Workbench 大区域使用独立的公共区域 token，布局 Feature 不直接绑定基础 surface：
+
+| 区域 | 语义 token | 默认来源 |
+| --- | --- | --- |
+| 窗口标题/菜单栏 | `--cpx-sys-color-workbench-titlebar-bg` | `--cpx-sys-color-surface-recessed` |
+| 左侧栏 | `--cpx-sys-color-workbench-sidebar-bg` | `--cpx-sys-color-surface-recessed` |
+| 主工作区 | `--cpx-sys-color-workbench-main-bg` | `--cpx-sys-color-surface-canvas` |
+| 右侧 Dock、底部 Panel | `--cpx-sys-color-workbench-panel-bg` | `--cpx-sys-color-workbench-main-bg` |
+
+`surface-panel` 仍用于工作区内部的常驻卡片、摘要和审批容器，不代表右侧 Dock 或底部 Panel 的外层底色。Feature 只消费公开区域 token，不消费颜色类 `--cpx-comp-*`，也不直接选择基础 surface。默认值相同的区域仍保持独立 token，以允许主题覆盖并避免组件耦合；工作区 toolbar/header 保持透明并继承 `workbench-main-bg`，不使用 titlebar token。
+
 ### 业务与交互语义
 
 | Tone | 唯一含义 | 典型场景 |

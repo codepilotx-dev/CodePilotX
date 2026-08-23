@@ -33,6 +33,7 @@
 - 所有 Renderer Token 任务必须先阅读 `docs/design/renderer-token-system.md`，颜色任务还必须阅读 `docs/design/renderer-color-system.md`。非颜色 Token 的选择顺序固定为“内容角色 → 组件/布局角色 → 密度 → 状态/动效 → 层级”；Feature 只能使用公共 `--cpx-sys-*`、拥有选择器内的动态局部变量和颜色契约允许的组件槽位，禁止消费 `--cpx-comp-*` 几何 Token。
 - 排版使用 `caption / label / body-sm / body / body-lg / heading-sm / heading-md / heading-lg / code`，间距使用 4px 开放刻度或明确 `--cpx-sys-layout-*`，圆角使用 `indicator / compact / control / container / floating / pill`，动效使用 `instant / feedback / exit / state / enter / panel / loading`，全局层级按 `local / sticky / dock / composer / modal / popover / tooltip / toast` 递增。禁止为页面、实例或历史像素值创建平行 Token。
 - 所有颜色任务必须先阅读 `docs/design/renderer-color-system.md`。Feature 只能消费 `--cpx-sys-color-*` 公共语义颜色；颜色类 `--cpx-comp-*` 只属于基础组件内部。选择顺序固定为“业务 tone → surface → foreground/border → 交互态”，找不到语义时先扩展规范，禁止按页面或视觉外观临时命名颜色。
+- Workbench 大区域必须通过独立的 `--cpx-sys-color-workbench-*` 区域 token 取色，禁止在布局 Feature 中直接绑定基础 surface。窗口菜单栏与左侧栏属于应用 Chrome，默认映射 `surface-recessed`；`.desktop-workspace`、右侧 Dock 与底部 Panel 属于工作区，Dock/Panel 的独立区域 token 默认必须跟随 `workbench-main-bg`。工作区内部工具栏保持透明并继承工作区背景；代码块、输入框、浮层和文件树子区域继续使用各自局部层级 token。区域默认同色不代表合并 token。
 - `accent` 只表示选择、焦点与主要交互；`info/success/warning/danger/skill` 分别表示中性信息、成功、注意、危险和能力身份。颜色不得成为唯一状态线索，同一容器最多使用一个业务 tone。
 - Feature 禁止裸 `hex/rgb/hsl` 和自行混合多个语义色。色盘、数据可视化、第三方渲染等必要算法只能使用 `style-contracts.json` 中精确且带原因的例外；例外失效时必须删除。
 - 界面全面坚持简约扁平风格：底板、卡片、面板与常规容器零阴影，纯靠 1px 细微边框和底色阶区分；仅浮层（Modal/Popover/Toast/悬浮 Composer）使用克制纯深色微投影（`--cpx-sys-shadow-floating`），遮罩一律使用深色半透明（`--cpx-comp-modal-scrim`）加轻柔化，严禁暗色发白光晕或白雾蒙层。
