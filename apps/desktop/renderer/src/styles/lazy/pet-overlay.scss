@@ -31,8 +31,8 @@
     max-height: 220px;
     padding: 12px 14px;
     color: var(--cpx-sys-color-fg-primary);
-    background: var(--cpx-comp-surface-floating);
-    border: var(--cpx-comp-surface-edge-strong);
+    background: var(--cpx-sys-color-surface-raised);
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-xl);
     box-shadow: var(--cpx-sys-shadow-floating);
     backdrop-filter: none;
@@ -111,7 +111,7 @@
     padding: 0 9px;
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
     border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
     outline: none;

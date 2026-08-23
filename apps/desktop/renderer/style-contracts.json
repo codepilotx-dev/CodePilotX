@@ -87,5 +87,97 @@
     "src/styles/features/review.scss": 5,
     "src/styles/modal.scss": 2
   },
-  "tailwindLeadingAllowlist": {}
+  "tailwindLeadingAllowlist": {},
+  "featureColorContract": {
+    "roots": [
+      "src/styles/features",
+      "src/styles/lazy"
+    ],
+    "componentTokenExceptions": [
+      {
+        "file": "src/styles/features/_terminal.scss",
+        "token": "--cpx-comp-terminal-bg",
+        "reason": "Terminal adapter consumes the terminal component palette as one indivisible third-party surface."
+      },
+      {
+        "file": "src/styles/features/_terminal.scss",
+        "token": "--cpx-comp-terminal-fg",
+        "reason": "Terminal adapter consumes the terminal component palette as one indivisible third-party surface."
+      }
+    ],
+    "literalColorExceptions": [
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#f3f3f3",
+        "reason": "Theme mode thumbnail previews a fixed light palette independent of the active theme."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#5d5d5d",
+        "reason": "Theme mode thumbnail previews a fixed dark palette independent of the active theme."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#9f9f9f",
+        "reason": "System-theme thumbnail shows a fixed light/dark split independent of the active theme."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#000",
+        "reason": "Color picker saturation/value gradient must terminate at absolute black."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#fff",
+        "reason": "Color picker gradient and handles require absolute white independent of the active theme."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "rgb(0 0 0 / 40%)",
+        "reason": "Color picker handle needs a theme-independent contrast ring."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#f00",
+        "reason": "Hue picker spectrum uses absolute color stops."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#ff0",
+        "reason": "Hue picker spectrum uses absolute color stops."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#0f0",
+        "reason": "Hue picker spectrum uses absolute color stops."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#0ff",
+        "reason": "Hue picker spectrum uses absolute color stops."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#00f",
+        "reason": "Hue picker spectrum uses absolute color stops."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "value": "#f0f",
+        "reason": "Hue picker spectrum uses absolute color stops."
+      }
+    ],
+    "colorMixExceptions": [
+      {
+        "file": "src/styles/features/_settings-billing.scss",
+        "localProperty": "--usage-chart-1",
+        "reason": "Usage heatmap intentionally interpolates a data-series color against the semantic surface."
+      },
+      {
+        "file": "src/styles/features/_settings-billing.scss",
+        "localProperty": "--usage-chart-3",
+        "reason": "Usage chart intentionally interpolates a data-series color against the semantic border."
+      }
+    ]
+  }
 }

@@ -55,9 +55,9 @@
   gap: var(--layout-section-gap);
   min-height: 460px;
   padding: var(--layout-card-pad);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
 }
 

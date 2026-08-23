@@ -417,7 +417,7 @@
 
 .md-mermaid-fallback,
 .md-math-fallback {
-  background: var(--cpx-sys-color-editor);
+  background: var(--cpx-sys-color-surface-editor);
 }
 
 .md-table-block {
@@ -548,7 +548,7 @@
   width: 100%;
   max-height: 32rem;
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-sys-color-editor);
+  background: var(--cpx-sys-color-surface-editor);
   object-fit: contain;
 }
 
@@ -583,7 +583,7 @@
   overflow: auto;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 .md-mermaid svg {
@@ -599,7 +599,7 @@
   padding: 10px 12px;
   border-left: 3px solid var(--cpx-sys-color-accent);
   border-radius: 0 var(--cpx-sys-radius-lg) var(--cpx-sys-radius-lg) 0;
-  background: var(--cpx-sys-color-elevated-secondary);
+  background: var(--cpx-sys-color-surface-raised);
 }
 
 .md-directive-unknown {

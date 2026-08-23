@@ -2,7 +2,7 @@
 .workflow-page {
   --workflow-content-width: min(820px, calc(100vw - 96px));
   --workflow-dock-width: min(980px, calc(100vw - 96px));
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   overflow: hidden;
 }
 
@@ -75,7 +75,7 @@
   padding: 15px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
   box-shadow: none;
@@ -145,7 +145,7 @@
     height: 40px;
     background: color-mix(
       in srgb,
-      var(--cpx-sys-color-elevated-secondary) 88%,
+      var(--cpx-sys-color-surface-raised) 88%,
       transparent
     );
   }
@@ -170,7 +170,7 @@
   overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: none;
   animation: workflow-item-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
@@ -208,7 +208,7 @@
 /* 与 canonical 共用滚动边界渐隐 frame；向卡片底色渐隐。 */
 .execution-plan-card__edge-fade {
   --edge-fade-distance: 2rem;
-  --edge-fade-fill: var(--cpx-comp-surface-raised);
+  --edge-fade-fill: var(--cpx-sys-color-surface-panel);
 }
 
 .execution-plan-card__step-icon {
@@ -318,11 +318,11 @@
 
 .workflow-plan-card {
   border-color: var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 .workflow-plan-card__body .md-body code:not(pre code) {
   border: 1px solid var(--cpx-sys-color-border-default);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-primary);
 }

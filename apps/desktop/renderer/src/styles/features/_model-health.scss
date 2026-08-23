@@ -14,7 +14,7 @@
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
 }
@@ -89,7 +89,7 @@
   display: grid;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   overflow: hidden;
 }
 

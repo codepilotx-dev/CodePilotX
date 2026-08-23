@@ -1,12 +1,12 @@
 :root {
   // 1. Dropdown / Popover Component
-  --cpx-comp-dropdown-trigger-bg: var(--cpx-sys-color-control);
+  --cpx-comp-dropdown-trigger-bg: var(--cpx-sys-color-surface-control);
   --cpx-comp-dropdown-trigger-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-dropdown-trigger-border: var(--cpx-sys-color-border-subtle);
   --cpx-comp-dropdown-trigger-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-dropdown-trigger-open-bg: var(--cpx-sys-color-selected);
   --cpx-comp-dropdown-trigger-disabled-fg: var(--cpx-sys-color-fg-disabled);
-  --cpx-comp-dropdown-menu-bg: var(--cpx-sys-color-elevated-secondary);
+  --cpx-comp-dropdown-menu-bg: var(--cpx-sys-color-surface-raised);
   --cpx-comp-dropdown-menu-backdrop-filter: blur(var(--cpx-sys-blur-md));
   --cpx-comp-dropdown-menu-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-dropdown-menu-border: var(--cpx-sys-color-border-default);
@@ -34,19 +34,19 @@
   --cpx-comp-button-size-medium: 32px;
   --cpx-comp-button-size-large: 36px;
   --cpx-comp-button-primary-bg: var(--cpx-sys-color-fg-primary);
-  --cpx-comp-button-primary-fg: var(--cpx-sys-color-surface);
+  --cpx-comp-button-primary-fg: var(--cpx-sys-color-surface-canvas);
   --cpx-comp-button-primary-hover-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 85%, transparent);
   --cpx-comp-button-primary-active-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 75%, transparent);
   --cpx-comp-button-primary-disabled-bg: var(--cpx-sys-color-fg-disabled);
 
   // 3. Input / SearchInput Component
-  --cpx-comp-input-bg: var(--cpx-sys-color-control);
+  --cpx-comp-input-bg: var(--cpx-sys-color-surface-control);
   --cpx-comp-input-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-input-border: var(--cpx-sys-color-border-subtle);
   --cpx-comp-input-placeholder-fg: var(--cpx-sys-color-fg-tertiary);
   --cpx-comp-input-focus-border: var(--cpx-sys-color-border-focus);
   --cpx-comp-input-radius: var(--cpx-sys-radius-md);
-  --cpx-comp-input-disabled-bg: var(--cpx-sys-color-control);
+  --cpx-comp-input-disabled-bg: var(--cpx-sys-color-surface-control);
   --cpx-comp-input-disabled-fg: var(--cpx-sys-color-fg-disabled);
   --cpx-comp-input-validation-error-bg: var(--cpx-sys-color-danger);
   --cpx-comp-input-validation-error-border: var(--cpx-sys-color-danger);
@@ -54,19 +54,19 @@
   --cpx-comp-input-validation-warning-border: var(--cpx-sys-color-warning);
 
   // 4. Switch & SegmentedControl Component
-  --cpx-comp-switch-bg: var(--cpx-sys-color-surface);
+  --cpx-comp-switch-bg: var(--cpx-sys-color-surface-canvas);
   --cpx-comp-switch-border: var(--cpx-sys-color-border-default);
   --cpx-comp-switch-checked-bg: var(--cpx-sys-color-accent);
   --cpx-comp-switch-radius: var(--cpx-sys-radius-full);
   --cpx-comp-switch-thumb-shadow: var(--cpx-sys-shadow-control);
   --cpx-comp-switch-thumb-fill: #ffffff;
-  --cpx-comp-segmented-bg: var(--cpx-sys-color-surface-under);
+  --cpx-comp-segmented-bg: var(--cpx-sys-color-surface-recessed);
   --cpx-comp-segmented-border: var(--cpx-sys-color-border-default);
-  --cpx-comp-segmented-item-selected-bg: var(--cpx-sys-color-surface);
+  --cpx-comp-segmented-item-selected-bg: var(--cpx-sys-color-surface-canvas);
   --cpx-comp-segmented-item-selected-fg: var(--cpx-sys-color-fg-primary);
 
   // 5. Tooltip, ScrollArea & MetaChip Component
-  --cpx-comp-tooltip-bg: var(--cpx-sys-color-elevated-secondary);
+  --cpx-comp-tooltip-bg: var(--cpx-sys-color-surface-raised);
   --cpx-comp-tooltip-backdrop-filter: blur(var(--cpx-sys-blur-sm));
   --cpx-comp-tooltip-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-tooltip-border: 1px solid var(--cpx-sys-color-border-subtle);
@@ -75,7 +75,7 @@
   --cpx-comp-scrollbar-slider-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 22%, transparent);
   --cpx-comp-scrollbar-slider-hover-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 32%, transparent);
   --cpx-comp-scrollbar-slider-active-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 42%, transparent);
-  --cpx-comp-chip-bg: var(--cpx-sys-color-surface);
+  --cpx-comp-chip-bg: var(--cpx-sys-color-surface-canvas);
   --cpx-comp-chip-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-chip-border: var(--cpx-sys-color-border-subtle);
   --cpx-comp-chip-success-bg: var(--cpx-sys-color-success-subtle-bg);
@@ -93,16 +93,16 @@
   --cpx-comp-chip-info-bg: var(--cpx-sys-color-info-subtle-bg);
   --cpx-comp-chip-info-fg: var(--cpx-sys-color-info-fg);
   --cpx-comp-chip-info-border: var(--cpx-sys-color-info-subtle-border);
-  --cpx-comp-chip-accent-bg: var(--cpx-sys-color-accent-subtle);
+  --cpx-comp-chip-accent-bg: var(--cpx-sys-color-accent-subtle-bg);
   --cpx-comp-chip-accent-fg: var(--cpx-sys-color-accent-fg);
   --cpx-comp-chip-accent-border: var(--cpx-sys-color-accent-subtle-border);
 
   // 6. Surfaces & Containers Component
-  --cpx-comp-surface-underlay: var(--cpx-sys-color-surface-under);
-  --cpx-comp-surface-canvas: var(--cpx-sys-color-surface);
-  --cpx-comp-surface-panel: var(--cpx-sys-color-panel);
-  --cpx-comp-surface-raised: var(--cpx-sys-color-elevated-secondary);
-  --cpx-comp-surface-floating: var(--cpx-sys-color-elevated-secondary);
+  --cpx-comp-surface-underlay: var(--cpx-sys-color-surface-recessed);
+  --cpx-comp-surface-canvas: var(--cpx-sys-color-surface-canvas);
+  --cpx-comp-surface-panel: var(--cpx-sys-color-surface-panel);
+  --cpx-comp-surface-raised: var(--cpx-sys-color-surface-raised);
+  --cpx-comp-surface-floating: var(--cpx-sys-color-surface-raised);
   --cpx-comp-surface-edge: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-surface-edge-strong: 1px solid var(--cpx-sys-color-border-default);
   --cpx-comp-surface-card-radius: var(--cpx-sys-radius-lg);
@@ -118,21 +118,21 @@
   --cpx-comp-glass-filter: var(--cpx-sys-glass-filter);
 
   // 7. Modal & Dialog Component
-  --cpx-comp-modal-bg: var(--cpx-sys-color-elevated-secondary);
+  --cpx-comp-modal-bg: var(--cpx-sys-color-surface-raised);
   --cpx-comp-modal-backdrop-filter: blur(var(--cpx-sys-blur-md));
   --cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-modal-shadow: var(--cpx-sys-shadow-floating);
   --cpx-comp-modal-radius: var(--cpx-sys-radius-xl);
-  --cpx-comp-modal-preformat-bg: var(--cpx-sys-color-surface);
+  --cpx-comp-modal-preformat-bg: var(--cpx-sys-color-surface-editor);
   --cpx-comp-modal-scrim: var(--cpx-sys-color-scrim);
 
   // 8. Sidebar & RightDock Component
-  --cpx-comp-sidebar-bg: var(--cpx-sys-color-surface-under);
+  --cpx-comp-sidebar-bg: var(--cpx-sys-color-surface-recessed);
   --cpx-comp-sidebar-border: 0;
   --cpx-comp-sidebar-item-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-sidebar-item-active-bg: var(--cpx-sys-color-selected);
   --cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-md);
-  --cpx-comp-dock-bg: var(--cpx-sys-color-panel);
+  --cpx-comp-dock-bg: var(--cpx-sys-color-surface-panel);
   --cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);
   --cpx-comp-dock-tab-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-dock-tab-active-bg: var(--cpx-sys-color-selected);
@@ -140,8 +140,8 @@
   --cpx-comp-dock-tab-height: 46px;
 
   // 9. Workbench Component
-  --cpx-comp-workbench-panel-bg: var(--cpx-sys-color-panel);
-  --cpx-comp-workbench-main-surface-bg: var(--cpx-sys-color-surface);
+  --cpx-comp-workbench-panel-bg: var(--cpx-sys-color-surface-panel);
+  --cpx-comp-workbench-main-surface-bg: var(--cpx-sys-color-surface-canvas);
   --cpx-comp-workbench-tab-active-bg: var(--cpx-sys-color-selected);
   --cpx-comp-workbench-tab-height: 46px;
   --cpx-comp-workbench-tab-hover-bg: var(--cpx-sys-color-hover);
@@ -153,7 +153,7 @@
   --cpx-comp-menubar-selection-fg: var(--cpx-sys-color-fg-primary);
 
   // 11. Composer Component
-  --cpx-comp-composer-bg: var(--cpx-sys-color-control);
+  --cpx-comp-composer-bg: var(--cpx-sys-color-surface-control);
   --cpx-comp-composer-backdrop-filter: blur(var(--cpx-sys-blur-md));
   --cpx-comp-composer-toolbar-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-composer-floating-height: 142px;
@@ -163,7 +163,7 @@
   --cpx-comp-composer-radius: var(--cpx-sys-radius-xl);
 
   // 12. Terminal Component
-  --cpx-comp-terminal-bg: var(--cpx-sys-color-surface);
+  --cpx-comp-terminal-bg: var(--cpx-sys-color-surface-editor);
   --cpx-comp-terminal-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-terminal-border: var(--cpx-sys-color-border-default);
   --cpx-comp-terminal-ansi-blue: var(--cpx-sys-color-accent);
@@ -173,7 +173,7 @@
   --cpx-comp-terminal-ansi-magenta: var(--cpx-sys-color-skill);
   --cpx-comp-terminal-ansi-cyan: color-mix(in srgb, var(--cpx-sys-color-accent) 70%, var(--cpx-sys-color-success));
   --cpx-comp-terminal-ansi-white: var(--cpx-sys-color-fg-secondary);
-  --cpx-comp-terminal-ansi-black: var(--cpx-sys-color-surface-under);
+  --cpx-comp-terminal-ansi-black: var(--cpx-sys-color-surface-recessed);
   --cpx-comp-terminal-ansi-bright-black: var(--cpx-sys-color-fg-tertiary);
   --cpx-comp-terminal-ansi-bright-red: var(--cpx-sys-color-danger);
   --cpx-comp-terminal-ansi-bright-green: var(--cpx-sys-color-success);
@@ -184,7 +184,7 @@
   --cpx-comp-terminal-ansi-bright-white: var(--cpx-sys-color-fg-secondary);
 
   // 13. Review Diff Component
-  --cpx-comp-diff-surface: color-mix(in srgb, var(--cpx-sys-color-surface) 94%, var(--cpx-sys-color-fg-primary));
+  --cpx-comp-diff-surface: var(--cpx-sys-color-surface-editor);
   --cpx-comp-diff-inserted-line-bg: var(--cpx-sys-color-diff-added-line);
   --cpx-comp-diff-inserted-text-bg: var(--cpx-sys-color-diff-added-text);
   --cpx-comp-diff-removed-line-bg: var(--cpx-sys-color-diff-removed-line);

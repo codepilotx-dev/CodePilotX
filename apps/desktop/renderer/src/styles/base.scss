@@ -21,7 +21,7 @@ html {
 body {
   margin: 0;
   overflow: hidden;
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   font-family: var(--cpx-sys-font-family-sans);
   font-size: var(--cpx-sys-font-size-md);
@@ -42,7 +42,7 @@ body {
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   text-decoration: none;
   transform: translateY(calc(-100% - var(--cpx-sys-space-4)));
@@ -128,7 +128,7 @@ textarea {
   min-width: 0;
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   outline: none;
 }

@@ -11,7 +11,7 @@
     1px solid var(--cpx-sys-color-border-subtle)
   );
   border-radius: var(--inline-approval-card-radius, var(--cpx-sys-radius-lg));
-  background: var(--inline-approval-card-bg, var(--cpx-comp-surface-raised));
+  background: var(--inline-approval-card-bg, var(--cpx-sys-color-surface-panel));
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: var(
     --inline-approval-card-shadow,
@@ -115,12 +115,12 @@
 }
 
 .inline-approval-additions {
-  color: var(--cpx-sys-color-success);
+  color: var(--cpx-sys-color-diff-added-fg);
   font-weight: var(--cpx-sys-font-weight-bold);
 }
 
 .inline-approval-deletions {
-  color: var(--cpx-sys-color-danger);
+  color: var(--cpx-sys-color-diff-removed-fg);
   font-weight: var(--cpx-sys-font-weight-bold);
 }
 
@@ -162,7 +162,7 @@
   }
 
   &.muted {
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
     font-weight: var(--cpx-sys-font-weight-medium);
   }
 }
@@ -174,7 +174,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--inline-approval-option-index-bg, var(--cpx-comp-modal-preformat-bg));
+  background: var(--inline-approval-option-index-bg, var(--cpx-sys-color-surface-editor));
   color: var(--inline-approval-option-index-color, var(--cpx-sys-color-fg-tertiary));
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -185,7 +185,7 @@
     --inline-approval-option-selected-index-bg,
     var(--cpx-sys-color-fg-primary)
   );
-  color: var(--inline-approval-option-selected-index-color, var(--cpx-sys-color-surface));
+  color: var(--inline-approval-option-selected-index-color, var(--cpx-sys-color-surface-canvas));
 }
 
 .inline-approval-option-custom-icon {
@@ -195,7 +195,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-tertiary);
   flex: 0 0 auto;
 }
@@ -208,7 +208,7 @@
 .inline-approval-option.custom.selected .inline-approval-option-custom-icon,
 .inline-approval-option.custom.filled .inline-approval-option-custom-icon {
   background: var(--cpx-sys-color-fg-primary);
-  color: var(--cpx-sys-color-surface);
+  color: var(--cpx-sys-color-surface-canvas);
 }
 
 .inline-approval-option.custom {
@@ -228,7 +228,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--cpx-comp-input-placeholder-fg);
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .inline-approval-option-checkbox {
@@ -239,7 +239,7 @@
   justify-content: center;
   border-color: var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
-  color: var(--cpx-sys-color-surface);
+  color: var(--cpx-sys-color-surface-canvas);
   background: transparent;
 
   &.selected {
@@ -266,7 +266,7 @@
     --inline-approval-note-padding,
     var(--control-padding-block) var(--control-padding-inline)
   );
-  background: var(--inline-approval-note-bg, var(--cpx-sys-color-surface));
+  background: var(--inline-approval-note-bg, var(--cpx-sys-color-surface-canvas));
   border: var(--inline-approval-note-border, 1px solid transparent);
   border-radius: var(--inline-approval-note-radius, var(--cpx-sys-radius-lg));
   transition:
@@ -274,12 +274,12 @@
     box-shadow 0.15s;
 
   &:hover {
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
   }
 
   &:focus-within {
     border-color: var(--inline-approval-note-focus-border, var(--cpx-sys-color-accent));
-    background: var(--cpx-sys-color-surface);
+    background: var(--cpx-sys-color-surface-canvas);
     box-shadow: var(
       --inline-approval-note-focus-shadow,
       0 0 0 3px var(--cpx-sys-color-accent)
@@ -316,7 +316,7 @@
 }
 
 .inline-approval-option-hint {
-  color: var(--cpx-comp-input-placeholder-fg);
+  color: var(--cpx-sys-color-fg-tertiary);
   font-weight: var(--cpx-sys-font-weight-medium);
 }
 
@@ -326,7 +326,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-tertiary);
   flex: 0 0 auto;
 
@@ -363,7 +363,7 @@
   line-height: var(--control-line-height);
 
   &::placeholder {
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -393,11 +393,7 @@
   border: 1px solid
     color-mix(in srgb, var(--cpx-sys-color-border-subtle) 70%, transparent);
   border-radius: var(--cpx-sys-radius-lg);
-  background: color-mix(
-    in srgb,
-    var(--cpx-comp-modal-preformat-bg) 72%,
-    var(--cpx-sys-color-surface-under)
-  );
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-family: var(--cpx-sys-font-family-mono);
   font-size: var(--cpx-sys-font-size-code);
@@ -431,17 +427,17 @@
   overflow-wrap: anywhere;
 
   &::placeholder {
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
 .ask-user-question-error {
   margin: 0 12px;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--cpx-sys-color-danger) 40%, transparent);
+  border: 1px solid var(--cpx-sys-color-danger-subtle-border);
   border-radius: var(--cpx-sys-radius-lg);
-  background: color-mix(in srgb, var(--cpx-sys-color-danger) 10%, transparent);
-  color: var(--cpx-sys-color-danger);
+  background: var(--cpx-sys-color-danger-subtle-bg);
+  color: var(--cpx-sys-color-danger-fg);
   font-size: var(--cpx-sys-font-size-sm);
   line-height: var(--cpx-sys-line-height-tight);
 }
@@ -469,7 +465,7 @@
   padding: 0.167em 0.5em;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 4px;
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-family: inherit;
   font-size: var(--cpx-sys-font-size-xs);
@@ -493,7 +489,7 @@
     color 0.15s;
 
   &:hover {
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
     color: var(--cpx-sys-color-fg-secondary);
   }
 }
@@ -507,10 +503,10 @@
     var(--control-padding-block)
       calc(var(--control-padding-inline) + var(--control-padding-inline))
   );
-  border: var(--inline-approval-submit-border, 1px solid var(--cpx-comp-button-bg));
+  border: var(--inline-approval-submit-border, 1px solid var(--cpx-sys-color-border-default));
   border-radius: var(--inline-approval-submit-radius, var(--cpx-comp-button-radius-md));
-  background: var(--inline-approval-submit-bg, var(--cpx-comp-button-bg));
-  color: var(--inline-approval-submit-color, var(--cpx-comp-button-fg));
+  background: var(--inline-approval-submit-bg, var(--cpx-sys-color-surface-control));
+  color: var(--inline-approval-submit-color, var(--cpx-sys-color-fg-primary));
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
@@ -520,15 +516,15 @@
   &:hover {
     background: var(
       --inline-approval-submit-hover-bg,
-      var(--cpx-comp-button-bg)
+      var(--cpx-sys-color-surface-control)
     );
     border-color: var(
       --inline-approval-submit-hover-border,
-      var(--cpx-comp-button-bg)
+      var(--cpx-sys-color-surface-control)
     );
     color: var(
       --inline-approval-submit-hover-color,
-      var(--inline-approval-submit-color, var(--cpx-comp-button-fg))
+      var(--inline-approval-submit-color, var(--cpx-sys-color-fg-primary))
     );
   }
 }
@@ -540,7 +536,7 @@
   padding: 10px;
   border-color: var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   animation: workflow-card-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
   transform-origin: bottom center;
@@ -552,7 +548,7 @@
   --inline-approval-option-hover-bg: var(--cpx-sys-color-hover);
   --inline-approval-option-selected-bg: var(--cpx-sys-color-selected);
   --inline-approval-option-selected-border: var(--cpx-sys-color-border-default);
-  --inline-approval-option-selected-index-bg: var(--cpx-sys-color-surface);
+  --inline-approval-option-selected-index-bg: var(--cpx-sys-color-surface-canvas);
   --inline-approval-option-selected-index-color: var(--cpx-sys-color-fg-primary);
   display: flex;
   flex-direction: column;
@@ -645,7 +641,7 @@
   line-height: var(--control-line-height);
   cursor: pointer;
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   transition:
     background 120ms ease,
@@ -662,12 +658,12 @@
 
   &.is-primary {
     background: var(--cpx-sys-color-fg-primary);
-    color: var(--cpx-sys-color-surface);
+    color: var(--cpx-sys-color-surface-canvas);
     border-color: var(--cpx-sys-color-fg-primary);
 
     &:hover {
-      background: var(--cpx-comp-button-bg);
-      border-color: var(--cpx-comp-button-bg);
+      background: var(--cpx-sys-color-surface-control);
+      border-color: var(--cpx-sys-color-border-default);
     }
   }
 }
@@ -751,7 +747,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -762,7 +758,7 @@
     --inline-approval-option-selected-index-bg,
     var(--cpx-sys-color-fg-primary)
   );
-  color: var(--inline-approval-option-selected-index-color, var(--cpx-sys-color-surface));
+  color: var(--inline-approval-option-selected-index-color, var(--cpx-sys-color-surface-canvas));
 }
 
 .exit-plan-mode-label {
@@ -801,7 +797,7 @@
 
   &:hover,
   &:focus-within {
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
   }
 }
 
@@ -826,7 +822,7 @@
   line-height: var(--control-line-height);
 
   &::placeholder {
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -848,7 +844,7 @@
     color 0.15s;
 
   &:hover {
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
     color: var(--cpx-sys-color-fg-secondary);
   }
 }
@@ -861,7 +857,7 @@
   padding: var(--control-padding-block-compact)
     var(--control-padding-inline-compact);
   border-radius: 4px;
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-family: inherit;
   font-size: var(--cpx-sys-font-size-xs);
@@ -883,8 +879,8 @@
   }
 
   &:hover {
-    background: var(--cpx-comp-button-bg);
-    border-color: var(--cpx-comp-button-bg);
+    background: var(--cpx-sys-color-surface-control);
+    border-color: var(--cpx-sys-color-border-default);
   }
 }
 
@@ -909,7 +905,7 @@
   --inline-approval-card-gap: 8px;
   --inline-approval-card-padding: 16px 10px 10px;
   --inline-approval-card-border: 1px solid var(--cpx-sys-color-border-subtle);
-  --inline-approval-card-bg: var(--cpx-comp-surface-raised);
+  --inline-approval-card-bg: var(--cpx-sys-color-surface-panel);
   --inline-approval-card-shadow: none;
   --inline-approval-header-padding: 0 12px 2px;
   --inline-approval-summary-padding: 0;
@@ -917,11 +913,7 @@
   --inline-approval-command-preview-border: 1px solid
     color-mix(in srgb, var(--cpx-sys-color-border-subtle) 70%, transparent);
   --inline-approval-command-preview-radius: var(--cpx-sys-radius-lg);
-  --inline-approval-command-preview-bg: color-mix(
-    in srgb,
-    var(--cpx-comp-modal-preformat-bg) 72%,
-    var(--cpx-sys-color-surface-under)
-  );
+  --inline-approval-command-preview-bg: var(--cpx-sys-color-surface-editor);
   --inline-approval-command-max-height: 96px;
   --inline-approval-command-expanded-max-height: min(34vh, 360px);
   --inline-approval-note-padding: var(--control-padding-block-compact)
@@ -930,7 +922,7 @@
   --inline-approval-note-radius: var(--cpx-sys-radius-lg);
   --inline-approval-note-bg: color-mix(
     in srgb,
-    var(--cpx-sys-color-surface) 74%,
+    var(--cpx-sys-color-surface-canvas) 74%,
     transparent
   );
   --inline-approval-note-focus-border: var(--cpx-sys-color-accent);
@@ -953,18 +945,14 @@
     color-mix(in srgb, var(--cpx-sys-color-fg-primary) 18%, transparent);
   --inline-approval-submit-radius: var(--cpx-comp-button-radius-md);
   --inline-approval-submit-bg: var(--cpx-sys-color-fg-primary);
-  --inline-approval-submit-color: var(--cpx-sys-color-surface);
-  --inline-approval-submit-hover-bg: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 88%,
-    var(--cpx-sys-color-surface)
-  );
+  --inline-approval-submit-color: var(--cpx-sys-color-surface-canvas);
+  --inline-approval-submit-hover-bg: var(--cpx-sys-color-fg-secondary);
   --inline-approval-submit-hover-border: color-mix(
     in srgb,
     var(--cpx-sys-color-fg-primary) 26%,
     transparent
   );
-  --inline-approval-submit-hover-color: var(--cpx-sys-color-surface);
+  --inline-approval-submit-hover-color: var(--cpx-sys-color-surface-canvas);
   display: flex;
   flex-direction: column;
 }
@@ -1058,7 +1046,7 @@
 
   background: var(--cpx-sys-color-fg-primary);
   border-radius: var(--cpx-sys-radius-md);
-  color: var(--cpx-sys-color-surface);
+  color: var(--cpx-sys-color-surface-canvas);
 
   font-size: var(--cpx-sys-font-size-md);
   line-height: var(--control-line-height);

@@ -16,7 +16,7 @@
   .rm-model-picker-header {
     padding: 10px 12px 8px;
     border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-    background: var(--cpx-sys-color-surface-under);
+    background: var(--cpx-sys-color-surface-recessed);
   }
 
   .rm-picker-thinking-section {
@@ -55,7 +55,7 @@
     width: 100%;
     height: 24px;
     border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-sys-color-control);
+    background: var(--cpx-sys-color-surface-control);
     cursor: pointer;
     user-select: none;
     touch-action: none;
@@ -313,7 +313,7 @@
     font-size: var(--cpx-sys-font-size-xs);
     padding: 1px 5px;
     border-radius: var(--cpx-sys-radius-xs);
-    background: var(--cpx-sys-color-control);
+    background: var(--cpx-sys-color-surface-control);
     color: var(--cpx-sys-color-fg-secondary);
     width: fit-content;
     margin-top: 2px;

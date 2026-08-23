@@ -9,7 +9,7 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--cpx-comp-dock-bg, var(--cpx-comp-surface-panel));
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: none;
 }
@@ -34,11 +34,11 @@
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
-  background: var(--cpx-comp-dock-bg, var(--cpx-comp-surface-panel));
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .right-dock {
-  border-left: 1px solid var(--cpx-comp-dock-border, var(--cpx-sys-color-border-subtle));
+  border-left: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: 0;
   box-shadow: none;
 }
@@ -63,7 +63,7 @@
   overflow: hidden;
   padding-left: 10px;
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .right-dock-header {
@@ -90,7 +90,7 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .right-panel-tabs-empty-state {
@@ -103,7 +103,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: 8px;
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   user-select: none;
 }
 
@@ -165,7 +165,7 @@
 .bottom-panel-empty-state {
   width: 100%;
   height: 100%;
-  background: var(--cpx-comp-workbench-panel-bg);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .right-panel-tabs-empty-state__icon {
@@ -323,19 +323,13 @@
     color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   &.active {
-    background: var(
-      --cpx-comp-dock-tab-active-bg,
-      var(--cpx-sys-color-selected)
-    );
+    background: var(--cpx-sys-color-selected);
     color: var(--cpx-sys-color-fg-primary);
   }
 
   &:not(.active):hover,
   &:not(.active):focus-within {
-    background: var(
-      --cpx-comp-dock-tab-hover-bg,
-      var(--cpx-sys-color-hover)
-    );
+    background: var(--cpx-sys-color-hover);
     color: var(--cpx-sys-color-fg-secondary);
   }
 
@@ -531,7 +525,7 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  background: var(--cpx-comp-workbench-panel-bg);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .workbench-tab-panel {
@@ -614,7 +608,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--cpx-comp-workbench-panel-bg);
+  background: var(--cpx-sys-color-surface-panel);
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -633,7 +627,7 @@
 .right-dock-plan-document .md-body .md-code-block {
   border-color: color-mix(
     in srgb,
-    var(--cpx-comp-button-fg) 10%,
+    var(--cpx-sys-color-fg-primary) 10%,
     transparent
   );
   background: color-mix(
@@ -641,11 +635,11 @@
     var(--cpx-sys-color-fg-primary) 5%,
     transparent
   );
-  color: var(--cpx-comp-button-fg);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .right-dock-plan-scroll-area {
-  background: var(--cpx-comp-workbench-panel-bg);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .right-dock-plan-document .md-body :not(pre) > code {
@@ -667,7 +661,7 @@
 
 .right-dock-plan-document .md-body .md-code-header {
   border-bottom-color: var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-sys-color-elevated-secondary);
+  background: var(--cpx-sys-color-surface-raised);
 }
 
 :root[data-reduce-motion="on"] {

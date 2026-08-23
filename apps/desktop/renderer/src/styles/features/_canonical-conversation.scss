@@ -20,11 +20,7 @@
     var(--cpx-sys-color-border-subtle) 76%,
     transparent
   );
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-surface) 96%,
-    transparent
-  );
+  background: var(--cpx-sys-color-surface-canvas);
 }
 
 .conversation-page .chat-session-title {
@@ -182,18 +178,9 @@
   min-width: 0;
   margin: 12px auto;
   padding: 11px 12px;
-  border: 1px solid
-    color-mix(
-      in srgb,
-      var(--cpx-sys-color-danger) 38%,
-      var(--cpx-sys-color-border-subtle)
-    );
+  border: 1px solid var(--cpx-sys-color-danger-subtle-border);
   border-radius: var(--cpx-sys-radius-lg);
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-danger) 7%,
-    var(--cpx-comp-surface-panel)
-  );
+  background: var(--cpx-sys-color-danger-subtle-bg);
 
   > svg {
     color: var(--cpx-sys-color-danger);
@@ -242,12 +229,7 @@
   align-items: center;
   gap: 7px;
   padding: 8px 10px;
-  border: 1px solid
-    color-mix(
-      in srgb,
-      var(--cpx-sys-color-danger) 45%,
-      var(--cpx-sys-color-border-subtle)
-    );
+  border: 1px solid var(--cpx-sys-color-danger-subtle-border);
   border-radius: var(--cpx-sys-radius-lg);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
@@ -422,7 +404,7 @@
 
 .right-dock-side-chat .canonical-process-edge-fade,
 .right-dock-side-chat .canonical-command-shell__edge-fade {
-  --edge-fade-fill: var(--cpx-comp-workbench-panel-bg);
+  --edge-fade-fill: var(--cpx-sys-color-surface-panel);
 }
 
 .canonical-turn-activity {
@@ -671,7 +653,7 @@
 .canonical-user-message__editor-actions button:last-child {
   border-color: var(--cpx-sys-color-accent);
   background: var(--cpx-sys-color-accent);
-  color: var(--cpx-comp-button-fg, white);
+  color: var(--cpx-sys-color-fg-on-accent);
 }
 
 .canonical-user-message__editor-actions button:disabled {
@@ -907,11 +889,7 @@
       top: 5px;
       right: 5px;
       z-index: 1;
-      background: color-mix(
-        in srgb,
-        var(--cpx-sys-color-surface-under) 88%,
-        transparent
-      );
+      background: var(--cpx-sys-color-surface-recessed);
     }
 
     pre {
@@ -1298,11 +1276,7 @@
     font-size: var(--cpx-sys-font-size-xs);
 
     &[data-recommended="true"] {
-      border-color: color-mix(
-        in srgb,
-        var(--cpx-sys-color-accent) 48%,
-        var(--cpx-sys-color-border-subtle)
-      );
+      border-color: var(--cpx-sys-color-accent-subtle-border);
       color: var(--cpx-sys-color-fg-primary);
     }
   }

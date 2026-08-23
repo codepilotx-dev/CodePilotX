@@ -5,12 +5,12 @@
 
 :root {
   // System Colors (Light Default)
-  --cpx-sys-color-surface: #ffffff;
-  --cpx-sys-color-surface-under: #f6f6f6;
-  --cpx-sys-color-panel: #fbfbfb;
-  --cpx-sys-color-editor: #f8f8f8;
-  --cpx-sys-color-elevated-secondary: #ffffff;
-  --cpx-sys-color-control: color-mix(in srgb, #1a1c1f 4.5%, transparent);
+  --cpx-sys-color-surface-canvas: #ffffff;
+  --cpx-sys-color-surface-recessed: #f5f5f5;
+  --cpx-sys-color-surface-panel: #fafafa;
+  --cpx-sys-color-surface-control: #f7f7f7;
+  --cpx-sys-color-surface-raised: #fdfdfd;
+  --cpx-sys-color-surface-editor: #f4f4f4;
   --cpx-sys-color-scrim: rgb(0 0 0 / 26%);
 
   --cpx-sys-color-fg-primary: #1a1c1f;
@@ -29,9 +29,9 @@
   --cpx-sys-color-selected: rgba(26, 28, 31, 0.05);
 
   --cpx-sys-color-accent: #0066ff;
-  --cpx-sys-color-accent-subtle: #dbeafe;
+  --cpx-sys-color-accent-subtle-bg: #dbeafe;
   --cpx-sys-color-accent-subtle-border: color-mix(in srgb, var(--cpx-sys-color-accent) 22%, transparent);
-  --cpx-sys-color-accent-fg: var(--cpx-sys-color-accent);
+  --cpx-sys-color-accent-fg: #0058dc;
   --cpx-sys-color-success: #16a34a;
   --cpx-sys-color-success-subtle-bg: #f5fbf7;
   --cpx-sys-color-success-subtle-border: color-mix(in srgb, var(--cpx-sys-color-success) 22%, transparent);
@@ -53,13 +53,13 @@
   --cpx-sys-color-info-subtle-border: color-mix(in srgb, var(--cpx-sys-color-info) 22%, transparent);
   --cpx-sys-color-info-fg: #0369a1;
 
-  --cpx-sys-color-diff-added-line: #fafdfb;
-  --cpx-sys-color-diff-added-text: #f5fbf7;
-  --cpx-sys-color-diff-added-fg: #15803d;
+  --cpx-sys-color-diff-added-line: #e7f4ea;
+  --cpx-sys-color-diff-added-text: #c6e8ce;
+  --cpx-sys-color-diff-added-fg: #11652f;
   --cpx-sys-color-diff-added-indicator: #15803d;
-  --cpx-sys-color-diff-removed-line: #fdfafb;
-  --cpx-sys-color-diff-removed-text: #fbf5f6;
-  --cpx-sys-color-diff-removed-fg: #b91c1c;
+  --cpx-sys-color-diff-removed-line: #f6e6e6;
+  --cpx-sys-color-diff-removed-text: #edc8c8;
+  --cpx-sys-color-diff-removed-fg: #991b1b;
   --cpx-sys-color-diff-removed-indicator: #b91c1c;
 
   // System Charts Colors
@@ -76,7 +76,7 @@
   --cpx-sys-blur-md: 16px;
   --cpx-sys-blur-lg: 24px;
   --cpx-sys-glass-filter: blur(var(--cpx-sys-blur-md));
-  --cpx-sys-glass-bg: color-mix(in srgb, var(--cpx-sys-color-elevated-secondary) 85%, transparent);
+  --cpx-sys-glass-bg: color-mix(in srgb, var(--cpx-sys-color-surface-raised) 85%, transparent);
   --cpx-sys-glass-border: var(--cpx-sys-color-border-subtle);
   --cpx-sys-glass-shadow: var(--cpx-sys-shadow-floating);
 

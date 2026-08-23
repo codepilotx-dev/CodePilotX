@@ -1,8 +1,8 @@
 /* --- Connection Summary --- */
 .settings-connection-summary {
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   overflow: hidden;
   margin-bottom: var(--layout-section-gap);
@@ -13,7 +13,7 @@
     justify-content: space-between;
     gap: var(--cpx-sys-space-3);
     padding: var(--cpx-sys-space-4) var(--cpx-sys-space-5);
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
     border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   }
 
@@ -209,9 +209,9 @@
   flex-direction: column;
   gap: 6px;
   padding: 12px 14px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: none;
 }
 
@@ -257,7 +257,7 @@
   padding: var(--control-padding-block) 0.833em;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);

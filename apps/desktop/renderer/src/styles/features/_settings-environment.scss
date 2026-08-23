@@ -60,9 +60,9 @@
   gap: 12px;
   width: 100%;
   padding: 14px 16px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
   text-align: left;
@@ -141,7 +141,7 @@
     width: 100%;
     border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
     outline: none;
@@ -192,21 +192,21 @@
     padding: 6px 9px;
     border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-surface-canvas);
+    background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
   }
 }
 
 .environment-settings-dropdown {
   width: 100%;
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
 }
 
 .environment-source-file-tree {
   max-height: 18rem;
   overflow: auto;
   border-bottom: 1px solid var(--cpx-sys-color-border-default);
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
 }
 
 .environment-source-row {
@@ -255,7 +255,7 @@
   padding: 12px;
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
 
   header {

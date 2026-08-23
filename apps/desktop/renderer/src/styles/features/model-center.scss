@@ -7,7 +7,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   color: var(--cpx-sys-color-fg-primary);
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
 }
 
 .model-center-shell {
@@ -100,7 +100,7 @@
   padding: 4px 9px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
 }
@@ -117,7 +117,7 @@
   flex: 0 0 auto;
   padding: 3px 8px;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   white-space: nowrap;
@@ -148,7 +148,7 @@
   padding: var(--cpx-sys-space-7);
   border: 1px dashed var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   color: var(--cpx-sys-color-fg-secondary);
   text-align: center;
@@ -176,9 +176,9 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   overflow: hidden;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: none;
   transition:
     background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
@@ -225,7 +225,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   flex: 0 0 auto;
 
@@ -264,11 +264,7 @@
 .provider-card-current {
   padding: 2px 6px;
   border-radius: var(--cpx-sys-radius-full);
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-accent) 10%,
-    var(--cpx-comp-surface-raised)
-  );
+  background: var(--cpx-sys-color-accent-subtle-bg);
   color: var(--cpx-sys-color-accent);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -293,7 +289,7 @@
   span + span::before {
     content: "·";
     margin-right: 5px;
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -381,7 +377,7 @@
   justify-content: center;
   overflow: hidden;
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   flex: 0 0 auto;
 
@@ -482,7 +478,7 @@
   padding: 10px var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
   line-height: var(--cpx-sys-line-height-tight);
@@ -492,9 +488,9 @@
   min-width: 0;
   display: grid;
   overflow: hidden;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
 
   &:focus-visible {
@@ -577,7 +573,7 @@
   gap: var(--cpx-sys-space-2);
   padding: 10px var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
   line-height: var(--cpx-sys-line-height-tight);
@@ -650,7 +646,7 @@
     padding: 3px 8px;
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-xs);
     white-space: nowrap;
@@ -726,7 +722,7 @@
   padding: var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
 
   p {
     margin: 0;
@@ -827,9 +823,9 @@
     flex-direction: column;
     gap: 4px;
     padding: var(--cpx-sys-space-4);
-    border: var(--cpx-comp-surface-edge);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-lg);
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
     box-shadow: none;
     color: var(--cpx-sys-color-fg-primary);
     font-family: inherit;
@@ -898,7 +894,7 @@
     > span + span::before {
       content: "·";
       margin: 0 5px;
-      color: var(--cpx-comp-input-placeholder-fg);
+      color: var(--cpx-sys-color-fg-tertiary);
     }
   }
 
@@ -925,11 +921,7 @@
   }
 
   .model-card.selected .model-card-tag {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 12%,
-      var(--cpx-sys-color-surface)
-    );
+    background: var(--cpx-sys-color-accent-subtle-bg);
     color: var(--cpx-sys-color-accent);
   }
 
@@ -966,7 +958,7 @@
     width: 36px;
     height: 36px;
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
     color: var(--cpx-sys-color-fg-secondary);
   }
 
@@ -1007,7 +999,7 @@
   padding: var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: none;
 
   h2,
@@ -1029,7 +1021,7 @@
   width: 36px;
   height: 36px;
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
 
   svg {
@@ -1073,7 +1065,7 @@
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .model-center-key-toolbar {
@@ -1103,7 +1095,7 @@
   padding: 0 34px 0 11px;
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
-  background-color: var(--cpx-comp-surface-raised);
+  background-color: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-primary);
   font: inherit;
   font-size: var(--cpx-sys-font-size-md);
@@ -1357,9 +1349,9 @@ html[data-theme="dark"] .model-center-key-dialog {
 .model-center-key-group {
   min-width: 0;
   overflow: hidden;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
 }
 
@@ -1371,7 +1363,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
 
   > div {
     min-width: 0;
@@ -1422,7 +1414,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   align-items: center;
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
 
   + .model-center-account-group-body {
     border-top: 1px solid var(--cpx-sys-color-border-subtle);
@@ -1504,7 +1496,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: 4px 8px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   font-variant-numeric: tabular-nums;
@@ -1532,11 +1524,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   }
 
   &[data-state="exhausted"] {
-    border-color: color-mix(
-      in srgb,
-      var(--cpx-sys-color-danger) 28%,
-      var(--cpx-sys-color-border-subtle)
-    );
+    border-color: var(--cpx-sys-color-danger-subtle-border);
 
     strong {
       color: var(--cpx-sys-color-danger);
@@ -1571,7 +1559,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 .model-center-account-group-body {
   min-width: 0;
   display: grid;
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 
   > section + section {
     border-top: 1px solid var(--cpx-sys-color-border-subtle);
@@ -1679,7 +1667,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
 
   p {
     margin: 0;
@@ -1707,7 +1695,7 @@ html[data-theme="dark"] .model-center-key-dialog {
     padding: 8px var(--cpx-sys-space-3);
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
 
     svg {
       width: var(--app-icon-size);
@@ -1810,7 +1798,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: 2px 7px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -1818,44 +1806,20 @@ html[data-theme="dark"] .model-center-key-dialog {
   white-space: nowrap;
 
   &[data-tone="active"] {
-    border-color: color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 28%,
-      var(--cpx-sys-color-border-subtle)
-    );
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 9%,
-      var(--cpx-sys-color-surface)
-    );
+    border-color: var(--cpx-sys-color-accent-subtle-border);
+    background: var(--cpx-sys-color-accent-subtle-bg);
     color: var(--cpx-sys-color-accent);
   }
 
   &[data-tone="healthy"] {
-    border-color: color-mix(
-      in srgb,
-      var(--cpx-sys-color-success) 28%,
-      var(--cpx-sys-color-border-subtle)
-    );
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-success) 8%,
-      var(--cpx-sys-color-surface)
-    );
+    border-color: var(--cpx-sys-color-success-subtle-border);
+    background: var(--cpx-sys-color-success-subtle-bg);
     color: var(--cpx-sys-color-success);
   }
 
   &[data-tone="warning"] {
-    border-color: color-mix(
-      in srgb,
-      var(--cpx-sys-color-danger) 26%,
-      var(--cpx-sys-color-border-subtle)
-    );
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-danger) 7%,
-      var(--cpx-sys-color-surface)
-    );
+    border-color: var(--cpx-sys-color-danger-subtle-border);
+    background: var(--cpx-sys-color-danger-subtle-bg);
     color: var(--cpx-sys-color-danger);
   }
 }
@@ -1871,7 +1835,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   span + span::before {
     content: "·";
     margin-right: var(--cpx-sys-space-3);
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -1897,7 +1861,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: var(--cpx-sys-space-7);
   border: 1px dashed var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   color: var(--cpx-sys-color-fg-secondary);
   text-align: center;
@@ -1930,9 +1894,9 @@ html[data-theme="dark"] .model-center-key-dialog {
   max-height: min(720px, calc(100vh - 48px));
   overflow-x: hidden;
   overflow-y: auto;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-floating);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-primary);
 }
@@ -1982,7 +1946,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   align-items: center;
   justify-content: center;
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   flex: 0 0 auto;
 
@@ -2005,7 +1969,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: 0 11px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-secondary);
 }
 
@@ -2016,7 +1980,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-5);
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
 }
 
 .model-center-connection-dialog {
@@ -2040,9 +2004,9 @@ html[data-theme="dark"] .model-center-key-dialog {
   align-items: center;
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-primary);
   font: inherit;
   text-align: left;
@@ -2064,7 +2028,7 @@ html[data-theme="dark"] .model-center-key-dialog {
     align-items: center;
     justify-content: center;
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
     color: var(--cpx-sys-color-fg-secondary);
     flex: 0 0 auto;
   }
@@ -2349,9 +2313,9 @@ html[data-theme="dark"] .model-center-key-dialog {
 }
 
 .model-center-detail-card {
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   padding: var(--cpx-sys-space-4);
   display: grid;
   gap: var(--cpx-sys-space-3);
@@ -2395,7 +2359,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: var(--cpx-sys-space-4);
   border: 1px dashed var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
 
@@ -2411,11 +2375,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   justify-content: space-between;
   gap: var(--cpx-sys-space-4);
   padding: var(--cpx-sys-space-4);
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-accent) 4%,
-    var(--cpx-comp-surface-raised)
-  );
+  background: var(--cpx-sys-color-accent-subtle-bg);
 }
 
 .model-center-test-banner-info {
@@ -2443,7 +2403,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 .provider-card-source-badge {
   padding: 1px 6px;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: 11px;
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -2457,35 +2417,23 @@ html[data-theme="dark"] .model-center-key-dialog {
   white-space: nowrap;
 
   &[data-tone="info"] {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 10%,
-      var(--cpx-comp-surface-raised)
-    );
+    background: var(--cpx-sys-color-accent-subtle-bg);
     color: var(--cpx-sys-color-accent);
   }
 
   &[data-tone="positive"] {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-success) 10%,
-      var(--cpx-comp-surface-raised)
-    );
+    background: var(--cpx-sys-color-success-subtle-bg);
     color: var(--cpx-sys-color-success);
   }
 
   &[data-tone="neutral"] {
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
     color: var(--cpx-sys-color-fg-secondary);
   }
 
   &[data-tone="warning"],
   &[data-tone="danger"] {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-danger) 10%,
-      var(--cpx-comp-surface-raised)
-    );
+    background: var(--cpx-sys-color-danger-subtle-bg);
     color: var(--cpx-sys-color-danger);
   }
 }
@@ -2518,9 +2466,9 @@ html[data-theme="dark"] .model-center-key-dialog {
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   transition:
     background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
     border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
@@ -2551,7 +2499,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   code {
     padding: 1px 5px;
     border-radius: var(--cpx-sys-radius-xs);
-    background: var(--cpx-comp-modal-preformat-bg);
+    background: var(--cpx-sys-color-surface-editor);
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-xs);
     font-family: var(--cpx-sys-font-family-mono);
@@ -2571,7 +2519,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   gap: 4px;
   padding: 1px 7px;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
 
@@ -2580,11 +2528,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   }
 
   &--highlight {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 8%,
-      var(--cpx-comp-surface-panel)
-    );
+    background: var(--cpx-sys-color-accent-subtle-bg);
     color: var(--cpx-sys-color-accent);
 
     svg {
@@ -2629,9 +2573,9 @@ html[data-theme="dark"] .model-center-key-dialog {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-floating);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-primary);
 }
@@ -2677,11 +2621,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   align-items: center;
   justify-content: center;
   border-radius: var(--cpx-sys-radius-md);
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-accent) 10%,
-    var(--cpx-comp-surface-raised)
-  );
+  background: var(--cpx-sys-color-accent-subtle-bg);
   color: var(--cpx-sys-color-accent);
   flex: 0 0 auto;
 
@@ -2719,7 +2659,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 1px dashed var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .provider-editor-presets-header {
@@ -2746,7 +2686,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: 4px 10px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -2755,11 +2695,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 
   &:hover {
     border-color: var(--cpx-sys-color-accent);
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 8%,
-      var(--cpx-comp-surface-raised)
-    );
+    background: var(--cpx-sys-color-accent-subtle-bg);
     color: var(--cpx-sys-color-accent);
   }
 }
@@ -2820,7 +2756,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: 8px 12px;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-primary);
   font-family: var(--cpx-sys-font-family-mono);
   font-size: var(--cpx-sys-font-size-xs);
@@ -2835,7 +2771,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   }
 
   &::placeholder {
-    color: var(--cpx-comp-input-placeholder-fg);
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 }
 
@@ -2848,7 +2784,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 
   .provider-editor-switch-info {
     min-width: 0;
@@ -2887,44 +2823,20 @@ html[data-theme="dark"] .model-center-key-dialog {
   }
 
   &[data-tone="warning"] {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-warning) 10%,
-      var(--cpx-comp-surface-raised)
-    );
-    border: 1px solid color-mix(
-      in srgb,
-      var(--cpx-sys-color-warning) 30%,
-      var(--cpx-sys-color-border-subtle)
-    );
+    background: var(--cpx-sys-color-warning-subtle-bg);
+    border: 1px solid var(--cpx-sys-color-warning-subtle-border);
     color: var(--cpx-sys-color-warning);
   }
 
   &[data-tone="danger"] {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-danger) 10%,
-      var(--cpx-comp-surface-raised)
-    );
-    border: 1px solid color-mix(
-      in srgb,
-      var(--cpx-sys-color-danger) 30%,
-      var(--cpx-sys-color-border-subtle)
-    );
+    background: var(--cpx-sys-color-danger-subtle-bg);
+    border: 1px solid var(--cpx-sys-color-danger-subtle-border);
     color: var(--cpx-sys-color-danger);
   }
 
   &[data-tone="info"] {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 10%,
-      var(--cpx-comp-surface-raised)
-    );
-    border: 1px solid color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 30%,
-      var(--cpx-sys-color-border-subtle)
-    );
+    background: var(--cpx-sys-color-accent-subtle-bg);
+    border: 1px solid var(--cpx-sys-color-accent-subtle-border);
     color: var(--cpx-sys-color-accent);
   }
 }
@@ -2951,7 +2863,7 @@ html[data-theme="dark"] .model-center-key-dialog {
     span {
       padding: 1px 7px;
       border-radius: var(--cpx-sys-radius-full);
-      background: var(--cpx-comp-modal-preformat-bg);
+      background: var(--cpx-sys-color-surface-editor);
       color: var(--cpx-sys-color-fg-secondary);
       font-size: var(--cpx-sys-font-size-xs);
       font-weight: var(--cpx-sys-font-weight-medium);
@@ -2969,9 +2881,9 @@ html[data-theme="dark"] .model-center-key-dialog {
   display: grid;
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-4);
-  border: 1px solid color-mix(in srgb, var(--cpx-sys-color-accent) 35%, var(--cpx-sys-color-border-subtle));
+  border: 1px solid var(--cpx-sys-color-accent-subtle-border);
   border-radius: var(--cpx-sys-radius-lg);
-  background: color-mix(in srgb, var(--cpx-sys-color-accent) 4%, var(--cpx-comp-surface-panel));
+  background: var(--cpx-sys-color-accent-subtle-bg);
 
   header {
     display: flex;
@@ -2991,7 +2903,7 @@ html[data-theme="dark"] .model-center-key-dialog {
     display: grid;
     gap: var(--cpx-sys-space-1);
     padding: var(--cpx-sys-space-2);
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-md);
   }
@@ -3024,12 +2936,12 @@ html[data-theme="dark"] .model-center-key-dialog {
 .provider-editor-model-card {
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   overflow: hidden;
   transition: border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &[data-expanded="true"] {
-    border-color: color-mix(in srgb, var(--cpx-sys-color-accent) 40%, var(--cpx-sys-color-border-subtle));
+    border-color: var(--cpx-sys-color-accent-subtle-border);
   }
 }
 
@@ -3041,7 +2953,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   cursor: pointer;
   user-select: none;
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 
   &:hover {
     background: var(--cpx-sys-color-hover);
@@ -3080,7 +2992,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 .provider-editor-model-card-badge {
   padding: 1px 6px;
   border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-comp-modal-preformat-bg);
+  background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: 11px;
   font-family: var(--cpx-sys-font-family-mono);
@@ -3095,20 +3007,12 @@ html[data-theme="dark"] .model-center-key-dialog {
   font-size: 11px;
 
   &--reasoning {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-success) 12%,
-      var(--cpx-comp-surface-raised)
-    );
+    background: var(--cpx-sys-color-success-subtle-bg);
     color: var(--cpx-sys-color-success);
   }
 
   &--vision {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-accent) 12%,
-      var(--cpx-comp-surface-raised)
-    );
+    background: var(--cpx-sys-color-accent-subtle-bg);
     color: var(--cpx-sys-color-accent);
   }
 }
@@ -3123,7 +3027,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 .provider-editor-model-card-body {
   padding: var(--cpx-sys-space-4);
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-floating);
+  background: var(--cpx-sys-color-surface-raised);
   display: grid;
   gap: var(--cpx-sys-space-4);
 }
@@ -3141,7 +3045,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 
   span {
     color: var(--cpx-sys-color-fg-primary);
@@ -3153,7 +3057,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 .provider-editor-model-advanced-details {
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   overflow: hidden;
 
   summary {
@@ -3185,7 +3089,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   gap: var(--cpx-sys-space-4);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-5);
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   flex-shrink: 0;
 }
 

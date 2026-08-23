@@ -80,7 +80,7 @@
 .settings-input {
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-comp-input-radius);
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
   color: var(--cpx-sys-color-fg-primary);
   padding: var(--control-padding-block) var(--control-padding-inline);
   line-height: var(--control-line-height);
@@ -142,7 +142,7 @@
   resize: vertical;
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-comp-input-radius);
-  background: var(--cpx-sys-color-surface-under);
+  background: var(--cpx-sys-color-surface-recessed);
   color: var(--cpx-sys-color-fg-primary);
   padding: var(--control-padding-block) var(--control-padding-inline);
   font-size: var(--cpx-sys-font-size-md);
@@ -196,7 +196,7 @@
   gap: var(--control-gap);
   min-width: 0;
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   transition:
     background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
     border-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),

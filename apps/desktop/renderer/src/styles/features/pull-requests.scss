@@ -22,9 +22,9 @@
   justify-items: center;
   gap: var(--layout-toolbar-gap);
   padding: var(--layout-card-pad);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   text-align: center;
 
@@ -52,10 +52,10 @@
   width: 48px;
   height: 48px;
   margin-bottom: var(--layout-toolbar-gap);
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   color: var(--cpx-sys-color-fg-tertiary);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
 }
 
 .pull-requests-placeholder__action {
@@ -65,10 +65,10 @@
   margin-top: var(--layout-toolbar-gap);
   padding: var(--control-padding-block)
     calc(var(--control-padding-inline) + var(--control-padding-inline));
-  border: 1px solid var(--cpx-comp-button-bg);
+  border: 1px solid var(--cpx-sys-color-surface-control);
   border-radius: var(--cpx-sys-radius-md);
-  color: var(--cpx-comp-button-fg);
-  background: var(--cpx-comp-button-bg);
+  color: var(--cpx-sys-color-fg-primary);
+  background: var(--cpx-sys-color-surface-control);
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
   line-height: var(--control-line-height);
@@ -80,12 +80,8 @@
     transform var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
 
   &:hover {
-    color: var(--cpx-comp-button-fg);
-    background: color-mix(
-      in srgb,
-      var(--cpx-comp-button-bg) 88%,
-      var(--cpx-sys-color-fg-primary)
-    );
+    color: var(--cpx-sys-color-fg-primary);
+    background: var(--cpx-sys-color-hover);
   }
 
   &:active {

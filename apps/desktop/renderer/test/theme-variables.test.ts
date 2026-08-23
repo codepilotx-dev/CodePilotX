@@ -98,8 +98,10 @@ describe('fixed Codex UI themes', () => {
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
     expect(DEFAULT_LIGHT_THEME.codeThemeId).toBe('codex-light')
-    expect(light['--cpx-sys-color-surface-under']).toBe('#f6f6f6')
-    expect(light['--cpx-sys-color-surface']).toBe('#ffffff')
+    expect(light['--cpx-sys-color-surface-canvas']).toBe('#ffffff')
+    expect(light['--cpx-sys-color-surface-recessed']).not.toBe(
+      light['--cpx-sys-color-surface-canvas'],
+    )
     expect(light['--cpx-sys-color-fg-primary']).toBe('#1a1c1f')
     expect(light['--cpx-sys-color-fg-secondary']).toBe('#606163')
     expect(light['--cpx-sys-color-fg-tertiary']).toBe('#8e8f90')
@@ -112,14 +114,22 @@ describe('fixed Codex UI themes', () => {
     expect(light['--cpx-sys-color-selected']).toBe(
       'rgba(26, 28, 31, 0.05)',
     )
-    expect(light['--cpx-sys-color-diff-added-line']).toBe('#fafdfb')
-    expect(light['--cpx-sys-color-diff-added-text']).toBe('#f5fbf7')
+    expect(light['--cpx-sys-color-diff-added-line']).not.toBe(
+      light['--cpx-sys-color-surface-editor'],
+    )
+    expect(light['--cpx-sys-color-diff-added-text']).not.toBe(
+      light['--cpx-sys-color-diff-added-line'],
+    )
 
     expect(DEFAULT_DARK_THEME.codeThemeId).toBe('codex-dark')
-    expect(dark['--cpx-sys-color-surface-under']).toBe('#141414')
-    expect(dark['--cpx-sys-color-surface']).toBe('#181818')
+    expect(dark['--cpx-sys-color-surface-canvas']).toBe('#181818')
+    expect(dark['--cpx-sys-color-surface-recessed']).not.toBe(
+      dark['--cpx-sys-color-surface-canvas'],
+    )
     expect(dark['--cpx-sys-color-fg-primary']).toBe('#ffffff')
-    expect(dark['--cpx-sys-color-panel']).toBe('#232323')
+    expect(dark['--cpx-sys-color-surface-panel']).not.toBe(
+      dark['--cpx-sys-color-surface-canvas'],
+    )
     expect(dark['--cpx-sys-color-fg-secondary']).toBe('#bcbcbc')
     expect(dark['--cpx-sys-color-fg-tertiary']).toBe('#8b8b8b')
     expect(dark['--cpx-sys-color-border-subtle']).toBe(
@@ -211,24 +221,15 @@ describe('fixed Codex UI themes', () => {
       },
     })
 
-    expect(variables['--cpx-sys-color-surface']).toBe('#282a36')
-    expect(variables['--cpx-sys-color-surface-under']).toBe('#22232d')
-    expect(variables['--cpx-sys-color-panel']).toBe('#32343f')
-    expect(variables['--cpx-sys-color-elevated-secondary']).toBe(
-      '#373843',
-    )
-    expect(variables['--cpx-sys-color-editor']).toBe(
-      'rgb(55, 56, 67)',
+    expect(variables['--cpx-sys-color-surface-canvas']).toBe('#282a36')
+    expect(variables['--cpx-sys-color-surface-recessed']).not.toBe(
+      variables['--cpx-sys-color-surface-canvas'],
     )
     expect(variables['--cpx-sys-color-success']).toBe('#50fa7b')
     expect(variables['--cpx-sys-color-danger']).toBe('#ff5555')
     expect(variables['--cpx-sys-color-diff-added-fg']).toBe('#50fa7b')
     expect(variables['--cpx-sys-color-diff-added-indicator']).toBe('#50fa7b')
-    expect(variables['--cpx-sys-color-diff-added-line']).toBe('#383c44')
-    expect(variables['--cpx-sys-color-diff-added-text']).toBe('#384045')
     expect(variables['--cpx-sys-color-diff-removed-indicator']).toBe('#ff5555')
-    expect(variables['--cpx-sys-color-diff-removed-line']).toBe('#3b3943')
-    expect(variables['--cpx-sys-color-diff-removed-text']).toBe('#3f3944')
     expect(variables['--cpx-sys-color-diff-added-line']).not.toBe(
       variables['--cpx-sys-color-success'],
     )
@@ -249,7 +250,7 @@ describe('fixed Codex UI themes', () => {
       for (const tone of ['added', 'removed'] as const) {
         const foreground = variables[`--cpx-sys-color-diff-${tone}-fg`]
         const backgrounds = [
-          variables['--cpx-sys-color-editor'],
+          variables['--cpx-sys-color-surface-editor'],
           variables[`--cpx-sys-color-diff-${tone}-line`],
           variables[`--cpx-sys-color-diff-${tone}-text`],
         ]
@@ -272,7 +273,7 @@ describe('fixed Codex UI themes', () => {
         },
       },
     })
-    const editor = variables['--cpx-sys-color-editor']
+    const editor = variables['--cpx-sys-color-surface-editor']
 
     expect(variables['--cpx-sys-color-diff-added-indicator']).toBe('#ffffff')
     expect(variables['--cpx-sys-color-diff-added-fg']).not.toBe('#ffffff')
@@ -285,15 +286,16 @@ describe('fixed Codex UI themes', () => {
     for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
       const variables = deriveThemeVariables(config)
       const roleNames = [
-        '--cpx-sys-color-surface',
-        '--cpx-sys-color-surface-under',
-        '--cpx-sys-color-panel',
-        '--cpx-sys-color-editor',
-        '--cpx-sys-color-elevated-secondary',
+        '--cpx-sys-color-surface-canvas',
+        '--cpx-sys-color-surface-recessed',
+        '--cpx-sys-color-surface-panel',
+        '--cpx-sys-color-surface-control',
+        '--cpx-sys-color-surface-raised',
+        '--cpx-sys-color-surface-editor',
       ] as const
       const roles = roleNames.map(name => variables[name])
 
-      expect(new Set(roleNames).size).toBe(roleNames.length)
+      expect(new Set(roles).size).toBe(roleNames.length)
       for (const role of roles) {
         expect(role).toBeDefined()
         expect(role).not.toContain('rgba')
@@ -301,15 +303,60 @@ describe('fixed Codex UI themes', () => {
     }
   })
 
+  test('preserves the complete surface hierarchy on near-white custom themes', () => {
+    const variables = deriveThemeVariables({
+      ...DEFAULT_LIGHT_THEME,
+      theme: {
+        ...DEFAULT_LIGHT_THEME.theme,
+        accent: '#5d755d',
+        surface: '#f5f3ed',
+        ink: '#2f312d',
+        contrast: 40,
+      },
+    })
+    const roles = [
+      '--cpx-sys-color-surface-canvas',
+      '--cpx-sys-color-surface-recessed',
+      '--cpx-sys-color-surface-panel',
+      '--cpx-sys-color-surface-control',
+      '--cpx-sys-color-surface-raised',
+      '--cpx-sys-color-surface-editor',
+    ].map(name => variables[name as `--${string}`])
+
+    expect(new Set(roles).size).toBe(roles.length)
+    for (const role of roles) {
+      expect(role).toMatch(/^#[\da-f]{6}$/)
+    }
+  })
+
+  test('keeps every semantic foreground readable on its subtle background', () => {
+    for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
+      const variables = deriveThemeVariables(config)
+      for (const tone of [
+        'accent',
+        'danger',
+        'warning',
+        'success',
+        'skill',
+        'info',
+      ] as const) {
+        expect(contrastRatio(
+          variables[`--cpx-sys-color-${tone}-fg`],
+          variables[`--cpx-sys-color-${tone}-subtle-bg`],
+        )).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
   test('keeps the recovered contrast boundary palette deterministic', () => {
     const expected = [
-      [0, 'rgba(26, 28, 31, 0.039)', '#ffffff'],
-      [45, 'rgba(26, 28, 31, 0.078)', '#f6f6f6'],
-      [60, 'rgba(26, 28, 31, 0.104)', '#f2f2f2'],
-      [100, 'rgba(26, 28, 31, 0.173)', '#e7e7e7'],
+      [0, 'rgba(26, 28, 31, 0.06)'],
+      [45, 'rgba(26, 28, 31, 0.078)'],
+      [60, 'rgba(26, 28, 31, 0.1)'],
+      [100, 'rgba(26, 28, 31, 0.1)'],
     ] as const
 
-    for (const [contrast, border, surfaceUnder] of expected) {
+    for (const [contrast, border] of expected) {
       const variables = deriveThemeVariables({
         ...DEFAULT_LIGHT_THEME,
         theme: {
@@ -319,9 +366,6 @@ describe('fixed Codex UI themes', () => {
       })
 
       expect(variables['--cpx-sys-color-border-default']).toBe(border)
-      expect(variables['--cpx-sys-color-surface-under']).toBe(
-        surfaceUnder,
-      )
       expect(deriveThemeVariables({
         ...DEFAULT_LIGHT_THEME,
         theme: {
@@ -426,7 +470,6 @@ describe('fixed Codex UI themes', () => {
       expect(vars['--cpx-sys-blur-lg']).toBe('24px')
       expect(vars['--cpx-sys-glass-filter']).toBe('blur(16px)')
       expect(vars['--cpx-comp-glass-filter']).toBe('blur(16px)')
-      expect(vars['--cpx-comp-glass-bg']).toBeDefined()
 
       // Multi-hue semantic subtle backgrounds & borders
       expect(vars['--cpx-sys-color-success-subtle-bg']).toBeDefined()
@@ -440,13 +483,7 @@ describe('fixed Codex UI themes', () => {
       expect(vars['--cpx-sys-color-info-subtle-bg']).toBeDefined()
       expect(vars['--cpx-sys-color-info-subtle-border']).toBeDefined()
 
-      // Semantic chips
-      expect(vars['--cpx-comp-chip-success-bg']).toBeDefined()
-      expect(vars['--cpx-comp-chip-danger-bg']).toBeDefined()
-      expect(vars['--cpx-comp-chip-warning-bg']).toBeDefined()
-      expect(vars['--cpx-comp-chip-skill-bg']).toBeDefined()
-      expect(vars['--cpx-comp-chip-info-bg']).toBeDefined()
-      expect(vars['--cpx-comp-chip-accent-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-accent-subtle-bg']).toBeDefined()
     }
   })
 

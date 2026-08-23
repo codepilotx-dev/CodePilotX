@@ -974,7 +974,7 @@ function addLineDecoration(
 export const markdownRichThemeSpec = {
   '&.cm-markdown-rich': {
     color: 'var(--cpx-sys-color-fg-primary)',
-    backgroundColor: 'var(--cpx-sys-color-surface)',
+    backgroundColor: 'var(--cpx-sys-color-surface-canvas)',
   },
   '&.cm-markdown-rich .cm-content': {
     fontFamily: 'var(--cpx-sys-font-family-sans)',
@@ -1115,7 +1115,7 @@ export const markdownRichThemeSpec = {
     boxSizing: 'border-box',
     paddingInline: '12px',
     color: 'var(--cm-editor-foreground, var(--cpx-sys-color-fg-primary))',
-    backgroundColor: 'var(--cpx-sys-color-editor)',
+    backgroundColor: 'var(--cpx-sys-color-surface-editor)',
     fontFamily: 'var(--cpx-sys-font-family-mono)',
     fontSize: 'var(--cpx-sys-font-size-code)',
     lineHeight: 'var(--cpx-sys-line-height-code)',
@@ -1146,7 +1146,7 @@ export const markdownRichThemeSpec = {
     border: '1px solid var(--cpx-sys-color-border-default)',
     borderRadius: 'var(--cpx-sys-radius-lg)',
     backgroundColor:
-      'var(--cm-editor-background, var(--cpx-sys-color-editor, var(--cpx-comp-modal-preformat-bg)))',
+      'var(--cm-editor-background, var(--cpx-sys-color-surface-editor, var(--cpx-sys-color-surface-canvas)))',
     overflow: 'auto',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-table': {
@@ -1160,20 +1160,20 @@ export const markdownRichThemeSpec = {
     fontWeight: '650',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-table-row': {
-    backgroundColor: 'var(--cpx-sys-color-editor)',
+    backgroundColor: 'var(--cpx-sys-color-surface-editor)',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget': {
     display: 'block',
     boxSizing: 'border-box',
     marginBlock: '12px',
     borderRadius: 'var(--cpx-sys-radius-lg)',
-    backgroundColor: 'var(--cpx-sys-color-editor)',
+    backgroundColor: 'var(--cpx-sys-color-surface-editor)',
     overflowX: 'auto',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget table': {
     width: '100%',
     borderCollapse: 'collapse',
-    backgroundColor: 'var(--cpx-sys-color-editor)',
+    backgroundColor: 'var(--cpx-sys-color-surface-editor)',
     color: 'var(--cpx-sys-color-fg-primary)',
     fontFamily: 'var(--cpx-sys-font-family-sans)',
     fontSize: 'var(--cpx-sys-font-size-md)',
@@ -1186,11 +1186,11 @@ export const markdownRichThemeSpec = {
       verticalAlign: 'top',
     },
   '&.cm-markdown-rich .cm-md-rich-table-widget th': {
-    backgroundColor: 'var(--cpx-sys-color-elevated-secondary)',
+    backgroundColor: 'var(--cpx-sys-color-surface-raised)',
     fontWeight: '650',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget td': {
-    backgroundColor: 'var(--cpx-sys-color-editor)',
+    backgroundColor: 'var(--cpx-sys-color-surface-editor)',
   },
 } as const
 

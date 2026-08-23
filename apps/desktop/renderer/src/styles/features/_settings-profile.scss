@@ -7,7 +7,7 @@
   min-height: 100%;
   padding: 48px var(--layout-page-pad-x)
     var(--layout-page-pad-bottom);
-  background-color: var(--cpx-comp-surface-canvas);
+  background-color: var(--cpx-sys-color-surface-canvas);
 }
 
 .profile-dashboard-header {
@@ -105,7 +105,7 @@
   height: 80px;
   border-radius: 50%;
   background-color: var(--cpx-sys-color-accent);
-  color: var(--cpx-comp-button-fg);
+  color: var(--cpx-sys-color-fg-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -135,9 +135,9 @@
   justify-content: center;
   width: 30px;
   height: 30px;
-  border: 3px solid var(--cpx-comp-surface-canvas);
+  border: 3px solid var(--cpx-sys-color-surface-canvas);
   border-radius: 50%;
-  background-color: var(--cpx-comp-surface-raised);
+  background-color: var(--cpx-sys-color-surface-raised);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--app-icon-size-md);
   cursor: pointer;
@@ -232,9 +232,9 @@
   max-width: 732px;
   min-height: 60px;
   margin: 40px auto 0;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background-color: var(--cpx-comp-surface-panel);
+  background-color: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   overflow: hidden;
 }
@@ -457,9 +457,9 @@
   max-width: 520px;
   margin: 40px auto 0;
   padding: 40px 24px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   text-align: center;
   color: var(--cpx-sys-color-fg-secondary);
@@ -516,9 +516,9 @@
 .profile-loading-stats {
   display: flex;
   min-height: 60px;
-  border: var(--cpx-comp-surface-edge);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
   overflow: hidden;
 
   > div {
@@ -682,7 +682,7 @@
   padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-md);
-  background-color: var(--cpx-comp-surface-canvas);
+  background-color: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
   line-height: var(--control-line-height);
@@ -693,7 +693,7 @@
   height: 32px;
   min-height: 32px;
   padding: var(--control-padding-block) var(--control-padding-inline);
-  background-color: var(--cpx-comp-surface-canvas);
+  background-color: var(--cpx-sys-color-surface-canvas);
 }
 
 .profile-status-checkbox {
@@ -721,7 +721,7 @@
   gap: var(--cpx-sys-space-4);
   padding: 14px var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background-color: var(--cpx-comp-surface-raised);
+  background-color: var(--cpx-sys-color-surface-raised);
 
   &.compact {
     margin-top: var(--cpx-sys-space-3);

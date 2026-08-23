@@ -7,7 +7,7 @@
   flex: 0 0 auto;
   padding: 0.57em var(--control-padding-inline);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-comp-surface-panel);
+  background: var(--cpx-sys-color-surface-panel);
 }
 
 .browser-navigation {
@@ -53,7 +53,7 @@
     line-height: var(--control-line-height);
 
     &:focus {
-      background: var(--cpx-comp-surface-raised);
+      background: var(--cpx-sys-color-surface-raised);
       box-shadow: var(--cpx-sys-focus-ring-inset);
     }
   }
@@ -144,7 +144,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--cpx-comp-surface-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
   overflow: hidden;
 }
 
@@ -197,7 +197,7 @@
     width: 100%;
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-comp-surface-raised);
+    background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-primary);
     padding: var(--cpx-sys-space-2);
     font: inherit;

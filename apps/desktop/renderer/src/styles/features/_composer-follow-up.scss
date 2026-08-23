@@ -39,7 +39,7 @@
   padding: 4px 6px;
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
-  background: var(--cpx-sys-color-surface);
+  background: var(--cpx-sys-color-surface-canvas);
   border-radius: var(--cpx-sys-radius-md);
 }
 
@@ -54,7 +54,7 @@
   overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-comp-surface-raised);
+  background: var(--cpx-sys-color-surface-raised);
   box-shadow: none;
   transition:
     border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
@@ -98,7 +98,7 @@
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-comp-input-radius);
   color: var(--cpx-sys-color-fg-primary);
-  background: var(--cpx-sys-color-elevated-secondary);
+  background: var(--cpx-sys-color-surface-raised);
   font: inherit;
 
   &:focus-visible {

@@ -29,6 +29,12 @@ type StyleContractManifest = {
   dataThemeSelectorAllowlist: Record<string, number>
   literalLineHeightAllowlist: Record<string, number>
   tailwindLeadingAllowlist: Record<string, number>
+  featureColorContract: {
+    roots: string[]
+    componentTokenExceptions: Array<{ file: string; token: string; reason: string }>
+    literalColorExceptions: Array<{ file: string; value: string; reason: string }>
+    colorMixExceptions: Array<{ file: string; localProperty: string; reason: string }>
+  }
 }
 
 const workspaceRoot = resolve(import.meta.dir, '..')
@@ -127,6 +133,119 @@ const allFiles = await listFiles(sourceRoot)
 const styleFiles = allFiles.filter((file) => styleExtensions.has(extname(file)))
 const scriptFiles = allFiles.filter((file) => scriptExtensions.has(extname(file)))
 const errors: string[] = []
+
+function requireReason(reason: string, descriptor: string): void {
+  if (reason.trim().length < 16) errors.push(`feature color exception needs a concrete reason: ${descriptor}`)
+}
+
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+const featureColorFiles = new Set<string>()
+for (const root of manifest.featureColorContract.roots) {
+  const absoluteRoot = resolve(workspaceRoot, root)
+  if (!absoluteRoot.startsWith(sourceRoot) || !(await isDirectory(absoluteRoot))) {
+    errors.push(`feature color root must be an existing source directory: ${root}`)
+    continue
+  }
+  for (const file of styleFiles) {
+    if (file.startsWith(`${absoluteRoot}\\`) || file.startsWith(`${absoluteRoot}/`)) {
+      featureColorFiles.add(file)
+    }
+  }
+}
+
+const componentExceptions = new Map<string, { reason: string; used: boolean }>()
+for (const exception of manifest.featureColorContract.componentTokenExceptions) {
+  const key = `${exception.file} -> ${exception.token}`
+  requireReason(exception.reason, key)
+  if (componentExceptions.has(key)) errors.push(`duplicate feature component-token exception: ${key}`)
+  componentExceptions.set(key, { reason: exception.reason, used: false })
+}
+const literalExceptions = new Map<string, { reason: string; used: boolean }>()
+for (const exception of manifest.featureColorContract.literalColorExceptions) {
+  const key = `${exception.file} -> ${exception.value.toLowerCase()}`
+  requireReason(exception.reason, key)
+  if (literalExceptions.has(key)) errors.push(`duplicate feature literal-color exception: ${key}`)
+  literalExceptions.set(key, { reason: exception.reason, used: false })
+}
+const mixExceptions = new Map<string, { reason: string; used: boolean }>()
+for (const exception of manifest.featureColorContract.colorMixExceptions) {
+  const key = `${exception.file} -> ${exception.localProperty}`
+  requireReason(exception.reason, key)
+  if (!exception.localProperty.startsWith('--')) errors.push(`color-mix exception must name a local custom property: ${key}`)
+  if (mixExceptions.has(key)) errors.push(`duplicate feature color-mix exception: ${key}`)
+  mixExceptions.set(key, { reason: exception.reason, used: false })
+}
+
+const colorComponentToken = /--cpx-comp-[\w-]*(?:bg|fg|fill|color|border|edge|scrim|shadow)(?:-[\w-]+)?\b/g
+const literalColor = /(?<![\w-])#[\da-fA-F]{3,8}\b|\b(?:rgb|hsl)a?\([^;{}]+?\)/g
+for (const file of featureColorFiles) {
+  const source = await readFile(file, 'utf8')
+  const path = workspacePath(file)
+  for (const match of source.matchAll(colorComponentToken)) {
+    const key = `${path} -> ${match[0]}`
+    const exception = componentExceptions.get(key)
+    if (exception) exception.used = true
+    else errors.push(`feature styles must use system semantic colors, not ${match[0]}: ${path}:${lineNumberAt(source, match.index)}`)
+  }
+  for (const match of source.matchAll(literalColor)) {
+    const value = match[0].toLowerCase()
+    const key = `${path} -> ${value}`
+    const exception = literalExceptions.get(key)
+    if (exception) exception.used = true
+    else errors.push(`feature styles must not use literal color ${match[0]}: ${path}:${lineNumberAt(source, match.index)}`)
+  }
+  for (const call of collectFunctionCalls(source, 'color-mix')) {
+    const systemTokens = [...call.value.matchAll(/--cpx-sys-color-[\w-]+/g)].map(match => match[0])
+    const localTokens = [...call.value.matchAll(/--(?!cpx-(?:sys|comp)-)[\w-]+/g)].map(match => match[0])
+    if (new Set(systemTokens).size < 2 && localTokens.length === 0) continue
+    const matchingException = localTokens
+      .map(token => mixExceptions.get(`${path} -> ${token}`))
+      .find(Boolean)
+    if (matchingException) matchingException.used = true
+    else errors.push(`feature color-mix must not combine multiple semantic/local colors: ${path}:${lineNumberAt(source, call.offset)}`)
+  }
+}
+for (const [key, exception] of componentExceptions) {
+  if (!exception.used) errors.push(`stale feature component-token exception: ${key}`)
+}
+for (const [key, exception] of literalExceptions) {
+  if (!exception.used) errors.push(`stale feature literal-color exception: ${key}`)
+}
+for (const [key, exception] of mixExceptions) {
+  if (!exception.used) errors.push(`stale feature color-mix exception: ${key}`)
+}
+
+function lineNumberAt(source: string, offset: number): number {
+  return source.slice(0, offset).split('\n').length
+}
+
+function collectFunctionCalls(source: string, name: string): Array<{ value: string; offset: number }> {
+  const calls: Array<{ value: string; offset: number }> = []
+  const startPattern = new RegExp(`${escapeRegExp(name)}\\(`, 'g')
+  for (const start of source.matchAll(startPattern)) {
+    let depth = 0
+    let end = start.index
+    for (; end < source.length; end += 1) {
+      if (source[end] === '(') depth += 1
+      if (source[end] === ')') {
+        depth -= 1
+        if (depth === 0) {
+          end += 1
+          break
+        }
+      }
+    }
+    if (depth === 0) calls.push({ value: source.slice(start.index, end), offset: start.index })
+  }
+  return calls
+}
 
 const entrypoint = resolve(workspaceRoot, manifest.styleEntrypoint)
 if (!(await isFile(entrypoint)) || !styleExtensions.has(extname(entrypoint))) {
