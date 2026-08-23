@@ -49,12 +49,18 @@ export class TaskContextRepository {
     return null
   }
 
-  read(taskId: string, input: { sections?: TaskContextSection[]; includeEvidence?: boolean; includeUnverified?: boolean; limit?: number; offset?: number } = {}) {
+  read(taskId: string, input: { sections?: TaskContextSection[]; includeEvidence?: boolean; includeUnverified?: boolean; includeAncestors?: boolean; limit?: number; offset?: number } = {}) {
     this.ensureState(taskId)
     const wanted = input.sections?.length ? input.sections : [...sections]
     const limit = Math.max(1, Math.min(200, input.limit ?? 100))
     const placeholders = wanted.map(() => "?").join(",")
-    const entries = (this.db.sqlite.query(`SELECT * FROM task_context_entries WHERE task_id = ? AND status = 'active' AND section IN (${placeholders}) ORDER BY updated_at DESC, id LIMIT ? OFFSET ?`).all(taskId, ...wanted, limit, Math.max(0, input.offset ?? 0)) as EntryRow[]).map(entry)
+    const ownEntries = (this.db.sqlite.query(`SELECT * FROM task_context_entries WHERE task_id = ? AND status = 'active' AND section IN (${placeholders}) ORDER BY updated_at DESC, id LIMIT ? OFFSET ?`).all(taskId, ...wanted, limit, Math.max(0, input.offset ?? 0)) as EntryRow[]).map(entry)
+    const ancestorEntries = input.includeAncestors
+      ? this.ancestorTasks(taskId).flatMap(({ taskId: ancestorTaskId }) => (
+          this.db.sqlite.query(`SELECT * FROM task_context_entries WHERE task_id = ? AND status = 'active' AND section IN (${placeholders}) ORDER BY updated_at DESC, id`).all(ancestorTaskId, ...wanted) as EntryRow[]
+        ).map(entry))
+      : []
+    const entries = [...ownEntries, ...ancestorEntries].slice(0, limit)
     const values = input.includeEvidence
       ? (this.db.sqlite.query(`SELECT * FROM task_context_evidence WHERE task_id = ? AND revision > (SELECT summarized_through_evidence_revision FROM task_context_state WHERE task_id = ?) ${input.includeUnverified ? "" : "AND verified = 1"} ORDER BY revision LIMIT ?`).all(taskId, taskId, limit) as EvidenceRow[]).map(evidence)
       : []
@@ -77,7 +83,8 @@ export class TaskContextRepository {
       for (const change of input.changes) this.applyChange(input.taskId, change, input.sourceKind, input.sourceThreadId ?? null, input.sourceTurnId ?? null, timestamp)
       this.db.sqlite.query("UPDATE task_context_state SET context_revision = context_revision + 1, updated_at = ? WHERE task_id = ?").run(timestamp, input.taskId)
       const snapshot = this.snapshot(input.taskId)
-      return { snapshot, event: this.changedEvent(input.taskId, snapshot, timestamp) }
+      const rollup = this.rollupContext(input.taskId, snapshot, input.sourceThreadId ?? null, input.sourceTurnId ?? null, timestamp)
+      return { snapshot, event: this.changedEvent(input.taskId, snapshot, timestamp), rollupEvent: rollup?.event ?? null }
     })
     return result
   }
@@ -106,6 +113,30 @@ export class TaskContextRepository {
     const result = this.captureEvidence(input)
     if (result) await this.broadcast(result.event)
     return result?.snapshot ?? null
+  }
+
+  rollupTaskCompletion(taskId: string, sourceThreadId: string | null = null) {
+    const parentTaskId = this.parentTaskId(taskId)
+    if (!parentTaskId) return null
+    return this.db.transaction(() => {
+      const child = this.db.readWorkflowTask(taskId)
+      if (!child || child.task.status !== "done") return null
+      const sourceId = `completion:${taskId}:${child.task.version}`
+      const known = this.db.sqlite.query("SELECT id FROM task_context_evidence WHERE task_id = ? AND source_kind = 'task' AND source_id = ?")
+        .get(parentTaskId, sourceId)
+      if (known) return null
+      const state = this.ensureState(parentTaskId)
+      const timestamp = this.now()
+      const revision = state.evidence_revision + 1
+      const childSnapshot = this.snapshot(taskId)
+      const summary = this.safeEvidenceSummary(child.task.projectId, `子任务 #${child.task.number} ${child.task.title} 已完成。\n最终上下文：${childSnapshot.digest}`)
+      if (!summary) return null
+      this.db.sqlite.query("INSERT INTO task_context_evidence (id, task_id, revision, source_kind, source_id, source_thread_id, source_turn_id, verified, summary, created_at) VALUES (?, ?, ?, 'task', ?, ?, NULL, 1, ?, ?)")
+        .run(crypto.randomUUID(), parentTaskId, revision, sourceId, sourceThreadId, summary, timestamp)
+      this.db.sqlite.query("UPDATE task_context_state SET evidence_revision = ?, updated_at = ? WHERE task_id = ?").run(revision, timestamp, parentTaskId)
+      const snapshot = this.snapshot(parentTaskId)
+      return { snapshot, event: this.changedEvent(parentTaskId, snapshot, timestamp) }
+    })
   }
 
   async backfillThread(threadId: string) {
@@ -168,7 +199,8 @@ export class TaskContextRepository {
       this.db.sqlite.query("UPDATE task_context_state SET context_revision = context_revision + 1, summarized_through_evidence_revision = MAX(summarized_through_evidence_revision, ?), updated_at = ? WHERE task_id = ?").run(proposal.throughEvidenceRevision, timestamp, proposal.taskId)
       this.db.sqlite.query("UPDATE task_context_ai_proposals SET status = 'applied', updated_at = ? WHERE id = ?").run(timestamp, id)
       const snapshot = this.snapshot(proposal.taskId)
-      return { stale: false as const, proposal: { ...proposal, status: "applied" as const, updatedAt: timestamp }, snapshot, event: this.changedEvent(proposal.taskId, snapshot, timestamp) }
+      const rollup = this.rollupContext(proposal.taskId, snapshot, null, null, timestamp)
+      return { stale: false as const, proposal: { ...proposal, status: "applied" as const, updatedAt: timestamp }, snapshot, event: this.changedEvent(proposal.taskId, snapshot, timestamp), rollupEvent: rollup?.event ?? null }
     })
     if (result.stale) throw new AgentError("TASKBOARD_PROPOSAL_STALE", "任务上下文 proposal 已过期", 409)
     return result
@@ -197,7 +229,66 @@ export class TaskContextRepository {
     const owner = this.resolveTaskForThread(threadId)
     if (!owner) return null
     const value = this.snapshot(owner.taskId)
-    return `<task_context task_id=${JSON.stringify(value.taskId)} context_revision=${JSON.stringify(value.contextRevision)} evidence_revision=${JSON.stringify(value.evidenceRevision)} pending=${JSON.stringify(value.pendingEvidenceCount)}>\n${value.digest}\n章节：${sections.join(", ")}\n详细内容按需使用 task_context_read；只有确定且可复用的信息才使用 task_context_publish。\n</task_context>`
+    const ancestorBudget = Math.max(0, TASK_CONTEXT_DIGEST_MAX_LENGTH - value.digest.length)
+    let inherited = ""
+    let truncated = false
+    for (const { taskId, title, depth } of this.ancestorTasks(owner.taskId)) {
+      const block = `${inherited ? "\n" : ""}<ancestor_task_context task_id=${JSON.stringify(taskId)} depth=${depth} title=${JSON.stringify(title)}>\n${this.ancestorDigest(taskId)}\n</ancestor_task_context>`
+      if (inherited.length + block.length > ancestorBudget) {
+        truncated = true
+        break
+      }
+      inherited += block
+    }
+    if (truncated) inherited += `${inherited ? "\n" : ""}[祖先任务上下文已因预算截断]`
+    return `<task_context task_id=${JSON.stringify(value.taskId)} context_revision=${JSON.stringify(value.contextRevision)} evidence_revision=${JSON.stringify(value.evidenceRevision)} pending=${JSON.stringify(value.pendingEvidenceCount)}>\n${value.digest}${inherited ? `\n${inherited}` : ""}\n章节：${sections.join(", ")}\n详细内容按需使用 task_context_read；只有确定且可复用的信息才使用 task_context_publish。\n</task_context>`
+  }
+
+  private ancestorTasks(taskId: string): Array<{ taskId: string; title: string; depth: number }> {
+    return (this.db.sqlite.query(`
+      WITH RECURSIVE ancestors(task_id, depth) AS (
+        SELECT parent_task_id, 1 FROM taskboard_plan_items WHERE item_type = 'task' AND child_task_id = ?
+        UNION ALL
+        SELECT item.parent_task_id, ancestors.depth + 1
+        FROM taskboard_plan_items item
+        JOIN ancestors ON item.child_task_id = ancestors.task_id
+        WHERE item.item_type = 'task'
+      )
+      SELECT tasks.id AS task_id, tasks.title, ancestors.depth
+      FROM ancestors JOIN taskboard_tasks tasks ON tasks.id = ancestors.task_id
+      ORDER BY ancestors.depth
+    `).all(taskId) as Array<{ task_id: string; title: string; depth: number }>).map(row => ({ taskId: row.task_id, title: row.title, depth: row.depth }))
+  }
+
+  private parentTaskId(taskId: string): string | null {
+    const row = this.db.sqlite.query("SELECT parent_task_id FROM taskboard_plan_items WHERE item_type = 'task' AND child_task_id = ?").get(taskId) as { parent_task_id: string } | null
+    return row?.parent_task_id ?? null
+  }
+
+  private ancestorDigest(taskId: string): string {
+    const allowed = new Set<TaskContextSection>(["objective", "decision", "risk", "code_map"])
+    const task = this.db.sqlite.query("SELECT title, description FROM taskboard_tasks WHERE id = ?").get(taskId) as { title: string; description: string }
+    const rows = (this.db.sqlite.query("SELECT * FROM task_context_entries WHERE task_id = ? AND status = 'active' ORDER BY updated_at DESC, id").all(taskId) as EntryRow[]).map(entry).filter(value => allowed.has(value.section))
+    const lines = [`目标：${task.title}${task.description.trim() ? `\n${task.description.trim()}` : ""}`]
+    for (const item of rows) lines.push(`[${item.section}] ${item.title}：${item.content}`)
+    return lines.join("\n").slice(0, Math.floor(TASK_CONTEXT_DIGEST_MAX_LENGTH / 2))
+  }
+
+  private rollupContext(taskId: string, snapshot: TaskContextSnapshot, sourceThreadId: string | null, sourceTurnId: string | null, timestamp: number) {
+    const parentTaskId = this.parentTaskId(taskId)
+    if (!parentTaskId) return null
+    const sourceId = `context:${taskId}:${snapshot.contextRevision}`
+    const known = this.db.sqlite.query("SELECT id FROM task_context_evidence WHERE task_id = ? AND source_kind = 'task' AND source_id = ?").get(parentTaskId, sourceId)
+    if (known) return null
+    const child = this.db.sqlite.query("SELECT project_id, number, title FROM taskboard_tasks WHERE id = ?").get(taskId) as { project_id: string; number: number; title: string }
+    const state = this.ensureState(parentTaskId)
+    const summary = this.safeEvidenceSummary(child.project_id, `子任务 #${child.number} ${child.title} 已发布上下文版本 ${snapshot.contextRevision}。\n${snapshot.digest}`)
+    if (!summary) return null
+    const revision = state.evidence_revision + 1
+    this.db.sqlite.query("INSERT INTO task_context_evidence (id, task_id, revision, source_kind, source_id, source_thread_id, source_turn_id, verified, summary, created_at) VALUES (?, ?, ?, 'task', ?, ?, ?, 1, ?, ?)").run(crypto.randomUUID(), parentTaskId, revision, sourceId, sourceThreadId, sourceTurnId, summary, timestamp)
+    this.db.sqlite.query("UPDATE task_context_state SET evidence_revision = ?, updated_at = ? WHERE task_id = ?").run(revision, timestamp, parentTaskId)
+    const parentSnapshot = this.snapshot(parentTaskId)
+    return { snapshot: parentSnapshot, event: this.changedEvent(parentTaskId, parentSnapshot, timestamp) }
   }
 
   private ensureState(taskId: string): StateRow {

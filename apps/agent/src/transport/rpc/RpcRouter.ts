@@ -66,6 +66,7 @@ import type { SpeechTranscriptionService } from "../../speech/SpeechTranscriptio
 import type { ThreadExecutionPreparationService } from "../../worktree/ThreadExecutionPreparationService"
 import type { TaskboardService } from "../../taskboard/TaskboardService"
 import type { TaskboardStartService } from "../../taskboard/TaskboardStartService"
+import type { TaskboardPlanningService } from "../../taskboard/TaskboardPlanningService"
 import type { TaskContextService } from "../../task-context/TaskContextService"
 import type { TaskContextSummaryService } from "../../task-context/TaskContextSummaryService"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
@@ -166,6 +167,7 @@ export type RpcRouterDependencies = {
   speech: SpeechTranscriptionService
   threadExecutions: ThreadExecutionPreparationService
   taskboard: TaskboardService
+  taskboardPlanning: TaskboardPlanningService
   taskboardStart: TaskboardStartService
   taskContext: TaskContextService
   taskContextSummary: TaskContextSummaryService
@@ -812,6 +814,19 @@ const safeErrorDetails = (
   code: ApplicationErrorCode,
   value: unknown,
 ): JsonValue | undefined => {
+  if (code === "TASKBOARD_PLAN_CONDITION_UNMET") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+    const prerequisites = (value as { prerequisites?: unknown }).prerequisites
+    if (!Array.isArray(prerequisites) || prerequisites.length > 100) return undefined
+    const safe = prerequisites.flatMap(entry => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return []
+      const { id, title } = entry as Record<string, unknown>
+      return typeof id === "string" && id.length <= 100 && typeof title === "string" && title.length <= 200
+        ? [{ id, title }]
+        : []
+    })
+    return safe.length === prerequisites.length ? { prerequisites: safe } : undefined
+  }
   if (code === "REVIEW_SNAPSHOT_EXPIRED") {
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
     const details = value as Record<string, unknown>

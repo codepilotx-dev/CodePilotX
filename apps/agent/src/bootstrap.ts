@@ -106,6 +106,7 @@ import { ManagedWorktreeService } from "./worktree/ManagedWorktreeService";
 import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPreparationService";
 import { TaskboardService } from "./taskboard/TaskboardService";
 import { TaskboardStartService } from "./taskboard/TaskboardStartService";
+import { TaskboardPlanningService } from "./taskboard/TaskboardPlanningService";
 import { createTaskboardDefinitions } from "./tool/Taskboard/definitions";
 import { TaskContextService } from "./task-context/TaskContextService";
 import { createTaskContextDefinitions } from "./tool/TaskContext/definitions";
@@ -230,7 +231,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     }));
     const hub = yield* EventHub.make;
     const taskContext = new TaskContextService(db, hub);
-    const taskboard = new TaskboardService(db, hub, db.repositories.taskboard, taskContext);
+    const taskboard = new TaskboardService(db, hub, db.repositories.taskboard, taskContext, Date.now, db.repositories.planning);
+    const taskboardPlanning = new TaskboardPlanningService(db, hub, db.repositories.planning);
     const speech = new SpeechTranscriptionService(config.storage.speechRoot, async (status) => {
       await publishAgentEvent(db, hub, null, null, "speech/statusChanged", { status });
     });
@@ -489,7 +491,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     });
     const tools = new ToolRegistry();
     tools.register(createTerminalReadDefinition(terminalOutput));
-    for (const definition of createTaskboardDefinitions(taskboard)) tools.register(definition);
+    for (const definition of createTaskboardDefinitions(taskboard, taskboardPlanning)) tools.register(definition);
     for (const definition of createTaskContextDefinitions(taskContext)) tools.register(definition);
     tools.register(createThreadReadDefinition(new ThreadReadViewRepository(db)));
     const mcpConfigs = new McpConfigService(
@@ -791,6 +793,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threads,
       worktrees,
       threadExecutions,
+      Date.now,
+      db.repositories.planning,
     );
     const handoffOperations = new HandoffRepository(db);
     const handoff = new HandoffService(
@@ -904,6 +908,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       speech,
       threadExecutions,
       taskboard,
+      taskboardPlanning,
       taskboardStart,
       taskContext,
       taskContextSummary,

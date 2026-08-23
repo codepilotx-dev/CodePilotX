@@ -182,7 +182,7 @@ describe("TaskboardService", () => {
     db.close()
   })
 
-  test("从历史会话创建任务时默认进入等你确认", async () => {
+  test("从历史会话创建长期任务时默认进入待立项", async () => {
     const { db, project, service } = await fixture()
     const thread = db.createThread({ title: "历史交付", workspace: { kind: "project", projectID: project.id } })
     const created = await service.createWorkflow({
@@ -191,7 +191,7 @@ describe("TaskboardService", () => {
       title: "整理历史交付",
       threadLinks: [{ threadId: thread.id, role: "primary" }],
     })
-    expect(created.task.status).toBe("in_review")
+    expect(created.task.status).toBe("backlog")
     expect(created.threads).toEqual([expect.objectContaining({ threadId: thread.id, role: "primary" })])
     db.close()
   })

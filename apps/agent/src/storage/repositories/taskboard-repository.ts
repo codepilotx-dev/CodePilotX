@@ -1206,13 +1206,6 @@ export class TaskboardRepositoryDatabase extends ReviewRepositoryDatabase {
       FROM threads t
       WHERE t.project_id = ? AND t.kind = 'main' AND t.archived_at IS NULL ${queryClause}
         AND NOT EXISTS (SELECT 1 FROM taskboard_task_threads l WHERE l.thread_id = t.id)
-        AND NOT EXISTS (SELECT 1 FROM turns active WHERE active.thread_id = t.id AND active.status IN ('queued','running','waiting_permission','waiting_question','waiting_subagents'))
-        AND NOT EXISTS (
-          SELECT 1 FROM turns plan_turn
-          WHERE plan_turn.thread_id = t.id AND plan_turn.status = 'completed'
-            AND plan_turn.id = (SELECT u.id FROM turns u WHERE u.thread_id = t.id ORDER BY u.created_at DESC, u.id DESC LIMIT 1)
-            AND EXISTS (SELECT 1 FROM items plan_item WHERE plan_item.turn_id = plan_turn.id AND plan_item.type = 'plan' AND plan_item.status NOT IN ('pending','running','interrupted'))
-        )
       ORDER BY t.updated_at DESC, t.id DESC LIMIT ? OFFSET ?
     `).all(...args, limit + 1, offset) as Array<{ id: string; project_id: string; title: string; updated_at: number; latest_turn_status: string | null }>
     return {
@@ -1230,8 +1223,6 @@ export class TaskboardRepositoryDatabase extends ReviewRepositoryDatabase {
     else if (thread.archived_at !== null) reason = "archived"
     else if (thread.kind !== "main") reason = "not_main"
     else if (input.projectId !== undefined && thread.project_id !== input.projectId) reason = "project_mismatch"
-    else if (this.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status IN ('queued','running','waiting_permission','waiting_question','waiting_subagents') LIMIT 1").get(input.threadId)) reason = "active"
-    else if (this.sqlite.query(`SELECT 1 FROM turns plan_turn WHERE plan_turn.thread_id = ? AND plan_turn.status = 'completed' AND plan_turn.id = (SELECT u.id FROM turns u WHERE u.thread_id = ? ORDER BY u.created_at DESC, u.id DESC LIMIT 1) AND EXISTS (SELECT 1 FROM items plan_item WHERE plan_item.turn_id = plan_turn.id AND plan_item.type = 'plan' AND plan_item.status NOT IN ('pending','running','interrupted')) LIMIT 1`).get(input.threadId, input.threadId)) reason = "pending_plan"
     return { threadId: input.threadId, taskId: linked?.task_id ?? null, eligible: reason === null, ineligibleReason: reason }
   }
 

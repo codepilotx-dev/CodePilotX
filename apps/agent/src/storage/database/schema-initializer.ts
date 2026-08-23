@@ -21,6 +21,19 @@ const TASK_CONTEXT_SCHEMA = [
   "CREATE INDEX task_context_promotion_jobs_status ON task_context_promotion_jobs(status, created_at)",
 ] as const
 
+const TASKBOARD_PLANNING_SCHEMA = [
+  "CREATE TABLE taskboard_plan_items (id TEXT PRIMARY KEY, parent_task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE, item_type TEXT NOT NULL CHECK(item_type IN ('step','task')), child_task_id TEXT UNIQUE REFERENCES taskboard_tasks(id) ON DELETE RESTRICT, step_title TEXT, step_description TEXT, step_status TEXT CHECK(step_status IN ('todo','done','skipped','promoted')), skip_reason TEXT, position REAL NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1), ready_notified_at INTEGER, ready_read_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE taskboard_plan_dependencies (dependent_item_id TEXT NOT NULL REFERENCES taskboard_plan_items(id) ON DELETE CASCADE, prerequisite_item_id TEXT NOT NULL REFERENCES taskboard_plan_items(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, PRIMARY KEY(dependent_item_id, prerequisite_item_id))",
+  "CREATE TABLE taskboard_blockers (id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES taskboard_tasks(id) ON DELETE CASCADE, plan_item_id TEXT REFERENCES taskboard_plan_items(id) ON DELETE CASCADE, reason TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('open','resolved')), source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, source_turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL, resolution TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1), created_at INTEGER NOT NULL, resolved_at INTEGER, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE taskboard_archive_batches (id TEXT PRIMARY KEY, root_task_id TEXT NOT NULL, include_linked_threads INTEGER NOT NULL CHECK(include_linked_threads IN (0,1)), created_at INTEGER NOT NULL, restored_at INTEGER)",
+  "CREATE TABLE taskboard_archive_batch_tasks (batch_id TEXT NOT NULL REFERENCES taskboard_archive_batches(id) ON DELETE CASCADE, task_id TEXT NOT NULL, PRIMARY KEY(batch_id, task_id))",
+  "CREATE INDEX taskboard_plan_items_parent_position ON taskboard_plan_items(parent_task_id, position, id)",
+  "CREATE INDEX taskboard_plan_dependencies_prerequisite ON taskboard_plan_dependencies(prerequisite_item_id, dependent_item_id)",
+  "CREATE INDEX taskboard_blockers_task_status ON taskboard_blockers(task_id, status, created_at, id)",
+  "CREATE INDEX taskboard_archive_batches_root ON taskboard_archive_batches(root_task_id, restored_at, created_at DESC)",
+  "CREATE INDEX taskboard_archive_batch_tasks_task ON taskboard_archive_batch_tasks(task_id, batch_id)",
+] as const
+
 export const FINAL_SCHEMA = [
   "CREATE TABLE agent_checkpoints (\n        agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        state TEXT NOT NULL,\n        payload TEXT NOT NULL,\n        version INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE agent_compactions (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          baseline_version INTEGER NOT NULL,\n          before_count INTEGER NOT NULL,\n          after_count INTEGER NOT NULL,\n          summary TEXT NOT NULL,\n          replacement_history TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        , before_tokens INTEGER NOT NULL DEFAULT 0, after_tokens INTEGER NOT NULL DEFAULT 0, target_tokens INTEGER NOT NULL DEFAULT 0, usage_sample_id TEXT)",
@@ -98,6 +111,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE taskboard_task_workflows (\n          task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          status TEXT NOT NULL CHECK(status IN ('backlog','todo','in_progress','in_review','blocked','done','canceled')),\n          position REAL NOT NULL,\n          start_date TEXT CHECK(start_date IS NULL OR start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),\n          due_date TEXT CHECK(due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE taskboard_task_attention (\n          task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          unread INTEGER NOT NULL DEFAULT 0 CHECK(unread IN (0,1)),\n          unread_at INTEGER,\n          read_at INTEGER,\n          reason TEXT CHECK(reason IS NULL OR reason IN ('review_requested','blocked','agent_comment','execution_attention')),\n          updated_at INTEGER NOT NULL\n        )",
   ...TASK_CONTEXT_SCHEMA,
+  ...TASKBOARD_PLANNING_SCHEMA,
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -1051,6 +1065,10 @@ const migrateHistory37To38 = (sqlite: Database) => sqlite.exec(TASK_CONTEXT_SCHE
   .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
   .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")).join(";\n"))
 
+const migrateHistory38To39 = (sqlite: Database) => sqlite.exec(TASKBOARD_PLANNING_SCHEMA.map(statement => statement
+  .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
+  .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")).join(";\n"))
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1261,6 +1279,7 @@ class SchemaInitializer {
           35: () => migrateHistory35To36(this.sqlite),
           36: () => migrateHistory36To37(this.sqlite),
           37: () => migrateHistory37To38(this.sqlite),
+          38: () => migrateHistory38To39(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

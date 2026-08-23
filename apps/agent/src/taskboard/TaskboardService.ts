@@ -20,6 +20,7 @@ import { AgentError, type EventEnvelope } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
 import type { TaskboardRepository } from "../storage/repositories/taskboard-repository"
+import type { TaskboardPlanningRepository } from "../storage/repositories/taskboard-planning-repository"
 import type { TaskContextService } from "../task-context/TaskContextService"
 
 export const TASKBOARD_EXECUTION_TOOLS = [
@@ -52,6 +53,7 @@ export class TaskboardService {
     private readonly repository: TaskboardRepository,
     private readonly taskContext?: TaskContextService,
     private readonly now: () => number = Date.now,
+    private readonly planning?: TaskboardPlanningRepository,
   ) {}
 
   primaryExecutionContext(threadId: string) {
@@ -87,6 +89,7 @@ export class TaskboardService {
     resource: ChangedResource
     action: ChangedAction
     workflow?: { resource: "workflow" | "attention" | "thread"; action: "created" | "updated" | "deleted" }
+    planningStatusChanged?: boolean
     mutate: (timestamp: number) => T
   }): Promise<T> {
     const requestHash = digest(input.request)
@@ -111,12 +114,16 @@ export class TaskboardService {
       const workflowEvent = input.workflow && input.taskId
         ? this.repository.insertTaskboardWorkflowChanged({ projectId: input.projectId, taskId: input.taskId, ...input.workflow, changedAt: timestamp })
         : null
+      const planningEvent = input.planningStatusChanged && input.taskId
+        ? this.planning?.refreshAfterTaskStatus(input.taskId, timestamp) ?? null
+        : null
       this.repository.completeTaskboardOperation(input.operationId, value, timestamp)
-      return { value, event, workflowEvent, replay: false }
+      return { value, event, workflowEvent, planningEvent, replay: false }
     })
     if (!committed.replay) {
       await Effect.runPromise(this.hub.publish(committed.event!))
       if (committed.workflowEvent) await Effect.runPromise(this.hub.publish(committed.workflowEvent))
+      if (committed.planningEvent) await Effect.runPromise(this.hub.publish(committed.planningEvent))
     }
     return committed.value
   }
@@ -161,7 +168,7 @@ export class TaskboardService {
     const taskId = randomUUID()
     const request = {
       ...input,
-      status: input.status ?? (input.threadLinks?.length ? "in_review" as const : "backlog" as const),
+      status: input.status ?? "backlog" as const,
       title: this.title(input.title),
       description: this.description(input.description),
       labelIds: this.labelIds(input.labelIds) ?? [],
@@ -200,7 +207,7 @@ export class TaskboardService {
     const current = this.readWorkflow(input.taskId)
     this.project(current.task.projectId)
     if (input.status === "blocked" && input.note === undefined) throw new AgentError("INVALID_REQUEST", "移动到阻塞状态必须填写说明", 400)
-    const task = await this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/move", request: input, resource: "task", action: "updated", workflow: { resource: "workflow", action: "updated" }, mutate: (timestamp) => {
+    const task = await this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/move", request: input, resource: "task", action: "updated", workflow: { resource: "workflow", action: "updated" }, planningStatusChanged: true, mutate: (timestamp) => {
       const task = this.repository.moveWorkflowTask({ ...input, ...(input.note === undefined ? {} : { note: this.comment(input.note) }), updatedAt: timestamp })
       this.repository.recordActivity({
         taskId: input.taskId,
@@ -227,16 +234,31 @@ export class TaskboardService {
       throw new AgentError("INVALID_REQUEST", "该状态转换必须填写说明", 400)
     }
     const transition = this.workflowTransition(current.task.status, input.action)
-    const task = await this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/transition", request: input, resource: "task", action: "updated", workflow: { resource: "workflow", action: "updated" }, mutate: (timestamp) => this.repository.transitionWorkflowTask({
-      taskId: input.taskId, expectedVersion: input.expectedVersion, status: transition.status,
-      workflowAction: input.action,
-      actor: input.actor.kind,
-      attentionReason: transition.reason,
-      ...(input.note === undefined ? {} : { note: this.comment(input.note) }),
-      ...(input.actor.sourceThreadId === null ? {} : { sourceThreadId: input.actor.sourceThreadId }),
-      updatedAt: timestamp,
-    }) })
-    if (input.action === "accept" || input.action === "cancel") await this.freezeContext(input.taskId, input.action === "accept")
+    const task = await this.operation({ operationId: input.operationId, projectId: current.task.projectId, taskId: input.taskId, method: "taskboard/workflow/transition", request: input, resource: "task", action: "updated", workflow: { resource: "workflow", action: "updated" }, planningStatusChanged: true, mutate: (timestamp) => {
+      const task = this.repository.transitionWorkflowTask({
+        taskId: input.taskId, expectedVersion: input.expectedVersion, status: transition.status,
+        workflowAction: input.action,
+        actor: input.actor.kind,
+        attentionReason: transition.reason,
+        ...(input.note === undefined ? {} : { note: this.comment(input.note) }),
+        ...(input.actor.sourceThreadId === null ? {} : { sourceThreadId: input.actor.sourceThreadId }),
+        updatedAt: timestamp,
+      })
+      if (input.action === "report_blocked" && input.note !== undefined) {
+        this.planning?.createBlocker({
+          taskId: input.taskId,
+          reason: this.comment(input.note),
+          sourceThreadId: input.actor.sourceThreadId,
+          timestamp,
+        })
+      }
+      return task
+    } })
+    if (input.action === "accept") {
+      const rollup = this.taskContext?.rollupTaskCompletion(input.taskId, input.actor.sourceThreadId)
+      if (rollup) await this.taskContext?.broadcast(rollup.event)
+      await this.freezeContext(input.taskId, true)
+    } else if (input.action === "cancel") await this.freezeContext(input.taskId, false)
     else if (input.action === "return_work") await this.unfreezeContext(input.taskId)
     return task
   }
@@ -507,6 +529,35 @@ export class TaskboardService {
     const projectId = this.db.threadProjectID(input.threadId)
     if (!projectId) throw new AgentError("PROJECT_NOT_FOUND", "当前执行对话未绑定项目", 404)
     return this.create({ ...input, projectId, status: "backlog", actor: { kind: "agent", sourceThreadId: input.threadId } }).then((task) => ({ task }))
+  }
+
+  agentCurrentTaskId(threadId: string) {
+    return this.taskForThread(threadId).task.id
+  }
+
+  async agentLinkCurrent(input: { threadId: string; operationId: string; taskId: string; expectedVersion: number }) {
+    const target = this.readWorkflow(input.taskId)
+    this.assertThreadProject(input.threadId, target.task.projectId)
+    const lookup = this.repository.findWorkflowByThread({ threadId: input.threadId, projectId: target.task.projectId })
+    if (lookup.taskId && lookup.taskId !== input.taskId) {
+      throw new AgentError("TASKBOARD_THREAD_ALREADY_LINKED", "当前会话已经关联其他任务", 409)
+    }
+    const task = lookup.taskId === input.taskId
+      ? target
+      : await this.linkWorkflowThreads({
+          operationId: input.operationId,
+          taskId: input.taskId,
+          expectedVersion: input.expectedVersion,
+          links: [
+            ...target.threads.map(({ threadId, role }) => ({ threadId, role })),
+            {
+              threadId: input.threadId,
+              role: target.threads.some(({ role }) => role === "primary") ? "supporting" as const : "primary" as const,
+            },
+          ],
+        })
+    const context = this.taskContext?.readForThread(input.threadId, { includeAncestors: true, includeEvidence: true }) ?? null
+    return { task, context }
   }
 
   async agentUpdate(input: { threadId: string; operationId: string; taskId?: string; expectedVersion: number; title?: string; description?: string; priority?: TaskboardPriority; labelIds?: readonly string[] }) {

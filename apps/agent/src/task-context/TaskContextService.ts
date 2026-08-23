@@ -15,6 +15,7 @@ export class TaskContextService {
   broadcast(...args: Parameters<TaskContextRepository["broadcast"]>) { return this.repository.broadcast(...args) }
   captureEvidence(...args: Parameters<TaskContextRepository["captureEvidence"]>) { return this.repository.captureEvidence(...args) }
   captureAndBroadcast(...args: Parameters<TaskContextRepository["captureAndBroadcast"]>) { return this.repository.captureAndBroadcast(...args) }
+  rollupTaskCompletion(...args: Parameters<TaskContextRepository["rollupTaskCompletion"]>) { return this.repository.rollupTaskCompletion(...args) }
   backfillThread(...args: Parameters<TaskContextRepository["backfillThread"]>) { return this.repository.backfillThread(...args) }
   setFrozen(...args: Parameters<TaskContextRepository["setFrozen"]>) { return this.repository.setFrozen(...args) }
   createProposal(...args: Parameters<TaskContextRepository["createProposal"]>) { return this.repository.createProposal(...args) }

@@ -188,7 +188,7 @@ describe("TaskboardRepository", () => {
     db.close()
   })
 
-  test("历史会话候选拒绝运行中会话，任务与多会话绑定失败时整体回滚", async () => {
+  test("显式会话关联允许运行中会话，任务与多会话绑定失败时整体回滚", async () => {
     const { db, project } = await fixture()
     const eligible = db.createThread({ title: "已结束会话", workspace: { kind: "project", projectID: project.id } })
     const active = db.createThread({ title: "运行中会话", workspace: { kind: "project", projectID: project.id } })
@@ -198,18 +198,33 @@ describe("TaskboardRepository", () => {
     `).run("turn:active-candidate", active.id)
 
     expect(db.findWorkflowByThread({ threadId: eligible.id, projectId: project.id })).toMatchObject({ eligible: true, ineligibleReason: null })
-    expect(db.findWorkflowByThread({ threadId: active.id, projectId: project.id })).toMatchObject({ eligible: false, ineligibleReason: "active" })
-    expect(() => db.createWorkflowTask({
+    expect(db.findWorkflowByThread({ threadId: active.id, projectId: project.id })).toMatchObject({ eligible: true, ineligibleReason: null })
+    const created = db.createWorkflowTask({
       projectId: project.id,
-      title: "不得部分创建",
+      title: "运行中关联",
       status: "in_review",
       threadLinks: [
         { threadId: eligible.id, role: "primary" },
         { threadId: active.id, role: "supporting" },
       ],
-    })).toThrow("结束后")
-    expect(db.listWorkflowTasks({ projectId: project.id }).tasks).toHaveLength(0)
-    expect(db.taskLinkForThread(eligible.id)).toBeNull()
+    })
+    expect(created.threads.map(thread => [thread.threadId, thread.role])).toEqual([
+      [eligible.id, "primary"],
+      [active.id, "supporting"],
+    ])
+
+    const unlinked = db.createThread({ title: "待回滚会话", workspace: { kind: "project", projectID: project.id } })
+    expect(() => db.createWorkflowTask({
+      projectId: project.id,
+      title: "不得部分创建",
+      status: "in_review",
+      threadLinks: [
+        { threadId: unlinked.id, role: "primary" },
+        { threadId: active.id, role: "supporting" },
+      ],
+    })).toThrow("其他任务")
+    expect(db.listWorkflowTasks({ projectId: project.id }).tasks).toHaveLength(1)
+    expect(db.taskLinkForThread(unlinked.id)).toBeNull()
     db.close()
   })
 

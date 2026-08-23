@@ -31,12 +31,12 @@ export const createTaskContextDefinitions = (service: TaskContextService): reado
     ...common,
     sdkName: "task_context_read",
     name: "task_context.read",
-    description: "按需读取当前任务的共享上下文条目和待处理证据。任务由受信任的当前会话解析，不能指定其他 taskId。",
-    schema: z.object({ sections: z.array(sections).max(7).optional(), includeEvidence: z.boolean().optional(), includeUnverified: z.boolean().optional(), limit: z.number().int().min(1).max(200).optional(), offset: z.number().int().nonnegative().optional() }).strict(),
+    description: "按需读取当前任务的共享上下文条目和待处理证据；需要延续长期任务决策时可包含祖先任务。任务由受信任的当前会话解析，不能指定其他 taskId。",
+    schema: z.object({ sections: z.array(sections).max(7).optional(), includeEvidence: z.boolean().optional(), includeUnverified: z.boolean().optional(), includeAncestors: z.boolean().optional(), limit: z.number().int().min(1).max(200).optional(), offset: z.number().int().nonnegative().optional() }).strict(),
     capabilities: { filesystem: "none", network: "none", process: false, externalState: false, userInteraction: false },
     allowedModes: ["chat", "plan"],
     visibility: "eager",
-    inputSchema: { type: "object", properties: { sections: { type: "array", maxItems: 7, items: { type: "string", enum: sections.options } }, includeEvidence: { type: "boolean" }, includeUnverified: { type: "boolean" }, limit: { type: "integer", minimum: 1, maximum: 200 }, offset: { type: "integer", minimum: 0 } }, additionalProperties: false },
+    inputSchema: { type: "object", properties: { sections: { type: "array", maxItems: 7, items: { type: "string", enum: sections.options } }, includeEvidence: { type: "boolean" }, includeUnverified: { type: "boolean" }, includeAncestors: { type: "boolean" }, limit: { type: "integer", minimum: 1, maximum: 200 }, offset: { type: "integer", minimum: 0 } }, additionalProperties: false },
     execute: (input, context) => Promise.resolve(service.readForThread(invocation(context).threadID, input)),
   },
   {
@@ -55,6 +55,7 @@ export const createTaskContextDefinitions = (service: TaskContextService): reado
       if (!owner) throw new AgentError("TASKBOARD_CONTEXT_REQUIRED", "当前会话未关联任务上下文", 403)
       const result = service.publish({ taskId: owner.taskId, expectedContextRevision: input.expectedContextRevision, changes: input.changes, sourceKind: "agent", sourceThreadId: trusted.threadID, sourceTurnId: trusted.turnID })
       await service.broadcast(result.event)
+      if (result.rollupEvent) await service.broadcast(result.rollupEvent)
       return result.snapshot
     },
   },

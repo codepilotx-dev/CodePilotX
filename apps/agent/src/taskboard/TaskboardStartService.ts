@@ -7,6 +7,7 @@ import type { ThreadService } from "../session/ThreadService"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
 import type { TaskboardRepository } from "../storage/repositories/taskboard-repository"
+import type { TaskboardPlanningRepository } from "../storage/repositories/taskboard-planning-repository"
 import type { ManagedWorktreeService } from "../worktree/ManagedWorktreeService"
 import type { ThreadExecutionPreparationService } from "../worktree/ThreadExecutionPreparationService"
 import { taskboardExecutionInstruction } from "./TaskboardService"
@@ -22,9 +23,11 @@ export class TaskboardStartService {
     private readonly worktrees: ManagedWorktreeService,
     private readonly threadExecutions: ThreadExecutionPreparationService,
     private readonly now: () => number = Date.now,
+    private readonly planning?: TaskboardPlanningRepository,
   ) {}
 
   async start(input: { taskId: string; execution: TaskboardStartExecution; operationId: string }, requestIdentity?: unknown) {
+    this.planning?.assertTaskReady(input.taskId)
     const task = this.requireTask(input.taskId)
     this.requireProject(task.task.projectId)
     const active = this.repository.activeTaskboardStartOperation(input.taskId)
@@ -60,6 +63,7 @@ export class TaskboardStartService {
   }
 
   async startWorkflow(input: { taskId: string; execution: TaskboardStartExecution; operationId: string; expectedVersion: number; mode: TaskboardWorkflowStartMode; authorizeBacklog?: boolean }) {
+    this.planning?.assertTaskReady(input.taskId)
     const workflowRequest = {
       taskId: input.taskId,
       execution: input.execution,
@@ -117,6 +121,7 @@ export class TaskboardStartService {
   }
 
   private async continueStart(operation: TaskboardStartOperation): Promise<TaskboardStartOperation> {
+    this.planning?.assertTaskReady(operation.taskId)
     const task = this.requireTask(operation.taskId)
     this.requireProject(task.task.projectId)
     const primary = task.threads.find((link) => link.role === "primary")
@@ -166,6 +171,7 @@ export class TaskboardStartService {
             // project never acquires a new execution conversation.
             this.requireTask(operation.taskId)
             this.requireProject(operation.projectId)
+            this.planning?.assertTaskReady(operation.taskId)
             prepared.bind(threadId)
             this.repository.linkPrimaryThread({ taskId: operation.taskId, threadId, linkedAt: this.now() })
             this.repository.recordActivity({ taskId: operation.taskId, kind: "execution_started", actor: "user", data: { threadId }, createdAt: this.now() })

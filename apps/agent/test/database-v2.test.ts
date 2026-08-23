@@ -163,7 +163,7 @@ describe("数据库兼容与迁移", () => {
     expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(reopened.sqlite.query("SELECT title FROM threads WHERE id = ?").get(thread.id)).toEqual({ title: "v30 taskboard migration" })
     const tables = new Set((reopened.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'taskboard_%'").all() as Array<{ name: string }>).map(({ name }) => name))
-    expect(tables.size).toBe(11)
+    expect(tables.size).toBe(16)
     expect(tables.has("taskboard_tasks")).toBe(true)
     expect(tables.has("taskboard_start_operations")).toBe(true)
     expect(tables.has("taskboard_task_workflows")).toBe(true)
@@ -982,7 +982,7 @@ describe("数据库兼容与迁移", () => {
     migrated.close()
   })
 
-  test("schema 37 前向迁移到 38 只新增任务上下文表并保留未知对象", async () => {
+  test("schema 37 顺序迁移到当前版本并新增任务上下文表且保留未知对象", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v37-to-v38-"))
     paths.push(root)
     const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
@@ -993,11 +993,40 @@ describe("数据库兼容与迁移", () => {
     legacy.close()
 
     const migrated = new AgentDatabase(databasePaths)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 38 })
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect((migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'task_context_%'").all() as Array<{ name: string }>).map(row => row.name).sort()).toEqual([
       "task_context_ai_proposals", "task_context_entries", "task_context_evidence", "task_context_memory_promotions", "task_context_operations", "task_context_promotion_jobs", "task_context_state",
     ])
     expect(migrated.sqlite.query("SELECT * FROM future_extension").get()).toEqual({ id: "kept", value: "unknown" })
+    migrated.close()
+  })
+
+  test("schema 38 前向迁移到 39 只新增任务规划表并保留未知对象", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v38-to-v39-"))
+    paths.push(root)
+    const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
+    new AgentDatabase(databasePaths).close()
+    const legacy = new Database(databasePaths.historyPath)
+    for (const table of [
+      "taskboard_archive_batch_tasks",
+      "taskboard_archive_batches",
+      "taskboard_blockers",
+      "taskboard_plan_dependencies",
+      "taskboard_plan_items",
+    ]) legacy.exec(`DROP TABLE ${table}`)
+    legacy.exec("CREATE TABLE future_planning_extension (id TEXT PRIMARY KEY, value TEXT); INSERT INTO future_planning_extension VALUES ('kept', 'unknown'); PRAGMA user_version = 38;")
+    legacy.close()
+
+    const migrated = new AgentDatabase(databasePaths)
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 39 })
+    expect((migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('taskboard_plan_items','taskboard_plan_dependencies','taskboard_blockers','taskboard_archive_batches','taskboard_archive_batch_tasks')").all() as Array<{ name: string }>).map(row => row.name).sort()).toEqual([
+      "taskboard_archive_batch_tasks",
+      "taskboard_archive_batches",
+      "taskboard_blockers",
+      "taskboard_plan_dependencies",
+      "taskboard_plan_items",
+    ])
+    expect(migrated.sqlite.query("SELECT * FROM future_planning_extension").get()).toEqual({ id: "kept", value: "unknown" })
     migrated.close()
   })
 

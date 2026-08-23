@@ -16,6 +16,7 @@ export const taskboardHandlers = {
     if (!(method in TaskboardRpcMethods)) return undefined
     const params = decode(method as keyof typeof TaskboardRpcMethods, rawParams)
     const service = runtime.dependencies.taskboard
+    const planning = runtime.dependencies.taskboardPlanning
     const contextService = runtime.dependencies.taskContext
     const actor = { kind: "user" as const, sourceThreadId: null }
     switch (method) {
@@ -23,12 +24,14 @@ export const taskboardHandlers = {
       case "taskboard/context/update": {
         const result = contextService.publish({ ...params, sourceKind: "user" })
         await contextService.broadcast(result.event)
+        if (result.rollupEvent) await contextService.broadcast(result.rollupEvent)
         return { snapshot: result.snapshot }
       }
       case "taskboard/context/ai-preview": return { proposal: await runtime.dependencies.taskContextSummary.preview(params.taskId) }
       case "taskboard/context/ai-apply": {
         const result = contextService.applyProposal(params.proposalId)
         await contextService.broadcast(result.event)
+        if (result.rollupEvent) await contextService.broadcast(result.rollupEvent)
         return { proposal: result.proposal, snapshot: result.snapshot }
       }
       case "taskboard/context/ai-discard": return { proposal: contextService.discardProposal(params.proposalId) }
@@ -66,6 +69,20 @@ export const taskboardHandlers = {
       case "taskboard/workflow/find-by-thread": return service.findWorkflowByThread(params)
       case "taskboard/workflow/link-threads": return { task: await service.linkWorkflowThreads(params) }
       case "taskboard/workflow/start": return { operation: await runtime.dependencies.taskboardStart.startWorkflow(params) }
+      case "taskboard/planning/roots": return planning.roots(params)
+      case "taskboard/planning/read": return planning.read(params.taskId)
+      case "taskboard/planning/apply": return planning.apply(params)
+      case "taskboard/planning/step/update": return planning.updateStep(params)
+      case "taskboard/planning/step/promote": return planning.promoteStep(params)
+      case "taskboard/planning/item/reorder": return planning.reorder(params)
+      case "taskboard/planning/child/reparent": return planning.reparent(params)
+      case "taskboard/planning/dependencies/set": return planning.setDependencies(params)
+      case "taskboard/planning/blocker/create": return planning.createBlocker(params)
+      case "taskboard/planning/blocker/resolve": return planning.resolveBlocker(params)
+      case "taskboard/planning/attention/mark-read": return planning.markRead(params)
+      case "taskboard/planning/archive-tree": return planning.archiveTree(params)
+      case "taskboard/planning/restore-tree": return planning.restoreTree(params)
+      case "taskboard/planning/delete-tree": return planning.deleteTree(params)
       default: return undefined
     }
   },

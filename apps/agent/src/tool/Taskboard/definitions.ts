@@ -7,6 +7,7 @@ import {
 } from "@codepilotx/shared/taskboard"
 import { AgentError } from "../../domain"
 import type { TaskboardService } from "../../taskboard/TaskboardService"
+import type { TaskboardPlanningService } from "../../taskboard/TaskboardPlanningService"
 import type { ToolContext, ToolDefinition } from "../ToolRegistry"
 
 const taskId = z.string().uuid().optional()
@@ -71,9 +72,65 @@ const transitionSchema = z.object({
   note: z.string().trim().min(1).max(TASKBOARD_COMMENT_MAX_LENGTH),
 }).strict()
 
+const planReadSchema = z.object({ taskId }).strict()
+const planItemSchema = z.discriminatedUnion("kind", [
+  z.object({
+    clientId: z.string().trim().min(1),
+    kind: z.literal("step"),
+    title: z.string().trim().min(1).max(TASKBOARD_TITLE_MAX_LENGTH),
+    description: z.string().max(TASKBOARD_DESCRIPTION_MAX_LENGTH).optional(),
+    position: z.number().optional(),
+  }).strict(),
+  z.object({
+    clientId: z.string().trim().min(1),
+    kind: z.literal("task"),
+    title: z.string().trim().min(1).max(TASKBOARD_TITLE_MAX_LENGTH),
+    description: z.string().max(TASKBOARD_DESCRIPTION_MAX_LENGTH).optional(),
+    status: z.enum(["backlog", "todo", "in_progress", "blocked", "in_review", "done", "canceled"]).optional(),
+    priority: priority.optional(),
+    labelIds: labelIds.optional(),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    position: z.number().optional(),
+  }).strict(),
+])
+const planApplySchema = z.object({
+  parentTaskId: z.string().uuid().optional(),
+  expectedVersion,
+  items: z.array(planItemSchema),
+  dependencies: z.array(z.object({
+    dependentClientId: z.string().trim().min(1),
+    prerequisiteClientId: z.string().trim().min(1),
+  }).strict()).optional(),
+}).strict()
+const stepUpdateSchema = z.object({
+  itemId: z.string().uuid(),
+  expectedVersion,
+  title: z.string().trim().min(1).max(TASKBOARD_TITLE_MAX_LENGTH).optional(),
+  description: z.string().max(TASKBOARD_DESCRIPTION_MAX_LENGTH).optional(),
+  status: z.enum(["todo", "done", "skipped"]).optional(),
+  skipReason: z.string().trim().min(1).nullable().optional(),
+}).strict().refine(
+  ({ itemId: _itemId, expectedVersion: _version, ...patch }) => Object.values(patch).some((value) => value !== undefined),
+  "至少提供一个需要更新的字段",
+)
+const blockerCreateSchema = z.object({
+  taskId,
+  planItemId: z.string().uuid().nullable().optional(),
+  reason: z.string().trim().min(1).max(TASKBOARD_COMMENT_MAX_LENGTH),
+}).strict()
+const blockerResolveSchema = z.object({
+  blockerId: z.string().uuid(),
+  expectedVersion,
+  resolution: z.string().trim().min(1).max(TASKBOARD_COMMENT_MAX_LENGTH),
+}).strict()
+const linkCurrentSchema = z.object({ taskId: z.string().uuid(), expectedVersion }).strict()
+
 export const createTaskboardDefinitions = (
   service: TaskboardService,
-): readonly ToolDefinition<any, any>[] => [
+  planning?: TaskboardPlanningService,
+): readonly ToolDefinition<any, any>[] => {
+  const definitions: ToolDefinition<any, any>[] = [
   {
     ...base,
     sdkName: "taskboard_read",
@@ -174,4 +231,211 @@ export const createTaskboardDefinitions = (
     },
     execute: (input, context) => service.agentTransition({ ...identity(context), ...input }),
   },
-]
+  ]
+  if (!planning) return definitions
+  definitions.push(
+    {
+      ...base,
+      sdkName: "taskboard_plan_read",
+      name: "taskboard.plan.read",
+      schema: planReadSchema,
+      description: "读取当前关联任务或同项目指定任务的执行计划、父级路径、依赖、阻碍和聚合进度。规划前先调用以避免重复项。",
+      capabilities: capabilities(false),
+      allowedModes: ["chat", "plan"],
+      inputSchema: {
+        type: "object",
+        properties: { taskId: { type: "string", format: "uuid" } },
+        additionalProperties: false,
+      },
+      execute: async (input, context) => {
+        const trusted = identity(context)
+        const result = await service.agentRead({ threadId: trusted.threadId, taskId: input.taskId })
+        return planning.read(result.task.task.id)
+      },
+    },
+    {
+      ...base,
+      sdkName: "taskboard_plan_apply",
+      name: "taskboard.plan.apply",
+      schema: planApplySchema,
+      description: "经用户确认后，为当前关联任务原子创建一组轻量步骤、子任务和 allOf 依赖。整个批次要么全部成功，要么全部回滚。",
+      capabilities: capabilities(true),
+      allowedModes: ["chat"],
+      inputSchema: {
+        type: "object",
+        properties: {
+          parentTaskId: { type: "string", format: "uuid" },
+          expectedVersion: { type: "integer", minimum: 1 },
+          items: {
+            type: "array",
+            items: {
+              oneOf: [
+                {
+                  type: "object",
+                  properties: {
+                    clientId: { type: "string", minLength: 1 },
+                    kind: { const: "step" },
+                    title: { type: "string", minLength: 1, maxLength: TASKBOARD_TITLE_MAX_LENGTH },
+                    description: { type: "string", maxLength: TASKBOARD_DESCRIPTION_MAX_LENGTH },
+                    position: { type: "number" },
+                  },
+                  required: ["clientId", "kind", "title"],
+                  additionalProperties: false,
+                },
+                {
+                  type: "object",
+                  properties: {
+                    clientId: { type: "string", minLength: 1 },
+                    kind: { const: "task" },
+                    title: { type: "string", minLength: 1, maxLength: TASKBOARD_TITLE_MAX_LENGTH },
+                    description: { type: "string", maxLength: TASKBOARD_DESCRIPTION_MAX_LENGTH },
+                    status: { type: "string", enum: ["backlog", "todo", "in_progress", "blocked", "in_review", "done", "canceled"] },
+                    priority: { type: "string", enum: ["none", "urgent", "high", "medium", "low"] },
+                    labelIds: { type: "array", maxItems: TASKBOARD_LABELS_PER_TASK_MAX, items: { type: "string", format: "uuid" } },
+                    startDate: { type: ["string", "null"] },
+                    dueDate: { type: ["string", "null"] },
+                    position: { type: "number" },
+                  },
+                  required: ["clientId", "kind", "title"],
+                  additionalProperties: false,
+                },
+              ],
+            },
+          },
+          dependencies: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                dependentClientId: { type: "string", minLength: 1 },
+                prerequisiteClientId: { type: "string", minLength: 1 },
+              },
+              required: ["dependentClientId", "prerequisiteClientId"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["expectedVersion", "items"],
+        additionalProperties: false,
+      },
+      execute: (input, context) => {
+        const trusted = identity(context)
+        const currentTaskId = service.agentCurrentTaskId(trusted.threadId)
+        const parentTaskId = input.parentTaskId ?? currentTaskId
+        if (parentTaskId !== currentTaskId) throw new AgentError("PERMISSION_DENIED", "只能规划当前会话直接关联的任务", 403)
+        return planning.apply({ ...input, parentTaskId, operationId: trusted.operationId })
+      },
+    },
+    {
+      ...base,
+      sdkName: "taskboard_step_update",
+      name: "taskboard.step.update",
+      schema: stepUpdateSchema,
+      description: "更新当前关联任务中的轻量步骤；跳过步骤时必须提供 skipReason。",
+      capabilities: capabilities(true),
+      allowedModes: ["chat"],
+      inputSchema: {
+        type: "object",
+        properties: {
+          itemId: { type: "string", format: "uuid" },
+          expectedVersion: { type: "integer", minimum: 1 },
+          title: { type: "string" },
+          description: { type: "string" },
+          status: { type: "string", enum: ["todo", "done", "skipped"] },
+          skipReason: { type: ["string", "null"] },
+        },
+        required: ["itemId", "expectedVersion"],
+        additionalProperties: false,
+      },
+      execute: (input, context) => {
+        const trusted = identity(context)
+        const currentTaskId = service.agentCurrentTaskId(trusted.threadId)
+        if (planning.read(currentTaskId).snapshot.items.every(({ id }) => id !== input.itemId)) {
+          throw new AgentError("PERMISSION_DENIED", "只能更新当前关联任务的步骤", 403)
+        }
+        const { itemId, expectedVersion, ...patch } = input
+        return planning.updateStep({ operationId: trusted.operationId, itemId, expectedVersion, patch })
+      },
+    },
+    {
+      ...base,
+      sdkName: "taskboard_blocker_create",
+      name: "taskboard.blocker.create",
+      schema: blockerCreateSchema,
+      description: "为当前关联任务或其中的轻量步骤记录结构化阻碍，来源会话和 Turn 始终取可信 invocation。",
+      capabilities: capabilities(true),
+      allowedModes: ["chat"],
+      inputSchema: {
+        type: "object",
+        properties: {
+          taskId: { type: "string", format: "uuid" },
+          planItemId: { type: ["string", "null"], format: "uuid" },
+          reason: { type: "string", minLength: 1 },
+        },
+        required: ["reason"],
+        additionalProperties: false,
+      },
+      execute: (input, context) => {
+        const trusted = identity(context)
+        const currentTaskId = service.agentCurrentTaskId(trusted.threadId)
+        const targetTaskId = input.taskId ?? currentTaskId
+        if (targetTaskId !== currentTaskId) throw new AgentError("PERMISSION_DENIED", "只能为当前关联任务记录阻碍", 403)
+        return planning.createBlocker({
+          ...input,
+          taskId: targetTaskId,
+          operationId: trusted.operationId,
+          sourceThreadId: trusted.threadId,
+          sourceTurnId: trusted.turnId,
+        })
+      },
+    },
+    {
+      ...base,
+      sdkName: "taskboard_blocker_resolve",
+      name: "taskboard.blocker.resolve",
+      schema: blockerResolveSchema,
+      description: "解决当前关联任务的结构化阻碍，并记录非空解决说明。",
+      capabilities: capabilities(true),
+      allowedModes: ["chat"],
+      inputSchema: {
+        type: "object",
+        properties: {
+          blockerId: { type: "string", format: "uuid" },
+          expectedVersion: { type: "integer", minimum: 1 },
+          resolution: { type: "string", minLength: 1 },
+        },
+        required: ["blockerId", "expectedVersion", "resolution"],
+        additionalProperties: false,
+      },
+      execute: (input, context) => {
+        const trusted = identity(context)
+        const currentTaskId = service.agentCurrentTaskId(trusted.threadId)
+        if (planning.read(currentTaskId).snapshot.blockers.every(({ id }) => id !== input.blockerId)) {
+          throw new AgentError("PERMISSION_DENIED", "只能解决当前关联任务的阻碍", 403)
+        }
+        return planning.resolveBlocker({ ...input, operationId: trusted.operationId })
+      },
+    },
+    {
+      ...base,
+      sdkName: "taskboard_link_current",
+      name: "taskboard.link.current",
+      schema: linkCurrentSchema,
+      description: "经用户确认后，把当前 invocation 会话关联到指定任务；不接受 threadId，关联后立即返回包含祖先的任务上下文。",
+      capabilities: capabilities(true),
+      approvalStrategy: "always-review",
+      allowedModes: ["chat"],
+      inputSchema: {
+        type: "object",
+        properties: {
+          taskId: { type: "string", format: "uuid" },
+          expectedVersion: { type: "integer", minimum: 1 },
+        },
+        required: ["taskId", "expectedVersion"],
+        additionalProperties: false,
+      },
+      execute: (input, context) => service.agentLinkCurrent({ ...identity(context), ...input }),
+    },
+  )
+  return definitions
+}

@@ -12,6 +12,7 @@ import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
 import { SideChatRepository } from "../repositories/side-chat-repository"
 import { threadRepository } from "../repositories/thread-repository"
 import { taskboardRepository } from "../repositories/taskboard-repository"
+import { TaskboardPlanningRepository } from "../repositories/taskboard-planning-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
 import { ArtifactRepository } from "../repositories/artifact-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
@@ -60,6 +61,7 @@ export class AgentDatabase extends RepositoryDatabase {
       throw cause
     }
     super(sqlite, profileSqlite)
+    const taskboard = taskboardRepository(this)
     this.repositories = {
       threads: threadRepository(this),
       executions: executionRepository(this),
@@ -72,7 +74,8 @@ export class AgentDatabase extends RepositoryDatabase {
       credentials: credentialRepositoryDatabase(this),
       context: new ContextRepository(this),
       turnPatches: new TurnPatchRepository(this),
-      taskboard: taskboardRepository(this),
+      taskboard,
+      planning: new TaskboardPlanningRepository(taskboard),
       runtimeCompositions: new RuntimeCompositionRepository(this),
     }
     this.artifacts = new ArtifactRepository(sqlite)
