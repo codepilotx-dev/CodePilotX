@@ -75,6 +75,11 @@ import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
 import { ModelPickerPopover } from "./ModelPickerPopover.js";
+import {
+  resolveThinkingLabel,
+  resolveThinkingOptions,
+  ThinkingLevelPopover,
+} from "./ThinkingLevelPopover.js";
 import { ComposerStatusOverlay } from "./ComposerStatusOverlay.js";
 import type {
   ComposerEditorHandle,
@@ -126,6 +131,7 @@ type ComposerDropdown =
   | "context"
   | "permission"
   | "model"
+  | "reasoning"
   | "project"
   | "mode"
   | "branch"
@@ -527,16 +533,14 @@ export function ComposerCard({
     : !modelConfigured
       ? "打开模型配置"
       : (selectedModel?.label ?? "未选择模型");
-  const selectedThinking = thinkingOptions.find(
-    (option) => option.value === thinkingMode,
+  const effectiveThinkingOptions = resolveThinkingOptions(
+    deepSeekThinkingControls,
+    thinkingOptions,
   );
-  const selectedThinkingLabel = deepSeekThinkingControls
-    ? thinkingMode === "disabled"
-      ? "思考关闭"
-      : thinkingMode === "enabled"
-        ? "超高"
-        : "高"
-    : (selectedThinking?.label ?? "默认");
+  const selectedThinkingLabel = resolveThinkingLabel(
+    effectiveThinkingOptions,
+    thinkingMode,
+  );
   const taskPlanningSkill = skillCommands.find(
     command => command.skill.name === "taskboard-planner",
   );
@@ -575,8 +579,9 @@ export function ComposerCard({
       canReview: Boolean(onStartReview && workspace),
       subagentMode,
       sessionBusy,
+      reasoningAvailable: showThinkingOptions,
       onOpenModel: () => setOpenDropdown("model"),
-      onOpenReasoning: () => setOpenDropdown("model"),
+      onOpenReasoning: () => setOpenDropdown("reasoning"),
       onOpenStatus: () => setOpenDropdown("status"),
       onOpenMcp: onOpenMcpSettings,
       onPlanModeChange,
@@ -1770,16 +1775,12 @@ export function ComposerCard({
             ) : null}
             <ModelPickerPopover
               align="end"
-              deepSeekThinkingControls={deepSeekThinkingControls}
               open={openDropdown === "model"}
               providerOptions={providerOptions}
               selectedModelPreset={selectedModelPreset}
               selectedProviderID={selectedProviderID}
-              showThinkingOptions={showThinkingOptions}
               side="top"
               sideOffset={4}
-              thinkingMode={thinkingMode}
-              thinkingOptions={thinkingOptions}
               trigger={
                 <ChipButton
                   active={openDropdown === "model"}
@@ -1790,11 +1791,6 @@ export function ComposerCard({
                   <span className="composer-model-chip-label">
                     {selectedModelLabel}
                   </span>
-                  {showThinkingOptions ? (
-                    <span className="composer-model-chip-thinking">
-                      {selectedThinkingLabel}
-                    </span>
-                  ) : null}
                 </ChipButton>
               }
               onOpenChange={(open) => {
@@ -1802,8 +1798,34 @@ export function ComposerCard({
               }}
               onProviderModelChange={onProviderModelChange}
               onProviderOpen={onProviderOpen}
-              onThinkingChange={onThinkingChange}
             />
+
+            {showThinkingOptions ? (
+              <ThinkingLevelPopover
+                align="end"
+                deepSeekThinkingControls={deepSeekThinkingControls}
+                open={openDropdown === "reasoning"}
+                side="top"
+                sideOffset={4}
+                thinkingMode={thinkingMode}
+                thinkingOptions={thinkingOptions}
+                trigger={
+                  <ChipButton
+                    active={openDropdown === "reasoning"}
+                    aria-label={`思考等级：${selectedThinkingLabel}`}
+                    className="subtle composer-thinking-chip"
+                    showChevron={false}
+                    title={`思考等级：${selectedThinkingLabel}`}
+                  >
+                    {selectedThinkingLabel}
+                  </ChipButton>
+                }
+                onOpenChange={(open) => {
+                  setOpenDropdown(open ? "reasoning" : null);
+                }}
+                onThinkingChange={onThinkingChange}
+              />
+            ) : null}
 
             {capabilities.dictation ? (
               <Suspense fallback={null}>

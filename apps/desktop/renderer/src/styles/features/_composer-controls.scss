@@ -309,8 +309,7 @@
       gap: var(--cpx-sys-space-1);
       padding: 0 var(--cpx-sys-space-2);
 
-      .permission-select-trigger-label,
-      .composer-model-chip-thinking {
+      .permission-select-trigger-label {
         display: none;
       }
     }
@@ -572,8 +571,7 @@
 }
 
 @container (max-width: 480px) {
-  .composer .permission-select-trigger-label,
-  .composer .composer-model-chip-thinking {
+  .composer .permission-select-trigger-label {
     display: none;
   }
 

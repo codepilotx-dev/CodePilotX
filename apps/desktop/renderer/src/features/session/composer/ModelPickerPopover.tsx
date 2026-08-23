@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { Check } from 'lucide-react'
-import type { DesktopThinkingMode, ModelProviderID } from '../../../../shared/types.js'
+import type { ModelProviderID } from '../../../../shared/types.js'
 import type { ModelPreset } from '../../../modelPresets.js'
 import { getModelDescription } from '../../../modelPresets.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
@@ -22,208 +22,11 @@ export type ModelPickerPopoverProps = {
   selectedProviderID?: ModelProviderID
   selectedModelPreset?: string
   providerOptions: ProviderModelOption[]
-  showThinkingOptions: boolean
-  deepSeekThinkingControls: boolean
-  thinkingMode: DesktopThinkingMode
-  thinkingOptions: Array<{ value: DesktopThinkingMode; label: string }>
-  onThinkingChange: (mode: DesktopThinkingMode) => void
   onProviderModelChange: (providerID: ModelProviderID, modelID: string) => void
   onProviderOpen?: (providerID: ModelProviderID) => void
   align?: 'start' | 'center' | 'end'
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
-}
-
-type ThickPillSliderProps = {
-  options: Array<{ value: DesktopThinkingMode; label: string }>
-  value: DesktopThinkingMode
-  onChange: (value: DesktopThinkingMode) => void
-}
-
-/**
- * 具有物理阻尼感（Damped Spring）与零闪烁 Pointer Capture 的厚胶囊离散滑块
- */
-function ThickPillSlider({
-  options,
-  value,
-  onChange,
-}: ThickPillSliderProps): React.ReactNode {
-  const trackRef = useRef<HTMLDivElement | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragProgress, setDragProgress] = useState<number | null>(null)
-
-  const currentIndex = Math.max(
-    0,
-    options.findIndex(opt => opt.value === value),
-  )
-  const totalSteps = options.length
-  const stepCount = Math.max(1, totalSteps - 1)
-
-  const activeRatio =
-    dragProgress !== null ? dragProgress : totalSteps > 1 ? currentIndex / stepCount : 0
-
-  const activeIndex = Math.round(activeRatio * stepCount)
-  const isMax = activeIndex === stepCount && totalSteps > 1
-
-  const computeRatio = (clientX: number): number => {
-    if (!trackRef.current) return 0
-    const rect = trackRef.current.getBoundingClientRect()
-    const trackPadding = 12
-    const usableWidth = Math.max(1, rect.width - trackPadding * 2)
-    const offsetX = clientX - rect.left - trackPadding
-    return Math.max(0, Math.min(1, offsetX / usableWidth))
-  }
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    trackRef.current?.setPointerCapture(e.pointerId)
-    setIsDragging(true)
-    const ratio = computeRatio(e.clientX)
-    setDragProgress(ratio)
-    const targetIdx = Math.round(ratio * stepCount)
-    if (options[targetIdx] && options[targetIdx].value !== value) {
-      onChange(options[targetIdx].value)
-    }
-  }
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return
-    const ratio = computeRatio(e.clientX)
-    setDragProgress(ratio)
-    const targetIdx = Math.round(ratio * stepCount)
-    if (options[targetIdx] && options[targetIdx].value !== value) {
-      onChange(options[targetIdx].value)
-    }
-  }
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return
-    try {
-      trackRef.current?.releasePointerCapture(e.pointerId)
-    } catch {
-      // ignore
-    }
-    const ratio = computeRatio(e.clientX)
-    const targetIdx = Math.round(ratio * stepCount)
-    setIsDragging(false)
-    setDragProgress(null)
-    if (options[targetIdx]) {
-      onChange(options[targetIdx].value)
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-      e.preventDefault()
-      const nextIdx = Math.min(stepCount, currentIndex + 1)
-      if (options[nextIdx]) onChange(options[nextIdx].value)
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-      e.preventDefault()
-      const nextIdx = Math.max(0, currentIndex - 1)
-      if (options[nextIdx]) onChange(options[nextIdx].value)
-    } else if (e.key === 'Home') {
-      e.preventDefault()
-      if (options[0]) onChange(options[0].value)
-    } else if (e.key === 'End') {
-      e.preventDefault()
-      if (options[stepCount]) onChange(options[stepCount].value)
-    }
-  }
-
-  return (
-    <div className="rm-picker-thick-slider-container">
-      <div
-        ref={trackRef}
-        aria-label="调节推理强度"
-        aria-valuemax={stepCount}
-        aria-valuemin={0}
-        aria-valuenow={activeIndex}
-        aria-valuetext={options[activeIndex]?.label}
-        className={cx('rm-thick-slider-track', isDragging && 'is-dragging')}
-        role="slider"
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
-        onPointerCancel={handlePointerUp}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-      >
-        {/* Background range fill */}
-        <div
-          className={cx(
-            'rm-thick-slider-range',
-            isDragging && 'is-dragging',
-            activeIndex === 0 && options[0]?.value === 'disabled' && 'is-disabled-level',
-          )}
-          style={{
-            width: `calc(20px + (100% - 24px) * ${activeRatio})`,
-          }}
-        />
-
-        {/* Tick Dots */}
-        {options.map((opt, index) => {
-          const dotRatio = stepCount > 0 ? index / stepCount : 0
-          const isPassed = index <= activeIndex
-          const isCurrent = index === activeIndex
-          return (
-            <span
-              key={opt.value}
-              className={cx(
-                'rm-thick-slider-dot',
-                isPassed && 'is-passed',
-                isCurrent && 'is-current',
-              )}
-              style={{
-                left: `calc(12px + (100% - 24px) * ${dotRatio})`,
-              }}
-            />
-          )
-        })}
-
-        {/* Thumb */}
-        <div
-          className={cx('rm-thick-slider-thumb', isDragging && 'is-dragging')}
-          style={{
-            left: `calc(2px + (100% - 24px) * ${activeRatio})`,
-          }}
-        />
-      </div>
-
-      <div className="rm-thick-slider-footer">
-        <span
-          className="rm-thick-slider-footer-left"
-          role="button"
-          tabIndex={0}
-          onClick={() => {
-            if (options[0]) onChange(options[0].value)
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              if (options[0]) onChange(options[0].value)
-            }
-          }}
-        >
-          更快
-        </span>
-        <span
-          className="rm-thick-slider-footer-right"
-          role="button"
-          tabIndex={0}
-          onClick={() => {
-            if (options[stepCount]) onChange(options[stepCount].value)
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              if (options[stepCount]) onChange(options[stepCount].value)
-            }
-          }}
-        >
-          更智能
-        </span>
-      </div>
-    </div>
-  )
 }
 
 export function ModelPickerPopover({
@@ -233,11 +36,6 @@ export function ModelPickerPopover({
   selectedProviderID,
   selectedModelPreset,
   providerOptions,
-  showThinkingOptions,
-  deepSeekThinkingControls,
-  thinkingMode,
-  thinkingOptions,
-  onThinkingChange,
   onProviderModelChange,
   onProviderOpen,
   align = 'end',
@@ -272,25 +70,6 @@ export function ModelPickerPopover({
       providerOptions[0]
     )
   }, [providerOptions, activeProviderID])
-
-  const effectiveThinkingOptions = useMemo(() => {
-    if (deepSeekThinkingControls) {
-      return [
-        { value: 'disabled' as DesktopThinkingMode, label: '关闭' },
-        { value: 'default' as DesktopThinkingMode, label: '高' },
-        { value: 'enabled' as DesktopThinkingMode, label: '超高' },
-      ]
-    }
-    return thinkingOptions
-  }, [deepSeekThinkingControls, thinkingOptions])
-
-  const currentThinkingIndex = Math.max(
-    0,
-    effectiveThinkingOptions.findIndex(opt => opt.value === thinkingMode),
-  )
-
-  const currentThinkingLabel =
-    effectiveThinkingOptions[currentThinkingIndex]?.label ?? '默认'
 
   const trimmedQuery = searchQuery.trim().toLowerCase()
 
@@ -331,7 +110,7 @@ export function ModelPickerPopover({
       <Popover.Portal>
         <Popover.Content
           align={align}
-          aria-label="模型与推理设置"
+          aria-label="选择模型"
           className="popover-surface rm-model-picker-panel tw:text-app-text"
           collisionPadding={8}
           side={side}
@@ -341,23 +120,6 @@ export function ModelPickerPopover({
             event.preventDefault()
           }}
         >
-          {/* 顶部：带真实物理阻尼感与平滑吸附的厚胶囊滑块 */}
-          {showThinkingOptions ? (
-            <div className="rm-model-picker-header">
-              <div className="rm-picker-thinking-section">
-                <div className="rm-picker-section-title-row">
-                  <span className="rm-picker-section-title">推理强度</span>
-                  <span className="rm-picker-section-value">{currentThinkingLabel}</span>
-                </div>
-                <ThickPillSlider
-                  options={effectiveThinkingOptions}
-                  value={thinkingMode}
-                  onChange={onThinkingChange}
-                />
-              </div>
-            </div>
-          ) : null}
-
           {/* 搜索框 */}
           <div className="rm-model-picker-search">
             <SearchInput

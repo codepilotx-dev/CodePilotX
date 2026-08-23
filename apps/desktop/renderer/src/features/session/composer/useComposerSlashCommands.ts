@@ -14,6 +14,7 @@ type UseComposerSlashCommandsOptions = {
   canReview: boolean
   subagentMode: boolean
   sessionBusy: boolean
+  reasoningAvailable: boolean
   onOpenModel: () => void
   onOpenReasoning: () => void
   onOpenStatus: () => void
@@ -34,6 +35,7 @@ export function useComposerSlashCommands({
   canReview,
   subagentMode,
   sessionBusy,
+  reasoningAvailable,
   onOpenModel,
   onOpenReasoning,
   onOpenStatus,
@@ -64,10 +66,10 @@ export function useComposerSlashCommands({
       command('model', '模型', '选择当前任务使用的模型', true, true, onOpenModel),
       command(
         'reasoning',
-        '推理',
-        '选择当前任务的推理强度',
-        true,
-        true,
+        '思考等级',
+        '选择当前任务的思考等级',
+        reasoningAvailable,
+        reasoningAvailable,
         onOpenReasoning,
       ),
       command(
@@ -148,6 +150,7 @@ export function useComposerSlashCommands({
       onOpenStatus,
       onPlanModeChange,
       planModeActive,
+      reasoningAvailable,
       sessionBusy,
       subagentMode,
     ],

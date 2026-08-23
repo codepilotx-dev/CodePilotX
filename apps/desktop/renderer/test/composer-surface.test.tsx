@@ -4,6 +4,10 @@ import type { DesktopWorkspace } from '../shared/types.js'
 import { ComposerCard } from '../src/features/session/composer/ComposerCard.js'
 import type { ComposerSkillCommand } from '../src/features/session/composer/composerSlashCommands.js'
 import {
+  resolveThinkingLabel,
+  resolveThinkingOptions,
+} from '../src/features/session/composer/ThinkingLevelPopover.js'
+import {
   resolveActiveComposerSkillToken,
   resolveComposerCanSubmit,
 } from '../src/features/session/composer/useDesktopComposerController.js'
@@ -38,6 +42,9 @@ function composerCardProps(
     sessionStatus: 'idle',
     permissionMode: 'default',
     thinkingMode: 'default',
+    showThinkingOptions: false,
+    deepSeekThinkingControls: false,
+    showContextUsage: false,
     selectedProviderID: 'anthropic',
     selectedModelPreset: 'default',
     modelPresets: [],
@@ -161,6 +168,48 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('未配置模型')
     expect(html).toContain('>配置模型<')
     expect(html).not.toContain('class="rm-empty"')
+  })
+
+  test('模型与思考等级渲染为两个独立按钮', () => {
+    const html = renderToStaticMarkup(
+      <ComposerCard
+        {...composerCardProps({
+          modelConfigured: true,
+          modelPresets: [
+            { id: 'claude-sonnet', label: 'Claude Sonnet', value: 'claude-sonnet' },
+          ],
+          selectedModelPreset: 'claude-sonnet',
+          showThinkingOptions: true,
+          thinkingMode: 'adaptive',
+          thinkingOptions: [
+            { value: 'disabled', label: '低' },
+            { value: 'default', label: '中' },
+            { value: 'adaptive', label: '高' },
+            { value: 'enabled', label: '超高' },
+          ],
+        })}
+      />,
+    )
+
+    expect(html).toContain('composer-model-chip')
+    expect(html).toContain('>Claude Sonnet</span>')
+    expect(html).toContain('class="interactive-row interactive-row--composer chip-button subtle composer-thinking-chip"')
+    expect(html).toContain('aria-label="思考等级：高"')
+    expect(html).toContain('>高</button>')
+    expect(html).not.toContain('composer-model-chip-thinking')
+  })
+
+  test('不支持思考等级时隐藏等级按钮并保留现有等级映射', () => {
+    const html = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ showThinkingOptions: false })} />,
+    )
+    const regularOptions = composerCardProps().thinkingOptions
+    const deepSeekOptions = resolveThinkingOptions(true, regularOptions)
+
+    expect(html).not.toContain('composer-thinking-chip')
+    expect(resolveThinkingLabel(regularOptions, 'default')).toBe('默认')
+    expect(deepSeekOptions.map(option => option.label)).toEqual(['关闭', '高', '超高'])
+    expect(resolveThinkingLabel(deepSeekOptions, 'enabled')).toBe('超高')
   })
 
   test('Working 仅在任务规划 Skill 可用时显示插件入口', () => {
