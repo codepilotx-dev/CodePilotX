@@ -9,17 +9,19 @@ function readRendererFile(path: string): string {
 }
 
 describe('workbench chrome contract', () => {
-  test('synchronizes the rendered title bar with the native overlay', () => {
-    const provider = readRendererFile(
-      'src/features/theme/DesktopThemeProvider.tsx',
+  test('keeps the renderer title bar at a deterministic logical height', () => {
+    const shell = readRendererFile(
+      'src/features/layout/shell/WorkbenchShellView.tsx',
     )
-    const preloadContract = readRendererFile('src/global.d.ts')
+    const tokens = readRendererFile(
+      'src/styles/design-system/tokens.scss',
+    )
 
-    expect(provider).toContain("querySelector<HTMLElement>('.desktop-menubar')")
-    expect(provider).toContain('getBoundingClientRect().height')
-    expect(provider).toContain('new ResizeObserver(sync)')
-    expect(provider).toContain('lastPayloadRef.current')
-    expect(preloadContract).toContain('DesktopAppearanceIpcBridge')
+    expect(shell).toContain('className="desktop-menubar tw:shrink-0"')
+    expect(shell).not.toContain('updateTitleBarOverlay')
+    expect(shell).not.toContain('getBoundingClientRect().height')
+    expect(tokens).toContain('--application-menubar-height: 36px')
+    expect(tokens).not.toContain('env(titlebar-area-height')
   })
 
   test('keeps application chrome separate from the workspace toolbar', () => {

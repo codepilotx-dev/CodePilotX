@@ -42,7 +42,9 @@ export function WorkbenchShellView({
       data-auxiliary-maximized={auxiliaryMaximized}
       data-resize-active={resizeActive}
     >
-      <div className="desktop-menubar tw:shrink-0">{menuBar}</div>
+      <div className="desktop-menubar tw:shrink-0">
+        {menuBar}
+      </div>
       <div
         className="app-body tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden"
         ref={appBodyRef}

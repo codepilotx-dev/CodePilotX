@@ -5,14 +5,7 @@ export const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   saveSettings: "appearance:settings:save",
   getSystemTheme: "appearance:system-theme:get",
   systemThemeChanged: "appearance:system-theme:changed",
-  updateTitleBarOverlay: "appearance:titlebar-overlay:update",
 } as const
-
-export interface DesktopTitleBarOverlay {
-  backgroundColor: string
-  foregroundColor: string
-  height: number
-}
 
 export interface DesktopAppearanceIpcBridge<CodeThemeId extends string = string> {
   getAppearanceSettings(): Promise<DesktopThemeSettingsV7<CodeThemeId>>
@@ -23,5 +16,4 @@ export interface DesktopAppearanceIpcBridge<CodeThemeId extends string = string>
   onSystemThemeChange(
     listener: (variant: DesktopThemeVariant) => void,
   ): () => void
-  updateTitleBarOverlay(overlay: DesktopTitleBarOverlay): Promise<void>
 }

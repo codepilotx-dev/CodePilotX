@@ -8,7 +8,6 @@ import {
   type WebContents,
 } from "electron"
 import type { DesktopChromeTheme } from "@codepilotx/shared/desktop-theme"
-import type { DesktopTitleBarOverlay } from "@codepilotx/shared/desktop-appearance-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { rendererConsoleRecord } from "../logging/renderer-console.js"
 import {
@@ -29,6 +28,7 @@ import {
   WindowStateStore,
 } from "./window-state.js"
 import { isDevToolsShortcut } from "./devtools-shortcut.js"
+import { createWindowsTitleBarOverlay } from "./title-bar-overlay.js"
 
 const APPLICATION_LOAD_TIMEOUT_MS = 20_000
 
@@ -214,15 +214,7 @@ export class WindowManager {
     }
   }
 
-  updateTitleBarOverlayTheme(theme: { surface: string; ink: string }): void {
-    this.updateTitleBarOverlay({
-      backgroundColor: theme.surface,
-      foregroundColor: theme.ink,
-      height: 40,
-    })
-  }
-
-  updateTitleBarOverlay(overlay: DesktopTitleBarOverlay): void {
+  updateTitleBarOverlayTheme(theme: { ink: string }): void {
     const mainWindow = this.#mainWindow
     if (
       process.platform === "win32"
@@ -230,11 +222,7 @@ export class WindowManager {
       && !mainWindow.isDestroyed()
     ) {
       try {
-        mainWindow.setTitleBarOverlay({
-          color: overlay.backgroundColor,
-          symbolColor: overlay.foregroundColor,
-          height: overlay.height,
-        })
+        mainWindow.setTitleBarOverlay(createWindowsTitleBarOverlay(theme.ink))
       } catch (error) {
         this.#logger.warn("desktop.set-title-bar-overlay-failed", { error })
       }
@@ -252,11 +240,7 @@ export class WindowManager {
       show: false,
       titleBarStyle: "hidden",
       titleBarOverlay: process.platform === "win32"
-        ? {
-            color: this.#options.startupTheme.theme.surface,
-            symbolColor: this.#options.startupTheme.theme.ink,
-            height: 40,
-          }
+        ? createWindowsTitleBarOverlay(this.#options.startupTheme.theme.ink)
         : false,
       backgroundColor: this.#options.startupTheme.theme.surface,
       autoHideMenuBar: true,

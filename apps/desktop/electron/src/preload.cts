@@ -77,10 +77,7 @@ import type {
   DesktopShellIpcBridge,
 } from "@codepilotx/shared/desktop-shell-ipc"
 import type { DesktopStartupIpcBridge } from "@codepilotx/shared/desktop-startup-ipc"
-import type {
-  DesktopAppearanceIpcBridge,
-  DesktopTitleBarOverlay,
-} from "@codepilotx/shared/desktop-appearance-ipc"
+import type { DesktopAppearanceIpcBridge } from "@codepilotx/shared/desktop-appearance-ipc"
 import type {
   DesktopDeepLinkIpcBridge,
   DesktopThreadDeepLinkPayload,
@@ -208,7 +205,6 @@ const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   saveSettings: "appearance:settings:save",
   getSystemTheme: "appearance:system-theme:get",
   systemThemeChanged: "appearance:system-theme:changed",
-  updateTitleBarOverlay: "appearance:titlebar-overlay:update",
 } as const satisfies typeof import("@codepilotx/shared/desktop-appearance-ipc").DESKTOP_APPEARANCE_IPC_CHANNELS
 
 const DESKTOP_DEEP_LINK_IPC_CHANNELS = {
@@ -483,11 +479,6 @@ const desktop = {
         handler,
       )
   },
-  updateTitleBarOverlay: (overlay: DesktopTitleBarOverlay): Promise<void> =>
-    ipcRenderer.invoke(
-      DESKTOP_APPEARANCE_IPC_CHANNELS.updateTitleBarOverlay,
-      overlay,
-    ),
   openPetOverlay: (): Promise<void> =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.open),
   hidePetOverlay: (): Promise<void> =>

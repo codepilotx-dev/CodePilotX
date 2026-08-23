@@ -60,7 +60,6 @@ export function DesktopThemeProvider({
   committedSettingsRef.current = settings
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingSavesRef = useRef(0)
-  const titleBarOverlayPayloadRef = useRef('')
   const [draftSaving, setDraftSaving] = useState(false)
   const [systemVariant, setSystemVariant] =
     useState<DesktopThemeVariant>(getSystemThemeVariant)
@@ -139,7 +138,6 @@ export function DesktopThemeProvider({
       draftResolvedVariant,
       systemReduceMotion,
     )
-    return synchronizeTitleBarOverlay(titleBarOverlayPayloadRef)
   }, [
     draftResolvedVariant,
     draftSettings,
@@ -319,58 +317,6 @@ export function DesktopThemeProvider({
       {children}
     </DesktopThemeContext.Provider>
   )
-}
-
-function synchronizeTitleBarOverlay(
-  lastPayloadRef: { current: string },
-): () => void {
-  const update = window.codePilotXDesktop?.updateTitleBarOverlay
-  if (!update) return () => undefined
-
-  let animationFrame = 0
-  const sync = (): void => {
-    cancelAnimationFrame(animationFrame)
-    animationFrame = requestAnimationFrame(() => {
-      const titleBar = document.querySelector<HTMLElement>('.desktop-menubar')
-      if (!titleBar) return
-      const styles = getComputedStyle(titleBar)
-      const backgroundColor = cssColorToHex(styles.backgroundColor)
-      const foregroundColor = cssColorToHex(
-        styles.color || getComputedStyle(document.documentElement)
-          .getPropertyValue('--cpx-sys-color-fg-primary'),
-      )
-      const height = Math.round(titleBar.getBoundingClientRect().height)
-      if (!backgroundColor || !foregroundColor || height < 24 || height > 80) return
-      const payload = { backgroundColor, foregroundColor, height }
-      const serialized = JSON.stringify(payload)
-      if (serialized === lastPayloadRef.current) return
-      lastPayloadRef.current = serialized
-      void update(payload).catch(() => undefined)
-    })
-  }
-
-  sync()
-  const titleBar = document.querySelector<HTMLElement>('.desktop-menubar')
-  const observer = titleBar && typeof ResizeObserver !== 'undefined'
-    ? new ResizeObserver(sync)
-    : null
-  if (titleBar) observer?.observe(titleBar)
-  window.addEventListener('resize', sync)
-  return () => {
-    cancelAnimationFrame(animationFrame)
-    observer?.disconnect()
-    window.removeEventListener('resize', sync)
-  }
-}
-
-export function cssColorToHex(value: string): string | null {
-  const color = value.trim()
-  if (/^#[0-9a-f]{6}$/i.test(color)) return color.toLowerCase()
-  const match = /^rgba?\(\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)(?:\s*[,/]\s*[\d.]+)?\s*\)$/i.exec(color)
-  if (!match) return null
-  const channels = match.slice(1, 4).map(channel => Number(channel))
-  if (channels.some(channel => channel < 0 || channel > 255)) return null
-  return `#${channels.map(channel => channel.toString(16).padStart(2, '0')).join('')}`
 }
 
 function applyDesktopTheme(

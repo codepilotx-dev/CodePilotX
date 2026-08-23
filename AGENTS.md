@@ -86,6 +86,15 @@
 - 新代码不得继续扩大 2000 行以上的聚合组件；修改现有超大组件时，优先抽出本次涉及的独立职责。
 - 不得无意改变视觉设计、快捷键、焦点、主题、reduced-motion、popover 定位或会话恢复行为。
 
+### Windows 标题栏契约
+
+- Windows 主窗口继续使用 `titleBarStyle: "hidden"` 与 Electron Window Controls Overlay：Renderer 绘制标题栏，Windows/Electron 只绘制原生最小化、最大化和关闭按钮；未经明确架构决策，不得改回完整原生标题栏或全自绘窗口按钮。
+- 应用菜单栏与 Windows 原生窗口控制区的逻辑基准高度统一为 `36px`。Renderer 必须直接使用该确定值，不得从 `env(titlebar-area-height)` 或 DOM 实测高度反向改写 Window Controls Overlay。
+- Window Controls Overlay 背景必须保持完全透明，由 Renderer 的 `.desktop-menubar` 在原生按钮下方连续绘制标题栏背景；Electron 只同步主题图标色。`surfaceUnder` 只用于启动页与窗口底层，不得用作 Overlay 实色背景。
+- 当前没有应用级缩放时，Electron 的 Overlay 高度固定为 `36`；后续新增缩放时只允许 Renderer 上报缩放倍率，并由主进程计算 `Math.round(36 * zoom)`，禁止上报颜色或 DOM 高度。
+- 修改菜单栏高度、标题栏主题 token、应用缩放或 Window Controls Overlay 时，必须同时检查 Electron 确定性 Overlay 配置与 Renderer 高度 token，禁止建立 DOM 与 Electron 之间的高度反馈环。
+- Electron 主进程和 preload 的标题栏修改不能只依赖 Vite 热更新验收；必须完整重启桌面开发进程，并在 Windows 的浅色、深色及自定义主题下确认右上角无颜色断层、无高度跳变且窗口按钮行为不变。
+
 ### Packages
 
 - 保留现有包名和 workspace 边界。
