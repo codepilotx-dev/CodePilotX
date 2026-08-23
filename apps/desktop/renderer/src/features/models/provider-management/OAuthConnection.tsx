@@ -30,6 +30,9 @@ export function OAuthConnection({
     onError: setError,
   })
   const prompt = auth.session?.prompt
+  const active = auth.session
+    ? ['running', 'waiting'].includes(auth.session.status)
+    : false
   const notices = auth.session?.notices ?? []
   const authUrlNotice = [...notices].reverse().find(
     notice => notice.type === 'auth_url',
@@ -55,10 +58,15 @@ export function OAuthConnection({
 
       <div className="model-center-account-fields">
         <div className="model-center-account-actions">
-          <Button color="primary" loading={auth.busy} onClick={() => void auth.start()}>
+          <Button
+            color="primary"
+            disabled={active}
+            loading={auth.busy && !prompt}
+            onClick={() => void auth.start()}
+          >
             {connected ? '重新授权' : '开始授权'}
           </Button>
-          {auth.session && ['running', 'waiting'].includes(auth.session.status) ? (
+          {active ? (
             <Button color="secondary" onClick={() => void auth.cancel()}>取消</Button>
           ) : null}
         </div>

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { createDesktopClient } from '../src/services/desktop-client/index.js'
 import {
   catalogProviderToDesktop,
+  desktopProviderExecutionError,
   isExecutableDesktopProvider,
 } from '../src/services/desktop-client/provider-adapters.js'
 
@@ -89,6 +90,14 @@ describe('desktop provider client', () => {
     })
     expect(isExecutableDesktopProvider(ready)).toBe(true)
     expect(isExecutableDesktopProvider(unavailable)).toBe(false)
+    expect(desktopProviderExecutionError(unavailable)).toContain('协议或 Endpoint')
+    expect(desktopProviderExecutionError({ ...ready, enabled: false })).toContain('已禁用')
+    expect(desktopProviderExecutionError({
+      ...ready,
+      defaultModels: [],
+      modelCount: 0,
+    })).toContain('暂无可用模型')
+    expect(desktopProviderExecutionError(ready)).toBeNull()
   })
 
   describe('models.dev logo URL', () => {

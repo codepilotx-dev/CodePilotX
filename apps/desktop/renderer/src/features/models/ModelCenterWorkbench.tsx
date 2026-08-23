@@ -2,7 +2,10 @@ import {
   desktopClient,
   desktopClipboard,
 } from "../../services/desktop-client/index.js";
-import { isExecutableDesktopProvider } from "../../services/desktop-client/provider-adapters.js";
+import {
+  desktopProviderExecutionError,
+  isExecutableDesktopProvider,
+} from "../../services/desktop-client/provider-adapters.js";
 import { withModelCatalogLoading } from "../../hooks/useModelCatalogLoading.js";
 import React, { useEffect, useMemo, useState } from "react";
 import type {
@@ -425,8 +428,9 @@ export function ModelCenterWorkbench({
   }
 
   async function testConnection(): Promise<void> {
-    if (!selectedProvider || !isExecutableDesktopProvider(selectedProvider)) {
-      onError("此 Provider 的协议尚未适配，无法测试连接。");
+    const executionError = desktopProviderExecutionError(selectedProvider);
+    if (executionError) {
+      onError(executionError);
       return;
     }
     setBusy(true);
@@ -836,7 +840,7 @@ export function ModelCenterWorkbench({
                 setEditorProviderId(providerID);
               }}
               onRefresh={async () => {
-                await providerManagementStore.refreshConnections();
+                await providerManagementStore.refresh();
               }}
               onSetActiveKey={(key) =>
                 mutateKey(

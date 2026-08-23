@@ -5,7 +5,7 @@ import { PiAuthSessionService } from "../src/auth/PiAuthSessionService"
 const waitFor = async (
   service: PiAuthSessionService,
   sessionID: string,
-  status: "waiting" | "complete" | "cancelled" | "expired",
+  status: "waiting" | "complete" | "failed" | "cancelled" | "expired",
 ) => {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const session = service.status(sessionID)
@@ -106,5 +106,43 @@ describe("PiAuthSessionService", () => {
       providerId: "fixture",
     })
     expect((await waitFor(service, expired.id, "expired")).status).toBe("expired")
+  })
+
+  test("完成同步结束后才公开 complete 状态", async () => {
+    let finishSync: (() => void) | undefined
+    const sync = new Promise<void>((resolve) => {
+      finishSync = resolve
+    })
+    const updates: string[] = []
+    const service = new PiAuthSessionService({
+      resolveTarget: () => ({ models: models(async () => {}), providerID: "fixture" }),
+      onCompleted: () => sync,
+      onUpdated: (session) => {
+        updates.push(session.status)
+      },
+    })
+
+    const session = await service.start({ kind: "provider", providerId: "fixture" })
+    await Bun.sleep(5)
+    expect(service.status(session.id).status).toBe("running")
+    expect(updates).not.toContain("complete")
+
+    finishSync?.()
+    expect((await waitFor(service, session.id, "complete")).status).toBe("complete")
+    expect(updates.at(-1)).toBe("complete")
+  })
+
+  test("完成同步失败时返回经过清理的 failed 状态", async () => {
+    const service = new PiAuthSessionService({
+      resolveTarget: () => ({ models: models(async () => {}), providerID: "fixture" }),
+      onCompleted: () => {
+        throw new Error("同步失败 Authorization: Bearer oauth-access-secret")
+      },
+    })
+
+    const session = await service.start({ kind: "provider", providerId: "fixture" })
+    const failed = await waitFor(service, session.id, "failed")
+    expect(failed.error).toContain("同步失败")
+    expect(failed.error).not.toContain("oauth-access-secret")
   })
 })

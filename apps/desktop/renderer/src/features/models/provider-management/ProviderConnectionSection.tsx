@@ -30,6 +30,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
 import { fullErrorMessage } from '../../../utils/errors.js'
 import {
   providerManagementStore,
@@ -360,7 +361,7 @@ export function ProviderConnectionSection({
         </div>
         <Button
           color="secondary"
-          disabled={busy}
+          disabled={busy || !isExecutableDesktopProvider(provider)}
           onClick={() => void onTestConnection()}
         >
           <Cable aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />

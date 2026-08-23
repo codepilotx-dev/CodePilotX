@@ -484,6 +484,7 @@ export class PiModelService {
     await this.syncProviders();
     await this.pi.refresh({ allowNetwork: false });
     await this.restoreModelsDevCache();
+    this.catalogVersion += 1;
   }
 
   catalogStatus(): Provider.CatalogSourceStatus {

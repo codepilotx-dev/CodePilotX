@@ -115,6 +115,32 @@ describe("EncryptedCredentialStore", () => {
 })
 
 describe("PiModelService", () => {
+  test("reload advances catalog revision and re-evaluates OAuth model availability", async () => {
+    const fake = repository()
+    const service = new PiModelService(fake.adapter, { env: {} })
+    const beforeRevision = service.catalogRevision()
+
+    expect((await service.models("openai-codex" as never)).some((model) => model.enabled)).toBe(false)
+    fake.values.set("openai-codex", {
+      id: "cred_openai_codex",
+      integrationID: "openai-codex",
+      methodID: "openai-codex:oauth",
+      label: "OAuth",
+      value: {
+        type: "oauth",
+        methodID: "openai-codex:oauth" as never,
+        refresh: "oauth-refresh-secret",
+        access: "oauth-access-secret",
+        expires: Date.now() + 60_000,
+      },
+    })
+
+    await service.reload()
+
+    expect(service.catalogRevision()).toBeGreaterThan(beforeRevision)
+    expect((await service.models("openai-codex" as never)).some((model) => model.enabled)).toBe(true)
+  })
+
   test("reports configured API key, OAuth, environment, and auth-free providers", async () => {
     const fake = repository([
       {

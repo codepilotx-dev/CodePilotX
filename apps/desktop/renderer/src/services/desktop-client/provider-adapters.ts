@@ -84,6 +84,22 @@ export function isExecutableDesktopProvider(
     && (provider.modelCount ?? provider.defaultModels.length) > 0
 }
 
+export function desktopProviderExecutionError(
+  provider: DesktopModelProviderSummary | undefined,
+): string | null {
+  if (!provider) return '此 Provider 的状态尚未加载，暂时无法测试连接。'
+  if (provider.availability?.status === 'unavailable') {
+    return '此 Provider 的协议或 Endpoint 尚未适配，无法测试连接。'
+  }
+  if (provider.enabled === false) {
+    return '此 Provider 已禁用，请先启用后再测试连接。'
+  }
+  if ((provider.modelCount ?? provider.defaultModels.length) <= 0) {
+    return '此 Provider 暂无可用模型，请等待凭据和模型目录同步后重试。'
+  }
+  return null
+}
+
 function isProviderApi(
   value: string,
 ): value is 'openai-completions' | 'openai-responses' | 'anthropic-messages' {

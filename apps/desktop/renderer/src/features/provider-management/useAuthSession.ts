@@ -30,8 +30,23 @@ export function useAuthSession({
   }, [])
 
   const applySession = useCallback(async (next: DesktopAuthSession) => {
+    const previousPromptID = sessionRef.current?.prompt?.id
     sessionRef.current = next
     setSession(next)
+
+    if (next.status === 'waiting') {
+      setBusy(false)
+
+      if (next.prompt?.id !== previousPromptID) {
+        setValue(
+          next.prompt?.type === 'select'
+            ? next.prompt.options?.[0]?.id ?? ''
+            : '',
+        )
+      }
+      return
+    }
+
     if (next.status === 'complete') {
       setBusy(false)
       setValue('')
