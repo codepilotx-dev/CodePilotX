@@ -77,7 +77,10 @@ import type {
   DesktopShellIpcBridge,
 } from "@codepilotx/shared/desktop-shell-ipc"
 import type { DesktopStartupIpcBridge } from "@codepilotx/shared/desktop-startup-ipc"
-import type { DesktopAppearanceIpcBridge } from "@codepilotx/shared/desktop-appearance-ipc"
+import type {
+  DesktopAppearanceIpcBridge,
+  DesktopStartupThemeSeed,
+} from "@codepilotx/shared/desktop-appearance-ipc"
 import type {
   DesktopDeepLinkIpcBridge,
   DesktopThreadDeepLinkPayload,
@@ -204,8 +207,15 @@ const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   getSettings: "appearance:settings:get",
   saveSettings: "appearance:settings:save",
   getSystemTheme: "appearance:system-theme:get",
+  getStartupThemeSeed: "appearance:startup-theme-seed:get",
   systemThemeChanged: "appearance:system-theme:changed",
 } as const satisfies typeof import("@codepilotx/shared/desktop-appearance-ipc").DESKTOP_APPEARANCE_IPC_CHANNELS
+
+applyStartupThemeSeed(
+  ipcRenderer.sendSync(
+    DESKTOP_APPEARANCE_IPC_CHANNELS.getStartupThemeSeed,
+  ) as unknown,
+)
 
 const DESKTOP_DEEP_LINK_IPC_CHANNELS = {
   consumePending: "desktop-deep-link:consume-pending",
@@ -628,6 +638,50 @@ const desktop = {
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)
+
+function applyStartupThemeSeed(value: unknown): void {
+  if (!isStartupThemeSeed(value)) return
+
+  const applyToRoot = (root: HTMLElement): void => {
+    root.dataset.theme = value.variant
+    root.style.colorScheme = value.variant
+    root.style.setProperty("--startup-splash-background", value.surface)
+    root.style.setProperty("--startup-splash-foreground", value.ink)
+  }
+  const root = document.documentElement
+  if (root) {
+    applyToRoot(root)
+  } else {
+    const observer = new MutationObserver(() => {
+      const nextRoot = document.documentElement
+      if (!nextRoot) return
+      applyToRoot(nextRoot)
+      observer.disconnect()
+    })
+    observer.observe(document, { childList: true })
+  }
+
+  const updateThemeColor = (): void => {
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      "content",
+      value.surface,
+    )
+  }
+  updateThemeColor()
+  document.addEventListener("DOMContentLoaded", updateThemeColor, { once: true })
+}
+
+function isStartupThemeSeed(value: unknown): value is DesktopStartupThemeSeed {
+  if (!isRecord(value)) return false
+  return value.version === 1
+    && (value.variant === "light" || value.variant === "dark")
+    && isSixDigitHexColor(value.surface)
+    && isSixDigitHexColor(value.ink)
+}
+
+function isSixDigitHexColor(value: unknown): value is `#${string}` {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)

@@ -340,6 +340,7 @@ async function startDesktop(): Promise<void> {
     appearanceSettings,
     appearance,
     new AppearanceSettingsStore(app.getPath("userData"), logger),
+    sender => windows?.isMainSender(sender) === true,
   )
   registerDataLocationIpc({
     store: dataLocationStore,

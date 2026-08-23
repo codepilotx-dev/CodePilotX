@@ -3,6 +3,7 @@ import {
   type DesktopChromeTheme,
   type DesktopThemeSettingsV7,
 } from "@codepilotx/shared/desktop-theme"
+import type { DesktopStartupThemeSeed } from "@codepilotx/shared/desktop-appearance-ipc"
 
 export type StartupStatusKind = "progress" | "terminal-error"
 
@@ -30,19 +31,12 @@ export function deriveSurfaceUnder(
 
 export const RENDERER_STARTUP_THEME_QUERY_PARAM = "cpx-startup-theme"
 
-export interface RendererStartupThemeSeed {
-  version: 1
-  variant: "light" | "dark"
-  surface: `#${string}`
-  ink: `#${string}`
-}
-
 export function createRendererApplicationUrl(
   applicationOrigin: string,
   startupTheme: Omit<StartupPageOptions, "logoDataUrl">,
 ): string {
   const target = new URL(applicationOrigin)
-  const seed: RendererStartupThemeSeed = {
+  const seed: DesktopStartupThemeSeed = {
     version: 1,
     variant: startupTheme.variant,
     surface: startupTheme.theme.surface,
