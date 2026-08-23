@@ -2,7 +2,7 @@ import { spawn } from "node:child_process"
 import { randomBytes } from "node:crypto"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { app, ipcMain, nativeTheme, screen, session, shell } from "electron"
+import { app, clipboard, ipcMain, nativeTheme, screen, session, shell } from "electron"
 import electronUpdater from "electron-updater"
 import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
@@ -19,6 +19,10 @@ import { registerBrowserIpc } from "./ipc/register-browser-ipc.js"
 import { ExternalOpenTargetService } from "./ipc/external-open-targets.js"
 import { AttachmentDownloadService } from "./ipc/attachment-download-service.js"
 import { ComposerPathGrantService } from "./ipc/composer-path-grant-service.js"
+import {
+  createDesktopClipboardService,
+  createDesktopClipboardTimer,
+} from "./clipboard/desktop-clipboard-service.js"
 import {
   createDesktopLogger,
   resolveDesktopLogDirectory,
@@ -287,6 +291,16 @@ async function startDesktop(): Promise<void> {
     logger,
   })
 
+  const clipboardService = createDesktopClipboardService({
+    adapter: {
+      writeText: text => clipboard.writeText(text),
+      writeRichText: ({ text, html }) => clipboard.write({ text, html }),
+      readText: () => clipboard.readText(),
+      clear: () => clipboard.clear(),
+    },
+    timer: createDesktopClipboardTimer(),
+  })
+
   registerDesktopIpc({
     windows,
     logger,
@@ -294,6 +308,7 @@ async function startDesktop(): Promise<void> {
     updater,
     attachmentDownloads,
     composerPathGrants,
+    clipboardService,
     getSupervisor: () => supervisor,
     getLogDirectory: () => logger?.directory ?? logDirectory,
     quitDuringStartup: () => app.quit(),

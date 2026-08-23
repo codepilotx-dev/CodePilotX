@@ -1,5 +1,4 @@
 import {
-  clipboard,
   dialog,
   ipcMain,
   shell,
@@ -27,8 +26,13 @@ import {
 import { DESKTOP_WINDOW_IPC_CHANNELS } from "@codepilotx/shared/desktop-window-ipc"
 import { DESKTOP_WORKSPACE_IPC_CHANNELS } from "@codepilotx/shared/desktop-workspace-ipc"
 import { DESKTOP_SHELL_IPC_CHANNELS } from "@codepilotx/shared/desktop-shell-ipc"
-import { DESKTOP_API_KEY_IPC_CHANNELS } from "@codepilotx/shared/desktop-api-key-ipc"
+import {
+  DESKTOP_CLIPBOARD_IPC_CHANNELS,
+  requireDesktopClipboardRichTextInput,
+  requireDesktopClipboardTextInput,
+} from "@codepilotx/shared/desktop-clipboard-ipc"
 import { DESKTOP_STARTUP_IPC_CHANNELS } from "@codepilotx/shared/desktop-startup-ipc"
+import type { DesktopClipboardService } from "../clipboard/desktop-clipboard-service.js"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { isSafeExternalUrl } from "../security/navigation.js"
 import {
@@ -44,8 +48,6 @@ import type { ExternalOpenTargetService } from "./external-open-targets.js"
 import type { AttachmentDownloadService } from "./attachment-download-service.js"
 import type { ComposerPathGrantService } from "./composer-path-grant-service.js"
 
-const API_KEY_CLIPBOARD_CLEAR_DELAY_MS = 60_000 as const
-
 interface DesktopIpcDependencies {
   windows: WindowManager
   logger: DesktopLogger
@@ -53,6 +55,7 @@ interface DesktopIpcDependencies {
   updater: DesktopAutoUpdater
   attachmentDownloads: AttachmentDownloadService
   composerPathGrants: ComposerPathGrantService
+  clipboardService: DesktopClipboardService
   getSupervisor: () => SidecarSupervisor | undefined
   getLogDirectory: () => string
   quitDuringStartup: () => void
@@ -70,6 +73,7 @@ export function registerDesktopIpc(
     updater,
     attachmentDownloads,
     composerPathGrants,
+    clipboardService,
     getSupervisor,
     getLogDirectory,
     quitDuringStartup,
@@ -201,29 +205,43 @@ export function registerDesktopIpc(
       return saved
     },
   )
-  ipcMain.handle(DESKTOP_API_KEY_IPC_CHANNELS.copy, async (event, credentialId: unknown) => {
-    requireMainWindowSender(event, windows)
-    const supervisor = requireSupervisor(getSupervisor())
-    if (
-      typeof credentialId !== "string"
-      || credentialId.length < 1
-      || credentialId.length > 200
-      || !/^[A-Za-z0-9._:-]+$/.test(credentialId)
-    ) {
-      throw new Error("API Key 凭据 ID 无效")
-    }
-    const response = await supervisor.request(
-      `/api/desktop/api-keys/${encodeURIComponent(credentialId)}/copy-material`,
-      { method: "POST" },
-    )
-    const payload = await response.json() as { key?: unknown }
-    const material = requireApiKeyMaterial(payload.key)
-    clipboard.writeText(material)
-    setTimeout(() => {
-      if (clipboard.readText() === material) clipboard.clear()
-    }, API_KEY_CLIPBOARD_CLEAR_DELAY_MS).unref()
-    return { clearAfterMs: API_KEY_CLIPBOARD_CLEAR_DELAY_MS }
-  })
+  ipcMain.handle(
+    DESKTOP_CLIPBOARD_IPC_CHANNELS.writeText,
+    (event, input: unknown) => {
+      requireMainWindowSender(event, windows)
+      const { text } = requireDesktopClipboardTextInput(input)
+      clipboardService.writeText(text)
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_CLIPBOARD_IPC_CHANNELS.writeRichText,
+    (event, input: unknown) => {
+      requireMainWindowSender(event, windows)
+      clipboardService.writeRichText(requireDesktopClipboardRichTextInput(input))
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_CLIPBOARD_IPC_CHANNELS.copyProviderApiKey,
+    async (event, credentialId: unknown) => {
+      requireMainWindowSender(event, windows)
+      const supervisor = requireSupervisor(getSupervisor())
+      if (
+        typeof credentialId !== "string"
+        || credentialId.length < 1
+        || credentialId.length > 200
+        || !/^[A-Za-z0-9._:-]+$/.test(credentialId)
+      ) {
+        throw new Error("API Key 凭据 ID 无效")
+      }
+      const response = await supervisor.request(
+        `/api/desktop/api-keys/${encodeURIComponent(credentialId)}/copy-material`,
+        { method: "POST" },
+      )
+      const payload = await response.json() as { key?: unknown }
+      const material = requireApiKeyMaterial(payload.key)
+      return clipboardService.writeSensitiveText(material)
+    },
+  )
   ipcMain.handle(DESKTOP_SHELL_IPC_CHANNELS.openExternal, async (event, url: unknown) => {
     requireMainWindowSender(event, windows)
     if (typeof url !== "string" || !isSafeExternalUrl(url)) {

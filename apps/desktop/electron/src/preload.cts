@@ -62,6 +62,12 @@ import type {
   SetDesktopBrowserVisibleInput,
 } from "@codepilotx/shared/desktop-browser-ipc"
 import type {
+  DesktopClipboardIpcBridge,
+  DesktopClipboardRichTextInput,
+  DesktopClipboardTextInput,
+  DesktopSensitiveClipboardResult,
+} from "@codepilotx/shared/desktop-clipboard-ipc"
+import type {
   DesktopMicrophoneIpcBridge,
 } from "@codepilotx/shared/desktop-microphone-ipc"
 import type { DesktopWindowIpcBridge } from "@codepilotx/shared/desktop-window-ipc"
@@ -70,7 +76,6 @@ import type {
   DesktopExternalOpenTarget,
   DesktopShellIpcBridge,
 } from "@codepilotx/shared/desktop-shell-ipc"
-import type { DesktopApiKeyIpcBridge } from "@codepilotx/shared/desktop-api-key-ipc"
 import type { DesktopStartupIpcBridge } from "@codepilotx/shared/desktop-startup-ipc"
 import type { DesktopAppearanceIpcBridge } from "@codepilotx/shared/desktop-appearance-ipc"
 import type {
@@ -184,9 +189,11 @@ const DESKTOP_SHELL_IPC_CHANNELS = {
   revealPathInFolder: "shell:reveal-path-in-folder",
 } as const satisfies typeof import("@codepilotx/shared/desktop-shell-ipc").DESKTOP_SHELL_IPC_CHANNELS
 
-const DESKTOP_API_KEY_IPC_CHANNELS = {
-  copy: "api-key:copy",
-} as const satisfies typeof import("@codepilotx/shared/desktop-api-key-ipc").DESKTOP_API_KEY_IPC_CHANNELS
+const DESKTOP_CLIPBOARD_IPC_CHANNELS = {
+  writeText: "clipboard:write-text",
+  writeRichText: "clipboard:write-rich-text",
+  copyProviderApiKey: "clipboard:copy-provider-api-key",
+} as const satisfies typeof import("@codepilotx/shared/desktop-clipboard-ipc").DESKTOP_CLIPBOARD_IPC_CHANNELS
 
 const DESKTOP_STARTUP_IPC_CHANNELS = {
   openLogs: "startup:open-logs",
@@ -435,10 +442,17 @@ const desktop = {
     return () =>
       ipcRenderer.removeListener(DESKTOP_TERMINAL_IPC_CHANNELS.event, handler)
   },
+  writeClipboardText: (input: DesktopClipboardTextInput): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_CLIPBOARD_IPC_CHANNELS.writeText, input),
+  writeClipboardRichText: (input: DesktopClipboardRichTextInput): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_CLIPBOARD_IPC_CHANNELS.writeRichText, input),
   copyProviderApiKey: (
     credentialId: string,
-  ): Promise<{ clearAfterMs: 60000 }> =>
-    ipcRenderer.invoke(DESKTOP_API_KEY_IPC_CHANNELS.copy, credentialId),
+  ): Promise<DesktopSensitiveClipboardResult> =>
+    ipcRenderer.invoke(
+      DESKTOP_CLIPBOARD_IPC_CHANNELS.copyProviderApiKey,
+      credentialId,
+    ),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openExternal, url),
   listExternalOpenTargets: (targetPath: string): Promise<DesktopExternalOpenTarget[]> =>
     ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.listExternalOpenTargets, targetPath),
@@ -607,7 +621,7 @@ const desktop = {
   & DesktopWindowIpcBridge
   & DesktopWorkspaceIpcBridge
   & DesktopShellIpcBridge
-  & DesktopApiKeyIpcBridge
+  & DesktopClipboardIpcBridge
   & DesktopStartupIpcBridge
   & DesktopAppearanceIpcBridge
   & DesktopDeepLinkIpcBridge

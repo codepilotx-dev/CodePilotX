@@ -14,7 +14,7 @@ import type { DesktopBrowserIpcBridge } from '@codepilotx/shared/desktop-browser
 import type { DesktopWindowIpcBridge } from '@codepilotx/shared/desktop-window-ipc'
 import type { DesktopWorkspaceIpcBridge } from '@codepilotx/shared/desktop-workspace-ipc'
 import type { DesktopShellIpcBridge } from '@codepilotx/shared/desktop-shell-ipc'
-import type { DesktopApiKeyIpcBridge } from '@codepilotx/shared/desktop-api-key-ipc'
+import type { DesktopClipboardIpcBridge } from '@codepilotx/shared/desktop-clipboard-ipc'
 import type { DesktopStartupIpcBridge } from '@codepilotx/shared/desktop-startup-ipc'
 import type { DesktopAppearanceIpcBridge } from '@codepilotx/shared/desktop-appearance-ipc'
 import type { DesktopDeepLinkIpcBridge } from '@codepilotx/shared/desktop-deep-link-ipc'
@@ -47,7 +47,7 @@ declare global {
       & DesktopWindowIpcBridge
       & DesktopWorkspaceIpcBridge
       & DesktopShellIpcBridge
-      & DesktopApiKeyIpcBridge
+      & DesktopClipboardIpcBridge
       & DesktopStartupIpcBridge
       & DesktopAppearanceIpcBridge<DesktopThemeSettings['codeThemeIds']['light']>
       & DesktopDeepLinkIpcBridge
